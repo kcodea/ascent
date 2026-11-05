@@ -15,6 +15,7 @@ import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
 import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetailsText';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './matchDetails.css';
 
 /**
@@ -267,6 +268,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
  */
 export function MatchDetailsDialog({ details, onClose }: { details: MatchDetails; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  usePhLayer(true, onClose);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();

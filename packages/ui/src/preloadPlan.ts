@@ -101,6 +101,8 @@ const EXTRA_ART: string[] = Object.values({
   ...(import.meta.glob('./art/emotes/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob(['./art/pings/*.webp', '!./art/pings/inspect.webp'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('./art/versus/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  // The party home's painted ornaments (DEV-only prototype: production draws none of it, so it preloads none).
+  ...(import.meta.env.DEV ? import.meta.glob('./partyHome/ornaments/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string> : {}),
 });
 
 /** Every public image a stylesheet draws as a `mask` (`artPlanCoverage.test.ts` checks the list against styles.css). */

@@ -1,10 +1,10 @@
-import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
-import { Card, mdBold, type CardView } from './Card';
+import { Card, inspectViewOf, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
 import { rubyLiveText } from './instView';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
@@ -14,17 +14,27 @@ import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker
 import { CompendiumGuides } from './guides/CompendiumGuides';
 import { guidesFor } from './guides/guides';
 import { loadGuides, ownsMine, useGuides, type GuidesTab } from './guides/guidesStore';
-import { artFor, heroArt, runeArt } from './art';
+import { artFor, heroArt, heroPowerArt, heroThumb, runeArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
 import { mechMedallionSrc } from './mechMedallion';
 import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordGlossary';
 import { detectCardKeywords } from './detectCardKeywords';
-import { useGame } from './store';
+import { isPreRun, useGame } from './store';
 import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+import { lastTouchWasTap } from './touchInput';
+import { openRuneInspect } from './runeInspectStore';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 import './compendium.css';
+
+/** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
+ *  the module registers the page with the shell's route; the mount itself renders nothing. */
+const PhCompendiumMount = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumMount }))) : null;
+/** The same page as an overlay over a match (switch on, in a game). */
+const PhCompendiumOverlay = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhCompendium').then((m) => ({ default: m.PhCompendiumOverlay }))) : null;
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
  *  Tara → Taragosa). Detected from the SOURCE cards actually in the given set's pool (ascend targets +
@@ -259,11 +269,11 @@ function refViewsFor(id: string, liveRun?: RunState): CardView[] | undefined {
  *  a tier toggle re-renders only the cells that appear or go, never the whole wall; and lazy (bookLazy.tsx), so a card
  *  mounts only when it nears the viewport. Its view and its hover previews are built here, once, for this card only
  *  (they used to be rebuilt for every in-scope card on every open). */
-const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean }) {
+const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager, press }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean; press?: boolean }) {
   const view = useMemo(() => toView(card, gilded, liveRun), [card, gilded, liveRun]);
   const refs = useMemo(() => refViewsFor(card.id, liveRun), [card.id, liveRun]);
   const duosTag = isDuosOnly(card);
-  return <LazyCell eager={eager}>{() => <><Card card={view} forceFull suppressPop plated refCards={refs} />{duosTag && <DuosTag />}</>}</LazyCell>;
+  return <LazyCell eager={eager}>{() => <><Card card={view} forceFull suppressPop plated refCards={refs} {...(press ? { onClick: () => useGame.getState().inspectCard(inspectViewOf(view, undefined)) } : {})} />{duosTag && <DuosTag />}</>}</LazyCell>;
 });
 
 /** The Compendium subtitle while the Guides tab is up: what the chosen pill is showing. */
@@ -282,6 +292,67 @@ function compendiumSetPickerEnabled(): boolean {
   return import.meta.env.DEV;
 }
 
+const BOOK_VIEW_KEY = 'ascent.compendium.view';
+const BOOK_CATS_KEY = 'ascent.compendium.cats';
+function readBookCats(): Set<Category> {
+  try { const v: unknown = JSON.parse(localStorage.getItem(BOOK_CATS_KEY) ?? '[]'); return new Set(Array.isArray(v) ? (v as Category[]) : []); } catch { return new Set(); }
+}
+function readBookView(): CompendiumView {
+  try { const v = localStorage.getItem(BOOK_VIEW_KEY); return v === 'rules' || v === 'glossary' || v === 'guides' ? v : 'cards'; } catch { return 'cards'; }
+}
+
+/** A hero under the shell's Compendium: the portrait melts into the plate, the name and Health sit on it, the power below. */
+const PhHeroTile = memo(function PhHeroTile({ h, onOpen }: { h: (typeof HEROES)[number]; onOpen?: (h: (typeof HEROES)[number]) => void }) {
+  const art = heroThumb(heroArt(h.id));
+  const pw = heroThumb(heroPowerArt(h.id));
+  return (
+    <article className="phh" {...(onOpen ? {
+      role: 'button', tabIndex: 0, 'aria-label': `${h.name}. Open`,
+      onClick: () => onOpen(h),
+      onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onOpen(h); },
+      onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(h); } },
+    } : {})}>
+      <div className="phh-top">
+        {art && <img className="phh-art" decoding="sync" src={art} alt="" draggable={false} />}
+        <div className="phh-who">
+          <span className="phh-name">{h.name}</span>
+          <span className="phh-vitals">
+            <span className="phh-hp" aria-label={`${h.resolve} starting Health`}><Icon name="heart" />{h.resolve}</span>
+            {h.armor > 0 && <span className="phh-armor" aria-label={`${h.armor} starting Armor`}><Icon name="shield" />{h.armor}</span>}
+          </span>
+        </div>
+      </div>
+      <div className="phh-power">
+        <div className="phh-pwhead">
+          {pw && <img className="phh-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
+          <span className="phh-pwname">{h.power.name}</span>
+        </div>
+        <p className="phh-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
+        {h.power.unlockWave && h.power.unlockWave > 1 && <span className="phh-lock">Unlocks turn {h.power.unlockWave}</span>}
+      </div>
+    </article>
+  );
+});
+
+/** A hero's large view: the same window every other Compendium entry opens. */
+function PhHeroPop({ h, onClose }: { h: (typeof HEROES)[number]; onClose: () => void }) {
+  usePhLayer(true, onClose);
+  return (
+    <div className="inspect-ov phh-pop" role="dialog" aria-modal="true" aria-label={h.name} onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="phh-popbox" onClick={(e) => e.stopPropagation()}><PhHeroTile h={h} /></div>
+    </div>
+  );
+}
+
+/** The Compendium's views: the card gallery, or one of the three codex panels. */
+export type CompendiumView = 'cards' | 'rules' | 'glossary' | 'guides';
+/** What a host frame receives (see `frame`). */
+export interface CompendiumParts {
+  subtitle: string; controls: ReactNode; body: ReactNode; view: CompendiumView; pickView: (v: CompendiumView) => void;
+  /** A text panel (Rules / Glossary) is up: the card controls are empty. */
+  codex: boolean;
+}
+
 /**
  * The Compendium (Tab) — a filterable codex of minions + spells: the whole card set when opened from the
  * title (pre-run), or scoped to the active run's tribes once a run is underway. A blurred
@@ -290,7 +361,20 @@ function compendiumSetPickerEnabled(): boolean {
  * for the enlarged inspect (the global Inspect overlay handles it). UI-only — reads `run.pool`'s eligibility
  * rule (neutral + active tribes) off `BUYABLE_CARDS` so the contents stay stable as you buy/sell.
  */
-export function MinionBook() {
+/** `frame` (the app shell's Compendium page, partyHome/pages/PhCompendium.tsx): render the book's parts inside the host's
+ *  own page instead of the overlay window. Every filter, view and state is the book's own; only the framing changes. */
+export function MinionBook({ frame }: { frame?: (parts: CompendiumParts) => ReactNode } = {}) {
+  // THE APP SHELL (party home prototype, DEV switch): on the menus the Compendium is a page under the top nav.
+  const shell = usePartyHome();
+  const onMenus = useGame(isPreRun);
+  // The shell's route (PhBookNav) mounts the page itself; loading PhCompendium registers it (setCompendiumPage).
+  if (!frame && shell && onMenus && PhCompendiumMount) return <Suspense fallback={null}><PhCompendiumMount /></Suspense>;
+  // In a game: one design, the same page, as an overlay over the match.
+  if (!frame && shell && !onMenus && PhCompendiumOverlay) return <Suspense fallback={null}><PhCompendiumOverlay /></Suspense>;
+  return <BookView frame={frame} />;
+}
+
+function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) {
   const run = useGame((s) => s.run);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
@@ -329,7 +413,8 @@ export function MinionBook() {
   const QUEST_REWARD_IDS = useMemo(() => new Set(QUEST_REWARD_CARDS.map((x) => x.card.id)), [QUEST_REWARD_CARDS]);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
-  const [cats, setCats] = useState<Set<Category>>(() => new Set());
+  const [cats, setCats] = useState<Set<Category>>(() => (frame ? readBookCats() : new Set()));
+  const [heroPop, setHeroPop] = useState<(typeof HEROES)[number] | null>(null);
   const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
   // The filters read a DEFERRED copy (perf 2026-10-09): the box updates on the keystroke, the gallery a beat later at
   // low priority, and an older filter pass is dropped when a newer keystroke lands.
@@ -342,12 +427,15 @@ export function MinionBook() {
     try { const v = Number(localStorage.getItem('ascent.bookzoom')); return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1; } catch { return 1; }
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
-  const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
-  const [rules, setRules] = useState(() => useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
+  // THE SHELL reopens on the last view, like Patch Notes and Settings (one key, the menus and a game alike); a request for a
+  // given view (Rules, a guide to edit) wins.
+  const [openView] = useState<CompendiumView>(() => (frame && useGame.getState().bookOpensTo !== 'rules' && useGuides.getState().pendingEdit === null ? readBookView() : 'cards'));
+  const [glossary, setGlossary] = useState(openView === 'glossary'); // swap the gallery for the keyword codex
+  const [rules, setRules] = useState(() => openView === 'rules' || useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
   // THE GUIDES VIEW (owner 2026-10-09): a header toggle beside Glossary ("move the guides button to the top next to
   // glossary"), exclusive with Rules / Glossary and with the left-rail tabs. Unlike those two codex panels it keeps the
   // tier bar (its chart space carries the guides' tribe pills, its end the set picker) and the search box.
-  const [guidesOn, setGuidesOn] = useState(() => useGuides.getState().pendingEdit !== null);
+  const [guidesOn, setGuidesOn] = useState(() => openView === 'guides' || useGuides.getState().pendingEdit !== null);
   const codex = glossary || rules; // a text panel is up: the card-gallery controls (search, Gilded, zoom) step aside
   const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
@@ -615,7 +703,7 @@ export function MinionBook() {
   const liveRun = browsingRun ? run : undefined;
   // The gallery scroller, the root the lazy cells observe; and how many cells mount up front (about two rows).
   const [gridEl, setGridEl] = useState<HTMLDivElement | null>(null);
-  const eagerN = useMemo(() => eagerCellCount(zoom), [zoom]);
+  const eagerN = useMemo(() => (frame ? Math.min(12, eagerCellCount(zoom)) : eagerCellCount(zoom)), [zoom, frame]); // the shell's first screen shows about 12; the rest mount a few a frame
   // (The previews are built per mounted card, in BookCardCell.)
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
@@ -635,9 +723,22 @@ export function MinionBook() {
 
   const toggleTier = (t: number): void =>
     setTiers((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; });
-  const toggleCat = (c: Category): void => {
+  const toggleCat = (c: Category, add = false): void => {
     // A rail tab while Guides is up leaves Guides for that tab (it selects it fresh, not toggled off).
     if (guidesOn) { setGuidesOn(false); setCats(new Set([c])); return; }
+    // THE SHELL's RAIL: one behaviour for the whole rail, and what is lit is what shows. A plain press switches to that row,
+    // and a press on the lit row goes back to All minions. Ctrl / Shift + press adds or drops a tribe, among tribes only.
+    if (frame) {
+      setCats((prev) => {
+        if (add && !NON_TRIBE_CATS.has(c)) {
+          const next = new Set([...prev].filter((x) => !NON_TRIBE_CATS.has(x)));
+          if (next.has(c)) next.delete(c); else next.add(c);
+          return next;
+        }
+        return prev.size === 1 && prev.has(c) ? new Set() : new Set([c]);
+      });
+      return;
+    }
     setCats((prev) => { const next = new Set(prev); if (next.has(c)) next.delete(c); else next.add(c); return next; });
   };
 
@@ -652,86 +753,81 @@ export function MinionBook() {
     setGuidesOn(false);
   };
 
-  return (
-    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
-      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
-      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
-      <div className="book" onClick={(e) => e.stopPropagation()}>
-        {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
-            top one over the title, the foot one under the gallery. Decorative, inert. */}
-        <span className="book-crest" aria-hidden="true" />
-        <span className="book-crest book-crest-foot" aria-hidden="true" />
-        {/* THE HEADER (polish 2026-10-09): a three-part title bar under the frame's crest. Left, the three views as
-            menu tabs; centre, the name and the live subtitle; right, search, card size and close. */}
-        <div className="book-head">
-          <div className="book-head-l">
-            <div className="book-views" role="group" aria-label="Compendium views">
-              <button
-                className={`book-gloss book-rules${rules ? ' on' : ''}`}
-                onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
-                aria-pressed={rules}
-                aria-description="Rules. Search how anything in the game works."
-              >
-                <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
-              </button>
-              <button
-                className={`book-gloss${glossary ? ' on' : ''}`}
-                onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
-                aria-pressed={glossary}
-                aria-description="Glossary. Every keyword and trigger, defined."
-              >
-                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/glossary.webp`} alt="" draggable={false} /> Glossary
-              </button>
-              <button
-                className={`book-gloss${guidesOn ? ' on' : ''}`}
-                onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
-                aria-pressed={guidesOn}
-                aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
-              >
-                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} /> Guides
-              </button>
-            </div>
-          </div>
-          <div className="book-head-c">
-            <div className="book-titleblock">
-              <div className="book-titletext">
-                <div className="book-title">Compendium</div>
-                <div className="book-sub">
-                  {rules
-                    ? 'Rules & how-to. Search any question.'
-                    : glossary
-                    ? 'Keywords & abilities. Click one to see its minions.'
-                    : query && guidesOn
-                      // The Guides tab says what its pill shows. The Community list is searched on the server, so it
-                      // has no count here.
-                      ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' || guideTab === 'reports' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
-                    : query
-                      ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
-                          (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
-                        } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
-                    : guidesOn
-                      ? guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, false)
-                    : cats.has('heroes')
-                      ? `${heroesToShow.length} heroes. Every champion and their power.`
-                      : cats.has('runes')
-                      ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
-                      : cats.has('quests')
-                      ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
-                      : `${filtered.length} ${
-                          [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
-                            .filter(Boolean)
-                            .join(' & ') || 'minions'
-                        } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="book-head-r">
+  useEffect(() => {
+    if (!frame) return;
+    try { localStorage.setItem(BOOK_VIEW_KEY, rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards'); } catch { /* a convenience only */ }
+  }, [frame, rules, glossary, guidesOn]);
+  // ...and the rail with it. A row this set does not have goes back to All minions.
+  useEffect(() => {
+    if (!frame) return;
+    if ([...cats].some((c) => !categories.includes(c))) { setCats(new Set()); return; }
+    try { localStorage.setItem(BOOK_CATS_KEY, JSON.stringify([...cats])); } catch { /* a convenience only */ }
+  }, [frame, cats, categories]);
+
+  // THE SHELL: every rail, filter, search or view change starts at the top of its list. Before paint, so no jump shows.
+  useLayoutEffect(() => {
+    if (!frame) return;
+    for (const el of document.querySelectorAll('.phb-book :is(.book-grid, .bookguides, .book-gloss-body, .wiki-list)')) el.scrollTop = 0;
+  }, [frame, cats, tiers, kw, rules, glossary, guidesOn, runeTribes, runeForges, guideTribes, guideTab, searchQ, duos, setId]);
+
+  // THE SHELL on touch: the whole cell answers a finger, the plate's edge and the gap round the card too (the card's own tap
+  // opens the large view); and a held rune opens its large view like a tapped one.
+  const cellTap = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!lastTouchWasTap()) return;
+    const t = e.target as Element;
+    if (t.closest('.card, .runecard')) return;
+    // A plate overhangs its cell, so a press in the gap between cells goes to the nearest card (one read, on a tap only).
+    const near = (): Element | undefined => {
+      let best: Element | undefined; let min = Infinity;
+      for (const c of e.currentTarget.querySelectorAll('.book-cell')) {
+        const r = c.getBoundingClientRect();
+        const d = Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom));
+        if (d < min) { min = d; best = c; }
+      }
+      return best;
+    };
+    (t.closest('.book-cell') ?? near())?.querySelector<HTMLElement>('.card, .runecard')?.click();
+  };
+  const runeHold = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    (e.target as Element).closest<HTMLElement>('.runecard')?.click();
+  };
+
+  // The book's three PARTS, so a host can frame them its own way (the app shell's page, `frame` below): the live
+  // subtitle, the header controls (search + card size) and the body (a codex panel, or the tier row + rail + gallery).
+  const subtitle: string = rules
+      ? 'Rules & how-to. Search any question.'
+      : glossary
+      ? 'Keywords & abilities. Click one to see its minions.'
+      : query && guidesOn
+        // The Guides tab says what its pill shows. The Community list is searched on the server, so it
+        // has no count here.
+        ? `${guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, true)}${guideTab === 'community' || guideTab === 'reports' ? '' : ` for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`}`
+      : query
+        ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+            (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
+          } for "${searchQ.trim().replace(/^"(.*)"$/, '$1')}"`
+      : guidesOn
+        ? guidesSubtitle(guideTab, guidesToShow.length, SETS[setId].name, false)
+      : cats.has('heroes')
+        ? `${heroesToShow.length} heroes. Every champion and their power.`
+        : cats.has('runes')
+        ? (frame ? `${runesToShow.length} runes in this set` : `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`)
+        : cats.has('quests')
+        ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
+        : `${filtered.length} ${
+            [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
+              .filter(Boolean)
+              .join(' & ') || 'minions'
+          } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`;
+  const controls = (
+    <>
+      {frame && !codex && showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
             {!codex && (
               <input
                 className="book-search"
                 type="search"
-                placeholder={'Search… (Imp, or "Imp" exact)'}
+                placeholder={frame ? 'Search' : 'Search… (Imp, or "Imp" exact)'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search cards, quests, and runes by name or text"
@@ -754,12 +850,10 @@ export function MinionBook() {
                 >+</button>
               </div>
             )}
-            <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
-
-          </div>
-        </div>
-
-        {rules ? (
+    </>
+  );
+  const body = (
+        rules ? (
           <CompendiumRules />
         ) : glossary ? (
           /* The glossary panel — replaces the tier bar + gallery with the keyword codex. */
@@ -795,7 +889,7 @@ export function MinionBook() {
             filter at the far right. ALWAYS rendered — it used to unmount on the Runes / Heroes tabs (their pools
             aren't tiered), which dropped the whole window by a row every time you switched (owner report
             2026-09-18). Now the bar holds its place; on those tabs the chips dim and the chart goes quiet. */}
-        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}`}>
+        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}${ownGalleryTab && !guidesOn && !cats.has('runes') && !kw && (frame || !showSetPicker) ? ' is-bare' : ''}`}>
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
             <button
@@ -926,13 +1020,13 @@ export function MinionBook() {
           {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER (dev only), always
               last. Not rendered at all when it would be empty, so a player build's tribe pills centre in the space
               right of Gilded instead of leaving a gap where the picker was. */}
-          {(kw || showSetPicker) && <div className="book-tiers-end">
+          {(kw || (showSetPicker && !frame)) && <div className="book-tiers-end">
             {kw && (
               <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
                 {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
               </button>
             )}
-            {showSetPicker && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
+            {showSetPicker && !frame && <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />}
           </div>}
         </div>
 
@@ -943,11 +1037,21 @@ export function MinionBook() {
               <Fragment key={c}>
                 {/* Group captions (polish 2026-10-09): the minion tribes first, then the other galleries. */}
                 {i === 0 && <span className="book-railcap">Minions</span>}
+                {i === 0 && frame && (
+                  <button
+                    className={`book-cat phb-all${!guidesOn && cats.size === 0 ? ' on' : ''}`}
+                    style={{ '--c': 'var(--ui-title)' } as CSSProperties}
+                    onClick={() => { setGuidesOn(false); setCats(new Set()); }}
+                    aria-pressed={!guidesOn && cats.size === 0}
+                  >
+                    <span className="book-catlabel">All minions</span>
+                  </button>
+                )}
                 {c === 'spells' && <span className="book-railcap">Library</span>}
                 <button
                   className={`book-cat${!guidesOn && cats.has(c) ? ' on' : ''}`}
                   style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
-                  onClick={() => toggleCat(c)}
+                  onClick={(e) => toggleCat(c, e.ctrlKey || e.metaKey || e.shiftKey)}
                   aria-pressed={!guidesOn && cats.has(c)}
                   aria-label={CAT_META[c].label}
                 >
@@ -966,7 +1070,15 @@ export function MinionBook() {
             <CompendiumGuides guides={guidesToShow} tribes={tribes} setTribes={SETS[setId].tribes} run={liveRun} setId={setId} pillTribes={guidePills} search={searchQ} />
           ) : cats.has('heroes') ? (
             heroesToShow.length > 0 ? (
-              <div className="book-grid is-heroes">
+          frame ? (
+            <div key="heroes" className="book-grid is-heroes phh-grid" ref={setGridEl}>
+              {/* The rows on screen plus half a screen: the rest mount ahead of the scroll, a few a frame. */}
+              <LazyRootProvider root={gridEl} lookahead="50%">
+                {heroesToShow.map((h, i) => <LazyCell key={h.id} eager={i < eagerN}>{() => <PhHeroTile h={h} onOpen={setHeroPop} />}</LazyCell>)}
+              </LazyRootProvider>
+            </div>
+          ) : (
+          <div className="book-grid is-heroes">
                 {heroesToShow.map((h) => {
                   const art = heroArt(h.id);
                   return (
@@ -990,14 +1102,15 @@ export function MinionBook() {
                   );
                 })}
               </div>
+              )
             ) : (
               <div className="book-empty">No heroes match your search.</div>
             )
           ) : cats.has('runes') ? (
-            <div className="book-grid is-runes" ref={setGridEl}>
+            <div className="book-grid is-runes" ref={setGridEl} onClick={frame ? cellTap : undefined} onContextMenu={frame ? runeHold : undefined}>
               <LazyRootProvider root={gridEl}>
                 {runesToShow.map((r, i) => (
-                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
+                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={frame ? () => openRuneInspect({ rune: r, affordable: false, pick: NOOP, fromBook: true }) : NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
                 ))}
               </LazyRootProvider>
             </div>
@@ -1016,19 +1129,81 @@ export function MinionBook() {
           ) : filtered.length > 0 ? (
             // `--book-zoom` scales the grid's card metrics (see styles.css); `plated` gives every card the
             // same carved PLATE it wears in hand, so the Compendium reads as the game does (owner 2026-08-02).
-            <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties}>
+            <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties} onClick={frame ? cellTap : undefined}>
               <LazyRootProvider root={gridEl}>
                 {filtered.map((c, i) => (
-                  <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} />
+                  <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} press={!!frame} />
                 ))}
               </LazyRootProvider>
             </div>
           ) : (
             <div className="book-empty">No cards match these filters.</div>
           )}
+          {frame && heroPop && <PhHeroPop h={heroPop} onClose={() => setHeroPop(null)} />}
         </div>
           </>
-        )}
+        )
+  );
+  const view: CompendiumView = rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards';
+  const pickView = (v: CompendiumView): void => { setRules(v === 'rules'); setGlossary(v === 'glossary'); setGuidesOn(v === 'guides'); };
+  if (frame) return <>{frame({ subtitle, controls, body, view, pickView, codex })}</>;
+
+  return (
+    <div className="book-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close."
+      onMouseDown={(e) => { pressBeganOnSurround.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (pressBeganOnSurround.current && e.target === e.currentTarget) closeBook(); }}>
+      <div className="book" onClick={(e) => e.stopPropagation()}>
+        {/* The window's painted frame (the Runeforge frame's corners + rails, compendium.css) carries two crests: the
+            top one over the title, the foot one under the gallery. Decorative, inert. */}
+        <span className="book-crest" aria-hidden="true" />
+        <span className="book-crest book-crest-foot" aria-hidden="true" />
+        {/* THE HEADER (polish 2026-10-09): a three-part title bar under the frame's crest. Left, the three views as
+            menu tabs; centre, the name and the live subtitle; right, search, card size and close. */}
+        <div className="book-head">
+          <div className="book-head-l">
+            <div className="book-views" role="group" aria-label="Compendium views">
+              <button
+                className={`book-gloss book-rules${rules ? ' on' : ''}`}
+                onClick={() => { setRules((r) => !r); setGlossary(false); setGuidesOn(false); }}
+                aria-pressed={rules}
+                aria-description="Rules. Search how anything in the game works."
+              >
+                <img className="book-rules-ico" decoding="sync" src={rulesQuestionArt} alt="" draggable={false} /> Rules
+              </button>
+              <button
+                className={`book-gloss${glossary ? ' on' : ''}`}
+                onClick={() => { setGlossary((g) => !g); setRules(false); setGuidesOn(false); }}
+                aria-pressed={glossary}
+                aria-description="Glossary. Every keyword and trigger, defined."
+              >
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/glossary.webp`} alt="" draggable={false} /> Glossary
+              </button>
+              <button
+                className={`book-gloss${guidesOn ? ' on' : ''}`}
+                onClick={() => { setGuidesOn((g) => !g); setRules(false); setGlossary(false); }}
+                aria-pressed={guidesOn}
+                aria-description="Guides. Build guides for this set, the same ones as the lobby rail."
+              >
+                <img className="book-rules-ico" decoding="sync" src={`${import.meta.env.BASE_URL}menu/guides.webp`} alt="" draggable={false} /> Guides
+              </button>
+            </div>
+          </div>
+          <div className="book-head-c">
+            <div className="book-titleblock">
+              <div className="book-titletext">
+                <div className="book-title">Compendium</div>
+                <div className="book-sub">{subtitle}</div>
+              </div>
+            </div>
+          </div>
+          <div className="book-head-r">
+            {controls}
+            <button className="book-close" onClick={closeBook} aria-label="Close (Tab / Esc)">✕</button>
+
+          </div>
+        </div>
+
+        {body}
       </div>
     </div>
   );

@@ -1,0 +1,551 @@
+/* ── THE PARTY HOME, A PROTOTYPE (owner 2026-11-02; DEV only, PartyHome.tsx) ─────────────────────────────────────────────
+   Built only from the shell tokens (shell/shell.css: `--phu`, `--ph-t1..t5`, `--ph-clip`, the metals) so it reads as the
+   same app as the nav and every page under it. Valorant's party layout: nav, mode tabs, the party's tall cards in the
+   centre, START bottom centre, friends docked right. Spacing is a strict 8 * --phu grid.
+   PERFORMANCE: static paint. Motion: the stage and cards rise in once (transform / opacity), hover lifts (transform). No
+   loops, no live filters. No `cursor` here (the gauntlet rule paints it). */
+
+.ph { --fw: calc(368 * var(--phu)); position: absolute; inset: 0; z-index: 3; overflow: hidden;
+  display: grid; grid-template-rows: auto auto 1fr; grid-template-columns: minmax(0, 1fr) var(--fw);
+  font-family: var(--ph-body); color: var(--ph-text); background: none; }
+.ph > .ph-top { grid-column: 1 / -1; min-width: 0; }
+
+/* ── MODE TABS + the one line on the mode (or why a tab is dimmed in a party) ── */
+.ph-modes { position: relative; z-index: 2; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; min-width: 0; }
+.ph-modes .phk-tabs { max-width: 100%; }
+.ph-desc { max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: calc(4 * var(--phu)) calc(16 * var(--phu)); font-size: var(--ph-t3); font-weight: 600; color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-desc.locked { color: #fbe6a6; }
+
+/* ── THE STAGE: (team), cards + options, actions ── */
+.ph-stage { position: relative; z-index: 1; grid-column: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu));
+  padding: calc(16 * var(--phu)) calc(48 * var(--phu)) calc(32 * var(--phu) + var(--safe-b, 0px)) calc(48 * var(--phu) + var(--safe-l, 0px));
+  animation: ph-fadein 0.2s ease both; }
+@keyframes ph-fadein { from { opacity: 0; } to { opacity: 1; } }
+.ph-team { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(24 * var(--phu)); background: var(--ph-plate);
+  box-shadow: var(--ph-gild); clip-path: var(--ph-clip-s); }
+.ph-teamlbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ph-muted); }
+.ph-teamname { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.06em; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.ph-rename { padding: 0 calc(8 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
+.ph-rename:hover { color: var(--ph-ink); }
+
+.ph-body { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(32 * var(--phu)); }
+.ph-cards { --gap: calc(24 * var(--phu)); container-type: size; flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; gap: var(--gap); }
+/* VERSUS DUOS: the VS mark is one more item in the row, so it takes its width plus one more gap. */
+.ph-cards.vs { --vsw: calc(64 * var(--phu) + var(--gap)); }
+/* A card's box: sized to fit the space (height-bound, else width-bound across the party). */
+.ph-cardwrap { --n: 1; position: relative; flex: none; aspect-ratio: 0.56; container-type: inline-size;
+  height: min(calc(720 * var(--phu)), 100cqh, calc((100cqw - (var(--n) - 1) * var(--gap) - var(--vsw, 0px)) / var(--n) / 0.56));
+  animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 50ms); }
+.ph-cards.n2 .ph-cardwrap { --n: 2; }
+.ph-cards.n3 .ph-cardwrap { --n: 3; }
+.ph-cards.n4 .ph-cardwrap { --n: 4; }
+.ph-cardwrap.menu { z-index: 7; }
+@keyframes ph-rise { from { opacity: 0; transform: translateY(calc(24 * var(--phu))); } to { opacity: 1; transform: none; } }
+/* THE BANNER CARD: the big cut. The outer box is the gold edge (the same cut), the inner the navy plate. */
+.ph-card { --ew: calc(2 * var(--phu)); position: absolute; inset: 0; display: block; box-sizing: border-box; padding: var(--ew); margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-edge); clip-path: var(--ph-clip-banner); color: inherit; text-align: left; font: inherit;
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.ph-card:hover, .ph-cardwrap.menu .ph-card { transform: translateY(calc(-6 * var(--phu))); }
+/* A BANNER: square shoulders and a pennant foot (the outer box is the gilded edge, the inner the navy cloth). */
+.ph-card-in { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: var(--ph-plate);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--ph-cut) + var(--ew) * 0.4), 50% calc(100% - var(--ew) * 1.2), 0 calc(100% - var(--ph-cut) + var(--ew) * 0.4)); }
+.ph-art { position: absolute; left: 0; top: 0; width: 100%; height: 80%; object-fit: cover; object-position: 50% 18%;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%); mask-image: linear-gradient(180deg, #000 55%, transparent 100%); }
+.ph-lead { position: absolute; top: calc(16 * var(--phu)); left: calc(16 * var(--phu)); display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)) 0 calc(8 * var(--phu));
+  background: color-mix(in srgb, var(--ph-navy) 85%, transparent); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: #fbe6a6; }
+.ph-lead svg { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); color: var(--pill-gold, #f6cf5a); }
+/* The foot: name, then the medal tight under it, then title or level, then (others) the state strip. */
+.ph-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(16 * var(--phu)) calc(var(--ph-cut) + 16 * var(--phu)); text-align: center; }
+.ph-foot:has(.ph-state) { padding-bottom: var(--ph-cut); }
+.ph-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--ph-name-font); font-weight: 900; font-size: min(var(--ph-t4), 9.5cqi); line-height: 1.1; color: var(--ph-ink);
+  text-shadow: var(--ph-shadow), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.7); }
+.ph-rank { display: inline-flex; align-items: center; gap: calc(12 * var(--phu)); min-height: calc(40 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: min(var(--ph-t3), 7cqi); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-rank .rankcrest { --ring: min(calc(40 * var(--phu)), 12cqi); }
+.ph-muted { font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
+.ph-sub { font-size: var(--ph-t2); color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+.ph-titlebadge { font-size: var(--ph-t2); }
+.ph-state { align-self: stretch; margin: 0 calc(-16 * var(--phu)); padding: calc(10 * var(--phu)) 0; background: none; box-shadow: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.28em; text-transform: uppercase; text-align: center; color: var(--ph-muted); }
+.ph-state.s-ready { color: var(--ph-teal); }
+.ph-state.s-in_game { color: var(--pill-gold, #f6cf5a); }
+.ph-state.s-space { visibility: hidden; }
+/* AN OPEN SEAT: the same cut, a faint gold edge, a navy plate. */
+.ph-card.ph-open { background: color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.ph-open .ph-card-in { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8 * var(--phu)); background: var(--ph-plate); }
+.ph-open:hover { background: var(--ph-edge); }
+.ph-plus { font-family: var(--ph-font); font-weight: 300; font-size: calc(64 * var(--phu)); line-height: 1; color: color-mix(in srgb, var(--ph-text) 70%, transparent); }
+.ph-openlbl { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+/* VERSUS DUOS: the VS mark between the two pairs. */
+.ph-vs { flex: none; width: var(--vsw); text-align: center; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t4); letter-spacing: 0.08em; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+/* A card's menu: a kit plate under the card's top edge. */
+.ph-cardmenu { position: absolute; top: calc(56 * var(--phu)); left: 50%; translate: -50% 0; z-index: 2; min-width: calc(220 * var(--phu)); display: flex; flex-direction: column; padding: calc(8 * var(--phu));
+  background: var(--ph-plate); box-shadow: var(--ph-gild), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.6); clip-path: var(--ph-clip-s);
+  animation: ph-pop 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+@keyframes ph-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.ph-menuitem { display: flex; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); min-height: calc(40 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-text); text-align: left; }
+.ph-menuitem:hover:not(:disabled) { background: var(--ph-plate-hover); color: var(--ph-ink); }
+.ph-menuitem:disabled { color: var(--ph-muted); }
+.ph-soon { font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.ph-menucatch { position: absolute; inset: 0; z-index: 6; }
+
+/* ── START + the side actions ── */
+.ph-actions { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: calc(24 * var(--phu)); width: 100%; }
+.ph-side { display: flex; justify-content: flex-end; min-width: 0; }
+.ph-side-r { justify-content: flex-start; }
+/* START: the one strong accent. The podium gold in the big cut, navy letters. */
+.ph-start { position: relative; width: calc(384 * var(--phu)); height: calc(80 * var(--phu)); padding: 0; margin: 0; border: 0; border-radius: 0;
+  background: var(--ph-metal-gold); clip-path: var(--ph-clip);
+  box-shadow: inset 0 calc(3 * var(--phu)) 0 rgba(255, 250, 225, 0.6), inset 0 calc(-4 * var(--phu)) 0 rgba(110, 70, 14, 0.55), inset 0 0 0 calc(6 * var(--phu)) rgba(255, 240, 200, 0.12);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t5); letter-spacing: 0.24em; text-transform: uppercase;
+  color: #2a1a06; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6); transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1); }
+.ph-start > span { padding-left: 0.24em; }
+.ph-start:hover:not(:disabled) { transform: scale(1.03); }
+.ph-start:active:not(:disabled) { transform: scale(0.98); }
+.ph-start:disabled { background: var(--ph-plate); color: var(--ph-muted); text-shadow: var(--ph-shadow); box-shadow: var(--ph-gild); }
+.ph-note { max-width: calc(320 * var(--phu)); font-size: var(--ph-t2); color: var(--ph-text); text-shadow: var(--ph-shadow); }
+.ph-err { position: absolute; bottom: calc(128 * var(--phu)); left: 50%; translate: -50% 0; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate);
+  box-shadow: inset 0 0 0 1px var(--pill-red, #ff7a66); clip-path: var(--ph-clip-s); color: var(--pill-red, #ff7a66); font-size: var(--ph-t2); }
+
+/* ── IN-PLACE MODE OPTIONS (ModeOptions.tsx): one kit section beside the cards; its body scrolls on its own ── */
+.ph-opts { flex: none; width: calc(440 * var(--phu)); max-height: 100%; min-height: 0; animation: ph-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: 80ms; }
+.ph-opts > .phk-secbody { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; gap: calc(16 * var(--phu)); }
+.pho-rows { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+.pho-god { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-godrow { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s); }
+.pho-godrow > span:first-child { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-godrow > span:last-child { font-size: var(--ph-t1); color: var(--ph-muted); }
+.pho-stages { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
+.pho-stage.off { opacity: 0.5; }
+.pho-stagenum { display: inline-grid; place-items: center; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+.pho-stage.sel .pho-stagenum { background: var(--ph-metal-gold); color: var(--ph-navy); box-shadow: none; }
+.pho-note { display: flex; align-items: center; gap: calc(16 * var(--phu)); padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair); clip-path: var(--ph-clip-s);
+  font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.pho-note > span { flex: 1; }
+.pho-hint { font-size: var(--ph-t1); color: var(--ph-muted); }
+
+/* ── COMPACT (phones, short windows: `html[data-ph-compact]`): one scrolling tab row, cards shrink to fit, START always
+   in view; the friends list is the nav's drawer ── */
+html[data-ph-compact] .ph { grid-template-columns: minmax(0, 1fr); }
+html[data-ph-compact] .ph-desc { font-size: var(--ph-t2); text-align: left; }
+html[data-ph-compact] .ph-modes { align-items: stretch; padding: calc(8 * var(--phu)) 0 0; }
+html[data-ph-compact] .ph-modes .phk-tabs { justify-content: flex-start; padding: 0 calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-stage { padding: calc(8 * var(--phu)) calc(24 * var(--phu) + var(--safe-r, 0px)) calc(12 * var(--phu) + var(--safe-b, 0px)) calc(24 * var(--phu) + var(--safe-l, 0px)); gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-team { padding: calc(4 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-name { font-size: min(calc(24 * var(--phu)), 9.5cqi); }
+html[data-ph-compact] .ph-start { height: calc(64 * var(--phu)); width: calc(320 * var(--phu)); }
+html[data-ph-compact] .ph-opts { width: calc(520 * var(--phu)); }
+@media (prefers-reduced-motion: reduce) { .ph-cardwrap, .ph-stage, .ph-opts, .ph-cardmenu { animation: none; } .ph-card, .ph-start { transition: none; } }
+
+/* ── THE PAINTED ORNAMENTS (the owner's UI art, ./ornaments, keyed and trimmed): static images, no animation ── */
+/* A BANNER: the gilded rod across the top (wider than the cloth, its finials past the edges), the navy cloth with gold
+   side edges, and the swallowtail foot with its tassel under it. The foot's cloth colour continues the card's. */
+.ph-cardwrap { --footh: calc(100cqi * 276 / 720); }
+.ph-card { bottom: calc(var(--footh) - 2px); clip-path: none; padding: 0 var(--ew); background: linear-gradient(90deg, #b8862e, #ffe9a8 30%, #c8953f 55%, #8a5f1c); }
+.ph-card-in { clip-path: none; background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 92%, #000) 0%, rgb(18 35 85) 100%); }
+.ph-card:hover, .ph-cardwrap.menu .ph-card { transform: none; }
+.ph-cardwrap:hover { transform: translateY(calc(-6 * var(--phu))); transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.ph-bfoot { position: absolute; left: 0; right: 0; bottom: 0; height: var(--footh); pointer-events: none; background: url('./ornaments/banner-foot.webp') center top / 100% 100% no-repeat; }
+.ph-rod { position: absolute; z-index: 2; left: -12%; right: -12%; top: calc(-0.07 * 100cqi); height: calc(124cqi * 94 / 760); pointer-events: none;
+  background: url('./ornaments/banner-rod.webp') center / 100% 100% no-repeat; }
+.ph-foot, .ph-foot:has(.ph-state) { padding-bottom: calc(12 * var(--phu)); }
+.ph-art { height: 88%; }
+.ph-lead { top: calc(0.12 * 100cqi); }
+/* An open seat: the same banner, dimmed. */
+.ph-cardwrap.open .ph-bfoot, .ph-cardwrap.open .ph-rod { opacity: 0.6; }
+.ph-cardwrap.open .ph-card { background: linear-gradient(90deg, rgba(184, 134, 46, 0.6), rgba(255, 233, 168, 0.6) 30%, rgba(200, 149, 63, 0.6) 55%, rgba(138, 95, 28, 0.6)); }
+.ph-open .ph-card-in { background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 92%, #000) 0%, rgb(18 35 85) 100%); opacity: 0.9; }
+/* START: the gilded plaque (blank face, sapphires each end), the word in dark ink on it. */
+.ph-start { height: calc(384 * var(--phu) * 197 / 800); clip-path: none; box-shadow: none; background: url('./ornaments/start-plaque.webp') center / 100% 100% no-repeat; }
+html[data-ph-compact] .ph-start { height: calc(320 * var(--phu) * 197 / 800); }
+.ph-start:disabled { background: url('./ornaments/start-plaque.webp') center / 100% 100% no-repeat; box-shadow: none; filter: grayscale(0.85) brightness(0.55); color: #2a1a06; text-shadow: none; }
+/* The mode tabs' emblems: the gilded medallion with the mode's painted tile in its enamel disc. */
+.ph-modelbl { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.ph-emblem { position: relative; flex: none; width: calc(30 * var(--phu)); height: calc(30 * var(--phu) * 131 / 128); background: url('./ornaments/mode-emblem.webp') center / 100% 100% no-repeat; }
+.ph-emblem > img { position: absolute; left: 21%; top: 21%; width: 58%; height: 56%; border-radius: 50%; object-fit: cover; }
+.phk-tab:disabled .ph-emblem { filter: grayscale(1); }
+
+/* ── MODERN FANTASY: glossier banners, a springy START, rounded plates (owner 2026-11-02) ── */
+.ph-team, .ph-lead, .ph-cardmenu, .ph-err { clip-path: none; border-radius: 999px; }
+.ph-cardmenu { border-radius: var(--ph-r); }
+.ph-menuitem { border-radius: var(--ph-r-s); }
+.ph-name { font-weight: 900; letter-spacing: 0.01em; }
+.ph-rank { font-weight: 800; }
+/* A glossy sheen across the top of each banner's cloth (static). */
+.ph-card-in::after { content: ''; position: absolute; inset: 0 0 auto 0; height: 40%; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 100%); }
+.ph-cardwrap { transition: transform 0.22s var(--ph-spring); }
+.ph-cardwrap:hover { transform: translateY(calc(-8 * var(--phu))) scale(1.015); }
+.ph-start { font-family: var(--ph-font); font-weight: 900; letter-spacing: 0.16em; transition: transform 0.2s var(--ph-spring); }
+.ph-start:hover:not(:disabled) { transform: scale(1.06); filter: brightness(1.08) drop-shadow(0 0 calc(14 * var(--phu)) rgba(255, 200, 80, 0.6)); }
+.ph-start:active:not(:disabled) { transform: scale(0.95); }
+.ph-vs { font-weight: 900; }
+@media (prefers-reduced-motion: reduce) { .ph-cardwrap, .ph-start { transition: none; } }
+
+/* The card menu sits over the name plate, never over the face. */
+.ph-cardmenu { top: auto; bottom: calc(var(--footh) + 24 * var(--phu)); }
+/* A saved game / a held Versus room, in plain sight above the party. */
+.ph-held { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(8 * var(--phu)); }
+.ph-heldrow { display: flex; align-items: center; gap: calc(12 * var(--phu)); padding: calc(6 * var(--phu)) calc(8 * var(--phu)) calc(6 * var(--phu)) calc(20 * var(--phu)); border-radius: 999px; background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
+.ph-heldtxt { display: flex; flex-direction: column; line-height: 1.15; font-size: var(--ph-t1); color: var(--ph-muted); }
+.ph-heldtxt b { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); color: var(--ph-ink); }
+/* One centred group: the cards with START under them, the mode's options beside them. */
+.ph-col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: calc(16 * var(--phu)); }
+.ph-col > .ph-cards { flex: 1; width: 100%; height: auto; min-height: 0; }
+.ph-body.has-opts > .ph-col > .ph-actions { grid-template-columns: 1fr auto 1fr; }
+.ph-body.has-opts .ph-opts { align-self: center; height: min(100%, calc(640 * var(--phu))); }
+.ph-opts > .phk-secbody { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); padding-bottom: calc(32 * var(--phu)); }
+/* VERSUS DUOS: whose side is whose. */
+.ph-sides { display: flex; justify-content: space-around; width: 100%; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.14em; text-transform: uppercase; }
+.ph-sides > span:first-child { color: #9be07f; }
+.ph-sides > span:last-child { color: var(--ph-foe); }
+/* An invited friend waiting in an open seat. */
+.ph-opensub { font-size: var(--ph-t2); color: var(--ph-muted); }
+/* The invite picker's list. */
+.ph-picker { width: min(calc(440 * var(--phu)), calc(var(--lvw, 100vw) * 0.8)); max-height: calc(var(--lvh, 100vh) * 0.5); display: flex; text-align: left; }
+.ph-friends.picker { flex: 1; min-height: 0; padding: 0; background: none; box-shadow: none; }
+
+/* ── THE BANNER, AS ONE PIECE (owner 2026-11-02: "the blending is bad here, but the idea is cool") ──
+   The cloth is the painted cloth's navy (sampled from the art: deep at the sides, lit through the middle fold), the gold
+   side trim matches the painted foot's trim width, the foot overlaps the body by a few px (no seam), and the rod sits snug
+   on the top edge, never wider than half the gap to the next banner (finials never touch at any card count). Static. */
+.ph-cards { --gap: calc(44 * var(--phu)); }
+.ph-cardwrap { --trim: calc(100cqi * 13 / 720); --rodover: min(calc(var(--gap) / 2 - 3px), 6cqi); --rodh: calc((100cqi + 2 * var(--rodover)) * 94 / 760); }
+.ph-card { bottom: calc(var(--footh) - 6px); padding: 0 var(--trim);
+  background: linear-gradient(90deg, #8a5c14 0%, #f7d27a 22%, #ffefb8 45%, #d9a645 70%, #8a5c14 100%); }
+.ph-card-in, .ph-open .ph-card-in { opacity: 1;
+  background: linear-gradient(90deg, rgb(11 25 64) 0%, rgb(20 40 97) 45%, rgb(22 43 104) 55%, rgb(11 25 64) 100%); }
+/* The portrait fades into exactly that cloth. */
+.ph-art { -webkit-mask-image: linear-gradient(180deg, #000 58%, transparent 96%); mask-image: linear-gradient(180deg, #000 58%, transparent 96%); }
+.ph-bfoot { z-index: 1; }
+.ph-rod { left: calc(-1 * var(--rodover)); right: calc(-1 * var(--rodover)); top: calc(-0.62 * var(--rodh)); height: var(--rodh); z-index: 3; }
+.ph-cardwrap .ph-lead { top: calc(var(--rodh) * 0.5 + 8 * var(--phu)); }
+/* The text block: heavy rounded type, centred, the medal a small chip beside its name. */
+.ph-foot { gap: calc(6 * var(--phu)); }
+.ph-name { font-size: min(var(--ph-t4), 9cqi); }
+.ph-rank { gap: calc(8 * var(--phu)); padding: calc(4 * var(--phu)) calc(14 * var(--phu)) calc(4 * var(--phu)) calc(6 * var(--phu)); border-radius: 999px; min-height: 0;
+  background: rgba(6, 14, 38, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 214, 120, 0.35); font-size: min(var(--ph-t2), 5.5cqi); }
+.ph-rank:has(.ph-muted) { background: none; box-shadow: none; }
+.ph-rank .rankcrest { --ring: min(calc(30 * var(--phu)), 9cqi); }
+/* THE GHOST BANNER (an open seat): the same banner, the gold softly desaturated, a glowing invite medallion. */
+.ph-cardwrap.open .ph-rod, .ph-cardwrap.open .ph-bfoot { opacity: 1; filter: saturate(0.45) brightness(0.8); }
+.ph-cardwrap.open .ph-card { background: linear-gradient(90deg, #5e4a2c 0%, #b9a275 22%, #d8c8a0 45%, #a08a5c 70%, #5e4a2c 100%); }
+.ph-cardwrap.open .ph-card-in { background: linear-gradient(90deg, rgb(11 25 64) 0%, rgb(18 36 88) 50%, rgb(11 25 64) 100%); }
+.ph-invmed { display: grid; place-items: center; width: min(calc(84 * var(--phu)), 26cqi); aspect-ratio: 128 / 135; background: url('./ornaments/friend-frame.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 calc(12 * var(--phu)) rgba(255, 210, 110, 0.45)); }
+.ph-invmed > span { margin-top: -8%; font-family: var(--ph-font); font-weight: 900; font-size: min(calc(48 * var(--phu)), 14cqi); line-height: 1; color: #fff3cf;
+  text-shadow: 0 0 calc(10 * var(--phu)) rgba(255, 210, 110, 0.9), var(--ph-shadow); }
+.ph-cardwrap.open:hover .ph-invmed { filter: drop-shadow(0 0 calc(18 * var(--phu)) rgba(255, 220, 130, 0.8)); }
+/* VERSUS DUOS: each pair under its label. */
+.ph-pair { position: relative; display: flex; align-items: center; gap: var(--gap); height: 100%; }
+.ph-pairlbl { position: absolute; top: calc(-4 * var(--phu)); left: 0; right: 0; text-align: center; font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.14em; text-transform: uppercase; }
+.ph-pairlbl.mine { color: #9be07f; }
+.ph-pairlbl.rival { color: var(--ph-foe); }
+.ph-cards.vs { --vsw: calc(64 * var(--phu) + var(--gap)); padding-top: calc(28 * var(--phu)); box-sizing: border-box; }
+/* Versus Duos: each pair is its label over its two banners. */
+.ph-pair { flex-direction: column; justify-content: center; gap: calc(28 * var(--phu)); }
+.ph-pairrow { display: flex; align-items: center; gap: var(--gap); }
+.ph-pairlbl { position: static; }
+.ph-cards.vs { padding-top: 0; }
+.ph-cards.vs .ph-cardwrap { height: min(calc(720 * var(--phu)), calc(100cqh - 64 * var(--phu)), calc((100cqw - 3 * var(--gap) - var(--vsw)) / 4 / 0.56)); }
+/* The options panel hugs its content (Practice keeps one height, so Sandbox / God Mode never jump). */
+.ph-body.has-opts .ph-opts { height: auto; max-height: min(100%, calc(640 * var(--phu))); }
+.ph-body.has-opts .ph-opts.o-practice { height: min(100%, calc(640 * var(--phu))); }
+
+/* ── THE FIXED BANNER ROW (owner 2026-11-02: "i dont want the banners to move around from the room options etc") ──
+   One size for every banner in every mode (the size four banners and the VS mark fit at), the row centred in the stage,
+   START centred under it. The head slot above keeps one height, so a team plate or a saved game never pushes the row. */
+.ph-stagehead { flex: none; height: calc(48 * var(--phu)); display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--phu)); }
+.ph-stagehead .ph-held { flex-wrap: nowrap; }
+.ph-cards, .ph-cards.vs { flex: 1; width: 100%; height: auto; min-height: 0; --vsw: calc(64 * var(--phu) + var(--gap)); padding-top: 0; }
+.ph-cardwrap, .ph-cards.vs .ph-cardwrap {
+  height: min(calc(640 * var(--phu)), calc(100cqh - 64 * var(--phu)), calc((100cqw - 3 * var(--gap) - var(--vsw)) / 4 / 0.56)); }
+/* THE SIDE PANEL: Friends | the mode's settings. */
+.ph-sidepanel { position: relative; z-index: 2; grid-column: 2; grid-row: 2 / 4; min-height: 0; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); box-sizing: border-box;
+  padding: calc(12 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(16 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 90%, transparent), color-mix(in srgb, var(--ph-navy) 96%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); color: var(--ph-text); }
+.ph-sidepanel.drawer { position: fixed; top: var(--ph-nav-h); right: 0; bottom: 0; width: min(calc(440 * var(--phu)), calc(var(--lvw, 100vw) * 0.92)); z-index: 487;
+  border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); background: linear-gradient(180deg, var(--ph-navy), color-mix(in srgb, var(--ph-navy) 80%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), calc(-16 * var(--phu)) 0 calc(32 * var(--phu)) rgba(0, 0, 0, 0.5); animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+.ph-sidetabs { flex: none; display: flex; align-items: center; justify-content: space-between; }
+.ph-sidetabs .phk-tab { font-size: var(--ph-t3); }
+.ph-settab { position: relative; display: inline-flex; align-items: center; gap: calc(6 * var(--phu)); }
+.ph-tabdot { width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: var(--pill-gold, #f6cf5a); box-shadow: 0 0 calc(6 * var(--phu)) rgba(255, 210, 110, 0.8); }
+.ph-sidepanel > .ph-friends.embedded { flex: 1; min-height: 0; }
+.ph-settings { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: calc(4 * var(--phu)) calc(4 * var(--phu)) calc(24 * var(--phu)); }
+/* The medal chip reads at every banner size. */
+.ph-rank { font-size: min(var(--ph-t3), 6.2cqi); }
+.ph-rank .rankcrest { --ring: min(calc(36 * var(--phu)), 10cqi); }
+html[data-ph-compact] .ph { grid-template-columns: minmax(0, 1fr); }
+@media (prefers-reduced-motion: reduce) { .ph-sidepanel.drawer { animation: none; } }
+/* Versus Duos: the side labels float over the pairs, so the row sits exactly where every other mode's does. */
+.ph-pair { position: relative; }
+.ph-pairlbl { position: absolute; left: 0; right: 0; bottom: calc(100% + 18 * var(--phu)); }
+.ph-side-r { gap: calc(12 * var(--phu)); align-items: center; }
+
+/* ── ROUND 4 ── */
+/* VERSUS: the opponent's banner wears the foe's red trim (the rod and foot warmed toward red). */
+.ph-cardwrap.rival .ph-card { background: linear-gradient(90deg, #6e1420 0%, #e2566a 22%, #ffb3bf 45%, #c63a4f 70%, #6e1420 100%); }
+.ph-cardwrap.rival .ph-rod, .ph-cardwrap.rival .ph-bfoot { filter: hue-rotate(-38deg) saturate(1.25); }
+.ph-cardwrap.rival .ph-name { color: var(--ph-foe); }
+/* Breathing room: the row keeps 32 units clear of the stage edges and the side panel. */
+.ph-cards { padding: 0 calc(32 * var(--phu)); box-sizing: border-box; }
+/* Chips and labels scale with the banner. */
+.ph-lead { height: auto; padding: calc(2.2 * 1cqi) calc(3 * 1cqi); gap: 1.6cqi; font-size: min(var(--ph-t1), 4.2cqi); }
+.ph-lead svg { width: min(calc(20 * var(--phu)), 5.5cqi); height: min(calc(20 * var(--phu)), 5.5cqi); }
+.ph-state { font-size: min(var(--ph-t2), 5cqi); padding: 2.5cqi 0; }
+.ph-openlbl { font-size: min(var(--ph-t3), 6cqi); }
+.ph-opensub { font-size: min(var(--ph-t2), 4.6cqi); }
+/* PHONES: the banners fill the row's height (the same size in every mode), and the row scrolls sideways when four do not
+   fit; a soft fade at the edges says there is more. */
+html[data-ph-compact] .ph-cards { overflow-x: auto; overflow-y: hidden; justify-content: safe center; scrollbar-width: none; padding: 0 calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-cards::-webkit-scrollbar { display: none; }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 56 * var(--phu)); }
+/* Phone mode tabs: one row that scrolls, with a fade at the right edge; the line centred. */
+html[data-ph-compact] .ph-modes .phk-tabs { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 48 * var(--phu)), transparent); padding-right: calc(48 * var(--phu)); }
+html[data-ph-compact] .ph-desc { text-align: center; }
+html[data-ph-compact] .ph-modes .phk-tab { min-height: calc(72 * var(--phu)); }
+html[data-ph-compact] .phk-btn.s-s { height: calc(64 * var(--phu)); padding: 0 calc(24 * var(--phu)); font-size: var(--ph-t2); }
+/* Phone head slot: the team plate and the saved game stack (two rows, always reserved). */
+html[data-ph-compact] .ph-stagehead { height: calc(112 * var(--phu)); flex-direction: column; gap: calc(6 * var(--phu)); }
+/* The locked tab's toast: under the tabs, fades out by itself (opacity, one shot). */
+.ph-modes { position: relative; }
+.ph-toast { position: absolute; top: calc(100% + 4 * var(--phu)); left: 50%; translate: -50% 0; z-index: 5; padding: calc(8 * var(--phu)) calc(18 * var(--phu)); border-radius: 999px;
+  background: var(--ph-plate); box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(20 * var(--phu)) rgba(0, 0, 0, 0.5); font-size: var(--ph-t2); font-weight: 700; color: #ffe7a8; white-space: nowrap;
+  animation: ph-toast 2.6s ease both; pointer-events: none; }
+@keyframes ph-toast { 0% { opacity: 0; transform: translateY(-4px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* A disabled START: the same gold jewel, dimmed. */
+.ph-start:disabled { filter: saturate(0.55) brightness(0.72); opacity: 0.85; color: #2a1a06; }
+/* The active mode tab never sits higher than the others. */
+.phk-tab.on, .phk-tab.on:hover { transform: none; }
+/* Gauntlet rows: number, then the foe in a small framed portrait, then the name; chips sit clear of any art. */
+.pho-stagelead { display: inline-flex; align-items: center; gap: calc(10 * var(--phu)); }
+.pho-stagelead .ph-fportrait { width: calc(40 * var(--phu)); height: calc(40 * var(--phu) * 135 / 128); }
+@media (prefers-reduced-motion: reduce) { .ph-toast { animation: none; } }
+/* PHONES: every unit of height goes to the banners. One slim head row (the saved game's Continue moves beside START). */
+html[data-ph-compact] .ph-stagehead { height: calc(56 * var(--phu)); flex-direction: row; }
+html[data-ph-compact] .ph-stagehead .ph-held { display: none; }
+html[data-ph-compact] .ph-team { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-team .phk-btn.s-s { height: calc(48 * var(--phu)); }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 16 * var(--phu)); }
+html[data-ph-compact] .ph-stage { gap: calc(4 * var(--phu)); }
+.ph-phonecontinue { display: none; }
+html[data-ph-compact] .ph-phonecontinue { display: inline-flex; }
+html[data-ph-compact] .ph-pairlbl { display: none; }
+
+/* A STANDALONE banner (PhBanner `width`): its own fixed width outside a `.ph-cards` row; everything inside scales with it. */
+.ph-cardwrap.standalone, .ph-cards .ph-cardwrap.standalone, html[data-ph-compact] .ph-cardwrap.standalone { width: var(--bw); height: auto; aspect-ratio: 0.56; }
+
+/* ── ROUND 5 ── */
+/* Gauntlet: a locked stage's line wraps in full. */
+.pho-stage .phk-rowsub { white-space: normal; }
+/* An invited friend waiting: their portrait, dimmed, in a filled banner's layout. */
+.ph-cardwrap.pending .ph-art { opacity: 0.45; filter: grayscale(0.4); }
+.ph-cardwrap.pending .ph-rod, .ph-cardwrap.pending .ph-bfoot { filter: saturate(0.6) brightness(0.85); }
+/* A card's menu opens beside the card (never over the name or face). */
+.ph-cardmenu { top: calc(30 * var(--phu)); bottom: auto; left: calc(100% + 8 * var(--phu)); translate: none; }
+.ph-cards > :last-child .ph-cardmenu, .ph-pairrow > :last-child .ph-cardmenu { left: auto; right: calc(100% + 8 * var(--phu)); }
+/* A disabled START: the gilded plaque, gently desaturated and dimmed (never olive). */
+.ph-start:disabled { filter: saturate(0.75) brightness(0.92); opacity: 0.55; }
+/* PHONES: the banners take the head slot's height too (the plate floats over the gap above the rods; the line drops). */
+html[data-ph-compact] .ph-desc { display: none; }
+html[data-ph-compact] .ph-stagehead { position: absolute; left: 0; right: 0; top: calc(4 * var(--phu)); height: auto; z-index: 4; pointer-events: none; }
+html[data-ph-compact] .ph-stagehead > * { pointer-events: auto; }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 8 * var(--phu)); }
+html[data-ph-compact] .ph-cards { padding-top: calc(48 * var(--phu)); }
+.ph-cardwrap.rival .ph-bfoot { filter: none; }
+
+/* ── CRITIC ROUND 6 ── */
+/* ONE FOOT LAYOUT: every banner has the same four rows at the same heights (name, medal, level, state strip), filled or
+   empty, so nothing moves when someone joins and an invited seat lines up with its peers. */
+.ph-foot, .ph-foot:has(.ph-state) { gap: calc(6 * var(--phu)); padding-bottom: calc(12 * var(--phu)); }
+.ph-rank, .ph-rank:has(.ph-muted) { box-sizing: border-box; height: min(calc(40 * var(--phu)), 11cqi); min-height: 0; }
+.ph-sub { display: flex; align-items: center; justify-content: center; height: 1.4em; line-height: 1.4; }
+.ph-state { box-sizing: content-box; height: 1.3em; line-height: 1.3; }
+/* The pending seat's Cancel sits on the state strip. */
+.ph-cancelinv { position: absolute; left: 50%; translate: -50% 0; bottom: 22%; z-index: 4; height: calc(32 * var(--phu)); padding: 0 calc(16 * var(--phu)); margin: 0; border: 0; border-radius: 999px;
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); color: var(--ph-ink); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.06em; white-space: nowrap; }
+.ph-cancelinv:hover { background: var(--ph-plate-hover); }
+/* The notes beside START: the mode's hint, then (when it applies) the server's one calm line. */
+.ph-notes { display: flex; flex-direction: column; gap: calc(2 * var(--phu)); min-width: 0; }
+.ph-issue { color: #fbe6a6; }
+/* A locked tab's reason in the description's own line. */
+.ph-desc.locked { font-weight: 700; }
+
+/* PHONE: nothing under calc(18 * var(--phu)), nothing against the edge. */
+/* A name fits by its length: about 0.58em a letter across 88% of the banner, with the 11px floor. */
+.ph-name { font-size: min(var(--ph-t4), 9cqi, calc(150cqi / var(--nl, 1))); }
+html[data-ph-compact] .ph-name { font-size: max(calc(18 * var(--phu)), min(calc(24 * var(--phu)), calc(150cqi / var(--nl, 1)))); font-weight: 800; letter-spacing: -0.02em; }
+html[data-ph-compact] :is(.ph-rank, .ph-sub, .ph-state, .ph-openlbl, .ph-opensub, .ph-lead, .ph-note, .ph-teamlbl) { font-size: max(calc(18 * var(--phu)), var(--ph-t1)); }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { height: calc(36 * var(--phu)); padding-top: 0; padding-bottom: 0; }
+html[data-ph-compact] .ph-rank .rankcrest { --ring: calc(22 * var(--phu)); flex: none; }
+html[data-ph-compact] .ph-rank { font-weight: 700; letter-spacing: -0.02em; }
+/* The medal chip stays one line on a narrow banner. */
+.ph-rank > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-ph-compact] .ph-rank, html[data-ph-compact] .ph-rank:has(.ph-muted) { max-width: 100%; gap: calc(4 * var(--phu)); padding-left: calc(2 * var(--phu)); padding-right: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-state { margin-left: calc(-6 * var(--phu)); margin-right: calc(-6 * var(--phu)); }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { gap: calc(3 * var(--phu)); padding-bottom: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-cancelinv { min-height: calc(64 * var(--phu)); bottom: 18%; font-size: calc(18 * var(--phu)); }
+html[data-ph-compact] .ph-modes .phk-tabs { padding-right: calc(96 * var(--phu)); scroll-padding-right: calc(96 * var(--phu)); }
+html[data-ph-compact] .ph-cards { padding-top: calc(80 * var(--phu)); }
+html[data-ph-compact] .ph-cardwrap, html[data-ph-compact] .ph-cards.vs .ph-cardwrap { height: calc(100cqh - 20 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead { top: calc(10 * var(--phu)); }
+/* A phone's banners are short, so they stand wider: a name and a long medal ("Ascendant II") read whole at 11px. */
+html[data-ph-compact] .ph-cards .ph-cardwrap:not(.standalone) { aspect-ratio: 0.72; }
+
+/* ── CRITIC ROUND 7 ── */
+/* The stage head: the pill stays dead centre; a saved game or held room sits beside it, or centres when it is alone. */
+.ph-stagehead { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.ph-stagehead > .ph-team { grid-column: 2; grid-row: 1; }
+.ph-stagehead > .ph-held { grid-column: 3; grid-row: 1; justify-self: start; }
+.ph-stagehead:not(:has(> .ph-team)) > .ph-held { grid-column: 2; }
+/* Softer labels: rounded, bold, close-set, sentence case. */
+.ph-teamlbl, .ph-state, .ph-openlbl, .ph-lead, .ph-pairlbl { letter-spacing: 0.02em; text-transform: none; font-weight: 800; }
+.ph-teamlbl { font-size: var(--ph-t2); }
+/* On any backdrop: a dark pill under the team labels; the rivals' colour holds its strength. */
+.ph-pairlbl { justify-self: center; width: fit-content; margin: 0 auto; padding: calc(2 * var(--phu)) calc(14 * var(--phu)); border-radius: 999px; background: rgba(6, 12, 28, 0.78); text-shadow: none; }
+.ph-pairlbl.rival { color: #ff9d94; }
+/* The portrait runs down the banner; a soft floor under the rows keeps them readable. */
+.ph-art { height: 100%; -webkit-mask-image: linear-gradient(180deg, #000 74%, transparent 100%); mask-image: linear-gradient(180deg, #000 74%, transparent 100%); }
+.ph-foot { background: linear-gradient(180deg, transparent 0%, rgba(11, 25, 64, 0.72) 34%, rgba(11, 25, 64, 0.9) 100%); padding-top: calc(32 * var(--phu)); }
+/* Friends and the mode's settings share one inset. */
+.ph-sidepanel > .ph-friends.embedded { padding-left: calc(4 * var(--phu)); padding-right: calc(4 * var(--phu)); }
+.ph-settings .phk-seghint, .ph-settings .pho-hint, .ph-settings .pho-note, .ph-fnote { font-size: calc(16 * var(--phu)); }
+/* The drawer seats under the gold rail. */
+.ph-sidepanel.drawer { top: calc(var(--ph-nav-h) + 10 * var(--phu)); }
+/* The picker: the list scrolls inside, the window fits the screen. */
+.ph-picker { width: min(calc(440 * var(--phu)), calc(var(--lvw, 100vw) * 0.8)); max-height: none; flex: 1; min-height: 0; }
+.ph-picker .phk-row .phk-btn, .ph-picker .ph-friend .phk-btn { width: auto; flex: none; }
+.ph-picker .ph-fadd .phk-btn, .ph-fadd .phk-btn { height: auto; align-self: stretch; }
+/* PHONE */
+html[data-ph-compact] .ph-lead { padding: calc(4 * var(--phu)); top: calc(var(--rodh) * 0.5 + 2 * var(--phu)); left: calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-lead > span { display: none; }
+html[data-ph-compact] .ph-team:not(:has(.phk-btn)) { padding-right: calc(16 * var(--phu)); }
+html[data-ph-compact] .ph-stagehead { display: flex; justify-content: center; }
+html[data-ph-compact] .ph-note { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* The mark at the end of the tab row while more tabs wait off the edge. */
+html[data-ph-compact] .ph-modes.more::after { content: '\203A'; position: absolute; right: calc(10 * var(--phu)); top: calc(8 * var(--phu)); height: calc(72 * var(--phu)); display: grid; place-items: center; pointer-events: none;
+  font-family: var(--ph-font); font-weight: 900; font-size: calc(34 * var(--phu)); color: var(--ph-gold-hi); text-shadow: var(--ph-shadow); }
+
+/* ── CRITIC ROUND 8 ── */
+/* Every seat's ring on one line: a subline hangs below the ring and label, out of the centring. */
+.ph-open .ph-invmed ~ .ph-opensub { position: absolute; left: 0; right: 0; top: calc(50% + 15cqi + 24 * var(--phu)); text-align: center; }
+/* START's keyboard focus: a soft gold glow that follows the plaque. */
+html[data-ph-shell] .ph .ph-start:focus-visible { outline: none !important; filter: brightness(1.06) drop-shadow(0 0 calc(10 * var(--phu)) rgba(255, 205, 100, 0.95)) drop-shadow(0 0 calc(3 * var(--phu)) rgba(255, 235, 170, 0.9)); }
+/* PHONE: the face stays clear: the portrait crops to the top of the banner, the rows sit under it. */
+html[data-ph-compact] .ph-art { height: 64%; object-position: 50% 10%; -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 100%); mask-image: linear-gradient(180deg, #000 78%, transparent 100%); }
+html[data-ph-compact] .ph-foot { background: none; padding-top: 0; }
+html[data-ph-compact] .ph-sub { display: none; }
+/* The picker's list fades at its foot instead of cutting. */
+.ph-friends.picker:not(.embedded) { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 28 * var(--phu)), transparent); padding-bottom: calc(20 * var(--phu)); }
+
+/* ── OWNER 2026-11-04 ── */
+/* THE ART MELTS INTO THE CLOTH: the portrait fades out at its foot and both sides, one static light (a top sheen and a soft
+   vignette) lies over it, and the rows sit above that. No hard edge anywhere. */
+.ph-art { -webkit-mask-image: linear-gradient(180deg, #000 66%, transparent 98%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 66%, transparent 98%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); -webkit-mask-composite: source-in; mask-composite: intersect; }
+.ph-card-in::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 238, 200, 0.12) 0%, transparent 24%), radial-gradient(85% 62% at 50% 36%, transparent 52%, rgba(11, 25, 64, 0.6) 100%); }
+.ph-open .ph-card-in::before { content: none; }
+.ph-foot, .ph-lead { z-index: 2; }
+html[data-ph-compact] .ph-art { -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 62%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+/* THE SUB-MODE at the top of the panel: one big, even segmented row. */
+.ph-submode .phk-segrow, html[data-ph-shell] .ph-submode .phk-seg.s-l .phk-segrow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
+.ph-submode .phk-seg.s-l .phk-segbtn { height: calc(52 * var(--phu)); font-size: var(--ph-t3); font-weight: 900; }
+.ph-submode .phk-segbtn.locked { opacity: 0.45; }
+
+/* ── CRITIC ROUND 9 ── */
+/* ONE CLOTH: the body shades down to the exact colour at the top of the painted tail: no seam, on any seat. */
+.ph-card-in::after { content: ''; position: absolute; inset: auto 0 0 0; height: 30%; z-index: 1; pointer-events: none; background: linear-gradient(180deg, transparent 0%, rgb(16 30 80) 100%); }
+.ph-cardwrap.open .ph-bfoot, .ph-cardwrap.pending .ph-bfoot { filter: none; }
+/* The rows sit lower, so the portrait owns the banner. */
+.ph-foot, .ph-foot:has(.ph-state) { padding-bottom: calc(4 * var(--phu)); }
+/* The leader chip keeps its crown alone on a phone; a word-only chip (Host) keeps its word. */
+html[data-ph-compact] .ph-lead > span { display: inline; }
+html[data-ph-compact] .ph-lead > svg + span { display: none; }
+/* The phone sheets: a soft foot says there is more; the close is a real target. */
+html[data-ph-compact] .ph-settings { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 40 * var(--phu)), transparent); padding-bottom: calc(40 * var(--phu)); }
+html[data-ph-compact] .ph-sidepanel .ph-fclose { width: calc(72 * var(--phu)); height: calc(72 * var(--phu)); min-height: calc(72 * var(--phu)); flex: none; }
+
+/* ── CRITIC ROUND 10 ── */
+/* START is the true centre: side text never widens its column. */
+.ph-actions { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+/* The art runs on down the cloth: no empty navy under the medal. */
+.ph-art { -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 80%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+.ph-foot { background: linear-gradient(180deg, transparent 0%, rgba(11, 25, 64, 0.5) 40%, rgba(11, 25, 64, 0.82) 100%); }
+html[data-ph-compact] .ph-art { height: 74%; }
+/* The side tabs all fit their row: nothing scrolls or moves on a pick. */
+.ph-sidetabs .phk-tabs { flex: 1 1 auto; min-width: 0; justify-content: space-between; gap: 0; overflow: visible; }
+.ph-sidepanel .ph-sidetabs .phk-tab { padding-inline: calc(8 * var(--phu)); font-size: var(--ph-t2); }
+/* The rail's scrollers keep their bar just outside the column, so every row ends on one edge. */
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings) { scrollbar-color: auto; scrollbar-width: auto; scrollbar-gutter: stable; margin-right: calc(-10 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings)::-webkit-scrollbar { width: calc(10 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) :is(.ph-frows, .ph-settings)::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
+/* The saved game is one chip on every screen. */
+html[data-ph-compact] .ph-stagehead .ph-held { display: flex; }
+html[data-ph-compact] .ph-stagehead { gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-heldrow { padding: calc(2 * var(--phu)) calc(4 * var(--phu)) calc(2 * var(--phu)) calc(14 * var(--phu)); }
+html[data-ph-compact] .ph-heldrow .phk-btn.s-s { height: calc(48 * var(--phu)); min-height: calc(48 * var(--phu)) !important; }
+/* Under a page the home is covered: its content paints nothing and takes no focus (`inert`). The nav and backdrop stay, so a page
+   still loading never shows the title's art through. */
+.ph.paged > :is(.ph-modes, .ph-stage, .ph-sidepanel) { visibility: hidden; }
+
+/* ── CRITIC ROUND 11 ── */
+/* A return to Play starts moving at once. */
+.ph-cardwrap { animation-duration: 0.22s; animation-delay: calc(var(--i, 0) * 25ms); }
+/* THE BANNER: portrait above, plate below. The art fades out before the name, so the name and medal sit on the navy; the level or
+   state closes the foot. No hard crop, no dead gap, the same on every seat. */
+.ph-art { height: 76%; object-position: 50% 14%; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); mask-image: linear-gradient(180deg, #000 72%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+.ph-foot, .ph-foot:has(.ph-state) { top: 66%; bottom: 0; justify-content: flex-start; padding: calc(4 * var(--phu)) calc(12 * var(--phu)) 0; background: none; }
+.ph-sub, .ph-state { position: absolute; left: 0; right: 0; bottom: calc(8 * var(--phu)); margin: 0; padding: 0; }
+.ph-cardwrap.rival .ph-name { color: #ffd6d0; }
+html[data-ph-compact] .ph-art { height: 62%; object-position: 50% 8%; }
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: 52%; padding: 0 calc(6 * var(--phu)); }
+html[data-ph-compact] .ph-sub { display: none; }
+html[data-ph-compact] .ph-state { bottom: calc(2 * var(--phu)); }
+/* A greyed mode says why on the tab itself: the row does not scroll at desktop size, so the game's tip can show. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-modes .phk-tabs { overflow: visible; position: relative; z-index: 4; }
+
+/* ON THE CITADEL: the art is brighter than the hall, so the home's words carry their own ground. */
+.ph-modes .phk-tab { text-shadow: var(--ph-shadow), 0 0 calc(6 * var(--phu)) rgba(4, 8, 20, 0.9); }
+/* Dim the label, not the tab: the tab's tip is its child and must stay solid. */
+.ph-modes .phk-tab.locked { opacity: 1; }
+.ph-modes .phk-tab.locked > * { opacity: 0.62; }
+.ph-desc, .ph-note { text-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.9), 0 0 calc(10 * var(--phu)) rgba(4, 8, 20, 0.85); }
+
+/* ── CRITIC ROUND 12 ── */
+/* The saved game keeps one slot, right of the head row, on every mode. */
+/* (Desktop) centred on START's axis, in the clear space above it, the same on every mode. */
+.ph-stagehead > .ph-held, .ph-stagehead:not(:has(> .ph-team)) > .ph-held { position: absolute; left: 50%; translate: -50% 0; bottom: calc(156 * var(--phu)); z-index: 3; }
+html[data-ph-compact] .ph-stagehead > .ph-held, html[data-ph-compact] .ph-stagehead:not(:has(> .ph-team)) > .ph-held { left: auto; translate: none; bottom: auto; right: calc(16 * var(--phu)); top: 0; }
+/* The rules line is information, not a control. */
+.ph-team.info { background: none; box-shadow: none; padding: 0; }
+.ph-team.info .ph-teamlbl, .ph-team.info .ph-teamname { text-shadow: 0 calc(1 * var(--phu)) calc(3 * var(--phu)) rgba(0, 0, 0, 0.9); }
+/* The rows sit low on the cloth, the art comes down to meet them. */
+.ph-art { height: 84%; }
+.ph-foot, .ph-foot:has(.ph-state) { top: 73%; }
+html[data-ph-compact] .ph-cards { padding-top: calc(90 * var(--phu)); }
+/* A greyed tab says why in the description's own line, so no bubble sits over that line. */
+.ph-modes .phk-tab.locked.gtip:not(.on)::after { display: none; }
+
+/* ── CRITIC ROUND 14 ── */
+/* PHONE BANNERS: name, medal and state are three rows that flow from the foot, so they can never print over each other. */
+html[data-ph-compact] .ph-foot, html[data-ph-compact] .ph-foot:has(.ph-state) { top: auto; bottom: 0; gap: calc(2 * var(--phu)); padding: 0 calc(6 * var(--phu)) calc(4 * var(--phu)); }
+html[data-ph-compact] .ph-state { position: static; height: auto; line-height: 1.2; }
+html[data-ph-compact] .ph-name { font-size: max(calc(14 * var(--phu)), min(calc(24 * var(--phu)), calc(135cqi / var(--nl, 1)))); }
+/* The bottom row holds the phone's saved game; the side column keeps its buttons in a row. */
+html[data-ph-compact] .ph-side { gap: calc(8 * var(--phu)); align-items: center; }
+html[data-ph-compact] .ph-phonecontinue { flex: none; }
+
+/* ── CRITIC ROUND 15 ── */
+/* A one-item menu sits over its own card, never its neighbour. */
+.ph-cardmenu { left: 50%; translate: -50% 0; min-width: min(calc(220 * var(--phu)), 92cqi); }
+.ph-picker .ph-fnote { text-align: center; }
+
+
+/* ── CRITIC ROUND 16 ── */
+/* The phone panel's rank reads at the panel's size. */
+html[data-ph-compact] .ph-settings .phk-plate > :not(.phk-platehead) { zoom: 1.7; }

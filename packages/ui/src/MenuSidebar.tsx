@@ -26,14 +26,14 @@
  * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
  * sidebar (see the `.hop` rules in styles.css).
  */
-import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { phoneLayoutOn } from './stage';
 import { isPhone } from './deviceClass';
 import { MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
-import { navClockNow, useGame, type MenuDest } from './store';
+import { isPreRun, navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
 import { TITLE_LOGO_SRC } from './AscentLogo';
 import { withAbandonWarning } from './rank/ratedRun';
@@ -45,6 +45,12 @@ import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
 import { InGameNote, LeaveButton, ResumeButton, SidebarShopClock } from './gameMenuParts';
 import './friends/friends.css';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+import { PhPageGuard, PhPageWait } from './partyHome/shell/PhPageGuard';
+/** The party home prototype's top nav (DEV only; lazy and null in production, so the shipped bundle never carries it). */
+const PhPageChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
+const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+const PhWait = import.meta.env.DEV ? PhPageWait : () => null;
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -71,7 +77,15 @@ export function SidebarHost({ className, children, ...rest }: HTMLAttributes<HTM
     document.documentElement.setAttribute('data-phone-sbpage', '');
     return () => { if (--sidebarPages <= 0) { sidebarPages = 0; document.documentElement.removeAttribute('data-phone-sbpage'); } };
   }, []);
-  return <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>{children}</div>;
+  const shell = usePartyHome();
+  const back = (): void => useGame.getState().goTo('menu');
+  return (
+    <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>
+      {PhGuard && shell
+        ? <PhGuard onBack={back} nav={PhPageChrome && <Suspense fallback={null}><PhPageChrome current={null} /></Suspense>}>{children}<PhWait /></PhGuard>
+        : children}
+    </div>
+  );
 }
 
 /** The screen the sidebar is rendered on — its plaque is the blue one. */
@@ -101,6 +115,10 @@ let lastIndicatorY: number | null = null;
  */
 export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const inGame = useGame((s) => s.gameMenuOpen);
+  const preRunNow = useGame(isPreRun);
+  // The shell is for the menus before a run only (the in-game menu keeps this rail and its spacing).
+  const flagOn = usePartyHome();
+  const shell = flagOn && preRunNow;
   const navRef = useRef<HTMLElement>(null);
   const indRef = useRef<HTMLSpanElement>(null);
   // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
@@ -179,6 +197,16 @@ export function MenuSidebar({ current }: { current: SidebarCurrent | null }) {
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
   const playTip = inGame ? null : playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
+  // THE PARTY HOME PROTOTYPE's APP SHELL (DEV switch, off by default): the page wears the top nav instead of this rail.
+  if (shell && !inGame && PhPageChrome) {
+    return (
+      <>
+        <Suspense fallback={<div className="ph-navwait" aria-hidden="true" />}><PhPageChrome current={current} /></Suspense>
+      </>
+    );
+  }
+  // A shell page opened in a game has no nav and no rail: its Back returns to the in-game menu.
+  if (flagOn && inGame && current) return null;
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
     <>

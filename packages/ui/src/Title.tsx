@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -44,6 +44,15 @@ import { crumb, crumbTrail } from './crashLog';
 import { MenuViewSwap } from './MenuViewSwap';
 import { PracticeOptions } from './PracticeOptions';
 import { UpdatedPanel } from './UpdatedPanel';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+import { PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { isPhone } from './deviceClass';
+
+/** THE PARTY HOME PROTOTYPE (DEV only, owner 2026-11-02; partyHome/PartyHome.tsx). Lazy, and `null` in a production build,
+ *  so the shipped bundle never carries it. */
+const PartyHome = import.meta.env.DEV ? lazy(() => import('./partyHome/PartyHome')) : null;
+const PhTutorialPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhTutorialPrompt }))) : null;
+const PhRankedPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhRankedPrompt }))) : null;
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */
@@ -114,6 +123,46 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // SOLO / DUO: the Ranked card's switch (playParty.tsx); its PLAY reads it.
   const party = usePlayParty();
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
+  // THE PARTY HOME PROTOTYPE (DEV switch, off by default): it takes the main menu, the mode screen and the Duos party.
+  const partyHomeFlag = usePartyHome();
+  // The app shell's attribute (partyHome/shell/shell.css): the menus (the title and the pages over it, before a run) wear
+  // the top nav while the switch is on. A run drops it, so the game keeps its own corners and docks.
+  const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  const shellOn = partyHomeFlag && (showTitle || practiceOpen) && !gameMenuOpen;
+  // A page opened from the in-game menu wears the shell too, only while it is open, so a game in play never pays for it.
+  const anyPage = useGame(anyPageOpen);
+  const pageOverGame = partyHomeFlag && gameMenuOpen && anyPage;
+  const shellAttr = shellOn || pageOverGame;
+  // Before the first paint: the shell's first frame must already be the shell's.
+  useLayoutEffect(() => {
+    if (!PartyHome) return undefined;
+    const html = document.documentElement;
+    html.toggleAttribute('data-ph-shell', shellAttr);
+    html.toggleAttribute('data-ph-ingame', pageOverGame);
+    // COMPACT (phones, short windows): the shell's icon-only nav, one scrolling tab row and the friends drawer.
+    // THE SHELL's SCALE (one rule on every device): the menus' own layout height, measured off the title screen (it fills
+    // the same box the menu pages do: the stage on a scaled desktop, the window on a phone's plain fit), so the unit never
+    // depends on how a device happens to scale. Measured on mount and on a resize, never per frame.
+    const ts = document.querySelector<HTMLElement>('.titlescreen');
+    const measure = (): void => {
+      // In a game there is no title: the stage's layout height, capped by what the window really shows in that layout (a window
+      // that ignores the viewport meta lays out at its own size while the stage still reads the design height).
+      const stage = document.getElementById('stage');
+      const k = stage && stage.offsetHeight > 0 ? stage.getBoundingClientRect().height / stage.offsetHeight : 1;
+      const h = ts?.offsetHeight || (stage?.offsetHeight ? Math.min(stage.offsetHeight, window.innerHeight / (k || 1)) : window.innerHeight);
+      html.style.setProperty('--ph-h', `${h}px`);
+      html.toggleAttribute('data-ph-compact', shellAttr && (isPhone() || h < 700));
+      html.toggleAttribute('data-ph-laptop', shellAttr && window.innerHeight <= 900);
+    };
+    measure();
+    const ro = typeof ResizeObserver === 'function' && ts ? new ResizeObserver(measure) : null;
+    ro?.observe(ts!);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect(); window.removeEventListener('resize', measure);
+      html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-ingame'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
+    };
+  }, [shellAttr, pageOverGame]);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -139,7 +188,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Ready marker: the desktop smoke (apps/desktop/main.cjs runSmoke) waits on this. No preloading hangs off it.
   useEffect(() => { (window as unknown as { __ascentReady?: boolean }).__ascentReady = true; }, []);
   // VERSUS: a player who left a RUNNING match (reload, crash, new tab) is taken straight back into it.
-  useEffect(() => { if (versusEnabled()) void resumeVersusMatch(); }, []);
+  useEffect(() => { if (versusEnabled()) void resumeVersusMatch(partyHomeFlag); }, []);
   // VERSUS ROOMS OPEN (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01): a small badge on Play and a glow + "2 open" chip on the
   // Versus tile while someone is waiting in a room I could join. The count is the shared menu poll (0 hides it all),
   // which asks nothing while the title is hidden (menuPoll.ts menuOnScreen).
@@ -164,6 +213,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [rankedConfirm, setRankedConfirm] = useState<'open' | 'closing' | null>(null);
   // Which ranked door the confirmation answers: the solo lobby (Play) or the Ranked Duos play area (owner 2026-10-26).
   const [confirmKind, setConfirmKind] = useState<'solo' | 'duos'>('solo');
+  // The party home prototype's START (DEV): what "Yes" does instead of the default (a Duos party's leader starts its game).
+  const confirmThen = useRef<(() => void) | null>(null);
   const rankedCloseTimer = useRef<number | null>(null);
   useEffect(() => () => { if (rankedCloseTimer.current != null) window.clearTimeout(rankedCloseTimer.current); }, []);
   // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
@@ -198,8 +249,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // once before the real game, rather than dropping them in cold.
   const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
   const isNewPlayer = !learnStatus || learnStatus === 'not_started';
-  const openRankedConfirm = (kind: 'solo' | 'duos' = 'solo'): void => {
+  const openRankedConfirm = (kind: 'solo' | 'duos' = 'solo', then: (() => void) | null = null): void => {
     if (rankedCloseTimer.current != null) { window.clearTimeout(rankedCloseTimer.current); rankedCloseTimer.current = null; }
+    confirmThen.current = then;
     setConfirmKind(kind);
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
@@ -222,6 +274,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // plain menu click here. (The cinematic hit that played here on 2026-10-12 moved to the crystal's shatter.)
     sfx.combatStart();
     closeRankedConfirm();
+    const then = confirmThen.current;
+    confirmThen.current = null;
+    if (then) { then(); return; }
     // RANKED DUOS: "Yes" puts me in my party room (owner 2026-10-26); the gate plays when the party starts its game.
     if (confirmKind === 'duos') { void enterDuosParty(defaultPartyName(playerName)); return; }
     // OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): the table is picked behind the shut doors, before the offer. The
@@ -312,6 +367,15 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     : titleView === 'versus' && versusArea === 'duos' ? (versusScreen === 'room' ? 'duos-party' : 'duos')
     : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
     : titleView;
+  // THE PARTY HOME PROTOTYPE (DEV only): with the switch on, the main menu, the mode screen and the Ranked Duos party are
+  // all ONE screen (partyHome/PartyHome.tsx), and so are the Versus rooms: a room is a state of that screen.
+  const partyView = !!PartyHome && partyHomeFlag && !practiceOpen
+    && (titleView === 'menu' || titleView === 'modes' || titleView === 'versus');
+  const partyStart = (kind: 'solo' | 'duos', then?: () => void): void => {
+    crumb('party home start pressed');
+    if (kind === 'solo' && isNewPlayer) { setTutorialPrompt(true); return; }
+    openRankedConfirm(kind, then ?? null);
+  };
   // One view's content, the `.mpbox` beside the sidebar (`MenuViewSwap` also renders the outgoing one with it).
   const renderShellView = (v: ShellView): ReactNode => {
     switch (v) {
@@ -412,7 +476,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // flash"): the effect that clears `covered` runs AFTER the frame in which the page closed, so for one frame the page
     // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
     // frame. Deriving it in render un-skips the title in the same commit that removes the page.
-    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}`}>
+    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}${shellOn ? ' ph-clear' : ''}${shellOn && pageOpen ? ' ph-paged' : ''}`}>
       {/* DESKTOP AUTO-UPDATE: the "Updated to vX" panel (renders nothing in the browser build). */}
       <UpdatedPanel />
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
@@ -424,6 +488,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           current RANK in a badge beneath. Sign in / Sign out live in Settings now. Sizes + offsets are the
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
+      {partyView && PartyHome && (
+        <PhPageGuard><PartyHome onRankedStart={partyStart} onGuestPortrait={() => setPortraitGate(true)} /></PhPageGuard>
+      )}
+      {!partyView && <>
       <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
@@ -489,9 +557,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
+      </>}
       <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
 
-      <div className="titlemenu">
+      {!partyView && <div className="titlemenu">
         {/* The lockup is shared with hero select — see `AscentLogo`. `.titlelogo` keeps ALL of this screen's
             sizing, offset and float (the 🏔️ tuner's `--title-*` vars); the component itself is markup only. */}
         <AscentLogo className="titlelogo" />
@@ -569,7 +638,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           </button>
         </nav>
 
-      </div>
+      </div>}
 
       {/* THE MODE SCREEN (owner 2026-10-21, R-MENU-VIEW-SWAP-01: "it should be a clean, seamless menu shift going into
           the different views"). ONE host for the mode home AND its views (Practice, Gauntlet, Learn, the Versus browser):
@@ -578,7 +647,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           only). Each view used to be its own full-screen host over the home: the home's content remounted and replayed
           its entrance under it while the new host faded in whole, which flashed the mode tiles through (Gauntlet, Learn,
           Versus); and Practice closed the whole title and mounted its own host, a full fade out and in. */}
-      {shellView && (
+      {shellView && !partyView && (
         <SidebarHost className="modepick sb-host mp-shell" role="dialog" aria-label={SHELL_LABEL[shellView]}>
           <MenuSidebar current="modes" />
           {/* The home is keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play
@@ -588,12 +657,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </SidebarHost>
       )}
       {/* VERSUS ROOM (versus/VersusRoom.tsx): its own arena stage over the mode screen (whose content is empty under it). */}
-      {(shellView === 'versus-room' || shellView === 'duos-party') && <VersusRoom />}
+      {(shellView === 'versus-room' || shellView === 'duos-party') && !partyView && <VersusRoom />}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
           skip so it never asks again. */}
-      {tutorialPrompt && (
+      {tutorialPrompt && partyView && PhTutorialPrompt && (
+        <Suspense fallback={null}>
+          <PhTutorialPrompt onClose={() => setTutorialPrompt(false)}
+            onTutorial={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}
+            onSkip={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); openRankedConfirm(); }} />
+        </Suspense>
+      )}
+      {tutorialPrompt && !partyView && (
         <div className="modepick tutprompt-ov" role="dialog" aria-label="New here?">
           <div className="tutprompt-card">
             <div className="eyebrow">First time?</div>
@@ -612,7 +688,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           It sits OVER the mode picker (owner 2026-10-12), which stays on screen behind a veil that darkens and
           blurs it while the card expands out with a small bounce. Motion is `transform` + `opacity` only: the
           veil's blur is static and only its opacity fades (styles.css, "THE RANKED CONFIRMATION"). */}
-      {rankedConfirm && (
+      {rankedConfirm && partyView && PhRankedPrompt && (
+        <Suspense fallback={null}>
+          <PhRankedPrompt closing={rankedConfirm === 'closing'}
+            title={confirmKind === 'duos' ? DUOS_CONFIRM_TITLE : RANKED_CONFIRM_TITLE}
+            text={confirmKind === 'duos' ? DUOS_CONFIRM_TEXT : RANKED_CONFIRM_TEXT}
+            warning={confirmKind === 'solo' && savedGameWarning ? `Picking a hero also gives up your saved game. ${savedGameWarning}` : null}
+            yes={RANKED_CONFIRM_YES} no={RANKED_CONFIRM_NO} onYes={confirmRanked} onNo={() => { sfx.pulse(); closeRankedConfirm(); }} />
+        </Suspense>
+      )}
+      {rankedConfirm && !partyView && (
         <div className={`rankedconfirm-ov${rankedConfirm === 'closing' ? ' closing' : ''}`} role="dialog" aria-modal="true" aria-label="Ranked lobby">
           <div className="rankedconfirm-veil" onClick={closeRankedConfirm} aria-hidden="true" />
           {/* THE WINDOW wears the Compendium's chrome (owner 2026-10-12: "use the border that the compendium uses ...
@@ -635,7 +720,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
-      <div className="titlefoot">
+      {!partyView && <div className="titlefoot">
         {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
             Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">
@@ -663,7 +748,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         {/* Version + the exact commit the bundle was built from (`*` = built on a dirty tree, so NOT that commit).
             This is how a player and `git log` agree on which build is running — read it off the exe. */}
         <div className="titleversion" aria-description={`built ${__BUILD_DATE__}`}>v{__APP_VERSION__} · {__BUILD_SHA__}{__BUILD_DIRTY__ ? '*' : ''}</div>
-      </div>
+      </div>}
     </div>
   );
 }

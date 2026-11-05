@@ -100,6 +100,10 @@ function setPerfFlag(on: boolean): void {
 }
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
+import { PhBackdrop } from './partyHome/shell/PhBackdrop';
+import { PhBackContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { phBack, phEnable, phLayer } from './partyHome/shell/phHistory';
+import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
@@ -117,7 +121,7 @@ import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProv
 import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
-import { useGame, isPreRun, inGameScreen } from './store';
+import { anyPageOpen, PAGES_CLOSED, useGame, isPreRun, inGameScreen } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
@@ -141,6 +145,19 @@ import { installFriendInvites } from './friends/friendsGo';
 // The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
 // applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
 import './tunedDefaults';
+
+/** The party home prototype's Compendium nav (DEV only; lazy and null in production). */
+const PhBookNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhBookNav')) : null;
+/** The shell's one steady backdrop and its page guard: eager (they paint before any lazy chunk), and gone from production. */
+const PhSteady = import.meta.env.DEV ? PhBackdrop : null;
+const PhGuard = import.meta.env.DEV ? PhPageGuard : null;
+/** Settings opens over a page: its Back returns to that page, as it was. */
+const SETTINGS_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) useGame.getState().closeSettings(); } };
+/** A page opened in a game: Back returns to the in-game menu, the game exactly as it was. */
+const closeInGamePage = (): void => useGame.setState(PAGES_CLOSED);
+const IN_GAME_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) closeInGamePage(); } };
+const PhSteadyNav = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhSteadyNav')) : null;
+const PhChrome = import.meta.env.DEV ? lazy(() => import('./partyHome/shell/PhPageChrome')) : null;
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {
@@ -471,6 +488,31 @@ export function Game() {
   // THE IN-GAME MENU (R-ESC-SIDEBAR-01) is a menu too: while it is open a phone fits the stage as on the menus, so the
   // sidebar and its pages get the phone page layout instead of being cropped by the in-run zoom. Once per open / close.
   const gameMenuOpen = useGame((s) => s.gameMenuOpen);
+  // The party home shell's menus: the same test Title.tsx uses for `html[data-ph-shell]`.
+  const partyHomeOn = usePartyHome();
+  const titleUp = useGame((s) => s.showTitle || s.practiceSetupOpen);
+  const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
+  // A page opened from the in-game menu stands on the same backdrop, over the board.
+  const inGamePage = useGame((s) => partyHomeOn && s.gameMenuOpen && anyPageOpen(s));
+  // THE ONE BACK PATH: the shell's history is on in a game too, and the menu is a layer, the page opened from it the one above.
+  const closeGameMenu = useGame((s) => s.closeGameMenu);
+  const menuLayer = useGame((s) => partyHomeOn && s.gameMenuOpen && !s.showTitle);
+  useEffect(() => { if (partyHomeOn) phEnable(); }, [partyHomeOn]);
+  useEffect(() => (menuLayer ? phLayer(closeGameMenu) : undefined), [menuLayer, closeGameMenu]);
+  // ...and is one layer on the history: Back closes it, even with no history before it.
+  useEffect(() => (inGamePage ? phLayer(closeInGamePage) : undefined), [inGamePage]);
+  // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.
+  const bookUp = useGame((s) => s.showBook);
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-ph-book', shellMenus && bookUp);
+  }, [shellMenus, bookUp]);
+  // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
+  const page = (el: JSX.Element): JSX.Element => {
+    if (PhGuard && inGamePage) return <PhGuard onBack={closeInGamePage}><PhBackContext.Provider value={IN_GAME_BACK}>{el}</PhBackContext.Provider></PhGuard>;
+    return PhGuard && PhChrome && shellMenus
+      ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>
+      : el;
+  };
   useEffect(() => { setStageMenuZoom((preRun && !heroPicking) || gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
   useEffect(() => { setStageInRun(!preRun && !heroPicking && !gameMenuOpen); }, [preRun, heroPicking, gameMenuOpen]);
@@ -566,6 +608,8 @@ export function Game() {
       if (e.key !== 'Tab') return;
       const st = useGame.getState();
       if (st.heroChoices) return;
+      // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): on the menus Tab moves keyboard focus (the Compendium is a nav tab).
+      if (document.documentElement.hasAttribute('data-ph-shell')) return;
       e.preventDefault();
       st.toggleBook();
     };
@@ -631,7 +675,9 @@ export function Game() {
       {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
           fixed, input-transparent layer serving the shop and the combat replay alike. */}
       {!preRun && <CastPreviewLayer />}
-      {showBook && <MinionBook />}
+      {showBook && (PhGuard && shellMenus ? <PhGuard onBack={() => useGame.getState().closeBook()}><MinionBook /></PhGuard> : <MinionBook />)}
+      {/* THE PARTY HOME PROTOTYPE (DEV): on the menus the Compendium is a page under the shell's top nav. */}
+      {showBook && preRun && PhBookNav && PhGuard && <PhGuard onBack={() => useGame.getState().closeBook()}><PhBookNav /></PhGuard>}
       <Inspect />
       {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
       <RuneInspect />
@@ -700,6 +746,8 @@ export function Game() {
       <DiscoverEntrancePreview />
       <WipePreview />
       <HeroLaunchCurtain />
+      {PhSteady && (shellMenus || inGamePage || (partyHomeOn && heroPicking)) && <PhSteady steady over={inGamePage} />}
+      {PhSteadyNav && PhGuard && shellMenus && <PhGuard><PhSteadyNav /></PhGuard>}
       <Title onSettings={openSettings} />
       {/* THE RANKED GATE (owner 2026-10-12): "Yes, let's go." slams two doors shut over the mode picker and opens
           them on hero select. Mounted here, after the Title and the picker, because it must outlive the Title:
@@ -711,10 +759,10 @@ export function Game() {
       {/* THE IN-GAME MENU (R-ESC-SIDEBAR-01): the sidebar over the dimmed game. Before the pages, so a page opened from
           it paints over it, and `.gmenu ~ .lbpage` (styles.css) draws those pages over the game without their backdrop. */}
       <GameMenu />
-      <Leaderboard />
-      <Rankings />
-      <RecentGames />
-      <LiveGames />
+      {page(<Leaderboard />)}
+      {page(<Rankings />)}
+      {page(<RecentGames />)}
+      {page(<LiveGames />)}
       {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
       <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
@@ -734,14 +782,14 @@ export function Game() {
       <DmToast />
       {/* The friend menu (R-FRIENDS-MENU-01): right-click / long press on a friend row in the dock. */}
       <FriendMenu />
-      <Career />
+      {page(<Career />)}
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}
-      <CollectionScreen />
+      {page(<CollectionScreen />)}
       {/* The Patch Notes page (R-PATCHNOTES-PAGE-01): a sidebar page like Settings; its changelog chunk loads on first open. */}
-      <PatchNotesPage />
+      {page(<PatchNotesPage />)}
       {/* The Settings page (R-ESC-SIDEBAR-01): a sidebar page like the others, last so it paints over a page it opened on. */}
-      <SettingsPage />
+      {page(PhGuard ? <PhBackContext.Provider value={SETTINGS_BACK}><SettingsPage /></PhBackContext.Provider> : <SettingsPage />)}
       {/* DEV: the Crate opening tuner's practice crates (▶ Common … ▶ Legendary). Local only; renders nothing until
           a Play is pressed. `VITE_CRATE_PREVIEW=1` also bakes it into a PRODUCTION bundle, only so the opening can be
           profiled on the prod build (docs/performance.md); player builds never set it. */}

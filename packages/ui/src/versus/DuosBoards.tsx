@@ -19,7 +19,7 @@ export const DUOS_ROWS = 25;
 export const DUOS_RANKINGS_KEY = 'rankings:duos';
 export const loadDuosRankings = (): Promise<DuosLeaderboardRow[]> => versusRemote.duosLeaderboard(DUOS_ROWS, 0).catch(() => []);
 
-const handleOf = (p: DuosPlayerCard | null): string => (p ? displayHandle(p.name ?? 'Player', p.discriminator, p.userId) : 'Player');
+export const handleOf = (p: DuosPlayerCard | null): string => (p ? displayHandle(p.name ?? 'Player', p.discriminator, p.userId) : 'Player');
 /** The team's shown name: its own, or "Name1 & Name2" (computed, never stored). */
 export const duosTeamLabel = (name: string | null, a: DuosPlayerCard | null, b: DuosPlayerCard | null): string =>
   name ?? defaultTeamName(a?.name ?? 'Player', b?.name ?? 'Player');

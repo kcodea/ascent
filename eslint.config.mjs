@@ -56,7 +56,7 @@ export default tseslint.config(
   // `supabase/functions/**` is Deno (remote URL imports, Deno globals) — not part of the Node monorepo build.
   // `.local/**` is gitignored local state (pulled bug reports, and the throwaway worktree `npm run docbot:retro`
   // creates while it runs) — a lint that overlaps a retro run must not report the throwaway's files.
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/.wrangler/**', '**/*.tsbuildinfo', 'apps/desktop/release/**', 'apps/desktop/build/**', '.claude/**', '.local/**', 'supabase/**'] },
+  { ignores: ['**/node_modules/**', '**/dist/**', 'apps/web/dist-flows/**', '**/.wrangler/**', '**/*.tsbuildinfo', 'apps/desktop/release/**', 'apps/desktop/build/**', '.claude/**', '.local/**', 'supabase/**'] },
   ...tseslint.configs.recommended,
   {
     // Electron's main process is CommonJS: it is loaded by Electron itself, not bundled, so `require` is the

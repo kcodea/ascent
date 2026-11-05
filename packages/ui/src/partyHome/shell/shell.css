@@ -1,0 +1,333 @@
+/* ── THE APP SHELL (party home prototype, DEV only; `html[data-ph-shell]` is set while the switch is on) ───────────────────
+   ONE visual language for the party home, its top nav and every menu page under it: the Docked lobby rail
+   (lobbyRailDocked.css + uiTheme.css `--pill-*`). Navy plates, thin gold edges, ONE cut shape (top-right + bottom-left
+   corners: big on cards, small on buttons, rows and chips), white title-font names with the rail's layered shadow, muted
+   secondary text, the podium metals. No purple.
+
+   TOKENS (use these, never raw values, so every page reads as one app):
+     size unit      --phu           1px on desktop (the layout never goes below 1920 x 1080), screen points on a phone
+     spacing        multiples of 8 * --phu
+     type scale     --ph-t1 12 meta | --ph-t2 14 body, labels | --ph-t3 18 row + section titles | --ph-t4 30 names, page
+                    titles | --ph-t5 34 START
+     colour         --ph-navy --ph-gold --ph-ink (white) --ph-text --ph-muted --ph-teal (ready / online) --ph-foe --ph-hair
+     metal          --ph-metal-gold --ph-metal-silver --ph-metal-bronze (fills, navy text on top)
+     plates         --ph-plate (the rail plate) --ph-plate-hover --ph-well (a deeper inner box)
+     shape          --ph-clip (big cut) --ph-clip-s (small cut)
+   FANTASY MATERIALS (owner 2026-11-02: "it needs to maintain a fantasy vibe ... don't make it look techy/futuristic"): the
+   headings, tabs and buttons wear the game's inscription serif (Cinzel), names and big numbers its card-name serif
+   (Fraunces); every edge is gilded (a bevelled gold, never a flat hairline); plates catch a warm candle light from above;
+   secondary text is parchment, not cold grey; Ready / online is a living green, not neon; keyboard focus is a warm gold
+   glow. Shapes stay clean: cards are banners (a pennant foot), START a gilded plaque.
+     fonts          --ph-font (Cinzel: headings, tabs, buttons, labels) | --ph-name-font (Fraunces: names, big numbers)
+                    | --ph-body (body text)
+     gilding        --ph-gild (an inset bevelled gold edge: use as a box-shadow) --ph-gild-s (the thin one)
+     reading        --ph-t-read 16 (long-form text)
+     shape          --ph-clip-banner (a banner with a pennant foot)
+   PERFORMANCE: static paint. Hover is a colour or a one-shot transform. Nothing loops. */
+
+/* `.ph-tokens`: the same tokens on any element, for a screen outside the shell (hero select) that cannot set the attribute. */
+html[data-ph-shell], .ph-tokens {
+  --phu: 1px;
+  --ph-navy: var(--pill-navy, #0d1a36);
+  --ph-gold: var(--pill-edge, #c8953f);
+  --ph-gold-hi: var(--ui-edge-hi, #ffe9b0);
+  --ph-gold-deep: var(--ui-edge-deep, #7a571f);
+  --ph-ink: #fff;
+  --ph-text: #fff6ea;
+  /* Parchment for secondary text (warm, never a cold grey). */
+  /* Secondary text: a soft blue-grey (clean, not sepia). */
+  --ph-muted: #aebddb;
+  /* READY / ONLINE: a living green (the token keeps its old name so nothing that reads it breaks). */
+  --ph-teal: #9be07f;
+  --ph-ready: var(--ph-teal);
+  --ph-foe: var(--pill-foe, #ffb3bf);
+  --ph-hair: color-mix(in srgb, var(--ph-gold) 58%, transparent);
+  /* GILDING: an inset gold edge with a lit top and a shaded foot (the rail's gold, bevelled), for any plate or well. */
+  --ph-gild: inset 0 0 0 calc(1.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 85%, transparent), inset 0 calc(2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(255, 233, 176, 0.45), inset 0 calc(-2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(60, 36, 8, 0.6);
+  --ph-gild-s: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 70%, transparent), inset 0 calc(1.5 * var(--phu)) 0 calc(-0.5 * var(--phu)) rgba(255, 233, 176, 0.3);
+  --ph-shadow: var(--pill-text-shadow);
+  /* Plates catch a warm candle light from above (a static radial over the rail's navy). */
+  --ph-plate: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), linear-gradient(180deg, color-mix(in srgb, var(--pill-navy-top, #1c2f58) 82%, transparent), color-mix(in srgb, var(--pill-navy-bot, #091226) 86%, transparent)), url('../ornaments/vellum.webp') 0 0 / calc(256 * var(--phu)) repeat;
+  --ph-plate-hover: radial-gradient(120% 70% at 50% 0%, rgba(255, 214, 140, 0.18), rgba(255, 214, 140, 0) 62%), var(--pill-plate-hover);
+  --ph-well: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(255, 206, 128, 0.04)), var(--pill-well);
+  --ph-edge: linear-gradient(180deg, var(--ph-gold-hi) 0%, var(--ph-gold) 30%, var(--ph-gold-deep) 70%, var(--ph-gold) 100%);
+  --ph-metal-gold: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%);
+  --ph-metal-silver: linear-gradient(180deg, #ffffff 0%, #dfe5ec 38%, #b4bfcb 70%, #7f8b99 100%);
+  --ph-metal-bronze: linear-gradient(180deg, #f8d1ac 0%, #e09a5c 38%, #b8703a 70%, #7e4720 100%);
+  /* MODERN FANTASY (owner 2026-11-02): the game's own rounded title face in heavy weights, with the soft layered shadow;
+     names and numbers in the same face (readable numerals). */
+  --ph-font: var(--font-title, 'Outfit'), sans-serif;
+  --ph-name-font: var(--font-title, 'Outfit'), sans-serif;
+  --ph-body: var(--font-ui), sans-serif;
+  --ph-t1: calc(13 * var(--phu));
+  --ph-t2: calc(15 * var(--phu));
+  --ph-t3: calc(18 * var(--phu));
+  --ph-t4: calc(30 * var(--phu));
+  --ph-t5: calc(34 * var(--phu));
+  /* Long-form reading text (patch notes, rules, settings help). */
+  --ph-t-read: calc(16 * var(--phu));
+  --ph-cut: calc(20 * var(--phu));
+  --ph-cut-s: calc(8 * var(--phu));
+  --ph-clip: polygon(0 0, calc(100% - var(--ph-cut)) 0, 100% var(--ph-cut), 100% 100%, var(--ph-cut) 100%, 0 calc(100% - var(--ph-cut)));
+  --ph-clip-banner: polygon(0 0, 100% 0, 100% calc(100% - var(--ph-cut)), 50% 100%, 0 calc(100% - var(--ph-cut)));
+  /* Rounded, bubbly shapes: the radii (cards keep their banner shape). */
+  --ph-r-s: calc(10 * var(--phu));
+  --ph-r: calc(16 * var(--phu));
+  --ph-r-l: calc(22 * var(--phu));
+  /* A springy, short press / hover (transform only). */
+  --ph-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* A bright magical selection glow (static paint; it appears on a state change, never loops). */
+  --ph-glow: 0 0 0 calc(2 * var(--phu)) rgba(255, 214, 110, 0.9), 0 0 calc(16 * var(--phu)) rgba(255, 196, 70, 0.55), 0 0 calc(28 * var(--phu)) rgba(120, 170, 255, 0.35);
+  --ph-clip-s: polygon(0 0, calc(100% - var(--ph-cut-s)) 0, 100% var(--ph-cut-s), 100% 100%, var(--ph-cut-s) 100%, 0 calc(100% - var(--ph-cut-s)));
+  --ph-nav-h: calc(64 * var(--phu));
+}
+/* Short windows and phones: the unit also never exceeds a 600-unit-tall budget of the window, so the whole home (nav,
+   tabs, cards, START) always fits. Phones (landscape) use screen points (`--pt`, phoneMenus.css), about 0.6 pt a unit. */
+html[data-ph-shell], .ph-tokens { --phu: min(1px, calc(var(--ph-h, var(--lvh, 100vh)) / 640)); }
+html[data-ph-shell][data-ph-compact] { --phu: calc(var(--ph-h, var(--lvh, 100vh)) / 620); }
+
+/* ── THE TOP NAV ── */
+.ph-top { position: relative; z-index: 6; display: flex; align-items: stretch; gap: calc(8 * var(--phu)); box-sizing: border-box;
+  height: var(--ph-nav-h); padding: 0 calc(16 * var(--phu) + var(--safe-r, 0px)) 0 calc(24 * var(--phu) + var(--safe-l, 0px));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 94%, #000) 0%, color-mix(in srgb, var(--ph-navy) 88%, transparent) 100%);
+  box-shadow: 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4);
+  font-family: var(--ph-font); }
+/* The riveted gold band under the nav (painted). */
+.ph-top::after { content: ''; position: absolute; left: 0; right: 0; bottom: calc(-6 * var(--phu)); height: calc(12 * var(--phu)); pointer-events: none;
+  background: url('../ornaments/navtrim.webp') center / 100% 100% no-repeat; }
+.ph-brand { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(24 * var(--phu)) 0 0; margin: 0 calc(8 * var(--phu)) 0 0; border: 0; border-radius: 0; background: none; color: var(--ph-ink);
+  box-shadow: inset calc(-1 * var(--phu)) 0 0 var(--ph-hair); }
+.ph-brand img { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); object-fit: contain; }
+.ph-brand span { font-family: var(--title-font, var(--font-title)); font-weight: 800; font-size: calc(22 * var(--phu)); letter-spacing: 0.12em; text-shadow: var(--ph-shadow); }
+.ph-nav { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.ph-nav::-webkit-scrollbar { display: none; }
+.ph-navtab { position: relative; flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); padding: 0 calc(12 * var(--phu)); margin: 0; border: 0; border-radius: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
+.ph-navtab:hover, .ph-navtab.on { color: var(--ph-ink); }
+/* The active tab: the painted gold bar with its sapphire, just above the nav's band. */
+.ph-navtab.on::after, .ph-iconbtn.on::after { content: ''; position: absolute; left: calc(4 * var(--phu)); right: calc(4 * var(--phu)); bottom: calc(8 * var(--phu)); height: calc(14 * var(--phu));
+  background: url('../ornaments/tab-marker.webp') center / contain no-repeat; }
+.ph-navicon { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); flex: none; }
+.ph-navicon svg, .ph-navicon img { width: 100%; height: 100%; }
+.ph-dot { position: absolute; top: calc(16 * var(--phu)); right: calc(8 * var(--phu)); width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: var(--pill-red, #ff7a66); box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-navy); }
+.ph-wallet { flex: none; display: flex; align-items: center; gap: calc(8 * var(--phu)); margin-left: calc(8 * var(--phu)); }
+.ph-coin, .ph-lv { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(36 * var(--phu)); padding: 0 calc(16 * var(--phu));
+  background: var(--ph-well); box-shadow: var(--ph-gild-s); clip-path: var(--ph-clip-s); }
+.ph-coin b, .ph-lvnum { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); color: var(--ph-ink); text-shadow: var(--pill-num-shadow); font-variant-numeric: tabular-nums; }
+.ph-aether { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+.ph-lvnum small { font-size: var(--ph-t1); color: var(--ph-muted); margin-right: calc(4 * var(--phu)); letter-spacing: 0.08em; text-transform: uppercase; }
+.ph-lvbar { position: relative; width: calc(80 * var(--phu)); height: calc(4 * var(--phu)); background: rgba(0, 0, 0, 0.55); overflow: hidden; }
+.ph-lvbar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
+.ph-iconbtn { position: relative; flex: none; display: grid; place-items: center; width: calc(48 * var(--phu)); height: 100%; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; color: var(--ph-muted); }
+.ph-iconbtn::after { left: calc(8 * var(--phu)) !important; right: calc(8 * var(--phu)) !important; }
+.ph-iconbtn .ph-navicon { width: calc(26 * var(--phu)); height: calc(26 * var(--phu)); }
+.ph-iconbtn:hover, .ph-iconbtn.on { color: var(--ph-ink); }
+/* COMPACT (phones, short windows; `html[data-ph-compact]`, set with the shell): the tabs are icons only, each a 48 unit
+   square target; the wordmark and the XP bar drop. */
+html[data-ph-compact] .ph-brand span, html[data-ph-compact] .ph-navlbl, html[data-ph-compact] .ph-lvbar { display: none; }
+html[data-ph-compact] .ph-brand { padding-right: calc(12 * var(--phu)); }
+html[data-ph-compact] .ph-navtab { padding: 0; width: calc(72 * var(--phu)); justify-content: center; }
+html[data-ph-compact] { --ph-nav-h: calc(72 * var(--phu)); }
+html[data-ph-compact] .ph-iconbtn { width: calc(72 * var(--phu)); }
+html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(30 * var(--phu)); height: calc(30 * var(--phu)); }
+html[data-ph-compact] .ph-navtab.on::after { left: calc(8 * var(--phu)); right: calc(8 * var(--phu)); }
+
+/* ── EVERY MENU PAGE UNDER THE SHELL: no left sidebar (MenuSidebar renders the top nav instead), content under the nav ── */
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { --sb-w: 0px !important; padding-top: var(--ph-nav-h) !important; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) > .ph-top { position: absolute; top: 0; left: 0; right: 0; }
+/* A hop between pages keeps the bar still: only the content under it fades. */
+html[data-ph-shell] :is(.lbpage, .modepick).hop > .ph-top, html[data-ph-shell] .lbpage > .ph-top { animation: none !important; }
+
+/* Every menu page under the shell paints the shell's one backdrop (PhPageChrome), a touch darker for reading. */
+.ph-pagebd { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { isolation: isolate; }
+.ph-pagebd .ph-veil { position: absolute; inset: 0; background: rgba(6, 12, 28, 0.45); }
+html[data-ph-shell] .lbpage.hop > .ph-pagebd, html[data-ph-shell] .modepick.hop > .ph-pagebd { animation: none !important; }
+
+/* THE COMPENDIUM under the shell: the book's layer starts below the pinned nav. */
+.ph-booknav { position: fixed; top: 0; left: 0; right: 0; z-index: 486; }
+html[data-ph-shell] .book-ov { top: var(--ph-nav-h); background: rgba(6, 12, 28, 0.88); }
+/* A registered Compendium page (shellStore `compendiumPage`): a page host under the nav, over the menus. */
+.ph-bookpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; padding-top: var(--ph-nav-h); box-sizing: border-box; background: none; }
+.ph-bookpage > .ph-pagebd { z-index: 0; }
+.ph-bookpage > :not(.ph-pagebd):not(.ph-booknav) { position: relative; z-index: 1; }
+
+/* ONE PLACE FOR EVERYTHING: under the shell the old corner buttons (the Friends square, the Compendium book) are hidden
+   (the nav has both), and the DEV corner square shrinks into the bottom-left corner, clear of the player's controls. */
+html[data-ph-shell] :is(.fdock-btn, .fdock-stack, .fdock-catch, .bookbtn) { display: none !important; }
+html[data-ph-shell] .cornerdev { left: 8px !important; bottom: 8px !important; width: 28px; height: 28px; opacity: 0.6; }
+
+/* KEYBOARD FOCUS: a warm gold ring inside the element (an outline outside a cut shape would be clipped away). */
+html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
+  outline: calc(2 * var(--phu)) solid #ffd98a; outline-offset: calc(-3 * var(--phu)); filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 196, 96, 0.55)); }
+
+/* ── THE ONE FRIENDS LIST (PhFriends.tsx): docked in the party home's right column, or a drawer under the nav ── */
+.ph-friends { position: relative; z-index: 2; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); box-sizing: border-box;
+  padding: calc(24 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(24 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ph-navy) 90%, transparent), color-mix(in srgb, var(--ph-navy) 96%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); font-family: var(--ph-body); color: var(--ph-text); }
+.ph > .ph-friends.docked { grid-column: 2; grid-row: 2 / 4; }
+.ph-friends.drawer { position: fixed; top: var(--ph-nav-h); right: 0; bottom: 0; width: min(calc(420 * var(--phu)), calc(var(--lvw, 100vw) * 0.92)); z-index: 487;
+  background: linear-gradient(180deg, var(--ph-navy), color-mix(in srgb, var(--ph-navy) 80%, #000));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), calc(-16 * var(--phu)) 0 calc(32 * var(--phu)) rgba(0, 0, 0, 0.5);
+  animation: ph-drawer 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+@keyframes ph-drawer { from { transform: translateX(100%); } to { transform: none; } }
+/* The one-shot "look here" (an open seat pressed): a gold ring that fades out, opacity only. */
+.ph-fpulse { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--pill-gold, #f6cf5a); animation: ph-fpulse 0.9s ease-out both; }
+@keyframes ph-fpulse { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.ph-fhead { display: flex; align-items: baseline; gap: calc(8 * var(--phu)); }
+.ph-ftitle { font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+.ph-fcount { font-size: var(--ph-t1); color: var(--ph-teal); }
+.ph-fclose { margin-left: auto; align-self: center; height: calc(40 * var(--phu)) !important; }
+.ph-fadd { display: flex; gap: calc(8 * var(--phu)); }
+.ph-finput { flex: 1; min-width: 0; height: calc(40 * var(--phu)); padding: 0 calc(16 * var(--phu)); border: 0; border-radius: 0; background: var(--ph-well); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair);
+  clip-path: var(--ph-clip-s); font-family: var(--ph-body); font-size: var(--ph-t2); color: var(--ph-ink); outline: none; }
+.ph-finput:focus { box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) var(--ph-gold); }
+.ph-finput::placeholder { color: var(--ph-muted); }
+.ph-frows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* The row's right end (Invite, In party) sits on a navy fade, never on the busy portrait. */
+.ph-friend .phk-rowright { align-self: stretch; padding-left: calc(24 * var(--phu)); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ph-navy) 92%, transparent) 30%); }
+.ph-friend.f-offline { opacity: 0.55; }
+.ph-fstatus { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.ph-fstatus > i { flex: none; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); border-radius: 50%; background: #6f7a90; }
+.ph-friend.f-online .ph-fstatus > i { background: var(--ph-teal); }
+.ph-friend.f-online .ph-fstatus { color: #d6efc6; }
+.ph-friend.f-in_game .ph-fstatus > i { background: var(--pill-gold, #f6cf5a); }
+.ph-friend.f-in_game .ph-fstatus { color: #fbe6a6; }
+.ph-fflash { font-size: var(--ph-t2); color: var(--ph-text); }
+.ph-fnote { font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); }
+.ph-friends .phk-empty { padding: calc(24 * var(--phu)) calc(8 * var(--phu)); }
+@media (prefers-reduced-motion: reduce) { .ph-friends.drawer, .ph-fpulse { animation: none; } }
+
+/* With a registered Compendium page up, the book's own modal is not shown. */
+html[data-ph-shell] body:has(.ph-bookpage) .book-ov { display: none; }
+
+/* A friend's portrait in the painted ring (rivets, a sapphire at the foot); the rail art fade is not used on friends. */
+.ph-fportrait { position: relative; flex: none; width: calc(48 * var(--phu)); height: calc(48 * var(--phu) * 135 / 128); }
+.ph-fportrait > img { position: absolute; left: 13%; top: 12%; width: 74%; height: 70%; border-radius: 50%; object-fit: cover; object-position: 50% 22%; }
+.ph-fportrait::after { content: ''; position: absolute; inset: 0; background: url('../ornaments/friend-frame.webp') center / 100% 100% no-repeat; }
+.ph-friend.f-offline .ph-fportrait > img { filter: grayscale(0.8); }
+
+/* THE NAV IS THE SAME EVERYWHERE: a page's own button / text rules can never restyle it. */
+html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { font-family: var(--ph-font) !important; font-size: var(--ph-t2) !important; letter-spacing: 0.06em !important;
+  line-height: normal !important; text-transform: uppercase !important; border: 0 !important; border-radius: 0 !important; min-height: 0 !important; box-shadow: none !important; background: none !important; }
+html[data-ph-shell] .ph-top .ph-brand span { font-size: calc(22 * var(--phu)) !important; letter-spacing: 0.12em !important; }
+html[data-ph-shell] .ph-top :is(.ph-coin b, .ph-lvnum) { font-family: var(--ph-name-font) !important; }
+/* LEGACY PAGE CONTENT on a phone under the shell: the old phone page rules size in screen points (--pt); here a point
+   is the shell's own unit, so a page not yet rebuilt on the kit reads at the home's scale and never runs off the side. */
+/* `--pt` IS ONE REAL SCREEN POINT under the shell (one phone point = 620 / 390 = 1.6 units), so `calc(40 * var(--pt))` means a
+   true 40pt touch target. Page authors: size in --phu; use --pt only for a real-point floor; never use raw px on a phone. */
+html[data-ph-shell][data-ph-compact][data-touch-ui][data-touch-small][data-page-scale] { --pt: calc(1.6 * var(--phu)); }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { overflow-x: hidden; }
+/* The friends drawer's outside-tap catcher (under the drawer, over the page). */
+.ph-fcatch { position: fixed; inset: 0; top: var(--ph-nav-h); z-index: 486; }
+.ph-gear { width: calc(24 * var(--phu)); height: calc(24 * var(--phu)); color: var(--pill-gold, #f6cf5a); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+.ph-coin.offline b { color: var(--ph-muted); }
+
+/* ── MODERN FANTASY: rounded, glossy, springy (overrides the cut shapes above) ── */
+html[data-ph-shell] .ph-top :is(.ph-navtab, .ph-iconbtn, .ph-brand) { letter-spacing: 0.04em !important; font-weight: 800 !important; }
+.ph-coin, .ph-lv { clip-path: none; border-radius: 999px; }
+.ph-finput { clip-path: none; border-radius: 999px; }
+.ph-navtab { transition: color 0.12s ease, transform 0.18s var(--ph-spring); }
+.ph-navtab:hover { transform: translateY(calc(-2 * var(--phu))); }
+.ph-iconbtn { transition: transform 0.18s var(--ph-spring); }
+.ph-iconbtn:hover { transform: scale(1.1); }
+.ph-friends.drawer { border-radius: var(--ph-r-l) 0 0 var(--ph-r-l); }
+
+.ph-friends.embedded .ph-ftitle { display: none; }
+
+.ph-fhead { justify-content: space-between; }
+.ph-friends.embedded .ph-fhead { justify-content: flex-end; }
+/* The nav's tabs never hop either: a warm glow on hover. */
+.ph-navtab:hover { transform: none; text-shadow: var(--ph-shadow), 0 0 calc(10 * var(--phu)) rgba(255, 214, 120, 0.45); }
+
+/* ROUND 5: the gear matches the cluster. */
+.ph-gear { width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); }
+.ph-gear svg { width: 100%; height: 100%; }
+/* Rows with an action keep their whole frame (the action sits inside the gilded edge). */
+.ph-friend .phk-rowright { margin: calc(2 * var(--phu)) calc(2 * var(--phu)) calc(2 * var(--phu)) 0; border-radius: 0 var(--ph-r) var(--ph-r) 0; }
+
+/* ── CRITIC ROUND 6 ── */
+/* The empty slot that keeps the wallet still where the friends list is docked. */
+.ph-iconbtn.ph-slot { visibility: hidden; pointer-events: none; }
+/* KEYBOARD FOCUS: a rounded warm glow on the square-edged controls, never a sharp box. */
+html[data-ph-shell] :is(.ph-navtab, .phk-tab, .ph-iconbtn, .ph-brand, .phk-row, .phk-grow):focus-visible { border-radius: var(--ph-r-s); }
+html[data-ph-shell] :is(.ph-top, .ph, .phk-page, .ph-friends, .phk-dialog) :is(button, input, [role="button"], [role="tab"]):focus-visible {
+  outline: calc(2 * var(--phu)) solid rgba(255, 217, 138, 0.85); outline-offset: calc(-2 * var(--phu)); }
+/* PHONE NAV: a tiny label under each icon, so no page is a guess. The row scrolls sideways when it must. */
+html[data-ph-compact] { --ph-nav-h: calc(84 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { display: block; font-size: calc(18 * var(--phu)) !important; line-height: 1; letter-spacing: 0; text-transform: none; font-weight: 700; }
+html[data-ph-compact] .ph-navtab { flex-direction: column; justify-content: center; gap: calc(5 * var(--phu)); width: auto; min-width: calc(72 * var(--phu)); padding: 0 calc(8 * var(--phu)); }
+html[data-ph-compact] .ph-navtab .ph-navicon { width: calc(34 * var(--phu)); height: calc(34 * var(--phu)); }
+html[data-ph-compact] .ph-navtab.on::after { bottom: calc(-2 * var(--phu)); }
+html[data-ph-compact] .ph-nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 32 * var(--phu)), transparent); }
+/* PHONE TYPE: the read sizes lift so nothing lands under 11 real px (18 units on a phone). */
+html[data-ph-shell][data-ph-compact] { --ph-t1: calc(18 * var(--phu)); --ph-t2: calc(19 * var(--phu)); --ph-t3: calc(22 * var(--phu)); --ph-t-read: calc(20 * var(--phu)); }
+
+/* ── CRITIC ROUND 7 ── */
+.ph-friends.drawer, .ph-fcatch { top: calc(var(--ph-nav-h) + 10 * var(--phu)); }
+html[data-ph-compact] .ph-fadd .ph-finput { min-height: calc(64 * var(--phu)); }
+
+/* ── CRITIC ROUND 9 ── */
+/* One nav type on every screen: rounded title case. */
+html[data-ph-shell] .ph-top .ph-navtab, html[data-ph-shell] .ph-top .ph-navlbl { text-transform: none !important; }
+
+/* ── CRITIC ROUND 10 ── */
+/* EVERY scroller under the shell wears the slim gold bar, whatever its page set: one rule, not one per page. The width is zero
+   specificity, so a row that hides its bar (`scrollbar-width: none`) keeps hiding it. */
+/* (Round 11) Standard `scrollbar-color` / `thin` keep the OS arrow steppers on Windows, so the shell uses the styled bar only:
+   those two properties are switched off (they would disable it) and one gold thumb, inset from rounded corners, is drawn. */
+html[data-ph-shell] * { scrollbar-color: auto !important; }
+html[data-ph-shell] :is(.phk-pagebody, .book-grid, .book-rail, .book-gloss-body, .wiki-list, .phk-dlgtext, .phc-herogrid, .phc-trends, .phc-achview, .phc-gridwrap, .phc-rail, .phc-side, .phc-sheet, .phc-view, .bookguides, .rgp-listwrap, .rgp-detailcol, .phpn-index, .phpn-feed, .vsr-tiles, .vso-list, .ph-opts > .phk-secbody) { scrollbar-width: auto !important; }
+html[data-ph-shell] *::-webkit-scrollbar { width: calc(10 * var(--phu)); height: calc(10 * var(--phu)); }
+html[data-ph-shell] *::-webkit-scrollbar-thumb { border: calc(3 * var(--phu)) solid transparent; border-radius: 999px; background: var(--ph-gold) padding-box; }
+html[data-ph-shell] *::-webkit-scrollbar-track { background: transparent; margin: calc(12 * var(--phu)); }
+html[data-ph-shell] *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+html[data-ph-shell] *::-webkit-scrollbar-corner { background: transparent; }
+/* A little air between a list's bar and its plates. */
+html[data-ph-shell]:not([data-ph-compact]) :is(.phpn-index, .phpn-feed, .rgp-listwrap, .rgp-detailcol, .phc-side, .phc-view, .bookguides) { padding-right: calc(6 * var(--phu)); }
+/* The old corner gear never takes focus behind the rail: Settings is in the nav. */
+html[data-ph-shell] .gearbtn { display: none; }
+
+/* ── ONE BACKDROP (owner 2026-11-04) ── `Game` paints it; nothing above it may have a ground of its own. The first rules of this are
+   in styles.css (they must hold before this lazy sheet arrives). A nav still on its way holds the nav's own place. */
+.ph-navwait { position: absolute; top: 0; left: 0; right: 0; height: var(--ph-nav-h); }
+/* Hero select keeps the same art inside its own layer (it runs outside the menus, so the steady one is down). */
+.hsph-bd .ph-steady { position: absolute !important; z-index: 0 !important; }
+
+/* ── THE ONE NAV (PhSteadyNav.tsx) ── over every menu screen; the pages' own bars keep their space but never paint. */
+.ph-navhost { position: fixed; top: 0; left: 0; right: 0; z-index: 490; }
+.ph-navhost > .ph-top { position: relative; }
+html[data-ph-shell] :is(.lbpage, .modepick, .ph, .ph-booknav) .ph-top { visibility: hidden; }
+/* Labels wear the game's cursor; a text field keeps the I-beam, in the gauntlet form. */
+html[data-ph-shell] :is(.phk-field, .phk-seglbl, .ph-fadd) { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+html[data-ph-shell] :is(.ph-finput, .phk-fieldinput, .phk-search, input[type="text"], input[type="search"], textarea) { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
+
+
+/* PHONE NAV: every label whole with the Aether and Level pills up: the tabs sit tight and the wallet gives up its slack. */
+html[data-ph-compact] .ph-navtab { min-width: 0; padding: 0 calc(5 * var(--phu)); }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navlbl { letter-spacing: -0.01em; }
+html[data-ph-compact] .ph-brand { padding-right: calc(4 * var(--phu)); margin-right: 0; }
+html[data-ph-compact] .ph-top .ph-iconbtn { width: calc(58 * var(--phu)); }
+html[data-ph-compact] .ph-wallet { gap: calc(2 * var(--phu)); }
+html[data-ph-compact] .ph-lv { padding-left: calc(6 * var(--phu)); padding-right: calc(6 * var(--phu)); }
+
+/* The round icons take a soft gold focus, never a square. */
+html[data-ph-shell] .ph-top .ph-iconbtn:focus-visible { outline: none; filter: drop-shadow(0 0 calc(6 * var(--phu)) rgba(255, 205, 100, 0.9)); }
+
+/* A page opened in a game: no nav above it. */
+html[data-ph-ingame] { --ph-nav-h: 0px; }
+
+/* DEV: the Scene Builder button beside the gear (never in production: the whole shell is DEV only). */
+.ph-top .ph-iconbtn.ph-scenebtn { width: auto !important; padding: 0 calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1) !important; letter-spacing: 0.02em; color: var(--ph-text); white-space: nowrap; }
+
+/* The Scene Builder panel steps aside for the in-game menu. */
+html[data-ph-gm] .scenebuilder { visibility: hidden; }
+
+
+/* Esc put the hover preview away: it stays gone until the pointer moves on. */
+html[data-ph-tipoff] .cardref { display: none; }
+
+/* A phone's nav: every target at least a finger wide, the short labels (Home, Play) too. */
+html[data-ph-compact] .ph-top :is(.ph-navtab, .ph-brand) { min-width: calc(72 * var(--phu)); box-sizing: border-box; justify-content: center; }

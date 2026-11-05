@@ -21,6 +21,7 @@ import type { VersusMatchRecord } from './versusMatchRecord';
 import { placementText } from '../rank/rankFormat';
 import { blockInspect } from './VersusHud';
 import { versusSnapshotView } from './versusInspectView';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import '../matchDetails/matchDetails.css';
 
 const RESULT_WORD = { win: 'Won', lose: 'Lost', draw: 'Draw' } as const;
@@ -28,6 +29,7 @@ const RESULT_WORD = { win: 'Won', lose: 'Lost', draw: 'Draw' } as const;
 export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecord; onClose: () => void }) {
   const [round, setRound] = useState<number | null>(record.rounds.at(-1)?.round ?? null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  usePhLayer(true, onClose);
   useEffect(() => {
     closeRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent): void => {

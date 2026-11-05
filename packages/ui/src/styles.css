@@ -8258,6 +8258,26 @@ html[data-bl="game"] .devmenu { left: calc(var(--bl-l) + var(--bl-cb) * 1.25); b
 
 /* Leaderboard — full "Hall of Champions" page (scrollable; Back top-left; each entry shows its warband inline) */
 .lbpage { position: fixed; inset: 0; z-index: 470; display: flex; flex-direction: column; background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%); /* the loading splash's navy — the same backdrop as the rank screen (owner 2026-09-20), replacing the title art */ animation: fadein 0.2s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* THE PARTY HOME SHELL's ONE BACKDROP (DEV prototype, inert without the attribute): here, not in the shell's lazy stylesheet,
+   because it must hold from the first frame. Nothing above `Game`'s steady backdrop has a ground of its own. */
+.titlescreen.ph-clear { background: none; animation: none; }
+.titlescreen.ph-clear::before { content: none; }
+html[data-ph-shell] :is(.lbpage, .modepick.sb-host) { background: none; }
+/* ONE PAGE ON SCREEN: pages are transparent over the backdrop, so a page opened over another (Career from a row, Collection from
+   Career, the Compendium, Settings) must hide what is under it, whoever opened it. */
+html[data-ph-shell] .lbpage:has(~ .lbpage) { visibility: hidden; }
+html[data-ph-book] .lbpage { visibility: hidden; }
+.titlescreen.ph-clear.ph-paged .modepick { visibility: hidden; }
+/* Hero select stands on the same backdrop: its own ground would cut to brown until its skin loads. */
+html[data-ph-steady] .heroselect:not(.endscreen) { background: none; }
+html[data-ph-steady] .heroselect:not(.endscreen)::before { content: none; }
+/* (Same prototype, inert without the attribute.) The in-game rail on a phone: every row on screen, the corner icons on a row of
+   their own under it. Sizes follow the layout height, so a scaled and an unscaled phone agree. */
+html[data-ph-gm][data-touch-small] .gmenu .msb { bottom: calc(var(--lvh, 100vh) * 0.13); padding-top: calc(var(--lvh, 100vh) * 0.012); padding-bottom: 0; gap: calc(var(--lvh, 100vh) * 0.008); overflow: hidden; }
+html[data-ph-gm][data-touch-small] .gmenu :is(.msb-home, .msb-clock) { display: none; }
+html[data-ph-gm][data-touch-small] .gmenu .msb-nav { gap: calc(var(--lvh, 100vh) * 0.008); padding-top: 0; }
+html[data-ph-gm][data-touch-small] .gmenu .sbbtn { height: calc(var(--lvh, 100vh) * 0.082) !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+html[data-ph-gm][data-touch-small] { --bl-b: calc(var(--lvh, 100vh) * 0.012) !important; --bl-cb: calc(var(--lvh, 100vh) * 0.1) !important; }
 .lbtopbar { display: flex; align-items: center; gap: 18px; padding: 22px 30px 14px; flex: none; }
 .lbback { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #f0dcae; background: rgba(0, 0, 0, 0.38); border: 2px solid rgba(196, 160, 92, 0.55); padding: 10px 22px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.18); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; flex: none; }
 .lbback:hover { border-color: var(--acc); color: var(--acc); }

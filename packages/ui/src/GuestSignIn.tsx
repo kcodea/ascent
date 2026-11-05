@@ -3,6 +3,7 @@ import { useGame } from './store';
 import { sfx } from './sfx';
 import { Icon } from './Icon';
 import { remoteEnabled } from './remoteBoards';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 import './progression/collection.css';
 
 /**
@@ -57,6 +58,7 @@ export function PortraitSignInGate({ open, onClose }: { open: boolean; onClose: 
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const primaryRef = useRef<HTMLButtonElement>(null);
 
+  usePhLayer(open, onClose);
   // The guest became a real account while this was up: nothing left to ask.
   useEffect(() => { if (open && !anonymous) onClose(); }, [open, anonymous, onClose]);
 

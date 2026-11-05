@@ -110,6 +110,8 @@ export function isSelectOption(el: Element | null): boolean {
 /** Pure: does a long-press fire on `target`? Not on a play-zone card (its Inspect is a tap; holding it starts a drag),
  *  but on a choice option, whose tap is the pick. */
 export function holdFiresOn(target: Element): boolean {
+  // The shell's Compendium (DEV switch): nothing there drags, so a hold on a card opens its large view too.
+  if (target.closest('.phb')) return true;
   if (!target.closest(NO_HOLD) || isSelectOption(target)) return true;
   // LIVE PINGS (owner 2026-10-29: "long-press on phone opens the same menu"; R-PING-04): in a game, a hold on a shop,
   // board or hand card opens the ping menu (a tap still inspects). Everywhere else a card hold still does nothing.

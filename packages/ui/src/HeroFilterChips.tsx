@@ -3,6 +3,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { getHero } from '@game/sim';
 import { heroArt } from './art';
 import { HERO_CHIP_CAP, type HeroCount } from './heroFilter';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 
 const gamesText = (n: number): string => `${n} ${n === 1 ? 'game' : 'games'}`;
 
@@ -67,6 +68,7 @@ export const HeroFilterChips = memo(function HeroFilterChips({ counts, value, on
     if (first && last && first !== last && last.offsetTop > first.offsetTop && fit > 0) setFit(fit - 1);
   }, [counts, width, fit, max, value]);
 
+  usePhLayer(open, () => { setOpen(false); triggerRef.current?.focus(); });
   // While open: a press outside closes it, and Esc closes ONLY the list (capture phase, before the page's own Esc).
   useEffect(() => {
     if (!open) return;

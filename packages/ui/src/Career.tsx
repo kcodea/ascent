@@ -1,15 +1,15 @@
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { RUNE_INDEX } from '@game/content';
-import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
+import { DEFAULT_HERO_ID, getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
-import type { BoardSnapshot } from '@game/sim';
+import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
-import { GameCard, placeText } from './GameCard';
+import { bandOf, GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
-import { avatarSrc } from './art';
+import { avatarSrc, heroThumb } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -23,17 +23,23 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { refuseInGame } from './gameMenuParts';
 import { AddFriendButton } from './friends/AddFriendButton';
+import { loadSocial, peekSocial, putSocial, useSocial } from './socialCache';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { CareerDuosTeams } from './versus/DuosBoards';
 import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunBoards, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import type { RunHistoryRowLike } from './careerData';
+import { usePartyHome } from './partyHome/partyHomeFlag';
+import type { PhCareerTab, PhState } from './partyHome/pages/career/PhCareer';
+import type { GameDetailProps, GameFact, GameSplitView } from './partyHome/pages/gameView';
+/** The Career on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
+const PhCareer = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/career/PhCareer').then((m) => ({ default: m.PhCareer }))) : null;
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankCard } from './rank/RankCard';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
-import { AchievementsTab } from './progression/AchievementsTab';
+import { AchievementsTab, achievementsSeen, warmAchievements } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
 import { rankLabel, rankScalar } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
@@ -94,11 +100,12 @@ import {
 
 /** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
 const TAB_KEY = 'ascent.career.tab';
-type CenterTab = 'history' | 'heroes' | 'practice' | 'achievements';
+/** `trends` is a tab only on the party home shell (the old page keeps Performance Trends in its right column). */
+type CenterTab = 'history' | 'heroes' | 'practice' | 'achievements' | 'trends';
 function loadTab(): CenterTab {
   try {
     const t = localStorage.getItem(TAB_KEY);
-    return t === 'heroes' || t === 'practice' || t === 'achievements' ? t : 'history';
+    return t === 'heroes' || t === 'practice' || t === 'achievements' || t === 'trends' ? t : 'history';
   } catch { return 'history'; }
 }
 function saveTab(t: CenterTab): void {
@@ -107,6 +114,8 @@ function saveTab(t: CenterTab): void {
 /** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
  *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
 const MATCH_ROWS = 50;
+/** How long the shell layout waits on a cold career read before offering Retry. */
+const CAREER_STALL_MS = 3000;
 
 /**
  * SKINS on a Career page (2026-09-28). Whose page it is decides the toggle: YOUR page shows your skins as recorded
@@ -392,7 +401,10 @@ export function Career() {
   const myId = useGame((s) => s.account.userId);
   const careerVersion = useGame((s) => s.careerVersion);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const closeCareer = useGame((s) => s.closeCareer);
   const cache = useGame((s) => s.careerCache);
+  const accountAnonymous = useGame((s) => s.account.anonymous);
+  const showOppSkins = useGame((s) => s.showOpponentSkins); // the shell layout's portraits (the same rule as useCareerSkins)
 
   const viewing = careerOf;
   const userId = viewing?.userId ?? myId;
@@ -401,21 +413,35 @@ export function Career() {
   const [loadedRuns, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
   // The FIRST render of an open already shows the cached rows (this key's, else the same player's older answer), not
   // a loading frame waiting on the effect below to copy them in (perf 2026-10-09). `loadedRuns` is cleared on close.
-  const cachedRuns = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
+  const seenRuns = userId ? peekSocial<CareerRun[]>(`career:runs:${userId}`)?.data : undefined; // the shell's per-player memory
+  const cachedRuns = (cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined) ?? seenRuns;
   const runs = loadedRuns !== undefined ? loadedRuns : cachedRuns;
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
+  // The shell layout's read timeout: still nothing after this long reads as "not available" with Retry, never an endless
+  // loading state (a late answer simply replaces it). A cached list paints at once, so this only meets a cold read.
+  const [loadStalled, setLoadStalled] = useState(false);
   const [window_, setWindow] = useState<TrendWindow>(30);
   const [tabPicked, setTab] = useState<CenterTab>(loadTab);
   // ACHIEVEMENTS (2026-09-28): the tab exists only once the owner has switched achievements on; a remembered
   // Achievements tab reads as Match History until then.
   const achievementsOn = useProgression(achievementsVisible);
-  const tab: CenterTab = tabPicked === 'achievements' && !achievementsOn ? 'history' : tabPicked;
+  const shell = usePartyHome() && !!PhCareer;
+  // On the shell someone else's Career opens on the tab that fits how it was reached, never your last one; a pick there
+  // lasts for this visit and is not remembered.
+  const [viewTab, setViewTab] = useState<{ userId: string; tab: CenterTab } | null>(null);
+  const shellViewing = shell && !!careerOf;
+  const shownTab: CenterTab = shellViewing ? (viewTab?.userId === careerOf!.userId ? viewTab.tab : careerOf!.tab ?? 'history') : tabPicked;
+  const tab: CenterTab = (shownTab === 'achievements' && !achievementsOn) || (shownTab === 'trends' && !shell) ? 'history' : shownTab;
+  const progressionOn = useProgression((s) => s.capability === 'on');
   // HEROES -> MATCH HISTORY (owner 2026-10-23: "show the games of that hero if i clicked on the hero so i could go
   // rewatch them"): the hero Match History is filtered to (null = every run), the Heroes grid's sort, and the detailed
   // rows read for a filtered hero's light runs (one read per hero pick, per career owner).
   const [heroSort, setHeroSort] = useState<HeroSort>(loadHeroSort);
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
-  const [heroDetail, setHeroDetail] = useState<{ userId: string; rows: RunHistoryRowLike[] } | null>(null);
+  const [heroDetail, setHeroDetail] = useState<Record<string, RunHistoryRowLike[]>>({}); // per career owner
+  const [detailMiss, setDetailMiss] = useState<ReadonlySet<number>>(() => new Set()); // runs whose full read came back with nothing
+  const namedMatches = useRef(new WeakMap<MatchDetails, { name: string; match: MatchDetails }>()); // stable, for the memoised lobby
+  const runReads = useRef(new Map<string, Promise<unknown>>()); // a game's full read, once, whoever asks first
   const heroAsked = useRef(new Set<string>());
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
@@ -424,6 +450,18 @@ export function Career() {
   const [practiceTick, setPracticeTick] = useState(0); // the Practice tab's Retry
   const [watchingPractice, setWatchingPractice] = useState<number | null>(null); // practice row id whose replay is loading
   const [noPracticeReplay, setNoPracticeReplay] = useState<number | null>(null); // practice row id whose payload came back unplayable
+
+  useEffect(() => {
+    setLoadStalled(false);
+    if (!show || !shell || runs !== undefined) return undefined;
+    const t = window.setTimeout(() => setLoadStalled(true), CAREER_STALL_MS);
+    return () => window.clearTimeout(t);
+  }, [show, shell, runs === undefined, fetchTick]);
+
+  // The shell reads the achievements with the page, so the tab has them when it is opened.
+  useEffect(() => {
+    if (show && shell && achievementsOn && userId && remoteEnabled()) warmAchievements(userId, !viewing);
+  }, [show, shell, achievementsOn, userId, viewing]);
 
   const lastTick = useRef(fetchTick);
   useEffect(() => {
@@ -435,7 +473,7 @@ export function Career() {
     // and the telemetry join (Watch, length, APM) after, carrying the older answer's Watch handles meanwhile.
     const exact = cache && cache.key === cacheKey ? cache.runs : undefined;
     const sameUser = cache && userId && careerKeyUser(cache.key) === userId ? cache.runs : undefined;
-    const shown = exact ?? sameUser;
+    const shown = exact ?? sameUser ?? seenRuns;
     setRuns(shown);
     setWatching(null);
     setNoReplay(null);
@@ -451,6 +489,7 @@ export function Career() {
       ...(viewing ? { userId: viewing.userId } : {}),
       onHistory: (partial) => { if (live) setRuns(carryTelemetry(partial, shown)); },
     }).then((rows) => {
+      if (rows && shell && userId) putSocial(`career:runs:${userId}`, rows);
       if (!live) return;
       setRuns(rows ?? (shown ?? null));
     });
@@ -479,10 +518,13 @@ export function Career() {
   // The Practice tab reads the career owner's practice games the first time it is shown for them (never on
   // open: most visits never look), then keeps them while the page stays open. Closing forgets them, so the
   // next open (a practice game may have finished since) reads fresh.
-  const practiceRows = practice && practice.userId === userId ? practice.rows : undefined;
+  const practiceKey = shell && show && tab === 'practice' && userId && remoteEnabled() ? `career:practice:${userId}` : null;
+  const readPractice = (): Promise<PracticeGameRow[] | null> => fetchMyPracticeGames(userId, MATCH_ROWS).then((rows) => rows ?? peekSocial<PracticeGameRow[] | null>(practiceKey ?? '')?.data ?? null);
+  const practiceSeen = useSocial<PracticeGameRow[] | null>(practiceKey, readPractice);
+  const practiceRows = shell ? practiceSeen : practice && practice.userId === userId ? practice.rows : undefined;
   useEffect(() => {
     if (!show) { setPractice(null); return; }
-    if (tab !== 'practice' || !userId || !remoteEnabled() || practiceRows !== undefined) return;
+    if (shell || tab !== 'practice' || !userId || !remoteEnabled() || practiceRows !== undefined) return;
     let live = true;
     const who = userId;
     void fetchMyPracticeGames(who, MATCH_ROWS).then((rows) => { if (live) setPractice({ userId: who, rows }); });
@@ -511,7 +553,7 @@ export function Career() {
   const sortedHeroes = useMemo(() => sortHeroCareers(heroes, heroSort), [heroes, heroSort]);
   // The filtered hero's newest games, read from the runs already loaded (no list fetch), their light rows upgraded
   // with the detailed rows read below once they land.
-  const heroDetailRows = heroDetail && heroDetail.userId === userId ? heroDetail.rows : null;
+  const heroDetailRows = userId ? heroDetail[userId] ?? null : null;
   const heroRuns = useMemo(
     () => (heroFilter && runs ? runsOfHero(runs, heroFilter, MATCH_ROWS) : null),
     [heroFilter, runs],
@@ -526,7 +568,8 @@ export function Career() {
   // BOARDS ONCE per hero pick so the list portraits wear the recorded skins (the opened game is read in full below).
   // Replay never waits on this (the telemetry join already gave every row its handle).
   useEffect(() => {
-    if (!show) { setHeroFilter(null); setHeroDetail(null); heroAsked.current.clear(); return; }
+    // The shell keeps what it has read: a game opened before paints in full on a return visit.
+    if (!show) { setHeroFilter(null); if (!shell) { setHeroDetail({}); heroAsked.current.clear(); runReads.current.clear(); } return; }
     if (tab !== 'history' || !heroFilter || !userId || !runs || !remoteEnabled()) return;
     const ask = `${userId}|${heroFilter}`;
     if (heroAsked.current.has(ask)) return;
@@ -537,7 +580,7 @@ export function Career() {
     const who = userId;
     void fetchRunBoards(who, ids).then((rows) => {
       if (!live || !rows) return;
-      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
+      setHeroDetail((prev) => ({ ...prev, [who]: [...(prev[who] ?? []), ...rows] }));
     });
     return () => { live = false; };
   }, [show, tab, heroFilter, userId, runs]);
@@ -567,17 +610,23 @@ export function Career() {
     return matchRows.find((r, i) => `r${r.id ?? i}` === pickedRun) ?? matchRows[focusAt >= 0 ? focusAt : 0] ?? null;
   }, [matchRows, pickedRun, heroFilter, focusIndex]);
   const openRunId = openRun && !openRun.detailed ? openRun.id : null;
+  // One read per game, shared by the open game, the shell's read-ahead and a hover. Kept even if the player has moved on:
+  // a quick flick back must not ask twice.
+  const readRun = (who: string, id: number): Promise<unknown> => {
+    const ask = `${who}|#${id}`;
+    const running = runReads.current.get(ask);
+    if (running) return running;
+    const p = fetchRunDetails(who, [id]).then((rows) => {
+      if (!rows || rows.length === 0) setDetailMiss((prev) => new Set(prev).add(id)); // no answer: stop holding the lobby's place
+      if (!rows) { runReads.current.delete(ask); return; } // couldn't ask: the next open tries again
+      setHeroDetail((prev) => ({ ...prev, [who]: [...(prev[who] ?? []), ...rows] }));
+    });
+    runReads.current.set(ask, p);
+    return p;
+  };
   useEffect(() => {
     if (!show || tab !== 'history' || openRunId === null || !userId || !remoteEnabled()) return;
-    const ask = `${userId}|#${openRunId}`;
-    if (heroAsked.current.has(ask)) return;
-    heroAsked.current.add(ask);
-    const who = userId;
-    // Kept even if the player has moved on: the read is per game, and a quick flick back must not ask twice.
-    void fetchRunDetails(who, [openRunId]).then((rows) => {
-      if (!rows) { heroAsked.current.delete(ask); return; } // couldn't ask: the next open tries again
-      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
-    });
+    void readRun(userId, openRunId);
   }, [show, tab, openRunId, userId]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
@@ -587,9 +636,9 @@ export function Career() {
     sfx.pulse();
     setHeroFilter(id);
     setPickedRun(null);
-    setTab('history');
-    saveTab('history');
-  }, []);
+    if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: 'history' });
+    else { setTab('history'); saveTab('history'); }
+  }, [shellViewing, careerOf]);
 
   if (!show) return null;
 
@@ -634,8 +683,260 @@ export function Career() {
   const heroName = heroId ? getHero(heroId).name : '—';
   const filterName = heroFilter ? getHero(heroFilter).name : '';
   // Leaving Match History drops the hero filter: it only ever comes from a hero card's click.
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); setTab(t); saveTab(t); };
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: t }); else { setTab(t); saveTab(t); } };
   const clearHeroFilter = (): void => { sfx.pulse(); setHeroFilter(null); setPickedRun(null); };
+
+  // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of
+  // the list + detail Recent Games wears (partyHome/pages/gameView.tsx). A row wears the skins RECORDED on its board.
+  const gameSkins = (snap: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null => (!viewing ? snap ?? null : opponentSkins(showOppSkins, snap));
+  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive'> => {
+    const skins = gameSkins(board?.cosmetics);
+    const fought = !!rec && rec.wins + rec.losses + rec.draws > 0;
+    return {
+      who: shownName, heroName: heroId ? getHero(heroId).name : 'Unknown hero', art: heroThumb(heroPortrait(heroId, skins)),
+      record: fought ? recordText(rec!) : '', recordTone: fought ? (rec!.wins >= rec!.losses ? 'up' : 'down') : '',
+      own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board),
+    };
+  };
+  // One name per page: a recorded lobby keeps the name its player had that day, so the page's owner wears the current name.
+  const ownerNamed = (m: MatchDetails | null | undefined): MatchDetails | null | undefined => {
+    if (!m || !m.seats.some((x) => x.self && x.name !== shownName)) return m;
+    const hit = namedMatches.current.get(m);
+    if (hit?.name === shownName) return hit.match;
+    const match = { ...m, seats: m.seats.map((x) => (x.self ? { ...x, name: shownName } : x)) };
+    namedMatches.current.set(m, { name: shownName, match });
+    return match;
+  };
+  const historyView = (): GameSplitView => {
+    const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
+    const focusAt = heroFilter ? -1 : focusIndex;
+    const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
+    const runOf = (key: string): CareerRun | undefined => keyed.find((k) => k.key === key)?.run;
+    const inHand = (run: CareerRun): boolean => run.detailed || run.id === null || detailMiss.has(run.id);
+    const detailOf = (key: string): GameDetailProps | null => {
+      const run = runOf(key);
+      if (!run) return null;
+      const bits = gameBits(run.heroId, run, run.board, run.runes);
+      const facts: GameFact[] = [
+        { label: 'Played', value: playedOnText(run.atMs) || '-' },
+        { label: 'Length', value: runLengthText(run.durationMs, run.lengthOverCap) },
+        ...(run.wave > 0 ? [{ label: 'Rounds', value: run.wave }] : []),
+        { label: 'Gold spent', value: run.goldSpent === null ? '-' : run.goldSpent },
+        ...(run.ratingDelta != null && run.ratingDelta !== 0 ? [{ label: 'Rating', value: run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}` }] : []),
+        ...(SHOW_LOBBY_STRENGTH && run.lobbyStrength ? [{ label: 'Lobby', value: strengthText(run.lobbyStrength) }] : []),
+        ...(run.boardStrength != null ? [{ label: GAME_STRENGTH_LABEL, value: run.boardStrength, tip: GAME_STRENGTH_TIP }] : []),
+      ];
+      const watchable = run.replayRowId !== null;
+      return {
+        ...bits, place: run.placement, rank: run.rank ?? null, facts, match: ownerNamed(run.match), matchPending: !inHand(run),
+        replay: {
+          watchable, busy: watching !== null && watching === run.id, unplayable: noReplay !== null && noReplay === run.id, onWatch: () => onWatchRun(run),
+          label: watchable ? 'Watch this run’s replay' : 'No replay stored for this run',
+        },
+      };
+    };
+    return {
+      label: 'Match history', selected: sel.key, onPick: setPickedRun,
+      items: keyed.map(({ run: r, key }) => {
+        const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+        const fights = r.wins + r.losses + r.draws;
+        return {
+          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: fights > 0 ? `${name} · ${recordText(r)}` : name,
+          when: playedOnText(r.atMs) || undefined, rank: r.rank, delta: r.ratingDelta ?? null, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
+          label: `${placeText(r.placement)}, ${name}${r.rank != null ? `, played at ${rankLabel(r.rank)}` : ''}`,
+        };
+      }),
+      detailOf,
+      ready: (key) => { const run = runOf(key); return !run || inHand(run); },
+      load: (key) => { const run = runOf(key); return run && !inHand(run) && userId && remoteEnabled() ? readRun(userId, run.id!) : Promise.resolve(); },
+    };
+  };
+  const practiceView = (rows: PracticeGameRow[]): GameSplitView => {
+    const keyed = rows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
+    const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
+    const detailOf = (key: string): GameDetailProps | null => {
+      const g = keyed.find((k) => k.key === key)?.g;
+      if (!g) return null;
+      const cfg = g.practice;
+      const facts: GameFact[] = [
+        { label: 'Played', value: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || '-' },
+        { label: 'Length', value: runLengthText(g.durationMs, g.lengthOverCap) },
+        { label: 'Rounds', value: g.wave ?? '-' },
+        ...(cfg ? [{ label: 'Opponents', value: practiceOpponentsPill(cfg) }, { label: 'Health', value: practiceHealthPill(cfg) }] : []),
+      ];
+      return {
+        ...gameBits(g.heroId ?? '', g.record, g.board, g.runes), place: g.placement, rank: null, facts, match: ownerNamed(g.match),
+        replay: g.hasReplay ? {
+          watchable: true, busy: watchingPractice !== null && watchingPractice === g.rowId, unplayable: noPracticeReplay !== null && noPracticeReplay === g.rowId,
+          onWatch: () => watchPractice(g), label: 'Watch this practice game’s replay',
+        } : null,
+      };
+    };
+    return {
+      label: 'Practice games', selected: sel.key, onPick: setPickedPractice,
+      items: keyed.map(({ g: r, key }) => {
+        const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+        const rec = r.record && r.record.wins + r.record.losses + r.record.draws > 0 ? recordText(r.record) : null;
+        return {
+          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: rec ? `${name} · ${rec}` : name,
+          when: playedOnText(r.createdAt ? Date.parse(r.createdAt) : NaN) || undefined, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
+          label: `${placeText(r.placement)}, ${name}`,
+        };
+      }),
+      detailOf, ready: () => true, load: () => Promise.resolve(), // a practice row carries its lobby
+    };
+  };
+
+  /** The Practice tab's list + detail (LAYOUT B, GameSplit.tsx); built once, shown by either layout. */
+  const practiceSplit = (practiceRows: PracticeGameRow[]): JSX.Element => {
+    // LAYOUT B (owner 2026-10-16): the compact list + the selected practice game in full (GameSplit.tsx).
+    const keyed = practiceRows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
+    const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
+    const items: GameListItem[] = keyed.map(({ g, key }) => {
+      const name = g.heroId ? getHero(g.heroId).name : '-';
+      const rec = g.record && g.record.wins + g.record.losses + g.record.draws > 0 ? recordText(g.record) : undefined;
+      return {
+        key, place: g.placement, title: name, sub: rec, when: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || undefined,
+        label: `${placeText(g.placement)}, ${name}`,
+        portrait: <HeroFrame heroId={g.heroId} small skins={g.board?.cosmetics} />,
+      };
+    });
+    return (
+      <GameSplit
+        className="cv2-split" items={items} selected={sel.key} onPick={setPickedPractice} label="Practice games"
+        detail={(
+          <PracticeRow
+            game={sel.g}
+            busy={watchingPractice !== null && watchingPractice === sel.g.rowId}
+            unplayable={noPracticeReplay !== null && noPracticeReplay === sel.g.rowId}
+            onWatch={() => watchPractice(sel.g)}
+          />
+        )}
+      />
+    );
+  };
+
+  /** Match History's list + detail (LAYOUT B, GameSplit.tsx); built once, shown by either layout. */
+  const historySplit = (): JSX.Element => {
+    // LAYOUT B (owner 2026-10-16: "maybe even do something like that for career"): the compact list + the
+    // selected run in full (GameSplit.tsx, shared with Recent Games). A Recent Games open lands on its run.
+    const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
+    const focusAt = heroFilter ? -1 : focusIndex; // a Recent Games focus indexes the unfiltered list
+    const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
+    const items: GameListItem[] = keyed.map(({ run, key }) => {
+      const name = run.heroId ? getHero(run.heroId).name : '-';
+      const fights = run.wins + run.losses + run.draws;
+      return {
+        key, place: run.placement, title: name, sub: fights > 0 ? recordText(run) : undefined, when: playedOnText(run.atMs) || undefined,
+        delta: run.ratingDelta ?? null, rank: run.rank,
+        label: `${placeText(run.placement)}, ${name}${run.rank != null ? `, played at ${rankLabel(run.rank)}` : ''}`,
+        portrait: <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />,
+      };
+    });
+    return (
+      <GameSplit
+        className="cv2-split" items={items} selected={sel.key} onPick={setPickedRun} label="Match history"
+        detail={(
+          <MatchRow
+            run={sel.run}
+            focus={sel.i === focusAt}
+            busy={watching !== null && watching === sel.run.id}
+            unplayable={noReplay !== null && noReplay === sel.run.id}
+            onWatch={onWatchRun}
+          />
+        )}
+      />
+    );
+  };
+
+  // THE PARTY HOME's APP SHELL (DEV switch, off by default): the same data and handlers, laid out by PhCareer.
+  if (shell && PhCareer) {
+    const own = !viewing;
+    const shownLoadout = own ? pageLoadout : opponentSkins(showOppSkins, pageLoadout);
+    const avatar = viewing ? (viewing.avatar ?? (viewedRank?.userId === viewing.userId ? viewedRank.avatar : null)) : playerAvatar;
+    // Never an empty art window: a new account with no picture and no games wears the default hero (as the party card does).
+    const profileArt = (avatar && (own || showOppSkins) ? avatarSrc(avatar) : undefined) ?? heroPortrait(heroId, shownLoadout) ?? heroPortrait(DEFAULT_HERO_ID, null);
+    const st = (title: string, b: string, action?: PhState['action'], busy?: boolean): PhState => ({ title, body: b, ...(action ? { action } : {}), ...(busy ? { busy } : {}) });
+    let pageState: PhState | null = null;
+    if (!remoteEnabled()) pageState = st('Career unavailable', 'This build has no backend configured, so there is no server record to show.');
+    else if (!userId) pageState = st('Sign in to see your career', 'Your runs, placements and Rating live on your account, so they follow you between devices.', { label: 'Sign in', onClick: () => { sfx.pulse(); openAccountPanel(); } });
+    else if (runs === undefined && loadStalled) pageState = st('Your career is not available right now', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
+    else if (runs === null) pageState = st('Couldn’t reach the server', 'Your career is stored on your account. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
+    // A player the ladder knows (games, a rating) whose history comes back empty: the read was refused or failed, so it says
+    // so and offers Retry, never a false "no runs yet" beside their MMR (`fetchMyRuns` answers [] when row access refuses).
+    if (!pageState && viewing && runs && runs.length === 0 && (viewing.gamesPlayed > 0 || viewing.rating > 0)) {
+      pageState = st(`${shownName}’s games are not available right now`, 'Their history could not be read. Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } });
+    }
+    const lvp = accountProgression ? levelProgress(accountProgression.accountXp) : null;
+    const tabSub = tab === 'heroes'
+      ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
+      : tab === 'practice'
+      ? (practiceRows?.length ? `Last ${practiceRows.length} practice game${practiceRows.length === 1 ? '' : 's'}` : '')
+      : heroFilter
+      ? `${matchRows.length} ${filterName} game${matchRows.length === 1 ? '' : 's'}`
+      : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '');
+    const loading = runs === undefined && !pageState; // a cold read: the final layout, its contents held by ghosts
+    const historyState = loading ? null : heroFilter && matchRows.length === 0
+      ? st(`No ${filterName} games yet`, viewing ? `${shownName} hasn’t finished a lobby run with ${filterName} yet.` : `Finish a lobby run with ${filterName} and it will appear here.`)
+      : matchRows.length === 0
+      ? st('No runs yet', viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.')
+      : null;
+    const practiceState = practiceRows === undefined
+      ? null
+      : practiceRows === null
+      ? st('Couldn’t reach the server', 'Check your connection and try again.', { label: 'Retry', onClick: () => { sfx.pulse(); if (practiceKey) void loadSocial(practiceKey, readPractice, { force: true }); } })
+      : practiceRows.length === 0
+      ? st('No practice games yet', viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.')
+      : null;
+    return (
+      <CareerSkinContext.Provider value={careerSkins}>
+        <Suspense fallback={null}>
+          <PhCareer
+            key={userId ?? ''}
+            ready={!!pageState || (!loading && (tab !== 'history' || !openRun || openRun.detailed || openRun.id === null || detailMiss.has(openRun.id)) && (tab !== 'practice' || practiceRows !== undefined) && (tab !== 'achievements' || !userId || achievementsSeen(userId, own)) && (!progressionOn || !!accountProgression))}
+            back={viewing?.from ? { label: viewing.from === 'recent' ? 'Back to Recent Games' : 'Back to Leaderboard', onClick: () => { sfx.pulse(); closeCareer(); } } : null}
+            own={own}
+            name={shownName}
+            loading={loading}
+            title={headerTitle ? (headerTitleMaster
+              ? <TitleBadge id={accountProgression?.equippedTitleId ?? null} className="cv2-titleplate" />
+              : <span className={`cv2-titlechip phc-titlechip${headerTitleRarity ? ` r-${headerTitleRarity}` : ''}`}>{headerTitle}</span>) : null}
+            addFriend={viewing ? <AddFriendButton userId={viewing.userId} /> : null}
+            pageState={pageState}
+            profileArt={profileArt}
+            favoriteHero={heroId ? heroName : 'None yet'}
+            level={lvp ? { level: lvp.level, into: lvp.xpIntoLevel, next: lvp.xpForNextLevel, fraction: lvp.fraction } : null}
+            onCreateAccount={own && accountAnonymous ? () => { sfx.pulse(); openAccountPanel(); } : null}
+            stats={{ games: (runs ?? []).length, firsts: aggregates.firsts, top4Pct: aggregates.top4Pct, losses: aggregates.losses, avgPlacement: aggregates.avgPlacement, tribe: aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : null, tribeMedal: hasTribeMedal(aggregates.favoriteTribe) ? <TribeMedal tribe={aggregates.favoriteTribe} /> : null }}
+            rank={rank ?? null} mmr={mmr} rankPending={rankPending} userId={userId ?? null}
+            tab={tab as PhCareerTab}
+            onTab={(t) => { sfx.pulse(); pickTab(t); }}
+            achievementsOn={achievementsOn}
+            tabSub={tabSub}
+            history={{
+              filter: heroFilter ? { name: filterName, clear: clearHeroFilter, back: () => { sfx.pulse(); pickTab('heroes'); } } : null,
+              state: historyState,
+              view: loading || historyState || tab !== 'history' ? null : historyView(),
+            }}
+            heroes={{
+              list: sortedHeroes, sort: heroSort,
+              onSort: (k) => { if (heroSort !== k) { sfx.pulse(); setHeroSort(k); saveHeroSort(k); } },
+              onPick: onPickHero,
+              art: (id) => heroThumb(heroPortrait(id, shownLoadout)),
+              state: !loading && heroes.length === 0 ? st('No games played yet', viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.') : null,
+            }}
+            trends={{
+              window: window_,
+              onWindow: (d) => { if (window_ !== d) { sfx.pulse(); setWindow(d); } },
+              body: tab === 'trends' && !loading ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} /> : null,
+            }}
+            practice={{ state: practiceState, view: practiceState || tab !== 'practice' || practiceRows === undefined ? null : practiceView(practiceRows!) }}
+            achievements={tab === 'achievements' && userId ? <AchievementsTab userId={userId} own={own} ownerName={shownName} shell /> : null}
+          />
+        </Suspense>
+      </CareerSkinContext.Provider>
+    );
+  }
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
@@ -753,33 +1054,7 @@ export function Career() {
                   <div className="cv2-state-title">No practice games yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.'}</div>
                 </div>
-              ) : (() => {
-                // LAYOUT B (owner 2026-10-16): the compact list + the selected practice game in full (GameSplit.tsx).
-                const keyed = practiceRows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
-                const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
-                const items: GameListItem[] = keyed.map(({ g, key }) => {
-                  const name = g.heroId ? getHero(g.heroId).name : '-';
-                  const rec = g.record && g.record.wins + g.record.losses + g.record.draws > 0 ? recordText(g.record) : undefined;
-                  return {
-                    key, place: g.placement, title: name, sub: rec, when: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || undefined,
-                    label: `${placeText(g.placement)}, ${name}`,
-                    portrait: <HeroFrame heroId={g.heroId} small skins={g.board?.cosmetics} />,
-                  };
-                });
-                return (
-                  <GameSplit
-                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedPractice} label="Practice games"
-                    detail={(
-                      <PracticeRow
-                        game={sel.g}
-                        busy={watchingPractice !== null && watchingPractice === sel.g.rowId}
-                        unplayable={noPracticeReplay !== null && noPracticeReplay === sel.g.rowId}
-                        onWatch={() => watchPractice(sel.g)}
-                      />
-                    )}
-                  />
-                );
-              })()}
+              ) : practiceSplit(practiceRows)}
             </div>
           ) : tab === 'heroes' ? (
             <div className="cv2-list cv2-herolist" role="tabpanel">
@@ -836,37 +1111,7 @@ export function Career() {
                   <div className="cv2-state-title">No runs yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
                 </div>
-              ) : (() => {
-                // LAYOUT B (owner 2026-10-16: "maybe even do something like that for career"): the compact list + the
-                // selected run in full (GameSplit.tsx, shared with Recent Games). A Recent Games open lands on its run.
-                const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
-                const focusAt = heroFilter ? -1 : focusIndex; // a Recent Games focus indexes the unfiltered list
-                const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
-                const items: GameListItem[] = keyed.map(({ run, key }) => {
-                  const name = run.heroId ? getHero(run.heroId).name : '-';
-                  const fights = run.wins + run.losses + run.draws;
-                  return {
-                    key, place: run.placement, title: name, sub: fights > 0 ? recordText(run) : undefined, when: playedOnText(run.atMs) || undefined,
-                    delta: run.ratingDelta ?? null, rank: run.rank,
-                    label: `${placeText(run.placement)}, ${name}${run.rank != null ? `, played at ${rankLabel(run.rank)}` : ''}`,
-                    portrait: <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />,
-                  };
-                });
-                return (
-                  <GameSplit
-                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedRun} label="Match history"
-                    detail={(
-                      <MatchRow
-                        run={sel.run}
-                        focus={sel.i === focusAt}
-                        busy={watching !== null && watching === sel.run.id}
-                        unplayable={noReplay !== null && noReplay === sel.run.id}
-                        onWatch={onWatchRun}
-                      />
-                    )}
-                  />
-                );
-              })()}
+              ) : historySplit()}
             </div>
           )}
         </section>

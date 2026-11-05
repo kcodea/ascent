@@ -1,3 +1,4 @@
+import { partyDemoOn, partyHomeOn, partyRoomOn, setPartyDemo, setPartyHome, setPartyRoom } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
@@ -412,6 +413,15 @@ export function DevMenu() {
     { id: 'perfscreen', icon: '📈', label: 'Perf Analytics',
       hint: 'Findings, per-phase breakdown, jank timeline and run-over-run comparison — plus a report to paste to Claude',
       run: () => { useGame.getState().openPerf(); } },
+    { id: 'partyhome', icon: '🎉', label: 'Party home (prototype)',
+      hint: 'The Valorant-style party home as the main screen: big party cards, mode tabs, Start, friends docked. Off by default; remembered on this machine',
+      run: () => setPartyHome(!partyHomeOn()), live: () => partyHomeOn() },
+    { id: 'partydemo', icon: '👥', label: 'Party home: sample party',
+      hint: 'Fill the party home with a sample teammate and sample friends (no backend or second account needed). Start does nothing with it on',
+      run: () => setPartyDemo(!partyDemoOn()), live: () => partyDemoOn() },
+    { id: 'partyroom', icon: '⚔️', label: 'Party home: sample room',
+      hint: 'A mocked Versus room on the party home (host, guest, an open seat, spectators, rules, Open rooms). No backend. The mode tabs cycle 1v1, Group, Duos',
+      run: () => setPartyRoom(!partyRoomOn()), live: () => partyRoomOn() },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

@@ -13568,6 +13568,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/devCorner.test.tsx'], lastVerifiedAt: '2026-11-02' },
   },
   {
+    id: 'R-PH-COLLECTION-01',
+    title: 'DEV: under the party home switch the Collection and the Chest Shop are drawn in the shell, with nothing lost, and a failed chest opening stays on screen',
+    statement:
+      'With the DEV "Party home (prototype)" switch on, the Collection page sits under the top nav as a shell kit page: the categories (owned / total, NEW count, Soon) and the sealed-chest bay (count, Open, Open all, the next chest\x27s level, your XP toward it, the odds) on the left; the Show tabs, rarity filters and the album in the middle; the selected item\x27s live preview, facts and Equip on the right. '
+      + 'The Chest Shop is the same shop in the shell (the chest cards, focus rows, receipt, odds and buy, every celebration intact), and the chest opening keeps its reveal while its buttons and notes take the shell\x27s look. '
+      + 'Every capability and rule of the page is unchanged (guests are gated, a purchase is never charged twice, Esc goes back). '
+      + 'A failed chest opening is never pulled off screen by the shell. With the switch off, and in every production build, the page is today\x27s.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-02 (party home revamp)', quote: 'like all of these menus should get revamped to work with the new setup as well' },
+      { kind: 'code', ref: 'packages/ui/src/progression/ph/CollectionPh.tsx, packages/ui/src/progression/ph/CrateShopPh.tsx, packages/ui/src/progression/CollectionScreen.tsx, packages/ui/src/progression/CrateShop.tsx (useCrateShop), packages/ui/src/partyHome/partyHome.css (the shell note renamed .ph-err), packages/ui/src/partyHome/shell/shellStore.ts (takeCollectionIntent: the Crates tab lands on the Chest Shop)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-02 (feat/ph-page-collection). Before, the pages rendered their old layout under the top nav, and a failed chest opening under the switch slid half off screen: the theatre\x27s phase class `ph-error` matched the party home\x27s own `.ph-error` note rule (the shell renamed its note `.ph-err`). The shell\x27s Crates tab opens this page straight on the Chest Shop. On phones a tap opens a chest or odds tip (its `.tt-on` selector stands apart from `:hover`, which the hover guard moves under a hover-only query), and the tips and the picked chest\x27s check are sized in the shell\x27s units, at least `--ph-t1`.',
+    example: 'Kevin turns on the party home switch and opens Collection: Heroes, Minions and the rest are a list on the left with his 3 sealed chests under them, the album in the middle, Surf Day Albus large on the right with Equip. He opens a chest that fails: the chest and its Try again sit in the middle of the screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
     id: 'R-DUOS-RAIL-PLATE-01',
     title: 'Duos on the Docked rail: the team backing follows the slices\x27 shape, and the team name reads right-aligned and outlined',
     statement:
@@ -13919,6 +13938,22 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'so the next hub:deploy ships it; the Versus Worker needs its own deploy. Before, the desktop origin was refused (CORS) and defaultHubUrl returned no hub. '
       + 'The Netlify origin stays in every list until the site is retired.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/origins.test.ts', 'packages/ui/src/friends/dm/hubUrl.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-PH-BACK-LAYERS-01',
+    title: 'Under the party home shell, Esc and Back take the single top layer first',
+    statement:
+      'Anything that opens above a page (a page over a game, the game menu, a pop-up, a list, a sheet, a window) is a layer on the shell\'s one history. '
+      + 'Esc, every Back control and the browser\'s Back close the top layer only, one press at a time, on the menus and in a game. '
+      + 'In a game Back goes page, menu, game and then stays: it never leaves the game or the app. A search box with text clears first and a hover preview goes first.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04', quote: 'Fix the ui so it works end to end cleanly and then put it on one branch.' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/2552 (packages/ui/src/partyHome/shell/phHistory.ts, usePhLayer.ts)' },
+    ],
+    currentBehaviour: 'Conforms on feat/party-home-prototype from 2026-11-04. Off the shell nothing changes: phLayer does nothing until the shell turns it on.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/phHistory.test.ts', 'scripts/ph-flows/layers.mjs'], lastVerifiedAt: '2026-11-04' },
   },
   {
     id: 'R-POOL-ANY-VERSION-01',

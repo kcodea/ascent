@@ -1002,8 +1002,10 @@ async function fetchKeyframes(): Promise<void> {
       const msg = r.frame as SpectatorMessage;
       if (msg?.m && msg.m !== id) continue;
       if (msg?.kind === 'key') {
+        const prior = rx[r.seat].view;
         const k = applySpectatorMessage(rx[r.seat], msg).rx;
-        rx[r.seat] = msg.fight && k.view ? { ...k, view: { ...k.view, lastCombat: msg.fight } } : k;
+        // The same fight keeps its object (as receiveSpectate does): a re-fetched key never rewinds a fight mid-play.
+        rx[r.seat] = msg.fight && k.view ? { ...k, view: { ...k.view, lastCombat: sameFight(prior, msg.fight) } } : k;
       } else if (msg?.kind === 'hero') {
         rx[r.seat] = applySpectatorMessage(rx[r.seat], msg).rx; // a live ranked game's stored Hero Select
       }
@@ -1136,11 +1138,15 @@ function startLeaving(): void {
  */
 let shopBeat: { timer: number; unsub: () => void } | null = null;
 const SHOP_BEAT_SAFETY_MS = 3000;
+/** With the curtain already gone, the shop holds just this long before the next fight. */
+const SHOP_BEAT_IDLE_MS = 300;
 function holdShopBeat(): void {
   endShopBeat();
   const go = (): void => { endShopBeat(); schedule(); };
   const unsub = useGame.subscribe((st, prev) => { if (st.wipeIdle && !prev.wipeIdle) go(); });
-  shopBeat = { timer: window.setTimeout(go, SHOP_BEAT_SAFETY_MS), unsub };
+  // The curtain may already be gone (the leave was finished by its safety timer): no idle edge will come, so go soon.
+  const idleNow = useGame.getState().wipeIdle;
+  shopBeat = { timer: window.setTimeout(go, idleNow ? SHOP_BEAT_IDLE_MS : SHOP_BEAT_SAFETY_MS), unsub };
 }
 function endShopBeat(): void {
   if (!shopBeat) return;

@@ -70,5 +70,6 @@ supabase/functions/versus-resolve/engine.generated.js
 .dev.vars
 docs/ops/db-reports/*.json
 apps/web/dist-bench*/
+apps/web/dist-flows/
 .versus-qa/
 .claude/ship-state.json

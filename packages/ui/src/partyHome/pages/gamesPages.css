@@ -349,7 +349,8 @@ html[data-touch-small] .rgp-tip.gtip[data-tip]:not(.tt-on)::after { display: non
 .rgp-sp-ax b, .rgp .lp-mini-star, .rgp .gamerank .gamerank-l, .rgp .gamerank.compact .gamerank-l, .rgp-duos .dh-tile-hero { font-size: var(--ph-t1); }
 .rgp-sp-ax { left: calc(-44 * var(--phu)); width: calc(38 * var(--phu)); }
 html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
-.rgp .lp-tile-strength, .rgp-duos .lb-row-record, .rgp .runtrophy-tip, .rgp .runtrophy-tip :is(b, .term, .runtrophy-tip-body, .runtrophy-tip-kind) { font-size: var(--ph-t1); }
+.rgp .lp-tile-strength, .rgp-duos .lb-row-record { font-size: var(--ph-t1); }
+.rgp .runtrophy-tip { --atip-title-size: var(--ph-t1); --atip-body-size: var(--ph-t1); --atip-pill-size: var(--ph-t1); --atip-k: 1; }
 .rgp .rgp-scope { font-size: var(--ph-t2); color: var(--ph-muted); white-space: nowrap; text-shadow: var(--ph-shadow); }
 .rgp-duos .gc.gc-detail .gc-record, .rgp-duos .gc.gc-detail .gc-record > * { font-size: var(--ph-t2); }
 .rgp .lp-tile .lp-tile-strength b { font-size: var(--ph-t3); }

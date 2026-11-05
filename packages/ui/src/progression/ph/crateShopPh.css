@@ -127,8 +127,8 @@ html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody { gap: calc(12 * v
 /* COMPACT (a phone or a short window): the tips and the picked chest's check were sized in plain px, so a phone's page scale
    shrank them under the type floor. Everything here is in the shell's units: at least `--ph-t1`, the same on any phone. */
 html[data-ph-shell][data-ph-compact] .phs .cshop-chest-check { top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); font-size: var(--ph-t1); }
-html[data-ph-shell][data-ph-compact] .phs .cshop-pop { width: calc(400 * var(--phu)); max-width: none; padding: calc(16 * var(--phu)); font-size: var(--ph-t1); }
-html[data-ph-shell][data-ph-compact] .phs .cshop-pop :is(.atip-title, .cshop-oddsline) { font-size: var(--ph-t1); }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop { width: calc(400 * var(--phu)); max-width: none; padding: calc(16 * var(--phu)); font-size: var(--ph-t1); --atip-title-size: var(--ph-t1); --atip-body-size: var(--ph-t1); --atip-k: 1; }
+html[data-ph-shell][data-ph-compact] .phs .cshop-pop .cshop-oddsline { font-size: var(--ph-t1); }
 /* The page scrolls inside a short window, which cut a tip hanging off a card or the odds bar. Here a tip is one card, centred
    under the nav, the same wherever it was tapped. Fixed, so its host must not carry a transform while it is open. */
 html[data-ph-shell][data-ph-compact] .phs :is(.cshop-chest, .cshop-seg):nth-child(n) .cshop-pop { position: fixed; top: calc(var(--ph-nav-h) + 16 * var(--phu)); right: auto; bottom: auto; left: 50%; transform: translate(-50%, 0); }

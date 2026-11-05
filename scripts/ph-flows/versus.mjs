@@ -18,7 +18,7 @@ const sub = async (p, name) => {
   if (p.view === 'phone') { await p.page.evaluate(() => document.querySelector('.ph-fclose')?.click()); await sleep(300); }
 };
 const guest = async (id, name, seat) => {
-  const g = await player(b, URL_, 'desk', { name }); await home(g); await sleep(1200);
+  const g = await player(b, URL_, 'lap', { name }); await home(g); await sleep(1200);
   await V(g, async (v, a) => { v.openVersus('versus'); await v.joinRoom(a.id, a.seat); }, { id, seat });
   await sleep(1200); return g;
 };

@@ -21,7 +21,7 @@ import { DuosLeaderboard, DUOS_ROWS } from './versus/DuosBoards';
 import { versusEnabled } from './versus/versusFlag';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 /** The Leaderboard on the party home's app shell (DEV switch; lazy and null in production, so the shipped bundle never carries it). */
-const PhLeaderboard = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/leaderboard/PhLeaderboard').then((m) => ({ default: m.PhLeaderboard }))) : null;
+const PhLeaderboard = lazy(() => import('./partyHome/pages/leaderboard/PhLeaderboard').then((m) => ({ default: m.PhLeaderboard })));
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's

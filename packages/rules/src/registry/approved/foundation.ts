@@ -13940,6 +13940,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/origins.test.ts', 'packages/ui/src/friends/dm/hubUrl.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: 'R-PH-PRODUCTION-01',
+    title: 'The party home is the production UI',
+    statement:
+      'Every production build, the desktop app included, runs the party home and its top bar shell, with no way back to the old menus. '
+      + 'A development client runs it too and may turn it off from the DEV menu to compare. No part of the shell sits behind a development-only gate. '
+      + 'Sample data stays development-only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-05', quote: "yeah please fix this so it's on main and is THE production UI" },
+      { kind: 'code', ref: 'packages/ui/src/partyHome/partyHomeFlag.ts (partyHomeOn)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-05 (feat/party-home-production). Before, the flag was false outside DEV and each shell piece was null in production.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/partyHomeProduction.test.ts', 'scripts/ph-flows/solo.mjs'], lastVerifiedAt: '2026-11-05' },
+  },
+  {
     id: 'R-PH-BACK-LAYERS-01',
     title: 'Under the party home shell, Esc and Back take the single top layer first',
     statement:

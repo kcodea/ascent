@@ -28,12 +28,11 @@ import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
 
-/** THE PARTY HOME SKIN (party home prototype, DEV only; hero-select/HeroSelectPhSkin.tsx): the shell's backdrop and the
- *  new look's stylesheet, loaded lazily so a production build never carries either. Fetched at once when the switch is
- *  already on, so the screen never opens before its look has landed. */
+/** THE PARTY HOME SKIN (hero-select/HeroSelectPhSkin.tsx): the shell's backdrop and the new look's stylesheet, loaded
+ *  lazily and fetched at once, so the screen never opens before its look has landed. */
 const loadPhSkin = () => import('./hero-select/HeroSelectPhSkin');
-const HeroSelectPhSkin = import.meta.env.DEV ? lazy(loadPhSkin) : null;
-if (import.meta.env.DEV && partyHomeOn()) void loadPhSkin();
+const HeroSelectPhSkin = lazy(loadPhSkin);
+if (partyHomeOn()) void loadPhSkin();
 
 /**
  * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos

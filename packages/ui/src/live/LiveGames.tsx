@@ -34,7 +34,7 @@ import './live.css';
 
 /** THE PARTY HOME's version of this page (DEV switch "Party home (prototype)", owner 2026-11-02): the same reads and Watch
  *  path, drawn with the shell kit under the top nav. Lazy and null in production, so the shipped bundle never carries it. */
-const LiveGamesPh = import.meta.env.DEV ? lazy(() => import('../partyHome/pages/LiveGamesPh').then((m) => ({ default: m.LiveGamesPh }))) : null;
+const LiveGamesPh = lazy(() => import('../partyHome/pages/LiveGamesPh').then((m) => ({ default: m.LiveGamesPh })));
 
 const REFRESH_MS = 10_000;
 

@@ -47,7 +47,7 @@ import { usePartyHome } from '../partyHome/partyHomeFlag';
 import type { CollectionPhView } from './ph/CollectionPh';
 
 /** THE PARTY HOME SHELL's skin for this page (DEV switch, lazy: production never loads it). */
-const CollectionPh = import.meta.env.DEV ? lazy(() => import('./ph/CollectionPh').then((m) => ({ default: m.CollectionPh }))) : null;
+const CollectionPh = lazy(() => import('./ph/CollectionPh').then((m) => ({ default: m.CollectionPh })));
 
 /**
  * THE COLLECTION SCREEN (owner ask 2026-09-28: "make the collection screen separate"; relaid out the same day:

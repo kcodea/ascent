@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new look for the whole game outside of fights. Your party is now the main screen, with every page one click away in the top bar.',
+        details: [
+          'Ranked, Versus, Practice, Gauntlet and Learn all start from the party screen. A Versus room is part of that screen too.',
+          'Career, Collection, Compendium, Leaderboard, Live Games, Recent Games, Settings and Patch Notes have all been redrawn.',
+          'Esc and Back now always close the top thing on screen, one press at a time.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Spell cards now show their stat buffs (like +3/+4) in the Shop Spell blue, with a soft glow.',
       },
       {

@@ -50,11 +50,14 @@ for (const v of views) {
     });
     await run(`Lists and fields, ${how}`, v, async () => {
       const p = await player(b, URL_, v); await home(p); await sleep(1200); await openBook(p);
-      // The Set picker: above everything, every row answers.
-      await p.page.evaluate(() => document.querySelector('.book-setpick-btn')?.click()); await sleep(500); await shot(p, 'setpick');
-      const rows = await p.page.evaluate(() => [...document.querySelectorAll('.book-setpick-opt')].map((o) => { const r = o.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return { t: o.textContent.trim().slice(0, 8), ok: o === hit || o.contains(hit), in: r.bottom <= innerHeight }; }));
-      must(rows.length >= 3 && rows.every((r) => r.ok && r.in), 'set rows ' + JSON.stringify(rows));
-      await key(p, how); let s = await see(p); must(s.book && !(await p.page.evaluate(() => !!document.querySelector('.book-setpick.is-open'))), 'set list: ' + JSON.stringify(s));
+      // The Set picker (a DEV tool: a production build has none): above everything, every row answers.
+      let s = await see(p);
+      if (await p.page.evaluate(() => !!document.querySelector('.book-setpick-btn'))) {
+        await p.page.evaluate(() => document.querySelector('.book-setpick-btn')?.click()); await sleep(500); await shot(p, 'setpick');
+        const rows = await p.page.evaluate(() => [...document.querySelectorAll('.book-setpick-opt')].map((o) => { const r = o.getBoundingClientRect(); const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return { t: o.textContent.trim().slice(0, 8), ok: o === hit || o.contains(hit), in: r.bottom <= innerHeight }; }));
+        must(rows.length >= 3 && rows.every((r) => r.ok && r.in), 'set rows ' + JSON.stringify(rows));
+        await key(p, how); s = await see(p); must(s.book && !(await p.page.evaluate(() => !!document.querySelector('.book-setpick.is-open'))), 'set list: ' + JSON.stringify(s));
+      }
       if (how === 'esc') {
         await p.page.fill('.book-search', 'imp'); await sleep(400); await key(p, 'esc'); s = await see(p); must(s.book, 'search Esc left the page'); must(s.q === '', 'search kept ' + s.q);
         if (v !== 'phone') {

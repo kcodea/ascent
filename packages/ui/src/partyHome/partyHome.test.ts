@@ -28,11 +28,11 @@ describe('party home prototype', () => {
     expect(partyModeOf('group').slots).toBe(4);
     expect(partyModeOf('duos').ranked && partyModeOf('ranked').ranked).toBe(true);
   });
-  it('is DEV only and off by default (production never loads the screen or the shell)', () => {
+  it('is on in every production build, and lazy (R-PH-PRODUCTION-01)', () => {
     const flag = here('./partyHomeFlag.ts');
-    expect(flag).toMatch(/if \(!import\.meta\.env\.DEV\) return false;/);
-    expect(here('../Title.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/PartyHome'\)\) : null/);
-    expect(here('../MenuSidebar.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/shell\/PhPageChrome'\)\)/);
+    expect(flag).toMatch(/if \(!import\.meta\.env\.DEV\) return true;/);
+    expect(here('../Title.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/PartyHome'\)\)/);
+    expect(here('../MenuSidebar.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/shell\/PhPageChrome'\)\)/);
   });
   it('keeps to the UI rules: no native tooltips, no bare cursor, no em dashes in player text, no looping animation', () => {
     const tsx = ['./PartyHome.tsx', './ModeOptions.tsx', './PhPrompts.tsx', './kit/index.tsx', './shell/PhTopNav.tsx', './shell/PhFriends.tsx'].map(here).join('\n');

@@ -30,7 +30,7 @@ export const VIEW = {
 export async function player(browser, url, view, { name = 'Claudebot1', seen = true } = {}) {
   const ctx = await browser.newContext(VIEW[view]);
   await ctx.route((u) => !['localhost', '127.0.0.1'].includes(u.hostname), (r) => r.abort());
-  await ctx.addInitScript(([n, s]) => { try { if (!localStorage.getItem('ascent.playername')) localStorage.setItem('ascent.playername', n); if (s) localStorage.setItem('ascent.ftue.done', '1'); } catch { /* */ } }, [name, seen]);
+  await ctx.addInitScript(([n, s]) => { try { localStorage.setItem('ascent.versus', '1'); if (!localStorage.getItem('ascent.playername')) localStorage.setItem('ascent.playername', n); if (s) localStorage.setItem('ascent.ftue.done', '1'); } catch { /* */ } }, [name, seen]);
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message.slice(0, 200)));
@@ -61,6 +61,8 @@ export async function playOut(p, capMs = 150000) {
     if (s.end || s.phase === 'gameover' || s.phase === 'victory') return s;
     // Two real rounds, then one point of Resolve left: the next loss ends the run the way any loss does, in seconds.
     if (s.phase === 'recruit' && s.wave >= 3 && !turns++) await p.page.evaluate(() => { const b = window.__bench.store; const r = b.getState().run; b.setState({ run: { ...r, resolve: 1, armor: 0 } }); });
+    // A hero's opening Discover (or any pick) holds the turn: take the first card, as a player would.
+    await p.page.evaluate(() => document.querySelector('.discover-ov .card')?.click());
     await p.page.evaluate(() => { const e = document.querySelector('.etbwrap.ready') || document.querySelector('.etbwrap'); e?.click(); e?.querySelector('button')?.click(); });
     await sleep(700);
   }

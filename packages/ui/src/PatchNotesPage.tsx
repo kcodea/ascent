@@ -17,7 +17,7 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 
 const PatchNotesBody = lazy(() => retryImport(() => import('./PatchNotesBody')).then((m) => ({ default: m.PatchNotesBody })));
 /** The app shell's version of the page (party home prototype, DEV only; lazy and null in production, like the top nav). */
-const PhPatchNotes = import.meta.env.DEV ? lazy(() => import('./partyHome/pages/PhPatchNotes').then((m) => ({ default: m.PhPatchNotes }))) : null;
+const PhPatchNotes = lazy(() => import('./partyHome/pages/PhPatchNotes').then((m) => ({ default: m.PhPatchNotes })));
 
 export function PatchNotesPage() {
   const show = useGame((s) => s.showPatchNotes);

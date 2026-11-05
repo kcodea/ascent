@@ -110,10 +110,10 @@ describe('the gate: shell pages only with the switch on, on the menus', () => {
     expect(ui.container.querySelector('.book-ov .book-head')).not.toBeNull();
   });
 
-  it('every shell page is DEV only (lazy, null in production)', () => {
-    expect(here('../../PatchNotesPage.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/PhPatchNotes'\)/);
-    expect(here('../../EscMenu.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/PhSettings'\)/);
-    expect(here('../../MinionBook.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/PhCompendium'\)/);
+  it('every shell page is lazy', () => {
+    expect(here('../../PatchNotesPage.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/pages\/PhPatchNotes'\)/);
+    expect(here('../../EscMenu.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/pages\/PhSettings'\)/);
+    expect(here('../../MinionBook.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/pages\/PhCompendium'\)/);
   });
 });
 

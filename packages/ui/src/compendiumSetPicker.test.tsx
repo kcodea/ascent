@@ -25,6 +25,9 @@ const pickerBtn = (el: HTMLElement): HTMLButtonElement => el.querySelector('.boo
 const options = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('.book-setpick-opt')];
 const minionCount = (setId: SetId): number => poolFor(setId).buyable.length;
 
+// The book itself, whichever way the production switch reads: a production render otherwise takes the shell's lazy page.
+vi.mock('./partyHome/partyHomeFlag', async (real) => ({ ...(await real<object>()), usePartyHome: () => false }));
+
 describe('Compendium set picker', () => {
   let m: Mounted;
   let prevShowTitle: boolean;

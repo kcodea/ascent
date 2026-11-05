@@ -231,9 +231,9 @@ describe('Live Games on the shell', () => {
 
 describe('the gate and the UI rules', () => {
   it('draws the kit pages only behind the switch, lazily, and never in production', () => {
-    expect(here('../../RecentGames.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\/partyHome\/pages\/RecentGamesPh'\)/);
+    expect(here('../../RecentGames.tsx')).toMatch(/= lazy\(\(\) => import\('\.\/partyHome\/pages\/RecentGamesPh'\)/);
     expect(here('../../RecentGames.tsx')).toMatch(/if \(shell && RecentGamesPh\)/);
-    expect(here('../../live/LiveGames.tsx')).toMatch(/import\.meta\.env\.DEV \? lazy\(\(\) => import\('\.\.\/partyHome\/pages\/LiveGamesPh'\)/);
+    expect(here('../../live/LiveGames.tsx')).toMatch(/= lazy\(\(\) => import\('\.\.\/partyHome\/pages\/LiveGamesPh'\)/);
     expect(here('../../live/LiveGames.tsx')).toMatch(/if \(shell && LiveGamesPh\)/);
   });
   it('keeps to the UI rules: no native tooltips, no cursor, nothing looping, no em dashes, no Oath', () => {

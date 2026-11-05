@@ -50,9 +50,9 @@ import { isPhone } from './deviceClass';
 
 /** THE PARTY HOME PROTOTYPE (DEV only, owner 2026-11-02; partyHome/PartyHome.tsx). Lazy, and `null` in a production build,
  *  so the shipped bundle never carries it. */
-const PartyHome = import.meta.env.DEV ? lazy(() => import('./partyHome/PartyHome')) : null;
-const PhTutorialPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhTutorialPrompt }))) : null;
-const PhRankedPrompt = import.meta.env.DEV ? lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhRankedPrompt }))) : null;
+const PartyHome = lazy(() => import('./partyHome/PartyHome'));
+const PhTutorialPrompt = lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhTutorialPrompt })));
+const PhRankedPrompt = lazy(() => import('./partyHome/PhPrompts').then((m) => ({ default: m.PhRankedPrompt })));
 
 /** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
  *  ground (the room is its own stage over it). */

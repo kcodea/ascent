@@ -518,7 +518,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
-        <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLocked={(_id, reason) => { sfx.deny(); if (phone) setLockNote(reason); }}
+        <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(_id, reason) => { sfx.deny(); if (phone) setLockNote(reason); }}
           tabs={families.map((f) => ({ id: f.id, label: <ModeLabel id={f.id} label={f.label} />, reason: familyReason(f) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
         <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>

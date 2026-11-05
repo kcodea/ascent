@@ -58,6 +58,15 @@ for (const v of views) {
     const end = await playOut(p); const hit = await endToHome(p, 'ranked');
     must(!p.errs.length, p.errs[0]); await p.ctx.close(); return `to wave ${end.wave}, ${hit}`;
   });
+  await run('Learn: graduation, Home', v, async () => {
+    const p = await player(b, URL_, v, { seen: false }); await home(p); await sleep(1500);
+    await tab(p, 'learn'); await start(p); await sleep(6000); must(!(await st(p)).title, 'not in Learn');
+    // The coached rounds have their own walkthrough (tutorial/courseWalkthrough.test.ts): here the run ends where the course ends.
+    await p.page.evaluate(() => { const g = window.__bench.store; const r = g.getState().run; g.setState({ run: { ...r, phase: 'victory' } }); }); await sleep(3000); await shot(p, 'learn-end');
+    const hit = await press(p, 'enter ascent|continue', '.endscreen'); await sleep(2500); await shot(p, 'learn-after');
+    must(hit, 'no way out of the graduation screen'); must(await atHome(p), 'not home after graduating, pressed ' + hit);
+    must(!p.errs.length, p.errs[0]); await p.ctx.close(); return hit;
+  });
   await run('Learn: fresh guest, start, leave, Home', v, async () => {
     const p = await player(b, URL_, v, { seen: false }); await home(p); await sleep(1500); await shot(p, 'first-boot');
     await tab(p, 'learn'); await start(p); await sleep(6000); await shot(p, 'learn-in');

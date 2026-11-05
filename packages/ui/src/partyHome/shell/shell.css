@@ -328,3 +328,6 @@ html[data-ph-gm] .scenebuilder { visibility: hidden; }
 
 /* Esc put the hover preview away: it stays gone until the pointer moves on. */
 html[data-ph-tipoff] .cardref { display: none; }
+
+/* A phone's nav: every target at least a finger wide, the short labels (Home, Play) too. */
+html[data-ph-compact] .ph-top :is(.ph-navtab, .ph-brand) { min-width: calc(72 * var(--phu)); box-sizing: border-box; justify-content: center; }

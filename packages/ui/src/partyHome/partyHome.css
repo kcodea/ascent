@@ -528,8 +528,8 @@ html[data-ph-compact] .ph-stagehead > .ph-held, html[data-ph-compact] .ph-stageh
 .ph-art { height: 84%; }
 .ph-foot, .ph-foot:has(.ph-state) { top: 73%; }
 html[data-ph-compact] .ph-cards { padding-top: calc(90 * var(--phu)); }
-/* The greyed tab's tip owns the line under the tabs while it shows. */
-.ph-modes .phk-tabs:has(.phk-tab.locked:hover) ~ .ph-desc { visibility: hidden; }
+/* A greyed tab says why in the description's own line, so no bubble sits over that line. */
+.ph-modes .phk-tab.locked.gtip:not(.on)::after { display: none; }
 
 /* ── CRITIC ROUND 14 ── */
 /* PHONE BANNERS: name, medal and state are three rows that flow from the foot, so they can never print over each other. */

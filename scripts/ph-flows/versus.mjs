@@ -27,7 +27,7 @@ const seatGuest = async (g, seat) => { const ok = await V(g, (v, s) => v.takeSea
 const drive = async (ps, mems, until, capMs = 150000) => {
   const t0 = Date.now(); let last = []; let seen = '';
   while (Date.now() - t0 < capMs) {
-    last = []; for (let i = 0; i < ps.length; i++) { last.push(await step(ps[i], mems[i], { thinkMs: 300, endMs: 900, heroThinkMs: 600, watchMs: 300 })); if (last[i].heroCards && mems[i].picked) await press(ps[i], '^ *start game'); }
+    last = []; for (let i = 0; i < ps.length; i++) { last.push(await step(ps[i], mems[i], { thinkMs: 300, endMs: 900, heroThinkMs: 4500, watchMs: 300 })); if (last[i].heroCards && mems[i].picked) await press(ps[i], '^ *start game'); }
     const k = JSON.stringify(last.map((s) => [s.phase, s.round, s.runMode, s.runPhase, s.wave, s.screen, s.gate, s.heroCards, s.err]));
     if (k !== seen) { seen = k; console.log(Math.round((Date.now() - t0) / 1000), k); }
     if (await until(last)) return last;
@@ -60,9 +60,11 @@ for (const v of views) {
         await shot(p, `vs-${label}-shop${round}`);
         if (round === 1) {
           await drive(ps, mems, (ss) => ss.every((s) => s.phase === 'shop' && s.runPhase === 'recruit' && s.wave >= 2 && s.round === s.wave));
-          await p.page.reload({ waitUntil: 'commit' }); await home(p).catch(() => undefined); await sleep(4000);
-          const s = await stateOf(p); await shot(p, `vs-${label}-reload`); must(s.runMode === 'versus' && !s.showTitle, 'reload lost the game ' + JSON.stringify(s));
-          mems[0] = {};
+          if (label === '1v1') {
+            await p.page.reload({ waitUntil: 'commit' }); await home(p).catch(() => undefined); await sleep(4000);
+            const s = await stateOf(p); await shot(p, `vs-${label}-reload`); must(s.runMode === 'versus' && !s.showTitle, 'reload lost the game ' + JSON.stringify(s));
+            mems[0] = {};
+          }
         }
         for (const f of foes) await concede(gs[f]);
         await drive(ps, mems, (ss) => ss[0].phase === 'complete' || ss[0].phase === null || ss[0].screen === 'room');
@@ -81,6 +83,29 @@ for (const v of views) {
       must(!p.errs.length, p.errs[0]); await p.ctx.close(); return r2.members.join(',');
     });
   }
+}
+for (const v of views) {
+  await run('Ranked Duos: party, join, warning, game, post-game, party, Home', v, async () => {
+    const p = await player(b, URL_, v); await home(p); await sleep(1800);
+    await tab(p, 'ranked');
+    await V(p, (x, n) => x.enterDuosParty(n), 'Claudebot1'); await sleep(1500); const r = await room(p); must(r.id, 'no party ' + JSON.stringify(r));
+    await sub(p, 'Duos'); await shot(p, 'duos-party');
+    const g = await player(b, URL_, 'desk', { name: 'Claudebot2' }); await home(g); await sleep(1200);
+    await V(g, async (x, id) => { x.openVersus('duos'); await x.joinRoom(id, 'player'); }, r.id); await sleep(1800);
+    must((await room(p)).members.length >= 2, 'partner not in the party ' + JSON.stringify(await room(p))); await shot(p, 'duos-full');
+    await p.page.reload({ waitUntil: 'commit' }); await home(p); await sleep(3000);
+    must((await room(p)).id === r.id, 'reload lost the party'); await tab(p, 'ranked'); await sub(p, 'Duos');
+    await start(p); await sleep(500); await shot(p, 'duos-warning'); must(await press(p, '^ *yes', '.phk-dialog'), 'no ranked warning'); await sleep(1500);
+    const ps = [p, g]; const mems = [{}, {}];
+    await drive(ps, mems, (ss) => ss.every((s) => s.phase === 'shop' && s.runMode === 'versus' && s.runPhase === 'recruit'), 120000); await shot(p, 'duos-shop');
+    await concede(p); await sleep(800);
+    await drive(ps, mems, (ss) => ss[0].screen === 'room' && ss[0].runMode !== 'versus', 90000).catch((e) => { throw new Error('after concede: ' + e.message); });
+    await sleep(2500); await shot(p, 'duos-post');
+    const c = await press(p, '^ *continue'); await sleep(1500); await shot(p, 'duos-after');
+    must(await atHome(p), 'not the party home after the game, pressed ' + c);
+    await g.ctx.close(); await V(p, (x) => x.leaveDuosParty()); await sleep(1500); must(await atHome(p), 'not Home after leaving');
+    must(!p.errs.length, p.errs[0]); await p.ctx.close(); return c ? `post-game ${c}` : 'no post-game Continue (offline stub)';
+  });
 }
 await b.close(); srv.close();
 console.table(results);

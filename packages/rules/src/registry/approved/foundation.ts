@@ -13936,4 +13936,22 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Recruit stayed in combat, so the replay never armed: the new boards were drawn, nothing moved, and Skip did nothing. The Recruit backstop is pinned by a source check only (no test mounts Recruit).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateFightSwap.test.tsx'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-UPDATE-NOTES-DAY-01',
+    title: 'Update notes never drop a change because of the time zone',
+    statement:
+      'The notes for an update (the GitHub release notes "Ship Ascent" writes, and the in-game "Updated to vX" panel) list every patch-note entry '
+      + 'since the previous version, even when that version shipped on a different calendar day in UTC than on the owner\x27s calendar. '
+      + 'Repeating a day\x27s notes is allowed; leaving a shipped change out is not.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04', quote: 'a pop up that the game has been updated and the associated patch notes show up on the home screen' },
+      { kind: 'fix-pr', ref: 'fix/release-notes-date-skew: packages/ui/src/updateNotes.ts (notesSince reaches back one day, dayBefore)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-05 (fix/release-notes-date-skew). Before, notesSince kept entries dated on or after the previous release\x27s UTC date; '
+      + 'v0.2.0 published 2026-11-05 UTC (the evening of 2026-11-04 locally), so v0.2.1\x27s release notes came out empty and were filled in by hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
 ];

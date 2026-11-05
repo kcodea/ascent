@@ -741,13 +741,15 @@ export const TEXT_RULES: GameRule[] = [
     title: 'A spell prints its stat buffs in the Shop Spell blue',
     statement:
       'On every spell card, a bold stat buff in its text (+3/+4, +2 Attack, +1 Health, and minus values too) wears the '
-      + 'same light blue as the "Shop Spell" kind line under the text, with a very slight glow. Other bold numbers (Gold, '
-      + 'damage, Rubies, tiers) and every minion card keep the tribe colour.',
+      + 'same light blue as the "Shop Spell" kind line under the text, with a very slight glow. Every other bold word on a '
+      + 'spell (Gold, damage, Rubies, tiers, tribe names, keywords) is a darker blue with no glow. Minion cards keep the '
+      + 'tribe colour.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ask 2026-11-05 (screenshot of Blessing)', quote: 'can we make all spell buff number text the same light blue color we use for the "Shop Spell" text below?' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'and add a very slight glow?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-05 (screenshot of Summon Stone, Tier 1)', quote: 'make any non spell buff keywords a dark blue, no glow' },
       { kind: 'fix-pr', ref: 'fix/spell-buff-number-blue: packages/ui/src/Card.tsx (descBuff in rulesHtml), packages/ui/src/styles.css (.spellcard .desc b.buffnum)' },
     ],
     currentBehaviour: 'Conforms from 2026-11-05 (fix/spell-buff-number-blue). Before, a spell bold buff took its tribe colour, grey on the Neutral spells.',

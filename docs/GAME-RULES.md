@@ -1450,7 +1450,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
   side by side, never split by Health); the Health and Armor are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
-  it is display only (no click, no hover). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
+  it is display only (no click, no hover). **Cards sent to hand in a fight** show only in the hand of the player whose board earned them, on both sides (R-DUOS-HAND-OWN-01). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
   after another. The opponent portrait becomes whoever is fighting now, the new face fading in. **Your own hero slot never
   changes** (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
   can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left";

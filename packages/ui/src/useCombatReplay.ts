@@ -28,6 +28,7 @@ import { prefoldedShareOf } from './choreo/clashOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
+import { inHandRange, ownHandRange, WHOLE_LOG, type HandRange } from './ownHandRange';
 import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandCardLike, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
@@ -316,10 +317,11 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
  * a card seems to arrive only after combat, check first that the effect emits a `toHand` event at all (a
  * DEFERRED economy Battlecry did not, until `replayCombatBattlecry` began announcing named grants).
  */
-export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): string[] {
+export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, own: HandRange = WHOLE_LOG): string[] {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   // YOUR hand only: since R-SYMMETRY-01 (2026-10-13) the foe's grants fly to ITS hand in the log too (side-tagged).
-  return events.slice(0, through).flatMap((e) => (e.type === 'toHand' && e.side === 'player' ? [e.cardId] : []));
+  // And in Duos YOUR board's only, not your teammate's (`own`, R-DUOS-HAND-OWN-01).
+  return events.slice(0, through).flatMap((e, i) => (e.type === 'toHand' && e.side === 'player' && inHandRange(i, own) ? [e.cardId] : []));
 }
 
 /**
@@ -328,11 +330,11 @@ export function grantsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx
  * not when the fight settles. The hand row adds these deltas onto the run hand's stats until settle lands
  * the permanent buff (at which point the replay resets and this is empty again — no double count).
  */
-export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): Record<string, { attack: number; health: number }> {
+export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, own: HandRange = WHOLE_LOG): Record<string, { attack: number; health: number }> {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   const out: Record<string, { attack: number; health: number }> = {};
-  for (const e of events.slice(0, through)) {
-    if (e.type !== 'handBuff' || e.side !== 'player') continue;
+  for (const [i, e] of events.slice(0, through).entries()) {
+    if (e.type !== 'handBuff' || e.side !== 'player' || !inHandRange(i, own)) continue;
     const cur = out[e.uid] ?? { attack: 0, health: 0 };
     out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
   }
@@ -344,11 +346,11 @@ export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beat
  * cue's fan-out for the combat surface (the shop's is `diffHandBuffs` in `handBuffFx.ts`). Only `start`/`end`
  * are read off the beat.
  */
-export function handBuffUidsIn(beat: { start: number; end: number }, events: readonly CombatEvent[]): string[] {
+export function handBuffUidsIn(beat: { start: number; end: number }, events: readonly CombatEvent[], own: HandRange = WHOLE_LOG): string[] {
   const out: string[] = [];
   for (let i = beat.start; i < beat.end; i++) {
     const e = events[i];
-    if (e?.type === 'handBuff' && e.side === 'player') out.push(e.uid);
+    if (e?.type === 'handBuff' && e.side === 'player' && inHandRange(i, own)) out.push(e.uid);
   }
   return out;
 }
@@ -956,6 +958,8 @@ export interface CombatReplay {
   /** The replay's event order (presentation order, the one `processedEnd` indexes) and its cursor: everything
    *  before `processedEnd` is on screen. The announcer's in-fight moments fold through it. */
   replayEvents: CombatEvent[];
+  /** The part of `replayEvents` that is this player's own board in a Duos fight (R-DUOS-HAND-OWN-01). */
+  ownHand: HandRange;
   processedEnd: number;
   /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
   enemyDeaths: number;
@@ -1484,6 +1488,8 @@ export function useCombatReplay(
   // the proc harness's `scanProcs`) that computes a moment index for `seekTo` folds the SAME array and can't
   // silently address a different moment than the one the replay is actually showing.
   const events = useMemo(() => replayOrder(combat?.events ?? []), [combat]);
+  // Duos: the part of the log that is MY board's, for everything that draws MY hand (R-DUOS-HAND-OWN-01).
+  const ownHand = useMemo(() => ownHandRange(events, combat?.duosMember), [events, combat?.duosMember]);
   // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
   // `replayBeats` folds `compileMoments(replayOrder(events))` as ONE definition — see its doc comment for why
@@ -2404,7 +2410,7 @@ export function useCombatReplay(
   useEffect(() => {
     const beat = active ? beats[beatIdx] : undefined;
     // YOUR hand only: a foe's grant (side-tagged since R-SYMMETRY-01) is logged, not flown into your hand.
-    if (beat && beat.primary.type === 'toHand' && beat.primary.side === 'player') setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
+    if (beat && beat.primary.type === 'toHand' && beat.primary.side === 'player' && inHandRange(beat.start, ownHand)) setHandGrant({ cardId: beat.primary.cardId, key: beatIdx });
     else setHandGrant(null);
     // `seekNonce`: `resetTo` nulls the flying card, so without this a re-seek onto a `toHand` beat would
     // clear the grant and never restore it — that moment's animation just wouldn't replay.
@@ -2653,7 +2659,7 @@ export function useCombatReplay(
     // Echo, Shared Spirit, a Rising Tide proc — plays the owner-authored `hand-buff` def on THAT hand card, on
     // the same beat R-HAND-02 grows its badge (`handBuffsShownThrough`). One play per event, so a card hit
     // twice in a beat pops twice; the cascade inside `fireHandBuff` spaces several cards hit by one effect.
-    fireHandBuff(handBuffUidsIn(beat, events));
+    fireHandBuff(handBuffUidsIn(beat, events, ownHand));
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.
     // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.
@@ -4034,8 +4040,8 @@ export function useCombatReplay(
      for one frame the instant you pressed Start Combat, coalesce and all, before the reset wiped them (owner
      clip 2026-07-27). `active` only turns true after the intro, by which point the reset has landed. */
   const handGrantsShown = useMemo(
-    () => (active ? grantsShownThrough(events, beats, beatIdx) : EMPTY_GRANTS),
-    [active, beatIdx, beats, events],
+    () => (active ? grantsShownThrough(events, beats, beatIdx, ownHand) : EMPTY_GRANTS),
+    [active, beatIdx, beats, events, ownHand],
   );
   const handSummonedShown = useMemo(
     // The hand card greys the moment its body is DRAWN (as its copy lifts away), not while a hold still withholds it.
@@ -4047,7 +4053,7 @@ export function useCombatReplay(
     [active, events, beats, beatIdx, summonHeldV],
   );
   const handBuffsShown = useMemo(
-    () => (active ? handBuffsShownThrough(events, beats, beatIdx) : EMPTY_HAND_BUFFS),
+    () => (active ? handBuffsShownThrough(events, beats, beatIdx, ownHand) : EMPTY_HAND_BUFFS),
     [active, beatIdx, beats, events],
   );
 
@@ -4058,7 +4064,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, beatIdx, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
+    beatCount: beats.length, replayEvents: events, ownHand, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     turbo: (onLand?: () => void) => {
       if (turbo) return;
       if (beats.length === 0) { setBeatIdx(beats.length); setEndNonce((n) => n + 1); onLand?.(); return; }

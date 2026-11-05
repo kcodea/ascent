@@ -313,8 +313,14 @@ const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class
  *  green, and so on. Its own marker rather than reusing `descup` because that green means "a modified value of
  *  this card's own rule", which (Both) is not. */
 const descBoth = (s: string): string => s.replace(/<<(.+?)>>/g, '<span class="descboth">$1</span>');
-/** The FULL rules-text pipeline for a card body: rename + bold, the four markers, then the term colouring. */
-export const rulesHtml = (s: string): string => colourTerms(descBoth(descRune(descTemp(descUp(mdBoldRaw(s))))));
+/** A bolded STAT BUFF (`+3/+4`, `+2 Attack`, `+1 Health`, a minus too) → `<b class="buffnum">`, so a SPELL card can
+ *  paint its buff numbers in the Shop Spell blue (owner ask 2026-11-05; the CSS is scoped to `.spellcard`, so a
+ *  minion's bold numbers keep its tribe colour). Gold, damage, Rubies and other bold numbers are not buffs. */
+const descBuff = (s: string): string =>
+  s.replace(/<b>([+\-−]\d+(?:\/[+\-−]\d+)?(?: (?:Attack|Health))?)<\/b>/g, '<b class="buffnum">$1</b>');
+/** The FULL rules-text pipeline for a card body: rename + bold, the stat-buff tag, the four markers, then the term
+ *  colouring. */
+export const rulesHtml = (s: string): string => colourTerms(descBoth(descRune(descTemp(descUp(descBuff(mdBoldRaw(s)))))));
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to

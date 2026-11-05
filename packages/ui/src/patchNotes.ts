@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spell cards now show their stat buffs (like +3/+4) in the Shop Spell blue, with a soft glow.',
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: in Duos, cards sent to hand during a fight now show only in the hand of the player who earned them.',
       },
       {

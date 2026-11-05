@@ -736,4 +736,22 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Baby Gastrid played after spending 9 Gold: "Select a Dwarf to grant +18 Health". Crest of the Climb, Health branch, under +1 Health spell power: "Select a minion to grant +5 Health".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/targetPrompt.test.ts'], lastVerifiedAt: '2026-11-01' },
   },
+  {
+    id: 'R-TEXT-SPELL-BUFF-BLUE-01',
+    title: 'A spell prints its stat buffs in the Shop Spell blue',
+    statement:
+      'On every spell card, a bold stat buff in its text (+3/+4, +2 Attack, +1 Health, and minus values too) wears the '
+      + 'same light blue as the "Shop Spell" kind line under the text, with a very slight glow. Other bold numbers (Gold, '
+      + 'damage, Rubies, tiers) and every minion card keep the tribe colour.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-05 (screenshot of Blessing)', quote: 'can we make all spell buff number text the same light blue color we use for the "Shop Spell" text below?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'and add a very slight glow?' },
+      { kind: 'fix-pr', ref: 'fix/spell-buff-number-blue: packages/ui/src/Card.tsx (descBuff in rulesHtml), packages/ui/src/styles.css (.spellcard .desc b.buffnum)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-05 (fix/spell-buff-number-blue). Before, a spell bold buff took its tribe colour, grey on the Neutral spells.',
+    example: 'Blessing: "Give a minion +3/+4 twice." with +3/+4 in light blue, softly glowing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/spellBuffNumber.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
 ];

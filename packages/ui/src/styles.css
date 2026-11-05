@@ -3528,6 +3528,10 @@ img.tierbadge.tierstars,
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
 .card.compact.showtext .drawer .desc b { color: var(--c); }
+/* A SPELL's stat buffs (`+3/+4`, tagged `.buffnum` by `rulesHtml`) wear the Shop Spell blue — the colour of the
+   card's own "Shop Spell" kind line — with a very slight static glow (owner ask 2026-11-05). Static text-shadow, no
+   loop, so it paints once. Placed before the Dragon rule; a spell is never a Dragon card. */
+.card.compact.showtext.spellcard .drawer .desc b.buffnum { color: #7cc4ff; text-shadow: 0 0 calc(var(--ccw) * 0.025) rgba(124, 196, 255, 0.55); }
 /* Dragon's tribe colour is white (= body text), so its coloured terms don't stand out. Give dragon cards' terms a
    subtle static pastel-rainbow halo — the white letters stay, but read as special. Static text-shadow only (no
    looped paint), per docs/performance.md. */

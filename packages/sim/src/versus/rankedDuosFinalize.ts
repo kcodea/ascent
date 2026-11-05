@@ -9,7 +9,7 @@
  *    the meetings so far. Only the boards this round needs cross the wire (egress).
  * 2. Build the sides (a snapshot through `seatCombatSide`, THE builder every lobby seat fights with; a duo member's
  *    recorded side as it fought), the pools (stored, else 30 Health + both heroes' Armor; the live pair's raised by its
- *    fresh reports, `versusVitalsBefore`), the fight order (live / paired team: the seeded 50/50 of R-DUOS-ORDER-01; a
+ *    fresh reports, `versusVitalsBefore`), the fight order (live / paired team: the alternating turn of R-DUOS-ORDER-01; a
  *    recorded duo run: its recorded order).
  * 3. `resolveRankedDuosRound`, then commit through `versus_ranked_duos_commit_round` (idempotent under the match lock;
  *    it places teams, settles the live team's rating and ends the match when the live team is placed).
@@ -21,7 +21,7 @@ import { seatCombatSide } from '../boardSide';
 import type { BoardSnapshot } from '../snapshot';
 import type { PreparedCombatSide } from '../state';
 import { canonicalDigest } from './canonical';
-import { versusDuosOrderSeed } from './duos';
+import { duosFirstMember } from './duos';
 import { resolveRankedDuosRound, type RankedDuosEncounter, type RankedDuosRoundResult } from './rankedDuosRound';
 import { RANKED_DUOS_LIVE_TEAM } from './rankedDuos';
 import { reportedVitals, versusDuosStartingVitals, versusFreshSide, versusVitalsBefore, type VersusVitals } from './vitals';
@@ -74,11 +74,10 @@ export function rankedDuosMemberSide(m: RankedDuosMemberBoard | undefined, round
   return { board: built.minions, state: built.state, config: {} } satisfies PreparedCombatSide;
 }
 
-/** Who fights first for `team` in `round`: the recorded order of a duo run, else the seeded 50/50 (R-DUOS-ORDER-01). */
+/** Who fights first for `team` in `round`: the recorded order of a duo run, else the team's alternating turn (R-DUOS-ORDER-01). */
 export function rankedDuosFirstOf(team: string, recordedFirst: 0 | 1 | null, matchSeed: number, round: number): 0 | 1 {
   if (recordedFirst === 0 || recordedFirst === 1) return recordedFirst;
-  const k = team.charCodeAt(0) - 97;
-  return makeRng(versusDuosOrderSeed(matchSeed, round, k)).next() < 0.5 ? 0 : 1;
+  return duosFirstMember(matchSeed, round, team.charCodeAt(0) - 97);
 }
 
 /** The commit payload (the SQL reads it with ->>). */

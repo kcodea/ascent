@@ -77,6 +77,19 @@ export function rankedFoeAt(raw: VersusGroupMatchRaw, ctx: RankedDuosContext, ro
   return { round, team, seat: seatOf(team, first), ghost };
 }
 
+/** Every team still in `round`: the seat that fights first (the live pair's turn, each recorded team's recorded order). */
+export function rankedFirstSeats(raw: VersusGroupMatchRaw, ctx: RankedDuosContext, round: number): VersusGroupSeat[] {
+  if (!ctx.table) return [];
+  const seed = Number(raw.seed) | 0;
+  const teams = [...new Set(['a', ...ctx.table.served.map((s) => s.team)])];
+  return teams
+    .filter((team) => { const out = ctx.teams.find((t) => t.team === team)?.eliminated_round; return out == null || out >= round; })
+    .map((team) => {
+      const order = ctx.table!.orders?.[team];
+      return seatOf(team, rankedDuosFirstOf(team, order === 0 || order === 1 ? order : null, seed, round));
+    });
+}
+
 /**
  * The match row with the recorded teams seated (virtual p3..p8, marked `served`) and this round's opponent pinned
  * (`rankedFoe`). The two real seats keep everything they had. Pure; returns `raw` itself when nothing is known yet.

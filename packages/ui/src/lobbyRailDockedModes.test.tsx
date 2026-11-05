@@ -152,6 +152,21 @@ describe('the Docked rail in every mode', () => {
     expect(c.querySelector('.lobbyteamslot')).toBeNull();
   });
 
+  it('Versus Duos: the seat that fights first this round sits on top of its team, you included (R-DUOS-ORDER-01)', () => {
+    const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
+    const run = versusRun(4);
+    const match = { phase: 'shop', round: 3, p1_user: 'me', group: { me: 'p1', raw, duos: { team: 'a', mate: 'p2', first: { a: 'p2', b: 'p4' } } } };
+    const c = show({ ...run, lobby: { ...run.lobby!, duosFirstIds: ['s1', 's3'] } }, match);
+    const ids = slices(c).map((x) => x.dataset.seat!);
+    expect(ids.indexOf('s1')).toBeLessThan(ids.indexOf('s0'));
+    expect(ids.indexOf('s3')).toBeLessThan(ids.indexOf('s2'));
+    expect(Math.abs(ids.indexOf('s1') - ids.indexOf('s0'))).toBe(1); // still side by side
+    expect(c.querySelectorAll('.lrv-team')).toHaveLength(2);
+    // Your own slice and the teammate's keep their marks wherever the turn puts them.
+    expect(c.querySelector('.lobbyseat.you[data-seat="s0"]')).not.toBeNull();
+    expect(c.querySelector('.lobbyseat.mate[data-seat="s1"]')).not.toBeNull();
+  });
+
   it("Versus Duos: a seat's fight log names the TEAM it fought, both faces, for the teammate who did not go first too", () => {
     const raw = { phase: 'shop', paused_at: null, paused_seat: null, options: { mode: 'duos' }, seats: ['p1', 'p2', 'p3', 'p4'].map((x) => seat(x)) };
     const run = versusRun(4);

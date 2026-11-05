@@ -62,6 +62,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Fixed: in Duos, cards sent to hand during a fight now show only in the hand of the player who earned them.',
       },
+      {
+        category: 'Systems',
+        text: 'Duos: teammates now take turns fighting first, and the rail shows it. The top player on each team fights first.',
+        details: [
+          'Round 1 is picked at random. After that the two teammates alternate every round. Nobody can change it.',
+          'The two players swap places on the rail when the turn passes.',
+          'The plate that named who fights first is gone.',
+        ],
+      },
     ],
   },
   {

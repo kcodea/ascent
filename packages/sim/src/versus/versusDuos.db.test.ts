@@ -1,7 +1,7 @@
 /**
  * VERSUS DUOS, EXECUTED (owner 2026-10-25; R-DUOS-01, R-DUOS-PASS-01). PGlite runs every Versus migration in order, then
  * `2026-10-25-versus-duos.sql`, `-duos-edges.sql`, `-duos-random-order.sql` and `-duos-pass-back.sql` (each twice: idempotent), against a stubbed
- * `auth.uid()`: a Duos room starts only with four, the round's fight order (the seeded 50/50, no flip path; R-DUOS-ORDER-01), the team's shared pool through the REAL
+ * `auth.uid()`: a Duos room starts only with four, the round's fight order (the alternating turn, no flip path; R-DUOS-ORDER-01), the team's shared pool through the REAL
  * `finalize_duos` handler (30 Health + both heroes' Armor, the lobby damage of the board that ended the fight; R-DUOS-HEALTH-01), a team out together and the other team winning, a concede taking
  * the team out, three auto rounds, passes (exactly once, only in the shop, only to the teammate, capped), and that a
  * group room still plays exactly as before.
@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { combatSide, type BoardMinion } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import type { VersusGroupSeat } from './group';
-import { duosMateOf, duosRandomFirst, VERSUS_DUOS_PASS_CAP } from './duos';
+import { duosMateOf, duosAlternatingFirst, VERSUS_DUOS_PASS_CAP } from './duos';
 import { hitVitals, versusDuosStartingVitals, versusFreshSide } from './vitals';
 import { handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 
@@ -157,13 +157,13 @@ describe('Versus Duos room (R-DUOS-01)', () => {
 });
 
 describe('Versus Duos rounds (R-DUOS-01)', () => {
-  it('the order is the seeded 50/50: no flip RPC, nothing stored, and the fight is fought in the seeded pick', async () => {
+  it('the order is the alternating turn: no flip RPC, nothing stored, and the fight is fought in the seeded pick', async () => {
     const [, m] = await startDuos();
     await toShop(m);
     const row = await matchRow(m);
     expect(row.duos_first).toBeNull();
     expect(await fails(B, 'select public.versus_duos_flip_order($1)', [m])).toMatch(/does not exist/);
-    const pick = duosRandomFirst(Number(row.seed), 1);
+    const pick = duosAlternatingFirst(Number(row.seed), 1);
     const r1 = await playRound(m, 1, { p1: bags(1, 2, 2, 'a'), p2: bags(1, 2, 2, 'b'), p3: bags(1, 2, 2, 'c'), p4: bags(1, 2, 2, 'd') });
     expect(r1.first).toEqual(pick);
     const fight = (await db.query<any>('select a_seat, b_seat from public.versus_group_fights where match_id = $1 and round = 1', [m])).rows;
@@ -180,7 +180,7 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     await toShop(m);
     const seed = Number((await matchRow(m)).seed);
     // Round 1: team A's first board is a stomp (team B's lone board sits on its own pick; an empty pick hands over).
-    const f1 = duosRandomFirst(seed, 1);
+    const f1 = duosAlternatingFirst(seed, 1);
     const r1 = await playRound(m, 1, { [f1.a]: bags(1, 40, 400, 'a'), [f1.b]: bags(1, 1, 2, 'c') });
     expect(r1.outcome).toBe('a');
     expect(r1.damage).toBeGreaterThan(0);
@@ -196,7 +196,7 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     expect(round.vitals.p3).toEqual(b1);
     await ready(m, 1);
     // Round 2: team A's first board falls, its teammate steps in and wins: the damage is the board that ENDED it.
-    const f2 = duosRandomFirst(seed, 2);
+    const f2 = duosAlternatingFirst(seed, 2);
     const r2 = await playRound(m, 2, { [f2.a]: bags(1, 1, 1, 'b'), [duosMateOf(f2.a)]: bags(1, 40, 400, 'a'), [f2.b]: bags(1, 2, 3, 'd') });
     expect([r2.first, r2.outcome]).toEqual([f2, 'a']);
     s = await seatRows(m);

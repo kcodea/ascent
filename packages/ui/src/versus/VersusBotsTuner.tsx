@@ -9,7 +9,7 @@
  * teammate, no Gold, the clock); a forced fight is the real resolver on boards set up for it; a concede is the real
  * forfeit. What only a test needs (a hand topped up, a board replaced, Health and Armor, the clock, the fight order) is a
  * dev edit or a dev RPC (`versus_dev_*`, the host's bot-only tables, no XP), labelled "dev" here. Who fights first is
- * the server's seeded 50/50 (R-DUOS-ORDER-01) and the resolver reads only the seed, so the panel shows it, never sets it.
+ * the teammates' alternating turn (R-DUOS-ORDER-01) and the resolver reads only the seed, so the panel shows it, never sets it.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { duosMateOf, duosTeamOf, handCap, poolOf, versusDuosStartingVitals, versusStartingVitals, type RunState, type VersusGroupSeat } from '@game/sim';

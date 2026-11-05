@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion } from '@game/core';
 import { resolveRankedDuosRound, versusGroupLobby, RANKED_DUOS_OVERTIME_BACKSTOP_MS, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import type { RankedDuosFightRow, RankedDuosRoundRow, RankedDuosTableRaw, RankedDuosTeamRead, VersusGroupMatchRaw, VersusGroupSeatRow } from './versusRemote';
-import { rankedCloseAtMs, rankedFoeAt, rankedRoundsAsGroup, rankedTeamLabels, withServedSeats, type RankedDuosContext } from './rankedDuosView';
+import { rankedCloseAtMs, rankedFirstSeats, rankedFoeAt, rankedRoundsAsGroup, rankedTeamLabels, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import { duosFirstAt, duosLobbySeatId, groupDuosRailRows, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { versusReadyLabel, versusTurn, versusTurnNote } from './versusTurn';
 import { buildGroupMatchRecord } from './versusMatchRecord';
@@ -123,6 +123,25 @@ describe('Ranked Duos: the table on the client (R-RANKED-DUOS-CLIENT-01)', () =>
     const order = groupDuosRailRows([{ id: 's5' }, { id: 's0' }, { id: 's2' }, { id: 's4' }, { id: 's1' }, { id: 's7' }, { id: 's3' }, { id: 's6' }]);
     expect(order.map((x) => x.id)).toEqual(['s5', 's4', 's0', 's1', 's2', 's3', 's7', 's6']);
     expect(rankedTeamLabels(r, 'p1', { c: 'Goats' })).toEqual({ s0: 'CITRUS', s2: 'B0 & B1', s4: 'Goats', s6: 'D0 & D1' });
+  });
+
+  it('R-DUOS-ORDER-01: the live pair alternates, a recorded team keeps its recorded order, a fallen team has no top seat', () => {
+    const r = withServedSeats(raw(), ctx());
+    const live = (round: number) => rankedFirstSeats(r, ctx({ table: table({ orders: { b: 1, c: 0, d: 1 } }) }), round);
+    const liveFirst = duosFirstAt(r, 1).a;
+    expect(live(1)).toEqual([liveFirst, 'p4', 'p5', 'p8']);
+    expect(live(2)[0]).not.toBe(liveFirst);
+    expect(live(2).slice(1)).toEqual(['p4', 'p5', 'p8']);
+    const out = rankedFirstSeats(r, ctx({ teams: teams({ c: { eliminated_round: 1 } }) }), 2);
+    expect(out.map(String)).not.toContain('p5');
+    expect(out.map(String)).not.toContain('p6');
+    const lobby = versusGroupLobby({
+      matchSeed: 7, me: 'p1', wave: 1, inCombat: false, combatSettled: false,
+      seats: r.seats.map((s) => ({ seat: s.seat as VersusGroupSeat, label: s.name, heroId: s.hero ?? 'warden', eliminatedRound: s.eliminatedRound, placement: s.placement })),
+      rounds: [], pairing: [], duos: { first: duosFirstAt(r, 1), firstSeats: ['p2', 'p4', 'p5', 'p8'] as VersusGroupSeat[] },
+    });
+    expect(lobby.duosFirstIds).toEqual(['s1', 's3', 's4', 's7']);
+    expect(groupDuosRailRows(lobby.seats.map((x) => ({ id: x.id })), lobby.duosFirstIds).map((x) => x.id)).toEqual(['s1', 's0', 's3', 's2', 's4', 's5', 's7', 's6']);
   });
 
   it('after End Combat the pills name the teammate (lead 2026-10-26)', () => {

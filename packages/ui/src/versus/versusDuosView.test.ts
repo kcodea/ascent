@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion, type CombatEvent } from '@game/core';
-import { duosRandomFirst, resolveVersusDuosRound, versusGroupLobby, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
+import { duosAlternatingFirst, resolveVersusDuosRound, versusGroupLobby, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import type { VersusGroupFightRow, VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow } from './versusRemote';
 import { duosCombatAt, duosLobbySeatId, groupDuosRailRows, groupPairingAt, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { computeFrame } from '../useCombatReplay';
@@ -41,17 +41,17 @@ function round(): VersusGroupRoundRaw {
 }
 
 describe('Versus Duos projection (R-DUOS-01)', () => {
-  it('the shown order is the seeded 50/50 from the match seed + round, whatever an old row still holds (R-DUOS-ORDER-01)', () => {
+  it('the shown order is the alternating turn from the match seed + round, whatever an old row still holds (R-DUOS-ORDER-01)', () => {
     const legacy = { ...raw({ seed: 8, round: 3 }), duos_first: { a: 'p2', b: 'p4' } } as VersusGroupMatchRaw;
-    expect(projectGroupMatch(legacy, 'u1').group?.duos?.first).toEqual(duosRandomFirst(8, 3));
-    expect(groupPairingAt(legacy, 3)).toEqual([{ ...duosRandomFirst(8, 3), copy: false, duos: true }]);
+    expect(projectGroupMatch(legacy, 'u1').group?.duos?.first).toEqual(duosAlternatingFirst(8, 3));
+    expect(groupPairingAt(legacy, 3)).toEqual([{ ...duosAlternatingFirst(8, 3), copy: false, duos: true }]);
   });
 
   it('my foe is the other team first board this round, whichever board of mine fights first', () => {
     expect(projectGroupMatch(raw(), 'u2').group?.foe).toEqual({ seat: 'p3', copy: false });
     expect(projectGroupMatch(raw(), 'u4').group?.foe).toEqual({ seat: 'p1', copy: false });
-    expect(duosRandomFirst(7, 1)).toEqual({ a: 'p1', b: 'p3' });
-    expect(duosRandomFirst(7, 2)).toEqual({ a: 'p2', b: 'p4' });
+    expect(duosAlternatingFirst(7, 1)).toEqual({ a: 'p1', b: 'p3' });
+    expect(duosAlternatingFirst(7, 2)).toEqual({ a: 'p2', b: 'p4' });
     expect(projectGroupMatch(raw({ round: 2 }), 'u1').group?.duos).toEqual({ team: 'a', mate: 'p2', first: { a: 'p2', b: 'p4' } });
     expect(groupPairingAt(raw(), 1)).toEqual([{ a: 'p1', b: 'p3', copy: false, duos: true }]);
   });
@@ -131,6 +131,9 @@ describe('Duos rail: team rows stay together (lead ruling 2026-10-25)', () => {
     expect(groupDuosRailRows(rows).map((r) => r.id)).toEqual(['s2', 's3', 's0', 's1']);
     expect(groupDuosRailRows(['s0', 's2', 's3', 's1'].map((id) => ({ id }))).map((r) => r.id)).toEqual(['s0', 's1', 's2', 's3']);
     expect(groupDuosRailRows(['s1', 's3', 's0', 's2'].map((id) => ({ id }))).map((r) => r.id)).toEqual(['s1', 's0', 's3', 's2']);
+    // R-DUOS-ORDER-01: whoever fights first this round sits on top of their team; the teams keep their place.
+    expect(groupDuosRailRows(['s0', 's1', 's2', 's3'].map((id) => ({ id })), ['s1', 's3']).map((r) => r.id)).toEqual(['s1', 's0', 's3', 's2']);
+    expect(groupDuosRailRows(['s2', 's3', 's0', 's1'].map((id) => ({ id })), ['s3', 's0']).map((r) => r.id)).toEqual(['s3', 's2', 's0', 's1']);
   });
 });
 

@@ -4,19 +4,19 @@
  * and `resolveVersusDuosRound` (what versus-resolve runs) must show exactly the mechanic the button names.
  */
 import { describe, expect, it } from 'vitest';
-import { createVersusRun, duosRandomFirst, normalizeVersusOptions, reduce, resolveVersusDuosRound, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
+import { createVersusRun, duosAlternatingFirst, normalizeVersusOptions, reduce, resolveVersusDuosRound, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import { DUOS_SCENARIO_LABEL, scenarioBoard, vanillaMinionId, withAddedCard, withForcedBoard, withGold, type DuosScenario } from './duosDevTuner';
 import { fillHand } from './versusBotDriver';
 
 const SEATS: VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
 const OPTS = normalizeVersusOptions({ v: 1, mode: 'duos', modifiers: [] });
 
-/** A match seed whose round-1 order (the server's seeded 50/50, R-DUOS-ORDER-01) puts `lead` first for team a. */
-const seedFor = (lead: VersusGroupSeat): number => { for (let k = 1; ; k++) if (duosRandomFirst(k, 1).a === lead) return k; };
+/** A match seed whose round-1 order (the seeded opener, R-DUOS-ORDER-01) puts `lead` first for team a. */
+const seedFor = (lead: VersusGroupSeat): number => { for (let k = 1; ; k++) if (duosAlternatingFirst(k, 1).a === lead) return k; };
 
 function fight(kind: DuosScenario, lead: VersusGroupSeat = 'p1') {
   const matchSeed = seedFor(lead);
-  const first = duosRandomFirst(matchSeed, 1);
+  const first = duosAlternatingFirst(matchSeed, 1);
   const sides: Partial<Record<VersusGroupSeat, PreparedCombatSide>> = {};
   SEATS.forEach((seat, i) => {
     const run = withForcedBoard(createVersusRun(100 + i, 'warden', 'set2', OPTS), scenarioBoard(kind, seat, 'p1', first));

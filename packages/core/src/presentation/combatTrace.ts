@@ -102,6 +102,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   buff: { source: 'always', target: 'always', amount: 'never', note: 'source is a display LABEL, not a uid (the emit sites pass names) — carried as label, never coerced to a uid; attack/health in detail (two-axis, no single amount)' },
   improve: { source: 'never', target: 'always', amount: 'always', note: 'accrual delta; display magnitude in detail when it differs' },
   rally: { source: 'always', target: 'always', amount: 'never', note: 'the rallier and the minion whose effect it fires' },
+  epicFire: { source: 'always', target: 'never', amount: 'never', note: 'an epic multiplier minion added fires (or scaled a Ruby): presentation-only pulse marker' },
   shout: { source: 'always', target: 'always', amount: 'never', note: 'a combat Shout re-fire: the re-triggering unit and the owner of the Shout; one event per fire (Drakko x gild)' },
   maxGold: { source: 'never', target: 'always', amount: 'always', note: 'the Avenge payoff target + amount; the granter only via key/srcCard stamps' },
   toHand: { source: 'sometimes', target: 'always', amount: 'never', note: 'target = the granted card (cardId, no uid — hand cards get uids at settle); granter uid when stamped' },
@@ -171,6 +172,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return defined({ target: { uid: e.target }, amount: e.amount, detail: det({ display: e.display }) });
     case 'rally':
       return { source: { uid: e.source }, target: { uid: e.target } };
+    case 'epicFire':
+      return { source: { uid: e.source } };
     case 'shout':
       return { source: { uid: e.source }, target: { uid: e.target } };
     case 'maxGold':

@@ -227,6 +227,35 @@ export function extraTriggerFires(
 }
 
 /**
+ * WHICH board minions `extraTriggerFires` would credit for one trigger family: every copy of a multiplier card that
+ * covers it (the same family + tribe filter). Presentation only: the "epic fired" signal (R-FX-EPIC-FIRE-01) pulses
+ * these when they actually add a fire. Never changes a count.
+ */
+export function extraTriggerContributors<M extends { uid: string; cardId: string }>(
+  family: TriggerFamily,
+  minions: readonly M[],
+  getCard: (id: string) => CardDef | undefined,
+  subjectHasTribe?: (tribe: Tribe) => boolean,
+): string[] {
+  const out: string[] = [];
+  for (const m of minions) {
+    const mult = getCard(m.cardId)?.triggerMultiplier;
+    if (!mult || !mult.families.includes(family)) continue;
+    if (mult.tribe && !subjectHasTribe?.(mult.tribe)) continue;
+    out.push(m.uid);
+  }
+  return out;
+}
+
+/** The board minions whose Shout aura (`shoutExtraAura`, Orivax) adds fires: the `boardShoutExtras` credit list. */
+export function boardShoutContributors<M extends { uid: string; cardId: string }>(
+  minions: readonly M[],
+  getCard: (id: string) => CardDef | undefined,
+): string[] {
+  return minions.filter((m) => (getCard(m.cardId)?.shoutExtraAura ?? 0) > 0).map((m) => m.uid);
+}
+
+/**
  * Orivax's board-aura Shout extras (`CardDef.shoutExtraAura`, owner 2026-10-07): the extra fires every Shout on this
  * side gets from the auras on `minions` (the side's LIVING board). Additive: every copy counts, golden doubles. THE
  * one definition read by the Shop fold (`shoutFireCount`) and the combat fold (`ctx.shoutCarryExtras`). "While on
@@ -3358,6 +3387,7 @@ export type CombatEvent = (
   // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
   | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; conductor?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
+  | { type: 'epicFire'; source: string } // PRESENTATION ONLY (R-FX-EPIC-FIRE-01): an EPIC multiplier on the board (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve) just added fires / scaled a Ruby: `source` = that minion, which plays its On Watcher effect. No RNG, no step, no state.
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold

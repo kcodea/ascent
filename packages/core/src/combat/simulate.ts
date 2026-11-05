@@ -23,13 +23,13 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerContributors, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
-import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, logEpicFire, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
@@ -2781,7 +2781,9 @@ export function simulate(
     // A full board short-circuits above (no room).
     if (!doubled) {
       let extra = 0;
-      for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') extra += m.golden ? 2 : 1;
+      const wardens: string[] = [];
+      for (const m of boards[side]) if (m !== minion && !m.dead && m.health > 0 && m.cardId === 'echowarden') { extra += m.golden ? 2 : 1; wardens.push(m.uid); }
+      if (extra > 0) logEpicFire({ log: emit }, wardens); // R-FX-EPIC-FIRE-01
       for (let k = 0; k < extra; k++) summonMinion(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, true);
     }
     summonGenesisExtras(side, card, minion.uid, grantKeywords, golden, attackNow, copyStats, doubled);
@@ -3349,6 +3351,8 @@ export function simulate(
     // ≤0-not-dead, so this is identical to the old filter for every non-spraying Deathrattle.
     // Elderhorn (owner 2026-10-07) is a TRIBE-SCOPED additive entry in the same fold: it reads the dying body's tribe.
     const reaperExtras = extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id], (t) => isTribeOf(minion, t, cards));
+    // Called only as an Echo fires, so the card multipliers that add to it pulse now (R-FX-EPIC-FIRE-01).
+    if (reaperExtras > 0) logEpicFire({ log: emit }, extraTriggerContributors('deathrattle', boards[minion.side].filter((m) => !m.dead), (id) => cards[id], (t) => isTribeOf(minion, t, cards)));
     // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
     const beastRitualExtra = isTribeOf(minion, 'beast', cards)
       ? (stateOf(minion.side).beastRitualExtra ?? 0)
@@ -3394,7 +3398,10 @@ export function simulate(
       ? (stateOf(attacker.side).beastHuntExtra ?? 0)
         + beastExtraGain[attacker.side].hunt // a mid-fight Elderhorn re-fire counts from now on
       : 0;
-    return extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id], (t) => isTribeOf(attacker, t, cards)) + huntExtra;
+    const ralliers = boards[attacker.side].filter((m) => !m.dead && m.health > 0);
+    const cardExtra = extraTriggerFires('rally', ralliers, (id) => cards[id], (t) => isTribeOf(attacker, t, cards));
+    if (cardExtra > 0) logEpicFire({ log: emit }, extraTriggerContributors('rally', ralliers, (id) => cards[id], (t) => isTribeOf(attacker, t, cards))); // R-FX-EPIC-FIRE-01
+    return cardExtra + huntExtra;
   }
 
   // A Rally WATCHER on ANOTHER minion (Paragon's `onRallyBuffOnePerTribe`) scales with the number of Rally
@@ -5566,6 +5573,7 @@ export function simulate(
     for (const side of sides) {
       // Uron: Start-of-Combat effects fire extra times. Resolved per SIDE from that side's own board.
       const scReps = 1 + extraTriggerFires('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+      if (scReps > 1) logEpicFire({ log: emit }, extraTriggerContributors('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id])); // R-FX-EPIC-FIRE-01
       for (let rep = 0; rep < scReps; rep++) {
         for (const minion of [...boards[side]]) {
           if (minion.dead || minion.health <= 0) continue;

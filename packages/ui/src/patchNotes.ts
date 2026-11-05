@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New effects: Chorus Drake, Edward Keg-hands, Lastlight and every Epic minion now show their mechanics as they fire.',
+        details: [
+          'Chorus Drake bursts musical notes when he Rallies.',
+          'Edward Keg-hands lights up whenever an Ale is cast while he is on your board.',
+          'Lastlight sends a beam to each minion it gives Ward, and the Ward appears when the beam lands, one fire at a time.',
+          'Every minion now plays the Ward-gained effect the moment its Ward appears, whatever gave it.',
+          'Epic minions (Drakko, Sylus, Chronos and more) play an effect each time they add an extra trigger.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: in the desktop app, Play Ranked no longer drops you into a lobby of bots. It finds real recorded opponents again.',
       },
       {

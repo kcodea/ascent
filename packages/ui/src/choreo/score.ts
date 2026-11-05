@@ -25,6 +25,8 @@ import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor, sourceBuffDefFor } from './bindings';
+import { extraWardGainsIn, wardsGivenIn } from './channels/wardGiven';
+import { isTravelledWard, playWardGained } from '../fx/wardGivenLaunch';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
 import { bankedCastsIn, type BankedCast } from './channels/bankedCast';
 import { playCombatSpellCastFx } from '../fx/spellCastFx';
@@ -39,7 +41,7 @@ import { playCombatSpellCastFx } from '../fx/spellCastFx';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx' | 'bankedCastFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx' | 'bankedCastFx' | 'wardGainFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -109,6 +111,11 @@ const BASE: Cue[] = [
   // exchange far more often than a `death` moment of its own, and the `fxDef` row resolves a moment's card from
   // its SOURCE (the killer), so it could never name the dying card. That row now stands down for death kinds.
   { ch: 'deathFx', at: 'start', offset: 0 },
+  // `wardGainFx` — the Ward-gained effect (Oathshield Orin's `ward-gain-blast`, the `shieldGain` binding) on EVERY
+  // minion that gains a Ward in this moment (R-FX-WARD-GAIN-EVERY-01), not only a `shieldGain` moment's primary (the
+  // `fxDef` row plays that one): an Echo's or a Start of Combat's Wards ride other moments. A Ward its giver travels to
+  // (Lastlight's "On Ward given") is skipped here: `fx/wardGivenLaunch.ts` plays it as the dome appears.
+  { ch: 'wardGainFx', at: 'start', offset: 0 },
   // `castPreviewFx` — a minion CAST A SPELL in this moment (an `sc` event stamped with `spellId`): float the
   // spell's card preview above the caster (owner ask 2026-09-23), once per (caster, spell) per fight. On every
   // kind for the same reason `rallyFx` is: an on-attack cast is absorbed into the caster's wind-up, so the scan
@@ -175,6 +182,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // A unit killed IN this clash dies inside the exchange, so its On Death cue rides it too (R-FX-DEATH-01).
     { ch: 'deathFx', at: 'start', offset: 0 },
     { ch: 'avengeFx', at: 'start', offset: 0 },
+    { ch: 'wardGainFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -909,6 +917,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       if (!dying.length) continue;
       at(cue, () => { for (const [cardId, uid] of dying) playCardMechanic(cardId, uid, 'death', ctx); });
     }
+    else if (cue.ch === 'wardGainFx') {
+      if (!canPlayDefs()) continue;
+      const gains = extraWardGainsIn(moment, ctx.events, ctx.cardIds, isTravelledWard);
+      if (!gains.length) continue;
+      at(cue, () => { gains.forEach((g, k) => playWardGained(g.target, g.srcCard, k)); });
+    }
     else if (cue.ch === 'avengeFx') {
       if (!canPlayDefs()) continue;
       const actors = cardMechanicActors(moment, ctx.events, (e) => e.avenge === true);
@@ -944,6 +958,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // …and for a DEATH: `deathFx` plays the dying card's On Death binding per death event. This row would resolve
       // the card from the moment's SOURCE (the killer) and play the wrong card's sound, or none (R-FX-DEATH-01).
       if (moment.kind === 'death' || moment.kind === 'riseDeath') continue;
+      // …and a Ward its giver TRAVELS to (a forced Lastlight Echo's beat leads with its Ward): the launch plays the
+      // Ward-gained effect when the beam lands (fx/wardGivenLaunch.ts), so this row must not play it at beat start too.
+      if (moment.kind === 'shieldGain' && moment.primary.type === 'shieldUp') {
+        const primaryTarget = moment.primary.target;
+        if (wardsGivenIn(moment, ctx.events, ctx.cardIds).some((w) => w.target === primaryTarget && isTravelledWard(w))) continue;
+      }
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute

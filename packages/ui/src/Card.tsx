@@ -1,3 +1,4 @@
+import { isWardHeld, subscribeWardHolds } from './fx/wardHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -611,6 +612,8 @@ export const Card = memo(function Card({
   // cue holds the delta, a `react` layer with "carries the number" releases it at its peak, so the digits
   // change on the effect's clock instead of the reducer's. Subscribed per-uid so a card with nothing held
   // reads 0 and never re-renders when some other card is gemmed.
+  // A Ward given by an "On Ward given" effect waits for that effect to arrive (fx/wardHold).
+  const wardHeld = useSyncExternalStore(subscribeWardHolds, () => (uid ? isWardHeld(uid) : false), () => false);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
@@ -953,7 +956,7 @@ export const Card = memo(function Card({
   const bothFrameGlow = bothGlow ? <div className="cglow bothglow" aria-hidden="true"><span className="cglow-rim" /></div> : null;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${mateTriple && !tripleReady ? ' matetrip' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') && !wardHeld ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${mateTriple && !tripleReady ? ' matetrip' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -1200,7 +1203,7 @@ export const Card = memo(function Card({
             sphere, not a smaller one inside the art (owner note).
             Geometry is pure CSS per frame type (oval / spell square / taunt heater), mirroring `.cframe-tint`
             so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
-        {card.keywords.includes('DS') && <WardGlass resilient={card.keywords.includes('RW')} />}
+        {card.keywords.includes('DS') && !wardHeld && <WardGlass resilient={card.keywords.includes('RW')} />}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only

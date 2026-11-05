@@ -18,6 +18,7 @@ import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTim
 import type { CompiledBeat } from './choreographer/timelineTypes';
 import type { ConsequenceEvent, Keyword, PresentationBatch, Tribe } from '@game/core';
 import { ALE_IDS } from '@game/core';
+import { ALE_WATCHER_ID, aleWatcherUids } from './choreo/aleWatcher';
 
 /** Consequence types whose cosmetic cue a QUIET paced repeat tick skips (its stats still land). R-REPEAT-04. */
 const QUIET_TICK_SKIPS: ReadonlySet<string> = new Set(['statsChanged', 'spellResolved']);
@@ -225,7 +226,7 @@ import { chooseOneHeldSlot } from './chooseOneHold';
 import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
-import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
+import { bindingDefIds, bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
 import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
@@ -2135,6 +2136,7 @@ export function Recruit() {
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useSwapRef(run.fodderEatenSeq, swapped); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useSwapRef(run.recruitFxSeq, swapped); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  const prevEpicFireSeq = useSwapRef(run.epicFireFxSeq, swapped); // epic multiplier fires (R-FX-EPIC-FIRE-01), same mount rule
   const prevShoutLinkSeq = useSwapRef(run.shoutLinkFxSeq, swapped); // the Shop's Shout chain links (R-SHRIEKER-BEATS-01), same mount rule
   const shoutChainTimersRef = useRef<number[]>([]); // the chain's delayed links + buff waves, cleared on unmount
   /** Buff-FX waves captured while the arena covered the board (a combat-grant's settle-time reactor) — replayed on the shop reveal. */
@@ -6071,6 +6073,12 @@ export function Recruit() {
       else shoutChainTimersRef.current.push(window.setTimeout(fire, p.linkAtMs));
     }
   }, [run.shoutLinkFxSeq]);
+  useEffect(() => {
+    if (run.epicFireFxSeq === prevEpicFireSeq.current) return;
+    prevEpicFireSeq.current = run.epicFireFxSeq;
+    if (inCombat || wipe !== 'idle') return;
+    fireEpicWatchers(run.epicFireFx ?? []);
+  }, [run.epicFireFxSeq]);
   useEffect(() => () => { for (const t of shoutChainTimersRef.current) window.clearTimeout(t); shoutChainTimersRef.current = []; }, [screenId]);
   // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
   // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
@@ -8319,6 +8327,32 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // EDWARD KEG-HANDS watching an Ale: his card plays its "On Watcher" binding (`keghands-watcher-pulse`) as the
+  // Ale is cast, so his doubling reads on him (owner ask 2026-11-04). Not bound / defs off: nothing plays.
+  const fireAleWatchers = (cardId: string): void => {
+    if (!canPlayDefs()) return;
+    for (const uid of aleWatcherUids(cardId, useGame.getState().run.board)) {
+      const b = bindingFor(ALE_WATCHER_ID, 'watcher');
+      const el = b ? document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`) : null;
+      const c = el ? restingCenterOf(el) : null;
+      if (b && c) playDef(b.def, { source: c, target: c }, { uids: { source: uid, target: uid }, gain: b.gain });
+    }
+  };
+
+  // EPIC multipliers (Drakko, Sylus, Chronos, Yazzus, Uron, Zyff, Elderhorn, Orivax, Attachment Conductor): each one
+  // the engine stamped as adding fires this action plays its On Watcher binding on its card, once per action
+  // (R-FX-EPIC-FIRE-01). Not bound / defs off: nothing plays.
+  const fireEpicWatchers = (uids: readonly string[]): void => {
+    if (!canPlayDefs()) return;
+    for (const uid of new Set(uids)) {
+      const card = useGame.getState().run.board.find((c) => c.uid === uid);
+      const b = card ? bindingFor(card.cardId, 'watcher') : null;
+      const el = b ? document.querySelector<HTMLElement>(`[data-zone="warband"] .row .card[data-uid="${uid}"]`) : null;
+      const c = el ? restingCenterOf(el) : null;
+      if (b && c) for (const id of bindingDefIds(b)) playDef(id, { source: c, target: c }, { uids: { source: uid, target: uid }, gain: b.gain });
+    }
+  };
+
   // A tavern spell cast plays its AUTHORED def from the release point (the `cursor` anchor) when one is bound,
   // and SUPPRESSES the generic spark for it — the same "authored replaces stock" rule the buff/Karwind paths
   // follow. Unbound spells keep today's spark (Yazzus re-fire included). A BUFF ale (Champion's/Defensive/
@@ -8326,6 +8360,7 @@ export function Recruit() {
   // cursor→minion instead of firing once at the point, and claims them for the buff-FX suppression filter
   // (Step 4 below) so the generic tendril pop doesn't ALSO play on top of the authored trail.
   const fireSpellCastFx = (cardId: string, pt: { x: number; y: number }, card?: Parameters<typeof spellCasts>[2]): void => {
+    fireAleWatchers(cardId);
     if (!bindingFor(cardId, 'spellCast')) { castSparks(() => fireSpark(pt.x, pt.y), cardId, card); return; }
     const st = useGame.getState().run;
     const def = CARD_INDEX[cardId];

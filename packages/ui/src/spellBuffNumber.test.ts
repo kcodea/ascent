@@ -36,9 +36,9 @@ describe('R-TEXT-SPELL-BUFF-BLUE-01: spell buff numbers wear the Shop Spell blue
     expect(rule).toMatch(/text-shadow:\s*none/);
   });
 
-  it('outlines both blues with a 1px black stroke behind the fill', () => {
+  it('outlines both blues with a 1.5px black stroke behind the fill', () => {
     const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
-    expect(rule).toMatch(/-webkit-text-stroke:\s*1px #000/);
+    expect(rule).toMatch(/-webkit-text-stroke:\s*1\.5px #000/);
     expect(rule).toMatch(/paint-order:\s*stroke fill/);
   });
 });

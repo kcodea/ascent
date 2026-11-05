@@ -3535,6 +3535,9 @@ img.tierbadge.tierstars,
 /* Every OTHER bold word on a spell (Tier 1, tribe names, keywords) is a darker blue with no glow (owner ask 2026-11-05:
    "make any non spell buff keywords a dark blue, no glow"), so the buffs stay the brightest thing in the text. */
 .card.compact.showtext.spellcard .drawer .desc b:not(.buffnum) { color: #3a7bd5; text-shadow: none; }
+/* Both blues wear a 1px black outline (owner ask 2026-11-05: "put a 1px stroke around the edges. black"). paint-order
+   puts the stroke BEHIND the fill, so the letters keep their full weight. */
+.card.compact.showtext.spellcard .drawer .desc b { -webkit-text-stroke: 1px #000; paint-order: stroke fill; }
 /* Dragon's tribe colour is white (= body text), so its coloured terms don't stand out. Give dragon cards' terms a
    subtle static pastel-rainbow halo — the white letters stay, but read as special. Static text-shadow only (no
    looped paint), per docs/performance.md. */

@@ -740,7 +740,8 @@ export const TEXT_RULES: GameRule[] = [
     id: 'R-TEXT-SPELL-BUFF-BLUE-01',
     title: 'A spell prints its stat buffs in the Shop Spell blue',
     statement:
-      'On every spell card, a bold stat buff in its text (+3/+4, +2 Attack, +1 Health, and minus values too) wears the '
+      'On every spell card, a stat buff in its text (+3/+4, +2 Attack, +1 Health, minus values too; printed bold or as a '
+      + 'live current value such as Lantern Light\x27s per-Tier total) wears the '
       + 'same light blue as the "Shop Spell" kind line under the text, with a very slight glow. Every other bold word on a '
       + 'spell (Gold, damage, Rubies, tiers, tribe names, keywords) is the same light blue with no glow. All of it wears '
       + 'a 1.5px black outline. Minion cards keep the tribe colour.',
@@ -753,6 +754,7 @@ export const TEXT_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'put a 1px stroke around the edges. black' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'lets increase the stroke to 1.5px' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-05', quote: 'can we try the same light blue instead of dark blue for the keywords?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-05 (screenshot of Lantern Light, +1/+1 in green)', quote: 'why is lantern lights text green? didnt i say all shop spell numbers shoud be light blue with glow?' },
       { kind: 'fix-pr', ref: 'fix/spell-buff-number-blue: packages/ui/src/Card.tsx (descBuff in rulesHtml), packages/ui/src/styles.css (.spellcard .desc b.buffnum)' },
     ],
     currentBehaviour: 'Conforms from 2026-11-05 (fix/spell-buff-number-blue). Before, a spell bold buff took its tribe colour, grey on the Neutral spells.',

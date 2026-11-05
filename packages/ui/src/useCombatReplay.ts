@@ -22,7 +22,7 @@ import { holdMs } from './choreo/clock';
 import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
 import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
-import { replayBeats, replayOrder } from './choreo/replayOrder';
+import { epicFiresOf, replayBeats, replayOrder } from './choreo/replayOrder';
 import { undeliveredRollPlan } from './choreo/buffDelivery';
 import { prefoldedShareOf } from './choreo/clashOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
@@ -53,9 +53,10 @@ import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
-import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
+import { authoredBuffDefFor, bindingDefIds, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
+import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -3035,6 +3036,26 @@ export function useCombatReplay(
       const e = events[i];
       if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target, rectOf(e.target));
     }
+    // "On Ward given" (Lastlight): hide each Ward its giver will travel to, until the launch below lands it; a FORCED
+    // Echo's (Spots, an Echohorn Rally) launches right here, from the living giver.
+    startTravelledWards(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
+    // EPIC multipliers (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve): each one the engine
+    // marked as adding fires to a trigger in this beat plays its On Watcher effect on its own card, once per beat
+    // (R-FX-EPIC-FIRE-01). Not bound / defs off: nothing plays.
+    if (canPlayDefs()) {
+      const pulsed = new Set<string>();
+      for (let i = beat.start; i < beat.end; i++) {
+        for (const uid of epicFiresOf(events[i])) {
+          if (pulsed.has(uid)) continue;
+          pulsed.add(uid);
+          const eb = bindingFor(cardIds.get(uid) ?? null, 'watcher');
+          const a = eb ? anchorsForUnits(uid, uid) : null;
+          if (eb && a) for (const id of bindingDefIds(eb)) playDef(id, a, { uids: { source: uid, target: uid }, gain: eb.gain });
+        }
+      }
+    }
+    const goldenAt = (uid: string): boolean =>
+      !!(combat?.initial.player.find((m) => m.uid === uid)?.golden ?? combat?.initial.enemy.find((m) => m.uid === uid)?.golden);
     // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) fires the
     // painted bone skull — INCLUDING a Rise death. A unit with both Rise + a Deathrattle procs its rattle as it
     // dies (owner ruling), so the skull pops even though the body will re-form; a pure-Rise unit (no onDeath)
@@ -3062,6 +3083,8 @@ export function useCombatReplay(
       }
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
+      // …and an Echo that GIVES Ward (Lastlight) launches its bound effect from this slot a breath after the skull.
+      if (r) launchWardsGiven(e.target, r, beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), goldenAt(e.target));
       // Fel Spikes' Echo: LAUNCH the spike volley from the dying body — a breath after the skull, while it is
       // still on screen — toward every unit its upcoming spray will strike, a beat before the damage lands (the
       // beat clock holds that beat for the beam's travel, `echoDeliveryLead`). Golden sprays twice as two quick
@@ -3232,6 +3255,8 @@ export function useCombatReplay(
             const rect = rEl ? layoutRectOf(rEl) : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
+            // An Echo that gives Ward (Lastlight killed mid-attack) launches from HOME, after its skull.
+            if (hasDR) launchWardsGiven(impactAtk, rect, cur, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), !!combat?.initial.player.concat(combat.initial.enemy).find((m) => m.uid === impactAtk)?.golden);
             // Fel Spikes killed MID-ATTACK (it swung and died to retaliation) lands here, not the immediate
             // death loop — so its Echo volley must launch from the pulled-home body here too, or the death
             // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Registered in the

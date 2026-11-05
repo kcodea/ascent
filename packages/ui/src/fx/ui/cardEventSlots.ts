@@ -1,3 +1,6 @@
+import { ALE_WATCHER_ID } from '../../choreo/aleWatcher';
+import { isEpicUnit } from '../../epicMedallion';
+import { WARD_GIVING_EFFECTS } from '../../choreo/channels/wardGiven';
 import { CARD_INDEX } from '@game/content';
 import type { BindingKind } from '../../choreo/bindings';
 import type { FxCardRow } from './catalogView';
@@ -70,7 +73,9 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // A Watcher answers ANOTHER unit’s attack: an `onAttack` effect WITHOUT the Rally keyword (`RL` = fires on
     // its OWN attack). The combat `watcher-pulse` detection (`useCombatReplay`) fires `bindingFor(cardId,
     // 'watcher')` on each reacting unit, so the row is keyed to that.
-    kindFor: (card) => (!card.spell && hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL') ? 'watcher' : null),
+    // Edward Keg-hands (`dw_edward`) watches ALES instead: his row plays on his card each time an Ale he
+    // multiplies is cast from hand (`fireAleWatchers` in Recruit.tsx). His rule lives in `spellCasts`, not an effect.
+    kindFor: (card) => (!card.spell && ((hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL')) || card.cardId === ALE_WATCHER_ID || isEpicUnit(card.cardId)) ? 'watcher' : null),
   },
   {
     id: 'startOfCombat',
@@ -95,6 +100,14 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // An `avenge` effect. The combat score’s `avengeFx` channel scans for this card’s Avenge payoff events —
     // which the simulator emits only when the Avenge count is met — and plays `bindingFor(cardId, 'avenge')`.
     kindFor: (card) => (hasEffectOn(card, 'avenge') ? 'avenge' : null),
+  },
+  {
+    id: 'wardGiven',
+    label: 'On Ward given',
+    blurb: 'Plays from this minion to each minion it gives Ward (Lastlight’s Echo), in combat. The Ward appears when the effect arrives: when its travelling layer lands.',
+    // A Ward-giving effect (`WARD_GIVING_EFFECTS`). The combat score’s `wardGivenFx` channel plays
+    // `bindingFor(cardId, 'wardGiven')` giver→minion per Ward and holds that minion’s dome until the travel lands.
+    kindFor: (card) => (CARD_INDEX[card.cardId]?.effects?.some((e) => WARD_GIVING_EFFECTS.has(e.do)) ? 'wardGiven' : null),
   },
   {
     id: 'chooseOne',

@@ -1,7 +1,7 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { bodyIsTribe, defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, improvingGrant, rubyCastGainOf, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
-import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
+import { ALE_IDS, aleGrantCount, boardShoutContributors, extraTriggerContributors, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -299,9 +299,13 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
  *  pass structurally cannot do, and the reason the card looked broken on a Ruby-in-combat board. */
 function rubyMultiplierFor(ctx: CombatContext, side: Side): number {
   let mult = 1;
+  let best: string | null = null;
   for (const m of ctx.living(side)) {
-    if (m.effects.some((e) => e.do === 'rubyStatMultiplier')) mult = Math.max(mult, m.golden ? 3 : 2);
+    if (!m.effects.some((e) => e.do === 'rubyStatMultiplier')) continue;
+    const f = m.golden ? 3 : 2;
+    if (f > mult) { mult = f; best = m.uid; }
   }
+  if (best) logEpicFire(ctx, [best]); // Deepdelve scaled this Ruby (R-FX-EPIC-FIRE-01)
   return mult;
 }
 
@@ -761,8 +765,17 @@ const hasBattlecry = (m: Minion): boolean =>
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
  *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
-export const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
-  1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
+export const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
+  const n = 1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
+  // Callers loop this count right away, so a count above 1 is the multiplier adding fires (R-FX-EPIC-FIRE-01).
+  if (n > 1) logEpicFire(ctx, extraTriggerContributors('battlecry', ctx.living(side), (id) => ctx.getCard(id)));
+  return n;
+};
+
+/** The "epic fired" marker (R-FX-EPIC-FIRE-01): one presentation-only event per contributing epic minion. */
+export function logEpicFire(ctx: Pick<CombatContext, 'log'>, uids: readonly string[]): void {
+  for (const source of uids) ctx.log({ type: 'epicFire', source });
+}
 
 /**
  * ONE combat Shout re-fire, the way every re-trigger card does it (Dawnclaw / Ryme, Thunderous Sovereign,
@@ -849,6 +862,8 @@ export function replayCombatBattlecry(ctx: CombatContext, m: Minion, side: Side 
   // (the caller logged the first). This is the ONE combat Shout chokepoint: callers never emit the notify themselves.
   const hasShout = m.effects.some((e) => e.on === 'onPlay');
   const fires = 1 + (hasShout ? ctx.shoutCarryExtras?.(side) ?? 0 : 0);
+  // Orivax's aura is one of those carried extras: credit him when he is on the board (R-FX-EPIC-FIRE-01).
+  if (fires > 1) logEpicFire(ctx, boardShoutContributors(ctx.living(side), (id) => ctx.getCard(id)));
   for (let f = 0; f < fires; f++) {
     if (f > 0) ctx.log({ type: 'shout', source: m.uid, target: m.uid });
     for (const eff of m.effects) {

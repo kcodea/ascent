@@ -362,4 +362,74 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-04 (fix/fx-rally-float-after-fx). Before, the float fired at the start of the swing, ahead of the On Rally effect that plays at the top of the wind-up. The Spell Power flourish followed from 2026-11-04 (fix/fx-rally-spellpower-after-fx, useCombatReplay beat-start loop + isOwnNarration).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/rallyFired.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-KEGHANDS-WATCH-01',
+    title: 'Edward Keg-hands plays his effect whenever an Ale is cast while he is on the board',
+    statement:
+      'Every time an Ale is cast in the Shop while Edward Keg-hands is on the board, his own effect plays on him, on '
+      + 'each copy of him on the board. A spell that is not an Ale, or an Ale with no Keg-hands on the board, plays nothing.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, FX workbench units', quote: "keghands-watcher-pulse - created this to go off when keghands' mechanic triggers. basically whenever an ale is cast while he is on board" },
+      { kind: 'code', ref: 'feat/fx-ward-given-epic-watchers: packages/ui/src/choreo/aleWatcher.ts; packages/ui/src/Recruit.tsx fireAleWatchers' },
+    ],
+    contentIds: ['dw_edward'],
+    currentBehaviour: 'Conforms from 2026-11-04 (feat/fx-ward-given-epic-watchers), in the Shop. Combat casts no Ales, so there is no combat path.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/aleWatcher.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-FX-WARD-GIVEN-01',
+    title: 'A Ward given by another minion travels from the giver, and the Ward appears when it lands',
+    statement:
+      'When a minion gives Ward to others and has its own "On Ward given" effect (the Echo of Lastlight), the effect flies from '
+      + 'the giver to each minion that gains Ward, aimed at where that minion ends up, and each Ward appears, with its sound, '
+      + 'only when the effect lands. This holds whether the Echo fires on death or is forced (Spots at Start of Combat). '
+      + 'When the Echo fires more than once (Sylus), each fire plays in turn: effect then Wards, then effect then Wards, '
+      + 'never every Ward at once.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Lastlight', quote: 'i want to make an effect from lastlight that travels to the target and THEN the ward effect deploys' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Lastlight with Sylus', quote: 'i need it to go tendrils >ward deployed, then tendrils > ward deployed with multiple triggers' },
+      { kind: 'code', ref: 'feat/fx-ward-given-epic-watchers: packages/ui/src/fx/wardGivenLaunch.ts; packages/ui/src/choreo/channels/wardGiven.ts; packages/ui/src/fx/wardHold.ts' },
+    ],
+    contentIds: ['n2_lastlight'],
+    currentBehaviour: 'Conforms from 2026-11-04 (feat/fx-ward-given-epic-watchers) in combat. Other Ward-giving cards gain the slot in the workbench but need a binding to travel.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/wardGiven.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-FX-WARD-GAIN-EVERY-01',
+    title: 'Every Ward gained plays the Ward-gained effect, on every minion that gains it',
+    statement:
+      'The Ward-gained effect (the blast of Oathshield Orin) plays on each minion at the moment its Ward appears, whatever gave '
+      + 'it: a Ward-gain of its own, an Echo, a Start of Combat grant, or another minion. One effect per minion, never one '
+      + 'for the whole group.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Oathshield Orin', quote: 'i want that to apply on any target at the moment the shield is deployed. so lastlights echo should also cause that effect to happen' },
+      { kind: 'code', ref: 'feat/fx-ward-given-epic-watchers: packages/ui/src/choreo/channels/wardGiven.ts extraWardGainsIn; packages/ui/src/choreo/score.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-04 (feat/fx-ward-given-epic-watchers) in combat. Before, only a standalone Ward-gain beat played it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/wardGiven.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
+  {
+    id: 'R-FX-EPIC-FIRE-01',
+    title: 'An Epic minion plays its effect whenever its extra fires happen',
+    statement:
+      'Every minion that wears the Epic medallion and adds extra fires to other effects (Drakko, Sylus, Chronos, Uron, …) '
+      + 'plays its own effect on itself each time it actually adds a fire, in the Shop and in combat. A count that adds no '
+      + 'fire, or a trigger with no such minion on the board, plays nothing. Telling it never adds a beat of its own.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Drakko', quote: 'ok i made an effect for drakko whenever hits mechanic faires' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-04, Epic medallion', quote: 'i want the drakko-effect to trigger on ANY of the units that have the epic.png medallion tied to them' },
+      { kind: 'code', ref: 'feat/fx-ward-given-epic-watchers: packages/core/src/types.ts epicFire event; packages/sim/src/recruit.ts stampEpicFire; packages/ui/src/choreo/replayOrder.ts epicFiresOf' },
+    ],
+    contentIds: ['drummer', 'sylus', 'chronos'],
+    currentBehaviour: 'PARTIAL from 2026-11-04 (feat/fx-ward-given-epic-watchers): every Epic card except Edward Keg-hands (his own Ale effect, R-FX-KEGHANDS-WATCH-01) and the archived Constellation Prime. In combat, Drakko can also pulse when he repeats a Shout-less trigger.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/epicFire.test.ts', 'packages/ui/src/choreo/epicFireReplay.test.ts'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

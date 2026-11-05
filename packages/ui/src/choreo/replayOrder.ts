@@ -15,7 +15,32 @@ import { compileMoments, type Moment } from './compile';
  * wrong, which is the failure mode a shared helper removes by construction.
  */
 export function replayOrder(events: CombatEvent[]): CombatEvent[] {
-  return deferAvengeAfterSummons(deferClashBuffs(events));
+  return deferAvengeAfterSummons(deferClashBuffs(stripEpicFires(events)));
+}
+
+/** Epic multiplier fires carried by the event they PRECEDED (by object identity, so it survives the reorders). */
+const EPIC_FIRES = new WeakMap<CombatEvent, string[]>();
+
+/**
+ * The `epicFire` markers (R-FX-EPIC-FIRE-01) are presentation-only and must never be a beat of their own (that would
+ * add screen time to every multiplied trigger), so the replay drops them and pins each one's minion to the next real
+ * event: the trigger it multiplied. `epicFiresOf` reads them back when that event's beat plays.
+ */
+function stripEpicFires(events: CombatEvent[]): CombatEvent[] {
+  if (!events.some((e) => e.type === 'epicFire')) return events;
+  const out: CombatEvent[] = [];
+  let pending: string[] = [];
+  for (const e of events) {
+    if (e.type === 'epicFire') { if (!pending.includes(e.source)) pending.push(e.source); continue; }
+    if (pending.length) { EPIC_FIRES.set(e, [...(EPIC_FIRES.get(e) ?? []), ...pending]); pending = []; }
+    out.push(e);
+  }
+  return out;
+}
+
+/** The epic minions whose multiplier fired into `event` (its On Watcher effect plays as that event's beat plays). */
+export function epicFiresOf(event: CombatEvent | undefined): readonly string[] {
+  return (event && EPIC_FIRES.get(event)) ?? [];
 }
 
 /**

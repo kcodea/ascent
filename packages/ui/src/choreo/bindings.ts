@@ -58,8 +58,8 @@ export const WATCHER_BINDING_KINDS: readonly WatcherBindingKind[] = ['watcher'];
  * `startOfCombatFx` / `avengeFx` channels scan the moment's events for the simulator's own `key`/`avenge`
  * stamps instead (see the header on those channels), exactly as `rallyFx`/`shoutFx` scan for their events.
  */
-export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge';
-export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge'];
+export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge' | 'wardGiven';
+export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge', 'wardGiven'];
 
 /**
  * A binding key for a MELEE HIT whose attacker's Attack badge sits at a high milestone tier — the pink (4,
@@ -191,6 +191,17 @@ export interface FxBinding {
    * sound def can sit at a different level on each card without editing the shared def. A no-op on a def with
    * no Sound layer. Omitted-unless-set on the same terms as the fields above. */
   gain?: number;
+  /**
+   * More defs that play TOGETHER with `def`, at the same anchors and moment: a card whose one trigger wants two
+   * separately authored effects (Drakko's `drakko-effect` + `drakko-drum`, owner 2026-11-04). Each id is checked
+   * like `def` (`bindings.test.ts`). Honoured by the sites that play through `bindingDefIds`.
+   */
+  also?: string[];
+}
+
+/** Every def a binding plays at once: its `def`, then each `also`. */
+export function bindingDefIds(b: FxBinding): string[] {
+  return b.also?.length ? [b.def, ...b.also] : [b.def];
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
@@ -300,12 +311,17 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.gain must be a number ≥ 0 — dropped.`);
     return null;
   }
+  if (v.also !== undefined && (!Array.isArray(v.also) || v.also.some((x) => typeof x !== 'string' || x === ''))) {
+    devError(`[fx] bindings.json: ${where}.also must be a list of def ids — dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
   if (v.critDef !== undefined) out.critDef = v.critDef;
   if (v.launchOnDeath === true) out.launchOnDeath = true;
   if (typeof v.gain === 'number' && Number.isFinite(v.gain) && v.gain >= 0 && v.gain !== 1) out.gain = v.gain;
+  if (Array.isArray(v.also) && v.also.length > 0) out.also = [...(v.also as string[])];
   return out;
 }
 

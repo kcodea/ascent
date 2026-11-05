@@ -2057,7 +2057,7 @@ export function closeDuosResult(): void {
  * At boot: if this account still holds a PLAYER seat in a room whose match is running, re-enter the room (the
  * session then rebuilds the run and puts the match back on screen). Waits briefly for the session to exist.
  */
-export async function resumeVersusMatch(): Promise<void> {
+export async function resumeVersusMatch(party = false): Promise<void> {
   for (let i = 0; i < 20 && !currentUserId(); i++) await new Promise((r) => setTimeout(r, 500));
   const me = currentUserId();
   if (!me || get().room) return;
@@ -2066,6 +2066,8 @@ export async function resumeVersusMatch(): Promise<void> {
     if (!roomId || get().room) return;
     const room = await versusRemote.room(roomId);
     const role = room?.members.find((m) => m.userId === me)?.role;
+    // THE PARTY HOME: the party is the home itself, so a reload comes back into an open Ranked Duos party too.
+    if (party && room?.status === 'open' && role && isDuosParty(room)) { enterRoom(room); return; }
     if (!room || room.status !== 'in_game' || !role || role === 'spectator') return;
     // A match I conceded is over for me (R-RANKED-DUOS-CONCEDE-01): a Ranked Duos one runs on for my teammate, but a
     // reload never drops me back into it.

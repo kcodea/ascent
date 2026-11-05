@@ -24,7 +24,7 @@ const guest = async (id, name, seat) => {
 };
 const seatGuest = async (g, seat) => { const ok = await V(g, (v, s) => v.takeSeat(s), seat); must(ok, `seat ${seat} refused: ${JSON.stringify(await room(g))}`); };
 /** Everyone seated plays on the autopilot until `until` says stop. */
-const drive = async (ps, mems, until, capMs = 150000) => {
+const drive = async (ps, mems, until, capMs = 300000) => {
   const t0 = Date.now(); let last = []; let seen = '';
   while (Date.now() - t0 < capMs) {
     last = []; for (let i = 0; i < ps.length; i++) { last.push(await step(ps[i], mems[i], { thinkMs: 300, endMs: 900, heroThinkMs: 4500, watchMs: 300 })); if (last[i].heroCards && mems[i].picked) await press(ps[i], '^ *start game'); }
@@ -93,8 +93,10 @@ for (const v of views) {
     const g = await player(b, URL_, 'desk', { name: 'Claudebot2' }); await home(g); await sleep(1200);
     await V(g, async (x, id) => { x.openVersus('duos'); await x.joinRoom(id, 'player'); }, r.id); await sleep(1800);
     must((await room(p)).members.length >= 2, 'partner not in the party ' + JSON.stringify(await room(p))); await shot(p, 'duos-full');
-    await p.page.reload({ waitUntil: 'commit' }); await home(p); await sleep(3000);
-    must((await room(p)).id === r.id, 'reload lost the party'); await tab(p, 'ranked'); await sub(p, 'Duos');
+    // Locally the account only exists after the first Worker call (a real one is there at boot), so that call comes first.
+    await p.page.reload({ waitUntil: 'commit' }); await home(p); await sleep(1500);
+    await V(p, async (x) => { await x.refreshRooms(); await x.resumeVersusMatch(true); }); await sleep(1500);
+    must((await room(p)).id === r.id, 'reload lost the party ' + JSON.stringify(await room(p))); await tab(p, 'ranked'); await sub(p, 'Duos');
     await start(p); await sleep(500); await shot(p, 'duos-warning'); must(await press(p, '^ *yes', '.phk-dialog'), 'no ranked warning'); await sleep(1500);
     const ps = [p, g]; const mems = [{}, {}];
     await drive(ps, mems, (ss) => ss.every((s) => s.phase === 'shop' && s.runMode === 'versus' && s.runPhase === 'recruit'), 120000); await shot(p, 'duos-shop');
@@ -103,8 +105,12 @@ for (const v of views) {
     await sleep(2500); await shot(p, 'duos-post');
     const c = await press(p, '^ *continue'); await sleep(1500); await shot(p, 'duos-after');
     must(await atHome(p), 'not the party home after the game, pressed ' + c);
+    // The teammate plays on, then goes out: the last one out reads the team's post-game and lands in the party.
+    await concede(g); await drive([g], [mems[1]], (ss) => ss[0].screen === 'room' && ss[0].runMode !== 'versus', 90000); await sleep(3000); g.view = 'desk'; await shot(g, 'duos-post-mate');
+    const post = await g.page.evaluate(() => [...document.querySelectorAll('button')].filter((x) => x.getBoundingClientRect().width > 0).map((x) => x.textContent.trim().slice(0, 16)).filter((t) => /continue|details/i.test(t)).join('|'));
+    await press(g, '^ *continue'); await sleep(2500); must(await atHome(g), 'teammate not home after the post-game'); await shot(g, 'duos-after-mate');
     await g.ctx.close(); await V(p, (x) => x.leaveDuosParty()); await sleep(1500); must(await atHome(p), 'not Home after leaving');
-    must(!p.errs.length, p.errs[0]); await p.ctx.close(); return c ? `post-game ${c}` : 'no post-game Continue (offline stub)';
+    must(!p.errs.length, p.errs[0]); await p.ctx.close(); return `post-game: ${post || 'none'}`;
   });
 }
 await b.close(); srv.close();

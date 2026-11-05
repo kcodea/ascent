@@ -53,7 +53,7 @@ export async function pickHero(p) {
 export const inGame = (p) => p.page.waitForFunction(() => { const g = window.__bench.store.getState(); return !g.showTitle && !g.heroChoices; }, null, { timeout: 30000, polling: 300 });
 export const shot = (p, name) => p.page.screenshot({ path: path.join(OUT, `${name}-${p.view}.png`) }).catch(() => undefined);
 /** Play by ending every turn until the run ends. Fights run at top speed. */
-export async function playOut(p, capMs = 240000) {
+export async function playOut(p, capMs = 150000) {
   await p.page.evaluate(() => window.__bench.store.getState().setCombatSpeed?.(5));
   const t0 = Date.now(); let turns = 0;
   while (Date.now() - t0 < capMs) {
@@ -64,6 +64,7 @@ export async function playOut(p, capMs = 240000) {
     await p.page.evaluate(() => { const e = document.querySelector('.etbwrap.ready') || document.querySelector('.etbwrap'); e?.click(); e?.querySelector('button')?.click(); });
     await sleep(700);
   }
+  await shot(p, 'playout-stuck');
   throw new Error('playOut: cap reached ' + JSON.stringify(await st(p)));
 }
 export const results = [];

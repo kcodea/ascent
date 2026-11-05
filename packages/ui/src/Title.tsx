@@ -188,7 +188,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Ready marker: the desktop smoke (apps/desktop/main.cjs runSmoke) waits on this. No preloading hangs off it.
   useEffect(() => { (window as unknown as { __ascentReady?: boolean }).__ascentReady = true; }, []);
   // VERSUS: a player who left a RUNNING match (reload, crash, new tab) is taken straight back into it.
-  useEffect(() => { if (versusEnabled()) void resumeVersusMatch(); }, []);
+  useEffect(() => { if (versusEnabled()) void resumeVersusMatch(partyHomeFlag); }, []);
   // VERSUS ROOMS OPEN (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01): a small badge on Play and a glow + "2 open" chip on the
   // Versus tile while someone is waiting in a room I could join. The count is the shared menu poll (0 hides it all),
   // which asks nothing while the title is hidden (menuPoll.ts menuOnScreen).

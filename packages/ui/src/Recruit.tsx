@@ -3515,7 +3515,10 @@ export function Recruit() {
     // breath before the first attack, instead of the fight igniting the frame the curtain clears.
     const t = window.setTimeout(() => setCombatStage('fighting'), 800);
     return () => window.clearTimeout(t);
-  }, [inCombat, wipe]);
+    // A NEW FIGHT landing while the arena is already up (R-SPECTATE-FIGHT-SWAP-01: a watch screen whose frames swapped
+    // one fight for the next) is reset to 'closing' by the effect above; this re-arms it, or the replay never starts and
+    // Skip has nothing to skip. A player's own fight only gets a new `lastCombat` on the way into combat (one run).
+  }, [inCombat, wipe, run.lastCombat]);
 
   // Leaving the fight is the backstop for a Skip's audio + FX (R-SKIP-TURBO-01): a fight left mid-Skip still
   // gets its sound, its whir stopped and its FX clock back to normal for the shop and the next fight.

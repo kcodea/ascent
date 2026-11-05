@@ -13917,4 +13917,23 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'so the desktop app (v0.2.0, the first build whose version changed) drew no recorded runs and every ranked lobby was all-generated.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentPool/poolPatch.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-SPECTATE-FIGHT-SWAP-01',
+    title: 'A spectator sees every fight start, and can Skip it, whatever order the frames arrive in',
+    statement:
+      'On the watch screen every fight the watched player goes into starts playing: the entry curtain, then the units attack, and Skip fast-forwards it. '
+      + 'This holds whatever order or timing the player frames arrive in: a fight that arrives straight after the last one (no shop frame between them), or while the exit curtain from the last fight is still closing. '
+      + 'The screen never swaps one fight for the next in place: it leaves the fight on screen through the End Combat exit curtain, shows the shop under it, then goes into the new fight. The spectator never has to leave and come back to unstick a fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-04, spectating a desktop game', quote: 'it loads the fight and then no unit starts attacking. and i cant fast forward the combat, i have to leave spectating entirely and load back in' },
+      { kind: 'fix-pr', ref: 'fix/spectate-fight-swap' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (render: the next fight leaves through the shop, holdShopBeat); packages/ui/src/Recruit.tsx (the fighting effect re-arms on a new lastCombat)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-04 (fix/spectate-fight-swap). Before, a combat view for the next wave arriving while the screen was in a fight (a stale shop dropped, End Turn merged into the fight frame, or the fight landing during the exit curtain) was swapped straight in. '
+      + 'Recruit stayed in combat, so the replay never armed: the new boards were drawn, nothing moved, and Skip did nothing. The Recruit backstop is pinned by a source check only (no test mounts Recruit).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateFightSwap.test.tsx'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

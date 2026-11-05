@@ -3536,13 +3536,11 @@ img.tierbadge.tierstars,
    card's own "Shop Spell" kind line — with a very slight static glow (owner ask 2026-11-05). Static text-shadow, no
    loop, so it paints once. Placed before the Dragon rule; a spell is never a Dragon card. */
 .card.compact.showtext.spellcard .drawer .desc b.buffnum { color: #7cc4ff; text-shadow: 0 0 calc(var(--ccw) * 0.025) rgba(124, 196, 255, 0.55); }
-/* Every OTHER bold word on a spell (Tier 1, tribe names, keywords) is a dark blue with NO glow (owner 2026-11-05: "a
-   dark blue, no glow"; a light-blue trial was rejected, then "lets darken the keywords again. use: 0136F4"), so the
-   glowing buffs stay the brightest thing in the text. */
-.card.compact.showtext.spellcard .drawer .desc b:not(.buffnum) { color: #0136f4; text-shadow: none; }
-/* Both blues wear a 1.5px black outline (owner ask 2026-11-05: "put a 1px stroke around the edges. black", then "increase the stroke to 1.5px"). paint-order
+/* Every OTHER bold word on a spell (Tier 1, tribe names, keywords) is a darker blue with NO glow and a 1.5px black
+   outline (owner 2026-11-05, tuned in steps: "a dark blue, no glow", "a 1px stroke ... black", "1.5px", then the
+   colour "0B7AEE"). The buffs above carry NO outline, just the glow ("i dont want that. just the glow"). paint-order
    puts the stroke BEHIND the fill, so the letters keep their full weight. */
-.card.compact.showtext.spellcard .drawer .desc b { -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }
+.card.compact.showtext.spellcard .drawer .desc b:not(.buffnum) { color: #0b7aee; text-shadow: none; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }
 /* Dragon's tribe colour is white (= body text), so its coloured terms don't stand out. Give dragon cards' terms a
    subtle static pastel-rainbow halo — the white letters stay, but read as special. Static text-shadow only (no
    looped paint), per docs/performance.md. */

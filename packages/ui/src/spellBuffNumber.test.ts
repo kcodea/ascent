@@ -45,15 +45,19 @@ describe('R-TEXT-SPELL-BUFF-BLUE-01: spell buff numbers wear the Shop Spell blue
     expect(at).toBeLessThan(CSS.indexOf('.card.compact.showtext.spellcard .drawer .desc b.buffnum {'));
   });
 
-  it('paints every other bold word on a spell the dark blue #0136F4, with no glow', () => {
+  it('paints every other bold word on a spell #0B7AEE, no glow, with a 1.5px black outline behind the fill', () => {
     const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b:not\(\.buffnum\) \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
-    expect(rule).toMatch(/color:\s*#0136f4/i);
+    expect(rule).toMatch(/color:\s*#0b7aee/i);
     expect(rule).toMatch(/text-shadow:\s*none/);
-  });
-
-  it('outlines both blues with a 1.5px black stroke behind the fill', () => {
-    const rule = /\.card\.compact\.showtext\.spellcard \.drawer \.desc b \{([^}]*)\}/.exec(CSS)?.[1] ?? '';
     expect(rule).toMatch(/-webkit-text-stroke:\s*1\.5px #000/);
     expect(rule).toMatch(/paint-order:\s*stroke fill/);
+  });
+
+  it('the buffs carry no outline, just the glow', () => {
+    for (const r of CSS.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      const sel = r[1]!;
+      if (!/\.spellcard[^,{]*\.desc b(?!:not)/.test(sel)) continue;
+      expect(r[2], sel.trim()).not.toMatch(/text-stroke/);
+    }
   });
 });

@@ -4,6 +4,7 @@ import { Card } from './Card';
 import { upgradeImages } from './fullResArt';
 import { closeRuneInspect, useRuneInspect } from './runeInspectStore';
 import { useGame } from './store';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 import './discoverEntrance/discoverEntrance.css'; // the gold action pill the Pick button reuses
 
 const NOOP = (): void => {};
@@ -18,6 +19,7 @@ export function RuneInspect() {
   const view = useRuneInspect((s) => s.view);
   const forgeOpen = useGame((s) => !!s.run?.runeforgeOffer);
   const ref = useRef<HTMLDivElement | null>(null);
+  usePhLayer(!!view, closeRuneInspect);
   useEffect(() => { if (view && !forgeOpen && !view.fromBook) closeRuneInspect(); }, [view, forgeOpen]);
   useEffect(() => {
     if (!view) return;

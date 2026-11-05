@@ -25,6 +25,7 @@ import { PhButton, PhChip, PhEmpty, PhRow } from '../kit';
 import { sampleFriends } from '../sample';
 import { usePartyDemo, usePartyRoom } from '../partyHomeFlag';
 import { setFriendsOpen, usePhShell } from './shellStore';
+import { usePhLayer } from './usePhLayer';
 
 export function PhFriends({ docked, picker = false, embedded = false }: { docked: boolean; picker?: boolean; embedded?: boolean }): JSX.Element {
   const sampleRoomOn = usePartyRoom();
@@ -46,6 +47,7 @@ export function PhFriends({ docked, picker = false, embedded = false }: { docked
   const pulse = usePhShell((s) => s.friendsPulse);
   const sampleInvites = usePhShell((s) => s.sampleInvites);
   const friends = useMemo(() => (demo ? sampleFriends() : sortFriends(liveFriends(list?.friends, peers) ?? [])), [demo, list, peers]);
+  usePhLayer(!docked, () => setFriendsOpen(false));
   // The drawer closes on Escape (the docked list has nothing to close).
   useEffect(() => {
     if (docked) return undefined;

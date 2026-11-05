@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { SetId } from '@game/content';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 
 /** One row of the picker: a set from the registry, and whether it is the set new runs play right now. */
 export interface SetPickerOption {
@@ -45,6 +46,7 @@ export function CompendiumSetPicker({ options, value, onChange }: {
     close(true);
   };
 
+  usePhLayer(open, () => { setOpen(false); btnRef.current?.focus(); });
   // While open: a click outside closes it, and Esc closes it WITHOUT reaching the book's own Esc (which would
   // close the whole Compendium). Capture phase on window runs before the Game's bubble-phase Esc handler.
   useEffect(() => {

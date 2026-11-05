@@ -325,3 +325,6 @@ html[data-ph-ingame] { --ph-nav-h: 0px; }
 /* The Scene Builder panel steps aside for the in-game menu. */
 html[data-ph-gm] .scenebuilder { visibility: hidden; }
 
+
+/* Esc put the hover preview away: it stays gone until the pointer moves on. */
+html[data-ph-tipoff] .cardref { display: none; }

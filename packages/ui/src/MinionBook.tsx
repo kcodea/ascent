@@ -1,10 +1,10 @@
 import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
-import { Card, mdBold, type CardView } from './Card';
+import { Card, inspectViewOf, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
 import { rubyLiveText } from './instView';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
@@ -25,8 +25,9 @@ import { CompendiumRules } from './CompendiumRules';
 import { LazyCell, LazyRootProvider, eagerCellCount } from './bookLazy';
 import rulesQuestionArt from './rules-question.png';
 import { usePartyHome } from './partyHome/partyHomeFlag';
-import { lastPointerWasTouch, lastTouchWasTap } from './touchInput';
+import { lastTouchWasTap } from './touchInput';
 import { openRuneInspect } from './runeInspectStore';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 import './compendium.css';
 
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
@@ -268,11 +269,11 @@ function refViewsFor(id: string, liveRun?: RunState): CardView[] | undefined {
  *  a tier toggle re-renders only the cells that appear or go, never the whole wall; and lazy (bookLazy.tsx), so a card
  *  mounts only when it nears the viewport. Its view and its hover previews are built here, once, for this card only
  *  (they used to be rebuilt for every in-scope card on every open). */
-const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean }) {
+const BookCardCell = memo(function BookCardCell({ card, gilded, liveRun, eager, press }: { card: CardDef; gilded: boolean; liveRun?: RunState; eager: boolean; press?: boolean }) {
   const view = useMemo(() => toView(card, gilded, liveRun), [card, gilded, liveRun]);
   const refs = useMemo(() => refViewsFor(card.id, liveRun), [card.id, liveRun]);
   const duosTag = isDuosOnly(card);
-  return <LazyCell eager={eager}>{() => <><Card card={view} forceFull suppressPop plated refCards={refs} />{duosTag && <DuosTag />}</>}</LazyCell>;
+  return <LazyCell eager={eager}>{() => <><Card card={view} forceFull suppressPop plated refCards={refs} {...(press ? { onClick: () => useGame.getState().inspectCard(inspectViewOf(view, undefined)) } : {})} />{duosTag && <DuosTag />}</>}</LazyCell>;
 });
 
 /** The Compendium subtitle while the Guides tab is up: what the chosen pill is showing. */
@@ -292,16 +293,25 @@ function compendiumSetPickerEnabled(): boolean {
 }
 
 const BOOK_VIEW_KEY = 'ascent.compendium.view';
+const BOOK_CATS_KEY = 'ascent.compendium.cats';
+function readBookCats(): Set<Category> {
+  try { const v: unknown = JSON.parse(localStorage.getItem(BOOK_CATS_KEY) ?? '[]'); return new Set(Array.isArray(v) ? (v as Category[]) : []); } catch { return new Set(); }
+}
 function readBookView(): CompendiumView {
   try { const v = localStorage.getItem(BOOK_VIEW_KEY); return v === 'rules' || v === 'glossary' || v === 'guides' ? v : 'cards'; } catch { return 'cards'; }
 }
 
 /** A hero under the shell's Compendium: the portrait melts into the plate, the name and Health sit on it, the power below. */
-const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] }) {
+const PhHeroTile = memo(function PhHeroTile({ h, onOpen }: { h: (typeof HEROES)[number]; onOpen?: (h: (typeof HEROES)[number]) => void }) {
   const art = heroThumb(heroArt(h.id));
   const pw = heroThumb(heroPowerArt(h.id));
   return (
-    <article className="phh">
+    <article className="phh" {...(onOpen ? {
+      role: 'button', tabIndex: 0, 'aria-label': `${h.name}. Open`,
+      onClick: () => onOpen(h),
+      onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onOpen(h); },
+      onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(h); } },
+    } : {})}>
       <div className="phh-top">
         {art && <img className="phh-art" decoding="sync" src={art} alt="" draggable={false} />}
         <div className="phh-who">
@@ -323,6 +333,16 @@ const PhHeroTile = memo(function PhHeroTile({ h }: { h: (typeof HEROES)[number] 
     </article>
   );
 });
+
+/** A hero's large view: the same window every other Compendium entry opens. */
+function PhHeroPop({ h, onClose }: { h: (typeof HEROES)[number]; onClose: () => void }) {
+  usePhLayer(true, onClose);
+  return (
+    <div className="inspect-ov phh-pop" role="dialog" aria-modal="true" aria-label={h.name} onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="phh-popbox" onClick={(e) => e.stopPropagation()}><PhHeroTile h={h} /></div>
+    </div>
+  );
+}
 
 /** The Compendium's views: the card gallery, or one of the three codex panels. */
 export type CompendiumView = 'cards' | 'rules' | 'glossary' | 'guides';
@@ -393,7 +413,8 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
   const QUEST_REWARD_IDS = useMemo(() => new Set(QUEST_REWARD_CARDS.map((x) => x.card.id)), [QUEST_REWARD_CARDS]);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
-  const [cats, setCats] = useState<Set<Category>>(() => new Set());
+  const [cats, setCats] = useState<Set<Category>>(() => (frame ? readBookCats() : new Set()));
+  const [heroPop, setHeroPop] = useState<(typeof HEROES)[number] | null>(null);
   const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
   // The filters read a DEFERRED copy (perf 2026-10-09): the box updates on the keystroke, the gallery a beat later at
   // low priority, and an older filter pass is dropped when a newer keystroke lands.
@@ -736,6 +757,12 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     if (!frame) return;
     try { localStorage.setItem(BOOK_VIEW_KEY, rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards'); } catch { /* a convenience only */ }
   }, [frame, rules, glossary, guidesOn]);
+  // ...and the rail with it. A row this set does not have goes back to All minions.
+  useEffect(() => {
+    if (!frame) return;
+    if ([...cats].some((c) => !categories.includes(c))) { setCats(new Set()); return; }
+    try { localStorage.setItem(BOOK_CATS_KEY, JSON.stringify([...cats])); } catch { /* a convenience only */ }
+  }, [frame, cats, categories]);
 
   // THE SHELL: every rail, filter, search or view change starts at the top of its list. Before paint, so no jump shows.
   useLayoutEffect(() => {
@@ -762,7 +789,8 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     (t.closest('.book-cell') ?? near())?.querySelector<HTMLElement>('.card, .runecard')?.click();
   };
   const runeHold = (e: ReactMouseEvent<HTMLDivElement>): void => {
-    if (lastPointerWasTouch()) (e.target as Element).closest<HTMLElement>('.runecard')?.click();
+    e.preventDefault();
+    (e.target as Element).closest<HTMLElement>('.runecard')?.click();
   };
 
   // The book's three PARTS, so a host can frame them its own way (the app shell's page, `frame` below): the live
@@ -1046,7 +1074,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             <div key="heroes" className="book-grid is-heroes phh-grid" ref={setGridEl}>
               {/* The rows on screen plus half a screen: the rest mount ahead of the scroll, a few a frame. */}
               <LazyRootProvider root={gridEl} lookahead="50%">
-                {heroesToShow.map((h, i) => <LazyCell key={h.id} eager={i < eagerN}>{() => <PhHeroTile h={h} />}</LazyCell>)}
+                {heroesToShow.map((h, i) => <LazyCell key={h.id} eager={i < eagerN}>{() => <PhHeroTile h={h} onOpen={setHeroPop} />}</LazyCell>)}
               </LazyRootProvider>
             </div>
           ) : (
@@ -1082,7 +1110,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             <div className="book-grid is-runes" ref={setGridEl} onClick={frame ? cellTap : undefined} onContextMenu={frame ? runeHold : undefined}>
               <LazyRootProvider root={gridEl}>
                 {runesToShow.map((r, i) => (
-                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={frame ? () => { if (lastPointerWasTouch()) openRuneInspect({ rune: r, affordable: false, pick: NOOP, fromBook: true }); } : NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
+                  <LazyCell key={r.id} eager={i < eagerN}>{() => <><RuneCard rune={r} affordable onBuy={frame ? () => openRuneInspect({ rune: r, affordable: false, pick: NOOP, fromBook: true }) : NOOP} />{r.duos && <DuosTag />}</>}</LazyCell>
                 ))}
               </LazyRootProvider>
             </div>
@@ -1104,13 +1132,14 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             <div className="book-grid" ref={setGridEl} style={{ '--book-zoom': zoom } as CSSProperties} onClick={frame ? cellTap : undefined}>
               <LazyRootProvider root={gridEl}>
                 {filtered.map((c, i) => (
-                  <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} />
+                  <BookCardCell key={c.id} card={c} gilded={gilded} liveRun={liveRun} eager={i < eagerN} press={!!frame} />
                 ))}
               </LazyRootProvider>
             </div>
           ) : (
             <div className="book-empty">No cards match these filters.</div>
           )}
+          {frame && heroPop && <PhHeroPop h={heroPop} onClose={() => setHeroPop(null)} />}
         </div>
           </>
         )

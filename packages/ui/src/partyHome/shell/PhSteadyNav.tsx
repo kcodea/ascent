@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { anyPageOpen, useGame } from '../../store';
 import { isPhone } from '../../deviceClass';
-import { phAttach, phPagePushed, phTakeReturn } from './phHistory';
+import { phAttach, phPagePushed, phTakeReloadPage, phTakeReturn } from './phHistory';
 import { closeSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { PhTopNav, type PhNavCurrent } from './PhTopNav';
 import { leaveCrates, openCrates, usePhShell } from './shellStore';
@@ -46,6 +46,8 @@ export default function PhSteadyNav() {
   const entry = book ? 'compendium' : current === 'collection' && crates ? 'crates' : current ?? 'other';
   useEffect(() => { phPagePushed(entry); }, [entry]);
   useEffect(() => phAttach(showPage), []);
+  // A reload on a page comes back to that page (the first mount only, on the home; a game restores itself).
+  useEffect(() => { const p = phTakeReloadPage(); if (p && current === 'home') showPage(p); }, []);
   // Back from a Scene Builder game: the panel goes, the saved game shows at once, and the page you left it from returns.
   useEffect(() => {
     closeSceneBuilderPanel();

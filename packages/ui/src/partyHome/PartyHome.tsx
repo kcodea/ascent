@@ -68,6 +68,7 @@ import { homeMe, homeSetOptions, sampleHost, useSampleRoom } from './sampleRoom'
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
 import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
+import { usePhLayer } from './shell/usePhLayer';
 import './partyHome.css';
 
 /** One banner card's contents. */
@@ -351,6 +352,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     window.addEventListener('pointerdown', onDown, true);
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [menuFor]);
+  usePhLayer(!!menuFor, () => setMenuFor(null));
   // Esc closes an open card menu first (and only it).
   useEffect(() => {
     if (!menuFor) return undefined;
@@ -389,6 +391,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     toSettings.current = false;
     if (!friendsOpen) setDrawerIsMode(false);
   }, [friendsOpen]);
+  usePhLayer(phone && friendsOpen, () => setFriendsOpen(false));
   // Esc closes the phone drawer first.
   useEffect(() => {
     if (!phone || !friendsOpen) return undefined;

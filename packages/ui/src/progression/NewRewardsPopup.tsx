@@ -7,6 +7,7 @@ import { Icon } from '../Icon';
 import { achievementsVisible, useProgression } from './progressionStore';
 import { hasNewRewards, markNewRewardsSeen, syncNewRewards, unseenCount, useNewRewards, type UnseenRewards } from './newRewards';
 import { xpText } from './progressionFormat';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './collection.css';
 
 /**
@@ -54,6 +55,7 @@ export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
   }, [live]);
   const closeRef = useRef<HTMLButtonElement>(null);
   const dismiss = (): void => { markNewRewardsSeen(userId); setShown(null); };
+  usePhLayer(!!shown, dismiss);
   useEffect(() => {
     if (!shown) return;
     closeRef.current?.focus();

@@ -12,18 +12,21 @@
  * module (and renders `PhCompendiumMount`, which is nothing) when the switch is on and the player is on the menus.
  *
  * IN A GAME (owner 2026-11-04: "fix the in game compendium to match the menu compendium as well"): `PhCompendiumOverlay`, the
- * same page over the match, with a close button and no nav. Run scoping and live text are the book's own, unchanged. The
+ * same page over the match, with Back like every in-game page and no nav. Run scoping and live text are the book's own, unchanged. The
  * shell's stylesheet keys off `html[data-ph-shell]`, which a run drops; the overlay is opaque and full screen, so it wears
  * that attribute only while it is open. Nothing about the game underneath can show, and it comes off on close.
  */
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { MinionBook, type CompendiumView } from '../../MinionBook';
 import { isPhone } from '../../deviceClass';
 import { sfx } from '../../sfx';
 import { isPreRun, useGame } from '../../store';
-import { PhButton, PhPage, PhTabs } from '../kit';
+import { PhPage, PhTabs } from '../kit';
 import { PhBackdrop } from '../shell/PhBackdrop';
+import { phBack } from '../shell/phHistory';
+import { PhBackContext } from '../shell/PhPageGuard';
 import { setCompendiumPage } from '../shell/shellStore';
+import { usePhLayer } from '../shell/usePhLayer';
 import './phCompendium.css';
 
 const VIEWS: readonly { id: CompendiumView; label: string }[] = [
@@ -33,9 +36,8 @@ const VIEWS: readonly { id: CompendiumView; label: string }[] = [
   { id: 'guides', label: 'Guides' },
 ];
 
-/** The Compendium as a page's content: the kit page with the book's views as tabs and its Set, search and card size as actions.
- *  `onClose`: the in-game overlay's close button. */
-export function PhCompendium({ onClose }: { onClose?: () => void } = {}) {
+/** The Compendium as a page's content: the kit page with the book's views as tabs and its Set, search and card size as actions. */
+export function PhCompendium() {
   // Hover previews portal to <body> under the page's layer: they lift over it while the book is up.
   useEffect(() => {
     document.documentElement.setAttribute('data-ph-book', '');
@@ -49,9 +51,8 @@ export function PhCompendium({ onClose }: { onClose?: () => void } = {}) {
           {/* The live count / view line sits beside the tabs, so the page keeps the one standard header. */}
           <p className="phb-sub" aria-live="polite">{subtitle}</p>
         </>}
-        actions={codex && !onClose ? undefined : <div className="phb-actions">
-          {!codex && controls}
-          {onClose && <PhButton size="s" className="phb-close" onClick={onClose} aria-label="Close (Tab / Esc)"><span className="phb-closeword">Close</span><span className="phb-closex" aria-hidden="true">✕</span></PhButton>}
+        actions={codex ? undefined : <div className="phb-actions">
+          {controls}
         </div>}>
         {/* `.book` carries the surface tokens the real cards read (compendium.css); `.phb` repaints everything else. */}
         <div className={`book phb-book v-${view}`}>{body}</div>
@@ -64,6 +65,8 @@ export function PhCompendium({ onClose }: { onClose?: () => void } = {}) {
  *  down while the shell's attribute is on. */
 export function PhCompendiumOverlay() {
   const closeBook = useGame((s) => s.closeBook);
+  usePhLayer(true, closeBook);
+  const back = useMemo(() => ({ label: 'Back', onClick: (): void => { if (!phBack()) closeBook(); } }), [closeBook]);
   useLayoutEffect(() => {
     const html = document.documentElement;
     html.setAttribute('data-ph-shell', '');
@@ -84,7 +87,7 @@ export function PhCompendiumOverlay() {
   return (
     <div className="ph-bookpage phb-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
       <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>
-      <PhCompendium onClose={closeBook} />
+      <PhBackContext.Provider value={back}><PhCompendium /></PhBackContext.Provider>
     </div>
   );
 }

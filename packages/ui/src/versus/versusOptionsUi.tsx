@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import { RIFTS, riftDefFor, normalizeVersusOptions, VERSUS_MODIFIERS, type VersusModifierId, type VersusMode, type VersusRoomOptions } from '@game/sim';
 import { sfx } from '../sfx';
 import { stageHost } from '../stage';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import '../matchDetails/matchDetails.css';
 
 /** The mode as players read it. */
@@ -82,6 +83,7 @@ export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
     setClosing(true);
     timerRef.current = setTimeout(() => onCloseRef.current(), VERSUS_OPTIONS_CLOSE_MS);
   }).current;
+  usePhLayer(true, close);
   useEffect(() => {
     closeRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent): void => {

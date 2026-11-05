@@ -13919,4 +13919,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'The Netlify origin stays in every list until the site is retired.',
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/origins.test.ts', 'packages/ui/src/friends/dm/hubUrl.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-PH-BACK-LAYERS-01',
+    title: 'Under the party home shell, Esc and Back take the single top layer first',
+    statement:
+      'Anything that opens above a page (a page over a game, the game menu, a pop-up, a list, a sheet, a window) is a layer on the shell\'s one history. '
+      + 'Esc, every Back control and the browser\'s Back close the top layer only, one press at a time, on the menus and in a game. '
+      + 'In a game Back goes page, menu, game and then stays: it never leaves the game or the app. A search box with text clears first and a hover preview goes first.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-04', quote: 'Fix the ui so it works end to end cleanly and then put it on one branch.' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/2552 (packages/ui/src/partyHome/shell/phHistory.ts, usePhLayer.ts)' },
+    ],
+    currentBehaviour: 'Conforms on feat/party-home-prototype from 2026-11-04. Off the shell nothing changes: phLayer does nothing until the shell turns it on.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/phHistory.test.ts', 'scripts/ph-flows/layers.mjs'], lastVerifiedAt: '2026-11-04' },
+  },
 ];

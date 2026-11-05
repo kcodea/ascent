@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AETHER_LAUNCH_GRANT } from '@game/progression';
 import { sfx } from '../sfx';
 import { RANKED_CONFIRM_EXIT_MS } from '../rank/rankedEntry';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './collection.css';
 
 /**
@@ -58,6 +59,7 @@ export function AetherIntroPopup({ userId, onDone }: {
   };
   const closeRef = useRef(close);
   closeRef.current = close;
+  usePhLayer(true, () => closeRef.current());
   useEffect(() => {
     okRef.current?.focus();
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); sfx.tick(); closeRef.current(); } };

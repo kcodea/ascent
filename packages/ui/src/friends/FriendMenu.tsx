@@ -19,6 +19,7 @@ import { friendMenuContext, friendMenuEntries, runFriendMenu, type FriendMenuEnt
 import { handleOf } from './friendBits';
 import type { Friend } from './friendsRemote';
 import { closeDock, swallowNextClick, useFriendsDock } from './dock/dockStore';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './friends.css';
 
 interface MenuState { friend: Friend | null; x: number; y: number; entries: FriendMenuEntry[] }
@@ -97,6 +98,7 @@ export function FriendMenu(): JSX.Element | null {
     setPos({ left: Math.max(8, Math.min(at.x, view.w - w - 8)), top: Math.max(8, Math.min(at.y, view.h - h - 8)) });
   }, [friend, at.x, at.y]);
 
+  usePhLayer(!!friend, closeFriendMenu);
   // Escape closes it (capture, so the same press neither opens the Esc menu nor closes the dock underneath).
   useEffect(() => {
     if (!friend) return undefined;

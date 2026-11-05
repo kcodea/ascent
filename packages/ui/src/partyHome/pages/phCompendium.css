@@ -282,7 +282,6 @@ html[data-ph-compact] .phh-name { font-size: calc(24 * var(--phu)); }
 
 /* ── IN A GAME: the same page, over the match. It paints its own full screen; there is no nav above it. ── */
 .ph-bookpage.phb-ov { padding-top: 0; }
-.phb-close { flex: none; }
 /* The shell's backdrop paints under everything and pages are transparent over it, so whatever the book opened on steps aside. */
 html[data-ph-book] :is(.ph, .lbpage, .modepick) { visibility: hidden; }
 .phb-ov .ph-steady { position: absolute !important; z-index: 0 !important; }
@@ -378,8 +377,17 @@ html[data-ph-book][data-ph-compact] .inspect-ov .inspect-card { zoom: tan(atan2(
 html[data-ph-book][data-ph-compact] .inspect-ov .rune-inspect { zoom: tan(atan2(calc(var(--phu) * 1.3), 1.74px)); }
 
 /* In a game on a phone the close is a round cross, so all four tabs keep their room beside the tools. */
-.phb-closex { display: none; }
-html[data-ph-compact] .phb-closeword { display: none; }
-html[data-ph-compact] .phb-closex { display: inline; }
-html[data-ph-compact] .phb .phb-close { width: calc(64 * var(--phu)); min-width: 0; padding: 0; }
 html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu)); }
+
+/* The Set list stands above the filter bar and the grid (they come later in the page and would paint and hit-test over it). */
+.phb .phk-pagehead:has(.book-setpick.is-open) { position: relative; z-index: 60; }
+.phb .book-setpick.is-open { z-index: 60; }
+
+/* The one way to look closer: a press (or a right-press) on anything opens its large view. A hero's is its own tile, enlarged. */
+.phb .phh[role='button'] { transition: transform 0.12s ease; }
+.phb .phh[role='button']:hover { transform: translateY(calc(-3 * var(--phu))); }
+.phh-pop { position: fixed; inset: 0; }
+.phh-popbox { width: min(calc(760 * var(--phu)), 92vw); }
+.phh-popbox .phh { zoom: 1.5; }
+html[data-ph-compact] .phh-popbox .phh { zoom: 1; }
+.phb-ov .phb-sub { white-space: normal; overflow: visible; text-overflow: clip; }

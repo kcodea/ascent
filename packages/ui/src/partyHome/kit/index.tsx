@@ -17,6 +17,7 @@
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
 import { markPhPage, PhBackContext } from '../shell/PhPageGuard';
+import { usePhLayer } from '../shell/usePhLayer';
 import { isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
@@ -312,6 +313,7 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
   // Esc closes the window (and nothing under it).
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  usePhLayer(!!onClose && !closing, () => closeRef.current?.());
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent): void => {
       if (e.key !== 'Escape' || !closeRef.current) return;
@@ -436,6 +438,7 @@ export function PhSelect<T extends string | number>({ value, options, onChange, 
     return from;
   };
   const textOf = (o: { label: ReactNode; text?: string; value: T }): string => (o.text ?? (typeof o.label === 'string' ? o.label : String(o.value))).toLowerCase();
+  usePhLayer(!!open, () => close());
   // The keyboard while the list is open: Up / Down / Home / End move, Enter picks, Esc closes, letters jump (typeahead).
   useEffect(() => {
     if (!open) return undefined;

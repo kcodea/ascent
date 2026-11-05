@@ -12,7 +12,7 @@ const endToHome = async (p, tag) => {
   await sleep(3500); await shot(p, tag + '-end');
   must((await st(p)).end, 'no end screen');
   const btns = await p.page.evaluate(() => [...document.querySelectorAll('.endscreen button')].map((x) => x.textContent.trim().slice(0, 20)));
-  const hit = await press(p, 'main menu|home|menu|back', '.endscreen'); await sleep(2500); await shot(p, tag + '-after');
+  const hit = await press(p, 'main menu|home|menu|back|^ *continue', '.endscreen'); await sleep(2500); await shot(p, tag + '-after');
   must(await atHome(p), `not home after end; pressed ${hit} of ${btns.join('|')}`);
   return hit;
 };
@@ -43,6 +43,19 @@ for (const v of views) {
     await tab(p, 'gauntlet'); await shot(p, 'gauntlet-home'); await start(p); await sleep(1500); await pickHero(p).catch(() => undefined);
     await sleep(5000); const s0 = await st(p); must(s0.mode === 'gauntlet' || !s0.title, 'not in gauntlet ' + JSON.stringify(s0));
     const end = await playOut(p); const hit = await endToHome(p, 'gauntlet');
+    must(!p.errs.length, p.errs[0]); await p.ctx.close(); return `to wave ${end.wave}, ${hit}`;
+  });
+  await run('Ranked: first-run nudge, warning, hero, game, placement, Home', v, async () => {
+    const p = await player(b, URL_, v, { seen: false }); await home(p); await sleep(1500);
+    await tab(p, 'ranked'); await start(p); await shot(p, 'ranked-nudge');
+    must(await press(p, 'skip', '.phk-dialog'), 'no first-run nudge'); await sleep(800); await shot(p, 'ranked-warning');
+    if (!await p.page.evaluate(() => !!document.querySelector('.phk-dialog'))) await start(p);
+    must(await press(p, '^ *yes', '.phk-dialog'), 'no ranked warning'); await pickHero(p); await inGame(p); await sleep(4000);
+    must((await st(p)).mode === 'lobby', 'not in Ranked ' + JSON.stringify(await st(p)));
+    await p.page.reload({ waitUntil: 'commit' }); await home(p); await sleep(2000); await shot(p, 'ranked-reload');
+    const s1 = await st(p); if (s1.title) { must(s1.saved, 'Ranked save lost on reload'); await press(p, 'continue'); await sleep(3000); }
+    must((await st(p)).mode === 'lobby', 'reload lost Ranked ' + JSON.stringify(await st(p)));
+    const end = await playOut(p); const hit = await endToHome(p, 'ranked');
     must(!p.errs.length, p.errs[0]); await p.ctx.close(); return `to wave ${end.wave}, ${hit}`;
   });
   await run('Learn: fresh guest, start, leave, Home', v, async () => {

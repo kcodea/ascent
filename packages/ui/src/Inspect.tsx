@@ -8,6 +8,7 @@ import { useGame } from './store';
 import { upgradeImages } from './fullResArt';
 import { clickAsPick, inspectActionFor, lastPointerWasTouch, lastTouchTarget } from './touchInput';
 import { useSpectate } from './versus/spectate';
+import { usePhLayer } from './partyHome/shell/usePhLayer';
 import './discoverEntrance/discoverEntrance.css'; // the gold action pill the touch Buy / Pick button reuses
 
 /** A ledger amount with its sign: a gain reads +N, a loss (Shop damage, a Titan Hammer set DOWN) reads -N, never "+-N". */
@@ -21,6 +22,7 @@ const signed = (n: number): string => (n < 0 ? `-${-n}` : `+${n}`);
 export function Inspect() {
   const inspect = useGame((s) => s.inspect);
   const clearInspect = useGame((s) => s.clearInspect);
+  usePhLayer(!!inspect, clearInspect);
 
   useEffect(() => {
     if (!inspect) return;

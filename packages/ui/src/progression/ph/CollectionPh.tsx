@@ -42,6 +42,7 @@ import { chestFloorOf, type ChestTier } from '../crateFx/chestTiers';
 import type { CrateQueueItem } from '../CrateOpener';
 import { COMING_BLURB, acquisitionText, albumOf, categoryLive, countOf, masteryText, missingHint, skinTargetName, type RarityFilter, type ShowFilter } from '../collectionModel';
 import { CategoryIcon, EmoteSlotRow, FramePreview, LockGlyph, plateLookOf } from '../CollectionScreen';
+import { usePhLayer } from '../../partyHome/shell/usePhLayer';
 import './collectionPh.css';
 
 type Count = { owned: number; total: number };
@@ -125,6 +126,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
   const closeSheet = useCallback(() => { sfx.pulse(); setSheet(false); }, []);
   useEffect(() => { setSheet(false); }, [v.category]);
   const sheetUp = compact && sheet && v.live && !!v.selected;
+  usePhLayer(sheetUp, () => setSheet(false));
   // Esc closes the sheet first (the shell's Esc would leave the page): the capture phase, claimed when it acts.
   useEffect(() => {
     if (!sheetUp) return undefined;

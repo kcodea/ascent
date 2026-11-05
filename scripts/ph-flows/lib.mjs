@@ -22,6 +22,7 @@ export function serve(dist, port) {
 export const launch = () => chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH, args: ['--mute-audio'], ignoreDefaultArgs: ['--hide-scrollbars'] });
 export const VIEW = {
   desk: { viewport: { width: 1920, height: 1080 } },
+  lap: { viewport: { width: 1366, height: 768 } },
   phone: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
 };
 
@@ -54,10 +55,12 @@ export const shot = (p, name) => p.page.screenshot({ path: path.join(OUT, `${nam
 /** Play by ending every turn until the run ends. Fights run at top speed. */
 export async function playOut(p, capMs = 240000) {
   await p.page.evaluate(() => window.__bench.store.getState().setCombatSpeed?.(5));
-  const t0 = Date.now();
+  const t0 = Date.now(); let turns = 0;
   while (Date.now() - t0 < capMs) {
     const s = await st(p);
     if (s.end || s.phase === 'gameover' || s.phase === 'victory') return s;
+    // Two real rounds, then one point of Resolve left: the next loss ends the run the way any loss does, in seconds.
+    if (s.phase === 'recruit' && s.wave >= 3 && !turns++) await p.page.evaluate(() => { const b = window.__bench.store; const r = b.getState().run; b.setState({ run: { ...r, resolve: 1, armor: 0 } }); });
     await p.page.evaluate(() => { const e = document.querySelector('.etbwrap.ready') || document.querySelector('.etbwrap'); e?.click(); e?.querySelector('button')?.click(); });
     await sleep(700);
   }

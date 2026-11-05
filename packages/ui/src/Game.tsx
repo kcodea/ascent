@@ -102,7 +102,7 @@ import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PhBackdrop } from './partyHome/shell/PhBackdrop';
 import { PhBackContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
-import { phBack, phLayer } from './partyHome/shell/phHistory';
+import { phBack, phEnable, phLayer } from './partyHome/shell/phHistory';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
 import { ReplayOverlay } from './replay/ReplayOverlay';
@@ -494,6 +494,11 @@ export function Game() {
   const shellMenus = partyHomeOn && titleUp && !gameMenuOpen;
   // A page opened from the in-game menu stands on the same backdrop, over the board.
   const inGamePage = useGame((s) => partyHomeOn && s.gameMenuOpen && anyPageOpen(s));
+  // THE ONE BACK PATH: the shell's history is on in a game too, and the menu is a layer, the page opened from it the one above.
+  const closeGameMenu = useGame((s) => s.closeGameMenu);
+  const menuLayer = useGame((s) => partyHomeOn && s.gameMenuOpen && !s.showTitle);
+  useEffect(() => { if (partyHomeOn) phEnable(); }, [partyHomeOn]);
+  useEffect(() => (menuLayer ? phLayer(closeGameMenu) : undefined), [menuLayer, closeGameMenu]);
   // ...and is one layer on the history: Back closes it, even with no history before it.
   useEffect(() => (inGamePage ? phLayer(closeInGamePage) : undefined), [inGamePage]);
   // The Compendium is a page too: while it is up, nothing under it shows through the transparent pages.

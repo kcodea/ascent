@@ -3,6 +3,7 @@ import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { Icon } from '../Icon';
 import { remoteEnabled } from '../remoteBoards';
+import { usePhLayer } from '../partyHome/shell/usePhLayer';
 import './collection.css';
 
 /**
@@ -29,6 +30,7 @@ export function CrateSignInGate({ open, onClose }: { open: boolean; onClose: () 
   const primaryRef = useRef<HTMLButtonElement>(null);
 
   // The guest became a real account while this was up: nothing left to ask.
+  usePhLayer(open, onClose);
   useEffect(() => { if (open && !anonymous) onClose(); }, [open, anonymous, onClose]);
 
   useEffect(() => {

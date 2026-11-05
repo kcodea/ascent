@@ -38,7 +38,7 @@ function fromUrl(): void {
 /** Is the party home on? Always, in a production build. */
 export function partyHomeOn(): boolean {
   if (!import.meta.env.DEV) return true;
-  if (on === null) { fromUrl(); on = import.meta.env.MODE === 'test' ? readKey(KEY) : readSwitch(); }
+  if (on === null) { fromUrl(); on = import.meta.env.VITEST ? readKey(KEY) : readSwitch(); }
   return on;
 }
 export function setPartyHome(v: boolean): void {

@@ -326,6 +326,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     const ok = await equipCosmetic('emote', String(position), item.id);
     if (ok) clearLocalEmotes(); else equipEmoteLocally(position, item.id);
     setBusy(false);
+    // The emote is in its slot: a ding, a little under full volume, and that slot pops out and back (owner 2026-11-06).
+    sfx.mateReadyDing(0.65);
+    bounceEmoteSlot(position);
   };
 
   /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
@@ -394,6 +397,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       show, setShow, rarity, setRarity, albumCount, byRarity, shown, hover: !!hover, clearHover, selectedId, worn, fresh, onPick, onHover, selected,
       busy, error, playerName: name, showDefault: !!selected && defaultShown === selected.id && (busy || !isEquipped(selected, me)),
       emoteMenu, onPlaceEmote: (pos) => { if (selected) void onPlaceEmote(selected, pos); },
+      onDropEmote: (id, pos) => { const it = cosmeticOf(id); if (it && it.category === 'emote' && owned.has(id)) void onPlaceEmote(it, pos); },
       onEquip: () => { if (selected) void onEquip(selected, true); }, onTakeOff: () => { if (selected) void onEquip(selected, false); },
       shopOffline: shopOpen && !aetherOn, closeShop, cratesOn, cratesLoading: crateList === null, sealed, bayTier, nextCrateLevel, guest: anonymous, oddsLine, shopBusy, openBay, openAllBay,
       openAccount: () => { sfx.pulse(); openAccountPanel(); },
@@ -741,6 +745,23 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
 }
 
 /**
+ * THE LANDING POP (owner 2026-11-06: "have the slot that successfully changed bounce out and back in really quickly once it
+ * equips"): the slot grows for a moment (`[data-landed]`, a fast ease out), and taking the mark off lets its springy settle
+ * transition bounce it home. Transform-only (`scale`), one frame after the placement renders.
+ */
+function bounceEmoteSlot(position: number): void {
+  if (typeof requestAnimationFrame === 'undefined') return;
+  requestAnimationFrame(() => {
+    const slot = document.querySelectorAll<HTMLElement>('.colls-emote-slots')[0]?.children[position] as HTMLElement | undefined;
+    if (!slot) return;
+    slot.setAttribute('data-landed', '');
+    slot.setAttribute('data-glow', '');
+    window.setTimeout(() => { slot.removeAttribute('data-landed'); }, 110);
+    window.setTimeout(() => { slot.removeAttribute('data-glow'); }, 380); // the gold flare holds a beat longer, then fades
+  });
+}
+
+/**
  * YOUR EMOTE MENU as eight slots (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"),
  * drawn like the in-game menu: an emote's bubble, or the dashed empty-slot frame. With an OWNED emote selected each slot
  * is a button that puts it there (the one already holding it is ringed); otherwise the row is read-only.
@@ -781,9 +802,18 @@ export function EmoteSlotRow({ item, owned, busy, slots, onPlace }: {
  * "Use default frame" it shows the default ring instead. NOT OWNED: only the ring itself, blurred, and never around a
  * portrait (owner 2026-10-01: "do not allow preview if you do not own the art").
  */
-export function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: boolean; showDefault: boolean }): JSX.Element | null {
+/** `bare`: the ring alone, no portrait in it (the party home's Preview toggle switched off; owner 2026-11-06). */
+export function FramePreview({ item, owned, showDefault, bare = false }: { item: CosmeticDef; owned: boolean; showDefault: boolean; bare?: boolean }): JSX.Element | null {
   const avatar = useGame((s) => s.playerAvatar);
   const portrait = avatarSrc(avatar) ?? heroArt(HEROES[0]!.id);
+  // Bare: the SAME ring with the portrait hidden, so it is exactly the size it is round a portrait at any window size.
+  if (bare) {
+    return (
+      <div className="colls-heropreview colls-framebare" aria-label={owned ? 'Frame' : 'Locked frame'}>
+        <HeroPortraitRing art={portrait} alt="" className="colls-heroring colls-framering" frameId={showDefault && owned ? null : item.id} />
+      </div>
+    );
+  }
   if (!owned) {
     const ring = frameSrc(item.id);
     return ring ? <div className="colls-skinart colls-framelocked" aria-label="Locked frame"><img src={ring} alt="" draggable={false} decoding="sync" /></div> : null;
@@ -801,7 +831,7 @@ export function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; 
 /** The card a plate preview floats: Impossible Todd, Set 2's longest-text minion, so the preview shows the plate, its
  *  darkening and the most rules text a card carries (owner 2026-10-18: "can you use impossible todd for the hover preview
  *  as well in the collection?"; it was Cheap Date). The Card Plate Editor previews the same card. */
-const PLATE_SAMPLE_CARD = 'dm_todd';
+export const PLATE_SAMPLE_CARD = 'dm_todd';
 
 /** A plate item's look (art + darkening), or null for an item this client has no art for. */
 export const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null => {

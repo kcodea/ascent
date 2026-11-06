@@ -2,6 +2,8 @@ import { partyDemoOn, partyHomeOn, partyRoomOn, setPartyDemo, setPartyHome, setP
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
+import { createPortal } from 'react-dom';
+import { useDevToolsSlot } from './partyHome/shell/devToolsSlot';
 import { DevPanelContext } from './useDraggablePanel';
 import { useGame } from './store';
 import { closeSceneBuilderPanel, openSceneBuilderPanel, useSbPanel } from './sceneBuilderPanel';
@@ -372,6 +374,8 @@ export function DevMenu() {
   const [open, setOpen] = useState(false);
   // The corner-row square this button takes (R-DEV-CORNER-01); the dropdown hangs above it.
   const devSlot = useDevCornerSlot();
+  // Under the party-home shell the button lives in the dock's Dev Tools section (partyHome/shell/devToolsSlot.ts).
+  const toolsSlot = useDevToolsSlot();
   const slotStyle = useMemo(() => ({ '--cd-slot': devSlot }) as CSSProperties, [devSlot]);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const [wbOpen, setWbOpen] = useState(false);
@@ -535,21 +539,27 @@ export function DevMenu() {
 
   return (
     <>
-      {/* A corner-row square (R-DEV-CORNER-01): the row's plaque, the gear glyph, the game's hover bubble. */}
-      <button
-        type="button"
-        className={`devmenu-btn cornerdev gtip${shown.size ? ' has-open' : ''}`}
-        style={slotStyle}
-        data-tip={open ? undefined : 'Dev tuner'}
-        onClick={() => setOpen((o) => !o)}
-        aria-label={shown.size
-          ? `Dev tuning menu, ${shown.size} panel${shown.size === 1 ? '' : 's'} open`
-          : 'Dev tuning menu'}
-        aria-expanded={open}
-      >
-        <Icon name="gear" />
-        {shown.size > 0 && <span className="devmenu-count" aria-hidden>{shown.size}</span>}
-      </button>
+      {/* A corner-row square (R-DEV-CORNER-01): the row's plaque, the gear glyph, the game's hover bubble. In the party-home
+          dock's Dev Tools section when that is on screen. */}
+      {(() => {
+        const btn = (
+          <button
+            type="button"
+            className={`devmenu-btn cornerdev gtip${shown.size ? ' has-open' : ''}`}
+            style={slotStyle}
+            data-tip={open ? undefined : 'Dev tuner'}
+            onClick={() => setOpen((o) => !o)}
+            aria-label={shown.size
+              ? `Dev tuning menu, ${shown.size} panel${shown.size === 1 ? '' : 's'} open`
+              : 'Dev tuning menu'}
+            aria-expanded={open}
+          >
+            <Icon name="gear" />
+            {shown.size > 0 && <span className="devmenu-count" aria-hidden>{shown.size}</span>}
+          </button>
+        );
+        return toolsSlot ? createPortal(btn, toolsSlot) : btn;
+      })()}
       {open && (
         <div className="devmenu" style={slotStyle} onKeyDown={onKeyDown}>
           <div className="devmenu-top">

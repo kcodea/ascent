@@ -134,10 +134,8 @@ export const GameList = memo(function GameList({ items, selected, onPick, label,
             <span className="phk-rowwho">
               <span className="phk-rowtitle">{it.title}</span>
               {it.sub && <span className="phk-rowsub">{it.sub}</span>}
-            </span>
-            <span className="rgp-itemend">
-              {it.rank != null && <GameRank divisionIndex={it.rank} compact />}
-              {it.delta != null && it.delta !== 0 && <span className={`rgp-delta ${it.delta > 0 ? 'up' : 'down'}`}>{it.delta > 0 ? `+${it.delta}` : it.delta}</span>}
+              {/* The date under the hero line; the rank and MMR change are the game's own to show (owner 2026-11-06: "remove the
+                  date from the right and place it under the left column, delete the other stuff in that column"). */}
               {it.when && <span className="rgp-when">{it.when}</span>}
             </span>
           </div>
@@ -256,18 +254,17 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
 
       <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>
         {p.match
-          ? <ShowingLine seat={seat} details={p.match} onBack={() => pick(null)} own={p.own} />
+          ? <ShowingLine seat={seat} details={p.match} onBack={() => pick(null)} own={p.own} finalBoard />
           : (
             // The same line the lobby's arrival keeps, so the words do not change when it lands.
             <div className="lp-showing">
-              <span className="lp-showing-l">Showing</span>
-              <span className="lp-showing-v">{p.own ? 'Your board' : `${p.who}'s board`}</span>
+              <span className="lp-showing-v">{p.own ? 'Your final board' : `${p.who}'s final board`}</span>
               {p.matchPending && <span className="lp-hint">Pick a player in the lobby below to see their board</span>}
             </div>
           )}
         <div className="rgp-board"><div className={`rgp-boardin${seat ? ' swap' : ''}`} key={seat?.id ?? 'own'}>
-          {seat ? <SeatBoard seat={seat} own={p.own} /> : p.minions && p.minions.length > 0
-            ? <StoredTeam minions={p.minions} skins={p.skins} />
+          {seat ? <SeatBoard seat={seat} own={p.own} noReveal /> : p.minions && p.minions.length > 0
+            ? <StoredTeam minions={p.minions} skins={p.skins} noReveal />
             : p.matchPending
               ? <div className="rgp-boardghost" aria-hidden="true" />
               : <div className="rgp-none">No board recorded for this game</div>}

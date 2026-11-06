@@ -93,10 +93,12 @@ function GameTab() {
         <ToggleRow label="Lobby reveal" note="Shows every player's hero at the start of a game, then builds the rail." on={lobbyRevealOn}
           onToggle={() => { setLobbyRevealEnabled(!lobbyRevealOn); sfx.pulse(); }} />
       </Section>
-      {isDesktop() && (
+      {/* Desktop app only (a browser tab cannot close itself); also shown in dev builds so it can be seen while working in the
+          browser, where it does nothing (owner 2026-11-06: "where is this quit button"). */}
+      {(isDesktop() || import.meta.env.DEV) && (
         <Section title="Application">
-          <ButtonRow label="Quit game" note="Closes ASCENT. Your run stays saved."
-            button={<PhButton variant={confirmQuit ? 'primary' : 'plate'} size="s" onClick={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}>
+          <ButtonRow label="Quit game" note={isDesktop() ? 'Closes ASCENT. Your run stays saved.' : 'Closes ASCENT in the desktop app. Does nothing in a browser.'}
+            button={<PhButton variant="primary" size="l" className={confirmQuit ? 'phs-quit armed' : 'phs-quit'} onClick={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}>
               {confirmQuit ? 'Press again to quit' : 'Quit game'}
             </PhButton>} />
         </Section>
@@ -142,7 +144,8 @@ function VideoTab() {
   return (
     <>
       <Section title="Board">
-        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." thumbAspect="16 / 9" value={backdrop}
+        <SelectRow label="Board backdrop" note="What lies behind the board. Saved on this device." thumbAspect="16 / 9"
+          previewSide="left" previewSize={520} /* left of the list, twice the size (owner 2026-11-06) */ value={backdrop}
           options={BACKDROP_IDS.map((id) => ({ value: id, label: BACKDROPS[id].label, thumb: backdropThumbUrl(id), preview: backdropThumbUrl(id) }))}
           onChange={(id) => { if (id !== backdrop) { setBackdropPick(id); setBackdrop(id); sfx.pulse(); } }} />
       </Section>
@@ -306,13 +309,15 @@ function AudioRow({ label, note, volume, muted, onVolume, onRelease, onToggleMut
 }
 
 /** A pick-one setting: the kit's dropdown (its list opens in a layer above the page, so a section never clips it). */
-function SelectRow<T extends string | number>({ label, note, value, options, onChange, thumbAspect }: {
+function SelectRow<T extends string | number>({ label, note, value, options, onChange, thumbAspect, previewSide, previewSize }: {
   label: string; note?: string; value: T; options: { value: T; label: ReactNode; thumb?: string; preview?: string; dim?: boolean; reason?: string }[]; onChange: (v: T) => void; thumbAspect?: string;
+  /** Where the big hover preview opens, and its width in shell units (the kit's defaults: auto, 260). */
+  previewSide?: 'auto' | 'left' | 'right'; previewSize?: number;
 }) {
   const id = useId();
   return (
     <Row label={label} note={note} labelId={`${id}l`} noteId={`${id}n`}>
-      <PhSelect className="phs-select" label={label} value={value} options={options} onChange={onChange} thumbAspect={thumbAspect} />
+      <PhSelect className="phs-select" label={label} value={value} options={options} onChange={onChange} thumbAspect={thumbAspect} previewSide={previewSide} previewSize={previewSize} />
     </Row>
   );
 }

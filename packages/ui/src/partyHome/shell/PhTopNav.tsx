@@ -11,7 +11,7 @@
  * drawer elsewhere) and Settings. EVERY destination lives here once: the old corner buttons are hidden under the shell.
  * On a phone the tabs are icons only. Static paint; hover is a colour change.
  */
-import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { levelProgress } from '@game/progression';
 import { TITLE_LOGO_SRC } from '../../AscentLogo';
 import { MenuMedal, type MenuMedalName } from '../../menuIcons';
@@ -24,7 +24,7 @@ import { phRememberPage } from './phHistory';
 import { openSceneBuilderPanel } from '../../sceneBuilderPanel';
 import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
-import { Icon } from '../../Icon';
+import { clearDevToolsSlot, setDevToolsSlot } from './devToolsSlot';
 import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
 import './shell.css';
 
@@ -63,15 +63,18 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const aether = aetherOn && mirror ? mirror.aether ?? 0 : import.meta.env.DEV ? 0 : null;
 
   const medal = (n: MenuMedalName): ReactNode => <MenuMedal name={n} className="menumedal ph-navicon" />;
-  const tabs: { dest: PageDest | 'crates'; label: string; icon: ReactNode; dot?: boolean }[] = [
-    { dest: 'career', label: txt.career, icon: medal('career') },
+  // The bar's order, left to right around Play (owner 2026-11-05): Shop, Collection, Patch Notes, Compendium | PLAY | Career,
+  // Leaderboard, Recent Games, Live Games.
+  const tabs: { dest: PageDest | 'crates' | 'compendium'; label: string; icon: ReactNode; dot?: boolean }[] = [
+    // SHOP: the Collection's crate shop (its prices are Aether, so it wears the Aether crystal).
+    ...(collectionOn ? [{ dest: 'crates' as const, label: 'Shop', icon: <AetherIcon className="ph-navicon" /> }] : []),
     ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: medal('collection'), dot: newRewards }] : []),
-    // CRATES: the Collection's crate shop (its prices are Aether, so it wears the Aether crystal).
-    ...(collectionOn ? [{ dest: 'crates' as const, label: 'Crates', icon: <AetherIcon className="ph-navicon" /> }] : []),
+    { dest: 'patchnotes', label: 'Patch Notes', icon: medal('patchnotes') },
+    { dest: 'compendium', label: 'Compendium', icon: medal('glossary') },
+    { dest: 'career', label: txt.career, icon: medal('career') },
     { dest: 'rankings', label: txt.leaderboard, icon: medal('leaderboard') },
     { dest: 'recent', label: 'Recent Games', icon: medal('recent') },
     { dest: 'live', label: 'Live Games', icon: medal('live') },
-    { dest: 'patchnotes', label: 'Patch Notes', icon: medal('patchnotes') },
   ];
   // A press changes the page in the click itself, never waiting on a frame (no view transition: its update waits for a
   // rendering opportunity, and it cost frames: 2026-11-04).
@@ -103,6 +106,33 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const toHome = (): void => { setFriendsOpen(false); if (atHome) return; sfx.pulse(); if (showBook) closeBook(); leaveCrates(); goTo('menu'); };
   const onBook = (): void => { setFriendsOpen(false); if (current === 'compendium') return; sfx.pulse(); toggleBook(); };
   useEffect(() => { warmPhPages(); }, []);
+  // The friends drawer slides away on close (owner 2026-11-06: "when clicking it again, it should slide away. currently it instantly
+  // disappears"): it stays drawn for its 0.18s exit slide (shell.css `.ph-fclosing`), then unmounts.
+  const [drawerUp, setDrawerUp] = useState(friendsOpen);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+  useEffect(() => {
+    if (friendsOpen) { setDrawerUp(true); setDrawerClosing(false); return undefined; }
+    setDrawerClosing(true);
+    const t = window.setTimeout(() => { setDrawerUp(false); setDrawerClosing(false); }, 180);
+    return () => window.clearTimeout(t);
+  }, [friendsOpen]);
+  const devSlotRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = devSlotRef.current;
+    // Only the bar that paints takes the slot: a page's own bar under the shell is a hidden place-holder (shell.css, THE ONE NAV).
+    if (!el || el.closest('.lbpage, .modepick, .ph, .ph-booknav')) return undefined;
+    setDevToolsSlot(el);
+    return () => clearDevToolsSlot(el);
+  }, []);
+  // Everything before Career goes left of Play; Career and after go right.
+  const splitAt = tabs.findIndex((t) => t.dest === 'career');
+  const tab = (t: (typeof tabs)[number]): ReactNode => (
+    <button key={t.dest} type="button" role="tab" aria-selected={current === t.dest} className={`ph-navtab${current === t.dest ? ' on' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
+      aria-label={t.label} onClick={() => { if (t.dest === 'compendium') onBook(); else hop(t.dest); }}>
+      {t.icon}<span className="ph-navlbl" data-text={t.label}>{t.label}</span>
+      {t.dot && <i className="ph-dot" aria-hidden="true" />}
+    </button>
+  );
 
   return (
     <>
@@ -111,27 +141,29 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
           <img src={TITLE_LOGO_SRC} alt="" draggable={false} decoding="sync" />
           <span>{txt.wordmark}</span>
         </button>
+        {/* PLAY sits at the exact centre of the screen (owner 2026-11-05: "put the Play button in the dead center and make it
+            larger with a yellow background"): the sections before Career on its left, the rest on its right, the
+            split that keeps both sides inside the bar at 1920. The order is set in `tabs` above. */}
         <nav className="ph-nav" aria-label="Pages" role="tablist">
-          <button type="button" role="tab" aria-selected={home} className={`ph-navtab${home ? ' on' : ''}`} aria-current={home ? 'page' : undefined} aria-label={txt.play} onClick={toHome}>
-            <MenuMedal name="play" className="menumedal ph-navicon" /><span className="ph-navlbl">{txt.play}</span>
+          <div className="ph-navgrp l" role="presentation">{tabs.slice(0, splitAt).map(tab)}</div>
+          <button type="button" role="tab" aria-selected={home} className={`ph-navtab ph-play${home ? ' on' : ''}`} aria-current={home ? 'page' : undefined} aria-label={txt.play} onClick={toHome}>
+            <MenuMedal name="play" className="menumedal ph-navicon" /><span className="ph-navlbl" data-text={txt.play}>{txt.play}</span>
           </button>
-          {tabs.map((t) => (
-            <button key={t.dest} type="button" role="tab" aria-selected={current === t.dest} className={`ph-navtab${current === t.dest ? ' on' : ''}`} aria-current={current === t.dest ? 'page' : undefined}
-              aria-label={t.label} onClick={() => hop(t.dest)}>
-              {t.icon}<span className="ph-navlbl">{t.label}</span>
-              {t.dot && <i className="ph-dot" aria-hidden="true" />}
-            </button>
-          ))}
-          <button type="button" role="tab" aria-selected={current === 'compendium'} className={`ph-navtab${current === 'compendium' ? ' on' : ''}`} aria-current={current === 'compendium' ? 'page' : undefined}
-            aria-label="Compendium" onClick={onBook}>
-            <MenuMedal name="glossary" className="menumedal ph-navicon" /><span className="ph-navlbl">Compendium</span>
-          </button>
+          <div className="ph-navgrp r" role="presentation">{tabs.slice(splitAt).map(tab)}</div>
         </nav>
         <div className="ph-wallet">
           {aether !== null && (
-            <span className={`ph-coin${aetherOn ? '' : ' offline'}`} aria-label={aetherOn ? `${aether} Aether` : 'Aether, offline'} data-tip={aetherOn ? 'Aether' : 'Aether (offline)'}>
-              <AetherIcon className="ph-aether" /><b>{aether}</b>
-            </span>
+            collectionOn ? (
+              // The Aether count is a way into the shop (owner 2026-11-06: "make the aether count clickable, link it to shop").
+              <button type="button" className={`ph-coin ph-coinbtn${aetherOn ? '' : ' offline'}`} onClick={() => hop('crates')}
+                aria-label={aetherOn ? `${aether} Aether. Open the shop` : 'Aether, offline. Open the shop'} data-tip={aetherOn ? 'Aether: open the shop' : 'Aether (offline)'}>
+                <AetherIcon className="ph-aether" /><b>{aether}</b>
+              </button>
+            ) : (
+              <span className={`ph-coin${aetherOn ? '' : ' offline'}`} aria-label={aetherOn ? `${aether} Aether` : 'Aether, offline'} data-tip={aetherOn ? 'Aether' : 'Aether (offline)'}>
+                <AetherIcon className="ph-aether" /><b>{aether}</b>
+              </span>
+            )
           )}
           {lv && (
             <span className="ph-lv" aria-label={`Level ${lv.level}, ${lv.xpIntoLevel} of ${lv.xpForNextLevel} XP`}>
@@ -140,27 +172,40 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             </span>
           )}
           {extra}
-          {import.meta.env.DEV && (
-            <button type="button" className="ph-iconbtn ph-scenebtn" aria-label="Scene Builder" onClick={() => {
-              // The DEV menu's own route; the page you are on comes back when the game ends.
-              sfx.pulse(); phRememberPage(useGame.getState().savedRun); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();
-              useGame.setState(PAGES_CLOSED); openSceneBuilderPanel(); useGame.getState().startSceneBuilder();
-            }}>Scene</button>
-          )}
-          <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
-            onClick={() => hop('settings')}>
-            <span className="ph-gear" aria-hidden="true"><Icon name="gear" /></span>
-          </button>
-          {/* Friends: last in the row on every page, so the currency and the gear hold still. Where the list is docked beside
-              the party it brings the panel's Friends tab forward. */}
-          <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen && !drawerIsMode ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
-            onClick={() => { sfx.pulse(); if (friendsDocked) pulseFriends(); else toggleFriends(); }}>
-            <MenuMedal name="friends" className="menumedal ph-navicon" />
-          </button>
+          {/* Settings + Friends dock bottom-left, stacked in a small navy box (owner 2026-11-05). On a phone it stays in the bar. */}
+          <div className="ph-dock">
+            {/* DEV TOOLS (owner 2026-11-06): the Scene Builder and the Dev tuner (DevMenu renders its button into the slot). */}
+            {import.meta.env.DEV && (
+              <div className="ph-devtools" role="group" aria-label="Dev Tools">
+                <span className="ph-docklbl" aria-hidden="true">Dev Tools</span>
+                <div className="ph-devrow">
+                  <button type="button" className="ph-iconbtn ph-scenebtn" aria-label="Scene Builder" onClick={() => {
+                    // The DEV menu's own route; the page you are on comes back when the game ends.
+                    sfx.pulse(); phRememberPage(useGame.getState().savedRun); setFriendsOpen(false); if (showBook) closeBook(); leaveCrates();
+                    useGame.setState(PAGES_CLOSED); openSceneBuilderPanel(); useGame.getState().startSceneBuilder();
+                  }}>Scene</button>
+                  <span ref={devSlotRef} className="ph-devslot" />
+                </div>
+              </div>
+            )}
+            <button type="button" className={`ph-iconbtn${current === 'settings' ? ' on' : ''}`} aria-label={txt.settings} aria-current={current === 'settings' ? 'page' : undefined}
+              onClick={() => hop('settings')}>
+              {/* The painted Settings medallion (owner 2026-11-05: "use the settings medallion instead of that default cog"). */}
+              <MenuMedal name="settings" className="menumedal ph-navicon" />
+            </button>
+            {/* Friends: last in the row on every page, so the currency and the gear hold still. Where the list is docked beside
+                the party it brings the panel's Friends tab forward. */}
+            <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen && !drawerIsMode ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
+              onClick={() => { sfx.pulse(); if (friendsDocked) pulseFriends(); else toggleFriends(); }}>
+              <MenuMedal name="friends" className="menumedal ph-navicon" />
+            </button>
+          </div>
         </div>
       </header>
       {/* The friends drawer: everywhere the list is not docked (menu pages, the Compendium, phones). */}
-      {friendsOpen && !friendsDocked && !ownDrawer && <Suspense fallback={null}><PhFriends docked={false} /></Suspense>}
+      {drawerUp && !friendsDocked && !ownDrawer && (
+        <div className={`ph-fslot${drawerClosing ? ' ph-fclosing' : ''}`}><Suspense fallback={null}><PhFriends docked={false} /></Suspense></div>
+      )}
     </>
   );
 }

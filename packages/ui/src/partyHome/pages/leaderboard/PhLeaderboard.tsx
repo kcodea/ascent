@@ -19,6 +19,7 @@ import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { avatarSrc, heroThumb } from '../../../art';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
+import { MenuMedal, type MenuMedalName } from '../../../menuIcons';
 import { RankCrest, RankBar } from '../../../rank/RankBar';
 import { rankLabel, scalarCaption } from '../../../rank/rankFormat';
 import { rankPositionOf, type RankPosition } from '../../../rank/types';
@@ -29,7 +30,7 @@ import { displayHandle } from '../../../store';
 import { TitleBadge } from '../../../titles/TitleBadge';
 import { DUOS_RANKINGS_KEY, duosTeamLabel, loadDuosRankings } from '../../../versus/DuosBoards';
 import type { DuosLeaderboardRow, DuosPlayerCard } from '../../../versus/versusRemote';
-import { PhButton, PhEmpty, PhPage, PhPlace, PhSection, PhTabs } from '../../kit';
+import { PhButton, PhEmpty, PhPage, PhSection, PhTabs } from '../../kit';
 import './phLeaderboard.css';
 
 /** One name format across the pages (Recent Games shows "Orangez"): the #tag stays in the row's accessible label. */
@@ -62,6 +63,17 @@ function rowArt(r: RankedRow, p: PhLeaderboardProps, mine: boolean): string | un
   const theirs = mine ? null : opponentSkins(p.showOpp, r.skins);
   return (mine ? avatarSrc(p.myAvatar ?? r.avatar ?? null) : p.showOpp ? avatarSrc(r.avatar ?? null) : undefined)
     ?? heroPortrait(r.favoriteHero, mine ? (p.myLoadout ?? r.skins) : theirs);
+}
+
+/** The podium's placing: the painted placement trophy, its numeral painted on (owner 2026-11-06: "we arent using the placement
+ *  trophy medallions"). */
+const TROPHY: readonly MenuMedalName[] = ['first', 'second', 'third'];
+function PodTrophy({ place }: { place: number }) {
+  return <span className={`phl-trophy p${place}`} aria-label={`Place ${place}`}><MenuMedal name={TROPHY[place - 1]!} className="phl-trophyart" /></span>;
+}
+/** A table row's placing: the plain number, no frame (owner 2026-11-06: "remove the gold frames from the other numbers"). */
+function RowPlace({ place }: { place: number }) {
+  return <span className="phl-place" aria-label={`Place ${place}`}>{place}</span>;
 }
 
 /** The medal cell: the crest, the division name, the bar (a legacy row with no rank: its bare MMR). */
@@ -100,7 +112,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
               <div role="listitem" key={r.userId || r.author} className={`phl-pod p${i + 1}${mine ? ' me' : ''}`} ref={mine ? mineRef : undefined}>
                 <button type="button" className="phl-podbtn" onClick={() => p.onOpen(r)} aria-label={`${i + 1}. ${w.handle}. View their career`}>
                   {art && <img className="phl-podart" src={art} alt="" draggable={false} decoding="sync" />}
-                  <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
+                  <span className="phl-podplace"><PodTrophy place={i + 1} /></span>
                   <span className="phl-podwho">
                     <span className="phl-podname">{shownName(w.handle)}</span>
                     {w.title}
@@ -131,7 +143,7 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
             return (
               <div role="row" key={r.userId || r.author} className={`phl-row${mine ? ' me' : ''}`} ref={mine ? mineRef : undefined}>
                 <button type="button" className="phl-rowbtn" onClick={() => p.onOpen(r)} aria-label={`${place}. ${w.handle}. View their career`}>
-                  <PhPlace place={place} />
+                  <RowPlace place={place} />
                   <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
                   <span className="phl-who">
                     <span className="phl-name">{shownName(w.handle)}{w.title}</span>
@@ -195,7 +207,7 @@ function DuosBoard({ myId }: { myId: string | null }) {
                   {arts.length > 0
                     ? <span className={`phl-podpair n${arts.length}`} aria-hidden="true">{arts.map((a, k) => <img key={k} className="phl-podhalf" src={a} alt="" draggable={false} decoding="sync" />)}</span>
                     : <span className="phl-podcrest" aria-hidden="true"><RankCrest divisionIndex={r.division} size="big" /></span>}
-                  <span className="phl-podplace"><PhPlace place={i + 1} size={i === 0 ? 'l' : 'm'} /></span>
+                  <span className="phl-podplace"><PodTrophy place={i + 1} /></span>
                   <span className="phl-podwho">
                     <span className="phl-podname">{label.name}</span>
                     {label.sub && <span className="phl-podhero">{label.sub}</span>}
@@ -227,7 +239,7 @@ function DuosBoard({ myId }: { myId: string | null }) {
             return (
               <div role="row" className={`phl-row${mine ? ' me' : ''}`} key={r.teamId}>
                 <span className="phl-rowbtn static">
-                  <PhPlace place={j + podium.length + 1} />
+                  <RowPlace place={j + podium.length + 1} />
                   <span className="phl-pair" aria-hidden="true">
                     {face(artA)}
                     {face(artB)}

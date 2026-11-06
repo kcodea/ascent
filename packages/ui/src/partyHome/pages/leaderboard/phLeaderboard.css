@@ -117,3 +117,15 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs
 .phl-podcrest { position: absolute; inset: 0 0 auto 0; height: 70%; display: grid; place-items: center; pointer-events: none; }
 /* Duos: Points is its own column, as on the podium; the bar keeps the shape, not a second copy of the number. */
 .phl-table.duos .rankbar-points { display: none; }
+
+/* ── Owner 2026-11-06 ("the borders are being cut off in corners. we arent using the placement trophy medallions. remove the gold
+   frames from the other numbers") ── */
+/* The gold edge follows the card's rounded corners instead of being clipped by them. */
+.phl-podbtn::after { border-radius: inherit; }
+/* The podium wears the painted placement trophies (numerals painted on). */
+.phl-trophy { display: block; width: calc(64 * var(--phu)); height: calc(64 * var(--phu)); filter: drop-shadow(0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.6)); }
+.phl-trophy.p1 { width: calc(84 * var(--phu)); height: calc(84 * var(--phu)); }
+.phl-trophyart { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* The table's placings are plain numbers. */
+.phl-place { display: inline-grid; place-items: center; flex: none; width: calc(40 * var(--phu)); font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3);
+  color: var(--ph-text); text-shadow: var(--ph-shadow); font-variant-numeric: tabular-nums; }

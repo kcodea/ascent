@@ -741,7 +741,7 @@ export function Career() {
         const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
         const fights = r.wins + r.losses + r.draws;
         return {
-          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: fights > 0 ? `${name} · ${recordText(r)}` : name,
+          key, place: r.placement, band: bandOf(r.placement), title: name, sub: fights > 0 ? recordText(r) : undefined, // the hero leads a career row, not your own name (owner 2026-11-06)
           when: playedOnText(r.atMs) || undefined, rank: r.rank, delta: r.ratingDelta ?? null, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
           label: `${placeText(r.placement)}, ${name}${r.rank != null ? `, played at ${rankLabel(r.rank)}` : ''}`,
         };
@@ -778,7 +778,7 @@ export function Career() {
         const name = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
         const rec = r.record && r.record.wins + r.record.losses + r.record.draws > 0 ? recordText(r.record) : null;
         return {
-          key, place: r.placement, band: bandOf(r.placement), title: shownName, sub: rec ? `${name} · ${rec}` : name,
+          key, place: r.placement, band: bandOf(r.placement), title: name, sub: rec ?? undefined, // the hero leads a career row (owner 2026-11-06)
           when: playedOnText(r.createdAt ? Date.parse(r.createdAt) : NaN) || undefined, art: heroThumb(heroPortrait(r.heroId, gameSkins(r.board?.cosmetics))),
           label: `${placeText(r.placement)}, ${name}`,
         };
@@ -928,7 +928,7 @@ export function Career() {
             trends={{
               window: window_,
               onWindow: (d) => { if (window_ !== d) { sfx.pulse(); setWindow(d); } },
-              body: tab === 'trends' && !loading ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} /> : null,
+              body: tab === 'trends' && !loading ? <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={own} allBig /> : null,
             }}
             practice={{ state: practiceState, view: practiceState || tab !== 'practice' || practiceRows === undefined ? null : practiceView(practiceRows!) }}
             achievements={tab === 'achievements' && userId ? <AchievementsTab userId={userId} own={own} ownerName={shownName} shell /> : null}

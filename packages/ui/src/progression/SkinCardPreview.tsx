@@ -113,3 +113,26 @@ export const SkinCardPreview = memo(function SkinCardPreview({ cardId, art, anch
     stageHost(),
   );
 });
+
+/**
+ * The same plated sample card, drawn IN PLACE (no portal, no placement) for the Collection's card-plate preview box
+ * (owner 2026-11-06: "use impossible todd's card as the subject for the preview window"). `plate` null = the standard plate.
+ */
+export const InlinePlateCard = memo(function InlinePlateCard({ cardId, plate, bare = false }: {
+  cardId: string; plate: CardPlateLook | null;
+  /** Show only the plate: the same card with everything but its plate hidden, so it is exactly the size it is on the card. */
+  bare?: boolean;
+}): JSX.Element | null {
+  const def = CARD_INDEX[cardId];
+  const view = useMemo(() => (def ? toView(def) : null), [def]);
+  const plateK = useMemo(previewPlateK, []);
+  if (!view) return null;
+  const style = { '--ch': `${PREVIEW_CH}px`, '--cw': `${PREVIEW_CW}px`, '--ccw': `${PREVIEW_CCW}px`, '--plate-k': plateK } as CSSProperties;
+  return (
+    <div className={bare ? 'colls-cardinline bare' : 'colls-cardinline'} style={style} aria-hidden data-card-preview={cardId}>
+      <MinionSkinContext.Provider value={EMPTY_MAP}>
+        <CardPlateContext.Provider value={plate}><Card card={view} forceFull suppressPop plated /></CardPlateContext.Provider>
+      </MinionSkinContext.Provider>
+    </div>
+  );
+});

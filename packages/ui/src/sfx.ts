@@ -2199,7 +2199,10 @@ export const sfx = {
     tone({ freq: 900, dur: 0.18, type: 'sawtooth', vol: 0.12, slideTo: 200, category: 'skullburst' });
     tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500, category: 'skullburst' });
   },
-  tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09, category: 'ui' }),
+  // SILENT (owner 2026-11-06: "theres this default "click" sound ... i want to remove it, but dont remove the thocky click"):
+  // the synthesized square-wave beep that menu controls played on top of the delegated press thock (Game.tsx). The press
+  // still thocks; the call sites stay so a future cue can be wired here in one place.
+  tick: () => {},
   // The end-of-turn CHARGE GLYPH starts charging (20s left, or turn start on short early waves) — fires once per
   // turn when the glyph lights. The sourced "turncharge" clip; synth rising-hum fallback until it decodes / if
   // absent. Drop the clip at `packages/ui/src/audio/turncharge.mp3`.

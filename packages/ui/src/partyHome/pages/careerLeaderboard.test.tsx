@@ -76,9 +76,9 @@ describe('Career on the app shell', () => {
   it('keeps every profile number on the strip: level, the rank + MMR, the six career stats', () => {
     const m = mount(<PhCareer {...careerProps()} />);
     const text = m.container.textContent ?? '';
-    for (const s of ['Level 157', 'Favorite hero', 'Robin', '141', '66', '74%', '37', 'Demon', 'MMR']) expect(text).toContain(s);
+    for (const s of ['141', '66', '74%', '37', 'Demon', 'MMR']) expect(text).toContain(s);
     expect(m.container.querySelector('.phc-strip .rankbar')).not.toBeNull();
-    expect(m.container.querySelector('.rgp-item')?.textContent).toContain('+6'); // Recent Games' row, with the rating change
+    expect(m.container.querySelector('.rgp-item')?.textContent).not.toContain('+6'); // Recent Games' row: no rating change on it any more (owner 2026-11-06)
     expect(m.container.querySelector('.rgp-banner')).not.toBeNull();
     m.unmount();
   });

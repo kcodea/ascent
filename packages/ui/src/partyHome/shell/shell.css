@@ -331,3 +331,219 @@ html[data-ph-tipoff] .cardref { display: none; }
 
 /* A phone's nav: every target at least a finger wide, the short labels (Home, Play) too. */
 html[data-ph-compact] .ph-top :is(.ph-navtab, .ph-brand) { min-width: calc(72 * var(--phu)); box-sizing: border-box; justify-content: center; }
+
+/* ── PLAY, CENTRE STAGE (owner 2026-11-05: "center the top bar, put the Play button in the dead center and make it larger with a
+   yellow background behind it ... stand out against the other options") ── Desktop: three columns, the outer two equal, so Play is
+   at the exact centre of the screen whatever the logo and wallet weigh. Left of it: the logo and the pages up to Recent Games;
+   right of it: Live Games, Patch Notes, the Compendium, then the wallet. Phones keep their one scrolling row, Play first. */
+.ph-navgrp { display: contents; }
+html:not([data-ph-compact]) .ph-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: 100%; column-gap: calc(8 * var(--phu));
+  padding-left: calc(20 * var(--phu) + var(--safe-l, 0px)); padding-right: calc(20 * var(--phu) + var(--safe-r, 0px)); }
+html:not([data-ph-compact]) .ph-top > .ph-brand { grid-area: 1 / 1; justify-self: start; }
+html:not([data-ph-compact]) .ph-nav { display: contents; }
+html:not([data-ph-compact]) .ph-navgrp { display: flex; align-items: stretch; min-width: 0; grid-row: 1; }
+html:not([data-ph-compact]) .ph-navgrp.l { grid-column: 1; justify-self: end; }
+html:not([data-ph-compact]) .ph-navgrp.r { grid-column: 3; justify-self: start; }
+html:not([data-ph-compact]) .ph-top > .ph-wallet { grid-area: 1 / 3; justify-self: end; margin-left: 0; }
+html:not([data-ph-compact]) .ph-navtab { padding: 0 calc(10 * var(--phu)); }
+html:not([data-ph-compact]) .ph-navtab.ph-play { grid-area: 1 / 2; align-self: center; height: calc(46 * var(--phu)); gap: calc(10 * var(--phu)); padding: 0 calc(24 * var(--phu)); margin: 0 calc(6 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navtab.ph-play { font-size: calc(20 * var(--phu)) !important; letter-spacing: 0.08em !important; font-weight: 900 !important; }
+html:not([data-ph-compact]) .ph-play .ph-navicon { width: calc(30 * var(--phu)); height: calc(30 * var(--phu)); }
+/* The gold pill: the START plaque's metal and dark ink, a static gilded edge and a soft warm halo. */
+html[data-ph-shell] .ph-top .ph-navtab.ph-play { border-radius: 999px !important; background: linear-gradient(180deg, #fff1b8 0%, #f6cf5a 38%, #d9a12c 70%, #a8741a 100%) !important; color: #2a1a06; text-shadow: 0 1px 0 rgba(255, 241, 184, 0.6);
+  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(120, 78, 14, 0.85), inset 0 calc(2 * var(--phu)) 0 rgba(255, 248, 214, 0.7), 0 0 calc(14 * var(--phu)) rgba(255, 200, 80, 0.45), 0 calc(3 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5) !important; }
+html[data-ph-shell] .ph-top .ph-navtab.ph-play:hover, html[data-ph-shell] .ph-top .ph-navtab.ph-play.on { color: #2a1a06; text-shadow: 0 1px 0 rgba(255, 241, 184, 0.6); }
+.ph-navtab.ph-play:hover { transform: scale(1.05); }
+.ph-navtab.ph-play:active { transform: scale(0.97); }
+/* Gold is its own marker: no tab bar under it. */
+.ph-navtab.ph-play.on::after { content: none; }
+html[data-ph-shell][data-ph-compact] .ph-top .ph-navtab.ph-play { order: -1; align-self: center; height: calc(72 * var(--phu)); border-radius: var(--ph-r-s) !important; }
+
+/* ── THE TALLER BAR (owner 2026-11-05: "make the top bar taller and put the section icons on top of the word describing it. make
+   the font only bold once that section is selected. but very subtle | divider lines between each section. remove the thick gold
+   line and replace it with the same thin gold line you use everywhere else") ── Desktop only; phones keep their own nav. */
+html[data-ph-shell]:not([data-ph-compact]):not([data-ph-ingame]) { --ph-nav-h: calc(84 * var(--phu)); }
+/* The edge under the bar: the one thin gilded line every plate wears, not the painted riveted band. */
+html[data-ph-shell] .ph-top::after { bottom: 0; height: calc(1.5 * var(--phu)); background: color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent); }
+/* Each section: its icon over its word. */
+html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { flex-direction: column; justify-content: center; gap: calc(6 * var(--phu)); padding: 0 calc(14 * var(--phu)); }
+html:not([data-ph-compact]) .ph-navgrp > .ph-navtab .ph-navicon { width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); }
+html:not([data-ph-compact]) .ph-navgrp .ph-dot { top: calc(12 * var(--phu)); right: calc(10 * var(--phu)); }
+/* Regular weight; bold only on the section you are in. Each word keeps room for its bold self, so picking one never shifts the row. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab { font-weight: 500 !important; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab.on { font-weight: 800 !important; }
+html:not([data-ph-compact]) .ph-navgrp .ph-navlbl { display: inline-flex; flex-direction: column; align-items: center; }
+html:not([data-ph-compact]) .ph-navgrp .ph-navlbl::after { content: attr(data-text); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; pointer-events: none; }
+/* A very faint | between neighbouring sections (Play stands apart in its gold). */
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab + .ph-navtab {
+  background: linear-gradient(rgba(255, 233, 176, 0.16), rgba(255, 233, 176, 0.16)) left center / calc(1 * var(--phu)) 38% no-repeat !important; }
+html:not([data-ph-compact]) .ph-navtab.ph-play { height: calc(52 * var(--phu)); }
+
+/* ── PLAY ON START'S AXIS (owner 2026-11-05: "i want it to be directly centered over the play button at the bottom of the screen
+   ... make each section on the side equal width") ── START is centred in the stage left of the docked side panel (partyHome.css
+   `.ph { --fw: 368 units }`), so the bar keeps a fourth, empty column under the wallet that makes up that panel's width
+   (368 less the one column gap); the three columns left of it centre Play on START's axis on every page. Four sections each
+   side, each the same width. */
+html:not([data-ph-compact]) .ph-top { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) calc(360 * var(--phu)); }
+html:not([data-ph-compact]) .ph-top > .ph-wallet { grid-area: 1 / 3 / 2 / 5; }
+html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { box-sizing: border-box; width: calc(120 * var(--phu)); padding: 0 calc(4 * var(--phu)); align-items: center; }
+
+/* ── ROOM AND LIGHT AROUND PLAY (owner 2026-11-05: "add some spacing to the left and right of the center play button up top. give
+   the entire play area a golden glow in the background that fades on the left and right") ── More air each side of Play (the
+   sections give 4 units each to pay for it), and a static gold band the bar's full height behind it, centred on Play's axis
+   (START's: `(100% - 368u) / 2`), fading out left and right. Paint only, no animation. */
+html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { width: calc(116 * var(--phu)); }
+html:not([data-ph-compact]) .ph-navtab.ph-play { margin: 0 calc(22 * var(--phu)); }
+html:not([data-ph-compact]) .ph-top::before { content: ''; position: absolute; z-index: -1; top: 0; bottom: 0; pointer-events: none;
+  left: calc((100% - 368 * var(--phu)) / 2 - 300 * var(--phu)); width: calc(600 * var(--phu));
+  mix-blend-mode: screen; background: linear-gradient(90deg, transparent 0%, rgba(40, 120, 255, 0.22) 22%, rgba(70, 150, 255, 0.62) 50%, rgba(40, 120, 255, 0.22) 78%, transparent 100%); }
+
+/* ── THE PICKED SECTION'S LIGHT (owner 2026-11-05: "use a similar but more subtle glow effect that you placed behind the play
+   section for whichever section is selected, it would replace this glow effect") ── The picked mode tab and the picked top-nav
+   section wear a softer cut of Play's band: gold, their full height, a little wider than the tab, fading out left and right.
+   It replaces the round glow (kit.css). Play keeps its own gold pill. Static paint. */
+html[data-ph-shell] :is(.phk-tab, .ph-navtab:not(.ph-play)).on::before { inset: 0 calc(-18 * var(--phu));
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 185, 70, 0.031) 14%, rgba(255, 188, 75, 0.106) 26%, rgba(255, 194, 85, 0.238) 36%, rgba(255, 198, 92, 0.338) 44%, rgba(255, 200, 95, 0.375) 50%, rgba(255, 198, 92, 0.338) 56%, rgba(255, 194, 85, 0.238) 64%, rgba(255, 188, 75, 0.106) 74%, rgba(255, 185, 70, 0.031) 86%, transparent 100%); }
+html[data-ph-shell] .ph-navtab.ph-play::before { content: none; }
+
+/* ── THE LOGO ALONE (owner 2026-11-05: "remove the ascent text from this screen and put a divider between the logo and everything
+   else. increase the logo by 20%") ── The bar's brand is the mark only (36 to 43 units), set off from the sections by the nav's
+   own faint | (a touch taller and brighter than the sections' dividers, since it closes the brand). Desktop; the phone nav already
+   drops the word. */
+html:not([data-ph-compact]) .ph-top > .ph-brand > span { display: none; }
+html:not([data-ph-compact]) .ph-top > .ph-brand img { width: calc(43.2 * var(--phu)); height: calc(43.2 * var(--phu)); }
+html:not([data-ph-compact]) .ph-top > .ph-brand { padding-right: calc(20 * var(--phu)); box-shadow: none;
+  background: linear-gradient(rgba(255, 233, 176, 0.24), rgba(255, 233, 176, 0.24)) right center / calc(1 * var(--phu)) 52% no-repeat; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top > .ph-brand {
+  background: linear-gradient(rgba(255, 233, 176, 0.24), rgba(255, 233, 176, 0.24)) right center / calc(1 * var(--phu)) 52% no-repeat !important; }
+/* More air each side of Play (owner 2026-11-05: "add a bit more padding on the left and right of the play button"). */
+html:not([data-ph-compact]) .ph-navtab.ph-play { margin: 0 calc(40 * var(--phu)); }
+/* (Owner 2026-11-05: "can we try the glow behind the play being blue instead of gold? keep the select glow as gold": the band
+   behind Play above is now the sapphire blue of the nav's gems; the picked section's band stays gold.) */
+/* The band behind Play 20% narrower (600 to 480 units), still centred on Play (owner 2026-11-05). */
+html:not([data-ph-compact]) .ph-top::before { left: calc((100% - 368 * var(--phu)) / 2 - 240 * var(--phu)); width: calc(480 * var(--phu)); }
+
+/* ── PLAY WEARS START'S PLAQUE (owner 2026-11-05: "can we emulate the start button over the rounded pill we are currently using
+   for play?") ── The same painted gilded plaque as START (ornaments/start-plaque.webp, 800x197: sapphires each end), drawn at
+   the bar's scale, with START's dark spaced capitals. The medal icon steps aside (the plaque's sapphires take its place). */
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navtab.ph-play {
+  height: calc(54 * var(--phu)); width: calc(54 * var(--phu) * 800 / 197); padding: 0; justify-content: center;
+  border-radius: 0 !important; box-shadow: none !important;
+  background: url('../ornaments/start-plaque.webp') center / 100% 100% no-repeat !important;
+  color: #2a1a06; text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6);
+  font-size: calc(19 * var(--phu)) !important; font-weight: 900 !important; letter-spacing: 0.2em !important; text-transform: uppercase !important; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navtab.ph-play .ph-navicon { display: none; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navtab.ph-play .ph-navlbl { padding-left: 0.2em; }
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navtab.ph-play .ph-navlbl::after { content: none; }
+/* PLAY in capitals (owner 2026-11-05: "make play ALL CAPS"): the label carries its own text-transform reset, so set it there. */
+html[data-ph-shell] .ph-top .ph-navtab.ph-play .ph-navlbl { text-transform: uppercase !important; }
+
+/* ── SETTINGS + FRIENDS DOCK (owner 2026-11-05: "move the friends and settings icons down to the bottom left. make them stack
+   vertically on each other. give them a little navy blue rounded corner section with the thin gold outline") ── Desktop only:
+   on a phone the dock is `display: contents`, so the two buttons stay in the bar as before. */
+.ph-dock { display: contents; }
+html:not([data-ph-compact]) .ph-dock { position: fixed; left: calc(20 * var(--phu)); bottom: calc(20 * var(--phu)); z-index: 60;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu)); padding: calc(6 * var(--phu));
+  border-radius: calc(12 * var(--phu)); background: color-mix(in srgb, var(--ph-navy) 92%, transparent);
+  box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-hair), 0 calc(4 * var(--phu)) calc(14 * var(--phu)) rgba(0, 0, 0, 0.45); }
+html:not([data-ph-compact]) .ph-dock > .ph-iconbtn { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); margin: 0; }
+html:not([data-ph-compact]) .ph-dock > .ph-iconbtn .ph-navicon { width: calc(34 * var(--phu)); height: calc(34 * var(--phu)); }
+/* A hairline between the two, like the nav's dividers. */
+html:not([data-ph-compact]) .ph-dock > .ph-iconbtn + .ph-iconbtn { position: relative; }
+html:not([data-ph-compact]) .ph-dock > .ph-iconbtn + .ph-iconbtn::before { content: ''; position: absolute; left: 18%; right: 18%; top: calc(-2.5 * var(--phu));
+  height: calc(1 * var(--phu)); background: var(--ph-hair); pointer-events: none; }
+
+/* A divider before the wallet (owner 2026-11-05: "add a divider here"), the same faint line as the one after the logo. */
+html:not([data-ph-compact]) .ph-top > .ph-wallet { padding-left: calc(24 * var(--phu));
+  background: linear-gradient(rgba(255, 233, 176, 0.24), rgba(255, 233, 176, 0.24)) left center / calc(1 * var(--phu)) 52% no-repeat; }
+
+/* PLAY is always at full strength (owner 2026-11-05: "the play button should always be full opacity"): the 0.78 dim of an
+   unselected section (kit.css) skips it. */
+.ph-navtab.ph-play:not(.on) { opacity: 1; }
+/* Its band behind turns from blue to gold while Play is the selected section ("when it is selected, change the glow from blue
+   to gold behind it"). Static paint, swapped on selection. */
+html:not([data-ph-compact]) .ph-top:has(.ph-play.on)::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 180, 60, 0.22) 22%, rgba(255, 196, 80, 0.62) 50%, rgba(255, 180, 60, 0.22) 78%, transparent 100%); }
+/* PLAY's word glows blue while it is selected (owner 2026-11-05). Static paint, swapped on selection. */
+html[data-ph-shell] .ph-top .ph-navtab.ph-play.on .ph-navlbl { text-shadow: 0 1px 0 rgba(255, 245, 210, 0.6), 0 0 calc(6 * var(--phu)) rgba(70, 150, 255, 0.95), 0 0 calc(14 * var(--phu)) rgba(40, 120, 255, 0.75) !important; }
+
+/* ── DEV TOOLS IN THE DOCK (owner 2026-11-06: "move [Scene] to the bottom left corner with the friends and settings button menu.
+   same with the dev tuner cog. perhaps in its own section titled Dev Tools") ── DEV builds only. A small label, the Scene Builder
+   and the Dev tuner side by side, then a hairline above Settings / Friends. The tuner is DevMenu's own button rendered into
+   `.ph-devslot` (devToolsSlot.ts), so its corner placement is switched off here. On a phone the section rides in the bar. */
+.ph-devtools, .ph-devrow, .ph-devslot { display: contents; }
+.ph-devtools > .ph-docklbl { display: none; }
+html:not([data-ph-compact]) .ph-dock > .ph-devtools { display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--phu));
+  padding-bottom: calc(6 * var(--phu)); margin-bottom: calc(2 * var(--phu)); box-shadow: 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+html:not([data-ph-compact]) .ph-devtools > .ph-docklbl { display: block; font-family: var(--ph-font); font-weight: 800; font-size: calc(10 * var(--phu));
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); white-space: nowrap; }
+html:not([data-ph-compact]) .ph-devtools .ph-devrow { display: flex; align-items: center; gap: calc(4 * var(--phu)); }
+html:not([data-ph-compact]) .ph-devtools .ph-devslot { display: block; }
+html[data-ph-shell] .ph-dock .ph-scenebtn { width: auto; height: calc(36 * var(--phu)); padding: 0 calc(10 * var(--phu)); margin: 0;
+  font-size: calc(12 * var(--phu)); }
+html[data-ph-shell] .ph-devslot .cornerdev { position: static !important; left: auto !important; bottom: auto !important; display: grid;
+  width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); opacity: 1; box-shadow: none; }
+/* The tuner's panel opens beside the dock, not on top of it. */
+html[data-ph-shell]:not([data-ph-compact]) .devmenu { left: calc(150 * var(--phu)); bottom: calc(20 * var(--phu)); }
+/* Scene and the tuner stack in one column, each on its own row (owner 2026-11-06: "put the scene and dev tuner on their own rows
+   in a single column stacked on top of each other. ill provide icons"). Both sit in a 48-unit square like Settings / Friends,
+   ready for their icons. */
+html:not([data-ph-compact]) .ph-devtools .ph-devrow { flex-direction: column; }
+html[data-ph-shell] .ph-dock .ph-scenebtn { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); padding: 0; justify-content: center; font-size: calc(11 * var(--phu)); }
+html[data-ph-shell] .ph-devslot .cornerdev { width: calc(48 * var(--phu)); height: calc(48 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .devmenu { left: calc(100 * var(--phu)); }
+
+/* The friends drawer's exit (owner 2026-11-06: "when clicking it again, it should slide away"): the same slide as its entrance,
+   run back out to the right, and it takes no clicks while it goes. `.ph-fslot` is only a hook for this state. */
+.ph-fslot { display: contents; }
+.ph-fclosing > .ph-friends.drawer { animation: ph-drawer-out 0.18s cubic-bezier(0.4, 0, 1, 1) both; pointer-events: none; }
+@keyframes ph-drawer-out { from { transform: none; } to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .ph-fclosing > .ph-friends.drawer { animation: none; visibility: hidden; } }
+
+/* The friend list's rows keep their whole outline (owner 2026-11-06: "the outlines are being cut off, and even more so when
+   hovering a friend"): the list scrolls, so it clipped each row's edge and the 2-unit hover lift, and the overflow raised a
+   sideways scrollbar. A little room inside the list holds both; it never scrolls sideways. */
+.ph-frows { padding: calc(4 * var(--phu)) calc(4 * var(--phu)) calc(6 * var(--phu)); overflow-x: hidden; }
+
+/* The friends drawer meets the nav's divider and wears the same edge (owner 2026-11-06: "have the top line up with the header
+   divider line, and make the edge the same golden line and thickness as the top nav bar divider line"). Desktop only. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-friends.drawer,
+html[data-ph-shell]:not([data-ph-compact]) .ph-fcatch { top: var(--ph-nav-h); }
+html[data-ph-shell]:not([data-ph-compact]) .ph-friends.drawer {
+  box-shadow: inset calc(1.5 * var(--phu)) 0 0 color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent),
+    calc(-16 * var(--phu)) 0 calc(32 * var(--phu)) rgba(0, 0, 0, 0.5); }
+
+/* No gold flash around the friends list when it opens (owner 2026-11-06: "the same faint glow also occurs around the friends
+   slideout, can we remove that faint box there too?"). The drawer's slide-in is the cue now. */
+.ph-fpulse { display: none; }
+
+/* The wallet spans the side panel's width, so its divider sits over the panel's edge (owner 2026-11-06: "move this section over by
+   lengthening the level bar, more in line with the sidebar width"). The panel is 368u wide and the bar ends 20u from the right, so
+   the wallet is 348u; the level pill and its bar take whatever the gems leave. */
+html:not([data-ph-compact]) .ph-top > .ph-wallet { width: calc(348 * var(--phu)); box-sizing: border-box; justify-content: flex-end; }
+html:not([data-ph-compact]) .ph-top > .ph-wallet > .ph-lv { flex: 1; min-width: 0; }
+html:not([data-ph-compact]) .ph-top > .ph-wallet .ph-lvbar { flex: 1; width: auto; min-width: calc(80 * var(--phu)); }
+
+/* The Aether count is a button into the shop (owner 2026-11-06): it looks exactly like the count did, and pops a little on hover
+   like the dock's icon buttons. */
+.ph-coin.ph-coinbtn { border: 0; margin: 0; font: inherit; color: inherit; transition: transform 0.18s var(--ph-spring); }
+.ph-coin.ph-coinbtn:hover { transform: scale(1.06); }
+
+/* PLAY selected: the word FILLS a pale, near-white blue and glows blue (owner 2026-11-06). Static paint,
+   swapped on selection. */
+html[data-ph-shell] .ph-top .ph-navtab.ph-play.on .ph-navlbl { color: #dcebff !important;
+  text-shadow: 0 0 calc(1 * var(--phu)) #0a2a7a, 0 0 calc(4 * var(--phu)) rgba(110, 175, 255, 1), 0 0 calc(10 * var(--phu)) rgba(60, 140, 255, 1), 0 0 calc(18 * var(--phu)) rgba(40, 120, 255, 0.95), 0 0 calc(32 * var(--phu)) rgba(40, 120, 255, 0.75) !important; }
+
+/* TOP NAV BOUNCE (owner 2026-11-06: "the top nav bar should get the same hover and click bounce effects as the other nav
+   bars"). Like the mode tabs: only the icon + word scale, so a tab's glow, underline and dividers hold still. Hover grows with
+   an overshoot; a press squeezes in, and letting go springs back past full size. Transform only. PLAY keeps its own plaque
+   bounce on the whole button, now with the same overshoot. */
+.ph-top .ph-navtab:not(.ph-play) > :is(.ph-navicon, .ph-navlbl) { transform-origin: center; transition: transform 0.16s ease-out; }
+.ph-top .ph-navtab:not(.ph-play):hover > :is(.ph-navicon, .ph-navlbl) { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.ph-top .ph-navtab:not(.ph-play):active > :is(.ph-navicon, .ph-navlbl) { transform: scale(0.9); transition: transform 0.08s ease-out; }
+.ph-top .ph-navtab.ph-play { transition: color 0.12s ease, transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.ph-top .ph-navtab.ph-play:active { transform: scale(0.94); transition: transform 0.08s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .ph-top .ph-navtab > :is(.ph-navicon, .ph-navlbl), .ph-top .ph-navtab.ph-play { transition: none; }
+  .ph-top .ph-navtab:not(.ph-play):is(:hover, :active) > :is(.ph-navicon, .ph-navlbl) { transform: none; }
+}

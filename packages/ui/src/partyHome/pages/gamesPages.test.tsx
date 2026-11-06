@@ -130,7 +130,7 @@ describe('Recent Games on the shell', () => {
     vi.useRealTimers();
     expect(qa('.rgp-lobby .rgp-ghost').length).toBe(8);
     expect(q('.rgp-lobby')?.getAttribute('aria-busy')).toBe('true');
-    expect(q('.lp-showing-v')?.textContent).toBe("Player0's board");
+    expect(q('.lp-showing-v')?.textContent).toBe("Player0's final board");
     expect(ui.container.textContent).not.toMatch(/Final board/);
   });
   it('a pick moves the list at once and keeps the old game open until the new one is ready', () => {

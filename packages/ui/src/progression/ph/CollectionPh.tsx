@@ -8,9 +8,9 @@
  *
  *   LEFT    the categories as one list (icon, name, owned / total with a thin bar, a NEW count, "Soon" when locked), then
  *           the CHEST BAY (always in view): the painted chest, the count, Open / Open all, the next chest's level with your
- *           XP toward it, the published odds.
+ *           XP toward it (the odds line lives in the shop, owner 2026-11-06).
  *   CENTRE  the Show tabs (All / Owned / Missing, with counts) and the rarity chips, then the album: one tile per item, in
- *           the page's stable order. Owned tiles are bright; missing ones dimmed with a lock and how to get them.
+ *           the page's stable order. Owned tiles are bright; missing ones dimmed with a lock (how to get one is in the detail column).
  *   RIGHT   the selected item, large (Valorant's big preview): its live preview, name, rarity, the facts, and Equip.
  *
  * Reuses the page's own pieces: `HeroPortraitRing`, `FramePreview`, `HeroAttackPreview`, `EmoteSlotRow`, `TitleBadge`,
@@ -26,7 +26,6 @@ import { PhButton, PhChip, PhEmpty, PhMeter, PhPage, PhRow, PhSection, PhTabs, P
 import { takeCollectionIntent, usePhShell } from '../../partyHome/shell/shellStore';
 import { MenuMedal } from '../../menuIcons';
 import { sfx } from '../../sfx';
-import { touchText } from '../../touchInput';
 import { HeroPortraitRing } from '../../portraitFrame/HeroPortraitRing';
 import { frameSrc } from '../../portraitFrame/portraitFrameConfig';
 import { HeroAttackPreview } from '../../heroBlast/HeroAttackPreview';
@@ -35,13 +34,14 @@ import { emoteSrc } from '../../emotes/emoteArt';
 import { defaultArtOf, skinArtOf } from '../../skins/skinArt';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../../announcer';
 import { announcerPackOf } from '../announcerPack';
-import { AetherIcon } from '../AetherIcon';
 import { CratesOfflinePh } from './CrateShopPh';
 import { ChestPicture } from '../ChestPicture';
 import { chestFloorOf, type ChestTier } from '../crateFx/chestTiers';
 import type { CrateQueueItem } from '../CrateOpener';
-import { COMING_BLURB, acquisitionText, albumOf, categoryLive, countOf, masteryText, missingHint, skinTargetName, type RarityFilter, type ShowFilter } from '../collectionModel';
-import { CategoryIcon, EmoteSlotRow, FramePreview, LockGlyph, plateLookOf } from '../CollectionScreen';
+import { COMING_BLURB, acquisitionText, albumOf, categoryLive, countOf, masteryText, skinTargetName, type RarityFilter, type ShowFilter } from '../collectionModel';
+import { CategoryIcon, EmoteSlotRow, FramePreview, LockGlyph, PLATE_SAMPLE_CARD, plateLookOf } from '../CollectionScreen';
+import { InlinePlateCard } from '../SkinCardPreview';
+import { startEmoteDrag } from './emoteDrag';
 import { usePhLayer } from '../../partyHome/shell/usePhLayer';
 import './collectionPh.css';
 
@@ -62,7 +62,9 @@ export interface CollectionPhView {
   selectedId: string | null; worn: (c: CosmeticDef) => boolean; fresh: (c: CosmeticDef) => boolean; onPick: (id: string) => void;
   onHover: (id: string | null, el?: HTMLElement, asDefault?: boolean) => void;
   selected: CosmeticDef | null; busy: boolean; error: string | null; playerName: string; showDefault: boolean;
-  emoteMenu: readonly (string | null)[]; onPlaceEmote: (position: number) => void; onEquip: () => void; onTakeOff: () => void;
+  emoteMenu: readonly (string | null)[]; onPlaceEmote: (position: number) => void;
+  /** Drag an owned emote tile onto a menu slot (owner 2026-11-06). */
+  onDropEmote: (id: string, position: number) => void; onEquip: () => void; onTakeOff: () => void;
   /** Crates was asked for but the shop cannot be reached: the page shows the plain offline note. */
   shopOffline: boolean; closeShop: () => void;
   cratesOn: boolean; cratesLoading: boolean; sealed: readonly CrateQueueItem[]; bayTier: ChestTier; nextCrateLevel: number; guest: boolean;
@@ -124,6 +126,10 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
   const pageOnPick = v.onPick;
   const pick = useCallback((id: string) => { pageOnPick(id); setSheet(true); }, [pageOnPick]);
   const closeSheet = useCallback(() => { sfx.pulse(); setSheet(false); }, []);
+  // The tiles are memoized, so they get one stable drop callback that reads the latest view.
+  const dropRef = useRef(v.onDropEmote);
+  dropRef.current = v.onDropEmote;
+  const dropEmote = useCallback((id: string, position: number) => { dropRef.current(id, position); }, []);
   useEffect(() => { setSheet(false); }, [v.category]);
   const sheetUp = compact && sheet && v.live && !!v.selected;
   usePhLayer(sheetUp, () => setSheet(false));
@@ -159,19 +165,16 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
         <>
           {v.anyNew && <PhButton variant="ghost" size="s" onClick={v.markAllSeen}>Mark all as seen</PhButton>}
           <PhMeter className="phc-meter" label="Collected" value={v.total.owned} max={v.total.total} />
-          {v.aetherOn && (
-            <PhButton variant="plate" size="m" className="phc-shopbtn" onClick={v.openShop}>
-              <AetherIcon className="phc-aether" />Crates
-            </PhButton>
-          )}
         </>
       )}
     >
       <div className={`phc-body${compact ? ' sheeted' : ''}`}>
         <aside ref={railRef} className="phc-rail" aria-label="Categories and chests">
           {compact && <span className="phc-railedge start" data-edge="start" aria-hidden />}
-          <CategoryList v={v} />
+          {/* Top to bottom (owner 2026-11-06): sealed chests, the categories, then this category by rarity. */}
           <ChestBay v={v} />
+          <CategoryList v={v} />
+          {v.live && <RarityProgress v={v} />}
           {v.guest && (
             <div className="phc-guest">
               <span>Guest account. Save it to keep your collection.</span>
@@ -216,10 +219,10 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
                     {v.shown.map((c) => (
                       <li key={c.id}>
                         <Tile
-                          id={c.id} name={c.name} rarity={c.rarity} art={tileArt(c)} contain={c.category === 'portrait_frame' || c.category === 'card_plate' || c.category === 'emote'}
+                          id={c.id} name={c.name} rarity={c.rarity} art={tileArt(c)} contain={c.category === 'emote'} artTop={c.category === 'card_plate' || c.category === 'portrait_frame'}
                           target={skinTargetName(c) ?? undefined} owned={v.owned.has(c.id)} equipped={v.worn(c)} fresh={v.fresh(c)} selected={v.selectedId === c.id}
-                          master={isMasterTitle(c.id)} how={v.owned.has(c.id) ? undefined : acquisitionText(c)} onPick={pick}
-                          onHover={c.target?.type === 'card' || c.category === 'card_plate' ? v.onHover : undefined}
+                          master={isMasterTitle(c.id)} onPick={pick} onDropEmote={c.category === 'emote' && v.owned.has(c.id) ? dropEmote : undefined}
+                          onHover={c.target?.type === 'card' ? v.onHover : undefined}
                         />
                       </li>
                     ))}
@@ -284,6 +287,26 @@ function CategoryList({ v }: { v: CollectionPhView }): JSX.Element {
   );
 }
 
+// ── This category, by rarity (the rail's last box) ─────────────────────────────────────────────────────────────
+
+/** What is left to find in the open category, rarity by rarity. It lived in the item's detail column, which it does not describe
+ *  (owner 2026-11-06: "this section doesnt belong in the item section"); the phone's detail sheet still shows its own copy. */
+function RarityProgress({ v }: { v: CollectionPhView }): JSX.Element {
+  const label = COSMETIC_CATEGORY_DEFS[v.category].label;
+  return (
+    <section className="phc-progress phc-rarbox" aria-label={`${label} collected, by rarity`}>
+      <span className="phc-sublbl">{label} collected</span>
+      {ALL_COSMETIC_RARITIES.filter((r) => v.byRarity[r].total > 0).map((r) => (
+        <div key={r} className={`phc-prow r-${r}`}>
+          <span className="phc-prow-name"><span className="phc-gem" aria-hidden />{RARITY_LABELS[r]}</span>
+          <span className="phc-bar" aria-hidden><span style={{ transform: `scaleX(${v.byRarity[r].owned / v.byRarity[r].total})` }} /></span>
+          <span className="phc-prow-n">{v.byRarity[r].owned} / {v.byRarity[r].total}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 // ── The chest bay ──────────────────────────────────────────────────────────────────────────────────────────
 
 function ChestBay({ v }: { v: CollectionPhView }): JSX.Element {
@@ -299,7 +322,7 @@ function ChestBay({ v }: { v: CollectionPhView }): JSX.Element {
           <span className="phc-bay-lbl">Sealed chests</span>
           {ready
             ? <span className="phc-bay-num"><b>{n}</b> ready</span>
-            : <span className="phc-bay-sub">{!v.cratesOn ? 'Chests are unavailable right now.' : v.cratesLoading ? 'Loading' : `None right now. Your next chest comes at Level ${v.nextCrateLevel}.`}</span>}
+            : <span className="phc-bay-sub">{!v.cratesOn ? 'Chests are unavailable right now.' : v.cratesLoading ? 'Loading' : `Next chest at Level ${v.nextCrateLevel}.`}</span>}
           {ready && <span className="phc-bay-sub">Next: {crateLabel({ ...v.sealed[0]!, floor: chestFloorOf(v.sealed[0]!.tier) })}</span>}
         </div>
       </div>
@@ -321,7 +344,6 @@ function ChestBay({ v }: { v: CollectionPhView }): JSX.Element {
           <span className="phc-bay-xp">{v.level.xpIntoLevel} / {v.level.xpForNextLevel} XP</span>
         </div>
       )}
-      {v.cratesOn && <div className="phc-bay-odds">Chest odds: {v.oddsLine}</div>}
     </section>
   );
 }
@@ -334,18 +356,22 @@ interface TileProps {
   /** A frame, plate or emote: the art is shown whole (contained), not cropped. */
   contain?: boolean;
   onHover?: (id: string | null, el?: HTMLElement) => void;
-  how?: string;
+  /** An owned emote: drag it onto a slot of the emote menu to put it there (owner 2026-11-06). Stable callback. */
+  onDropEmote?: (id: string, position: number) => void;
+  /** Cover art pinned to its TOP (a card plate shows its top half, fading into the navy foot; owner 2026-11-06). */
+  artTop?: boolean;
 }
 
-const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, selected, onPick, master, art, target, contain, onHover, how }: TileProps): JSX.Element {
+const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, selected, onPick, master, art, target, contain, artTop, onHover, onDropEmote }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
       type="button"
-      className={`phc-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' hasart' : ''}${contain ? ' contain' : ''}`}
+      className={`phc-tile r-${rarity}${owned ? ' owned' : ' missing'}${equipped ? ' worn' : ''}${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}${art ? ' hasart' : ''}${contain ? ' contain' : ''}${artTop ? ' arttop' : ''}`}
       aria-pressed={selected}
       aria-label={`${name}${target ? `, for ${target}` : ''}, ${RARITY_LABELS[rarity]}, ${state}${fresh ? ', new' : ''}`}
       onClick={() => onPick(id)}
+      onPointerDown={onDropEmote ? (e) => { startEmoteDrag(e, art, (pos) => onDropEmote(id, pos)); } : undefined}
       onPointerEnter={onHover ? (e) => { if (e.pointerType !== 'touch') onHover(id, e.currentTarget); } : undefined}
       onPointerLeave={onHover ? () => onHover(null) : undefined}
     >
@@ -354,7 +380,6 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
         {target && <span className="phc-tile-for">{target}</span>}
         <span className="phc-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
         <span className="phc-tile-rar"><span className="phc-gem" aria-hidden />{RARITY_LABELS[rarity]}</span>
-        {how && <span className="phc-tile-how">{how}</span>}
       </span>
       {!owned && <span className="phc-tile-lock" aria-hidden><LockGlyph /></span>}
       {(equipped || fresh) && <span className="phc-tile-tags" aria-hidden>{equipped ? <PhChip tone="gold">Equipped</PhChip> : <PhChip tone="teal">New</PhChip>}</span>}
@@ -364,10 +389,18 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
 
 // ── The detail column ──────────────────────────────────────────────────────────────────────────────────────
 
+/** How many visual tiers a hero attack has, by its rarity (the owner's 2026-09-29 rule in heroAttackStyle.ts). */
+function attackPatternCount(rarity: CosmeticDef['rarity']): number {
+  return rarity === 'rare' ? 2 : rarity === 'epic' ? 3 : 4;
+}
+
 function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.Element {
   const owned = v.owned.has(item.id);
   const equipped = v.worn(item);
   const showDefault = v.showDefault;
+  // The Preview toggle (owned card plates and portrait frames, on by default): a plate on Impossible Todd or alone, a frame
+  // round your portrait or alone. The pick sticks while you browse (owner 2026-11-06).
+  const [plateView, setPlateView] = useState<'card' | 'plate'>('card');
   const skinArt = skinArtOf(item);
   const art = showDefault ? defaultArtOf(item) ?? skinArt : skinArt;
   const cardSkin = item.target?.type === 'card';
@@ -379,23 +412,19 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
   const emote = item.category === 'emote';
   const plate = item.category === 'card_plate';
   const title = item.category === 'title';
-  const plateArt = plate ? plateLookOf(item)?.thumb : undefined;
-  const emotePosition = emote ? v.emoteMenu.indexOf(item.id) : -1;
   // An announcer's sample stops when you look at another item or leave the screen.
   useEffect(() => (voice ? stopAnnouncerPreview : undefined), [voice, item.id]);
   const hoverIn = (e: React.PointerEvent<HTMLElement>): void => { if (e.pointerType !== 'touch') v.onHover(item.id, e.currentTarget, showDefault); };
   const hoverOut = (): void => v.onHover(null);
 
   const facts: [string, string][] = [];
-  if (target) facts.push(['For', target]);
-  if (attack) facts.push(['For', 'Your hero, seen by the players you hit']);
-  if (frame) facts.push(['For', 'Your hero portrait, seen by the players you meet']);
-  if (voice) facts.push(['For', 'The voice calling your games. Only you hear it']);
-  if (plate) facts.push(['For', 'Your cards, seen by the players you meet. Gilded cards keep their gold plate']);
-  if (emote) facts.push(['For', `Your hero. ${touchText('Right-click', 'Tap and hold')} your portrait in a game to say it`]);
+  // No "For" row: the category already says what an item dresses (owner 2026-11-06).
   if (showDefault && !equipped) facts.push(['In use', frame ? 'Default frame' : plate ? 'Standard plate' : 'Default art']);
-  if (emote && emotePosition >= 0) facts.push(['In your menu', `Slot ${emotePosition + 1}`]);
-  if (owned) facts.push(['How to get', acquisitionText(item)]);
+  // Every chest cosmetic says where it comes from, owned or not (owner 2026-11-06).
+  if (owned || item.acquisition.type === 'crate') facts.push(['How to get', acquisitionText(item)]);
+  // How many different looks the attack plays, by blow size: Rares have 2, Epics 3, Legendaries and Ancients 4 (heroAttackStyle.ts;
+  // owner 2026-11-06).
+  if (attack) facts.push(['Attack patterns', String(attackPatternCount(item.rarity))]);
   const mastery = masteryText(item);
   if (mastery) facts.push(['Mastery', mastery]);
 
@@ -403,10 +432,16 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
     <section className={`phc-detail r-${item.rarity}${owned ? '' : ' missing'}`} aria-label="Details">
       <div className="phc-stage" aria-label={showDefault ? 'Preview, default' : 'Preview'}>
         {emote && emoteSrc(item.id) && <img className="phc-stage-img contain" src={emoteSrc(item.id)} alt="" draggable={false} decoding="sync" />}
-        {frame && <FramePreview item={item} owned={owned} showDefault={showDefault} />}
-        {plate && plateArt && (
-          <div className="phc-stage-hover" onPointerEnter={owned ? hoverIn : undefined} onPointerLeave={owned ? hoverOut : undefined}>
-            <img className="phc-stage-img contain" src={plateArt} alt="" draggable={false} decoding="sync" />
+        {frame && <FramePreview item={item} owned={owned} showDefault={showDefault} bare={!owned || plateView !== 'card'} />}
+        {/* A card plate is shown ON a card: Impossible Todd wearing it (owned plates), in the box itself; no hover pop-up (owner 2026-11-06). */}
+        {/* One card either way: Preview on shows it whole, off (and a locked plate) hides all but the plate, so the plate never
+            changes size (owner 2026-11-06). */}
+        {plate && <div className="phc-stage-card"><InlinePlateCard cardId={PLATE_SAMPLE_CARD} plate={showDefault && owned ? null : plateLookOf(item)} bare={!owned || plateView !== 'card'} /></div>}
+        {(plate || frame) && owned && (
+          <div className="phc-plateview">
+            <PhToggleChip pressed={plateView === 'card'} onToggle={() => { setPlateView((p) => (p === 'card' ? 'plate' : 'card')); }}>
+              <img className="phc-plateview-eye" src="/medallions/watcher.webp" alt="" draggable={false} decoding="sync" />Preview
+            </PhToggleChip>
           </div>
         )}
         {attack && <HeroAttackPreview key={item.id} style={typeof item.assets.style === 'string' ? item.assets.style : ''} reducedMotion={v.reducedMotion} />}
@@ -435,16 +470,17 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
       <div className="phc-name">
         <span className="phc-kindrow">
           <span className="phc-kind">{kindOf(item)}</span>
-          {!owned && <PhChip className="phc-notowned"><LockGlyph />Not owned</PhChip>}
         </span>
         <h2>{isMasterTitle(item.id) ? <TitleBadge id={item.id} className="colls-titleplate colls-titleplate-lg" /> : item.name}</h2>
         <span className={`phc-rarity r-${item.rarity}`}><span className="phc-gem" aria-hidden />{RARITY_LABELS[item.rarity]}</span>
       </div>
 
-      <dl className="phc-facts">
-        <div className="phc-fact"><dt>Status</dt><dd className={owned ? 'yes' : 'no'}>{equipped ? 'Equipped' : owned ? 'Owned' : 'Not owned'}</dd></div>
-        {facts.map(([k, val], i) => <div key={`${k}${i}`} className="phc-fact"><dt>{k}</dt><dd>{val}</dd></div>)}
-      </dl>
+      {/* No Status row: the Equipped / Equip / Not owned control above already says it (owner 2026-11-06). */}
+      {facts.length > 0 && (
+        <dl className="phc-facts">
+          {facts.map(([k, val], i) => <div key={`${k}${i}`} className="phc-fact"><dt>{k}</dt><dd>{val}</dd></div>)}
+        </dl>
+      )}
 
       {/* THIS CATEGORY, by rarity (what is left to find): fills the column under the facts with something useful. */}
       <section className="phc-progress" aria-label={`${COSMETIC_CATEGORY_DEFS[item.category].label} collected, by rarity`}>
@@ -459,9 +495,12 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
       </section>
 
       <div className="phc-actions">
+        {emote && <p className="phc-emote-hint">Drag and drop any of your owned emotes to the<br />slot of your choosing to equip.</p>}
         {emote && <EmoteSlotRow item={item} owned={owned} busy={v.busy} slots={v.emoteMenu} onPlace={v.onPlaceEmote} />}
+        {emote && v.busy && <div className="phc-equipping" role="status"><span className="phk-spinner" aria-hidden />Equipping</div>}
         {emote && owned ? null : !owned ? (
-          <div className="phc-hint">{missingHint(item)}</div>
+          // Not owned: the lock pill takes the Equip button's place, at its size (owner 2026-11-06).
+          <PhChip className="phc-notowned"><LockGlyph />Not owned</PhChip>
         ) : equipped ? (
           <div className="phc-worn">
             <PhChip tone="gold">Equipped</PhChip>
@@ -469,7 +508,7 @@ function Detail({ v, item }: { v: CollectionPhView; item: CosmeticDef }): JSX.El
               variant="plate" size="m" disabled={v.busy} onClick={v.onTakeOff}
               aria-label={skin ? `Use the default art for ${target ?? 'this target'}` : attack ? 'Use the Classic hero attack' : frame ? 'Use the default portrait frame' : voice ? 'Use the default announcer' : plate ? 'Use the standard card plate' : `Take off ${item.name}`}
             >
-              {skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : voice ? 'Use default announcer' : plate ? 'Use standard plate' : 'Take off'}
+              {skin ? 'Use default art' : attack ? 'Use Classic' : frame ? 'Use default frame' : voice ? 'Use default announcer' : plate ? 'Use Default' : 'Take off'}
             </PhButton>
           </div>
         ) : (

@@ -31,7 +31,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
 import { defaultTeamName, LEARN_ASCENT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
-import { heroThumb, modeArt } from '../art';
+import { heroThumb } from '../art';
+import { mechMedallionSrc } from '../mechMedallion';
 import { isPhone } from '../deviceClass';
 import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
@@ -201,7 +202,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     const open = f.subs.filter((x) => !lockReason(partyModeOf(x.id)));
     const last = readFamilySub(id);
     const to = open.find((x) => x.id === last) ?? open[0];
-    if (to) pick(to.id);
+    if (!to) return;
+    if (f.id !== family.id) snapStage(); // the old view slides out as the new one slides in
+    pick(to.id);
   };
   const [lockNote, setLockNote] = useState<string | null>(null);
   const [hoverNote, setHoverNote] = useState<string | null>(null);
@@ -365,6 +368,58 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const [enterKey, setEnterKey] = useState(0);
   // PHONE: a mark at the end of the mode tabs while more wait off the edge.
   const modesRef = useRef<HTMLDivElement>(null);
+  // MODE SLIDE (owner 2026-11-05: "have all of the elements slide left when navigating from ranked to versus and so on, and
+  // slide right going the other way"; chose "slide in only"). The new mode's description, banners and START glide in from the
+  // side you moved toward, fading up. Web Animations on transform + opacity only (compositor), no re-render, so it adds no cost
+  // to the switch itself. A moved-right pick enters from the right (slides left); a moved-left pick enters from the left.
+  const stageRef = useRef<HTMLElement>(null);
+  // The outgoing view: copies of the stage and the description taken on the click, before the new mode renders. They slide
+  // off the other side and fade, then are removed. Copies only (inert, hidden from screen readers), so nothing in them is live.
+  const ghosts = useRef<{ el: HTMLElement; host: Element }[]>([]);
+  const snapStage = (): void => {
+    for (const g of ghosts.current) g.el.remove();
+    ghosts.current = [];
+    for (const el of [stageRef.current]) {
+      const host = el?.offsetParent;
+      if (!el || !host) continue;
+      const g = el.cloneNode(true) as HTMLElement;
+      g.classList.add('ph-ghost');
+      g.setAttribute('aria-hidden', 'true');
+      g.inert = true;
+      Object.assign(g.style, { position: 'absolute', left: `${el.offsetLeft}px`, top: `${el.offsetTop}px`, width: `${el.offsetWidth}px`,
+        height: `${el.offsetHeight}px`, margin: '0', pointerEvents: 'none' });
+      ghosts.current.push({ el: g, host });
+    }
+  };
+  const prevFamilyIdx = useRef<number | null>(null);
+  const familyIdx = families.findIndex((f) => f.id === family.id);
+  useLayoutEffect(() => {
+    const prev = prevFamilyIdx.current;
+    prevFamilyIdx.current = familyIdx;
+    const out = ghosts.current;
+    ghosts.current = [];
+    if (prev === null || prev === familyIdx || familyIdx < 0 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (typeof Element.prototype.animate !== 'function') return; // (tests run without Web Animations)
+    const dir = familyIdx > prev ? 1 : -1;
+    for (const g of out) {
+      g.host.appendChild(g.el);
+      const slide = g.el.animate([{ transform: 'none' }, { transform: `translateX(calc(${-dir * 1400} * var(--phu)))` }],
+        { duration: 660, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)', fill: 'forwards' });
+      g.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, easing: 'ease-in', fill: 'forwards' });
+      slide.onfinish = () => g.el.remove();
+    }
+    // From the side (owner 2026-11-05: "it needs to slide it from the side. its barely moving"): it starts 1400 units out and
+    // glides the whole way in view. The fade is short and separate, so the travel is never spent while still invisible.
+    const from = `translateX(calc(${dir * 1400} * var(--phu)))`;
+    const stage = stageRef.current;
+    stage?.animate([{ transform: from }, { transform: 'none' }], { duration: 660, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' });
+    stage?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: 'linear' });
+    // The description does not slide (owner 2026-11-05: "instead of this sliding, have this pop in with a bounce when the slide
+    // animation finishes"): hidden from the switch, it pops up with an overshoot as the stage lands.
+    modesRef.current?.querySelector<HTMLElement>('.ph-desc')?.animate(
+      [{ transform: 'scale(0.6)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: 0.6 }, { transform: 'scale(1)', opacity: 1 }],
+      { duration: 380, delay: 460, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1)', fill: 'backwards' });
+  }, [familyIdx]);
   const [moreTabs, setMoreTabs] = useState(false);
   useEffect(() => {
     const row = modesRef.current?.querySelector('.phk-tabs');
@@ -387,7 +442,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // The nav's Friends always lands on Friends; only the mode pill beside START opens the mode's tab.
   const toSettings = useRef(false);
   useLayoutEffect(() => {
-    if (friendsOpen && !toSettings.current) setSideTab('friends');
+    // On a phone the panel IS the friends drawer; on desktop Friends opens the nav's own drawer and the panel keeps its tab.
+    if (phone && friendsOpen && !toSettings.current) setSideTab('friends');
     toSettings.current = false;
     if (!friendsOpen) setDrawerIsMode(false);
   }, [friendsOpen]);
@@ -400,7 +456,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     return () => window.removeEventListener('keydown', onKey, true);
   }, [phone, friendsOpen]);
   const pulsed = useRef(friendsPulse);
-  useEffect(() => { if (friendsPulse !== pulsed.current) { pulsed.current = friendsPulse; setSideTab('friends'); } }, [friendsPulse]);
+  useEffect(() => { if (friendsPulse !== pulsed.current) { pulsed.current = friendsPulse; if (phone) setSideTab('friends'); } }, [friendsPulse, phone]);
   const onOpenSeat = (): void => {
     sfx.pulse();
     // The picker always opens: it lists who you can invite, or says plainly why not (signed out, offline, full).
@@ -432,8 +488,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       ? <PhBanner key={`open-${i}`} index={members.length + i} className="pending" art={heroThumb(heroPortrait(p.favoriteHero, null))} label={`${p.author ?? 'Friend'}, invited`}
           overlay={<button type="button" className="ph-cancelinv" onClick={() => { sfx.pulse(); removeSampleInvite(p.userId); }}>Cancel</button>}>
           <PhBannerName>{p.author ?? 'Friend'}</PhBannerName>
-          <span className="ph-rank"><span className="ph-muted">Invited</span></span>
           <span className="ph-sub">{'\u00a0'}</span>
+          <span className="ph-rank"><span className="ph-muted">Invited</span></span>
           <PhBannerState tone="space" />
         </PhBanner>
       : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={mode.id === 'group' && members.length + i === 3} />);
@@ -488,7 +544,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         </div>
       )}
       {family.id === 'ranked' && (
-        <PhPlate heading="Your rank">
+        <PhPlate heading="Your rank" className="ph-rankplate">
           {rank ? <RankBar position={rank} /> : <span className="pho-hint">Play Ranked to earn your first medal.</span>}
         </PhPlate>
       )}
@@ -500,22 +556,80 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {phone && vh.stands && <div className="vsr-drawerstands">{vh.stands}</div>}
     </div>
   ) : null;
-  const tab = settings ? sideTab : 'friends';
+  // NO FRIENDS TAB ON DESKTOP (owner 2026-11-06: "this section is actually redundant with the friends button in the bottom
+  // [left], we can remove it from all the top right sections"): the dock's Friends button opens the slide-in drawer instead. The
+  // panel shows the mode's own tabs; a mode with none (Learn) shows the friends list under no header. A phone keeps the tab: its
+  // panel is the friends drawer.
+  const tab = settings ? (!phone && sideTab === 'friends' ? 'settings' : sideTab) : 'friends';
+  const sideTabs = [...(phone ? [{ id: 'friends' as const, label: 'Friends' }] : []), ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}</span> }] : []),
+    ...(mode.party === 'rivals' ? [{ id: 'rooms' as const, label: 'Open rooms' }] : [])];
+  // SIDE PANEL SLIDE (owner 2026-11-06: "can we create a slide effect for when this changes too? like the new menu slides over it
+  // from the right"; "make the navy solid, no opacity"; "this section [the tabs] wont slide at all, the area underneath will").
+  // When the panel's page changes (its tab, or the mode family), the page under the tabs slides as one solid navy sheet; the tab
+  // header holds still above it. DIRECTION ("when on the friends section and clicking ranked it should slide over the friends
+  // section from the right. but then when clicking back to friends, it should unveil the friends section underneath by having the
+  // ranked section slide away from left to right"): the tabs stack left to right, Friends at the bottom. A tab further right
+  // slides in OVER the old page; a tab further left is UNVEILED as the old page slides off to the right. A mode change on the
+  // same tab slides in. The old page is a copy taken in the render that changes it (the live DOM is still the old page then);
+  // it is inert and removed when the slide ends. Transform only.
+  const sideKey = `${tab}:${family.id}`;
+  const sideBodyRef = useRef<HTMLDivElement>(null);
+  const sidePrevKey = useRef(sideKey);
+  const sideGhost = useRef<{ el: HTMLElement; top: number; left: number; width: number; height: number; back: boolean } | null>(null);
+  const SIDE_ORDER = ['friends', 'settings', 'rooms'] as const;
+  if (sidePrevKey.current !== sideKey) {
+    const prevTab = sidePrevKey.current.split(':')[0] as (typeof SIDE_ORDER)[number];
+    sidePrevKey.current = sideKey;
+    const el = sideBodyRef.current;
+    if (el && !phone) {
+      const g = el.cloneNode(true) as HTMLElement;
+      g.classList.add('ph-ghost');
+      g.setAttribute('aria-hidden', 'true');
+      g.inert = true;
+      sideGhost.current = { el: g, top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight,
+        back: SIDE_ORDER.indexOf(tab) < SIDE_ORDER.indexOf(prevTab) };
+    }
+  }
+  useLayoutEffect(() => {
+    const g = sideGhost.current;
+    sideGhost.current = null;
+    const body = sideBodyRef.current;
+    const panel = body?.parentElement;
+    if (!g || !body || !panel || typeof Element.prototype.animate !== 'function' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    Object.assign(g.el.style, { position: 'absolute', top: `${g.top}px`, left: `${g.left}px`, width: `${g.width}px`, height: `${g.height}px`, margin: '0', pointerEvents: 'none' });
+    panel.classList.add('sliding');
+    const ease = 'cubic-bezier(0.25, 0.8, 0.3, 1)';
+    let run: Animation;
+    if (g.back) {
+      // Back toward Friends: the old page lies on top and slides off to the right, unveiling the new one.
+      g.el.style.zIndex = '2';
+      panel.insertBefore(g.el, body.nextSibling);
+      run = g.el.animate([{ transform: 'none' }, { transform: 'translateX(100%)' }], { duration: 420, easing: ease, fill: 'forwards' });
+    } else {
+      g.el.style.zIndex = '0';
+      panel.insertBefore(g.el, body); // under the live page
+      run = body.animate([{ transform: 'translateX(100%)' }, { transform: 'none' }], { duration: 420, easing: ease });
+    }
+    run.onfinish = run.oncancel = () => { g.el.remove(); panel.classList.remove('sliding'); };
+  }, [sideKey]);
   const side = (
     <aside className={`ph-sidepanel${phone ? ' drawer' : ''}`} aria-label="Side panel">
-      <div className="ph-sidetabs">
-        <PhTabs label="Panel" value={tab} onChange={(t) => { sfx.pulse(); setSideTab(t); }}
-          tabs={[{ id: 'friends' as const, label: 'Friends' }, ...(settings ? [{ id: 'settings' as const, label: <span className="ph-settab">{settingsTitle}</span> }] : []),
-            ...(mode.party === 'rivals' ? [{ id: 'rooms' as const, label: 'Open rooms' }] : [])]} />
-        {phone && <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}><Icon name="chevron" /></button>}
+      {(sideTabs.length > 0 || phone) && (
+        <div className="ph-sidetabs">
+          <PhTabs label="Panel" value={tab} onChange={(t) => { sfx.pulse(); setSideTab(t); }} tabs={sideTabs} />
+          {phone && <button type="button" className="ph-iconbtn ph-fclose" aria-label="Close" onClick={() => { sfx.pulse(); setFriendsOpen(false); }}><Icon name="chevron" /></button>}
+        </div>
+      )}
+      <div ref={sideBodyRef} className="ph-sidebody">
+        {tab === 'friends' ? <PhFriends docked embedded /> : tab === 'rooms' ? <div className="ph-settings"><OpenRoomsPanel mode={roomModeOf({ v: 1, mode: mode.id === 'group' ? 'group' : mode.id === 'vduos' ? 'duos' : 'duel', modifiers: [] } as VersusRoomOptions)} /></div> : settings}
       </div>
-      {tab === 'friends' ? <PhFriends docked embedded /> : tab === 'rooms' ? <div className="ph-settings"><OpenRoomsPanel mode={roomModeOf({ v: 1, mode: mode.id === 'group' ? 'group' : mode.id === 'vduos' ? 'duos' : 'duel', modifiers: [] } as VersusRoomOptions)} /></div> : settings}
     </aside>
   );
 
   return (
     <div ref={rootRef} className={`ph${phone ? ' phone' : ''}${pageOpen ? ' paged' : ''}${vh.dragging ? ' vsr-dragging' : ''}`} role="region" aria-label="Your party">
-      <PhTopNav current="home" friendsDocked={!phone} ownDrawer />
+      {/* This bar is the hidden place-holder (the steady nav paints, and draws the Friends drawer); it never draws a drawer itself. */}
+      <PhTopNav current="home" ownDrawer />
 
       <div ref={modesRef} className={`ph-modes${moreTabs ? ' more' : ''}`}>
         <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(_id, reason) => { sfx.deny(); if (phone) setLockNote(reason); }}
@@ -524,7 +638,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
       </div>
 
-      <main className="ph-stage" key={enterKey}>
+      <main ref={stageRef} className="ph-stage" key={enterKey}>
         {/* The head slot: always the same height (the team plate, a saved game, a held room), so the banners never move. */}
         <div className="ph-stagehead">
         {phone && vh.stands}
@@ -580,13 +694,14 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   );
 }
 
-/** A mode tab's label: the mode's painted tile in the gilded emblem frame (the owner's medallion art), then its name. */
-const MODE_TILE: Record<ModeFamilyId, string> = { ranked: 'lobby', versus: 'versus', practice: 'practice', gauntlet: 'gauntlet', learn: 'learn' };
+/** A mode tab's label: the mode's medallion (owner 2026-11-05: cut-outs, no frame), then its name. Gauntlet wears the Avenge
+ *  gauntlet; the rest are the owner's mode medallions (apps/web/public/medallions/mode-*.webp). */
+const MODE_MEDALLION: Record<ModeFamilyId, string> = { ranked: 'mode-ranked', versus: 'mode-versus', practice: 'mode-practice', gauntlet: 'avenge', learn: 'mode-learn' };
 function ModeLabel({ id, label }: { id: ModeFamilyId; label: string }): JSX.Element {
-  const art = modeArt(MODE_TILE[id]);
+  const art = id === 'gauntlet' ? mechMedallionSrc('avenge') : `${import.meta.env.BASE_URL}medallions/${MODE_MEDALLION[id]}.webp`;
   return (
     <span className="ph-modelbl">
-      <span className="ph-emblem" aria-hidden="true">{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>
+      <span className="ph-emblem cut" aria-hidden="true">{art && <img src={art} alt="" draggable={false} decoding="sync" />}</span>
       <span>{phNum(label)}</span>
     </span>
   );
@@ -664,13 +779,14 @@ function BannerCard({ m, i, phone, leader, showState, rival, menuOpen, onToggleM
   return (
     <PhBanner art={art} index={i} className={rival ? 'rival' : undefined} badge={leader ? <PhLeaderBadge /> : undefined} onClick={onToggleMenu} label={`${m.self ? 'You' : m.name}. Options`}
       haspopup expanded={menuOpen} overlay={overlay}>
+            {/* Name, then the title right under it, then the rank medal on its own row with the rank under it (owner 2026-11-05). */}
             <PhBannerName>{m.name}</PhBannerName>
+            <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
             <span className="ph-rank">
               {m.rank
                 ? <><RankCrest divisionIndex={m.rank.divisionIndex} size="mini" hideDivision /><span>{m.rank.label}</span></>
                 : <span className="ph-muted">{m.self ? 'Unranked' : 'Medal not shown'}</span>}
             </span>
-            <span className="ph-sub">{m.titleId ? <TitleBadge id={m.titleId} className="ph-titlebadge" /> : m.level != null ? `Level ${m.level}` : '\u00a0'}</span>
             {showState === 'show' && <PhBannerState tone={m.state}>{m.state === 'in_game' ? 'In game' : 'Ready'}</PhBannerState>}
             {showState === 'space' && <PhBannerState tone="space" />}
     </PhBanner>

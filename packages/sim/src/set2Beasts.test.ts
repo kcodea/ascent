@@ -63,14 +63,14 @@ describe('set 2 — Beast spell payoffs', () => {
 });
 
 describe('set 2 — Dawnclaw', () => {
-  it('is wired to the shared adjacent-Battlecry re-fire, BOTH neighbours again (owner balance 2026-10-10; the 2026-08-11 ONE-neighbour param is gone)', () => {
+  it('is wired to the shared adjacent-Battlecry re-fire, ONE neighbour again (owner balance 2026-11-06; both from 2026-10-10)', () => {
     // Dawnclaw's Echo reuses `deathrattleReplayAdjacentBattlecry` — the SAME factory Ryme uses — but with
     // `params: { one: true }`, so the ungilded card re-fires exactly ONE neighbour's Shout (a seeded pick when
     // it has two), while golden fires BOTH. The shared factory's both/×2 behaviour (no `one`) is Ryme's, covered
     // in simulate.test.ts / rymeWayfinder.test.ts. What's new here is the card wiring, so that's what we pin.
     const dc = CARD_INDEX['b2_dawnclaw']!;
     expect([dc.tier, dc.attack, dc.health]).toEqual([4, 5, 3]);
-    expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} });
+    expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } });
   });
 });
 

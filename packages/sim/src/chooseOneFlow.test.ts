@@ -51,7 +51,7 @@ describe('Choose One — the choice comes before the target', () => {
   });
 
   it('a targeted Choose One spell is dragged up WITHOUT a target — the aim comes after the pick', () => {
-    // Crest of the Climb (`any`) lands its +4 on the minion the AIM step picks, not one the drag chose.
+    // Crest of the Climb (`any`) lands its +5 on the minion the AIM step picks, not one the drag chose.
     let s: RunState = {
       ...createRun(4),
       board: [
@@ -61,10 +61,10 @@ describe('Choose One — the choice comes before the target', () => {
       hand: [hand('cc', 'crestclimb')],
     };
     s = reduce(s, { type: 'play', uid: 'cc' }); // no targetUid — the new gesture
-    s = reduce(s, { type: 'chooseOne', index: 1 }); // +4 Health
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // +5 Health
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'b' });
     expect(s.board.find((c) => c.uid === 'a')!.health, 'the unaimed minion is untouched').toBe(2);
-    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(6);
+    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(7);
     expect(s.board.find((c) => c.uid === 'b')!.attack, 'the OTHER branch must not have resolved').toBe(2);
   });
 });
@@ -218,9 +218,9 @@ describe('Choose One — old recordings still reproduce', () => {
     };
     const s = replay(s0, [
       { type: 'play', uid: 'cc', targetUid: 'ally' },
-      { type: 'chooseOne', index: 0 }, // +4 Attack
+      { type: 'chooseOne', index: 0 }, // +5 Attack
     ]);
-    expect(s.board[0]!.attack).toBe(7);
+    expect(s.board[0]!.attack).toBe(8);
     expect(s.board[0]!.health, 'only the picked branch').toBe(3);
     expect(s.hand, 'the spell was consumed').toHaveLength(0);
     expect(s.playedThisTurn, 'counted as played exactly once — not once per step').toEqual(['crestclimb']);

@@ -41,13 +41,13 @@ describe('chooseOneBranchText — a spell branch prints the number its factory w
   });
 
   it('Crest of the Climb folds spell power (owner report 2026-09-21, bug 23c340fb) — both branches green', () => {
-    // The capsule's exact power: +0/+1 (Coppercoat Spellsword's Health option). "+4 Health" is really +5 Health;
-    // "+4 Attack" is really +4/+1, since the factory adds both bonuses to any grant.
-    expect(chooseOneBranchText('crestclimb', 0, false, 0, 1)).toBe('Give **{{+4/+1}}**.');
-    expect(chooseOneBranchText('crestclimb', 1, false, 0, 1)).toBe('Give **{{+5 Health}}**.');
+    // The capsule's exact power: +0/+1 (Coppercoat Spellsword's Health option). "+5 Health" is really +6 Health;
+    // "+5 Attack" is really +5/+1, since the factory adds both bonuses to any grant.
+    expect(chooseOneBranchText('crestclimb', 0, false, 0, 1)).toBe('Give **{{+5/+1}}**.');
+    expect(chooseOneBranchText('crestclimb', 1, false, 0, 1)).toBe('Give **{{+6 Health}}**.');
     // Attack-only power mirrors it.
-    expect(chooseOneBranchText('crestclimb', 0, false, 1, 0)).toBe('Give **{{+5 Attack}}**.');
-    expect(chooseOneBranchText('crestclimb', 1, false, 1, 0)).toBe('Give **{{+1/+4}}**.');
+    expect(chooseOneBranchText('crestclimb', 0, false, 1, 0)).toBe('Give **{{+6 Attack}}**.');
+    expect(chooseOneBranchText('crestclimb', 1, false, 1, 0)).toBe('Give **{{+1/+5}}**.');
     // No power: the authored text stands, un-greened.
     for (const i of [0, 1]) expect(chooseOneBranchText('crestclimb', i, false, 0, 0)).toBe(CARD_INDEX['crestclimb']!.chooseOne![i]!.text);
   });
@@ -68,12 +68,12 @@ describe('chooseOneBranchText — a spell branch prints the number its factory w
     // card cannot silently retire the shape test.
     const def = CARD_INDEX['crestclimb']!;
     expect(def.chooseOne!.map((o) => o.effects![0]!.do), 'the shape under test').toEqual(['spellBuffTarget', 'spellBuffTarget']);
-    expect(chooseOneBranchTextFor(def, 0, false, 1, 0)).toBe('Give **{{+5 Attack}}**.');
-    expect(chooseOneBranchTextFor(def, 1, false, 0, 1)).toBe('Give **{{+5 Health}}**.');
+    expect(chooseOneBranchTextFor(def, 0, false, 1, 0)).toBe('Give **{{+6 Attack}}**.');
+    expect(chooseOneBranchTextFor(def, 1, false, 0, 1)).toBe('Give **{{+6 Health}}**.');
     // The factory adds BOTH bonuses to any non-flat grant (`spellBuffTarget`), so under +1/+1 the printed
-    // "+4 Attack" is really +5/+1 — the same full-pair shape the Ales use in `spellDisplayText`.
-    expect(chooseOneBranchTextFor(def, 0, false, 1, 1)).toBe('Give **{{+5/+1}}**.');
-    expect(chooseOneBranchTextFor(def, 1, false, 1, 1)).toBe('Give **{{+1/+5}}**.');
+    // "+5 Attack" is really +6/+1 — the same full-pair shape the Ales use in `spellDisplayText`.
+    expect(chooseOneBranchTextFor(def, 0, false, 1, 1)).toBe('Give **{{+6/+1}}**.');
+    expect(chooseOneBranchTextFor(def, 1, false, 1, 1)).toBe('Give **{{+1/+6}}**.');
   });
 
   it('golden reads the goldenText (doubled magnitude) and greens that', () => {

@@ -190,7 +190,7 @@ describe('the new Ruby tokens', () => {
       const r = simulate([{ cardId: 'k_gemheart', attack: carver.attack, health: 1, sourceUid: 'c', buffs: carver.buffs } as BoardMinion],
         [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
       const golems = r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []));
-      expect(golems.map((g) => [g.attack, g.health])).toEqual([[7, 12], [7, 12]]);
+      expect(golems.map((g) => [g.attack, g.health])).toEqual([[7, 12]]);
     });
   });
 });
@@ -313,29 +313,37 @@ describe('Shardluck — Choose One: Cast 2 Rubies on your Kobolds or cast Veinst
 
 // ── 6 + 7. Geode Guardian + Gemheart Carver ───────────────────────────────────────────────────────────────
 
-describe('Gemheart Golems — Carver summons 2, Geode 1 with Taunt, each carrying the Rubies', () => {
+describe('Gemheart Golems — Carver summons 1 (Gilded 2) with its Rubies; Geode 2 with Taunt and 2 fresh Rubies each', () => {
   const golemsOf = (cardId: string, golden = false) => {
     const r = simulate([{ cardId, attack: 6, health: 1, sourceUid: 'X', golden, buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] } as BoardMinion],
       [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     return r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []));
   };
-  it("Carver: 'Echo: Summon 2 Gemheart Golems with this minion's Rubies.' — each is 1/1 + the Rubies; Gilded 2/2 + double", () => {
-    expect(CARD_INDEX['k_gemheart']!.text).toBe("**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.");
-    expect(golemsOf('k_gemheart').map((g) => [g.attack, g.health])).toEqual([[3, 3], [3, 3]]);
-    expect(golemsOf('k_gemheart', true).map((g) => [g.attack, g.health])).toEqual([[6, 6], [6, 6]]);
+  it("Carver: 'Echo: Summon a Gemheart Golem with this minion's Rubies.' — a 1/1 + the Rubies; Gilded adds a second body, not a 2/2 or doubled Rubies", () => {
+    expect(CARD_INDEX['k_gemheart']!.text).toBe("**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.");
+    expect(CARD_INDEX['k_gemheart']!.goldenText).toBe("**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.");
+    expect(golemsOf('k_gemheart').map((g) => [g.attack, g.health])).toEqual([[3, 3]]);
+    expect(golemsOf('k_gemheart', true).map((g) => [g.attack, g.health])).toEqual([[3, 3], [3, 3]]);
   });
-  it("Geode: 'Echo: Summon a Gemheart Golem with this minion's Rubies and Taunt.' — keeps its own Taunt and stats", () => {
+  it("Geode: 'Echo: Summon 2 Gemheart Golems with Taunt and cast 2 Rubies on each.' — its own Rubies stay behind", () => {
     const d = CARD_INDEX['k_geode']!;
-    expect([d.attack, d.health, d.keywords]).toEqual([4, 3, ['T']]);
-    const g = golemsOf('k_geode');
-    expect(g.map((x) => [x.attack, x.health])).toEqual([[3, 3]]);
-    expect(g[0]!.keywords).toContain('T');
-    expect(golemsOf('k_geode', true).map((x) => [x.attack, x.health])).toEqual([[6, 6]]);
+    expect([d.attack, d.health, d.keywords]).toEqual([2, 2, ['T']]);
+    // +5/+5 of Rubies on the Geode, so a Golem that carried them could not pass for 1/1 + 2 fresh Rubies.
+    // The Rubies are cast after the summon, so the body's size is the summon plus the buffs that land on it.
+    const sized = (golden: boolean) => {
+      const r = simulate([{ cardId: 'k_geode', attack: 7, health: 1, sourceUid: 'X', golden, buffs: [{ source: 'Ruby', attack: 5, health: 5, count: 5 }] } as BoardMinion],
+        [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+      const golems = r.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'gemheart-shard' ? [e.minion] : []));
+      for (const x of golems) expect(x.keywords).toContain('T');
+      return golems.map((x) => r.events.reduce((n, e) => (e.type === 'buff' && e.target === x.uid ? [n[0]! + e.attack, n[1]! + e.health] : n), [x.attack, x.health]));
+    };
+    expect(sized(false)).toEqual([[3, 3], [3, 3]]);
+    expect(sized(true), 'Gilded: 4 Rubies on each').toEqual([[5, 5], [5, 5]]);
   });
-  it('Carver in the Shop (a borrowed body destroyed on play): two Golems land carrying the Rubies', () => {
-    let s = run({ hand: [body('c', 'k_gemheart', { borrowed: true, buffs: [{ source: 'Ruby', attack: 1, health: 1, count: 1 }], attack: 6, health: 4 } as Partial<BoardCard>)] });
+  it.each([[false, [[2, 2]]], [true, [[2, 2], [2, 2]]]] as const)('Carver in the Shop (a borrowed body destroyed on play, golden=%s): the Golems land carrying the Rubies', (golden, want) => {
+    let s = run({ hand: [body('c', 'k_gemheart', { golden, borrowed: true, buffs: [{ source: 'Ruby', attack: 1, health: 1, count: 1 }], attack: 6, health: 4 } as Partial<BoardCard>)] });
     s = act(act(s, { type: 'play', uid: 'c' }), { type: 'resolveShopDeath' });
-    expect(s.board.filter((c) => c.cardId === 'gemheart-shard').map((c) => [c.attack, c.health])).toEqual([[2, 2], [2, 2]]);
+    expect(s.board.filter((c) => c.cardId === 'gemheart-shard').map((c) => [c.attack, c.health])).toEqual(want);
   });
 });
 
@@ -382,20 +390,22 @@ describe('Gemheart Legionnaire — When you summon a Gemheart Golem, this casts 
   });
 
   it('in combat: each Golem summon plays 5 permanent Rubies, carried back to the run card (Gilded 10)', () => {
-    const fight = (golden: boolean) => simulate([
-      { cardId: 'k_gemheart', attack: 1, health: 1, sourceUid: 'C' } as BoardMinion,
+    const fight = (golden: boolean, carverGolden = false) => simulate([
+      { cardId: 'k_gemheart', attack: 1, health: 1, sourceUid: 'C', golden: carverGolden } as BoardMinion,
       { cardId: 'k3_legionnaire', attack: 4, health: 300, sourceUid: 'L', golden } as BoardMinion,
     ], [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
     const perma = (r: CombatResult) => (r.playerPermaBuffs ?? []).filter((p) => p.sourceUid === 'L' && p.ruby)
       .reduce((n, p) => n + p.attack, 0);
-    expect(perma(fight(false)), 'two Golems x 5 Rubies at 1/1').toBe(10);
-    expect(perma(fight(true)), 'Gilded: 10 per Golem').toBe(20);
+    expect(perma(fight(false)), 'one Golem x 5 Rubies at 1/1').toBe(5);
+    expect(perma(fight(true)), 'Gilded: 10 per Golem').toBe(10);
+    expect(perma(fight(false, true)), 'a Gilded Carver: two Golems, each pays').toBe(10);
+    expect(perma(fight(true, true)), 'two Golems, Gilded Legionnaire').toBe(20);
   });
 
-  it('in the Shop: a Carver Echo forced there summons two Golems → +10/+10 of Rubies', () => {
-    let s = run({ board: [body('L', 'k3_legionnaire')], hand: [body('c', 'k_gemheart', { borrowed: true } as Partial<BoardCard>)] });
+  it.each([[false, 5], [true, 10]] as const)('in the Shop: a Carver Echo forced there (golden=%s) pays per Golem → +%i of Rubies', (golden, n) => {
+    let s = run({ board: [body('L', 'k3_legionnaire')], hand: [body('c', 'k_gemheart', { golden, borrowed: true } as Partial<BoardCard>)] });
     s = act(act(s, { type: 'play', uid: 'c' }), { type: 'resolveShopDeath' });
-    expect(rubyBuff(at(s, 'L'))).toMatchObject({ attack: 10, health: 10 });
+    expect(rubyBuff(at(s, 'L'))).toMatchObject({ attack: n, health: n });
   });
 
   it('ignores every other summon', () => {

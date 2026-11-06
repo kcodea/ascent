@@ -502,7 +502,10 @@ export const ARENA_EFFECTS = {
   /** Gemheart Carver — Echo: summon a Shard at 1/1 PLUS the Rubies on this minion. GOLDEN = ONE Shard at
    *  double stats (owner ruling 2026-08-04) — the shop half used to summon two at base instead; retired. */
   deathrattleSummonRubyStats(arena: EffectArena, params: Record<string, unknown>): void {
-    const g = arena.self.golden ? 2 : 1;
+    // `goldenGolems` (Gem Carver, owner 2026-11-06: "summon 1, gilded summons 2"): Gilded adds BODIES instead of doubling
+    // the Golem, so each one is the plain 1/1 plus this minion's Rubies.
+    const goldenGolems = arena.self.golden ? num(params.goldenGolems, 0) : 0;
+    const g = arena.self.golden && goldenGolems === 0 ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
     // `golems` (Gemheart Carver, owner Ruby batch 2026-09-24: "Summon 2 Gemheart Golems with this minion's Rubies"):
@@ -510,7 +513,7 @@ export const ARENA_EFFECTS = {
     // "... with this minion's Rubies and Taunt") rides every Golem. Gilded is the Carver convention for each one:
     // a 2/2 body with double the Rubies. Board full = the rest are lost, like any summon.
     // NOT `count`: Kurse's Avenge rides this body with `count` = its Avenge threshold (3).
-    const count = Math.max(1, num(params.golems, 1));
+    const count = goldenGolems > 0 ? goldenGolems : Math.max(1, num(params.golems, 1));
     const keyword = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
     // `charge` (Kurse, owner 2026-09-24: "It attacks immediately."): the Golem swings the moment it lands via the
     // immediate-attack lane (combat `attackNow`; meaningless in a shop, where the adapter ignores it). Carver
@@ -1293,11 +1296,12 @@ export const ARENA_EFFECTS = {
   battlecryBuffTribeOthersAttack(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = typeof params.tribe === 'string' ? params.tribe : '';
     const a = (typeof params.attack === 'number' ? params.attack : 1) * (arena.self.golden ? 2 : 1);
-    if (a <= 0) return;
+    const h = (typeof params.health === 'number' ? params.health : 0) * (arena.self.golden ? 2 : 1); // Warhorn Captain, owner 2026-11-06
+    if (a <= 0 && h <= 0) return;
     for (const f of arena.friends()) {
       if (f.uid === arena.self.uid) continue;
       if (tribe && !arena.isTribe(f, tribe)) continue;
-      arena.buff(f, a, 0);
+      arena.buff(f, a, h);
     }
   },
 
@@ -2069,6 +2073,16 @@ export const ARENA_EFFECTS = {
     if (tribe !== 'any' && !arena.isTribe(attacker, tribe)) return;
     const g = gold(arena);
     arena.buff(attacker, num(params.attack, 1) * g, num(params.health, 1) * g);
+  },
+
+  /** Portsmith (owner 2026-11-06) — when a friendly minion of `tribe` attacks, its own swing included, cast `count`
+   *  PERMANENT Rubies on the attacker (× golden). Each is a real Ruby at its current value. */
+  onFriendlyAttackPlayRubies(arena: EffectArena, params: Record<string, unknown>): void {
+    const attacker = params.attacker as ArenaBody | undefined;
+    if (!attacker) return;
+    const tribe = str(params.tribe);
+    if (tribe && !arena.isTribe(attacker, tribe)) return;
+    arena.playRubiesOn(attacker, num(params.count, 1) * gold(arena), true);
   },
 
   /** Tauntbreaker — on attack, strip the listed keywords off the enemy it HITS, so the target loses Taunt

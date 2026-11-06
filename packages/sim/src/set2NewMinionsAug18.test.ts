@@ -32,7 +32,7 @@ const recruitBody = (cardId: string, uid: string): BoardCard => {
 // matters: every proc is the right magnitude, co-firing reactors agree instance-for-instance, and the Imp
 // carry-back equals +3/+3 times the number of procs.
 describe('set 2 — the Demon-damage trigger (combat)', () => {
-  it('Axeman gains +3/+3 and Leech gains +1 Attack on the SAME Demon-damage instances', () => {
+  it('Axeman gains +3/+2 and Leech gains +1 Attack on the SAME Demon-damage instances', () => {
     const r = simulate(
       [bm('dm_chosenfiend', 'CF', 0, 400), bm('dm_leech', 'LE', 0, 400), bm('dm_clerk', 'AT', 5, 400)],
       [bm('dm_clerk', 'BAG', 0, 99999)],
@@ -40,7 +40,7 @@ describe('set 2 — the Demon-damage trigger (combat)', () => {
     const cf = buffsFrom(r.events, 'm0'); // Axeman
     const le = buffsFrom(r.events, 'm1'); // Leech
     expect(cf.length, 'the trigger fired repeatedly').toBeGreaterThan(1);
-    expect(cf.every((b) => b.attack === 3 && b.health === 3), 'each Axeman proc is +3/+3').toBe(true);
+    expect(cf.every((b) => b.attack === 3 && b.health === 2), 'each Axeman proc is +3/+2').toBe(true);
     expect(le.every((b) => b.attack === 1 && b.health === 0), 'each Leech proc is +1 Attack only').toBe(true);
     expect(le.length, 'both react to the exact same damage instances').toBe(cf.length);
   });
@@ -56,7 +56,7 @@ describe('set 2 — the Demon-damage trigger (combat)', () => {
       makeRng(3), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 1 }));
     const cf = buffsFrom(r.events, 'm0');
     expect(cf.length, 'only the landed killing blow procs; the warded hit does not').toBe(1);
-    expect(cf[0]).toMatchObject({ attack: 3, health: 3 });
+    expect(cf[0]).toMatchObject({ attack: 3, health: 2 });
   });
 
   it('Impossible Todd grants the run-wide Imp buff on each Demon-damage instance (carried back)', () => {
@@ -200,24 +200,26 @@ describe('set 2 — the 2026-08-18 recruit mechanics (reducer)', () => {
     expect(beat.sourceCardId, 'and names Enigma, so its shop-buff def can bind').toBe('dm_jumbo');
   });
 
-  it('Billings: every 5 Gold spent buffs exactly 2 random Dwarves +6/+5 (owner balance 2026-10-10)', () => {
+  it('Billings: every 10 Gold spent buffs exactly 3 random Dwarves +6/+6 (owner balance 2026-11-06)', () => {
     const s = recruit({
       board: [recruitBody('dw_billings', 'bl'), recruitBody('dw_brunni', 'd1'), recruitBody('dw_brunni', 'd2'), recruitBody('dw_brunni', 'd3')],
       hand: [], shop: [],
     });
     const sum = (key: 'attack' | 'health') => s.board.reduce((n, c) => n + c[key], 0);
     const aBefore = sum('attack'), hBefore = sum('health');
-    applyGoldSpent(s, 5);
-    expect(sum('attack') - aBefore, 'two recipients × +6 Attack').toBe(12);
-    expect(sum('health') - hBefore, 'two recipients × +5 Health').toBe(10);
+    applyGoldSpent(s, 9);
+    expect(sum('attack') - aBefore, 'fired below the threshold').toBe(0);
+    applyGoldSpent(s, 1);
+    expect(sum('attack') - aBefore, 'three recipients × +6 Attack').toBe(18);
+    expect(sum('health') - hBefore, 'three recipients × +6 Health').toBe(18);
   });
 
-  it('Gangplank: a card conjured to hand buffs a friendly Dwarf +1/+2', () => {
+  it('Gangplank: a card conjured to hand buffs a friendly Dwarf +2/+2', () => {
     const s = recruit({ board: [recruitBody('dw_brunni', 'd1'), recruitBody('dw_gangplank', 'gp')], hand: [], shop: [] });
     const before = s.board.map((c) => c.attack + c.health).reduce((a, b) => a + b, 0);
     conjureToHand(s, [CARD_INDEX['veinstorm']!], 1); // fires onGainCard once
     const after = s.board.map((c) => c.attack + c.health).reduce((a, b) => a + b, 0);
-    expect(after - before, 'exactly one Dwarf gained +1/+2').toBe(3);
+    expect(after - before, 'exactly one Dwarf gained +2/+2').toBe(4);
   });
 
   it('Gangplank picks a RANDOM Dwarf, not always the left-most (owner report 2026-08-20)', () => {

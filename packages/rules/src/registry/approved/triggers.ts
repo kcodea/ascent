@@ -1121,13 +1121,13 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-HUMPHRY-01',
-    title: 'Humphry gives a +2/+2 baseline plus +2/+2 per other Dragon played this turn, as one lump buff, never +0/+0',
+    title: 'Humphry gives a +3/+3 baseline plus +3/+3 per other Dragon played this turn, as one lump buff, never +0/+0',
     statement:
-      'Humphry: "Shout: Give a friendly Dragon +2/+2, plus +2/+2 for every other Dragon played this turn." ONE buff (the '
-      + 'lump pattern of R-REPEAT-01): the +2/+2 baseline plus +2/+2 for every OTHER Dragon played from hand this turn, so '
-      + 'it is never +0/+0. Played as the first Dragon of the turn it gives +2/+2; after one other Dragon, +4/+4. A real '
+      'Humphry: "Shout: Give a friendly Dragon +3/+3, plus +3/+3 for every other Dragon played this turn." ONE buff (the '
+      + 'lump pattern of R-REPEAT-01): the +3/+3 baseline plus +3/+3 for every OTHER Dragon played from hand this turn, so '
+      + 'it is never +0/+0. Played as the first Dragon of the turn it gives +3/+3; after one other Dragon, +6/+6. A real '
       + 'play does not count itself; a re-fire (Shrieker, a Shout repeater, any combat fire) is not a play, so every '
-      + 'Dragon played this turn counts. Gilded: +4/+4 baseline plus +4/+4 per other Dragon. Its live text (+X/+Y) prints '
+      + 'Dragon played this turn counts. Gilded: +6/+6 baseline plus +6/+6 per other Dragon. Its live text (+X/+Y) prints '
       + 'that same total on every surface (Shop, hand, Discover, board, combat).',
     domain: 'triggers',
     status: 'approved',

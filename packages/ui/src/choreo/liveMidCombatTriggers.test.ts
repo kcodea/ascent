@@ -19,13 +19,12 @@ const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ c
  * choreography compiler must give each of those events its own timed beat — narrations, the Ruby wave with
  * the live magnitude — so the replay shows the cascade as it happens, never "after combat resolves".
  *
- * Dawnclaw is PLAIN here again (owner balance 2026-10-10): an ungilded Dawnclaw triggers BOTH adjacent Shouts once.
- * (From 2026-08-11 it triggered only one, so this used the gilded body; a gilded body now fires each neighbour
- * TWICE, which would land the Excavator's Rubies at 1/3.)
+ * Dawnclaw is GILDED here (owner balance 2026-11-06): a plain Dawnclaw triggers ONE seeded neighbour, so only the
+ * Gilded body fires both adjacent Shouts, once each, in the left-to-right order this suite times.
  */
 describe('mid-combat trigger beats — Dawnclaw + Deepvein Tender + Frenzied Excavator', () => {
   const r = simulate(
-    [bm('k_deepvein', 2, 9999), bm('b2_dawnclaw', 1, 1), bm('k_frenzied', 3, 9999)],
+    [bm('k_deepvein', 2, 9999), { ...bm('b2_dawnclaw', 1, 1), golden: true }, bm('k_frenzied', 3, 9999)],
     [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
   const moments = compileMoments(r.events);
   const narrations = moments

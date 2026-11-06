@@ -39,7 +39,7 @@ describe('Kobe and Blazer leave Set 3 (still Set 2 cards)', () => {
     }
     // Unchanged otherwise.
     expect(CARD_INDEX['k_kobe']).toMatchObject({ tier: 4, attack: 5, health: 6 });
-    expect(CARD_INDEX['k_blazer']).toMatchObject({ tier: 3, attack: 2, health: 5 });
+    expect(CARD_INDEX['k_blazer']).toMatchObject({ tier: 3, attack: 3, health: 4 }); // owner balance 2026-11-06: 2/5 -> 3/4
   });
 
   it('an OLD Set 3 save holding them still loads and plays: shop action, snapshot and a deterministic combat replay', () => {

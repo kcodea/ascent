@@ -5952,7 +5952,7 @@ export function simulate(
         nextStep(); fireTrigger('runeDawnclaw', rside);
         // A Dawnclaw firing its own Echo without dying is still an Echo TRIGGER (see `asEcho`).
         asEcho(rside, () => {
-          FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, {}, { minion: m, side: rside });
+          FACTORIES['deathrattleReplayAdjacentBattlecry']?.(ctx, m, { one: true }, { minion: m, side: rside });
         }, m);
       }
     }

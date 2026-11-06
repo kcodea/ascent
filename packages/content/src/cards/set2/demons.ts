@@ -50,9 +50,10 @@ export const SET2_DEMONS: CardDef[] = [
     // Owner fix 2026-07-29: the TEXT described a different card entirely — "End of Turn: Consume the right-most
     // Shop minion" — while the effect has always been a Rally shop-buff. The effect was right; the text is now
     // what it actually does, and the gild doubles (the factory already scales on `gold(self)`).
-    effects: [{ on: 'onAttack', do: 'rallyBuffShopPermanent', params: { attack: 1, health: 2 } }],
-    text: '**Rally:** give minions in the Shop **+1/+2**.',
-    goldenText: '**Rally:** give minions in the Shop **+2/+4**.',
+    // Owner balance 2026-11-06: +1/+2 → +2/+3 (gilded +4/+6).
+    effects: [{ on: 'onAttack', do: 'rallyBuffShopPermanent', params: { attack: 2, health: 3 } }],
+    text: '**Rally:** give minions in the Shop **+2/+3**.',
+    goldenText: '**Rally:** give minions in the Shop **+4/+6**.',
   },
   {
     // PERMANENT means the buff rides the OFFER into the bought minion (via `offerBuyStats`) rather than
@@ -211,10 +212,10 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 3, // owner balance 2026-09-23: 3/6 → 3/7
     health: 7,
     keywords: [],
-    // Owner balance 2026-10-10: 1 -> 2 Demons per proc (gilded 4).
-    effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 2 } }],
-    text: '**Avenge (3):** get **2 random Demons**.',
-    goldenText: '**Avenge (3):** get **4 random Demons**.',
+    // Owner balance 2026-10-10: 1 -> 2 Demons per proc (gilded 4). Owner balance 2026-11-06: back to 1 (gilded 2).
+    effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
+    text: '**Avenge (3):** get a **random Demon**.',
+    goldenText: '**Avenge (3):** get **2 random Demons**.',
   },
   {
     // Set 2 — Impossible Todd (owner add 2026-08-18): the demon-damage capstone. Every time a friendly Demon
@@ -319,9 +320,10 @@ export const SET2_DEMONS: CardDef[] = [
     health: 2,
     keywords: ['CR'],
     critChance: 0.5,
-    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 3 } }],
-    text: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+3/+3** permanently.',
-    goldenText: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+6/+6** permanently.',
+    // Owner balance 2026-11-06: +3/+3 → +3/+2 (gilded +6/+4).
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 2 } }],
+    text: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+3/+2** permanently.',
+    goldenText: '**Critical Strike (50%).** When a friendly **Demon** deals damage, gain **+6/+4** permanently.',
   },
   {
     // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------

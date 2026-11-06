@@ -149,7 +149,7 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
     expect(s.runeWarDrumUsedThisTurn, 'the charge starts available (the readout reads 1)').toBeFalsy();
   });
 
-  it('the Baller alternates every sale and improves every SECOND one (owner rework 2026-08-19)', () => {
+  it('the Baller alternates every sale and improves every THIRD one (owner balance 2026-11-06)', () => {
     const s = armed('rune_baller');
     s.board = [minion('m', 'stray', 1, 1)];
     const body = () => [s.board[0]!.attack, s.board[0]!.health];
@@ -158,9 +158,9 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
     fireOnSell(s, minion('sold2', 'stray'));
     expect(body(), 'sale 2 → +1 Health (the SAME size, on the other axis)').toEqual([2, 2]);
     fireOnSell(s, minion('sold3', 'stray'));
-    expect(body(), 'sale 3 → +2 Attack (now the step rises)').toEqual([4, 2]);
+    expect(body(), 'sale 3 → +1 Attack (still the same size)').toEqual([3, 2]);
     fireOnSell(s, minion('sold4', 'stray'));
-    expect(body(), 'sale 4 → +2 Health').toEqual([4, 4]);
+    expect(body(), 'sale 4 → +2 Health (now the step rises)').toEqual([3, 4]);
   });
 
   it('Wishbone is offered ONLY to heroes whose power can actually repeat', () => {
@@ -628,15 +628,17 @@ describe('Rune of the Chipper Sticker — "whenever you PLAY a Demon, another fr
   });
 });
 
-describe('Rune of the Baller — the step now climbs every 2 sales (owner rework 2026-08-19)', () => {
+describe('Rune of the Baller — the step climbs every 3 sales (owner balance 2026-11-06, was every 2)', () => {
   const armed = (sales: number): RunState => ({ ...createRun(1), runeBaller: { step: 1, sales } } as RunState);
 
-  it('each size is paid on BOTH axes before the step rises', () => {
+  it('each size is paid for three sales, the axis alternating every sale', () => {
     expect(runeTally(armed(0), 'rune_baller')).toBe('+1 Atk');
     expect(runeTally(armed(1), 'rune_baller')).toBe('+1 Hp');
-    expect(runeTally(armed(2), 'rune_baller')).toBe('+2 Atk');
+    expect(runeTally(armed(2), 'rune_baller')).toBe('+1 Atk');
     expect(runeTally(armed(3), 'rune_baller')).toBe('+2 Hp');
-    expect(runeTally(armed(4), 'rune_baller')).toBe('+3 Atk');
+    expect(runeTally(armed(4), 'rune_baller')).toBe('+2 Atk');
+    expect(runeTally(armed(5), 'rune_baller')).toBe('+2 Hp');
+    expect(runeTally(armed(6), 'rune_baller')).toBe('+3 Atk');
   });
 
   it('the payout matches the pill across a run of four sales', () => {
@@ -646,11 +648,11 @@ describe('Rune of the Baller — the step now climbs every 2 sales (owner rework
     } as RunState;
     const sold = { uid: 'x', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } as BoardCard;
     for (let i = 0; i < 4; i++) fireOnSell(s, sold);
-    // +1 Atk, +1 Hp, +2 Atk, +2 Hp → 3 Attack and 3 Health total.
-    expect([s.board[0]!.attack, s.board[0]!.health], 'the four sales sum to +3/+3').toEqual([3, 3]);
+    // +1 Atk, +1 Hp, +1 Atk, +2 Hp → 2 Attack and 3 Health total.
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the four sales sum to +2/+3').toEqual([2, 3]);
   });
 
   it('the printed text says what the step actually does', () => {
-    expect(RUNE_INDEX['rune_baller']!.text).toContain('every **2 sales**');
+    expect(RUNE_INDEX['rune_baller']!.text).toContain('every **3 sales**');
   });
 });

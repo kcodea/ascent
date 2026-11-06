@@ -60,10 +60,10 @@ export const SUMMONING_RULES: GameRule[] = [
     title: 'Every Gemheart Golem summon is heard by Gemheart Legionnaire, in the Shop and in combat',
     statement:
       'Gemheart Legionnaire casts 5 permanent Rubies on itself (10 Gilded) for EACH friendly Gemheart Golem '
-      + 'summoned, from any source (Gemheart Carver\'s two, Geode Guardian\'s one, Kurse, Porkbelly, a rune) and in '
+      + 'summoned, from any source (Gem Carver, Geode Guardian\'s two, Kurse, Porkbelly, a rune) and in '
       + 'any phase: a Shop Echo summon lands the Rubies at once, a combat summon lands them for the fight and '
-      + 'carries them back to the run card. Each Golem a Carver or Geode summons is 1/1 plus that minion\'s Rubies '
-      + '(Gilded: a 2/2 with double the Rubies), Geode\'s with Taunt.',
+      + 'carries them back to the run card. A Gem Carver summons one 1/1 Golem plus its Rubies (Gilded: two of them). A Geode '
+      + 'Guardian summons two 1/1 Golems with Taunt and casts 2 Rubies on each (Gilded: 4 on each).',
     domain: 'summoning',
     status: 'approved',
     evidence: [

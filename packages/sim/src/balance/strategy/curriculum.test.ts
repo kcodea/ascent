@@ -75,7 +75,7 @@ interface Curriculum {
 }
 
 const CURRICULA: Curriculum[] = [
-  { pkg: 'ruby', ready: { board: ['k_chipwick', 'k_geode', 'k_kobe'], hand: 'k_frenzied' }, engine: 'k_chipwick', forge: { affine: 'rune_resonance', off: 'rune_trade_in' } /* both 1 Gold since balance 9/23 */ },
+  { pkg: 'ruby', ready: { board: ['k_chipwick', 'k_geode', 'k_kobe'], hand: 'k_frenzied' }, engine: 'k_chipwick', forge: { affine: 'rune_resonance', off: 'rune_window_shopping' } /* both 2 Gold since the owner balance 2026-11-06 (Resonance 1 -> 2; off-package was Trade-In, still 1) */ },
   { pkg: 'ale', ready: { board: ['dw_pimm', 'dw_brunni', 'dw_edward'], hand: 'wo_champion' }, engine: 'dw_pimm', forge: { affine: 'rune_flagship', off: 'rune_transcription' } /* both 4 Gold since balance 9/23 */ },
   { pkg: 'demonConsume', ready: { board: ['dm_knocked', 'dm_butcher', 'dm_glutton'], hand: 'dm_agent', shop: 'stray' }, engine: 'dm_agent', forge: { affine: 'rune_infernal_ink', off: 'rune_window_shopping' } },
   { pkg: 'beastSummon', ready: { board: ['b2_trex', 'kennel', 'b2_beardsley'], hand: 'b2_wolvie' }, engine: 'b2_trex', forge: { affine: 'rune_brood', off: 'rune_window_shopping' } /* rune_rebirth until 2026-09-16 — it grants the Rebirth keyword now, no summon affinity */ },
@@ -99,10 +99,10 @@ describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) 
     // balance-bot strategist plays the Growth, then sells Spellsword (the engine) to reroll on 0 Gold. With Growth
     // at +1/+1 it did not. The balance bot is paused by owner ruling (2026-09-15), so the pilot is not retuned here;
     // the guard stays live for every other package and the spellEngine case is pinned to what it does today.
-    // Same for 'rally' since the Kobold balance of 2026-10-20 (Blazer 2/7 -> 2/5): the paused pilot now sells
-    // Packstrider for a reroll after the payoff. Pinned to today's behaviour, not retuned (bot paused).
+    // ('rally' carried the same pin from the Kobold balance of 2026-10-20, Blazer 2/7 -> 2/5, until Blazer went to
+    // 3/4 on 2026-11-06: the pilot keeps Packstrider again, so rally is back under the live guard.)
     const soldEngine = actions.some((a) => a.type === 'sell');
-    if (pkg === 'spellEngine' || pkg === 'rally') expect(soldEngine, `${pkg}: re-pin when the pilot is retuned`).toBe(true);
+    if (pkg === 'spellEngine') expect(soldEngine, `${pkg}: re-pin when the pilot is retuned`).toBe(true);
     else expect(soldEngine, 'the engine was sold').toBe(false);
   });
 

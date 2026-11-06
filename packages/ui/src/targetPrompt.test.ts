@@ -56,7 +56,7 @@ describe('the targeting prompt says what the pick does (R-TARGET-PROMPT-01)', ()
       playedThisTurn: ['d2_broodwhelp', 'd2_humphry'],
       pendingTarget: { uid: 'h', cardId: 'd2_humphry' },
     });
-    expect(prompt(s)).toBe('Select a Dragon to grant +4/+4');
+    expect(prompt(s)).toBe('Select a Dragon to grant +6/+6');
   });
 
   it('Crest of the Climb (Choose One spell): phrases the CHOSEN branch, spell power folded in', () => {
@@ -65,12 +65,12 @@ describe('the targeting prompt says what the pick does (R-TARGET-PROMPT-01)', ()
       hand: [body('c', 'crestclimb')],
       pendingTarget: { uid: 'c', cardId: 'crestclimb', optionIndex: 1, spell: true, deferredPlay: true },
     });
-    expect(prompt(s)).toBe('Select a minion to grant +4 Health');
-    expect(prompt(s, undefined, 0, 1)).toBe('Select a minion to grant +5 Health');
+    expect(prompt(s)).toBe('Select a minion to grant +5 Health');
+    expect(prompt(s, undefined, 0, 1)).toBe('Select a minion to grant +6 Health');
     // Both stats of power are added to any grant (`spellBuffTarget`), so the branch becomes a pair.
-    expect(prompt(s, undefined, 1, 1)).toBe('Select a minion to grant +1/+5');
+    expect(prompt(s, undefined, 1, 1)).toBe('Select a minion to grant +1/+6');
     const atk = { ...s, pendingTarget: { ...s.pendingTarget!, optionIndex: 0 } } as RunState;
-    expect(prompt(atk, undefined, 2, 0)).toBe('Select a minion to grant +6 Attack');
+    expect(prompt(atk, undefined, 2, 0)).toBe('Select a minion to grant +7 Attack');
   });
 
   it('Runic Beetle (Choose One minion): a Beast, its keyword and stats in one clause; golden doubles the stats', () => {

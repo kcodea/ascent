@@ -140,13 +140,13 @@ const KNOWN_UNATTRIBUTED: readonly UnattributedPin[] = [
   },
   {
     action: 'upgrade',
-    why: '`applyGoldSpent` (recruit.ts) fires `goldSpent` watchers bare — Coinfire: every 5 Gold spent (`card.goldTick`) → Dwarves +2 Attack; the tier-up is the spend here',
-    repro: () => ({ state: withState('warden', { embers: 20, board: [{ ...mk('b1', 'dw_coinfire'), goldTick: 0 }, mk('b2', 'dw_pimm')], upgradeCost: 5 }), action: { type: 'upgrade' } }),
+    why: '`applyGoldSpent` (recruit.ts) fires `goldSpent` watchers bare — Coinfire: every 6 Gold spent (`card.goldTick`) → Dwarves +2/+1; the tier-up is the spend here',
+    repro: () => ({ state: withState('warden', { embers: 20, board: [{ ...mk('b1', 'dw_coinfire'), goldTick: 1 }, mk('b2', 'dw_pimm')], upgradeCost: 5 }), action: { type: 'upgrade' } }),
   },
   {
     action: 'roll',
-    why: "`applyGoldSpent` fires `goldSpent` watchers bare on any spend — a paid refresh that crosses Coinfire's every-5 tick buffs Dwarves with no scope",
-    repro: () => ({ state: withState('warden', { embers: 20, freeRolls: 0, board: [{ ...mk('b1', 'dw_coinfire'), goldTick: 4 }, mk('b2', 'dw_pimm')] }), action: { type: 'roll' } }),
+    why: "`applyGoldSpent` fires `goldSpent` watchers bare on any spend — a paid refresh that crosses Coinfire's every-6 tick buffs Dwarves with no scope",
+    repro: () => ({ state: withState('warden', { embers: 20, freeRolls: 0, board: [{ ...mk('b1', 'dw_coinfire'), goldTick: 5 }, mk('b2', 'dw_pimm')] }), action: { type: 'roll' } }),
   },
 ];
 

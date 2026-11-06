@@ -44,16 +44,16 @@ describe('Gold spent + on-sell — captured like every other shop grant', () => 
     const s = run([body('bl', 'dw_billings'), body('d2', 'dw_foreman')]);
     applyGoldSpent(s, 10);
     const fx = s.recruitBuffFx.filter((e) => e.sourceUid === 'bl');
-    expect(fx.length, 'two 5-Gold steps → two grants').toBeGreaterThan(0);
+    expect(fx.length, 'one 10-Gold step → a grant').toBeGreaterThan(0);
     for (const e of fx) expect(e).toMatchObject({ kind: 'minion', sourceCardId: 'dw_billings', sourceTribe: 'dwarf', targetUid: 'd2' });
   });
 
-  it('Coinfire Forewoman (every N Gold: Dwarves +Attack): captured, sourced on the Forewoman, never on herself', () => {
+  it('Coinfire Forewoman (every N Gold: Dwarves +A/+H): captured, sourced on the Forewoman, never on herself', () => {
     const s = run([body('cf', 'dw_coinfire'), body('d2', 'dw_foreman')]);
     applyGoldSpent(s, 10);
     const fx = s.recruitBuffFx.filter((e) => e.sourceUid === 'cf');
     expect(fx.length).toBeGreaterThan(0);
-    expect(fx.every((e) => e.targetUid === 'd2' && e.attack > 0 && e.health === 0)).toBe(true);
+    expect(fx.every((e) => e.targetUid === 'd2' && e.attack === 2 && e.health === 1)).toBe(true);
   });
 
   it("Flame Reveler sold: the Spirits it pays are captured with the SOLD card as source (the UI streams from the slot it left)", () => {

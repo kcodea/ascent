@@ -680,6 +680,6 @@ describe('set 2 — Dragon reworks (owner batch 2026-07-27)', () => {
       hand: [minion('sh', 'd2_chronicler', 'dragon', 3, 5)] };
     s = reduce(s, { type: 'play', uid: 'sh' });
     const e = s.board.find((c) => c.uid === 'e')!;
-    expect([e.attack, e.health], 'a triggered Shout grew it').toEqual([3, 4]); // +1/+2 since the owner's 2026-09-23 balance pass (was +1/+1)
+    expect([e.attack, e.health], 'a triggered Shout grew it').toEqual([4, 4]); // +2/+2 since the owner balance 2026-11-06 (was +1/+2)
   });
 });

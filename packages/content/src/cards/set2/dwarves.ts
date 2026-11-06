@@ -37,9 +37,10 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribeOthersAttack', params: { tribe: 'dwarf', attack: 3 } }],
-    text: '**Shout:** give your other **Dwarves +3 Attack**.',
-    goldenText: '**Shout:** give your other **Dwarves +6 Attack**.',
+    // Owner balance 2026-11-06: +3 Attack -> +3/+2.
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTribeOthersAttack', params: { tribe: 'dwarf', attack: 3, health: 2 } }],
+    text: '**Shout:** give your other **Dwarves +3/+2**.',
+    goldenText: '**Shout:** give your other **Dwarves +6/+4**.',
   },
   {
     id: 'dw_brunni',
@@ -78,9 +79,10 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentBuffTribeAttack', params: { every: 5, tribe: 'dwarf', attack: 2 } }],
-    text: 'When you spend **5 Gold**, give your **Dwarves +2 Attack**.',
-    goldenText: 'When you spend **5 Gold**, give your **Dwarves +4 Attack**.',
+    // Owner balance 2026-11-06: +2 Attack per 5 Gold -> +2/+1 per 6 Gold.
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffTribeAttack', params: { every: 6, tribe: 'dwarf', attack: 2, health: 1 } }],
+    text: 'When you spend **6 Gold**, give your **Dwarves +2/+1**.',
+    goldenText: 'When you spend **6 Gold**, give your **Dwarves +4/+2**.',
   },
   {
     id: 'dw_brakka',
@@ -297,9 +299,10 @@ export const SET2_DWARVES: CardDef[] = [
     health: 6,
     keywords: [],
     // Owner balance 2026-10-10: +5/+5 -> +6/+5 (gilded +12/+10).
-    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 5, tribe: 'dwarf', count: 2, attack: 6, health: 5 } }],
-    text: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +6/+5**.',
-    goldenText: 'When you spend **5 Gold**, give **2 random** friendly **Dwarves +12/+10**.',
+    // Owner balance 2026-11-06: every 10 Gold (was 5), 3 Dwarves (was 2), +6/+6 (gilded +12/+12).
+    effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 10, tribe: 'dwarf', count: 3, attack: 6, health: 6 } }],
+    text: 'When you spend **10 Gold**, give **3 random** friendly **Dwarves +6/+6**.',
+    goldenText: 'When you spend **10 Gold**, give **3 random** friendly **Dwarves +12/+12**.',
   },
   {
     // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
@@ -312,9 +315,10 @@ export const SET2_DWARVES: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onGainCard', do: 'onGainCardBuffTribe', params: { tribe: 'dwarf', attack: 1, health: 2 } }],
-    text: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
-    goldenText: 'When a card is added to your hand, give a **random** friendly **Dwarf +2/+4**.',
+    // Owner balance 2026-11-06: +1/+2 -> +2/+2.
+    effects: [{ on: 'onGainCard', do: 'onGainCardBuffTribe', params: { tribe: 'dwarf', attack: 2, health: 2 } }],
+    text: 'When a card is added to your hand, give a **random** friendly **Dwarf +2/+2**.',
+    goldenText: 'When a card is added to your hand, give a **random** friendly **Dwarf +4/+4**.',
   },
 ];
 

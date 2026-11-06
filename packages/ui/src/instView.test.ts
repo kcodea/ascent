@@ -98,16 +98,16 @@ describe('Goldilox — live text shows the gain it takes RIGHT NOW (owner 2026-0
 
 describe('owner Dragon batch 2026-10-10: live text', () => {
   // Owner fix 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline" (R-HUMPHRY-01). The live (+X/+Y) is the
-  // +2/+2 baseline plus +2/+2 per OTHER Dragon played, the same number on every surface, and NEVER +0/+0.
+  // baseline plus one step per OTHER Dragon played (both +3/+3 since the owner balance 2026-11-06), the same number on every surface, and NEVER +0/+0.
   it('Humphry prints baseline + every other Dragon played, on every surface, never +0/+0', () => {
     const surfaces = [{ inHand: true }, {}, { onBoard: true }] as const; // hand, Shop / Discover offer (and combat), board
     for (const at of surfaces) {
-      expect(liveCardText('d2_humphry', { ...base, ...at }).text, `nothing played: the baseline (${JSON.stringify(at)})`).toContain('{{(+2/+2)}}');
-      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).toContain('{{(+4/+4)}}');
-      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth', 'stray'] }).text, 'a non-Dragon never counts').toContain('{{(+4/+4)}}');
-      expect(liveCardText('d2_humphry', { ...base, ...at, tribesPlayed: {} }).text, 'an empty combat tally').toContain('{{(+2/+2)}}');
-      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true }).goldenText, 'gilded baseline').toContain('{{(+4/+4)}}');
-      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true, playedThisTurn: ['d2_embermouth'] }).goldenText).toContain('{{(+8/+8)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at }).text, `nothing played: the baseline (${JSON.stringify(at)})`).toContain('{{(+3/+3)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).toContain('{{(+6/+6)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth', 'stray'] }).text, 'a non-Dragon never counts').toContain('{{(+6/+6)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, tribesPlayed: {} }).text, 'an empty combat tally').toContain('{{(+3/+3)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true }).goldenText, 'gilded baseline').toContain('{{(+6/+6)}}');
+      expect(liveCardText('d2_humphry', { ...base, ...at, golden: true, playedThisTurn: ['d2_embermouth'] }).goldenText).toContain('{{(+12/+12)}}');
       expect(liveCardText('d2_humphry', { ...base, ...at, playedThisTurn: ['d2_embermouth'] }).text).not.toContain('+0/+0');
     }
   });

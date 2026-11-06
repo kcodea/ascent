@@ -18,7 +18,7 @@ const mods = (m: Partial<CombatSideState['questMods']>) => ({ questMods: m as Co
 
 describe('the 14 defs ship as specced', () => {
   const want: [string, number][] = [
-    ['rune_enchantment', 2], ['rune_crown', 3], ['rune_lapidary', 3], ['rune_gem_golem', 3], // Enchantment 5 → 2, Lapidary 5 → 3 (balance 9/23)
+    ['rune_enchantment', 2], ['rune_crown', 3], ['rune_lapidary', 3], ['rune_gem_golem', 5], // Enchantment 5 → 2, Lapidary 5 → 3 (balance 9/23); Gem Golem 3 → 5 (owner 2026-11-06)
     ['rune_dragonscale', 3], ['rune_tempered_time', 3], ['rune_savagery', 4], ['rune_crucible', 3],
     ['rune_herald', 4], ['rune_deep', 4] /* 6 → 5 owner 2026-10-07, 5 → 4 owner 2026-10-23 */, ['rune_guiding_candle', 3], ['rune_muster', 3],
     ['rune_foundry', 3] /* 4 → 3 owner 2026-10-07 */, ['rune_corrupted_tome', 1], // Corrupted Tome 4 → 1 (balance 9/23)

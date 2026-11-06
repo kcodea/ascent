@@ -93,15 +93,15 @@ export const SLICE_CONTRACTS: readonly ContentContract[] = [
     keywords: ['SC'],
     tags: ['trigger:avenge', 'trigger:startOfCombat', 'counter:improving', 'copy-subject'],
     // The Avenge leg stays FIRST: the slice's observations are path-addressed (triggers.0.threshold, effects.0).
-    // Owner balance 2026-10-10: Avenge (4) -> (3), +1 -> +2 Attack (improving +2).
-    triggers: [{ event: 'avenge', phase: 'combat', threshold: 3 }, { event: 'startOfCombat', phase: 'combat' }],
+    // Owner balance 2026-10-10: Avenge (4) -> (3), +1 -> +2 Attack (improving +2). 2026-11-06: Avenge (3) -> (4).
+    triggers: [{ event: 'avenge', phase: 'combat', threshold: 4 }, { event: 'startOfCombat', phase: 'combat' }],
     effects: [
       { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel) — the copy-semantics subject of both copy fixtures' },
       { kind: 'stat-buff', note: 'Start of Combat: +2 Attack (gilded +4; +1 / +2 until 2026-10-10) to the Beast Aura — the leg this contract omitted until 2026-09-10 (textParse flagged it as wrong-trigger)' },
     ],
     persistence: ['permanent'],
     relatedRuleIds: ['R-AVWIN-01', 'R-AVWIN-03', 'R-AVWIN-04', 'R-AVWIN-05'],
-    textContract: { text: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (3):** Improve this.', goldenText: '**Start of Combat:** give your **Beast Aura** **+4 Attack**. **Avenge (3):** Improve this (twice as much).' },
+    textContract: { text: '**Start of Combat:** give your **Beast Aura** **+2 Attack**. **Avenge (4):** Improve this.', goldenText: '**Start of Combat:** give your **Beast Aura** **+4 Attack**. **Avenge (4):** Improve this (twice as much).' },
   },
   {
     contentId: 'anubis',

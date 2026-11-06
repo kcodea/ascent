@@ -163,8 +163,8 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
     // Both legs the text prints (2026-09-10: the Start of Combat leg was missing, so textParse flagged the card
     // as wrong-trigger — the contract was incomplete, not the text). The Avenge leg stays first: the slice's
     // observations are path-addressed.
-    // Owner balance 2026-10-10: Avenge (4) -> (3), and the aura is +2 Attack improving +2.
-    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 3 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
+    // Owner balance 2026-10-10: Avenge (4) -> (3), and the aura is +2 Attack improving +2. 2026-11-06: Avenge (3) -> (4).
+    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
     effects: [
       { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' },
       { kind: 'stat-buff', note: 'Start of Combat: all Beasts +2 Attack (gilded +4) THIS COMBAT, later summons included, no carry-back (scBeastAura, R-AURA-03)' },

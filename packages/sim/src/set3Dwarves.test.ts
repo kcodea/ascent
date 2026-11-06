@@ -184,26 +184,26 @@ describe('Hank Pepe — when you Sell a minion, give 3 other Dwarves +1/+1 (owne
 });
 
 describe('Kneel / Tankerchief — when a Dwarf gains Attack', () => {
-  // Warhorn Captain's Shout: "give your other Dwarves +3 Attack" — one action that lifts every Dwarf at once.
+  // Warhorn Captain's Shout: "give your other Dwarves +3/+2" — one action that lifts every Dwarf at once.
   const shout = (board: BoardCard[]): RunState =>
     act(run({ board, hand: [body('cap', 'dw_ironlung')] }), { type: 'play', uid: 'cap' });
 
   it('SHOP: pays once PER Dwarf that gained, excludes its own gain, and never re-fires off a watcher grant', () => {
     const s = shout([body('k', 'dw3_kneel'), body('t', 'dw3_tankerchief'), body('b', 'dw_brunni'), body('c', 'dw_coinfire')]);
-    // Four Dwarves gained +3 (the Captain is new, not a gain). Kneel fires for the other three: +6 Health.
+    // Four Dwarves gained +3/+2 (the Captain is new, not a gain). Kneel fires for the other three: +6 Health.
     expect(at(s, 'k').attack).toBe(4 + 3);
-    expect(at(s, 'k').health).toBe(6 + 3 * 2);
+    expect(at(s, 'k').health).toBe(6 + 2 + 3 * 2);
     // Tankerchief fires for the other three: +3/+12 — and its own +3 from those grants is NOT a fresh gain, so
     // Kneel does not pay a fourth time and nothing loops.
     expect(at(s, 't').attack).toBe(8 + 3 + 3);
-    expect(at(s, 't').health).toBe(14 + 3 * 4);
+    expect(at(s, 't').health).toBe(14 + 2 + 3 * 4);
   });
   it('SHOP: two Tankerchiefs settle — each pays for the other exactly once, no ping-pong', () => {
     const s = shout([body('t1', 'dw3_tankerchief'), body('t2', 'dw3_tankerchief')]);
     expect(at(s, 't1').attack).toBe(8 + 3 + 1);
-    expect(at(s, 't1').health).toBe(14 + 4);
+    expect(at(s, 't1').health).toBe(14 + 2 + 4);
     expect(at(s, 't2').attack).toBe(8 + 3 + 1);
-    expect(at(s, 't2').health).toBe(14 + 4);
+    expect(at(s, 't2').health).toBe(14 + 2 + 4);
   });
   it('SHOP: ignores a non-Dwarf gaining Attack, and a watcher in HAND never pays', () => {
     let s = run({ board: [body('k', 'dw3_kneel'), body('n', 'e3_frank')], hand: [body('k2', 'dw3_kneel'), body('sp', 'growth', { tribe: 'neutral', attack: 0, health: 1 })] });
@@ -215,7 +215,7 @@ describe('Kneel / Tankerchief — when a Dwarf gains Attack', () => {
   });
   it('golden Kneel gains +4 Health per Dwarf', () => {
     const s = shout([body('k', 'dw3_kneel', { golden: true, attack: 8, health: 12 }), body('b', 'dw_brunni')]);
-    expect(at(s, 'k').health).toBe(12 + 4);
+    expect(at(s, 'k').health).toBe(12 + 2 + 4); // the Shout's +2, then +4 for the other Dwarf
   });
 
   // ── COMBAT: Lieutenant Thane's Rally gives its Attack to 2 other friendly minions — two gains in one swing.

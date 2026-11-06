@@ -1212,7 +1212,7 @@ export function shopOfferOpts(run: RunState, o: ShopCard, x: ShopOfferExtras, ba
     freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !def?.spell,
     tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources,
     undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp,
-    spellCostMod: spellCostReduction(run, def) + ancientEnchantedSpellCut(run, o), // Ayse x Fortune: an Enchanted spell costs 2
+    spellCostMod: spellCostReduction(run, def) + ancientEnchantedSpellCut(run, o) + (o.cartCut ? 1 : 0), // Ayse x Fortune: an Enchanted spell costs 2
     // the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12;
     // Darah x Ancient of Fortune: a swapped-away minion buys back for 0
     minionCost: def?.spell ? undefined : o.held ? heldOfferPrice(run, o) : offerBuyPrice(run, o).cost,

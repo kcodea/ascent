@@ -44,8 +44,8 @@ describe('Gangplank fires for ANY card reaching hand', () => {
     s = reduce(s, { type: 'play', uid: 'sp1' } as Action);
     const rubies = s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length;
     expect(rubies, 'Rubies were minted to hand').toBeGreaterThan(0);
-    // +1/+2 per arriving card — one payout per minted Ruby.
-    expect(total(s) - before, 'Gangplank paid out once per Ruby').toBe(rubies * 3);
+    // +2/+2 per arriving card — one payout per minted Ruby.
+    expect(total(s) - before, 'Gangplank paid out once per Ruby').toBe(rubies * 4);
   });
 
   it('a MINION bought into hand still procs it (the path that always worked — no regression)', () => {
@@ -63,7 +63,7 @@ describe('Gangplank fires for ANY card reaching hand', () => {
     s = { ...s, shop: [{ uid: 'o1', cardId: minion.id }] } as unknown as RunState;
     const before = total(s);
     s = reduce(s, { type: 'buy', uid: 'o1' } as Action);
-    // Gangplank grants +1/+2 = 3 stat points per card. Exactly one card arrived, so exactly 3.
-    expect(total(s) - before).toBe(3);
+    // Gangplank grants +2/+2 = 4 stat points per card. Exactly one card arrived, so exactly 4.
+    expect(total(s) - before).toBe(4);
   });
 });

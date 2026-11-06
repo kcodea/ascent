@@ -65,28 +65,28 @@ describe('Bullseye — Echo summons a random Beast at fixed stats', () => {
   });
 });
 
-// ── Beardsley (T4 Beast 5/5) — escalating summon buff: the first Beast gets +3/+3 (gilded +6/+6) ────────────
-// Reworked 2026-08-18: base +3/+3, improving +3/+3 every 3 Beasts summoned. The FIRST summon is at step 0.
+// ── Beardsley (T4 Beast 5/5) — escalating summon buff: the first Beast gets +2/+1 (gilded +4/+2) ────────────
+// Owner balance 2026-11-06: base +2/+1, improving +1/+1 on every Beast summoned. The FIRST summon is at step 0.
 describe('Beardsley — combat-only summon buff', () => {
-  it('a Beast summoned in combat is buffed +1/+1 (gilded +2/+2; re-pinned 2026-10-07, was +3/+3)', () => {
+  it('a Beast summoned in combat is buffed +2/+1 (gilded +4/+2; re-pinned 2026-11-06, was +1/+1)', () => {
     // A Pack Leader dies and its Echo summons a Pup; Beardsley buffs that summoned Beast. Asserted on the buff
     // EVENT (the summon snapshot is captured before the buff lands), the same shape the Groveweaver test uses.
     const run = (golden: boolean) => simulate(
       [bm('b2_beardsley', 'BD', 5, 400, golden ? { golden: true } : {}), bm('pack', 'P', 2, 1)],
       [{ cardId: 'sandbag', attack: 9, health: 400 }], makeRng(2), CARD_INDEX,
       combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
-    const buffedSummon = (r: ReturnType<typeof simulate>, amount: number) => {
+    const buffedSummon = (r: ReturnType<typeof simulate>, attack: number, health: number) => {
       const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
         .find((e) => e.minion.cardId === 'pup');
       if (!pup) return false;
       return (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
-        .some((b) => b.target === pup.minion.uid && b.attack === amount && b.health === amount);
+        .some((b) => b.target === pup.minion.uid && b.attack === attack && b.health === health);
     };
-    expect(buffedSummon(run(false), 1), 'first summoned Beast got Beardsley +1/+1').toBe(true);
-    expect(buffedSummon(run(true), 2), 'gilded Beardsley +2/+2').toBe(true);
+    expect(buffedSummon(run(false), 2, 1), 'first summoned Beast got Beardsley +2/+1').toBe(true);
+    expect(buffedSummon(run(true), 4, 2), 'gilded Beardsley +4/+2').toBe(true);
   });
 
-  it('fires in the SHOP too (owner 2026-08-12: both phases) — a Beast played beside it gets +1/+1 (re-pinned 2026-10-07)', () => {
+  it('fires in the SHOP too (owner 2026-08-12: both phases) — a Beast played beside it gets +2/+1 (re-pinned 2026-11-06)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99,
       board: [minion('BD', 'b2_beardsley', 5, 5)],
@@ -94,7 +94,7 @@ describe('Beardsley — combat-only summon buff', () => {
     };
     s = reduce(s, { type: 'play', uid: 'p' });
     const pack = s.board.find((c) => c.uid === 'p')!;
-    expect([pack.attack, pack.health], 'Beardsley +1/+1 in the shop (first Beast, step 0)').toEqual([4, 3]);
+    expect([pack.attack, pack.health], 'Beardsley +2/+1 in the shop (first Beast, step 0)').toEqual([5, 3]);
   });
 });
 

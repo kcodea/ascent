@@ -76,7 +76,7 @@ describe('Gangplank fires for EVERY card — including a 7-card Harlan Buyout', 
     const taken = s.hand.length - handBefore;
     expect(taken, 'Buyout took the shop into hand').toBeGreaterThan(0);
     const pm = s.board.find((c) => c.uid === 'pm')!;
-    // Gangplank grants +1/+2 = 3 stat points per arriving card — one payout each, no more, no fewer.
-    expect(pm.attack + pm.health - before, `${taken} cards arrived → ${taken} payouts`).toBe(taken * 3);
+    // Gangplank grants +2/+2 = 4 stat points per arriving card — one payout each, no more, no fewer.
+    expect(pm.attack + pm.health - before, `${taken} cards arrived → ${taken} payouts`).toBe(taken * 4);
   });
 });

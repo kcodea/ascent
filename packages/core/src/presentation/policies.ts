@@ -210,6 +210,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleSummonRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonRandomTribeSetStats:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonRubyStats:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleSummonGolemsWithRuby:onDeath': { policy: 'ownBeat', family: 'echo' }, // Geode Guardian
   'factory:deathrattleTriggerAdjacentRally:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:echoCastRememberedSpells:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:echoResummonDeadBeasts:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -304,6 +305,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onDamagedGrantRefresh:onDamaged': { policy: 'foldedCue', family: 'react' },
   'factory:onFriendDeathSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:onFriendlyAttackBuffTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onFriendlyAttackPlayRubies:onAttack': { policy: 'ownBeat', family: 'rally' }, // Portsmith
   'factory:onGainAttackBuffImproving:onGainAttack': { policy: 'foldedCue', family: 'react' },
   'factory:onTribeGainAttackBuffSelf:onGainAttack': { policy: 'foldedCue', family: 'react' }, // Kneel / Tankerchief (set 3)
   'factory:onGainAttackImproveHpGrant:onGainAttack': { policy: 'foldedCue', family: 'react' },
@@ -337,7 +339,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onConsumeBuffShop:onConsume': { policy: 'foldedCue', family: 'react' }, // Enigma
   'factory:deathrattleDamageAllExceptTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Fel Spikes
   'factory:rallyDamageAllExceptTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Gasket (2026-10-10)
-  'factory:avengeRubyStatGain:avenge': { policy: 'ownBeat', family: 'avenge' }, // Gem Portsmith (first live user)
   'factory:onRallyBuffOnePerTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyPlayRubiesTribe:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onRallyProcLeftmostEcho:onAttack': { policy: 'ownBeat', family: 'rally' }, // Hawkus

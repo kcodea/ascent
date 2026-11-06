@@ -48,17 +48,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-gild-01",
-    "title": "Wording: Gilded vs Golden · 11 vs 8",
+    "title": "Wording: Gilded vs Golden · 12 vs 8",
     "statement": "Upgraded cards are called \"Gilded\" in text; every \"Golden\"/\"golden\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Gilded\" in 11 printed texts, \"Golden\" in 8. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Gilded\" in 12 printed texts, \"Golden\" in 8. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
     "cardText": "\"Gilded\" — T-Rex: \"Echo: summon a Gilded T-Rex Baby with Taunt.\" · \"Golden\" — Eyes of Aresmar: \"Make a Tier 4 or lower minion Golden.\"",
     "example": "Eyes of Aresmar would be re-worded to the \"Gilded\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 11 vs 8)"
+        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 12 vs 8)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -137,7 +137,7 @@ export const WORDING_PENDING: GameRule[] = [
     "domain": "text",
     "status": "needs-ruling",
     "currentBehaviour": "Both spellings are live: \"Shout\" in 156 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
-    "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
+    "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
@@ -231,7 +231,7 @@ export const WORDING_PENDING: GameRule[] = [
     "domain": "text",
     "status": "needs-ruling",
     "currentBehaviour": "Both spellings are live: \"trigger\" in 107 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
-    "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
+    "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
@@ -279,17 +279,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 236 vs 9",
+    "title": "Wording: Shop vs tavern · 237 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 236 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 237 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 236 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 237 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

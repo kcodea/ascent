@@ -177,11 +177,11 @@ describe('castSpellWithoutAim: the shared random-target cast', () => {
     expect(t.board.find((c) => c.uid === 'c')!.attack, 'the primary hit landed on the Celestial').toBeGreaterThan(1);
   });
 
-  it('a Choose One (Crest of the Climb) resolves one seeded branch: +4 Attack OR +4 Health', () => {
+  it('a Choose One (Crest of the Climb) resolves one seeded branch: +5 Attack OR +5 Health', () => {
     const s = bare([minion('a', 'sandbag', 1, 1)]);
     expect(castSpellWithoutAim(s, CARD_INDEX['crestclimb']!)).toBe(true);
     const [a, h] = [s.board[0]!.attack, s.board[0]!.health];
-    expect([[5, 1], [1, 5]]).toContainEqual([a, h]);
+    expect([[6, 1], [1, 6]]).toContainEqual([a, h]);
   });
 
   it('an untargeted member casts as it is (Growth buffs the whole board)', () => {

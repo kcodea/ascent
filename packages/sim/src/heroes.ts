@@ -301,7 +301,7 @@ export const HEROES: HeroDef[] = [
     name: 'Robin',
     blurb: 'Patience pays. Every minion sold lines next turn\'s purse.',
     resolve: 30,
-    armor: 4, // owner balance 2026-08-17,
+    armor: 5, // owner balance 2026-11-06: 4 -> 5
     power: {
       name: 'Spoils',
       kind: 'sellGold',
@@ -445,7 +445,7 @@ export const HEROES: HeroDef[] = [
     name: 'Runesmith',
     blurb: 'The forge fires once. Spend well, for its rune lasts the whole game.',
     resolve: 30,
-    armor: 8, // owner balance 2026-08-17,
+    armor: 9, // owner balance 2026-11-06: 8 -> 9
     power: {
       name: 'Forgemaster',
       kind: 'runeforge',
@@ -578,7 +578,7 @@ export const HEROES: HeroDef[] = [
     name: 'Gambler',
     blurb: 'The house always wins. Unless the house is you.',
     resolve: 30,
-    armor: 8, // owner balance 2026-08-17,
+    armor: 9, // owner balance 2026-11-06: 8 -> 9
     power: {
       name: 'Dice',
       kind: 'dice',
@@ -607,7 +607,7 @@ export const HEROES: HeroDef[] = [
     name: 'Frantic Frank',
     blurb: 'Everything must go. Today only.',
     resolve: 30,
-    armor: 9, // owner balance 2026-08-17,
+    armor: 10, // owner balance 2026-11-06: 9 -> 10
     power: {
       name: 'Clearance',
       kind: 'clearance',
@@ -820,7 +820,7 @@ export const HEROES: HeroDef[] = [
     name: 'Ayse',
     blurb: 'The house always seats you somewhere interesting.',
     resolve: 30,
-    armor: 10,
+    armor: 15, // owner balance 2026-11-06: 10 -> 15
     power: {
       name: 'Lucky Seat',
       kind: 'luckySeat',

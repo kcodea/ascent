@@ -146,7 +146,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_first_round',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'First Round',
-    cost: 4, // owner 2026-10-23 -1 (was 5); owner 2026-09-27, Set 3 rune design pass (was 4; 5 before balance 9/23)
+    cost: 3, // owner balance 2026-11-06 (was 4); owner 2026-10-23 -1 (was 5); owner 2026-09-27, Set 3 rune design pass (was 4; 5 before balance 9/23)
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -227,7 +227,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_resonance',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Resonance',
-    cost: 1, // balance 9/23 (was 3)
+    cost: 2, // owner balance 2026-11-06 (was 1); balance 9/23 (was 3)
     text: '**Start of Turn:** get a random **Ruby**. Your **Rubies** cast twice from hand.', // owner 2026-09-25: reordered (text only)
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, { kind: 'runeRubyDrip' }] },
@@ -346,15 +346,15 @@ export const RUNES: RuneDef[] = [
     id: 'rune_kindling',
     name: 'Kindling',
     cost: 3, // owner 2026-10-23 -1 (was 4); owner balance 2026-08-07
-    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +4/+6**.', // owner balance 2026-08-19
+    text: 'Whenever you cast a Shop spell, give your **left and right-most minions +3/+4**.', // owner balance 2026-08-19; 2026-11-06: +4/+6 -> +3/+4
     reward: { kind: 'runeKindling' },
   },
   {
     id: 'rune_pair',
     name: 'Pair',
     cost: 2, // owner 2026-10-23 -1 (was 3); balance 9/23 (was 5)
-    text: 'Get **2 random Tier 4 minions**.',
-    reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
+    text: 'Get a random **Tier 5** minion and a random **Tier 4** minion.', // owner balance 2026-11-06 (was 2 Tier 4s)
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', randomTier: 5, randomCount: 1 }, { kind: 'grant', randomTier: 4, randomCount: 1 }] },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass: tranche 0 cut list; keeps its other sets, never archived)
   },
   {
@@ -824,9 +824,10 @@ export const RUNES: RuneDef[] = [
     cost: 4, // owner 2026-10-23 -1 (was 5)
     // Owner 2026-08-11: now also HANDS OVER a Veinbreaker, on top of the both-effects grant.
     // Owner 2026-09-23: the Veinbreaker REPEATS at Start of Turn (`recurringGrant`: one now, one per turn setup).
-    text: 'Get a **Cave Cutter**. Repeat at **Start of Turn**. They grant **both** effects.',
+    // Owner balance 2026-11-06: repeats every 2 turns (the first lands on purchase, the cadence pays after).
+    text: 'Get a **Cave Cutter**. Repeat every **2 turns**. They grant **both** effects.',
     previewCards: ['k_veinbreaker'],
-    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['k_veinbreaker'] }, { kind: 'runeUnbrokenVein' }] },
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_veinbreaker'] }, { kind: 'recurringGrant', cards: ['k_veinbreaker'], everyTurns: 2 }, { kind: 'runeUnbrokenVein' }] },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   // ── Aug-11 minion-grant runes (Basic) ──
@@ -1098,7 +1099,7 @@ export const RUNES: RuneDef[] = [
     // 1 or 0 for this rune independently.
     id: 'rune_war_drum',
     name: 'War Drum',
-    cost: 2,
+    cost: 4, // owner balance 2026-11-06 (was 2)
     text: 'The first **Shout** you trigger each turn triggers **2** more times.', // reworded (owner 2026-09-27, Set 3 rune design pass); behaviour unchanged
     reward: { kind: 'runeWarDrum', extra: 2 },
   },
@@ -1108,7 +1109,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_baller',
     name: 'Baller',
     cost: 3, // owner 2026-10-23 -1 (was 4)
-    text: 'When you **Sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **2 sales**.',
+    text: 'When you **Sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **3 sales**.',
     reward: { kind: 'runeBaller', step: 1 },
   },
   {
@@ -2898,7 +2899,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_gem_golem',
     tribes: ['kobold'], // TRIBE GATE (2026-09-10): the text names kobolds on the board
     name: 'Gem Golem',
-    cost: 3, // owner 2026-10-23 -1 (was 4)
+    cost: 5, // owner balance 2026-11-06 (was 3)
     epic: true,
     // Owner rework 2026-09-23: names the token — a real GEMHEART GOLEM (its printed 1/1) carrying the dead
     // Kobold's Rubies on top, and it lands whether or not the Kobold held any (the text no longer gates on it).
@@ -3058,7 +3059,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_bucky',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Bucky',
-    cost: 3, // owner 2026-10-23 -1 (was 4); balance 9/23 (was 7)
+    cost: 2, // owner balance 2026-11-06 (was 3); owner 2026-10-23 -1 (was 4); balance 9/23 (was 7)
     epic: true,
     text: 'Get a **Bucky**.',
     previewCards: ['dw_bucky'], // text names it — the forge hover shows the card
@@ -3474,7 +3475,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // BEAT PER RALLY so each has room to animate.
     id: 'rune_lasting_cadence',
     name: 'Lasting Cadence',
-    cost: 4, // owner 2026-10-23 -1 (was 5)
+    cost: 6, // owner balance 2026-11-06 (was 4)
     epic: true,
     text: '**End of Turn:** trigger **all** your **Rally** effects.',
     reward: { kind: 'runeLastingCadence' },

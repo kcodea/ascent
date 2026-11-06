@@ -30,7 +30,7 @@ const capsuleRun = (): RunState => ({
 } as RunState);
 
 describe('bug 23c340fb — Crest of the Climb folds spell power', () => {
-  it('the capsule sequence: Spellsword (+1 Health power), then Crest +4 Health on it, lands +5 Health', () => {
+  it('the capsule sequence: Spellsword (+1 Health power), then Crest +5 Health on it, lands +6 Health', () => {
     let s = capsuleRun();
     s = reduce(s, { type: 'play', uid: 'b9', toIndex: 0 });
     s = reduce(s, { type: 'chooseOne', index: 1 }); // "Give your Shop spells +1 Health"
@@ -40,33 +40,34 @@ describe('bug 23c340fb — Crest of the Climb folds spell power', () => {
 
     s = reduce(s, { type: 'play', uid: 'b10' });
     expect(s.chooseOne?.cardId).toBe('crestclimb');
-    s = reduce(s, { type: 'chooseOne', index: 1 }); // "+4 Health"
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // "+5 Health"
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'b9' });
 
     const after = s.board.find((c) => c.uid === 'b9')!;
-    // The capsule recorded 3/8 and a { health: 4 } buff — the defect. The fold makes it 3/9 and { health: 5 }.
-    expect([after.attack, after.health]).toEqual([3, 9]);
-    expect(after.buffs).toEqual([{ source: 'Crest of the Climb', attack: 0, health: 5, count: 1 }]);
+    // The capsule recorded a { health: 4 } buff, the then-printed +4 with no fold — the defect. Crest is +5 since the
+    // owner balance 2026-11-06, so the fold makes it 3/10 and { health: 6 }.
+    expect([after.attack, after.health]).toEqual([3, 10]);
+    expect(after.buffs).toEqual([{ source: 'Crest of the Climb', attack: 0, health: 6, count: 1 }]);
     expect(s.hand, 'the spell resolved out of hand').toHaveLength(0);
   });
 
-  it('the other branch under the same power: "+4 Attack" lands +4/+1 (the factory adds both bonuses)', () => {
+  it('the other branch under the same power: "+5 Attack" lands +5/+1 (the factory adds both bonuses)', () => {
     let s = capsuleRun();
     s = reduce(s, { type: 'play', uid: 'b9', toIndex: 0 });
     s = reduce(s, { type: 'chooseOne', index: 1 });
     s = reduce(s, { type: 'play', uid: 'b10' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "+4 Attack"
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "+5 Attack"
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'b9' });
     const after = s.board.find((c) => c.uid === 'b9')!;
-    expect([after.attack, after.health]).toEqual([7, 5]);
+    expect([after.attack, after.health]).toEqual([8, 5]);
   });
 
   it('every text surface prints the live number under the capsule\'s +0/+1 power', () => {
     // The Choose One window (Recruit's prompt reads `chooseOneBranchText`).
-    expect(chooseOneBranchText('crestclimb', 0, false, 0, 1)).toBe('Give **{{+4/+1}}**.');
-    expect(chooseOneBranchText('crestclimb', 1, false, 0, 1)).toBe('Give **{{+5 Health}}**.');
+    expect(chooseOneBranchText('crestclimb', 0, false, 0, 1)).toBe('Give **{{+5/+1}}**.');
+    expect(chooseOneBranchText('crestclimb', 1, false, 0, 1)).toBe('Give **{{+6 Health}}**.');
     // The card itself: shop / hand / Discover / hover all read `spellDisplayText` through `liveCardText`.
-    expect(spellDisplayText('crestclimb', 0, 0, 1)).toBe('**Choose One:** give a minion **{{+4/+1}}**, or **{{+5 Health}}**.');
+    expect(spellDisplayText('crestclimb', 0, 0, 1)).toBe('**Choose One:** give a minion **{{+5/+1}}**, or **{{+6 Health}}**.');
     // And at zero power the authored text stands on both, un-greened.
     expect(spellDisplayText('crestclimb', 0, 0, 0)).toBe(CARD_INDEX['crestclimb']!.text);
     expect(chooseOneBranchText('crestclimb', 1, false, 0, 0)).toBe(CARD_INDEX['crestclimb']!.chooseOne![1]!.text);

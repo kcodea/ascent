@@ -20,24 +20,29 @@ const golemsOf = (events: CombatEvent[], side: 'player' | 'enemy'): Array<[numbe
 
 /** Gem Carver (printed 5/3) holding 4 shop Rubies (+4/+4) and a granted Rise. */
 const rubyBuffs = (): MinionBuff[] => [{ source: 'Ruby', attack: 4, health: 4, count: 4 }];
-const carver = (buffs: MinionBuff[], sourceUid = 'GC'): BoardMinion =>
-  ({ cardId: 'k_gemheart', attack: 9, health: 7, keywords: ['R'], sourceUid, buffs });
+const carver = (buffs: MinionBuff[], sourceUid = 'GC', golden = false): BoardMinion =>
+  ({ cardId: 'k_gemheart', attack: 9, health: 7, keywords: ['R'], sourceUid, buffs, golden });
 const wall = (): BoardMinion => ({ cardId: 'sandbag', attack: 50, health: 90000, keywords: [] });
 
 describe('Gem Carver with Rubies + Rise (the owner report)', () => {
-  it('the original summons 5/5 Golems; the risen copy summons 1/1 Golems', () => {
+  it('the original summons a 5/5 Golem; the risen copy summons a 1/1 Golem', () => {
     const buffs = rubyBuffs();
     const r = fight([carver(buffs)], [wall()], 1);
     expect(r.events.some((e) => e.type === 'reborn' && !e.rebirth)).toBe(true);
-    // 2 from the original (1/1 + its 4 Rubies), then 2 from the risen fresh copy (1/1, 0 Rubies).
-    expect(golemsOf(r.events, 'player')).toEqual([[5, 5], [5, 5], [1, 1], [1, 1]]);
+    // 1 from the original (1/1 + its 4 Rubies), then 1 from the risen fresh copy (1/1, 0 Rubies).
+    expect(golemsOf(r.events, 'player')).toEqual([[5, 5], [1, 1]]);
     // The run board card is untouched: its Ruby ledger (shared by reference into combat) is not mutated.
     expect(buffs).toEqual(rubyBuffs());
   });
 
   it('the same on the enemy seat (combat sides stay symmetric)', () => {
     const r = fight([wall()], [carver(rubyBuffs())], 1);
-    expect(golemsOf(r.events, 'enemy')).toEqual([[5, 5], [5, 5], [1, 1], [1, 1]]);
+    expect(golemsOf(r.events, 'enemy')).toEqual([[5, 5], [1, 1]]);
+  });
+
+  it('Gilded summons 2 plain Golems per death: its Rubies on each, no 2/2 body, no doubled Rubies (owner 2026-11-06)', () => {
+    const r = fight([carver(rubyBuffs(), 'GC', true)], [wall()], 1);
+    expect(golemsOf(r.events, 'player')).toEqual([[5, 5], [5, 5], [1, 1], [1, 1]]);
   });
 
   it('Rubies played on the original MID-FIGHT do not ride the Rise either', () => {
@@ -47,14 +52,14 @@ describe('Gem Carver with Rubies + Rise (the owner report)', () => {
     const cards = { ...CARD_INDEX, rfgift: gifter };
     const r = fight([{ cardId: 'rfgift', attack: 0, health: 90000, keywords: ['SC'] }, carver([])], [wall()], 1, cards);
     const g = golemsOf(r.events, 'player');
-    expect(g.length).toBe(4);
+    expect(g.length).toBe(2);
     expect(g[0]![0]).toBeGreaterThan(1); // the original carried its combat Rubies
-    expect(g.slice(2)).toEqual([[1, 1], [1, 1]]); // the risen copy did not
+    expect(g.slice(1)).toEqual([[1, 1]]); // the risen copy did not
   });
 
   it('Gem Crypt is the exception: the risen copy keeps its Rubies, so its Golems carry them', () => {
     const r = fight([carver(rubyBuffs())], [wall()], 1, CARD_INDEX, { runeGemCrypt: true });
-    expect(golemsOf(r.events, 'player')).toEqual([[5, 5], [5, 5], [5, 5], [5, 5]]);
+    expect(golemsOf(r.events, 'player')).toEqual([[5, 5], [5, 5]]);
   });
 });
 

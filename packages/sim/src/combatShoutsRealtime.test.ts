@@ -92,9 +92,9 @@ describe('R-REALTIME-03 — a card-to-hand Shout re-fired in combat', () => {
     const toHand = r.events.map((e, i) => [e, i] as const).filter(([e]) => e.type === 'toHand' && (e as { cardId: string }).cardId === 'tower_shield');
     expect(toHand.length, 'two Tower Shields, live').toBe(2);
     expect(toHand.every(([, i]) => i > shout), 'after the Shout fires').toBe(true);
-    // Gangplank (+1/+2 to a random OTHER friendly Dwarf): each of the two pays the other, once per card: 2 x 2.
+    // Gangplank (+2/+2 to a random OTHER friendly Dwarf): each of the two pays the other, once per card: 2 x 2.
     const gpUids = new Set(r.initial.player.filter((m) => m.cardId === 'dw_gangplank').map((m) => m.uid));
-    const paid = ofType(r.events, 'buff').filter((e) => gpUids.has(e.target) && e.attack === 1 && e.health === 2);
+    const paid = ofType(r.events, 'buff').filter((e) => gpUids.has(e.target) && e.attack === 2 && e.health === 2);
     expect(paid.length, "each Gangplank's watcher fired once per Tower Shield, during the fight").toBe(4);
     expect(r.events.findIndex((e) => e.type === 'buff' && gpUids.has((e as { target: string }).target)), 'after the cards arrived').toBeGreaterThan(toHand[0]![1]);
     expect(r.playerHandGrants).toEqual(['tower_shield', 'tower_shield']);

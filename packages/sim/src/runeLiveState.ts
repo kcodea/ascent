@@ -90,8 +90,8 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
   }
   if (run.runeBaller) {
     const next = run.runeBaller.sales + 1;
-    // The reducer pays step × ceil(next/2) × copies; the badge text is per copy.
-    out.baller = { amount: run.runeBaller.step * Math.ceil(next / 2), stat: next % 2 === 1 ? 'Attack' : 'Health' };
+    // The reducer pays step × ceil(next/3) × copies; the badge text is per copy.
+    out.baller = { amount: run.runeBaller.step * Math.ceil(next / 3), stat: next % 2 === 1 ? 'Attack' : 'Health' };
   }
   if (f?.runeBorrowedFlame) out.borrowedFlame = run.runeBorrowedFlame ?? 1;
   return out;

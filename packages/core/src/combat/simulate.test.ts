@@ -3157,20 +3157,30 @@ describe('simulate (handoff A.3)', () => {
     expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
-  it("set 2 — Geode Guardian (owner Ruby batch 2026-09-24): Echo summons ONE Golem with this minion's Rubies and Taunt — Gilded is a 2/2 with double", () => {
-    // Carver's Golem body: 1/1 + the Rubies on Geode (+2/+3 here), with Taunt. Gilded: (1 + Rubies) x 2.
+  it("set 2 — Geode Guardian (owner balance 2026-11-06): Echo summons 2 Taunted Golems and casts 2 Rubies on each (Gilded 4) — its own Rubies do not carry", () => {
+    // Each Golem: a 1/1 with Taunt plus its cast Rubies at +1/+1. The +2/+3 of Rubies on Geode here never reach them.
     const run = (golden: boolean) => simulate([
       { cardId: 'k_geode', attack: 6, health: 1, sourceUid: 'GD', golden, buffs: [{ source: 'Ruby', attack: 2, health: 3, count: 2 }] },
     ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    const golemsOf = (r: ReturnType<typeof run>) => r.events.flatMap((e) => (e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard' ? [(e as unknown as { minion: { attack: number; health: number; keywords: string[] } }).minion] : []));
-    const golems = golemsOf(run(false));
-    expect(golems.length).toBe(1);
-    expect(golems[0]!.keywords).toContain('T');
-    expect([golems[0]!.attack, golems[0]!.health]).toEqual([3, 4]);
-    const g = golemsOf(run(true));
-    expect(g.length, 'a Gilded Guardian still summons one Golem').toBe(1);
-    expect([g[0]!.attack, g[0]!.health], 'Gilded: a 2/2 with double the Rubies').toEqual([6, 8]);
+    const golemsOf = (r: ReturnType<typeof run>) => r.events.flatMap((e) => (e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard' ? [(e as unknown as { minion: { uid: string; attack: number; health: number; keywords: string[] } }).minion] : []));
+    const rubiesOn = (r: ReturnType<typeof run>, uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number; health: number }[])
+      .filter((b) => b.target === uid).reduce(([a, h], b) => [a + b.attack, h + b.health], [0, 0]);
+    const plain = run(false);
+    const golems = golemsOf(plain);
+    expect(golems.length).toBe(2);
+    for (const m of golems) {
+      expect(m.keywords).toContain('T');
+      expect([m.attack, m.health], "a printed 1/1: none of Geode's own Rubies carry").toEqual([1, 1]);
+      expect(rubiesOn(plain, m.uid), '2 Rubies at +1/+1').toEqual([2, 2]);
+    }
+    const gilded = run(true);
+    const g = golemsOf(gilded);
+    expect(g.length, 'a Gilded Guardian still summons two Golems').toBe(2);
+    for (const m of g) {
+      expect([m.attack, m.health], 'Gilded doubles the Rubies, not the body').toEqual([1, 1]);
+      expect(rubiesOn(gilded, m.uid), '4 Rubies at +1/+1').toEqual([4, 4]);
+    }
   });
 
   it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {

@@ -363,3 +363,85 @@ html[data-touch-small] .rgp-spark { padding-left: calc(56 * var(--phu)); }
 .phk-page.rgp:not(.phc-pg):not([data-in]) { opacity: 0; animation: ph-reveal 0.2s linear 0.8s forwards; }
 @keyframes ph-reveal { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .phk-page.rgp:not(.phc-pg) { transition: none; } }
+
+/* The strip's gold edge sits ON TOP of its art (owner 2026-11-06: "the portrait is above the gold outline"): the edge is drawn
+   again on a click-through layer over the strip's contents, following its rounded corners. */
+.rgp-strip { position: relative; isolation: isolate; }
+.rgp-strip::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; box-shadow: var(--ph-gild); }
+
+/* The lobby tile's placing colour (owner 2026-11-06: "the colored sides are wrong. can we emulate what we did at the bottom of the
+   cosmetic thumbnails, but on the left side?"): the Collection tile's rarity edge, turned to the left. One inset band on a
+   click-through layer that follows the tile's rounded corners, instead of a square bar poking past them. */
+.rgp .lp-tile::before { right: 0; width: auto; border-radius: inherit; pointer-events: none; background: none;
+  box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent); }
+.rgp .lp-tile.rgp-ghost::before { box-shadow: none; }
+
+/* The history rows' placing colour, the same left band as the lobby tiles (owner 2026-11-06: "same goes for the left side bar in
+   career"): an inset band that follows the row's rounded corners, not a square bar. */
+.rgp-item { --band: var(--ph-hair); }
+.rgp-item.b-won { --band: var(--rgp-won); } .rgp-item.b-top4 { --band: var(--rgp-top4); } .rgp-item.b-lost { --band: var(--rgp-lost); }
+.rgp-item::before, .rgp-item.b-won::before, .rgp-item.b-top4::before, .rgp-item.b-lost::before { right: 0; width: auto; border-radius: inherit; pointer-events: none;
+  background: none; box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent); }
+/* The selected row's glow reaches past the row (up to 28u): the scrolling list keeps that much room inside its edge, and gives it
+   back with a matching negative margin so nothing else moves (owner 2026-11-06: "the glow behind the side bar selected item is
+   clipped"). */
+html[data-ph-shell] .rgp .rgp-listwrap.rgp-listwrap { margin: calc(-28 * var(--phu)); padding: calc(28 * var(--phu)); }
+/* With that room, the list's scrollbar would stand in the gap beside the game as a stray gold bar (owner 2026-11-06: "theres a
+   random gold element that needs to be removed in the back here"): the list scrolls by wheel and touch, with no bar. */
+html[data-ph-shell] .rgp .rgp-listwrap.rgp-listwrap { scrollbar-width: none !important; }
+html[data-ph-shell] .rgp .rgp-listwrap.rgp-listwrap::-webkit-scrollbar { display: none; }
+/* The game header's placing colour, the same left band (owner 2026-11-06: "same goes for the header here"). The banner is the
+   top of the rounded detail card, so it takes the card's top corners and the band follows them. */
+.rgp-detail { --band: var(--ph-hair); }
+.rgp-detail.b-won { --band: var(--rgp-won); } .rgp-detail.b-top4 { --band: var(--rgp-top4); } .rgp-detail.b-lost { --band: var(--rgp-lost); }
+.rgp-banner { border-radius: var(--ph-r-l) var(--ph-r-l) 0 0; }
+.rgp-banner::after, .rgp-detail:is(.b-won, .b-top4, .b-lost) .rgp-banner::after { right: 0; width: auto; border-radius: inherit; pointer-events: none;
+  background: none; box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent); }
+
+/* The game card's art never covers its gold edge or pokes past its corner (owner 2026-11-06: "the artwork clips at the corner"):
+   the banner is clipped to the card's top corners (above), and the card's gold edge is drawn again on a click-through layer on top. */
+.rgp-detail::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; box-shadow: var(--ph-gild); }
+/* The page body clips at its own sides, and the list sits right on its left edge, so the selected row's glow was still cut there.
+   The body gets the glow's 28u of room on each side and gives it back with a negative margin: nothing moves. */
+html[data-ph-shell]:not([data-touch-small]) .phk-page.rgp > .phk-pagebody.phk-pagebody { margin-left: calc(-28 * var(--phu)); margin-right: calc(-28 * var(--phu));
+  padding-left: calc(28 * var(--phu)); padding-right: calc(28 * var(--phu)); }
+/* The game header carries no placing colour (owner 2026-11-06: "lets remove the coloring from this header section"): the
+   placing itself says it. */
+.rgp-banner::after, .rgp-detail:is(.b-won, .b-top4, .b-lost) .rgp-banner::after { content: none; }
+/* ...but only to the sides (owner 2026-11-06: "when scrolling the elements go up into the top section"): room above and below
+   let scrolled rows show over the strip. */
+html[data-ph-shell] .rgp .rgp-listwrap.rgp-listwrap { margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+
+/* A history row reads down its left column (owner 2026-11-06): player, hero + record, date. The right-hand column is gone, so
+   the hero art runs to the row's right edge (just inside its gold line) and the row grows to fit the third line. */
+.rgp-item { min-height: calc(84 * var(--phu)); padding-top: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-splitview .rgp-item { min-height: calc(88 * var(--phu)); }
+.rgp-item .phk-rowwho { gap: calc(2 * var(--phu)); }
+.rgp-item .rgp-when { text-shadow: var(--ph-shadow); }
+.rgp-item .rgp-itemart { right: calc(2 * var(--phu)); width: 58%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%); mask-image: linear-gradient(90deg, transparent 0%, #000 45%); }
+/* The first row's outline and glow need room above it too (owner 2026-11-06: "the top most button outline and glow is still
+   clipped"): plain room inside the list's top and foot, no negative margin, so scrolled rows never reach over the strip. */
+html[data-ph-shell] .rgp .rgp-listwrap.rgp-listwrap { padding-top: calc(16 * var(--phu)); padding-bottom: calc(16 * var(--phu)); }
+
+/* The game's facts read title first (owner 2026-11-06: "swap the ordering so the played, length, etc are on top"), like the
+   career numbers. */
+.rgp-facts .phk-statlbl { order: -1; }
+/* The game card's right edge lines up with the strip above (owner 2026-11-06: "the width is also off from the top bar"): its
+   column reserved a scrollbar gutter (and 6u) on the right. It scrolls by wheel and touch with no bar, like the list beside it. */
+html[data-ph-shell] .rgp .rgp-detailcol.rgp-detailcol { scrollbar-gutter: auto; scrollbar-width: none !important; padding-right: 0; }
+html[data-ph-shell] .rgp .rgp-detailcol.rgp-detailcol::-webkit-scrollbar { display: none; }
+
+/* Owner 2026-11-06: "reduce the padding between the lobby and the runes, and reduce the size of the runes by 10%. then reduce the
+   vertical padding of the top and bottom of the placement overview header section by 4px on each side". */
+html[data-ph-shell] .rgp .rgp-boardsec { padding-bottom: calc(2 * var(--phu)); }
+html[data-ph-shell] .rgp .rgp-lobby { padding-top: calc(6 * var(--phu)); }
+html[data-ph-shell] .rgp .rgp-runes :is(.cv2-rune, .lb-rune) { gap: calc(7 * var(--phu)); padding: calc(3.6 * var(--phu)) calc(14.4 * var(--phu)) calc(3.6 * var(--phu)) calc(3.6 * var(--phu)); }
+html[data-ph-shell] .rgp .rgp-runes :is(.cv2-rune-disc, .lb-rune-em) { width: calc(36 * var(--phu)); height: calc(36 * var(--phu)); }
+html[data-ph-shell] .rgp .rgp-runes :is(.cv2-rune-name, .lb-rune-name) { font-size: calc(var(--ph-t2) * 0.9); }
+html[data-ph-shell]:not([data-touch-small]) .rgp .rgp-banner { min-height: calc(120 * var(--phu)); padding-top: calc(12 * var(--phu)); padding-bottom: calc(12 * var(--phu)); }
+/* The history row's gold trim rides the same top layer as its placing band, over the hero art (owner 2026-11-06: "the gold trim is
+   once again behind the contents"; the trim is always on top). */
+.rgp-item::before, .rgp-item:is(.b-won, .b-top4, .b-lost)::before { z-index: 2;
+  box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent), var(--ph-gild-s); }
+.rgp-item.sel::before, .rgp-item.sel:is(.b-won, .b-top4, .b-lost)::before { box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent), var(--ph-gild); }

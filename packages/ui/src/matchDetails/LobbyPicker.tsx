@@ -81,11 +81,11 @@ export function useLobbySeat(details: MatchDetails | null | undefined): { seat: 
 }
 
 /** The picked seat's board in the card's big board slot (full cards, the badge slot rules of the board CSS). */
-export function SeatBoard({ seat, own }: { seat: MatchSeat; own: boolean }) {
+export function SeatBoard({ seat, own, noReveal }: { seat: MatchSeat; own: boolean; noReveal?: boolean }) {
   const showOpp = useGame((s) => s.showOpponentSkins);
   const skins = useMemo(() => seatSkinsOf(seat, own, showOpp), [seat, own, showOpp]);
   return seat.board && seat.board.minions.length > 0
-    ? <StoredTeam minions={seat.board.minions} skins={skins} label={`${seat.name}'s board`} />
+    ? <StoredTeam minions={seat.board.minions} skins={skins} label={`${seat.name}'s board`} noReveal={noReveal} />
     : <div className="cv2-row-none">{seat.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>;
 }
 
@@ -99,9 +99,12 @@ export function SeatRuneRow({ seat }: { seat: MatchSeat }) {
 
 /** "Showing: Your board" / "Showing: LazerLemon's board, knocked out in round 10" + "Back to yours". Someone else's game
  *  (`own` false) reads "IonLime's board" and "Back to IonLime's" (R-LOBBY-PICKER-VIEWER-01). */
-export function ShowingLine({ seat, details, onBack, own = true }: { seat: MatchSeat | null; details: MatchDetails; onBack: () => void; own?: boolean }) {
+/** `finalBoard` (the party home, owner 2026-11-06: "instead just right. Your final board"): with no seat picked the line drops
+ *  "Showing" and reads "Your final board" / "Name's final board". */
+export function ShowingLine({ seat, details, onBack, own = true, finalBoard = false }: { seat: MatchSeat | null; details: MatchDetails; onBack: () => void; own?: boolean; finalBoard?: boolean }) {
   const owner = ownerNameOf(details);
-  let what = own ? 'Your board' : `${owner}'s board`;
+  const board = finalBoard ? 'final board' : 'board';
+  let what = own ? `Your ${board}` : `${owner}'s ${board}`;
   if (seat) {
     const out = seatOut(seat, details);
     const round = seat.board?.round ?? details.endRound;
@@ -109,7 +112,7 @@ export function ShowingLine({ seat, details, onBack, own = true }: { seat: Match
   }
   return (
     <div className="lp-showing" aria-live="polite">
-      <span className="lp-showing-l">Showing</span>
+      {!(finalBoard && !seat) && <span className="lp-showing-l">Showing</span>}
       <span className="lp-showing-v">{what}</span>
       {seat && <button type="button" className="cv2-btn lp-back pressable" onClick={onBack}><span aria-hidden="true">‹</span>{own ? 'Back to yours' : `Back to ${owner}'s`}</button>}
       {!seat && <span className="lp-hint">Pick a player in the lobby below to see their board</span>}

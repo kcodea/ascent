@@ -159,7 +159,7 @@ html[data-touch-small] .phb .book-tiers { flex-wrap: wrap; row-gap: calc(8 * var
 .phb .phk-pageactions { flex: none; }
 .phb-actions { flex-direction: row; flex-wrap: nowrap; }
 .phb .book-search { width: clamp(calc(180 * var(--phu)), calc(16 * var(--vw, 1vw)), calc(280 * var(--phu))); }
-.phb :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(16 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phb :is(.gloss-grouphead, .wiki-grouphead)::after { width: calc(144 * var(--phu)); height: calc(1 * var(--phu)); background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 .phb :is(.book-railcap, .gloss-grouphead, .wiki-grouphead) { font-weight: 900; letter-spacing: 0.04em; }
 
 /* Touch: every filter pill is a real tap target (at least 40 units tall). */
@@ -292,7 +292,13 @@ html[data-ph-compact] .phb .book-search { width: calc(150 * var(--phu)); }
 
 /* ── THE SHARED HEADER LINE: the gallery is wider than other pages, but the title and tabs start where every page's do, so a
    hop between pages does not move them. The tools stay on the gallery's right edge. ── */
-html[data-ph-shell]:not([data-ph-compact]) .phb :is(.phk-pagehead, .phk-pagebody) { padding-left: max(0px, calc((100% - 1536 * var(--phu)) / 2)); }
+/* Owner 2026-11-06 ("this section needs to move over, including the title"): the Compendium title + rail sit 72 units left of the
+   shared line, clear of the bottom-left dock. */
+/* Owner 2026-11-06 ("just a bit of padding between it and the friends/settings rail ... bring the right side in just a bit to
+   match ... start with 40px"): the page spans the window, its left edge a short gap past the dock (fixed at 20u, ~86u wide),
+   its right edge 160u in (owner: "nudge the right side in another 120px"). */
+html[data-ph-shell]:not([data-ph-compact]) .phk-page.phb { max-width: none; margin: 0;
+  padding-left: calc(128 * var(--phu) + var(--safe-l, 0px)); padding-right: calc(160 * var(--phu) + var(--safe-r, 0px)); }
 
 /* ── READABLE AT EVERY SIZE ── The book's panels are sized in px, which on a phone means different things (a phone that lays
    out at 844 against one that lays out wider and scales down). `zoom` ties them to the shell's unit, so text, chips and
@@ -314,7 +320,7 @@ html[data-ph-compact] .phb .book-grid .plate-tribe { font-size: 22px; }
 html[data-ph-compact] .phb .wiki-chip { font-size: 13px; }
 /* Inside the zoomed panels sizes are px: the zoom already carries the shell's unit. */
 html[data-ph-compact] .phb :is(.gloss-grouphead, .wiki-grouphead) { font-size: 15px; }
-html[data-ph-compact] .phb :is(.gloss-grouphead, .wiki-grouphead)::after { flex-basis: 96px; height: 10px; }
+html[data-ph-compact] .phb :is(.gloss-grouphead, .wiki-grouphead)::after { flex-basis: 96px; height: 1px; }
 html[data-ph-compact] .phb .book-setpick-opt { font-size: calc(18 * var(--phu)); }
 /* The Guides pills inside the zoomed panel: px (a shell-unit height would count the zoom twice and blow them into circles). */
 html[data-ph-shell][data-ph-compact] .phk-page .bookguides .book-runetribe { min-height: 34px; padding: 0 14px; }
@@ -391,3 +397,22 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phh-popbox .phh { zoom: 1.5; }
 html[data-ph-compact] .phh-popbox .phh { zoom: 1; }
 .phb-ov .phb-sub { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* The rail reaches further left and is wider (owner 2026-11-06: "can we have this left section move further left and widen it
+   a bit?"). Desktop. */
+html[data-ph-shell]:not([data-ph-compact]) .phb-book.v-cards, html[data-ph-shell]:not([data-ph-compact]) .phb-book.v-guides {
+  grid-template-columns: calc(264 * var(--phu)) minmax(0, 1fr); }
+
+/* NEVER A SIDEWAYS SCROLL (owner 2026-11-06: "there should never be a horizontal scroll"). A panel that scrolls down lets a
+   few px of overhang (a plate past its cell, the scrollbar taking width) open a horizontal bar that blinks in and out. */
+.phb :is(.book-grid, .book-rail, .book-gloss-body, .wiki-list, .bookguides) { overflow-x: hidden; }
+.phb, .ph-bookpage, .phb :is(.phk-pagebody, .book-main) { overflow-x: clip; }
+
+/* THE GALLERY'S GOLD EDGE STAYS ON TOP (owner 2026-11-06: "the cards are above the gold outline of the card section"): the edge
+   is painted by `.book-main::before` BEHIND the scrolling gallery, so a card scrolled to the top or bottom covered it. The same
+   edge is drawn again as a frame-only layer over the gallery; it takes no clicks. */
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-main::after { content: ''; position: relative; z-index: 2; grid-column: 2; grid-row: 2; margin-right: var(--phb-gut);
+  border-radius: var(--ph-r-l); pointer-events: none; box-shadow: var(--ph-gild); }
+html[data-ph-shell]:not([data-ph-compact]) .phb .book-tiers.is-bare + .book-main::after { grid-row: 1 / -1; }
+/* The hero tile's gold edge sits over its art (owner 2026-11-06: "the gold outline ... should always trump everything everywhere"). */
+.phh::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: inherit; pointer-events: none; box-shadow: var(--ph-gild-s); }

@@ -57,5 +57,7 @@ export default function PhSteadyNav() {
     if (back.page !== 'home') showPage(back.page);
   }, []);
   const compact = document.documentElement.hasAttribute('data-ph-compact') || isPhone();
-  return <div className="ph-navhost"><PhTopNav current={current} friendsDocked={home && !compact} ownDrawer={home} /></div>;
+  // On the home at desktop size Friends opens this nav's slide-in drawer (the side panel has no Friends tab, owner 2026-11-06);
+  // on a phone the home's side panel is the drawer.
+  return <div className="ph-navhost"><PhTopNav current={current} ownDrawer={home && compact} /></div>;
 }

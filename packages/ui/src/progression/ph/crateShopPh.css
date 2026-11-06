@@ -133,3 +133,54 @@ html[data-ph-shell][data-ph-compact] .phs .cshop-pop .cshop-oddsline { font-size
    under the nav, the same wherever it was tapped. Fixed, so its host must not carry a transform while it is open. */
 html[data-ph-shell][data-ph-compact] .phs :is(.cshop-chest, .cshop-seg):nth-child(n) .cshop-pop { position: fixed; top: calc(var(--ph-nav-h) + 16 * var(--phu)); right: auto; bottom: auto; left: 50%; transform: translate(-50%, 0); }
 html[data-ph-shell][data-ph-compact] .cshop.phs:not(.cshop-still) :is(.cshop-chest, .cshop-seg).tt-on { transform: none; }
+
+/* The chest row has no heading now (owner 2026-11-06: "remove the pick a chest text"), so its top gets the same room as its
+   bottom ("the section needs more padding above the chest"). */
+.phs .phk-section.phs-pick > .phk-secbody { padding-top: calc(24 * var(--phu)); }
+
+/* THE FOCUS TABLE, CLEANED (owner 2026-11-06: "this whole section in the shop is all weird, the sections are overlapping each
+   other"). Each row's divider was an inset shadow on a ROUNDED row, so it curled up at both ends and the rows read as boxes
+   stacked over each other. Now each divider is a straight 1u line drawn under the row, fading out at both ends (the same line as
+   the section headings), and the column header gets a slightly stronger one. The selected row's gold wash keeps its corners. */
+.phs .cshop-cat { box-shadow: none; }
+.phs .cshop-cat::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 28%, transparent) 10%,
+    color-mix(in srgb, var(--pill-edge, #c8953f) 28%, transparent) 90%, transparent 100%); }
+.phs .cshop-cat.cshop-cat-head::after { background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 60%, transparent) 10%,
+    color-mix(in srgb, var(--pill-edge, #c8953f) 60%, transparent) 90%, transparent 100%); }
+.phs .cshop-cat:last-child::after { content: none; }
+
+/* The chests' selected glow has room on both sides (owner 2026-11-06: "when selecting the ancient chest, the glow gets cut off").
+   The Ancient halo reaches about 60u past its card, but the page body (which scrolls, so it clips) ended 36u past the last chest.
+   The body now reaches 48u further out on each side and pads its content back in, so nothing moves and the glow fits. */
+html[data-ph-shell]:not([data-ph-compact]) .phs .phk-pagebody {
+  padding-left: calc(48 * var(--phu)); padding-right: calc(48 * var(--phu));
+  margin-left: calc(-48 * var(--phu)); margin-right: calc(-12 * var(--phu) - 48 * var(--phu)); }
+
+/* The shop's section titles wear the page title's look, a size down (owner 2026-11-06: "make the focus title the same look as the
+   shop title, but with smaller text size"): the page title's letter spacing, and the same thin line running the full width under
+   the heading (in place of the short fading underline). The column header below it gets a little air. */
+.phs .phk-sechead h2 { letter-spacing: 0.02em; }
+.phs .phk-sechead::after { left: calc(24 * var(--phu)); right: calc(24 * var(--phu)); width: auto; background: var(--ph-hair); }
+.phs .phs-focus .cshop-cat-head { padding-top: calc(8 * var(--phu)); }
+
+/* Focus and Your Chest: the title sits OUTSIDE its box, like the page title (owner 2026-11-06: "can we take it out of the section?
+   just like the shop title?"). The section itself turns into a plain column; its plate (fill, gold edge, shadow, corners) moves
+   onto the body below the heading, and the heading's full-width line runs edge to edge over it. */
+.phs :is(.phs-focus, .phs-checkout) { background: none; box-shadow: none; border-radius: 0; gap: calc(12 * var(--phu)); }
+.phs :is(.phs-focus, .phs-checkout) > .phk-sechead { padding: calc(8 * var(--phu)) 0 calc(12 * var(--phu)); }
+.phs :is(.phs-focus, .phs-checkout) > .phk-sechead::after { left: 0; right: 0; }
+.phs :is(.phs-focus, .phs-checkout) > .phk-secbody { flex: 1; position: relative; background: var(--ph-plate); border-radius: var(--ph-r-l);
+  box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); padding-top: calc(16 * var(--phu)); }
+.phs .phs-focus .cshop-cat-head { padding-top: 0; }
+/* The Focus note sits right after its title, on the left (owner 2026-11-06: "move the more-you-select language over to the left"). */
+.phs :is(.phs-focus, .phs-checkout) > .phk-sechead .phk-secaside { margin-left: 0; }
+/* Bigger section titles (owner 2026-11-06: "increase the title size for focus and your chest"): 24, between the 18 section size
+   and the 30 page title. */
+html:not([data-ph-compact]) .phs :is(.phs-focus, .phs-checkout) > .phk-sechead h2 { font-size: calc(24 * var(--phu)); }
+/* The Left to find column sits a little further left, away from the toggles (owner 2026-11-06). */
+html:not([data-ph-compact]) .phs .cshop-cat > :is(.cshop-cat-left, span:nth-child(2):not(.cshop-cat-name)) { padding-right: calc(32 * var(--phu)); }
+/* A thicker rarity stripe along each chest's bottom edge (owner 2026-11-06: "increase the width of the colors for each chest on
+   the bottom"): 3u to 6u, selected or not. */
+.phs .cshop-chest { box-shadow: var(--ph-gild-s), inset 0 calc(-6 * var(--phu)) 0 color-mix(in srgb, var(--tc) 70%, transparent); }
+.phs .cshop-chest.on, .phs .cshop-chest.on:hover { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--tc), inset 0 calc(-6 * var(--phu)) 0 var(--tc); }

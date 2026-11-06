@@ -18,8 +18,6 @@
 .phc-meter { box-sizing: border-box; padding: calc(8 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
 .phc-bar { position: relative; display: block; height: calc(6 * var(--phu)); border-radius: 999px; background: rgba(0, 0, 0, 0.55); overflow: hidden; }
 .phc-bar > span { position: absolute; inset: 0; transform-origin: left; background: var(--ph-metal-gold); }
-.phc-shopbtn > span { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
-.phc-aether.aether-icon, .phc-shopbtn .aether-icon { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); }
 
 /* ── The categories (left) ── */
 .phc-cats { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
@@ -61,8 +59,8 @@
 
 /* ── The filters (centre, above the album) ── */
 .phc-filters { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: calc(8 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
-.phc-filters .phk-tab:first-child { padding-left: 0; }
-.phc-filters .phk-tab:first-child.on::after { left: 0; }
+.phc-filters .phk-tab:first-of-type { padding-left: 0; }
+.phc-filters .phk-tab:first-of-type.on::after { left: 0; }
 .phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .phk-tab.on .phc-n { color: var(--ph-text); }
 .phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
@@ -98,9 +96,8 @@
 .phc-tile-name .titlebadge.colls-titleplate { --tb-fs: calc(15 * var(--phu)); }
 .phc-tile-rar { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--rc); text-shadow: var(--ph-shadow); }
 .phc-tile.missing .phc-tile-rar { opacity: 0.7; }
-.phc-tile-how { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--ph-t1); line-height: 1.35; color: var(--ph-muted); }
 .phc-tile-lock { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); display: grid; }
-.phc-tile-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 0.75; }
+.phc-tile-lock .colls-lock { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); opacity: 1; }
 .phc-tile-tags { position: absolute; top: calc(12 * var(--phu)); left: calc(12 * var(--phu)); display: flex; }
 .phc-tile:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(-2 * var(--phu)); }
 
@@ -119,6 +116,11 @@
 .phc-stage-hover { position: absolute; inset: 0; display: grid; place-items: center; }
 .phc-stage-img.contain { max-width: 80%; max-height: 86%; object-fit: contain; }
 .phc-stage-hover .phc-stage-img.contain { max-height: 90%; }
+/* Card plates: the box shows Impossible Todd wearing the plate, tall enough that the whole card (plate overhang included)
+   clears its top and bottom (owner 2026-11-06). */
+html[data-ph-shell]:not([data-touch-small]) .phc-detail:has(.phc-stage-card) > .phc-stage { height: calc(540 * var(--phu)); }
+/* The text plate hangs well below the card element, so the card is lifted to centre what it PAINTS, and drawn at 80%. */
+.phc-stage-card { display: grid; place-items: center; pointer-events: none; transform: translateY(-86px) scale(0.8); }
 .phc-stage-img.cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
 .phc-detail.missing .phc-stage img, .phc-detail.missing .phc-stage .heroimg { filter: saturate(0.25) brightness(0.5); }
 .phc-stage .colls-heroring { --ring: calc(232 * var(--phu)); }
@@ -326,3 +328,198 @@ html[data-ph-shell][data-touch-small] .phc-rail { --phc-fade: calc(112 * var(--p
 html[data-ph-shell][data-touch-small] .phc-rail[data-more-r] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - var(--phc-fade)), transparent); }
 html[data-ph-shell][data-touch-small] .phc-rail[data-more-l] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade)); }
 html[data-ph-shell][data-touch-small] .phc-rail[data-more-l][data-more-r] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--phc-fade), #000 calc(100% - var(--phc-fade)), transparent); }
+
+/* ── ADJUSTMENT PASS (owner 2026-11-06: "with everything you learned so far, take a quick adjustment pass at the collection tab") ── */
+/* Room to lift and glow. The grid and the category rail scroll, so they clip, and their first items sat flush on the clipping
+   edge: a tile's hover lift and the selected category's outer glow were shaved off at the top and left (the same as the shop's
+   Ancient chest). Each scroller now reaches 8u further out and pads its content back in, so nothing moves. Desktop only. */
+html[data-ph-shell]:not([data-ph-compact]) .phc-gridwrap { margin: calc(-16 * var(--phu)) 0 0 calc(-16 * var(--phu)); padding-top: calc(16 * var(--phu)); padding-left: calc(16 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phc-rail { margin: calc(-8 * var(--phu)) calc(-8 * var(--phu)) 0; padding: calc(8 * var(--phu)) calc(8 * var(--phu)) 0; }
+
+/* The selected tile is outlined in gold with a soft gold glow behind it (owner 2026-11-06). The outline and the rarity stripe were
+   inset shadows on the tile itself, which the full-bleed art covers, so on an art tile neither showed. Both now ride an overlay
+   above the art (::after, under the tags and text, never taking the pointer); the glow is an outer shadow, which nothing covers.
+   The grid's scroll edge has 16u of room so the glow is not cut on the first row or column. */
+.phc-tile, .phc-tile.missing, .phc-tile.sel, .phc-tile.missing.sel { box-shadow: var(--ph-gild-s); }
+.phc-tile::after { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 calc(-6 * var(--phu)) 0 color-mix(in srgb, var(--rc) 70%, transparent); }
+.phc-tile.sel::after { box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold), inset 0 calc(-6 * var(--phu)) 0 var(--rc); }
+.phc-tile.sel, .phc-tile.missing.sel { box-shadow: 0 0 calc(14 * var(--phu)) calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.phc-tile > :is(.phc-tile-text, .phc-tile-tags, .phc-tile-lock) { z-index: 2; }
+
+/* Picking a tile expands it and lets it settle with a tiny bounce (owner 2026-11-06: "when clicking a card, it should expand and
+   settle with a tiny bounce"). It rests a touch larger while selected. `scale` is its own property, so it composes with the hover
+   lift's translate; compositor-only, one transition with an overshoot curve (no keyframes in this file). */
+.phc-tile.sel { z-index: 1; scale: 1.03; }
+@media (prefers-reduced-motion: no-preference) {
+  .colls-page:not(.colls-still) .phc-tile { transition: transform 0.12s cubic-bezier(0, 0, 0.2, 1), scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+}
+
+/* The grid carries the class `art` (art tiles), and a global `.art { overflow: hidden }` rule clipped every tile's lift, glow and
+   bounce at the grid's own edge (owner 2026-11-06: "the top left and right are all being clipped"). The grid never clips. */
+.phc-grid.art { overflow: visible; }
+
+/* Hovering a tile bounces it like the Play menu's tabs (owner 2026-11-06: "do the same bounce effect as the play menu buttons"):
+   the same overshoot curve and timing (0.32s in, 0.16s out), at 1.05 rather than 1.1 since a tile is far bigger than a label.
+   It replaces the old 2u lift. Transform only; it multiplies with a selected tile's resting `scale`. */
+@media (prefers-reduced-motion: no-preference) {
+  .colls-page:not(.colls-still) .phc-tile { transition: transform 0.16s ease-out, scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  .colls-page:not(.colls-still) .phc-tile:hover { transform: scale(1.05); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+}
+
+/* Room for the bounce + glow (owner 2026-11-06: "ugh now the glow is being cut off"). A selected, hovered tile grows ~8% and its
+   glow reaches ~15u more, about 25u past its resting edge. The scroller can only borrow 16u outward (any further and it would sit
+   over the filter chips above and the category rail's scrollbar on the left), so it also pads 16u inward: the tiles sit 16u in. */
+html[data-ph-shell]:not([data-ph-compact]) .phc-gridwrap {
+  margin: calc(-16 * var(--phu)) calc(-16 * var(--phu)) 0 calc(-16 * var(--phu));
+  padding: calc(32 * var(--phu)) calc(32 * var(--phu)) calc(32 * var(--phu)) calc(32 * var(--phu)); }
+
+/* Room for the selected category's glow (owner 2026-11-06: "this section is also being cut off by the bounds. glow and outline").
+   Its glow reaches ~28u, but the rail scrolls (clips) and the page body clips too (it never scrolls itself), and the rail sat
+   flush on both. The page body now reaches 32u out at the sides and 16u up, padding its content back, so nothing moves; the rail
+   reaches 24u out at the sides and 16u up and pads back in (its list sits 8u lower). */
+html[data-ph-shell]:not([data-ph-compact]) .phc .phk-pagebody {
+  margin-left: calc(-32 * var(--phu)); margin-right: calc(-12 * var(--phu) - 32 * var(--phu)); margin-top: calc(-16 * var(--phu));
+  padding-left: calc(32 * var(--phu)); padding-right: calc(32 * var(--phu)); padding-top: calc(16 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phc-rail {
+  margin: calc(-16 * var(--phu)) calc(-24 * var(--phu)) 0; padding: calc(24 * var(--phu)) calc(24 * var(--phu)) 0; }
+
+/* A click bounces MORE than a hover (owner 2026-11-06: "when clicking it should bounce even more"): the press squeezes the tile in
+   fast, and on release it springs back out past its hover size with a bigger overshoot before settling. */
+@media (prefers-reduced-motion: no-preference) {
+  .colls-page:not(.colls-still) .phc-tile:active { transform: scale(0.95); transition: transform 0.08s ease-out, scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  .colls-page:not(.colls-still) .phc-tile.sel:hover { transition: transform 0.5s cubic-bezier(0.3, 2.6, 0.45, 1), scale 0.5s cubic-bezier(0.3, 2.6, 0.45, 1); }
+}
+/* ...but on its right the rail may only borrow 8u (past that it would run under the grid's scroller and lose its scrollbar), so
+   the glow's room there comes from padding: the categories are 16u narrower. */
+html[data-ph-shell]:not([data-ph-compact]) .phc-rail { margin-right: calc(-8 * var(--phu)); }
+
+/* The navy fade behind a tile's text climbs higher (owner 2026-11-06: "make the navy fade on the card travel up further"): it
+   starts 22% from the top instead of 40%, reaching full strength a little lower down. */
+/* The navy fade sits ABOVE the art (z 1; it used to paint under it and never showed) and starts HALFWAY up the card
+   (owner 2026-11-06). Text, tags and lock are z 2. */
+.phc-tile.hasart:not(.contain)::before { inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 44%, color-mix(in srgb, var(--ph-navy) 80%, transparent) 72%, color-mix(in srgb, var(--ph-navy) 96%, transparent) 100%); }
+/* Locked (not owned) art: darkened in steps: 20%, then 30%, then 10% more (owner 2026-11-06). */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0.5) brightness(0.315); }
+.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.5) brightness(0.378); }
+
+/* The rail, top to bottom: sealed chests, the categories, then the open category by rarity (owner 2026-11-06). The rarity box
+   wears the chest bay's plate; its copy in the item's detail column is gone on desktop (the phone's detail sheet keeps it, since
+   the phone's rail is a single scrolling strip). */
+.phc-rarbox { flex: none; padding: calc(16 * var(--phu)); background: var(--ph-plate); border-radius: var(--ph-r-l);
+  box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+.phc-rarbox .phc-prow { grid-template-columns: calc(104 * var(--phu)) minmax(0, 1fr) calc(48 * var(--phu)); gap: calc(8 * var(--phu)); }
+.phc-side .phc-progress { display: none; }
+html[data-ph-shell][data-touch-small] .phc-rail .phc-rarbox { display: none; }
+
+/* Sealed chests: a compact bay (owner 2026-11-06) — smaller chest, tighter padding, no odds line. */
+html[data-ph-shell]:not([data-touch-small]) .phc-bay { gap: calc(8 * var(--phu)); padding: calc(10 * var(--phu)) calc(14 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-bay-art { width: calc(64 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-bay-who { gap: calc(2 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-bay-level { padding-top: calc(8 * var(--phu)); }
+
+/* Tile hero name: regular weight, 2u smaller (owner 2026-11-06). */
+.phc-tile-for { font-weight: 500; font-size: calc(var(--ph-t1) - 2 * var(--phu)); }
+
+/* Category rows: a touch smaller title so "Attack Animations" fits, a touch taller row (owner 2026-11-06). Desktop only. */
+html[data-ph-shell]:not([data-touch-small]) .phc-cat.phk-row.dense { min-height: calc(56 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-cat.phk-row.dense .phk-rowtitle { font-size: calc(13 * var(--phu)); }
+
+/* The All/Owned/Missing tab glow reaches ~18u left of the first tab; the tab strip scrolls (overflow-x) so it was clipped.
+   Give the strip room to the left without moving the tabs; the padding stays click-through so it never covers the rail. */
+html[data-ph-shell]:not([data-touch-small]) .phc-filters > .phk-tabs { margin-left: calc(-24 * var(--phu)); padding-left: calc(24 * var(--phu)); pointer-events: none; }
+html[data-ph-shell]:not([data-touch-small]) .phc-filters > .phk-tabs > .phk-tab { pointer-events: auto; }
+
+/* Detail buttons sit just under the preview on desktop (owner 2026-11-06). Reordered visually only, so the phone layout keeps
+   its actions pinned at the sheet's foot. */
+html[data-ph-shell]:not([data-touch-small]) .phc-detail > * { order: 2; }
+html[data-ph-shell]:not([data-touch-small]) .phc-detail > .phc-stage { order: 0; }
+html[data-ph-shell]:not([data-touch-small]) .phc-detail > .phc-name { order: 1; }
+/* The equip row sits under the name + rarity, with breathing room above and below (owner 2026-11-06). */
+html[data-ph-shell]:not([data-touch-small]) .phc-detail > .phc-actions { order: 2; margin: calc(8 * var(--phu)) 0; }
+html[data-ph-shell]:not([data-touch-small]) .phc-detail > .phc-facts { order: 3; }
+
+/* Hero name + cosmetic name sit a little higher on the tile; the rarity line stays put (owner 2026-11-06). */
+.phc-tile-name { margin-bottom: calc(6 * var(--phu)); }
+
+/* Equipped + its "use default" button: two equal halves, the chip as tall as the button and in the button's type (owner 2026-11-06). */
+.phc-worn { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
+.phc-worn > .phk-btn { width: 100%; min-width: 0; }
+.phc-worn > .phk-chip { height: auto; min-height: calc(40 * var(--phu)); justify-content: center; font-family: var(--ph-font); font-size: var(--ph-t2); font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* Emote menu slots: bigger targets for drag-to-equip (owner 2026-11-06), and the slot under a dragged emote lights up. */
+html[data-ph-shell]:not([data-touch-small]) .phc-actions .colls-emote-slots .emote-pick { height: calc(96 * var(--phu)); }
+/* The slot under a dragged emote rings and glows green (owner 2026-11-06). A static swap, not a loop. */
+.phc-actions .colls-emote-slots .emote-pick[data-drop] { box-shadow: inset 0 0 0 calc(2 * var(--phu)) #5be37a, 0 0 calc(18 * var(--phu)) calc(2 * var(--phu)) rgba(70, 220, 110, 0.7); }
+
+/* Drag-to-equip spring (owner 2026-11-06: "the section receiving the card should expand with a springy animation. when you let
+   go it should spring back down with a bounce"). The slot under the drag grows with an overshoot; when the drag leaves or drops,
+   it settles back past full size and bounces home. Uses the `scale` property so it never fights the hover transform. */
+.phc-actions .colls-emote-slots .emote-pick { transition: transform 0.12s ease-out, scale 0.55s cubic-bezier(0.3, 2.4, 0.45, 1); }
+.phc-actions .colls-emote-slots .emote-pick[data-drop] { position: relative; z-index: 1; scale: 1.24; transition: transform 0.12s ease-out, scale 0.36s cubic-bezier(0.34, 1.9, 0.5, 1); }
+@media (prefers-reduced-motion: reduce) { .phc-actions .colls-emote-slots .emote-pick, .phc-actions .colls-emote-slots .emote-pick[data-drop] { transition: none; scale: none; } }
+
+/* Emote menu: four rows of two for bigger drop targets, with the how-to line above; the emote preview is shorter to make room
+   (owner 2026-11-06). Desktop. */
+html[data-ph-shell]:not([data-touch-small]) .phc-actions .colls-emote-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(10 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-actions .colls-emote-slots .emote-pick { height: calc(104 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-detail:has(.colls-emote-slots) > .phc-stage { height: calc(200 * var(--phu)); }
+.phc-emote-hint { margin: 0; text-align: center; font-size: var(--ph-t1); line-height: 1.4; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+/* Emotes: no Status / How to get rows; the slot grid says where it is (owner 2026-11-06). Desktop. */
+html[data-ph-shell]:not([data-touch-small]) .phc-detail:has(.colls-emote-slots) > .phc-facts { display: none; }
+
+/* The pointer drag: no cursor while an emote is carried, and the carried emote at full opacity (owner 2026-11-06). */
+html.phc-dragging { user-select: none; }
+/* A clear cover over the page while an emote is carried: it owns the pointer (the cursor is hidden inline in emoteDrag.ts, since
+   this sheet carries no cursor rules) and stops hover effects underneath from firing mid-drag. */
+.phc-dragcover { position: fixed; inset: 0; z-index: 2998; }
+.phc-dragghost { position: fixed; left: 0; top: 0; z-index: 2999; width: calc(150 * var(--phu)); height: auto; opacity: 1; pointer-events: none; will-change: transform; filter: drop-shadow(0 calc(6 * var(--phu)) calc(10 * var(--phu)) rgba(0, 0, 0, 0.55)); }
+
+/* While an emote is being placed, the slot grid greys out under an "Equipping" spinner (owner 2026-11-06). Static paint. */
+.phc-actions { position: relative; }
+.phc-actions:has(> .phc-equipping) .colls-emote-slots { filter: grayscale(1) brightness(0.6); }
+.phc-equipping { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--phu));
+  border-radius: var(--ph-r-s); background: color-mix(in srgb, var(--ph-navy) 55%, transparent);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ph-ink); text-shadow: var(--ph-shadow); }
+
+/* The slot an emote just landed in pops out fast; when the mark comes off, the slot's springy settle bounces it home
+   (owner 2026-11-06). */
+.phc-actions .colls-emote-slots .emote-pick[data-landed] { position: relative; z-index: 1; scale: 1.16; transition: transform 0.12s ease-out, scale 0.1s ease-out; }
+@media (prefers-reduced-motion: reduce) { .phc-actions .colls-emote-slots .emote-pick[data-landed] { scale: none; } }
+/* ...and a gold glow flares with the pop, holds a beat, then fades as it settles (owner 2026-11-06: "i dont see the glow"). On
+   the slot's OWN box-shadow, which its overflow does not clip (a pseudo-element's glow was clipped). A one-shot transition. */
+.phc-actions .colls-emote-slots .emote-pick { transition: transform 0.12s ease-out, scale 0.55s cubic-bezier(0.3, 2.4, 0.45, 1), box-shadow 0.7s ease-out; }
+.phc-actions .colls-emote-slots .emote-pick[data-glow] { box-shadow: inset 0 0 0 calc(3 * var(--phu)) var(--ph-gold), 0 0 calc(26 * var(--phu)) calc(6 * var(--phu)) color-mix(in srgb, var(--ph-gold) 80%, transparent); transition: transform 0.12s ease-out, scale 0.55s cubic-bezier(0.3, 2.4, 0.45, 1), box-shadow 0.08s ease-out; }
+/* While both marks are on, the pop out stays fast; once the pop mark comes off, the spring above bounces it home. */
+.phc-actions .colls-emote-slots .emote-pick[data-landed][data-glow] { transition: transform 0.12s ease-out, scale 0.1s ease-out, box-shadow 0.08s ease-out; }
+
+/* Room for a popped emote slot (scale + glow) inside the detail column's scroll box, which would otherwise cut it off at the
+   panel's edge (owner 2026-11-06: "when hovering over, this gets cut off"). Padding and an equal negative margin, so the layout
+   does not move. Desktop. */
+html[data-ph-shell]:not([data-touch-small]) .phc-side { padding: calc(36 * var(--phu)) calc(40 * var(--phu)); margin: calc(-36 * var(--phu)) calc(-40 * var(--phu)); }
+
+/* Hero attack preview: the arena fills the preview box and PREVIEW sits at its foot (owner 2026-11-06). */
+.phc-stage .hapv { box-sizing: border-box; justify-content: space-between; gap: calc(12 * var(--phu)); padding: calc(12 * var(--phu)) calc(12 * var(--phu)) calc(16 * var(--phu)); }
+.phc-stage .hapv-box { flex: 1; min-height: 0; height: auto; max-width: none; }
+
+/* Not owned: the lock pill stands where Equip would, at Equip's size (owner 2026-11-06). */
+.phc-actions > .phc-notowned { box-sizing: border-box; width: 100%; height: calc(56 * var(--phu)); justify-content: center; gap: calc(10 * var(--phu)); border-radius: 999px;
+  font-family: var(--ph-font); font-size: var(--ph-t3); font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.phc-actions > .phc-notowned .colls-lock { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+
+/* Card / Plate toggle for an owned plate, in the preview's top-right corner (owner 2026-11-06). */
+.phc-plateview { position: absolute; top: calc(12 * var(--phu)); right: calc(12 * var(--phu)); z-index: 3; }
+.phc-plateview .phk-tchip { gap: calc(6 * var(--phu)); height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; }
+.phc-plateview-eye { width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); object-fit: contain; }
+.phc-plateview .phk-tchip[aria-pressed="false"] .phc-plateview-eye { opacity: 0.55; filter: grayscale(1); }
+/* Card plate tiles: the plate fills the tile like the other art tiles, its top half showing, under the same navy fade
+   (owner 2026-11-06). */
+.phc-tile.arttop .phc-tile-art img { object-position: 50% 0; }
+/* The facts' label column is wide enough for "Attack patterns" on one line (owner 2026-11-06). */
+.phc-fact { grid-template-columns: calc(164 * var(--phu)) minmax(0, 1fr); }
+.phc-fact dt { white-space: nowrap; }
+/* Preview off (and locked items): the same card / ring with everything but the plate / frame hidden, so it keeps its exact size
+   and spot (owner 2026-11-06). Visibility, not display, so nothing moves. */
+.colls-cardinline.bare * { visibility: hidden; }
+.colls-cardinline.bare :is(img.plate-frame, img.cardplate, img.plateglow) { visibility: visible; }
+.colls-framebare .heroimg { visibility: hidden; }

@@ -232,3 +232,100 @@ html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-trends :is(.ct-small-
 /* Phone: the short chips (7d) are as wide as they are tall. */
 html[data-ph-shell][data-touch-small] .phc-page .phc-toolbar .phk-segbtn { min-width: calc(40 * var(--pt, 1px)); }
 
+
+/* ONE RANK CELL (owner 2026-11-06): Seasonal Ranked, or with the Duos toggle on, the player's Ranked Duos team. It holds one
+   width in both states so the numbers beside it do not jump; the toggle sits at its right edge. */
+.phc-rankcell { min-width: calc(420 * var(--phu)); }
+.phc-rankcell > .phc-duostoggle { margin-left: auto; flex: none; }
+
+/* The career numbers read title first (owner 2026-11-06: "the icons should be next to the titles, not the metrics. put the
+   titles on top too"): each title, with its icon, sits above its number. */
+html[data-ph-shell] .phc-page .phc-strip .rgp-stats .phk-statlbl { order: -1; }
+/* The Duos toggle is the Settings switch (owner 2026-11-06: "use this button for the solos/duos toggle"), its label beside it. */
+.phc-rankcell > .phc-duostoggle { gap: calc(8 * var(--phu)); padding: 0; box-shadow: none; }
+/* The career numbers share the strip in equal columns, so the dividers between them fall at an even spacing (owner 2026-11-06:
+   "the spacing of these vertical dividers should be even between each section"). */
+html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-strip .rgp-stats { justify-content: stretch; }
+html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-strip .rgp-stats .phk-stat { flex: 1 1 0; }
+
+/* The rank section, larger, with a divider before its Duos switch (owner 2026-11-06: "add a divider between the rank section and
+   the solo duos toggle, make the rank section larger"). The divider is the strip's own gold hairline. */
+.phc-rankcell { min-width: calc(600 * var(--phu)); gap: calc(20 * var(--phu)); }
+.phc-rankcell .rankcrest-row { --ring: calc(72 * var(--phu)); }
+.phc-rankcell .rankbar-label { font-size: var(--ph-t3); }
+.phc-rankcell .rankbar-track { width: calc(180 * var(--phu)); height: calc(8 * var(--phu)); }
+.phc-rankcell .rankbar-points { font-size: var(--ph-t2); }
+.phc-rankcell .phc-mmr { font-size: var(--ph-t2); }
+.phc-rankcell .phc-mmr b { font-size: calc(var(--ph-t4) * 1.25); }
+.phc-rankcell > .phc-duostoggle { position: relative; align-self: stretch; padding-left: calc(20 * var(--phu)); }
+.phc-rankcell > .phc-duostoggle::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: calc(1 * var(--phu));
+  background: linear-gradient(180deg, transparent, var(--ph-gold), transparent); opacity: 0.6; }
+/* Solo and Duos hold the SAME box (owner 2026-11-06: "the width between solos and duos and the placement of the toggle should
+   remain exactly the same"): a fixed-width cell, the rank content in a fixed column, the switch in its own column on the right. */
+.phc-rankcell { flex: none; box-sizing: border-box; width: calc(600 * var(--phu)); min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.phc-rankbody { display: flex; align-items: center; gap: calc(16 * var(--phu)); min-width: 0; overflow: visible; }
+.phc-rankbody > .phc-mmr { margin-left: auto; }
+
+/* A taller strip (owner 2026-11-06: "make the entire top section taller. this is getting cut off"): room for the larger rank
+   crest and its division badge below it. */
+html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-strip { min-height: calc(156 * var(--phu)); }
+html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-rankcell { padding-top: calc(16 * var(--phu)); padding-bottom: calc(20 * var(--phu)); }
+/* The hero card's gold edge sits over its art and follows its corners (owner 2026-11-06: "it should always trump everything"). */
+.phc-hero::after { z-index: 2; border-radius: inherit; }
+/* The whole career page sits 20u higher (owner 2026-11-06: "shift ALL contents on that page up by 20px"): the page's top padding
+   drops from 32u to 12u, and the body below keeps the room. */
+html[data-ph-shell]:not([data-ph-compact]) .phc-page .phk-page.phc-pg { padding-top: calc(12 * var(--phu)); }
+
+/* THE PORTRAIT LEADS THE STRIP (owner 2026-11-06: "having the portrait art left aligned and fade to navy to the right ... take up
+   1/3rd of the entire top banner"): the art is pinned to the strip's left edge, a third of its width, fading out to the right.
+   It lies under every cell (the cells are see-through and stack above it); the gold edge stays on top (.rgp-strip::after). */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { position: static; overflow: visible; }
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { left: 0; right: auto; width: 33.333%; z-index: 0; object-position: 50% 22%;
+  -webkit-mask-image: linear-gradient(90deg, #000 30%, transparent 100%); mask-image: linear-gradient(90deg, #000 30%, transparent 100%); }
+html[data-ph-shell] .phc-page .phc-strip > :not(.phc-who), html[data-ph-shell] .phc-page .phc-strip .phc-who > :not(img) { position: relative; z-index: 1; }
+html[data-ph-shell] .phc-page .phc-strip .phc-who > :not(img) { text-shadow: var(--ph-shadow), 0 0 calc(8 * var(--phu)) rgba(0, 0, 0, 0.8); }
+/* ...and it runs on into the rank section (owner 2026-11-06: "including into the rank section"), so no hairline cuts across it. */
+html[data-ph-shell] .phc-page .phc-strip > .phc-rankcell { box-shadow: none; }
+
+/* THE PORTRAIT CELL (owner 2026-11-06: "remove the level 142 section, then have the hero portrait right aligned again with a navy
+   fade to the left. reduce its size by 25%"): the strip opens with the portrait alone, a quarter of the strip wide (3/4 of the
+   third it was), anchored right and fading into the navy on its left. This replaces the full-third version above. */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { position: relative; overflow: hidden; flex: 0 0 25%; padding: 0; }
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { left: auto; right: 0; width: 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 60%); mask-image: linear-gradient(90deg, transparent 0%, #000 60%); }
+html[data-ph-shell] .phc-page .phc-strip > .phc-rankcell { box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); }
+/* ...placed at the far end of the rank section instead (owner 2026-11-06: "no i want it all the way over here, which shifts the
+   rank section over left"): the portrait cell takes no room in the row; it lies under the rank section (whose width it matches)
+   with the art pinned to that section's right edge, against the divider before the numbers, fading left into the navy. The rank
+   section now opens the strip. */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { position: absolute; left: 0; top: 0; bottom: 0; width: calc(600 * var(--phu)); flex: none; z-index: 0; }
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { right: 0; left: auto; width: 64%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 70%); mask-image: linear-gradient(90deg, transparent 0%, #000 70%); }
+html[data-ph-shell] .phc-page .phc-strip > .phc-rankcell { box-shadow: none; }
+/* A quiet backdrop, not a picture (owner 2026-11-06: 30%, then "reduce opacity to 20%"). */
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { opacity: 0.2; }
+/* No hard stop at the divider (owner 2026-11-06: "instead of a hard stop, have it fade on the right side as well and fade into the
+   games overview section"): the portrait's box reaches 200u past the rank section, under the start of the numbers, and the art
+   fades out on both sides. */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { width: calc(800 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { width: calc(600 * var(--phu)); right: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 40%, #000 62%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, #000 40%, #000 62%, transparent 100%); }
+/* Smaller and softly blurred (owner 2026-11-06: "give it a very minor blur. can you reduce its size at all?", then "increase size to 540"): 540u wide (from
+   600), centred on the divider between the rank section and the numbers, with a static 1.5px blur (no animation, so no repaint). */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { width: calc(870 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { width: calc(540 * var(--phu)); filter: blur(1.5px); }
+/* Back inside the rank section only (owner 2026-11-06: "put it in the rank section only again"): the box is the section's width,
+   the art at its right end, still fading out on both sides. */
+html[data-ph-shell] .phc-page .phc-strip > .phc-who { width: calc(600 * var(--phu)); }
+/* 380u wide (owner 2026-11-06: "reduce its size to 380"). */
+html[data-ph-shell] .phc-page .phc-strip .phc-who .rgp-mostart { width: calc(380 * var(--phu)); }
+
+/* Trends: every chart is a full hover chart in its own panel (owner 2026-11-06: "make them all interactable make each one
+   bigger"). Three across; the charts keep their own aspect (no stretched SVG). */
+html[data-ph-shell] .phc-page .phc-trends.phc-trends { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends .ct-allgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(16 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends .ct-panel { position: relative; min-width: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(14 * var(--phu)) calc(16 * var(--phu)); border-radius: var(--ph-r); background: var(--ph-well); box-shadow: var(--ph-gild-s); }
+html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-mmr-head { margin: 0; }
+html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-mmr svg { height: auto; max-height: none; }
+html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-empty { flex: 1; display: grid; place-items: center; min-height: calc(160 * var(--phu)); }
+html[data-ph-shell] .phc-page .phc-trends > .ct-legend { margin: 0; }

@@ -19,8 +19,10 @@ const BOARD_SLOTS = 7;
  * is what made the panel scroll and jitter). The views are memoised per board, so a parent re-render never hands
  * the memoised `Card` a fresh object.
  */
-export function StoredTeam({ minions, skins, label = 'Final team', compact, views: given }: {
+export function StoredTeam({ minions, skins, label = 'Final team', compact, views: given, noReveal }: {
   minions: readonly BoardMinion[]; skins: RunCosmeticSnapshot | null; label?: string; compact?: boolean;
+  /** No hover reveal on these cards (Card's `noReveal`). */
+  noReveal?: boolean;
   /** Ready-made views to show instead (Versus match stats: the fight's live snapshot views, inspectable with their
    *  buffs). Memoise them; `minions` is ignored when given. */
   views?: readonly CardView[];
@@ -34,7 +36,7 @@ export function StoredTeam({ minions, skins, label = 'Final team', compact, view
         {Array.from({ length: BOARD_SLOTS }, (_, i) => {
           const v = views[i];
           return v
-            ? <div className="cv2-tile" key={i}><Card card={v} suppressPop forceCompact={compact} /></div>
+            ? <div className="cv2-tile" key={i}><Card card={v} suppressPop forceCompact={compact} noReveal={noReveal} /></div>
             : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
         })}
       </div>

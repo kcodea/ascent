@@ -396,7 +396,9 @@ const syOf = (lo: number, hi: number, invert = false) => (v: number): number => 
 };
 const poly = (ys: readonly number[], y: (v: number) => number): string => ys.map((v, i) => `${sx(i, ys.length).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
 
-export function TrendsBody({ runs, window_, nowMs, live, own = true }: { runs: readonly CareerRun[]; window_: TrendWindow; nowMs: number; live: number | null; own?: boolean }) {
+/** `allBig` (the party home, owner 2026-11-06: "instead of having a view to click on to make it interactable, make them
+ *  all interactable make each one bigger"): every chart is a full hover chart in its own panel; no focus swap. */
+export function TrendsBody({ runs, window_, nowMs, live, own = true, allBig = false }: { runs: readonly CareerRun[]; window_: TrendWindow; nowMs: number; live: number | null; own?: boolean; allBig?: boolean }) {
   const { cur, prev } = useMemo(() => trendRuns(runs, window_, nowMs), [runs, window_, nowMs]);
   const f = useMemo(() => trendFigures(cur, prev), [cur, prev]);
   const [focus, setFocusState] = useState<ChartKind>(readFocus);
@@ -405,6 +407,10 @@ export function TrendsBody({ runs, window_, nowMs, live, own = true }: { runs: r
   const geo = useMemo<BigGeo | null>(() => (
     focus === 'mmr' ? mmrGeo(cur, live, nowMs) : focus === 'place' ? placeGeo(cur) : focus === 'top4' ? top4Geo(cur) : focus === 'apm' ? apmGeo(cur) : gamesGeo(cur, window_, nowMs)
   ), [focus, cur, live, nowMs, window_]);
+  // Every chart's geometry for the all-big layout (built only there, once per range / data change).
+  const geos = useMemo<Record<ChartKind, BigGeo | null> | null>(() => (allBig
+    ? { mmr: mmrGeo(cur, live, nowMs), place: placeGeo(cur), top4: top4Geo(cur), apm: apmGeo(cur), games: gamesGeo(cur, window_, nowMs) }
+    : null), [allBig, cur, live, nowMs, window_]);
   const placed = cur.filter((p) => p.place !== null) as Array<RunPoint & { place: number }>;
   const places = placed.map((p) => p.place);
   const top4 = rolling(places.map((p) => (isMatchWin(p) ? 100 : 0)));
@@ -467,6 +473,26 @@ export function TrendsBody({ runs, window_, nowMs, live, own = true }: { runs: r
     const bw = (SW - 2 * SP) / days;
     return per.map((n, i) => n > 0 && <rect key={i} className="ct-bar" x={SP + i * bw + 0.5} y={SH - SP - (n / hi) * (SH - 2 * SP)} width={Math.max(1, bw - 1)} height={(n / hi) * (SH - 2 * SP)} rx="1" />);
   };
+  const legend = (
+    <div className="ct-legend" aria-hidden="true">
+      <span><i className="ct-key won" />1st</span><span><i className="ct-key top4" />Top 4</span><span><i className="ct-key lost" />5th to 8th</span><span><i className="ct-key roll" />Last {ROLL} games</span>
+    </div>
+  );
+  if (geos) {
+    return (
+      <>
+        <div className="ct-allgrid">
+          {CHART_KINDS.map((k) => (
+            <div key={k} className="ct-panel" data-kind={k}>
+              <div className="ct-mmr-head"><span className="cv2-trend-title">{CHART_NAME[k]}</span><span className="cv2-trend-avg">{value[k]}</span>{k !== 'mmr' && <span className="ct-focus-d">{delta[k]}</span>}</div>
+              <BigChart geo={geos[k]} own={own} kind={k} />
+            </div>
+          ))}
+        </div>
+        {legend}
+      </>
+    );
+  }
   return (
     <>
       <div className="ct-mmr-head"><span className="cv2-trend-title">{CHART_NAME[focus]}</span><span className="cv2-trend-avg">{value[focus]}</span>{focus !== 'mmr' && <span className="ct-focus-d">{delta[focus]}</span>}</div>

@@ -24,12 +24,12 @@ import type { RankPosition } from '../../../rank/types';
 import { remoteEnabled } from '../../../remoteBoards';
 import { sfx } from '../../../sfx';
 import { useSocial } from '../../../socialCache';
-import { handleOf, sortDuosTeams } from '../../../versus/DuosBoards';
+import { sortDuosTeams } from '../../../versus/DuosBoards';
 import { versusRemote, type DuosTeamOfRow } from '../../../versus/versusRemote';
 import { MenuMedal } from '../../../menuIcons';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
 import { HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, trendWindowLabel, type HeroCareer, type HeroSort, type TrendWindow } from '../../../careerData';
-import { PhButton, PhEmpty, PhPage, PhSegmented, PhStat, PhTabs } from '../../kit';
+import { PhButton, PhEmpty, PhPage, PhSegmented, PhStat, PhSwitch, PhTabs } from '../../kit';
 import { GameSplitGhost, GameSplitPh, type GameSplitView } from '../gameView';
 import './phCareer.css';
 
@@ -47,7 +47,7 @@ export interface PhCareerProps {
   ready: boolean;
   /** A way back to the page it was opened from. */
   back: { label: string; onClick: () => void } | null;
-  /** The equipped title, already rendered (rarity chip or the master plate). */
+  /** The equipped title, already rendered. Not shown on this page (owner 2026-11-06: "remove the tag from the top right"). */
   title: ReactNode;
   addFriend: ReactNode;
   /** A whole-page state instead of the career (no backend, signed out, loading, offline). */
@@ -77,22 +77,31 @@ export interface PhCareerProps {
   achievements: ReactNode;
 }
 
-/** The player's Ranked Duos teams, best first: one quiet cell, the arrow steps through them. Nothing with no team. */
-function DuosCell({ userId }: { userId: string | null }) {
+/**
+ * THE RANK CELL (owner 2026-11-06: "make the single player mmr and medallion the only one and combine the two sections into one,
+ * create a button that toggles on Duos and off"): one cell shows the Seasonal Ranked medallion + MMR. A player with a Ranked
+ * Duos team gets a Duos toggle; on, the same cell shows their best team's rank.
+ */
+function RankCell({ rank, mmr, rankPending, userId }: { rank: RankPosition | null; mmr: number; rankPending: boolean; userId: string | null }) {
   const rows = useSocial<DuosTeamOfRow[]>(userId && remoteEnabled() ? `career:duos:${userId}` : null, () => versusRemote.duosTeamsOf(userId!).catch(() => [])) ?? null;
   const teams = useMemo(() => (rows ? sortDuosTeams(rows) : []), [rows]);
-  const [at, setAt] = useState(0);
-  if (teams.length === 0) return null;
-  const t = teams[at % teams.length]!;
-  const partner = `With ${handleOf(t.partner).replace(/#\d+$/, '')}`;
+  const [duos, setDuos] = useState(false);
+  const showDuos = duos && teams.length > 0;
+  // The best team's rank only (owner 2026-11-06: the team name / partner line was cut off: "can we just remove it?").
+  const t = showDuos ? teams[0]! : null;
   return (
-    <div className="phc-cell" role="group" aria-label="Ranked Duos teams">
-      <RankBar position={{ divisionIndex: t.division, points: t.points }} size="row" showGate={false} />
-      <span className="phc-duosteam" aria-live="polite">
-        <b>{t.name ?? 'Ranked Duos'}</b>
-        <span>{partner}, {t.games} game{t.games === 1 ? '' : 's'}</span>
-      </span>
-      {teams.length > 1 && <button type="button" className="phc-duosnext" aria-label={`Next team, ${(at % teams.length) + 1} of ${teams.length}`} onClick={() => { sfx.pulse(); setAt((a) => a + 1); }}>›</button>}
+    <div className="phc-cell phc-rankcell" role="group" aria-label={showDuos ? 'Ranked Duos teams' : 'Seasonal Ranked'}>
+      {t ? (
+        <div className="phc-rankbody">
+          <RankBar position={{ divisionIndex: t.division, points: t.points }} size="row" showGate={false} />
+        </div>
+      ) : (
+        <div className="phc-rankbody">
+          {rank ? <RankBar position={rank} size="row" /> : rankPending ? <span className="phc-wait" aria-busy="true" aria-label="Loading rank" /> : null}
+          {!rankPending && <span className="phc-mmr"><b>{rank ? scalarCaption(rank) : mmr}</b>MMR</span>}
+        </div>
+      )}
+      {teams.length > 0 && <PhSwitch className="phc-duostoggle" label="Duos" checked={showDuos} onChange={(v) => { sfx.pulse(); setDuos(v); }} />}
     </div>
   );
 }
@@ -142,7 +151,7 @@ export function PhCareer(p: PhCareerProps) {
   const actions = (
     <>
       {scope && <span className="phc-scope">{scope}</span>}
-      {p.title}{p.addFriend}
+      {p.addFriend}
       {p.onCreateAccount && (
         <span className="gtip" data-tip="Playing as a guest. Create an account to save your progress.">
           <PhButton size="s" onClick={p.onCreateAccount}>Create account</PhButton>
@@ -237,30 +246,18 @@ export function PhCareer(p: PhCareerProps) {
         {p.pageState ? <StateView s={p.pageState} /> : (
           <>
             <section className={`rgp-strip phc-strip${p.loading ? ' loading' : ''}`} aria-label="Profile">
-              <div className="rgp-most phc-who">
+              <div className="rgp-most phc-who" aria-hidden="true">
                 {p.profileArt && <img className="rgp-mostart" src={p.profileArt} alt="" draggable={false} decoding="sync" />}
-                {/* The name is the page title just above: the strip does not say it twice. */}
-                <span className="rgp-mostname">{p.level ? `Level ${p.level.level}` : p.name}</span>
-                <span className="rgp-mostsub">Favorite hero {p.favoriteHero}</span>
-                {p.level && (
-                  <span className="phc-xprow">
-                    <span className="phc-xp" aria-hidden="true"><i style={{ transform: `scaleX(${p.level.fraction})` }} /></span>
-                    <span className="phc-xpnum">{p.level.into} / {p.level.next} XP</span>
-                  </span>
-                )}
+                {/* The portrait only: the Level / Favorite hero / XP block is gone (owner 2026-11-06: "remove the level 142 section"). */}
               </div>
-              <div className="phc-cell" role="group" aria-label="Seasonal Ranked">
-                {p.rank ? <RankBar position={p.rank} size="row" /> : p.rankPending ? <span className="phc-wait" aria-busy="true" aria-label="Loading rank" /> : null}
-                {!p.rankPending && <span className="phc-mmr"><b>{p.rank ? scalarCaption(p.rank) : p.mmr}</b>MMR</span>}
-              </div>
-              <DuosCell userId={p.userId} />
+              <RankCell rank={p.rank} mmr={p.mmr} rankPending={p.rankPending} userId={p.userId} />
               <div className="rgp-stats">
                 <PhStat label="Games" value={stats.games} />
-                <PhStat label="1st Place" value={stats.firsts} tone="gold" />
-                <PhStat label="Top 4" value={<span className="phc-sv"><MenuMedal name="top4" />{stats.top4Pct === null ? '-' : `${stats.top4Pct}%`}</span>} />
-                <PhStat label="Losses" value={<span className="phc-sv"><MenuMedal name="losses" />{stats.losses}</span>} />
-                <PhStat label="Avg Place" value={<span className="phc-sv"><MenuMedal name="avgplacement" />{stats.avgPlacement === null ? '-' : stats.avgPlacement}</span>} />
-                <PhStat label="Tribe" value={<span className="phc-sv">{stats.tribeMedal}{stats.tribe ?? '-'}</span>} />
+                <PhStat label={<span className="phc-sv"><MenuMedal name="first" />1st Place</span>} value={stats.firsts} tone="gold" />
+                <PhStat label={<span className="phc-sv"><MenuMedal name="top4" />Top 4</span>} value={stats.top4Pct === null ? '-' : `${stats.top4Pct}%`} />
+                <PhStat label={<span className="phc-sv"><MenuMedal name="losses" />Losses</span>} value={stats.losses} />
+                <PhStat label={<span className="phc-sv"><MenuMedal name="avgplacement" />Avg Place</span>} value={stats.avgPlacement === null ? '-' : stats.avgPlacement} />
+                <PhStat label={<span className="phc-sv">{stats.tribeMedal}Tribe</span>} value={stats.tribe ?? '-'} />
               </div>
             </section>
             <section className={`phc-main${stateShown ? ' fit' : ''}${fade}`} aria-label={tabs.find((t) => t.id === p.tab)?.label} role="tabpanel">{view}</section>

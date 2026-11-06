@@ -491,6 +491,7 @@ export const Card = memo(function Card({
   onDragOver,
   onDrop,
   suppressPop,
+  noReveal,
   tripleReady,
   mateTriple,
   contraband,
@@ -576,6 +577,9 @@ export const Card = memo(function Card({
   /** Suppress the one-shot mount pop (used when the warband re-mounts on return from combat). Read
    *  once at mount and frozen, so toggling it later can't re-trigger the animation. */
   suppressPop?: boolean;
+  /** No hover reveal (the floating full card): a board shown only to look at, where it floated behind the page
+   *  (owner 2026-11-06, the party home's game view: "we dont need that at all"). Right-click Inspect still works. */
+  noReveal?: boolean;
   /** A tavern offer that would complete a triple if bought (you already hold 2 copies) — gets a
    *  gold glow + floating up-arrows to flag it. */
   tripleReady?: boolean;
@@ -826,7 +830,7 @@ export const Card = memo(function Card({
   const refFixed = refCards?.filter((c) => !c.refPick) ?? [];
   const refPool = refCards?.filter((c) => c.refPick) ?? [];
   const popupCards: CardView[] = [...(showText ? [] : [card]), ...refFixed, ...(refPool.length ? [refPool[pickIdx % refPool.length]!] : [])];
-  const hasPopup = popupCards.length > 0;
+  const hasPopup = !noReveal && popupCards.length > 0;
   const [refPos, setRefPos] = useState<RefPopupPos | null>(null);
   const refTimer = useRef<number | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);

@@ -23,6 +23,8 @@ import { createPortal } from 'react-dom';
 import { rectToStage, stageHost } from '../../stage';
 import '../shell/shell.css';
 import './kit.css';
+import { useSlideMarker } from './slideMarker';
+export { useSlideMarker } from './slideMarker';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
@@ -132,14 +134,16 @@ export function PhTabs<T extends string>({ tabs, value, onChange, label, onLocke
    *  game's `data-tip` bubble is clipped inside it. */
   onLockedHover?: (reason: string | null) => void;
 }) {
+  const rowRef = useSlideMarker<HTMLDivElement>(value);
   return (
-    <div className="phk-tabs" role="tablist" aria-label={label}>
+    <div ref={rowRef} className="phk-tabs phk-slides" role="tablist" aria-label={label}>
+      <i className="phk-slide" aria-hidden="true" />
       {tabs.map((t) => (
         <button key={t.id} type="button" role="tab" aria-selected={t.id === value} disabled={t.disabled} aria-disabled={t.reason ? true : undefined}
           data-tip={t.reason} className={cx('phk-tab', t.id === value && 'on', t.reason && 'locked gtip')}
           onPointerEnter={t.reason && onLockedHover ? () => onLockedHover(t.reason!) : undefined} onPointerLeave={t.reason && onLockedHover ? () => onLockedHover(null) : undefined}
           onClick={() => { if (t.reason) { onLocked?.(t.id, t.reason); return; } if (t.id !== value) onChange(t.id); }}>
-          {t.label}
+          <span className="phk-tablbl">{t.label}</span>
           {t.count ? <span className="phk-count">{t.count}</span> : null}
         </button>
       ))}

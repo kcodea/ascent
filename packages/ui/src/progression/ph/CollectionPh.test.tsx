@@ -132,7 +132,7 @@ describe('the Collection in the party home shell', () => {
   it('Esc on Crates: from the Collection it steps back; from the nav on another page it is left to the shell', async () => {
     const esc = (): boolean => { const e = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }); act(() => { document.dispatchEvent(e); }); return e.defaultPrevented; };
     await open({ ph: true, aether: true });
-    act(() => { $('.phc-shopbtn')!.click(); });
+    act(() => { openCrates(); });
     await settle();
     expect(esc()).toBe(true);
     await settle();
@@ -179,7 +179,7 @@ describe('the Collection in the party home shell', () => {
     // A missing item says so beside its kind, clear of the preview.
     act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('All'))!.click(); });
     act(() => { tileBy('Kingbreaker').click(); });
-    expect(document.querySelector('.phc-kindrow')?.textContent).toContain('Not owned');
+    expect(document.querySelector('.phc-actions .phc-notowned')?.textContent).toContain('Not owned');
     expect(document.querySelector('.phc-stage .phc-notowned')).toBeNull();
   });
 
@@ -209,10 +209,10 @@ describe('the Collection in the party home shell', () => {
 
   it('ON with Aether: the Chest Shop opens in the shell skin (the shop\'s own cards and rows), with no back button; the nav returns', async () => {
     await open({ ph: true, aether: true });
-    act(() => { $('.phc-shopbtn')!.click(); });
+    act(() => { openCrates(); });
     await settle();
     expect($('.cshop.phs')).not.toBeNull();
-    expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs h1')?.textContent).toBe('Shop');
     expect($('.phs .phk-back')).toBeNull(); // a top-level nav page
     expect($$('.phs .cshop-chest')).toHaveLength(5);
     expect($$('.phs .cshop-cat:not(.cshop-cat-head)').length).toBeGreaterThan(0);
@@ -244,7 +244,7 @@ describe('the Collection in the party home shell', () => {
     expect($('.phc-bay')?.textContent).toContain('Chests are unavailable right now.');
     act(() => { openCrates(); });
     await settle();
-    expect($('.phs h1')?.textContent).toBe('Crates');
+    expect($('.phs h1')?.textContent).toBe('Shop');
     expect($('.phs-offline')?.textContent).toContain('Crates are unavailable right now');
     expect(btn('Retry')).toBeDefined();
     expect(usePhShell.getState().crates).toBe(true);
@@ -265,7 +265,7 @@ describe('the Collection in the party home shell', () => {
 
   it('ON with Aether: a guest\'s buy is the sign-in gate, never the store', async () => {
     await open({ ph: true, aether: true, guest: true });
-    act(() => { $('.phc-shopbtn')!.click(); });
+    act(() => { openCrates(); });
     await settle();
     // Live (it opens sign-in), but it reads as sign-in: the outlined plate, never the gold buy.
     expect($('.phs-buy')?.textContent).toMatch(/^Sign in to open/);

@@ -57,7 +57,7 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 
 /* ── MODERN FANTASY (the shell's retune, 2026-11-02): rounded, glossy, warm. Overrides the cut shapes above. ── */
 .phs-sec::before { clip-path: none; border-radius: var(--ph-r-l); }
-.phs-sechead::after { width: calc(216 * var(--phu)); height: calc(24 * var(--phu)); bottom: calc(-4 * var(--phu)); background: url('../ornaments/divider.webp') 0 50% / contain no-repeat; }
+.phs-sechead::after { width: calc(216 * var(--phu)); height: calc(1 * var(--phu)); bottom: calc(-4 * var(--phu)); background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 .phs-sechead h2, .phs-togglerow .phk-switchlbl, .phs-name { font-weight: 900; letter-spacing: 0.02em; }
 /* THE SWITCH, the owner's rule (2026-10-08: red when off, green when on), as warm glossy jewels: a ruby off, an emerald on,
    each with a gem's top highlight and deep foot, ringed in gold; the knob a polished pearl. */
@@ -83,3 +83,23 @@ html[data-touch-small] .phs-togglerow .phk-seghint { max-width: none; }
 .phs .phk-sliderrow { min-width: 0; }
 .phs .phk-slider input[type="range"] { min-width: 0; }
 html[data-ph-compact] .phs-slider { width: calc(560 * var(--phu)); }
+/* The underline sits close under the section title, with more room between it and the first row (owner 2026-11-06). */
+.phs-sechead { padding-bottom: calc(8 * var(--phu)); margin-bottom: calc(14 * var(--phu)); }
+.phs-sechead::after { bottom: 0; }
+/* Quit game: a large red button, the gold button's bevel in red; brighter once it is armed ("Press again to quit")
+   (owner 2026-11-06). */
+.phk-btn.v-primary.phs-quit { background: linear-gradient(180deg, #e0574f 0%, #b52a2a 52%, #7e1717 100%); color: #fff4ee; text-shadow: 0 calc(1 * var(--phu)) calc(2 * var(--phu)) rgba(60, 0, 0, 0.7);
+  box-shadow: inset 0 calc(3 * var(--phu)) calc(2 * var(--phu)) rgba(255, 210, 200, 0.45), inset 0 calc(-3 * var(--phu)) calc(3 * var(--phu)) rgba(70, 0, 0, 0.55), 0 calc(4 * var(--phu)) calc(10 * var(--phu)) rgba(0, 0, 0, 0.35); }
+.phk-btn.v-primary.phs-quit.armed { background: linear-gradient(180deg, #ff6b5e 0%, #d8312c 52%, #961b1b 100%); }
+/* Settings is 30% narrower than a wide page on desktop (owner 2026-11-06: "the settings menu feels unecessarily wide"). */
+html:not([data-ph-compact]) .phk-page.wide.phs { max-width: calc(1120 * var(--phu)); }
+/* Settings closes with a thin white X instead of the "Back" pill (owner 2026-11-06). Two 2-unit strokes, no plate. */
+.phs .phk-back { position: relative; width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); padding: 0; background: none; box-shadow: none; opacity: 0.85; transition: opacity 0.12s ease; }
+.phs .phk-back > * { display: none; }
+.phs .phk-back::before, .phs .phk-back::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(26 * var(--phu)); height: calc(2 * var(--phu)); border-radius: calc(1 * var(--phu)); background: #fff; pointer-events: none; }
+.phs .phk-back::before { transform: translate(-50%, -50%) rotate(45deg); }
+.phs .phk-back::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.phs .phk-back:hover { background: none; opacity: 1; }
+/* ...at the top right of the Settings header, not before the title (owner 2026-11-06). */
+.phs .phk-pagehead { position: relative; }
+.phs .phk-pagehead > .phk-back { position: absolute; right: 0; top: 50%; translate: 0 -50%; }

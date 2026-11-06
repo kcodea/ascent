@@ -20,7 +20,7 @@ import { useGame } from '../store';
 import { fuseGoldOf } from '../goldClock';
 import { foePortrait } from '../gauntlet/foePortrait';
 import { clearedStages, GAUNTLET_STAGE_COUNT, gauntletAccountMode, gauntletProgressVersion, stageSlotState, subscribeGauntletProgress, type StageSlotState } from '../gauntlet/gauntletProgress';
-import { PhChip, PhRow, PhSegmented, phNum } from './kit';
+import { PhChip, PhRow, PhSelect, PhTabs, phNum, useSlideMarker } from './kit';
 
 // ── PRACTICE ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const HERO_MODES = [{ value: 'beginner' as const, label: 'Beginner' }, { value: 'all' as const, label: 'All' }];
@@ -38,6 +38,17 @@ const GOD_FEATURES: [string, string][] = [
   ['Pick the opponent', 'Choose which round your next opponent comes from.'],
   ['Nothing is saved', 'No rating, no history. Experiment freely.'],
 ];
+/** Sandbox | God Mode wear a medallion before their name, like the mode tabs (owner 2026-11-06: "select two medallions for
+ *  Sandbox and Godmode to use for now. i can provide new ones later"). Placeholders: Choose One and Power. */
+function PracticeTypeLabel({ art, name }: { art: string; name: string }): JSX.Element {
+  return (
+    <span className="pho-typelbl">
+      <span className="pho-typeicon" aria-hidden="true"><img src={`${import.meta.env.BASE_URL}medallions/${art}.webp`} alt="" draggable={false} decoding="sync" /></span>
+      <span>{name}</span>
+    </span>
+  );
+}
+
 /** Practice's fuse: Practice is never pinned to a medal, so this is the plain threshold (R-TIMER-FUSE-02). */
 const PRACTICE_FUSE = fuseGoldOf({ mode: 'practice', medalAtStart: undefined });
 
@@ -56,9 +67,12 @@ export function PracticePanel() {
   const pick = <K extends keyof PracticeConfig>(k: K) => (v: PracticeConfig[K]): void => { sfx.tick(); setDraft({ [k]: v } as Partial<PracticeConfig>); };
   return (
     <>
-      <PhSegmented size="l" value={god ? 'god' : 'sandbox'} onPick={(v) => { sfx.tick(); setDraft({ godMode: v === 'god' }); }}
-        options={[{ value: 'sandbox', label: 'Sandbox' }, { value: 'god', label: 'God Mode' }]}
-        hint={god ? 'A fixed setup with every tool unlocked.' : 'Set the game up your way.'} />
+      {/* Sandbox | God Mode: the menu's own sliding-glow tabs, not a pair of buttons (owner 2026-11-06: "too buttony"). */}
+      <div className="pho-modes">
+        <PhTabs label="Practice type" value={god ? 'god' : 'sandbox'} onChange={(v) => { sfx.tick(); setDraft({ godMode: v === 'god' }); }}
+          tabs={[{ id: 'sandbox', label: <PracticeTypeLabel art="chooseOne" name="Sandbox" /> }, { id: 'god', label: <PracticeTypeLabel art="power" name="God Mode" /> }]} />
+        <span className="pho-hint">{god ? 'A fixed setup with every tool unlocked.' : 'Set the game up your way.'}</span>
+      </div>
       {god ? (
         <div className="pho-god" aria-label="What God Mode gives you">
           {GOD_FEATURES.map(([t, x]) => <div key={t} className="pho-godrow"><span>{t}</span><span>{x}</span></div>)}
@@ -66,24 +80,54 @@ export function PracticePanel() {
       ) : (
         <div className="pho-rows">
           {import.meta.env.DEV && (
-            <PhSegmented label="Set" value={setId} options={setOptions}
+            <OptRow label="Set" value={setId} options={setOptions}
               hint={devSet ? 'Dev builds only. Your opponents are bots playing this set.' : 'Dev builds only. The set this game is played with.'}
               onPick={(v) => { sfx.tick(); setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) }); }} />
           )}
-          <PhSegmented label="Heroes" value={cfg.heroes ?? 'beginner'} options={HERO_MODES} onPick={pick('heroes')}
+          <OptRow label="Heroes" value={cfg.heroes ?? 'beginner'} options={HERO_MODES} onPick={pick('heroes')}
             hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'} />
-          <PhSegmented label="Health" value={cfg.health} options={HEALTH} onPick={pick('health')}
+          <OptRow label="Health" value={cfg.health} options={HEALTH} onPick={pick('health')}
             hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'} />
-          <PhSegmented label="Time" value={cfg.timeMult} options={TIMES} onPick={pick('timeMult')}
+          <OptRow label="Time" value={cfg.timeMult} options={TIMES} onPick={pick('timeMult')}
             hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : `Shop timer length. It starts once you spend ${PRACTICE_FUSE} Gold in a turn.`} />
-          <PhSegmented label="Opponent rank" value={rank} options={RANKS} onPick={pick('rank')} disabled={devSet}
-            hint={devSet ? 'Not used. Bots play this set.' : rank === 'all' ? 'Recorded players of every rank.' : `The recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`} />
-          <PhSegmented label="Tribes" isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))} options={tribes}
+          {/* A dropdown (owner 2026-11-06: "change opponent rank to a dropdown"). */}
+          <div className={devSet ? 'pho-opt off' : 'pho-opt'} role="group" aria-label="Opponent rank">
+            <span className="pho-optlbl">Opponent rank</span>
+            <PhSelect className="pho-select" label="Opponent rank" value={rank} options={RANKS} onChange={pick('rank')} disabled={devSet} />
+            <span className="pho-hint">{devSet ? 'Not used. Bots play this set.' : rank === 'all' ? 'Recorded players of every rank.' : `The recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`}</span>
+          </div>
+          <OptRow label="Tribes" multi isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))} options={tribes}
             onPick={(v) => { sfx.tick(); setDraft({ tribes: togglePracticeTribe(cfg.tribes, v, setId) }); }}
             hint={`Pick as many as you like. They join the Neutrals. Normal has all ${tribes.length - 1}.`} />
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * ONE PRACTICE OPTION (owner 2026-11-06: "it needs dividers, and elements we've used elsewhere. its too buttony"): its label, a
+ * strip of plain text choices split by faint gold hairlines with the menu's sliding glow under the pick, and its hint. A
+ * multi-pick row (Tribes) lights every picked choice in place instead, in rows of three. Rows are split by a hairline (CSS).
+ */
+function OptRow<T extends string | number | null>({ label, options, value, isOn, onPick, hint, disabled, multi }: {
+  label: string; options: readonly { value: T; label: ReactNode }[]; value?: T; isOn?: (v: T) => boolean;
+  onPick: (v: T) => void; hint: string; disabled?: boolean; multi?: boolean;
+}) {
+  const lit = (v: T): boolean => (isOn ? isOn(v) : v === value);
+  const barRef = useSlideMarker<HTMLDivElement>(multi ? null : value);
+  return (
+    <div className={disabled ? 'pho-opt off' : 'pho-opt'} role="group" aria-label={label}>
+      <span className="pho-optlbl">{label}</span>
+      <div ref={multi ? undefined : barRef} className={multi ? 'pho-optbar multi' : 'pho-optbar phk-slides'}>
+        {!multi && <i className="phk-slide" aria-hidden="true" />}
+        {options.map((o) => (
+          <button key={String(o.value)} type="button" className={lit(o.value) ? 'pho-optbtn on' : 'pho-optbtn'} aria-pressed={lit(o.value)} disabled={disabled}
+            onClick={() => { if (multi || !lit(o.value)) onPick(o.value); }}>{o.label}</button>
+        ))}
+      </div>
+      <span className="pho-hint">{hint}</span>
+    </div>
   );
 }
 

@@ -549,3 +549,282 @@ html[data-ph-compact] .ph-phonecontinue { flex: none; }
 /* ── CRITIC ROUND 16 ── */
 /* The phone panel's rank reads at the panel's size. */
 html[data-ph-compact] .ph-settings .phk-plate > :not(.phk-platehead) { zoom: 1.7; }
+
+/* ── THE PAINTED FLAG (owner 2026-11-05: "replace the flag with the one i provided", then "fade with the same color as the flag to
+   make room for player name and other information") ── One painted frame (ornaments/player-flag.webp, 784x1321 art trimmed to
+   its edges) is the whole banner: rod, gold trim, navy cloth, point and tassel. The portrait and the rows sit inside the cloth,
+   on the cloth's own navy, and the portrait fades into that same navy. The frame keeps its own shape: it is as tall as the banner
+   and as wide as its ratio says, centred (a touch past the box at 0.56, inside it on a phone's 0.72). */
+.ph-cardwrap { --ar: 0.56; --flagw: calc(100cqi / var(--ar) * 784 / 1321); --fx: calc((100cqi - var(--flagw)) / 2); --flagnavy: rgb(1 18 80); }
+html[data-ph-compact] .ph-cards .ph-cardwrap:not(.standalone) { --ar: 0.72; }
+.ph-cardwrap > .ph-bfoot { left: var(--fx); right: auto; width: var(--flagw); top: 0; bottom: 0; height: auto; z-index: 0;
+  background: url('./ornaments/player-flag.webp') center / 100% 100% no-repeat; }
+.ph-cardwrap > .ph-rod { display: none; }
+/* The cloth inside the trim: x 58..724 of 784, y 96 down to where the point begins (1101 of 1321). */
+.ph-cardwrap > .ph-card, .ph-cardwrap.open > .ph-card, .ph-cardwrap.rival > .ph-card {
+  left: calc(var(--fx) + var(--flagw) * 58 / 784); right: auto; width: calc(var(--flagw) * 667 / 784);
+  top: calc(100% * 96 / 1321); bottom: calc(100% * 220 / 1321); padding: 0; background: none; z-index: 1; }
+.ph-cardwrap .ph-card-in, .ph-cardwrap.open .ph-card-in, .ph-cardwrap .ph-open .ph-card-in { background: var(--flagnavy); opacity: 1; }
+.ph-cardwrap .ph-card-in::after { background: linear-gradient(180deg, transparent 0%, var(--flagnavy) 100%); }
+.ph-cardwrap .ph-card-in::before { background: linear-gradient(180deg, rgba(255, 238, 200, 0.12) 0%, transparent 24%), radial-gradient(85% 62% at 50% 36%, transparent 52%, rgb(1 18 80 / 0.6) 100%); }
+.ph-cardwrap .ph-lead { top: calc(12 * var(--phu)); }
+
+/* ── THE BANNER MENU BESIDE THE FLAG (owner 2026-11-05: "lets move this widget over and create a subtle divider between the
+   options") ── A lone banner's menu docks just off the flag's left edge (the painted frame, `--fx` past the box), top level with
+   the cloth. In a row the last banner's menu stays centred over its own card (a side menu would cover the neighbour); this also
+   ends the old fight between `right` and the centring `translate`, which threw the menu far off to the left. */
+.ph-cards > :last-child .ph-cardmenu, .ph-pairrow > :last-child .ph-cardmenu { right: auto; left: 50%; translate: -50% 0; }
+.ph-cards > :only-child .ph-cardmenu, .ph-pairrow > :only-child .ph-cardmenu { left: auto; right: calc(100% - var(--fx) + 12 * var(--phu)); translate: none;
+  top: calc(100% * 96 / 1321); }
+/* A faint gold hairline between options, inset from the plate's sides. */
+.ph-menuitem + .ph-menuitem { position: relative; }
+.ph-menuitem + .ph-menuitem::before { content: ''; position: absolute; left: calc(12 * var(--phu)); right: calc(12 * var(--phu)); top: 0; height: calc(1 * var(--phu)); pointer-events: none; background: rgba(255, 233, 176, 0.16); }
+
+/* ── THE GOLD ON TOP, THE PORTRAIT FADES ITSELF (owner 2026-11-05: "theres a tiny notch where the gold diamond should lay over the
+   image. what if we faded the edges of the image instead of adding a blue fade?") ── The flag's gold (rod, gem mount, trim,
+   tassel; ornaments/player-flag-trim.webp is the same art with its navy cloth keyed out) is drawn again ABOVE the portrait, so
+   the gem's point and the trim always overlap it. The cloth plate under the portrait is clear and the blue wash layers are
+   gone: the portrait's own edges fade out onto the painted cloth. */
+.ph-cardwrap > .ph-rod { display: block; left: var(--fx); right: auto; width: var(--flagw); top: 0; bottom: 0; height: auto; z-index: 3; opacity: 1; filter: none;
+  background: url('./ornaments/player-flag-trim.webp') center / 100% 100% no-repeat; }
+.ph-cardwrap .ph-card-in, .ph-cardwrap.open .ph-card-in, .ph-cardwrap .ph-open .ph-card-in { background: none; }
+.ph-cardwrap .ph-card-in::before, .ph-cardwrap .ph-card-in::after { content: none; }
+/* An open menu holds its banner still (owner 2026-11-05: "when hovering the flag, this moves with it. while this is opened, it
+   should not move"): the banner stays at its hover lift while the menu is up, so going from the flag to the menu moves nothing. */
+.ph-cardwrap.menu, .ph-cardwrap.menu:hover { transform: translateY(calc(-8 * var(--phu))) scale(1.015); }
+
+/* ── THE BANNER'S WORDS (owner 2026-11-05: "start the fade a bit higher at the bottom of the image and then nudge the text sections
+   down very slightly. lets unbold the players selected title and lower its size just a little, and move that to right underneath
+   the player name. then lets remove the pill around the rank, make the rank badge 2x larger, centered and on its own row with the
+   rank underneath") ── Desktop. Rows: name, title, the rank medal (twice its old size), the rank. The card now reaches into the
+   flag's point (to y 1221 of 1321) so the four rows fit, the last one where the point is still wide enough for it. The portrait
+   keeps its height (844 of the frame's units, 75% of the taller card) and starts its fade higher. */
+html:not([data-ph-compact]) .ph-cardwrap > .ph-card, html:not([data-ph-compact]) .ph-cardwrap.open > .ph-card, html:not([data-ph-compact]) .ph-cardwrap.rival > .ph-card { bottom: calc(100% * 100 / 1321); }
+html:not([data-ph-compact]) .ph-cardwrap .ph-art { height: 75%;
+  -webkit-mask-image: linear-gradient(180deg, #000 56%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 56%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
+html:not([data-ph-compact]) .ph-cardwrap .ph-foot, html:not([data-ph-compact]) .ph-cardwrap .ph-foot:has(.ph-state) { top: 66.6%; gap: 0; padding-top: 0; }
+/* The title: right under the name, regular weight, a touch smaller. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-sub { position: static; height: auto; line-height: 1.2; margin-top: calc(2 * var(--phu)); font-size: calc(13 * var(--phu)); }
+html:not([data-ph-compact]) .ph-cardwrap .ph-titlebadge { font-size: calc(13 * var(--phu)); font-weight: 600; }
+/* The rank: no pill; the medal centred on its own row, the rank under it. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .ph-cardwrap .ph-rank:has(.ph-muted) { flex-direction: column; gap: calc(2 * var(--phu)); height: auto; min-height: 0;
+  margin-top: calc(5 * var(--phu)); padding: 0; border-radius: 0; background: none; box-shadow: none; }
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank .rankcrest { --ring: min(calc(60 * var(--phu)), 21cqi); }
+/* Ready / In game: a chip just above the name, on the portrait's fade (the bottom row is the rank now). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-foot > .ph-state { top: auto; bottom: calc(100% + 6 * var(--phu)); }
+
+/* ── MODE ICONS, NO FRAME (owner 2026-11-05: "use the avenge gauntlet for the gauntlet mode icon. remove those frames around the
+   icon on the second level. ill replace with new icons") ── The gilded emblem ring is gone: the icon fills its square. A painted
+   tile is cropped round; a cut-out (Gauntlet's Avenge gauntlet) is drawn whole. */
+.ph-emblem { background: none; }
+.ph-emblem > img { left: 0; top: 0; width: 100%; height: 100%; }
+.ph-emblem.cut > img { border-radius: 0; object-fit: contain; }
+
+/* The player's name sits a touch higher and wears a 2px black stroke (owner 2026-11-05: "raise the player name just a bit and put a
+   2px stroke around the letters. black"). The stroke is painted under the fill, so the letters keep their full weight. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-name { translate: 0 calc(-4 * var(--phu)); padding: 0 calc(2 * var(--phu)); }
+.ph-cardwrap .ph-name { -webkit-text-stroke: calc(2 * var(--phu)) #000; paint-order: stroke fill; }
+
+/* Up, clear of the point (owner 2026-11-05: "the name needs to move up considerably still. move up the rank section as well. lower
+   the size of the title"): the rows start at 57% of the card, the title drops to 11 units, and the medal sits closer under it. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-foot, html:not([data-ph-compact]) .ph-cardwrap .ph-foot:has(.ph-state) { top: 57%; }
+html:not([data-ph-compact]) .ph-cardwrap .ph-sub, html:not([data-ph-compact]) .ph-cardwrap .ph-titlebadge { font-size: calc(11 * var(--phu)); }
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .ph-cardwrap .ph-rank:has(.ph-muted) { margin-top: calc(4 * var(--phu)); }
+/* The title and the rank medal sit a touch lower under the name (owner 2026-11-05: "move the ranking medallion and title down
+   slightly"); the name stays put. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-sub { margin-top: calc(6 * var(--phu)); }
+
+/* ── THE SIDE PANEL'S TABS (owner 2026-11-05: "do the same overall treatment here, add separation, move the two options a bit more
+   close together. create equal space. also add a horizontal separator between that top section and the mode section") ── The
+   two tabs are equal width and centred together, a faint | between them (the top nav's divider), the picked one in the nav's
+   gold band (shell.css). Under them, a thin gold rule that fades at both ends sets them off from the panel's settings. */
+.ph-sidepanel .ph-sidetabs { position: relative; padding-bottom: calc(10 * var(--phu)); }
+.ph-sidepanel .ph-sidetabs .phk-tabs { justify-content: center; }
+.ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 0 calc(128 * var(--phu)); justify-content: center; text-align: center; }
+html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab + .phk-tab { background: linear-gradient(rgba(255, 233, 176, 0.16), rgba(255, 233, 176, 0.16)) left center / calc(1 * var(--phu)) 42% no-repeat; }
+.ph-sidepanel .ph-sidetabs::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
+/* The title tucks right under the name (owner 2026-11-05: "i need the title directly under the player name. there should be space
+   between the title and the rank medallion"): the name's 4-unit lift is paid back, leaving a 2-unit gap; the medal gets the room. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-sub { margin-top: calc(-2 * var(--phu)); }
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .ph-cardwrap .ph-rank:has(.ph-muted) { margin-top: calc(14 * var(--phu)); }
+/* The panel's "Mode" heading: the side tabs' size, with air above Solo / Duos (owner 2026-11-05: "add some vertical padding
+   between Mode and solo/duo. increase the lettering to be equal to Friends and Ranked"). */
+html[data-ph-shell] .ph-sidepanel .ph-submode .phk-seglbl { font-size: var(--ph-t2); margin-bottom: calc(10 * var(--phu)); }
+/* The whole name-to-rank block a touch lower (owner 2026-11-05: "now nudge down this entire section just a bit"). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-foot, html:not([data-ph-compact]) .ph-cardwrap .ph-foot:has(.ph-state) { top: 58.5%; }
+/* The rank medal 15% smaller (60 to 51 units), and the name's black stroke 3 units (owner 2026-11-05: "reduce the medallion size
+   by 15% and increase the stroke around the player name by 1px"). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank .rankcrest { --ring: min(calc(51 * var(--phu)), 17.85cqi); }
+.ph-cardwrap .ph-name { -webkit-text-stroke-width: calc(5 * var(--phu)); }
+/* The medal and rank a little lower under the title (owner 2026-11-05: "now lower the medallion and rank just a little bit"). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-rank, html:not([data-ph-compact]) .ph-cardwrap .ph-rank:has(.ph-muted) { margin-top: calc(20 * var(--phu)); }
+/* The whole block the slightest bit lower again (owner 2026-11-05), and a bit lower still (owner 2026-11-06). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-foot, html:not([data-ph-compact]) .ph-cardwrap .ph-foot:has(.ph-state) { top: 61%; }
+/* The portrait's bottom fade starts higher again (owner 2026-11-05: "start the fade a bit higher on the bottom of the portrait"). */
+html:not([data-ph-compact]) .ph-cardwrap .ph-art {
+  -webkit-mask-image: linear-gradient(180deg, #000 46%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 46%, transparent 100%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+
+/* ── THE BANNERS AND START A BIT HIGHER (owner 2026-11-05: "now raise this entire section up a bit, do the same for the other pages
+   that have these banners") ── Every banner screen is this stage (every mode, Duos, the Versus rooms), so one rule lifts the
+   banner row and START together, 40 units, by `translate` (no layout change: the banners keep their size). The saved game's
+   chip that sits over START rides with it. Desktop; phones keep their own stack. */
+html:not([data-ph-compact]) .ph-stage :is(.ph-cards, .ph-actions) { translate: 0 calc(-40 * var(--phu)); }
+html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-40 * var(--phu)); }
+
+/* The mode's one-line description sits a touch lower under the tabs (owner 2026-11-05: "move this down a little"). */
+html:not([data-ph-compact]) .ph-desc { translate: 0 calc(54 * var(--phu)); }
+
+/* Your Rank plate: more room under the rank bar (owner 2026-11-05: "needs to be more padding on the bottom side here"). */
+.phk-plate.ph-rankplate { padding-bottom: calc(22 * var(--phu)); }
+
+/* Mode tabs + the side panel's tabs: hovering one grows its word (and medallion) with a little bounce (owner 2026-11-05: "do
+   the same bounce on hover effect for these items. i dont want the dividers to be affected"). Only the label wrapper scales,
+   so a tab's divider (its background) and the sliding glow hold still. Transform only; overshoot in, plain ease out. */
+:is(.ph-modes, .ph-sidetabs) .phk-tablbl { display: inline-flex; transform-origin: center; transition: transform 0.16s ease-out; }
+:is(.ph-modes, .ph-sidetabs) .phk-tab:not(.locked):hover > .phk-tablbl { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+
+/* The outgoing copy of the stage on a mode switch (PartyHome's mode slide): it replays none of its children's entrances. */
+.ph-ghost, .ph-ghost * { animation: none !important; transition: none !important; }
+
+/* The portrait's bottom fade is fully clear a little before the image ends (owner 2026-11-05: "there is a subtle line on the edge
+   of the image... can we increase the fade more?"; then "i dont want the left and right edges affected"): the side fades keep
+   their old ramp, only the bottom changes. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-art {
+  -webkit-mask-image: linear-gradient(180deg, #000 46%, transparent 96%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 46%, transparent 96%), linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%); }
+
+/* The portrait's fades are EASED (owner 2026-11-05: "there is a subtle line on the edge of the image... im not sure what it is").
+   A straight ramp that stops dead (at 12% in from each side, at 46% down) leaves a faint line where it stops (a Mach band),
+   most visible over dark art. Same reach as before (left and right edges unchanged, owner), but each ramp now eases in and
+   out, so there is no hard knee to see. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-art {
+  --side: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.06) 1.5%, rgb(0 0 0 / 0.2) 3.2%, rgb(0 0 0 / 0.42) 5%, rgb(0 0 0 / 0.66) 7%,
+    rgb(0 0 0 / 0.85) 9%, rgb(0 0 0 / 0.96) 10.8%, #000 12%, #000 88%, rgb(0 0 0 / 0.96) 89.2%, rgb(0 0 0 / 0.85) 91%,
+    rgb(0 0 0 / 0.66) 93%, rgb(0 0 0 / 0.42) 95%, rgb(0 0 0 / 0.2) 96.8%, rgb(0 0 0 / 0.06) 98.5%, transparent 100%);
+  --foot: linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%,
+    rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%);
+  -webkit-mask-image: var(--foot), var(--side); mask-image: var(--foot), var(--side); }
+
+/* No side fade (owner 2026-11-06: tried "what it looks like if the sides arent faded at all", then "keep it"): the portrait runs
+   straight to the trim and keeps only its bottom fade. */
+html:not([data-ph-compact]) .ph-cardwrap .ph-art { -webkit-mask-image: var(--foot); mask-image: var(--foot); }
+
+/* The banner menu with two or more banners (owner 2026-11-06, Duos: "this select box is behind the portrait frame and should be
+   to the left"): every banner's menu docks off its flag's left edge, the same place as a lone banner's, and it draws above the
+   gold trim (z 3). The banner with its menu open rises above its neighbours, so a menu reaching over the next flag covers it. */
+html:not([data-ph-compact]) :is(.ph-cards, .ph-pairrow) > * .ph-cardmenu { left: auto; right: calc(100% - var(--fx) + 12 * var(--phu)); translate: none;
+  top: calc(100% * 96 / 1321); z-index: 6; }
+html:not([data-ph-compact]) .ph-cardwrap.menu { z-index: 7; }
+
+/* The side panel's page sits in one wrapper so it can slide (PartyHome's SIDE PANEL SLIDE): a column that fills the panel like
+   the page did, above the outgoing copy. The panel clips only while a slide runs, so its menus are never cut off at rest. */
+.ph-sidebody { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); }
+.ph-sidepanel.sliding { overflow: clip; }
+.ph-sidepanel > .ph-sidebody > .ph-friends.embedded { flex: 1; min-height: 0; }
+
+/* ── THE SIDE PANEL'S TAB HEADER AS A PAGE BREAK (owner 2026-11-06: "instead of the underline, can you make this section resemble the
+   top nav bar page break, where its got the full width golden line and the drop shadow? this section wont slide at all, the area
+   underneath will") ── Desktop. The header reaches the panel's edges, ends in the bar's own 1.5-unit gold line and casts the bar's
+   shadow down over the page; it sits above the sliding page. The page is solid navy (flat, like the panel), so a page sliding in
+   covers the one beneath completely. */
+html:not([data-ph-compact]) .ph-sidepanel { background: var(--ph-navy); }
+html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs { z-index: 3; margin: calc(-12 * var(--phu)) calc(-16 * var(--phu) - var(--safe-r, 0px)) 0 calc(-16 * var(--phu));
+  padding: calc(12 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(10 * var(--phu)) calc(16 * var(--phu));
+  background: var(--ph-navy); box-shadow: 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); }
+html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs::after { left: 0; right: 0; height: calc(1.5 * var(--phu));
+  background: color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent); }
+html:not([data-ph-compact]) .ph-sidebody { background: var(--ph-navy); }
+
+/* The whole sidebar under the header slides, gold edge and all (owner 2026-11-06: "i want the entire sidebar, including the gold
+   line on the left side to slide out. also can you add the same gold line to the side here [the header]"). The page reaches the
+   panel's edges (the panel's padding moves inside it, the gap under the header too) and draws the panel's own left hairline, so
+   the line travels with the slide; the fixed header wears the same line. */
+html:not([data-ph-compact]) .ph-sidepanel > .ph-sidebody { box-sizing: border-box;
+  margin: calc(-12 * var(--phu)) calc(-16 * var(--phu) - var(--safe-r, 0px)) calc(-16 * var(--phu) - var(--safe-b, 0px)) calc(-16 * var(--phu));
+  padding: calc(12 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(16 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));
+  box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair); }
+html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs { box-shadow: inset calc(1 * var(--phu)) 0 0 var(--ph-hair), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); }
+/* The sidebar's left edge is a page break too (owner 2026-11-06: "i want this gold line and drop shadow to be added to the left
+   side here"): the top bar's 1.5-unit gold line runs down the header and the sliding page (so it travels with the slide), and
+   the panel casts the bar's shadow out to the left over the stage. */
+html:not([data-ph-compact]) .ph-sidepanel { box-shadow: calc(-8 * var(--phu)) 0 calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); }
+html:not([data-ph-compact]) .ph-sidepanel > .ph-sidebody { box-shadow: inset calc(1.5 * var(--phu)) 0 0 color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent); }
+html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs { box-shadow: inset calc(1.5 * var(--phu)) 0 0 color-mix(in srgb, var(--pill-edge, #c8953f) 85%, transparent),
+  0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.4); }
+
+/* The invite picker never scrolls sideways and draws no box (owner 2026-11-06: "this faint outline of a box appears momentarily.
+   remove the bottom scroll bar, there should be no horizontal scrolling on this menu. expand the bounds"). The faint box was the
+   bottom-fade mask's layer edge while the dialog pops in, so the mask goes. The picker is wider, with room inside for each row's
+   outline and hover lift, and nothing in it can scroll on X. */
+.ph-friends.picker:not(.embedded) { -webkit-mask-image: none; mask-image: none; padding: calc(6 * var(--phu)) calc(8 * var(--phu)) calc(8 * var(--phu)); }
+.phk-dlgtext:has(> .ph-picker) { max-width: none; overflow-x: hidden; }
+.ph-picker { width: min(calc(500 * var(--phu)), calc(var(--lvw, 100vw) * 0.8)); overflow-x: hidden; }
+.ph-picker :is(.ph-friends, .ph-frows) { overflow-x: hidden; }
+
+/* ── PRACTICE OPTIONS, LESS BUTTONY (owner 2026-11-06: "it needs dividers, and elements we've used elsewhere. its too buttony") ──
+   Sandbox | God Mode are the menu's sliding-glow tabs, centred over a hairline. Each option is a label, a strip of plain text
+   choices split by faint gold hairlines with the same sliding glow under the pick, and its hint; options are split by hairlines.
+   Tribes (pick many) light each picked choice in place, three to a row. Static paint; the glow moves by transform only. */
+.pho-modes { display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--phu)); padding-bottom: calc(12 * var(--phu)); box-shadow: inset 0 calc(-1 * var(--phu)) 0 var(--ph-hair); }
+.pho-modes > .phk-tabs { justify-content: center; }
+.pho-modes > .pho-hint { text-align: center; }
+.pho-rows { gap: 0; }
+.pho-opt { display: flex; flex-direction: column; gap: calc(6 * var(--phu)); padding: calc(14 * var(--phu)) 0; }
+.pho-opt + .pho-opt { box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+.pho-opt.off { opacity: 0.45; }
+.pho-optlbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ph-muted); }
+.pho-optbar { position: relative; display: flex; }
+.pho-optbtn { position: relative; z-index: 1; isolation: isolate; flex: 1 1 auto; min-width: 0; height: calc(40 * var(--phu)); padding: 0 calc(4 * var(--phu)); margin: 0; border: 0; background: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--ph-muted); text-shadow: var(--ph-shadow); transition: color 0.12s ease; }
+.pho-optbtn:hover:not(:disabled) { color: var(--ph-ink); }
+.pho-optbtn.on { color: #fff6df; text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 214, 130, 0.75); }
+.pho-optbtn:disabled { opacity: 1; }
+/* The hairline between two choices. */
+.pho-optbtn + .pho-optbtn::before { content: ''; position: absolute; left: 0; top: 28%; bottom: 28%; width: calc(1 * var(--phu)); pointer-events: none; background: rgba(255, 233, 176, 0.16); }
+/* Tribes: rows of three, each picked one lit in place (the tab's static glow). */
+.pho-optbar.multi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: calc(2 * var(--phu)); }
+.pho-optbar.multi > .pho-optbtn:nth-child(3n + 1)::before { content: none; }
+.pho-optbar.multi > .pho-optbtn.on::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(58% 62% at 50% 50%, rgba(255, 196, 92, 0.42) 0%, rgba(255, 176, 70, 0.16) 55%, transparent 78%); }
+/* Each option's headline: centred, in the title gold (the Collection's kind labels), so the sections read apart (owner 2026-11-06:
+   "theres not enough differentiation"). */
+.pho-optlbl { align-self: center; text-align: center; letter-spacing: 0.2em; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+/* The side panel only scrolls up and down: a selection glow reaching past a row's last choice never adds a sideways scroll
+   (owner 2026-11-06: "remove the bottom horizontal scroll"). */
+.ph-settings { overflow-x: hidden; }
+/* The kit's section-head underline (the gold hairline that fades at both ends), centred under each option's title (owner 2026-11-06). */
+.pho-optlbl { position: relative; padding-bottom: calc(8 * var(--phu)); }
+.pho-optlbl::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(80 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
+
+/* The side panel's header names the one mode it shows (Practice, Gauntlet, ...), never a choice, so it wears no selected-tab
+   glow (owner 2026-11-06: "practice doesnt have an option so remove the glow"). */
+html .ph-sidepanel .ph-sidetabs .phk-slide { display: none; }
+html .ph-sidepanel .ph-sidetabs .phk-tab.on::before, html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on::before { content: none !important; }
+html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on { text-shadow: var(--ph-shadow); }
+/* The side panel's supporting text: 3 units smaller and italic (owner 2026-11-06: "change the descriptive supporting text to 3px
+   smaller and italicized"). */
+html[data-ph-shell] .ph-settings :is(.pho-hint, .phk-seghint) { font-size: calc(13 * var(--phu)); font-style: italic; color: #d8c8a2; opacity: 0.7; }
+
+/* Every selectable option is its own thin pill, the top bar's level pill (owner 2026-11-06: "a thin button pill around each
+   selectable option just like the lvl bar pill"): the well fill, the thin gild edge, fully rounded. The picked one lights inside
+   its own pill, so the row's sliding glow steps aside and the hairlines between choices go. */
+html[data-ph-shell] .ph-settings .pho-optbar { gap: calc(6 * var(--phu)); }
+html[data-ph-shell] .ph-settings .pho-optbar .phk-slide { display: none; }
+html[data-ph-shell] .ph-settings .pho-optbtn { height: calc(36 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: 999px; background: var(--ph-well); box-shadow: var(--ph-gild-s); }
+html[data-ph-shell] .ph-settings .pho-optbtn + .pho-optbtn::before { content: none; }
+html[data-ph-shell] .ph-settings .pho-optbtn.on { background: radial-gradient(70% 90% at 50% 50%, rgba(255, 196, 92, 0.34) 0%, rgba(255, 176, 70, 0.12) 60%, transparent 100%), var(--ph-well); }
+html[data-ph-shell] .ph-settings .pho-optbar.multi > .pho-optbtn.on::after { content: none; }
+/* Room under each option's title underline before its choices (owner 2026-11-06: "add padding below the title underline"). */
+html[data-ph-shell] .ph-settings .pho-optlbl { margin-bottom: calc(8 * var(--phu)); }
+/* Opponent rank's dropdown fills the panel width. */
+html[data-ph-shell] .ph-settings .pho-opt > .pho-select { align-self: stretch; }
+html[data-ph-shell] .ph-settings .phk-select.pho-select { height: calc(36 * var(--phu)); border-radius: 999px; background: var(--ph-well); box-shadow: var(--ph-gild-s); }
+/* Sandbox | God Mode: a medallion before each name (placeholders until the owner's art). */
+.pho-typelbl { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
+.pho-typeicon { flex: none; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); }
+.pho-typeicon > img { display: block; width: 100%; height: 100%; object-fit: contain; }

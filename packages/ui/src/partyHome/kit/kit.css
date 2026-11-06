@@ -235,11 +235,11 @@
     url('../ornaments/corner-bl.webp') left bottom / calc(36 * var(--phu)) auto no-repeat,
     url('../ornaments/corner-br.webp') right bottom / calc(36 * var(--phu)) auto no-repeat; }
 .phk-sechead { position: relative; padding-bottom: calc(16 * var(--phu)); }
-.phk-sechead::after { content: ''; position: absolute; left: calc(24 * var(--phu)); bottom: 0; width: calc(200 * var(--phu)); height: calc(22 * var(--phu)); pointer-events: none;
-  background: url('../ornaments/divider.webp') left center / contain no-repeat; }
+.phk-sechead::after { content: ''; position: absolute; left: calc(24 * var(--phu)); bottom: 0; width: calc(200 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 .phk-dlgtitle { position: relative; padding-bottom: calc(20 * var(--phu)); }
-.phk-dlgtitle::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(280 * var(--phu)); height: calc(26 * var(--phu)); pointer-events: none;
-  background: url('../ornaments/divider.webp') center / contain no-repeat; }
+.phk-dlgtitle::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(280 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 /* The active tab: the painted bar with its sapphire. */
 .phk-tab.on::after { left: calc(8 * var(--phu)); right: calc(8 * var(--phu)); bottom: calc(-2 * var(--phu)); height: calc(14 * var(--phu)); background: url('../ornaments/tab-marker.webp') center / contain no-repeat; }
 /* A placing: the number in the crowned shield (the painted crest frame); 1 to 3 in their metal, the rest in ink. */
@@ -472,3 +472,43 @@ html[data-ph-shell][data-ph-compact] .phk-page { padding-top: calc(8 * var(--phu
 html[data-ph-shell][data-ph-compact] .phk-switch { transform: scale(1.6); transform-origin: 100% 50%; margin-top: calc(10 * var(--phu)); margin-bottom: calc(10 * var(--phu)); }
 html[data-ph-shell][data-ph-compact] .phk-slider input[type="range"] { height: calc(64 * var(--phu)); }
 
+
+/* ── THE SLIDING SELECT GLOW (owner 2026-11-05) ── One marker per tab row glides under the selected tab (kit/slideMarker.ts);
+   the tab's own static glow steps aside. Same gradient as the shell's selected band: an eased bell with a rounded top, so no bright seam runs down the middle (owner 2026-11-06). Transform + opacity only. */
+.phk-tabs.phk-slides { position: relative; }
+.phk-slide { position: absolute; top: 0; bottom: 0; left: 0; width: 100px; box-sizing: border-box; padding-left: calc(18 * var(--phu));
+  z-index: 0; pointer-events: none; opacity: 0; transform-origin: 0 50%; will-change: transform;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 185, 70, 0.031) 14%, rgba(255, 188, 75, 0.106) 26%, rgba(255, 194, 85, 0.238) 36%, rgba(255, 198, 92, 0.338) 44%, rgba(255, 200, 95, 0.375) 50%, rgba(255, 198, 92, 0.338) 56%, rgba(255, 194, 85, 0.238) 64%, rgba(255, 188, 75, 0.106) 74%, rgba(255, 185, 70, 0.031) 86%, transparent 100%); }
+.phk-slide.glide { transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease; }
+.phk-slides > .phk-tab { z-index: 1; }
+html .phk-slides > .phk-tab.on::before, html[data-ph-shell] .phk-slides > .phk-tab.on::before { content: none !important; }
+@media (prefers-reduced-motion: reduce) { .phk-slide.glide { transition: none; } }
+
+/* ── A DIVIDER BETWEEN EVERY OPTION IN A ROW (owner 2026-11-06: "wherever there are multiple options to select in a row like this
+   menu, there should be the same dividers in between each section") ── Every tab row is PhTabs, so one rule covers them all
+   (Settings, the mode tabs, page tabs, filters): the side panel's faint gold hairline, centred on each gap. Static paint. */
+html[data-ph-shell] .phk-tabs > .phk-tab + .phk-tab {
+  background: linear-gradient(rgba(255, 233, 176, 0.16), rgba(255, 233, 176, 0.16)) left center / calc(1 * var(--phu)) 42% no-repeat; }
+
+/* THE KIT SPINNER (owner 2026-11-06: an "Equipping" spinner on the emote menu). A gold arc that turns while a short wait runs.
+   Transform only (compositor), and a FIXED number of turns (about 30 s) rather than an endless loop: the shell keeps no
+   endless animation, and every wait that shows it ends long before. */
+@keyframes phk-spin { to { transform: rotate(360deg); } }
+.phk-spinner { display: inline-block; flex: none; width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); box-sizing: border-box; border-radius: 50%;
+  border: calc(3 * var(--phu)) solid color-mix(in srgb, var(--ph-gold) 25%, transparent); border-top-color: var(--ph-gold);
+  animation: phk-spin 0.8s linear 38; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .phk-spinner { animation-duration: 2.4s; animation-iteration-count: 12; } }
+/* Page header tabs sit level with the page title, not above it, and the title gets more room on its right (owner 2026-11-06:
+   "these nav bars are higher than the section title"). Desktop; a transform, so nothing else moves. */
+html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead .phk-pagetabs { translate: 0 calc(12 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead .phk-pagetitle { margin-right: calc(24 * var(--phu)); }
+/* Tab labels bounce on hover and squash on press, like the top nav (owner 2026-11-06: "just like in the play nav and elsewhere,
+   make these nav bar buttons bounce on hover"). The label scales, not the tab, so the sliding glow and the row never move. */
+.phk-tab > .phk-tablbl { display: inline-block; transform-origin: center; transition: transform 0.16s ease-out; }
+.phk-tab:hover:not(:disabled):not(.locked) > .phk-tablbl { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.phk-tab:active:not(:disabled):not(.locked) > .phk-tablbl { transform: scale(0.9); transition: transform 0.08s ease-out; }
+@media (prefers-reduced-motion: reduce) { .phk-tab > .phk-tablbl { transition: none; } }
+
+/* THE GOLD EDGE IS ALWAYS ON TOP (owner 2026-11-06: "the gold outline should trump the image there too. it should always trump
+   everything everywhere!"). A row's art stops just inside the edge it would otherwise paint over. */
+.phk-rowart { top: calc(2 * var(--phu)); right: calc(2 * var(--phu)); height: calc(100% - 4 * var(--phu)); border-radius: 0 calc(var(--ph-r) - 2 * var(--phu)) calc(var(--ph-r) - 2 * var(--phu)) 0; }

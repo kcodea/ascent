@@ -19,6 +19,7 @@ import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
 import { DuosMateDock } from './DuosMateDock';
 import '../live/live.css';
 import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
+import { duosTeamOf } from '@game/sim';
 import { isRankedDuosRaw } from './rankedDuosView';
 import { groupPlateVitals } from './spectatorPlates';
 
@@ -80,7 +81,7 @@ export function SpectatorBar(): JSX.Element | null {
     const duos = isDuosRaw(raw);
     if (duos) {
       const first = duosFirstAt(raw, Math.max(1, raw.round));
-      for (const [lead, other] of [[first.a, duosMateOf(first.a)], [first.b, duosMateOf(first.b)]] as const) order.push(lead, other);
+      for (const lead of Object.values(first)) order.push(lead, duosMateOf(lead));
     }
     for (const p of pairing) {
       for (const s of p.copy ? [p.a] : [p.a, p.b]) if (!order.includes(s)) order.push(s);
@@ -108,7 +109,7 @@ export function SpectatorBar(): JSX.Element | null {
         armor: shownVitals.armor,
         on: seat === key,
         pick: () => watchSeat(key),
-        vs: ranked ? (raw.teamName ?? null) : duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
+        vs: ranked ? (raw.teamName ?? null) : duos ? (row.eliminatedRound == null ? `Team ${duosTeamOf(key).charCodeAt(0) - 96}` : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
         out: shownVitals.out,
       };
     });

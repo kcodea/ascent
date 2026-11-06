@@ -36,12 +36,12 @@ import {
 import { buildDuosHistory, duosBoardOfSide, type DuosHistoryRecord } from '@game/sim/versus/duosHistory';
 import type { SetId } from '@game/content';
 
-/** VERSUS DUOS (2v2 tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b. */
-export type GTeamId = 'a' | 'b';
+/** VERSUS DUOS (tag-team, owner 2026-10-25, R-DUOS-01): seats 1-2 are team a, 3-4 team b, 5-6 team c, 7-8 team d. */
+export type GTeamId = 'a' | 'b' | 'c' | 'd';
 import type { RankedExtra, ServedMember } from './rankedMatch';
-export const teamOf = (seat: GSeat): GTeamId => (seat === 'p1' || seat === 'p2' ? 'a' : 'b');
+export const teamOf = (seat: GSeat): GTeamId => ({ p1: 'a', p2: 'a', p3: 'b', p4: 'b', p5: 'c', p6: 'c', p7: 'd', p8: 'd' } as const)[seat];
 export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3', p5: 'p6', p6: 'p5', p7: 'p8', p8: 'p7' } as const)[seat];
-export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1', 'p2'] : ['p3', 'p4']);
+export const teamSeats = (team: GTeamId): [GSeat, GSeat] => ({ a: ['p1', 'p2'], b: ['p3', 'p4'], c: ['p5', 'p6'], d: ['p7', 'p8'] } as Record<GTeamId, [GSeat, GSeat]>)[team];
 /** Passes a seat may send per round (`VERSUS_DUOS_PASS_CAP`), and a passed card's size cap. */
 export const DUOS_PASS_CAP = 10;
 const PASS_CARD_BYTES = 16_384;
@@ -288,7 +288,8 @@ export function newGroupState(host: GroupHost, room: { id: string; set_id: strin
   };
   if (match.options.mode === 'duos') {
     for (const s of match.seats) { s.team = teamOf(s.seat); s.hand_room = null; }
-    match.teams = (['a', 'b'] as const).map((team) => ({ team, health: null, armor: null, eliminated_round: null, out_reason: null, placement: null }));
+    const letters = [...new Set(match.seats.map((s) => s.team!))].sort();
+    match.teams = letters.map((team) => ({ team, health: null, armor: null, eliminated_round: null, out_reason: null, placement: null }));
     match.duos_first = null;
   }
   const priv: GroupState['priv'] = {};
@@ -730,30 +731,35 @@ export class GroupEngine {
         return out;
       },
       seats: async () => m.seats.map((s) => ({ seat: s.seat, hero: s.hero })),
-      teams: async () => (m.teams ?? []).map((x) => ({ team: x.team, health: x.health, armor: x.armor })),
+      teams: async () => (m.teams ?? []).map((x) => ({ team: x.team, health: x.health, armor: x.armor, eliminated_round: x.eliminated_round })),
       commit: async (args) => this.commitDuos(args),
       log: (msg, detail) => console.warn(msg, detail),
     };
   }
 
-  /** `versus_duos_commit_round`: ONE tag-team fight, the losing team's pool charged, a team at 0 out together. */
+  /** `versus_duos_commit_round`: the round's tag-team fight (2 teams) or fights (3-4 teams, `p_fights`), each losing team's
+   *  pool charged, a team at 0 out together; teams out in one round share the lower place, and never all of them. */
   protected commitDuos(args: Parameters<VersusDuosFinalizeStore['commit']>[0]): unknown {
     const m = this.m;
     if (this.g.rounds[args.p_round]) return { alreadyCommitted: true };
     if (m.phase !== 'resolving' || m.round !== args.p_round) this.h.fail('not_resolving');
     const now = this.h.now();
-    const f = args.p_fight as { a: GSeat; b: GSeat; chair: 'a' | 'b'; outcome: 'a' | 'b' | 'draw'; losingTeam: GTeamId | null; damage: number; aResult: unknown; bResult: unknown };
+    type DuosFight = { fight?: number; a: GSeat; b: GSeat; copy?: boolean; chair: 'a' | 'b'; outcome: 'a' | 'b' | 'draw'; losingTeam: GTeamId | null; damage: number; aResult: unknown; bResult: unknown };
+    const list = (args.p_fights ?? [args.p_fight]) as DuosFight[];
     const scoutOf = (seat: GSeat): Record<string, unknown> => {
       const sub = this.g.subs[seat];
       const tier = (sub?.prepared_side as { state?: { tier?: unknown } } | null)?.state?.tier;
       return { ...(sub?.scout ?? {}), ...(tier != null ? { tier } : {}) };
     };
-    const lose = f.losingTeam;
-    const fight: GFightRow = {
-      round: args.p_round, fight: 0, a_seat: f.a, b_seat: f.b, b_copy: false, chair: f.chair, outcome: f.outcome,
-      heart_lost_by: lose === 'a' ? f.a : lose === 'b' ? f.b : null, damage: lose ? f.damage : 0,
-      a_result: f.aResult, b_result: f.bResult, a_scout: scoutOf(f.a), b_scout: scoutOf(f.b),
-    };
+    const fights: GFightRow[] = list.map((f, i) => {
+      const lose = f.losingTeam;
+      return {
+        round: args.p_round, fight: f.fight ?? i, a_seat: f.a, b_seat: f.b, b_copy: !!f.copy, chair: f.chair, outcome: f.outcome,
+        heart_lost_by: lose && lose === teamOf(f.a) ? f.a : lose && lose === teamOf(f.b) ? f.b : null, damage: lose ? f.damage : 0,
+        a_result: f.aResult, b_result: f.bResult, a_scout: scoutOf(f.a), b_scout: scoutOf(f.b),
+      };
+    });
+    const anyLoser = list.some((f) => !!f.losingTeam);
     for (const tm of m.teams!) {
       if (tm.eliminated_round != null) continue;
       const v = args.p_vitals[tm.team];
@@ -761,13 +767,14 @@ export class GroupEngine {
     }
     let dead: GSeat[] = [];
     let reason: GEndReason = 'hearts';
-    if (lose) {
-      const tm = this.team(lose);
-      if (tm.eliminated_round == null && (tm.health ?? 1) <= 0) {
-        const place = this.livingTeams();
-        tm.eliminated_round = args.p_round; tm.out_reason = 'hearts'; tm.placement = place;
-        dead = teamSeats(lose);
-      }
+    // Pool 0: out together, sharing a placement, most Health + Armor going in first (the wipeout tiebreak: never a round
+    // with nobody standing).
+    const going = m.teams!.filter((x) => x.eliminated_round == null && (x.health ?? 1) <= 0)
+      .sort((x, y) => (args.p_vitals[y.team]?.before ?? 0) - (args.p_vitals[x.team]?.before ?? 0) || (x.team < y.team ? -1 : 1));
+    const place = this.livingTeams();
+    for (const tm of going.length >= place ? going.slice(1) : going) {
+      tm.eliminated_round = args.p_round; tm.out_reason = 'hearts'; tm.placement = place;
+      dead.push(...teamSeats(tm.team));
     }
     for (const s of m.seats) if (s.eliminated_round == null) s.missed = s.auto ? s.missed + 1 : 0;
     if (dead.length === 0) {
@@ -776,10 +783,9 @@ export class GroupEngine {
       if (missed) {
         const tm = this.team(teamOf(missed.seat));
         if (tm.eliminated_round == null) {
-          const place = this.livingTeams();
           tm.eliminated_round = args.p_round; tm.out_reason = 'missed'; tm.placement = place;
           dead = teamSeats(tm.team);
-          if (!lose) reason = 'missed';
+          if (!anyLoser) reason = 'missed';
         }
       }
     }
@@ -797,7 +803,7 @@ export class GroupEngine {
     }
     const vitalsOut: GRound['vitals'] = {};
     for (const s of m.seats) if (s.health != null && s.armor != null) vitalsOut[s.seat] = { health: s.health, armor: s.armor };
-    const row: GRound = { match_id: m.id, round: args.p_round, digest: args.p_digest, vitals: vitalsOut, eliminated: dead, fights: [fight] };
+    const row: GRound = { match_id: m.id, round: args.p_round, digest: args.p_digest, vitals: vitalsOut, eliminated: dead, fights };
     this.g.rounds[row.round] = row;
     this.h.dirty(`ground:${row.round}`);
     this.h.roundCommitted(row.round);

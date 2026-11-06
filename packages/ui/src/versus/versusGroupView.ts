@@ -11,7 +11,7 @@
  * round they went out in (rounds after it are not shown), with `end_reason` from why (`hearts` → the deciding fight is
  * watched first, as in 1v1; leaving or conceding → the end gate at once). The match goes on for the others.
  */
-import { duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, duosAlternatingFirst, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
+import { duosMateOf, duosMemberView, duosTeamOf, versusDuosTeamPairings, versusGroupPairings, duosAlternatingFirst, type VersusDuosEliminations, type VersusDuosTeamId, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
 import type { CombatEvent, CombatResult } from '@game/core';
 import { isRankedDuosRaw } from './rankedDuosView';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow, VersusMatch, VersusRoundRow } from './versusRemote';
@@ -33,19 +33,33 @@ const rankedFoeOf = (raw: VersusGroupMatchRaw, round: number): { seat: VersusGro
 
 /** A Duos round's fight order: the teammates' alternating turn from the match seed + round (R-DUOS-ORDER-01), the same one the
  *  resolver fights (a committed fight's result carries the order it actually used, after an empty-board hand-over). */
-export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: VersusGroupSeat; b: VersusGroupSeat } {
-  const f = duosAlternatingFirst(Number(raw.seed), Math.max(1, round));
+export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: VersusGroupSeat; b: VersusGroupSeat; c?: VersusGroupSeat; d?: VersusGroupSeat } {
+  const f = duosAlternatingFirst(Number(raw.seed), Math.max(1, round), duosTeamsOf(raw).length);
   // RANKED DUOS: the opponent is the round's recorded team (its board that fights first), by the lobby pairing.
   if (isRankedDuosRaw(raw)) return { a: f.a, b: rankedFoeOf(raw, Math.max(1, round))?.seat ?? f.b };
-  return { a: f.a, b: f.b };
+  return f;
 }
+
+/** A Duos match's teams, in letter order (a 2v2 has two; R-VERSUS-EIGHT-01: up to four). */
+export const duosTeamsOf = (raw: Pick<VersusGroupMatchRaw, 'seats'>): VersusDuosTeamId[] => {
+  const teams = [...new Set(raw.seats.map((s) => duosTeamOf(s.seat)))].sort();
+  return teams.length >= 2 ? teams : ['a', 'b'];
+};
 
 /** The round's fights (the public schedule every client and the resolver share). Duos: the one team fight, named by
  *  each team's FIRST board (both teammates are in it; `fightOf` / `foeIn` know). */
 export function groupPairingAt(raw: VersusGroupMatchRaw, round: number): VersusGroupPairing[] {
   if (round < 1) return [];
   if (isRankedDuosRaw(raw) && !rankedFoeOf(raw, round)) return []; // the recorded table is not known yet
-  if (isDuosRaw(raw)) { const f = duosFirstAt(raw, round); return [{ a: f.a, b: f.b, copy: false, duos: true }]; }
+  if (isDuosRaw(raw)) {
+    const f = duosFirstAt(raw, round);
+    const teams = duosTeamsOf(raw);
+    if (isRankedDuosRaw(raw) || teams.length <= 2) return [{ a: f.a, b: f.b, copy: false, duos: true }];
+    // THREE OR FOUR TEAMS (R-VERSUS-EIGHT-01): the teams' schedule, each fight named by its teams' first boards.
+    const elim: VersusDuosEliminations = {};
+    for (const s of raw.seats) elim[duosTeamOf(s.seat)] = s.eliminatedRound;
+    return versusDuosTeamPairings(teams, elim, round).map((p) => ({ a: f[p.a]!, b: f[p.b]!, copy: p.copy, duos: true }));
+  }
   return versusGroupPairings(seatsOf(raw), elimOf(raw), round);
 }
 
@@ -53,7 +67,7 @@ export function groupPairingAt(raw: VersusGroupMatchRaw, round: number): VersusG
 export function fightOf<T extends { a: VersusGroupSeat; b: VersusGroupSeat; copy: boolean; duos?: boolean }>(fights: readonly T[], seat: VersusGroupSeat): T | null {
   return fights.find((f) => f.a === seat || (f.b === seat && !f.copy))
     // Duos: a team's second board is in its team's fight too.
-    ?? fights.find((f) => !!f.duos && (f.a === duosMateOf(seat) || f.b === duosMateOf(seat)))
+    ?? fights.find((f) => !!f.duos && (f.a === duosMateOf(seat) || (f.b === duosMateOf(seat) && !f.copy)))
     ?? null;
 }
 
@@ -62,7 +76,7 @@ export function foeIn(pairing: readonly VersusGroupPairing[], seat: VersusGroupS
   const f = fightOf(pairing, seat);
   if (!f) return null;
   // Duos: my foe is the OTHER team's first board, whether I fight first or step in.
-  if (f.duos) return { seat: duosTeamOf(seat) === duosTeamOf(f.a) ? f.b : f.a, copy: false };
+  if (f.duos) return duosTeamOf(seat) === duosTeamOf(f.a) ? { seat: f.b, copy: f.copy } : { seat: f.a, copy: false };
   return f.a === seat ? { seat: f.b, copy: f.copy } : { seat: f.a, copy: false };
 }
 
@@ -186,13 +200,15 @@ export function resultsOf(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSea
 }
 function resultsOfRound(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSeat, CombatResult>> {
   const out: Partial<Record<VersusGroupSeat, CombatResult>> = {};
-  // Duos: ONE team fight; each seat's own view carries only its board's carry-backs (`duosMemberView`).
+  // Duos: each team fight; each seat's own view carries only its board's carry-backs (`duosMemberView`).
   const d = r.fights[0];
   if (d && isDuosFight(d)) {
-    // Both teams of the fight (Ranked Duos: the recorded team sits at its virtual seats, `rankedDuosView.ts`).
-    for (const seat of [d.a_seat, duosMateOf(d.a_seat), d.b_seat, duosMateOf(d.b_seat)]) {
-      const teamA = duosTeamOf(seat) === 'a';
-      out[seat] = duosMemberView(teamA ? d.a_result : d.b_result, (teamA ? d.a_seat : d.b_seat) === seat ? 0 : 1);
+    for (const f of r.fights) {
+      // Both teams of the fight (Ranked Duos: the recorded team sits at its virtual seats, `rankedDuosView.ts`). A Copy is nobody's.
+      for (const seat of [f.a_seat, duosMateOf(f.a_seat), ...(f.b_copy ? [] : [f.b_seat, duosMateOf(f.b_seat)])]) {
+        const teamA = duosTeamOf(seat) === duosTeamOf(f.a_seat);
+        out[seat] = duosMemberView(teamA ? f.a_result : f.b_result, (teamA ? f.a_seat : f.b_seat) === seat ? 0 : 1);
+      }
     }
     return out;
   }
@@ -216,10 +232,12 @@ export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly Ve
   for (const r of rounds) {
     if (r.round > cutoff) continue;
     const results = resultsOf(r);
-    // VERSUS DUOS: the one team fight. p1 = me (my own board's view: `duosMemberView`), p2 = the other team's first
-    // board's view; the outcome, the damage and the pool are my team's.
-    const d = r.fights[0];
-    if (d && isDuosFight(d)) {
+    // VERSUS DUOS: my team's fight. p1 = me (my own board's view: `duosMemberView`), p2 = the other team's first
+    // board's view (or the Copy's); the outcome, the damage and the pool are my team's.
+    const d0 = r.fights[0];
+    if (d0 && isDuosFight(d0)) {
+      const myTeam = me ? duosTeamOf(me) : null;
+      const d = r.fights.find((f) => duosTeamOf(f.a_seat) === myTeam || (duosTeamOf(f.b_seat) === myTeam && !f.b_copy)) ?? d0;
       const meSeat = me ?? d.a_seat;
       const iAmA = duosTeamOf(meSeat) === duosTeamOf(d.a_seat);
       const foeSeat = iAmA ? d.b_seat : d.a_seat;
@@ -229,7 +247,7 @@ export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly Ve
         outcome: d.outcome === 'draw' ? 'draw' : (d.outcome === 'a') === iAmA ? 'p1' : 'p2',
         heart_lost_by: d.heart_lost_by == null ? null : duosTeamOf(d.heart_lost_by) === duosTeamOf(meSeat) ? 'p1' : 'p2',
         p1_result: results[meSeat] ?? null,
-        p2_result: results[foeSeat] ?? null,
+        p2_result: d.b_copy && iAmA ? duosMemberView(d.b_result, 0) : results[foeSeat] ?? null,
         digest: '',
         ...poolsOf(r, meSeat, foeSeat, d.heart_lost_by == null ? null : duosTeamOf(d.heart_lost_by) === duosTeamOf(meSeat) ? 'p1' : 'p2', d.damage),
         p1_scout: iAmA ? d.a_scout : d.b_scout,

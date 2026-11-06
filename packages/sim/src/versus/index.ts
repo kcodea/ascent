@@ -13,7 +13,7 @@ export { handleVersusFinalize, storedVersusVitals, versusFightDigest, versusFigh
 export * from './groupLobbyView';
 export * from './duos';
 export * from './vitals';
-export { handleVersusDuosFinalize, duosFightPayload, duosRoundDigest, type VersusDuosFinalizeStore, type VersusDuosMatchRow } from './duosFinalize';
+export { handleVersusDuosFinalize, duosFightPayload, duosRoundDigest, duosTableDigest, type VersusDuosFinalizeStore, type VersusDuosMatchRow } from './duosFinalize';
 // RANKED DUOS (owner 2026-10-26): the shared rules (end-turn gate, team names), the table seating and its server handler.
 export * from './rankedDuos';
 export * from './rankedDuosSeating';

@@ -14,7 +14,7 @@
  * Bundle-safe: imports only pure Versus siblings.
  */
 import { canonicalDigest } from './canonical';
-import { duosTeamSeats, resolveVersusDuosRound, type VersusDuosRoundResult, type VersusDuosTeam } from './duos';
+import { duosTeamSeats, resolveVersusDuosRound, resolveVersusDuosTable, type VersusDuosEliminations, type VersusDuosRoundResult, type VersusDuosTableResult, type VersusDuosTeam, type VersusDuosTeamId } from './duos';
 import type { VersusVitalsCommit } from './finalize';
 import type { VersusGroupSeat } from './group';
 import { reportedVitals, versusDuosStartingVitals, versusVitalsBefore, vitalsTotal, type VersusVitals } from './vitals';
@@ -33,6 +33,7 @@ export interface VersusDuosTeamRow {
   team: string;
   health?: number | null;
   armor?: number | null;
+  eliminated_round?: number | null;
 }
 
 export interface VersusDuosFinalizeStore {
@@ -43,7 +44,7 @@ export interface VersusDuosFinalizeStore {
   seats(matchId: string): Promise<{ seat: string; hero?: string | null }[]>;
   /** Every team's stored pool. */
   teams(matchId: string): Promise<VersusDuosTeamRow[]>;
-  commit(args: { p_match: string; p_round: number; p_fight: unknown; p_digest: string; p_vitals: Partial<Record<VersusDuosTeam, VersusVitalsCommit>> }): Promise<unknown>;
+  commit(args: { p_match: string; p_round: number; p_fight?: unknown; p_fights?: unknown; p_digest: string; p_vitals: Partial<Record<VersusDuosTeamId, VersusVitalsCommit>> }): Promise<unknown>;
   log(msg: string, detail?: unknown): void;
 }
 
@@ -58,6 +59,11 @@ export function duosFightPayload(out: VersusDuosRoundResult): Record<string, unk
 /** The digest the commit stores and the parity proof compares (the fight, both team perspectives, the pools). */
 export function duosRoundDigest(out: VersusDuosRoundResult): string {
   return canonicalDigest({ round: out.round, fight: duosFightPayload(out), ...(out.vitals ? { vitals: out.vitals } : {}) });
+}
+
+/** The digest of a 3-4 team round (R-VERSUS-EIGHT-01): every fight, both perspectives, the pools. */
+export function duosTableDigest(out: VersusDuosTableResult): string {
+  return canonicalDigest({ round: out.round, fights: out.fights, ...(out.vitals ? { vitals: out.vitals } : {}) });
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,8 +92,9 @@ export async function handleVersusDuosFinalize(
   const heroOf = (seat: VersusGroupSeat): string | null => seatRows.find((r) => r.seat === seat)?.hero ?? null;
   // Each team fights on its stored shared pool (none yet = 30 Health + both heroes' Armor); a fresh Mend report from
   // either teammate may raise its Armor.
-  const before: Partial<Record<VersusDuosTeam, VersusVitals>> = {};
-  for (const t of ['a', 'b'] as const) {
+  const teams = (teamRows.length > 2 ? teamRows.map((r) => r.team) : ['a', 'b']) as VersusDuosTeamId[];
+  const before: Partial<Record<VersusDuosTeamId, VersusVitals>> = {};
+  for (const t of teams) {
     const [x, y] = duosTeamSeats(t);
     const row = teamRows.find((r) => r.team === t);
     const stored = row && row.health != null && row.armor != null
@@ -95,10 +102,26 @@ export async function handleVersusDuosFinalize(
       : versusDuosStartingVitals(heroOf(x), heroOf(y), m.options);
     before[t] = versusVitalsBefore(stored, [reportedVitals(sides[x]), reportedVitals(sides[y])]);
   }
+  // THREE OR FOUR TEAMS (R-VERSUS-EIGHT-01): the round's fights over the teams still in. Only their pools move.
+  if (teams.length > 2) {
+    const eliminated: VersusDuosEliminations = {};
+    for (const r of teamRows) eliminated[r.team as VersusDuosTeamId] = r.eliminated_round ?? null;
+    const live = Object.fromEntries(teams.filter((t) => eliminated[t] == null).map((t) => [t, before[t]!]));
+    const table = resolveVersusDuosTable({ matchSeed: Number(m.seed), round: m.round, teams, eliminated, sides, vitals: live });
+    for (const [seat, why] of Object.entries(table.refused)) store.log(`versus duos finalize: ${seat} side refused, fighting empty`, why);
+    const tableDigest = duosTableDigest(table);
+    const commitVitals: Partial<Record<VersusDuosTeamId, VersusVitalsCommit>> = {};
+    for (const t of teams) {
+      const v = table.vitals?.[t];
+      if (v) commitVitals[t] = { ...v, damage: table.fights.find((f) => f.losingTeam === t)?.damage ?? 0, before: vitalsTotal(before[t]!) };
+    }
+    const done = await store.commit({ p_match: matchId, p_round: m.round, p_fights: table.fights, p_digest: tableDigest, p_vitals: commitVitals });
+    return { status: 200, body: { status: 'committed', round: m.round, digest: tableDigest, committed: done } };
+  }
   const out = resolveVersusDuosRound({ matchSeed: Number(m.seed), round: m.round, sides, vitals: before });
   for (const [seat, why] of Object.entries(out.refused)) store.log(`versus duos finalize: ${seat} side refused, fighting empty`, why);
   const digest = duosRoundDigest(out);
-  const vitals: Partial<Record<VersusDuosTeam, VersusVitalsCommit>> = {};
+  const vitals: Partial<Record<VersusDuosTeamId, VersusVitalsCommit>> = {};
   for (const t of ['a', 'b'] as const) {
     const v = out.vitals?.[t];
     if (v) vitals[t] = { ...v, damage: out.losingTeam === t ? out.damage : 0, before: vitalsTotal(before[t]!) };

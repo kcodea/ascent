@@ -82,8 +82,8 @@ function useFace(m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>, se
   }, [m.userId, m.displayName, m.profile, own, showOpp, server, myAvatar, myTitle, myLoadout, thumb, myName]);
 }
 
-/** A Duos seat's team (p1 + p2, p3 + p4). */
-const teamOf = (s: VersusGroupSeat): number => (s === 'p1' || s === 'p2' ? 0 : 1);
+/** A Duos seat's team index (the seat pairs: p1 + p2 = 0, p3 + p4 = 1, ...). */
+const teamOf = (s: VersusGroupSeat): number => Math.floor((Number(s.slice(1)) - 1) / 2);
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
@@ -331,7 +331,8 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   const spectators = room.members.filter((m) => m.role === 'spectator');
   const roomBots = bots.bots.filter((b) => b.roomId === room.id && b.status === 'playing');
   const allOff = roomBots.length > 0 && roomBots.every((b) => b.disconnected);
-  const st = roomStartOf({ mode, status: room.status, seated: seatedCount, host, isPlayer, running, phase: match?.phase ?? null, round: match?.round ?? null, gateLeft });
+  const halfTeam = mode === 'duos' && teams.some((t) => t.filter((s) => room.members.some((m) => m.role === s)).length === 1);
+  const st = roomStartOf({ mode, status: room.status, seated: seatedCount, host, isPlayer, running, phase: match?.phase ?? null, round: match?.round ?? null, gateLeft, halfTeam });
   const watch = running && !isPlayer && match!.phase !== 'hero_select';
   const testTools = host && open && !sampleOn && versusTestToolsEnabled();
   const myDraggable = !!me && canDragSeatCard(room, me, me);
@@ -376,15 +377,11 @@ export function useVersusRoomHome(root: RefObject<HTMLElement>, phone: boolean, 
   let k = 0;
   const cards = teams.map((team) => team.map((s) => seatCard(s, k++)));
   if (mode === 'duos') {
-    const myTeam = role === 'p1' || role === 'p2' ? 0 : role === 'p3' || role === 'p4' ? 1 : null;
+    const myTeam = role && role !== 'spectator' ? teamOf(role as VersusGroupSeat) : null;
     const lbl = (t: number): JSX.Element => (myTeam === null
       ? <span className="ph-pairlbl">Team {t + 1}</span>
-      : <span className={`ph-pairlbl ${myTeam === t ? 'mine' : 'rival'}`}>{myTeam === t ? 'Your team' : 'Rivals'}</span>);
-    row.push(
-      <div key="a" className="ph-pair" role="group" aria-label="Team 1"><div className="ph-pairrow">{lbl(0)}{cards[0]}</div></div>,
-      <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-      <div key="b" className="ph-pair" role="group" aria-label="Team 2"><div className="ph-pairrow">{lbl(1)}{cards[1]}</div></div>,
-    );
+      : <span className={`ph-pairlbl ${myTeam === t ? 'mine' : 'rival'}`}>{myTeam === t ? 'Your team' : `Team ${t + 1}`}</span>);
+    teams.forEach((_, t) => row.push(<div key={t} className="ph-pair" role="group" aria-label={`Team ${t + 1}`}><div className="ph-pairrow">{lbl(t)}{cards[t]}</div></div>));
   } else if (mode === 'duel') row.push(...cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, ...cards[1]!);
   else row.push(...cards[0]!);
 

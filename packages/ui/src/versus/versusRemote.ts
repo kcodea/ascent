@@ -6,7 +6,7 @@
  * those tables through its limited writer, which is where every history / record screen reads them.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { type RankResult, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import { type RankResult, type HeroReroll, type PreparedCombatSide, type VersusDuosTeamId, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId, setIdentity } from '../identity';
@@ -330,7 +330,7 @@ export interface VersusGroupView {
   pausedName: string | null;
   pausedUser: string | null;
   /** VERSUS DUOS (R-DUOS-01): my team, my teammate's seat and this round's fight order. Absent in a group match. */
-  duos?: { team: 'a' | 'b'; mate: VersusGroupSeat | null; first: { a: VersusGroupSeat; b: VersusGroupSeat } };
+  duos?: { team: VersusDuosTeamId; mate: VersusGroupSeat | null; first: { a: VersusGroupSeat; b: VersusGroupSeat; c?: VersusGroupSeat; d?: VersusGroupSeat } };
 }
 
 export interface VersusPrivate {

@@ -117,7 +117,7 @@ describe('what I am doing, out of a game', () => {
     const member = (userId: string, role: string, displayName: string) => ({ userId, role, displayName, profile: {}, lastSeenAt: '' }) as VersusRoom['members'][number];
     const room = { id: 'r1', status: 'open', options: { mode: 'group' }, members: [member(ME, 'p1', 'Me'), member('b', 'p2', 'Bob'), member('c', 'p3', 'Cat'), member('d', 'spectator', 'Dan')] } as unknown as VersusRoom;
     useVersus.setState({ room, match: null });
-    expect(presenceNow().activity).toEqual({ v: 1, act: 'versus_room', mode: 'versus_group', players: 3, max: 4 });
+    expect(presenceNow().activity).toEqual({ v: 1, act: 'versus_room', mode: 'versus_group', players: 3, max: 8 });
     useVersus.setState({ room: { ...room, status: 'sealed' } });
     expect(presenceNow().activity).toMatchObject({ starting: true });
     useVersus.setState({ room: { ...room, options: { mode: 'ranked_duos' } as never, members: [member(ME, 'p1', 'Me'), member('b', 'p2', 'Bob')] } });

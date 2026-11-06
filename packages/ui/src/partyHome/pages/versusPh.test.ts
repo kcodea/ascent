@@ -64,10 +64,10 @@ describe('Versus on the party home shell (pure half)', () => {
     expect(playerVersusError("This build's game server isn't deployed yet. Run the pack or select a local server.")).toBe(VERSUS_OFFLINE_TEXT);
   });
 
-  it('lays the seats out per mode: 1v1 two sides, Group eight free seats, Duos two teams of two', () => {
+  it('lays the seats out per mode: 1v1 two sides, Group eight free seats, Duos four teams of two', () => {
     expect(seatTeams('duel')).toEqual([['p1'], ['p2']]);
     expect(seatTeams('group')).toEqual([['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']]);
-    expect(seatTeams('duos')).toEqual([['p1', 'p2'], ['p3', 'p4']]);
+    expect(seatTeams('duos')).toEqual([['p1', 'p2'], ['p3', 'p4'], ['p5', 'p6'], ['p7', 'p8']]);
     expect(roomModeOf({ v: 1, mode: 'ranked_duos', modifiers: [] })).toBe('duel');
     const seated = seatedOf(room([member('me', 'p2'), member('x', 'spectator')]), 'duel');
     expect([...seated.entries()].map(([s, m]) => `${s}:${m?.userId ?? '-'}`)).toEqual(['p1:-', 'p2:me']);

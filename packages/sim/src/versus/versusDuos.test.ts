@@ -84,10 +84,10 @@ describe('Versus Duos teams and order (R-DUOS-01)', () => {
     expect(r.aResult.duosFirst).toEqual(f);
   });
 
-  it('the room option: "duos" is a mode of exactly four seats', () => {
+  it('the room option: "duos" is a mode of four to eight seats', () => {
     expect(versusOptionsError({ v: 1, mode: 'duos', modifiers: [] })).toBeNull();
     expect(normalizeVersusOptions({ mode: 'duos' }).mode).toBe('duos');
-    expect(VERSUS_MODE_SEATS.duos).toEqual({ min: 4, max: 4 });
+    expect(VERSUS_MODE_SEATS.duos).toEqual({ min: 4, max: 8 });
   });
 
   it('its own fight seed, apart from the 1v1 and group seeds', () => {

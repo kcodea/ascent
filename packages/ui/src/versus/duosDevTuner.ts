@@ -71,7 +71,7 @@ export const DUOS_SCENARIO_LABEL: Record<DuosScenario, string> = {
   allEmpty: 'All boards empty (draw)',
 };
 
-export function scenarioBoard(kind: DuosScenario, seat: VersusGroupSeat, viewer: VersusGroupSeat, first: { a: VersusGroupSeat; b: VersusGroupSeat }): [number, number][] {
+export function scenarioBoard(kind: DuosScenario, seat: VersusGroupSeat, viewer: VersusGroupSeat, first: { a: VersusGroupSeat; b: VersusGroupSeat; c?: VersusGroupSeat; d?: VersusGroupSeat }): [number, number][] {
   const team = duosTeamOf(seat);
   const ours = team === duosTeamOf(viewer);
   const lead = first[team] === seat;
@@ -88,7 +88,7 @@ export function scenarioBoard(kind: DuosScenario, seat: VersusGroupSeat, viewer:
 }
 
 /** The seat whose board fights first for `seat`'s team (from the round's order). */
-export const leadOf = (seat: VersusGroupSeat, first: { a: VersusGroupSeat; b: VersusGroupSeat }): VersusGroupSeat => first[duosTeamOf(seat)];
+export const leadOf = (seat: VersusGroupSeat, first: { a: VersusGroupSeat; b: VersusGroupSeat; c?: VersusGroupSeat; d?: VersusGroupSeat }): VersusGroupSeat => first[duosTeamOf(seat)] ?? seat;
 
 /** My teammate's seat. */
 export const mateOf = (seat: VersusGroupSeat): VersusGroupSeat => duosMateOf(seat);

@@ -77,7 +77,7 @@ export type LobbyChatRole = 'player' | 'spectator';
 
 /** Which chat a message belongs to: the game's lobby (everyone) or the sender's team (R-LOBBY-CHAT-TEAM-01). */
 export type LobbyChatChannel = 'lobby' | 'team';
-/** A team in a team mode: Duos' p1+p2 is `a`, p3+p4 is `b`; a Ranked Duos party room is one team, `a`. */
+/** A team in a team mode: Duos' p1+p2 is `a`, p3+p4 `b`, p5+p6 `c`, p7+p8 `d`; a Ranked Duos party room is one team, `a`. */
 export type LobbyChatTeam = 'a' | 'b';
 /** The object's storage key for the current match's team chats. */
 export const LOBBY_CHAT_TEAMS_STORAGE_KEY = 'lobbyChatTeams';
@@ -88,7 +88,7 @@ export const lobbyChatChannelOf = (payload: unknown): LobbyChatChannel =>
 
 /** The team a room member's seat is on in `mode`, or null (a spectator, a solo mode). Pure. */
 export function lobbyChatTeamOf(mode: unknown, role: unknown): LobbyChatTeam | null {
-  if (mode === 'duos') return role === 'p1' || role === 'p2' ? 'a' : role === 'p3' || role === 'p4' ? 'b' : null;
+  if (mode === 'duos') return typeof role === 'string' && /^p[1-8]$/.test(role) ? String.fromCharCode(97 + Math.floor((Number(role.slice(1)) - 1) / 2)) as LobbyChatTeam : null;
   if (mode === 'ranked_duos') return role === 'p1' || role === 'p2' ? 'a' : null;
   return null;
 }

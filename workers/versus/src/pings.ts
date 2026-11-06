@@ -167,9 +167,9 @@ export function parsePingMentor(payload: unknown): PingMentorMessage | null {
 /** The game's mode, as far as teammates go. `lobby` = a lobby / Practice game (one player, `p1`, and the stands). */
 export type PingMode = 'duel' | 'group' | 'duos' | 'ranked_duos' | 'lobby';
 
-/** A seat's teammate, or null (Duos: p1+p2 vs p3+p4; a Ranked Duos party room: p1+p2). */
+/** A seat's teammate, or null (Duos: the seat pairs p1+p2, p3+p4, p5+p6, p7+p8; a Ranked Duos party room: p1+p2). */
 export function teammateOf(mode: PingMode, seat: PingSeat): PingSeat | null {
-  if (mode === 'duos') return seat === 'p1' ? 'p2' : seat === 'p2' ? 'p1' : seat === 'p3' ? 'p4' : 'p3';
+  if (mode === 'duos') { const n = Number(seat.slice(1)); return `p${n % 2 === 1 ? n + 1 : n - 1}` as PingSeat; }
   if (mode === 'ranked_duos') return seat === 'p1' ? 'p2' : seat === 'p2' ? 'p1' : null;
   return null;
 }

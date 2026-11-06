@@ -233,9 +233,9 @@ export function iAmPlaying(): boolean {
   return presenceDetailed().status === 'in_game';
 }
 
-/** My teammate in a two-player team (p1 + p2, p3 + p4). */
+/** My teammate in a two-player team (the seat pairs). */
 function teammateOf(role: string | null, seats: readonly { role: string; name: string }[]): string | null {
-  const pairOf: Record<string, string> = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' };
+  const pairOf: Record<string, string> = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3', p5: 'p6', p6: 'p5', p7: 'p8', p8: 'p7' };
   const other = role ? pairOf[role] : undefined;
   return (other && seats.find((s) => s.role === other)?.name) || null;
 }
@@ -244,6 +244,8 @@ function teammateOf(role: string | null, seats: readonly { role: string; name: s
 function versusFoe(vmode: string, role: string | null, seats: readonly { role: string; name: string }[], lobby: RunLobby | null): string | null {
   if (vmode === 'duel') return seats.find((s) => s.role !== role)?.name ?? null;
   if (vmode === 'duos') {
+    // A 2v2's other team. With three or four teams the foe changes each round, so the lobby's pairing names it.
+    if (seats.some((s) => s.role === 'p5' || s.role === 'p6' || s.role === 'p7' || s.role === 'p8')) return lobby ? lobbyFoeName(lobby) : null;
     const theirs = role === 'p3' || role === 'p4' ? ['p1', 'p2'] : ['p3', 'p4'];
     return seats.filter((s) => theirs.includes(s.role)).map((s) => s.name).join(' & ').slice(0, NAME_MAX) || null;
   }

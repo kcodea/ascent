@@ -250,7 +250,7 @@ html[data-ph-compact] .ph-start { height: calc(320 * var(--phu) * 197 / 800); }
 .ph-pairrow { display: flex; align-items: center; gap: var(--gap); }
 .ph-pairlbl { position: static; }
 .ph-cards.vs { padding-top: 0; }
-.ph-cards.vs .ph-cardwrap { height: min(calc(720 * var(--phu)), calc(100cqh - 64 * var(--phu)), calc((100cqw - 3 * var(--gap) - var(--vsw)) / 4 / 0.56)); }
+.ph-cards.vs .ph-cardwrap { height: min(calc(720 * var(--phu)), calc(100cqh - 64 * var(--phu)), calc((100cqw - 7 * var(--gap)) / 8 / 0.56)); }
 /* The options panel hugs its content (Practice keeps one height, so Sandbox / God Mode never jump). */
 .ph-body.has-opts .ph-opts { height: auto; max-height: min(100%, calc(640 * var(--phu))); }
 .ph-body.has-opts .ph-opts.o-practice { height: min(100%, calc(640 * var(--phu))); }

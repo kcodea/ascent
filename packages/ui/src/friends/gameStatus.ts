@@ -180,7 +180,7 @@ export function versusLine(mode: string, seats: readonly { role: string; name: s
   const named = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'].map(by).filter((n): n is string => !!n);
   if (!named.length) return null;
   let out: string;
-  if (mode === 'versus_duos') out = `${[by('p1'), by('p2')].filter(Boolean).join(' & ')} vs ${[by('p3'), by('p4')].filter(Boolean).join(' & ')}`;
+  if (mode === 'versus_duos') out = [['p1', 'p2'], ['p3', 'p4'], ['p5', 'p6'], ['p7', 'p8']].map((t) => t.map(by).filter(Boolean).join(' & ')).filter((t, i) => i < 2 || t).join(' vs ');
   else if (mode === 'ranked_duos') out = named.slice(0, 2).join(' & ');
   else out = named.join(' vs ');
   return out.slice(0, VS_MAX);

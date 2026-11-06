@@ -85,7 +85,7 @@ export function liveListingOf(state: CoreState): LiveListing | null {
   }
   const duos = g.match.options?.mode === 'duos';
   const players = duos
-    ? `${seats.filter((s) => s.team === 'a').map((s) => s.name).join(' & ')} vs ${seats.filter((s) => s.team !== 'a').map((s) => s.name).join(' & ')}`
+    ? [...new Set(seats.map((s) => s.team))].sort().map((t) => seats.filter((s) => s.team === t).map((s) => s.name).join(' & ')).join(' vs ')
     : seats.map((s) => s.name).join(' vs ');
   return { ...base, mode: duos ? 'duos' : 'group', team: null, players: line(players), private_host: privateHost };
 }

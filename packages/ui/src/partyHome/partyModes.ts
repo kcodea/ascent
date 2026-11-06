@@ -31,7 +31,7 @@ export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'duos', label: 'Ranked Duos', desc: 'You and a teammate against three teams.', slots: 2, party: 'team', ranked: true, versus: true },
   { id: 'versus', label: 'Versus 1v1', desc: 'Real-time 1v1 against a friend. Unranked.', slots: 2, party: 'rivals', ranked: false, versus: true, options: true },
   { id: 'group', label: 'Versus Group', desc: 'Three to eight players, last one standing. Unranked.', slots: 8, party: 'rivals', ranked: false, versus: true, options: true },
-  { id: 'vduos', label: 'Versus Duos', desc: 'Two teams of two, shared hearts. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true, options: true },
+  { id: 'vduos', label: 'Versus Duos', desc: 'Up to four teams of two, shared Health. Unranked.', slots: 8, party: 'rivals', ranked: false, versus: true, options: true },
   { id: 'practice', label: 'Practice', desc: 'Practice your way. Nothing here is rated.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'learn', label: 'Learn', desc: 'A coached first game that teaches you everything.', slots: 1, party: 'solo', ranked: false },

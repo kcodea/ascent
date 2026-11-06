@@ -45,7 +45,7 @@ export function visibleRooms(rooms: readonly VersusRoomSummary[], filter: RoomFi
   return shown.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map((x) => x.r);
 }
 
-/** A room's player seats (2, 4 for a Duos room, 8 for a group room). */
+/** A room's player seats (2, or 8 for a group or Duos room). */
 export const seatCap = (r: Pick<VersusRoomSummary, 'maxPlayers'>): number => r.maxPlayers ?? 2;
 
 /**
@@ -91,9 +91,9 @@ export function roomTitleOf(name: string | null | undefined, mode: VersusRoomMod
 
 // ── THE ROOM ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The seats a mode lays out, in teams: 1v1 = two sides of one, Group = eight free seats, Duos = two teams of two. */
+/** The seats a mode lays out, in teams: 1v1 = two sides of one, Group = eight free seats, Duos = up to four teams of two. */
 export function seatTeams(mode: VersusRoomMode): VersusGroupSeat[][] {
-  if (mode === 'duos') return [['p1', 'p2'], ['p3', 'p4']];
+  if (mode === 'duos') return [['p1', 'p2'], ['p3', 'p4'], ['p5', 'p6'], ['p7', 'p8']];
   if (mode === 'group') return [['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']];
   return [['p1'], ['p2']];
 }
@@ -116,9 +116,11 @@ export interface RoomStart {
 }
 export function roomStartOf(args: {
   mode: VersusRoomMode; status: VersusRoom['status']; seated: number; host: boolean; isPlayer: boolean;
+  /** Duos: a team has one player seated (the room can only start with full teams). */
+  halfTeam?: boolean;
   running: boolean; phase: string | null; round: number | null; gateLeft: number | null;
 }): RoomStart {
-  const { mode, status, seated, host, isPlayer, running, phase, round, gateLeft } = args;
+  const { mode, status, seated, host, isPlayer, running, phase, round, gateLeft, halfTeam } = args;
   const need = VERSUS_MODE_SEATS[mode].min;
   if (status === 'sealed') {
     return { canStart: false, label: 'Starting', note: isPlayer ? null : `The players are getting ready.${gateLeft != null ? ` ${gateLeft}s left.` : ''}` };
@@ -135,6 +137,7 @@ export function roomStartOf(args: {
     const line = mode === 'group' ? `Needs at least three players. Waiting for ${who}.` : `Waiting for ${who}.`;
     return host ? { canStart: false, label: 'Start', note: line } : { canStart: false, label: `Waiting for ${who}`, note: null, wait: true };
   }
+  if (halfTeam) return host ? { canStart: false, label: 'Start', note: 'Every team needs two players.' } : { canStart: false, label: 'Waiting for a teammate', note: null, wait: true };
   if (!host) return { canStart: false, label: 'Waiting for host', note: null, wait: true };
   return { canStart: true, label: 'Start', note: mode === 'group' && seated < VERSUS_MODE_SEATS.group.max ? 'More players can still sit.' : null };
 }

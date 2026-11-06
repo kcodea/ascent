@@ -161,8 +161,8 @@ export function duosNoteMate(run: RunState = useGame.getState().run): void {
 
 setMateFrameHook(() => duosNoteMate());
 
-/** My teammate's seat (Duos teams: p1 + p2, p3 + p4). */
-const mateOf = (me: VersusGroupSeat): VersusGroupSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as Record<string, VersusGroupSeat>)[me] ?? me;
+/** My teammate's seat (Duos teams: the seat pairs). */
+const mateOf = (me: VersusGroupSeat): VersusGroupSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3', p5: 'p6', p6: 'p5', p7: 'p8', p8: 'p7' } as Record<string, VersusGroupSeat>)[me] ?? me;
 
 const seqFor = (s: DuosSession, idx: number): number => s.seqOf.get(idx) ?? s.base + (idx - s.firstNew);
 const idxFor = (s: DuosSession, seq: number): number | null => {

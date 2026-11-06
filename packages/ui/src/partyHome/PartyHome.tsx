@@ -436,16 +436,14 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           <span className="ph-sub">{'\u00a0'}</span>
           <PhBannerState tone="space" />
         </PhBanner>
-      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={mode.id === 'group' && members.length + i === 3} />);
+      : <OpenSeat key={`open-${i}`} i={members.length + i} onOpen={onOpenSeat} pending={null} optional={(mode.id === 'group' && members.length + i >= 3) || (mode.id === 'vduos' && members.length + i >= 4)} />);
   }
   // VERSUS DUOS: two pairs (your team, the rivals), split by the VS mark.
   const row: JSX.Element[] = mode.id === 'versus' && cards.length === 2
     ? [cards[0]!, <span key="vs" className="ph-vs" aria-hidden="true">VS</span>, cards[1]!]
-    : mode.id === 'vduos' && cards.length === 4
+    : mode.id === 'vduos' && cards.length === 8
     ? [
-        <div key="a" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl mine">Your team</span>{cards.slice(0, 2)}</div></div>,
-        <span key="vs" className="ph-vs" aria-hidden="true">VS</span>,
-        <div key="b" className="ph-pair"><div className="ph-pairrow"><span className="ph-pairlbl rival">Rivals</span>{cards.slice(2)}</div></div>,
+        ...[0, 1, 2, 3].map((t) => <div key={t} className="ph-pair"><div className="ph-pairrow"><span className={`ph-pairlbl ${t === 0 ? 'mine' : 'rival'}`}>{t === 0 ? 'Your team' : `Team ${t + 1}`}</span>{cards.slice(2 * t, 2 * t + 2)}</div></div>),
       ]
     : cards;
 

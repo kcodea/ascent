@@ -43,7 +43,7 @@ import {
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
 import type { SetId } from '@game/content';
-import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
+import { GroupEngine, GSEATS, mateOf, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
 export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
 
@@ -51,6 +51,11 @@ export type Seat = 'p1' | 'p2';
 /** A room role: a player seat (p3 and up only in a Group or Duos room) or the stands. */
 export type Role = GSeat | 'spectator';
 export const SEATS: readonly Seat[] = ['p1', 'p2'];
+/** Every team with anyone seated has both seats filled (R-VERSUS-EIGHT-01). */
+const duosTeamsFull = (members: readonly { role: string }[]): boolean => {
+  const seats = members.filter((m) => m.role !== 'spectator').map((m) => m.role as GSeat);
+  return seats.every((s) => seats.includes(mateOf(s)));
+};
 /** A seat's gate field on the room. */
 const gateKey = (s: GSeat): `${GSeat}_gate` => `${s}_gate`;
 /** Nobody has pressed: every seat's gate down. */
@@ -442,8 +447,7 @@ export class RoomCore {
 
   /** The room's player seats for its mode (`versus__mode_roles`). */
   private modeRoles(mode: unknown = this.state.room.options.mode): readonly GSeat[] {
-    if (mode === 'group') return GSEATS; // up to eight (R-VERSUS-EIGHT-01)
-    return mode === 'duos' ? GSEATS.slice(0, 4) : SEATS; // 1v1 and the Ranked Duos party: two seats
+    return mode === 'group' || mode === 'duos' ? GSEATS : SEATS; // up to eight (R-VERSUS-EIGHT-01); 1v1 and the Ranked Duos party: two seats
   }
 
   /** No open socket for `userId` past the grace. */
@@ -936,6 +940,7 @@ export class RoomCore {
     const seated = r.members.filter((m) => m.role !== 'spectator' && roles.includes(m.role)).length;
     const need = r.options.mode === 'duos' ? 4 : r.options.mode === 'group' ? 3 : 2;
     if (seated < need) fail(need === 4 ? 'need_four_players' : need === 3 ? 'need_three_players' : 'need_two_players');
+    if (r.options.mode === 'duos' && !duosTeamsFull(r.members)) fail('need_full_teams');
     r.status = 'sealed';
     clearGates(r);
     r.gate_deadline = this.now + VERSUS_GATE_SECONDS * 1000;
@@ -962,8 +967,8 @@ export class RoomCore {
     } else if (r.options.mode === 'group' || r.options.mode === 'duos') {
       const gateOf = (s: GSeat): boolean => !!r[gateKey(s)];
       const seated = r.members.filter((m) => m.role !== 'spectator') as (CoreMember & { role: GSeat })[];
-      // Duos needs all four seats (a seat emptied while sealed cannot start a 2v2).
-      const enough = r.options.mode === 'duos' ? seated.length === 4 : seated.length >= 3;
+      // Duos needs two or more FULL teams (a seat emptied while sealed cannot start a team a player short).
+      const enough = r.options.mode === 'duos' ? seated.length >= 4 && duosTeamsFull(r.members) : seated.length >= 3;
       if (enough && seated.every((m) => gateOf(m.role))) this.createGroupMatch(seated);
     } else if (r.p1_gate && r.p2_gate) this.createMatch();
     this.touchRoom();
@@ -1066,6 +1071,14 @@ export class RoomCore {
     // RANKED DUOS, OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): the three recorded teams are seated
     // FIRST (the shell asks for the team, then the table), and the party's heroes are dealt around them.
     const ranked = r.options.mode === 'ranked_duos';
+    // Duos with a gap (teams 1 and 3 seated): the teams close up in seat order, so a match's teams are always a, b, ...
+    if (r.options.mode === 'duos') {
+      const letters = [...new Set(seated.map((m) => teamOf(m.role)))].sort();
+      for (const m of seated) {
+        const [x, y] = teamSeats((['a', 'b', 'c', 'd'] as const)[letters.indexOf(teamOf(m.role))]!);
+        m.role = teamSeats(teamOf(m.role))[0] === m.role ? x : y;
+      }
+    }
     this.state.group = newGroupState(this.groupHost(), r, seated.map((m) => ({ seat: m.role, userId: m.userId, name: m.displayName })), { deferOffers: ranked });
     if (ranked) {
       this.state.group.ranked = rankedExtra(this.now);

@@ -693,22 +693,25 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    over the art), stacked against the top-left edge. The seat is only the visible tab and the hit area, so an open slice
    never blocks the board under it. The slice is its full width, parked to the left with its art end showing; opening it
    slides it out on `transform`, one-shot, and the rows hold their place. */
-.vsspec.vswatch, .vsspec.vsself { left: var(--edge-l, 0px); flex-direction: column; align-items: flex-start; }
-.vswatch .vsspec-seats, .vsself .vsspec-seats { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: calc(4 * var(--u)); width: calc(72 * var(--u)); }
+.vsspec.vswatch, .vsspec.vsself { left: calc(var(--edge-l, 0px) + 8 * var(--u)); flex-direction: column; align-items: flex-start; }
+.vswatch .vsspec-seats, .vsself .vsspec-seats { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: calc(4 * var(--u)); width: calc(112 * var(--u)); }
 .vswatch .vswatch-more, .vsself .vswatch-more { overflow: visible; font-size: calc(15 * var(--u)); margin-left: calc(8 * var(--u)); pointer-events: auto; }
 .vsself .vsspec-leave { margin-left: calc(8 * var(--u)); }
-.vswatch-seat { --park: calc(178 * var(--u)); position: relative; display: block; width: calc(72 * var(--u)); height: calc(56 * var(--u)); filter: drop-shadow(0 calc(2 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.75)); }
+.vswatch-seat { --park: calc(138 * var(--u)); position: relative; display: block; width: calc(112 * var(--u)); height: calc(58 * var(--u)); filter: drop-shadow(0 calc(2 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.75)); }
 .vswatch-seat:hover { transform: none; }
-.vsslice { position: absolute; top: 0; right: 0; width: calc(250 * var(--u)); height: 100%; overflow: hidden; pointer-events: none; background: var(--ui-plate);
+.vsslice { position: absolute; top: 0; right: 0; width: calc(250 * var(--u)); height: 100%; overflow: hidden; pointer-events: none; border-radius: calc(3 * var(--u)); background: var(--pill-plate);
   clip-path: inset(0 0 0 var(--park)); transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), clip-path 0.18s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .vsslice::after { content: ""; position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, transparent 50%, rgba(6, 3, 8, 0.75) 100%);
-  box-shadow: inset 0 0 0 calc(3 * var(--u)) var(--ui-edge-main); }
-.vsslice-art { position: absolute; top: 0; right: 0; width: calc(120 * var(--u)); height: 100%; object-fit: cover; object-position: 50% 21%;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 40%); mask-image: linear-gradient(90deg, transparent 0%, #000 40%); }
-.vsslice-initial { position: absolute; top: 0; bottom: 0; right: 0; width: calc(72 * var(--u)); display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 calc(3 * var(--u)) var(--ui-edge-main); border-radius: inherit; }
+/* Parked, the slice's own left edge is out of sight: this is the tab's. */
+.vswatch-seat::before { content: ""; position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: calc(3 * var(--u)); background: var(--ui-edge-main); border-radius: calc(3 * var(--u)) 0 0 calc(3 * var(--u)); transition: opacity 0.14s ease; }
+.vswatch-seat.awake::before, .vswatch-seat:hover::before, .vswatch-seat:focus-visible::before { opacity: 0; }
+.vsslice-art { position: absolute; top: 0; right: 0; width: 53%; height: 100%; object-fit: cover; object-position: 0% 21%; transform: scale(1.16); transform-origin: 0% 21%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 46%); mask-image: linear-gradient(90deg, transparent 0%, #000 46%); }
+.vsslice-initial { position: absolute; top: 0; bottom: 0; right: 0; width: calc(90 * var(--u)); display: flex; align-items: center; justify-content: center;
   font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(26 * var(--u)); color: var(--pill-text); }
 .vsslice .vsspec-name { background: none; border: 0; box-shadow: none; padding: 0; position: absolute; z-index: 3; right: calc(9 * var(--u)); bottom: calc(5 * var(--u)); max-width: calc(150 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1.12; letter-spacing: 0.02em; color: var(--pill-text); text-shadow: var(--pill-text-shadow);
+  font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1.12; letter-spacing: 0.02em; color: var(--pill-text); text-shadow: var(--pill-text-shadow);
   opacity: 0; transition: opacity 0.14s ease; }
 .vsslice .vswatch-tag { position: absolute; z-index: 3; left: calc(12 * var(--u)); top: 50%; translate: 0 -50%; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.04em; color: var(--ui-title, #ffd98a); }
 .vswatch-seat.awake, .vswatch-seat:hover, .vswatch-seat:focus-visible { z-index: 3; opacity: 1; }

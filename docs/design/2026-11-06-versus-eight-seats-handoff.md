@@ -64,8 +64,8 @@ Docs and rules on the branch: `R-VERSUS-EIGHT-01` in `foundation.ts`, `docs/GAME
 ## Traps
 
 - **`duosFirst` names fight SIDES, not teams.** `first.a` is side a's seat, whichever team that is. Anything reading
-  `first[team]` or assuming a seat of team c is on side b is wrong. `duosActiveSeat` had this bug and the unit tests only caught
-  it because `versusDuosTeamsView.test.ts` covers a team d viewer.
+  `first[team]` or assuming a seat of team c is on side b is wrong. `duosActiveSeat` had this bug. I found it by reading the code, and
+  `versusDuosTeamsView.test.ts` now covers it.
 - **The rail must find a seat's OWN fight.** A copied team appears in two fights, so "the fight it appears in" is not enough.
   Use `team(a) === t || (team(b) === t && !copy)`.
 - **`settle_progression` has `v_g_place between 1 and 4`.** XP silently drops any place past 4th.

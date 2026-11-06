@@ -5,7 +5,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 ## heroPowerLane (1)
 
-- **q-policy-passive-hero-powers** — 24 hero powers do nothing when pressed — confirm they are passive/scheduled by design
+- **q-policy-passive-hero-powers** — 25 hero powers do nothing when pressed — confirm they are passive/scheduled by design
 
 ## playDifferential.refused (1)
 
@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (122) — NOT owner questions
+## Doc Bot verification backlog (123) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -34,6 +34,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod ancientSpellCastExtra — ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's extra combat casts (`spellCastRepsFor`, Runebloom Matriarch's channel) at the start of the fight.
 - combat mod ancientSpellEdges — ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3." Every combat spell cast (`ctx.castSpell`, once per repetition) buffs the side's left-most and right-most LIVING minions (once when they are the same body). A combat buff: it lasts the fight. Player-only.
 - combat mod ancientReclaim — ANCIENTS × Soren (owner pairings 2026-10-02). Reclaim's Start-of-Combat destroy + resummon, reshaped: `echoExtra` (Death): the Echo the Reclaim destroy triggers fires this many more times (one more `playerEchoExtras` fire for that body only, so every Echo watcher and the Echo tally hear each fire). `copies` (Time): the Reclaimed body is resummoned this many times in all (each waits for room; only the first carries the run card's `sourceUid`). `gain` (War): each returned copy gains +gain/+gain, a combat buff (Engraved keeps it, like every combat gain). `bonds` (Bonds): when a returned copy lands, its living neighbours gain Attack equal to its Attack, a combat buff. Player-only; never snapshotted.
+- combat mod duosPepTalk — PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04): "When you trigger a Shout, give your teammate's left-most minion +2/+3." Armed on the HOLDER's side. In a tag-team fight, while the holder's board is fighting and its teammate's board is still the waiting RESERVE, every Shout fire on that side gives the reserve's left-most minion `attack`/`health`, combat-only, so it steps in already buffed (owner: "if you go second, they have the buff").
 - combat mod flashCopies — Rune of the Wishbone on Flash: how many copies the claim grants (2 while armed, else 1).
 - combat mod bloodTrail (Blood Trail: "") — Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight.
 - combat mod lawOfTeeth (Law of Teeth: "") — Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time.

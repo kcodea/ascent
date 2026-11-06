@@ -65,6 +65,8 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   // Duos runes (2026-10-30, R-DUOS-RUNES-03): the Megamimic's "Start of Combat: transform into ..." is a passive marker that
   // `simulate` applies to the board before it is instantiated (core megamimic.ts), not a `startOfCombat` factory.
   duo_megamimic: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: "Megamimic's \"Start of Combat: transform into an exact copy of your teammate's highest Health minion\" is the passive `megamimicCopy` marker read by `simulate` (core/combat/megamimic.ts) before the board is instantiated; there is no startOfCombat factory to match" },
+  // Owner balance 2026-11-06: same shape as Zapdash. Geode's Gilded keeps its 2 Golems and doubles the Rubies on each (2 -> 4).
+  k_geode: { taxonomy: 'wrong-gilded-amount', kind: 'draft-contract-gap', why: "Geode Guardian's Gilded text keeps 2 Gemheart Golems and casts 4 Rubies on each, not 2 (owner 2026-11-06). The engine agrees (`deathrattleSummonGolemsWithRuby`: `rubies` x golden, `count` unscaled, arena.ts). The extracted x2 gild is true of the Rubies; the comparator applies it to the summon count, the one number the parser pairs, so it expects 4 Golems" },
   k3_zapdash: { taxonomy: 'wrong-gilded-amount', kind: 'draft-contract-gap', why: "Zapdash's Gilded text keeps ONE Gemheart Golem and doubles the Rubies (owner 2026-10-27, Geode Guardian's convention; `dealtDamageSummonToken` with a `rubies` rider, simulate.ts noteDamageDealt); the extracted contract reads the marker's Todd gild (x2 bodies) and does not know the rider" },
 };
 

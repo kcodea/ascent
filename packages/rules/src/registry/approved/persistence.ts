@@ -987,7 +987,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
     statement:
       'A minion that Rises in combat is a fresh copy (R-RISE-06), so it returns with NO Rubies played on it: neither the '
       + 'Shop Rubies of the original nor the Rubies played on the original earlier that fight count as "this minion\'s '
-      + 'Rubies" for the risen copy. A Risen Gem Carver summons plain 1/1 Golems (2/2 Gilded); Ruby Shrapnel, Rune of the '
+      + 'Rubies" for the risen copy. A Risen Gem Carver summons a plain 1/1 Golem (two when Gilded); Ruby Shrapnel, Rune of the '
       + 'Gem Golem and Porkbelly read the same zero. Rubies played on the risen copy after it returns count as usual. The '
       + 'Shop card keeps its Rubies (R-RISE-06). Rune of the Gem Crypt is the exception: its kept Rubies are still the '
       + 'Rubies of the risen copy (R-SET3RUNE-31). The same fresh-copy rule empties a risen Ashen Heir\'s bank of Imp '

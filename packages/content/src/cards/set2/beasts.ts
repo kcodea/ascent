@@ -151,6 +151,7 @@ export const SET2_BEASTS: CardDef[] = [
     // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both
     // neighbours' Shouts fire again (golden fires each twice) — exactly the shared primitive.
     // Owner balance 2026-10-10: back to BOTH neighbours (the `one: true` single seeded pick is gone); gilded = twice.
+    // Owner balance 2026-11-06: ONE adjacent Shout again (`one: true`, a seeded pick); gilded = both neighbours, once each.
     id: 'b2_dawnclaw',
     name: 'Dawnclaw',
     tribe: 'beast',
@@ -160,9 +161,9 @@ export const SET2_BEASTS: CardDef[] = [
     // Taunt (owner 2026-07-25): it has to be attacked INTO for its Echo to pay, so guarding the line is what
     // makes the card do its own job.
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }],
-    text: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts**.",
-    goldenText: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts** **twice**.",
+    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } }],
+    text: "**Taunt. Echo:** trigger an adjacent minion's **Shout**.",
+    goldenText: "**Taunt. Echo:** trigger **both** adjacent minions' **Shouts**.",
   },
   {
     // A go-wide Rally payoff: the more Beasts you field, the harder it hits. Buffs ITSELF (not the board) so
@@ -206,9 +207,10 @@ export const SET2_BEASTS: CardDef[] = [
     // Owner 2026-10-07: "When you summon a Beast, give it +1/+1 and improve this." +1/+1 per Beast summoned (every 1).
     // The owner text names no Ward, so Ward is DROPPED (was keywords ['DS']).
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 1, health: 1, improve: 1, every: 1 } }],
-    text: 'When you summon a **Beast**, give it **+1/+1** and improve this.',
-    goldenText: 'When you summon a **Beast**, give it **+2/+2** and improve this.',
+    // Owner balance 2026-11-06: base grant +1/+1 -> +2/+1; the improve step stays +1/+1 per Beast.
+    effects: [{ on: 'onSummon', do: 'onSummonTribeBuffFlat', params: { tribe: 'beast', attack: 2, health: 1, improve: 1, every: 1 } }],
+    text: 'When you summon a **Beast**, give it **+2/+1** and improve this.',
+    goldenText: 'When you summon a **Beast**, give it **+4/+2** and improve this.',
   },
   {
     // Owner add 2026-08-12 (was: the next Beast summoned gets +2/+4). Owner batch 2026-09-24: "Taunt. Echo: Give a

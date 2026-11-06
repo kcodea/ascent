@@ -34,17 +34,17 @@ describe('Reflector shares one re-cast per turn between Spells and Rubies', () =
     s = castCrest(s);
     const reflector = find(s, 'b27');
     expect([reflector.spellsOnThisTurn, reflector.rubiesOnThisTurn]).toEqual([1, 2]);
-    // Crest's +4 Health landed on the Reflector only — no friendly grew again after the first Ruby's spread.
-    expect(reflector.health).toBe(CARD_INDEX.n2_reflector!.health + 2 + 4); // two Rubies' Health + Crest
+    // Crest's +5 Health landed on the Reflector only — no friendly grew again after the first Ruby's spread.
+    expect(reflector.health).toBe(CARD_INDEX.n2_reflector!.health + 2 + 5); // two Rubies' Health + Crest
     expect(find(s, 'b4').health).toBe(afterFirstRuby.b4);
     expect(find(s, 'b28').health).toBe(afterFirstRuby.b28);
   });
 
-  it('Crest first on a fresh Reflector DOES reflect — exactly one other friendly gains +4 Health', () => {
+  it('Crest first on a fresh Reflector DOES reflect — exactly one other friendly gains +5 Health', () => {
     const s = castCrest(base());
-    const grew = ['b4', 'b28'].filter((u) => find(s, u).health === CARD_INDEX.k_chipwick!.health + 4);
+    const grew = ['b4', 'b28'].filter((u) => find(s, u).health === CARD_INDEX.k_chipwick!.health + 5);
     expect(grew.length, 'one random friendly took the re-cast').toBe(1);
-    expect(find(s, 'b27').health).toBe(CARD_INDEX.n2_reflector!.health + 4);
+    expect(find(s, 'b27').health).toBe(CARD_INDEX.n2_reflector!.health + 5);
     expect(find(s, 'b27').spellsOnThisTurn).toBe(1);
   });
 });

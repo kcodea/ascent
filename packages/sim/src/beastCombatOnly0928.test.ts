@@ -44,9 +44,9 @@ const settleOnto = (board: BoardCard[], r: CombatResult, over: Partial<RunState>
 // ── the new texts ────────────────────────────────────────────────────────────────────────────────────────
 describe('R-AURA-03 texts: "Give all Friendly and summoned Beasts +X/+Y" replaces the Beast Aura', () => {
   const TEXT: Record<string, [string, string | undefined]> = {
-    // Owner balance 2026-10-10: +2 Attack, Avenge (3) (was +1, Avenge (4)).
-    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (3):** Improve this.',
-      '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (3):** Improve this (twice as much).'],
+    // Owner balance 2026-10-10: +2 Attack, Avenge (3) (was +1, Avenge (4)). Owner balance 2026-11-06: Avenge (4) again.
+    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this.',
+      '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (4):** Improve this (twice as much).'],
     grim: ['**Echo:** Give all Friendly and summoned Beasts **+8/+8**.', '**Echo:** Give all Friendly and summoned Beasts **+16/+16**.'],
     b2_armadiyo: ['**Taunt. Echo:** Give all Friendly and summoned Beasts **+2/+4**.', '**Taunt. Echo:** Give all Friendly and summoned Beasts **+4/+8**.'],
     trophystalker: ['**Rally:** Give all Friendly and summoned Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],

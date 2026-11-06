@@ -4612,6 +4612,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (payload.minion === self) return; // excludes self — a support body, not a self-ramp
     ARENA_EFFECTS.onFriendlyAttackBuffTribe(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
   },
+  onFriendlyAttackPlayRubies: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onFriendlyAttackPlayRubies(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
   onAttackStripKeywords: (ctx, self, params, payload) => {
     if (payload.minion !== self) return;
     ARENA_EFFECTS.onAttackStripKeywords(shopArena(ctx.state, self), params); // no defender here — inert
@@ -5699,10 +5702,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   goldSpentBuffTribeAttack: (ctx, self, params) => {
     const tribe = str(params.tribe);
     const a = num(params.attack, 1) * gold(self);
-    if (a <= 0) return;
+    const h = num(params.health, 0) * gold(self); // Coinfire, owner 2026-11-06
+    if (a <= 0 && h <= 0) return;
     for (const c of ctx.state.board) {
       if (tribe && !isTribe(c, tribe as never)) continue;
-      addBuff(c, nameOf(self), a, 0);
+      addBuff(c, nameOf(self), a, h);
     }
   },
 
@@ -6272,20 +6276,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Ryme / Dawnclaw (Echo): re-fire both neighbours' Shouts. In the shop every Shout is simply its recruit
    *  factory, so this needs no combat/economy split — `replayBattlecry` is the same path the Myra hero power
    *  and the face-Omen re-fire already use. */
-  deathrattleReplayAdjacentBattlecry: (ctx, self) => {
+  deathrattleReplayAdjacentBattlecry: (ctx, self, params) => {
     const board = ctx.state.board;
     const i = board.findIndex((c) => c.uid === self.uid);
     if (i < 0) return;
-    const reps = gold(self) ; // golden triggers each neighbour twice
+    // `one` (Dawnclaw, owner 2026-11-06): ONE seeded neighbour, and Gilded widens that to both once each. The combat
+    // factory's branch, mirrored. No `one` (Ryme): both neighbours, Gilded twice each.
+    const one = !!params.one;
+    const reps = one ? 1 : gold(self);
     // Left neighbour first, then right; a gilded fire's two triggers of one neighbour stay together (L, L, R, R),
     // the combat factory's order. Each fire is its OWN beat with a tendril (R-SHRIEKER-BEATS-01, owner 2026-10-10).
-    const fires: BoardCard[] = [];
-    for (const nb of [board[i - 1], board[i + 1]]) {
-      if (!nb) continue;
-      const def = CARD_INDEX[nb.cardId];
-      if (!def || !hasBattlecry(def)) continue;
-      for (let r = 0; r < reps; r++) fires.push(nb);
+    let neighbours = [board[i - 1], board[i + 1]].filter((nb): nb is BoardCard => {
+      const def = nb ? CARD_INDEX[nb.cardId] : undefined;
+      return !!def && hasBattlecry(def);
+    });
+    if (one && !self.golden && neighbours.length > 1) {
+      const rng = makeRng(ctx.state.rngCursor);
+      neighbours = [neighbours[rng.int(neighbours.length)]!];
+      ctx.state.rngCursor = rng.state();
     }
+    const fires: BoardCard[] = [];
+    for (const nb of neighbours) for (let r = 0; r < reps; r++) fires.push(nb);
     replayShoutsAsChain(ctx, self, 'factory:deathrattleReplayAdjacentBattlecry:onDeath', 'onDeath', fires);
   },
 
@@ -10293,6 +10304,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The next normal roll restocks minions, so it's a one-shot. Untargeted. */
   spellRefreshToSpells: (ctx) => {
     rollSpellShop(ctx.state);
+    // Owner balance 2026-11-06: the first spell bought from this row costs 1 less. The buy path spends the mark.
+    for (const o of ctx.state.shop) if (CARD_INDEX[o.cardId]?.spell) o.cartCut = true;
     applyShopRefreshed(ctx.state); // "Refresh the tavern": the same refresh tail as every refresh (see Sigil of Kinship)
   },
 
@@ -12071,15 +12084,15 @@ export function fireDemonPlayRunes(state: RunState, minion: BoardCard): void {
  *  the card is removed from the board/hand; its effects act via the shared recruit context. */
 export function fireOnSell(state: RunState, card: BoardCard): void {
   // RUNE OF THE BALLER: each sale pumps your whole board, ALTERNATING stat, and the magnitude climbs every
-  // SECOND sale (owner rework 2026-08-19) — +1 Atk, +1 Hp, +2 Atk, +2 Hp, … so each size is paid on both axes
-  // before the step rises. The tally lives on the rune (not the card) so it survives the body leaving the
+  // THIRD sale (owner rework 2026-08-19; owner balance 2026-11-06, was every second) — +1 Atk, +1 Hp, +1 Atk, +2 Hp, ….
+  // The tally lives on the rune (not the card) so it survives the body leaving the
   // board, which is the whole point of a sell payoff.
   const baller = state.runeBaller;
   if (baller) {
     procRuneId(state, 'rune_baller');
     baller.sales += 1;
     // The current step lands once per copy held (recurring family, owner 2026-08-27); ONE shared sales meter.
-    const amount = baller.step * Math.ceil(baller.sales / 2) * runeStacksOf(state, 'rune_baller');
+    const amount = baller.step * Math.ceil(baller.sales / 3) * runeStacksOf(state, 'rune_baller');
     const toAttack = baller.sales % 2 === 1; // odd sale -> Attack, even -> Health
     captureBuffFx(state, undefined, 'spell', () => {
       for (const c of state.board) addBuff(c, 'Baller', toAttack ? amount : 0, toAttack ? 0 : amount);
@@ -14245,7 +14258,7 @@ export function fireShopSpellCastRunes(state: RunState): void {
       ? [state.board[0]!]
       : [state.board[0]!, state.board[state.board.length - 1]!];
     const kd = runeStacksOf(state, 'rune_kindling'); // fires once per copy held (recurring family, owner 2026-08-27)
-    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Kindling', 4 * kd, 6 * kd); });
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Kindling', 3 * kd, 4 * kd); });
   }
   // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
   if (state.runeFlagship) {
@@ -15164,7 +15177,7 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   if (f?.runeDawnclaw) out.push({ id: 'rune_dawnclaw', kind: 'rune', label: 'Dawnclaw', fire: (st) => {
     const ctx = makeContext(st);
     for (const m of [...st.board]) {
-      if (m.cardId === 'b2_dawnclaw') fireRecruitDeathrattles(ctx, m, [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }]);
+      if (m.cardId === 'b2_dawnclaw') fireRecruitDeathrattles(ctx, m, [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } }]);
     }
   } });
   // Rune of Sylus: your Sylus double their own Health. SEVERE COMPOUNDING (exponential per turn).

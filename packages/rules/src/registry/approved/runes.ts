@@ -1041,7 +1041,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
     ],
     contentIds: ['rune_rubywire', 'rune_living_magic', 'rune_recurrence', 'rune_astral_draft', 'rune_refrain', 'rune_hunting_bell', 'rune_sylus', 'rune_pair', 'rune_quick_release', 'rune_grave_refreshment', 'rune_golden_splinter', 'rune_deep_feast'],
-    cardText: 'Pair: Get **2 random Tier 4 minions**. (One of the ten cut from Set 3.)',
+    cardText: 'Pair: Get a random **Tier 5** minion and a random **Tier 4** minion. (One of the ten cut from Set 3.)',
     currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
     enforcement: {
       kind: 'scenario',

@@ -479,9 +479,9 @@ describe('grammar families (2026-09-11) — sabotage: each new comparator convic
     expect(taxonomiesOf(withPlain(one('b2_beardsley'), (p) => { p.attack = 4; }))).toContain('wrong-amount');
   });
 
-  it('wrong-target-count (Billings: "give 2 random friendly Dwarves")', () => {
+  it('wrong-target-count (Billings: "give 3 random friendly Dwarves")', () => {
     expect(taxonomiesOf(one('dw_billings'))).toEqual([]);
-    expect(taxonomiesOf(withPlain(one('dw_billings'), (p) => { p.count = 3; }))).toContain('wrong-target-count');
+    expect(taxonomiesOf(withPlain(one('dw_billings'), (p) => { p.count = 2; }))).toContain('wrong-target-count');
   });
 
   it('improvement step and countdown (Beardsley, pre-2026-10-07 text: "Improves +3/+3 every 3 Beasts summoned")', () => {
@@ -585,7 +585,7 @@ describe('the Aura vocabulary — LG-SCOPE-01', () => {
   it('the rewritten cards kept their exact magnitudes (wording only — zero mechanical change)', () => {
     // The 2026-08-28 rebrand carriers, with the numbers they printed before it.
     const magnitudes: Record<string, number[]> = {
-      kennel: [2, 3] /* owner balance 2026-10-10: +2 Attack, Avenge (3) (a balance change, not the rebrand) */, grim: [8, 8] /* owner ruling 2026-09-28 (R-AURA-03): flat "+8/+8 this combat", replacing the 2026-09-24 per-Echo tally */, trophystalker: [5, 5, 5, 5],
+      kennel: [2, 4] /* owner balance 2026-10-10: +2 Attack; 2026-11-06: Avenge (4) (balance changes, not the rebrand) */, grim: [8, 8] /* owner ruling 2026-09-28 (R-AURA-03): flat "+8/+8 this combat", replacing the 2026-09-24 per-Echo tally */, trophystalker: [5, 5, 5, 5],
       deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [5], // Lantern +3 → +5 on 2026-09-14 (owner buff, not the rebrand)
       scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
       rune_summoning: [3, 3] /* owner balance 2026-10-07: +2/+2 → +3/+3 (a buff, not the rebrand) */, rune_cinder_ledger: [3, 6, 6],

@@ -45,7 +45,7 @@ describe('set 2 — Fel Spikes echo attributes damage to a friendly Demon (the s
     const twoWalls = withWalls(2);
     // The reactor gains from the echo — more than zero, and MORE landed targets means MORE procs.
     expect(oneWall.length, 'the Axeman reacted to the echo').toBeGreaterThan(0);
-    expect(oneWall.every((b) => b.attack === 3 && b.health === 3), 'each Axeman proc is +3/+3').toBe(true);
+    expect(oneWall.every((b) => b.attack === 3 && b.health === 2), 'each Axeman proc is +3/+2').toBe(true);
     expect(twoWalls.length, 'an extra friendly non-Demon target adds a proc').toBeGreaterThan(oneWall.length);
   });
 

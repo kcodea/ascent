@@ -5423,8 +5423,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'inside that minion\'s one beat. A Shout that changes nothing plays no beat. Each beat is about 480 ms, so six '
       + 'Shouts read in under 3 seconds. The same holds for Dawnclaw\'s Echo (and Ryme\'s, the same effect) and High '
       + 'King Mykel: each Shout they trigger is its own beat, left neighbour first, with the trigger-er\'s tribe tendril '
-      + '(beast for Dawnclaw, dwarf for Mykel). A gilded Dawnclaw fires each neighbour twice in a row (L, L, R, R), the '
-      + 'engine order in both phases. In the Shop this plays one fire per slot from the `shoutLinkFx` records; in '
+      + '(beast for Dawnclaw, dwarf for Mykel). A plain Dawnclaw fires one neighbour, a gilded Dawnclaw fires both once (L, R), and a gilded Ryme fires each neighbour '
+      + 'twice in a row (L, L, R, R), the engine order in both phases. In the Shop this plays one fire per slot from the `shoutLinkFx` records; in '
       + 'combat each fire is already its own moment and the tendril plays on it. Presentation only: no outcome or '
       + 'order changes.',
     domain: 'foundation',
@@ -9243,6 +9243,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Fixed 2026-11-05 (fix/duos-hand-row-own-cards). Before, the row drew every team `toHand`, then the teammate\x27s cards vanished at settle.',
     example: 'Ann fights first and earns a Ruby; Bob steps in and earns a Staff. During the fight Ann\x27s hand row shows the Ruby only and Bob\x27s shows the Staff only.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
+  {
+    id: 'R-BALANCE-1106-01',
+    title: 'The 2026-11-06 balance pass: Portsmith, Spell Cart, Dawnclaw and the Golem makers',
+    statement:
+      'Portsmith casts a permanent Ruby on every friendly Kobold that attacks, its own attacks included (2 Gilded). '
+      + 'Spell Cart marks the spells it fills the Shop with, the first one bought costs 1 less, and that buy clears the mark from the rest of the row. '
+      + 'A refresh replaces the offers and the mark with them. The right-hand spell slot is never marked. '
+      + 'Dawnclaw triggers one adjacent Shout, a seeded pick, in the Shop and in combat. Gilded triggers both neighbours once each. '
+      + 'Gem Carver summons one Golem with its Rubies, and Gilded adds a second plain Golem rather than doubling the Golem. '
+      + 'Geode Guardian summons two Taunt Golems with 2 Rubies on each (4 Gilded), and its own Rubies do not carry over.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance pass 2026-11-06', quote: 'spell cart -> first spell bought costs 1 less from the spell cart' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts (onFriendlyAttackPlayRubies, deathrattleSummonRubyStats goldenGolems); packages/sim/src/recruit.ts (spellRefreshToSpells, deathrattleReplayAdjacentBattlecry); packages/sim/src/reducer.ts (cartCut)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-06 (feat/balance-pass-1106).',
+    example: 'A Spell Cart row of three 3 Gold spells: the first buy costs 2 Gold and the next costs 3.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/balance1106.test.ts'], lastVerifiedAt: '2026-11-06' },
   },
   {
     id: 'R-VERSUS-WORKER-RULES-01',

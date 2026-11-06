@@ -56,6 +56,70 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-06',
+    label: 'Balance Pass',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Minion balance: Portsmith is reworked, and 17 other minions changed.',
+        details: [
+          'Portsmith: Ward. When a Kobold attacks, cast a permanent Ruby on it. Gilded casts 2.',
+          'Geode Guardian: now 2/2. Echo: Summon 2 Gemheart Golems with Taunt and cast 2 Rubies on each.',
+          'Gem Carver: now summons 1 Golem. Gilded summons 2.',
+          'Dawnclaw: Echo now triggers one adjacent Shout. Gilded triggers both.',
+          'Coinfire: now gives +2/+1 for every 6 Gold spent.',
+          'Billings: now gives 3 Dwarves +6/+6 for every 10 Gold spent.',
+          'Warhorn Captain: now gives +3/+2.',
+          'Gangplank: now gives +2/+2.',
+          'Blazer: now 3/4.',
+          'Ember Whelp: now gains +2/+2.',
+          'Kennelmaster: now Avenge (4).',
+          'Demon Horse: now gives +2/+3.',
+          'Humphry: now gives +3/+3, plus +3/+3 for every other Dragon played this turn.',
+          'Roomworks: now Tier 4.',
+          'Axeman: now gains +3/+2.',
+          'Beardsley: now gives +2/+1 before improving.',
+          'Grobbus: now gets 1 Demon.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Spell balance: Crest of the Climb and Spell Cart are stronger.',
+        details: [
+          'Crest of the Climb: now gives +5 Attack or +5 Health.',
+          'Spell Cart: the first spell you buy from it costs 1 less.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Hero balance: five heroes gain Armor.',
+        details: [
+          'Ayse: 15 Armor.',
+          'Runesmith: 9 Armor.',
+          'Gambler: 9 Armor.',
+          'Frantic Frank: 10 Armor.',
+          'Robin: 5 Armor.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune balance: ten runes changed.',
+        details: [
+          'Unbroken Vein: now repeats every 2 turns.',
+          'Baller: now improves every 3 sales.',
+          'Kindling: now gives +3/+4.',
+          'Pair: now gets a random Tier 5 and a random Tier 4 minion.',
+          'Lasting Cadence: now costs 6 Gold.',
+          'Gem Golem: now costs 5 Gold.',
+          'War Drum: now costs 4 Gold.',
+          'First Round: now costs 3 Gold.',
+          'Resonance: now costs 2 Gold.',
+          'Bucky: now costs 2 Gold.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-05',
     changes: [
       {

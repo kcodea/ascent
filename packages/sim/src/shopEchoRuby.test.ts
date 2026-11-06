@@ -13,19 +13,22 @@ import { reduce } from './reducer';
 const borrowed = (uid: string, cardId: string): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]!.tribe, attack: 1, health: 2, keywords: [], golden: false, borrowed: true } as never);
 
-/** A borrowed Geode carrying +2/+2 of Rubies — its Echo Golem (owner Ruby batch 2026-09-24) carries them. */
+/** A borrowed Geode carrying +4/+4 of Rubies. Its Golems do NOT carry them (owner balance 2026-11-06): each takes 2
+ *  fresh Rubies instead, and the sizes differ so a carried Golem cannot pass for a fresh one. */
 const rubiedGeode = (): BoardCard =>
-  ({ ...borrowed('g', 'k_geode'), attack: 6, health: 5, buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] } as never);
+  ({ ...borrowed('g', 'k_geode'), attack: 6, health: 6, buffs: [{ source: 'Ruby', attack: 4, health: 4, count: 4 }] } as never);
 
 describe('Geode Guardian borrowed from Funeral on Loan', () => {
-  it("summons ONE Taunted Golem carrying this minion's Rubies (owner Ruby batch 2026-09-24)", () => {
+  it('summons TWO Taunted Golems with 2 fresh Rubies each, leaving its own behind (owner balance 2026-11-06)', () => {
     const s: RunState = { ...createRun(4), board: [], hand: [rubiedGeode()], embers: 20 };
     const after = reduce(reduce(s, { type: 'play', uid: 'g' }), { type: 'resolveShopDeath' });
     expect(after.board.some((c) => c.uid === 'g'), 'the borrowed body is destroyed on play').toBe(false);
     const golems = after.board.filter((c) => c.cardId === 'gemheart-shard');
-    expect(golems.length, 'the Echo summons one Golem').toBe(1);
-    expect(golems[0]!.keywords, 'the Golem has Taunt').toContain('T');
-    expect([golems[0]!.attack, golems[0]!.health], "1/1 + the Geode's +2/+2 of Rubies").toEqual([3, 3]);
+    expect(golems.length, 'the Echo summons two Golems').toBe(2);
+    for (const g of golems) {
+      expect(g.keywords, 'the Golem has Taunt').toContain('T');
+      expect([g.attack, g.health], "1/1 + 2 Rubies, none of the Geode's").toEqual([3, 3]);
+    }
   });
 
   it('fires the Ruby-LANDED cue, so the animation plays', () => {

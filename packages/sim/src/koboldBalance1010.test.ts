@@ -177,13 +177,28 @@ describe('Crownvein, Scrapper, Portsmith, Kobe, Cavern Fiend', () => {
   it('Scrapper Echo is +1 Attack (owner balance 2026-10-24, was +1/+1)', () => {
     expect(CARD_INDEX['k_faultline']!.effects[0]!.params).toMatchObject({ attack: 1, health: 0 });
   });
-  it('Portsmith Avenge (3): +1/+1 and 2 Kobolds, keeps Ward', () => {
+  // Owner rework 2026-11-06: the Avenge pair is gone. Every friendly Kobold attack takes a permanent Ruby.
+  it('Portsmith: a Kobold attack casts a permanent Ruby on the attacker, keeps Ward', () => {
     const d = CARD_INDEX['k_portsmith']!;
     expect(d.keywords).toContain('DS');
     expect(d.effects.map((e) => [e.on, e.do, e.params])).toEqual([
-      ['avenge', 'avengeRubyStatGain', { count: 3, attack: 1, health: 1 }],
-      ['avenge', 'avengeGrantRandomTribeMinion', { count: 3, tribe: 'kobold', grant: 2 }],
+      ['onAttack', 'onFriendlyAttackPlayRubies', { tribe: 'kobold', count: 1 }],
     ]);
+  });
+  it.each([[false, 1], [true, 2]] as const)('Portsmith (golden=%s): each Kobold swing, its own included, takes %i permanent Rubies; a non-Kobold takes none', (golden, n) => {
+    const r = simulate([
+      { cardId: 'k_portsmith', attack: 1, health: 900, sourceUid: 'P', golden } as BoardMinion,
+      { cardId: 'k_beggy', attack: 1, health: 900, sourceUid: 'K' } as BoardMinion,
+      { cardId: 'stray', attack: 1, health: 900, sourceUid: 'B' } as BoardMinion,
+    ], [{ cardId: 'sandbag', attack: 0, health: 60 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const swings = (i: number) => r.events.filter((e) => e.type === 'attack' && e.attacker === `m${i}`).length;
+    const perma = (uid: string) => (r.playerPermaBuffs ?? []).filter((p) => p.sourceUid === uid && p.ruby).reduce((c, p) => c + p.attack, 0);
+    expect(swings(0), 'Portsmith swung').toBeGreaterThan(0);
+    expect(swings(1), 'the other Kobold swung').toBeGreaterThan(0);
+    expect(swings(2), 'the non-Kobold swung').toBeGreaterThan(0);
+    expect(perma('P'), 'its own swing counts').toBe(swings(0) * n);
+    expect(perma('K')).toBe(swings(1) * n);
+    expect(perma('B')).toBe(0);
   });
   it('Kobe has Taunt AND Ward and keeps its Pummel', () => {
     const d = CARD_INDEX['k_kobe']!;

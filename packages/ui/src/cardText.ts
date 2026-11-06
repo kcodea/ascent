@@ -88,16 +88,19 @@ export function summonEscalatingText(cardId: string, golden: boolean, summonBonu
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onSummonTribeBuffFlat' && (e.params as { improve?: number } | undefined)?.improve);
   if (!def || !eff) return null;
-  const p = eff.params as { attack?: number; improve?: number; every?: number };
+  const p = eff.params as { attack?: number; health?: number; improve?: number; every?: number };
   const seen = Math.max(0, summonBonus ?? 0);
   const base = Number(p?.attack ?? 3);
+  const baseHealth = Number(p?.health ?? base); // Beardsley's grant is uneven since 2026-11-06 (+2/+1)
   const improve = Number(p?.improve ?? 3);
   const every = Math.max(1, Number(p?.every ?? 3));
   // Every-1 reads the count raw: an in-place gild halves it (GOLD_SCALED_ACCRUAL_CARDS), so a half-count is legal here.
-  const cur = (base + improve * (every <= 1 ? seen : Math.floor(seen / every))) * (golden ? 2 : 1);
+  const steps = improve * (every <= 1 ? seen : Math.floor(seen / every));
+  const cur = (base + steps) * (golden ? 2 : 1);
+  const curHealth = (baseHealth + steps) * (golden ? 2 : 1);
   const toNext = every - (seen % every);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  const live = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);
+  const live = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${curHealth}}}`);
   // An every-summon improve (Flo Rida / Beardsley, owner 2026-10-07: "...and improve this") steps on EVERY Beast, so
   // a "1 to next step" countdown says nothing; the current value is the whole story.
   return every <= 1 ? live : `${live} {{${toNext} to next step}}`;

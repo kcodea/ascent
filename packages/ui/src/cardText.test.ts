@@ -247,13 +247,13 @@ describe('cardText helpers', () => {
   });
 
   it('summonFlatZooText shows Beardsley’s NEXT-summon grant under Rune of the Zoo', () => {
-    // Ordinal scaling: (summons so far + 1) × base × golden. Beardsley's base is 1 since the owner balance
-    // 2026-10-07 (3 from the 2026-08-18 rework, 6 before); this helper reads params.attack, so its Zoo arithmetic
-    // follows. Null without the rune (undefined zooSummons), so the printed text stands everywhere the rune isn't live.
+    // Ordinal scaling: (summons so far + 1) × base × golden. Beardsley's base is +2/+1 since the owner balance
+    // 2026-11-06 (+1/+1 from 2026-10-07, 3 from the 2026-08-18 rework, 6 before); this helper reads params.attack
+    // and params.health, so its Zoo arithmetic follows. Null without the rune (undefined zooSummons), so the printed text stands everywhere the rune isn't live.
     expect(summonFlatZooText('b2_beardsley', false, undefined)).toBeNull();
-    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+1/+1}}');   // next summon is the 1st
-    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+3/+3}}');   // next summon is the 3rd
-    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+4/+4}}');    // gilded ×2 × ordinal 2
+    expect(summonFlatZooText('b2_beardsley', false, 0)).toContain('{{+2/+1}}');   // next summon is the 1st
+    expect(summonFlatZooText('b2_beardsley', false, 2)).toContain('{{+6/+3}}');   // next summon is the 3rd
+    expect(summonFlatZooText('b2_beardsley', true, 1)).toContain('{{+8/+4}}');    // gilded ×2 × ordinal 2
     expect(summonFlatZooText('sandbag', false, 2)).toBeNull(); // not a flat summon-buff card
   });
 
@@ -274,8 +274,8 @@ describe('cardText helpers', () => {
     // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all your Beasts", leaving the
     // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
     // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
-    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+6 Attack}}. **Avenge (3):** Improve this.');
-    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+12 Attack}}. **Avenge (3):** Improve this (twice as much).');
+    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+6 Attack}}. **Avenge (4):** Improve this.');
+    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+12 Attack}}. **Avenge (4):** Improve this (twice as much).');
     expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all Friendly and summoned Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
     for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
       expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);

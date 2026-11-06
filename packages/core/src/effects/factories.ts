@@ -3510,6 +3510,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.onFriendlyAttackBuffTribe(combatArena(ctx, self), { ...params, attacker: minion });
   },
 
+  /** Portsmith: the payload guard for `onFriendlyAttackPlayRubies`. Its own attack counts (it is a Kobold). */
+  onFriendlyAttackPlayRubies: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    ARENA_EFFECTS.onFriendlyAttackPlayRubies(combatArena(ctx, self), { ...params, attacker: minion });
+  },
+
   /** Crypt Drake — every `every` ally attacks this combat (itself included), buff every living friend
    *  +step/+step, and every `improveEvery` attacks the grant improves by +step/+step PERMANENTLY for this
    *  copy (the accrual rides `summonBonus` — seeded from the run board, carried back at settle, live-text
@@ -4336,6 +4343,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // but only on Dawnclaw; Ryme's no-param path is untouched.
     const one = !!params.one;
     let repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger
+    // Owner balance 2026-11-06: Dawnclaw is back on the `one` branch.
     if (one) {
       if (!self.golden && neighbors.length > 1) neighbors = [ctx.rng.pick(neighbors)];
     } else {

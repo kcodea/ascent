@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
-import type { RunState } from '@game/sim';
+import { createRun, reduce, type RunState } from '@game/sim';
 import { questRewardText } from './questText';
 import { questTally, runeTally, runeCombatTally } from './runeTally';
 
@@ -107,6 +107,7 @@ const armedRun = (): RunState => ({
     { cardId: 'n2_salesman', everyTurns: 2, tick: 1, sourceId: 'rune_rare_goods' },
     { cardId: 'lanternofsouls', everyTurns: 2, tick: 1, sourceId: 'rune_lantern_keeper' }, // Set 3 design pass (2026-09-27)
     { cardId: 'crescendo', everyTurns: 2, tick: 1, sourceId: 'rune_overture' }, // Set 3 design pass tranche 3
+    { cardId: 'k_veinbreaker', everyTurns: 2, tick: 1, sourceId: 'rune_unbroken_vein' }, // cadenced by the owner balance 2026-11-06
   ],
   runeSeasonedLedger: { attack: 1, health: 1, per: 5, played: 2 },
   runeEchoedArrival: { per: 5, tick: 2 },
@@ -156,6 +157,23 @@ describe('runes with a threshold show a tally', () => {
 
   it('Rune of Slaying specifically — the reported case', () => {
     expect(runeTally(armedRun(), 'rune_slaying')).toBe('4/5'); // threshold 5 since the owner balance 2026-09-23
+  });
+
+  it('Unbroken Vein: the REAL purchase arms the cadence, so the badge counts down to the card it pays', () => {
+    // Bought through the Runeforge, not hand-armed: `multi` re-enters the reward with `def.id` intact, so the entry
+    // carries the `sourceId` that `runeTally` matches on.
+    let s = reduce({ ...createRun(3, 'runesmith', 'ascent', undefined, 'set2'), wave: 7, tier: 6, phase: 'recruit', embers: 40, hand: [], runeforgeOffer: ['rune_unbroken_vein'] } as RunState,
+      { type: 'buyRune', index: 0 }) as RunState;
+    const cutters = (): number => [...s.hand, ...s.board].filter((c) => c.cardId === 'k_veinbreaker').length;
+    const turn = (): void => { s = reduce(reduce(s, { type: 'faceOmen' }) as RunState, { type: 'resolveCombat' }) as RunState; };
+    expect(cutters(), 'the first Cave Cutter lands on purchase').toBe(1);
+    expect(runeTally(s, 'rune_unbroken_vein')).toBe('0/2');
+    turn();
+    expect(runeTally(s, 'rune_unbroken_vein')).toBe('1/2');
+    expect(cutters(), 'turn 1 is the countdown').toBe(1);
+    turn();
+    expect(runeTally(s, 'rune_unbroken_vein')).toBe('0/2');
+    expect(cutters(), 'turn 2 pays').toBe(2);
   });
 
   it('Rune of Bulk Order counts Gold', () => {

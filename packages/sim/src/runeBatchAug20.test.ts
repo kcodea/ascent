@@ -52,7 +52,7 @@ const BASIC: [string, number][] = [
 const EPIC: [string, number][] = [
   ['rune_perfect_recall', 3], ['rune_ninefold_commerce', 3], ['rune_borrowed_echoes', 2], // balance 9/23: 6 → 3, 6 → 4, 5 → 2; Ninefold 4 → 3 (owner 2026-10-23)
   ['rune_muster_general', 3], ['rune_delayed_duplication', 3], ['rune_ascension', 2], // balance 9/23: 5 → 4, 5 → 4, 5 → 2; then 4 → 3, 4 → 3 (owner 2026-10-23)
-  ['rune_lasting_cadence', 4], ['rune_deepening_vein', 4], ['rune_abomination', 4], // owner 2026-10-23: was 5
+  ['rune_lasting_cadence', 6], ['rune_deepening_vein', 4], ['rune_abomination', 4], // owner 2026-10-23: was 5; Lasting Cadence 4 -> 6 owner balance 2026-11-06
   ['rune_bottomless_portrait', 4], // owner 2026-10-23: was 5
 ];
 

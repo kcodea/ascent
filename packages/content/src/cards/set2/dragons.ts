@@ -27,9 +27,10 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 2,
     keywords: [],
     // Owner balance 2026-09-23: +1/+1 → +1/+2 (gilded +2/+4).
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 2 } }],
-    text: 'After you trigger a **Shout**, gain **+1/+2**.',
-    goldenText: 'After you trigger a **Shout**, gain **+2/+4**.',
+    // Owner balance 2026-11-06: +1/+2 → +2/+2 (gilded +4/+4).
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 2, health: 2 } }],
+    text: 'After you trigger a **Shout**, gain **+2/+2**.',
+    goldenText: 'After you trigger a **Shout**, gain **+4/+4**.',
   },
   {
     // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
@@ -400,11 +401,12 @@ export const SET2_DRAGONS: CardDef[] = [
     // LUMP pattern) whose size is the count of Dragons played this turn, Humphry's own play included, so the first
     // Dragon of the turn gives +2/+2 and the second +4/+4 (R-HUMPHRY-01). `perPlayedTribe` is the count. Live
     // "(+X/+Y)" via cardText's perPlayedTargetText. Gilded +4/+4 per Dragon.
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 2, health: 2, perPlayedTribe: 'dragon' } }],
+    // Owner balance 2026-11-06: baseline and step both +3/+3 (gilded +6/+6).
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 3, health: 3, perPlayedTribe: 'dragon' } }],
     // Owner fix 2026-10-10: "humphry should buff +2/+2 baseline, not 0/0 baseline" — the +2/+2 is a baseline, and each
     // OTHER Dragon played this turn adds +2/+2 (R-HUMPHRY-01). Text names both halves so it says what the card does.
-    text: '**Shout:** give a friendly **Dragon +2/+2**, plus **+2/+2** for every other **Dragon** played this turn.',
-    goldenText: '**Shout:** give a friendly **Dragon +4/+4**, plus **+4/+4** for every other **Dragon** played this turn.',
+    text: '**Shout:** give a friendly **Dragon +3/+3**, plus **+3/+3** for every other **Dragon** played this turn.',
+    goldenText: '**Shout:** give a friendly **Dragon +6/+6**, plus **+6/+6** for every other **Dragon** played this turn.',
   },
   // ── Owner add 2026-10-10: two Dragons APPENDED at the end of the Dragon list (owner: "append both at the END of Set 2's
   //    Dragon pool so seeds don't shift"). They are the two halves of an End of Turn / Shout loop, so both carry a
@@ -418,7 +420,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_roomworks',
     name: 'Roomworks',
     tribe: 'dragon',
-    tier: 3,
+    tier: 4, // owner balance 2026-11-06: T3 → T4
     attack: 4,
     health: 3,
     keywords: [],

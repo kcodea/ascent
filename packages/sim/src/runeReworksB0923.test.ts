@@ -37,7 +37,6 @@ describe('the every-turn grant runes: one copy on purchase, one more at every St
   it.each([
     ['rune_full_measure', 'dw_dorrin', 'runeFullMeasure'],
     ['rune_open_appetite', 'dm_agent', 'runeOpenAppetite'],
-    ['rune_unbroken_vein', 'k_veinbreaker', 'runeUnbrokenVein'],
     ['rune_display_case', 'dm_tormentor', 'runeDisplayCase'],
   ])('%s hands over %s now and arms the every-turn list, and still arms its flag', (id, cardId, flag) => {
     const s = withRune(id, { hand: [], board: [bc('t', 'sandbag', 0, 50)], setId: 'set2' });
@@ -47,6 +46,17 @@ describe('the every-turn grant runes: one copy on purchase, one more at every St
     expect(rune(id).text).toContain('Repeat at **Start of Turn**');
     const next = turn(s);
     expect(held(next, cardId), 'the next turn setup pays another').toBe(2);
+  });
+
+  // RE-PINNED 2026-11-06 (owner balance): Unbroken Vein left the every-turn list for the every-2-turns cadence.
+  it('Unbroken Vein pays a Cave Cutter on purchase, skips the next Start of Turn, pays the one after, and arms its flag', () => {
+    const s = withRune('rune_unbroken_vein', { hand: [], board: [bc('t', 'sandbag', 0, 50)], setId: 'set2' });
+    expect(held(s, 'k_veinbreaker'), 'the purchase itself pays the first copy').toBe(1);
+    expect(s.runeUnbrokenVein, 'the last part of the multi reward still arms').toBe(true);
+    expect(s.runeCadenceGrants?.find((g) => g.sourceId === 'rune_unbroken_vein')).toMatchObject({ cardId: 'k_veinbreaker', everyTurns: 2, tick: 0 });
+    expect(s.questRecurringGrants ?? []).not.toContain('k_veinbreaker');
+    expect(held(turn(s), 'k_veinbreaker'), 'nothing at the next turn setup').toBe(1);
+    expect(held(turn(turn(s)), 'k_veinbreaker'), 'one more two turns after the purchase').toBe(2);
   });
 
   // RE-PINNED 2026-10-07 (owner): "Repeat every 2 turns" — the next setup skips, the one after pays (R-DEEP-EVERY-01).
@@ -317,7 +327,7 @@ describe('the 19 reworked texts read as the owner wrote them', () => {
     rune_five_banners: '**End of Turn:** give a minion of **each type +5/+4**.',
     rune_hatchery: 'Minions summoned in **combat** have **+5/+5** and **Taunt**.',
     rune_muckbroker: 'Get a **Muckslinger**. Repeat every **2 turns**.',
-    rune_unbroken_vein: 'Get a **Cave Cutter**. Repeat at **Start of Turn**. They grant **both** effects.',
+    rune_unbroken_vein: 'Get a **Cave Cutter**. Repeat every **2 turns**. They grant **both** effects.',
     rune_beastial_swarm: 'When a friendly **Beast** dies, give all Friendly and summoned Beasts **+2/+2**. **Avenge (2):** Improve this.', // owner 2026-09-28 (R-AURA-03)
     rune_copies: '**Start of Turn:** get a copy of a random minion on your board.',
     rune_finality: 'When your **last minion dies**, summon **3 Imps** with **Ward**.',

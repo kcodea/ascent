@@ -75,9 +75,9 @@ describe('R-GILD-SUM-01: a Gilded Kennelmaster is the sum of its two best copies
     expect(buffs(r).some((b) => b.target === ally && b.attack === 26)).toBe(true);
     expect(buffs(r).some((b) => b.target === ally && b.attack === 52), 'never doubled again').toBe(false);
 
-    // Three friendly deaths -> Avenge (3) fires once -> the carry-back is one golden step (+4).
+    // Four friendly deaths -> Avenge (4) fires once -> the carry-back is one golden step (+4).
     const fodder = (i: number) => bm('sandbag', `F${i}`, 0, 1);
-    const r2 = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), fodder(1), fodder(2), fodder(3)],
+    const r2 = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), fodder(1), fodder(2), fodder(3), fodder(4)],
       [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
     const carried = (r2.playerSummonBonus ?? []).find((x) => x.sourceUid === 'K')?.bonus ?? 0;
     expect(kennelGrant(carried, true)).toBe(30);
@@ -102,10 +102,12 @@ describe('R-GILD-SUM-01: the other (base + accrual) x golden improvers', () => {
     expect(summonBuffText('trophystalker', g.summonBonus ?? 0, true)).toContain('{{+25/+25}}');
   });
 
-  it('Beardsley: +4/+4 and +3/+3 copies gild to +7/+7', () => {
+  it('Beardsley: +5/+4 and +4/+3 copies gild to +9/+7', () => {
+    // Base +2/+1 since the owner balance 2026-11-06, the +1/+1 accrual on each stat.
     const g = tripleOf('b2_beardsley', [3, 2, 1], 'set2');
+    expect((2 + (g.summonBonus ?? 0)) * 2).toBe(9);
     expect((1 + (g.summonBonus ?? 0)) * 2).toBe(7);
-    expect(summonEscalatingText('b2_beardsley', true, g.summonBonus)).toContain('+7/+7');
+    expect(summonEscalatingText('b2_beardsley', true, g.summonBonus)).toContain('+9/+7');
   });
 
   it('Vicious: +20/+20 and +10/+10 copies gild to +30/+30', () => {

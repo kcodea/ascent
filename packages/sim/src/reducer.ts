@@ -1869,11 +1869,12 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
         const rowSpellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages (see the spell-slot buy above)
-        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card) - ancientEnchantedSpellCut(s, offer)); // pass the def — see the spell-slot buy above
+        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card) - ancientEnchantedSpellCut(s, offer) - (offer.cartCut ? 1 : 0)); // pass the def — see the spell-slot buy above
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         spendFreeCard(s, rowSpellFree);
         s.shop.splice(i, 1);
+        if (offer.cartCut) for (const o of s.shop) o.cartCut = undefined; // Spell Cart: the first buy spends the cut
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount

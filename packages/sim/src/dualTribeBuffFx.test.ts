@@ -1,7 +1,7 @@
 /**
  * DUAL-TYPE RECIPIENTS GET THE SAME BUFF FX AS SINGLE-TYPE ONES (owner report 2026-09-19).
  *
- * Gangplank ("when a card is added to your hand, give a random friendly Dwarf +1/+2") buffed HAN GOVER — a
+ * Gangplank ("when a card is added to your hand, give a random friendly Dwarf +2/+2" since 2026-11-06, +1/+2 at the report) buffed HAN GOVER — a
  * Dwarf/Undead (`tribe: 'dwarf', tribe2: 'undead'`) — and the stats rose with no ribbon. The owner's ask: *"make
  * sure the dual type tribes can trigger their animations from the correct sources."*
  *
@@ -55,12 +55,12 @@ describe('a Gangplank trigger records the same buff-FX entry for a dual-type rec
     return { fx: s.recruitBuffFx, seq: s.recruitFxSeq, stats: [r.attack, r.health] };
   };
 
-  it('plain Dwarf (Orin) and Dwarf/Undead (Han Gover) both get source uid → target uid, +1/+2, kind minion', () => {
+  it('plain Dwarf (Orin) and Dwarf/Undead (Han Gover) both get source uid → target uid, +2/+2, kind minion', () => {
     const plain = entryFor('dw_orin');
     const dual = entryFor('dw3_hangover');
-    expect(plain.stats, 'Orin took the +1/+2').toEqual([5, 9]);
-    expect(dual.stats, 'Han Gover took the +1/+2').toEqual([5, 9]);
-    const expected = [{ sourceUid: 'gp', targetUid: 'r', attack: 1, health: 2, sourceCardId: 'dw_gangplank', sourceTribe: 'dwarf', kind: 'minion' }];
+    expect(plain.stats, 'Orin took the +2/+2').toEqual([6, 9]);
+    expect(dual.stats, 'Han Gover took the +2/+2').toEqual([6, 9]);
+    const expected = [{ sourceUid: 'gp', targetUid: 'r', attack: 2, health: 2, sourceCardId: 'dw_gangplank', sourceTribe: 'dwarf', kind: 'minion' }];
     expect(plain.fx).toEqual(expected);
     expect(dual.fx, 'the dual-type recipient records the IDENTICAL FX entry').toEqual(expected);
     expect(plain.seq).toBe(1);
@@ -109,9 +109,9 @@ describe('a COMBAT grant settling into hand re-fires Gangplank on the run board 
     expect(s.phase, 'still under the arena when the capture lands').toBe('combat');
     expect(s.hand.map((c) => c.cardId), 'the Ale settled into hand').toEqual(r.playerHandGrants);
     const hg = s.board.find((c) => c.uid === 'hg')!;
-    expect([hg.attack, hg.health], 'Han Gover took the settle-time +1/+2').toEqual([6, 11]);
+    expect([hg.attack, hg.health], 'Han Gover took the settle-time +2/+2').toEqual([7, 11]);
     expect(s.recruitBuffFx, 'the wave is captured with its source → target uids').toEqual([
-      { sourceUid: 'gp', targetUid: 'hg', attack: 1, health: 2, sourceCardId: 'dw_gangplank', sourceTribe: 'dwarf', kind: 'minion' },
+      { sourceUid: 'gp', targetUid: 'hg', attack: 2, health: 2, sourceCardId: 'dw_gangplank', sourceTribe: 'dwarf', kind: 'minion' },
     ]);
     expect(s.recruitFxSeq, 'and the seq bumped — the UI parks this until the shop is revealed').toBe(1);
   });

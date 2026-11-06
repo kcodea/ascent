@@ -208,7 +208,7 @@ const SHOP_PATHS: Record<string, { cleric: 'board' | 'hand'; fire: ShopFire }> =
 function shopCell(path: string, mod: ShoutModifier): ShoutCell {
   const p = SHOP_PATHS[path]!;
   const cleric = card('c', 'cleric', { attack: 1, health: 50 });
-  // w: a plain Dragon (fires = its Attack gain / 3). e: Embermouth Whelp (+3 from the Cleric, +1 as the watcher).
+  // w: a plain Dragon (fires = its Attack gain / 3). e: Embermouth Whelp (+3 from the Cleric, + its own grant as the watcher).
   const others = [card('w', 'whelpling', { attack: 1, health: 50 }), card('e', 'd2_embermouth', { attack: 1, health: 50 })];
   const base = {
     ...createRun(5, 'myra'), wave: 6, phase: 'recruit', embers: 60, shoutFiresThisTurn: 0,
@@ -222,7 +222,9 @@ function shopCell(path: string, mod: ShoutModifier): ShoutCell {
   const skull = (s: RunState): number => (at(s, 'w').buffs ?? []).filter((b) => b.source === 'Drake Skull').reduce((a, b) => a + b.attack, 0);
   const edge = skull(after) / 6;
   const fires = (at(after, 'w').attack - at(base, 'w').attack - skull(after)) / 3;
-  const watcher = (at(after, 'e').attack - at(base, 'e').attack) - 3 * fires;
+  // Per-fire Attack read off the card, so a balance change to Embermouth does not read as a phantom double fire.
+  const watcherStep = Number(CARD_INDEX['d2_embermouth']!.effects.find((e) => e.do === 'onBattlecryBuffSelf')!.params!.attack);
+  const watcher = ((at(after, 'e').attack - at(base, 'e').attack) - 3 * fires) / watcherStep;
   const tally = (after.shoutFiresThisTurn ?? 0) - (base.shoutFiresThisTurn ?? 0);
   const latchSpent = mod.latch ? !!after[mod.latch] : null;
   const pass = fires === mod.fires && tally === mod.fires && watcher === mod.fires && edge === mod.fires && latchSpent !== false;

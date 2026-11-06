@@ -71,14 +71,14 @@ describe('(Both) — the printed text', () => {
 
   it('a SPELL Choose One under (Both) prints each branch with spell power folded, never the authored base', () => {
     // Crest of the Climb in hand off a forked charge, under +0/+1 spell power: the cast lands BOTH branches
-    // through the folding factories (+4/+1 then +5 Health, 6/11 on a 2/5), so the (Both) text must say so on the
+    // through the folding factories (+5/+1 then +6 Health, 7/12 on a 2/5), so the (Both) text must say so on the
     // hand / shop / hover card, exactly as the Choose One window would (review finding 2026-09-22, bug 23c340fb).
     const base = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 1, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 0, undeadBuyAtk: 0, soulsmanGold: 0 };
     const t = liveCardText('crestclimb', { ...base, chooseBoth: true }).text;
     expect(t).toMatch(/^<<\(Both\)>> /);
-    expect(t).toContain('{{+4/+1}}');
-    expect(t).toContain('{{+5 Health}}');
-    expect(t).not.toContain('+4 Health');
+    expect(t).toContain('{{+5/+1}}');
+    expect(t).toContain('{{+6 Health}}');
+    expect(t).not.toContain('+5 Health');
     expect(t).toBe(chooseBothText('crestclimb', false, 0, 1));
     // At zero power the authored branches print verbatim, and a minion Choose One never folds spell power.
     expect(chooseBothText('crestclimb', false, 0, 0)).toBe(chooseBothText('crestclimb', false));

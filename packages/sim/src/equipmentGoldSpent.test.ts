@@ -34,11 +34,11 @@ describe('R-EQUIP-02 — Gold paid to use an Equipment counts as Gold spent', ()
     const low = reduce(setup(0), { type: 'activateEquipment', targetUid: 'c' });
     expect(low.board.find((c) => c.uid === 'c')!.goldTick, 'the meter took the 1 Gold').toBe(1);
 
-    const before = setup(4);
+    const before = setup(5); // Coinfire spends on 6 Gold since the owner balance 2026-11-06
     const atk = before.board.find((c) => c.uid === 'c')!.attack;
     const after = reduce(before, { type: 'activateEquipment', targetUid: 'c' });
     const c = after.board.find((b) => b.uid === 'c')!;
-    expect(c.goldTick, 'the 5th Gold paid the threshold and reset the meter').toBe(0);
+    expect(c.goldTick, 'the 6th Gold paid the threshold and reset the meter').toBe(0);
     expect(c.attack, 'Bloodpot +3 and Coinfire +2 (its Spend payoff fired)').toBe(atk + 3 + 2);
   });
 });

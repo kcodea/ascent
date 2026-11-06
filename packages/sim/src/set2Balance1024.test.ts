@@ -91,11 +91,11 @@ describe('Scrapper: T2 3/1, Echo: your Rubies gain +1 Attack (2026-10-24)', () =
   });
 });
 
-describe('Gem Carver: T4 (2026-10-24), nothing else moves', () => {
-  it('is a buyable T4 5/3 Kobold with the same Echo', () => {
+describe('Gem Carver: T4 (2026-10-24)', () => {
+  it('is a buyable T4 5/3 Kobold; its Echo is one Golem, Gilded two (owner balance 2026-11-06)', () => {
     expect(stats('k_gemheart')).toEqual(['kobold', 4, 5, 3, []]);
-    expect(CARD_INDEX['k_gemheart']!.effects).toEqual([{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', golems: 2 } }]);
-    expect(CARD_INDEX['k_gemheart']!.text).toBe("**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.");
+    expect(CARD_INDEX['k_gemheart']!.effects).toEqual([{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', goldenGolems: 2 } }]);
+    expect(CARD_INDEX['k_gemheart']!.text).toBe("**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.");
   });
 });
 

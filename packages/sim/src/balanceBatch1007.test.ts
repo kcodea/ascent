@@ -173,16 +173,17 @@ describe('2026-10-07 Set 2 minions', () => {
     expect(gains).toEqual([5, 10, 15]);
   });
 
-  it('Beardsley: +1/+1 improving +1/+1 each Beast, and no Ward', () => {
+  it('Beardsley: +2/+1 improving +1/+1 each Beast, and no Ward (base re-pinned 2026-11-06)', () => {
     expect(CARD_INDEX['b2_beardsley']!.keywords).toEqual([]);
     let s = recruit({ board: [body('b2_beardsley', 'bd')], hand: [body('stray', 'b1'), body('stray', 'b2')] });
     const base = CARD_INDEX['stray']!;
-    const gains: number[] = [];
+    const gains: number[][] = [];
     for (const uid of ['b1', 'b2']) {
       s = reduce(s, { type: 'play', uid }) as RunState;
-      gains.push(s.board.find((x) => x.uid === uid)!.attack - base.attack);
+      const c = s.board.find((x) => x.uid === uid)!;
+      gains.push([c.attack - base.attack, c.health - base.health]);
     }
-    expect(gains).toEqual([1, 2]);
+    expect(gains).toEqual([[2, 1], [3, 2]]);
   });
 
   it('Wolvie: Echo gives a friendly Beast Rise with no empty buff; gilded gives 2 Beasts Rise', () => {

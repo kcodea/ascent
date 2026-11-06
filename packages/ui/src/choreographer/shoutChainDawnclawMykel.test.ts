@@ -13,6 +13,9 @@ import { SHOP_CHAIN_SLOT_MS, isShoutChainTrigger, planShoutChain } from '../chor
  * Echo (and Ryme's, the same factory) and High King Mykel present every Shout they trigger as its OWN beat, left
  * neighbour first, each with the trigger-er's tribe tendril: in the beat batch (End of Turn + Beat Lab), in the
  * Shop's mid-turn chain (`shoutLinkFx`), and in combat (one moment per `shout` fire). Presentation only.
+ *
+ * Owner balance 2026-11-06: a plain Dawnclaw triggers ONE seeded neighbour and a Gilded one both, once each, so the
+ * two-neighbour cases below use the Gilded body. Ryme keeps both neighbours, Gilded twice: it carries the L, L, R, R case.
  */
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -32,6 +35,11 @@ const dawnclaw = (golden = false) => set2({
   hand: [bc('o', 'ossuaryrite')],
 });
 const castRite: Action = { type: 'play', uid: 'o', targetUid: 'dc' } as Action;
+/** Ryme: the same factory without `one`, so both neighbours fire, and Gilded fires each twice. */
+const ryme = (golden = false) => set2({
+  board: [bc('bf1', 'd2_broodfire'), bc('dc', 'ryme', { golden }), bc('bf2', 'd2_broodfire')],
+  hand: [bc('o', 'ossuaryrite')],
+});
 const mykel = (golden: boolean) => set2({
   board: [bc('bf1', 'd2_broodfire'), bc('my', 'dw_brisbane', { golden, spellProgress: 7 }), bc('bf2', 'd2_broodfire')],
   hand: [bc('g', 'growth')],
@@ -39,20 +47,26 @@ const mykel = (golden: boolean) => set2({
 const castGrowth: Action = { type: 'play', uid: 'g', targetUid: 'bf1' } as Action;
 
 describe('Dawnclaw (Shop Echo): each adjacent Shout is its own beat, left first, beast tendril', () => {
-  it('two neighbours = two chain beats, left then right, never overlapping, from Dawnclaw', () => {
+  it('plain (one seeded neighbour): one chain beat, still from Dawnclaw', () => {
     const l = links(compile(dawnclaw(), castRite));
+    expect(l).toHaveLength(1);
+    expect(['bf1', 'bf2']).toContain(l[0]!.source.uid);
+    expect(l[0]!.chainLink!.from.uid).toBe('dc');
+  });
+  it('gilded (both neighbours, once each): two chain beats, left then right, never overlapping, from Dawnclaw', () => {
+    const l = links(compile(dawnclaw(true), castRite));
     expect(l.map((b) => b.source.uid)).toEqual(['bf1', 'bf2']);
     expect(l[1]!.startMs).toBeGreaterThanOrEqual(l[0]!.recoveryEndMs);
     expect(l.every((b) => b.chainLink!.from.uid === 'dc')).toBe(true);
     expect(CARD_INDEX['b2_dawnclaw']!.tribe).toBe('beast'); // → `tendril-trail-beast`
   });
-  it('gilded triggers each neighbour twice: L, L, R, R (the engine order, both phases), each its own beat', () => {
-    const l = links(compile(dawnclaw(true), castRite));
+  it('a gilded Ryme triggers each neighbour twice: L, L, R, R (the engine order, both phases), each its own beat', () => {
+    const l = links(compile(ryme(true), castRite));
     expect(l.map((b) => b.source.uid)).toEqual(['bf1', 'bf1', 'bf2', 'bf2']);
     for (let i = 1; i < l.length; i++) expect(l[i]!.startMs).toBeGreaterThanOrEqual(l[i - 1]!.recoveryEndMs);
   });
   it('the Shop chain records one link per fire, each owning ITS buff records, one slot apart', () => {
-    const s = reduce(dawnclaw(), castRite);
+    const s = reduce(dawnclaw(true), castRite);
     expect(s.shoutLinkFx!.map((x) => [x.fromUid, x.toUid])).toEqual([['dc', 'bf1'], ['dc', 'bf2']]);
     const plan = planShoutChain(s.shoutLinkFx!, s.recruitBuffFx);
     for (const p of plan.links) {
@@ -82,15 +96,15 @@ describe('High King Mykel: each Shout it triggers is its own beat, left first, d
 
 describe('presentation only: outcomes and determinism unchanged', () => {
   it('the batch path and plain reduce land the same board, and a re-run is byte-identical', () => {
-    for (const [s, a] of [[dawnclaw(true), castRite], [mykel(true), castGrowth]] as const) {
+    for (const [s, a] of [[dawnclaw(), castRite], [dawnclaw(true), castRite], [mykel(true), castGrowth]] as const) {
       const withBatch = reduceWithPresentation(s, a, true).state;
       const plain = reduce(s, a);
       expect(JSON.stringify(withBatch.board)).toBe(JSON.stringify(plain.board));
       expect(JSON.stringify(compile(s, a))).toBe(JSON.stringify(compile(s, a)));
     }
   });
-  it('each fire still pays: both Broodfire Shouts fire once, each giving every Dragon +3', () => {
-    const s = reduce(dawnclaw(), castRite);
+  it('each fire still pays: a gilded Dawnclaw fires both Broodfire Shouts once, each giving every Dragon +3', () => {
+    const s = reduce(dawnclaw(true), castRite);
     const from = (uid: string) => (s.board.find((c) => c.uid === uid)!.buffs ?? []).filter((b) => b.source === 'Broodfire').reduce((t, b) => t + b.attack, 0);
     expect(from('bf1')).toBe(6); // its own fire + bf2's
     expect(from('bf2')).toBe(6);
@@ -102,9 +116,20 @@ describe('Dawnclaw in COMBAT: one moment per Shout fire, left neighbour first, t
     const d = CARD_INDEX[cardId]!;
     return { cardId, attack: d.attack, health: d.health, keywords: [...d.keywords], ...over } as unknown as BoardMinion;
   };
-  it('its Echo fires the left Shout, then the right, each in its OWN moment', () => {
+  it('plain: its Echo fires ONE adjacent Shout', () => {
     const r = simulate(
       [bm('d2_broodfire', { health: 60 }), bm('b2_dawnclaw', { keywords: ['T'] }), bm('d2_broodfire', { health: 60 })],
+      [{ cardId: 'sandbag', attack: 30, health: 200, keywords: [] } as unknown as BoardMinion],
+      makeRng(3), CARD_INDEX, combatSide({ tier: 6, poolIds: Object.keys(CARD_INDEX) } as never), combatSide({ tier: 6 }),
+    );
+    const uids = r.initial.player.map((m) => m.uid);
+    const shouts = r.events.filter((e): e is Extract<CombatEvent, { type: 'shout' }> => e.type === 'shout' && e.source === uids[1]);
+    expect(shouts).toHaveLength(1);
+    expect([uids[0], uids[2]]).toContain(shouts[0]!.target);
+  });
+  it('gilded: its Echo fires the left Shout, then the right, each in its OWN moment', () => {
+    const r = simulate(
+      [bm('d2_broodfire', { health: 60 }), bm('b2_dawnclaw', { keywords: ['T'], golden: true }), bm('d2_broodfire', { health: 60 })],
       [{ cardId: 'sandbag', attack: 30, health: 200, keywords: [] } as unknown as BoardMinion],
       makeRng(3), CARD_INDEX, combatSide({ tier: 6, poolIds: Object.keys(CARD_INDEX) } as never), combatSide({ tier: 6 }),
     );

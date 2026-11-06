@@ -796,7 +796,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
+            "attack": 2,
             "every": 1,
             "health": 1,
             "improve": 1
@@ -926,7 +926,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "low",
+      "unparsed": [
+        "deathrattleReplayAdjacentBattlecry.one"
+      ]
     },
     "setIds": [
       "set2"
@@ -4862,11 +4865,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
+            "attack": 5,
             "health": 0
           }
         },
-        "note": "Choose One branch 1: \"Give +4 Attack.\""
+        "note": "Choose One branch 1: \"Give +5 Attack.\""
       },
       {
         "kind": "spellBuffTarget",
@@ -4874,10 +4877,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 0,
-            "health": 4
+            "health": 5
           }
         },
-        "note": "Choose One branch 2: \"Give +4 Health.\""
+        "note": "Choose One branch 2: \"Give +5 Health.\""
       }
     ],
     "gildedDelta": {
@@ -5478,7 +5481,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
+            "attack": 2,
             "health": 2
           }
         }
@@ -5782,8 +5785,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 3,
+            "health": 3
           }
         }
       }
@@ -5982,12 +5985,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set2"
     ],
-    "tier": 3,
+    "tier": 4,
     "tribes": [
       "dragon"
     ],
     "tags": [
-      "tier:3"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -7791,7 +7794,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 3,
-            "health": 3
+            "health": 2
           }
         }
       }
@@ -8148,17 +8151,16 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "grant": 2
+            "grant": 1
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -8248,8 +8250,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 2
+            "attack": 2,
+            "health": 3
           }
         }
       }
@@ -11216,9 +11218,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 6,
-            "count": 2,
-            "every": 5,
-            "health": 5
+            "count": 3,
+            "every": 10,
+            "health": 6
           }
         }
       }
@@ -11667,7 +11669,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "every": 5
+            "every": 6,
+            "health": 1
           }
         }
       }
@@ -11930,7 +11933,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
+            "attack": 2,
             "health": 2
           }
         }
@@ -11982,7 +11985,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3
+            "attack": 3,
+            "health": 2
           }
         }
       }
@@ -19814,7 +19818,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "golems": 2
+            "goldenGolems": 2
           }
         },
         "refs": [
@@ -20001,10 +20005,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium",
-      "unparsed": [
-        "deathrattleSummonRubyStats.keyword"
-      ]
+      "confidence": "high"
     },
     "setIds": [
       "set2"
@@ -20028,17 +20029,22 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "deathrattleSummonRubyStats",
-        "refs": [
-          "gemheart-shard"
-        ]
+        "kind": "deathrattleSummonGolemsWithRuby",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 2,
+            "rubies": 2
+          }
+        }
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -20158,7 +20164,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "avengeGrantRandomTribeMinion.tribe"
+        "onFriendlyAttackPlayRubies.tribe"
       ]
     },
     "setIds": [
@@ -20176,39 +20182,27 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "avenge",
-        "phase": "combat",
-        "phaseBasis": "derived:phaseRegistry",
-        "threshold": 3
+        "event": "onAttack",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "avengeRubyStatGain",
+        "kind": "onFriendlyAttackPlayRubies",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 1
-          }
-        }
-      },
-      {
-        "kind": "avengeGrantRandomTribeMinion",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "grant": 2
+            "count": 1
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -30113,7 +30107,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:3"
+      "cost:2"
     ],
     "effects": [
       {
@@ -33165,7 +33159,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:basic",
-      "cost:4"
+      "cost:3"
     ],
     "effects": [
       {
@@ -33560,7 +33554,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:3"
+      "cost:5"
     ],
     "effects": [
       {
@@ -35198,7 +35192,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "tags": [
       "runeforge:epic",
-      "cost:4"
+      "cost:6"
     ],
     "effects": [
       {
@@ -36664,7 +36658,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "randomCount": 2,
+            "randomCount": 1,
+            "randomTier": 5
+          }
+        }
+      },
+      {
+        "kind": "reward:grant",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "randomCount": 1,
             "randomTier": 4
           }
         }
@@ -37442,7 +37446,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:basic",
-      "cost:1"
+      "cost:2"
     ],
     "effects": [
       {
@@ -40204,7 +40208,19 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
+        "kind": "reward:grant",
+        "refs": [
+          "k_veinbreaker"
+        ]
+      },
+      {
         "kind": "reward:recurringGrant",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "everyTurns": 2
+          }
+        },
         "refs": [
           "k_veinbreaker"
         ]
@@ -40600,7 +40616,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     },
     "tags": [
       "runeforge:basic",
-      "cost:2"
+      "cost:4"
     ],
     "effects": [
       {

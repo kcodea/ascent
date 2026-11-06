@@ -550,7 +550,8 @@ export const SPELLS: CardDef[] = [
   },
   {
     // Refresh the tavern full of spells — the minion offers become random eligible spells. Untargeted; the
-    // next normal roll/turn restocks minions (one-shot).
+    // next normal roll/turn restocks minions (one-shot). Owner balance 2026-11-06: the first spell bought from that
+    // row costs 1 less (`ShopCard.cartCut`).
     id: 'spellcart',
     name: 'Spell Cart',
     tribe: 'neutral',
@@ -561,7 +562,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellRefreshToSpells' }],
-    text: 'Refresh the tavern. Fill it with **Shop spells** instead of minions.',
+    text: 'Refresh the tavern. Fill it with **Shop spells** instead of minions. The first one you buy costs **1 less**.',
   },
   {
     // Combat initiative: your board attacks first in the next fight, overriding the more-minions rule
@@ -769,10 +770,11 @@ export const SPELLS: CardDef[] = [
     target: 'any',
     effects: [],
     chooseOne: [
-      { text: 'Give **+4 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 0 } }] },
-      { text: 'Give **+4 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 4 } }] },
+      // Owner balance 2026-11-06: +4 → +5 on both branches.
+      { text: 'Give **+5 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 5, health: 0 } }] },
+      { text: 'Give **+5 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 5 } }] },
     ],
-    text: '**Choose One:** give a minion **+4 Attack**, or **+4 Health**.',
+    text: '**Choose One:** give a minion **+5 Attack**, or **+5 Health**.',
   },
   {
     // Comeback economy: +5 Gold, but ONLY if you lost your last combat (a draw doesn't count). Untargeted;

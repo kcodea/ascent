@@ -109,7 +109,7 @@ const bm = (cardId: string, uid: string, attack: number, health: number, extra: 
 describe('Gilding Flo Rida / Beardsley in place keeps earned growth at face value (owner 2026-10-08)', () => {
   const cases = [
     { id: 'b2_florida', base: 5, improve: 5 },
-    { id: 'b2_beardsley', base: 1, improve: 1 },
+    { id: 'b2_beardsley', base: 2, improve: 1 }, // Attack half of its +2/+1 (owner balance 2026-11-06)
   ];
   for (const { id, base, improve } of cases) {
     it(`${id}: an odd earned count (3) gilds to base x2 + the same earned growth, then grows at the golden rate`, () => {

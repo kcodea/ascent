@@ -127,7 +127,7 @@ describe('Brunni: "Taunt. Echo: Get a Dwarven Ale."', () => {
   });
 });
 
-describe('Chef Gary Toast +6/+5 (separate health param) and Billings +6/+5', () => {
+describe('Chef Gary Toast +6/+5 (separate health param) and Billings +6/+6', () => {
   it('playing a Dwarf gives your Dwarves +6/+5', () => {
     const s = recruit({ board: [body('dw_chef', 'c'), body('dw_brakka', 'b')], hand: [body('dw_pimm', 'p')] });
     const after = reduce(s, { type: 'play', uid: 'p' }) as RunState;
@@ -135,8 +135,8 @@ describe('Chef Gary Toast +6/+5 (separate health param) and Billings +6/+5', () 
     expect([b.attack - 5, b.health - 3]).toEqual([6, 5]);
   });
 
-  it('Billings reads +6/+5', () => {
-    expect(CARD_INDEX['dw_billings']!.effects[0]!.params).toMatchObject({ attack: 6, health: 5 });
+  it('Billings reads every 10 Gold, 3 Dwarves, +6/+6 (owner balance 2026-11-06)', () => {
+    expect(CARD_INDEX['dw_billings']!.effects[0]!.params).toMatchObject({ every: 10, count: 3, attack: 6, health: 6 });
   });
 });
 
@@ -172,38 +172,43 @@ describe('Impossible Todd: "When a friendly Demon deals damage, give your Imps +
   });
 });
 
-describe('Kennelmaster: "+2 Attack. Avenge (3): Improve this." (+2 per improve; gilded +4 improving +4)', () => {
+describe('Kennelmaster: "+2 Attack. Avenge (4): Improve this." (+2 per improve; gilded +4 improving +4; Avenge 3 -> 4 owner 2026-11-06)', () => {
   it('params and text', () => {
     const c = CARD_INDEX['kennel']!;
     expect(c.effects[0]!.params).toMatchObject({ attack: 2, stepAttack: 2 });
-    expect(c.effects[1]!.params).toEqual({ count: 3 });
-    expect(c.text).toBe('**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (3):** Improve this.');
+    expect(c.effects[1]!.params).toEqual({ count: 4 });
+    expect(c.text).toBe('**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this.');
   });
 });
 
-describe('Dawnclaw: "Taunt. Echo: Trigger both adjacent minions\' Shouts."', () => {
-  it('no longer picks one neighbour', () => {
-    expect(CARD_INDEX['b2_dawnclaw']!.effects).toEqual([{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }]);
+describe('Dawnclaw: "Taunt. Echo: Trigger an adjacent minion\'s Shout." (owner balance 2026-11-06)', () => {
+  it('picks one neighbour, and keeps Taunt', () => {
+    expect(CARD_INDEX['b2_dawnclaw']!.effects).toEqual([{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: { one: true } }]);
+    expect(CARD_INDEX['b2_dawnclaw']!.keywords).toEqual(['T']);
   });
 
-  it('SHOP Echo: both neighbouring Shouts fire (once plain, twice gilded)', () => {
-    const fire = (golden: boolean): number => {
-      const s = recruit({ board: [body('dw_orin', 'l'), body('b2_dawnclaw', 'd', { golden }), body('dw_pimm', 'r')], bonusEmbersNextTurn: 0 });
+  it('SHOP Echo: one neighbouring Shout fires; gilded fires both neighbours, once each', () => {
+    const fire = (left: string, golden: boolean): number => {
+      const s = recruit({ board: [body(left, 'l'), body('b2_dawnclaw', 'd', { golden }), body('dw_pimm', 'r')], bonusEmbersNextTurn: 0 });
       fireRecruitDeathrattlesForTest(s, s.board[1]!);
       return s.bonusEmbersNextTurn ?? 0;
     };
-    expect(fire(false), 'Pimm (right) fires once: +1 Gold next turn').toBe(1);
-    expect(fire(true), 'gilded: twice').toBe(2);
+    // Pimm on both sides: each Shout that fires is +1 Gold next turn, so the Gold IS the fire count.
+    expect(fire('dw_pimm', false), 'plain: ONE of the two Pimms fires').toBe(1);
+    expect(fire('dw_pimm', true), 'gilded: both Pimms').toBe(2);
+    // One Shout neighbour: gilded widens to both neighbours, it never fires a neighbour twice.
+    expect(fire('sandbag', false), 'the lone Shout is the pick').toBe(1);
+    expect(fire('sandbag', true), 'gilded: still once').toBe(1);
   });
 });
 
 describe('Demon numbers', () => {
-  it('Tormentor +8/+8, Enigma +4/+5, Butcher +2/+2, Hank +4/+3, Grobbus 2 Demons', () => {
+  it('Tormentor +8/+8, Enigma +4/+5, Butcher +2/+2, Hank +4/+3, Grobbus 1 Demon', () => {
     expect(CARD_INDEX['dm_tormentor']!.effects[0]!.params).toEqual({ attack: 8, health: 8 });
     expect(CARD_INDEX['dm_jumbo']!.effects[0]!.params).toEqual({ attack: 4, health: 5 });
     expect(CARD_INDEX['dm_butcher']!.effects[0]!.params).toEqual({ attack: 2, health: 2 });
     expect(CARD_INDEX['dm_hank']!.effects[0]!.params).toEqual({ attack: 4, health: 3 });
-    expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 2 });
+    expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 1 });
   });
 
   it('Big Huggies: Taunt (owner ruling) and Echo: 2 Staves of Guel (4 gilded; Picnics until 2026-10-24)', () => {

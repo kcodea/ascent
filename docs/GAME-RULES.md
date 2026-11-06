@@ -3049,7 +3049,7 @@ normal "your Beasts" meaning, in both phases:
 
 The cards:
 
-- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +2 Attack. Avenge (3): Improve this.* Each improvement adds +2 (gilded +4 improving +4). The improvement is
+- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +2 Attack. Avenge (4): Improve this.* Each improvement adds +2 (gilded +4 improving +4). The improvement is
   permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
 - **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
 - **Armadiyo**, **Trophy Stalker**, **Beastial Swarm** (a Shop Beast death also pays it; its Avenge level

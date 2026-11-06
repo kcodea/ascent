@@ -283,21 +283,22 @@ describe('Humphry: Shout: give a friendly Dragon +5/+5 (owner ruling 2026-09-24)
     expect(set2Pool.has('d2_humphry')).toBe(true);
   });
 
-  // RE-PIN 2026-10-10 (owner balance batch): "+2/+2 for every Dragon played this turn" (was a flat +5/+5). Played as
-  // the turn's first Dragon, Humphry counts itself: +2/+2 (gilded +4/+4). The count rule lives in dragonBatch1010.test.ts.
-  it('SHOP: the aimed Shout lands +2/+2 on the chosen Dragon as the first Dragon played (gilded +4/+4)', () => {
+  // RE-PIN 2026-11-06 (owner balance): "+3/+3 for every Dragon played this turn" (was +2/+2; a flat +5/+5 before 2026-10-10).
+  // Played as the turn's first Dragon, Humphry counts itself: +3/+3 (gilded +6/+6). The count rule lives in dragonBatch1010.test.ts.
+  it('SHOP: the aimed Shout lands +3/+3 on the chosen Dragon as the first Dragon played (gilded +6/+6)', () => {
     for (const golden of [false, true]) {
       let s = shop([bc('d', 'd2_broodfire')], { hand: [bc('h', 'd2_humphry', { golden })] });
       s = reduce(reduce(s, { type: 'play', uid: 'h' }), { type: 'battlecryTarget', targetUid: 'd' });
       const g = golden ? 2 : 1;
-      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 2 * g, CARD_INDEX['d2_broodfire']!.health + 2 * g]);
+      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 3 * g, CARD_INDEX['d2_broodfire']!.health + 3 * g]);
     }
   });
 
   it('prints the owner text, plain and gilded', () => {
     const d = CARD_INDEX['d2_humphry']!;
     // RE-PIN 2026-10-10 (owner fix, "+2/+2 baseline, not 0/0 baseline"): the text names the baseline and the per-other step.
-    expect(d.text).toBe('**Shout:** give a friendly **Dragon +2/+2**, plus **+2/+2** for every other **Dragon** played this turn.');
-    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +4/+4**, plus **+4/+4** for every other **Dragon** played this turn.');
+    // Owner balance 2026-11-06: both are +3/+3.
+    expect(d.text).toBe('**Shout:** give a friendly **Dragon +3/+3**, plus **+3/+3** for every other **Dragon** played this turn.');
+    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +6/+6**, plus **+6/+6** for every other **Dragon** played this turn.');
   });
 });

@@ -4295,7 +4295,7 @@ describe('PvE course + record (@game/sim)', () => {
     expect(getHero('darah').armor).toBe(18);
     expect(getHero('hermithank').armor).toBe(9); // Tradesman
     expect(getHero('nadja').armor).toBe(15); // owner balance 2026-11-01: 17 -> 15
-    expect(getHero('robin').armor).toBe(4);
+    expect(getHero('robin').armor).toBe(5); // owner balance 2026-11-06: 4 -> 5
     expect(getHero('indy').armor).toBe(12);
     // …and the registry value is what the RUN actually starts with, not a separate constant.
     const s = createRun(1, 'indy');

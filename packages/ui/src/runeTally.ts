@@ -213,7 +213,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_baller' && run.runeBaller) {
     const next = run.runeBaller.sales + 1;
     // × copies held (duplicate stacking, owner 2026-08-27) — the pill shows what the next sale actually pays.
-    return `+${run.runeBaller.step * Math.ceil(next / 2) * runeStacksOf(run, 'rune_baller')} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
+    return `+${run.runeBaller.step * Math.ceil(next / 3) * runeStacksOf(run, 'rune_baller')} ${next % 2 === 1 ? 'Atk' : 'Hp'}`;
   }
   // RUNE OF HELD STRENGTH (owner rework 2026-08-27): a Start-of-Combat grant read live off the hand — the
   // pill shows the CURRENT left-most held minion's stats (× copies), i.e. exactly what the ends will gain.

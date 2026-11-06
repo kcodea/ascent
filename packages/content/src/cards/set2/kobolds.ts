@@ -186,9 +186,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [],
     // Owner Ruby batch 2026-09-24: TWO Golems, EACH carrying this minion's Rubies (`golems: 2` on the shared body).
     // Gilded: each is a 2/2 with double the Rubies (Carver's convention, per Golem).
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', golems: 2 } }],
-    text: "**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.",
-    goldenText: "**Echo:** Summon **2 2/2 Gemheart Golems** with double this minion's Rubies.",
+    // Owner balance 2026-11-06: ONE Golem; gilded summons TWO, each a plain Golem with this minion's Rubies.
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', goldenGolems: 2 } }],
+    text: "**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.",
+    goldenText: "**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.",
   },
   {
     // Rubies APPLIED DURING COMBAT are worth double (triple Gilded) — owner spec 2026-07-25. Nothing happens
@@ -211,15 +212,17 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 4, // owner balance 2026-09-23: 3/3 → 4/3
-    health: 3,
+    attack: 2, // owner balance 2026-09-23: 3/3 → 4/3; 2026-11-06: 4/3 → 2/2
+    health: 2,
     keywords: ['T'],
     // Owner Ruby batch 2026-09-24 (was two 1/1 Taunt Golems with a Ruby each): ONE Golem built like Carver's —
     // a 1/1 plus THIS minion's Rubies — with Taunt. "Gilded doubles the rubies of the golem like other cards do":
     // Carver's golden form, a 2/2 with double the Rubies. Geode keeps its own Taunt and stats.
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', keyword: 'T' } }],
-    text: "**Taunt.** **Echo:** Summon a **Gemheart Golem** with this minion's Rubies and **Taunt**.",
-    goldenText: "**Taunt.** **Echo:** Summon a **2/2 Gemheart Golem** with double this minion's Rubies and **Taunt**.",
+    // Owner balance 2026-11-06: TWO 1/1 Taunt Golems, each taking 2 Rubies at their current value. This minion's own
+    // Rubies no longer carry over. Gilded keeps two Golems and doubles the Rubies (the primitive's standing convention).
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonGolemsWithRuby', params: { count: 2, rubies: 2 } }],
+    text: '**Taunt.** **Echo:** Summon **2 Gemheart Golems** with **Taunt** and cast **2 Rubies** on each.',
+    goldenText: '**Taunt.** **Echo:** Summon **2 Gemheart Golems** with **Taunt** and cast **4 Rubies** on each.',
   },
   {
     // Owner add 2026-08-11. A Ruby payoff that pays the whole Kobold line on death — the more Kobolds you
@@ -283,8 +286,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Get **2 Veinstorms**.',
   },
   {
-    // Two Avenge effects (both fire at the threshold): improve your Rubies AND get a random Kobold from the
-    // run's buyable pool. `avengeRubyStatGain` + `avengeGrantRandomTribeMinion` both already exist.
+    // Owner rework 2026-11-06: the Avenge pair is gone. Every friendly Kobold attack, its own included, takes a
+    // PERMANENT Ruby. Gilded casts two.
     id: 'k_portsmith',
     name: 'Portsmith', // was 'Gem Portsmith' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
@@ -292,14 +295,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 6,
     health: 7,
     keywords: ['DS'],
-    effects: [
-      // Owner balance 2026-10-10: +1/+1 -> +2/+2, and 2 random Kobolds (was 1).
-      // Owner balance 2026-10-11 ("kobolds are overtuned"): the Ruby half is back to +1/+1; still 2 Kobolds.
-      { on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'kobold', grant: 2 } },
-    ],
-    text: '**Ward.** **Avenge (3):** Improve your Rubies **+1/+1** and get **2 random Kobolds**.',
-    goldenText: '**Ward.** **Avenge (3):** Improve your Rubies **+2/+2** and get **4 random Kobolds**.',
+    effects: [{ on: 'onAttack', do: 'onFriendlyAttackPlayRubies', params: { tribe: 'kobold', count: 1 } }],
+    text: '**Ward.** When a **Kobold** attacks, cast a permanent **Ruby** on it.',
+    goldenText: '**Ward.** When a **Kobold** attacks, cast **2** permanent **Rubies** on it.',
   },
   {
     // Owner rework 2026-09-18: "When this takes damage" (was Start of Combat) — every landed hit plays PERMANENT
@@ -353,9 +351,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_blazer',
     name: 'Blazer',
     tribe: 'kobold',
-    tier: 3, // owner 2026-09-18: T4 3/8 → T3 2/7; owner balance 2026-10-20: 2/7 → 2/5
-    attack: 2,
-    health: 5,
+    tier: 3, // owner 2026-09-18: T4 3/8 → T3 2/7; owner balance 2026-10-20: 2/7 → 2/5; 2026-11-06: 2/5 → 3/4
+    attack: 3,
+    health: 4,
     keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
     text: '**Flurry.** **Rally:** cast a **Ruby** on your minions.',

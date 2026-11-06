@@ -140,9 +140,9 @@ describe('Kurse: "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies
 
   it("Gemheart Carver's Echo Golem does NOT attack immediately (wording only, no behaviour change)", () => {
     const c = CARD_INDEX['k_gemheart']!;
-    // Two Golems since the owner Ruby batch 2026-09-24 (`golems: 2`); neither attacks immediately.
-    expect(c.text).toBe("**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.");
-    expect(c.effects[0]!.params).toEqual({ tokenId: 'gemheart-shard', golems: 2 });
+    // One Golem since the owner balance 2026-11-06, two when Gilded (`goldenGolems: 2`); none attacks immediately.
+    expect(c.text).toBe("**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.");
+    expect(c.effects[0]!.params).toEqual({ tokenId: 'gemheart-shard', goldenGolems: 2 });
     const r = fight([bm('k_gemheart', 'GC', 5, 1), bm('sandbag', 'f1', 0, 50)], [bag(1, 400)]);
     const { golem, next } = afterGolem(r.events);
     expect(next?.attacker).not.toBe(golem);

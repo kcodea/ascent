@@ -415,6 +415,7 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnGrantRandomTierCard',
   'avengeGiveAttack',
   'onFriendlyAttackBuffTribe',
+  'onFriendlyAttackPlayRubies',
   'battlecryDiscoverMinion',
   'spellSetStats',
   'spellStealAdjacentRubies', // Ruby Transfer — steal adjacent Ruby buffs

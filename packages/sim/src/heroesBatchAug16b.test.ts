@@ -46,10 +46,10 @@ describe('Braum — Investment', () => {
 });
 
 describe('Ayse — Lucky Seat', () => {
-  it('is a 10-armor passive', () => {
+  it('is a 15-armor passive', () => {
     const h = getHero('cia');
     // Renamed from Cia 2026-08-22. The ID stays `cia` — saves, baked opponent boards and art files key off it.
-    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Ayse', 10, 'luckySeat', true]);
+    expect([h.name, h.armor, h.power.kind, h.power.passive]).toEqual(['Ayse', 15, 'luckySeat', true]); // owner balance 2026-11-06: 10 -> 15
     expect(getHero('cia').id, 'the id is stable across the rename').toBe('cia');
   });
 

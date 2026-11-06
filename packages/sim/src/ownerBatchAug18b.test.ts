@@ -22,12 +22,13 @@ const card = (uid: string, cardId: string, attack?: number, health?: number, ext
 // RETIRED 2026-10-10: Vaultkeeper's "gain +2/+2 whenever you play a Dragon, improving per 4 spells" was replaced by the
 // owner ("When this gains Attack, give adjacent Dragons +3/+4"); the new card is pinned in dragonBatch1010.test.ts.
 
-// RE-PINNED 2026-10-07 (owner batch): Beardsley is +1/+1 and improves +1/+1 on EVERY Beast (was +3/+3 every 3).
-describe('Beardsley — escalating summon buff (+1/+1, improves +1/+1 every Beast)', () => {
-  it('four Beasts played in a row get +1/+1, +2/+2, +3/+3, +4/+4', () => {
+// RE-PINNED 2026-10-07 (owner batch): Beardsley improves +1/+1 on EVERY Beast (was +3/+3 every 3).
+// RE-PINNED 2026-11-06 (owner balance): the base grant is +2/+1 (was +1/+1); the improve step stays +1/+1.
+describe('Beardsley — escalating summon buff (+2/+1, improves +1/+1 every Beast)', () => {
+  it('four Beasts played in a row get +2/+1, +3/+2, +4/+3, +5/+4', () => {
     // Recruit-phase: Beardsley on board, four DISTINCT Beasts with no play-time trigger (so nothing else
-    // summons and no triple forms) played one at a time. Each arriver takes the grant; Beasts 1-3 are at step 0
-    // (+3), the 4th crosses `every:3` to step 1 (+6). The grant is the delta over each card's printed stats.
+    // summons and no triple forms) played one at a time. Each arriver takes the grant, and each one improves it
+    // by +1/+1 for the next. The grant is the delta over each card's printed stats.
     const beasts: [string, string][] = [['s1', 'trailforager'], ['s2', 'babycub'], ['s3', 'raptor'], ['s4', 'gryphon']];
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40, tier: 6,
@@ -42,7 +43,7 @@ describe('Beardsley — escalating summon buff (+1/+1, improves +1/+1 every Beas
       grants.push([m.attack - base.attack, m.health - base.health]);
     }
     expect(grants, 'each Beast one step bigger than the last')
-      .toEqual([[1, 1], [2, 2], [3, 3], [4, 4]]);
+      .toEqual([[2, 1], [3, 2], [4, 3], [5, 4]]);
   });
 });
 

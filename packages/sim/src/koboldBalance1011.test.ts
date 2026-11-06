@@ -34,13 +34,10 @@ describe('Ruby strength gains come down', () => {
     const d = CARD_INDEX['k_crownvein']!;
     expect(d.effects.map((e) => [e.on, e.do, e.params])).toEqual([['onAttack', 'rallyRubyStatGain', { attack: 1, health: 2 }]]);
   });
-  it('Portsmith: Avenge (3) +1/+1, still 2 Kobolds and Ward', () => {
+  it('Portsmith: a Ruby per Kobold attack and Ward (owner rework 2026-11-06, the Avenge is gone)', () => {
     const d = CARD_INDEX['k_portsmith']!;
     expect(d.keywords).toContain('DS');
-    expect(d.effects.map((e) => [e.on, e.do, e.params])).toEqual([
-      ['avenge', 'avengeRubyStatGain', { count: 3, attack: 1, health: 1 }],
-      ['avenge', 'avengeGrantRandomTribeMinion', { count: 3, tribe: 'kobold', grant: 2 }],
-    ]);
+    expect(d.effects.map((e) => [e.on, e.do, e.params])).toEqual([['onAttack', 'onFriendlyAttackPlayRubies', { tribe: 'kobold', count: 1 }]]);
   });
   it('the printed numbers match the params (plain and Gilded)', () => {
     const text = (id: string) => [CARD_INDEX[id]!.text, CARD_INDEX[id]!.goldenText];
@@ -48,7 +45,7 @@ describe('Ruby strength gains come down', () => {
     expect(text('k_veinbreaker').map((t) => /\*\*\+(\d)\/\+(\d)\*\*/.exec(t!)!.slice(1, 3))).toEqual([['1', '1'], ['2', '2']]); // owner balance 2026-10-24: +2/+1 -> +1/+1
     expect(CARD_INDEX['k_veinbreaker']!.chooseOne![0]).toMatchObject({ text: 'Give your Rubies **+1/+1**.', goldenText: 'Give your Rubies **+2/+2**.' });
     expect(text('k_crownvein')).toEqual(['**Rally:** Give your Rubies **+1/+2**.', '**Rally:** Give your Rubies **+2/+4**.']);
-    expect(text('k_portsmith').map((t) => /\*\*\+(\d)\/\+(\d)\*\*/.exec(t!)!.slice(1, 3))).toEqual([['1', '1'], ['2', '2']]);
+    expect(text('k_portsmith')).toEqual(['**Ward.** When a **Kobold** attacks, cast a permanent **Ruby** on it.', '**Ward.** When a **Kobold** attacks, cast **2** permanent **Rubies** on it.']);
   });
 });
 

@@ -109,16 +109,18 @@ describe('Ales', () => {
 });
 
 describe('Gold and throughput', () => {
-  it('Coinfire Forewoman buffs Dwarves only, Attack only', () => {
+  it('Coinfire Forewoman: every 6 Gold, Dwarves only, +2/+1 (owner balance 2026-11-06)', () => {
     let s = set2();
     const captain = body('dw_ironlung', 'd1');
     const beast = { ...body('dw_brakka', 'b1'), cardId: 'pack', tribe: 'beast' as const };
     s = { ...s, board: [body('dw_coinfire', 'c'), captain, beast] };
     applyGoldSpent(s, 5);
+    expect(s.board.find((x) => x.uid === 'd1')!.attack, 'fired below the threshold').toBe(CARD_INDEX['dw_ironlung']!.attack);
+    applyGoldSpent(s, 1);
     const d = s.board.find((x) => x.uid === 'd1')!;
     const b = s.board.find((x) => x.uid === 'b1')!;
     expect(d.attack, 'the Dwarf got no Attack').toBe(CARD_INDEX['dw_ironlung']!.attack + 2);
-    expect(d.health, 'Health should not move').toBe(CARD_INDEX['dw_ironlung']!.health);
+    expect(d.health, 'the Dwarf got no Health').toBe(CARD_INDEX['dw_ironlung']!.health + 1);
     expect(b.attack, 'a non-Dwarf was buffed').toBe(beast.attack);
   });
 
@@ -128,6 +130,7 @@ describe('Gold and throughput', () => {
     s = { ...s, board: [other], hand: [body('dw_ironlung', 'cap')] };
     s = play(s, 'cap');
     expect(s.board.find((x) => x.uid === 'o')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 3);
+    expect(s.board.find((x) => x.uid === 'o')!.health).toBe(CARD_INDEX['dw_brunni']!.health + 2);
     const cap = s.board.find((x) => x.cardId === 'dw_ironlung')!;
     expect(cap.attack, 'the Captain buffed itself').toBe(CARD_INDEX['dw_ironlung']!.attack);
   });

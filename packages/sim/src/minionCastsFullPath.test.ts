@@ -51,7 +51,7 @@ describe('Rope Wrangler + Rune of Lassoing (the pinned known gap, flipped)', () 
 });
 
 /**
- * Each caster, beside a "when you cast a spell" RUNE (Rune of Kindling: the ends of the board +4/+6 per cast) and
+ * Each caster, beside a "when you cast a spell" RUNE (Rune of Kindling: the ends of the board +3/+4 per cast) and
  * CARD (Runescale Drake: `spellProgress` ticks once per cast). Before the fix neither heard an End-of-Turn cast.
  */
 // `n` = the casts one End of Turn makes: Soul Defiler casts Staff of Guel AND Picnic since the owner balance 2026-10-10.
@@ -70,8 +70,8 @@ describe.each([
     expect(s.spellsCast - before.cast, 'spellsCast +n').toBe(n);
     expect(s.spellsThisTurn - before.turn, 'spellsThisTurn +n').toBe(n);
     expect(at(s, 'r').spellProgress ?? 0, 'Runescale heard each cast once').toBe(n);
-    expect(buffFrom(at(s, 'c'), 'Kindling'), 'the left-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
-    expect(buffFrom(at(s, 'x'), 'Kindling'), 'the right-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
+    expect(buffFrom(at(s, 'c'), 'Kindling'), 'the left-most end').toMatchObject({ attack: 3 * n, health: 4 * n });
+    expect(buffFrom(at(s, 'x'), 'Kindling'), 'the right-most end').toMatchObject({ attack: 3 * n, health: 4 * n });
     expect(s.lastSpellCastId, 'the copy memory saw it too').toBeDefined();
   });
 });

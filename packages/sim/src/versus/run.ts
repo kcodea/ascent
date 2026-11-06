@@ -82,9 +82,9 @@ export function versusHeroRerollCandidates(runSeed: number, setId: SetId, offer:
   return heroRerollCandidates(offer, playableHeroes(runTribesForSeed(runSeed, setId), opts).map((h) => h.id));
 }
 
-/** The deterministic RNG for one seat's timeout answers in one round (p1..p4; p1/p2 unchanged since 1v1). */
+/** The deterministic RNG for one seat's timeout answers in one round (p1..p8; p1/p2 unchanged since 1v1). */
 export function versusTimeoutRng(matchSeed: number, round: number, seat: VersusGroupSeat): Rng {
-  const n = seat === 'p1' ? 1 : seat === 'p2' ? 2 : seat === 'p3' ? 3 : 4;
+  const n = Number(seat.slice(1));
   return makeRng(mixSeed(matchSeed, round, n, 0x71e0));
 }
 

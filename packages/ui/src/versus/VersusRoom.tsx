@@ -286,7 +286,7 @@ function useCardFaces(): (m: VersusMember) => CardFace {
 const RoomCard = memo(function RoomCard({ face, server, host, slot, i, draggable, dragSrc, arena }: { face: CardFace; server: SeatServerData | undefined; host: boolean; slot: VersusGroupSeat | 'bench'; i: number; draggable: boolean; dragSrc: boolean; arena: RefObject<HTMLDivElement> }) {
   const seat = slot !== 'bench';
   // The entrance's stagger (`.vsenter`): the fighters stride in at 0.18 s / 0.24 s, the hand rises card by card.
-  const delay = slot === 'p1' ? 0.18 : slot === 'p2' ? 0.24 : slot === 'p3' ? 0.3 : slot === 'p4' ? 0.36 : 0.46 + Math.min(i, 8) * 0.045;
+  const delay = seat ? 0.12 + 0.06 * Number(slot.slice(1)) : 0.46 + Math.min(i, 8) * 0.045;
   return (
     <div className={`vsmcard ${seat ? `vsmcard-seat vsmcard-${slot}` : 'vsbcard'}${draggable ? ' vsdraggable' : ''}${dragSrc ? ' vsdragsrc' : ''}`} data-vsm={face.userId}
       style={{ '--vsz': seat ? 10 : 10 + i } as CSSProperties}

@@ -103,7 +103,7 @@ describe('Versus Group round resolution (one simulate per fight, hearts rules)',
 
   it('a loser takes the lobby damage (capped, Armor first); a draw nobody; side b holds the mirrored perspective; the chair rotates', () => {
     for (const round of [1, 2, 3, 4]) {
-      const vitals = { p1: { health: 30, armor: 3 }, p2: { health: 30, armor: 3 }, p3: { health: 30, armor: 3 }, p4: { health: 30, armor: 3 } };
+      const vitals: Partial<Record<VersusGroupSeat, { health: number; armor: number }>> = { p1: { health: 30, armor: 3 }, p2: { health: 30, armor: 3 }, p3: { health: 30, armor: 3 }, p4: { health: 30, armor: 3 } };
       const out = resolveVersusGroupRound({ matchSeed: 5, round, seats: FOUR, eliminated: {}, sides, vitals });
       for (const f of out.fights) {
         expect(f.chair).toBe(round % 2 === 1 ? 'a' : 'b');
@@ -112,7 +112,7 @@ describe('Versus Group round resolution (one simulate per fight, hearts rules)',
           expect(f.loser).toBe(f.outcome === 'a' ? f.b : f.a);
           const view = f.loser === f.a ? f.aResult : f.bResult;
           expect(f.damage).toBe(Math.min(view.playerDamageUncapped!, versusRoundCap(round)));
-          expect(out.vitals![f.loser!]).toEqual(hitVitals(vitals[f.loser!], f.damage));
+          expect(out.vitals![f.loser!]).toEqual(hitVitals(vitals[f.loser!]!, f.damage));
           expect(view.versusVitals).toEqual(out.vitals![f.loser!]);
         }
         expect(f.aResult.result).toBe(f.outcome === 'a' ? 'win' : f.outcome === 'b' ? 'lose' : 'draw');

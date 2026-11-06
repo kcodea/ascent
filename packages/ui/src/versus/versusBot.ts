@@ -12,7 +12,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, contentRevision } from '@game/content';
-import { normalizeVersusOptions, type RunState, type VersusGroupSeat } from '@game/sim';
+import { VERSUS_GROUP_SEATS, VERSUS_MODE_SEATS, normalizeVersusOptions, type RunState, type VersusGroupSeat } from '@game/sim';
 import { create } from 'zustand';
 import { currentUserId } from '../identity';
 import { VersusBotDriver, type BotStepResult, type VersusBotHooks } from './versusBotDriver';
@@ -130,7 +130,7 @@ async function loop(h: BotHost): Promise<void> {
     const me = room.members.find((m) => m.userId === info?.userId);
     if (room.status === 'open' && me?.role === 'spectator') {
       const mode = normalizeVersusOptions(room.options).mode;
-      const roles = mode === 'duel' || mode === 'ranked_duos' ? ['p1', 'p2'] : ['p1', 'p2', 'p3', 'p4'];
+      const roles = VERSUS_GROUP_SEATS.slice(0, VERSUS_MODE_SEATS[mode].max);
       const free = roles.find((r) => !room.members.some((m) => m.role === r)) as VersusRole | undefined;
       if (free) await h.remote.takeSeat(room.id, free).catch(() => undefined);
     }

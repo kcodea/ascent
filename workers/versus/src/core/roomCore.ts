@@ -48,9 +48,13 @@ import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from '
 export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
 
 export type Seat = 'p1' | 'p2';
-/** A room role: a player seat (p3 / p4 only in a Group room) or the stands. */
+/** A room role: a player seat (p3 and up only in a Group or Duos room) or the stands. */
 export type Role = GSeat | 'spectator';
 export const SEATS: readonly Seat[] = ['p1', 'p2'];
+/** A seat's gate field on the room. */
+const gateKey = (s: GSeat): `${GSeat}_gate` => `${s}_gate`;
+/** Nobody has pressed: every seat's gate down. */
+const clearGates = (r: Partial<Record<`${GSeat}_gate`, boolean>>): void => { for (const s of GSEATS) r[gateKey(s)] = false; };
 const other = (s: Seat): Seat => (s === 'p1' ? 'p2' : 'p1');
 
 /** A closed socket is given this long to come back before its seat counts as gone (a reload, a network hand-over). */
@@ -108,9 +112,13 @@ export interface CoreRoom {
   gate_deadline: number | null;
   p1_gate: boolean;
   p2_gate: boolean;
-  /** Group rooms: seats 3 and 4's gates (absent on rooms stored before the Group port = false). */
+  /** Group rooms: seats 3 to 8's gates (absent on rooms stored before the Group port = false). */
   p3_gate?: boolean;
   p4_gate?: boolean;
+  p5_gate?: boolean;
+  p6_gate?: boolean;
+  p7_gate?: boolean;
+  p8_gate?: boolean;
   current_match_id: string | null;
   options: Record<string, unknown>;
   options_rev: number;
@@ -434,7 +442,8 @@ export class RoomCore {
 
   /** The room's player seats for its mode (`versus__mode_roles`). */
   private modeRoles(mode: unknown = this.state.room.options.mode): readonly GSeat[] {
-    return mode === 'group' || mode === 'duos' ? GSEATS : SEATS; // 1v1 and the Ranked Duos party: two seats
+    if (mode === 'group') return GSEATS; // up to eight (R-VERSUS-EIGHT-01)
+    return mode === 'duos' ? GSEATS.slice(0, 4) : SEATS; // 1v1 and the Ranked Duos party: two seats
   }
 
   /** No open socket for `userId` past the grace. */
@@ -458,7 +467,7 @@ export class RoomCore {
     const r = this.state.room;
     if (r.current_match_id !== this.state.group?.match.id) return;
     r.status = 'open';
-    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
+    clearGates(r);
     r.gate_deadline = null;
     this.touchRoom();
   }
@@ -659,7 +668,7 @@ export class RoomCore {
     return {
       id: r.id, name: r.name, host_user_id: r.host_user_id, status: r.status, set_id: r.set_id, content_revision: r.content_revision,
       protocol: r.protocol, revision: r.revision, gate_deadline: iso(r.gate_deadline), p1_gate: r.p1_gate, p2_gate: r.p2_gate,
-      p3_gate: !!r.p3_gate, p4_gate: !!r.p4_gate, current_match_id: r.current_match_id, options: r.options, options_rev: r.options_rev,
+      p3_gate: !!r.p3_gate, p4_gate: !!r.p4_gate, p5_gate: !!r.p5_gate, p6_gate: !!r.p6_gate, p7_gate: !!r.p7_gate, p8_gate: !!r.p8_gate, current_match_id: r.current_match_id, options: r.options, options_rev: r.options_rev,
       options_changed_at: iso(r.options_changed_at), friends_only: r.friends_only, created_at: iso(r.created_at), updated_at: iso(r.updated_at),
       members: [...r.members].sort((a, b) => a.joinedAt - b.joinedAt).map((m) => ({
         userId: m.userId, role: m.role, displayName: m.displayName, profile: m.profile,
@@ -914,7 +923,7 @@ export class RoomCore {
       r.status = 'open';
       r.gate_deadline = null;
     }
-    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
+    clearGates(r);
     this.touchRoom();
     return { left: true };
   }
@@ -928,7 +937,7 @@ export class RoomCore {
     const need = r.options.mode === 'duos' ? 4 : r.options.mode === 'group' ? 3 : 2;
     if (seated < need) fail(need === 4 ? 'need_four_players' : need === 3 ? 'need_three_players' : 'need_two_players');
     r.status = 'sealed';
-    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
+    clearGates(r);
     r.gate_deadline = this.now + VERSUS_GATE_SECONDS * 1000;
     this.touchRoom();
     return ROOM_JSON;
@@ -943,10 +952,7 @@ export class RoomCore {
       this.reopenGate();
       fail('gate_expired');
     }
-    if (me!.role === 'p1') r.p1_gate = true;
-    if (me!.role === 'p2') r.p2_gate = true;
-    if (me!.role === 'p3') r.p3_gate = true;
-    if (me!.role === 'p4') r.p4_gate = true;
+    r[gateKey(me!.role as GSeat)] = true;
     if (r.options.mode === 'ranked_duos') {
       // The party: both seats pressed → a Ranked Duos match (the recorded teams are seated once both heroes are known).
       if (r.p1_gate && r.p2_gate) {
@@ -954,7 +960,7 @@ export class RoomCore {
         this.createGroupMatch(seated);
       }
     } else if (r.options.mode === 'group' || r.options.mode === 'duos') {
-      const gateOf = (s: GSeat): boolean => (s === 'p1' ? r.p1_gate : s === 'p2' ? r.p2_gate : s === 'p3' ? !!r.p3_gate : !!r.p4_gate);
+      const gateOf = (s: GSeat): boolean => !!r[gateKey(s)];
       const seated = r.members.filter((m) => m.role !== 'spectator') as (CoreMember & { role: GSeat })[];
       // Duos needs all four seats (a seat emptied while sealed cannot start a 2v2).
       const enough = r.options.mode === 'duos' ? seated.length === 4 : seated.length >= 3;
@@ -967,7 +973,7 @@ export class RoomCore {
   private reopenGate(): void {
     const r = this.state.room;
     r.status = 'open';
-    r.p1_gate = r.p2_gate = r.p3_gate = r.p4_gate = false;
+    clearGates(r);
     r.gate_deadline = null;
     this.touchRoom();
   }
@@ -1052,7 +1058,7 @@ export class RoomCore {
 
   // ── Match ops ──────────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** `versus_press_gate`, Group branch: every seated player pressed, a 3-4 player match starts. */
+  /** `versus_press_gate`, Group branch: every seated player pressed, a 3-8 player match starts. */
   private createGroupMatch(seated: (CoreMember & { role: GSeat })[]): void {
     const r = this.state.room;
     this.clearMatchKeys();

@@ -177,7 +177,7 @@ export function lobbyGameStatus(mode: string, run: RunSlice, heroSelect = false,
  *  a Ranked Duos pair "A & B". */
 export function versusLine(mode: string, seats: readonly { role: string; name: string }[]): string | null {
   const by = (r: string): string | undefined => seats.find((s) => s.role === r)?.name;
-  const named = ['p1', 'p2', 'p3', 'p4'].map(by).filter((n): n is string => !!n);
+  const named = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'].map(by).filter((n): n is string => !!n);
   if (!named.length) return null;
   let out: string;
   if (mode === 'versus_duos') out = `${[by('p1'), by('p2')].filter(Boolean).join(' & ')} vs ${[by('p3'), by('p4')].filter(Boolean).join(' & ')}`;

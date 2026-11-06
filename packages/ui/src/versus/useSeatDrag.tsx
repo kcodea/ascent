@@ -264,7 +264,7 @@ interface PlateBox { left: number; top: number; width: number; height: number }
  *  card's size; a hand card is the same element drawn smaller). */
 export interface CardPlace { x: number; y: number; s: number }
 interface CardSpot { role: string; place: CardPlace | null; cx: number; cy: number; w: number; plate: PlateBox | null }
-const isSeat = (role: string): boolean => role === 'p1' || role === 'p2' || role === 'p3' || role === 'p4';
+const isSeat = (role: string): boolean => /^p[1-8]$/.test(role);
 const plateRect = (el: HTMLElement): PlateBox | null => {
   const p = el.querySelector<HTMLElement>('.cardplate');
   if (!p) return null;

@@ -24,6 +24,7 @@ function build(s: SampleInput): VersusRoom | null {
   const guest = s.view === 'guest' ? SAMPLE_ME : 'sample-2';
   const members: VersusMember[] = [mk(host, 'p1', host === SAMPLE_ME ? 'Player' : 'Mike', 0), mk(guest, 'p2', guest === SAMPLE_ME ? 'Player' : 'Brisbane', 1)];
   if (s.mode !== 'duel') members.push(mk('sample-3', 'p3', 'Coran', 2));
+  if (s.mode === 'group') members.push(mk('sample-5', 'p4', 'Ayse', 5), mk('sample-6', 'p5', 'Frank', 6), mk('sample-7', 'p6', 'Robin', 7));
   members.push(mk('sample-4', 'spectator', 'Tamby', 3), mk('sample-watch-2', 'spectator', 'Rowan', 4));
   if (s.myRole) for (const m of members) if (m.userId === SAMPLE_ME) m.role = s.myRole;
   return {

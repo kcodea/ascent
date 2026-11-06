@@ -26,7 +26,7 @@
  */
 import type { RiftId } from '../config';
 
-/** The room's game mode: today's 1v1, the 3-4 player round robin ("Versus Group"), or the 2v2 tag-team ("Versus
+/** The room's game mode: today's 1v1, the 3-8 player round robin ("Versus Group"), or the 2v2 tag-team ("Versus
  *  Duos", owner 2026-10-25: exactly 4 players, p1 + p2 vs p3 + p4). */
 /** `ranked_duos` (owner 2026-10-26): the RANKED DUOS party: two live teammates (p1 + p2) against three recorded teams. It
  *  plays the live rules, so it takes no modifier. Design: docs/design/2026-10-26-ranked-duos.md. */
@@ -64,10 +64,10 @@ export const DEFAULT_VERSUS_OPTIONS: Readonly<VersusRoomOptions> = Object.freeze
   modifiers: [] as VersusModifierId[],
 });
 
-/** Player seats per mode: 1v1 seats two, a group room up to four (and starts with three or four), Duos exactly four. */
+/** Player seats per mode: 1v1 seats two, a group room up to eight (and starts with three or more), Duos exactly four. */
 export const VERSUS_MODE_SEATS: Readonly<Record<VersusMode, { min: number; max: number }>> = {
   duel: { min: 2, max: 2 },
-  group: { min: 3, max: 4 },
+  group: { min: 3, max: 8 },
   duos: { min: 4, max: 4 },
   ranked_duos: { min: 2, max: 2 },
 };

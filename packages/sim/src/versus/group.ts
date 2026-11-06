@@ -1,5 +1,5 @@
 /**
- * VERSUS GROUP: the 3-4 player round robin (owner 2026-10-24, R-VERSUS-GROUP-01).
+ * VERSUS GROUP: the 3-8 player round robin (owner 2026-10-24, R-VERSUS-GROUP-01; 8 seats since 2026-11-06, R-VERSUS-EIGHT-01).
  *
  *   "for versus, how hard would it be to make a 4 player round robin lobby version?" Hearts 7 at first (Health and
  *   Armor since 2026-10-26), last one standing, 3 or 4 players, unrated; "if it's a 3 player game, maybe a player faces a copy of another
@@ -14,6 +14,9 @@
  *     round. Over a 3-round cycle every pair fights once, every player faces the copy once and every player is copied
  *     once (A-B with C vs copy of A, A-C with B vs copy of C, B-C with A vs copy of B). Nobody faces a copy of
  *     themselves.
+ *   - 5-8 alive (owner 2026-11-06, R-VERSUS-EIGHT-01): the circle method. An even count plays every pair once in n - 1
+ *     rounds. An odd count takes n rounds: each round one player sits out the pairs and faces a COPY of the next living
+ *     player, so over a cycle every pair fights once, every player faces the copy once and every player is copied once.
  *   - 2 alive: they face each other every round.
  *   - When the living set changes the cycle restarts on the new set, at the first offset whose real pair(s) did not
  *     already fight in the round just played (no immediate rematch when one can be avoided).
@@ -39,8 +42,8 @@ import { versusSideOrEmpty } from './combat';
 import { mirrorForEnemySeat } from './mirror';
 import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 
-export type VersusGroupSeat = 'p1' | 'p2' | 'p3' | 'p4';
-export const VERSUS_GROUP_SEATS: readonly VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
+export type VersusGroupSeat = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7' | 'p8';
+export const VERSUS_GROUP_SEATS: readonly VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
 
 /** One fight of a round. `b` is a copy of seat `b`'s board when `copy` is set (seat `b` itself is not in this fight). */
 export interface VersusGroupPairing {
@@ -63,10 +66,36 @@ export function versusGroupAliveAt(seats: readonly VersusGroupSeat[], elim: Vers
     .filter((s) => { const e = elim[s]; return e == null || e >= round; });
 }
 
+/** The circle method for 5-8 living seats (see the header). The first seat stays put and the rest rotate; at an odd
+ *  count the empty place is the round's sit-out, who faces a Copy of the next living seat. */
+function circleCycle(alive: readonly VersusGroupSeat[]): VersusGroupPairing[][] {
+  const n = alive.length;
+  const ring: (VersusGroupSeat | null)[] = n % 2 === 0 ? [...alive] : [...alive, null];
+  const size = ring.length;
+  const cycle: VersusGroupPairing[][] = [];
+  for (let r = 0; r < size - 1; r++) {
+    const order = [ring[0]!, ...Array.from({ length: size - 1 }, (_, i) => ring[1 + ((i + r) % (size - 1))]!)];
+    const real: VersusGroupPairing[] = [];
+    let copy: VersusGroupPairing | null = null;
+    for (let i = 0; i < size / 2; i++) {
+      const x = order[i] ?? null;
+      const y = order[size - 1 - i] ?? null;
+      if (x && y) real.push(seatOrder(x) < seatOrder(y) ? { a: x, b: y, copy: false } : { a: y, b: x, copy: false });
+      else {
+        const out = (x ?? y)!;
+        copy = { a: out, b: alive[(alive.indexOf(out) + 1) % n]!, copy: true };
+      }
+    }
+    cycle.push(copy ? [...real, copy] : real);
+  }
+  return cycle;
+}
+
 /** The cycle of pairings for a living set (see the header), before the epoch offset is applied. */
 function cycleFor(alive: readonly VersusGroupSeat[]): VersusGroupPairing[][] {
   const [A, B, C, D] = alive;
-  if (alive.length >= 4) {
+  if (alive.length >= 5) return circleCycle(alive);
+  if (alive.length === 4) {
     return [
       [{ a: A!, b: B!, copy: false }, { a: C!, b: D!, copy: false }],
       [{ a: A!, b: C!, copy: false }, { a: B!, b: D!, copy: false }],
@@ -129,7 +158,7 @@ export function versusGroupCombatSeed(matchSeed: number, round: number, fight: n
 export interface VersusGroupRoundInput {
   matchSeed: number;
   round: number;
-  /** Every seat of the match (3 or 4), whatever its state. */
+  /** Every seat of the match (3 to 8), whatever its state. */
   seats: readonly VersusGroupSeat[];
   /** Each seat's elimination round as the server holds it when the round is resolved. */
   eliminated: VersusGroupEliminations;

@@ -22,9 +22,11 @@ const EMPTY: PreparedCombatSide = { board: [], state: structuredClone(FIXTURE.ca
 
 const U = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'] as const;
 const SEAT: GSeat[] = ['p1', 'p2', 'p3', 'p4'];
+const SEAT8: GSeat[] = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+const U8 = [...U, '55555555-5555-4555-8555-555555555555', '66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777', '88888888-8888-4888-8888-888888888888'];
 const ROOM = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0);
-const HERO_IDS = HEROES.slice(0, 12).map((h) => h.id);
+const HERO_IDS = HEROES.slice(0, 24).map((h) => h.id);
 const GROUP = { v: 1, mode: 'group', modifiers: [] };
 
 function deps() {
@@ -287,6 +289,50 @@ describe('Group room (Cloudflare) — resolverFail / hibernation / room options'
     await h.op(U[3], 'take_seat', { role: 'p4' });
     await h.op(U[2], 'take_seat', { role: 'spectator' });
     await expect(h.op(U[0], 'start')).rejects.toThrow('need_three_players');
+  });
+});
+
+describe('Group room (Cloudflare) — eight seats (R-VERSUS-EIGHT-01)', () => {
+  /** n players seated, gated, heroes picked, intros done. */
+  const big = async (n: number): Promise<H> => {
+    const h = new H();
+    for (let i = 0; i < n; i++) h.core.connect(U8[i]!, h.now);
+    await h.op(U8[0]!, 'set_options', { options: GROUP });
+    for (let i = 1; i < n; i++) await h.op(U8[i]!, 'join', JOIN(i));
+    expect(h.core.state.room.members.map((m) => m.role)).toEqual(SEAT8.slice(0, n));
+    await h.op(U8[0]!, 'start');
+    for (let i = 0; i < n; i++) await h.op(U8[i]!, 'gate');
+    expect(h.g.seats).toHaveLength(n);
+    for (let i = 0; i < n; i++) await h.op(U8[i]!, 'register_offer', { matchId: h.id, offer: HERO_IDS.slice(i * 3, i * 3 + 3) });
+    for (let i = 0; i < n; i++) await h.op(U8[i]!, 'pick_hero', { matchId: h.id, index: 0 });
+    for (let i = 0; i < n; i++) await h.op(U8[i]!, 'intro_done', { matchId: h.id });
+    return h;
+  };
+  const lock = async (h: H, n: number, side: (i: number) => PreparedCombatSide) => {
+    const round = h.g.round;
+    for (let i = 0; i < n; i++) if (h.seat(SEAT8[i]!).eliminated_round == null) await h.op(U8[i]!, 'submit', { matchId: h.id, round, seq: 1, side: structuredClone(side(i)), final: true, checkpoint: null });
+  };
+
+  it('8 players: four fights a round, equal to the resolver; a ninth player only gets the stands', async () => {
+    const h = await big(8);
+    const pick = (i: number): PreparedCombatSide => (i % 2 === 0 ? STRONG : EMPTY);
+    await lock(h, 8, pick);
+    expect(h.g.phase).toBe('combat');
+    const r1 = h.core.state.group!.rounds[1]!;
+    const want = versusGroupPairings(SEAT8, {}, 1);
+    expect(want).toHaveLength(4);
+    expect(r1.fights.map((f) => [f.a_seat, f.b_seat, f.b_copy])).toEqual(want.map((p) => [p.a, p.b, p.copy]));
+    const vitals = Object.fromEntries(SEAT8.map((s) => [s, versusStartingVitals(h.seat(s).hero, h.g.options)]));
+    const sides = Object.fromEntries(SEAT8.map((s, i) => [s, pick(i)]));
+    expect(r1.digest).toBe(groupRoundDigest(resolveVersusGroupRound({ matchSeed: h.g.seed, round: 1, seats: SEAT8, eliminated: {}, sides, vitals })));
+  });
+
+  it('5 players: the sit-out faces a Copy; the room starts with any count from three to eight', async () => {
+    const h = await big(5);
+    await lock(h, 5, () => MID);
+    const r1 = h.core.state.group!.rounds[1]!;
+    expect(r1.fights).toHaveLength(3);
+    expect(r1.fights.filter((f) => f.b_copy)).toHaveLength(1);
   });
 });
 

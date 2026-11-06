@@ -39,6 +39,7 @@
 .ph-cards.n2 .ph-cardwrap { --n: 2; }
 .ph-cards.n3 .ph-cardwrap { --n: 3; }
 .ph-cards.n4 .ph-cardwrap { --n: 4; }
+.ph-cards.n8 .ph-cardwrap { --n: 8; }
 .ph-cardwrap.menu { z-index: 7; }
 @keyframes ph-rise { from { opacity: 0; transform: translateY(calc(24 * var(--phu))); } to { opacity: 1; transform: none; } }
 /* THE BANNER CARD: the big cut. The outer box is the gold edge (the same cut), the inner the navy plate. */

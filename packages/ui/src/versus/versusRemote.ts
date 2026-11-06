@@ -15,7 +15,7 @@ import { embeddedCfUrl, encodeRoomRef } from './versusHost';
 import { contentRevision } from '@game/content';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
-/** A room role: a player seat (p3 / p4 only in a group room, R-VERSUS-GROUP-01) or the stands. */
+/** A room role: a player seat (p3 and up only in a group or Duos room, R-VERSUS-EIGHT-01) or the stands. */
 export type VersusRole = VersusGroupSeat | 'spectator';
 export type VersusPhase = 'hero_select' | 'shop' | 'resolving' | 'combat' | 'complete';
 
@@ -42,6 +42,10 @@ export interface VersusRoom {
   /** Group rooms only (2026-10-24-versus-group.sql). */
   p3_gate?: boolean;
   p4_gate?: boolean;
+  p5_gate?: boolean;
+  p6_gate?: boolean;
+  p7_gate?: boolean;
+  p8_gate?: boolean;
   current_match_id: string | null;
   /** THE ROOM OPTIONS (R-VERSUS-OPTIONS-01): the host's mode + modifiers, on the room. Absent before the migration. */
   options?: VersusRoomOptions | null;

@@ -10,7 +10,7 @@ import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow } fro
 import { projectGroupMatch, projectGroupRounds, roundResultFor } from './versusGroupView';
 import { versusTurn, versusTurnNote } from './versusTurn';
 
-const U: Record<VersusGroupSeat, string> = { p1: 'u1', p2: 'u2', p3: 'u3', p4: 'u4' };
+const U: Record<VersusGroupSeat, string> = { p1: 'u1', p2: 'u2', p3: 'u3', p4: 'u4', p5: 'u5', p6: 'u6', p7: 'u7', p8: 'u8' };
 const seat = (s: VersusGroupSeat, over: Partial<VersusGroupSeatRow> = {}): VersusGroupSeatRow => ({
   seat: s, userId: U[s], name: s.toUpperCase(), health: 30, armor: 0, hero: 'warden', locked: false, ready: false, intro: true, auto: false,
   missed: 0, eliminatedRound: null, outReason: null, placement: null, ...over,

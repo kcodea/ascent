@@ -22,8 +22,8 @@
  * Dependency-free: no imports (the UI imports it as `@game/versus-cf/pings`).
  */
 
-export type PingSeat = 'p1' | 'p2' | 'p3' | 'p4';
-export const PING_SEATS: readonly PingSeat[] = ['p1', 'p2', 'p3', 'p4'];
+export type PingSeat = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7' | 'p8';
+export const PING_SEATS: readonly PingSeat[] = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
 
 /** The five pings (owner 2026-10-29). Their art ships as `packages/ui/src/art/pings/<kind>.webp`. */
 export type PingKind = 'check' | 'x' | 'question' | 'pass' | 'sell';

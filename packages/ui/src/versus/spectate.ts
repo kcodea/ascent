@@ -20,7 +20,7 @@
  */
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneNeedsChoice, resetLobbyDrivers, sellValueWithBonus, type RunState, type VersusGroupSeat } from '@game/sim';
+import { chooseOneNeedsChoice, resetLobbyDrivers, sellValueWithBonus, VERSUS_GROUP_SEATS, type RunState, type VersusGroupSeat } from '@game/sim';
 import { presentAction, type ScreenPoint } from '../actionPresenter';
 import { playsAsSpell } from '../instView';
 import { actionSfx, useGame } from '../store';
@@ -93,8 +93,8 @@ interface Io {
 }
 
 let io: Io | null = null;
-/** One receiver per seat (1v1: p1 / p2; VERSUS GROUP: up to p4, R-VERSUS-GROUP-01). */
-const newReceivers = (): Record<VersusGroupSeat, SpectatorReceiver> => ({ p1: newReceiver(), p2: newReceiver(), p3: newReceiver(), p4: newReceiver() });
+/** One receiver per seat (1v1: p1 / p2; VERSUS GROUP: up to p8, R-VERSUS-EIGHT-01). */
+const newReceivers = (): Record<VersusGroupSeat, SpectatorReceiver> => Object.fromEntries(VERSUS_GROUP_SEATS.map((s) => [s, newReceiver()])) as Record<VersusGroupSeat, SpectatorReceiver>;
 let matchId: string | null = null;
 let rx: Record<VersusGroupSeat, SpectatorReceiver> = newReceivers();
 let rounds: Record<number, VersusRoundRow> = {};
@@ -373,7 +373,7 @@ export function liveSync(gameId: string | null): void {
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-const SEATS: readonly VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
+const SEATS: readonly VersusGroupSeat[] = VERSUS_GROUP_SEATS;
 /** A player's odds as they travel (`od`), validated; null when malformed. Pure. */
 export function parseWireOdds(v: unknown): WireOdds | null {
   const p = v as { w?: unknown; o?: Record<string, unknown> } | null;

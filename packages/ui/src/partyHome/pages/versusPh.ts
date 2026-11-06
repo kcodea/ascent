@@ -45,7 +45,7 @@ export function visibleRooms(rooms: readonly VersusRoomSummary[], filter: RoomFi
   return shown.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map((x) => x.r);
 }
 
-/** A room's player seats (2, or 4 for a group or Duos room). */
+/** A room's player seats (2, 4 for a Duos room, 8 for a group room). */
 export const seatCap = (r: Pick<VersusRoomSummary, 'maxPlayers'>): number => r.maxPlayers ?? 2;
 
 /**
@@ -91,10 +91,10 @@ export function roomTitleOf(name: string | null | undefined, mode: VersusRoomMod
 
 // ── THE ROOM ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The seats a mode lays out, in teams: 1v1 = two sides of one, Group = four free seats, Duos = two teams of two. */
+/** The seats a mode lays out, in teams: 1v1 = two sides of one, Group = eight free seats, Duos = two teams of two. */
 export function seatTeams(mode: VersusRoomMode): VersusGroupSeat[][] {
   if (mode === 'duos') return [['p1', 'p2'], ['p3', 'p4']];
-  if (mode === 'group') return [['p1', 'p2', 'p3', 'p4']];
+  if (mode === 'group') return [['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']];
   return [['p1'], ['p2']];
 }
 
@@ -132,11 +132,11 @@ export function roomStartOf(args: {
   if (seated < need) {
     const missing = need - seated;
     const who = mode === 'duel' ? 'an opponent' : missing === 1 ? 'one more player' : `${missing} more players`;
-    const line = mode === 'group' ? `Needs three or four players. Waiting for ${who}.` : `Waiting for ${who}.`;
+    const line = mode === 'group' ? `Needs at least three players. Waiting for ${who}.` : `Waiting for ${who}.`;
     return host ? { canStart: false, label: 'Start', note: line } : { canStart: false, label: `Waiting for ${who}`, note: null, wait: true };
   }
   if (!host) return { canStart: false, label: 'Waiting for host', note: null, wait: true };
-  return { canStart: true, label: 'Start', note: mode === 'group' && seated < 4 ? 'A fourth player can still sit.' : null };
+  return { canStart: true, label: 'Start', note: mode === 'group' && seated < VERSUS_MODE_SEATS.group.max ? 'More players can still sit.' : null };
 }
 
 /** An open seat's line for this viewer. */

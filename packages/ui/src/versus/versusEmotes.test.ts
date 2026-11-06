@@ -24,7 +24,7 @@ describe('Versus emotes through the emote transport seam', () => {
     expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p2', phase: 'combat', offsetMs: 5, round: 4 })).toBe(true);
     expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p1', phase: 'combat', offsetMs: 5, round: 4 })).toBe(false);
     expect(receiveVersusEmote({ emoteId: 7, seat: 'p2' })).toBe(false);
-    expect(parseVersusEmote({ emoteId: 'x', seat: 'p5', phase: 'shop', offsetMs: 0, round: 1 })).toBeNull();
+    expect(parseVersusEmote({ emoteId: 'x', seat: 'p9', phase: 'shop', offsetMs: 0, round: 1 })).toBeNull();
     // VERSUS GROUP seats parse (R-VERSUS-GROUP-03); a 1v1 client shows them as its one opponent.
     expect(parseVersusEmote({ emoteId: 'x', seat: 'p3', phase: 'shop', offsetMs: 0, round: 1 })?.seat).toBe('p3');
     expect(shown).toEqual([{ emoteId: 'gg', seat: VERSUS_OPPONENT_SEAT, phase: 'combat', offsetMs: 5, round: 4 }]);

@@ -22,10 +22,10 @@ describe('party home prototype', () => {
     const prod = partyModes({ versus: false, dev: false }).map((m) => m.id);
     expect(prod).toEqual(['ranked', 'practice', 'gauntlet', 'learn']);
   });
-  it('sizes the party by mode: one card solo, two for Ranked Duos, four for the group modes', () => {
+  it('sizes the party by mode: one card solo, two for Ranked Duos, eight for Group, four for Versus Duos', () => {
     expect(partyModeOf('ranked').slots).toBe(1);
     expect(partyModeOf('duos').slots).toBe(2);
-    expect(partyModeOf('group').slots).toBe(4);
+    expect(partyModeOf('group').slots).toBe(8);
     expect(partyModeOf('duos').ranked && partyModeOf('ranked').ranked).toBe(true);
   });
   it('is on in every production build, and lazy (R-PH-PRODUCTION-01)', () => {

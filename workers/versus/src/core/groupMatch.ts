@@ -40,7 +40,7 @@ import type { SetId } from '@game/content';
 export type GTeamId = 'a' | 'b';
 import type { RankedExtra, ServedMember } from './rankedMatch';
 export const teamOf = (seat: GSeat): GTeamId => (seat === 'p1' || seat === 'p2' ? 'a' : 'b');
-export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[seat];
+export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3', p5: 'p6', p6: 'p5', p7: 'p8', p8: 'p7' } as const)[seat];
 export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1', 'p2'] : ['p3', 'p4']);
 /** Passes a seat may send per round (`VERSUS_DUOS_PASS_CAP`), and a passed card's size cap. */
 export const DUOS_PASS_CAP = 10;
@@ -89,8 +89,8 @@ export interface GPass {
   answered_at: string | null;
 }
 
-export type GSeat = 'p1' | 'p2' | 'p3' | 'p4';
-export const GSEATS: readonly GSeat[] = ['p1', 'p2', 'p3', 'p4'];
+export type GSeat = 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7' | 'p8';
+export const GSEATS: readonly GSeat[] = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
 
 const SHOP_GRACE_MS = 250;
 const COMBAT_LAST_READY_MS = 5_000;

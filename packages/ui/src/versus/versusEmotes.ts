@@ -28,7 +28,7 @@ export const VERSUS_OPPONENT_SEAT = VERSUS_FOE_SEAT_ID;
 export function parseVersusEmote(payload: unknown): VersusEmoteMessage | null {
   const p = payload as Partial<VersusEmoteMessage> | null;
   if (!p || typeof p.emoteId !== 'string' || p.emoteId.length > 64) return null;
-  if (p.seat !== 'p1' && p.seat !== 'p2' && p.seat !== 'p3' && p.seat !== 'p4') return null;
+  if (typeof p.seat !== 'string' || !/^p[1-8]$/.test(p.seat)) return null;
   if (typeof p.offsetMs !== 'number' || !Number.isFinite(p.offsetMs) || typeof p.round !== 'number') return null;
   if (p.phase !== 'shop' && p.phase !== 'combat') return null;
   return { emoteId: p.emoteId, seat: p.seat, phase: p.phase, offsetMs: p.offsetMs, round: p.round };

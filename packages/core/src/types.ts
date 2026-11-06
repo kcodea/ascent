@@ -3799,7 +3799,7 @@ export interface CombatResult {
   /** VERSUS DUOS: every seat's board as it was locked for this round, by REAL seat (p1..p4; perspective-free, so a
    *  mirror carries it unchanged). The rail's per-seat history and the hand-off presentation read the teammate board
    *  here even when it never stepped in. */
-  duosBoards?: Partial<Record<'p1' | 'p2' | 'p3' | 'p4', BoardMinion[]>>;
+  duosBoards?: Partial<Record<'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7' | 'p8', BoardMinion[]>>;
   /** VERSUS DUOS: which seat of each team fought FIRST this round (team a = p1 / p2, team b = p3 / p4). */
   duosFirst?: { a: 'p1' | 'p2'; b: 'p3' | 'p4' };
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY

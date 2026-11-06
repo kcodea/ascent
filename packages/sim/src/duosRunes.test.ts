@@ -216,9 +216,9 @@ describe('R-DUOS-RUNES-02: a combat gift reaches the teammate in real time, once
     expect(ids.length).toBeGreaterThanOrEqual(7);
     const big = (seed: number): RunState => seat({ board: [{ ...card(plainMinion(), `big${seed}`), attack: 60, health: 600 }] }, seed);
     // Ann's board is all Echoes and fights FIRST for team A (seat her on the seeded first chair).
-    const first = duosAlternatingFirst(9, 1).a;
+    const first = duosAlternatingFirst(9, 1).a as 'p1' | 'p2';
     const annSeat = first;
-    const bobSeat = duosMateOf(first);
+    const bobSeat = duosMateOf(first) as 'p1' | 'p2';
     let ann = rune(seat({ board: ids.slice(0, 7).map((eid, i) => card(eid, `e${i}`)) }, 21), 'rune_echoing_results');
     ann = { ...ann, wave: 1 };
     let bob = { ...seat({ board: [card(plainMinion(), 'bb')] }, 22), wave: 1 };

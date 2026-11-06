@@ -37,7 +37,7 @@ import type { PreparedCombatSide } from '../state';
 import { versusSideOrEmpty } from './combat';
 import { carryAsPlayerFields, mirrorForEnemySeat } from './mirror';
 import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
-import type { VersusGroupSeat } from './group';
+import { VERSUS_GROUP_SEATS, type VersusGroupSeat } from './group';
 
 /** A team id: a letter per seat pair (a = p1 + p2, b = p3 + p4, ...). The 2v2 round uses a and b. */
 export type VersusDuosTeam = 'a' | 'b';
@@ -145,7 +145,7 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
     if (r.error && r.error !== 'missing') refused[s] = r.error;
     return r.side;
   };
-  const sides = { p1: side('p1'), p2: side('p2'), p3: side('p3'), p4: side('p4') };
+  const sides = Object.fromEntries(VERSUS_GROUP_SEATS.map((s) => [s, side(s)])) as Record<VersusGroupSeat, PreparedCombatSide>;
   const pick = duosAlternatingFirst(input.matchSeed, input.round);
   const first: Record<VersusDuosTeam, VersusGroupSeat> = { a: pick.a, b: pick.b };
   for (const t of ['a', 'b'] as const) {

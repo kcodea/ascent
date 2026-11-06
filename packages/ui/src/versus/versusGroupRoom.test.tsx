@@ -77,7 +77,7 @@ describe('Room options (R-VERSUS-OPTIONS-01)', () => {
     const set = vi.spyOn(versusRemote, 'setOptions').mockResolvedValue(roomOf([member('host', 'p1')], { options: { ...GROUP, modifiers: ['summit'] }, options_rev: 2 }));
     const ui = enter('host', roomOf([member('host', 'p1')]));
     try {
-      expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-4 players');
+      expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-8 players');
       press(ui.container.querySelector('.vsroommode'));
       // The window is portalled to the stage (R-VERSUS-OPTIONS-02), so it is looked up on the document.
       const panel = document.querySelector('.vsoptions')!;
@@ -87,7 +87,7 @@ describe('Room options (R-VERSUS-OPTIONS-01)', () => {
       press(summit);
       await act(async () => { await Promise.resolve(); });
       expect(set).toHaveBeenCalledWith('r', { v: 1, mode: 'group', modifiers: ['summit'] });
-      expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-4 players · Summit');
+      expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-8 players · Summit');
     } finally { ui.unmount(); }
   });
 
@@ -114,7 +114,7 @@ describe('Room options (R-VERSUS-OPTIONS-01)', () => {
     try {
       await act(async () => { await Promise.resolve(); await Promise.resolve(); });
       const card = ui.container.querySelector('.vsrcard')!;
-      expect(card.querySelector('.vsrcard-mode')?.textContent).toBe('3-4 players');
+      expect(card.querySelector('.vsrcard-mode')?.textContent).toBe('3-8 players');
       expect(card.querySelectorAll('.vsrseat')).toHaveLength(4);
       expect(card.querySelectorAll('.vsrseat.on')).toHaveLength(3);
     } finally { ui.unmount(); }

@@ -45,7 +45,7 @@ export function SpectatorBar(): JSX.Element | null {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
       // VERSUS GROUP: 1-4 pick among the players still in, in the bar's order (R-VERSUS-GROUP-04).
       const pickable = groupOrderRef.current;
-      if (pickable.length > 0 && /^[1-4]$/.test(e.key)) {
+      if (pickable.length > 0 && /^[1-8]$/.test(e.key)) {
         const s = pickable[Number(e.key) - 1];
         if (s) { e.preventDefault(); sfx.tick(); watchSeat(s); }
         return;

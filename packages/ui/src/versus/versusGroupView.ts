@@ -321,9 +321,9 @@ export function groupDuosRailRows<R extends { id: string }>(rows: readonly R[], 
 function duosActiveSeat(result: CombatResult, viewer: VersusGroupSeat, side: 'player' | 'enemy', tagged: boolean): VersusGroupSeat | null {
   const first = result.duosFirst;
   if (!first) return null;
-  const mine = duosTeamOf(viewer);
-  const team = side === 'player' ? mine : mine === 'a' ? 'b' : 'a';
-  const head = first[team as 'a' | 'b'] as VersusGroupSeat;
+  // `first` names the fight's two sides, whichever teams they are (R-VERSUS-EIGHT-01).
+  const iAmA = duosTeamOf(first.a as VersusGroupSeat) === duosTeamOf(viewer);
+  const head = ((side === 'player') === iAmA ? first.a : first.b) as VersusGroupSeat;
   return tagged ? duosMateOf(head) : head;
 }
 

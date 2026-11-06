@@ -3800,7 +3800,7 @@ export interface CombatResult {
    *  mirror carries it unchanged). The rail's per-seat history and the hand-off presentation read the teammate board
    *  here even when it never stepped in. */
   duosBoards?: Partial<Record<'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7' | 'p8', BoardMinion[]>>;
-  /** VERSUS DUOS: which seat of each team fought FIRST this round (team a = p1 / p2, team b = p3 / p4). */
+  /** VERSUS DUOS: which seat of each SIDE of the fight fought first this round (side a, side b; any team, R-VERSUS-EIGHT-01). */
   duosFirst?: { a: 'p1' | 'p2'; b: 'p3' | 'p4' };
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not

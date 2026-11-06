@@ -11,7 +11,7 @@ import type { VersusMember, VersusRoom, VersusRoomSummary } from '../../versus/v
 export type VersusRoomMode = Exclude<VersusMode, 'ranked_duos'>;
 export const VERSUS_ROOM_MODES: readonly { id: VersusRoomMode; label: string; short: string; desc: string }[] = [
   { id: 'duel', label: 'Versus 1v1', short: '1v1', desc: 'Two players. Health and Armor, like a normal game.' },
-  { id: 'group', label: 'Versus Group', short: 'Group', desc: 'Three or four players. Last one standing wins.' },
+  { id: 'group', label: 'Versus Group', short: 'Group', desc: 'Three to eight players. Last one standing wins.' },
   { id: 'duos', label: 'Versus Duos', short: 'Duos', desc: 'Two teams of two. Each team shares its Health.' },
 ];
 const MODE_OF = new Map(VERSUS_ROOM_MODES.map((m) => [m.id, m] as const));

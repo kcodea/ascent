@@ -9245,6 +9245,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
+    id: 'R-VERSUS-EIGHT-01',
+    title: 'Versus Group seats up to eight and Versus Duos up to four teams of two',
+    statement:
+      'A Group room starts with three to eight players. Three and four players keep their schedule. Five to eight play the circle method: every pair once per cycle, and at an odd count one player a round faces a Copy of the next living player, so everyone faces the Copy once and is copied once per cycle. '
+      + 'A Duos room starts with two to four full teams; a team with one player cannot start, and a gap between teams closes up at the start. A 2v2 plays as it always has. '
+      + 'Three or four teams pair on the Group schedule over teams, one tag-team fight per pairing, and at three teams left the odd team faces a Copy of another team, which never costs that team anything. '
+      + 'Teams out in the same round share the lower place, and they never all go out: the team that went in with the most Health and Armor stays.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-06', quote: 'host up to 8 players in normal mode and up to 4 teams of 2' },
+      { kind: 'code', ref: 'packages/sim/src/versus/group.ts (circleCycle); packages/sim/src/versus/duos.ts (versusDuosTeamPairings, resolveVersusDuosTable); workers/versus/src/core/roomCore.ts (duosTeamsFull); workers/versus/src/core/groupMatch.ts (commitDuos)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-06 (feat/versus-8-seats).',
+    example: 'Seven players: three real fights a round and one Copy fight. Three Duos teams: one team fight, and the third team fights a Copy of one of the other two.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusEightSeats.test.ts', 'workers/versus/test/duosTeams.test.ts'], lastVerifiedAt: '2026-11-06' },
+  },
+  {
     id: 'R-BALANCE-1106-01',
     title: 'The 2026-11-06 balance pass: Portsmith, Spell Cart, Dawnclaw and the Golem makers',
     statement:

@@ -57,6 +57,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-06',
+    label: 'Bigger Versus Rooms',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Versus rooms are bigger. Group now holds up to 8 players, and Duos up to 4 teams of 2.',
+        details: [
+          'Group starts with 3 to 8 players. With an odd number left, one player fights a Copy each round.',
+          'Duos starts with 2, 3 or 4 full teams. Every team needs two players.',
+          'With 3 teams left, one team fights a Copy of another team each round. A Copy never hurts the team it copies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-11-06',
     label: 'Balance Pass',
     changes: [
       {

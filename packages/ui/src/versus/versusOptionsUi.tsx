@@ -19,12 +19,12 @@ import '../matchDetails/matchDetails.css';
 
 /** The mode as players read it. */
 export const versusModeLabel = (mode: VersusMode): string =>
-  (mode === 'group' ? '3-4 players' : mode === 'duos' ? '2v2' : mode === 'ranked_duos' ? 'Ranked Duos' : '1v1');
+  (mode === 'group' ? '3-8 players' : mode === 'duos' ? 'Duos' : mode === 'ranked_duos' ? 'Ranked Duos' : '1v1');
 
 /** A modifier's name (its rift's). */
 export const versusModifierName = (id: VersusModifierId): string => RIFTS[id]?.name ?? id;
 
-/** One line for the room heading / browser card: "1v1", "3-4 players · Summit". */
+/** One line for the room heading / browser card: "1v1", "3-8 players · Summit". */
 export function versusOptionsSummary(raw: VersusRoomOptions | null | undefined): string {
   const o = normalizeVersusOptions(raw);
   return [versusModeLabel(o.mode), ...o.modifiers.map(versusModifierName)].join(' · ');
@@ -35,7 +35,7 @@ export const VERSUS_OPTIONS_CLOSE_MS = 140;
 
 const MODE_OPTIONS: { value: VersusMode; desc: string }[] = [
   { value: 'duel', desc: 'Two players. Health and Armor, like a normal game.' },
-  { value: 'group', desc: 'Three or four players. Last one standing wins.' },
+  { value: 'group', desc: 'Three to eight players. Last one standing wins.' },
   { value: 'duos', desc: 'Two teams of two. Each team shares 30 Health plus both Armors.' },
 ];
 /* RANKED DUOS is never a Versus room option (owner 2026-10-27, R-RANKED-DUOS-SPLIT-01): a party is reached only by the

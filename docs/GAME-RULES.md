@@ -1241,13 +1241,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Continue closes it. A live ranked game opens on the Play menu (when the player is out or wins); a Versus match plays
   its last fight out first, then opens on the room (the Versus view of the Play menu) the spectator is still in.
 
-### Versus room options and Versus Group (3-4 players) (owner 2026-10-24; R-VERSUS-OPTIONS-01, R-VERSUS-OPTIONS-02, R-VERSUS-GROUP-01..06)
+### Versus room options and Versus Group (3-8 players) (owner 2026-10-24; 8 seats 2026-11-06, R-VERSUS-EIGHT-01; R-VERSUS-OPTIONS-01, R-VERSUS-OPTIONS-02, R-VERSUS-GROUP-01..06)
 
 > Server: `supabase/migrations/2026-10-24-versus-group.sql` + the `versus-resolve` `finalize_group` action (#2280,
 > live). Client: phase 2 (`feat/versus-group-ui`). The readings below were approved by the owner on 2026-10-24.
 
 - **Room options.** A room has ONE options object on the server, kept on the ROOM (it outlives its matches): the
-  **mode** (1v1, or Group for 3-4 players) and up to one **modifier**, an existing rift (Freedom: the first minion
+  **mode** (1v1, or Group for 3-8 players) and up to one **modifier**, an existing rift (Freedom: the first minion
   bought each turn is free; Summit: +10 Armor to every hero, as in the lobby, and the shop reaches Tier 7; R-VERSUS-SUMMIT-01).
   Defaults are today's Versus (1v1, no modifier). Only the host changes them, only while the room is Open (between games),
   and the server refuses anything off its list. Each change bumps a counter so the room can say the options changed. The
@@ -1283,11 +1283,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Back from the fight.** The next shop opens when every player still in is back; when all but one are, the last has
   5 seconds (90 seconds at most from the commit).
 - **In the room** (R-VERSUS-OPTIONS-02, R-VERSUS-GROUP-05). A chip under the room's name says what it plays ("1v1",
-  "3-4 players · Summit"); it and the Room options button open a centered window over the darkened room (closed by its
+  "3-8 players · Summit"); it and the Room options button open a centered window over the darkened room (closed by its
   X, a press on the dark scrim, or Esc): a Mode section and a Modifier section, each option a card with its name and
   one plain line, the picked one lit. The host edits it while the room is Open; everyone else sees it greyed ("Only the
   host can change these."). A change shows every other member "Room options changed: ..." for a few seconds. The room browser shows each
-  room's mode and as many seat sockets as it has. A 3-4 player room shows four seats, two each side of the VS mark,
+  room's mode and as many seat sockets as it has. A Group or Duos room shows eight seats in two rows of four (the party home; Duos shows Team 1 to 4, two teams a row),
   and Start game appears for the host once three are seated.
 - **In the game** (R-VERSUS-GROUP-03). The 1v1 opponent block is replaced by the ordinary ranked lobby rail: one row
   per player (you included) on their Health and Armor with the round's Max dmg above it, your opponent this round marked, the players out below with
@@ -1300,25 +1300,25 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   full stand). You watch your last fight; its End Combat (or a concede, at once) closes the end gate, which opens on the
   watch screen of the same match with your placement shown for a few seconds. Leave goes to the room, Watch comes back.
   When the match ends you are in the open room's stands for the next game. Leaving the room mid-match is also out.
-- **Spectators** (R-VERSUS-GROUP-04) pick a player at the bottom right (keys 1 to 4), grouped by this round's fights,
+- **Spectators** (R-VERSUS-GROUP-04) pick a player at the bottom right (keys 1 to 8), grouped by this round's fights,
   each plate saying who that player fights; players out are dimmed. Watching shows that player's screen and fight;
   switching within the same fight continues from the same moment, switching to the other fight joins it where it is.
   Joining a running match, or pressing the room's Watch, always opens on a player still in it: never on a player
   already out or a seat no one sat in (the first player still in, in seat order; R-VERSUS-GROUP-WATCH-01).
 - **XP** (R-VERSUS-GROUP-08, R-PROG-VERSUS-XP-01). A group player settles under the match the moment their own result
-  is final (knocked out, or the match over): four players earn 125 / 80 / 50 / 50, three 125 / 50 / 50. A spectator
+  is final (knocked out, or the match over): four players earn 125 / 80 / 50 / 50, three 125 / 50 / 50; five to eight scale the same way (place p of n is ceil(p x 8 / n) of 8). A spectator
   who watched to the end earns 50 (R-PROG-SPECTATE-XP-01); a player watching their own match does not. A full group
   room reads every card's record (24 ids). The room cards' records still count 1v1 matches only.
 - **Previous match stats** (R-VERSUS-GROUP-07). Your place (Victory, 2nd, 3rd, 4th), the whole table with places, heroes,
   Health and Armor, then your rounds; each round names who you fought (a player, or "Copy of <name>").
 
-### Versus Duos (2v2 tag-team) (owner 2026-10-25; R-DUOS-01, R-DUOS-TAGTEAM-01, R-DUOS-PASS-01)
+### Versus Duos (tag-team, 2 to 4 teams) (owner 2026-10-25; four teams 2026-11-06, R-VERSUS-EIGHT-01; R-DUOS-01, R-DUOS-TAGTEAM-01, R-DUOS-PASS-01)
 
 > Engine + server: `feat/versus-duos` phase 1 (`supabase/migrations/2026-10-25-versus-duos.sql` + the `versus-resolve`
 > `finalize_duos` action, applied/deployed by the lead). The room, the in-game UI (the teammate's live board, the
 > board hand-off in combat, the pass drag and its animation) are phase 2. Design: `docs/design/2026-10-25-versus-duos.md`.
 
-- **The mode.** A Versus room option beside 1v1 and 3-4 players: exactly 4 players in two teams, unrated. Seats 1 and 2
+- **The mode.** A Versus room option beside 1v1 and Group: two to four full teams of two, unrated. A team with one player cannot start, and a gap between teams closes up at the start. With three or four teams the teams pair on the Group schedule: four teams fight two fights a round, and at three teams left the odd team faces a Copy of another team, which never hurts that team. Teams out in the same round share the lower place. Seats 1 and 2
   (left of the VS mark) are one team, seats 3 and 4 (right) the other; you pick your team by taking a seat. Start needs
   all four. Gold, shops, heroes and runs are each player's own. Freedom and Summit work as in any Versus room.
 - **One tag-team fight a round.** Team against team, in ONE combat: each team's first board fights; when a board is

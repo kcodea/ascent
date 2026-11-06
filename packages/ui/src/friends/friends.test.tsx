@@ -111,7 +111,7 @@ describe('presence: what the beat reports', () => {
     // Every room is on the Versus Worker (R-VERSUS-CF-ONLY-01): the watch target names it `cf:`.
     expect(presenceNow()).toMatchObject({ status: 'in_game', mode: 'versus_duos', watchKind: 'versus', watchId: 'cf:room-1', game: { round: 3, phase: 'shop', vs: 'Me vs ' } });
     useVersus.setState({ room: { ...room, status: 'open' }, match: null });
-    expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null, activity: { v: 1, act: 'versus_room', mode: 'versus_duos', players: 1, max: 4 } });
+    expect(presenceNow()).toEqual({ status: 'online', mode: 'versus_room', watchKind: null, watchId: null, activity: { v: 1, act: 'versus_room', mode: 'versus_duos', players: 1, max: 8 } });
   });
 
   it('a CLOUDFLARE Versus match is In a game with a cf: watch target, in every mode (R-VERSUS-CF-LIVE-01)', () => {

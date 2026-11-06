@@ -263,6 +263,13 @@ html[data-ph-compact] .ph-start { height: calc(320 * var(--phu) * 197 / 800); }
 .ph-cards, .ph-cards.vs { flex: 1; width: 100%; height: auto; min-height: 0; --vsw: calc(64 * var(--phu) + var(--gap)); padding-top: 0; }
 .ph-cardwrap, .ph-cards.vs .ph-cardwrap {
   height: min(calc(640 * var(--phu)), calc(100cqh - 64 * var(--phu)), calc((100cqw - 3 * var(--gap) - var(--vsw)) / 4 / 0.56)); }
+/* EIGHT SEATS (owner 2026-11-06, R-VERSUS-EIGHT-01): Group and Duos rooms hold two rows of four, smaller banners that fill
+   the same stage. Duos teams stay together, two teams a row. A phone keeps its sideways scroller. */
+html:not([data-ph-compact]) .ph-cards.n8 { --gap: calc(28 * var(--phu)); display: grid; grid-template-columns: repeat(4, auto); justify-content: center; align-content: center; }
+html:not([data-ph-compact]) .ph-cards.n8.vs { grid-template-columns: repeat(2, auto); column-gap: calc(72 * var(--phu)); }
+html:not([data-ph-compact]) .ph-cards.n8 .ph-cardwrap { height: min(calc((100cqh - var(--gap)) / 2), calc((100cqw - 3 * var(--gap)) / 4 / 0.56)); }
+html:not([data-ph-compact]) .ph-cards.n8.vs .ph-cardwrap { height: min(calc((100cqh - var(--gap)) / 2 - 44 * var(--phu)), calc((100cqw - 2 * var(--gap) - 72 * var(--phu)) / 4 / 0.56)); }
+html:not([data-ph-compact]) .ph-cards.n8 .ph-pair { height: auto; gap: calc(8 * var(--phu)); }
 /* THE SIDE PANEL: Friends | the mode's settings. */
 .ph-sidepanel { position: relative; z-index: 2; grid-column: 2; grid-row: 2 / 4; min-height: 0; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); box-sizing: border-box;
   padding: calc(12 * var(--phu)) calc(16 * var(--phu) + var(--safe-r, 0px)) calc(16 * var(--phu) + var(--safe-b, 0px)) calc(16 * var(--phu));

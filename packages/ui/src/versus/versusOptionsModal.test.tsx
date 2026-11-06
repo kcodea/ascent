@@ -117,7 +117,7 @@ describe('Room options window (R-VERSUS-OPTIONS-02)', () => {
       // 3 modes + 3 modifiers (Ranked Duos is never a Versus room option, R-RANKED-DUOS-SPLIT-01).
       expect(cards).toHaveLength(6);
       expect(cards.every((c) => c.disabled)).toBe(true);
-      click(cards.find((c) => c.querySelector('.vsopt-name')?.textContent === '2v2'));
+      click(cards.find((c) => c.querySelector('.vsopt-name')?.textContent === 'Duos'));
       expect(set).not.toHaveBeenCalled();
     } finally { ui.unmount(); }
     const host = enter('host');

@@ -9245,6 +9245,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
+    id: 'R-VERSUS-WORKER-RULES-01',
+    title: 'A rules change with no content change still gets its own Versus Worker',
+    statement:
+      'A room finishes on the engine it started on. The Worker name carries the content revision, which hashes cards, runes and quests only. '
+      + 'So any change to fight rules that touches none of those must bump VERSUS_CF_PROTOCOL, or the next ship deploys over the live Worker and changes the rules under rooms in play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 (workers/versus/scripts/deploy.ts header)', quote: 'that room finishes on its version' },
+      { kind: 'code', ref: 'workers/versus/src/protocol.ts (VERSUS_CF_PROTOCOL); packages/content/src/revisions.ts (contentRevision)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-05 (fix/versus-worker-protocol-bump): #2600 changed the Duos fight order with content unchanged since exe v0.2.2, so protocol 2 keeps its rooms on ascent-versus-v1-5ed25b5c.',
+    example: 'Duos fight order changes, no card changes: the revision stays 5ed25b5c, the protocol goes 1 to 2, the new build plays on ascent-versus-v2-5ed25b5c, and rooms on v1 finish there.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-11-05' },
+  },
+  {
     id: 'R-DUOS-ORDER-01',
     title: 'Duos: teammates alternate who fights first, from a seeded opener, and the top rail row is the one who does',
     statement:

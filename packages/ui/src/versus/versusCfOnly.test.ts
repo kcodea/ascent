@@ -81,7 +81,7 @@ describe('R-VERSUS-CF-ONLY-01: Versus is Cloudflare only', () => {
     // This test build is a dev build (its own Worker would be local `wrangler dev`): a listed row was written by a
     // deployed Worker, so the watch must go there, never to 127.0.0.1:8787 (owner 2026-10-30: "i keep getting this error").
     expect(lobbyLiveWatchUrl(`cf:${contentRevision()}`)).toBe(versusCfLiveUrl(contentRevision()));
-    expect(lobbyLiveWatchUrl('cf:7a0e7dc6')).toBe('https://ascent-versus-v1-7a0e7dc6.team-ascent.workers.dev');
+    expect(lobbyLiveWatchUrl('cf:7a0e7dc6')).toBe('https://ascent-versus-v2-7a0e7dc6.team-ascent.workers.dev');
     expect(lobbyLiveWatchUrl(`cf:${contentRevision()}`)).not.toBe(versusCfDevUrl());
   });
 

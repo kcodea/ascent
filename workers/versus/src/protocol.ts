@@ -20,8 +20,12 @@
  * Dependency-free: no imports.
  */
 
-/** Bump when a message shape changes. A client on another version is refused at `hello` (close 4409). */
-export const VERSUS_CF_PROTOCOL = 1;
+/** Bump when a message shape changes, OR when the fight rules change with no card, rune or quest change (R-VERSUS-WORKER-RULES-01):
+ *  the Worker is named `ascent-versus-v<this>-<contentRevision>`, and the content revision hashes content only, so a rules-only
+ *  change would otherwise deploy OVER the live Worker and change the rules under rooms in play. A client on another version is
+ *  refused at `hello` (close 4409).
+ *  2 (2026-11-05): Duos teammates alternate who fights first (R-DUOS-ORDER-01). */
+export const VERSUS_CF_PROTOCOL = 2;
 /** The WebSocket subprotocol a client offers (the server echoes it back). */
 export const VERSUS_CF_SUBPROTOCOL = 'ascent-versus.v1';
 /** The subprotocol prefix carrying the bearer token (`bearer.<jwt>`). */

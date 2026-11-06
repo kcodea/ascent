@@ -31,7 +31,7 @@ import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
 import { PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor, withMentor, type PingMode, type PingRoomView, type PingSeat } from './pings';
 import {
-  GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LOBBY_CHAT_TEAMS_STORAGE_KEY, LobbyChat, lobbyChatChannelOf,
+  GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_TYPING_EVENT, lobbyChatTypingNotice, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LOBBY_CHAT_TEAMS_STORAGE_KEY, LobbyChat, lobbyChatChannelOf,
   lobbyChatTeamAudience, lobbyChatTeamOf, LobbyTeamChats, type LobbyChatSender, type LobbyChatTeam,
 } from './lobbyChat';
 import {
@@ -291,6 +291,7 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       if (!a.hello) return;
       if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
       if (msg.event === LOBBY_CHAT_EVENT || msg.event === LOBBY_CHAT_SYNC_EVENT) { await this.lobbyChat(ws, a, msg.event, msg.payload); return; }
+      if (msg.event === LOBBY_CHAT_TYPING_EVENT) { await this.lobbyTyping(ws, a, msg.payload); return; }
       // Relay (spectator frames, cursors, emotes): to every other member's sockets, never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies VersusCfPush);
       for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
@@ -464,6 +465,25 @@ export class VersusRoom extends DurableObject<RoomEnv> {
     const mates = new Set(lobbyChatTeamAudience(core.state.room.options.mode, core.state.room.members, team));
     const out = JSON.stringify({ t: 'bc', event, payload: r.msg, from: a.userId } satisfies VersusCfPush);
     for (const other of this.liveSockets()) { const o = this.att(other); if (o.hello && mates.has(o.userId)) this.send(other, out); }
+  }
+
+  /** "I am typing" (R-CHAT-BUBBLE-01): stamped here and passed on, never stored. A team tab's notice reaches only the
+   *  sender's team, so the other team never learns that a team is talking. */
+  private async lobbyTyping(ws: CfWebSocket, a: Attachment, payload: unknown): Promise<void> {
+    const core = await this.load();
+    if (!core) return;
+    const mem = core.state.room.members.find((m) => m.userId === a.userId);
+    const notice = lobbyChatTypingNotice({ userId: a.userId, role: !mem ? null : mem.role === 'spectator' ? 'spectator' : 'player', guest: !!a.guest }, payload);
+    if (!notice) return;
+    const mode = core.state.room.options.mode;
+    const team = mem ? lobbyChatTeamOf(mode, mem.role) : null;
+    if (notice.channel === 'team' && !team) return;
+    const mates = notice.channel === 'team' ? new Set(lobbyChatTeamAudience(mode, core.state.room.members, team!)) : null;
+    const out = JSON.stringify({ t: 'bc', event: LOBBY_CHAT_TYPING_EVENT, payload: notice, from: a.userId } satisfies VersusCfPush);
+    for (const other of this.liveSockets()) {
+      const o = this.att(other);
+      if (other !== ws && o.hello && (!mates || mates.has(o.userId))) this.send(other, out);
+    }
   }
 
   /** When this socket's keep-alive goes stale: its last ping (the runtime's auto-response stamp) or its open, + 15 s. */

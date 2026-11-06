@@ -57,6 +57,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-06',
+    label: 'Spectators and Chat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Spectators now have their own rail in the top left, and game chat shows up in speech bubbles.',
+        details: [
+          'Spectators sit on a rail in the lobby rail style. A spectator slides out to full size when they type, talk or emote.',
+          'Three dots show while someone is typing, then their message appears in a bubble beside them.',
+          'Bubbles show beside spectators and hero portraits. Chat mute and the swear filter still apply.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-11-06',
     label: 'Balance Pass',
     changes: [
       {

@@ -15,6 +15,8 @@
  *   object -> me      `lobby_chat_sync`   LobbyChatSync          the last `LOBBY_CHAT_BACKLOG` messages (only those after
  *                                                                `since` when it is still in the backlog) and whether I may post
  *   object -> sender  `lobby_chat_refused` { cid, reason }       a guest, too fast, or malformed
+ *   client -> object  `lobby_chat_typing` { on, channel? }       I started or stopped typing (R-CHAT-BUBBLE-01)
+ *   object -> others  `lobby_chat_typing` { from, role, on, channel? } stamped here, never stored
  *
  * REPLIES (owner 2026-10-30, R-LOBBY-CHAT-02: "lobby chat needs the same quality of life that dm's have"): a post may name
  * the message it answers (`replyTo`). The object looks it up in its own backlog and stamps the quote (`reply`: who wrote
@@ -61,6 +63,8 @@ import { cleanDmBody, DM_MAX_CHARS, DM_REPLY_SNIPPET } from './hubProtocol';
 export const LOBBY_CHAT_EVENT = 'lobby_chat';
 export const LOBBY_CHAT_SYNC_EVENT = 'lobby_chat_sync';
 export const LOBBY_CHAT_REFUSED_EVENT = 'lobby_chat_refused';
+/** "I am typing" (R-CHAT-BUBBLE-01): client { on, channel? } -> object -> others { from, role, on, channel? }. Never stored. */
+export const LOBBY_CHAT_TYPING_EVENT = 'lobby_chat_typing';
 /** How many messages a late joiner is sent (and the most the object keeps). */
 export const LOBBY_CHAT_BACKLOG = 100;
 export const LOBBY_CHAT_MAX_CHARS = DM_MAX_CHARS;
@@ -91,6 +95,28 @@ export function lobbyChatTeamOf(mode: unknown, role: unknown): LobbyChatTeam | n
   if (mode === 'duos') return role === 'p1' || role === 'p2' ? 'a' : role === 'p3' || role === 'p4' ? 'b' : null;
   if (mode === 'ranked_duos') return role === 'p1' || role === 'p2' ? 'a' : null;
   return null;
+}
+
+/** A typing notice as the object sends it on: who and in what role are the object's, never the payload's. */
+export interface LobbyChatTypingNotice {
+  from: string;
+  role: LobbyChatRole;
+  on: boolean;
+  channel?: 'team';
+}
+
+/** The notice to pass on for a sender's `payload`, or null when they may not post (a guest, or not in the game). Pure. */
+export function lobbyChatTypingNotice(sender: { userId: string; role: LobbyChatRole | null; guest: boolean }, payload: unknown): LobbyChatTypingNotice | null {
+  if (sender.guest || !sender.role) return null;
+  const team = lobbyChatChannelOf(payload) === 'team';
+  return { from: sender.userId, role: sender.role, on: (payload as { on?: unknown } | null)?.on === true, ...(team ? { channel: 'team' as const } : {}) };
+}
+
+/** A typing notice as a client reads it; null when malformed. Pure. */
+export function parseLobbyChatTyping(payload: unknown): LobbyChatTypingNotice | null {
+  const p = payload as Partial<LobbyChatTypingNotice> | null;
+  if (!p || typeof p.from !== 'string' || p.from.length > 64 || (p.role !== 'player' && p.role !== 'spectator')) return null;
+  return { from: p.from, role: p.role, on: p.on === true, ...(p.channel === 'team' ? { channel: 'team' as const } : {}) };
 }
 
 /** The quote a reply shows: the message it answers, who wrote it and the start of it. */

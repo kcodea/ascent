@@ -259,18 +259,20 @@ describe('R-SPECTATE-WATCHERS-01: the player sees who is spectating', () => {
   const render = (): void => { host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); act(() => { root!.render(<WatchersBadge />); }); };
   afterEach(() => { if (root) act(() => { root!.unmount(); }); root = null; });
 
-  it('one plate per watcher (portrait ring, name, "Spectating") up to three, then "+N" with the names on the data-tip', () => {
+  it('one plate per watcher (slice, name, "Spectating") up to eight, then "+N" with the names on the data-tip', () => {
     render();
     expect(host.querySelector('.vswatch')).toBeNull(); // nobody watching: nothing
     act(() => { watchers.setWatchers([
       { id: 'a', name: 'Ann', profile: null }, { id: 'b', name: '', profile: null },
-      { id: 'c', name: 'Cid', profile: { avatar: 'x' } }, { id: 'd', name: 'Dee', profile: null },
+      { id: 'c', name: 'Cid', profile: { avatar: 'x' } },
+      ...['e', 'f', 'g', 'h', 'i'].map((id) => ({ id, name: id.toUpperCase(), profile: null })),
+      { id: 'd', name: 'Dee', profile: null },
     ]); });
     const plates = host.querySelectorAll('.vswatch-seat');
-    expect(plates).toHaveLength(3);
-    expect([...plates].map((p) => p.querySelector('.vsspec-name')!.textContent)).toEqual(['Ann', 'Spectator', 'Cid']);
+    expect(plates).toHaveLength(8);
+    expect([...plates].slice(0, 3).map((p) => p.querySelector('.vsspec-name')!.textContent)).toEqual(['Ann', 'Spectator', 'Cid']);
     expect([...plates].every((p) => p.querySelector('.vswatch-tag')!.textContent === 'Spectating')).toBe(true);
-    expect(host.querySelectorAll('.portring')).toHaveLength(3);
+    expect(host.querySelectorAll('.vsslice')).toHaveLength(8);
     const more = host.querySelector('.vswatch-more')!;
     expect(more.textContent).toBe('+1');
     expect(more.getAttribute('data-tip')).toBe('Dee');

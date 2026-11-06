@@ -21,7 +21,7 @@ import { LIVE_CF_PROTOCOL, LIVE_MAX_KEY_CHARS, type LiveHello, type LiveHelloAns
 import { VERSUS_CF_CLOSE, VERSUS_CF_PING, VERSUS_CF_PONG, VERSUS_CF_STALE_MS, VERSUS_CF_SUBPROTOCOL, parseClientMessage } from './protocol';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { WatchReporter, type SpectateSink } from './spectate';
-import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, lobbyChatChannelOf, type LobbyChatSender } from './lobbyChat';
+import { GUEST_HEADER, LOBBY_CHAT_EVENT, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_TYPING_EVENT, lobbyChatTypingNotice, LOBBY_CHAT_STORAGE_KEY, LOBBY_CHAT_SYNC_EVENT, LobbyChat, lobbyChatChannelOf, type LobbyChatSender } from './lobbyChat';
 import { livePingRoom, PING_CLEAR_EVENT, PING_CLEAR_RATE, PING_EVENT, PING_MENTOR_EVENT, PingRateLimiter, routePing, routePingClear, routePingMentor } from './pings';
 
 export const LIVE_GAME_HEADER = 'X-Live-Game';
@@ -216,6 +216,14 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
       if (!core || !a.role) return;
       if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(core, ws, a.userId, msg.event, msg.payload); return; }
       if (msg.event === LOBBY_CHAT_EVENT || msg.event === LOBBY_CHAT_SYNC_EVENT) { await this.lobbyChat(core, ws, a, msg.event, msg.payload); return; }
+      // "I am typing" (R-CHAT-BUBBLE-01): stamped here and passed on, never stored. A live game has no team chat.
+      if (msg.event === LOBBY_CHAT_TYPING_EVENT) {
+        const notice = lobbyChatTypingNotice({ userId: a.userId, role: a.role === 'publish' ? 'player' : 'spectator', guest: !!a.guest }, msg.payload);
+        if (!notice || notice.channel) return;
+        const typing = JSON.stringify({ t: 'bc', event: msg.event, payload: notice, from: a.userId } satisfies LivePush);
+        for (const other of this.liveSockets()) if (other !== ws && this.att(other).role) this.send(other, typing);
+        return;
+      }
       // Relay to everyone else in this game (the player's stream to the stands; a watcher's emote, key request or
       // goodbye to the player and the other watchers), never back to the sender.
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies LivePush);

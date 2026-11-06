@@ -35,11 +35,12 @@
  */
 import { create } from 'zustand';
 import {
-  LOBBY_CHAT_BACKLOG, LOBBY_CHAT_EVENT, LOBBY_CHAT_RATE, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_SYNC_EVENT, parseLobbyChatMsg, parseLobbyChatSync,
+  LOBBY_CHAT_BACKLOG, LOBBY_CHAT_EVENT, LOBBY_CHAT_RATE, LOBBY_CHAT_REFUSED_EVENT, LOBBY_CHAT_SYNC_EVENT, LOBBY_CHAT_TYPING_EVENT, parseLobbyChatMsg, parseLobbyChatSync, parseLobbyChatTyping,
   LOBBY_CHAT_REPLY_SNIPPET, type LobbyChatChannel, type LobbyChatMsg, type LobbyChatRefusal, type LobbyChatSync,
 } from '@game/versus-cf/lobbyChat';
 import { cleanDmBody } from '@game/versus-cf/hub';
 import { pageSeen } from '../chat/pageSeen';
+import { CHAT_TYPING_TTL_MS, clearChatSpeech, markRailAwake, noteChatSaid, noteChatTyping } from './chatSpeech';
 
 export { LOBBY_CHAT_MAX_CHARS } from '@game/versus-cf/lobbyChat';
 export type { LobbyChatChannel } from '@game/versus-cf/lobbyChat';
@@ -186,6 +187,8 @@ const fresh = (gameKey: string | null, me: string | null): Partial<LobbyChatStat
  * swap, a reconnect) keeps its messages and re-syncs; a new game starts empty.
  */
 export function setLobbyChatSession(owner: string, next: { send: Session['send']; gameKey: string; me: string | null } | null): void {
+  clearChatSpeech();
+  typing = null;
   if (!next) {
     if (session?.owner !== owner) return;
     session = null;
@@ -282,6 +285,16 @@ export function receiveLobbyChatEvent(event: string, payload: unknown): boolean 
     if (pending >= 0) msgs[pending] = m;
     else msgs.push(m);
     useLobbyChat.setState(chanPatch(c, { msgs: trim(msgs), unread: ch.unread + (pending < 0 && counts(s, m, c) ? 1 : 0) }));
+    // CHAT BUBBLES (R-CHAT-BUBBLE-01): what they said, beside their face. Chat off or a muted sender shows nothing.
+    if (s.enabled && !s.muted[m.from.toLowerCase()]) noteChatSaid(m.from, m.role, m.body);
+    return true;
+  }
+  if (event === LOBBY_CHAT_TYPING_EVENT) {
+    const t = parseLobbyChatTyping(payload);
+    const s = useLobbyChat.getState();
+    if (!t || !session || !s.enabled || s.muted[t.from.toLowerCase()] || (s.me && t.from.toLowerCase() === s.me)) return true;
+    if (t.channel === 'team' && !s.team) return true;
+    noteChatTyping(t.from, t.role, t.on);
     return true;
   }
   if (event === LOBBY_CHAT_SYNC_EVENT) {
@@ -326,6 +339,37 @@ export function receiveLobbyChatEvent(event: string, payload: unknown): boolean 
   return false;
 }
 
+// ── "I am typing" (R-CHAT-BUBBLE-01) ──
+/** While I keep typing, the notice is renewed this often (well inside the readers' `CHAT_TYPING_TTL_MS`). */
+export const LOBBY_CHAT_TYPING_RENEW_MS = 2500;
+/** With no key pressed for this long, I have stopped. */
+export const LOBBY_CHAT_TYPING_IDLE_MS = 4000;
+let typing: { channel: LobbyChatChannel; at: number } | null = null;
+let typingIdle: number | null = null;
+
+function stopTyping(): void {
+  if (typingIdle != null) window.clearTimeout(typingIdle);
+  typingIdle = null;
+  if (typing && session) session.send(LOBBY_CHAT_TYPING_EVENT, { on: false, ...(typing.channel === 'team' ? { channel: 'team' } : {}) });
+  typing = null;
+}
+
+/** The composer's text changed. At most one notice per `LOBBY_CHAT_TYPING_RENEW_MS`, and nothing for a reader who cannot post. */
+export function noteLobbyChatDraft(text: string, channel?: LobbyChatChannel): void {
+  const s = useLobbyChat.getState();
+  const c = channel ?? lobbyChatTab(s);
+  if (!text.trim()) { stopTyping(); return; }
+  if (!session || !chanOf(s, c).canSend) return;
+  const now = clock();
+  if (!typing || typing.channel !== c || now - typing.at >= LOBBY_CHAT_TYPING_RENEW_MS) {
+    typing = { channel: c, at: now };
+    session.send(LOBBY_CHAT_TYPING_EVENT, { on: true, ...(c === 'team' ? { channel: 'team' } : {}) });
+    if (s.me) markRailAwake(s.me, CHAT_TYPING_TTL_MS);
+  }
+  if (typingIdle != null) window.clearTimeout(typingIdle);
+  typingIdle = window.setTimeout(stopTyping, LOBBY_CHAT_TYPING_IDLE_MS);
+}
+
 /**
  * Send `raw` (`replyTo`: the stored message it answers) on `channel` (default: the tab the panel shows): null when it
  * went (or there was nothing to send), else the reason to show under the composer. Sending says I am looking.
@@ -354,6 +398,7 @@ export function sendLobbyChat(raw: string, replyTo: ShownChatMsg | null = null, 
   const out: { cid: string; body: string; replyTo?: string; channel?: 'team' } = { cid, body };
   if (answers) out.replyTo = answers.id;
   if (c === 'team') out.channel = 'team';
+  stopTyping();
   session.send(LOBBY_CHAT_EVENT, out);
   return null;
 }

@@ -41,6 +41,8 @@ export interface ChatComposerProps {
   onSent: () => void;
   /** Something was typed (the lobby reads its unread when I type). */
   onType?: () => void;
+  /** The draft changed (R-CHAT-BUBBLE-01: the "is typing" notice). */
+  onDraft?: (text: string) => void;
   escape: 'pass' | 'blur';
   resetKey?: string;
   autoFocus?: boolean;
@@ -49,7 +51,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
-  available, placeholder, maxChars, input, filter, reply, onCancelReply, send, onSent, onType, escape, resetKey, autoFocus = false, className = '', inputClassName = '',
+  available, placeholder, maxChars, input, filter, reply, onCancelReply, send, onSent, onType, onDraft, escape, resetKey, autoFocus = false, className = '', inputClassName = '',
 }: ChatComposerProps): JSX.Element {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export function ChatComposer({
       <span className="dm-field">
         <input ref={input} className={`acctinput fdock-input dm-input${inputClassName ? ` ${inputClassName}` : ''}`} type="text" enterKeyHint="send" autoComplete="off" spellCheck
           disabled={!available} maxLength={maxChars * 2} value={text} placeholder={placeholder} aria-label={placeholder}
-          onChange={(e) => { setText(e.target.value); if (error) setError(null); onType?.(); }}
+          onChange={(e) => { setText(e.target.value); if (error) setError(null); onType?.(); onDraft?.(e.target.value); }}
           // Typing is not playing: no key reaches the game's shortcuts.
           onKeyDown={(e) => {
             if (e.key !== 'Escape') { e.stopPropagation(); return; }

@@ -1222,6 +1222,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   gap the board opens for it, a targeting arrow, a hover preview) happens as the drawn hand gets there. When the player
   lets a card go, it stays where they let go until the action lands, then slides into place once (a bought card slides
   into the hand); a card they put back springs home to its slot.
+- **The spectator rail** (owner 2026-11-06; R-SPECTATE-RAIL-01, replacing the look of R-SPECTATE-HUD-03). Everyone in the game
+  sees the spectators top left as slices cut like the lobby rail: small tabs showing their art, up to eight, then a +N chip.
+  A tab slides out to full width with the name while that spectator types, talks or emotes, or while hovered. Only the tab
+  takes the pointer, so an open slice never blocks the board. Its tooltip opens under the row.
+- **Chat bubbles** (owner 2026-11-06; R-CHAT-BUBBLE-01). While someone types in a game chat, a white bubble with three dots shows
+  beside their rail slice or hero portrait; when they send, their words replace it for a few seconds. Chat mute, chat off and the
+  swear filter all apply, a team tab shows only to that team, and you never see your own dots.
 - **The player sees who is watching** (owner 2026-10-15; R-SPECTATE-WATCHERS-01). Top left of their own screen, in
   shop and combat: each spectator's portrait in their frame, their name (or "Spectator") and "Spectating", up to
   three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to

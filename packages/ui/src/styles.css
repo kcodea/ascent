@@ -13055,6 +13055,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    "whenever hovering over a spectator some weird box shows up off screen"). */
 .gtip.gtip-right[data-tip]::after { left: calc(100% + 9px); right: auto; top: 50%; bottom: auto; text-align: left; transform: translateY(-50%) translateX(-4px); }
 .gtip.gtip-right[data-tip]:hover::after, .gtip.gtip-right[data-tip]:focus-visible::after, .gtip.gtip-right[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
+/* `.gtip-under`: opens BELOW the element, its left edges lined up, for a row pinned to the LEFT edge where a centred bubble
+   would leave the screen and a right-hand one would sit on the slice that just opened (the spectator rail, owner 2026-11-06). */
+.gtip.gtip-under[data-tip]::after { left: 0; right: auto; top: calc(100% + 9px); bottom: auto; text-align: left; transform: translateY(-4px); }
+.gtip.gtip-under[data-tip]:hover::after, .gtip.gtip-under[data-tip]:focus-visible::after, .gtip.gtip-under[data-tip].tt-on::after { transform: translateY(0); }
 .gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after, .gtip.gtip-end[data-tip].tt-on::after { transform: translateY(0); }
 /* The lobby rail clips its overflow (it scrolls), so a bubble inside it must fit its ~125px left of the chip. */
 .lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: calc(var(--atip-z-simple) * 0.86); padding: calc(var(--atip-z-pad) * 0.45) calc(var(--atip-z-pad) * 0.75); }

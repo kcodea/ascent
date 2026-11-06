@@ -1,16 +1,15 @@
-/* CHAT BUBBLES (ChatBubbleLayer.tsx, R-CHAT-BUBBLE-01): the rail's navy and gold, a short tail toward the speaker. Static
+/* CHAT BUBBLES (ChatBubbleLayer.tsx, R-CHAT-BUBBLE-01): a plain white speech bubble with dark text (owner 2026-11-06), a short tail toward the speaker. Static
    paint. The pop is one-shot; the dots loop on opacity only. */
-.chatbub { position: absolute; z-index: 330; max-width: 280px; padding: 8px 14px; box-sizing: border-box; pointer-events: none;
-  background: #10203f; border: 2px solid var(--ui-title, #ffd98a); border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
-  font-family: var(--font-ui); font-weight: 700; font-size: 20px; line-height: 1.25; color: #f4f6fb;
+.chatbub { position: absolute; z-index: 330; max-width: 280px; padding: 9px 16px; box-sizing: border-box; pointer-events: none;
+  background: #fff; border-radius: 18px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  font-family: var(--font-ui); font-weight: 700; font-size: 20px; line-height: 1.25; color: #16202e;
   animation: chatbub-pop 0.14s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-.chatbub::before { content: ""; position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -7px; background: #10203f;
-  border: 2px solid var(--ui-title, #ffd98a); transform: rotate(45deg); }
-.chatbub.right::before { left: -8px; border-top: none; border-right: none; }
-.chatbub.left::before { right: -8px; border-bottom: none; border-left: none; }
+.chatbub::before { content: ""; position: absolute; top: 50%; width: 14px; height: 14px; margin-top: -7px; background: #fff; transform: rotate(45deg); }
+.chatbub.right::before { left: -6px; }
+.chatbub.left::before { right: -6px; }
 .chatbub-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
 .chatbub-dots { display: inline-flex; align-items: center; gap: 5px; height: 25px; }
-.chatbub-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-title, #ffd98a); opacity: 0.3; animation: chatbub-dot 1s linear infinite; }
+.chatbub-dots i { width: 8px; height: 8px; border-radius: 50%; background: #5b6675; opacity: 0.3; animation: chatbub-dot 1s linear infinite; }
 .chatbub-dots i:nth-child(2) { animation-delay: 0.16s; }
 .chatbub-dots i:nth-child(3) { animation-delay: 0.32s; }
 @keyframes chatbub-pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }

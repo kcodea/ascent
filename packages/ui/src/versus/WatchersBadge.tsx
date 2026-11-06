@@ -61,7 +61,7 @@ export const StandsPlate = memo(function StandsPlate({ w, muted, mentor = false,
   const toggle = (): void => { setMyMentor(mentor ? null : w); sfx.tick(); };
   return (
     <span
-      className={`vsspec-seat on vswatch-seat gtip gtip-right${muted ? ' muted' : ''}${mentor ? ' mentor' : ''}${awake ? ' awake' : ''}`}
+      className={`vsspec-seat on vswatch-seat gtip gtip-under${muted ? ' muted' : ''}${mentor ? ' mentor' : ''}${awake ? ' awake' : ''}`}
       data-watcher={w.id}
       data-tip={tip}
       role={canPromote ? 'button' : undefined}

@@ -15,6 +15,8 @@
  *   object -> me      `lobby_chat_sync`   LobbyChatSync          the last `LOBBY_CHAT_BACKLOG` messages (only those after
  *                                                                `since` when it is still in the backlog) and whether I may post
  *   object -> sender  `lobby_chat_refused` { cid, reason }       a guest, too fast, or malformed
+ *   client -> object  `lobby_chat_typing` { on, channel? }       I started or stopped typing (R-CHAT-BUBBLE-01)
+ *   object -> others  `lobby_chat_typing` { from, role, on, channel? } stamped here, never stored
  *
  * REPLIES (owner 2026-10-30, R-LOBBY-CHAT-02: "lobby chat needs the same quality of life that dm's have"): a post may name
  * the message it answers (`replyTo`). The object looks it up in its own backlog and stamps the quote (`reply`: who wrote

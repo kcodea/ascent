@@ -56,7 +56,7 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
   return (
     <div className="vsspec vsself" role="group" aria-label="You are spectating">
       <div className="vsspec-seats">
-        <button type="button" className={`vsspec-seat on vswatch-seat vsself-seat gtip gtip-right${awake ? ' awake' : ''}`} data-watcher={myId} data-tip="Emotes"
+        <button type="button" className={`vsspec-seat on vswatch-seat vsself-seat gtip gtip-under${awake ? ' awake' : ''}`} data-watcher={myId} data-tip="Emotes"
           aria-haspopup="menu" aria-label={`${name}, ${mentoring ? 'mentoring' : 'spectating'}. Open emotes`} onClick={openMenu} onContextMenu={openMenu}>
           <SpectatorSlice name={name} profile={me.profile} tag={mentoring ? 'Mentor' : 'Spectating'} />
         </button>

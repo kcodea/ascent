@@ -9245,6 +9245,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/ownHandRange.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
+    id: 'R-SPECTATE-RAIL-01',
+    title: 'Spectators sit on a rail of their own, top left, in the lobby rail style',
+    statement:
+      'Everyone in a game with spectators sees them top left as slices cut like the lobby rail: the navy plate, their art fading in on the right, the gold edge. '
+      + 'A minimized slice shows only its art end. It slides out to full width, with the name and "Spectating", while that spectator types, talks or emotes, or while hovered, and slides back after. '
+      + 'The rows never move. Only the minimized tab takes the pointer, so an open slice never blocks the board, and its tooltip opens under the row. At most eight rows show, then a +N chip, and someone folded into the chip comes out of it when they talk. '
+      + 'This replaces the portrait and name plate look of R-SPECTATE-HUD-03.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-06', quote: 'i want the appearance of it to look more like the lobby rail' },
+      { kind: 'code', ref: 'packages/ui/src/versus/WatchersBadge.tsx (SpectatorSlice, StandsPlates); packages/ui/src/versus/versus.css (.vsslice); packages/ui/src/lobbyChat/chatSpeech.ts (markRailAwake)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-06 (feat/spectator-rail-bubbles).',
+    example: 'Six spectators watch. Five stay as small tabs while one types: their slice slides out, and the dots appear past its end.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx', 'packages/ui/src/lobbyChat/chatSpeech.test.ts'], lastVerifiedAt: '2026-11-06' },
+  },
+  {
+    id: 'R-CHAT-BUBBLE-01',
+    title: 'Lobby chat shows beside the speaker: three dots while typing, then the words in a white bubble',
+    statement:
+      'While someone types in a game chat, a white bubble with three dots shows beside their face: a spectator past their rail slice, a player beside their hero portrait or rail row. When they send, their words take its place for a few seconds, longer for longer lines, then it goes. '
+      + 'The object stamps who is typing, never the payload, a guest or non-member sends nothing, and nothing about typing is stored. '
+      + "A team tab's typing and messages reach only that team. A muted sender, a reader with chat off and a face not on screen show nothing, the swear filter applies, and I never see my own dots.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-06', quote: "shows an elipses when someone's typing, then their typed text in a speech bubble" },
+      { kind: 'code', ref: 'workers/versus/src/lobbyChat.ts (lobbyChatTypingNotice); workers/versus/src/room.ts (lobbyTyping); packages/ui/src/lobbyChat/lobbyChatStore.ts (noteLobbyChatDraft); packages/ui/src/lobbyChat/ChatBubbleLayer.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-06 (feat/spectator-rail-bubbles).',
+    example: 'A spectator starts typing and three dots appear beside their slice. They send "nice board" and the dots become those words.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatSpeech.test.ts'], lastVerifiedAt: '2026-11-06' },
+  },
+  {
     id: 'R-BALANCE-1106-01',
     title: 'The 2026-11-06 balance pass: Portsmith, Spell Cart, Dawnclaw and the Golem makers',
     statement:

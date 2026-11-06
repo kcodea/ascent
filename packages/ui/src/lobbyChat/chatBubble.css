@@ -1,6 +1,6 @@
 /* CHAT BUBBLES (ChatBubbleLayer.tsx, R-CHAT-BUBBLE-01): the rail's navy and gold, a short tail toward the speaker. Static
    paint. The pop is one-shot; the dots loop on opacity only. */
-.chatbub { position: absolute; z-index: 330; max-width: 340px; padding: 8px 14px; box-sizing: border-box; pointer-events: none;
+.chatbub { position: absolute; z-index: 330; max-width: 280px; padding: 8px 14px; box-sizing: border-box; pointer-events: none;
   background: #10203f; border: 2px solid var(--ui-title, #ffd98a); border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
   font-family: var(--font-ui); font-weight: 700; font-size: 20px; line-height: 1.25; color: #f4f6fb;
   animation: chatbub-pop 0.14s cubic-bezier(0.2, 1.4, 0.4, 1) both; }

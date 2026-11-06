@@ -170,7 +170,7 @@ describe('R-SPECTATE-HUD-01: me top left, the watched player and the switcher bo
     expect(mine.dataset.watcher).toBe('spec-me');
     expect(mine.querySelector('.vswatch-tag')!.textContent).toBe('Spectating');
     expect(self.querySelector(`[data-watcher="${SAM}"]`)).not.toBeNull();
-    rect(mine.querySelector('.portring')!, { left: 20, top: 12, width: 54, height: 54 });
+    rect(mine, { left: 20, top: 12, width: 54, height: 54 });
     click(mine);
     expect(rt.useEmoteUi.getState().menu).toMatchObject({ below: true });
     // the watched player's portrait (bottom left) never opens a spectator's menu
@@ -267,18 +267,12 @@ describe('R-SPECTATE-LOCAL-01: a spectator uses their own rail, guides and Summa
   });
 });
 
-describe('R-SPECTATE-HUD-03: spectators are drawn like players', () => {
-  it('portrait on top, the name plate under it, a small Spectating tag, larger rings, one tidy column (R-EMOTE-LAYOUT-01)', () => {
+describe('R-SPECTATE-RAIL-01: spectators are drawn like the lobby rail', () => {
+  it('a slice per spectator, parked with its art end showing; opening it is a transform, and the slice takes no clicks', () => {
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    expect(css).toContain('.vswatch-seat { flex-direction: column; align-items: center; gap: 0; }');
-    expect(css).toMatch(/\.vswatch-seat \.vsspec-info \{[^}]*margin-top: calc\(-11 \* var\(--u\)\)/);
-    // every plate the same, larger ring (owner 2026-10-29: "They are also kinda small"), the player's and a spectator's own
-    expect(css).toContain('.vswatch .vswatch-ring, .vsself .vsspec-ring { --ring: calc(88 * var(--u)); }');
-    // one column, never wrapping into the tier gem or the timer (owner 2026-10-29: "It's cluttered")
+    expect(css).toMatch(/\.vsslice \{[^}]*pointer-events: none/);
+    expect(css).toMatch(/\.vsslice \{[^}]*clip-path: inset\(0 0 0 var\(--park\)\)/);
+    expect(css).toMatch(/\.vswatch-seat\.awake \.vsslice[^{]*\{ transform: translateX\(var\(--park\)\)/);
     expect(css).toMatch(/\.vswatch \.vsspec-seats, \.vsself \.vsspec-seats \{[^}]*flex-direction: column[^}]*flex-wrap: nowrap/);
-    // the tag stays under the name in the same info column (the markup is unchanged: ring, then name, then tag)
-    const badge = readFileSync(join(__dirname, 'WatchersBadge.tsx'), 'utf8');
-    expect(badge.indexOf('vswatch-ring')).toBeLessThan(badge.indexOf('vsspec-name hudpill-name">{name}'));
-    expect(badge.indexOf('vsspec-name hudpill-name">{name}')).toBeLessThan(badge.indexOf('vswatch-tag'));
   });
 });

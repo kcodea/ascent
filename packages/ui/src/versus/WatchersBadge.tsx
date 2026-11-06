@@ -1,8 +1,8 @@
 /**
- * THE SPECTATOR RAIL (owner 2026-11-06, R-SPECTATE-RAIL-01): a rail of small portraits down the top-left edge, in the
- * opponent rail's navy and gold. A row grows to full size, with the name and tag, while that spectator types, talks or
- * emotes (`awake`, `lobbyChat/chatSpeech.ts`) or is hovered, then shrinks again. The rows never move: the portrait scales
- * on `transform` and the name fades on `opacity`, so opening one costs no layout.
+ * THE SPECTATOR RAIL (owner 2026-11-06, R-SPECTATE-RAIL-01: "look more like the lobby rail"): slices cut like the lobby
+ * rail's, stacked down the top-left edge. A minimized slice shows only the end with their art. It slides out to full width
+ * while that spectator types, talks or emotes (`awake`, `lobbyChat/chatSpeech.ts`) or is hovered, then back. The rows never
+ * move: the slide is a `transform`, so opening one costs no layout.
  *
  * THE STANDS, FROM THE PLAYER'S SIDE (owner 2026-10-15: "can we add something in the ui for a player in the top left if
  * a spectator joins? it can show their portrait and name and say spectating?"; R-SPECTATE-WATCHERS-01).
@@ -23,7 +23,7 @@
  */
 import { memo } from 'react';
 import { sfx } from '../sfx';
-import { MemberRing } from './MemberRing';
+import { avatarSrc } from '../art';
 import { useSpectate } from './spectate';
 import { toggleSpectatorMute, useSpectatorEmotePrefs } from './spectatorEmotes';
 import { useWatchers, watcherName, type Watcher } from './watchers';
@@ -35,7 +35,22 @@ import { useChatSpeech } from '../lobbyChat/chatSpeech';
 /** Rows shown before the "+N" chip (small rows, so the rail holds more than the old plates did). */
 export const WATCHERS_SHOWN = 8;
 
-/** One person in the stands: their ring, name and "Spectating" (or "Mentor" / "Muted"). Right-click mutes their emotes.
+/** A spectator's slice, cut like the lobby rail's: the navy plate, their art on the right fading into it, the name over
+ *  the art. The whole slice is always drawn: minimized, only its right end shows at the screen's edge (see `versus.css`). */
+export const SpectatorSlice = memo(function SpectatorSlice({ name, profile, tag }: { name: string; profile: Record<string, unknown> | null; tag: string }): JSX.Element {
+  const art = avatarSrc(typeof profile?.avatar === 'string' ? profile.avatar : null);
+  return (
+    <span className="vsslice" aria-hidden="true">
+      {art
+        ? <img className="vsslice-art" src={art} alt="" decoding="sync" draggable={false} />
+        : <span className="vsslice-initial">{(name.trim()[0] ?? '?').toUpperCase()}</span>}
+      <span className="vswatch-tag">{tag}</span>
+      <span className="vsspec-name">{name}</span>
+    </span>
+  );
+});
+
+/** One person in the stands: their slice, name and "Spectating" (or "Mentor" / "Muted"). Right-click mutes their emotes.
  *  On the PLAYER's own indicator (`promote`) a click makes them my Mentor, or demotes them (LIVE PINGS, owner 2026-10-29:
  *  "i want a player to be able to promote a spectator to a mentor"; R-PING-03). */
 export const StandsPlate = memo(function StandsPlate({ w, muted, mentor = false, promote = false, awake = false }: { w: Watcher; muted: boolean; mentor?: boolean; promote?: boolean; awake?: boolean }): JSX.Element {
@@ -56,11 +71,7 @@ export const StandsPlate = memo(function StandsPlate({ w, muted, mentor = false,
       onKeyDown={canPromote ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } } : undefined}
       onContextMenu={(e) => { e.preventDefault(); toggleSpectatorMute(w.id); sfx.tick(); }}
     >
-      <MemberRing name={name} profile={w.profile} className="vsspec-ring vswatch-ring" />
-      <span className="vsspec-info">
-        <span className="vsspec-name hudpill-name">{name}</span>
-        <span className="vsspec-hp hudpill-hp vswatch-tag">{mentor ? 'Mentor' : muted ? 'Muted' : 'Spectating'}</span>
-      </span>
+      <SpectatorSlice name={name} profile={w.profile} tag={mentor ? 'Mentor' : muted ? 'Muted' : 'Spectating'} />
     </span>
   );
 });

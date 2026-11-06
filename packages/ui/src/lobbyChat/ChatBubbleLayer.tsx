@@ -12,6 +12,7 @@ import { memo, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { maskProfanity } from '../friends/dm/profanity';
 import { placementFor } from '../emotes/emoteBubble';
+import { PLAYER_SEAT } from '../emotes/emoteRuntime';
 import { useFriendsPrefs } from '../friends/friendsPrefs';
 import { stageHost, stageViewport } from '../stage';
 import { useGame } from '../store';
@@ -31,7 +32,9 @@ const ChatBubble = memo(function ChatBubble({ id, speech, me, staged, filter }: 
     if (!at) { el.style.visibility = 'hidden'; return; }
     const h = el.offsetHeight;
     const w = el.offsetWidth;
-    const left = at.side === 'right' ? at.x : at.x - w;
+    // A hero portrait's emote eclipses its edge; words must not, so this one stands clear of it.
+    const clear = seat === PLAYER_SEAT ? 56 : 0;
+    const left = at.side === 'right' ? at.x + clear : at.x - w;
     let top = Math.max(GAP, at.y - h / 2);
     // Below every placed bubble this one would touch.
     const others = [...document.querySelectorAll<HTMLElement>('.chatbub')].filter((o) => o !== el && o.style.visibility === 'visible');

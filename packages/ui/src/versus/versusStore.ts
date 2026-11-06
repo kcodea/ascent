@@ -30,10 +30,11 @@ import { beginRunProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock, shopClockAt } from './versusClock';
-import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
+import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT, VERSUS_OPPONENT_SEAT, WATCHED_PLAYER_SEAT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { receivePingEvent, setPingSession } from '../pings/pingRuntime';
 import { receiveLobbyChatEvent, resyncLobbyChat, setLobbyChatSession } from '../lobbyChat/lobbyChatStore';
+import { setChatSeatResolver } from '../lobbyChat/chatSpeech';
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow, type VersusDuosPassRow } from './versusRemote';
@@ -1192,6 +1193,18 @@ function groupRecord(myCos: RunCosmeticSnapshot | null): VersusMatchRecord | nul
 function groupLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSeat, seat: VersusGroupSeat): string | null {
   return duosLobbySeatId(raw, viewer, seat); // the rail's own order (Duos: the teammate first)
 }
+
+// CHAT BUBBLES (R-CHAT-BUBBLE-01): a Versus player's face on this screen: the watched player's portrait, else their rail
+// row (Group, Duos), else the one opponent. Undefined outside a Versus room.
+setChatSeatResolver((id) => {
+  const room = get().room;
+  if (!room) return undefined;
+  const seat = room.members.find((m) => m.userId === id)?.role;
+  if (!seat || seat === 'spectator') return null;
+  const viewer = get().match?.group?.me ?? (groupRaw ? null : mySeat()) ?? (useSpectate.getState().active ? useSpectate.getState().seat : null);
+  if (seat === viewer) return WATCHED_PLAYER_SEAT;
+  return groupRaw && viewer ? groupLobbySeatId(groupRaw, viewer, seat) : VERSUS_OPPONENT_SEAT;
+});
 
 /** Take a group match row (RPC answer or table read) and hand back its projection from my side. */
 function ingestGroup(raw: VersusGroupMatchRaw): VersusMatch {

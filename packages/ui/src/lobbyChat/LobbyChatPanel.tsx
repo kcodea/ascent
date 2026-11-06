@@ -37,7 +37,7 @@ import { ChatFrame, ChatPinButton, phoneChat } from '../chat/ChatFrame';
 import { createChatPrefs, type ChatGeom, type ChatLimits } from '../chat/chatGeom';
 import { useGame } from '../store';
 import {
-  canReplyToLobby, LOBBY_CHAT_GUEST_TEXT, LOBBY_CHAT_MAX_CHARS, LOBBY_CHAT_TEAM_GONE_TEXT, lobbyChatTab, lobbyChatUnreadTotal, noteLobbyChatSeen, retryLobbyChat, sendLobbyChat,
+  canReplyToLobby, LOBBY_CHAT_GUEST_TEXT, LOBBY_CHAT_MAX_CHARS, LOBBY_CHAT_TEAM_GONE_TEXT, lobbyChatTab, lobbyChatUnreadTotal, noteLobbyChatDraft, noteLobbyChatSeen, retryLobbyChat, sendLobbyChat,
   setLobbyChatMuted, setLobbyChatOpen, setLobbyChatTab, useLobbyChat, type LobbyChatChannel, type ShownChatMsg,
 } from './lobbyChatStore';
 import '../friends/dm/dm.css';
@@ -202,7 +202,7 @@ function OpenPanel(): JSX.Element {
             maxChars={LOBBY_CHAT_MAX_CHARS} input={inputRef} filter={filter}
             reply={replyTo ? { name: me && low(replyTo.from) === me ? 'yourself' : replyTo.name, body: replyTo.body } : null}
             onCancelReply={() => setReplyTo(null)}
-            send={(text) => sendLobbyChat(text, replyTo, tab)} onSent={() => { atBottom.current = true; setReplyTo(null); }} onType={noteLobbyChatSeen}
+            send={(text) => sendLobbyChat(text, replyTo, tab)} onSent={() => { atBottom.current = true; setReplyTo(null); }} onType={noteLobbyChatSeen} onDraft={(text) => noteLobbyChatDraft(text, tab)}
             escape="blur" className="lchat-compose" inputClassName="lchat-input" />
         </section>
       )}

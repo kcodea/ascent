@@ -206,7 +206,11 @@ export function placementFor(seat: string): BubblePlacement | null {
     const ring = plate?.querySelector('.portring')?.getBoundingClientRect();
     const r = ring && ring.width ? ring : plate?.getBoundingClientRect();
     if (!r || !r.width) return null;
-    return fit(r, 'watch', 'right');
+    // Beside the NAME on the spectator rail (R-SPECTATE-RAIL-01): the row is opening as this reads, and the name's box
+    // does not move with it, so the bubble lands clear of the full-size row.
+    const name = plate?.querySelector('.vsspec-info')?.getBoundingClientRect();
+    const placed = fit(r, 'watch', 'right');
+    return name && name.width ? { ...placed, x: toStage(name.right) + 8 } : placed;
   }
   if (seat === PLAYER_SEAT) {
     const r = document.querySelector('.statusbar .hero .f')?.getBoundingClientRect();

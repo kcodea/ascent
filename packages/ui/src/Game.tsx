@@ -135,6 +135,7 @@ import { installGameSession } from './session/gameSession';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 import { SpectatorEndNotice } from './live/SpectatorEndNotice';
+import { ChatBubbleLayer } from './lobbyChat/ChatBubbleLayer';
 import { InviteNotice } from './friends/InviteNotice';
 import { FriendsDock } from './friends/dock/FriendsDock';
 import { FriendMenu } from './friends/FriendMenu';
@@ -777,6 +778,7 @@ export function Game() {
       {/* LOBBY CHAT (R-LOBBY-CHAT-01): the game's own chat, for its players and its stands, on the left edge. Before the dock so
           the dock paints over it. Renders nothing outside a game that has one. */}
       <LobbyChatPanel />
+      <ChatBubbleLayer />
       <FriendsDock />
       {/* A direct message whose conversation is not open (R-DM-03): a small toast above the Friends button. */}
       <DmToast />

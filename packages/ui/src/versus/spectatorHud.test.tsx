@@ -90,10 +90,10 @@ describe('R-SPECTATE-EMOTE-01: a spectator emotes to the player', () => {
   });
 
   it('the receiver guards the channel on its own clock: cooldown, burst, unknown senders, junk', () => {
-    act(() => { watchers.setWatchers([{ id: SAM, name: 'Sam', profile: null }, { id: 'u-b', name: 'B', profile: null }, { id: 'u-c', name: 'C', profile: null }, { id: 'u-d', name: 'D', profile: null }]); });
+    act(() => { watchers.setWatchers([{ id: SAM, name: 'Sam', profile: null }, { id: 'u-b', name: 'B', profile: null }, { id: 'u-c', name: 'C', profile: null }, ...['e', 'f', 'g', 'h', 'i'].map((x) => ({ id: `u-${x}`, name: x, profile: null })), { id: 'u-d', name: 'D', profile: null }]); });
     ui = mount(<WatchersBadge />);
     for (const n of ui.container.querySelectorAll('[data-watcher]')) rect(n, { left: 20, top: 12, width: 160, height: 44 });
-    // the fourth spectator is folded into the "+1" chip: their bubble pops from it
+    // the ninth spectator is folded into the "+1" chip: their bubble pops from it
     rect(ui.container.querySelector('.vswatch-more')!, { left: 400, top: 20, width: 30, height: 24 });
     const say = (from: string, at: number, extra: Record<string, unknown> = {}): boolean => se.receiveSpectatorEmote({ e: ZEN, from, ...extra }, at);
     expect(say(SAM, 100_000, { at: 0, sentAt: 1 })).toBe(true); // a client "timestamp" is ignored, never trusted

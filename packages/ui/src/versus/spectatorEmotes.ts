@@ -25,7 +25,8 @@
 import { create } from 'zustand';
 import { emoteOf } from '@game/progression';
 import { EMOTE_COOLDOWN_MS } from '@game/sim';
-import { showEmoteBubble } from '../emotes/emoteBubble';
+import { EMOTE_BUBBLE_MS, showEmoteBubble } from '../emotes/emoteBubble';
+import { markRailAwake } from '../lobbyChat/chatSpeech';
 import { equippedEmotes } from '../emotes/emoteLoadout';
 import { emoteNow, setSpectatorEmoteSink } from '../emotes/emoteRuntime';
 import { useWatchers } from './watchers';
@@ -107,6 +108,7 @@ function accept(m: SpectatorEmoteWire, now: number): boolean {
   recent = recent.filter((t) => now - t < STANDS_BURST.windowMs);
   if (recent.length >= STANDS_BURST.max) return false;
   // Nothing on screen to pop from (the indicator is not mounted): nothing shown, so nothing is counted either.
+  markRailAwake(m.from, EMOTE_BUBBLE_MS);
   if (!showEmoteBubble(watcherSeat(m.from), m.e)) return false;
   lastFrom.set(m.from, now);
   recent.push(now);
@@ -159,6 +161,7 @@ export function installSpectatorEmotes(myId: string, send: (event: string, paylo
     if (!equippedEmotes().includes(emoteId)) return false;
     const wire: SpectatorEmoteWire = { e: emoteId, from: myId };
     send(SPECTATOR_EMOTE_EVENT, wire);
+    markRailAwake(myId, EMOTE_BUBBLE_MS);
     showEmoteBubble(watcherSeat(myId), emoteId);
     return true;
   });

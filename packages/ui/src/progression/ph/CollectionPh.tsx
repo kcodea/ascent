@@ -168,6 +168,7 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
             { id: 'all', label: 'Show All' },
             { id: 'owned', label: 'Owned' },
             { id: 'missing', label: 'Missing' },
+            { id: 'new', label: 'New' }, // R-COLLECTION-NEW-TAB-01: the items wearing NEW, in this category
           ]}
         />
       ) : undefined}
@@ -212,8 +213,8 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
               <div className="phc-gridwrap" onScroll={v.hover ? v.clearHover : undefined}>
                 {v.shown.length === 0 ? (
                   <PhEmpty
-                    title={v.show === 'owned' && v.albumCount.owned === 0 ? 'You have none yet' : v.show === 'missing' && v.albumCount.owned === v.albumCount.total ? 'You have them all' : 'Nothing matches these filters'}
-                    sub={v.show === 'owned' && v.albumCount.owned === 0 ? 'Open a chest to find one.' : undefined}
+                    title={v.show === 'owned' && v.albumCount.owned === 0 ? 'You have none yet' : v.show === 'missing' && v.albumCount.owned === v.albumCount.total ? 'You have them all' : v.show === 'new' && v.rarity === 'all' ? 'Nothing new here' : 'Nothing matches these filters'}
+                    sub={v.show === 'owned' && v.albumCount.owned === 0 ? 'Open a chest to find one.' : v.show === 'new' && v.rarity === 'all' ? 'New items from chests and rewards show up here.' : undefined}
                     action={<PhButton variant="plate" size="s" onClick={() => { sfx.pulse(); v.setShow('all'); v.setRarity('all'); }}>Show all</PhButton>}
                   />
                 ) : (

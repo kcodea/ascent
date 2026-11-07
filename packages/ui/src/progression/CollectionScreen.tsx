@@ -168,6 +168,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   });
   const [show, setShow] = useState<ShowFilter>('all');
   const [rarity, setRarity] = useState<RarityFilter>('all');
+  /** The NEW tab's list for this look (see `listedNew`): keyed by category, Show tab and Mark-all presses. */
+  const [newKeep, setNewKeep] = useState<{ key: string; ids: ReadonlySet<string> }>({ key: '', ids: new Set() });
+  const [newEpoch, setNewEpoch] = useState(0);
   // NEW (owner 2026-10-11: "whenever i load the game, all of my stuff that i already own shows up as 'new'", then
   // "i want to save the 'seen' on the account level"). The list lives on the ACCOUNT; this device keeps a copy.
   // `seen` is a SNAPSHOT of that copy, taken when the page opens, when the account changes and on a tab switch.
@@ -244,7 +247,6 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const total = useMemo(() => countOf(everything, owned), [everything, owned]);
   const album = useMemo(() => albumOf(category, undefined, owned), [category, catalogEpoch, owned]);
   const wornId = album.find((c) => worn(c))?.id ?? null;
-  const shown = useMemo(() => filterAlbum(album, owned, show, rarity), [album, owned, show, rarity]);
   const byRarity = useMemo(() => rarityCounts(album, owned), [album, owned]);
   const albumCount = useMemo(() => countOf(album, owned), [album, owned]);
 
@@ -360,10 +362,20 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const fresh = (c: CosmeticDef): boolean => seenReady && isNew(c.id, owned, seen) && !known?.has(c.id) && !worn(c);
   const newIn = (c: CosmeticCategory): number => albumOf(c, undefined, owned).filter(fresh).length;
   const anyNew = everything.some(fresh);
+  // THE NEW TAB (R-COLLECTION-NEW-TAB-01): the open category's items that wear NEW. An item stays listed while you are
+  // on the tab even after a pick or an Equip clears its badge, so nothing jumps out from under the pointer; the list is
+  // re-read when you change category or Show tab, or press Mark all as seen.
+  const newKey = `${category}|${show}|${newEpoch}`;
+  const freshHere = show === 'new' ? album.filter(fresh).map((c) => c.id) : [];
+  const keptNew = newKeep.key === newKey ? newKeep.ids : null;
+  if (show === 'new' && (!keptNew || freshHere.some((id) => !keptNew.has(id)))) setNewKeep({ key: newKey, ids: new Set([...(keptNew ?? []), ...freshHere]) });
+  const listedNew = (c: CosmeticDef): boolean => fresh(c) || !!keptNew?.has(c.id);
+  const shown = filterAlbum(album, owned, show, rarity, listedNew);
   /** MARK ALL AS SEEN (owner 2026-10-11: "when a player clicks that, all 'new' pills go away"): everything you own,
    *  on every tab, at once. Unlike the view effect it also updates the snapshot, so the badges leave now. */
   const markAllSeen = (): void => {
     sfx.pulse();
+    setNewEpoch((n) => n + 1);
     const ids = everything.filter((c) => owned.has(c.id)).map((c) => c.id);
     markCosmeticsSeen(userId, ids);
     setSeenFor((prev) => ({ ...prev, ids: new Set([...prev.ids, ...ids]) }));
@@ -483,10 +495,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
             <>
               <div className="colls-filters">
                 <div className="colls-seg" role="group" aria-label="Show">
-                  {(['all', 'owned', 'missing'] as const).map((f) => (
+                  {(['all', 'owned', 'missing', 'new'] as const).map((f) => (
                     <button key={f} type="button" className={`colls-chip${show === f ? ' on' : ''}`} aria-pressed={show === f} onClick={() => { sfx.pulse(); setShow(f); }}>
-                      {f === 'all' ? 'All' : f === 'owned' ? 'Owned' : 'Missing'}
-                      <span className="colls-chip-n">{f === 'all' ? albumCount.total : f === 'owned' ? albumCount.owned : albumCount.total - albumCount.owned}</span>
+                      {f === 'all' ? 'All' : f === 'owned' ? 'Owned' : f === 'missing' ? 'Missing' : 'New'}
+                      <span className="colls-chip-n">{f === 'all' ? albumCount.total : f === 'owned' ? albumCount.owned : f === 'missing' ? albumCount.total - albumCount.owned : newIn(category)}</span>
                     </button>
                   ))}
                 </div>
@@ -504,7 +516,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
               <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
-                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
+                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : show === 'new' && rarity === 'all' ? 'Nothing new here. New items from chests and rewards show up here.' : 'Nothing matches these filters.'}</div>
                     <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.pulse(); setShow('all'); setRarity('all'); }}>Show all</button>
                   </div>
                 ) : (

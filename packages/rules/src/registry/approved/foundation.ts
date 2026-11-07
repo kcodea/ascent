@@ -14096,4 +14096,22 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'v0.2.0 published 2026-11-05 UTC (the evening of 2026-11-04 locally), so v0.2.1\x27s release notes came out empty and were filled in by hand.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
+  {
+    id: 'R-COLLECTION-NEW-TAB-01',
+    title: 'The Collection\x27s New tab lists exactly the items marked New',
+    statement:
+      'The Collection\x27s Show tabs are Show All, Owned, Missing and New. New lists, in the open category, exactly the items whose tile wears the New badge '
+      + '(owned, not yet seen, not the one equipped), in every category, and combines with the rarity filters the same way Owned and Missing do. '
+      + 'An item that leaves New while you look (you pick it or equip it) stays listed until you change category or Show tab, or press Mark all as seen. '
+      + 'With nothing new the tab says so ("Nothing new here") instead of showing an empty grid. The rarity counts stay the category\x27s collected counts under every tab.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, Collection screenshot', quote: 'we need a tab for NEW items. any item marked new should be part of that filter' },
+      { kind: 'fix-pr', ref: 'feat/collection-new-tab' },
+      { kind: 'code', ref: 'packages/ui/src/progression/collectionModel.ts (ShowFilter "new", filterAlbum isNew); CollectionScreen.tsx (listedNew, newKeep); ph/CollectionPh.tsx (the New tab, the empty state)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (feat/collection-new-tab). Before, the Show tabs were Show All, Owned and Missing only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

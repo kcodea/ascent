@@ -183,6 +183,18 @@ describe('the Collection in the party home shell', () => {
     expect(document.querySelector('.phc-stage .phc-notowned')).toBeNull();
   });
 
+  // Owner 2026-11-07: "we need a tab for NEW items. any item marked new should be part of that filter".
+  it('ON: the New tab sits right after Missing; with nothing new it says so (R-COLLECTION-NEW-TAB-01)', async () => {
+    await open({ ph: true }); // both owned titles have been seen
+    const labels = $$('.phk-tab').map((t) => t.textContent?.trim() ?? '');
+    const at = labels.indexOf('Show All');
+    expect(labels.slice(at, at + 4)).toEqual(['Show All', 'Owned', 'Missing', 'New']);
+    act(() => { $$('.phk-tab').find((t) => t.textContent?.trim() === 'New')!.click(); });
+    expect(tileNames()).toEqual([]);
+    expect(document.querySelector('.phc-gridwrap')?.textContent).toContain('Nothing new here');
+    expect(document.querySelector('.phc-gridwrap')?.textContent).toContain('New items from chests and rewards show up here.');
+  });
+
   it('ON: the chest bay counts the sealed chests and Open plays the theatre in the shell skin', async () => {
     await open({ ph: true });
     expect($('.phc-bay-num')?.textContent).toBe('2 ready');

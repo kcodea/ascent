@@ -25,7 +25,9 @@ import { HEROES } from '@game/sim';
  * so a restore brings it back, still owned (and still equipped). The "N / M collected" total moves with it.
  */
 
-export type ShowFilter = 'all' | 'owned' | 'missing';
+/** NEW (owner 2026-11-07: "any item marked new should be part of that filter"): exactly the items whose tile wears
+ *  the NEW badge (owned, not seen yet, not worn; the screen's `fresh`), in every category (R-COLLECTION-NEW-TAB-01). */
+export type ShowFilter = 'all' | 'owned' | 'missing' | 'new';
 export type RarityFilter = 'all' | CosmeticRarity;
 
 /** Rarest first: the showcase row leads the album. */
@@ -117,8 +119,12 @@ export function rarityCounts(items: readonly CosmeticDef[], owned: ReadonlySet<s
   return out;
 }
 
-export function filterAlbum(items: readonly CosmeticDef[], owned: ReadonlySet<string>, show: ShowFilter, rarity: RarityFilter): CosmeticDef[] {
-  return items.filter((c) => (rarity === 'all' || c.rarity === rarity) && (show === 'all' || (show === 'owned') === owned.has(c.id)));
+/** `isNew` is the NEW badge's own test; the NEW filter shows nothing without it. */
+export function filterAlbum(
+  items: readonly CosmeticDef[], owned: ReadonlySet<string>, show: ShowFilter, rarity: RarityFilter, isNew?: (c: CosmeticDef) => boolean,
+): CosmeticDef[] {
+  const showOk = (c: CosmeticDef): boolean => (show === 'all' ? true : show === 'new' ? !!isNew?.(c) : (show === 'owned') === owned.has(c.id));
+  return items.filter((c) => (rarity === 'all' || c.rarity === rarity) && showOk(c));
 }
 
 /** How an item is found, in plain words for the detail panel. */

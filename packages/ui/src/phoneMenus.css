@@ -469,13 +469,6 @@ html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .rg-sum-sub { fo
 html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .rg-filterbar { flex-wrap: nowrap; gap: calc(10 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .rg-filterbar .rg-tabs { flex: none; }
 html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .rg-filters { flex: 1 1 0; flex-wrap: wrap; gap: calc(6 * var(--pt)); min-width: 0; }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-chip { flex: none; font-size: calc(12 * var(--pt)); min-height: calc(36 * var(--pt)); padding: 0 calc(12 * var(--pt)); border-width: 1.5px; white-space: nowrap; }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-more-trigger { gap: calc(6 * var(--pt)); padding-right: calc(10 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-more-trigger .escchev { width: calc(12 * var(--pt)); height: calc(12 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .escselect-list.rg-more-list { top: calc(100% + 6 * var(--pt)); min-width: calc(220 * var(--pt)); max-height: calc(var(--lvh, 100dvh) * 0.55); padding: calc(4 * var(--pt)); border-radius: calc(10 * var(--pt)); -webkit-overflow-scrolling: touch; }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-more-opt { gap: calc(8 * var(--pt)); min-height: calc(40 * var(--pt)); padding: calc(4 * var(--pt)) calc(10 * var(--pt)) calc(4 * var(--pt)) calc(4 * var(--pt)); font-size: calc(13 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-more-face { width: calc(28 * var(--pt)); height: calc(28 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] :is(.rg-page, .cv2-page) .rg-more-n { font-size: calc(11 * var(--pt)); }
 /* The list beside the open game: the list scrolls at the screen's height, the open game shows whole. */
 html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .lbscroll > .gsplit { flex: none; grid-template-columns: minmax(calc(176 * var(--pt)), 2fr) minmax(0, 3fr); gap: calc(8 * var(--pt)); align-items: start; }
 html[data-touch-ui][data-touch-small][data-page-scale] .rg-page .gs-list { max-height: calc(var(--lvh, 100dvh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b)) - 64 * var(--pt)); }

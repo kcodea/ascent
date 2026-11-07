@@ -154,6 +154,25 @@ describe('the rendered tab', () => {
     expect(ui.container.querySelectorAll('.ach-tile').length).toBeGreaterThan(0);
   });
 
+  it('the party home shell: the Collection layout (rail, album, detail), and picking a tile shows it on the right (owner 2026-11-06)', async () => {
+    ui = mount(<AchievementsTab userId="shell-me" own ownerName="Kev" shell />);
+    await flush();
+    await flush();
+    expect(ui.container.querySelector('.pha.phc-body')).not.toBeNull();
+    expect(all('.phc-cat .phk-rowtitle')).toEqual(['Career', 'Ranked', 'Heroes', 'Economy and Build', 'Mechanics', 'Runes', 'Set 2', 'Combat', 'Milestones', 'Collection']);
+    expect(all('.pha-titlerow .phk-tab')[0]).toMatch(/^All 17$/);
+    // The first tile is picked by default; picking First Steps (completed) shows its date.
+    expect(ui.container.querySelector('.phc-side .phc-name h2')!.textContent).toBe(all('.pha-tile .phc-tile-name')[0]);
+    click([...ui.container.querySelectorAll('.pha-tile')].find((t) => t.querySelector('.phc-tile-name')?.textContent === 'First Steps'));
+    expect(ui.container.querySelector('.phc-side .phc-name h2')!.textContent).toBe('First Steps');
+    expect(ui.container.querySelector('.phc-side .pha-done')!.textContent).toMatch(/^Completed Sep 2[78], 2026$/);
+    const tenGames = [...ui.container.querySelectorAll('.pha-tile')].find((t) => t.textContent?.includes('3 / 10'))!;
+    click(tenGames);
+    expect(ui.container.querySelector('.phc-side .pha-req')!.textContent).toBe('Complete 10 games.');
+    expect(ui.container.querySelector('.phc-side .pha-prognum')!.textContent).toBe('3 / 10');
+    expect(ui.container.querySelectorAll('[title]')).toHaveLength(0);
+  });
+
   it('no native tooltips and no em dashes in the tab', async () => {
     ui = mount(<AchievementsTab userId="me" own ownerName="Kev" />);
     await flush();

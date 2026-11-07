@@ -189,7 +189,7 @@ const MENU_SFX_SKIP = '[data-nohoversfx], [data-quiet], .devmenu, .desk, .heropo
   // EXCEPT the game list and the lobby (owner 2026-11-06, R-SFX-GAMEROWS-01: Recent Games rows and lobby tiles "dont have
   // the sound effects tied to them when hovering or clicking that all other ui elements do"): a game row (`.gs-item`), a
   // lobby tile (`.lp-tile`) and the lobby's Back hover-tick and click-thock like any other button again.
-  + '.cv2-tab, .rg-chip, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
+  + '.cv2-tab, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
 
 export function Game() {
   const phase = useGame((s) => s.run.phase);

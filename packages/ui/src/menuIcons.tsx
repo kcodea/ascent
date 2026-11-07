@@ -14,7 +14,7 @@ import { publicArt } from './phoneArt';
  */
 export type MenuMedalName = 'play' | 'career' | 'collection' | 'leaderboard' | 'recent' | 'live' | 'settings' | 'glossary' | 'patchnotes' | 'friends' | 'watcher' | 'avenge' | 'equip' | 'heroes' | 'padlock' | 'first' | 'third'
   | 'minions' | 'titles' | 'attacks' | 'frames' | 'announcers' | 'second' | 'emotes' | 'plates' | 'guides' | 'spend'
-  | 'top4' | 'losses' | 'avgplacement';
+  | 'top4' | 'losses' | 'avgplacement' | 'mechanics' | 'milestones' | 'runes' | 'set2';
 export const MenuMedal = ({ name, className = 'menumedal' }: { name: MenuMedalName; className?: string }) => (
   <img
     className={className}

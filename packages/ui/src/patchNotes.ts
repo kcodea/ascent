@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-07',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'You can change your name from your own banner on the home screen: open its menu and pick Change name.',
+      },
+    ],
+  },
+  {
     date: '2026-11-06',
     label: 'Spectators and Chat',
     changes: [

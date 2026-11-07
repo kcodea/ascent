@@ -876,3 +876,5 @@ html:not([data-ph-compact]) .ph .phk-dialog { padding-right: calc(368 * var(--ph
    round, Continue, the trash button, left to right; the caps and the bigger size stay. */
 html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto auto; padding: calc(8 * var(--phu)) calc(10 * var(--phu)) calc(8 * var(--phu)) calc(26 * var(--phu)); border-radius: 999px; }
 html:not([data-ph-compact]) .ph-heldtxt b { grid-column: auto; }
+/* A bit higher again (owner 2026-11-06: "raise the chip a bit"): 12 units up from the last spot. */
+html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-22 * var(--phu)); }

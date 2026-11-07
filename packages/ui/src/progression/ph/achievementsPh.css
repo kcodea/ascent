@@ -101,3 +101,8 @@ html[data-ph-shell]:not([data-touch-small]) .pha .phc-detail > .pha-status { ord
 .pha-tile-prog.empty { visibility: hidden; }
 /* The progress bar inside the Objective: the bar, then the count. */
 .pha-objective .pha-prog { grid-template-columns: minmax(0, 1fr) auto; margin-top: calc(4 * var(--phu)); }
+
+/* The status line is bare text at the right (owner 2026-11-06: "remove the gold border and background from the not yet
+   completed section, right align the text and make it a light red color"); the completed date keeps its gold. */
+.pha-status { align-items: flex-end; padding: 0; background: none; box-shadow: none; border-radius: 0; }
+.pha-status .pha-open { color: var(--ph-foe-soft, #ff9a9a); }

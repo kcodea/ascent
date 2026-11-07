@@ -91,6 +91,10 @@ describe('round 6', () => {
     const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(card.querySelector('.hcpw-focus .hcpw-fbody')).not.toBeNull();
     expect(css).toMatch(/\.hcpw > :is\(\.hcpw-body, \.hclock\) \{ opacity: 0; position: absolute;/);
+    // The rest face sits lower, the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero power
+    // description section up").
+    expect(css).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 80 / 784); }');
+    expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784\)/);
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);

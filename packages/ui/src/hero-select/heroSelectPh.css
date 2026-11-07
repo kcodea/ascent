@@ -272,6 +272,9 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
    its cost takes the stats' place, and the description shows where the small power name was. Opacity only. The description
    is the lighter body weight ("lets make the hero power description a lighter font"). */
 .heroselect.phhs .herocard.big .hchp :is(.healthmedal, .armormedal) { width: 24px; height: 24px; }
+/* The rest face sits lower on the cloth and the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero
+   power description section up"). A static offset in the flag's own units (784 wide): the flag never grows. */
+.heroselect.phhs .herocard.big :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 80 / 784); }
 
 .heroselect.phhs .herocard.big .hcpw { display: grid; }
 .heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }
@@ -283,7 +286,7 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 /* The focus block sits on the cloth just above the flag's point ("lower the hero power section"); a long description grows it UP
    over the portrait's faded foot, never past the point. The in-flow description above is visually hidden, so the flag keeps its
    painted shape. */
-.heroselect.phhs .herocard.big .hcpw-focus { position: absolute; z-index: 3; left: 0; right: 0; top: calc(-100cqi * 360 / 784); bottom: calc(100cqi * 150 / 784);
+.heroselect.phhs .herocard.big .hcpw-focus { position: absolute; z-index: 3; left: 0; right: 0; top: calc(-100cqi * 360 / 784); bottom: calc(100cqi * 230 / 784);
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 calc(var(--trim) + 18px);
   opacity: 0; pointer-events: none; text-align: center; }
 .heroselect.phhs .herocard.big .hcpw-focus > .hcname.hcpw-title { position: relative; inset: auto; transform: none; translate: none; width: 100%; flex: none; }

@@ -500,7 +500,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
                 transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
                 ...(flashed
                   ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px)` }
-                  : {}),
+                  // Before the flash the art is already held to a soft circle the size of the clip, so its square corners
+                  // never show outside the ring while it grows (owner 2026-11-07: "theres also a moment where the art
+                  // corners show outside the portrait frame"). Static mask; only the transform animates.
+                  : (() => {
+                    const m = `radial-gradient(circle ${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px, #000 ${Math.max(0, clipR - 16 * k).toFixed(1)}px, transparent ${clipR.toFixed(1)}px)`;
+                    return { maskImage: m, WebkitMaskImage: m };
+                  })()),
               }}
               aria-hidden="true"
             >

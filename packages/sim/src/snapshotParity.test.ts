@@ -34,7 +34,7 @@ const SIDE_FIELDS: { [K in keyof Required<CombatSideState>]: Carried | Excluded 
   beastsPlayed: 'carried', spiritsPlayed: 'carried', tribesPlayed: 'carried', cardTribes: 'carried', rubyCasts: 'carried',
   revelerX: 'carried', cardsBoughtThisTurn: 'carried', magneticAtk: 'carried', magneticHp: 'carried', rubyBonus: 'carried',
   handSpellIds: 'carried', alesLastTurn: 'carried', spellEscalation: 'carried', lastSpellCastId: 'carried',
-  rememberedSpellIds: 'carried', spellhide: 'carried', growthBonus: 'carried', goldSpentThisTurn: 'carried',
+  rememberedSpellIds: 'carried', spellhide: 'carried', growthBonus: 'carried', goldSpentThisTurn: 'carried', cardsPlayedThisTurn: 'carried', unusedEquipment: 'carried',
   lastSpellThisTurnId: 'carried', squirlScoutBuff: 'carried', handMinions: 'carried', handRoom: 'carried', beastHuntExtra: 'carried',
   beastRitualExtra: 'carried', tier: 'carried', tribes: 'carried', cardBuffs: 'carried', questMods: 'carried',
   pendingQuests: 'carried',
@@ -96,6 +96,7 @@ const staged = (): RunState => ({
   whisperImprove: { growth: 2 }, conductorBuff: 2, cardTribes: { gnash: ['dragon'] }, alesCastThisTurn: 2,
   frontToBackBonus: 2, frontToBackBonusH: 1, lastSpellCastId: 'growth', rememberedSpellIds: ['growth'], growthBonus: 3,
   goldSpentThisTurn: 9, lastSpellThisTurnId: 'growth', squirlScoutBuff: 2,
+  equipment: { available: [{ equipmentId: 'parity-tool', sourceUids: [], usedThisTurn: false }], bonusActivations: 0, bonusSpent: 0, temporaryCostReduction: 0 }, // one unused Equipment (Shredder)
 } as unknown as RunState);
 
 const carried = <T extends object>(t: T): (keyof T)[] => (Object.keys(t) as (keyof T)[]).filter((k) => t[k] === 'carried');

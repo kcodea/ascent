@@ -26,6 +26,8 @@ export interface ShoutFired {
   target: string;
   /** How many times this pair fired in this moment. Normally 1 — each fire compiles to its own moment. */
   count: number;
+  /** R-ROOMWORKS-02: an End of Turn fired mid-fight, so `target`'s End of Turn flourish plays, not a Shout burst. */
+  eot?: true;
 }
 
 /** Pair key separator — NUL cannot occur in a uid, and is written as an ESCAPE, never a literal byte
@@ -39,10 +41,10 @@ export function shoutsFiredIn(moment: Moment, events: CombatEvent[]): ShoutFired
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'shout') continue;
-    const key = pairKey(e.source, e.target);
+    const key = `${pairKey(e.source, e.target)}${e.eot ? SEP : ''}`;
     const cur = byPair.get(key);
     if (cur) cur.count += 1;
-    else { byPair.set(key, { source: e.source, target: e.target, count: 1 }); order.push(key); }
+    else { byPair.set(key, { source: e.source, target: e.target, count: 1, ...(e.eot ? { eot: true as const } : {}) }); order.push(key); }
   }
   return order.map((k) => byPair.get(k)!);
 }

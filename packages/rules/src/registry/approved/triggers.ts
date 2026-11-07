@@ -1162,6 +1162,29 @@ export const TRIGGERS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
   {
+    id: 'R-ROOMWORKS-02',
+    title: 'An End of Turn triggered in combat resolves in real time; only a Shop target waits for the Shop',
+    statement:
+      'When a Roomworks Shout fires during combat (Dawnclaw, Ryme, any re-trigger), it picks a random other living friendly '
+      + 'minion with an End of Turn effect and that End of Turn fires right then, on its own beat: Roomworks links to the '
+      + 'minion, the minion plays its End of Turn flourish, and what it does lands in the fight. Gilded Roomworks fires it '
+      + 'twice, End of Turn repeats (Chronos) apply, and "every N turns" pays only on the turn it would pay anyway. Stats '
+      + 'follow the phase: they last this combat, and Engraved carries them back. Cards, Gold and run-wide buffs are '
+      + 'granted live and kept. An effect whose target is the Shop or the run card fires its line live and finishes when '
+      + 'the Shop opens, once, on that minion\x27s run card: Consume, Orbit, a transform, a magnetize, the Ritualist\x27s '
+      + 'improvement, Stonehorn\x27s hand copy, and a cast of a spell with no combat body. R-ROOMWORKS-01 holds in combat too.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-11-07 (Dawnclaw triggering Roomworks)', quote: 'This trigger should happen in combat in real time' },
+      { kind: 'owner-chat', ref: 'Owner 2026-11-07 (same change)', quote: 'Make sure all relevant animations fire too' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts replayCombatEndOfTurn, COMBAT_END_OF_TURN, SHOP_ONLY_END_OF_TURN; packages/sim/src/recruit.ts replayDeferredEndOfTurn; packages/ui/src/choreo/score.ts shoutFx' },
+    ],
+    contentIds: ['d2_roomworks', 'b2_dawnclaw', 'd2_shrieker', 'b2_moira'],
+    currentBehaviour: 'Conforms as of 2026-11-07 (fix/roomworks-combat-realtime). Before, Roomworks was a Shop-only Shout: it printed a line and the End of Turn landed when the Shop opened.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/combatEndOfTurn.test.ts'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
     id: 'R-STORMCHASER-01',
     title: 'A "Cast Veinstorm" Shout in combat casts in real time: any minion half lands now, the Shop half at settle',
     statement:

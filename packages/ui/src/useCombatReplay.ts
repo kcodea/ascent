@@ -807,7 +807,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'keywordLost': return { text: `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` to ${n(e.source)}` : ''}.`, kind: 'dmg' };
     case 'maxGold': return { text: `${n(e.target)}'s Avenge raises ${whose(e.side)} max Gold by ${e.amount}.`, kind: 'buff' };
     case 'rally': return { text: `${n(e.source)}'s Rally triggers ${n(e.target)}'s Echo.`, kind: 'sc' };
-    case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
+    case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s ${e.eot ? 'End of Turn' : 'Shout'}.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to ${whose(e.side)} hand.`, kind: 'summon' };
     case 'handBuff': return { text: `${cardName(e.cardId)} in ${whose(e.side)} hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'pummelTrigger': return { text: `${n(e.source)}'s Pummel triggers.`, kind: 'sc' };
@@ -835,7 +835,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'keywordLost': return `${n(e.target)} loses ${KW_FLOAT[e.keyword] ?? e.keyword}!`;
     case 'maxGold': return `${n(e.target)} raises ${whose(e.side)} max Gold by ${e.amount}!`;
     case 'rally': return `${n(e.source)}'s Rally fires ${n(e.target)}'s Echo!`;
-    case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
+    case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s ${e.eot ? 'End of Turn' : 'Shout'}!`;
     case 'toHand': return `${cardName(e.cardId)} is added to ${whose(e.side)} hand.`;
     case 'handBuff': return `${cardName(e.cardId)} in ${whose(e.side)} hand grows +${e.attack}/+${e.health}.`;
     case 'pummelTrigger': return `${n(e.source)}'s Pummel triggers!`;
@@ -867,7 +867,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
     else if (e.type === 'shieldUp') shieldUp++;
     else if (e.type === 'shield') shieldBreak++;
     else if (e.type === 'rally') inc(rally, `${n(e.source)} → ${n(e.target)}'s Echo`);
-    else if (e.type === 'shout') inc(shout, `${n(e.source)} → ${n(e.target)}'s Shout`);
+    else if (e.type === 'shout') inc(shout, `${n(e.source)} → ${n(e.target)}'s ${e.eot ? 'End of Turn' : 'Shout'}`);
     else if (e.type === 'sc') inc(startCombat, n(e.source));
     else if (e.type === 'toHand') inc(generated, e.source ? `${n(e.source)} → ${cardName(e.cardId)}` : cardName(e.cardId));
     else if (e.type === 'summon') {
@@ -2854,15 +2854,15 @@ export function useCombatReplay(
       // exactly as the shop suppresses a bound Shout's medallion pulse. The re-triggering unit keeps its
       // watcher pulse (the burst is no longer on it). Same `bindingFor(source)` check the `shoutFx` cue makes
       // to decide whether the def plays (the binding resolves off the re-triggering card).
-      onShoutProc: (source: string, target: string) => {
+      onShoutProc: (source: string, target: string, eot?: boolean) => {
         pulseWatcher(source);
-        if (!bindingFor(cardIds.get(source) ?? null, 'shout')) bloomFrame(target);
+        if (!(eot ? bindingFor(cardIds.get(target) ?? null, 'endOfTurn') : bindingFor(cardIds.get(source) ?? null, 'shout'))) bloomFrame(target);
         // A CHAIN trigger-er (Dawnclaw / Ryme's Echo — R-SHRIEKER-BEATS-01, owner 2026-10-10: "dawnclaw and mykel
         // should also do one at a time"): its tribe tendril to the Shout it is firing, on that fire's own moment (one
         // moment per `shout` already, left neighbour first). An Echo's body has usually fallen, so it streams from its
         // last slot, the Echo-buffer rule (`choreo/buffSource.ts`).
         const srcCard = cardIds.get(source) ?? null;
-        if (srcCard && source !== target && isShoutChainTrigger(srcCard) && canPlayDefs()) {
+        if (srcCard && source !== target && (eot || isShoutChainTrigger(srcCard)) && canPlayDefs()) { // Roomworks' link to the End of Turn it fires
           const tEl = findEl(target);
           const tr = tEl?.getBoundingClientRect();
           const src = resolveBuffSource({

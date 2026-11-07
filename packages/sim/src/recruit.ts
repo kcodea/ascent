@@ -8703,8 +8703,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /**
    * ROOMWORKS (owner 2026-10-10): "Shout: Trigger a friendly minion's End of Turn effect." A TARGETED Shout ("you PICK
    * the target"): `payload.target` is the chosen body, and only a friendly OTHER minion with an End of Turn effect is
-   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire,
-   * a combat re-fire settled in the Shop) picks a RANDOM legal minion off the run cursor (R-TARGET-07, owner 2026-10-10;
+   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire)
+   * picks a RANDOM legal minion off the run cursor (a combat re-fire resolves live instead, R-ROOMWORKS-02) (R-TARGET-07, owner 2026-10-10;
    * it was the left-most every time). Fires through the shared
    * `replayEndOfTurn` (Chronos repeats + the End-of-Turn objective count, exactly like Dusk's power), as its own beat
    * sourced on the target. Gilded triggers it twice.
@@ -13299,6 +13299,31 @@ export function replayEconomyBattlecry(state: RunState, cardId: string, golden: 
   for (const effect of economy) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (fn) fn(ctx, self, effect.params ?? {}, { minion: self });
+  }
+}
+
+/**
+ * R-ROOMWORKS-02: the Shop half of an End of Turn fired in combat. `effects` are exactly the ones the fight could not
+ * finish (`SHOP_ONLY_END_OF_TURN`, a spell with no combat body); they run once on the body's own run card, off-cycle
+ * (`replay`). Combat already folded the repeats, one entry per fire. A body with no run card (a summoned token) has no
+ * Shop presence to act as, so it does nothing.
+ */
+export function replayDeferredEndOfTurn(state: RunState, cardId: string, uid: string | undefined, effects: readonly EffectDef[]): void {
+  const own = uid ? state.board.find((c) => c.uid === uid && c.cardId === cardId) : undefined;
+  if (!own) return;
+  const ctx = makeContext(state);
+  for (const effect of effects) {
+    withRecruitTrigger(
+      ctx,
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: own.cardId, uid: own.uid, side: 'player', label: CARD_INDEX[own.cardId]?.name },
+        trigger: 'endOfTurn',
+        ...beatIdentity(`factory:${effect.do}:endOfTurn`),
+      },
+      () => { captureBuffFx(ctx.state, own, 'minion', () => { RECRUIT_FACTORIES[effect.do]?.(ctx, own, effect.params ?? {}, { minion: own, proc: 0, replay: true }); }); },
+      { discardIfEmpty: true },
+    );
   }
 }
 

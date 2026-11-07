@@ -160,6 +160,7 @@ export const SYNTHETIC_FIRE_SITES: Readonly<Record<string, FireSiteEntry>> = {
   'factories.ts#triggerEchoOn#onDeath': { kind: 'echo-proc', pair: 'none', why: "the combat arena's triggerEchoOn: runs a living body's onDeath effects under asEcho (Echohorn, Spots, Hawkus)" },
   'factories.ts#fire#onDeath': { kind: 'echo-proc', pair: 'none', why: 'the golden/multiplied inner fire of the arena Echo proc' },
   'factories.ts#replayCombatBattlecry#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'THE one combat Shout chokepoint (R-SHOUT-TRIGGER-01): every combat Shout fire (Ryme / Dawnclaw / Sovereign / Parting Cry / Shared Scripture / Ancestral Roar / War Chorus, all via fireShout) runs here, folds ctx.shoutCarryExtras (Choir, Encore, Warm Embers, War Drum) and emits battlecryTriggered per fire. The three rune loops that used to dispatch onPlay directly in simulate.ts are gone; lane shoutTriggerParity fails a new one' },
+  'factories.ts#replayCombatEndOfTurn#endOfTurn': { kind: 'battlecry-replay', pair: 'none', why: 'THE one combat End of Turn chokepoint (R-ROOMWORKS-02): Roomworks fired mid-fight runs the End of Turn effects of a living body; the Shop-only ones defer to settle' },
   'factories.ts#battlecryTriggeredOwnDeathrattle#onDeath': { kind: 'echo-proc', pair: 'none', why: "a Shout that fires the body's OWN Echo without dying" },
 };
 

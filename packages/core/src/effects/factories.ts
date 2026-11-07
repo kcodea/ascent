@@ -1,7 +1,7 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { bodyIsTribe, defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, improvingGrant, rubyCastGainOf, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
-import { ALE_IDS, aleGrantCount, boardShoutContributors, extraTriggerContributors, extraTriggerFires } from '../types';
+import { ALE_IDS, alignAllows, aleGrantCount, boardShoutContributors, extraTriggerContributors, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
@@ -810,9 +810,215 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
   buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
-  battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking a RANDOM friendly minion with an End of Turn effect (R-TARGET-07)', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
+
+/**
+ * THE End of Turn effects whose target does not exist mid-fight (R-ROOMWORKS-02, the End of Turn twin of
+ * `SHOP_ONLY_SHOUTS`). Everything else fired in combat resolves LIVE (`COMBAT_END_OF_TURN`, or a shared Shout body in
+ * `FACTORIES`). These fire live too (their line), and only the Shop part runs at settle, on the body's run card.
+ * `combatEndOfTurn.test.ts` fails when an End of Turn id is in neither place.
+ */
+export const SHOP_ONLY_END_OF_TURN: Readonly<Record<string, { why: string }>> = {
+  consumeShopRightmost: { why: 'the meal is a Shop minion; Consume stays a Shop action (R-REALTIME-05)' },
+  endOfTurnDemonsConsumeShop: { why: 'the meal is a Shop minion; Consume stays a Shop action (R-REALTIME-05)' },
+  endOfTurnAdjacentConsumeFodder: { why: 'Consume stays a Shop action (R-REALTIME-05)' },
+  endOfTurnFeastConsume: { why: 'Consume stays a Shop action (R-REALTIME-05)' },
+  triggerAdjacentOrbits: { why: 'Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit)' },
+  endOfTurnTransformLeftTierUp: { why: 'a transform rewrites the neighbour run card, and a fight body cannot become another card mid-fight' },
+  endOfTurnMagnetizeMechs: { why: 'a weld is a permanent change to the run card' },
+  buffFodderImpsImproving: { why: 'the improvement and its run-wide Fodder / Imp buffs live on the run, not the fight' },
+  endOfTurnCopyLeftmostHandCard: { why: 'the fight only knows hand minions and hand spells apart, so it cannot read the left-most card' },
+};
+
+/** R-ROOMWORKS-01 in combat: the same two re-entrancy counters as recruit.ts `SHOUT_EOT_CHAIN`. */
+const COMBAT_SHOUT_EOT_CHAIN = { shoutEot: 0, eotShouts: 0 };
+
+/** "Every N turns" fired off-cycle pays only on the turn it would proc, and never advances the count (the Shop's
+ *  replay rule: `(tick + 1) % every === 0`). `eotTick` is seeded from the run card. */
+const eotCadenceDue = (self: Minion, params: Record<string, unknown>): boolean =>
+  ((self.eotTick ?? 0) + 1) % Math.max(1, num(params.every, 2)) === 0;
+
+/** The lone-or-both ends of `bodies` (Kringle). */
+const endsOf = (bodies: Minion[]): Minion[] => (bodies.length <= 1 ? bodies : [bodies[0]!, bodies[bodies.length - 1]!]);
+
+/**
+ * The COMBAT bodies of the End of Turn effects (R-ROOMWORKS-02, owner 2026-11-07: "This trigger should happen in
+ * combat in real time"). Run only when an End of Turn is fired mid-fight (`replayCombatEndOfTurn`); a real End of Turn
+ * is always the Shop's. Each mirrors its recruit factory. Stats follow the phase (combat-only, Engraved carries).
+ */
+const COMBAT_END_OF_TURN: Readonly<Record<string, (ctx: CombatContext, self: Minion, params: Record<string, unknown>) => void>> = {
+  spellCopyRecent: (ctx, self) => {
+    const id = ctx.lastSpellCastFor?.(self.side);
+    if (!id || !ctx.getCard(id)) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+  castSpell: (ctx, self, params) => {
+    const def = ctx.getCard(str(params.spellId));
+    if (!def || def.singleCast) return;
+    const times = num(params.times, 0);
+    const perGold = num(params.perGold, 0);
+    // `castInCombat` already doubles for a gilded caster, so the count here is the plain one.
+    const casts = times > 0 ? times : perGold > 0 ? 1 + Math.floor(Math.max(0, ctx.goldSpentThisTurnFor(self.side)) / perGold) : 1;
+    for (let i = 0; i < casts; i++) castNamedSpellInCombat(ctx, self, def.id);
+  },
+  endOfTurnCastSpellOnSelf: (ctx, self, params) => {
+    const def = ctx.getCard(str(params.spellId));
+    if (!def || def.singleCast) return;
+    for (let i = 0; i < num(params.times, 1); i++) castNamedSpellOnInCombat(ctx, self, def.id, self);
+  },
+  endOfTurnRecastFirstSpell: (ctx, self, params) => {
+    const id = ctx.lastSpellCastFor?.(self.side);
+    if (!id) return;
+    for (let i = 0; i < num(params.count, 1); i++) castNamedSpellInCombat(ctx, self, id);
+  },
+  endOfTurnGrantTribe: (ctx, self, params) => {
+    if (eotCadenceDue(self, params)) ctx.grantRandomMinion(num(params.count, 1) * mul(self), str(params.tribe), self.side, undefined, self.uid);
+  },
+  endOfTurnGrantRandomTierCard: (ctx, self, params) => {
+    const tier = num(params.tier, 1);
+    const pool = ctx.poolCards(self.side).filter((c) => c.tier === tier && !c.token);
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
+  },
+  endOfTurnGrantSpellChoice: (ctx, self, params) => {
+    if (!eotCadenceDue(self, params)) return;
+    const ids = Array.isArray(params.cards) ? (params.cards as string[]).filter((id) => !!ctx.getCard(id)) : [];
+    if (ids.length === 0) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(ids), self.side, self.uid);
+  },
+  endOfTurnGetRandomSpells: (ctx, self, params) => { ctx.grantRandomSpell(num(params.count, 2) * mul(self), self.side, self.uid); },
+  endOfTurnGetRubies: (ctx, self, params) => {
+    const count = num(params.count, 1) * mul(self);
+    const id = str(params.rubyId);
+    if (!id) { ctx.mintRubies(count, self.side, self.uid); return; }
+    for (let i = 0; i < count; i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+  endOfTurnCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.firstSpellThisTurnIdFor(self.side) : ctx.lastSpellThisTurnIdFor(self.side);
+    if (!id || !ctx.getCard(id) || NO_COPY_SPELL_IDS.has(id)) return;
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+  endOfTurnCopyNeighbour: (ctx, self, params) => {
+    if (!eotCadenceDue(self, params)) return;
+    const board = ctx.living(self.side);
+    const i = board.indexOf(self);
+    if (i < 0) return;
+    for (const n of [board[i - 1], ...(self.golden ? [board[i + 1]] : [])]) {
+      const d = n ? ctx.getCard(n.cardId) : undefined;
+      if (d && !d.spell && !d.ruby) ctx.grantToHand(d.id, self.side, self.uid);
+    }
+  },
+  endOfTurnBonusGold: (ctx, self, params) => { ctx.grantBonusGold(num(params.amount, 1) * mul(self), self.side); },
+  addTavernFodder: (ctx, self, params) => { ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side); },
+  endOfTurnBuffWeakestDragon: (ctx, self, params) => {
+    const arena = combatArena(ctx, self);
+    const dragons = ctx.living(self.side).filter((m) => arena.isTribe(m, 'dragon'));
+    if (dragons.length < 2) return;
+    const strongest = dragons.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+    const weakest = dragons.reduce((a, b) => (b.attack + b.health < a.attack + a.health ? b : a));
+    if (weakest === strongest) return;
+    const pct = (num(params.pct, 20) * mul(self)) / 100;
+    ctx.buff(weakest, Math.round(strongest.attack * pct), Math.round(strongest.health * pct), self.uid);
+  },
+  endOfTurnPlayRuby: (ctx, self, params) => {
+    const arena = combatArena(ctx, self);
+    const tribe = str(params.tribe);
+    const targets = ctx.living(self.side).filter((m) => (!tribe || arena.isTribe(m, tribe)) && !(params.excludeSelf === true && m === self));
+    for (let c = 0; c < num(params.count, 1) * mul(self); c++) for (const t of targets) arena.playRubiesOn(t, 1);
+  },
+  endOfTurnBuffEndsTribePerCard: (ctx, self, params) => {
+    const arena = combatArena(ctx, self);
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    for (let tick = 0; tick < 1 + ctx.cardsPlayedThisTurnFor(self.side); tick++) {
+      for (const t of endsOf(ctx.living(self.side).filter((m) => !tribe || arena.isTribe(m, tribe)))) ctx.buff(t, a, h, self.uid);
+    }
+  },
+  endOfTurnBuffAdjacentPerCard: (ctx, self, params) => {
+    const a = num(params.attack, 1) * mul(self);
+    for (let tick = 0; tick < 1 + ctx.cardsPlayedThisTurnFor(self.side); tick++) {
+      for (const t of livingNeighbours(ctx, self)) ctx.buff(t, a, 0, self.uid);
+    }
+  },
+  endOfTurnBuffRandomTribeRepeatPerPlayed: (ctx, self, params) => {
+    const arena = combatArena(ctx, self);
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 0) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    for (let tick = 0; tick < 1 + ctx.spiritsPlayedFor(self.side); tick++) {
+      const t = pickAutoTarget(ctx.rng, ctx.living(self.side).filter((m) => arena.isTribe(m, tribe)));
+      if (t) ctx.buff(t, a, h, self.uid);
+    }
+  },
+  endOfTurnBuffEndsPerUnusedEquipment: (ctx, self, params) => {
+    const a = num(params.attack, 4) * mul(self);
+    const h = num(params.health, 4) * mul(self);
+    for (let wave = 0; wave < ctx.unusedEquipmentFor(self.side); wave++) {
+      const board = ctx.living(self.side);
+      for (const t of str(params.scope) === 'all' ? board : endsOf(board)) ctx.buff(t, a, h, self.uid);
+    }
+  },
+  endOfTurnBuffSpellsAndImps: (ctx, self, params) => {
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+    const ia = num(params.impAttack, num(params.attack, 1)) * mul(self);
+    const ih = num(params.impHealth, num(params.health, 1)) * mul(self);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, ia, ih, self.uid);
+    ctx.grantImpBuff(ia, ih, self.side);
+  },
+  endOfTurnTriggerShouts: (ctx, self, params) => {
+    if (COMBAT_SHOUT_EOT_CHAIN.eotShouts > 0) return; // R-ROOMWORKS-01: never nested inside another Shrieker / Moira
+    const exclude = Array.isArray(params.exclude) ? (params.exclude as unknown[]) : [];
+    const shouters = ctx.living(self.side).filter((m) => m !== self && !exclude.includes(m.cardId) && hasBattlecry(m));
+    COMBAT_SHOUT_EOT_CHAIN.eotShouts += 1;
+    try {
+      for (let n = 0; n < mul(self); n++) {
+        for (const m of shouters) if (!m.dead && m.health > 0) fireShout(ctx, self, m);
+      }
+    } finally {
+      COMBAT_SHOUT_EOT_CHAIN.eotShouts -= 1;
+    }
+  },
+};
+
+/** The spell an End of Turn cast would resolve, when it has one: a spell with no combat body waits for the Shop. */
+function eotCastNeedsShop(ctx: CombatContext, self: Minion, eff: EffectDef): boolean {
+  const id = eff.do === 'endOfTurnRecastFirstSpell' ? ctx.lastSpellCastFor?.(self.side)
+    : eff.do === 'castSpell' || eff.do === 'endOfTurnCastSpellOnSelf' ? str(eff.params?.spellId) : undefined;
+  const def = id ? ctx.getCard(id) : undefined;
+  return !!def && !combatCastable(def);
+}
+
+/**
+ * Fire `target`'s End of Turn NOW, mid-fight (R-ROOMWORKS-02). The one combat End of Turn chokepoint: Chronos repeats
+ * here, each effect resolves live through `COMBAT_END_OF_TURN` (or its shared Shout body), and a Shop-only effect
+ * says so in a line and is handed to settle.
+ */
+export function replayCombatEndOfTurn(ctx: CombatContext, source: Minion, target: Minion): void {
+  const repeats = 1 + extraTriggerFires('endOfTurn', ctx.living(target.side), (id) => ctx.getCard(id));
+  for (let r = 0; r < repeats; r++) {
+    if (target.dead || target.health <= 0) return;
+    // A counted `shout` moment, not `sc` narration: narration is absorbed silently, so the fire needs this signal to
+    // get its own beat, its link to the target, and a frame commit for what it does.
+    ctx.log({ type: 'shout', source: source.uid, target: target.uid, eot: true });
+    const shop: EffectDef[] = [];
+    for (const eff of target.effects) {
+      if (eff.on !== 'endOfTurn' || !alignAllows(eff, target.align)) continue;
+      if (SHOP_ONLY_END_OF_TURN[eff.do] || eotCastNeedsShop(ctx, target, eff)) { shop.push(eff); continue; }
+      const live = COMBAT_END_OF_TURN[eff.do];
+      if (live) live(ctx, target, eff.params ?? {});
+      else FACTORIES[eff.do as EffectFactoryId]?.(ctx, target, eff.params ?? {}, { minion: target, side: target.side });
+    }
+    if (shop.length > 0) {
+      ctx.log({ type: 'sc', source: target.uid, side: target.side, text: `${target.name}'s End of Turn finishes when the Shop opens` });
+      ctx.deferEndOfTurn(target.cardId, target.golden, target.side, target.sourceUid, shop);
+    }
+  }
+}
+
+/** The ids with a live combat End of Turn body (the tripwire reads this). */
+export const COMBAT_END_OF_TURN_IDS: ReadonlySet<string> = new Set(Object.keys(COMBAT_END_OF_TURN));
 
 /** Spells a spell-copier never copies (Second Draft would loop the copier itself). The Shop's `NO_COPY_SPELLS`
  *  is this set, so the two phases can never disagree. */
@@ -4351,6 +4557,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
     for (const n of neighbors) {
       for (let r = 0; r < repeats; r++) fireShout(ctx, self, n); // one counted `shout` per fire — see `fireShout`
+    }
+  },
+
+  /** Roomworks in combat (R-ROOMWORKS-02): the Shout resolves on the beat. No one aims mid-fight, so it picks a RANDOM
+   *  other friendly minion with an End of Turn effect (R-TARGET-07), once, and a gilded body fires that minion twice.
+   *  R-ROOMWORKS-01's guard holds here as in the Shop: no Roomworks fires inside a Roomworks or a Shrieker. */
+  battlecryReplayTargetEndOfTurn: (ctx, self) => {
+    if (COMBAT_SHOUT_EOT_CHAIN.shoutEot > 0 || COMBAT_SHOUT_EOT_CHAIN.eotShouts > 0) return;
+    const target = pickAutoTarget(ctx.rng, otherFriends(ctx, self, (m) => m.effects.some((e) => e.on === 'endOfTurn')));
+    if (!target) return;
+    COMBAT_SHOUT_EOT_CHAIN.shoutEot += 1;
+    try {
+      for (let n = 0; n < mul(self); n++) replayCombatEndOfTurn(ctx, self, target);
+    } finally {
+      COMBAT_SHOUT_EOT_CHAIN.shoutEot -= 1;
     }
   },
 

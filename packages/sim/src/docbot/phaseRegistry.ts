@@ -127,7 +127,6 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
   battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Star Seed creates / feeds the Starform, a SHOP token (starform.ts). A combat re-fire logs its line live; settle feeds the token once' },
   battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the Starform eats a Shop minion. A combat re-fire logs its line live; settle applies the meal once' },
-  battlecryReplayTargetEndOfTurn: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Roomworks triggers an End of Turn effect, which only resolves in the Shop. A combat re-fire logs its line live; settle replays it once (owner 2026-10-10)' },
   equipmentAmplifyAll: { phase: 'combat', kind: 'no-surface', why: "Amplification Agnus's passive MARKER, read by `equipmentAmplifiedByAura` when an Equipment is ACTIVATED, a SHOP-only action (no Equipment is used mid-fight); the recruit map holds a never-dispatched stub" },
   collapseExtraTargets: { phase: 'combat', kind: 'no-surface', why: "Nova Herald's passive MARKER — read by `collapseExtraTargetsOf` at Collapse time, a SHOP-only moment (the Starform is a shop offer); the recruit map holds a never-dispatched stub" },
   // Trouble's self-Ruby. Combat DOES implement it — just not through the factory map: `rubyPlayedAnywhere`

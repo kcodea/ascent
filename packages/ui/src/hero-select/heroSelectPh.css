@@ -114,7 +114,7 @@
    stats, not chips. */
 .heroselect.phhs .herocard.big .hcname.hudpill-name { top: auto; bottom: 34px; left: 50%; transform: translateX(-50%); z-index: 3; width: calc(100% - 32px); max-width: none; white-space: normal; text-wrap: balance; text-align: center;
   padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
-  font-family: var(--ph-font); font-weight: 900; font-size: min(32px, 10.7cqi); line-height: 1.06; letter-spacing: 0.005em; color: var(--ph-ink);
+  font-family: var(--ph-font); font-weight: 900; font-size: min(30px, 10cqi); line-height: 1.06; letter-spacing: 0.005em; color: var(--ph-ink);
   text-shadow: var(--ph-shadow), 0 2px 10px rgba(0, 0, 0, 0.75); }
 .heroselect.phhs .herocard.big .hchp.hudpill-hp { top: auto; bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 6px;
   height: 24px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
@@ -133,7 +133,7 @@
 .heroselect.phhs .herocard.big .hcbelow { flex: 1 1 auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 124px; box-sizing: border-box; padding: 12px calc(var(--trim) + 18px) 4px;
   background: var(--hsph-cloth-bg); }
 .heroselect.phhs .herocard.big .hcbelow > :is(.hcpw, .hcmeta) { position: relative; z-index: 2; inset: auto; top: auto; display: block; opacity: 1; }
-.heroselect.phhs .herocard.big .hcpw { width: 100%; font-family: var(--ph-body); font-weight: 600; font-size: 17px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.heroselect.phhs .herocard.big .hcpw { width: 100%; font-family: var(--ph-body); font-weight: 400; font-size: 17px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
 .heroselect.phhs .hcpw-head { display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 0 8px; margin-bottom: 4px; }
 .heroselect.phhs .herocard.big .hcpw b { color: var(--ui-title, #ffd98a); font-family: var(--ph-font); font-weight: 900; }
 .heroselect.phhs .herocard.big .hcpw .hccost { font-family: var(--ph-font); font-weight: 700; font-size: 0.86em; color: var(--ph-muted); }
@@ -231,19 +231,87 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
    paints the same art with its cloth keyed out (player-flag-trim.webp) OVER it, so the gold always overlaps the portrait. The
    card keeps the flag's ratio as its least height (a longer power stretches it a little). The portrait and the text sit inside the
    cloth (x 58..724, from y 96); the portrait keeps only its eased bottom fade onto the painted navy, and the name wears the play
-   banner's black stroke. The ceremony still dissolves `.hcrod` / `.hcfoot` off the art (rules above). */
+   banner's black stroke. The ceremony still dissolves `.hcrod` / `.hcfoot` off the art (rules above).
+   CENTRED, NOT LEFT-INSET (owner 2026-11-06: "these are off center"; R-HS-CENTRE-01): the card is a column with
+   `align-items: center`, which centres each child's MARGIN box. A one-sided `margin-left` therefore pushed the portrait and
+   the text half that margin right of the painted flag (~12px at 1920). Equal inline margins keep them on the flag's axis. */
 .heroselect.phhs .herocard.big { aspect-ratio: 784 / 1321; margin-top: 0; --trim: 0px; --flagnavy: rgb(1 18 80); }
 .heroselect.phhs .herocard.big > .hcfoot { position: absolute; z-index: 0; inset: 0; width: auto; aspect-ratio: auto; margin: 0;
   background: url('../partyHome/ornaments/player-flag.webp') center / 100% 100% no-repeat; -webkit-mask-image: none; mask-image: none; }
 .heroselect.phhs .herocard.big > .hcrod { inset: 0; left: 0; right: 0; aspect-ratio: auto; translate: none;
   background: url('../partyHome/ornaments/player-flag-trim.webp') center / 100% 100% no-repeat; }
 .heroselect.phhs .herocard.big > :is(.hcframe, .hcbelow) { position: relative; z-index: 1; box-sizing: border-box;
-  margin-left: calc(100cqi * 58 / 784); width: calc(100cqi * 667 / 784); }
+  margin-inline: auto; width: calc(100cqi * 667 / 784); }
 .heroselect.phhs .herocard.big > .hcframe { margin-top: calc(100cqi * 96 / 784); }
 .heroselect.phhs .herocard.big .hcframe::before, .heroselect.phhs .herocard.big .hcframe::after { content: none; }
 .heroselect.phhs .herocard.big .hcbelow { background: none; padding: 10px 18px calc(100cqi * 150 / 784); }
-.heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0; width: 100%;
+/* THE PLAY FLAG'S PORTRAIT, exactly (owner 2026-11-07: "the fade on the main play screen flag is different from the hero select
+   fade. can we mimic the navy fade exactly"; R-HS-FADE-01). Same eased foot fade as partyHome.css `.ph-cardwrap .ph-art` (no
+   side fade), AND the same box: the play portrait runs from the cloth's top (y 96) for 844 of the flag's 1321 units, so it is
+   667 wide by 844 tall in the flag's own units, framed at 50% 14%. A shorter box ended the fade higher up the flag. */
+.heroselect.phhs .herocard.big > .hcframe { aspect-ratio: 667 / 844; }
+.heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0; width: 100%; object-position: 50% 14%;
   --foot: linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%,
     rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%);
   -webkit-mask-image: var(--foot); mask-image: var(--foot); }
 .heroselect.phhs .herocard.big .hcname.hudpill-name { -webkit-text-stroke: 5px #000; paint-order: stroke fill; }
+/* The hover wash stays ON THE CLOTH and fades to nothing before any edge (owner 2026-11-07: "when highlighting a flag, ther is
+   a glow with hard edges that shows"; R-HS-WASH-01). The flag's box is wider and taller than its cloth (the rod's finials, the
+   point), so a wash on `inset: 0` that was still lit at the box edge drew a faint rectangle around the flag. */
+.heroselect.phhs .herocard.big::after { inset: calc(100cqi * 96 / 784) calc(100cqi * 58 / 784) 30%;
+  background: radial-gradient(closest-side at 50% 38%, rgba(255, 226, 160, 0.2), rgba(255, 226, 160, 0) 100%); }
+/* ABOVE THE FLAG: the difficulty word (R-HS-DIFF-OUT-01, owner 2026-11-07: "lets move the difficulty to above the flag"). Every
+   slot in the row carries the line (empty when a hero has no tip), so the flags stay level. */
+.heroselect.phhs .hcslot > .hcdiff-out { display: block; min-height: 1.2em; margin: 0 0 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: 14px; line-height: 1.2; letter-spacing: 0.1em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
+
+/* REST AND FOCUS (owner 2026-11-07, R-HS-POWER-FOCUS-01: "only display the hero name, armor and health, and the hero power name
+   and cost. only when hovering should the hero power shift to the main focus, where the hero power name becomes the same format
+   as the hero name, and the end description is shown"). At rest the flag shows the name, the Health / Armor medallions and the
+   power's name + cost. Hover / focus / a parked tap crossfades: the power's name takes the hero name's place in the same format,
+   its cost takes the stats' place, and the description shows where the small power name was. Opacity only. The description
+   is the lighter body weight ("lets make the hero power description a lighter font"). */
+.heroselect.phhs .herocard.big .hchp :is(.healthmedal, .armormedal) { width: 24px; height: 24px; }
+/* The rest face sits lower on the cloth and the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero
+   power description section up"). A static offset in the flag's own units (784 wide): the flag never grows. */
+.heroselect.phhs .herocard.big :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 55 / 784); }
+
+.heroselect.phhs .herocard.big .hcpw { display: grid; }
+.heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }
+.heroselect.phhs .herocard.big .hcpw > .hclock { grid-area: 2 / 1; }
+.heroselect.phhs .herocard.big :is(.hcname, .hchp, .hcpw-head, .hcpw-focus) { transition: opacity 0.18s ease; }
+/* The in-flow description stays for the screen reader and keeps the flag's height honest; the eye reads the focus block. */
+.heroselect.phhs .herocard.big .hcpw > :is(.hcpw-body, .hclock) { opacity: 0; position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.heroselect.phhs .herocard.big .hcbelow { min-height: 0; }
+/* The focus block sits on the cloth just above the flag's point ("lower the hero power section"); a long description grows it UP
+   over the portrait's faded foot, never past the point. The in-flow description above is visually hidden, so the flag keeps its
+   painted shape. */
+.heroselect.phhs .herocard.big .hcpw-focus { position: absolute; z-index: 3; left: 0; right: 0; top: calc(-100cqi * 360 / 784); bottom: calc(100cqi * 230 / 784 - 4px);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 calc(var(--trim) + 18px);
+  opacity: 0; pointer-events: none; text-align: center; }
+.heroselect.phhs .herocard.big .hcpw-focus > .hcname.hcpw-title { position: relative; inset: auto; transform: none; translate: none; width: 100%; flex: none; }
+.heroselect.phhs .herocard.big .hcpw-titlecost { font-family: var(--ph-font); font-weight: 800; font-size: 17px; line-height: 24px; color: var(--ph-muted); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
+.heroselect.phhs .herocard.big .hcpw-fbody { display: block; max-width: 82%; margin-top: 10px; font-family: var(--ph-body); font-weight: 400; font-size: 15px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.heroselect.phhs .herocard.big .hcpw-fbody b { color: var(--ui-title, #ffd98a); font-family: var(--ph-font); font-weight: 900; }
+.heroselect.phhs .herocard.big .hcpw-flock { display: block; margin-top: 6px; font-family: var(--ph-font); font-size: 13px; color: #fbe6a6; }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { opacity: 0; }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) .hcpw-focus { opacity: 1; }
+
+/* THE FLAG TAKES THE POINTER ONLY THROUGH ITS PAINTED SHAPE (owner 2026-11-07: "this area technically hovers over the flag. can we
+   make it tighter than that?"; R-HIT-SHAPE-01 / R-HS-HIT-01). The card's box is click-through; the painted flag (`.hcfoot`, the
+   whole frame at inset 0) is the one hit layer, clipped to the art's silhouette, so the clear corners beside the point and around
+   the rod never light the flag. A child's hit counts as the button's, so :hover, the click and focus are unchanged. Traced with
+   `node scripts/trace-hit-shape.mjs packages/ui/src/partyHome/ornaments/player-flag.webp --grow 4 --tol 0.6`. */
+.heroselect.phhs .herocard.big { pointer-events: none; }
+.heroselect.phhs .herocard.big > .hcfoot { pointer-events: auto;
+  clip-path: polygon(95.8% 46.1%, 95.5% 83.4%, 93.9% 84.8%, 89% 86.3%, 55.5% 93.6%, 53% 99.7%, 49.9% 100%, 46.7% 99.7%, 44.3% 93.6%, 13.3% 87%, 5.9% 84.8%, 4.1% 83.5%, 3.9% 46.1%, 4.1% 8.8%, 0.9% 3%, 6.3% 1.3%, 14.1% 2.5%, 39.5% 2.5%, 47.2% 1.3%, 49.9% 0%, 52.5% 1.1%, 60.2% 2.5%, 85.7% 2.5%, 93.5% 1.2%, 98.9% 3%, 95.5% 8.8%); }
+body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
+
+/* A DIVIDER BETWEEN THE POWER'S NAME AND ITS COST (owner 2026-11-07: "can we add a divider between the hero power name and its
+   cost"). At rest, where they sit side by side, a short gold hairline stands between them (the hover face's one was removed:
+   owner 2026-11-07, "remove this divider"). Static. */
+.heroselect.phhs .herocard.big .hcpw-head .hccost { align-self: center; padding-left: 8px; border-left: 1px solid rgba(255, 217, 138, 0.5); line-height: 1; }
+/* The power's name in blue, its cost in gold (owner 2026-11-07: "make the cost: X a gold color. make the hero power name blue").
+   The name is blue on the rest line; the hover face's big name keeps the hero name's white (its format). The cost is gold in both. */
+.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }
+.heroselect.phhs .herocard.big :is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }

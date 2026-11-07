@@ -14115,4 +14115,102 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'The PartyHome wiring is pinned by a source check (no test mounts PartyHome); the window and the menu order are pinned by render tests.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
+  {
+    id: 'R-HS-CENTRE-01',
+    title: 'A hero select banner\x27s portrait and text sit on the banner\x27s own centre line',
+    statement:
+      'On hero select every hero banner\x27s portrait, name, Health and power text share one vertical centre line with the banner\x27s painted flag '
+      + '(its rod gem, cloth and tassel), at every window size. Inset content inside a banner is inset equally on both sides, never by a one-sided margin.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-06, on the Practice Select Your Hero screen', quote: 'these are off center' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.hcframe / .hcbelow use margin-inline: auto)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-06 (fix/hero-select-row-centre). Before, the painted-flag banner gave the portrait and text block a margin-left only; '
+      + 'the card column centres each child\x27s margin box, so the content sat about 12px right of the flag at 1920 wide.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-06' },
+  },
+  {
+    id: 'R-HS-WASH-01',
+    title: 'A hero select banner\x27s hover glow never shows an edge',
+    statement:
+      'Hovering or focusing a hero select banner lights it with a soft glow that fades to nothing on every side. '
+      + 'No hover light ever stops at a straight line, a box edge or the banner\x27s clear surround.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, hovering a hero select flag', quote: 'when highlighting a flag, ther is a glow with hard edges that shows' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.herocard.big::after inset to the cloth, closest-side wash)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the warm wash covered the whole flag box (inset: 0) and was still lit '
+      + 'at the box edge, so a faint rectangle showed around the flag on hover.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-DIFF-OUT-01',
+    title: 'On hero select the difficulty sits above the flag, and the power description is a lighter weight',
+    statement:
+      'In the hero select banners, a hero\x27s difficulty word (when shown) sits above the flag, never inside it, '
+      + 'so the flag holds the hero, its stats and its Hero Power. The Hero Power\x27s description is set in the lighter body weight; its name stays bold.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'lets move the difficulty rating down out of the flag to make room for the "Hero Power" title. lets make the hero power description a lighter font' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, follow-up', quote: 'lets move the difficulty to above the flag' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/HeroSelect.tsx (.hcdiff-out in .hcslot), hero-select/heroSelectPh.css (.hcpw weight 400)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the difficulty sat inside the flag above the power, and the description was semi-bold (600). '
+      + 'Every slot in the row keeps the line (empty for a hero with no tip), so the flags stay level.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-POWER-FOCUS-01',
+    title: 'A hero select flag shows the hero at rest and hands the focus to its Hero Power on hover',
+    statement:
+      'At rest a hero select flag shows only the hero\x27s name, its Health and Armor (the painted medallions) and its Hero Power\x27s name and cost. '
+      + 'Hovering, focusing or tapping the flag hands the focus to the Hero Power: its name takes the hero name\x27s place in the same format, '
+      + 'its cost takes the stats\x27 place, and its description appears. The description is never shown at rest.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'only display the hero name, armor and health (make sure these are the proper medallions from my folder), and the hero power name and cost. only when hovering should the hero power shift to the main focus, where the hero power name becomes the same format as the hero name, and the end description is shown.' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/HeroSelect.tsx (.hcpw-title / .hcpw-titlecost, HealthMedal / ArmorMedal), hero-select/heroSelectPh.css (REST AND FOCUS)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 in the party home look (fix/hero-select-row-centre). Before, the power description was always on the flag and the stats used the plain heart / shield icons.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-FADE-01',
+    title: 'A hero select flag fades its portrait exactly like the play screen flag',
+    statement:
+      'The portrait on a hero select flag fades onto the flag\x27s navy exactly as the player\x27s flag on the play screen does: '
+      + 'the same portrait box (the cloth\x27s width, the same share of the flag\x27s height) and the same eased fade to its foot. '
+      + 'A change to one flag\x27s portrait or fade is a change to both.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'the fade on the main play screen flag is different from the hero select fade. can we mimic the navy fade exactly' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.hcframe-art mask = partyHome.css .ph-cardwrap .ph-art mask)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, hero select used the same fade gradient over a shorter portrait box (about 50% of the flag\x27s height against the play flag\x27s 64%), so its fade ended higher up the flag.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-HIT-01',
+    title: 'A hero select flag takes the pointer only through its painted shape',
+    statement:
+      'Hovering or pressing a hero select flag counts only over the painted flag (rod, cloth, point, tassel). The clear space around it, '
+      + 'beside the point and around the rod, never lights or picks the flag.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, circling the clear corners beside a flag\x27s point', quote: 'this area technically hovers over the flag. can we make it tighter than that?' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.herocard.big click-through, .hcfoot traced clip-path hit layer)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the whole rectangular card box took the pointer.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

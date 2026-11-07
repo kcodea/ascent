@@ -868,3 +868,7 @@ html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto;
 .ph-heldtrash:focus-visible { outline: 2px solid rgba(255, 214, 110, 0.9); outline-offset: 2px; }
 /* The saved game chip a little lower, closer to START (owner 2026-11-06: "lower the saved-game chip"): 30 units down. */
 html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-10 * var(--phu)); }
+/* The party home's dialogs (Start a new game?, Quit this game?, Team name) sit on Play and START's axis, the stage left of the
+   docked side panel, not the window's centre (owner 2026-11-06: "align these with the play and start button centers"). The veil
+   still covers the whole window. Desktop. */
+html:not([data-ph-compact]) .ph .phk-dialog { padding-right: calc(368 * var(--phu)); box-sizing: border-box; }

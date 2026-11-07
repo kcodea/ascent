@@ -94,12 +94,12 @@ describe('round 6', () => {
     // The rest face sits lower, the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero power
     // description section up").
     expect(css).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 55 / 784); }');
-    expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784\)/);
+    expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784 - 4px\)/);
     // A divider between the power's name and its cost, in both faces (owner 2026-11-07).
     expect(css).toMatch(/\.hcpw-head \.hccost \{[^}]*border-left: 1px solid/);
     expect(css).toMatch(/\.hcpw-titlecost::before \{ content: '';[^}]*height: 1px;/);
     // The power's name is blue, its cost gold (owner 2026-11-07).
-    expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; }');
+    expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }');
     expect(css).toContain(':is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }');
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);

@@ -296,9 +296,9 @@ html[data-ph-compact] .phb .book-search { width: calc(150 * var(--phu)); }
    shared line, clear of the bottom-left dock. */
 /* Owner 2026-11-06 ("just a bit of padding between it and the friends/settings rail ... bring the right side in just a bit to
    match ... start with 40px"): the page spans the window, its left edge a short gap past the dock (fixed at 20u, ~86u wide),
-   its right edge 160u in (owner: "nudge the right side in another 120px"). */
+   its right edge 128u in (owner: "nudge the right side in another 120px", then 2026-11-06 "make the right side slightly wider"). */
 html[data-ph-shell]:not([data-ph-compact]) .phk-page.phb { max-width: none; margin: 0;
-  padding-left: calc(128 * var(--phu) + var(--safe-l, 0px)); padding-right: calc(160 * var(--phu) + var(--safe-r, 0px)); }
+  padding-left: calc(128 * var(--phu) + var(--safe-l, 0px)); padding-right: calc(128 * var(--phu) + var(--safe-r, 0px)); }
 
 /* ── READABLE AT EVERY SIZE ── The book's panels are sized in px, which on a phone means different things (a phone that lays
    out at 844 against one that lays out wider and scales down). `zoom` ties them to the shell's unit, so text, chips and
@@ -435,3 +435,7 @@ html[data-ph-shell] .phb .gbtn.gbtn-primary { background: var(--ph-metal-gold); 
 html[data-ph-shell] .phb .gbtn.gbtn-primary:hover:not(:disabled) { background: var(--ph-metal-gold); color: var(--ph-navy); }
 html[data-ph-shell] .phb .gbtn.gbtn-danger { color: var(--ui-warn); }
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phb .gbtn { transition: none; } }
+
+/* The count line beside the view tabs is gone from sight on every view (owner 2026-11-06: "remove this"); it stays as a
+   screen-reader live region so a search still announces its result count. */
+html[data-ph-shell] .phb .phb-sub.phb-srsub { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -160,7 +160,11 @@
 .rgp .lp-tiles { gap: calc(8 * var(--phu)); }
 .rgp .lp-tile { --band: var(--ph-muted); gap: calc(8 * var(--phu)); padding: calc(8 * var(--phu)) calc(12 * var(--phu)) calc(12 * var(--phu)) calc(16 * var(--phu)); border: 0;
   background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r); color: var(--ph-text); }
-.rgp .lp-tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(3 * var(--phu)); background: var(--band); }
+.rgp .lp-tile::before { content: ''; position: absolute; z-index: 2; left: 0; top: 0; bottom: 0; width: calc(3 * var(--phu)); background: var(--band); }
+/* THE EDGE STAYS ON TOP (owner 2026-11-06: "can we have the gold border stay above the blur?"; R-LOBBY-TILE-EDGE-01): the Game
+   strength overlay (z 1) darkens and blurs the tile, so the gold ring repaints over it from `::after` (the tile's own shadow,
+   inherited, so hover and the picked state follow), and the band above (`::before`, z 2). Static paint. */
+.rgp .lp-tile::after { content: ''; position: absolute; z-index: 2; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inherit; }
 .rgp .lp-won { --band: var(--ph-gold-hi); } .rgp .lp-top4 { --band: var(--ph-text); } .rgp .lp-lost { --band: var(--ph-foe); } .rgp .lp-in { --band: var(--ph-muted); }
 .rgp .lp-tile:hover { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(1 * var(--phu)) var(--ph-gold); }
 .rgp .lp-tile.on { background: var(--ph-plate-hover); box-shadow: inset 0 0 0 calc(2 * var(--phu)) var(--ph-gold); }

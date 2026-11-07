@@ -56,6 +56,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-07',
+    changes: [
+      { category: 'Systems', text: 'Recent Games: game rows and lobby players make the menu hover and click sounds again.' },
+      { category: 'Systems', text: 'Recent Games: a lobby player\x27s gold edge stays sharp over the Game strength blur.' },
+    ],
+  },
+  {
     date: '2026-11-06',
     changes: [
       { category: 'Systems', text: 'Hero select: each hero banner\x27s portrait and text now sit centred on the banner.' },

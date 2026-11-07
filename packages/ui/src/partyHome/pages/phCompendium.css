@@ -439,3 +439,12 @@ html[data-ph-shell] .phb .gbtn.gbtn-danger { color: var(--ui-warn); }
 /* The count line beside the view tabs is gone from sight on every view (owner 2026-11-06: "remove this"); it stays as a
    screen-reader live region so a search still announces its result count. */
 html[data-ph-shell] .phb .phb-sub.phb-srsub { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The rail's category buttons bounce on hover and bounce harder on a click (owner 2026-11-06), with the Collection tiles' spring:
+   the same overshoot curve, at 1.03 since a rail row is wide. A press squeezes in fast, release springs back past hover size. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ph-shell] .phb .book-cat { transition: transform 0.16s ease-out, background 0.12s ease; }
+  html[data-ph-shell] .phb .book-cat:hover { transform: scale(1.03); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), background 0.12s ease; }
+  html[data-ph-shell] .phb .book-cat:active { transform: scale(0.96); transition: transform 0.08s ease-out; }
+  html[data-ph-shell] .phb .book-cat.on:hover { transition: transform 0.5s cubic-bezier(0.3, 2.6, 0.45, 1), background 0.12s ease; }
+}

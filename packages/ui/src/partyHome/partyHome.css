@@ -828,3 +828,7 @@ html[data-ph-shell] .ph-settings .phk-select.pho-select { height: calc(36 * var(
 .pho-typelbl { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .pho-typeicon { flex: none; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); }
 .pho-typeicon > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* The side panel's title tab (RANKED, PRACTICE, ...) reads much larger (owner 2026-11-06: "make this much larger"). Tabs size to
+   their label (never narrower than before) so a two-tab header like VERSUS / OPEN ROOMS still fits. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 1 auto; min-width: calc(128 * var(--phu)); font-size: calc(26 * var(--phu)); }

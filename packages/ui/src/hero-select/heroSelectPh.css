@@ -250,3 +250,8 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
     rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%);
   -webkit-mask-image: var(--foot); mask-image: var(--foot); }
 .heroselect.phhs .herocard.big .hcname.hudpill-name { -webkit-text-stroke: 5px #000; paint-order: stroke fill; }
+/* The hover wash stays ON THE CLOTH and fades to nothing before any edge (owner 2026-11-07: "when highlighting a flag, ther is
+   a glow with hard edges that shows"; R-HS-WASH-01). The flag's box is wider and taller than its cloth (the rod's finials, the
+   point), so a wash on `inset: 0` that was still lit at the box edge drew a faint rectangle around the flag. */
+.heroselect.phhs .herocard.big::after { inset: calc(100cqi * 96 / 784) calc(100cqi * 58 / 784) 30%;
+  background: radial-gradient(closest-side at 50% 38%, rgba(255, 226, 160, 0.2), rgba(255, 226, 160, 0) 100%); }

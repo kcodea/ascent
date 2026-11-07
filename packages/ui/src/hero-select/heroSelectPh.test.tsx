@@ -108,6 +108,15 @@ describe('the mode line', () => {
     expect(inset.some(([, body]) => /margin-inline\s*:\s*auto/.test(body))).toBe(true);
   });
 
+  it('R-HS-WASH-01: the hover wash fades to nothing inside the cloth, never a box edge', () => {
+    // owner 2026-11-07: "when highlighting a flag, ther is a glow with hard edges that shows".
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    const washes = [...css.matchAll(/\.herocard\.big::after \{([^}]*)\}/g)].map((m) => m[1]!);
+    const last = washes[washes.length - 1]!;
+    expect(last).toMatch(/inset: calc\(100cqi \* 96 \/ 784\) calc\(100cqi \* 58 \/ 784\)/);
+    expect(last).toMatch(/radial-gradient\(closest-side[^;]*0\) 100%\)/);
+  });
+
   it('names the game the pick is for', () => {
     const base = { ranked: false, rankedDuos: false, watching: false };
     expect(heroSelectEyebrow({ ...base, mode: 'lobby', ranked: true })).toBe('Ranked');

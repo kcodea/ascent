@@ -14113,4 +14113,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the card column centres each child\x27s margin box, so the content sat about 12px right of the flag at 1920 wide.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-06' },
   },
+  {
+    id: 'R-HS-WASH-01',
+    title: 'A hero select banner\x27s hover glow never shows an edge',
+    statement:
+      'Hovering or focusing a hero select banner lights it with a soft glow that fades to nothing on every side. '
+      + 'No hover light ever stops at a straight line, a box edge or the banner\x27s clear surround.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, hovering a hero select flag', quote: 'when highlighting a flag, ther is a glow with hard edges that shows' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.herocard.big::after inset to the cloth, closest-side wash)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the warm wash covered the whole flag box (inset: 0) and was still lit '
+      + 'at the box edge, so a faint rectangle showed around the flag on hover.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

@@ -384,7 +384,9 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
         <span className="phc-tile-rar"><span className="phc-gem" aria-hidden />{RARITY_LABELS[rarity]}</span>
       </span>
       {!owned && <span className="phc-tile-lock" aria-hidden><LockGlyph /></span>}
-      {(equipped || fresh) && <span className="phc-tile-tags" aria-hidden>{equipped ? <PhChip tone="gold">Equipped</PhChip> : <PhChip tone="teal">New</PhChip>}</span>}
+      {/* Equipped is a gold band across the tile's top (owner 2026-11-06: "the top part of the cosmetic card filled in yellow with EQUIPPED in the middle"). */}
+      {equipped && <span className="phc-tile-eqband" aria-hidden>Equipped</span>}
+      {!equipped && fresh && <span className="phc-tile-tags" aria-hidden><PhChip tone="teal">New</PhChip></span>}
     </button>
   );
 });

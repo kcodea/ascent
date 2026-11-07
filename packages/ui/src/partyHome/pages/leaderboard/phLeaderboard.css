@@ -134,3 +134,16 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs
 .phl-podfoot { column-gap: calc(32 * var(--phu)); }
 /* A large drop shadow under the podium trophies so they lift off the art (owner 2026-11-06). Static, so the filter costs one paint. */
 .phl-trophy { filter: drop-shadow(0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.7)) drop-shadow(0 calc(10 * var(--phu)) calc(18 * var(--phu)) rgba(0, 0, 0, 0.75)); }
+
+/* Podium cards bounce on hover like the Collection tiles (owner 2026-11-06: "the same spring bounce on hover"): the same overshoot
+   curve, in at 0.32s, out at 0.16s; a press squeezes in and springs back harder. Transform only. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ph-shell] .phl-podbtn:not(.static) { transition: transform 0.16s ease-out; }
+  html[data-ph-shell] .phl-podbtn:not(.static):hover { transform: scale(1.03); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  html[data-ph-shell] .phl-podbtn:not(.static):active { transform: scale(0.97); transition: transform 0.08s ease-out; }
+}
+/* Room for that bounce (owner 2026-11-06: "when hovering the first place card, the border goes away"): the page body scrolls, so it
+   clipped the tallest card's top edge the moment it grew. It now reaches 24u up and out and pads its content back, so nothing moves. */
+html[data-ph-shell]:not([data-ph-compact]) .phl-page .phk-pagebody {
+  margin-top: calc(-24 * var(--phu)); margin-left: calc(-24 * var(--phu)); margin-right: calc(-12 * var(--phu) - 24 * var(--phu));
+  padding-top: calc(24 * var(--phu)); padding-left: calc(24 * var(--phu)); padding-right: calc(24 * var(--phu)); }

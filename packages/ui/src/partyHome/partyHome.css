@@ -878,3 +878,10 @@ html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto 
 html:not([data-ph-compact]) .ph-heldtxt b { grid-column: auto; }
 /* A bit higher again (owner 2026-11-06: "raise the chip a bit"): 12 units up from the last spot. */
 html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-22 * var(--phu)); }
+/* START nudges the saved match (owner 2026-11-06: "when the START button is hovered, have the saved match chip bounced a bit"):
+   hovering START plays one small hop on the chip (up, a touch past rest, settle). `transform` only, so it composes with the
+   chip's centring `translate`; one-shot, it replays on the next hover. */
+@keyframes ph-heldhop { 0% { transform: none; } 38% { transform: translateY(calc(-8 * var(--phu))); } 70% { transform: translateY(calc(2 * var(--phu))); } 100% { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .ph-stage:has(> .ph-actions .ph-start:hover:not(:disabled)) .ph-stagehead > .ph-held { animation: ph-heldhop 0.42s cubic-bezier(0.3, 0.7, 0.4, 1); }
+}

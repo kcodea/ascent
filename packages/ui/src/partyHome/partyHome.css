@@ -872,3 +872,7 @@ html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]
    docked side panel, not the window's centre (owner 2026-11-06: "align these with the play and start button centers"). The veil
    still covers the whole window. Desktop. */
 html:not([data-ph-compact]) .ph .phk-dialog { padding-right: calc(368 * var(--phu)); box-sizing: border-box; }
+/* One row again (owner 2026-11-06: "lets moved SAVED MATCH to the same row as the other elements"): SAVED MATCH, the mode and
+   round, Continue, the trash button, left to right; the caps and the bigger size stay. */
+html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto auto; padding: calc(8 * var(--phu)) calc(10 * var(--phu)) calc(8 * var(--phu)) calc(26 * var(--phu)); border-radius: 999px; }
+html:not([data-ph-compact]) .ph-heldtxt b { grid-column: auto; }

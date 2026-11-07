@@ -14097,6 +14097,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
   {
+    id: 'R-PH-CHANGE-NAME-01',
+    title: 'Your own banner on the home screen offers Change name, and it renames you the same way the title name chip does',
+    statement:
+      'The menu that opens from your own banner on the home screen lists Change name, Change portrait and View Career. '
+      + 'Change name opens a small window with your current name; Save or Enter renames you, Cancel leaves the name alone. '
+      + 'It uses the same rename as the title screen name chip, with the same rules: up to 24 characters, trimmed, your #tag kept, and a guest can rename too.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, party home banner menu', quote: 'we need a change name option' },
+      { kind: 'fix-pr', ref: 'feat/ph-change-name' },
+      { kind: 'code', ref: 'packages/ui/src/partyHome/ChangeName.tsx (selfCardMenu, ChangeNameDialog through setPlayerName); packages/ui/src/partyHome/PartyHome.tsx (cardMenu)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-07 (feat/ph-change-name). Before, the banner menu had only Change portrait and View Career, and the party home had no way to rename. '
+      + 'The PartyHome wiring is pinned by a source check (no test mounts PartyHome); the window and the menu order are pinned by render tests.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/changeName.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
     id: 'R-PH-SIGNIN-NAV-01',
     title: 'Signed out, the top nav offers Sign in at its top right',
     statement:

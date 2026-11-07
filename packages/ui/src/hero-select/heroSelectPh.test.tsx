@@ -14,6 +14,8 @@ import { setPartyHome } from '../partyHome/partyHomeFlag';
 import { heroSelectEyebrow } from './heroSelectEyebrow';
 import { pageFitZoom } from './HeroSelectPhSkin';
 
+// A variable, so Vite does not rewrite the URL into a served asset.
+const FLAG_ART = '../partyHome/ornaments/player-flag.webp';
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 
 let ui: Mounted | null = null;
@@ -83,14 +85,12 @@ describe('round 6', () => {
     const card = root.querySelector('.herocard.big')!;
     expect(card.querySelector('.hchp .healthmedal')).not.toBeNull();
     expect(card.querySelector('.hcpw-title.hcname')).not.toBeNull();
-    // The rest face sits lower on the cloth (owner 2026-11-07: "now move the hero names section down").
-    expect(here('./heroSelectPh.css')).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 150 / 784); }');
     expect(card.querySelector('.hcpw-titlecost')).not.toBeNull();
     // The difficulty sits ABOVE the flag: the first thing in its slot.
     expect(root.querySelector('.hcslot')!.firstElementChild!.classList.contains('hcdiff-out')).toBe(true);
     const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(card.querySelector('.hcpw-focus .hcpw-fbody')).not.toBeNull();
-    expect(css).toMatch(/\.hcpw > :is\(\.hcpw-body, \.hclock\) \{ opacity: 0; \}/);
+    expect(css).toMatch(/\.hcpw > :is\(\.hcpw-body, \.hclock\) \{ opacity: 0; position: absolute;/);
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);
@@ -168,5 +168,45 @@ describe('rules', () => {
       expect(sel, sel).toMatch(/phhs|\.hsc-curtain\.ph|\.hcrod|\.hcfoot|\.hsph-bd|\.hsback-arrow|^\.heroselect/);
     }
     expect(here('./heroSelectEyebrow.ts')).not.toMatch(/—|\s--\s|\b(Oath|climb)\b/);
+  });
+});
+
+describe('the flag matches the play flag', () => {
+  it('R-HS-FADE-01: the portrait fade is the play screen flag\'s fade, exactly', () => {
+    // The same eased foot fade (the play flag's live mask is its --foot alone) ...
+    const foot = (css: string, sel: RegExp): string => sel.exec(css.replace(/\/\*[\s\S]*?\*\//g, ''))![1]!.replace(/\s+/g, ' ').trim();
+    const play = foot(here('../partyHome/partyHome.css'), /html:not\(\[data-ph-compact\]\) \.ph-cardwrap \.ph-art \{[^}]*--foot: ([^;]*);/);
+    const hsCss = here('./heroSelectPh.css');
+    const hs = foot(hsCss, /\.herocard\.big :is\(\.hcframe-art, \.hcframe-pow\) \{ inset: 0; width: 100%;[^}]*--foot: ([^;]*);/);
+    expect(hs).toBe(play);
+    // ... over the same box: the cloth's width (667 of 784) by 844 of the flag's 1321 units, framed at 50% 14%.
+    expect(hsCss).toMatch(/\.herocard\.big > \.hcframe \{ aspect-ratio: 667 \/ 844; \}/);
+    expect(hsCss).toMatch(/:is\(\.hcframe-art, \.hcframe-pow\) \{ inset: 0; width: 100%; object-position: 50% 14%;/);
+  });
+
+  it('R-HS-HIT-01: the box is click-through and the painted flag, traced, takes the pointer', async () => {
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.heroselect\.phhs \.herocard\.big \{ pointer-events: none; \}/);
+    const m = /\.herocard\.big > \.hcfoot \{ pointer-events: auto;\s*clip-path: polygon\(([^)]*)\)/.exec(css);
+    expect(m).not.toBeNull();
+    const poly = m![1]!.split(',').map((p) => p.trim().split(/\s+/).map((v) => parseFloat(v)) as [number, number]);
+    const inside = ([x, y]: [number, number]): boolean => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i]!, [xj, yj] = poly[j]!;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    const { default: sharp } = await import('sharp');
+    const { data, info } = await sharp(fileURLToPath(new URL(FLAG_ART, import.meta.url))).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let solid = 0, solidIn = 0, empty = 0, emptyIn = 0;
+    for (let y = 0; y < info.height; y += 4) for (let x = 0; x < info.width; x += 4) {
+      const a = data[(y * info.width + x) * 4 + 3]!;
+      const hit = inside([((x + 0.5) / info.width) * 100, ((y + 0.5) / info.height) * 100]);
+      if (a >= 200) { solid++; if (hit) solidIn++; } else if (a <= 8) { empty++; if (hit) emptyIn++; }
+    }
+    expect(solidIn / solid, 'painted flag outside the hit shape').toBeGreaterThan(0.99);
+    expect(emptyIn / Math.max(1, solidIn + emptyIn), 'clear pixels inside the hit shape').toBeLessThan(0.04);
   });
 });

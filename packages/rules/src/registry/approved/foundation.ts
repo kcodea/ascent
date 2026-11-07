@@ -14163,4 +14163,35 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-07 in the party home look (fix/hero-select-row-centre). Before, the power description was always on the flag and the stats used the plain heart / shield icons.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
+  {
+    id: 'R-HS-FADE-01',
+    title: 'A hero select flag fades its portrait exactly like the play screen flag',
+    statement:
+      'The portrait on a hero select flag fades onto the flag\x27s navy exactly as the player\x27s flag on the play screen does: '
+      + 'the same portrait box (the cloth\x27s width, the same share of the flag\x27s height) and the same eased fade to its foot. '
+      + 'A change to one flag\x27s portrait or fade is a change to both.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'the fade on the main play screen flag is different from the hero select fade. can we mimic the navy fade exactly' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.hcframe-art mask = partyHome.css .ph-cardwrap .ph-art mask)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, hero select used the same fade gradient over a shorter portrait box (about 50% of the flag\x27s height against the play flag\x27s 64%), so its fade ended higher up the flag.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-HIT-01',
+    title: 'A hero select flag takes the pointer only through its painted shape',
+    statement:
+      'Hovering or pressing a hero select flag counts only over the painted flag (rod, cloth, point, tassel). The clear space around it, '
+      + 'beside the point and around the rod, never lights or picks the flag.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, circling the clear corners beside a flag\x27s point', quote: 'this area technically hovers over the flag. can we make it tighter than that?' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.herocard.big click-through, .hcfoot traced clip-path hit layer)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the whole rectangular card box took the pointer.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

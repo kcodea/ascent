@@ -546,7 +546,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <div className="ph-side">
         {vh.side}
         {/* PHONE: the saved game is one plain button in this clear row; the head row stays for the team and rules. */}
-        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved game, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue {savedRunMode(savedRun)}</PhButton>}
+        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved match, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue {savedRunMode(savedRun)}</PhButton>}
         {inParty && !inGame && !versusRoom && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
@@ -697,9 +697,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         {!phone && savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
-              <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
+              <span className="ph-heldtxt"><b>Saved match</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
               <PhButton variant="primary" size="m" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
-              <button type="button" className="ph-heldtrash" aria-label="Quit your saved game" onClick={() => { sfx.pulse(); setConfirmQuit(true); }}>
+              <button type="button" className="ph-heldtrash" aria-label="Quit your saved match" onClick={() => { sfx.pulse(); setConfirmQuit(true); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 11a2 2 0 0 1-2 1.9H9a2 2 0 0 1-2-1.9L6 9zm3.5 2v8H11v-8H9.5zm3.5 0v8h1.5v-8H13z" /></svg>
               </button>
             </div>
@@ -718,21 +718,21 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
       {confirmOverwrite && savedRun && (
-        <PhDialog label="Replace your saved game?" eyebrow="Saved game" title="Start a new game?" onClose={() => setConfirmOverwrite(null)}
+        <PhDialog label="Replace your saved match?" eyebrow="Saved match" title="Start a new match?" onClose={() => setConfirmOverwrite(null)}
           actions={<>
-            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); const go = confirmOverwrite; setConfirmOverwrite(null); go(); }}>Start new game</PhButton>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); const go = confirmOverwrite; setConfirmOverwrite(null); go(); }}>Start new match</PhButton>
             <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmOverwrite(null); }}>Keep it</PhButton>
           </>}>
-          <p>{withAbandonWarning(`This replaces your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
+          <p>{withAbandonWarning(`This replaces your saved match (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
         </PhDialog>
       )}
       {confirmQuit && savedRun && (
-        <PhDialog label="Quit your saved game?" eyebrow="Saved game" title="Quit this game?" onClose={() => setConfirmQuit(false)}
+        <PhDialog label="Quit your saved match?" eyebrow="Saved match" title="Quit this match?" onClose={() => setConfirmQuit(false)}
           actions={<>
-            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); clearRun(); }}>Quit game</PhButton>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); clearRun(); }}>Quit match</PhButton>
             <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); }}>Keep it</PhButton>
           </>}>
-          <p>{withAbandonWarning(`Your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}) will be gone for good.`, savedRun)}</p>
+          <p>{withAbandonWarning(`Your saved match (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}) will be gone for good.`, savedRun)}</p>
         </PhDialog>
       )}
       {duosRoom && <DuosResultOverlay />}

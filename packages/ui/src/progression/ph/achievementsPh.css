@@ -90,3 +90,10 @@ html[data-ph-shell]:not([data-touch-small]) .pha .phc-detail > .pha-status { ord
    clips each group's paint to its box, so a hovered tile on a group's edge was cut. The group reaches 24u past its content
    and pads back in: the clip box grows, nothing moves. */
 .pha-group { padding: calc(24 * var(--phu)); margin: calc(-24 * var(--phu)); }
+
+/* Name and reward read as two parts (owner 2026-11-06: "create some differentiation and use a divider between these
+   elements"): a gold hairline above the reward line, the reward in the XP green (dimmer on an open tile). */
+.pha .phc-tile-name { margin-bottom: calc(10 * var(--phu)); }
+.pha .phc-tile-rar { padding-top: calc(10 * var(--phu)); box-shadow: inset 0 calc(1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.pha .phc-tile.missing .phc-tile-rar { color: var(--ph-teal); opacity: 0.7; box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+.pha .pha-tile-prog { margin-bottom: calc(10 * var(--phu)); }

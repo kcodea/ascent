@@ -114,7 +114,7 @@
    stats, not chips. */
 .heroselect.phhs .herocard.big .hcname.hudpill-name { top: auto; bottom: 34px; left: 50%; transform: translateX(-50%); z-index: 3; width: calc(100% - 32px); max-width: none; white-space: normal; text-wrap: balance; text-align: center;
   padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
-  font-family: var(--ph-font); font-weight: 900; font-size: min(32px, 10.7cqi); line-height: 1.06; letter-spacing: 0.005em; color: var(--ph-ink);
+  font-family: var(--ph-font); font-weight: 900; font-size: min(30px, 10cqi); line-height: 1.06; letter-spacing: 0.005em; color: var(--ph-ink);
   text-shadow: var(--ph-shadow), 0 2px 10px rgba(0, 0, 0, 0.75); }
 .heroselect.phhs .herocard.big .hchp.hudpill-hp { top: auto; bottom: 4px; left: 50%; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 6px;
   height: 24px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;

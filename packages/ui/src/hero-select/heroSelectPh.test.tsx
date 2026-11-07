@@ -95,6 +95,9 @@ describe('round 6', () => {
     // description section up").
     expect(css).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 80 / 784); }');
     expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784\)/);
+    // A divider between the power's name and its cost, in both faces (owner 2026-11-07).
+    expect(css).toMatch(/\.hcpw-head \.hccost \{[^}]*border-left: 1px solid/);
+    expect(css).toMatch(/\.hcpw-titlecost::before \{ content: '';[^}]*height: 1px;/);
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);

@@ -70,6 +70,7 @@ import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
 import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
 import { usePhLayer } from './shell/usePhLayer';
+import { ChangeNameDialog, selfCardMenu, type CardMenuItem } from './ChangeName';
 import './partyHome.css';
 
 /** One banner card's contents. */
@@ -267,6 +268,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   useEffect(() => { if (mode.party === 'rivals' && !sampleOn && !useVersus.getState().room) openVersus('versus'); }, [mode.party, sampleOn]);
   const hostName = (): string => roomName.trim() || (playerName.trim() ? `${playerName.trim()}'s ${mode.label}` : defaultRoomName('', mode.id === 'versus' ? 'duel' : mode.id === 'group' ? 'group' : 'duos'));
   const [nameOpen, setNameOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false); // your own banner's Change name window
   const [teamName, setTeamName] = usePartyTeamName(duosRoom);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [seatNote, setSeatNote] = useState<string | null>(null);
@@ -500,8 +502,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   const pair = duosRoom ? partyPair(duosRoom) : null;
   const teamLabel = pair ? teamName ?? defaultTeamName(pair[0].name, pair[1].name) : demo && mode.id === 'duos' ? demoTeam ?? defaultTeamName(members[0]!.name, 'Mike') : null;
 
-  const cardMenu = (m: Member): { label: string; run?: () => void; soon?: boolean }[] => (m.self
-    ? [{ label: 'Change portrait', run: () => { if (guest) onGuestPortrait(); else openAvatarPicker(); } }, { label: 'View Career', run: () => goTo('career') }]
+  const cardMenu = (m: Member): CardMenuItem[] => (m.self
+    ? selfCardMenu({ changeName: () => setRenameOpen(true), changePortrait: () => { if (guest) onGuestPortrait(); else openAvatarPicker(); }, viewCareer: () => goTo('career') })
     : [
         { label: 'Message', run: demo || !m.userId ? undefined : () => openDm(m.userId!) },
         ...(m.userId ? [{ label: 'View Career', run: () => goTo('career') }] : []),
@@ -714,6 +716,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {phone && friendsOpen && <><div className="ph-fcatch" aria-hidden="true" onPointerDown={() => setFriendsOpen(false)} />{side}</>}
 
       {vh.layers}
+      {renameOpen && <ChangeNameDialog onClose={() => setRenameOpen(false)} />}
       {pickerOpen && <InvitePicker onClose={() => setPickerOpen(false)} />}
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}

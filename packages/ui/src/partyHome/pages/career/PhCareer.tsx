@@ -11,7 +11,8 @@
  *            cleaner"): who (portrait fading in, level + XP, favourite hero), the rank + MMR, the best Ranked Duos team
  *            (arrows step through them), the career numbers. Thin rules, no boxes.
  *   BODY     the open view at full width. Match History and Practice wear Recent Games' list + detail (../gameView.tsx);
- *            Heroes is a grid of portrait cards (Valorant's agent grid); Trends has the room the old column never gave it.
+ *            Heroes is a grid of portrait cards (Valorant's agent grid); Trends has the room the old column never gave it;
+ *            Achievements wears the Collection's rail / album / detail columns (../../../progression/ph/AchievementsPh.tsx).
  *
  * Nothing is lost from the old page: Performance Trends moved from the right column into its own tab (judgement call,
  * flagged in the PR). Static paint; no looping animation; no layout reads.
@@ -215,7 +216,8 @@ export function PhCareer(p: PhCareerProps) {
       </div>
     );
   } else if (p.tab === 'achievements') {
-    view = <div className="phc-view phc-achview cv2-list cv2-achlist">{p.achievements}</div>;
+    // The Collection's three columns (rail / album / detail) under the player strip (owner 2026-11-06; AchievementsPh.tsx).
+    view = <div className="phc-view phc-achview">{p.achievements}</div>;
   } else {
     const f = p.history.filter;
     view = (

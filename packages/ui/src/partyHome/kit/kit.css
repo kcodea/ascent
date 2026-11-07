@@ -458,6 +458,9 @@ html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 2
 html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 40ms; }
 /* The mode panel's content eases in the same way (fade only: it is its own scroller). */
 @keyframes phk-fadein { from { opacity: 0; } }
+/* The tab row scrolls sideways when it must, which clips anything above it, so it shows its overflow for the length of the drop
+   (owner 2026-11-06: "i can see them being cut off in the beginning from a hard boundary"). */
+@keyframes phk-unclip { from, to { overflow: visible; } }
 .ph-settings { animation: phk-fadein 0.18s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }
 
@@ -512,3 +515,25 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead .phk-pagetitle { margin
 /* THE GOLD EDGE IS ALWAYS ON TOP (owner 2026-11-06: "the gold outline should trump the image there too. it should always trump
    everything everywhere!"). A row's art stops just inside the edge it would otherwise paint over. */
 .phk-rowart { top: calc(2 * var(--phu)); right: calc(2 * var(--phu)); height: calc(100% - 4 * var(--phu)); border-radius: 0 calc(var(--ph-r) - 2 * var(--phu)) calc(var(--ph-r) - 2 * var(--phu)) 0; }
+
+/* THE HEADER CASCADE (owner 2026-11-06: "have each title and section slide down from the top in a very tight cascade ... when
+   loading the page from elsewhere"): on a page's mount the title, then each header tab, then the header controls drop in from
+   above, 30ms apart. CSS-only, so it runs once per page arrival (a sub-tab change keeps the header mounted and never replays it).
+   It animates `translate` + opacity, never `transform`, so it composes with the tabs' hover scale and the sliding glow. */
+@keyframes phk-drop { from { opacity: 0; translate: 0 calc(-40 * var(--phu)); } }
+@keyframes phk-fadein { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ph-shell] .phk-page > .phk-pagehead > :is(.phk-back, .phk-pagetitle),
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab,
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs > :not(.phk-tabs),
+  html[data-ph-shell] .phk-page > .phk-pagehead > .phk-pageactions { animation: phk-drop 0.32s cubic-bezier(0.22, 1.1, 0.36, 1) backwards; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab:nth-of-type(1) { animation-delay: 30ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab:nth-of-type(2) { animation-delay: 60ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab:nth-of-type(3) { animation-delay: 90ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab:nth-of-type(4) { animation-delay: 120ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tab:nth-of-type(n + 5) { animation-delay: 150ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs > :not(.phk-tabs) { animation-delay: 150ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead > .phk-pageactions { animation-delay: 180ms; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-slide { animation: phk-fadein 0.24s ease-out 90ms backwards; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tabs { animation: phk-unclip 0.6s; }
+}

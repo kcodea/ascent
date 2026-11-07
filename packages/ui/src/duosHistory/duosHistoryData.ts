@@ -127,10 +127,10 @@ export function duosBand(place: number | null, teams: number): GameBand {
 
 export const duosModeLabel = (mode: DuosHistoryRecord['mode']): string => (mode === 'ranked_duos' ? 'Ranked Duos' : 'Versus Duos');
 
-/** "Out R5" / "Winner" / "Still in" for a team. */
+/** "Out on Round 5" / "Winner" / "Still in" for a team. */
 export function teamFate(t: DuosHistoryTeam): string {
   if (t.placement === 1) return 'Winner';
-  return t.outRound != null ? `Out R${t.outRound}` : 'Still in';
+  return t.outRound != null ? `Out on Round ${t.outRound}` : 'Still in';
 }
 
 /** The game's wall-clock length (hero select to the end), or null. */

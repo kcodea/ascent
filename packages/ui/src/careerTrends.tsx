@@ -18,7 +18,9 @@
  * a run row carries no season id, so a reset cannot be told from a bad streak without guessing.
  */
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { getHero } from '@game/sim';
+import { getHero, runeLiveStateOfSnapshot } from '@game/sim';
+import { RUNE_INDEX } from '@game/content';
+import { RuneEmblem } from './RuneEmblem';
 import type { BoardMinion } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { createPortal } from 'react-dom';
@@ -34,12 +36,14 @@ const DAY = 86_400_000;
 
 interface RunPoint { atMs: number; place: number | null; mmr: number | null; delta: number | null; heroId: string; apm: number | null;
   /** The run's final board (the stored array, a stable reference) and its recorded skins, for the MMR tip's board. */
-  minions?: readonly BoardMinion[]; cosmetics?: RunCosmeticSnapshot | null }
+  minions?: readonly BoardMinion[]; cosmetics?: RunCosmeticSnapshot | null;
+  /** The runes it picked and its final board snapshot (the runes' final live values), for a pinned tip. */
+  runes?: readonly string[]; board?: CareerRun['board'] }
 
 /** Runs inside the window (oldest first), plus the previous window of the same length for the deltas. Pure. */
 export function trendRuns(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number): { cur: RunPoint[]; prev: RunPoint[] | null } {
   const toPoint = (r: CareerRun): RunPoint => ({
-    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r), ...(r.board && r.board.minions.length > 0 ? { minions: r.board.minions, cosmetics: r.board.cosmetics ?? null } : {}),
+    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r), ...(r.board && r.board.minions.length > 0 ? { minions: r.board.minions, cosmetics: r.board.cosmetics ?? null } : {}), runes: r.runes, board: r.board,
   });
   const dated = runs.filter((r) => Number.isFinite(r.atMs) && r.atMs <= nowMs + 60_000).slice().sort((a, b) => a.atMs - b.atMs);
   if (window_ === 'all') return { cur: dated.map(toPoint), prev: null };
@@ -97,8 +101,24 @@ const TipBoard = memo(function TipBoard({ minions, skins }: { minions: readonly 
   return <div className="ct-board"><StoredTeam minions={minions} skins={skins} label="Final board" compact /></div>;
 });
 
+/** A PINNED tip's body (owner 2026-11-06: "when clicking on a graph element, is it possible to pin the game to then be able to
+ *  interact with the warband, right click to see their buffs? can we also add the runes the player had and hover to see their
+ *  effects too?"): the full-size cards, inspectable like the Career game card's, and the run's runes with their live tips. */
+const PinBoard = memo(function PinBoard({ p, skins }: { p: RunPoint; skins: RunCosmeticSnapshot | null }) {
+  const runes = (p.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  const live = p.board ? runeLiveStateOfSnapshot(p.board) : undefined;
+  return (
+    <>
+      {p.minions && p.minions.length > 0 && <div className="ct-board ct-pinboard"><StoredTeam minions={p.minions} skins={skins} label="Final board" /></div>}
+      {runes.length > 0
+        ? <div className="cv2-runes ct-pinrunes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} live={live} key={`${id}#${i}`} />)}</div>
+        : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+    </>
+  );
+});
+
 /** Tip footprint in stage px (the board makes it wide); the tip is clamped to the stage with this. */
-const TIP_W = 780, TIP_H_BOARD = 260, TIP_H_TEXT = 104;
+const TIP_W = 780, TIP_H_BOARD = 260, TIP_H_TEXT = 104, TIP_H_PIN = 340;
 
 // ── The focused (big) chart ────────────────────────────────────────────────────────────────────────────────────
 // FOCUS (owner 2026-10-16: "let the player click each graph to 'focus' it and show it in the larger view"): any of
@@ -328,9 +348,28 @@ function BigChart({ geo, own, kind }: { geo: BigGeo | null; own: boolean; kind: 
     const t = window.setTimeout(() => setRested(hover), 90);
     return () => window.clearTimeout(t);
   }, [hover]);
-  useEffect(() => { setHover(null); }, [geo]);
+  // A click PINS the point under the crosshair: its tip stays put and takes the pointer (inspect a card, hover a rune) until
+  // the same point is clicked again, Escape, or a press outside the chart and the tip.
+  const [pin, setPin] = useState<number | null>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setHover(null); setPin(null); }, [geo]);
+  useEffect(() => {
+    if (pin === null) return undefined;
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape' && !document.querySelector('.inspect-ov')) { e.stopPropagation(); setPin(null); } };
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as Node | null;
+      if (t && (wrap.current?.contains(t) || tipRef.current?.contains(t))) return;
+      if (t instanceof Element && t.closest('.inspect-ov')) return; // a card's buff view or a rune's, opened from the tip
+      setPin(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('pointerdown', onDown, true);
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('pointerdown', onDown, true); };
+  }, [pin]);
   if (!geo || geo.anchors.length === 0) return <div className="ct-empty">{kind === 'mmr' ? 'No rated runs in this window' : 'No games in this window'}</div>;
-  const h = hover === null ? null : geo.anchors[hover] ?? null;
+  const shown = pin ?? hover;
+  const h = shown === null ? null : geo.anchors[shown] ?? null;
+  const pinned = pin !== null;
   const onMove = (e: React.PointerEvent): void => {
     if (!rect.current && wrap.current) { const r = wrap.current.getBoundingClientRect(); rect.current = { left: r.left, width: r.width }; stageRect.current = rectToStage(r); }
     const r = rect.current; if (!r) return;
@@ -339,8 +378,9 @@ function BigChart({ geo, own, kind }: { geo: BigGeo | null; own: boolean; kind: 
     for (let i = 1; i < geo.anchors.length; i++) if (Math.abs(geo.anchors[i]!.x - x) < Math.abs(geo.anchors[best]!.x - x)) best = i;
     if (best !== hover) setHover(best);
   };
+  const onClick = (): void => { if (hover === null) return; setPin((p) => (p === hover ? null : hover)); };
   return (
-    <div className="ct-mmr" ref={wrap} onPointerEnter={() => { rect.current = null; stageRect.current = null; }} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+    <div className="ct-mmr" ref={wrap} onPointerEnter={() => { rect.current = null; stageRect.current = null; }} onPointerMove={onMove} onPointerLeave={() => setHover(null)} onClick={onClick}>
       <svg viewBox={`0 0 ${MW} ${MH}`} role="img" aria-label={geo.label}>
         {geo.svg}
         {h && <line className="ct-cross" x1={h.x} x2={h.x} y1={MT} y2={MH - MB} />}
@@ -354,17 +394,19 @@ function BigChart({ geo, own, kind }: { geo: BigGeo | null; own: boolean; kind: 
         const ax = sr.left + (h.x / MW) * sr.width;
         const ay = sr.top + (h.y / MH) * sr.height;
         const board = !!h.p.minions && h.p.minions.length > 0;
-        const showBoard = board && rested === hover;
-        const w = board ? TIP_W : 220;
-        const th = board ? TIP_H_BOARD : TIP_H_TEXT;
+        const showBoard = board && !pinned && rested === hover;
+        const w = board || pinned ? TIP_W : 220;
+        const th = pinned ? TIP_H_PIN : board ? TIP_H_BOARD : TIP_H_TEXT;
         const left = Math.max(8, Math.min(vp.w - w - 8, ax - w / 2));
         const top = ay - th - 14 >= 8 ? ay - th - 14 : Math.min(vp.h - th - 8, ay + 14);
         return createPortal(
-          <div className={`atip ct-pos ct-float${board ? ' ct-wide' : ''}`} style={{ left, top, width: w }} role="tooltip">
+          <div ref={tipRef} className={`atip ct-pos ct-float${board || pinned ? ' ct-wide' : ''}${pinned ? ' ct-pinned' : ''}`} style={{ left, top, width: w }} role={pinned ? 'dialog' : 'tooltip'} aria-label={pinned ? 'Pinned game' : undefined}>
             <div className="ct-headline">
               {h.head}
               <span className="dim">{playedOnText(h.p.atMs)}</span>
+              <span className="dim ct-pinhint">{pinned ? 'Pinned. Esc or click away to close' : 'Click to pin'}</span>
             </div>
+            {pinned && <PinBoard p={h.p} skins={own ? h.p.cosmetics ?? null : opponentSkins(showOpp, h.p.cosmetics ?? undefined)} />}
             {showBoard && <TipBoard minions={h.p.minions!} skins={own ? h.p.cosmetics ?? null : opponentSkins(showOpp, h.p.cosmetics ?? undefined)} />}
           </div>,
           stageHost(),

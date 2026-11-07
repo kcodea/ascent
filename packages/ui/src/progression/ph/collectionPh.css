@@ -37,6 +37,8 @@
 .phc-bay { flex: none; display: flex; flex-direction: column; gap: calc(12 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-plate);
   box-shadow: var(--ph-gild-s), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); border-radius: var(--ph-r-l); }
 .phc-bay.ready { box-shadow: var(--ph-gild), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.3); }
+/* A lighter blue than the category plates so the chest bay reads as its own thing (owner 2026-11-06). Same glow + vellum. */
+.phc-bay { background: radial-gradient(120% 70% at 50% 0%, rgba(255, 206, 128, 0.11), rgba(255, 206, 128, 0) 62%), linear-gradient(180deg, color-mix(in srgb, #34558f 88%, transparent), color-mix(in srgb, #182b52 90%, transparent)), url('../../partyHome/ornaments/vellum.webp') 0 0 / calc(256 * var(--phu)) repeat; }
 .phc-bay-top { display: flex; align-items: center; gap: calc(12 * var(--phu)); }
 .phc-bay-art { flex: none; width: calc(96 * var(--phu)); }
 .phc-bay:not(.ready) .phc-bay-art { opacity: 0.45; }
@@ -63,9 +65,10 @@
 .phc-filters .phk-tab:first-of-type.on::after { left: 0; }
 .phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .phk-tab.on .phc-n { color: var(--ph-text); }
-.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
+.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(20 * var(--phu)); }
 .phc-rchip { height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: calc(8 * var(--phu)); }
 .phc-rchip.t-gold .phc-n { color: var(--ph-navy); }
+.phc-rchip .phc-n { font-size: calc(11 * var(--phu)); font-weight: 600; }
 .phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }
 .r-ancient .phc-gem, .r-secret .phc-gem { background: var(--rc-grad); }
 
@@ -377,12 +380,13 @@ html[data-ph-shell]:not([data-ph-compact]) .phc-gridwrap {
 /* Room for the selected category's glow (owner 2026-11-06: "this section is also being cut off by the bounds. glow and outline").
    Its glow reaches ~28u, but the rail scrolls (clips) and the page body clips too (it never scrolls itself), and the rail sat
    flush on both. The page body now reaches 32u out at the sides and 16u up, padding its content back, so nothing moves; the rail
-   reaches 24u out at the sides and 16u up and pads back in (its list sits 8u lower). */
+   reaches 24u out at the sides and 16u up and pads back in, so its top lines up with the album and the detail panel
+   (owner 2026-11-06: "all three columns should be evenly aligned at the top"). */
 html[data-ph-shell]:not([data-ph-compact]) .phc .phk-pagebody {
   margin-left: calc(-32 * var(--phu)); margin-right: calc(-12 * var(--phu) - 32 * var(--phu)); margin-top: calc(-16 * var(--phu));
   padding-left: calc(32 * var(--phu)); padding-right: calc(32 * var(--phu)); padding-top: calc(16 * var(--phu)); }
 html[data-ph-shell]:not([data-ph-compact]) .phc-rail {
-  margin: calc(-16 * var(--phu)) calc(-24 * var(--phu)) 0; padding: calc(24 * var(--phu)) calc(24 * var(--phu)) 0; }
+  margin: calc(-16 * var(--phu)) calc(-24 * var(--phu)) 0; padding: calc(16 * var(--phu)) calc(24 * var(--phu)) 0; }
 
 /* A click bounces MORE than a hover (owner 2026-11-06: "when clicking it should bounce even more"): the press squeezes the tile in
    fast, and on release it springs back out past its hover size with a bigger overshoot before settling. */
@@ -523,3 +527,15 @@ html[data-ph-shell]:not([data-touch-small]) .phc-side { padding: calc(36 * var(-
 .colls-cardinline.bare * { visibility: hidden; }
 .colls-cardinline.bare :is(img.plate-frame, img.cardplate, img.plateglow) { visibility: visible; }
 .colls-framebare .heroimg { visibility: hidden; }
+
+/* EQUIPPED as a gold band filling the tile's top edge (owner 2026-11-06, an experiment in place of the pill). Above the art, under
+   the tile's gold edge. */
+.phc-tile-eqband { position: absolute; top: 0; left: 0; right: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
+  height: calc(22 * var(--phu)); isolation: isolate; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 calc(-2 * var(--phu)) 0 rgba(110, 70, 14, 0.45), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.35);
+  font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; pointer-events: none; }
+/* The band's gold (owner 2026-11-06: tried see-through, settled on solid). */
+.phc-tile-eqband::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-metal-gold); }
+/* Darker still (owner 2026-11-06: "lets darken the non owned cosmetics even further"): about two thirds of the last level. */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0.4) brightness(0.2); }
+.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.4) brightness(0.24); }

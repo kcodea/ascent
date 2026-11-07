@@ -14991,6 +14991,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .ct-board { container-type: inline-size; width: 100%; }
 .ct-board .cv2-team { --tile-gap: 38px; --tw: calc((100cqw - 6 * 38px - 8px) / 7); flex-wrap: nowrap; justify-content: center; padding: calc(var(--tw) * 0.28) 4px calc(var(--tw) * 0.32); }
 .ct-board *, .ct-board *::before, .ct-board *::after { animation-play-state: paused !important; }
+/* A PINNED MMR tip (owner 2026-11-06): it takes the pointer, so its cards can be inspected (right click) and its runes hovered;
+   the cards play their keyword animations again. */
+.atip.ct-float.ct-pinned { pointer-events: auto; }
+.ct-pinboard *, .ct-pinboard *::before, .ct-pinboard *::after { animation-play-state: running !important; }
+.ct-pinrunes { justify-content: center; }
+.ct-pinhint { margin-left: auto; font-size: 0.86em; }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
    THE LOBBY PICKER (matchDetails/LobbyPicker.tsx; owner 2026-10-16: the old standings were "not obvious how to view it
@@ -15050,6 +15056,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile-strength b { margin-left: 6px; font-weight: 900; font-size: 22px; color: var(--ui-title); }
 .lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { opacity: 1; }
 .lp-tile .lp-ko { z-index: 2; }
+/* The hovered tile's board blurs under its Game strength (owner 2026-11-06: "can you blur the content behind the game strength
+   darkening background?"). The blur is set only while the overlay shows, so the eight resting tiles pay nothing for it. */
+.lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════

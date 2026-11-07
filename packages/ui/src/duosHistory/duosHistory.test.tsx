@@ -138,7 +138,7 @@ describe('Recent Games — the DUOS tab', () => {
     expect(card().querySelectorAll('.dh-board')[0]!.querySelectorAll('.cv2-tile:not(.empty)')).toHaveLength(5);
     expect(card().querySelectorAll('.dh-board')[1]!.querySelectorAll('.cv2-tile:not(.empty)')).toHaveLength(3);
     expect(text('.gs-detail .dh-team-head .lp-chip-place')).toEqual(['1st', '2nd', '3rd', '4th']);
-    expect(text('.gs-detail .dh-team-head .lp-tile-out')).toEqual(['Winner', 'Out R9', 'Out R7', 'Out R5']);
+    expect(text('.gs-detail .dh-team-head .lp-tile-out')).toEqual(['Winner', 'Out on Round 9', 'Out on Round 7', 'Out on Round 5']);
     expect(text('.gs-detail .dh-team-name')).toEqual(['Goats', 'CITRUS (your team)', 'Team', 'Team']);
     expect(text('.gs-detail .lb-fact-v')).toEqual(['Ranked Duos', '21 min', '9', '+11']);
     // Pick Ann (team Goats): her board alone, then Back to yours.

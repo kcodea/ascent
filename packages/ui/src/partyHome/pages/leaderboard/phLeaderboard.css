@@ -129,3 +129,32 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs
 /* The table's placings are plain numbers. */
 .phl-place { display: inline-grid; place-items: center; flex: none; width: calc(40 * var(--phu)); font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3);
   color: var(--ph-text); text-shadow: var(--ph-shadow); font-variant-numeric: tabular-nums; }
+
+/* The podium's MMR stands clear of its Games count (owner 2026-11-06: MMR nudged left, "1556" ran into "123"). */
+.phl-podfoot { column-gap: calc(32 * var(--phu)); }
+/* A large drop shadow under the podium trophies so they lift off the art (owner 2026-11-06). Static, so the filter costs one paint. */
+.phl-trophy { filter: drop-shadow(0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.7)) drop-shadow(0 calc(10 * var(--phu)) calc(18 * var(--phu)) rgba(0, 0, 0, 0.75)); }
+
+/* Podium cards bounce on hover like the Collection tiles (owner 2026-11-06: "the same spring bounce on hover"): the same overshoot
+   curve, in at 0.32s, out at 0.16s; a press squeezes in and springs back harder. Transform only. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ph-shell] .phl-podbtn:not(.static) { transition: transform 0.16s ease-out; }
+  html[data-ph-shell] .phl-podbtn:not(.static):hover { transform: scale(1.03); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  html[data-ph-shell] .phl-podbtn:not(.static):active { transform: scale(0.97); transition: transform 0.08s ease-out; }
+}
+/* Room for that bounce (owner 2026-11-06: "when hovering the first place card, the border goes away"): the page body scrolls, so it
+   clipped the tallest card's top edge the moment it grew. It now reaches 24u up and out and pads its content back, so nothing moves. */
+html[data-ph-shell]:not([data-ph-compact]) .phl-page .phk-pagebody {
+  margin-top: calc(-24 * var(--phu)); margin-left: calc(-24 * var(--phu)); margin-right: calc(-12 * var(--phu) - 24 * var(--phu));
+  padding-top: calc(24 * var(--phu)); padding-left: calc(24 * var(--phu)); padding-right: calc(24 * var(--phu)); }
+/* Each podium card glows in its placing's metal, softly (owner 2026-11-06: "give each placement a gold, silver, and bronze subtle
+   glow around it"). A static outer shadow: no animation, so it costs nothing per frame. */
+.phl-pod.p1 .phl-podbtn { box-shadow: 0 0 calc(28 * var(--phu)) rgba(255, 200, 80, 0.38); }
+.phl-pod.p2 .phl-podbtn { box-shadow: 0 0 calc(24 * var(--phu)) rgba(205, 220, 240, 0.3); }
+.phl-pod.p3 .phl-podbtn { box-shadow: 0 0 calc(24 * var(--phu)) rgba(214, 130, 70, 0.32); }
+/* ...and its edge in the same metal (owner 2026-11-06: "change the color of the border for each"): first keeps the gold, second
+   is silver, third bronze. Same three-line shape as --ph-gild, recoloured. */
+.phl-pod.p2 .phl-podbtn::after, .phl-pod.p2 .phl-podbtn:hover::after {
+  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(214, 226, 242, 0.85), inset 0 calc(2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(255, 255, 255, 0.45), inset 0 calc(-2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(30, 38, 54, 0.6); }
+.phl-pod.p3 .phl-podbtn::after, .phl-pod.p3 .phl-podbtn:hover::after {
+  box-shadow: inset 0 0 0 calc(1.5 * var(--phu)) rgba(205, 127, 72, 0.88), inset 0 calc(2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(255, 205, 165, 0.45), inset 0 calc(-2.5 * var(--phu)) 0 calc(-1 * var(--phu)) rgba(60, 26, 8, 0.6); }

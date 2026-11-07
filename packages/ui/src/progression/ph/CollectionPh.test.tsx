@@ -177,7 +177,7 @@ describe('the Collection in the party home shell', () => {
     await act(async () => { btn('Equip')!.click(); await Promise.resolve(); });
     expect(equipTitleRemote).toHaveBeenCalledWith('title_star_chaser');
     // A missing item says so beside its kind, clear of the preview.
-    act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('All'))!.click(); });
+    act(() => { $$('.phk-tab').find((t) => t.textContent?.startsWith('Show All'))!.click(); });
     act(() => { tileBy('Kingbreaker').click(); });
     expect(document.querySelector('.phc-actions .phc-notowned')?.textContent).toContain('Not owned');
     expect(document.querySelector('.phc-stage .phc-notowned')).toBeNull();

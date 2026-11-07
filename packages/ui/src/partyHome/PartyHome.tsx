@@ -107,6 +107,31 @@ export interface PartyHomeProps {
   onRankedStart: (kind: 'solo' | 'duos', then?: () => void) => void;
 }
 
+/** Back on the home from another page (PLAY in the top bar), the mode tabs slide down out from under the top bar and the line
+ *  under them fades in (owner 2026-11-06: "i want this menu to slide out from below the top bar when the page loads"). The bar
+ *  clips at its own top edge while it runs, so the tabs appear from behind the top bar's bottom edge. Transform and opacity only,
+ *  one-shot; skipped under reduced motion. */
+function slideModesIn(bar: HTMLElement | null): void {
+  if (!bar || typeof bar.animate !== 'function' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const tabs = bar.querySelector<HTMLElement>('.phk-tabs');
+  const desc = bar.querySelector<HTMLElement>('.ph-desc');
+  bar.getAnimations?.({ subtree: true }).forEach((a) => { if (a.id === 'ph-modes-in') a.cancel(); });
+  bar.style.clipPath = 'inset(0 -100vw -100vh -100vw)';
+  const ease = 'cubic-bezier(0.22, 1.2, 0.36, 1)';
+  const runs: Animation[] = [];
+  if (tabs) {
+    const a = tabs.animate([{ transform: 'translateY(-110%)' }, { transform: 'none' }], { duration: 420, easing: ease, fill: 'backwards' });
+    a.id = 'ph-modes-in'; runs.push(a);
+  }
+  if (desc) {
+    const a = desc.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 220, easing: 'ease-out', fill: 'backwards' });
+    a.id = 'ph-modes-in'; runs.push(a);
+  }
+  const done = () => { if (!bar.getAnimations?.({ subtree: true }).some((x) => x.id === 'ph-modes-in' && x.playState === 'running')) bar.style.clipPath = ''; };
+  runs.forEach((r) => { r.onfinish = done; r.oncancel = done; });
+  if (!runs.length) bar.style.clipPath = '';
+}
+
 export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeProps) {
   const confirmPracticeSetup = useGame((s) => s.confirmPracticeSetup);
   const startGauntlet = useGame((s) => s.startGauntlet);
@@ -212,6 +237,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   useEffect(() => { if (!lockNote) return undefined; const t = window.setTimeout(() => setLockNote(null), 2600); return () => window.clearTimeout(t); }, [lockNote]);
   const [demoTeam, setDemoTeam] = useState<string | null>(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState<null | (() => void)>(null);
+  // Quitting the saved game from its chip (owner 2026-11-06): a small red trash button, then a confirm.
+  const [confirmQuit, setConfirmQuit] = useState(false);
+  const clearRun = useGame((s) => s.clearRun);
   const slots = Math.max(mode.slots, members.length);
   const open = slots - members.length;
 
@@ -429,11 +457,17 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     row.addEventListener('scroll', on, { passive: true });
     return () => row.removeEventListener('scroll', on);
   }, [phone, modes.length]);
-  const wasPaged = useRef(pageOpen);
+  // The Compendium is its own flag (showBook), not a page; leaving it replays the entrance too (owner 2026-11-06).
+  const bookOpen = useGame((s) => s.showBook);
+  const covered = pageOpen || bookOpen;
+  const wasPaged = useRef(covered);
   // Covered by a page, the home takes no focus.
   useLayoutEffect(() => { rootRef.current?.toggleAttribute('inert', pageOpen); }, [pageOpen]);
   // A layout effect: the replay is committed before the first paint, so the stage never shows at full opacity first.
-  useLayoutEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
+  useLayoutEffect(() => {
+    if (wasPaged.current && !covered) { setEnterKey((k) => k + 1); slideModesIn(modesRef.current); }
+    wasPaged.current = covered;
+  }, [covered]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (modeHasSettings(modeId) ? 'settings' : 'friends'));
@@ -512,7 +546,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       <div className="ph-side">
         {vh.side}
         {/* PHONE: the saved game is one plain button in this clear row; the head row stays for the team and rules. */}
-        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved game, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue {savedRunMode(savedRun)}</PhButton>}
+        {phone && savedRun && !versusRoom && <PhButton size="s" className="ph-phonecontinue" aria-label={`Continue your saved match, ${savedRunMode(savedRun)}`} onClick={() => { sfx.pulse(); continueRun(); }}>Continue {savedRunMode(savedRun)}</PhButton>}
         {inParty && !inGame && !versusRoom && (
           <PhButton onClick={() => { sfx.pulse(); if (duosRoom) void leaveDuosParty(); else setPartyDemo(false); }}>Leave party</PhButton>
         )}
@@ -663,8 +697,11 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         {!phone && savedRun && !versusRoom && (
           <div className="ph-held">
             <div className="ph-heldrow">
-              <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
-              <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
+              <span className="ph-heldtxt"><b>Saved match</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
+              <PhButton variant="primary" size="m" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
+              <button type="button" className="ph-heldtrash" aria-label="Quit your saved match" onClick={() => { sfx.pulse(); setConfirmQuit(true); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 11a2 2 0 0 1-2 1.9H9a2 2 0 0 1-2-1.9L6 9zm3.5 2v8H11v-8H9.5zm3.5 0v8h1.5v-8H13z" /></svg>
+              </button>
             </div>
           </div>
         )}
@@ -681,12 +718,21 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {nameOpen && duosRoom && <TeamNamePanel room={duosRoom} me={me} name={teamName} onSaved={setTeamName} onClose={() => setNameOpen(false)} />}
       {nameOpen && !duosRoom && demo && <SampleRename name={demoTeam} fallback={defaultTeamName(members[0]!.name, 'Mike')} onSave={(n) => { setDemoTeam(n || null); setNameOpen(false); }} onClose={() => setNameOpen(false)} />}
       {confirmOverwrite && savedRun && (
-        <PhDialog label="Replace your saved game?" eyebrow="Saved game" title="Start a new game?" onClose={() => setConfirmOverwrite(null)}
+        <PhDialog label="Replace your saved match?" eyebrow="Saved match" title="Start a new match?" onClose={() => setConfirmOverwrite(null)}
           actions={<>
-            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); const go = confirmOverwrite; setConfirmOverwrite(null); go(); }}>Start new game</PhButton>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); const go = confirmOverwrite; setConfirmOverwrite(null); go(); }}>Start new match</PhButton>
             <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmOverwrite(null); }}>Keep it</PhButton>
           </>}>
-          <p>{withAbandonWarning(`This replaces your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
+          <p>{withAbandonWarning(`This replaces your saved match (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
+        </PhDialog>
+      )}
+      {confirmQuit && savedRun && (
+        <PhDialog label="Quit your saved match?" eyebrow="Saved match" title="Quit this match?" onClose={() => setConfirmQuit(false)}
+          actions={<>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); clearRun(); }}>Quit match</PhButton>
+            <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); }}>Keep it</PhButton>
+          </>}>
+          <p>{withAbandonWarning(`Your saved match (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}) will be gone for good.`, savedRun)}</p>
         </PhDialog>
       )}
       {duosRoom && <DuosResultOverlay />}

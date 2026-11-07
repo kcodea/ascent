@@ -70,13 +70,16 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // SKINS: the heroes you can pick wear the skins you have equipped for them.
   const loadout = useLiveLoadout();
   // The portrait-frames tuner's ring (null = today's rounded gold card frame). With one on, the card goes round.
-  const frame = usePortraitFrame('self');
+  const ownFrame = usePortraitFrame('self');
   const openTitle = useGame((s) => s.openTitle);
   const ownMode = useGame((s) => s.pendingMode);
   const mode = watch ? watch.frame.mode : ownMode;
   const profile = useGame((s) => s.profile);
   // THE PARTY HOME LOOK (DEV switch, off by default): the same screen and behaviour in the shell's language.
   const ph = usePartyHome() && !!HeroSelectPhSkin;
+  // The party home's banner has no portrait ring: the hero melts into the flag's cloth (owner 2026-11-06: "remove the portrait
+  // frame from this part").
+  const frame = ph ? null : ownFrame;
   const gauntletStage = useGame((s) => s.pendingGauntletStage);
   const [ceremony, dispatch] = useReducer(ceremonyReduce, CEREMONY_IDLE);
   // THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): one per hero select, any slot. Solo modes draw it locally

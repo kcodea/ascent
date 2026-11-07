@@ -224,3 +224,26 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 @media (prefers-reduced-motion: reduce) {
   .heroselect.phhs :is(.herocard.big, .hsback, .hcreroll, .hsc-start) { transition: none; }
 }
+
+/* ── THE PLAY PAGE'S FLAG (owner 2026-11-06: "we need to make all the same adjustments on this page as we did on the play page for
+   the flag") ── Each hero banner is the party banner's painted flag (partyHome.css "THE PAINTED FLAG"): `.hcfoot` paints the
+   whole frame (rod, gem, gold trim, navy cloth, point, tassel; ornaments/player-flag.webp, 784x1321) behind the card, and `.hcrod`
+   paints the same art with its cloth keyed out (player-flag-trim.webp) OVER it, so the gold always overlaps the portrait. The
+   card keeps the flag's ratio as its least height (a longer power stretches it a little). The portrait and the text sit inside the
+   cloth (x 58..724, from y 96); the portrait keeps only its eased bottom fade onto the painted navy, and the name wears the play
+   banner's black stroke. The ceremony still dissolves `.hcrod` / `.hcfoot` off the art (rules above). */
+.heroselect.phhs .herocard.big { aspect-ratio: 784 / 1321; margin-top: 0; --trim: 0px; --flagnavy: rgb(1 18 80); }
+.heroselect.phhs .herocard.big > .hcfoot { position: absolute; z-index: 0; inset: 0; width: auto; aspect-ratio: auto; margin: 0;
+  background: url('../partyHome/ornaments/player-flag.webp') center / 100% 100% no-repeat; -webkit-mask-image: none; mask-image: none; }
+.heroselect.phhs .herocard.big > .hcrod { inset: 0; left: 0; right: 0; aspect-ratio: auto; translate: none;
+  background: url('../partyHome/ornaments/player-flag-trim.webp') center / 100% 100% no-repeat; }
+.heroselect.phhs .herocard.big > :is(.hcframe, .hcbelow) { position: relative; z-index: 1; box-sizing: border-box;
+  margin-left: calc(100cqi * 58 / 784); width: calc(100cqi * 667 / 784); }
+.heroselect.phhs .herocard.big > .hcframe { margin-top: calc(100cqi * 96 / 784); }
+.heroselect.phhs .herocard.big .hcframe::before, .heroselect.phhs .herocard.big .hcframe::after { content: none; }
+.heroselect.phhs .herocard.big .hcbelow { background: none; padding: 10px 18px calc(100cqi * 150 / 784); }
+.heroselect.phhs .herocard.big :is(.hcframe-art, .hcframe-pow) { inset: 0; width: 100%;
+  --foot: linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%,
+    rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%);
+  -webkit-mask-image: var(--foot); mask-image: var(--foot); }
+.heroselect.phhs .herocard.big .hcname.hudpill-name { -webkit-text-stroke: 5px #000; paint-order: stroke fill; }

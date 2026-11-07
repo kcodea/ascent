@@ -229,3 +229,11 @@ html[data-touch-ui] .dm-reply { opacity: 0.8; }
 .dm-replybar-x.dmchat-tabx { margin-right: 0; }
 
 @media (prefers-reduced-motion: reduce) { .dm-msg.flash > .dm-bubble::after { animation-duration: 0.01s; } .dm-emotebtn, .dm-reply { transition: none; } }
+/* THE GRIP FOLLOWS THE CORNER (owner 2026-11-06: "have the chat box drag icon fit the rounded curve of the chat box"): the three
+   ridges are quarter arcs concentric with the panel's rounded corner (radius 16 units, versus.css `.vspanel`), so they run
+   parallel to its rim instead of cutting across it as straight stripes. The box is the corner's own quarter: its top left is
+   the curve's centre, its bottom right sits on the frame's corner (6px inside the grip's hit box). */
+.dmchat-rs-se::after { --r: calc(16 * var(--u, 1px)); right: 6px; bottom: 6px; width: var(--r); height: var(--r);
+  background: radial-gradient(circle at 0 0, transparent 0 calc(var(--r) - 15px), #f0d089 calc(var(--r) - 15px) calc(var(--r) - 13px),
+    transparent calc(var(--r) - 13px) calc(var(--r) - 11px), #f0d089 calc(var(--r) - 11px) calc(var(--r) - 9px),
+    transparent calc(var(--r) - 9px) calc(var(--r) - 7px), #f0d089 calc(var(--r) - 7px) calc(var(--r) - 5px), transparent calc(var(--r) - 5px)); }

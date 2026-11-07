@@ -101,7 +101,7 @@ function setPerfFlag(on: boolean): void {
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PhBackdrop } from './partyHome/shell/PhBackdrop';
-import { PhBackContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
+import { PhBackContext, PhCoveredContext, PhPageGuard } from './partyHome/shell/PhPageGuard';
 import { phBack, phEnable, phLayer } from './partyHome/shell/phHistory';
 import { usePartyHome } from './partyHome/partyHomeFlag';
 import { retryImport } from './retryImport';
@@ -507,8 +507,11 @@ export function Game() {
   useLayoutEffect(() => {
     document.documentElement.toggleAttribute('data-ph-book', shellMenus && bookUp);
   }, [shellMenus, bookUp]);
+  // The Compendium or Settings open over a page (PhPage replays its entrance when they close).
+  const pageCovered = useGame((s) => s.showBook || s.settingsOpen);
   // A page under the shell that fails to load says so in place, with the nav and a way out, instead of the crash screen.
-  const page = (el: JSX.Element): JSX.Element => {
+  const page = (inner: JSX.Element): JSX.Element => {
+    const el = <PhCoveredContext.Provider value={pageCovered}>{inner}</PhCoveredContext.Provider>;
     if (inGamePage) return <PhGuard onBack={closeInGamePage}><PhBackContext.Provider value={IN_GAME_BACK}>{el}</PhBackContext.Provider></PhGuard>;
     return shellMenus
       ? <PhGuard onBack={() => useGame.getState().goTo('menu')} nav={<Suspense fallback={null}><PhChrome current={null} /></Suspense>}>{el}</PhGuard>

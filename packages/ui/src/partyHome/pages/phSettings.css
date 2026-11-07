@@ -102,4 +102,4 @@ html:not([data-ph-compact]) .phk-page.wide.phs { max-width: calc(1120 * var(--ph
 .phs .phk-back:hover { background: none; opacity: 1; }
 /* ...at the top right of the Settings header, not before the title (owner 2026-11-06). */
 .phs .phk-pagehead { position: relative; }
-.phs .phk-pagehead > .phk-back { position: absolute; right: 0; top: 50%; translate: 0 -50%; }
+.phs .phk-pagehead > .phk-back { position: absolute; right: 0; top: calc(50% - 20 * var(--phu)); }

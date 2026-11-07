@@ -9,7 +9,7 @@
  *   LEFT    the categories as one list (icon, name, owned / total with a thin bar, a NEW count, "Soon" when locked), then
  *           the CHEST BAY (always in view): the painted chest, the count, Open / Open all, the next chest's level with your
  *           XP toward it (the odds line lives in the shop, owner 2026-11-06).
- *   CENTRE  the Show tabs (All / Owned / Missing, with counts) and the rarity chips, then the album: one tile per item, in
+ *   CENTRE  the rarity chips (the Show tabs, Show All / Owned / Missing, sit in the title row), then the album: one tile per item, in
  *           the page's stable order. Owned tiles are bright; missing ones dimmed with a lock (how to get one is in the detail column).
  *   RIGHT   the selected item, large (Valorant's big preview): its live preview, name, rarity, the facts, and Equip.
  *
@@ -161,6 +161,16 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
       className="phc"
       eyebrow="Find, view and wear what you have earned"
       title="Collection"
+      tabs={v.live ? (
+        <PhTabs
+          label="Show" value={v.show} onChange={(f) => { sfx.pulse(); v.setShow(f); }}
+          tabs={[
+            { id: 'all', label: 'Show All' },
+            { id: 'owned', label: 'Owned' },
+            { id: 'missing', label: 'Missing' },
+          ]}
+        />
+      ) : undefined}
       actions={(
         <>
           {v.anyNew && <PhButton variant="ghost" size="s" onClick={v.markAllSeen}>Mark all as seen</PhButton>}
@@ -188,14 +198,6 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
           {v.live ? (
             <>
               <div className="phc-filters">
-                <PhTabs
-                  label="Show" value={v.show} onChange={(f) => { sfx.pulse(); v.setShow(f); }}
-                  tabs={[
-                    { id: 'all', label: <>All <span className="phc-n">{v.albumCount.total}</span></> },
-                    { id: 'owned', label: <>Owned <span className="phc-n">{v.albumCount.owned}</span></> },
-                    { id: 'missing', label: <>Missing <span className="phc-n">{v.albumCount.total - v.albumCount.owned}</span></> },
-                  ]}
-                />
                 <div className="phc-rarities" role="group" aria-label="Rarity">
                   <PhToggleChip className="phc-rchip" pressed={v.rarity === 'all'} onToggle={() => { sfx.pulse(); v.setRarity('all'); }}>Any rarity</PhToggleChip>
                   {ALL_COSMETIC_RARITIES.filter((r) => v.byRarity[r].total > 0).map((r) => (
@@ -382,7 +384,9 @@ const Tile = memo(function Tile({ id, name, rarity, owned, equipped, fresh, sele
         <span className="phc-tile-rar"><span className="phc-gem" aria-hidden />{RARITY_LABELS[rarity]}</span>
       </span>
       {!owned && <span className="phc-tile-lock" aria-hidden><LockGlyph /></span>}
-      {(equipped || fresh) && <span className="phc-tile-tags" aria-hidden>{equipped ? <PhChip tone="gold">Equipped</PhChip> : <PhChip tone="teal">New</PhChip>}</span>}
+      {/* Equipped is a gold band across the tile's top (owner 2026-11-06: "the top part of the cosmetic card filled in yellow with EQUIPPED in the middle"). */}
+      {equipped && <span className="phc-tile-eqband" aria-hidden>Equipped</span>}
+      {!equipped && fresh && <span className="phc-tile-tags" aria-hidden><PhChip tone="teal">New</PhChip></span>}
     </button>
   );
 });

@@ -49,7 +49,8 @@ export function PhCompendium() {
         tabs={<>
           <PhTabs label="Compendium views" value={view} onChange={(v) => { sfx.tick(); pickView(v); }} tabs={VIEWS} />
           {/* The live count / view line sits beside the tabs, so the page keeps the one standard header. */}
-          <p className="phb-sub" aria-live="polite">{subtitle}</p>
+          {/* No visible count line on any view (owner 2026-11-06: "remove this"); kept for screen readers only. */}
+          <p className="phb-sub phb-srsub" aria-live="polite">{subtitle}</p>
         </>}
         actions={codex ? undefined : <div className="phb-actions">
           {controls}

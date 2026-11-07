@@ -9,6 +9,10 @@ import { Component, createContext, Suspense, useEffect, useState, useSyncExterna
 /** A page's way back when something outside it knows the way (Settings, opened over another page): `PhPage` shows it. */
 export const PhBackContext = createContext<{ label: string; onClick: () => void } | null>(null);
 
+/** Something is open OVER the page (the Compendium, Settings): the page stays mounted under it, and `PhPage` replays its
+ *  entrance when this goes back to false (owner 2026-11-06). */
+export const PhCoveredContext = createContext(false);
+
 /** Pages on screen (`PhPage` counts itself): the quiet word only shows while there are none. */
 let pages = 0;
 const subs = new Set<() => void>();

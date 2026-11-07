@@ -930,7 +930,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
             {/* Guides first: a rail tab left lit under the Guides view must not swap in its own filters (R-COMPENDIUM-GUIDES-FILTER-01). */}
             {guidesOn ? (
               /* Guides aren't tiered: the chart space carries their tribe filter, like the Runes tab's. */
-              <div className="book-runetribes" role="group" aria-label="Filter guides by tribe">
+              <div className="book-runetribes book-guidetribes" role="group" aria-label="Filter guides by tribe">
                 <span className="book-chart-cap">guides by tribe</span>
                 <button
                   className={`book-runetribe${guideTribes.size === 0 ? ' on' : ''}`}

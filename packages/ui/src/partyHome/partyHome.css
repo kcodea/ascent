@@ -801,11 +801,12 @@ html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs { box-shadow: inset calc(
 .pho-optlbl::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(80 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
   background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 
-/* The side panel's header names the one mode it shows (Practice, Gauntlet, ...), never a choice, so it wears no selected-tab
-   glow (owner 2026-11-06: "practice doesnt have an option so remove the glow"). */
-html .ph-sidepanel .ph-sidetabs .phk-slide { display: none; }
-html .ph-sidepanel .ph-sidetabs .phk-tab.on::before, html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on::before { content: none !important; }
-html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on { text-shadow: var(--ph-shadow); }
+/* A side panel header with ONE tab names the mode it shows (Practice, Gauntlet, ...), never a choice, so it wears no selected-tab
+   glow (owner 2026-11-06: "practice doesnt have an option so remove the glow"). With two or more tabs (Versus | Open rooms) it IS a
+   choice, so the selected one keeps the glow (owner 2026-11-06: "this should have the select glow yeah?"). */
+html .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-slide { display: none; }
+html .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on::before, html[data-ph-shell] .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on::before { content: none !important; }
+html[data-ph-shell] .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on { text-shadow: var(--ph-shadow); }
 /* The side panel's supporting text: 3 units smaller and italic (owner 2026-11-06: "change the descriptive supporting text to 3px
    smaller and italicized"). */
 html[data-ph-shell] .ph-settings :is(.pho-hint, .phk-seghint) { font-size: calc(13 * var(--phu)); font-style: italic; color: #d8c8a2; opacity: 0.7; }
@@ -828,3 +829,59 @@ html[data-ph-shell] .ph-settings .phk-select.pho-select { height: calc(36 * var(
 .pho-typelbl { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); }
 .pho-typeicon { flex: none; width: calc(32 * var(--phu)); height: calc(32 * var(--phu)); }
 .pho-typeicon > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* The side panel's title tab (RANKED, PRACTICE, ...) reads much larger (owner 2026-11-06: "make this much larger"). Tabs size to
+   their label with equal padding, so the divider in a two-tab header (VERSUS | OPEN ROOMS) sits evenly between them. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 1 auto; min-width: 0; padding-inline: calc(18 * var(--phu)); font-size: calc(19 * var(--phu)); }
+
+/* The selected-tab glow centres on the label, not the tab box (owner 2026-11-06: "the glow is positioned slightly too low"): these
+   mode tabs pad 8u above and 12u below their label, so the glow rides 4u higher; the side panel's header sits 2u off. */
+html[data-ph-shell] .ph-modes .phk-slide { top: calc(-4 * var(--phu)); bottom: calc(4 * var(--phu)); }
+html[data-ph-shell] .ph-sidetabs .phk-slide { top: calc(-2 * var(--phu)); bottom: calc(2 * var(--phu)); }
+
+/* ── PLAIN INVITE RING (owner 2026-11-06: "change to a simple gold bordered circle. remove this png") ── The open seat's + sits in
+   a thin gold circle, no ornate frame (friend-frame.webp stays on the friends list portraits). Static paint. */
+.ph-invmed { aspect-ratio: 1; box-sizing: border-box; border-radius: 50%; background: none;
+  border: calc(3 * var(--phu)) solid var(--pill-gold, #f6cf5a); }
+.ph-invmed > span { margin-top: 0; }
+/* The mode tabs (Ranked / Versus / ...) at the top nav's lighter 600 (owner 2026-11-06: "can we try with thinner text ?" on the
+   nav, then "Yes, match them"). */
+.ph-modes .phk-tab { font-weight: 600; font-size: calc(13 * var(--phu)); }
+
+/* ── THE SAVED GAME CHIP (owner 2026-11-06: "Put SAVED GAME in all caps on its own row. make it bigger overall") ── Desktop: a
+   rounded plate in two rows. SAVED GAME, uppercase and centred, across the top; under it the mode and round beside Continue
+   (now the medium button). Bigger type and padding throughout. */
+html:not([data-ph-compact]) .ph-heldrow { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: center; column-gap: calc(18 * var(--phu)); row-gap: calc(6 * var(--phu));
+  padding: calc(12 * var(--phu)) calc(14 * var(--phu)) calc(14 * var(--phu)) calc(26 * var(--phu)); border-radius: calc(28 * var(--phu)); }
+html:not([data-ph-compact]) .ph-heldtxt { display: contents; }
+html:not([data-ph-compact]) .ph-heldtxt b { grid-column: 1 / -1; font-size: calc(17 * var(--phu)); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
+html:not([data-ph-compact]) .ph-heldtxt > span { font-size: calc(17 * var(--phu)); white-space: nowrap; }
+/* QUIT THE SAVED GAME (owner 2026-11-06: "a small red circle with a trash can icon next to the continue button for cancelling or
+   quitting the saved game"): a red disc right of Continue, a gold hairline edge like every control; it asks before it quits. */
+html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto; }
+.ph-heldtrash { display: grid; place-items: center; width: calc(38 * var(--phu)); height: calc(38 * var(--phu)); padding: 0; margin: 0 0 0 calc(-6 * var(--phu)); border: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #d8434f 0%, #a51e2c 60%, #6e0f1a 100%); box-shadow: var(--ph-gild-s), 0 3px 8px -2px rgba(0, 0, 0, 0.7); color: #fff3f0;
+  transition: transform 0.16s ease-out; }
+.ph-heldtrash > svg { width: 58%; height: 58%; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
+.ph-heldtrash:hover { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.ph-heldtrash:active { transform: scale(0.92); transition: transform 0.08s ease-out; }
+.ph-heldtrash:focus-visible { outline: 2px solid rgba(255, 214, 110, 0.9); outline-offset: 2px; }
+/* The saved game chip a little lower, closer to START (owner 2026-11-06: "lower the saved-game chip"): 30 units down. */
+html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-10 * var(--phu)); }
+/* The party home's dialogs (Start a new game?, Quit this game?, Team name) sit on Play and START's axis, the stage left of the
+   docked side panel, not the window's centre (owner 2026-11-06: "align these with the play and start button centers"). The veil
+   still covers the whole window. Desktop. */
+html:not([data-ph-compact]) .ph .phk-dialog { padding-right: calc(368 * var(--phu)); box-sizing: border-box; }
+/* One row again (owner 2026-11-06: "lets moved SAVED MATCH to the same row as the other elements"): SAVED MATCH, the mode and
+   round, Continue, the trash button, left to right; the caps and the bigger size stay. */
+html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto auto; padding: calc(8 * var(--phu)) calc(10 * var(--phu)) calc(8 * var(--phu)) calc(26 * var(--phu)); border-radius: 999px; }
+html:not([data-ph-compact]) .ph-heldtxt b { grid-column: auto; }
+/* A bit higher again (owner 2026-11-06: "raise the chip a bit"): 12 units up from the last spot. */
+html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-22 * var(--phu)); }
+/* START nudges the saved match (owner 2026-11-06: "when the START button is hovered, have the saved match chip bounced a bit"):
+   hovering START plays one small hop on the chip (up, a touch past rest, settle). `transform` only, so it composes with the
+   chip's centring `translate`; one-shot, it replays on the next hover. */
+@keyframes ph-heldhop { 0% { transform: none; } 38% { transform: translateY(calc(-8 * var(--phu))); } 70% { transform: translateY(calc(2 * var(--phu))); } 100% { transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .ph-stage:has(> .ph-actions .ph-start:hover:not(:disabled)) .ph-stagehead > .ph-held { animation: ph-heldhop 0.42s cubic-bezier(0.3, 0.7, 0.4, 1); }
+}

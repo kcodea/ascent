@@ -3,7 +3,6 @@ import { loadSocial, peekSocial, useSocial } from '../socialCache';
 import { activeSet } from '@game/content';
 import { ACHIEVEMENT_CATEGORIES, UNIQUE_PLATE_REWARD_TEXT, type AchievementCategory } from '@game/progression';
 import { Icon } from '../Icon';
-import { MenuMedal, type MenuMedalName } from '../menuIcons';
 import { sfx } from '../sfx';
 import { remoteEnabled } from '../remoteBoards';
 import {
@@ -12,6 +11,7 @@ import {
 } from './achievementsModel';
 import { fetchAchievementCompletions, fetchOwnAchievementProgress, fetchRetiredAchievementIds, type AchievementCompletionRow } from './progressionRemote';
 import { TitleBadge } from '../titles/TitleBadge';
+import { AchCategoryIcon, AchievementsPh, AchievementsPhGhost } from './ph/AchievementsPh';
 import './achievements.css';
 
 /**
@@ -42,14 +42,6 @@ export interface AchievementsTabProps {
 
 type Loaded = { userId: string; completions: AchievementCompletionRow[] | null; progress: Record<string, number> | null; retired: string[] };
 
-const CATEGORY_ICONS: Readonly<Record<AchievementCategory, string>> = {
-  career: 'crown', ranked: 'shield', heroes: 'taunt', economy: 'ember', mechanics: 'gear', runes: 'anvil', set2: 'paw',
-  combat: 'sword', milestones: 'clock', collection: 'gift',
-};
-/** The painted category medallions (owner 2026-11-01). A category without art yet keeps its flat glyph above. */
-const CATEGORY_ART: Partial<Record<AchievementCategory, MenuMedalName>> = {
-  career: 'career', ranked: 'leaderboard', heroes: 'heroes', economy: 'spend', combat: 'attacks', collection: 'collection',
-};
 const TAB_KEY = 'ascent.career.achievements.cat';
 function loadCat(): AchievementCategory {
   try {
@@ -75,20 +67,6 @@ export function warmAchievements(userId: string, own: boolean): void { void load
 
 /** Are they in hand already (the page holds its arrival for them)? */
 export const achievementsSeen = (userId: string, own: boolean): boolean => !!peekSocial<Loaded>(achKey(userId, own));
-
-const GHOST_CATS = ACHIEVEMENT_CATEGORIES.map((c) => c);
-const GHOST_TILES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-/** A first read on the shell: the tab's final layout with nothing in it, so nothing jumps when it lands. */
-function AchGhost() {
-  return (
-    <div className="ach-tab ach-ghost" role="status" aria-busy="true" aria-label="Loading achievements">
-      <div className="ach-summary"><span className="ach-summary-n">&nbsp;</span></div>
-      <div className="ach-cats" aria-hidden="true">{GHOST_CATS.map((c) => <div key={c} className="ach-cat" />)}</div>
-      <div className="ach-filters" aria-hidden="true"><span className="ach-chip">&nbsp;</span><span className="ach-chip">&nbsp;</span><span className="ach-chip">&nbsp;</span></div>
-      <div className="ach-grid" aria-hidden="true">{GHOST_TILES.map((i) => <div key={i} className="ach-tile" />)}</div>
-    </div>
-  );
-}
 
 export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsTabProps): JSX.Element {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -118,7 +96,7 @@ export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsT
     ? achievementView({ completions: mine.completions, progress: own ? mine.progress ?? {} : null, retired: mine.retired, activeSetId: activeSet().id })
     : null), [mine, own]);
 
-  if (!mine && shell) return <AchGhost />;
+  if (!mine && shell) return <AchievementsPhGhost />;
   if (!mine) {
     return (
       <div className="cv2-panel cv2-none" role="status" aria-busy="true">
@@ -140,17 +118,27 @@ export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsT
   }
 
   const current = view.categories.find((c) => c.id === cat) ?? view.categories[0]!;
-  const counts = Object.fromEntries(ACHIEVEMENT_FILTERS.map((f) => [f.id, current.groups.reduce((n, g) => n + g.tiles.filter((t) => passesFilter(t, f.id)).length, 0)])) as Record<AchievementFilter, number>;
-  const groups = current.groups.map((g) => ({ ...g, tiles: g.tiles.filter((t) => passesFilter(t, filter)) })).filter((g) => g.tiles.length > 0);
   const pickCat = (c: AchievementCategory): void => {
     if (c === cat) return;
     sfx.pulse();
     setCat(c);
     try { localStorage.setItem(TAB_KEY, c); } catch { /* ignore */ }
   };
+  const pickFilter = (f: AchievementFilter): void => { if (f !== filter) setFilter(f); };
+  // The party home shell: the Collection's three columns (rail / album / detail), owner 2026-11-06.
+  if (shell) {
+    return (
+      <AchievementsPh
+        view={view} own={own} ownerName={ownerName} category={current} pickCategory={pickCat}
+        filter={filter} setFilter={pickFilter} fadeIn={waited.current}
+      />
+    );
+  }
+  const counts = Object.fromEntries(ACHIEVEMENT_FILTERS.map((f) => [f.id, current.groups.reduce((n, g) => n + g.tiles.filter((t) => passesFilter(t, f.id)).length, 0)])) as Record<AchievementFilter, number>;
+  const groups = current.groups.map((g) => ({ ...g, tiles: g.tiles.filter((t) => passesFilter(t, filter)) })).filter((g) => g.tiles.length > 0);
 
   return (
-    <div className={`ach-tab${shell && waited.current ? ' fadein' : ''}`}>
+    <div className="ach-tab">
       <div className="ach-summary" aria-label="Achievements completed">
         <span className="ach-summary-n"><b>{view.done}</b> / {view.total} completed</span>
         <span className="ach-summary-xp">{view.xpEarned.toLocaleString('en-US')} XP earned</span>
@@ -162,7 +150,7 @@ export function AchievementsTab({ userId, own, ownerName, shell }: AchievementsT
             className={`ach-cat${c.id === current.id ? ' on' : ''}${c.done === c.total && c.total > 0 ? ' full' : ''}`}
             onClick={() => pickCat(c.id)}
           >
-            <span className="ach-cat-ico">{CATEGORY_ART[c.id] ? <MenuMedal name={CATEGORY_ART[c.id]!} /> : <Icon name={CATEGORY_ICONS[c.id]} />}</span>
+            <span className="ach-cat-ico"><AchCategoryIcon category={c.id} /></span>
             <span className="ach-cat-name">{c.label}</span>
             <span className="ach-cat-count">{c.done} / {c.total}</span>
           </button>

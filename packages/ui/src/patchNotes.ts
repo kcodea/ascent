@@ -57,6 +57,12 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-06',
+    changes: [
+      { category: 'Systems', text: 'Hero select: each hero banner\x27s portrait and text now sit centred on the banner.' },
+    ],
+  },
+  {
+    date: '2026-11-06',
     label: 'Spectators and Chat',
     changes: [
       {

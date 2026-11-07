@@ -14096,4 +14096,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'v0.2.0 published 2026-11-05 UTC (the evening of 2026-11-04 locally), so v0.2.1\x27s release notes came out empty and were filled in by hand.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
+  {
+    id: 'R-HS-CENTRE-01',
+    title: 'A hero select banner\x27s portrait and text sit on the banner\x27s own centre line',
+    statement:
+      'On hero select every hero banner\x27s portrait, name, Health and power text share one vertical centre line with the banner\x27s painted flag '
+      + '(its rod gem, cloth and tassel), at every window size. Inset content inside a banner is inset equally on both sides, never by a one-sided margin.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-06, on the Practice Select Your Hero screen', quote: 'these are off center' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/hero-select/heroSelectPh.css (.hcframe / .hcbelow use margin-inline: auto)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-06 (fix/hero-select-row-centre). Before, the painted-flag banner gave the portrait and text block a margin-left only; '
+      + 'the card column centres each child\x27s margin box, so the content sat about 12px right of the flag at 1920 wide.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-06' },
+  },
 ];

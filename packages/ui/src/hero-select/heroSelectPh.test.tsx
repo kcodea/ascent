@@ -95,6 +95,19 @@ describe('the cleanup pass', () => {
 });
 
 describe('the mode line', () => {
+  it('R-HS-CENTRE-01: the portrait and text sit on the flag\'s centre line, never a one-sided inset', () => {
+    // The card is a column with align-items: center, which centres each child's MARGIN box: a one-sided horizontal margin
+    // on a banner child shifts it half that margin off the flag (owner 2026-11-06: "these are off center").
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = css.split('}').map((r) => r.split('{')).filter((p) => p.length === 2) as [string, string][];
+    const inset = rules.filter(([sel]) => /\.herocard\.big\s*>\s*(?::is\([^)]*\.hc(?:frame|below)|\.hc(?:frame|below))/.test(sel));
+    expect(inset.length).toBeGreaterThan(0);
+    for (const [sel, body] of inset) {
+      expect(body, sel).not.toMatch(/(^|[;\s])margin-(left|right)\s*:/);
+    }
+    expect(inset.some(([, body]) => /margin-inline\s*:\s*auto/.test(body))).toBe(true);
+  });
+
   it('names the game the pick is for', () => {
     const base = { ranked: false, rankedDuos: false, watching: false };
     expect(heroSelectEyebrow({ ...base, mode: 'lobby', ranked: true })).toBe('Ranked');

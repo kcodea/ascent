@@ -62,6 +62,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'You can change your name from your own banner on the home screen: open its menu and pick Change name.',
       },
+      { category: 'Systems', text: 'Not signed in? A Sign in button now sits at the top right of the menu bar.' },
       { category: 'Systems', text: 'Recent Games: game rows and lobby players make the menu hover and click sounds again.' },
       { category: 'Systems', text: 'Recent Games: a lobby player\x27s gold edge stays sharp over the Game strength blur.' },
     ],

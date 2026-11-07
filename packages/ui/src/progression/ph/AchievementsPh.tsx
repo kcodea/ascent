@@ -204,20 +204,20 @@ function AchDetail({ tile, category, own }: { tile: AchievementTile; category: A
       <section className="pha-objective" aria-label="Objective">
         <span className="pha-objlbl">Objective</span>
         <p className="pha-req">{def.requirement}</p>
-      </section>
-
-      <div className="pha-status">
-        {completed ? (
-          <span className="pha-done"><Icon name="star" />{completedDateText(tile.completedAt)}</span>
-        ) : pct !== null ? (
+        {/* The step's progress sits under the step it counts (owner 2026-11-06). */}
+        {!completed && pct !== null && (
           <div className="pha-prog" role="group" aria-label={`${progress} of ${def.target}`}>
-            <span className="pha-proglbl">Progress</span>
             <span className="phc-bar" aria-hidden><span style={{ transform: `scaleX(${pct})` }} /></span>
             <span className="pha-prognum">{progress!.toLocaleString('en-US')} / {def.target.toLocaleString('en-US')}</span>
           </div>
-        ) : (
-          <span className="pha-open">{own || !legacy ? 'Not yet completed' : 'Not completed'}</span>
         )}
+      </section>
+
+      {/* The status alone, at the top (owner 2026-11-06: "separate the progress bar and the not yet completed bar"). */}
+      <div className="pha-status">
+        {completed
+          ? <span className="pha-done"><Icon name="star" />{completedDateText(tile.completedAt)}</span>
+          : <span className="pha-open">{own || !legacy ? 'Not yet completed' : 'Not completed'}</span>}
       </div>
 
       {facts.length > 0 && (

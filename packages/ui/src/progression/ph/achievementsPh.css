@@ -99,3 +99,5 @@ html[data-ph-shell]:not([data-touch-small]) .pha .phc-detail > .pha-status { ord
 .pha .pha-tile-prog { margin-bottom: calc(10 * var(--phu)); }
 /* The empty progress slot keeps the bar's height but draws nothing. */
 .pha-tile-prog.empty { visibility: hidden; }
+/* The progress bar inside the Objective: the bar, then the count. */
+.pha-objective .pha-prog { grid-template-columns: minmax(0, 1fr) auto; margin-top: calc(4 * var(--phu)); }

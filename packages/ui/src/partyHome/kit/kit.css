@@ -458,6 +458,9 @@ html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(2) { animation-delay: 2
 html[data-ph-shell] .phk-page .phk-pagebody > :nth-child(n + 3) { animation-delay: 40ms; }
 /* The mode panel's content eases in the same way (fade only: it is its own scroller). */
 @keyframes phk-fadein { from { opacity: 0; } }
+/* The tab row scrolls sideways when it must, which clips anything above it, so it shows its overflow for the length of the drop
+   (owner 2026-11-06: "i can see them being cut off in the beginning from a hard boundary"). */
+@keyframes phk-unclip { from, to { overflow: visible; } }
 .ph-settings { animation: phk-fadein 0.18s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) { html[data-ph-shell] .phk-page .phk-pagebody > *, .ph-settings { animation: none; } }
 
@@ -532,4 +535,5 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead .phk-pagetitle { margin
   html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs > :not(.phk-tabs) { animation-delay: 150ms; }
   html[data-ph-shell] .phk-page > .phk-pagehead > .phk-pageactions { animation-delay: 180ms; }
   html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-slide { animation: phk-fadein 0.24s ease-out 90ms backwards; }
+  html[data-ph-shell] .phk-page > .phk-pagehead .phk-pagetabs .phk-tabs { animation: phk-unclip 0.6s; }
 }

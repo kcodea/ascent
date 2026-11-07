@@ -66,6 +66,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'An item you click stays on the New list until you change tab, so nothing jumps away while you look.',
         ],
       },
+      { category: 'Systems', text: 'Recent Games: game rows and lobby players make the menu hover and click sounds again.' },
+      { category: 'Systems', text: 'Recent Games: a lobby player\x27s gold edge stays sharp over the Game strength blur.' },
     ],
   },
   {

@@ -315,3 +315,11 @@ body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
    The name is blue on the rest line; the hover face's big name keeps the hero name's white (its format). The cost is gold in both. */
 .heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }
 .heroselect.phhs .herocard.big :is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }
+
+/* ── A PICK LEAVES NOTHING BEHIND (owner 2026-11-07: "when selecting a hero, these remain. they shouldnt") ── Once a hero is
+   picked, the other cards' difficulty words go with them; and the travelling copy's square art fades as the round portrait
+   takes over, so no square corner shows past the ring ("theres also a moment where the art corners show outside the portrait
+   frame"). One-shot opacity transitions only. */
+.heroselect.phhs.hsc-active :is(.hsrow .hcmeta, .hcslot > .hcdiff-out) { opacity: 0; transition: opacity 0.2s ease; }
+.heroselect.phhs .hsc-clone .hcframe-art { transition: opacity var(--hsc-transform-ms, 700ms) ease; }
+.heroselect.phhs .hsc-clone.hsc-chrome-out .hcframe-art { opacity: 0; }

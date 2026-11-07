@@ -14115,6 +14115,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
   {
+    id: 'R-SFX-GAMEROWS-01',
+    title: 'Game rows and lobby tiles make the menu sounds',
+    statement:
+      'A game in a games list (Recent Games, Career, Duos history) and a player tile in a game\x27s lobby play the same hover tick and press sound '
+      + 'as every other menu button, and so does the lobby\x27s Back control.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-06, on Recent Games', quote: 'these dont have the sound effects tied to them when hovering or clicking that all other ui elements do' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, asked whether to undo the 2026-10-16 mute', quote: 'Hover + click' },
+      { kind: 'fix-pr', ref: 'fix/recent-games-sfx-blur: packages/ui/src/Game.tsx (MENU_SFX_SKIP drops .gs-item, .gs-list, .lp-tile, .lp-back)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-07 (fix/recent-games-sfx-blur). From 2026-10-16 these were silent on purpose (owner then: remove the blip from clicking between games or opponents). '
+      + 'Tabs, hero filter chips, range toggles and Leaderboard rows stay silent under that older ruling.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/recentGamesPolish.test.ts'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-LOBBY-TILE-EDGE-01',
+    title: 'A lobby tile\x27s gold edge stays above its Game strength blur',
+    statement:
+      'When a lobby tile shows its Game strength over a darkened, blurred board, the tile\x27s gold edge and its coloured result band stay sharp on top, '
+      + 'in every state (resting, hovered, picked).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-06, on a Recent Games lobby tile', quote: 'can we have the gold border stay above the blur?' },
+      { kind: 'fix-pr', ref: 'fix/recent-games-sfx-blur: packages/ui/src/partyHome/pages/gamesPages.css (.rgp .lp-tile::after repaints the edge, ::before band at z 2)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-07 (fix/recent-games-sfx-blur). Before, the Game strength overlay (z 1, blur 3px) painted over the tile\x27s inset gold shadow and band, smearing them.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/recentGamesPolish.test.ts'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
     id: 'R-HS-CENTRE-01',
     title: 'A hero select banner\x27s portrait and text sit on the banner\x27s own centre line',
     statement:

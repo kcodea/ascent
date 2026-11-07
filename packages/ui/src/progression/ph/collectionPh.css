@@ -63,7 +63,7 @@
 .phc-filters .phk-tab:first-of-type.on::after { left: 0; }
 .phc-n { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .phk-tab.on .phc-n { color: var(--ph-text); }
-.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(8 * var(--phu)); }
+.phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(20 * var(--phu)); }
 .phc-rchip { height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: calc(8 * var(--phu)); }
 .phc-rchip.t-gold .phc-n { color: var(--ph-navy); }
 .phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }

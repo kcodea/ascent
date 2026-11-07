@@ -353,7 +353,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                     {/* PRACTICE shows no difficulty (owner ask 2026-08-22) — you are picking a hero to try,
                         not being graded. With no resting face the power text simply stays visible (see the
                         `.hsrow.browse` rule), which is the useful thing in a browse list anyway. */}
-                    {tip && !browse && showDifficulty && (
+                    {tip && !browse && showDifficulty && !ph && (
                       <div className="hcmeta" aria-hidden={false}>
                         <span className={`hcdiff d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>
                         {SHOW_HERO_TIPS && <span className="hctip">{tip.tip}</span>}
@@ -386,6 +386,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                       </button>
                     )}
                   </div>
+                  {/* The party home look shows the difficulty UNDER the flag, below the re-roll (owner 2026-11-07: "lets
+                      move the difficulty rating down out of the flag to make room for the Hero Power title";
+                      R-HS-DIFF-OUT-01), so the flag holds the hero and its power only. */}
+                  {ph && tip && showDifficulty && <span className={`hcdiff hcdiff-out d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>}
                 </div>
               );
             }

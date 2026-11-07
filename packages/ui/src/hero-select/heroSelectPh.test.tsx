@@ -67,6 +67,17 @@ describe('round 6', () => {
     ui?.unmount();
     expect(offer(['indy', 'warden']).querySelector('.hcdiff')).toBeNull(); // Easy, Easy
   });
+  it('R-HS-DIFF-OUT-01: the difficulty sits under the flag, and the power description is the light weight', () => {
+    const root = offer(['indy', 'warden', 'soren']);
+    const diffs = [...root.querySelectorAll('.hcdiff')];
+    expect(diffs).toHaveLength(3);
+    for (const d of diffs) {
+      expect(d.closest('.herocard')).toBeNull();
+      expect(d.parentElement!.classList.contains('hcslot')).toBe(true);
+    }
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.herocard\.big \.hcpw \{[^}]*font-weight: 400/);
+  });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {
     const css = here('./heroSelectPh.css');
     const name = css.slice(css.indexOf('.hcname.hudpill-name {'));

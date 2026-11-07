@@ -133,7 +133,7 @@
 .heroselect.phhs .herocard.big .hcbelow { flex: 1 1 auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 124px; box-sizing: border-box; padding: 12px calc(var(--trim) + 18px) 4px;
   background: var(--hsph-cloth-bg); }
 .heroselect.phhs .herocard.big .hcbelow > :is(.hcpw, .hcmeta) { position: relative; z-index: 2; inset: auto; top: auto; display: block; opacity: 1; }
-.heroselect.phhs .herocard.big .hcpw { width: 100%; font-family: var(--ph-body); font-weight: 600; font-size: 17px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.heroselect.phhs .herocard.big .hcpw { width: 100%; font-family: var(--ph-body); font-weight: 400; font-size: 17px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
 .heroselect.phhs .hcpw-head { display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 0 8px; margin-bottom: 4px; }
 .heroselect.phhs .herocard.big .hcpw b { color: var(--ui-title, #ffd98a); font-family: var(--ph-font); font-weight: 900; }
 .heroselect.phhs .herocard.big .hcpw .hccost { font-family: var(--ph-font); font-weight: 700; font-size: 0.86em; color: var(--ph-muted); }
@@ -255,3 +255,7 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
    point), so a wash on `inset: 0` that was still lit at the box edge drew a faint rectangle around the flag. */
 .heroselect.phhs .herocard.big::after { inset: calc(100cqi * 96 / 784) calc(100cqi * 58 / 784) 30%;
   background: radial-gradient(closest-side at 50% 38%, rgba(255, 226, 160, 0.2), rgba(255, 226, 160, 0) 100%); }
+/* The difficulty word sits under the flag, below the re-roll (R-HS-DIFF-OUT-01), and the power's description is the lighter
+   body weight (owner 2026-11-07: "lets make the hero power description a lighter font"); its name stays bold. */
+.heroselect.phhs .hcslot > .hcdiff-out { display: block; margin-top: 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-family: var(--ph-font); font-weight: 800; font-size: 14px;
+  letter-spacing: 0.1em; text-transform: uppercase; text-shadow: var(--ph-shadow); }

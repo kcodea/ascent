@@ -14130,4 +14130,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'at the box edge, so a faint rectangle showed around the flag on hover.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
+  {
+    id: 'R-HS-DIFF-OUT-01',
+    title: 'On hero select the difficulty sits under the flag, and the power description is a lighter weight',
+    statement:
+      'In the hero select banners, a hero\x27s difficulty word (when shown) sits below the flag and its Re-roll, never inside the flag, '
+      + 'so the flag holds the hero, its stats and its Hero Power. The Hero Power\x27s description is set in the lighter body weight; its name stays bold.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'lets move the difficulty rating down out of the flag to make room for the "Hero Power" title. lets make the hero power description a lighter font' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/HeroSelect.tsx (.hcdiff-out in .hcslot), hero-select/heroSelectPh.css (.hcpw weight 400)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the difficulty sat inside the flag above the power, and the description was semi-bold (600).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

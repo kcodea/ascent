@@ -15301,3 +15301,9 @@ body.playline-preview .playline-guides { display: block; }
 .playline-guide.commit span { left: auto; right: 12px; }
 .playline-guide.spell { --plg: #c08cff; }
 .playline-guide.spell span { left: 50%; transform: translateX(-50%); }
+/* A PINNED MMR tip (owner 2026-11-06): it takes the pointer, so its cards can be inspected (right click) and its runes hovered;
+   the cards play their keyword animations again. */
+.atip.ct-float.ct-pinned { pointer-events: auto; }
+.ct-pinboard *, .ct-pinboard *::before, .ct-pinboard *::after { animation-play-state: running !important; }
+.ct-pinrunes { justify-content: center; }
+.ct-pinhint { margin-left: auto; font-size: 0.86em; }

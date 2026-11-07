@@ -15,7 +15,6 @@
  * reads per frame; small portraits use the phone thumbnails (`heroThumb`).
  */
 import { useEffect, useRef, type ReactNode } from 'react';
-import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { avatarSrc, heroThumb } from '../../../art';
 import { MenuSidebar, SidebarHost } from '../../../MenuSidebar';
@@ -95,8 +94,8 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
   const rest = rows.slice(podium.length);
   const meOnBoard = !!myId && rows.some((r) => r.userId === myId);
   const who = (r: RankedRow, mine: boolean) => {
-    const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
-    return { handle: displayHandle(r.author, r.discriminator, r.userId), hero: hero ? hero.name : 'No favorite hero yet', title: <TitleBadge id={mine || p.showOpp ? r.equippedTitleId : null} className="phl-title" /> };
+    // No favourite-hero line under the name (owner 2026-11-06: crossed out on the podium and the rows).
+    return { handle: displayHandle(r.author, r.discriminator, r.userId), title: <TitleBadge id={mine || p.showOpp ? r.equippedTitleId : null} className="phl-title" /> };
   };
   return (
     <>
@@ -116,7 +115,6 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                   <span className="phl-podwho">
                     <span className="phl-podname">{shownName(w.handle)}</span>
                     {w.title}
-                    <span className="phl-podhero">{w.hero}</span>
                   </span>
                   <span className="phl-podfoot">
                     {rank ? <span className="phl-podrank"><RankCrest divisionIndex={rank.divisionIndex} size="row" /><span>{rankLabel(rank)}</span></span> : <span className="phl-podrank none">Unranked</span>}
@@ -147,7 +145,6 @@ function SoloBoard(p: PhLeaderboardProps & { rows: RankedRow[] }) {
                   <span className="phl-thumb">{art && <img src={art} alt="" draggable={false} decoding="sync" loading="lazy" />}</span>
                   <span className="phl-who">
                     <span className="phl-name">{shownName(w.handle)}{w.title}</span>
-                    <span className="phl-sub">{w.hero}</span>
                   </span>
                   <RankCell rank={rankPositionOf(r.rank)} />
                   <Num v={r.rating} unit="MMR" gold />

@@ -129,3 +129,8 @@ html[data-ph-shell][data-touch-ui][data-touch-small] .phl-page :is(.phk-pagetabs
 /* The table's placings are plain numbers. */
 .phl-place { display: inline-grid; place-items: center; flex: none; width: calc(40 * var(--phu)); font-family: var(--ph-name-font, var(--ph-font)); font-weight: 900; font-size: var(--ph-t3);
   color: var(--ph-text); text-shadow: var(--ph-shadow); font-variant-numeric: tabular-nums; }
+
+/* The podium's MMR stands clear of its Games count (owner 2026-11-06: MMR nudged left, "1556" ran into "123"). */
+.phl-podfoot { column-gap: calc(32 * var(--phu)); }
+/* A large drop shadow under the podium trophies so they lift off the art (owner 2026-11-06). Static, so the filter costs one paint. */
+.phl-trophy { filter: drop-shadow(0 calc(4 * var(--phu)) calc(4 * var(--phu)) rgba(0, 0, 0, 0.7)) drop-shadow(0 calc(10 * var(--phu)) calc(18 * var(--phu)) rgba(0, 0, 0, 0.75)); }

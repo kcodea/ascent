@@ -89,8 +89,10 @@ describe('round 6', () => {
     // The difficulty sits ABOVE the flag: the first thing in its slot.
     expect(root.querySelector('.hcslot')!.firstElementChild!.classList.contains('hcdiff-out')).toBe(true);
     const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
-    expect(css).toMatch(/\.herocard\.big :is\(\.hcpw-title, \.hcpw-titlecost, \.hcpw-body, \.hclock\) \{ opacity: 0; \}/);
-    expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcpw-title, \.hcpw-titlecost, \.hcpw-body, \.hclock\) \{ opacity: 1; \}/);
+    expect(card.querySelector('.hcpw-focus .hcpw-fbody')).not.toBeNull();
+    expect(css).toMatch(/\.hcpw > :is\(\.hcpw-body, \.hclock\) \{ opacity: 0; \}/);
+    expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
+    expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);
   });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {

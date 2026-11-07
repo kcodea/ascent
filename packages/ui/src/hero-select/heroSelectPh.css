@@ -273,9 +273,17 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 .heroselect.phhs .herocard.big .hcpw { display: grid; }
 .heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }
 .heroselect.phhs .herocard.big .hcpw > .hclock { grid-area: 2 / 1; }
-.heroselect.phhs .herocard.big :is(.hcname, .hchp, .hcpw-head, .hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { transition: opacity 0.18s ease; }
-.heroselect.phhs .herocard.big :is(.hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { opacity: 0; }
-.heroselect.phhs .herocard.big .hcpw-titlecost { position: absolute; z-index: 3; bottom: 4px; left: 0; right: 0; text-align: center; pointer-events: none;
-  font-family: var(--ph-font); font-weight: 800; font-size: 17px; line-height: 24px; color: var(--ph-muted); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
+.heroselect.phhs .herocard.big :is(.hcname, .hchp, .hcpw-head, .hcpw-focus) { transition: opacity 0.18s ease; }
+/* The in-flow description stays for the screen reader and keeps the flag's height honest; the eye reads the focus block. */
+.heroselect.phhs .herocard.big .hcpw > :is(.hcpw-body, .hclock) { opacity: 0; }
+/* The focus block: from the portrait's foot (where the hero name sits) to the flag's point, its content centred in that span. */
+.heroselect.phhs .herocard.big .hcpw-focus { position: absolute; z-index: 3; left: 0; right: 0; top: -74px; bottom: calc(100cqi * 150 / 784);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 calc(var(--trim) + 18px);
+  opacity: 0; pointer-events: none; text-align: center; }
+.heroselect.phhs .herocard.big .hcpw-focus > .hcname.hcpw-title { position: relative; inset: auto; transform: none; translate: none; width: 100%; flex: none; }
+.heroselect.phhs .herocard.big .hcpw-titlecost { font-family: var(--ph-font); font-weight: 800; font-size: 17px; line-height: 24px; color: var(--ph-muted); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
+.heroselect.phhs .herocard.big .hcpw-fbody { display: block; margin-top: 10px; font-family: var(--ph-body); font-weight: 400; font-size: 17px; line-height: 1.4; color: #eef2fd; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.heroselect.phhs .herocard.big .hcpw-fbody b { color: var(--ui-title, #ffd98a); font-family: var(--ph-font); font-weight: 900; }
+.heroselect.phhs .herocard.big .hcpw-flock { display: block; margin-top: 6px; font-family: var(--ph-font); font-size: 13px; color: #fbe6a6; }
 .heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { opacity: 0; }
-.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) :is(.hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { opacity: 1; }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) .hcpw-focus { opacity: 1; }

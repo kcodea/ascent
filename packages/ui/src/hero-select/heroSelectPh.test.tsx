@@ -83,6 +83,8 @@ describe('round 6', () => {
     const card = root.querySelector('.herocard.big')!;
     expect(card.querySelector('.hchp .healthmedal')).not.toBeNull();
     expect(card.querySelector('.hcpw-title.hcname')).not.toBeNull();
+    // The rest face sits lower on the cloth (owner 2026-11-07: "now move the hero names section down").
+    expect(here('./heroSelectPh.css')).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 150 / 784); }');
     expect(card.querySelector('.hcpw-titlecost')).not.toBeNull();
     // The difficulty sits ABOVE the flag: the first thing in its slot.
     expect(root.querySelector('.hcslot')!.firstElementChild!.classList.contains('hcdiff-out')).toBe(true);

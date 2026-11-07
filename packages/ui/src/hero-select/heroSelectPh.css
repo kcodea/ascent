@@ -267,6 +267,9 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
    its cost takes the stats' place, and the description shows where the small power name was. Opacity only. The description
    is the lighter body weight ("lets make the hero power description a lighter font"). */
 .heroselect.phhs .herocard.big .hchp :is(.healthmedal, .armormedal) { width: 24px; height: 24px; }
+/* The rest face sits lower on the cloth (owner 2026-11-07: "now move the hero names section down"). A static offset, so the
+   hover face (which keeps the cloth for the description) is untouched and the flag never grows. */
+.heroselect.phhs .herocard.big :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 150 / 784); }
 .heroselect.phhs .herocard.big .hcpw { display: grid; }
 .heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }
 .heroselect.phhs .herocard.big .hcpw > .hclock { grid-area: 2 / 1; }

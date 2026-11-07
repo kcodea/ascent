@@ -78,6 +78,19 @@ describe('round 6', () => {
     const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(css).toMatch(/\.herocard\.big \.hcpw \{[^}]*font-weight: 400/);
   });
+  it('R-HS-POWER-FOCUS-01: rest shows name, medallions and power name + cost; hover hands the focus to the power', () => {
+    const root = offer(['indy', 'warden', 'soren']);
+    const card = root.querySelector('.herocard.big')!;
+    expect(card.querySelector('.hchp .healthmedal')).not.toBeNull();
+    expect(card.querySelector('.hcpw-title.hcname')).not.toBeNull();
+    expect(card.querySelector('.hcpw-titlecost')).not.toBeNull();
+    // The difficulty sits ABOVE the flag: the first thing in its slot.
+    expect(root.querySelector('.hcslot')!.firstElementChild!.classList.contains('hcdiff-out')).toBe(true);
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.herocard\.big :is\(\.hcpw-title, \.hcpw-titlecost, \.hcpw-body, \.hclock\) \{ opacity: 0; \}/);
+    expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcpw-title, \.hcpw-titlecost, \.hcpw-body, \.hclock\) \{ opacity: 1; \}/);
+    expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);
+  });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {
     const css = here('./heroSelectPh.css');
     const name = css.slice(css.indexOf('.hcname.hudpill-name {'));

@@ -27,6 +27,7 @@ import { isRankedDuosRaw } from './versus/rankedDuosView';
 import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
+import { ArmorMedal, HealthMedal } from './menuIcons';
 
 /** THE PARTY HOME SKIN (hero-select/HeroSelectPhSkin.tsx): the shell's backdrop and the new look's stylesheet, loaded
  *  lazily and fetched at once, so the screen never opens before its look has landed. */
@@ -340,10 +341,18 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                     {/* Every mode shows the Health pill (Versus too since 2026-10-26: R-VERSUS-HEALTH-01, the hero's own
                         Health and Armor are what that seat starts on). */}
                     <div className="hchp hudpill-hp">
-                      <Icon name="heartPill" />
+                      {ph ? <HealthMedal /> : <Icon name="heartPill" />}
                       {hero.resolve}
-                      {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
+                      {hero.armor > 0 && <span className="hcarmor hudpill-arm">{ph ? <ArmorMedal /> : <Icon name="armor" />}<span className="hp-armplus">+</span>{hero.armor}</span>}
                     </div>
+                    {/* The party home look's hover face (owner 2026-11-07, R-HS-POWER-FOCUS-01): the power takes the hero
+                        name's place, in the same format, with its cost where the stats were. Opacity crossfade only. */}
+                    {ph && (
+                      <>
+                        <div className="hcname hudpill-name hcpw-title" aria-hidden="true">{power.name}</div>
+                        <div className="hcpw-titlecost" aria-hidden="true">{power.passive ? 'Passive' : power.cost ? `Cost: ${power.cost}` : 'Free'}</div>
+                      </>
+                    )}
                   </div>
                   {/* One box, two crossfading faces (owner ask 2026-08-20): at rest the card answers "how hard
                       is this hero, and what is the idea"; hovering answers "what does the button actually do".
@@ -371,6 +380,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
               if (browse) return card;
               return (
                 <div key={id} className="hcslot">
+                  {/* The party home look shows the difficulty ABOVE the flag (owner 2026-11-07: "lets move the difficulty
+                      rating down out of the flag to make room for the Hero Power title", then "lets move the difficulty to
+                      above the flag"; R-HS-DIFF-OUT-01). The line is kept for every hero in the row so the flags stay level. */}
+                  {ph && showDifficulty && <span className={`hcdiff hcdiff-out${tip ? ` d-${tip.difficulty.toLowerCase()}` : ''}`}>{tip?.difficulty ?? ''}</span>}
                   {card}
                   {/* Centred under the difficulty pill; the row is reserved even once the re-roll is spent. */}
                   <div className="hcreroll-slot">
@@ -386,10 +399,6 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                       </button>
                     )}
                   </div>
-                  {/* The party home look shows the difficulty UNDER the flag, below the re-roll (owner 2026-11-07: "lets
-                      move the difficulty rating down out of the flag to make room for the Hero Power title";
-                      R-HS-DIFF-OUT-01), so the flag holds the hero and its power only. */}
-                  {ph && tip && showDifficulty && <span className={`hcdiff hcdiff-out d-${tip.difficulty.toLowerCase()}`}>{tip.difficulty}</span>}
                 </div>
               );
             }

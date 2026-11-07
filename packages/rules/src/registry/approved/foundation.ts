@@ -14132,17 +14132,35 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-HS-DIFF-OUT-01',
-    title: 'On hero select the difficulty sits under the flag, and the power description is a lighter weight',
+    title: 'On hero select the difficulty sits above the flag, and the power description is a lighter weight',
     statement:
-      'In the hero select banners, a hero\x27s difficulty word (when shown) sits below the flag and its Re-roll, never inside the flag, '
+      'In the hero select banners, a hero\x27s difficulty word (when shown) sits above the flag, never inside it, '
       + 'so the flag holds the hero, its stats and its Hero Power. The Hero Power\x27s description is set in the lighter body weight; its name stays bold.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'lets move the difficulty rating down out of the flag to make room for the "Hero Power" title. lets make the hero power description a lighter font' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, follow-up', quote: 'lets move the difficulty to above the flag' },
       { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/HeroSelect.tsx (.hcdiff-out in .hcslot), hero-select/heroSelectPh.css (.hcpw weight 400)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the difficulty sat inside the flag above the power, and the description was semi-bold (600).',
+    currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the difficulty sat inside the flag above the power, and the description was semi-bold (600). '
+      + 'Every slot in the row keeps the line (empty for a hero with no tip), so the flags stay level.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
+  {
+    id: 'R-HS-POWER-FOCUS-01',
+    title: 'A hero select flag shows the hero at rest and hands the focus to its Hero Power on hover',
+    statement:
+      'At rest a hero select flag shows only the hero\x27s name, its Health and Armor (the painted medallions) and its Hero Power\x27s name and cost. '
+      + 'Hovering, focusing or tapping the flag hands the focus to the Hero Power: its name takes the hero name\x27s place in the same format, '
+      + 'its cost takes the stats\x27 place, and its description appears. The description is never shown at rest.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, on hero select', quote: 'only display the hero name, armor and health (make sure these are the proper medallions from my folder), and the hero power name and cost. only when hovering should the hero power shift to the main focus, where the hero power name becomes the same format as the hero name, and the end description is shown.' },
+      { kind: 'fix-pr', ref: 'fix/hero-select-row-centre: packages/ui/src/HeroSelect.tsx (.hcpw-title / .hcpw-titlecost, HealthMedal / ArmorMedal), hero-select/heroSelectPh.css (REST AND FOCUS)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 in the party home look (fix/hero-select-row-centre). Before, the power description was always on the flag and the stats used the plain heart / shield icons.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
 ];

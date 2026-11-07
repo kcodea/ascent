@@ -255,7 +255,24 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
    point), so a wash on `inset: 0` that was still lit at the box edge drew a faint rectangle around the flag. */
 .heroselect.phhs .herocard.big::after { inset: calc(100cqi * 96 / 784) calc(100cqi * 58 / 784) 30%;
   background: radial-gradient(closest-side at 50% 38%, rgba(255, 226, 160, 0.2), rgba(255, 226, 160, 0) 100%); }
-/* The difficulty word sits under the flag, below the re-roll (R-HS-DIFF-OUT-01), and the power's description is the lighter
-   body weight (owner 2026-11-07: "lets make the hero power description a lighter font"); its name stays bold. */
-.heroselect.phhs .hcslot > .hcdiff-out { display: block; margin-top: 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-family: var(--ph-font); font-weight: 800; font-size: 14px;
-  letter-spacing: 0.1em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
+/* ABOVE THE FLAG: the difficulty word (R-HS-DIFF-OUT-01, owner 2026-11-07: "lets move the difficulty to above the flag"). Every
+   slot in the row carries the line (empty when a hero has no tip), so the flags stay level. */
+.heroselect.phhs .hcslot > .hcdiff-out { display: block; min-height: 1.2em; margin: 0 0 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: 14px; line-height: 1.2; letter-spacing: 0.1em; text-transform: uppercase; text-shadow: var(--ph-shadow); }
+
+/* REST AND FOCUS (owner 2026-11-07, R-HS-POWER-FOCUS-01: "only display the hero name, armor and health, and the hero power name
+   and cost. only when hovering should the hero power shift to the main focus, where the hero power name becomes the same format
+   as the hero name, and the end description is shown"). At rest the flag shows the name, the Health / Armor medallions and the
+   power's name + cost. Hover / focus / a parked tap crossfades: the power's name takes the hero name's place in the same format,
+   its cost takes the stats' place, and the description shows where the small power name was. Opacity only. The description
+   is the lighter body weight ("lets make the hero power description a lighter font"). */
+.heroselect.phhs .herocard.big .hchp :is(.healthmedal, .armormedal) { width: 24px; height: 24px; }
+.heroselect.phhs .herocard.big .hcpw { display: grid; }
+.heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }
+.heroselect.phhs .herocard.big .hcpw > .hclock { grid-area: 2 / 1; }
+.heroselect.phhs .herocard.big :is(.hcname, .hchp, .hcpw-head, .hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { transition: opacity 0.18s ease; }
+.heroselect.phhs .herocard.big :is(.hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { opacity: 0; }
+.heroselect.phhs .herocard.big .hcpw-titlecost { position: absolute; z-index: 3; bottom: 4px; left: 0; right: 0; text-align: center; pointer-events: none;
+  font-family: var(--ph-font); font-weight: 800; font-size: 17px; line-height: 24px; color: var(--ph-muted); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { opacity: 0; }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) :is(.hcpw-title, .hcpw-titlecost, .hcpw-body, .hclock) { opacity: 1; }

@@ -548,11 +548,10 @@ html[data-ph-shell] .ph-top .ph-navtab.ph-play.on .ph-navlbl { color: #dcebff !i
   .ph-top .ph-navtab:not(.ph-play):is(:hover, :active) > :is(.ph-navicon, .ph-navlbl) { transform: none; }
 }
 
-/* ── CAPS NAV (owner 2026-11-06: "lets make the text all caps here and larger font, let everything space out as it needs and
-   adjust the dividers accordingly") ── Desktop sections: uppercase at 17 units, each tab as wide as its word plus equal padding
-   both sides, so the faint | at a tab's left edge always sits midway between two words. */
-html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab { font-size: calc(17 * var(--phu)) !important; letter-spacing: 0.04em !important; }
+/* ── CAPS NAV (owner 2026-11-06: "lets make the text all caps here ... let everything space out as it needs and adjust the
+   dividers accordingly", then "i want this to be the same as the play subcategory titles") ── Desktop sections wear the mode
+   tabs' type (15 units, uppercase, 800, 0.06em) in every state, and each tab is as wide as its word plus equal padding both sides,
+   so the faint | at a tab's left edge always sits midway between two words. */
+html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab { font-size: calc(15 * var(--phu)) !important; letter-spacing: 0.06em !important; font-weight: 800 !important; }
 html[data-ph-shell]:not([data-ph-compact]) .ph-top .ph-navgrp > .ph-navtab .ph-navlbl { text-transform: uppercase !important; }
-html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { width: auto; padding: 0 calc(15 * var(--phu)); }
-/* Play gives back 12 units each side so the left four still clear the logo. */
-html:not([data-ph-compact]) .ph-navtab.ph-play { margin: 0 calc(28 * var(--phu)); }
+html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { width: auto; padding: 0 calc(18 * var(--phu)); }

@@ -15307,3 +15307,6 @@ body.playline-preview .playline-guides { display: block; }
 .ct-pinboard *, .ct-pinboard *::before, .ct-pinboard *::after { animation-play-state: running !important; }
 .ct-pinrunes { justify-content: center; }
 .ct-pinhint { margin-left: auto; font-size: 0.86em; }
+/* The hovered tile's board blurs under its Game strength (owner 2026-11-06: "can you blur the content behind the game strength
+   darkening background?"). The blur is set only while the overlay shows, so the eight resting tiles pay nothing for it. */
+.lp-tile:hover .lp-tile-strength, .lp-tile.tt-on .lp-tile-strength { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }

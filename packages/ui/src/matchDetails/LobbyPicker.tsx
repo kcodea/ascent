@@ -51,10 +51,10 @@ function seatOut(seat: MatchSeat, d: MatchDetails): string {
 export const ownerNameOf = (d: MatchDetails): string => d.seats.find((s) => s.self)?.name || 'This player';
 export const seatName = (seat: MatchSeat, own: boolean): string => (seat.self && own ? 'You' : seat.name);
 
-/** The tile's small fate beside the place ("Out R10", "Winner"), or null when the place already says it: a seat still
+/** The tile's small fate beside the place ("Out on Round 10", "Winner"), or null when the place already says it: a seat still
  *  standing when the game ended reads "Still in" once, never twice (R-LOBBY-TILE-STILL-IN-01). */
 export function seatFate(seat: MatchSeat, d: MatchDetails): string | null {
-  const out = seatOut(seat, d).replace('Out in round ', 'Out R');
+  const out = seatOut(seat, d).replace('Out in round ', 'Out on Round ');
   return out === seatPlace(seat, d) ? null : out;
 }
 

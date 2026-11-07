@@ -50,7 +50,7 @@ describe('the lobby picker names the recorded player by who is looking (R-LOBBY-
     const open: MatchDetails = { ...details, placement: 0, seats: [seat('me', 'IonLime', undefined, { self: true }), seat('s2', 'Orangez', undefined), seat('s3', 'Rooks', 7, { eliminatedRound: 11 })] } as MatchDetails;
     ui = mount(<LobbyTiles details={open} selectedId={null} onPick={() => {}} own={false} />);
     const places = [...ui.container.querySelectorAll('.lp-chip-place')].map((n) => n.textContent);
-    expect(places).toEqual(['Still in', 'Still in', '7thOut R11']);
+    expect(places).toEqual(['Still in', 'Still in', '7thOut on Round 11']);
     expect(ui.container.querySelector('[data-seat="s2"]')?.getAttribute('aria-label')).not.toMatch(/Still in.*Still in/);
   });
   it('seatName is You only for the recorded seat of your own game', () => {

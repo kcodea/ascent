@@ -77,11 +77,15 @@ function animateEl(
 
 /** The materialized artwork's final bounds: the measured card-art crop grown 18%, then shaped by the 🎭
  *  tuner's Hero-art knobs — scale around center + x/y nudge. Prod uses the shipped defaults (1 / 0 / 0). */
-function portraitBoundsOf(crop: RectSnapshot): RectSnapshot {
+/** The party home look draws the champion 15% smaller than the classic card did (owner 2026-11-07: "the art looks much larger
+ *  overall than the original hero select animation", then "Shrink it ~15%"). */
+const PH_PORTRAIT_SHRINK = 0.85;
+
+function portraitBoundsOf(crop: RectSnapshot, ph = false): RectSnapshot {
   const fx = getHeroCeremonyConfig();
   const vp = stageViewport();
   const k = stageScale(vp.w, vp.h); // offsets are REFERENCE px, like the rest of the UI
-  const grow = 1.18 * fx.portraitScale;
+  const grow = 1.18 * fx.portraitScale * (ph ? PH_PORTRAIT_SHRINK : 1);
   const w = crop.width * grow;
   const h = crop.height * grow;
   return {
@@ -314,7 +318,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
     if (!frame) return;
     const crop = artCrop(snapshotRect(rectToStage(frame.getBoundingClientRect())));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
-    setPortrait({ crop, bounds: portraitBoundsOf(crop) });
+    setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
   }, [state.phase, art, travelDone, portrait]);
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
@@ -356,7 +360,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
           if (portrait && frameRef.current) {
             const crop = artCrop(snapshotRect(rectToStage(frameRef.current.getBoundingClientRect())));
             if (crop.width > 0) {
-              setPortrait({ crop, bounds: portraitBoundsOf(crop) });
+              setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
               const p = portraitRef.current;
               if (p) { p.style.transform = 'translate(0px, 0px) scale(1)'; p.style.opacity = '1'; }
             }
@@ -500,7 +504,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
                 transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
                 ...(flashed
                   ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px)` }
-                  : {}),
+                  // Before the flash the art is already held to a soft circle the size of the clip, so its square corners
+                  // never show outside the ring while it grows (owner 2026-11-07: "theres also a moment where the art
+                  // corners show outside the portrait frame"). Static mask; only the transform animates.
+                  : (() => {
+                    const m = `radial-gradient(circle ${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px, #000 ${Math.max(0, clipR - 16 * k).toFixed(1)}px, transparent ${clipR.toFixed(1)}px)`;
+                    return { maskImage: m, WebkitMaskImage: m };
+                  })()),
               }}
               aria-hidden="true"
             >

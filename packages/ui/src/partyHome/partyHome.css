@@ -885,3 +885,36 @@ html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]
 @media (prefers-reduced-motion: no-preference) {
   .ph-stage:has(> .ph-actions .ph-start:hover:not(:disabled)) .ph-stagehead > .ph-held { animation: ph-heldhop 0.42s cubic-bezier(0.3, 0.7, 0.4, 1); }
 }
+
+/* ── EVERY PLAY SIDE PANEL READS LIKE PRACTICE'S (owner 2026-11-07: "take the learnings from the ui for practice mode's side bar
+   and apply them to the other play subcategory side bars") ── Ranked, Gauntlet and the Versus room rules are built from the kit's
+   segmented row, field and plate; here they take the Practice panel's language: each section's title centred in the title gold
+   over the fading gold underline, sections split by a hairline instead of boxed, every choice its own thin well pill (the picked
+   one lit inside it, not a solid gold slab), inputs as the same pill, notes as the italic hint. Static paint only. */
+html[data-ph-shell] .ph-settings :is(.phk-seglbl, .phk-platehead) { position: relative; align-self: center; padding-bottom: calc(8 * var(--phu)); margin-bottom: calc(8 * var(--phu));
+  text-align: center; letter-spacing: 0.2em; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+html[data-ph-shell] .ph-settings :is(.phk-seglbl, .phk-platehead)::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(80 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
+html[data-ph-shell] .ph-settings .phk-fieldhead { justify-content: center; }
+html[data-ph-shell] .ph-settings .phk-fieldhead > .phk-seglbl { margin-bottom: 0; }
+html[data-ph-shell] .ph-settings .phk-fieldhead { margin-bottom: calc(8 * var(--phu)); }
+/* Sections split by a hairline, not boxed: Your rank loses its plate. */
+html[data-ph-shell] .ph-settings > * + :is(.phk-seg, .phk-field, .ph-rankplate, .pho-note, .pho-stages, .vso-list) { padding-top: calc(14 * var(--phu)); box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+html[data-ph-shell] .ph-settings .phk-plate.ph-rankplate { padding-inline: 0; padding-bottom: calc(14 * var(--phu)); background: none; border-radius: 0; }
+html[data-ph-shell] .ph-settings > .phk-plate.ph-rankplate:first-child { box-shadow: none; }
+html[data-ph-shell] .ph-settings > * + .phk-plate.ph-rankplate { box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+html[data-ph-shell] .ph-settings .ph-rankplate > .pho-hint { text-align: center; }
+/* Every choice is its own thin well pill; the picked one glows inside it. */
+html[data-ph-shell] .ph-settings .phk-segrow { gap: calc(6 * var(--phu)); }
+html[data-ph-shell] .ph-settings .phk-segbtn { border-radius: 999px; background: var(--ph-well); box-shadow: var(--ph-gild-s);
+  font-family: var(--ph-font); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ph-muted); text-shadow: var(--ph-shadow); }
+html[data-ph-shell] .ph-settings .phk-segbtn:hover:not(:disabled):not(.on) { background: var(--ph-well); color: var(--ph-ink); }
+html[data-ph-shell] .ph-settings .phk-segbtn.on { color: #fff6df; box-shadow: var(--ph-gild-s);
+  background: radial-gradient(70% 90% at 50% 50%, rgba(255, 196, 92, 0.34) 0%, rgba(255, 176, 70, 0.12) 60%, transparent 100%), var(--ph-well);
+  text-shadow: var(--ph-shadow), 0 0 calc(12 * var(--phu)) rgba(255, 214, 130, 0.75); }
+/* The room name: the same pill as Practice's dropdown. */
+html[data-ph-shell] .ph-settings .phk-fieldinput { height: calc(36 * var(--phu)); border-radius: 999px; background: var(--ph-well); box-shadow: var(--ph-gild-s); }
+/* A panel note reads as the italic supporting text, not a box. */
+html[data-ph-shell] .ph-settings .pho-note { padding-inline: 0; padding-bottom: 0; background: none; clip-path: none;
+  font-size: calc(13 * var(--phu)); font-style: italic; color: #d8c8a2; opacity: 0.7; }
+html[data-ph-shell] .ph-settings > .pho-note:first-child { box-shadow: none; padding-top: 0; }

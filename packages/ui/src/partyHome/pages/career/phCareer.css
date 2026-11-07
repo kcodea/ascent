@@ -272,9 +272,7 @@ html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-strip { min-height: c
 html[data-ph-shell]:not([data-touch-small]) .phc-page .phc-rankcell { padding-top: calc(16 * var(--phu)); padding-bottom: calc(20 * var(--phu)); }
 /* The hero card's gold edge sits over its art and follows its corners (owner 2026-11-06: "it should always trump everything"). */
 .phc-hero::after { z-index: 2; border-radius: inherit; }
-/* The whole career page sits 20u higher (owner 2026-11-06: "shift ALL contents on that page up by 20px"): the page's top padding
-   drops from 32u to 12u, and the body below keeps the room. */
-html[data-ph-shell]:not([data-ph-compact]) .phc-page .phk-page.phc-pg { padding-top: calc(12 * var(--phu)); }
+/* The career page's 20u-higher start (owner 2026-11-06) now lives in every page's default top padding (kit.css .phk-page). */
 
 /* THE PORTRAIT LEADS THE STRIP (owner 2026-11-06: "having the portrait art left aligned and fade to navy to the right ... take up
    1/3rd of the entire top banner"): the art is pinned to the strip's left edge, a third of its width, fading out to the right.

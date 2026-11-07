@@ -536,3 +536,6 @@ html[data-ph-shell]:not([data-touch-small]) .phc-side { padding: calc(36 * var(-
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; pointer-events: none; }
 /* The band's gold (owner 2026-11-06: tried see-through, settled on solid). */
 .phc-tile-eqband::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-metal-gold); }
+/* Darker still (owner 2026-11-06: "lets darken the non owned cosmetics even further"): about two thirds of the last level. */
+.phc-tile.missing .phc-tile-art img { filter: saturate(0.4) brightness(0.2); }
+.phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.4) brightness(0.24); }

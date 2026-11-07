@@ -320,6 +320,6 @@ body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
 /* The same divider between the hero's name and its Health / Armor (owner 2026-11-07: "add the same divider underneath the hero
    name between the name and health/armor section"): the hover face's gold hairline, as wide, in the gap above the stats. It is
    the stats' own layer, so it fades with them on hover. */
-.heroselect.phhs .herocard.big .hchp.hudpill-hp::before { content: ''; position: absolute; left: 50%; top: -3px; translate: -50% 0;
+.heroselect.phhs .herocard.big .hchp.hudpill-hp::before { content: ''; position: absolute; left: 50%; top: -3px; transform: none; rotate: none; translate: -50% 0;
   width: calc((100cqi - 36px) * 0.46); height: 1px; pointer-events: none;
   background: linear-gradient(90deg, rgba(255, 217, 138, 0), rgba(255, 217, 138, 0.7), rgba(255, 217, 138, 0)); }

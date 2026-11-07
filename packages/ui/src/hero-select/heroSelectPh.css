@@ -274,7 +274,7 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 .heroselect.phhs .herocard.big .hchp :is(.healthmedal, .armormedal) { width: 24px; height: 24px; }
 /* The rest face sits lower on the cloth and the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero
    power description section up"). A static offset in the flag's own units (784 wide): the flag never grows. */
-.heroselect.phhs .herocard.big :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 80 / 784); }
+.heroselect.phhs .herocard.big :is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 55 / 784); }
 
 .heroselect.phhs .herocard.big .hcpw { display: grid; }
 .heroselect.phhs .herocard.big .hcpw > * { grid-area: 1 / 1; align-self: start; }

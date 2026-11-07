@@ -93,7 +93,7 @@ describe('round 6', () => {
     expect(css).toMatch(/\.hcpw > :is\(\.hcpw-body, \.hclock\) \{ opacity: 0; position: absolute;/);
     // The rest face sits lower, the hover face higher (owner 2026-11-07: "bring the hero name section down and the hero power
     // description section up").
-    expect(css).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 80 / 784); }');
+    expect(css).toContain(':is(.hcname:not(.hcpw-title), .hchp, .hcpw-head) { translate: 0 calc(100cqi * 55 / 784); }');
     expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784\)/);
     // A divider between the power's name and its cost, in both faces (owner 2026-11-07).
     expect(css).toMatch(/\.hcpw-head \.hccost \{[^}]*border-left: 1px solid/);

@@ -65,6 +65,9 @@ export const PATCH_NOTES: PatchNote[] = [
           'New sits after Show All, Owned and Missing, and works with the rarity filters.',
           'An item you click stays on the New list until you change tab, so nothing jumps away while you look.',
         ],
+      },
+      {
+        category: 'Systems',
         text: 'You can change your name from your own banner on the home screen: open its menu and pick Change name.',
       },
       { category: 'Systems', text: 'Not signed in? A Sign in button now sits at the top right of the menu bar.' },

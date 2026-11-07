@@ -844,3 +844,6 @@ html[data-ph-shell] .ph-sidetabs .phk-slide { top: calc(-2 * var(--phu)); bottom
 .ph-invmed { aspect-ratio: 1; box-sizing: border-box; border-radius: 50%; background: none;
   border: calc(3 * var(--phu)) solid var(--pill-gold, #f6cf5a); }
 .ph-invmed > span { margin-top: 0; }
+/* The mode tabs (Ranked / Versus / ...) at the top nav's lighter 600 (owner 2026-11-06: "can we try with thinner text ?" on the
+   nav, then "Yes, match them"). */
+.ph-modes .phk-tab { font-weight: 600; }

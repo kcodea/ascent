@@ -97,7 +97,7 @@ describe('round 6', () => {
     expect(css).toMatch(/\.hcpw-focus \{[^}]*bottom: calc\(100cqi \* 230 \/ 784 - 4px\)/);
     // A divider between the power's name and its cost, in both faces (owner 2026-11-07).
     expect(css).toMatch(/\.hcpw-head \.hccost \{[^}]*border-left: 1px solid/);
-    expect(css).toMatch(/\.hcpw-titlecost::before \{ content: '';[^}]*height: 1px;/);
+    expect(css).not.toMatch(/\.hcpw-titlecost::before/); // the hover face has no divider (owner 2026-11-07: "remove this divider")
     // The power's name is blue, its cost gold (owner 2026-11-07).
     expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; -webkit-text-stroke: 1.5px #000; paint-order: stroke fill; }');
     expect(css).toContain(':is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }');

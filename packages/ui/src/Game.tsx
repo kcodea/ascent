@@ -186,7 +186,7 @@ const MENU_SFX_SKIP = '[data-nohoversfx], [data-quiet], .devmenu, .desk, .heropo
   // SELECTION IS SILENT on the menus (owner 2026-10-16: "remove the blip sound effect from clicking around in menus -
   // like clicking between games, or between opponents"): picking a game, a lobby seat, a tab, a hero filter, a trend
   // range, a Leaderboard row. Real actions (Play, a mode, Replay, confirms, crates) keep their sounds.
-  + '.gs-item, .gs-list, .lp-tile, .lp-back, .cv2-tab, .rg-chip, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
+  + '.gs-item, .gs-list, .lp-tile, .lp-back, .cv2-tab, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
 
 export function Game() {
   const phase = useGame((s) => s.run.phase);

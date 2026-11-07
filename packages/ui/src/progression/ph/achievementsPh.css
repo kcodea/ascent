@@ -1,0 +1,108 @@
+/* ── THE CAREER ACHIEVEMENTS TAB IN THE PARTY HOME SHELL (AchievementsPh.tsx) ──────────────────────────────────────────
+   The Collection's three columns (collectionPh.css: `.phc-body`, `.phc-rail`, `.phc-cat`, `.phc-gridwrap`, `.phc-tile`,
+   `.phc-side`, `.phc-detail`), with only what an achievement needs on top, every rule scoped to `.pha`. Sizes in `--phu`.
+   PERFORMANCE: static paint. Hover is a one-shot transform; nothing loops; bars are scaleX; off-screen groups skip layout
+   and paint (`content-visibility`, the Heroes category alone is 43 groups). */
+
+/* The Career view holds the three columns; each column scrolls on its own (the Career's old list scrolled as a whole). */
+html[data-ph-shell] .phc-page .phc-achview:has(> .pha) { overflow: visible; padding: 0; gap: 0; }
+.pha.phc-body { flex: 1; min-height: 0; }
+.pha-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: calc(16 * var(--phu)); }
+
+/* A tile, a category or the detail has no rarity: completed reads gold, open reads a quiet steel blue. */
+.pha { --rc: #6f86b3; }
+.pha .phc-tile.done, .pha .phc-detail.done { --rc: var(--ph-gold); }
+
+/* ── The rail: the painted medallions fill the icon box; a category done in full shows its count in green. ── */
+.pha .phc-cat-icon > :is(img, svg) { width: 100%; height: 100%; object-fit: contain; color: var(--ph-gold); }
+.pha .phc-cat.full .phk-rowcount { color: var(--ph-teal); }
+
+/* ── The title row (the Collection's title row: the Show tabs, then the meter on the right) ── */
+.pha-titlerow { flex-direction: row; align-items: center; justify-content: space-between; gap: calc(16 * var(--phu)); padding-bottom: calc(12 * var(--phu)); }
+.pha-titlerow > .phk-tabs { flex: 0 1 auto; min-width: 0; }
+.pha-summary { flex: none; display: flex; align-items: center; gap: calc(16 * var(--phu)); }
+.pha-meter { min-width: calc(200 * var(--phu)); }
+.pha-xp { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.pha-xp b { font-family: var(--ph-name-font); font-weight: 900; font-size: var(--ph-t3); letter-spacing: 0.02em; color: var(--ph-teal); font-variant-numeric: tabular-nums; text-shadow: var(--ph-shadow); }
+
+/* ── The album: grouped tiles ── */
+.pha-list { display: flex; flex-direction: column; gap: calc(24 * var(--phu)); }
+.pha-group { flex: none; content-visibility: auto; contain-intrinsic-size: auto calc(320 * var(--phu)); }
+.pha-grouphead { margin: 0 0 calc(12 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.pha .phc-tile { min-height: calc(132 * var(--phu)); }
+/* Completed tiles leave room under the gold "Completed" band. */
+.pha .phc-tile.done { padding-top: calc(32 * var(--phu)); }
+.pha .phc-tile-rar { color: var(--ph-teal); letter-spacing: 0.1em; }
+.pha .phc-tile.missing .phc-tile-rar { color: var(--ph-muted); opacity: 1; }
+.pha-legacy { margin-left: calc(8 * var(--phu)); padding: 0 calc(8 * var(--phu)); border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--ph-muted); }
+.pha-tile-prog { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: calc(8 * var(--phu)); margin-bottom: calc(4 * var(--phu)); }
+.pha-tile-prog .phc-bar > span { background: linear-gradient(90deg, #3f9ae0, #7fd0ff); }
+.pha-tile-num { font-size: var(--ph-t1); color: var(--ph-muted); font-variant-numeric: tabular-nums; }
+/* Hidden: the name is a static blur under the plain "Hidden" label. */
+.pha .phc-tile.concealed .phc-tile-name { filter: blur(5px); user-select: none; opacity: 0.5; }
+
+/* Hover bounces like the Collection's tiles (the Collection scopes its own to its page). Transform only. */
+@media (prefers-reduced-motion: no-preference) {
+  .pha .phc-tile { transition: transform 0.16s ease-out, scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  .pha .phc-tile:hover { transform: scale(1.05); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  .pha .phc-tile:active { transform: scale(0.95); transition: transform 0.08s ease-out, scale 0.4s cubic-bezier(0.34, 1.9, 0.5, 1); }
+}
+
+/* ── The detail (right) ── */
+/* The Objective: what to do to complete it, in the well the status sits in (owner 2026-11-06). */
+.pha-objective { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.pha-objlbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.24em; text-transform: uppercase; color: var(--ui-title, #ffd98a); text-shadow: var(--ph-shadow); }
+.pha-req { margin: 0; font-size: var(--ph-t-read, var(--ph-t2)); line-height: 1.45; color: var(--ph-text); }
+.pha-status { display: flex; flex-direction: column; gap: calc(8 * var(--phu)); padding: calc(12 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-well); box-shadow: var(--ph-gild-s); border-radius: var(--ph-r-s); }
+.pha-done { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ph-gold-hi, var(--ph-gold)); }
+.pha-done svg { width: calc(18 * var(--phu)); height: calc(18 * var(--phu)); }
+.pha-open { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.pha-prog { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(12 * var(--phu)); }
+.pha-prog .phc-bar { height: calc(8 * var(--phu)); }
+.pha-prog .phc-bar > span { background: linear-gradient(90deg, #3f9ae0, #7fd0ff); }
+.pha-proglbl { font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ph-muted); }
+.pha-prognum { font-family: var(--ph-name-font); font-weight: 800; font-size: var(--ph-t2); color: var(--ph-ink); font-variant-numeric: tabular-nums; }
+.pha-xpval { font-weight: 900; color: var(--ph-teal); }
+.pha-secret { color: #ff6b6b; }
+.pha .phc-fact dd .titlebadge.ach-titlebadge { --tb-fs: calc(14 * var(--phu)); }
+.pha-detailempty { justify-content: center; }
+
+/* The ghost (a first read): the final layout, faint, taking no pointer. */
+.pha-ghost .pha-ghostrow { min-height: calc(56 * var(--phu)); background: var(--ph-plate); border-radius: var(--ph-r); opacity: 0.35; }
+.pha-ghost .phc-tile, .pha-ghost .phc-detail { opacity: 0.35; pointer-events: none; }
+.pha-ghostbar { display: block; height: calc(40 * var(--phu)); }
+
+/* Fades in after a wait (seen data paints as it is): the Career's own one-shot swap. */
+.pha.fadein { animation: lp-swap 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .pha.fadein { animation: none; } }
+
+/* PHONES: the Collection's phone grid (the rail as one sideways row above the album and the detail) applies as is; the
+   title row wraps, and the summary meter steps aside for the tabs. */
+html[data-ph-shell][data-touch-small] .pha-titlerow { flex-wrap: wrap; }
+html[data-ph-shell][data-touch-small] .pha-meter { display: none; }
+
+/* The status (Not yet completed / progress / the date) leads the detail (owner 2026-11-06: "have the not yet completed up at
+   top"). Collection's detail orders its children; the status goes first. */
+.pha .phc-detail > .pha-status { order: -1; }
+html[data-ph-shell]:not([data-touch-small]) .pha .phc-detail > .pha-status { order: -1; }
+
+/* Room to bounce and glow (owner 2026-11-06: "when hovering, the cards are getting clipped"). `content-visibility: auto`
+   clips each group's paint to its box, so a hovered tile on a group's edge was cut. The group reaches 24u past its content
+   and pads back in: the clip box grows, nothing moves. */
+.pha-group { padding: calc(24 * var(--phu)); margin: calc(-24 * var(--phu)); }
+
+/* Name and reward read as two parts (owner 2026-11-06: "create some differentiation and use a divider between these
+   elements"): a gold hairline above the reward line, the reward in the XP green (dimmer on an open tile). */
+.pha .phc-tile-name { margin-bottom: calc(10 * var(--phu)); }
+.pha .phc-tile-rar { padding-top: calc(10 * var(--phu)); box-shadow: inset 0 calc(1 * var(--phu)) 0 color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.pha .phc-tile.missing .phc-tile-rar { color: var(--ph-teal); opacity: 0.7; box-shadow: inset 0 calc(1 * var(--phu)) 0 var(--ph-hair); }
+.pha .pha-tile-prog { margin-bottom: calc(10 * var(--phu)); }
+/* The empty progress slot keeps the bar's height but draws nothing. */
+.pha-tile-prog.empty { visibility: hidden; }
+/* The progress bar inside the Objective: the bar, then the count. */
+.pha-objective .pha-prog { grid-template-columns: minmax(0, 1fr) auto; margin-top: calc(4 * var(--phu)); }
+
+/* The status line is bare text at the right (owner 2026-11-06: "remove the gold border and background from the not yet
+   completed section, right align the text and make it a light red color"); the completed date keeps its gold. */
+.pha-status { align-items: flex-end; padding: 0; background: none; box-shadow: none; border-radius: 0; }
+.pha-status .pha-open { color: var(--ph-foe-soft, #ff9a9a); }

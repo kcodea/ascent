@@ -63,6 +63,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-11-06',
+    changes: [
+      { category: 'Systems', text: 'Hero select: each hero banner\x27s portrait and text now sit centred on the banner.' },
+      { category: 'Systems', text: 'Hero select: each banner now shows just the hero, its Health and Armor, and its Hero Power. Hover a banner to bring the Hero Power forward and read what it does. The difficulty sits above the banner, and the hover glow no longer shows a hard edge.' },
+    ],
+  },
+  {
+    date: '2026-11-06',
     label: 'Spectators and Chat',
     changes: [
       {

@@ -68,6 +68,7 @@
 .phc-rarities { display: flex; flex-wrap: wrap; gap: calc(8 * var(--phu)); padding-bottom: calc(20 * var(--phu)); }
 .phc-rchip { height: calc(32 * var(--phu)); padding: 0 calc(12 * var(--phu)); gap: calc(8 * var(--phu)); }
 .phc-rchip.t-gold .phc-n { color: var(--ph-navy); }
+.phc-rchip .phc-n { font-size: calc(11 * var(--phu)); font-weight: 600; }
 .phc-gem { flex: none; display: inline-block; width: calc(8 * var(--phu)); height: calc(8 * var(--phu)); transform: rotate(45deg); background: var(--rc, var(--ph-gold)); }
 .r-ancient .phc-gem, .r-secret .phc-gem { background: var(--rc-grad); }
 

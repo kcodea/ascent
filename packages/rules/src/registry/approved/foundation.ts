@@ -14096,4 +14096,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'v0.2.0 published 2026-11-05 UTC (the evening of 2026-11-04 locally), so v0.2.1\x27s release notes came out empty and were filled in by hand.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updateNotes.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
+  {
+    id: 'R-PH-SIGNIN-NAV-01',
+    title: 'Signed out, the top nav offers Sign in at its top right',
+    statement:
+      'While the player is not signed in (a guest or an anonymous session), the main navigation bar shows a Sign in button at its top-right end, '
+      + 'on every page that wears the bar. It opens the sign-in panel over the current page. Once signed in, the button is gone.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07, with a gold SIGN IN pill', quote: 'put this in the top right of the main navigation bar when someone is not signed in' },
+      { kind: 'fix-pr', ref: 'feat/nav-sign-in: packages/ui/src/partyHome/shell/PhTopNav.tsx (.ph-signin), shell.css' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-07 (feat/nav-sign-in). Before, signing in was reachable only from Settings (on the home) and a few empty states.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/phSignIn.test.tsx'], lastVerifiedAt: '2026-11-07' },
+  },
 ];

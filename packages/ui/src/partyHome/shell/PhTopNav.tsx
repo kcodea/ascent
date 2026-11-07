@@ -45,6 +45,9 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const toggleBook = useGame((s) => s.toggleBook);
   const closeBook = useGame((s) => s.closeBook);
   const userId = useGame((s) => s.account.userId);
+  // Signed out (a guest or an anonymous session): the bar's top-right offers Sign in (owner 2026-11-07, R-PH-SIGNIN-NAV-01).
+  const signedIn = useGame((s) => !s.account.anonymous && !!s.account.email);
+  const openAccountPanel = useGame((s) => s.openAccountPanel);
   const progressionOn = useProgression((s) => s.capability === 'on');
   const mirror = useProgression((s) => mirrorFor(userId, s.mirror));
   const aetherOn = useProgression(aetherVisible);
@@ -172,6 +175,11 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             </span>
           )}
           {extra}
+          {/* SIGN IN (owner 2026-11-07: "put this in the top right of the main navigation bar when someone is not signed in"):
+              the gold pill in Play's paint, last in the bar. The account panel is app-wide and paints over any page. */}
+          {!signedIn && (
+            <button type="button" className="ph-signin" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</button>
+          )}
           {/* Settings + Friends dock bottom-left, stacked in a small navy box (owner 2026-11-05). On a phone it stays in the bar. */}
           <div className="ph-dock">
             {/* DEV TOOLS (owner 2026-11-06): the Scene Builder and the Dev tuner (DevMenu renders its button into the slot). */}

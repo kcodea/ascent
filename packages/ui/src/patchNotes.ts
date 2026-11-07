@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-07',
+    changes: [
+      { category: 'Systems', text: 'Not signed in? A Sign in button now sits at the top right of the menu bar.' },
+    ],
+  },
+  {
     date: '2026-11-06',
     label: 'Spectators and Chat',
     changes: [

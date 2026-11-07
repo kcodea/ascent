@@ -147,11 +147,14 @@ export function PhCareer(p: PhCareerProps) {
     { id: 'practice', label: 'Practice' },
     ...(p.achievementsOn ? [{ id: 'achievements' as const, label: 'Achievements' }] : []),
   ];
-  const scope = !p.pageState && (p.tab === 'history' || p.tab === 'practice') ? p.tabSub : '';
+  // Another player's career shows no "Last 50 runs" note and no Friends control (owner 2026-11-06: "remove the friends and last 50
+  // runs text"); it closes with the Settings X instead (phCareer.css).
+  const viewingOther = !p.own;
+  const scope = !viewingOther && !p.pageState && (p.tab === 'history' || p.tab === 'practice') ? p.tabSub : '';
   const actions = (
     <>
       {scope && <span className="phc-scope">{scope}</span>}
-      {p.addFriend}
+      {!viewingOther && p.addFriend}
       {p.onCreateAccount && (
         <span className="gtip" data-tip="Playing as a guest. Create an account to save your progress.">
           <PhButton size="s" onClick={p.onCreateAccount}>Create account</PhButton>

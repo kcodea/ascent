@@ -329,3 +329,15 @@ html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-mmr-head { margin: 0; }
 html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-mmr svg { height: auto; max-height: none; }
 html[data-ph-shell] .phc-page .phc-trends .ct-panel .ct-empty { flex: 1; display: grid; place-items: center; min-height: calc(160 * var(--phu)); }
 html[data-ph-shell] .phc-page .phc-trends > .ct-legend { margin: 0; }
+
+/* A player's career opened from the Leaderboard / Recent Games closes with the Settings X at the header's top right instead of the
+   "Back to Leaderboard" pill, so the name sits at the left edge (owner 2026-11-06). Same strokes as phSettings.css. */
+.phc-pg .phk-back { position: relative; width: calc(40 * var(--phu)); height: calc(40 * var(--phu)); padding: 0; background: none; box-shadow: none; opacity: 0.85; transition: opacity 0.12s ease; }
+.phc-pg .phk-back > * { display: none; }
+.phc-pg .phk-back::before, .phc-pg .phk-back::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(26 * var(--phu)); height: calc(2 * var(--phu)); border-radius: calc(1 * var(--phu)); background: #fff; pointer-events: none; }
+.phc-pg .phk-back::before { transform: translate(-50%, -50%) rotate(45deg); }
+.phc-pg .phk-back::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.phc-pg .phk-back:hover { background: none; opacity: 1; }
+.phc-pg .phk-pagehead { position: relative; }
+html:not([data-ph-compact]) .phc-pg .phk-pagehead > .phk-back { position: absolute; right: 0; top: calc(50% - 20 * var(--phu)); }
+html:not([data-ph-compact]) .phc-pg .phk-pagehead:has(> .phk-back) { padding-right: calc(56 * var(--phu)); }

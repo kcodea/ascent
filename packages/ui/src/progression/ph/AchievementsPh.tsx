@@ -18,7 +18,7 @@
  */
 import { memo, useCallback, useState } from 'react';
 import { UNIQUE_PLATE_REWARD_TEXT, type AchievementCategory } from '@game/progression';
-import { PhChip, PhEmpty, PhMeter, PhRow, PhTabs } from '../../partyHome/kit';
+import { PhEmpty, PhMeter, PhRow, PhTabs } from '../../partyHome/kit';
 import { Icon } from '../../Icon';
 import { MenuMedal, type MenuMedalName } from '../../menuIcons';
 import { sfx } from '../../sfx';
@@ -174,12 +174,14 @@ function AchDetail({ tile, category, own }: { tile: AchievementTile; category: A
   if (concealed) {
     return (
       <section className="phc-detail pha-detail missing" aria-label="Details">
-        <div className="phc-stage pha-stage" aria-hidden><span className="pha-medal"><AchCategoryIcon category={category.id} /></span></div>
         <div className="phc-name">
           <span className="phc-kindrow"><span className="phc-kind">{kind}</span></span>
           <h2>Hidden achievement</h2>
         </div>
-        <p className="pha-req">Complete it to reveal what it asks.</p>
+        <section className="pha-objective" aria-label="Objective">
+          <span className="pha-objlbl">Objective</span>
+          <p className="pha-req">Complete it to reveal what it asks.</p>
+        </section>
       </section>
     );
   }
@@ -192,17 +194,16 @@ function AchDetail({ tile, category, own }: { tile: AchievementTile; category: A
 
   return (
     <section className={`phc-detail pha-detail${completed ? ' done' : ' missing'}`} aria-label="Details">
-      <div className="phc-stage pha-stage" aria-hidden>
-        <span className="pha-medal"><AchCategoryIcon category={category.id} /></span>
-        {completed && <span className="phc-stage-tag"><PhChip tone="gold">Completed</PhChip></span>}
-      </div>
-
       <div className="phc-name">
         <span className="phc-kindrow"><span className="phc-kind">{kind}</span></span>
         <h2>{def.name}</h2>
       </div>
 
-      <p className="pha-req">{def.requirement}</p>
+      {/* What to do to complete it (owner 2026-11-06: "create a section for the OBJECTIVE"). The medallion box is gone. */}
+      <section className="pha-objective" aria-label="Objective">
+        <span className="pha-objlbl">Objective</span>
+        <p className="pha-req">{def.requirement}</p>
+      </section>
 
       <div className="pha-status">
         {completed ? (

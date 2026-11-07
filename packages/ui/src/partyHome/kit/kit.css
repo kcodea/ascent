@@ -517,7 +517,7 @@ html[data-ph-shell]:not([data-ph-compact]) .phk-pagehead .phk-pagetitle { margin
    loading the page from elsewhere"): on a page's mount the title, then each header tab, then the header controls drop in from
    above, 30ms apart. CSS-only, so it runs once per page arrival (a sub-tab change keeps the header mounted and never replays it).
    It animates `translate` + opacity, never `transform`, so it composes with the tabs' hover scale and the sliding glow. */
-@keyframes phk-drop { from { opacity: 0; translate: 0 calc(-18 * var(--phu)); } }
+@keyframes phk-drop { from { opacity: 0; translate: 0 calc(-40 * var(--phu)); } }
 @keyframes phk-fadein { from { opacity: 0; } }
 @media (prefers-reduced-motion: no-preference) {
   html[data-ph-shell] .phk-page > .phk-pagehead > :is(.phk-back, .phk-pagetitle),

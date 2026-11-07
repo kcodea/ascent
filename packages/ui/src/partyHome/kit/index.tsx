@@ -16,7 +16,7 @@
  *
  * All static paint; no native tooltips (aria-label + the game's `data-tip`); no own cursor (the gauntlet rule paints it).
  */
-import { markPhPage, PhBackContext } from '../shell/PhPageGuard';
+import { markPhPage, PhBackContext, PhCoveredContext } from '../shell/PhPageGuard';
 import { usePhLayer } from '../shell/usePhLayer';
 import { isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -28,6 +28,8 @@ export { useSlideMarker } from './slideMarker';
 
 const cx = (...c: (string | false | null | undefined)[]): string => c.filter(Boolean).join(' ');
 
+/** The parts of a page that play its one-shot entrance (kit.css: the header cascade and the body fade). */
+const ENTRANCE_PARTS = ':scope > .phk-pagehead > :is(.phk-back, .phk-pagetitle, .phk-pageactions), :scope > .phk-pagehead .phk-pagetabs :is(.phk-tab, .phk-slide, .phk-tabs), :scope > .phk-pagehead .phk-pagetabs > :not(.phk-tabs), :scope .phk-pagebody > *';
 export function PhPage({ title, eyebrow, actions, tabs, wide, back: ownBack, className, children }: {
   title: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; tabs?: ReactNode; wide?: boolean; className?: string; children: ReactNode;
   /** A back step inside the page (a sub-view back to its parent): sits left of the title. */
@@ -43,6 +45,22 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back: ownBack, cla
   const lastTab = useRef(tabValue);
   const running = useRef<Animation[]>([]);
   useLayoutEffect(() => markPhPage(), []);
+  // BACK FROM AN OVERLAY (owner 2026-11-06: "compendium to patch notes works once and then stops working on future swaps"): the
+  // Compendium and Settings open OVER a page, which stays mounted, so closing them never remounts it and its one-shot CSS entrance
+  // (the header cascade, the body fade) would not run again. When one closes, restart those animations before the first paint.
+  const sectionRef = useRef<HTMLElement>(null);
+  const covered = useContext(PhCoveredContext);
+  const wasCovered = useRef(covered);
+  useLayoutEffect(() => {
+    const was = wasCovered.current;
+    wasCovered.current = covered;
+    const root = sectionRef.current;
+    if (!was || covered || !root) return;
+    const els = root.querySelectorAll<HTMLElement>(ENTRANCE_PARTS);
+    els.forEach((el) => { el.style.animation = 'none'; });
+    void root.offsetWidth; // one reflow so the cleared animations start over
+    els.forEach((el) => { el.style.animation = ''; });
+  }, [covered]);
   useLayoutEffect(() => {
     if (lastTab.current === tabValue) return;
     lastTab.current = tabValue;
@@ -55,7 +73,7 @@ export function PhPage({ title, eyebrow, actions, tabs, wide, back: ownBack, cla
     ));
   }, [tabValue]);
   return (
-    <section className={cx('phk-page', wide && 'wide', className)}>
+    <section ref={sectionRef} className={cx('phk-page', wide && 'wide', className)}>
       <header className="phk-pagehead">
         {back && (
           <button type="button" className="phk-back" onClick={back.onClick} aria-label={back.label}>

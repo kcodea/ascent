@@ -2558,4 +2558,20 @@ export const HEROES_RULES: GameRule[] = [
     example: "Ann has 10 Gold and uses Passaria on a Shop minion: she has 8 Gold, and the minion is in Amy's hand.",
     enforcement: { kind: 'scenario', refs: ["packages/ui/src/passariaGold.test.ts"], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: "R-HERO-PICK-CLEAN-01",
+    title: "A hero pick leaves nothing behind on screen",
+    statement:
+      "Once a hero is picked in Hero Select, nothing of the other offers stays on screen (their difficulty words included), and "
+      + "the chosen hero's art never shows a square corner outside the portrait ring: the travelling card's art fades as the "
+      + "round portrait takes over, and the portrait is held to a soft circle the size of its ring before the ring flashes in.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-07", quote: "when selecting a hero, these remain. they shouldnt. theres also a moment where the art corners show outside the portrait frame" },
+      { kind: 'code', ref: "packages/ui/src/hero-select/heroSelectPh.css (A PICK LEAVES NOTHING BEHIND); packages/ui/src/hero-select/HeroSelectCeremony.tsx pre-flash portrait mask" },
+    ],
+    currentBehaviour: "Conforms from 2026-11-07 in the party home look (the shipped look). The leftover labels did not reproduce on a 1920x1080 desktop; the CSS hide is a guard for the owner's layout.",
+    enforcement: { kind: 'scenario', refs: ["packages/ui/src/hero-select/heroPickClean.test.ts"], lastVerifiedAt: '2026-11-07' },
+  },
 ];

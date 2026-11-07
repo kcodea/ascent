@@ -801,11 +801,12 @@ html:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs { box-shadow: inset calc(
 .pho-optlbl::after { content: ''; position: absolute; left: 50%; bottom: 0; translate: -50% 0; width: calc(80 * var(--phu)); height: calc(1 * var(--phu)); pointer-events: none;
   background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 18%, color-mix(in srgb, var(--pill-edge, #c8953f) 70%, transparent) 82%, transparent 100%); }
 
-/* The side panel's header names the one mode it shows (Practice, Gauntlet, ...), never a choice, so it wears no selected-tab
-   glow (owner 2026-11-06: "practice doesnt have an option so remove the glow"). */
-html .ph-sidepanel .ph-sidetabs .phk-slide { display: none; }
-html .ph-sidepanel .ph-sidetabs .phk-tab.on::before, html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on::before { content: none !important; }
-html[data-ph-shell] .ph-sidepanel .ph-sidetabs .phk-tab.on { text-shadow: var(--ph-shadow); }
+/* A side panel header with ONE tab names the mode it shows (Practice, Gauntlet, ...), never a choice, so it wears no selected-tab
+   glow (owner 2026-11-06: "practice doesnt have an option so remove the glow"). With two or more tabs (Versus | Open rooms) it IS a
+   choice, so the selected one keeps the glow (owner 2026-11-06: "this should have the select glow yeah?"). */
+html .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-slide { display: none; }
+html .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on::before, html[data-ph-shell] .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on::before { content: none !important; }
+html[data-ph-shell] .ph-sidepanel .ph-sidetabs:not(:has(.phk-tab + .phk-tab)) .phk-tab.on { text-shadow: var(--ph-shadow); }
 /* The side panel's supporting text: 3 units smaller and italic (owner 2026-11-06: "change the descriptive supporting text to 3px
    smaller and italicized"). */
 html[data-ph-shell] .ph-settings :is(.pho-hint, .phk-seghint) { font-size: calc(13 * var(--phu)); font-style: italic; color: #d8c8a2; opacity: 0.7; }

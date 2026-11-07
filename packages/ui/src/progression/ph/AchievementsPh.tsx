@@ -150,12 +150,13 @@ const AchTilePh = memo(function AchTilePh({ tile, selected, onPick }: { tile: Ac
     >
       <span className="phc-tile-text">
         <span className="phc-tile-name">{def.name}</span>
-        {pct !== null && (
+        {/* No bar: an empty slot the bar's height, so every name sits on one line (owner 2026-11-06). */}
+        {pct !== null ? (
           <span className="pha-tile-prog" aria-hidden>
             <span className="phc-bar"><span style={{ transform: `scaleX(${pct})` }} /></span>
             <span className="pha-tile-num">{progress!.toLocaleString('en-US')} / {def.target.toLocaleString('en-US')}</span>
           </span>
-        )}
+        ) : <span className="pha-tile-prog empty" aria-hidden><span className="pha-tile-num">&nbsp;</span></span>}
         <span className="phc-tile-rar">
           {def.rewards.xp > 0 ? rewardText(def) : def.rewards.cosmeticId ? 'Unique reward' : def.rewards.titleId ? 'Title' : ''}
           {legacy && <span className="pha-legacy">Legacy</span>}

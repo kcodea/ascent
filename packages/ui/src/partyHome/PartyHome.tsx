@@ -695,7 +695,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
           <div className="ph-held">
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
-              <PhButton variant="primary" size="s" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
+              <PhButton variant="primary" size="m" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
             </div>
           </div>
         )}

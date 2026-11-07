@@ -847,3 +847,12 @@ html[data-ph-shell] .ph-sidetabs .phk-slide { top: calc(-2 * var(--phu)); bottom
 /* The mode tabs (Ranked / Versus / ...) at the top nav's lighter 600 (owner 2026-11-06: "can we try with thinner text ?" on the
    nav, then "Yes, match them"). */
 .ph-modes .phk-tab { font-weight: 600; font-size: calc(13 * var(--phu)); }
+
+/* ── THE SAVED GAME CHIP (owner 2026-11-06: "Put SAVED GAME in all caps on its own row. make it bigger overall") ── Desktop: a
+   rounded plate in two rows. SAVED GAME, uppercase and centred, across the top; under it the mode and round beside Continue
+   (now the medium button). Bigger type and padding throughout. */
+html:not([data-ph-compact]) .ph-heldrow { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: center; column-gap: calc(18 * var(--phu)); row-gap: calc(6 * var(--phu));
+  padding: calc(12 * var(--phu)) calc(14 * var(--phu)) calc(14 * var(--phu)) calc(26 * var(--phu)); border-radius: calc(28 * var(--phu)); }
+html:not([data-ph-compact]) .ph-heldtxt { display: contents; }
+html:not([data-ph-compact]) .ph-heldtxt b { grid-column: 1 / -1; font-size: calc(17 * var(--phu)); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
+html:not([data-ph-compact]) .ph-heldtxt > span { font-size: calc(17 * var(--phu)); white-space: nowrap; }

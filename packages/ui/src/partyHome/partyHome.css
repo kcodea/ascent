@@ -831,4 +831,4 @@ html[data-ph-shell] .ph-settings .phk-select.pho-select { height: calc(36 * var(
 
 /* The side panel's title tab (RANKED, PRACTICE, ...) reads much larger (owner 2026-11-06: "make this much larger"). Tabs size to
    their label (never narrower than before) so a two-tab header like VERSUS / OPEN ROOMS still fits. */
-html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 1 auto; min-width: calc(128 * var(--phu)); font-size: calc(26 * var(--phu)); }
+html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 1 auto; min-width: calc(128 * var(--phu)); font-size: calc(19 * var(--phu)); }

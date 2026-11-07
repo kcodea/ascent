@@ -838,3 +838,9 @@ html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab {
    mode tabs pad 8u above and 12u below their label, so the glow rides 4u higher; the side panel's header sits 2u off. */
 html[data-ph-shell] .ph-modes .phk-slide { top: calc(-4 * var(--phu)); bottom: calc(4 * var(--phu)); }
 html[data-ph-shell] .ph-sidetabs .phk-slide { top: calc(-2 * var(--phu)); bottom: calc(2 * var(--phu)); }
+
+/* ── PLAIN INVITE RING (owner 2026-11-06: "change to a simple gold bordered circle. remove this png") ── The open seat's + sits in
+   a thin gold circle, no ornate frame (friend-frame.webp stays on the friends list portraits). Static paint. */
+.ph-invmed { aspect-ratio: 1; box-sizing: border-box; border-radius: 50%; background: none;
+  border: calc(3 * var(--phu)) solid var(--pill-gold, #f6cf5a); }
+.ph-invmed > span { margin-top: 0; }

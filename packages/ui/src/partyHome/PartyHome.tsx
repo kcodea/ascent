@@ -237,6 +237,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   useEffect(() => { if (!lockNote) return undefined; const t = window.setTimeout(() => setLockNote(null), 2600); return () => window.clearTimeout(t); }, [lockNote]);
   const [demoTeam, setDemoTeam] = useState<string | null>(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState<null | (() => void)>(null);
+  // Quitting the saved game from its chip (owner 2026-11-06): a small red trash button, then a confirm.
+  const [confirmQuit, setConfirmQuit] = useState(false);
+  const clearRun = useGame((s) => s.clearRun);
   const slots = Math.max(mode.slots, members.length);
   const open = slots - members.length;
 
@@ -696,6 +699,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
             <div className="ph-heldrow">
               <span className="ph-heldtxt"><b>Saved game</b><span>{savedRunMode(savedRun)} · {titleContinueNote(savedRun.wave)}</span></span>
               <PhButton variant="primary" size="m" onClick={() => { sfx.pulse(); continueRun(); }}>Continue</PhButton>
+              <button type="button" className="ph-heldtrash" aria-label="Quit your saved game" onClick={() => { sfx.pulse(); setConfirmQuit(true); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 11a2 2 0 0 1-2 1.9H9a2 2 0 0 1-2-1.9L6 9zm3.5 2v8H11v-8H9.5zm3.5 0v8h1.5v-8H13z" /></svg>
+              </button>
             </div>
           </div>
         )}
@@ -718,6 +724,15 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
             <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmOverwrite(null); }}>Keep it</PhButton>
           </>}>
           <p>{withAbandonWarning(`This replaces your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}).`, savedRun)}</p>
+        </PhDialog>
+      )}
+      {confirmQuit && savedRun && (
+        <PhDialog label="Quit your saved game?" eyebrow="Saved game" title="Quit this game?" onClose={() => setConfirmQuit(false)}
+          actions={<>
+            <PhButton variant="primary" size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); clearRun(); }}>Quit game</PhButton>
+            <PhButton size="l" onClick={() => { sfx.pulse(); setConfirmQuit(false); }}>Keep it</PhButton>
+          </>}>
+          <p>{withAbandonWarning(`Your saved game (${savedRunMode(savedRun)}, ${titleContinueNote(savedRun.wave)}) will be gone for good.`, savedRun)}</p>
         </PhDialog>
       )}
       {duosRoom && <DuosResultOverlay />}

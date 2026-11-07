@@ -856,3 +856,15 @@ html:not([data-ph-compact]) .ph-heldrow { display: grid; grid-template-columns: 
 html:not([data-ph-compact]) .ph-heldtxt { display: contents; }
 html:not([data-ph-compact]) .ph-heldtxt b { grid-column: 1 / -1; font-size: calc(17 * var(--phu)); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
 html:not([data-ph-compact]) .ph-heldtxt > span { font-size: calc(17 * var(--phu)); white-space: nowrap; }
+/* QUIT THE SAVED GAME (owner 2026-11-06: "a small red circle with a trash can icon next to the continue button for cancelling or
+   quitting the saved game"): a red disc right of Continue, a gold hairline edge like every control; it asks before it quits. */
+html:not([data-ph-compact]) .ph-heldrow { grid-template-columns: auto auto auto; }
+.ph-heldtrash { display: grid; place-items: center; width: calc(38 * var(--phu)); height: calc(38 * var(--phu)); padding: 0; margin: 0 0 0 calc(-6 * var(--phu)); border: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #d8434f 0%, #a51e2c 60%, #6e0f1a 100%); box-shadow: var(--ph-gild-s), 0 3px 8px -2px rgba(0, 0, 0, 0.7); color: #fff3f0;
+  transition: transform 0.16s ease-out; }
+.ph-heldtrash > svg { width: 58%; height: 58%; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
+.ph-heldtrash:hover { transform: scale(1.1); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+.ph-heldtrash:active { transform: scale(0.92); transition: transform 0.08s ease-out; }
+.ph-heldtrash:focus-visible { outline: 2px solid rgba(255, 214, 110, 0.9); outline-offset: 2px; }
+/* The saved game chip a little lower, closer to START (owner 2026-11-06: "lower the saved-game chip"): 30 units down. */
+html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]) .ph-stagehead:not(:has(> .ph-team)) > .ph-held { translate: -50% calc(-10 * var(--phu)); }

@@ -9,7 +9,7 @@
  *   LEFT    the categories as one list (icon, name, owned / total with a thin bar, a NEW count, "Soon" when locked), then
  *           the CHEST BAY (always in view): the painted chest, the count, Open / Open all, the next chest's level with your
  *           XP toward it (the odds line lives in the shop, owner 2026-11-06).
- *   CENTRE  the Show tabs (Show All / Owned / Missing) and the rarity chips, then the album: one tile per item, in
+ *   CENTRE  the rarity chips (the Show tabs, Show All / Owned / Missing, sit in the title row), then the album: one tile per item, in
  *           the page's stable order. Owned tiles are bright; missing ones dimmed with a lock (how to get one is in the detail column).
  *   RIGHT   the selected item, large (Valorant's big preview): its live preview, name, rarity, the facts, and Equip.
  *
@@ -161,6 +161,16 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
       className="phc"
       eyebrow="Find, view and wear what you have earned"
       title="Collection"
+      tabs={v.live ? (
+        <PhTabs
+          label="Show" value={v.show} onChange={(f) => { sfx.pulse(); v.setShow(f); }}
+          tabs={[
+            { id: 'all', label: 'Show All' },
+            { id: 'owned', label: 'Owned' },
+            { id: 'missing', label: 'Missing' },
+          ]}
+        />
+      ) : undefined}
       actions={(
         <>
           {v.anyNew && <PhButton variant="ghost" size="s" onClick={v.markAllSeen}>Mark all as seen</PhButton>}
@@ -188,14 +198,6 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
           {v.live ? (
             <>
               <div className="phc-filters">
-                <PhTabs
-                  label="Show" value={v.show} onChange={(f) => { sfx.pulse(); v.setShow(f); }}
-                  tabs={[
-                    { id: 'all', label: 'Show All' },
-                    { id: 'owned', label: 'Owned' },
-                    { id: 'missing', label: 'Missing' },
-                  ]}
-                />
                 <div className="phc-rarities" role="group" aria-label="Rarity">
                   <PhToggleChip className="phc-rchip" pressed={v.rarity === 'all'} onToggle={() => { sfx.pulse(); v.setRarity('all'); }}>Any rarity</PhToggleChip>
                   {ALL_COSMETIC_RARITIES.filter((r) => v.byRarity[r].total > 0).map((r) => (

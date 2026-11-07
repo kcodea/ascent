@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-07',
     changes: [
+      { category: 'Systems', text: 'Not signed in? A Sign in button now sits at the top right of the menu bar.' },
       { category: 'Systems', text: 'Recent Games: game rows and lobby players make the menu hover and click sounds again.' },
       { category: 'Systems', text: 'Recent Games: a lobby player\x27s gold edge stays sharp over the Game strength blur.' },
     ],

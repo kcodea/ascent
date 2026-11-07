@@ -436,6 +436,28 @@ describe('the Collection screen: NEW', () => {
     expect($$('.colls-tile.fresh')).toHaveLength(0);
   });
 
+  // Owner 2026-11-07: "we need a tab for NEW items. any item marked new should be part of that filter".
+  it('the NEW tab lists exactly the items wearing NEW, in every category, with the rarity chips; a pick keeps it listed (R-COLLECTION-NEW-TAB-01)', () => {
+    open({ titles: three, cosmetics: [...three, 'skin_albus_1'] }, { seen: ['alpha_tester'] });
+    act(() => chip('New').click());
+    expect(text('.colls-seg .colls-chip.on')).toBe('New2');
+    expect(tileNames().sort()).toEqual(['Kingbreaker', 'Star Chaser']); // owned + unseen; Alpha Tester (seen, worn) is not
+    act(() => tile('Kingbreaker').click()); // its badge clears, but it stays on the list while you look
+    expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();
+    expect(tileNames().sort()).toEqual(['Kingbreaker', 'Star Chaser']);
+    act(() => chip('Legendary').click()); // combines with rarity like Owned and Missing
+    expect(text('.colls-nomatch div')).toBe('Nothing matches these filters.');
+    act(() => chip('Any rarity').click());
+    act(() => tab('Heroes').click()); // every category: the Show tab carries over
+    expect(text('.colls-seg .colls-chip.on')).toBe('New1');
+    expect(tileNames()).toHaveLength(1);
+    expect($$('.colls-tile.fresh')).toHaveLength(1);
+    act(() => button('Mark all as seen')!.click()); // nothing is new any more: the empty state says so
+    expect(tileNames()).toEqual([]);
+    expect(text('.colls-nomatch div')).toBe('Nothing new here. New items from chests and rewards show up here.');
+    clean();
+  });
+
   it('the EQUIPPED item never wears NEW, and its tab does not count it', () => {
     open({ titles: three, equippedTitleId: 'title_kingbreaker' }, { seen: ['alpha_tester'] });
     expect(tile('Kingbreaker').querySelector('.colls-new')).toBeNull();

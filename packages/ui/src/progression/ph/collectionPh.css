@@ -531,6 +531,8 @@ html[data-ph-shell]:not([data-touch-small]) .phc-side { padding: calc(36 * var(-
 /* EQUIPPED as a gold band filling the tile's top edge (owner 2026-11-06, an experiment in place of the pill). Above the art, under
    the tile's gold edge. */
 .phc-tile-eqband { position: absolute; top: 0; left: 0; right: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
-  height: calc(32 * var(--phu)); background: var(--ph-metal-gold); color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  height: calc(32 * var(--phu)); isolation: isolate; color: var(--ph-navy); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
   box-shadow: inset 0 calc(-2 * var(--phu)) 0 rgba(110, 70, 14, 0.45), 0 calc(2 * var(--phu)) calc(8 * var(--phu)) rgba(0, 0, 0, 0.35);
   font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.16em; text-transform: uppercase; pointer-events: none; }
+/* The gold is slightly see-through so the art shows behind it (owner 2026-11-06: "making it a bit opaque"); the word stays solid. */
+.phc-tile-eqband::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ph-metal-gold); opacity: 0.85; }

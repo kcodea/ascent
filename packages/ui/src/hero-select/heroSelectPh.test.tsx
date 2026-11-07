@@ -98,6 +98,9 @@ describe('round 6', () => {
     // A divider between the power's name and its cost, in both faces (owner 2026-11-07).
     expect(css).toMatch(/\.hcpw-head \.hccost \{[^}]*border-left: 1px solid/);
     expect(css).toMatch(/\.hcpw-titlecost::before \{ content: '';[^}]*height: 1px;/);
+    // The power's name is blue, its cost gold (owner 2026-11-07).
+    expect(css).toContain('.heroselect.phhs .herocard.big .hcpw-head b { color: #7cc4ff; }');
+    expect(css).toContain(':is(.hcpw-head .hccost, .hcpw-titlecost) { color: var(--ui-title, #ffd98a); }');
     expect(css).toMatch(/\.hcpw-focus \{[^}]*opacity: 0;/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);

@@ -454,14 +454,17 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     row.addEventListener('scroll', on, { passive: true });
     return () => row.removeEventListener('scroll', on);
   }, [phone, modes.length]);
-  const wasPaged = useRef(pageOpen);
+  // The Compendium is its own flag (showBook), not a page; leaving it replays the entrance too (owner 2026-11-06).
+  const bookOpen = useGame((s) => s.showBook);
+  const covered = pageOpen || bookOpen;
+  const wasPaged = useRef(covered);
   // Covered by a page, the home takes no focus.
   useLayoutEffect(() => { rootRef.current?.toggleAttribute('inert', pageOpen); }, [pageOpen]);
   // A layout effect: the replay is committed before the first paint, so the stage never shows at full opacity first.
   useLayoutEffect(() => {
-    if (wasPaged.current && !pageOpen) { setEnterKey((k) => k + 1); slideModesIn(modesRef.current); }
-    wasPaged.current = pageOpen;
-  }, [pageOpen]);
+    if (wasPaged.current && !covered) { setEnterKey((k) => k + 1); slideModesIn(modesRef.current); }
+    wasPaged.current = covered;
+  }, [covered]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (modeHasSettings(modeId) ? 'settings' : 'friends'));

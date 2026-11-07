@@ -70,7 +70,7 @@ export function PracticePanel() {
       {/* Sandbox | God Mode: the menu's own sliding-glow tabs, not a pair of buttons (owner 2026-11-06: "too buttony"). */}
       <div className="pho-modes">
         <PhTabs label="Practice type" value={god ? 'god' : 'sandbox'} onChange={(v) => { sfx.tick(); setDraft({ godMode: v === 'god' }); }}
-          tabs={[{ id: 'sandbox', label: <PracticeTypeLabel art="chooseOne" name="Sandbox" /> }, { id: 'god', label: <PracticeTypeLabel art="power" name="God Mode" /> }]} />
+          tabs={[{ id: 'sandbox', label: <PracticeTypeLabel art="mode-sandbox" name="Sandbox" /> }, { id: 'god', label: <PracticeTypeLabel art="mode-godmode" name="God Mode" /> }]} />
         <span className="pho-hint">{god ? 'A fixed setup with every tool unlocked.' : 'Set the game up your way.'}</span>
       </div>
       {god ? (

@@ -833,3 +833,8 @@ html[data-ph-shell] .ph-settings .phk-select.pho-select { height: calc(36 * var(
 /* The side panel's title tab (RANKED, PRACTICE, ...) reads much larger (owner 2026-11-06: "make this much larger"). Tabs size to
    their label with equal padding, so the divider in a two-tab header (VERSUS | OPEN ROOMS) sits evenly between them. */
 html[data-ph-shell]:not([data-ph-compact]) .ph-sidepanel .ph-sidetabs .phk-tab { flex: 0 1 auto; min-width: 0; padding-inline: calc(18 * var(--phu)); font-size: calc(19 * var(--phu)); }
+
+/* The selected-tab glow centres on the label, not the tab box (owner 2026-11-06: "the glow is positioned slightly too low"): these
+   mode tabs pad 8u above and 12u below their label, so the glow rides 4u higher; the side panel's header sits 2u off. */
+html[data-ph-shell] .ph-modes .phk-slide { top: calc(-4 * var(--phu)); bottom: calc(4 * var(--phu)); }
+html[data-ph-shell] .ph-sidetabs .phk-slide { top: calc(-2 * var(--phu)); bottom: calc(2 * var(--phu)); }

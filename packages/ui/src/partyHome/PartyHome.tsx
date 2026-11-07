@@ -107,6 +107,31 @@ export interface PartyHomeProps {
   onRankedStart: (kind: 'solo' | 'duos', then?: () => void) => void;
 }
 
+/** Back on the home from another page (PLAY in the top bar), the mode tabs slide down out from under the top bar and the line
+ *  under them fades in (owner 2026-11-06: "i want this menu to slide out from below the top bar when the page loads"). The bar
+ *  clips at its own top edge while it runs, so the tabs appear from behind the top bar's bottom edge. Transform and opacity only,
+ *  one-shot; skipped under reduced motion. */
+function slideModesIn(bar: HTMLElement | null): void {
+  if (!bar || typeof bar.animate !== 'function' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const tabs = bar.querySelector<HTMLElement>('.phk-tabs');
+  const desc = bar.querySelector<HTMLElement>('.ph-desc');
+  bar.getAnimations?.({ subtree: true }).forEach((a) => { if (a.id === 'ph-modes-in') a.cancel(); });
+  bar.style.clipPath = 'inset(0 -100vw -100vh -100vw)';
+  const ease = 'cubic-bezier(0.22, 1.2, 0.36, 1)';
+  const runs: Animation[] = [];
+  if (tabs) {
+    const a = tabs.animate([{ transform: 'translateY(-110%)' }, { transform: 'none' }], { duration: 420, easing: ease, fill: 'backwards' });
+    a.id = 'ph-modes-in'; runs.push(a);
+  }
+  if (desc) {
+    const a = desc.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 220, easing: 'ease-out', fill: 'backwards' });
+    a.id = 'ph-modes-in'; runs.push(a);
+  }
+  const done = () => { if (!bar.getAnimations?.({ subtree: true }).some((x) => x.id === 'ph-modes-in' && x.playState === 'running')) bar.style.clipPath = ''; };
+  runs.forEach((r) => { r.onfinish = done; r.oncancel = done; });
+  if (!runs.length) bar.style.clipPath = '';
+}
+
 export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeProps) {
   const confirmPracticeSetup = useGame((s) => s.confirmPracticeSetup);
   const startGauntlet = useGame((s) => s.startGauntlet);
@@ -433,7 +458,10 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // Covered by a page, the home takes no focus.
   useLayoutEffect(() => { rootRef.current?.toggleAttribute('inert', pageOpen); }, [pageOpen]);
   // A layout effect: the replay is committed before the first paint, so the stage never shows at full opacity first.
-  useLayoutEffect(() => { if (wasPaged.current && !pageOpen) setEnterKey((k) => k + 1); wasPaged.current = pageOpen; }, [pageOpen]);
+  useLayoutEffect(() => {
+    if (wasPaged.current && !pageOpen) { setEnterKey((k) => k + 1); slideModesIn(modesRef.current); }
+    wasPaged.current = pageOpen;
+  }, [pageOpen]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sideTab, setSideTab] = useState<'friends' | 'settings' | 'rooms'>(() => (modeHasSettings(modeId) ? 'settings' : 'friends'));

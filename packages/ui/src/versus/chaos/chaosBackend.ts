@@ -43,7 +43,7 @@ export interface ServerSnap {
   pausedSeat: string | null;
   pausedAt: string | null;
   resumeAt: string | null;
-  seats: { seat: string; user: string; name: string; locked: boolean; lockedAt: number | null; health: number | null; armor: number | null; placement: number | null; eliminated: number | null; team: string | null; auto: boolean }[];
+  seats: { seat: string; user: string; name: string; locked: boolean; lockedAt: number | null; health: number | null; armor: number | null; placement: number | null; eliminated: number | null; team: string | null; auto: boolean; left?: boolean }[];
   teams: { team: string; health: number | null; armor: number | null; placement: number | null; eliminated: number | null }[];
 }
 

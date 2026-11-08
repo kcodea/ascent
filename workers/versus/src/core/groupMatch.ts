@@ -43,6 +43,8 @@ export const teamOf = (seat: GSeat): GTeamId => (seat === 'p1' || seat === 'p2' 
 export const mateOf = (seat: GSeat): GSeat => ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[seat];
 export const teamSeats = (team: GTeamId): [GSeat, GSeat] => (team === 'a' ? ['p1', 'p2'] : ['p3', 'p4']);
 /** Passes a seat may send per round (`VERSUS_DUOS_PASS_CAP`), and a passed card's size cap. */
+/** A closed socket is given this long to come back before its seat counts as gone (a reload, a network hand-over). */
+export const DISCONNECT_GRACE_MS = 3_000;
 export const DUOS_PASS_CAP = 10;
 const PASS_CARD_BYTES = 16_384;
 /**
@@ -1049,8 +1051,21 @@ export class GroupEngine {
     if (this.h.now() < (m.pause_grace_until ?? 0)) this.h.fail('grace_running');
     this.row(m.paused_seat!).auto = true;
     this.h.event('auto_on', { seat: m.paused_seat });
+    // R-VERSUS-GROUP-UNPAUSE-01: ONE unpause covers every absence whose own 30 s grace is over (two players who dropped
+    // together). Before, the match re-paused on the next absent player at once, with a fresh 30 s grace, and nobody could
+    // play until a second unpause. A player gone for less keeps the rest of their own grace (the re-pause below).
+    for (const s of this.stillIn()) {
+      if (s.auto || s.seat === seat || !this.h.userGone(s.user_id) || this.graceEndOf(s.user_id) > this.h.now()) continue;
+      s.auto = true;
+      this.h.event('auto_on', { seat: s.seat, with: m.paused_seat });
+    }
     m.resume_at = this.h.now() + RESUME_COUNTDOWN_MS;
     this.touch();
+  }
+
+  /** When `userId`'s pause grace ends: 30 s from the moment they counted as gone (their socket's close + its 3 s). */
+  protected graceEndOf(userId: string): number {
+    return this.h.now() - this.h.goneFor(userId) + DISCONNECT_GRACE_MS + VERSUS_PAUSE_GRACE_SECONDS * 1000;
   }
 
   requestResume(userId: string): void {
@@ -1154,7 +1169,11 @@ export class GroupEngine {
       } else return;
     }
     if (gone.length) {
-      m.paused_seat = gone[0]!; m.paused_at = now; m.pause_grace_until = now + VERSUS_PAUSE_GRACE_SECONDS * 1000; m.resume_at = null;
+      // The grace runs from when THIS player went (R-VERSUS-GROUP-UNPAUSE-01): a seat that has been gone through another
+      // seat's pause is not given a fresh 30 s on top (never past now + 30 s, never before now).
+      const first = this.row(gone[0]!);
+      m.paused_seat = first.seat; m.paused_at = now; m.resume_at = null;
+      m.pause_grace_until = Math.max(now, Math.min(now + VERSUS_PAUSE_GRACE_SECONDS * 1000, this.graceEndOf(first.user_id)));
       this.h.event('pause', { seat: m.paused_seat, phase: m.phase });
       this.touch();
       return;

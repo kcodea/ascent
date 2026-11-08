@@ -39,6 +39,7 @@ import {
 } from '../reactTargets';
 import { EASES, EASE_IDS, amplitudeAt, keyframesFor } from '../reactMotion';
 import { claimStat, releaseStat, revealStat } from '../statHold';
+import { claimPopSlot, type PopSlot } from '../popStack';
 
 
 const SPECS = {
@@ -191,6 +192,10 @@ interface Beat {
   last: number;
   /** The whole card this beat pops, while its pop holds a `claimPop` (released when the pop ends). */
   claimed: HTMLElement | null;
+  /** The element this beat animates — the key for its stacking slot. */
+  el: HTMLElement;
+  /** Its place in the element's pop stack (`popStack.ts`), taken when the motion actually starts. */
+  slot: PopSlot | null;
 }
 
 /**
@@ -257,7 +262,7 @@ class ReactInstance implements FxInstance<ReactParams> {
         anim.pause(); // the player owns the clock — see the module header
         const whole = p.part === 'card' ? el : null;
         if (whole) claimPop(whole);
-        this.beats.push({ anim, at: land.at, duration: p.hold, last: Number.NaN, claimed: whole });
+        this.beats.push({ anim, at: land.at, duration: p.hold, last: Number.NaN, claimed: whole, el, slot: null });
       }
       if (p.carries) {
         // CLAIM before scheduling, because from here on this layer is the only clock allowed on that
@@ -281,8 +286,15 @@ class ReactInstance implements FxInstance<ReactParams> {
       const t = Math.min(Math.max(this.localMs - b.at, 0), b.duration);
       if (t === b.last) continue;
       b.last = t;
-      b.anim.currentTime = t;
-      if (t >= b.duration && b.claimed) { releasePop(b.claimed); b.claimed = null; }
+      // At most two pops stack on one element (R-BADGE-POP-STACK-01): the motion takes a slot as it starts,
+      // and a newer pop on the same element may push it out. An evicted animation is left cancelled — writing
+      // `currentTime` again would revive it.
+      if (t > 0 && t < b.duration && b.slot === null) b.slot = claimPopSlot(b.el, b.anim);
+      if (!b.slot?.evicted) b.anim.currentTime = t;
+      if (t >= b.duration) {
+        b.slot?.release();
+        if (b.claimed) { releasePop(b.claimed); b.claimed = null; }
+      }
     }
     // The counter. A 0-length spin is the original single release; anything longer walks the reveal so the
     // digits step from the old value to the new one on this same clock — which means combat speed and
@@ -303,6 +315,7 @@ class ReactInstance implements FxInstance<ReactParams> {
   private cancelAll(): void {
     for (const b of this.beats) {
       b.anim.cancel();
+      b.slot?.release();
       if (b.claimed) { releasePop(b.claimed); b.claimed = null; }
     }
   }

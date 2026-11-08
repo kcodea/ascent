@@ -500,6 +500,12 @@ npm run perf:gauntlet -- --round-probe --round-scenes --from 2 --to 14 --headles
                                               # matching reads through (GET); --allow-write <regex>: the only writes that pass.
                                               # From Git Bash set MSYS_NO_PATHCONV=1, or a regex starting with "/" is
                                               # rewritten into a Windows path.
+                                              # --phone: the page is an iPhone in landscape (852 x 393 @3x, iOS UA, touch,
+                                              # coarse pointer, standalone), so the REAL phone path runs (lite art + its
+                                              # decoded-image LRU, phone layout) and clicks / drags are touch events. With
+                                              # --cpu-throttle 5 --headless it is the phone late-game run (2026-11-08);
+                                              # CHROME_PATH=<Playwright chrome-headless-shell.exe>. Probes add `shownMB`:
+                                              # the decoded size of the distinct pictures on screen.
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
 ```
 

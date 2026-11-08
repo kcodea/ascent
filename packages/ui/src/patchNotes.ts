@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-08',
     changes: [
       { category: 'Systems', text: 'Hero select: on a hover, the top of the Hero Power art fades from navy so the Health and Armor are easy to read.' },
+      { category: 'Systems', text: 'Fixed: Attack and Health medallions no longer swell huge when lots of buffs land at once. They still bounce on every change.' },
+      { category: 'Systems', text: 'Fixed: End of Turn Ruby and buff animations no longer fly to cards in your hand that they did not change.' },
+      { category: 'Systems', text: 'Fixed: Watch in the friends chat window now takes you into your friend\'s game.' },
+      { category: 'Systems', text: 'The "update downloaded" notice is bigger and sits under the START button.' },
       { category: 'Systems', text: 'Match History: a Shop buffs button shows the buffs your Shop minions were getting when the game ended, and where they came from.' },
       { category: 'Systems', text: 'Settings has a Save and Quit Match button in a game, right above Quit game. Press it twice to save and return to the menu.' },
       { category: 'Systems', text: 'Hero select: hovering a hero still shows its Health and Armor at the top of the banner.' },
@@ -67,9 +71,20 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Press Escape on any screen to open Settings, in a game too; press it again to close it. Anything already open closes first.' },
       { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
+      { category: 'Systems', text: 'Versus Group and Duos: when two players drop at once, one Unpause now covers both, so the game goes on right away.' },
+      { category: 'Systems', text: 'Versus: a reconnect that stalls on a weak network is retried after a few seconds instead of leaving your screen frozen.' },
       {
         category: 'Balance',
         text: 'Braum: Investment now pays out after investing 4 (was 5).',
+      },
+      {
+        category: 'Balance',
+        text: 'Rune of the Empty Plate: every Consume now counts toward its Shop spell, not only Fodder.',
+        details: [
+          'A Demon eating a Shop minion counts, so the rune now works with Set 2 Demons.',
+          'The Starform eating a Shop minion, a Demon eating the Starform, and a Celestial taking the Starform when you buy it all count.',
+          'Progress carries over from turn to turn.',
+        ],
       },
     ],
   },

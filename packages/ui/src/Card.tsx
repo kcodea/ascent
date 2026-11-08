@@ -21,6 +21,7 @@ import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
+import { claimPopSlot, type PopSlot } from './fx/popStack';
 import { publicArt } from './phoneArt';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
@@ -54,6 +55,7 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
   /** The value as of the last frame that actually reached the screen — see the rAF below. */
   const painted = useRef(value);
   const anim = useRef<Animation | null>(null);
+  const slot = useRef<PopSlot | null>(null);
   const raf = useRef(0);
   // A Duos teammate swap (R-DUOS-VIEW-NOREMOUNT-01) is not a change of this badge: the other screen's card with the same
   // uid just took over the component. Its number is adopted silently.
@@ -83,13 +85,20 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
       if (el === null) return;
       // Cancel before re-launching. WAAPI animations under `composite: 'add'` ACCUMULATE, and a roll
       // changes the number every few frames — a dozen live pops on one badge would scale it off the card.
+      slot.current?.release(); // free it now: the cancel event lands a frame later, after the claim below
       anim.current?.cancel();
       try {
-        anim.current = el.animate([
+        const a = el.animate([
           { transform: 'scale(1)' },
           { transform: `scale(${BADGE_POP_SCALE})`, offset: 0.35 },
           { transform: 'scale(1)' },
         ], { duration: BADGE_POP_MS, easing: 'ease-out', composite: 'add' });
+        anim.current = a;
+        // Shared with the `react` layer's badge pops (a Ruby gem): at most two scales stack on this badge.
+        const claimed = claimPopSlot(el, a);
+        slot.current = claimed;
+        a.addEventListener('finish', claimed.release);
+        a.addEventListener('cancel', claimed.release);
       } catch { /* WAAPI composite unsupported: skip the pop rather than clobber the badge's transform */ }
     });
     return () => cancelAnimationFrame(raf.current);

@@ -660,6 +660,9 @@ export class CfChaosServer implements ChaosBackend {
 
   // ── sockets ───────────────────────────────────────────────────────────────────────────────────────────────────
   connectSocket(ws: FakeCfWebSocket): void {
+    // A user with no network in THIS scenario is a client left over from an earlier one (e.g. seat 3 of a 4 player cell,
+    // still reconnecting after its long drop, inside a 1v1 cell): closed for good so it stops, never swept.
+    if (!this.nets.has(ws.user)) { setTimeout(() => { ws.fire('error'); ws.closed(VERSUS_CF_CLOSE.roomClosed, 'no_room'); }, 5); return; }
     this.sockets.add(ws);
     const net = ws.net;
     if (net.state.offline) { this.after(5, () => { ws.fire('error'); ws.closed(1006, 'offline'); }); return; }
@@ -816,6 +819,8 @@ export class CfChaosServer implements ChaosBackend {
       seats: [...m.seats].sort((a, b) => a.seat.localeCompare(b.seat)).map((x) => ({
         seat: x.seat, user: x.user_id, name: x.name, locked: !!x.locked, lockedAt: x.locked ? x.locked_at ?? null : null, health: x.health, armor: x.armor, placement: x.placement,
         eliminated: x.eliminated_round, team: x.team ?? null, auto: !!x.auto,
+        // RANKED DUOS: a live player who conceded (or left) is out of the party for good, on auto (R-RANKED-DUOS-CONCEDE-01).
+        ...((x as { left_at?: unknown }).left_at != null ? { left: true } : {}),
       })),
       teams: (st.group?.ranked?.teams ?? m.teams ?? []).map((x) => ({ team: x.team, health: x.health ?? null, armor: x.armor ?? null, placement: x.placement, eliminated: x.eliminated_round })),
     };

@@ -2812,4 +2812,24 @@ export const RUNES_RULES: GameRule[] = [
     example: 'Six minions plus Living Echoes: one Sunmane arrives at once. Each later death opens a slot and the next Sunmane arrives, three in total.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeBatch10.test.ts'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-EMPTY-PLATE-CONSUME-01',
+    title: 'Rune of the Empty Plate counts every Consume',
+    statement:
+      'Every minion Consumed ticks the Empty Plate once: a Fodder eaten, a Shop minion eaten by a Demon, the Starform '
+      + 'eating a Shop minion, a Demon eating the Starform, and a Celestial consuming the Starform on the buy. A Gilded '
+      + 'double-stat eat is still one minion. A Starform buy with no receiver consumes into nothing and does not count. '
+      + 'Progress is banked across turns.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-11-08', quote: '"consume" is consuming fodder/starform consumption/regular shop consumes' },
+      { kind: 'fix-pr', ref: 'PR fix/empty-plate-any-consume (2026-11-08): the consume meter also ticks in consumeShopOffer, consumeStarform and Fodder Treatment' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts noteFodderConsumed / consumeShopOffer / spellSellToDemon; packages/sim/src/starform.ts consumeStarform' },
+    ],
+    contentIds: ['rune_empty_plate'],
+    currentBehaviour: 'Conforms as of 2026-11-08. Before, only Fodder ticked the meter, so in Set 2 (every Demon eats Shop minions) the rune never paid.',
+    example: 'A Demon that eats the right-most Shop minion at End of Turn: one this turn, one next turn, and the second hands you a Shop spell.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/emptyPlateConsume.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

@@ -63,6 +63,10 @@
  *   npm run perf:gauntlet -- --round-scenes --from 2 --to 14   tag every measured scene with its round (shop-actions#r11)
  *                                                  and write <out>/raw-run*.json, so one scene can be read round over round
  *   npm run perf:gauntlet -- --cpu-throttle 4         Chrome CPU throttling (DevTools' 4x: a mid-range phone's main thread)
+ *   npm run perf:gauntlet -- --phone --cpu-throttle 5 --headless   the page is an iPhone in landscape (852 x 393 @3x, iOS UA,
+ *                                                  touch, coarse pointer, standalone): the real phone path (lite art, phone
+ *                                                  layout), taps and drags as TOUCH events. CHROME_PATH may point at
+ *                                                  Playwright's chrome-headless-shell (never the owner's own browser).
  *   npm run perf:gauntlet -- --css "<rules>"         inject CSS (test what a CSS change would buy before making it)
  *   npm run perf:gauntlet -- --init-js "<code>"      run JS before any page script (stub an API to A/B what it costs, e.g.
  *                                                  createConvolver for the reverb memory hunt, docs/performance.md §3m)
@@ -164,7 +168,15 @@ const ALLOW_NET = arg('allow-net', '') ? new RegExp(arg('allow-net')) : null;
 const ALLOW_WRITE = arg('allow-write', '') ? new RegExp(arg('allow-write')) : null;
 const netAllowed = (req) => !!ALLOW_NET && ALLOW_NET.test(req.url) && (/^(GET|HEAD|OPTIONS)$/.test(req.method) || (!!ALLOW_WRITE && ALLOW_WRITE.test(req.url)));
 const ONLY_SCENES = arg('scenes', '') ? new Set(arg('scenes', '').split(',')) : null;
-const W = 1920; const H = 1080;
+// --phone (2026-11-08, phone late-game hunt): the page is an iPhone in landscape instead of a 1920 x 1080 desktop:
+// 852 x 393 CSS px at DPR 3, mobile, iOS UA (so LITE_ART and the phone layout switch on by themselves, no --lite-art
+// needed), touch + coarse pointer + no hover, standalone. Clicks and drags become real TOUCH events
+// (Input.dispatchTouchEvent); the hover sweep stays mouse moves (a phone cannot hover; they are a no-op input there).
+// Pair it with --cpu-throttle 4..6 for a phone's main thread.
+const PHONE = flag('phone');
+const W = PHONE ? 852 : 1920; const H = PHONE ? 393 : 1080;
+const DPR = PHONE ? Number(arg('dpr', '3')) : 1;
+const PHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const SCENES = ['title', 'heroselect', 'run-start', 'shop-idle', 'reroll', 'drag', 'shop-actions', 'end-turn', 'combat', 'return'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -383,8 +395,10 @@ function driver(c) {
   const visible = (sel) => ev(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => x.getClientRects().length > 0); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, disabled: !!e.disabled }; })()`);
   const byText = (txt) => ev(`(() => { const e = [...document.querySelectorAll('button,[role=button],.btn,a')].find((x) => x.getClientRects().length > 0 && (x.innerText || '').trim().toUpperCase() === ${JSON.stringify(txt.toUpperCase())}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   const mouse = (type, p, extra = {}) => c.send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, ...extra });
+  const touch = (type, p) => c.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: p.x, y: p.y, id: 1, radiusX: 4, radiusY: 4, force: 1 }] });
   const click = async (p) => {
     if (!p || p.disabled) return false;
+    if (PHONE) { await touch('touchStart', p); await sleep(60); await touch('touchEnd', p); return true; }
     await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y });
     await sleep(40);
     await mouse('mousePressed', p); await sleep(40); await mouse('mouseReleased', p);
@@ -393,6 +407,13 @@ function driver(c) {
   /** A hand drag: ~one move per 8 ms over `ms`, with a sideways wander, as a player's mouse would. */
   const drag = async (from, to, ms = 700) => {
     if (!from || !to) return false;
+    if (PHONE) {
+      await touch('touchStart', from); await sleep(60);
+      const steps = Math.max(8, Math.round(ms / 16));
+      for (let i = 1; i <= steps; i++) { const k = i / steps; await touch('touchMove', { x: from.x + (to.x - from.x) * k + Math.sin(k * 10) * 12, y: from.y + (to.y - from.y) * k }); await sleep(16); }
+      await touch('touchEnd', to); await sleep(900);
+      return true;
+    }
     await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y });
     await sleep(30);
     await mouse('mousePressed', from);
@@ -707,7 +728,12 @@ async function playScenes(c) {
     })()`).catch((e) => 'err ' + e);
     live.store = await d.ev(`(() => { const st = window.__bench.store.getState(); const size = (v) => { try { return JSON.stringify(v)?.length || 0; } catch { return -1; } }; const top = Object.entries(st).filter(([, v]) => typeof v !== 'function').map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8); const run = st.run ? Object.entries(st.run).map(([k, v]) => [k, size(v)]).sort((a, b) => b[1] - a[1]).slice(0, 8) : []; return { top, run }; })()`).catch(() => null);
     // Images: distinct image URLs fetched so far and their encoded KB (the decoded-image working set grows with it).
-    live.imgs = await d.ev(`(() => { const r = performance.getEntriesByType('resource').filter((e) => /[.](png|webp|jpe?g|avif|svg)([?]|$)/.test(e.name)); return { urls: new Set(r.map((e) => e.name)).size, kb: Math.round(r.reduce((n, e) => n + (e.decodedBodySize || 0), 0) / 1024), live: document.images.length }; })()`).catch(() => null);
+    // shownMB (2026-11-08): the decoded size (w x h x 4) of the DISTINCT pictures complete <img>s show right now, the
+    // working set a phone must keep decoded at once; growing with the round while the screen holds the same cards
+    // would be a leak of shown art, not a bigger board.
+    live.imgs = await d.ev(`(() => { const r = performance.getEntriesByType('resource').filter((e) => /[.](png|webp|jpe?g|avif|svg)([?]|$)/.test(e.name));
+      const shown = new Map(); for (const im of document.images) { if (im.complete && im.naturalWidth && im.getClientRects().length) shown.set(im.currentSrc || im.src, im.naturalWidth * im.naturalHeight * 4); }
+      return { urls: new Set(r.map((e) => e.name)).size, kb: Math.round(r.reduce((n, e) => n + (e.decodedBodySize || 0), 0) / 1024), live: document.images.length, shown: shown.size, shownMB: Math.round([...shown.values()].reduce((n, x) => n + x, 0) / 1048576 * 10) / 10 }; })()`).catch(() => null);
     if (IMG_CENSUS) {
       // ReportEvents delivers only on Tracing.end: end this round's decode trace (its events land in the counters), then
       // start the next round's.
@@ -784,13 +810,13 @@ async function playScenes(c) {
       [...document.querySelectorAll('[data-tip]')].filter((e) => e.getClientRects().length).slice(0, 8).forEach(add);
       return pts; })()`);
     await mark('hover');
-    let last = { x: 960, y: 540 };
+    let last = { x: W / 2, y: H / 2 };
     for (const t of targets) {
       for (let k = 1; k <= 8; k++) { await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: last.x + (t.x - last.x) * k / 8, y: last.y + (t.y - last.y) * k / 8 }); await sleep(12); }
       last = t; res.hover++;
       await sleep(350);
     }
-    await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 960, y: 1060 });
+    await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: W / 2, y: H - 20 });
     await sleep(400);
     // ACTIONS: three cycles of [make board room] -> roll -> buy the first minion -> play it -> sell it. The run is
     // snapshotted first and PUT BACK after (an unmeasured commit), so the game the walk plays is unchanged and a full
@@ -974,7 +1000,12 @@ async function measureOnce(dist, runIdx) {
     if (arg('css', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(arg('css', ''))}; document.head.appendChild(s); });` });
     // --init-js "<code>": run before any page script (test what a JS change would buy, or stub an API, before changing the source).
     if (arg('init-js', '')) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: arg('init-js') });
-    await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    if (PHONE) {
+      await c.send('Emulation.setUserAgentOverride', { userAgent: PHONE_UA, platform: 'iPhone' });
+      await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: DPR, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } });
+      await c.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+      await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'hover', value: 'none' }, { name: 'pointer', value: 'coarse' }, { name: 'any-hover', value: 'none' }, { name: 'any-pointer', value: 'coarse' }, { name: 'display-mode', value: 'standalone' }] });
+    } else await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
     // --cpu-throttle N: Chrome's CPU throttling (4 = DevTools' "4x slowdown", a mid-range phone's main thread).
     if (Number(arg('cpu-throttle', '0')) > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: Number(arg('cpu-throttle')) });
     await c.send('Page.bringToFront').catch(() => {});

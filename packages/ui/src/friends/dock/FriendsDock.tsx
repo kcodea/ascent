@@ -344,7 +344,11 @@ function BlockedRow({ c }: { c: FriendCard }): JSX.Element {
 }
 
 /** Watch (when their game can be watched) and Invite (when I am in an open Versus room): the old Friends page's rules. */
-export function FriendActions({ f, compact }: { f: Friend; compact?: boolean }): JSX.Element | null {
+export function FriendActions({ f, compact, onWatch }: {
+  f: Friend; compact?: boolean;
+  /** Run by Watch after the watch has started (the unpinned chat window closes itself here, R-DM-WATCH-01). */
+  onWatch?: () => void;
+}): JSX.Element | null {
   const inviteRoom = useVersus((s) => (s.room && s.room.status === 'open' ? versusRoomRef(s.room) : null));
   const inviteKind = useVersus((s) => (s.room?.options?.mode === 'ranked_duos' ? 'duos_party' as const : 'versus_room' as const));
   const busy = useFriends((s) => !!s.busy[`invite:${f.userId}`]);
@@ -363,7 +367,7 @@ export function FriendActions({ f, compact }: { f: Friend; compact?: boolean }):
       {watchable && (
         <button type="button" className={`lb-btn pressable fr-small${playing ? ' gtip' : ''}`} disabled={playing}
           data-tip={playing ? FINISH_FIRST : undefined} aria-label={playing ? `Watch ${handleOf(f)}. ${FINISH_FIRST}` : `Watch ${handleOf(f)}`}
-          onClick={(e) => { e.stopPropagation(); sfx.pulse(); closeDock(); void runFriendMenu('spectate', f); }}>
+          onClick={(e) => { e.stopPropagation(); sfx.pulse(); closeDock(); void runFriendMenu('spectate', f); onWatch?.(); }}>
           <Icon name="eye" />Watch
         </button>
       )}

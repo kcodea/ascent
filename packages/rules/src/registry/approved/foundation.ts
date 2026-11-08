@@ -11290,6 +11290,45 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientWake.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
+    id: 'R-VERSUS-CF-HANDSHAKE-01',
+    title: 'Versus on Cloudflare: a reconnect that never finishes its handshake is replaced within 8 s',
+    statement:
+      'Every room socket must complete its upgrade AND get the room\x27s hello answer within 8 s of being opened; otherwise the client '
+      + 'drops it and reconnects on its ordinary backoff. Requests queued behind it are sent on the replacement. This covers the gap '
+      + 'before the keep-alive starts (the 5 s ping and the 15 s stale check only run once the hello is answered), so a reconnect '
+      + 'whose upgrade or hello was lost can never sit half-open with the player frozen on screen. A healthy handshake is never cut.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (VERSUS_CF_HANDSHAKE_MS, the handshake timer in open())' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Before, the hello timer only forgot the hello: the socket stayed not-ready with no keep-alive, every request timed out behind it, and nothing ever replaced it until the browser itself closed the dead TCP connection.',
+    example: 'Bob\x27s phone switches from wifi to mobile data just as his socket reconnects; the upgrade goes through but the hello answer is lost. 8 s later the client drops that socket and opens a new one, which answers at once; his queued End Turn goes out on it.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientHandshake.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-UNPAUSE-01',
+    title: 'Versus Group / Duos: one Unpause covers every absent player whose own grace is over',
+    statement:
+      'In a 3-4 player Versus match (Group or Duos), an Unpause puts on auto the player the match is paused on AND every other player '
+      + 'still in who is gone and whose own 30 s grace is over (30 s from when they counted as gone: their socket\x27s close plus the 3 s '
+      + 'reconnect window). When the match then pauses on a player who is still gone, the grace it shows runs from when THAT player went '
+      + '(never more than 30 s from now): someone already absent through another player\x27s pause gets no fresh 30 s on top. '
+      + 'Coming back still clears auto for each player on their own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'jank especially in 2v2' },
+      { kind: 'code', ref: 'workers/versus/src/core/groupMatch.ts (unpause, graceEndOf, reconcile)' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Found by the chaos cell twoGone: before, two players who dropped together cost the others a 30 s pause, an Unpause, a 3-2-1 and then a SECOND fresh 30 s pause on the other absent player; with no second Unpause the match sat paused (the harness timed out at round 2).',
+    example: 'A Duos match: Cat and Dan share a router that dies in round 2. The match pauses on Cat. 30 s later Ann presses Unpause: Cat and Dan both play on auto, and the shop runs again after the 3-2-1. Dan comes back in round 4 and plays on from where the match is.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/groupCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
     id: 'R-EGRESS-02',
     title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
     statement:
@@ -14400,5 +14439,83 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'main screen did nothing, and in a game Escape slid in the in-game menu (R-ESC-SIDEBAR-01) without opening Settings.',
     example: 'On Collection Ann presses Escape: Settings opens over Collection, and Escape again puts her back on Collection. Mid-shop she presses Escape: Settings opens over her dimmed board; Escape again and she is back in the Shop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escOpensSettings.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-UPDATE-NOTICE-PLACE-01',
+    title: 'The "update downloaded" notice sits under START, centred on it',
+    statement:
+      'When the desktop app has downloaded an update, the notice that says so appears just under the START button, centred on '
+      + 'START, in large text, and stays fully on screen. Where there is no START button it sits at the top centre of the screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the v0.2.4 notice', quote: 'this needs to be larger put it below the start button and amek it centered with the start nd play button center' },
+      { kind: 'fix-pr', ref: 'feat/update-notice-under-start: packages/ui/src/UpdateReadyNotice.tsx (updateNoticePlace), packages/ui/src/updatedPanel.css (.updnotice)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/update-notice-under-start): the notice measures .ph-start and places itself under it, centred, clamped to the screen; 20 px text (was 14 px). Before this it was a small top-centre toast.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-DM-WATCH-01',
+    title: 'Watch in the chat window watches the friend\'s game',
+    statement:
+      'Pressing Watch on a friend in the chat window takes me into watching their game, exactly as Watch in Live Games or the '
+      + 'friends list does. An unpinned chat window closes as it goes; a pinned one stays up. Closing the window must never stop '
+      + 'the press from starting the watch.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08', quote: 'clicking watch game from the friends chat box doesnt work. it works from live games though' },
+      { kind: 'fix-pr', ref: 'fix/chat-watch-button: packages/ui/src/friends/dm/ChatWindow.tsx (no capture-phase close), packages/ui/src/friends/dock/FriendsDock.tsx (FriendActions onWatch)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (fix/chat-watch-button). Before, the unpinned window closed in an onClickCapture on the actions row; a real click lets React re-render between the capture and bubble phases, so the button unmounted and its Watch never ran (jsdom clicks do not show it, which is why the old test passed).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-BADGE-POP-STACK-01',
+    title: 'A stat medallion bounces on every change but never stacks more than two bounces',
+    statement:
+      'Every change to a stat medallion bounces it, in the shop and in combat, from every source (the number changing, '
+      + 'a Ruby gem landing, any authored effect that pops the badge). At most two bounces are live on one medallion at the '
+      + 'same moment: when a third starts, the oldest stops, so a fast run of buffs can never grow the medallion past two '
+      + 'bounces stacked.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-11-08 (Medal clip of a Round 16 replay)',
+        quote: 'can we cap the overall amount that they can grow? i want them to bounce every time, but it shouldnt stack on top of each other more than 2 times',
+      },
+      { kind: 'fix-pr', ref: 'fix/badge-pop-stack-cap (2026-11-08)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/popStack.ts (claimPopSlot); packages/ui/src/Card.tsx (useBadgePop); packages/ui/src/fx/primitives/react.ts (seek)' },
+    ],
+    example: 'A board of Kobolds taking a stream of Rubies in combat: each gem used to start its own 1.35x pop from the Ruby effect AND from the number change, all multiplying, so the medallions swelled to several times their size. Now each gem still bounces the medallion, and it never carries more than two bounces at once.',
+    currentBehaviour:
+      'Conforms from 2026-11-08 (fix/badge-pop-stack-cap). Before, the card cancelled only its own previous number-change pop; '
+      + 'the Ruby gem effect (ruby-gem-apply, a react layer on the badges) stacked additively on top without limit.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/popStack.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  // ── End of Turn never aims Ruby / stat FX at an untouched hand card (owner report 2026-11-08) ──────────────
+  {
+    id: 'R-HANDFX-02',
+    title: 'An End-of-Turn effect plays its Ruby and stat FX only on the cards it actually changed',
+    statement:
+      'When an End-of-Turn effect resolves, its Ruby burst and stat cue (tribe tendril, stat gain) play only on the '
+      + 'minions whose Rubies or stats that effect really changed. A card in hand that already carries a Ruby, or any '
+      + 'other card the effect does not touch, shows nothing, for every card, rune, quest or hero.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-08 (Medal clip, Round 16 replay)', quote: 'you can see the end of turn how the animation is wrongfully targetting units in hand' },
+      { kind: 'fix-pr', ref: 'fix/eot-hand-streak: packages/sim/src/recruit.ts (the trigger snapshot counts Rubies before the trigger on board AND hand)' },
+    ],
+    example: 'Two Assemblers at End of Turn, with a Dawnclaw in hand that got a Ruby earlier: Rubies land on the board Kobolds; the Dawnclaw shows no gem burst and no tendril.',
+    currentBehaviour:
+      'Conforms from 2026-11-08 (fix/eot-hand-streak). Before, the End-of-Turn consequence snapshot counted Rubies on the '
+      + 'board only but compared after on board and hand, so every trigger (and every repeat of it) emitted a fake '
+      + 'rubyPlayed plus a cancelling statsChanged on each hand card already carrying a Ruby. Stats never changed; only '
+      + 'the FX streaked to the hand. This is the case R-HANDFX-01 left open.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/eotHandRubyEmission.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
 ];

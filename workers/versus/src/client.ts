@@ -42,6 +42,13 @@ export interface WebSocketLike {
 }
 export type WebSocketFactory = (url: string, protocols: string[]) => WebSocketLike;
 
+/**
+ * The longest one socket may take from its upgrade to the room's hello answer (R-VERSUS-CF-HANDSHAKE-01). The keep-alive
+ * only starts after the hello, so without this a reconnect whose upgrade or hello was lost (a phone changing networks
+ * as it comes back) sat half-open for good: never ready, never replaced, every request timing out behind it.
+ */
+export const VERSUS_CF_HANDSHAKE_MS = 8_000;
+
 export class VersusCfError extends Error {
   constructor(public readonly code: string) {
     super(code);
@@ -225,6 +232,15 @@ export class VersusCfClient {
     const url = this.o.baseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + (this.o.path ?? versusCfSocketPath(this.o.roomId));
     const ws = this.o.ws(url, [VERSUS_CF_SUBPROTOCOL, VERSUS_CF_BEARER_PREFIX + token]);
     this.ws = ws;
+    // R-VERSUS-CF-HANDSHAKE-01: the upgrade and the hello must finish in time, or this socket is dropped and replaced
+    // (the keep-alive below only starts once the hello is answered).
+    let handshake: unknown = this.setTimer(() => {
+      handshake = null;
+      if (this.ws !== ws || this.ready || this.closed) return;
+      this.downCurrent?.(4002, 'handshake');
+      try { ws.close(4002, 'handshake'); } catch { /* never opened */ }
+    }, VERSUS_CF_HANDSHAKE_MS);
+    const handshakeDone = (): void => { if (handshake != null) { this.clearTimer(handshake); handshake = null; } };
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
       this.lastPong = Date.now();
@@ -235,6 +251,8 @@ export class VersusCfClient {
       const timer = this.setTimer(() => this.pending.delete(id), this.o.requestTimeoutMs ?? 15_000);
       this.pending.set(id, {
         resolve: (data) => {
+          if (this.ws !== ws) return; // a late answer on a socket already replaced
+          handshakeDone();
           this.ready = true;
           this.attempt = 0;
           if (this.o.onHello) this.o.onHello(data);
@@ -278,6 +296,7 @@ export class VersusCfClient {
     });
     const down = (code?: number, reason?: string): void => {
       if (this.ws !== ws) return;
+      handshakeDone();
       this.ws = null;
       this.ready = false;
       if (this.pingTimer != null) { this.clearTimer(this.pingTimer); this.pingTimer = null; }

@@ -18,7 +18,7 @@
  */
 import { useEffect } from 'react';
 import { MenuSidebar } from './MenuSidebar';
-import { anyPageOpen, inGameScreen, useGame } from './store';
+import { PAGES_CLOSED, anyPageOpen, inGameScreen, useGame } from './store';
 import { sfx } from './sfx';
 import { phBack, phInLayer, phOwnsBack } from './partyHome/shell/phHistory';
 import { usePartyHome } from './partyHome/partyHomeFlag';
@@ -35,34 +35,70 @@ export function escapeHasOwner(st: ReturnType<typeof useGame.getState>): boolean
   return !!(st.showBook || st.gameMenuOpen || st.settingsOpen || st.showPatchNotes || st.inspect);
 }
 
-/** THE ESCAPE KEY (Game.tsx's one listener). The Compendium closes first; then an open in-game menu closes (with any page
- *  it opened, Patch Notes included), or an open Settings / Patch Notes page on the menus; a card being inspected claims
- *  Esc itself; else the menu opens. */
+/** Settings opened by Escape in a game: closing it goes straight back to the game, not to the in-game menu under it. Ends
+ *  when the menu closes by any route (GameMenu below). */
+let escSettingsInGame = false;
+
+/** Closing a page opened over a game: Settings that Escape opened takes the in-game menu with it (R-ESC-SETTINGS-01). */
+export function closeInGamePageState(): Partial<ReturnType<typeof useGame.getState>> {
+  const st = useGame.getState();
+  const toGame = escSettingsInGame && st.settingsOpen;
+  escSettingsInGame = false;
+  return toGame ? { ...PAGES_CLOSED, gameMenuOpen: false } : { ...PAGES_CLOSED };
+}
+
+/** ESCAPE OPENS SETTINGS ON EVERY SCREEN (owner 2026-11-07, R-ESC-SETTINGS-01): the home, every page, and in a game, where it
+ *  is the Settings page over the dimmed game (the in-game menu's own Settings page). */
+export function openSettingsFromEscape(): void {
+  const st = useGame.getState();
+  if (st.showBook) st.closeBook();
+  if (inGameScreen(st)) {
+    escSettingsInGame = true;
+    useGame.setState({ ...PAGES_CLOSED, gameMenuOpen: true, settingsOpen: true });
+    return;
+  }
+  st.openSettings();
+}
+
+/** Typing in a field: Esc lets go of the field and opens nothing. */
+function escTyping(): boolean {
+  if (typeof document === 'undefined') return false;
+  const el = document.activeElement;
+  const typing = el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
+    || (el instanceof HTMLInputElement && !['button', 'checkbox', 'radio', 'range', 'submit', 'reset', 'color', 'file'].includes(el.type));
+  if (!typing) return false;
+  (el as HTMLElement).blur();
+  return true;
+}
+
+/** THE ESCAPE KEY (Game.tsx's one listener). Whatever is open on top closes first (a layer, a dropdown, a window, the
+ *  Compendium, Settings itself, the in-game menu with any page it opened); a card being inspected claims Esc itself;
+ *  typing in a field only lets go of it; else Settings opens, on every screen (R-ESC-SETTINGS-01). */
 export function handleEscape(): void {
   const st = useGame.getState();
-  // THE PARTY HOME SHELL: Esc is Back (phHistory.ts), one path with every Back control, one layer at a time.
+  // THE PARTY HOME SHELL: the top layer goes first, one at a time, one path with every Back control (phHistory.ts).
   if (phInLayer()) { phBack(); return; }
+  if (st.inspect && !st.gameMenuOpen && !st.showBook) return;
+  if (escTyping()) return;
   if (phOwnsBack() && !st.gameMenuOpen) {
-    if (st.inspect) return;
-    if (st.practiceSetupOpen) st.cancelPracticeSetup();
-    else phBack();
+    if (st.practiceSetupOpen) { st.cancelPracticeSetup(); return; }
+    // Settings and the Compendium open OVER a page: Esc takes them off, back to that page.
+    if (st.settingsOpen || st.showBook) {
+      if (!phBack()) { if (st.settingsOpen) st.closeSettings(); if (st.showBook) st.closeBook(); }
+      return;
+    }
+    openSettingsFromEscape();
     return;
   }
   if (st.showBook) { st.closeBook(); return; }
   if (st.gameMenuOpen) { st.closeGameMenu(); return; }
   if (st.settingsOpen) { st.closeSettings(); return; }
   if (st.showPatchNotes) { st.closePatchNotes(); return; }
-  if (st.inspect) return;
-  // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): Esc goes back to the page you came from (phHistory.ts); on the home it does
-  // nothing (Settings is the nav's gear, one place). Only while the shell is up (the menus before a run).
-  if (document.documentElement.hasAttribute('data-ph-shell')) {
-    if (st.practiceSetupOpen) st.cancelPracticeSetup();
-    else if (st.showCareer && st.careerOf?.from) st.closeCareer(); // back to the game or ladder it was opened from
-    else if (phBack()) return;
-    else if (anyPageOpen(st) || st.titleView !== 'menu') st.goTo('menu');
+  if (st.practiceSetupOpen && typeof document !== 'undefined' && document.documentElement.hasAttribute('data-ph-shell')) {
+    st.cancelPracticeSetup();
     return;
   }
-  openMenu();
+  openSettingsFromEscape();
 }
 
 export function GameMenu() {
@@ -72,6 +108,7 @@ export function GameMenu() {
   // The menu belongs to a game: back on the title (Save & Quit, a game that ended into the menus) it closes itself.
   const onTitle = useGame((s) => s.showTitle);
   useEffect(() => { if (open && onTitle) close(); }, [open, onTitle, close]);
+  useEffect(() => { if (!open) escSettingsInGame = false; }, [open]);
   // The party home prototype's phone rail: every row on screen, the corner icons on their own row below it (styles.css).
   const shellFlag = usePartyHome();
   const phRail = shellFlag && open && !onTitle;

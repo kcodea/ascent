@@ -14,7 +14,9 @@
  * PERFORMANCE: static paint; only the open game's board mounts; its card FX stay still until pointed at.
  */
 import { memo, useMemo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import type { BoardSnapshot, MatchDetails, RuneLiveState } from '@game/sim';
+import type { BoardSnapshot, MatchDetails, RuneLiveState, ShopBuffSnapshot } from '@game/sim';
+import { usePhLayer } from '../shell/usePhLayer';
+import { sfx } from '../../sfx';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { GildedCrown, ReplayEye } from '../../menuIcons';
 import { GameRank } from '../../gameRank';
@@ -165,10 +167,56 @@ export interface GameDetailProps {
   own: boolean;
   minions?: BoardSnapshot['minions']; skins: RunCosmeticSnapshot | null;
   runes: readonly string[]; runeLive?: RuneLiveState;
+  /** The Shop buffs the player had when the game ended (R-MATCH-SHOPBUFF-01). Absent on games recorded before it was saved:
+   *  then there is no button. */
+  shopBuff?: ShopBuffSnapshot | null;
   /** Null hides the button. */
   replay: { watchable: boolean; busy: boolean; unplayable: boolean; onWatch: (e: MouseEvent) => void; label: string } | null;
   /** Null hides the button (the Career page is already that player's). */
   career?: { disabled: boolean; onOpen: () => void; label: string } | null;
+}
+
+const signed = (n: number): string => (n < 0 ? String(n) : `+${n}`);
+const statsText = (a: number, h: number): string => `${signed(a)}/${signed(h)}`;
+
+/** THE SHOP BUFFS BUTTON (owner 2026-11-08, R-MATCH-SHOPBUFF-01: "a button to press that displays the shop buffs the player
+ *  had at the end of the game"): a press opens a small plate with the total every minion bought from the Shop got, then
+ *  each source, biggest first. A second press, Escape or a press elsewhere closes it. */
+export function ShopBuffButton({ buff, who }: { buff: ShopBuffSnapshot; who: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  usePhLayer(open, () => setOpen(false));
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e: PointerEvent): void => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); setOpen(false); } };
+    document.addEventListener('pointerdown', onDown, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('pointerdown', onDown, true); window.removeEventListener('keydown', onKey, true); };
+  }, [open]);
+  const none = !buff.attack && !buff.health;
+  return (
+    <div className="rgp-shopbuff" ref={ref}>
+      <PhButton size="s" aria-expanded={open} aria-label={`${who}'s Shop buffs`} onClick={() => { sfx.pulse(); setOpen((o) => !o); }}>
+        Shop buffs{!none && <span className="rgp-sbtotal">{statsText(buff.attack, buff.health)}</span>}
+      </PhButton>
+      {open && (
+        <div className="rgp-sbpanel" role="dialog" aria-label="Shop buffs">
+          <div className="rgp-sbhead">Shop buffs at the end of the game</div>
+          {none
+            ? <div className="rgp-sbnone">No Shop buffs this game.</div>
+            : (
+              <>
+                <div className="rgp-sbrow rgp-sbsum"><span>Every minion bought from the Shop</span><b>{statsText(buff.attack, buff.health)}</b></div>
+                {(buff.sources ?? []).map((s) => (
+                  <div key={s.source} className="rgp-sbrow"><span>{s.source}</span><b>{statsText(s.attack, s.health)}</b></div>
+                ))}
+              </>
+            )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** One fact tile (the kit's), with the game's hover tip when it has one. */
@@ -250,6 +298,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
       <div className="rgp-facts">
         {p.facts.map((f) => <Fact key={f.label} label={f.label} tip={f.tip}>{f.value}</Fact>)}
         {p.notice}
+        {p.shopBuff && !seat && <ShopBuffButton buff={p.shopBuff} who={p.who} />}
       </div>
 
       <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>

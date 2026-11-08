@@ -12064,7 +12064,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-ESC-SIDEBAR-01',
     title: 'Escape in a game slides in the main menu\x27s sidebar over the dimmed game, with every player page, Resume, the Shop clock and the leave button; Settings is a normal page',
     statement:
-      'In a game (a run, its hero select, a replay, a watched game) Escape or the gear slides in the SAME left sidebar the main menu pages use, over the game, which stays on screen dimmed and keeps running. Its top plaque is a gold Resume (closes the menu) instead of Play; right under it the leave button, then the time left in the Shop turn. It lists every player page (Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes) and Settings at the foot; never the dev builders. Opening a page shows it as the ordinary page beside the same sidebar, over the dimmed game, without its painted backdrop. The leave button is Save & Quit in a solo or lobby game (Leave God Mode in God Mode), Concede in Versus, Duos and Ranked Duos, Abandon match from a ranked hero select, Leave replay, Stop watching or Leave match for a spectator; each asks for a second tap first. It is the same sidebar plaque painted in the game warning reds (a deep red face, the red rim, a dark red edge): red at rest, brighter red while armed. Escape again, Resume, or a press on the dimmed game closes the menu and any page it opened; a drag in hand is dropped when it opens. A page action that would leave the game (watch a replay, watch a live game) is refused there with a short note. Settings is a page like Collection, on the main menu and in a game, showing every section (Combat, Audio, Cosmetics, Friends, Board, Performance, Display and Phone diagnostics on phones, Game on desktop, Account); it has no leave or Resume of its own. On the menus Escape opens and closes the Settings page. The menu holds the Shop clock where R-TIMER-ESC-01 allows (lobby, Practice) and never in Versus, and never pauses a combat.',
+      'In a game (a run, its hero select, a replay, a watched game) the gear slides in the SAME left sidebar the main menu pages use, over the game, which stays on screen dimmed and keeps running. Its top plaque is a gold Resume (closes the menu) instead of Play; right under it the leave button, then the time left in the Shop turn. It lists every player page (Career, Collection, Leaderboard, Recent Games, Live Games, Patch Notes) and Settings at the foot; never the dev builders. Opening a page shows it as the ordinary page beside the same sidebar, over the dimmed game, without its painted backdrop. The leave button is Save & Quit in a solo or lobby game (Leave God Mode in God Mode), Concede in Versus, Duos and Ranked Duos, Abandon match from a ranked hero select, Leave replay, Stop watching or Leave match for a spectator; each asks for a second tap first. It is the same sidebar plaque painted in the game warning reds (a deep red face, the red rim, a dark red edge): red at rest, brighter red while armed. Escape again, Resume, or a press on the dimmed game closes the menu and any page it opened; a drag in hand is dropped when it opens. A page action that would leave the game (watch a replay, watch a live game) is refused there with a short note. Settings is a page like Collection, on the main menu and in a game, showing every section (Combat, Audio, Cosmetics, Friends, Board, Performance, Display and Phone diagnostics on phones, Game on desktop, Account); it has no leave or Resume of its own. Escape with nothing open opens Settings on every screen instead (R-ESC-SETTINGS-01). The menu holds the Shop clock where R-TIMER-ESC-01 allows (lobby, Practice) and never in Versus, and never pauses a combat.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -14382,5 +14382,77 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-08 (feat/nav-default-leftmost-tab). Before, Play, the Compendium, Career, Settings and Patch Notes reopened on the last tab (saved per browser) and the Leaderboard kept its tab for the session. The Collection Show tabs and Recent Games already reset. The New Rewards popup now sends a one-shot intent to open Career on Achievements.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/tabDefaults.test.ts', 'packages/ui/src/partyHome/pages/phInfoPages.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-MATCH-SHOPBUFF-01',
+    title: 'A finished game shows the Shop buffs the player ended it with',
+    statement:
+      'A game opened in Match History (Career or Recent Games) has a Shop buffs button. Pressing it shows the permanent buff every minion '
+      + 'bought from the Shop was getting when the game ended, then what it came from (each source and its share, biggest first). '
+      + 'A game with none says so. A game recorded before this was saved has no button.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Match History screenshot', quote: 'here i want a button to press that displays the shop buffs the player had at the end of the game' },
+      { kind: 'fix-pr', ref: 'feat/match-shop-buffs: packages/sim/src/snapshot.ts (shopBuffSnapshotOf, BoardSnapshot.shopBuff), packages/ui/src/partyHome/pages/gameView.tsx (ShopBuffButton)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/match-shop-buffs) for games finished from then on: the final board snapshot stamps tavernBuyBonus and its source ledger. Earlier games never stored it, so they show no button.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/shopBuffButton.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-SETTINGS-SAVEQUIT-01',
+    title: 'In a game, Settings carries Save and Quit Match right above Quit game',
+    statement:
+      'Opened in a game (a run, its hero select, a replay, a watched game), the Settings page\x27s Game tab shows a leave button right above Quit game, '
+      + 'in a browser and in the desktop app alike. In a solo or lobby game it reads Save and Quit Match: the first press arms it (Press again to quit), '
+      + 'the second saves this exact moment and returns to the menu. Every other game leaves the way the in-game sidebar\x27s leave button does, in its words '
+      + '(Concede in a Versus match, Leave replay, Stop watching, Abandon match, Leave God Mode). On the menus it is not there.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08', quote: 'lets add a Save and Quit Match Button above Quit to Ascent then. in settings' },
+      { kind: 'fix-pr', ref: 'feat/settings-save-quit-match: packages/ui/src/partyHome/pages/PhSettings.tsx (LeaveMatchRow), packages/ui/src/gameMenuParts.tsx (leaveGame, settingsLeaveText)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/settings-save-quit-match). Before, the only way out of a game was the red leave button on the in-game sidebar.',
+    example: 'Mid-shop Ann opens Settings, presses Save and Quit Match, it reads Press again to quit, she presses again and is on the main menu with Continue ready.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/phSettingsSaveQuit.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-ESC-SETTINGS-01',
+    title: 'Escape opens Settings on every screen, in a game too; anything already open closes first',
+    statement:
+      'With nothing open on top, Escape opens Settings on every screen: the main screen, every page (Collection, Career, Patch Notes, ...), '
+      + 'hero select, a game, a replay and a watched game. On a page Settings opens over it and the page stays under it; in a game it is the '
+      + 'Settings page over the dimmed game. Escape again closes Settings: back to the page, or straight back to the game. Whatever is already '
+      + 'open on top closes first, one per press, and Settings does not open in its place: a dropdown, a window, a pop-up, a list, the Compendium, '
+      + 'the in-game menu with any page it opened, a search box with text, a hover preview. A card being inspected keeps Escape for itself, and '
+      + 'while a field is being typed in Escape only lets go of the field. The gear in a game still opens the in-game menu.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07', quote: 'when on the main screen, pressing escape should bring up the settings menu' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-07 (follow-up)', quote: 'it should actually open the settings on any screen. in game it should open the settings menu too' },
+      { kind: 'fix-pr', ref: 'feat/esc-opens-settings: packages/ui/src/GameMenu.tsx (handleEscape, openSettingsFromEscape, closeInGamePageState), packages/ui/src/Game.tsx (closeInGamePage)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-08 (feat/esc-opens-settings). Before, under the party home shell Escape on a page stepped back a page and on the '
+      + 'main screen did nothing, and in a game Escape slid in the in-game menu (R-ESC-SIDEBAR-01) without opening Settings.',
+    example: 'On Collection Ann presses Escape: Settings opens over Collection, and Escape again puts her back on Collection. Mid-shop she presses Escape: Settings opens over her dimmed board; Escape again and she is back in the Shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/escOpensSettings.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-UPDATE-NOTICE-PLACE-01',
+    title: 'The "update downloaded" notice sits under START, centred on it',
+    statement:
+      'When the desktop app has downloaded an update, the notice that says so appears just under the START button, centred on '
+      + 'START, in large text, and stays fully on screen. Where there is no START button it sits at the top centre of the screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the v0.2.4 notice', quote: 'this needs to be larger put it below the start button and amek it centered with the start nd play button center' },
+      { kind: 'fix-pr', ref: 'feat/update-notice-under-start: packages/ui/src/UpdateReadyNotice.tsx (updateNoticePlace), packages/ui/src/updatedPanel.css (.updnotice)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/update-notice-under-start): the notice measures .ph-start and places itself under it, centred, clamped to the screen; 20 px text (was 14 px). Before this it was a small top-centre toast.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
 ];

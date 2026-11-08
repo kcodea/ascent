@@ -58,13 +58,21 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'The "update downloaded" notice is bigger and sits under the START button.' },
+      { category: 'Systems', text: 'Match History: a Shop buffs button shows the buffs your Shop minions were getting when the game ended, and where they came from.' },
+      { category: 'Systems', text: 'Settings has a Save and Quit Match button in a game, right above Quit game. Press it twice to save and return to the menu.' },
       { category: 'Systems', text: 'Hero select: hovering a hero still shows its Health and Armor at the top of the banner.' },
       { category: 'Systems', text: 'Collection: the New tab glows green while the category you are viewing has something new.' },
       { category: 'Systems', text: 'Every page now opens on its first tab: Play on Ranked, the Compendium on Cards, Career on Match History.' },
+      { category: 'Systems', text: 'Press Escape on any screen to open Settings, in a game too; press it again to close it. Anything already open closes first.' },
       { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
       { category: 'Systems', text: 'Versus Group and Duos: when two players drop at once, one Unpause now covers both, so the game goes on right away.' },
       { category: 'Systems', text: 'Versus: a reconnect that stalls on a weak network is retried after a few seconds instead of leaving your screen frozen.' },
+      {
+        category: 'Balance',
+        text: 'Braum: Investment now pays out after investing 4 (was 5).',
+      },
     ],
   },
   {
@@ -298,6 +306,15 @@ export const PATCH_NOTES: PatchNote[] = [
       {
         category: 'Systems',
         text: 'Game lobbies: a player still standing when the game ended now reads Still in once, not twice.',
+      },
+      {
+        category: 'Systems',
+        text: 'Choosing a hero power (Mimic, Void, Power Shifter): each option now shows its Gold cost and whether it is Active or Passive.',
+        details: [
+          'Active powers wear a larger Gold coin marked PER USE: what each use costs on the turn you pick them (picking is free). Passive powers have no coin.',
+          'The rules text leads with how the power is used: Passive, once per turn, once per game, uses left, or already used.',
+          'The text shows the current numbers for the power, the same as your hero panel will after the pick.',
+        ],
       },
       {
         category: 'Systems',

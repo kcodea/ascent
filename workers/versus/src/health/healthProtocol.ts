@@ -33,8 +33,11 @@ export const OPS_ROUTES = {
   poolDigest: '/ops/pool-digest',
 } as const;
 
-/** The game's site, and the file the release writes next to index.html (`scripts/release-web.mjs`). */
-export const SITE_URL = 'https://ascent-game-web.netlify.app';
+/** Where the CURRENT release's `release.json` lives: the desktop exe's update feed (the latest GitHub release, the same
+ *  URL `apps/desktop/electron-builder.json` publishes to; `scripts/ship.mjs` uploads `release.json` as an asset). The
+ *  exe replaced the Netlify site (owner 2026-11-05), whose stale `release.json` named a retired protocol-1 Worker and
+ *  failed this check every night from 2026-11-05 although the live Worker was healthy. */
+export const SITE_URL = 'https://github.com/kcodea/ascent/releases/latest/download';
 export const RELEASE_PATH = '/release.json';
 
 /** One check's verdict. `n/a` = not applicable yet (a capability missing, a quiet day); it never fails the run. */

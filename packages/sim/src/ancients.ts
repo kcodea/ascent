@@ -236,7 +236,7 @@
  *                                 a spell, the Starform, or a body that left gets nothing); X starts at `amount` and
  *                                 improves by `amount` per payout (`gorrBondsGain`). (Bonds)
  *  BRAUM (hero id `bram`, Investment, `investment`, 1 Gold; owner pairings 2026-10-06). Investment = "Invest 1 Gold.
- *  After investing 5, get a random Gilded minion, then reset." (once per turn; the bank is `RunState.bramInvested`). The
+ *  After investing 4, get a random Gilded minion, then reset." (once per turn; the bank is `RunState.bramInvested`). The
  *  reducer's `investment` branch reads the shape hooks (`ancientInvestmentPassive`, `ancientInvestmentTime`,
  *  `ancientInvestmentDiscovers`). "A random Gilded minion" is Investment's own payout everywhere (`bramGildedPayout`: the
  *  run's buyable minions up to your Shop tier, conjured to hand and gilded; a full hand gets none).
@@ -246,7 +246,7 @@
  *                                 (`ancientBramShopDeath`); COMBAT: `QuestCombatMods.ancientBramDeaths` (carried in, a
  *                                 live random minion `toHand` whose index rides `ShoutCarry.handGilds`, so settle gilds
  *                                 it), and settle adds the fight's deaths. Every Nth death pays, repeating. (Death)
- *  · `tripleRewardGold`           Investment costs 0 (`power`; it still banks one count per use, 5 to pay out). Every
+ *  · `tripleRewardGold`           Investment costs 0 (`power`; it still banks one count per use, 4 to pay out). Every
  *                                 Triple Reward you GET (`grantGoldenDiscover`, the one chokepoint every triple / Keshi /
  *                                 fortress reward walks; Corrupted Tome's extras each count) gains `gold` Gold right then
  *                                 (`ancientOnTripleReward`). A reward the hand cap drops pays nothing. (Fortune)
@@ -1398,7 +1398,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
   },
   // BRAUM (hero id `bram`; owner pairings 2026-10-06, quoted above each entry). Investment (1 Gold, once per turn) =
-  // "Invest 1 Gold. After investing 5, get a random Gilded minion, then reset."
+  // "Invest 1 Gold. After investing 4, get a random Gilded minion, then reset."
   bram: {
     death: {
       // "Investment becomes: When 16 friendly minions die, get a random Gilded minion." Passive; repeats every 16.
@@ -1410,7 +1410,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     fortune: {
       // "Investment is free. Triple rewards also grant 3 gold."
       offerText: 'Investment is **free**. Triple Rewards also give you **3 Gold**.',
-      powerText: 'Invest for free. After investing **5** times, get a random **Gilded** minion, then reset. Triple Rewards also give you **3 Gold** (**{bTripleGold} Gold** so far).',
+      powerText: 'Invest for free. After investing **4** times, get a random **Gilded** minion, then reset. Triple Rewards also give you **3 Gold** (**{bTripleGold} Gold** so far).',
       power: { cost: 0 },
       effects: [{ do: 'tripleRewardGold', gold: 3 }],
     },
@@ -1423,7 +1423,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     genesis: {
       // "Discover the minion from Investment. It is always of your current tier."
       offerText: 'Investment lets you **Discover** its **Gilded** minion instead, always from your current Tier.',
-      powerText: 'Invest **1 Gold**. After investing **5**, **Discover** a **Gilded** minion from your current Tier (Tier **{bTier}**), then reset.',
+      powerText: 'Invest **1 Gold**. After investing **4**, **Discover** a **Gilded** minion from your current Tier (Tier **{bTier}**), then reset.',
       effects: [{ do: 'investmentDiscoverCurrentTier' }],
     },
     time: {
@@ -3967,7 +3967,7 @@ function bramPowerText(state: RunState, text: string, combat: AncientPowerLive):
 }
 
 /** BRAUM: the hero-power tally (StatusBar) while a pairing reshapes Investment: Death's count toward 16 (`deaths` = so far
- *  in the fight on screen), null for Time (no bank). Undefined = keep Investment's own `n/5` bank. */
+ *  in the fight on screen), null for Time (no bank). Undefined = keep Investment's own `n/4` bank. */
 export function ancientInvestmentTally(state: RunState, deaths = 0): string | null | undefined {
   if (!live(state)) return undefined;
   const d = effectOf(state, 'deathsGetGildedMinion');

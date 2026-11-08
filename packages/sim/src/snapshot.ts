@@ -222,6 +222,28 @@ export interface BoardSnapshot {
    *  completed, a rune that's been bought). Omitted when empty; opponent-frame intel only, never read by combat. */
   quests?: string[]; // completed quest ids (QUEST_INDEX)
   runes?: string[]; // owned rune ids (RUNE_INDEX)
+  /** THE SHOP BUFFS the owner had (owner 2026-11-08, R-MATCH-SHOPBUFF-01): the permanent run-wide buff on every minion
+   *  bought from the Shop (`tavernBuyBonus`), with its per-source ledger (`tavernBuyBonusSources`), biggest first.
+   *  Match History's "Shop buffs" button reads it. Always stamped (0/0 when there was none) so a game recorded with it can
+   *  say "none", and its absence means a board captured before it existed. Display only, never read by combat. */
+  shopBuff?: ShopBuffSnapshot;
+}
+
+/** The Shop buff a board's owner had at capture. `sources` sums to the total, except on a legacy save with no ledger. */
+export interface ShopBuffSnapshot {
+  attack: number;
+  health: number;
+  sources?: { source: string; attack: number; health: number }[];
+}
+
+/** The owner's permanent Shop buff (0/0 when there is none), R-MATCH-SHOPBUFF-01. */
+export function shopBuffSnapshotOf(s: Pick<RunState, 'tavernBuyBonus' | 'tavernBuyBonusSources'>): ShopBuffSnapshot {
+  const atk = s.tavernBuyBonus?.atk ?? 0, hp = s.tavernBuyBonus?.hp ?? 0;
+  const sources = Object.entries(s.tavernBuyBonusSources ?? {})
+    .filter(([, v]) => v && (v.atk || v.hp))
+    .map(([source, v]) => ({ source, attack: v.atk, health: v.hp }))
+    .sort((a, b) => (b.attack + b.health) - (a.attack + a.health) || a.source.localeCompare(b.source));
+  return { attack: atk, health: hp, ...(sources.length ? { sources } : {}) };
 }
 
 /**
@@ -416,6 +438,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
   const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
   const runes = [...(s.ownedRunes ?? [])];
+  const shopBuff = shopBuffSnapshotOf(s);
   // The owner's HAND, split the same way the reducer splits it for the player side: spell ids in hand order
   // (Vault Curator) and minions with live stats (Rope Wrangler / Water Dragon).
   const handSpellIds = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId);
@@ -470,6 +493,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(pendingQuests.length ? { pendingQuests: pendingQuests.map((p) => ({ ...p })) } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
+    shopBuff,
     ...(s.rubyBonus?.attack || s.rubyBonus?.health ? { rubyBonus: { attack: s.rubyBonus.attack, health: s.rubyBonus.health } } : {}),
     ...(s.runeSpellstone ? { rubyPower } : {}), // R-SNAPSHOT-RUBY-01: with the Spellstone the owner's fight reads the folded value (without it, rubyBonus already is)
     ...(s.runeWildHuntGrown ? { wildHuntGrown: s.runeWildHuntGrown } : {}),

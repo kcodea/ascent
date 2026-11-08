@@ -1160,7 +1160,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-02',
     title: 'Braum × Ancient of Fortune: Investment costs 0 Gold; every Triple Reward you get also gains 3 Gold',
     statement:
-      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (5 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
+      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (4 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1188,7 +1188,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-04',
     title: "Braum × Ancient of Genesis: Investment's payout is a Discover of a Gilded minion from exactly your current tier",
     statement:
-      'With the Ancient of Genesis, the 5th investment opens a Discover of minions of exactly your current Shop tier instead of a random one; the pick arrives Gilded. The bank and its cost are unchanged. The power prints the tier.',
+      'With the Ancient of Genesis, the 4th investment opens a Discover of minions of exactly your current Shop tier instead of a random one; the pick arrives Gilded. The bank and its cost are unchanged. The power prints the tier.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -2588,5 +2588,24 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-08 (feat/hero-power-keeps-stats). Before, the Health and Armor faded out with the hero name while the Hero Power showed.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: "R-POWER-PICK-INFO-01",
+    title: "A hero-power Discover option shows its cost, its Active/Passive usage and its live text",
+    statement:
+      "Every option in a hero-power Discover (Mimic's turn pick, Void's two picks, the Power Shifter spell) tells the "
+      + "player what the pick will be, read off the run the pick produces: an ACTIVE power wears a Gold coin with the price "
+      + "it costs on the pick turn (0 when free; a re-basing price clock reads its post-adoption price), a PASSIVE power "
+      + "wears no coin, and the rules text leads with the usage tag (Passive / Active · once per turn / once per game / "
+      + "N uses left / already used / unlocks turn N / locked) followed by the live text the hero panel prints after the pick.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-03 (Mimic power pick)", quote: "for the hero, Mimic, there's currently no way to know how much the hero power that you are selecting either costs money or not, whether the hero power is active or passive." },
+      { kind: 'code', ref: "packages/ui/src/discoverEntrance/powerOffer.ts previewPowerPick / powerUsage / powerOfferCards; packages/ui/src/Recruit.tsx PowerOverlay" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-03). Before: the option card showed only the printed name and text, with no coin and no usage tag.",
+    example: "Mimic is offered Goldspring and Robin's power: Goldspring wears a 3 coin and reads 'Active · once per turn.', Robin's reads 'Passive.' with no coin.",
+    enforcement: { kind: 'scenario', refs: ["packages/ui/src/discoverEntrance/powerPickInfo.test.ts"], lastVerifiedAt: '2026-11-03' },
   },
 ];

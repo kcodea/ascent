@@ -694,13 +694,13 @@ export function Career() {
   // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of
   // the list + detail Recent Games wears (partyHome/pages/gameView.tsx). A row wears the skins RECORDED on its board.
   const gameSkins = (snap: RunCosmeticSnapshot | null | undefined): RunCosmeticSnapshot | null => (!viewing ? snap ?? null : opponentSkins(showOppSkins, snap));
-  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive'> => {
+  const gameBits = (heroId: string, rec: { wins: number; losses: number; draws: number } | null | undefined, board: BoardSnapshot | null | undefined, runes: readonly string[]): Pick<GameDetailProps, 'who' | 'heroName' | 'art' | 'record' | 'recordTone' | 'own' | 'minions' | 'skins' | 'runes' | 'runeLive' | 'shopBuff'> => {
     const skins = gameSkins(board?.cosmetics);
     const fought = !!rec && rec.wins + rec.losses + rec.draws > 0;
     return {
       who: shownName, heroName: heroId ? getHero(heroId).name : 'Unknown hero', art: heroThumb(heroPortrait(heroId, skins)),
       record: fought ? recordText(rec!) : '', recordTone: fought ? (rec!.wins >= rec!.losses ? 'up' : 'down') : '',
-      own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board),
+      own: !viewing, minions: board?.minions, skins, runes: runes.filter((id) => RUNE_INDEX[id]), runeLive: runeLiveStateOfSnapshot(board), shopBuff: board?.shopBuff ?? null,
     };
   };
   // One name per page: a recorded lobby keeps the name its player had that day, so the page's owner wears the current name.

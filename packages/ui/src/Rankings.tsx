@@ -98,6 +98,8 @@ export function Rankings() {
   const mineRef = useRef<HTMLDivElement | null>(null);
   // RANKED DUOS (owner 2026-10-26, Q5): Solo players | Duos teams (the Career's tab style).
   const [board, setBoard] = useState<'solo' | 'duos'>('solo');
+  // Every open starts on Solo, the leftmost tab (R-PH-TAB-DEFAULT-01); the host stays mounted, so reset on close.
+  useEffect(() => { if (!show) setBoard('solo'); }, [show]);
   const duosTab = versusEnabled() && board === 'duos';
   const shell = usePartyHome() && !!PhLeaderboard;
 

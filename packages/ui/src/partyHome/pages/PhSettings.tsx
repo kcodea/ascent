@@ -49,15 +49,15 @@ export const SETTINGS_TABS: readonly { id: SettingsTab; label: string }[] = [
   { id: 'account', label: 'Account' },
 ];
 export const SETTINGS_TAB_KEY = 'ascent.settings.tab';
+/** Every open starts on Game, the leftmost tab (R-PH-TAB-DEFAULT-01); a pick lasts for this visit only. */
 function readTab(): SettingsTab {
-  try { const v = localStorage.getItem(SETTINGS_TAB_KEY); return SETTINGS_TABS.some((t) => t.id === v) ? (v as SettingsTab) : 'game'; } catch { return 'game'; }
+  return SETTINGS_TABS[0]!.id;
 }
 
 export function PhSettings({ initialTab }: { initialTab?: SettingsTab } = {}) {
   const [tab, setTab] = useState<SettingsTab>(() => initialTab ?? readTab());
   const pick = (t: SettingsTab): void => {
     sfx.tick(); setTab(t);
-    try { localStorage.setItem(SETTINGS_TAB_KEY, t); } catch { /* a convenience only */ }
   };
   return (
     <PhPage className="phs" wide title="Settings" tabs={<PhTabs label="Settings" value={tab} onChange={pick} tabs={SETTINGS_TABS} />}>

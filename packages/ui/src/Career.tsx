@@ -1,4 +1,4 @@
-import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
@@ -98,18 +98,17 @@ import {
  * Read-only; opened by the title's Career button (and by the leaderboard / Recent Games for another player).
  */
 
-/** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
-const TAB_KEY = 'ascent.career.tab';
+/** A ONE-SHOT "open on this tab" intent (the New Rewards popup's "See all in Career"). Every other arrival opens on Match
+ *  History, the leftmost tab (owner 2026-11-08, R-PH-TAB-DEFAULT-01: "the left most option should be the default"). */
+export const CAREER_OPEN_TAB_KEY = 'ascent.career.openTab';
 /** `trends` is a tab only on the party home shell (the old page keeps Performance Trends in its right column). */
 type CenterTab = 'history' | 'heroes' | 'practice' | 'achievements' | 'trends';
 function loadTab(): CenterTab {
   try {
-    const t = localStorage.getItem(TAB_KEY);
+    const t = localStorage.getItem(CAREER_OPEN_TAB_KEY);
+    localStorage.removeItem(CAREER_OPEN_TAB_KEY);
     return t === 'heroes' || t === 'practice' || t === 'achievements' || t === 'trends' ? t : 'history';
   } catch { return 'history'; }
-}
-function saveTab(t: CenterTab): void {
-  try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
 }
 /** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
  *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
@@ -422,6 +421,12 @@ export function Career() {
   const [loadStalled, setLoadStalled] = useState(false);
   const [window_, setWindow] = useState<TrendWindow>(30);
   const [tabPicked, setTab] = useState<CenterTab>(loadTab);
+  // Every arrival opens on the leftmost tab (or the one-shot intent); the host stays mounted, so reset on each open.
+  const wasShown = useRef(show);
+  useLayoutEffect(() => {
+    if (show && !wasShown.current) setTab(loadTab());
+    wasShown.current = show;
+  }, [show]);
   // ACHIEVEMENTS (2026-09-28): the tab exists only once the owner has switched achievements on; a remembered
   // Achievements tab reads as Match History until then.
   const achievementsOn = useProgression(achievementsVisible);
@@ -637,7 +642,7 @@ export function Career() {
     setHeroFilter(id);
     setPickedRun(null);
     if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: 'history' });
-    else { setTab('history'); saveTab('history'); }
+    else setTab('history');
   }, [shellViewing, careerOf]);
 
   if (!show) return null;
@@ -683,7 +688,7 @@ export function Career() {
   const heroName = heroId ? getHero(heroId).name : '—';
   const filterName = heroFilter ? getHero(heroFilter).name : '';
   // Leaving Match History drops the hero filter: it only ever comes from a hero card's click.
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: t }); else { setTab(t); saveTab(t); } };
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); if (shellViewing) setViewTab({ userId: careerOf!.userId, tab: t }); else setTab(t); };
   const clearHeroFilter = (): void => { sfx.pulse(); setHeroFilter(null); setPickedRun(null); };
 
   // THE SHELL's MATCH HISTORY (owner 2026-11-03: "make them match and use the recent games look"): the runs as the props of

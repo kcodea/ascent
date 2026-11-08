@@ -31,8 +31,8 @@ export function NewPill() {
   return <span className="newpill" aria-label="New rewards">New</span>;
 }
 
-/** Where the Career's tab choice lives (Career.tsx `TAB_KEY`): "See all in Career" opens the Achievements tab. */
-const CAREER_TAB_KEY = 'ascent.career.tab';
+/** The Career's one-shot open intent (Career.tsx `CAREER_OPEN_TAB_KEY`): "See all in Career" opens the Achievements tab. */
+const CAREER_TAB_KEY = 'ascent.career.openTab';
 
 export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
   /** The crates still sealed right now (a queued crate opened elsewhere drops out). */

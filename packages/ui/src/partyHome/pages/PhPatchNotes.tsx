@@ -19,7 +19,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../../sfx';
 import { PATCH_CATEGORY_ORDER, type PatchCategory, type PatchChange, type PatchNote } from '../../patchNotes';
-import { PATCH_TAB_LABEL, PATCH_TAB_STORAGE_KEY, notesForTab } from '../../PatchNotesBody';
+import { PATCH_TAB_LABEL, notesForTab } from '../../PatchNotesBody';
 import { PhChip, PhEmpty, PhPage, PhSearch, PhSegmented, PhTabs } from '../kit';
 import './phPatchNotes.css';
 
@@ -41,14 +41,9 @@ function monthOf(iso: string): string {
   return p ? `${MONTHS[p.m - 1]} ${p.y}` : iso;
 }
 
+/** Every open starts on the leftmost tab (R-PH-TAB-DEFAULT-01); a pick lasts for this visit only. */
 function readTab(): PatchCategory {
-  try {
-    const v = localStorage.getItem(PATCH_TAB_STORAGE_KEY);
-    return v && (PATCH_CATEGORY_ORDER as string[]).includes(v) ? (v as PatchCategory) : 'Balance';
-  } catch { return 'Balance'; }
-}
-function writeTab(t: PatchCategory): void {
-  try { localStorage.setItem(PATCH_TAB_STORAGE_KEY, t); } catch { /* storage blocked: the tab still switches */ }
+  return PATCH_CATEGORY_ORDER[0]!;
 }
 
 /** A patch label as a player reads it. Old labels were written for the team: "Balance 9/23: rune reworks B" reads as
@@ -117,7 +112,7 @@ export function PhPatchNotes() {
     setActive(key);
     document.getElementById(domId(key))?.scrollIntoView?.({ block: 'start' });
   };
-  const pickTab = (t: PatchCategory): void => { sfx.tick(); setTab(t); writeTab(t); };
+  const pickTab = (t: PatchCategory): void => { sfx.tick(); setTab(t); };
 
   // The index, grouped by month (newest first, as the feed).
   const months = useMemo(() => {

@@ -141,14 +141,15 @@ describe('Patch Notes in the shell', () => {
     expect(playerLabel(undefined)).toBeUndefined();
   });
 
-  it('renders the newest patch first, an index row per patch, and remembers the tab', () => {
+  it('renders the newest patch first, an index row per patch, and reopens on the leftmost tab (R-PH-TAB-DEFAULT-01)', () => {
     ui = mount(<PhPatchNotes />);
     const first = ui.container.querySelector('.phpn-patch h2')?.textContent;
     const newestBalance = PATCH_NOTES.find((n) => n.changes.some((c) => c.category === 'Balance'))!;
     expect(first).toContain(newestBalance.date.slice(0, 4));
     expect(ui.container.querySelectorAll('.phpn-idx').length).toBe(ui.container.querySelectorAll('.phpn-patch').length);
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Game');
     click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Systems'));
-    expect(localStorage.getItem('ascent.patchnotes.tab')).toBe('Systems');
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Systems');
     // Detailed opens the sub-bullets.
     const before = ui.container.querySelectorAll('.phpn-sub').length;
     click([...ui.container.querySelectorAll('.phk-segbtn')].find((b) => b.textContent === 'Detailed'));
@@ -195,13 +196,13 @@ describe('Settings in the shell', () => {
     expect(useGame.getState().showOpponentSkins).toBe(false);
   });
 
-  it('remembers the last tab on this device', () => {
+  it('R-PH-TAB-DEFAULT-01: every open starts on the leftmost tab, whatever was picked last', () => {
     ui = mount(<PhSettings />);
     click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Audio'));
-    expect(localStorage.getItem('ascent.settings.tab')).toBe('audio');
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Audio');
     ui.unmount();
     ui = mount(<PhSettings />);
-    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Audio');
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe(SETTINGS_TABS[0]!.label);
   });
 });
 
@@ -243,12 +244,12 @@ describe('the Compendium in the shell', () => {
     expect(lit()).toEqual(['All minions']);
   });
 
-  it('reopens on the last view, unless a view was asked for', () => {
+  it('R-PH-TAB-DEFAULT-01: always reopens on Cards, unless a view was asked for', () => {
     ui = mount(<PhCompendium />);
     click([...ui.container.querySelectorAll('.phk-tab')].find((b) => b.textContent === 'Glossary'));
     ui.unmount();
     ui = mount(<PhCompendium />);
-    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Glossary');
+    expect(ui.container.querySelector('.phk-tab.on')?.textContent).toBe('Cards');
     ui.unmount();
     act(() => { useGame.setState({ bookOpensTo: 'rules' } as never); });
     ui = mount(<PhCompendium />);

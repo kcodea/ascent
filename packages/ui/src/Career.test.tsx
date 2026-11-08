@@ -847,20 +847,21 @@ describe('the Heroes tab', () => {
     ui.unmount();
     ui = mount(<Career />);
     await flush();
+    click(heroesTab()); // the Career reopens on Match History (R-PH-TAB-DEFAULT-01); the sort is still remembered
     expect(sortBtns()[2]!.getAttribute('aria-pressed')).toBe('true');
     expect(names()).toEqual(['Sable', 'Brackus']);
   });
 
-  it('the choice persists per browser and the tabs toggle back', async () => {
+  it('R-PH-TAB-DEFAULT-01: every open starts on Match History (the leftmost tab), and the tabs toggle back', async () => {
     click(heroesTab());
-    expect(localStorage.getItem('ascent.career.tab')).toBe('heroes');
+    expect(ui.container.querySelectorAll('.cv2-hcard')).toHaveLength(2);
     ui.unmount();
     ui = mount(<Career />);
     await flush();
-    expect(heroesTab().getAttribute('aria-selected')).toBe('true');
-    expect(ui.container.querySelectorAll('.cv2-hcard')).toHaveLength(2);
+    expect(heroesTab().getAttribute('aria-selected')).toBe('false');
+    expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(3);
+    click(heroesTab());
     click(ui.container.querySelector('.cv2-tabs [role=tab]'));
-    expect(localStorage.getItem('ascent.career.tab')).toBe('history');
     expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(3);
     expect(ui.container.querySelector('.cv2-hcard')).toBeNull();
   });
@@ -962,8 +963,9 @@ describe('the Practice tab', () => {
       .toBe('No practice games yet. Finish a practice game to see it here.');
     ui.unmount();
     fetchMyPracticeGames.mockReset().mockResolvedValue(null);
-    ui = mount(<Career />); // the tab choice persisted: it opens on Practice
+    ui = mount(<Career />);
     await flush();
+    await openPractice(); // every open starts on Match History (R-PH-TAB-DEFAULT-01)
     expect(practiceTab().getAttribute('aria-selected')).toBe('true');
     expect(ui.container.querySelector('.cv2-practicelist .cv2-state-title')?.textContent).toBe('Couldn’t reach the server');
     fetchMyPracticeGames.mockResolvedValue(PRACTICE);
@@ -973,9 +975,22 @@ describe('the Practice tab', () => {
     expect(ui.container.querySelectorAll('.cv2-practicelist .gs-item')).toHaveLength(2);
   });
 
-  it('the choice persists per browser like the other tabs', async () => {
+  it('R-PH-TAB-DEFAULT-01: a Practice pick lasts for the visit only; the next open is Match History', async () => {
     await openPractice();
-    expect(localStorage.getItem('ascent.career.tab')).toBe('practice');
+    expect(practiceTab().getAttribute('aria-selected')).toBe('true');
+    ui.unmount();
+    ui = mount(<Career />);
+    await flush();
+    expect(practiceTab().getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('R-PH-TAB-DEFAULT-01: the one-shot open intent (New Rewards "See all in Career") is honoured once', async () => {
+    ui.unmount();
+    localStorage.setItem('ascent.career.openTab', 'practice');
+    ui = mount(<Career />);
+    await flush();
+    expect(practiceTab().getAttribute('aria-selected')).toBe('true');
+    expect(localStorage.getItem('ascent.career.openTab')).toBeNull();
   });
 
   it('a viewed player\'s Career reads THEIR practice games, by their user id', async () => {

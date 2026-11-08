@@ -292,13 +292,9 @@ function compendiumSetPickerEnabled(): boolean {
   return import.meta.env.DEV;
 }
 
-const BOOK_VIEW_KEY = 'ascent.compendium.view';
 const BOOK_CATS_KEY = 'ascent.compendium.cats';
 function readBookCats(): Set<Category> {
   try { const v: unknown = JSON.parse(localStorage.getItem(BOOK_CATS_KEY) ?? '[]'); return new Set(Array.isArray(v) ? (v as Category[]) : []); } catch { return new Set(); }
-}
-function readBookView(): CompendiumView {
-  try { const v = localStorage.getItem(BOOK_VIEW_KEY); return v === 'rules' || v === 'glossary' || v === 'guides' ? v : 'cards'; } catch { return 'cards'; }
 }
 
 /** A hero under the shell's Compendium: the portrait melts into the plate, the name and Health sit on it, the power below. */
@@ -427,9 +423,10 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     try { const v = Number(localStorage.getItem('ascent.bookzoom')); return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1; } catch { return 1; }
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
-  // THE SHELL reopens on the last view, like Patch Notes and Settings (one key, the menus and a game alike); a request for a
-  // given view (Rules, a guide to edit) wins.
-  const [openView] = useState<CompendiumView>(() => (frame && useGame.getState().bookOpensTo !== 'rules' && useGuides.getState().pendingEdit === null ? readBookView() : 'cards'));
+  // Every open starts on Cards, the leftmost view (owner 2026-11-08, R-PH-TAB-DEFAULT-01: "in compendium, cards should be
+  // the section that always opens, even if left off on a different section"); a request for a given view (Rules, a guide
+  // to edit) still wins below.
+  const [openView] = useState<CompendiumView>('cards');
   const [glossary, setGlossary] = useState(openView === 'glossary'); // swap the gallery for the keyword codex
   const [rules, setRules] = useState(() => openView === 'rules' || useGame.getState().bookOpensTo === 'rules'); // swap the gallery for the Rules wiki (searchable Q&A); exclusive with glossary
   // THE GUIDES VIEW (owner 2026-10-09): a header toggle beside Glossary ("move the guides button to the top next to
@@ -753,10 +750,6 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     setGuidesOn(false);
   };
 
-  useEffect(() => {
-    if (!frame) return;
-    try { localStorage.setItem(BOOK_VIEW_KEY, rules ? 'rules' : glossary ? 'glossary' : guidesOn ? 'guides' : 'cards'); } catch { /* a convenience only */ }
-  }, [frame, rules, glossary, guidesOn]);
   // ...and the rail with it. A row this set does not have goes back to All minions.
   useEffect(() => {
     if (!frame) return;

@@ -22,7 +22,7 @@ export function PhRankedPrompt({ title, text, warning, yes, no, closing, onYes, 
   title: string; text: string; warning: string | null; yes: string; no: string; closing: boolean; onYes: () => void; onNo: () => void;
 }) {
   return (
-    <PhDialog label="Ranked lobby" eyebrow="Ranked" title={title} onClose={onNo} closing={closing}
+    <PhDialog label="Ranked lobby" eyebrow="Ranked" title={title} onClose={onNo} closing={closing} alignTo=".ph-start"
       actions={<>
         <PhButton variant="primary" size="l" disabled={closing} onPointerDown={(e) => { if (e.button === 0) onYes(); }} onClick={onYes}>{yes}</PhButton>
         <PhButton size="l" onClick={onNo}>{no}</PhButton>

@@ -106,6 +106,17 @@ describe('round 6', () => {
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) \.hcpw-focus \{ opacity: 1; \}/);
     expect(css).toMatch(/\.herocard\.big:is\(:hover, :focus-visible, \.tt-on\) :is\(\.hcname:not\(\.hcpw-title\), \.hchp, \.hcpw-head\) \{ opacity: 0; \}/);
   });
+  it('R-HS-POWER-STATS-01: the hover face keeps the Health and Armor at the top of the flag', () => {
+    const root = offer(['indy', 'warden', 'soren']);
+    const card = root.querySelector('.herocard.big')!;
+    const top = card.querySelector('.hchp.hcstats-top');
+    expect(top, 'a second stats row for the hover face').not.toBeNull();
+    expect(top!.querySelector('.healthmedal')).not.toBeNull();
+    expect(top!.textContent).toBe(card.querySelector('.hchp:not(.hcstats-top)')!.textContent);
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.hchp\.hudpill-hp\.hcstats-top \{ top: calc\(100cqi \* 40 \/ 784\); bottom: auto;[^}]*opacity: 0;/);
+    expect(css).toContain('.herocard.big:is(:hover, :focus-visible, .tt-on) .hchp.hudpill-hp.hcstats-top { opacity: 1; }');
+  });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {
     const css = here('./heroSelectPh.css');
     const name = css.slice(css.indexOf('.hcname.hudpill-name {'));

@@ -323,3 +323,9 @@ body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
 .heroselect.phhs.hsc-active :is(.hsrow .hcmeta, .hcslot > .hcdiff-out) { opacity: 0; transition: opacity 0.2s ease; }
 .heroselect.phhs .hsc-clone .hcframe-art { transition: opacity var(--hsc-transform-ms, 700ms) ease; }
 .heroselect.phhs .hsc-clone.hsc-chrome-out .hcframe-art { opacity: 0; }
+
+/* THE HOVER FACE KEEPS THE STATS (owner 2026-11-08, R-HS-POWER-STATS-01: "i want the health and armor to still show on the hero
+   power description"). While the Hero Power holds the cloth, a copy of the Health / Armor medallions fades in at the top of the
+   flag, just under the rod. Opacity only, like the rest of the crossfade. */
+.heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top { top: calc(100cqi * 40 / 784); bottom: auto; translate: none; opacity: 0; pointer-events: none; }
+.heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) .hchp.hudpill-hp.hcstats-top { opacity: 1; }

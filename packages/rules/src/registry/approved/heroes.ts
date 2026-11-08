@@ -2574,4 +2574,19 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms from 2026-11-07 in the party home look (the shipped look). The leftover labels did not reproduce on a 1920x1080 desktop; the CSS hide is a guard for the owner's layout.",
     enforcement: { kind: 'scenario', refs: ["packages/ui/src/hero-select/heroPickClean.test.ts"], lastVerifiedAt: '2026-11-07' },
   },
+  {
+    id: 'R-HS-POWER-STATS-01',
+    title: 'Hovering a hero banner keeps its Health and Armor in view',
+    statement:
+      'On Hero Select, when you hover (or focus, or tap) a hero banner and its Hero Power takes over the cloth, the hero\'s Health and Armor '
+      + 'stay visible at the top of the banner, so the description never hides how much Health and Armor the hero starts with.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of a hovered hero banner', quote: 'i want the health and armor to still show on the hero power description' },
+      { kind: 'fix-pr', ref: 'feat/hero-power-keeps-stats: packages/ui/src/HeroSelect.tsx (.hcstats-top), hero-select/heroSelectPh.css' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/hero-power-keeps-stats). Before, the Health and Armor faded out with the hero name while the Hero Power showed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

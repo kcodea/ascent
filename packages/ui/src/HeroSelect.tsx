@@ -346,6 +346,15 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                       {hero.resolve}
                       {hero.armor > 0 && <span className="hcarmor hudpill-arm">{ph ? <ArmorMedal /> : <Icon name="armor" />}<span className="hp-armplus">+</span>{hero.armor}</span>}
                     </div>
+                    {/* The hover face keeps the Health and Armor in view at the top of the flag (owner 2026-11-08,
+                        R-HS-POWER-STATS-01: "i want the health and armor to still show on the hero power description"). */}
+                    {ph && (
+                      <div className="hchp hudpill-hp hcstats-top" aria-hidden="true">
+                        <HealthMedal />
+                        {hero.resolve}
+                        {hero.armor > 0 && <span className="hcarmor hudpill-arm"><ArmorMedal /><span className="hp-armplus">+</span>{hero.armor}</span>}
+                      </div>
+                    )}
                   </div>
                   {/* One box, two crossfading faces (owner ask 2026-08-20): at rest the card answers "how hard
                       is this hero, and what is the idea"; hovering answers "what does the button actually do".

@@ -282,7 +282,7 @@ const FeedDetail = memo(function FeedDetail({ row, practice, busy, unplayable, o
       rank={!practice && 'rank' in r && r.rank != null ? r.rank : null}
       facts={facts} notice={r.partial ? <PhChip className="rgp-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</PhChip> : null}
       match={'match' in r ? r.match : fetched} matchPending={!practiceRow && fetched === undefined} own={mine} minions={r.board?.minions} skins={skins}
-      runes={r.runes} runeLive={runeLiveStateOfSnapshot(r.board)}
+      runes={r.runes} runeLive={runeLiveStateOfSnapshot(r.board)} shopBuff={r.board?.shopBuff ?? null}
       replay={!practice || watchable ? {
         watchable, busy, unplayable, onWatch: (e) => onWatch(e, r, key),
         label: watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game',

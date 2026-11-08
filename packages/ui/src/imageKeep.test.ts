@@ -32,6 +32,32 @@ describe('createImageKeep', () => {
     expect(k.stats().count).toBe(1);
   });
 
+  // R-PERF-LATE-FLAT-01 (2026-11-08, phone late-game hunt): the SAME pictures shown every round must cost the same every
+  // round. A working set that fits is decoded once and never evicted again; one that does not fit evicts the same number
+  // each round (a flat count), never more as the game goes on, and the hold never grows past its budget.
+  it('a fixed working set replayed every round: evictions per round stay flat (zero when it fits)', () => {
+    const budget = 48 * 1024 * 1024;
+    const card = decodedBytes(256, 256); // a phone card-art copy
+    const perRound = (n: number, rounds: number): number[] => {
+      const k = createImageKeep<string>(budget);
+      const out: number[] = [];
+      for (let r = 0; r < rounds; r++) {
+        const before = k.stats().evicted;
+        for (let i = 0; i < n; i++) if (k.get(`card${i}`) === undefined) k.set(`card${i}`, 'img', card);
+        out.push(k.stats().evicted - before);
+        expect(k.stats().bytes).toBeLessThanOrEqual(budget);
+      }
+      return out;
+    };
+    // A late shop + hand + board (~25 cards) and far more (150) both fit 48 MB at 256 px: nothing is evicted after round 1.
+    expect(perRound(25, 14).every((e) => e === 0)).toBe(true);
+    expect(perRound(150, 14).every((e) => e === 0)).toBe(true);
+    // A set larger than the budget (250 x 256 KB = 62.5 MB) churns, but by the same count every round.
+    const churn = perRound(250, 14).slice(1);
+    expect(new Set(churn).size).toBe(1);
+    expect(churn[0]).toBeLessThanOrEqual(250);
+  });
+
   it('decodedBytes is RGBA', () => {
     expect(decodedBytes(256, 256)).toBe(262144);
     expect(decodedBytes(0, 10)).toBe(0);

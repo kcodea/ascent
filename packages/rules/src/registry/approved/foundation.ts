@@ -14496,4 +14496,26 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the Ruby gem effect (ruby-gem-apply, a react layer on the badges) stacked additively on top without limit.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/popStack.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
+  // ── End of Turn never aims Ruby / stat FX at an untouched hand card (owner report 2026-11-08) ──────────────
+  {
+    id: 'R-HANDFX-02',
+    title: 'An End-of-Turn effect plays its Ruby and stat FX only on the cards it actually changed',
+    statement:
+      'When an End-of-Turn effect resolves, its Ruby burst and stat cue (tribe tendril, stat gain) play only on the '
+      + 'minions whose Rubies or stats that effect really changed. A card in hand that already carries a Ruby, or any '
+      + 'other card the effect does not touch, shows nothing, for every card, rune, quest or hero.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-08 (Medal clip, Round 16 replay)', quote: 'you can see the end of turn how the animation is wrongfully targetting units in hand' },
+      { kind: 'fix-pr', ref: 'fix/eot-hand-streak: packages/sim/src/recruit.ts (the trigger snapshot counts Rubies before the trigger on board AND hand)' },
+    ],
+    example: 'Two Assemblers at End of Turn, with a Dawnclaw in hand that got a Ruby earlier: Rubies land on the board Kobolds; the Dawnclaw shows no gem burst and no tendril.',
+    currentBehaviour:
+      'Conforms from 2026-11-08 (fix/eot-hand-streak). Before, the End-of-Turn consequence snapshot counted Rubies on the '
+      + 'board only but compared after on board and hand, so every trigger (and every repeat of it) emitted a fake '
+      + 'rubyPlayed plus a cancelling statsChanged on each hand card already carrying a Ruby. Stats never changed; only '
+      + 'the FX streaked to the hand. This is the case R-HANDFX-01 left open.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/eotHandRubyEmission.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

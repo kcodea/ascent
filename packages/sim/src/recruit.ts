@@ -16799,7 +16799,7 @@ function withRecruitTrigger(
     // the technique projectEndOfTurnSteps uses) so any future effect is caught, and all orthogonal to (or, for
     // rubies, carved out of) the board/hand stat diff so the proven statsChanged equivalence holds.
     const rubyCountOf = (c: { buffs?: { source: string; count: number }[] }): number => c.buffs?.find((b) => b.source === 'Ruby')?.count ?? 0;
-    const rubyBefore = new Map(state.board.map((c) => [c.uid, rubyCountOf(c)]));
+    const rubyBefore = new Map([...state.board, ...state.hand].map((c) => [c.uid, rubyCountOf(c)]));
     const handBefore = new Set(state.hand.map((c) => c.uid));
     const boardBefore = new Set(state.board.map((c) => c.uid));
     // Slot + cardId per uid, so a body that LEAVES can name the position it left (the projection cannot

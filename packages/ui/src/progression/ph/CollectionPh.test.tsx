@@ -58,8 +58,9 @@ const profile = (over: Partial<ProgressionProfile> = {}): ProgressionProfile =>
   ({ accountXp: 325, accountLevel: 2, revision: 9, equippedTitleId: 'alpha_tester', titles: ['alpha_tester', 'title_star_chaser'], aether: 1500, ...over });
 
 /** Mount the page (the shell on or off) and let the lazy skins load. */
-async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crates?: CrateRow[]; landing?: boolean }): Promise<void> {
-  localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(['alpha_tester', 'title_star_chaser']));
+async function open(opts: { ph: boolean; aether?: boolean; guest?: boolean; crates?: CrateRow[]; landing?: boolean; unseen?: boolean }): Promise<void> {
+  // `unseen`: the second owned title has not been seen yet, so it wears NEW.
+  localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(opts.unseen ? ['alpha_tester'] : ['alpha_tester', 'title_star_chaser']));
   localStorage.setItem('ascent.collection.baseline.u-1', '1');
   localStorage.setItem('ascent.aetherIntro.seen.u-1', '1');
   setPartyHome(opts.ph);
@@ -195,6 +196,18 @@ describe('the Collection in the party home shell', () => {
     expect(document.querySelector('.phc-gridwrap')?.textContent).toContain('New items from chests and rewards show up here.');
   });
 
+  // Owner 2026-11-08: "lets have the NEW subcategory uptop glow and pulse green whenever theres something available in that section".
+  it('ON: the New tab glows only while this category has something new (R-COLLECTION-NEW-GLOW-01)', async () => {
+    await open({ ph: true });
+    expect($('.phk-tab .phc-newglow')).toBeNull();
+    ui?.unmount();
+    await open({ ph: true, unseen: true });
+    const newTab = $$('.phk-tab').find((t) => t.textContent?.trim() === 'New')!;
+    expect(newTab.querySelector('.phc-newglow')).not.toBeNull();
+    act(() => { btn('Mark all as seen')!.click(); });
+    expect($('.phk-tab .phc-newglow')).toBeNull();
+  });
+
   it('ON: the chest bay counts the sealed chests and Open plays the theatre in the shell skin', async () => {
     await open({ ph: true });
     expect($('.phc-bay-num')?.textContent).toBe('2 ready');
@@ -313,7 +326,12 @@ describe('the shell skins keep the UI rules', () => {
     expect(tsx).not.toMatch(/<[a-z][a-z0-9]*\s[^>]*\stitle=/);
     expect(tsx).not.toMatch(/[—–]/);
     expect(css).not.toMatch(/cursor\s*:/);
-    expect(css).not.toMatch(/infinite/);
-    expect(css).not.toMatch(/@keyframes/);
+    // The one sanctioned loop: the New tab's green pulse (owner 2026-11-08, R-COLLECTION-NEW-GLOW-01), opacity only.
+    const pulse = /@keyframes phc-newpulse \{[^}]*\}[^}]*\}/;
+    expect(css).toMatch(pulse);
+    expect(css.match(pulse)![0].replace(/@keyframes phc-newpulse/, '')).not.toMatch(/transform|filter|shadow|background|width|height/);
+    const rest = css.replace(pulse, '').replace(/animation: phc-newpulse 1\.6s ease-in-out infinite;/, '');
+    expect(rest).not.toMatch(/infinite/);
+    expect(rest).not.toMatch(/@keyframes/);
   });
 });

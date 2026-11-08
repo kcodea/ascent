@@ -14312,6 +14312,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/friendsBadge.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
   {
+    id: 'R-COLLECTION-NEW-GLOW-01',
+    title: 'The Collection New tab glows green while the category has anything new',
+    statement:
+      'While the Collection category you are looking at has any item marked New, the New tab at the top glows green and gently pulses. '
+      + 'Once nothing in that category is new (seen, or Mark all as seen), the glow goes away.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Collection screenshot', quote: 'lets have the NEW subcategory uptop glow and pulse green whenever theres something available in that section' },
+      { kind: 'fix-pr', ref: 'feat/collection-new-glow: packages/ui/src/progression/ph/CollectionPh.tsx (.phc-newglow), collectionPh.css' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/collection-new-glow). The pulse loops opacity only on a ::before with a static shadow. Before, the New tab looked the same whether or not anything was new.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
     id: 'R-PH-TAB-DEFAULT-01',
     title: 'Arriving at a page opens its leftmost tab',
     statement:

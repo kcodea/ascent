@@ -63,6 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Hero select: hovering a hero still shows its Health and Armor at the top of the banner.' },
       { category: 'Systems', text: 'Collection: the New tab glows green while the category you are viewing has something new.' },
       { category: 'Systems', text: 'Every page now opens on its first tab: Play on Ranked, the Compendium on Cards, Career on Match History.' },
+      { category: 'Systems', text: 'Press Escape on any screen to open Settings, in a game too; press it again to close it. Anything already open closes first.' },
       { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
       {

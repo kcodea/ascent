@@ -59,7 +59,7 @@ import compendiumBookArt from './compendium-book.png';
 import settingsArt from './settings-medallion.png';
 import { SettingsPage } from './EscMenu';
 import { PatchNotesPage } from './PatchNotesPage';
-import { GameMenu, handleEscape, openMenu } from './GameMenu';
+import { GameMenu, closeInGamePageState, handleEscape, openMenu } from './GameMenu';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
 import { LobbyChatPanel } from './lobbyChat/LobbyChatPanel';
@@ -121,7 +121,7 @@ import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProv
 import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
-import { anyPageOpen, PAGES_CLOSED, useGame, isPreRun, inGameScreen } from './store';
+import { anyPageOpen, useGame, isPreRun, inGameScreen } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
@@ -155,7 +155,8 @@ const PhGuard = PhPageGuard;
 /** Settings opens over a page: its Back returns to that page, as it was. */
 const SETTINGS_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) useGame.getState().closeSettings(); } };
 /** A page opened in a game: Back returns to the in-game menu, the game exactly as it was. */
-const closeInGamePage = (): void => useGame.setState(PAGES_CLOSED);
+// Settings that Escape opened over a game closes straight back to the game (R-ESC-SETTINGS-01).
+const closeInGamePage = (): void => useGame.setState(closeInGamePageState());
 const IN_GAME_BACK = { label: 'Back', onClick: (): void => { if (!phBack()) closeInGamePage(); } };
 const PhSteadyNav = lazy(() => import('./partyHome/shell/PhSteadyNav'));
 const PhChrome = lazy(() => import('./partyHome/shell/PhPageChrome'));
@@ -581,8 +582,8 @@ export function Game() {
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
   // also claims Esc (closes itself) before the menu would open or close.
-  // IN A GAME (R-ESC-SIDEBAR-01) the menu is the sidebar over the dimmed game; Esc again closes it with any page it
-  // opened. On the menus Esc opens (and closes) the Settings page.
+  // With nothing open, Esc opens Settings on every screen (R-ESC-SETTINGS-01): in a game the Settings page over the dimmed
+  // game, and Esc again goes straight back to the game. The gear still opens the in-game menu (R-ESC-SIDEBAR-01).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;

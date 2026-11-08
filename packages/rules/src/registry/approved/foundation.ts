@@ -14432,4 +14432,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (fix/chat-watch-button). Before, the unpinned window closed in an onClickCapture on the actions row; a real click lets React re-render between the capture and bubble phases, so the button unmounted and its Watch never ran (jsdom clicks do not show it, which is why the old test passed).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-BADGE-POP-STACK-01',
+    title: 'A stat medallion bounces on every change but never stacks more than two bounces',
+    statement:
+      'Every change to a stat medallion bounces it, in the shop and in combat, from every source (the number changing, '
+      + 'a Ruby gem landing, any authored effect that pops the badge). At most two bounces are live on one medallion at the '
+      + 'same moment: when a third starts, the oldest stops, so a fast run of buffs can never grow the medallion past two '
+      + 'bounces stacked.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-11-08 (Medal clip of a Round 16 replay)',
+        quote: 'can we cap the overall amount that they can grow? i want them to bounce every time, but it shouldnt stack on top of each other more than 2 times',
+      },
+      { kind: 'fix-pr', ref: 'fix/badge-pop-stack-cap (2026-11-08)' },
+      { kind: 'code', ref: 'packages/ui/src/fx/popStack.ts (claimPopSlot); packages/ui/src/Card.tsx (useBadgePop); packages/ui/src/fx/primitives/react.ts (seek)' },
+    ],
+    example: 'A board of Kobolds taking a stream of Rubies in combat: each gem used to start its own 1.35x pop from the Ruby effect AND from the number change, all multiplying, so the medallions swelled to several times their size. Now each gem still bounces the medallion, and it never carries more than two bounces at once.',
+    currentBehaviour:
+      'Conforms from 2026-11-08 (fix/badge-pop-stack-cap). Before, the card cancelled only its own previous number-change pop; '
+      + 'the Ruby gem effect (ruby-gem-apply, a react layer on the badges) stacked additively on top without limit.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/popStack.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

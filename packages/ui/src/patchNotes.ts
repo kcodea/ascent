@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'Fixed: Attack and Health medallions no longer swell huge when lots of buffs land at once. They still bounce on every change.' },
       { category: 'Systems', text: 'Fixed: Watch in the friends chat window now takes you into your friend\'s game.' },
       { category: 'Systems', text: 'The "update downloaded" notice is bigger and sits under the START button.' },
       { category: 'Systems', text: 'Match History: a Shop buffs button shows the buffs your Shop minions were getting when the game ended, and where they came from.' },

@@ -1589,7 +1589,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
   const first = (state.consumesThisTurn = (state.consumesThisTurn ?? 0) + 1) === 1;
-  advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate counts Shop-minion Consumes
+  advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate: a FODDER Consume (Shop-minion eats tick in `consumeShopOffer`)
   // Rune of Transfusion: whenever a DEMON Consumes, your leftmost minion also gains the Fodder's stats
   // (skipped when the eater IS the leftmost — its own Consume already banked them).
   if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
@@ -10064,6 +10064,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (demon) {
       addBuff(demon, 'Fodder Treatment', sold.attack, sold.health);
       fire(ctx, 'onConsume', { minion: demon });
+      advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate: any Consume counts
     }
   },
 
@@ -13863,6 +13864,11 @@ export function consumeShopOffer(
   // visibly run the pool dry.
   returnToPool(state, def.id);
   fire(ctx, 'onConsume', { minion: eater, shop: true }); // `shop` distinguishes a SHOP eat from a Fodder one (Broodlord counts only these)
+  // Rune of the Empty Plate counts EVERY Consume (owner 2026-11-08): a Shop-minion eat ticks it here, ONE per minion
+  // eaten (a Gilded `times: 2` is still one minion; Bottomless Banquet's bonus bite is its own). This covers a Demon's
+  // eat, the STARFORM eating a Shop minion, and a Demon eating the Starform. Fodder ticks in `noteFodderConsumed`,
+  // which this path deliberately skips — so the rune was dead in Set 2, where every Demon eats Shop minions.
+  advanceRuneThresholds(state, 'consume', 1);
   // Deliberately NOT `noteFodderConsumed`: that tally is about FODDER. Feeding it here inflated Abhorrent
   // Horror's "stats from Fodder consumed" window and ticked Rune of Consumption's permanent Fodder-aura improve
   // — both paying out for eating something that isn't Fodder at all (owner report 2026-07-25, "maybe something

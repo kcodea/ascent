@@ -72,6 +72,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Balance',
         text: 'Braum: Investment now pays out after investing 4 (was 5).',
       },
+      {
+        category: 'Balance',
+        text: 'Rune of the Empty Plate: every Consume now counts toward its Shop spell, not only Fodder.',
+        details: [
+          'A Demon eating a Shop minion counts, so the rune now works with Set 2 Demons.',
+          'The Starform eating a Shop minion, a Demon eating the Starform, and a Celestial taking the Starform when you buy it all count.',
+          'Progress carries over from turn to turn.',
+        ],
+      },
     ],
   },
   {

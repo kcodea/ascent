@@ -72,6 +72,43 @@ export const CF_EXTRA: ScenarioDef[] = [
       events: [{ round: 1, phase: 'shop', act: (h) => { (h.server as CfChaosServer).rankedKnockOutAt = 3; } }],
     }),
   },
+  // ── 2026-11-08 (fix/versus-reliability-nov): the paths no client drove before: a concede (shop and mid-fight), a player
+  // gone for good (the others unpause, the seat plays on auto until it is out), and a player who comes back while on
+  // auto (resumes where the match is: no new pause, nobody waits). The chaos clients never pressed Unpause or Concede.
+  {
+    name: 'concede', about: 'a player concedes in round 2\'s shop (the Esc menu); the match ends or goes on without them, and everyone still in ends in the room', modes: CF_MODES,
+    build: (mode) => ({
+      name: 'concede', mode, seed: seedOf('concede', mode),
+      events: [{ round: 2, phase: 'shop', afterMs: 800, act: (h) => { void h.clients[1]!.store.forfeitMatch(); } }],
+    }),
+  },
+  {
+    name: 'concedeInFight', about: 'a player concedes while round 2\'s fight plays', modes: CF_MODES,
+    build: (mode) => ({
+      name: 'concedeInFight', mode, seed: seedOf('concedeInFight', mode),
+      events: [{ round: 2, phase: 'combat', afterMs: 1000, act: (h) => { void h.clients[1]!.store.forfeitMatch(); } }],
+    }),
+  },
+  {
+    name: 'goneForGood', about: 'a player loses the network for the rest of the match in round 2; after the grace the host unpauses and the seat plays on auto until it is out', modes: ['duel', 'group3', 'group4', 'duos'],
+    build: (mode) => ({
+      name: 'goneForGood', mode, seed: seedOf('goneForGood', mode),
+      events: [
+        { round: 2, phase: 'shop', afterMs: 500, act: (h) => { (h.server as CfChaosServer).finOnDrop = true; h.drop(1, 40 * 60_000); } },
+        { round: 2, phase: 'shop', afterMs: 40_000, act: (h) => { void h.clients[0]!.store.unpauseMatch(); } },
+      ],
+    }),
+  },
+  {
+    name: 'autoReturn', about: 'a player gone 70 s is unpaused onto auto, then comes back mid-round: auto ends, the match goes on with no new pause and nobody waits', modes: ['duel', 'group3', 'group4', 'duos'],
+    build: (mode) => ({
+      name: 'autoReturn', mode, seed: seedOf('autoReturn', mode), rounds: 4,
+      events: [
+        { round: 2, phase: 'shop', afterMs: 500, act: (h) => { (h.server as CfChaosServer).finOnDrop = true; h.drop(1, 70_000); } },
+        { round: 2, phase: 'shop', afterMs: 40_000, act: (h) => { void h.clients[0]!.store.unpauseMatch(); } },
+      ],
+    }),
+  },
   {
     name: 'dropFin', about: 'a 20 s loss the object hears (a closed socket): paused within the 3 s grace, lifted on return', modes: CF_MODES,
     build: (mode) => ({

@@ -11290,6 +11290,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientWake.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
+    id: 'R-VERSUS-CF-HANDSHAKE-01',
+    title: 'Versus on Cloudflare: a reconnect that never finishes its handshake is replaced within 8 s',
+    statement:
+      'Every room socket must complete its upgrade AND get the room\x27s hello answer within 8 s of being opened; otherwise the client '
+      + 'drops it and reconnects on its ordinary backoff. Requests queued behind it are sent on the replacement. This covers the gap '
+      + 'before the keep-alive starts (the 5 s ping and the 15 s stale check only run once the hello is answered), so a reconnect '
+      + 'whose upgrade or hello was lost can never sit half-open with the player frozen on screen. A healthy handshake is never cut.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (VERSUS_CF_HANDSHAKE_MS, the handshake timer in open())' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Before, the hello timer only forgot the hello: the socket stayed not-ready with no keep-alive, every request timed out behind it, and nothing ever replaced it until the browser itself closed the dead TCP connection.',
+    example: 'Bob\x27s phone switches from wifi to mobile data just as his socket reconnects; the upgrade goes through but the hello answer is lost. 8 s later the client drops that socket and opens a new one, which answers at once; his queued End Turn goes out on it.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientHandshake.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
     id: 'R-EGRESS-02',
     title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
     statement:

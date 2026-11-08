@@ -10,7 +10,8 @@ import {
   checkHub, checkPool, checkSession, checkVersus, checkWriterKey, checkWrites, comparePoolDigests, currentVersus, formatSummary,
   runHealth, type HealthDeps, type WriteProbe,
 } from '../src/health/healthCore';
-import { emptyHour, hourKey, poolDigestOf, type HealthResult, type HubActivity, type PoolDigest } from '../src/health/healthProtocol';
+import { readFileSync } from 'node:fs';
+import { RELEASE_PATH, SITE_URL, emptyHour, hourKey, poolDigestOf, type HealthResult, type HubActivity, type PoolDigest } from '../src/health/healthProtocol';
 
 const NOW = Date.parse('2026-10-31T06:17:00Z');
 const HUB = 'https://hub.test';
@@ -187,5 +188,15 @@ describe('the run', () => {
     const rs = await runHealth(deps({ routes: { [`${HUB}/health`]: { status: 500, body: null } } }));
     expect(formatSummary(rs)).toMatch(/^health: 1 FAILING \(hub\)/);
     expect(formatSummary(await runHealth(deps()))).toMatch(/^health: all good/);
+  });
+});
+
+describe('the current release is the exe one, not the retired Netlify site', () => {
+  it('reads release.json from the same feed the desktop exe updates from', () => {
+    // Netlify was retired (owner 2026-11-05). Its stale release.json named a protocol-1 Worker and failed this check
+    // every night while the exe's Worker was healthy. The feed the exe self-updates from is the release of record.
+    const builder = JSON.parse(readFileSync(new URL('../../../apps/desktop/electron-builder.json', import.meta.url), 'utf8')) as { publish: { url: string } };
+    expect(SITE_URL).toBe(builder.publish.url.replace(/\/$/, ''));
+    expect(`${SITE_URL}${RELEASE_PATH}`).not.toMatch(/netlify/);
   });
 });

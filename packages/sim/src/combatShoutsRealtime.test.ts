@@ -65,10 +65,10 @@ describe('R-REALTIME-03 — every Shout id is combat-live or an explicit Shop-on
   // (Dragon batch). battlecryCastNamedSpell (Storm Chaser) joined and LEFT the same day: owner ruling "Split (real
   // time)" gave it a combat factory (the minion Rubies land live, the Shop half at settle).
   // SHRUNK 2026-10-13: Solburn's Collapse became a Sell (owner Set 3 batch), so battlecryCollapseStarform is no Shout.
-  it('the Shop-only exceptions are the nine the ruling was reviewed against (grow this deliberately)', () => {
+  it('the Shop-only exceptions are the eight the ruling was reviewed against (grow this deliberately)', () => {
     expect(Object.keys(SHOP_ONLY_SHOUTS).sort()).toEqual([
       'armChooseBoth', 'battlecryAllDemonsConsume', 'battlecryConsumeShopRandom',
-      'battlecryCreateStarformOrBuff', 'battlecryReplayTargetEndOfTurn', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
+      'battlecryCreateStarformOrBuff', 'battlecryStarformConsumeShop', 'battlecryTargetConsumesShop',
       'buffRightmostSlotPermanent', 'triggerAdjacentOrbits',
     ]);
   });

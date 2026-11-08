@@ -5,6 +5,7 @@ import { alignmentsOf } from '../alignment';
 import { buildPendingCombatQuests, questCombatMods } from '../reducer';
 import { defIsTribe, handCardLocked, rubyStatBonus, spellAttackBonus, spellHealthBonus } from '../recruit';
 import { handCap, type RunState } from '../state';
+import { unusedEquipmentCount } from '../equipment';
 
 /**
  * THE FRIENDLY SIDE, PREPARED THE WAY THE REAL FIGHT PREPARES IT (balance roadmap B3).
@@ -126,6 +127,8 @@ function friendlySideOf(s: RunState): Omit<CombatSideState, 'poolIds'> {
     growthBonus: s.growthBonus ?? 0,
     whisperImprove: s.whisperImprove && Object.keys(s.whisperImprove).length > 0 ? { ...s.whisperImprove } : undefined,
     goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
+    cardsPlayedThisTurn: s.playedThisTurn?.length ?? 0,
+    unusedEquipment: unusedEquipmentCount(s),
     lastSpellThisTurnId: s.lastSpellThisTurnId,
     squirlScoutBuff: s.squirlScoutBuff ?? 0,
     handMinions: s.hand
@@ -162,5 +165,5 @@ export const MIRRORED_SIDE_KEYS: readonly string[] = [
   'conductorBuff', 'impHp', 'fodderConsumedAtk', 'fodderConsumedHp', 'beastBuyAtk', 'beastsPlayed',
   'spiritsPlayed', 'cardsBoughtThisTurn', 'magneticAtk', 'magneticHp', 'rubyBonus', 'tier', 'tribes',
   'cardBuffs', 'handSpellIds', 'alesLastTurn', 'spellEscalation', 'lastSpellCastId', 'rememberedSpellIds',
-  'spellhide', 'growthBonus', 'whisperImprove', 'goldSpentThisTurn', 'lastSpellThisTurnId', 'squirlScoutBuff', 'handMinions', 'handRoom', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
+  'spellhide', 'growthBonus', 'whisperImprove', 'goldSpentThisTurn', 'cardsPlayedThisTurn', 'unusedEquipment', 'lastSpellThisTurnId', 'squirlScoutBuff', 'handMinions', 'handRoom', 'beastHuntExtra', 'beastRitualExtra', 'questMods', 'pendingQuests',
 ];

@@ -44,6 +44,7 @@ import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starfor
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
 import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
+import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
@@ -5110,6 +5111,8 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // SHOUTS IN REAL TIME (R-REALTIME-03): what a Shout re-fired mid-fight reads. Built BEFORE the per-turn reset,
     // so these are the Shop turn that just ended (Baby Gastrid's Gold, Recaller's last spell).
     goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
+    cardsPlayedThisTurn: s.playedThisTurn?.length ?? 0, // Kringle / Striker fired in combat (R-ROOMWORKS-02)
+    unusedEquipment: unusedEquipmentCount(s), // Shredder fired in combat
     lastSpellThisTurnId: s.lastSpellThisTurnId,
     squirlScoutBuff: s.squirlScoutBuff ?? 0, // Squirl Scout's snowball
     // Rope Wrangler's Echo summons a random hand MINION with its live stats (buffs + gilding intact).

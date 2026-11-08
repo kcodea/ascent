@@ -93,6 +93,8 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     growthBonus: snap.growthBonus ?? 0, // enemy Rune of Living Growth
     whisperImprove: snap.whisperImprove ? { ...snap.whisperImprove } : undefined, // enemy Whaloo casts its own run's Runebind
     goldSpentThisTurn: snap.goldSpentThisTurn ?? 0, // enemy Baby Gastrid re-fired mid-fight (R-REALTIME-03)
+    cardsPlayedThisTurn: snap.cardsPlayedThisTurn ?? 0, // enemy Kringle / Striker fired mid-fight (R-ROOMWORKS-02)
+    unusedEquipment: snap.unusedEquipment ?? 0, // enemy Shredder fired mid-fight
     lastSpellThisTurnId: snap.lastSpellThisTurnId, // enemy Recaller re-fired mid-fight
     squirlScoutBuff: snap.squirlScoutBuff ?? 0, // enemy Squirl Scout re-fired mid-fight
     rubyCasts: snap.rubyCasts ?? 0, // enemy Vaultkeeper's spell umbrella (text)

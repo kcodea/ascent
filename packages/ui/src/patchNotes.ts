@@ -65,6 +65,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-07',
     changes: [
       {
+        category: 'Balance',
+        text: 'Roomworks: when triggered in combat, it now fires the End of Turn right away instead of when the Shop opens.',
+        details: [
+          'Works from any combat trigger, like Dawnclaw. It picks a random friendly minion with an End of Turn effect, with its own animation.',
+          'Stats from these triggers last for that combat, like other combat triggers. Cards and Gold are yours to keep.',
+          'Effects that need the Shop, like Consume or casting Lasso, do nothing in combat.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The Collection has a New tab: everything still marked New, in each category.',
         details: [

@@ -19,6 +19,7 @@ import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, playerCombatSideState } from './reducer';
 import { handCardLocked, rubyStatBonus, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
+import { unusedEquipmentCount } from './equipment';
 import type { ThreatId } from './threats';
 import type { RecordedEmote } from './emotes';
 
@@ -189,6 +190,9 @@ export interface BoardSnapshot {
   /** Shouts re-fired on a served board mid-fight read their OWN run (R-REALTIME-03): Baby Gastrid's Gold spent,
    *  Recaller's last spell, Squirl Scout's snowball. Absent in older captures = 0 / none. */
   goldSpentThisTurn?: number;
+  /** End of Turn effects fired on a served board mid-fight read their OWN run (R-ROOMWORKS-02). Absent = 0. */
+  cardsPlayedThisTurn?: number;
+  unusedEquipment?: number;
   lastSpellThisTurnId?: string;
   squirlScoutBuff?: number;
   /** Set 2 — lifetime Ruby casts (the Vaultkeeper "spell umbrella" text; display-only in combat). */
@@ -480,6 +484,8 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
     ...(s.whisperImprove && Object.keys(s.whisperImprove).length ? { whisperImprove: { ...s.whisperImprove } } : {}),
     ...(s.goldSpentThisTurn ? { goldSpentThisTurn: s.goldSpentThisTurn } : {}),
+    ...(s.playedThisTurn?.length ? { cardsPlayedThisTurn: s.playedThisTurn.length } : {}),
+    ...(unusedEquipmentCount(s) ? { unusedEquipment: unusedEquipmentCount(s) } : {}),
     ...(s.lastSpellThisTurnId ? { lastSpellThisTurnId: s.lastSpellThisTurnId } : {}),
     ...(s.squirlScoutBuff ? { squirlScoutBuff: s.squirlScoutBuff } : {}),
     ...(s.rubyCasts ? { rubyCasts: s.rubyCasts } : {}),

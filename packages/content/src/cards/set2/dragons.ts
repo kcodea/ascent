@@ -415,7 +415,8 @@ export const SET2_DRAGONS: CardDef[] = [
     // A TARGETED Shout (owner: "you PICK the target"): only a friendly minion with an End of Turn effect is a legal
     // pick (`targetHasEndOfTurn`, enforced by the reducer and mirrored by the aim UI). It replays that minion's End of
     // Turn through the shared `replayEndOfTurn` path (Chronos repeats, the End-of-Turn objective). A re-fire with no
-    // chosen target (Drakko's extra fire, a combat re-fire settled in the Shop) picks a RANDOM legal minion (R-TARGET-07).
+    // chosen target (Drakko's extra fire, Dawnclaw in combat) picks a RANDOM legal minion (R-TARGET-07). In combat the
+    // End of Turn resolves live (`replayCombatEndOfTurn`, R-ROOMWORKS-02).
     // Gilded triggers it twice.
     id: 'd2_roomworks',
     name: 'Roomworks',

@@ -378,7 +378,7 @@ export interface CueContext {
   onRallyPulse?: (uid: string) => void;
   /** A Shout RE-FIRE in this moment (one per fire — each fire is its own moment, see `compileMoments`): the
    *  caller pulses the re-triggering unit and blooms the Shout's owner. Optional like `onRallyPulse`. */
-  onShoutProc?: (source: string, target: string) => void;
+  onShoutProc?: (source: string, target: string, eot?: boolean) => void;
   /** A PUMMEL fire in this moment (`channels/pummelFired.ts`) — called once per body that fired, at
    *  the cue's fire time, whether or not a def is bound/playable, so the caller can play the card's own effect
    *  voiceline and fall back to the stock medallion pulse when nothing is bound. Optional like `onRallyPulse`. */
@@ -839,9 +839,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       }
       at(cue, () => {
         for (const f of fired) {
-          ctx.onShoutProc?.(f.source, f.target);
+          ctx.onShoutProc?.(f.source, f.target, !!f.eot);
           if (!canPlayDefs()) continue;
-          const binding = bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
+          // An End of Turn fired mid-fight (R-ROOMWORKS-02) plays the flourish bound to the card whose End of Turn it
+          // is, the Shop's `endOfTurnMoment` cue, rather than the re-trigger card's Shout burst.
+          const binding = f.eot ? bindingFor(ctx.cardIds?.get(f.target) ?? null, 'endOfTurn') : bindingFor(ctx.cardIds?.get(f.source) ?? null, 'shout');
           if (!binding) continue;
           // Play the shout FX ON THE OWNER (`f.target`) — whose Shout is firing — not travelling from the
           // re-triggering unit. Both anchors are the owner, so a combat re-fire is byte-for-byte the shop cast

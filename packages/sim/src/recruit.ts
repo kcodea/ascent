@@ -8703,8 +8703,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /**
    * ROOMWORKS (owner 2026-10-10): "Shout: Trigger a friendly minion's End of Turn effect." A TARGETED Shout ("you PICK
    * the target"): `payload.target` is the chosen body, and only a friendly OTHER minion with an End of Turn effect is
-   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire,
-   * a combat re-fire settled in the Shop) picks a RANDOM legal minion off the run cursor (R-TARGET-07, owner 2026-10-10;
+   * legal (`battlecryTargetAllowed`, which the reducer enforces). A fire with no target (a Drakko / rune / Myra re-fire)
+   * picks a RANDOM legal minion off the run cursor (a combat re-fire resolves live instead, R-ROOMWORKS-02) (R-TARGET-07, owner 2026-10-10;
    * it was the left-most every time). Fires through the shared
    * `replayEndOfTurn` (Chronos repeats + the End-of-Turn objective count, exactly like Dusk's power), as its own beat
    * sourced on the target. Gilded triggers it twice.

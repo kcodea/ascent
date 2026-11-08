@@ -3389,7 +3389,7 @@ export type CombatEvent = (
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
   | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; conductor?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'epicFire'; source: string } // PRESENTATION ONLY (R-FX-EPIC-FIRE-01): an EPIC multiplier on the board (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve) just added fires / scaled a Ruby: `source` = that minion, which plays its On Watcher effect. No RNG, no step, no state.
-  | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
+  | { type: 'shout'; source: string; target: string; /** R-ROOMWORKS-02: this fire is `target`'s END OF TURN, not its Shout. Same counted moment, so its consequences get their own beat; only the words and the flourish differ. */ eot?: true } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string;
@@ -3528,6 +3528,11 @@ export interface CombatSideState {
   /** Gold spent in the Shop turn that just ended — Baby Gastrid's Shout re-fired in combat scales off it
    *  (R-REALTIME-03). Snapshot-captured so a served Gastrid pays ITS run's value. */
   goldSpentThisTurn?: number;
+  /** Cards played in the Shop turn that just ended: an End of Turn fired in combat repeats off it (Kringle, Striker;
+   *  R-ROOMWORKS-02). Snapshot-captured so a served board pays ITS run's value. */
+  cardsPlayedThisTurn?: number;
+  /** Equipment left unused in the Shop turn that just ended: Shredder's End of Turn fired in combat scales off it. */
+  unusedEquipment?: number;
   /** The last Shop spell cast in the turn that just ended — Recaller's Shout re-fired in combat copies it. */
   lastSpellThisTurnId?: string;
   /** Squirl Scout's run-wide snowball (`squirlScoutBuff`) — a combat re-fire improves it and grants the new value. */
@@ -4440,6 +4445,8 @@ export interface CombatContext {
   revelerValueFor(side: Side): number;
   /** Gold spent in the Shop turn that just ended (Baby Gastrid). */
   goldSpentThisTurnFor(side: Side): number;
+  cardsPlayedThisTurnFor(side: Side): number;
+  unusedEquipmentFor(side: Side): number;
   /** The last Shop spell cast in the turn that just ended (Recaller). */
   lastSpellThisTurnIdFor(side: Side): string | undefined;
   /** Rune of Full Measure held by `side`. */

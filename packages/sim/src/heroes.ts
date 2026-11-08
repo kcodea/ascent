@@ -808,7 +808,7 @@ export const HEROES: HeroDef[] = [
       kind: 'investment',
       cost: 1,
       untargeted: true,
-      text: 'Invest **1 Gold**. After investing **5**, get a random **Gilded** minion, then reset.',
+      text: 'Invest **1 Gold**. After investing **4**, get a random **Gilded** minion, then reset.',
     },
   },
   {

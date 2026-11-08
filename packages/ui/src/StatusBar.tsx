@@ -137,7 +137,7 @@ function heroPowerTallyOf(
     case 'archive': return ancientArchivePassive(run) ? null : `${(run.archivedTribes?.length ?? 0)}/${ancientArchiveNeed(run)}`; // Quillen
     case 'investment': { // Bram — an Ancient pairing may reshape it (Death: deaths toward 16, live; Time: no bank)
       const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
-      return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/5`;
+      return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/4`;
     }
     case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia
     case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`; // Odelle

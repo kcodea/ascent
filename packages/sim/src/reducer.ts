@@ -3821,7 +3821,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           }
         }
       } else if (power.kind === 'investment') {
-        // Bram: bank 1 Gold a turn; the 5th invested pays out a random GILDED minion (up to your Shop tier,
+        // Bram: bank 1 Gold a turn; the 4th invested pays out a random GILDED minion (up to your Shop tier,
         // owner ruling 2026-08-16) and resets the bank. Untargeted; the 1-Gold cost is spent by the shared
         // block. A full hand blocks the payout, so the bank is only advanced when it can actually pay.
         // ANCIENTS × Braum (owner pairings 2026-10-06; no-ops unless the run has them): DEATH makes Investment passive
@@ -3832,7 +3832,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           if (!ancientRunInvestmentTime(s)) return state; // full hand / nothing to Discover → no charge
         } else {
           const invested = (s.bramInvested ?? 0) + reps; // Wishbone: two counts banked per use
-          if (invested >= 5) {
+          if (invested >= 4) {
             if (s.hand.length >= handCap(s)) return state; // no room for the payout → no charge, bank untouched
             const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier);
             if (pool.length === 0) return state;

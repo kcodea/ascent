@@ -20,7 +20,7 @@ import { markPhPage, PhBackContext, PhCoveredContext } from '../shell/PhPageGuar
 import { usePhLayer } from '../shell/usePhLayer';
 import { isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { rectToStage, stageHost } from '../../stage';
+import { rectToStage, stageHost, toStage } from '../../stage';
 import '../shell/shell.css';
 import './kit.css';
 import { useSlideMarker } from './slideMarker';
@@ -329,9 +329,22 @@ export function PhSegmented<T extends string | number | null>({ label, hint, val
  * a dark veil over the screen and one navy plate in the big cut, an eyebrow, a title, the text, then the actions
  * (primary first). `onClose` runs on a press on the veil. One-shot entrance (transform + opacity).
  */
-export function PhDialog({ eyebrow, title, children, actions, onClose, closing, label }: {
+export function PhDialog({ eyebrow, title, children, actions, onClose, closing, label, alignTo }: {
   eyebrow?: ReactNode; title: ReactNode; children?: ReactNode; actions: ReactNode; onClose?: () => void; closing?: boolean; label: string;
+  /** A selector for an on-screen element to centre the window over horizontally (e.g. the START button), instead of the
+   *  middle of the screen. Measured once when the window opens; ignored when nothing matches. */
+  alignTo?: string;
 }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [dx, setDx] = useState(0);
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const anchor = alignTo ? document.querySelector(alignTo) : null;
+    if (!box || !anchor) return;
+    const a = anchor.getBoundingClientRect(), b = box.getBoundingClientRect();
+    // Screen-space centres, one difference converted to stage px (it becomes a CSS length on the box).
+    setDx(Math.round(toStage(a.left + a.width / 2 - (b.left + b.width / 2))));
+  }, [alignTo]);
   // Esc closes the window (and nothing under it).
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -352,7 +365,7 @@ export function PhDialog({ eyebrow, title, children, actions, onClose, closing, 
         if (el instanceof HTMLInputElement) { el.blur(); return; }
         onClose?.();
       }} />
-      <div className="phk-dlgbox">
+      <div className="phk-dlgbox" ref={boxRef} style={dx ? { left: dx } : undefined}>
         {eyebrow && <span className="phk-eyebrow">{eyebrow}</span>}
         <h2 className="phk-dlgtitle">{title}</h2>
         {children && <div className="phk-dlgtext">{children}</div>}

@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-08',
+    changes: [
+      { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
+    ],
+  },
+  {
     date: '2026-11-07',
     changes: [
       {

@@ -14280,4 +14280,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-07 (fix/hero-select-row-centre). Before, the whole rectangular card box took the pointer.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-07' },
   },
+  {
+    id: 'R-PH-PROMPT-ALIGN-01',
+    title: 'The ranked confirmation sits centred over the START button',
+    statement:
+      'When START opens the ranked (or Duos) confirmation on the home screen, the window is centred left to right on the START button '
+      + 'and the banner above it, not on the middle of the screen. With no START button on screen it falls back to the middle.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the Ranked Lobby window off to the right of START', quote: 'this needs to be centered with the play/start button centers' },
+      { kind: 'fix-pr', ref: 'fix/ranked-confirm-centre: packages/ui/src/partyHome/kit/index.tsx (PhDialog alignTo), packages/ui/src/partyHome/PhPrompts.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (fix/ranked-confirm-centre). Before, the window centred on the whole screen, right of the Play column.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/phRankedPromptAlign.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

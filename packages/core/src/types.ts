@@ -3730,7 +3730,7 @@ export interface CombatCarryBacks {
   cardBuffs?: { cardId: string; attack: number; health: number }[];
   fodderGrants?: number;
   fodderSchedule?: number[];
-  deferredBattlecries?: { cardId: string; golden: boolean; uid?: string; eot?: EffectDef[] }[];
+  deferredBattlecries?: { cardId: string; golden: boolean; uid?: string }[];
   shoutCarry?: ShoutCarry;
   maxGoldGain?: number;
   bonusGold?: number;
@@ -4005,7 +4005,7 @@ export interface CombatResult {
    *  buff, gain-a-minion) — recorded here (cardId + its golden state) and replayed through the real recruit
    *  factory in settleCombat, where they have full RunState access. Combat-meaningful Battlecries (summon /
    *  buff / discover / grant-keyword / spell-power) run in combat instead and are NOT listed here. */
-  playerDeferredBattlecries?: { cardId: string; golden: boolean; uid?: string; eot?: EffectDef[] }[];
+  playerDeferredBattlecries?: { cardId: string; golden: boolean; uid?: string }[];
   /** Run-state grants from Shouts that resolved LIVE in combat (R-REALTIME-03) — see `ShoutCarry`. */
   playerShoutCarry?: ShoutCarry;
   /** Free shop rerolls banked from this combat (Gryphon's on-damaged). Added to `freeRolls` in settleCombat. */
@@ -4416,8 +4416,6 @@ export interface CombatContext {
    *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory
    *  doubles correctly). */
   deferBattlecry(cardId: string, golden: boolean, side: Side, sourceUid?: string): void;
-  /** R-ROOMWORKS-02: the Shop-only End of Turn effects of a body fired in combat; settle runs them on its run card. */
-  deferEndOfTurn(cardId: string, golden: boolean, side: Side, sourceUid: string | undefined, effects: EffectDef[]): void;
   /** "Give your Starform +A/+H" in combat (Set 3 design pass): the Starform is a Shop token, so the gain is banked
    *  per source and carried back (`starformGain`); settle applies it. Both sides accumulate (symmetric carry). */
   gainStarform(attack: number, health: number, side: Side, source: string): void;

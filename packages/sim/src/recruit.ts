@@ -13303,31 +13303,6 @@ export function replayEconomyBattlecry(state: RunState, cardId: string, golden: 
 }
 
 /**
- * R-ROOMWORKS-02: the Shop half of an End of Turn fired in combat. `effects` are exactly the ones the fight could not
- * finish (`SHOP_ONLY_END_OF_TURN`, a spell with no combat body); they run once on the body's own run card, off-cycle
- * (`replay`). Combat already folded the repeats, one entry per fire. A body with no run card (a summoned token) has no
- * Shop presence to act as, so it does nothing.
- */
-export function replayDeferredEndOfTurn(state: RunState, cardId: string, uid: string | undefined, effects: readonly EffectDef[]): void {
-  const own = uid ? state.board.find((c) => c.uid === uid && c.cardId === cardId) : undefined;
-  if (!own) return;
-  const ctx = makeContext(state);
-  for (const effect of effects) {
-    withRecruitTrigger(
-      ctx,
-      {
-        phase: 'recruit',
-        source: { kind: 'minion', id: own.cardId, uid: own.uid, side: 'player', label: CARD_INDEX[own.cardId]?.name },
-        trigger: 'endOfTurn',
-        ...beatIdentity(`factory:${effect.do}:endOfTurn`),
-      },
-      () => { captureBuffFx(ctx.state, own, 'minion', () => { RECRUIT_FACTORIES[effect.do]?.(ctx, own, effect.params ?? {}, { minion: own, proc: 0, replay: true }); }); },
-      { discardIfEmpty: true },
-    );
-  }
-}
-
-/**
  * R-SHRIEKER-BEATS-01 (owner 2026-10-10: "dawnclaw and mykel should also do one at a time"): re-fire `fires` (in the
  * order given, repeats included) through `replayBattlecry`, presenting the re-triggering minion as ONE parent beat
  * (`policyKey`, whose registry entry carries `children: 'sequential'`) and every fire as its own nested beat sourced

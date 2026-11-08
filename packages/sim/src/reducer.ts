@@ -43,7 +43,7 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
-import { withWhisperMult, spendNextSpellCharge, spendLastCall, replayDeferredEndOfTurn } from './recruit';
+import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
@@ -5516,10 +5516,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Shop meal, a Shop slot, Orbit, a Consume): they fired live in the fight (their line, every Shout counter), and
   // the Shop part applies now, once, acting as the re-fired body's own run card (`uid`).
   if (result.playerDeferredBattlecries) {
-    for (const { cardId, golden, uid, eot } of result.playerDeferredBattlecries) {
-      if (eot) replayDeferredEndOfTurn(s, cardId, uid, eot); // R-ROOMWORKS-02: the Shop half of a combat End of Turn
-      else replayEconomyBattlecry(s, cardId, golden, uid);
-    }
+    for (const { cardId, golden, uid } of result.playerDeferredBattlecries) replayEconomyBattlecry(s, cardId, golden, uid);
   }
   // SET 3 DESIGN PASS: Starform growth banked in the fight (the Heralding Star, Stellar Echoes' graft …) lands now that
   // the Shop exists: AFTER the deferred Shop-only Shouts, so a combat Star Seed's creation is there to take it. No

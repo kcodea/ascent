@@ -3,8 +3,8 @@
  *
  * Owner: *"This trigger should happen in combat in real time"* (Dawnclaw's Echo re-firing Roomworks). Roomworks used to
  * sit on `SHOP_ONLY_SHOUTS`: it logged a line mid-fight and the End of Turn landed when the Shop opened. Now the End of
- * Turn runs on the beat through `replayCombatEndOfTurn`. Only an effect whose target is the Shop waits for it
- * (`SHOP_ONLY_END_OF_TURN`). Stats follow the phase: combat-only, like every other combat trigger.
+ * Turn runs on the beat through `replayCombatEndOfTurn`. An effect whose target is the Shop does nothing, then or later
+ * (`SHOP_ONLY_END_OF_TURN`; owner: "should do nothing and not fire at start of turn"). Stats follow the phase: combat-only, like every other combat trigger.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
@@ -116,10 +116,12 @@ describe('R-ROOMWORKS-02 — what each kind of End of Turn does mid-fight', () =
     const r = fight([card('m', 'b2_moira'), claw(), card('r', 'd2_roomworks'), card('r2', 'd2_roomworks')]);
     expect(eotFires(r.events).length).toBeLessThanOrEqual(2);
   });
-  it('a Shop-only End of Turn fires its line live and acts once, at settle, on the run card', () => {
+  it('a Shop-only End of Turn (Consume) does nothing in combat, and nothing waits for the Shop', () => {
     const r = fight([card('g', 'dm_gourmand'), claw(), card('r', 'd2_roomworks')]);
-    expect(r.deferred.map((d) => [d.cardId, d.uid, d.eot?.map((e) => e.do)])).toEqual([['dm_gourmand', 'g', ['consumeShopRightmost']]]);
-    expect(r.events.some((e) => e.type === 'sc' && /Bob Blart's End of Turn/.test((e as { text: string }).text))).toBe(true);
+    expect(eotFires(r.events).length, 'the fire still shows').toBe(1);
+    expect(r.deferred).toEqual([]);
+    const own = (s: RunState) => s.board.find((c) => c.uid === 'g')!;
+    expect([own(r.settled).attack, own(r.settled).health], 'no meal at settle').toEqual([own(r.fought).attack, own(r.fought).health]);
   });
   it('a mixed card splits: Maw buffs Fodder and sends a Fodder, both live', () => {
     const r = fight([card('m', 'maw'), claw(), card('r', 'd2_roomworks')]);
@@ -129,12 +131,13 @@ describe('R-ROOMWORKS-02 — what each kind of End of Turn does mid-fight', () =
 });
 
 describe('R-ROOMWORKS-02 — named casts', () => {
-  it('a spell with a combat body casts live; one without finishes at the Shop', () => {
+  it('a spell with a combat body casts live; one without (Picnic) does nothing', () => {
     const live = fight([card('c', 'dw_arnold'), claw(), card('r', 'd2_roomworks')]);
     expect(live.deferred).toEqual([]);
     expect(live.events.some((e) => e.type === 'sc' && /casts Beefy/.test((e as { text: string }).text))).toBe(true);
     const split = fight([card('c', 'dm_curator'), claw(), card('r', 'd2_roomworks')]);
-    expect(split.deferred.flatMap((d) => d.eot?.map((e) => e.params?.spellId))).toEqual(['sp_picnic']);
+    expect(split.deferred).toEqual([]);
+    expect(split.events.some((e) => e.type === 'sc' && /Picnic/.test((e as { text: string }).text)), 'no Picnic').toBe(false);
     expect(split.events.some((e) => e.type === 'sc' && /casts Staff of Guel/.test((e as { text: string }).text))).toBe(true);
   });
 });

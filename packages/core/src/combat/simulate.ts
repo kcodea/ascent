@@ -913,7 +913,7 @@ export function simulate(
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
   // Since R-REALTIME-03 (owner 2026-09-26) only the SHOP-ONLY Shouts land here (`SHOP_ONLY_SHOUTS`); `uid` is the
   // re-fired body's run-board card, so the settle replay acts AS that card (its slot, its per-instance fields).
-  const deferredBattlecries = sideReset(() => (perSide<{ cardId: string; golden: boolean; uid?: string; eot?: EffectDef[] }[]>(() => [])));
+  const deferredBattlecries = sideReset(() => (perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => [])));
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
   const shoutCarry = sideReset(() => (perSide<ShoutCarry>(() => ({}))));
   /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
@@ -1927,9 +1927,6 @@ export function simulate(
     scheduleFodder: (counts, side) => {
       const sched = fodderSchedule[side];
       counts.forEach((c, i) => { sched[i] = (sched[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
-    },
-    deferEndOfTurn: (cardId, golden, side, sourceUid, effects) => {
-      deferredBattlecries[side].push({ cardId, golden, ...(sourceUid ? { uid: sourceUid } : {}), eot: effects });
     },
     deferBattlecry: (cardId, golden, side, sourceUid) => {
       deferredBattlecries[side].push({ cardId, golden, ...(sourceUid ? { uid: sourceUid } : {}) });

@@ -814,9 +814,9 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
 };
 
 /**
- * THE End of Turn effects whose target does not exist mid-fight (R-ROOMWORKS-02, the End of Turn twin of
- * `SHOP_ONLY_SHOUTS`). Everything else fired in combat resolves LIVE (`COMBAT_END_OF_TURN`, or a shared Shout body in
- * `FACTORIES`). These fire live too (their line), and only the Shop part runs at settle, on the body's run card.
+ * THE End of Turn effects whose target does not exist mid-fight (R-ROOMWORKS-02). Everything else fired in combat
+ * resolves LIVE (`COMBAT_END_OF_TURN`, or a shared Shout body in `FACTORIES`). These do NOTHING when fired in combat,
+ * and nothing is carried to the next Shop (owner 2026-11-07: "should do nothing and not fire at start of turn").
  * `combatEndOfTurn.test.ts` fails when an End of Turn id is in neither place.
  */
 export const SHOP_ONLY_END_OF_TURN: Readonly<Record<string, { why: string }>> = {
@@ -982,7 +982,7 @@ const COMBAT_END_OF_TURN: Readonly<Record<string, (ctx: CombatContext, self: Min
   },
 };
 
-/** The spell an End of Turn cast would resolve, when it has one: a spell with no combat body waits for the Shop. */
+/** The spell an End of Turn cast would resolve, when it has one: a spell with no combat body does nothing in combat. */
 function eotCastNeedsShop(ctx: CombatContext, self: Minion, eff: EffectDef): boolean {
   const id = eff.do === 'endOfTurnRecastFirstSpell' ? ctx.lastSpellCastFor?.(self.side)
     : eff.do === 'castSpell' || eff.do === 'endOfTurnCastSpellOnSelf' ? str(eff.params?.spellId) : undefined;
@@ -993,7 +993,7 @@ function eotCastNeedsShop(ctx: CombatContext, self: Minion, eff: EffectDef): boo
 /**
  * Fire `target`'s End of Turn NOW, mid-fight (R-ROOMWORKS-02). The one combat End of Turn chokepoint: Chronos repeats
  * here, each effect resolves live through `COMBAT_END_OF_TURN` (or its shared Shout body), and a Shop-only effect
- * says so in a line and is handed to settle.
+ * (Consume, Lasso, Orbit, ...) is skipped: it does nothing, now or at the next Shop.
  */
 export function replayCombatEndOfTurn(ctx: CombatContext, source: Minion, target: Minion): void {
   const repeats = 1 + extraTriggerFires('endOfTurn', ctx.living(target.side), (id) => ctx.getCard(id));
@@ -1002,17 +1002,12 @@ export function replayCombatEndOfTurn(ctx: CombatContext, source: Minion, target
     // A counted `shout` moment, not `sc` narration: narration is absorbed silently, so the fire needs this signal to
     // get its own beat, its link to the target, and a frame commit for what it does.
     ctx.log({ type: 'shout', source: source.uid, target: target.uid, eot: true });
-    const shop: EffectDef[] = [];
     for (const eff of target.effects) {
       if (eff.on !== 'endOfTurn' || !alignAllows(eff, target.align)) continue;
-      if (SHOP_ONLY_END_OF_TURN[eff.do] || eotCastNeedsShop(ctx, target, eff)) { shop.push(eff); continue; }
+      if (SHOP_ONLY_END_OF_TURN[eff.do] || eotCastNeedsShop(ctx, target, eff)) continue;
       const live = COMBAT_END_OF_TURN[eff.do];
       if (live) live(ctx, target, eff.params ?? {});
       else FACTORIES[eff.do as EffectFactoryId]?.(ctx, target, eff.params ?? {}, { minion: target, side: target.side });
-    }
-    if (shop.length > 0) {
-      ctx.log({ type: 'sc', source: target.uid, side: target.side, text: `${target.name}'s End of Turn finishes when the Shop opens` });
-      ctx.deferEndOfTurn(target.cardId, target.golden, target.side, target.sourceUid, shop);
     }
   }
 }

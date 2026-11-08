@@ -834,10 +834,14 @@ export const SHOP_ONLY_END_OF_TURN: Readonly<Record<string, { why: string }>> = 
 /** R-ROOMWORKS-01 in combat: the same two re-entrancy counters as recruit.ts `SHOUT_EOT_CHAIN`. */
 const COMBAT_SHOUT_EOT_CHAIN = { shoutEot: 0, eotShouts: 0 };
 
-/** "Every N turns" fired off-cycle pays only on the turn it would proc, and never advances the count (the Shop's
- *  replay rule: `(tick + 1) % every === 0`). `eotTick` is seeded from the run card. */
-const eotCadenceDue = (self: Minion, params: Record<string, unknown>): boolean =>
-  ((self.eotTick ?? 0) + 1) % Math.max(1, num(params.every, 2)) === 0;
+/** "Every N turns" fired off-cycle pays only on the turn it procs, and never advances the count. `eotTick` is seeded
+ *  from the run card AFTER this turn's real End of Turn already counted the turn (the Shop's End of Turn runs before
+ *  the fight), so the due test is the natural one, `tick % every === 0`, not the Shop replay's `(tick + 1)`, which
+ *  would pay on the off turn (Bellringer Voss, owner 2026-11-07). A body that never counted a turn is never due. */
+const eotCadenceDue = (self: Minion, params: Record<string, unknown>): boolean => {
+  const tick = self.eotTick ?? 0;
+  return tick > 0 && tick % Math.max(1, num(params.every, 2)) === 0;
+};
 
 /** The lone-or-both ends of `bodies` (Kringle). */
 const endsOf = (bodies: Minion[]): Minion[] => (bodies.length <= 1 ? bodies : [bodies[0]!, bodies[bodies.length - 1]!]);

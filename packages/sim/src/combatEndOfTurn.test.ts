@@ -130,6 +130,21 @@ describe('R-ROOMWORKS-02 — what each kind of End of Turn does mid-fight', () =
   });
 });
 
+describe('R-ROOMWORKS-02 — "every N turns" in combat', () => {
+  // The Shop's real End of Turn already counted this turn before the fight, so the combat fire must pay on exactly the
+  // turns the Shop paid (owner 2026-11-07, Bellringer Voss). It used to pay on the OFF turns: the Shop replay rule
+  // `(tick + 1) % every` assumes the turn has not been counted yet.
+  it('Bellringer Voss copies its neighbour in combat only on the turn it copied in the Shop', () => {
+    for (const startTick of [0, 1, 2, 3]) {
+      const r = fight([card('k', 'dw_gangplank'), card('v', 'n2_bellringer', { eotTick: startTick }), claw(), card('r', 'd2_roomworks')]);
+      expect(eotFires(r.events).map((e) => e.target), 'Roomworks picks Voss').toEqual([r.uidOf('n2_bellringer')]);
+      const shopPaid = r.fought.hand.some((c) => c.cardId === 'dw_gangplank');
+      const combatPaid = r.events.some((e) => e.type === 'toHand' && e.cardId === 'dw_gangplank' && e.source === r.uidOf('n2_bellringer'));
+      expect(combatPaid, `start tick ${startTick}`).toBe(shopPaid);
+    }
+  });
+});
+
 describe('R-ROOMWORKS-02 — named casts', () => {
   it('a spell with a combat body casts live; one without (Picnic) does nothing', () => {
     const live = fight([card('c', 'dw_arnold'), claw(), card('r', 'd2_roomworks')]);

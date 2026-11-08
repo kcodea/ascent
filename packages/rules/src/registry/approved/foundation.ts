@@ -14401,4 +14401,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On Collection Ann presses Escape: Settings opens over Collection, and Escape again puts her back on Collection. Mid-shop she presses Escape: Settings opens over her dimmed board; Escape again and she is back in the Shop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/escOpensSettings.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-UPDATE-NOTICE-PLACE-01',
+    title: 'The "update downloaded" notice sits under START, centred on it',
+    statement:
+      'When the desktop app has downloaded an update, the notice that says so appears just under the START button, centred on '
+      + 'START, in large text, and stays fully on screen. Where there is no START button it sits at the top centre of the screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the v0.2.4 notice', quote: 'this needs to be larger put it below the start button and amek it centered with the start nd play button center' },
+      { kind: 'fix-pr', ref: 'feat/update-notice-under-start: packages/ui/src/UpdateReadyNotice.tsx (updateNoticePlace), packages/ui/src/updatedPanel.css (.updnotice)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/update-notice-under-start): the notice measures .ph-start and places itself under it, centred, clamped to the screen; 20 px text (was 14 px). Before this it was a small top-centre toast.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

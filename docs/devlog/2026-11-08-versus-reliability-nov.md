@@ -39,7 +39,11 @@ Side finding (ops, not code): today's health cron fails `versus_worker` because 
   First run: every cell clean except `twoGone` (a real bug, below) and the two Ranked Duos concede cells (a harness false
   positive: a Ranked Duos concede leaves the party for good, so the player's room screen is not "stuck"; the snapshot now
   carries `left` and `stuck` skips it). Smoke gains `concede/ranked_duos`, `goneForGood/duel`, `twoGone/duos`.
-- Full matrix after the fixes: see the PR.
+- Full matrix after the fixes: **148/148** (146 in one `CHAOS_FULL=1` run; that run's worker then hit the 4 GB heap
+  limit at cell 147, and one cell, `dropFin/duel`, had failed on a harness leak: seat 3 of the previous 4-player cell, still
+  reconnecting after its 40 minute drop, was swept inside the 1v1 cell. `cfChaosServer` now closes such a leftover for
+  good; `dropFin` / `dropLong` / `twoGone` re-run clean). The matrix leaks every cell's clients (each cell's module graph
+  lives on), so at 148 cells run it in two halves with `CHAOS_ONLY`, or with `NODE_OPTIONS=--max-old-space-size=8192`.
 
 ## 3. Bugs found and fixed
 

@@ -539,3 +539,13 @@ html[data-ph-shell]:not([data-touch-small]) .phc-side { padding: calc(36 * var(-
 /* Darker still (owner 2026-11-06: "lets darken the non owned cosmetics even further"): about two thirds of the last level. */
 .phc-tile.missing .phc-tile-art img { filter: saturate(0.4) brightness(0.2); }
 .phc-tile.missing.contain .phc-tile-art img { filter: saturate(0.4) brightness(0.24); }
+
+/* THE NEW TAB GLOWS (owner 2026-11-08, R-COLLECTION-NEW-GLOW-01): while this category has anything new, the New tab's
+   label goes green with a soft green halo that breathes. The halo is a ::before with a STATIC shadow; only its opacity
+   loops (compositor-only, the kwglow pattern), so the pulse never repaints. */
+.phc .phc-newglow { position: relative; display: inline-block; color: #6ee7a0; text-shadow: 0 0 calc(8 * var(--phu)) rgba(74, 222, 128, 0.75); }
+.phc .phc-newglow::before { content: ''; position: absolute; inset: calc(-6 * var(--phu)) calc(-12 * var(--phu)); border-radius: 999px; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(74, 222, 128, 0.32), rgba(74, 222, 128, 0));
+  box-shadow: 0 0 calc(14 * var(--phu)) calc(2 * var(--phu)) rgba(34, 197, 94, 0.45); opacity: 0.35; animation: phc-newpulse 1.6s ease-in-out infinite; }
+@keyframes phc-newpulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .phc .phc-newglow::before { animation: none; opacity: 0.7; } }

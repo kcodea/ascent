@@ -168,7 +168,9 @@ export function CollectionPh({ view: v }: { view: CollectionPhView }): JSX.Eleme
             { id: 'all', label: 'Show All' },
             { id: 'owned', label: 'Owned' },
             { id: 'missing', label: 'Missing' },
-            { id: 'new', label: 'New' }, // R-COLLECTION-NEW-TAB-01: the items wearing NEW, in this category
+            // R-COLLECTION-NEW-TAB-01: the items wearing NEW, in this category. R-COLLECTION-NEW-GLOW-01: it glows and pulses
+            // green while this category has anything new.
+            { id: 'new', label: v.newIn(v.category) > 0 ? <span className="phc-newglow">New</span> : 'New' },
           ]}
         />
       ) : undefined}

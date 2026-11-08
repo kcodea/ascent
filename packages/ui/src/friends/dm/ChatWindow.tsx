@@ -164,13 +164,12 @@ function ChatPane({ f, conversation, pinned, drag }: { f: Friend; conversation?:
           <span className="fr-status"><span className="fr-dot" aria-hidden="true" /><span className="fr-statustext">{statusText(f)}</span></span>
           {f.status === 'in_game' && f.game && <FriendGame game={f.game} />}
         </span>
-        {/* Watch leaves for their game: the unpinned window steps aside first (capture, before the button's own handler,
-            which this does not change). A pinned one comes along. */}
-        <div className="dmchat-actions" onClickCapture={(e) => {
-          const b = (e.target as Element).closest('button');
-          if (!pinned && b && !b.disabled && b.getAttribute('aria-label')?.startsWith('Watch ')) closeDm();
-        }}>
-          <FriendActions f={f} compact />
+        {/* Watch leaves for their game: the unpinned window closes FROM the button's own handler, after the watch has
+            started; a pinned one comes along. Never from a capture handler on this row (owner 2026-11-08, R-DM-WATCH-01:
+            "clicking watch game from the friends chat box doesnt work"): a real click lets React re-render between the
+            capture and bubble phases, so closing here unmounted the button before its own click could run. */}
+        <div className="dmchat-actions">
+          <FriendActions f={f} compact onWatch={pinned ? undefined : closeDm} />
         </div>
       </header>
       {conversation ? <GameScroll className="fdock-convo" outerClassName="fdock-convo-wrap" role="log" aria-label="Conversation">{conversation(f)}</GameScroll> : <DmConversation friend={f} />}

@@ -14416,4 +14416,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (feat/update-notice-under-start): the notice measures .ph-start and places itself under it, centred, clamped to the screen; 20 px text (was 14 px). Before this it was a small top-centre toast.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-DM-WATCH-01',
+    title: 'Watch in the chat window watches the friend\'s game',
+    statement:
+      'Pressing Watch on a friend in the chat window takes me into watching their game, exactly as Watch in Live Games or the '
+      + 'friends list does. An unpinned chat window closes as it goes; a pinned one stays up. Closing the window must never stop '
+      + 'the press from starting the watch.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08', quote: 'clicking watch game from the friends chat box doesnt work. it works from live games though' },
+      { kind: 'fix-pr', ref: 'fix/chat-watch-button: packages/ui/src/friends/dm/ChatWindow.tsx (no capture-phase close), packages/ui/src/friends/dock/FriendsDock.tsx (FriendActions onWatch)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (fix/chat-watch-button). Before, the unpinned window closed in an onClickCapture on the actions row; a real click lets React re-render between the capture and bubble phases, so the button unmounted and its Watch never ran (jsdom clicks do not show it, which is why the old test passed).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

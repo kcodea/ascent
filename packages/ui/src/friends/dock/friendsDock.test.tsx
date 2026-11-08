@@ -798,6 +798,20 @@ describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
     expect(q('.dmchat-veil')).not.toBeNull();
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
     expect(q('.dmchat-at')).toBeNull();
+    // R-DM-WATCH-01 (owner 2026-11-08: "clicking watch game from the friends chat box doesnt work"): Watch in the
+    // UNPINNED window starts the watch, then the window closes.
+    net.watched.length = 0;
+    act(() => openDm('u-gus'));
+    expect(q('.dmchat-veil')).not.toBeNull();
+    click(q('.dmchat-actions button[aria-label="Watch Gus#1234"]'));
+    await flush();
+    expect(net.watched).toEqual(['run-gus']);
+    expect(q('.dmchat-at')).toBeNull();
+  });
+  it('R-DM-WATCH-01: nothing on the chat\'s action row closes the window in the capture phase (a real click would unmount Watch)', () => {
+    const src = readFileSync(join(__dirname, '..', 'dm', 'ChatWindow.tsx'), 'utf8').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+    expect(src).not.toMatch(/onClickCapture/);
+    expect(src).toMatch(/<FriendActions f=\{f\} compact onWatch=\{pinned \? undefined : closeDm\} \/>/);
   });
 
   it('pinned, it sits under the Friends button, its list and the toast (they stay reachable) and over the game and the menu pages', () => {

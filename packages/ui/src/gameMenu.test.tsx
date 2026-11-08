@@ -34,7 +34,7 @@ vi.mock('./replay/replayPlayer', async (importOriginal) => ({
   startReplay: vi.fn(),
 }));
 
-import { GameMenu, handleEscape } from './GameMenu';
+import { GameMenu, handleEscape, openMenu } from './GameMenu';
 import { SettingsPage } from './EscMenu';
 import { Rankings } from './Rankings';
 import { leaveKindOf, refuseInGame } from './gameMenuParts';
@@ -68,11 +68,11 @@ afterEach(() => {
 });
 
 describe('R-ESC-SIDEBAR-01: Escape', () => {
-  it('in a game opens the in-game menu and Escape again closes it, with any page it opened', () => {
+  it('in a game the gear opens the in-game menu and Escape closes it, with any page it opened (Escape itself opens Settings: R-ESC-SETTINGS-01)', () => {
     inGame();
-    handleEscape();
+    act(() => { openMenu(); });
     expect(useGame.getState().gameMenuOpen).toBe(true);
-    expect(useGame.getState().settingsOpen, 'never the Settings page straight away').toBe(false);
+    expect(useGame.getState().settingsOpen, 'the gear opens the sidebar, never the Settings page straight away').toBe(false);
     handleEscape();
     expect(useGame.getState().gameMenuOpen).toBe(false);
     handleEscape();
@@ -95,7 +95,7 @@ describe('R-ESC-SIDEBAR-01: Escape', () => {
   it('a hero select, a replay and a watched game are games too', () => {
     for (const extra of [{ heroChoices: ['a', 'b'] }, { replaying: true }]) {
       inGame({}, extra);
-      handleEscape();
+      act(() => { openMenu(); });
       expect(useGame.getState().gameMenuOpen).toBe(true);
       handleEscape();
     }

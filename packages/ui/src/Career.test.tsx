@@ -467,7 +467,7 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-cols')).not.toBeNull();
   });
 
-  it('on the party home shell a viewed player opens on the tab the visit fits, not your remembered one; Esc goes back', async () => {
+  it('on the party home shell a viewed player opens on the tab the visit fits, not your remembered one; Esc opens Settings over it (R-ESC-SETTINGS-01)', async () => {
     const { setPartyHome } = await import('./partyHome/partyHomeFlag');
     const { handleEscape } = await import('./GameMenu');
     await import('./partyHome/pages/career/PhCareer');
@@ -482,7 +482,9 @@ describe('states', () => {
       expect(ui.container.querySelector('.phk-back')?.textContent).toContain('Back to Recent Games');
       document.documentElement.setAttribute('data-ph-shell', '');
       act(() => { handleEscape(); });
-      expect(useGame.getState().showCareer).toBe(false);
+      expect(useGame.getState().settingsOpen).toBe(true);
+      expect(useGame.getState().showCareer, 'the page stays under Settings').toBe(true);
+      act(() => { useGame.getState().closeSettings(); });
     } finally {
       document.documentElement.removeAttribute('data-ph-shell');
       act(() => { setPartyHome(false); });

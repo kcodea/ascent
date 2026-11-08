@@ -660,6 +660,9 @@ export class CfChaosServer implements ChaosBackend {
 
   // ── sockets ───────────────────────────────────────────────────────────────────────────────────────────────────
   connectSocket(ws: FakeCfWebSocket): void {
+    // A user with no network in THIS scenario is a client left over from an earlier one (e.g. seat 3 of a 4 player cell,
+    // still reconnecting after its long drop, inside a 1v1 cell): closed for good so it stops, never swept.
+    if (!this.nets.has(ws.user)) { setTimeout(() => { ws.fire('error'); ws.closed(VERSUS_CF_CLOSE.roomClosed, 'no_room'); }, 5); return; }
     this.sockets.add(ws);
     const net = ws.net;
     if (net.state.offline) { this.after(5, () => { ws.fire('error'); ws.closed(1006, 'offline'); }); return; }

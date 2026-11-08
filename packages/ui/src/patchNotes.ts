@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
     ],
   },

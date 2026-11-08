@@ -26,6 +26,7 @@ import { getTitleText } from '../../titleTextConfig';
 import { warmPhPages } from './phWarm';
 import { clearDevToolsSlot, setDevToolsSlot } from './devToolsSlot';
 import { leaveCrates, openCrates, setFriendsOpen, toggleFriends, usePhShell, pulseFriends } from './shellStore';
+import { unreadLabel, useFriendsBadge } from './friendsBadge';
 import './shell.css';
 
 const PhFriends = lazy(() => import('./PhFriends').then((m) => ({ default: m.PhFriends })));
@@ -52,6 +53,7 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
   const mirror = useProgression((s) => mirrorFor(userId, s.mirror));
   const aetherOn = useProgression(aetherVisible);
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
+  const friendsBadge = useFriendsBadge();
   const newRewards = useHasNewRewards();
   const friendsOpen = usePhShell((s) => s.friendsOpen);
   const drawerIsMode = usePhShell((s) => s.drawerIsMode);
@@ -203,9 +205,12 @@ export function PhTopNav({ current: given, friendsDocked = false, ownDrawer = fa
             </button>
             {/* Friends: last in the row on every page, so the currency and the gear hold still. Where the list is docked beside
                 the party it brings the panel's Friends tab forward. */}
-            <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen && !drawerIsMode ? ' on' : ''}`} aria-label="Friends" aria-expanded={friendsDocked ? undefined : friendsOpen}
+            <button type="button" className={`ph-iconbtn ph-friendsbtn${friendsOpen && !drawerIsMode ? ' on' : ''}${friendsBadge.online ? ' f-online' : ''}`}
+              aria-label={friendsBadge.unread ? `Friends, ${friendsBadge.unread} unread` : 'Friends'} aria-expanded={friendsDocked ? undefined : friendsOpen}
               onClick={() => { sfx.pulse(); if (friendsDocked) pulseFriends(); else toggleFriends(); }}>
               <MenuMedal name="friends" className="menumedal ph-navicon" />
+              {/* Unread messages: a green bubble with the count (R-PH-FRIENDS-BADGE-01). */}
+              {friendsBadge.unread > 0 && <span className="ph-funread" aria-hidden="true">{unreadLabel(friendsBadge.unread)}</span>}
             </button>
           </div>
         </div>

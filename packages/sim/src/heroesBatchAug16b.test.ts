@@ -19,17 +19,17 @@ describe('Braum — Investment', () => {
     expect([h.name, h.armor, h.power.kind, h.power.cost]).toEqual(['Braum', 16, 'investment', 1]);
   });
 
-  it('banks a Gold per use and pays nothing before the 5th', () => {
+  it('banks a Gold per use and pays nothing before the 4th', () => {
     let s = at({ heroId: 'bram', embers: 20, heroReady: true, hand: [] });
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 3; i++) {
       s = reduce({ ...s, heroReady: true } as RunState, { type: 'heroPower' } as never);
       expect(s.bramInvested, `after ${i} investments`).toBe(i);
       expect(s.hand.length, 'no payout yet').toBe(0);
     }
   });
 
-  it('the 5th investment pays a GILDED minion and resets the bank', () => {
-    const s = at({ heroId: 'bram', embers: 20, heroReady: true, hand: [], bramInvested: 4, tier: 3 });
+  it('the 4th investment pays a GILDED minion and resets the bank', () => {
+    const s = at({ heroId: 'bram', embers: 20, heroReady: true, hand: [], bramInvested: 3, tier: 3 });
     const after = reduce(s, { type: 'heroPower' } as never);
     expect(after.bramInvested, 'bank reset').toBe(0);
     expect(after.hand.length).toBe(1);
@@ -39,9 +39,9 @@ describe('Braum — Investment', () => {
 
   it('a full hand blocks the payout entirely — the bank is not spent', () => {
     const full = Array.from({ length: 10 }, (_, i) => m(`h${i}`, 'stray'));
-    const s = at({ heroId: 'bram', embers: 20, heroReady: true, hand: full, bramInvested: 4 });
+    const s = at({ heroId: 'bram', embers: 20, heroReady: true, hand: full, bramInvested: 3 });
     const after = reduce(s, { type: 'heroPower' } as never);
-    expect([after.bramInvested, after.embers]).toEqual([4, 20]);
+    expect([after.bramInvested, after.embers]).toEqual([3, 20]);
   });
 });
 

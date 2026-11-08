@@ -1,6 +1,6 @@
 /**
  * ANCIENTS × BRAUM (hero id `bram`; owner pairings 2026-10-06). Investment (1 Gold, once per turn): "Invest 1 Gold. After
- * investing 5, get a random Gilded minion, then reset." Every pairing in the phase(s) it fires in.
+ * investing 4, get a random Gilded minion, then reset." Every pairing in the phase(s) it fires in.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
@@ -51,8 +51,8 @@ describe('Braum × every Ancient has a written pairing', () => {
       expect(ancientOfferText('bram', id)).not.toMatch(/—|--/);
     }
   });
-  it('without a pick, Investment is unchanged: 1 Gold a use, the 5th pays a Gilded minion', () => {
-    let s = withAncients({ bramInvested: 4, tier: 3 });
+  it('without a pick, Investment is unchanged: 1 Gold a use, the 4th pays a Gilded minion', () => {
+    let s = withAncients({ bramInvested: 3, tier: 3 });
     expect(activePowers(s)[0]!.cost).toBe(1);
     s = invest(s);
     expect([s.bramInvested, s.embers, s.hand.length, s.hand[0]!.golden]).toEqual([0, 19, 1, true]);
@@ -104,10 +104,10 @@ describe('Braum × DEATH: "Investment becomes: When 16 friendly minions die, get
 });
 
 describe('Braum × FORTUNE: "Investment is free. Triple rewards also grant 3 gold."', () => {
-  it('Investment costs 0 but still banks one count per use; the 5th pays', () => {
+  it('Investment costs 0 but still banks one count per use; the 4th pays', () => {
     let s = picked('fortune', { tier: 3 });
     expect(activePowers(s)[0]!.cost).toBe(0);
-    for (let i = 1; i <= 4; i++) { s = invest(s); expect(s.bramInvested).toBe(i); }
+    for (let i = 1; i <= 3; i++) { s = invest(s); expect(s.bramInvested).toBe(i); }
     s = invest(s);
     expect([s.embers, s.bramInvested, s.hand.length, s.hand[0]!.golden]).toEqual([20, 0, 1, true]);
   });
@@ -154,8 +154,8 @@ describe('Braum × WAR: "Start of Combat: Give your minions +8/+8 for every Gild
 });
 
 describe('Braum × GENESIS: "Discover the minion from Investment. It is always of your current tier."', () => {
-  it('the 5th investment opens a Discover of minions of EXACTLY your tier; the pick arrives Gilded', () => {
-    let s = picked('genesis', { tier: 4, bramInvested: 4 });
+  it('the 4th investment opens a Discover of minions of EXACTLY your tier; the pick arrives Gilded', () => {
+    let s = picked('genesis', { tier: 4, bramInvested: 3 });
     expect(heroPowerText(s)).toContain('(Tier **4**)');
     s = invest(s);
     expect(s.bramInvested).toBe(0);
@@ -166,7 +166,7 @@ describe('Braum × GENESIS: "Discover the minion from Investment. It is always o
     const got = s.hand.find((c) => c.cardId === id)!;
     expect(got.golden).toBe(true);
   });
-  it('before the 5th, the bank simply advances', () => {
+  it('before the 4th, the bank simply advances', () => {
     const s = invest(picked('genesis', { tier: 4 }));
     expect([s.bramInvested, s.discover]).toEqual([1, undefined]);
   });

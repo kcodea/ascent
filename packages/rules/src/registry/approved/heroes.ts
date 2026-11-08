@@ -1160,7 +1160,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-02',
     title: 'Braum × Ancient of Fortune: Investment costs 0 Gold; every Triple Reward you get also gains 3 Gold',
     statement:
-      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (5 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
+      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (4 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1188,7 +1188,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-04',
     title: "Braum × Ancient of Genesis: Investment's payout is a Discover of a Gilded minion from exactly your current tier",
     statement:
-      'With the Ancient of Genesis, the 5th investment opens a Discover of minions of exactly your current Shop tier instead of a random one; the pick arrives Gilded. The bank and its cost are unchanged. The power prints the tier.',
+      'With the Ancient of Genesis, the 4th investment opens a Discover of minions of exactly your current Shop tier instead of a random one; the pick arrives Gilded. The bank and its cost are unchanged. The power prints the tier.',
     domain: 'heroes',
     status: 'approved',
     evidence: [

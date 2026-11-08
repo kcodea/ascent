@@ -64,6 +64,10 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Every page now opens on its first tab: Play on Ranked, the Compendium on Cards, Career on Match History.' },
       { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
+      {
+        category: 'Balance',
+        text: 'Braum: Investment now pays out after investing 4 (was 5).',
+      },
     ],
   },
   {

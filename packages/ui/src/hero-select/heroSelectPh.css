@@ -329,3 +329,12 @@ body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
    flag, just under the rod. Opacity only, like the rest of the crossfade. */
 .heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top { top: calc(100cqi * 40 / 784); bottom: auto; translate: none; opacity: 0; pointer-events: none; }
 .heroselect.phhs .herocard.big:is(:hover, :focus-visible, .tt-on) .hchp.hudpill-hp.hcstats-top { opacity: 1; }
+
+/* THE HOVER STATS STAND ON NAVY (owner 2026-11-08, R-HS-POWER-STATS-02: "lets make the hero power fade from navy to make the
+   health and armor easier to see"). Behind the hover face's Health / Armor row, the top of the power art fades down from the
+   cloth's navy, so the medallions read on any art. A static gradient on the row's own ::before (full flag width, from the
+   flag's top), so it rides the row's opacity crossfade: nothing new animates. */
+.heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top { isolation: isolate; }
+.heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top::before { content: ''; position: absolute; z-index: -1; pointer-events: none;
+  top: calc(-100cqi * 40 / 784); left: 50%; width: 100cqi; translate: -50% 0; height: calc(100cqi * 190 / 784);
+  background: linear-gradient(180deg, rgba(14, 29, 74, 0.95) 0%, rgba(14, 29, 74, 0.88) 38%, rgba(14, 29, 74, 0.5) 66%, rgba(14, 29, 74, 0.16) 86%, rgba(14, 29, 74, 0) 100%); }

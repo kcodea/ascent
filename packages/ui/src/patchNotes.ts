@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'Hero select: on a hover, the top of the Hero Power art fades from navy so the Health and Armor are easy to read.' },
       { category: 'Systems', text: 'Match History: a Shop buffs button shows the buffs your Shop minions were getting when the game ended, and where they came from.' },
       { category: 'Systems', text: 'Settings has a Save and Quit Match button in a game, right above Quit game. Press it twice to save and return to the menu.' },
       { category: 'Systems', text: 'Hero select: hovering a hero still shows its Health and Armor at the top of the banner.' },

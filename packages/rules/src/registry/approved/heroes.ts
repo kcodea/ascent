@@ -2608,4 +2608,19 @@ export const HEROES_RULES: GameRule[] = [
     example: "Mimic is offered Goldspring and Robin's power: Goldspring wears a 3 coin and reads 'Active · once per turn.', Robin's reads 'Passive.' with no coin.",
     enforcement: { kind: 'scenario', refs: ["packages/ui/src/discoverEntrance/powerPickInfo.test.ts"], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-HS-POWER-STATS-02',
+    title: 'The hover face\'s Health and Armor stand on a navy fade',
+    statement:
+      'On the hero select flag\'s hover face, the top of the Hero Power art fades down from the cloth\'s navy behind the Health and '
+      + 'Armor, so they stay easy to read on any art. The fade comes and goes with those stats.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Forgemaster hover screenshot', quote: 'lets make the hero power fade from navy to make the health and armor easier to see' },
+      { kind: 'fix-pr', ref: 'feat/hero-power-top-fade: packages/ui/src/hero-select/heroSelectPh.css (.hcstats-top::before)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/hero-power-top-fade): a static navy gradient on the hover stats row\'s ::before, full flag width from the flag top, riding the row\'s opacity crossfade.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

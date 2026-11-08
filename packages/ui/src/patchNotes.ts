@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'Hero select: on a hover, the top of the Hero Power art fades from navy so the Health and Armor are easy to read.' },
       { category: 'Systems', text: 'Fixed: Attack and Health medallions no longer swell huge when lots of buffs land at once. They still bounce on every change.' },
       { category: 'Systems', text: 'Fixed: End of Turn Ruby and buff animations no longer fly to cards in your hand that they did not change.' },
       { category: 'Systems', text: 'Fixed: Watch in the friends chat window now takes you into your friend\'s game.' },

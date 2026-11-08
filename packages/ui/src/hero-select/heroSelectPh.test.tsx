@@ -117,6 +117,15 @@ describe('round 6', () => {
     expect(css).toMatch(/\.hchp\.hudpill-hp\.hcstats-top \{ top: calc\(100cqi \* 40 \/ 784\); bottom: auto;[^}]*opacity: 0;/);
     expect(css).toContain('.herocard.big:is(:hover, :focus-visible, .tt-on) .hchp.hudpill-hp.hcstats-top { opacity: 1; }');
   });
+  it('R-HS-POWER-STATS-02: the hover stats stand on a static navy fade that rides their crossfade', () => {
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    const m = css.match(/\.hchp\.hudpill-hp\.hcstats-top::before \{([^}]*)\}/);
+    expect(m, 'a fade behind the hover stats').not.toBeNull();
+    expect(m![1]).toMatch(/z-index: -1/);
+    expect(m![1]).toMatch(/linear-gradient\(180deg, rgba\(14, 29, 74, 0\.9\d?\) 0%/);
+    expect(m![1]).not.toMatch(/animation|transition/);
+    expect(css).toContain('.hchp.hudpill-hp.hcstats-top { isolation: isolate; }');
+  });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {
     const css = here('./heroSelectPh.css');
     const name = css.slice(css.indexOf('.hcname.hudpill-name {'));

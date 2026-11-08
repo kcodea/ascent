@@ -14326,4 +14326,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (feat/collection-new-glow). The pulse loops opacity only on a ::before with a static shadow. Before, the New tab looked the same whether or not anything was new.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/ph/CollectionPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-PH-TAB-DEFAULT-01',
+    title: 'Arriving at a page opens its leftmost tab',
+    statement:
+      'Whenever you go to a page from the menus, its row of tabs starts on the leftmost one, never the tab you last left it on: '
+      + 'Play opens on Ranked, the Compendium on Cards, Career on Match History, the Leaderboard on Solo, Recent Games on Ranked, '
+      + 'Settings and Patch Notes on their first tab. A tab you pick lasts for that visit. A button that sends you to a specific tab '
+      + '(See all in Career, Rules from the Compendium, a guide to edit) still opens that tab.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the Play page', quote: 'when clicking play, ranked should always be the default mode selected. this should be the logic when navigating to all pages. the left most option should be the default' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08', quote: 'so in compendium, cards should be the section that always opens, even if left off on a different section' },
+      { kind: 'fix-pr', ref: 'feat/nav-default-leftmost-tab: PartyHome.tsx, MinionBook.tsx, Career.tsx, Rankings.tsx, PhSettings.tsx, PhPatchNotes.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/nav-default-leftmost-tab). Before, Play, the Compendium, Career, Settings and Patch Notes reopened on the last tab (saved per browser) and the Leaderboard kept its tab for the session. The Collection Show tabs and Recent Games already reset. The New Rewards popup now sends a one-shot intent to open Career on Achievements.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/tabDefaults.test.ts', 'packages/ui/src/partyHome/pages/phInfoPages.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

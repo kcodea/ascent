@@ -63,7 +63,7 @@ import { PhFriends } from './shell/PhFriends';
 import { addSampleInvite, clearSampleInvites, removeSampleInvite, setDrawerIsMode, setFriendsOpen, setPhInvite, usePhShell } from './shell/shellStore';
 import { PhBanner, PhBannerInvite, PhBannerName, PhBannerState, PhButton, PhDialog, PhField, PhLeaderBadge, PhPlate, PhSegmented, PhTabs, phNum } from './kit';
 import { GauntletPanel, PracticePanel, stagePlayable, useGauntletStages } from './ModeOptions';
-import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, readPartyMode, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
+import { familyOf, modeHasSettings, partyFamilies, partyModeOf, partyModes, readFamilySub, rememberPartyMode, type ModeFamily, type ModeFamilyId, type PartyMode, type PartyModeId } from './partyModes';
 import { setPartyDemo, usePartyDemo, usePartyRoom } from './partyHomeFlag';
 import { homeMe, homeSetOptions, sampleHost, useSampleRoom } from './sampleRoom';
 import { SAMPLE_MATE_ID, sampleFriends, sampleHeroes } from './sample';
@@ -209,7 +209,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
     if (duosRoom) return m.id === 'duos' ? null : `Your party is queued for Ranked Duos. Leave the party to play ${m.label}.`;
     return m.party === 'solo' ? `${m.label} is solo. Leave the party to play it.` : null;
   };
-  const [picked, setPicked] = useState<PartyModeId>(() => readPartyMode());
+  // Every arrival at Play starts on Ranked, the leftmost mode (owner 2026-11-08, R-PH-TAB-DEFAULT-01).
+  const [picked, setPicked] = useState<PartyModeId>('ranked');
   const pickedMode = modes.find((m) => m.id === picked) ?? modes[0]!;
   const modeId: PartyModeId = roomTab ?? (lockReason(pickedMode) ? 'duos' : pickedMode.id);
   const mode = partyModeOf(modeId);

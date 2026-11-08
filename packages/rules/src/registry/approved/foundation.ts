@@ -14344,4 +14344,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (feat/nav-default-leftmost-tab). Before, Play, the Compendium, Career, Settings and Patch Notes reopened on the last tab (saved per browser) and the Leaderboard kept its tab for the session. The Collection Show tabs and Recent Games already reset. The New Rewards popup now sends a one-shot intent to open Career on Achievements.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/tabDefaults.test.ts', 'packages/ui/src/partyHome/pages/phInfoPages.test.tsx', 'packages/ui/src/Career.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-MATCH-SHOPBUFF-01',
+    title: 'A finished game shows the Shop buffs the player ended it with',
+    statement:
+      'A game opened in Match History (Career or Recent Games) has a Shop buffs button. Pressing it shows the permanent buff every minion '
+      + 'bought from the Shop was getting when the game ended, then what it came from (each source and its share, biggest first). '
+      + 'A game with none says so. A game recorded before this was saved has no button.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Match History screenshot', quote: 'here i want a button to press that displays the shop buffs the player had at the end of the game' },
+      { kind: 'fix-pr', ref: 'feat/match-shop-buffs: packages/sim/src/snapshot.ts (shopBuffSnapshotOf, BoardSnapshot.shopBuff), packages/ui/src/partyHome/pages/gameView.tsx (ShopBuffButton)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/match-shop-buffs) for games finished from then on: the final board snapshot stamps tavernBuyBonus and its source ledger. Earlier games never stored it, so they show no button.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/shopBuffButton.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

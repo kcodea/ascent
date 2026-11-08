@@ -449,3 +449,17 @@ html[data-ph-shell]:not([data-touch-small]) .rgp .rgp-banner { min-height: calc(
 .rgp-item::before, .rgp-item:is(.b-won, .b-top4, .b-lost)::before { z-index: 2;
   box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent), var(--ph-gild-s); }
 .rgp-item.sel::before, .rgp-item.sel:is(.b-won, .b-top4, .b-lost)::before { box-shadow: inset calc(6 * var(--phu)) 0 0 color-mix(in srgb, var(--band) 70%, transparent), var(--ph-gild); }
+
+/* THE SHOP BUFFS BUTTON (owner 2026-11-08, R-MATCH-SHOPBUFF-01): at the right end of the facts row; a press opens a small plate
+   under it with the total and each source. Static paint. */
+.rgp-shopbuff { position: relative; margin-left: auto; }
+.rgp-shopbuff .rgp-sbtotal { margin-left: calc(8 * var(--phu)); color: var(--ui-title, #ffd98a); }
+.rgp-sbpanel { position: absolute; right: 0; top: calc(100% + 8 * var(--phu)); z-index: 30; min-width: calc(320 * var(--phu)); box-sizing: border-box;
+  padding: calc(14 * var(--phu)) calc(16 * var(--phu)); background: var(--ph-plate); box-shadow: var(--ph-gild), 0 calc(12 * var(--phu)) calc(32 * var(--phu)) rgba(0, 0, 0, 0.55);
+  border-radius: calc(10 * var(--phu)); font-family: var(--ph-body); color: var(--ph-text); }
+.rgp-sbhead { margin-bottom: calc(8 * var(--phu)); font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t1); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ph-muted); }
+.rgp-sbrow { display: flex; justify-content: space-between; gap: calc(16 * var(--phu)); padding: calc(4 * var(--phu)) 0; font-size: var(--ph-t2); }
+.rgp-sbrow b { font-family: var(--ph-font); font-weight: 900; color: var(--ph-ink); white-space: nowrap; }
+.rgp-sbsum { margin-bottom: calc(4 * var(--phu)); padding-bottom: calc(8 * var(--phu)); border-bottom: 1px solid rgba(255, 217, 138, 0.25); }
+.rgp-sbsum b { color: var(--ui-title, #ffd98a); }
+.rgp-sbnone { font-size: var(--ph-t2); color: var(--ph-muted); }

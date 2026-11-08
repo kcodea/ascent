@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-08',
     changes: [
+      { category: 'Systems', text: 'Match History: a Shop buffs button shows the buffs your Shop minions were getting when the game ended, and where they came from.' },
       { category: 'Systems', text: 'Hero select: hovering a hero still shows its Health and Armor at the top of the banner.' },
       { category: 'Systems', text: 'Collection: the New tab glows green while the category you are viewing has something new.' },
       { category: 'Systems', text: 'Every page now opens on its first tab: Play on Ranked, the Compendium on Cards, Career on Match History.' },

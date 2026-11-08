@@ -11,7 +11,7 @@
  *
  * EVERY SETTING OF `SettingsPanel` IS HERE, wired to the same stores and the same calls (the parity test,
  * phSettings.test.tsx, fails when one is added there and not here):
- *   Game     combat speed, auto-ramp, lobby reveal, Quit game (desktop)
+ *   Game     combat speed, auto-ramp, lobby reveal, Save and Quit Match (in a game), Quit game (desktop)
  *   Audio    Master, Game sounds, Music, Announcer: each a slider and a mute (all four shown: the tab has room, so the old
  *            "Advanced Controls" fold is not needed here)
  *   Video    board backdrop, max frame rate, fullscreen (desktop), touch UI size (touch), phone diagnostics (phones)
@@ -20,13 +20,17 @@
  *
  * Static paint. The switch knob slides on `transform` only. No `cursor` here (the gauntlet rule paints it).
  */
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from '../../desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from '../../sfx';
 import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from '../../music';
 import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from '../../announcer';
 import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from '../../audio/master';
-import { useGame } from '../../store';
+import { inGameScreen, useGame } from '../../store';
+import { leaveGame, leaveKindOf, settingsLeaveText } from '../../gameMenuParts';
+import { useVersus } from '../../versus/versusStore';
+import { useSpectate } from '../../versus/spectate';
+import { isWatchingLive } from '../../live/liveWatch';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from '../../fpsCap';
 import { BACKDROPS, BACKDROP_IDS, getBackdrop, setBackdrop, type BackdropId, backdropThumbUrl } from '../../backdrop';
 import { perfThresholds } from '../../perfMonitor';
@@ -81,6 +85,8 @@ function GameTab() {
   const setCombatRampUp = useGame((s) => s.setCombatRampUp);
   const lobbyRevealOn = useLobbyRevealEnabled();
   const [confirmQuit, setConfirmQuit] = useState(false);
+  // In a game Settings carries the way out of it, above Quit game (owner 2026-11-08, R-SETTINGS-SAVEQUIT-01).
+  const inGame = useGame(inGameScreen);
   return (
     <>
       <Section title="Combat">
@@ -95,15 +101,40 @@ function GameTab() {
       </Section>
       {/* Desktop app only (a browser tab cannot close itself); also shown in dev builds so it can be seen while working in the
           browser, where it does nothing (owner 2026-11-06: "where is this quit button"). */}
-      {(isDesktop() || import.meta.env.DEV) && (
+      {(inGame || isDesktop() || import.meta.env.DEV) && (
         <Section title="Application">
-          <ButtonRow label="Quit game" note={isDesktop() ? 'Closes ASCENT. Your run stays saved.' : 'Closes ASCENT in the desktop app. Does nothing in a browser.'}
+          {inGame && <LeaveMatchRow />}
+          {(isDesktop() || import.meta.env.DEV) && <ButtonRow label="Quit game" note={isDesktop() ? 'Closes ASCENT. Your run stays saved.' : 'Closes ASCENT in the desktop app. Does nothing in a browser.'}
             button={<PhButton variant="primary" size="l" className={confirmQuit ? 'phs-quit armed' : 'phs-quit'} onClick={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}>
               {confirmQuit ? 'Press again to quit' : 'Quit game'}
-            </PhButton>} />
+            </PhButton>} />}
         </Section>
       )}
     </>
+  );
+}
+
+/** SAVE AND QUIT MATCH (owner 2026-11-08: "add a Save and Quit Match Button above Quit to Ascent ... in settings"): the
+ *  in-game sidebar's leave, in Settings. Saves a solo or lobby game and returns to the menu; a Versus match concedes, a
+ *  replay or a watched game leaves (each in its own words). Press twice, like Quit game. */
+function LeaveMatchRow() {
+  const watching = useSpectate((s) => s.active);
+  const kind = useGame((s) => leaveKindOf(s, watching));
+  const godMode = useGame((s) => s.run.godMode === true);
+  const over = useVersus((s) => s.match?.phase === 'complete');
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const t = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+  const text = settingsLeaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over);
+  return (
+    <ButtonRow label={text.label} note={text.note}
+      button={<PhButton variant="primary" size="l" className={armed ? 'phs-quit armed' : 'phs-quit'}
+        onClick={() => { sfx.pulse(); if (!armed) { setArmed(true); return; } setArmed(false); leaveGame(kind); }}>
+        {armed ? text.confirm : text.label}
+      </PhButton>} />
   );
 }
 

@@ -58,6 +58,25 @@ export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean, over
   }
 }
 
+/** Leave the game the way `kind` says (the sidebar's leave button and Settings' Save and Quit Match, R-SETTINGS-SAVEQUIT-01). */
+export function leaveGame(kind: LeaveKind): void {
+  const st = useGame.getState();
+  switch (kind) {
+    case 'watch': st.closeGameMenu(); if (isWatchingLive()) leaveLiveGame(true); else leaveSpectating(); break;
+    case 'replay': endReplay(); useGame.getState().openTitle(); break;
+    case 'abandon': st.closeGameMenu(); st.abandonRankedEntry(); break;
+    case 'concede': st.closeGameMenu(); void forfeitMatch(); break;
+    case 'run': st.openTitle(); break;
+  }
+}
+
+/** The leave as Settings words it (R-SETTINGS-SAVEQUIT-01): a solo or lobby game reads "Save and Quit Match"; every other
+ *  leave keeps its own words (a Versus match concedes, a replay leaves, ...). */
+export function settingsLeaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false): LeaveText {
+  const t = leaveText(kind, godMode, live, over);
+  return kind === 'run' && !godMode ? { ...t, label: 'Save and Quit Match', confirm: 'Press again to quit' } : t;
+}
+
 /** How long an armed leave waits for its second tap before it disarms. */
 const ARM_MS = 4000;
 
@@ -76,16 +95,7 @@ export function LeaveButton() {
     return () => window.clearTimeout(t);
   }, [armed]);
   const text = leaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over);
-  const leave = (): void => {
-    const st = useGame.getState();
-    switch (kind) {
-      case 'watch': st.closeGameMenu(); if (isWatchingLive()) leaveLiveGame(true); else leaveSpectating(); break;
-      case 'replay': endReplay(); useGame.getState().openTitle(); break;
-      case 'abandon': st.closeGameMenu(); st.abandonRankedEntry(); break;
-      case 'concede': st.closeGameMenu(); void forfeitMatch(); break;
-      case 'run': st.openTitle(); break;
-    }
-  };
+  const leave = (): void => leaveGame(kind);
   return (
     <div className="msb-item msb-leavewrap" data-tip={armed ? undefined : text.note}>
       <button

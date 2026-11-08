@@ -14360,4 +14360,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (feat/match-shop-buffs) for games finished from then on: the final board snapshot stamps tavernBuyBonus and its source ledger. Earlier games never stored it, so they show no button.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/shopBuffButton.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-SETTINGS-SAVEQUIT-01',
+    title: 'In a game, Settings carries Save and Quit Match right above Quit game',
+    statement:
+      'Opened in a game (a run, its hero select, a replay, a watched game), the Settings page\x27s Game tab shows a leave button right above Quit game, '
+      + 'in a browser and in the desktop app alike. In a solo or lobby game it reads Save and Quit Match: the first press arms it (Press again to quit), '
+      + 'the second saves this exact moment and returns to the menu. Every other game leaves the way the in-game sidebar\x27s leave button does, in its words '
+      + '(Concede in a Versus match, Leave replay, Stop watching, Abandon match, Leave God Mode). On the menus it is not there.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08', quote: 'lets add a Save and Quit Match Button above Quit to Ascent then. in settings' },
+      { kind: 'fix-pr', ref: 'feat/settings-save-quit-match: packages/ui/src/partyHome/pages/PhSettings.tsx (LeaveMatchRow), packages/ui/src/gameMenuParts.tsx (leaveGame, settingsLeaveText)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/settings-save-quit-match). Before, the only way out of a game was the red leave button on the in-game sidebar.',
+    example: 'Mid-shop Ann opens Settings, presses Save and Quit Match, it reads Press again to quit, she presses again and is on the main menu with Continue ready.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/phSettingsSaveQuit.test.tsx'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

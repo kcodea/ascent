@@ -2812,4 +2812,24 @@ export const RUNES_RULES: GameRule[] = [
     example: 'Six minions plus Living Echoes: one Sunmane arrives at once. Each later death opens a slot and the next Sunmane arrives, three in total.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeBatch10.test.ts'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-CONSUME-RUNE-01',
+    title: 'A "when you Consume" rune counts every Consume, Shop minion and Fodder alike',
+    statement:
+      'A rune that counts Consumes (the Empty Plate: "When you Consume 2 minions") ticks once for every minion one of '
+      + 'your minions Consumes, whether it eats Fodder or a minion in the Shop, and whoever does the eating (a Demon at '
+      + 'End of Turn, Shout or trigger, a spell, the Starform). Fodder-only tallies (Rune of Consumption, Abhorrent '
+      + 'Horror) stay Fodder-only.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-11-08, screenshot of the Empty Plate tooltip (0/2) beside a Gilded Bob Blart', quote: 'these two interactions did not work with one another' },
+      { kind: 'fix-pr', ref: 'PR fix/empty-plate-shop-consume (2026-11-08): consumeShopOffer ticks the consume rune meter' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts consumeShopOffer / noteFodderConsumed' },
+    ],
+    contentIds: ['rune_empty_plate', 'dm_gourmand'],
+    currentBehaviour: 'Conforms as of 2026-11-08. Before, the meter was ticked only in noteFodderConsumed, so a Shop eat (Bob Blart, Chipper, Cupcakes) never moved it; only Fodder eats paid.',
+    example: 'Hold the Empty Plate and a Bob Blart: two End of Turns of Blart eating the right-most Shop minion pay one random Shop spell.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/emptyPlateShopConsume.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

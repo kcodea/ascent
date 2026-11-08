@@ -1589,7 +1589,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
   const first = (state.consumesThisTurn = (state.consumesThisTurn ?? 0) + 1) === 1;
-  advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate counts Shop-minion Consumes
+  advanceRuneThresholds(state, 'consume', 1); // Rune of the Empty Plate counts Fodder Consumes (Shop eats tick it in consumeShopOffer)
   // Rune of Transfusion: whenever a DEMON Consumes, your leftmost minion also gains the Fodder's stats
   // (skipped when the eater IS the leftmost — its own Consume already banked them).
   if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
@@ -13867,6 +13867,9 @@ export function consumeShopOffer(
   // Horror's "stats from Fodder consumed" window and ticked Rune of Consumption's permanent Fodder-aura improve
   // — both paying out for eating something that isn't Fodder at all (owner report 2026-07-25, "maybe something
   // broken from the fodder connection"). `onConsume` still fires, since "a Demon consumed" is the real event.
+  // Rune of the Empty Plate ("When you Consume 2 minions") DOES count a Shop eat: it is a Consume, not a Fodder
+  // tally. Its meter used to sit only in `noteFodderConsumed`, so Bob Blart et al. never moved it (R-CONSUME-RUNE-01).
+  advanceRuneThresholds(state, 'consume', 1);
   return true;
 }
 

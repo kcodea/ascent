@@ -43,7 +43,7 @@ import {
   type VersusFinalizeStore,
 } from '@game/sim/versus/server';
 import type { SetId } from '@game/content';
-import { GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
+import { DISCONNECT_GRACE_MS, GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
 import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
 export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
 
@@ -53,8 +53,7 @@ export type Role = GSeat | 'spectator';
 export const SEATS: readonly Seat[] = ['p1', 'p2'];
 const other = (s: Seat): Seat => (s === 'p1' ? 'p2' : 'p1');
 
-/** A closed socket is given this long to come back before its seat counts as gone (a reload, a network hand-over). */
-export const DISCONNECT_GRACE_MS = 3_000;
+export { DISCONNECT_GRACE_MS };
 /** Shop deadline grace: a lock sent at 0:00 still counts (`versus__shop_grace`, R-VERSUS-CLOCK-LOCK-01). */
 export const SHOP_GRACE_MS = 250;
 /** The other player gets this long to press End Combat once one has (`versus_combat_ready`). */

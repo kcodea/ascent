@@ -226,6 +226,50 @@ describe('Group room (Cloudflare) — dropRestore / dropShort / dropInFight / lo
     expect(['missed', 'hearts']).toContain(h.seat('p3').out_reason);
   });
 
+  it('R-VERSUS-GROUP-UNPAUSE-01: two players gone together: ONE unpause puts both on auto and play goes on (chaos twoGone)', async () => {
+    const h = await inShop(4);
+    h.core.disconnect(U[1], h.now);
+    h.core.disconnect(U[2], h.now);
+    await h.advance(DISCONNECT_GRACE_MS);
+    expect(h.g.paused_seat).toBe('p2');
+    await h.advance(30_000);
+    await h.op(U[0], 'unpause', { matchId: h.id });
+    expect(h.seat('p2').auto).toBe(true);
+    expect(h.seat('p3').auto).toBe(true);
+    await h.advance(3_000);
+    // Before: re-paused on p3 at once with a fresh 30 s grace; nothing could happen until a second unpause.
+    expect(h.g.paused_at).toBeNull();
+    await lockAll(h, [MID, null, null, MID]);
+    expect(h.g.phase).toBe('combat');
+    // Either one coming back plays again, and the match never pauses on them.
+    h.core.connect(U[2], h.now);
+    await h.op(U[2], 'heartbeat');
+    expect(h.seat('p3').auto).toBe(false);
+    expect(h.seat('p2').auto).toBe(true);
+    expect(h.g.paused_at).toBeNull();
+  });
+
+  it('R-VERSUS-GROUP-UNPAUSE-01: a player who went later keeps the rest of their OWN grace; one gone through a whole pause gets none on top', async () => {
+    const h = await inShop(4);
+    h.core.disconnect(U[1], h.now);
+    await h.advance(DISCONNECT_GRACE_MS);
+    expect(h.g.paused_seat).toBe('p2');
+    await h.advance(20_000);
+    h.core.disconnect(U[2], h.now); // p3 goes 20 s into p2's pause
+    await h.advance(10_000);
+    await h.op(U[0], 'unpause', { matchId: h.id });
+    expect(h.seat('p2').auto).toBe(true);
+    expect(h.seat('p3').auto).toBe(false); // gone 10 s: not past their own grace
+    await h.advance(3_000);
+    // Re-paused on p3, with p3's grace measured from when p3 went (3 + 30 s after the close), not 30 s from now.
+    expect(h.g.paused_seat).toBe('p3');
+    expect(h.g.pause_grace_until).toBe(h.now - 13_000 + DISCONNECT_GRACE_MS + 30_000);
+    await expect(h.op(U[0], 'unpause', { matchId: h.id })).rejects.toThrow('grace_running');
+    await h.advance(h.g.pause_grace_until! - h.now);
+    await h.op(U[0], 'unpause', { matchId: h.id });
+    expect(h.seat('p3').auto).toBe(true);
+  });
+
   it('End Combat: the last player still watching gets 5 s; a lost ack is covered by the 90 s cap', async () => {
     const h = await inShop(4);
     await lockAll(h, [MID, MID, MID, MID]);

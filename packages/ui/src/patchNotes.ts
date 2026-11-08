@@ -68,6 +68,8 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Press Escape on any screen to open Settings, in a game too; press it again to close it. Anything already open closes first.' },
       { category: 'Systems', text: 'The Friends button glows green when a friend is online, and a green bubble shows how many messages you have unread.' },
       { category: 'Systems', text: 'The Ranked and Duos confirmation now sits centred over the START button.' },
+      { category: 'Systems', text: 'Versus Group and Duos: when two players drop at once, one Unpause now covers both, so the game goes on right away.' },
+      { category: 'Systems', text: 'Versus: a reconnect that stalls on a weak network is retried after a few seconds instead of leaving your screen frozen.' },
       {
         category: 'Balance',
         text: 'Braum: Investment now pays out after investing 4 (was 5).',

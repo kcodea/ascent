@@ -11290,6 +11290,45 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientWake.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
   {
+    id: 'R-VERSUS-CF-HANDSHAKE-01',
+    title: 'Versus on Cloudflare: a reconnect that never finishes its handshake is replaced within 8 s',
+    statement:
+      'Every room socket must complete its upgrade AND get the room\x27s hello answer within 8 s of being opened; otherwise the client '
+      + 'drops it and reconnects on its ordinary backoff. Requests queued behind it are sent on the replacement. This covers the gap '
+      + 'before the keep-alive starts (the 5 s ping and the 15 s stale check only run once the hello is answered), so a reconnect '
+      + 'whose upgrade or hello was lost can never sit half-open with the player frozen on screen. A healthy handshake is never cut.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'disconnect/reconnects werent done correctly' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (VERSUS_CF_HANDSHAKE_MS, the handshake timer in open())' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Before, the hello timer only forgot the hello: the socket stayed not-ready with no keep-alive, every request timed out behind it, and nothing ever replaced it until the browser itself closed the dead TCP connection.',
+    example: 'Bob\x27s phone switches from wifi to mobile data just as his socket reconnects; the upgrade goes through but the hello answer is lost. 8 s later the client drops that socket and opens a new one, which answers at once; his queued End Turn goes out on it.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientHandshake.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-UNPAUSE-01',
+    title: 'Versus Group / Duos: one Unpause covers every absent player whose own grace is over',
+    statement:
+      'In a 3-4 player Versus match (Group or Duos), an Unpause puts on auto the player the match is paused on AND every other player '
+      + 'still in who is gone and whose own 30 s grace is over (30 s from when they counted as gone: their socket\x27s close plus the 3 s '
+      + 'reconnect window). When the match then pauses on a player who is still gone, the grace it shows runs from when THAT player went '
+      + '(never more than 30 s from now): someone already absent through another player\x27s pause gets no fresh 30 s on top. '
+      + 'Coming back still clears auto for each player on their own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'jank especially in 2v2' },
+      { kind: 'code', ref: 'workers/versus/src/core/groupMatch.ts (unpause, graceEndOf, reconcile)' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Found by the chaos cell twoGone: before, two players who dropped together cost the others a 30 s pause, an Unpause, a 3-2-1 and then a SECOND fresh 30 s pause on the other absent player; with no second Unpause the match sat paused (the harness timed out at round 2).',
+    example: 'A Duos match: Cat and Dan share a router that dies in round 2. The match pauses on Cat. 30 s later Ann presses Unpause: Cat and Dan both play on auto, and the shop runs again after the 3-2-1. Dan comes back in round 4 and plays on from where the match is.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/groupCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
     id: 'R-EGRESS-02',
     title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
     statement:

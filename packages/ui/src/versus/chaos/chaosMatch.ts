@@ -408,7 +408,8 @@ export async function runChaos(server: ChaosBackend, sc: ChaosScenario): Promise
     for (const [i, c] of clients.entries()) {
       const seat = s.seats.find((x) => x.user === c.opts.user);
       const absentRecently = isGone(i, now, 10_000) || c.hidden || c.net.state.offline || now - lastReturn(i) < 10_000;
-      if (!seat || seat.eliminated != null || s.pausedAt || absentRecently || s.phase === 'hero_select') { behind.delete(i); continue; }
+      // A Ranked Duos player who conceded left the party for good (their seat plays on auto): their screen is the room.
+      if (!seat || seat.eliminated != null || seat.left || s.pausedAt || absentRecently || s.phase === 'hero_select') { behind.delete(i); continue; }
       const why = lagOf(s, c.view());
       if (!why) { behind.delete(i); continue; }
       const b = behind.get(i) ?? { since: now, flagged: false, why };

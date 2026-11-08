@@ -14295,4 +14295,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (fix/ranked-confirm-centre). Before, the window centred on the whole screen, right of the Play column.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/phRankedPromptAlign.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-PH-FRIENDS-BADGE-01',
+    title: 'The Friends button glows green when a friend is online and counts unread messages',
+    statement:
+      'While at least one friend is online, the Friends button in the main navigation glows green. '
+      + 'While you have unread direct messages, a green bubble on the button shows how many (99+ past ninety-nine). '
+      + 'Both update live, on every page that shows the bar.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, screenshot of the Friends medallion', quote: 'when friends are online, can we have the icon glow green? and undread messages, can we have a green bubble with the count of messages unread?' },
+      { kind: 'fix-pr', ref: 'feat/friends-icon-glow: packages/ui/src/partyHome/shell/friendsBadge.ts, PhTopNav.tsx, shell.css' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-08 (feat/friends-icon-glow). Online and unread come from the direct-message hub (peers with a presence; the unread map). Before, the button looked the same whatever your friends were doing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/shell/friendsBadge.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
 ];

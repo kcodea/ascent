@@ -568,3 +568,12 @@ html:not([data-ph-compact]) .ph-navgrp > .ph-navtab { width: auto; padding: 0 ca
 .ph-signin:active { transform: scale(0.98); transition-duration: 0.05s; }
 .ph-signin:focus-visible { outline: 2px solid rgba(255, 214, 110, 0.9); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .ph-signin:is(:hover, :active) { transform: none; } }
+
+/* FRIENDS ONLINE + UNREAD (owner 2026-11-08, R-PH-FRIENDS-BADGE-01): a friend online lights the Friends medallion green
+   (a static drop-shadow, never animated: paint properties do not loop), and unread messages show a green bubble with
+   the count at its top right. */
+.ph-friendsbtn.f-online .ph-navicon { filter: drop-shadow(0 0 calc(3 * var(--phu)) rgba(74, 222, 128, 0.95)) drop-shadow(0 0 calc(9 * var(--phu)) rgba(34, 197, 94, 0.7)); }
+.ph-funread { position: absolute; top: calc(6 * var(--phu)); right: calc(2 * var(--phu)); min-width: calc(20 * var(--phu)); height: calc(20 * var(--phu)); box-sizing: border-box;
+  padding: 0 calc(5 * var(--phu)); border-radius: 999px; display: grid; place-items: center; pointer-events: none;
+  font-family: var(--ph-body); font-size: calc(12 * var(--phu)); font-weight: 900; line-height: 1; letter-spacing: 0; color: #fff;
+  background: linear-gradient(180deg, #4ade80, #16a34a); box-shadow: 0 0 0 calc(2 * var(--phu)) rgba(4, 8, 20, 0.9), 0 calc(2 * var(--phu)) calc(6 * var(--phu)) rgba(0, 0, 0, 0.5); }

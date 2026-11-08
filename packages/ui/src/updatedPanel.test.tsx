@@ -5,7 +5,7 @@ import { mount, type Mounted } from './renderedText.mount';
 import { UpdatedPanel } from './UpdatedPanel';
 import { PatchNotesBody } from './PatchNotesBody';
 import type { PatchNote } from './patchNotes';
-import { UpdateReadyNotice } from './UpdateReadyNotice';
+import { UpdateReadyNotice, updateNoticePlace } from './UpdateReadyNotice';
 import { readUpdateSeen, writeUpdateSeen } from './updateNotes';
 
 let ui: Mounted | null = null;
@@ -97,5 +97,34 @@ describe('UpdateReadyNotice', () => {
   it('renders nothing in the browser', () => {
     ui = mount(<UpdateReadyNotice />);
     expect(document.querySelector('.updnotice')).toBeNull();
+  });
+});
+
+/** R-UPDATE-NOTICE-PLACE-01 (owner 2026-11-08): under START, centred on it, kept on screen; top centre without START. */
+describe('UpdateReadyNotice placement', () => {
+  it('centres on START and sits just under it', () => {
+    expect(updateNoticePlace({ left: 200, width: 384, bottom: 900 }, { height: 52 }, 1080)).toEqual({ left: 392, top: 914 });
+  });
+  it('stays on screen when START is near the bottom', () => {
+    expect(updateNoticePlace({ left: 200, width: 384, bottom: 1050 }, { height: 52 }, 1080)).toEqual({ left: 392, top: 1016 });
+  });
+  it('keeps the top-centre default when there is no START', () => {
+    expect(updateNoticePlace(null, { height: 52 }, 1080)).toBeNull();
+  });
+  it('hangs under START on the main screen, top centre elsewhere', () => {
+    setDesktop();
+    ui = mount(<UpdateReadyNotice />);
+    act(() => { fire!('0.9.9'); });
+    expect(document.querySelector('.updnotice')?.classList.contains('under-start')).toBe(false);
+    ui.unmount(); ui = null;
+    const start = document.createElement('button');
+    start.className = 'ph-start';
+    document.body.appendChild(start);
+    try {
+      setDesktop();
+      ui = mount(<UpdateReadyNotice />);
+      act(() => { fire!('0.9.9'); });
+      expect(document.querySelector('.updnotice')?.classList.contains('under-start')).toBe(true);
+    } finally { start.remove(); }
   });
 });

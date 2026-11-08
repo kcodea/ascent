@@ -58,7 +58,7 @@
 import { makeRng, type CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { procRuneId, runeGrantOverflow, type BoardCard, type RunState, type ShopCard } from './state';
-import { addBuff, addOfferBuff, conjureToHand, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion, grantMinionToHandOrBoard } from './recruit';
+import { addBuff, advanceRuneThresholds, addOfferBuff, conjureToHand, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion, grantMinionToHandOrBoard } from './recruit';
 import { syncStarDestroyer } from './equipment';
 import { tierSlots } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -454,6 +454,9 @@ export function consumeStarform(state: RunState, target: BoardCard): { attack: n
   const fromUid = starformOf(state)?.uid;
   const st = removeStarform(state, 'consume');
   if (st && fromUid) recordStarformFx(state, 'consumed', fromUid, [target.uid]);
+  // Rune of the Empty Plate counts every Consume (owner 2026-11-08): a minion Consuming the Starform (the buy's
+  // left-most Celestial) is one. A buy with no receiver consumes into nothing, so no minion Consumed and no tick.
+  if (st) advanceRuneThresholds(state, 'consume', 1);
   return st;
 }
 

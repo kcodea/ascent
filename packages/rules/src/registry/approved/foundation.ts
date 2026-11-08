@@ -11313,9 +11313,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Versus Group / Duos: one Unpause covers every absent player whose own grace is over',
     statement:
       'In a 3-4 player Versus match (Group or Duos), an Unpause puts on auto the player the match is paused on AND every other player '
-      + 'still in who is gone and whose own 30 s grace is over (30 s from when they counted as gone: their socket's close plus the 3 s '
+      + 'still in who is gone and whose own 30 s grace is over (30 s from when they counted as gone: their socket\x27s close plus the 3 s '
       + 'reconnect window). When the match then pauses on a player who is still gone, the grace it shows runs from when THAT player went '
-      + '(never more than 30 s from now): someone already absent through another player's pause gets no fresh 30 s on top. '
+      + '(never more than 30 s from now): someone already absent through another player\x27s pause gets no fresh 30 s on top. '
       + 'Coming back still clears auto for each player on their own.',
     domain: 'foundation',
     status: 'approved',

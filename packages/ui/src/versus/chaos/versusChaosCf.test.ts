@@ -110,6 +110,16 @@ export const CF_EXTRA: ScenarioDef[] = [
     }),
   },
   {
+    name: 'twoGone', about: 'two players lose the network together in round 2 (one house, one router); after the grace another player unpauses once and both play on auto', modes: ['group3', 'group4', 'duos'],
+    build: (mode) => ({
+      name: 'twoGone', mode, seed: seedOf('twoGone', mode), rounds: 4,
+      events: [
+        { round: 2, phase: 'shop', afterMs: 500, act: (h) => { (h.server as CfChaosServer).finOnDrop = true; h.drop(1, 40 * 60_000); h.drop(2, 40 * 60_000); } },
+        { round: 2, phase: 'shop', afterMs: 40_000, act: (h) => { void h.clients[0]!.store.unpauseMatch(); } },
+      ],
+    }),
+  },
+  {
     name: 'dropFin', about: 'a 20 s loss the object hears (a closed socket): paused within the 3 s grace, lifted on return', modes: CF_MODES,
     build: (mode) => ({
       name: 'dropFin', mode, seed: seedOf('dropFin', mode), rounds: 3,
@@ -119,11 +129,12 @@ export const CF_EXTRA: ScenarioDef[] = [
 ];
 
 /** The CI subset: one clean match per mode family, the restart (the Cloudflare-only failure mode), a drop, a resolve
- *  that dies, and Mend's live Armor on a team. */
+ *  that dies, Mend's live Armor on a team, a concede, a seat gone for good and two seats gone together. */
 export const SMOKE_CF: string[] = [
   'baseline/duel', 'baseline/group3', 'baseline/duos', 'baseline/ranked_duos',
   'spectate/duel', 'spectate/duos', 'spectate/ranked_duos',
   'emptyAll/duel', 'dropRestore/duel', 'realtimeDown/duel', 'resolverFail3/group3', 'mendArmor/duos', 'dropFin/group4', 'dropLong/group4',
+  'concede/ranked_duos', 'goneForGood/duel', 'twoGone/duos',
 ];
 
 let server: CfChaosServer;

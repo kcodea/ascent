@@ -1286,7 +1286,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   by seat) survives.
 - **Disconnects** as 1v1, over the players still in: a pause, the 30 second grace, then any other player still in may
   unpause and the absent seat plays on auto (its last locked board); three auto rounds in a row is out; coming back
-  clears auto. A player who is out never pauses or holds up the match.
+  clears auto. One unpause puts on auto every absent player whose own 30 seconds are over (two who dropped together
+  never cost two pauses), and a player who dropped later is paused on with only the rest of THEIR 30 seconds
+  (R-VERSUS-GROUP-UNPAUSE-01). A player who is out never pauses or holds up the match.
 - **Back from the fight.** The next shop opens when every player still in is back; when all but one are, the last has
   5 seconds (90 seconds at most from the commit).
 - **In the room** (R-VERSUS-OPTIONS-02, R-VERSUS-GROUP-05). A chip under the room's name says what it plays ("1v1",

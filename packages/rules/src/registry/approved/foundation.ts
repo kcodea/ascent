@@ -11309,6 +11309,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientHandshake.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
   {
+    id: 'R-VERSUS-GROUP-UNPAUSE-01',
+    title: 'Versus Group / Duos: one Unpause covers every absent player whose own grace is over',
+    statement:
+      'In a 3-4 player Versus match (Group or Duos), an Unpause puts on auto the player the match is paused on AND every other player '
+      + 'still in who is gone and whose own 30 s grace is over (30 s from when they counted as gone: their socket's close plus the 3 s '
+      + 'reconnect window). When the match then pauses on a player who is still gone, the grace it shows runs from when THAT player went '
+      + '(never more than 30 s from now): someone already absent through another player's pause gets no fresh 30 s on top. '
+      + 'Coming back still clears auto for each player on their own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-10-27', quote: 'jank especially in 2v2' },
+      { kind: 'code', ref: 'workers/versus/src/core/groupMatch.ts (unpause, graceEndOf, reconcile)' },
+    ],
+    currentBehaviour: 'Built 2026-11-08 (fix/versus-reliability-nov). Found by the chaos cell twoGone: before, two players who dropped together cost the others a 30 s pause, an Unpause, a 3-2-1 and then a SECOND fresh 30 s pause on the other absent player; with no second Unpause the match sat paused (the harness timed out at round 2).',
+    example: 'A Duos match: Cat and Dan share a router that dies in round 2. The match pauses on Cat. 30 s later Ann presses Unpause: Cat and Dan both play on auto, and the shop runs again after the 3-2-1. Dan comes back in round 4 and plays on from where the match is.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/groupCore.test.ts', 'packages/ui/src/versus/chaos/versusChaosCf.test.ts'], lastVerifiedAt: '2026-11-08' },
+  },
+  {
     id: 'R-EGRESS-02',
     title: 'progression_config is read once per session; the cosmetic kill switch is re-read only when its hash moves',
     statement:

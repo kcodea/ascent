@@ -14,9 +14,9 @@
  *    Settings switch that hides lobby chat entirely (`setLobbyChatEnabled`, on by default, saved on this device).
  *
  *  - READ WHEN SEEN (owner 2026-10-30, R-LOBBY-CHAT-02: "lobby chat needs the same quality of life that dm's have", the
- *    DMs' R-DM-READ-01 rule): a message counts as unread unless the panel is open AND the page is visible and focused.
- *    Coming back to the page (visibilitychange / focus), pressing or focusing into the panel, typing or sending clears
- *    the count (`noteLobbyChatSeen`).
+ *    DMs' R-DM-READ-01 rule): a message counts as unread unless the chat view is open AND the page is visible and
+ *    focused. Coming back to the page (visibilitychange / focus), pressing in the view, typing or sending clears the
+ *    count (`noteLobbyChatSeen`).
  *  - REPLIES (R-LOBBY-CHAT-02): a send may answer a stored message (`replyTo`); the object stamps the quote. Mine shows
  *    the quote while it is sending; the object's echo then decides (an older Worker sends none).
  *  - CATCH-UP (R-LOBBY-CHAT-02): when the game's socket comes back (`resyncLobbyChat`, called on every reconnect), the
@@ -63,17 +63,12 @@ export const LOBBY_CHAT_GUEST_TEXT = 'Sign in to chat.';
 export const LOBBY_CHAT_TEAM_GONE_TEXT = 'You are not on a team now.';
 
 const ENABLED_KEY = 'ascent.lobbyChat';
-const OPEN_KEY = 'ascent.lobbyChatOpen';
+const HUSHED_KEY = 'ascent.lobbyChat.hushed';
 const loadFlag = (key: string, dflt: boolean): boolean => {
   try { const v = localStorage.getItem(key); return v == null ? dflt : v !== 'false'; } catch { return dflt; }
 };
 const saveFlag = (key: string, on: boolean): void => {
   try { localStorage.setItem(key, String(on)); } catch { /* private mode: this session only */ }
-};
-
-/** A phone held sideways: the chat starts collapsed there (it would take a big share of a small screen). */
-const smallTouch = (): boolean => {
-  try { return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse) and (max-height: 500px)').matches; } catch { return false; }
 };
 
 export interface LobbyChatState {
@@ -86,7 +81,7 @@ export interface LobbyChatState {
   /** Someone else is here to chat with (a lone player with nobody watching sees no panel). */
   company: boolean;
   msgs: ShownChatMsg[];
-  /** Messages from others that arrived while I was not looking (the panel collapsed, the page away, the other tab). */
+  /** Messages from others that arrived while I was not looking (the view closed, the page away, the other tab). */
   unread: number;
   /** TEAM CHAT (R-LOBBY-CHAT-TEAM-01): the object says I hold a team seat (its lobby sync answer's `team`). */
   team: boolean;
@@ -97,10 +92,14 @@ export interface LobbyChatState {
   teamUnread: number;
   /** The tab I picked (the Lobby one whenever there is no team chat; see `lobbyChatTab`). */
   tab: LobbyChatChannel;
-  /** The panel is expanded (kept on this device). */
-  open: boolean;
+  /** THE CHAT VIEW (owner 2026-11-09): Enter's focused view, the game dimmed and blurred behind the history and the bar. */
+  focus: boolean;
   /** The Settings switch (on by default): off hides lobby chat entirely. */
   enabled: boolean;
+  /** HUSHED (owner 2026-11-09: right-click the chat button "should put a red cross over it and mute all chat bubbles"):
+   *  no bubbles or typing dots over anyone's face, no incoming pops, no unread badge. The chat itself stays readable
+   *  (the button / Enter still open the view). Saved on this device until the next right-click. */
+  hushed: boolean;
   /** Senders I muted in this game. */
   muted: Readonly<Record<string, true>>;
   me: string | null;
@@ -110,7 +109,7 @@ const TEAM_RESET = { team: false, teamAvailable: false, teamCanSend: false, team
 
 export const useLobbyChat = create<LobbyChatState>(() => ({
   gameKey: null, available: false, canSend: false, company: true, msgs: [], unread: 0, ...TEAM_RESET,
-  open: loadFlag(OPEN_KEY, !smallTouch()), enabled: loadFlag(ENABLED_KEY, true), muted: {}, me: null,
+  focus: false, enabled: loadFlag(ENABLED_KEY, true), hushed: loadFlag(HUSHED_KEY, false), muted: {}, me: null,
 }));
 
 /** The tab the panel shows: the one I picked, but only while a team chat exists (else the lobby). */
@@ -187,6 +186,8 @@ const fresh = (gameKey: string | null, me: string | null): Partial<LobbyChatStat
  * swap, a reconnect) keeps its messages and re-syncs; a new game starts empty.
  */
 export function setLobbyChatSession(owner: string, next: { send: Session['send']; gameKey: string; me: string | null } | null): void {
+  // The DEV chat sandbox holds the chat: the game's own socket waits aside until the sandbox lets go.
+  if (devClaim && owner !== DEV_CHAT_OWNER) { heldReal = next ? { owner, next } : heldReal?.owner === owner ? null : heldReal; return; }
   clearChatSpeech();
   typing = null;
   if (!next) {
@@ -223,19 +224,45 @@ export function resyncLobbyChat(): void {
 
 /** Whether anyone else is in the game (the lobby publisher's stands; Versus and watching always have company). */
 export function setLobbyChatCompany(on: boolean): void {
+  if (devClaim) { heldCompany = on; return; }
   if (useLobbyChat.getState().company !== on) useLobbyChat.setState({ company: on });
+}
+
+// ── DEV chat sandbox (`devChatSandbox.ts`, never in a player's build) ──
+/** The sandbox's session owner: the one owner a claim lets through. */
+export const DEV_CHAT_OWNER = 'devchat';
+let devClaim = false;
+let heldReal: { owner: string; next: { send: Session['send']; gameKey: string; me: string | null } } | null = null;
+let heldCompany: boolean | null = null;
+
+/** DEV: the sandbox takes the chat (on) or hands it back to the game's own socket, as that socket last asked (off). */
+export function setLobbyChatDevClaim(on: boolean): void {
+  if (on === devClaim) return;
+  if (on) {
+    const s = useLobbyChat.getState();
+    heldReal = session && session.owner !== DEV_CHAT_OWNER ? { owner: session.owner, next: { send: session.send, gameKey: session.gameKey, me: s.me } } : null;
+    heldCompany = s.company;
+    devClaim = true;
+    return;
+  }
+  devClaim = false;
+  if (session?.owner === DEV_CHAT_OWNER) setLobbyChatSession(DEV_CHAT_OWNER, null);
+  if (heldReal) setLobbyChatSession(heldReal.owner, heldReal.next);
+  if (heldCompany != null) setLobbyChatCompany(heldCompany);
+  heldReal = null;
+  heldCompany = null;
 }
 
 const isMine = (m: LobbyChatMsg, me: string | null): boolean => !!me && m.from.toLowerCase() === me;
 
-/** I am looking at channel `c` right now: the panel is open on its tab and the page is in front of me. */
-const viewing = (s: LobbyChatState, c: LobbyChatChannel): boolean => s.open && s.enabled && lobbyChatTab(s) === c && pageSeen();
+/** I am looking at channel `c` right now: the chat view is open on its tab and the page is in front of me. */
+const viewing = (s: LobbyChatState, c: LobbyChatChannel): boolean => s.focus && s.enabled && lobbyChatTab(s) === c && pageSeen();
 
 function counts(s: LobbyChatState, m: LobbyChatMsg, c: LobbyChatChannel): boolean {
   return !isMine(m, s.me) && !s.muted[m.from.toLowerCase()] && !viewing(s, c);
 }
 
-/** Something says I am looking at the open panel (the page came back, a press, focus or typing in it): read its tab. */
+/** Something says I am looking at the chat view (the page came back, a press or typing in it): read its tab. */
 export function noteLobbyChatSeen(): void {
   const s = useLobbyChat.getState();
   const c = lobbyChatTab(s);
@@ -286,13 +313,16 @@ export function receiveLobbyChatEvent(event: string, payload: unknown): boolean 
     else msgs.push(m);
     useLobbyChat.setState(chanPatch(c, { msgs: trim(msgs), unread: ch.unread + (pending < 0 && counts(s, m, c) ? 1 : 0) }));
     // CHAT BUBBLES (R-CHAT-BUBBLE-01): what they said, beside their face. Chat off or a muted sender shows nothing.
-    if (s.enabled && !s.muted[m.from.toLowerCase()]) noteChatSaid(m.from, m.role, m.body);
+    if (s.enabled && !s.hushed && !s.muted[m.from.toLowerCase()]) {
+      // Its bubble(s) pop in, each with the chat pop (mine popped once already as I sent it).
+      noteChatSaid(m.from, m.role, m.body, isMine(m, s.me));
+    }
     return true;
   }
   if (event === LOBBY_CHAT_TYPING_EVENT) {
     const t = parseLobbyChatTyping(payload);
     const s = useLobbyChat.getState();
-    if (!t || !session || !s.enabled || s.muted[t.from.toLowerCase()] || (s.me && t.from.toLowerCase() === s.me)) return true;
+    if (!t || !session || !s.enabled || s.hushed || s.muted[t.from.toLowerCase()] || (s.me && t.from.toLowerCase() === s.me)) return true;
     if (t.channel === 'team' && !s.team) return true;
     noteChatTyping(t.from, t.role, t.on);
     return true;
@@ -416,11 +446,11 @@ export function retryLobbyChat(cid: string): void {
   sendLobbyChat(m.body, orig, c);
 }
 
-export function setLobbyChatOpen(open: boolean): void {
-  saveFlag(OPEN_KEY, open);
-  if (!open) { useLobbyChat.setState({ open }); return; }
-  // Opening reads the tab it opens on; the other tab keeps its own count.
-  useLobbyChat.setState({ open, ...chanPatch(lobbyChatTab(useLobbyChat.getState()), { unread: 0 }) });
+/** Open or leave the chat view. Opening it reads the tab it shows. */
+export function setLobbyChatFocus(focus: boolean): void {
+  if (useLobbyChat.getState().focus === focus) return;
+  if (!focus) { useLobbyChat.setState({ focus }); return; }
+  useLobbyChat.setState({ focus, ...chanPatch(lobbyChatTab(useLobbyChat.getState()), { unread: 0 }) });
 }
 
 /** Pick the Lobby or Team tab (R-LOBBY-CHAT-TEAM-01): looking at it reads it. */
@@ -433,6 +463,13 @@ export function setLobbyChatTab(tab: LobbyChatChannel): void {
 export function setLobbyChatEnabled(on: boolean): void {
   saveFlag(ENABLED_KEY, on);
   useLobbyChat.setState(on ? { enabled: on, unread: 0, teamUnread: 0 } : { enabled: on });
+}
+
+/** Hush (or unhush) the chat's bubbles (right-click the chat button): whatever is on screen goes at once. */
+export function setLobbyChatHushed(on: boolean): void {
+  saveFlag(HUSHED_KEY, on);
+  useLobbyChat.setState({ hushed: on });
+  if (on) clearChatSpeech();
 }
 
 /** Mute (or unmute) a sender in this game: their messages are hidden on my screen only (both tabs). */

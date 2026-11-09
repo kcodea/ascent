@@ -13,7 +13,7 @@
  * new message renders one row. Emote tokens are parsed once per body; a quote press does one lookup and one scroll.
  * Nothing loops (the flash is one-shot opacity).
  */
-import { Fragment, memo, useCallback, useMemo, type ReactNode, type RefObject } from 'react';
+import { Fragment, memo, useCallback, useMemo, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { sfx } from '../sfx';
 import { emoteSrc } from '../emotes/emoteArt';
 import { dmPieces, emoteName, emoteOnly } from '../friends/dm/chatEmotes';
@@ -63,6 +63,10 @@ export interface ChatRowProps {
   time: string;
   /** A line above the bubble naming the sender (the lobby's). */
   sender?: ReactNode;
+  /** Shown inside the bubble before the words (the chat view's inline "Name:"). */
+  lead?: ReactNode;
+  /** The row's own style (the chat view's per-speaker colour, `--who`). */
+  style?: CSSProperties;
   quote: ChatQuote | null;
   quoteName: string;
   onQuote: (id: string) => void;
@@ -75,10 +79,10 @@ export interface ChatRowProps {
   children?: ReactNode;
 }
 
-export function ChatRow({ mid, mine, body, filter, state, error, time, sender, quote, quoteName, onQuote, onReply, onRetry, className = '', children }: ChatRowProps): JSX.Element {
+export function ChatRow({ mid, mine, body, filter, state, error, time, sender, lead, style, quote, quoteName, onQuote, onReply, onRetry, className = '', children }: ChatRowProps): JSX.Element {
   const solo = isSoloEmotes(body);
   return (
-    <div className={`dm-msg ${mine ? 'mine' : 'theirs'}${state ? ` ${state}` : ''}${className ? ` ${className}` : ''}`} data-mid={mid}>
+    <div className={`dm-msg ${mine ? 'mine' : 'theirs'}${state ? ` ${state}` : ''}${className ? ` ${className}` : ''}`} data-mid={mid} style={style}>
       {sender}
       {quote && (
         <button type="button" className="dm-quote pressable" aria-label={`Replying to ${quoteName}. Show that message.`}
@@ -87,7 +91,7 @@ export function ChatRow({ mid, mine, body, filter, state, error, time, sender, q
           <span className="dm-quote-body"><ChatBody body={quote.body} filter={filter} /></span>
         </button>
       )}
-      <div className={`dm-bubble${solo ? ' solo' : ''}`}><ChatBody body={body} filter={filter} /></div>
+      <div className={`dm-bubble${solo ? ' solo' : ''}`}>{lead}<ChatBody body={body} filter={filter} /></div>
       <div className="dm-meta">
         {state === 'sending' ? <span>Sending</span>
           : state === 'failed' ? (

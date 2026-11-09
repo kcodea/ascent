@@ -58,6 +58,18 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-09',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Lobby chat has a new look: press Enter (or click the chat button) to open it over the dimmed game, type, and press Enter to send.',
+        details: [
+          'Enter with nothing typed, Escape, or a click on the game closes it.',
+          'Everyone in the chat has their own colour, with their name at the start of each message. A reply\'s quote shows the original speaker in their colour.',
+          'The chat button is now a chat icon in the bottom-left corner, just above Friends in a game.',
+          'Long messages show as up to three bubbles, and the spectator list makes room for them so every bubble stays beside its speaker.',
+          'Emotes are off in the lobby chat for now.',
+        ],
+      },
+      { category: 'Systems', text: 'Right-click the chat button, or press Mute chat in the chat, to mute chat bubbles and their sounds. Do it again to unmute.' },
       { category: 'Systems', text: 'Hero select: the navy fade behind the hover Health and Armor is level, fits inside the gold frame and reaches a little lower.' },
       { category: 'Systems', text: 'Fixed: the hero you pick keeps its name, Health and power on the banner until it turns into the portrait.' },
       { category: 'Systems', text: 'Hero select: the picked hero\'s portrait always fills its ring, with no gap, and the name banner stops at the circle.' },

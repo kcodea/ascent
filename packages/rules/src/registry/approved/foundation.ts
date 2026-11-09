@@ -12329,18 +12329,20 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-LOBBY-CHAT-02',
-    title: 'Lobby chat has the same quality of life as direct messages, from the same components: emotes, replies, a movable, resizable, pinnable panel, read when seen, and catch-up after a reconnect',
+    title: 'Lobby chat has the same quality of life as direct messages, from the same components: replies, read when seen, and catch-up after a reconnect',
     statement:
-      "The lobby chat uses the direct messages' own message row, composer and window frame (packages/ui/src/chat/), never a copy. EMOTES: the composer's emote button and picker, and emote tokens shown inline, as in R-DM-EMOTE-01. REPLIES: every stored message has Reply; the composer shows the 'Replying to <name>' bar; the post names the original (`replyTo`) and the game's object stamps the quote from its own backlog (who wrote it, their name, the first 140 characters), never from the payload; an original no longer in the backlog leaves the answer without a quote; pressing a quote scrolls to the original and flashes it once. Replies are live only, like every lobby chat message. THE PANEL: moved by its header, resized from the gold grips on its edges and corners (kept inside the screen), its place and size remembered on this device under its own key (separate from the DM window's), opening at today's place on the left edge. PIN: pinned by default (it stays up while I play, as before); unpinned, a press outside it folds it back to its button (the press still reaches the game). Collapsing to the button with its unread count is unchanged. READ WHEN SEEN (as R-DM-READ-01): a message counts as unread unless the panel is open and the page is visible and focused; coming back to the page, a press or focus in the panel, typing, or sending clears the count; while open, an unread count shows in the header. CATCH-UP: when the game's socket reconnects, the client asks the backlog again with the newest message it holds (`since`); the object answers only what came after it (the whole backlog when that message is gone) and the client merges by id, so nothing sent while it was down is missed and nothing shows twice. Muting stays per sender, this game, my screen. A PHONE keeps the compact fixed panel (no move, resize or pin); emotes and replies work there. Backward compatible both ways: an older client ignores `reply` and `since`; an older Worker ignores `replyTo` (no quote) and `since` (the whole backlog, merged by id). Reporting a lobby chat message is not offered (messages have no server record). Nothing runs per frame: rows are memoised, a drag writes only the frame's transform.",
+      "The lobby chat uses the direct messages' own message row and composer (packages/ui/src/chat/), never a copy. EMOTES: off for now (since 2026-11-09): no emote button or picker in the lobby chat; an emote token in a message still shows as its picture. REPLIES: every stored message has Reply; the composer shows the 'Replying to <name>' bar; the post names the original (`replyTo`) and the game's object stamps the quote from its own backlog (who wrote it, their name, the first 140 characters), never from the payload; an original no longer in the backlog leaves the answer without a quote; pressing a quote scrolls to the original and flashes it once. Replies are live only, like every lobby chat message. WHERE IT IS READ: the chat view (R-LOBBY-CHAT-VIEW-01) since 2026-11-09; the movable, resizable, pinnable side window is gone. READ WHEN SEEN (as R-DM-READ-01): a message counts as unread unless the chat view is open on its tab and the page is visible and focused; coming back to the page, a press or focus in the view, typing, or sending clears the count; with a team, the Lobby and Team tabs each show their own count. CATCH-UP: when the game's socket reconnects, the client asks the backlog again with the newest message it holds (`since`); the object answers only what came after it (the whole backlog when that message is gone) and the client merges by id, so nothing sent while it was down is missed and nothing shows twice. Muting stays per sender, this game, my screen. A phone uses the same chat view; replies work there. Backward compatible both ways: an older client ignores `reply` and `since`; an older Worker ignores `replyTo` (no quote) and `since` (the whole backlog, merged by id). Reporting a lobby chat message is not offered (messages have no server record). Nothing runs per frame: rows are memoised.",
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-30', quote: "lobby chat needs the same quality of life that dm\x27s have" },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'i want to remove the ability to do emojis. we can revisit at a later point' },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'clicking the lobby chat should open the new "enter" chat experience. that window is outdated.' },
       { kind: 'code', ref: 'packages/ui/src/chat/ (ChatRow, ChatComposer, ChatFrame, chatGeom), packages/ui/src/lobbyChat/LobbyChatPanel.tsx, packages/ui/src/lobbyChat/lobbyChatStore.ts (noteLobbyChatSeen, resyncLobbyChat), workers/versus/src/lobbyChat.ts (reply, since)' },
     ],
-    currentBehaviour: 'Built 2026-10-30 (feat/lobby-chat-qol). Before: the lobby chat panel was fixed in place, plain text with no emote picker or replies, counted unread only while collapsed, and missed messages sent while its socket was down.',
+    currentBehaviour: 'Built 2026-10-30 (feat/lobby-chat-qol). Before: the lobby chat panel was fixed in place, plain text with no emote picker or replies, counted unread only while collapsed, and missed messages sent while its socket was down. 2026-11-09 (feat/chat-hotkey): the side window and the emote picker were removed; the chat view replaced the window.',
     example: 'Bo watches Ann play and drags the lobby chat up beside the board, then widens it. Ann asks "who wants to duo next?"; Bo presses Reply, picks the Hi emote and sends. Everyone sees his answer with the small quote of her question above it. Bo\x27s wifi drops for ten seconds; when it is back, the two messages Cy sent meanwhile appear once, in order.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx', 'workers/versus/test/lobbyChat.test.ts', 'packages/ui/src/friends/dm/dm.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-10-30' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/lobbyChat.test.tsx', 'workers/versus/test/lobbyChat.test.ts', 'packages/ui/src/friends/dm/dm.test.tsx', 'packages/ui/src/friends/dock/friendsDock.test.tsx'], lastVerifiedAt: '2026-11-09' },
   },
   {
     id: 'R-CHAT-EMOTE-SIZE-01',
@@ -14519,5 +14521,85 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the FX streaked to the hand. This is the case R-HANDFX-01 left open. It hit every End-of-Turn trigger, not only '
       + 'Ruby cards: the owner also saw it from Dwarf buffs (Kringle, Striker). eotHandFxSweep runs every End-of-Turn card.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/eotHandRubyEmission.test.ts', 'packages/sim/src/eotHandFxSweep.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
+  // ── The lobby chat view, its button, muting, long bubbles and the spectator rail (owner, 2026-11-09) ───────────
+  {
+    id: 'R-LOBBY-CHAT-VIEW-01',
+    title: 'Lobby chat opens as a focused view over the dimmed game; Enter opens it, sends and leaves',
+    statement:
+      'In a game with a lobby chat, Enter or Y (outside a text field), or a click on the chat button, opens the chat view: the game dimmed and '
+      + 'blurred behind, the history over the board and the chat bar under it with the cursor in it. Enter with something typed sends it AND '
+      + 'leaves the view (a refused send stays, to show why); Enter with nothing typed leaves; Escape leaves and never also reaches the '
+      + "game's own Escape; a press on the dimmed game leaves; the game ending leaves. Each speaker has their own colour for the game, in the "
+      + 'order they first spoke, with their name at the start of the message in it ("You" for mine); the quote above a reply names the '
+      + "original speaker in the original speaker's colour. The chat button is the corner plaque the Friends button wears, with the chat "
+      + 'medallion and its unread count drawn fully outside the tile; in a game it sits on the bottom-left row one square up from Friends, and '
+      + 'the dev tuner sits in the bottom-right cluster left of the Compendium.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'hitting enter should both open this view and enter should send a message when typing into the box. if there is nothing in the box, then enter should exit this view. escape should also exit this view' },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'lets actually have enter SEND , AND exit the window. empty should behave exactly as it is' },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'the reply too is miscoloring the original chatter\'s color' },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'is it possible to put the chat box in the spot that the dev tuner is here' },
+      { kind: 'fix-pr', ref: 'feat/chat-hotkey: packages/ui/src/lobbyChat/LobbyChatPanel.tsx (ChatView, chatSpeakerColour), chatView.css, lobbyChat.css, styles.css (.devmenu-btn in a game)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/chat-hotkey). Before, the chat was a movable side window opened from a "Lobby chat" pill.',
+    example: 'Bo watches Ann play and presses Enter: the board dims, the history sits over it and the cursor is in the bar. He types "nice roll" and presses Enter; it sends and the view closes. Cy replies to Ann\'s earlier message, and the quote shows "Ann" in Ann\'s colour.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatView.test.tsx', 'packages/ui/src/devCorner.test.tsx', 'packages/ui/src/hitShapes.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
+  {
+    id: 'R-LOBBY-CHAT-HUSH-01',
+    title: 'Right-clicking the chat button (or the view\'s Mute chat switch) mutes the chat: a red cross, no bubbles, no pops, no count',
+    statement:
+      'Right-clicking the chat button, or pressing Mute chat in the chat view, mutes the lobby chat on this device until it is unmuted the same '
+      + 'way: a red cross over the button, no bubbles or typing dots over anyone\'s face (those on screen go at once), no incoming pop sound and no '
+      + 'unread count. The chat itself stays readable and writable: the button and Enter still open the view. The browser menu never opens on '
+      + 'that right-click.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'right clicking the chat box button should put a red cross over it and mute all chat bubbles from showing and all that' },
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'lets add a mute option here too, just in case' },
+      { kind: 'fix-pr', ref: 'feat/chat-hotkey: packages/ui/src/lobbyChat/lobbyChatStore.ts (setLobbyChatHushed), LobbyChatPanel.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/chat-hotkey). Saved on this device (ascent.lobbyChat.hushed). Messages still count while muted, so unmuting shows the count again.',
+    example: 'Ann is focusing on a close fight and right-clicks the chat button: it gets a red cross, and the spectators\' bubbles vanish. Later she right-clicks it again and the bubbles come back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatView.test.tsx'], lastVerifiedAt: '2026-11-09' },
+  },
+  {
+    id: 'R-CHAT-BUBBLE-RAIL-ROOM-01',
+    title: 'A spectator\'s tall bubbles push the spectator rows below them down, so every bubble stays level with its own row',
+    statement:
+      'When a spectator\'s chat bubbles (a long message\'s several bubbles, or one tall bubble) reach past the bottom of their row on the '
+      + 'spectator rail, the rows below slide down by that much plus a small gap, and any bubble beside those rows moves with its row. When the '
+      + 'bubbles go, the rows slide back. A spectator\'s bubble steps clear only of the bubbles of the rows above; the rows below make the room. '
+      + 'It is measured when a bubble opens or goes, never per frame, and the slide is a one-shot move.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'is it possible to slide down the spectator cards while a long bubble or series of bubles are active?' },
+      { kind: 'fix-pr', ref: 'feat/chat-hotkey: packages/ui/src/lobbyChat/ChatBubbleLayer.tsx (syncRailRoom, railRoomFor)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/chat-hotkey). Before, a bubble from a spectator below a long message was pushed down past the whole stack, far from their row. PARTIAL: a bubble that opens during the slide itself can land a few pixels off.',
+    example: 'Vessa sends a long message that shows as three bubbles. The rows under her slide down, and when Brannoc answers, his bubble sits level with his own row under her stack.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatRailRoom.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
+  {
+    id: 'R-CHAT-BUBBLE-02',
+    title: 'A long chat message shows as up to three bubbles, each tail reaching back to the same spot',
+    statement:
+      'A chat message longer than one bubble holds is split at word breaks into up to three bubbles that pop in one after another beside the '
+      + 'speaker, each with its own pop. The later bubbles\' tails reach back to where the first bubble\'s tail points, so the whole message reads '
+      + 'as coming from one spot, and every bubble of the message stays as long as the whole message needs to be read.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'can we have a specific tail for when a long message is sent, so it looks like it comes from the same spot?' },
+      { kind: 'fix-pr', ref: 'feat/chat-hotkey: packages/ui/src/lobbyChat/chatSpeech.ts (splitChatBody, noteChatSaid), chatBubbleShape.ts (reach), ChatBubbleLayer.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/chat-hotkey).',
+    example: 'A spectator sends a 200-character message: three bubbles pop in a beat apart down the side of their row, and the second and third tails curve back up to the first one\'s tip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatSplit.test.ts', 'packages/ui/src/lobbyChat/chatBubbleReach.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
 ];

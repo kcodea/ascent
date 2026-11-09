@@ -38,6 +38,11 @@ describe('the corner plaque (styles.css .cornerdev)', () => {
   it("in a game they stack UP the edge from Friends (a full hand fills the bottom edge beside it)", () => {
     expect(styles).toContain('html[data-bl="game"] .cornerdev { left: var(--bl-l); bottom: calc(var(--bl-b) + var(--cd-slot) * var(--cd-cb) * 1.25); }');
   });
+  it("in a game the dev tuner sits in the bottom-right cluster, left of the Compendium (its old square is the lobby chat's)", () => {
+    expect(styles).toContain('html[data-bl="game"] .devmenu-btn.cornerdev { left: auto; right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); bottom: calc(var(--edge-b) + 16px);');
+    const chat = src('lobbyChat/lobbyChat.css');
+    expect(chat).toContain('html[data-bl="game"] .lchat-pill { left: var(--bl-l); top: auto; bottom: calc(var(--bl-b) + var(--bl-cb) * 1.25); }');
+  });
   it("wears the row's plaque (the gear / Compendium / Friends fill, rim and bevel)", () => {
     const plaque = 'border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));';
     expect(rule).toContain(plaque);

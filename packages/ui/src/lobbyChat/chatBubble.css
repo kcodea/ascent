@@ -1,17 +1,35 @@
 /* CHAT BUBBLES (ChatBubbleLayer.tsx, R-CHAT-BUBBLE-01): a plain white speech bubble with dark text (owner 2026-11-06), a short tail toward the speaker. Static
-   paint. The pop is one-shot; the dots loop on opacity only. */
-.chatbub { position: absolute; z-index: 330; max-width: 280px; padding: 9px 16px; box-sizing: border-box; pointer-events: none;
-  background: #fff; border-radius: 18px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
-  font-family: var(--font-ui); font-weight: 700; font-size: 20px; line-height: 1.25; color: #16202e;
-  animation: chatbub-pop 0.14s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-.chatbub::before { content: ""; position: absolute; top: 50%; width: 14px; height: 14px; margin-top: -7px; background: #fff; transform: rotate(45deg); }
-.chatbub.right::before { left: -6px; }
-.chatbub.left::before { right: -6px; }
+   paint. The outer box is placed and carries the spring slide; the inner bubble is the paint and carries the pop, the
+   words' boing and the leave (one-shot Web Animations, transform + opacity only). The dots hop on transform + opacity. */
+.chatbub { position: absolute; z-index: 330; max-width: 280px; pointer-events: none; }
+.chatbub-in { position: relative; padding: 9px 16px; box-sizing: border-box;
+  font-family: var(--font-ui); font-weight: 700; font-size: 20px; line-height: 1.25; color: #16202e; }
+/* It grows out of (and shrinks back into) its tail. */
+.chatbub.right .chatbub-in { transform-origin: 0 50%; }
+.chatbub.left .chatbub-in { transform-origin: 100% 50%; }
+/* THE HAND-DRAWN BUBBLE (chatBubbleShape.ts, owner 2026-11-09): an inked, slightly wobbly outline with a curvy side tail and
+   a few loose sketch strokes, drawn once per bubble into this SVG behind the words. Static paint. */
+.chatbub-ink { position: absolute; overflow: visible; pointer-events: none; }
+.chatbub-shadow { fill: rgba(0, 0, 0, 0.35); }
+.chatbub-body { fill: #fff; stroke: var(--cb-ink, #141a24); stroke-width: var(--cb-ink-w, 3.5px); stroke-linejoin: round; }
+.chatbub-sketch { fill: none; stroke: var(--cb-ink, #141a24); stroke-width: var(--cb-sketch-w, 2px); stroke-linecap: round; }
+.chatbub-dots, .chatbub-text { position: relative; }
 .chatbub-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
 .chatbub-dots { display: inline-flex; align-items: center; gap: 5px; height: 25px; }
-.chatbub-dots i { width: 8px; height: 8px; border-radius: 50%; background: #5b6675; opacity: 0.3; animation: chatbub-dot 1s linear infinite; }
-.chatbub-dots i:nth-child(2) { animation-delay: 0.16s; }
-.chatbub-dots i:nth-child(3) { animation-delay: 0.32s; }
-@keyframes chatbub-pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
-@keyframes chatbub-dot { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .chatbub, .chatbub-dots i { animation: none; } .chatbub-dots i { opacity: 0.8; } }
+.chatbub-dots i { width: 8px; height: 8px; border-radius: 50%; background: #5b6675; opacity: 0.45; animation: chatbub-dot var(--cb-hop-ms, 1000ms) ease-in-out infinite; }
+.chatbub-dots i:nth-child(2) { animation-delay: calc(var(--cb-hop-ms, 1000ms) * 0.16); }
+.chatbub-dots i:nth-child(3) { animation-delay: calc(var(--cb-hop-ms, 1000ms) * 0.32); }
+/* A hop: crouch, spring up tall, land squashed, settle. */
+@keyframes chatbub-dot {
+  0%, 60%, 100% { opacity: 0.45; transform: none; }
+  8% { transform: scale(1.2, 0.8); }
+  24% { opacity: 1; transform: translateY(calc(var(--cb-hop, 6px) * -1)) scale(0.85, 1.2); }
+  32% { opacity: 1; transform: translateY(calc(var(--cb-hop, 6px) * -1)) scale(1); }
+  46% { opacity: 0.8; transform: scale(1.25, 0.75); }
+  54% { transform: scale(0.95, 1.05); }
+}
+@media (prefers-reduced-motion: reduce) { .chatbub-dots i { animation: none; opacity: 0.8; } }
+
+/* Emotes in a bubble: the DM inline size, bigger when the message is only emotes. */
+.chatbub-text .dm-emote { height: 1.7em; max-width: 3.4em; }
+.chatbub-text.solo .dm-emote { height: 2.8em; max-width: 5.6em; margin: 0 0.06em; }

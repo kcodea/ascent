@@ -67,6 +67,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   gildedbadge: '👑',
   epicmedallion: '✴️',
   boardedge: '🌫️',
+  chatbubbles: '💭',
   buffdrawer: '🧪',
   book: '📖',
   refreshbtn: '🔄',

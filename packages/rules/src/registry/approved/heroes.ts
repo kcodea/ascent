@@ -2623,4 +2623,35 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-08 (feat/hero-power-top-fade): a static navy gradient on the hover stats row\'s ::before, full flag width from the flag top, riding the row\'s opacity crossfade.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-HS-POWER-STATS-03',
+    title: 'The hover stats fade is a flat band, whatever the Health look',
+    statement:
+      'The navy fade behind the hero select flag\'s hover Health and Armor is a straight, level band across the top of the flag in every '
+      + 'Health look. A look that styles the Health pill (such as the gem look\'s studs) never tilts, borders or resizes that fade.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-09, hover screenshot of a diagonal band', quote: 'there is also a visual bug/issue when hovering the hero flag. this is meant to fade horizontally to help show the health and armor' },
+      { kind: 'fix-pr', ref: 'fix/hs-hover-fade-gem: packages/ui/src/hero-select/heroSelectPh.css (.hcstats-top::before resets the gem stud)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (fix/hs-hover-fade-gem). Before it, with the gem Health look on, healthPills.css gave the fade a rotate(45deg), border and shadow, so it drew as a diagonal band.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-09' },
+  },
+  {
+    id: 'R-HS-PICK-REST-FACE-01',
+    title: 'The picked hero\'s flag keeps its name, Health and power until it dissolves',
+    statement:
+      'After a hero is picked, the flag that travels into the ceremony keeps showing the hero\'s name, Health / Armor and Hero Power '
+      + 'until the flag itself dissolves into the portrait. Where the cursor happens to be never switches it to the hover face.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-09, card vs ceremony screenshots', quote: 'this section does not follow into the hero select ceremony' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-09, choosing between options', quote: 'Stay until dissolve' },
+      { kind: 'fix-pr', ref: 'fix/hs-hover-fade-gem: packages/ui/src/hero-select/heroSelectPh.css (.hsc-active turns off the .hcfoot hit layer)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (fix/hs-hover-fade-gem). Before it, the travelling copy appeared under the cursor with its .hcfoot hit layer live, matched :hover, and hid its name / Health / power (it carries no hover face), leaving an empty banner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-09' },
+  },
 ];

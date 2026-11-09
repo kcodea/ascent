@@ -137,7 +137,7 @@
   position: relative;
   left: calc(var(--hsc-namex, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-namey, -399) * 1px * var(--scale, 1));
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  width: calc(var(--hsc-platelen, 690) * 1px * var(--scale, 1));
+  width: calc(var(--hsc-platelen, 620) * 1px * var(--scale, 1));
   padding: calc(var(--hsc-platepadtop, 2) * 1px * var(--scale, 1)) calc(24px * var(--scale, 1)) calc(var(--hsc-platepadbot, 7) * 1px * var(--scale, 1));
   opacity: 0;
   animation: hscRise 0.36s ease var(--hsc-identity-delay, 500ms) forwards;
@@ -148,6 +148,8 @@
    the tuner's opacity knob never fights the hscRise entrance animating the element's own opacity. */
 .hsc-plate::before {
   content: ''; position: absolute; inset: 0; z-index: -1;
+  /* Cut by the art's crop circle (HeroSelectCeremony writes the var; none until the portrait exists). */
+  clip-path: var(--hsc-plate-clip, none);
   /* The fade var sets where each side's melt COMPLETES into the solid center (px from the edge); the
      mid-stop at 40% of that keeps the ease-in profile of the original three-stop fade. */
   background: linear-gradient(90deg,
@@ -179,8 +181,8 @@
 .hsc-start {
   pointer-events: auto;
   position: relative;
-  left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -198) * 1px * var(--scale, 1));
-  zoom: calc(var(--hsc-btnscale, 1.55) * var(--scale, 1));
+  left: calc(var(--hsc-btnx, 0) * 1px * var(--scale, 1)); top: calc(var(--hsc-btny, -156) * 1px * var(--scale, 1));
+  zoom: calc(var(--hsc-btnscale, 1.45) * var(--scale, 1));
   margin-top: 16px;
   /* THE GEM PLATE (owner 2026-10-13). It was the flat tangerine Go button. The owner pointed at the End Combat pill
      and said "i want this", so this IS that pill's paint: `--ui-plate` inside the thin painted gold edge

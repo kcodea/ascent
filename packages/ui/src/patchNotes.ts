@@ -56,6 +56,14 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-09',
+    changes: [
+      { category: 'Systems', text: 'Hero select: the navy fade behind the hover Health and Armor is level, fits inside the gold frame and reaches a little lower.' },
+      { category: 'Systems', text: 'Fixed: the hero you pick keeps its name, Health and power on the banner until it turns into the portrait.' },
+      { category: 'Systems', text: 'Hero select: the picked hero\'s portrait always fills its ring, with no gap, and the name banner stops at the circle.' },
+    ],
+  },
+  {
     date: '2026-11-08',
     changes: [
       { category: 'Systems', text: 'Hero select: on a hover, the top of the Hero Power art fades from navy so the Health and Armor are easy to read.' },

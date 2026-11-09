@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type Dispatch, type MutableRefObject } from 'react';
 import { getHero, heroTip, SHOW_HERO_TIPS } from '@game/sim';
 import { heroPortrait, useLiveLoadout } from '../skins/skins';
 import { useSharpArt } from '../fullResArt';
@@ -11,7 +11,7 @@ import {
 import { destinationRect, exitVector, focusKeyframes, snapshotRect, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
-import { getHeroCeremonyConfig } from './heroCeremonyTunerConfig';
+import { getHeroCeremonyConfig, subscribeHeroCeremonyConfig } from './heroCeremonyTunerConfig';
 import ringArt from './heroportrait.png';
 import { usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { ringRelativeToDefault } from '../portraitFrame/portraitFrameConfig';
@@ -163,6 +163,14 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const [travelDone, setTravelDone] = useState(false);
   /** Set when materializing begins (and art exists): the portrait's start crop + final bounds. */
   const [portrait, setPortrait] = useState<{ crop: RectSnapshot; bounds: RectSnapshot } | null>(null);
+  // The tuner's Ring + Hero-art knobs are read here in JS (not CSS vars), so re-render on every tuner change and lay the
+  // portrait + ring out from the LIVE config. The stored bounds stay the entrance animation's start point.
+  const tunerCfg = useSyncExternalStore(subscribeHeroCeremonyConfig, getHeroCeremonyConfig);
+  /** The art's crop circle in stage px, written each render; the name plate's fade is clipped to it below. */
+  const circleRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
+  const plateRef = useRef<HTMLDivElement | null>(null);
+  const identityTopRef = useRef(0);
+  const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph) : null), [portrait, tunerCfg, ph]);
 
   const t = useMemo(() => ceremonyTiming(), []);
 
@@ -401,6 +409,21 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   }, [versusPick, heroesLocked, state.phase]);
 
   const materialized = pi >= phaseIndex('materializing');
+
+  // The name plate's fade is cut by the art's crop circle (owner 2026-11-09: "can we have the fade also be cut by the circle
+  // size for the plate?"). The circle is in stage px; the plate's layout box comes from offsets (no transform, no stage
+  // scale), so the clip sits in the plate's own coordinates and follows every tuner knob on the next render.
+  circleRef.current = null; // the portrait block below re-sets it this render when there is a circle
+  useLayoutEffect(() => {
+    const plate = plateRef.current;
+    const c = circleRef.current;
+    if (!plate) return;
+    if (!c || !art) { plate.style.removeProperty('--hsc-plate-clip'); return; }
+    // The identity strip is fixed at left 0 / top identityTopRef (stage px); the plate's offsets are relative to it.
+    const top = identityTopRef.current + plate.offsetTop;
+    const left = plate.offsetLeft;
+    plate.style.setProperty('--hsc-plate-clip', `circle(${c.r.toFixed(1)}px at ${(c.cx - left).toFixed(1)}px ${(c.cy - top).toFixed(1)}px)`);
+  });
   // The party home look: banners have their own width per layout (the browse grid, phones), so the clone lays out at the
   // card's own width and wraps its text the same way. The shipped card is always BIG_CARD_W.
   const cardZoom = (cardEls.current[state.sourceIndex] as (HTMLElement & { currentCSSZoom?: number }) | null | undefined)?.currentCSSZoom;
@@ -473,42 +496,50 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
         // just inside the heroportrait ring. Both are anchored on the portrait's center + the tuner's Ring
         // nudges; the clip circle is computed in the PORTRAIT's own coordinate space so ring and clip can
         // never drift apart, whatever the knobs say. RING_INSET keeps the art under the ring's inner edge.
-        const fx = getHeroCeremonyConfig();
+        const fx = tunerCfg;
+        const pb = liveBounds ?? portrait.bounds;
         // Ring offsets AND diameter are reference px at the 1440 stage — scaled so the ring keeps its exact
         // relationship to the portrait at every resolution (owner report: sizing off on other monitors).
         const k = stageScale(stageViewport().w, stageViewport().h);
         const ringSize = fx.ringSize * k;
-        const cx = portrait.bounds.left + portrait.bounds.width / 2 + fx.ringX * k;
-        const cy = portrait.bounds.top + portrait.bounds.height / 2 + fx.ringY * k;
+        const cx = pb.left + pb.width / 2 + fx.ringX * k;
+        const cy = pb.top + pb.height / 2 + fx.ringY * k;
         // A tuner frame is seated relative to the default ring's hole, so the clip circle below still fits it.
         const alt = frame ? ringRelativeToDefault(frame) : null;
         const ringDraw = alt ? ringSize * alt.size : ringSize;
         const ringCx = alt ? cx + alt.dx * ringSize : cx;
         const ringCy = alt ? cy + alt.dy * ringSize : cy;
         const RING_INSET = 10 * k;
-        // The circle is the SMALLER of "just inside the ring" and the artwork's own inscribed circle. Found
-        // live on the owner's tuned look (704px ring around ~400px art): a ring-derived radius larger than
-        // the element contains the whole rectangle and clips nothing — the art stayed square in the ring.
-        const clipR = Math.max(20, Math.min(
-          ringSize / 2 - RING_INSET,
-          Math.min(portrait.bounds.width, portrait.bounds.height) / 2,
-        ));
+        // The circle fills the ring's hole (just inside it), or the tuner's Circle size when set. It used to be capped
+        // at the art's own inscribed circle, which left a gap inside the ring whenever the art was the smaller of the two,
+        // and the gap rode along when the ring moved (owner 2026-11-09).
+        const clipR = Math.max(20, fx.circleSize > 0 ? (fx.circleSize * k) / 2 : ringSize / 2 - RING_INSET);
+        // The art always COVERS that circle: if the circle (with the ring's nudge) reaches past the art's box, the box
+        // grows around its own centre just enough to cover it. Art size zooms in from there; below "covers" it would only
+        // open gaps. Growing around the centre keeps cx / cy where they are.
+        const hw = pb.width / 2, hh = pb.height / 2;
+        const pcx = pb.left + hw, pcy = pb.top + hh;
+        const cover = Math.max(1, (Math.abs(cx - pcx) + clipR) / hw, (Math.abs(cy - pcy) + clipR) / hh);
+        const box = cover > 1
+          ? { left: pcx - hw * cover, top: pcy - hh * cover, width: pb.width * cover, height: pb.height * cover }
+          : pb;
+        circleRef.current = { cx, cy, r: clipR };
         return (
           <>
             <div
               ref={portraitRef}
               className={`hsc-portrait${flashed ? ' hsc-circular' : ''}`}
               style={{
-                left: portrait.bounds.left, top: portrait.bounds.top,
-                width: portrait.bounds.width, height: portrait.bounds.height,
+                left: box.left, top: box.top,
+                width: box.width, height: box.height,
                 transform: transformTo(portrait.bounds, portrait.crop), opacity: 0.35,
                 ...(flashed
-                  ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px)` }
+                  ? { clipPath: `circle(${clipR.toFixed(1)}px at ${(cx - box.left).toFixed(1)}px ${(cy - box.top).toFixed(1)}px)` }
                   // Before the flash the art is already held to a soft circle the size of the clip, so its square corners
                   // never show outside the ring while it grows (owner 2026-11-07: "theres also a moment where the art
                   // corners show outside the portrait frame"). Static mask; only the transform animates.
                   : (() => {
-                    const m = `radial-gradient(circle ${clipR.toFixed(1)}px at ${(cx - portrait.bounds.left).toFixed(1)}px ${(cy - portrait.bounds.top).toFixed(1)}px, #000 ${Math.max(0, clipR - 16 * k).toFixed(1)}px, transparent ${clipR.toFixed(1)}px)`;
+                    const m = `radial-gradient(circle ${clipR.toFixed(1)}px at ${(cx - box.left).toFixed(1)}px ${(cy - box.top).toFixed(1)}px, #000 ${Math.max(0, clipR - 16 * k).toFixed(1)}px, transparent ${clipR.toFixed(1)}px)`;
                     return { maskImage: m, WebkitMaskImage: m };
                   })()),
               }}
@@ -541,11 +572,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
       {/* §14: identity + confirmation, anchored under the portrait. Mounted at the materializing beat;
           the staggered entrances are CSS animations delayed by timing-object offsets. */}
       {materialized && (
-        <div className="hsc-identity" style={{ top: dest.top + dest.height + 18 }}>
+        <div className="hsc-identity" style={{ top: (identityTopRef.current = dest.top + dest.height + 18) }}>
           {/* The PLATE (owner ask 2026-08-21): a dark gradient pill the name + power sit inside. It takes the
               tuner's Name offsets — moving "the name" moves the plate with both lines riding it — while the
               Power offsets position the power line WITHIN the plate. */}
-          <div className="hsc-plate">
+          <div ref={plateRef} className="hsc-plate">
             <div className="hsc-name">{hero.name}</div>
             <div className="hsc-power">{hero.power.name}</div>
           </div>

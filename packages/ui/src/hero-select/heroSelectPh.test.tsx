@@ -117,6 +117,11 @@ describe('round 6', () => {
     expect(css).toMatch(/\.hchp\.hudpill-hp\.hcstats-top \{ top: calc\(100cqi \* 40 \/ 784\); bottom: auto;[^}]*opacity: 0;/);
     expect(css).toContain('.herocard.big:is(:hover, :focus-visible, .tt-on) .hchp.hudpill-hp.hcstats-top { opacity: 1; }');
   });
+  it('R-HS-PICK-REST-FACE-01: once a hero is picked no flag takes the pointer, so the travelling copy keeps its rest face', () => {
+    const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    // The flag's one hit layer is .hcfoot; while the ceremony runs it must be off, or the copy under the cursor matches :hover.
+    expect(css).toContain('.heroselect.phhs.hsc-active .herocard.big > .hcfoot { pointer-events: none; }');
+  });
   it('R-HS-POWER-STATS-02: the hover stats stand on a static navy fade that rides their crossfade', () => {
     const css = here('./heroSelectPh.css').replace(/\/\*[\s\S]*?\*\//g, '');
     const m = css.match(/\.hchp\.hudpill-hp\.hcstats-top::before \{([^}]*)\}/);
@@ -124,6 +129,9 @@ describe('round 6', () => {
     expect(m![1]).toMatch(/z-index: -1/);
     expect(m![1]).toMatch(/linear-gradient\(180deg, rgba\(14, 29, 74, 0\.9\d?\) 0%/);
     expect(m![1]).not.toMatch(/animation|transition/);
+    // R-HS-POWER-STATS-03: the gem Health look's rotated stud must not leak into the fade.
+    expect(m![1]).toMatch(/transform: none; rotate: none; border: 0;/);
+    expect(m![1]).toMatch(/box-shadow: none/);
     expect(css).toContain('.hchp.hudpill-hp.hcstats-top { isolation: isolate; }');
   });
   it('every hero name is whole, and every power is on the card (no hover needed)', () => {

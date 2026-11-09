@@ -14508,6 +14508,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-08 (Medal clip, Round 16 replay)', quote: 'you can see the end of turn how the animation is wrongfully targetting units in hand' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-09', quote: 'i know ive seen it with end of turn dwarf buff effects too' },
       { kind: 'fix-pr', ref: 'fix/eot-hand-streak: packages/sim/src/recruit.ts (the trigger snapshot counts Rubies before the trigger on board AND hand)' },
     ],
     example: 'Two Assemblers at End of Turn, with a Dawnclaw in hand that got a Ruby earlier: Rubies land on the board Kobolds; the Dawnclaw shows no gem burst and no tendril.',
@@ -14515,7 +14516,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms from 2026-11-08 (fix/eot-hand-streak). Before, the End-of-Turn consequence snapshot counted Rubies on the '
       + 'board only but compared after on board and hand, so every trigger (and every repeat of it) emitted a fake '
       + 'rubyPlayed plus a cancelling statsChanged on each hand card already carrying a Ruby. Stats never changed; only '
-      + 'the FX streaked to the hand. This is the case R-HANDFX-01 left open.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/eotHandRubyEmission.test.ts'], lastVerifiedAt: '2026-11-08' },
+      + 'the FX streaked to the hand. This is the case R-HANDFX-01 left open. It hit every End-of-Turn trigger, not only '
+      + 'Ruby cards: the owner also saw it from Dwarf buffs (Kringle, Striker). eotHandFxSweep runs every End-of-Turn card.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/eotHandRubyEmission.test.ts', 'packages/sim/src/eotHandFxSweep.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
 ];

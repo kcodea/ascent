@@ -74,6 +74,8 @@ export interface HscFx {
   ring2On: number; ring2AtMs: number; ring2Ms: number;
   /** Hero artwork (the materialized portrait) — offsets (px) + scale (×) on its computed final bounds. */
   portraitX: number; portraitY: number; portraitScale: number;
+  /** The circle the art is cropped to, diameter in px, separate from the art size. 0 = auto: just inside the ring, never wider than the art. */
+  circleSize: number;
   /** The heroportrait ring image — offsets (px) off the portrait center + diameter (px). */
   ringX: number; ringY: number; ringSize: number;
 }
@@ -85,7 +87,7 @@ export type HscTunerConfig = HeroCeremonyTiming & HscLayout & HscFx;
 // Owner-tuned 2026-08-21 (pill pass): a big 80px name + 22px power on the new dark plate, the button at
 // 1.55×. The name offsets move the WHOLE plate (name + power ride inside it); power offsets move the power
 // line within the plate.
-const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -399, nameSize: 62, powerX: 0, powerY: -408, powerSize: 21, plateOpacity: 1, plateLen: 690, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -198, btnScale: 1.55 };
+const LAYOUT_DEFAULTS: HscLayout = { nameX: 0, nameY: -399, nameSize: 62, powerX: 0, powerY: -408, powerSize: 21, plateOpacity: 1, plateLen: 620, platePadTop: 2, platePadBot: 7, plateFade: 400, btnX: 0, btnY: -156, btnScale: 1.45 };
 
 /** Owner-tuned 2026-08-21: song from the click, wooshes on the exits (100) and the settle (640), reveal +
  *  flash paired at 1320 — after the fast transform finishes (825+350) — with the art at 1.26× inside a big
@@ -104,8 +106,10 @@ const FX_DEFAULTS: HscFx = {
   sweepOn: 1, sweepAtMs: 825, sweepMs: 420,
   dustOn: 1, dustAtMs: 825, dustMs: 850,
   ring2On: 1, ring2AtMs: 1320, ring2Ms: 380,
-  portraitX: 0, portraitY: 0, portraitScale: 1.26,
-  ringX: 0, ringY: 0, ringSize: 704,
+  // Owner-tuned 2026-11-09: art 1.12x, cropped to a 582px circle inside a 660px ring.
+  portraitX: 0, portraitY: 0, portraitScale: 1.12,
+  circleSize: 582,
+  ringX: 0, ringY: 0, ringSize: 660,
 };
 const LAYOUT_KEYS = Object.keys(LAYOUT_DEFAULTS) as (keyof HscLayout)[];
 
@@ -161,6 +165,7 @@ export const HSC_RANGES: Record<keyof HscTunerConfig, [number, number, number]> 
   dustOn: [0, 1, 1], dustAtMs: [0, 3000, 10], dustMs: [150, 2000, 10],
   ring2On: [0, 1, 1], ring2AtMs: [0, 3000, 10], ring2Ms: [120, 1500, 10],
   portraitX: [-400, 400, 1], portraitY: [-400, 400, 1], portraitScale: [0.5, 2, 0.01],
+  circleSize: [0, 900, 2],
   ringX: [-400, 400, 1], ringY: [-400, 400, 1], ringSize: [120, 900, 2],
 };
 
@@ -195,9 +200,18 @@ export function getHeroCeremonyConfig(): HscTunerConfig {
   return cfg;
 }
 
+/** Change listeners: the Ring + Hero-art knobs are read in JS, so a mounted ceremony subscribes to re-lay itself out live. */
+const listeners = new Set<() => void>();
+export function subscribeHeroCeremonyConfig(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+function notify(): void { for (const fn of listeners) fn(); }
+
 export function setHeroCeremonyValue(key: keyof HscTunerConfig, value: number): void {
   cfg = { ...cfg, [key]: value };
   apply();
+  notify();
   if (!import.meta.env.DEV) return;
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
@@ -205,6 +219,7 @@ export function setHeroCeremonyValue(key: keyof HscTunerConfig, value: number): 
 export function resetHeroCeremonyConfig(): void {
   cfg = { ...HSC_DEFAULTS };
   apply();
+  notify();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
 

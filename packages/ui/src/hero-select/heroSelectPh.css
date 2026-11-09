@@ -306,6 +306,10 @@ html[data-touch-ui][data-touch-small] .heroselect.phhs :is(.hsrow:not(.browse), 
 .heroselect.phhs .herocard.big > .hcfoot { pointer-events: auto;
   clip-path: polygon(95.8% 46.1%, 95.5% 83.4%, 93.9% 84.8%, 89% 86.3%, 55.5% 93.6%, 53% 99.7%, 49.9% 100%, 46.7% 99.7%, 44.3% 93.6%, 13.3% 87%, 5.9% 84.8%, 4.1% 83.5%, 3.9% 46.1%, 4.1% 8.8%, 0.9% 3%, 6.3% 1.3%, 14.1% 2.5%, 39.5% 2.5%, 47.2% 1.3%, 49.9% 0%, 52.5% 1.1%, 60.2% 2.5%, 85.7% 2.5%, 93.5% 1.2%, 98.9% 3%, 95.5% 8.8%); }
 body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
+/* Once a hero is picked, no flag takes the pointer (owner 2026-11-09, R-HS-PICK-REST-FACE-01). The ceremony's travelling copy
+   appears right under the cursor; with its hit layer live it matched :hover and showed the hover face, which it does not carry
+   (no power art or focus block), so the name, Health and power vanished and left an empty banner until the dissolve. */
+.heroselect.phhs.hsc-active .herocard.big > .hcfoot { pointer-events: none; }
 
 /* A DIVIDER BETWEEN THE POWER'S NAME AND ITS COST (owner 2026-11-07: "can we add a divider between the hero power name and its
    cost"). At rest, where they sit side by side, a short gold hairline stands between them (the hover face's one was removed:
@@ -335,6 +339,11 @@ body.dragging .heroselect.phhs .herocard.big > .hcfoot { pointer-events: none; }
    cloth's navy, so the medallions read on any art. A static gradient on the row's own ::before (full flag width, from the
    flag's top), so it rides the row's opacity crossfade: nothing new animates. */
 .heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top { isolation: isolate; }
+/* The fade reuses the Health pill's ::before, which the "gem" Health look paints as a rotated, bordered stud (healthPills.css). Undo all
+   of that here, or the fade draws as a big diagonal band past the flag (owner 2026-11-09).
+   Exactly the portrait's width (667 of the flag's 784, centred), so its sides end where the art does inside the gold, never past it;
+   and longer, so it reaches further down the art (owner 2026-11-09: "make the fade go down a bit further"). */
 .heroselect.phhs .herocard.big .hchp.hudpill-hp.hcstats-top::before { content: ''; position: absolute; z-index: -1; pointer-events: none;
-  top: calc(-100cqi * 40 / 784); left: 50%; width: 100cqi; translate: -50% 0; height: calc(100cqi * 190 / 784);
+  right: auto; bottom: auto; margin: 0; transform: none; rotate: none; border: 0; border-radius: 0; box-shadow: none;
+  top: calc(-100cqi * 40 / 784); left: 50%; width: calc(100cqi * 667 / 784); translate: -50% 0; height: calc(100cqi * 260 / 784);
   background: linear-gradient(180deg, rgba(14, 29, 74, 0.95) 0%, rgba(14, 29, 74, 0.88) 38%, rgba(14, 29, 74, 0.5) 66%, rgba(14, 29, 74, 0.16) 86%, rgba(14, 29, 74, 0) 100%); }

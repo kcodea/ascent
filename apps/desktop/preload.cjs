@@ -29,4 +29,9 @@ contextBridge.exposeInMainWorld('ascentDesktop', Object.freeze({
     ipcRenderer.on('ascent:update-ready', listener);
     return () => ipcRenderer.removeListener('ascent:update-ready', listener);
   },
+  /**
+   * The update already downloaded this session, if any (resolves to its version, or null). The push above fires once,
+   * possibly before the game is listening, so the notice also asks on mount. Sends no page data to the main process.
+   */
+  getUpdateReady: () => ipcRenderer.invoke('ascent:get-update-ready').then((v) => (v ? String(v) : null), () => null),
 }));

@@ -14448,7 +14448,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The "update downloaded" notice sits under START, centred on it',
     statement:
       'When the desktop app has downloaded an update, the notice that says so appears just under the START button, centred on '
-      + 'START, in large text, and stays fully on screen. Where there is no START button it sits at the top centre of the screen.',
+      + 'START, in large text, and stays fully on screen. (Since R-UPDATE-NOTICE-SEEN-01 it lives only on the main screen beside START.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -15010,5 +15010,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-10 (feat/duos-beats). Before, the entrance was a fixed 0.52 s plus 60 ms a slot, keyed to the slot, and the 960 ms meant to cover it sat BEFORE it (a hold is the wait before its beat): the fly-in itself got only the 240 to 360 ms of the next beat, so the new board swung while its bodies were still in the air at every speed (measured live at 1x to 2x: 117 to 567 ms on screen against an entrance of up to 880 ms). All three events played no sound and no effect. The cues are built from clips and synth notes the game already had and have not been tuned by ear yet.',
     example: 'At 2x, your first board dies: a low hit and a dim over your row, then the seven minions of your teammate sweep in from the left in half the time, each landing in dust, the last on a teal slam with a shake, and only then does the fight go on.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/duosHandoff.test.ts', 'packages/ui/src/audio/duosCues.test.ts'], lastVerifiedAt: '2026-11-10' },
+  {
+    id: 'R-UPDATE-NOTICE-SEEN-01',
+    title: 'The "update downloaded" notice is always seen',
+    statement:
+      'Once the desktop app has downloaded an update, the main screen shows the "update downloaded" notice under START, '
+      + 'every time the player is on it, until the game closes. It does not depend on when the download finished: during the '
+      + 'loading screen, on the menu or mid-match, the player sees it on the main screen. It never fades on its own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-09, after v0.2.5 shipped', quote: 'to clarify, i restarted and it DID start installing the update. but why didnt the alert ever pop up? thats important' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-09, approving the fix', quote: 'Yes, fix it' },
+      { kind: 'fix-pr', ref: 'fix/update-notice-missed: apps/desktop/updater.cjs (getReadyUpdate) + main.cjs (ascent:get-update-ready) + preload.cjs (getUpdateReady); packages/ui/src/UpdateReadyNotice.tsx (asks on mount, no fade), mounted beside START in packages/ui/src/partyHome/PartyHome.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 for shells built from fix/update-notice-missed onward (the shell half ships inside the installer, so players get it with the update AFTER the one that carries it). Before: the shell sent one ascent:update-ready push; v0.2.5 finished downloading 21 s after launch, during the loading screen, before the notice was listening, so it was lost; a notice that did show faded after 14 s.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx', 'apps/desktop/updater.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
 ];

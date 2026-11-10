@@ -178,6 +178,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Hero select: the navy fade behind the hover Health and Armor is level, fits inside the gold frame and reaches a little lower.' },
       { category: 'Systems', text: 'Fixed: the hero you pick keeps its name, Health and power on the banner until it turns into the portrait.' },
       { category: 'Systems', text: 'Hero select: the picked hero\'s portrait always fills its ring, with no gap, and the name banner stops at the circle.' },
+      { category: 'Systems', text: 'Fixed: the "update downloaded" notice now always shows under START on the main screen, and stays until you close the game.' },
     ],
   },
   {

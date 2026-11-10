@@ -2305,6 +2305,40 @@ export interface QuestCombatMods {
    *  count since the pick rides in as `tick`; each combat cast that lands on a multiple of `every` sends a random Shop
    *  spell to hand right then (`grantRandomSpell`). Settle adds the fight's casts to the run's count. Player-only. */
   ancientSpellCountGrant?: { every: number; tick: number; label: string };
+  // ── THE 2026-11-10 BATCH C (Underdweller, Gorun, Mimic; owner pairings 2026-11-10). Read per side off `modsFor`. ──
+  /** ANCIENT OF WAR × Underdweller: record every minion that dies in this fight, BOTH sides, with the Attack, max Health
+   *  and keywords it died with (a Rise / Rebirth first death is skipped: that body came back). Comes home as
+   *  `CombatCarryBacks.ancientGraves`; changes nothing in the fight. */
+  ancientGraves?: true;
+  /** ANCIENT OF TIME × Underdweller: "After combat: get a plain copy of the first enemy minion that died." The first
+   *  true death on the OTHER side is remembered; as the fight ends a plain copy goes to hand (a live `toHand`). */
+  ancientFirstFoeDeathCopy?: { label: string };
+  /** ANCIENT OF DEATH × Gorun: "When a friendly minion dies, give its Attack to a random friendly minion." Each friendly
+   *  death (a Rise death included) gives the Attack it died with to one random living friendly minion, a combat buff,
+   *  on its own beat. The pick draws from the side's grant stream. */
+  ancientDeathGivesAttack?: { label: string };
+  /** ANCIENT OF FORTUNE × Gorun: "Every 5 attacks, gain 1 Gold next turn." `tick` = the running count of friendly
+   *  attacks carried in; every `every`th attack banks `gold` for the next Shop (`bonusGold`) and pulses a `questTrigger`
+   *  of `flag`. The count comes home as `CombatCarryBacks.ancientAttackGoldTick`. */
+  ancientAttackGold?: { every: number; tick: number; gold: number; flag: string; label: string };
+  /** ANCIENT OF WAR × Gorun: "Blade Mastery also gives the same Health." Read at Blade Mastery's own grant. */
+  ancientBladeHealth?: true;
+  /** ANCIENT OF GENESIS × Gorun: "Start of Combat: your two left-most minions gain Ward and Flurry." The first `count`
+   *  living minions, for that combat. */
+  ancientSocWardFlurry?: { count: number; label: string };
+  /** ANCIENT OF TIME × Gorun: "Start of Combat: each of your minions gains Blade Mastery once." Every living friendly
+   *  minion gains the CURRENT Blade Mastery grant; it does not count as an attack. Needs `bladeMastery` on the side. */
+  ancientSocBlade?: { label: string };
+  /** ANCIENT OF BONDS × Gorun: "When a minion attacks, your next attacker also gets its bonus." Each attacker also gains
+   *  the Blade Mastery grant the PREVIOUS friendly attacker earned (its own grant only, never a carried one, so it
+   *  cannot chain upward). Needs `bladeMastery` on the side. */
+  ancientBladeBonds?: { label: string };
+  /** ANCIENT OF DEATH × Mimic: Soren's Reclaim, aimed automatically: at Start of Combat the left-most living minion
+   *  with an Echo is marked for Reclaim (`resummon`), then Reclaim's own block destroys and resummons it. */
+  ancientAutoReclaim?: { label: string };
+  /** ANCIENT OF WAR × Mimic: Emissary's United Front, a second time: the spells cast this game. Fired through United
+   *  Front's own block, after the wielded power's own grant when both are present. */
+  ancientUnitedFront?: number;
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;
@@ -3787,7 +3821,15 @@ export interface CombatCarryBacks {
   ancientClearanceStacks?: number;
   /** ANCIENTS (Nadja's Death): max-Gold Avenge fires this fight (Rune of Fury's included; only when `ancientMaxGoldAvenge`). */
   ancientMaxGoldFires?: number;
+  /** ANCIENTS (Underdweller's War): every true death this fight, both sides, in order (only when `ancientGraves`). */
+  ancientGraves?: AncientGrave[];
+  /** ANCIENTS (Gorun's Fortune): the running attack count after this fight (only when `ancientAttackGold`). */
+  ancientAttackGoldTick?: number;
 }
+
+/** ANCIENTS (Underdweller's War): a minion as it died. `own` = it fought on the side that carries this record home (so the
+ *  record is the same from either seat: R-SYMMETRY-01). */
+export interface AncientGrave { cardId: string; own: boolean; attack: number; health: number; keywords: Keyword[] }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
 export interface DamageBreakdown {
@@ -4102,6 +4144,10 @@ export interface CombatResult {
   playerAncientClearanceStacks?: number;
   /** ANCIENTS (Nadja's Death): the player's `CombatCarryBacks.ancientMaxGoldFires`. */
   playerAncientMaxGoldFires?: number;
+  /** ANCIENTS (Underdweller's War): the player's `CombatCarryBacks.ancientGraves`. */
+  playerAncientGraves?: AncientGrave[];
+  /** ANCIENTS (Gorun's Fortune): the player's `CombatCarryBacks.ancientAttackGoldTick`. */
+  playerAncientAttackGoldTick?: number;
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage

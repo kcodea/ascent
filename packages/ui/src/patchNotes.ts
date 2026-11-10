@@ -149,6 +149,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'The power shows its count, and glows while the hat is active.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Ancients test mode: Underdweller, Membrance, Gorun and Mimic now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Underdweller: Rise on Soulkeeper Echo minions, a free Soulkeeper, minions that keep what they died with, a spare copy, a copy of the first enemy to fall, and matching copies that grow together.',
+          'Membrance: Rise on Memory Echo minions, 2 Gold Memory minions, exact copies for 6 Gold, a spare copy of the first Memory buy, a copy from your last opponent each turn, and Gilded minions that grow when you buy a copy.',
+          'Gorun: fallen minions pass on their Attack, Gold for attacking, Blade Mastery Health, Ward and Flurry up front, a Blade Mastery head start, and a bonus that carries to the next attacker.',
+          'Mimic: its Ancient powers stay on whatever power it wields. Reclaim, Spoils, United Front and Four Peat as extras, a four option Mimicry you press yourself, and a copy of a fallen minion each turn.',
+        ],
+      },
     ],
   },
   {

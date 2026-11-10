@@ -198,6 +198,8 @@ export function carryAsPlayerFields(c: CombatCarryBacks): Partial<CombatResult> 
     playerAncientSpellImproved: c.ancientSpellImproved,
     playerAncientClearanceStacks: c.ancientClearanceStacks,
     playerAncientMaxGoldFires: c.ancientMaxGoldFires,
+    playerAncientGraves: c.ancientGraves,
+    playerAncientAttackGoldTick: c.ancientAttackGoldTick,
   });
 }
 

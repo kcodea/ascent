@@ -525,6 +525,65 @@
  *  · `firstBuysGrantCoin`         `batchAOnBuy`: the turn's first N minion buys each also give a Coin. (Time)
  *  · `topTribeBuyCountsTwice`     `jugglerBuy` (`ancientCoinBuyCount`): a minion of your most common type counts twice. (Bonds)
  *
+ *  THE 2026-11-10 BATCH C (owner pairings 2026-11-10). Its hooks live in the file's last section.
+ *  UNDERDWELLER (Soulkeeper, `soulkeeper`, 2 Gold: "Discover a minion that died last combat, from either side"). The
+ *  reducer's `soulkeeper` branch opens the Discover directly and marks it (`ancientMarkSoulkeeperDiscover`, tag
+ *  `'soulkeeper'`); a "Soulkeeper minion" is that Discover's pick.
+ *  · `soulkeeperEchoGainsRise`    `ancientOnDiscoverTaken`: a pick with an Echo gains Rise, permanently. (Death)
+ *  · (Fortune)                    no primitive: the pairing's `power` override (`cost: 0`).
+ *  · `soulkeeperKeepsStats`       COMBAT records every true death, both sides, as the body died
+ *                                 (`QuestCombatMods.ancientGraves` -> `CombatResult.playerAncientGraves`, kept on
+ *                                 `lastCombat`); `ancientOnDiscoverTaken` gives the pick the first matching grave's
+ *                                 Attack, Health and keywords. (War)
+ *  · `soulkeeperExtraCopy`        `ancientAfterDiscoverTaken` (after the pick lands): a plain copy of a random option
+ *                                 not picked. (Genesis)
+ *  · `afterCombatFirstFoeCopy`    COMBAT: `QuestCombatMods.ancientFirstFoeDeathCopy`: the first true enemy death is
+ *                                 remembered and comes home as a plain copy when the fight ends (a live `toHand`). (Time)
+ *  · `copyOfControlledBuffImproves` the reducer's action boundary (`ancientOnCardsGained`, every action, the settle
+ *                                 included): a minion that arrived in hand and shares its card with a board minion
+ *                                 gives both +X/+X, then X improves (`AncientsState.underBondsGain`). (Bonds)
+ *  MEMBRANCE (Memory, `memory`, 1 Gold: "Refresh the Shop with plain copies of your last opponent's board"). The
+ *  reducer's `memory` branch calls `ancientOnMemoryOffers` on the offers it builds; each is a "Memory minion"
+ *  (`ShopCard.memory`, Ancients runs only).
+ *  · `memoryEchoGainsRise`        `ancientOnMemoryOffers`: an Echo offer carries Rise (baked in when bought). (Death)
+ *  · `memoryPrice`                `ancientOnMemoryOffers`: the offer's own `cost` (the Clearance channel). (Fortune)
+ *  · `memoryExact`                `ancientOnMemoryOffers`: the offer carries the opponent minion's start-of-combat
+ *                                 stats (`addOfferBuff`), keywords and Gilded flag, at `price`. (War)
+ *  · `memoryFirstBuyCopy`         `ancientOnBuy` (`from.memory`): the first Memory buy each turn (`memoryBuys`) also
+ *                                 gives a plain copy to hand. (Genesis)
+ *  · `sotCopyLastFoe`             `ancientStartOfTurn`: a plain copy of a random minion of the last opponent's opening
+ *                                 board, its own beat. (Time)
+ *  · `buyControlledBuffsGilded`   `ancientOnBuy` (`from.controlled`, read off the board BEFORE the buy): every Gilded
+ *                                 board minion gains +a/+h, permanently. (Bonds)
+ *  GORUN (Blade Mastery, `bladeMastery`, PASSIVE: "When your minions attack, give them +3 Attack. Improves every 8
+ *  attacks"). Blade Mastery lives in `simulate` (the attack block; `bladeGrantOf` is its one grant expression).
+ *  · `deathGivesAttack`           COMBAT: `QuestCombatMods.ancientDeathGivesAttack` in `deathWatchers` (every death
+ *                                 path, a Rise death included), a combat buff on a random living friend; SHOP:
+ *                                 `ancientOnShopDeath`, permanent. (Death)
+ *  · `attacksGold`                COMBAT: `QuestCombatMods.ancientAttackGold` beside Blade Mastery's grant: one
+ *                                 running count (`gorunAttacks`, carried in and back), every Nth attack banks Gold for
+ *                                 the next Shop (`bonusGold`) and pulses `ANCIENT_ATTACK_GOLD_FLAG`. (Fortune)
+ *  · `bladeMasteryHealth`         COMBAT: `QuestCombatMods.ancientBladeHealth`, read at Blade Mastery's grant. (War)
+ *  · `socWardFlurry`              COMBAT: `QuestCombatMods.ancientSocWardFlurry`, Start of Combat. (Genesis)
+ *  · `socBladeMastery`            COMBAT: `QuestCombatMods.ancientSocBlade`, Start of Combat: `bladeGrantOf` on every
+ *                                 living friend; no attack counted. (Time)
+ *  · `bladeMasteryBonds`          COMBAT: `QuestCombatMods.ancientBladeBonds` at Blade Mastery's grant: the previous
+ *                                 attacker's own grant is carried to the next attacker (never a carried one). (Bonds)
+ *  MIMIC (Mimicry, `mimic`, PASSIVE: "At the start of every turn, Discover a hero power to wield this turn"). Mimic's
+ *  pairings are ALWAYS ON (`ancientPairingHeroId` returns the Mimic itself, whatever it wields). Death / Fortune / War /
+ *  Bonds run another hero's power as an extra passive THROUGH THAT POWER'S OWN CODE, so they stack with a wielded copy.
+ *  · `autoReclaimLeftmostEcho`    COMBAT: `QuestCombatMods.ancientAutoReclaim` marks the left-most Echo body at the top
+ *                                 of Reclaim's own block (`socReclaim`), which then does everything. (Death)
+ *  · `spoilsPassive`              recruit's `bankSpoils` (THE sale hook) adds `ancientSpoilsPassive`. (Fortune)
+ *  · `unitedFrontPassive`         COMBAT: `QuestCombatMods.ancientUnitedFront` (= `spellsCast`, the run-lifetime count)
+ *                                 fires United Front's own block a second time. (War)
+ *  · `mimicryManual`              the turn setup skips the automatic offer and hands the slot back to Mimicry; the
+ *                                 reducer's `mimic` hero-power branch opens a 4-option offer (`power` override: not
+ *                                 passive, untargeted). (Genesis)
+ *  · `sotCopyLastCombatDeath`     `ancientStartOfTurn`: a plain copy of a random minion that died last combat
+ *                                 (`lastCombatDeaths`, Soulkeeper's pool), its own beat. (Time)
+ *  · `fourPeatPassive`            the reducer's `gorrQuestBuy` (Four Peat's own code) also runs for the passive. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
@@ -1021,7 +1080,57 @@ export type AncientEffect =
   /** The first `count` minions bought each turn also give a Carnival Coin. */
   | { do: 'firstBuysGrantCoin'; count: number }
   /** Buying a minion of your most common type counts `times` times for Carnival Coin. */
-  | { do: 'topTribeBuyCountsTwice'; times: number };
+  | { do: 'topTribeBuyCountsTwice'; times: number }
+  // ── Underdweller (Soulkeeper) ──
+  /** A minion Soulkeeper discovers gains Rise when it has an Echo. */
+  | { do: 'soulkeeperEchoGainsRise' }
+  /** A minion Soulkeeper discovers keeps the stats and keywords it died with. */
+  | { do: 'soulkeeperKeepsStats' }
+  /** Soulkeeper also gives a plain copy of one of the minions you did not pick. */
+  | { do: 'soulkeeperExtraCopy' }
+  /** After combat: a plain copy of the first enemy minion that died. */
+  | { do: 'afterCombatFirstFoeCopy' }
+  /** Getting a copy of a minion you control gives both copies +X/+X; X starts at `amount`, improves by `amount` per trigger. */
+  | { do: 'copyOfControlledBuffImproves'; amount: number }
+  // ── Membrance (Memory) ──
+  /** A Memory offer with an Echo gains Rise. */
+  | { do: 'memoryEchoGainsRise' }
+  /** Memory offers cost `price` Gold. */
+  | { do: 'memoryPrice'; price: number }
+  /** Memory offers are exact copies of the opponent's minions, and cost `price` Gold. */
+  | { do: 'memoryExact'; price: number }
+  /** The first Memory minion bought each turn also gives a plain copy. */
+  | { do: 'memoryFirstBuyCopy' }
+  /** Start of Turn: a plain copy of a random minion from your last opponent's board. */
+  | { do: 'sotCopyLastFoe' }
+  /** Buying a copy of a minion you control gives your Gilded minions +a/+h. */
+  | { do: 'buyControlledBuffsGilded'; attack: number; health: number }
+  // ── Gorun (Blade Mastery) ──
+  /** When a friendly minion dies (Shop AND combat), a random friendly minion gains its Attack. */
+  | { do: 'deathGivesAttack' }
+  /** Every `every` friendly attacks (a running count): gain `gold` Gold next turn. */
+  | { do: 'attacksGold'; every: number; gold: number }
+  /** Blade Mastery also gives the same Health. */
+  | { do: 'bladeMasteryHealth' }
+  /** Start of Combat: your `count` left-most minions gain Ward and Flurry for that combat. */
+  | { do: 'socWardFlurry'; count: number }
+  /** Start of Combat: each of your minions gains Blade Mastery once. */
+  | { do: 'socBladeMastery' }
+  /** When a minion attacks, your next attacker also gets its Blade Mastery bonus. */
+  | { do: 'bladeMasteryBonds' }
+  // ── Mimic (Mimicry) ──
+  /** Start of Combat: Reclaim (Soren's power) your left-most Echo minion. */
+  | { do: 'autoReclaimLeftmostEcho' }
+  /** Spoils (Robin's power) as a passive: each minion sold gains `gold` Gold next turn. */
+  | { do: 'spoilsPassive'; gold: number }
+  /** United Front (Emissary's power) as a passive. */
+  | { do: 'unitedFrontPassive' }
+  /** Mimicry is pressed (once per turn) instead of opening at Start of Turn, and offers `options` powers. */
+  | { do: 'mimicryManual'; options: number }
+  /** Start of Turn: a plain copy of a minion that died last combat. */
+  | { do: 'sotCopyLastCombatDeath' }
+  /** Four Peat (Gorr's power) as a passive. */
+  | { do: 'fourPeatPassive' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -2563,6 +2672,174 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'topTribeBuyCountsTwice', times: 2 }],
     },
   },
+  // UNDERDWELLER (owner pairings 2026-11-10, quoted above each entry). Soulkeeper (2 Gold, once per turn) = "Discover a
+  // minion that died last combat, from either side." A "Soulkeeper minion" is the minion that Discover hands over.
+  underdweller: {
+    death: {
+      // "Soulkeeper minions with an Echo gain Rise."
+      offerText: 'Soulkeeper minions with an **Echo** gain **Rise**.',
+      powerText: '{base} If it has an **Echo**, it gains **Rise**.',
+      effects: [{ do: 'soulkeeperEchoGainsRise' }],
+    },
+    fortune: {
+      // "Soulkeeper costs 0 Gold." No primitive: the pairing's `power` override alone.
+      offerText: 'Soulkeeper costs **0 Gold**.',
+      powerText: '{base} It costs **0 Gold**.',
+      power: { cost: 0 },
+      effects: [],
+    },
+    war: {
+      // "Soulkeeper minions keep the stats and keywords they died with."
+      offerText: 'Soulkeeper minions keep the stats and keywords they died with.',
+      powerText: '{base} It keeps the stats and keywords it died with.',
+      effects: [{ do: 'soulkeeperKeepsStats' }],
+    },
+    genesis: {
+      // "Soulkeeper also gets a plain copy of a minion you didn't pick."
+      offerText: 'Soulkeeper also gets you a plain copy of a minion you did not pick.',
+      powerText: '{base} You also get a plain copy of a minion you did not pick.',
+      effects: [{ do: 'soulkeeperExtraCopy' }],
+    },
+    time: {
+      // "After combat: get a plain copy of the first enemy minion that died."
+      offerText: '**After combat:** get a plain copy of the first enemy minion that died.',
+      powerText: '{base} **After combat:** get a plain copy of the first enemy minion that died.',
+      effects: [{ do: 'afterCombatFirstFoeCopy' }],
+    },
+    bonds: {
+      // "When you get a copy of a minion you control, give both copies +2/+2 and improve this." The step is the printed
+      // amount (the "improve this" convention: Soren × War, Gorr × Bonds).
+      offerText: 'When you get a copy of a minion you control, give both copies **+2/+2** and improve this by **+2/+2**.',
+      powerText: '{base} When you get a copy of a minion you control, give both copies **+{uBonds}/+{uBonds}** and improve this by **+2/+2**.',
+      effects: [{ do: 'copyOfControlledBuffImproves', amount: 2 }],
+    },
+  },
+  // MEMBRANCE (owner pairings 2026-11-10, quoted above each entry). Memory (1 Gold, once per turn) = "Refresh the Shop
+  // with plain copies of your last opponent's board." A "Memory minion" is one of those offers (`ShopCard.memory`).
+  membrance: {
+    death: {
+      // "Memory minions with an Echo gain Rise."
+      offerText: 'Memory minions with an **Echo** gain **Rise**.',
+      powerText: '{base} Those with an **Echo** gain **Rise**.',
+      effects: [{ do: 'memoryEchoGainsRise' }],
+    },
+    fortune: {
+      // "Memory minions cost 2 Gold."
+      offerText: 'Memory minions cost **2 Gold**.',
+      powerText: '{base} They cost **2 Gold**.',
+      effects: [{ do: 'memoryPrice', price: 2 }],
+    },
+    war: {
+      // "Memory minions are exact copies, but cost 6 gold."
+      offerText: 'Memory minions are **exact** copies, but cost **6 Gold**.',
+      powerText: "Refresh the Shop with **exact** copies of your last opponent's board. They cost **6 Gold**.",
+      effects: [{ do: 'memoryExact', price: 6 }],
+    },
+    genesis: {
+      // "The first minion you buy from Memory each turn comes with a plain copy."
+      offerText: 'The first minion you buy from Memory each turn comes with a plain copy.',
+      powerText: '{base} The first minion you buy from it each turn comes with a plain copy.{mbFirst}',
+      effects: [{ do: 'memoryFirstBuyCopy' }],
+    },
+    time: {
+      // "Start of Turn: get a plain copy of a random minion from your last opponent's board."
+      offerText: "**Start of Turn:** get a plain copy of a random minion from your last opponent's board.",
+      powerText: "{base} **Start of Turn:** get a plain copy of a random minion from your last opponent's board.",
+      effects: [{ do: 'sotCopyLastFoe' }],
+    },
+    bonds: {
+      // "When you buy a copy of a minion that you control, give your Gilded minions +5/+5."
+      offerText: 'When you buy a copy of a minion you control, give your **Gilded** minions **+5/+5**.',
+      powerText: '{base} When you buy a copy of a minion you control, give your **Gilded** minions **+5/+5**.',
+      effects: [{ do: 'buyControlledBuffsGilded', attack: 5, health: 5 }],
+    },
+  },
+  // GORUN (owner pairings 2026-11-10, quoted above each entry). Blade Mastery (passive) = "When your minions attack, give
+  // them +3 Attack. Improves every 8 attacks." `{base}` already prints its live grant and countdown.
+  gorun: {
+    death: {
+      // "When a friendly minion dies, give its Attack to a random friendly minion."
+      offerText: 'When a friendly minion dies, give its Attack to a random friendly minion.',
+      powerText: '{base} When a friendly minion dies, give its Attack to a random friendly minion.',
+      effects: [{ do: 'deathGivesAttack' }],
+    },
+    fortune: {
+      // "Every 5 attacks, gain 1 Gold next turn."
+      offerText: 'Every **5** attacks, gain **1 Gold** next turn.',
+      powerText: '{base} Every **5** attacks, gain **1 Gold** next turn (**{goLeft}** more to go).',
+      effects: [{ do: 'attacksGold', every: 5, gold: 1 }],
+    },
+    war: {
+      // "Blade Mastery also gives the same Health." (The owner's Alt, "Your first attacker each combat keeps its Blade
+      // Mastery bonus permanently", is NOT built.)
+      offerText: 'Blade Mastery also gives the same Health.',
+      powerText: '{base} It also gives the same **Health**.',
+      effects: [{ do: 'bladeMasteryHealth' }],
+    },
+    genesis: {
+      // "Start of Combat: Your two left-most minions gains Ward and Flurry."
+      offerText: '**Start of Combat:** your two left-most minions gain **Ward** and **Flurry**.',
+      powerText: '{base} **Start of Combat:** your two left-most minions gain **Ward** and **Flurry** for that combat.',
+      effects: [{ do: 'socWardFlurry', count: 2 }],
+    },
+    time: {
+      // "Start of Combat: each of your minions gains Blade Mastery once."
+      offerText: '**Start of Combat:** each of your minions gains Blade Mastery once.',
+      powerText: '{base} **Start of Combat:** each of your minions gains Blade Mastery once.',
+      effects: [{ do: 'socBladeMastery' }],
+    },
+    bonds: {
+      // "When a minion attacks, your next attacker also gets its bonus."
+      offerText: 'When a minion attacks, your next attacker also gets its Blade Mastery bonus.',
+      powerText: '{base} Your next attacker also gets the bonus the last attacker got.',
+      effects: [{ do: 'bladeMasteryBonds' }],
+    },
+  },
+  // MIMIC (owner pairings 2026-11-10, quoted above each entry). Mimicry (passive) = "At the start of every turn, Discover
+  // a hero power to wield this turn." Mimic's pairings are ALWAYS ON, whatever power it wields that turn (see
+  // `ancientPairingHeroId`): Death / Fortune / War / Bonds are Soren's, Robin's, Emissary's and Gorr's powers running as
+  // extra passives through those powers' own code. `{base}` = the wielded power's live text.
+  mimic: {
+    death: {
+      // "Start of Combat: Destroy your left-most echo minion, and re-summon it when you have space." (owner: "this is
+      // exactly soren's hero power, but picks the left-most echo automatically")
+      offerText: '**Start of Combat:** destroy your left-most **Echo** minion and resummon it when there is room.',
+      powerText: '{base} **Start of Combat:** destroy your left-most **Echo** minion and resummon it when there is room.',
+      effects: [{ do: 'autoReclaimLeftmostEcho' }],
+    },
+    fortune: {
+      // "For each minion you sell, gain 1 Gold next turn." (owner: "this is robin's hero power")
+      offerText: 'For each minion you **Sell**, gain **1 Gold** next turn.',
+      powerText: '{base} For each minion you **Sell**, gain **1 Gold** next turn (**{mSpoilGold}** so far).',
+      effects: [{ do: 'spoilsPassive', gold: 1 }],
+    },
+    war: {
+      // "Start of Combat: Give a minion of each type +1/+1 for each spell cast this game." (owner: "this is emissary's
+      // hero power, and needs to adjust retroactively so it's +x/+y based on spells cast this GAME so far already")
+      offerText: '**Start of Combat:** give a friendly minion of each type **+1/+1** for each spell cast this game.',
+      powerText: '{base} **Start of Combat:** give a friendly minion of each type **+{mSpells}/+{mSpells}** (1 per spell cast this game).',
+      effects: [{ do: 'unitedFrontPassive' }],
+    },
+    genesis: {
+      // "Mimic has 4 options and no longer happens automatically. Can be activated once per turn."
+      offerText: 'Mimicry offers **4** powers. It no longer opens by itself. Use it once per turn.',
+      powerText: '{mimicBase}',
+      power: { passive: false, untargeted: true },
+      effects: [{ do: 'mimicryManual', options: 4 }],
+    },
+    time: {
+      // "Start of Turn: Get a plain copy of a minion that died last combat."
+      offerText: '**Start of Turn:** get a plain copy of a minion that died last combat.',
+      powerText: '{base} **Start of Turn:** get a plain copy of a minion that died last combat.',
+      effects: [{ do: 'sotCopyLastCombatDeath' }],
+    },
+    bonds: {
+      // "When you buy 3 minions in a turn, get a plain copy of one of them at random." (owner: "gorr hero power")
+      offerText: 'When you buy **3** minions in a turn, get a plain copy of one of them at random.',
+      powerText: '{base} When you buy **3** minions in a turn, get a plain copy of one of them at random (**{mBuys}/3**).',
+      effects: [{ do: 'fourPeatPassive' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -2804,6 +3081,15 @@ export interface AncientsState {
   flintGenesisWave?: number;
   /** JUGGLER × WAR: the improvement Carnival Coin casts have banked onto later Coins' buff. */
   jugglerCoinBonus?: { attack: number; health: number };
+  /** UNDERDWELLER × BONDS: the live +X/+X both copies gain (set at the pick, improved after each trigger). */
+  underBondsGain?: number;
+  /** MEMBRANCE × GENESIS: Memory minions bought on `wave` (0 = the next one is "the first"). Ticked while Ancients are
+   *  on, whatever is picked. A new wave reads 0. */
+  memoryBuys?: { wave: number; n: number };
+  /** GORUN × FORTUNE: friendly attacks since the last Gold (the running count, since the pick). */
+  gorunAttacks?: number;
+  /** MIMIC × FORTUNE: Gold its passive Spoils banked on `wave` (printed live). */
+  mimicSpoilGold?: { wave: number; gold: number };
 }
 
 /** Where an open Discover came from, for the Ancients that treat its pick specially. */
@@ -2892,6 +3178,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
   batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
   batchBOnPick(state); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard's button, when the Shop is already Tier 6
+  batchCOnPick(state, a); // UNDERDWELLER × BONDS: starts at the printed amount
   return true;
 }
 
@@ -2906,6 +3193,9 @@ export function ancientOfferOpen(state: RunState): boolean {
  * who Power Shifts Gildcrafter away loses Gildmaster × War; a hero who gains Gildcrafter in slot 0 has it.
  */
 export function ancientPairingHeroId(state: Pick<RunState, 'heroId' | 'adoptedPowerId' | 'mimicPowerId' | 'voidPowerIds'>): string {
+  // MIMIC (owner pairings 2026-11-10): Mimic's own pairings are always on, whatever power it wields this turn. Its
+  // disguise changes every turn, so the pairing belongs to Mimicry itself, never to the power of the day.
+  if (getHero(state.heroId).power.kind === 'mimic') return state.heroId;
   return wieldedPowerId(state, 0) ?? state.heroId;
 }
 
@@ -3036,6 +3326,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = batch6PowerText(state, text, combat);
   text = batchBPowerText(state, text, combat);
   text = batchAPowerText(state, text, combat); // RASCAL / GAMBLER / PETE / FLINT / JUGGLER
+  text = batchCPowerText(state, text, base);
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -3143,6 +3434,7 @@ export function ancientOnSale(state: RunState, sold: BoardCard): void {
 
 /** A friendly minion died in the Shop (War: every OTHER gilded board minion gains, permanently). */
 export function ancientOnShopDeath(state: RunState, died: BoardCard): void {
+  gorunShopDeath(state, died); // GORUN × DEATH: the dead minion's Attack goes to a random friendly minion
   const e = effectOf(state, 'friendlyDeathBuffsGilded');
   if (!e) return;
   const gilded = state.board.filter((c) => c.golden && c.uid !== died.uid);
@@ -3256,6 +3548,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   Object.assign(out, batch6CombatMods(state));
   Object.assign(out, batchBCombatMods(state));
   Object.assign(out, batchACombatMods(state)); // RASCAL / GAMBLER / FLINT
+  Object.assign(out, batchCCombatMods(state));
   return out;
 }
 
@@ -3370,6 +3663,7 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   batch6AfterCombat(state, a, result); // KESHI × DEATH: the running Avenge count + the fight's Crown advances
   batchBAfterCombat(state, a, result); // MERRIN / EMISSARY / EMERALD WARDEN: the running Avenge + spell counts
   batchAAfterCombat(state, a, result); // RASCAL / GAMBLER / FLINT × DEATH: the running Avenge counts + the fight's pulses
+  batchCAfterCombat(state, a, result); // GORUN × FORTUNE: the running attack count
   // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
   if (effectOf(state, 'pummelSwapCharge')) {
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
@@ -3505,6 +3799,7 @@ export function ancientStartOfTurn(state: RunState): void {
   gildmasterStartOfTurn(state);
   batch6StartOfTurn(state); // MIDAS × WAR, KESHI × TIME, QUILLEN × TIME
   batchAStartOfTurn(state); // RASCAL × TIME
+  batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -4332,9 +4627,10 @@ export function ancientAfterSecondHand(state: RunState, made: readonly BoardCard
  * RE-PETE × FORTUNE: the running count; every `every`th buy opens a Discover of those cards (spells offered too, owner
  * 2026-10-02; up to 3 distinct ids, the pool Discover's draw), the pick locked in hand for `turns` turns.
  */
-export function ancientOnBuy(state: RunState, cardId: string, starform: boolean, body: BoardCard | undefined): void {
+export function ancientOnBuy(state: RunState, cardId: string, starform: boolean, body: BoardCard | undefined, from: AncientBuyFrom = {}): void {
   const a = live(state);
   if (!a) return;
+  batchCOnBuy(state, a, cardId, from); // MEMBRANCE × GENESIS / BONDS
   const rd = effectOf(state, 'buysDiscoverLocked');
   if (rd) {
     const win = [...(a.repeteBuys ?? []), cardId];
@@ -5544,6 +5840,7 @@ export function ancientOnDiscoverTaken(state: RunState, tag: AncientDiscoverTag 
   const def = CARD_INDEX[taken.cardId];
   if (tag === 'archive' && effectOf(state, 'archiveEchoGainsRise') && def && hasDeathrattle(def)) kw('R');
   if (tag === 'discoDeath' && effectOf(state, 'pickDiscoverEchoLocked')) kw('R');
+  if (tag === 'soulkeeper') soulkeeperOnTaken(state, taken); // UNDERDWELLER × DEATH / WAR
 }
 
 /** QUILLEN: how many archived minions fill Archive (Genesis: 2; else 3). */
@@ -6376,4 +6673,268 @@ function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive
     .replace('{juLeft}', String(Math.max(1, ancientCoinNeed(state) - (state.jugglerBuys ?? 0))))
     .replace('{juTimeLeft}', String(jt ? Math.max(0, jt.count - gorrMinionBuysThisTurn(state)) : 0))
     .replace('{juTribe}', effectOf(state, 'topTribeBuyCountsTwice') ? tribeName(dominantBoardTribe(state)) : '');
+}
+
+// ── THE 2026-11-10 BATCH C: Underdweller, Membrance, Gorun, Mimic ────────────────────────────────────────────
+/** GORUN × FORTUNE: the `questTrigger` flag each Gold payout pulses mid-fight. */
+export const ANCIENT_ATTACK_GOLD_FLAG = 'ancientAttackGold';
+
+/** What a buy came from, for the buy-keyed pairings: `memory` = the offer was a Memory offer; `controlled` = a minion
+ *  of the bought card stood on the board BEFORE the buy. */
+export interface AncientBuyFrom { memory?: boolean; controlled?: boolean }
+
+/** A minion as the last combat's log records it. */
+export interface LastCombatDeath { cardId: string; side: 'player' | 'enemy' }
+
+/**
+ * Every minion that TRULY died in the last combat, both sides, in death order (a Rise / Rebirth first death is skipped:
+ * that body came back). Read off `lastCombat`'s event log: uid -> card from the two opening boards plus every mid-fight
+ * `summon`. Soulkeeper's own pool (`diedLastCombat` in the reducer) is this list's distinct cards.
+ */
+export function lastCombatDeaths(state: Pick<RunState, 'lastCombat'>): LastCombatDeath[] {
+  const lc = state.lastCombat;
+  if (!lc) return [];
+  const byUid = new Map<string, string>();
+  for (const m of [...lc.initial.player, ...lc.initial.enemy]) byUid.set(m.uid, m.cardId);
+  for (const e of lc.events) if (e.type === 'summon') byUid.set(e.minion.uid, e.minion.cardId);
+  const out: LastCombatDeath[] = [];
+  for (const e of lc.events) {
+    if (e.type !== 'death' || e.rise) continue;
+    const id = byUid.get(e.target);
+    if (id && CARD_INDEX[id]) out.push({ cardId: id, side: e.side });
+  }
+  return out;
+}
+
+const isMinionId = (id: string): boolean => { const d = CARD_INDEX[id]; return !!d && !d.spell && !d.ruby; };
+
+/** The pick-time stamp. UNDERDWELLER × BONDS: X starts at the printed amount. */
+function batchCOnPick(state: RunState, a: AncientsState): void {
+  const ub = effectOf(state, 'copyOfControlledBuffImproves');
+  if (ub) a.underBondsGain = ub.amount;
+}
+
+// ── Underdweller (Soulkeeper) hooks ──
+/** Soulkeeper just opened its Discover directly (`s.discover = picks`): mark it as a Soulkeeper pick. */
+export function ancientMarkSoulkeeperDiscover(state: RunState): void {
+  const a = live(state);
+  if (a && state.discover?.length) a.discoverTag = 'soulkeeper';
+}
+
+/** UNDERDWELLER, the Soulkeeper pick as it is taken. DEATH: a pick with an Echo gains Rise. WAR: the pick keeps the
+ *  Attack, Health and keywords the first body of that card to die last combat died with (`playerAncientGraves`, recorded
+ *  only in a fight fought with War picked; none recorded = the plain card). A Rise / Rebirth the body had already
+ *  spent is not handed back. */
+function soulkeeperOnTaken(state: RunState, taken: BoardCard): void {
+  const def = CARD_INDEX[taken.cardId];
+  if (!def) return;
+  if (effectOf(state, 'soulkeeperEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath') && !taken.keywords.includes('R')) taken.keywords.push('R');
+  if (!effectOf(state, 'soulkeeperKeepsStats')) return;
+  const grave = state.lastCombat?.playerAncientGraves?.find((g) => g.cardId === taken.cardId);
+  if (!grave) return;
+  const da = grave.attack - taken.attack;
+  const dh = Math.max(1, grave.health) - taken.health;
+  if (da !== 0 || dh !== 0) addBuff(taken, ANCIENTS.war.name, da, dh);
+  for (const k of grave.keywords) {
+    if ((k === 'R' || k === 'RB') && !def.keywords.includes(k)) continue;
+    if (!taken.keywords.includes(k)) taken.keywords.push(k);
+  }
+}
+
+/** A Discover pick has LANDED in the hand (`takeDiscoverPick`, after the push). UNDERDWELLER × GENESIS: Soulkeeper also
+ *  gives a plain copy of a random one of the options not picked (seeded; hand first, the board when the hand is
+ *  full). A single option: nothing. */
+export function ancientAfterDiscoverTaken(state: RunState, tag: AncientDiscoverTag | undefined, taken: BoardCard): void {
+  if (tag !== 'soulkeeper' || !live(state) || !effectOf(state, 'soulkeeperExtraCopy')) return;
+  const rest = (state.discover ?? []).filter((id) => id !== taken.cardId && isMinionId(id));
+  const id = pickId(state, rest);
+  const def = id ? CARD_INDEX[id] : undefined;
+  if (def) grantMinionToHandOrBoard(state, def, false);
+}
+
+/**
+ * UNDERDWELLER × BONDS: the reducer's action boundary (every action, the combat settle included). Each minion that
+ * ARRIVED in the hand this action (a buy, a Discover, a grant, a combat copy) and shares its card with a minion on the
+ * board is "a copy of a minion you control": it and that board minion (the left-most match; Gilded or not) each gain
+ * +X/+X, permanently, then X improves by the printed amount. A triple's Gilded result is not an arrival (its copies
+ * were consumed). Summons are not "getting" a card and never count.
+ */
+export function ancientOnCardsGained(next: RunState, before: Pick<RunState, 'hand' | 'board'>): void {
+  const a = live(next);
+  const e = a ? effectOf(next, 'copyOfControlledBuffImproves') : undefined;
+  if (!a || !e) return;
+  const prior = [...before.hand, ...before.board];
+  const had = new Set(prior.map((c) => c.uid));
+  const now = new Set([...next.hand, ...next.board].map((c) => c.uid));
+  const gone = prior.filter((c) => !now.has(c.uid)).map((c) => c.cardId);
+  for (const c of [...next.hand]) {
+    if (had.has(c.uid) || !isMinionId(c.cardId)) continue;
+    if (c.golden && gone.filter((id) => id === c.cardId).length >= 2) continue; // a triple's result
+    const twin = next.board.find((b) => b.cardId === c.cardId && b.uid !== c.uid);
+    if (!twin) continue;
+    const x = a.underBondsGain ?? e.amount;
+    if (x > 0) captureBuffFx(next, undefined, 'spell', () => { addBuff(c, ANCIENTS.bonds.name, x, x); addBuff(twin, ANCIENTS.bonds.name, x, x); });
+    a.underBondsGain = x + e.amount;
+  }
+}
+
+// ── Membrance (Memory) hooks ──
+/** MEMBRANCE: Memory minions bought this turn. */
+function memoryBuysThisTurn(state: RunState): number {
+  const m = live(state)?.memoryBuys;
+  return m && m.wave === state.wave ? m.n : 0;
+}
+
+/**
+ * MEMBRANCE: Memory just built its offers (`offers`, in the order of the opponent's minions `foe` it copied, before the
+ * Starform is put back). Each is marked a Memory offer (Ancients runs only). DEATH: one with an Echo gains Rise (baked
+ * in when bought). FORTUNE: it costs `price`. WAR: it is an EXACT copy of the opponent's minion as it stood at the start
+ * of that combat (stats, keywords, Gilded), and costs `price`.
+ */
+export function ancientOnMemoryOffers(state: RunState, offers: ShopCard[], foe: readonly { cardId: string; attack: number; health: number; keywords: readonly Keyword[]; golden?: boolean }[]): void {
+  if (!live(state)) return;
+  const src = foe.filter((m) => isMinionId(m.cardId));
+  const rise = effectOf(state, 'memoryEchoGainsRise');
+  const price = effectOf(state, 'memoryPrice');
+  const exact = effectOf(state, 'memoryExact');
+  offers.forEach((o, i) => {
+    const def = CARD_INDEX[o.cardId];
+    if (!def || def.spell || def.ruby || o.starform) return;
+    o.memory = true;
+    const kw = (k: Keyword): void => { if (!def.keywords.includes(k) && !(o.keywords ?? []).includes(k)) (o.keywords ??= []).push(k); };
+    if (rise && def.effects.some((e) => e.on === 'onDeath')) kw('R');
+    if (price) o.cost = price.price;
+    if (!exact) return;
+    o.cost = exact.price;
+    const m = src[i];
+    if (!m || m.cardId !== o.cardId) return;
+    const mult = m.golden ? 2 : 1; // a Gilded offer buys in with its printed stats doubled (`Golden Touch`)
+    if (m.golden) o.golden = true;
+    addOfferBuff(o, 'Memory', m.attack - def.attack * mult, Math.max(1, m.health) - def.health * mult);
+    for (const k of m.keywords) kw(k);
+  });
+}
+
+/** MEMBRANCE, a card was bought. GENESIS: the first Memory minion bought each turn also gives a plain copy to hand
+ *  (hand full: none). BONDS: buying a copy of a minion that stood on your board gives every Gilded board minion +a/+h,
+ *  permanently. */
+function batchCOnBuy(state: RunState, a: AncientsState, cardId: string, from: AncientBuyFrom): void {
+  if (!isMinionId(cardId)) return;
+  if (from.memory) {
+    const first = memoryBuysThisTurn(state) === 0;
+    a.memoryBuys = { wave: state.wave, n: memoryBuysThisTurn(state) + 1 };
+    if (first && effectOf(state, 'memoryFirstBuyCopy')) gorrCopyToHand(state, cardId);
+  }
+  const mb = effectOf(state, 'buyControlledBuffsGilded');
+  if (mb && from.controlled) {
+    const gilded = state.board.filter((c) => c.golden);
+    if (gilded.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of gilded) addBuff(c, ANCIENTS.bonds.name, mb.attack, mb.health); });
+  }
+}
+
+// ── Gorun (Blade Mastery) hooks ──
+/** GORUN × DEATH, Shop half: a friendly minion died in the Shop. A random OTHER board minion gains the Attack it had,
+ *  permanently (a Shop gain). Nobody else on the board: nothing. */
+function gorunShopDeath(state: RunState, died: BoardCard): void {
+  if (!live(state) || !effectOf(state, 'deathGivesAttack') || died.attack <= 0) return;
+  const others = state.board.filter((c) => c.uid !== died.uid);
+  if (others.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  const heir = others[rng.int(others.length)]!;
+  state.rngCursor = rng.state();
+  captureBuffFx(state, undefined, 'spell', () => addBuff(heir, ANCIENTS.death.name, died.attack, 0));
+}
+
+/** GORUN × FORTUNE: attacks still needed for the next Gold (the carried count plus `attacks` so far in the fight on
+ *  screen). Null when Fortune is not picked. */
+export function ancientGorunAttacksLeft(state: RunState, attacks = 0): number | null {
+  const e = live(state) ? effectOf(state, 'attacksGold') : undefined;
+  if (!e) return null;
+  const every = Math.max(1, e.every);
+  return every - (((live(state)?.gorunAttacks ?? 0) + Math.max(0, attacks)) % every);
+}
+
+// ── Mimic (Mimicry) hooks ──
+/** MIMIC × FORTUNE: Spoils again, as a passive. Called by recruit's `bankSpoils` (THE sale hook) for every sale: returns
+ *  the extra Gold to bank for next turn (0 unless the pairing is live) and keeps this turn's total for the live text. */
+export function ancientSpoilsPassive(state: RunState): number {
+  const a = live(state);
+  const e = a ? effectOf(state, 'spoilsPassive') : undefined;
+  if (!a || !e || e.gold <= 0) return 0;
+  a.mimicSpoilGold = { wave: state.wave, gold: (a.mimicSpoilGold?.wave === state.wave ? a.mimicSpoilGold.gold : 0) + e.gold };
+  return e.gold;
+}
+
+/** MIMIC × BONDS: Four Peat again, as a passive (read by the reducer's `gorrQuestBuy`, Four Peat's own code). */
+export function ancientFourPeatPassive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'fourPeatPassive');
+}
+
+/** MIMIC × GENESIS: how many powers a pressed Mimicry offers (0 = Mimicry opens by itself at Start of Turn, as native). */
+export function ancientMimicManual(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'mimicryManual') : undefined;
+  return e ? Math.max(1, e.options) : 0;
+}
+
+/** Start of Turn, each its own beat (R-SOT-BEAT-01). MEMBRANCE × TIME: a plain copy of a random minion from the last
+ *  opponent's board. MIMIC × TIME: a plain copy of a random minion that died last combat (either side, Soulkeeper's
+ *  pool). Both seeded off the run cursor. No combat yet, nothing died, or a full hand: nothing. */
+function batchCStartOfTurn(state: RunState): void {
+  if (!live(state) || state.hand.length >= handCap(state)) return;
+  const src = { kind: 'hero' as const, id: state.heroId, label: ANCIENTS.time.name };
+  if (effectOf(state, 'sotCopyLastFoe')) {
+    const id = pickId(state, (state.lastCombat?.initial.enemy ?? []).map((m) => m.cardId).filter(isMinionId));
+    if (id) recordSotBeat(state, src, () => { gorrCopyToHand(state, id); });
+  }
+  if (effectOf(state, 'sotCopyLastCombatDeath')) {
+    const id = pickId(state, [...new Set(lastCombatDeaths(state).map((d) => d.cardId))].filter(isMinionId));
+    if (id) recordSotBeat(state, src, () => { gorrCopyToHand(state, id); });
+  }
+}
+
+/** This batch's combat halves (player-only, never snapshotted, like every Ancient; the simulator reads each per side). */
+function batchCCombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  if (effectOf(state, 'soulkeeperKeepsStats')) out.ancientGraves = true;
+  if (effectOf(state, 'afterCombatFirstFoeCopy')) out.ancientFirstFoeDeathCopy = { label: ANCIENTS.time.name };
+  if (effectOf(state, 'deathGivesAttack')) out.ancientDeathGivesAttack = { label: ANCIENTS.death.name };
+  const ag = effectOf(state, 'attacksGold');
+  if (ag) out.ancientAttackGold = { every: ag.every, tick: a.gorunAttacks ?? 0, gold: ag.gold, flag: ANCIENT_ATTACK_GOLD_FLAG, label: ANCIENTS.fortune.name };
+  if (effectOf(state, 'bladeMasteryHealth')) out.ancientBladeHealth = true;
+  const wf = effectOf(state, 'socWardFlurry');
+  if (wf) out.ancientSocWardFlurry = { count: wf.count, label: ANCIENTS.genesis.name };
+  if (effectOf(state, 'socBladeMastery')) out.ancientSocBlade = { label: ANCIENTS.time.name };
+  if (effectOf(state, 'bladeMasteryBonds')) out.ancientBladeBonds = { label: ANCIENTS.bonds.name };
+  if (effectOf(state, 'autoReclaimLeftmostEcho')) out.ancientAutoReclaim = { label: ANCIENTS.death.name };
+  // MIMIC × WAR: every spell cast this GAME (`spellsCast` counts from the run's start, so casts made before the pick
+  // are already in it).
+  if (effectOf(state, 'unitedFrontPassive') && (state.spellsCast ?? 0) > 0) out.ancientUnitedFront = state.spellsCast;
+  return out;
+}
+
+/** Settle. GORUN × FORTUNE: the running attack count the fight hands back (its Gold came home through `playerBonusGold`). */
+function batchCAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  if (effectOf(state, 'attacksGold') && result.playerAncientAttackGoldTick !== undefined) a.gorunAttacks = result.playerAncientAttackGoldTick;
+}
+
+/** This batch's live power-text values. `{uBonds}` = Underdweller × Bonds' live +X/+X; `{mbFirst}` = Membrance × Genesis'
+ *  "this turn" state; `{goLeft}` = attacks still needed for Gorun × Fortune's next Gold (live through a fight, off the
+ *  replay's Blade Mastery tally `fxBladeAttacksPreview`); `{mSpoilGold}` = Gold Mimic × Fortune banked this turn;
+ *  `{mSpells}` = spells cast this game (Mimic × War's grant); `{mBuys}` = minions bought this turn toward Mimic × Bonds;
+ *  `{mimicBase}` = Mimic × Genesis: the pressed Mimicry's own text while no power is wielded, else the wielded power's. */
+function batchCPowerText(state: RunState, text: string, base: string): string {
+  const a = live(state);
+  if (!a) return text;
+  const ub = effectOf(state, 'copyOfControlledBuffImproves');
+  const mg = effectOf(state, 'mimicryManual');
+  const native = (wieldedPowerId(state, 0) ?? state.heroId) === state.heroId;
+  return text.split('{uBonds}').join(String(ub ? a.underBondsGain ?? ub.amount : 0))
+    .replace('{mbFirst}', memoryBuysThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{goLeft}', String(ancientGorunAttacksLeft(state, state.fxBladeAttacksPreview ?? 0) ?? 0))
+    .replace('{mSpoilGold}', String(a.mimicSpoilGold?.wave === state.wave ? a.mimicSpoilGold.gold : 0))
+    .split('{mSpells}').join(String(state.spellsCast ?? 0))
+    .replace('{mBuys}', String(Math.min(3, state.gorrBuys?.length ?? 0)))
+    .replace('{mimicBase}', mg && native ? `**Discover** a hero power to wield this turn, from **${mg.options}** options. Once per turn.` : base);
 }

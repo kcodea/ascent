@@ -258,7 +258,7 @@ export function playSpellPass(uid: string): void {
  */
 export type PassFlight =
   | { at: 'discover'; index: number }
-  | { at: 'card'; uid: string; leaves: boolean; face: boolean }
+  | { at: 'card'; uid: string; leaves: boolean; face: boolean; /** a Magic Hat copy: falls back to the hero power button */ hat?: true }
   | { at: 'rune'; id: string }
   | { at: 'equip'; id: string }
   | { at: 'unit'; uid: string | null; rune: string | null };
@@ -267,6 +267,8 @@ export type PassFlight =
 export interface PassFlightEntry {
   card: { uid: string; cardId: string };
   via?: 'spell' | 'sale';
+  /** A Magic Hat copy (R-DUOS-MAGICIAN-01): `src` names the Shop offer that was bought. */
+  hat?: true;
   team?: { kind: string; cardId?: string; randomSpell?: boolean; randomMinion?: boolean };
   combatIdx?: number;
   src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
@@ -291,6 +293,10 @@ export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, card
   if (src && 'discover' in src) return { at: 'discover', index: src.discover };
   if (src && 'rune' in src) return { at: 'rune', id: src.rune };
   if (src && 'equip' in src) return { at: 'equip', id: src.equip };
+  // MAGICIAN'S MAGIC HAT (R-DUOS-MAGICIAN-01): a COPY of the card just bought. The bought card stays (it is on its way
+  // to my hand); a copy of its face dissolves where the Shop offer stood and streams in. With no card on screen to
+  // leave from, the stream leaves the hat itself (the hero power button).
+  if (e.hat) return { at: 'card', uid: src && 'uid' in src ? src.uid : e.card.uid, leaves: false, face: true, hat: true };
   if (src && 'uid' in src) {
     if (!e.team && src.uid === e.card.uid) return { at: 'card', uid: src.uid, leaves: true, face: true };
     const gift = e.team?.kind === 'gift' ? e.team.cardId : undefined;
@@ -422,6 +428,8 @@ export function playPassFlight(f: PassFlight | null): boolean {
   if (f.at === 'card') { const rel = takeCastRelease(f.uid); if (rel) return streamFromRelease(rel, f.face); }
   if (f.at === 'card' && f.leaves) { playSpellPass(f.uid); return true; }
   const el = passFlightEl(f);
+  // A Magic Hat copy with no card on screen to leave from: the stream leaves the hat (the hero power), no face.
+  if (!el && f.at === 'card' && f.hat) { const hatEl = q('.statusbar .heropowerbtn'); return hatEl ? streamFrom(hatEl, false) : false; }
   if (!el) return false;
   return streamFrom(el, f.at === 'discover' || (f.at === 'card' && f.face));
 }

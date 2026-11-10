@@ -78,7 +78,8 @@ export type HeroPowerKind =
   | 'bladeMastery' // Gorun (passive): a friendly attack grants the attacker +3 Attack for the fight, +3 more per 8 run attacks
   | 'hoard' // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
   | 'rubyWealth' // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
-  | 'passaria'; // Priestess (Duos only): 2 Gold — pass a non-Gilded Shop or board minion to your teammate (active, targeted)
+  | 'passaria' // Priestess (Duos only): 2 Gold — pass a non-Gilded Shop or board minion to your teammate (active, targeted)
+  | 'magicHat'; // Magician (Duos only, passive): buy 5 cards → the hat is active; the next card bought sends the teammate a copy (twice per turn)
 
 export interface HeroPower {
   name: string;
@@ -1024,6 +1025,25 @@ export const HEROES: HeroDef[] = [
       kind: 'passaria',
       cost: 2,
       text: '**Pass** a **non-Gilded** minion in the Shop or on your board.',
+    },
+  },
+  {
+    // DUOS ONLY (owner 2026-11-10, R-DUOS-MAGICIAN-01): "magician - 8 armor, magic hat - when you buy 5 cards, your hat
+    // is activated. The next card you buy, your teammate gets a copy of it." + "Add a twice per turn max". The whole
+    // rule lives in `magicHat.ts` (`magicHatBuy`, called from every `buy` branch); `heroPowerText` prints the live count
+    // and the active state from `magicHatView`, so this static string is the fallback shape only. Appended last, and out
+    // of every non-Duos list, so no solo offer order or seeded hero draw moves.
+    id: 'magician',
+    name: 'Magician',
+    blurb: 'Whatever goes into the hat comes out twice.',
+    resolve: 30,
+    armor: 8,
+    duosOnly: true,
+    power: {
+      name: 'Magic Hat',
+      kind: 'magicHat',
+      passive: true,
+      text: 'After you buy **5** cards, your hat activates. The next card you buy, your teammate gets a copy. Twice per turn.',
     },
   },
 ];

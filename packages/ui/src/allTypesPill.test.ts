@@ -118,7 +118,12 @@ describe('art coverage for live cards', () => {
     const portraits = have('heroes');
     const powers = have('powers');
     const live = HEROES.filter((h) => !h.wip);
-    expect(live.filter((h) => !portraits.has(h.id)).map((h) => h.id), 'heroes with no portrait').toEqual([]);
-    expect(live.filter((h) => !powers.has(h.id)).map((h) => h.id), 'heroes with no power art').toEqual([]);
+    // ART OWED (owner 2026-11-10, Magician: "no hero art exists yet", and art is wired only when the owner names it):
+    // these heroes ship on the no-art fallback until their masters arrive. The list must stay EXACT, so it cannot hide
+    // a second hero, and the entry has to be deleted in the PR that wires the art (the assertions below then fail).
+    const PORTRAIT_OWED = ['magician'];
+    const POWER_ART_OWED = ['magician'];
+    expect(live.filter((h) => !portraits.has(h.id)).map((h) => h.id), 'heroes with no portrait').toEqual(PORTRAIT_OWED);
+    expect(live.filter((h) => !powers.has(h.id)).map((h) => h.id), 'heroes with no power art').toEqual(POWER_ART_OWED);
   });
 });

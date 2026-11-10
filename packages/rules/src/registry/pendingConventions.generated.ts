@@ -1746,11 +1746,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-count-threshold",
-    "title": "'count-threshold' powers · 10 heroes",
-    "statement": "These 10 powers all a buy/sell/refresh/tally counter crossing a threshold. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'count-threshold' powers · 11 heroes",
+    "statement": "These 11 powers all a buy/sell/refresh/tally counter crossing a threshold. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
-    "currentBehaviour": "heroPowerFamilies.ts classifies these 10 powers as 'count-threshold'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Aevor, Tempest: \"Unlocks after your minions kill 15 enemies. End of Turn: give your left and right-most minions +4/+4. Upgrades every 15 kills.\" · Members: Aevor — Tempest [tempest] · Braum — Investment [investment] · Chronos — Timelapse [questChronos] · Ayse — Lucky Seat [luckySeat] · Drakko — Drumline [quest] · Gorr — Four Peat [fourPeat] · Juggler — Carnival Coin [baldgecoin] · Keshi the Protector — Keshi’s Crown [crownTally] · Pete — Contrabanana [contraband] · Robin — Spoils [sellGold]",
+    "currentBehaviour": "heroPowerFamilies.ts classifies these 11 powers as 'count-threshold'; the heroPowerLane + stager suites verify each against that reading.",
+    "cardText": "Exemplar — Aevor, Tempest: \"Unlocks after your minions kill 15 enemies. End of Turn: give your left and right-most minions +4/+4. Upgrades every 15 kills.\" · Members: Aevor — Tempest [tempest] · Braum — Investment [investment] · Chronos — Timelapse [questChronos] · Ayse — Lucky Seat [luckySeat] · Drakko — Drumline [quest] · Gorr — Four Peat [fourPeat] · Juggler — Carnival Coin [baldgecoin] · Keshi the Protector — Keshi’s Crown [crownTally] · Magician — Magic Hat [magicHat] · Pete — Contrabanana [contraband] · Robin — Spoils [sellGold]",
     "example": "Aevor's Tempest a buy/sell/refresh/tally counter crossing a threshold."
   },
   {

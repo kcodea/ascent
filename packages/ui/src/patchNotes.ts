@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-10',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Duos hero: Magician. After you buy 5 cards, the Magic Hat activates. The next card you buy, your teammate gets a copy.',
+        details: [
+          'Magician starts with 8 Armor and only appears in Versus Duos and Ranked Duos.',
+          'Minions and spells bought from the Shop count. The count carries over between turns.',
+          'The copy is the card as you bought it, and it is free for both of you. If your teammate\'s hand is full, it waits for room.',
+          'The hat sends at most 2 copies per turn. After that your buys still count up to 5, and the hat is active at the start of your next turn.',
+          'The power shows its count, and glows while the hat is active.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     changes: [
       {

@@ -85,6 +85,7 @@ export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
   harlan: { difficulty: 'Medium', tip: 'Use Buyout for huge tempo swings in the early game, and for economy later.' },
   sable: { difficulty: 'Hard', tip: 'Put your two intended carries at the edges, activate Soulbind, then funnel repeated buffs into whichever is easier to target.' },
   priestess: { difficulty: 'Medium', tip: 'Passaria sends a Shop minion for less than buying and passing it. Plan each turn with your teammate.' },
+  magician: { difficulty: 'Medium', tip: 'Fill the hat with cheap buys, then buy the card your teammate needs most while it is active.' },
   keshi: { difficulty: 'Easy', tip: 'Higher-tier purchases advance Keshi’s Crown faster, so combine natural buying with timely Shop upgrades.' },
 };
 

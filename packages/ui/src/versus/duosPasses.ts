@@ -230,7 +230,7 @@ export function atMicros(at: unknown): number | null {
 type ReplayAction =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   | { type: 'passCard'; uid: string }
-  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; hat?: true }
   | { type: 'passRefunded'; seq: number };
 
 /**
@@ -293,7 +293,8 @@ export function replayRestore(
       if (r.status === 'refused' || !uid || typeof r.card.cardId !== 'string') continue;
       const sent = live.duos?.outbox.length ?? 0;
       const power = r.card.passPower === 0 || r.card.passPower === 1 ? r.card.passPower : undefined;
-      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}) });
+      // (A Magic Hat copy, `passHat`: nothing leaves my run; it counts against the turn's two copies again. R-DUOS-MAGICIAN-01.)
+      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}), ...(r.card.passHat === true ? { hat: true as const } : {}) });
       if ((getRun().duos?.outbox.length ?? 0) > sent) { seqOf.set(sent, r.seq); shipped.add(sent); }
       continue;
     }

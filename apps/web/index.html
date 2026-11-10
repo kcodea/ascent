@@ -61,6 +61,7 @@
       <div id="bootsplash-bar"><i></i></div>
       <div id="bootsplash-note" aria-live="polite"></div>
       <div id="bootsplash-update" aria-live="polite"></div>
+      <div id="bootsplash-skip" role="button" tabindex="0">Not now</div>
     </div>
     <script>
       /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
@@ -175,6 +176,16 @@
         border: 1px solid rgba(240, 144, 46, 0.85); background: rgba(240, 144, 46, 0.16);
         bottom: calc(var(--ls-bar-bottom, 22.5vh) - 78px);
       }
+      /* "Not now": shown only beside the downloaded line, which holds the loading screen (R-UPDATE-HOLD-LOADING-01). */
+      #bootsplash-skip {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 112px);
+        font: 600 13px/1 system-ui, sans-serif; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.55);
+        text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; padding: 6px 10px;
+        display: none;
+      }
+      #bootsplash-skip.is-on { display: block; }
+      #bootsplash-skip:hover, #bootsplash-skip:focus-visible { color: #fff; outline: none; }
       #bootsplash-update.is-click:hover, #bootsplash-update.is-click:focus-visible { background: rgba(240, 144, 46, 0.32); color: #fff; outline: none; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {

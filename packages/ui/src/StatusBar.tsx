@@ -4,6 +4,7 @@ import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter
 import { AncientGate } from './ancients/AncientGate';
 import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
+import { magicHatBadge } from './magicHatUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
@@ -144,6 +145,7 @@ function heroPowerTallyOf(
     case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal
     case 'soulbind': return `${Math.max(0, 3 - uses)} left`; // Sable
     case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler
+    case 'magicHat': return magicHatBadge(run)?.tally ?? null; // Magician: buys toward the hat (R-DUOS-MAGICIAN-01)
     case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null; // Cassen
     case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi
     // Aevor — kills toward the next +4/+4 step, climbing live via `combatEnemyDeaths`; below 15 it counts to the UNLOCK.
@@ -703,6 +705,12 @@ export function StatusBar() {
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
     !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
     !(power.kind === 'passaria' && !passariaHasTarget(run)); // Priestess: no teammate, or nothing she may pass
+  // MAGICIAN'S MAGIC HAT (owner 2026-11-10, R-DUOS-MAGICIAN-01): a PASSIVE power that still calls out. While the hat is
+  // active in the Shop the panel and the button wear the existing `ready` classes (the READY CALL, as authored) on top of
+  // `passive`, and keep them until the next buy sends the copy. Never in combat (`hat.ready` is Shop only), and never
+  // while this turn's two copies are spent. The same component renders my teammate's view of my board, so they see it too.
+  const hat = magicHatBadge(run);
+  const hatReady = !!hat?.ready && !eotAnimating;
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
@@ -742,7 +750,9 @@ export function StatusBar() {
                 ? `${power.name} · ${run.wave % 4 === 0 ? 'this turn' : `in ${4 - (run.wave % 4)}t`}`
                 : power.kind === 'crownTally'
                   ? `${power.name} · ${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`
-                  : `${power.name} · passive`
+                  : hat
+                    ? `${power.name} · ${hat.status}`
+                    : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked
@@ -805,8 +815,23 @@ export function StatusBar() {
     pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
   }, [run.heroReady, run.heroPowerSpent, run.phase]);
 
+  // MAGICIAN (R-DUOS-MAGICIAN-01): the copy just left (this turn's sent count rose in the Shop): the same activation
+  // burst a used power sprays, so the send is attributed to the hat as well as to the stream from the bought card.
+  const hatSent = hat && run.magicHatSentWave === run.wave ? run.magicHatSent ?? 0 : 0;
+  const prevHatSent = useRef(hatSent);
+  useEffect(() => {
+    const rose = hatSent > prevHatSent.current;
+    prevHatSent.current = hatSent;
+    if (!rose || run.phase !== 'recruit') return;
+    const el = document.querySelector('.heropowerbtn');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
+  }, [hatSent, run.phase]);
+
   const [refreshFlash, setRefreshFlash] = useState(false);
-  const flashSignal = canHero && run.phase === 'recruit';
+  // (`hatReady`: the Magic Hat turning active blooms once, exactly as a power coming back up does.)
+  const flashSignal = (canHero || hatReady) && run.phase === 'recruit';
   const prevFlashSignal = useRef(false);
   const flashTimerRef = useRef<number | undefined>(undefined);   // see below — must outlive the effect
   useEffect(() => {
@@ -956,13 +981,14 @@ export function StatusBar() {
             (dimmed, no glow, not clickable). The button keeps the `.heropowerbtn` class so Recruit's aim line
             still anchors to it. Clicking the frame does nothing — this button is the ONLY trigger. */}
         <div
-          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${hatReady ? ' ready' : ''}`}
+          data-hat={hat ? (hat.active ? 'active' : hat.capped ? 'capped' : 'counting') : undefined}
         >
           <div className="hpwrap">
             <button
               ref={powerBtnRef}
               type="button"
-              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
+              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${hatReady ? ' ready' : ''}${committed ? ' committed' : ''}`}
               data-spec="heropower" // the spectator cursor / hover anchor (versus/cursorSpace.ts)
               disabled={isPassive || (!canHero && !heroArmed)}
               // The forge rune this slot wears (R-RUNESLOT-01): it has no rack badge, so the rune FX anchors

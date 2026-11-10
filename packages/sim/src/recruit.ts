@@ -9,6 +9,7 @@ import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
+import { magicHatView } from './magicHat';
 import { duosCatchFromMate, duosListen, duosOnGild, duosOnPassed, duosOnSoldHandMeDowns, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -1372,6 +1373,16 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
+  if (power.kind === 'magicHat') {
+    // Magician (R-DUOS-MAGICIAN-01): the live count toward the hat, a plain ACTIVE state when the next buy is copied,
+    // and the copies left this turn (the per-turn cap's "(N left this turn)" convention). All from `magicHatView`,
+    // the read `magicHatBuy` itself gates on, so the text cannot disagree with the buy.
+    const hat = magicHatView(state);
+    const cap = `Twice per turn (**${hat.left}** left this turn).`;
+    if (hat.active) return `Your hat is **active**. The next card you buy, your teammate gets a copy. ${cap}`;
+    const progress = hat.capped ? `**${hat.count}/${hat.need}**, active next turn` : `**${hat.count}/${hat.need}**`;
+    return `After you buy **${hat.need}** cards, your hat activates (${progress}). The next card you buy, your teammate gets a copy. ${cap}`;
+  }
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
     return `Buy **3** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;

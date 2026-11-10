@@ -1427,6 +1427,13 @@ export interface RunState {
   heroGrantRune?: HeroGrantRuneFootprint;
   /** Juggler (Baldgecoin): minions bought toward the next Gold Pouch. Wraps at 3 rather than accumulating. */
   jugglerBuys?: number;
+  /** Magician (Magic Hat, Duos only; R-DUOS-MAGICIAN-01): Shop buys toward the hat, 0..5. Carries across turns and
+   *  stops at 5; the buy that sends the copy puts it back to 0. Read through `magicHatView` (magicHat.ts). */
+  magicHatBuys?: number;
+  /** Magician: copies the hat sent on turn `magicHatSentWave` (at most 2 a turn). A stamp from an earlier turn reads
+   *  0, so nothing has to reset at the turn flip. */
+  magicHatSent?: number;
+  magicHatSentWave?: number;
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when
    *  nothing is armed. Cleared on payout, so it never carries into a second fight. */
   flashPick?: 'first' | 'last';
@@ -2946,7 +2953,7 @@ export type Action =
   /** VERSUS DUOS (R-DUOS-PASS-RESTORE-EFFECT-01): a reload's replay of MY effect pass. The teammate already holds the
    *  minion, so it leaves my board or Shop again; a hero power's pass pays its `paid` and spends the `power` slot. A
    *  minion that is not here (it only existed in the dropped actions) changes nothing. Accepted in any phase. */
-  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; /** A Magic Hat copy (R-DUOS-MAGICIAN-01): nothing leaves; the copy counts against the turn's cap again. */ hat?: true }
   /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what this run last saw of the teammate's board, as minions per tribe of THEIR
    *  run (`mateTribeCounts`). Fed by the client from the teammate's live frame whenever it changes while a card that
    *  reads it is held (Matchmaker); recorded, so a replay reproduces the Shout's pick. Accepted in any phase. */

@@ -56,6 +56,7 @@ export const POWER_FAMILY: Record<HeroPowerKind, ActivationFamily> = {
   sellGold: 'count-threshold',
   displace: 'active',
   passaria: 'active-conditional', // needs a teammate: silent on a run with no Duos state
+  magicHat: 'count-threshold', // Magician: 5 Shop buys arm the hat; the next buy sends the teammate a copy
   grantReborn: 'active',
   recurringGoldcrafter: 'retired',
   greatPresence: 'every-n-turns',
@@ -164,6 +165,7 @@ export const SILENT_QUEUE_VERDICTS: Record<string, SilentVerdict> = {
   membrance: { kind: 'memory', family: 'active-conditional', verdict: 'stager' },
   gildmaster: { kind: 'gildcrafter', family: 'active-conditional', verdict: 'stager' },
   priestess: { kind: 'passaria', family: 'active-conditional', verdict: 'stager' },
+  magician: { kind: 'magicHat', family: 'count-threshold', verdict: 'stager' },
 };
 
 /**

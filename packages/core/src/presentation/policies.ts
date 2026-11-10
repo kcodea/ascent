@@ -1262,6 +1262,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:vale:unitedFront': { policy: 'passive', family: 'passive', flagged: true },
   'hero:quillen:archive': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   'hero:priestess:passaria': { policy: 'ownBeat', family: 'heroPower', flagged: true },
+  // Magician (Duos only, R-DUOS-MAGICIAN-01): the hat's copy is its own beat (the Duos pass stream into the teammate
+  // portrait); the activation is the power's ready call. Heuristic classification, flagged for owner review.
+  'hero:magician:magicHat': { policy: 'ownBeat', family: 'heroPayout', flagged: true },
   'hero:hunch:roundedSpellbook': { policy: 'ownBeat', family: 'heroPower', flagged: true },
   // Heroes batch 2026-08-16 (heuristic classification, flagged for owner review).
   'hero:emeraldwarden:vanguard': { policy: 'passive', family: 'passive', flagged: true },

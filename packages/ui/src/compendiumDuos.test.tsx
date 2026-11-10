@@ -118,10 +118,13 @@ describe('Compendium Duos toggle', () => {
     cat('Heroes');
     const heroes = (): string[] => [...m.container.querySelectorAll('.book-grid.is-heroes .bookhero-name')].map((n) => n.textContent ?? '');
     expect(heroes()).not.toContain('Priestess');
+    expect(heroes()).not.toContain('Magician');
     expect(duosBtn().disabled).toBe(false);
     click(duosBtn());
     expect(heroes()).toContain('Priestess');
-    expect(m.container.querySelectorAll('.book-grid.is-heroes .book-duos-tag').length).toBe(1);
+    expect(heroes()).toContain('Magician'); // R-DUOS-MAGICIAN-01 (2026-11-10)
+    // One tag per Duos-only hero: Priestess and Magician.
+    expect(m.container.querySelectorAll('.book-grid.is-heroes .book-duos-tag').length).toBe(2);
   });
 
   it('Gilded + Duos shows the Duos cards in their Gilded form', () => {

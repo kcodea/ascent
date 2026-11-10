@@ -2559,6 +2559,33 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/ui/src/passariaGold.test.ts"], lastVerifiedAt: '2026-11-04' },
   },
   {
+    id: "R-DUOS-MAGICIAN-01",
+    title: "Magician is Duos only; the Magic Hat copies the card bought after 5 Shop buys to the teammate, twice per turn",
+    statement:
+      "Magician is a `duosOnly` hero with 8 Armor and the passive Magic Hat. Every card bought from the Shop counts one (a "
+      + "minion, a spell, a re-bought displaced minion, a Starform); nothing else does. The count carries across turns and "
+      + "stops at 5, where the hat is active. The next card bought while it is active sends the teammate a copy of that card "
+      + "as it was bought (Golden only if it was) and puts the count back to 0; that buy does not count toward the next 5. At "
+      + "most 2 copies a turn: past the cap buys still count up to 5 but the hat is not active, and a full hat is active at "
+      + "the start of the next turn. The copy rides the pass channel as an effect pass that returns nothing (`via: 'sale'`, "
+      + "`hat`): free, never refused for a full hand, dropped on a room refusal. It is not a pass for any pass watcher on "
+      + "either run. It plays the pass stream on the sender's screen and the pass arrival on the teammate's. The power "
+      + "prints its live count, shows it on its counter badge, and wears the ready call while active in the Shop only. "
+      + "`magicHatView` is the one read for the buy, the text, the badge and the glow.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Create new duos hero: magician - 8 armor, magic hat - when you buy 5 cards, your hat is activated. The next card you buy, your teammate gets a copy of it." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Add a twice per turn max to magician" },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Add a counter for magician and when it activates, the hero power should get an obvious animation / glow that it's going to fire. You can use the hero power ready animation for this" },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Make sure the pass animation fires when this happens too" },
+      { kind: 'code', ref: "packages/sim/src/magicHat.ts magicHatBuy / magicHatView / restoreMagicHatSend; packages/sim/src/reducer.ts the buy branches, receivePass, restoreEffectPass; packages/sim/src/duosPass.ts duosWireOf; packages/ui/src/magicHatUi.ts; packages/ui/src/versus/passLob.ts passFlightOf" },
+    ],
+    currentBehaviour: "Built 2026-11-10.",
+    example: "Ann, as Magician, buys 5 cards over two turns: her hat glows. She buys a Tier 4 minion: she keeps it, and a copy lands in Amy's hand. Her counter reads 0/5.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroMagician.test.ts", "packages/ui/src/magicHat.test.tsx"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
     id: "R-HERO-PICK-CLEAN-01",
     title: "A hero pick leaves nothing behind on screen",
     statement:

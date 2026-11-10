@@ -1,5 +1,12 @@
 import { partyDemoOn, partyHomeOn, partyRoomOn, setPartyDemo, setPartyHome, setPartyRoom } from './partyHome/partyHomeFlag';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  devChatChatterOn, devChatSandboxOn, devChatTeamOn, installDevChatSandbox, setDevChatChatter, setDevChatSandbox, setDevChatTeam, devChatLongDemo,
+} from './lobbyChat/devChatSandbox';
+import { CHAT_BUBBLE_SPEC } from './lobbyChat/chatBubbleConfig';
+import { TunerPanel } from './TunerPanel';
+
+function ChatBubbleTuner(): JSX.Element { return <TunerPanel spec={CHAT_BUBBLE_SPEC} />; }
 import { Icon } from './Icon';
 import { useDevCornerSlot } from './friends/dock/FriendsDock';
 import { createPortal } from 'react-dom';
@@ -204,6 +211,7 @@ const GROUPS: Group[] = [
       { key: 'lobbyraillook', icon: '🎨', label: 'Lobby Rail Look', C: LobbyRailLookTuner, hint: 'Colours, portraits, spacing, corners and the next-foe marker inside the rail', alt: 'lobby rail contents colours portraits next foe' },
       { key: 'scoutcard', icon: '🔎', label: 'Scout Card', C: ScoutCardTuner, hint: 'The hover/pinned opponent scouting report — box, text, portraits, rune sockets, colours', alt: 'opponent scout hover card intel report' },
       { key: 'secondpower', icon: '👥', label: 'Second Power', C: SecondPowerTuner, hint: "Void's second hero-power button — offset + scale", alt: 'void twin power position' },
+      { key: 'chatbubbles', icon: '💭', label: 'Chat Bubbles', C: ChatBubbleTuner, hint: 'The springs on the chat bubbles beside faces: the pop in, the words landing, being pushed down, leaving, and the hopping typing dots. Turn on Chat sandbox + fake chatter to watch them', alt: 'chat bubble speech spring bounce pop typing dots hop squash stretch wobble' },
       { key: 'boardedge', icon: '🌫️', label: 'Board Edge', C: BoardEdgeTuner, hint: 'The colour the board fades into on an ultrawide (wider than 16:9) window', alt: 'ultrawide margin side blend' },
       { key: 'modepick', icon: '🎛️', label: 'Play Mode Screen', C: ModePickTuner, hint: 'The MODE picker — pan and zoom the art inside each mode tile', alt: 'play screen mode picker' },
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
@@ -387,6 +395,7 @@ export function DevMenu() {
   const [cursor, setCursor] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => installDevChatSandbox(), []);
 
   const toggle = (key: string): void =>
     setShown((s) => {
@@ -426,6 +435,18 @@ export function DevMenu() {
     { id: 'partyroom', icon: '⚔️', label: 'Party home: sample room',
       hint: 'A mocked Versus room on the party home (host, guest, an open seat, spectators, rules, Open rooms). No backend. The mode tabs cycle 1v1, Group, Duos',
       run: () => setPartyRoom(!partyRoomOn()), live: () => partyRoomOn() },
+    { id: 'chatsandbox', icon: '🗨️', label: 'Chat sandbox',
+      hint: 'Lobby chat in any game, Practice included, with no second browser: a pretend chat server on this machine answers the real chat panel. Remembered on this machine',
+      run: () => setDevChatSandbox(!devChatSandboxOn()), live: () => devChatSandboxOn() },
+    { id: 'chatsandboxbots', icon: '🤖', label: 'Chat sandbox: fake chatter',
+      hint: 'Three made-up spectators sit in the stands and chat every few seconds (typing dots, bubbles, emotes, replies to you). Needs Chat sandbox on',
+      run: () => setDevChatChatter(!devChatChatterOn()), live: () => devChatChatterOn() },
+    { id: 'chatsandboxteam', icon: '👫', label: 'Chat sandbox: Team tab',
+      hint: 'Give the sandbox chat a Team tab, as a Duos game has. Needs Chat sandbox on',
+      run: () => setDevChatTeam(!devChatTeamOn()), live: () => devChatTeamOn() },
+    { id: 'chatsandboxlong', icon: '📜', label: 'Chat sandbox: long message',
+      hint: 'The top spectator sends a long three-bubble message and the one under them answers while it is up: watch the rows slide down to make room. Turns Chat sandbox on if it is off (in a game)',
+      run: () => devChatLongDemo() },
     { id: 'testfx', icon: '✨', label: 'Test FX', hint: 'Fire the spell-power flourish once on the board', run: () => pixiFx.test() },
     { id: 'testcrit', icon: '⚡', label: 'Test Crit', hint: 'Fire the critical-strike flourish once', run: () => pixiFx.testCrit() },
     { id: 'testflurry', icon: '🌬️', label: 'Test Flurry', hint: 'Fire the flurry wind-slash once', run: () => pixiFx.testFlurry() },

@@ -10,12 +10,15 @@
  */
 import { create } from 'zustand';
 import { PLAYER_SEAT } from '../emotes/emoteRuntime';
+import { sfx } from '../sfx';
 
 export type ChatSpeakerRole = 'player' | 'spectator';
 export interface Speech {
   kind: 'typing' | 'text';
   role: ChatSpeakerRole;
   body?: string;
+  /** Who said it, when the key is not their id (the second and third bubble of a long message). */
+  speaker?: string;
 }
 
 /** A typist who goes quiet is cleared after this long (a sender renews well inside it, and a dropped "stopped" ends here). */
@@ -68,7 +71,50 @@ function put(id: string, speech: Speech, ms: number): void {
   if (t != null) window.clearTimeout(t);
   useChatSpeech.setState({ by: { ...useChatSpeech.getState().by, [id]: speech } });
   speechTimers.set(id, window.setTimeout(() => dropSpeech(id), ms));
-  markRailAwake(id, ms + RAIL_AWAKE_TAIL_MS);
+  markRailAwake(speech.speaker ?? id, ms + RAIL_AWAKE_TAIL_MS);
+}
+
+// ── a long message, as more than one bubble (owner 2026-11-09: "i need the long message to appear as two bubbles") ──
+/** One bubble holds about this much (four lines at its widest); a longer message splits into more bubbles. */
+export const CHAT_BUBBLE_PART_CHARS = 80;
+/** At most this many bubbles for one message. */
+export const CHAT_BUBBLE_MAX_PARTS = 3;
+/** Each further bubble pops in this long after the one before it (each with its own pop). */
+export const CHAT_BUBBLE_PART_GAP_MS = 220;
+/** The key of a message's `i`th bubble (the first is the speaker's own id, so their ellipsis turns into it). */
+export const chatPartKey = (id: string, i: number): string => (i === 0 ? id : `${id}~${i}`);
+
+/**
+ * Split `body` into the bubbles it is shown as: one when it fits, else even parts broken at the space nearest each cut
+ * (a word, or an emote's `:token:`, is never broken unless it is longer than a whole bubble). Pure.
+ */
+export function splitChatBody(body: string): string[] {
+  const chars = [...body];
+  if (chars.length <= CHAT_BUBBLE_PART_CHARS) return [body];
+  const parts = Math.min(CHAT_BUBBLE_MAX_PARTS, Math.ceil(chars.length / CHAT_BUBBLE_PART_CHARS));
+  const out: string[] = [];
+  let from = 0;
+  for (let k = 1; k < parts; k++) {
+    const target = Math.round((chars.length * k) / parts);
+    let cut = -1;
+    for (let d = 0; d <= 24 && cut < 0; d++) {
+      if (chars[target - d] === ' ' && target - d > from) cut = target - d;
+      else if (chars[target + d] === ' ') cut = target + d;
+    }
+    if (cut < 0) cut = target;
+    out.push(chars.slice(from, cut).join('').trim());
+    from = cut;
+  }
+  out.push(chars.slice(from).join('').trim());
+  return out.filter(Boolean);
+}
+
+/** The later bubbles of a speaker's last message, still to pop in. */
+const partTimers = new Map<string, number[]>();
+function clearParts(id: string): void {
+  for (const t of partTimers.get(id) ?? []) window.clearTimeout(t);
+  partTimers.delete(id);
+  for (let i = 1; i < CHAT_BUBBLE_MAX_PARTS; i++) dropSpeech(chatPartKey(id, i));
 }
 
 /** `id` started (or kept) typing, or stopped. A said line on show is never replaced by the next ellipsis' end. */
@@ -78,15 +124,34 @@ export function noteChatTyping(id: string, role: ChatSpeakerRole, on: boolean): 
   if (cur?.kind === 'typing') dropSpeech(id);
 }
 
-/** `id` said `body`: it takes the place of their ellipsis. */
-export function noteChatSaid(id: string, role: ChatSpeakerRole, body: string): void {
-  put(id, { kind: 'text', role, body }, chatBubbleMs(body));
+/**
+ * `id` said `body`: it takes the place of their ellipsis. A long one shows as more than one bubble, each popping in a
+ * beat after the last, with its own pop (`mine`: my first pop already played as I sent it). Every bubble of one
+ * message stays as long as the whole message needs to be read.
+ */
+export function noteChatSaid(id: string, role: ChatSpeakerRole, body: string, mine = false): void {
+  clearParts(id);
+  const parts = splitChatBody(body);
+  const ms = Math.min(CHAT_BUBBLE_MAX_MS * parts.length, chatBubbleMs(body) + (parts.length - 1) * 2500);
+  put(id, { kind: 'text', role, body: parts[0] ?? body }, ms);
+  if (!mine) sfx.chatPop();
+  const timers: number[] = [];
+  parts.slice(1).forEach((part, j) => {
+    const i = j + 1;
+    timers.push(window.setTimeout(() => {
+      put(chatPartKey(id, i), { kind: 'text', role, body: part, speaker: id }, ms - i * CHAT_BUBBLE_PART_GAP_MS);
+      sfx.chatPop();
+    }, i * CHAT_BUBBLE_PART_GAP_MS));
+  });
+  if (timers.length) partTimers.set(id, timers);
 }
 
 /** The game ended or the chat closed: everything goes at once. */
 export function clearChatSpeech(): void {
   for (const t of speechTimers.values()) window.clearTimeout(t);
   for (const t of awakeTimers.values()) window.clearTimeout(t);
+  for (const ts of partTimers.values()) for (const t of ts) window.clearTimeout(t);
+  partTimers.clear();
   speechTimers.clear();
   awakeTimers.clear();
   useChatSpeech.setState({ by: {}, awake: {} });

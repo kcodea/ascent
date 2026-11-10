@@ -35,6 +35,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
+  // The chat message pop (owner 2026-11-09): a starting level, tune by ear on the desk.
+  chatpop: 0.2, // halved (owner 2026-11-09: "reduce the pop sound by 50%")
   runeArrival: 0.6,
   // The Duos teammate-ready ding (owner 2026-11-02: "have this louder than the other two"): its own fader, over the
   // rune arrival it plays with (played at half there) and the thud.
@@ -99,7 +101,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
 /** Which bus each category feeds (seeded default; reassignable live in the desk). */
 export const CATEGORY_BUS: Record<string, BusName> = {
   buy: 'ui', sell: 'ui', consume: 'ui', runeBreak: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', discoverSelect: 'ui', inspect: 'ui',
-  clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui',
+  clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui', chatpop: 'ui',
   cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui', turntick: 'ui', fuseappear: 'ui',
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',
   gemapply: 'combat', skullburst: 'combat', triggerpulse: 'combat', triggerglow: 'combat', buff: 'combat', maxgold: 'combat',

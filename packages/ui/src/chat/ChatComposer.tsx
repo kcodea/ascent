@@ -44,6 +44,10 @@ export interface ChatComposerProps {
   /** The draft changed (R-CHAT-BUBBLE-01: the "is typing" notice). */
   onDraft?: (text: string) => void;
   escape: 'pass' | 'blur';
+  /** The emote button (default on). The lobby chat has it off for now (owner 2026-11-09). */
+  emotes?: boolean;
+  /** Enter with nothing typed (the chat view leaves on it). Without it, an empty Enter does nothing. */
+  onEmptySubmit?: () => void;
   resetKey?: string;
   autoFocus?: boolean;
   className?: string;
@@ -51,7 +55,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({
-  available, placeholder, maxChars, input, filter, reply, onCancelReply, send, onSent, onType, onDraft, escape, resetKey, autoFocus = false, className = '', inputClassName = '',
+  available, placeholder, maxChars, input, filter, reply, onCancelReply, send, onSent, onType, onDraft, escape, emotes = true, onEmptySubmit, resetKey, autoFocus = false, className = '', inputClassName = '',
 }: ChatComposerProps): JSX.Element {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +71,8 @@ export function ChatComposer({
   const submit = (): void => {
     const err = send(text);
     setError(err);
-    if (!err && text.trim()) { setText(''); onSent(); sfx.pulse(); }
+    // The chat pop (owner 2026-11-09), a random pitch each send.
+    if (!err && text.trim()) { setText(''); onSent(); sfx.chatPop(); }
   };
   /** Put an emote's token where I am typing (a space either side when it touches a word). */
   const addEmote = (emote: string): void => {
@@ -108,13 +113,15 @@ export function ChatComposer({
           onChange={(e) => { setText(e.target.value); if (error) setError(null); onType?.(); onDraft?.(e.target.value); }}
           // Typing is not playing: no key reaches the game's shortcuts.
           onKeyDown={(e) => {
+            // Enter on an empty field: the caller's (the chat view closes). The form cannot submit with Send disabled.
+            if (e.key === 'Enter' && onEmptySubmit && !text.trim() && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); onEmptySubmit(); return; }
             if (e.key !== 'Escape') { e.stopPropagation(); return; }
             if (escape === 'blur') { e.stopPropagation(); e.currentTarget.blur(); }
           }}
           onKeyUp={(e) => { if (e.key !== 'Escape' || escape === 'blur') e.stopPropagation(); }} />
         {available && left < 60 && <span className={`dm-count${left < 0 ? ' over' : ''}`} aria-live="polite">{left}</span>}
       </span>
-      {available && <EmoteButton open={picking} onToggle={setPicking} onPick={addEmote} />}
+      {available && emotes && <EmoteButton open={picking} onToggle={setPicking} onPick={addEmote} />}
       {/* Send (R-DM-CHAT-01): Enter does the same. */}
       <button type="submit" className="lb-btn pressable dm-send" disabled={!available || !text.trim()}>Send</button>
       {error && <div className="dm-err dm-formerr" role="alert">{error}</div>}

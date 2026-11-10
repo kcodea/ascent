@@ -7,6 +7,8 @@
  *  - a send shows Sending and is confirmed by the object's echo (same cid); a refusal shows its reason with Retry;
  *  - collapsed, others' messages count as unread (the badge); mine and a muted sender's never do; Mute hides a sender;
  *  - a guest reads only; the Settings switch hides the whole chat; keys typed in the composer never reach the game.
+ * The chat is read in THE CHAT VIEW (owner 2026-11-09: the "Lobby chat" button opens it, as Enter does; the old side
+ * window is gone): `answerSync` opens it, as a player pressing the button would.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -17,13 +19,11 @@ vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unkn
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LobbyChat, type LobbyChatSender } from '@game/versus-cf/lobbyChat';
-import { stageViewport } from '../stage';
 import { useGame } from '../store';
-import { clampGeom } from '../chat/chatGeom';
-import { defaultLobbyChatGeom, LOBBY_CHAT_LIMITS, LobbyChatPanel, lobbyChatPrefs } from './LobbyChatPanel';
+import { LobbyChatPanel } from './LobbyChatPanel';
 import {
   LOBBY_CHAT_ERROR_TEXT, LOBBY_CHAT_GUEST_TEXT, receiveLobbyChatEvent, resyncLobbyChat, retryLobbyChat, sendLobbyChat, setLobbyChatClockForTests, setLobbyChatCompany,
-  setLobbyChatEnabled, setLobbyChatMuted, setLobbyChatOpen, setLobbyChatSession, setLobbyChatTab, useLobbyChat,
+  setLobbyChatEnabled, setLobbyChatFocus, setLobbyChatMuted, setLobbyChatSession, setLobbyChatTab, useLobbyChat,
 } from './lobbyChatStore';
 
 const ME = '00000000-0000-4000-8000-000000000001';
@@ -38,15 +38,21 @@ const install = (me = ME): void => {
   sent = [];
   setLobbyChatSession('test', { send: (event, payload) => sent.push({ event, payload }), gameKey: `g:${Math.random()}`, me });
 };
-const answerSync = (who = ME): void => { act(() => { receiveLobbyChatEvent('lobby_chat_sync', JSON.parse(JSON.stringify(server.sync(senders[who]!)))); }); };
+const answerSync = (who = ME, open = true): void => {
+  act(() => { receiveLobbyChatEvent('lobby_chat_sync', JSON.parse(JSON.stringify(server.sync(senders[who]!)))); });
+  if (open) act(() => setLobbyChatFocus(true));
+};
+/** Open or leave the chat view, as the button / Escape do. */
+const view = (open: boolean): void => { act(() => setLobbyChatFocus(open)); };
 const deliver = (from: string, body: string, cid?: string, now = T0): void => {
   const r = server.post(senders[from]!, { body, cid }, now);
   act(() => { receiveLobbyChatEvent(r.ok ? 'lobby_chat' : 'lobby_chat_refused', r.ok ? JSON.parse(JSON.stringify(r.msg)) : { cid: r.cid, reason: r.reason }); });
 };
 
 let m: Mounted | null = null;
-const text = (): string => m?.container.textContent ?? '';
-const q = (sel: string): HTMLElement | null => m?.container.querySelector(sel) ?? null;
+// The view is portalled into the stage, outside the mount: read the whole document.
+const text = (): string => document.body.textContent ?? '';
+const q = (sel: string): HTMLElement | null => document.querySelector(sel);
 
 beforeEach(() => {
   server = new LobbyChat();
@@ -57,11 +63,11 @@ beforeEach(() => {
   setLobbyChatClockForTests(() => T0);
   useGame.setState({ showTitle: false }); // a game is on screen (R-LOBBY-CHAT-CLOSE-01)
   setLobbyChatEnabled(true);
-  setLobbyChatOpen(true);
   install();
   m = mount(<LobbyChatPanel />);
 });
 afterEach(() => {
+  act(() => setLobbyChatFocus(false));
   m?.unmount();
   m = null;
   setLobbyChatSession('test', null);
@@ -72,11 +78,10 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
   it('appears only once the object answers the sync; an older Worker\'s relayed request is not an answer', () => {
     expect(sent[0]).toEqual({ event: 'lobby_chat_sync', payload: {} });
     act(() => { receiveLobbyChatEvent('lobby_chat_sync', {}); });
-    expect(q('.lchat')).toBeNull();
+    expect(q('.cview')).toBeNull();
     deliver(ANN, 'early');
     answerSync();
-    expect(q('.lchat')).not.toBeNull();
-    expect(text()).toContain('Lobby chat');
+    expect(q('.cview')).not.toBeNull();
     expect(text()).toContain('Ann');
     expect(text()).toContain('early');
   });
@@ -84,9 +89,9 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
   it('a lone player with nobody watching sees no panel', () => {
     answerSync();
     act(() => setLobbyChatCompany(false));
-    expect(q('.lchat')).toBeNull();
+    expect(q('.cview')).toBeNull();
     act(() => setLobbyChatCompany(true));
-    expect(q('.lchat')).not.toBeNull();
+    expect(q('.lchat-pill')).not.toBeNull(); // company again: the button returns
   });
 
   it('a send shows Sending, then the echo confirms it; a refusal shows its reason and Retry sends again', () => {
@@ -117,10 +122,10 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
     expect(errs[5]).toBe(LOBBY_CHAT_ERROR_TEXT.rate);
   });
 
-  it('collapsed: others\' messages count (the badge); mine and a muted sender\'s never; opening clears it', () => {
+  it('closed: others\' messages count (the button\'s badge); mine and a muted sender\'s never; opening clears it', () => {
     answerSync();
-    act(() => setLobbyChatOpen(false));
-    expect(q('.lchat')).toBeNull();
+    view(false);
+    expect(q('.cview')).toBeNull();
     expect(q('.lchat-pill')).not.toBeNull();
     deliver(ANN, 'one');
     deliver(ANN, 'two');
@@ -129,7 +134,8 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
     act(() => setLobbyChatMuted(ANN, true));
     deliver(ANN, 'three', undefined, T0 + 5000);
     expect(useLobbyChat.getState().unread).toBe(2);
-    act(() => setLobbyChatOpen(true));
+    act(() => { q('.lchat-pill')!.click(); }); // the button opens the chat view
+    expect(q('.cview')).not.toBeNull();
     expect(useLobbyChat.getState().unread).toBe(0);
     expect(text()).not.toContain('three'); // muted: hidden on my screen
     expect(text()).toContain('1 muted');
@@ -140,7 +146,7 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
   it('Mute on a message hides that sender', () => {
     answerSync();
     deliver(ANN, 'hello there');
-    const mute = [...m!.container.querySelectorAll('button')].find((b) => b.textContent === 'Mute')!;
+    const mute = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Mute')!;
     act(() => { mute.click(); });
     expect(text()).not.toContain('hello there');
   });
@@ -150,7 +156,7 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
     deliver(ANN, 'hi all');
     answerSync();
     expect(text()).toContain('hi all');
-    const input = q('.lchat-input') as HTMLInputElement;
+    const input = q('.cview-input') as HTMLInputElement;
     expect(input.disabled).toBe(true);
     expect(input.placeholder).toBe(LOBBY_CHAT_GUEST_TEXT);
     expect(sendLobbyChat('x')).toBe(LOBBY_CHAT_GUEST_TEXT);
@@ -159,10 +165,10 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
   it('the Settings switch hides lobby chat entirely', () => {
     answerSync();
     act(() => setLobbyChatEnabled(false));
-    expect(q('.lchat')).toBeNull();
+    expect(q('.cview')).toBeNull();
     expect(q('.lchat-pill')).toBeNull();
     act(() => setLobbyChatEnabled(true));
-    expect(q('.lchat')).not.toBeNull();
+    expect(q('.lchat-pill')).not.toBeNull();
   });
 
   it('keys typed in the composer never reach the game\'s shortcuts', () => {
@@ -170,7 +176,7 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
     const heard: string[] = [];
     const onKey = (e: KeyboardEvent): void => { heard.push(e.key); };
     window.addEventListener('keydown', onKey);
-    const input = q('.lchat-input') as HTMLInputElement;
+    const input = q('.cview-input') as HTMLInputElement;
     act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true })); });
     window.removeEventListener('keydown', onKey);
     expect(heard).toEqual([]);
@@ -194,7 +200,6 @@ describe('lobby chat panel (R-LOBBY-CHAT-01)', () => {
  * of life that dm's have"), from the shared chat parts (`../chat/`).
  */
 describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
-  const LKEY = 'ascent.lobbyChatWindow.v1';
   let visible = true;
   let focused = true;
   const setPage = (v: boolean, f: boolean = v): void => { visible = v; focused = f; };
@@ -205,9 +210,6 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     });
   };
   const click = (el: Element | null): void => { act(() => { (el as HTMLElement).click(); }); };
-  const ptr = (el: Element, kind: string, x: number, y: number): void => {
-    act(() => { el.dispatchEvent(new MouseEvent(kind, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 })); });
-  };
   const post = (from: string, payload: Record<string, unknown>, now = T0): string => {
     const r = server.post(senders[from]!, payload, now);
     if (!r.ok) throw new Error(r.reason);
@@ -218,55 +220,35 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     setPage(true);
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (visible ? 'visible' : 'hidden') });
     vi.spyOn(document, 'hasFocus').mockImplementation(() => visible && focused);
-    try { localStorage.removeItem(LKEY); } catch { /* */ }
-    lobbyChatPrefs.reset();
   });
   afterEach(() => {
     vi.restoreAllMocks();
-    try { localStorage.removeItem(LKEY); } catch { /* */ }
-    lobbyChatPrefs.reset();
     document.documentElement.removeAttribute('data-touch-ui');
     document.documentElement.removeAttribute('data-touch-small');
   });
 
-  it("uses the DMs' own components: one message row, one composer, one window frame (no copies)", () => {
+  it("uses the DMs' own components: one message row, one composer (no copies)", () => {
     const src = (f: string): string => readFileSync(join(__dirname, f), 'utf8');
     const panel = src('LobbyChatPanel.tsx');
     const dm = src('../friends/dm/DmConversation.tsx');
-    const win = src('../friends/dm/ChatWindow.tsx');
     for (const s of [panel, dm]) {
       expect(s).toMatch(/<ChatRow /);
       expect(s).toMatch(/<ChatComposer /);
       expect(s).not.toMatch(/function (Composer|EmoteButton)\(/);
       expect(s).not.toMatch(/className="dm-bubble/);
     }
-    for (const s of [panel, win]) {
-      expect(s).toMatch(/<ChatFrame /);
-      expect(s).toMatch(/<ChatPinButton /);
-      expect(s).not.toMatch(/setPointerCapture/);
-    }
   });
 
-  it('emotes: the picker drops a token where I type; it sends, and shows inline (bigger alone)', () => {
+  it('emotes: no emote button for now (owner 2026-11-09); a typed code sends and shows inline (bigger alone)', () => {
     answerSync();
-    const input = q('.lchat-input') as HTMLInputElement;
-    type(input, 'gg');
-    click(q('.lchat .dm-emotebtn'));
-    expect(q('.lchat .dm-emotes[role="menu"]')).not.toBeNull();
-    click(q('.lchat .dm-emote-pick[aria-label="Add Hi"]'));
-    expect(input.value).toBe('gg :emote_hi: ');
-    // Escape closes an open picker, and nothing else (no Esc menu underneath).
-    click(q('.lchat .dm-emotebtn'));
-    const esc = vi.fn();
-    window.addEventListener('keydown', esc);
-    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
-    window.removeEventListener('keydown', esc);
-    expect(esc).not.toHaveBeenCalled();
-    expect(q('.lchat .dm-emotes')).toBeNull();
+    expect(q('.cview .dm-emotebtn')).toBeNull();
+    const input = q('.cview-input') as HTMLInputElement;
+    type(input, 'gg :emote_hi:');
     act(() => { (input.form as HTMLFormElement).requestSubmit(); });
     expect(sent.at(-1)!.payload).toMatchObject({ body: 'gg :emote_hi:' });
+    view(true);
     post(ANN, { body: ':emote_good_choice:' });
-    const bubbles = [...m!.container.querySelectorAll('.lchat-msg .dm-bubble')];
+    const bubbles = [...document.querySelectorAll('.lchat-msg .dm-bubble')];
     expect(bubbles[0]!.querySelector('img.dm-emote')?.getAttribute('alt')).toBe('Hi');
     expect(bubbles[0]!.classList.contains('solo')).toBe(false);
     expect(bubbles[1]!.classList.contains('solo')).toBe(true);
@@ -276,14 +258,16 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     answerSync();
     const orig = post(ANN, { body: 'who wants to duo next?' });
     click(q('.lchat-msg.theirs .dm-reply'));
-    expect(q('.lchat .dm-replybar')?.textContent).toContain('Replying to Ann');
-    expect(q('.lchat .dm-replybar')?.textContent).toContain('who wants to duo next?');
-    const input = q('.lchat-input') as HTMLInputElement;
+    expect(q('.cview .dm-replybar')?.textContent).toContain('Replying to Ann');
+    expect(q('.cview .dm-replybar')?.textContent).toContain('who wants to duo next?');
+    const input = q('.cview-input') as HTMLInputElement;
     type(input, 'me!');
     act(() => { (input.form as HTMLFormElement).requestSubmit(); });
     const out = sent.at(-1)!.payload as { cid: string; replyTo?: string };
     expect(out).toMatchObject({ body: 'me!', replyTo: orig });
-    expect(q('.lchat .dm-replybar')).toBeNull();
+    expect(q('.cview')).toBeNull(); // the send closed the view
+    view(true);
+    expect(q('.cview .dm-replybar')).toBeNull();
     // Shown with its quote while it sends, then the object's echo (with the object's own quote) confirms it.
     expect(q('.lchat-msg.mine .dm-quote')?.textContent).toContain('Ann');
     post(ME, { cid: out.cid, body: 'me!', replyTo: orig });
@@ -297,20 +281,18 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     expect('replyTo' in (sent.at(-1)!.payload as object)).toBe(false);
     // Someone else answering me reads "You" on the quote.
     post(ANN, { body: 'nice', replyTo: useLobbyChat.getState().msgs.find((x) => x.body === 'me!')!.id }, T0 + 2000);
-    expect([...m!.container.querySelectorAll('.lchat-msg.theirs .dm-quote-name')].at(-1)?.textContent).toBe('You');
+    expect([...document.querySelectorAll('.lchat-msg.theirs .dm-quote-name')].at(-1)?.textContent).toBe('You');
   });
 
-  it('read when seen: open but away counts; coming back, a press in the panel, or typing clears it', () => {
+  it('read when seen: open but away counts; coming back, a press in the view, or typing clears it', () => {
     answerSync();
     setPage(false);
     post(ANN, { body: 'one' });
     post(ANN, { body: 'two' });
     expect(useLobbyChat.getState().unread).toBe(2);
-    expect(q('.lchat-unread')?.textContent).toBe('2');
     setPage(true);
     act(() => { document.dispatchEvent(new Event('visibilitychange')); });
     expect(useLobbyChat.getState().unread).toBe(0);
-    expect(q('.lchat-unread')).toBeNull();
     // Open and in front of me: never unread.
     post(ANN, { body: 'three' });
     expect(useLobbyChat.getState().unread).toBe(0);
@@ -319,13 +301,13 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     post(ANN, { body: 'four' });
     expect(useLobbyChat.getState().unread).toBe(1);
     setPage(true, true);
-    act(() => { q('.lchat-list')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    act(() => { q('.cview-list')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
     expect(useLobbyChat.getState().unread).toBe(0);
     setPage(true, false);
     post(ANN, { body: 'five' });
     expect(useLobbyChat.getState().unread).toBe(1);
     setPage(true, true);
-    type(q('.lchat-input') as HTMLInputElement, 'h');
+    type(q('.cview-input') as HTMLInputElement, 'h');
     expect(useLobbyChat.getState().unread).toBe(0);
   });
 
@@ -337,7 +319,7 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     const cid = (sent.at(-1)!.payload as { cid: string }).cid;
     server.post(senders[ANN]!, { body: 'missed one' }, T0 + 100);
     server.post(senders[ME]!, { cid, body: 'mine while down' }, T0 + 200);
-    act(() => setLobbyChatOpen(false));
+    view(false);
     act(() => resyncLobbyChat());
     expect(sent.at(-1)).toEqual({ event: 'lobby_chat_sync', payload: { since: a } });
     const answer = server.sync(senders[ME]!, sent.at(-1)!.payload);
@@ -349,85 +331,6 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
     expect(st.msgs.map((x) => x.body)).toEqual(['before the drop', 'missed one', 'mine while down']);
     expect(st.msgs.every((x) => !x.state)).toBe(true);
     expect(st.unread).toBe(1); // Ann's, while collapsed; mine never counts
-  });
-
-  it('the panel moves by its header, resizes from its grips and keeps its own place; pinned by default', () => {
-    answerSync();
-    const view = stageViewport();
-    const frame = (): HTMLElement => q('.lchat-at')!;
-    const vars = (): { x: number; y: number; w: number; h: number } => {
-      const st = frame().style;
-      return { x: parseFloat(st.getPropertyValue('--dmx')), y: parseFloat(st.getPropertyValue('--dmy')), w: parseFloat(st.getPropertyValue('--dmw')), h: parseFloat(st.getPropertyValue('--dmh')) };
-    };
-    expect(vars()).toEqual(clampGeom(defaultLobbyChatGeom(view.w, view.h), view.w, view.h, LOBBY_CHAT_LIMITS));
-    expect(vars().x).toBe(12); // today's place: the left edge
-    expect(frame().classList.contains('pinned')).toBe(true);
-    expect(m!.container.querySelectorAll('.lchat-at > .dmchat-rs')).toHaveLength(8);
-    const start = vars();
-    const head = q('.lchat-head')!;
-    ptr(head, 'pointerdown', 50, 300);
-    ptr(head, 'pointermove', 150, 260);
-    expect(frame().classList.contains('moving')).toBe(true);
-    ptr(head, 'pointerup', 150, 260);
-    expect(lobbyChatPrefs.use.getState().geom).toMatchObject({ x: start.x + 100, y: start.y - 40 });
-    expect(JSON.parse(localStorage.getItem(LKEY)!)).toMatchObject({ geom: { x: start.x + 100 }, pinned: true });
-    // Its own key: the DM window's place is not touched.
-    expect(localStorage.getItem('ascent.chatWindow.v1')).toBeNull();
-    const grip = q('.lchat-at > .dmchat-rs-se')!;
-    ptr(grip, 'pointerdown', 400, 600);
-    ptr(grip, 'pointermove', 460, 640);
-    ptr(grip, 'pointerup', 460, 640);
-    expect(vars()).toMatchObject({ w: start.w + 60, h: start.h + 40 });
-    // Typing never starts a drag.
-    const input = q('.lchat-input')!;
-    ptr(input, 'pointerdown', 100, 100);
-    ptr(input, 'pointermove', 300, 300);
-    expect(frame().classList.contains('moving')).toBe(false);
-    ptr(input, 'pointerup', 300, 300);
-  });
-
-  it('unpinned, a press outside folds it to the button (the press still reaches the game); pinned, it stays', () => {
-    // The last test's drag release armed swallowNextClick (eats the next click within 700 ms): spend it.
-    act(() => { document.body.click(); });
-    answerSync();
-    const board = document.createElement('button');
-    const pressed = vi.fn();
-    board.addEventListener('pointerdown', pressed);
-    document.body.appendChild(board);
-    act(() => { board.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(q('.lchat')).not.toBeNull(); // pinned (the default): stays
-    click(q('.lchat-pin'));
-    expect(q('.lchat-pin')?.getAttribute('aria-pressed')).toBe('false');
-    expect(q('.lchat-pin')?.getAttribute('aria-label')).toBe('Pin the lobby chat open while you play');
-    act(() => { q('.lchat-list')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(q('.lchat')).not.toBeNull(); // inside: stays
-    act(() => { board.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
-    expect(q('.lchat')).toBeNull();
-    expect(q('.lchat-pill')).not.toBeNull();
-    expect(pressed).toHaveBeenCalledTimes(2);
-    board.remove();
-    expect(JSON.parse(localStorage.getItem(LKEY)!)).toMatchObject({ pinned: false });
-  });
-
-  it('a phone keeps the compact panel: no grips, no pin, no move; emotes and replies still work', () => {
-    m?.unmount();
-    document.documentElement.setAttribute('data-touch-ui', '');
-    document.documentElement.setAttribute('data-touch-small', '');
-    install();
-    m = mount(<LobbyChatPanel />);
-    answerSync();
-    post(ANN, { body: 'hi phone' });
-    expect(q('.lchat-at.phone')).not.toBeNull();
-    expect(q('.dmchat-rs')).toBeNull();
-    expect(q('.dmchat-ghost')).toBeNull();
-    expect(q('.lchat-pin')).toBeNull();
-    ptr(q('.lchat-head')!, 'pointerdown', 50, 300);
-    ptr(q('.lchat-head')!, 'pointermove', 250, 300);
-    expect(q('.lchat-at')!.classList.contains('moving')).toBe(false);
-    expect(q('.lchat .dm-emotebtn')).not.toBeNull();
-    click(q('.lchat-msg.theirs .dm-reply'));
-    expect(q('.lchat .dm-replybar')?.textContent).toContain('Replying to Ann');
-    expect(document.body.querySelector('[title]')).toBeNull();
   });
 
   it('chat emotes are 20% larger (owner 2026-10-30) and a line with one keeps the line height (R-CHAT-EMOTE-SIZE-01)', () => {
@@ -446,10 +349,10 @@ describe('lobby chat quality of life (R-LOBBY-CHAT-02)', () => {
 describe('lobby chat closes when the game ends (R-LOBBY-CHAT-CLOSE-01)', () => {
   it('shows only while a game is on screen: the title / menus (a Versus room between matches) never show it', () => {
     answerSync();
-    expect(q('.lchat')).not.toBeNull();
+    expect(q('.cview')).not.toBeNull();
     act(() => { useGame.setState({ showTitle: true }); });
-    expect(q('.lchat')).toBeNull();
-    act(() => setLobbyChatOpen(false));
+    expect(q('.cview')).toBeNull();
+    expect(useLobbyChat.getState().focus).toBe(false);
     expect(q('.lchat-pill')).toBeNull(); // the collapsed button too: nothing lingers on the menu
     act(() => { useGame.setState({ showTitle: false }); });
     expect(q('.lchat-pill')).not.toBeNull();
@@ -460,7 +363,7 @@ describe('lobby chat closes when the game ends (R-LOBBY-CHAT-CLOSE-01)', () => {
     deliver(ANN, 'gg');
     act(() => setLobbyChatSession('test', null));
     expect(useLobbyChat.getState()).toMatchObject({ gameKey: null, available: false, msgs: [], teamMsgs: [], team: false });
-    expect(q('.lchat')).toBeNull();
+    expect(q('.cview')).toBeNull();
   });
 });
 
@@ -485,14 +388,13 @@ describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
     senders[ME] = { userId: ME, role: 'player', name: 'Claudebot1', guest: false };
     senders[MATE] = { userId: MATE, role: 'player', name: 'Mate', guest: false };
   });
-  const tabs = (): string[] => [...(m?.container.querySelectorAll('.lchat-tabs [role="tab"]') ?? [])].map((t) => t.textContent ?? '');
-  const tab = (label: string): HTMLElement => [...m!.container.querySelectorAll<HTMLElement>('.lchat-tabs [role="tab"]')].find((t) => t.textContent?.startsWith(label))!;
+  const tabs = (): string[] => [...(document.querySelectorAll('.lchat-tabs [role="tab"]') ?? [])].map((t) => t.textContent ?? '');
+  const tab = (label: string): HTMLElement => [...document.querySelectorAll<HTMLElement>('.lchat-tabs [role="tab"]')].find((t) => t.textContent?.startsWith(label))!;
 
   it('no Team tab unless the object says I hold a team seat (a spectator, a solo mode, an older Worker)', () => {
     answerSync();
     expect(q('.lchat-tabs')).toBeNull();
     expect(sent.some((s) => (s.payload as { channel?: string }).channel === 'team')).toBe(false);
-    expect(text()).toContain('Lobby chat');
     // A team message that reaches a non-member anyway is never shown.
     teamPost(MATE, 'secret');
     expect(text()).not.toContain('secret');
@@ -500,6 +402,7 @@ describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
 
   it('a teammate: the lobby answer says team, the team backlog is asked, then Lobby and Team tabs show', () => {
     lobbyTeamSync();
+    view(true);
     expect(sent.at(-1)).toEqual({ event: 'lobby_chat_sync', payload: { channel: 'team' } });
     expect(q('.lchat-tabs')).toBeNull(); // not until the team answer arrives
     teamSync();
@@ -510,9 +413,10 @@ describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
   it('a send on the Team tab goes out as team; the lists stay apart; each tab counts its own unread', () => {
     lobbyTeamSync();
     teamSync();
+    view(true);
     act(() => setLobbyChatTab('team'));
     expect(tab('Team').getAttribute('aria-selected')).toBe('true');
-    expect((q('.lchat-input') as HTMLInputElement).placeholder).toBe('Message your team');
+    expect((q('.cview-input') as HTMLInputElement).placeholder).toBe('Message your team');
     act(() => { expect(sendLobbyChat('push left')).toBeNull(); });
     expect(sent.at(-1)).toMatchObject({ event: 'lobby_chat', payload: { body: 'push left', channel: 'team' } });
     const cid = (sent.at(-1)!.payload as { cid: string }).cid;
@@ -530,12 +434,12 @@ describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
     teamPost(MATE, 'ok');
     expect(useLobbyChat.getState().teamUnread).toBe(1);
     expect(tab('Team').textContent).toBe('Team1');
-    // Collapsed, the button adds both up.
-    act(() => setLobbyChatOpen(false));
+    // Closed, the button adds both up.
+    view(false);
     deliver(ANN, 'two');
     expect(q('.lchat-pill')?.textContent).toContain('2');
     // A lobby send stays a lobby send (no channel on the wire).
-    act(() => setLobbyChatOpen(true));
+    view(true);
     act(() => { sendLobbyChat('to all', null, 'lobby'); });
     expect('channel' in (sent.at(-1)!.payload as object)).toBe(false);
   });
@@ -544,6 +448,7 @@ describe('team chat (R-LOBBY-CHAT-TEAM-01)', () => {
     lobbyTeamSync();
     teamPost(MATE, 'old match');
     teamSync();
+    view(true);
     expect(useLobbyChat.getState().teamMsgs.map((x) => x.body)).toEqual(['old match']);
     act(() => setLobbyChatTab('team'));
     act(() => { sendLobbyChat('hey'); });

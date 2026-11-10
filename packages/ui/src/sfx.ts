@@ -684,6 +684,9 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   onNodes?.({ src, gain: g });
   return true;
 }
+/** The chat pop's pitch shifts, in semitones (subtle: a few steps either side of the clip's own pitch). */
+const CHAT_POP_SEMITONES = [-3, -2, -1, 0, 1, 2, 3] as const;
+let lastChatPopSemi: number | null = null;
 interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 /** The Good Luck intro's spark clip (an FX-workbench import, also the Stellar Lens sparkle). */
 const GOOD_LUCK_SPARK_CLIP = 'fx/djartmusic-christmas-sparkle-whoosh-1-275404';
@@ -2100,6 +2103,16 @@ export const sfx = {
     if (playSample(clipId, cat, delay / 1000)) return;
     tone({ freq: 520, dur: 0.18, type: 'sine', vol: 0.1, slideTo: 300, category: cat });
   },
+  // A CHAT MESSAGE pops in (owner 2026-11-09: the floraphonic "happy pop", trimmed to its 0.1 s, "randomize its pitch's
+  // semitones, so multiple at once will have subtly different pops"): a random whole-semitone shift each play, never the
+  // same shift twice running. A long lobby message pops once per bubble it shows as (`chatSpeech.noteChatSaid`). No
+  // synth fallback: a missing clip is silent.
+  chatPop: () => {
+    let semi = CHAT_POP_SEMITONES[Math.floor(Math.random() * CHAT_POP_SEMITONES.length)]!;
+    if (semi === lastChatPopSemi) semi = CHAT_POP_SEMITONES[(CHAT_POP_SEMITONES.indexOf(semi) + 1) % CHAT_POP_SEMITONES.length]!;
+    lastChatPopSemi = semi;
+    playSample('chatpop', 'chatpop', 0, (n) => { n.src.playbackRate.value = 2 ** (semi / 12); });
+  },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
     if (playSample('pulse', 'pulse')) return;
@@ -2413,7 +2426,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
-  uihover: sfx.uiHover,
+  uihover: sfx.uiHover, chatpop: sfx.chatPop,
   // Equipment — each preview plays the clip its fader actually governs.
   eqEquipClang: () => sfx.equipClang(),
   eqSelect: () => sfx.equipmentSelect(),

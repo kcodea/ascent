@@ -25,6 +25,8 @@ const IRREGULAR_CLIP_CATEGORY: Record<string, string> = {
   undeadaurabuff: 'buff', spirittendril: 'buff',
   // The owner's `GambleSFX.mp3` → its own 1:1 `gamble` fader (the die launching, power and spell alike).
   gamblesfx: 'gamble',
+  // The Ruby landing (owner 2026-11-10): three layers played together under the one `gemapply` fader.
+  rubybreak: 'gemapply', rubytone: 'gemapply', rubyding: 'gemapply',
   // The post-game rank screen's four cues share the `rank` fader (no clips committed yet — synth fallbacks).
   rankprogress: 'rank', rankgate: 'rank', rankpromote: 'rank', rankmedal: 'rank',
   // The final-countdown ticks (owner 2026-10-07): one recorded tick per second, FIVE to ONE, on the `turntick` fader.
@@ -76,4 +78,5 @@ export const CLIP_LABEL: Record<string, string> = {
   wipecrank: 'Falling gate — crank', wipegears: 'Falling gate — crank: gears', wipegroan: 'Falling gate — crank: metal groan',
   undeadaurabuff: 'Buff — Undead Aura surge', spirittendril: 'Buff — Spirit tendril hit',
   gamblesfx: 'Gamble — die roll',
+  rubybreak: 'Ruby — break', rubytone: 'Ruby — tone', rubyding: 'Ruby — ding',
 };

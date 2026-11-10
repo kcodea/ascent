@@ -14985,4 +14985,53 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'You hold Tab to look at the board of Bob. On the rail, "You" is still on your plate, next to his.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailMateReady.test.tsx'], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: 'R-RUBY-SFX-01',
+    title: 'A Ruby landing makes one layered sound with echo and a varied pitch',
+    statement:
+      'When a Ruby gem lands on a minion it plays its layered landing sound (break, tone and ding together, each on its own mixer channel under the gem group), '
+      + 'sent through a reverb and pitched a little differently each time, never twice in a row at the same pitch.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, replacing the ruby apply sound', quote: 'we will want to toy with the levels here' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'can we apply a satisfying echoey reverb to the new sound effect? can we also have the sounds semitones randomized' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'change the reverb to a 29% wet mix. lets VERY SLIGHTLY reduce the pitch spread too' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/sfx.ts (gemApply: rubybreak/rubytone/rubyding, RUBY_REVERB_MIX 0.29, RUBY_PITCH_RANGE 1.75), audio/clipFamily.ts, audio/config.ts (gemapply 0.245)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, one gemapply.mp3 clip played at a fixed pitch with no reverb. '
+      + 'PARTIAL pin: the test below pins the Ward timing around the landing sound, not the layers, reverb or pitch, which live only in sfx.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyWardSound.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RUBY-SFX-02',
+    title: 'A Ward a Ruby grants sounds just after the gem lands',
+    statement:
+      'When a Ruby grants Ward as it lands, the Ward sound plays a short beat after the gem\x27s landing sound, so both are heard. '
+      + 'A Ward gained any other way still sounds at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, Warding Ruby on a Kobold', quote: 'the ward sound effect didnt play alongside the ruby apply sound' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, asked whether to play the Ward a beat after the gem', quote: 'Yes, offset it' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/store.ts (actionSfx delays sfx.shield by RUBY_WARD_SOUND_DELAY_MS on a Ruby play)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, the Ward sound fired on the same instant as the gem and was buried under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyWardSound.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RUBY-FX-01',
+    title: 'A Ruby cast plays no generic spell burst',
+    statement:
+      'Casting any Ruby on a minion in the shop plays only the Ruby\x27s own gem landing, never the generic shop spell-cast burst on its target.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'the spell burst effect from targeting a unit with a shop spell is casting on playing ruby spells, can we remove it for all ruby target spells' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/Recruit.tsx (cast presenter returns early for a ruby card)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, every Ruby also played spell-sparks on its target, on top of its gem landing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyNoCastBurst.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

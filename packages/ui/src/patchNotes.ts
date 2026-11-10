@@ -57,6 +57,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-10',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Rubies have a new landing: the gem shatters into shards with a new ringing sound, and a Ruby no longer also plays the shop spell burst.',
+        details: [
+          'The Ruby landing sound is new, with a short echo, and its pitch varies a little each time.',
+          'A Ruby that gives Ward (Warding Ruby on a Kobold) now plays the Ward sound just after the gem, so you hear both.',
+          'Ruby, Warding, Golden, Splintered, Ripple and Dark Ruby no longer play the generic spell burst on their target.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-11-10',
     label: 'Duos fixes',
     changes: [
       {

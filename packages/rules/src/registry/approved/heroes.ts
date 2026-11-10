@@ -3793,4 +3793,186 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: "R-ANCDUOS-01",
+    title: "Ancients in a Duos game: built behind a dev seam, off for players; what crosses to the teammate rides the pass",
+    statement:
+      "Priestess and Magician have all six Ancient pairings, and a Duos run can carry `ancients`, but ONLY through `createVersusRun`'s `dev.ancients` argument, which the UI passes on a DEV server or a bench bundle alone (`versusDevAncients`, a static build check, then a local storage key). No player build, room option, URL or setting turns Ancients on in Versus or Ranked Duos, and the seam is not on the wire: the room and the Worker never hear of it. A Duos run without `ancients` plays byte for byte as before. Everything a pairing gives the TEAMMATE travels on the passed card itself (`passBonds`, `passCopies`), so it lands exactly when and only when the card is received, once per pass key, through the room's existing pass rules (team only, one row per seq, refused when the teammate is away). Nothing new is asked of the Worker. A pass that comes back takes back what it gave the sender's card (Death's Rise, Genesis' copy). The combat halves ride the locked side's `questMods`, read per side.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "just build them so they work. we arent turning ancients on just yet, but build it out" },
+      { kind: 'code', ref: "packages/sim/src/versus/run.ts createVersusRun (dev.ancients); packages/ui/src/versus/versusDevAncients.ts; packages/sim/src/duosPass.ts duosWireOf / receiveDuosPass / refundDuosPass; packages/sim/src/ancients.ts (the DUOS HEROES block)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts", "packages/sim/src/ancientsMagician.test.ts", "workers/versus/test/ancientsDuos.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-01",
+    title: "Priestess × Ancient of Death: a passed minion with an Echo gains Rise",
+    statement:
+      "With the Ancient of Death, every pass the Priestess makes (Passaria, an ordinary hand pass, a pass spell, a sold minion a rune passes) of a minion that has an Echo gives that minion Rise, permanently, on the card the teammate receives. A minion with no Echo, or one that already has Rise, is unchanged. A pass that comes back returns the minion without the Rise.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Death: Passing a minion with an Echo grants it Rise." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnPassMade; packages/sim/src/duosPass.ts refundDuosPass (ancRise)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts", "workers/versus/test/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-02",
+    title: "Priestess × Ancient of Fortune: Passaria costs 0 Gold",
+    statement:
+      "With the Ancient of Fortune, Passaria costs 0 Gold (the pairing's hero-power shape). It is still once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Fortune: Passaria costs 0 Gold." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.priestess.fortune (power.cost)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-03",
+    title: "Priestess × Ancient of War: Start of Combat, +2/+2 to your minions per card you passed this turn",
+    statement:
+      "With the Ancient of War, at Start of Combat every living friendly minion gains +2/+2 for each card the Priestess passed this turn, for that combat. Cards passed are the passes SHE made this turn of every kind (Passaria, the hand pass, a pass spell, a sold minion a rune passed); a pass that came back, a team effect and her teammate's passes do not count. The total is fixed when her side locks and is printed live on the power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "War: Start of Combat: Give your minions +2/+2 for each card passed this turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientPassesThisTurn / duosCombatMods (ancientSocBuffAll)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-04",
+    title: "Priestess × Ancient of Genesis: Passaria costs 4 Gold and also gets you a plain copy",
+    statement:
+      "With the Ancient of Genesis, Passaria costs 4 Gold, and each Passaria pass also puts a plain copy of the passed minion (the printed card, never Gilded) in the Priestess' hand. A full hand gets no copy. Only Passaria does this, not other passes. A pass that comes back takes the copy out of her hand again while it is still there, with the 4 Gold and the charge returned.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Genesis: Passaria also gets you a plain copy of the minion you Pass but costs 4g." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnPassMade (copyUid); packages/sim/src/duosPass.ts refundDuosPass" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-05",
+    title: "Priestess × Ancient of Time: Passaria can be used twice each turn",
+    statement:
+      "With the Ancient of Time, Passaria has two uses each turn, each paid for. The power prints the uses left. A pass that comes back gives its use back, and a reload's replay of the turn's uses counts each one.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Time: Passaria can be used twice each turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.priestess.time (power.usesPerTurn); packages/sim/src/reducer.ts restoreEffectPass; packages/sim/src/duosPass.ts refundDuosPass" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPRIESTESS-06",
+    title: "Priestess × Ancient of Bonds: every pass gives both left-most minions +4/+4",
+    statement:
+      "With the Ancient of Bonds, every pass the Priestess makes gives her left-most board minion +4/+4 at once (the minion that is left-most after the passed card has left), permanently, and gives her teammate's left-most board minion +4/+4, permanently, the moment the passed card is received by their run. The teammate's half rides the pass (`passBonds`), so it is applied exactly once per pass key: a retry, a second pull or a reload never gives it twice, and it is never given without the card. A side with no board minion gets nothing. A pass the teammate's full hand refuses, or that the room refuses because the teammate is away, gives the teammate nothing; the Priestess keeps her own gain. The amount is the printed pairing at most, whatever a client sends.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Bonds: When you Pass, give your left-most minion and your teammate's left-most minion +4/+4." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnPassMade / ancientReceivePassBonds; packages/sim/src/reducer.ts receivePass" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts", "workers/versus/test/ancientsDuos.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-01",
+    title: "Magician × Ancient of Death: a Magic Hat copy of a minion with an Echo gains Rise or Taunt",
+    statement:
+      "With the Ancient of Death, when Magic Hat sends a copy of a minion that has an Echo, the copy gains one of Rise or Taunt, a seeded coin flip off the run's own RNG. A keyword the copy already has is never the one given (with one of them it gains the other; with both, nothing). The Magician's own bought card is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Death: Echo minions passed from Magic Hat gain Rise or Taunt at random." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnHatFired" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-02",
+    title: "Magician × Ancient of Fortune: each Magic Hat trigger takes 4 Gold off the Shop upgrade",
+    statement:
+      "With the Ancient of Fortune, each time Magic Hat triggers (a copy is sent), the Shop upgrade costs 4 Gold less, never below 0. It applies to the upgrade in front of you: tiering up sets the next price fresh, as for any upgrade discount. The power prints the current upgrade price.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Fortune: Triggering Magic Hat reduces your Shop upgrade cost by 4." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnHatTrigger (cutUpgradeCost); packages/sim/src/magicHat.ts magicHatBuy / restoreMagicHatSend" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-03",
+    title: "Magician × Ancient of War: Start of Combat, a minion both teammates have a copy of gains the other copy's stats",
+    statement:
+      "With the Ancient of War, at the opening Start of Combat of a tag-team fight, for every card that both the Magician's board and the teammate's board hold, the left-most copy on each board gains the other copy's Attack and Health (every stat read before any gain), for that combat. A Gilded copy pairs with a plain one. It happens once per fight whoever fights first: the copy on the board that fights first gains it as a combat buff, and the copy on the waiting board steps in that much bigger. A fight with no teammate board does nothing. The two sides are symmetric.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "War: Start of Combat: A minion that both you and your teammate control copies of gain each others stats." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts socRunLevel (ancientMateSwap); packages/sim/src/ancients.ts duosCombatMods" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/core/src/combat/ancientMateSwap.test.ts", "packages/sim/src/ancientsMagician.test.ts", "workers/versus/test/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-04",
+    title: "Magician × Ancient of Genesis: 8 buys; a minion copy arrives Gilded, a spell arrives as 3 copies",
+    statement:
+      "With the Ancient of Genesis, Magic Hat activates after 8 Shop buys instead of 5. A minion copy is sent Gilded (the Magician keeps the card as bought). A spell copy arrives as 3 copies from one pass (`passCopies`): each lands in the teammate's hand while there is room, and the rest wait for room in order. The cap of 2 copies a turn still applies (one trigger is one copy, whatever it sends). The counter, the text and the ready glow all read 8.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Genesis: Magic Hat triggers after 8 buys, but Gilds the minion passed, or grants 3 copies of a spell passed." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientHatShape / ancientOnHatFired; packages/sim/src/magicHat.ts magicHatView; packages/sim/src/duosPass.ts receiveDuosPass (passCopies)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts", "workers/versus/test/ancientsDuos.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-05",
+    title: "Magician × Ancient of Time: Start of Turn, a plain copy of a random card you have passed this game",
+    statement:
+      "With the Ancient of Time, at the start of each turn the Magician gets a plain copy of a random card the Magician has passed this game, on its own Start of Turn beat. The pool is every card the Magician sent: Magic Hat copies and the Magician's own passes, one entry per pass; a pass that came back is not in it. The pick is seeded off the run's RNG. Nothing passed yet, or a full hand: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Time: Start of Turn: Get a random copy of a card you've passed this game." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts duosStartOfTurn / passedCardIds" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMAGICIAN-06",
+    title: "Magician × Ancient of Bonds: Magic Hat has no per-turn cap",
+    statement:
+      "With the Ancient of Bonds, Magic Hat may send any number of copies in a turn: a full hat is always active. The power says so, and the ready glow follows it.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Bonds: Magic Hat has no maximum triggers per turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientHatShape (noCap); packages/sim/src/magicHat.ts magicHatView / restoreMagicHatSend" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
 ];

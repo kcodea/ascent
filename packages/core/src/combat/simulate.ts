@@ -5503,6 +5503,36 @@ export function simulate(
           for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
         }
       }
+      // ANCIENT OF WAR × Magician (Duos only, owner 2026-11-10): "Start of Combat: A minion that both you and your
+      // teammate control copies of gain each others stats." A tag-team fight's OPENING only (the first board is
+      // fighting, its teammate's board is the waiting reserve), whichever of the two carries it, so both copies gain
+      // whoever fights first. For every card both boards hold: the left-most copy on each gains the other's Attack and
+      // Health, every stat read before any gain. The fighting body: a combat buff (`ctx.buff`); the reserve: on its
+      // per-fight locked copy, so it steps in that much bigger (Pep Talk's rule). The run boards never see it.
+      const mateRes = activeMember[scSide] === 0 ? reserveOf[scSide] : undefined;
+      const mateSwap = mateRes ? smods.ancientMateSwap ?? mateRes.state.questMods?.ancientMateSwap : undefined;
+      if (mateRes && mateSwap) {
+        const pairs: { mine: Minion; at: number; mineA: number; mineH: number; mateA: number; mateH: number }[] = [];
+        const seen = new Set<string>();
+        for (const m of boards[scSide]) {
+          if (m.dead || m.health <= 0 || seen.has(m.cardId)) continue;
+          const at = mateRes.board.findIndex((b) => b.cardId === m.cardId);
+          if (at < 0) continue;
+          seen.add(m.cardId);
+          const b = mateRes.board[at]!;
+          pairs.push({ mine: m, at, mineA: Math.max(0, m.attack), mineH: Math.max(0, m.health), mateA: Math.max(0, b.attack), mateH: Math.max(0, b.health) });
+        }
+        if (pairs.length > 0) {
+          nextStep();
+          const board = [...mateRes.board];
+          for (const p of pairs) {
+            ctx.buff(p.mine, p.mateA, p.mateH, mateSwap.label);
+            const b = board[p.at]!;
+            board[p.at] = { ...b, attack: b.attack + p.mineA, health: b.health + p.mineH };
+          }
+          reserveOf[scSide] = { ...mateRes, board };
+        }
+      }
       // ANCIENT OF GENESIS × Gorun (owner 2026-11-10): "Start of Combat: Your two left-most minions gain Ward and Flurry."
       // For that combat (the combat bodies only).
       const swf = smods.ancientSocWardFlurry;

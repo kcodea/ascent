@@ -167,6 +167,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Mimic: its Ancient powers stay on whatever power it wields. Reclaim, Spoils, United Front and Four Peat as extras, a four option Mimicry you press yourself, and a copy of a fallen minion each turn.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Ancients test mode: the two Duos heroes, Priestess and Magician, now have all six Ancient powers written.',
+        details: [
+          'Ancients are not in Versus Duos or Ranked Duos yet. These are built and waiting.',
+          'Priestess: Rise on passed Echo minions, a free Passaria, +2/+2 in combat for each card you passed, a spare copy for 4 Gold, two uses a turn, and +4/+4 for both left-most minions when you pass.',
+          'Magician: Rise or Taunt on Echo copies, a cheaper Shop upgrade per copy, shared minions that trade stats in combat, an 8 buy hat that sends a Gilded minion or 3 spells, a copy of a passed card each turn, and no limit each turn.',
+        ],
+      },
     ],
   },
   {

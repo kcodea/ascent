@@ -17,6 +17,13 @@
  *     (Ancient × hero → text + effect primitives). A hero with no written pairing shows "Not written yet" and
  *     does nothing.
  *
+ * ── The Duos heroes (R-ANCDUOS-01) ────────────────────────────────────────────────────────────────────────────
+ * Priestess and Magician only exist in a Duos game, and Ancients are not on in any Duos game players can reach: a Duos
+ * run carries `ancients` only through `createVersusRun`'s `ancients` option, which the UI passes on a DEV or bench
+ * build alone. Their pairings are written, tested and live-checked behind that seam (see the "DUOS HEROES" block at
+ * the foot of this file). Nothing crosses to the teammate outside the pass channel: what a pairing gives the teammate
+ * rides ON the passed card (`passBonds`, `passCopies`), so it lands exactly once, with the card, under the pass key.
+ *
  * ── Where each primitive fires ────────────────────────────────────────────────────────────────────────────────
  *  · `powerTargetGainsKeywords`   the reducer's `gild` hero-power branch, after the gild (Death: Rebirth + Taunt).
  *  · `powerGivesCopiesInstead`    the same branch, INSTEAD of the gild (Genesis); the branch's `checkTriples`.
@@ -1130,7 +1137,29 @@ export type AncientEffect =
   /** Start of Turn: a plain copy of a minion that died last combat. */
   | { do: 'sotCopyLastCombatDeath' }
   /** Four Peat (Gorr's power) as a passive. */
-  | { do: 'fourPeatPassive' };
+  | { do: 'fourPeatPassive' }
+  // ── Priestess (Passaria; Duos only) ──
+  /** A minion with an Echo you pass gains Rise. */
+  | { do: 'passEchoGainsRise' }
+  /** Start of Combat: your minions gain +a/+h per card you passed this turn. */
+  | { do: 'socBuffPerPass'; attack: number; health: number }
+  /** Passaria also puts a plain copy of the passed minion in your hand. */
+  | { do: 'passariaCopyToHand' }
+  /** Every pass you make: your left-most minion and your teammate's left-most minion gain +a/+h. */
+  | { do: 'passBuffsLeftmosts'; attack: number; health: number }
+  // ── Magician (Magic Hat; Duos only) ──
+  /** A Magic Hat copy of a minion with an Echo gains Rise or Taunt at random. */
+  | { do: 'hatEchoGainsRiseOrTaunt' }
+  /** Each Magic Hat trigger takes `amount` Gold off the Shop upgrade. */
+  | { do: 'hatUpgradeDiscount'; amount: number }
+  /** Start of Combat (tag-team): a minion both teammates hold copies of: each copy gains the other's stats. */
+  | { do: 'socMateCopiesShareStats' }
+  /** Magic Hat needs `buys` buys; a minion copy arrives Gilded, a spell copy arrives as `spellCopies`. */
+  | { do: 'hatGenesis'; buys: number; spellCopies: number }
+  /** Start of Turn: a plain copy of a random card you have passed this game. */
+  | { do: 'sotCopyPassedCard' }
+  /** Magic Hat has no per-turn cap. */
+  | { do: 'hatNoCap' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -2840,6 +2869,92 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'fourPeatPassive' }],
     },
   },
+  // PRIESTESS (Duos only; owner pairings 2026-11-10, quoted above each entry). Passaria (2 Gold, targeted, once per
+  // turn) = "Pass a non-Gilded minion in the Shop or on your board." "A pass" / "a card passed" below is every pass YOU
+  // make: Passaria, the ordinary hand pass, a pass spell (Handout), a sold minion a rune passes. Never a team effect, a
+  // Magic Hat copy, or your teammate's passes.
+  priestess: {
+    death: {
+      // "Passing a minion with an Echo grants it Rise."
+      offerText: 'Passing a minion with an **Echo** gives it **Rise**.',
+      powerText: '{base} A minion with an **Echo** gains **Rise** when you **Pass** it.',
+      effects: [{ do: 'passEchoGainsRise' }],
+    },
+    fortune: {
+      // "Passaria costs 0 Gold." (the `power` override alone)
+      offerText: 'Passaria costs **0** Gold.',
+      powerText: '{base} It costs **0** Gold.',
+      power: { cost: 0 },
+      effects: [],
+    },
+    war: {
+      // "Start of Combat: Give your minions +2/+2 for each card passed this turn." (cards passed BY YOU, owner ruling)
+      offerText: '**Start of Combat:** Give your minions **+2/+2** for each card you passed this turn.',
+      powerText: '{base} **Start of Combat:** Give your minions **+2/+2** for each card you passed this turn (**{prPassed}** passed: **+{prWarA}/+{prWarH}**).',
+      effects: [{ do: 'socBuffPerPass', attack: 2, health: 2 }],
+    },
+    genesis: {
+      // "Passaria also gets you a plain copy of the minion you Pass but costs 4g."
+      offerText: 'Passaria also gets you a plain copy of the minion you **Pass**. It costs **4** Gold.',
+      powerText: '{base} You also get a plain copy of it. It costs **4** Gold.',
+      power: { cost: 4 },
+      effects: [{ do: 'passariaCopyToHand' }],
+    },
+    time: {
+      // "Passaria can be used twice each turn." (Merrin x Fortune's shape: the `power` override alone)
+      offerText: 'Passaria can be used **twice** each turn.',
+      powerText: '{base} Use it **twice** each turn (**{prUsesLeft}** left this turn).',
+      power: { usesPerTurn: 2 },
+      effects: [],
+    },
+    bonds: {
+      // "When you Pass, give your left-most minion and your teammate's left-most minion +4/+4."
+      offerText: "When you **Pass**, give your left-most minion and your teammate's left-most minion **+4/+4**.",
+      powerText: "{base} When you **Pass**, give your left-most minion and your teammate's left-most minion **+4/+4**.",
+      effects: [{ do: 'passBuffsLeftmosts', attack: 4, health: 4 }],
+    },
+  },
+  // MAGICIAN (Duos only; owner pairings 2026-11-10, quoted above each entry). Magic Hat (passive) = "After you buy 5
+  // cards, your hat activates. The next card you buy, your teammate gets a copy. Twice per turn." `{base}` is the hat's
+  // own live text, which already prints the pairing's SHAPE (Genesis' 8 buys, Bonds' no limit: `magicHatView`).
+  magician: {
+    death: {
+      // "Echo minions passed from Magic Hat gain Rise or Taunt at random."
+      offerText: 'A Magic Hat copy of a minion with an **Echo** gains **Rise** or **Taunt** at random.',
+      powerText: '{base} A copy of a minion with an **Echo** gains **Rise** or **Taunt** at random.',
+      effects: [{ do: 'hatEchoGainsRiseOrTaunt' }],
+    },
+    fortune: {
+      // "Triggering Magic Hat reduces your Shop upgrade cost by 4."
+      offerText: 'Each time Magic Hat sends a copy, your Shop upgrade costs **4** Gold less.',
+      powerText: '{base} Each copy sent makes your Shop upgrade cost **4** Gold less.{upgradeNow}',
+      effects: [{ do: 'hatUpgradeDiscount', amount: 4 }],
+    },
+    war: {
+      // "Start of Combat: A minion that both you and your teammate control copies of gain each others stats."
+      offerText: "**Start of Combat:** When you and your teammate both have a copy of a minion, each copy gains the other's stats.",
+      powerText: "{base} **Start of Combat:** When you and your teammate both have a copy of a minion, each copy gains the other's stats.",
+      effects: [{ do: 'socMateCopiesShareStats' }],
+    },
+    genesis: {
+      // "Magic Hat triggers after 8 buys, but Gilds the minion passed, or grants 3 copies of a spell passed."
+      offerText: 'Magic Hat needs **8** buys. A minion copy arrives **Gilded**. A spell arrives as **3** copies.',
+      powerText: '{base} A minion copy arrives **Gilded**. A spell arrives as **3** copies.',
+      effects: [{ do: 'hatGenesis', buys: 8, spellCopies: 3 }],
+    },
+    time: {
+      // "Start of Turn: Get a random copy of a card you've passed this game." (Magic Hat copies and your own passes)
+      offerText: '**Start of Turn:** Get a plain copy of a random card you have passed this game.',
+      powerText: '{base} **Start of Turn:** Get a plain copy of a random card you have passed this game (**{mgPassed}** passed).',
+      effects: [{ do: 'sotCopyPassedCard' }],
+    },
+    bonds: {
+      // "Magic Hat has no maximum triggers per turn."
+      offerText: 'Magic Hat has no limit each turn.',
+      powerText: '{base}',
+      effects: [{ do: 'hatNoCap' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -3327,6 +3442,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = batchBPowerText(state, text, combat);
   text = batchAPowerText(state, text, combat); // RASCAL / GAMBLER / PETE / FLINT / JUGGLER
   text = batchCPowerText(state, text, base);
+  text = duosPowerText(state, text); // PRIESTESS / MAGICIAN
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -3549,6 +3665,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   Object.assign(out, batchBCombatMods(state));
   Object.assign(out, batchACombatMods(state)); // RASCAL / GAMBLER / FLINT
   Object.assign(out, batchCCombatMods(state));
+  Object.assign(out, duosCombatMods(state)); // PRIESTESS × WAR, MAGICIAN × WAR
   return out;
 }
 
@@ -3800,6 +3917,7 @@ export function ancientStartOfTurn(state: RunState): void {
   batch6StartOfTurn(state); // MIDAS × WAR, KESHI × TIME, QUILLEN × TIME
   batchAStartOfTurn(state); // RASCAL × TIME
   batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
+  duosStartOfTurn(state); // MAGICIAN × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -6937,4 +7055,178 @@ function batchCPowerText(state: RunState, text: string, base: string): string {
     .split('{mSpells}').join(String(state.spellsCast ?? 0))
     .replace('{mBuys}', String(Math.min(3, state.gorrBuys?.length ?? 0)))
     .replace('{mimicBase}', mg && native ? `**Discover** a hero power to wield this turn, from **${mg.options}** options. Once per turn.` : base);
+}
+
+// ══ DUOS HEROES: Priestess and Magician (owner pairings 2026-11-10, R-ANCDUOS-01) ═══════════════════════════════════
+//
+// Both heroes are Duos only. Everything here is a no-op unless the run has Ancients on AND one of their pairings is
+// picked; Ancients are not on in any Duos game players can reach (the header's "Duos heroes" note).
+//
+//  PRIESTESS (Passaria, `passaria`, 2 Gold, targeted, once per turn: "Pass a non-Gilded minion in the Shop or on your
+//  board."). "A pass" is every pass THIS run makes (`ancientOnPassMade`, called from the two places a pass is recorded:
+//  the reducer's `passCard` and recruit's `effectPassCard`). A team effect and a Magic Hat copy are not passes.
+//  · `passEchoGainsRise`          the passed minion (its outbox copy: what the teammate receives) gains Rise when it
+//                                 has an Echo, permanently. A refund takes it off again. (Death)
+//  · (Fortune)                    no primitive: the pairing's `power` override (`cost: 0`).
+//  · `socBuffPerPass`             COMBAT: Braum's `ancientSocBuffAll`, x the cards this run passed this turn
+//                                 (`ancientPassesThisTurn`, read off the outbox). A combat buff. (War)
+//  · `passariaCopyToHand`         a Passaria pass also puts a plain copy of the minion in your hand (hand full: none);
+//                                 Passaria costs 4 (`power`). A refund takes the copy back while it is in hand. (Genesis)
+//  · (Time)                       no primitive: the pairing's `power` override (`usesPerTurn: 2`).
+//  · `passBuffsLeftmosts`         every pass: your left-most board minion gains +a/+h now (after the card left), and
+//                                 the outbox entry carries the teammate's half (`bonds` -> `passBonds` on the wire),
+//                                 which their run applies to ITS left-most board minion the moment the card is
+//                                 received (`ancientReceivePassBonds`, from the reducer's `receivePass`). (Bonds)
+//  MAGICIAN (Magic Hat, `magicHat`, passive; `magicHat.ts`). The hat's shape is `ancientHatShape` (read by
+//  `magicHatView`); a fired hat calls `ancientOnHatFired` (the copy) and `ancientOnHatTrigger` (the trigger).
+//  · `hatEchoGainsRiseOrTaunt`    the copy of a minion with an Echo gains Rise or Taunt, a seeded coin flip off the run
+//                                 cursor; a keyword it already has is never the one rolled (both: nothing). (Death)
+//  · `hatUpgradeDiscount`         each trigger: the Shop upgrade costs `amount` less (`cutUpgradeCost`, floor 0), for
+//                                 the current upgrade only (every tier-up resets the price, as for any discount). (Fortune)
+//  · `socMateCopiesShareStats`    COMBAT: `QuestCombatMods.ancientMateSwap`, a tag-team fight's opening Start of
+//                                 Combat. (War)
+//  · `hatGenesis`                 the hat needs `buys` buys; a minion copy is Gilded, a spell copy is `spellCopies`
+//                                 copies (one pass row, `passCopies`). The per-turn cap is unchanged. (Genesis)
+//  · `sotCopyPassedCard`          Start of Turn, its own beat: a plain copy of a random card this run has passed this
+//                                 game (every outbox card that was not refunded: Magic Hat copies and ordinary
+//                                 passes), off the run cursor. Hand full: nothing. (Time)
+//  · `hatNoCap`                   no per-turn cap. (Bonds)
+
+/** Cards THIS run passed this turn (every pass it made: the hand pass, Passaria, a pass spell, a sold minion a rune
+ *  passed). Never a team effect, a Magic Hat copy, or a pass that came back. */
+export function ancientPassesThisTurn(state: Pick<RunState, 'duos' | 'wave'>): number {
+  return (state.duos?.outbox ?? []).filter((e) => e.wave === state.wave && !e.team && !e.hat && !e.refunded).length;
+}
+
+/**
+ * THIS RUN JUST PASSED A CARD: the last outbox entry is that pass (call it right after the entry is recorded, before the
+ * pass watchers run). PRIESTESS × DEATH / GENESIS / BONDS. A restore's replayed pass runs it too: what it gives THIS run
+ * was dropped with the turn, and what rides the entry is already on the teammate's run under the same pass key.
+ */
+export function ancientOnPassMade(state: RunState): void {
+  const a = live(state);
+  const out = state.duos?.outbox;
+  const e = out?.[out.length - 1];
+  if (!a?.picked || !e || e.team || e.hat) return;
+  const def = CARD_INDEX[e.card.cardId];
+  const minion = !!def && !def.spell && !def.ruby;
+  // DEATH: the minion the teammate receives has Rise.
+  if (minion && effectOf(state, 'passEchoGainsRise') && instanceEffects(e.card).some((x) => x.on === 'onDeath') && !e.card.keywords.includes('R')) {
+    e.card.keywords.push('R');
+    e.ancRise = true;
+  }
+  // GENESIS: a Passaria pass also gets you a plain copy (the printed card). Hand full: none.
+  if (minion && def && e.power != null && effectOf(state, 'passariaCopyToHand') && state.hand.length < handCap(state)) {
+    e.copyUid = grantMinionToHandOrBoard(state, def, false).uid;
+  }
+  // BONDS: your left-most minion now; the teammate's rides the card.
+  const b = effectOf(state, 'passBuffsLeftmosts');
+  if (b) {
+    e.bonds = { attack: b.attack, health: b.health };
+    const mine = state.board[0];
+    if (mine) fromHeroPower(state, () => { addBuff(mine, ANCIENTS.bonds.name, b.attack, b.health); });
+  }
+}
+
+/** The most a pass may give the receiver's left-most minion (the printed pairing: the payload comes from another client). */
+function passBondsCap(): { attack: number; health: number } {
+  const e = ANCIENT_PAIRINGS.priestess?.bonds?.effects.find((x): x is Extract<AncientEffect, { do: 'passBuffsLeftmosts' }> => x.do === 'passBuffsLeftmosts');
+  return { attack: e?.attack ?? 0, health: e?.health ?? 0 };
+}
+
+/**
+ * PRIESTESS × BONDS, the TEAMMATE's half: a pass carrying `passBonds` was just received by this run (landed in the hand
+ * or waiting for room; never a refused one). Its left-most board minion gains the stats, permanently. An empty board:
+ * nothing. Exactly once: the caller runs it only on the action that recorded the pass key. Needs no Ancient on THIS run
+ * (the pairing is the sender's); amounts are clamped to the printed pairing.
+ */
+export function ancientReceivePassBonds(state: RunState, card: unknown): void {
+  const pb = (card as { passBonds?: { attack?: unknown; health?: unknown } } | null)?.passBonds;
+  if (!pb || typeof pb !== 'object' || !state.duos) return;
+  const cap = passBondsCap();
+  const num = (v: unknown, max: number): number => Math.min(max, Math.max(0, Math.floor(typeof v === 'number' && Number.isFinite(v) ? v : 0)));
+  const attack = num(pb.attack, cap.attack), health = num(pb.health, cap.health);
+  const target = state.board[0];
+  if (!target || (attack <= 0 && health <= 0)) return;
+  addBuff(target, ANCIENTS.bonds.name, attack, health);
+}
+
+/** The Magic Hat's shape under the picked pairing (empty without one): Genesis' buys, Bonds' no cap. Takes the slim run
+ *  `magicHatView` is given, so the text, the badge and the ready glow can call it from any screen. */
+export function ancientHatShape(run: Partial<Pick<RunState, 'heroId' | 'adoptedPowerId' | 'mimicPowerId' | 'voidPowerIds' | 'ancientsEnabled' | 'ancients'>>): { need?: number; noCap?: true } {
+  const a = run.ancientsEnabled ? run.ancients : undefined;
+  if (!a?.picked || !run.heroId) return {};
+  const fx = ancientPairingFor(ancientPairingHeroId({ heroId: run.heroId, adoptedPowerId: run.adoptedPowerId, mimicPowerId: run.mimicPowerId, voidPowerIds: run.voidPowerIds }), a.picked)?.effects ?? [];
+  const g = fx.find((x): x is Extract<AncientEffect, { do: 'hatGenesis' }> => x.do === 'hatGenesis');
+  return { ...(g ? { need: Math.max(1, g.buys) } : {}), ...(fx.some((x) => x.do === 'hatNoCap') ? { noCap: true as const } : {}) };
+}
+
+/**
+ * THE HAT FIRED: `copy` is the card about to be sent (already its own instance, never the card the Magician keeps).
+ * GENESIS Gilds a minion copy (a spell is sent as several: the return value, 1 otherwise); DEATH gives a copy with an
+ * Echo Rise or Taunt.
+ */
+export function ancientOnHatFired(state: RunState, copy: BoardCard): number {
+  if (!live(state)?.picked) return 1;
+  const def = CARD_INDEX[copy.cardId];
+  const minion = !!def && !def.spell && !def.ruby;
+  let copies = 1;
+  const g = effectOf(state, 'hatGenesis');
+  if (g) {
+    if (minion) gildMinion(copy); // no run passed: the Gild is the teammate's card, not one of this run's gilds
+    else copies = Math.max(1, Math.floor(g.spellCopies));
+  }
+  if (minion && effectOf(state, 'hatEchoGainsRiseOrTaunt') && instanceEffects(copy).some((x) => x.on === 'onDeath')) {
+    const lacks = (['R', 'T'] as Keyword[]).filter((k) => !copy.keywords.includes(k));
+    const k = lacks.length === 2 ? pickId(state, lacks) : lacks[0];
+    if (k) copy.keywords.push(k as Keyword);
+  }
+  return copies;
+}
+
+/** THE HAT TRIGGERED (a copy was sent, or would have been with a teammate). FORTUNE: the Shop upgrade costs less. */
+export function ancientOnHatTrigger(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'hatUpgradeDiscount') : undefined;
+  if (e) cutUpgradeCost(state, e.amount);
+}
+
+/** The card ids this run has passed this game (Magic Hat copies and its own passes; a refunded pass never left). */
+function passedCardIds(state: RunState): string[] {
+  return (state.duos?.outbox ?? []).filter((e) => !e.team && !e.refunded && !!CARD_INDEX[e.card.cardId]).map((e) => e.card.cardId);
+}
+
+/** MAGICIAN × TIME: Start of Turn, a plain copy of a random card passed this game, its own beat (R-SOT-BEAT-01). */
+function duosStartOfTurn(state: RunState): void {
+  if (!live(state) || !effectOf(state, 'sotCopyPassedCard') || state.hand.length >= handCap(state)) return;
+  const id = pickId(state, passedCardIds(state));
+  const def = id ? CARD_INDEX[id] : undefined;
+  if (!def) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    if (def.spell || def.ruby) conjureToHand(state, [def], 1);
+    else gorrCopyToHand(state, def.id);
+  });
+}
+
+/** The Duos heroes' combat halves (the simulator reads each per side). */
+function duosCombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  if (!live(state)?.picked) return out;
+  const w = effectOf(state, 'socBuffPerPass');
+  const n = w ? ancientPassesThisTurn(state) : 0;
+  if (w && n > 0) out.ancientSocBuffAll = { attack: w.attack * n, health: w.health * n, label: ANCIENTS.war.name };
+  if (effectOf(state, 'socMateCopiesShareStats')) out.ancientMateSwap = { label: ANCIENTS.war.name };
+  return out;
+}
+
+/** The Duos heroes' live power-text values. `{prPassed}` / `{prWarA}` / `{prWarH}` = cards Priestess passed this turn
+ *  and War's Start-of-Combat grant right now; `{prUsesLeft}` = Passaria uses left this turn (Time); `{mgPassed}` = cards
+ *  the Magician has passed this game (Time's pool). */
+function duosPowerText(state: RunState, text: string): string {
+  const a = live(state);
+  if (!a) return text;
+  const w = effectOf(state, 'socBuffPerPass');
+  const n = ancientPassesThisTurn(state);
+  return text.replace('{prPassed}', String(n)).replace('{prWarA}', String((w?.attack ?? 0) * n)).replace('{prWarH}', String((w?.health ?? 0) * n))
+    .replace('{prUsesLeft}', String(Math.max(0, (a.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
+    .replace('{mgPassed}', String(passedCardIds(state).length));
 }

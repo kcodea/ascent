@@ -24,7 +24,7 @@ export interface MagicHatBadge {
   status: string;
 }
 
-type HatRun = Pick<RunState, 'heroId' | 'phase' | 'wave' | 'magicHatBuys' | 'magicHatSent' | 'magicHatSentWave'> & Parameters<typeof activePowers>[0];
+type HatRun = Pick<RunState, 'heroId' | 'phase' | 'wave' | 'magicHatBuys' | 'magicHatSent' | 'magicHatSentWave' | 'ancientsEnabled' | 'ancients'> & Parameters<typeof activePowers>[0];
 
 export function magicHatBadge(run: HatRun, slot = 0): MagicHatBadge | null {
   if (activePowers(run)[slot]?.kind !== 'magicHat') return null;

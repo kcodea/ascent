@@ -25,6 +25,7 @@ import type { VersusGroupSeat } from './group';
 import { normalizeVersusOptions, versusModeIsDuos, versusOptionsRift, type VersusRoomOptions } from './options';
 import { versusDuosStartingVitals } from './vitals';
 import { snapshotBoard } from '../snapshot';
+import { ancientOfferOpen, enableAncients, type AncientMeterTuning } from '../ancients';
 import type { VersusSeatScout } from '../lobby/runLobby';
 
 /**
@@ -37,6 +38,11 @@ import type { VersusSeatScout } from '../lobby/runLobby';
  * both heroes' Armor, R-DUOS-HEALTH-01); every settled fight lands the resolver's numbers on it either way.
  * The opening shop is Tier 1 and reads no rift, so pinning after `createRun` draws the same shop a Rift run would.
  * No options (or the defaults) = today's run, byte for byte.
+ *
+ * `dev.ancients` (R-ANCDUOS-01) is a TEST AND DEV SEAM, never a room option: it is not on the wire, the Worker never sees
+ * it, and no player build passes it (the UI reads it on a DEV or bench bundle only, `versusDevAncients`). It turns
+ * Ancients on for a DUOS run exactly as the Scene Builder does for a solo one (`enableAncients`), so the Duos heroes'
+ * pairings can be played end to end. Absent = no `ancients` on the run, as before.
  */
 export function createVersusRun(
   runSeed: number,
@@ -44,6 +50,7 @@ export function createVersusRun(
   setId: SetId,
   options?: VersusRoomOptions | null,
   duosMateHeroId?: string | null,
+  dev?: { ancients?: Partial<AncientMeterTuning> | true } | null,
 ): RunState {
   const opts = normalizeVersusOptions(options);
   // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate. RANKED DUOS passes the same way
@@ -65,6 +72,7 @@ export function createVersusRun(
     run.armor = team.armor;
     run.maxArmor = team.armor;
   }
+  if (duos && dev?.ancients) return enableAncients(run, dev.ancients === true ? undefined : dev.ancients);
   return run;
 }
 
@@ -113,6 +121,10 @@ export function legalModalAnswers(s: RunState): Action[] {
     if (out.length === 0) keep({ type: 'skipRuneforge' }); // nothing affordable: skipping is the only legal move
   } else if (s.scoutedNextOpponent?.length) {
     keep({ type: 'closeScout' });
+  } else if (ancientOfferOpen(s)) {
+    // ANCIENTS (R-ANCDUOS-01; only a run with Ancients on ever has an offer): the awakening offer pauses the Shop and
+    // refuses End Turn, so a timeout answers it like every other open decision (ruling 7: a random legal pick).
+    for (const id of s.ancients?.offer ?? []) keep({ type: 'pickAncient', id });
   }
   return out;
 }
@@ -124,7 +136,7 @@ export function legalModalAnswers(s: RunState): Action[] {
  */
 export function versusAutoResolve(run: RunState, rng: Rng): RunState {
   let s = run;
-  for (let guard = 0; guard < 64 && modalOpen(s); guard++) {
+  for (let guard = 0; guard < 64 && (modalOpen(s) || ancientOfferOpen(s)); guard++) {
     const answers = legalModalAnswers(s);
     const pick: Action = answers.length ? answers[Math.floor(rng.next() * answers.length)]! : { type: 'cancelChoice' };
     const next = reduce(s, pick);

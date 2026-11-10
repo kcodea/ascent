@@ -37,6 +37,7 @@ import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounc
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { magicHatBuy, restoreMagicHatSend } from './magicHat';
+import { ancientOnPassMade, ancientReceivePassBonds } from './ancients'; // Priestess (Duos)
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
@@ -678,8 +679,13 @@ function restoreEffectPass(state: RunState, a: Extract<Action, { type: 'restoreE
   }
   if (power) {
     if (power.paid > 0) spendGold(s, Math.min(s.embers, power.paid));
+    const perTurn = power.slot === 0 ? activePowers(s)[0]?.usesPerTurn : undefined;
     if (power.slot === 1) s.heroReady2 = false;
-    else s.heroReady = false;
+    else if (perTurn) {
+      // A power with a per-turn budget (Ancient of Time x Priestess: twice a turn) counts the replayed use, as a press does.
+      s.heroUsesThisTurn = (s.heroUsesThisTurn ?? 0) + 1;
+      if (s.heroUsesThisTurn >= perTurn) s.heroReady = false;
+    } else s.heroReady = false;
   }
   return s;
 }
@@ -1696,6 +1702,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
     if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`) && (action.card as { passHat?: unknown }).passHat !== true) {
       fireTeamPassTriggers(next, { mine: false, cardId: action.card.cardId });
     }
+    // ANCIENT OF BONDS x Priestess (R-ANCDUOS-01): the teammate's pass carries my left-most minion's gain (`passBonds`).
+    // It lands with the card, on the one action that records its pass key, so never twice and never without the card.
+    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`)) ancientReceivePassBonds(next, action.card);
     // A PASSED CARD CAN COMPLETE A TRIPLE (owner 2026-10-29: "passing needs to check for triples"; R-DUOS-PASS-06): the
     // same `checkTriples` every other way into the hand runs, the moment it lands in the Shop. A pass that lands while
     // a fight is on is caught by the shop-open check (the combat carry-back rule), never mid-fight under a live board.
@@ -2981,6 +2990,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // VERSUS DUOS (R-DUOS-PASS-01): the card leaves for the teammate; 1 Gold through the one Gold-spend chokepoint.
       const passing = s.hand.find((c) => c.uid === action.uid);
       if (!applyDuosPass(s, action.uid, spendGold)) return state;
+      ancientOnPassMade(s); // ANCIENTS x Priestess (a no-op unless picked): Death's Rise, Bonds' +4/+4 for both left-most minions
       // The pass watchers (R-DUOS-CARDS-01): `passedCard` (you passed) and `teamPassedCard` (Hitchhiker), in real time.
       if (passing) fireTeamPassTriggers(s, { mine: true, cardId: passing.cardId });
       return s;

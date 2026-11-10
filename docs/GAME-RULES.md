@@ -1442,6 +1442,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   holds against the turn's two. Wishbone is never offered for it, and it is out of the Mimic / Void / Power Shifter
   pools like every Duos-only hero. A recorded team that includes a Magician plays from its recorded boards, so no copy
   is sent or owed there.
+  **Ancients are NOT on in Versus Duos or Ranked Duos** (owner 2026-11-10: "we arent turning ancients on just yet, but
+  build it out"; R-ANCDUOS-01). Both heroes have all six Ancient pairings written and tested (R-ANCPRIESTESS-01..06,
+  R-ANCMAGICIAN-01..06), reachable only on a DEV server or a bench bundle. No player build, room option or setting turns
+  them on. What each does, and what is still needed to switch them on, is in
+  `docs/devlog/2026-11-10-ancients-duos-heroes.md`.
 - **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted
   random rune) offers them. Basic: **Spell Theory** (2: passing a spell gets you a copy, once per turn), **Gold Gifts** (1:
   Equip Gold Gifter (1), the (1) is its Gold cost: your teammate gets 3 Gold), **Teammate Synergy** (2: each Gild gives your

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, type Mounted } from './renderedText.mount';
 import { UpdatedPanel } from './UpdatedPanel';
 import { PatchNotesBody } from './PatchNotesBody';
@@ -9,12 +11,13 @@ import { UpdateReadyNotice, updateNoticePlace } from './UpdateReadyNotice';
 import { readUpdateSeen, writeUpdateSeen } from './updateNotes';
 
 let ui: Mounted | null = null;
-type Hooks = { isDesktop: true; quit(): void; toggleFullscreen(): void; onUpdateReady(cb: (v: string) => void): () => void };
+type Hooks = { isDesktop: true; quit(): void; toggleFullscreen(): void; onUpdateReady(cb: (v: string) => void): () => void; getUpdateReady?(): Promise<string | null> };
 let fire: ((v: string) => void) | null = null;
-const setDesktop = (): void => {
+const setDesktop = (ready: string | null = null): void => {
   (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
     isDesktop: true, quit() {}, toggleFullscreen() {},
     onUpdateReady(cb) { fire = cb; return () => { fire = null; }; },
+    getUpdateReady: () => Promise.resolve(ready),
   };
 };
 /** The notes are a lazy chunk (~400 KB of changelog text): poll for `selector` instead of a fixed wait (up to 3 s). */
@@ -97,6 +100,29 @@ describe('UpdateReadyNotice', () => {
   it('renders nothing in the browser', () => {
     ui = mount(<UpdateReadyNotice />);
     expect(document.querySelector('.updnotice')).toBeNull();
+  });
+  // R-UPDATE-NOTICE-SEEN-01 (owner 2026-11-09: the notice never showed). The push fired during the loading screen, before
+  // anything listened; the notice now asks the shell when it mounts, and never fades on its own.
+  it('R-UPDATE-NOTICE-SEEN-01: shows an update downloaded before it mounted (the missed push)', async () => {
+    setDesktop('0.9.8');
+    ui = mount(<UpdateReadyNotice />);
+    await act(async () => { await Promise.resolve(); });
+    expect(document.body.textContent).toContain('Update v0.9.8 downloaded.');
+  });
+  it('R-UPDATE-NOTICE-SEEN-01: stays up instead of fading after a few seconds', async () => {
+    setDesktop();
+    ui = mount(<UpdateReadyNotice />);
+    act(() => { fire!('0.9.9'); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    vi.useFakeTimers();
+    try { act(() => { vi.advanceTimersByTime(120_000); }); } finally { vi.useRealTimers(); }
+    expect(document.querySelector('.updnotice')).not.toBeNull();
+  });
+  it('R-UPDATE-NOTICE-SEEN-01: lives on the main screen beside START, not app-wide', () => {
+    const ph = readFileSync(resolve(process.cwd(), 'packages/ui/src/partyHome/PartyHome.tsx'), 'utf8');
+    const game = readFileSync(resolve(process.cwd(), 'packages/ui/src/Game.tsx'), 'utf8');
+    expect(ph).toMatch(/className="ph-start"[\s\S]{0,900}<UpdateReadyNotice \/>/);
+    expect(game).not.toContain('<UpdateReadyNotice');
   });
 });
 

@@ -253,6 +253,14 @@ describe('startUpdater', () => {
     expect(h.au.quitAndInstall).not.toHaveBeenCalled();
     expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1' });
     expect(h.gameSent).toEqual([['ascent:update-ready', { version: '0.2.1' }]]);
+    // R-UPDATE-NOTICE-SEEN-01: the game can still ask for it later, so a push it missed is not lost.
+    expect(updater.getReadyUpdate()).toBe('0.2.1');
+  });
+
+  it('R-UPDATE-NOTICE-SEEN-01: no download yet means nothing to announce; a new launch starts clean', async () => {
+    const h = harness({});
+    await updater.startUpdater(h.deps);
+    expect(updater.getReadyUpdate()).toBeNull();
   });
 
   it('install: an error falls back to the game at once', async () => {

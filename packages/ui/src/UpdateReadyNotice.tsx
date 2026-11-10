@@ -1,8 +1,12 @@
 /**
  * "UPDATE READY" (desktop auto-update, spec 2026-11-04): a toast shown once the desktop shell has finished downloading an
  * update in the background. Information only: the update installs at the NEXT launch (behind the shell's own "Installing
- * update" screen), never mid-game, so there is no button. It takes no pointer input, fades itself after a while, and does
- * nothing in the browser build.
+ * update" screen), never mid-game, so there is no button. It takes no pointer input and does nothing in the browser build.
+ *
+ * IT CANNOT BE MISSED (owner 2026-11-09, R-UPDATE-NOTICE-SEEN-01: the notice never showed): it lives on the main screen
+ * beside START (PartyHome mounts it), asks the shell on every mount whether an update is already downloaded (the one-shot
+ * push was lost when the download finished during the loading screen), and stays up until the game closes. A download that
+ * finishes mid-match shows the moment the player is back on the main screen.
  *
  * WHERE IT SITS (owner 2026-11-08, R-UPDATE-NOTICE-PLACE-01: "put it below the start button and make it centered with the
  * start and play button center"): on the main screen it sits just under START, centred on START's centre (kept on
@@ -10,11 +14,10 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { onUpdateReady } from './desktop';
+import { getUpdateReady, onUpdateReady } from './desktop';
 import { onStageChange, rectToStage, stageHost, stageViewport } from './stage';
 import './updatedPanel.css';
 
-const SHOW_MS = 14000;
 /** The on-screen element the notice hangs under. */
 export const UPDATE_NOTICE_ANCHOR = '.ph-start';
 const GAP = 14;
@@ -36,12 +39,12 @@ export function UpdateReadyNotice() {
   const [version, setVersion] = useState<string | null>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => onUpdateReady((v) => setVersion(v)), []);
   useEffect(() => {
-    if (version === null) return undefined;
-    const t = window.setTimeout(() => setVersion(null), SHOW_MS);
-    return () => window.clearTimeout(t);
-  }, [version]);
+    let alive = true;
+    void getUpdateReady().then((v) => { if (alive && v) setVersion(v); });
+    const off = onUpdateReady((v) => setVersion(v));
+    return () => { alive = false; off(); };
+  }, []);
   useLayoutEffect(() => {
     if (version === null) return undefined;
     const measure = (): void => {

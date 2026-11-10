@@ -25,7 +25,7 @@ const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('ele
 const path = require('node:path');
 const fs = require('node:fs');
 const { isRemoteNetworkError } = require('./smokeClassify.cjs');
-const { startUpdater } = require('./updater.cjs');
+const { startUpdater, getReadyUpdate } = require('./updater.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -172,6 +172,9 @@ function runSmoke(win) {
 // The renderer's only two levers (see preload.cjs). `quit` is what Settings → Quit game calls; the UI owns
 // the confirmation, so by the time this fires the player has already double-tapped.
 ipcMain.on('ascent:quit', () => app.quit());
+// The downloaded update the game should announce (a version string or null). Asked for, not pushed, so it cannot be missed
+// by a game that was still on its loading screen when the download finished (R-UPDATE-NOTICE-SEEN-01).
+ipcMain.handle('ascent:get-update-ready', () => getReadyUpdate());
 ipcMain.on('ascent:toggle-fullscreen', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   win?.setFullScreen(!win.isFullScreen());

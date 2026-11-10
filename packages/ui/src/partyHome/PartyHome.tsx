@@ -71,6 +71,7 @@ import { playerVersusError, useVersusDown } from './versusCopy';
 import { versusModifierName } from '../versus/versusOptionsUi';
 import { usePhLayer } from './shell/usePhLayer';
 import { ChangeNameDialog, selfCardMenu, type CardMenuItem } from './ChangeName';
+import { UpdateReadyNotice } from '../UpdateReadyNotice';
 import './partyHome.css';
 
 /** One banner card's contents. */
@@ -557,6 +558,8 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       {vh.start?.wait ? <div className="ph-start vsr-waitplate" role="status"><span>{startLabel}</span></div> : <button type="button" className="ph-start" disabled={!startOk} onClick={() => { if (!startOk) return; sfx.pulse(); onStart(); }}>
         <span>{startLabel}</span>
       </button>}
+      {/* DESKTOP AUTO-UPDATE: "Update vX downloaded", under START while the main screen is up (R-UPDATE-NOTICE-SEEN-01). */}
+      <UpdateReadyNotice />
       <div className="ph-side ph-side-r">
         {/* On a phone the side panel is a drawer: the mode's settings are one press from START. */}
         {phone && !friendsOpen && modeHasSettings(modeId) && <PhButton size="s" onClick={() => { sfx.pulse(); toSettings.current = true; setDrawerIsMode(true); setSideTab('settings'); setFriendsOpen(true); }}>Options</PhButton>}

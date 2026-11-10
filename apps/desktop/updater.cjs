@@ -100,7 +100,17 @@ function updatesAllowed({ isPackaged, env, hasUpdateConfig }) {
  * @param {string} deps.updatingHtml absolute path of updating.html
  * Injectable for tests: autoUpdater, fs, env, resourcesPath.
  */
+/**
+ * The version downloaded THIS session and waiting to install at the next launch (null = none). The game asks for it
+ * (`ascent:get-update-ready`, main.cjs) when its notice mounts, because the one-shot `ascent:update-ready` push is lost
+ * when it fires before the game is listening: a download that finishes during the loading screen reached nobody
+ * (owner 2026-11-09, R-UPDATE-NOTICE-SEEN-01).
+ */
+let readyVersion = null;
+function getReadyUpdate() { return readyVersion; }
+
 async function startUpdater(deps) {
+  readyVersion = null;
   const { app, BrowserWindow, createGameWindow } = deps;
   const fs = deps.fs ?? require('node:fs');
   const env = deps.env ?? process.env;
@@ -162,6 +172,7 @@ async function startUpdater(deps) {
       if (prev && prev.version === version && Number(prev.attempts) > 0) next = { version, attempts: Number(prev.attempts) };
     } catch { /* unreadable marker: start fresh */ }
     try { fs.writeFileSync(markerPath, JSON.stringify(next)); } catch (e) { log('error', `write marker: ${e}`); return; }
+    readyVersion = version;
     const gameWin = getGameWin();
     if (gameWin && !gameWin.isDestroyed()) gameWin.webContents.send('ascent:update-ready', { version });
   };
@@ -247,4 +258,4 @@ function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker
   check();
 }
 
-module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, isSkipped, updatesAllowed, startUpdater };
+module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, isSkipped, updatesAllowed, startUpdater, getReadyUpdate };

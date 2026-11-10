@@ -15,6 +15,8 @@ interface DesktopBridge {
   toggleFullscreen: () => void;
   /** Fires with the version once an update has finished downloading. Returns the unsubscribe. */
   onUpdateReady?: (cb: (version: string) => void) => () => void;
+  /** The update already downloaded this session (its version), or null. Older shells lack it. */
+  getUpdateReady?: () => Promise<string | null>;
 }
 
 const bridge = (): DesktopBridge | undefined =>
@@ -39,4 +41,12 @@ export function toggleFullscreen(): void {
  *  the returned function unsubscribes. */
 export function onUpdateReady(cb: (version: string) => void): () => void {
   return bridge()?.onUpdateReady?.(cb) ?? (() => {});
+}
+
+/** Ask the shell for an update it has already downloaded this session (null when none, in the browser, or on a shell
+ *  too old to answer). The push above fires once and is lost if nothing is listening yet, so a notice asks as well. */
+export function getUpdateReady(): Promise<string | null> {
+  const ask = bridge()?.getUpdateReady;
+  if (!ask) return Promise.resolve(null);
+  return Promise.resolve(ask()).then((v) => (v ? String(v) : null), () => null);
 }

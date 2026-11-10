@@ -263,14 +263,28 @@ html:root .lobbyrail.lrv-docked .lobbyseat.you svg.lrv-edge:not(.lrv-foering) po
 html:root .lobbyrail.lrv-docked .lobbyseat.foe:not(.dead) { z-index: 3; }
 html:root .lobbyrail.lrv-docked .lobbyseat.foe svg.lrv-edge:not(.lrv-foering) polygon { stroke: color-mix(in srgb, var(--ui-heart) 80%, #fff); stroke-width: calc(4.5px * var(--dk-s, 1)); }
 html:root .lobbyrail.lrv-docked .lobbyseat.foe.ghost svg.lrv-edge:not(.lrv-foering) polygon { stroke: color-mix(in srgb, var(--ui-ghost) 85%, #fff); }
-html:root .lobbyrail.lrv-docked svg.lrv-foering {
-  --lr2-pc: var(--ui-heart);
-  z-index: 3; transform-origin: 50% 50%; will-change: opacity, transform;
-  filter: drop-shadow(0 0 calc(5px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc)) drop-shadow(0 0 calc(12px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc));
+/* THE BREATH IS ON A PLAIN BOX, AND THE GLOW IS THE POLYGON'S OWN (perf, the Duos audit of 2026-11-09).
+   The ring's svg used to carry the two drop-shadows, `will-change` AND the animation. Measured on an idle shop (1 s
+   traces, a Practice game with no clock): with the ring breathing the main thread did 293 to 345 ms of work a second,
+   against 104 to 111 with it still (202 to 234 after this change). Two costs, found by switching one thing at a time:
+   - RE-LAYERIZING EVERY FRAME (81 to 115 ms a second): a scale animation over a CSS filter that sits on the svg ROOT (a
+     CSS box, so its filter is a compositing effect of its own) makes the browser rebuild its layer list on each frame.
+     With the same two drop-shadows on the POLYGON (painted inside the svg, no effect of its own) that work is 0.
+     Frame for frame the picture is the same (frozen at four points of the breath: no pixel differs by more than 2/255).
+   - a style pass for the breathing element on each frame (about 50 ms a second inside the next-foe slice): still there.
+   So: `.lrv-foering-breath` (the svg's wrapper, the slice's own box, no filter) animates opacity + scale; the svg in it
+   stands still; the glow is on the polygon. Same colours, sizes, origin and timing as before. */
+html:root .lobbyrail.lrv-docked .lrv-foering-breath {
+  position: absolute; z-index: 3; left: 0; top: 0; width: 100%; height: 100%; margin: 0; pointer-events: none;
+  transform-origin: 50% 50%; will-change: opacity, transform;
   animation: lr2FoePulse calc(var(--lr2-pulse-period, 2.2) * 1s) ease-in-out infinite;
 }
+html:root .lobbyrail.lrv-docked svg.lrv-foering { --lr2-pc: var(--ui-heart); }
 html:root .lobbyrail.lrv-docked .lobbyseat.ghost svg.lrv-foering { --lr2-pc: var(--ui-ghost); }
-html:root .lobbyrail.lrv-docked svg.lrv-foering polygon { stroke: color-mix(in srgb, var(--lr2-pc) 90%, #fff); stroke-width: calc(var(--lr2-pulse-ring, 1.95) * 3.2px * var(--dk-s, 1)); }
+html:root .lobbyrail.lrv-docked svg.lrv-foering polygon {
+  stroke: color-mix(in srgb, var(--lr2-pc) 90%, #fff); stroke-width: calc(var(--lr2-pulse-ring, 1.95) * 3.2px * var(--dk-s, 1));
+  filter: drop-shadow(0 0 calc(5px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc)) drop-shadow(0 0 calc(12px * var(--dk-s, 1) * var(--lr2-pulse-glow, 3)) var(--lr2-pc));
+}
 /* The crossed swords (the rail's long-standing next-foe mark, Icon `sword` twice) on a red Gem chip, top-right. */
 html:root .lobbyrail.lrv-docked .lrv-vs {
   --v: calc(30px * var(--dk-s, 1));
@@ -283,7 +297,7 @@ html:root .lobbyrail.lrv-docked .lrv-vs.ghost { background: radial-gradient(circ
 html:root .lobbyrail.lrv-docked .lrv-vs > svg { grid-area: 1 / 1; width: 70%; height: 70%; color: #fff; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
 html:root .lobbyrail.lrv-docked .lrv-vs > svg:last-child { transform: scaleX(-1); }
 @media (prefers-reduced-motion: reduce) {
-  html:root .lobbyrail.lrv-docked svg.lrv-foering { animation: none; opacity: var(--lr2-pulse-max, 1); transform: none; }
+  html:root .lobbyrail.lrv-docked .lrv-foering-breath { animation: none; opacity: var(--lr2-pulse-max, 1); transform: none; }
 }
 
 /* THE FALLEN keep their slice (owner 2026-10-31: "Ghosts should stay in the rail now as they are"): the portrait grey and
@@ -408,7 +422,8 @@ html:root[data-lr2-bar="smooth"] .lrv-docked .lrv-bar-lead { display: none; }
 }
 .lrv-docked .lrv-skull > :is(svg, img) { display: block; width: 100%; height: 100%; object-fit: contain; }
 
-/* THE NEXT FOE's breath: opacity and a slight scale only (compositor). Reduced motion: a steady ring. */
+/* THE NEXT FOE's breath (on `.lrv-foering-breath`, a box with no filter): opacity and a slight scale only (compositor).
+   Reduced motion: a steady ring. */
 @keyframes lr2FoePulse {
   0%, 100% { opacity: var(--lr2-pulse-min, 0.53); transform: scale(0.985); }
   50% { opacity: var(--lr2-pulse-max, 1); transform: scale(1.02); }

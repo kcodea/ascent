@@ -15215,6 +15215,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   pointer-events: none; -webkit-user-drag: none; user-select: none; }
 /* The portrait inside the ring: round, scaled by the tuner's Portrait scale. */
 .pf-on img:not(.pframe) { border-radius: 50%; transform: scale(var(--pf-art, 1)); }
+/* ON A PHONE the disc art is laid out 4x and scaled back by 1/4 from its top left (`html.lite-art .combatopp-img` above,
+   R-PHONE-HERO-LAYER-01). The rule just above has the same weight and comes later, so inside a ring it replaced that 1/4
+   with the tuner's scale alone: the art was drawn four times too big, down and right of an empty ring (the Duos teammate
+   portrait on every phone, R-PHONE-RING-ART-01). Inside a ring the art takes BOTH: the 1/4, times the tuner's scale, kept
+   centred (the 4x box scales from its top left, so the tuner's share is put back as an offset). Static. */
+html.lite-art .pf-on .combatopp-img {
+  transform: translate(calc((1 - var(--pf-art, 1)) * 12.5%), calc((1 - var(--pf-art, 1)) * 12.5%)) scale(calc(0.25 * var(--pf-art, 1)));
+}
 /* The hover scrim follows the portrait art's size (owner 2026-10-28), so it stays a perfect fit inside the ring.
    Its z-index 1 (styles above) keeps it over the art and UNDER the ring (.pframe-box, z2). */
 .pf-on > .herohover { transform: scale(var(--pf-art, 1)); }

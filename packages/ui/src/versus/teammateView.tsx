@@ -27,6 +27,7 @@ import { PHONE_GPU } from '../phoneDiag';
 import { flushSpectateRender, leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
 import { useVersus } from './versusStore';
 import { localMate } from './localMate';
+import { setDuosViewing } from '../duosViewing';
 
 /**
  * THE SWAP: A CROSS-FADE (owner 2026-10-25: "The teammate view swap animation is really ugly" and "The flip to teammate
@@ -114,6 +115,10 @@ export function viewTransitionOf(doc: Document | undefined = typeof document !==
 function turnByViewTransition(start: StartViewTransition, swap: () => void): void {
   turning = true;
   perfMonitor.mark?.('duos:turn:start');
+  // ON `html`, AND IT HAS TO BE: the transition's pseudo-elements (`::view-transition-*`, versus.css) and the cursor the
+  // browser shows while it runs are the document element's own, so no narrower element can carry this. Measured on a
+  // round-3 shop (the Duos audit follow-up, 2026-11-10): 0.45 ms of style per change, against 12 to 22 ms for the swap's
+  // own restyle. (`duos-viewing` did move off `body`: duosViewing.ts.)
   const root = document.documentElement;
   root.classList.add('duos-vt');
   let t: ViewTransitionLike;
@@ -192,7 +197,7 @@ export function enterTeammateView(): void {
   if (lm) {
     if (lm.viewing() || useGame.getState().run.phase !== 'recruit' || useGame.getState().presentationTx) return;
     sfx.tick();
-    turn(() => { lm.enter(); document.body.classList.add('duos-viewing'); });
+    turn(() => { lm.enter(); setDuosViewing(true); });
     return;
   }
   const v = useVersus.getState();
@@ -208,7 +213,7 @@ export function enterTeammateView(): void {
     if (!now || now.phase !== 'shop' || now.paused_at || useGame.getState().run.phase !== 'recruit') return;
     watchTeammate(mate);
     flushSpectateRender();
-    document.body.classList.add('duos-viewing');
+    setDuosViewing(true);
   });
 }
 
@@ -218,7 +223,7 @@ export function exitTeammateView(): void {
   if (lm) {
     if (!lm.viewing()) return;
     sfx.tick();
-    turn(() => { lm.exit(); document.body.classList.remove('duos-viewing'); });
+    turn(() => { lm.exit(); setDuosViewing(false); });
     return;
   }
   if (useSpectate.getState().teammateHero) { exitTeammateHeroView(); return; }
@@ -226,15 +231,22 @@ export function exitTeammateView(): void {
   sfx.tick();
   turn(() => {
     leaveTeammate();
-    document.body.classList.remove('duos-viewing');
+    setDuosViewing(false);
   });
 }
-// A view left by the game itself (the shop ended, a pause, my clock): the class follows the state.
+// A view left by the game itself (the shop ended, a pause, my clock): the dimmed controls follow the state.
 useSpectate.subscribe((s, prev) => {
-  if (prev.teammate && !s.teammate && typeof document !== 'undefined') document.body.classList.remove('duos-viewing');
+  if (prev.teammate && !s.teammate) setDuosViewing(false);
 });
 
-/** Esc comes back; Tab held peeks (press = open, release = back). Mounted for a seated Duos player. */
+/**
+ * Esc comes back; Tab held peeks (press = open, release = back). Mounted for a seated Duos player.
+ *
+ * TAB IS THE PEEK AND NOTHING ELSE WHILE THESE KEYS ARE ON (R-DUOS-TAB-PEEK-01): the press stops here (this listener is on
+ * the capture phase), so the Compendium's own Tab listener (compendiumHotkey.ts, the bubble phase) never sees it. Before,
+ * one press both peeked AND opened the Compendium over the teammate's board, and a held Tab's key repeats toggled the
+ * book again and again. One exception: with the Compendium already open, Tab is left alone so it closes the book.
+ */
 export function useTeammateViewKeys(enabled: boolean): void {
   useEffect(() => {
     if (!enabled) return undefined;
@@ -243,8 +255,11 @@ export function useTeammateViewKeys(enabled: boolean): void {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
       const viewing = (): boolean => !!useSpectate.getState().teammate || !!useSpectate.getState().teammateHero;
       if (e.key === 'Escape' && viewing()) { e.preventDefault(); e.stopPropagation(); exitTeammateView(); return; }
-      if (e.key === 'Tab' && !e.repeat) {
+      if (e.key === 'Tab') {
+        if (useGame.getState().showBook) return; // the open book takes it: Tab closes the Compendium
         e.preventDefault();
+        e.stopPropagation();
+        if (e.repeat) return; // a held key: still the peek's, never anyone else's
         if (viewing()) { exitTeammateView(); return; }
         peeking = true;
         enterTeammateView();

@@ -22,6 +22,7 @@ import { contentRevision } from '@game/content';
 import { VersusCfClient, VersusCfError, versusCfHttp } from '@game/versus-cf/client';
 import { VERSUS_CF_PROTOCOL, type VersusCfPush } from '@game/versus-cf/protocol';
 import { resyncLobbyChat } from '../lobbyChat/lobbyChatStore';
+import { noteVersusLink, setVersusLinkActions } from './versusConnection';
 import type {
   VersusDuosPassRow,
   VersusRecords,
@@ -103,6 +104,9 @@ export interface CfRemoteDeps {
   /** DEV ONLY (R-VERSUS-DEV-DEPLOYED-01): a call that failed without the Worker answering asks this why; a code (the
    *  build's Worker is not deployed) replaces the plain `network` failure. */
   whyUnreachable?: () => Promise<string | null>;
+  /** THE GAME'S OWN TRANSPORT ONLY (R-VERSUS-LINK-STATUS-01): this socket's state is the one the player's connection
+   *  status shows. Never set by a test bot's or a harness's transport, which share the tab. */
+  reportLink?: boolean;
 }
 
 /** A throwaway account id for this TAB (each headless test player is its own tab). */
@@ -137,13 +141,22 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   const isGroupJson = (m: Record<string, unknown>): boolean => Array.isArray(m.seats);
   /** The latest committed round of a match row (combat / complete: this one; otherwise the one before). */
   const committedOf = (m: { phase: string; round: number }): number => (m.phase === 'combat' || m.phase === 'complete' ? m.round : m.round - 1);
+  const link = (st: Parameters<typeof noteVersusLink>[0], reason: string | null = null): void => { if (deps.reportLink) noteVersusLink(st, reason); };
   const listeners = new Set<{ onChange: (what: Change, row?: Record<string, unknown>) => void; onBroadcast?: (event: string, payload: unknown) => void }>();
 
+  /**
+   * A LOST CALL IS `network`, WHATEVER LOST IT (R-VERSUS-CF-LOST-CALL-01, netcode audit F4). A call the room never
+   * answered comes back from the socket as `timeout` (15 s with no answer) or `closed` (the socket went away under it),
+   * and a failed HTTP call as a thrown fetch error. They all mean the same thing: nobody knows whether the server took
+   * it. The store's recovery paths (the End Turn gem re-read from the server's row, the un-ready, the pass retry) key on
+   * `network`, so on Cloudflare a timeout skipped them all and the gem simply relit while the server held the lock.
+   * A code the ROOM answered with is passed through untouched.
+   */
   const err = async (e: unknown): Promise<never> => {
     if (e instanceof VersusCfError && !/^(timeout|closed|http_404)$/.test(e.code)) throw deps.makeError(e.code);
     const why = deps.whyUnreachable ? await deps.whyUnreachable().catch(() => null) : null;
     if (why) throw deps.makeError(why);
-    if (e instanceof VersusCfError) throw deps.makeError(e.code);
+    if (e instanceof VersusCfError && e.code === 'http_404') throw deps.makeError(e.code);
     throw deps.makeError('network', (e as Error)?.message);
   };
 
@@ -222,7 +235,7 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   /** The room's socket (opened on first use, reused after). */
   async function socket(id: string): Promise<VersusCfClient> {
     if (client && roomId === id) return client;
-    client?.close();
+    { const old = client; client = null; old?.close(); }
     roomId = id;
     room = null;
     match = null;
@@ -235,22 +248,38 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
       baseUrl: base, roomId: id, token, versusProtocol: VERSUS_PROTOCOL, contentRevision: contentRevision(),
       connectTimeoutMs: VERSUS_CF_CONNECT_TIMEOUT_MS,
       ws: (url, protocols) => new WebSocket(url, protocols) as never, onPush,
-      // LOBBY CHAT (R-LOBBY-CHAT-02): every (re)connect catches the room's chat up on what was said while it was down.
-      onStatus: (st) => { if (st === 'open') resyncLobbyChat(); },
-      // The network is back: reconnect now, not after the backoff (R-VERSUS-CF-RECONNECT-01).
+      onStatus: (st) => {
+        // LOBBY CHAT (R-LOBBY-CHAT-02): every (re)connect catches the room's chat up on what was said while it was down.
+        if (st === 'open') resyncLobbyChat();
+        // MY CONNECTION, ON SCREEN (R-VERSUS-LINK-STATUS-01): the current socket's state only (one this transport closed
+        // on purpose, to leave or to move to another room, reports nothing).
+        if (client === c) link(st, st === 'dead' ? c.deadReason ?? 'closed' : null);
+      },
+      // The network is back, or the tab is on screen again: a socket that is down reconnects now instead of after its
+      // backoff (R-VERSUS-CF-RECONNECT-01), and a socket that looks open is PROBED, so one that died unseen while the
+      // phone was on its home screen is found in 2 s, not on the next keep-alive tick (R-VERSUS-CF-PROBE-01).
       wake: (fn) => {
         if (typeof window === 'undefined') return () => undefined;
+        const seen = (): void => { if (document.visibilityState === 'visible') fn(); };
+        const shown = (e: Event): void => { if ((e as PageTransitionEvent).persisted) fn(); };
         window.addEventListener('online', fn);
-        return () => window.removeEventListener('online', fn);
+        document.addEventListener('visibilitychange', seen);
+        window.addEventListener('pageshow', shown);
+        return () => {
+          window.removeEventListener('online', fn);
+          document.removeEventListener('visibilitychange', seen);
+          window.removeEventListener('pageshow', shown);
+        };
       },
     });
     client = c;
+    link('idle');
     try {
       await c.connect();
     } catch (e) {
       // A socket that never opened is dropped (a later call opens a fresh one) rather than left retrying behind a caller
       // that has already been told it failed.
-      if (client === c) { c.close(); client = null; roomId = null; }
+      if (client === c) { client = null; roomId = null; c.close(); link('idle'); }
       else c.close();
       return err(e);
     }
@@ -270,6 +299,12 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
   /** A match-scoped call goes to the room that holds the match (the current one). */
   const mreq = <T>(op: Parameters<VersusCfClient['request']>[0], args: Record<string, unknown>): Promise<T> => req<T>(roomId, op, args);
   const unsupported = (): Promise<never> => Promise.reject(deps.makeError('cf_unsupported'));
+  // What the connection status may do (R-VERSUS-LINK-STATUS-01): "Play here" reopens a socket the room closed for good
+  // (this account opened the game somewhere else); a local exit forgets the socket without leaving the room.
+  if (deps.reportLink) setVersusLinkActions({
+    reclaim: async () => { await client?.reclaim(); },
+    drop: () => { const c = client; client = null; roomId = null; c?.close(); },
+  });
   const http = async <T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> => {
     try {
       return await versusCfHttp<T>(base, path, await token(), init);
@@ -305,7 +340,7 @@ export function makeCfVersusRemote(deps: CfRemoteDeps): VersusRemote {
     takeSeat: (id: string, role: VersusRole) => req<VersusRoom>(id, 'take_seat', { role }),
     async leaveRoom(id: string) {
       const out = await req<{ left: boolean }>(id, 'leave');
-      if (roomId === id) { client?.close(); client = null; roomId = null; }
+      if (roomId === id) { const c = client; client = null; roomId = null; c?.close(); link('idle'); }
       return out;
     },
     startGame: (id: string) => req<VersusRoom>(id, 'start'),

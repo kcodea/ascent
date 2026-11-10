@@ -846,7 +846,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   box-shadow: inset 0 0 0 10px rgba(70, 205, 230, 0.9), inset 0 0 0 12px rgba(10, 40, 50, 0.6), inset 0 0 90px 24px rgba(40, 190, 220, 0.5);
   animation: duosviewfade 0.24s ease both; }
 @keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
-body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
+/* The class is on the three controls themselves (duosViewing.ts), not on `body`: a body class made the browser walk the
+   whole page on the swap's task. `html` in front keeps the old rule's weight (it was `body.duos-viewing .etbwrap`). */
+html .etbwrap.duos-viewing, html .rfbwrap.duos-viewing, html .actiontray.duos-viewing { opacity: 0.42; transition: opacity 0.2s ease; }
 
 /* VERSUS DUOS: THE TEAMMATE PORTRAIT, bottom right (DuosMateDock; R-DUOS-VIEW-01, R-DUOS-VIEW-03, R-DUOS-PASS-01). THE
    MIRROR of the player's hero bottom left (owner 2026-10-25: "make the teammate portrait as large as the player's"):
@@ -974,9 +976,14 @@ html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .duosdock { transition: opacity 0.22s ease; }
 .duosdock.tagged { opacity: 0; }
 /* Owner 2026-10-26: "Move it more to the left so it isn't covering the hero so much": the copy now sits up and to the LEFT. */
-.duostagin { --duos-tag-x: -0.5; --duos-tag-y: 0.22; --duos-tag-s: 0.82; position: fixed; z-index: 41; pointer-events: none;
+/* ON SCREEN, CLEAR OF MY FACE (R-DUOS-TAGIN-ONSCREEN-01): at -0.5 of the disc the copy ran off the stage's left edge (my
+   hero stands only a little in from it) and was cut there, still covering a third of my hero. The offset to the left now
+   STOPS at the stage edge (`max()` against my hero's own inset, `--duos-hero-left`, less `--duos-tag-edge` of air), and
+   the copy is smaller and higher, so it sits whole on my hero's upper left rim: my hero's face and name plate stay clear.
+   Still a static transform. */
+.duostagin { --duos-tag-x: -0.5; --duos-tag-y: 0.34; --duos-tag-s: 0.6; --duos-tag-edge: calc(8 * var(--u)); position: fixed; z-index: 41; pointer-events: none;
   width: var(--duos-d); height: var(--duos-d);
-  transform: translate(calc(var(--duos-d) * var(--duos-tag-x)), calc(var(--duos-d) * var(--duos-tag-y) * -1)) scale(var(--duos-tag-s));
+  transform: translate(max(calc(var(--duos-d) * var(--duos-tag-x)), calc(var(--duos-tag-edge) - var(--duos-hero-left, 0px) - var(--duos-d) * (1 - var(--duos-tag-s)) / 2)), calc(var(--duos-d) * var(--duos-tag-y) * -1)) scale(var(--duos-tag-s));
   transform-origin: 50% 50%; animation: duostagin 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 .duostagin.out { animation: duostagout 0.24s ease both; }
 .duostagin-hold { position: absolute; inset: 0; }

@@ -32,6 +32,7 @@ import { playArrival, playEntryFlight } from './versus/passLob';
 import { notePassRefused, passReturnedText } from './versus/duosPassUi';
 import { devCard } from './versus/duosDevTuner';
 import { sfx } from './sfx';
+import { setDuosViewing } from './duosViewing';
 import { deliverSbTeam, newSbLedger, releaseSbCombatFx, sbHandRoom, type SbLedger, type SbSeat } from './sbDuosChannel';
 
 /** The placeholder teammate's name pill. */
@@ -225,7 +226,7 @@ export function uninstallSbDuos(): void {
   resetTeam();
   noteLocalMateTriples(null);
   installLocalMate(null);
-  if (typeof document !== 'undefined') document.body.classList.remove('duos-viewing');
+  setDuosViewing(false);
 }
 
 // ── the tuner: the teammate does something to you ───────────────────────────────────────────────────────────────────

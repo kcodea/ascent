@@ -27,6 +27,7 @@ import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
 import type { Lane } from './assetQueue';
 import { LITE_ART } from './phoneArt';
+import { browserIdle } from './idleWork';
 import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_DECODE_GAP_MS, pacedQueue, phoneDecodeRate, phoneMono } from './audio/phoneAudio';
 import type { ClipIndex, PrewarmScene } from './audio/clipIndex';
 import { createClipLru, desktopLruCapBytes } from './audio/clipLru';
@@ -307,11 +308,23 @@ export function onAudioContextReady(cb: (a: AudioContext) => void): void {
   else audioReadyListeners.push(cb);
 }
 
-function audio(): AudioContext | null {
+/** The context was built ahead of the first gesture (`warmAudioGraph`) and the SFX bank's decode still waits for the
+ *  first real use: the bank lands when it always did (the first gesture), never during the boot. */
+let bankPending = false;
+
+/**
+ * `warm` (the boot's idle build, `warmAudioGraph`): build the context and its graph and stop there. No resume (there is
+ * no gesture yet: the first one resumes it, audioUnlock.ts) and no SFX bank decode (see `bankPending`).
+ */
+function audio(warm = false): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    if (needsResume(ctx.state)) void ctx.resume().catch(() => { /* no gesture yet: audioUnlock retries on the next */ });
+    if (!warm && needsResume(ctx.state)) void ctx.resume().catch(() => { /* no gesture yet: audioUnlock retries on the next */ });
+    if (!warm && !isNew && bankPending) {
+      bankPending = false;
+      setTimeout(prefetchSamples, 0); // the first real use of a context built ahead: the bank's decode starts now, as before
+    }
     if (isNew && audioReadyListeners.length) {
       const created = ctx;
       // After this call returns (the graph below is built first), never inside the caller's sound play.
@@ -358,13 +371,35 @@ function audio(): AudioContext | null {
       // plays is unaffected: a play of an unloaded sample asks for it itself.
       // A PHONE waits a moment and then decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01, audio/phoneAudio.ts):
       // its first touch is usually Play, and the bank must not land in the same second as the mode home.
-      setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
-      crumb('audio unlocked', { sampleRate: ctx.sampleRate });
+      if (warm) bankPending = true;
+      else setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
+      crumb(warm ? 'audio built ahead' : 'audio unlocked', { sampleRate: ctx.sampleRate });
     }
     return ctx;
   } catch {
     return null;
   }
+}
+
+/**
+ * THE AUDIO GRAPH IS BUILT BEFORE THE FIRST CLICK, NOT IN IT (perf, the Duos audit of 2026-11-09). The context, its
+ * limiter, buses and meters used to be created inside the first gesture of a session (48 ms of that click's task,
+ * measured on START), and the reverb convolvers in the tasks right behind it (13 to 33 ms each). This builds the context
+ * on idle time during the boot instead. Built before a gesture it starts suspended, which every path already handles:
+ * the first gesture resumes it (audioUnlock.ts), and so does the first sound (`audio()`). Nothing plays differently:
+ * same graph, same nodes, the SFX bank still decodes from the first gesture.
+ *
+ * Desktop only. A phone keeps building it on its first touch (`LITE_ART`): iOS is strict about how a context is
+ * unlocked (R-TOUCH-AUDIO-01) and that path is not one to change without a device in hand.
+ */
+export function warmAudioGraph(): void {
+  if (ctx || LITE_ART) return;
+  audio(true);
+}
+/** How long the boot's audio build waits for an idle moment before it runs anyway (ms). */
+const AUDIO_WARM_TIMEOUT_MS = 2500;
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && import.meta.env.MODE !== 'test' && !LITE_ART) {
+  browserIdle.schedule(warmAudioGraph, AUDIO_WARM_TIMEOUT_MS);
 }
 
 // Warm the audio context + start decoding the mp3 SFX on the FIRST user gesture anywhere (a click/keypress),

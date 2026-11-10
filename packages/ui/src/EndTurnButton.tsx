@@ -7,6 +7,7 @@ import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
 import { publicArt } from './phoneArt';
 import { CountdownTail } from './versus/countdownBeat';
+import { useDuosViewingClass } from './duosViewing';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
@@ -70,6 +71,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
    *  ready glow, and a press takes the signal back. */
   readyOn?: boolean;
 }) {
+  const mateView = useDuosViewingClass(); // dimmed while I watch my Duos teammate (duosViewing.ts)
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLButtonElement>(null);
   const pressedRef = useRef(pressed);
@@ -297,7 +299,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
     <button
       ref={wrapRef}
       data-spec="endturn"
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}${mateView}`}
       disabled={disabled}
       onClick={click}
       aria-pressed={readyOn && !combatReady && !skipReady ? true : undefined}

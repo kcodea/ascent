@@ -56,6 +56,25 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-10',
+    label: 'Duos fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Duos fixes: on a phone, one tap on "Back to your board" now brings you back, and your teammate portrait shows their hero. Several Duos screens and texts were corrected.',
+        details: [
+          'Phones: a tap on "Back to your board" no longer puts you straight back on your teammate\'s board.',
+          'Phones: the teammate portrait shows the hero inside its ring. It was an empty ring.',
+          'Concede now says what it costs in the mode you are in. In Versus Duos your whole team goes out. In Ranked Duos you leave for good and your teammate plays on.',
+          'The Pass keyword text is correct: you can pass a Gilded minion from your hand. Only spells that pass cannot target one.',
+          'Party screen: the mode description is no longer drawn on top of your team name.',
+          'Tag-team fights: your teammate\'s portrait now sits whole on screen at the top left of your hero, clear of your hero\'s face and name.',
+          'Hero select: your teammate\'s choices are titled "Your Teammate\'s Heroes", and the screen no longer shifts when you swap between their heroes and yours.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     changes: [
       {

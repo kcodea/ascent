@@ -677,6 +677,9 @@ html:not([data-ph-compact]) .ph-stagehead > .ph-held, html:not([data-ph-compact]
 
 /* The mode's one-line description sits a touch lower under the tabs (owner 2026-11-05: "move this down a little"). */
 html:not([data-ph-compact]) .ph-desc { translate: 0 calc(54 * var(--phu)); }
+/* ...but never onto the head slot's plate (R-PARTY-CAPTION-01: with a teammate in, "You and a teammate against three teams."
+   was drawn on top of the team's name plate). While the head slot holds a plate the line stays on its own row under the tabs. */
+html:not([data-ph-compact]) .ph-desc.headed { translate: none; }
 
 /* Your Rank plate: more room under the rank bar (owner 2026-11-05: "needs to be more padding on the bottom side here"). */
 .phk-plate.ph-rankplate { padding-bottom: calc(22 * var(--phu)); }

@@ -66,6 +66,30 @@ describe('the teammate portrait, bottom right', () => {
     } finally { ui.unmount(); }
   });
 
+  it('R-DUOS-BACK-TAP-01: a finger tap on "Back to your board" comes back once; the click that follows the tap never re-enters', () => {
+    const clock = vi.spyOn(performance, 'now');
+    let ui = mount(<DuosMateDock watching />);
+    try {
+      clock.mockReturnValue(100_000);
+      const up = new Event('pointerup', { bubbles: true });
+      Object.defineProperty(up, 'pointerType', { value: 'touch' });
+      act(() => { ui.container.querySelector('.duosdock')!.dispatchEvent(up); });
+      expect(view.exitTeammateView).toHaveBeenCalledTimes(1);
+      // The view is left: the portrait re-renders as the TEAMMATE's (a click on it watches them)...
+      ui.unmount();
+      ui = mount(<DuosMateDock watching={false} />);
+      // ...and the tap's own click arrives 40 ms later, on that fresh portrait. It is the same gesture: swallowed.
+      clock.mockReturnValue(100_040);
+      act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      expect(view.enterTeammateView).not.toHaveBeenCalled();
+      expect(view.exitTeammateView).toHaveBeenCalledTimes(1);
+      // A later, separate tap or click does enter.
+      clock.mockReturnValue(100_900);
+      act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+      expect(view.enterTeammateView).toHaveBeenCalledTimes(1);
+    } finally { ui.unmount(); clock.mockRestore(); }
+  });
+
   it('a drag over it: the teal glow for a pass, a red ring and the reason for a refusal', () => {
     const ui = mount(<DuosMateDock watching={false} />);
     try {
@@ -161,6 +185,10 @@ describe('the teammate portrait, bottom right', () => {
     expect(css).toMatch(/@keyframes duostagin \{ from \{ opacity: 0; scale: 0\.88; \} to \{ opacity: 1; scale: 1; \} \}/);
     expect(css).toMatch(/\.duosdock\.tagged \{ opacity: 0; \}/);
     expect(css).not.toMatch(/duostag(in|out)[^;{]*infinite/);
+    // R-DUOS-TAGIN-ONSCREEN-01: the copy's offset to the left stops at the stage edge (never cut by it), off my hero's
+    // own measured inset; it is a static transform.
+    expect(css).toMatch(/\.duostagin \{[^}]*transform: translate\(max\(calc\(var\(--duos-d\) \* var\(--duos-tag-x\)\), calc\(var\(--duos-tag-edge\) - var\(--duos-hero-left, 0px\) - var\(--duos-d\) \* \(1 - var\(--duos-tag-s\)\) \/ 2\)\)/);
+    expect(read('DuosMateDock.tsx')).toContain("'--duos-hero-left': `${hero.left}px`");
     // Live: while my teammate's board fights on my side, the bottom-right portrait fades out; then it comes back.
     const ui = mount(<DuosMateDock watching={false} inCombat />);
     try {

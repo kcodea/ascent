@@ -41,8 +41,27 @@ export function leaveKindOf(
 }
 
 interface LeaveText { label: string; confirm: string; note: string }
+
+/** Which Versus area a concede is made in (R-CONCEDE-COPY-01): each one loses something different. */
+export type ConcedeArea = 'duel' | 'group' | 'duos' | 'rankedDuos';
+/** The area of the match on screen, off the match's own options (a 1v1 match carries no group table). */
+export function concedeAreaOf(match: { group?: { raw: { options?: { mode?: string } | null } } } | null | undefined): ConcedeArea {
+  const raw = match?.group?.raw;
+  if (!raw) return 'duel';
+  if (raw.options?.mode === 'ranked_duos') return 'rankedDuos';
+  return raw.options?.mode === 'duos' ? 'duos' : 'group';
+}
+/** What conceding costs, per area. A 1v1 hands the match to the opponent; a group seat goes out to the stands;
+ *  a Versus Duos concede takes the whole team out; a Ranked Duos concede is for good while the teammate plays on. */
+const CONCEDE_NOTE: Record<ConcedeArea, string> = {
+  duel: 'Your opponent wins this match. You go back to the room.',
+  group: 'You are out of this match. You can watch the rest.',
+  duos: 'Your whole team is out of this match. Your teammate goes out with you.',
+  rankedDuos: 'You leave this match for good. Your teammate plays on without you.',
+};
+
 /** The button's words: its label, the armed label (tap again), and the note shown while armed and on hover. */
-export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false): LeaveText {
+export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false, area: ConcedeArea = 'duel'): LeaveText {
   // The Versus match is already over (R-RANKED-DUOS-END-01): nothing to concede, the leave goes back to the room.
   if (kind === 'concede' && over) return { label: 'Leave match', confirm: 'Tap again to leave', note: 'The match is over. Back to the room.' };
   switch (kind) {
@@ -51,7 +70,7 @@ export function leaveText(kind: LeaveKind, godMode: boolean, live: boolean, over
       : { label: 'Leave match', confirm: 'Tap again to leave', note: 'Back to the room. The match goes on.' };
     case 'replay': return { label: 'Leave replay', confirm: 'Tap again to leave', note: 'Back to the main menu. The replay closes.' };
     case 'abandon': return { label: 'Abandon match', confirm: 'Tap again to abandon', note: 'This is a ranked lobby. Leaving now counts as an 8th place finish and costs MMR.' };
-    case 'concede': return { label: 'Concede', confirm: 'Tap again to concede', note: 'Your opponent wins this match. You go back to the room.' };
+    case 'concede': return { label: 'Concede', confirm: 'Tap again to concede', note: CONCEDE_NOTE[area] };
     case 'run': return godMode
       ? { label: 'Leave God Mode', confirm: 'Tap again to leave', note: 'Returns to the menu. Nothing from this game is saved.' }
       : { label: 'Save & Quit', confirm: 'Tap again to quit', note: 'Saves this exact moment and returns to the menu. Continue picks up right here.' };
@@ -72,8 +91,8 @@ export function leaveGame(kind: LeaveKind): void {
 
 /** The leave as Settings words it (R-SETTINGS-SAVEQUIT-01): a solo or lobby game reads "Save and Quit Match"; every other
  *  leave keeps its own words (a Versus match concedes, a replay leaves, ...). */
-export function settingsLeaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false): LeaveText {
-  const t = leaveText(kind, godMode, live, over);
+export function settingsLeaveText(kind: LeaveKind, godMode: boolean, live: boolean, over = false, area: ConcedeArea = 'duel'): LeaveText {
+  const t = leaveText(kind, godMode, live, over, area);
   return kind === 'run' && !godMode ? { ...t, label: 'Save and Quit Match', confirm: 'Press again to quit' } : t;
 }
 
@@ -94,7 +113,8 @@ export function LeaveButton() {
     const t = window.setTimeout(() => setArmed(false), ARM_MS);
     return () => window.clearTimeout(t);
   }, [armed]);
-  const text = leaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over);
+  const area = useVersus((s) => concedeAreaOf(s.match));
+  const text = leaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over, area);
   const leave = (): void => leaveGame(kind);
   return (
     <div className="msb-item msb-leavewrap" data-tip={armed ? undefined : text.note}>

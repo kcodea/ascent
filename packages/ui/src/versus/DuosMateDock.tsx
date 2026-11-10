@@ -59,9 +59,13 @@ import { mateWorking, useDuosMateSignals } from './duosMateSignals';
  *  stone; the disc is about the same size, the burst a touch smaller so it reads as theirs, not mine). */
 export const DOCK_TIER_FX_SCALE = 0.85;
 
-/** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. */
+/** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. The guard is
+ *  SYMMETRIC (R-DUOS-BACK-TAP-01): the release comes back and re-renders the portrait as the teammate's, so that same
+ *  click lands on the way IN and must be swallowed there too, or one tap leaves and re-enters. */
 const TAP_CLICK_MS = 700;
 let lastTap = -Infinity;
+/** Is this click the tail of the tap whose release already swapped? */
+const tapsOwnClick = (): boolean => performance.now() - lastTap <= TAP_CLICK_MS;
 
 /** Where the dock sits: its disc's diameter and its distance in from the stage's right and bottom edges (stage px), plus
  *  your own hero disc (left / bottom / diameter, stage px), where the tag-in copy lands. */
@@ -387,7 +391,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
         tabIndex: 0,
         'aria-label': heroSelect ? 'Your portrait. Click to go back to your hero choices.' : 'Your portrait. Click to go back to your board.',
         onPointerUp: (e: PointerEvent) => { if (e.pointerType !== 'mouse') { lastTap = performance.now(); exitTeammateView(); } },
-        onClick: () => { if (performance.now() - lastTap > TAP_CLICK_MS) exitTeammateView(); },
+        onClick: () => { if (!tapsOwnClick()) exitTeammateView(); },
         onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); exitTeammateView(); } },
       } : {})}
     >
@@ -412,7 +416,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           data-duos-mate=""
           role="button"
           aria-label={heroSelect ? `${face.name}, your teammate. Click to see their hero choices.` : `${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
-          onClick={() => enterTeammateView()}
+          onClick={() => { if (!tapsOwnClick()) enterTeammateView(); }}
         >
           <span className="duosdock-work" aria-hidden="true" />
           <span className="duosdock-glow" aria-hidden="true" />
@@ -454,7 +458,9 @@ function DuosTagIn({ on, hero, art, frame, name, working }: { on: boolean; hero:
     return () => window.clearTimeout(timer.current);
   }, [on]);
   if (!shown && !on) return null;
-  const style = { '--duos-d': `${hero.d}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
+  // `--duos-hero-left`: how far my hero disc stands in from the stage's left edge, so the copy's offset can stop at that
+  // edge and never be cut by it (R-DUOS-TAGIN-ONSCREEN-01; the clamp is CSS, off this one measured number).
+  const style = { '--duos-d': `${hero.d}px`, '--duos-hero-left': `${hero.left}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
   return (
     <div className={`duostagin${on ? '' : ' out'}${working ? ' working' : ''}`} style={style} aria-label={`${name} is fighting for your team.`}>
       <div className="duostagin-hold">

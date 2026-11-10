@@ -8,7 +8,7 @@ import { UpdatedPanel } from './UpdatedPanel';
 import { PatchNotesBody } from './PatchNotesBody';
 import type { PatchNote } from './patchNotes';
 import { UpdateReadyNotice, updateNoticePlace } from './UpdateReadyNotice';
-import { updateCheckLine, watchUpdateCheck } from './updateCheck';
+import { CHECK_HOLD_MS, STALL_MS, updateCheckLine, watchUpdateCheck } from './updateCheck';
 import type { UpdateStatus } from './desktop';
 import { readUpdateSeen, writeUpdateSeen } from './updateNotes';
 
@@ -145,7 +145,104 @@ describe('the loading screen update line', () => {
   it('the splash has the line, Boot drives it, and the shell checks at launch', () => {
     const read = (p: string): string => readFileSync(resolve(process.cwd(), p), 'utf8');
     expect(read('apps/web/index.html')).toContain('<div id="bootsplash-update" aria-live="polite"></div>');
-    expect(read('packages/ui/src/Boot.tsx')).toMatch(/#bootsplash-update[\s\S]{0,120}watchUpdateCheck\(line\)/);
+    expect(read('packages/ui/src/Boot.tsx')).toMatch(/#bootsplash-update[\s\S]{0,200}watchUpdateCheck\(line, /);
+  });
+
+  // R-UPDATE-HOLD-LOADING-01 (owner 2026-11-10): the loading screen waits while a found update downloads.
+  const hold = (first: Status): { set(s: Status): void; released: () => number; el: HTMLElement; skip: HTMLElement; stop(): void; step(ms: number): Promise<void> } => {
+    let status = first;
+    (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
+      isDesktop: true, quit() {}, toggleFullscreen() {}, onUpdateReady: () => () => {},
+      getUpdateStatus: () => Promise.resolve(status), installUpdate() {},
+    };
+    const el = document.createElement('div');
+    const skip = document.createElement('div');
+    document.body.append(el, skip);
+    let n = 0;
+    vi.useFakeTimers();
+    const stop = watchUpdateCheck(el, () => { n++; }, skip);
+    return {
+      set(s) { status = s; }, released: () => n, el, skip,
+      stop() { stop(); vi.useRealTimers(); el.remove(); skip.remove(); },
+      async step(ms) { await act(async () => { vi.advanceTimersByTime(ms); }); await turn(); },
+    };
+  };
+  it('R-UPDATE-HOLD-LOADING-01: up to date, off and a failed check let the game open at once', async () => {
+    for (const state of ['current', 'off', 'error']) {
+      const h = hold({ state, version: null, percent: 0 });
+      try { await turn(); expect(h.released()).toBe(1); } finally { h.stop(); }
+    }
+  });
+  it('R-UPDATE-HOLD-LOADING-01: holds while downloading and on the downloaded line; "Not now" lets go', async () => {
+    const h = hold({ state: 'checking', version: null, percent: 0 });
+    try {
+      await turn();
+      expect(h.released()).toBe(0);
+      h.set({ state: 'downloading', version: '0.9.9', percent: 10 });
+      await h.step(400);
+      h.set({ state: 'downloading', version: '0.9.9', percent: 60 });
+      await h.step(30_000);
+      expect(h.released()).toBe(0);
+      expect(h.skip.classList.contains('is-on')).toBe(false);
+      h.set({ state: 'ready', version: '0.9.9', percent: 100 });
+      await h.step(400);
+      expect(h.released()).toBe(0);
+      expect(h.skip.classList.contains('is-on')).toBe(true);
+      h.skip.click(); h.skip.click();
+      expect(h.released()).toBe(1);
+      expect(h.skip.classList.contains('is-on')).toBe(false);
+    } finally { h.stop(); }
+  });
+  it('R-UPDATE-HOLD-LOADING-01: a check that never answers, or a download that stops moving, never traps the player', async () => {
+    let h = hold({ state: 'checking', version: null, percent: 0 });
+    try {
+      await turn();
+      await h.step(CHECK_HOLD_MS - 500);
+      expect(h.released()).toBe(0);
+      await h.step(1000);
+      expect(h.released()).toBe(1);
+    } finally { h.stop(); }
+    h = hold({ state: 'downloading', version: '0.9.9', percent: 12 });
+    try {
+      await turn();
+      await h.step(STALL_MS - 1000);
+      expect(h.released()).toBe(0);
+      await h.step(2000);
+      expect(h.released()).toBe(1);
+    } finally { h.stop(); }
+  });
+  it('R-UPDATE-CHECK-LOADING-01: the download has its own bar, shown only while downloading and filled to the percent', async () => {
+    let status: Status = { state: 'checking', version: null, percent: 0 };
+    (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
+      isDesktop: true, quit() {}, toggleFullscreen() {}, onUpdateReady: () => () => {},
+      getUpdateStatus: () => Promise.resolve(status), installUpdate() {},
+    };
+    const el = document.createElement('div');
+    const bar = document.createElement('div');
+    const fill = bar.appendChild(document.createElement('i'));
+    document.body.append(el, bar);
+    vi.useFakeTimers();
+    const stop = watchUpdateCheck(el, () => {}, null, bar);
+    try {
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(false);
+      status = { state: 'downloading', version: '0.9.9', percent: 43 };
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(true);
+      expect(fill.style.transform).toBe('scaleX(0.4300)');
+      status = { state: 'ready', version: '0.9.9', percent: 100 };
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(false);
+    } finally { stop(); vi.useRealTimers(); el.remove(); bar.remove(); }
+    expect(readFileSync(resolve(process.cwd(), 'apps/web/index.html'), 'utf8')).toContain('<div id="bootsplash-dl" aria-hidden="true"><i></i></div>');
+  });
+  it('R-UPDATE-HOLD-LOADING-01: Boot opens the game only when the art is loaded AND the update check has let go', () => {
+    const boot = readFileSync(resolve(process.cwd(), 'packages/ui/src/Boot.tsx'), 'utf8');
+    expect(boot).toContain('const ready = artReady && updateOk;');
+    expect(boot).toMatch(/if \(!line\) \{ setUpdateOk\(true\); return undefined; \}/);
+    expect(readFileSync(resolve(process.cwd(), 'apps/web/index.html'), 'utf8')).toContain('<div id="bootsplash-skip" role="button" tabindex="0">Not now</div>');
   });
   it('the notice under START carries the same click when the shell can install', () => {
     setDesktop();

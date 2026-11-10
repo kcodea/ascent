@@ -81,10 +81,14 @@ function progressPainter(): (done: number, total: number) => void {
 }
 
 export function Boot({ children }: { children: ReactNode }): React.ReactElement {
-  const [ready, setReady] = useState<boolean>(false);
+  // The splash leaves when BOTH hold: the art is loaded, and the update check has let go (it holds the loading screen
+  // while a found update downloads, R-UPDATE-HOLD-LOADING-01; released at once in the browser).
+  const [artReady, setArtReady] = useState<boolean>(false);
+  const [updateOk, setUpdateOk] = useState<boolean>(false);
+  const ready = artReady && updateOk;
 
   useEffect(() => {
-    if (ready) return;
+    if (artReady) return;
     // NB: no cross-run guard — under StrictMode the effect runs twice, and the first run's cleanup flips its
     // `alive` to false; a ref guard would block the second run from re-wiring state and deadlock the loader.
     // Running it again is harmless: `preloadBootArt` queues once and returns the same list, and `whenArtReady`
@@ -108,15 +112,18 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
         // Read by the devlog's measuring script (and handy in a bug report): how long the gate held, for how many.
         (window as unknown as { __artGate?: unknown }).__artGate = { items: gate.length, ms: Math.round(performance.now() - t0), lite: LITE_ART };
       }
-      if (alive) setReady(true);
+      if (alive) setArtReady(true);
     });
     return () => { alive = false; };
-  }, [ready]);
+  }, [artReady]);
 
-  // The desktop app's update check, reported on the splash for as long as it is up (updateCheck.ts). Never gates loading.
+  // The desktop app's update check, reported on the splash (updateCheck.ts). It holds the loading screen while a found
+  // update downloads and on the "restart and install" line; everything else (and a host page without the line) lets go.
   useEffect(() => {
-    const line = splashEl()?.querySelector<HTMLElement>('#bootsplash-update');
-    return line ? watchUpdateCheck(line) : undefined;
+    const splash = splashEl();
+    const line = splash?.querySelector<HTMLElement>('#bootsplash-update');
+    if (!line) { setUpdateOk(true); return undefined; }
+    return watchUpdateCheck(line, () => setUpdateOk(true), splash?.querySelector<HTMLElement>('#bootsplash-skip') ?? null, splash?.querySelector<HTMLElement>('#bootsplash-dl') ?? null);
   }, []);
 
   // READY → fade the splash off the mounted game, then remove the node.

@@ -15034,8 +15034,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'The desktop app checks for a newer version as soon as it opens, and the loading screen says where that stands: '
       + '"Checking for updates", then either "Your version of Ascent is up to date" or "New version found" with the download '
-      + 'progress and, once downloaded, a line the player clicks to restart and install that version. Loading never waits on '
-      + 'the check or the download. A download that finishes after the game opens offers the same click on the notice under '
+      + 'progress and, once downloaded, a line the player clicks to restart and install that version (the loading screen waits '
+      + 'for a found update: R-UPDATE-HOLD-LOADING-01). A download that finishes after the game opens offers the same click on the notice under '
       + 'START. The install only ever runs at a launch, never during a match, and a failed check shows nothing.',
     domain: 'foundation',
     status: 'approved',
@@ -15045,5 +15045,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms from 2026-11-10 for shells built from feat/update-on-loading onward (the shell half ships inside the installer, so players get it with the update AFTER the one that carries it; an older shell shows no line and keeps "installs next time you start"). The click is a relaunch: the new launch installs through the existing pending-update path. Before: the check ran 10 s after the game opened and nothing was said until the download finished.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx', 'apps/desktop/updater.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-UPDATE-HOLD-LOADING-01',
+    title: 'The loading screen waits while a found update downloads',
+    statement:
+      'When the desktop app finds a newer version at launch, the loading screen does not open the game while that version '
+      + 'downloads; it stays up showing the progress, then the line the player clicks to restart and install. The player is '
+      + 'never trapped: "Not now" beside the downloaded line opens the game, and a check that does not answer or a download '
+      + 'that stops moving lets the game open by itself. With no update found, loading is not delayed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'yes, i want the load screen to not progress if there is a new version found and downloading' },
+      { kind: 'code', ref: 'feat/update-hold-loading: packages/ui/src/updateCheck.ts (onRelease, CHECK_HOLD_MS, STALL_MS, "Not now") + packages/ui/src/Boot.tsx (ready = artReady && updateOk) + apps/web/index.html (#bootsplash-skip)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 on shells that report the check (R-UPDATE-CHECK-LOADING-01); the browser and older shells are released at once. The waits: up to 8 s on "Checking for updates", and a download whose percent has not moved for 45 s stops holding. The "Not now" escape and both time limits are implementation choices the owner has not ruled on.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-10' },
   },
 ];

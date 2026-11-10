@@ -165,6 +165,8 @@ function heroPowerTallyOf(
     case 'gainMaxMana': return power.usesPerTurn ? `${Math.max(0, power.usesPerTurn - (run.heroUsesThisTurn ?? 0))} left` : null;
     // Merrin × Ancient of Fortune: Pocket Magic twice a turn (the same override) — uses left this turn.
     case 'pocketMagic': return power.usesPerTurn ? `${Math.max(0, power.usesPerTurn - (run.heroUsesThisTurn ?? 0))} left` : null;
+    // Priestess × Ancient of Time (Duos, R-ANCPRIESTESS-05): Passaria twice a turn (the same override) — uses left this turn.
+    case 'passaria': return power.usesPerTurn ? `${Math.max(0, power.usesPerTurn - (run.heroUsesThisTurn ?? 0))} left` : null;
     default: return null;
   }
 }

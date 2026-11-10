@@ -4,10 +4,12 @@ import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientSpoilsPassive } from './ancients'; // Mimic
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
+import { ancientAllInExtra, ancientForcedGambleRoll, ancientCoinGold, ancientCoinBonus, ancientOnCoinCast } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Juggler
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
+import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -1466,7 +1468,9 @@ export function buyoutCostOf(state: RunState): number {
  *  the second of his two activations starts its accrual over. Shared by the reducer and the panel tally. */
 export function allInPayoutOf(state: RunState): number {
   const base = state.rascalResetWave ?? 1; // runs open on wave 1
-  return 1 + 2 * Math.max(0, state.wave - base);
+  const turns = Math.max(0, state.wave - base);
+  // ANCIENTS × Rascal (0 unless picked): Fortune grows it 2 more per turn; Death adds its Avenge Gold.
+  return 1 + 2 * turns + ancientAllInExtra(state, turns);
 }
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
@@ -9241,9 +9245,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  The roll rides the run's shared cursor, so it is seeded/replayable like every other random pull. The tier
    *  is the die face itself — a 6 can hand you a Tier-6 card off a 2-Gold spell, which is the gamble. */
   spellGambleTierPull: (ctx, _self, _params) => {
+    // ANCIENT OF GENESIS × Gambler: "Dice also casts Gamble, using the same roll." The face is handed in, so no die is
+    // drawn (the run cursor is untouched by the roll itself).
+    const forced = ancientForcedGambleRoll(ctx.state);
     const rng = makeRng(ctx.state.rngCursor);
-    const tier = 1 + rng.int(6);
-    ctx.state.rngCursor = rng.state();
+    const tier = forced ?? 1 + rng.int(6);
+    if (forced === undefined) ctx.state.rngCursor = rng.state();
     const pool = poolOf(ctx.state);
     const picks = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => !c.token && c.tier === tier);
     if (picks.length === 0) return;
@@ -9797,6 +9804,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (str(params._spellId) === 'growth') {
         attack += ctx.state.growthBonus ?? 0;
         health += ctx.state.growthBonus ?? 0;
+      }
+      // ANCIENT OF WAR × Juggler: a Carnival Coin's buff carries the improvement earlier Coins banked.
+      if (str(params._spellId) === 'carnivalcoin') {
+        const coin = ancientCoinBonus(ctx.state);
+        attack += coin.attack;
+        health += coin.health;
       }
     }
     const source = str(params._source) || 'Growth';
@@ -11485,7 +11498,7 @@ export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rub
   return text;
 }
 
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; /** ANCIENTS × Juggler: `carnivalCoinLive(run)`. */ carnivalCoin?: { gold: number; attack: number; health: number }; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 4 — a WHISPER reads live (R-TEXT live rule): its CURRENT value per cast, x the held copy's multiplier, with the
@@ -11496,6 +11509,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.gift && def.effects.length > 0 && def.effects.every((e) => e.on !== 'cast' || e.params?.flat === true)) return def.text;
   // Rune of Gambling: a Gamble pays a minion AND a spell — the text must promise exactly that while the rune is armed.
   if (def.id === 'sp_gamble' && extra?.gambleBoth) return def.text.replace('minion or spell', '{{minion AND spell}}');
+  // ANCIENTS × Juggler: a Carnival Coin prints what it gives right now: Fortune's Gold, and its buff with War's banked
+  // improvement folded in (on top of spell power, like the cast).
+  if (def.id === 'carnivalcoin' && extra?.carnivalCoin) {
+    const cc = extra.carnivalCoin;
+    const text = spellDisplayText(cardId, bonusA + cc.attack, escalation, bonusH + cc.health, goldSpent, escalationH, goldPouchValue, { ...extra, carnivalCoin: undefined });
+    return cc.gold !== 1 ? text.replace('**1 Gold**', `{{${cc.gold} Gold}}`) : text;
+  }
   // Set 3 — a CLUE reads live: base 1/1 + the run's `clueBonus` (the value its cast will grant right now).
   if (def.id === 'clue') {
     const cb = extra?.clueBonus ?? 0;
@@ -14400,9 +14420,11 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     if (effect.on === 'cast' && effect.do === 'gainEmbers') {
       // Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth `goldPouchValue` Gold instead of 1.
       const gain = spellDef.id === 'emberpouch' && state.goldPouchValue ? state.goldPouchValue : num(effect.params?.amount);
-      gainGold(state, gain);
+      // ANCIENT OF FORTUNE × Juggler: "Carnival Coins give 3 Gold."
+      gainGold(state, spellDef.id === 'carnivalcoin' ? ancientCoinGold(state) ?? gain : gain);
     }
   }
+  ancientOnCoinCast(state, spellDef.id); // ANCIENT OF WAR × Juggler: this Coin improves the later ones (a no-op otherwise)
   // …then the bookkeeping every cast owes the run, shared with the Discover-spell path in the reducer.
   noteSpellCast(state, spellDef);
   // RUNE OF THE METEOR STORM (Set 3 design pass): a Star Crash cast (any caster, a cast on the Starform included) casts
@@ -15060,6 +15082,30 @@ export interface SocRuneReplay {
 /** The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always collect;
  *  every other body claims the FIRST type nobody has claimed yet — one banner per body. Shared by the legacy
  *  Start-of-Combat replay, United Front, and the rune's End-of-Turn grant (owner rework 2026-09-23). */
+/** United Front's Rune of Wishbone multiplier ("Your Hero Power triggers twice": the grant doubles, as its combat mod
+ *  does). `wishboneReps`, inlined (a reducer import would cycle). */
+export function unitedFrontMult(st: RunState): number {
+  return st.runeWishbone ? 1 + runeStacksOf(st, 'rune_wishbone') : 1;
+}
+
+/**
+ * UNITED FRONT IN THE SHOP (Emissary), the one entry point: one friendly minion of each type gains +N/+N, N = spells
+ * cast this game (Wishbone doubles). A Shop buff, so it is permanent. Callers: the Start-of-Combat replay list below,
+ * and the Ancients (Emissary × Death's Shop Avenge, × Time's End of Turn). EMISSARY × ANCIENTS reshape it through
+ * `ancientUnitedFrontShape` (a no-op without them): War fires it again, Bonds reaches every friendly minion. Returns
+ * false when nobody gained.
+ */
+export function fireShopUnitedFront(st: RunState): boolean {
+  const n = st.spellsCast * unitedFrontMult(st);
+  if (n <= 0) return false;
+  const shape = ancientUnitedFrontShape(st);
+  let hit = false;
+  for (let r = 0; r < shape.reps; r++) {
+    for (const m of shape.all ? [...st.board] : bannerRecipientsOf(st)) { addBuff(m, 'United Front', n, n); hit = true; }
+  }
+  return hit;
+}
+
 export function bannerRecipientsOf(st: RunState): BoardCard[] {
   const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
   const taken = new Set<string>();
@@ -15164,11 +15210,9 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
   // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
-  if (hasPower(state, 'unitedFront')) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
-    const n = st.spellsCast * (st.runeWishbone ? 1 + runeStacksOf(st, 'rune_wishbone') : 1); // wishboneReps, inlined (a reducer import would cycle)
-    if (n <= 0) return;
-    for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);
-  } });
+  // EMISSARY × ANCIENT OF TIME: United Front is an End-of-Turn effect then (its own recurring entry), never a Start of
+  // Combat one, so it is not in this list.
+  if (hasPower(state, 'unitedFront') && !ancientUnitedFrontAtEot(state)) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => { fireShopUnitedFront(st); } });
   // Rune of the Centerline: ends of DIFFERENT (primary, non-neutral) types → the middle gains Crit + Ward.
   if (f?.runeCenterline) out.push({ id: 'rune_centerline', kind: 'rune', label: 'Centerline', fire: (st) => {
     if (st.board.length < 3) return;
@@ -15327,6 +15371,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientDarahEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRayseEotRise') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientBatchBEot') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -15932,6 +15977,9 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientDrakkoEotShoutLive(state) ? ['ancientDrakkoEotShout' as const] : []),
     // ANCIENT OF TIME × Rayse: "End of turn give a minion Rise." The same virtual entry.
     ...(ancientRayseEotRiseLive(state) ? ['ancientRayseEotRise' as const] : []),
+    // ANCIENT OF TIME x Kindness ("End of Turn: Get 2 random shop spells."), x Emissary ("United Front triggers at End of
+    // Turn instead.") and x Emerald Warden ("End of Turn: Get a random minion of your tier."). One virtual entry.
+    ...(ancientBatchBEotLive(state) ? ['ancientBatchBEot' as const] : []),
   ];
 }
 
@@ -15992,6 +16040,8 @@ function runRecurringEndOfTurn(
     if (leftmost) replayBattlecry(state, leftmost);
   } else if (effect === 'ancientRayseEotRise') {
     ancientRunRayseEotRise(state, step);
+  } else if (effect === 'ancientBatchBEot') {
+    ancientRunBatchBEot(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -16590,6 +16640,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientDarahEotCopy: 'Ancient of Time',
   ancientDrakkoEotShout: 'Ancient of Time',
   ancientRayseEotRise: 'Ancient of Time',
+  ancientBatchBEot: 'Ancient of Time',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
 };

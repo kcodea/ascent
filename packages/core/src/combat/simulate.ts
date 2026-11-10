@@ -2212,6 +2212,23 @@ export function simulate(
         ctx.castingSpellId = undefined;
         try { for (const m of ends) ctx.buff(m, edges.attack, edges.health, edges.label); } finally { ctx.castingSpellId = casting; }
       }
+      // ANCIENT OF BONDS × Merrin (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat
+      // cast (one per repetition): one LIVING friendly minion of each type, United Front's selection (All-types bodies
+      // always collect). A combat buff. Like the edges grant, it is not the cast's own buff, so it carries no `spellId`.
+      const banners = modsFor(side).ancientSpellBanners;
+      if (banners) {
+        const each = unitedFrontRecipients(side);
+        const casting = ctx.castingSpellId;
+        ctx.castingSpellId = undefined;
+        try { for (const m of each) ctx.buff(m, banners.attack, banners.health, banners.label); } finally { ctx.castingSpellId = casting; }
+      }
+      // ANCIENT OF GENESIS × Emissary (owner 2026-11-10): "Every 5 spells you cast, get a random Shop spell." The running
+      // count rides in (`tick`); the cast that lands on a multiple pays right then, mid-fight (a live `toHand`).
+      const scg = modsFor(side).ancientSpellCountGrant;
+      if (scg && (scg.tick + combatSpells[side]) % Math.max(1, scg.every) === 0) {
+        nextStep();
+        ctx.grantRandomSpell(1, side, undefined);
+      }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellResolved: (side, spellId) => {
@@ -5479,7 +5496,8 @@ export function simulate(
       // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.
       const socAll = smods.ancientSocBuffAll;
       if (socAll && (socAll.attack > 0 || socAll.health > 0)) {
-        const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+        // FLINT × WAR (owner 2026-11-10) narrows it to one type: "give your Dwarves +1/+1 for each Dwarf bought this game".
+        const band = boards[scSide].filter((m) => !m.dead && m.health > 0 && (!socAll.tribe || isTribeOf(m, socAll.tribe, cards)));
         if (band.length > 0) {
           nextStep();
           for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
@@ -5952,30 +5970,20 @@ export function simulate(
         for (const kb of kobolds) playRubyOn(ctx, kb, kb, 1, true);
       }
     }
-    // ANCIENT OF WAR × Mimic (owner 2026-11-10): United Front fires a second time, as a passive (`ancientUnitedFront`),
-    // through this same block, after the wielded power's own.
-    for (const n of base ? [rmods.unitedFront ?? 0, rmods.ancientUnitedFront ?? 0] : []) {
-      if (n <= 0) continue;
+    if (base && rmods.unitedFront && rmods.unitedFront > 0) {
       // Emissary (United Front), a hero power (base pass only): the Five Banners rule — one friendly of each
       // type gains +N/+N, where N is the number of spells cast this GAME (owner respec 2026-08-17; it was the
       // hero's tavern tier). Same one-banner-per-body selection: a body claims the first type nobody has claimed yet.
-      const living = boards[rside].filter((m) => !m.dead && m.health > 0);
-      const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
-      const taken = new Set<string>();
-      for (const m of living) {
-        if (cards[m.cardId]?.universalTribe) continue;
-        for (const t of [m.tribe, m.tribe2]) {
-          if (!t || t === 'neutral' || taken.has(t)) continue;
-          taken.add(t);
-          if (!recipients.includes(m)) recipients.push(m);
-          break;
-        }
-      }
-      if (recipients.length > 0) {
-        nextStep(); fireTrigger('unitedFront', rside);
-        for (const m of recipients) ctx.buff(m, n, n, 'United Front');
-      }
+      // EMISSARY × ANCIENTS (a no-op without them): War fires it `reps` times, Bonds widens it to every minion. The grant
+      // itself is `fireUnitedFront`, the one entry point (Death's Avenge calls it too).
+      const n = rmods.unitedFront;
+      const shape = rmods.ancientFrontShape;
+      for (let r = 0; r < Math.max(1, shape?.reps ?? 1); r++) fireUnitedFront(rside, n, shape?.all);
     }
+    // ANCIENT OF WAR × Mimic (owner 2026-11-10): United Front once more, as a passive, after the wielded power's own.
+    // BASE behaviour through the one entry point: one fire, one minion per type. It never reads `ancientFrontShape`
+    // (Emissary's pairings are Emissary's).
+    if (base && (rmods.ancientUnitedFront ?? 0) > 0) fireUnitedFront(rside, rmods.ancientUnitedFront!, false);
     if (rmods.runeCenterline) {
       // Rune of the Centerline: a positional payoff — if the two END minions are of DIFFERENT types, the
       // middle one gains Ward + Critical Strike. Needs at least three bodies for "ends" and "middle" to mean
@@ -6773,6 +6781,43 @@ export function simulate(
       fireTrigger(ap.flag, side);
       if (victim) emit({ type: 'sc', source: victim.uid, text: ap.label, side, heroPower: true });
     }
+  });
+  // UNITED FRONT's grant (Emissary), the one entry point: one living friendly minion of each type gains +n/+n, the Five
+  // Banners rule (an All-types body always collects; every other body claims the first type nobody has claimed yet).
+  // `all` (Emissary × Ancient of Bonds): every living friendly minion collects instead. Returns false when nobody did.
+  function unitedFrontRecipients(side: Side, all?: boolean): Minion[] {
+    const alive = boards[side].filter((m) => !m.dead && m.health > 0);
+    if (all) return alive;
+    const recipients: Minion[] = alive.filter((m) => !!cards[m.cardId]?.universalTribe);
+    const taken = new Set<string>();
+    for (const m of alive) {
+      if (cards[m.cardId]?.universalTribe) continue;
+      for (const t of [m.tribe, m.tribe2]) {
+        if (!t || t === 'neutral' || taken.has(t)) continue;
+        taken.add(t);
+        if (!recipients.includes(m)) recipients.push(m);
+        break;
+      }
+    }
+    return recipients;
+  }
+  function fireUnitedFront(side: Side, n: number, all?: boolean): boolean {
+    const recipients = n > 0 ? unitedFrontRecipients(side, all) : [];
+    if (recipients.length === 0) return false;
+    nextStep(); fireTrigger('unitedFront', side);
+    for (const m of recipients) ctx.buff(m, n, n, 'United Front');
+    return true;
+  }
+  // ANCIENT OF DEATH × Emissary (owner 2026-11-10): "Avenge (4): Trigger United Front." A hero Avenge on ONE running count
+  // across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire is a full United Front at the LIVE spell
+  // count (spells cast this game, this fight's included). Rune of Fury fires it again, like every hero Avenge.
+  bus.on('avenge', (payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    const uf = modsFor(side).ancientFrontShape;
+    const av = uf?.avenge;
+    if (!uf || !av || (av.tick + count) % Math.max(1, av.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) fireUnitedFront(side, spellTotals[side] * Math.max(1, av.mult), uf.all);
   });
   // ANCIENT OF DEATH × Tradesman (owner 2026-10-02): "Avenge (3): Gain a free Refresh." A hero Avenge on ONE running
   // count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire banks a free Refresh right then

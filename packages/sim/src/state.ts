@@ -35,6 +35,9 @@ export interface ShopCard {
   /** ANCIENT OF DEATH × Frantic Frank: this Clearance offer is on the "first one bought is free" price (cost 0). The
    *  first buy from the set re-prices the rest back to 2 Gold and clears the flag. */
   clearanceFree?: boolean;
+  /** ANCIENTS × Pete: this offer is a Contrabanana minion (the upgraded right-most offer). Set only on a run with
+   *  Ancients on; read at the buy (Fortune's free Refresh). */
+  banana?: boolean;
   /** Spell Cart (owner 2026-11-06): this spell offer came from a cast Cart and costs 1 less. Buying one clears the mark
    *  from the whole row, so only the first buy pays the cut. A refresh replaces the offers, and the mark with them. */
   cartCut?: boolean;
@@ -509,7 +512,7 @@ export type DiscoverSpec =
 export type DiscoverDuos = 'rest' | 'pass' | 'copy';
 /** ANCIENTS: where a Discover came from, for the pairings that treat its pick specially (`AncientDiscoverTag`). Only set
  *  on an Ancients run. */
-export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis' | 'soulkeeper';
+export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis' | 'kindnessGenesis' | 'soulkeeper';
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),
@@ -2669,7 +2672,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise' | 'ancientBatchBEot')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

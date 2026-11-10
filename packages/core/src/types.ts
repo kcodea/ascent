@@ -2260,7 +2260,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
    *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
    *  played mid-combat). Start of Combat: every living friendly minion gains it, a combat buff. Player-only. */
-  ancientSocBuffAll?: { attack: number; health: number; label: string };
+  ancientSocBuffAll?: { attack: number; health: number; label: string; /** FLINT × WAR: only living minions of this type gain it (absent = every minion). */ tribe?: Tribe };
   /** ANCIENT OF WAR × Darah (owner 2026-10-06): "Pummel (140): Get a charge of Swap. (Once per combat.)" A HERO-level
    *  Pummel on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's
    *  share), with Albus' once-per-combat latch: the first crossing of a multiple of `every` in the fight emits ONE
@@ -2290,6 +2290,21 @@ export interface QuestCombatMods {
    *  queued and summoned the moment a slot opens (from its body then, or its Start-of-Combat body if it has died). No
    *  Tier 7: nothing. Player-only; never snapshotted. */
   ancientSummitCopy?: { label: string };
+  /** EMISSARY × ANCIENTS (owner 2026-11-10), United Front reshaped. `reps` (War: "United Front triggers twice"): the Start
+   *  of Combat grant fires that many times, each its own trigger. `all` (Bonds: "United Front hits all your minions"):
+   *  every living friendly minion collects instead of one of each type. `avenge` (Death: "Avenge (4): Trigger United
+   *  Front"): a hero Avenge on ONE running count across Shop and combat (`tick` carried in); each fire is a full United
+   *  Front at the LIVE spell count (`spellTotals` x `mult`, Rune of Wishbone's doubling). Rune of Fury fires it again.
+   *  Player-only; never snapshotted. */
+  ancientFrontShape?: { reps?: number; all?: boolean; avenge?: { every: number; tick: number; mult: number }; label: string };
+  /** MERRIN × ANCIENT OF BONDS (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat spell
+   *  cast (`ctx.castSpell`, once per repetition) buffs one living friendly minion of each type (United Front's
+   *  selection: All-types bodies always collect). A combat buff. Player-only. */
+  ancientSpellBanners?: { attack: number; health: number; label: string };
+  /** EMISSARY × ANCIENT OF GENESIS (owner 2026-11-10): "Every 5 spells you cast, get a random Shop spell." The running
+   *  count since the pick rides in as `tick`; each combat cast that lands on a multiple of `every` sends a random Shop
+   *  spell to hand right then (`grantRandomSpell`). Settle adds the fight's casts to the run's count. Player-only. */
+  ancientSpellCountGrant?: { every: number; tick: number; label: string };
   // ── THE 2026-11-10 BATCH C (Underdweller, Gorun, Mimic; owner pairings 2026-11-10). Read per side off `modsFor`. ──
   /** ANCIENT OF WAR × Underdweller: record every minion that dies in this fight, BOTH sides, with the Attack, max Health
    *  and keywords it died with (a Rise / Rebirth first death is skipped: that body came back). Comes home as

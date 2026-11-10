@@ -31,7 +31,7 @@ export interface LiveTextParams {
   runeMammoth?: boolean;
   /** Runes that change a specific card's printed RULE — surfaced as a green note on that card. */
   runeFlags?: RuneTextFlags;
-  spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean;
+  spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean; carnivalCoin?: { gold: number; attack: number; health: number };
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Grim's live total counts its OWN Echo on top of `deathrattlesTriggered` (the tally is bumped before an Echo
    *  fires). False only for an ENEMY combat body, whose snapshot tally is frozen and never bumped mid-fight. */
@@ -223,7 +223,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult, whisperTier: p.grantedTier })
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, cardTribes: p.cardTribes, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling, carnivalCoin: p.carnivalCoin, spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperMult: p.whisperMult, whisperTier: p.grantedTier })
         : whisperGranterText(c.id, p.golden, { spellsCast: p.spellsCast, rubyCasts: p.rubyCasts, whisperImprove: p.whisperImprove, whisperTick: p.whisperTick }) ?? // Set 4: Galas / Tolan print their Whisper's live value
             whisperCasterText(c.id, p.golden, p.whisperCastsUsed) ?? // Whaloo: its per-combat cap counts down live in combat
             attackImmuneText(c.id, p.golden, p.attacksMade) ?? // Immune Iggy: its immune swings count down live in combat

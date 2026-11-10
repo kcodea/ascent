@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent, Keyword } from '@game/core';
 import {
-  ANCIENT_IDS, activePowers, ancientCombatMods, ancientOfferText, ancientPairingHeroId, createRun, enableAncients, heroPowerText, reduce,
+  ANCIENT_IDS, activePowers, ancientCombatMods, ancientOfferText, ancientPairingHeroId, createRun, enableAncients, heroPowerArmed, heroPowerText, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 
@@ -229,6 +229,71 @@ describe('Mimic × BONDS: "When you buy 3 minions in a turn, get a plain copy of
     expect(copies(buyAll(picked('time', {}, 'nadja'), three))).toBe(0);
   });
 });
+
+describe('Mimic × WAR on the shared United Front entry point (batch B\'s `fireUnitedFront`)', () => {
+  const board = () => [card('a', TA.id, { attack: 1, health: 900 }), card('b', TB.id, { attack: 1, health: 900 }), card('c', TA.id, { attack: 1, health: 900 })];
+  it('a Mimic wielding United Front fires it twice: the power\'s own, then the passive, each the BASE one-per-type grant', () => {
+    const s = picked('war', { board: board(), spellsCast: 6 }, 'vale');
+    expect(ancientCombatMods(s).ancientFrontShape, 'no Emissary pairing leaks in').toBeUndefined();
+    expect(ancientCombatMods(s).ancientUnitedFront).toBe(6);
+    const f = fightNow(s);
+    const ev = events(f);
+    const got = buffsFrom(ev.slice(0, ev.findIndex((e) => e.type === 'attack')), 'United Front');
+    const [a, b] = [f.lastCombat!.initial.player[0]!.uid, f.lastCombat!.initial.player[1]!.uid];
+    expect(got.map((g) => g.target)).toEqual([a, b, a, b]);
+    for (const g of got) expect(g).toMatchObject({ attack: 6, health: 6 });
+    expect(ev.filter((e) => e.type === 'questTrigger' && e.flag === 'unitedFront').length).toBe(2);
+  });
+  it('Emissary\'s own War / Bonds pairings do not reshape it (a Mimic never holds them)', () => {
+    for (const id of ['war', 'bonds', 'death'] as AncientId[]) {
+      const s = picked(id, { board: board(), spellsCast: 6 }, 'vale');
+      expect(ancientCombatMods(s).ancientFrontShape, id).toBeUndefined();
+    }
+  });
+});
+
+describe('Mimic wielding a batch A / B hero\'s power under a Mimic Ancient: the power is plain, the pairing is Mimic\'s', () => {
+  const BORROWED = ['juggler', 'pete', 'gambler', 'baggerben', 'flint', 'merrin', 'kindness', 'emeraldwarden', 'vale'];
+  it('no borrowed hero\'s pairing leaks in: the pairing id, the power\'s shape and its text', () => {
+    for (const heroId of BORROWED) {
+      const native = activePowers({ ...createRun(7, heroId), phase: 'recruit' } as RunState)[0]!;
+      for (const id of ANCIENT_IDS) {
+        const s = picked(id, {}, heroId);
+        expect(ancientPairingHeroId(s), `${heroId}/${id}`).toBe('mimic');
+        const p = activePowers(s)[0]!;
+        expect({ kind: p.kind, cost: p.cost, passive: p.passive, usesPerTurn: p.usesPerTurn, maxUses: p.maxUses }, `${heroId}/${id}`)
+          .toEqual({ kind: native.kind, cost: native.cost, passive: native.passive, usesPerTurn: native.usesPerTurn, maxUses: native.maxUses });
+        if (id !== 'genesis') expect(heroPowerText(s).endsWith(ANCIENT_SUFFIX[id]!), `${heroId}/${id}: ${heroPowerText(s)}`).toBe(true);
+      }
+    }
+  });
+  it('a Mimic wielding Juggler\'s Carnival Coin under Bonds: the Coin still comes every 3 buys, and Four Peat pays on top', () => {
+    const s = buyAll(picked('bonds', {}, 'juggler'), [N(0), N(1), N(2)]);
+    expect(s.hand.filter((c) => c.cardId === 'carnivalcoin').length, 'the plain power: one Coin on the 3rd buy').toBe(1);
+    expect(s.hand.filter((c) => [N(0), N(1), N(2)].includes(c.cardId)).length, 'three buys + the Four Peat copy').toBe(4);
+    // A Juggler pairing would change the cadence (Genesis: every 2): a Mimic under Genesis still needs 3.
+    const g = buyAll(picked('genesis', {}, 'juggler'), [N(0), N(1)]);
+    expect(g.hand.filter((c) => c.cardId === 'carnivalcoin').length).toBe(0);
+  });
+  it('the armed glow reads the plain cadence for a Mimic wielding Juggler or Pete', () => {
+    for (const id of ANCIENT_IDS) {
+      const j = picked(id, {}, 'juggler');
+      expect(heroPowerArmed({ ...j, jugglerBuys: 2 } as RunState), `juggler/${id}: armed at 2 of 3`).toBe(true);
+      expect(heroPowerArmed({ ...j, jugglerBuys: 1 } as RunState), `juggler/${id}: not at 1`).toBe(false);
+      const p = picked(id, {}, 'pete');
+      expect(heroPowerArmed({ ...p, refreshCount: 2 } as RunState), `pete/${id}: armed before the 3rd Refresh`).toBe(true);
+      expect(heroPowerArmed({ ...p, refreshCount: 1 } as RunState), `pete/${id}`).toBe(false);
+    }
+  });
+});
+/** How each Mimic pairing's power text ends (its own suffix, whatever power it wields). */
+const ANCIENT_SUFFIX: Partial<Record<AncientId, string>> = {
+  death: 'resummon it when there is room.',
+  fortune: 'so far).',
+  war: '(1 per spell cast this game).',
+  time: 'get a plain copy of a minion that died last combat.',
+  bonds: '/3**).',
+};
 
 describe('Mimic × save / restore and determinism', () => {
   it('the pairing, the Spoils tally and the Genesis shape survive a JSON round trip', () => {

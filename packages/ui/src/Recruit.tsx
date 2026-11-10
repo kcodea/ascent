@@ -55,6 +55,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
+import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { type Action, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
@@ -898,7 +899,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
-  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number; growthBonus?: number; anySpellsThisTurn?: number; /** Set 4: what a previewed Whisper (Galas's Tome on hover) reads. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number> },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number; goldPouchValue?: number; tier?: number; growthBonus?: number; anySpellsThisTurn?: number; /** Set 4: what a previewed Whisper (Galas's Tome on hover) reads. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; /** Juggler × Ancients: `carnivalCoinLive(run)`. */ carnivalCoin?: { gold: number; attack: number; health: number } },
   rubyBonus?: { attack: number; health: number },
   /** The Rubies on the minion whose popup this is (+ its gild) — sizes the Gemheart Golem preview. */
   ownerRuby?: { attack: number; health: number; golden?: boolean },
@@ -961,7 +962,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
       // `growthBonus` rides along too, so Mushy's referenced-Growth popup (and the combat fly-in) prints the
       // Rune of Living Growth-improved value — this chain starved it while the shop/spell-slot chains threaded
       // it, so the popup promised the base +1/+1 (player report 2026-08-27, bug 86340900).
-      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, clueBonus, anySpellsThisTurn: spellLive.anySpellsThisTurn, growthBonus: spellLive.growthBonus, spellsCast: spellLive.spellsCast, rubyCasts: spellLive.rubyCasts, whisperImprove: spellLive.whisperImprove }),
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0, { tier: spellLive.tier, rubyBonus, clueBonus, anySpellsThisTurn: spellLive.anySpellsThisTurn, growthBonus: spellLive.growthBonus, spellsCast: spellLive.spellsCast, rubyCasts: spellLive.rubyCasts, whisperImprove: spellLive.whisperImprove, carnivalCoin: spellLive.carnivalCoin }),
       tier: c.tier, spell: c.spell, target: c.target,
       baseAttack: c.attack, baseHealth: c.health,
     };
@@ -1000,6 +1001,7 @@ export function conjuredView(cardId: string, run: RunState): CardView | null { /
     goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
     growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run),
     spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove,
+    carnivalCoin: carnivalCoinLive(run),
   };
   const live = liveOptsFromRun(run);
   const base = tokenRefView(cardId, run.cardBuffs, run.impBuff, spellLive, run.rubyBonus, undefined, run.clueBonus, run.starCrashBonus, live);
@@ -1017,6 +1019,8 @@ interface ShopViewOpts {
   cardTribes?: Record<string, Tribe[]>;
   /** Juggler: his Gold Pouches also buff the board, so the card must print that. */
   juggler?: boolean;
+  /** Juggler × Ancients (Fortune's 3 Gold, War's improved buff): what a Carnival Coin prints right now. */
+  carnivalCoin?: { gold: number; attack: number; health: number };
   /** "Freedom" rift: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
   freeFirstBuy?: boolean;
   /** END-OF-TURN animation: the running shop-buff delta this offer has accumulated across the beats so far
@@ -1169,6 +1173,7 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     // The rule notes and run-level text switches the hand and Discover printed and the Shop did not (2026-10-14 audit,
     // R-TEXT-SURFACES-01): every surface now reads them from this one builder.
     juggler: activePowers(run).some((p) => p.kind === 'baldgecoin'), // the wielded power, as `jugglerBuy` (R-HERO-POWER-REPLACED-01)
+    carnivalCoin: carnivalCoinLive(run), // Juggler × Ancients: Fortune's Gold, War's improved buff
     runeFlags: runeTextFlagsOf(run),
     runeMammoth: !!run.questFlags?.runeMammoth,
     maxTier: maxTierFor(run.rift),
@@ -1250,7 +1255,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
     whisperImprove: o.whisperImprove, // Set 4: a Tolan offer prints its Whisper's live value
     // The rest of the live inputs `ShopViewOpts` carries (R-TEXT-SURFACES-01, 2026-10-14): Growth's accrual, Front to
     // Back's Health half, the rune rule notes, the Mammoth switch, the tier ceiling, Rune of Mastery's repeats.
-    growthBonus: o.growthBonus, frontToBackBonusH: o.frontToBackBonusH ?? o.frontToBackBonus ?? 0, juggler: o.juggler,
+    growthBonus: o.growthBonus, frontToBackBonusH: o.frontToBackBonusH ?? o.frontToBackBonus ?? 0, juggler: o.juggler, carnivalCoin: o.carnivalCoin,
     runeFlags: o.runeFlags, runeMammoth: o.runeMammoth, maxTier: o.maxTier, improveReps: o.improveReps, nextSpellBonus: o.nextSpellBonus,
   };
 }
@@ -4386,7 +4391,7 @@ export function Recruit() {
       // The manual map + every effect-named card + the derived Ruby rule — ONE rule, shared with the Compendium
       // (`cardRefs.ts`), so a card previews the same things in the shop and in the book.
       const refs = relatedCardIds(cardId);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run), spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove };
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run), spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove, carnivalCoin: carnivalCoinLive(run) };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through

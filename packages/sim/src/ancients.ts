@@ -417,6 +417,114 @@
  *  · `gildedPlayBuffsGilded`      playing a Gilded minion: your Gilded minions gain +a/+h, then again once per Gilded
  *                                 minion this game (`AncientsState.gilds`), each its own step. (Bonds)
  *
+ *  THE 2026-11-10 BATCH B (owner pairings 2026-11-10): Kindness, Merrin, Emissary, Emerald Warden. Every hero Avenge
+ *  below (Merrin 3, Emissary 4, Emerald Warden 6) is the 2026-10-09 shape: ONE running count across the Shop
+ *  (`ancientHeroAvengeShopDeath`) and combat, Rune of Fury repeating the combat half. "A random Shop spell" is Pocket
+ *  Magic's own pool everywhere (`runSpells`, your Shop tier or lower); "a random minion of your Tier" is Vanguard's
+ *  (the run's buyable minions of EXACTLY your Shop tier). The three End-of-Turn pairings share ONE virtual recurring
+ *  entry (`ancientBatchBEot`, run by `ancientRunBatchBEot`).
+ *  KINDNESS (Great Presence, `greatPresence`, PASSIVE: "Discover a Gift every 4 turns."). It resolves in the reducer's
+ *  Start-of-Turn block (turns 4, 8, 12, ...), which reads `ancientGreatPresenceSpec` and `ancientAfterGreatPresence`.
+ *  · `greatPresenceGrantsCard`    each Great Presence also sends `count` x `cardId` to hand, on the same Start-of-Turn
+ *                                 beat (Death: Grave Invitation; War: Champion's Regalia). Hand full: none.
+ *  · `pickGetCard` (count 2)      Quillen's War primitive, reused: at the pick, 2 Royal Allowances. Once. (Fortune)
+ *  · `greatPresencePicks`         Great Presence's Discover lets you pick `picks` of the Gifts offered: after a pick the
+ *                                 reducer's `discover` case reopens the offer with the rest (`ancientDiscoverPicksAgain`,
+ *                                 the Discover tagged `kindnessGenesis`). (Genesis)
+ *  · `eotRandomShopSpells`        End of Turn: `count` random Shop spells to hand. Great Presence is unchanged. (Time)
+ *  · `giftsCastOnAdjacent`        the reducer's Gift play branch: a Gift cast on a BOARD minion is also cast on one
+ *                                 minion next to it (`ancientGiftAdjacent`: a random neighbour, seeded, chosen before
+ *                                 the cast), right after each cast on its target. It is the same cast: no second spell
+ *                                 is counted. Combat has no Gift cast. (Bonds)
+ *  MERRIN (Pocket Magic, `pocketMagic`, 1 Gold, untargeted: "Get a random Shop spell.").
+ *  · `avengeRandomShopSpell`      each fire: a random Shop spell to hand. SHOP: right then; COMBAT: Gorr's
+ *                                 `ancientGorrAvenge` over the pool's ids (a live `toHand`). (Death)
+ *  · (Fortune)                    no primitive: the pairing's `power` override (`cost: 0`, `usesPerTurn: 2`).
+ *  · `pocketMagicCastMult`        the reducer's `pocketMagic` branch stamps each spell it made `castMult` (Hunch's
+ *                                 Time channel: a from-hand cast multiplier, R-MULT-06). (War)
+ *  · `pocketMagicDiscovers`       the `pocketMagic` branch REPLACED: a Discover of a Shop spell. (Genesis)
+ *  · `spellsRechargePower`        every `every`th spell cast (a running count since the pick, every phase) recharges
+ *                                 the hero power. Shop: `ancientOnSpellCast`; combat casts count at settle. (Time)
+ *  · `spellCastBuffsEachType`     every spell cast: one friendly minion of each type gains +a/+h (United Front's
+ *                                 selection, `bannerRecipientsOf`). SHOP: `ancientOnSpellCast`, permanent; COMBAT:
+ *                                 `QuestCombatMods.ancientSpellBanners` in `ctx.castSpell`, a combat buff. (Bonds)
+ *  EMISSARY (`vale`, United Front, `unitedFront`, PASSIVE: "Start of Combat: give a friendly minion of each type +1/+1
+ *  for every spell cast this game."). United Front has ONE entry point per phase: combat's `fireUnitedFront` (simulate)
+ *  and the Shop's `fireShopUnitedFront` (recruit), which reads `ancientUnitedFrontShape`. A Shop fire is a Shop buff:
+ *  permanent. The combat halves ride `QuestCombatMods.ancientFrontShape`.
+ *  · `avengeUnitedFront`          each fire is a full United Front. SHOP: `fireShopUnitedFront` right then (permanent);
+ *                                 COMBAT: `ancientFrontShape.avenge`, at the live spell count (a combat buff). (Death)
+ *  · `firstShopSpellFree`         the first Shop spell bought each turn costs 0: `ancientEnchantedSpellCut` (the cut both
+ *                                 spell buy paths, the coins and the bots already read), counted by `ancientOnBuy`
+ *                                 (`valeSpellBuys`, ticked while Ancients are on). (Fortune)
+ *  · `unitedFrontReps`            United Front fires `times` times, each its own trigger (both phases). (War)
+ *  · `spellsGrantShopSpell`       every `every`th spell cast (a running count since the pick): a random Shop spell to
+ *                                 hand. SHOP: `ancientOnSpellCast`; COMBAT: `QuestCombatMods.ancientSpellCountGrant`
+ *                                 in `ctx.castSpell`, real time. (Genesis)
+ *  · `unitedFrontAtEndOfTurn`     no Start of Combat fire (`questCombatMods` leaves `unitedFront` out); the End-of-Turn
+ *                                 entry runs `fireShopUnitedFront`, a permanent Shop buff. (Time)
+ *  · `unitedFrontHitsAll`         every friendly minion collects instead of one of each type (both phases). (Bonds)
+ *  EMERALD WARDEN (Vanguard, `vanguard`, PASSIVE: "When you tier up, get a random minion from the new tier.").
+ *  · `avengeTierMinion`           each fire: a random minion of your Tier to hand. SHOP: right then; COMBAT: Gorr's
+ *                                 `ancientGorrAvenge` over the tier's ids (a live `toHand`). (Death)
+ *  · `tierMinionsCost`            `offerBuyPrice`'s caps (`ancientTierPrice`): a minion of your Shop tier costs at most
+ *                                 `price` Gold. (Fortune)
+ *  · `vanguardActive`             at Shop tier `tier`+, Vanguard is ALSO a button: untargeted, `cost` Gold, once per
+ *                                 turn. The shape is stamped on `powerOverride` by `ancientSyncVanguard` (the pick and
+ *                                 the reducer's every-action boundary), so below that tier the power stays passive.
+ *                                 The reducer's `vanguard` branch runs `ancientVanguardActivate`: `castSpell` (War:
+ *                                 Waking Rift through `castSpell`), `discoverTier7` (Genesis) or `topTribeMinion`
+ *                                 (Bonds: Quillen's Time pick). The tier-up grant is unchanged. (War / Genesis / Bonds)
+ *  · `eotTierMinion`              End of Turn: a random minion of your Tier to hand. (Time)
+ *  THE 2026-11-10 BATCH A (owner pairings 2026-11-10). Its hero Avenges (Rascal 4, Gambler 4, Flint 4) are the 2026-10-09
+ *  shape: ONE running count across the Shop (`batchAShopDeath`, called from `ancientHeroAvengeShopDeath`) and combat.
+ *  RASCAL (`baggerben`, All In, `allIn`: "Gain 1 Gold, plus 2 for every turn since you last used this.", 2 uses a game).
+ *  · `avengeAllInGold`            All In gains a use (`power.maxUses`). Each fire adds `gold` to All In's NEXT payout
+ *                                 (`rascalPot`, read by `allInPayoutOf`, cleared when All In pays). COMBAT: Cassen's
+ *                                 `ancientAvengePulse`, counted at settle. (Death)
+ *  · `allInGrowth`                All In gains a use and grows `perTurn` MORE per turn (`allInPayoutOf`). (Fortune)
+ *  · `allInBuffPerGold`           the reducer's `allIn` branch (`ancientAfterAllIn`): your minions gain +a/+h per Gold
+ *                                 paid, permanently. (War)
+ *  · `allInDiscoverPerGold`       the same hook: one Discover of a minion of exactly your Shop tier per `every` Gold. (Genesis)
+ *  · `sotGainGold`                All In turns passive (`power`); `ancientStartOfTurn` gains the Gold on its own beat. (Time)
+ *  · `spendGoldBuffsEdges`        the reducer's `spendGold` (`ancientOnSpendGold`): every spend of 1+ Gold gives the
+ *                                 left-most and right-most minions +a/+h. (Bonds)
+ *  GAMBLER (Dice, `dice`, 1 Gold: "Roll a die: gain that much Gold. This power then locks for that many turns.").
+ *  · `avengeReduceDiceLock`       each fire ends the lock `turns` sooner (`heroDiceLockUntil`). SHOP: right then; COMBAT:
+ *                                 `ancientAvengePulse`, counted at settle. Not locked: nothing. (Death)
+ *  · `diceRollTwo`                the reducer's `dice` branch draws a second die: the Gold is both, the lock the lower. (Fortune)
+ *  · `diceBuffPerPip`             `ancientAfterDice`: your minions gain +a/+h per pip, permanently. (War)
+ *  · `diceCastsGamble`            `ancientAfterDice` casts the spell (`castSpell`) with the roll handed in
+ *                                 (`forcedGambleRoll`, read by `spellGambleTierPull`: no die is drawn). (Genesis)
+ *  · `lockedFirstMinionDiscount`  `offerBuyPrice`: while the lock runs, the turn's first minion costs `gold` less. (Time)
+ *  · `diceDiscoverTier`           `ancientAfterDice`: a Discover of a minion of exactly the rolled Tier. (Bonds)
+ *  PETE (Contrabanana, `contraband`, PASSIVE: "Every third refresh, the right-most Shop minion is from the tier above your
+ *  Shop tier."). A "Contrabanana minion" is that offer (`ShopCard.banana`, stamped by `ancientOnContraband`).
+ *  · `avengeFreeRefresh`          Tradesman's Death primitive, reused. (Death)
+ *  · `contrabandBuyFreeRefresh`   the reducer's post-buy block (`ancientOnBananaBuy`): a free Refresh. (Fortune)
+ *  · `contrabandKeyword`          `ancientOnContraband`: the offer gains a random keyword it lacks (`ShopCard.keywords`). (War)
+ *  · `contrabandCount`            the `roll` branch upgrades the N right-most minion offers. (Genesis)
+ *  · `contrabandEvery`            the `roll` branch's cadence (`ancientContrabandEvery`). (Time)
+ *  · `contrabandTopTribe`         `upgradeRightmostOffer`'s pool, narrowed to your most common type. (Bonds)
+ *  FOREMAN FLINT (Company Rate, `companyRate`, PASSIVE: "Dwarves cost 2 Gold."). `batchAOnBuy` keeps the Dwarf tallies
+ *  (`flintDwarfBuys` this turn, `flintDwarvesBought` this game) while Ancients are on, whatever is picked.
+ *  · `avengeGrantTribeMinion`     each fire: a random Dwarf (your Shop tier or lower) to hand. COMBAT: Gorr's
+ *                                 `ancientGorrAvenge` over the Dwarf pool (a live `toHand`). (Death)
+ *  · `firstTribeBuyFree`          `offerBuyPrice`'s `freeBuy` (the shared one-freebie marker), for the turn's first Dwarf. (Fortune)
+ *  · `socBuffTribePerBought`      COMBAT: Braum's `ancientSocBuffAll`, narrowed to Dwarves (`tribe`). (War)
+ *  · `firstRefreshTribe`          the `roll` branch (`ancientFirstRefreshTribe`): the turn's first Refresh draws only
+ *                                 Dwarves (`rollTribe`, Frank × Genesis' channel). (Genesis)
+ *  · `eotBuffPerTribeBuy`         Ayse's virtual End-of-Turn entry (`ancientAyseTime`), counting Dwarves bought. (Time)
+ *  · `tribeBuyBuffsOthers`        `batchAOnBuy`: your OTHER board Dwarves gain +a/+h, permanently. (Bonds)
+ *  JUGGLER (Carnival Coin, `baldgecoin`, PASSIVE: "Every 3 minions you buy, get a Carnival Coin.").
+ *  · `avengeGrantCard`            Gildmaster's Death primitive, reused, with the Coin. (Death)
+ *  · `coinGold`                   `castSpell`'s Gold step: a Carnival Coin gives `gold`. (Fortune)
+ *  · `coinCastImproves`           `castSpell` (`ancientOnCoinCast`) banks +a/+h per Coin cast (`jugglerCoinBonus`);
+ *                                 `spellBuffAll` adds it to the Coin's buff. Coins are only cast from hand (Shop). (War)
+ *  · `coinEvery`                  the reducer's `jugglerBuy` cadence (`ancientCoinNeed`). (Genesis)
+ *  · `firstBuysGrantCoin`         `batchAOnBuy`: the turn's first N minion buys each also give a Coin. (Time)
+ *  · `topTribeBuyCountsTwice`     `jugglerBuy` (`ancientCoinBuyCount`): a minion of your most common type counts twice. (Bonds)
+ *
  *  THE 2026-11-10 BATCH C (owner pairings 2026-11-10). Its hooks live in the file's last section.
  *  UNDERDWELLER (Soulkeeper, `soulkeeper`, 2 Gold: "Discover a minion that died last combat, from either side"). The
  *  reducer's `soulkeeper` branch opens the Discover directly and marks it (`ancientMarkSoulkeeperDiscover`, tag
@@ -490,7 +598,10 @@ import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './c
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
 import { COMMISSION_DELAY, COMMISSION_TEXT, hasBattlecry, syncRunTribes } from './recruit'; // the 2026-10-09 batch
 import { defIsTribe } from './recruit'; // the 2026-10-27 batch
+import { allInPayoutOf, isTribe } from './recruit'; // the 2026-11-10 batch A
 import { KESHI_CROWN_THRESHOLD } from './config';
+import { bannerRecipientsOf, fireShopUnitedFront, unitedFrontMult } from './recruit'; // the 2026-11-10 batch B
+import { runSpells } from './spellPool';
 import { poolOf, randomTierCeiling } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -846,8 +957,9 @@ export type AncientEffect =
   | { do: 'archiveEchoGainsRise' }
   /** Each Archive use also gives +`gold` max Gold, permanently. */
   | { do: 'archiveMaxGold'; gold: number }
-  /** At the pick: get `cardId` (hand first, the board when the hand is full). */
-  | { do: 'pickGetCard'; cardId: string }
+  /** At the pick: get `cardId` (hand first, the board when the hand is full). `count` copies (absent = 1; a spell
+   *  goes to hand only). */
+  | { do: 'pickGetCard'; cardId: string; count?: number }
   /** Archive pays out after `count` archived minions instead of 3. */
   | { do: 'archiveNeed'; count: number }
   /** Archive is passive; Start of Turn: get a random minion of your most common type (your Shop tier or lower). */
@@ -866,6 +978,109 @@ export type AncientEffect =
   | { do: 'pickDiscoverTier7Locked'; lockTier: number }
   /** Setlist cards Gild at `copies` copies. */
   | { do: 'setlistGildAt'; copies: number }
+  // ── Kindness (Great Presence) ──
+  /** Each Great Presence also gets `count` x `cardId` (to hand, on its Start-of-Turn beat). */
+  | { do: 'greatPresenceGrantsCard'; cardId: string; count: number }
+  /** Great Presence's Discover lets you pick `picks` of the Gifts it offers. */
+  | { do: 'greatPresencePicks'; picks: number }
+  /** End of Turn: get `count` random Shop spells (your Shop tier or lower). */
+  | { do: 'eotRandomShopSpells'; count: number }
+  /** A Gift cast from hand on a board minion is also cast on one minion next to it. */
+  | { do: 'giftsCastOnAdjacent' }
+  // ── Merrin (Pocket Magic) ──
+  /** Avenge (`every`), Shop AND combat (one running count): get a random Shop spell. */
+  | { do: 'avengeRandomShopSpell'; every: number }
+  /** Spells Pocket Magic makes cast `mult` times (a from-hand cast multiplier on the card). */
+  | { do: 'pocketMagicCastMult'; mult: number }
+  /** Pocket Magic is a Discover of a Shop spell instead of a random one. */
+  | { do: 'pocketMagicDiscovers' }
+  /** Every `every` spells cast (a running count, every phase): the hero power recharges. */
+  | { do: 'spellsRechargePower'; every: number }
+  /** Whenever you cast a spell (Shop AND combat), one friendly minion of each type gains +a/+h. */
+  | { do: 'spellCastBuffsEachType'; attack: number; health: number }
+  // ── Emissary (United Front) ──
+  /** Avenge (`every`), Shop AND combat (one running count): trigger United Front. */
+  | { do: 'avengeUnitedFront'; every: number }
+  /** The first Shop spell bought each turn costs 0 Gold. */
+  | { do: 'firstShopSpellFree' }
+  /** United Front fires `times` times. */
+  | { do: 'unitedFrontReps'; times: number }
+  /** Every `every` spells cast (a running count, Shop AND combat): get a random Shop spell. */
+  | { do: 'spellsGrantShopSpell'; every: number }
+  /** United Front fires at End of Turn (a permanent Shop buff) instead of at Start of Combat. */
+  | { do: 'unitedFrontAtEndOfTurn' }
+  /** United Front buffs every friendly minion instead of one of each type. */
+  | { do: 'unitedFrontHitsAll' }
+  // ── Emerald Warden (Vanguard) ──
+  /** Avenge (`every`), Shop AND combat (one running count): get a random minion of your Shop tier. */
+  | { do: 'avengeTierMinion'; every: number }
+  /** Minions of your current Shop tier cost at most `price` Gold. */
+  | { do: 'tierMinionsCost'; price: number }
+  /** At Shop tier `tier`+, Vanguard can also be pressed (untargeted, `cost` Gold, once per turn) to `act`. */
+  | { do: 'vanguardActive'; tier: number; cost: number; act: 'castSpell' | 'discoverTier7' | 'topTribeMinion'; spellId?: string }
+  /** End of Turn: get a random minion of your Shop tier. */
+  | { do: 'eotTierMinion' }
+  // ── Rascal (All In) ──
+  /** Avenge (`every`), Shop AND combat (one running count): All In's next payout gains `gold` Gold. */
+  | { do: 'avengeAllInGold'; every: number; gold: number }
+  /** All In grows by `perTurn` MORE Gold per turn (on top of its own 2). */
+  | { do: 'allInGrowth'; perTurn: number }
+  /** Using All In gives your minions +a/+h for each Gold it pays, permanently. */
+  | { do: 'allInBuffPerGold'; attack: number; health: number }
+  /** Using All In also Discovers a minion of exactly your Shop tier for every `every` Gold it pays. */
+  | { do: 'allInDiscoverPerGold'; every: number }
+  /** Start of Turn: gain `gold` Gold (the power turns passive via `power`). */
+  | { do: 'sotGainGold'; gold: number }
+  /** Whenever you spend Gold (each spend, never per Gold), your left-most and right-most minions gain +a/+h. */
+  | { do: 'spendGoldBuffsEdges'; attack: number; health: number }
+  // ── Gambler (Dice) ──
+  /** Avenge (`every`), Shop AND combat (one running count): the Dice lock ends `turns` sooner. */
+  | { do: 'avengeReduceDiceLock'; every: number; turns: number }
+  /** Dice rolls 2 dice: gain both, lock for the lower. */
+  | { do: 'diceRollTwo' }
+  /** A Dice roll gives your minions +a/+h for each pip, permanently. */
+  | { do: 'diceBuffPerPip'; attack: number; health: number }
+  /** A Dice roll also casts `spellId` with the same roll. */
+  | { do: 'diceCastsGamble'; spellId: string }
+  /** While Dice is locked, the first minion bought each turn costs `gold` less (floor 0). */
+  | { do: 'lockedFirstMinionDiscount'; gold: number }
+  /** A Dice roll also Discovers a minion of exactly the rolled Tier. */
+  | { do: 'diceDiscoverTier' }
+  // ── Pete (Contrabanana) ──
+  /** Buying a Contrabanana minion banks `count` free Refreshes. */
+  | { do: 'contrabandBuyFreeRefresh'; count: number }
+  /** A Contrabanana minion gains one random keyword from `keywords` (one it lacks). */
+  | { do: 'contrabandKeyword'; keywords: Keyword[] }
+  /** Contrabanana upgrades your `count` right-most Shop minions. */
+  | { do: 'contrabandCount'; count: number }
+  /** Contrabanana triggers every `refreshes` Refreshes instead of every 3. */
+  | { do: 'contrabandEvery'; refreshes: number }
+  /** Contrabanana minions are drawn from your most common type. */
+  | { do: 'contrabandTopTribe' }
+  // ── Foreman Flint (Company Rate) ──
+  /** Avenge (`every`), Shop AND combat (one running count): get a random `tribe` minion (your Shop tier or lower). */
+  | { do: 'avengeGrantTribeMinion'; every: number; tribe: Tribe }
+  /** The first `tribe` minion you buy each turn is free. */
+  | { do: 'firstTribeBuyFree'; tribe: Tribe }
+  /** Start of Combat: your `tribe` minions gain +a/+h for every `tribe` minion bought this game. */
+  | { do: 'socBuffTribePerBought'; tribe: Tribe; attack: number; health: number }
+  /** Your first Refresh each turn draws only `tribe` minions. */
+  | { do: 'firstRefreshTribe'; tribe: Tribe }
+  /** End of Turn: your minions gain +a/+h for every `tribe` minion bought this turn. */
+  | { do: 'eotBuffPerTribeBuy'; tribe: Tribe; attack: number; health: number }
+  /** Buying a `tribe` minion gives your other `tribe` minions +a/+h, permanently. */
+  | { do: 'tribeBuyBuffsOthers'; tribe: Tribe; attack: number; health: number }
+  // ── Juggler (Carnival Coin) ──
+  /** Carnival Coins give `gold` Gold. */
+  | { do: 'coinGold'; gold: number }
+  /** Each Carnival Coin cast improves the buff of later Coins by +a/+h. */
+  | { do: 'coinCastImproves'; attack: number; health: number }
+  /** Carnival Coin pays every `buys` minions bought instead of every 3. */
+  | { do: 'coinEvery'; buys: number }
+  /** The first `count` minions bought each turn also give a Carnival Coin. */
+  | { do: 'firstBuysGrantCoin'; count: number }
+  /** Buying a minion of your most common type counts `times` times for Carnival Coin. */
+  | { do: 'topTribeBuyCountsTwice'; times: number }
   // ── Underdweller (Soulkeeper) ──
   /** A minion Soulkeeper discovers gains Rise when it has an Echo. */
   | { do: 'soulkeeperEchoGainsRise' }
@@ -950,7 +1165,13 @@ export interface AncientPairing {
    *  Brackus: `{smDeathLeft}` = friendly deaths still needed for Death's next Avenge (live through a fight); `{smGoldLeft}` = Gold still to spend for Fortune's next
    *  Discover; `{smWarCopy}` = the Tier 7 War would copy right now; `{smLock}` = the Summit lock as it stands (Genesis adds
    *  40); `{smGenesis}` = Genesis' live Gild state; `{smTimeLeft}` = Time's countdown; `{smBondsTotal}` = what Bonds has
-   *  given each Tier 7 so far. */
+   *  given each Tier 7 so far.
+   *  Batch B (2026-11-10): `{mrDeathLeft}` / `{vDeathLeft}` / `{ewDeathLeft}` = friendly deaths still needed for Merrin's /
+   *  Emissary's / Emerald Warden's next Avenge (live through a fight); `{mrUsesLeft}` = Pocket Magic uses left this turn;
+   *  `{mrTimeLeft}` / `{vGenesisLeft}` = spells still to cast before Merrin's next recharge / Emissary's next Shop spell
+   *  (live through a fight); `{vFreeNow}` = whether Emissary's free Shop spell is still open this turn; `{vN}` = United
+   *  Front's live +N/+N; `{ewTier}` = your Shop tier; `{ewNow}` = whether Vanguard's button is live (Tier 6) yet;
+   *  `{ewTribe}` = the type Bonds would draw right now. */
   powerText: string;
   /** Changes to the hero power's own SHAPE while this pairing is live (Auctioneer: Time makes Pulse passive, Genesis
    *  makes it an untargeted 2 Gold Discover). Stamped on the run at the pick (`AncientsState.powerOverride`) and
@@ -2082,6 +2303,375 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'setlistGildAt', copies: 2 }],
     },
   },
+  // KINDNESS (owner pairings 2026-11-10, quoted above each entry). Great Presence (passive) = "Discover a Gift every 4
+  // turns." (turns 4, 8, 12, ...). The Gifts named are the `gifts.ts` cards.
+  kindness: {
+    death: {
+      // "Great Presence also gets you a Grave Invitation." (each time it fires, to hand, on the same Start-of-Turn beat)
+      offerText: 'Great Presence also gets you a **Grave Invitation**.',
+      powerText: '{base} It also gets you a **Grave Invitation**.',
+      effects: [{ do: 'greatPresenceGrantsCard', cardId: 'gift_grave_invitation', count: 1 }],
+    },
+    fortune: {
+      // "Get 2 Royal Allowances." (judgement call, flagged: ONCE, the moment it awakens, the reading Quillen × War's
+      // "Get a Paragon." took. To pay it on every Great Presence instead, swap in `greatPresenceGrantsCard` with count 2.)
+      offerText: 'Get **2** **Royal Allowances**.',
+      powerText: '{base} You got **2** **Royal Allowances** when this awakened.',
+      effects: [{ do: 'pickGetCard', cardId: 'gift_allowance', count: 2 }],
+    },
+    war: {
+      // "Great Presence also gets you a Champion's Regalia." (each time it fires)
+      offerText: "Great Presence also gets you a **Champion's Regalia**.",
+      powerText: "{base} It also gets you a **Champion's Regalia**.",
+      effects: [{ do: 'greatPresenceGrantsCard', cardId: 'gift_regalia', count: 1 }],
+    },
+    genesis: {
+      // "Great Presence lets you pick 2 Gifts." (two of the Gifts that one Discover offers: after the first pick the
+      // offer comes back with the rest)
+      offerText: 'Great Presence lets you pick **2** Gifts.',
+      powerText: '{base} You pick **2** of the Gifts it offers.',
+      effects: [{ do: 'greatPresencePicks', picks: 2 }],
+    },
+    time: {
+      // "End of Turn: Get 2 random shop spells." (in addition to Great Presence; your Shop tier or lower)
+      offerText: '**End of Turn:** get **2** random Shop spells.',
+      powerText: '{base} **End of Turn:** get **2** random Shop spells.',
+      effects: [{ do: 'eotRandomShopSpells', count: 2 }],
+    },
+    bonds: {
+      // "Gifts you cast on a minion also cast on an adjacent minion." (one neighbour, random when it has two)
+      offerText: '**Gifts** you cast on a minion also cast on a minion next to it.',
+      powerText: '{base} **Gifts** you cast on a minion also cast on a minion next to it.',
+      effects: [{ do: 'giftsCastOnAdjacent' }],
+    },
+  },
+  // MERRIN (owner pairings 2026-11-10, quoted above each entry). Pocket Magic (1 Gold, untargeted, once per turn) = "Get a
+  // random Shop spell." (your Shop tier or lower).
+  merrin: {
+    death: {
+      // "Avenge (3): get a random Shop spell." (one running count across Shop and combat, the 2026-10-09 hero Avenge)
+      offerText: '**Avenge (3):** get a random Shop spell.',
+      powerText: '{base} **Avenge (3):** get a random Shop spell (**{mrDeathLeft}** more to go).',
+      effects: [{ do: 'avengeRandomShopSpell', every: 3 }],
+    },
+    fortune: {
+      // "Pocket Magic is free and can be used twice each turn." (Nadja × Fortune's shape: the `power` override alone)
+      offerText: 'Pocket Magic is free and can be used **twice** each turn.',
+      powerText: '{base} It is free. Use it **twice** each turn (**{mrUsesLeft}** left this turn).',
+      power: { cost: 0, usesPerTurn: 2 },
+      effects: [],
+    },
+    war: {
+      // "Spells you get from Pocket Magic cast again an additional time." (the spell casts twice: `castMult`, a
+      // from-hand cast multiplier like Hunch × Time's, so it stacks with the others)
+      offerText: 'Spells you get from Pocket Magic cast **twice**.',
+      powerText: '{base} That spell casts **twice**.',
+      effects: [{ do: 'pocketMagicCastMult', mult: 2 }],
+    },
+    genesis: {
+      // "Pocket Magic Discovers the spell instead."
+      offerText: 'Pocket Magic **Discovers** the spell instead.',
+      powerText: '**Discover** a Shop spell.',
+      effects: [{ do: 'pocketMagicDiscovers' }],
+    },
+    time: {
+      // "Pocket Magic recharges after every 3 spells you cast." (on top of its recharge each turn; every spell counts)
+      offerText: 'Pocket Magic recharges after every **3** spells you cast.',
+      powerText: '{base} It recharges after every **3** spells you cast (**{mrTimeLeft}** more to go).',
+      effects: [{ do: 'spellsRechargePower', every: 3 }],
+    },
+    bonds: {
+      // "Casting a spell gives a minion of each type +3/+4." (Shop: permanent; combat: for that combat)
+      offerText: 'Whenever you cast a spell, give a friendly minion of each type **+3/+4**.',
+      powerText: '{base} Whenever you cast a spell, give a friendly minion of each type **+3/+4**.',
+      effects: [{ do: 'spellCastBuffsEachType', attack: 3, health: 4 }],
+    },
+  },
+  // EMISSARY (hero id `vale`; owner pairings 2026-11-10, quoted above each entry). United Front (passive) = "Start of
+  // Combat: give a friendly minion of each type +1/+1 for every spell cast this game."
+  vale: {
+    death: {
+      // "Avenge (4): Trigger United Front." (Shop: permanent, like any Shop buff; combat: for that combat)
+      offerText: '**Avenge (4):** trigger United Front.',
+      powerText: '{base} **Avenge (4):** trigger it again (**{vDeathLeft}** more to go).',
+      effects: [{ do: 'avengeUnitedFront', every: 4 }],
+    },
+    fortune: {
+      // "Your first Shop Spell each turn is free." (the first Shop spell you BUY each turn costs 0 Gold)
+      offerText: 'Your first Shop spell each turn is free.',
+      powerText: '{base} Your first Shop spell each turn is free.{vFreeNow}',
+      effects: [{ do: 'firstShopSpellFree' }],
+    },
+    war: {
+      // "United Front triggers twice." (two triggers, each its own beat)
+      offerText: 'United Front triggers **twice**.',
+      powerText: '{base} It triggers **twice**.',
+      effects: [{ do: 'unitedFrontReps', times: 2 }],
+    },
+    genesis: {
+      // "Every 5 spells you cast, get a random Shop spell." (a running count since the pick, Shop and combat)
+      offerText: 'Every **5** spells you cast, get a random Shop spell.',
+      powerText: '{base} Every **5** spells you cast, get a random Shop spell (**{vGenesisLeft}** more to go).',
+      effects: [{ do: 'spellsGrantShopSpell', every: 5 }],
+    },
+    time: {
+      // "United Front triggers at End of Turn instead." (a Shop buff now, so it is PERMANENT; no Start of Combat fire)
+      offerText: 'United Front triggers at **End of Turn** instead. Its stats are permanent.',
+      powerText: '**End of Turn:** give a friendly minion of each type **+{vN}/+{vN}** permanently (1 per spell cast this game).',
+      effects: [{ do: 'unitedFrontAtEndOfTurn' }],
+    },
+    bonds: {
+      // "United Front hits all your minions."
+      offerText: 'United Front hits all your minions.',
+      powerText: '**Start of Combat:** give your minions **+{vN}/+{vN}** (1 per spell cast this game).',
+      effects: [{ do: 'unitedFrontHitsAll' }],
+    },
+  },
+  // EMERALD WARDEN (owner pairings 2026-11-10, quoted above each entry). Vanguard (passive) = "When you tier up, get a
+  // random minion from the new tier." Waking Rift is the `sparkplug` spell ("Give your minions +5/+5 twice").
+  emeraldwarden: {
+    death: {
+      // "Avenge (6): get a random minion of your Tier." (one running count across Shop and combat)
+      offerText: '**Avenge (6):** get a random minion of your Tier.',
+      powerText: '{base} **Avenge (6):** get a random minion of your Tier (**{ewDeathLeft}** more to go).',
+      effects: [{ do: 'avengeTierMinion', every: 6 }],
+    },
+    fortune: {
+      // "Minions of your tier cost 2g." (your current Shop tier; never raises a lower price)
+      offerText: 'Minions of your Tier cost **2 Gold**.',
+      powerText: '{base} Minions of your Tier (Tier **{ewTier}**) cost **2 Gold**.',
+      effects: [{ do: 'tierMinionsCost', price: 2 }],
+    },
+    war: {
+      // "At tier 6, Vanguard can be activated for 1g to cast Waking Rift." (a button from Shop tier 6, once per turn)
+      offerText: 'At Tier **6**, you can use Vanguard for **1 Gold** to cast **Waking Rift**. Once each turn.',
+      powerText: '{base} At Tier **6**, use it for **1 Gold** to cast **Waking Rift**. Once each turn.{ewNow}',
+      effects: [{ do: 'vanguardActive', tier: 6, cost: 1, act: 'castSpell', spellId: 'sparkplug' }],
+    },
+    genesis: {
+      // "At tier 6, Vanguard can be activated for 4g to discover a Tier 7 minion." (a button from Shop tier 6, once per turn)
+      offerText: 'At Tier **6**, you can use Vanguard for **4 Gold** to **Discover** a **Tier 7** minion. Once each turn.',
+      powerText: '{base} At Tier **6**, use it for **4 Gold** to **Discover** a **Tier 7** minion. Once each turn.{ewNow}',
+      effects: [{ do: 'vanguardActive', tier: 6, cost: 4, act: 'discoverTier7' }],
+    },
+    time: {
+      // "Vanguard gains End of Turn: Get a random minion of your tier."
+      offerText: 'Vanguard gains "**End of Turn:** get a random minion of your Tier."',
+      powerText: '{base} **End of Turn:** get a random minion of your Tier (Tier **{ewTier}**).',
+      effects: [{ do: 'eotTierMinion' }],
+    },
+    bonds: {
+      // "At tier 6, Vanguard can be activated for 1g to get a minion of your most common type." (a random one, your Shop
+      // tier or lower: Quillen × Time's pick; a button from Shop tier 6, once per turn)
+      offerText: 'At Tier **6**, you can use Vanguard for **1 Gold** to get a random minion of your most common type. Once each turn.',
+      powerText: '{base} At Tier **6**, use it for **1 Gold** to get a random minion of your most common type{ewTribe}. Once each turn.{ewNow}',
+      effects: [{ do: 'vanguardActive', tier: 6, cost: 1, act: 'topTribeMinion' }],
+    },
+  },
+  // RASCAL (hero id `baggerben`; owner pairings 2026-11-10, quoted above each entry). All In (free, once per turn, 2 uses a
+  // game) = "Gain 1 Gold, plus 2 for every turn since you last used this."
+  baggerben: {
+    death: {
+      // "All In gains a use. Avenge (4): add 1 gold to All In." (the Gold joins All In's next payout, then it is spent)
+      offerText: 'All In gains a use. **Avenge (4):** add **1 Gold** to All In.',
+      powerText: '{base} **Avenge (4):** add **1 Gold** to it (**{raDeathLeft}** more to go). It pays **{raPay} Gold** now. Uses left: **{raUses}**.',
+      power: { maxUses: 3 },
+      effects: [{ do: 'avengeAllInGold', every: 4, gold: 1 }],
+    },
+    fortune: {
+      // "All In gains a use and climbs by 2 per turn." (2 MORE per turn: 4 in all; "climb" is never player text)
+      offerText: 'All In gains a use. It grows by **2** more Gold each turn.',
+      powerText: 'Gain **1 Gold**, plus **4** for every turn since you last used this. It pays **{raPay} Gold** now. Uses left: **{raUses}**.',
+      power: { maxUses: 3 },
+      effects: [{ do: 'allInGrowth', perTurn: 2 }],
+    },
+    war: {
+      // "When you use All In, give your minions +2/+1 for each Gold it pays."
+      offerText: 'When you use All In, give your minions **+2/+1** for each Gold it pays.',
+      powerText: '{base} Also give your minions **+2/+1** for each Gold it pays (**+{raWarA}/+{raWarH}** now).',
+      effects: [{ do: 'allInBuffPerGold', attack: 2, health: 1 }],
+    },
+    genesis: {
+      // "All In also Discovers a minion of your Tier for every 5 Gold it pays."
+      offerText: 'All In also **Discovers** a minion of your Tier for every **5 Gold** it pays.',
+      powerText: '{base} Also **Discover** a minion of your Tier for every **5 Gold** it pays (**{raDiscovers}** now).',
+      effects: [{ do: 'allInDiscoverPerGold', every: 5 }],
+    },
+    time: {
+      // "All In becomes passive. Start of Turn: gain 4 Gold."
+      offerText: 'All In becomes passive. **Start of Turn:** gain **4 Gold**.',
+      powerText: '**Start of Turn:** gain **4 Gold**.',
+      power: { passive: true },
+      effects: [{ do: 'sotGainGold', gold: 4 }],
+    },
+    bonds: {
+      // "All In gains: Give your Left and Right-most minions +2/+1 when you spend gold." (each spend, never per Gold)
+      offerText: 'All In gains: when you spend Gold, give your left and right-most minions **+2/+1**.',
+      powerText: '{base} When you spend Gold, give your left and right-most minions **+2/+1**.',
+      effects: [{ do: 'spendGoldBuffsEdges', attack: 2, health: 1 }],
+    },
+  },
+  // GAMBLER (owner pairings 2026-11-10, quoted above each entry). Dice (1 Gold) = "Roll a die: gain that much Gold. This
+  // power then locks for that many turns."
+  gambler: {
+    death: {
+      // "Avenge (4): reduce the Dice lock by 1 turn."
+      offerText: '**Avenge (4):** reduce the Dice lock by **1** turn.',
+      powerText: '{base} **Avenge (4):** reduce the lock by **1** turn (**{gaDeathLeft}** more to go).{gaLock}',
+      effects: [{ do: 'avengeReduceDiceLock', every: 4, turns: 1 }],
+    },
+    fortune: {
+      // "Roll 2 dice. Gain both, and lock for the lower one."
+      offerText: 'Roll **2** dice. Gain both, and lock for the lower one.',
+      powerText: 'Roll **2** dice: gain that much Gold. This power then locks for as many turns as the lower die.{gaRolled}',
+      effects: [{ do: 'diceRollTwo' }],
+    },
+    war: {
+      // "When you roll, give your minions +3/+3 for each pip."
+      offerText: 'When you roll, give your minions **+3/+3** for each pip.',
+      powerText: '{base} When you roll, give your minions **+3/+3** for each pip.{gaWarNow}',
+      effects: [{ do: 'diceBuffPerPip', attack: 3, health: 3 }],
+    },
+    genesis: {
+      // "Dice also casts Gamble, using the same roll."
+      offerText: 'Dice also casts **Gamble**, using the same roll.',
+      powerText: '{base} It also casts **Gamble**, using the same roll.',
+      effects: [{ do: 'diceCastsGamble', spellId: 'sp_gamble' }],
+    },
+    time: {
+      // "While Dice is locked, your first minion each turn costs 1 Gold less."
+      offerText: 'While Dice is locked, your first minion each turn costs **1 Gold** less.',
+      powerText: '{base} While it is locked, your first minion each turn costs **1 Gold** less.{gaTimeNow}',
+      effects: [{ do: 'lockedFirstMinionDiscount', gold: 1 }],
+    },
+    bonds: {
+      // "When you roll, Discover a minion of that Tier."
+      offerText: 'When you roll, **Discover** a minion of that Tier.',
+      powerText: '{base} When you roll, **Discover** a minion of that Tier.',
+      effects: [{ do: 'diceDiscoverTier' }],
+    },
+  },
+  // PETE (owner pairings 2026-11-10, quoted above each entry). Contrabanana (passive) = "Every third refresh, the right-most
+  // Shop minion is from the tier above your Shop tier." A "Contrabanana minion" is that upgraded offer (`ShopCard.banana`).
+  pete: {
+    death: {
+      // "Avenge (3): gain a free Refresh." (Tradesman's Death primitive: one running count across Shop and combat)
+      offerText: '**Avenge (3):** gain a free Refresh.',
+      powerText: '{base} **Avenge (3):** gain a free Refresh (**{tDeathLeft}** more to go). Free Refreshes banked: **{freeRolls}**.',
+      effects: [{ do: 'avengeFreeRefresh', every: 3 }],
+    },
+    fortune: {
+      // "Buying a Contrabanana minion gives a free Refresh."
+      offerText: 'Buying a Contrabanana minion gives a free Refresh.',
+      powerText: '{base} Buying that minion gives a free Refresh. Free Refreshes banked: **{freeRolls}**.',
+      effects: [{ do: 'contrabandBuyFreeRefresh', count: 1 }],
+    },
+    war: {
+      // "Contrabanana minions gain a random keyword." (the owner's random-keyword pool, Keshi × War's: one it lacks)
+      offerText: 'Contrabanana minions gain a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      powerText: '{base} It gains a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      effects: [{ do: 'contrabandKeyword', keywords: ['T', 'DS', 'R', 'W', 'CR', 'V', 'ST', 'EG'] }],
+    },
+    genesis: {
+      // "Contrabanana upgrades your 2 right-most Shop minions."
+      offerText: 'Contrabanana upgrades your **2** right-most Shop minions.',
+      powerText: 'Every third refresh, your **2** right-most Shop minions are from the tier above your Shop tier (**{peLeft}** more to go).',
+      effects: [{ do: 'contrabandCount', count: 2 }],
+    },
+    time: {
+      // "Contrabanana triggers every 2 Refreshes."
+      offerText: 'Contrabanana triggers every **2** Refreshes.',
+      powerText: 'Every second refresh, the right-most Shop minion is from the tier above your Shop tier (**{peLeft}** more to go).',
+      effects: [{ do: 'contrabandEvery', refreshes: 2 }],
+    },
+    bonds: {
+      // "Contrabanana minions are of your most common type."
+      offerText: 'Contrabanana minions are of your most common type.',
+      powerText: '{base} It is of your most common type{peTribe}.',
+      effects: [{ do: 'contrabandTopTribe' }],
+    },
+  },
+  // FOREMAN FLINT (owner pairings 2026-11-10, quoted above each entry). Company Rate (passive) = "Dwarves cost 2 Gold."
+  // "A Dwarf" is any minion that counts as one (`defIsTribe`: a dual type and an All-types minion included).
+  flint: {
+    death: {
+      // "Avenge (4): get a random Dwarf." (your Shop tier or lower, to hand)
+      offerText: '**Avenge (4):** get a random Dwarf.',
+      powerText: '{base} **Avenge (4):** get a random Dwarf (**{flDeathLeft}** more to go).',
+      effects: [{ do: 'avengeGrantTribeMinion', every: 4, tribe: 'dwarf' }],
+    },
+    fortune: {
+      // "Your first Dwarf each turn is free."
+      offerText: 'Your first Dwarf each turn is **free**.',
+      powerText: '{base} Your first Dwarf each turn is **free**.{flFreeNow}',
+      effects: [{ do: 'firstTribeBuyFree', tribe: 'dwarf' }],
+    },
+    war: {
+      // "Start of Combat: give your Dwarves +1/+1 for each Dwarf bought this game."
+      offerText: '**Start of Combat:** give your Dwarves **+1/+1** for each Dwarf bought this game.',
+      powerText: '{base} **Start of Combat:** give your Dwarves **+{flWarA}/+{flWarH}** (+1/+1 for each Dwarf bought this game: **{flBought}** so far).',
+      effects: [{ do: 'socBuffTribePerBought', tribe: 'dwarf', attack: 1, health: 1 }],
+    },
+    genesis: {
+      // "Your first Refresh each turn is filled with Dwarves. if this triggers mid-turn, the next refresh would trigger
+      // this." (picked mid-turn, the next Refresh that turn is the Dwarf one)
+      offerText: 'Your first Refresh each turn is filled with Dwarves.',
+      powerText: '{base} Your first Refresh each turn is filled with Dwarves.{flGenNow}',
+      effects: [{ do: 'firstRefreshTribe', tribe: 'dwarf' }],
+    },
+    time: {
+      // "End of Turn: give your minions +3/+3 for each Dwarf you bought this turn."
+      offerText: '**End of Turn:** give your minions **+3/+3** for each Dwarf you bought this turn.',
+      powerText: '{base} **End of Turn:** give your minions **+3/+3** for each Dwarf you bought this turn (**{flTimeN}** bought: **+{flTimeA}/+{flTimeH}**).',
+      effects: [{ do: 'eotBuffPerTribeBuy', tribe: 'dwarf', attack: 3, health: 3 }],
+    },
+    bonds: {
+      // "When you buy a Dwarf, give your other Dwarves +2/+2."
+      offerText: 'When you buy a Dwarf, give your other Dwarves **+2/+2**.',
+      powerText: '{base} When you buy a Dwarf, give your other Dwarves **+2/+2**.',
+      effects: [{ do: 'tribeBuyBuffsOthers', tribe: 'dwarf', attack: 2, health: 2 }],
+    },
+  },
+  // JUGGLER (owner pairings 2026-11-10, quoted above each entry). Carnival Coin (passive) = "Every 3 minions you buy, get a
+  // Carnival Coin." The Coin (`carnivalcoin`) = "Gain 1 Gold. Give your minions +1/+1."
+  juggler: {
+    death: {
+      // "Avenge (4): get a Carnival Coin." (Gildmaster's Death primitive: one running count across Shop and combat)
+      offerText: '**Avenge (4):** get a **Carnival Coin**.',
+      powerText: '{base} **Avenge (4):** get a **Carnival Coin** (**{gmDeathLeft}** more to go).',
+      effects: [{ do: 'avengeGrantCard', every: 4, cardId: 'carnivalcoin' }],
+    },
+    fortune: {
+      // "Carnival Coins give 3 Gold."
+      offerText: '**Carnival Coins** give **3 Gold**.',
+      powerText: '{base} **Carnival Coins** give **3 Gold**.',
+      effects: [{ do: 'coinGold', gold: 3 }],
+    },
+    war: {
+      // "Each Coin you cast improves future Coin buffs by +1/+1."
+      offerText: 'Each **Carnival Coin** you cast improves future Coin buffs by **+1/+1**.',
+      powerText: '{base} Each **Carnival Coin** you cast improves future Coin buffs by **+1/+1** (**+{juBonusA}/+{juBonusH}** so far).',
+      effects: [{ do: 'coinCastImproves', attack: 1, health: 1 }],
+    },
+    genesis: {
+      // "Get a Carnival Coin every 2 minions you buy."
+      offerText: 'Get a **Carnival Coin** every **2** minions you buy.',
+      powerText: 'Every **2** minions you buy, get a **Carnival Coin** (**{juLeft}** more to go).',
+      effects: [{ do: 'coinEvery', buys: 2 }],
+    },
+    time: {
+      // "The first 2 minions you buy each turn also grant a Carnival Coin."
+      offerText: 'The first **2** minions you buy each turn also give a **Carnival Coin**.',
+      powerText: '{base} The first **2** minions you buy each turn also give a **Carnival Coin** (**{juTimeLeft}** left this turn).',
+      effects: [{ do: 'firstBuysGrantCoin', count: 2 }],
+    },
+    bonds: {
+      // "Buying a minion of your most common type counts twice for Carnival Coin."
+      offerText: 'Buying a minion of your most common type counts **twice** for Carnival Coin.',
+      powerText: '{base} Buying a minion of your most common type{juTribe} counts **twice**.',
+      effects: [{ do: 'topTribeBuyCountsTwice', times: 2 }],
+    },
+  },
   // UNDERDWELLER (owner pairings 2026-11-10, quoted above each entry). Soulkeeper (2 Gold, once per turn) = "Discover a
   // minion that died last combat, from either side." A "Soulkeeper minion" is the minion that Discover hands over.
   underdweller: {
@@ -2459,6 +3049,38 @@ export interface AncientsState {
   gildAt2?: string[];
   /** QUILLEN × FORTUNE: max Gold Archive has given this run (printed live). */
   quillenMaxGold?: number;
+  /** KINDNESS × GENESIS: picks still owed from the open Great Presence Discover (set by the first pick, cleared by the
+   *  last). Absent = none open. */
+  kindnessPicksLeft?: number;
+  /** MERRIN / EMISSARY / EMERALD WARDEN × DEATH: friendly deaths since the last fire (Shop + combat), the running hero
+   *  Avenge count (3 / 4 / 6). One field: only one of the three can be the held power's pairing. */
+  batchBDeaths?: number;
+  /** MERRIN × TIME, EMISSARY × GENESIS: spells cast since the pick (every phase), the running count toward the next
+   *  recharge / Shop spell. */
+  batchBSpells?: number;
+  /** EMISSARY × FORTUNE: Shop spells BOUGHT on `wave` (0 = the next one is free). Ticked while Ancients are on, whatever
+   *  is picked, so a spell bought before the pick that turn counts. A new wave reads 0. */
+  valeSpellBuys?: { wave: number; n: number };
+  /** RASCAL × DEATH: friendly deaths since the last fire (Shop + combat), the running Avenge (4) count, and the Gold its
+   *  Avenges have added to All In's NEXT payout (cleared when All In pays it). */
+  rascalDeaths?: number;
+  rascalPot?: number;
+  /** GAMBLER × DEATH: friendly deaths since the last fire (Shop + combat), the running Avenge (4) count. */
+  gamblerDeaths?: number;
+  /** GAMBLER: the dice the last Dice use rolled on `wave` (printed live this turn). Ticked while Ancients are on. */
+  gamblerRoll?: { wave: number; dice: number[] };
+  /** GAMBLER × GENESIS: the die face the Gamble being cast right now must use. Transient: cleared when the cast is done. */
+  forcedGambleRoll?: number;
+  /** FLINT × DEATH: friendly deaths since the last Dwarf (Shop + combat), the running Avenge (4) count. */
+  flintDeaths?: number;
+  /** FLINT: Dwarves bought on `wave` (Fortune's "first", Time's count) and this game (War). Ticked while Ancients are on,
+   *  whatever is picked, so buys made before the pick count. */
+  flintDwarfBuys?: { wave: number; n: number };
+  flintDwarvesBought?: number;
+  /** FLINT × GENESIS: the wave whose Dwarf Refresh is spent (any other wave: the next Refresh is the Dwarf one). */
+  flintGenesisWave?: number;
+  /** JUGGLER × WAR: the improvement Carnival Coin casts have banked onto later Coins' buff. */
+  jugglerCoinBonus?: { attack: number; health: number };
   /** UNDERDWELLER × BONDS: the live +X/+X both copies gain (set at the pick, improved after each trigger). */
   underBondsGain?: number;
   /** MEMBRANCE × GENESIS: Memory minions bought on `wave` (0 = the next one is "the first"). Ticked while Ancients are
@@ -2555,6 +3177,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
   batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
   batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
+  batchBOnPick(state); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard's button, when the Shop is already Tier 6
   batchCOnPick(state, a); // UNDERDWELLER × BONDS: starts at the printed amount
   return true;
 }
@@ -2701,6 +3324,8 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
     .replace('{smTimeLeft}', brackusTimeText(state)).split('{smBondsTotal}').join(String(a?.brackusBondsTotal ?? 0));
   text = batch5PowerText(state, text, base, combat);
   text = batch6PowerText(state, text, combat);
+  text = batchBPowerText(state, text, combat);
+  text = batchAPowerText(state, text, combat); // RASCAL / GAMBLER / PETE / FLINT / JUGGLER
   text = batchCPowerText(state, text, base);
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
@@ -2921,6 +3546,8 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'socCopyTier7')) out.ancientSummitCopy = { label: ANCIENTS.war.name };
   Object.assign(out, batch5CombatMods(state));
   Object.assign(out, batch6CombatMods(state));
+  Object.assign(out, batchBCombatMods(state));
+  Object.assign(out, batchACombatMods(state)); // RASCAL / GAMBLER / FLINT
   Object.assign(out, batchCCombatMods(state));
   return out;
 }
@@ -3034,6 +3661,8 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge') || effectOf(state, 'pummelEnemyCopy') || effectOf(state, 'pummelPowerUse')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
   batch5AfterCombat(state, a, result); // RAYSE / CASSEN / GILDMASTER: the running Avenge counts + the fight's pulses
   batch6AfterCombat(state, a, result); // KESHI × DEATH: the running Avenge count + the fight's Crown advances
+  batchBAfterCombat(state, a, result); // MERRIN / EMISSARY / EMERALD WARDEN: the running Avenge + spell counts
+  batchAAfterCombat(state, a, result); // RASCAL / GAMBLER / FLINT × DEATH: the running Avenge counts + the fight's pulses
   batchCAfterCombat(state, a, result); // GORUN × FORTUNE: the running attack count
   // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
   if (effectOf(state, 'pummelSwapCharge')) {
@@ -3169,6 +3798,7 @@ export function ancientStartOfTurn(state: RunState): void {
   brackusStartOfTurn(state);
   gildmasterStartOfTurn(state);
   batch6StartOfTurn(state); // MIDAS × WAR, KESHI × TIME, QUILLEN × TIME
+  batchAStartOfTurn(state); // RASCAL × TIME
   batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
@@ -3293,6 +3923,7 @@ function hunchGenesisTick(state: RunState, waveAhead: 0 | 1): void {
 export function ancientOnSpellCast(state: RunState): void {
   if (!live(state)) return;
   hunchGenesisTick(state, 0);
+  batchBOnSpellCast(state); // MERRIN × TIME / BONDS, EMISSARY × GENESIS: every Shop cast counts
   const e = effectOf(state, 'spellCastBuffsEdges');
   if (!e || state.board.length === 0) return;
   const ends = state.board.length === 1 ? [state.board[0]!] : [state.board[0]!, state.board[state.board.length - 1]!];
@@ -4010,7 +4641,10 @@ export function ancientOnBuy(state: RunState, cardId: string, starform: boolean,
       queueDiscover(state, { kind: 'pool', ids, spells: true, lockWave: state.wave + Math.max(1, rd.turns) });
     } else a.repeteBuys = win;
   }
+  batchAOnBuy(state, a, cardId, starform, body); // FLINT / JUGGLER (before Gorr's tick: it reads the buys BEFORE this one)
   gorrOnBuy(state, a, cardId, starform, body);
+  // EMISSARY × FORTUNE: the Shop spells bought this turn (the first is free). Ticked whatever is picked.
+  if (isShopSpell(CARD_INDEX[cardId])) a.valeSpellBuys = { wave: state.wave, n: (a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) + 1 };
 }
 
 // ── Gorr (Four Peat) hooks ───────────────────────────────────────────────────────────────────────────────────
@@ -4314,6 +4948,9 @@ export function ancientEnchantedPrice(state: RunState, offer: { enchanted?: bool
 /** AYSE × FORTUNE, spells: the EXTRA Gold cut an Enchanted spell offer takes so its printed cost is capped at the
  *  Fortune price before the regular spell discounts (`spellCostReduction`) come off. 0 when nothing applies. */
 export function ancientEnchantedSpellCut(state: RunState, offer: { cardId: string; enchanted?: boolean } | null | undefined): number {
+  // EMISSARY × FORTUNE: "Your first Shop Spell each turn is free." The whole printed cost comes off, through this same
+  // cut, so both spell buy paths, the coins and the bots agree without another call site.
+  if (offer && ancientFirstSpellFree(state, offer.cardId)) return CARD_INDEX[offer.cardId]?.cost ?? 0;
   const price = offer ? ancientEnchantedPrice(state, offer) : undefined;
   if (!offer || price === undefined) return 0;
   return Math.max(0, (CARD_INDEX[offer.cardId]?.cost ?? 0) - price);
@@ -4363,14 +5000,16 @@ export function ancientOnEnchantedBuy(state: RunState, cardId: string, body: Boa
 
 /** AYSE × TIME: is the End-of-Turn grant live (the `ancientAyseTime` recurring entry)? */
 export function ancientAyseTimeLive(state: RunState): boolean {
-  return !!live(state) && !!effectOf(state, 'eotBuffPerEnchantedBuy');
+  // FLINT × TIME rides the same virtual End-of-Turn entry (one itemized grant per counted buy, the same beat).
+  return !!live(state) && (!!effectOf(state, 'eotBuffPerEnchantedBuy') || !!effectOf(state, 'eotBuffPerTribeBuy'));
 }
 
 /** AYSE × TIME: End of Turn, every board minion gains +a/+h per Enchanted card bought this turn, permanently. One
  *  `apply` step per card (the recurring runner's itemized "+x/+y per z" beat, owner ruling 2026-07-17). */
 export function ancientRunAyseTime(state: RunState, apply: (run: () => void) => void): void {
-  const e = ancientAyseTimeLive(state) ? effectOf(state, 'eotBuffPerEnchantedBuy') : undefined;
-  const n = ayseBuysThisTurn(state);
+  const flint = ancientAyseTimeLive(state) ? effectOf(state, 'eotBuffPerTribeBuy') : undefined;
+  const e = flint ?? (ancientAyseTimeLive(state) ? effectOf(state, 'eotBuffPerEnchantedBuy') : undefined);
+  const n = flint ? flintDwarfBuysThisTurn(state) : ayseBuysThisTurn(state);
   if (!e || n <= 0 || state.board.length === 0) return;
   const minions = [...state.board];
   for (let i = 0; i < n; i++) apply(() => { for (const c of minions) addBuff(c, ANCIENTS.time.name, e.attack, e.health); });
@@ -4535,6 +5174,7 @@ export function ancientAfterGoldspring(state: RunState, reps: number): void {
 /** NADJA × BONDS: Gold was spent (the reducer's `spendGold`, every spend path once). One spend of 1+ Gold (never per Gold)
  *  gives `count` distinct random board minions +a/+h, permanently, seeded off the run cursor. Empty board: nothing. */
 export function ancientOnSpendGold(state: RunState, amount: number): void {
+  batchAOnSpendGold(state, amount); // RASCAL × BONDS: the left-most and right-most minions
   const e = live(state) && amount > 0 ? effectOf(state, 'spendGoldBuffsRandom') : undefined;
   if (!e || state.board.length === 0) return;
   const rng = makeRng(state.rngCursor);
@@ -4750,7 +5390,9 @@ function heroAvengeOf(state: RunState): { every: number; tick: number } | undefi
   if (g) return { every: Math.max(1, g.every), tick: a.gildDeaths ?? 0 };
   const k = effectOf(state, 'avengeAdvanceCrown');
   if (k) return { every: Math.max(1, k.every), tick: a.keshiDeaths ?? 0 };
-  return undefined;
+  const b = batchBAvenge(state); // MERRIN / EMISSARY / EMERALD WARDEN × DEATH
+  if (b) return { every: b, tick: a.batchBDeaths ?? 0 };
+  return batchAAvengeOf(state); // RASCAL / GAMBLER / FLINT × DEATH
 }
 
 /** RAYSE / CASSEN / GILDMASTER × DEATH: friendly deaths still needed for the next fire (the carried count plus `deaths` so
@@ -4800,6 +5442,8 @@ export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): vo
     a.keshiDeaths = ((a.keshiDeaths ?? 0) + 1) % Math.max(1, k.every);
     if (a.keshiDeaths === 0) advanceCrown(state, k.points);
   }
+  batchBShopDeath(state, a); // MERRIN / EMISSARY / EMERALD WARDEN × DEATH: the Shop half of their running Avenge
+  batchAShopDeath(state, a); // RASCAL / GAMBLER / FLINT × DEATH
 }
 
 /** RAYSE × DEATH, Shop half: summon a Sprout at the current size onto the board (a Shop summon: `fireSummonBuffs`), then
@@ -5260,7 +5904,9 @@ function batch6OnPick(state: RunState, a: AncientsState): void {
   if (mf) state.goldPouchValue = Math.max(state.goldPouchValue ?? 1, mf.value);
   const qw = effectOf(state, 'pickGetCard');
   const qwDef = qw ? CARD_INDEX[qw.cardId] : undefined;
-  if (qwDef) grantMinionToHandOrBoard(state, qwDef, false);
+  // KINDNESS × FORTUNE: `count` copies; a spell goes to hand only (a promised card: it may over-cap the hand).
+  if (qwDef?.spell) conjureToHand(state, [qwDef], Math.max(1, qw?.count ?? 1), true);
+  else if (qwDef) for (let i = 0; i < Math.max(1, qw?.count ?? 1); i++) grantMinionToHandOrBoard(state, qwDef, false);
   if (effectOf(state, 'pickDiscoverEchoLocked')) {
     const lockTier = state.tier >= 6 ? undefined : state.tier + 1;
     queueDiscover(state, { kind: 'minion', tier: state.tier, filter: 'deathrattle', ...(lockTier ? { lockTier } : {}), ancientTag: 'discoDeath' });
@@ -5340,6 +5986,693 @@ function batch6PowerText(state: RunState, text: string, combat: AncientPowerLive
     .replace('{qGold}', String(a.quillenMaxGold ?? 0))
     .replace('{qTopTribe}', top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '')
     .split('{dSetlist}').join(setlist.length ? ` (${setlist.map((n) => `**${n}**`).join(', ')})` : '');
+}
+
+// ── The 2026-11-10 batch B: Kindness / Merrin / Emissary / Emerald Warden ────────────────────────────────────
+/** MERRIN × BONDS: the combat buff label (the POWER's name: the key the UI's hero-power tendril route matches). */
+export const MERRIN_BONDS_COMBAT_LABEL = 'Pocket Magic';
+/** KINDNESS × GENESIS: the tag Great Presence's Discover carries while more than one pick is owed. */
+const KINDNESS_GENESIS_TAG: AncientDiscoverTag = 'kindnessGenesis';
+
+/** A Shop spell: a spell that is not a Ruby (what the Shop's spell slot or a Spell Cart sells). */
+function isShopSpell(def: CardDef | undefined): boolean {
+  return !!def && !!def.spell && !def.ruby;
+}
+
+/** "A random Shop spell": Pocket Magic's own pool (the run's Shop spells, your Shop tier or lower). */
+function shopSpellPool(state: RunState): CardDef[] {
+  return runSpells(state).filter((c) => c.tier <= state.tier);
+}
+
+/** "A random minion of your Tier": Vanguard's own pool (the run's buyable minions of EXACTLY your Shop tier). */
+function tierMinionPool(state: RunState): CardDef[] {
+  return poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier === state.tier);
+}
+
+/** Run a Shop grant whose buff records leave the HERO-POWER button (Hunch × Bonds' route). */
+function fromHeroPower(state: RunState, run: () => void): void {
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', run);
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
+// KINDNESS
+/** KINDNESS × GENESIS: what Great Presence's Discover spec carries (empty unless Genesis is picked, so every other run's
+ *  spec is byte-identical). */
+export function ancientGreatPresenceSpec(state: RunState): { ancientTag?: AncientDiscoverTag } {
+  const e = live(state) ? effectOf(state, 'greatPresencePicks') : undefined;
+  return e && e.picks > 1 ? { ancientTag: KINDNESS_GENESIS_TAG } : {};
+}
+
+/** KINDNESS × DEATH / WAR: Great Presence just fired (inside its Start-of-Turn beat): the named Gift goes to hand too.
+ *  The queued Discover keeps its hand slot (`conjureToHand`); a full hand gets none. */
+export function ancientAfterGreatPresence(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'greatPresenceGrantsCard') : undefined;
+  const def = e ? CARD_INDEX[e.cardId] : undefined;
+  if (e && def) conjureToHand(state, [def], Math.max(1, e.count));
+}
+
+/**
+ * KINDNESS × GENESIS: the open Discover is Great Presence's and `index` is about to be taken. Returns the options that
+ * stay on offer for the next pick (the rest of the same offer), or undefined when this pick is the last one. Called by
+ * the reducer's `discover` case BEFORE the pick; it reopens the offer with `ancientReopenDiscover` after.
+ */
+export function ancientDiscoverPicksAgain(state: RunState, index: number): string[] | undefined {
+  const a = live(state);
+  const e = a ? effectOf(state, 'greatPresencePicks') : undefined;
+  if (!a || !e || a.discoverTag !== KINDNESS_GENESIS_TAG || !state.discover?.length) return undefined;
+  const left = (a.kindnessPicksLeft ?? Math.max(1, e.picks)) - 1;
+  const rest = state.discover.filter((_, i) => i !== index);
+  if (left <= 0 || rest.length === 0) { a.kindnessPicksLeft = undefined; return undefined; }
+  a.kindnessPicksLeft = left;
+  return rest;
+}
+
+/** KINDNESS × GENESIS: put the rest of Great Presence's offer back up for the next pick. */
+export function ancientReopenDiscover(state: RunState, rest: readonly string[]): void {
+  const a = live(state);
+  if (!a || rest.length === 0) return;
+  state.discover = [...rest];
+  a.discoverTag = KINDNESS_GENESIS_TAG;
+}
+
+/**
+ * KINDNESS × BONDS: a Gift is about to be cast from hand on the board minion `target`. Returns the minion next to it
+ * that the Gift is also cast on (a random neighbour when it has two, seeded off the run cursor), or undefined. Chosen
+ * BEFORE the cast, because a Gift may remove its target (Parting Gifts).
+ */
+export function ancientGiftAdjacent(state: RunState, def: CardDef, target: BoardCard): BoardCard | undefined {
+  if (!live(state) || !def.gift || !effectOf(state, 'giftsCastOnAdjacent')) return undefined;
+  const i = state.board.indexOf(target);
+  if (i < 0) return undefined;
+  const near = [state.board[i - 1], state.board[i + 1]].filter((c): c is BoardCard => !!c);
+  if (near.length === 0) return undefined;
+  if (near.length === 1) return near[0];
+  const rng = makeRng(state.rngCursor);
+  const pick = near[rng.int(near.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
+}
+
+// MERRIN
+/** MERRIN × GENESIS: Pocket Magic is a Discover of a Shop spell. */
+export function ancientPocketMagicDiscovers(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'pocketMagicDiscovers');
+}
+
+/** MERRIN × WAR: Pocket Magic just handed `spells` to hand. Each casts `mult` times (`castMult`, never lowered). */
+export function ancientAfterPocketMagic(state: RunState, spells: readonly BoardCard[]): void {
+  const e = live(state) ? effectOf(state, 'pocketMagicCastMult') : undefined;
+  if (e) for (const c of spells) c.castMult = Math.max(c.castMult ?? 1, e.mult);
+}
+
+/** One spell was cast (`waveAhead` = 1 for a combat cast counted at settle). Returns true on every `every`th. MERRIN ×
+ *  TIME: that cast recharges the hero power. EMISSARY × GENESIS: the count only (its Shop spell is paid by the caller;
+ *  combat pays its own, live). */
+function batchBSpellTick(state: RunState, waveAhead: 0 | 1): boolean {
+  const a = live(state);
+  const time = effectOf(state, 'spellsRechargePower');
+  const count = time ?? effectOf(state, 'spellsGrantShopSpell');
+  if (!a || !count) return false;
+  a.batchBSpells = (a.batchBSpells ?? 0) + 1;
+  const hit = a.batchBSpells % Math.max(1, count.every) === 0;
+  // A recharge earned in combat is the new turn's own recharge. In the Shop the button comes back right then.
+  if (hit && time && !waveAhead) { state.heroReady = true; a.rechargeFxSeq = (a.rechargeFxSeq ?? 0) + 1; }
+  return hit;
+}
+
+/** A SPELL WAS CAST in the Shop (`ancientOnSpellCast`, the every-spell chokepoint). MERRIN × TIME: the recharge count.
+ *  EMISSARY × GENESIS: every `every`th gets a random Shop spell. MERRIN × BONDS: one minion of each type +a/+h, permanent. */
+function batchBOnSpellCast(state: RunState): void {
+  const hit = batchBSpellTick(state, 0);
+  if (hit && effectOf(state, 'spellsGrantShopSpell')) conjureToHand(state, shopSpellPool(state), 1);
+  const bonds = effectOf(state, 'spellCastBuffsEachType');
+  if (!bonds) return;
+  const each = bannerRecipientsOf(state);
+  if (each.length > 0) fromHeroPower(state, () => { for (const c of each) addBuff(c, ANCIENTS.bonds.name, bonds.attack, bonds.health); });
+}
+
+// EMISSARY
+/** EMISSARY × WAR / BONDS: United Front's shape (read by `fireShopUnitedFront`; combat reads its own mod). */
+export function ancientUnitedFrontShape(state: RunState): { reps: number; all: boolean } {
+  if (!live(state)) return { reps: 1, all: false };
+  return { reps: Math.max(1, effectOf(state, 'unitedFrontReps')?.times ?? 1), all: !!effectOf(state, 'unitedFrontHitsAll') };
+}
+
+/** EMISSARY × TIME: United Front fires at End of Turn, so it has no Start of Combat fire. */
+export function ancientUnitedFrontAtEot(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'unitedFrontAtEndOfTurn');
+}
+
+/** EMISSARY × FORTUNE: is this Shop spell free right now (the first Shop spell bought this turn)? */
+export function ancientFirstSpellFree(state: RunState, cardId: string): boolean {
+  const a = live(state);
+  if (!a || !effectOf(state, 'firstShopSpellFree') || !isShopSpell(CARD_INDEX[cardId])) return false;
+  return (a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) === 0;
+}
+
+// EMERALD WARDEN
+/** EMERALD WARDEN × FORTUNE: the price cap of a Shop minion of your current Shop tier (undefined = no cap). */
+export function ancientTierPrice(state: RunState, offer: { cardId: string; starform?: true }): number | undefined {
+  const e = live(state) ? effectOf(state, 'tierMinionsCost') : undefined;
+  const def = e && !offer.starform ? CARD_INDEX[offer.cardId] : undefined;
+  return e && def && !def.spell && !def.ruby && def.tier === state.tier ? Math.max(0, e.price) : undefined;
+}
+
+/**
+ * EMERALD WARDEN × WAR / GENESIS / BONDS: keep Vanguard's button in step with the Shop tier. At `tier`+ the power is
+ * also a button (untargeted, `cost` Gold, the plain once-per-turn charge); below it Vanguard stays the passive it is,
+ * so the button, the coin and the reducer's gates never promise a use that is not there. Called at the pick and at the
+ * reducer's every-action boundary (whatever raised the tier). Touches only its own pairing's shape.
+ */
+export function ancientSyncVanguard(state: RunState): void {
+  const a = live(state);
+  const e = a?.picked ? effectOf(state, 'vanguardActive') : undefined;
+  if (!a || !e) return;
+  const on = state.tier >= e.tier;
+  if (on === (a.powerOverride?.passive === false)) return;
+  a.powerOverride = on ? { passive: false, untargeted: true, cost: e.cost } : undefined;
+}
+
+/**
+ * EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard was pressed (the reducer's `vanguard` branch; the Gold and the turn's
+ * charge are the shared block's). Returns false when it could do nothing, so the press is refused and costs nothing.
+ * WAR: cast the spell through `castSpell`, from the hero power. GENESIS: Discover a Tier 7 minion. BONDS: a random minion
+ * of your most common type (your Shop tier or lower) to hand. `reps` = the power's repeats (Rune of Wishbone).
+ */
+export function ancientVanguardActivate(state: RunState, reps: number): boolean {
+  const e = live(state) ? effectOf(state, 'vanguardActive') : undefined;
+  if (!e || state.tier < e.tier) return false;
+  if (e.act === 'castSpell') {
+    const spell = e.spellId ? CARD_INDEX[e.spellId] : undefined;
+    if (!spell?.spell || state.board.length === 0) return false;
+    for (let r = 0; r < reps; r++) castSpell(state, spell, undefined, 'hero');
+    return true;
+  }
+  if (e.act === 'discoverTier7') {
+    if (state.hand.length >= handCap(state) || !poolOf(state).buyable.some((c) => !c.spell && !c.ruby && c.tier === 7)) return false;
+    for (let r = 0; r < reps; r++) queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 });
+    return true;
+  }
+  const tribe = dominantBoardTribe(state);
+  const pool = tribe ? poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && defIsTribe(c, tribe, state)) : [];
+  if (pool.length === 0 || state.hand.length >= handCap(state)) return false;
+  conjureToHand(state, pool, reps);
+  return true;
+}
+
+// SHARED: the End-of-Turn entry, the hero Avenge, the pick, combat, settle, the live text.
+/** Is one of this batch's End-of-Turn pairings live (the `ancientBatchBEot` recurring entry)? */
+export function ancientBatchBEotLive(state: RunState): boolean {
+  return !!live(state) && (!!effectOf(state, 'eotRandomShopSpells') || !!effectOf(state, 'unitedFrontAtEndOfTurn') || !!effectOf(state, 'eotTierMinion'));
+}
+
+/** This batch's End of Turn (the Ancient of Time's). KINDNESS: `count` random Shop spells to hand. EMISSARY: United
+ *  Front, a permanent Shop buff. EMERALD WARDEN: a random minion of your Tier to hand. `apply` is the recurring
+ *  runner's `step` (one itemized wave). A full hand gets no card. */
+export function ancientRunBatchBEot(state: RunState, apply: (run: () => void) => void): void {
+  if (!live(state)) return;
+  const spells = effectOf(state, 'eotRandomShopSpells');
+  if (spells) conjureToHand(state, shopSpellPool(state), Math.max(1, spells.count));
+  if (effectOf(state, 'unitedFrontAtEndOfTurn')) apply(() => { fireShopUnitedFront(state); });
+  if (effectOf(state, 'eotTierMinion')) conjureToHand(state, tierMinionPool(state), 1);
+}
+
+/** This batch's hero Avenge N (Merrin 3, Emissary 4, Emerald Warden 6), or undefined when none is picked. */
+function batchBAvenge(state: RunState): number | undefined {
+  const e = effectOf(state, 'avengeRandomShopSpell') ?? effectOf(state, 'avengeUnitedFront') ?? effectOf(state, 'avengeTierMinion');
+  return e ? Math.max(1, e.every) : undefined;
+}
+
+/** A friendly minion died in the Shop: the running count ticks, and every Nth death fires the Avenge right then.
+ *  MERRIN: a random Shop spell to hand. EMISSARY: United Front (permanent). EMERALD WARDEN: a random minion of your Tier. */
+function batchBShopDeath(state: RunState, a: AncientsState): void {
+  const every = batchBAvenge(state);
+  if (!every) return;
+  a.batchBDeaths = ((a.batchBDeaths ?? 0) + 1) % every;
+  if (a.batchBDeaths !== 0) return;
+  if (effectOf(state, 'avengeRandomShopSpell')) conjureToHand(state, shopSpellPool(state), 1);
+  if (effectOf(state, 'avengeTierMinion')) conjureToHand(state, tierMinionPool(state), 1);
+  if (effectOf(state, 'avengeUnitedFront')) fromHeroPower(state, () => { fireShopUnitedFront(state); });
+}
+
+/** The pick-time stamp. EMERALD WARDEN: a Shop already at Tier 6 has Vanguard's button from the pick. */
+function batchBOnPick(state: RunState): void {
+  ancientSyncVanguard(state);
+}
+
+/** This batch's combat halves (player-only, never snapshotted, like every Ancient). */
+function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const tick = a.batchBDeaths ?? 0;
+  // MERRIN / EMERALD WARDEN × DEATH: Gorr's Avenge channel over the pool's ids (a live random `toHand` per fire).
+  const md = effectOf(state, 'avengeRandomShopSpell');
+  if (md) out.ancientGorrAvenge = { every: md.every, tick, ids: shopSpellPool(state).map((c) => c.id), label: ANCIENTS.death.name };
+  const ed = effectOf(state, 'avengeTierMinion');
+  if (ed) out.ancientGorrAvenge = { every: ed.every, tick, ids: tierMinionPool(state).map((c) => c.id), label: ANCIENTS.death.name };
+  const mb = effectOf(state, 'spellCastBuffsEachType');
+  if (mb) out.ancientSpellBanners = { attack: mb.attack, health: mb.health, label: MERRIN_BONDS_COMBAT_LABEL };
+  // EMISSARY: Death's Avenge, War's repeat, Bonds' reach, one field. Time has no combat half at all.
+  const vd = effectOf(state, 'avengeUnitedFront');
+  const vw = effectOf(state, 'unitedFrontReps');
+  const vb = effectOf(state, 'unitedFrontHitsAll');
+  if (vd || vw || vb) {
+    out.ancientFrontShape = {
+      label: ANCIENTS[a.picked].name,
+      ...(vd ? { avenge: { every: vd.every, tick, mult: unitedFrontMult(state) } } : {}),
+      ...(vw ? { reps: Math.max(1, vw.times) } : {}),
+      ...(vb ? { all: true } : {}),
+    };
+  }
+  const vg = effectOf(state, 'spellsGrantShopSpell');
+  if (vg) out.ancientSpellCountGrant = { every: vg.every, tick: (a.batchBSpells ?? 0) % Math.max(1, vg.every), label: ANCIENTS.genesis.name };
+  return out;
+}
+
+/** Settle. The fight's deaths join the running Avenge count (its fires already resolved mid-fight), and its casts join
+ *  the running spell count (Emissary's Shop spells already flew to hand mid-fight; Merrin's recharge is the new turn's). */
+function batchBAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const every = batchBAvenge(state);
+  if (every) a.batchBDeaths = ((a.batchBDeaths ?? 0) + (result.playerDeaths ?? 0)) % every;
+  for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) batchBSpellTick(state, 1);
+}
+
+/** This batch's live power-text values (see `AncientPairing.powerText`). Live through a fight off the replay's friendly
+ *  deaths and spell casts so far (R-REALTIME-01), the Hunch / Nadja shape. */
+function batchBPowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a) return text;
+  const left = String(ancientHeroAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0);
+  const count = effectOf(state, 'spellsRechargePower') ?? effectOf(state, 'spellsGrantShopSpell');
+  const every = Math.max(1, count?.every ?? 1);
+  const spellsLeft = String(count ? every - (((a.batchBSpells ?? 0) + (state.fxSpellsCastPreview ?? 0)) % every) : 0);
+  const free = effectOf(state, 'firstShopSpellFree') ? ((a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) === 0 ? ' Ready this turn.' : ' Used this turn.') : '';
+  const va = effectOf(state, 'vanguardActive');
+  const top = va?.act === 'topTribeMinion' ? dominantBoardTribe(state) : null;
+  return text.replace('{mrDeathLeft}', left).replace('{vDeathLeft}', left).replace('{ewDeathLeft}', left)
+    .replace('{mrUsesLeft}', String(Math.max(0, (a.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
+    .replace('{mrTimeLeft}', spellsLeft).replace('{vGenesisLeft}', spellsLeft)
+    .replace('{vFreeNow}', free)
+    .split('{vN}').join(String(state.spellsCast * unitedFrontMult(state)))
+    .split('{ewTier}').join(String(state.tier))
+    .replace('{ewNow}', va ? (state.tier >= va.tier ? ' **Active now.**' : ` You are Tier **${state.tier}**.`) : '')
+    .replace('{ewTribe}', top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '');
+}
+
+// ── The 2026-11-10 batch A: Rascal / Gambler / Pete / Foreman Flint / Juggler ────────────────────────────────
+/** The `questTrigger` flags this batch's combat Avenges pulse (settle and the replay count them). */
+export const ANCIENT_ALLIN_FLAG = 'ancientAllInGold';
+export const ANCIENT_DICE_LOCK_FLAG = 'ancientDiceLock';
+/** JUGGLER: the card his power grants. */
+export const CARNIVAL_COIN_ID = 'carnivalcoin';
+
+const tribeName = (t: Tribe | null | undefined): string => (t ? ` (**${t.charAt(0).toUpperCase()}${t.slice(1)}**)` : '');
+
+/** A Shop grant from the hero power: one buff-FX step, sourced at the hero-power button (the Gildmaster × Bonds shape),
+ *  so each trigger reads as its own beat from the power that caused it. */
+function powerBuff(state: RunState, run: () => void): void {
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', run);
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
+/** The run's buyable `tribe` minions at your Shop tier or lower ("a random Dwarf": the Rune of Body Counting pick). */
+function tribePool(state: RunState, tribe: Tribe): CardDef[] {
+  return poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && defIsTribe(c, tribe, state));
+}
+
+/** This batch's hero Avenge, when one is picked: its N and the carried running count (Rascal 4, Gambler 4, Flint 4).
+ *  Juggler's and Pete's ride Gildmaster's / Tradesman's primitives. */
+function batchAAvengeOf(state: RunState): { every: number; tick: number } | undefined {
+  const a = live(state);
+  if (!a) return undefined;
+  const r = effectOf(state, 'avengeAllInGold');
+  if (r) return { every: Math.max(1, r.every), tick: a.rascalDeaths ?? 0 };
+  const g = effectOf(state, 'avengeReduceDiceLock');
+  if (g) return { every: Math.max(1, g.every), tick: a.gamblerDeaths ?? 0 };
+  const f = effectOf(state, 'avengeGrantTribeMinion');
+  if (f) return { every: Math.max(1, f.every), tick: a.flintDeaths ?? 0 };
+  return undefined;
+}
+
+/** GAMBLER × DEATH: the Dice lock ends `turns` sooner (never before the current turn). Not locked: nothing. */
+function reduceDiceLock(state: RunState, turns: number): void {
+  const until = state.heroDiceLockUntil ?? 0;
+  if (turns <= 0 || until <= state.wave) return;
+  state.heroDiceLockUntil = Math.max(state.wave, until - turns);
+}
+
+/** A friendly minion died in the Shop (called from `ancientHeroAvengeShopDeath`, so every Shop death path once). The
+ *  running count of whichever Avenge is picked ticks; every Nth death fires it right then. RASCAL: All In's next payout
+ *  gains the Gold. GAMBLER: the Dice lock ends a turn sooner. FLINT: a random Dwarf to hand (hand full: none). */
+function batchAShopDeath(state: RunState, a: AncientsState): void {
+  const r = effectOf(state, 'avengeAllInGold');
+  if (r) {
+    a.rascalDeaths = ((a.rascalDeaths ?? 0) + 1) % Math.max(1, r.every);
+    if (a.rascalDeaths === 0) a.rascalPot = (a.rascalPot ?? 0) + r.gold;
+  }
+  const g = effectOf(state, 'avengeReduceDiceLock');
+  if (g) {
+    a.gamblerDeaths = ((a.gamblerDeaths ?? 0) + 1) % Math.max(1, g.every);
+    if (a.gamblerDeaths === 0) reduceDiceLock(state, g.turns);
+  }
+  const f = effectOf(state, 'avengeGrantTribeMinion');
+  if (f) {
+    a.flintDeaths = ((a.flintDeaths ?? 0) + 1) % Math.max(1, f.every);
+    if (a.flintDeaths === 0 && state.hand.length < handCap(state)) conjureToHand(state, tribePool(state, f.tribe), 1);
+  }
+}
+
+/** This batch's combat halves (player-only, never snapshotted, like every Ancient). RASCAL / GAMBLER × DEATH: Cassen's
+ *  pulse (counted at settle). FLINT × DEATH: Gorr's live hand grant over the Dwarf pool; × WAR: Braum's Start-of-Combat
+ *  grant, narrowed to Dwarves, pre-multiplied by the Dwarves bought this game (nothing is bought mid-fight). */
+function batchACombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const r = effectOf(state, 'avengeAllInGold');
+  if (r) out.ancientAvengePulse = { every: r.every, tick: a.rascalDeaths ?? 0, flag: ANCIENT_ALLIN_FLAG, label: ANCIENTS.death.name };
+  const g = effectOf(state, 'avengeReduceDiceLock');
+  if (g) out.ancientAvengePulse = { every: g.every, tick: a.gamblerDeaths ?? 0, flag: ANCIENT_DICE_LOCK_FLAG, label: ANCIENTS.death.name };
+  const f = effectOf(state, 'avengeGrantTribeMinion');
+  if (f) out.ancientGorrAvenge = { every: f.every, tick: a.flintDeaths ?? 0, ids: tribePool(state, f.tribe).map((c) => c.id), label: ANCIENTS.death.name };
+  const w = effectOf(state, 'socBuffTribePerBought');
+  const bought = Math.max(0, a.flintDwarvesBought ?? 0);
+  if (w && bought > 0) out.ancientSocBuffAll = { attack: w.attack * bought, health: w.health * bought, label: ANCIENTS.war.name, tribe: w.tribe };
+  return out;
+}
+
+/** Settle: the fight's deaths join this batch's running Avenge count, and its flagged pulses pay. RASCAL: each pulse adds
+ *  the Gold to All In's next payout. GAMBLER: each pulse ends the Dice lock a turn sooner. FLINT: its Dwarves already
+ *  flew to hand mid-fight. */
+function batchAAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const pulses = (flag: string): number => (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === flag).length;
+  const deaths = result.playerDeaths ?? 0;
+  const r = effectOf(state, 'avengeAllInGold');
+  if (r) {
+    a.rascalDeaths = ((a.rascalDeaths ?? 0) + deaths) % Math.max(1, r.every);
+    const got = pulses(ANCIENT_ALLIN_FLAG);
+    if (got > 0) a.rascalPot = (a.rascalPot ?? 0) + got * r.gold;
+  }
+  const g = effectOf(state, 'avengeReduceDiceLock');
+  if (g) {
+    a.gamblerDeaths = ((a.gamblerDeaths ?? 0) + deaths) % Math.max(1, g.every);
+    reduceDiceLock(state, pulses(ANCIENT_DICE_LOCK_FLAG) * g.turns);
+  }
+  const f = effectOf(state, 'avengeGrantTribeMinion');
+  if (f) a.flintDeaths = ((a.flintDeaths ?? 0) + deaths) % Math.max(1, f.every);
+}
+
+/** RASCAL × TIME: Start of Turn, gain the Gold, on its own beat (R-SOT-BEAT-01). */
+function batchAStartOfTurn(state: RunState): void {
+  const e = live(state) ? effectOf(state, 'sotGainGold') : undefined;
+  if (e && e.gold > 0) recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => gainGold(state, e.gold));
+}
+
+// ── Rascal (All In) hooks ────────────────────────────────────────────────────────────────────────────────────
+/** RASCAL: the Gold an Ancient adds to All In's payout, `turns` turns after its last use (`allInPayoutOf`, so the button
+ *  tally, the text and the reducer read one number). FORTUNE: `perTurn` more per turn. DEATH: the Gold its Avenges added. */
+export function ancientAllInExtra(state: RunState, turns: number): number {
+  const a = live(state);
+  if (!a) return 0;
+  const f = effectOf(state, 'allInGrowth');
+  const d = effectOf(state, 'avengeAllInGold');
+  return (f ? f.perTurn * Math.max(0, turns) : 0) + (d ? Math.max(0, a.rascalPot ?? 0) : 0);
+}
+
+/** RASCAL × TIME: All In is passive (its work is the Start-of-Turn Gold). */
+export function ancientAllInPassive(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'sotGainGold');
+}
+
+/** RASCAL: All In just paid `paid` Gold (the reducer's `allIn` branch, Rune of Wishbone / Empowerment's repeat included).
+ *  DEATH: the Avenge Gold it carried is spent. WAR: your minions gain +a/+h per Gold paid, permanently (one lump, from
+ *  the hero-power button). GENESIS: one Discover of a minion of exactly your Shop tier per `every` Gold paid. */
+export function ancientAfterAllIn(state: RunState, paid: number): void {
+  const a = live(state);
+  if (!a) return;
+  if (effectOf(state, 'avengeAllInGold')) a.rascalPot = 0;
+  const w = effectOf(state, 'allInBuffPerGold');
+  if (w && paid > 0 && state.board.length > 0) {
+    const all = [...state.board];
+    powerBuff(state, () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * paid, w.health * paid); });
+  }
+  const g = effectOf(state, 'allInDiscoverPerGold');
+  if (g) {
+    const n = Math.floor(paid / Math.max(1, g.every));
+    for (let i = 0; i < n; i++) queueDiscover(state, { kind: 'minion', tier: state.tier, exactTier: state.tier });
+  }
+}
+
+/** RASCAL × BONDS: Gold was spent (the reducer's `spendGold`, every spend path once). One spend of 1+ Gold (never per
+ *  Gold) gives the left-most and right-most board minions +a/+h, permanently (once when they are the same minion). */
+function batchAOnSpendGold(state: RunState, amount: number): void {
+  const e = live(state) && amount > 0 ? effectOf(state, 'spendGoldBuffsEdges') : undefined;
+  const first = state.board[0], last = state.board[state.board.length - 1];
+  if (!e || !first || !last) return;
+  const targets = first === last ? [first] : [first, last];
+  powerBuff(state, () => { for (const c of targets) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+}
+
+// ── Gambler (Dice) hooks ─────────────────────────────────────────────────────────────────────────────────────
+/** GAMBLER × FORTUNE: does Dice roll a second die (gain both, lock for the lower)? */
+export function ancientDiceRollsTwo(state: RunState): boolean {
+  return !!live(state) && !!effectOf(state, 'diceRollTwo');
+}
+
+/** GAMBLER × GENESIS: the die face the Gamble being cast right now must use (undefined = Gamble rolls its own). */
+export function ancientForcedGambleRoll(state: Pick<RunState, 'ancientsEnabled' | 'ancients'>): number | undefined {
+  return state.ancientsEnabled ? state.ancients?.forcedGambleRoll : undefined;
+}
+
+/** GAMBLER: Dice just rolled `dice` (the reducer's `dice` branch, after the Gold and the lock). WAR: your minions gain
+ *  +a/+h per pip, permanently. GENESIS: Gamble is cast with the same roll (a real cast: every spell watcher hears it).
+ *  BONDS: a Discover of a minion of exactly the rolled Tier. */
+export function ancientAfterDice(state: RunState, dice: readonly number[]): void {
+  const a = live(state);
+  const roll = dice[0];
+  if (!a || roll === undefined) return;
+  a.gamblerRoll = { wave: state.wave, dice: [...dice] };
+  const pips = dice.reduce((n, d) => n + d, 0);
+  const w = effectOf(state, 'diceBuffPerPip');
+  if (w && state.board.length > 0) {
+    const all = [...state.board];
+    powerBuff(state, () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * pips, w.health * pips); });
+  }
+  const g = effectOf(state, 'diceCastsGamble');
+  const spell = g ? CARD_INDEX[g.spellId] : undefined;
+  if (spell) {
+    a.forcedGambleRoll = roll;
+    try { castSpell(state, spell); } finally { a.forcedGambleRoll = undefined; }
+  }
+  if (effectOf(state, 'diceDiscoverTier')) queueDiscover(state, { kind: 'minion', tier: roll, exactTier: roll });
+}
+
+/** GAMBLER × TIME: the Gold a Shop minion's price drops by: `gold` while Dice is locked and no minion has been bought
+ *  yet this turn (the Starform is a minion bought); else 0. */
+export function ancientLockedFirstDiscount(state: RunState, offer: { cardId: string; starform?: true }): number {
+  const e = live(state) ? effectOf(state, 'lockedFirstMinionDiscount') : undefined;
+  if (!e || state.wave >= (state.heroDiceLockUntil ?? 0) || gorrMinionBuysThisTurn(state) > 0) return 0;
+  const def = CARD_INDEX[offer.cardId];
+  return offer.starform || (def && !def.spell && !def.ruby) ? Math.max(0, e.gold) : 0;
+}
+
+// ── Pete (Contrabanana) hooks ────────────────────────────────────────────────────────────────────────────────
+/** PETE: how many Refreshes one Contrabanana takes (Time: 2; else 3). The reducer's `roll` branch and the button tally. */
+export function ancientContrabandEvery(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'contrabandEvery') : undefined;
+  return e ? Math.max(1, e.refreshes) : 3;
+}
+
+/** PETE × GENESIS: how many right-most Shop minions one Contrabanana upgrades. */
+export function ancientContrabandCount(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'contrabandCount') : undefined;
+  return e ? Math.max(1, e.count) : 1;
+}
+
+/** PETE × BONDS: the tier-above pool narrowed to your most common type (no type on the board, or none of it at that
+ *  tier: the ordinary pool). */
+export function ancientContrabandPool(state: RunState, pool: CardDef[]): CardDef[] {
+  const tribe = live(state) && effectOf(state, 'contrabandTopTribe') ? dominantBoardTribe(state) : null;
+  const narrowed = tribe ? pool.filter((c) => defIsTribe(c, tribe, state)) : [];
+  return narrowed.length > 0 ? narrowed : pool;
+}
+
+/** PETE: Contrabanana just put `offer` in the Shop. It is marked a Contrabanana minion (Ancients runs only, so every other
+ *  run's state is byte-identical). WAR: it gains one random keyword it lacks (seeded off the run cursor), baked in when
+ *  it is bought (`ShopCard.keywords`). */
+export function ancientOnContraband(state: RunState, offer: ShopCard): void {
+  if (!live(state)) return;
+  offer.banana = true;
+  const w = effectOf(state, 'contrabandKeyword');
+  if (!w) return;
+  const has = new Set<Keyword>([...(CARD_INDEX[offer.cardId]?.keywords ?? []), ...(offer.keywords ?? [])]);
+  const open = w.keywords.filter((k) => !has.has(k));
+  if (open.length === 0) return;
+  const rng = makeRng(state.rngCursor);
+  offer.keywords = [...(offer.keywords ?? []), open[rng.int(open.length)]!];
+  state.rngCursor = rng.state();
+}
+
+/** PETE × FORTUNE: a Shop offer was bought (the reducer's post-buy block). A Contrabanana minion banks the free Refreshes. */
+export function ancientOnBananaBuy(state: RunState, offer: Pick<ShopCard, 'banana'> | null | undefined): void {
+  const e = live(state) && offer?.banana ? effectOf(state, 'contrabandBuyFreeRefresh') : undefined;
+  if (e) state.freeRolls = (state.freeRolls ?? 0) + e.count;
+}
+
+// ── Foreman Flint (Company Rate) hooks ───────────────────────────────────────────────────────────────────────
+/** FLINT: Dwarves bought this turn. */
+function flintDwarfBuysThisTurn(state: RunState): number {
+  const m = live(state)?.flintDwarfBuys;
+  return m && m.wave === state.wave ? m.n : 0;
+}
+
+/** FLINT × FORTUNE: is this offer the turn's free Dwarf (Fortune picked, a Dwarf minion, none bought yet this turn)?
+ *  `offerBuyPrice` folds it into its `freeBuy` (still subject to the shared one-freebie-per-turn marker). */
+export function ancientTribeFirstFree(state: RunState, cardId: string): boolean {
+  const e = live(state) ? effectOf(state, 'firstTribeBuyFree') : undefined;
+  const def = e ? CARD_INDEX[cardId] : undefined;
+  return !!e && !!def && !def.spell && !def.ruby && defIsTribe(def, e.tribe, state) && flintDwarfBuysThisTurn(state) === 0;
+}
+
+/** FLINT × GENESIS: run a player Refresh (`refresh` = the reducer's `refreshTavern`). The first one each turn draws only
+ *  Dwarves (parked on `AncientsState.rollTribe` for exactly this roll, Frank × Genesis' channel: a tier with no Dwarf
+ *  stock falls back to the ordinary draw). Picked mid-turn, the next Refresh that turn is "the first". */
+export function ancientFirstRefreshTribe(state: RunState, refresh: () => void): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'firstRefreshTribe') : undefined;
+  if (!a || !e || a.flintGenesisWave === state.wave) { refresh(); return; }
+  a.flintGenesisWave = state.wave;
+  a.rollTribe = e.tribe;
+  try { refresh(); } finally { a.rollTribe = undefined; }
+}
+
+// ── Juggler (Carnival Coin) hooks ────────────────────────────────────────────────────────────────────────────
+/** JUGGLER: the minion buys one Carnival Coin takes (Genesis: 2; else 3). The reducer's `jugglerBuy` and the button tally. */
+export function ancientCoinNeed(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'coinEvery') : undefined;
+  return e ? Math.max(1, e.buys) : 3;
+}
+
+/** JUGGLER × BONDS: how many counts a bought minion is worth (`times` for a minion of your most common type; else 1). */
+export function ancientCoinBuyCount(state: RunState, cardId: string | undefined): number {
+  const e = live(state) ? effectOf(state, 'topTribeBuyCountsTwice') : undefined;
+  const tribe = e ? dominantBoardTribe(state) : null;
+  const def = cardId ? CARD_INDEX[cardId] : undefined;
+  return e && tribe && def && !def.spell && !def.ruby && defIsTribe(def, tribe, state) ? Math.max(1, e.times) : 1;
+}
+
+/** JUGGLER × FORTUNE: the Gold a Carnival Coin gives (undefined = its printed Gold). */
+export function ancientCoinGold(state: RunState): number | undefined {
+  const e = live(state) ? effectOf(state, 'coinGold') : undefined;
+  return e ? e.gold : undefined;
+}
+
+/** JUGGLER × WAR: the improvement banked onto a Carnival Coin's buff right now (0/0 when War is not picked). */
+export function ancientCoinBonus(state: RunState): { attack: number; health: number } {
+  const a = live(state);
+  return a && effectOf(state, 'coinCastImproves') ? { attack: a.jugglerCoinBonus?.attack ?? 0, health: a.jugglerCoinBonus?.health ?? 0 } : { attack: 0, health: 0 };
+}
+
+/** A spell was cast in the Shop (`castSpell`, once per cast). JUGGLER × WAR: a Carnival Coin improves LATER Coins by
+ *  +a/+h (Rune of Mastery repeats the improvement, like every Improve). */
+export function ancientOnCoinCast(state: RunState, spellId: string): void {
+  const a = live(state);
+  const e = a && spellId === CARNIVAL_COIN_ID ? effectOf(state, 'coinCastImproves') : undefined;
+  if (!a || !e) return;
+  const reps = improveReps(state);
+  a.jugglerCoinBonus = { attack: (a.jugglerCoinBonus?.attack ?? 0) + e.attack * reps, health: (a.jugglerCoinBonus?.health ?? 0) + e.health * reps };
+}
+
+/** JUGGLER: what a Carnival Coin's text must print right now (Fortune's Gold, War's banked improvement), or undefined
+ *  when neither changes it. The one read for every text surface (`spellDisplayText`'s `carnivalCoin`). */
+export function carnivalCoinLive(state: RunState): { gold: number; attack: number; health: number } | undefined {
+  if (!live(state)) return undefined;
+  const gold = ancientCoinGold(state);
+  const b = ancientCoinBonus(state);
+  return gold !== undefined || b.attack > 0 || b.health > 0 ? { gold: gold ?? 1, attack: b.attack, health: b.health } : undefined;
+}
+
+/** This batch's buy hook (`ancientOnBuy`, every successful buy once, BEFORE Gorr's per-turn tick). FLINT: the Dwarf
+ *  tallies (always, while Ancients are on) and Bonds' grant to your OTHER board Dwarves. JUGGLER × TIME: the first
+ *  `count` minions bought each turn (the Starform is one) also give a Carnival Coin (hand full: none). */
+function batchAOnBuy(state: RunState, a: AncientsState, cardId: string, starform: boolean, body: BoardCard | undefined): void {
+  const def = CARD_INDEX[cardId];
+  const minion = !!def && !def.spell && !def.ruby;
+  if (!minion) return;
+  if (!starform && defIsTribe(def, 'dwarf', state)) {
+    a.flintDwarfBuys = { wave: state.wave, n: flintDwarfBuysThisTurn(state) + 1 };
+    a.flintDwarvesBought = (a.flintDwarvesBought ?? 0) + 1;
+  }
+  const fb = effectOf(state, 'tribeBuyBuffsOthers');
+  if (fb && !starform && defIsTribe(def, fb.tribe, state)) {
+    const others = state.board.filter((c) => c !== body && (isTribe(c, fb.tribe) || defIsTribe(CARD_INDEX[c.cardId], fb.tribe, state)));
+    if (others.length > 0) powerBuff(state, () => { for (const c of others) addBuff(c, ANCIENTS.bonds.name, fb.attack, fb.health); });
+  }
+  const jt = effectOf(state, 'firstBuysGrantCoin');
+  const coin = jt ? CARD_INDEX[CARNIVAL_COIN_ID] : undefined;
+  if (jt && coin && gorrMinionBuysThisTurn(state) < jt.count && state.hand.length < handCap(state)) conjureToHand(state, [coin], 1);
+}
+
+/** This batch's live power-text values (see `AncientPairing.powerText`). Live through a fight off the replay's friendly
+ *  deaths so far (R-REALTIME-01), the batch-5 shape. Rascal: `{raDeathLeft}`, `{raPay}` (what All In pays right now, the
+ *  fight's Avenge Gold so far included), `{raUses}`, `{raWarA}` / `{raWarH}`, `{raDiscovers}`. Gambler: `{gaDeathLeft}`,
+ *  `{gaLock}` (the live lock), `{gaRolled}` / `{gaWarNow}` (this turn's roll), `{gaTimeNow}`. Pete: `{peLeft}` (Refreshes
+ *  to the next Contrabanana), `{peTribe}`. Flint: `{flDeathLeft}`, `{flFreeNow}`, `{flBought}` / `{flWarA}` / `{flWarH}`,
+ *  `{flGenNow}`, `{flTimeN}` / `{flTimeA}` / `{flTimeH}`. Juggler: `{juBonusA}` / `{juBonusH}`, `{juLeft}`, `{juTimeLeft}`,
+ *  `{juTribe}`. */
+function batchAPowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a) return text;
+  const deaths = combat.friendlyDeaths ?? 0;
+  const mine = batchAAvengeOf(state);
+  const left = String(mine ? mine.every - ((mine.tick + Math.max(0, deaths)) % mine.every) : 0);
+  const fires = mine && deaths > 0 ? Math.floor((mine.tick + deaths) / mine.every) * (1 + furyExtra(state)) : 0;
+  // RASCAL
+  const rd = effectOf(state, 'avengeAllInGold');
+  const pay = allInPayoutOf(state) + (rd ? fires * rd.gold : 0);
+  const rw = effectOf(state, 'allInBuffPerGold');
+  const rg = effectOf(state, 'allInDiscoverPerGold');
+  // GAMBLER
+  const gd = effectOf(state, 'avengeReduceDiceLock');
+  const lock = Math.max(0, (state.heroDiceLockUntil ?? 0) - state.wave - (gd ? fires * gd.turns : 0));
+  const rolled = a.gamblerRoll?.wave === state.wave ? a.gamblerRoll.dice : undefined;
+  const gw = effectOf(state, 'diceBuffPerPip');
+  const pips = rolled ? rolled.reduce((n, d) => n + d, 0) : 0;
+  const gt = effectOf(state, 'lockedFirstMinionDiscount');
+  const gtNow = !gt ? '' : state.wave >= (state.heroDiceLockUntil ?? 0) ? ' Not locked.' : gorrMinionBuysThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.';
+  // PETE
+  const every = ancientContrabandEvery(state);
+  // FLINT
+  const dwarfBuys = flintDwarfBuysThisTurn(state);
+  const bought = Math.max(0, a.flintDwarvesBought ?? 0);
+  const fw = effectOf(state, 'socBuffTribePerBought');
+  const ft = effectOf(state, 'eotBuffPerTribeBuy');
+  const ff = effectOf(state, 'firstTribeBuyFree');
+  const fg = effectOf(state, 'firstRefreshTribe');
+  // JUGGLER
+  const coin = ancientCoinBonus(state);
+  const jt = effectOf(state, 'firstBuysGrantCoin');
+  return text.replace('{raDeathLeft}', left).replace('{gaDeathLeft}', left).replace('{flDeathLeft}', left)
+    .replace('{raPay}', String(pay)).replace('{raUses}', String(Math.max(0, powerMaxUses(state, a) - (state.heroPowerUses ?? 0))))
+    .replace('{raWarA}', String((rw?.attack ?? 0) * pay)).replace('{raWarH}', String((rw?.health ?? 0) * pay))
+    .replace('{raDiscovers}', String(rg ? Math.floor(pay / Math.max(1, rg.every)) : 0))
+    .replace('{gaLock}', lock > 0 ? ` Locked for **${lock}** more turn${lock === 1 ? '' : 's'}.` : ' Not locked.')
+    .replace('{gaRolled}', rolled && rolled.length > 1 ? ` Rolled **${rolled[0]}** and **${rolled[1]}**.` : '')
+    .replace('{gaWarNow}', gw && rolled ? ` This turn: **+${gw.attack * pips}/+${gw.health * pips}**.` : '')
+    .replace('{gaTimeNow}', gtNow)
+    .replace('{peLeft}', String(every - ((state.refreshCount ?? 0) % every)))
+    .replace('{peTribe}', effectOf(state, 'contrabandTopTribe') ? tribeName(dominantBoardTribe(state)) : '')
+    .replace('{flFreeNow}', !ff ? '' : dwarfBuys === 0 && !state.freeBuyUsedThisTurn ? ' Ready this turn.' : ' Used this turn.')
+    .replace('{flBought}', String(bought)).replace('{flWarA}', String((fw?.attack ?? 0) * bought)).replace('{flWarH}', String((fw?.health ?? 0) * bought))
+    .replace('{flGenNow}', !fg ? '' : a.flintGenesisWave === state.wave ? ' Used this turn.' : ' Ready this turn.')
+    .replace('{flTimeN}', String(dwarfBuys)).replace('{flTimeA}', String((ft?.attack ?? 0) * dwarfBuys)).replace('{flTimeH}', String((ft?.health ?? 0) * dwarfBuys))
+    .replace('{juBonusA}', String(coin.attack)).replace('{juBonusH}', String(coin.health))
+    .replace('{juLeft}', String(Math.max(1, ancientCoinNeed(state) - (state.jugglerBuys ?? 0))))
+    .replace('{juTimeLeft}', String(jt ? Math.max(0, jt.count - gorrMinionBuysThisTurn(state)) : 0))
+    .replace('{juTribe}', effectOf(state, 'topTribeBuyCountsTwice') ? tribeName(dominantBoardTribe(state)) : '');
 }
 
 // ── THE 2026-11-10 BATCH C: Underdweller, Membrance, Gorun, Mimic ────────────────────────────────────────────

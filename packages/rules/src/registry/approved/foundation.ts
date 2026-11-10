@@ -14619,4 +14619,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-DUOS-HANDOFF-BEAT-01',
+    title: 'Duos: the tag-in keeps pace with the fight speed and is never silent; a fallen board and a fly-in have their own cue',
+    statement:
+      'In a Duos fight the hand-off is a beat the player can see and hear at every speed. The reserve board flies in over a length and a '
+      + 'stagger that divide by the live speed of the fight, so at 2x and during a Skip every body has landed before the beat that holds the '
+      + 'entrance ends and the new board never fights while still flying in. The stagger follows the arriving bodies (first off the edge '
+      + 'first; the other team mirrored), never the slot a body lands in. A board falling, a board tagging in and a fly-in after a won fight '
+      + 'each play a sound for their side and a one-shot accent on that board: a soft shadow over the fallen row; dust under each body as it '
+      + 'lands, then a slam in the team colour and the board shake under the last body of a tag-in; dust only for a fly-in. Nothing follows '
+      + 'a tag-in or a fly-in until its last body has landed, and the pause before the tag-in is shorter by the same amount, so no fight is '
+      + 'longer than before. Skipping or speeding up reaches the same final board. Under reduced motion '
+      + 'the board fades in where it stands and the accents are not drawn; the sound still plays. No ownership marker, no plate and no name '
+      + 'on the portrait are added.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10 (Duos presentation audit)', quote: 'make the beats much stronger for duos' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-26 (quoted in versus/duosCombat.tsx)', quote: 'we dont need to add more ui elements that are unnecessary' },
+      { kind: 'fix-pr', ref: 'feat/duos-beats (2026-11-10)' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/channels/duosHandoff.ts (tagAnimClass, tagLastLandMs, playHandoffFx); choreo/channels/sfx.ts (boardFallen / tagIn / flyIn); choreo/score.ts (duosHandoffFx); styles.css (.unit.tagin, .duosfell); Unit.tsx (the speed stamp); audio/duosCues.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (feat/duos-beats). Before, the entrance was a fixed 0.52 s plus 60 ms a slot, keyed to the slot, and the 960 ms meant to cover it sat BEFORE it (a hold is the wait before its beat): the fly-in itself got only the 240 to 360 ms of the next beat, so the new board swung while its bodies were still in the air at every speed (measured live at 1x to 2x: 117 to 567 ms on screen against an entrance of up to 880 ms). All three events played no sound and no effect. The cues are built from clips and synth notes the game already had and have not been tuned by ear yet.',
+    example: 'At 2x, your first board dies: a low hit and a dim over your row, then the seven minions of your teammate sweep in from the left in half the time, each landing in dust, the last on a teal slam with a shake, and only then does the fight go on.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/duosHandoff.test.ts', 'packages/ui/src/audio/duosCues.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

@@ -18,6 +18,7 @@ import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { VersusHeroSelectPause } from './versus/VersusHud';
+import { DuosSignals } from './versus/duosSignals';
 import { HeroSelectWatch } from './hero-select/HeroSelectWatch';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { PoolWaitPanel } from './opponentPool/PoolWaitPanel';
@@ -725,6 +726,8 @@ export function Game() {
       <HeroSelectWatch />
       {/* VERSUS: a pause during Hero Select shows its veil over the picker (R-VERSUS-RELIABLE-04; self-gates). */}
       <VersusHeroSelectPause />
+      {/* DUOS: the small teammate cues (view swap, teammate joins, round closes). Listens only; renders nothing. */}
+      <DuosSignals />
       {/* Practice setup: a view of the title's mode screen now (Title.tsx, R-MENU-VIEW-SWAP-01), so choosing Practice
           shifts the content beside the sidebar instead of closing the whole menu and fading a new one in. */}
       {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount

@@ -159,6 +159,21 @@ export const VERSUS_SILENT_EVENTS: readonly AnnouncerEvent[] = [
   'topFour', 'topTwo', 'gameWon', 'gameLoss', 'secondPlace', 'knockout', 'finalShowdown', 'lobbyLast', 'firstOut',
   'leaderboardTop', 'playersRemain', 'comebackWin', 'rankUp', 'ghostFight', 'resumeGame',
 ];
+/**
+ * RANKED DUOS (2026-11-10, owner: "make the beats much stronger for duos"). A Ranked Duos
+ * game runs as `mode === 'versus'`, so every line above was silent in it, although it IS a placement table with
+ * knockouts, a final two and a rank. These are the silenced lines that read a table of four TEAMS correctly, spoken
+ * there again, but only when raised by the TEAM detectors (`detectDuosTable`, the Face Omen's final check): the solo
+ * detectors count seats, and a Duos table loses its seats two at a time. No new recordings: the existing takes.
+ *  - `firstOut`: the first team is out. `knockout`: the team we just fought is out. `topTwo`: two teams are left.
+ *  - `finalShowdown`: a fight with two teams left.
+ *  - `gameWon` / `secondPlace` / `gameLoss` / `rankUp`: the team's result (`announceTeamResult`; its run has left
+ *    the screen by then, so they speak outside the queue).
+ * Still silent in Ranked Duos: `topFour` and `playersRemain` (seat counts that mean nothing for four teams),
+ * `lobbyLast` / `leaderboardTop` (one pool per team: the seat compare misreads it), `comebackWin`, `ghostFight`,
+ * `resumeGame`. Versus 1v1, Group and Versus Duos are unchanged: all of these stay silent there.
+ */
+export const RANKED_DUOS_TABLE_EVENTS: readonly AnnouncerEvent[] = ['firstOut', 'knockout', 'topTwo', 'finalShowdown'];
 /** The one take round `round` may play ("Round N"), or none past the recorded rounds. */
 export function gauntletRoundTakes(round: number): readonly string[] {
   return round >= 1 && round <= ANNOUNCER_GAUNTLET_ROUNDS ? [`gauntlet-round-${round}`] : [];
@@ -676,6 +691,8 @@ export interface AnnouncerRunLike {
       /** OpponentHero reads the foe seat's hero. */
       heroId?: string | undefined;
     }[];
+    /** A Versus table's opponent this round (the Duos team detector reads who we were fighting). */
+    forcedOpponent?: { round: number; seatId: string } | undefined;
     encounters?: readonly {
       round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined;
       /** Written from A's side (StreakStopper reads the foe's streak). */
@@ -939,6 +956,8 @@ interface PendingLine {
   certain?: boolean;
   /** A KEYED moment (group D): only these of the event's takes may play (the hero's / the tribe's). */
   takes?: readonly string[];
+  /** Raised by a Ranked Duos TEAM detector: it may speak a `RANKED_DUOS_TABLE_EVENTS` line a Versus table mutes. */
+  duosTable?: true;
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
 export interface AnnouncerLogEntry { t: number; kind: AnnouncerLogKind; event: AnnouncerEvent; file?: string; why?: string }
@@ -948,6 +967,15 @@ let active = false;
 let gauntletOnly = false;
 /** A Versus match is on screen: the queue refuses `VERSUS_SILENT_EVENTS` (see `enqueue`). */
 let versusMode = false;
+/** That Versus match is a RANKED DUOS game (told by the Versus session, `setAnnouncerDuosTable`): the team detectors
+ *  run and their `RANKED_DUOS_TABLE_EVENTS` lines speak. */
+let duosTable = false;
+/** The Versus session says whether the match on screen is a Ranked Duos game (versus/duosSignals.tsx). The announcer
+ *  reads only the run, and a run does not say which Versus mode it is. */
+export function setAnnouncerDuosTable(on: boolean): void { duosTable = on; }
+/** The team's result line, spoken outside the queue (`announceTeamResult`). */
+let teamResult: { timer: number | null; handle: AnnouncerHandle | null; token: number; lines: AnnouncerEvent[] } | null = null;
+let teamResultToken = 0;
 let runKey: number | null = null;
 let slice: AnnouncedSlice | null = null;
 let mark: ((event: AnnouncerEvent, wave: number, take?: string, reshuffle?: boolean) => void) | null = null;
@@ -1103,7 +1131,8 @@ function enqueue(line: PendingLine): void {
   // A Gauntlet speaks only its round call: every detector (and the combat / clock observers) may still see its moment,
   // but nothing else reaches the queue.
   if (gauntletOnly && !GAUNTLET_ANNOUNCER_EVENTS.includes(line.event)) return;
-  if (versusMode && VERSUS_SILENT_EVENTS.includes(line.event)) return;
+  if (versusMode && VERSUS_SILENT_EVENTS.includes(line.event)
+    && !(duosTable && line.duosTable && RANKED_DUOS_TABLE_EVENTS.includes(line.event))) return;
   if (pending.some((p) => p.event === line.event)) return;
   if (slice && announcerExhausted(slice, line.event)) return; // the no-repeat rule: nothing left to say
   // A keyed moment (group D): nothing left to say for THIS hero / tribe.
@@ -1393,6 +1422,41 @@ export function isMixedBoard(r: AnnouncerRunLike): boolean {
   return seen.size >= ANNOUNCER_MIXED_TRIBES;
 }
 const knockedOutCount = (r: AnnouncerRunLike): number => r.lobby?.seats.filter((x) => !x.alive).length ?? 0;
+
+// ── RANKED DUOS: the table as TEAMS ────────────────────────────────────────────────────────────────────
+/**
+ * How many OTHER teams still stand at a Duos table, read off the lobby the match is shown through (seat 0 is me, seat
+ * 1 my teammate, then the other teams' members): a team stands while either of its two seats does. Null when the
+ * lobby is not a Duos table's shape. Those seats flip when the screen shows the round's result, never mid-fight.
+ */
+export function duosFoeTeamsAlive(r: AnnouncerRunLike): number | null {
+  const seats = r.lobby?.seats;
+  if (!seats || seats.length < 4) return null;
+  return Math.ceil(seats.slice(2).filter((x) => x.alive).length / 2);
+}
+/** How many other teams sat down (alive or not). */
+const duosFoeTeams = (r: AnnouncerRunLike): number => Math.ceil(Math.max(0, (r.lobby?.seats.length ?? 0) - 2) / 2);
+
+/**
+ * RANKED DUOS: another team just went out (the lobby on screen lost a team between two updates). FirstOut when it is
+ * the table's first, Knockout when it is the team we were fighting, TopTwo when one other team is left. They share one
+ * time, after the return wipe, so the queue weighs them together by priority.
+ */
+function detectDuosTable(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, now: number): void {
+  const before = duosFoeTeamsAlive(p);
+  const after = duosFoeTeamsAlive(run);
+  if (before === null || after === null || after >= before || after < 1) return;
+  const at = now + ANNOUNCER_BACK_TO_SHOP_DELAY_MS;
+  const w = run.wave;
+  if (before === duosFoeTeams(p) && !hasFired(s, 'firstOut')) enqueue({ event: 'firstOut', shelf: 'shop', notBefore: at, wave: w, duosTable: true });
+  const foe = p.lobby?.forcedOpponent?.seatId;
+  const wasIn = !!foe && (p.lobby?.seats.find((x) => x.id === foe)?.alive ?? false);
+  const isOut = !!foe && run.lobby?.seats.find((x) => x.id === foe)?.alive === false;
+  if (wasIn && isOut && repeatAllowed(s, 'knockout', w, ANNOUNCER_KNOCKOUT_MAX, ANNOUNCER_KNOCKOUT_GAP_WAVES)) {
+    enqueue({ event: 'knockout', shelf: 'shop', notBefore: at, wave: w, duosTable: true });
+  }
+  if (after === 1 && !hasFired(s, 'topTwo')) enqueue({ event: 'topTwo', shelf: 'shop', notBefore: at, wave: w, duosTable: true });
+}
 /** LobbyLast / LeaderboardTop: the player's Resolve against every other standing seat's (strictly lowest / highest). */
 function standing(r: AnnouncerRunLike): 'last' | 'top' | null {
   const others = (r.lobby?.seats ?? []).slice(1).filter((x) => x.alive && typeof x.resolve === 'number');
@@ -1412,6 +1476,7 @@ function trailingRun(h: readonly string[]): { result: string | null; length: num
 
 function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void {
   cancelAnnouncer('run change');
+  cancelTeamResultLine(); // a new game: the last one's result line stops
   active = true;
   gauntletOnly = isGauntletAnnouncer(s);
   versusMode = s.run.mode === 'versus';
@@ -1456,6 +1521,76 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   if (enteredAtWaveOne && pickTakes.length && !hasFired(slice!, 'heroPick')) {
     enqueue({ event: 'heroPick', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1, takes: pickTakes });
   }
+}
+
+/** The end line a team place (1 to 4) speaks: 1st wins, exactly 2nd has its own line, 3rd and 4th lose. Pure. */
+export const teamResultEvent = (placement: number): AnnouncerEvent => (placement === 1 ? 'gameWon' : placement === 2 ? 'secondPlace' : 'gameLoss');
+
+/** Stop the team result line (Continue off the result, a new game starting). */
+export function cancelTeamResultLine(): void {
+  const t = teamResult;
+  teamResult = null;
+  if (!t) return;
+  if (t.timer !== null) deps.clearTimeout(t.timer);
+  t.handle?.stop(ANNOUNCER_STOP_FADE_MS);
+}
+
+/**
+ * RANKED DUOS: THE TEAM'S RESULT. The solo end line is queued when the run reaches its end
+ * screen; a Ranked Duos run has already LEFT the screen when its result opens (or when the team is knocked out to the
+ * stands), so the queue is gone with it. This speaks the same line by itself: any run line still talking is cut and
+ * the end line plays after the usual end delay (a random take; the queue's no-repeat bag belongs to the run that
+ * left). The event's chance and volume and the Announcer level still apply. Returns the line it will speak, or null
+ * when the event is switched off.
+ */
+export function announceTeamResult(placement: number): AnnouncerEvent | null {
+  const event = teamResultEvent(placement);
+  cancelTeamResultLine();
+  if (announcerEventChance(event) <= 0) return null;
+  cancelAnnouncer('team result');
+  startTeamLines([event], ANNOUNCER_END_DELAY_MS);
+  return event;
+}
+
+/**
+ * RANKED DUOS: the team was PROMOTED (the server's result landed, after the result screen opened). RankUp follows the
+ * end line when that is still waiting or talking, as on the solo screen; else it speaks now.
+ */
+export function announceTeamRankUp(): boolean {
+  if (announcerEventChance('rankUp') <= 0) return false;
+  if (teamResult) { if (!teamResult.lines.includes('rankUp')) teamResult.lines.push('rankUp'); return true; }
+  startTeamLines(['rankUp'], 0);
+  return true;
+}
+
+/** Speak `lines` one after another, outside the queue, starting after `delayMs`. */
+function startTeamLines(lines: AnnouncerEvent[], delayMs: number): void {
+  const token = ++teamResultToken;
+  const mine = (): boolean => teamResult !== null && teamResult.token === token;
+  const next = (): void => {
+    if (!mine()) return;
+    const ev = teamResult!.lines.shift();
+    if (!ev) { teamResult = null; return; }
+    const takes = ANNOUNCER_LINES[ev];
+    const file = takes[announcerPick(takes.length)];
+    if (!file) { next(); return; }
+    note('play', ev, { file });
+    const ended = (): void => {
+      if (!mine()) return;
+      note('end', ev);
+      teamResult!.handle = null;
+      next();
+    };
+    let pr: Promise<AnnouncerHandle | null>;
+    try { pr = playClip(file, ended, announcerEventVolume(ev)); } catch { pr = Promise.resolve(null); }
+    pr.then((h) => {
+      if (!mine()) { h?.stop(0); return; }
+      if (!h) { ended(); return; }
+      teamResult!.handle = h;
+    }, () => ended());
+  };
+  teamResult = { token, handle: null, lines, timer: null };
+  teamResult.timer = deps.setTimeout(() => { if (!mine()) return; teamResult!.timer = null; next(); }, Math.max(0, delayMs));
 }
 
 function leaveRun(): void {
@@ -1513,6 +1648,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
   if (!p || p === run || p.seed !== run.seed) return;
   const now = deps.now();
   const acts = newActions(s, prev);
+  // RANKED DUOS: a team leaving the table, read as teams, on whichever update the lobby on screen shows it.
+  if (versusMode && duosTable && p.lobby !== run.lobby) detectDuosTable(slice, p, run, now);
 
   // ── Phase flips ──
   if (p.phase !== 'combat' && run.phase === 'combat') {
@@ -1538,6 +1675,10 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     // FinalShowdown: the last fight of the game, two players standing (the player one of them).
     if (run.lobby && playerAlive(run) && aliveSeats(run) === 2 && !hasFired(slice, 'finalShowdown')) {
       enqueue({ event: 'finalShowdown', shelf: 'combat', notBefore: at, wave: run.wave });
+    }
+    // RANKED DUOS: the same line when ONE other team is left (four seats, two teams: the last fight of the game).
+    if (versusMode && duosTable && duosFoeTeamsAlive(run) === 1 && !hasFired(slice, 'finalShowdown')) {
+      enqueue({ event: 'finalShowdown', shelf: 'combat', notBefore: at, wave: run.wave, duosTable: true });
     }
     // BrokeTurn: the Shop turn that just ended spent every Gold and bought nothing, past the opening rounds.
     // Both tallies must be KNOWN (absent = unknown, never assumed 0).
@@ -2263,6 +2404,9 @@ export function resetAnnouncerForTests(): void {
   active = false;
   gauntletOnly = false;
   versusMode = false;
+  duosTable = false;
+  if (teamResult?.timer != null) deps.clearTimeout(teamResult.timer);
+  teamResult = null;
   runKey = null;
   slice = null;
   mark = null;

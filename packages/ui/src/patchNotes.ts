@@ -56,6 +56,26 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-10',
+    label: 'Duos beats',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Duos fights and team moments now have their own sounds and effects.',
+        details: [
+          'When a board falls and your teammate tags in, you hear it and see it. The new board lands with dust, a slam and a shake.',
+          'The tag-in now keeps up at 2x speed and when you skip. The new board no longer fights while it is still flying in.',
+          'The last 5 seconds before the next shop opens now tick down out loud.',
+          'In Ranked Duos, the wait after 0:00 now shows how many seconds are left.',
+          'Passing a card has its own sound. Sending and receiving sound different.',
+          'The announcer now speaks in Ranked Duos for knockouts, the final fight and your result.',
+          'Your team going out and your team result now show both of you together.',
+          'Soft sounds were added for viewing your teammate, a teammate joining, and the round locking in.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     changes: [
       {

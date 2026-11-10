@@ -455,6 +455,58 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
 @keyframes vscountpop { from { transform: scale(1.35); opacity: 0; } 30% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .vscount-num { animation: none; } }
 
+/* THE COUNTDOWN BEAT (countdownBeat.tsx): the seconds after the End Turn gem's pill text
+   (the 5 s End Combat window; Ranked Duos overtime). The number is re-keyed each second, so it pops ONCE per second
+   (transform / opacity only, one-shot); the last five, the ones that tick aloud, pop harder and turn gold. */
+.vscd { white-space: nowrap; }
+.vscd-num { display: inline-block; min-width: 1.6em; text-align: left; font-variant-numeric: tabular-nums; transform-origin: 30% 60%; animation: vscdpop 0.36s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.vscd-num.hot { color: #ffd98a; animation-name: vscdpophot; }
+@keyframes vscdpop { from { transform: scale(1.25); opacity: 0.6; } to { transform: scale(1); opacity: 1; } }
+@keyframes vscdpophot { from { transform: scale(1.9); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vscd-num, .vscd-num.hot { animation: none; } }
+
+/* A TEAM, PRESENTED AS A TEAM (TeamFaces.tsx): the pair on its result and on its elimination.
+   The row keeps the result screen's own classes (`.vsduosresult-*`, below) and adds the moment: larger portraits, the
+   two coming in from either side to meet (transform / opacity, one-shot), a soft gold light behind a win, and a
+   one-shot drain to grey on a team that is out (a filter TRANSITION on the still portrait, after its parent has
+   landed: never a filter on a moving layer). */
+.vsteam { position: relative; isolation: isolate; }
+.vsteam .lb-heroframe { zoom: 1.3; } /* static: the leaderboard's own portrait, a third larger (its ring scales with it) */
+.vsteam-face { animation: vsteaminl 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
+.vsteam-face + .vsteam-face { animation-name: vsteaminr; animation-delay: 0.09s; }
+.vsteam.solo .vsteam-face { animation-name: vsteamin; }
+@keyframes vsteaminl { from { opacity: 0; transform: translateX(-72px) scale(0.86); } 70% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes vsteaminr { from { opacity: 0; transform: translateX(72px) scale(0.86); } 70% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes vsteamin { from { opacity: 0; transform: translateY(18px) scale(0.86); } to { opacity: 1; transform: none; } }
+/* The win's light: a static glow whose opacity rises once and stays. */
+.vsteam.won::before { content: ''; position: absolute; left: 50%; top: 46%; width: 420px; height: 240px; margin: -120px 0 0 -210px; pointer-events: none; z-index: -1;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 214, 120, 0.42) 0%, rgba(255, 196, 86, 0.16) 40%, rgba(255, 196, 86, 0) 70%);
+  animation: vsteamglow 0.9s ease-out 0.3s both; }
+@keyframes vsteamglow { from { opacity: 0; transform: scale(0.6); } 55% { opacity: 1; transform: scale(1.08); } to { opacity: 0.8; transform: scale(1); } }
+/* Out: the portraits drain once the pair has landed. */
+.vsteam.out .lb-heroframe { filter: grayscale(0.9) brightness(0.72); transition: filter 0.7s ease-out 0.65s; }
+@starting-style { .vsteam.out .lb-heroframe { filter: none; } }
+.vsteam.out .vsteam-name { color: rgba(244, 238, 226, 0.72); }
+
+/* MY TEAM IS OUT (SpectatorBar.tsx `KnockoutNotice`): the panel rises in, the team lands, then the place under it,
+   then the words. All one-shot, transform / opacity. */
+.vsko .vsko-panel { animation: vskopanel 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.08) both; }
+.vsko .vsteam { display: flex; justify-content: center; align-items: flex-start; margin: 0 0 calc(6 * var(--u)); }
+.vsko .vsko-place .endplace-num { display: inline-block; animation: vskoplace 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15) 0.62s both; }
+.vsko .vsko-place .endplace-of { animation: fadein 0.3s ease 0.95s both; }
+.vsko .vsko-sub { animation: fadein 0.3s ease 1.05s both; }
+.vsko .vsko-actions { animation: fadein 0.3s ease 1.2s both; }
+@keyframes vskopanel { from { opacity: 0; transform: translateY(22px) scale(0.95); } to { opacity: 1; transform: none; } }
+@keyframes vskoplace { from { opacity: 0; transform: scale(1.7); } 45% { opacity: 1; } to { opacity: 1; transform: scale(1); } }
+/* The result screen's team name drops in ahead of the pair. */
+.vsduosresult .vsduosresult-team { animation: vsteamin 0.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .vsteam-face, .vsteam-face + .vsteam-face, .vsteam.solo .vsteam-face, .vsko .vsko-panel, .vsko .vsko-place .endplace-num,
+  .vsko .vsko-place .endplace-of, .vsko .vsko-sub, .vsko .vsko-actions, .vsduosresult .vsduosresult-team { animation: none; }
+  .vsteam.won::before { animation: none; opacity: 0.8; }
+  .vsteam.out .lb-heroframe { transition: none; }
+}
+
 /* Previous match stats: VICTORY / DEFEAT in the lobby end screen's gold numeral (its `.endplace-num`); a win takes the
    end screen's brighter first-place gradient, a loss stays on the base one. */
 .vsms-verdict { margin: 2px 0 -4px; }

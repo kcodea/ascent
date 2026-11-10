@@ -1337,6 +1337,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   on and it starts from its left-most minion. Both boards falling together is a draw. An empty board hands straight
   over to the teammate. Each player's run keeps only what its own board did in the fight (Engraved gains, tallies,
   hand grants, Gold, ...). Combat stays 1:1 symmetric.
+  **How the hand-off plays** (R-DUOS-HANDOFF-BEAT-01, 2026-11-10): a fallen board gets a low hit and a soft shadow over
+  its row; the reserve then flies in from its team's edge, each body landing in dust and the last on a slam in the team
+  colour with a board shake and the tag-in sound. The entrance runs at the fight's live speed (2x, the auto-ramp, a
+  Skip), and nothing follows it until its last body has landed. No ownership marker, plate or name is added.
 - **The fly-in** (owner 2026-11-02, R-DUOS-FLYIN-01: "the team flies in and fills the 7 slots from left to right. if
   there's no room, there's no fly in. flying in after combat does NOT trigger start of combats or anything, but it DOES
   deal more dmg to opponents as the filled in slots tally up for damage"). When a team WINS with its first board, the
@@ -1551,7 +1555,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   the first End Turn at 0:00 started a 5 s window). A teammate who disconnects (12 s without a heartbeat) or left counts
   as ready. From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
   but you can re-order and freeze your board and view your teammate's board (owner: "same as the normal mode when you
-  have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).
+  have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard). That
+  safeguard's seconds count down on the End Turn gem's pill (the clock face itself stays at 0:00), ticking aloud for
+  the last five (2026-11-10, a builder's call under "make the beats much stronger for duos"; not yet ruled on by the
+  owner).
 - **Disconnects and leaving.** A teammate who drops or leaves has their last locked board fight for them on auto; the
   team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
   **Conceding** (the Esc menu) is leaving for good (R-RANKED-DUOS-CONCEDE-01): your board plays on auto for your

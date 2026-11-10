@@ -5046,7 +5046,7 @@ export function Recruit() {
           // The coin only when Gold was paid (Brian's Pal's free pass sends none, R-DUOS-CARDS-01).
           const paid = useGame.getState().run.duos?.outbox[sent]?.paid ?? 1;
           playDrop({ from, zoom, plate, to: door?.getBoundingClientRect() ?? mateRect, face: dc?.querySelector<HTMLElement>('.dragshrink > .card') ?? dc?.querySelector<HTMLElement>('.card') ?? null, coin: paid > 0, onLand: () => catchPulse(door) });
-          sfx.sell?.();
+          // (The pass's own send cue plays inside `playDrop`: it used to ring the SELL sound here.)
           endSession();
           return;
         }

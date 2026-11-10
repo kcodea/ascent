@@ -89,6 +89,8 @@ export interface GPass {
   status: 'sent' | 'landed' | 'refused';
   created_at: string;
   answered_at: string | null;
+  /** Why the ROOM refused it (absent when the receiver's own run did): `teammate_away` = it expired unanswered. */
+  reason?: 'teammate_away';
 }
 
 export type GSeat = 'p1' | 'p2' | 'p3' | 'p4';
@@ -646,15 +648,13 @@ export class GroupEngine {
     const s = this.row(seat);
     const last = this.g.lastLocked[seat] ?? null;
     const cur = this.g.subs[seat]?.round === m.round ? this.g.subs[seat] : undefined;
-    if (auto) {
-      if (cur) {
-        const had = cur.prepared_side != null;
-        cur.prepared_side = last ?? cur.prepared_side;
-        cur.source = had ? 'deadline' : last == null ? 'empty' : 'auto';
-        cur.final = true;
-      } else {
-        this.g.subs[seat] = { round: m.round, seat, user_id: s.user_id, candidate_seq: 0, prepared_side: last, final: true, source: last == null ? 'empty' : 'auto', checkpoint: null, scout: null };
-      }
+    // THE NEWEST BOARD THE ROOM HOLDS FIGHTS (R-VERSUS-AUTO-NEWEST-BOARD-01, netcode audit F1, 2026-11-10): a seat closed
+    // on auto (absent past its grace, or gone for good) fights the board of THIS round when the room has one (its last
+    // candidate, sent as the player shopped), and only falls back to the last board it locked in an earlier round when
+    // it sent nothing this round. Before, an auto seat's current candidate was REPLACED by last round's board, so a
+    // short drop while the teammate ended the turn threw away everything bought this turn.
+    if (auto && !(cur && cur.prepared_side != null)) {
+      this.g.subs[seat] = { round: m.round, seat, user_id: s.user_id, candidate_seq: cur?.candidate_seq ?? 0, prepared_side: last, final: true, source: last == null ? 'empty' : 'auto', checkpoint: null, scout: cur?.scout ?? null };
     } else if (cur && cur.prepared_side != null) {
       cur.final = true;
       cur.source = 'deadline';
@@ -890,6 +890,34 @@ export class GroupEngine {
       this.h.passChanged?.(row!);
     }
     return row!;
+  }
+
+  /**
+   * AN UNANSWERED PASS EXPIRES (R-DUOS-PASS-EXPIRE-01, netcode audit F3, 2026-11-10). A card pass stays `sent` until the
+   * receiver's run answers it. A pass sent in the receiver's first seconds offline (before the room counts them away and
+   * refuses new ones) was never answered if they did not come back: the card and its Gold were gone for good. So the
+   * moment the receiver's seat is away (on auto), has left for good or is out, every card pass still waiting on them is
+   * REFUSED by the room, through the same row and push a full hand's refusal uses, so the sender's run gives the card and
+   * the Gold back (`passRefunded`). A receiver who returns later reads the row as refused and never lands it.
+   * A TEAM EFFECT (`passFrom: 'team'`) is never expired: it took nothing from the sender and lands on reconnect.
+   * Runs with every reconcile; a no-op unless a seat is away with passes waiting.
+   */
+  protected expirePasses(): void {
+    const all = this.g.passes;
+    if (!all || !this.running()) return;
+    const away = new Set(this.m.seats.filter((s) => s.auto || s.left_at != null || s.eliminated_round != null).map((s) => s.seat));
+    if (!away.size) return;
+    for (const list of Object.values(all)) {
+      for (const p of list) {
+        if (p.status !== 'sent' || !away.has(p.to_seat) || p.card.passFrom === 'team') continue;
+        p.status = 'refused';
+        p.reason = 'teammate_away';
+        p.answered_at = new Date(this.h.now()).toISOString();
+        this.h.dirty(`gpass:${p.round}`);
+        this.h.passChanged?.(p);
+        this.h.event('pass_expired', { from: p.from_seat, to: p.to_seat, seq: p.seq });
+      }
+    }
   }
 
   /** `versus_duos_hand_room`: my free hand slots. */
@@ -1155,6 +1183,7 @@ export class GroupEngine {
   reconcile(): void {
     const m = this.m;
     if (!this.running()) return;
+    this.expirePasses();
     const now = this.h.now();
     const gone = this.stillIn().filter((s) => !s.auto && this.h.userGone(s.user_id)).map((s) => s.seat);
     const allGone = this.stillIn().every((s) => this.h.userGone(s.user_id));

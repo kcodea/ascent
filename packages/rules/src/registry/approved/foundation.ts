@@ -14619,4 +14619,176 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-RANKED-DUOS-AWAY-GRACE-01',
+    title: 'Ranked Duos: a short drop is not an absence (12 s before a seat counts as away)',
+    statement:
+      'In Ranked Duos a live player with no open socket counts as away (on auto, "ended their turn") only after 12 s without one, '
+      + 'not at the room\x27s 3 s socket grace. Inside the 12 s the seat is simply not ready yet: the teammate\x27s End Turn does not '
+      + 'close the round. The grace never holds a round past its own clock: the round still closes at 0:00 plus the 30 s overtime. '
+      + '12 s is the client\x27s worst ordinary reconnect: one 8 s handshake watchdog, the 3 s backoff cap and 1 s for the hello. '
+      + 'The room wakes itself at that moment (its own alarm), and a returning socket ends auto at once as before. A socket the '
+      + 'room found stale (15 s with no keep-alive) has used its grace already: that seat is away 3 s after the room notices.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/rankedMatch.ts (RANKED_AWAY_GRACE_MS, reconcile, alarms)' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (VERSUS_CF_HANDSHAKE_MS 8 s, the reconnect backoff capped at 3 s)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, any drop over 3 s (a wifi hiccup, a phone app switch, every reload) put the seat on auto, and the teammate\x27s End Turn closed the round at once without the player.',
+    example: 'Bob\x27s wifi drops for 4 s while Ann presses End Turn. The round stays open; Bob is back, finishes his turn and presses End Turn; the fight uses the board he ended on.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-AUTO-NEWEST-BOARD-01',
+    title: 'Versus: a seat closed on auto fights the newest board the room holds for the round',
+    statement:
+      'When a round closes on a seat that is on auto (absent past its grace, or gone for good), that seat fights the board of THIS '
+      + 'round when the room holds one (its newest candidate, sent as the player shopped). Only a seat that sent nothing this round '
+      + 'fights the last board it locked in an earlier round; a seat that never locked anything fights empty. This holds in every '
+      + 'room mode (Group, Versus Duos, Ranked Duos). The room, not a client, picks the board, so both teammates see the same fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/groupMatch.ts (finalizeSeat)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, an auto seat\x27s current-round candidate was replaced by its last locked board, so everything bought this turn was missing from the fight.',
+    example: 'Bob buys two minions on turn 5, then loses his connection for a minute. Ann ends the turn. Bob\x27s side fights with the two new minions, not with his turn 4 board.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-PASS-EXPIRE-01',
+    title: 'Duos: a pass waiting on a teammate who is away goes back to its sender',
+    statement:
+      'A card pass stays "sent" until the receiver\x27s run answers it. The moment the receiver\x27s seat is away (on auto), has left '
+      + 'for good or is out of the match, the room refuses every card pass still waiting on them, through the same row and push as a '
+      + 'full hand\x27s refusal, marked with the reason "teammate_away": the sender\x27s run gives the card and the Gold back and says '
+      + 'why. A receiver who returns later reads the row as refused and never lands it (a copy it kept while viewing the teammate is '
+      + 'replaced by the refusal). A team effect is never expired: it took nothing from the sender and lands on reconnect.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/groupMatch.ts (expirePasses), packages/ui/src/versus/duosPasses.ts (duosPushed, applyRows)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, a pass sent in the teammate\x27s first seconds offline stayed "sent" for ever if they did not come back: the card and its Gold were lost. Known gap: a receiver whose run landed the card in the same instant its connection died, and who stays away past the grace, keeps the card while the sender is refunded.',
+    example: 'Ann passes a minion to Bob one second after his connection drops. Bob does not come back. 12 s after the drop the minion and the 1 Gold are back with Ann, with "Your teammate is away. You got it back."',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-LINK-STATUS-01',
+    title: 'Versus: my own connection is on screen (Reconnecting, Connection lost, open somewhere else)',
+    statement:
+      'A seated Versus or Duos player whose room socket is down sees it, driven by the socket\x27s real state: nothing for a drop '
+      + 'under 1.5 s; then a small strip "Reconnecting" that never takes the pointer; past 12 s "Connection lost" with what happens to '
+      + 'their seat meanwhile (Ranked Duos: the board fights on its own; other modes: the match waits 30 seconds first). A socket the '
+      + 'room closed for good (the same account opened the game somewhere else) shows a panel with two ways on: "Play here" reopens '
+      + 'the socket (the room then closes the other one), "Back to menu" leaves this screen only and never leaves the match. A '
+      + 'request on a socket closed for good fails at once with the reason instead of waiting out a 15 s timeout, and such a socket '
+      + 'never reconnects by itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusConnection.ts, VersusConnectionStatus.tsx, versusCfRemote.ts; workers/versus/src/client.ts (dead, reclaim)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, no connection state was ever shown: with the socket down the shop looked normal for 20 s and more, and a second tab left the first frozen with no message.',
+    example: 'Bob opens the game in a second tab mid-match. The first tab shows "Open somewhere else" with Play here and Back to menu. He presses Play here: the first tab has the game again and the second shows the panel.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusConnection.test.ts', 'workers/versus/test/clientLink.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-PROBE-01',
+    title: 'Versus on Cloudflare: the socket is probed when the tab is visible again or the network is back',
+    statement:
+      'When the tab becomes visible, the page is restored, or the network comes back, a room socket that is down reconnects at once '
+      + 'and a socket that looks open is probed: one ping, and if no frame at all arrives within 2 s it is dropped and reconnected. A '
+      + 'keep-alive timer that fired late (a frozen or throttled tab) probes the socket the same way instead of dropping a healthy '
+      + 'one for the client\x27s own silence.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/client.ts (probe, schedulePing), packages/ui/src/versus/versusCfRemote.ts (wake)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, only the browser\x27s "online" event was heard and it did nothing on a socket that looked open; a phone back from the home screen showed a live-looking game on a dead socket until the next 5 s keep-alive tick, and a background tab reconnected once a minute for nothing.',
+    example: 'Bob\x27s phone comes back from the home screen with its socket dead. Within 2 s the game drops it, shows "Reconnecting" and is back on a fresh one.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientLink.test.ts', 'workers/versus/test/clientWake.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-LOST-CALL-01',
+    title: 'Versus on Cloudflare: a call nobody answered is "network", whatever lost it',
+    statement:
+      'A room call that was never answered (15 s with no answer, the socket closed under it, a failed HTTP call) reaches the game as '
+      + 'the one code "network". A code the room itself answered with is passed through untouched. The recovery paths keyed on '
+      + '"network" therefore run for every lost call: the End Turn gem and the un-ready are re-read from the server\x27s row, and a '
+      + 'pass is retried.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusCfRemote.ts (err)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, a timeout surfaced as "timeout" and a dropped socket as "closed", so the recovery paths never ran: after a 15 s stall the End Turn gem relit while the server could still hold the lock.',
+    example: 'Bob presses End Turn as his connection stalls. 15 s later the call is lost; the game reads his seat from the server: it is locked, so the gem stays pressed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-FETCH-TIMEOUT-01',
+    title: 'Versus on Cloudflare: no Supabase call waits for ever; a table that cannot be read never holds a fight for good',
+    statement:
+      'Every Supabase call the Versus Worker makes for a room has a deadline: 5 s for a read (the Ranked Duos team and table, the '
+      + 'sign-in keys) and 15 s for a result write; past it the call fails and its caller retries as for any error. What is written '
+      + 'is unchanged. In Ranked Duos, a round that is closed and waiting on a table whose reads have failed 3 times in a row is '
+      + 'seated with generated teams (the same fill an empty sample gets; the match is unrated the same way) and resolves. While '
+      + 'nothing waits on the table the reads simply keep being retried. A late rating result on the post-game screen reads as still '
+      + 'saving and keeps being read while the screen is up; it is never shown as a failed rank update.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/persist.ts, rankedService.ts, auth.ts, core/rankedMatch.ts (RANKED_SEAT_MAX_FAILS); packages/ui/src/versus/versusStore.ts (loadDuosResult)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, the calls were bare fetches, seating was retried every 5 s with no end while both players sat on a closed round, and the rating screen stopped reading after about 15 s and showed a failed rank update for a write that was only slow.',
+    example: 'Supabase is down when round 1 closes. After three failed reads the table is seated with generated teams, the fight plays, and the match is unrated.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-RELAY-SCOPE-01',
+    title: 'Versus on Cloudflare: a player\x27s live screen is relayed to the stands and the teammate, never to an opponent',
+    statement:
+      'The room relays a seated player\x27s spectator frames, Hero Select and cursor to the spectators and to that player\x27s Duos '
+      + 'teammate only; never to an opponent\x27s socket. A keyframe request from the stands goes to the seated players; from a player, '
+      + 'to their teammate only. In Duos the cursor is streamed only while someone can see it: while the stands hold anyone, or while '
+      + 'the teammate has said they are viewing that screen (on opening it, and every 5 s while it stays open; the word lapses after '
+      + '12 s). Emotes still reach everyone. Spectating and the teammate view receive everything they did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/relay.ts, room.ts; packages/ui/src/versus/spectateTap.ts (setSpectatorCursor), versusStore.ts (spectate_watch)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, every such message went to every other member: the other team\x27s shop, hand, board and hero offers were readable in the socket, two thirds of a four-player client\x27s downstream frames were discarded, and a Duos player\x27s cursor went to the teammate 20 times a second all game.',
+    example: 'In a 2v2, Ann\x27s shop frames reach Bob (her teammate) and the two spectators; the other team\x27s clients receive none of them. Her cursor reaches Bob only while he has her screen open.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/relay.test.ts', 'packages/ui/src/versus/versusConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CANDIDATE-DEDUPE-01',
+    title: 'Versus: the same board is uploaded once; the last two seconds of a clock-closed round do not wait for idle time',
+    statement:
+      'A shop candidate identical to the last one the room took for the round is not sent again (a failed send, a lock, an un-ready '
+      + 'or a reconnect forgets the mark, so the room is never left on an older board than the client believes). In a round that '
+      + 'closes on the clock, a change made in the last 2 s goes out on the next task instead of waiting for idle time, so the last '
+      + 'buy before 0:00 is with the room even if the lock frame itself is late.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusStore.ts (candidates, closingFlush)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, the whole 8 to 9 KB side went up on every run change, identical or not, and a candidate could be 600 ms behind the screen when the round closed. The room still takes a lock for only 250 ms past 0:00; a longer closing window on the room is not built.',
+    example: 'Bob refreshes the Shop three times without buying. One candidate goes up, not three.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/candidateDedupe.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

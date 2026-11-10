@@ -56,6 +56,24 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-10',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Versus and Duos handle a bad connection better: a short drop no longer costs you the round, and the game now tells you when you are reconnecting.',
+        details: [
+          'Ranked Duos: a drop of a few seconds no longer counts as being away. Your teammate ending the turn waits for you for up to 12 seconds.',
+          'If you are away when a round closes, your side fights with your newest board, not the one from the turn before.',
+          'A small "Reconnecting" notice shows when your own connection drops, then "Connection lost" with what happens next.',
+          'Opening the game in a second tab or window now says so in the first one, with Play here and Back to menu.',
+          'A card passed to a teammate who dropped comes back to you with its Gold if they do not return.',
+          'Coming back to the game from another app or tab reconnects faster.',
+          'A Ranked Duos rating that is slow to save now says it is still saving.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     changes: [
       {

@@ -29,6 +29,24 @@ const SHOP_GRACE_MS = 250;
 const OVERTIME_MS = 30_000;
 const ABANDON_MS = 10 * 60_000;
 const SEAT_RETRY_MS = 5_000;
+/**
+ * A SHORT DROP IS NOT AN ABSENCE (R-RANKED-DUOS-AWAY-GRACE-01, netcode audit F1, 2026-11-10). Ranked Duos has no pause: a
+ * live player with no socket goes on auto, and an auto seat counts as "ended its turn", so the teammate's End Turn closes
+ * the round at once. At the room's 3 s socket grace (`DISCONNECT_GRACE_MS`) any wifi hiccup, phone app switch or reload
+ * did that, and the round fought without the player. A seat is now away only after this long without a socket.
+ * The value is the client's own worst ordinary reconnect (`client.ts`): one handshake watchdog (8 s) + the backoff cap
+ * (3 s) + 1 s for the upgrade and the hello. It never holds a round past its own clock: a seat inside the grace is simply
+ * "not ready yet", and the round still closes at 0:00 + the 30 s overtime (`closeAt`), as for a present player.
+ */
+export const RANKED_AWAY_GRACE_MS = 12_000;
+/**
+ * THE TABLE NEVER HOLDS A FIGHT FOR GOOD (R-RANKED-DUOS-SEAT-CAP-01, netcode audit F10). Seating reads recordings from
+ * Supabase; a failed read is retried every `SEAT_RETRY_MS` with no cap, and a round that closed before the table was
+ * seated waits on it (`settle`). With Supabase down both players sat on a closed round for as long as it stayed down.
+ * After this many failed reads, a round that is WAITING on the table is seated with generated teams (the same fill an
+ * empty sample gets, and unrated the same way). While nothing waits (Hero Select, the shop) the retries just go on.
+ */
+export const RANKED_SEAT_MAX_FAILS = 3;
 /** OPPONENTS FIRST (R-RANKED-OPPONENTS-FIRST-01): how long the party waits for its table before its heroes are dealt
  *  the old way (no table yet, so nothing to exclude; the table is then seated after Hero Select, around the picks). */
 export const RANKED_DEAL_FALLBACK_MS = 12_000;
@@ -97,6 +115,8 @@ export interface RankedExtra {
   /** Asked the shell for the team / the table and not answered yet (runtime-ish, kept to avoid double asks). */
   team_asked: boolean;
   seat_retry_at: number | null;
+  /** Seating reads that failed in a row (R-RANKED-DUOS-SEAT-CAP-01). Absent on older matches (= 0). */
+  seat_fails?: number;
   /** OPPONENTS FIRST (owner 2026-10-31, R-RANKED-OPPONENTS-FIRST-01): while set, the party's offers are not dealt yet
    *  (the table is being seated); at this time they are dealt the old way. Null / absent = dealt (and every older match). */
   deal_by?: number | null;
@@ -203,6 +223,11 @@ export class RankedEngine extends GroupEngine {
     const m = this.m;
     if (!this.running()) return [];
     const out: (number | null)[] = [this.r.seat_retry_at, this.r.deal_by ?? null];
+    // The moment a live seat with no socket counts as away (R-RANKED-DUOS-AWAY-GRACE-01).
+    for (const s of this.stillIn()) {
+      const gone = s.auto || s.left_at != null ? 0 : this.rh.goneFor(s.user_id);
+      if (gone > 0 && gone < RANKED_AWAY_GRACE_MS) out.push(this.rh.now() - gone + RANKED_AWAY_GRACE_MS);
+    }
     if (m.phase === 'hero_select') out.push(m.hero_deadline);
     else if (m.phase === 'shop') out.push(m.shop_deadline == null ? m.intro_deadline : this.closeAt());
     else if (m.phase === 'combat') out.push(m.combat_deadline);
@@ -265,6 +290,9 @@ export class RankedEngine extends GroupEngine {
     // the offers were dealt the old way meanwhile (the fallback), since it may hold a hero the party was dealt; the
     // retry after Hero Select then seats around the picks, as before.
     const first = this.dealing();
+    // R-RANKED-DUOS-SEAT-CAP-01: a round is waiting on the table and the reads keep failing: seat generated teams.
+    const giveUp = m.phase === 'resolving' && (this.r.seat_fails ?? 0) >= RANKED_SEAT_MAX_FAILS;
+    if (giveUp) { service = EMPTY_SAMPLES; this.rh.event('seat_generated', { fails: this.r.seat_fails }); }
     const store: RankedDuosSeatStore = {
       match: async () => ({ id: m.id, phase: m.phase, seed: m.seed, set_id: m.set_id, options: m.options as never, ranked_team: this.r.ranked_team, seated_at: null }),
       liveHeroes: async () => this.liveSeats().sort((a, b) => a.seat.localeCompare(b.seat)).map((s) => s.hero),
@@ -278,8 +306,13 @@ export class RankedEngine extends GroupEngine {
       },
       log: (msg, detail) => console.warn(msg, detail),
     };
-    const res = await handleRankedDuosSeat(m.seats[0]!.user_id, { matchId: m.id, ...(first ? { opponentsFirst: true } : {}) }, store);
-    if (res.status !== 200) throw new Error(`seat ${res.status} ${JSON.stringify(res.body)}`);
+    try {
+      const res = await handleRankedDuosSeat(m.seats[0]!.user_id, { matchId: m.id, ...(first ? { opponentsFirst: true } : {}) }, store);
+      if (res.status !== 200) throw new Error(`seat ${res.status} ${JSON.stringify(res.body)}`);
+    } catch (e) {
+      if (this.r.seated_at == null) { this.r.seat_fails = (this.r.seat_fails ?? 0) + 1; this.rh.dirty('meta'); }
+      throw e;
+    }
   }
 
   /** `versus_ranked_duos_seat`: store the three recorded teams (whole recordings) and mark the match seated. */
@@ -302,6 +335,7 @@ export class RankedEngine extends GroupEngine {
     this.rh.dirty('rserved');
     this.r.seated_at = this.rh.now();
     this.r.seat_retry_at = null;
+    this.r.seat_fails = 0;
     if (table.unrated === true) this.r.unrated = 'generated';
     this.touch();
     // OPPONENTS FIRST: the table is in, so the party's heroes are dealt around it now.
@@ -572,11 +606,16 @@ export class RankedEngine extends GroupEngine {
     const now = this.rh.now();
     for (const s of this.stillIn()) {
       if (!s.auto && s.left_at == null && this.rh.userGone(s.user_id)) {
+        // R-RANKED-DUOS-AWAY-GRACE-01: a short drop is not an absence. (0 = no socket and no known moment it closed:
+        // away now, as before.)
+        const gone = this.rh.goneFor(s.user_id);
+        if (gone > 0 && gone < RANKED_AWAY_GRACE_MS) continue;
         s.auto = true; s.auto_since = now;
         this.rh.event('auto_on', { seat: s.seat });
         this.touch();
       }
     }
+    this.expirePasses(); // R-DUOS-PASS-EXPIRE-01: a pass waiting on a seat that is away goes back to its sender
     const silent = this.liveSeats().filter((s) => s.left_at == null);
     if (silent.length && silent.every((s) => this.rh.goneFor(s.user_id) >= ABANDON_MS)) {
       this.placeTeam(this.livingRanked(), 'abandoned');
@@ -652,6 +691,13 @@ export class RankedEngine extends GroupEngine {
 }
 
 const toIso = (ms: number | null | undefined): string | null => (ms == null ? null : new Date(ms).toISOString());
+
+/** No recordings at all: the seating handler fills the table with generated teams (and marks the match unrated). */
+const EMPTY_SAMPLES: RankedService = {
+  ensureTeam: async () => ({ teamId: null, name: null, division: 0 }),
+  soloSample: async () => [],
+  duoSample: async () => ({ rows: [], names: {} }),
+};
 
 /** A seat's out reasons the `versus_group_seats` check allows (a team's own 'abandoned' is a seat that left). */
 const SEAT_OUT = new Set(['hearts', 'forfeit', 'left', 'missed']);

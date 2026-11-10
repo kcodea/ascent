@@ -198,6 +198,8 @@ export function carryAsPlayerFields(c: CombatCarryBacks): Partial<CombatResult> 
     playerAncientSpellImproved: c.ancientSpellImproved,
     playerAncientClearanceStacks: c.ancientClearanceStacks,
     playerAncientMaxGoldFires: c.ancientMaxGoldFires,
+    playerAncientGraves: c.ancientGraves?.map((g) => ({ ...g, side: g.side === 'player' ? 'enemy' as const : 'player' as const })), // seen from the other seat
+    playerAncientAttackGoldTick: c.ancientAttackGoldTick,
   });
 }
 

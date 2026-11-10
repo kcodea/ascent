@@ -83,6 +83,8 @@ const EXEMPT: Record<string, string> = {
   playerAncientSpellImproved: "Hunch x Death's banked spell-improvement total for the power text; the spell power itself ticks live through the '+A/+H Spell Power' narration at the death that completed the Avenge, and the power text folds the replay's friendly deaths (R-REALTIME-01)",
   playerAncientClearanceStacks: "Frantic Frank x War's Clearance stacks, spent only in the Shop; each stack is gained LIVE mid-fight (a questTrigger per stack) and the power text folds the replay's stacks so far in (R-REALTIME-01)",
   playerAncientMaxGoldFires: "Nadja x Death's max-Gold Avenge fires, paid as max Gold at settle (a Shop resource with no combat surface); each fire already floats live as its own maxGold event at the death that paid it, and the power text folds the replay's friendly deaths (R-REALTIME-01)",
+  playerAncientGraves: "Underdweller x War's record of how each minion died (Attack, Health, keywords), read only by a later Soulkeeper pick in the Shop; each death already animates live as its own death beat",
+  playerAncientAttackGoldTick: "Gorun x Fortune's running attack count, stored for the next fight; each Gold it earns pulses LIVE mid-fight (a questTrigger on the 5th attack) and the power text folds the replay's attacks so far in (R-REALTIME-01)",
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',
   playerFodderGrants: 'queued into the next tavern — no combat surface',

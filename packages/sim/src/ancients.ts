@@ -417,6 +417,65 @@
  *  · `gildedPlayBuffsGilded`      playing a Gilded minion: your Gilded minions gain +a/+h, then again once per Gilded
  *                                 minion this game (`AncientsState.gilds`), each its own step. (Bonds)
  *
+ *  THE 2026-11-10 BATCH C (owner pairings 2026-11-10). Its hooks live in the file's last section.
+ *  UNDERDWELLER (Soulkeeper, `soulkeeper`, 2 Gold: "Discover a minion that died last combat, from either side"). The
+ *  reducer's `soulkeeper` branch opens the Discover directly and marks it (`ancientMarkSoulkeeperDiscover`, tag
+ *  `'soulkeeper'`); a "Soulkeeper minion" is that Discover's pick.
+ *  · `soulkeeperEchoGainsRise`    `ancientOnDiscoverTaken`: a pick with an Echo gains Rise, permanently. (Death)
+ *  · (Fortune)                    no primitive: the pairing's `power` override (`cost: 0`).
+ *  · `soulkeeperKeepsStats`       COMBAT records every true death, both sides, as the body died
+ *                                 (`QuestCombatMods.ancientGraves` -> `CombatResult.playerAncientGraves`, kept on
+ *                                 `lastCombat`); `ancientOnDiscoverTaken` gives the pick the first matching grave's
+ *                                 Attack, Health and keywords. (War)
+ *  · `soulkeeperExtraCopy`        `ancientAfterDiscoverTaken` (after the pick lands): a plain copy of a random option
+ *                                 not picked. (Genesis)
+ *  · `afterCombatFirstFoeCopy`    COMBAT: `QuestCombatMods.ancientFirstFoeDeathCopy`: the first true enemy death is
+ *                                 remembered and comes home as a plain copy when the fight ends (a live `toHand`). (Time)
+ *  · `copyOfControlledBuffImproves` the reducer's action boundary (`ancientOnCardsGained`, every action, the settle
+ *                                 included): a minion that arrived in hand and shares its card with a board minion
+ *                                 gives both +X/+X, then X improves (`AncientsState.underBondsGain`). (Bonds)
+ *  MEMBRANCE (Memory, `memory`, 1 Gold: "Refresh the Shop with plain copies of your last opponent's board"). The
+ *  reducer's `memory` branch calls `ancientOnMemoryOffers` on the offers it builds; each is a "Memory minion"
+ *  (`ShopCard.memory`, Ancients runs only).
+ *  · `memoryEchoGainsRise`        `ancientOnMemoryOffers`: an Echo offer carries Rise (baked in when bought). (Death)
+ *  · `memoryPrice`                `ancientOnMemoryOffers`: the offer's own `cost` (the Clearance channel). (Fortune)
+ *  · `memoryExact`                `ancientOnMemoryOffers`: the offer carries the opponent minion's start-of-combat
+ *                                 stats (`addOfferBuff`), keywords and Gilded flag, at `price`. (War)
+ *  · `memoryFirstBuyCopy`         `ancientOnBuy` (`from.memory`): the first Memory buy each turn (`memoryBuys`) also
+ *                                 gives a plain copy to hand. (Genesis)
+ *  · `sotCopyLastFoe`             `ancientStartOfTurn`: a plain copy of a random minion of the last opponent's opening
+ *                                 board, its own beat. (Time)
+ *  · `buyControlledBuffsGilded`   `ancientOnBuy` (`from.controlled`, read off the board BEFORE the buy): every Gilded
+ *                                 board minion gains +a/+h, permanently. (Bonds)
+ *  GORUN (Blade Mastery, `bladeMastery`, PASSIVE: "When your minions attack, give them +3 Attack. Improves every 8
+ *  attacks"). Blade Mastery lives in `simulate` (the attack block; `bladeGrantOf` is its one grant expression).
+ *  · `deathGivesAttack`           COMBAT: `QuestCombatMods.ancientDeathGivesAttack` in `deathWatchers` (every death
+ *                                 path, a Rise death included), a combat buff on a random living friend; SHOP:
+ *                                 `ancientOnShopDeath`, permanent. (Death)
+ *  · `attacksGold`                COMBAT: `QuestCombatMods.ancientAttackGold` beside Blade Mastery's grant: one
+ *                                 running count (`gorunAttacks`, carried in and back), every Nth attack banks Gold for
+ *                                 the next Shop (`bonusGold`) and pulses `ANCIENT_ATTACK_GOLD_FLAG`. (Fortune)
+ *  · `bladeMasteryHealth`         COMBAT: `QuestCombatMods.ancientBladeHealth`, read at Blade Mastery's grant. (War)
+ *  · `socWardFlurry`              COMBAT: `QuestCombatMods.ancientSocWardFlurry`, Start of Combat. (Genesis)
+ *  · `socBladeMastery`            COMBAT: `QuestCombatMods.ancientSocBlade`, Start of Combat: `bladeGrantOf` on every
+ *                                 living friend; no attack counted. (Time)
+ *  · `bladeMasteryBonds`          COMBAT: `QuestCombatMods.ancientBladeBonds` at Blade Mastery's grant: the previous
+ *                                 attacker's own grant is carried to the next attacker (never a carried one). (Bonds)
+ *  MIMIC (Mimicry, `mimic`, PASSIVE: "At the start of every turn, Discover a hero power to wield this turn"). Mimic's
+ *  pairings are ALWAYS ON (`ancientPairingHeroId` returns the Mimic itself, whatever it wields). Death / Fortune / War /
+ *  Bonds run another hero's power as an extra passive THROUGH THAT POWER'S OWN CODE, so they stack with a wielded copy.
+ *  · `autoReclaimLeftmostEcho`    COMBAT: `QuestCombatMods.ancientAutoReclaim` marks the left-most Echo body at the top
+ *                                 of Reclaim's own block (`socReclaim`), which then does everything. (Death)
+ *  · `spoilsPassive`              recruit's `bankSpoils` (THE sale hook) adds `ancientSpoilsPassive`. (Fortune)
+ *  · `unitedFrontPassive`         COMBAT: `QuestCombatMods.ancientUnitedFront` (= `spellsCast`, the run-lifetime count)
+ *                                 fires United Front's own block a second time. (War)
+ *  · `mimicryManual`              the turn setup skips the automatic offer and hands the slot back to Mimicry; the
+ *                                 reducer's `mimic` hero-power branch opens a 4-option offer (`power` override: not
+ *                                 passive, untargeted). (Genesis)
+ *  · `sotCopyLastCombatDeath`     `ancientStartOfTurn`: a plain copy of a random minion that died last combat
+ *                                 (`lastCombatDeaths`, Soulkeeper's pool), its own beat. (Time)
+ *  · `fourPeatPassive`            the reducer's `gorrQuestBuy` (Four Peat's own code) also runs for the passive. (Bonds)
+ *
  * Serialisable plain data throughout, so saves / snapshots / replays can carry it cheaply later (not in the MVP).
  */
 import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';

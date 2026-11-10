@@ -432,4 +432,53 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'PARTIAL from 2026-11-04 (feat/fx-ward-given-epic-watchers): every Epic card except Edward Keg-hands (his own Ale effect, R-FX-KEGHANDS-WATCH-01) and the archived Constellation Prime. In combat, Drakko can also pulse when he repeats a Shout-less trigger.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/epicFire.test.ts', 'packages/ui/src/choreo/epicFireReplay.test.ts'], lastVerifiedAt: '2026-11-04' },
   },
+  {
+    id: 'R-FX-SELL-01',
+    title: 'A minion with a Sell medallion plays its On Sell effect as it is sold, and so does the sale Quick Sale boosts',
+    statement:
+      'When you sell a minion that wears the Sell medallion, its On Sell effect plays where you let it go, on top of the '
+      + 'usual sell sound and coins. When a sale cashes the bonus Gold from Quick Sale, the On Sell effect of Quick Sale '
+      + 'plays on the minion sold, whatever minion it is. The same effect never plays twice for one sale, and other '
+      + 'effects bound to these cards (their voice lines) are untouched.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, sell effect', quote: 'i want this to trigger on any card with a sell medallion, but i dont want to overwrite any other effects tied to sell cards' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, Quick Sale', quote: 'can you wire it to fire on the unit that triggers the additional gold from the quick sell shop spell?' },
+      { kind: 'code', ref: 'feat/fx-sell: packages/ui/src/sellMedallion.ts; packages/ui/src/Recruit.tsx (sold presentation); packages/ui/src/choreo/bindings.json (sell rows)' },
+    ],
+    contentIds: ['d2_riverdrake', 'n2_salesman', 'quicksale'],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/fx-sell) for a sale you make by hand and for spectators. A whole-board sale (Rune Altar) plays no On Sell effect.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sellMedallion.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
+  {
+    id: 'R-FX-BUFF-WATCHER-01',
+    title: 'A minion with its own buff effect plays it on each minion it buffs, and its own effect on itself',
+    statement:
+      'When a minion that has its own buff effect buffs other minions (Beardsley, Vicious and Kennelmaster bite each '
+      + 'Beast they buff), that effect lands on each buffed minion in place of the usual trail, and the buffing minion '
+      + 'plays its own On Watcher effect from itself to each minion it buffs, so a beam or particles authored to travel '
+      + 'cross from the buffer to that minion. This holds in the Shop, at End of Turn and in combat. An effect set to '
+      + 'follow its card stays on its cards while they move: each end of a travelling effect rides its own card. '
+      + 'When one buffer hits several minions at once (Kennelmaster at Start of Combat), its effects play on each but their '
+      + 'sound plays once. Several buffers buffing at once take turns, left-most first and 90 ms apart, in the Shop as in '
+      + 'combat (two Beardsleys on one summoned Beast: one watcher, then the other). In the Shop and in combat a minion '
+      + 'takes ONE bite however many buffers with an On Watcher effect hit it at once (the first one), while every buffer '
+      + 'still plays its own On Watcher effect; a buffer with no On Watcher effect (King Oona, Karwind) still plays per buffer.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, one bite in combat', quote: 'change it to combat as well' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, one bite', quote: 'i want both watchers to play but can we try playing only one bite effect ?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, two Beardsleys', quote: 'when two beardsleys are on the board, i dont see both their effects going off. can we have them slightly staggered?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, Kennelmaster sound', quote: 'the sound is playing multiple times at the exact same time. how can we make it so it only plays once in those instances?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, watcher beam', quote: 'i want to see the beam travel from kennelmaster to a beast, for example' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, effects on moving cards', quote: 'there are moments where the cards can be moving while the effect is still going off. is it possible to more precisely follow the cards position throughout the animation?' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, Beast bite', quote: 'i want to replace the tendrils for beardsley and vicious and kennel master. these should land on the target, ill create a separate effect that should emmit from the beast itself' },
+      { kind: 'code', ref: 'feat/fx-sell: packages/ui/src/choreo/buffWatcher.ts; packages/ui/src/Recruit.tsx (replayBuffFxEvents); packages/ui/src/useCombatReplay.ts (fireBuffCasts); packages/ui/src/choreo/bindings.json' },
+    ],
+    contentIds: ['b2_beardsley', 'b2_florida', 'kennel'],
+    currentBehaviour: 'Conforms from 2026-11-09 (feat/fx-sell).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/buffWatcher.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
 ];

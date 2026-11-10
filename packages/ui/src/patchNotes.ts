@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-09',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Selling a minion with a Sell ability now plays a coin effect where you drop it, and so does the sale that cashes the bonus Gold from Quick Sale.',
+      },
+      {
+        category: 'Systems',
+        text: 'Beardsley, Vicious and Kennelmaster now bite the Beasts they buff, with a beam from the buffer to each one. Several buffers on one Beast take quick turns.',
+      },
       { category: 'Systems', text: 'Fixed: pressing Tab on the main menu opens the Compendium again (it did nothing in the desktop app).' },
       {
         category: 'Systems',

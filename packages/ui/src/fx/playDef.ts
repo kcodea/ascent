@@ -281,7 +281,7 @@ export function gainScaledDef(def: FxDef, mul: number | undefined, muteSound = f
  * `null` when the unit has no layout box this frame, which hides the effect for that frame without ending the
  * caller-owned loop. DOM-guarded so a headless import never throws.
  */
-function liveSourcePoint(uid: string | null | undefined): { x: number; y: number } | null {
+export function liveSourcePoint(uid: string | null | undefined): { x: number; y: number } | null {
   if (!uid || typeof document === 'undefined') return null;
   const el = document.querySelector<HTMLElement>(unitSelector(uid));
   if (!el) return null;
@@ -713,8 +713,13 @@ function playDefInner(
   // A def can author "ride my source" (`FxDef.followSource`) instead of the caller passing a per-frame
   // `follow`. An explicit `opts.follow` still wins; otherwise, when the def opts in AND a source uid was
   // given, synthesize the same per-frame re-anchor from that uid's live DOM position (drag-aware).
+  // With a DISTINCT target uid the two ends ride their own cards (Kennelmaster's beam to each Beast it buffs): the
+  // source end tracks the source card, the target end the target card, so a travel layer still crosses between them.
+  // Each end falls back to the caller's target getter / its snapshot when its card has no box this frame.
+  const followTargetUid = stored.followSource && !opts.follow && opts.uids?.target && opts.uids.target !== opts.uids.source
+    ? opts.uids.target : null;
   const follow: PlayDefOptions['follow'] =
-    opts.follow ?? (stored.followSource ? () => liveSourcePoint(opts.uids?.source) : undefined);
+    opts.follow ?? (stored.followSource && !followTargetUid ? () => liveSourcePoint(opts.uids?.source) : undefined);
 
   const container = new Container();
   if (opts.alpha !== undefined && Number.isFinite(opts.alpha) && opts.alpha < 1) container.alpha = Math.max(0, opts.alpha);
@@ -816,6 +821,10 @@ function playDefInner(
       }
       container.visible = true;
       live = { source: p, target: p, cursor: p };
+    } else if (followTargetUid) {
+      const src = liveSourcePoint(opts.uids?.source) ?? anchors.source;
+      const tgt = liveSourcePoint(followTargetUid) ?? opts.target?.() ?? anchors.target;
+      live = { ...anchors, source: src, target: tgt, cursor: tgt };
     } else if (opts.target) {
       const t = opts.target();
       if (t) live = { ...anchors, target: t };

@@ -42,10 +42,11 @@ export function phoneDecodeRate(contextRate: number): number {
  * The cap on a phone's on-demand clips (card, hero and FX `sound` clips; the core bank is held outside it). Sized
  * from the bank itself (48 kHz mono): a run's working set is the hero's two lines (~1 MB), the bound FX of every card
  * on both boards, the hand and the Shop (~0.43 MB a card, ~13 MB for 31 cards) and the hero-attack clips (~12 MB),
- * about 26 MB. 40 MB holds all of it with room to spare, so nothing a game is using is evicted and re-decoded.
- * The whole on-demand bank would be ~120 MB.
+ * about 26 MB at the time. 40 MB held all of it with room to spare, so nothing a game is using is evicted and re-decoded.
+ * The whole on-demand bank would be ~120 MB. Raised to 44 MB on 2026-11-09 (owner): the card working set had grown to
+ * fill 40 MB exactly, leaving no room for a new card sound (the Sell and Beast-bite effects).
  */
-export const PHONE_AUDIO_LRU_BYTES = 40 * 1024 * 1024;
+export const PHONE_AUDIO_LRU_BYTES = 44 * 1024 * 1024;
 
 /** Delay between the press that creates the context and the first core decode on a phone. */
 export const PHONE_AUDIO_PREFETCH_DELAY_MS = 2500;

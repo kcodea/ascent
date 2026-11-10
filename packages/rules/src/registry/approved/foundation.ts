@@ -7477,13 +7477,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'lane, ahead of the background art stream; (3) the clips the scene will need are decoded ahead of their first '
       + 'play: the heroes on offer in hero select, the player\'s hero, every card on the board, in the hand, in the Shop '
       + 'and in the fight (with the FX defs bound to them), and the fx clips named in code (hero attacks); (4) the '
-      + 'on-demand clips live in a 40 MB least-recently-played cache, sized above a busy game\'s working set. Desktop '
+      + 'on-demand clips live in a 44 MB least-recently-played cache, sized above a busy game\'s working set. Desktop '
       + 'shares (2) to (4) since R-AUDIO-MEMORY-02 (its own cap, stereo at the context rate); (1) is phone only.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (a real iPhone, the build with #2242)', quote: 'the sound effects were all terrible/not loaded' },
       { kind: 'code', ref: 'packages/ui/src/audio/phoneAudio.ts (phoneDecodeRate, phoneMono, PHONE_AUDIO_LRU_BYTES); packages/ui/src/audio/clipIndex.ts + codeClips.ts; packages/ui/src/audio/phonePrewarm.ts; packages/ui/src/sfx.ts (prewarmSfx, isResidentClip, touchBuffer, PHONE_SFX_LANE); scripts/phone-run-memory.mjs (--net, SFX play stats)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-09, phone sound budget full (Sell + Beast-bite effects)', quote: 'Raise to 44 MB' },
     ],
     currentBehaviour:
       'Conforms from 2026-10-23 (fix/phone-audio-quality). Before, a phone decoded at 32 kHz (played back through a '
@@ -7504,7 +7505,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'only while "Show opponent cosmetics" is on), resolved exactly as the fight resolves them (the DEV override included; '
       + 'Classic has none). A change of equipped attack or opponent re-prewarms. A style not known ahead still sounds: its '
       + 'runner asks for its own clips the moment it starts (AttackVoices.warm). The phone working-set budget counts the '
-      + 'shared clips plus the TWO LARGEST attack styles (a fight plays at most two), never every attack; the 40 MB cache and '
+      + 'shared clips plus the TWO LARGEST attack styles (a fight plays at most two), never every attack; the 44 MB cache and '
       + 'its 90% ceiling are unchanged.',
     domain: 'foundation',
     status: 'approved',

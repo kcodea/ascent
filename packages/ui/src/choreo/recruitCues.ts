@@ -33,6 +33,8 @@ export interface RecruitCueContext {
   measure: MeasureUnit;
   /** Fired once per land alongside the def, for the cue's own sound. */
   onLand?: (uid: string) => void;
+  /** Hold every land this long first: a buffer's turn in a wave (`buffSourceDelayMs`, R-FX-BUFF-WATCHER-01). */
+  delayMs?: number;
 }
 
 /**
@@ -90,8 +92,9 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
     const lands = moment.kind === 'rubyLanded' && moment.recipients.some((r) => r.rider) ? spaceLands(base, spacingOf) : base;
     for (const land of lands) {
       const fire = (): void => fireLand(land, binding, ctx);
-      if (land.at <= 0) fire();
-      else timers.push(setTimeout(fire, land.at));
+      const at = land.at + (ctx.delayMs ?? 0);
+      if (at <= 0) fire();
+      else timers.push(setTimeout(fire, at));
     }
   });
 

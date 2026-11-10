@@ -227,6 +227,8 @@ import { chooseKey, questOfferKey } from './pings/pingKeys';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingDefIds, bindingFor, castFxReplacesTendril } from './choreo/bindings';
+import { QUICK_SALE_ID } from './sellMedallion';
+import { buffSourceDelayMs, buffSourceRanks, oneBitePerTarget, playBuffSourceWatcher } from './choreo/buffWatcher';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseAllStats, releaseStat } from './fx/statHold';
 import { ScreenContext, screenIdOf, useScreenSwapped, useSwapRef, useSwapState } from './screenSwap';
@@ -1938,7 +1940,11 @@ export function Recruit() {
     perfMonitor.count('recruit:moment fired', moments.length);
     // The synchronous half of a real moment — binding lookup + cascade scheduling — on the clock, so
     // "a moment costs one `bindingFor` lookup more than the old code" is a hotspot line, not a belief.
-    const stops = perfMonitor.measure('recruit:moment cues', () => moments.map((m) => runRecruitMomentCues(m, {
+    // Each buffer takes its turn (two Beardsleys bite one after the other; R-FX-BUFF-WATCHER-01).
+    const srcRanks = buffSourceRanks(moments.flatMap((m) => (m.kind === 'minionBuffed' && m.sourceCardId ? [{ sourceCardId: m.sourceCardId, sourceUid: m.sourceUid }] : [])));
+    // One bite per Beast however many buffers hit it; every buffer still plays its watcher (oneBitePerTarget).
+    const stops = perfMonitor.measure('recruit:moment cues', () => oneBitePerTarget(moments).map((m) => runRecruitMomentCues(m, {
+      delayMs: m.kind === 'minionBuffed' && m.sourceUid ? buffSourceDelayMs(srcRanks.get(m.sourceUid)) : 0,
       // Read through the REF, not a captured `run`: a cascade outlives the action that started it, so a card
       // sold or tripled mid-sweep should resolve against the board as it is THEN, not as it was at dispatch.
       cardIdOf: (uid) => runRef.current.board.find((c) => c.uid === uid)?.cardId ?? null,
@@ -5835,6 +5841,9 @@ export function Recruit() {
     // Pinned NOW: the departure cache is rebuilt every render, and a staggered wave fires from a timeout after
     // later renders have already replaced it.
     const departedAtReplay = departedCentreRef.current;
+    // One watcher sound per buffer per replay; its later plays are visuals only (R-FX-BUFF-WATCHER-01).
+    const watcherRang = new Set<string>();
+    const watcherRanks = buffSourceRanks(events ?? []);
     // Itemized per-z rewards tag their events with `fxWave` — every event in a wave fires TOGETHER (so all
     // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
     // per-event behaviour.
@@ -5868,6 +5877,7 @@ export function Recruit() {
         playDef(hit.def, { source: from, target: at, cursor: at }, { uids: { source: ev.sourceUid ?? null, target: ev.targetUid } });
         return;
       }
+      // Its bite plays off the moment cues and its On Watcher effect in the pre-pass below: no tendril.
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
       // A SPELL'S OWN EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
       // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
@@ -5929,6 +5939,23 @@ export function Recruit() {
         uids: { source: ev.sourceUid, target: ev.targetUid },
       });
     };
+    // THE BUFFER'S ON WATCHER EFFECT, from EVERY buffer to each minion it buffs (R-FX-BUFF-WATCHER-01). Played off the
+    // UNCOALESCED events: the coalescer below folds two Beardsleys buffing one Beast into one record, which would drop
+    // the second Beardsley's watcher. Each buffer waits for its turn (`buffSourceDelayMs`), in step with its bite.
+    for (const ev of events) {
+      if (ev.damage || !ev.sourceUid || !bindingFor(ev.sourceCardId, 'minionBuffed')) continue;
+      const sourceUid = ev.sourceUid;
+      const el = findEl(sourceUid);
+      const at = el ? restingCenterOf(el as HTMLElement) : (departedAtReplay.get(sourceUid) ?? null);
+      if (!at) continue;
+      const tEl = findEl(ev.targetUid);
+      const to = tEl ? restingCenterOf(tEl as HTMLElement) : null;
+      const mute = watcherRang.has(sourceUid);
+      watcherRang.add(sourceUid);
+      const play = (): void => playBuffSourceWatcher(ev.sourceCardId, sourceUid, { x: at.x, y: at.y }, to ? { uid: ev.targetUid, at: { x: to.x, y: to.y } } : undefined, mute);
+      const wait = buffSourceDelayMs(watcherRanks.get(sourceUid));
+      if (wait > 0) window.setTimeout(play, wait); else play();
+    }
     // Collapse K Brightwing tendrils to one per target before grouping — see `coalesceBuffFxByTarget`. This is
     // the fix for the "many Brightwings slow it down" jank: K×(M−1) ribbons → M−1, presentation-only.
     const coalesced = coalesceBuffFxByTarget(events);
@@ -8518,6 +8545,12 @@ export function Recruit() {
           const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
           playDef('coin', { source: g, target: g, cursor: g });
         }
+        // The sold card's own On Sell effect, where it was let go (R-FX-SELL-01).
+        // A sale that cashes Quick Sale's bonus Gold also plays Quick Sale's On Sell effect on the unit, once per def.
+        const played = new Set<string>();
+        for (const sb of [a.cardId ? bindingFor(a.cardId, 'sell') : null, a.quickSale ? bindingFor(QUICK_SALE_ID, 'sell') : null]) {
+          if (sb) for (const id of bindingDefIds(sb)) if (!played.has(id)) { played.add(id); playDef(id, { source: a.at, target: a.at, cursor: a.at }, { gain: sb.gain }); }
+        }
         return;
       }
     }
@@ -8563,7 +8596,7 @@ export function Recruit() {
     if (d.source === 'board' && zone === 'tavern' && !d.view.spell && !timeUp) {
       // Float the actual Gold gained at the spot the minion was released (not over the Gold counter).
       const card = run.board.find((c) => c.uid === d.uid);
-      if (card) presentAction({ kind: 'sold', at: { x: x - d.ox + d.w / 2, y: y - d.oy + d.h / 2 }, amount: sellValueWithBonus(card, run) }); // bartering- AND Quick-Sale-aware
+      if (card) presentAction({ kind: 'sold', at: { x: x - d.ox + d.w / 2, y: y - d.oy + d.h / 2 }, amount: sellValueWithBonus(card, run), cardId: card.cardId, quickSale: (run.nextSellBonus ?? 0) > 0 }); // bartering- AND Quick-Sale-aware
       dispatch({ type: 'sell', uid: d.uid });
       return true;
     }

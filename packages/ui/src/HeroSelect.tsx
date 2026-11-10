@@ -49,6 +49,9 @@ export interface HeroSelectWatch {
   fx: boolean;
   /** The Versus clock: 'drive' it (the only Hero Select on screen), 'show' its face (another screen drives it), 'none'. */
   clock: 'drive' | 'show' | 'none';
+  /** The heading, when "Select Your Hero" would be wrong (R-DUOS-HEROSELECT-TITLE-01): the Duos teammate's choices are
+   *  not mine to select. Absent = the screen's own heading. */
+  title?: string;
 }
 
 /** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
@@ -290,7 +293,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
           centre as one group; the run pills (Rating, Rift) sit under it as its subtitle row. */}
       <div className="hsbox">
         {ph && <span className="hs-eyebrow">{heroSelectEyebrow({ mode, ranked: !watch && rankedEntry !== null, rankedDuos, gauntletStage, watching: !!watch })}</span>}
-        <h1 className="hsprompt">Select Your Hero</h1>
+        <h1 className="hsprompt">{watch?.title ?? 'Select Your Hero'}</h1>
         {/* Run-start telegraph for the scored non-lobby modes (Ascent, Rift): your Rating. A LOBBY telegraphs
             nothing here (owner ask 2026-08-22), Practice is unscored, and a GAUNTLET stage never moves your
             Rating, so none of them show it. The "Oath N" pill that sat beside the Rating is gone: Oath is a
@@ -403,7 +406,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                   {/* The party home look shows the difficulty ABOVE the flag (owner 2026-11-07: "lets move the difficulty
                       rating down out of the flag to make room for the Hero Power title", then "lets move the difficulty to
                       above the flag"; R-HS-DIFF-OUT-01). The line is kept for every hero in the row so the flags stay level. */}
-                  {ph && showDifficulty && <span className={`hcdiff hcdiff-out${tip ? ` d-${tip.difficulty.toLowerCase()}` : ''}`}>{tip?.difficulty ?? ''}</span>}
+                  {/* The LINE is kept even when no word shows (three heroes of one difficulty): the flags then stand at the same
+                      height on every offer, so my teammate's Hero Select does not jump against mine and a re-roll never
+                      shifts the row (R-DUOS-HEROSELECT-TITLE-01). */}
+                  {ph && <span className={`hcdiff hcdiff-out${tip && showDifficulty ? ` d-${tip.difficulty.toLowerCase()}` : ''}`}>{showDifficulty ? tip?.difficulty ?? '' : ''}</span>}
                   {card}
                   {/* Centred under the difficulty pill; the row is reserved even once the re-roll is spent. */}
                   <div className="hcreroll-slot">

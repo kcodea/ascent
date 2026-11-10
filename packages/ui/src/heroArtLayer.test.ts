@@ -46,6 +46,21 @@ describe('sharp big hero portraits on a phone (R-PHONE-HERO-LAYER-01)', () => {
     expect(factor).toBeGreaterThanOrEqual(getHeroDuelConfig().oppScale);
   });
 
+  it('R-PHONE-RING-ART-01: inside a portrait ring the art keeps the 1/F (times the ring tuner scale), so the ring is never empty', () => {
+    // `.pf-on img:not(.pframe)` weighs the same as `html.lite-art .combatopp-img` and comes later: alone it replaced the
+    // 1/F with the tuner's scale, and the art was drawn F times too big, down and right of an empty ring (Duos audit F9).
+    const ring = /\n\.pf-on img:not\(\.pframe\) \{[^}]*transform: scale\(var\(--pf-art, 1\)\); \}/.exec(css);
+    const phoneRing = /\nhtml\.lite-art \.pf-on \.combatopp-img \{([^}]*)\}/.exec(css);
+    expect(ring).not.toBeNull();
+    expect(phoneRing).not.toBeNull();
+    expect(phoneRing!.index).toBeGreaterThan(ring!.index); // later and heavier (three classes): it wins
+    const body = phoneRing![1]!;
+    expect(Number(/scale\(calc\(([\d.]+) \* var\(--pf-art, 1\)\)\)/.exec(body)?.[1])).toBeCloseTo(1 / factor, 6);
+    // Kept centred: the F-times box scales from its top left, so (1 - tuner) / 2 of the slot is put back, = (1 - tuner) * 50% / F of the box.
+    expect(Number(/translate\(calc\(\(1 - var\(--pf-art, 1\)\) \* ([\d.]+)%\)/.exec(body)?.[1])).toBeCloseTo(50 / factor, 6);
+    expect(body).not.toMatch(/animation|transition/);
+  });
+
   it('is phone-only: desktop keeps the plain image', () => {
     expect(css).not.toMatch(/(?<!html\.lite-art )\.statusbar \.hero \.f \.heroimg \{[^}]*will-change/);
     expect(css).not.toMatch(/(?<!html\.lite-art )\.combatopp-img \{[^}]*will-change/);

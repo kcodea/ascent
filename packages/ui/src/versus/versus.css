@@ -794,7 +794,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   box-shadow: inset 0 0 0 10px rgba(70, 205, 230, 0.9), inset 0 0 0 12px rgba(10, 40, 50, 0.6), inset 0 0 90px 24px rgba(40, 190, 220, 0.5);
   animation: duosviewfade 0.24s ease both; }
 @keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
-body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
+/* The class is on the three controls themselves (duosViewing.ts), not on `body`: a body class made the browser walk the
+   whole page on the swap's task. `html` in front keeps the old rule's weight (it was `body.duos-viewing .etbwrap`). */
+html .etbwrap.duos-viewing, html .rfbwrap.duos-viewing, html .actiontray.duos-viewing { opacity: 0.42; transition: opacity 0.2s ease; }
 
 /* VERSUS DUOS: THE TEAMMATE PORTRAIT, bottom right (DuosMateDock; R-DUOS-VIEW-01, R-DUOS-VIEW-03, R-DUOS-PASS-01). THE
    MIRROR of the player's hero bottom left (owner 2026-10-25: "make the teammate portrait as large as the player's"):

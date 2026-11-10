@@ -56,6 +56,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-10',
+    changes: [
+      { category: 'Systems', text: 'Fixed: in Duos, holding Tab to peek at your teammate no longer opens the Compendium at the same time.' },
+      { category: 'Systems', text: 'Fixed: in Duos, the "You" badge on the rail stays on your own plate while you watch your teammate.' },
+    ],
+  },
+  {
     date: '2026-11-09',
     changes: [
       {

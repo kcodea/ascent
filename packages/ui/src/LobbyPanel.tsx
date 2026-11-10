@@ -55,39 +55,82 @@ function outlineClip(pts: readonly Pt[]): string {
 
 /** DOCKED: a player name clamped to the rail's line count WITH an ellipsis (owner 2026-10-31: names past 2 lines end in
  *  "…", never a silent cut). CSS `line-clamp` sets the lines; if the browser clamps without drawing the ellipsis (current
- *  Chrome's flow-root clamp), this trims the text to fit and adds it. Measured when the name changes or its box does, never per frame. */
-function ClampedName({ text }: { text: string }): JSX.Element {
+ *  Chrome's flow-root clamp), this trims the text to fit and adds it. Measured when the name changes or its box does, never per frame.
+ *
+ *  NEVER MEASURED INSIDE A COMMIT (the Duos audit of 2026-11-09): the fit used to run in the layout
+ *  effect (write the text, read `clientHeight`, once per seat name), so a commit that rebuilt the rail (the teammate-view
+ *  swap) paid a forced style + layout of the whole new screen inside its own task, name after name. Now the effect only
+ *  WRITES (the last fit of this name when there is one, `nameFits`), and the measuring runs in the ResizeObserver's
+ *  callback: after the frame's own layout, where the reads are free. A name whose text and box are unchanged is not
+ *  measured again at all. */
+export function ClampedName({ text }: { text: string }): JSX.Element {
   // The text is written by the effect alone (React renders no children here), so the measuring writes never fight React.
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     let unfit = false; // the last fit found no box
+    let w = -1; // the width the text on screen was fitted in
     const fit = (): void => {
       el.textContent = text;
+      w = el.clientWidth;
       unfit = el.clientHeight === 0;
       // Not laid out yet (the rail mounted hidden, e.g. under the game-start curtain): leave the whole name and fit it
       // once it has a box (below). Trimming against a zero box cut every name down to a bare "…" (a 1v1 found it).
       // (+2: scrollHeight rounds up and clientHeight down, so two 14.55px lines read 30 over 29; a cut line is ~15px.)
-      if (el.clientHeight === 0 || el.scrollHeight <= el.clientHeight + 2) return;
-      let lo = 0, hi = text.length;
-      while (lo < hi) {
-        const mid = Math.ceil((lo + hi) / 2);
-        el.textContent = `${text.slice(0, mid).trimEnd()}…`;
-        if (el.scrollHeight <= el.clientHeight + 2) lo = mid; else hi = mid - 1;
+      if (unfit) return;
+      if (el.scrollHeight > el.clientHeight + 2) {
+        let lo = 0, hi = text.length;
+        while (lo < hi) {
+          const mid = Math.ceil((lo + hi) / 2);
+          el.textContent = `${text.slice(0, mid).trimEnd()}…`;
+          if (el.scrollHeight <= el.clientHeight + 2) lo = mid; else hi = mid - 1;
+        }
+        el.textContent = `${text.slice(0, lo).trimEnd()}…`;
       }
-      el.textContent = `${text.slice(0, lo).trimEnd()}…`;
+      rememberNameFit(text, { w, h: el.clientHeight, out: el.textContent ?? text });
     };
-    fit();
-    // Re-fit only when the name gets its first box or its WIDTH changes (the slice resized): a layout event, never a
-    // frame. Its height follows its own line count, so a height change alone is not a trigger (no fit -> resize loop).
-    if (typeof ResizeObserver === 'undefined') return;
-    let w = el.clientWidth;
-    const ro = new ResizeObserver(() => { if (unfit || el.clientWidth !== w) { w = el.clientWidth; fit(); } });
+    // No ResizeObserver (tests, very old engines): the fit runs here, as it always did.
+    if (typeof ResizeObserver === 'undefined') { fit(); return; }
+    // A write only: the name as it was last fitted (the usual case on a rebuilt rail: same name, same slice), else whole.
+    const known = nameFits.get(text);
+    el.textContent = known ? known.out : text;
+    let first = true;
+    // Fit when the name gets its first box or its WIDTH changes (the slice resized): a layout event, never a frame. Its
+    // height follows its own line count, so a height change alone is not a trigger (no fit -> resize loop). The first
+    // callback comes with the frame that draws the name, before its paint: a name is never shown unfitted.
+    const ro = new ResizeObserver(() => {
+      const cw = el.clientWidth;
+      if (first) {
+        first = false;
+        if (known && cw === known.w && el.clientHeight === known.h) { w = cw; return; } // same text, same box: nothing to measure
+        fit();
+        return;
+      }
+      if (unfit || cw !== w) fit();
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [text]);
   return <span ref={ref} className="lrv-name-t" aria-label={text} />;
+}
+/** The last fit of each name on the rail: the box it was fitted in (px) and the text that fitted. Bounded: a table has
+ *  eight names, and the oldest entries go first. */
+const nameFits = new Map<string, { w: number; h: number; out: string }>();
+const NAME_FITS_MAX = 64;
+function rememberNameFit(text: string, fit: { w: number; h: number; out: string }): void {
+  nameFits.delete(text);
+  nameFits.set(text, fit);
+  if (nameFits.size > NAME_FITS_MAX) nameFits.delete(nameFits.keys().next().value as string);
+}
+
+/**
+ * Which slice wears "You" (the chip and the teal edge; R-DUOS-VIEW-YOU-01). Normally the run's own seat. While I watch my
+ * Duos teammate the rail is drawn from THEIR run, where their seat is the run's own and mine is the teammate seat
+ * (`mateSeat`): "You" stays on mine.
+ */
+export function railWearsYou(rowYou: boolean, seatId: string, viewingMate: boolean, mateSeat: string | null): boolean {
+  return viewingMate && mateSeat ? seatId === mateSeat : rowYou;
 }
 
 /** DOCKED: a slice's outline with its cut edge moved IN by `d` px (the left contour's cut points; the straight edges stay),
@@ -96,13 +139,16 @@ function insetOutline(pts: readonly Pt[], d: number, w: number): Pt[] {
   return pts.map(([x, y]) => [x > 0.5 && x < w * 0.8 ? x + d : x, y] as Pt);
 }
 
-/** DOCKED: the gold edge drawn along a slice's outline (or, `ring`, the next foe's breathing red ring). */
+/** DOCKED: the gold edge drawn along a slice's outline (or, `ring`, the next foe's breathing red ring). The ring's svg
+ *  (its glow is two drop-shadows) stands still inside `.lrv-foering-breath`, the plain box that breathes: an animation
+ *  on the filtered svg itself restyled the page every frame (lobbyRailDocked.css). */
 function SliceEdge({ p, ring }: { p: DockPanel; ring?: boolean }): JSX.Element {
-  return (
+  const edge = (
     <svg className={`lrv-edge${ring ? ' lrv-foering' : ''}`} aria-hidden="true" width={p.w} height={p.h} viewBox={`0 0 ${p.w.toFixed(1)} ${p.h.toFixed(1)}`}>
       <polygon points={p.outline.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')} />
     </svg>
   );
+  return ring ? <span className="lrv-foering-breath" aria-hidden="true">{edge}</span> : edge;
 }
 
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
@@ -556,6 +602,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // EVERY DUOS VIEW (a spectator too, who has no teammate of their own): the table is in teams, so the docked slices are
   // grouped per team. `mateId`: the viewed player's teammate's slice (s1), drawn distinct.
   const duosTeams = useVersus((st) => versus && !!st.match?.group?.duos);
+  // I am watching my Duos teammate: the rail on screen is their run's (teammateView.tsx).
+  const viewingMate = useSpectate((sp) => sp.teammate === true);
   const mateId = duosMate ?? (duosTeams ? 's1' : null);
   // What each Versus player is doing (Locked in / Ready / Away / Disconnected), on their own docked slice
   // (versusRailStatus.ts). One string per change, so the rail re-renders only when a state flips.
@@ -742,6 +790,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         const seatRow = (row: (typeof rows)[number], inTeam = false): JSX.Element => {
           const seat = lobby.seats.find((s) => s.id === row.id)!;
           const isYou = row.you;
+          // WHILE I WATCH MY TEAMMATE the rail is drawn from THEIR run (their seat is its s0, mine its s1), but "You"
+          // is still me: the chip and the teal edge stay on my plate, and theirs wears the teammate look
+          // (R-DUOS-VIEW-YOU-01). Everything else about the row (whose numbers, whose skins) follows the run on screen.
+          const wearsYou = railWearsYou(row.you, seat.id, viewingMate, duosMate);
+          const wearsMate = viewingMate && duosMate ? row.you : seat.id === mateId;
           const isFoe = row.next;
           // A GHOST pairing: this round's foe is a fallen seat's board (`playerOpponent`'s `ghost`), marked in teal.
           const isGhost = row.ghost;
@@ -768,7 +821,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               data-seat={seat.id}
               // LIVE PINGS (R-PING-08): a teammate or mentor pings a seat; the player's own right-click stays the scout pin.
               data-ping={railKey(seat.id)} data-ping-own="" data-ping-at="left"
-              className={`lobbyseat${inTeam ? ' inteam' : ''}${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === mateId ? ' mate' : ''}${mateReady && seat.id === duosMate ? ` mate-ready${mateSlam ? ' slam' : ''}` : ''}`}
+              className={`lobbyseat${inTeam ? ' inteam' : ''}${wearsYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${wearsMate ? ' mate' : ''}${mateReady && seat.id === duosMate ? ` mate-ready${mateSlam ? ' slam' : ''}` : ''}`}
               {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
@@ -810,7 +863,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
                   {sliceLabel !== 'none' && <span className="lrv-name"><ClampedName text={sliceLabel === 'hero' ? railHeroName(seat.heroId) ?? seat.label : seat.label} /></span>}
                   {/* YOUR slice: YOU in a round teal chip on the top-right corner, the twin of the next foe's swords (owner 2026-10-31:
                       "lets have the players YOU in a circle in the top corner, just like the now facing icon"). */}
-                  {isYou && <span className="lrv-you">You</span>}
+                  {wearsYou && <span className="lrv-you">You</span>}
                   {/* YOUR TEAMMATE IS READY (R-DUOS-MATE-READY-01): a green check chip in the same corner (it says Locked in, so their
                       slice drops the pill meanwhile). */}
                   {mateReady && seat.id === duosMate && (

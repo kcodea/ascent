@@ -22,11 +22,12 @@
  */
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { RectSnapshot } from './heroCeremonyMachine';
-import { stageScale } from '../stage';
+import { stageScale, stageViewport } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { crumbOnce } from '../crashLog';
-import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { PHONE_GPU, phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { browserIdle } from '../idleWork';
 import { followStage } from '../pixiStageFollow';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 
@@ -240,31 +241,18 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
   }
 
   private async init(host: HTMLElement): Promise<void> {
-    // Same DPR cap as the gameplay overlay, times the stage scale: `resizeTo: host` sizes this renderer in LAYOUT px,
-    // which on a scaled stage (stage.ts) is up to ~2.8x the screen size per axis, so without the factor a phone
-    // rendered ~8x the pixels it shows (measured: ceremony frame 9 ms -> 64 ms at 844x390 under 4x throttle).
     if (!pixiAllowed()) throw new Error('phone diagnostics: no effect canvases (nofx)');
-    const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
-    const app = new Application();
-    await app.init(phonePixiOptions({
-      resizeTo: host,
-      backgroundAlpha: 0,
-      antialias: PIXI_ANTIALIAS,
-      autoDensity: true,
-      resolution: res,
-      preference: 'webgl',
-      powerPreference: 'high-performance',
-    }, stageScale())); // phone: 1.5 x stage scale, low power, no depth buffer (phoneDiag.ts)
-    detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
-    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
-    guardAppRender(app, 'heroCeremony');
-    watchContextLoss(app, 'heroCeremony');
-    crumbOnce('pixi init hero ceremony');
+    // THE RENDERER BUILT WHILE HERO SELECT WAS IDLE, when there is one (`prewarmHeroCeremonyFx`): the pick then only
+    // sizes it to the host and attaches it. Otherwise built here, as it always was.
+    const warm = await takeWarmCeremony();
+    const built = warm ?? await buildCeremonyApp(host);
+    const app = built.app;
     // The ceremony may have unmounted before init resolved; only attach if still wanted (mirrors pixiFx).
     if (this.destroyed) {
-      destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
+      destroyCeremonyBuild(built);
       return;
     }
+    if (warm) app.resizeTo = host; // Pixi sizes the renderer to the host at once
     const canvas = app.canvas;
     canvas.style.position = 'absolute';
     canvas.style.inset = '0';
@@ -276,11 +264,12 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     app.stage.addChild(root);
     this.app = app;
     this.root = root;
-    this.sparkTex = makeSparkTexture(app);
-    this.glowTex = makeGlowTexture(app);
-    this.fragTex = makeFragTexture(app);
-    this.ringTex = makeRingTexture(app);
-    this.wispTex = makeWispTexture(app);
+    const tex = built.tex ?? makeCeremonyTextures(app);
+    this.sparkTex = tex.spark;
+    this.glowTex = tex.glow;
+    this.fragTex = tex.frag;
+    this.ringTex = tex.ring;
+    this.wispTex = tex.wisp;
     app.ticker.add(this.update);
     app.ticker.stop(); // idle until an effect wakes it
   }
@@ -785,6 +774,132 @@ function makeWispTexture(app: Application): Texture {
   const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
   g.destroy();
   return tex;
+}
+
+// ─── the renderer, built once: cold on the pick, or WARM while Hero Select is idle ─────────────────────────
+
+interface CeremonyTextures { spark: Texture; glow: Texture; frag: Texture; ring: Texture; wisp: Texture }
+/** A built renderer. `tex` is set on a warm one (its textures are already drawn and its shaders linked). */
+interface CeremonyBuild { app: Application; tex: CeremonyTextures | null }
+
+function makeCeremonyTextures(app: Application): CeremonyTextures {
+  return { spark: makeSparkTexture(app), glow: makeGlowTexture(app), frag: makeFragTexture(app), ring: makeRingTexture(app), wisp: makeWispTexture(app) };
+}
+
+/** The ceremony's Application, exactly as the pick has always built it. `host` null = a warm build: sized to the stage
+ *  (the host's own size, HeroSelectCeremony), not yet in the page, its ticker stopped. */
+async function buildCeremonyApp(host: HTMLElement | null): Promise<CeremonyBuild> {
+  // Same DPR cap as the gameplay overlay, times the stage scale: `resizeTo: host` sizes this renderer in LAYOUT px,
+  // which on a scaled stage (stage.ts) is up to ~2.8x the screen size per axis, so without the factor a phone
+  // rendered ~8x the pixels it shows (measured: ceremony frame 9 ms -> 64 ms at 844x390 under 4x throttle).
+  const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
+  const app = new Application();
+  const view = stageViewport();
+  await app.init(phonePixiOptions({
+    ...(host ? { resizeTo: host } : { width: Math.max(1, view.w), height: Math.max(1, view.h), autoStart: false }),
+    backgroundAlpha: 0,
+    antialias: PIXI_ANTIALIAS,
+    autoDensity: true,
+    resolution: res,
+    preference: 'webgl',
+    powerPreference: 'high-performance',
+  }, stageScale())); // phone: 1.5 x stage scale, low power, no depth buffer (phoneDiag.ts)
+  detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+  followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
+  guardAppRender(app, 'heroCeremony');
+  watchContextLoss(app, 'heroCeremony');
+  crumbOnce('pixi init hero ceremony');
+  return { app, tex: null };
+}
+
+function destroyCeremonyBuild(b: CeremonyBuild): void {
+  if (b.tex) for (const t of Object.values(b.tex) as Texture[]) t.destroy(true);
+  destroyPixiApp(b.app); // never releases Pixi's shared global pools (pixiAppSafety.ts)
+}
+
+/**
+ * THE WARM RENDERER (perf, the Duos audit of 2026-11-09). The ceremony's WebGL context, its five textures and its
+ * shader programs used to be created inside the hero pick's own click: `getContext` 42 ms + the program link 25 ms +
+ * `getExtension` 9 ms, one 62-75 ms frame on the press that should answer at once. Hero Select now builds them on
+ * idle time while its cards are on screen, in two steps (the context; then the textures and one throwaway draw of
+ * each, which links the programs), and the pick only attaches the result. At most one warm renderer exists; Hero
+ * Select closing without a pick destroys it. Phones never warm (`PHONE_GPU`): a WebGL context held while nothing
+ * draws is memory a phone does not have to spare, so there the pick builds it as before.
+ */
+let warmBuild: Promise<CeremonyBuild | null> | null = null;
+let warmWanted = 0;
+/** The longest a warm step waits for an idle moment before it runs anyway (ms). */
+const WARM_IDLE_TIMEOUT_MS = 1500;
+/** The pick came while the warm build was still waiting for idle time: no more waiting (the build finishes at once, which
+ *  costs that pick what it always cost; the ceremony never starts without its renderer). */
+let warmHurry: (() => void) | null = null;
+let warmTaken = false;
+const idleStep = (): Promise<void> => new Promise((done) => {
+  if (warmTaken) { done(); return; }
+  const h = browserIdle.schedule(() => { warmHurry = null; done(); }, WARM_IDLE_TIMEOUT_MS);
+  warmHurry = () => { warmHurry = null; h.cancel(); done(); };
+});
+/**
+ * Hero Select's own entrance comes first (ms from the offer showing). Measured 2026-11-10: a context asked for WHILE the
+ * cards arrive waits on a GPU process that is busy drawing them (one 439 ms task, against 65 to 90 ms in a quiet
+ * moment), so the warm build starts only once the entrance is over. A pick sooner than this builds its own, as before.
+ */
+const WARM_AFTER_ENTRANCE_MS = 1500;
+const entranceOver = (): Promise<void> => new Promise((done) => {
+  if (warmTaken) { done(); return; }
+  const t = setTimeout(() => { warmHurry = null; done(); }, WARM_AFTER_ENTRANCE_MS);
+  warmHurry = () => { warmHurry = null; clearTimeout(t); done(); };
+});
+
+async function buildWarmCeremony(): Promise<CeremonyBuild | null> {
+  try {
+    await entranceOver();
+    await idleStep();
+    if (!warmWanted) return null;
+    const b = await buildCeremonyApp(null);
+    b.app.ticker.stop();
+    await idleStep();
+    const tex = makeCeremonyTextures(b.app);
+    b.tex = tex;
+    // One throwaway draw of every texture, additive as the ceremony draws them: links the sprite program now. The
+    // second draw leaves the (unattached) canvas clear again.
+    const probe = new Container();
+    for (const t of Object.values(tex) as Texture[]) { const s = new Sprite(t); s.blendMode = 'add'; probe.addChild(s); }
+    b.app.stage.addChild(probe);
+    b.app.render();
+    b.app.stage.removeChild(probe);
+    probe.destroy({ children: true });
+    b.app.render();
+    return b;
+  } catch {
+    return null; // no WebGL here: the pick tries on its own and reports it, as before
+  }
+}
+
+/** Hero Select is on screen: build the ceremony's renderer on idle time. Returns the release (Hero Select closed). */
+export function prewarmHeroCeremonyFx(): () => void {
+  if (typeof window === 'undefined' || import.meta.env.MODE === 'test' || PHONE_GPU || !pixiAllowed()) return () => {};
+  warmWanted++;
+  if (!warmBuild) { warmTaken = false; warmBuild = buildWarmCeremony(); }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--warmWanted > 0) return;
+    const pending = warmBuild;
+    warmBuild = null;
+    void pending?.then((b) => { if (b) destroyCeremonyBuild(b); });
+  };
+}
+
+/** The pick takes the warm renderer (waiting for a build still in flight: never two contexts for one ceremony). */
+async function takeWarmCeremony(): Promise<CeremonyBuild | null> {
+  const pending = warmBuild;
+  if (!pending) return null;
+  warmBuild = null;
+  warmTaken = true;
+  warmHurry?.();
+  return pending;
 }
 
 /** The factory the ceremony component calls — one controller per ceremony, destroyed on unmount. */

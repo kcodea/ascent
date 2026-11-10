@@ -157,26 +157,59 @@ const impulseCache = new Map<string, AudioBuffer>();
  * `Math.random` is fine here — this is UI, not the seeded engine.
  */
 export function reverbImpulse(a: BaseAudioContext, seconds: number, damping: number): AudioBuffer {
+  const s = impulseShape(a, seconds, damping);
+  const cached = impulseCache.get(s.key);
+  if (cached) return cached;
+  const ir = a.createBuffer(2, s.len, s.rate);
+  for (let ch = 0; ch < 2; ch++) fillImpulse(ir.getChannelData(ch), s.len, s.lp, 0, s.len, 0);
+  impulseCache.set(s.key, ir);
+  return ir;
+}
+/** The clamped knobs of one impulse: its cache key, its length in samples and its low-pass memory. */
+function impulseShape(a: BaseAudioContext, seconds: number, damping: number): { key: string; rate: number; len: number; lp: number } {
   const rate = a.sampleRate;
   const secs = Math.min(8, Math.max(0.1, seconds));
   const damp = Math.min(1, Math.max(0, damping));
-  const key = `${secs.toFixed(2)}|${damp.toFixed(2)}|${rate}`;
-  const cached = impulseCache.get(key);
-  if (cached) return cached;
-  const len = Math.max(1, Math.floor(rate * secs));
-  const ir = a.createBuffer(2, len, rate);
-  const lp = damp * 0.95; // more damping = more low-pass memory = a darker tail (0 = bright white noise)
-  for (let ch = 0; ch < 2; ch++) {
-    const d = ir.getChannelData(ch);
-    let last = 0;
-    for (let i = 0; i < len; i++) {
-      const white = Math.random() * 2 - 1;
-      last = white * (1 - lp) + last * lp;
-      d[i] = last * Math.pow(1 - i / len, 2.2); // decays smoothly to silence at the tail's end
-    }
+  // more damping = more low-pass memory = a darker tail (0 = bright white noise)
+  return { key: `${secs.toFixed(2)}|${damp.toFixed(2)}|${rate}`, rate, len: Math.max(1, Math.floor(rate * secs)), lp: damp * 0.95 };
+}
+/** Samples `from`..`to` of one channel of an impulse of `len` samples; `last` is the low-pass's memory coming in, and
+ *  the return is its memory going out (so a channel can be filled in several goes and come out the same). */
+function fillImpulse(d: Float32Array, len: number, lp: number, from: number, to: number, last: number): number {
+  for (let i = from; i < to; i++) {
+    const white = Math.random() * 2 - 1;
+    last = white * (1 - lp) + last * lp;
+    d[i] = last * Math.pow(1 - i / len, 2.2); // decays smoothly to silence at the tail's end
   }
-  impulseCache.set(key, ir);
-  return ir;
+  return last;
+}
+/** Samples filled between two looks at the clock while an impulse is built in slices. */
+const IMPULSE_SLICE_SAMPLES = 8192;
+/**
+ * `reverbImpulse` IN SLICES, for the idle pre-warm (perf, the Duos audit of 2026-11-09): a 4 s stereo tail is some
+ * 400,000 noise samples, 10 ms and more of main thread in one go. The returned step fills for about `budgetMs` and
+ * returns true once the impulse is in the cache (the same cache, the same maths, sample for sample the same process).
+ * A fire that needs the impulse before the slices finish builds it whole, as before, and the step then just ends.
+ */
+export function reverbImpulseSteps(a: BaseAudioContext, seconds: number, damping: number, budgetMs = 2.5, now: () => number = () => performance.now()): () => boolean {
+  const s = impulseShape(a, seconds, damping);
+  let ir: AudioBuffer | null = null;
+  let ch = 0, i = 0, last = 0;
+  return () => {
+    if (impulseCache.has(s.key)) return true;
+    ir ??= a.createBuffer(2, s.len, s.rate);
+    const t0 = now();
+    while (ch < 2) {
+      const to = Math.min(s.len, i + IMPULSE_SLICE_SAMPLES);
+      last = fillImpulse(ir.getChannelData(ch), s.len, s.lp, i, to, last);
+      i = to;
+      if (i >= s.len) { ch++; i = 0; last = 0; }
+      if (now() - t0 >= budgetMs) break;
+    }
+    if (ch < 2) return false;
+    impulseCache.set(s.key, ir);
+    return true;
+  };
 }
 
 const EQ: AudioFilterSpec = {
@@ -340,6 +373,11 @@ export function prewarmConvolvers(a: BaseAudioContext, specs: ReadonlyArray<{ si
     const key = impulseKeyOf(a, sp.size, sp.damping);
     if (seen.has(key)) continue;
     seen.add(key);
+    // The impulse first, a few ms per idle callback (`reverbImpulseSteps`), so no one callback fills a whole multi-second
+    // tail; the nodes below then find it in the cache.
+    const step = reverbImpulseSteps(a, sp.size, sp.damping);
+    const fill = (): void => { if (!step()) jobs.unshift(fill); };
+    jobs.push(fill);
     for (let i = 0; i < perKey; i++) {
       jobs.push(() => {
         const conv = acquireConvolver(a, sp.size, sp.damping, { t0: 0, durSec: 0 }); // always a fresh node here

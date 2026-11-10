@@ -17,6 +17,7 @@ import { rectToStage } from './stage';
 import { ceremonyTiming } from './hero-select/heroCeremonyTiming';
 import { HSC_REPLAY_EVENT } from './hero-select/heroCeremonyTunerConfig';
 import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
+import { prewarmHeroCeremonyFx } from './hero-select/HeroCeremonyPixi';
 import { VersusHeroTimer } from './versus/VersusHeroTimer';
 import { crumb } from './crashLog';
 import { lockVersusHeroPick, markVersusPickShown, rerollVersusHero, useVersus, useVersusTimeoutHero, versusRerollCandidates } from './versus/versusStore';
@@ -119,6 +120,11 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // reset whenever a new offer arrives, or a finished `launching` state would eat every click next run.
   useEffect(() => { dispatch({ type: 'reset' }); }, [choices]);
   useEffect(() => { if (!watch) crumb('hero select shown', { heroes: choices?.length ?? 0 }); }, [choices, watch]);
+  // THE CEREMONY'S RENDERER IS BUILT WHILE THE CARDS ARE ON SCREEN (perf, HeroCeremonyPixi `prewarmHeroCeremonyFx`), on idle
+  // time, so the pick's own click no longer creates a WebGL context and links its shaders. Only while an offer is up
+  // (this component stays mounted with none); my own screen only (a watched one builds its own, as before).
+  const offerUp = !!choices && !watch;
+  useEffect(() => (offerUp ? prewarmHeroCeremonyFx() : undefined), [offerUp]);
   // MY PICK, for the people watching me (R-SPECTATE-HEROSELECT-01): the hero this screen's ceremony is playing, however
   // it was chosen (a click, or the Versus clock's pick). The publishers read it; a watched screen reports nothing.
   useEffect(() => { if (!watch) setOwnHeroPick(ceremony.heroId); }, [watch, ceremony.heroId]);

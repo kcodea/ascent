@@ -14,6 +14,7 @@ vi.mock('./spectate', async (orig) => ({ ...(await orig<typeof import('./spectat
 const { useGame } = await import('../store');
 const { useVersus } = await import('./versusStore');
 const view = await import('./teammateView');
+const { duosViewing, setDuosViewing } = await import('../duosViewing');
 
 interface FakeAnim { keyframes: Keyframe[]; target: Element; onfinish: (() => void) | null; oncancel: (() => void) | null; cancel: () => void }
 const anims: FakeAnim[] = [];
@@ -80,7 +81,7 @@ describe('the swap as a View Transition (R-DUOS-VIEW-SWAP-01)', () => {
   let finish: (() => void) | null = null;
   beforeEach(() => {
     pending = null;
-    document.body.classList.remove('duos-viewing');
+    setDuosViewing(false);
     (document as unknown as { startViewTransition?: unknown }).startViewTransition = (cb: () => void | Promise<void>) => {
       pending = cb;
       return { ready: Promise.resolve(), finished: new Promise<void>((r) => { finish = r; }) };
@@ -96,7 +97,8 @@ describe('the swap as a View Transition (R-DUOS-VIEW-SWAP-01)', () => {
     pending!();
     expect(watch).toHaveBeenCalledWith('p2');
     expect(useGame.getState().run.runId).toBe('spectate:m:p2'); // in place when the update returns
-    expect(document.body.classList.contains('duos-viewing')).toBe(true);
+    expect(duosViewing()).toBe(true); // the three controls dim (their own class, never one on body)
+    expect(document.body.classList.contains('duos-viewing')).toBe(false);
     expect(anims).toHaveLength(0); // the cross-fade is the browser's, on the compositor
     finish!();
     await Promise.resolve(); await Promise.resolve();
@@ -113,7 +115,7 @@ describe('the swap as a View Transition (R-DUOS-VIEW-SWAP-01)', () => {
     useVersus.setState({ match: { phase: 'combat', paused_at: null, group: { me: 'p1', duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } } } } } as never);
     pending!();
     expect(watch).not.toHaveBeenCalled();
-    expect(document.body.classList.contains('duos-viewing')).toBe(false);
+    expect(duosViewing()).toBe(false);
     finish!();
   });
 });

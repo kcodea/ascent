@@ -14619,4 +14619,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-DUOS-TAB-PEEK-01',
+    title: 'In a Duos game, Tab peeks at your teammate and does not open the Compendium',
+    statement:
+      'For a seated Duos player, holding Tab shows the board of your teammate and letting go comes back. That press does nothing else: the Compendium does not open, and holding the key does not flicker it open and shut. '
+      + 'One exception: if the Compendium is already open, Tab closes it and does not peek. Outside a Duos seat, Tab opens and closes the Compendium as on every other screen (R-COMPENDIUM-TAB-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'The Duos audit fix list, owner-approved, handed over by the coordinator 2026-11-10 (finding: .versus-qa/RUNTIME-AUDIT.md, the teammate-view swap)', quote: 'Make Tab only peek while the teammate-view keys are enabled' },
+      { kind: 'fix-pr', ref: 'fix/duos-perf-wins: packages/ui/src/versus/teammateView.tsx (useTeammateViewKeys)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx (useTeammateViewKeys); packages/ui/src/compendiumHotkey.ts (onCompendiumTab)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-perf-wins). Before, the teammate view listened for Tab on the capture phase and prevented the default but let the press travel on, so the Compendium listener on the window also fired: one press peeked and opened the Compendium over the board of the teammate, and each key repeat of a held Tab toggled the book again.',
+    example: 'In a Duos shop you hold Tab: the board of your teammate fades in and nothing else opens. You let go: your own board is back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateTabPeek.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-VIEW-YOU-01',
+    title: 'While you watch your Duos teammate, the "You" badge stays on your own plate on the rail',
+    statement:
+      'On the lobby rail, the "You" badge and the teal edge mark your own plate. That holds while you watch the board of your teammate: the badge does not move to their plate, and their plate keeps the teammate look. '
+      + 'Back on your own board nothing changes. A spectator, who has no plate of their own, sees the badge on the player they watch, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'The Duos audit fix list, handed over by the coordinator 2026-11-10 (screenshot: .versus-qa/tour/desk-26-teammate-view-lategame.png)', quote: 'the badge stays on MY plate while I view my teammate' },
+      { kind: 'fix-pr', ref: 'fix/duos-perf-wins: packages/ui/src/LobbyPanel.tsx (railWearsYou)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-perf-wins). Before, the rail marked the first seat of whatever run it was given, and the teammate view gives it the run of the teammate, so "You" sat on the teammate.',
+    example: 'You hold Tab to look at the board of Bob. On the rail, "You" is still on your plate, next to his.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailMateReady.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

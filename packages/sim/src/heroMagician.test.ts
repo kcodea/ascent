@@ -139,7 +139,7 @@ describe('the counter: Shop buys only, across turns, to 5', () => {
 describe('the copy: the next buy after the hat activates', () => {
   it('sends the teammate a copy of the card as it was bought, and the count restarts at 0', () => {
     let ann = buyN(magician(), 5);
-    ann = reduce({ ...ann, shop: [offer(5, { atk: 3, hp: 4, buffs: [{ source: 'Fortify', attack: 3, health: 4 }] })] }, { type: 'buy', uid: 's5' });
+    ann = reduce({ ...ann, shop: [offer(5, { atk: 3, hp: 4, buffs: [{ source: 'Fortify', attack: 3, health: 4, count: 1 }] })] }, { type: 'buy', uid: 's5' });
     const mine = ann.hand.at(-1)!;
     const def = CARD_INDEX[PLAIN[5 % PLAIN.length]!]!;
     expect(mine).toMatchObject({ cardId: def.id, attack: def.attack + 3, health: def.health + 4, golden: false });

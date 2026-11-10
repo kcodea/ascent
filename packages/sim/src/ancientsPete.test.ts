@@ -126,7 +126,7 @@ describe('Pete × GENESIS: "Contrabanana upgrades your 2 right-most Shop minions
 
 describe('Pete × TIME: "Contrabanana triggers every 2 Refreshes."', () => {
   it('every second Refresh upgrades the right-most minion', () => {
-    let s = { ...picked('time'), refreshCount: 0 };
+    let s: RunState = { ...picked('time'), refreshCount: 0 };
     expect(heroPowerText(s)).toBe('Every second refresh, the right-most Shop minion is from the tier above your Shop tier (**2** more to go).');
     s = reduce(s, { type: 'roll' });
     expect(bananas(s).length).toBe(0);
@@ -139,7 +139,7 @@ describe('Pete × TIME: "Contrabanana triggers every 2 Refreshes."', () => {
     expect(bananas(s).length).toBe(1);
   });
   it('a plain Pete still needs three', () => {
-    let s = { ...picked('fortune'), refreshCount: 0 };
+    let s: RunState = { ...picked('fortune'), refreshCount: 0 };
     s = reduce(reduce(s, { type: 'roll' }), { type: 'roll' });
     expect(bananas(s).length).toBe(0);
     s = reduce(s, { type: 'roll' });

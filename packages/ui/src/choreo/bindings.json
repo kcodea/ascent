@@ -122,6 +122,16 @@
       "death": {
         "def": "sfx-vo-b2-florida-death",
         "gain": 0.3
+      },
+      "minionBuffed": {
+        "def": "beast-buff-bite"
+      },
+      "buffWave": {
+        "def": "beast-buff-bite",
+        "fanOut": "buffed"
+      },
+      "watcher": {
+        "def": "beast-buff-bite-watcher"
       }
     },
     "b2_oona": {
@@ -681,6 +691,9 @@
       "death": {
         "def": "sfx-vo-k-beggy-death",
         "gain": 0.3
+      },
+      "sell": {
+        "def": "sell"
       }
     },
     "k_deepvein": {
@@ -1097,6 +1110,16 @@
       "death": {
         "def": "sfx-vo-kennel-death",
         "gain": 0.3
+      },
+      "minionBuffed": {
+        "def": "beast-buff-bite"
+      },
+      "buffWave": {
+        "def": "beast-buff-bite",
+        "fanOut": "buffed"
+      },
+      "watcher": {
+        "def": "beast-buff-bite-watcher"
       }
     },
     "buddy": {
@@ -1262,6 +1285,9 @@
       "death": {
         "def": "sfx-vo-salvatore-death",
         "gain": 0.3
+      },
+      "sell": {
+        "def": "sell"
       }
     },
     "uron": {
@@ -1341,6 +1367,9 @@
       "death": {
         "def": "sfx-vo-k-pouchpincher-death",
         "gain": 0.3
+      },
+      "sell": {
+        "def": "sell"
       }
     },
     "n2_fatecarver": {
@@ -1371,6 +1400,9 @@
       "death": {
         "def": "sfx-vo-n2-salesman-death",
         "gain": 0.3
+      },
+      "sell": {
+        "def": "sell"
       }
     },
     "n2_ninefold": {
@@ -1604,6 +1636,9 @@
       "death": {
         "def": "sfx-vo-d2-riverdrake-death",
         "gain": 0.3
+      },
+      "sell": {
+        "def": "sell"
       }
     },
     "d2_warflame": {
@@ -1777,6 +1812,16 @@
       "death": {
         "def": "sfx-vo-b2-beardsley-death",
         "gain": 0.3
+      },
+      "minionBuffed": {
+        "def": "beast-buff-bite"
+      },
+      "buffWave": {
+        "def": "beast-buff-bite",
+        "fanOut": "buffed"
+      },
+      "watcher": {
+        "def": "beast-buff-bite-watcher"
       }
     },
     "b2_wolvie": {
@@ -1959,6 +2004,56 @@
     "echowarden": {
       "watcher": {
         "def": "drakko-effect"
+      }
+    },
+    "hoardwhelp": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "k3_gramps": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "dw3_kegrunner": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "dw3_salezarsails": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "n3_goldenmonkey": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "sp3_flamereveler": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "sp3_tidereveler": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "sp3_grovereveler": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "ce3_coronadevotee": {
+      "sell": {
+        "def": "sell"
+      }
+    },
+    "quicksale": {
+      "sell": {
+        "def": "sell"
       }
     }
   }

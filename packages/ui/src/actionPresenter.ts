@@ -29,7 +29,7 @@ export type PresentedAction =
   /** AFTER the commit: a board minion moved slot. */
   | { kind: 'repositioned'; uid: string }
   /** BEFORE the commit: a board minion is sold (its Gold floats at `at`, coins out of the Gold pill). */
-  | { kind: 'sold'; at: ScreenPoint; amount: number }
+  | { kind: 'sold'; at: ScreenPoint; amount: number; /** The sold card: its On Sell effect plays at `at` (R-FX-SELL-01). */ cardId?: string; /** This sale cashes Quick Sale's bonus Gold: Quick Sale's On Sell effect plays on it too. */ quickSale?: boolean }
   /** BEFORE the commit of a drag-drop a VIEWER watched live (R-SPECTATE-SMOOTH-01): the rows are snapshotted with the
    *  held card's gap still open, and the card slides home from `from` (where the watched hand let it go), the same
    *  commit FLIP the player's own `onUp` primes. `drop` is the player's drop kind; `boughtUid` is a buy's new hand card

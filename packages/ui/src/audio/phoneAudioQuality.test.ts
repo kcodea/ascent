@@ -165,8 +165,19 @@ describe('clip index (the shipped defs + bindings)', () => {
     // The worst case: the 31 cards with the most clip audio (7 board + 10 hand + 7 Shop + 7 foes), the biggest hero,
     // the heroes on offer, the shared code clips, and the hero-attack clips of the TWO LARGEST attack styles (a fight
     // plays at most two: yours and your opponent's; R-AUDIO-PREWARM-ATTACKS-01). Never the whole roster.
-    const cards = Object.keys(rawBindings.cards).map((id) => [id, idx.forCard(id).reduce((s, c) => s + phoneBytes(c), 0)] as const)
-      .sort((a, b) => b[1] - a[1]).slice(0, 31).reduce((s, x) => s + x[1], 0);
+    // A clip is cached ONCE by name, however many cards play it (clipLru), so the worst case is the 31 cards that add
+    // the most UNIQUE clip audio: picked greedily by what each adds over the clips already counted (R-FX-SELL-01's
+    // shared `sell` clip on 15 cards is one clip, not fifteen).
+    const perCard = Object.keys(rawBindings.cards).map((id) => new Set(idx.forCard(id)));
+    const counted = new Set<string>();
+    let cards = 0;
+    for (let k = 0; k < 31; k++) {
+      let best = -1; let bestAdd = 0;
+      perCard.forEach((clips, i) => { let add = 0; for (const c of clips) if (!counted.has(c)) add += phoneBytes(c); if (add > bestAdd) { bestAdd = add; best = i; } });
+      if (best < 0) break;
+      for (const c of perCard[best]!) counted.add(c);
+      cards += bestAdd;
+    }
     const heroes = [...new Set(bankNames().filter((n) => n.startsWith('heroes/')).map((n) => n.slice(7).split('.')[0]!))]
       .map((h) => idx.forHero(h).reduce((s, c) => s + phoneBytes(c), 0)).sort((a, b) => b - a).slice(0, 4).reduce((s, x) => s + x, 0);
     const shared = new Set(idx.code);

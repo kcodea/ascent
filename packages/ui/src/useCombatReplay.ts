@@ -22,6 +22,7 @@ import { holdMs } from './choreo/clock';
 import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
 import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
+import { playBuffSourceWatcher } from './choreo/buffWatcher';
 import { epicFiresOf, replayBeats, replayOrder } from './choreo/replayOrder';
 import { undeliveredRollPlan } from './choreo/buffDelivery';
 import { prefoldedShareOf } from './choreo/clashOrder';
@@ -2103,6 +2104,12 @@ export function useCombatReplay(
     // each successive beam gets the next `index`, so a def that staggers its layers fans out one-by-one instead
     // of all at once. Only the source-authored branch advances it; the generic tendril has no per-target stagger.
     let srcAuthoredIndex = 0;
+    // ONE SOUND PER BUFFER PER STEP (owner 2026-11-09, Kennelmaster biting every Beast at Start of Combat): the first
+    // def a buffer plays here rings; its later ones in the same step play their visuals only (R-FX-BUFF-WATCHER-01).
+    const srcRang = new Set<string>();
+    // ONE BITE PER MINION (owner 2026-11-09): two Beardsleys on one Beast -> the first to fire bites, the rest play only
+    // their On Watcher effect. Only for buffers with a watcher (King Oona's bananas still play per buffer). Checked AT FIRE TIME, so "first" is the left-most buffer (the cascade order).
+    const bitten = new Set<string>();
     const steppedStrikes = new Map<string, { gain: number; atMs: number }[]>();
     const srcRank = sourceCascadeRanks(
       casts,
@@ -2247,11 +2254,20 @@ export function useCombatReplay(
         // one beat go one after another, `SOURCE_CASCADE_MS` apart (speed-scaled), instead of all at once. The
         // settled target is measured when each one actually fires, so a late one still lands on the moved unit.
         const index = srcAuthoredIndex++;
+        const muteSound = srcRang.has(c.source);
+        srcRang.add(c.source);
+        const oneBite = bindingFor(cardId, 'watcher') !== null; // only a buffer whose watcher shows it (the Beast bite)
         const fire = (): void => {
           const liveEl = findEl(c.target) ?? tEl;
           const target = settleTarget(c.target, liveEl) ?? undefined;
+          // The buffer's On Watcher effect travels from it to THIS minion (R-FX-BUFF-WATCHER-01).
+          playBuffSourceWatcher(cardId, c.source, sc, { uid: c.target, at: target?.start ?? tc }, muteSound);
+          const biteKey = srcAuthored + '|' + c.target;
+          if (oneBite && bitten.has(biteKey)) { target?.stop(); return; }
+          bitten.add(biteKey);
+          // A `followSource` def rides both cards: its target end stays on the buffed minion as it moves (playDef).
           playDef(srcAuthored, { source: sc, target: target?.start ?? tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
-            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop, ...(intensity < 1 ? { intensity } : {}) });
+            { uids: { source: c.source, target: c.target }, index, target: target?.get, onDone: target?.stop, muteSound, ...(intensity < 1 ? { intensity } : {}) });
         };
         const delayMs = (srcRank.get(c.source) ?? 0) * SOURCE_CASCADE_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
         if (delayMs > 0) srcCascadeTimersRef.current.push(window.setTimeout(fire, delayMs));

@@ -508,7 +508,7 @@ function presentBefore(a: SpectatorAct, prevRun: RunState): { at: ScreenPoint | 
   if (a.t === 'sell') {
     const card = prevRun.board.find((c) => c.uid === a.uid);
     const at = releasePoint(a) ?? centreOf(a.uid) ?? screenCentre();
-    if (card) presentAction({ kind: 'sold', at, amount: sellValueWithBonus(card, prevRun) });
+    if (card) presentAction({ kind: 'sold', at, amount: sellValueWithBonus(card, prevRun), cardId: card.cardId, quickSale: (prevRun.nextSellBonus ?? 0) > 0 });
     return { at };
   }
   return { at: null };

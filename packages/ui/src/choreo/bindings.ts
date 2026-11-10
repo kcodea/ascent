@@ -47,6 +47,13 @@ export type WatcherBindingKind = 'watcher';
 export const WATCHER_BINDING_KINDS: readonly WatcherBindingKind[] = ['watcher'];
 
 /**
+ * A per-card SHOP ACTION binding kind: the player sold this card (R-FX-SELL-01). Fired directly from the Shop's
+ * `sold` presentation (Recruit.tsx), not a moment, so it joins neither `MomentKind` nor `RecruitMomentKind`.
+ */
+export type ShopActionBindingKind = 'sell';
+export const SHOP_ACTION_BINDING_KINDS: readonly ShopActionBindingKind[] = ['sell'];
+
+/**
  * A per-card COMBAT MECHANIC binding kind fired by a dedicated SCAN CHANNEL in `score.ts`, not by a moment's
  * own kind — the By-card binder's "On Start of Combat" / "On Avenge" slots.
  *
@@ -100,7 +107,7 @@ export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | AttackHitMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | AttackHitMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind | ShopActionBindingKind;
 import rawBindings from './bindings.json';
 
 /**

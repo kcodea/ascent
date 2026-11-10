@@ -16,6 +16,7 @@ import {
   STAT_MILESTONE_BINDING_KINDS,
   ATTACK_HIT_MILESTONE_BINDING_KINDS,
   WATCHER_BINDING_KINDS,
+  SHOP_ACTION_BINDING_KINDS,
   COMBAT_MECHANIC_BINDING_KINDS,
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
@@ -204,7 +205,7 @@ const BINDINGS: Record<string, { def: string }> = {
 const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean; gain?: number; also?: string[] }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' }, minionPlayed: { def: 'sfx-vo-b2-echohorn', gain: 0.3 }, death: { def: 'sfx-vo-b2-echohorn-death', gain: 0.3 } },
   // Florida growls when played from hand, at half level (owner, FX Library By-card save 2026-09-25).
-  b2_florida: { minionPlayed: { def: 'sfx-dragon-growl-2', gain: 0.5 }, death: { def: 'sfx-vo-b2-florida-death', gain: 0.3 } },
+  b2_florida: { minionBuffed: { def: 'beast-buff-bite' }, watcher: { def: 'beast-buff-bite-watcher' }, buffWave: { def: 'beast-buff-bite', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-dragon-growl-2', gain: 0.5 }, death: { def: 'sfx-vo-b2-florida-death', gain: 0.3 } },
   // King Oona doubling a summoned Beast in combat: a banana flies Oona → that Beast (owner 2026-09-24). Its own
   // `buffWave` moment with Oona as the source, so the Karwind `buffed` fan-out reaches it.
   b2_oona: { buffWave: { def: 'oona-banana', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-vo-b2-oona', gain: 0.3 }, death: { def: 'sfx-vo-b2-oona-death', gain: 0.3 } },
@@ -297,7 +298,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   dw_soldier: { minionPlayed: { def: 'sfx-vo-dw-soldier', gain: 0.3 } }, // a token summoned often: no death clip (owner)
   // Unit voices for every other live-set tribe (owner 2026-09-29): Kobold, Demon, Dragon, Beast, Neutral, Mech, Undead.
   k_chipwick: { minionPlayed: { def: 'sfx-vo-k-chipwick', gain: 0.3 }, death: { def: 'sfx-vo-k-chipwick-death', gain: 0.3 } },
-  k_beggy: { minionPlayed: { def: 'sfx-vo-k-beggy', gain: 0.3 }, death: { def: 'sfx-vo-k-beggy-death', gain: 0.3 } },
+  k_beggy: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-k-beggy', gain: 0.3 }, death: { def: 'sfx-vo-k-beggy-death', gain: 0.3 } },
   k_deepvein: { minionPlayed: { def: 'sfx-vo-k-deepvein', gain: 0.3 }, death: { def: 'sfx-vo-k-deepvein-death', gain: 0.3 } },
   k_geode: { minionPlayed: { def: 'sfx-vo-k-geode', gain: 0.3 }, death: { def: 'sfx-vo-k-geode-death', gain: 0.3 } },
   k_tunnelcharger: { minionPlayed: { def: 'sfx-vo-k-tunnelcharger', gain: 0.3 }, death: { def: 'sfx-vo-k-tunnelcharger-death', gain: 0.3 } },
@@ -338,7 +339,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   d2_blazingkeeper: { minionPlayed: { def: 'sfx-vo-d2-blazingkeeper', gain: 0.3 }, death: { def: 'sfx-vo-d2-blazingkeeper-death', gain: 0.3 } },
   d2_orivax: { watcher: { def: 'drakko-effect' }, minionPlayed: { def: 'sfx-vo-d2-orivax', gain: 0.3 }, death: { def: 'sfx-vo-d2-orivax-death', gain: 0.3 } },
   d2_felconjurer: { minionPlayed: { def: 'sfx-vo-d2-felconjurer', gain: 0.3 }, death: { def: 'sfx-vo-d2-felconjurer-death', gain: 0.3 } },
-  kennel: { minionPlayed: { def: 'sfx-vo-kennel', gain: 0.3 }, death: { def: 'sfx-vo-kennel-death', gain: 0.3 } },
+  kennel: { minionBuffed: { def: 'beast-buff-bite' }, watcher: { def: 'beast-buff-bite-watcher' }, buffWave: { def: 'beast-buff-bite', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-vo-kennel', gain: 0.3 }, death: { def: 'sfx-vo-kennel-death', gain: 0.3 } },
   buddy: { minionPlayed: { def: 'sfx-vo-buddy', gain: 0.3 }, death: { def: 'sfx-vo-buddy-death', gain: 0.3 } },
   drummer: { watcher: { def: 'drakko-effect', also: ['drakko-drum'] }, minionPlayed: { def: 'sfx-vo-drummer', gain: 0.3 }, death: { def: 'sfx-vo-drummer-death', gain: 0.3 } },
   attachmentconductor: { watcher: { def: 'drakko-effect' } },
@@ -355,17 +356,17 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   ropewrangler: { minionPlayed: { def: 'sfx-vo-ropewrangler', gain: 0.3 }, death: { def: 'sfx-vo-ropewrangler-death', gain: 0.3 } },
   nimbus: { minionPlayed: { def: 'sfx-vo-nimbus', gain: 0.3 }, death: { def: 'sfx-vo-nimbus-death', gain: 0.3 } },
   wayfinder: { minionPlayed: { def: 'sfx-vo-wayfinder', gain: 0.3 }, death: { def: 'sfx-vo-wayfinder-death', gain: 0.3 } },
-  salvatore: { minionPlayed: { def: 'sfx-vo-salvatore', gain: 0.3 }, death: { def: 'sfx-vo-salvatore-death', gain: 0.3 } },
+  salvatore: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-salvatore', gain: 0.3 }, death: { def: 'sfx-vo-salvatore-death', gain: 0.3 } },
   uron: { watcher: { def: 'drakko-effect' }, minionPlayed: { def: 'sfx-vo-uron', gain: 0.3 }, death: { def: 'sfx-vo-uron-death', gain: 0.3 } },
   zyff: { watcher: { def: 'drakko-effect' }, minionPlayed: { def: 'sfx-vo-zyff', gain: 0.3 }, death: { def: 'sfx-vo-zyff-death', gain: 0.3 } },
   n2_spellsword: { minionPlayed: { def: 'sfx-vo-n2-spellsword', gain: 0.3 }, death: { def: 'sfx-vo-n2-spellsword-death', gain: 0.3 } },
   n2_bellringer: { minionPlayed: { def: 'sfx-vo-n2-bellringer', gain: 0.3 }, death: { def: 'sfx-vo-n2-bellringer-death', gain: 0.3 } },
   n2_conductor: { minionPlayed: { def: 'sfx-vo-n2-conductor', gain: 0.3 }, death: { def: 'sfx-vo-n2-conductor-death', gain: 0.3 } },
   n2_lastlight: { minionPlayed: { def: 'sfx-vo-n2-lastlight', gain: 0.3 }, death: { def: 'sfx-vo-n2-lastlight-death', gain: 0.3 }, wardGiven: { def: 'lastlight-beam' } },
-  k_pouchpincher: { minionPlayed: { def: 'sfx-vo-k-pouchpincher', gain: 0.3 }, death: { def: 'sfx-vo-k-pouchpincher-death', gain: 0.3 } },
+  k_pouchpincher: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-k-pouchpincher', gain: 0.3 }, death: { def: 'sfx-vo-k-pouchpincher-death', gain: 0.3 } },
   n2_fatecarver: { minionPlayed: { def: 'sfx-vo-n2-fatecarver', gain: 0.3 }, death: { def: 'sfx-vo-n2-fatecarver-death', gain: 0.3 } },
   n2_deepchef: { minionPlayed: { def: 'sfx-vo-n2-deepchef', gain: 0.3 }, death: { def: 'sfx-vo-n2-deepchef-death', gain: 0.3 } },
-  n2_salesman: { minionPlayed: { def: 'sfx-vo-n2-salesman', gain: 0.3 }, death: { def: 'sfx-vo-n2-salesman-death', gain: 0.3 } },
+  n2_salesman: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-n2-salesman', gain: 0.3 }, death: { def: 'sfx-vo-n2-salesman-death', gain: 0.3 } },
   n2_ninefold: { minionPlayed: { def: 'sfx-vo-n2-ninefold', gain: 0.3 }, death: { def: 'sfx-vo-n2-ninefold-death', gain: 0.3 } },
   k_kobabyboldies: { minionPlayed: { def: 'sfx-vo-k-kobabyboldies', gain: 0.3 }, death: { def: 'sfx-vo-k-kobabyboldies-death', gain: 0.3 } },
   k_gemgorge: { minionPlayed: { def: 'sfx-vo-k-gemgorge', gain: 0.3 }, death: { def: 'sfx-vo-k-gemgorge-death', gain: 0.3 } },
@@ -388,7 +389,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   d2_cinderchef: { minionPlayed: { def: 'sfx-vo-d2-cinderchef', gain: 0.3 }, death: { def: 'sfx-vo-d2-cinderchef-death', gain: 0.3 } },
   d2_roarcollector: { minionPlayed: { def: 'sfx-vo-d2-roarcollector', gain: 0.3 }, death: { def: 'sfx-vo-d2-roarcollector-death', gain: 0.3 } },
   d2_flamebeat: { minionPlayed: { def: 'sfx-vo-d2-flamebeat', gain: 0.3 }, death: { def: 'sfx-vo-d2-flamebeat-death', gain: 0.3 } },
-  d2_riverdrake: { minionPlayed: { def: 'sfx-vo-d2-riverdrake', gain: 0.3 }, death: { def: 'sfx-vo-d2-riverdrake-death', gain: 0.3 } },
+  d2_riverdrake: { sell: { def: 'sell' }, minionPlayed: { def: 'sfx-vo-d2-riverdrake', gain: 0.3 }, death: { def: 'sfx-vo-d2-riverdrake-death', gain: 0.3 } },
   d2_warflame: { minionPlayed: { def: 'sfx-vo-d2-warflame', gain: 0.3 }, death: { def: 'sfx-vo-d2-warflame-death', gain: 0.3 } },
   d2_flutterdrake: { minionPlayed: { def: 'sfx-vo-d2-flutterdrake', gain: 0.3 }, death: { def: 'sfx-vo-d2-flutterdrake-death', gain: 0.3 } },
   d2_ascendant: { minionPlayed: { def: 'sfx-vo-d2-ascendant', gain: 0.3 }, death: { def: 'sfx-vo-d2-ascendant-death', gain: 0.3 } },
@@ -405,7 +406,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   b2_dawnclaw: { minionPlayed: { def: 'sfx-vo-b2-dawnclaw', gain: 0.3 }, death: { def: 'sfx-vo-b2-dawnclaw-death', gain: 0.3 } },
   b2_packstrider: { minionPlayed: { def: 'sfx-vo-b2-packstrider', gain: 0.3 }, death: { def: 'sfx-vo-b2-packstrider-death', gain: 0.3 } },
   b2_bullseye: { minionPlayed: { def: 'sfx-vo-b2-bullseye', gain: 0.3 }, death: { def: 'sfx-vo-b2-bullseye-death', gain: 0.3 } },
-  b2_beardsley: { minionPlayed: { def: 'sfx-vo-b2-beardsley', gain: 0.3 }, death: { def: 'sfx-vo-b2-beardsley-death', gain: 0.3 } },
+  b2_beardsley: { minionBuffed: { def: 'beast-buff-bite' }, watcher: { def: 'beast-buff-bite-watcher' }, buffWave: { def: 'beast-buff-bite', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-vo-b2-beardsley', gain: 0.3 }, death: { def: 'sfx-vo-b2-beardsley-death', gain: 0.3 } },
   b2_wolvie: { minionPlayed: { def: 'sfx-vo-b2-wolvie', gain: 0.3 }, death: { def: 'sfx-vo-b2-wolvie-death', gain: 0.3 } },
   b2_armadiyo: { minionPlayed: { def: 'sfx-vo-b2-armadiyo', gain: 0.3 }, death: { def: 'sfx-vo-b2-armadiyo-death', gain: 0.3 } },
   b2_voidmother: { minionPlayed: { def: 'sfx-vo-b2-voidmother', gain: 0.3 }, death: { def: 'sfx-vo-b2-voidmother-death', gain: 0.3 } },
@@ -421,6 +422,17 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   n2_echomimic: { minionPlayed: { def: 'sfx-vo-n2-echomimic', gain: 0.3 }, death: { def: 'sfx-vo-n2-echomimic-death', gain: 0.3 } },
   n2_abomination: { minionPlayed: { def: 'sfx-vo-n2-abomination', gain: 0.3 }, death: { def: 'sfx-vo-n2-abomination-death', gain: 0.3 } },
   n2_reflector: { minionPlayed: { def: 'sfx-vo-n2-reflector', gain: 0.3 }, death: { def: 'sfx-vo-n2-reflector-death', gain: 0.3 } },
+  // On Sell (R-FX-SELL-01): every Sell-medallion card plays the owner's `sell` def as it is sold.
+  hoardwhelp: { sell: { def: 'sell' } },
+  k3_gramps: { sell: { def: 'sell' } },
+  dw3_kegrunner: { sell: { def: 'sell' } },
+  dw3_salezarsails: { sell: { def: 'sell' } },
+  n3_goldenmonkey: { sell: { def: 'sell' } },
+  sp3_flamereveler: { sell: { def: 'sell' } },
+  sp3_tidereveler: { sell: { def: 'sell' } },
+  sp3_grovereveler: { sell: { def: 'sell' } },
+  ce3_coronadevotee: { sell: { def: 'sell' } },
+  quicksale: { sell: { def: 'sell' } }, // Quick Sale: on the unit whose sale cashes its bonus Gold
 };
 
 /** Bindings that FAN OUT rather than playing once at the moment's own pair. `attackExchange` is in here for a
@@ -526,7 +538,7 @@ describe('binding integrity', () => {
     // design (see `HudBindingKind` / `StatMilestoneBindingKind`).
     const kinds = new Set<string>([
       ...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS, ...STAT_MILESTONE_BINDING_KINDS,
-      ...ATTACK_HIT_MILESTONE_BINDING_KINDS, ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS,
+      ...ATTACK_HIT_MILESTONE_BINDING_KINDS, ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS, ...SHOP_ACTION_BINDING_KINDS,
     ]);
     const t = effectiveTables();
     const bad: string[] = [];

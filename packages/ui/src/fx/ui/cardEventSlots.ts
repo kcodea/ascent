@@ -1,5 +1,7 @@
 import { ALE_WATCHER_ID } from '../../choreo/aleWatcher';
 import { isEpicUnit } from '../../epicMedallion';
+import { boostsNextSell, hasSellMedallion } from '../../sellMedallion';
+import { hasOwnBuffFx } from '../../choreo/buffWatcher';
 import { WARD_GIVING_EFFECTS } from '../../choreo/channels/wardGiven';
 import { CARD_INDEX } from '@game/content';
 import type { BindingKind } from '../../choreo/bindings';
@@ -75,7 +77,7 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // 'watcher')` on each reacting unit, so the row is keyed to that.
     // Edward Keg-hands (`dw_edward`) watches ALES instead: his row plays on his card each time an Ale he
     // multiplies is cast from hand (`fireAleWatchers` in Recruit.tsx). His rule lives in `spellCasts`, not an effect.
-    kindFor: (card) => (!card.spell && ((hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL')) || card.cardId === ALE_WATCHER_ID || isEpicUnit(card.cardId)) ? 'watcher' : null),
+    kindFor: (card) => (!card.spell && ((hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL')) || card.cardId === ALE_WATCHER_ID || isEpicUnit(card.cardId) || hasOwnBuffFx(card.cardId)) ? 'watcher' : null),
   },
   {
     id: 'startOfCombat',
@@ -116,5 +118,12 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // A `chooseOne` card. Fired in the recruit phase as the branch is picked, keyed by this card (see
     // `chooseOneMoment`). Distinct from On Play, which also fires as the card lands.
     kindFor: (card) => (hasChooseOne(card) ? 'chooseOne' : null),
+  },
+  {
+    id: 'sell',
+    label: 'On Sell',
+    blurb: 'Plays where you let go of this minion as you sell it in the Shop (Sell medallion or Sell: effect). On Quick Sale: plays on the minion whose sale cashes its bonus Gold.',
+    // Fired by the Shop’s `sold` presentation (Recruit.tsx), keyed by the sold card (R-FX-SELL-01).
+    kindFor: (card) => ((!card.spell && (hasSellMedallion(card.cardId) || hasEffectOn(card, 'onSell'))) || boostsNextSell(card.cardId) ? 'sell' : null),
   },
 ];

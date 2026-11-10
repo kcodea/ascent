@@ -11,7 +11,7 @@ import { revealedForShown } from '../fx/statHold';
  * `k` fires `k * SOURCE_CASCADE_MS` later. Every cast from one source shares its rank, so a minion buffing
  * several units still fires at all of them together (a def's own per-recipient `stagger` still applies).
  */
-export const SOURCE_CASCADE_MS = 200; // owner: 200 → 400 (2026-09-24) → back to 200 (2026-09-25)
+export const SOURCE_CASCADE_MS = 90; // owner: 200 → 400 (2026-09-24) → back to 200 (2026-09-25) → 90 (2026-11-09)
 
 export function sourceCascadeRanks<C extends { source: string }>(
   casts: readonly C[],

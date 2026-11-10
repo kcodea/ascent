@@ -6,6 +6,8 @@ import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
 import { publicArt } from './phoneArt';
+import { CountdownTail } from './versus/countdownBeat';
+import { useDuosViewingClass } from './duosViewing';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
@@ -69,6 +71,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
    *  ready glow, and a press takes the signal back. */
   readyOn?: boolean;
 }) {
+  const mateView = useDuosViewingClass(); // dimmed while I watch my Duos teammate (duosViewing.ts)
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLButtonElement>(null);
   const pressedRef = useRef(pressed);
@@ -296,7 +299,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
     <button
       ref={wrapRef}
       data-spec="endturn"
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}${readyOn && !combatReady && !skipReady ? ' readyon' : ''}${mateView}`}
       disabled={disabled}
       onClick={click}
       aria-pressed={readyOn && !combatReady && !skipReady ? true : undefined}
@@ -337,7 +340,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
       {skipFlash && <img decoding="sync" className="etb-flash skipflash" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} aria-hidden="true" />}
       {relighting && <img decoding="sync" className="etb-flash relight" src={publicArt(`frames/end_button_base.webp`)} alt="" draggable={false} aria-hidden="true" />}
-      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (skipReady ? 'Skip Combat' : combatReady ? 'End combat and go back to shop' : label ?? 'End your turn and start combat')}</span>
+      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (skipReady ? 'Skip Combat' : combatReady ? 'End combat and go back to shop' : label ?? 'End your turn and start combat')}{note ? <CountdownTail /> : null}</span>
     </button>
   );
 });

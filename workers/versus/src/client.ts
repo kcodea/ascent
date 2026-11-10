@@ -48,6 +48,13 @@ export type WebSocketFactory = (url: string, protocols: string[]) => WebSocketLi
  * as it comes back) sat half-open for good: never ready, never replaced, every request timing out behind it.
  */
 export const VERSUS_CF_HANDSHAKE_MS = 8_000;
+/**
+ * How long a PROBE waits for any frame before the socket is treated as dead (R-VERSUS-CF-PROBE-01, netcode audit F11).
+ * A probe is one ping sent NOW, when something says the socket may have died unseen: the tab is visible again, the
+ * network is back, or the keep-alive timer fired late (a frozen or throttled tab). A healthy room answers a ping in one
+ * round trip; 2 s covers a slow phone link and is far inside the 15 s the keep-alive alone would take.
+ */
+export const VERSUS_CF_PROBE_MS = 2_000;
 
 export class VersusCfError extends Error {
   constructor(public readonly code: string) {
@@ -80,7 +87,8 @@ export interface VersusCfClientOptions {
    * a dropped socket) would otherwise retry for ever and the caller's promise would never settle. Unset: no deadline.
    */
   connectTimeoutMs?: number;
-  /** Calls `fn` whenever the device's network comes back (the browser's `online` event); returns an unsubscribe. */
+  /** Calls `fn` whenever the socket should be checked: the device's network is back (the browser's `online` event) or
+   *  the tab is on screen again. A socket that is down reconnects at once; a live one is probed. Returns an unsubscribe. */
   wake?: (fn: () => void) => () => void;
   /** Timer hooks (tests). */
   setTimer?: (fn: () => void, ms: number) => unknown;
@@ -122,6 +130,9 @@ export class VersusCfClient {
   /** The pending reconnect (cleared when a wake reconnects first). */
   private retryTimer: unknown = null;
   private unwake: (() => void) | null = null;
+  /** Why this socket will not reconnect by itself (a fatal close: replaced, version mismatch, ...). Null = it will. */
+  private dead: string | null = null;
+  private probeTimer: unknown = null;
 
   constructor(private readonly o: VersusCfClientOptions) {
     this.setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
@@ -132,10 +143,16 @@ export class VersusCfClient {
     return this.ready;
   }
 
+  /** Why the socket is closed for good (null while it is open, connecting or retrying). */
+  get deadReason(): string | null {
+    return this.dead;
+  }
+
   /** Open the socket (resolves after the hello, rejects when the room refuses for good). */
   connect(): Promise<void> {
     this.closed = false;
-    if (!this.unwake && this.o.wake) this.unwake = this.o.wake(() => this.reconnectNow());
+    this.dead = null;
+    if (!this.unwake && this.o.wake) this.unwake = this.o.wake(() => this.probe());
     return new Promise<void>((resolve, reject) => {
       let timer: unknown = null;
       const done = (): void => { if (timer != null) this.clearTimer(timer); timer = null; };
@@ -161,6 +178,10 @@ export class VersusCfClient {
   /** One request. Rejects with the server's error code (`VersusCfError`). */
   request<T = unknown>(op: VersusCfOp | LiveOp, args: Record<string, unknown> = {}): Promise<T> {
     if (this.closed) return Promise.reject(new VersusCfError('closed'));
+    // A socket closed for good answers at once with why (R-VERSUS-CF-DEAD-01). Before, every call after a fatal close
+    // (this account opened the game somewhere else) was queued behind a socket that would never reopen and timed out
+    // 15 s later, one after another, with nothing on screen.
+    if (this.dead) return Promise.reject(new VersusCfError(this.dead));
     const id = this.nextId++;
     const frame = JSON.stringify({ t: 'req', id, op, args });
     return new Promise<T>((resolve, reject) => {
@@ -178,9 +199,42 @@ export class VersusCfClient {
     if (this.ready) this.raw(JSON.stringify({ t: 'bc', event, payload }));
   }
 
+  /**
+   * Open the socket again after a fatal close (R-VERSUS-CF-DEAD-01: "Play here" on a game that was opened somewhere
+   * else; the room then closes the OTHER socket as replaced). A socket that is open or already reconnecting is left alone.
+   */
+  reclaim(): Promise<void> {
+    if (this.ws || this.retryTimer != null) return Promise.resolve();
+    this.attempt = 0;
+    return this.connect();
+  }
+
+  /**
+   * IS THE SOCKET REALLY THERE? (R-VERSUS-CF-PROBE-01.) Down and waiting out its backoff: reconnect now. Open: send one
+   * ping and, if NO frame at all arrives within `VERSUS_CF_PROBE_MS`, drop it and reconnect. A phone back from the home
+   * screen, or a laptop back from sleep, otherwise showed a live-looking game on a dead socket until the next keep-alive
+   * tick found it (up to 5 s, then the handshake).
+   */
+  probe(): void {
+    if (this.closed || this.dead) return;
+    if (!this.ws) { this.reconnectNow(); return; }
+    if (!this.ready || this.probeTimer != null) return; // connecting: the handshake watchdog owns it
+    const ws = this.ws;
+    const seen = this.stats.msgsIn;
+    this.stats.pings += 1;
+    this.raw(VERSUS_CF_PING);
+    this.probeTimer = this.setTimer(() => {
+      this.probeTimer = null;
+      if (this.ws !== ws || this.stats.msgsIn !== seen) return;
+      this.downCurrent?.(4001, 'stale');
+      try { ws.close(4001, 'stale'); } catch { /* already gone */ }
+    }, VERSUS_CF_PROBE_MS);
+  }
+
   close(): void {
     this.closed = true;
     this.ready = false;
+    if (this.probeTimer != null) { this.clearTimer(this.probeTimer); this.probeTimer = null; }
     this.unwake?.();
     this.unwake = null;
     if (this.retryTimer != null) { this.clearTimer(this.retryTimer); this.retryTimer = null; }
@@ -300,13 +354,19 @@ export class VersusCfClient {
       this.ws = null;
       this.ready = false;
       if (this.pingTimer != null) { this.clearTimer(this.pingTimer); this.pingTimer = null; }
+      if (this.probeTimer != null) { this.clearTimer(this.probeTimer); this.probeTimer = null; }
       // A request that was on the wire may or may not have landed: resend it after the reconnect (every op is
       // idempotent or fenced by seq/round on the server, as the SQL RPCs were).
       for (const p of this.pending.values()) p.sent = false;
       const fatal = code === VERSUS_CF_CLOSE.versionMismatch || code === VERSUS_CF_CLOSE.roomClosed || code === VERSUS_CF_CLOSE.unauthorized
         || code === VERSUS_CF_CLOSE.replaced || code === VERSUS_CF_CLOSE.refused;
       if (this.closed || fatal) {
-        this.o.onStatus?.('dead', reason ?? String(code));
+        // Named by the close CODE (a browser may hand over an empty reason); a refusal keeps the room's own reason.
+        if (!this.closed) {
+          this.dead = code === VERSUS_CF_CLOSE.replaced ? 'replaced' : code === VERSUS_CF_CLOSE.versionMismatch ? 'version_mismatch'
+            : code === VERSUS_CF_CLOSE.unauthorized ? 'unauthorized' : code === VERSUS_CF_CLOSE.roomClosed ? 'room_closed' : reason || 'refused';
+        }
+        this.o.onStatus?.('dead', reason || String(code));
         for (const [id, p] of this.pending) { this.clearTimer(p.timer); p.reject(new VersusCfError(reason || 'closed')); this.pending.delete(id); }
         this.failWaiters(reason || 'closed');
         return;
@@ -323,9 +383,14 @@ export class VersusCfClient {
 
   private schedulePing(): void {
     if (this.pingTimer != null) this.clearTimer(this.pingTimer);
+    const due = Date.now() + VERSUS_CF_PING_MS;
     this.pingTimer = this.setTimer(() => {
       this.pingTimer = null;
       if (!this.ready || !this.ws) return;
+      // THE TIMER ITSELF WAS LATE (a frozen tab, a background tab throttled to one timer a minute, a long main-thread
+      // stall): the silence is this client's, not the socket's, so a healthy socket is not dropped for it. It is probed
+      // instead: one ping, and only no answer drops it (R-VERSUS-CF-PROBE-01).
+      if (Date.now() - due > VERSUS_CF_PING_MS) { this.schedulePing(); this.probe(); return; }
       if (Date.now() - this.lastPong > VERSUS_CF_STALE_MS) {
         // Dead socket (no FIN ever came): drop it and reconnect now.
         const ws = this.ws;

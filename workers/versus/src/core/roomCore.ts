@@ -44,7 +44,7 @@ import {
 } from '@game/sim/versus/server';
 import type { SetId } from '@game/content';
 import { DISCONNECT_GRACE_MS, GroupEngine, GSEATS, newGroupState, teamSeats, teamOf, type GPass, type GroupHost, type GroupState, type GSeat } from './groupMatch';
-import { rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
+import { RANKED_AWAY_GRACE_MS, rankedExtra, RankedEngine, type RankedHost, type RankedService } from './rankedMatch';
 export { fitFinishRow, rankedFinishWire, RANKED_FINISH_BUDGET, wireSeat } from './rankedMatch';
 
 export type Seat = 'p1' | 'p2';
@@ -558,16 +558,32 @@ export class RoomCore {
     this.fx.events.push({ kind, round: this.state.match?.round ?? this.state.group?.match.round ?? 0, ...(detail ? { detail } : {}) });
   }
 
-  /** `userId` holds no open socket any more (its last one closed or went stale). */
-  disconnect(userId: string, now: number): CoreEffects {
+  /**
+   * `userId` holds no open socket any more (its last one closed or went stale). `silentFor`: how long the socket had
+   * ALREADY been silent when the room noticed (a stale socket: no keep-alive for 15 s, `staleSilenceCredit`); the seat
+   * counts as gone from that much earlier, so a silent drop is not given a second full reconnect grace on top of the
+   * 15 s it took to notice (R-RANKED-DUOS-AWAY-GRACE-01). A clean close passes nothing: gone from now.
+   */
+  disconnect(userId: string, now: number, silentFor = 0): CoreEffects {
     this.begin(now);
     this.sockets.delete(userId);
     const m = this.member(userId);
     if (m && m.disconnectedAt == null) {
-      m.disconnectedAt = now;
+      m.disconnectedAt = now - Math.max(0, silentFor);
       this.touchRoom();
     }
     return this.end();
+  }
+
+  /**
+   * What a STALE socket's 15 s of silence counts for (R-RANKED-DUOS-AWAY-GRACE-01). Ranked Duos waits
+   * `RANKED_AWAY_GRACE_MS` (12 s) before a seat is away, so a clean drop can reconnect; a socket found stale has been
+   * silent longer than that whole grace already. It is credited all of it but the room's own 3 s socket grace, so the
+   * seat is away 3 s after the room notices, exactly as before the longer grace (15 + 3 s, not 15 + 12 s). Every other
+   * mode: nothing (their pause timing is unchanged).
+   */
+  staleSilenceCredit(): number {
+    return this.ranked ? Math.max(0, RANKED_AWAY_GRACE_MS - DISCONNECT_GRACE_MS) : 0;
   }
 
   /** After a wake from hibernation or a restart: which users still hold sockets. A member with none starts its grace now. */

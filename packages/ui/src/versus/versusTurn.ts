@@ -140,15 +140,16 @@ export const versusTurnHolds = (t: VersusTurn): boolean => t.kind === 'locked' |
  *  LIVE READY (R-VERSUS-READY-02, owner 2026-10-27: "maybe we modify the end turn gem for 'live' games where it is a
  *  'ready' status that the player can toggle on/off"): `cancellable` (the clock is above 0:00, so a press takes the
  *  signal back) says so on the pill; `overtime` (Ranked Duos past 0:00, where the round waits for both teammates) names
- *  the teammate instead of a count. */
-export const versusTurnNote = (t: VersusTurn, secondsLeft = 0, opts: { cancellable?: boolean; overtime?: boolean } = {}): string | null =>
+ *  the teammate instead of a count. `bare`: the opponent-ready pill without its seconds (the countdown beat draws
+ *  them after it, off React: versus/countdownBeat.tsx). */
+export const versusTurnNote = (t: VersusTurn, secondsLeft = 0, opts: { cancellable?: boolean; overtime?: boolean; bare?: boolean } = {}): string | null =>
   // RANKED DUOS (lead 2026-10-26): after End Combat the pills name the teammate.
   t.kind === 'fightReady' && t.mate && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
     : t.kind === 'ready' && t.mate && opts.overtime && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
     : t.kind === 'ready' && opts.cancellable ? `Ready ${t.ready}/${t.of ?? 2}. Press again to cancel`
     : t.kind === 'shop' && t.mate && opts.overtime && (t.ready ?? 0) > 0 ? `${t.mate} is ready`
     : t.kind === 'locked' || t.kind === 'ready' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
-    : t.kind === 'foeReady' ? `${t.mate ?? (t.of && t.of > 2 ? 'Everyone else' : 'Opponent')} is ready · ${Math.max(0, secondsLeft)}s` : null;
+    : t.kind === 'foeReady' ? `${t.mate ?? (t.of && t.of > 2 ? 'Everyone else' : 'Opponent')} is ready${opts.bare ? '' : ` · ${Math.max(0, secondsLeft)}s`}` : null;
 /** LIVE READY (R-VERSUS-READY-02): the gem's hover label in a live game while I am not ready ("Ready up", with how many
  *  of the others are when any are). */
 export const versusReadyLabel = (t: VersusTurn): string | null =>

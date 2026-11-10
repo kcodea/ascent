@@ -106,9 +106,14 @@ const DEFAULTS: ChoreoConfig = {
   dmg: 460, shield: 460, wardDowngrade: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   pummelTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
   bankedCast: 620, // ×speed 1.5 ≈ 930ms: the cast preview fades in (150) and lingers before the effect behind it lands
-  boardFallen: 380, // ×speed 1.5 ≈ 570ms: the last death settles and the "steps in" plate rises
+  boardFallen: 380, // ×speed 1.5 ≈ 570ms: the last death settles, THEN the fallen beat shows (its low hit, veil and dim: channels/duosHandoff.ts)
   teamSend: 0, // a network marker (the gift ships to the teammate), never a pause
-  tagIn: 640, // ×speed 1.5 ≈ 960ms: seven bodies fly in on a 60 ms stagger (the CSS fly-in is 0.52 s) and land
+  // A hold is the wait BEFORE its beat shows. So this is how long the FALLEN board is read before the reserve starts
+  // to fly in: 290 ×speed 1.5 = 435 ms, the fallen dim's own length. It was 640 (960 ms), sized for the fly-in, but a
+  // lead-in cannot cover what comes after it: that 960 ms was dead air and the fly-in itself got only the next beat's
+  // 240 to 360 ms. The 525 ms taken off here is what the clock now holds AFTER the tag-in until the entrance has
+  // landed (`clock.ts`, at most 880 - 360 = 520 ms more), so a fight is never longer (R-DUOS-HANDOFF-BEAT-01).
+  tagIn: 290,
   flyIn: 640, // = tagIn: the same entrance, so the same hold (the bodies land before the damage formation reads them)
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,

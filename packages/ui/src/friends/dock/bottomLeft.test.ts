@@ -4,7 +4,8 @@
  * list"). `blAnchor` picks the row's place per screen from what is on it; these pin each screen's rule.
  */
 import { describe, expect, it } from 'vitest';
-import { BL_EDGE, BL_GAP, BL_PAGE_SHARE, blAnchor } from './bottomLeft';
+import { BL_EDGE, BL_GAP, BL_PAGE_SHARE, blAnchor, screenKey } from './bottomLeft';
+import { useGame } from '../../store';
 
 const stage = { left: 0, top: 0, width: 1920, height: 1080 };
 const id = (v: number): number => v;
@@ -36,5 +37,26 @@ describe('blAnchor: where the bottom-left row sits', () => {
     expect(blAnchor({ settings: box(0, 0, 0, 0), titleFoot: null, hero: null, gear }, stage, id)).toBeNull(); // a hidden sidebar
     const half = blAnchor({ settings: null, titleFoot: box(18, 520, 220, 11), hero: null, gear: box(930, 512, 20, 20) }, { left: 0, top: 0, width: 960, height: 540 }, (v) => v * 2)!;
     expect(half).toEqual({ screen: 'title', l: 36, b: 40 + BL_GAP, cb: 40 });
+  });
+});
+
+// Perf, the Duos audit of 2026-11-09: the run's id was part of the key, so the Duos teammate-view swap (my run out, my
+// teammate's in, the same game screen) re-measured the row inside the swap's own commit: a forced layout of the whole new
+// screen (11 ms a swap on desktop, 190 ms on the throttled phone profile).
+describe('screenKey: what counts as a screen change for the row', () => {
+  const st = useGame.getState();
+  it('a run swap alone is not a screen change (no measuring inside the teammate-view swap)', () => {
+    const mine = screenKey({ ...st, showTitle: false, run: { ...st.run, runId: 'mine' } } as never);
+    const mates = screenKey({ ...st, showTitle: false, run: { ...st.run, runId: 'spectate:m:p2' } } as never);
+    expect(mates).toBe(mine);
+  });
+  it('the title, the in-game menu and hero select still are', () => {
+    const keys = [
+      { ...st, showTitle: false, gameMenuOpen: false, heroChoices: null },
+      { ...st, showTitle: true, gameMenuOpen: false, heroChoices: null },
+      { ...st, showTitle: false, gameMenuOpen: true, heroChoices: null },
+      { ...st, showTitle: false, gameMenuOpen: false, heroChoices: ['a'] },
+    ].map((s) => screenKey(s as never));
+    expect(new Set(keys).size).toBe(4);
   });
 });

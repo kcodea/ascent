@@ -616,7 +616,7 @@ export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], pr
       if (!held) continue;
       const out = (nextView as { duos?: { outbox?: { card?: { uid?: string }; paid?: number }[] } }).duos?.outbox ?? [];
       const entry = [...out].reverse().find((e) => e.card?.uid === a.uid);
-      if (playWatchedDragPass(a.uid, { face, rect: held.rect }, (entry?.paid ?? 1) > 0)) { heldPassShown.set(a.uid, nowMs()); sfx.sell?.(); }
+      if (playWatchedDragPass(a.uid, { face, rect: held.rect }, (entry?.paid ?? 1) > 0)) heldPassShown.set(a.uid, nowMs()); // (its send cue plays inside `playDrop`)
       return true;
     }
     const held = takeLanding(a.uid);
@@ -656,7 +656,7 @@ function watchedPassFlights(cur: RunState, next: RunState): (() => void) | null 
       const shown = heldPassShown.get(e.card.uid);
       heldPassShown.delete(e.card.uid);
       if (shown != null && now - shown < 3000) continue;
-      if (playWatchedDragPass(e.card.uid, null, (e.paid ?? 1) > 0)) sfx.sell?.();
+      playWatchedDragPass(e.card.uid, null, (e.paid ?? 1) > 0); // its send cue plays inside `playDrop`
       continue;
     }
     playEntryFlight(e, cur, cur.runId);

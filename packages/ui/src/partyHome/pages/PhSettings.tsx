@@ -27,7 +27,7 @@ import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from '.
 import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from '../../announcer';
 import { getMasterVolume, isMasterMuted, setMasterVolume, toggleMasterMute } from '../../audio/master';
 import { inGameScreen, useGame } from '../../store';
-import { leaveGame, leaveKindOf, settingsLeaveText } from '../../gameMenuParts';
+import { concedeAreaOf, leaveGame, leaveKindOf, settingsLeaveText } from '../../gameMenuParts';
 import { useVersus } from '../../versus/versusStore';
 import { useSpectate } from '../../versus/spectate';
 import { isWatchingLive } from '../../live/liveWatch';
@@ -128,7 +128,8 @@ function LeaveMatchRow() {
     const t = window.setTimeout(() => setArmed(false), 4000);
     return () => window.clearTimeout(t);
   }, [armed]);
-  const text = settingsLeaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over);
+  const area = useVersus((s) => concedeAreaOf(s.match));
+  const text = settingsLeaveText(kind, godMode, kind === 'watch' && isWatchingLive(), over, area);
   return (
     <ButtonRow label={text.label} note={text.note}
       button={<PhButton variant="primary" size="l" className={armed ? 'phs-quit armed' : 'phs-quit'}

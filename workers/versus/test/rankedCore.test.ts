@@ -10,7 +10,7 @@ import { HEROES, type PreparedCombatSide } from '@game/sim';
 import { engineContentRevision, VERSUS_HERO_SELECT_SECONDS, VERSUS_PROTOCOL } from '@game/sim/versus/server';
 import { parseDuosHistory } from '@game/sim/versus/duosHistory';
 import { DISCONNECT_GRACE_MS, newRoomState, RoomCore, turnSeconds, type CoreDeps, type CoreEffects, type CoreState } from '../src/core/roomCore';
-import { memberBoard, RANKED_DEAL_FALLBACK_MS, type RankedService } from '../src/core/rankedMatch';
+import { memberBoard, RANKED_AWAY_GRACE_MS, RANKED_DEAL_FALLBACK_MS, type RankedService } from '../src/core/rankedMatch';
 import { LocalRankedService } from '../src/rankedService';
 import { stateFromEntries, valueOfKey } from '../src/core/storage';
 
@@ -138,6 +138,9 @@ describe('Ranked Duos room (Cloudflare) — absence, leaving, the end', () => {
     h.core.disconnect(U2, h.now);
     await h.advance(DISCONNECT_GRACE_MS);
     expect(h.g.paused_at).toBeNull();
+    // A short drop is not an absence (R-RANKED-DUOS-AWAY-GRACE-01): away only after the reconnect grace.
+    expect(h.g.seats.find((s) => s.seat === 'p2')!.auto).toBe(false);
+    await h.advance(RANKED_AWAY_GRACE_MS - DISCONNECT_GRACE_MS);
     expect(h.g.seats.find((s) => s.seat === 'p2')!.auto).toBe(true);
     await lock(h, U1, STRONG);
     expect(h.g.phase).toBe('combat'); // an auto seat counts as ended

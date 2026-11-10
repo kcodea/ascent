@@ -8,7 +8,7 @@ import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
 import { useGame } from './store';
 import { perfMonitor } from './perfMonitor';
-import { liveCombatSpeed } from './floatConfig';
+import { isSpeedTimedAnim, liveCombatSpeed } from './floatConfig';
 import type { UnitFrame } from './useCombatReplay';
 
 /* Floats (damage numbers, keyword glyphs) used to render HERE, as siblings of the `<Card>`. They now live in
@@ -47,7 +47,8 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   // A death / Rise / Rebirth animation is timed by `--combat-speed` (styles.css). Stamp the LIVE speed on the
   // unit as it starts, rather than the auto-ramp writing :root every frame (floatConfig.ts "The LIVE speed").
-  const speedTimed = !!anim && /(dying|reborn|rebirthing)/.test(anim);
+  // The Duos fly-in (`tagin`) too (R-DUOS-HANDOFF-BEAT-01). Which animations: `isSpeedTimedAnim`.
+  const speedTimed = isSpeedTimedAnim(anim);
   const unitStyle: CSSProperties | undefined = u.ghost || speedTimed
     ? { ...(u.ghost ? { visibility: 'hidden' } : null), ...(speedTimed ? { '--combat-speed': String(liveCombatSpeed()) } : null) } as CSSProperties
     : undefined;

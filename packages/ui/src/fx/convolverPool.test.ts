@@ -4,7 +4,7 @@
  * impulse reuses it (buffer already set). Loops and untimed plays never pool.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONVOLVER_POOL_MAX, buildAudioFilterChain, prewarmConvolvers, reverbSpecsOf } from './audioFilters';
+import { CONVOLVER_POOL_MAX, buildAudioFilterChain, prewarmConvolvers, reverbImpulse, reverbImpulseSteps, reverbSpecsOf } from './audioFilters';
 
 interface Node { kind: string; buffer: unknown; normalize: boolean; gain: { value: number; setValueCurveAtTime(): void }; connect(d: Node): Node; disconnect(d?: Node): void }
 function fakeContext() {
@@ -97,6 +97,44 @@ describe('reverb prewarm', () => {
     expect(made()).toBe(2);
     buildAudioFilterChain(a, reverb, { t0: 0, durSec: 0.5, oneShot: true });
     buildAudioFilterChain(a, reverb, { t0: 0, durSec: 0.5, oneShot: true });
+    expect(made()).toBe(2);
+    expect(set()).toBe(2);
+  });
+});
+
+// Perf, the Duos audit of 2026-11-09: the idle pre-warm used to fill a whole multi-second impulse in ONE idle callback
+// (13 to 33 ms tasks behind the first click of a session). It is filled a few ms at a time now.
+describe('the reverb impulse is pre-built in slices', () => {
+  it('each step stops at its budget, the last one caches the impulse, and a fire then reuses that same buffer', () => {
+    const { a } = fakeContext();
+    let t = 0;
+    const clock = (): number => (t += 1); // every look at the clock is 1 ms later: a step fills two slices at most
+    const step = reverbImpulseSteps(a, 3.3, 0.21, 2, clock);
+    let steps = 0;
+    while (!step()) { steps++; expect(steps).toBeLessThan(1000); }
+    expect(steps).toBeGreaterThan(5); // 3.3 s x 2 channels at 48 kHz is some 39 slices: never one go
+    const ir = reverbImpulse(a, 3.3, 0.21) as unknown as { length: number };
+    expect(ir.length).toBe(Math.floor(48000 * 3.3));
+    expect(reverbImpulse(a, 3.3, 0.21)).toBe(ir); // cached under the same key a fire asks for
+    expect(step()).toBe(true); // done stays done
+  });
+
+  it('a fire that needs the impulse before the slices finish builds it whole, and the steps then just end', () => {
+    const { a } = fakeContext();
+    let t = 0;
+    const step = reverbImpulseSteps(a, 2.7, 0.33, 2, () => (t += 1));
+    expect(step()).toBe(false);
+    const whole = reverbImpulse(a, 2.7, 0.33);
+    expect(step()).toBe(true);
+    expect(reverbImpulse(a, 2.7, 0.33)).toBe(whole); // the fire's buffer is kept, never replaced by the slices'
+  });
+
+  it('the pre-warm builds its nodes after the sliced impulse, never inside the caller', () => {
+    vi.useFakeTimers();
+    const { a, made, set } = fakeContext();
+    prewarmConvolvers(a, [{ size: 1.7, damping: 0.4 }], 2);
+    expect(made()).toBe(0); // nothing inside the caller's task
+    vi.advanceTimersByTime(2000);
     expect(made()).toBe(2);
     expect(set()).toBe(2);
   });

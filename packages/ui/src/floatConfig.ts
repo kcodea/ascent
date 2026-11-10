@@ -193,6 +193,20 @@ export function liveCombatSpeed(): number {
   return live;
 }
 
+/**
+ * Does a combat unit's animation class (`anim`, e.g. `dying dr`, `reborn rebirthing`, `tagin tagi-2`) run on
+ * `--combat-speed`? Those units get the live speed stamped on them as the animation starts (Unit.tsx).
+ *
+ * A FUNCTION WITH A TEST, because the inline regex this replaces was silently dead from 2026-10-11 to 2026-11-10: its
+ * two word boundaries had been written into Unit.tsx as literal BACKSPACE characters (0x08), which no class string
+ * contains, so it never matched and no unit was ever stamped. (Hence a word set here, with no escape to lose.) Deaths, Rises and Rebirths ran at the BASE speed while
+ * the auto-ramp and the Skip raced ahead of them (found while making the Duos fly-in speed-true).
+ */
+const SPEED_TIMED_ANIMS: ReadonlySet<string> = new Set(['dying', 'reborn', 'rebirthing', 'tagin']);
+export function isSpeedTimedAnim(anim: string | null | undefined): boolean {
+  return !!anim && anim.split(' ').some((c) => SPEED_TIMED_ANIMS.has(c));
+}
+
 /** The speed-scaled custom properties for an element that STARTS an animation now, at speed `spd` (default: the
  *  live speed): the same values `applyFloatConfig` would have pushed to :root at that speed. */
 export function speedVars(spd: number = live): Record<string, string> {

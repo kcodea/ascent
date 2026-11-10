@@ -279,6 +279,8 @@ export interface VersusDuosPassRow {
   card: Record<string, unknown>;
   /** 'sent' until the receiver's run answers: 'landed', or 'refused' (its hand was full). */
   status: 'sent' | 'landed' | 'refused';
+  /** Why the ROOM refused it, when the room did (R-DUOS-PASS-EXPIRE-01): `teammate_away` = it expired unanswered. */
+  reason?: string;
   /** When the server recorded it: a reload replays the round's passes in this order (passing back, 2026-10-25). */
   created_at?: string;
 }
@@ -689,6 +691,8 @@ export const versusRemote: VersusRemote = makeCfVersusRemote({
   whyUnreachable: import.meta.env.DEV && !devCf ? () => devWorkerMissing() : undefined,
   // The Supabase-held records (a Duos team's name and ranked result, the leaderboard) are read where they live.
   records: makeVersusRecords(supabaseClient),
+  // The player's own socket: its state feeds the connection status on screen (R-VERSUS-LINK-STATUS-01).
+  reportLink: true,
 });
 /** The Worker this tab plays Versus on (the dev test bots join the same one). */
 export const versusWorkerUrl = (): string => cfUrl;

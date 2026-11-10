@@ -2893,6 +2893,362 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
+    id: "R-ANCUNDER-01",
+    title: "Underdweller × Ancient of Death: a Soulkeeper minion with an Echo gains Rise",
+    statement:
+      "With the Ancient of Death, the minion picked from a Soulkeeper Discover gains Rise when it has an Echo, permanently. A pick without an Echo does not.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Death: Soulkeeper minions with an Echo gain Rise." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts soulkeeperEchoGainsRise / ancientMarkSoulkeeperDiscover / ancientOnDiscoverTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCUNDER-02",
+    title: "Underdweller × Ancient of Fortune: Soulkeeper costs 0 Gold",
+    statement:
+      "With the Ancient of Fortune, Soulkeeper costs 0 Gold (the pairing's power override). It is still once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Fortune: Soulkeeper costs 0 Gold." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.underdweller.fortune (power: { cost: 0 })" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCUNDER-03",
+    title: "Underdweller × Ancient of War: a Soulkeeper minion keeps the stats and keywords it died with",
+    statement:
+      "With the Ancient of War, every true death of a fight (both sides) is recorded as the body died: its Attack, its max Health and its keywords. "
+      + "A Soulkeeper pick arrives with the first recorded body of its card: that Attack, that Health and those keywords, on a plain (never Gilded) card. "
+      + "A Rise or Rebirth the body had already spent is not handed back. A fight fought before War was picked has no record, so its picks are the plain card.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "War: Soulkeeper minions keep the stats and keywords they died with." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts deathWatchers (ancientGraves); packages/sim/src/ancients.ts soulkeeperOnTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCUNDER-04",
+    title: "Underdweller × Ancient of Genesis: Soulkeeper also gives a plain copy of a minion not picked",
+    statement:
+      "With the Ancient of Genesis, after the Soulkeeper pick lands, a plain copy of one of the other options (random, seeded) also arrives: hand first, the board when the hand is full. A single option gives nothing extra.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Genesis: Soulkeeper also gets a plain copy of a minion you didn’t pick." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts soulkeeperExtraCopy / ancientAfterDiscoverTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCUNDER-05",
+    title: "Underdweller × Ancient of Time: after combat, a plain copy of the first enemy minion that died",
+    statement:
+      "With the Ancient of Time, the first enemy minion to truly die in a fight (a Rise or Rebirth first death does not count) comes home as a plain copy when the fight ends, shown live. No enemy death: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Time: After combat: get a plain copy of the first enemy minion that died." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientFirstFoeDeathCopy (deathWatchers, finishLastDeathCopy)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCUNDER-06",
+    title: "Underdweller × Ancient of Bonds: a copy of a minion you control gives both +2/+2, improving",
+    statement:
+      "With the Ancient of Bonds, a minion that arrives in your hand (a buy, a Discover, a grant, a combat copy at settle) and shares its card with a minion on your board gives that card and the left-most matching board minion +X/+X, permanently. "
+      + "X starts at +2/+2 and improves by +2/+2 after each trigger. Gilded and plain copies of a card match each other. A triple's Gilded result and a summon are not arrivals.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Bonds: When you get a copy of a minion you control, give both copies +2/+2 and improve this." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts copyOfControlledBuffImproves / ancientOnCardsGained (the reducer's action boundary)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag). The improve step (the printed amount) follows the Soren × War / Gorr × Bonds convention; the owner did not state it.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsUnderdweller.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-01",
+    title: "Membrance × Ancient of Death: a Memory minion with an Echo gains Rise",
+    statement:
+      "With the Ancient of Death, a Shop offer Memory made carries Rise when its card has an Echo, and buys in with it, permanently.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Death: Memory minions with an Echo gain Rise." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts memoryEchoGainsRise / ancientOnMemoryOffers" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-02",
+    title: "Membrance × Ancient of Fortune: Memory minions cost 2 Gold",
+    statement:
+      "With the Ancient of Fortune, each Shop offer Memory made costs 2 Gold (the offer's own price, so a later Refresh is back to normal).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Fortune: Memory minions cost 2 Gold." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts memoryPrice / ancientOnMemoryOffers" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-03",
+    title: "Membrance × Ancient of War: Memory minions are exact copies and cost 6 Gold",
+    statement:
+      "With the Ancient of War, each Memory offer is an exact copy of the opponent's minion as it stood at the start of that combat: its Attack, Health, keywords and Gilded state. It costs 6 Gold. Your own Shop buffs still apply on top when it is bought.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "War: Memory minions are exact copies, but cost 6 gold." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts memoryExact / ancientOnMemoryOffers" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-04",
+    title: "Membrance × Ancient of Genesis: the first Memory minion bought each turn comes with a plain copy",
+    statement:
+      "With the Ancient of Genesis, the first minion you buy from a Memory Shop each turn also gives a plain copy of it to hand (hand full: none). A minion that is not a Memory offer neither pays nor spends it.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Genesis: The first minion you buy from Memory each turn comes with a plain copy." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts memoryFirstBuyCopy / batchCOnBuy; state.ts ShopCard.memory" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-05",
+    title: "Membrance × Ancient of Time: Start of Turn, a plain copy of a random minion from the last opponent's board",
+    statement:
+      "With the Ancient of Time, each Start of Turn gives a plain copy of a random minion (seeded) from your last opponent's opening board, on its own beat. No combat yet or a full hand: nothing. Memory itself is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Time: Start of Turn: get a plain copy of a random minion from your last opponent’s board." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotCopyLastFoe / batchCStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMEMB-06",
+    title: "Membrance × Ancient of Bonds: buying a copy of a minion you control gives Gilded minions +5/+5",
+    statement:
+      "With the Ancient of Bonds, buying a minion whose card stood on your board before the buy (Gilded or plain) gives every Gilded minion on your board +5/+5, permanently. Any Shop buy counts, not only Memory's.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Bonds: When you buy a copy of a minion that you control, give your Gilded minions +5/+5." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts buyControlledBuffsGilded / batchCOnBuy; reducer.ts (the post-buy block's `controlled`)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMembrance.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-01",
+    title: "Gorun × Ancient of Death: a dying friendly minion gives its Attack to a random friendly minion",
+    statement:
+      "With the Ancient of Death, when a friendly minion dies its Attack goes to one random other friendly minion. In combat it is a combat buff on a living minion, on its own beat (a Rise death counts). In the Shop it is permanent.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Death: When a friendly minion dies, give its Attack to a random friendly minion." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts deathWatchers (ancientDeathGivesAttack); packages/sim/src/ancients.ts gorunShopDeath" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-02",
+    title: "Gorun × Ancient of Fortune: every 5 attacks, 1 Gold next turn",
+    statement:
+      "With the Ancient of Fortune, friendly attacks fill one running count that carries across fights. Every 5th attack banks 1 Gold for the next Shop, pulsed live. The power text prints the attacks still needed, live through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Fortune: Every 5 attacks, gain 1 Gold next turn." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientAttackGold; packages/sim/src/ancients.ts attacksGold / batchCAfterCombat" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-03",
+    title: "Gorun × Ancient of War: Blade Mastery also gives the same Health",
+    statement:
+      "With the Ancient of War, each Blade Mastery grant gives the attacker the same amount of Health as Attack, for the fight. The owner's alternative (the first attacker keeps its bonus permanently) is not built.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "War: Blade Mastery also gives the same Health." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientBladeHealth (the Blade Mastery grant)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-04",
+    title: "Gorun × Ancient of Genesis: Start of Combat, the two left-most minions gain Ward and Flurry",
+    statement:
+      "With the Ancient of Genesis, at Start of Combat your two left-most living minions gain Ward and Flurry for that combat. The Shop board is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Genesis: Start of Combat: Your two left-most minions gains Ward and Flurry." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientSocWardFlurry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-05",
+    title: "Gorun × Ancient of Time: Start of Combat, each minion gains Blade Mastery once",
+    statement:
+      "With the Ancient of Time, at Start of Combat every living friendly minion gains the current Blade Mastery grant once. It is not an attack: the attack count and the improve step do not move.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Time: Start of Combat: each of your minions gains Blade Mastery once." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientSocBlade / bladeGrantOf" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGORUN-06",
+    title: "Gorun × Ancient of Bonds: the next attacker also gets the last attacker's Blade Mastery bonus",
+    statement:
+      "With the Ancient of Bonds, each friendly attacker also gains the Blade Mastery grant the previous friendly attacker earned, for the fight. Only that attacker's own grant is passed on, never a passed one, so the bonus cannot chain upward.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Bonds: When a minion attacks, your next attacker also gets its bonus." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientBladeBonds / bladeBondsCarry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGorun.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-00",
+    title: "Mimic's Ancient pairings are always on, whatever power it wields",
+    statement:
+      "A Mimic's Ancient pairing is Mimic's own (`ancientPairingHeroId` returns the Mimic), whatever power it wields that turn, and it never reads the wielded power's pairing. "
+      + "Every other hero still follows the held power (R-HERO-POWER-REPLACED-02). Death, Fortune, War and Bonds run Soren's, Robin's, Emissary's and Gorr's powers as extra passives through those powers' own code, so they stack with a wielded copy of the same power.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "this is exactly soren's hero power, but picks the left-most echo automatically" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientPairingHeroId" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-01",
+    title: "Mimic × Ancient of Death: Start of Combat, Reclaim the left-most Echo minion",
+    statement:
+      "With the Ancient of Death, at Start of Combat your left-most living minion with an Echo is marked for Soren's Reclaim, which destroys it (a true death: its Echo fires) and resummons an exact copy when there is room. A minion a wielded Reclaim also marked is Reclaimed once. No Echo minion: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Death: Start of Combat: Destroy your left-most echo minion, and re-summon it when you have space." },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts socReclaim (ancientAutoReclaim)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-02",
+    title: "Mimic × Ancient of Fortune: each minion sold gains 1 Gold next turn",
+    statement:
+      "With the Ancient of Fortune, every sale banks 1 Gold for next turn through Spoils' own sale hook (`bankSpoils`). It stacks with a wielded Spoils (2 Gold per sale).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Fortune: For each minion you sell, gain 1 Gold next turn." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts bankSpoils; ancients.ts ancientSpoilsPassive" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-03",
+    title: "Mimic × Ancient of War: Start of Combat, United Front for every spell cast this game",
+    statement:
+      "With the Ancient of War, at Start of Combat one friendly minion of each type gains +1/+1 for every spell cast this GAME (the run-lifetime count, so casts made before the Ancient was picked count), for that combat. "
+      + "It fires United Front's own base block a second time and reads none of Emissary's Ancient pairings.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "needs to adjust retroactively so it's +x/+y based on spells cast this GAME so far already" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts (the United Front block, ancientUnitedFront); packages/sim/src/ancients.ts batchCCombatMods" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag). Combat only, like every Ancient Start of Combat effect.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-04",
+    title: "Mimic × Ancient of Genesis: Mimicry is pressed, once per turn, and offers 4 powers",
+    statement:
+      "With the Ancient of Genesis, the Start of Turn power Discover no longer opens by itself. Each turn starts with Mimicry in the power slot as a pressable, untargeted, free power; pressing it opens a Discover of 4 powers, and the pick is wielded for the rest of that turn and arrives ready. "
+      + "The turn the Ancient is picked keeps the power already wielded.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Genesis: Mimic has 4 options and no longer happens automatically. Can be activated once per turn." },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts (the `mimic` hero-power branch, the turn setup, mintPowerOffer); ancients.ts ancientMimicManual" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-05",
+    title: "Mimic × Ancient of Time: Start of Turn, a plain copy of a minion that died last combat",
+    statement:
+      "With the Ancient of Time, each Start of Turn gives a plain copy of a random minion (seeded) that truly died in the last combat, from either side (Soulkeeper's pool), on its own beat. Nothing died or a full hand: nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Time: Start of Turn: Get a plain copy of a minion that died last combat." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotCopyLastCombatDeath / lastCombatDeaths / batchCStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMIMIC-06",
+    title: "Mimic × Ancient of Bonds: buy 3 minions in a turn, get a plain copy of one",
+    statement:
+      "With the Ancient of Bonds, the 3rd minion bought in a turn gives a plain copy of a random one of the three, through Four Peat's own code (`gorrQuestBuy`). It stacks with a wielded Four Peat (one more copy).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch C: Underdweller, Membrance, Gorun, Mimic)", quote: "Bonds: When you buy 3 minions in a turn, get a plain copy of one of them at random." },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts gorrQuestBuy; ancients.ts ancientFourPeatPassive" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMimic.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
     id: "R-HERO-POWER-REPLACED-01",
     title: "A replaced hero power stops working; the new power works",
     statement:

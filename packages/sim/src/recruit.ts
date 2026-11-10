@@ -1,6 +1,7 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
+import { ancientSpoilsPassive } from './ancients'; // Mimic
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientAllInExtra, ancientForcedGambleRoll, ancientCoinGold, ancientCoinBonus, ancientOnCoinCast } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Juggler
@@ -12607,6 +12608,9 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
 function bankSpoils(state: RunState, sold: BoardCard): void {
   const spoils = hasPower(state, 'sellGold');
   if (spoils) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+  // ANCIENT OF FORTUNE × Mimic: Spoils again, as a passive (it stacks with a wielded Spoils). 0 unless picked.
+  const passive = ancientSpoilsPassive(state);
+  if (passive > 0) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + passive;
   ancientOnRobinSale(state, sold, spoils);
 }
 

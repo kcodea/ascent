@@ -108,6 +108,15 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientShoutBuffsCard: { cardId: 'alley', attack: 2, health: 2, label: 'Ancient of Bonds' }, // Drakko x Bonds: the staged Shout body stands in for Drakko (SHOUT_STAGE_KEYS)
   ancientFlash: { second: true, soc: true, exact: true, pummel: { every: 1, dealt: 0 }, label: 'Ancient of Time' }, // Flash: the Start-of-Combat copy acts on any fight
   ancientReclaim: { echoExtra: 1, copies: 2, gain: 10, bonds: true, label: 'Ancient of Death' }, // Soren x Death / Time / War / Bonds: acts only on a Reclaim-marked body (none staged: inert)
+  // The 2026-11-10 batch C. (ancientBladeHealth / ancientSocBlade / ancientBladeBonds reshape Blade Mastery: staged beside it, COMPANION_MODS.)
+  ancientSocBlade: { label: 'Ancient of Time' },
+  ancientBladeBonds: { label: 'Ancient of Bonds' },
+  ancientFirstFoeDeathCopy: { label: 'Ancient of Time' }, // Underdweller x Time: the first staged enemy death comes home as a toHand
+  ancientDeathGivesAttack: { label: 'Ancient of Death' }, // Gorun x Death: each staged friendly death hands its Attack on
+  ancientAttackGold: { every: 1, tick: 0, gold: 1, flag: 'ancientAttackGold', label: 'Ancient of Fortune' }, // Gorun x Fortune: every (1) staged attack banks Gold
+  ancientSocWardFlurry: { count: 2, label: 'Ancient of Genesis' }, // Gorun x Genesis: the two left-most staged bodies
+  ancientAutoReclaim: { label: 'Ancient of Death' }, // Mimic x Death: the staged Echo body is Reclaimed
+  ancientUnitedFront: 4, // Mimic x War: the spells cast this game (a count, not a flag)
   // The next-combat banks that became per-side mods on 2026-10-07 (Fleeting Vigor, the banked keywords, Open the Gates):
   fleetingVigor: { attack: 2, health: 2 },
   bankedKeywords: [{ index: 0, keyword: 'DS' }],
@@ -148,6 +157,14 @@ const tier7StageBodies = (): BoardMinion[] => {
   return t7 ? [bm(t7.id, 'pT7', Math.max(1, t7.attack), Math.max(10, t7.health))] : [];
 };
 
+/** Mods that reshape ANOTHER mod and cannot act alone: the companion they are staged with (Gorun × War / Time / Bonds
+ *  reshape Blade Mastery's grant). */
+const COMPANION_MODS: Record<string, QuestCombatMods> = {
+  ancientBladeHealth: { bladeMastery: { attacks: 0 } },
+  ancientSocBlade: { bladeMastery: { attacks: 0 } },
+  ancientBladeBonds: { bladeMastery: { attacks: 0 } },
+};
+
 export function combatModScan(keys: readonly string[]): ModScanResult {
   const baseline = fight({});
   const changed: string[] = [];
@@ -178,6 +195,15 @@ export function combatModScan(keys: readonly string[]): ModScanResult {
         try {
           const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;
           if (fightWith(shoutStageBodies(), { [key]: armedArm } as QuestCombatMods) !== fightWith(shoutStageBodies(), {})) verdict = 'staged';
+        } catch { /* keep inert */ }
+      }
+      // Mods that only RESHAPE another mod (Gorun's Ancients reshape Blade Mastery): staged beside it, and judged against
+      // a fight that carries the companion alone.
+      const companion = COMPANION_MODS[key];
+      if (companion) {
+        try {
+          const armedArm = key in OBJECT_ARMS ? OBJECT_ARMS[key] : true;
+          if (fight({ ...companion, [key]: armedArm } as QuestCombatMods) !== fight(companion)) verdict = 'staged';
         } catch { /* keep inert */ }
       }
       if (named.length) {

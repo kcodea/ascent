@@ -25,7 +25,7 @@ import type { VersusGroupSeat } from './group';
 import { normalizeVersusOptions, versusModeIsDuos, versusOptionsRift, type VersusRoomOptions } from './options';
 import { versusDuosStartingVitals } from './vitals';
 import { snapshotBoard } from '../snapshot';
-import { enableAncients, type AncientMeterTuning } from '../ancients';
+import { ancientOfferOpen, enableAncients, type AncientMeterTuning } from '../ancients';
 import type { VersusSeatScout } from '../lobby/runLobby';
 
 /**
@@ -121,6 +121,10 @@ export function legalModalAnswers(s: RunState): Action[] {
     if (out.length === 0) keep({ type: 'skipRuneforge' }); // nothing affordable: skipping is the only legal move
   } else if (s.scoutedNextOpponent?.length) {
     keep({ type: 'closeScout' });
+  } else if (ancientOfferOpen(s)) {
+    // ANCIENTS (R-ANCDUOS-01; only a run with Ancients on ever has an offer): the awakening offer pauses the Shop and
+    // refuses End Turn, so a timeout answers it like every other open decision (ruling 7: a random legal pick).
+    for (const id of s.ancients?.offer ?? []) keep({ type: 'pickAncient', id });
   }
   return out;
 }
@@ -132,7 +136,7 @@ export function legalModalAnswers(s: RunState): Action[] {
  */
 export function versusAutoResolve(run: RunState, rng: Rng): RunState {
   let s = run;
-  for (let guard = 0; guard < 64 && modalOpen(s); guard++) {
+  for (let guard = 0; guard < 64 && (modalOpen(s) || ancientOfferOpen(s)); guard++) {
     const answers = legalModalAnswers(s);
     const pick: Action = answers.length ? answers[Math.floor(rng.next() * answers.length)]! : { type: 'cancelChoice' };
     const next = reduce(s, pick);

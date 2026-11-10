@@ -14,7 +14,7 @@ import {
   type AncientId, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { powerDiscoverPool } from './heroes';
-import { createVersusRun, buildVersusCandidate } from './versus/run';
+import { createVersusRun, buildVersusCandidate, legalModalAnswers, versusAutoResolve } from './versus/run';
 import type { VersusRoomOptions } from './versus/options';
 import { duosWaitingCount, duosWireOf } from './duosPass';
 import { handCap } from './state';
@@ -109,6 +109,27 @@ describe('the seam: Ancients reach a Duos run only through createVersusRun\'s de
     }
     expect(s.embers).toBe(20 - 2 - 1);
     expect(heroPowerText(s)).toBe(BASE);
+  });
+
+  it('the awakening offer in a timed match: the Shop waits for the pick, and a timeout picks for you (a seeded legal pick)', () => {
+    let s = base({ board: [card('p', PLAIN[0]!)], embers: 20 });
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost - 1 } };
+    s = reduce(s, { type: 'roll' }); // the Refresh that fills the meter
+    const offer = s.ancients!.offer!;
+    expect(offer).toHaveLength(3);
+    expect(reduce(s, { type: 'roll' })).toBe(s); // paused behind the offer
+    expect(passaria(s, 'p')).toBe(s);
+    expect(reduce(s, { type: 'faceOmen', deferFight: true })).toBe(s); // End Turn waits too
+    // The timeout policy answers it like any other open decision, so the lock candidate is always built...
+    expect(legalModalAnswers(s)).toEqual(offer.map((id) => ({ type: 'pickAncient', id })));
+    const answered = versusAutoResolve(s, makeRng(9));
+    expect(offer).toContain(answered.ancients!.picked);
+    expect(versusAutoResolve(s, makeRng(9)).ancients!.picked).toBe(answered.ancients!.picked);
+    expect(buildVersusCandidate(s, makeRng(9))?.board).toHaveLength(1);
+    // ...and never touches the live run (the candidate is built on a clone).
+    expect(s.ancients!.picked).toBeUndefined();
+    // A run without Ancients has no such answer.
+    expect(legalModalAnswers(base({}, false))).toEqual([]);
   });
 
   it('Ancients on but nothing picked yet: passes are still the passes of before', () => {

@@ -230,7 +230,7 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
 
   it('a spell copy count a client inflates is cut to 3, and only a Magic Hat copy may carry one', () => {
     const s = reduce({ ...buyN(picked('genesis'), 8), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
-    const big = reduce(mate(), { type: 'receivePass', from: 'p1', seq: 0, card: { ...duosWireOf(last(s)), passCopies: 50 } });
+    const big = reduce(mate(), { type: 'receivePass', from: 'p1', seq: 0, card: { ...duosWireOf(last(s)), passCopies: 50 } as BoardCard });
     expect(big.hand).toHaveLength(3);
     const { passHat: _h, ...notHat } = duosWireOf(last(s));
     void _h;
@@ -393,7 +393,7 @@ describe('Magician × WAR: "Start of Combat: A minion that both you and your tea
     expect(JSON.stringify(round(1))).toBe(JSON.stringify(round(1)));
   });
 
-  it('a recorded pair: the sides as stored and read back resolve the same way', () => {
+  it('the locked sides survive storage: read back from JSON they resolve to the same bytes', () => {
     const live = { p1: side('magician', 21, magicianBoard(), 'war'), p2: side('warden', 22, mateBoard()), p3: side('indy', 23, foeBoard()), p4: side('gorr', 24, foeBoard()) };
     const stored = JSON.parse(JSON.stringify(live)) as typeof live;
     expect(JSON.stringify(resolveVersusDuosRound({ matchSeed: 77, round: 1, sides: stored }))).toBe(JSON.stringify(resolveVersusDuosRound({ matchSeed: 77, round: 1, sides: live })));

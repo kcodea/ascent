@@ -22,6 +22,8 @@
 import { CARD_INDEX } from '@game/content';
 import type { TeamEffect, Tribe } from '@game/core';
 import { handCap, type BoardCard, type RunState } from './state';
+import { activePowers } from './heroes';
+import { returnToPool } from './shop';
 import { duosCatchBump, duosCatchLeft, type DuosRuneState } from './duosRunes';
 
 /** The Gold a pass costs the sender. Pinned against `VERSUS_DUOS_PASS_GOLD` (versus/duos.ts) by test. */
@@ -58,6 +60,15 @@ export interface DuosOutboxEntry {
    *  as `via: 'sale'` (free, may be Golden, a refusal returns nothing) with `passHat: true`, and is not a pass for the
    *  pass watchers on either run. `card.uid` is the copy's own (`hat<n>`); `src` names the Shop offer it streams from. */
   hat?: true;
+  /** ANCIENTS x the Duos heroes (R-ANCDUOS-01; set only on a run with Ancients on, by `ancientOnPassMade` / `magicHatBuy`):
+   *  - `ancRise`: Priestess x Death gave this passed minion Rise (a refund takes it off again);
+   *  - `bonds`: Priestess x Bonds: the teammate's left-most minion gains this when the card lands (`passBonds` on the wire);
+   *  - `copyUid`: Priestess x Genesis: the plain copy this Passaria pass put in my hand (a refund takes it back);
+   *  - `copies`: Magician x Genesis: a spell copy that arrives as this many copies (`passCopies` on the wire). */
+  ancRise?: true;
+  bonds?: { attack: number; health: number };
+  copyUid?: string;
+  copies?: number;
   /** Put back by a reload's restore replay (R-DUOS-PASS-RESTORE-EFFECT-01): already delivered, so nothing streams it. */
   restored?: true;
   /** Which free allowance a free MANUAL pass spent: Brian's Pal (`'pal'`) or the team's Playing Catch (`'catch'`). A
@@ -228,9 +239,12 @@ export function duosWireCard(card: BoardCard): BoardCard & { passFrom: 'hand' } 
 
 /** An outbox ENTRY as it travels: a drag pass as `duosWireCard` (`passFrom: 'hand'`), a spell's pass as
  *  `passFrom: 'spell'`, a team effect as `passFrom: 'team'` with its `team` payload (R-DUOS-CARDS-01). */
-export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true } {
+export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true; passBonds?: { attack: number; health: number }; passCopies?: number } {
   if (e.team) return { ...e.card, passFrom: 'team', team: structuredClone(e.team) };
-  const wire = duosWireCard(e.card);
+  // ANCIENTS x the Duos heroes (R-ANCDUOS-01): what rides WITH the card, so it lands exactly when (and only if) the card
+  // does: Priestess x Bonds' gain for the teammate's left-most minion, Magician x Genesis' copy count. Absent on every
+  // run without Ancients, so an ordinary pass travels byte for byte as before.
+  const wire = { ...duosWireCard(e.card), ...(e.bonds ? { passBonds: { attack: e.bonds.attack, health: e.bonds.health } } : {}), ...(e.copies && e.copies > 1 ? { passCopies: e.copies } : {}) };
   // A Magic Hat copy (R-DUOS-MAGICIAN-01) says so: the receiver's run lands it without the pass watchers.
   if (e.hat) return { ...wire, passFrom: 'sale', passHat: true };
   // A hero power's pass names its slot and price, so a reload's replay can pay them again (R-DUOS-PASS-RESTORE-EFFECT-01).
@@ -261,9 +275,13 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   // An effect pass travels as `spell` (Handout, CueBee's Pass, Matchmaker) or `sale` (Salesman of the Year).
   const pf = (card as { passFrom?: unknown }).passFrom;
   const effectPass = pf === 'spell' || pf === 'sale';
+  // MAGICIAN x GENESIS (R-ANCDUOS-01): a spell copy that arrives as several (`passCopies`, 3 at most). Only a Magic Hat
+  // copy carries it; each copy past the first lands like the first: into the hand while there is room, else it waits.
+  const extra = effectPass && (card as { passHat?: unknown }).passHat === true ? Math.min(2, Math.max(0, Math.floor(Number((card as { passCopies?: unknown }).passCopies) || 1) - 1)) : 0;
   if (effectPass && (s.hand.length >= handCap(s) || (duos.waiting?.length ?? 0) > 0)) {
     duos.received.push(key);
     (duos.waiting ??= []).push({ key, card: landedCard(card) });
+    for (let i = 1; i <= extra; i++) duos.waiting.push({ key: `${key}#${i}`, card: landedCard(card) });
     return s;
   }
   if (s.hand.length >= handCap(s)) {
@@ -272,8 +290,10 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   }
   duos.received.push(key);
   // The transport's markers (`passFrom`, the server's hand-only check; `teamCatch`) never ride into the hand.
-  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown };
+  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passBonds?: unknown; passCopies?: unknown };
   void _h;
+  void _b;
+  void _c;
   void _t;
   void _f;
   void _p;
@@ -281,13 +301,17 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   // My teammate's Playing Catch pass of THIS round: one of the team's free passes is gone (R-DUOS-RUNES-01).
   if (typeof teamCatch === 'number') duosCatchBump(s, 1, teamCatch);
   s.hand.push({ ...landed, uid: `b${s.uidSeq++}`, passKey: key });
+  for (let i = 1; i <= extra; i++) {
+    if (s.hand.length < handCap(s)) s.hand.push({ ...structuredClone(landed), uid: `b${s.uidSeq++}`, passKey: `${key}#${i}` });
+    else (duos.waiting ??= []).push({ key: `${key}#${i}`, card: structuredClone(landed) });
+  }
   return s;
 }
 
 /** A wire card as it waits / lands: the transport's markers (`passFrom`, `team`, `teamCatch`) never ride into the hand. */
 function landedCard(card: BoardCard): BoardCard {
-  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, passHat: _h, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown };
-  void _f; void _t; void _g; void _p; void _q; void _h;
+  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, passHat: _h, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passBonds?: unknown; passCopies?: unknown };
+  void _f; void _t; void _g; void _p; void _q; void _h; void _b; void _c;
   return landed;
 }
 
@@ -328,6 +352,13 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
   // Back where it was when there is room (a board card to its slot), else to the hand. A SHOP minion a spell passed
   // goes back to the Shop row while the Shop is open (never into the hand: the spell never bought it).
   const back = structuredClone(e.card);
+  // ANCIENTS x Priestess (R-ANCDUOS-01): the pass never happened, so what it gave comes off again. Death's Rise leaves
+  // the returned minion; Genesis' plain copy leaves my hand when it is still there (played or sold already: it stays).
+  if (e.ancRise) back.keywords = back.keywords.filter((k) => k !== 'R');
+  if (e.copyUid) {
+    const ci = s.hand.findIndex((c) => c.uid === e.copyUid);
+    if (ci >= 0) returnToPool(s, s.hand.splice(ci, 1)[0]!.cardId);
+  }
   if (e.from === 'board' && s.board.length < BOARD_MAX) s.board.splice(Math.min(e.index, s.board.length), 0, back);
   else if (e.from === 'shop' && s.phase === 'recruit') {
     const def = CARD_INDEX[back.cardId];
@@ -338,6 +369,8 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
   if (e.power != null && e.wave === s.wave) {
     if (e.power === 1) s.heroReady2 = true;
     else s.heroReady = true;
+    // A power with a per-turn budget (Priestess x Time: twice a turn) gets that use back too.
+    if (e.power === 0 && activePowers(s)[0]?.usesPerTurn) s.heroUsesThisTurn = Math.max(0, (s.heroUsesThisTurn ?? 0) - 1);
   }
   // The pass was never paid: the Gold and the Gold-spent tallies of its turn come back (a free pass: its allowance).
   const paid = e.paid ?? DUOS_PASS_GOLD;

@@ -92,6 +92,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ ancientDeathGivesAttack: { label: 'Heir' }, ancientAttackGold: { every: 3, tick: 1, gold: 1, flag: 'attackGold', label: 'AttackGold' } }),
   () => ({ bladeMastery: { attacks: 6 }, ancientBladeHealth: true as const, ancientSocBlade: { label: 'SocBlade' }, ancientBladeBonds: { label: 'BladeBonds' } }),
   () => ({ ancientSocWardFlurry: { count: 2, label: 'WardFlurry' }, ancientAutoReclaim: { label: 'AutoReclaim' }, ancientUnitedFront: 3 }),
+  () => ({ ancientMateSwap: { label: 'MateSwap' } }),
   () => ({ beastAuraHp: 2 }),
   () => ({ beastSummonScale: { per: 2, stepAttack: 1, stepHealth: 1, progress: 1, attack: 1, health: 1 } }),
   (_r, { pool }) => ({ shoutMeters: [{ sourceId: 'meter', per: 2, tick: 1, grantSpell: 1, grantOneOf: pool.slice(0, 2), grantCards: pool.slice(2, 3), buff: { tribe: 'dragon' as Tribe, attack: 1, health: 1, label: 'Shouts' } }] }),

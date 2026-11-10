@@ -37,6 +37,7 @@ import { receiveLobbyChatEvent, resyncLobbyChat, setLobbyChatSession } from '../
 import { setChatSeatResolver } from '../lobbyChat/chatSpeech';
 import type { PingMode } from '@game/versus-cf/pings';
 import { installVersusHandlers, releaseVersusFightWait, type VersusFreeze } from './versusHooks';
+import { versusDevAncients } from './versusDevAncients';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow, type VersusDuosPassRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, groupViewerOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { concededHere, markConceded } from './concededMatches';
@@ -1461,7 +1462,10 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
     // VERSUS DUOS (R-DUOS-HEALTH-01): the run carries the TEAM's pool, so it needs my teammate's hero too.
     const mateSeat = match.group?.duos?.mate ?? null;
     const mateHero = mateSeat ? match.group?.raw.seats.find((x) => x.seat === mateSeat)?.hero ?? null : null;
-    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null, mateHero);
+    // (`versusDevAncients`: a DEV / bench build's own seam for the Duos heroes' Ancients, R-ANCDUOS-01. Undefined in a
+    // player build, so the run is built exactly as before.)
+    const devAncients = versusDevAncients();
+    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null, mateHero, devAncients ? { ancients: devAncients } : undefined);
     const rr = get().priv?.hero_reroll;
     if (isHeroReroll(rr)) run.heroReroll = { ...rr }; // the hero select's one re-roll (R-HERO-REROLL-01)
     const ck = await mx.myLatestCheckpoint(match.id).catch(() => null);

@@ -2,6 +2,7 @@ import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCar
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientSpoilsPassive } from './ancients'; // Mimic
+import { ancientOnPassMade } from './ancients'; // Priestess (Duos)
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
 import { ancientAllInExtra, ancientForcedGambleRoll, ancientCoinGold, ancientCoinBonus, ancientOnCoinCast } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Juggler
@@ -1381,7 +1382,8 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
     // and the copies left this turn (the per-turn cap's "(N left this turn)" convention). All from `magicHatView`,
     // the read `magicHatBuy` itself gates on, so the text cannot disagree with the buy.
     const hat = magicHatView(state);
-    const cap = `Twice per turn (**${hat.left}** left this turn).`;
+    // ANCIENT OF BONDS x Magician: no per-turn cap (`noCap`), so the cap line says so instead of counting down.
+    const cap = hat.noCap ? 'No limit each turn.' : `Twice per turn (**${hat.left}** left this turn).`;
     if (hat.active) return `Your hat is **active**. The next card you buy, your teammate gets a copy. ${cap}`;
     const progress = hat.capped ? `**${hat.count}/${hat.need}**, active next turn` : `**${hat.count}/${hat.need}**`;
     return `After you buy **${hat.need}** cards, your hat activates (${progress}). The next card you buy, your teammate gets a copy. ${cap}`;
@@ -17790,6 +17792,7 @@ export function effectPassCard(state: RunState, card: BoardCard, from: 'board' |
   opts?: { allowGolden?: boolean; via?: 'sale'; src?: DuosPassSource; power?: { slot: 0 | 1; paid: number }; restored?: boolean }): boolean {
   if (!state.duos || (card.golden && !opts?.allowGolden)) return false;
   if (!recordSpellPass(state, card, from, index, opts?.via ?? 'spell', opts?.src, opts?.power, opts?.restored)) return false;
+  ancientOnPassMade(state); // ANCIENTS x Priestess (a no-op unless picked): the entry just recorded is the pass
   fireTeamPassTriggers(state, { mine: true, cardId: card.cardId });
   return true;
 }

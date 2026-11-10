@@ -117,6 +117,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientSocWardFlurry: { count: 2, label: 'Ancient of Genesis' }, // Gorun x Genesis: the two left-most staged bodies
   ancientAutoReclaim: { label: 'Ancient of Death' }, // Mimic x Death: the staged Echo body is Reclaimed
   ancientUnitedFront: 4, // Mimic x War: the spells cast this game (a count, not a flag)
+  ancientMateSwap: { label: 'Ancient of War' }, // Magician x War (Duos): acts only in a tag-team fight with a waiting reserve (none staged: inert)
   // The next-combat banks that became per-side mods on 2026-10-07 (Fleeting Vigor, the banked keywords, Open the Gates):
   fleetingVigor: { attack: 2, health: 2 },
   bankedKeywords: [{ index: 0, keyword: 'DS' }],

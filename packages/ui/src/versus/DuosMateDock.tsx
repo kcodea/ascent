@@ -80,8 +80,10 @@ export const DOCK_MIN_SHARE = 0.55;
 export const DOCK_RAIL_GAP = 10;
 /** At the rail's foot the disc grows up to this share of your own hero disc. */
 export const DOCK_FOOT_MAX = 0.8;
-/** Below this share of your hero disc the foot is too cramped: the dock falls back to `fitDock`'s place. */
-export const DOCK_FOOT_MIN = 0.4;
+/** Below this share of your hero disc the foot is too cramped: the dock falls back to `fitDock`'s place. (0.35 since
+ *  2026-11-10: the phone layout's room between a full hand and the corner squares is 0.39 of the hero disc, and the
+ *  fallback's place there is the corner outside those squares, R-DUOS-DOCK-INBOARD-01.) */
+export const DOCK_FOOT_MIN = 0.35;
 
 /** What sits around the rail's foot (screen px): the last rail tile, the Gold coin, the rail's tab, the Compendium, the
  *  gear and the hand's row (a full hand reaches almost to the coin, so the disc stays right of it). */
@@ -108,7 +110,12 @@ export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen:
   const blocks = [seats, coin, tab, book, gear].filter(ok).map(box);
   const base = stageLen(gear.top + gear.height - stage.top);
   const fenceL = ok(hand) ? stageLen(hand.left + hand.width - stage.left) + DOCK_HAND_SPILL : stageLen(coin.left - stage.left);
-  const fenceR = stageLen(stage.width) - gap;
+  // INBOARD OF THE CORNER SQUARES (owner 2026-11-10, R-DUOS-DOCK-INBOARD-01: "The menu etc buttons should not be before the
+  // teammate circle. They should be fully cornered."): the disc never goes right of the Compendium / gear pair. A phone's
+  // stage is wider than its play box, so there is room between those squares and the screen edge; the slide below used to
+  // carry the disc past them into that corner, leaving the squares stranded inboard of it.
+  // (The squares' own clearance is `clear`'s job, as before: the fence only says which side of them the disc is on.)
+  const fenceR = Math.min(stageLen(stage.width) - gap, ...[book, gear].filter(ok).map((k) => stageLen(k.left - stage.left)));
   const heroD = stageLen(hero.width);
   const clear = (cx: number, cy: number, r: number, capTop: number): boolean => blocks.every((k) => {
     // The cap's strip above the disc, then the disc itself.

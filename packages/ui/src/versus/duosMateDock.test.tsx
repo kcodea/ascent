@@ -18,7 +18,7 @@ const { useVersus } = await import('./versusStore');
 const { dragStore } = await import('../dragStore');
 const view = await import('./teammateView');
 const { playDrop, playEmerge, playArrival, isPassArrival, mateDoor, coinPoses, catchFrames } = await import('./passLob');
-const { mirrorOfHero, fitDock, fitFoot, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP, DOCK_FOOT_MAX, DOCK_HAND_SPILL } = await import('./DuosMateDock');
+const { mirrorOfHero, fitDock, fitFoot, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP, DOCK_FOOT_MAX, DOCK_FOOT_MIN, DOCK_HAND_SPILL } = await import('./DuosMateDock');
 const { useDuosCombat } = await import('./duosCombat');
 
 const seat = (s: string, userId: string, name: string, hero: string) => ({ seat: s, userId, name, hero });
@@ -295,5 +295,30 @@ describe(`R-DUOS-DOCK-FOOT-01: larger, at the rail's foot (owner 2026-10-31: "la
     expect(fitFoot(null, foot, stage, id)).toBeNull();
     // No room at all (the hand's row reaches the stage edge): null, never a speck.
     expect(fitFoot(hero, { ...foot, hand: b(366, 770, 1500, 254) }, stage, id)).toBeNull();
+  });
+  it('R-DUOS-DOCK-INBOARD-01 (owner 2026-11-10: "The menu etc buttons should not be before the teammate circle. They should be fully cornered."): on a phone the disc sits left of the corner squares, never in the corner outside them', () => {
+    // The phone layout the headless pass measured (stage 2208 x 1021): the play box ends ~180 px short of the screen edge,
+    // so there is room right of the Compendium / gear pair. The disc used to slide into it (2041..2198).
+    const pStage = { left: 0, top: 0, width: 2208, height: 1021 };
+    const pHero = b(171, 694, 266, 266);
+    const pFoot = { seats: b(1775, 708, 252, 60), coin: b(1668, 645, 113, 113), tab: b(1964, 811, 66, 66), book: b(1890, 885, 66, 66), gear: b(1964, 885, 66, 66), hand: b(545, 722, 1188, 255) };
+    const g = fitFoot(pHero, pFoot, pStage, id)!;
+    expect(g).not.toBeNull();
+    const right = 2208 - g.right; // the disc's right edge
+    const left = right - g.d;
+    expect(right).toBeLessThanOrEqual(1890 - DOCK_RAIL_GAP + 0.01); // left of the Compendium square, the gap kept
+    expect(left).toBeGreaterThanOrEqual(545 + 1188 + DOCK_HAND_SPILL - 0.01); // right of a full hand
+    expect(1021 - g.bottom).toBeCloseTo(951, 6); // on the squares' baseline
+    const cx = (left + right) / 2;
+    const cy = 951 - g.d / 2;
+    for (const k of [pFoot.seats, pFoot.coin, pFoot.tab, pFoot.book, pFoot.gear]) {
+      const dx = Math.max(k.left - cx, 0, cx - (k.left + k.width));
+      const dy = Math.max(k.top - cy, 0, cy - (k.top + k.height));
+      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(g.d / 2 + DOCK_RAIL_GAP - 0.01);
+    }
+    expect(g.d).toBeGreaterThanOrEqual(266 * DOCK_FOOT_MIN);
+    // The desktop fit is the same disc as before the fence (it was already left of the squares).
+    const d = fitFoot(hero, foot, stage, id)!;
+    expect(1920 - d.right).toBeLessThanOrEqual(1817);
   });
 });

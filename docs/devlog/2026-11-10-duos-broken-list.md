@@ -27,6 +27,12 @@ Fixes from the 2026-11-09 Duos audit (runtime findings F1, F3, F9, F10, F11 and 
   difficulty line: it was dropped whenever an offer's three heroes share one difficulty, so two offers could differ in
   height. The line is now always kept (empty when no word shows). R-DUOS-HEROSELECT-TITLE-01.
 
+- **Phone: portrait inboard of the corner squares (owner follow-up, same day).** A phone's stage (2208 wide) is wider than
+  the play box, so `fitFoot`'s slide carried the disc past the Compendium / gear pair into the screen corner. `fitFoot` now
+  fences the disc left of that pair; `DOCK_FOOT_MIN` went 0.4 to 0.35 because the phone's room between a full hand and the
+  squares is 0.39 of the hero disc (103 stage px, was 157 in the corner). Desktop fit is byte-identical.
+  R-DUOS-DOCK-INBOARD-01.
+
 ## Not changed, and why
 
 - **F4, chat cut by the door.** The screenshot was taken 1.8 s into Hero Select, while the gate doors (z 700, above

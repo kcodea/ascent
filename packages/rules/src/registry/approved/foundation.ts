@@ -14730,4 +14730,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On a phone in a Duos shop, Bob\'s hero shows inside the teammate ring bottom right, not an empty ring with art spilling past the corner.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: 'R-DUOS-DOCK-INBOARD-01',
+    title: 'Duos: the teammate portrait sits inboard of the corner squares, never in the corner outside them',
+    statement:
+      'The Compendium and Settings squares keep the bottom-right corner in a Duos game, exactly where they sit in any other game. The teammate portrait at the rail\'s foot (R-DUOS-DOCK-FOOT-01) is always LEFT of them: '
+      + 'its fit never slides past the Compendium / Settings pair, on a desktop or on a phone (whose screen is wider than the play box, so there is room between the squares and the screen edge). '
+      + 'It still clears a full hand, the Gold coin, the rail and the squares by the same gap, and may be as small as 35% of the player\'s own hero disc to do so.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone shop screenshot of PR 2647', quote: 'The menu etc buttons should not be before the teammate circle. They should be fully cornered.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot: fenceR, DOCK_FOOT_MIN)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, on the phone layout the fit slid the disc past the squares into the screen corner (stage x 2041 to 2198 of 2208) and the squares sat left of it. Now the disc sits at 1777 to 1880, left of the Compendium square (1890). Desktop is unchanged (it was already left of them). Checked in phone emulation only.',
+    example: 'On a phone in a Duos shop the Compendium and Settings squares are in the corner of the play box, and Bob\'s portrait sits just left of them. Tapping it opens his board.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

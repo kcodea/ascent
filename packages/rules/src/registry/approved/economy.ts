@@ -278,12 +278,11 @@ export const ECONOMY_RULES: GameRule[] = [
   },
   {
     id: 'R-SCROLL-DRAKE-01',
-    title: 'Scrollz: Shop spells cost less, and every Shop roll trades one minion for a spell',
+    title: 'Scrollz: every Shop roll trades one minion for a spell (its price half is now R-SCROLL-DRAKE-02)',
     statement:
-      'While a Scrollz (Set 3, Tier 3 Dragon/Spirit) is on your board, every Shop spell costs 1 less per copy '
-      + '(2 less Gilded), stacking with every other spell discount and floored at 0. The discount is a live board read '
-      + '(`spellCostReduction`), so it applies the moment the Drake is played and ends the moment it is sold or '
-      + 'destroyed, on every price surface. Every Shop roll (turn start, every refresh, a frozen top-up) serves ONE '
+      'PRICE (history, 2026-10-30 to 2026-11-10): every Shop spell cost 1 less per Scrollz on your board (2 less Gilded). '
+      + 'The owner narrowed that on 2026-11-10 to the first Shop spell bought each turn: see R-SCROLL-DRAKE-02, which is '
+      + 'the price rule now. OFFERS (unchanged): while a Scrollz (Set 3, Tier 3 Dragon/Spirit) is on your board, every Shop roll (turn start, every refresh, a frozen top-up) serves ONE '
       + 'spell in the minion row in place of a minion, at every tier, so the total offer count never grows. Any '
       + 'number of copies (or a Gilded one) still adds only one extra spell. A kept or frozen spell in the row already '
       + 'counts, the Starform keeps its pinned slot, and a run without the Drake rolls exactly as before.',
@@ -295,8 +294,35 @@ export const ECONOMY_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/shop.ts extraRowSpells / rollShopRow / topUpTavern; packages/sim/src/recruit.ts spellCostReduction; packages/content/src/cards/set3/dragons.ts d3_scrolldrake' },
     ],
     contentIds: ['d3_scrolldrake'],
-    cardText: '**Shop spells** cost **1** less. Each Shop has an extra spell in place of a minion.',
-    currentBehaviour: 'Conforms (2026-10-30, new card). Name and stats are placeholders.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts'], lastVerifiedAt: '2026-10-30' },
+    cardText: 'The first **Shop spell** you buy each turn costs **1** less. Each Shop has an extra spell in place of a minion.',
+    currentBehaviour: 'Conforms. The offers half is unchanged since 2026-10-30; the price half follows R-SCROLL-DRAKE-02 since 2026-11-10. Name and stats are placeholders.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-SCROLL-DRAKE-02',
+    title: 'Scrollz: only the first Shop spell you buy each turn is discounted',
+    statement:
+      'While a Scrollz is on your board, the FIRST Shop spell you buy each turn costs 1 less per copy (2 less Gilded). '
+      + 'Copies stack on that one spell, with every other spell discount, floored at 0. "First" is counted for the TURN, '
+      + 'not per Scrollz: the run counts the Shop spells bought this turn on both buy paths (the spell slot and a spell in '
+      + 'the minion row), whatever is on the board, so a spell bought earlier that turn, before Scrollz was played, has '
+      + 'already used it up, and so has a first spell that cost 0 for another reason. A Ruby is not a Shop spell and never '
+      + 'counts. The count reads 0 on a new turn, so a frozen or kept spell offer is discounted again next turn. Every '
+      + 'price surface reads the same function (`spellCostReduction`): each spell offer shows the discounted price until '
+      + 'the first spell is bought, then all show the normal price. The card says "Ready this turn." or "Used this turn." on '
+      + 'every Shop-phase surface; in combat it prints its plain text. Emissary with the Ancient of Fortune (R-ANCVALE-02) '
+      + 'reads the SAME count, so one first buy is both free and the Scrollz buy. The extra spell in the Shop is unchanged '
+      + '(R-SCROLL-DRAKE-01).',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-11-10 (via the lead session)', quote: 'change scrollz -> the first spell you buy each turn is 1 less instead of every spell' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellCostReduction / shopSpellsBoughtThisTurn / applySpellBought (RunState.shopSpellBuys); packages/ui/src/cardText.ts firstShopSpellDiscountText; packages/content/src/cards/set3/dragons.ts d3_scrolldrake' },
+    ],
+    contentIds: ['d3_scrolldrake'],
+    cardText: 'The first **Shop spell** you buy each turn costs **1** less. Each Shop has an extra spell in place of a minion.',
+    example: 'Scrollz on board, two 3 Gold spells in the Shop: the first buy costs 2 Gold and the next costs 3. Next turn the first buy costs 2 again.',
+    currentBehaviour: 'Conforms (2026-11-10).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/scrollDrake.test.ts', 'packages/ui/src/scrollzText.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
 ];

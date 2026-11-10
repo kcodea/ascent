@@ -114,6 +114,7 @@ const richBag = (id: string): LiveTextParams => ({
   squirlScoutBuff: 3, conductorBuff: 3, onBoard: true,
   goldSpent: 12, /* ≥ Rope Wrangler's per-10-Gold repeat (2026-09-23) */ goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
+  shopSpellsBought: 1, /* Scrollz: this turn's first-spell discount is used (2026-11-10) */
   rubyBonus: { attack: 2, health: 2 },
   spiritTally: 4, /* past Vaultkeeper's every-4 improve step (2026-10-20) */
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],

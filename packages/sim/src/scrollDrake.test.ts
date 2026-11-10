@@ -6,16 +6,18 @@
  *   Follow-up the same day: "Actually make it a dragon spirit. Golden is 2 less".
  *
  * Pinned here (R-SCROLL-DRAKE-01 in the oracle):
- *  - PRICE: every Shop spell costs 1 less per copy on the board (2 Gilded), floored at 0, stacking with the run's
- *    other discounts; live the moment it is played, sold or destroyed (a board read, cross-phase).
+ *  - PRICE (owner 2026-11-10, R-SCROLL-DRAKE-02: "the first spell you buy each turn is 1 less instead of every spell"):
+ *    the FIRST Shop spell bought each turn costs 1 less per copy on the board (2 Gilded), floored at 0, stacking with
+ *    the run's other discounts. Counted for the turn, not per copy: a spell bought before Scrollz landed used it up.
  *  - OFFERS: every roll (refresh, turn start, frozen top-up) puts ONE spell in the minion row IN PLACE OF a minion,
  *    at every tier; the total offer count never grows; capped at one extra spell for any number of copies.
  *  - Frozen / kept offers and the Starform's pinned slot keep working; no Drake = the exact old rng stream.
  */
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { spellCostReduction } from './recruit';
+import { ANCIENT_IDS, createRun, deserialize, enableAncients, reduce, serialize, type BoardCard, type BoardSnapshot, type RunState } from './index';
+import { shopSpellsBoughtThisTurn, spellCostReduction } from './recruit';
+import { toBotVisibleState } from './productionBots/visibleState';
 import { rollShop, tierSlots, topUpTavern, extraRowSpells, SCROLL_DRAKE_ID } from './shop';
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -35,55 +37,174 @@ describe('Scrollz — the card', () => {
     expect(D).toMatchObject({ tribe: 'dragon', tribe2: 'spirit', tier: 3 });
     expect(poolFor('set3').buyable.some((c) => c.id === SCROLL_DRAKE_ID)).toBe(true);
     expect(poolFor('set2').buyable.some((c) => c.id === SCROLL_DRAKE_ID)).toBe(false);
-    expect(D.text).toBe('**Shop spells** cost **1** less. Each Shop has an extra spell in place of a minion.');
-    expect(D.goldenText).toBe('**Shop spells** cost **2** less. Each Shop has an extra spell in place of a minion.');
+    expect(D.text).toBe('The first **Shop spell** you buy each turn costs **1** less. Each Shop has an extra spell in place of a minion.');
+    expect(D.goldenText).toBe('The first **Shop spell** you buy each turn costs **2** less. Each Shop has an extra spell in place of a minion.');
   });
 });
 
-describe('Scrollz — PRICE (spellCostReduction)', () => {
-  it('-1 per plain copy, -2 Gilded, stacking across copies and with the stored discount', () => {
+describe('Scrollz — PRICE: the first Shop spell bought each turn (R-SCROLL-DRAKE-02)', () => {
+  const spellId = poolFor('set3').spells.find((c) => (c.cost ?? 0) >= 3)!.id;
+  const base = CARD_INDEX[spellId]!.cost!;
+  const slot = (uid: string) => ({ uid, cardId: spellId });
+  /** Buy `uid` and return [state, Gold paid]. */
+  const buy = (s: RunState, uid: string): [RunState, number] => { const n = reduce(s, { type: 'buy', uid }); return [n, s.embers - n.embers]; };
+  const foe: BoardSnapshot = { v: 1, wave: 1, heroId: 'indy', resolve: 30, tier: 7, triples: 0, tribes: [], threat: 'glass', power: 1,
+    minions: [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }], seed: 1, origin: 'self' };
+  const nextTurn = (s: RunState): RunState =>
+    reduce(reduce({ ...s, servedBoards: { [s.wave]: { ...foe, wave: s.wave } } }, { type: 'faceOmen' }), { type: 'resolveCombat' });
+  const botPrice = (s: RunState, uid: string): number => {
+    const v = toBotVisibleState(s);
+    return (v.spellOffer?.uid === uid ? v.spellOffer : v.shop.find((o) => o.uid === uid))!.cost;
+  };
+
+  it('the reduction: -1 per plain copy, -2 Gilded, stacking, while no Shop spell has been bought this turn', () => {
     expect(spellCostReduction(run({ board: [] }))).toBe(0);
     expect(spellCostReduction(run({ board: [drake()] }))).toBe(1);
     expect(spellCostReduction(run({ board: [drake('g', true)] }))).toBe(2);
     expect(spellCostReduction(run({ board: [drake('a'), drake('b')] }))).toBe(2);
     expect(spellCostReduction(run({ board: [drake('a'), drake('g', true)], spellCostMod: 1 }))).toBe(4);
     expect(spellCostReduction(run({ board: [drake('a'), body('lz', 'lazarus')] })), 'stacks with Lazarus').toBe(2);
+    const used = run({ board: [drake('a'), drake('g', true), body('lz', 'lazarus')], spellCostMod: 1 });
+    used.shopSpellBuys = { wave: used.wave, n: 1 };
+    expect(spellCostReduction(used), 'used up: only Lazarus and the stored discount are left').toBe(2);
+    expect(shopSpellsBoughtThisTurn({ ...used, wave: used.wave + 1 }), 'a new turn reads 0').toBe(0);
   });
 
   it('a held copy (hand) does nothing: it is a board aura', () => {
     expect(spellCostReduction(run({ board: [], hand: [drake()] }))).toBe(0);
   });
 
-  it('the slot-spell buy charges the discounted price, floored at 0', () => {
-    const spellId = poolFor('set3').spells.find((c) => (c.cost ?? 0) >= 2)!.id;
-    const base = CARD_INDEX[spellId]!.cost!;
-    let s = run({ board: [drake()], spell: { uid: 'sl', cardId: spellId } });
-    const before = s.embers;
-    s = reduce(s, { type: 'buy', uid: 'sl' });
-    expect(before - s.embers).toBe(base - 1);
-
-    let f = run({ board: [drake('a', true), drake('b', true)], spellCostMod: 5, spell: { uid: 'sl', cardId: spellId } });
-    const fb = f.embers;
-    f = reduce(f, { type: 'buy', uid: 'sl' });
-    expect(fb - f.embers, 'floor 0').toBe(0);
+  it('the first spell costs 1 less, the second costs full price (slot, then row)', () => {
+    let s = run({ board: [drake()], spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 's1');
+    expect(paid).toBe(base - 1);
+    expect(shopSpellsBoughtThisTurn(s)).toBe(1);
+    [s, paid] = buy(s, 'r1');
+    expect(paid, 'the second spell is not discounted').toBe(base);
   });
 
-  it('a row spell (the Drake\'s extra one) is discounted the same way', () => {
-    const spellId = poolFor('set3').spells.find((c) => (c.cost ?? 0) >= 2)!.id;
-    let s = run({ board: [drake()], shop: [{ uid: 'rs', cardId: spellId }] });
-    const before = s.embers;
-    s = reduce(s, { type: 'buy', uid: 'rs' });
-    expect(before - s.embers).toBe(CARD_INDEX[spellId]!.cost! - 1);
+  it('row first, then slot: the discount follows the first buy, whichever path', () => {
+    let s = run({ board: [drake()], spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 'r1');
+    expect(paid).toBe(base - 1);
+    [s, paid] = buy(s, 's1');
+    expect(paid).toBe(base);
   });
 
-  it('CROSS-PHASE: live the moment it is played and gone the moment it is sold', () => {
+  it('Gilded: 2 less on the first spell only', () => {
+    let s = run({ board: [drake('g', true)], spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 's1');
+    expect(paid).toBe(base - 2);
+    [s, paid] = buy(s, 'r1');
+    expect(paid).toBe(base);
+  });
+
+  it('two copies stack on the first spell only', () => {
+    let s = run({ board: [drake('a'), drake('b')], spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 's1');
+    expect(paid).toBe(base - 2);
+    [s, paid] = buy(s, 'r1');
+    expect(paid, 'the second copy does not discount the second spell').toBe(base);
+  });
+
+  it('a spell bought before Scrollz was played has used the turn up', () => {
+    let s = run({ board: [], hand: [drake('dk')], spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 's1');
+    expect(paid, 'no Scrollz yet: full price').toBe(base);
+    s = reduce(s, { type: 'play', uid: 'dk' });
+    expect(s.board.some((c) => c.uid === 'dk')).toBe(true);
+    expect(spellCostReduction(s), 'played after the first buy: nothing this turn').toBe(0);
+    [s, paid] = buy(s, 'r1');
+    expect(paid).toBe(base);
+  });
+
+  it('CROSS-PHASE: live the moment it is played (nothing bought yet) and gone the moment it is sold', () => {
     let s = run({ board: [], hand: [drake('dk')] });
     expect(spellCostReduction(s)).toBe(0);
     s = reduce(s, { type: 'play', uid: 'dk' });
-    expect(s.board.some((c) => c.uid === 'dk')).toBe(true);
     expect(spellCostReduction(s), 'played mid-shop: live at once').toBe(1);
     s = reduce(s, { type: 'sell', uid: 'dk' });
     expect(spellCostReduction(s), 'sold: gone at once').toBe(0);
+  });
+
+  it('the visible price (the pill and the bots read it): every spell offer is discounted until the first buy, then none', () => {
+    let s = run({ board: [drake()], spell: slot('s1'), shop: [slot('r1'), slot('r2')] });
+    expect(['s1', 'r1', 'r2'].map((u) => botPrice(s, u))).toEqual([base - 1, base - 1, base - 1]);
+    s = reduce(s, { type: 'buy', uid: 'r1' });
+    expect(['s1', 'r2'].map((u) => botPrice(s, u)), 'after the first buy every offer shows the normal price').toEqual([base, base]);
+  });
+
+  it('resets next turn, and a frozen Shop shows the discount again', () => {
+    let s = run({ board: [drake('dk', false)], spell: slot('s1'), shop: [slot('r1')] });
+    s.board[0]!.health = 900;
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    expect(botPrice(s, 'r1')).toBe(base);
+    s = reduce(s, { type: 'freeze' });
+    expect(s.frozen).toBe(true);
+    const wave = s.wave;
+    s = nextTurn(s);
+    expect(s.phase).toBe('recruit');
+    expect(s.wave).toBe(wave + 1);
+    expect(s.board.some((c) => c.cardId === SCROLL_DRAKE_ID)).toBe(true);
+    expect(s.shop.some((o) => o.uid === 'r1'), 'the frozen spell offer carried over').toBe(true);
+    expect(shopSpellsBoughtThisTurn(s)).toBe(0);
+    expect(botPrice(s, 'r1'), 'the kept offer is discounted again').toBe(base - 1);
+    const [, paid] = buy({ ...s, embers: 30 }, 'r1');
+    expect(paid).toBe(base - 1);
+  });
+
+  it('floor 0 with another discount, and that free first buy still uses the turn up', () => {
+    let s = run({ board: [drake('a', true), drake('b', true)], spellCostMod: 5, spell: slot('s1'), shop: [slot('r1')] });
+    let paid: number;
+    [s, paid] = buy(s, 's1');
+    expect(paid, 'floor 0').toBe(0);
+    s.spellCostMod = 1;
+    [s, paid] = buy(s, 'r1');
+    expect(paid, 'only the other discount is left').toBe(base - 1);
+  });
+
+  it('a save from before the count existed reads 0 bought, and the count survives a JSON round trip', () => {
+    const old = run({ board: [drake()], spell: slot('s1') });
+    delete old.shopSpellBuys;
+    expect(spellCostReduction(deserialize(serialize(old)))).toBe(1);
+    const bought = reduce(old, { type: 'buy', uid: 's1' });
+    expect(spellCostReduction(deserialize(serialize(bought)))).toBe(0);
+  });
+});
+
+describe('Scrollz x Emissary x Ancient of Fortune: one "first Shop spell each turn" count', () => {
+  const spellId = 'sparkplug';
+  const price = CARD_INDEX[spellId]!.cost!;
+  const slot = (uid: string) => ({ uid, cardId: spellId });
+  const fortune = (over: Partial<RunState> = {}): RunState => {
+    let s = enableAncients({ ...createRun(7, 'vale'), phase: 'recruit', tier: 3, embers: 40, heroReady: true, hand: [], board: [], shop: [], spell: null, ...over } as RunState);
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['fortune', ...ANCIENT_IDS.filter((a) => a !== 'fortune').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'fortune' });
+    expect(s.ancients!.picked).toBe('fortune');
+    return s;
+  };
+
+  it('the first spell is free (floor 0) and spends both; the second pays full price', () => {
+    expect(price).toBeGreaterThan(1);
+    let s = fortune({ board: [drake()], spell: slot('s1'), shop: [slot('r1')] });
+    const gold = s.embers;
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    expect(s.embers, 'free: the two never go below 0').toBe(gold);
+    s = reduce(s, { type: 'buy', uid: 'r1' });
+    expect(gold - s.embers, 'Scrollz went with the free spell').toBe(price);
+  });
+
+  it('a new turn has both again', () => {
+    let s = fortune({ board: [drake()], spell: slot('s1') });
+    s = reduce(s, { type: 'buy', uid: 's1' });
+    const next = { ...s, wave: s.wave + 1, spell: slot('s2') };
+    expect(spellCostReduction(next)).toBe(1);
+    expect(reduce(next, { type: 'buy', uid: 's2' }).embers).toBe(next.embers);
   });
 });
 

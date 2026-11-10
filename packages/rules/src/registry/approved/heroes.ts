@@ -3643,12 +3643,12 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-ANCVALE-02",
     title: "Emissary × Ancient of Fortune: the first Shop spell each turn is free",
     statement:
-      "With the Ancient of Fortune, the first Shop spell you BUY each turn costs 0 Gold, from the spell slot or a spell offer in the minion row. A Ruby is not a Shop spell. The count is kept while Ancients are on, so a spell bought earlier that turn, before the pick, already used it.",
+      "With the Ancient of Fortune, the first Shop spell you BUY each turn costs 0 Gold, from the spell slot or a spell offer in the minion row. A Ruby is not a Shop spell. The count is the run's own Shop spell buys this turn (kept on every run; Scrollz reads the same one, R-SCROLL-DRAKE-02), so a spell bought earlier that turn, before the pick, already used it.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Fortune: \"Your first Shop Spell each turn is free.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts firstShopSpellFree / ancientFirstSpellFree (through ancientEnchantedSpellCut) / ancientOnBuy (valeSpellBuys)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts firstShopSpellFree / ancientFirstSpellFree (through ancientEnchantedSpellCut) ; packages/sim/src/recruit.ts shopSpellsBoughtThisTurn / applySpellBought (RunState.shopSpellBuys)" },
     ],
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-10',
     changes: [
+      { category: 'Balance', text: 'Scrollz now makes only the first Shop spell you buy each turn cost 1 less (2 less when Gilded), not every spell. It still adds an extra spell to each Shop. The card shows whether the discount is ready or used this turn.' },
       { category: 'Systems', text: 'The desktop app now checks for updates on the loading screen. It tells you when you are up to date, and when a new version is downloaded you can click to restart and install it right away.' },
       { category: 'Systems', text: 'When a new version is found, the loading screen now waits while it downloads, with its own progress bar, so you can install it before playing. "Not now" skips it.' },
     ],

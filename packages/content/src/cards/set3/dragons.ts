@@ -357,6 +357,13 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     //    spell in the minion row in place of a minion, so the total offer count never grows. Capped at one extra
     //    spell however many copies (or a Gilded one) you have.
     // NAME + STATS ARE PLACEHOLDERS (owner to set). No art wired.
+    // OWNER RULING 2026-11-10 (supersedes the PRICE half above; the OFFERS half is unchanged): "change scrollz -> the
+    // first spell you buy each turn is 1 less instead of every spell". The discount now applies to the FIRST Shop spell
+    // bought each turn only: -1 per copy on the board, -2 Gilded, copies still stacking on that one spell, floor 0.
+    // "First" is counted for the TURN (`shopSpellsBoughtThisTurn`, the run's `shopSpellBuys`, ticked by
+    // `applySpellBought` on both buy paths), not per Scrollz: a spell bought earlier this turn, before Scrollz reached
+    // the board, already used it. A new turn reads 0 again. Emissary x Fortune's free first spell reads the same count.
+    // The card prints "Ready this turn." / "Used this turn." on every recruit surface (`firstShopSpellDiscountText`).
     id: 'd3_scrolldrake',
     name: 'Scrollz',
     tribe: 'dragon',
@@ -366,7 +373,7 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     health: 4,
     keywords: [],
     effects: [],
-    text: '**Shop spells** cost **1** less. Each Shop has an extra spell in place of a minion.',
-    goldenText: '**Shop spells** cost **2** less. Each Shop has an extra spell in place of a minion.',
+    text: 'The first **Shop spell** you buy each turn costs **1** less. Each Shop has an extra spell in place of a minion.',
+    goldenText: 'The first **Shop spell** you buy each turn costs **2** less. Each Shop has an extra spell in place of a minion.',
   },
 ];

@@ -1285,7 +1285,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   opponent. If every player still in would go out in one round, the one who entered it with the most Health + Armor (then
   by seat) survives.
 - **Disconnects** as 1v1, over the players still in: a pause, the 30 second grace, then any other player still in may
-  unpause and the absent seat plays on auto (its last locked board); three auto rounds in a row is out; coming back
+  unpause and the absent seat plays on auto (the newest board the room holds for the round, else its last locked board,
+  R-VERSUS-AUTO-NEWEST-BOARD-01); three auto rounds in a row is out; coming back
   clears auto. One unpause puts on auto every absent player whose own 30 seconds are over (two who dropped together
   never cost two pauses), and a player who dropped later is paused on with only the rest of THEIR 30 seconds
   (R-VERSUS-GROUP-UNPAUSE-01). A player who is out never pauses or holds up the match.
@@ -1378,7 +1379,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   hand; one under their own Gild-at-2 rules) wears the triple hint in teal (ring, glow, rising arrows), live from their
   frames. An offer that completes your own triple too shows only your gold hint. Not shown while you watch them.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
-  (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
+  (30 s, then the absent player's board plays on auto: the newest one the room holds for the round, else the last one
+  they locked); three auto rounds in a row put the team out. A card pass still waiting on a teammate who goes on auto
+  comes back to its sender with its Gold (R-DUOS-PASS-EXPIRE-01). A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
   A pass that comes back to you (their hand was full, the clock) says so on the portrait. A reload keeps every pass
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
@@ -1548,12 +1551,16 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   0:00 takes it back. The round goes when BOTH teammates are ready, at once, whatever the clock says. Past 0:00 it waits
   for both: there is no countdown after the first End Turn (owner 2026-10-27: "in duos, don't do the 5s timer when a
   player readies at 0 seconds. make it so both players must ready up to progress it"; R-RANKED-DUOS-GATE-02; until then
-  the first End Turn at 0:00 started a 5 s window). A teammate who disconnects (12 s without a heartbeat) or left counts
+  the first End Turn at 0:00 started a 5 s window). A teammate who disconnects (12 s with no connection:
+  R-RANKED-DUOS-AWAY-GRACE-01, a shorter drop is not an absence and the round waits for them) or left counts
   as ready. From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
   but you can re-order and freeze your board and view your teammate's board (owner: "same as the normal mode when you
   have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).
-- **Disconnects and leaving.** A teammate who drops or leaves has their last locked board fight for them on auto; the
-  team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
+- **Disconnects and leaving.** A teammate who drops (away after 12 s) or leaves has a board fight for them on auto: the
+  newest board the room holds for that round (what they had bought so far this turn), else the last board they locked
+  (R-VERSUS-AUTO-NEWEST-BOARD-01). A card passed to them that they never took goes back to its sender with its Gold
+  (R-DUOS-PASS-EXPIRE-01). The player who dropped sees "Reconnecting", then "Connection lost" (R-VERSUS-LINK-STATUS-01).
+  The team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
   **Conceding** (the Esc menu) is leaving for good (R-RANKED-DUOS-CONCEDE-01): your board plays on auto for your
   teammate, the server takes nothing more from your seat, and you watch the rest from the stands. A reload never puts
   you back in that game as a player, and nothing of it follows you into another screen (the Scene Builder included).

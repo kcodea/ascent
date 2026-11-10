@@ -136,7 +136,9 @@ export function DuosResultOverlay() {
   const res = useVersus((s) => s.duosResult);
   const hasStats = useVersus((s) => s.lastMatch != null);
   if (!res) return null;
-  const submission = res.unrated ? 'unrated' : res.result ? 'confirmed' : res.pending ? 'pending' : 'rejected';
+  // A late result is "saved, still updating" (the rank screen's own retry line), never a failed update
+  // (R-RANKED-DUOS-RESULT-SLOW-01).
+  const submission = res.unrated ? 'unrated' : res.result ? 'confirmed' : res.slow ? 'retryable' : res.pending ? 'pending' : 'rejected';
   return (
     <div className="vsduosresult" role="dialog" aria-label="Ranked Duos result">
       <div className={`heroselect endscreen lobbyend rankend${res.placement === 1 ? ' won' : ''}`}>

@@ -50,7 +50,9 @@ import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { markServerRecordedWatch } from '../live/spectatorEnd';
 import { installSpectateIo, leaveSpectating, leaveTeammate, leaveTeammateHero, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
 import { othersInStands, setWatchers, type Watcher } from './watchers';
-import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorCursor, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
+import { dropVersusLink, useVersusLink } from './versusConnection';
+import { createCandidateDedupe } from './candidateDedupe';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -128,6 +130,8 @@ export interface DuosResultMember { userId: string; name: string; hero: string |
 export interface DuosResultView {
   matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean;
   unrated: boolean; team: DuosResultMember[];
+  /** Still pending after the quick reads: the result is saving late (R-RANKED-DUOS-RESULT-SLOW-01). */
+  slow?: boolean;
 }
 
 export const useVersus = create<VersusState>(() => ({
@@ -398,6 +402,24 @@ export async function leaveRoom(): Promise<void> {
   if (!doorShowing) void refreshRooms();
 }
 
+/**
+ * BACK TO THE MENU ON THIS SCREEN ONLY (R-VERSUS-LINK-STATUS-01): the game is open somewhere else (or this socket is
+ * closed for good) and the player chose not to take it over. The session stops and the title comes back, but the ROOM IS
+ * NOT LEFT: `leaveRoom` would forfeit the match for the tab that is playing it. The socket is forgotten, so coming back
+ * in later opens a fresh one.
+ */
+export function leaveVersusLocally(): void {
+  duosReset();
+  stopSession();
+  set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, seatMove: null, screen: 'browser', resolveSlow: null, error: null });
+  dropVersusLink();
+  const g = useGame.getState();
+  if (g.run.mode === 'versus') g.leaveVersusRun();
+  // The main menu, not the Versus door: the door looks for my room again, which would take the game back from the
+  // screen that has it.
+  useGame.setState({ showTitle: true, heroChoices: null, titleView: 'menu' });
+}
+
 // ── the session loop ───────────────────────────────────────────────────────────────────────────────────────
 
 let session: {
@@ -453,6 +475,10 @@ function stopSession(): void {
   installSpectateIo(null);
   resetSpectate();
   setSpectatorTap(false, null, null);
+  setSpectatorCursor(true);
+  mateWatchUntil = 0;
+  watchBeatAt = 0;
+  sentCandidate.reset();
   resolverFlight.reset();
   driveDeferred = false;
   readyInFlight = false;
@@ -489,6 +515,8 @@ function subscribe(matchId: string | null): void {
     // VERSUS DUOS (R-DUOS-VIEW-01): a player caches their TEAMMATE's frames too (the live teammate view).
     else if (event === 'spectate') { if (!mySeat() || isMateFrame(payload)) receiveSpectate(payload); }
     else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat() || (useSpectate.getState().teammate && isMateFrame(payload))) receiveSpectatorCursor(payload); }
+    // My teammate opened or closed my screen: my cursor streams to them only while it is open (R-DUOS-CURSOR-GATE-01).
+    else if (event === SPECTATE_WATCH_EVENT) { if (mySeat() && isMateFrame(payload)) noteMateWatching((payload as { on?: unknown }).on === true); }
     // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
     else if (event === SPECTATE_KEY_EVENT) {
       if (mySeat() && session?.matchId) {
@@ -529,6 +557,57 @@ useSpectate.subscribe((s, prev) => {
   // VERSUS DUOS (R-DUOS-PASS-LATENCY-01): back on my own screen from my teammate's, the passes that came while I watched
   // land now (they could not land on their run), not on the heartbeat's 12 s backstop.
   if (prev.teammate && !s.teammate && session) backFromMate();
+  // R-DUOS-CURSOR-GATE-01: tell my teammate I am viewing their screen (their cursor streams to me), or stopped.
+  if (!!prev.teammate !== !!s.teammate && session) sayWatching(!!s.teammate);
+});
+
+/**
+ * WHO IS VIEWING MY SCREEN (R-DUOS-CURSOR-GATE-01). A Duos player's cursor used to stream to the teammate all game. The
+ * viewer now says so: `spectate_watch` `{ seat, on }` when they open or close the teammate view, and again every
+ * `MATE_WATCH_BEAT_MS` while it stays open; the room relays it to the teammate alone. The viewed player streams the
+ * cursor while the last "on" is younger than `MATE_WATCH_TTL_MS` (so a viewer who drops without saying goodbye stops
+ * costing anything 12 s later, and one lost message is covered by the next beat). The stands are a separate reason to
+ * stream and are counted as before.
+ */
+export const SPECTATE_WATCH_EVENT = 'spectate_watch';
+export const MATE_WATCH_BEAT_MS = 5_000;
+export const MATE_WATCH_TTL_MS = 12_000;
+let mateWatchUntil = 0;
+let watchBeatAt = 0;
+function sayWatching(on: boolean): void {
+  const g = get().match?.group;
+  if (!session?.channel || !g?.duos || !g.me) return;
+  watchBeatAt = Date.now();
+  session.channel.send(SPECTATE_WATCH_EVENT, { seat: g.me, on });
+}
+function noteMateWatching(on: boolean): void {
+  mateWatchUntil = on ? Date.now() + MATE_WATCH_TTL_MS : 0;
+  syncCursorGate();
+}
+/** Is my teammate viewing my screen right now (by their last word)? */
+export const mateIsWatching = (now = Date.now()): boolean => now < mateWatchUntil;
+function syncCursorGate(): void {
+  const mid = session?.matchId;
+  // Outside Duos nothing changes: the tap is only on while the stands hold someone, and the cursor goes with it.
+  setSpectatorCursor(!get().match?.group?.duos || mateIsWatching() || (!!mid && standsCount(mid) > 0));
+}
+/** The viewer's beat and the viewed player's expiry, from the session tick (twice a second; two compares when idle). */
+function tickMateWatch(now: number): void {
+  if (useSpectate.getState().teammate && now - watchBeatAt >= MATE_WATCH_BEAT_MS) sayWatching(true);
+  if (mateWatchUntil && now >= mateWatchUntil) { mateWatchUntil = 0; syncCursorGate(); }
+}
+
+/**
+ * MY SOCKET IS BACK (R-VERSUS-LINK-STATUS-01). The hello already replayed the room, the match and my private row; what a
+ * drop also loses is everything sent as a broadcast while it was down. So: the next candidate goes out whatever the last
+ * one was, a teammate I am viewing hears it again, and the passes are read once.
+ */
+useVersusLink.subscribe((s, prev) => {
+  if (s.status !== 'open' || prev.status === 'open' || !session) return;
+  sentCandidate.reset();
+  if (useSpectate.getState().teammate) sayWatching(true);
+  const mid = get().room?.current_match_id ?? session.matchId;
+  if (mid && prev.status === 'down') pullDuosPasses(mid);
 });
 
 /** Realtime is a wake-up only: coalesce bursts and re-read the rows. A round commit's events (the match row and the
@@ -683,6 +762,7 @@ function onTick(): void {
   lastTickAt = now;
   // Local only (no server call), so it runs whatever the connection: a player never sits on a finished match.
   endBackstop(match, now);
+  tickMateWatch(now);
   if (!mayReconcile()) return;
   if (room?.status === 'sealed' && (versusRemainingMs(room.gate_deadline) ?? 1) <= 0) {
     const key = `${room.id}|${room.gate_deadline ?? ''}|${room.revision}`;
@@ -1535,6 +1615,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
     maybeEndGate(); // a finished match ends through the end gate once the last fight has been left
     candidates.schedule({ matchId, seat });
     relocks.schedule({ matchId, seat }); // a ready player still playing sends the board again (R-VERSUS-READY-01)
+    closingFlush();
     frames.schedule({ matchId, forceKey: shopOpened });
     // VERSUS DUOS: my new passes go out, my hand room is reported (R-DUOS-PASS-01).
     const me = get().match?.group?.me;
@@ -1551,9 +1632,36 @@ const candidates = createDeferredWriter<{ matchId: string; seat: VersusSeat }>((
     || run.wave !== match.round || get().lockedRound === match.round) return;
   const side = buildVersusCandidate(run, versusTimeoutRng(Number(match.seed), run.wave, seat));
   if (!side) return;
+  // THE SAME BOARD IS SENT ONCE (R-VERSUS-CANDIDATE-DEDUPE-01, runtime audit D8: the whole 8 to 9 KB side went up 10 to 11
+  // times a round, many of them byte for byte what the room already held: a Shop refresh, an action that did not touch
+  // the board). A candidate identical to the last one the room TOOK for this round is skipped. Safe for the newest-board
+  // rule (R-VERSUS-AUTO-NEWEST-BOARD-01): the room holds exactly these bytes already. A send that failed forgets the
+  // mark, so the next change (or the reconnect) sends it again.
+  const scout = versusScoutOf(run);
+  const mark = sentCandidate.next(matchId, match.round, [side, scout]);
+  if (!mark) return;
   session.candidateSeq += 1;
-  void mx.submit(matchId, match.round, session.candidateSeq, side, false, null, versusScoutOf(run)).catch(() => undefined);
+  void mx.submit(matchId, match.round, session.candidateSeq, side, false, null, scout).catch(() => sentCandidate.failed(mark));
 }, 600);
+const sentCandidate = createCandidateDedupe();
+
+/**
+ * THE LAST TWO SECONDS DO NOT WAIT FOR IDLE TIME (R-VERSUS-CLOSING-FLUSH-01, netcode audit F5). The board that fights at
+ * 0:00 is my lock, sent AT 0:00, which the room takes for 250 ms; if that one frame is late (a slow uplink) the room
+ * falls back to my newest candidate, and a candidate waits for idle time, up to 600 ms (a re-lock while ready: 200 ms).
+ * So the last buy before the clock could be on my screen and not in the fight. Inside the last `CLOSING_FLUSH_MS` of a
+ * clock-closed round a change goes out on the next task instead (off the click's own task, never inside the commit).
+ * Ranked Duos closes on both players' End Turn, not at 0:00, so it has no such moment and is left alone.
+ */
+export const CLOSING_FLUSH_MS = 2_000;
+let closingTimer: number | null = null;
+function closingFlush(): void {
+  const m = get().match;
+  if (closingTimer != null || !m || m.phase !== 'shop' || m.paused_at || (groupRaw && isRankedDuosRaw(groupRaw))) return;
+  const left = versusShopRemainingMs(m.shop_deadline);
+  if (left == null || left > CLOSING_FLUSH_MS || left <= 0) return;
+  closingTimer = window.setTimeout(() => { closingTimer = null; candidates.flush(); relocks.flush(); }, 0);
+}
 
 /**
  * END TURN IS A READY SIGNAL, IN EVERY VERSUS MODE (owner 2026-10-26: "hitting end turn shouldn't restrict anything, it
@@ -1617,6 +1725,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
   setSpectatorTap(watchers > 0, emoteSeatOf(get().match), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
+  syncCursorGate(); // the cursor only while someone can see it (R-DUOS-CURSOR-GATE-01)
   if (watchers === 0) return;
   const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted, hasPendingActs());
   keyWanted = false;
@@ -1639,8 +1748,12 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
  *  the rest; before the knockout-stands migration their room role is still their seat), and in Duos my teammate, who
  *  always may (R-DUOS-VIEW-01). Zero: nothing is published at all. */
 function watcherCount(matchId: string): number {
+  return standsCount(matchId) + (get().match?.group?.duos ? 1 : 0);
+}
+/** The stands alone (spectators and players already out), without my Duos teammate. */
+function standsCount(matchId: string): number {
   const out = new Set(groupRaw && groupRaw.id === matchId ? groupRaw.seats.filter((x) => x.eliminatedRound != null).map((x) => x.userId) : []);
-  return (get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0) + (get().match?.group?.duos ? 1 : 0);
+  return get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0;
 }
 
 /**
@@ -1726,6 +1839,9 @@ export function expireVersusShop(): void {
   // freeze and the teammate view stay open, and the round goes when the server closes it (both ready, R-RANKED-DUOS-GATE-02;
   // a dropped teammate counts as ready; the 30 s AFK backstop). My own run takes the engine lock even while I watch my teammate.
   if (groupRaw && isRankedDuosRaw(groupRaw)) {
+    // READY: a re-lock still waiting for idle time goes NOW (my teammate's End Turn can close the round at any moment
+    // from here; netcode audit F5).
+    relocks.flush();
     // Watching my teammate: nothing to buy on that screen; my own run takes the lock when I am back (`onTick`).
     if (ownRunWhileWatching()) return;
     const g = useGame.getState();
@@ -1750,6 +1866,7 @@ export async function lockTurn(): Promise<void> {
   if (!match || !seat || run.mode !== 'versus' || run.phase !== 'recruit' || run.wave !== match.round || get().lockedRound === match.round) return;
   if (match.paused_at) return; // a paused match takes no End Turn
   set({ lockedRound: match.round });
+  sentCandidate.reset(); // the room's side for this round is my lock from here on
   const ready = readySideOf(run, match, seat);
   if (!ready) { set({ lockedRound: null }); return; }
   readyPressedAt = Date.now();
@@ -1806,6 +1923,7 @@ export function unreadyTurn(): boolean {
   if (match.phase !== 'shop' || match.paused_at || run.shopClockExpired || !((versusShopRemainingMs(match.shop_deadline) ?? 0) > 0)) return true;
   relocks.cancel();
   lastRelock = null;
+  sentCandidate.reset();
   set({ lockedRound: null });
   const seq = nextSeq();
   void inOrder(() => mx.unready(match.id, match.round, seq))
@@ -2059,13 +2177,34 @@ export async function loadDuosResult(
   const view = (result: RankResult | null, pending: boolean, place = placement): DuosResultView => ({ matchId, placement: place, result, teamName, pending, unrated, team });
   if (unrated) { set({ duosResult: view(null, false) }); return; }
   set({ duosResult: view(null, true) });
-  for (let i = 0; i < 4; i++) {
-    const row = await versusRemote.duosResult(matchId).catch(() => null);
+  // A SLOW RESULT IS STILL SAVING, NEVER "REJECTED" (R-RANKED-DUOS-RESULT-SLOW-01, netcode audit F12). The room writes the
+  // result through its outbox (retried for about 8 minutes, 1 s doubling to 60 s), so a late row is the ordinary slow
+  // case. This used to stop after four reads (about 15 s) and leave the screen with no result and nothing pending, which
+  // it showed as a failed rank update; the rating then moved later, unseen. Now: the same four quick reads, then one
+  // every `DUOS_RESULT_SLOW_MS` for as long as the screen is up (it is dropped when the screen closes), saying "still
+  // saving" (`slow`) from the fifth on. It only ever stops as slow, never as failed. Every read has its own deadline, so
+  // a hung Supabase call cannot hold the loop.
+  const until = Date.now() + DUOS_RESULT_GIVE_UP_MS;
+  for (let i = 0; Date.now() < until; i++) {
+    const row = await withDeadline(versusRemote.duosResult(matchId), DUOS_RESULT_READ_TIMEOUT_MS).catch(() => null);
     if (get().duosResult?.matchId !== matchId) return;
     if (row) { set({ duosResult: view(row, false, row.placement) }); return; }
-    await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    if (i === 3) set({ duosResult: { ...view(null, true), slow: true } });
+    await new Promise((r) => setTimeout(r, i < 4 ? 1500 * (i + 1) : DUOS_RESULT_SLOW_MS));
+    if (get().duosResult?.matchId !== matchId) return;
   }
-  if (get().duosResult?.matchId === matchId) set({ duosResult: view(null, false) });
+}
+
+/** One result read's own deadline; the slow poll's pace; when the poll stops (the room's outbox gives a write up after
+ *  about 8 minutes, `PERSIST_DEAD_AFTER`; a little past it). */
+export const DUOS_RESULT_READ_TIMEOUT_MS = 8_000;
+export const DUOS_RESULT_SLOW_MS = 8_000;
+export const DUOS_RESULT_GIVE_UP_MS = 10 * 60_000;
+function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e as Error); });
+  });
 }
 
 export function closeDuosResult(): void {

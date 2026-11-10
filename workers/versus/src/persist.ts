@@ -28,6 +28,19 @@ export interface PersistEnv {
   PERSIST?: string;
 }
 
+/**
+ * NO SUPABASE CALL WAITS FOR EVER (R-VERSUS-CF-FETCH-TIMEOUT-01, netcode audit F10, 2026-11-10). A bare `fetch` has no
+ * deadline of its own: a connection Supabase accepted and never answered held the caller for as long as the runtime let
+ * it. Every Supabase call the Worker makes now gives up after these and fails like any other error (each caller already
+ * retries: the outbox with backoff, the table every 5 s, the JWKS on the next token).
+ *  - READ 5 s: the seating reads and the JWKS. Two of them (the team, then the table) fit inside the 12 s the party waits
+ *    for its table (`RANKED_DEAL_FALLBACK_MS`), and one fits inside the 8 s a client gives its handshake.
+ *  - WRITE 15 s: a result row can be 1.5 MB (`RANKED_FINISH_BUDGET`); the write is idempotent, so a retry after a
+ *    timeout that did land is harmless.
+ */
+export const SUPABASE_READ_TIMEOUT_MS = 5_000;
+export const SUPABASE_WRITE_TIMEOUT_MS = 15_000;
+
 export interface PersistSink {
   readonly live: boolean;
   write(job: PersistJob): Promise<void>;
@@ -57,6 +70,7 @@ export class SupabaseRpcSink implements PersistSink {
       method: 'POST',
       headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ p_key: this.secret, p_kind: job.kind, p_row: wireRow(job) }),
+      signal: AbortSignal.timeout(SUPABASE_WRITE_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`persist ${job.kind} ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }

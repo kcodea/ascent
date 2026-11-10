@@ -15,6 +15,7 @@ import { pixiFx } from './pixiFx';
 import { sfx, setSkipTurboAudio, endSkipTurboAudio } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { applyFloatSpeed, setLiveCombatSpeed, speedVars } from './floatConfig';
+import { tagAnimClass } from './choreo/channels/duosHandoffTiming';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
 import { decisiveBeatIndex, remainingNow, skipTurboSpeed, turboAmount } from './skipTurbo';
 import { RESULT_TYPES, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
@@ -772,8 +773,10 @@ export function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine SoC cast flashes; narration (spell power, etc.) is silent
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
-    case 'tagIn': return Object.fromEntries(e.minions.map((m) => [m.uid, 'tagin'])); // VERSUS DUOS: the fly-in
-    case 'flyIn': return Object.fromEntries(e.minions.map((m) => [m.uid, 'tagin'])); // DUOS: the same entrance (R-DUOS-FLYIN-01)
+    // VERSUS DUOS: the fly-in. Each body wears its TURN off the edge (`tagi-N`, by its place in the event, mirrored for
+    // the other team), so the stagger follows the arriving bodies and never the slot (R-DUOS-HANDOFF-BEAT-01).
+    case 'tagIn': return Object.fromEntries(e.minions.map((m, i) => [m.uid, tagAnimClass(e.side, i, e.minions.length)]));
+    case 'flyIn': return Object.fromEntries(e.minions.map((m, i) => [m.uid, tagAnimClass(e.side, i, e.minions.length)])); // DUOS: the same entrance (R-DUOS-FLYIN-01)
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     case 'shout': return { [e.target]: 'sccast' }; // the Shout's owner flashes as it fires; the re-trigger source pulses per proc from `onShoutProc`
     case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)

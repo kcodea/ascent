@@ -41,6 +41,11 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // The Duos teammate-ready ding (owner 2026-11-02: "have this louder than the other two"): its own fader, over the
   // rune arrival it plays with (played at half there) and the thud.
   mateready: 1,
+  // THE DUOS BEATS (2026-11-10, "make the beats much stronger for duos"): the hand-off's landing thud, the pass's
+  // landing, and the team cues. Starting levels, never heard by anyone yet: tune by ear on the desk. (Their `fx/`
+  // clips play through the layer's own gain, and their synth notes carry their own level, so these faders move
+  // the sourced core clips only.)
+  duostag: 0.6, duosfall: 0.5, duospass: 0.4, duoscue: 0.5,
   // Clips that used to ride the generic `ui` fallback (0.6) with no fader of their own — seeded at that exact
   // level so the mix is unchanged; now visible/tunable. `ceremony` bundles the hero-select stingers.
   ceremony: 0.6, auctioneerhp: 0.6, runeselect: 0.6,
@@ -111,6 +116,8 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   heroSelect: 'hero', heroPower: 'hero',
   runeArrival: 'ui',
   mateready: 'ui',
+  // The hand-off and the fallen board are part of the fight (they stop with it); the pass and the team cues are not.
+  duostag: 'combat', duosfall: 'combat', duospass: 'ui', duoscue: 'ui',
   // Bus routing is inert today (every bus is gain 1, no comp), so this only changes where they GROUP on the
   // desk, not the sound: the hero-select stingers + the Auctioneer power sit on the hero bus, rune-select on ui.
   ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
@@ -141,6 +148,10 @@ export const CATEGORY_BUS: Record<string, BusName> = {
 export const CATEGORY_LABEL: Record<string, string> = {
   runeArrival: 'Rune arrival — implosion on the badge',
   mateready: 'Duos — teammate ready ding',
+  duostag: 'Duos — hand-off (the teammate board lands)',
+  duosfall: 'Duos — a board has fallen',
+  duospass: 'Duos — pass sent / pass received',
+  duoscue: 'Duos — team cues (view swap, teammate joins, team out, team result)',
   ceremony: 'Ceremony — hero-select stingers',
   auctioneerhp: 'Auctioneer — hero power',
   runeselect: 'Rune select — frame clang',

@@ -18,6 +18,7 @@ export const KEYED_HOLD_KINDS = new Set([
   'tribeAura', 'hpGrant', 'toHand', 'handBuff', 'maxGold', 'spellProgress',
 ]);
 import { getChoreoConfig, beatDelay } from './choreoConfig';
+import { tagEntranceMs } from './channels/duosHandoffTiming';
 
 /**
  * The replay clock (choreographer phase 2, weld retired in phase 3b) — the pure hold formula that decides
@@ -58,6 +59,18 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
     ? combatKeyedHoldMs(shown.primary as { type: string; flag?: string })
     : null;
   if (keyedShown != null) return keyedShown / spd;
+  // THE DUOS HAND-OFF HAS LANDED BEFORE ANYTHING FOLLOWS IT (R-DUOS-HANDOFF-BEAT-01). A hold is the wait BEFORE `next`
+  // shows, so the time a tag-in spends on screen is whatever the NEXT beat's kind allows: 360 ms for a swing, 240 ms
+  // for a summon riding it, against an entrance of up to 880 ms. The `tagIn` key's 960 ms was meant to cover the
+  // fly-in but sat BEFORE it, as dead air after the fallen board, so the new board's first swing wound up while its
+  // bodies were still in the air, at every speed. The entrance's own length (for the bodies that actually arrive) is
+  // now the floor under whatever follows a tag-in or a fly-in, and the lead-in before the tag-in gave the same time
+  // back (`choreoConfig.ts` `tagIn`), so no fight is longer. Checked before the ride-the-previous rules: a summon
+  // must not ride a board that has not landed.
+  if (shown && (shown.kind === 'tagIn' || shown.kind === 'flyIn') && (shown.primary.type === 'tagIn' || shown.primary.type === 'flyIn')) {
+    const base = OVERLAP_INTO.has(next.primary.type) ? cfg.overlapMs : beatDelay(next.primary.type) * cfg.speed;
+    return Math.max(base, tagEntranceMs(shown.primary.minions.length, 1)) / spd;
+  }
   // A wave pass's REACTION beat (R-DEMON-DMG-BEATS-01): it starts right after the pass lands, and nothing after it
   // (the next pass, the parked swing's strike) starts until its tendrils have reached their targets.
   if (shown && next.hitReaction) return HIT_REACTION_LEAD_MS / spd;

@@ -5,6 +5,7 @@ import type { Moment } from '../compile';
 import { wardsGivenIn } from './wardGiven';
 import { isTravelledWard } from '../../fx/wardGivenLaunch';
 import { canPlayDefs } from '../../fx/playDef';
+import { tagLastLandMs } from './duosHandoffTiming';
 
 /**
  * SFX channel (choreographer phase 3a) — fires the combat sound(s) for one moment: one sound per notable
@@ -12,8 +13,12 @@ import { canPlayDefs } from '../../fx/playDef';
  * in `useCombatReplay`. Returns `shake: true` when a real (non-Rise) death occurred so the caller triggers
  * the board shake. The melee "smack" is NOT fired here — it comes from the lunge's GSAP timeline at contact
  * (see playAttackLunge); a Rise death plays the soft spirit-release, no shake (the body returns).
+ *
+ * DUOS (2026-11-10): the hand-off's three events ring here too, one cue per side per moment: a board falling, the
+ * teammate's board tagging in (its hit timed to the last body's landing at the fight's live `speed`), and the fly-in
+ * after a won fight. Until then all three were silent (`audio/duosCues.ts` holds what each plays).
  */
-export function playMomentSfx(moment: Moment, events: CombatEvent[], cardIds?: Map<string, string>): { shake: boolean } {
+export function playMomentSfx(moment: Moment, events: CombatEvent[], cardIds?: Map<string, string>, speed = 1): { shake: boolean } {
   const done = new Set<string>();
   const once = (k: string, fn: () => void): void => { if (!done.has(k)) { done.add(k); fn(); } };
   let kill = false;
@@ -43,6 +48,9 @@ export function playMomentSfx(moment: Moment, events: CombatEvent[], cardIds?: M
     else if (e.type === 'buff') once('buff', sfx.buff);
     else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
     // A body summoned from the hand rings its summon on its LANDING (handSummonFx.ts), not here.
+    else if (e.type === 'boardFallen') once(`boardFallen:${e.side}`, () => sfx.duosBoardFallen(e.side));
+    else if (e.type === 'tagIn') once(`tagIn:${e.side}`, () => sfx.duosTagIn(e.side, tagLastLandMs(e.minions.length, speed)));
+    else if (e.type === 'flyIn') once(`flyIn:${e.side}`, () => sfx.duosFlyIn(e.side, tagLastLandMs(e.minions.length, speed)));
     else if (e.type === 'summon') { if (!isHandSummonInFlight(e.minion.uid)) once('summon', () => sfx.summon(e.minion.cardId)); }
   }
   if (riseDeath) once('rise', sfx.rebornShatter);

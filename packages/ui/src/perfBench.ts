@@ -52,5 +52,9 @@ export function installPerfBench(): void {
     // THE LOBBY REVEAL (2026-10-31): start it over a hand-set run (a Versus 1v1 screen offline) for a frame capture.
     lobbyReveal: () => Promise.all([import('./lobbyReveal/beginLobbyReveal'), import('./lobbyReveal/lobbyRevealStore')]).then(([b, s]) => ({ ...b, ...s })),
     db: () => import('./remoteBoards').then((m) => m.supabaseClient()),
+    // THE DUOS BEATS (2026-11-10): the sound cues and the announcer, so a headless drive can count which cue fired at
+    // which moment (nobody hears a headless run: the calls are the evidence).
+    sfx: () => import('./sfx').then((m) => m.sfx),
+    announcer: () => import('./announcer'),
   };
 }

@@ -29,6 +29,8 @@ import { SpectatorBar } from './SpectatorBar';
 import { emitPressCue } from '../pressCue';
 import { endTurnStalled } from './versusReliability';
 import { versusFightWaitHeld } from './versusHooks';
+import { driveCountdown } from './countdownBeat';
+import { isRankedDuosRaw, rankedCloseAtMs } from './rankedDuosView';
 import './versus.css';
 
 /** How often the End Turn watchdog looks (R-VERSUS-RELIABLE-05). */
@@ -75,7 +77,26 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   const match = useVersus((s) => s.match);
   const resolveSlow = useVersus((s) => s.resolveSlow);
   const turn = useVersusTurn(run);
-  const secondsLeft = useSecondsUntil(turn.deadline, turn.kind === 'foeReady');
+  const paused = useVersusPaused();
+  // THE COUNTDOWN BEAT (countdownBeat.tsx): the 5 s End Combat window, and Ranked Duos
+  // overtime (past 0:00 the round waits for both teammates up to the 30 s idle safeguard, R-RANKED-DUOS-GATE-02; the
+  // clock face itself stays at 0:00). The seconds live OFF React: this hook only starts and stops the driver (when the
+  // deadline itself changes), and the leaf in the gem's pill is the one thing that re-renders each second.
+  const overtimeAt = useVersus((s) => {
+    const raw = s.match?.group?.raw;
+    if (!versus || !raw || !isRankedDuosRaw(raw) || s.match!.phase !== 'shop' || s.match!.round !== run.wave) return null;
+    return rankedCloseAtMs(raw);
+  });
+  const countTo = !versus || paused ? null
+    : turn.kind === 'foeReady' && turn.deadline ? { kind: 'fight', at: turn.deadline }
+      : run.phase === 'recruit' && run.shopClockExpired && overtimeAt ? { kind: 'overtime', at: overtimeAt } : null;
+  const countKind = countTo?.kind ?? null;
+  const countAt = countTo?.at ?? null;
+  const matchId = match?.id ?? null;
+  useEffect(() => {
+    if (countKind === null || countAt === null) return undefined;
+    return driveCountdown({ key: `${matchId}|${run.wave}|${countKind}`, deadlineMs: countAt }, versusServerNow);
+  }, [countKind, countAt, matchId, run.wave]);
   // LEAVE THE FIGHT TOGETHER (owner 2026-10-14): the next shop is open (both pressed End Combat, or the 5 s ran out),
   // so this fight leaves through its ordinary exit, a replay still playing included. Once per wave.
   // `screen`: the run on screen (Recruit's `screenId`). A Duos teammate swap no longer remounts Recruit, so the once-per-wave
@@ -90,7 +111,6 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   // The fight is in: play the real End Turn (its commit lands the fight). Once per wave.
   const firedRef = useSwapRef<number | null>(null, swapped);
   // A pause holds it (the action layer would refuse it) and it plays on the resume.
-  const paused = useVersusPaused();
   useEffect(() => {
     if (!versus || paused || run.phase !== 'recruit' || endTurnWave !== run.wave || firedRef.current === run.wave) return;
     const wave = run.wave;
@@ -195,7 +215,9 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     // says so plainly instead of sitting silent.
     readyNote: versus
       ? (resolveSlow && match?.phase === 'resolving' && match.round === run.wave ? VERSUS_SLOW_NOTE
-        : versusTurnNote(turn, secondsLeft, { cancellable: !run.shopClockExpired, overtime: !!run.shopClockExpired }))
+        // The count itself is drawn by `CountdownTail` after this text (the pill never re-renders the Shop for it).
+        : versusTurnNote(turn, 0, { cancellable: !run.shopClockExpired, overtime: !!run.shopClockExpired, bare: true })
+          ?? (countKind === 'overtime' ? VERSUS_OVERTIME_NOTE : null))
       : null,
     // Ready stays pressable (to un-ready) until 0:00; from 0:00 the signal stands, so the gem is spent.
     gemLocked: versus && (versusTurnLocksGem(turn) || (versusTurnReady(turn) && !!run.shopClockExpired)),
@@ -218,6 +240,8 @@ function useSecondsTo(iso: string | null | undefined, on: boolean): number {
   return s;
 }
 
+/** The End Turn pill in Ranked Duos overtime while nobody is ready yet: the idle safeguard's count follows it. */
+export const VERSUS_OVERTIME_NOTE = 'Time is up. Ready up';
 /** The End Turn pill while the resolver keeps failing for this round (R-VERSUS-RELIABLE-05). Neutral: it retries. */
 export const VERSUS_SLOW_NOTE = 'The fight is on its way';
 

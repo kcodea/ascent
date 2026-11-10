@@ -90,6 +90,20 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'Fixed: in Duos, holding Tab to peek at your teammate no longer opens the Compendium at the same time.' },
       { category: 'Systems', text: 'Fixed: in Duos, the "You" badge on the rail stays on your own plate while you watch your teammate.' },
+      {
+        category: 'Systems',
+        text: 'Duos fights and team moments now have their own sounds and effects.',
+        details: [
+          'When a board falls and your teammate tags in, you hear it and see it. The new board lands with dust, a slam and a shake.',
+          'The tag-in now keeps up at 2x speed and when you skip. The new board no longer fights while it is still flying in.',
+          'The last 5 seconds before the next shop opens now tick down out loud.',
+          'In Ranked Duos, the wait after 0:00 now shows how many seconds are left.',
+          'Passing a card has its own sound. Sending and receiving sound different.',
+          'The announcer now speaks in Ranked Duos for knockouts, the final fight and your result.',
+          'Your team going out and your team result now show both of you together.',
+          'Soft sounds were added for viewing your teammate, a teammate joining, and the round locking in.',
+        ],
+      },
     ],
   },
   {

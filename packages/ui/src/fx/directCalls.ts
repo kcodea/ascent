@@ -82,7 +82,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'gold-fuse-break': ['goldFuseBreak.ts'],
   'freeze-break': ['FreezeButton.tsx'],
   // The Versus room's VS slam (R-VERSUS-ROOM-ENTER-01): the entrance and the face-off beat, under the VS mark.
-  'ground-slam': ['versus/VersusRoom.tsx'],
+  // + the Duos hand-off (R-DUOS-HANDOFF-BEAT-01): the same slam, in the team's colour, under the last body of a tag-in.
+  'ground-slam': ['choreo/channels/duosHandoff.ts', 'versus/VersusRoom.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
   // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets
@@ -106,7 +107,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'immune-shield-deflect': ['choreo/channels/immuneShield.ts'],
   'immune-shield-dissipate': ['choreo/channels/immuneShield.ts'],
   'immune-shield-form': ['choreo/channels/immuneShield.ts'],
-  'landing-dust': ['Recruit.tsx', 'handSummonFx.ts', 'useCombatReplay.ts', 'versus/useSeatDrag.tsx'],
+  // (`choreo/channels/duosHandoff.ts`: each body of a Duos tag-in or fly-in lands in it.)
+  'landing-dust': ['Recruit.tsx', 'choreo/channels/duosHandoff.ts', 'handSummonFx.ts', 'useCombatReplay.ts', 'versus/useSeatDrag.tsx'],
   // THE LOBBY KNOCKOUT (owner ask 2026-10-02): a soft smoke veil (and a few motes) over a rail seat's row as the player is knocked out.
   'lobby-knockout': ['lobbyKnockoutFx.ts'],
   // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop

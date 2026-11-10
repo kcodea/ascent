@@ -5398,6 +5398,14 @@ export const CARNIVAL_COIN_ID = 'carnivalcoin';
 
 const tribeName = (t: Tribe | null | undefined): string => (t ? ` (**${t.charAt(0).toUpperCase()}${t.slice(1)}**)` : '');
 
+/** A Shop grant from the hero power: one buff-FX step, sourced at the hero-power button (the Gildmaster × Bonds shape),
+ *  so each trigger reads as its own beat from the power that caused it. */
+function powerBuff(state: RunState, run: () => void): void {
+  const from = state.recruitBuffFx.length;
+  captureBuffFx(state, undefined, 'spell', run);
+  for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+}
+
 /** The run's buyable `tribe` minions at your Shop tier or lower ("a random Dwarf": the Rune of Body Counting pick). */
 function tribePool(state: RunState, tribe: Tribe): CardDef[] {
   return poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && defIsTribe(c, tribe, state));
@@ -5517,9 +5525,7 @@ export function ancientAfterAllIn(state: RunState, paid: number): void {
   const w = effectOf(state, 'allInBuffPerGold');
   if (w && paid > 0 && state.board.length > 0) {
     const all = [...state.board];
-    const from = state.recruitBuffFx.length;
-    captureBuffFx(state, undefined, 'spell', () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * paid, w.health * paid); });
-    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+    powerBuff(state, () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * paid, w.health * paid); });
   }
   const g = effectOf(state, 'allInDiscoverPerGold');
   if (g) {
@@ -5535,7 +5541,7 @@ function batchAOnSpendGold(state: RunState, amount: number): void {
   const first = state.board[0], last = state.board[state.board.length - 1];
   if (!e || !first || !last) return;
   const targets = first === last ? [first] : [first, last];
-  captureBuffFx(state, undefined, 'spell', () => { for (const c of targets) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
+  powerBuff(state, () => { for (const c of targets) addBuff(c, ANCIENTS.bonds.name, e.attack, e.health); });
 }
 
 // ── Gambler (Dice) hooks ─────────────────────────────────────────────────────────────────────────────────────
@@ -5561,9 +5567,7 @@ export function ancientAfterDice(state: RunState, dice: readonly number[]): void
   const w = effectOf(state, 'diceBuffPerPip');
   if (w && state.board.length > 0) {
     const all = [...state.board];
-    const from = state.recruitBuffFx.length;
-    captureBuffFx(state, undefined, 'spell', () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * pips, w.health * pips); });
-    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
+    powerBuff(state, () => { for (const c of all) addBuff(c, ANCIENTS.war.name, w.attack * pips, w.health * pips); });
   }
   const g = effectOf(state, 'diceCastsGamble');
   const spell = g ? CARD_INDEX[g.spellId] : undefined;
@@ -5713,7 +5717,7 @@ function batchAOnBuy(state: RunState, a: AncientsState, cardId: string, starform
   const fb = effectOf(state, 'tribeBuyBuffsOthers');
   if (fb && !starform && defIsTribe(def, fb.tribe, state)) {
     const others = state.board.filter((c) => c !== body && (isTribe(c, fb.tribe) || defIsTribe(CARD_INDEX[c.cardId], fb.tribe, state)));
-    if (others.length > 0) captureBuffFx(state, body, body ? 'minion' : 'spell', () => { for (const c of others) addBuff(c, ANCIENTS.bonds.name, fb.attack, fb.health); });
+    if (others.length > 0) powerBuff(state, () => { for (const c of others) addBuff(c, ANCIENTS.bonds.name, fb.attack, fb.health); });
   }
   const jt = effectOf(state, 'firstBuysGrantCoin');
   const coin = jt ? CARD_INDEX[CARNIVAL_COIN_ID] : undefined;

@@ -159,6 +159,7 @@ describe('Rascal × BONDS: "All In gains: Give your Left and Right-most minions 
     expect(at(s, 'a')).toMatchObject({ attack: CARD_INDEX[N(0)]!.attack + 2, health: CARD_INDEX[N(0)]!.health + 1 });
     expect(at(s, 'z')).toMatchObject({ attack: CARD_INDEX[N(3)]!.attack + 2, health: CARD_INDEX[N(3)]!.health + 1 });
     expect(at(s, 'm').attack).toBe(CARD_INDEX[N(1)]!.attack);
+    expect(s.recruitBuffFx.some((f) => f.fromHeroPower), 'its own beat, from the power button').toBe(true);
     s = reduce(s, { type: 'roll' });
     expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack + 4);
     s = reduce({ ...s, freeRolls: 1 }, { type: 'roll' });

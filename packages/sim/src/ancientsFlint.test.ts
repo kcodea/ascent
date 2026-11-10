@@ -194,6 +194,7 @@ describe('Flint × BONDS: "When you buy a Dwarf, give your other Dwarves +2/+2."
     expect(at(s, 'y').attack).toBe(CARD_INDEX[D(1)]!.attack + 2);
     expect(at(s, 'n').attack).toBe(CARD_INDEX[OTHER]!.attack);
     expect(s.hand[0]!.attack).toBe(CARD_INDEX[D(0)]!.attack);
+    expect(s.recruitBuffFx.some((f) => f.fromHeroPower), 'its own beat, from the power button').toBe(true);
     const t = buyFromRow(s, OTHER);
     expect(at(t, 'x').attack, 'a non-Dwarf buy gives nothing').toBe(CARD_INDEX[D(0)]!.attack + 2);
   });

@@ -62,8 +62,7 @@ export function PhCompendium() {
   );
 }
 
-/** The page over a match. Esc closes it through the game's one listener; Tab here, since the game's own Tab handler stands
- *  down while the shell's attribute is on. */
+/** The page over a match. Esc and Tab close it through the game's own listeners (Tab: compendiumHotkey.ts). */
 export function PhCompendiumOverlay() {
   const closeBook = useGame((s) => s.closeBook);
   usePhLayer(true, closeBook);
@@ -80,11 +79,6 @@ export function PhCompendiumOverlay() {
       html.removeAttribute('data-ph-shell'); html.removeAttribute('data-ph-compact'); html.removeAttribute('data-ph-laptop'); html.style.removeProperty('--ph-h');
     };
   }, []);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Tab') { e.preventDefault(); closeBook(); } };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [closeBook]);
   return (
     <div className="ph-bookpage phb-ov" role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
       <div className="ph-pagebd" aria-hidden="true"><PhBackdrop /></div>

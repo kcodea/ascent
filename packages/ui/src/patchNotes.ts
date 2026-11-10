@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-09',
     changes: [
+      { category: 'Systems', text: 'Fixed: pressing Tab on the main menu opens the Compendium again (it did nothing in the desktop app).' },
       {
         category: 'Systems',
         text: 'Lobby chat has a new look: press Enter (or click the chat button) to open it over the dimmed game, type, and press Enter to send.',

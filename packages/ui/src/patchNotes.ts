@@ -72,6 +72,17 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Ancients test mode: Kindness, Merrin, Emissary and Emerald Warden now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Kindness: a Grave Invitation or a Champion\'s Regalia with every Great Presence, 2 Royal Allowances, two Gift picks, 2 Shop spells each End of Turn, and Gifts that also land on a neighbour.',
+          'Merrin: an Avenge that gets a Shop spell, a free Pocket Magic twice a turn, Pocket Magic spells that cast twice, a spell Discover, a recharge every 3 spells, and +3/+4 to a minion of each type per spell.',
+          'Emissary: an Avenge that triggers United Front, a free first Shop spell each turn, United Front twice, a Shop spell every 5 spells, United Front at End of Turn for good, and United Front on every minion.',
+          'Emerald Warden: an Avenge that gets a minion of your Tier, 2 Gold minions of your Tier, a Tier 6 Vanguard button (Waking Rift, a Tier 7 Discover, or a minion of your top type), and a minion of your Tier each End of Turn.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Duos fixes: on a phone, one tap on "Back to your board" now brings you back, and your teammate portrait shows their hero. Several Duos screens and texts were corrected.',
         details: [

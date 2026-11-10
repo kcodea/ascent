@@ -3101,4 +3101,340 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-09 (fix/hs-hover-fade-gem). Before it, the travelling copy appeared under the cursor with its .hcfoot hit layer live, matched :hover, and hid its name / Health / power (it carries no hover face), leaving an empty banner.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: "R-ANCKIND-01",
+    title: "Kindness × Ancient of Death: Great Presence also gets a Grave Invitation",
+    statement:
+      "With the Ancient of Death, every Great Presence (the start of turns 4, 8, 12, ...) also puts a Grave Invitation in hand, on the same Start-of-Turn beat as its Gift Discover. The queued Discover keeps its hand slot; a full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Great Presence also gets you a Grave Invitation.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts greatPresenceGrantsCard / ancientAfterGreatPresence; reducer.ts (the greatPresence Start-of-Turn block)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCKIND-02",
+    title: "Kindness × Ancient of Fortune: 2 Royal Allowances at the pick",
+    statement:
+      "With the Ancient of Fortune, the pick puts 2 Royal Allowances in hand, once (the reading Quillen x War's \"Get a Paragon.\" took). They may over-cap the hand, so a promised card is never lost. A later Great Presence adds none. ASSUMPTION for the owner: once at the pick, not on every Great Presence.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Fortune: \"Get 2 Royal Allowances.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickGetCard (count) / batch6OnPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCKIND-03",
+    title: "Kindness × Ancient of War: Great Presence also gets a Champion's Regalia",
+    statement:
+      "With the Ancient of War, every Great Presence also puts a Champion's Regalia in hand, on the same Start-of-Turn beat. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"Great Presence also gets you a Champion's Regalia.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts greatPresenceGrantsCard / ancientAfterGreatPresence" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCKIND-04",
+    title: "Kindness × Ancient of Genesis: Great Presence lets you pick 2 Gifts",
+    statement:
+      "With the Ancient of Genesis, Great Presence's Discover lets you take 2 of the Gifts it offers: after the first pick the same offer comes back with the Gifts not taken, and the second pick closes it. No other Discover is reopened. The pending second pick survives a save.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"Great Presence lets you pick 2 Gifts.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts greatPresencePicks / ancientGreatPresenceSpec / ancientDiscoverPicksAgain / ancientReopenDiscover; reducer.ts (the discover case)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCKIND-05",
+    title: "Kindness × Ancient of Time: End of Turn: 2 random Shop spells",
+    statement:
+      "With the Ancient of Time, End of Turn puts 2 random Shop spells (the run's pool, your Shop tier or lower: Pocket Magic's pool) in hand, on the Ancient of Time's own End-of-Turn beat. Great Presence is unchanged. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Time: \"End of Turn: Get 2 random shop spells.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotRandomShopSpells / ancientRunBatchBEot (the ancientBatchBEot recurring entry)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCKIND-06",
+    title: "Kindness × Ancient of Bonds: a Gift cast on a minion is also cast on a neighbour",
+    statement:
+      "With the Ancient of Bonds, a Gift (any card with the gift flag: the Great Presence Gifts, Tower Shield, a Clue) cast from hand on a board minion is also cast on ONE minion next to it: its only neighbour, or a seeded random one of two. The neighbour is chosen before the cast and takes each cast right after the target. It is the same cast: the spell count rises by one. A minion with no neighbour takes the Gift alone. Parting Gifts therefore sells the neighbour too.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Bonds: \"Gifts you cast on a minion also cast on an adjacent minion.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts giftsCastOnAdjacent / ancientGiftAdjacent; reducer.ts (the Gift play branch)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKindness.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-01",
+    title: "Merrin × Ancient of Death: Avenge (3) gets a random Shop spell",
+    statement:
+      "With the Ancient of Death, a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat gets a random Shop spell (your Shop tier or lower). Shop deaths pay right then; in combat the spell flies to hand the moment the death lands. Rune of Fury fires the combat half again. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (3): get a random Shop spell.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeRandomShopSpell / batchBShopDeath / batchBCombatMods (ancientGorrAvenge)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-02",
+    title: "Merrin × Ancient of Fortune: Pocket Magic is free, twice a turn",
+    statement:
+      "With the Ancient of Fortune, Pocket Magic costs 0 Gold and can be used twice each turn (the pairing's power override: cost 0, usesPerTurn 2). The button shows the uses left.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Fortune: \"Pocket Magic is free and can be used twice each turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.merrin.fortune (power override); StatusBar.tsx (the uses-left pill)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-03",
+    title: "Merrin × Ancient of War: Pocket Magic's spells cast twice",
+    statement:
+      "With the Ancient of War, every spell Pocket Magic makes is stamped to cast twice when you cast it from hand (BoardCard.castMult, Hunch x Time's channel). It is a from-hand cast multiplier (R-MULT-06), so it multiplies with the others (Yazzus, Ancient Runes) and a single-cast spell still casts once. A spell from anywhere else is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"Spells you get from Pocket Magic cast again an additional time.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pocketMagicCastMult / ancientAfterPocketMagic; reducer.ts (the pocketMagic branch)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-04",
+    title: "Merrin × Ancient of Genesis: Pocket Magic Discovers the spell",
+    statement:
+      "With the Ancient of Genesis, Pocket Magic opens a Discover of Shop spells (the spell Discover every card uses) instead of handing over a random one. It still costs 1 Gold, once per turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"Pocket Magic Discovers the spell instead.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pocketMagicDiscovers / ancientPocketMagicDiscovers; reducer.ts (the pocketMagic branch)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-05",
+    title: "Merrin × Ancient of Time: Pocket Magic recharges after every 3 spells cast",
+    statement:
+      "With the Ancient of Time, every 3rd spell cast (one running count since the pick; every spell counts: a Shop spell, a Gift, a Ruby) recharges Pocket Magic right then, on top of its recharge each turn. Combat casts join the count at settle.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Time: \"Pocket Magic recharges after every 3 spells you cast.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spellsRechargePower / batchBSpellTick / batchBAfterCombat" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCMERRIN-06",
+    title: "Merrin × Ancient of Bonds: every spell cast gives one minion of each type +3/+4",
+    statement:
+      "With the Ancient of Bonds, every spell cast gives one friendly minion of each type +3/+4 (United Front's selection through the shared helper: an All-types minion always collects, a second minion of a type and a typeless minion do not). In the Shop it is permanent; in combat it is a combat buff on the living minions.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Bonds: \"Casting a spell gives a minion of each type +3/+4.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spellCastBuffsEachType / batchBOnSpellCast (bannerRecipientsOf); core simulate.ts (QuestCombatMods.ancientSpellBanners)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMerrin.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-01",
+    title: "Emissary × Ancient of Death: Avenge (4) triggers United Front",
+    statement:
+      "With the Ancient of Death, a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat triggers United Front. A Shop fire is a Shop buff, so it is permanent; a combat fire is a combat buff at the live spell count (this fight's casts included). Rune of Fury fires the combat half again.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (4): Trigger United Front.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeUnitedFront / batchBShopDeath (fireShopUnitedFront); core simulate.ts (ancientFrontShape.avenge, fireUnitedFront)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-02",
+    title: "Emissary × Ancient of Fortune: the first Shop spell each turn is free",
+    statement:
+      "With the Ancient of Fortune, the first Shop spell you BUY each turn costs 0 Gold, from the spell slot or a spell offer in the minion row. A Ruby is not a Shop spell. The count is kept while Ancients are on, so a spell bought earlier that turn, before the pick, already used it.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Fortune: \"Your first Shop Spell each turn is free.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts firstShopSpellFree / ancientFirstSpellFree (through ancientEnchantedSpellCut) / ancientOnBuy (valeSpellBuys)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-03",
+    title: "Emissary × Ancient of War: United Front triggers twice",
+    statement:
+      "With the Ancient of War, United Front fires twice, each its own trigger and beat, at Start of Combat and wherever else it fires (a Shop replay).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"United Front triggers twice.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontReps / ancientUnitedFrontShape; core simulate.ts (ancientFrontShape.reps)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-04",
+    title: "Emissary × Ancient of Genesis: every 5 spells cast gets a random Shop spell",
+    statement:
+      "With the Ancient of Genesis, every 5th spell cast (one running count since the pick, Shop and combat; every spell counts) gets a random Shop spell (your Shop tier or lower). In combat the spell flies to hand the moment the cast lands. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"Every 5 spells you cast, get a random Shop spell.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spellsGrantShopSpell / batchBOnSpellCast; core simulate.ts (QuestCombatMods.ancientSpellCountGrant)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-05",
+    title: "Emissary × Ancient of Time: United Front fires at End of Turn, permanently",
+    statement:
+      "With the Ancient of Time, United Front fires at End of Turn (the Ancient of Time's own beat) and no longer at Start of Combat. An End-of-Turn buff is a Shop buff, so its stats are PERMANENT and grow every turn.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Time: \"United Front triggers at End of Turn instead.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontAtEndOfTurn / ancientUnitedFrontAtEot / ancientRunBatchBEot; reducer.ts questCombatMods (unitedFront left out)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCVALE-06",
+    title: "Emissary × Ancient of Bonds: United Front hits every friendly minion",
+    statement:
+      "With the Ancient of Bonds, United Front gives its +N/+N to every living friendly minion instead of one of each type.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Bonds: \"United Front hits all your minions.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontHitsAll / ancientUnitedFrontShape; core simulate.ts (ancientFrontShape.all)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-01",
+    title: "Emerald Warden × Ancient of Death: Avenge (6) gets a random minion of your Tier",
+    statement:
+      "With the Ancient of Death, a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat gets a random minion of EXACTLY your Shop tier (Vanguard's pool). Shop deaths pay right then; in combat it flies to hand the moment the death lands. Rune of Fury fires the combat half again. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (6): get a random minion of your Tier.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeTierMinion / batchBShopDeath / batchBCombatMods (ancientGorrAvenge)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-02",
+    title: "Emerald Warden × Ancient of Fortune: minions of your Tier cost 2 Gold",
+    statement:
+      "With the Ancient of Fortune, a Shop minion of your current Shop tier costs at most 2 Gold (a price cap in offerBuyPrice: it never raises a lower price, and discounts still apply on top). It follows the tier as you upgrade.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Fortune: \"Minions of your tier cost 2g.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tierMinionsCost / ancientTierPrice; reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-03",
+    title: "Emerald Warden × Ancient of War: at Tier 6 Vanguard casts Waking Rift for 1 Gold",
+    statement:
+      "With the Ancient of War, from Shop tier 6 Vanguard is ALSO a button: untargeted, 1 Gold, once per turn, casting Waking Rift (the real spell, through the Shop cast pipeline). Below tier 6 Vanguard stays passive: no button, no coin, and the text says which tier you are. A press with no minion on the board is refused and costs nothing. The tier-up minion is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"At tier 6, Vanguard can be activated for 1g to cast Waking Rift.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive / ancientSyncVanguard / ancientVanguardActivate; reducer.ts (the vanguard branch, the action boundary)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-04",
+    title: "Emerald Warden × Ancient of Genesis: at Tier 6 Vanguard Discovers a Tier 7 minion for 4 Gold",
+    statement:
+      "With the Ancient of Genesis, from Shop tier 6 Vanguard is also a button: untargeted, 4 Gold, once per turn, opening a Discover of Tier 7 minions. Below tier 6 it stays passive. A full hand refuses the press.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"At tier 6, Vanguard can be activated for 4g to discover a Tier 7 minion.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive (discoverTier7) / ancientVanguardActivate" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-05",
+    title: "Emerald Warden × Ancient of Time: End of Turn: a random minion of your Tier",
+    statement:
+      "With the Ancient of Time, End of Turn puts a random minion of exactly your Shop tier in hand, on the Ancient of Time's own End-of-Turn beat. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Time: \"Vanguard gains End of Turn: Get a random minion of your tier.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotTierMinion / ancientRunBatchBEot" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCEMERALD-06",
+    title: "Emerald Warden × Ancient of Bonds: at Tier 6 Vanguard gets a minion of your top type for 1 Gold",
+    statement:
+      "With the Ancient of Bonds, from Shop tier 6 Vanguard is also a button: untargeted, 1 Gold, once per turn, getting a random minion of your most common board type (your Shop tier or lower; All-types cards count through the shared tribe helper). Below tier 6 it stays passive. No typed minion on the board, or a full hand, refuses the press.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Bonds: \"At tier 6, Vanguard can be activated for 1g to get a minion of your most common type.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive (topTribeMinion) / ancientVanguardActivate" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
 ];

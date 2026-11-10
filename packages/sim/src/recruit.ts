@@ -8,6 +8,7 @@ import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; //
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
+import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -15077,6 +15078,30 @@ export interface SocRuneReplay {
 /** The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always collect;
  *  every other body claims the FIRST type nobody has claimed yet — one banner per body. Shared by the legacy
  *  Start-of-Combat replay, United Front, and the rune's End-of-Turn grant (owner rework 2026-09-23). */
+/** United Front's Rune of Wishbone multiplier ("Your Hero Power triggers twice": the grant doubles, as its combat mod
+ *  does). `wishboneReps`, inlined (a reducer import would cycle). */
+export function unitedFrontMult(st: RunState): number {
+  return st.runeWishbone ? 1 + runeStacksOf(st, 'rune_wishbone') : 1;
+}
+
+/**
+ * UNITED FRONT IN THE SHOP (Emissary), the one entry point: one friendly minion of each type gains +N/+N, N = spells
+ * cast this game (Wishbone doubles). A Shop buff, so it is permanent. Callers: the Start-of-Combat replay list below,
+ * and the Ancients (Emissary × Death's Shop Avenge, × Time's End of Turn). EMISSARY × ANCIENTS reshape it through
+ * `ancientUnitedFrontShape` (a no-op without them): War fires it again, Bonds reaches every friendly minion. Returns
+ * false when nobody gained.
+ */
+export function fireShopUnitedFront(st: RunState): boolean {
+  const n = st.spellsCast * unitedFrontMult(st);
+  if (n <= 0) return false;
+  const shape = ancientUnitedFrontShape(st);
+  let hit = false;
+  for (let r = 0; r < shape.reps; r++) {
+    for (const m of shape.all ? [...st.board] : bannerRecipientsOf(st)) { addBuff(m, 'United Front', n, n); hit = true; }
+  }
+  return hit;
+}
+
 export function bannerRecipientsOf(st: RunState): BoardCard[] {
   const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
   const taken = new Set<string>();
@@ -15181,11 +15206,9 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Emissary (United Front): the Five Banners selection, +N/+N where N = spells cast this game (Wishbone
   // doubles, as its combat mod does). COMPOUNDING (per-turn, growing scalar).
-  if (hasPower(state, 'unitedFront')) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => {
-    const n = st.spellsCast * (st.runeWishbone ? 1 + runeStacksOf(st, 'rune_wishbone') : 1); // wishboneReps, inlined (a reducer import would cycle)
-    if (n <= 0) return;
-    for (const m of bannerRecipients(st)) addBuff(m, 'United Front', n, n);
-  } });
+  // EMISSARY × ANCIENT OF TIME: United Front is an End-of-Turn effect then (its own recurring entry), never a Start of
+  // Combat one, so it is not in this list.
+  if (hasPower(state, 'unitedFront') && !ancientUnitedFrontAtEot(state)) out.push({ id: state.heroId, kind: 'hero', label: 'United Front', fire: (st) => { fireShopUnitedFront(st); } });
   // Rune of the Centerline: ends of DIFFERENT (primary, non-neutral) types → the middle gains Crit + Ward.
   if (f?.runeCenterline) out.push({ id: 'rune_centerline', kind: 'rune', label: 'Centerline', fire: (st) => {
     if (st.board.length < 3) return;
@@ -15344,6 +15367,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientDarahEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRayseEotRise') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientBatchBEot') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -15949,6 +15973,9 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...(ancientDrakkoEotShoutLive(state) ? ['ancientDrakkoEotShout' as const] : []),
     // ANCIENT OF TIME × Rayse: "End of turn give a minion Rise." The same virtual entry.
     ...(ancientRayseEotRiseLive(state) ? ['ancientRayseEotRise' as const] : []),
+    // ANCIENT OF TIME x Kindness ("End of Turn: Get 2 random shop spells."), x Emissary ("United Front triggers at End of
+    // Turn instead.") and x Emerald Warden ("End of Turn: Get a random minion of your tier."). One virtual entry.
+    ...(ancientBatchBEotLive(state) ? ['ancientBatchBEot' as const] : []),
   ];
 }
 
@@ -16009,6 +16036,8 @@ function runRecurringEndOfTurn(
     if (leftmost) replayBattlecry(state, leftmost);
   } else if (effect === 'ancientRayseEotRise') {
     ancientRunRayseEotRise(state, step);
+  } else if (effect === 'ancientBatchBEot') {
+    ancientRunBatchBEot(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -16607,6 +16636,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientDarahEotCopy: 'Ancient of Time',
   ancientDrakkoEotShout: 'Ancient of Time',
   ancientRayseEotRise: 'Ancient of Time',
+  ancientBatchBEot: 'Ancient of Time',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
 };

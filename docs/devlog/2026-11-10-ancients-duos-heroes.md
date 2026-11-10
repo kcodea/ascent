@@ -18,7 +18,7 @@ R-ANCMAGICIAN-01..06. Data in `ANCIENT_PAIRINGS`, hooks in the "DUOS HEROES" blo
 | Magician | Fortune | Each hat trigger takes 4 Gold off the Shop upgrade (floor 0, the current upgrade only). |
 | Magician | War | Tag-team Start of Combat: a card both teammates hold: the left-most copy on each board gains the other's stats. |
 | Magician | Genesis | The hat needs 8 buys; a minion copy arrives Gilded, a spell arrives as 3 copies. |
-| Magician | Time | Start of Turn: a plain copy of a random card she has passed this game (hat copies and her own passes). |
+| Magician | Time | Start of Turn: a plain copy of a random card the Magician has passed this game (hat copies and its own passes). |
 | Magician | Bonds | No per-turn cap. |
 
 ## The seam (how a Duos run gets Ancients, and why players cannot)
@@ -88,3 +88,13 @@ Unit and scenario tests: `packages/core/src/combat/ancientMateSwap.test.ts`,
 `workers/versus/test/ancientsDuos.test.ts` (two runs through the room core), `packages/ui/src/versus/ancientsDuos.test.ts`
 (the seam, the hat badge, the restore replay). Live: `scripts/versus-qa/ancients-duos.mjs`, two headless browsers in a
 Ranked Duos party against `wrangler dev`, every non-local host blocked.
+
+Seen live: the Ancient offer opening over the Shop in a live match; Priestess × Bonds on both screens (Passaria and a
+hand pass, +4/+4 each side each time); Priestess × War (+2/+2 per pass on every minion at the fight's start);
+Magician × Genesis (8/8 with the ready glow, a Gilded copy in the teammate's hand); Magician × War in a real tag-team
+fight in both orders (the Magician first: its copy +7/+9; the teammate first: their copy +3/+2; the board that waited
+flies in after the win with its copy at the same 10/11); a teammate reload mid-turn keeping the +4/+4 exactly once.
+Tested only: Priestess × Death, Fortune, Genesis, Time; Magician × Death, Fortune, Time, Bonds; the three-spell copy.
+
+The production bundle does not contain the seam's key at all (`grep` over `apps/web/dist/assets`: 0 files; the bench
+bundle: 2).

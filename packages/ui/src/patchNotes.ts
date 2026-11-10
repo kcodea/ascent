@@ -88,6 +88,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'A Ranked Duos rating that is slow to save now says it is still saving.',
         ],
       },
+      { category: 'Systems', text: 'Fixed: in Duos, holding Tab to peek at your teammate no longer opens the Compendium at the same time.' },
+      { category: 'Systems', text: 'Fixed: in Duos, the "You" badge on the rail stays on your own plate while you watch your teammate.' },
     ],
   },
   {

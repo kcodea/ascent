@@ -1087,6 +1087,36 @@ Owner: *"i am seeing a ton of art pop in"*. Numbers and method: `docs/devlog/202
 - **Holding an Image holds the bytes, not the pixels.** The compositor's decode cache is far smaller than the art set, so the
   gate's decodes do not last. `decoding="sync"` turns a re-decode into a late frame instead of a blank one.
 
+## 3o. Duos audit follow-up, 2026-11-10: "compositor-only" loops still cost the main thread, and where clicks hid work
+
+Numbers and method: `docs/devlog/2026-11-10-duos-perf-wins.md`.
+
+- **A frame loop on the page makes every CSS animation tick on the main thread.** Two `requestAnimationFrame` loops run
+  on every frame of an idle shop (the always-on `perfMonitor` sampler and a Pixi ticker). A main frame is therefore
+  produced on every display frame, and on each one the browser also updates every running CSS animation: a style pass
+  for each animated element, even when the animation is opacity / transform only. With both loops parked (a probe, not
+  a change) an idle shop with the next-foe ring breathing did 13 to 38 ms of main-thread work a second, against 200 to
+  345 with them. So "opacity and transform only" keeps a loop off PAINT, not off the main thread: count the looping
+  elements, and judge a loop by a trace of an idle screen, never by the property list.
+- **A scale animation over a CSS filter that sits on an `<svg>` root re-layerizes the page every frame.** The next-foe
+  ring (`.lrv-foering`) carried two drop-shadows on the svg root and breathed in scale: 81 to 115 ms of `Layerize` a
+  second. The same two drop-shadows on the `<polygon>` inside (painted within the svg, no compositing effect of its
+  own) cost 0, and the picture is the same. An opacity-only breath over the root filter also cost 0: it is the SCALE
+  over the filter that does it.
+- **One slice costs more to restyle than the rest of the rail.** An animated element inside the next-foe slice
+  (`.lobbyseat.foe`) costs about 45 ms of style a second; the same element in another slice 6 to 9, in `<body>` 3. The
+  `.foe` class alone moves it. Not explained yet (ruled out: the slice's `z-index`, its filter, its transitions, the
+  ring, the swords).
+- **Do not measure inside a commit.** `ClampedName` fitted every rail name in its layout effect and
+  `useBottomLeftAnchor` re-measured on a run swap, so the Duos teammate swap forced the new screen's style and layout
+  inside its own task. Write in the effect; read in a `ResizeObserver` callback (after the frame's own layout).
+- **The first click of a session must not build things.** The AudioContext and its graph (48 ms) and the hero
+  ceremony's WebGL context and shader link (67 ms) were created inside the click that first needed them. Build on idle
+  time while the screen before it is up (`warmAudioGraph`, `prewarmHeroCeremonyFx`); desktop only, phones keep the
+  lazy path.
+- **A CPU profile's self time is a sum, not a moment.** "`drawImage` 30 ms" in the pass's profile was 0.5 ms on each
+  of some hundred frames of the plate dissolve, not one 30 ms call. Bucket the samples by time before naming a frame.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

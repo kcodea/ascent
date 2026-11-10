@@ -85,3 +85,13 @@ existing chokepoint and one section at the end of the file.
 `npm run typecheck`, `npm run lint`, `npm test`, `npm run build:web`, plus `text:audit`, `docbot`, `audit` and
 `beats:audit`. 76 new tests across the five files: every pairing through the real reducer / simulator with a control
 that fails without the effect, the meter pick flow, a JSON round trip and a same-seed replay.
+
+A headless Scene Builder walk (bundled headless shell, throwaway profile, every non-local host blocked, its own dev
+server port) played one pairing per hero end to end on Set 3 with Ancients on: the meter filled, the offer cards read
+off the DOM, the pick, then the real store. 21 of 21 checks: Rascal × Fortune, Gambler × Fortune, Pete × Time, Flint ×
+Fortune, Juggler × Genesis. The other 25 pairings are covered by tests only.
+
+## Merged with the armed glow (#2652)
+
+`heroPowerArmed` (the glow on counting powers) hardcoded a cycle of 3 for Juggler and Pete. It now reads
+`ancientCoinNeed` / `ancientContrabandEvery`, so the glow is right under Juggler × Genesis and Pete × Time.

@@ -89,6 +89,10 @@ describe('watching my teammate: no plate up top', () => {
 
   it('on my own board the dock is my teammate: only the disc opens their view (the pass target is unchanged)', () => {
     useSpectate.setState({ teammate: false });
+    // A separate press, well after the touch tap in the test above: a click inside that tap's own window is swallowed on
+    // the way in too (R-DUOS-BACK-TAP-01).
+    const later = performance.now() + 5000;
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(later);
     const ui = mount(<DuosMateDock watching={false} />);
     try {
       expect(ui.container.querySelector('.duosdock')!.getAttribute('role')).toBeNull();
@@ -96,7 +100,7 @@ describe('watching my teammate: no plate up top', () => {
       act(() => { ui.container.querySelector('[data-duos-mate]')!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
       expect(view.enterTeammateView).toHaveBeenCalledTimes(1);
       expect(view.exitTeammateView).not.toHaveBeenCalled();
-    } finally { ui.unmount(); }
+    } finally { ui.unmount(); clock.mockRestore(); }
   });
 
   it("the watch screen's inert-controls rule never out-ranks MY portrait (it did: the click back did nothing)", () => {

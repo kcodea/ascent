@@ -67,7 +67,22 @@ describe('round 6', () => {
   it('the difficulty pill shows only when it tells the offers apart', () => {
     expect(offer(['indy', 'warden', 'soren']).querySelectorAll('.hcdiff')).toHaveLength(3); // Easy, Easy, Hard
     ui?.unmount();
-    expect(offer(['indy', 'warden']).querySelector('.hcdiff')).toBeNull(); // Easy, Easy
+    // Easy, Easy: no word shows. The LINE stays (empty), so the flags stand at the same height on every offer
+    // (R-DUOS-HEROSELECT-TITLE-01: my teammate's Hero Select must not jump against mine).
+    const same = [...offer(['indy', 'warden']).querySelectorAll('.hcdiff')];
+    expect(same).toHaveLength(2);
+    for (const d of same) { expect(d.textContent).toBe(''); expect(d.className).toBe('hcdiff hcdiff-out'); }
+  });
+  it("R-DUOS-HEROSELECT-TITLE-01: a watched screen may carry its own heading (the Duos teammate's choices); mine keeps Select Your Hero", () => {
+    act(() => { setPartyHome(true); useGame.setState({ pendingMode: 'ascent', heroChoices: null, heroReroll: null, rankedEntry: null }); });
+    const frame = { offer: ['indy', 'warden', 'soren'], picked: null, reroll: null, canReroll: false, mode: 'versus' as const };
+    ui = mount(<HeroSelect watch={{ frame, fx: false, clock: 'none', title: "Your Teammate's Heroes" }} />);
+    expect(ui.container.querySelector('.hsprompt')!.textContent).toBe("Your Teammate's Heroes");
+    ui.unmount();
+    ui = mount(<HeroSelect watch={{ frame, fx: false, clock: 'none' }} />);
+    expect(ui.container.querySelector('.hsprompt')!.textContent).toBe('Select Your Hero');
+    // The teammate layer is the one that passes it.
+    expect(here('./HeroSelectWatch.tsx')).toContain(`...(teammate ? { title: "Your Teammate's Heroes" } : {})`);
   });
   it('R-HS-DIFF-OUT-01: the difficulty sits under the flag, and the power description is the light weight', () => {
     const root = offer(['indy', 'warden', 'soren']);

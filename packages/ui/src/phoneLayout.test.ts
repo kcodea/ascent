@@ -203,6 +203,33 @@ describe('R-PHONE-PARITY-01: Pixel and iPhone are one experience', () => {
     });
     for (const v of fracs) expect(v).toBeCloseTo(fracs[0], 9);
   });
+  it('R-PHONE-CORNER-WALL-01 (owner 2026-11-10: "buttons in the corner should go further to the wall"): the corner squares stand off the screen\'s right SAFE edge, not the play box\'s', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    const guides = readFileSync(join(__dirname, 'guides/lobbyGuides.css'), 'utf8');
+    // Settings 15 px off the safe edge (the margin they keep above the bottom strip); Compendium one 66 px square and its 8 px gap further in.
+    expect(css).toContain('html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--edge-r) + 15px); }');
+    expect(css).toContain('html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--edge-r) + 15px + 66px + 8px); }');
+    // `--edge-r` IS the right safe inset in the zoomed game (a notch or rounded corner is cleared).
+    expect(css).toMatch(/\[data-phone-zoom\] \{[^}]*--edge-r: var\(--safe-r\);/);
+    // Neither square is anchored to the box edge any more.
+    expect(css).not.toMatch(/\[data-phone-zoom\] \.(gearbtn|bookbtn) \{[^}]*--pz-bxr/);
+    // The Guides square follows the gear; its panel keeps its place over the rail column.
+    expect(guides).toContain('html[data-touch-ui][data-phone-zoom] .guidesbtn { --gb-r: calc(var(--edge-r) + 15px); }');
+    expect(guides).toMatch(/\[data-phone-zoom\] :is\(\.guidesbtn, \.guidesdock\) \{[^}]*--gb-r: calc\(var\(--pz-bxr\) \+ 1920px - 1897px\);/);
+  });
+  it('R-PHONE-HERO-PLATES-01 (owner 2026-11-10: "name + life plates overlap and dont look good"): the name plate rides up clear of the raised Health plate', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    const lift = (sel: string): number => Number(new RegExp(`\\[data-phone-zoom\\] \\.statusbar \\.hero \\.${sel} \\{ translate: 0 -([\\d.]+)px; \\}`).exec(css)?.[1] ?? NaN);
+    const hp = lift('hpbox'); // local px inside the hero tray (drawn 3.1x)
+    const name = lift('heroname'); // local px inside the portrait (drawn 3.1 x 1.17)
+    expect(hp).toBe(6.5);
+    expect(name).toBeGreaterThan(0);
+    // In box px the name plate rises at least as far as the Health plate did (20), plus a few px of air between them.
+    expect(name * 3.1 * 1.17).toBeGreaterThanOrEqual(hp * 3.1 + 4);
+    expect(name * 3.1 * 1.17).toBeLessThanOrEqual(30); // ...and no further: it stays on the lower part of the portrait
+    // Static offsets only.
+    expect(css).not.toMatch(/\[data-phone-zoom\] \.statusbar \.hero \.heroname \{[^}]*(animation|transition)/);
+  });
   it('the bottom-edge pieces ride the shared strip in layout px, never the raw inset or screen px', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
     expect(css).toMatch(/\[data-phone-zoom\] \.zone\[data-zone='hand'\] \{ --bar-y: calc\(var\(--pz-safe-b, var\(--safe-b\)\) - 115px \+ 49px\);/);

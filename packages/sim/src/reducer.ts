@@ -5,6 +5,7 @@ import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCu
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
+import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientArchivePassive, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
@@ -323,7 +324,9 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Gorr: "The first minion you buy each turn is free." The same override (and the same shared
   // marker), only while no minion has been bought yet this turn.
   const gorrFree = ancientGorrFirstFree(s) && !CARD_INDEX[offer.cardId]?.spell;
-  const freeBuy = ((s.rift === 'freedom' || !!s.questFreeFirstBuy || gorrFree) && !s.freeBuyUsedThisTurn) || (s.nextCardFree ?? 0) > 0;
+  // ANCIENT OF FORTUNE × Foreman Flint: "Your first Dwarf each turn is free." The same override and shared marker.
+  const flintFree = ancientTribeFirstFree(s, offer.cardId);
+  const freeBuy = ((s.rift === 'freedom' || !!s.questFreeFirstBuy || gorrFree || flintFree) && !s.freeBuyUsedThisTurn) || (s.nextCardFree ?? 0) > 0;
   // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says (−1 per copy held).
   const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0;
   // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
@@ -336,7 +339,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
   // ANCIENT OF FORTUNE × Drakko: "Shout minions cost 1 Gold less." (floored at 0 with every other discount below).
   // ANCIENT OF FORTUNE × Keshi: "Minions of your Tier cost 1 less." (the same additive channel, floored at 0 below).
-  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) : 0;
+  // ANCIENT OF TIME × Gambler: "While Dice is locked, your first minion each turn costs 1 Gold less." (the same channel)
+  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) + ancientLockedFirstDiscount(s, offer) : 0;
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
   // source above, the Starform's live price included, is capped; the discounts below still apply on top).
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
@@ -454,16 +458,18 @@ function appendDominantTypeOffer(s: RunState): void {
  *  owner ruling 2026-08-14: it upgrades the existing offer rather than adding an eighth. Capped at 7 only when
  *  the run has Tier-7 access (rune/hero/quest/rift), else 6; at the ceiling the right-most is guaranteed to be
  *  AT that ceiling tier instead. No-op if the pool is empty or the row has no minion offer. */
-function upgradeRightmostOffer(s: RunState): void {
+function upgradeRightmostOffer(s: RunState, done?: Set<string>): void {
   const cap = hasTier7Access(s) ? 7 : 6;
   const tgt = Math.min(s.tier + 1, cap);
-  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
+  // ANCIENT OF BONDS × Pete: "Contrabanana minions are of your most common type." (the same pool, narrowed)
+  const pool = ancientContrabandPool(s, poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt));
   if (pool.length === 0) return;
   // The right-most MINION offer (spells/Rubies in the row are not minions; the Starform is never replaced).
   let idx = -1;
   for (let i = s.shop.length - 1; i >= 0; i--) {
     const d = CARD_INDEX[s.shop[i]!.cardId];
-    if (d && !d.spell && !d.ruby && !s.shop[i]!.starform) { idx = i; break; }
+    // `done` (Pete × Ancient of Genesis: the 2 right-most): an offer this Contrabanana already upgraded is skipped.
+    if (d && !d.spell && !d.ruby && !s.shop[i]!.starform && !done?.has(s.shop[i]!.uid)) { idx = i; break; }
   }
   if (idx < 0) return;
   const rng = makeRng(s.rngCursor);
@@ -473,6 +479,8 @@ function upgradeRightmostOffer(s: RunState): void {
   takeFromPool(s, pick.id);
   s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true }; // flagged so the UI flashes it
   stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the right-most slot's enchant
+  done?.add(s.shop[idx]!.uid);
+  ancientOnContraband(s, s.shop[idx]!); // ANCIENTS × Pete (a no-op otherwise): the Contrabanana mark; War's random keyword
 }
 
 /**
@@ -1389,6 +1397,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
           const had = new Set([...state.hand, ...state.board].map((c) => c.uid));
           const body = adef.spell || offer?.starform ? undefined : [...next.hand, ...next.board].find((c) => !had.has(c.uid) && c.cardId === adef.id);
           ancientOnBuy(next, adef.id, !!offer?.starform, body);
+          ancientOnBananaBuy(next, offer); // ANCIENT OF FORTUNE × Pete: a Contrabanana minion bought banks a free Refresh
           // AYSE (Lucky Seat): an Enchanted buy. `completed` = it was the cycle's 3rd (`ciaBuyEnchanted` paid the prize);
           // Rune of Wishbone makes the power trigger twice.
           const bought = offer ?? (state.spell?.uid === action.uid ? state.spell : undefined);
@@ -1939,7 +1948,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         chronosQuestBuy(s, card);
         tiffBuyDiscount(s, card);
         gorrQuestBuy(s, card);
-        jugglerBuy(s);
+        jugglerBuy(s, offer.cardId);
         magicHatBuy(s, null); // Magician: a Starform is a card bought (it counts), but leaves no body to copy
         keshiCrownBuy(s, card);
         return s;
@@ -1962,7 +1971,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
-        jugglerBuy(s);
+        jugglerBuy(s, offer.cardId);
         magicHatBuy(s, restored, action.uid); // Magician: a re-bought displaced minion is a card bought (before the triple check folds it)
         checkTriples(s); // a restored copy can still complete a triple
         keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
@@ -2104,7 +2113,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
-      jugglerBuy(s);
+      jugglerBuy(s, offer.cardId);
       // Magician (Magic Hat, R-DUOS-MAGICIAN-01): the buy counts; an active hat sends the teammate a copy of the card as
       // it was bought. BEFORE checkTriples, so a buy that completes a triple still copies the plain card that was bought.
       magicHatBuy(s, bought, action.uid);
@@ -3063,7 +3072,8 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         spendGold(s, rc); // gold spent → Acid / Banksly meter
       }
       s.frozen = false;
-      refreshTavern(s);
+      // ANCIENT OF GENESIS × Foreman Flint (a plain refresh otherwise): the first Refresh each turn is filled with Dwarves.
+      ancientFirstRefreshTribe(s, () => refreshTavern(s));
       // THE STARFORM (owner rule A, 2026-09-13): every refresh — paid, banked or Window-Shopping-free — knocks
       // 1 Gold off the token's price (floor 0). The token itself survived the rebuild (rule 3).
       starformRefreshTick(s);
@@ -3083,7 +3093,8 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // Pete (Contrabanana): every 3rd refresh guarantees the RIGHT-MOST offer is from the tier above.
       if (hasPower(s, 'contraband')) {
         s.refreshCount = (s.refreshCount ?? 0) + 1;
-        if (s.refreshCount % 3 === 0) upgradeRightmostOffer(s);
+        // ANCIENTS × Pete (3 and 1 unless picked): Time triggers it every 2 Refreshes; Genesis upgrades the 2 right-most.
+        if (s.refreshCount % ancientContrabandEvery(s) === 0) { const done = new Set<string>(); for (let k = 0; k < ancientContrabandCount(s); k++) upgradeRightmostOffer(s, done); }
       }
       return s;
     }
@@ -3744,13 +3755,18 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (s.wave < (s.heroDiceLockUntil ?? 0)) return state;
         const rng = makeRng(s.rngCursor);
         const roll = 1 + rng.int(6);
+        // ANCIENT OF FORTUNE × Gambler: "Roll 2 dice. Gain both, and lock for the lower one." (no second draw otherwise)
+        const roll2 = ancientDiceRollsTwo(s) ? 1 + rng.int(6) : undefined;
         s.rngCursor = rng.state();
-        gainGold(s, roll);
-        s.heroDiceLockUntil = s.wave + roll;
+        const lock = roll2 === undefined ? roll : Math.min(roll, roll2);
+        gainGold(s, roll + (roll2 ?? 0));
+        s.heroDiceLockUntil = s.wave + lock;
         // Display-only: the panel keeps showing the rolled face for the rest of THIS turn (owner ruling
         // 2026-08-16) rather than snapping back the instant the tumble settles. Expired by wave comparison.
-        s.heroDiceRoll = roll;
+        s.heroDiceRoll = lock; // the face shown is the lock (two dice: the lower one)
         s.heroDiceRollWave = s.wave;
+        // ANCIENTS × Gambler (a no-op unless picked): War's +3/+3 per pip, Genesis' Gamble on the same roll, Bonds' Discover.
+        ancientAfterDice(s, roll2 === undefined ? [roll] : [roll, roll2]);
       } else if (power.kind === 'copyMachine') {
         // Xerox: SUMMON a plain copy of a friendly board minion directly beside it (owner ruling 2026-08-14 —
         // a board summon, not a hand grant, so it needs a free board slot). No-op (no charge) on a missing
@@ -3935,8 +3951,13 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       } else if (power.kind === 'allIn') {
         // Rascal: 1 Gold + 2 per turn since the last use, then re-base. Twice a game (`maxUses`), still once
         // per turn through `heroReady`. Untargeted and free, so the shared block only spends the charge.
-        gainGold(s, allInPayoutOf(s) * reps);
+        // ANCIENT OF TIME × Rascal: All In turns passive (its work is the Start-of-Turn Gold), never activatable.
+        if (ancientAllInPassive(s)) return state;
+        const allInPaid = allInPayoutOf(s) * reps;
+        gainGold(s, allInPaid);
         s.rascalResetWave = s.wave;
+        // ANCIENTS × Rascal (a no-op unless picked): Death's Avenge Gold is spent, War's +2/+1 per Gold, Genesis' Discovers.
+        ancientAfterAllIn(s, allInPaid);
       } else if (power.kind === 'soulbind') {
         // Sable: bind the OUTERMOST minions for this turn — a stat gain on one is gained by the other, in
         // full, one hop only. Needs two distinct bodies, so a board of 0 or 1 is a no-op (no charge spent).
@@ -8875,11 +8896,14 @@ function rollCiaSuit(s: RunState, avoid?: CiaSuit): CiaSuit {
  * — the same call Ayse's prize makes. Counted on every buy route, since a hook wired to only one of them is
  * the recurring bug in this file (see `applySpellBought`).
  */
-function jugglerBuy(s: RunState): void {
+function jugglerBuy(s: RunState, cardId?: string): void {
   if (!hasPower(s, 'baldgecoin')) return;
-  const n = (s.jugglerBuys ?? 0) + 1;
-  if (n < 3) { s.jugglerBuys = n; return; }
-  s.jugglerBuys = 0;
+  // ANCIENTS × Juggler (3 and 1 unless picked): Genesis pays every 2 buys; Bonds counts a minion of your most common
+  // type twice (the count past the payout carries over, so the second count is never lost).
+  const need = ancientCoinNeed(s);
+  const n = (s.jugglerBuys ?? 0) + ancientCoinBuyCount(s, cardId);
+  if (n < need) { s.jugglerBuys = n; return; }
+  s.jugglerBuys = n - need;
   const coin = CARD_INDEX['carnivalcoin'];
   if (coin && s.hand.length < handCap(s)) conjureToHand(s, [coin], wishboneReps(s)); // Wishbone: two coins
 }

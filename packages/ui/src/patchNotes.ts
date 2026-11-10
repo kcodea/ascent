@@ -60,6 +60,29 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Duos update',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ancients test mode: Rascal, Gambler, Pete, Foreman Flint and Juggler now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Rascal: a third All In with an Avenge that adds Gold to it, a faster growing All In, a board buff for each Gold it pays, Discovers for each 5 Gold it pays, 4 Gold every turn, and a buff to your outer minions when you spend Gold.',
+          'Gambler: an Avenge that shortens the Dice lock, two dice at once, a board buff for each pip, a Gamble on the same roll, a cheaper first minion while Dice is locked, and a Discover of the rolled Tier.',
+          'Pete: an Avenge for free Refreshes, a free Refresh for buying the Contrabanana minion, a random keyword on it, two Contrabanana minions, a Contrabanana every 2 Refreshes, and Contrabanana minions of your most common type.',
+          'Foreman Flint: an Avenge for Dwarves, a free Dwarf each turn, a Start of Combat buff for your Dwarves, a first Refresh full of Dwarves, an End of Turn buff for each Dwarf bought, and a buff to your other Dwarves when you buy one.',
+          'Juggler: an Avenge for Carnival Coins, 3 Gold Coins, Coins that improve as you cast them, a Coin every 2 buys, Coins for your first 2 buys each turn, and double counting for your most common type.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Ancients test mode: Kindness, Merrin, Emissary and Emerald Warden now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Kindness: a Grave Invitation or a Champion\'s Regalia with every Great Presence, 2 Royal Allowances, two Gift picks, 2 Shop spells each End of Turn, and Gifts that also land on a neighbour.',
+          'Merrin: an Avenge that gets a Shop spell, a free Pocket Magic twice a turn, Pocket Magic spells that cast twice, a spell Discover, a recharge every 3 spells, and +3/+4 to a minion of each type per spell.',
+          'Emissary: an Avenge that triggers United Front, a free first Shop spell each turn, United Front twice, a Shop spell every 5 spells, United Front at End of Turn for good, and United Front on every minion.',
+          'Emerald Warden: an Avenge that gets a minion of your Tier, 2 Gold minions of your Tier, a Tier 6 Vanguard button (Waking Rift, a Tier 7 Discover, or a minion of your top type), and a minion of your Tier each End of Turn.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Duos fixes: on a phone, one tap on "Back to your board" now brings you back, and your teammate portrait shows their hero. Several Duos screens and texts were corrected.',
         details: [
@@ -124,22 +147,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'The copy is the card as you bought it, and it is free for both of you. If your teammate\'s hand is full, it waits for room.',
           'The hat sends at most 2 copies per turn. After that your buys still count up to 5, and the hat is active at the start of your next turn.',
           'The power shows its count, and glows while the hat is active.',
-        ],
-      },
-    ],
-  },
-  {
-    date: '2026-11-10',
-    changes: [
-      {
-        category: 'Balance',
-        text: 'Ancients test mode: Kindness, Merrin, Emissary and Emerald Warden now have all six Ancient powers.',
-        details: [
-          'Ancients are only in the Scene Builder test mode for now.',
-          'Kindness: a Grave Invitation or a Champion\'s Regalia with every Great Presence, 2 Royal Allowances, two Gift picks, 2 Shop spells each End of Turn, and Gifts that also land on a neighbour.',
-          'Merrin: an Avenge that gets a Shop spell, a free Pocket Magic twice a turn, Pocket Magic spells that cast twice, a spell Discover, a recharge every 3 spells, and +3/+4 to a minion of each type per spell.',
-          'Emissary: an Avenge that triggers United Front, a free first Shop spell each turn, United Front twice, a Shop spell every 5 spells, United Front at End of Turn for good, and United Front on every minion.',
-          'Emerald Warden: an Avenge that gets a minion of your Tier, 2 Gold minions of your Tier, a Tier 6 Vanguard button (Waking Rift, a Tier 7 Discover, or a minion of your top type), and a minion of your Tier each End of Turn.',
         ],
       },
     ],

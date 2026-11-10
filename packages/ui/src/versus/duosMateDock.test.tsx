@@ -296,29 +296,40 @@ describe(`R-DUOS-DOCK-FOOT-01: larger, at the rail's foot (owner 2026-10-31: "la
     // No room at all (the hand's row reaches the stage edge): null, never a speck.
     expect(fitFoot(hero, { ...foot, hand: b(366, 770, 1500, 254) }, stage, id)).toBeNull();
   });
-  it('R-DUOS-DOCK-INBOARD-01 (owner 2026-11-10: "The menu etc buttons should not be before the teammate circle. They should be fully cornered."): on a phone the disc sits left of the corner squares, never in the corner outside them', () => {
-    // The phone layout the headless pass measured (stage 2208 x 1021): the play box ends ~180 px short of the screen edge,
-    // so there is room right of the Compendium / gear pair. The disc used to slide into it (2041..2198).
+  it('R-DUOS-DOCK-INBOARD-01 (owner 2026-11-10: "The menu etc buttons should not be before the teammate circle. They should be fully cornered."): on a phone the disc sits just left of the corner squares, never in the corner outside them', () => {
+    // The phone game the headless pass measured (layout 2208 x 1021), the squares out at the screen's wall
+    // (R-PHONE-CORNER-WALL-01): Compendium 2053..2119, gear 2127..2193, Guides above the gear; the rail's last tile ends
+    // at y 770, a full hand's row at x 1733.
     const pStage = { left: 0, top: 0, width: 2208, height: 1021 };
     const pHero = b(171, 694, 266, 266);
-    const pFoot = { seats: b(1775, 708, 252, 60), coin: b(1668, 645, 113, 113), tab: b(1964, 811, 66, 66), book: b(1890, 885, 66, 66), gear: b(1964, 885, 66, 66), hand: b(545, 722, 1188, 255) };
-    const g = fitFoot(pHero, pFoot, pStage, id)!;
+    const pFoot = { seats: b(1750, 715, 250, 55), coin: b(1668, 645, 113, 113), tab: b(2127, 811, 66, 66), book: b(2053, 885, 66, 66), gear: b(2127, 885, 66, 66), hand: b(545, 722, 1188, 255) };
+    const box = (g: { d: number; right: number; bottom: number }) => { const right = 2208 - g.right; return { left: right - g.d, right, cx: right - g.d / 2, cy: 1021 - g.bottom - g.d / 2 }; };
+    const g = fitFoot(pHero, pFoot, pStage, id, 'squares')!;
     expect(g).not.toBeNull();
-    const right = 2208 - g.right; // the disc's right edge
-    const left = right - g.d;
-    expect(right).toBeLessThanOrEqual(1890 - DOCK_RAIL_GAP + 0.01); // left of the Compendium square, the gap kept
-    expect(left).toBeGreaterThanOrEqual(545 + 1188 + DOCK_HAND_SPILL - 0.01); // right of a full hand
+    const at = box(g);
+    expect(at.right).toBeLessThanOrEqual(2053 - DOCK_RAIL_GAP + 0.01); // left of the Compendium square, the gap kept
+    expect(at.right).toBeGreaterThan(2053 - DOCK_RAIL_GAP - 4.01); // ...and right beside it (the slide's 4 px step)
+    expect(at.left).toBeGreaterThanOrEqual(545 + 1188 + DOCK_HAND_SPILL + 100); // a full hand's last card is well clear
     expect(1021 - g.bottom).toBeCloseTo(951, 6); // on the squares' baseline
-    const cx = (left + right) / 2;
-    const cy = 951 - g.d / 2;
     for (const k of [pFoot.seats, pFoot.coin, pFoot.tab, pFoot.book, pFoot.gear]) {
-      const dx = Math.max(k.left - cx, 0, cx - (k.left + k.width));
-      const dy = Math.max(k.top - cy, 0, cy - (k.top + k.height));
+      const dx = Math.max(k.left - at.cx, 0, at.cx - (k.left + k.width));
+      const dy = Math.max(k.top - at.cy, 0, at.cy - (k.top + k.height));
       expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(g.d / 2 + DOCK_RAIL_GAP - 0.01);
     }
+    // As large as the room under the rail allows: about its old corner size (157), far above the floor.
+    expect(g.d).toBeGreaterThan(150);
     expect(g.d).toBeGreaterThanOrEqual(266 * DOCK_FOOT_MIN);
-    // The desktop fit is the same disc as before the fence (it was already left of the squares).
+    expect(DOCK_FOOT_MIN).toBe(0.4);
+    // The same room hugged from the hand's side (the desktop rule) is the same size, on the other side of it.
+    const h = fitFoot(pHero, pFoot, pStage, id)!;
+    expect(h.d).toBeCloseTo(g.d, 1);
+    expect(box(h).left).toBeLessThan(at.left - 100);
+    // Squares still at the play box's edge with the screen's corner free beyond them (before the wall move): never out there.
+    const old = fitFoot(pHero, { ...pFoot, tab: b(1964, 811, 66, 66), book: b(1890, 885, 66, 66), gear: b(1964, 885, 66, 66) }, pStage, id, 'squares');
+    if (old) expect(box(old).right).toBeLessThanOrEqual(1890);
+    // DESKTOP is untouched: the default is the hand's side, and the fit there was already left of the squares.
     const d = fitFoot(hero, foot, stage, id)!;
     expect(1920 - d.right).toBeLessThanOrEqual(1817);
+    expect(readFileSync(join(__dirname, 'DuosMateDock.tsx'), 'utf8')).toContain("document.documentElement.hasAttribute('data-phone-zoom') ? 'squares' : 'hand'");
   });
 });

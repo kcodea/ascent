@@ -14735,16 +14735,49 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Duos: the teammate portrait sits inboard of the corner squares, never in the corner outside them',
     statement:
       'The Compendium and Settings squares keep the bottom-right corner in a Duos game, exactly where they sit in any other game. The teammate portrait at the rail\'s foot (R-DUOS-DOCK-FOOT-01) is always LEFT of them: '
-      + 'its fit never slides past the Compendium / Settings pair, on a desktop or on a phone (whose screen is wider than the play box, so there is room between the squares and the screen edge). '
-      + 'It still clears a full hand, the Gold coin, the rail and the squares by the same gap, and may be as small as 35% of the player\'s own hero disc to do so.',
+      + 'its fit never slides past the Compendium / Settings pair. On a desktop it hugs the hand\'s side of that room, as before. On a phone it hugs the squares\' side, just left of the Compendium square, so a full hand\'s last card stays well clear of it. '
+      + 'It clears a full hand, the Gold coin, the rail\'s last tile and the squares by the same gap, and its "Back to your board" label stays whole on screen.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone shop screenshot of PR 2647', quote: 'The menu etc buttons should not be before the teammate circle. They should be fully cornered.' },
-      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot: fenceR, DOCK_FOOT_MIN)' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'teammate portrait is too small' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot: fenceR, hug)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, on the phone layout the fit slid the disc past the squares into the screen corner (stage x 2041 to 2198 of 2208) and the squares sat left of it. Now the disc sits at 1777 to 1880, left of the Compendium square (1890). Desktop is unchanged (it was already left of them). Checked in phone emulation only.',
-    example: 'On a phone in a Duos shop the Compendium and Settings squares are in the corner of the play box, and Bob\'s portrait sits just left of them. Tapping it opens his board.',
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, on a phone the fit slid the disc past the squares into the screen corner (layout x 2041 to 2198 of 2208) and the squares sat left of it. Now, with the squares at the screen\'s wall (R-PHONE-CORNER-WALL-01), the disc sits at 1887 to 2041 (154 px, the most the room under the rail\'s last tile allows; it was 157 in the corner), 12 px left of the Compendium square, and a ten-card hand ends at 1760. Desktop is unchanged. Checked in phone emulation only.',
+    example: 'On a phone in a Duos shop the Compendium and Settings squares are at the right edge of the screen, and Bob\'s portrait sits just left of them. Tapping it opens his board.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-CORNER-WALL-01',
+    title: 'Phones: the corner squares (Guides, Compendium, Settings) stand at the screen\'s right edge, not the play box\'s',
+    statement:
+      'In every phone game (solo, Versus, Duos) the Settings square stands 15 layout px in from the screen\'s right SAFE edge (clear of a notch or rounded corner), the same margin it keeps above the bottom gesture strip. '
+      + 'The Compendium square is one square and its gap further in, and the Guides square sits above Settings. They cover nothing: the lobby rail ends above and left of them. The Guides panel still opens over the rail column. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'buttons in the corner should go further to the wall' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .gearbtn / .bookbtn), packages/ui/src/guides/lobbyGuides.css ([data-phone-zoom] .guidesbtn)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, they were anchored to the play box\'s right edge, which on a phone is about 180 layout px in from the screen\'s (Settings at 1964 to 2030 of 2208). Now Settings is at 2127 to 2193 and Compendium at 2053 to 2119. Checked in phone emulation only (no safe-area inset there).',
+    example: 'On a phone, in a solo shop, the Compendium and Settings squares sit side by side against the right edge of the screen, with Guides above Settings.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-HERO-PLATES-01',
+    title: 'Phones: the hero\'s name plate and Health / Armor plate are both whole, name over Health',
+    statement:
+      'On a phone the Health / Armor plate rides up onto the hero ring\'s lower rim (the phone framing\'s bottom bound). The name plate rides up with it and sits just above the Health plate, whole, on the lower part of the portrait: '
+      + 'the two never overlap, on my own board, in a fight and while I watch my teammate\'s board. Both are static offsets of the existing plates.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'name + life plates overlap and dont look good' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .statusbar .hero .heroname)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the name plate stayed at its desktop seat (layout y 909 to 950) under the raised Health plate (933 to 1003), which hid its lower half. Now it sits at 884 to 925, 8 px above the Health plate. Checked in phone emulation only.',
+    example: 'On a phone "Ann" reads in full on its plate at the foot of her portrait, and the Health and Armor plate sits just under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
 ];

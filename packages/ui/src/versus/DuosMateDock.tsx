@@ -80,10 +80,8 @@ export const DOCK_MIN_SHARE = 0.55;
 export const DOCK_RAIL_GAP = 10;
 /** At the rail's foot the disc grows up to this share of your own hero disc. */
 export const DOCK_FOOT_MAX = 0.8;
-/** Below this share of your hero disc the foot is too cramped: the dock falls back to `fitDock`'s place. (0.35 since
- *  2026-11-10: the phone layout's room between a full hand and the corner squares is 0.39 of the hero disc, and the
- *  fallback's place there is the corner outside those squares, R-DUOS-DOCK-INBOARD-01.) */
-export const DOCK_FOOT_MIN = 0.35;
+/** Below this share of your hero disc the foot is too cramped: the dock falls back to `fitDock`'s place. */
+export const DOCK_FOOT_MIN = 0.4;
 
 /** What sits around the rail's foot (screen px): the last rail tile, the Gold coin, the rail's tab, the Compendium, the
  *  gear and the hand's row (a full hand reaches almost to the coin, so the disc stays right of it). */
@@ -100,7 +98,7 @@ export const DOCK_HAND_SPILL = 44;
  * into the room under the coin. Null when a piece is missing or the room is under `DOCK_FOOT_MIN` of your disc (`fitDock`
  * then places it). All in stage px after `stageLen`.
  */
-export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen: (px: number) => number): DockGeometry | null {
+export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen: (px: number) => number, hug: 'hand' | 'squares' = 'hand'): DockGeometry | null {
   const ok = (b: Box | null | undefined): b is Box => !!b && b.width > 0 && b.height > 0;
   const { seats, coin, tab, book, gear, hand } = foot;
   if (!ok(hero) || !ok(coin) || !ok(gear)) return null;
@@ -127,8 +125,16 @@ export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen:
   const fits = (r: number): { cx: number; cy: number } | null => {
     const cy = base - r;
     if (cy - r - 2 * r * DOCK_CAP_SHARE < 0) return null;
+    const capTop = cy - r - 2 * r * DOCK_CAP_SHARE;
+    // A PHONE hugs the corner squares instead (`hug: 'squares'`, R-DUOS-DOCK-INBOARD-01): with the squares out at the
+    // screen's wall there is room to spare, and a full hand's last card would otherwise brush the disc. Slide LEFT from
+    // the squares' side to the first clear spot.
+    if (hug === 'squares') {
+      for (let cx = fenceR - r; cx - r >= fenceL; cx -= 4) if (clear(cx, cy, r, capTop)) return { cx, cy };
+      return null;
+    }
     // Slide right from the hand's side until it clears (coarse steps, then the first clear spot).
-    for (let cx = fenceL + r; cx + r <= fenceR; cx += 4) if (clear(cx, cy, r, cy - r - 2 * r * DOCK_CAP_SHARE)) return { cx, cy };
+    for (let cx = fenceL + r; cx + r <= fenceR; cx += 4) if (clear(cx, cy, r, capTop)) return { cx, cy };
     return null;
   };
   // The largest radius that fits (bisection: fitting is monotone in r for this room).
@@ -208,7 +214,7 @@ function measureDock(): DockGeometry | null {
   const foot = fitFoot(heroBox, {
     seats: tiles.length ? tiles[tiles.length - 1]!.getBoundingClientRect() : null,
     coin: rect('.goldpill'), tab: rect('.guidesbtn'), book: rect('.bookbtn'), gear: rect('.gearbtn'), hand: rect('.zone > .row.hand'),
-  }, stage, toStage);
+  }, stage, toStage, document.documentElement.hasAttribute('data-phone-zoom') ? 'squares' : 'hand');
   return foot ?? fitDock(heroBox, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stage, toStage);
 }
 

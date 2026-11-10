@@ -65,7 +65,9 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Phones: a tap on "Back to your board" no longer puts you straight back on your teammate\'s board.',
           'Phones: the teammate portrait shows the hero inside its ring. It was an empty ring.',
-          'Phones: the teammate portrait now sits just left of the Compendium and Settings buttons, which keep the corner.',
+          'Phones: the Guides, Compendium and Settings buttons now sit against the right edge of the screen, in every mode.',
+          'Phones: the teammate portrait sits just left of those buttons.',
+          'Phones: your hero name and your Health plate no longer overlap. The name sits just above the Health plate.',
           'Concede now says what it costs in the mode you are in. In Versus Duos your whole team goes out. In Ranked Duos you leave for good and your teammate plays on.',
           'The Pass keyword text is correct: you can pass a Gilded minion from your hand. Only spells that pass cannot target one.',
           'Party screen: the mode description is no longer drawn on top of your team name.',

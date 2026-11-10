@@ -27,11 +27,19 @@ Fixes from the 2026-11-09 Duos audit (runtime findings F1, F3, F9, F10, F11 and 
   difficulty line: it was dropped whenever an offer's three heroes share one difficulty, so two offers could differ in
   height. The line is now always kept (empty when no word shows). R-DUOS-HEROSELECT-TITLE-01.
 
-- **Phone: portrait inboard of the corner squares (owner follow-up, same day).** A phone's stage (2208 wide) is wider than
-  the play box, so `fitFoot`'s slide carried the disc past the Compendium / gear pair into the screen corner. `fitFoot` now
-  fences the disc left of that pair; `DOCK_FOOT_MIN` went 0.4 to 0.35 because the phone's room between a full hand and the
-  squares is 0.39 of the hero disc (103 stage px, was 157 in the corner). Desktop fit is byte-identical.
-  R-DUOS-DOCK-INBOARD-01.
+- **Phone corner, three owner follow-ups the same day.** Note first: the live phone game is the ZOOM mode
+  (`data-phone-zoom`, `touchUi.css`), not `phoneLayout.css` (the retired 2:1 composition behind a switch). Layout is
+  2208 x 1021 on the Pixel profile; the 1920 box is cropped, so its right edge is ~180 px in from the screen's.
+  - *Squares to the wall.* `.gearbtn` / `.bookbtn` / `.guidesbtn` were anchored to the box edge (`--pz-bxr`). Now
+    `right: calc(var(--edge-r) + 15px)` (the safe edge), every phone game. The Guides PANEL keeps its old anchor so it
+    still covers the rail column. R-PHONE-CORNER-WALL-01.
+  - *Portrait inboard, and big again.* `fitFoot` fences the disc left of the Compendium / gear pair, and on a phone hugs
+    the squares' side (`hug: 'squares'`, picked in `measureDock` off `data-phone-zoom`) so a ten-card hand (ends at 1760)
+    is 127 px clear. Size is 154 px (157 when it sat in the corner): the ceiling is the rail's last tile (bottom 770) plus
+    the gap and the label's reserve, not the squares. `DOCK_FOOT_MIN` stays 0.4. Desktop fit is identical.
+    R-DUOS-DOCK-INBOARD-01.
+  - *Name over Health.* The phone already lifts `.hpbox` 20 box px onto the ring's rim (`PHONE_ART_BOTTOM`); the name
+    plate stayed put and was half covered. `.heroname` now lifts 7 local px (25 box px). R-PHONE-HERO-PLATES-01.
 
 ## Not changed, and why
 

@@ -8533,6 +8533,9 @@ export function Recruit() {
         return;
       }
       case 'cast': {
+        // A RUBY plays no spell-cast burst: its gem landing (`ruby-gem-apply`) IS its cast effect (owner 2026-11-10:
+        // "remove it for all ruby target spells").
+        if (CARD_INDEX[a.cardId]?.ruby) return;
         if (a.targetUid) {
           const target = a.targetUid;
           if (bindingFor(a.cardId, 'spellCast')) fireSpellCastFx(a.cardId, a.at, a.card);

@@ -725,6 +725,25 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
 }
 /** The chat pop's pitch shifts, in semitones (subtle: a few steps either side of the clip's own pitch). */
 const CHAT_POP_SEMITONES = [-3, -2, -1, 0, 1, 2, 3] as const;
+/** The Ruby landing's reverb (owner 2026-11-10: "a satisfying echoey reverb"): wet send level (0 to 1) and tail
+ *  length in seconds. Raise MIX for more echo, SEC for a longer, roomier tail. */
+const RUBY_REVERB_MIX = 0.29;
+const RUBY_REVERB_SEC = 2.2;
+/** The Ruby landing's random pitch (owner 2026-11-10: "semitones randomized to a degree"): each play picks a shift
+ *  anywhere within ± this many semitones, at least RUBY_PITCH_MIN_STEP away from the last one so two gems in a
+ *  row never sound identical. */
+const RUBY_PITCH_RANGE = 1.75;
+const RUBY_PITCH_MIN_STEP = 0.5;
+let lastRubySemi = 0;
+function randomRubySemitones(): number {
+  let semi = 0;
+  for (let i = 0; i < 6; i++) {
+    semi = (Math.random() * 2 - 1) * RUBY_PITCH_RANGE;
+    if (Math.abs(semi - lastRubySemi) >= RUBY_PITCH_MIN_STEP) break;
+  }
+  lastRubySemi = semi;
+  return semi;
+}
 let lastChatPopSemi: number | null = null;
 interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 /** The Good Luck intro's spark clip (an FX-workbench import, also the Stellar Lens sparkle). */
@@ -2281,7 +2300,13 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastGemApply < 20) return;
     lastGemApply = now;
-    if (playSample('gemapply', 'gemapply')) return;
+    // Three layered clips (owner 2026-11-10): BREAK + TONE + DING, all on the `gemapply` fader, each with its own
+    // channel fader in the SFX Mixer so the blend can be tuned by ear. Every play gets an echoey reverb tail and a
+    // random pitch (one shared shift for all three layers, so the blend stays in tune with itself).
+    const rate = 2 ** (randomRubySemitones() / 12);
+    const tail: TailOpts = { fadeOutMs: 0, reverbMix: RUBY_REVERB_MIX, reverbSec: RUBY_REVERB_SEC };
+    const hit = (['rubybreak', 'rubytone', 'rubyding'] as const).map((c) => playTailedSample(c, 'gemapply', 1, 0, tail, undefined, rate));
+    if (hit.some(Boolean)) return;
     tone({ freq: 1180, dur: 0.1, type: 'triangle', vol: 0.09, slideTo: 1560, category: 'gemapply' });
   },
   // A Reborn aura SHATTERS in combat (the unit dies + its spirit releases). Deduped like shieldBreak.

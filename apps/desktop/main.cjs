@@ -25,7 +25,7 @@ const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('ele
 const path = require('node:path');
 const fs = require('node:fs');
 const { isRemoteNetworkError } = require('./smokeClassify.cjs');
-const { startUpdater, getReadyUpdate } = require('./updater.cjs');
+const { startUpdater, getReadyUpdate, getUpdateStatus, restartToInstall } = require('./updater.cjs');
 
 // ── SMOKE MODE (scripts/release-desktop.mjs) ──────────────────────────────────────────────────────────────
 // `ASCENT_SMOKE=1` turns the shell into a self-check of the packaged bundle: a windowed (not fullscreen) boot
@@ -175,6 +175,11 @@ ipcMain.on('ascent:quit', () => app.quit());
 // The downloaded update the game should announce (a version string or null). Asked for, not pushed, so it cannot be missed
 // by a game that was still on its loading screen when the download finished (R-UPDATE-NOTICE-SEEN-01).
 ipcMain.handle('ascent:get-update-ready', () => getReadyUpdate());
+// The loading screen's update line (R-UPDATE-CHECK-LOADING-01): where this launch's check stands, and the player's
+// "restart and install" click (a relaunch; the new launch installs the downloaded update). No page data is trusted:
+// the click carries nothing, and it does nothing unless an update is downloaded.
+ipcMain.handle('ascent:get-update-status', () => getUpdateStatus());
+ipcMain.on('ascent:install-update', () => { restartToInstall(app); });
 ipcMain.on('ascent:toggle-fullscreen', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   win?.setFullScreen(!win.isFullScreen());

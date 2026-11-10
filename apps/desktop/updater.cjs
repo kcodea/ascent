@@ -2,9 +2,12 @@
  * The shell's self-update (electron-updater, generic provider on GitHub Releases).
  *
  * Updates install ONLY AT LAUNCH, never mid-session (so an update can never land mid-lobby):
- *   - BOOT (the normal launch): open the game, then 10 s later check for a newer release and download it quietly
- *     (main process only, so it can never hitch a frame). When it finishes, write `pending-update.json` ({ version })
- *     in userData and tell the game (`ascent:update-ready`) so it can say "installs next time you start".
+ *   - BOOT (the normal launch): open the game and check for a newer release AT ONCE (owner 2026-11-10: the check
+ *     belongs on the loading screen), downloading it quietly (main process only, so it can never hitch a frame). The
+ *     game reads the progress with `getUpdateStatus` ("Checking for updates", "up to date", "new version found").
+ *     When the download finishes, write `pending-update.json` ({ version }) in userData and tell the game
+ *     (`ascent:update-ready`). The player may then click "restart and install": `restartToInstall` relaunches the
+ *     app, and the new launch takes the INSTALL path below. So an install still only ever happens at a launch.
  *   - INSTALL (a newer version is pending): before the game loads, show `updating.html` ("Installing update vX…"),
  *     re-check (the cached download is re-validated, not re-fetched) and `quitAndInstall` (non-silent: NSIS shows its own progress window) with a relaunch.
  *     On an error, "nothing to install", or 60 s with no download, give up: clear the marker and boot the game.
@@ -24,7 +27,6 @@ const path = require('node:path');
 const UPDATES_ENABLED = true;
 const MARKER_FILE = 'pending-update.json';
 const SKIP_FILE = 'skipped-update.json';
-const CHECK_DELAY_MS = 10_000;
 const INSTALL_TIMEOUT_MS = 60_000;
 /** After quitAndInstall the app should be gone within moments; if it is still here, the install did not start. */
 const QUIT_WATCHDOG_MS = 15_000;
@@ -109,8 +111,26 @@ function updatesAllowed({ isPackaged, env, hasUpdateConfig }) {
 let readyVersion = null;
 function getReadyUpdate() { return readyVersion; }
 
+/**
+ * Where this launch's update check stands, for the loading screen (R-UPDATE-CHECK-LOADING-01):
+ * 'off' (no updater here, or nothing to say), 'checking', 'current' (up to date), 'downloading' (a newer `version`,
+ * `percent` 0-100), 'ready' (downloaded: restartToInstall will install it) or 'error' (the check failed; say nothing).
+ */
+let status = { state: 'off', version: null, percent: 0 };
+function getUpdateStatus() { return { ...status }; }
+
+/** The player clicked "restart and install": relaunch, and the new launch installs the pending update (the INSTALL
+ *  path, with its attempt count and watchdogs). Does nothing unless an update is downloaded. Returns whether it ran. */
+function restartToInstall(app) {
+  if (!readyVersion) return false;
+  app.relaunch();
+  app.quit();
+  return true;
+}
+
 async function startUpdater(deps) {
   readyVersion = null;
+  status = { state: 'off', version: null, percent: 0 };
   const { app, BrowserWindow, createGameWindow } = deps;
   const fs = deps.fs ?? require('node:fs');
   const env = deps.env ?? process.env;
@@ -173,6 +193,7 @@ async function startUpdater(deps) {
     } catch { /* unreadable marker: start fresh */ }
     try { fs.writeFileSync(markerPath, JSON.stringify(next)); } catch (e) { log('error', `write marker: ${e}`); return; }
     readyVersion = version;
+    status = { state: 'ready', version, percent: 100 };
     const gameWin = getGameWin();
     if (gameWin && !gameWin.isDestroyed()) gameWin.webContents.send('ascent:update-ready', { version });
   };
@@ -194,9 +215,21 @@ async function startUpdater(deps) {
     clearMarker();
   }
   const gameWin = createGameWindow();
-  autoUpdater.on('error', (e) => log('warn', `boot: ${e?.message ?? e}`));
+  // A status never moves off 'ready': a late event must not hide a downloaded update.
+  const setStatus = (next) => { if (status.state !== 'ready') status = next; };
+  autoUpdater.on('error', (e) => { log('warn', `boot: ${e?.message ?? e}`); setStatus({ state: 'error', version: null, percent: 0 }); });
+  autoUpdater.on('update-not-available', () => setStatus({ state: 'current', version: null, percent: 0 }));
+  autoUpdater.on('update-available', (info) => {
+    const version = String(info?.version ?? '');
+    // A skipped version (its install failed twice) is never offered: to the player this build is the newest usable one.
+    setStatus(isSkipped(version, skip) ? { state: 'current', version: null, percent: 0 } : { state: 'downloading', version, percent: 0 });
+  });
+  autoUpdater.on('download-progress', (p) => {
+    if (status.state === 'downloading') status = { ...status, percent: Math.max(0, Math.min(100, Number(p?.percent) || 0)) };
+  });
   autoUpdater.on('update-downloaded', recordDownload(() => gameWin));
-  setTimeout(check, CHECK_DELAY_MS);
+  status = { state: 'checking', version: null, percent: 0 };
+  check();
 }
 
 function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker, fs, markerPath, clearMarker, log, check, recordDownload }) {
@@ -258,4 +291,4 @@ function runInstall({ BrowserWindow, createGameWindow, autoUpdater, deps, marker
   check();
 }
 
-module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, isSkipped, updatesAllowed, startUpdater, getReadyUpdate };
+module.exports = { UPDATES_ENABLED, MAX_INSTALL_ATTEMPTS, isNewer, decideLaunch, isSkipped, updatesAllowed, startUpdater, getReadyUpdate, getUpdateStatus, restartToInstall };

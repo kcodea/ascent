@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('ascentDesktop', Object.freeze({
     ipcRenderer.on('ascent:update-ready', listener);
     return () => ipcRenderer.removeListener('ascent:update-ready', listener);
   },
+  /** Where this launch's update check stands: { state, version, percent } (see updater.cjs getUpdateStatus). */
+  getUpdateStatus: () => ipcRenderer.invoke('ascent:get-update-status').then(
+    (s) => ({ state: String(s?.state ?? 'off'), version: s?.version ? String(s.version) : null, percent: Number(s?.percent) || 0 }),
+    () => ({ state: 'off', version: null, percent: 0 }),
+  ),
+  /** The player clicked "restart and install". Sends nothing from the page; a no-op unless an update is downloaded. */
+  installUpdate: () => ipcRenderer.send('ascent:install-update'),
   /**
    * The update already downloaded this session, if any (resolves to its version, or null). The push above fires once,
    * possibly before the game is listening, so the notice also asks on mount. Sends no page data to the main process.

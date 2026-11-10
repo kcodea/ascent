@@ -60,6 +60,7 @@
       <img id="bootsplash-img" src="./ascenticon.png" alt="" aria-hidden="true" draggable="false" />
       <div id="bootsplash-bar"><i></i></div>
       <div id="bootsplash-note" aria-live="polite"></div>
+      <div id="bootsplash-update" aria-live="polite"></div>
     </div>
     <script>
       /* Fade the splash IN once the image has actually DECODED (owner ask 2026-08-22: "fade in from a black
@@ -157,9 +158,27 @@
         opacity: 0; transition: opacity 700ms ease-out;
       }
       #bootsplash.is-in #bootsplash-note { opacity: 1; }
+      /* The desktop app's update check (updateCheck.ts, owner 2026-11-10): "Checking for updates", "up to date", or
+         "New version found. Click here to restart and install". Empty in the browser. Only the click line takes the
+         pointer; updateCheck.ts gives it role="button", so the game's global rule paints the gauntlet cursor. */
+      #bootsplash-update {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 66px);
+        font: 600 15px/1.2 system-ui, sans-serif; letter-spacing: 0.03em; color: rgba(255, 255, 255, 0.7);
+        font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none;
+        opacity: 0; transition: opacity 700ms ease-out;
+      }
+      #bootsplash.is-in #bootsplash-update { opacity: 1; }
+      #bootsplash-update.is-click {
+        pointer-events: auto;
+        color: #ffd9a8; font-weight: 700; padding: 9px 18px; border-radius: 999px;
+        border: 1px solid rgba(240, 144, 46, 0.85); background: rgba(240, 144, 46, 0.16);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 78px);
+      }
+      #bootsplash-update.is-click:hover, #bootsplash-update.is-click:focus-visible { background: rgba(240, 144, 46, 0.32); color: #fff; outline: none; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-note, #bootsplash-bar > i { transition: none; }
+        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-note, #bootsplash-update, #bootsplash-bar > i { transition: none; }
       }
     </style>
     <div id="root"></div>

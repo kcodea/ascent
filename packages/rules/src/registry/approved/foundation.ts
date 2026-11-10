@@ -15028,4 +15028,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-09 for shells built from fix/update-notice-missed onward (the shell half ships inside the installer, so players get it with the update AFTER the one that carries it). Before: the shell sent one ascent:update-ready push; v0.2.5 finished downloading 21 s after launch, during the loading screen, before the notice was listening, so it was lost; a notice that did show faded after 14 s.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx', 'apps/desktop/updater.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-UPDATE-CHECK-LOADING-01',
+    title: 'The loading screen checks for an update and offers the install',
+    statement:
+      'The desktop app checks for a newer version as soon as it opens, and the loading screen says where that stands: '
+      + '"Checking for updates", then either "Your version of Ascent is up to date" or "New version found" with the download '
+      + 'progress and, once downloaded, a line the player clicks to restart and install that version. Loading never waits on '
+      + 'the check or the download. A download that finishes after the game opens offers the same click on the notice under '
+      + 'START. The install only ever runs at a launch, never during a match, and a failed check shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'id love to put the check for update on the loading screen. can we have language that says " checking for updates" and either says, "new version found, click here to restart and install version x" or "your version of ascent is up to date"' },
+      { kind: 'code', ref: 'feat/update-on-loading: apps/desktop/updater.cjs (check at launch, getUpdateStatus, restartToInstall) + main.cjs + preload.cjs; packages/ui/src/updateCheck.ts driven by Boot.tsx onto #bootsplash-update (apps/web/index.html); packages/ui/src/UpdateReadyNotice.tsx (the click under START)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 for shells built from feat/update-on-loading onward (the shell half ships inside the installer, so players get it with the update AFTER the one that carries it; an older shell shows no line and keeps "installs next time you start"). The click is a relaunch: the new launch installs through the existing pending-update path. Before: the check ran 10 s after the game opened and nothing was said until the download finished.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx', 'apps/desktop/updater.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

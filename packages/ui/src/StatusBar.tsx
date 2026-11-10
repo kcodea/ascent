@@ -10,6 +10,7 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
+import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
 import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
@@ -135,7 +136,7 @@ function heroPowerTallyOf(
     case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete
     case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr
     case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null; // Gambler / Aster
-    case 'contraband': return `${(run.refreshCount ?? 0) % 3}/3`; // Pete
+    case 'contraband': { const every = ancientContrabandEvery(run); return `${(run.refreshCount ?? 0) % every}/${every}`; } // Pete (Ancient of Time: every 2)
     case 'archive': return ancientArchivePassive(run) ? null : `${(run.archivedTribes?.length ?? 0)}/${ancientArchiveNeed(run)}`; // Quillen
     case 'investment': { // Bram — an Ancient pairing may reshape it (Death: deaths toward 16, live; Time: no bank)
       const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
@@ -145,7 +146,7 @@ function heroPowerTallyOf(
     case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`; // Odelle
     case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal
     case 'soulbind': return `${Math.max(0, 3 - uses)} left`; // Sable
-    case 'baldgecoin': return `${run.jugglerBuys ?? 0}/3`; // Juggler
+    case 'baldgecoin': return `${run.jugglerBuys ?? 0}/${ancientCoinNeed(run)}`; // Juggler (Ancient of Genesis: every 2)
     case 'magicHat': return magicHatBadge(run)?.tally ?? null; // Magician: buys toward the hat (R-DUOS-MAGICIAN-01)
     case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null; // Cassen
     case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi
@@ -594,7 +595,8 @@ export function StatusBar() {
   useEffect(() => {
     const prev = prevDiceLock.current;
     prevDiceLock.current = run.heroDiceLockUntil;
-    if (power.kind !== 'dice' || !run.heroDiceLockUntil || run.heroDiceLockUntil === prev) return;
+    // A NEW roll only ever pushes the lock later. Gambler × Ancient of Death SHORTENS it, which is not a roll: no tumble.
+    if (power.kind !== 'dice' || !run.heroDiceLockUntil || run.heroDiceLockUntil === prev || run.heroDiceLockUntil < (prev ?? 0)) return;
     const rolled = run.heroDiceRoll ?? (run.heroDiceLockUntil - run.wave);
     if (rolled < 1 || rolled > 6) return;
     const r = powerBtnRef.current?.getBoundingClientRect();
@@ -741,7 +743,7 @@ export function StatusBar() {
   // THE HERO AVENGE COUNTDOWN (owner 2026-09-30): Frank × War's Avenge (3) or Hunch × Death's Avenge (4) owns the
   // centre readout, live through the fight on screen (its friendly deaths so far), back to full after each trigger. One
   // helper, one disc (`.hpb-avenge`) for both.
-  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock' || power.kind === 'empoweringVines' || power.kind === 'commission' || power.kind === 'gildcrafter') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
+  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock' || power.kind === 'empoweringVines' || power.kind === 'commission' || power.kind === 'gildcrafter' || power.kind === 'allIn' || power.kind === 'dice' || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'baldgecoin') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
   const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive

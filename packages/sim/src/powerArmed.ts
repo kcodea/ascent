@@ -16,9 +16,10 @@
  *                              the left-most hand card; Bonds: the board's edges). Nothing to copy = it would fire nothing.
  *  - Gorr (`fourPeat`):        exactly 2 minions bought this turn (`gorrBuys`): the 3rd buy fires. Once per turn, so 3 or
  *                              more is not armed; the tally resets at turn setup.
- *  - Juggler (`baldgecoin`):   2 of 3 minion buys toward the next Carnival Coin (`jugglerBuys`, wraps at 3, carries
- *                              across turns).
- *  - Pete (`contraband`):      the NEXT refresh is a third one (`refreshCount % 3 === 2`, carries across turns).
+ *  - Juggler (`baldgecoin`):   one minion buy short of the next Carnival Coin (`jugglerBuys === need - 1`; need = 3,
+ *                              or 2 with the Ancient of Genesis; carries across turns).
+ *  - Pete (`contraband`):      the NEXT refresh is the one that fires (`refreshCount % every === every - 1`; every =
+ *                              3, or 2 with the Ancient of Time; carries across turns).
  *  - Ayse (`luckySeat`):       2 of 3 Enchanted cards bought (`ciaEnchantedBought`, wraps at 3, carries across turns).
  *  - Drakko (`quest`):         one Shout buy short of Drumline (`drakkoBuys === need - 1`; need = 5, or 4 / 3 on a later
  *                              Ancient of Genesis completion) and the holding slot's once-per-game latch is not spent.
@@ -36,7 +37,7 @@
  *
  * Phase-agnostic on purpose, like `magicHatView`: the caller decides where a glow may show (the Shop only).
  */
-import { ancientArchiveNeed, ancientArchivePassive, ancientDrumlineNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
+import { ancientArchiveNeed, ancientArchivePassive, ancientCoinNeed, ancientContrabandEvery, ancientDrumlineNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
 import { activePowers, powerLatchSpent, wieldedPowerId } from './heroes';
 import { magicHatView } from './magicHat';
 import { runeStacksOf } from './runeDup';
@@ -44,7 +45,7 @@ import type { RunState } from './state';
 
 /** Minion buys in one turn that fire Gorr's Four Peat. */
 const FOUR_PEAT_BUYS = 3;
-/** The cycle Juggler's coin, Pete's refresh and Ayse's prize all count to. */
+/** The cycle Ayse's prize counts to (Juggler's coin and Pete's refresh read theirs live: an Ancient can shorten them). */
 const CYCLE = 3;
 
 /** Types one Archive press banks: the reducer's hero power `reps` (1 + Rune of Empowerment + a Wishbone per copy). */
@@ -65,8 +66,8 @@ export function heroPowerArmed(run: RunState, slot: 0 | 1 = 0): boolean {
     case 'magicHat': return magicHatView(run).active;
     case 'secondHand': return run.wave % ancientSecondHandEvery(run) === 0 && ancientSecondHandSources(run).length > 0;
     case 'fourPeat': return (run.gorrBuys?.length ?? 0) === FOUR_PEAT_BUYS - 1;
-    case 'baldgecoin': return (run.jugglerBuys ?? 0) === CYCLE - 1;
-    case 'contraband': return (run.refreshCount ?? 0) % CYCLE === CYCLE - 1;
+    case 'baldgecoin': return (run.jugglerBuys ?? 0) === ancientCoinNeed(run) - 1;
+    case 'contraband': { const every = ancientContrabandEvery(run); return (run.refreshCount ?? 0) % every === every - 1; }
     case 'luckySeat': return (run.ciaEnchantedBought ?? 0) === CYCLE - 1;
     case 'quest': {
       const holder = wieldedPowerId(run, slot);

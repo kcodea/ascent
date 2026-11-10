@@ -35,6 +35,9 @@ export interface ShopCard {
   /** ANCIENT OF DEATH × Frantic Frank: this Clearance offer is on the "first one bought is free" price (cost 0). The
    *  first buy from the set re-prices the rest back to 2 Gold and clears the flag. */
   clearanceFree?: boolean;
+  /** ANCIENTS × Pete: this offer is a Contrabanana minion (the upgraded right-most offer). Set only on a run with
+   *  Ancients on; read at the buy (Fortune's free Refresh). */
+  banana?: boolean;
   /** Spell Cart (owner 2026-11-06): this spell offer came from a cast Cart and costs 1 less. Buying one clears the mark
    *  from the whole row, so only the first buy pays the cut. A refresh replaces the offers, and the mark with them. */
   cartCut?: boolean;

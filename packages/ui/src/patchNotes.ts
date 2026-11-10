@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Duos update',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ancients test mode: Rascal, Gambler, Pete, Foreman Flint and Juggler now have all six Ancient powers.',
+        details: [
+          'Ancients are only in the Scene Builder test mode for now.',
+          'Rascal: a third All In with an Avenge that adds Gold to it, a faster growing All In, a board buff for each Gold it pays, Discovers for each 5 Gold it pays, 4 Gold every turn, and a buff to your outer minions when you spend Gold.',
+          'Gambler: an Avenge that shortens the Dice lock, two dice at once, a board buff for each pip, a Gamble on the same roll, a cheaper first minion while Dice is locked, and a Discover of the rolled Tier.',
+          'Pete: an Avenge for free Refreshes, a free Refresh for buying the Contrabanana minion, a random keyword on it, two Contrabanana minions, a Contrabanana every 2 Refreshes, and Contrabanana minions of your most common type.',
+          'Foreman Flint: an Avenge for Dwarves, a free Dwarf each turn, a Start of Combat buff for your Dwarves, a first Refresh full of Dwarves, an End of Turn buff for each Dwarf bought, and a buff to your other Dwarves when you buy one.',
+          'Juggler: an Avenge for Carnival Coins, 3 Gold Coins, Coins that improve as you cast them, a Coin every 2 buys, Coins for your first 2 buys each turn, and double counting for your most common type.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Duos fixes: on a phone, one tap on "Back to your board" now brings you back, and your teammate portrait shows their hero. Several Duos screens and texts were corrected.',
         details: [

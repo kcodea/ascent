@@ -2260,7 +2260,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
    *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
    *  played mid-combat). Start of Combat: every living friendly minion gains it, a combat buff. Player-only. */
-  ancientSocBuffAll?: { attack: number; health: number; label: string };
+  ancientSocBuffAll?: { attack: number; health: number; label: string; /** FLINT × WAR: only living minions of this type gain it (absent = every minion). */ tribe?: Tribe };
   /** ANCIENT OF WAR × Darah (owner 2026-10-06): "Pummel (140): Get a charge of Swap. (Once per combat.)" A HERO-level
    *  Pummel on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's
    *  share), with Albus' once-per-combat latch: the first crossing of a multiple of `every` in the fight emits ONE

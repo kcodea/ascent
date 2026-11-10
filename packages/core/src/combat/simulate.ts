@@ -5420,7 +5420,8 @@ export function simulate(
       // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.
       const socAll = smods.ancientSocBuffAll;
       if (socAll && (socAll.attack > 0 || socAll.health > 0)) {
-        const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+        // FLINT × WAR (owner 2026-11-10) narrows it to one type: "give your Dwarves +1/+1 for each Dwarf bought this game".
+        const band = boards[scSide].filter((m) => !m.dead && m.health > 0 && (!socAll.tribe || isTribeOf(m, socAll.tribe, cards)));
         if (band.length > 0) {
           nextStep();
           for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);

@@ -40,10 +40,11 @@ import {
 import '../friends/dm/dm.css';
 import './lobbyChat.css';
 import './chatView.css';
+import { publicArt } from '../phoneArt';
 
 const low = (s: string): string => s.toLowerCase();
 /** The chat medallion art (base-URL relative: a root path 404s on itch). */
-const CHAT_MEDALLION = `${import.meta.env.BASE_URL}frames/chat_medallion.webp`;
+const CHAT_MEDALLION = publicArt('frames/chat_medallion.webp');
 
 /** NO EMOTE BUTTON in the lobby chat for now (owner 2026-11-09: "remove the ability to do emojis. we can revisit at a
  *  later point"). Flip to true to bring the picker back to the side panel and the chat view. Emote codes someone types

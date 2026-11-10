@@ -1,5 +1,6 @@
 import { megamimicBoard } from './megamimic';
 import type {
+  AncientGrave,
   BoardMinion,
   CardDef,
   EnemyScalers,
@@ -287,6 +288,8 @@ export function simulate(
   // total crosses each multiple of 8. Its own counter (per side) rather than the quest tally's attack count, so the
   // grant reads only this fight's swings on top of the run-lifetime total.
   const bladeAttacks: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  /** Blade Mastery's grant for `side` right now: +3 Attack, +3 more per 8 attacks made (run-lifetime + this fight). */
+  const bladeGrantOf = (side: Side): number => 3 * (1 + Math.floor(((modsFor(side).bladeMastery?.attacks ?? 0) + bladeAttacks[side]) / 8));
   // CINDARA (Hoard): the improvement her Whelps have banked ABOVE the token's 1/1 base, per side. Seeded from
   // the run's saved level and grown +2/+2 per Avenge (4) fire; the player's growth carries back at settle.
   const hoardLevel: Record<Side, { attack: number; health: number }> = sideReset(() => ({
@@ -865,6 +868,16 @@ export function simulate(
   const clearanceStacksGained: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ANCIENT OF DEATH × Nadja: max-Gold Avenge fires this fight, per side (carried back, paid at settle). */
   const maxGoldAvengeFires: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  // ── ANCIENTS, the 2026-11-10 batch C (Underdweller, Gorun, Mimic). All per side, off `modsFor`. ──
+  /** ANCIENT OF WAR × Underdweller: every true death this fight (both sides), as the body stood when it died. One log:
+   *  whichever side asked for it carries it home. Never reset by a tag-in (it is the whole fight's record). */
+  const ancientGraveLog: AncientGrave[] = [];
+  /** ANCIENT OF TIME × Underdweller: the first true death on the OTHER side, per claiming side. */
+  const firstFoeDeath: Record<Side, { cardId: string; uid: string } | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
+  /** ANCIENT OF FORTUNE × Gorun: friendly attacks counted this fight, per side (added to the carried-in tick). */
+  const ancientAttackCount: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  /** ANCIENT OF BONDS × Gorun: the Blade Mastery grant the side's previous attacker earned (0 = none yet). */
+  const bladeBondsCarry: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = sideReset(() => ({ player: [], enemy: [] }));
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -4105,6 +4118,25 @@ export function simulate(
 
   /** The death listeners that read the dying body. `returning` = this is a Rise / Rebirth death. */
   function deathWatchers(minion: Minion, returning: boolean): void {
+    // ANCIENTS, batch C. WAR × Underdweller: the body as it died (true deaths only: a Rise / Rebirth body came back).
+    // TIME × Underdweller: the first true death on the other side. DEATH × Gorun: the dying minion's Attack goes to a
+    // random living friendly minion (a Rise death is a real death), a combat buff on its own beat.
+    if (!returning) {
+      if (playerState.questMods.ancientGraves || enemyState.questMods.ancientGraves) {
+        ancientGraveLog.push({ cardId: minion.cardId, side: minion.side, attack: minion.attack, health: Math.max(1, minion.maxHealth), keywords: [...minion.keywords] });
+      }
+      const foe = OTHER[minion.side];
+      if (modsFor(foe).ancientFirstFoeDeathCopy && !firstFoeDeath[foe]) firstFoeDeath[foe] = { cardId: minion.cardId, uid: minion.uid };
+    }
+    const dga = modsFor(minion.side).ancientDeathGivesAttack;
+    if (dga && minion.attack > 0) {
+      const band = boards[minion.side].filter((m) => m !== minion && !m.dead && m.health > 0);
+      if (band.length > 0) {
+        const heir = band[grantRngFor(minion.side).int(band.length)]!;
+        nextStep(); // its own beat, not the death's
+        ctx.buff(heir, minion.attack, 0, dga.label);
+      }
+    }
     // MOSSMEMORY COLOSSUS's graveyard: every Beast that dies is recorded in DEATH ORDER, so its Echo can bring
     // back the three that fell earliest. The PRINTED body is what's recorded (cardId + golden), matching the
     // Rise precedent — "Rise resummons the PRINTED body" — rather than whatever the corpse had grown into.
@@ -4909,10 +4941,29 @@ export function simulate(
       // fight's snowball dies with the fight and the board opens clean next round. Per side, off `modsFor`.
       const blade = modsFor(attacker.side).bladeMastery;
       if (blade && !attacker.dead && attacker.health > 0) {
-        const total = blade.attacks + bladeAttacks[attacker.side];
-        ctx.buff(attacker, 3 * (1 + Math.floor(total / 8)), 0, 'Blade Mastery');
+        const grant = bladeGrantOf(attacker.side);
+        // ANCIENT OF WAR × Gorun: "Blade Mastery also gives the same Health."
+        ctx.buff(attacker, grant, modsFor(attacker.side).ancientBladeHealth ? grant : 0, 'Blade Mastery');
         bladeAttacks[attacker.side] += 1;
         fireTrigger('bladeMastery', attacker.side);
+        // ANCIENT OF BONDS × Gorun: "When a minion attacks, your next attacker also gets its bonus." This attacker also
+        // gains what the previous attacker's Blade Mastery gave; then ITS OWN grant (never the carried one) becomes the
+        // next attacker's, so the chain cannot feed itself.
+        const bb = modsFor(attacker.side).ancientBladeBonds;
+        if (bb) {
+          const carried = bladeBondsCarry[attacker.side];
+          if (carried > 0 && !attacker.dead && attacker.health > 0) ctx.buff(attacker, carried, 0, bb.label);
+          bladeBondsCarry[attacker.side] = grant;
+        }
+      }
+      // ANCIENT OF FORTUNE × Gorun: "Every 5 attacks, gain 1 Gold next turn." One running count across fights.
+      const ag = modsFor(attacker.side).ancientAttackGold;
+      if (ag) {
+        ancientAttackCount[attacker.side] += 1;
+        if ((ag.tick + ancientAttackCount[attacker.side]) % Math.max(1, ag.every) === 0) {
+          ctx.grantBonusGold(ag.gold, attacker.side);
+          fireTrigger(ag.flag, attacker.side);
+        }
       }
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
@@ -5317,6 +5368,14 @@ export function simulate(
   //     If the board already has room after the Deathrattle, the flush right below brings it back at
   //     once (so on a non-full board it still rejoins before the normal Start of Combat effects). ---
   const socReclaim = (sides: readonly Side[]): void => {
+    // ANCIENT OF DEATH × Mimic: "Start of Combat: destroy your left-most Echo minion, and resummon it when you have
+    // space." Soren's Reclaim exactly, aimed automatically: the left-most living minion with an Echo is marked, and the
+    // loop below does the rest (a minion Reclaim itself already marked is simply Reclaimed once).
+    for (const s of sides) {
+      if (!modsFor(s).ancientAutoReclaim) continue;
+      const echo = boards[s].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+      if (echo) { echo.resummon = true; fireTrigger('ancientAutoReclaim', s); }
+    }
     for (const minion of sides.flatMap((s) => [...boards[s]])) {
       if (!minion.resummon || minion.dead || minion.health <= 0) continue;
       // Capture the full combat state for an exact copy (stats + granted keywords + golden + every
@@ -5424,6 +5483,34 @@ export function simulate(
         if (band.length > 0) {
           nextStep();
           for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+        }
+      }
+      // ANCIENT OF GENESIS × Gorun (owner 2026-11-10): "Start of Combat: Your two left-most minions gain Ward and Flurry."
+      // For that combat (the combat bodies only).
+      const swf = smods.ancientSocWardFlurry;
+      if (swf) {
+        const front = boards[scSide].filter((m) => !m.dead && m.health > 0).slice(0, Math.max(0, swf.count));
+        if (front.length > 0) {
+          nextStep();
+          for (const m of front) {
+            if (!m.keywords.includes('W')) { m.keywords.push('W'); emit({ type: 'keyword', target: m.uid, keyword: 'W' }); }
+            if (!m.divineShield) {
+              m.divineShield = true;
+              if (!m.keywords.includes('DS')) m.keywords.push('DS');
+              emit({ type: 'shieldUp', target: m.uid });
+            }
+          }
+        }
+      }
+      // ANCIENT OF TIME × Gorun (owner 2026-11-10): "Start of Combat: each of your minions gains Blade Mastery once." The
+      // current grant, on every living friendly minion; no attack is counted, so the grant itself does not step up.
+      const sb = smods.ancientSocBlade;
+      if (sb && smods.bladeMastery) {
+        const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+        if (band.length > 0) {
+          const grant = bladeGrantOf(scSide);
+          nextStep();
+          for (const m of band) ctx.buff(m, grant, 0, 'Blade Mastery');
         }
       }
       // ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
@@ -5865,11 +5952,13 @@ export function simulate(
         for (const kb of kobolds) playRubyOn(ctx, kb, kb, 1, true);
       }
     }
-    if (base && rmods.unitedFront && rmods.unitedFront > 0) {
+    // ANCIENT OF WAR × Mimic (owner 2026-11-10): United Front fires a second time, as a passive (`ancientUnitedFront`),
+    // through this same block, after the wielded power's own.
+    for (const n of base ? [rmods.unitedFront ?? 0, rmods.ancientUnitedFront ?? 0] : []) {
+      if (n <= 0) continue;
       // Emissary (United Front), a hero power (base pass only): the Five Banners rule — one friendly of each
       // type gains +N/+N, where N is the number of spells cast this GAME (owner respec 2026-08-17; it was the
       // hero's tavern tier). Same one-banner-per-body selection: a body claims the first type nobody has claimed yet.
-      const n = rmods.unitedFront;
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
       const taken = new Set<string>();
@@ -7251,12 +7340,21 @@ export function simulate(
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
       ancientMaxGoldFires: modsFor(side).ancientMaxGoldAvenge ? maxGoldAvengeFires[side] : undefined,
+      ancientGraves: modsFor(side).ancientGraves ? ancientGraveLog.map((g) => ({ ...g, keywords: [...g.keywords] })) : undefined,
+      ancientAttackGoldTick: modsFor(side).ancientAttackGold ? (modsFor(side).ancientAttackGold!.tick + ancientAttackCount[side]) % Math.max(1, modsFor(side).ancientAttackGold!.every) : undefined,
     };
   };
   // ── THE END-OF-FIGHT PER-SIDE CLAIMS, as functions: the fight's end runs them for both sides (in the order they always
   // ran), and a TAG-TEAM step-in runs them for the board that just fell (its fight is over), before its carry-backs.
   // ANCIENT OF DEATH × Re-Pete: the last friendly death comes home as a plain copy (live `toHand`).
   const finishLastDeathCopy = (side: Side): void => {
+    // ANCIENT OF TIME × Underdweller: "After combat: get a plain copy of the first enemy minion that died."
+    const ff = firstFoeDeath[side];
+    if (modsFor(side).ancientFirstFoeDeathCopy && ff) {
+      firstFoeDeath[side] = undefined; // once (a tag-team step-in already claimed it)
+      nextStep();
+      ctx.grantToHand(ff.cardId, side, ff.uid);
+    }
     const ld = modsFor(side).ancientLastDeathCopy;
     const last = lastFriendlyDeath[side];
     if (!ld || !last) return;
@@ -7633,6 +7731,8 @@ export function simulate(
     ...(pc.ancientSpellImproved !== undefined ? { playerAncientSpellImproved: pc.ancientSpellImproved } : {}),
     ...(pc.ancientClearanceStacks !== undefined ? { playerAncientClearanceStacks: pc.ancientClearanceStacks } : {}),
     ...(pc.ancientMaxGoldFires !== undefined ? { playerAncientMaxGoldFires: pc.ancientMaxGoldFires } : {}),
+    ...(pc.ancientGraves !== undefined ? { playerAncientGraves: pc.ancientGraves } : {}),
+    ...(pc.ancientAttackGoldTick !== undefined ? { playerAncientAttackGoldTick: pc.ancientAttackGoldTick } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

@@ -41,6 +41,9 @@ export interface ShopCard {
   /** ANCIENT OF FORTUNE × Darah: this HELD offer is a minion Swap sent to the Shop, and it buys back for 0 Gold
    *  (`heldOfferPrice`). Read only while that pairing is live. */
   swapFree?: boolean;
+  /** ANCIENTS × Membrance: this offer was made by Memory (a "Memory minion"). Set only on a run with Ancients on; read
+   *  when it is bought (Genesis' first-buy copy). */
+  memory?: boolean;
   /** Buffs applied to this offer while it's in the tavern (e.g. the hero power targeting
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
@@ -506,7 +509,7 @@ export type DiscoverSpec =
 export type DiscoverDuos = 'rest' | 'pass' | 'copy';
 /** ANCIENTS: where a Discover came from, for the pairings that treat its pick specially (`AncientDiscoverTag`). Only set
  *  on an Ancients run. */
-export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis';
+export type DiscoverAncientTag = 'triple' | 'crown' | 'archive' | 'discoDeath' | 'discoGenesis' | 'soulkeeper';
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),

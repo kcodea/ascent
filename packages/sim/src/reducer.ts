@@ -4,6 +4,7 @@ import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTi
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
+import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientArchivePassive, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
@@ -184,13 +185,15 @@ export function wishboneReps(s: RunState): number {
 }
 
 function gorrQuestBuy(s: RunState, card: CardDef): void {
-  if (!hasPower(s, 'fourPeat') || card.spell) return;
+  // ANCIENT OF BONDS × Mimic: Four Peat also runs as a passive, on top of a wielded Four Peat (one more copy).
+  const held = hasPower(s, 'fourPeat'), passive = ancientFourPeatPassive(s);
+  if ((!held && !passive) || card.spell) return;
   const buys = [...(s.gorrBuys ?? []), card.id];
   s.gorrBuys = buys;
   if (buys.length !== 3) return; // fires on EXACTLY the 3rd minion buy each turn
   const rng = makeRng(s.rngCursor);
   // Wishbone: another copy, RE-ROLLED among the same three — "not necessarily the same" (owner ruling).
-  for (let r = 0; r < wishboneReps(s); r++) conjurePlainCopy(s, buys[rng.int(3)]!);
+  for (let r = 0; r < (held ? wishboneReps(s) : 0) + (passive ? 1 : 0); r++) conjurePlainCopy(s, buys[rng.int(3)]!);
   s.rngCursor = rng.state();
 }
 
@@ -485,18 +488,8 @@ function upgradeRightmostOffer(s: RunState): void {
  * A `rise` death is skipped: that body came back, so it did not stay dead.
  */
 function diedLastCombat(s: RunState): string[] {
-  const lc = s.lastCombat;
-  if (!lc) return [];
-  const byUid = new Map<string, string>();
-  for (const m of [...lc.initial.player, ...lc.initial.enemy]) byUid.set(m.uid, m.cardId);
-  for (const e of lc.events) if (e.type === 'summon') byUid.set(e.minion.uid, e.minion.cardId);
-  const out: string[] = [];
-  for (const e of lc.events) {
-    if (e.type !== 'death' || e.rise) continue;
-    const id = byUid.get(e.target);
-    if (id && CARD_INDEX[id] && !out.includes(id)) out.push(id);
-  }
-  return out;
+  // The log walk lives in `lastCombatDeaths` (ancients.ts), shared with the Ancients that read the same deaths.
+  return [...new Set(lastCombatDeaths(s).map((d) => d.cardId))];
 }
 
 /** Rune of the Bargain Bin's draw pool (owner 2026-09-25: "the refresh should only include SHOUT minions"): the
@@ -809,6 +802,7 @@ function takeDiscoverPickCore(s: RunState, index: number): boolean {
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
     if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);
+    ancientAfterDiscoverTaken(s, ancientTag, taken); // UNDERDWELLER × ANCIENT OF GENESIS: + a plain copy of an option not picked
     fireSelfObtained(s, taken); // DUOS (Monstrocity): "When you Discover this, your teammate gets a copy.
   }
   // RUNE OF EMPTY HANDS (Set 3 batch 2): the pick's CARD joins the run's free-Equipment list — its Equipment costs
@@ -1154,6 +1148,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     syncRunTribes(next); // RUNE OF DRAKKO: every board / hand copy carries the run's type overrides (a Discover, a buy, a triple …)
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
+    ancientOnCardsGained(next, state); // UNDERDWELLER × ANCIENT OF BONDS: a copy of a minion you control arrived in hand
     // CASSEN × ANCIENT OF DEATH: a Shop Avenge that brought the running commission due pays it now, in real time.
     if (ancientCommissionDueNow(next)) { const due = next.commission!; captureBuffFx(next, undefined, 'spell', () => payCommission(next, due)); }
     // KESHI × ANCIENT OF DEATH: an Avenge that filled Keshi's Crown (Shop now, or a fight's at settle) pays it here.
@@ -1385,7 +1380,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
         if (adef) {
           const had = new Set([...state.hand, ...state.board].map((c) => c.uid));
           const body = adef.spell || offer?.starform ? undefined : [...next.hand, ...next.board].find((c) => !had.has(c.uid) && c.cardId === adef.id);
-          ancientOnBuy(next, adef.id, !!offer?.starform, body);
+          ancientOnBuy(next, adef.id, !!offer?.starform, body, { memory: !!offer?.memory, controlled: state.board.some((c) => c.cardId === adef.id) });
           // AYSE (Lucky Seat): an Enchanted buy. `completed` = it was the cycle's 3rd (`ciaBuyEnchanted` paid the prize);
           // Rune of Wishbone makes the power trigger twice.
           const bought = offer ?? (state.spell?.uid === action.uid ? state.spell : undefined);
@@ -3962,9 +3957,17 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         withStarformPinned(s, () => { // the Starform keeps its slot through a Membrance restock (rule 3)
           for (const offer of s.shop) returnToPool(s, offer.cardId);
           s.shop = ids.map((cardId) => ({ uid: `s${s.uidSeq++}`, cardId }));
+          ancientOnMemoryOffers(s, s.shop, foe); // ANCIENTS × Membrance: Rise / 2 Gold / exact copies at 6 Gold (a no-op otherwise)
           stampNewShopOffers(s, s.shop, { onRefresh: true, cia: true }); // plain bodies, but shop offers all the same
         });
         applyShopRefreshed(s);
+      } else if (power.kind === 'mimic') {
+        // ANCIENT OF GENESIS × Mimic: Mimicry is pressed (once per turn) and offers 4 powers; the pick is wielded for
+        // the rest of the turn, as a native pick is. Natively Mimicry is passive and never activatable.
+        const options = ancientMimicManual(s);
+        if (options <= 0 || s.powerOffer) return state;
+        mintPowerOffer(s, 'mimic', options);
+        if (!s.powerOffer) return state; // an empty pool opens nothing, and spends nothing
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
         // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
@@ -3977,6 +3980,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
         s.rngCursor = rng.state();
         s.discover = picks;
+        ancientMarkSoulkeeperDiscover(s); // ANCIENTS × Underdweller: this pick is a Soulkeeper minion
         // Wishbone: a second Discover, QUEUED behind the open one so the player resolves them in turn rather
         // than the second silently overwriting the first.
         for (let r = 1; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier });
@@ -6324,6 +6328,12 @@ function advanceCombat(s: RunState): void {
   // place at the front (the sequencer opens the power pick right behind it).
   if (s.mode !== 'tutorial') {
     const nativeKind = getHero(s.heroId).power.kind;
+    // ANCIENT OF GENESIS × Mimic: Mimicry no longer opens by itself. Last turn's disguise ends here and Mimicry's own
+    // (pressable, once per turn) power takes the slot back until it is used.
+    if (nativeKind === 'mimic' && ancientMimicManual(s) > 0) {
+      const outgoing = s.adoptedPowerId ?? s.mimicPowerId;
+      if (outgoing) { s.adoptedPowerId = undefined; s.mimicPowerId = undefined; swapPowerLatch(s, 0, outgoing, s.heroId); }
+    } else
     if (nativeKind === 'mimic') s.pendingPowerOffer = { slot: 'mimic' };
     if (nativeKind === 'voidTwin' && s.wave === 4 && !s.voidPowerIds?.length) s.pendingPowerOffer = { slot: 'void1' };
   }
@@ -7054,11 +7064,11 @@ function closeRuneforge(s: RunState): void {
  * (impossible with the shipped roster, but a content change could starve it) opens nothing — the turn just
  * proceeds, the same no-soft-lock rule the quest offer follows.
  */
-function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
+function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2', options = 2): void {
   const rng = makeRng(s.rngCursor);
   const pool = powerDiscoverPool(slot === 'mimic' ? 'mimic' : 'void', s.voidPowerIds ?? [], s.tribes);
   const heroIds: string[] = [];
-  while (heroIds.length < 2 && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
+  while (heroIds.length < options && pool.length > 0) heroIds.push(pool.splice(rng.int(pool.length), 1)[0]!);
   s.rngCursor = rng.state();
   if (heroIds.length > 0) s.powerOffer = { heroIds, slot };
 }

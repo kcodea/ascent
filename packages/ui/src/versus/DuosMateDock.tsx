@@ -59,9 +59,13 @@ import { mateWorking, useDuosMateSignals } from './duosMateSignals';
  *  stone; the disc is about the same size, the burst a touch smaller so it reads as theirs, not mine). */
 export const DOCK_TIER_FX_SCALE = 0.85;
 
-/** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. */
+/** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. The guard is
+ *  SYMMETRIC (R-DUOS-BACK-TAP-01): the release comes back and re-renders the portrait as the teammate's, so that same
+ *  click lands on the way IN and must be swallowed there too, or one tap leaves and re-enters. */
 const TAP_CLICK_MS = 700;
 let lastTap = -Infinity;
+/** Is this click the tail of the tap whose release already swapped? */
+const tapsOwnClick = (): boolean => performance.now() - lastTap <= TAP_CLICK_MS;
 
 /** Where the dock sits: its disc's diameter and its distance in from the stage's right and bottom edges (stage px), plus
  *  your own hero disc (left / bottom / diameter, stage px), where the tag-in copy lands. */
@@ -94,7 +98,7 @@ export const DOCK_HAND_SPILL = 44;
  * into the room under the coin. Null when a piece is missing or the room is under `DOCK_FOOT_MIN` of your disc (`fitDock`
  * then places it). All in stage px after `stageLen`.
  */
-export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen: (px: number) => number): DockGeometry | null {
+export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen: (px: number) => number, hug: 'hand' | 'squares' = 'hand'): DockGeometry | null {
   const ok = (b: Box | null | undefined): b is Box => !!b && b.width > 0 && b.height > 0;
   const { seats, coin, tab, book, gear, hand } = foot;
   if (!ok(hero) || !ok(coin) || !ok(gear)) return null;
@@ -104,7 +108,12 @@ export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen:
   const blocks = [seats, coin, tab, book, gear].filter(ok).map(box);
   const base = stageLen(gear.top + gear.height - stage.top);
   const fenceL = ok(hand) ? stageLen(hand.left + hand.width - stage.left) + DOCK_HAND_SPILL : stageLen(coin.left - stage.left);
-  const fenceR = stageLen(stage.width) - gap;
+  // INBOARD OF THE CORNER SQUARES (owner 2026-11-10, R-DUOS-DOCK-INBOARD-01: "The menu etc buttons should not be before the
+  // teammate circle. They should be fully cornered."): the disc never goes right of the Compendium / gear pair. A phone's
+  // stage is wider than its play box, so there is room between those squares and the screen edge; the slide below used to
+  // carry the disc past them into that corner, leaving the squares stranded inboard of it.
+  // (The squares' own clearance is `clear`'s job, as before: the fence only says which side of them the disc is on.)
+  const fenceR = Math.min(stageLen(stage.width) - gap, ...[book, gear].filter(ok).map((k) => stageLen(k.left - stage.left)));
   const heroD = stageLen(hero.width);
   const clear = (cx: number, cy: number, r: number, capTop: number): boolean => blocks.every((k) => {
     // The cap's strip above the disc, then the disc itself.
@@ -116,8 +125,16 @@ export function fitFoot(hero: Box | null, foot: FootBoxes, stage: Box, stageLen:
   const fits = (r: number): { cx: number; cy: number } | null => {
     const cy = base - r;
     if (cy - r - 2 * r * DOCK_CAP_SHARE < 0) return null;
+    const capTop = cy - r - 2 * r * DOCK_CAP_SHARE;
+    // A PHONE hugs the corner squares instead (`hug: 'squares'`, R-DUOS-DOCK-INBOARD-01): with the squares out at the
+    // screen's wall there is room to spare, and a full hand's last card would otherwise brush the disc. Slide LEFT from
+    // the squares' side to the first clear spot.
+    if (hug === 'squares') {
+      for (let cx = fenceR - r; cx - r >= fenceL; cx -= 4) if (clear(cx, cy, r, capTop)) return { cx, cy };
+      return null;
+    }
     // Slide right from the hand's side until it clears (coarse steps, then the first clear spot).
-    for (let cx = fenceL + r; cx + r <= fenceR; cx += 4) if (clear(cx, cy, r, cy - r - 2 * r * DOCK_CAP_SHARE)) return { cx, cy };
+    for (let cx = fenceL + r; cx + r <= fenceR; cx += 4) if (clear(cx, cy, r, capTop)) return { cx, cy };
     return null;
   };
   // The largest radius that fits (bisection: fitting is monotone in r for this room).
@@ -197,7 +214,7 @@ function measureDock(): DockGeometry | null {
   const foot = fitFoot(heroBox, {
     seats: tiles.length ? tiles[tiles.length - 1]!.getBoundingClientRect() : null,
     coin: rect('.goldpill'), tab: rect('.guidesbtn'), book: rect('.bookbtn'), gear: rect('.gearbtn'), hand: rect('.zone > .row.hand'),
-  }, stage, toStage);
+  }, stage, toStage, document.documentElement.hasAttribute('data-phone-zoom') ? 'squares' : 'hand');
   return foot ?? fitDock(heroBox, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, stage, toStage);
 }
 
@@ -387,7 +404,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
         tabIndex: 0,
         'aria-label': heroSelect ? 'Your portrait. Click to go back to your hero choices.' : 'Your portrait. Click to go back to your board.',
         onPointerUp: (e: PointerEvent) => { if (e.pointerType !== 'mouse') { lastTap = performance.now(); exitTeammateView(); } },
-        onClick: () => { if (performance.now() - lastTap > TAP_CLICK_MS) exitTeammateView(); },
+        onClick: () => { if (!tapsOwnClick()) exitTeammateView(); },
         onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); exitTeammateView(); } },
       } : {})}
     >
@@ -412,7 +429,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           data-duos-mate=""
           role="button"
           aria-label={heroSelect ? `${face.name}, your teammate. Click to see their hero choices.` : `${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
-          onClick={() => enterTeammateView()}
+          onClick={() => { if (!tapsOwnClick()) enterTeammateView(); }}
         >
           <span className="duosdock-work" aria-hidden="true" />
           <span className="duosdock-glow" aria-hidden="true" />
@@ -454,7 +471,9 @@ function DuosTagIn({ on, hero, art, frame, name, working }: { on: boolean; hero:
     return () => window.clearTimeout(timer.current);
   }, [on]);
   if (!shown && !on) return null;
-  const style = { '--duos-d': `${hero.d}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
+  // `--duos-hero-left`: how far my hero disc stands in from the stage's left edge, so the copy's offset can stop at that
+  // edge and never be cut by it (R-DUOS-TAGIN-ONSCREEN-01; the clamp is CSS, off this one measured number).
+  const style = { '--duos-d': `${hero.d}px`, '--duos-hero-left': `${hero.left}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
   return (
     <div className={`duostagin${on ? '' : ' out'}${working ? ' working' : ''}`} style={style} aria-label={`${name} is fighting for your team.`}>
       <div className="duostagin-hold">

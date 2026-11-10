@@ -14619,4 +14619,165 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-DUOS-BACK-TAP-01',
+    title: 'Duos: one tap on "Back to your board" comes back once; the click that follows the tap never re-enters the teammate view',
+    statement:
+      'While a Duos player watches their teammate, a finger tap on their own portrait ("Back to your board" / "Back to your heroes") leaves the teammate view on the finger\'s release. '
+      + 'The browser\'s click that follows that tap (within 700 ms) is the same gesture: it is ignored by the way back AND by the teammate portrait that the screen re-renders in its place, so one tap is one swap. '
+      + 'A separate press after that window enters the teammate view as before, and a mouse click is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/versus/DuosMateDock.tsx (tapsOwnClick). Duos runtime audit 2026-11-09, F1: pointerup at 1 ms left the view, the click at 40 ms landed on the re-rendered teammate portrait and re-entered.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (TAP_CLICK_MS, lastTap, tapsOwnClick)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the 700 ms guard only protected the way back, so on a phone the tap left the teammate view and its own click opened it again: the player stayed on the teammate\'s board until the fight.',
+    example: 'On a phone Ann watches Bob\'s board and taps "Back to your board". She is on her own board, and stays there.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-CONCEDE-COPY-01',
+    title: 'Versus: the Concede note says what conceding costs in the mode being played',
+    statement:
+      'The armed Concede button (the in-game sidebar and Settings) reads the consequence of the match on screen. A Versus 1v1: "Your opponent wins this match. You go back to the room." '
+      + 'A group match: "You are out of this match. You can watch the rest." Versus Duos: "Your whole team is out of this match. Your teammate goes out with you." '
+      + 'Ranked Duos: "You leave this match for good. Your teammate plays on without you." A finished match still reads "Leave match" in every mode (R-RANKED-DUOS-END-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/gameMenuParts.tsx (concedeAreaOf, CONCEDE_NOTE), partyHome/pages/PhSettings.tsx. Duos UX audit 2026-11-09, 1.15: the one 1v1 line was false in both Duos modes.' },
+      { kind: 'code', ref: 'workers/versus/src/core/groupMatch.ts (eliminate: a Duos seat takes its team out), packages/ui/src/versus/concededMatches.ts (R-RANKED-DUOS-CONCEDE-01: a Ranked Duos concede is for good, the teammate plays on)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, every Versus mode read the 1v1 line.',
+    example: 'In Ranked Duos Ann opens the menu and presses Concede once. The note under it reads "You leave this match for good. Your teammate plays on without you."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/concedeCopy.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-PASS-GLOSSARY-01',
+    title: 'Duos: the Pass glossary line matches the pass rules (a Gilded minion passes by hand; pass spells cannot target one)',
+    statement:
+      'The Pass keyword reads: "Give a card from your hand to your teammate. It goes to their hand. Spells that pass can\'t target a Gilded minion." '
+      + 'It never says a Gilded minion cannot be passed: a Gilded minion in hand passes by hand like any card (R-DUOS-PASS-GOLDEN-MANUAL-01), and only a spell that passes refuses one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/keywordGlossary.ts (pass). Duos UX audit 2026-11-09: the line still carried the 2026-10-30 no-golden rule the owner revised on 2026-10-31.' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts (duosPassBlocked: no golden refusal for the manual pass)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the line read "Golden minions can\'t be passed."',
+    example: 'Ann hovers Pass on a Duos card: the pill says spells that pass cannot target a Gilded minion. She drags her Gilded minion from hand onto Bob\'s portrait and it goes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/concedeCopy.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PARTY-CAPTION-01',
+    title: 'Party home: the mode\'s one-line description is never drawn on top of the team plate',
+    statement:
+      'On the party home (desktop) the mode\'s description line sits lowered under the tabs, in the stage\'s head slot, only while that slot is empty. '
+      + 'While the head slot holds a plate (the team\'s name once a teammate is in, or a Versus room\'s title and rule) the line keeps its own row directly under the tabs, so the two never overlap.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/partyHome/PartyHome.tsx (.ph-desc.headed), partyHome.css. Duos runtime audit 2026-11-09, F3: "You and a teammate against three teams." drawn through the team plate.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the line was lowered by 54 units in every state, which is exactly where the team plate appears.',
+    example: 'Ann is on Ranked Duos alone: the description sits low under the tabs. Bob joins: the "Your team" plate appears there and the description reads on its own row above it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/partyCaption.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-TAGIN-ONSCREEN-01',
+    title: 'Duos: the tagged-in teammate portrait is whole on screen and clear of my hero\'s face and name plate',
+    statement:
+      'While my teammate\'s board fights on my side, their portrait copy sits on the upper left rim of my own hero. Its offset to the left stops at the stage\'s left edge (a little air kept), '
+      + 'so the copy is never cut by the screen edge, and it is small and high enough that my hero\'s face and name plate stay clear. It is a static transform off my hero\'s measured place; its fade in and out are unchanged (R-DUOS-SLOTS-02).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/versus/versus.css (.duostagin), DuosMateDock.tsx (--duos-hero-left). Duos runtime audit 2026-11-09, F10: the copy ran off the left screen edge and covered a third of my hero.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the copy was offset left by half a disc with no stop, which put a third of it past the left edge.',
+    example: 'Bob\'s board steps in for Ann\'s. Bob\'s portrait fades in whole at the top left of Ann\'s hero; Ann\'s face and her name plate are not covered.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-HEROSELECT-TITLE-01',
+    title: 'Duos Hero Select: my teammate\'s choices are headed "Your Teammate\'s Heroes" and stand where my own do',
+    statement:
+      'A Duos player looking at their teammate\'s hero choices sees the heading "Your Teammate\'s Heroes", never "Select Your Hero" (those heroes are not theirs to select). '
+      + 'In the party home look every hero slot keeps its difficulty line whether or not a word shows in it, so the title, the clock and the flags stand at the same height on every offer: '
+      + 'swapping between my heroes and my teammate\'s does not move the layout, and a re-roll never shifts the row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/HeroSelect.tsx (HeroSelectWatch.title, the kept .hcdiff-out line), hero-select/HeroSelectWatch.tsx. Duos runtime audit 2026-11-09, F11.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the teammate\'s view read "Select Your Hero", and an offer of three heroes of one difficulty dropped the difficulty line, so that screen sat about 10 px off the other.',
+    example: 'Ann clicks Bob\'s portrait on Hero Select: the heading reads "Your Teammate\'s Heroes" and Bob\'s three flags stand exactly where hers did.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-RING-ART-01',
+    title: 'Phones: a portrait inside a frame ring shows its art inside the ring (the Duos teammate portrait is never an empty ring)',
+    statement:
+      'On a phone a portrait disc\'s art is laid out four times bigger and scaled back by a quarter (R-PHONE-HERO-LAYER-01). When that disc wears a frame ring, the art keeps that quarter, times the frame tuner\'s portrait scale, centred in the ring. '
+      + 'So the Duos teammate portrait (in the shop, in a fight, as the tag-in copy and as "Back to your board") shows the hero inside its ring on a phone, at the same size and place as on a desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/styles.css (html.lite-art .pf-on .combatopp-img). Duos runtime audit 2026-11-09, F9. Measured in headless phone emulation: the art was 604 px in a 151 px ring before, 151 px after.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the ring\'s own art rule (same weight, later in the sheet) replaced the phone rule\'s quarter scale, so the art was drawn four times too big, down and right of an empty ring. Checked in phone emulation only; not yet on a real phone.',
+    example: 'On a phone in a Duos shop, Bob\'s hero shows inside the teammate ring bottom right, not an empty ring with art spilling past the corner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-DOCK-INBOARD-01',
+    title: 'Duos: the teammate portrait sits inboard of the corner squares, never in the corner outside them',
+    statement:
+      'The Compendium and Settings squares keep the bottom-right corner in a Duos game, exactly where they sit in any other game. The teammate portrait at the rail\'s foot (R-DUOS-DOCK-FOOT-01) is always LEFT of them: '
+      + 'its fit never slides past the Compendium / Settings pair. On a desktop it hugs the hand\'s side of that room, as before. On a phone it hugs the squares\' side, just left of the Compendium square, so a full hand\'s last card stays well clear of it. '
+      + 'It clears a full hand, the Gold coin, the rail\'s last tile and the squares by the same gap, and its "Back to your board" label stays whole on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone shop screenshot of PR 2647', quote: 'The menu etc buttons should not be before the teammate circle. They should be fully cornered.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'teammate portrait is too small' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot: fenceR, hug)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, on a phone the fit slid the disc past the squares into the screen corner (layout x 2041 to 2198 of 2208) and the squares sat left of it. Now, with the squares at the screen\'s wall (R-PHONE-CORNER-WALL-01), the disc sits at 1887 to 2041 (154 px, the most the room under the rail\'s last tile allows; it was 157 in the corner), 12 px left of the Compendium square, and a ten-card hand ends at 1760. Desktop is unchanged. Checked in phone emulation only.',
+    example: 'On a phone in a Duos shop the Compendium and Settings squares are at the right edge of the screen, and Bob\'s portrait sits just left of them. Tapping it opens his board.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-CORNER-WALL-01',
+    title: 'Phones: the corner squares (Guides, Compendium, Settings) stand at the screen\'s right edge, not the play box\'s',
+    statement:
+      'In every phone game (solo, Versus, Duos) the Settings square stands 15 layout px in from the screen\'s right SAFE edge (clear of a notch or rounded corner), the same margin it keeps above the bottom gesture strip. '
+      + 'The Compendium square is one square and its gap further in, and the Guides square sits above Settings. They cover nothing: the lobby rail ends above and left of them. The Guides panel still opens over the rail column. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'buttons in the corner should go further to the wall' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .gearbtn / .bookbtn), packages/ui/src/guides/lobbyGuides.css ([data-phone-zoom] .guidesbtn)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, they were anchored to the play box\'s right edge, which on a phone is about 180 layout px in from the screen\'s (Settings at 1964 to 2030 of 2208). Now Settings is at 2127 to 2193 and Compendium at 2053 to 2119. Checked in phone emulation only (no safe-area inset there).',
+    example: 'On a phone, in a solo shop, the Compendium and Settings squares sit side by side against the right edge of the screen, with Guides above Settings.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-HERO-PLATES-01',
+    title: 'Phones: the hero\'s name plate and Health / Armor plate are both whole, name over Health',
+    statement:
+      'On a phone the Health / Armor plate rides up onto the hero ring\'s lower rim (the phone framing\'s bottom bound). The name plate rides up with it and sits just above the Health plate, whole, on the lower part of the portrait: '
+      + 'the two never overlap, on my own board, in a fight and while I watch my teammate\'s board. Both are static offsets of the existing plates.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'name + life plates overlap and dont look good' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .statusbar .hero .heroname)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the name plate stayed at its desktop seat (layout y 909 to 950) under the raised Health plate (933 to 1003), which hid its lower half. Now it sits at 884 to 925, 8 px above the Health plate. Checked in phone emulation only.',
+    example: 'On a phone "Ann" reads in full on its plate at the foot of her portrait, and the Health and Armor plate sits just under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

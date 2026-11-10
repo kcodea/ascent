@@ -119,7 +119,7 @@ describe('Underdweller × WAR: "Soulkeeper minions keep the stats and keywords t
   it('the pick arrives with the Attack, Health and keywords the body died with', () => {
     const s = dead('war');
     expect(ancientCombatMods(s).ancientGraves).toBe(true);
-    expect(s.lastCombat!.playerAncientGraves).toEqual([{ cardId: N(0), side: 'player', attack: 50, health: 2, keywords: ['T'] }]);
+    expect(s.lastCombat!.playerAncientGraves).toEqual([{ cardId: N(0), own: true, attack: 50, health: 2, keywords: ['T'] }]);
     const got = take(s, N(0)).hand.find((c) => c.cardId === N(0))!;
     expect(got).toMatchObject({ attack: 50, health: 2, golden: false });
     expect(got.keywords).toContain('T');

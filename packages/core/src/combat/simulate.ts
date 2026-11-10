@@ -871,7 +871,7 @@ export function simulate(
   // ── ANCIENTS, the 2026-11-10 batch C (Underdweller, Gorun, Mimic). All per side, off `modsFor`. ──
   /** ANCIENT OF WAR × Underdweller: every true death this fight (both sides), as the body stood when it died. One log:
    *  whichever side asked for it carries it home. Never reset by a tag-in (it is the whole fight's record). */
-  const ancientGraveLog: AncientGrave[] = [];
+  const ancientGraveLog: (Omit<AncientGrave, 'own'> & { side: Side })[] = [];
   /** ANCIENT OF TIME × Underdweller: the first true death on the OTHER side, per claiming side. */
   const firstFoeDeath: Record<Side, { cardId: string; uid: string } | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
   /** ANCIENT OF FORTUNE × Gorun: friendly attacks counted this fight, per side (added to the carried-in tick). */
@@ -7340,7 +7340,9 @@ export function simulate(
       ancientSpellImproved: modsFor(side).ancientAvengeSpells ? { ...ancientSpellImproved[side] } : undefined,
       ancientClearanceStacks: modsFor(side).ancientClearanceStacks ? clearanceStacksGained[side] : undefined,
       ancientMaxGoldFires: modsFor(side).ancientMaxGoldAvenge ? maxGoldAvengeFires[side] : undefined,
-      ancientGraves: modsFor(side).ancientGraves ? ancientGraveLog.map((g) => ({ ...g, keywords: [...g.keywords] })) : undefined,
+      ancientGraves: modsFor(side).ancientGraves
+        ? ancientGraveLog.map((g): AncientGrave => ({ cardId: g.cardId, own: g.side === side, attack: g.attack, health: g.health, keywords: [...g.keywords] }))
+        : undefined,
       ancientAttackGoldTick: modsFor(side).ancientAttackGold ? (modsFor(side).ancientAttackGold!.tick + ancientAttackCount[side]) % Math.max(1, modsFor(side).ancientAttackGold!.every) : undefined,
     };
   };

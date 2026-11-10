@@ -3812,8 +3812,9 @@ export interface CombatCarryBacks {
   ancientAttackGoldTick?: number;
 }
 
-/** ANCIENTS (Underdweller's War): a minion as it died. `side` = the side it fought on. */
-export interface AncientGrave { cardId: string; side: Side; attack: number; health: number; keywords: Keyword[] }
+/** ANCIENTS (Underdweller's War): a minion as it died. `own` = it fought on the side that carries this record home (so the
+ *  record is the same from either seat: R-SYMMETRY-01). */
+export interface AncientGrave { cardId: string; own: boolean; attack: number; health: number; keywords: Keyword[] }
 
 /** One side's hero damage, itemized (`CombatResult.damageBreakdown` / `enemyDamageBreakdown`). */
 export interface DamageBreakdown {

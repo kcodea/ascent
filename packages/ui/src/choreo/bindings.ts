@@ -625,6 +625,9 @@ const HERO_POWER_BUFF_LABELS: Record<string, { heroId: string }> = {
   // HUNCH × ANCIENT OF BONDS (2026-09-30): every combat spell cast gives the left-most and right-most minions +2/+3,
   // labelled with the power's name (`HUNCH_BONDS_COMBAT_LABEL` in sim/ancients.ts).
   'Rounded Spellbook': { heroId: 'hunch' },
+  // MERRIN × ANCIENT OF BONDS (2026-11-10): every combat spell cast gives one minion of each type +3/+4, labelled with
+  // the power's name (`MERRIN_BONDS_COMBAT_LABEL` in sim/ancients.ts).
+  'Pocket Magic': { heroId: 'merrin' },
 };
 
 /** The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null. */

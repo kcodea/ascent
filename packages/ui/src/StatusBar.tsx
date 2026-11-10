@@ -162,6 +162,8 @@ function heroPowerTallyOf(
     case 'rubyWealth': return `${Math.max(0, (power.usesPerTurn ?? 0) - (run.heroUsesThisTurn ?? 0))} left`;
     // Nadja × Ancient of Fortune: Goldspring twice a turn (the pairing's `usesPerTurn` override) — uses left this turn.
     case 'gainMaxMana': return power.usesPerTurn ? `${Math.max(0, power.usesPerTurn - (run.heroUsesThisTurn ?? 0))} left` : null;
+    // Merrin × Ancient of Fortune: Pocket Magic twice a turn (the same override) — uses left this turn.
+    case 'pocketMagic': return power.usesPerTurn ? `${Math.max(0, power.usesPerTurn - (run.heroUsesThisTurn ?? 0))} left` : null;
     default: return null;
   }
 }

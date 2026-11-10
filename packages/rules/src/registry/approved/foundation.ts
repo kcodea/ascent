@@ -9312,7 +9312,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-28 (workers/versus/scripts/deploy.ts header)', quote: 'that room finishes on its version' },
       { kind: 'code', ref: 'workers/versus/src/protocol.ts (VERSUS_CF_PROTOCOL); packages/content/src/revisions.ts (contentRevision)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-05 (fix/versus-worker-protocol-bump): #2600 changed the Duos fight order with content unchanged since exe v0.2.2, so protocol 2 keeps its rooms on ascent-versus-v1-5ed25b5c.',
+    currentBehaviour: 'Conforms from 2026-11-05 (fix/versus-worker-protocol-bump): #2600 changed the Duos fight order with content unchanged since exe v0.2.2, so protocol 2 keeps its rooms on ascent-versus-v1-5ed25b5c. Again 2026-11-10 (fix/versus-worker-protocol-3): #2648 changed the Duos connection rules and #2651 added a Duos-only hero the Worker deals, both with content unchanged at 8a6257b2, so protocol 3 leaves ascent-versus-v2-8a6257b2 to the builds already out. Heroes are not in the content revision: a new or changed hero the Worker deals needs a bump too.',
     example: 'Duos fight order changes, no card changes: the revision stays 5ed25b5c, the protocol goes 1 to 2, the new build plays on ascent-versus-v2-5ed25b5c, and rooms on v1 finish there.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusCfOnly.test.ts'], lastVerifiedAt: '2026-11-05' },
   },

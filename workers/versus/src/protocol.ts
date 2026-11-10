@@ -24,8 +24,11 @@
  *  the Worker is named `ascent-versus-v<this>-<contentRevision>`, and the content revision hashes content only, so a rules-only
  *  change would otherwise deploy OVER the live Worker and change the rules under rooms in play. A client on another version is
  *  refused at `hello` (close 4409).
- *  2 (2026-11-05): Duos teammates alternate who fights first (R-DUOS-ORDER-01). */
-export const VERSUS_CF_PROTOCOL = 2;
+ *  2 (2026-11-05): Duos teammates alternate who fights first (R-DUOS-ORDER-01).
+ *  3 (2026-11-10): the Duos connection rules (#2648: 12 s away grace, an auto seat fights its newest board, team-only relays,
+ *    the watched-cursor gate) and a new Duos-only hero the Worker deals (Magician, #2651; heroes are not in the content
+ *    revision), with content unchanged since ascent-versus-v2-8a6257b2. A v2 client would be dealt a hero it does not know. */
+export const VERSUS_CF_PROTOCOL = 3;
 /** The WebSocket subprotocol a client offers (the server echoes it back). */
 export const VERSUS_CF_SUBPROTOCOL = 'ascent-versus.v1';
 /** The subprotocol prefix carrying the bearer token (`bearer.<jwt>`). */

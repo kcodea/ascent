@@ -2290,6 +2290,21 @@ export interface QuestCombatMods {
    *  queued and summoned the moment a slot opens (from its body then, or its Start-of-Combat body if it has died). No
    *  Tier 7: nothing. Player-only; never snapshotted. */
   ancientSummitCopy?: { label: string };
+  /** EMISSARY × ANCIENTS (owner 2026-11-10), United Front reshaped. `reps` (War: "United Front triggers twice"): the Start
+   *  of Combat grant fires that many times, each its own trigger. `all` (Bonds: "United Front hits all your minions"):
+   *  every living friendly minion collects instead of one of each type. `avenge` (Death: "Avenge (4): Trigger United
+   *  Front"): a hero Avenge on ONE running count across Shop and combat (`tick` carried in); each fire is a full United
+   *  Front at the LIVE spell count (`spellTotals` x `mult`, Rune of Wishbone's doubling). Rune of Fury fires it again.
+   *  Player-only; never snapshotted. */
+  ancientUnitedFront?: { reps?: number; all?: boolean; avenge?: { every: number; tick: number; mult: number }; label: string };
+  /** MERRIN × ANCIENT OF BONDS (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat spell
+   *  cast (`ctx.castSpell`, once per repetition) buffs one living friendly minion of each type (United Front's
+   *  selection: All-types bodies always collect). A combat buff. Player-only. */
+  ancientSpellBanners?: { attack: number; health: number; label: string };
+  /** EMISSARY × ANCIENT OF GENESIS (owner 2026-11-10): "Every 5 spells you cast, get a random Shop spell." The running
+   *  count since the pick rides in as `tick`; each combat cast that lands on a multiple of `every` sends a random Shop
+   *  spell to hand right then (`grantRandomSpell`). Settle adds the fight's casts to the run's count. Player-only. */
+  ancientSpellCountGrant?: { every: number; tick: number; label: string };
   /** LEGACY (pre-2026-09-28 runs): the run-wide Beast Health channel `beastBuyHp`, re-added to from-base Beast
    *  bodies (summons / Reborn). Nothing feeds it any more — Beast buffs are combat-only (R-AURA-03). */
   beastAuraHp?: number;

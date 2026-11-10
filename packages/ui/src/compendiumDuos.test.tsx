@@ -122,7 +122,7 @@ describe('Compendium Duos toggle', () => {
     expect(duosBtn().disabled).toBe(false);
     click(duosBtn());
     expect(heroes()).toContain('Priestess');
-    expect(heroes()).toContain('Magician'); // R-DUOS-MAGICIAN-01 (2026-11-10): shown on its no-art fallback until its art lands
+    expect(heroes()).toContain('Magician'); // R-DUOS-MAGICIAN-01 (2026-11-10)
     // One tag per Duos-only hero: Priestess and Magician.
     expect(m.container.querySelectorAll('.book-grid.is-heroes .book-duos-tag').length).toBe(2);
   });

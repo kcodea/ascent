@@ -51,7 +51,7 @@ delivery changes nothing), the 10 card passes per round cap, and all of the pres
 - **The power.** `magicHatBadge` (`packages/ui/src/magicHatUi.ts`) feeds `StatusBar`: the counter pill above the power
   ("3/5"), and the existing `ready` classes on the panel and the button while the hat is active in the Shop. That is the
   READY CALL exactly as authored; the power stays `passive` and disabled. Turning active plays the existing one-shot
-  refresh bloom; the send plays the existing hero power burst. No new CSS, no new looping animation, no art.
+  refresh bloom; the send plays the existing hero power burst. No new CSS and no new looping animation.
 
 ## Reload
 
@@ -86,7 +86,9 @@ all passes, so it is left as a follow-up.
 
 ## Left for the owner
 
-- Art is owed: the hero portrait and the Magic Hat power icon. Both use the game's no-art fallback until they exist.
+- Art: the hero portrait and the Magic Hat power icon were wired on this branch in a separate commit
+  (`packages/ui/src/art/heroes/magician.webp`, `packages/ui/src/art/powers/magician.webp`), so the hero no longer
+  uses the no-art fallback. The live check's screenshots were taken before that commit and show the fallback.
 - Magic Hat is out of the Mimic / Void / Power Shifter pools (every Duos-only hero is). Confirm that is wanted.
 - The Versus Worker deals the heroes from the bundled content, so it needs a redeploy before a live Duos game can offer
   Magician. The pass handler itself is unchanged.

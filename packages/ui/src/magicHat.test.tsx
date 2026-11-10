@@ -128,10 +128,9 @@ describe('the button: counter badge and the ready call', () => {
     expect(btn().getAttribute('aria-label')).toContain('Your hat is active');
   });
 
-  it('wears the no-art fallback (no hero or power art is wired yet), with no native tooltip', () => {
+  it('wears its power art, with no native tooltip', () => {
     show(magician());
-    expect(btn().querySelector('.hpb-art')).toBeNull();
-    expect(btn().querySelector('svg')).toBeTruthy();
+    expect(btn().querySelector('.hpb-art')).toBeTruthy();
     expect(btn().hasAttribute('title')).toBe(false);
   });
 });

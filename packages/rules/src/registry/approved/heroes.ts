@@ -2473,6 +2473,426 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
   {
+    id: "R-ANCRASCAL-01",
+    title: "Rascal × Ancient of Death: All In gains a use; Avenge (4) adds 1 Gold to All In",
+    statement:
+      "With the Ancient of Death, All In has 3 uses a game instead of 2, and Rascal has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire adds 1 Gold to All In's NEXT payout (in the Shop right then; from combat at settle, a pulse per fire, Rune of Fury repeats). All In pays that Gold with its own, then it is spent.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"All In gains a use. Avenge (4): add 1 gold to All In.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeAllInGold / batchAShopDeath / batchAAfterCombat / ancientAllInExtra / ancientAfterAllIn; recruit.ts allInPayoutOf" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCRASCAL-02",
+    title: "Rascal × Ancient of Fortune: All In gains a use and grows by 2 more Gold per turn",
+    statement:
+      "With the Ancient of Fortune, All In has 3 uses a game instead of 2 and pays 1 Gold plus 4 (its own 2, and 2 more) for every turn since its last use. The button tally, the text and the payout read one function (`allInPayoutOf`).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Fortune: \"All In gains a use and climbs by 2 per turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts allInGrowth / ancientAllInExtra; recruit.ts allInPayoutOf" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCRASCAL-03",
+    title: "Rascal × Ancient of War: using All In gives your minions +2/+1 per Gold it pays",
+    statement:
+      "With the Ancient of War, each All In use gives every board minion +2/+1 for each Gold it paid, permanently, as one grant from the hero-power button.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "War: \"When you use All In, give your minions +2/+1 for each Gold it pays.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts allInBuffPerGold / ancientAfterAllIn; reducer.ts the allIn branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCRASCAL-04",
+    title: "Rascal × Ancient of Genesis: All In also Discovers a minion of your Tier per 5 Gold it pays",
+    statement:
+      "With the Ancient of Genesis, each All In use also opens one Discover of a minion of exactly your current Shop tier for every 5 Gold it paid (rounded down; under 5 Gold: none). The Discovers queue.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"All In also Discovers a minion of your Tier for every 5 Gold it pays.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts allInDiscoverPerGold / ancientAfterAllIn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCRASCAL-05",
+    title: "Rascal × Ancient of Time: All In turns passive; Start of Turn: gain 4 Gold",
+    statement:
+      "With the Ancient of Time, All In is passive (it cannot be used) and every Start of Turn gains 4 Gold, on its own Start of Turn beat.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"All In becomes passive. Start of Turn: gain 4 Gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts sotGainGold / batchAStartOfTurn / ancientAllInPassive" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCRASCAL-06",
+    title: "Rascal × Ancient of Bonds: spending Gold gives your left-most and right-most minions +2/+1",
+    statement:
+      "With the Ancient of Bonds, All In keeps working and every spend of 1 or more Gold (one spend, never per Gold) gives your left-most and right-most board minions +2/+1, permanently. A lone minion gains once. A free action spends nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"All In gains: Give your Left and Right-most minions +2/+1 when you spend gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spendGoldBuffsEdges / batchAOnSpendGold; reducer.ts spendGold" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-01",
+    title: "Gambler × Ancient of Death: Avenge (4) ends the Dice lock 1 turn sooner",
+    statement:
+      "With the Ancient of Death, Gambler has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire ends the Dice lock 1 turn sooner (in the Shop right then; from combat at settle, a pulse per fire, Rune of Fury repeats). An unlocked Dice is unchanged.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): reduce the Dice lock by 1 turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeReduceDiceLock / reduceDiceLock / batchAShopDeath / batchAAfterCombat" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-02",
+    title: "Gambler × Ancient of Fortune: Dice rolls 2 dice: gain both, lock for the lower",
+    statement:
+      "With the Ancient of Fortune, Dice rolls two seeded dice. You gain the Gold of both and Dice locks for as many turns as the lower die. The first die is the one a plain roll would make.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Fortune: \"Roll 2 dice. Gain both, and lock for the lower one.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts diceRollTwo / ancientDiceRollsTwo; reducer.ts the dice branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-03",
+    title: "Gambler × Ancient of War: a Dice roll gives your minions +3/+3 per pip",
+    statement:
+      "With the Ancient of War, each Dice roll gives every board minion +3/+3 for each pip rolled, permanently, as one grant from the hero-power button.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "War: \"When you roll, give your minions +3/+3 for each pip.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts diceBuffPerPip / ancientAfterDice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-04",
+    title: "Gambler × Ancient of Genesis: Dice also casts Gamble with the same roll",
+    statement:
+      "With the Ancient of Genesis, each Dice roll also casts Gamble, and that Gamble uses the Dice roll as its die (no second die is drawn). It is a real cast: it counts as a spell cast.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"Dice also casts Gamble, using the same roll.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts diceCastsGamble / ancientAfterDice / ancientForcedGambleRoll; recruit.ts spellGambleTierPull" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-05",
+    title: "Gambler × Ancient of Time: while Dice is locked, the first minion each turn costs 1 less",
+    statement:
+      "With the Ancient of Time, while Dice is locked the first minion bought each turn costs 1 Gold less (floored at 0, through `offerBuyPrice`, so the coin and the buy agree). The turn you roll counts as locked.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"While Dice is locked, your first minion each turn costs 1 Gold less.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts lockedFirstMinionDiscount / ancientLockedFirstDiscount; reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCGAMBLER-06",
+    title: "Gambler × Ancient of Bonds: a Dice roll Discovers a minion of the rolled Tier",
+    statement:
+      "With the Ancient of Bonds, each Dice roll also opens a Discover of a minion of exactly the rolled Tier, whatever your Shop tier.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"When you roll, Discover a minion of that Tier.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts diceDiscoverTier / ancientAfterDice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsGambler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-01",
+    title: "Pete × Ancient of Death: Avenge (3) gains a free Refresh",
+    statement:
+      "With the Ancient of Death, Pete has Tradesman's hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat. Each fire banks a free Refresh (Rune of Fury repeats the combat half).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (3): gain a free Refresh.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeFreeRefresh (reused) / ancientTradesShopDeath; QuestCombatMods.ancientRefreshAvenge" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-02",
+    title: "Pete × Ancient of Fortune: buying a Contrabanana minion gives a free Refresh",
+    statement:
+      "With the Ancient of Fortune, buying a Contrabanana minion (the offer Contrabanana upgraded, `ShopCard.banana`) banks one free Refresh. Any other buy banks nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Fortune: \"Buying a Contrabanana minion gives a free Refresh.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandBuyFreeRefresh / ancientOnContraband / ancientOnBananaBuy; reducer.ts the post-buy block" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-03",
+    title: "Pete × Ancient of War: Contrabanana minions gain a random keyword",
+    statement:
+      "With the Ancient of War, each Contrabanana minion gains one random keyword it lacks from Taunt, Ward, Rise, Flurry, Critical Strike, Execute, Stealth and Engraved (seeded). It rides the Shop offer and the bought minion keeps it.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "War: \"Contrabanana minions gain a random keyword.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandKeyword / ancientOnContraband; reducer.ts upgradeRightmostOffer" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-04",
+    title: "Pete × Ancient of Genesis: Contrabanana upgrades the 2 right-most Shop minions",
+    statement:
+      "With the Ancient of Genesis, each Contrabanana replaces your 2 right-most Shop minions with minions from the tier above your Shop tier.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"Contrabanana upgrades your 2 right-most Shop minions.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandCount / ancientContrabandCount; reducer.ts the roll branch + upgradeRightmostOffer" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-05",
+    title: "Pete × Ancient of Time: Contrabanana triggers every 2 Refreshes",
+    statement:
+      "With the Ancient of Time, Contrabanana triggers on every second Refresh instead of every third. The button tally and the text print the live count.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"Contrabanana triggers every 2 Refreshes.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandEvery / ancientContrabandEvery; reducer.ts the roll branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCPETE-06",
+    title: "Pete × Ancient of Bonds: Contrabanana minions are of your most common type",
+    statement:
+      "With the Ancient of Bonds, a Contrabanana minion is drawn from the minions of your most common board type at the tier above. With no type on the board, or none of that type at that tier, it is the ordinary draw.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"Contrabanana minions are of your most common type.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandTopTribe / ancientContrabandPool; reducer.ts upgradeRightmostOffer" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-01",
+    title: "Foreman Flint × Ancient of Death: Avenge (4) gets a random Dwarf",
+    statement:
+      "With the Ancient of Death, Foreman Flint has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire puts a random Dwarf of your Shop tier or lower in hand (in combat a live grant, Rune of Fury repeats). A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): get a random Dwarf.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantTribeMinion / tribePool / batchAShopDeath; QuestCombatMods.ancientGorrAvenge" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-02",
+    title: "Foreman Flint × Ancient of Fortune: the first Dwarf each turn is free",
+    statement:
+      "With the Ancient of Fortune, the first Dwarf bought each turn costs 0 Gold (`offerBuyPrice`'s free buy, the shared one-freebie-per-turn marker). Later Dwarves that turn cost the Company Rate.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Fortune: \"Your first Dwarf each turn is free.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts firstTribeBuyFree / ancientTribeFirstFree; reducer.ts offerBuyPrice" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-03",
+    title: "Foreman Flint × Ancient of War: Start of Combat: Dwarves gain +1/+1 per Dwarf bought this game",
+    statement:
+      "With the Ancient of War, at Start of Combat every friendly Dwarf gains +1/+1 for each Dwarf bought this game (counted from the start of the run), a combat buff. Minions that are not Dwarves gain nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "War: \"Start of Combat: give your Dwarves +1/+1 for each Dwarf bought this game.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socBuffTribePerBought / batchAOnBuy / batchACombatMods; QuestCombatMods.ancientSocBuffAll (tribe)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-04",
+    title: "Foreman Flint × Ancient of Genesis: the first Refresh each turn is filled with Dwarves",
+    statement:
+      "With the Ancient of Genesis, the first Refresh each turn draws only Dwarves. Picked mid-turn, the next Refresh that turn is that Refresh. A tier with no Dwarf left falls back to the ordinary draw.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"Your first Refresh each turn is filled with Dwarves. if this triggers mid-turn, the next refresh would trigger this.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts firstRefreshTribe / ancientFirstRefreshTribe; reducer.ts the roll branch; shop.ts rollTribe" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-05",
+    title: "Foreman Flint × Ancient of Time: End of Turn: minions gain +3/+3 per Dwarf bought this turn",
+    statement:
+      "With the Ancient of Time, at End of Turn every board minion gains +3/+3 for each Dwarf bought this turn, permanently, one itemized step per Dwarf. Buys made before the pick that turn count.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"End of Turn: give your minions +3/+3 for each Dwarf you bought this turn.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotBuffPerTribeBuy / ancientRunAyseTime (the shared virtual End-of-Turn entry)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCFLINT-06",
+    title: "Foreman Flint × Ancient of Bonds: buying a Dwarf gives your other Dwarves +2/+2",
+    statement:
+      "With the Ancient of Bonds, buying a Dwarf gives every OTHER Dwarf on your board +2/+2, permanently. The bought Dwarf and minions that are not Dwarves gain nothing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"When you buy a Dwarf, give your other Dwarves +2/+2.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tribeBuyBuffsOthers / batchAOnBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsFlint.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-01",
+    title: "Juggler × Ancient of Death: Avenge (4) gets a Carnival Coin",
+    statement:
+      "With the Ancient of Death, Juggler has Gildmaster's hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire puts a Carnival Coin in hand (in combat a live grant, Rune of Fury repeats).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Death: \"Avenge (4): get a Carnival Coin.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard (reused) / ancientHeroAvengeShopDeath; QuestCombatMods.ancientGorrAvenge" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-02",
+    title: "Juggler × Ancient of Fortune: Carnival Coins give 3 Gold",
+    statement:
+      "With the Ancient of Fortune, a Carnival Coin gives 3 Gold instead of 1, and its text prints 3 on every surface.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Fortune: \"Carnival Coins give 3 Gold.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts coinGold / ancientCoinGold / carnivalCoinLive; recruit.ts castSpell + spellDisplayText" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-03",
+    title: "Juggler × Ancient of War: each Coin cast improves later Coin buffs by +1/+1",
+    statement:
+      "With the Ancient of War, each Carnival Coin cast improves the buff of every LATER Carnival Coin by +1/+1 (Rune of Mastery repeats the improvement). The Coin's text prints its live buff.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "War: \"Each Coin you cast improves future Coin buffs by +1/+1.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts coinCastImproves / ancientOnCoinCast / ancientCoinBonus; recruit.ts spellBuffAll + castSpell" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-04",
+    title: "Juggler × Ancient of Genesis: a Carnival Coin every 2 minions bought",
+    statement:
+      "With the Ancient of Genesis, Carnival Coin pays every 2 minions bought instead of every 3. The button tally and the text print the live count.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"Get a Carnival Coin every 2 minions you buy.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts coinEvery / ancientCoinNeed; reducer.ts jugglerBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-05",
+    title: "Juggler × Ancient of Time: the first 2 minions bought each turn also give a Coin",
+    statement:
+      "With the Ancient of Time, each of the first 2 minions bought each turn also gives a Carnival Coin, on top of the every-3 Coin. A full hand gets none.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"The first 2 minions you buy each turn also grant a Carnival Coin.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts firstBuysGrantCoin / batchAOnBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: "R-ANCJUGGLER-06",
+    title: "Juggler × Ancient of Bonds: a minion of your most common type counts twice",
+    statement:
+      "With the Ancient of Bonds, buying a minion of your most common board type counts twice toward Carnival Coin. A count past the payout carries over.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"Buying a minion of your most common type counts twice for Carnival Coin.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts topTribeBuyCountsTwice / ancientCoinBuyCount; reducer.ts jugglerBuy" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
+  },
+  {
     id: "R-HERO-POWER-REPLACED-01",
     title: "A replaced hero power stops working; the new power works",
     statement:

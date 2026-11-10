@@ -105,6 +105,17 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Seven hero powers now tell you when they are about to pay out. Re-Pete, Gorr, Juggler, Pete, Ayse and Drakko glow when your next action, or the end of this turn, fires the power. The counter on Quillen turns gold when the next Archive fills it.',
+        details: [
+          'Re-Pete glows on the turn Second Hand fires, while it has a card to copy.',
+          'Gorr glows at 2 minions bought this turn. Juggler glows at 2 of 3. Ayse glows at 2 of 3 Enchanted cards.',
+          'Pete glows when your next refresh is the third one.',
+          'Drakko glows at 4 of 5 Shout minions. It stops for good once Drakko joins you.',
+          'The glow goes out the moment the power fires. It never shows in combat.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'New Duos hero: Magician. After you buy 5 cards, the Magic Hat activates. The next card you buy, your teammate gets a copy.',
         details: [

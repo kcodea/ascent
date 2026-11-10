@@ -4607,6 +4607,10 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: var(--pill-outline), 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hpwrap .hpb-tally.hpb-pill { color: #fff; border-color: var(--acc); }
+/* ABOUT TO PAY OUT (owner 2026-11-10: "add it to quillen when his is at 2/3 too"). A pressable power already wears the
+   ready call at every count, so the counter carries "the next press pays out": the same pill, filled with the ready
+   call's gold. Static paint only, nothing loops; the pill's one-shot `stepbump` is inherited. See powerArmedUi.ts. */
+.statusbar .heropanel.ready .hpwrap .hpb-tally.hpb-pill.payout { color: #2a1a05; background: #ffc23d; border-color: #fffbe6; text-shadow: none; }
 /* THE MAIN POWER'S NAME SITS ABOVE THE ART (owner ask 2026-11-04: "certain portraits block the name of the hero
    power"): the hero portrait's art and FX reach up under the power, so the name moved from under the button to
    over it. OUT OF FLOW, so the art never shifts. With no counter it sits on the art's top rim where the counter

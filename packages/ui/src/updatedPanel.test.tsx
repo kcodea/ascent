@@ -8,10 +8,13 @@ import { UpdatedPanel } from './UpdatedPanel';
 import { PatchNotesBody } from './PatchNotesBody';
 import type { PatchNote } from './patchNotes';
 import { UpdateReadyNotice, updateNoticePlace } from './UpdateReadyNotice';
+import { updateCheckLine, watchUpdateCheck } from './updateCheck';
+import type { UpdateStatus } from './desktop';
 import { readUpdateSeen, writeUpdateSeen } from './updateNotes';
 
 let ui: Mounted | null = null;
-type Hooks = { isDesktop: true; quit(): void; toggleFullscreen(): void; onUpdateReady(cb: (v: string) => void): () => void; getUpdateReady?(): Promise<string | null> };
+type Status = { state: string; version: string | null; percent: number };
+type Hooks = { isDesktop: true; quit(): void; toggleFullscreen(): void; onUpdateReady(cb: (v: string) => void): () => void; getUpdateReady?(): Promise<string | null>; getUpdateStatus?(): Promise<Status>; installUpdate?(): void };
 let fire: ((v: string) => void) | null = null;
 const setDesktop = (ready: string | null = null): void => {
   (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
@@ -88,8 +91,78 @@ describe('UpdatedPanel keys and tabs', () => {
   });
 });
 
+/** R-UPDATE-CHECK-LOADING-01 (owner 2026-11-10): the loading screen reports the update check and offers the install. */
+describe('the loading screen update line', () => {
+  const st = (state: UpdateStatus['state'], version: string | null = null, percent = 0): UpdateStatus => ({ state, version, percent });
+  const turn = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
+  it('says the owner\'s lines for each state, and nothing when there is nothing to say', () => {
+    expect(updateCheckLine(st('checking'))).toEqual({ text: 'Checking for updates…', click: false });
+    expect(updateCheckLine(st('current'))).toEqual({ text: 'Your version of Ascent is up to date.', click: false });
+    expect(updateCheckLine(st('downloading', '0.9.9', 42.6))).toEqual({ text: 'New version found. Downloading version 0.9.9… 43%', click: false });
+    expect(updateCheckLine(st('ready', '0.9.9', 100))).toEqual({ text: 'New version found. Click here to restart and install version 0.9.9.', click: true });
+    expect(updateCheckLine(st('off')).text).toBe('');
+    expect(updateCheckLine(st('error')).text).toBe('');
+  });
+  it('follows the shell from checking to ready, and the click restarts to install exactly once', async () => {
+    let status: Status = { state: 'checking', version: null, percent: 0 };
+    const install = vi.fn();
+    (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
+      isDesktop: true, quit() {}, toggleFullscreen() {}, onUpdateReady: () => () => {},
+      getUpdateStatus: () => Promise.resolve(status), installUpdate: install,
+    };
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    vi.useFakeTimers();
+    const stop = watchUpdateCheck(el);
+    try {
+      await turn();
+      expect(el.textContent).toBe('Checking for updates…');
+      el.click();
+      expect(install).not.toHaveBeenCalled(); // not clickable until the download is in
+      status = { state: 'ready', version: '0.9.9', percent: 100 };
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await turn();
+      expect(el.textContent).toBe('New version found. Click here to restart and install version 0.9.9.');
+      expect(el.classList.contains('is-click')).toBe(true);
+      expect(el.getAttribute('role')).toBe('button');
+      el.click(); el.click();
+      expect(install).toHaveBeenCalledTimes(1);
+      expect(el.textContent).toBe('Restarting…');
+    } finally { stop(); vi.useRealTimers(); el.remove(); }
+  });
+  it('stays empty in the browser and on a shell too old to answer', async () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const stop = watchUpdateCheck(el);
+    await turn();
+    expect(el.textContent).toBe('');
+    setDesktop();
+    const stop2 = watchUpdateCheck(el);
+    await turn();
+    expect(el.textContent).toBe('');
+    stop(); stop2(); el.remove();
+  });
+  it('the splash has the line, Boot drives it, and the shell checks at launch', () => {
+    const read = (p: string): string => readFileSync(resolve(process.cwd(), p), 'utf8');
+    expect(read('apps/web/index.html')).toContain('<div id="bootsplash-update" aria-live="polite"></div>');
+    expect(read('packages/ui/src/Boot.tsx')).toMatch(/#bootsplash-update[\s\S]{0,120}watchUpdateCheck\(line\)/);
+  });
+  it('the notice under START carries the same click when the shell can install', () => {
+    setDesktop();
+    const install = vi.fn();
+    (globalThis as { ascentDesktop?: Hooks }).ascentDesktop!.installUpdate = install;
+    ui = mount(<UpdateReadyNotice />);
+    act(() => { fire!('0.9.9'); });
+    const n = document.querySelector<HTMLElement>('.updnotice')!;
+    expect(n.textContent).toBe('Update v0.9.9 downloaded. Click here to restart and install it.');
+    expect(n.classList.contains('can-click')).toBe(true);
+    act(() => { n.click(); });
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('UpdateReadyNotice', () => {
-  it('appears when the shell reports a downloaded update, and has no button', async () => {
+  it('appears when the shell reports a downloaded update; on a shell that cannot install now it is information only', async () => {
     setDesktop();
     ui = mount(<UpdateReadyNotice />);
     expect(document.body.textContent).not.toContain('downloaded');

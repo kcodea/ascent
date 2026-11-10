@@ -9,6 +9,9 @@ const updater = createRequire(import.meta.url)('./updater.cjs') as {
   decideLaunch: (marker: Marker, current: string, skip?: { version: string } | null) => 'install' | 'boot';
   updatesAllowed: (o: { isPackaged: boolean; env: Record<string, string | undefined>; hasUpdateConfig: boolean }) => boolean;
   startUpdater: (deps: Record<string, unknown>) => Promise<void>;
+  getReadyUpdate: () => string | null;
+  getUpdateStatus: () => { state: string; version: string | null; percent: number };
+  restartToInstall: (app: { relaunch(): void; quit(): void }) => boolean;
 };
 
 describe('isNewer (semver a > b)', () => {
@@ -273,17 +276,60 @@ describe('startUpdater', () => {
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
   });
 
-  it('boot: clears a stale marker, opens the game, checks 10 s later, then marks + notifies', async () => {
+  it('boot: clears a stale marker, opens the game, checks at once, then marks + notifies', async () => {
     const h = harness({ marker: { version: '0.2.0' } });
     await updater.startUpdater(h.deps);
     expect(h.createGameWindow).toHaveBeenCalledTimes(1);
     expect(h.files.has(MARKER)).toBe(false);
-    expect(h.au.checkForUpdates).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(10_000);
+    // R-UPDATE-CHECK-LOADING-01: the check starts with the game window, so the loading screen can report it.
     expect(h.au.checkForUpdates).toHaveBeenCalledTimes(1);
     h.au.emit('update-downloaded', { version: '0.2.1' });
     expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1' });
     expect(h.gameSent).toEqual([['ascent:update-ready', { version: '0.2.1' }]]);
+    expect(h.au.quitAndInstall).not.toHaveBeenCalled();
+  });
+
+  it('R-UPDATE-CHECK-LOADING-01: the status walks checking, downloading (with percent), ready', async () => {
+    const h = harness({});
+    await updater.startUpdater(h.deps);
+    expect(updater.getUpdateStatus()).toEqual({ state: 'checking', version: null, percent: 0 });
+    h.au.emit('update-available', { version: '0.2.1' });
+    expect(updater.getUpdateStatus()).toEqual({ state: 'downloading', version: '0.2.1', percent: 0 });
+    h.au.emit('download-progress', { percent: 43.2 });
+    expect(updater.getUpdateStatus().percent).toBeCloseTo(43.2);
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(updater.getUpdateStatus()).toEqual({ state: 'ready', version: '0.2.1', percent: 100 });
+    // A late error never hides a downloaded update.
+    h.au.emit('error', new Error('late'));
+    expect(updater.getUpdateStatus().state).toBe('ready');
+  });
+
+  it('R-UPDATE-CHECK-LOADING-01: up to date, a failed check, and an updater that is off', async () => {
+    let h = harness({});
+    await updater.startUpdater(h.deps);
+    h.au.emit('update-not-available', {});
+    expect(updater.getUpdateStatus().state).toBe('current');
+    h = harness({});
+    await updater.startUpdater(h.deps);
+    h.au.emit('error', new Error('offline'));
+    expect(updater.getUpdateStatus().state).toBe('error');
+    h = harness({ env: { ASCENT_NO_UPDATE: '1' } });
+    await updater.startUpdater(h.deps);
+    expect(updater.getUpdateStatus().state).toBe('off');
+  });
+
+  it('R-UPDATE-CHECK-LOADING-01: restart-and-install relaunches only once an update is downloaded', async () => {
+    const h = harness({});
+    await updater.startUpdater(h.deps);
+    const app = { relaunch: vi.fn(), quit: vi.fn() };
+    expect(updater.restartToInstall(app)).toBe(false);
+    expect(app.relaunch).not.toHaveBeenCalled();
+    h.au.emit('update-downloaded', { version: '0.2.1' });
+    expect(updater.restartToInstall(app)).toBe(true);
+    expect(app.relaunch).toHaveBeenCalledTimes(1);
+    expect(app.quit).toHaveBeenCalledTimes(1);
+    // The relaunch installs through the normal launch path: the marker is what the next launch reads.
+    expect(JSON.parse(h.files.get(MARKER)!)).toEqual({ version: '0.2.1' });
     expect(h.au.quitAndInstall).not.toHaveBeenCalled();
   });
 

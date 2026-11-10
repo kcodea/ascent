@@ -57,6 +57,12 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-10',
+    changes: [
+      { category: 'Systems', text: 'The desktop app now checks for updates on the loading screen. It tells you when you are up to date, and when a new version is downloaded you can click to restart and install it right away.' },
+    ],
+  },
+  {
+    date: '2026-11-10',
     label: 'Duos update',
     changes: [
       {

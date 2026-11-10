@@ -9,6 +9,15 @@
  * whether to SHOW desktop-only UI, which is what `isDesktop()` is for.
  */
 
+/** Where the shell's launch update check stands (updater.cjs `getUpdateStatus`). */
+export interface UpdateStatus {
+  state: 'off' | 'checking' | 'current' | 'downloading' | 'ready' | 'error';
+  version: string | null;
+  percent: number;
+}
+const NO_STATUS: UpdateStatus = { state: 'off', version: null, percent: 0 };
+const STATES: ReadonlySet<string> = new Set(['off', 'checking', 'current', 'downloading', 'ready', 'error']);
+
 interface DesktopBridge {
   isDesktop: true;
   quit: () => void;
@@ -17,6 +26,10 @@ interface DesktopBridge {
   onUpdateReady?: (cb: (version: string) => void) => () => void;
   /** The update already downloaded this session (its version), or null. Older shells lack it. */
   getUpdateReady?: () => Promise<string | null>;
+  /** Where this launch's update check stands. Older shells lack it. */
+  getUpdateStatus?: () => Promise<{ state: string; version: string | null; percent: number }>;
+  /** Relaunch to install the downloaded update. Older shells lack it. */
+  installUpdate?: () => void;
 }
 
 const bridge = (): DesktopBridge | undefined =>
@@ -49,4 +62,24 @@ export function getUpdateReady(): Promise<string | null> {
   const ask = bridge()?.getUpdateReady;
   if (!ask) return Promise.resolve(null);
   return Promise.resolve(ask()).then((v) => (v ? String(v) : null), () => null);
+}
+
+/** Where the shell's launch update check stands ('off' in the browser, on an older shell, or on any failure). */
+export function getUpdateStatus(): Promise<UpdateStatus> {
+  const ask = bridge()?.getUpdateStatus;
+  if (!ask) return Promise.resolve(NO_STATUS);
+  return Promise.resolve(ask()).then(
+    (s) => (s && STATES.has(s.state) ? { state: s.state as UpdateStatus['state'], version: s.version ? String(s.version) : null, percent: Number(s.percent) || 0 } : NO_STATUS),
+    () => NO_STATUS,
+  );
+}
+
+/** True when this shell can restart to install a downloaded update (older shells cannot: they install next launch). */
+export function canInstallUpdate(): boolean {
+  return typeof bridge()?.installUpdate === 'function';
+}
+
+/** Restart the app to install the downloaded update. No-op in the browser and on an older shell. */
+export function installUpdate(): void {
+  bridge()?.installUpdate?.();
 }

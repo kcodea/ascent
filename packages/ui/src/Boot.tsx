@@ -8,6 +8,7 @@ import { useGame } from './store';
 import { crumb } from './crashLog';
 import { bootWarm } from './bootWarm';
 import { popInEnabled, startPopIn } from './popInFlag';
+import { watchUpdateCheck } from './updateCheck';
 
 /**
  * ON A PHONE the gate is shorter (owner 2026-10-18, approved for phones / touch only: "the iPhone crashes a lot"): the
@@ -111,6 +112,12 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     });
     return () => { alive = false; };
   }, [ready]);
+
+  // The desktop app's update check, reported on the splash for as long as it is up (updateCheck.ts). Never gates loading.
+  useEffect(() => {
+    const line = splashEl()?.querySelector<HTMLElement>('#bootsplash-update');
+    return line ? watchUpdateCheck(line) : undefined;
+  }, []);
 
   // READY → fade the splash off the mounted game, then remove the node.
   //

@@ -1,7 +1,8 @@
 /**
  * "UPDATE READY" (desktop auto-update, spec 2026-11-04): a toast shown once the desktop shell has finished downloading an
- * update in the background. Information only: the update installs at the NEXT launch (behind the shell's own "Installing
- * update" screen), never mid-game, so there is no button. It takes no pointer input and does nothing in the browser build.
+ * update in the background. The update installs at a LAUNCH (behind the shell's own "Installing update" screen), never
+ * mid-game. Clicking the notice restarts the app to install it now (owner 2026-11-10, R-UPDATE-CHECK-LOADING-01); on a
+ * shell too old for that it is information only ("installs next time you start"). It does nothing in the browser build.
  *
  * IT CANNOT BE MISSED (owner 2026-11-09, R-UPDATE-NOTICE-SEEN-01: the notice never showed): it lives on the main screen
  * beside START (PartyHome mounts it), asks the shell on every mount whether an update is already downloaded (the one-shot
@@ -14,7 +15,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { getUpdateReady, onUpdateReady } from './desktop';
+import { canInstallUpdate, getUpdateReady, installUpdate, onUpdateReady } from './desktop';
 import { onStageChange, rectToStage, stageHost, stageViewport } from './stage';
 import './updatedPanel.css';
 
@@ -60,11 +61,21 @@ export function UpdateReadyNotice() {
     return onStageChange(measure);
   }, [version]);
   if (version === null) return null;
+  const canClick = canInstallUpdate();
   const style: CSSProperties | undefined = place ? { left: place.left, top: place.top } : undefined;
   return createPortal(
-    <div ref={ref} className={place ? 'updnotice under-start' : 'updnotice'} style={style} role="status">
-      Update v{version} downloaded. It installs next time you start Ascent.
-    </div>,
+    canClick ? (
+      // R-UPDATE-CHECK-LOADING-01: the same "restart and install" click the loading screen offers. Only ever on the
+      // main screen (PartyHome mounts this), so it can never restart a match.
+      <div ref={ref} className={`updnotice can-click${place ? ' under-start' : ''}`} style={style} role="button" tabIndex={0}
+        onClick={installUpdate} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') installUpdate(); }}>
+        Update v{version} downloaded. Click here to restart and install it.
+      </div>
+    ) : (
+      <div ref={ref} className={place ? 'updnotice under-start' : 'updnotice'} style={style} role="status">
+        Update v{version} downloaded. It installs next time you start Ascent.
+      </div>
+    ),
     stageHost(),
   );
 }

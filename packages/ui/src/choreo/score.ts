@@ -3,6 +3,7 @@ import { ALE_IDS } from '@game/core';
 import type { Moment } from './compile';
 import type { MomentKind } from './kinds';
 import { playMomentSfx } from './channels/sfx';
+import { handoffsIn, playHandoffFx } from './channels/duosHandoff';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
@@ -41,7 +42,7 @@ import { playCombatSpellCastFx } from '../fx/spellCastFx';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx' | 'bankedCastFx' | 'wardGainFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'deathFx' | 'castPreviewFx' | 'spellCastFx' | 'rebirthFx' | 'bankedCastFx' | 'wardGainFx' | 'duosHandoffFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -240,11 +241,14 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // effect behind it lands. One-shot, transform/opacity only (the cast preview's own CSS).
   bankedCast: [...BASE, { ch: 'bankedCastFx', at: 'start', offset: 0 }],
   // VERSUS DUOS (R-DUOS-TAGTEAM-01): the hand-off. The fly-in itself is the units' own one-shot CSS (`.unit.tagin`,
-  // transform / opacity only) and the "steps in" plate (DuosTagIn); no channel cue rides these beats.
-  boardFallen: [...BASE],
-  tagIn: [...BASE],
-  // DUOS (R-DUOS-FLYIN-01): the fly-in after a won fight is the same one-shot `.unit.tagin` entrance; no channel cue.
-  flyIn: [...BASE],
+  // transform / opacity only, timed by the fight's speed). Its SOUND rides the `sfx` row and its one-shot accent the
+  // `duosHandoffFx` row (2026-11-10, R-DUOS-HANDOFF-BEAT-01: the fallen board's veil and dim, each body's landing dust,
+  // the team-coloured slam and shake under the last one). No plate and no ownership marker (owner 2026-10-26).
+  boardFallen: [...BASE, { ch: 'duosHandoffFx', at: 'start', offset: 0 }],
+  tagIn: [...BASE, { ch: 'duosHandoffFx', at: 'start', offset: 0 }],
+  // DUOS (R-DUOS-FLYIN-01): the fly-in after a won fight is the same one-shot `.unit.tagin` entrance, with the
+  // lighter cue and the landing dust only.
+  flyIn: [...BASE, { ch: 'duosHandoffFx', at: 'start', offset: 0 }],
 };
 
 const KEY = 'ascent.choreoScore';
@@ -548,7 +552,16 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
   const cues = getScore()[moment.kind];
   for (const cue of cues) {
     if (cue.enabled === false) continue;
-    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events, ctx.cardIds); if (shake) ctx.onShake(); });
+    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events, ctx.cardIds, ctx.combatSpeed > 0 ? ctx.combatSpeed : 1); if (shake) ctx.onShake(); });
+    // The Duos hand-off's accent (`channels/duosHandoff.ts`): read off the moment's own events, timed by the live speed.
+    else if (cue.ch === 'duosHandoffFx') at(cue, () => {
+      playHandoffFx(handoffsIn(moment, ctx.events), {
+        speed: ctx.combatSpeed > 0 ? ctx.combatSpeed : 1,
+        slotRectOf: ctx.slotRectOf,
+        later: (fn, ms) => { timers.push(setTimeout(fn, ms)); },
+        shake: ctx.onShake,
+      });
+    });
     else if (cue.ch === 'float') at(cue, () => {
       const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.slotRectOf, ctx.attackerUid);
       // An ordinary Rally with its own "On Rally" effect: hold the rallier's own number until just after that

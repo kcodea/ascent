@@ -14619,4 +14619,396 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-DUOS-BACK-TAP-01',
+    title: 'Duos: one tap on "Back to your board" comes back once; the click that follows the tap never re-enters the teammate view',
+    statement:
+      'While a Duos player watches their teammate, a finger tap on their own portrait ("Back to your board" / "Back to your heroes") leaves the teammate view on the finger\'s release. '
+      + 'The browser\'s click that follows that tap (within 700 ms) is the same gesture: it is ignored by the way back AND by the teammate portrait that the screen re-renders in its place, so one tap is one swap. '
+      + 'A separate press after that window enters the teammate view as before, and a mouse click is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/versus/DuosMateDock.tsx (tapsOwnClick). Duos runtime audit 2026-11-09, F1: pointerup at 1 ms left the view, the click at 40 ms landed on the re-rendered teammate portrait and re-entered.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (TAP_CLICK_MS, lastTap, tapsOwnClick)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the 700 ms guard only protected the way back, so on a phone the tap left the teammate view and its own click opened it again: the player stayed on the teammate\'s board until the fight.',
+    example: 'On a phone Ann watches Bob\'s board and taps "Back to your board". She is on her own board, and stays there.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-CONCEDE-COPY-01',
+    title: 'Versus: the Concede note says what conceding costs in the mode being played',
+    statement:
+      'The armed Concede button (the in-game sidebar and Settings) reads the consequence of the match on screen. A Versus 1v1: "Your opponent wins this match. You go back to the room." '
+      + 'A group match: "You are out of this match. You can watch the rest." Versus Duos: "Your whole team is out of this match. Your teammate goes out with you." '
+      + 'Ranked Duos: "You leave this match for good. Your teammate plays on without you." A finished match still reads "Leave match" in every mode (R-RANKED-DUOS-END-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/gameMenuParts.tsx (concedeAreaOf, CONCEDE_NOTE), partyHome/pages/PhSettings.tsx. Duos UX audit 2026-11-09, 1.15: the one 1v1 line was false in both Duos modes.' },
+      { kind: 'code', ref: 'workers/versus/src/core/groupMatch.ts (eliminate: a Duos seat takes its team out), packages/ui/src/versus/concededMatches.ts (R-RANKED-DUOS-CONCEDE-01: a Ranked Duos concede is for good, the teammate plays on)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, every Versus mode read the 1v1 line.',
+    example: 'In Ranked Duos Ann opens the menu and presses Concede once. The note under it reads "You leave this match for good. Your teammate plays on without you."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/concedeCopy.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-PASS-GLOSSARY-01',
+    title: 'Duos: the Pass glossary line matches the pass rules (a Gilded minion passes by hand; pass spells cannot target one)',
+    statement:
+      'The Pass keyword reads: "Give a card from your hand to your teammate. It goes to their hand. Spells that pass can\'t target a Gilded minion." '
+      + 'It never says a Gilded minion cannot be passed: a Gilded minion in hand passes by hand like any card (R-DUOS-PASS-GOLDEN-MANUAL-01), and only a spell that passes refuses one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/keywordGlossary.ts (pass). Duos UX audit 2026-11-09: the line still carried the 2026-10-30 no-golden rule the owner revised on 2026-10-31.' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts (duosPassBlocked: no golden refusal for the manual pass)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the line read "Golden minions can\'t be passed."',
+    example: 'Ann hovers Pass on a Duos card: the pill says spells that pass cannot target a Gilded minion. She drags her Gilded minion from hand onto Bob\'s portrait and it goes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/concedeCopy.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PARTY-CAPTION-01',
+    title: 'Party home: the mode\'s one-line description is never drawn on top of the team plate',
+    statement:
+      'On the party home (desktop) the mode\'s description line sits lowered under the tabs, in the stage\'s head slot, only while that slot is empty. '
+      + 'While the head slot holds a plate (the team\'s name once a teammate is in, or a Versus room\'s title and rule) the line keeps its own row directly under the tabs, so the two never overlap.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/partyHome/PartyHome.tsx (.ph-desc.headed), partyHome.css. Duos runtime audit 2026-11-09, F3: "You and a teammate against three teams." drawn through the team plate.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the line was lowered by 54 units in every state, which is exactly where the team plate appears.',
+    example: 'Ann is on Ranked Duos alone: the description sits low under the tabs. Bob joins: the "Your team" plate appears there and the description reads on its own row above it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/partyCaption.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-TAGIN-ONSCREEN-01',
+    title: 'Duos: the tagged-in teammate portrait is whole on screen and clear of my hero\'s face and name plate',
+    statement:
+      'While my teammate\'s board fights on my side, their portrait copy sits on the upper left rim of my own hero. Its offset to the left stops at the stage\'s left edge (a little air kept), '
+      + 'so the copy is never cut by the screen edge, and it is small and high enough that my hero\'s face and name plate stay clear. It is a static transform off my hero\'s measured place; its fade in and out are unchanged (R-DUOS-SLOTS-02).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/versus/versus.css (.duostagin), DuosMateDock.tsx (--duos-hero-left). Duos runtime audit 2026-11-09, F10: the copy ran off the left screen edge and covered a third of my hero.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the copy was offset left by half a disc with no stop, which put a third of it past the left edge.',
+    example: 'Bob\'s board steps in for Ann\'s. Bob\'s portrait fades in whole at the top left of Ann\'s hero; Ann\'s face and her name plate are not covered.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-HEROSELECT-TITLE-01',
+    title: 'Duos Hero Select: my teammate\'s choices are headed "Your Teammate\'s Heroes" and stand where my own do',
+    statement:
+      'A Duos player looking at their teammate\'s hero choices sees the heading "Your Teammate\'s Heroes", never "Select Your Hero" (those heroes are not theirs to select). '
+      + 'In the party home look every hero slot keeps its difficulty line whether or not a word shows in it, so the title, the clock and the flags stand at the same height on every offer: '
+      + 'swapping between my heroes and my teammate\'s does not move the layout, and a re-roll never shifts the row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/HeroSelect.tsx (HeroSelectWatch.title, the kept .hcdiff-out line), hero-select/HeroSelectWatch.tsx. Duos runtime audit 2026-11-09, F11.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the teammate\'s view read "Select Your Hero", and an offer of three heroes of one difficulty dropped the difficulty line, so that screen sat about 10 px off the other.',
+    example: 'Ann clicks Bob\'s portrait on Hero Select: the heading reads "Your Teammate\'s Heroes" and Bob\'s three flags stand exactly where hers did.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/hero-select/heroSelectPh.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-RING-ART-01',
+    title: 'Phones: a portrait inside a frame ring shows its art inside the ring (the Duos teammate portrait is never an empty ring)',
+    statement:
+      'On a phone a portrait disc\'s art is laid out four times bigger and scaled back by a quarter (R-PHONE-HERO-LAYER-01). When that disc wears a frame ring, the art keeps that quarter, times the frame tuner\'s portrait scale, centred in the ring. '
+      + 'So the Duos teammate portrait (in the shop, in a fight, as the tag-in copy and as "Back to your board") shows the hero inside its ring on a phone, at the same size and place as on a desktop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'fix/duos-broken-list: packages/ui/src/styles.css (html.lite-art .pf-on .combatopp-img). Duos runtime audit 2026-11-09, F9. Measured in headless phone emulation: the art was 604 px in a 151 px ring before, 151 px after.' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the ring\'s own art rule (same weight, later in the sheet) replaced the phone rule\'s quarter scale, so the art was drawn four times too big, down and right of an empty ring. Checked in phone emulation only; not yet on a real phone.',
+    example: 'On a phone in a Duos shop, Bob\'s hero shows inside the teammate ring bottom right, not an empty ring with art spilling past the corner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroArtLayer.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-DOCK-INBOARD-01',
+    title: 'Duos: the teammate portrait sits inboard of the corner squares, never in the corner outside them',
+    statement:
+      'The Compendium and Settings squares keep the bottom-right corner in a Duos game, exactly where they sit in any other game. The teammate portrait at the rail\'s foot (R-DUOS-DOCK-FOOT-01) is always LEFT of them: '
+      + 'its fit never slides past the Compendium / Settings pair. On a desktop it hugs the hand\'s side of that room, as before. On a phone it hugs the squares\' side, just left of the Compendium square, so a full hand\'s last card stays well clear of it. '
+      + 'It clears a full hand, the Gold coin, the rail\'s last tile and the squares by the same gap, and its "Back to your board" label stays whole on screen.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone shop screenshot of PR 2647', quote: 'The menu etc buttons should not be before the teammate circle. They should be fully cornered.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'teammate portrait is too small' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitFoot: fenceR, hug)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, on a phone the fit slid the disc past the squares into the screen corner (layout x 2041 to 2198 of 2208) and the squares sat left of it. Now, with the squares at the screen\'s wall (R-PHONE-CORNER-WALL-01), the disc sits at 1887 to 2041 (154 px, the most the room under the rail\'s last tile allows; it was 157 in the corner), 12 px left of the Compendium square, and a ten-card hand ends at 1760. Desktop is unchanged. Checked in phone emulation only.',
+    example: 'On a phone in a Duos shop the Compendium and Settings squares are at the right edge of the screen, and Bob\'s portrait sits just left of them. Tapping it opens his board.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-CORNER-WALL-01',
+    title: 'Phones: the corner squares (Guides, Compendium, Settings) stand at the screen\'s right edge, not the play box\'s',
+    statement:
+      'In every phone game (solo, Versus, Duos) the Settings square stands 15 layout px in from the screen\'s right SAFE edge (clear of a notch or rounded corner), the same margin it keeps above the bottom gesture strip. '
+      + 'The Compendium square is one square and its gap further in, and the Guides square sits above Settings. They cover nothing: the lobby rail ends above and left of them. The Guides panel still opens over the rail column. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'buttons in the corner should go further to the wall' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .gearbtn / .bookbtn), packages/ui/src/guides/lobbyGuides.css ([data-phone-zoom] .guidesbtn)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, they were anchored to the play box\'s right edge, which on a phone is about 180 layout px in from the screen\'s (Settings at 1964 to 2030 of 2208). Now Settings is at 2127 to 2193 and Compendium at 2053 to 2119. Checked in phone emulation only (no safe-area inset there).',
+    example: 'On a phone, in a solo shop, the Compendium and Settings squares sit side by side against the right edge of the screen, with Guides above Settings.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-PHONE-HERO-PLATES-01',
+    title: 'Phones: the hero\'s name plate and Health / Armor plate are both whole, name over Health',
+    statement:
+      'On a phone the Health / Armor plate rides up onto the hero ring\'s lower rim (the phone framing\'s bottom bound). The name plate rides up with it and sits just above the Health plate, whole, on the lower part of the portrait: '
+      + 'the two never overlap, on my own board, in a fight and while I watch my teammate\'s board. Both are static offsets of the existing plates.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10, on the phone teammate-view screenshot of PR 2647', quote: 'name + life plates overlap and dont look good' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css ([data-phone-zoom] .statusbar .hero .heroname)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-broken-list). Before, the name plate stayed at its desktop seat (layout y 909 to 950) under the raised Health plate (933 to 1003), which hid its lower half. Now it sits at 884 to 925, 8 px above the Health plate. Checked in phone emulation only.',
+    example: 'On a phone "Ann" reads in full on its plate at the foot of her portrait, and the Health and Armor plate sits just under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RANKED-DUOS-AWAY-GRACE-01',
+    title: 'Ranked Duos: a short drop is not an absence (12 s before a seat counts as away)',
+    statement:
+      'In Ranked Duos a live player with no open socket counts as away (on auto, "ended their turn") only after 12 s without one, '
+      + 'not at the room\x27s 3 s socket grace. Inside the 12 s the seat is simply not ready yet: the teammate\x27s End Turn does not '
+      + 'close the round. The grace never holds a round past its own clock: the round still closes at 0:00 plus the 30 s overtime. '
+      + '12 s is the client\x27s worst ordinary reconnect: one 8 s handshake watchdog, the 3 s backoff cap and 1 s for the hello. '
+      + 'The room wakes itself at that moment (its own alarm), and a returning socket ends auto at once as before. A socket the '
+      + 'room found stale (15 s with no keep-alive) has used its grace already: that seat is away 3 s after the room notices.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/rankedMatch.ts (RANKED_AWAY_GRACE_MS, reconcile, alarms)' },
+      { kind: 'code', ref: 'workers/versus/src/client.ts (VERSUS_CF_HANDSHAKE_MS 8 s, the reconnect backoff capped at 3 s)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, any drop over 3 s (a wifi hiccup, a phone app switch, every reload) put the seat on auto, and the teammate\x27s End Turn closed the round at once without the player.',
+    example: 'Bob\x27s wifi drops for 4 s while Ann presses End Turn. The round stays open; Bob is back, finishes his turn and presses End Turn; the fight uses the board he ended on.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts', 'workers/versus/test/rankedCore.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-AUTO-NEWEST-BOARD-01',
+    title: 'Versus: a seat closed on auto fights the newest board the room holds for the round',
+    statement:
+      'When a round closes on a seat that is on auto (absent past its grace, or gone for good), that seat fights the board of THIS '
+      + 'round when the room holds one (its newest candidate, sent as the player shopped). Only a seat that sent nothing this round '
+      + 'fights the last board it locked in an earlier round; a seat that never locked anything fights empty. This holds in every '
+      + 'room mode (Group, Versus Duos, Ranked Duos). The room, not a client, picks the board, so both teammates see the same fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/groupMatch.ts (finalizeSeat)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, an auto seat\x27s current-round candidate was replaced by its last locked board, so everything bought this turn was missing from the fight.',
+    example: 'Bob buys two minions on turn 5, then loses his connection for a minute. Ann ends the turn. Bob\x27s side fights with the two new minions, not with his turn 4 board.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-PASS-EXPIRE-01',
+    title: 'Duos: a pass waiting on a teammate who is away goes back to its sender',
+    statement:
+      'A card pass stays "sent" until the receiver\x27s run answers it. The moment the receiver\x27s seat is away (on auto), has left '
+      + 'for good or is out of the match, the room refuses every card pass still waiting on them, through the same row and push as a '
+      + 'full hand\x27s refusal, marked with the reason "teammate_away": the sender\x27s run gives the card and the Gold back and says '
+      + 'why. A receiver who returns later reads the row as refused and never lands it (a copy it kept while viewing the teammate is '
+      + 'replaced by the refusal). A team effect is never expired: it took nothing from the sender and lands on reconnect.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/core/groupMatch.ts (expirePasses), packages/ui/src/versus/duosPasses.ts (duosPushed, applyRows)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, a pass sent in the teammate\x27s first seconds offline stayed "sent" for ever if they did not come back: the card and its Gold were lost. Known gap: a receiver whose run landed the card in the same instant its connection died, and who stays away past the grace, keeps the card while the sender is refunded.',
+    example: 'Ann passes a minion to Bob one second after his connection drops. Bob does not come back. 12 s after the drop the minion and the 1 Gold are back with Ann, with "Your teammate is away. You got it back."',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-LINK-STATUS-01',
+    title: 'Versus: my own connection is on screen (Reconnecting, Connection lost, open somewhere else)',
+    statement:
+      'A seated Versus or Duos player whose room socket is down sees it, driven by the socket\x27s real state: nothing for a drop '
+      + 'under 1.5 s; then a small strip "Reconnecting" that never takes the pointer; past 12 s "Connection lost" with what happens to '
+      + 'their seat meanwhile (Ranked Duos: the board fights on its own; other modes: the match waits 30 seconds first). A socket the '
+      + 'room closed for good (the same account opened the game somewhere else) shows a panel with two ways on: "Play here" reopens '
+      + 'the socket (the room then closes the other one), "Back to menu" leaves this screen only and never leaves the match. A '
+      + 'request on a socket closed for good fails at once with the reason instead of waiting out a 15 s timeout, and such a socket '
+      + 'never reconnects by itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusConnection.ts, VersusConnectionStatus.tsx, versusCfRemote.ts; workers/versus/src/client.ts (dead, reclaim)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, no connection state was ever shown: with the socket down the shop looked normal for 20 s and more, and a second tab left the first frozen with no message.',
+    example: 'Bob opens the game in a second tab mid-match. The first tab shows "Open somewhere else" with Play here and Back to menu. He presses Play here: the first tab has the game again and the second shows the panel.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusConnection.test.ts', 'workers/versus/test/clientLink.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-PROBE-01',
+    title: 'Versus on Cloudflare: the socket is probed when the tab is visible again or the network is back',
+    statement:
+      'When the tab becomes visible, the page is restored, or the network comes back, a room socket that is down reconnects at once '
+      + 'and a socket that looks open is probed: one ping, and if no frame at all arrives within 2 s it is dropped and reconnected. A '
+      + 'keep-alive timer that fired late (a frozen or throttled tab) probes the socket the same way instead of dropping a healthy '
+      + 'one for the client\x27s own silence.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/client.ts (probe, schedulePing), packages/ui/src/versus/versusCfRemote.ts (wake)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, only the browser\x27s "online" event was heard and it did nothing on a socket that looked open; a phone back from the home screen showed a live-looking game on a dead socket until the next 5 s keep-alive tick, and a background tab reconnected once a minute for nothing.',
+    example: 'Bob\x27s phone comes back from the home screen with its socket dead. Within 2 s the game drops it, shows "Reconnecting" and is back on a fresh one.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/clientLink.test.ts', 'workers/versus/test/clientWake.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-LOST-CALL-01',
+    title: 'Versus on Cloudflare: a call nobody answered is "network", whatever lost it',
+    statement:
+      'A room call that was never answered (15 s with no answer, the socket closed under it, a failed HTTP call) reaches the game as '
+      + 'the one code "network". A code the room itself answered with is passed through untouched. The recovery paths keyed on '
+      + '"network" therefore run for every lost call: the End Turn gem and the un-ready are re-read from the server\x27s row, and a '
+      + 'pass is retried.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusCfRemote.ts (err)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, a timeout surfaced as "timeout" and a dropped socket as "closed", so the recovery paths never ran: after a 15 s stall the End Turn gem relit while the server could still hold the lock.',
+    example: 'Bob presses End Turn as his connection stalls. 15 s later the call is lost; the game reads his seat from the server: it is locked, so the gem stays pressed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosPartyCf.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-FETCH-TIMEOUT-01',
+    title: 'Versus on Cloudflare: no Supabase call waits for ever; a table that cannot be read never holds a fight for good',
+    statement:
+      'Every Supabase call the Versus Worker makes for a room has a deadline: 5 s for a read (the Ranked Duos team and table, the '
+      + 'sign-in keys) and 15 s for a result write; past it the call fails and its caller retries as for any error. What is written '
+      + 'is unchanged. In Ranked Duos, a round that is closed and waiting on a table whose reads have failed 3 times in a row is '
+      + 'seated with generated teams (the same fill an empty sample gets; the match is unrated the same way) and resolves. While '
+      + 'nothing waits on the table the reads simply keep being retried. A late rating result on the post-game screen reads as still '
+      + 'saving and keeps being read while the screen is up; it is never shown as a failed rank update.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/persist.ts, rankedService.ts, auth.ts, core/rankedMatch.ts (RANKED_SEAT_MAX_FAILS); packages/ui/src/versus/versusStore.ts (loadDuosResult)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, the calls were bare fetches, seating was retried every 5 s with no end while both players sat on a closed round, and the rating screen stopped reading after about 15 s and showed a failed rank update for a write that was only slow.',
+    example: 'Supabase is down when round 1 closes. After three failed reads the table is seated with generated teams, the fight plays, and the match is unrated.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/duosConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CF-RELAY-SCOPE-01',
+    title: 'Versus on Cloudflare: a player\x27s live screen is relayed to the stands and the teammate, never to an opponent',
+    statement:
+      'The room relays a seated player\x27s spectator frames, Hero Select and cursor to the spectators and to that player\x27s Duos '
+      + 'teammate only; never to an opponent\x27s socket. A keyframe request from the stands goes to the seated players; from a player, '
+      + 'to their teammate only. In Duos the cursor is streamed only while someone can see it: while the stands hold anyone, or while '
+      + 'the teammate has said they are viewing that screen (on opening it, and every 5 s while it stays open; the word lapses after '
+      + '12 s). Emotes still reach everyone. Spectating and the teammate view receive everything they did.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: workers/versus/src/relay.ts, room.ts; packages/ui/src/versus/spectateTap.ts (setSpectatorCursor), versusStore.ts (spectate_watch)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, every such message went to every other member: the other team\x27s shop, hand, board and hero offers were readable in the socket, two thirds of a four-player client\x27s downstream frames were discarded, and a Duos player\x27s cursor went to the teammate 20 times a second all game.',
+    example: 'In a 2v2, Ann\x27s shop frames reach Bob (her teammate) and the two spectators; the other team\x27s clients receive none of them. Her cursor reaches Bob only while he has her screen open.',
+    enforcement: { kind: 'scenario', refs: ['workers/versus/test/relay.test.ts', 'packages/ui/src/versus/versusConnection.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-VERSUS-CANDIDATE-DEDUPE-01',
+    title: 'Versus: the same board is uploaded once; the last two seconds of a clock-closed round do not wait for idle time',
+    statement:
+      'A shop candidate identical to the last one the room took for the round is not sent again (a failed send, a lock, an un-ready '
+      + 'or a reconnect forgets the mark, so the room is never left on an older board than the client believes). In a round that '
+      + 'closes on the clock, a change made in the last 2 s goes out on the next task instead of waiting for idle time, so the last '
+      + 'buy before 0:00 is with the room even if the lock frame itself is late.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the lead, 2026-11-08', quote: 'they need to be spotless experiences' },
+      { kind: 'fix-pr', ref: 'fix/duos-connection: packages/ui/src/versus/versusStore.ts (candidates, closingFlush)' },
+    ],
+    currentBehaviour: 'Built 2026-11-10. Before, the whole 8 to 9 KB side went up on every run change, identical or not, and a candidate could be 600 ms behind the screen when the round closed. The room still takes a lock for only 250 ms past 0:00; a longer closing window on the room is not built.',
+    example: 'Bob refreshes the Shop three times without buying. One candidate goes up, not three.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/candidateDedupe.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-TAB-PEEK-01',
+    title: 'In a Duos game, Tab peeks at your teammate and does not open the Compendium',
+    statement:
+      'For a seated Duos player, holding Tab shows the board of your teammate and letting go comes back. That press does nothing else: the Compendium does not open, and holding the key does not flicker it open and shut. '
+      + 'One exception: if the Compendium is already open, Tab closes it and does not peek. Outside a Duos seat, Tab opens and closes the Compendium as on every other screen (R-COMPENDIUM-TAB-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'The Duos audit fix list, owner-approved, handed over by the coordinator 2026-11-10 (finding: .versus-qa/RUNTIME-AUDIT.md, the teammate-view swap)', quote: 'Make Tab only peek while the teammate-view keys are enabled' },
+      { kind: 'fix-pr', ref: 'fix/duos-perf-wins: packages/ui/src/versus/teammateView.tsx (useTeammateViewKeys)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx (useTeammateViewKeys); packages/ui/src/compendiumHotkey.ts (onCompendiumTab)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-perf-wins). Before, the teammate view listened for Tab on the capture phase and prevented the default but let the press travel on, so the Compendium listener on the window also fired: one press peeked and opened the Compendium over the board of the teammate, and each key repeat of a held Tab toggled the book again.',
+    example: 'In a Duos shop you hold Tab: the board of your teammate fades in and nothing else opens. You let go: your own board is back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateTabPeek.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-VIEW-YOU-01',
+    title: 'While you watch your Duos teammate, the "You" badge stays on your own plate on the rail',
+    statement:
+      'On the lobby rail, the "You" badge and the teal edge mark your own plate. That holds while you watch the board of your teammate: the badge does not move to their plate, and their plate keeps the teammate look. '
+      + 'Back on your own board nothing changes. A spectator, who has no plate of their own, sees the badge on the player they watch, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'The Duos audit fix list, handed over by the coordinator 2026-11-10 (screenshot: .versus-qa/tour/desk-26-teammate-view-lategame.png)', quote: 'the badge stays on MY plate while I view my teammate' },
+      { kind: 'fix-pr', ref: 'fix/duos-perf-wins: packages/ui/src/LobbyPanel.tsx (railWearsYou)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fix/duos-perf-wins). Before, the rail marked the first seat of whatever run it was given, and the teammate view gives it the run of the teammate, so "You" sat on the teammate.',
+    example: 'You hold Tab to look at the board of Bob. On the rail, "You" is still on your plate, next to his.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyRailMateReady.test.tsx'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-DUOS-HANDOFF-BEAT-01',
+    title: 'Duos: the tag-in keeps pace with the fight speed and is never silent; a fallen board and a fly-in have their own cue',
+    statement:
+      'In a Duos fight the hand-off is a beat the player can see and hear at every speed. The reserve board flies in over a length and a '
+      + 'stagger that divide by the live speed of the fight, so at 2x and during a Skip every body has landed before the beat that holds the '
+      + 'entrance ends and the new board never fights while still flying in. The stagger follows the arriving bodies (first off the edge '
+      + 'first; the other team mirrored), never the slot a body lands in. A board falling, a board tagging in and a fly-in after a won fight '
+      + 'each play a sound for their side and a one-shot accent on that board: a soft shadow over the fallen row; dust under each body as it '
+      + 'lands, then a slam in the team colour and the board shake under the last body of a tag-in; dust only for a fly-in. Nothing follows '
+      + 'a tag-in or a fly-in until its last body has landed, and the pause before the tag-in is shorter by the same amount, so no fight is '
+      + 'longer than before. Skipping or speeding up reaches the same final board. Under reduced motion '
+      + 'the board fades in where it stands and the accents are not drawn; the sound still plays. No ownership marker, no plate and no name '
+      + 'on the portrait are added.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-11-10 (Duos presentation audit)', quote: 'make the beats much stronger for duos' },
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-26 (quoted in versus/duosCombat.tsx)', quote: 'we dont need to add more ui elements that are unnecessary' },
+      { kind: 'fix-pr', ref: 'feat/duos-beats (2026-11-10)' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/channels/duosHandoff.ts (tagAnimClass, tagLastLandMs, playHandoffFx); choreo/channels/sfx.ts (boardFallen / tagIn / flyIn); choreo/score.ts (duosHandoffFx); styles.css (.unit.tagin, .duosfell); Unit.tsx (the speed stamp); audio/duosCues.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (feat/duos-beats). Before, the entrance was a fixed 0.52 s plus 60 ms a slot, keyed to the slot, and the 960 ms meant to cover it sat BEFORE it (a hold is the wait before its beat): the fly-in itself got only the 240 to 360 ms of the next beat, so the new board swung while its bodies were still in the air at every speed (measured live at 1x to 2x: 117 to 567 ms on screen against an entrance of up to 880 ms). All three events played no sound and no effect. The cues are built from clips and synth notes the game already had and have not been tuned by ear yet.',
+    example: 'At 2x, your first board dies: a low hit and a dim over your row, then the seven minions of your teammate sweep in from the left in half the time, each landing in dust, the last on a teal slam with a shake, and only then does the fight go on.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/duosHandoff.test.ts', 'packages/ui/src/audio/duosCues.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
 ];

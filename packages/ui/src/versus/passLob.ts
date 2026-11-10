@@ -22,6 +22,7 @@
  *
  * Every number and colour is the dev tuner's (`duosPassConfig.ts`, ✈ Duos Pass), read at each launch.
  */
+import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { getDef } from '../fx/fxDefs';
 import { gildArrivalMs } from '../gildTrailSources';
@@ -185,9 +186,14 @@ export function playDrop(opts: {
   const source = { x: opts.from.cx, y: opts.from.cy - (opts.plate?.height ?? 0) * c.streamFromY };
   let landed = false;
   const land = (): void => { if (landed) return; landed = true; opts.onLand?.(); };
+  // THE SEND CUE: the release pluck and a quick whoosh away. One voice (sfx.ts), so a board of
+  // gift effects shipping on one beat rings once. Every send comes through here: a drag, a spell, an effect, the stands.
+  sfx.duosPassSend();
   if (canPlayDefs()) {
     window.setTimeout(() => {
-      const retire = playDef('duos-pass-send', { source, target, camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.sendSpeed, onDone: land });
+      // Its own SEND cue (`sfx.duosPassSend`, below) replaces the def's two sound layers, which are the Gild trail's
+      // (the def began as a copy of it): a pass used to sound like a sale followed by a Gild.
+      const retire = playDef('duos-pass-send', { source, target, camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.sendSpeed, onDone: land, muteSound: true });
       if (!retire) { land(); return; }
       window.setTimeout(land, streamLandsAt('duos-pass-send') / Math.max(0.05, c.sendSpeed));
     }, c.streamDelay);
@@ -513,11 +519,15 @@ export function playEmerge(opts: { from: Box; target: HTMLElement; onLand?: () =
     }
     opts.onLand?.();
   };
-  if (!canPlayDefs()) { form(); return; }
+  if (!canPlayDefs()) { sfx.duosPassReceive(0); form(); return; }
   const r = plateBox(card);
-  const retire = playDef('duos-pass-arrive', { source: centreOf(opts.from), target: centreOf(r), camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.recvSpeed, onDone: form });
+  const formAt = Math.max(0, streamLandsAt('duos-pass-arrive') / Math.max(0.05, c.recvSpeed) - c.coalesceLead);
+  // THE RECEIVE CUE: a lower whoosh in and a chime down into the hand, landing as the card forms.
+  // Distinct from the send; the def's own (Gild) sound layers are muted for the same reason as the send's.
+  sfx.duosPassReceive(formAt);
+  const retire = playDef('duos-pass-arrive', { source: centreOf(opts.from), target: centreOf(r), camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.recvSpeed, onDone: form, muteSound: true });
   if (!retire) { form(); return; }
-  window.setTimeout(form, Math.max(0, streamLandsAt('duos-pass-arrive') / Math.max(0.05, c.recvSpeed) - c.coalesceLead));
+  window.setTimeout(form, formAt);
 }
 
 /** A teammate's pass just landed in MY hand as `uid`: a stream leaves their portrait (bottom right) and the card

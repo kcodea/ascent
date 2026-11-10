@@ -340,8 +340,14 @@ export function duosPushed(matchId: string, me: VersusGroupSeat, row: VersusDuos
   const s = session(matchId, me);
   // During the restore replay rows land in the server's order only (the pull after it reads this one too).
   if (!s.ready) return;
-  // Watching my teammate: kept, and landed the moment I am back on my own screen.
-  if (ownRunWhileWatching()) { owed.push(row); return; }
+  // Watching my teammate: kept, and landed the moment I am back on my own screen. A later push of the SAME pass replaces
+  // the kept one (R-DUOS-PASS-EXPIRE-01): a pass the room refused meanwhile went back to its sender, so the kept copy,
+  // still marked sent, must not land when I return.
+  if (ownRunWhileWatching()) {
+    const at = owed.findIndex((o) => o.match_id === row.match_id && o.from_seat === row.from_seat && o.seq === row.seq);
+    if (at >= 0) owed[at] = row; else owed.push(row);
+    return;
+  }
   applyRows(s, [row]);
 }
 
@@ -405,7 +411,10 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
       const e = idx == null ? undefined : run.duos.outbox[idx];
       if (e && !e.refunded) {
         dispatch({ type: 'passRefunded', seq: idx! });
-        if (!e.team) { lastRefusal = { seq: idx!, reason: 'hand_full' }; sayReturned('hand_full'); }
+        // The receiver's full hand refused it, unless the ROOM says why it did (`teammate_away`: it expired unanswered,
+        // R-DUOS-PASS-EXPIRE-01).
+        const why = typeof r.reason === 'string' && r.reason ? r.reason : 'hand_full';
+        if (!e.team) { lastRefusal = { seq: idx!, reason: why }; sayReturned(why); }
       }
     }
   }

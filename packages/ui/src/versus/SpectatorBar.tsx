@@ -21,6 +21,7 @@ import '../live/live.css';
 import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
 import { isRankedDuosRaw } from './rankedDuosView';
 import { groupPlateVitals } from './spectatorPlates';
+import { TeamFaces, useMyTeam } from './TeamFaces';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
 
@@ -163,26 +164,41 @@ export function SpectatorBar(): JSX.Element | null {
   );
 }
 
+/** How long the knockout beat stays up before it moves on by itself (it was a silent 6 s dialog). */
+export const KNOCKOUT_NOTICE_MS = 9000;
+
 /**
  * KNOCKED OUT OF A GROUP MATCH (owner 2026-10-24, R-VERSUS-GROUP-06): the end screen's placement numeral on the game's
  * dark panel (LiveWatchBar's ending, reused), over the watch screen the player was just moved onto. It goes after a
  * few seconds, on its button, or when the match changes.
+ *
+ * A TEAM MOMENT (2026-11-10; it was a silent dialog): the end screen's low tone and the team
+ * motif falling as it appears (`sfx.duosTeamOut`), the panel rising in, both teammates brought in together and
+ * drained to grey (`TeamFaces`), then the place landing under them. One-shot motion (versus.css `.vsko`), still under
+ * reduced motion.
  */
-function KnockoutNotice({ matchId }: { matchId: string }): JSX.Element | null {
+export function KnockoutNotice({ matchId }: { matchId: string }): JSX.Element | null {
   const ko = useVersus((s) => s.knockout);
   const showing = !!ko && ko.matchId === matchId;
+  const team = useMyTeam();
   useEffect(() => {
     if (!showing) return undefined;
-    const t = window.setTimeout(clearVersusKnockout, 6000);
+    sfx.duosTeamOut();
+    const t = window.setTimeout(clearVersusKnockout, KNOCKOUT_NOTICE_MS);
     return () => window.clearTimeout(t);
   }, [showing]);
   if (!ko || !showing) return null;
+  const pair = team.length > 1;
   return (
-    <div className="vsveil lvend" role="dialog" aria-label="You are out">
-      <div className="vspanel">
-        <div className="endplace"><span className="endplace-num">{ko.placement ? placementText(ko.placement) : 'Out'}</span></div>
-        <div className="lvend-sub">You are out. Watch the rest of the match from the stands.</div>
-        <div className="vspanel-actions">
+    <div className="vsveil lvend vsko" role="dialog" aria-label={pair ? 'Your team is out' : 'You are out'}>
+      <div className="vspanel vsko-panel">
+        <TeamFaces team={team} mood="out" />
+        <div className="endplace vsko-place">
+          <span className="endplace-num">{ko.placement ? placementText(ko.placement) : 'Out'}</span>
+          {ko.placement && ko.of > 0 ? <span className="endplace-of">of {ko.of} {pair ? 'teams' : 'players'}</span> : null}
+        </div>
+        <div className="lvend-sub vsko-sub">{pair ? 'Your team is out.' : 'You are out.'} Watch the rest of the match from the stands.</div>
+        <div className="vspanel-actions vsko-actions">
           <button type="button" className="vsplate vsstartbtn" onClick={() => { sfx.pulse(); clearVersusKnockout(); }}>Watch</button>
         </div>
       </div>

@@ -672,7 +672,9 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
         <PhTabs label="Mode" value={family.id} onChange={pickFamily} onLockedHover={versusRoom ? undefined : setHoverNote} onLocked={(_id, reason) => { sfx.deny(); if (phone) setLockNote(reason); }}
           tabs={families.map((f) => ({ id: f.id, label: <ModeLabel id={f.id} label={f.label} />, reason: familyReason(f) ?? undefined }))} />
         {/* A locked tab's reason takes the description's own line for a moment: it never covers the stage. */}
-        <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
+        {/* `headed`: the stage's head slot holds a plate (the team's name, a room's rule), so the line keeps its own row
+            under the tabs and is never drawn on top of that plate (R-PARTY-CAPTION-01). */}
+        <span className={`ph-desc${lockNote || (hoverNote && !versusRoom) ? ' locked' : ''}${teamLabel || (mode.party === 'rivals' && (versusRoom || rule)) ? ' headed' : ''}`} role={lockNote ? 'status' : undefined}>{lockNote ?? (versusRoom ? null : hoverNote) ?? mode.desc}</span>
       </div>
 
       <main ref={stageRef} className="ph-stage" key={enterKey}>

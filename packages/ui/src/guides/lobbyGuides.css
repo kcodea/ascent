@@ -25,6 +25,9 @@ html[data-touch-ui] :is(.guidesbtn, .guidesdock) { --gb-cb: var(--touch-cb); }
 /* A phone in a game (the zoomed stage): above the gear's 66 px square on its design-x offset (touchUi.css). */
 html[data-touch-ui][data-phone-zoom] :is(.guidesbtn, .guidesdock) { --gb-cb: 66px; --gb-r: calc(var(--pz-bxr) + 1920px - 1897px);
   --gb-b: calc(var(--pz-safe-b, var(--safe-b)) + 15px + 66px + 8px); }
+/* The SQUARE follows the gear out to the screen's right safe edge (touchUi.css, R-PHONE-CORNER-WALL-01). The panel keeps
+   its place over the rail column (it is as wide as the rail and must go on covering it in one piece). */
+html[data-touch-ui][data-phone-zoom] .guidesbtn { --gb-r: calc(var(--edge-r) + 15px); }
 /* The phone layout's game screen (phoneLayout.css places the gear in bar px from the top left): the same, as offsets. */
 html[data-phone-layout]:not([data-phone-menus]) :is(.guidesbtn, .guidesdock) { --gb-cb: var(--pl-cb);
   --gb-r: calc(var(--lvw, 100vw) - var(--bar-x) - 2725px * var(--scale) - var(--pl-cb));

@@ -48,7 +48,7 @@ export function HeroSelectWatch(): JSX.Element | null {
       {shown && (
         <HeroSelect
           key={seat}
-          watch={{ frame: frame!, fx: !ownOpen, clock: frame!.mode === 'versus' ? (ownOpen ? 'show' : 'drive') : 'none' }}
+          watch={{ frame: frame!, fx: !ownOpen, clock: frame!.mode === 'versus' ? (ownOpen ? 'show' : 'drive') : 'none', ...(teammate ? { title: "Your Teammate's Heroes" } : {}) }}
         />
       )}
       {/* The teammate's screen wears the team frame, as in the shop (R-DUOS-VIEW-01). */}

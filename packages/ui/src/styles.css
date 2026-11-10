@@ -6243,17 +6243,39 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 .unit.summoned .card { width: var(--cw); animation: summonpop 0.34s ease; }
 /* VERSUS DUOS (R-DUOS-TAGTEAM-01): THE HAND-OFF. When a board falls, the teammate's board FLIES IN after it: each body
    sweeps in from its team's edge of the screen (yours from the left, theirs from the right) with a slight turn, landing
-   on a 60 ms stagger left to right. One-shot, transform / opacity only (compositor), no fill so the lunge's inline
-   transform still owns the unit afterwards. */
-.unit.tagin .card { animation: taginfly 0.52s cubic-bezier(0.22, 1.18, 0.36, 1); }
+   on a 60 ms stagger. One-shot, transform / opacity only (compositor), no fill so the lunge's inline transform still
+   owns the unit afterwards.
+   SPEED-TRUE (R-DUOS-HANDOFF-BEAT-01, 2026-11-10): the flight and the stagger divide by `--combat-speed` (Unit.tsx
+   stamps the live speed on the unit as the entrance starts, as it does for a death), so at 2x and under a Skip the
+   board has landed before the beat that holds it ends. It used to be a fixed 0.52 s + 60 ms a slot against a hold
+   that scaled: at 2x the new board fought while still flying in.
+   ORDER-TRUE: the stagger is each body's TURN off the edge (`tagi-N`, set by the replay from the body's place in the
+   event, mirrored for the other team), never its slot: one body joining six survivors leaves at once, and the foe's
+   nearest body leaves first. choreo/channels/duosHandoff.ts holds the same 520 / 60 (duosHandoff.test.ts pins both). */
+.unit.tagin .card { animation: taginfly calc(0.52s / var(--combat-speed, 1)) cubic-bezier(0.22, 1.18, 0.36, 1) backwards; }
 .zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginflyfoe; }
-.unit.tagin:nth-child(2) .card { animation-delay: 60ms; }
-.unit.tagin:nth-child(3) .card { animation-delay: 120ms; }
-.unit.tagin:nth-child(4) .card { animation-delay: 180ms; }
-.unit.tagin:nth-child(5) .card { animation-delay: 240ms; }
-.unit.tagin:nth-child(6) .card { animation-delay: 300ms; }
-.unit.tagin:nth-child(7) .card { animation-delay: 360ms; }
-.unit.tagin .card { animation-fill-mode: backwards; }
+.unit.tagin.tagi-1 .card { animation-delay: calc(60ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-2 .card { animation-delay: calc(120ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-3 .card { animation-delay: calc(180ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-4 .card { animation-delay: calc(240ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-5 .card { animation-delay: calc(300ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-6 .card { animation-delay: calc(360ms / var(--combat-speed, 1)); }
+/* Reduced motion: the board fades in where it stands (same length, same stagger), no sweep across the screen. */
+@media (prefers-reduced-motion: reduce) {
+  .unit.tagin .card, .zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginfade; animation-timing-function: ease-out; }
+}
+@keyframes taginfade { from { opacity: 0; } to { opacity: 1; } }
+/* A BOARD HAS FALLEN (the beat before the hand-off): one soft dim over the fallen row, placed and timed by
+   choreo/channels/duosHandoff.ts (`dimRow`, its length divided by the fight's speed). A static gradient whose
+   opacity and scale animate once (compositor only); it removes itself. Not drawn under reduced motion. */
+.duosfell { position: fixed; z-index: 60; pointer-events: none; opacity: 0;
+  background: radial-gradient(closest-side, rgba(6, 10, 22, 0.6) 0%, rgba(6, 10, 22, 0.36) 45%, rgba(6, 10, 22, 0.1) 78%, rgba(6, 10, 22, 0) 100%);
+  animation: duosfell 420ms ease-out both; will-change: transform, opacity; }
+@keyframes duosfell {
+  0% { opacity: 0; transform: scale(0.92, 0.78); }
+  32% { opacity: 1; transform: scale(1, 1); }
+  100% { opacity: 0; transform: scale(1.04, 1.1); }
+}
 @keyframes taginfly {
   0% { opacity: 0; transform: translateX(calc(var(--lvw, 100vw) * -0.62)) rotate(-9deg) scale(0.86); }
   70% { opacity: 1; }
@@ -15197,6 +15219,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   pointer-events: none; -webkit-user-drag: none; user-select: none; }
 /* The portrait inside the ring: round, scaled by the tuner's Portrait scale. */
 .pf-on img:not(.pframe) { border-radius: 50%; transform: scale(var(--pf-art, 1)); }
+/* ON A PHONE the disc art is laid out 4x and scaled back by 1/4 from its top left (`html.lite-art .combatopp-img` above,
+   R-PHONE-HERO-LAYER-01). The rule just above has the same weight and comes later, so inside a ring it replaced that 1/4
+   with the tuner's scale alone: the art was drawn four times too big, down and right of an empty ring (the Duos teammate
+   portrait on every phone, R-PHONE-RING-ART-01). Inside a ring the art takes BOTH: the 1/4, times the tuner's scale, kept
+   centred (the 4x box scales from its top left, so the tuner's share is put back as an offset). Static. */
+html.lite-art .pf-on .combatopp-img {
+  transform: translate(calc((1 - var(--pf-art, 1)) * 12.5%), calc((1 - var(--pf-art, 1)) * 12.5%)) scale(calc(0.25 * var(--pf-art, 1)));
+}
 /* The hover scrim follows the portrait art's size (owner 2026-10-28), so it stays a perfect fit inside the ring.
    Its z-index 1 (styles above) keeps it over the art and UNDER the ring (.pframe-box, z2). */
 .pf-on > .herohover { transform: scale(var(--pf-art, 1)); }

@@ -89,7 +89,8 @@ describe('Ranked Duos on the Cloudflare host never hangs (R-VERSUS-CF-CONNECT-01
     await vi.advanceTimersByTimeAsync(2_000);
     // Before R-VERSUS-CF-CONNECT-01 this stayed pending for ever; before R-VERSUS-CF-ONLY-01 the router then made a
     // Supabase room. Now it is a plain failure, and every request went to the Worker.
-    expect(w.state()).toBe('rejected:timeout');
+    // (`network`, not `timeout`: a call nobody answered is one code whatever lost it, R-VERSUS-CF-LOST-CALL-01.)
+    expect(w.state()).toBe('rejected:network');
     expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith('http://worker'))).toBe(true);
   });
 

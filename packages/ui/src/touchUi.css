@@ -247,10 +247,22 @@ html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lby-top
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: calc(56px + var(--edge-r) - var(--bar-x)); --lr-w: 222px; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
 html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
-html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
-html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
+/* OUT TO THE WALL (owner 2026-11-10, R-PHONE-CORNER-WALL-01: "buttons in the corner should go further to the wall"). They sat
+   on the play box's right edge (`--pz-bxr` + 23), which on a phone is well in from the screen's (the box is cropped and
+   centred on the housed span): about 180 layout px of empty ground stood between them and the edge. They now stand off the
+   screen's own right SAFE edge (`--edge-r`: clear of a notch or rounded corner) by the same 15 px they keep above the
+   bottom strip; Compendium one square (66) and its 8 px gap further in. The Guides square above the gear follows
+   (lobbyGuides.css). Every phone game shares these seats. */
+html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--edge-r) + 15px); }
+html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--edge-r) + 15px + 66px + 8px); }
 /* Your Health / Armor plate rides 20 px up onto the ring's lower rim (the phone framing's bottom bound, PHONE_ART_BOTTOM). */
 html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -6.5px; } /* the hero is drawn at 3.1x, so 6.5 local px = 20 box px */
+/* ...and the NAME plate rides up with it (owner 2026-11-10, R-PHONE-HERO-PLATES-01: "name + life plates overlap and dont
+   look good"). The raised Health plate covered the lower half of the name plate, which stayed at its desktop seat. The
+   name plate now sits just above the Health plate, whole, on the lower part of the portrait (the face is higher up):
+   stacked name over Health, as on a desktop. A static offset in the portrait's own px (drawn 3.1 x 1.17 = 3.63x, so
+   7 local px = 25 box px). */
+html[data-touch-ui][data-phone-zoom] .statusbar .hero .heroname { translate: 0 -7px; }
 /* THE HAND (owner 2026-10-24: "they can sit lower and pop up cleanly when highlighted"). The real cards, full plates and
    all, rest LOW: art, cost and Attack / Health on screen at the same bottom margin as the hero ring, every name plate
    running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,

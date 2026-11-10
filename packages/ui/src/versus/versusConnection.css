@@ -1,0 +1,27 @@
+/* ── VERSUS: MY CONNECTION (R-VERSUS-LINK-STATUS-01) ───────────────────────────────────────────────────────────────────
+   A small strip at the top of the screen while my own socket is down: "Reconnecting", then "Connection lost" and what
+   happens next. Clean-cut navy and gold, the docked rail's look (owner 2026-11-02): a flat navy plate, one gold edge,
+   square corners with a single cut, no art. It never takes the pointer, so the shop under it stays fully playable.
+   A socket closed for good (the game is open somewhere else) uses the existing pause panel (`.vsveil` + `.vspanel` and
+   the `.vsplate` buttons, versus.css); nothing new is drawn for it.
+   PERFORMANCE: static paint. The one loop is the dot, opacity only (compositor), and only while the strip is up. */
+.vslink {
+  position: fixed; left: 50%; top: calc(14 * var(--u)); translate: -50% 0; z-index: 390; pointer-events: none;
+  display: flex; align-items: center; gap: calc(10 * var(--u)); max-width: min(calc(0.92 * var(--lvw, 100vw)), calc(760 * var(--u)));
+  padding: calc(9 * var(--u)) calc(18 * var(--u)) calc(9 * var(--u)) calc(14 * var(--u));
+  color: var(--ui-text, #fff1d6); background: linear-gradient(180deg, rgba(13, 22, 40, 0.97), rgba(9, 15, 29, 0.98));
+  border: 0; border-bottom: 2px solid rgba(214, 176, 100, 0.95); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.22);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, calc(12 * var(--u)) 100%, 0 calc(100% - 12 * var(--u)));
+  font-family: var(--font-ui, var(--font-body)), sans-serif; line-height: 1.25;
+  animation: fadein 0.16s ease;
+}
+.vslink-dot { position: relative; flex: none; width: max(8px, calc(10 * var(--u))); height: max(8px, calc(10 * var(--u))); border-radius: 50%; background: rgba(196, 160, 92, 0.35); }
+.vslink-dot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--ui-title, #ffd98a); animation: vslinkdot 1.1s ease-in-out infinite; }
+.vslink.lost .vslink-dot::before { background: #ff9a8a; }
+.vslink-title { flex: none; font-family: var(--font-title, var(--font-body)), sans-serif; font-weight: 800; font-size: max(13px, calc(20 * var(--u))); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ui-title, #ffd98a); }
+.vslink.lost .vslink-title { color: #ffb4a6; }
+.vslink-body { font-weight: 600; font-size: max(12px, calc(16 * var(--u))); color: rgba(255, 255, 255, 0.82); }
+@keyframes vslinkdot { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .vslink, .vslink-dot::before { animation: none; } }
+/* The closed-for-good panel sits over everything a match can show (the pause veil, the end gate). */
+.vsveil.vslink-veil { z-index: 460; }

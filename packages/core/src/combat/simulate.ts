@@ -5889,7 +5889,7 @@ export function simulate(
       // EMISSARY × ANCIENTS (a no-op without them): War fires it `reps` times, Bonds widens it to every minion. The grant
       // itself is `fireUnitedFront`, the one entry point (Death's Avenge calls it too).
       const n = rmods.unitedFront;
-      const shape = rmods.ancientUnitedFront;
+      const shape = rmods.ancientFrontShape;
       for (let r = 0; r < Math.max(1, shape?.reps ?? 1); r++) fireUnitedFront(rside, n, shape?.all);
     }
     if (rmods.runeCenterline) {
@@ -6721,7 +6721,7 @@ export function simulate(
   // count (spells cast this game, this fight's included). Rune of Fury fires it again, like every hero Avenge.
   bus.on('avenge', (payload) => {
     const { side, count } = payload as { side: Side; count: number };
-    const uf = modsFor(side).ancientUnitedFront;
+    const uf = modsFor(side).ancientFrontShape;
     const av = uf?.avenge;
     if (!uf || !av || (av.tick + count) % Math.max(1, av.every) !== 0) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);

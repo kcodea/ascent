@@ -451,9 +451,9 @@
  *  EMISSARY (`vale`, United Front, `unitedFront`, PASSIVE: "Start of Combat: give a friendly minion of each type +1/+1
  *  for every spell cast this game."). United Front has ONE entry point per phase: combat's `fireUnitedFront` (simulate)
  *  and the Shop's `fireShopUnitedFront` (recruit), which reads `ancientUnitedFrontShape`. A Shop fire is a Shop buff:
- *  permanent. The combat halves ride `QuestCombatMods.ancientUnitedFront`.
+ *  permanent. The combat halves ride `QuestCombatMods.ancientFrontShape`.
  *  · `avengeUnitedFront`          each fire is a full United Front. SHOP: `fireShopUnitedFront` right then (permanent);
- *                                 COMBAT: `ancientUnitedFront.avenge`, at the live spell count (a combat buff). (Death)
+ *                                 COMBAT: `ancientFrontShape.avenge`, at the live spell count (a combat buff). (Death)
  *  · `firstShopSpellFree`         the first Shop spell bought each turn costs 0: `ancientEnchantedSpellCut` (the cut both
  *                                 spell buy paths, the coins and the bots already read), counted by `ancientOnBuy`
  *                                 (`valeSpellBuys`, ticked while Ancients are on). (Fortune)
@@ -5599,7 +5599,7 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
   const vw = effectOf(state, 'unitedFrontReps');
   const vb = effectOf(state, 'unitedFrontHitsAll');
   if (vd || vw || vb) {
-    out.ancientUnitedFront = {
+    out.ancientFrontShape = {
       label: ANCIENTS[a.picked].name,
       ...(vd ? { avenge: { every: vd.every, tick, mult: unitedFrontMult(state) } } : {}),
       ...(vw ? { reps: Math.max(1, vw.times) } : {}),

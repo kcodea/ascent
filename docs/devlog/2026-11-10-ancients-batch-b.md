@@ -20,7 +20,7 @@ were written the same day in sibling worktrees; this one merges second.
 | Merrin | Genesis | Pocket Magic queues a spell Discover instead. |
 | Merrin | Time | Every 3rd spell cast (a running count, `batchBSpells`) sets `heroReady`. Combat casts count at settle. |
 | Merrin | Bonds | Every spell cast: one minion of each type +3/+4. Shop: `bannerRecipientsOf`, permanent; combat: `QuestCombatMods.ancientSpellBanners` in `ctx.castSpell`. |
-| Emissary | Death | Hero Avenge (4): United Front. Shop: `fireShopUnitedFront` (permanent); combat: `ancientUnitedFront.avenge` at the live spell count. |
+| Emissary | Death | Hero Avenge (4): United Front. Shop: `fireShopUnitedFront` (permanent); combat: `ancientFrontShape.avenge` at the live spell count. |
 | Emissary | Fortune | The first Shop spell bought each turn costs 0, through `ancientEnchantedSpellCut` (so both buy paths, the coins and the bots agree). Counted by `ancientOnBuy`. |
 | Emissary | War | United Front fires twice (two triggers), both phases. |
 | Emissary | Genesis | Every 5th spell cast: a random Shop spell. Combat pays live (`ancientSpellCountGrant`). |
@@ -38,7 +38,7 @@ were written the same day in sibling worktrees; this one merges second.
 - **United Front has one entry point per phase.** Combat: `fireUnitedFront(side, n, all)` in `simulate.ts` (the Start of
   Combat block and Death's Avenge both call it; `unitedFrontRecipients` is the selection, also used by Merrin × Bonds).
   Shop: `fireShopUnitedFront(st)` in `recruit.ts` (the Start-of-Combat replay list, Death's Shop Avenge, Time's End of
-  Turn). Both read the Ancient shape (`ancientUnitedFront` mod / `ancientUnitedFrontShape`). Anything else that wants
+  Turn). Both read the Ancient shape (`ancientFrontShape` mod / `ancientUnitedFrontShape`). Anything else that wants
   to trigger United Front (batch C's Mimic) should call these.
 - **One End-of-Turn entry for three pairings**: `ancientBatchBEot` (`ancientRunBatchBEot`), the usual virtual recurring
   entry, so Chronos repeats and the End-of-Turn replays treat it like every other recurrence.
@@ -48,7 +48,7 @@ were written the same day in sibling worktrees; this one merges second.
   `powerOverride = { passive: false, untargeted: true, cost }` only while the Shop is at tier 6+, at the pick and at
   the reducer's every-action boundary. Below tier 6 the power is the plain passive, so the button, the coin and the
   reducer's gates stay honest by construction.
-- Three new `QuestCombatMods` fields (`ancientUnitedFront`, `ancientSpellBanners`, `ancientSpellCountGrant`), each in
+- Three new `QuestCombatMods` fields (`ancientFrontShape`, `ancientSpellBanners`, `ancientSpellCountGrant`), each in
   the combat fuzz table.
 
 ## Judgement calls the owner should confirm

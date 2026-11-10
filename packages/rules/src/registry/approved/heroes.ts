@@ -2858,7 +2858,7 @@ export const HEROES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (4): Trigger United Front.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeUnitedFront / batchBShopDeath (fireShopUnitedFront); core simulate.ts (ancientUnitedFront.avenge, fireUnitedFront)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeUnitedFront / batchBShopDeath (fireShopUnitedFront); core simulate.ts (ancientFrontShape.avenge, fireUnitedFront)" },
     ],
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
@@ -2886,7 +2886,7 @@ export const HEROES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"United Front triggers twice.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontReps / ancientUnitedFrontShape; core simulate.ts (ancientUnitedFront.reps)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontReps / ancientUnitedFrontShape; core simulate.ts (ancientFrontShape.reps)" },
     ],
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
@@ -2928,7 +2928,7 @@ export const HEROES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Bonds: \"United Front hits all your minions.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontHitsAll / ancientUnitedFrontShape; core simulate.ts (ancientUnitedFront.all)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts unitedFrontHitsAll / ancientUnitedFrontShape; core simulate.ts (ancientFrontShape.all)" },
     ],
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },

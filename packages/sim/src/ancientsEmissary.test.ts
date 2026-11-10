@@ -80,7 +80,7 @@ describe('Emissary × DEATH: "Avenge (4): Trigger United Front."', () => {
     const fodder = (): BoardCard[] => [card('f', 'sandbag', { attack: 1, health: 1 }), card('m1', 'beatboxer', { attack: 1, health: 5000 })];
     let s = picked('death', { board: fodder() });
     s = { ...s, ancients: { ...s.ancients!, batchBDeaths: 3 } };
-    expect(ancientCombatMods(s).ancientUnitedFront).toEqual({ label: 'Ancient of Death', avenge: { every: 4, tick: 3, mult: 1 } });
+    expect(ancientCombatMods(s).ancientFrontShape).toEqual({ label: 'Ancient of Death', avenge: { every: 4, tick: 3, mult: 1 } });
     s = fightNow(s, 100, 100000);
     expect(frontTriggers(s)).toBe(2);
     expect(frontTriggers(fightNow(picked('fortune', { board: fodder() }), 100, 100000))).toBe(1);
@@ -122,7 +122,7 @@ describe('Emissary × WAR: "United Front triggers twice."', () => {
   it('combat: two Start of Combat triggers, each its own beat', () => {
     const s = picked('war', { board: board() });
     expect(heroPowerText(s)).toBe(`${BASE} It triggers **twice**.`);
-    expect(ancientCombatMods(s).ancientUnitedFront).toEqual({ label: 'Ancient of War', reps: 2 });
+    expect(ancientCombatMods(s).ancientFrontShape).toEqual({ label: 'Ancient of War', reps: 2 });
     const f = fightNow(s);
     expect(frontTriggers(f)).toBe(2);
     expect(frontBuffs(f)).toBe(4); // the first Mech and the Dwarf, twice
@@ -170,7 +170,7 @@ describe('Emissary × TIME: "United Front triggers at End of Turn instead."', ()
   it('End of Turn gives one minion of each type +N/+N permanently, and there is no Start of Combat fire', () => {
     let s = picked('time', { board: board() });
     expect(heroPowerText(s)).toBe(`**End of Turn:** give a friendly minion of each type **+${SPELLS}/+${SPELLS}** permanently (1 per spell cast this game).`);
-    expect(ancientCombatMods(s).ancientUnitedFront).toBeUndefined();
+    expect(ancientCombatMods(s).ancientFrontShape).toBeUndefined();
     s = fightNow(s);
     expect(frontTriggers(s)).toBe(0);
     expect(frontBuffs(s)).toBe(0);
@@ -189,7 +189,7 @@ describe('Emissary × BONDS: "United Front hits all your minions."', () => {
   it('every friendly minion collects at Start of Combat, a second of a type and a typeless one included', () => {
     const s = picked('bonds', { board: board() });
     expect(heroPowerText(s)).toBe(`**Start of Combat:** give your minions **+${SPELLS}/+${SPELLS}** (1 per spell cast this game).`);
-    expect(ancientCombatMods(s).ancientUnitedFront).toEqual({ label: 'Ancient of Bonds', all: true });
+    expect(ancientCombatMods(s).ancientFrontShape).toEqual({ label: 'Ancient of Bonds', all: true });
     const f = fightNow(s);
     expect(frontTriggers(f)).toBe(1);
     expect(frontBuffs(f)).toBe(4);

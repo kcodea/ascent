@@ -2296,7 +2296,7 @@ export interface QuestCombatMods {
    *  Front"): a hero Avenge on ONE running count across Shop and combat (`tick` carried in); each fire is a full United
    *  Front at the LIVE spell count (`spellTotals` x `mult`, Rune of Wishbone's doubling). Rune of Fury fires it again.
    *  Player-only; never snapshotted. */
-  ancientUnitedFront?: { reps?: number; all?: boolean; avenge?: { every: number; tick: number; mult: number }; label: string };
+  ancientFrontShape?: { reps?: number; all?: boolean; avenge?: { every: number; tick: number; mult: number }; label: string };
   /** MERRIN × ANCIENT OF BONDS (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat spell
    *  cast (`ctx.castSpell`, once per repetition) buffs one living friendly minion of each type (United Front's
    *  selection: All-types bodies always collect). A combat buff. Player-only. */

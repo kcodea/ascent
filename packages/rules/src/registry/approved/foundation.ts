@@ -14602,4 +14602,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A spectator sends a 200-character message: three bubbles pop in a beat apart down the side of their row, and the second and third tails curve back up to the first one\'s tip.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyChat/chatSplit.test.ts', 'packages/ui/src/lobbyChat/chatBubbleReach.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-COMPENDIUM-TAB-01',
+    title: 'Tab opens and closes the Compendium on the menus and in a game',
+    statement:
+      'Pressing Tab opens the Compendium and pressing it again closes it, one press at a time, on every menu screen (the party home and its pages) '
+      + 'and in a game, in the desktop app as in the browser. It does nothing during hero select, and a text field that is being typed in keeps Tab for itself.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, Claude Code session 2026-11-09', quote: 'when i press tab in the exe verison of the game, the compendium doesnt come up, at least while on the main menu screen' },
+      { kind: 'fix-pr', ref: 'fix/tab-compendium-menus: packages/ui/src/compendiumHotkey.ts (onCompendiumTab), Game.tsx, partyHome/pages/PhCompendium.tsx' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-09 (fix/tab-compendium-menus). Before, the Tab listener stood down whenever the party home shell was up, so once the shell became the production UI Tab did nothing on any menu of the desktop app.',
+    example: 'On the party home, press Tab: the Compendium opens. Press Tab again: it closes and the party home is back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumHotkey.test.ts'], lastVerifiedAt: '2026-11-09' },
+  },
 ];

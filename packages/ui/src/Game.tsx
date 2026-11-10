@@ -67,6 +67,7 @@ import { ensureDefsReady } from './fx/playDef';
 import { installNoNativeTooltips } from './noNativeTooltips';
 import { BugReportModal } from './bug-report/BugReportModal';
 import { installBugReportHotkey } from './bug-report/bugReportHotkey';
+import { installCompendiumHotkey } from './compendiumHotkey';
 import { PerfHud } from './PerfHud';
 import { phaseStartBetween } from './perfWarmup';
 import { uploadRun } from './perfCloud';
@@ -609,21 +610,8 @@ export function Game() {
   // TOUCH (owner ask 2026-09-26): a finger tap reaches everything a mouse hover reaches; tap-away closes it.
   useEffect(() => installTouchInput(), []);
 
-  // Tab toggles the Compendium — from the title (browse the whole set) or in a run (scoped to it). Not
-  // during hero select. `preventDefault` stops the browser's focus-cycling.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      const st = useGame.getState();
-      if (st.heroChoices) return;
-      // THE PARTY HOME PROTOTYPE's SHELL (DEV switch): on the menus Tab moves keyboard focus (the Compendium is a nav tab).
-      if (document.documentElement.hasAttribute('data-ph-shell')) return;
-      e.preventDefault();
-      st.toggleBook();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // Tab toggles the Compendium, on the menus and in a run (R-COMPENDIUM-TAB-01).
+  useEffect(() => installCompendiumHotkey(), []);
 
   return (
     <ErrorBoundary>

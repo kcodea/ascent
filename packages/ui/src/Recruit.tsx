@@ -286,6 +286,7 @@ import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
 import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
+import { useDuosViewingClass } from './duosViewing';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, spectatorStrikeLanded, spectatorStrikeStarted, takeSpectatorResume, useSpectate } from './versus/spectate';
 import { useReplayStream } from './replay/replayStreamPlayer';
@@ -5051,7 +5052,7 @@ export function Recruit() {
           // The coin only when Gold was paid (Brian's Pal's free pass sends none, R-DUOS-CARDS-01).
           const paid = useGame.getState().run.duos?.outbox[sent]?.paid ?? 1;
           playDrop({ from, zoom, plate, to: door?.getBoundingClientRect() ?? mateRect, face: dc?.querySelector<HTMLElement>('.dragshrink > .card') ?? dc?.querySelector<HTMLElement>('.card') ?? null, coin: paid > 0, onLand: () => catchPulse(door) });
-          sfx.sell?.();
+          // (The pass's own send cue plays inside `playDrop`: it used to ring the SELL sound here.)
           endSession();
           return;
         }
@@ -9288,6 +9289,7 @@ const ShopControls = memo(function ShopControls({
   onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
   onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
 }) {
+  const mateView = useDuosViewingClass(); // the action tray dims while I watch my Duos teammate (duosViewing.ts)
   const combatGateOpen = endCombatReady({ replayDone, replayResult, sandboxReplay, strikePhase: lossPhase, combatSettled });
   // SKIP lives on the diamond (R-SKIP-DIAMOND-01, owner ask 2026-10-22): from the moment the fight starts until
   // Skip is pressed or the replay ends, the diamond glows yellow and skips; then it is End Combat as before.
@@ -9316,7 +9318,7 @@ const ShopControls = memo(function ShopControls({
         {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
             mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
-        <div className="shoprow actiontray">
+        <div className={`shoprow actiontray${mateView}`}>
           {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
               (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
           {/* Freeze moved out of the tray to the board's TOP-RIGHT, opposite the Tavern stone — see

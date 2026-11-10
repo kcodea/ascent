@@ -4,6 +4,8 @@ import { AncientMeter, AncientPill, AncientSplit } from './ancients/AncientMeter
 import { AncientGate } from './ancients/AncientGate';
 import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
+import { magicHatBadge } from './magicHatUi';
+import { activePowerPayout, passivePowerReady } from './powerArmedUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
@@ -145,6 +147,7 @@ function heroPowerTallyOf(
     case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal
     case 'soulbind': return `${Math.max(0, 3 - uses)} left`; // Sable
     case 'baldgecoin': return `${run.jugglerBuys ?? 0}/${ancientCoinNeed(run)}`; // Juggler (Ancient of Genesis: every 2)
+    case 'magicHat': return magicHatBadge(run)?.tally ?? null; // Magician: buys toward the hat (R-DUOS-MAGICIAN-01)
     case 'commission': return run.commission ? `${Math.max(0, run.commission.dueWave - run.wave)}t` : null; // Cassen
     case 'crownTally': return `${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`; // Keshi
     // Aevor — kills toward the next +4/+4 step, climbing live via `combatEnemyDeaths`; below 15 it counts to the UNLOCK.
@@ -705,6 +708,18 @@ export function StatusBar() {
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
     !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
     !(power.kind === 'passaria' && !passariaHasTarget(run)); // Priestess: no teammate, or nothing she may pass
+  // MAGICIAN'S MAGIC HAT (owner 2026-11-10, R-DUOS-MAGICIAN-01): a PASSIVE power that still calls out. While the hat is
+  // active in the Shop the panel and the button wear the existing `ready` classes (the READY CALL, as authored) on top of
+  // `passive`, and keep them until the next buy sends the copy. Never in combat (`hat.ready` is Shop only), and never
+  // while this turn's two copies are spent. The same component renders my teammate's view of my board, so they see it too.
+  const hat = magicHatBadge(run);
+  // THE SAME CALL FOR EVERY COUNTING PASSIVE (owner 2026-11-10: "perfect, add it to those too"): Re-Pete, Gorr, Juggler,
+  // Pete, Ayse and Drakko wear it through the one shared predicate the hat now reads too (`passivePowerReady`): armed =
+  // "your next action, or the end of this turn, fires this power". It follows the HELD power (Mimic, Power Shifter).
+  const passiveReady = passivePowerReady(run, 0) && !eotAnimating;
+  // QUILLEN (owner 2026-11-10: "add it to quillen when his is at 2/3 too"): a pressable power already wears the ready call
+  // at every count, so "the next press pays out" is carried by the counter pill reading gold (colour only).
+  const payout = activePowerPayout(run, 0, canHero);
   // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
   // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
   // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
@@ -744,7 +759,9 @@ export function StatusBar() {
                 ? `${power.name} · ${run.wave % 4 === 0 ? 'this turn' : `in ${4 - (run.wave % 4)}t`}`
                 : power.kind === 'crownTally'
                   ? `${power.name} · ${run.keshiTierPoints}/${KESHI_CROWN_THRESHOLD}`
-                  : `${power.name} · passive`
+                  : hat
+                    ? `${power.name} · ${hat.status}`
+                    : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked
@@ -807,8 +824,23 @@ export function StatusBar() {
     pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
   }, [run.heroReady, run.heroPowerSpent, run.phase]);
 
+  // MAGICIAN (R-DUOS-MAGICIAN-01): the copy just left (this turn's sent count rose in the Shop): the same activation
+  // burst a used power sprays, so the send is attributed to the hat as well as to the stream from the bought card.
+  const hatSent = hat && run.magicHatSentWave === run.wave ? run.magicHatSent ?? 0 : 0;
+  const prevHatSent = useRef(hatSent);
+  useEffect(() => {
+    const rose = hatSent > prevHatSent.current;
+    prevHatSent.current = hatSent;
+    if (!rose || run.phase !== 'recruit') return;
+    const el = document.querySelector('.heropowerbtn');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
+  }, [hatSent, run.phase]);
+
   const [refreshFlash, setRefreshFlash] = useState(false);
-  const flashSignal = canHero && run.phase === 'recruit';
+  // (`passiveReady`: a passive power turning armed blooms once, exactly as a power coming back up does.)
+  const flashSignal = (canHero || passiveReady) && run.phase === 'recruit';
   const prevFlashSignal = useRef(false);
   const flashTimerRef = useRef<number | undefined>(undefined);   // see below — must outlive the effect
   useEffect(() => {
@@ -958,13 +990,14 @@ export function StatusBar() {
             (dimmed, no glow, not clickable). The button keeps the `.heropowerbtn` class so Recruit's aim line
             still anchors to it. Clicking the frame does nothing — this button is the ONLY trigger. */}
         <div
-          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${passiveReady ? ' ready' : ''}`}
+          data-hat={hat ? (hat.active ? 'active' : hat.capped ? 'capped' : 'counting') : undefined}
         >
           <div className="hpwrap">
             <button
               ref={powerBtnRef}
               type="button"
-              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
+              className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${passiveReady ? ' ready' : ''}${committed ? ' committed' : ''}`}
               data-spec="heropower" // the spectator cursor / hover anchor (versus/cursorSpace.ts)
               disabled={isPassive || (!canHero && !heroArmed)}
               // The forge rune this slot wears (R-RUNESLOT-01): it has no rack badge, so the rune FX anchors
@@ -1028,7 +1061,7 @@ export function StatusBar() {
               : dieRoll != null ? null
                 : clearanceUses != null
                   ? <span key={`cu${clearanceUses}`} className="hpb-tally clearance-uses" data-testid="clearance-uses">{clearanceUses}</span>
-                  : powerTally ? <span key={powerTally} className="hpb-tally hpb-pill">{powerTally}</span> : null}
+                  : powerTally ? <span key={powerTally} className={`hpb-tally hpb-pill${payout ? ' payout' : ''}`}>{powerTally}</span> : null}
             {dieRoll && (
               <DiceRoll
                 result={dieRoll.result}
@@ -1207,15 +1240,18 @@ export function StatusBar() {
             && (!liveCost2 || run.embers >= liveCost2) && diceLock2 === 0
             && !(p2.kind === 'commission' && !!run.commission);
           const armed2 = heroArmed && heroArmedSlot === 1;
+          // A PASSIVE second power (Void) wears the same armed call as the main one (`passivePowerReady`, slot 1).
+          const passiveReady2 = passive2 && passivePowerReady(run, 1) && !eotAnimating;
+          const payout2 = activePowerPayout(run, 1, ready2);
           const art2 = run.voidPowerIds?.[1] ? heroPowerArt(run.voidPowerIds[1]) : undefined;
           return (
-            <div className={`heropanel heropanel2${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}>
+            <div className={`heropanel heropanel2${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}${passiveReady2 ? ' ready' : ''}`}>
               {/* The SAME `.hpwrap` wrapper the main power uses — its absolutely-positioned pill / centre /
                   cost only pick up their styling under `.hpwrap`, so without it the second power's tracker
                   rendered as bare static text (owner bug 2026-08-25). Keeps the two powers 1:1. */}
               <div className="hpwrap" data-ping={PING_HEROPOWER2}>
               <button
-                className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
+                className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}${passiveReady2 ? ' ready' : ''}`}
                 data-spec="heropower2" // the spectator cursor / hover anchor
                 disabled={passive2 || (!ready2 && !armed2)}
                 aria-label={`${p2.name}: ${renameTerms(heroPowerText(run, 1, heroPowerLive)).replace(/\*\*/g, '')}`}
@@ -1239,7 +1275,7 @@ export function StatusBar() {
               {/* Cost coin, tracker pill and centre magnitude — the same three the main power shows, from
                   slot-1 state. `liveCost2` (not `p2.cost`) so an escalating/shrinking cost reads its live price. */}
               {liveCost2 ? <span className="hpcost"><span className="costn">{liveCost2}</span></span> : null}
-              {tally2 ? <span key={tally2} className="hpb-tally hpb-pill">{tally2}</span> : null}
+              {tally2 ? <span key={tally2} className={`hpb-tally hpb-pill${payout2 ? ' payout' : ''}`}>{tally2}</span> : null}
               {center2 && <span key={center2} className="hpb-tally hpb-center">{center2}</span>}
               </div>
               <div className="hplabel">{p2.name}</div>

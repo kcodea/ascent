@@ -8,7 +8,7 @@
  * samples, so the seating handler fills the table with generated teams.
  */
 import type { RankedService } from './core/rankedMatch';
-import type { PersistEnv } from './persist';
+import { SUPABASE_READ_TIMEOUT_MS, type PersistEnv } from './persist';
 
 export class SupabaseRankedService implements RankedService {
   constructor(private readonly url: string, private readonly anonKey: string, private readonly secret: string) {}
@@ -18,6 +18,8 @@ export class SupabaseRankedService implements RankedService {
       method: 'POST',
       headers: { apikey: this.anonKey, Authorization: `Bearer ${this.anonKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ p_key: this.secret, p_kind: kind, p_args: args }),
+      // R-VERSUS-CF-FETCH-TIMEOUT-01: a hung read fails (and is retried by the room) instead of holding the table.
+      signal: AbortSignal.timeout(SUPABASE_READ_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`versus_cf_ranked ${kind} ${res.status}: ${(await res.text()).slice(0, 200)}`);
     return (await res.json()) as T;

@@ -15,7 +15,7 @@
  * by, once per screen change and on a resize (never per frame), and writing the row's place to three CSS variables on the
  * root (`--bl-l`, `--bl-b`, `--bl-cb`, stage px). The toast and the Friends panel hang off the same numbers.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { anyPageOpen, useGame } from '../../store';
 import { stageHost, toStage } from '../../stage';
 
@@ -98,15 +98,25 @@ export function writeBlAnchor(a: BlAnchor | null): void {
 }
 
 /** Which screen is up: the key the row re-measures on (a primitive, so the hook re-runs only when it changes). */
-const screenKey = (s: ReturnType<typeof useGame.getState>): string =>
-  `${s.showTitle ? 't' : ''}${anyPageOpen(s) ? 'p' : ''}${s.gameMenuOpen ? 'm' : ''}${s.heroChoices !== null ? 'h' : ''}${s.titleView}|${s.run.runId ?? ''}|${s.replaying ? 'r' : ''}`;
+export const screenKey = (s: ReturnType<typeof useGame.getState>): string =>
+  `${s.showTitle ? 't' : ''}${anyPageOpen(s) ? 'p' : ''}${s.gameMenuOpen ? 'm' : ''}${s.heroChoices !== null ? 'h' : ''}${s.titleView}|${s.replaying ? 'r' : ''}`;
+
+/** Ms after a screen change (or a run swap) at which the row is measured once more, with the screen settled. */
+export const BL_SETTLE_MS = 400;
 
 /**
  * Keeps the row in place (mounted once, by the always-on FriendsDock): measures on a screen change (and again after the
  * sidebar's slide-in / the page hop settle), and on a resize. Layout reads only on those events.
+ *
+ * A RUN SWAP ALONE IS NOT A SCREEN CHANGE (the Duos audit of 2026-11-09): the run's id used to be part of the key, so the
+ * Duos teammate-view swap (my run out, my teammate's in: the same game screen, the hero slot in the same place) measured
+ * inside the swap's own commit, a forced style + layout of the whole new screen (11 ms a swap on desktop, 190 ms on the
+ * throttled phone profile). A new run under an unchanged screen now gets ONE check once the screen has settled
+ * (`BL_SETTLE_MS`), where the layout is clean and the read is free; a real screen change measures at once, as before.
  */
 export function useBottomLeftAnchor(): void {
   const key = useGame(screenKey);
+  const runId = useGame((s) => s.run.runId ?? '');
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     let raf = 0;
@@ -120,9 +130,27 @@ export function useBottomLeftAnchor(): void {
       if (!a && tries++ < 20) raf = requestAnimationFrame(run);
     };
     run();
-    const late = window.setTimeout(() => { tries = 20; run(); }, 400);
+    const late = window.setTimeout(() => { tries = 20; run(); }, BL_SETTLE_MS);
     const onResize = (): void => { cancelAnimationFrame(raf); tries = 20; raf = requestAnimationFrame(run); };
     window.addEventListener('resize', onResize);
     return () => { cancelAnimationFrame(raf); window.clearTimeout(late); window.removeEventListener('resize', onResize); };
   }, [key]);
+  // The run changed under the same screen: one settled check, never a read inside the swap's commit.
+  const seenRun = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const firstRun = seenRun.current === null;
+    seenRun.current = runId;
+    if (firstRun) return undefined; // the mount: the screen effect above has measured
+    let raf = 0;
+    let tries = 0;
+    const run = (): void => {
+      if (document.documentElement.hasAttribute('data-ph-shell')) { writeBlAnchor(null); return; }
+      const a = measure();
+      writeBlAnchor(a);
+      if (!a && tries++ < 20) raf = requestAnimationFrame(run);
+    };
+    const late = window.setTimeout(run, BL_SETTLE_MS);
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(late); };
+  }, [runId]);
 }

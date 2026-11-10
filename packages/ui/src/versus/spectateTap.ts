@@ -235,11 +235,8 @@ export function setSpectatorTap(on: boolean, mySeat: VersusGroupSeat | null, sen
   seat = mySeat;
   if (want === watching) return;
   watching = want;
-  if (want) {
-    unsubCursor = subscribeCursor(sendCursor);
-  } else {
-    unsubCursor?.();
-    unsubCursor = null;
+  syncCursor();
+  if (!want) {
     acts = [];
     if (flushTimer != null) window.clearTimeout(flushTimer);
     flushTimer = null;
@@ -249,5 +246,25 @@ export function setSpectatorTap(on: boolean, mySeat: VersusGroupSeat | null, sen
   }
 }
 
+/**
+ * THE CURSOR STREAM, ONLY WHILE SOMEONE CAN SEE IT (R-DUOS-CURSOR-GATE-01, netcode audit F17 / runtime audit D8). The tap
+ * is always on in Duos (my teammate's portrait reads my frames all game), and the cursor rode along with it: 20 messages
+ * a second for as long as my mouse moved, to a teammate who only draws it while they have my screen open. The cursor is
+ * now its own switch: on while the stands hold anyone, or while my teammate says they are viewing me. Default on, so a
+ * publisher that never sets it (a live lobby game) streams exactly as before.
+ */
+let cursorWanted = true;
+export function setSpectatorCursor(on: boolean): void {
+  if (cursorWanted === on) return;
+  cursorWanted = on;
+  syncCursor();
+}
+function syncCursor(): void {
+  const want = watching && cursorWanted;
+  if (want && !unsubCursor) unsubCursor = subscribeCursor(sendCursor);
+  else if (!want && unsubCursor) { unsubCursor(); unsubCursor = null; }
+}
+
 /** For the tests. */
 export const spectatorTapOn = (): boolean => watching;
+export const spectatorCursorOn = (): boolean => unsubCursor != null;

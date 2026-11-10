@@ -101,3 +101,34 @@ describe('R-DUOS-MATE-READY-01: the teammate readying up on the Docked rail', ()
     expect(kf).not.toMatch(/filter|box-shadow|background/);
   });
 });
+
+// R-DUOS-VIEW-YOU-01 (the Duos tour of 2026-11-09): while I watch my teammate the rail is drawn from THEIR run, whose own
+// seat (s0) is theirs and whose teammate seat (s1) is mine. The "You" chip sat on the teammate's plate.
+describe('R-DUOS-VIEW-YOU-01: "You" stays on my plate while I watch my teammate', () => {
+  it('on my own board: You on s0, the teammate look on s1', () => {
+    const c = show(match(false));
+    expect(c.querySelector('.lobbyseat.you')?.getAttribute('data-seat')).toBe('s0');
+    expect(c.querySelector('.lrv-you')?.closest('.lobbyseat')?.getAttribute('data-seat')).toBe('s0');
+    expect(c.querySelector('.lobbyseat.mate')?.getAttribute('data-seat')).toBe('s1');
+  });
+  it('watching my teammate: You (chip and edge) is on s1, my plate there; their plate wears the teammate look; one chip only', async () => {
+    const { useSpectate } = await import('./versus/spectate');
+    const c = show(match(false));
+    act(() => { useSpectate.setState({ teammate: true }); });
+    try {
+      expect(c.querySelectorAll('.lrv-you')).toHaveLength(1);
+      expect(c.querySelector('.lrv-you')?.closest('.lobbyseat')?.getAttribute('data-seat')).toBe('s1');
+      expect(c.querySelector('.lobbyseat.you')?.getAttribute('data-seat')).toBe('s1');
+      expect(c.querySelector('.lobbyseat[data-seat="s0"]')?.classList.contains('you')).toBe(false);
+      expect(c.querySelector('.lobbyseat.mate')?.getAttribute('data-seat')).toBe('s0');
+    } finally { act(() => { useSpectate.setState({ teammate: false }); }); }
+    expect(c.querySelector('.lrv-you')?.closest('.lobbyseat')?.getAttribute('data-seat')).toBe('s0'); // back on my own board
+  });
+  it('not a Duos seat (a spectator, a solo lobby): the run\'s own seat keeps it', async () => {
+    const { railWearsYou } = await import('./LobbyPanel');
+    expect(railWearsYou(true, 's0', true, null)).toBe(true);
+    expect(railWearsYou(false, 's1', true, null)).toBe(false);
+    expect(railWearsYou(false, 's1', true, 's1')).toBe(true);
+    expect(railWearsYou(true, 's0', false, 's1')).toBe(true);
+  });
+});

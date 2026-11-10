@@ -57,6 +57,7 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-10',
+    label: 'Duos update',
     changes: [
       {
         category: 'Balance',
@@ -68,6 +69,73 @@ export const PATCH_NOTES: PatchNote[] = [
           'Pete: an Avenge for free Refreshes, a free Refresh for buying the Contrabanana minion, a random keyword on it, two Contrabanana minions, a Contrabanana every 2 Refreshes, and Contrabanana minions of your most common type.',
           'Foreman Flint: an Avenge for Dwarves, a free Dwarf each turn, a Start of Combat buff for your Dwarves, a first Refresh full of Dwarves, an End of Turn buff for each Dwarf bought, and a buff to your other Dwarves when you buy one.',
           'Juggler: an Avenge for Carnival Coins, 3 Gold Coins, Coins that improve as you cast them, a Coin every 2 buys, Coins for your first 2 buys each turn, and double counting for your most common type.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Duos fixes: on a phone, one tap on "Back to your board" now brings you back, and your teammate portrait shows their hero. Several Duos screens and texts were corrected.',
+        details: [
+          'Phones: a tap on "Back to your board" no longer puts you straight back on your teammate\'s board.',
+          'Phones: the teammate portrait shows the hero inside its ring. It was an empty ring.',
+          'Phones: the Guides, Compendium and Settings buttons now sit against the right edge of the screen, in every mode.',
+          'Phones: the teammate portrait sits just left of those buttons.',
+          'Phones: your hero name and your Health plate no longer overlap. The name sits just above the Health plate.',
+          'Concede now says what it costs in the mode you are in. In Versus Duos your whole team goes out. In Ranked Duos you leave for good and your teammate plays on.',
+          'The Pass keyword text is correct: you can pass a Gilded minion from your hand. Only spells that pass cannot target one.',
+          'Party screen: the mode description is no longer drawn on top of your team name.',
+          'Tag-team fights: your teammate\'s portrait now sits whole on screen at the top left of your hero, clear of your hero\'s face and name.',
+          'Hero select: your teammate\'s choices are titled "Your Teammate\'s Heroes", and the screen no longer shifts when you swap between their heroes and yours.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Versus and Duos handle a bad connection better: a short drop no longer costs you the round, and the game now tells you when you are reconnecting.',
+        details: [
+          'Ranked Duos: a drop of a few seconds no longer counts as being away. Your teammate ending the turn waits for you for up to 12 seconds.',
+          'If you are away when a round closes, your side fights with your newest board, not the one from the turn before.',
+          'A small "Reconnecting" notice shows when your own connection drops, then "Connection lost" with what happens next.',
+          'Opening the game in a second tab or window now says so in the first one, with Play here and Back to menu.',
+          'A card passed to a teammate who dropped comes back to you with its Gold if they do not return.',
+          'Coming back to the game from another app or tab reconnects faster.',
+          'A Ranked Duos rating that is slow to save now says it is still saving.',
+        ],
+      },
+      { category: 'Systems', text: 'Fixed: in Duos, holding Tab to peek at your teammate no longer opens the Compendium at the same time.' },
+      { category: 'Systems', text: 'Fixed: in Duos, the "You" badge on the rail stays on your own plate while you watch your teammate.' },
+      {
+        category: 'Systems',
+        text: 'Duos fights and team moments now have their own sounds and effects.',
+        details: [
+          'When a board falls and your teammate tags in, you hear it and see it. The new board lands with dust, a slam and a shake.',
+          'The tag-in now keeps up at 2x speed and when you skip. The new board no longer fights while it is still flying in.',
+          'The last 5 seconds before the next shop opens now tick down out loud.',
+          'In Ranked Duos, the wait after 0:00 now shows how many seconds are left.',
+          'Passing a card has its own sound. Sending and receiving sound different.',
+          'The announcer now speaks in Ranked Duos for knockouts, the final fight and your result.',
+          'Your team going out and your team result now show both of you together.',
+          'Soft sounds were added for viewing your teammate, a teammate joining, and the round locking in.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Seven hero powers now tell you when they are about to pay out. Re-Pete, Gorr, Juggler, Pete, Ayse and Drakko glow when your next action, or the end of this turn, fires the power. The counter on Quillen turns gold when the next Archive fills it.',
+        details: [
+          'Re-Pete glows on the turn Second Hand fires, while it has a card to copy.',
+          'Gorr glows at 2 minions bought this turn. Juggler glows at 2 of 3. Ayse glows at 2 of 3 Enchanted cards.',
+          'Pete glows when your next refresh is the third one.',
+          'Drakko glows at 4 of 5 Shout minions. It stops for good once Drakko joins you.',
+          'The glow goes out the moment the power fires. It never shows in combat.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'New Duos hero: Magician. After you buy 5 cards, the Magic Hat activates. The next card you buy, your teammate gets a copy.',
+        details: [
+          'Magician starts with 8 Armor and only appears in Versus Duos and Ranked Duos.',
+          'Minions and spells bought from the Shop count. The count carries over between turns.',
+          'The copy is the card as you bought it, and it is free for both of you. If your teammate\'s hand is full, it waits for room.',
+          'The hat sends at most 2 copies per turn. After that your buys still count up to 5, and the hat is active at the start of your next turn.',
+          'The power shows its count, and glows while the hat is active.',
         ],
       },
     ],

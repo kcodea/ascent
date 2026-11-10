@@ -34,6 +34,7 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
+import { magicHatBuy, restoreMagicHatSend } from './magicHat';
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
@@ -662,6 +663,15 @@ const onScreenUids = (s: RunState): Set<string> => new Set([...s.hand, ...s.boar
 function restoreEffectPass(state: RunState, a: Extract<Action, { type: 'restoreEffectPass' }>): RunState {
   if (!state.duos) return state;
   const s = duosDraft(state);
+  // A MAGIC HAT COPY (R-DUOS-MAGICIAN-01): the Magician kept the card they bought, so nothing leaves. The copy the
+  // teammate holds counts against this turn's cap again and the hat starts over; the entry is put back as delivered.
+  if (a.hat) {
+    const def = CARD_INDEX[a.cardId];
+    if (!def || !restoreMagicHatSend(s)) return state;
+    const card: BoardCard = { uid: a.uid, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false };
+    s.duos!.outbox.push({ seq: s.duos!.outbox.length, wave: s.wave, card, from: 'hand', index: -1, paid: 0, via: 'sale', hat: true, restored: true });
+    return s;
+  }
   const power = a.power != null ? { slot: a.power, paid: a.paid ?? 0 } : undefined;
   const bi = s.board.findIndex((c) => c.uid === a.uid && c.cardId === a.cardId);
   if (bi >= 0) {
@@ -1684,7 +1694,8 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
     }
     const next = receiveDuosPass(state, action.from, action.seq, action.card);
     // A card the teammate passed LANDED: your team passed a card (Hitchhiker, `teamPassedCard`, R-DUOS-CARDS-01).
-    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`)) {
+    // (A Magic Hat copy, `passHat`, is a copy, not a pass: no pass watcher hears it. R-DUOS-MAGICIAN-01.)
+    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`) && (action.card as { passHat?: unknown }).passHat !== true) {
       fireTeamPassTriggers(next, { mine: false, cardId: action.card.cardId });
     }
     // A PASSED CARD CAN COMPLETE A TRIPLE (owner 2026-10-29: "passing needs to check for triples"; R-DUOS-PASS-06): the
@@ -1860,6 +1871,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           keywords: [...spellDef.keywords],
           golden: false,
         });
+        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null, action.uid); // Magician: a bought spell counts, and is copied by an active hat
         // Croupier Ayse: an Enchanted slot spell advances her prize counter too (owner 2026-08-22: the slot rolls for the
         // mark). It never did: the slot was the one buy path without this call (R-LUCKYSEAT-01). After the push, so a
         // prize that lands in hand sees the real hand.
@@ -1887,6 +1899,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (offer.cartCut) for (const o of s.shop) o.cartCut = undefined; // Spell Cart: the first buy spends the cut
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
+        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null, action.uid); // Magician: same for a spell bought out of the minion row
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
         // and `spellBought` must fire from both. It only fired from the slot, so Moonhowl Mentor silently did
@@ -1933,6 +1946,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         tiffBuyDiscount(s, card);
         gorrQuestBuy(s, card);
         jugglerBuy(s, offer.cardId);
+        magicHatBuy(s, null); // Magician: a Starform is a card bought (it counts), but leaves no body to copy
         keshiCrownBuy(s, card);
         return s;
       }
@@ -1955,6 +1969,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
         jugglerBuy(s, offer.cardId);
+        magicHatBuy(s, restored, action.uid); // Magician: a re-bought displaced minion is a card bought (before the triple check folds it)
         checkTriples(s); // a restored copy can still complete a triple
         keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
         // so a buy that completes a triple (3→1) frees hand space before the guard checks it (owner report: a
@@ -2096,6 +2111,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
       jugglerBuy(s, offer.cardId);
+      // Magician (Magic Hat, R-DUOS-MAGICIAN-01): the buy counts; an active hat sends the teammate a copy of the card as
+      // it was bought. BEFORE checkTriples, so a buy that completes a triple still copies the plain card that was bought.
+      magicHatBuy(s, bought, action.uid);
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown — AFTER checkTriples, so a
       // buy that completes a triple (3→1) frees hand space before the full-hand guard checks it
@@ -4014,7 +4032,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
         || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
         || power.kind === 'vanguard' || power.kind === 'luckySeat' || power.kind === 'exhibition'
-        || power.kind === 'startingReflector'
+        || power.kind === 'startingReflector' || power.kind === 'magicHat'
         // `heroQuest` (Fi / Coran) joined this list on 2026-08-28 with the quest archive. It was always a
         // start-of-run passive and always belonged here; the omission was masked because both heroes opened
         // the run holding a quest modal, and `modalOpen` refused the click before it could reach this chain.

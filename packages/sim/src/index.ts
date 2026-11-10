@@ -18,6 +18,8 @@ export * from './contribution';
 export * from './reducer';
 export { DUOS_PASS_GOLD, DUOS_TEAM_WIRE_ID, duosPassBlocked, duosPassCost, duosFreePassesOf, duosFreeKind, duosWaitingCount, landWaitingPasses, duosWireCard, duosWireOf, isDuosTeamWire, type DuosRunState, type DuosOutboxEntry, type DuosPassSource } from './duosPass'; // VERSUS DUOS passing (R-DUOS-PASS-01) + the Duos-only cards' team channel (R-DUOS-CARDS-01)
 export { duosRuneTally, duosCatchAllowance, duosCatchUsed, type DuosRuneState, type DuosRuneMeter } from './duosRunes'; // the Duos-only runes (R-DUOS-RUNES-01)
+export { MAGIC_HAT_BUYS, MAGIC_HAT_PER_TURN, magicHatView, magicHatSentThisTurn, type MagicHatView } from './magicHat'; // Magician's Magic Hat (Duos only, R-DUOS-MAGICIAN-01)
+export { heroPowerArmed } from './powerArmed'; // "the next action, or the end of this turn, fires this power" (the armed glow)
 export { mostCommonTribe, mostCommonMateTribe, mateTribeCounts, runReadsMateTribes, passMinionToTeammate, passariaTarget, passariaHasTarget, effectPassCard, applyOwnTeamEffect } from './recruit'; // DUOS-ONLY CARDS: the team primitives (R-DUOS-CARDS-01)
 export * from './shopClock';
 export * from './preparedAction';

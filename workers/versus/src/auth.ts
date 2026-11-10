@@ -44,7 +44,8 @@ const b64urlJson = (s: string): Record<string, unknown> => JSON.parse(new TextDe
 
 async function jwks(url: string, force: boolean): Promise<Jwk[]> {
   if (!force && jwksCache && jwksCache.url === url && Date.now() - jwksCache.at < JWKS_TTL_MS) return jwksCache.keys;
-  const res = await fetch(url);
+  // R-VERSUS-CF-FETCH-TIMEOUT-01 (5 s, `SUPABASE_READ_TIMEOUT_MS`): a hung key read fails this connect, never holds it.
+  const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
   if (!res.ok) throw new Error(`jwks ${res.status}`);
   const body = (await res.json()) as { keys?: Jwk[] };
   jwksCache = { url, at: Date.now(), keys: body.keys ?? [] };

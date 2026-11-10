@@ -22,6 +22,7 @@
  *
  * Every number and colour is the dev tuner's (`duosPassConfig.ts`, ✈ Duos Pass), read at each launch.
  */
+import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { getDef } from '../fx/fxDefs';
 import { gildArrivalMs } from '../gildTrailSources';
@@ -185,9 +186,14 @@ export function playDrop(opts: {
   const source = { x: opts.from.cx, y: opts.from.cy - (opts.plate?.height ?? 0) * c.streamFromY };
   let landed = false;
   const land = (): void => { if (landed) return; landed = true; opts.onLand?.(); };
+  // THE SEND CUE: the release pluck and a quick whoosh away. One voice (sfx.ts), so a board of
+  // gift effects shipping on one beat rings once. Every send comes through here: a drag, a spell, an effect, the stands.
+  sfx.duosPassSend();
   if (canPlayDefs()) {
     window.setTimeout(() => {
-      const retire = playDef('duos-pass-send', { source, target, camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.sendSpeed, onDone: land });
+      // Its own SEND cue (`sfx.duosPassSend`, below) replaces the def's two sound layers, which are the Gild trail's
+      // (the def began as a copy of it): a pass used to sound like a sale followed by a Gild.
+      const retire = playDef('duos-pass-send', { source, target, camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.sendSpeed, onDone: land, muteSound: true });
       if (!retire) { land(); return; }
       window.setTimeout(land, streamLandsAt('duos-pass-send') / Math.max(0.05, c.sendSpeed));
     }, c.streamDelay);
@@ -258,7 +264,7 @@ export function playSpellPass(uid: string): void {
  */
 export type PassFlight =
   | { at: 'discover'; index: number }
-  | { at: 'card'; uid: string; leaves: boolean; face: boolean }
+  | { at: 'card'; uid: string; leaves: boolean; face: boolean; /** a Magic Hat copy: falls back to the hero power button */ hat?: true }
   | { at: 'rune'; id: string }
   | { at: 'equip'; id: string }
   | { at: 'unit'; uid: string | null; rune: string | null };
@@ -267,6 +273,8 @@ export type PassFlight =
 export interface PassFlightEntry {
   card: { uid: string; cardId: string };
   via?: 'spell' | 'sale';
+  /** A Magic Hat copy (R-DUOS-MAGICIAN-01): `src` names the Shop offer that was bought. */
+  hat?: true;
   team?: { kind: string; cardId?: string; randomSpell?: boolean; randomMinion?: boolean };
   combatIdx?: number;
   src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
@@ -291,6 +299,10 @@ export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, card
   if (src && 'discover' in src) return { at: 'discover', index: src.discover };
   if (src && 'rune' in src) return { at: 'rune', id: src.rune };
   if (src && 'equip' in src) return { at: 'equip', id: src.equip };
+  // MAGICIAN'S MAGIC HAT (R-DUOS-MAGICIAN-01): a COPY of the card just bought. The bought card stays (it is on its way
+  // to my hand); a copy of its face dissolves where the Shop offer stood and streams in. With no card on screen to
+  // leave from, the stream leaves the hat itself (the hero power button).
+  if (e.hat) return { at: 'card', uid: src && 'uid' in src ? src.uid : e.card.uid, leaves: false, face: true, hat: true };
   if (src && 'uid' in src) {
     if (!e.team && src.uid === e.card.uid) return { at: 'card', uid: src.uid, leaves: true, face: true };
     const gift = e.team?.kind === 'gift' ? e.team.cardId : undefined;
@@ -422,6 +434,8 @@ export function playPassFlight(f: PassFlight | null): boolean {
   if (f.at === 'card') { const rel = takeCastRelease(f.uid); if (rel) return streamFromRelease(rel, f.face); }
   if (f.at === 'card' && f.leaves) { playSpellPass(f.uid); return true; }
   const el = passFlightEl(f);
+  // A Magic Hat copy with no card on screen to leave from: the stream leaves the hat (the hero power), no face.
+  if (!el && f.at === 'card' && f.hat) { const hatEl = q('.statusbar .heropowerbtn'); return hatEl ? streamFrom(hatEl, false) : false; }
   if (!el) return false;
   return streamFrom(el, f.at === 'discover' || (f.at === 'card' && f.face));
 }
@@ -505,11 +519,15 @@ export function playEmerge(opts: { from: Box; target: HTMLElement; onLand?: () =
     }
     opts.onLand?.();
   };
-  if (!canPlayDefs()) { form(); return; }
+  if (!canPlayDefs()) { sfx.duosPassReceive(0); form(); return; }
   const r = plateBox(card);
-  const retire = playDef('duos-pass-arrive', { source: centreOf(opts.from), target: centreOf(r), camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.recvSpeed, onDone: form });
+  const formAt = Math.max(0, streamLandsAt('duos-pass-arrive') / Math.max(0.05, c.recvSpeed) - c.coalesceLead);
+  // THE RECEIVE CUE: a lower whoosh in and a chime down into the hand, landing as the card forms.
+  // Distinct from the send; the def's own (Gild) sound layers are muted for the same reason as the send's.
+  sfx.duosPassReceive(formAt);
+  const retire = playDef('duos-pass-arrive', { source: centreOf(opts.from), target: centreOf(r), camera: camera() }, { recolor: streamPalette(c), recolorGlow: true, speed: c.recvSpeed, onDone: form, muteSound: true });
   if (!retire) { form(); return; }
-  window.setTimeout(form, Math.max(0, streamLandsAt('duos-pass-arrive') / Math.max(0.05, c.recvSpeed) - c.coalesceLead));
+  window.setTimeout(form, formAt);
 }
 
 /** A teammate's pass just landed in MY hand as `uid`: a stream leaves their portrait (bottom right) and the card

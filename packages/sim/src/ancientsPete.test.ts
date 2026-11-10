@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
   ANCIENT_IDS, ANCIENT_REFRESH_AVENGE_FLAG, ancientAvengeCountdown, ancientCombatMods, ancientContrabandEvery, ancientOfferText, createRun, enableAncients,
-  heroPowerText, poolOf, reduce, type AncientId, type BoardCard, type RunState, type ShopCard,
+  heroPowerArmed, heroPowerText, poolOf, reduce, type AncientId, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { defIsTribe, destroyMinionInShop, dominantBoardTribe, makeContext } from './recruit';
 
@@ -128,9 +128,11 @@ describe('Pete × TIME: "Contrabanana triggers every 2 Refreshes."', () => {
   it('every second Refresh upgrades the right-most minion', () => {
     let s: RunState = { ...picked('time'), refreshCount: 0 };
     expect(heroPowerText(s)).toBe('Every second refresh, the right-most Shop minion is from the tier above your Shop tier (**2** more to go).');
+    expect(heroPowerArmed(s), 'the armed glow follows the live cadence').toBe(false);
     s = reduce(s, { type: 'roll' });
     expect(bananas(s).length).toBe(0);
     expect(heroPowerText(s)).toContain('(**1** more to go)');
+    expect(heroPowerArmed(s), 'the next Refresh is the second one').toBe(true);
     s = reduce(s, { type: 'roll' });
     expect(bananas(s).length).toBe(1);
     s = reduce(s, { type: 'roll' });

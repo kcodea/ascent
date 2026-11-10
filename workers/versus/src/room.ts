@@ -26,6 +26,7 @@ import { liveListingOf } from './core/liveListing';
 import { LIVE_STORAGE_KEY, liveSinkFor, LiveSlot } from './live';
 import type { LiveDirWriterEnv } from './liveDirSink';
 import { signInviteProof } from './invites';
+import { relayAudience } from './relay';
 import { MAX_FRAME_CHARS, takeToken, type Bucket } from './rate';
 import { spectateSinkFor, WatchReporter, type SpectateSink } from './spectate';
 import { roomWatchKey, roomWatchOf, type RoomWatch } from './core/roomWatch';
@@ -292,9 +293,16 @@ export class VersusRoom extends DurableObject<RoomEnv> {
       if (msg.event === PING_EVENT || msg.event === PING_MENTOR_EVENT || msg.event === PING_CLEAR_EVENT) { await this.relayPing(ws, a.userId, msg.event, msg.payload); return; }
       if (msg.event === LOBBY_CHAT_EVENT || msg.event === LOBBY_CHAT_SYNC_EVENT) { await this.lobbyChat(ws, a, msg.event, msg.payload); return; }
       if (msg.event === LOBBY_CHAT_TYPING_EVENT) { await this.lobbyTyping(ws, a, msg.payload); return; }
-      // Relay (spectator frames, cursors, emotes): to every other member's sockets, never back to the sender.
+      // Relay, never back to the sender. A player's live screen (spectator frames, cursor, keyframe asks) goes to the
+      // stands and the teammate only, never an opponent (R-VERSUS-CF-RELAY-SCOPE-01, `relay.ts`); emotes to everyone.
+      const view = this.pingRoom();
+      const to = view ? relayAudience(view.mode, view.members, a.userId, msg.event) : null;
       const out = JSON.stringify({ t: 'bc', event: msg.event, payload: msg.payload, from: a.userId } satisfies VersusCfPush);
-      for (const other of this.liveSockets()) if (other !== ws && this.att(other).hello) this.send(other, out);
+      for (const other of this.liveSockets()) {
+        if (other === ws) continue;
+        const o = this.att(other);
+        if (o.hello && (!to || to.has(o.userId))) this.send(other, out);
+      }
       return;
     }
     await this.request(ws, a, msg);
@@ -334,7 +342,8 @@ export class VersusRoom extends DurableObject<RoomEnv> {
         if (now >= this.staleAt(ws)) {
           try { ws.close(1001, 'stale'); } catch { /* gone */ }
           const userId = this.att(ws).userId;
-          if (!this.liveSockets().some((o) => o !== ws && this.att(o).userId === userId)) await this.apply(core.disconnect(userId, now));
+          // (A stale socket has been silent 15 s already: Ranked Duos counts that against its reconnect grace.)
+          if (!this.liveSockets().some((o) => o !== ws && this.att(o).userId === userId)) await this.apply(core.disconnect(userId, now, core.staleSilenceCredit()));
         }
       }
       await this.apply(await core.tick(now));

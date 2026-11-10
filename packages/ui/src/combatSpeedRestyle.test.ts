@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { applyFloatSpeed, floatDurations, getFloatConfig, liveCombatSpeed, setLiveCombatSpeed, speedVars } from './floatConfig';
+import { applyFloatSpeed, floatDurations, getFloatConfig, isSpeedTimedAnim, liveCombatSpeed, setLiveCombatSpeed, speedVars } from './floatConfig';
 
 const src = (f: string): string => readFileSync(join(__dirname, f), 'utf8');
 
@@ -55,6 +55,23 @@ describe('the live combat speed never writes :root', () => {
   });
 });
 
+describe('which unit animations take the live speed stamp', () => {
+  it('a death, a Rise, a Rebirth and the Duos fly-in do; a plain beat does not', () => {
+    for (const anim of ['dying', 'dying dr', 'dying rising returning', 'reborn', 'reborn rebirthing', 'reborn risetint-blue', 'tagin', 'tagin tagi-3']) {
+      expect(isSpeedTimedAnim(anim), anim).toBe(true);
+    }
+    for (const anim of ['buffed', 'summoned', 'struck', 'sccast', 'undying', 'tagined', '', undefined, null]) expect(isSpeedTimedAnim(anim), String(anim)).toBe(false);
+  });
+
+  it('no source file of the stamp carries a control character (the old regex was written with BACKSPACE where its word boundaries were, and never matched)', () => {
+    const isControl = (c: number): boolean => c < 32 && c !== 9 && c !== 10 && c !== 13;
+    for (const f of ['Unit.tsx', 'floatConfig.ts', 'choreo/channels/duosHandoffTiming.ts']) {
+      const bad = [...src(f)].findIndex((ch) => isControl(ch.charCodeAt(0)));
+      expect(bad, f).toBe(-1);
+    }
+  });
+});
+
 describe('source contracts', () => {
   it('the auto-ramp tick records the live speed and never writes the root', () => {
     const s = src('useCombatReplay.ts');
@@ -69,6 +86,7 @@ describe('source contracts', () => {
     expect(src('Recruit.tsx')).toContain('style={{ ...f.sv, left: toStage(f.x), top: toStage(f.y), width: toStage(f.w), height: toStage(f.h) }');
     expect(src('Recruit.tsx')).toContain('className="deathfloat" style={{ ...f.sv,');
     expect(src('Unit.tsx')).toContain("'--combat-speed': String(liveCombatSpeed())");
+    expect(src('Unit.tsx')).toContain('const speedTimed = isSpeedTimedAnim(anim);');
     expect(src('fx/rebirthPillar.ts').match(/'--combat-speed', String\(liveCombatSpeed\(\)\)/g)?.length).toBe(2);
   });
 

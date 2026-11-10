@@ -63,6 +63,16 @@ Two failures worth knowing because both shipped here:
   each step. A replay reorder that slides a buff past an event carrying ABSOLUTE stats (a `dmg`'s `remainingHp`, a
   `summon` snapshot) must tag it (`prefoldedShareOf`) or the gain prints twice.
 
+- **A hold is the wait BEFORE its beat, not the time the beat stays up** (R-DUOS-HANDOFF-BEAT-01). `holdMs(next, shown)`
+  in `choreo/clock.ts` is keyed on NEXT's event type, so a kind's number in `choreoConfig.ts` is its lead-in. The time a
+  beat's own presentation gets is the hold of whatever FOLLOWS it. The Duos `tagIn: 640` was sized for its 0.88 s
+  fly-in but sat before it as dead air, while the fly-in got the next swing's 360 ms: the new board fought while still
+  flying in, at every speed. To reserve time for what a beat SHOWS, put a floor under the beat after it (`clock.ts`,
+  the `tagIn` / `flyIn` branch) and take the same time off the lead-in, so no fight is longer. Measure the on-screen
+  time live (how long the entrance class stays) rather than reading it off the config.
+- **A CSS animation that must keep pace needs the LIVE speed stamped on its element** (`floatConfig.isSpeedTimedAnim`,
+  `Unit.tsx`): `:root` only holds the base slider speed, never the auto-ramp or a Skip.
+
 Other rules:
 
 - Separate trigger presentation from consequences: a source may pulse first, with buffs/summons/casts landing

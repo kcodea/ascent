@@ -5,6 +5,7 @@ import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
 import { getRefreshConfig } from './refreshConfig';
 import { publicArt } from './phoneArt';
+import { useDuosViewingClass } from './duosViewing';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
@@ -54,6 +55,7 @@ export const RefreshButton = memo(function RefreshButton({
   combat?: boolean;
   onRefresh: () => void;
 }) {
+  const mateView = useDuosViewingClass(); // dimmed while I watch my Duos teammate (duosViewing.ts)
   const wrapRef = useRef<HTMLButtonElement>(null);
   const [shining, setShining] = useState(false); // the one-shot click shine is playing
 
@@ -92,7 +94,7 @@ export const RefreshButton = memo(function RefreshButton({
     <button
       ref={wrapRef}
       data-spec="refresh"
-      className={`rfbwrap${disabled && !combat ? ' off' : ''}${combat ? ' combat' : ''}`}
+      className={`rfbwrap${disabled && !combat ? ' off' : ''}${combat ? ' combat' : ''}${mateView}`}
       disabled={disabled || combat}
       onClick={click}
       aria-label={combat

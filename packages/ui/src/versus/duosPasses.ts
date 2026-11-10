@@ -230,7 +230,7 @@ export function atMicros(at: unknown): number | null {
 type ReplayAction =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   | { type: 'passCard'; uid: string }
-  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; hat?: true }
   | { type: 'passRefunded'; seq: number };
 
 /**
@@ -293,7 +293,8 @@ export function replayRestore(
       if (r.status === 'refused' || !uid || typeof r.card.cardId !== 'string') continue;
       const sent = live.duos?.outbox.length ?? 0;
       const power = r.card.passPower === 0 || r.card.passPower === 1 ? r.card.passPower : undefined;
-      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}) });
+      // (A Magic Hat copy, `passHat`: nothing leaves my run; it counts against the turn's two copies again. R-DUOS-MAGICIAN-01.)
+      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}), ...(r.card.passHat === true ? { hat: true as const } : {}) });
       if ((getRun().duos?.outbox.length ?? 0) > sent) { seqOf.set(sent, r.seq); shipped.add(sent); }
       continue;
     }
@@ -339,8 +340,14 @@ export function duosPushed(matchId: string, me: VersusGroupSeat, row: VersusDuos
   const s = session(matchId, me);
   // During the restore replay rows land in the server's order only (the pull after it reads this one too).
   if (!s.ready) return;
-  // Watching my teammate: kept, and landed the moment I am back on my own screen.
-  if (ownRunWhileWatching()) { owed.push(row); return; }
+  // Watching my teammate: kept, and landed the moment I am back on my own screen. A later push of the SAME pass replaces
+  // the kept one (R-DUOS-PASS-EXPIRE-01): a pass the room refused meanwhile went back to its sender, so the kept copy,
+  // still marked sent, must not land when I return.
+  if (ownRunWhileWatching()) {
+    const at = owed.findIndex((o) => o.match_id === row.match_id && o.from_seat === row.from_seat && o.seq === row.seq);
+    if (at >= 0) owed[at] = row; else owed.push(row);
+    return;
+  }
   applyRows(s, [row]);
 }
 
@@ -404,7 +411,10 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
       const e = idx == null ? undefined : run.duos.outbox[idx];
       if (e && !e.refunded) {
         dispatch({ type: 'passRefunded', seq: idx! });
-        if (!e.team) { lastRefusal = { seq: idx!, reason: 'hand_full' }; sayReturned('hand_full'); }
+        // The receiver's full hand refused it, unless the ROOM says why it did (`teammate_away`: it expired unanswered,
+        // R-DUOS-PASS-EXPIRE-01).
+        const why = typeof r.reason === 'string' && r.reason ? r.reason : 'hand_full';
+        if (!e.team) { lastRefusal = { seq: idx!, reason: why }; sayReturned(why); }
       }
     }
   }

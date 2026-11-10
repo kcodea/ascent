@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
   ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, carnivalCoinLive, createRun, enableAncients,
-  heroPowerText, poolOf, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
+  heroPowerArmed, heroPowerText, poolOf, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { defIsTribe, destroyMinionInShop, dominantBoardTribe, makeContext, spellDisplayText } from './recruit';
 
@@ -143,9 +143,11 @@ describe('Juggler × GENESIS: "Get a Carnival Coin every 2 minions you buy."', (
   it('every second minion bought pays a Coin', () => {
     let s = picked('genesis');
     expect(heroPowerText(s)).toBe('Every **2** minions you buy, get a **Carnival Coin** (**2** more to go).');
+    expect(heroPowerArmed(s), 'the armed glow follows the live cadence').toBe(false);
     s = buy(s, N(0));
     expect(coins(s)).toBe(0);
     expect(heroPowerText(s)).toContain('(**1** more to go)');
+    expect(heroPowerArmed(s), 'one buy short of the Coin').toBe(true);
     s = buy(s, N(1));
     expect(coins(s)).toBe(1);
     s = buy(buy(s, N(2)), N(3));

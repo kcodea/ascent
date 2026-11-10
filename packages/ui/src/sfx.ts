@@ -27,6 +27,7 @@ import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
 import type { Lane } from './assetQueue';
 import { LITE_ART } from './phoneArt';
+import { browserIdle } from './idleWork';
 import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_DECODE_GAP_MS, pacedQueue, phoneDecodeRate, phoneMono } from './audio/phoneAudio';
 import type { ClipIndex, PrewarmScene } from './audio/clipIndex';
 import { createClipLru, desktopLruCapBytes } from './audio/clipLru';
@@ -41,6 +42,10 @@ import { masterOutput } from './audio/master';
 import { combatHeld } from './combatHold';
 import { createSkipWhir, type SkipWhir } from './audio/skipWhir';
 import { scheduleTailFade, scheduleSkipFade, SKIP_FADE_S, type TailOpts } from './audio/tailFade';
+import {
+  duosBoardFallenCue, duosFlyInCue, duosLockedInCue, duosMateJoinedCue, duosPassReceiveCue, duosPassSendCue, duosPlacementToneAs,
+  duosTagInCue, duosTeamOutCue, duosTeamResultCue, duosViewSwapCue, type DuosCueLayer, type DuosSide,
+} from './audio/duosCues';
 
 export { SCENES };
 
@@ -303,11 +308,23 @@ export function onAudioContextReady(cb: (a: AudioContext) => void): void {
   else audioReadyListeners.push(cb);
 }
 
-function audio(): AudioContext | null {
+/** The context was built ahead of the first gesture (`warmAudioGraph`) and the SFX bank's decode still waits for the
+ *  first real use: the bank lands when it always did (the first gesture), never during the boot. */
+let bankPending = false;
+
+/**
+ * `warm` (the boot's idle build, `warmAudioGraph`): build the context and its graph and stop there. No resume (there is
+ * no gesture yet: the first one resumes it, audioUnlock.ts) and no SFX bank decode (see `bankPending`).
+ */
+function audio(warm = false): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    if (needsResume(ctx.state)) void ctx.resume().catch(() => { /* no gesture yet: audioUnlock retries on the next */ });
+    if (!warm && needsResume(ctx.state)) void ctx.resume().catch(() => { /* no gesture yet: audioUnlock retries on the next */ });
+    if (!warm && !isNew && bankPending) {
+      bankPending = false;
+      setTimeout(prefetchSamples, 0); // the first real use of a context built ahead: the bank's decode starts now, as before
+    }
     if (isNew && audioReadyListeners.length) {
       const created = ctx;
       // After this call returns (the graph below is built first), never inside the caller's sound play.
@@ -354,13 +371,35 @@ function audio(): AudioContext | null {
       // plays is unaffected: a play of an unloaded sample asks for it itself.
       // A PHONE waits a moment and then decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01, audio/phoneAudio.ts):
       // its first touch is usually Play, and the bank must not land in the same second as the mode home.
-      setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
-      crumb('audio unlocked', { sampleRate: ctx.sampleRate });
+      if (warm) bankPending = true;
+      else setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
+      crumb(warm ? 'audio built ahead' : 'audio unlocked', { sampleRate: ctx.sampleRate });
     }
     return ctx;
   } catch {
     return null;
   }
+}
+
+/**
+ * THE AUDIO GRAPH IS BUILT BEFORE THE FIRST CLICK, NOT IN IT (perf, the Duos audit of 2026-11-09). The context, its
+ * limiter, buses and meters used to be created inside the first gesture of a session (48 ms of that click's task,
+ * measured on START), and the reverb convolvers in the tasks right behind it (13 to 33 ms each). This builds the context
+ * on idle time during the boot instead. Built before a gesture it starts suspended, which every path already handles:
+ * the first gesture resumes it (audioUnlock.ts), and so does the first sound (`audio()`). Nothing plays differently:
+ * same graph, same nodes, the SFX bank still decodes from the first gesture.
+ *
+ * Desktop only. A phone keeps building it on its first touch (`LITE_ART`): iOS is strict about how a context is
+ * unlocked (R-TOUCH-AUDIO-01) and that path is not one to change without a device in hand.
+ */
+export function warmAudioGraph(): void {
+  if (ctx || LITE_ART) return;
+  audio(true);
+}
+/** How long the boot's audio build waits for an idle moment before it runs anyway (ms). */
+const AUDIO_WARM_TIMEOUT_MS = 2500;
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && import.meta.env.MODE !== 'test' && !LITE_ART) {
+  browserIdle.schedule(warmAudioGraph, AUDIO_WARM_TIMEOUT_MS);
 }
 
 // Warm the audio context + start decoding the mp3 SFX on the FIRST user gesture anywhere (a click/keypress),
@@ -1756,6 +1795,35 @@ function playPickSelect(): void {
   chord([659, 988, 1319], { dur: 0.14, type: 'triangle', vol: 0.09, category: 'discoverSelect' }, 0.04);
 }
 
+/** Two pass cues of one kind closer than this play once (N effect sends on one beat = one whoosh, not N). */
+export const DUOS_PASS_GAP_MS = 140;
+const duosCueLastAt = new Map<string, number>();
+/** One voice per Duos cue kind: false while the last one of `key` started under `gapMs` ago. */
+function duosCueGate(key: string, gapMs: number): boolean {
+  const now = typeof performance === 'undefined' ? Date.now() : performance.now();
+  const last = duosCueLastAt.get(key);
+  if (last !== undefined && now - last < gapMs) return false;
+  duosCueLastAt.set(key, now);
+  return true;
+}
+/** Forget the Duos cue times (tests). */
+export function resetDuosCueGate(): void { duosCueLastAt.clear(); }
+/** Play a Duos cue's layers (`audio/duosCues.ts`): its `fx` clips on the fader's bus, its core clips on the fader, its
+ *  notes through the synth. A clip that is not decoded yet is skipped (and asked for), never stood in for. */
+function playDuosCue(layers: readonly DuosCueLayer[], category: string): void {
+  const bus = busOf(cfg, category);
+  for (const l of layers) {
+    if (l.kind === 'fx') {
+      playFxSound(l.clip, { gain: l.gain, bus, ...(l.rate !== undefined ? { rate: l.rate } : {}), ...(l.delayMs ? { delayMs: l.delayMs } : {}),
+        ...(l.fadeOutMs ? { fadeOutMs: l.fadeOutMs } : {}), ...(l.startOffsetMs ? { startOffsetMs: l.startOffsetMs } : {}), ...(l.endOffsetMs ? { endOffsetMs: l.endOffsetMs } : {}) });
+    } else if (l.kind === 'sample') {
+      playSample(l.clip, category, Math.max(0, l.delayMs ?? 0) / 1000, (n) => { n.gain.gain.value *= Math.max(0, l.gain); });
+    } else {
+      tone({ freq: l.freq, dur: l.durMs / 1000, type: l.type, vol: l.vol, delay: Math.max(0, l.delayMs ?? 0) / 1000, category, ...(l.slideTo !== undefined ? { slideTo: l.slideTo } : {}) });
+    }
+  }
+}
+
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
@@ -2078,6 +2146,37 @@ export const sfx = {
     if (vol <= 0) return;
     if (playSample('mateready', 'mateready', Math.max(0, delay) / 1000, ({ gain }) => { gain.gain.value *= vol; })) return;
     tone({ freq: 1760, dur: 0.3, type: 'sine', vol: 0.1 * vol, slideTo: 1720, category: 'mateready' });
+  },
+  // ── THE DUOS BEATS (2026-11-10, owner: "make the beats much stronger for duos"). What each one plays is data in
+  //    `audio/duosCues.ts` (the team motif, the clips, the timings); here they are only routed. Built from clips the
+  //    bank already had plus the synth: no new audio files. Not heard by anyone yet; the levels are starting points.
+  /** THE TAG-IN: the teammate's board flies in. `landMs`: when its last body lands (already speed-scaled). */
+  duosTagIn: (side: DuosSide, landMs: number) => { playDuosCue(duosTagInCue(side, landMs), 'duostag'); },
+  /** The fly-in after a won fight: the same entrance, lighter. */
+  duosFlyIn: (side: DuosSide, landMs: number) => { playDuosCue(duosFlyInCue(side, landMs), 'duostag'); },
+  /** A board has fallen (the beat before the hand-off). */
+  duosBoardFallen: (side: DuosSide) => { playDuosCue(duosBoardFallenCue(side), 'duosfall'); },
+  /** A pass leaves for the teammate. ONE voice: several sends on one beat (a board of gift effects) ring once. */
+  duosPassSend: () => { if (duosCueGate('send', DUOS_PASS_GAP_MS)) playDuosCue(duosPassSendCue(), 'duospass'); },
+  /** A pass arrives in my hand; the card forms `landMs` from now. One voice, as the send. */
+  duosPassReceive: (landMs = 0) => { if (duosCueGate('receive', DUOS_PASS_GAP_MS)) playDuosCue(duosPassReceiveCue(landMs), 'duospass'); },
+  /** Onto the teammate's screen (`true`) or back to mine. */
+  duosViewSwap: (toMate: boolean) => { if (duosCueGate('swap', 90)) playDuosCue(duosViewSwapCue(toMate), 'duoscue'); },
+  /** My teammate joined the party. */
+  duosMateJoined: () => { if (duosCueGate('joined', 600)) playDuosCue(duosMateJoinedCue(), 'duoscue'); },
+  /** Both teammates are locked in and the round is closing. */
+  duosLockedIn: () => { if (duosCueGate('locked', 1500)) playDuosCue(duosLockedInCue(), 'duoscue'); },
+  /** My team is out of the match: the end screen's low tone, and the motif falling under it. */
+  duosTeamOut: () => {
+    if (!duosCueGate('out', 2000)) return;
+    sfx.placementTone(8);
+    playDuosCue(duosTeamOutCue(), 'duoscue');
+  },
+  /** The team's final place (1 to 4) comes into view: the end screen's tone for that half of the table, and the motif. */
+  duosTeamResult: (placement: number) => {
+    if (!duosCueGate('result', 2000)) return;
+    sfx.placementTone(duosPlacementToneAs(placement));
+    playDuosCue(duosTeamResultCue(placement), 'duoscue');
   },
   runeSelect: (vol = 1, delay = 0) => {
     if (vol <= 0) return;
@@ -2439,6 +2538,8 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseThymepiece: () => sfx.equipmentUse('thymepiece'),
   eqUseDeathfibrillator: () => sfx.equipmentUse('deathfibrillator'),
   runeArrival: () => sfx.runeSelectImplosion(),
+  duostag: () => sfx.duosTagIn('player', 735), duosfall: () => sfx.duosBoardFallen('player'),
+  duospass: () => sfx.duosPassReceive(360), duoscue: () => sfx.duosMateJoined(),
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
   vistawhoosh: () => playWipeLayer(VISTA_TRIP_LAYERS.arrive[0]!), vistashimmer: () => playWipeLayer({ ...VISTA_TRIP_LAYERS.arrive[1]!, delay: 0 }),

@@ -54,6 +54,10 @@ export interface DuosOutboxEntry {
   /** A pass a HERO POWER made (Passaria, R-DUOS-PRIESTESS-01): the slot that fired it. `paid` is the power's Gold; a
    *  refusal gives that Gold and this turn's charge back. */
   power?: 0 | 1;
+  /** MAGICIAN'S MAGIC HAT (R-DUOS-MAGICIAN-01): this entry is a COPY of a card the sender bought (and kept). It travels
+   *  as `via: 'sale'` (free, may be Golden, a refusal returns nothing) with `passHat: true`, and is not a pass for the
+   *  pass watchers on either run. `card.uid` is the copy's own (`hat<n>`); `src` names the Shop offer it streams from. */
+  hat?: true;
   /** Put back by a reload's restore replay (R-DUOS-PASS-RESTORE-EFFECT-01): already delivered, so nothing streams it. */
   restored?: true;
   /** Which free allowance a free MANUAL pass spent: Brian's Pal (`'pal'`) or the team's Playing Catch (`'catch'`). A
@@ -224,9 +228,11 @@ export function duosWireCard(card: BoardCard): BoardCard & { passFrom: 'hand' } 
 
 /** An outbox ENTRY as it travels: a drag pass as `duosWireCard` (`passFrom: 'hand'`), a spell's pass as
  *  `passFrom: 'spell'`, a team effect as `passFrom: 'team'` with its `team` payload (R-DUOS-CARDS-01). */
-export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number } {
+export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true } {
   if (e.team) return { ...e.card, passFrom: 'team', team: structuredClone(e.team) };
   const wire = duosWireCard(e.card);
+  // A Magic Hat copy (R-DUOS-MAGICIAN-01) says so: the receiver's run lands it without the pass watchers.
+  if (e.hat) return { ...wire, passFrom: 'sale', passHat: true };
   // A hero power's pass names its slot and price, so a reload's replay can pay them again (R-DUOS-PASS-RESTORE-EFFECT-01).
   if (e.via) return { ...wire, passFrom: e.via, ...(e.power != null ? { passPower: e.power, passPaid: e.paid ?? 0 } : {}) };
   // A Playing Catch pass tells the teammate's run, so the team's shared count moves on both runs (R-DUOS-RUNES-01).
@@ -266,7 +272,8 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   }
   duos.received.push(key);
   // The transport's markers (`passFrom`, the server's hand-only check; `teamCatch`) never ride into the hand.
-  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown };
+  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown };
+  void _h;
   void _t;
   void _f;
   void _p;
@@ -279,8 +286,8 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
 
 /** A wire card as it waits / lands: the transport's markers (`passFrom`, `team`, `teamCatch`) never ride into the hand. */
 function landedCard(card: BoardCard): BoardCard {
-  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown };
-  void _f; void _t; void _g; void _p; void _q;
+  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, passHat: _h, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown };
+  void _f; void _t; void _g; void _p; void _q; void _h;
   return landed;
 }
 

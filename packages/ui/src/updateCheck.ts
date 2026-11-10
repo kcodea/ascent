@@ -40,9 +40,10 @@ export function updateCheckLine(s: UpdateStatus): { text: string; click: boolean
 /**
  * Keep `el` showing the shell's update status until it is settled or `el` leaves the page, and call `onRelease` (once)
  * when the loading screen may open the game (see the header). `skip` is the "Not now" control shown beside the
- * downloaded line. Returns the stop function.
+ * downloaded line; `bar` is the download's own progress bar (`#bootsplash-dl`), shown only while downloading. Returns
+ * the stop function.
  */
-export function watchUpdateCheck(el: HTMLElement, onRelease: () => void = () => {}, skip: HTMLElement | null = null): () => void {
+export function watchUpdateCheck(el: HTMLElement, onRelease: () => void = () => {}, skip: HTMLElement | null = null, bar: HTMLElement | null = null): () => void {
   let alive = true;
   let timer = 0;
   let restarting = false;
@@ -58,6 +59,7 @@ export function watchUpdateCheck(el: HTMLElement, onRelease: () => void = () => 
     el.textContent = 'Restarting…';
     el.classList.remove('is-click');
     showSkip(false);
+    bar?.classList.remove('is-on');
     installUpdate();
   };
   const onKey = (e: KeyboardEvent): void => { if (e.key === 'Enter' || e.key === ' ') go(); };
@@ -75,6 +77,11 @@ export function watchUpdateCheck(el: HTMLElement, onRelease: () => void = () => 
       el.classList.toggle('is-click', line.click);
       if (line.click) { el.setAttribute('role', 'button'); el.tabIndex = 0; }
       showSkip(s.state === 'ready');
+      if (bar) {
+        bar.classList.toggle('is-on', s.state === 'downloading');
+        const fill = bar.firstElementChild as HTMLElement | null;
+        if (fill && s.state === 'downloading') fill.style.transform = `scaleX(${(Math.max(0, Math.min(100, s.percent)) / 100).toFixed(4)})`;
+      }
       const now = Date.now();
       if (s.state === 'checking') {
         if (now - t0 >= CHECK_HOLD_MS) release();

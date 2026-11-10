@@ -211,6 +211,33 @@ describe('the loading screen update line', () => {
       expect(h.released()).toBe(1);
     } finally { h.stop(); }
   });
+  it('R-UPDATE-CHECK-LOADING-01: the download has its own bar, shown only while downloading and filled to the percent', async () => {
+    let status: Status = { state: 'checking', version: null, percent: 0 };
+    (globalThis as { ascentDesktop?: Hooks }).ascentDesktop = {
+      isDesktop: true, quit() {}, toggleFullscreen() {}, onUpdateReady: () => () => {},
+      getUpdateStatus: () => Promise.resolve(status), installUpdate() {},
+    };
+    const el = document.createElement('div');
+    const bar = document.createElement('div');
+    const fill = bar.appendChild(document.createElement('i'));
+    document.body.append(el, bar);
+    vi.useFakeTimers();
+    const stop = watchUpdateCheck(el, () => {}, null, bar);
+    try {
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(false);
+      status = { state: 'downloading', version: '0.9.9', percent: 43 };
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(true);
+      expect(fill.style.transform).toBe('scaleX(0.4300)');
+      status = { state: 'ready', version: '0.9.9', percent: 100 };
+      await act(async () => { vi.advanceTimersByTime(400); });
+      await turn();
+      expect(bar.classList.contains('is-on')).toBe(false);
+    } finally { stop(); vi.useRealTimers(); el.remove(); bar.remove(); }
+    expect(readFileSync(resolve(process.cwd(), 'apps/web/index.html'), 'utf8')).toContain('<div id="bootsplash-dl" aria-hidden="true"><i></i></div>');
+  });
   it('R-UPDATE-HOLD-LOADING-01: Boot opens the game only when the art is loaded AND the update check has let go', () => {
     const boot = readFileSync(resolve(process.cwd(), 'packages/ui/src/Boot.tsx'), 'utf8');
     expect(boot).toContain('const ready = artReady && updateOk;');

@@ -61,6 +61,7 @@
       <div id="bootsplash-bar"><i></i></div>
       <div id="bootsplash-note" aria-live="polite"></div>
       <div id="bootsplash-update" aria-live="polite"></div>
+      <div id="bootsplash-dl" aria-hidden="true"><i></i></div>
       <div id="bootsplash-skip" role="button" tabindex="0">Not now</div>
     </div>
     <script>
@@ -176,6 +177,21 @@
         border: 1px solid rgba(240, 144, 46, 0.85); background: rgba(240, 144, 46, 0.16);
         bottom: calc(var(--ls-bar-bottom, 22.5vh) - 78px);
       }
+      /* The update's own download bar (owner 2026-11-10: "a secondary load bar that shows the download progress"), under
+         the update line and only while it downloads. Same compositor-only scaleX fill as the art bar, in blue so the two
+         never read as one. */
+      #bootsplash-dl {
+        position: absolute; left: 50%; transform: translateX(-50%);
+        bottom: calc(var(--ls-bar-bottom, 22.5vh) - 86px);
+        width: var(--ls-bar-w, min(413px, 46vw)); height: 6px; border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+        display: none;
+      }
+      #bootsplash-dl.is-on { display: block; }
+      #bootsplash-dl > i {
+        display: block; height: 100%; border-radius: 999px; background: #6fb6ff;
+        transform: scaleX(0); transform-origin: left center; transition: transform 380ms linear;
+      }
       /* "Not now": shown only beside the downloaded line, which holds the loading screen (R-UPDATE-HOLD-LOADING-01). */
       #bootsplash-skip {
         position: absolute; left: 50%; transform: translateX(-50%);
@@ -189,7 +205,7 @@
       #bootsplash-update.is-click:hover, #bootsplash-update.is-click:focus-visible { background: rgba(240, 144, 46, 0.32); color: #fff; outline: none; }
       /* The bar is progress feedback, not decoration — freeze motion for anyone who asked for less. */
       @media (prefers-reduced-motion: reduce) {
-        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-note, #bootsplash-update, #bootsplash-bar > i { transition: none; }
+        #bootsplash, #bootsplash-img, #bootsplash-bar, #bootsplash-note, #bootsplash-update, #bootsplash-bar > i, #bootsplash-dl > i { transition: none; }
       }
     </style>
     <div id="root"></div>

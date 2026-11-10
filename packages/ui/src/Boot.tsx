@@ -123,7 +123,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     const splash = splashEl();
     const line = splash?.querySelector<HTMLElement>('#bootsplash-update');
     if (!line) { setUpdateOk(true); return undefined; }
-    return watchUpdateCheck(line, () => setUpdateOk(true), splash?.querySelector<HTMLElement>('#bootsplash-skip') ?? null);
+    return watchUpdateCheck(line, () => setUpdateOk(true), splash?.querySelector<HTMLElement>('#bootsplash-skip') ?? null, splash?.querySelector<HTMLElement>('#bootsplash-dl') ?? null);
   }, []);
 
   // READY → fade the splash off the mounted game, then remove the node.

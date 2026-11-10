@@ -15010,6 +15010,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-10 (feat/duos-beats). Before, the entrance was a fixed 0.52 s plus 60 ms a slot, keyed to the slot, and the 960 ms meant to cover it sat BEFORE it (a hold is the wait before its beat): the fly-in itself got only the 240 to 360 ms of the next beat, so the new board swung while its bodies were still in the air at every speed (measured live at 1x to 2x: 117 to 567 ms on screen against an entrance of up to 880 ms). All three events played no sound and no effect. The cues are built from clips and synth notes the game already had and have not been tuned by ear yet.',
     example: 'At 2x, your first board dies: a low hit and a dim over your row, then the seven minions of your teammate sweep in from the left in half the time, each landing in dust, the last on a teal slam with a shake, and only then does the fight go on.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/duosHandoff.test.ts', 'packages/ui/src/audio/duosCues.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
   {
     id: 'R-UPDATE-NOTICE-SEEN-01',
     title: 'The "update downloaded" notice is always seen',

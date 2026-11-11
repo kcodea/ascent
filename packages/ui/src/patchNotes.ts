@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-11',
+    changes: [
+      { category: 'Systems', text: 'Compendium: opening a hero now shows their full portrait beside their Health, Armor and power, with how the power is used and what it costs. Use the arrows or the arrow keys to flip through heroes.' },
+    ],
+  },
+  {
     date: '2026-11-10',
     changes: [
       { category: 'Balance', text: 'Scrollz now makes only the first Shop spell you buy each turn cost 1 less (2 less when Gilded), not every spell. It still adds an extra spell to each Shop. The card shows whether the discount is ready or used this turn.' },

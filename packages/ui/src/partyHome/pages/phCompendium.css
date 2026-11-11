@@ -389,13 +389,75 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phb .phk-pagehead:has(.book-setpick.is-open) { position: relative; z-index: 60; }
 .phb .book-setpick.is-open { z-index: 60; }
 
-/* The one way to look closer: a press (or a right-press) on anything opens its large view. A hero's is its own tile, enlarged. */
+/* The one way to look closer: a press (or a right-press) on anything opens its large view. A hero's is its own showcase (.phi, below). */
 .phb .phh[role='button'] { transition: transform 0.12s ease; }
 .phb .phh[role='button']:hover { transform: translateY(calc(-3 * var(--phu))); }
-.phh-pop { position: fixed; inset: 0; }
-.phh-popbox { width: calc(760 * var(--phu)); max-width: 92%; }
-.phh-popbox .phh { zoom: 1.5; }
-html[data-ph-compact] .phh-popbox .phh { zoom: 1; }
+.phb .book:has(.phh-pop) { z-index: 2; } /* the book is its own stacking layer: lift it over the page tabs while a hero is open */
+.phh-pop { position: fixed; inset: 0; container: phipop / size; } /* sized by its own box, never the viewport: an upright phone turns the whole stage */
+/* A HERO'S LARGE VIEW (owner 2026-11-11: "show their full art ... way more satisfying"). The whole square portrait stands on
+   the left, uncropped, and melts into the plate; the name, vitals and power sit on the right over a soft wash of the same art.
+   Everything that moves is a one-shot on open (transform and opacity only); nothing loops. */
+.phi { --phi-h: min(calc(600 * var(--phu)), 84cqh); position: relative; display: grid; grid-template-columns: var(--phi-h) minmax(0, 1fr); width: min(calc(1120 * var(--phu)), 86cqw); height: var(--phi-h); overflow: hidden; border-radius: var(--ph-r-l); background: var(--ph-navy); box-shadow: 0 calc(24 * var(--phu)) calc(72 * var(--phu)) rgba(0, 0, 0, 0.6); animation: phi-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+.phi::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--ph-gild); pointer-events: none; }
+.phi-art { position: relative; min-width: 0; overflow: hidden; }
+.phi-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: phi-art 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  -webkit-mask-image: linear-gradient(90deg, #000 68%, transparent 100%); mask-image: linear-gradient(90deg, #000 68%, transparent 100%); }
+.phi-info { --pw: calc(176 * var(--phu)); --col: calc(var(--pw) * 0.5 + calc(32 * var(--phu))); position: relative; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(20 * var(--phu)); padding: calc(40 * var(--phu)) calc(48 * var(--phu)) calc(40 * var(--phu)) var(--col); }
+.phi-wash { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; object-fit: cover; opacity: 0.14; filter: blur(calc(72 * var(--phu))) saturate(1.4); pointer-events: none; }
+.phi-info > * { position: relative; animation: phi-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.phi-info > .phi-power { animation-delay: 0.07s; }
+.phi-head { display: flex; flex-direction: column; align-items: flex-start; gap: calc(14 * var(--phu)); }
+.phi-duos { display: inline-flex; align-items: center; height: calc(24 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: calc(6 * var(--phu)); background: var(--ph-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; }
+.phi-name { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: calc(56 * var(--phu)); line-height: 1.02; letter-spacing: -0.01em; color: var(--ph-ink); text-shadow: var(--ph-shadow), 0 calc(3 * var(--phu)) calc(14 * var(--phu)) rgba(0, 0, 0, 0.7); overflow-wrap: anywhere; }
+.phi-vitals { display: flex; flex-wrap: wrap; gap: calc(12 * var(--phu)); }
+.phi-stat { display: inline-flex; align-items: center; gap: calc(8 * var(--phu)); height: calc(44 * var(--phu)); padding: 0 calc(16 * var(--phu)) 0 calc(12 * var(--phu)); border-radius: calc(22 * var(--phu)); background: rgba(6, 12, 28, 0.62); box-shadow: inset 0 0 0 calc(1 * var(--phu)) rgba(174, 189, 219, 0.22); font-family: var(--ph-font); color: var(--ph-ink); }
+.phi-stat svg { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); flex: none; }
+.phi-stat.is-hp svg { color: var(--ui-heart, #ff2f58); }
+.phi-stat.is-armor svg { color: var(--ui-armor-mid, #b3bdca); }
+.phi-stat b { font-weight: 900; font-size: calc(24 * var(--phu)); font-variant-numeric: tabular-nums; }
+.phi-stat i { font-style: normal; font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
+.phi-power { position: relative; display: flex; flex-direction: column; justify-content: center; gap: calc(12 * var(--phu)); padding-top: calc(20 * var(--phu)); }
+.phi-power::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: calc(1.5 * var(--phu)); background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
+.phi-pwhead { display: flex; align-items: center; }
+/* THE POWER MEDALLION (owner 2026-11-11: "make the hero power eclipse the hero art in a circle on top of it"): the power's art is
+   a large gold-ringed circle centred exactly on the portrait's right edge, level with the power's text. One ring, one shadow. */
+.phi-power.has-art { min-height: calc(var(--pw) + calc(20 * var(--phu))); }
+.phi-pwart { position: absolute; left: calc(var(--col) * -1 - var(--pw) * 0.5); top: calc(50% + calc(10 * var(--phu))); width: var(--pw); height: var(--pw); margin-top: calc(var(--pw) * -0.5); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 calc(3 * var(--phu)) var(--ph-gold), 0 calc(8 * var(--phu)) calc(24 * var(--phu)) rgba(0, 0, 0, 0.65); }
+.phi-pwwho { min-width: 0; display: flex; flex-direction: column; gap: calc(10 * var(--phu)); }
+.phi-pwname { font-family: var(--ph-font); font-weight: 900; font-size: calc(32 * var(--phu)); line-height: 1.1; color: #fbe6a6; text-shadow: var(--ph-shadow); }
+.phi-facts { display: flex; flex-wrap: wrap; gap: calc(6 * var(--phu)); }
+.phi-fact { display: inline-flex; align-items: center; height: calc(24 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: calc(12 * var(--phu)); background: rgba(174, 189, 219, 0.14); font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
+.phi-pwtext { margin: 0; max-width: 34em; font-family: var(--ph-body); font-weight: 500; font-size: calc(20 * var(--phu)); line-height: 1.45; color: var(--ph-text); }
+.phi-pwtext b { color: var(--ph-ink); font-weight: 800; }
+.phi-info > .phi-count { position: absolute; right: calc(20 * var(--phu)); bottom: calc(14 * var(--phu)); font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t1); font-variant-numeric: tabular-nums; color: var(--ph-muted); }
+.phi-nav { position: absolute; top: 50%; z-index: 1; display: grid; place-items: center; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); margin-top: calc(-28 * var(--phu)); padding: 0; border: 0; border-radius: 50%; background: var(--ph-navy); color: var(--ph-gold-hi); box-shadow: var(--ph-gild-s), 0 calc(6 * var(--phu)) calc(18 * var(--phu)) rgba(0, 0, 0, 0.5); transition: transform 0.12s ease; }
+.phi-nav.is-prev { left: max(calc(12 * var(--phu)), calc(50% - min(calc(560 * var(--phu)), 43cqw) - calc(76 * var(--phu)))); }
+.phi-nav.is-next { right: max(calc(12 * var(--phu)), calc(50% - min(calc(560 * var(--phu)), 43cqw) - calc(76 * var(--phu)))); }
+.phi-nav svg { width: calc(28 * var(--phu)); height: calc(28 * var(--phu)); }
+.phi-nav.is-prev svg { transform: rotate(90deg); }
+.phi-nav.is-next svg { transform: rotate(-90deg); }
+@media (hover: hover) { .phi-nav:hover { transform: scale(1.1); } }
+.phi-nav:active { transform: scale(0.94); }
+.phi-nav:focus-visible { outline: calc(2 * var(--phu)) solid var(--ph-gold-hi); outline-offset: calc(3 * var(--phu)); }
+@keyframes phi-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes phi-art { from { transform: scale(1.08); } to { transform: none; } }
+@keyframes phi-rise { from { opacity: 0; transform: translateY(calc(14 * var(--phu))); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .phi, .phi-art img, .phi-info > * { animation: none; } }
+/* Narrow or upright screens: the portrait goes on top (melting downward), the facts under it, the arrows on the art's edges. */
+@container phipop (max-aspect-ratio: 1/1) {
+  .phi { --phi-w: min(calc(620 * var(--phu)), 92cqw); grid-template-columns: minmax(0, 1fr); grid-template-rows: min(var(--phi-w), 46cqh) auto; width: var(--phi-w); height: auto; max-height: 92cqh; }
+  .phi-art img { object-position: 50% 15%; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%); mask-image: linear-gradient(180deg, #000 70%, transparent 100%); }
+  .phi-info { --pw: calc(96 * var(--phu)); justify-content: flex-start; gap: calc(16 * var(--phu)); padding: 0 calc(24 * var(--phu)) calc(40 * var(--phu)); }
+  .phi-name { font-size: calc(40 * var(--phu)); }
+  .phi-power.has-art { min-height: 0; display: grid; grid-template-columns: var(--pw) minmax(0, 1fr); column-gap: calc(16 * var(--phu)); row-gap: calc(12 * var(--phu)); align-items: center; }
+  .phi-pwtext { grid-column: 1 / -1; }
+  .phi-pwart { position: static; margin: 0; }
+  .phi-nav.is-prev { left: max(calc(8 * var(--phu)), calc(50% - min(calc(310 * var(--phu)), 46cqw) - calc(68 * var(--phu)))); }
+  .phi-nav.is-next { right: max(calc(8 * var(--phu)), calc(50% - min(calc(310 * var(--phu)), 46cqw) - calc(68 * var(--phu)))); }
+}
+/* A phone: the card stands under the top bar, never behind it. */
+html[data-ph-compact] .phi { --phi-h: min(calc(600 * var(--phu)), calc(100cqh - 112 * var(--phu))); margin-top: calc(88 * var(--phu)); }
+html[data-phone-gpu] .phi-wash { display: none; }
 .phb-ov .phb-sub { white-space: normal; overflow: visible; text-overflow: clip; }
 
 /* The rail reaches further left and is wider (owner 2026-11-06: "can we have this left section move further left and widen it

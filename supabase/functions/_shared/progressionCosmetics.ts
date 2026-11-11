@@ -299,6 +299,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   title('title_kingbreaker', 'Kingbreaker', 'epic'),
   title('title_voice_of_the_deep', 'Voice of the Deep', 'epic'),
   title('title_the_unbroken', 'The Unbroken', 'legendary'),
+  // Titles batch 2 (owner 2026-11-11: "Add the following Ancient title: Banana. add the following legendary titles:
+  // Beastmaster, Dwarven Warlord, Leader of the Pack, Doom, Gem-stoned, Dragonborn, Re-Blarted"). Crate drops like the
+  // launch fifteen; they reach the server through the catalog sync, not the crates file's seed.
+  title('title_banana', 'Banana', 'ancient'),
+  title('title_beastmaster', 'Beastmaster', 'legendary'),
+  title('title_dwarven_warlord', 'Dwarven Warlord', 'legendary'),
+  title('title_leader_of_the_pack', 'Leader of the Pack', 'legendary'),
+  title('title_doom', 'Doom', 'legendary'),
+  title('title_gem_stoned', 'Gem-stoned', 'legendary'),
+  title('title_dragonborn', 'Dragonborn', 'legendary'),
+  title('title_re_blarted', 'Re-Blarted', 'legendary'),
   // SKIN RARITY COMES FROM THE ART FOLDER (owner 2026-10-01: "i also put all these skins into rarity folders which is
   // how i'll do it from now on"). Each master sits in C:/Game Assets/Ascent Art/Skins/<Minion|Hero> Skins/<Rarity>/,
   // and that folder is the rarity; a suffix in the filename ("SkinRare") is stale and ignored. skinRarityFolders.test.ts

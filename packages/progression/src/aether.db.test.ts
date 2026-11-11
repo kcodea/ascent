@@ -289,8 +289,8 @@ describe('buy_crate', () => {
   it('bad focus is refused', async () => {
     const u = await newUser();
     await grant(u, 5000);
-    // no Ancient title exists, so a title focus at the Ancient floor names an unavailable category
-    expect(await raises("select public.buy_crate($1, 'ancient', array['title'], 1800, $2::uuid)", [u, rid()])).toMatch(/bad_focus/);
+    // no Ancient emote exists, so an emote focus at the Ancient floor names an unavailable category (it was a title focus until Banana, the first Ancient title, 2026-11-11)
+    expect(await raises("select public.buy_crate($1, 'ancient', array['emote'], 1800, $2::uuid)", [u, rid()])).toMatch(/bad_focus/);
     expect(await raises("select public.buy_crate($1, 'epic', array['nope'], 800, $2::uuid)", [u, rid()])).toMatch(/bad_focus/);
     expect(await raises("select public.buy_crate($1, 'mythic', null, 100, $2::uuid)", [u, rid()])).toMatch(/bad_tier/);
     expect(await raises("select public.buy_crate($1, 'epic', null, null, $2::uuid)", [u, rid()])).toMatch(/bad_price/);

@@ -1,4 +1,4 @@
-import { Fragment, lazy, memo, Suspense, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, memo, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
@@ -330,12 +330,71 @@ const PhHeroTile = memo(function PhHeroTile({ h, onOpen }: { h: (typeof HEROES)[
   );
 });
 
-/** A hero's large view: the same window every other Compendium entry opens. */
-function PhHeroPop({ h, onClose }: { h: (typeof HEROES)[number]; onClose: () => void }) {
+type HeroRow = (typeof HEROES)[number];
+/** The short facts under a power's name: how it is used, what it costs, and any limit. Read from the power's own fields. */
+export function heroPowerFacts(p: HeroRow['power']): string[] {
+  const out: string[] = [p.passive ? 'Passive' : 'Active'];
+  if (p.cost && p.cost > 0) out.push(`${p.cost} Gold`);
+  if (p.oncePerGame) out.push('Once per game');
+  else if (p.maxUses && p.maxUses > 0) out.push(`${p.maxUses} uses per game`);
+  if (p.usesPerTurn && p.usesPerTurn > 1) out.push(`${p.usesPerTurn} uses per turn`);
+  if (p.unlockWave && p.unlockWave > 1) out.push(`Unlocks turn ${p.unlockWave}`);
+  return out;
+}
+
+/** A hero's large view (owner ask 2026-11-11: "show their full art ... way more satisfying"): the whole portrait on the left,
+ *  uncropped; the name, starting Health and Armor, and the power on the right. The arrows (and the arrow keys) step through
+ *  the heroes on show, in the grid's order. */
+function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonly HeroRow[]; onPick: (h: HeroRow) => void; onClose: () => void }) {
   usePhLayer(true, onClose);
+  const at = heroes.findIndex((x) => x.id === h.id);
+  const many = at >= 0 && heroes.length > 1;
+  const step = useCallback((d: number) => {
+    if (!many) return;
+    const next = heroes[(at + d + heroes.length) % heroes.length];
+    if (next) onPick(next);
+  }, [many, heroes, at, onPick]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); } else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [step]);
+  const art = heroArt(h.id);
+  const pw = heroPowerArt(h.id);
+  const facts = heroPowerFacts(h.power);
   return (
     <div className="inspect-ov phh-pop" role="dialog" aria-modal="true" aria-label={h.name} onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
-      <div className="phh-popbox" onClick={(e) => e.stopPropagation()}><PhHeroTile h={h} /></div>
+      {many && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={(e) => { e.stopPropagation(); step(-1); }}><Icon name="chevron" /></button>}
+      <article key={h.id} className="phi" onClick={(e) => e.stopPropagation()}>
+        {art && <img className="phi-wash" src={heroThumb(art)} alt="" aria-hidden="true" draggable={false} />}
+        <div className="phi-art">
+          {art && <img decoding="sync" src={art} alt="" draggable={false} />}
+        </div>
+        <div className="phi-info">
+          <div className="phi-head">
+            {h.duosOnly && <span className="phi-duos" aria-label="Duos only">Duos</span>}
+            <h2 className="phi-name">{h.name}</h2>
+            <div className="phi-vitals">
+              <span className="phi-stat is-hp" aria-label={`${h.resolve} starting Health`}><Icon name="heart" /><b>{h.resolve}</b><i>Health</i></span>
+              {h.armor > 0 && <span className="phi-stat is-armor" aria-label={`${h.armor} starting Armor`}><Icon name="shield" /><b>{h.armor}</b><i>Armor</i></span>}
+            </div>
+          </div>
+          <div className="phi-power">
+            <div className="phi-pwhead">
+              {pw && <img className="phi-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
+              <div className="phi-pwwho">
+                <span className="phi-pwname">{h.power.name}</span>
+                <span className="phi-facts">{facts.map((t) => <span key={t} className="phi-fact">{t}</span>)}</span>
+              </div>
+            </div>
+            <p className="phi-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
+          </div>
+          {many && <span className="phi-count" aria-hidden="true">{at + 1} / {heroes.length}</span>}
+        </div>
+      </article>
+      {many && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={(e) => { e.stopPropagation(); step(1); }}><Icon name="chevron" /></button>}
     </div>
   );
 }
@@ -1132,7 +1191,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
           ) : (
             <div className="book-empty">No cards match these filters.</div>
           )}
-          {frame && heroPop && <PhHeroPop h={heroPop} onClose={() => setHeroPop(null)} />}
+          {frame && heroPop && <PhHeroPop h={heroPop} heroes={heroesToShow} onPick={setHeroPop} onClose={() => setHeroPop(null)} />}
         </div>
           </>
         )

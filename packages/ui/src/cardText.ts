@@ -533,6 +533,21 @@ export function shredderText(cardId: string, golden: boolean, unusedEquipment: n
 }
 
 /**
+ * SCROLLZ (owner 2026-11-10) — "The first Shop spell you buy each turn costs 1 less." The discount is counted for the
+ * TURN (`shopSpellsBoughtThisTurn`), so the card says whether this turn's is still there: "Ready this turn." until a
+ * Shop spell is bought, then "Used this turn." (the wording Emissary's free first spell prints on the hero power).
+ * Every recruit surface passes the count (a held or offered copy would arrive with the turn's discount already
+ * spent). Combat passes none (no Shop there, and the next turn starts ready), so the printed text stands.
+ */
+export function firstShopSpellDiscountText(cardId: string, golden: boolean, shopSpellsBought: number | undefined): string | null {
+  if (cardId !== 'd3_scrolldrake' || shopSpellsBought === undefined) return null;
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const base = golden ? def.goldenText ?? def.text : def.text;
+  return `${base} ${shopSpellsBought === 0 ? 'Ready this turn.' : 'Used this turn.'}`;
+}
+
+/**
  * GOLDEN MONKEY (`onSellDiscover` with `tierOffset`, owner Set 3 batch 2026-10-13): "Discover a minion from the Tier
  * above yours (up to Tier 7)" — the tier it will ACTUALLY offer depends on the live Shop tier, so the printed text
  * names it: the current Shop tier + the offset, capped at 7 (the same cap the factory applies).

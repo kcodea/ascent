@@ -2609,12 +2609,20 @@ export function distillationEdges(state: RunState): BoardCard[] {
   return tail === lead ? [lead] : [lead, tail];
 }
 
-/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus / Scroll Drake on the board (golden → 2).
+/** Shop spells bought THIS turn (`RunState.shopSpellBuys`, ticked by `applySpellBought` on both buy paths; a Ruby never
+ *  counts). 0 on a new turn and on a save from before the field existed. */
+export function shopSpellsBoughtThisTurn(state: Pick<RunState, 'shopSpellBuys' | 'wave'>): number {
+  return state.shopSpellBuys?.wave === state.wave ? state.shopSpellBuys.n : 0;
+}
+
+/** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2), plus
+ *  Scrollz's first-spell-each-turn discount while no Shop spell has been bought this turn.
  *  Serves BOTH ways a spell is bought — the right-hand slot and a spell offer in the minion row (Spell Cart). */
 export function spellCostReduction(state: RunState, def?: CardDef): number {
   let n = state.spellCostMod;
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
-  for (const c of state.board) if (c.cardId === SCROLL_DRAKE_ID) n += c.golden ? 2 : 1; // Scroll Drake (Set 3): the same aura shape
+  // Scrollz (Set 3, owner 2026-11-10): the FIRST Shop spell bought each turn only. Counted for the turn, not per copy.
+  if (shopSpellsBoughtThisTurn(state) === 0) for (const c of state.board) if (c.cardId === SCROLL_DRAKE_ID) n += c.golden ? 2 : 1;
   n += gateUses(state.cadenceSpellOff); // Rune of Cadence: the armed one-shot spell discount, −1 per copy held (spent at buy)
   n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
@@ -13466,6 +13474,10 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
  * would change what every existing buy-trigger sees.
  */
 export function applySpellBought(state: RunState, spellId: string): void {
+  // The turn's Shop spell buys (Scrollz's first-spell discount, Emissary x Fortune's free first spell). Ticked whatever
+  // is on the board or picked, so a spell bought before either arrives has already used the turn's "first".
+  const bought = CARD_INDEX[spellId];
+  if (bought?.spell && !bought.ruby) state.shopSpellBuys = { wave: state.wave, n: shopSpellsBoughtThisTurn(state) + 1 };
   openTreasuryOnBuy(state, spellId); // Rune of the Open Treasury (Set 3 Dragon runes): the turn's first spell bought hands over a copy
   // Rune of the White Wolf: the rune teaches on its own, sharing the per-turn ceiling with any Mentor on board.
   if (state.runeWhiteWolf) { procRuneId(state, 'rune_white_wolf'); teachMagePup(state, spellId); }

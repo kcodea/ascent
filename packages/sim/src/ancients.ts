@@ -462,8 +462,9 @@
  *  · `avengeUnitedFront`          each fire is a full United Front. SHOP: `fireShopUnitedFront` right then (permanent);
  *                                 COMBAT: `ancientFrontShape.avenge`, at the live spell count (a combat buff). (Death)
  *  · `firstShopSpellFree`         the first Shop spell bought each turn costs 0: `ancientEnchantedSpellCut` (the cut both
- *                                 spell buy paths, the coins and the bots already read), counted by `ancientOnBuy`
- *                                 (`valeSpellBuys`, ticked while Ancients are on). (Fortune)
+ *                                 spell buy paths, the coins and the bots already read), counted by the run's own
+ *                                 `shopSpellBuys` (`shopSpellsBoughtThisTurn`, ticked on every run; Scrollz reads
+ *                                 the same count). (Fortune)
  *  · `unitedFrontReps`            United Front fires `times` times, each its own trigger (both phases). (War)
  *  · `spellsGrantShopSpell`       every `every`th spell cast (a running count since the pick): a random Shop spell to
  *                                 hand. SHOP: `ancientOnSpellCast`; COMBAT: `QuestCombatMods.ancientSpellCountGrant`
@@ -607,7 +608,7 @@ import { COMMISSION_DELAY, COMMISSION_TEXT, hasBattlecry, syncRunTribes } from '
 import { defIsTribe } from './recruit'; // the 2026-10-27 batch
 import { allInPayoutOf, isTribe } from './recruit'; // the 2026-11-10 batch A
 import { KESHI_CROWN_THRESHOLD } from './config';
-import { bannerRecipientsOf, fireShopUnitedFront, unitedFrontMult } from './recruit'; // the 2026-11-10 batch B
+import { bannerRecipientsOf, fireShopUnitedFront, shopSpellsBoughtThisTurn, unitedFrontMult } from './recruit'; // the 2026-11-10 batch B
 import { runSpells } from './spellPool';
 import { poolOf, randomTierCeiling } from './cardPool';
 
@@ -3173,9 +3174,6 @@ export interface AncientsState {
   /** MERRIN × TIME, EMISSARY × GENESIS: spells cast since the pick (every phase), the running count toward the next
    *  recharge / Shop spell. */
   batchBSpells?: number;
-  /** EMISSARY × FORTUNE: Shop spells BOUGHT on `wave` (0 = the next one is free). Ticked while Ancients are on, whatever
-   *  is picked, so a spell bought before the pick that turn counts. A new wave reads 0. */
-  valeSpellBuys?: { wave: number; n: number };
   /** RASCAL × DEATH: friendly deaths since the last fire (Shop + combat), the running Avenge (4) count, and the Gold its
    *  Avenges have added to All In's NEXT payout (cleared when All In pays it). */
   rascalDeaths?: number;
@@ -4761,8 +4759,6 @@ export function ancientOnBuy(state: RunState, cardId: string, starform: boolean,
   }
   batchAOnBuy(state, a, cardId, starform, body); // FLINT / JUGGLER (before Gorr's tick: it reads the buys BEFORE this one)
   gorrOnBuy(state, a, cardId, starform, body);
-  // EMISSARY × FORTUNE: the Shop spells bought this turn (the first is free). Ticked whatever is picked.
-  if (isShopSpell(CARD_INDEX[cardId])) a.valeSpellBuys = { wave: state.wave, n: (a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) + 1 };
 }
 
 // ── Gorr (Four Peat) hooks ───────────────────────────────────────────────────────────────────────────────────
@@ -6246,7 +6242,7 @@ export function ancientUnitedFrontAtEot(state: RunState): boolean {
 export function ancientFirstSpellFree(state: RunState, cardId: string): boolean {
   const a = live(state);
   if (!a || !effectOf(state, 'firstShopSpellFree') || !isShopSpell(CARD_INDEX[cardId])) return false;
-  return (a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) === 0;
+  return shopSpellsBoughtThisTurn(state) === 0; // the run-wide count (`applySpellBought`): Scrollz reads the same one
 }
 
 // EMERALD WARDEN
@@ -6386,7 +6382,7 @@ function batchBPowerText(state: RunState, text: string, combat: AncientPowerLive
   const count = effectOf(state, 'spellsRechargePower') ?? effectOf(state, 'spellsGrantShopSpell');
   const every = Math.max(1, count?.every ?? 1);
   const spellsLeft = String(count ? every - (((a.batchBSpells ?? 0) + (state.fxSpellsCastPreview ?? 0)) % every) : 0);
-  const free = effectOf(state, 'firstShopSpellFree') ? ((a.valeSpellBuys?.wave === state.wave ? a.valeSpellBuys.n : 0) === 0 ? ' Ready this turn.' : ' Used this turn.') : '';
+  const free = effectOf(state, 'firstShopSpellFree') ? (shopSpellsBoughtThisTurn(state) === 0 ? ' Ready this turn.' : ' Used this turn.') : '';
   const va = effectOf(state, 'vanguardActive');
   const top = va?.act === 'topTribeMinion' ? dominantBoardTribe(state) : null;
   return text.replace('{mrDeathLeft}', left).replace('{vDeathLeft}', left).replace('{ewDeathLeft}', left)

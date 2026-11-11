@@ -106,8 +106,8 @@ const drawSpellId = (rng: Rng, tier: number, state: RunState, avoid?: string): s
   return eligible.length > 0 ? eligible[rng.int(eligible.length)]!.id : null;
 };
 
-/** SCROLL DRAKE (Set 3, Dragon/Spirit, owner design 2026-10-30): while on your board, Shop spells cost 1 less (2
- *  Gilded; `spellCostReduction`) and every Shop roll serves one extra spell in the minion row IN PLACE OF a minion. */
+/** SCROLL DRAKE (Set 3, Dragon/Spirit, owner design 2026-10-30): while on your board, the first Shop spell bought
+ *  each turn costs 1 less (2 Gilded; `spellCostReduction`, owner 2026-11-10) and every Shop roll serves one extra spell in the minion row IN PLACE OF a minion. */
 export const SCROLL_DRAKE_ID = 'd3_scrolldrake';
 
 /**

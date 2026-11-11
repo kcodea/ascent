@@ -1038,6 +1038,10 @@ export interface RunState {
   spellsCast: number;
   /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
   spellsThisTurn: number;
+  /** Shop spells BOUGHT on `wave` (both buy paths, ticked by `applySpellBought`; a Ruby never counts). Read through
+   *  `shopSpellsBoughtThisTurn`: a new wave reads 0 with no reset, and an old save (absent) reads 0. THE one "first Shop
+   *  spell you buy each turn" count: Scrollz's discount and Emissary x Fortune's free spell both read it. */
+  shopSpellBuys?: { wave: number; n: number };
   /** Set 2 — the run's Ruby STRENGTH: the extra Attack/Health every NEW Ruby is minted with, on top of the
    *  base 1/1 (raised by "Your Rubies gain +X"; future Rubies only, never retroactive). Absent = base 1/1. */
   rubyBonus?: { attack: number; health: number };

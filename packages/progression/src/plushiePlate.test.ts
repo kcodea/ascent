@@ -14,7 +14,9 @@ import { atOrAbove } from './crateShop';
  */
 describe('the Plushie Beast collection', () => {
   it('holds every Plushie minion skin, and only those (a new Plushie Beast must join the list)', () => {
-    const plushies = COSMETICS.filter((c) => c.category === 'minion_skin' && c.name.startsWith('Plushie ')).map((c) => c.id).sort();
+    // Plushie Gastrid (skins batch 15, 2026-11-11) is a Plushie DWARF: the collection is every Plushie skin of a Beast, so it stays out.
+    const notBeasts = ['skin_dorrin_2'];
+    const plushies = COSMETICS.filter((c) => c.category === 'minion_skin' && c.name.startsWith('Plushie ') && !notBeasts.includes(c.id)).map((c) => c.id).sort();
     expect([...PLUSHIE_BEAST_SKIN_IDS].sort()).toEqual(plushies);
     expect(collectionMembers(PLUSHIE_BEASTS_COLLECTION_ID).map((c) => c.id).sort()).toEqual(plushies);
     expect(plushies).toHaveLength(24);

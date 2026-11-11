@@ -233,7 +233,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'rebirth-flame',
       // 'resilient-ward-shatter' joined on 2026-09-26: a Resilient Ward's first hit, fired from `choreo/channels/aura.ts`.
       'resilient-ward-shatter',
-      'ruby-bounce', 'ruby-gem-apply',
+      'ruby-bounce', 'ruby-buff', 'ruby-buff-attack', 'ruby-buff-health', 'ruby-gem-apply', // 'ruby-buff' joined 2026-11-10: rides the Ruby power number (replaced pixiFx.rubyPower)
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
       // 'ward-lost-blast' joined on 2026-09-09: the owner-authored Ward-loss burst, fired from `choreo/channels/aura.ts`.

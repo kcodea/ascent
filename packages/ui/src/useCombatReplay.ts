@@ -8,7 +8,7 @@ import { CARD_INDEX } from '@game/content';
 import { whisperCombatBuffLabel } from './buffExpiry';
 import { runeProgress, runeProgressKey, triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
-import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
+import { floatRubyPowerNumber, playRubyBuffFx } from './rubyPowerFxConfig';
 import { fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
@@ -2707,7 +2707,7 @@ export function useCombatReplay(
       const a = anchorOf(e.source);
       if (!a) continue;
       const { cx, cy, h } = a;
-      pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+      playRubyBuffFx(cx, cy - h * 0.3, gA, gH, { x: cx, y: cy, uid: e.source });
       floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
       // bus is callable from here precisely because it no longer lives in Recruit's state.

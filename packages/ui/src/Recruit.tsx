@@ -177,7 +177,7 @@ import { elementAtPoint, readRect } from './layoutRead';
 import { createAimRectCache } from './aimRectCache';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
-import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
+import { floatRubyPowerNumber, playRubyBuffFx } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
@@ -1797,6 +1797,8 @@ export function Recruit() {
   // mid-combat narration beat has already shown — firing it again is the end-of-combat double-play the owner
   // reported. A sourced bump (a card you played) still fires in any phase.
   const prevRubyPowerSeq = useSwapRef(run.rubyPowerFxSeq, swapped);
+  /** The Ruby-power seq the Shout-chime effect last saw, so it can tell "this play raised Ruby strength". */
+  const shoutRubySeqRef = useRef(run.rubyPowerFxSeq);
   useEffect(() => {
     const seq = run.rubyPowerFxSeq;
     if (seq === undefined || seq === prevRubyPowerSeq.current) return;
@@ -1817,9 +1819,13 @@ export function Recruit() {
         ?? document.querySelector('[data-zone="tavern"]');
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      const y = r.top + r.height / 2;
-      pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+      // The RESTING centre: a card just dropped from the hand is still gliding in from the cursor, and its drawn
+      // rect put the gem and the numbers on the mouse instead of the slot it lands in (owner report 2026-11-11).
+      const rest = restingCenterOf(el as HTMLElement);
+      const x = rest?.x ?? r.left + r.width / 2;
+      const y = rest?.y ?? r.top + r.height / 2;
+      // The authored `ruby-buff` rides the floating number (it replaced the old hand-coded sparkle, owner 2026-11-10).
+      playRubyBuffFx(x, y - r.height * 0.3, gainA, gainH, { x, y, uid: uid && uid !== EQUIPMENT_FX_ANCHOR ? uid : undefined });
       floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
       // The held Rubies themselves also play the hand-buff cue, so the "these cards got stronger" read is on
       // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
@@ -6354,7 +6360,16 @@ export function Recruit() {
       (uid) => !bindingFor(run.board.find((c) => c.uid === uid)?.cardId ?? null, 'shout'),
     );
     setBattlecryUids((s) => new Set([...s, ...pulseFallback]));
-    sfx.triggerPulse(); // the Shout sound stays, whether the visual is the burst or the medallion pulse (deduped)
+    // ...except when the card that just landed is the one that raised RUBY strength in this same action: the Ruby
+    // cue rings its own whoosh + pickaxe strike, and the generic chime on top was one sound too many (owner
+    // 2026-11-11). Read off the reducer's own stamp (`rubyPowerFxUid`), not the card's printed effects, so it
+    // covers a Shout AND a Choose One pick (Cave Cutter's "+1/+1"), and still chimes for the other pick.
+    const rubySeq = run.rubyPowerFxSeq;
+    // A Choose One pick may stamp no uid; with one fresh card it can only be that card.
+    const rubyUid = rubySeq !== shoutRubySeqRef.current ? (run.rubyPowerFxUid ?? (fresh.length === 1 ? fresh[0] : undefined)) : undefined;
+    const raisedRubies = !!rubyUid && fresh.includes(rubyUid);
+    shoutRubySeqRef.current = rubySeq;
+    if (!raisedRubies || fresh.length > 1) sfx.triggerPulse(); // the Shout sound stays, whether the visual is the burst or the medallion pulse (deduped)
     // The SAME signal, published as a bindable moment. `fresh` is already "a minion whose Shout just fired",
     // which is the source `recruitMoments.ts` requires before a kind may exist — this adds no new detection,
     // it names the one that was already driving the medallion.
@@ -6373,6 +6388,8 @@ export function Recruit() {
             const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
             return el ? restingCenterOf(el) : null;
           },
+          // The Shout burst keeps its visuals but drops its own sound when this card's Shout raised Ruby strength.
+          muteSound: uid === rubyUid,
         },
       );
     }
@@ -7577,8 +7594,9 @@ export function Recruit() {
           ?? document.querySelector('[data-zone="tavern"]');
         if (el) {
           const r = el.getBoundingClientRect();
-          const x = r.left + r.width / 2, y = r.top + r.height / 2;
-          pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+          const rest = restingCenterOf(el as HTMLElement); // the slot it lands in, not the mid-glide rect
+          const x = rest?.x ?? r.left + r.width / 2, y = rest?.y ?? r.top + r.height / 2;
+          playRubyBuffFx(x, y - r.height * 0.3, attack, health, { x, y, uid: sourceUid || undefined });
           floatRubyPowerNumber(x, y - r.height * 0.3, attack, health);
         }
         fireHandBuffOnHandRubies(runRef.current.hand);
@@ -8096,7 +8114,7 @@ export function Recruit() {
           if (!el) continue;
           const r = el.getBoundingClientRect();
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-          pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
+          playRubyBuffFx(cx, cy - r.height * 0.3, gA, gH, { x: cx, y: cy, uid: b.uid });
           floatRubyPowerNumber(cx, cy - r.height * 0.3, gA, gH);
           fireHandBuffOnHandRubies(run.hand);
         }

@@ -125,6 +125,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // from the `bounceFx` channel in score.ts (Trouble, Candle Conduit, a Resonance Idol / Reflector spread).
   // `spell-bounce` is a PLACEHOLDER palette-swap of `ruby-bounce` until the owner tunes it in the workbench.
   'ruby-bounce': ['Recruit.tsx', 'choreo/score.ts'],
+  // Your Rubies getting stronger (owner-authored 2026-11-10): rides the floating +N/+N, replacing pixiFx.rubyPower.
+  'ruby-buff': ['rubyPowerFxConfig.ts'],
+  // …with the stat's own symbol beside the number: the dagger for Attack, the heart for Health (owner 2026-11-10).
+  'ruby-buff-attack': ['rubyPowerFxConfig.ts'],
+  'ruby-buff-health': ['rubyPowerFxConfig.ts'],
   // The RANK-UP hit (owner-authored 2026-09-20): a ring collapsing onto the crest, then a gold shard burst as
   // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
   'rank-up': ['rank/rankTimeline.ts'],

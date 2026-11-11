@@ -15086,4 +15086,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-11 (feat/skins-batch-15). Four names differ from their filename: 1960s Candy Assembler -> 60s Candy Assembler, Glowstick Party Crasher -> Glowstick Crasher and Solar Sailor Gangplank -> Solar Gangplank (20 characters max, cosmetics.test.ts), Samauri Striker -> Samurai Striker (spelling). Matched from the art, not the filename: Recordkeeper (Vaultkeeper), Dunebreaker (Earthbreaker), Ice Whelp (Ember Whelp), Lightdisk / Pizza Thrower (Blade Thrower), Woodland / Superfan Warhorn (Warhorn Captain). Keeping Plushie Gastrid out of the Plushie Beasts collection is also a Claude call. All are for the owner to confirm. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-11' },
   },
+  {
+    id: 'R-PROG-SKINS-24',
+    title: 'Skins batch 16: fifty-five minion skins for the Set 2 Demons, Neutrals and Dragons that had none join the crates at their folder rarity',
+    statement:
+      'Fifty-five minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Action Transcendant, Bonaparte Flamus, Boxer Knocked, Bug Collector, Carnival Demon Horse, Ceremonial Bearer, Here is Axeman, Holo Grobbus, Home Alone Shrieker, Infomercial Grevlin, Jungle Leech, Poly Malphas, Puffer Spike, Queen Bee Matron, Salesman Grevlin, Steamworks Gasket, Taiko Flamebeat, Whack-a-Mole Breaker. '
+      + 'Rare: Alien Queen Matron, Bebop Wrangler, Cactus Spike, Chrome Grobbus, Colossal Hydraskus, Double O Agent, Fire Eater Defiler, Foam Finger Heckler, Hammock Knocked, Ink Transcendant, Jelly Enigma, Kaiju Chomper, Lifeguard Overseer, Mech Overseer, Origami Karwind, Pastoral Shepherd, Proton Gasket, Retro Game Chipper, Rider Demonhorse, Sea Witch Defiler, Sorcerer\'s Conductor. '
+      + 'Epic: Cookie Chomper, DJ Conductor, Friendship Horse, Keyboard Warrior, Knit Tauntbreaker, Lich Grobbus, Pop Star Defiler, Powerup Karwind, Powerup Transcendant, Purple Reign Orivax, Scribble Legion, Timber Axeman, Comic Wrangler, Voxel Orivax, Wraith Shrieker. '
+      + 'Ancient: Baby Voicekeeper. '
+      + 'A master filename may hold an apostrophe. '
+      + 'With them in, a first crate holds 89 Common, 141 Rare, 130 Epic, 102 Legendary and 33 Ancient items (each Common '
+      + '0.393%, Rare 0.22%, Epic 0.169%, Legendary 0.088%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (skins batch 16)', quote: 'added more cosmetics. please add them all' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 16); packages/ui/src/art/skins/ (55 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-11 (feat/skins-batch-16). Eight names are shorter than their filename (20 characters max, cosmetics.test.ts): Actionstar Transcendant -> Action Transcendant, Bonaparte Captain Flamus -> Bonaparte Flamus, Ceremonial Standard Bearer -> Ceremonial Bearer, Whack-a-Mole Tauntbreaker -> Whack-a-Mole Breaker, Pastoral Legion Shepherd -> Pastoral Shepherd, Friendship Demon Horse -> Friendship Horse, Keyboard Warrior Heckler -> Keyboard Warrior, Vintage Comic Wrangler -> Comic Wrangler. Matched from the prompt sheet, not the filename: Bug Collector (Roarcollector), Kaiju Chomper and Cookie Chomper (Chipper). These are Claude calls for the owner to confirm. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-11' },
+  },
 ];

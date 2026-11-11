@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-11',
     changes: [
+      { category: 'Systems', text: 'The chat window can be moved by pressing and holding anywhere in it, not only its top strip.' },
       { category: 'Systems', text: 'Compendium: opening a hero now shows their full portrait beside their Health, Armor and power, with how the power is used and what it costs. Use the arrows or the arrow keys to flip through heroes.' },
     ],
   },

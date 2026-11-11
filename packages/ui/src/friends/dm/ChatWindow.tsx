@@ -10,8 +10,8 @@
  *    last tab closes the window.
  *  - THE CONVERSATION: the friend's header (portrait, name, live status, their game line), Watch / Invite, then the
  *    messages and the composer (`DmConversation`, R-DM-03), all much bigger than the old card beside the list.
- *  - MOVE: drag the tab strip or the conversation's header (a press that moves less than a few px is still a click on
- *    a tab or a button). RESIZE: the four edges and four corners. Both stay inside the screen, and the window is put back
+ *  - MOVE: press and hold anywhere in the window and drag (owner 2026-11-11; not the resize grips, the composer, a
+ *    message's text or the scrollbar; a press that moves less than a few px is still a click on a tab or a button). RESIZE: the four edges and four corners. Both stay inside the screen, and the window is put back
  *    inside it when the screen shrinks. Where I leave it, its size and the pin are kept on this device
  *    (`chatWindowPrefs.ts`).
  *  - PIN: pinned, the window stays up while I play: no veil, Escape and a press outside leave it alone, the game takes
@@ -29,7 +29,7 @@
  * a resize draws a ghost outline and commits the size once, on release. Messages arriving re-render this window only,
  * never the game. Motion: one-shot transform + opacity on open; nothing loops. Cursors: the gauntlet (CLAUDE.md).
  */
-import { memo, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { GameScroll } from '../../GameScroll';
 import { sfx } from '../../sfx';
 import { ChatFrame, ChatPinButton, phoneChat } from '../../chat/ChatFrame';
@@ -114,8 +114,8 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
       <ChatFrame prefs={dmChatPrefs} limits={DM_CHAT_LIMITS} defaultGeom={defaultChatGeom} phone={phone} pinned={pinned} className="dmchat-at"
         frameProps={{ onPointerDownCapture: noteDmSeen, onFocusCapture: noteDmSeen }}>
         {(drag) => (
-          <section className="dmchat vspanel" role="dialog" aria-label="Messages">
-            <div className="dmchat-top" {...drag}>
+          <section className="dmchat vspanel" role="dialog" aria-label="Messages" {...drag}>
+            <div className="dmchat-top">
               <GameScroll axis="x" className="dmchat-tabs" outerClassName="dmchat-tabs-wrap" role="tablist" aria-label="Conversations">
                 {tabs.map((id) => {
                   const f = friends?.find((x) => x.userId === id);
@@ -127,7 +127,7 @@ export function ChatWindow({ inGame = false, conversation }: { inGame?: boolean;
                 <span aria-hidden="true">✕</span>
               </button>
             </div>
-            {live ? <ChatPane f={live} conversation={conversation} pinned={pinned} drag={drag} /> : <div className="fdock-convo-empty dmchat-wait">{friends ? 'This conversation is not available.' : 'Finding your friends…'}</div>}
+            {live ? <ChatPane f={live} conversation={conversation} pinned={pinned} /> : <div className="fdock-convo-empty dmchat-wait">{friends ? 'This conversation is not available.' : 'Finding your friends…'}</div>}
           </section>
         )}
       </ChatFrame>
@@ -154,10 +154,10 @@ const ChatTab = memo(function ChatTab({ f, on, unread, onClose }: { f: Friend; o
 });
 
 /** One conversation: the friend's header and actions, then the messages and the composer. */
-function ChatPane({ f, conversation, pinned, drag }: { f: Friend; conversation?: (friend: Friend) => ReactNode; pinned: boolean; drag: { onPointerDown?: (e: ReactPointerEvent) => void } }): JSX.Element {
+function ChatPane({ f, conversation, pinned }: { f: Friend; conversation?: (friend: Friend) => ReactNode; pinned: boolean }): JSX.Element {
   return (
     <div className="dmchat-pane" aria-label={`Messages with ${handleOf(f)}`}>
-      <header className={`fdock-dmhead dmchat-head fr-${f.status}`} {...drag}>
+      <header className={`fdock-dmhead dmchat-head fr-${f.status}`}>
         <span className="fdock-portrait"><FriendPortrait card={f} /></span>
         <span className="fr-who">
           <span className="fr-name">{handleOf(f)}</span>

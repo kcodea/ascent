@@ -720,6 +720,21 @@ describe('the chat window moves, resizes and pins (R-DM-CHAT-02)', () => {
     ptr(q('.fdock-input')!, 'pointermove', 800, 500);
     expect(frame().classList.contains('moving')).toBe(false);
     ptr(q('.fdock-input')!, 'pointerup', 800, 500);
+    // A press held anywhere else in the window moves it too (owner 2026-11-11): here, the conversation's body.
+    const pane = q('.dmchat-pane')!;
+    ptr(pane, 'pointerdown', 600, 400);
+    ptr(pane, 'pointermove', 650, 440);
+    expect(frame().classList.contains('moving')).toBe(true);
+    expect(frame().style.transform).toBe('translate(570px, 90px)');
+    ptr(pane, 'pointerup', 650, 440);
+    expect(useChatWindow.getState().geom).toEqual({ x: 570, y: 90, w: 960, h: 720 });
+    act(() => { document.body.click(); });
+    // The scrollbar scrolls, it never moves the window.
+    const track = q('.dmchat-pane .gscroll-track')!;
+    ptr(track, 'pointerdown', 600, 400);
+    ptr(track, 'pointermove', 700, 500);
+    expect(frame().classList.contains('moving')).toBe(false);
+    ptr(track, 'pointerup', 700, 500);
   });
 
   it('a grip resizes through an outline and sets the size once, on release; the screen shrinking puts it back inside', async () => {

@@ -60,7 +60,9 @@ export function ChatFrame({ prefs, limits, defaultGeom, phone, pinned, className
   const begin = (e: ReactPointerEvent, edge: ChatEdge | null): void => {
     // A press that never became a drag (released outside the window) is simply replaced.
     if (phone || e.button !== 0 || gesture.current?.live) return;
-    if (!edge && (e.target as Element).closest('input, textarea, .dmchat-rs, .dm-emotes')) return;
+    // A move may start anywhere its handle covers, but never on a field, a grip, the emote picker, a message's own text
+    // (that press selects it) or a scrollbar (that press scrolls).
+    if (!edge && (e.target as Element).closest('input, textarea, .dmchat-rs, .dm-emotes, .dm-bubble, .gscroll-track')) return;
     gesture.current = { id: e.pointerId, edge, sx: e.clientX, sy: e.clientY, start: geom, live: false, el: e.currentTarget, last: null };
     if (edge) { e.preventDefault(); e.stopPropagation(); goLive(e.pointerId); }
   };

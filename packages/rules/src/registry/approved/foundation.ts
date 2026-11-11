@@ -15064,4 +15064,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-10 on shells that report the check (R-UPDATE-CHECK-LOADING-01); the browser and older shells are released at once. The waits: up to 8 s on "Checking for updates", and a download whose percent has not moved for 45 s stops holding. The "Not now" escape and both time limits are implementation choices the owner has not ruled on.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/updatedPanel.test.tsx'], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: 'R-PROG-SKINS-23',
+    title: 'Skins batch 15: fifty-eight minion skins for Set 2 Kobolds, Dwarves and Dragons that had none join the crates at their folder rarity',
+    statement:
+      'Fifty-eight minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: 60s Candy Assembler, Voxel Tunneller, Runegate Portsmith, Vintage Brisbane, Galaxy Brain Billy, Chalkboard Billy, Itamae Striker, Arcade Coinfire, Woodland Warhorn, Lightdisk Thrower, Pizza Thrower, Voxel Brakka, Impslayer Brakka, Lighthouse Kringle, Kristmas Kringle, Safe Thane, Carved Mountainbond, Bonsai Earthbreaker. '
+      + 'Rare: Weather Storm Chaser, Marble Gemcarver, Precious Delvey, Glowstick Crasher, Pinata Party Crasher, Hazmat Brisbane, Superfan Warhorn, Dealer Coinfire, Bathtime Gangplank, Metalhead Gastrid, Timber Brakka, Charcoal Kringle, Chesspiece Thane, Molten Mountainbond, Low Poly Vaultkeeper, Dozer Earthbreaker. '
+      + 'Epic: Mecha Boulderdash, Toonstar Kobe, Aurora Gemling, Origami Gemling, Scribble Crownvein, Samurai Striker, Poolside Brunni, Stained Glass Brunni, Don Brunni, Solar Gangplank, Tattoo Gangplank, Frostborn Brakka, Beach Babe Brewer, Ronin Thane, Recordkeeper, Ice Whelp, Lavalamp Broodfire, Floaty Riverback. '
+      + 'Legendary: Plushie Gastrid, Boxing Brewer, Excel-ent Billings, Cyber Mountainbond, Bubble Mirrorwing, Dunebreaker. '
+      + 'Plushie Gastrid is a Plushie Dwarf, so it is not a member of the Plushie Beasts collection. '
+      + 'With them in (and titles batch 2), a first crate holds 71 Common, 120 Rare, 115 Epic, 102 Legendary and 32 Ancient items (each Common '
+      + '0.493%, Rare 0.258%, Epic 0.191%, Legendary 0.088%, Ancient 0.094%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (skins batch 15)', quote: 'ok i added a bunch of cosmetics to the asscent art folder' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 15); packages/ui/src/art/skins/ (58 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-11 (feat/skins-batch-15). Four names differ from their filename: 1960s Candy Assembler -> 60s Candy Assembler, Glowstick Party Crasher -> Glowstick Crasher and Solar Sailor Gangplank -> Solar Gangplank (20 characters max, cosmetics.test.ts), Samauri Striker -> Samurai Striker (spelling). Matched from the art, not the filename: Recordkeeper (Vaultkeeper), Dunebreaker (Earthbreaker), Ice Whelp (Ember Whelp), Lightdisk / Pizza Thrower (Blade Thrower), Woodland / Superfan Warhorn (Warhorn Captain). Keeping Plushie Gastrid out of the Plushie Beasts collection is also a Claude call. All are for the owner to confirm. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/plushiePlate.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-11' },
+  },
 ];

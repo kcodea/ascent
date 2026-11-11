@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the one hundred and seventy-six skins', () => {
+describe('the two hundred and thirty-four skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -40,7 +40,7 @@ describe('the one hundred and seventy-six skins', () => {
   // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
   // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
   // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 14, and the hero skins; crate items with art keys and attributed masters', () => {
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 15, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -222,6 +222,65 @@ describe('the one hundred and seventy-six skins', () => {
       ['skin_cinderchef_1', 'minion_skin', { type: 'card', id: 'd2_cinderchef' }, 'rare'],
       ['skin_chef_1', 'minion_skin', { type: 'card', id: 'dw_chef' }, 'rare'],
       ['skin_drunkdaniel_1', 'minion_skin', { type: 'card', id: 'dw_drunkdaniel' }, 'epic'],
+      // skins batch 15 (2026-11-11): "ok i added a bunch of cosmetics to the asscent art folder"
+      ['skin_assembler_1', 'minion_skin', { type: 'card', id: 'k_assembler' }, 'common'],
+      ['skin_tunnelcharger_1', 'minion_skin', { type: 'card', id: 'k_tunnelcharger' }, 'common'],
+      ['skin_portsmith_1', 'minion_skin', { type: 'card', id: 'k_portsmith' }, 'common'],
+      ['skin_alchemist_1', 'minion_skin', { type: 'card', id: 'k_alchemist' }, 'common'],
+      ['skin_bigbrainbilly_1', 'minion_skin', { type: 'card', id: 'dw_bigbrainbilly' }, 'common'],
+      ['skin_bigbrainbilly_2', 'minion_skin', { type: 'card', id: 'dw_bigbrainbilly' }, 'common'],
+      ['skin_striker_1', 'minion_skin', { type: 'card', id: 'dw3_striker' }, 'common'],
+      ['skin_coinfire_1', 'minion_skin', { type: 'card', id: 'dw_coinfire' }, 'common'],
+      ['skin_ironlung_1', 'minion_skin', { type: 'card', id: 'dw_ironlung' }, 'common'],
+      ['skin_bladethrower_1', 'minion_skin', { type: 'card', id: 'dw_bladethrower' }, 'common'],
+      ['skin_bladethrower_2', 'minion_skin', { type: 'card', id: 'dw_bladethrower' }, 'common'],
+      ['skin_brakka_1', 'minion_skin', { type: 'card', id: 'dw_brakka' }, 'common'],
+      ['skin_brakka_2', 'minion_skin', { type: 'card', id: 'dw_brakka' }, 'common'],
+      ['skin_foreman_1', 'minion_skin', { type: 'card', id: 'dw_foreman' }, 'common'],
+      ['skin_foreman_2', 'minion_skin', { type: 'card', id: 'dw_foreman' }, 'common'],
+      ['skin_thane_1', 'minion_skin', { type: 'card', id: 'dw_thane' }, 'common'],
+      ['skin_mountainbond_1', 'minion_skin', { type: 'card', id: 'dw_mountainbond' }, 'common'],
+      ['skin_scalechanter_1', 'minion_skin', { type: 'card', id: 'd2_scalechanter' }, 'common'],
+      ['skin_stormchaser_1', 'minion_skin', { type: 'card', id: 'k_stormchaser' }, 'rare'],
+      ['skin_gemheart_1', 'minion_skin', { type: 'card', id: 'k_gemheart' }, 'rare'],
+      ['skin_deepdelve_1', 'minion_skin', { type: 'card', id: 'k_deepdelve' }, 'rare'],
+      ['skin_gemstorm_1', 'minion_skin', { type: 'card', id: 'k_gemstorm' }, 'rare'],
+      ['skin_gemstorm_2', 'minion_skin', { type: 'card', id: 'k_gemstorm' }, 'rare'],
+      ['skin_alchemist_2', 'minion_skin', { type: 'card', id: 'k_alchemist' }, 'rare'],
+      ['skin_ironlung_2', 'minion_skin', { type: 'card', id: 'dw_ironlung' }, 'rare'],
+      ['skin_coinfire_2', 'minion_skin', { type: 'card', id: 'dw_coinfire' }, 'rare'],
+      ['skin_gangplank_1', 'minion_skin', { type: 'card', id: 'dw_gangplank' }, 'rare'],
+      ['skin_dorrin_1', 'minion_skin', { type: 'card', id: 'dw_dorrin' }, 'rare'],
+      ['skin_brakka_3', 'minion_skin', { type: 'card', id: 'dw_brakka' }, 'rare'],
+      ['skin_foreman_3', 'minion_skin', { type: 'card', id: 'dw_foreman' }, 'rare'],
+      ['skin_thane_2', 'minion_skin', { type: 'card', id: 'dw_thane' }, 'rare'],
+      ['skin_mountainbond_2', 'minion_skin', { type: 'card', id: 'dw_mountainbond' }, 'rare'],
+      ['skin_herzog_1', 'minion_skin', { type: 'card', id: 'd2_herzog' }, 'rare'],
+      ['skin_scalechanter_2', 'minion_skin', { type: 'card', id: 'd2_scalechanter' }, 'rare'],
+      ['skin_boulderdash_1', 'minion_skin', { type: 'card', id: 'k_boulderdash' }, 'epic'],
+      ['skin_kobe_1', 'minion_skin', { type: 'card', id: 'k_kobe' }, 'epic'],
+      ['skin_gemline_1', 'minion_skin', { type: 'card', id: 'k_gemline' }, 'epic'],
+      ['skin_gemline_2', 'minion_skin', { type: 'card', id: 'k_gemline' }, 'epic'],
+      ['skin_crownvein_1', 'minion_skin', { type: 'card', id: 'k_crownvein' }, 'epic'],
+      ['skin_striker_2', 'minion_skin', { type: 'card', id: 'dw3_striker' }, 'epic'],
+      ['skin_brunni_1', 'minion_skin', { type: 'card', id: 'dw_brunni' }, 'epic'],
+      ['skin_brunni_2', 'minion_skin', { type: 'card', id: 'dw_brunni' }, 'epic'],
+      ['skin_brunni_3', 'minion_skin', { type: 'card', id: 'dw_brunni' }, 'epic'],
+      ['skin_gangplank_2', 'minion_skin', { type: 'card', id: 'dw_gangplank' }, 'epic'],
+      ['skin_gangplank_3', 'minion_skin', { type: 'card', id: 'dw_gangplank' }, 'epic'],
+      ['skin_brakka_4', 'minion_skin', { type: 'card', id: 'dw_brakka' }, 'epic'],
+      ['skin_brewer_1', 'minion_skin', { type: 'card', id: 'dw_brewer' }, 'epic'],
+      ['skin_thane_3', 'minion_skin', { type: 'card', id: 'dw_thane' }, 'epic'],
+      ['skin_herzog_2', 'minion_skin', { type: 'card', id: 'd2_herzog' }, 'epic'],
+      ['skin_embermouth_1', 'minion_skin', { type: 'card', id: 'd2_embermouth' }, 'epic'],
+      ['skin_broodfire_1', 'minion_skin', { type: 'card', id: 'd2_broodfire' }, 'epic'],
+      ['skin_riverdrake_1', 'minion_skin', { type: 'card', id: 'd2_riverdrake' }, 'epic'],
+      ['skin_dorrin_2', 'minion_skin', { type: 'card', id: 'dw_dorrin' }, 'legendary'],
+      ['skin_brewer_2', 'minion_skin', { type: 'card', id: 'dw_brewer' }, 'legendary'],
+      ['skin_billings_1', 'minion_skin', { type: 'card', id: 'dw_billings' }, 'legendary'],
+      ['skin_mountainbond_3', 'minion_skin', { type: 'card', id: 'dw_mountainbond' }, 'legendary'],
+      ['skin_mirrorwing_1', 'minion_skin', { type: 'card', id: 'd2_mirrorwing' }, 'legendary'],
+      ['skin_scalechanter_3', 'minion_skin', { type: 'card', id: 'd2_scalechanter' }, 'legendary'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });

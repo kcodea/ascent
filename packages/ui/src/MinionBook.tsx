@@ -368,7 +368,7 @@ function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonl
     <div className="inspect-ov phh-pop" role="dialog" aria-modal="true" aria-label={h.name} onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
       {many && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={(e) => { e.stopPropagation(); step(-1); }}><Icon name="chevron" /></button>}
       <article key={h.id} className="phi" onClick={(e) => e.stopPropagation()}>
-        {art && <img className="phi-wash" src={heroThumb(art)} alt="" aria-hidden="true" draggable={false} />}
+        {art && <img className="phi-wash" decoding="sync" src={heroThumb(art)} alt="" aria-hidden="true" draggable={false} />}
         <div className="phi-art">
           {art && <img decoding="sync" src={art} alt="" draggable={false} />}
         </div>

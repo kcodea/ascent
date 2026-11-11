@@ -93,7 +93,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
       core: hexToNum(c.colorCore), accent: hexToNum(c.colorAccent), side: hexToNum(sideHex), shade: hexToNum(c.colorShade),
     }, {
       lengthMs: c.ribbonLength, glow: c.ribbonGlow, core: c.ribbonCore, shade: c.ribbonShade, twist: c.ribbonTwist, strand: c.strand,
-      headSize: c.headSize, sigilSize: c.sigilSize,
+      headSize: c.headSize, sigilSize: c.sigilSize, motes: c.orbMotes, moteReach: c.orbReach, moteSpin: c.orbSpin,
     }, s, voidSeed(o.total, dist, o.side))
     : null;
   // Tier V (inherited from Arcana, dormant: no Knockout variant is designed for the Void yet).

@@ -58,6 +58,12 @@ export interface RibbonLook {
   strand: number;
   headSize: number;
   sigilSize: number;
+  /** Motes circling each orb and spiralling into it (0 = none). */
+  motes: number;
+  /** How far out a mote is caught, in orb radii. */
+  moteReach: number;
+  /** How fast the motes circle (turns a second at the outer edge; they speed up as they fall in). */
+  moteSpin: number;
 }
 
 /**
@@ -110,7 +116,7 @@ interface Ribbon {
   ring: { cx: number; cy: number; r: number; tilt: number; start: number; end: number; w0: number; w1: number } | null;
   shade: Strip | null; glow: Strip; body: Strip; core: Strip; strand: Strip | null;
   /** The orb at the head: a halo and a swirl behind, the dark disc (`orb`), and its hot rim (`flare`). */
-  head: { halo: Sprite; orb: Sprite; sigil: Sprite; flare: Sprite } | null;
+  head: { halo: Sprite; orb: Sprite; sigil: Sprite; flare: Sprite; sats: Sprite[] } | null;
   phase: number;
   alpha: number;
   lastX: number; lastY: number; moteAcc: number;
@@ -334,7 +340,18 @@ export class HeroVoidScene {
       const sigil = this.take('glow', this.tex.swirl, whiten(this.colors.accent, 0.2));
       const orb = this.take('body', this.tex.disc, this.colors.shade);
       const flare = this.take('core', this.tex.ring, this.hot);
-      if (halo && orb && sigil && flare) { hd = { halo, orb, sigil, flare }; for (const s of [halo, orb, sigil, flare]) s.alpha = 0; } else for (const s of [halo, orb, sigil, flare]) if (s) this.giveS(s);
+      if (halo && orb && sigil && flare) {
+        // THE GRAVITY: motes caught by the orb, circling it and spiralling in (they ride the orb, so they are sprites
+        // placed from its clock, not free particles: a fast orb would outrun those).
+        const sats: Sprite[] = [];
+        for (let i = 0; i < Math.round(L.motes); i++) {
+          const m = this.take('air', this.tex.spark, i % 3 === 0 ? this.colors.core : i % 3 === 1 ? this.colors.accent : this.hot);
+          if (!m) break;
+          m.alpha = 0; sats.push(m);
+        }
+        hd = { halo, orb, sigil, flare, sats };
+        for (const s of [halo, orb, sigil, flare]) s.alpha = 0;
+      } else for (const s of [halo, orb, sigil, flare]) if (s) this.giveS(s);
     }
     const p0 = at(Math.max(0, age0));
     this.ribbons.push({
@@ -854,15 +871,26 @@ export class HeroVoidScene {
       hd.sigil.position.set(hx, hy); hd.sigil.scale.set((od / SIGIL_PX) * 2.6 * L.sigilSize); hd.sigil.rotation += dt * 0.014; hd.sigil.alpha = ha * (L.sigilSize > 0 ? 1 : 0);
       hd.orb.position.set(hx, hy); hd.orb.scale.set(od / DISC_D); hd.orb.alpha = 0.97 * ha;
       hd.flare.position.set(hx, hy); hd.flare.scale.set((od / RING_D) * 1.03); hd.flare.alpha = ha * (0.8 + 0.2 * Math.sin(rb.age * 0.031));
-      // Glitter shed off the head as it travels (a few, bounded by the pool).
-      rb.moteAcc += Math.hypot(hx - rb.lastX, hy - rb.lastY);
-      if (ha > 0.2 && rb.moteAcc > 44 * S) {
-        rb.moteAcc = 0;
-        const ang = this.rnd() * Math.PI * 2, sp = (40 + this.rnd() * 80) * S;
-        this.particle(this.tex.star, this.rnd() < 0.5 ? this.colors.accent : this.hot, {
-          x: hx, y: hy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, drag: 0.15, grav: 90 * S,
-          life: 380 + this.rnd() * 240, from: (0.28 + this.rnd() * 0.2) * S, to: 0.05 * S, alpha: 1, twinkle: 0.025, spin: 0.006, streak: false,
-        });
+      // Each mote falls from the outer reach to the rim over one cycle, circling faster the closer it gets (so its
+      // angle is the integral of a speed that grows as it falls), stretched along its path, then is caught again.
+      const nS = hd.sats.length;
+      if (nS) {
+        const R = od * 0.5;
+        const w = (L.moteSpin * Math.PI * 2) / 1000;
+        const CYCLE = 620;
+        for (let i = 0; i < nS; i++) {
+          const m = hd.sats[i]!;
+          const u = ((rb.age + rb.phase * 100) / CYCLE + i / nS + (i % 2) * 0.37) % 1;
+          const rr = R * (1.05 + (L.moteReach - 1.05) * Math.pow(1 - u, 1.6));
+          const th = rb.phase + i * 2.399963 + w * CYCLE * (u + 1.6 * u * u * u);
+          const cx = Math.cos(th), sx = Math.sin(th);
+          m.position.set(hx + cx * rr, hy + sx * rr);
+          // Heading: mostly round the orb, tipping inward as it falls.
+          m.rotation = th + Math.PI / 2 + 0.5 * u;
+          const sz = (0.34 + 0.3 * (1 - u)) * hs * S;
+          m.scale.set(sz * (1.4 + 2.2 * u), sz * 0.55);
+          m.alpha = ha * Math.min(1, u * 5) * (u > 0.88 ? (1 - u) / 0.12 : 1);
+        }
       }
     }
     rb.lastX = hx; rb.lastY = hy;
@@ -882,7 +910,7 @@ export class HeroVoidScene {
 
   private dropRibbon(rb: Ribbon): void {
     for (const st of [rb.shade, rb.glow, rb.body, rb.core, rb.strand]) this.giveStrip(st);
-    if (rb.head) for (const s of [rb.head.halo, rb.head.orb, rb.head.sigil, rb.head.flare]) this.giveS(s);
+    if (rb.head) { for (const s of [rb.head.halo, rb.head.orb, rb.head.sigil, rb.head.flare]) this.giveS(s); for (const m of rb.head.sats) this.giveS(m); }
   }
 
   /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */

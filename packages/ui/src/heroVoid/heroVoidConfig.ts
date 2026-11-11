@@ -13,8 +13,8 @@
  *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`). Its end is this style's start.
  *  2. CHARGE. The total dives into the attacking hero; an accretion swirl opens under the portrait and a small dark
  *     orb forms over it, light spiralling in; the view pushes in on the hero.
- *  3. LOB. Dark ORBS (a near-black disc with a hot rim, a swirl of light spinning into it, a black trail edged in
- *     light) are LOBBED from the hero on high arcs: I one; II two (different heights, opposite sides); III five,
+ *  3. THROW. Dark ORBS (a near-black disc with a hot rim, a swirl of light spinning into it, motes circling it and
+ *     spiralling in, a black trail edged in light) are thrown from the hero nearly FLAT (they are heavy): I one; II two (different heights, opposite sides); III five,
  *     fanned, landing in rhythm.
  *  4. IMPACT. Each orb that lands before the last is a small tick. The LAST one is THE impact: a dark burst over the
  *     portrait inside a hot rim, rings, spikes. The consequence (the damage, Armor, Resolve) lands ONCE, there.
@@ -61,6 +61,12 @@ interface GlobalConfig {
   strand: number;
   headSize: number;
   sigilSize: number;
+  /** Motes circling each orb and spiralling in. */
+  orbMotes: number;
+  /** How far out a mote is caught, in orb radii. */
+  orbReach: number;
+  /** Turns a second at the outer edge (they speed up as they fall in). */
+  orbSpin: number;
   // Swirl (Tier IV)
   swirlRadius: number;
   swirlTilt: number;
@@ -129,8 +135,9 @@ const TIER_DEFAULTS: Record<VoidTierSuffix, [number, number, number, number]> = 
   Ribbons: [1, 2, 5, 6],
   LaunchStaggerMs: [0, 130, 100, 60],
   FlightMs: [560, 580, 590, 520],
-  ArcHeight: [0.32, 0.32, 0.28, 0.2],
-  Fan: [0, 0.18, 0.32, 0.14],
+  // Nearly flat (Mike 2026-11-11: "it shouldnt arc as much, it would defy those phsysics"): a heavy orb barely rises.
+  ArcHeight: [0.05, 0.07, 0.07, 0.06],
+  Fan: [0, 0.09, 0.17, 0.1],
   RibbonWidth: [52, 52, 44, 38],
   Swirl: [0, 0, 0, 1],
   Shake: [5, 8, 12, 20],
@@ -176,6 +183,9 @@ export const HERO_VOID_DEFAULTS: HeroVoidConfig = {
   strand: 0.45,
   headSize: 1,
   sigilSize: 1,
+  orbMotes: 10,
+  orbReach: 2.7,
+  orbSpin: 1.1,
   swirlRadius: 1.55,
   swirlTilt: 0.5,
   swirlMs: 700,
@@ -233,6 +243,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroVoidStrKey>, [number
   strand: [0, 1.5, 0.01],
   headSize: [0.3, 3, 0.05],
   sigilSize: [0, 3, 0.05],
+  orbMotes: [0, 16, 1],
+  orbReach: [1.2, 5, 0.05],
+  orbSpin: [0, 4, 0.05],
   swirlRadius: [0.6, 3, 0.05],
   swirlTilt: [0.2, 1, 0.01],
   swirlMs: [200, 2000, 10],

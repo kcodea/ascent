@@ -29,7 +29,7 @@ const TEX: HeroVoidTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, 
 const C = HERO_VOID_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false) => voidPlan({ total, distance, reduced, leadIn: leadInOf(values, reduced) }, C);
 const COLORS = { core: 0xffffff, accent: 0x72f1ff, side: 0xa45bff, shade: 0x1a0833 };
-const LOOK = { lengthMs: 150, glow: 2.6, core: 0.34, shade: 0.34, twist: 0.4, strand: 0.55, headSize: 1, sigilSize: 1 };
+const LOOK = { lengthMs: 150, glow: 2.6, core: 0.34, shade: 0.34, twist: 0.4, strand: 0.55, headSize: 1, sigilSize: 1, motes: 10, moteReach: 2.7, moteSpin: 1.1 };
 const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
@@ -200,15 +200,20 @@ describe('the plan', () => {
 });
 
 describe('the ribbon paths', () => {
-  it('a lob leaves the hero, rises toward the TOP of the screen, comes DOWN onto the target, and lands exactly on it', () => {
+  it('an orb leaves the hero, flies NEARLY FLAT (Mike 2026-11-11: "it shouldnt arc as much"), and lands exactly on the target', () => {
     const [m] = ribbonMotions(P1, A, D, 80, C);
     expect(ribbonPos(m!, 0)).toEqual(A);
     expect(ribbonPos(m!, m!.flightMs)).toEqual(D);
     expect(ribbonPos(m!, m!.flightMs + 500)).toEqual(D);
-    const mid = ribbonPos(m!, m!.flightMs / 2);
-    expect(mid.y).toBeLessThan((A.y + D.y) / 2 - 100); // a high arc, not a bolt
-    const late = ribbonPos(m!, m!.flightMs * 0.97);
-    expect(late.y).toBeLessThan(D.y); // still above the target just before it lands: it dives in
+    // How far the path strays from the straight line, as a fraction of the distance: a slight rise, never a high lob.
+    const dist = Math.hypot(D.x - A.x, D.y - A.y);
+    let worst = 0;
+    for (let i = 1; i < 20; i++) {
+      const p = ribbonPos(m!, (m!.flightMs * i) / 20);
+      worst = Math.max(worst, Math.abs((D.x - A.x) * (p.y - A.y) - (D.y - A.y) * (p.x - A.x)) / dist);
+    }
+    expect(worst).toBeGreaterThan(0);
+    expect(worst / dist).toBeLessThan(0.08);
     // the top-edge ceiling: the controls never rise above it, so the lob stays in frame
     const [c] = ribbonMotions(P1, A, D, 80, C, 40);
     expect(Math.min(c!.lob.c1.y, c!.lob.c2.y)).toBeGreaterThanOrEqual(40);

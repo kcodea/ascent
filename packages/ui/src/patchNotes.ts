@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fifty-five more minion skins in chests, for the Demons, Neutrals and Dragons that had none.',
+        details: [
+          'Among them: Baby Voicekeeper (Ancient), Cookie Chomper, DJ Conductor, Purple Reign Orivax, Lich Grobbus and Double O Agent.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fifty-eight new minion skins in chests, for Kobolds, Dwarves and Dragons that had none.',
         details: [
           'Among them: Mecha Boulderdash, Toonstar Kobe, Don Brunni, Boxing Brewer, Bubble Mirrorwing and Dunebreaker.',

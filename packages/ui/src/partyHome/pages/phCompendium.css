@@ -402,11 +402,11 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phi-art { position: relative; min-width: 0; overflow: hidden; }
 .phi-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: phi-art 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   -webkit-mask-image: linear-gradient(90deg, #000 68%, transparent 100%); mask-image: linear-gradient(90deg, #000 68%, transparent 100%); }
-.phi-info { position: relative; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(24 * var(--phu)); padding: calc(36 * var(--phu)) calc(40 * var(--phu)) calc(36 * var(--phu)) calc(24 * var(--phu)); overflow: hidden; }
+.phi-info { position: relative; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(24 * var(--phu)); padding: calc(36 * var(--phu)) calc(40 * var(--phu)) calc(36 * var(--phu)) calc(24 * var(--phu)); }
 .phi-wash { position: absolute; left: -10%; top: -10%; width: 120%; height: 120%; object-fit: cover; opacity: 0.22; filter: blur(calc(36 * var(--phu))) saturate(1.3); pointer-events: none; }
 .phi-info > * { position: relative; animation: phi-rise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .phi-info > .phi-power { animation-delay: 0.07s; }
-.phi-head { display: flex; flex-direction: column; align-items: flex-start; gap: calc(12 * var(--phu)); }
+.phi-head { display: flex; flex-direction: column; align-items: flex-start; gap: calc(12 * var(--phu)); padding-left: calc(116 * var(--phu)); }
 .phi-duos { display: inline-flex; align-items: center; height: calc(24 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: calc(6 * var(--phu)); background: var(--ph-gold); color: var(--ph-navy); font-family: var(--ph-font); font-weight: 900; font-size: var(--ph-t1); letter-spacing: 0.1em; text-transform: uppercase; }
 .phi-name { margin: 0; font-family: var(--ph-font); font-weight: 900; font-size: calc(56 * var(--phu)); line-height: 1.02; letter-spacing: -0.01em; color: var(--ph-ink); text-shadow: var(--ph-shadow), 0 calc(3 * var(--phu)) calc(14 * var(--phu)) rgba(0, 0, 0, 0.7); overflow-wrap: anywhere; }
 .phi-vitals { display: flex; flex-wrap: wrap; gap: calc(12 * var(--phu)); }
@@ -416,11 +416,14 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phi-stat.is-armor svg { color: var(--ui-armor-mid, #b3bdca); }
 .phi-stat b { font-weight: 900; font-size: calc(24 * var(--phu)); font-variant-numeric: tabular-nums; }
 .phi-stat i { font-style: normal; font-weight: 700; font-size: var(--ph-t2); color: var(--ph-muted); }
-.phi-power { display: flex; flex-direction: column; gap: calc(16 * var(--phu)); padding: calc(20 * var(--phu)); border-radius: var(--ph-r); background: rgba(6, 12, 28, 0.62); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
-.phi-pwhead { display: flex; align-items: center; gap: calc(16 * var(--phu)); }
-.phi-pwart { flex: none; width: calc(84 * var(--phu)); height: calc(84 * var(--phu)); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 calc(2 * var(--phu)) var(--ph-gold), 0 calc(4 * var(--phu)) calc(14 * var(--phu)) rgba(0, 0, 0, 0.6); }
+.phi-power { --pw: calc(184 * var(--phu)); display: flex; flex-direction: column; justify-content: center; gap: calc(12 * var(--phu)); padding: calc(20 * var(--phu)); border-radius: var(--ph-r); background: rgba(6, 12, 28, 0.62); box-shadow: inset 0 0 0 calc(1 * var(--phu)) color-mix(in srgb, var(--ph-gold) 45%, transparent); }
+.phi-pwhead { display: flex; align-items: center; gap: calc(20 * var(--phu)); }
+/* THE POWER MEDALLION (owner 2026-11-11: "make the hero power eclipse the hero art in a circle on top of it"): the power's art is
+   a large gold-ringed circle centred on the panel's left edge, so it stands out of the panel and over the portrait's fade. */
+.phi-power.has-art { min-height: calc(var(--pw) * 0.72); padding-left: calc(var(--pw) * 0.5 + 24 * var(--phu)); }
+.phi-pwart { position: absolute; left: calc(var(--pw) * -0.5); top: 50%; width: var(--pw); height: var(--pw); margin-top: calc(var(--pw) * -0.5); border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 calc(3 * var(--phu)) var(--ph-gold), 0 0 0 calc(7 * var(--phu)) rgba(6, 12, 28, 0.85), 0 calc(10 * var(--phu)) calc(28 * var(--phu)) rgba(0, 0, 0, 0.7); }
 .phi-pwwho { min-width: 0; display: flex; flex-direction: column; gap: calc(8 * var(--phu)); }
-.phi-pwname { font-family: var(--ph-font); font-weight: 900; font-size: calc(28 * var(--phu)); line-height: 1.1; color: #fbe6a6; text-shadow: var(--ph-shadow); }
+.phi-pwname { font-family: var(--ph-font); font-weight: 900; font-size: calc(32 * var(--phu)); line-height: 1.1; color: #fbe6a6; text-shadow: var(--ph-shadow); }
 .phi-facts { display: flex; flex-wrap: wrap; gap: calc(6 * var(--phu)); }
 .phi-fact { display: inline-flex; align-items: center; height: calc(24 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: calc(12 * var(--phu)); background: rgba(174, 189, 219, 0.14); font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
 .phi-pwtext { margin: 0; font-family: var(--ph-body); font-weight: 500; font-size: calc(20 * var(--phu)); line-height: 1.45; color: var(--ph-text); }
@@ -445,6 +448,11 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
   .phi-art img { object-position: 50% 15%; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%); mask-image: linear-gradient(180deg, #000 70%, transparent 100%); }
   .phi-info { justify-content: flex-start; gap: calc(16 * var(--phu)); padding: 0 calc(20 * var(--phu)) calc(36 * var(--phu)); overflow-y: auto; }
   .phi-name { font-size: calc(40 * var(--phu)); }
+  .phi-head { padding-left: 0; }
+  .phi-info { overflow-y: visible; }
+  .phi-power { --pw: calc(120 * var(--phu)); }
+  .phi-power.has-art { min-height: 0; padding-left: calc(20 * var(--phu)); padding-top: calc(var(--pw) * 0.5 + 12 * var(--phu)); margin-top: calc(var(--pw) * 0.5); }
+  .phi-pwart { left: calc(20 * var(--phu)); top: 0; }
   .phi-nav.is-prev { left: max(calc(8 * var(--phu)), calc(50% - min(calc(310 * var(--phu)), 46cqw) - calc(68 * var(--phu)))); }
   .phi-nav.is-next { right: max(calc(8 * var(--phu)), calc(50% - min(calc(310 * var(--phu)), 46cqw) - calc(68 * var(--phu)))); }
 }

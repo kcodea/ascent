@@ -381,9 +381,9 @@ function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonl
               {h.armor > 0 && <span className="phi-stat is-armor" aria-label={`${h.armor} starting Armor`}><Icon name="shield" /><b>{h.armor}</b><i>Armor</i></span>}
             </div>
           </div>
-          <div className="phi-power">
+          <div className={`phi-power${pw ? ' has-art' : ''}`}>
+            {pw && <img className="phi-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
             <div className="phi-pwhead">
-              {pw && <img className="phi-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
               <div className="phi-pwwho">
                 <span className="phi-pwname">{h.power.name}</span>
                 <span className="phi-facts">{facts.map((t) => <span key={t} className="phi-fact">{t}</span>)}</span>

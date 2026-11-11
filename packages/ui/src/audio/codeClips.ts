@@ -158,6 +158,12 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/triple-impact',
     'fx/universfield-ground-impact-352053',
   ],
+  void: [
+    'fx/blue-impact-hit',
+    'fx/oona-powerup',
+    'fx/triple-impact',
+    'fx/whoosh-03',
+  ],
   soccer: [
     'fx/bball-rim',
     'fx/soccer-crowd-ooh',

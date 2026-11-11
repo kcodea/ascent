@@ -119,6 +119,11 @@
  * breakaway past defenders (rolled: stepovers, a nutmeg or a rainbow flick) with a slow-mo finish; IV a bicycle kick
  * upside down in slow mo, a thunderbolt into an exploding net and a knee slide (`../heroSoccer/`).
  *
+ * `void` is IN PROGRESS and has NO cosmetic yet (Mike 2026-11-11: "lets do void!"), so no player can equip it; it
+ * plays only through the dev "Attack style" override. Built on Arcana: dark orbs with a hot rim are lobbed from the
+ * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
+ * collapses to a point and blasts outward (`../heroVoid/`).
+ *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
  * its animation in `assets.style`; an unknown, retired or unrecognised item plays Classic.
@@ -131,7 +136,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -148,7 +153,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -163,6 +168,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   bullettime: 'Timebreak (Ancient of Time)',
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
+  void: 'Void (in progress, no cosmetic yet)',
 };
 
 const KEY = 'ascent.heroattackstyle';

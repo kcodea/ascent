@@ -28,10 +28,11 @@ import { SPEC as BACKSTAB } from '../HeroBackstabTuner';
 import { SPEC as BASKETBALL } from '../HeroBasketballTuner';
 import { SPEC as BASEBALL } from '../HeroBaseballTuner';
 import { SPEC as SOCCER } from '../HeroSoccerTuner';
+import { SPEC as VOID } from '../HeroVoidTuner';
 import { SPEC as STITCH } from '../HeroStitchTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, STITCH, BULLET_TIME, FORMATION };
+const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, VOID, STITCH, BULLET_TIME, FORMATION };
 import { SPEC as BULLET_TIME } from '../HeroBulletTimeTuner';
 
 describe('the attack tuners', () => {

@@ -59,6 +59,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   heroblast: '💥',
   heroquake: '🌋',
   heroarcana: '🔮',
+  herovoid: '🕳️',
   heroblades: '🗡️',
   dmgformation: '🧮',
   rankscreen: '🎖️',

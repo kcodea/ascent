@@ -99,6 +99,7 @@
     "bot:tune": "tsx packages/tools/src/bot-tune.ts",
     "bot:ladder": "tsx packages/tools/src/bot-ladder.ts",
     "pool:prune": "tsx packages/tools/src/prune-pool.ts",
+    "attack:new": "node scripts/new-hero-attack.mjs",
     "sfx:import": "tsx packages/tools/src/sfx-import.ts",
     "sfx:manifest": "tsx packages/tools/src/sfx-manifest.ts",
     "vo:generate": "tsx packages/tools/src/vo-generate.ts",

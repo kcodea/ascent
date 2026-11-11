@@ -126,8 +126,8 @@ describe('the Collection screen: routing', () => {
 describe('the Collection screen: the album', () => {
   it('shows every title, owned or not, rarest first; owned bright, missing dimmed with a lock, the equipped one ribboned', () => {
     open();
-    expect(tileNames()).toHaveLength(58);
-    expect(tileNames()[0]).toBe('The Unbroken'); // Legendary leads the album
+    expect(tileNames()).toHaveLength(66);
+    expect(tileNames().slice(0, 2)).toEqual(['Banana', 'The Unbroken']); // the Ancient leads the album (Banana, 2026-11-11), then the Legendaries
     expect(tile('Alpha Tester').className).toMatch(/\bowned\b/);
     expect(tile('Alpha Tester').className).toMatch(/\bworn\b/);
     expect(tile('Alpha Tester').querySelector('.colls-tile-ribbon')?.textContent).toBe('Equipped');
@@ -142,8 +142,8 @@ describe('the Collection screen: the album', () => {
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
     // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83; skins batch 3 (2026-09-29, +4 minion skins and a Frantic Frank hero skin) +5; skins batch 4 (2026-09-30, +16 minion and +16 hero skins) +32; skins batch 5 (2026-09-30, +11 minion skins and Influencer Indy) +12; skins batch 6 (2026-10-01, +9 minion skins) +9; skins + frames batch 3 (2026-10-01, +3 hero skins and +10 portrait frames) +13; frames batch 4 (2026-10-01, +5 portrait frames) +5; frames batch 5 (2026-10-02, Simple Ring and Void) +2; frames batch 6 (2026-10-02, Cherry Blossom) +1; Rayse's hero title (2026-10-02, un-archived) +1; the six Ancient frames (2026-10-02) +6; skins batch 8 + frames batch 7 (2026-10-03, +11 hero skins and +7 portrait frames) +18; frames batch 8 (2026-10-06, Cosmic Glass) +1; skins batch 9 (2026-10-07, Canyon Drake and Thunderchorus Drake) +2; frames batch 9 (2026-10-07, Blossom, Neonpunk, Solar Flare, Color Doodle, Neon Ring) +5
-    expect(text('.colls-meter-num')).toBe('8 / 423'); // 2026-11-02: skins batch 14 (eight minion skins) made it 8 / 423. 2026-11-02: Golazo (attack_soccer) made it 8 / 415. 2026-11-02: Charge the Mound (+1).  2026-10-26: skins batch 11 (twenty-two minion skins) made it 8 / 359. 2026-10-22: the five Comms emotes, owned by everyone, made it 8 / 337. 2026-10-21: skins batch 10 (fourteen skins) made it 332. 2026-10-18: nine more crate emotes made it 299. 2026-10-17: Phoenix removed made it 290; Goop made it 291; three more card plates made it 290; thirteen before that made it 287. 2026-10-16: the Chrome card plate made it 274. 2026-10-16: seven more card plates made it 273. 2026-10-15: Sad Wrangler retired made it 266. 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
-    expect(text('.colls-tab.on .colls-tab-count')).toBe('2/58');
+    expect(text('.colls-meter-num')).toBe('8 / 431'); // 2026-11-11: titles batch 2 (one Ancient, seven Legendary titles) made it 8 / 431. 2026-11-02: skins batch 14 (eight minion skins) made it 8 / 423. 2026-11-02: Golazo (attack_soccer) made it 8 / 415. 2026-11-02: Charge the Mound (+1).  2026-10-26: skins batch 11 (twenty-two minion skins) made it 8 / 359. 2026-10-22: the five Comms emotes, owned by everyone, made it 8 / 337. 2026-10-21: skins batch 10 (fourteen skins) made it 332. 2026-10-18: nine more crate emotes made it 299. 2026-10-17: Phoenix removed made it 290; Goop made it 291; three more card plates made it 290; thirteen before that made it 287. 2026-10-16: the Chrome card plate made it 274. 2026-10-16: seven more card plates made it 273. 2026-10-15: Sad Wrangler retired made it 266. 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('2/66');
     clean();
   });
 
@@ -155,21 +155,21 @@ describe('the Collection screen: the album', () => {
 
   it('filters: Owned, Missing and a rarity, with counts; no match offers Show all', () => {
     open();
-    expect(text('.colls-seg .colls-chip.on')).toBe('All58');
+    expect(text('.colls-seg .colls-chip.on')).toBe('All66');
     act(() => chip('Owned').click());
     expect(tileNames()).toEqual(['Alpha Tester', 'Star Chaser']);
     act(() => chip('Missing').click());
-    expect(tileNames()).toHaveLength(56);
+    expect(tileNames()).toHaveLength(64);
     expect(tileNames()).not.toContain('Alpha Tester');
     act(() => chip('All').click());
     act(() => chip('Legendary').click());
-    expect(tileNames()).toEqual(['The Unbroken']);
-    expect(text('.colls-chip-r.r-legendary .colls-chip-n')).toBe('0/1');
+    expect(tileNames()).toEqual(['The Unbroken', 'Beastmaster', 'Dwarven Warlord', 'Leader of the Pack', 'Doom', 'Gem-stoned', 'Dragonborn', 'Re-Blarted']);
+    expect(text('.colls-chip-r.r-legendary .colls-chip-n')).toBe('0/8');
     act(() => chip('Owned').click()); // owned + legendary: none
     expect($('.colls-nomatch')).not.toBeNull();
     expect(text('.colls-nomatch div')).toBe('Nothing matches these filters.');
     act(() => button('Show all')!.click());
-    expect(tileNames()).toHaveLength(58);
+    expect(tileNames()).toHaveLength(66);
   });
 });
 
@@ -186,9 +186,9 @@ describe('hero titles in the Collection (owner 2026-09-29; the master look since
     const warded = tile('Warded');
     expect(warded.querySelector('.titlebadge.tb-master')).not.toBeNull();
     expect(warded.className).toMatch(/\bworn\b/);
-    expect(tileNames()).toHaveLength(58); // the master took the title's slot
-    expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('8 / 423'); // 2026-11-02: skins batch 14 (eight minion skins) made it 8 / 423. 2026-11-02: Golazo (attack_soccer) made it 8 / 415. 2026-11-02: Charge the Mound (+1).  Alpha Tester + Warded (the master stands for both tiers) + Zen Brian (2026-10-15) + the five Comms emotes (2026-10-22)
+    expect(tileNames()).toHaveLength(66); // the master took the title's slot
+    expect(tileNames().slice(0, 2)).toEqual(['Banana', 'The Unbroken']); // the Ancient leads the album, then the Legendaries
+    expect(text('.colls-meter-num')).toBe('8 / 431'); // 2026-11-11: titles batch 2 (one Ancient, seven Legendary titles) made it 8 / 431. 2026-11-02: skins batch 14 (eight minion skins) made it 8 / 423. 2026-11-02: Golazo (attack_soccer) made it 8 / 415. 2026-11-02: Charge the Mound (+1).  Alpha Tester + Warded (the master stands for both tiers) + Zen Brian (2026-10-15) + the five Comms emotes (2026-10-22)
     // the detail panel's nameplate and the preview under your name wear the master look too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -217,7 +217,7 @@ describe('the Collection screen: categories', () => {
     expect($('.colls-bay')).not.toBeNull();
     expect(button('Open')).toBeTruthy();
     act(() => tab('Titles').click());
-    expect(tileNames()).toHaveLength(58);
+    expect(tileNames()).toHaveLength(66);
     clean();
   });
   it('an OWNED announcer can be equipped', () => {
@@ -364,7 +364,7 @@ describe('the Collection screen: the crate bay', () => {
     open({}, { cratesOn: 'off' });
     expect(text('.colls-bay-sub')).toBe('Chests are coming soon.');
     expect($('.colls-bay-odds')).toBeNull(); // no odds while crates are off
-    expect(tileNames()).toHaveLength(58); // the album still shows
+    expect(tileNames()).toHaveLength(66); // the album still shows
     ui!.unmount();
     open({}, { crates: null });
     expect(text('.colls-bay-sub')).toBe('Loading');

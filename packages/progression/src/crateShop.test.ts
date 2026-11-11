@@ -112,7 +112,8 @@ describe('focus', () => {
       && COSMETICS.some((c) => c.category === cat && c.active && c.acquisition.type === 'crate' && c.rarity === 'ancient'));
     const got = availableFocusCategories([], 'ancient');
     expect(got).toEqual(expected);
-    for (const none of ['title', 'emote', 'announcer'] as const) expect(got).not.toContain(none);
+    for (const none of ['emote', 'announcer'] as const) // titles left this list 2026-11-11: Banana is an Ancient title
+     expect(got).not.toContain(none);
     // Owning a category's last item at the floor removes it.
     const owned = crateItems.filter((c) => c.category === 'card_plate').map((c) => c.id);
     expect(availableFocusCategories(owned, 'common')).not.toContain('card_plate');
@@ -125,7 +126,7 @@ describe('focus', () => {
     expect(normalizeFocus(null, all)).toBeNull();
     expect(normalizeFocus([], all)).toBeNull();
     expect(normalizeFocus([...all], all)).toBeNull();
-    expect(normalizeFocus(['title'], availableFocusCategories([], 'ancient'))).toBe('bad');
+    expect(normalizeFocus(['emote'], availableFocusCategories([], 'ancient'))).toBe('bad');
     expect(normalizeFocus(['nonsense'], all)).toBe('bad');
   });
 
@@ -173,7 +174,7 @@ describe('quotes', () => {
   });
 
   it('a focus that names an unavailable category is refused', () => {
-    expect(quoteCrate({ tier: 'ancient', focus: ['title'], owned: [] })).toBeNull();
+    expect(quoteCrate({ tier: 'ancient', focus: ['emote'], owned: [] })).toBeNull();
   });
 
   it('sold out is null', () => {

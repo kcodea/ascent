@@ -210,20 +210,20 @@ describe('the Chest Shop screen (owner 2026-10-20: "a dedicated full screen expe
   it('a category with nothing left at this tier: kept row, 0, "None left", disabled; a tick from a lower tier is kept, not priced', () => {
     seed(2000);
     render();
-    click(toggle('Titles')); // Standard: Titles has items left
+    click(toggle('Emotes')); // Standard: Emotes has items left (it was Titles until Banana, the first Ancient title, 2026-11-11)
     expect(buyText()).toBe('Open Chest 200');
     click(tier('Ancient'));
-    const titles = toggle('Titles');
-    expect(titles.disabled).toBe(true);
-    expect(norm(titles.textContent)).toBe('None left');
-    expect(norm(row('Titles')!.querySelector('.cshop-cat-left')?.textContent)).toBe('0');
-    expect(titles.getAttribute('aria-pressed')).toBe('false');
-    click(titles);
+    const emotes = toggle('Emotes');
+    expect(emotes.disabled).toBe(true);
+    expect(norm(emotes.textContent)).toBe('None left');
+    expect(norm(row('Emotes')!.querySelector('.cshop-cat-left')?.textContent)).toBe('0');
+    expect(emotes.getAttribute('aria-pressed')).toBe('false');
+    click(emotes);
     expect(buyText()).toBe('Open Chest 900');
     expect(receipt()).toEqual([['Ancient Chest', '900'], ['Total', '900']]);
     // Back to Standard: the tick is still there, and priced again.
     click(tier('Standard'));
-    expect(toggle('Titles').getAttribute('aria-pressed')).toBe('true');
+    expect(toggle('Emotes').getAttribute('aria-pressed')).toBe('true');
     expect(buyText()).toBe('Open Chest 200');
   });
 

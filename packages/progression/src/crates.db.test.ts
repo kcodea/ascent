@@ -24,7 +24,9 @@ import { parseProgressionProfile, parseProgressionResult } from './rules';
 const root = join(__dirname, '../../..');
 /** What a crate can give under THIS file's schema: the crates migration alone ships titles only (the skin
  *  categories arrive with the 2026-09-28 skins migration, exercised in skins.db.test.ts). */
-const titlePool = (owned: Iterable<string>): ReturnType<typeof eligibleCrateCosmetics> => eligibleCrateCosmetics(owned).filter((c) => c.category === 'title');
+/** Titles batch 2 (2026-11-11) reaches the server through the catalog sync; this file's database holds only the crates file's seed (the launch fifteen). */
+const TITLES_BATCH_2: readonly string[] = ['title_banana', 'title_beastmaster', 'title_dwarven_warlord', 'title_leader_of_the_pack', 'title_doom', 'title_gem_stoned', 'title_dragonborn', 'title_re_blarted'];
+const titlePool = (owned: Iterable<string>): ReturnType<typeof eligibleCrateCosmetics> => eligibleCrateCosmetics(owned).filter((c) => c.category === 'title' && !TITLES_BATCH_2.includes(c.id));
 const MVP = readFileSync(join(root, 'supabase/migrations/2026-09-27-account-progression.sql'), 'utf8');
 const CRATES = readFileSync(join(root, 'supabase/migrations/2026-09-28-progression-crates.sql'), 'utf8');
 

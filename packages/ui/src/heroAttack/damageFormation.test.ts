@@ -39,6 +39,7 @@ import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
+import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
 import { SPEC, boardOf } from '../DamageFormationTuner';
@@ -522,6 +523,7 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['bullettime', (o) => playHeroBulletTime({ ...o, textures: null })],
     ['baseball', (o) => playHeroBaseball({ ...o, textures: null })],
     ['soccer', (o) => playHeroSoccer({ ...o, textures: null })],
+    ['void', (o) => playHeroVoid({ ...o, textures: null })],
   ];
 
   it('every style (and the formation inside it, through the capped slash) advances the clock by exactly the time played, every frame', () => {

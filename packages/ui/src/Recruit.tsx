@@ -141,6 +141,8 @@ import { playHeroBaseball } from './heroBaseball/heroBaseball';
 import { heroBaseballPreviewSpeed } from './heroBaseball/heroBaseballConfig';
 import { playHeroSoccer } from './heroSoccer/heroSoccer';
 import { heroSoccerPreviewSpeed } from './heroSoccer/heroSoccerConfig';
+import { playHeroVoid } from './heroVoid/heroVoid';
+import { heroVoidPreviewSpeed } from './heroVoid/heroVoidConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
 import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
 import { playHeroBulletTime } from './heroBulletTime/heroBulletTime';
@@ -3808,6 +3810,8 @@ export function Recruit() {
         ? { play: playHeroBaseball, preview: heroBaseballPreviewSpeed() }
         : attackStyle === 'soccer'
         ? { play: playHeroSoccer, preview: heroSoccerPreviewSpeed() }
+        : attackStyle === 'void'
+        ? { play: playHeroVoid, preview: heroVoidPreviewSpeed() }
         : attackStyle === 'backstab'
         ? { play: playHeroBackstab, preview: heroBackstabPreviewSpeed() }
         : attackStyle === 'bubble'

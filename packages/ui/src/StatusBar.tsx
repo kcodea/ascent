@@ -256,12 +256,16 @@ export function StatusBar() {
   const ownSkins = useRunSkins();
   const runSkins = ownSkins;
   // R-PHONE-HERO-SHARP-01: a phone draws this ~300 device px, so it loads the 512 px master once decoded.
-  const ownHeroImg = useSharpArt(heroPortrait(hero.id, runSkins));
-  const heroImg = duosFighter ? duosFighter.art ?? ownHeroImg : ownHeroImg;
+  // DUOS (R-DUOS-FIGHTER-VIEW-01): my teammate's own portrait (their skin) while their board fights.
+  const heroImg = useSharpArt(heroPortrait(hero.id, runSkins));
+  const shownHeroImg = duosFighter ? duosFighter.art ?? heroImg : heroImg;
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).
-  const frame = usePortraitFrame('self', duosFighter ? duosFighter.frameId : frameIdOf(runSkins), 'socket');
+  const ownFrame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
+  // DUOS (R-DUOS-FIGHTER-VIEW-01): while my teammate fights, the ring is THEIRS (the same surface and seat).
+  const fighterFrame = usePortraitFrame('self', duosFighter ? duosFighter.frameId : null, 'socket');
+  const frame = duosFighter ? fighterFrame : ownFrame;
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
@@ -967,8 +971,8 @@ export function StatusBar() {
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
             {/* (The post-combat green attack pill and the red damage-taken number were retired 2026-09-28: the shared
                 damage formation builds the blow and every hero attack punches the same big -N onto the target.) */}
-            {heroImg ? (
-              <img decoding="sync" className="heroimg" src={heroImg} alt={duosFighter ? duosFighter.name : hero.name} draggable={false} />
+            {shownHeroImg ? (
+              <img decoding="sync" className="heroimg" src={shownHeroImg} alt={duosFighter ? duosFighter.name : hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

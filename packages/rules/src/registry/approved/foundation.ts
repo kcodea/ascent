@@ -4529,7 +4529,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-FRAME-01',
-    title: 'Portrait frames are a crate cosmetic: 58 frames (10 Common, 10 Rare, 22 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
+    title: 'Portrait frames are a crate cosmetic: 64 frames (10 Common, 10 Rare, 28 Epic, 9 Legendary, 7 Ancient, the rank-named masters included) in the account-wide portrait_frame slot; names are bare (no "Frame") and avoid the ranked medal words',
     statement:
       'The portrait_frame category ("Portrait Frames", target global, enabled) holds 58 crate items, one per master in '
       + 'C:/Game Assets/Ascent Art/Skins/Portraits at its folder rarity (R-PROG-FRAME-04): Common Honey, Ale, Ruby, Steel, '
@@ -4637,7 +4637,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'added Cosmic Glass (Epic; master \x27Epic/Cosmic Glass Frame.png\x27, the first frame master with spaces in its name, '
       + 'which the catalog test now allows as skins do): 53 in all (10 Common, 8 Rare, 19 Epic, 9 Legendary, 7 Ancient). '
       + 'Batch 9 (Mike, the same day) added Blossom, Neonpunk and Solar Flare (Epic) and Color Doodle and Neon Ring (Rare): '
-      + '58 in all (10 Common, 10 Rare, 22 Epic, 9 Legendary, 7 Ancient).',
+      + '64 in all (10 Common, 10 Rare, 28 Epic, 9 Legendary, 7 Ancient).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -15269,5 +15269,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-18). The owner named no interior this time; Dark carries over from the batch 7 ruling and is a Claude call to confirm. 8 Bit Standard Plate.png ships as 8 Bit Standard. The seats are the build script fit, not yet tuned by the owner in the Card Plate Editor; the openings are 3% to 6% narrower than Galaxy with no artScale set. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx'], lastVerifiedAt: '2026-11-12' },
+  },
+  {
+    id: 'R-PROG-FRAME-05',
+    title: 'Portrait frames batch 10: the six 8 Bit rings join the crates as Epic frames',
+    statement:
+      'Six portrait frames are targetless crate items at the rarity of the Portraits folder their master sits in, all Epic: '
+      + '8 Bit Cyber, 8 Bit Electric, 8 Bit Jade Energy, 8 Bit Pearl, 8 Bit Ruby, 8 Bit Water. Each ships its ring as a WebP in '
+      + 'packages/ui/src/art/frames/skins/ with its hole measured off the master (frameSkins.data.json). There are 64 frames '
+      + '(10 Common, 10 Rare, 28 Epic, 9 Legendary, 7 Ancient). With them and skins batch 19 in, a first crate holds 92 Common, 145 Rare, 146 Epic, 107 Legendary and 33 Ancient items (each Common 0.38%, Rare 0.214%, Epic 0.151%, Legendary 0.084%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (frames batch 10)', quote: 'added a few more' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (portrait frames batch 10); packages/ui/src/portraitFrame/frameSkins.data.json; packages/ui/src/art/frames/skins/frame_8_bit_*.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-19). Holes measured by npm run art:frames; every centre is within the usual 0.05 of the middle. Not yet seen on a portrait in game. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/portraitFrames.db.test.ts', 'packages/ui/src/progression/CollectionFrames.test.tsx', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-11-12' },
+  },
+  {
+    id: 'R-PROG-SKINS-27',
+    title: 'Skins batch 19: 8 Bit Wrangler joins the crates as a Legendary Rope Wrangler skin',
+    statement:
+      '8 Bit Wrangler is a crate minion skin targeting Rope Wrangler by stable id, shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, Legendary by the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'With it and frames batch 10 in, a first crate holds 92 Common, 145 Rare, 146 Epic, 107 Legendary and 33 Ancient items (each Common 0.38%, Rare 0.214%, Epic 0.151%, Legendary 0.084%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (skins batch 19)', quote: 'added a few more' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (skins batch 19); packages/ui/src/art/skins/skin_ropewrangler_3.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-19). Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
   },
 ];

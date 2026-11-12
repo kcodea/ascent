@@ -1,41 +1,31 @@
-// SCAFFOLDED from heroSoccer/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Soccer, not this style, until rewritten.
 /**
- * THE SOCCER HERO ATTACK ("Golazo", a Legendary with four tiers): its tuned values, its pure timeline, the pure
- * geometry (the corner spot, the header point, the breakaway run and its defenders, the bicycle kick's spot), the pure
- * pose of the striking PORTRAIT, the pure path of the ball, the goal on the target and the camera.
+ * THE PINBALL HERO ATTACK ("Multiball", a Legendary with four looks): its tuned values, its pure timeline, the pure
+ * geometry (the flipper beside the striker, the pop bumpers round the target, the lane of insert arrows, the wire ramp
+ * and its loop, the score display), the pure paths of the steel balls, the state of every light, the tilt and the
+ * camera.
  *
- * Owner 2026-11-02: "make 2 attack animations, a soccer one, and a baseball one. get creative and fun with them, like a
- * corner kick for soccer then a breakaway etc."
+ * THE SIGNATURE: the board becomes a PINBALL TABLE. A FLIPPER (white bat, red rubber) stands in front of the striking
+ * hero, the blow is a chrome STEEL BALL, the struck hero is the table's target (a ring of lamps round it), pop BUMPERS
+ * rise round it and light when hit, and the top look rolls a JACKPOT up on a dot-matrix display that stops on the real
+ * damage of the blow (`total`, the engine's number).
  *
- * THE SIGNATURE: a GOAL (two posts, a crossbar and a net) stands on the struck hero, and every blow ends with the ball
- * BULGING THE NET. The striker is the PORTRAIT itself (it juggles, jogs, dribbles and flips), as the Basketball's does.
+ * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays IV):
+ *  - I THE FLIPPER SHOT: the flipper snaps up and thwacks the ball straight into the target: a ding, the lamps light.
+ *  - II THE BUMPERS: three pop bumpers rise round the target. The ball rattles between them (each one flashes, kicks
+ *    and pops a "+10"), then drops onto the target.
+ *  - III THE RAMP AND MULTIBALL: a wire ramp lights up arching over the play area. The ball shoots up it, goes round
+ *    its loop and comes off as THREE balls ("MULTIBALL" on the display), which hit the bumpers and then the target in
+ *    a quick cascade. The blow lands with the FIRST of the three; the other two are its echoes.
+ *  - IV THE JACKPOT: the bumpers and the lane arrows chase, the ball goes wild between the bumpers, the striker shoves
+ *    the table and the whole play area TILTS a few degrees and back ("TILT" blinks), then every light strobes and the
+ *    JACKPOT rolls up, its last reel stopping on the damage number as the ball slams the target.
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I THE VOLLEY: keepy-uppies where it stands (the ball bobbing off its feet), one higher flick, a hop, and a crisp
- *    volley on a low line into the goal: the net bulges (THE impact).
- *  - II THE CORNER KICK: the portrait jogs out to the CORNER FLAG at the target's end, sets the ball, steps back, raises
- *    an arm, and strikes. One of three corners, rolled per blow:
- *     1. the OLIMPICO: an inswinger that bends all the way into the goal, straight from the corner;
- *     2. the HEADER: an outswinger curled to the penalty spot; the portrait sprints in, leaps and heads it home;
- *     3. the SHORT CORNER: a short pass off the edge of the screen, the one-two back to it, and a first-time curler.
- *  - III THE BREAKAWAY: it dribbles up the pitch from its slot past DEFENDERS (dark foe tokens that lunge and are
- *    beaten), one of three skills rolled per blow (STEPOVERS, a NUTMEG through the legs, a RAINBOW FLICK over the
- *    head), then a slow-mo last touch and a placed finish into the goal (THE impact).
- *  - IV THE BICYCLE KICK: two keepy-uppies, a huge flick SKY HIGH, a full sprint to the spot where the ball will come
- *    down (its shadow marks the landing), a crouch, a leap and a backward FLIP; at the top, upside down, in deep slow
- *    mo, the bicycle kick; time snaps back and a THUNDERBOLT rockets into the goal: the net bursts out, the frame rings,
- *    an explosion, confetti and the crowd's roar (THE impact). Then a knee-slide celebration and home.
- *
- * The roll is `variantOf(rollSeed)`: a stable per-blow seed (the run seed and the round), so a replay rolls the same.
- * The DEV tuner's "Variation" row forces one. Slow mo (`pinballTimeScale`) is III's last touch and IV's contact: a smooth
- * ramp that never reaches 0 (never a freeze); everything reads the one clock, and the blow still lands once, on its beat.
- *
- * Every point the portrait visits is kept on screen, and every shot lands on the target's centre (the hit point never
- * leaves the target). No hit-stop anywhere; flat 2D.
+ * The bounce order is rolled from the stable per-blow seed, so a replay bounces the same. Every point is computed from
+ * the two portraits and kept on screen, so it works in both directions and on any layout. No hit-stop and no slow
+ * motion: the one clock never changes pace, and the blow lands once, on `impactAt`.
  */
 import { configStore } from '../heroAttack/configStore';
-import { clamp, clamp01, easeInOutSine, easeOutCubic, spring, type Pt } from '../heroAttack/easing';
+import { clamp, clamp01, easeInOutSine, easeOutBack, easeOutCubic, seededRng, spring, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
@@ -43,140 +33,100 @@ import {
 export { TIERS };
 export type { TierNum };
 
-export const PINBALL_KINDS = ['volley', 'corner', 'breakaway', 'bicycle'] as const;
-export type SoccerKind = (typeof PINBALL_KINDS)[number];
+export const PINBALL_KINDS = ['flipper', 'bumpers', 'multiball', 'jackpot'] as const;
+export type PinballKind = (typeof PINBALL_KINDS)[number];
 
-/** Each tier's move. */
-export function pinballKind(tier: TierNum): SoccerKind { return PINBALL_KINDS[tier - 1]!; }
+/** Each tier's look. */
+export function pinballKind(tier: TierNum): PinballKind { return PINBALL_KINDS[tier - 1]!; }
 
 /** The tier dial groups the tuner shows (`t1` ... `t4`). */
 export const PINBALL_LEVELS = ['t1', 't2', 't3', 't4'] as const;
 
 export const PINBALL_TIER_SUFFIXES = [
-  'ReadyMs', 'Touches', 'TouchMs', 'ApproachMs', 'LeapMs', 'FlightMs', 'Arc', 'HoldMs', 'ReturnMs',
-  'JumpScale', 'Zoom', 'Punch', 'Shake', 'Burst', 'Rings', 'Confetti', 'Bulge', 'Dim',
+  'ReadyMs', 'SetMs', 'FlightMs', 'Bounces', 'BounceMs', 'DropMs', 'HoldMs', 'OutMs', 'Zoom', 'Punch', 'Shake', 'Burst', 'Rings', 'Dim',
 ] as const;
-export type SoccerTierSuffix = (typeof PINBALL_TIER_SUFFIXES)[number];
-type TierKey = `t${TierNum}${SoccerTierSuffix}`;
+export type PinballTierSuffix = (typeof PINBALL_TIER_SUFFIXES)[number];
+type TierKey = `t${TierNum}${PinballTierSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
-  gatherMs: number;
   ballSize: number;
-  spin: number;
-  trailMs: number;
-  juggleHeight: number;
-  volleyHop: number;
-  cornerSetMs: number;
-  cornerRunMs: number;
-  curl: number;
-  headerFlightMs: number;
-  oneTwoMs: number;
-  defenders: number;
-  beatWidth: number;
-  skillMs: number;
-  skyHeight: number;
-  crouchMs: number;
-  flipTurns: number;
-  slideMs: number;
-  breakSlow: number;
-  breakSlowMs: number;
-  bikeSlow: number;
-  bikeSlowMs: number;
-  rocketBoost: number;
-  slowRampMs: number;
-  slowZoom: number;
-  /** DEV: '' = rolled per blow, '1' / '2' / '3' force a variation (a string so the tuner shows it as a select). */
-  variation: string;
-  blastSize: number;
-  launchSize: number;
-  shadowDrop: number;
-  goalSize: number;
-  wordSize: number;
+  flipperSize: number;
+  swingMs: number;
+  bumperSize: number;
+  bumperDist: number;
+  kickPx: number;
+  rampMs: number;
+  rampBow: number;
+  loopSize: number;
+  splitMs: number;
+  cascadeMs: number;
+  chaseMs: number;
+  tiltDeg: number;
+  tiltMs: number;
+  rollMs: number;
+  displaySize: number;
+  scoreSize: number;
   knockPx: number;
   squash: number;
   shakeMs: number;
   zoomOutMs: number;
   reducedFadeMs: number;
-  colorBall: string;
-  colorPost: string;
-  colorNet: string;
-  colorFlag: string;
-  colorDefender: string;
   colorFlash: string;
-  colorFire: string;
-  colorBlast: string;
-  colorConfettiA: string;
-  colorConfettiB: string;
+  colorLamp: string;
+  colorSpark: string;
   colorPlayer: string;
   colorFoe: string;
-  sfxWhistleClip: string; sfxWhistleGain: number; sfxWhistleRate: number;
-  sfxKickClip: string; sfxKickGain: number; sfxKickRate: number;
-  sfxTouchClip: string; sfxTouchGain: number; sfxTouchRate: number;
+  sfxFlipperClip: string; sfxFlipperGain: number; sfxFlipperRate: number;
+  sfxBumperClip: string; sfxBumperGain: number; sfxBumperRate: number;
+  sfxRampClip: string; sfxRampGain: number; sfxRampRate: number;
+  sfxReelClip: string; sfxReelGain: number; sfxReelRate: number;
   sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
-  sfxNetClip: string; sfxNetGain: number; sfxNetRate: number;
-  sfxPostClip: string; sfxPostGain: number; sfxPostRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
-  sfxOohClip: string; sfxOohGain: number; sfxOohRate: number;
-  sfxRoarClip: string; sfxRoarGain: number; sfxRoarRate: number;
-  sfxGolazoClip: string; sfxGolazoGain: number; sfxGolazoRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
 }
 export type HeroPinballConfig = GlobalConfig & Record<TierKey, number>;
 
-export const HERO_PINBALL_COLOR_KEYS = [
-  'colorBall', 'colorPost', 'colorNet', 'colorFlag', 'colorDefender', 'colorFlash', 'colorFire', 'colorBlast', 'colorConfettiA', 'colorConfettiB',
-  'colorPlayer', 'colorFoe',
-] as const;
-export const HERO_PINBALL_CLIP_KEYS = [
-  'sfxWhistleClip', 'sfxKickClip', 'sfxTouchClip', 'sfxWhooshClip', 'sfxNetClip', 'sfxPostClip', 'sfxBoomClip', 'sfxOohClip', 'sfxRoarClip', 'sfxGolazoClip',
-] as const;
-export type HeroPinballStrKey = (typeof HERO_PINBALL_COLOR_KEYS)[number] | (typeof HERO_PINBALL_CLIP_KEYS)[number] | 'variation';
+export const HERO_PINBALL_COLOR_KEYS = ['colorFlash', 'colorLamp', 'colorSpark', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_PINBALL_CLIP_KEYS = ['sfxFlipperClip', 'sfxBumperClip', 'sfxRampClip', 'sfxReelClip', 'sfxWhooshClip', 'sfxBoomClip'] as const;
+export type HeroPinballStrKey = (typeof HERO_PINBALL_COLOR_KEYS)[number] | (typeof HERO_PINBALL_CLIP_KEYS)[number];
 export type HeroPinballNumKey = Exclude<keyof HeroPinballConfig, HeroPinballStrKey>;
 
-/** Per tier: [I, II, III, IV]. A dial a tier's move does not use is ignored there (the tuner says which). */
-const TIER_DEFAULTS: Record<SoccerTierSuffix, [number, number, number, number]> = {
+/** Per tier: [I, II, III, IV]. A dial a tier's look does not use is ignored there (the tuner says which). */
+const TIER_DEFAULTS: Record<PinballTierSuffix, [number, number, number, number]> = {
   ReadyMs: [120, 110, 100, 100],
-  Touches: [2, 0, 5, 2],
-  TouchMs: [240, 240, 230, 220],
-  ApproachMs: [0, 720, 1150, 620],
-  LeapMs: [360, 420, 0, 640],
-  FlightMs: [360, 900, 420, 230],
-  Arc: [0.1, 0.18, 0.16, 0.02],
-  HoldMs: [380, 260, 300, 360],
-  ReturnMs: [0, 620, 560, 520],
-  JumpScale: [0.05, 0.08, 0.06, 0.24],
-  Zoom: [0.02, 0.025, 0.035, 0.06],
-  Punch: [0.01, 0.015, 0.02, 0.05],
-  Shake: [2, 3, 6, 22],
-  Burst: [0.8, 1, 1.3, 1.9],
-  Rings: [1, 1, 2, 5],
-  Confetti: [0, 0, 14, 40],
-  Bulge: [0.12, 0.16, 0.22, 0.45],
-  Dim: [0.1, 0.14, 0.18, 0.3],
+  SetMs: [300, 440, 460, 260],
+  FlightMs: [280, 240, 200, 230],
+  Bounces: [0, 6, 2, 4],
+  BounceMs: [100, 108, 112, 94],
+  DropMs: [0, 150, 140, 160],
+  HoldMs: [420, 440, 480, 760],
+  OutMs: [220, 240, 240, 280],
+  Zoom: [0.02, 0.03, 0.035, 0.055],
+  Punch: [0.01, 0.015, 0.02, 0.045],
+  Shake: [2, 3, 6, 16],
+  Burst: [0.8, 1, 1.25, 1.8],
+  Rings: [1, 1, 2, 4],
+  Dim: [0.12, 0.2, 0.26, 0.36],
 };
 
-export const PINBALL_TIER_RANGES: Record<SoccerTierSuffix, [number, number, number]> = {
+export const PINBALL_TIER_RANGES: Record<PinballTierSuffix, [number, number, number]> = {
   ReadyMs: [0, 1000, 10],
-  Touches: [0, 8, 1],
-  TouchMs: [100, 600, 10],
-  ApproachMs: [0, 2000, 10],
-  LeapMs: [0, 1400, 10],
-  FlightMs: [80, 1800, 10],
-  Arc: [0, 1, 0.01],
-  HoldMs: [0, 1500, 10],
-  ReturnMs: [0, 1500, 10],
-  JumpScale: [0, 0.5, 0.01],
+  SetMs: [120, 1500, 10],
+  FlightMs: [80, 1200, 10],
+  Bounces: [0, 10, 1],
+  BounceMs: [60, 400, 2],
+  DropMs: [0, 600, 10],
+  HoldMs: [0, 1800, 10],
+  OutMs: [60, 1000, 10],
   Zoom: [0, 0.2, 0.005],
   Punch: [0, 0.1, 0.001],
   Shake: [0, 40, 0.5],
   Burst: [0, 3, 0.05],
   Rings: [0, 8, 1],
-  Confetti: [0, 80, 1],
-  Bulge: [0, 1, 0.01],
   Dim: [0, 0.6, 0.01],
 };
 
@@ -185,67 +135,43 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => PINBALL_TIER_SUFFIX
 export const HERO_PINBALL_DEFAULTS: HeroPinballConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
-  gatherMs: 110,
-  ballSize: 0.34,
-  spin: 2.2,
-  trailMs: 26,
-  juggleHeight: 0.9,
-  volleyHop: 0.2,
-  cornerSetMs: 320,
-  cornerRunMs: 200,
-  curl: 0.34,
-  headerFlightMs: 230,
-  oneTwoMs: 260,
-  defenders: 2,
-  beatWidth: 1.15,
-  skillMs: 280,
-  skyHeight: 2.6,
-  crouchMs: 180,
-  flipTurns: 1,
-  slideMs: 560,
-  breakSlow: 0.45,
-  breakSlowMs: 320,
-  bikeSlow: 0.25,
-  bikeSlowMs: 620,
-  rocketBoost: 1.3,
-  slowRampMs: 70,
-  slowZoom: 0.015,
-  variation: '',
-  blastSize: 1.3,
-  launchSize: 1.2,
-  shadowDrop: 0.55,
-  goalSize: 1,
-  wordSize: 1,
+  ballSize: 0.27,
+  flipperSize: 1,
+  swingMs: 70,
+  bumperSize: 0.5,
+  bumperDist: 1,
+  kickPx: 9,
+  rampMs: 720,
+  rampBow: 0.2,
+  loopSize: 0.8,
+  splitMs: 150,
+  cascadeMs: 95,
+  chaseMs: 700,
+  tiltDeg: 2.4,
+  tiltMs: 520,
+  rollMs: 660,
+  displaySize: 1,
+  scoreSize: 1,
   knockPx: 18,
   squash: 0.09,
   shakeMs: 300,
   zoomOutMs: 420,
   reducedFadeMs: 260,
-  colorBall: '#ffffff',
-  colorPost: '#ffffff',
-  colorNet: '#e6eeff',
-  colorFlag: '#ffd23f',
-  colorDefender: '#2b3140',
-  colorFlash: '#fff4dc',
-  colorFire: '#ffb030',
-  colorBlast: '#ff7a1a',
-  colorConfettiA: '#3fd17a',
-  colorConfettiB: '#ffd23f',
+  colorFlash: '#fff6e0',
+  colorLamp: '#ffc13a',
+  colorSpark: '#cfe6ff',
   colorPlayer: '#ffcf5a',
   colorFoe: '#ff6a5a',
-  // The owner's ElevenLabs clips (2026-11-02): the whistle, the kick, the net, the crowd's "Ooooh", the goal roar and
-  // the commentator's GOLAZO!, each trimmed to its hit and levelled to -20 LUFS.
-  sfxWhistleClip: 'fx/soccer-whistle', sfxWhistleGain: 0.55, sfxWhistleRate: 1,
-  sfxKickClip: 'fx/soccer-kick', sfxKickGain: 0.85, sfxKickRate: 1,
-  sfxTouchClip: 'fx/soccer-kick', sfxTouchGain: 0.4, sfxTouchRate: 1.45,
-  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.3, sfxWhooshRate: 1.1,
-  sfxNetClip: 'fx/soccer-net', sfxNetGain: 0.85, sfxNetRate: 1,
-  sfxPostClip: 'fx/bball-rim', sfxPostGain: 0.45, sfxPostRate: 1.35,
-  // The boom is a SHARED clip (always decoded on a phone), so it costs the phone audio budget nothing (R-AUDIO-PREWARM-ATTACKS-01).
-  sfxBoomClip: 'fx/universfield-ground-impact-352053', sfxBoomGain: 0.45, sfxBoomRate: 1,
-  sfxOohClip: 'fx/soccer-crowd-ooh', sfxOohGain: 0.7, sfxOohRate: 1,
-  sfxRoarClip: 'fx/soccer-goal-roar', sfxRoarGain: 0.55, sfxRoarRate: 1,
-  sfxGolazoClip: 'fx/soccer-golazo', sfxGolazoGain: 0.9, sfxGolazoRate: 1,
+  // ElevenLabs clips (2026-11-12), each trimmed to its hit and levelled to about -20 LUFS: the flipper's clack (its
+  // transient is 25 ms in), a pop bumper (a solenoid thwack with a soft bell, its hit at 0), the ball on the wire ramp,
+  // and a score reel rattling.
+  sfxFlipperClip: 'fx/pinball-flipper', sfxFlipperGain: 0.6, sfxFlipperRate: 1,
+  sfxBumperClip: 'fx/pinball-bumper', sfxBumperGain: 0.75, sfxBumperRate: 1,
+  sfxRampClip: 'fx/pinball-ramp', sfxRampGain: 0.5, sfxRampRate: 1,
+  sfxReelClip: 'fx/pinball-reel', sfxReelGain: 0.5, sfxReelRate: 1,
+  // The whoosh and the boom are SHARED clips (always decoded on a phone), so they cost the phone audio budget nothing.
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.26, sfxWhooshRate: 1.25,
+  sfxBoomClip: 'fx/universfield-ground-impact-352053', sfxBoomGain: 0.4, sfxBoomRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -255,51 +181,34 @@ export const HERO_PINBALL_DEFAULTS: HeroPinballConfig = {
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroPinballStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
-  gatherMs: [0, 400, 10],
-  ballSize: [0.2, 1.2, 0.01],
-  spin: [0, 8, 0.1],
-  trailMs: [10, 120, 1],
-  juggleHeight: [0, 2, 0.05],
-  volleyHop: [0, 1, 0.01],
-  cornerSetMs: [0, 1000, 10],
-  cornerRunMs: [60, 800, 10],
-  curl: [0, 1, 0.01],
-  headerFlightMs: [80, 800, 10],
-  oneTwoMs: [100, 800, 10],
-  defenders: [1, 3, 1],
-  beatWidth: [0, 3, 0.05],
-  skillMs: [100, 800, 10],
-  skyHeight: [0.5, 5, 0.05],
-  crouchMs: [60, 600, 10],
-  flipTurns: [0, 2, 1],
-  slideMs: [0, 1500, 10],
-  breakSlow: [0.2, 1, 0.01],
-  breakSlowMs: [0, 1200, 10],
-  bikeSlow: [0.2, 1, 0.01],
-  bikeSlowMs: [0, 1500, 10],
-  rocketBoost: [1, 2, 0.01],
-  slowRampMs: [10, 300, 5],
-  slowZoom: [0, 0.08, 0.001],
-  blastSize: [0, 3, 0.05],
-  launchSize: [0, 3, 0.05],
-  shadowDrop: [0, 1.5, 0.01],
-  goalSize: [0.3, 2.5, 0.05],
-  wordSize: [0, 2.5, 0.05],
+  ballSize: [0.12, 0.6, 0.01],
+  flipperSize: [0.5, 2, 0.05],
+  swingMs: [30, 300, 5],
+  bumperSize: [0.25, 1, 0.01],
+  bumperDist: [0.7, 1.6, 0.01],
+  kickPx: [0, 40, 1],
+  rampMs: [200, 2000, 10],
+  rampBow: [0, 0.4, 0.01],
+  loopSize: [0.3, 1.6, 0.05],
+  splitMs: [60, 600, 10],
+  cascadeMs: [30, 400, 5],
+  chaseMs: [0, 2000, 10],
+  tiltDeg: [0, 6, 0.1],
+  tiltMs: [120, 1500, 10],
+  rollMs: [200, 2000, 10],
+  displaySize: [0.4, 2, 0.05],
+  scoreSize: [0, 2.5, 0.05],
   knockPx: [0, 60, 1],
   squash: [0, 0.3, 0.01],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxWhistleGain: [0, 2, 0.05], sfxWhistleRate: [0.5, 2.5, 0.01],
-  sfxKickGain: [0, 2, 0.05], sfxKickRate: [0.5, 2.5, 0.01],
-  sfxTouchGain: [0, 2, 0.05], sfxTouchRate: [0.5, 2.5, 0.01],
+  sfxFlipperGain: [0, 2, 0.05], sfxFlipperRate: [0.5, 2.5, 0.01],
+  sfxBumperGain: [0, 2, 0.05], sfxBumperRate: [0.5, 2.5, 0.01],
+  sfxRampGain: [0, 2, 0.05], sfxRampRate: [0.5, 2.5, 0.01],
+  sfxReelGain: [0, 2, 0.05], sfxReelRate: [0.5, 2.5, 0.01],
   sfxWhooshGain: [0, 2, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
-  sfxNetGain: [0, 2, 0.05], sfxNetRate: [0.5, 2.5, 0.01],
-  sfxPostGain: [0, 2, 0.05], sfxPostRate: [0.5, 2.5, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
-  sfxOohGain: [0, 2, 0.05], sfxOohRate: [0.5, 2.5, 0.01],
-  sfxRoarGain: [0, 2, 0.05], sfxRoarRate: [0.5, 2.5, 0.01],
-  sfxGolazoGain: [0, 2, 0.05], sfxGolazoRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -311,11 +220,13 @@ export const HERO_PINBALL_RANGES: Record<HeroPinballNumKey, [number, number, num
 };
 
 /** Hard caps (whatever the tuner says). */
-export const PINBALL_CAPS = { shakePx: 40, touches: 8, defenders: 3 } as const;
+export const PINBALL_CAPS = { shakePx: 40, bounces: 10, hits: 24, arrows: 5, rampPts: 56, cells: 4 } as const;
+export const BUMPERS = 3;
+export const MAX_BALLS = 3;
 
 const store = configStore<HeroPinballConfig>({
   key: 'ascent.heropinball.v1', defaults: HERO_PINBALL_DEFAULTS, ranges: HERO_PINBALL_RANGES,
-  colorKeys: HERO_PINBALL_COLOR_KEYS, clipKeys: [...HERO_PINBALL_CLIP_KEYS, 'variation'], previewKeys: ['previewDamage', 'previewParts', 'variation'],
+  colorKeys: HERO_PINBALL_COLOR_KEYS, clipKeys: HERO_PINBALL_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroPinballStore = store;
 export const getHeroPinballConfig = store.get;
@@ -325,864 +236,596 @@ export const heroPinballConfigJson = store.json;
 /** The preview speed hook (Recruit + the Collection read one per style). Always 1: the tuner has no speed buttons. */
 export function heroPinballPreviewSpeed(): number { return 1; }
 
-export function pinballTierDials(tier: TierNum, c: HeroPinballConfig = store.get()): Record<SoccerTierSuffix, number> {
-  return Object.fromEntries(PINBALL_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<SoccerTierSuffix, number>;
-}
-
-// ─── the variation roll (pure) ──────────────────────────────────────────────────────────────────────────────────────
-
-export type SoccerVariant = 1 | 2 | 3;
-export const PINBALL_VARIANTS: readonly SoccerVariant[] = [1, 2, 3];
-/** II's corners and III's skills, by variant. */
-export const CORNER_KINDS: Record<SoccerVariant, string> = { 1: 'the Olimpico (an inswinger straight in)', 2: 'an outswinger and a header', 3: 'a short corner one-two' };
-export const BREAKAWAY_SKILLS: Record<SoccerVariant, string> = { 1: 'stepovers', 2: 'a nutmeg', 3: 'a rainbow flick' };
-
-/** The variation a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
-export function variantOf(rollSeed: number, c: HeroPinballConfig = store.get()): SoccerVariant {
-  const forced = Number(c.variation);
-  if (forced === 1 || forced === 2 || forced === 3) return forced;
-  let h = ((Math.round(rollSeed) | 0) ^ 0x5bd1e995) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return ((h % 3) + 1) as SoccerVariant;
+export function pinballTierDials(tier: TierNum, c: HeroPinballConfig = store.get()): Record<PinballTierSuffix, number> {
+  return Object.fromEntries(PINBALL_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<PinballTierSuffix, number>;
 }
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface SoccerPlanInput extends AttackTierContext {
+export interface PinballPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
-  /** Which variation (II's corner, III's skill). Default 1. */
-  variant?: SoccerVariant;
+  /** The stable per-blow seed: it rolls the bounce order (and nothing else). Default 1. */
+  seed?: number;
 }
 
-export interface SoccerPlan {
+/** One ball off one bumper. */
+export interface PinballHit { at: number; bumper: number; ball: number; score: 10 | 50 }
+
+export interface PinballPlan {
   reduced: boolean;
   tier: TierNum;
-  kind: SoccerKind;
-  variant: SoccerVariant;
+  kind: PinballKind;
   k: number;
+  /** THE DAMAGE of this blow (the engine's): what the jackpot stops on. */
   total: number;
+  seed: number;
   chargeAt: number;
   absorbEnd: number;
-  /** The move starts (after the ready beat). */
+  /** The table pops up: the flipper, the ball, the target's lamps (and from II the bumpers and the lane arrows). */
   startAt: number;
-  /** I / IV: the keepy-uppies (each a touch off the feet). III: the touches along the run. */
-  touches: number[];
-  touchMs: number;
-  /** I: the higher flick before the volley. IV: the flick SKY HIGH. Null elsewhere. */
-  flickAt: number | null;
-  /** The run: II the jog to the corner, III the dribble up the pitch, IV the sprint to the spot. */
-  approachAt: number;
-  approachEnd: number;
-  /** II: the ball set at the corner, the run-up begins. */
-  setAt: number | null;
-  runUpAt: number | null;
-  /** III: when the portrait passes each defender (the skill), and the skill's window either side. */
-  beats: number[];
-  skillMs: number;
-  /** II variant 2: the header (the ball meets the head); variant 3: the short pass out and the return. */
-  headAt: number | null;
-  passOutAt: number | null;
-  returnAt: number | null;
-  /** The crouch and the leap (I the volley hop, II-2 the header leap, IV the bicycle leap). */
-  gatherAt: number;
-  takeoffAt: number;
-  landAt: number;
-  /** THE STRIKE: the kick that sends the ball at the goal (I the volley, II the corner / the curler, III the finish, IV the bicycle kick). */
+  /** How many pop bumpers stand round the target (0 on I). */
+  bumpers: number;
+  /** IV: the lights chase (bumpers and lane arrows in sequence) until the flipper fires. Null elsewhere. */
+  chaseAt: number | null;
+  /** THE FLIPPER fires: the bat meets the ball. */
   strikeAt: number;
-  /** THE impact: the ball in the net. The blow lands here, once. */
+  swingMs: number;
+  /** III: the ball takes the ramp, and comes off it as three (`multiAt`). */
+  rampInAt: number | null;
+  multiAt: number | null;
+  /** How many balls are in play (3 on III). */
+  balls: number;
+  /** Every bumper hit, in time order. */
+  hits: PinballHit[];
+  /** IV: the table is shoved and tilts, and is level again. */
+  tiltAt: number | null;
+  tiltEnd: number | null;
+  /** IV: every light strobes and the jackpot rolls up, from here until the impact. */
+  rollAt: number | null;
+  /** THE impact: the (first) ball slams the target. The blow lands here, once. */
   impactAt: number;
-  /** IV: the knee slide after the landing. */
-  slideAt: number | null;
-  slideEnd: number | null;
-  /** The portrait heads home, and is home. */
-  homeAt: number;
-  homeEnd: number;
+  /** III: the second and third balls hitting the target (echoes of the blow; they land nothing). */
+  echoes: number[];
+  /** The table drops away. */
+  outAt: number;
   endAt: number;
   // the looks
-  flightMs: number;
-  arc: number;
-  jumpScale: number;
   zoom: number;
   punch: number;
   shakePx: number;
   burst: number;
   rings: number;
-  confetti: number;
-  bulge: number;
   dim: number;
 }
 
+/** The next bumper a ball bounces to: never the one it just left. */
+function nextBumper(cur: number, rnd: () => number): number { return (cur + 1 + (rnd() < 0.5 ? 0 : 1)) % BUMPERS; }
+
 /** The whole attack, in base ms. Pure and deterministic. */
-export function pinballPlan(input: SoccerPlanInput, c: HeroPinballConfig = store.get()): SoccerPlan {
+export function pinballPlan(input: PinballPlanInput, c: HeroPinballConfig = store.get()): PinballPlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
   const kind = pinballKind(tier);
   const L = pinballTierDials(tier, c);
   const k = (tier - 1) / 3;
-  const variant: SoccerVariant = input.variant ?? 1;
+  const seed = (Math.round(input.seed ?? 1) >>> 0) || 1;
   const looks = {
-    tier, kind, variant, k, total, touchMs: L.TouchMs, flightMs: Math.max(80, L.FlightMs), arc: L.Arc, jumpScale: L.JumpScale, zoom: L.Zoom, punch: L.Punch,
-    shakePx: clamp(L.Shake, 0, PINBALL_CAPS.shakePx), burst: L.Burst, rings: Math.round(L.Rings), confetti: Math.round(L.Confetti), bulge: L.Bulge, dim: L.Dim,
-    skillMs: c.skillMs,
+    tier, kind, k, total, seed, zoom: L.Zoom, punch: L.Punch, shakePx: clamp(L.Shake, 0, PINBALL_CAPS.shakePx), burst: L.Burst,
+    rings: Math.round(L.Rings), dim: L.Dim, swingMs: Math.max(30, c.swingMs),
   };
-  const none = { flickAt: null, setAt: null, runUpAt: null, headAt: null, passOutAt: null, returnAt: null, slideAt: null, slideEnd: null, beats: [] as number[] };
+  const none = { chaseAt: null, rampInAt: null, multiAt: null, tiltAt: null, tiltEnd: null, rollAt: null, hits: [] as PinballHit[], echoes: [] as number[] };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      ...looks, ...none, reduced: true, chargeAt: at, absorbEnd: at, startAt: at, touches: [], approachAt: at, approachEnd: at, gatherAt: at,
-      takeoffAt: at, landAt: at, strikeAt: at, impactAt: at, homeAt: at, homeEnd: at, endAt: r.endAt,
-      zoom: 0, punch: 0, shakePx: 0, burst: 0, rings: 0, confetti: 0, bulge: 0, dim: 0,
+      ...looks, ...none, reduced: true, chargeAt: at, absorbEnd: at, startAt: at, bumpers: 0, balls: 1, strikeAt: at, impactAt: at, outAt: at, endAt: r.endAt,
+      zoom: 0, punch: 0, shakePx: 0, burst: 0, rings: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const startAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs * 0.6);
-  const n = clamp(Math.round(L.Touches), 0, PINBALL_CAPS.touches);
   const flight = Math.max(80, L.FlightMs);
+  const bounce = Math.max(60, L.BounceMs);
+  const n = clamp(Math.round(L.Bounces), 0, PINBALL_CAPS.bounces);
+  const rnd = seededRng(seed ^ 0x9e3779b9);
   const base = { ...looks, ...none, reduced: false, chargeAt, absorbEnd, startAt };
-
-  if (kind === 'volley') {
-    // Keepy-uppies where it stands, one higher flick, a hop to meet it, the volley.
-    const touches = Array.from({ length: n }, (_, i) => startAt + L.TouchMs * i);
-    const flickAt = startAt + n * L.TouchMs;
-    const leap = Math.max(120, L.LeapMs);
-    const strikeAt = flickAt + leap;
-    const takeoffAt = strikeAt - leap * 0.5;
-    const gatherAt = takeoffAt - c.gatherMs * 0.6;
-    const landAt = strikeAt + leap * 0.45;
-    const impactAt = strikeAt + flight;
-    return {
-      ...base, touches, flickAt, approachAt: startAt, approachEnd: startAt, gatherAt, takeoffAt, landAt, strikeAt, impactAt,
-      homeAt: landAt, homeEnd: landAt, endAt: Math.max(impactAt + L.HoldMs, landAt + 140),
-    };
-  }
-  if (kind === 'corner') {
-    // The jog out to the corner flag, the ball set, a step back, the run-up and the strike.
-    const approachEnd = startAt + L.ApproachMs;
-    const setAt = approachEnd + 40;
-    const runUpAt = setAt + c.cornerSetMs;
-    const strikeAt = runUpAt + c.cornerRunMs;
-    if (variant === 2) {
-      // THE HEADER: the outswinger reaches the penalty spot as the portrait, sprinting in, rises to meet it.
-      const leap = Math.max(160, L.LeapMs);
-      const headAt = strikeAt + flight * 0.85;
-      const takeoffAt = headAt - leap * 0.5;
-      const gatherAt = takeoffAt - c.gatherMs * 0.5;
-      const landAt = headAt + leap * 0.5;
-      const impactAt = headAt + c.headerFlightMs;
-      const homeAt = Math.max(landAt, impactAt) + L.HoldMs;
-      return {
-        ...base, touches: [], approachAt: startAt, approachEnd, setAt, runUpAt, headAt, gatherAt, takeoffAt, landAt, strikeAt, impactAt,
-        homeAt, homeEnd: homeAt + L.ReturnMs, endAt: homeAt + L.ReturnMs,
-      };
-    }
-    if (variant === 3) {
-      // THE SHORT CORNER: a short pass off the edge of the screen, the one-two back, a first-time curler.
-      const passOutAt = strikeAt;
-      const returnAt = passOutAt + c.oneTwoMs * 2;
-      const finishAt = returnAt + 40;
-      const impactAt = finishAt + flight * 0.8;
-      const homeAt = impactAt + L.HoldMs;
-      return {
-        ...base, touches: [], approachAt: startAt, approachEnd, setAt, runUpAt, passOutAt, returnAt, gatherAt: returnAt - 60, takeoffAt: finishAt,
-        landAt: finishAt, strikeAt: finishAt, impactAt, homeAt, homeEnd: homeAt + L.ReturnMs, endAt: homeAt + L.ReturnMs,
-      };
-    }
-    // THE OLIMPICO: the inswinger bends all the way in.
-    const impactAt = strikeAt + flight;
-    const homeAt = impactAt + L.HoldMs;
-    return {
-      ...base, touches: [], approachAt: startAt, approachEnd, setAt, runUpAt, gatherAt: runUpAt, takeoffAt: strikeAt, landAt: strikeAt, strikeAt, impactAt,
-      homeAt, homeEnd: homeAt + L.ReturnMs, endAt: homeAt + L.ReturnMs,
-    };
-  }
-  if (kind === 'breakaway') {
-    // The dribble up the pitch (touches along it), past the defenders (a skill each), the last touch and the finish.
-    const A = Math.max(200, L.ApproachMs);
-    const approachEnd = startAt + A;
-    const nd = clamp(Math.round(c.defenders), 1, PINBALL_CAPS.defenders);
-    const beats = Array.from({ length: nd }, (_, i) => startAt + A * defenderFraction(i, nd));
-    const touches = Array.from({ length: n }, (_, i) => startAt + (A * (i + 0.35)) / Math.max(1, n));
-    const gatherAt = approachEnd;
-    const strikeAt = gatherAt + c.gatherMs;
-    const impactAt = strikeAt + flight;
-    const homeAt = impactAt + L.HoldMs;
-    return {
-      ...base, touches, beats, approachAt: startAt, approachEnd, gatherAt, takeoffAt: strikeAt, landAt: strikeAt, strikeAt, impactAt,
-      homeAt, homeEnd: homeAt + L.ReturnMs, endAt: homeAt + L.ReturnMs,
-    };
-  }
-  // THE BICYCLE KICK: keepy-uppies, the flick sky high, the sprint to the spot, the crouch, the leap and the flip, the
-  // contact upside down at the top, the thunderbolt, the landing, the knee slide.
-  const touches = Array.from({ length: n }, (_, i) => startAt + L.TouchMs * i);
-  const flickAt = startAt + n * L.TouchMs;
-  const approachAt = flickAt + 80;
-  const approachEnd = approachAt + L.ApproachMs;
-  const gatherAt = approachEnd;
-  const takeoffAt = gatherAt + c.crouchMs;
-  const leap = Math.max(200, L.LeapMs);
-  const strikeAt = takeoffAt + leap * 0.5;
-  const landAt = takeoffAt + leap;
-  const impactAt = strikeAt + flight;
-  const slideAt = Math.max(landAt, impactAt) + 40;
-  const slideEnd = slideAt + c.slideMs;
-  const homeAt = Math.max(slideEnd + 120, impactAt + L.HoldMs);
-  return {
-    ...base, touches, flickAt, approachAt, approachEnd, gatherAt, takeoffAt, landAt, strikeAt, impactAt, slideAt, slideEnd,
-    homeAt, homeEnd: homeAt + L.ReturnMs, endAt: homeAt + L.ReturnMs,
+  const finish = (impactAt: number, last: number): { impactAt: number; outAt: number; endAt: number } => {
+    const outAt = last + L.HoldMs;
+    return { impactAt, outAt, endAt: outAt + Math.max(60, L.OutMs) };
   };
+  /** `count` bounces of ball `ball`, the first at `t0` off bumper `first`; each gap is the bounce time, a little uneven. */
+  const rattle = (ball: number, first: number, t0: number, count: number, score: 10 | 50): PinballHit[] => {
+    const out: PinballHit[] = [];
+    let b = first, t = t0;
+    for (let i = 0; i < count; i++) {
+      out.push({ at: t, bumper: b, ball, score });
+      b = nextBumper(b, rnd);
+      t += bounce * (0.86 + 0.28 * rnd());
+    }
+    return out;
+  };
+
+  if (kind === 'flipper') {
+    const strikeAt = startAt + L.SetMs;
+    const impactAt = strikeAt + flight;
+    return { ...base, bumpers: 0, balls: 1, strikeAt, ...finish(impactAt, impactAt) };
+  }
+  if (kind === 'bumpers') {
+    const strikeAt = startAt + L.SetMs;
+    const hits = rattle(0, Math.floor(rnd() * BUMPERS) % BUMPERS, strikeAt + flight, Math.max(1, n), 10);
+    const impactAt = hits[hits.length - 1]!.at + Math.max(60, L.DropMs);
+    return { ...base, bumpers: BUMPERS, balls: 1, strikeAt, hits, ...finish(impactAt, impactAt) };
+  }
+  if (kind === 'multiball') {
+    const strikeAt = startAt + L.SetMs;
+    const rampInAt = strikeAt + flight;
+    const multiAt = rampInAt + Math.max(200, c.rampMs);
+    // Three balls come off the ramp one behind the other: each goes to its OWN bumper first, rattles, and drops.
+    const first = Math.floor(rnd() * BUMPERS) % BUMPERS;
+    const turn = rnd() < 0.5 ? 1 : 2;
+    const per = Math.max(1, Math.min(4, n));
+    const gap = Math.max(30, c.cascadeMs);
+    let hits: PinballHit[] = [];
+    const lands: number[] = [];
+    for (let b = 0; b < MAX_BALLS; b++) {
+      const h = rattle(b, (first + b * turn) % BUMPERS, multiAt + Math.max(60, c.splitMs) + gap * b, per, 10);
+      hits = hits.concat(h);
+      lands.push(h[h.length - 1]!.at + Math.max(60, L.DropMs));
+    }
+    // The cascade lands in order, never closer than half a gap (an uneven bounce cannot make two balls land together).
+    for (let b = 1; b < lands.length; b++) lands[b] = Math.max(lands[b]!, lands[b - 1]! + gap * 0.5);
+    hits.sort((p, q) => p.at - q.at);
+    return { ...base, bumpers: BUMPERS, balls: MAX_BALLS, strikeAt, rampInAt, multiAt, hits, echoes: lands.slice(1), ...finish(lands[0]!, lands[lands.length - 1]!) };
+  }
+  // THE JACKPOT: the lights chase, the ball goes wild, the table tilts, everything strobes and the score rolls up.
+  const chaseAt = startAt + L.SetMs;
+  const strikeAt = chaseAt + Math.max(0, c.chaseMs);
+  const first = Math.floor(rnd() * BUMPERS) % BUMPERS;
+  const before = Math.max(1, n);
+  const tiltMs = Math.max(120, c.tiltMs), rollMs = Math.max(200, c.rollMs), drop = Math.max(60, L.DropMs);
+  // Enough bounces to carry the ball through the tilt and the roll-up (capped; a short one just rolls up sooner).
+  const count = Math.min(PINBALL_CAPS.hits, before + Math.ceil((tiltMs + rollMs - drop) / bounce));
+  const hits = rattle(0, first, strikeAt + flight, count, 50);
+  const tiltAt = hits[Math.min(before, hits.length) - 1]!.at;
+  const impactAt = Math.max(hits[hits.length - 1]!.at + drop, tiltAt + tiltMs + 200);
+  const rollAt = Math.max(tiltAt + tiltMs, impactAt - rollMs);
+  return { ...base, bumpers: BUMPERS, balls: 1, chaseAt, strikeAt, hits, tiltAt, tiltEnd: tiltAt + tiltMs, rollAt, ...finish(impactAt, impactAt) };
 }
 
-/** Where along the breakaway run defender `i` of `n` stands (0 = the slot, 1 = the shot spot). */
-export function defenderFraction(i: number, n: number): number { return 0.18 + (0.62 * (i + 0.5)) / Math.max(1, n); }
+export type PinballCueKind = 'charge' | 'table' | 'chase' | 'flip' | 'ramp' | 'multi' | 'bump' | 'tilt' | 'roll' | 'impact' | 'echo' | 'out' | 'end';
+export interface PinballCue { at: number; kind: PinballCueKind; i: number }
 
-export type SoccerCueKind = 'charge' | 'goal' | 'touch' | 'flick' | 'set' | 'runup' | 'beat' | 'pass' | 'return' | 'jump' | 'head' | 'strike' | 'impact' | 'land' | 'slide' | 'home' | 'end';
-export interface SoccerCue { at: number; kind: SoccerCueKind; i: number }
-
-/** When the goal fades in on the target (just before the ball is struck at it). */
-export function goalInAt(p: SoccerPlan): number {
-  const first = p.kind === 'corner' ? (p.runUpAt ?? p.strikeAt) : p.kind === 'breakaway' ? p.startAt + (p.approachEnd - p.startAt) * 0.5 : p.kind === 'bicycle' ? (p.flickAt ?? p.strikeAt) : p.strikeAt - 160;
-  return Math.max(p.chargeAt, first);
-}
-
-/** Every beat the runner fires, in time order. The blow lands on `impact`, once. */
-export function pinballCues(p: SoccerPlan): SoccerCue[] {
-  const out: SoccerCue[] = [];
+/** The plan's beats in time order (the runner fires each once). `bump`'s `i` indexes `plan.hits`. */
+export function pinballCues(p: PinballPlan): PinballCue[] {
+  const out: PinballCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    out.push({ at: goalInAt(p), kind: 'goal', i: 0 });
-    p.touches.forEach((at, i) => out.push({ at, kind: 'touch', i }));
-    if (p.flickAt !== null) out.push({ at: p.flickAt, kind: 'flick', i: 0 });
-    if (p.setAt !== null) out.push({ at: p.setAt, kind: 'set', i: 0 });
-    if (p.runUpAt !== null) out.push({ at: p.runUpAt, kind: 'runup', i: 0 });
-    p.beats.forEach((at, i) => out.push({ at, kind: 'beat', i }));
-    if (p.passOutAt !== null) out.push({ at: p.passOutAt, kind: 'pass', i: 0 });
-    if (p.returnAt !== null) out.push({ at: p.returnAt, kind: 'return', i: 0 });
-    if (p.takeoffAt > p.gatherAt && (p.kind === 'volley' || p.kind === 'bicycle' || p.headAt !== null)) out.push({ at: p.takeoffAt, kind: 'jump', i: 0 });
-    if (p.headAt !== null) out.push({ at: p.headAt, kind: 'head', i: 0 });
-    // The strike: the kick that sends the ball goalward (II-2: the cross the header meets). Never the blow itself.
-    out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
-    if (p.landAt > p.strikeAt && (p.kind === 'volley' || p.kind === 'bicycle' || p.headAt !== null)) out.push({ at: p.landAt, kind: 'land', i: 0 });
-    if (p.slideAt !== null) out.push({ at: p.slideAt, kind: 'slide', i: 0 });
-    if (p.homeEnd > p.homeAt) out.push({ at: p.homeAt, kind: 'home', i: 0 });
+    out.push({ at: p.startAt, kind: 'table', i: 0 });
+    if (p.chaseAt !== null) out.push({ at: p.chaseAt, kind: 'chase', i: 0 });
+    out.push({ at: p.strikeAt, kind: 'flip', i: 0 });
+    if (p.rampInAt !== null) out.push({ at: p.rampInAt, kind: 'ramp', i: 0 });
+    if (p.multiAt !== null) out.push({ at: p.multiAt, kind: 'multi', i: 0 });
+    p.hits.forEach((h, i) => out.push({ at: h.at, kind: 'bump', i }));
+    if (p.tiltAt !== null) out.push({ at: p.tiltAt, kind: 'tilt', i: 0 });
+    if (p.rollAt !== null) out.push({ at: p.rollAt, kind: 'roll', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
+  p.echoes.forEach((at, i) => out.push({ at, kind: 'echo', i }));
+  if (!p.reduced) out.push({ at: p.outAt, kind: 'out', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<SoccerCueKind, number> = {
-    charge: 0, goal: 1, touch: 2, flick: 3, set: 4, runup: 5, beat: 6, pass: 7, return: 8, jump: 9, head: 10, strike: 11, impact: 12, land: 13, slide: 14, home: 15, end: 16,
-  };
-  return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
+  const order = (q: PinballCue): number => (q.kind === 'end' ? 2 : q.kind === 'impact' ? 1 : 0);
+  return out.map((q, i) => ({ q, i })).sort((a, b) => a.q.at - b.q.at || order(a.q) - order(b.q) || a.i - b.i).map((x) => x.q);
 }
 
-// ─── the goal (pure) ───────────────────────────────────────────────────────────────────────────────────────────
-
-/** The goal texture's aspect (its height / width). */
-export const GOAL_ASPECT = 0.52;
-
-/** THE GOAL AS ONE ASSEMBLY, centred on the struck portrait: the frame (posts + crossbar) and the net behind it. Pure. */
-export interface GoalLayout { center: Pt; w: number; h: number; top: number; left: number; right: number; bottom: number }
-
-export function goalLayout(center: Pt, dR: number, goalSize: number): GoalLayout {
-  const w = dR * 2.5 * goalSize;
-  const h = w * GOAL_ASPECT;
-  return { center: { ...center }, w, h, top: center.y - h / 2, bottom: center.y + h / 2, left: center.x - w / 2, right: center.x + w / 2 };
-}
-
-// ─── the geometry (pure) ───────────────────────────────────────────────────────────────────────────────────────
+// ─── the pure geometry ─────────────────────────────────────────────────────────────────────────────────────────
 
 export interface Frame { x0: number; y0: number; x1: number; y1: number }
 
-export interface SoccerGeo {
-  /** Unit, striker -> target, its normal, and the distance. */
+export function clampToFrame(p: Pt, f: Frame | null, mx: number, my = mx): Pt {
+  if (!f) return p;
+  const fx = Math.min(mx, (f.x1 - f.x0) / 2), fy = Math.min(my, (f.y1 - f.y0) / 2);
+  return { x: clamp(p.x, f.x0 + fx, f.x1 - fx), y: clamp(p.y, f.y0 + fy, f.y1 - fy) };
+}
+
+/** How far inside the frame a point is (negative = outside). */
+function inside(p: Pt, f: Frame | null): number {
+  if (!f) return 1e6;
+  return Math.min(p.x - f.x0, f.x1 - p.x, p.y - f.y0, f.y1 - p.y);
+}
+
+/** The wire ramp: evenly spaced points along it (entry first), each with the rail's heading. */
+export interface RampPath { n: number; xs: number[]; ys: number[]; rot: number[]; length: number; spacing: number; side: 1 | -1 }
+
+export interface PinballGeo {
+  /** Unit vector from the striker to the target, and its normal. */
   u: Pt;
   n: Pt;
   dist: number;
-  /** II: the corner spot (on the target's goal line, out at the side with more room), the flag beside it, the step
-   * back for the run-up, the header point (the penalty spot), the short corner's wall pass (off the edge and back) and
-   * where the one-two is met. */
-  corner: Pt;
-  flag: Pt;
-  cornerSide: 1 | -1;
-  setBack: Pt;
-  header: Pt;
-  passOff: Pt;
-  passBack: Pt;
-  meet: Pt;
-  /** III: the shot spot at the end of the run, and each defender's spot (with the side the portrait goes round it). */
-  shot: Pt;
-  defenders: { at: Pt; side: 1 | -1 }[];
-  /** IV: the spot it sprints to, where the ball is met overhead, how high it goes (its apex), and the knee slide's end. */
-  spot: Pt;
-  contact: Pt;
-  apex: Pt;
-  slide: Pt;
-  /** The target's centre: where every shot lands, and the goal's centre. */
+  ballR: number;
+  /** The flipper: its pivot, its length, and its resting / raised headings (radians). */
+  pivot: Pt;
+  batLen: number;
+  restAng: number;
+  upAng: number;
+  /** Where the ball waits on the bat (and is struck). */
+  cradle: Pt;
+  /** The target's centre: every ball ends here. */
   hit: Pt;
+  bumperR: number;
+  /** The pop bumpers: [0] in front of the target (the striker's side), [1] and [2] flanking it. */
+  bumpers: Pt[];
+  /** The lane's insert arrows, striker to target, all pointing at the target (`arrowRot`). */
+  arrows: Pt[];
+  arrowRot: number;
+  ramp: RampPath;
+  /** The dot-matrix display: its centre and width (its height is `DISPLAY_ASPECT` of it). */
+  display: Pt;
+  displayW: number;
 }
 
-/** A point clamped inside the frame with `m` px to spare (a tiny frame: its middle). Pure. */
-export function clampToFrame(p: Pt, f: Frame | null, m: number): Pt {
-  if (!f) return p;
-  const cx = (f.x0 + f.x1) / 2, cy = (f.y0 + f.y1) / 2;
-  const x = f.x1 - f.x0 > 2 * m ? clamp(p.x, f.x0 + m, f.x1 - m) : cx;
-  const y = f.y1 - f.y0 > 2 * m ? clamp(p.y, f.y0 + m, f.y1 - m) : cy;
-  return { x, y };
+export const DISPLAY_ASPECT = 0.36;
+
+const add = (p: Pt, d: Pt, k: number): Pt => ({ x: p.x + d.x * k, y: p.y + d.y * k });
+
+/** Build the ramp for one side and size; `fit` is how far inside the frame its worst point is. */
+function rampFor(e: Pt, x: Pt, n: Pt, side: 1 | -1, bow: number, loopR: number, frame: Frame | null, margin: number): { path: RampPath; fit: number } {
+  const mid = { x: (e.x + x.x) / 2, y: (e.y + x.y) / 2 };
+  const cq = add(mid, n, side * bow * 2);
+  const bez = (v: number): Pt => {
+    const m = 1 - v;
+    return { x: m * m * e.x + 2 * m * v * cq.x + v * v * x.x, y: m * m * e.y + 2 * m * v * cq.y + v * v * x.y };
+  };
+  const apex = bez(0.5);
+  // The loop sits on the OUTSIDE of the bow; the ball enters it heading the way the ramp runs.
+  const cc = add(apex, n, side * loopR);
+  const a0 = Math.atan2(apex.y - cc.y, apex.x - cc.x);
+  const run = { x: x.x - e.x, y: x.y - e.y };
+  const turn = (-Math.sin(a0)) * run.x + Math.cos(a0) * run.y >= 0 ? 1 : -1;
+  const raw: Pt[] = [];
+  const HALF = 12, LOOP = 22;
+  for (let i = 0; i <= HALF; i++) raw.push(bez((i / HALF) * 0.5));
+  for (let i = 1; i <= LOOP; i++) { const a = a0 + turn * (i / LOOP) * Math.PI * 2; raw.push({ x: cc.x + Math.cos(a) * loopR, y: cc.y + Math.sin(a) * loopR }); }
+  for (let i = 1; i <= HALF; i++) raw.push(bez(0.5 + (i / HALF) * 0.5));
+  // Resample evenly.
+  const cum = [0];
+  for (let i = 1; i < raw.length; i++) cum.push(cum[i - 1]! + Math.hypot(raw[i]!.x - raw[i - 1]!.x, raw[i]!.y - raw[i - 1]!.y));
+  const length = cum[cum.length - 1]!;
+  const count = clamp(Math.round(length / Math.max(8, margin * 1.25)) + 1, 8, PINBALL_CAPS.rampPts);
+  const xs: number[] = [], ys: number[] = [], rot: number[] = [];
+  let j = 0, fit = 1e6;
+  for (let i = 0; i < count; i++) {
+    const s = (length * i) / (count - 1);
+    while (j < cum.length - 2 && cum[j + 1]! < s) j++;
+    const seg = Math.max(1e-6, cum[j + 1]! - cum[j]!);
+    const v = clamp01((s - cum[j]!) / seg);
+    const p = { x: raw[j]!.x + (raw[j + 1]!.x - raw[j]!.x) * v, y: raw[j]!.y + (raw[j + 1]!.y - raw[j]!.y) * v };
+    xs.push(p.x); ys.push(p.y); rot.push(Math.atan2(raw[j + 1]!.y - raw[j]!.y, raw[j + 1]!.x - raw[j]!.x));
+    fit = Math.min(fit, inside(p, frame) - margin);
+  }
+  return { path: { n: count, xs, ys, rot, length, spacing: length / (count - 1), side }, fit };
 }
 
-const unit = (v: Pt): Pt => { const l = Math.hypot(v.x, v.y); return l > 1e-6 ? { x: v.x / l, y: v.y / l } : { x: 0, y: -1 }; };
-
-/** Where every move goes, from the two heroes and the frame (screen px). Pure. */
-export function pinballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroPinballConfig = store.get(), variant: SoccerVariant = 1): SoccerGeo {
-  void variant;
+/**
+ * Every point of the table, from the two portraits (centres and radii) and the frame it must stay inside. Pure.
+ * `a` / `d`: the striking and the struck hero.
+ */
+export function pinballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroPinballConfig = store.get()): PinballGeo {
   const dx = d.x - a.x, dy = d.y - a.y;
   const dist = Math.hypot(dx, dy) || 1;
   const u = { x: dx / dist, y: dy / dist };
   const n = { x: -u.y, y: u.x };
-  const m = aR * 1.05;
-  const clear = (aR + dR) * 1.25; // never closer than this to the target on a run
-  const along = (s: number): Pt => ({ x: a.x + u.x * s, y: a.y + u.y * s });
-  const f: Frame = frame ?? { x0: Math.min(a.x, d.x) - 900, y0: Math.min(a.y, d.y) - 500, x1: Math.max(a.x, d.x) + 900, y1: Math.max(a.y, d.y) + 500 };
-  const fmid = { x: (f.x0 + f.x1) / 2, y: (f.y0 + f.y1) / 2 };
-  // II: THE CORNER, on the target's goal line (the frame edge behind the target), out at the side with more room.
-  const roomL = d.x - f.x0, roomR = f.x1 - d.x;
-  const cornerSide: 1 | -1 = Math.abs(roomL - roomR) > 2 ? (roomR > roomL ? 1 : -1) : (a.x > d.x + 2 ? 1 : a.x < d.x - 2 ? -1 : 1);
-  const lineY = d.y <= a.y ? f.y0 : f.y1;
-  const lineDir = d.y <= a.y ? -1 : 1; // the goal line is screen up (-1) or down (+1) from the target
-  const corner = clampToFrame({ x: cornerSide > 0 ? f.x1 : f.x0, y: lineY }, f, m);
-  // The flag stands just outside the portrait, its foot level with the portrait's feet, its pole and pennant up (on screen).
-  const flag = clampToFrame({ x: corner.x + cornerSide * aR * 0.9, y: corner.y + aR * 0.75 }, f, aR * 0.3);
-  const toGoal = unit({ x: d.x - corner.x, y: d.y - corner.y });
-  const setBack = clampToFrame({ x: corner.x - toGoal.x * aR * 0.7, y: corner.y - toGoal.y * aR * 0.7 }, f, m * 0.9);
-  // The penalty spot: in front of the goal, toward the middle of the pitch (the frame's middle), clear of the target.
-  const towardPitch = unit({ x: fmid.x - d.x, y: fmid.y - d.y + (d.y <= a.y ? 1 : -1) * 0.001 });
-  const pitch = Math.abs(towardPitch.y) < 0.35 ? unit({ x: towardPitch.x * 0.5, y: (d.y <= a.y ? 1 : -1) }) : towardPitch;
-  const header = clampToFrame({ x: d.x + pitch.x * clear * 1.15, y: d.y + pitch.y * clear * 1.15 }, f, m);
-  // The short corner: rolled out along the goal line off the edge of the screen, and back in to the portrait, which has
-  // moved a little in along the line toward the goal.
-  const passOff = { x: (cornerSide > 0 ? f.x1 : f.x0) + cornerSide * aR * 1.5, y: corner.y - lineDir * aR * 0.2 };
-  const meet = clampToFrame({ x: corner.x + toGoal.x * aR * 2.2, y: corner.y + toGoal.y * aR * 2.2 - lineDir * aR * 0.6 }, f, m);
-  const passBack = { x: (cornerSide > 0 ? f.x1 : f.x0) + cornerSide * aR * 1.5, y: meet.y - lineDir * aR * 0.9 };
-  // III: the run straight up the pitch to the shot spot, defenders spread along it, each a little off the line.
-  const shot = clampToFrame(along(clamp(dist - clear, dist * 0.35, Math.max(0, dist - clear * 0.8))), f, m);
-  const nd = clamp(Math.round(c.defenders), 1, PINBALL_CAPS.defenders);
-  const defenders = Array.from({ length: nd }, (_, i) => {
-    const fr = defenderFraction(i, nd);
-    const side: 1 | -1 = i % 2 === 0 ? 1 : -1;
-    const base = { x: a.x + (shot.x - a.x) * fr, y: a.y + (shot.y - a.y) * fr };
-    return { at: clampToFrame({ x: base.x - n.x * side * aR * 0.15, y: base.y - n.y * side * aR * 0.15 }, f, aR * 0.8), side };
-  });
-  // IV: the spot in front of the goal, the contact overhead, the ball's apex (sky high, but on screen), the knee slide.
-  const spot = clampToFrame(along(clamp(dist - clear * 1.05, dist * 0.3, Math.max(0, dist - clear * 0.8))), f, m);
-  const contact = clampToFrame({ x: spot.x - u.x * aR * 0.2, y: spot.y - aR * 0.95 }, f, aR * 0.45);
-  const apexY = Math.max(f.y0 + aR * 0.7, Math.min(a.y, contact.y) - aR * c.skyHeight);
-  const apex = { x: (a.x + contact.x) / 2, y: apexY };
-  const slideDir = Math.abs(fmid.x - spot.x) > 2 ? Math.sign(fmid.x - spot.x) : -cornerSide;
-  const slide = clampToFrame({ x: spot.x + slideDir * aR * 2.4, y: spot.y + (d.y <= a.y ? 1 : -1) * aR * 0.5 }, f, m);
-  return { u, n, dist, corner, flag, cornerSide, setBack, header, passOff, passBack, meet, shot, defenders, spot, contact, apex, slide, hit: { ...d } };
+  const ballR = aR * c.ballSize;
+
+  // THE FLIPPER: in front of the striker, its pivot off to one side and the bat lying across the lane.
+  const batLen = aR * 1.5 * c.flipperSize;
+  const fwd = Math.min(aR * 1.75, dist * 0.3);
+  const REST = 0.5, UP = 0.52;
+  const flip = (s: 1 | -1): { pivot: Pt; base: Pt; tipUp: Pt } => {
+    const pivot = add(add(a, u, fwd), n, s * aR * 0.8);
+    const base = { x: -n.x * s, y: -n.y * s };
+    const tipUp = add(add(pivot, base, batLen * Math.cos(UP)), u, batLen * Math.sin(UP));
+    return { pivot, base, tipUp };
+  };
+  const fp = flip(1), fm = flip(-1);
+  const score = (f: { pivot: Pt; tipUp: Pt }): number => Math.min(inside(f.pivot, frame), inside(f.tipUp, frame));
+  const fl = score(fm) > score(fp) + 1 ? fm : fp;
+  const baseAng = Math.atan2(fl.base.y, fl.base.x);
+  // Which way round turns the bat toward the target.
+  const sg = fl.base.x * u.y - fl.base.y * u.x >= 0 ? 1 : -1;
+  const restAng = baseAng - sg * REST, upAng = baseAng + sg * UP;
+  const restDir = { x: Math.cos(restAng), y: Math.sin(restAng) };
+  let lead = { x: -restDir.y, y: restDir.x };
+  if (lead.x * u.x + lead.y * u.y < 0) lead = { x: -lead.x, y: -lead.y };
+  const cradle = add(add(fl.pivot, restDir, batLen * 0.62), lead, batLen * 0.1 + ballR);
+
+  // THE BUMPERS: one in front of the target, two flanking it, pulled in when the portraits are close.
+  const bumperR = dR * c.bumperSize;
+  const room = (dist - fwd - aR * 0.9) / (3.05 * dR * c.bumperDist + bumperR);
+  const bk = clamp(room, 0.55, 1) * c.bumperDist;
+  const keep = (p: Pt): Pt => {
+    let q = clampToFrame(p, frame, bumperR * 1.15);
+    // Never over the target's lamps: pushed back out along the way it came.
+    const gx = q.x - d.x, gy = q.y - d.y, gl = Math.hypot(gx, gy) || 1;
+    const min = dR * 1.2 + bumperR;
+    if (gl < min) q = clampToFrame({ x: d.x + (gx / gl) * min, y: d.y + (gy / gl) * min }, frame, bumperR * 1.15);
+    return q;
+  };
+  const bumpers = [
+    keep(add(d, u, -3.05 * dR * bk)),
+    keep(add(add(d, u, -1.5 * dR * bk), n, 1.75 * dR * bk)),
+    keep(add(add(d, u, -1.5 * dR * bk), n, -1.75 * dR * bk)),
+  ];
+
+  // THE LANE: insert arrows from past the flipper to short of the front bumper.
+  const s0 = fwd + aR * 1.7, s1 = dist - (3.05 * dR * bk + bumperR * 1.9);
+  const step = aR * 0.95;
+  const count = s1 - s0 < step * 0.5 ? 0 : clamp(Math.floor((s1 - s0) / step) + 1, 1, PINBALL_CAPS.arrows);
+  const arrows: Pt[] = [];
+  for (let i = 0; i < count; i++) arrows.push(add(a, u, count === 1 ? (s0 + s1) / 2 : s0 + ((s1 - s0) * i) / (count - 1)));
+
+  // THE RAMP: from past the flipper, bowing out to one side with a loop at its top, down to the front of the bumpers.
+  const eS = Math.min(fwd + aR * 2.1, dist * 0.34), xS = Math.max(eS + dR, dist - (3.05 * dR * bk + bumperR * 2.6));
+  const e = add(a, u, eS), x = add(a, u, xS);
+  const margin = ballR * 1.6;
+  let best: { path: RampPath; fit: number } | null = null;
+  for (const k of [1, 0.75, 0.5, 0.3]) {
+    for (const s of [1, -1] as const) {
+      const r = rampFor(e, x, n, s, c.rampBow * dist * k, dR * c.loopSize * Math.max(0.6, k), frame, margin);
+      if (!best || r.fit > best.fit) best = r;
+      if (r.fit >= 0) break;
+    }
+    if (best && best.fit >= 0) break;
+  }
+  const ramp = best!.path;
+
+  // THE DISPLAY: on the other side of the lane from the ramp, kept whole on screen.
+  const displayW = dR * 3.3 * c.displaySize;
+  const dh = displayW * DISPLAY_ASPECT;
+  const display = clampToFrame(add(add(a, u, dist * 0.56), n, -ramp.side * (dist * 0.09 + dh * 0.5)), frame, displayW / 2 + 10, dh / 2 + 10);
+
+  return { u, n, dist, ballR, pivot: fl.pivot, batLen, restAng, upAng, cradle, hit: { x: d.x, y: d.y }, bumperR, bumpers, arrows, arrowRot: Math.atan2(u.y, u.x), ramp, display, displayW };
 }
 
-// ─── the pose (pure) ───────────────────────────────────────────────────────────────────────────────────────────
+// ─── the balls' paths (built once per attack) ──────────────────────────────────────────────────────────────────
 
-/**
- * The striking portrait at a moment: an offset from its slot (screen px), a tilt (degrees), a scale, how far off the
- * floor it is (`air`, 0..1: its shadow drops away and shrinks), and a squash (vertical, on landings and the crouch).
- */
-export interface SoccerPose { x: number; y: number; rot: number; scale: number; air: number; squash: number }
-
-const REST: SoccerPose = { x: 0, y: 0, rot: 0, scale: 1, air: 0, squash: 0 };
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-const easeIn = (u: number): number => { const x = clamp01(u); return x * x * x; };
-const easeInQuad = (u: number): number => { const x = clamp01(u); return x * x; };
-const easeOutQuad = (u: number): number => { const x = clamp01(u); return 1 - (1 - x) * (1 - x); };
-const linear = (u: number): number => clamp01(u);
-
-export interface Seg { t0: number; t1: number; p0: Pt; p1: Pt; ease: (u: number) => number; air0: number; air1: number; hop: number; rot0: number; rot1: number; sc0: number; sc1: number; bob: number }
-
-/** The breakaway run's lateral weave at run fraction `f` (striker radii, along the normal): round each defender. */
-export function weaveAt(f: number, defs: readonly { side: 1 | -1 }[], nd: number, width: number): number {
-  let w = 0;
-  defs.forEach((d, i) => {
-    const c = defenderFraction(i, nd);
-    const x = (f - c) / 0.11;
-    w += d.side * width * Math.exp(-x * x);
-  });
-  return w;
+/** One ball's path: straight runs between keyframes (time, x, y). It is in play from `ts[0]` until `end`. */
+export interface BallTrack { ts: number[]; xs: number[]; ys: number[]; end: number }
+export interface PinballPaths {
+  tracks: BallTrack[];
+  /** For each `plan.hits[i]`: the unit way the ball was travelling INTO the bumper (the way it is kicked). */
+  kicks: Pt[];
+  /** The way the blow drives into the target (the first ball's last run). */
+  blowDir: Pt;
 }
 
-/** The portrait's keyframes for a plan (offsets from its slot). Pure. */
-export function poseSegs(p: SoccerPlan, g: SoccerGeo, c: HeroPinballConfig, a: Pt, aR: number): Seg[] {
-  if (p.reduced) return [];
-  const rel = (q: Pt): Pt => ({ x: q.x - a.x, y: q.y - a.y });
-  const O = { x: 0, y: 0 };
-  const js = p.jumpScale;
-  const seg = (t0: number, t1: number, p0: Pt, p1: Pt, o: Partial<Omit<Seg, 't0' | 't1' | 'p0' | 'p1'>> = {}): Seg => ({
-    t0, t1: Math.max(t0 + 1, t1), p0, p1, ease: easeInOutSine, air0: 0, air1: 0, hop: 0, rot0: 0, rot1: 0, sc0: 1, sc1: 1, bob: 0, ...o,
-  });
-  const lean = 6 * (g.u.x >= 0 ? 1 : -1);
-  if (p.kind === 'volley') {
-    const top = { x: 0, y: -aR * c.volleyHop };
-    const out: Seg[] = [];
-    // A little bob with each keepy-uppy.
-    p.touches.forEach((t) => out.push(seg(t - 60, t + 60, O, O, { sc0: 1, sc1: 1, hop: 0.15 })));
-    out.push(
-      seg(p.gatherAt, p.takeoffAt, O, O, { sc1: 0.95 }),
-      seg(p.takeoffAt, p.strikeAt, O, top, { ease: easeOutCubic, air1: 1, sc0: 0.95, sc1: 1 + js, rot1: -lean * 1.6 }),
-      // THE VOLLEY: the swing leans it into the strike, then down.
-      seg(p.strikeAt, p.landAt, top, O, { ease: easeInQuad, air0: 1, sc0: 1 + js, sc1: 1, rot0: lean * 2.2, rot1: 0 }),
-    );
-    return out;
-  }
-  if (p.kind === 'corner') {
-    const cn = rel(g.corner), back = rel(g.setBack);
-    const segs: Seg[] = [
-      // THE JOG out to the flag (a trot: a little bob).
-      seg(p.startAt, p.approachEnd, O, cn, { ease: easeInOutSine, rot1: lean, bob: 1 }),
-      // Set the ball, step back, raise an arm (a lean and a pause).
-      seg(p.approachEnd, p.setAt!, cn, cn, { rot0: lean, rot1: 0 }),
-      seg(p.setAt!, p.runUpAt!, cn, back, { ease: easeOutQuad, rot1: -10 * g.cornerSide, sc1: 1.02 }),
-      // THE RUN-UP and the strike.
-      seg(p.runUpAt!, p.runUpAt! + c.cornerRunMs, back, cn, { ease: easeIn, rot0: -10 * g.cornerSide, rot1: 14 * g.cornerSide, sc0: 1.02, sc1: 1.04 }),
-    ];
-    const strikeT = p.runUpAt! + c.cornerRunMs;
-    if (p.variant === 2) {
-      // Sprint in to the penalty spot, leap and head it.
-      const hd = rel(g.header);
-      const top = { x: hd.x, y: hd.y - aR * 0.35 };
-      segs.push(
-        seg(strikeT, p.gatherAt, cn, hd, { ease: easeInOutSine, rot0: 14 * g.cornerSide, rot1: lean, bob: 1 }),
-        seg(p.gatherAt, p.takeoffAt, hd, hd, { rot0: lean, sc1: 0.94 }),
-        seg(p.takeoffAt, p.headAt!, hd, top, { ease: easeOutCubic, air1: 1, sc0: 0.94, sc1: 1 + js, rot1: -12 * g.cornerSide }),
-        seg(p.headAt!, p.landAt, top, hd, { ease: easeInQuad, air0: 1, sc0: 1 + js, sc1: 1, rot0: 16 * g.cornerSide, rot1: 0 }),
-        seg(p.landAt, p.homeAt, hd, hd),
-        seg(p.homeAt, p.homeEnd, hd, O, { bob: 1 }),
-      );
-      return segs;
-    }
-    if (p.variant === 3) {
-      // In along the goal line to meet the one-two, then the curler first time.
-      const mt = rel(g.meet);
-      segs.push(
-        seg(strikeT, p.returnAt!, cn, mt, { ease: easeInOutSine, rot0: 14 * g.cornerSide, rot1: 0, bob: 1 }),
-        seg(p.returnAt!, p.strikeAt + 120, mt, mt, { ease: easeOutQuad, rot0: -12 * g.cornerSide, rot1: 10 * g.cornerSide, sc0: 1.03, sc1: 1 }),
-        seg(p.strikeAt + 120, p.homeAt, mt, mt, { rot0: 10 * g.cornerSide, rot1: 0 }),
-        seg(p.homeAt, p.homeEnd, mt, O, { bob: 1 }),
-      );
-      return segs;
-    }
-    segs.push(
-      seg(strikeT, p.homeAt, cn, cn, { rot0: 14 * g.cornerSide, rot1: 0, ease: easeOutQuad }),
-      seg(p.homeAt, p.homeEnd, cn, O, { bob: 1 }),
-    );
-    return segs;
-  }
-  if (p.kind === 'breakaway') {
-    // THE RUN: sampled as short linear legs so the weave round each defender is smooth.
-    const st = rel(g.shot);
-    const nd = g.defenders.length;
-    const A = Math.max(1, p.approachEnd - p.startAt);
-    const segs: Seg[] = [];
-    const N = 24;
-    const posAt = (fr: number): Pt => {
-      const e = easeInOutSine(fr) * 0.25 + fr * 0.75;
-      const w = weaveAt(fr, g.defenders, nd, c.beatWidth) * aR;
-      return { x: st.x * e + g.n.x * w, y: st.y * e + g.n.y * w };
+/** Build every ball's path from the plan and the table. Pure. */
+export function pinballPaths(p: PinballPlan, g: PinballGeo): PinballPaths {
+  const kicks: Pt[] = p.hits.map(() => ({ x: g.u.x, y: g.u.y }));
+  const tracks: BallTrack[] = [];
+  let blowDir = { x: g.u.x, y: g.u.y };
+  if (p.reduced) return { tracks, kicks, blowDir };
+  const reach = g.bumperR * 0.92 + g.ballR;
+  for (let b = 0; b < p.balls; b++) {
+    const tr: BallTrack = { ts: [], xs: [], ys: [], end: 0 };
+    const push = (t: number, x: number, y: number): void => {
+      // Keyframes never go back in time (a tuner can ask for a zero-length run).
+      const last = tr.ts.length ? tr.ts[tr.ts.length - 1]! : -Infinity;
+      tr.ts.push(Math.max(t, last + 0.01)); tr.xs.push(x); tr.ys.push(y);
     };
-    for (let i = 0; i < N; i++) {
-      const f0 = i / N, f1 = (i + 1) / N;
-      // STEPOVERS (variant 1): the portrait sways side to side just before each defender.
-      const sway = (fr: number): number => {
-        if (p.variant !== 1) return 0;
-        let r = 0;
-        g.defenders.forEach((_, k) => {
-          const cf = defenderFraction(k, nd) - (c.skillMs / A) * 0.5;
-          const x = (fr - cf) / ((c.skillMs / A) * 0.5);
-          if (Math.abs(x) < 1) r += 14 * Math.sin(x * Math.PI * 2) * (1 - Math.abs(x));
-        });
-        return r;
-      };
-      segs.push(seg(p.startAt + A * f0, p.startAt + A * f1, posAt(f0), posAt(f1), { ease: linear, rot0: lean + sway(f0), rot1: lean + sway(f1), bob: 0.6 }));
-    }
-    segs.push(
-      // THE LAST TOUCH: set, then the finish (a lean through the ball).
-      seg(p.approachEnd, p.strikeAt, st, st, { rot0: lean, rot1: -lean * 1.5, sc1: 0.97 }),
-      seg(p.strikeAt, p.homeAt, st, st, { ease: easeOutCubic, rot0: lean * 2.5, rot1: 0, sc0: 1.03, sc1: 1 }),
-      seg(p.homeAt, p.homeEnd, st, O, { bob: 1 }),
-    );
-    return segs;
-  }
-  // THE BICYCLE KICK.
-  const sp = rel(g.spot), sl = rel(g.slide);
-  const top = { x: sp.x, y: sp.y - aR * 0.55 };
-  const spin = -360 * Math.max(0, Math.round(c.flipTurns)) * (g.u.x >= 0 ? 1 : -1);
-  const out: Seg[] = [];
-  p.touches.forEach((t) => out.push(seg(t - 60, t + 60, O, O, { hop: 0.15 })));
-  out.push(
-    seg(p.flickAt! - 40, p.approachAt, O, O, { sc1: 0.97, hop: 0.25 }),
-    // THE SPRINT to the spot (fast, low, leaning in).
-    seg(p.approachAt, p.approachEnd, O, sp, { ease: easeInOutSine, rot0: 0, rot1: lean * 1.6, bob: 1.3 }),
-    // THE CROUCH.
-    seg(p.gatherAt, p.takeoffAt, sp, { x: sp.x, y: sp.y + aR * 0.06 }, { ease: easeOutCubic, rot0: lean * 1.6, rot1: 0, sc1: 0.9 }),
-    // THE LEAP AND THE FLIP: up and over backwards, upside down at the contact, round to land.
-    seg(p.takeoffAt, p.strikeAt, { x: sp.x, y: sp.y + aR * 0.06 }, top, { ease: easeOutCubic, air1: 1, sc0: 0.9, sc1: 1 + js, rot0: 0, rot1: spin * 0.5 }),
-    seg(p.strikeAt, p.landAt, top, sp, { ease: easeInQuad, air0: 1, sc0: 1 + js, sc1: 1, rot0: spin * 0.5, rot1: spin }),
-    seg(p.landAt, p.slideAt!, sp, sp, { rot0: spin, rot1: spin }),
-    // THE KNEE SLIDE: skidding away on its knees, leaning back, arms out.
-    seg(p.slideAt!, p.slideEnd!, sp, sl, { ease: easeOutCubic, rot0: spin, rot1: spin - 18 * Math.sign(sl.x - sp.x || 1), sc1: 1.04 }),
-    seg(p.slideEnd!, p.homeAt, sl, sl, { rot0: spin - 18 * Math.sign(sl.x - sp.x || 1), rot1: spin, sc0: 1.04 }),
-    seg(p.homeAt, p.homeEnd, sl, O, { rot0: spin, rot1: spin, bob: 1 }),
-  );
-  return out.sort((x, y) => x.t0 - y.t0);
-}
-
-/** Where the striking portrait is at sequence time `t` (its slot is (0, 0)). Pure and deterministic. */
-export function pinballPose(p: SoccerPlan, segs: readonly Seg[], c: HeroPinballConfig, t: number): SoccerPose {
-  if (p.reduced || !segs.length || t < segs[0]!.t0 || t >= p.endAt) return { ...REST };
-  // The segment in force (the latest that has started); past the last one, its end.
-  let s = segs[0]!;
-  for (const q of segs) if (t >= q.t0) s = q;
-  const u = clamp01((t - s.t0) / (s.t1 - s.t0));
-  const e = s.ease(u);
-  const hop = s.hop * 4 * u * (1 - u);
-  // A running bob (the trot): a small bounce every ~140 ms while the segment says so.
-  const bob = s.bob > 0 && u < 1 ? s.bob * Math.abs(Math.sin(((t - s.t0) / 140) * Math.PI)) : 0;
-  const air = clamp01(lerp(s.air0, s.air1, u) + hop);
-  // A whole turn (the flip) is a full circle: rotation is kept as is (the portrait ends where it started, upright).
-  const rot = lerp(s.rot0, s.rot1, e);
-  const pose: SoccerPose = {
-    x: lerp(s.p0.x, s.p1.x, e),
-    y: lerp(s.p0.y, s.p1.y, e) - hop * 22 - bob * 5,
-    rot: Math.abs(rot % 360) < 1e-6 && Math.abs(rot) > 0 ? 0 : rot,
-    scale: lerp(s.sc0, s.sc1, e) * (1 + p.jumpScale * 0.4 * hop),
-    air,
-    squash: 0,
-  };
-  // The squash: on the landings and the crouch.
-  if ((p.kind === 'volley' || p.kind === 'bicycle' || p.headAt !== null) && t >= p.landAt) pose.squash = c.squash * (p.kind === 'bicycle' ? 1.4 : 0.8) * Math.max(0, spring(t - p.landAt, 4, 70));
-  if (p.kind === 'bicycle' && t >= p.gatherAt && t < p.takeoffAt) pose.squash += 0.14 * easeOutCubic((t - p.gatherAt) / Math.max(1, p.takeoffAt - p.gatherAt));
-  if (p.kind === 'bicycle' && t >= p.takeoffAt && t < p.strikeAt) pose.squash -= 0.12 * Math.max(0, spring(t - p.takeoffAt, 3, 90));
-  if (t >= p.homeEnd && p.homeEnd > p.homeAt) pose.squash += c.squash * 0.4 * Math.max(0, spring(t - p.homeEnd, 4, 60));
-  return pose;
-}
-
-// ─── the ball (pure) ───────────────────────────────────────────────────────────────────────────────────────────
-
-export interface BallState { visible: boolean; x: number; y: number; rot: number; scale: number; alpha: number; air: number; squash: number; flying: boolean; fire: number }
-
-const HIDDEN: BallState = { visible: false, x: 0, y: 0, rot: 0, scale: 1, alpha: 0, air: 0, squash: 0, flying: false, fire: 0 };
-
-/** How high an arc rises (px), trimmed so the ball never leaves the top of the frame. Pure. */
-export function arcHeight(from: Pt, to: Pt, arc: number, frame: Frame | null, margin: number): number {
-  let h = Math.max(0, arc) * Math.hypot(to.x - from.x, to.y - from.y);
-  if (!frame || h <= 0) return h;
-  for (let tries = 0; tries < 12; tries++) {
-    let top = Infinity;
-    for (let i = 0; i <= 16; i++) { const v = i / 16; top = Math.min(top, lerp(from.y, to.y, v) - h * 4 * v * (1 - v)); }
-    if (top >= frame.y0 + margin) return h;
-    h *= 0.75;
-  }
-  return h;
-}
-
-/** A quadratic bend from `a` to `b`, bowed sideways by `bend` (a fraction of the length, signed). Pure. */
-export function curlPoint(a: Pt, b: Pt, bend: number, u: number): Pt {
-  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const cx = mx - dy * bend, cy = my + dx * bend;
-  const v = clamp01(u), w = 1 - v;
-  return { x: w * w * a.x + 2 * w * v * cx + v * v * b.x, y: w * w * a.y + 2 * w * v * cy + v * v * b.y };
-}
-
-/** Everything the ball's path needs (measured once). */
-export interface BallCtx { p: SoccerPlan; g: SoccerGeo; segs: readonly Seg[]; c: HeroPinballConfig; a: Pt; aR: number; frame: Frame | null }
-
-/** Which way a bend bows so it reads as a curl from `from` to `to` (toward the middle of the frame first). */
-function bendSign(from: Pt, to: Pt, frame: Frame | null): number {
-  const mid = frame ? { x: (frame.x0 + frame.x1) / 2, y: (frame.y0 + frame.y1) / 2 } : { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 + 1 };
-  const dx = to.x - from.x, dy = to.y - from.y;
-  // The control point is (mid - (dy, -dx) * bend): +1 bows it toward the normal (-dy, dx).
-  const nx = -dy, ny = dx;
-  const s = nx * (mid.x - (from.x + to.x) / 2) + ny * (mid.y - (from.y + to.y) / 2);
-  return s >= 0 ? 1 : -1;
-}
-
-/** The ball at sequence time `t` (screen px). Pure and deterministic. */
-export function pinballBall(x: BallCtx, t: number): BallState {
-  const { p, g, c, a, aR } = x;
-  if (p.reduced || t < p.chargeAt || t >= p.endAt) return { ...HIDDEN };
-  const pose = (tt: number): SoccerPose => pinballPose(p, x.segs, c, tt);
-  const popIn = easeOutCubic((t - p.chargeAt) / 140);
-  const spinOf = (from: Pt, to: Pt, t0: number, k = 1): number => (to.x - from.x >= 0 ? 1 : -1) * k * c.spin * 2 * Math.PI * ((t - t0) / 1000);
-  /** At the feet: in front of the portrait (toward the target), on the floor. */
-  const feet = (tt: number): Pt => { const q = pose(tt); return { x: a.x + q.x + g.u.x * aR * 0.8, y: a.y + q.y + g.u.y * aR * 0.8 + aR * 0.3 }; };
-  const on = (pt: Pt, o: Partial<BallState> = {}): BallState => ({ visible: true, x: pt.x, y: pt.y, rot: 0, scale: 1, alpha: 1, air: 0, squash: 0, flying: false, fire: 0, ...o });
-  /** Straight (with an arc) from `from` to `to`. */
-  const fly = (from: Pt, to: Pt, t0: number, t1: number, arc: number, o: { spinK?: number; fire?: number } = {}): BallState => {
-    const u = clamp01((t - t0) / Math.max(1, t1 - t0));
-    const h = arcHeight(from, to, arc, x.frame, aR * c.ballSize * 0.6);
-    const lift = 4 * u * (1 - u);
-    return {
-      visible: true, x: lerp(from.x, to.x, u), y: lerp(from.y, to.y, u) - h * lift, rot: spinOf(from, to, t0, o.spinK ?? 1), scale: 1 + 0.12 * lift, alpha: 1,
-      air: Math.min(1, lift + 0.15), squash: t - t0 < 50 ? 0.22 * (1 - (t - t0) / 50) : 0, flying: true, fire: o.fire ?? 0,
-    };
-  };
-  /** Curled (a bend sideways) from `from` to `to`, with a little height. */
-  const curl = (from: Pt, to: Pt, t0: number, t1: number, bend: number, height: number): BallState => {
-    const u = clamp01((t - t0) / Math.max(1, t1 - t0));
-    const q = curlPoint(from, to, bend, u);
-    const lift = 4 * u * (1 - u);
-    return {
-      visible: true, x: q.x, y: q.y - height * lift, rot: spinOf(from, to, t0, 1.6) * Math.sign(bend || 1), scale: 1 + 0.18 * lift, alpha: 1,
-      air: Math.min(1, lift + 0.15), squash: t - t0 < 50 ? 0.22 * (1 - (t - t0) / 50) : 0, flying: true, fire: 0,
-    };
-  };
-  /** A keepy-uppy: up off the feet and back down onto them, `h` px high, over [t0, t1]. */
-  const juggle = (t0: number, t1: number, h: number): BallState => {
-    const u = clamp01((t - t0) / Math.max(1, t1 - t0));
-    const f = feet(t);
-    const lift = 4 * u * (1 - u);
-    return on({ x: f.x, y: f.y - aR * 0.3 - h * lift }, { scale: 1 + 0.15 * lift, air: lift * 0.8, rot: (t - t0) / 160, squash: u < 0.12 ? 0.2 * (1 - u / 0.12) : 0 });
-  };
-  /** In the net: it drops in behind the goal mouth, a little bounce, and fades. */
-  const inNet = (t0: number, from: Pt): BallState => {
-    const s = (t - t0) / 1000;
-    const k = clamp01((t - t0) / 520);
-    const dir = unit({ x: g.hit.x - from.x, y: g.hit.y - from.y });
-    const push = aR * 0.35 * easeOutCubic(k);
-    return on({ x: g.hit.x + dir.x * push, y: g.hit.y + dir.y * push + 30 * s }, { scale: (1 - 0.15 * k), alpha: 1 - easeInQuad(k), rot: 2 * s, air: 0.1, visible: k < 1 });
-  };
-  const H = aR * c.juggleHeight;
-
-  if (p.kind === 'volley') {
-    // Keepy-uppies, the higher flick, the volley.
-    const T = p.touchMs;
-    for (const t0 of p.touches) if (t >= t0 && t < t0 + T) { const b = juggle(t0, t0 + T, H); return { ...b, scale: b.scale * popIn }; }
-    if (t < (p.touches[0] ?? p.flickAt!)) return { ...on(feet(t)), scale: popIn };
-    const volleyAt = (): Pt => { const q = pose(p.strikeAt); return { x: a.x + q.x + g.u.x * aR * 0.75, y: a.y + q.y + g.u.y * aR * 0.75 - aR * 0.1 }; };
-    if (t < p.strikeAt) {
-      // The flick: up high, and down onto the volley point (the portrait has hopped to meet it).
-      const u = clamp01((t - p.flickAt!) / Math.max(1, p.strikeAt - p.flickAt!));
-      const f = feet(p.flickAt!), v = volleyAt();
-      const lift = 4 * u * (1 - u);
-      return on({ x: lerp(f.x, v.x, u), y: lerp(f.y, v.y, u) - H * 1.6 * lift }, { scale: 1 + 0.25 * lift, air: lift, rot: (t - p.flickAt!) / 120 });
-    }
-    if (t < p.impactAt) return fly(volleyAt(), g.hit, p.strikeAt, p.impactAt, p.arc);
-    return inNet(p.impactAt, volleyAt());
-  }
-  if (p.kind === 'corner') {
-    if (t < p.setAt!) return { ...HIDDEN };
-    const spot = { x: g.corner.x + (g.hit.x - g.corner.x > 0 ? 1 : -1) * aR * 0.15, y: g.corner.y + aR * 0.55 };
-    const kickAt = p.runUpAt! + c.cornerRunMs;
-    if (t < kickAt) return on(spot, { scale: easeOutCubic((t - p.setAt!) / 140) });
-    const bendIn = bendSign(spot, g.hit, x.frame);
-    if (p.variant === 2) {
-      const head = { x: g.header.x, y: g.header.y - aR * 0.9 };
-      // The OUTSWINGER bows away from the goal, then the header.
-      if (t < p.headAt!) return curl(spot, head, kickAt, p.headAt!, -bendIn * c.curl * 0.7, aR * 0.6);
-      if (t < p.impactAt) return fly(head, g.hit, p.headAt!, p.impactAt, 0.04, { spinK: 0.6 });
-      return inNet(p.impactAt, head);
-    }
-    if (p.variant === 3) {
-      // The short pass off the edge, back in, and the first-time curler.
-      const meetFeet = { x: g.meet.x + g.u.x * 0, y: g.meet.y + aR * 0.55 };
-      const mid = p.passOutAt! + c.oneTwoMs;
-      if (t < mid) return fly(spot, g.passOff, kickAt, mid, 0, { spinK: 0.6 });
-      if (t < p.returnAt!) return fly(g.passBack, meetFeet, mid, p.returnAt!, 0, { spinK: 0.6 });
-      if (t < p.strikeAt) return on(meetFeet);
-      if (t < p.impactAt) return curl(meetFeet, g.hit, p.strikeAt, p.impactAt, bendSign(meetFeet, g.hit, x.frame) * c.curl * 0.8, aR * 0.5);
-      return inNet(p.impactAt, meetFeet);
-    }
-    // THE OLIMPICO: one long inswinger, bending right round into the goal.
-    if (t < p.impactAt) return curl(spot, g.hit, kickAt, p.impactAt, bendIn * c.curl, aR * 0.4);
-    return inNet(p.impactAt, spot);
-  }
-  if (p.kind === 'breakaway') {
-    if (t < p.startAt) return { ...on(feet(t)), scale: popIn };
-    if (t < p.approachEnd) {
-      // At its feet, pushed a touch ahead after each touch.
-      let b = feet(t);
-      for (const t0 of p.touches) {
-        const dt = t - t0;
-        if (dt >= 0 && dt < p.touchMs) { const k = Math.sin(Math.PI * (dt / p.touchMs)); b = { x: b.x + g.u.x * aR * 0.35 * k, y: b.y + g.u.y * aR * 0.35 * k }; }
+    if (b === 0) {
+      push(p.startAt, g.cradle.x, g.cradle.y);
+      push(p.strikeAt, g.cradle.x, g.cradle.y);
+      if (p.rampInAt !== null && p.multiAt !== null) {
+        const r = g.ramp;
+        for (let i = 0; i < r.n; i++) push(p.rampInAt + ((p.multiAt - p.rampInAt) * i) / (r.n - 1), r.xs[i]!, r.ys[i]!);
       }
-      let lift = 0, scale = 1, alpha = 1;
-      // THE SKILL round each defender: the nutmeg rolls the ball straight through it (the portrait goes round); the
-      // rainbow flick lifts it over its head.
-      const A = Math.max(1, p.approachEnd - p.startAt);
-      const nd = g.defenders.length;
-      p.beats.forEach((bt, i) => {
-        const half = p.skillMs / 2;
-        const dt = t - bt;
-        if (Math.abs(dt) >= half || p.variant === 1) return;
-        const u = (dt + half) / p.skillMs;
-        const fr = (t - p.startAt) / A;
-        const w = weaveAt(fr, g.defenders, nd, c.beatWidth) * aR;
-        const k = Math.sin(Math.PI * u);
-        // Back onto the straight line (through the defender's legs, or over its head).
-        b = { x: b.x - g.n.x * w * k, y: b.y - g.n.y * w * k };
-        if (p.variant === 3) { lift = aR * 1.6 * Math.sin(Math.PI * u); scale = 1 + 0.35 * Math.sin(Math.PI * u); }
-        if (p.variant === 2) { const near = 1 - Math.abs(u - 0.5) * 2; scale = 1 - 0.25 * near; alpha = 1 - 0.35 * near; }
-        void i;
-      });
-      return on({ x: b.x, y: b.y - lift }, { rot: (t - p.startAt) / 110, scale, alpha, air: lift > 0 ? Math.min(1, lift / (aR * 1.6)) : 0, flying: lift > 0 });
+    } else if (p.multiAt !== null) {
+      const r = g.ramp;
+      push(p.multiAt, r.xs[r.n - 1]!, r.ys[r.n - 1]!);
     }
-    const shotFrom = feet(p.strikeAt);
-    if (t < p.strikeAt) return on(feet(t), { rot: (t - p.startAt) / 110 });
-    if (t < p.impactAt) return fly(shotFrom, g.hit, p.strikeAt, p.impactAt, p.arc);
-    return inNet(p.impactAt, shotFrom);
+    p.hits.forEach((h, i) => {
+      if (h.ball !== b || !g.bumpers[h.bumper]) return;
+      const c = g.bumpers[h.bumper]!;
+      const px = tr.xs[tr.xs.length - 1]!, py = tr.ys[tr.ys.length - 1]!;
+      const dx = c.x - px, dy = c.y - py, dl = Math.hypot(dx, dy) || 1;
+      kicks[i] = { x: dx / dl, y: dy / dl };
+      push(h.at, c.x - (dx / dl) * reach, c.y - (dy / dl) * reach);
+    });
+    const land = b === 0 ? p.impactAt : (p.echoes[b - 1] ?? p.impactAt);
+    const lx = tr.xs[tr.xs.length - 1]!, ly = tr.ys[tr.ys.length - 1]!;
+    push(land, g.hit.x, g.hit.y);
+    tr.end = tr.ts[tr.ts.length - 1]!;
+    if (b === 0) { const l = Math.hypot(g.hit.x - lx, g.hit.y - ly); if (l > 1) blowDir = { x: (g.hit.x - lx) / l, y: (g.hit.y - ly) / l }; }
+    tracks.push(tr);
   }
-  // THE BICYCLE KICK.
-  const T = p.touchMs;
-  for (const t0 of p.touches) if (t >= t0 && t < t0 + T) { const b = juggle(t0, t0 + T, H * 0.9); return { ...b, scale: b.scale * popIn }; }
-  if (t < (p.touches[0] ?? p.flickAt!)) return { ...on(feet(t)), scale: popIn };
-  if (t < p.flickAt!) return on(feet(t));
-  if (t < p.strikeAt) {
-    // SKY HIGH: up to the apex (growing toward the camera, its shadow falling away), and down onto the contact point.
-    const from = feet(p.flickAt!);
-    const u = clamp01((t - p.flickAt!) / Math.max(1, p.strikeAt - p.flickAt!));
-    const up = u < 0.5;
-    const v = up ? easeOutCubic(u / 0.5) : easeInQuad((u - 0.5) / 0.5);
-    const pos = up ? { x: lerp(from.x, g.apex.x, v), y: lerp(from.y, g.apex.y, v) } : { x: lerp(g.apex.x, g.contact.x, v), y: lerp(g.apex.y, g.contact.y, v) };
-    const height = up ? v : 1 - v * 0.75;
-    return on(pos, { scale: 1 + 0.9 * height, air: height, rot: (t - p.flickAt!) / 90, flying: true });
-  }
-  if (t < p.impactAt) return fly(g.contact, g.hit, p.strikeAt, p.impactAt, p.arc, { spinK: 2.4, fire: 1 });
-  return inNet(p.impactAt, g.contact);
+  return { tracks, kicks, blowDir };
 }
 
-/** III's defenders at `t`: each fades in, LUNGES at the ball as the portrait reaches it, is beaten, and falls away. Pure. */
-export interface DefenderState { visible: boolean; x: number; y: number; rot: number; scale: number; alpha: number }
+export interface BallState { visible: boolean; x: number; y: number; vx: number; vy: number; scale: number }
+export const newBallState = (): BallState => ({ visible: false, x: 0, y: 0, vx: 0, vy: 0, scale: 1 });
 
-export function defenderAt(p: SoccerPlan, g: SoccerGeo, i: number, aR: number, t: number): DefenderState {
-  const d = g.defenders[i];
-  const bt = p.beats[i];
-  if (p.reduced || p.kind !== 'breakaway' || !d || bt === undefined || t < p.startAt - 120 || t >= p.endAt) return { visible: false, x: 0, y: 0, rot: 0, scale: 1, alpha: 0 };
-  const fadeIn = easeOutCubic((t - (p.startAt - 120)) / 220);
-  // The lunge: toward the side the portrait is NOT going round (it bites on the skill), then a stumble and a fade.
-  const dt = t - bt;
-  const lunge = dt < -p.skillMs ? 0 : dt < 0 ? easeOutCubic((dt + p.skillMs) / p.skillMs) : 1;
-  const sideLunge = -d.side * aR * 0.45 * lunge;
-  const beaten = dt > 0 ? clamp01(dt / 380) : 0;
-  const x = d.at.x + g.n.x * sideLunge - g.u.x * aR * 0.3 * beaten;
-  const y = d.at.y + g.n.y * sideLunge - g.u.y * aR * 0.3 * beaten;
-  return {
-    visible: true, x, y, rot: (-d.side * 0.35 * lunge) + (dt > 0 ? -d.side * 1.4 * easeOutCubic(beaten) : 0),
-    scale: 0.58 * (1 - 0.18 * beaten), alpha: fadeIn * (1 - easeInQuad(clamp01((dt - 120) / 420))),
-  };
+/** Where a ball is at `t` (written into `out`, no allocation). `vx` / `vy` are px per ms. Pure. */
+export function ballAt(tr: BallTrack | undefined, t: number, out: BallState, popMs = 160): BallState {
+  if (!tr || tr.ts.length < 2 || t < tr.ts[0]! || t >= tr.end) { out.visible = false; out.vx = 0; out.vy = 0; return out; }
+  let lo = 0, hi = tr.ts.length - 2;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (tr.ts[m]! <= t) lo = m; else hi = m - 1; }
+  const t0 = tr.ts[lo]!, t1 = tr.ts[lo + 1]!;
+  const v = clamp01((t - t0) / Math.max(1e-6, t1 - t0));
+  const x0 = tr.xs[lo]!, y0 = tr.ys[lo]!, x1 = tr.xs[lo + 1]!, y1 = tr.ys[lo + 1]!;
+  out.visible = true;
+  out.x = x0 + (x1 - x0) * v; out.y = y0 + (y1 - y0) * v;
+  out.vx = (x1 - x0) / Math.max(1e-6, t1 - t0); out.vy = (y1 - y0) / Math.max(1e-6, t1 - t0);
+  out.scale = popMs > 0 ? Math.max(0, easeOutBack((t - tr.ts[0]!) / popMs, 1.8)) : 1;
+  return out;
 }
 
-// ─── slow mo (pure) ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ─── the table's state at a time (pure) ────────────────────────────────────────────────────────────────────────
 
-/** A smooth 0..1 window: rises over `ramp` before `a`, holds to `b`, falls over `ramp` after. */
-function windowAt(t: number, a: number, b: number, ramp: number): number {
-  if (t <= a - ramp || t >= b + ramp) return 0;
-  if (t < a) return easeInOutSine((t - (a - ramp)) / ramp);
-  if (t <= b) return 1;
-  return 1 - easeInOutSine((t - b) / ramp);
+/** How far the table has popped up (0..1, overshooting a touch), `delay` ms after the start, and dropped away at the end. */
+export function tableIn(p: PinballPlan, t: number, delay = 0): number {
+  if (p.reduced || t < p.startAt + delay) return 0;
+  const up = easeOutBack((t - p.startAt - delay) / 220, 1.7);
+  const out = t <= p.outAt ? 1 : 1 - easeOutCubic((t - p.outAt) / Math.max(60, p.endAt - p.outAt));
+  return Math.max(0, up * out);
 }
 
-/** The slow-mo window in SEQUENCE ms (a real-time length at a factor is `real * factor` of sequence time). */
-export function slowWindow(p: SoccerPlan, c: HeroPinballConfig): { a: number; b: number; factor: number } | null {
-  if (p.reduced) return null;
-  if (p.kind === 'breakaway' && c.breakSlowMs > 0 && c.breakSlow < 1) {
-    const len = c.breakSlowMs * c.breakSlow;
-    return { a: p.strikeAt - len * 0.6, b: p.strikeAt + len * 0.4, factor: c.breakSlow };
+/** The flipper's heading (radians): resting, snapped up through the strike, held a beat, dropped back. */
+export function flipperAngle(p: PinballPlan, g: PinballGeo, t: number): number {
+  const from = p.strikeAt - p.swingMs * 0.5;
+  if (t <= from) return g.restAng;
+  const up = clamp01((t - from) / p.swingMs);
+  const hold = p.strikeAt + p.swingMs * 0.5 + 150;
+  const down = t <= hold ? 0 : easeInOutSine((t - hold) / 170);
+  return g.restAng + (g.upAng - g.restAng) * (easeOutCubic(up) - down);
+}
+
+export interface BumperState { x: number; y: number; scale: number; lit: boolean; alpha: number }
+export const newBumperState = (): BumperState => ({ x: 0, y: 0, scale: 0, lit: false, alpha: 0 });
+const FLASH_MS = 130;
+
+/** Bumper `i` at `t`: popped up, flashing and kicked by a hit, chasing and strobing on the jackpot. Pure. */
+export function bumperAt(p: PinballPlan, g: PinballGeo, paths: PinballPaths, i: number, t: number, kickPx: number, out: BumperState): BumperState {
+  const at = g.bumpers[i];
+  const k = i < p.bumpers && at ? tableIn(p, t, 70 * i) : 0;
+  if (!at || k <= 0.001) { out.alpha = 0; out.scale = 0; out.lit = false; return out; }
+  let kx = 0, ky = 0, punch = 0, lit = false;
+  for (let h = 0; h < p.hits.length; h++) {
+    const hit = p.hits[h]!;
+    if (hit.bumper !== i) continue;
+    const since = t - hit.at;
+    if (since < 0) break;
+    if (since < FLASH_MS) lit = true;
+    if (since < 400) {
+      const s = spring(since, 7, 55);
+      const dir = paths.kicks[h]!;
+      kx += dir.x * kickPx * s; ky += dir.y * kickPx * s; punch += 0.16 * s;
+    }
   }
-  if (p.kind === 'bicycle' && c.bikeSlowMs > 0 && c.bikeSlow < 1) {
-    const len = c.bikeSlowMs * c.bikeSlow;
-    return { a: p.strikeAt - len * 0.6, b: p.strikeAt + len * 0.4, factor: c.bikeSlow };
+  if (p.chaseAt !== null && t >= p.chaseAt && t < p.strikeAt) lit = lit || Math.floor((t - p.chaseAt) / 90) % BUMPERS === i;
+  if (p.rollAt !== null && t >= p.rollAt && t < p.outAt) lit = (Math.floor((t - p.rollAt) / 70) + i) % 2 === 0;
+  else if (t >= p.impactAt && t < p.impactAt + 280) lit = true;
+  out.x = at.x + kx; out.y = at.y + ky; out.scale = k * (1 + punch); out.lit = lit; out.alpha = Math.min(1, k * 1.6);
+  return out;
+}
+
+/** The target's ring of lamps: whether it is lit and which marquee step it shows (it turns one lamp per step). */
+export function lampAt(p: PinballPlan, t: number): { lit: boolean; step: number } {
+  if (p.rollAt !== null && t >= p.rollAt && t < p.impactAt) return { lit: Math.floor((t - p.rollAt) / 70) % 2 === 0, step: Math.floor((t - p.rollAt) / 70) };
+  if (t >= p.impactAt) return { lit: true, step: Math.floor((t - p.impactAt) / 90) };
+  if (p.chaseAt !== null && t >= p.chaseAt && t < p.strikeAt) return { lit: Math.floor((t - p.chaseAt) / 175) % 2 === 1, step: 0 };
+  return { lit: false, step: 0 };
+}
+
+/** Lane arrow `j` of `n`: lit in the chase (IV), in a wave behind the launched ball, and strobing with the jackpot. */
+export function arrowLit(p: PinballPlan, j: number, n: number, t: number): boolean {
+  if (n <= 0) return false;
+  if (p.chaseAt !== null && t >= p.chaseAt && t < p.strikeAt) return Math.floor((t - p.chaseAt) / 70) % n === j;
+  if (p.rollAt !== null && t >= p.rollAt && t < p.outAt) return (Math.floor((t - p.rollAt) / 70) + j) % 2 === 1;
+  const wave = t - (p.strikeAt + j * 45);
+  return wave >= 0 && wave < 260;
+}
+
+/** The ramp (III): how much of it has lit up (0..1, entry first) and its opacity. */
+export function rampAt(p: PinballPlan, t: number): { reveal: number; alpha: number } {
+  if (p.rampInAt === null || p.multiAt === null || t < p.startAt + 120) return { reveal: 0, alpha: 0 };
+  const reveal = clamp01((t - p.startAt - 120) / 300);
+  const gone = p.multiAt + 320;
+  return { reveal, alpha: t <= gone ? 1 : 1 - clamp01((t - gone) / 260) };
+}
+
+export type DisplayWord = 'multiball' | 'tilt' | 'jackpot';
+export interface DisplayState { alpha: number; scale: number; word: DisplayWord | null; wordOn: boolean; score: boolean }
+
+/** The dot-matrix display: MULTIBALL on III; on IV TILT blinking, then JACKPOT over the score. Pure. */
+export function displayAt(p: PinballPlan, t: number): DisplayState {
+  const off: DisplayState = { alpha: 0, scale: 0, word: null, wordOn: false, score: false };
+  if (p.reduced) return off;
+  const win = (from: number, to: number): { alpha: number; scale: number } => ({
+    scale: Math.max(0, easeOutBack((t - from) / 200, 1.6)), alpha: clamp01((t - from) / 90) * (1 - clamp01((t - to) / 200)),
+  });
+  if (p.kind === 'multiball' && p.multiAt !== null) {
+    const from = p.multiAt - 60, to = p.outAt;
+    if (t < from || t > to + 200) return off;
+    return { ...win(from, to), word: 'multiball', wordOn: t > p.multiAt + 700 || Math.floor((t - from) / 100) % 2 === 0, score: false };
   }
-  return null;
+  if (p.kind === 'jackpot' && p.tiltAt !== null && p.rollAt !== null) {
+    const from = p.tiltAt - 40, to = p.outAt;
+    if (t < from || t > to + 200) return off;
+    if (t < p.rollAt) return { ...win(from, to), word: 'tilt', wordOn: Math.floor((t - from) / 110) % 2 === 0, score: false };
+    // After the stop, JACKPOT blinks over the standing score.
+    return { ...win(from, to), word: 'jackpot', wordOn: t < p.impactAt || Math.floor((t - p.impactAt) / 120) % 2 === 0, score: true };
+  }
+  return off;
+}
+
+/** How many reels the jackpot shows: the damage's digits, never fewer than two. */
+export function jackpotCells(total: number): number {
+  return clamp(String(Math.max(0, Math.round(total))).length, 2, PINBALL_CAPS.cells);
+}
+
+/** When reel `i` (0 = the leftmost) stops. The last one stops exactly on the impact. */
+export function reelStopAt(p: PinballPlan, i: number, cells: number): number {
+  if (p.rollAt === null) return p.impactAt;
+  return p.rollAt + (p.impactAt - p.rollAt) * (0.5 + (0.5 * (i + 1)) / cells);
 }
 
 /**
- * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the last touch; IV around the contact
- * upside down, then runs a touch FAST as the thunderbolt flies. A smooth ramp, always > 0: never a freeze. Pure.
+ * THE JACKPOT'S REELS at `t`, written into `out` (one digit per reel, leftmost first): each spins until its stop, then
+ * shows its digit of the DAMAGE. From the impact on, the display reads exactly `total`. Pure.
  */
-export function pinballTimeScale(p: SoccerPlan, c: HeroPinballConfig, t: number): number {
-  const w = slowWindow(p, c);
-  let k = 1;
-  if (w) k -= (1 - w.factor) * windowAt(t, w.a, w.b, Math.max(1, c.slowRampMs));
-  if (p.kind === 'bicycle' && c.rocketBoost > 1 && w) {
-    k += (c.rocketBoost - 1) * windowAt(t, w.b + c.slowRampMs + 10, p.impactAt - 10, 30);
+export function jackpotDigits(p: PinballPlan, t: number, out: number[]): number[] {
+  const cells = jackpotCells(p.total);
+  const shown = Math.min(p.total, Math.pow(10, cells) - 1);
+  out.length = cells;
+  for (let i = 0; i < cells; i++) {
+    const digit = Math.floor(shown / Math.pow(10, cells - 1 - i)) % 10;
+    out[i] = t >= reelStopAt(p, i, cells) ? digit : (Math.floor(t / 42) * (3 + 2 * i) + i * 7 + (p.seed % 10)) % 10;
   }
-  return Math.max(0.05, k);
+  return out;
 }
 
-/** How much longer (real ms at speed 1) the slow mo makes the attack. Pure. */
-export function slowExtraMs(p: SoccerPlan, c: HeroPinballConfig): number {
-  if (p.reduced) return 0;
-  let extra = 0;
-  const step = 4;
-  for (let t = 0; t < p.endAt; t += step) extra += step / pinballTimeScale(p, c, t) - step;
-  return Math.max(0, extra);
+/** IV's TILT (radians): shoved one way, rocked back past level, and settled. 0 outside it. Pure. */
+export function tiltAt(p: PinballPlan, c: HeroPinballConfig, t: number): number {
+  if (p.tiltAt === null || p.tiltEnd === null || t <= p.tiltAt || t >= p.tiltEnd) return 0;
+  const v = (t - p.tiltAt) / (p.tiltEnd - p.tiltAt);
+  const max = (clamp(c.tiltDeg, 0, 6) * Math.PI) / 180;
+  // A fast shove up to the peak (a fifth of the way in), a smaller rock back past level, and settled at exactly 0.
+  return max * 1.36 * Math.sin(v * Math.PI * 2.5) * Math.pow(1 - v, 1.5) * Math.min(1, v * 8);
 }
 
-// ─── the goal and the flag (pure) ───────────────────────────────────────────────────────────────────────────────
-
-/** The goal's opacity, the NET'S BULGE (0.. on the impact, springing back) and the frame's shake (radians). */
-export function goalAt(p: SoccerPlan, t: number): { alpha: number; bulge: number; shake: number } {
-  if (p.reduced) return { alpha: 0, bulge: 0, shake: 0 };
-  const inAt = goalInAt(p);
-  if (t < inAt) return { alpha: 0, bulge: 0, shake: 0 };
-  const fadeIn = easeOutCubic((t - inAt) / 180);
-  const outFrom = p.impactAt + (p.kind === 'bicycle' ? 520 : 320);
-  const out = clamp01((t - outFrom) / 280);
-  const age = t - p.impactAt;
-  // The net is punched out, overshoots and settles (a fast spring); IV's bursts out twice as far.
-  const bulge = age >= 0 ? p.bulge * Math.max(0, Math.exp(-age / 260) * (0.5 + 0.5 * Math.cos(2 * Math.PI * 3.2 * (age / 1000)))) : 0;
-  const shake = age >= 0 ? (p.kind === 'bicycle' ? 0.06 : 0.015) * spring(age, 11, 160) : 0;
-  return { alpha: fadeIn * (1 - out), bulge, shake };
+/** The striker's own little moves (px along the lane and across it, degrees): the flip's jolt, and IV's shove. */
+export function strikerPose(p: PinballPlan, t: number, aR: number): { along: number; across: number; rot: number } {
+  if (p.reduced) return { along: 0, across: 0, rot: 0 };
+  let along = 0, across = 0, rot = 0;
+  // Leaning back into the flip, then jolting forward with it.
+  const wind = clamp01((t - (p.strikeAt - 200)) / 170);
+  if (t < p.strikeAt) along -= aR * 0.07 * easeInOutSine(wind);
+  else { const s = spring(t - p.strikeAt, 4.5, 80); along += aR * 0.16 * s; rot += 5 * s; }
+  if (p.tiltAt !== null && t >= p.tiltAt) { const s = spring(t - p.tiltAt, 3.5, 110); across += aR * 0.3 * s; rot -= 7 * s; }
+  return { along, across, rot };
 }
 
-/** II's corner flag: up from the jog to the strike (it waves when the ball is struck), down as the portrait heads home. */
-export function flagAt(p: SoccerPlan, t: number): { alpha: number; wave: number } {
-  if (p.reduced || p.kind !== 'corner') return { alpha: 0, wave: 0 };
-  const inAt = p.startAt + (p.approachEnd - p.startAt) * 0.4;
-  if (t < inAt) return { alpha: 0, wave: 0 };
-  const alpha = easeOutCubic((t - inAt) / 220) * (1 - clamp01((t - p.homeAt) / 260));
-  const kick = p.runUpAt! + 200;
-  const wave = 0.06 * Math.sin(t / 130) + (t >= kick ? 0.18 * spring(t - kick, 4, 260) : 0);
-  return { alpha, wave };
-}
-
-// ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The camera: it pushes in on the target while the shot flies (IV from the leap), punches and shakes on the impact along
- * the blow, and IV rumbles the whole board. Pure.
- */
-export function pinballCameraAt(p: SoccerPlan, c: HeroPinballConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
-  if (p.reduced) return { zoom: 1, x: 0, y: 0 };
-  const inFrom = p.kind === 'bicycle' ? p.takeoffAt : p.strikeAt - 120;
-  const push = t < inFrom ? 0 : t < p.impactAt ? easeInOutSine((t - inFrom) / Math.max(1, p.impactAt - inFrom)) : 1 - easeInOutSine((t - p.impactAt) / Math.max(1, c.zoomOutMs));
-  let z = p.zoom * clamp01(push);
-  const sw = slowWindow(p, c);
-  if (sw) z += c.slowZoom * windowAt(t, sw.a, sw.b, Math.max(1, c.slowRampMs) * 2);
+/** The view: pushed in on the target while the ball is in play, punched and shaken on the impact, jolted by the tilt. */
+export function pinballCameraAt(p: PinballPlan, c: HeroPinballConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
+  if (p.reduced || t < p.strikeAt) return { zoom: 1, x: 0, y: 0 };
+  const settle = p.impactAt + 260;
+  const push = easeInOutSine((t - p.strikeAt) / Math.max(1, p.impactAt - p.strikeAt)) * (1 - easeInOutSine((t - settle) / Math.max(60, c.zoomOutMs)));
+  let zoom = 1 + p.zoom * push;
   let x = 0, y = 0;
-  const tau = Math.max(1, c.shakeMs / 4);
+  const jolt = (since: number, px: number, d: Pt): void => {
+    if (since < 0 || px <= 0) return;
+    const fall = Math.exp(-since / Math.max(1, c.shakeMs * 0.35));
+    const a = Math.sin(since * 0.085) * fall, b = Math.sin(since * 0.131 + 1.3) * fall * 0.6;
+    x += (d.x * a - d.y * b) * px; y += (d.y * a + d.x * b) * px;
+  };
   if (t >= p.impactAt) {
-    const age = t - p.impactAt;
-    z += p.punch * Math.exp(-age / tau);
-    const s = spring(age, 15, tau) * p.shakePx;
-    x += dir.x * s; y += dir.y * s;
-    if (p.kind === 'bicycle') {
-      // The whole board shakes: a rumble across both axes dying away.
-      const r = p.shakePx * 0.45 * Math.exp(-age / (tau * 2.2));
-      x += Math.sin(age * 0.137) * r; y += Math.cos(age * 0.101) * r;
-    }
+    zoom += p.punch * Math.max(0, spring(t - p.impactAt, 3, 90));
+    jolt(t - p.impactAt, p.shakePx, dir);
   }
-  return { zoom: 1 + z, x, y };
-}
-
-/** The point the final shot leaves from (for the blow's direction and the impact FX). Pure. */
-export function shotFrom(p: SoccerPlan, g: SoccerGeo, a: Pt, aR: number): Pt {
-  if (p.kind === 'corner') return p.variant === 2 ? { x: g.header.x, y: g.header.y - aR * 0.9 } : p.variant === 3 ? g.meet : g.corner;
-  if (p.kind === 'breakaway') return g.shot;
-  if (p.kind === 'bicycle') return g.contact;
-  return a;
+  for (const e of p.echoes) jolt(t - e, p.shakePx * 0.5, dir);
+  if (p.tiltAt !== null) jolt(t - p.tiltAt, p.shakePx * 0.45, { x: -dir.y, y: dir.x });
+  return { zoom, x, y };
 }

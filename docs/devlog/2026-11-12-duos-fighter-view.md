@@ -32,3 +32,9 @@ hero). The overlay copy (`DuosTagIn`, `.duostagin`) is deleted.
 - The teammate's hand is as it stood when they stepped in: cards their board gains mid-fight do not appear in the row
   until the fight ends.
 - Not yet seen in a real Versus Duos match (two humans): verified in a Scene Builder Duos fight and by tests.
+
+**Follow-up, same day: the opponents too.** Owner: "the opponents should swap their portrait to the active player as
+well w/ their runes etc". `CombatOpponent` already swapped the foe's FACE in a match, but kept the first player's board,
+so the runes, buffs and tier under it were the wrong player's. It now takes the second player's board as well
+(`seatBoardThisRound`, exported from the lobby module), and it swaps with no match too: `duosLiveAt` reports
+`foeTagged` from the enemy `tagIn`, and the Scene Builder's local team supplies that player (`localMate().foeMate`).

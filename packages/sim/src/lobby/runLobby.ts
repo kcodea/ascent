@@ -818,7 +818,7 @@ export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: 
 }
 
 /** The board a seat brings this round: its board for the round, else the last one it has. */
-function seatBoardThisRound(lobby: RunLobby, seat: LobbySeatState): PreparedBoard | null {
+export function seatBoardThisRound(lobby: RunLobby, seat: LobbySeatState): PreparedBoard | null {
   const d = driverFor(seat, lobby.setId);
   return d?.prepare(lobby.round) ?? d?.finalBoard?.() ?? null;
 }

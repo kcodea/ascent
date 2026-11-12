@@ -53,13 +53,15 @@ interface DuosCombatState {
   mateFallen: boolean;
   /** How many hand-offs my side has had this fight (0 at the opening): a portrait only slides on a real swap. */
   swaps: number;
+  /** The OTHER team's second board has stepped in (their slot shows that player: face, runes, buffs). */
+  foeTagged: boolean;
   /** The hand-off the two portraits are sliding for right now (0 = at rest). Set by the dock, read by the hero slot. */
   slideSeq: number;
   /** My teammate's face for the hero slot while they fight (set by the dock, which resolves both faces). */
   fighter: DuosFace | null;
 }
 export interface DuosFace { art: string | undefined; name: string; frameId: string | null }
-const IDLE = { foeSeatId: null, selfSeatId: null, tag: null, on: false, mateLive: false, meFallen: false, mateFallen: false, swaps: 0, slideSeq: 0 } as const;
+const IDLE = { foeSeatId: null, selfSeatId: null, tag: null, on: false, mateLive: false, meFallen: false, mateFallen: false, swaps: 0, foeTagged: false, slideSeq: 0 } as const;
 export const useDuosCombat = create<DuosCombatState>(() => ({ ...IDLE, fighter: null }));
 
 /**
@@ -67,17 +69,18 @@ export const useDuosCombat = create<DuosCombatState>(() => ({ ...IDLE, fighter: 
  * first, 1 = it waited as the reserve); a `tagIn` on the player side hands over to the other member; a `boardFallen`
  * names the member whose board fell. Null when the fight is not a tag-team fight. Pure.
  */
-export function duosLiveAt(combat: Pick<CombatResult, 'duosMember' | 'tagTeam'>, events: readonly CombatEvent[], through: number): { mateLive: boolean; meFallen: boolean; mateFallen: boolean; swaps: number } | null {
+export function duosLiveAt(combat: Pick<CombatResult, 'duosMember' | 'tagTeam'>, events: readonly CombatEvent[], through: number): { mateLive: boolean; meFallen: boolean; mateFallen: boolean; swaps: number; foeTagged: boolean } | null {
   if (combat.duosMember == null && !combat.tagTeam) return null;
   const mine = combat.duosMember ?? 0;
-  let live = 0, swaps = 0, meFallen = false, mateFallen = false;
+  let live = 0, swaps = 0, meFallen = false, mateFallen = false, foeTagged = false;
   const end = Math.min(through, events.length);
   for (let i = 0; i < end; i++) {
     const e = events[i]!;
     if (e.type === 'tagIn' && e.side === 'player') { live = e.member; swaps += 1; }
+    else if (e.type === 'tagIn' && e.side === 'enemy') foeTagged = true;
     else if (e.type === 'boardFallen' && e.side === 'player') { if (e.member === mine) meFallen = true; else mateFallen = true; }
   }
-  return { mateLive: live !== mine, meFallen, mateFallen, swaps };
+  return { mateLive: live !== mine, meFallen, mateFallen, swaps, foeTagged };
 }
 
 /** Recruit calls this with the replay's cursor: keeps `useDuosCombat` in step with the fight on screen. */
@@ -96,7 +99,7 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
     // The seats (the foe's portrait swap, the attack cosmetics) still need the match; the fighter view does not.
     const now = combat.duosFirst && seat && raw ? duosCombatAt(combat, raw, seat, events, processedEnd) : { foeSeatId: null, selfSeatId: null, tag: null };
     if (!cur.on || cur.foeSeatId !== now.foeSeatId || cur.selfSeatId !== now.selfSeatId || cur.tag?.at !== now.tag?.at || cur.tag?.kind !== now.tag?.kind
-      || cur.mateLive !== live.mateLive || cur.meFallen !== live.meFallen || cur.mateFallen !== live.mateFallen || cur.swaps !== live.swaps) {
+      || cur.mateLive !== live.mateLive || cur.meFallen !== live.meFallen || cur.mateFallen !== live.mateFallen || cur.swaps !== live.swaps || cur.foeTagged !== live.foeTagged) {
       useDuosCombat.setState({ ...now, ...live, on: true });
     }
   }, [combat, events, processedEnd, fighting, seat, raw]);

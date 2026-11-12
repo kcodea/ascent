@@ -171,7 +171,10 @@ describe('the teammate portrait, bottom right', () => {
     expect(read('../Recruit.tsx')).not.toMatch(/DuosTagInPlate/);
     expect(read('versus.css')).not.toMatch(/\.duostag\b/);
     // The foe slot keys its art by the live foe, and the new face fades in.
-    expect(read('../CombatOpponent.tsx')).toMatch(/artKey=\{duosOn && duosFoe && !gauntlet \? `duos:\$\{seat\.id\}` : undefined\}/);
+    // 2026-11-12: also when the fight alone says their second board is up (no match: the Scene Builder), and the slot
+    // takes that player's BOARD too (runes, buffs, tier), not only the face.
+    expect(read('../CombatOpponent.tsx')).toMatch(/artKey=\{duosOn && \(duosFoe \|\| foeTagged\) && !gauntlet \? `duos:\$\{seat\.id\}` : undefined\}/);
+    expect(read('../CombatOpponent.tsx')).toContain('board: seatBoardThisRound(lobby, duosSeat) ?? forcedFoe.board');
     expect(read('versus.css')).toMatch(/@keyframes duosswapin \{ from \{ opacity: 0; scale: 0\.94; \}/);
   });
 
@@ -216,11 +219,11 @@ describe('the teammate portrait, bottom right', () => {
     const ev = [fell(0), tag(1), foe] as never[];
     expect(duosLiveAt({ duosMember: undefined, tagTeam: undefined }, ev, 3)).toBeNull(); // not a tag-team fight
     // my board fought first (member 0): before the hand-off I am live; after it my teammate is, and I have fallen
-    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: false, meFallen: false, mateFallen: false, swaps: 0 });
-    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: true, meFallen: true, mateFallen: false, swaps: 1 });
+    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: false, meFallen: false, mateFallen: false, swaps: 0, foeTagged: false });
+    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: true, meFallen: true, mateFallen: false, swaps: 1, foeTagged: true });
     // I was the reserve (member 1): my teammate opens, then their board falls and mine steps in
-    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: true, meFallen: false, mateFallen: false, swaps: 0 });
-    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: false, meFallen: false, mateFallen: true, swaps: 1 });
+    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: true, meFallen: false, mateFallen: false, swaps: 0, foeTagged: false });
+    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: false, meFallen: false, mateFallen: true, swaps: 1, foeTagged: true });
   });
 
   it('R-DUOS-VIEW-05 (owner 2026-10-26: "we dont need the health there"): no Health box under the teammate', () => {

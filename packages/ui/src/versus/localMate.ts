@@ -10,7 +10,7 @@
  * null read in a real game.
  */
 import { create } from 'zustand';
-import type { Action, RunState } from '@game/sim';
+import type { Action, LobbySeatState, PreparedBoard, RunState } from '@game/sim';
 
 /** Who a portrait shows: a hero and a name pill. */
 export interface LocalMateFace { hero: string; name: string }
@@ -30,6 +30,8 @@ export interface LocalMateApi {
   /** THE DUOS LOBBY (R-SB-DUOS-03): my End Turn becomes the team fight. Returns the action to run (the same one when the
    *  teammate cannot fight this round). */
   endTurn?(run: RunState, action: Action): Action;
+  /** The OTHER team's second player (the board that steps in for them), for the foe's slot once it has. */
+  foeMate?(): { seat: LobbySeatState; board: PreparedBoard } | null;
   /** The teammate's run as the HUD should show it while THEIR board fights (R-DUOS-FIGHTER-VIEW-01). */
   mateRun?(): RunState | null;
   /** After my End Turn committed: land the same fight on the teammate's run. */

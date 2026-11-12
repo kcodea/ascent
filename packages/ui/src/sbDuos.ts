@@ -21,7 +21,7 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
 import {
-  createLobbyRun, duosMemberView, duosPassBlocked, duosPassCost, handCap, modalOpen, passMinionToTeammate, playableHeroes, reduce,
+  createLobbyRun, duosMemberView, playerOpponent, duosPassBlocked, duosPassCost, handCap, modalOpen, passMinionToTeammate, playableHeroes, reduce,
   type Action, type BoardCard, type PracticeConfig, type PracticeTribe, type RunState, type SandboxDuosFight,
 } from '@game/sim';
 import { useGame } from './store';
@@ -232,6 +232,15 @@ const api: LocalMateApi = {
     return { ...action, sandboxDuos: preparedFight.fight } as Action;
   },
   mateRun: () => fightMate ?? (useSbDuos.getState().viewing ? null : useSbDuos.getState().other),
+  // The other team's second board is the teammate run's foe for the wave: that seat, and the board the rig pinned on
+  // it if it authored one (the same pair `endTurn` handed the reducer).
+  foeMate: () => {
+    const fm = fightMate;
+    const po = fm?.lobby ? playerOpponent(fm.lobby) : null;
+    if (!fm || !po) return null;
+    const pin = foeSnapshotOf(fm);
+    return { seat: po.seat, board: pin ? { ...po.board, snapshot: pin, tier: pin.tier ?? po.board.tier } : po.board };
+  },
   afterCommit: (action, next) => {
     if (action.type !== 'faceOmen' || !action.sandboxDuos || next.phase !== 'combat' || !next.lastCombat) return;
     preparedFight = null;

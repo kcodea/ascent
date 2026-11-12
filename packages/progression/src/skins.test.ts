@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the two hundred and eighty-nine skins', () => {
+describe('the two hundred and ninety-four skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -40,7 +40,7 @@ describe('the two hundred and eighty-nine skins', () => {
   // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
   // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
   // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 16, and the hero skins; crate items with art keys and attributed masters', () => {
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 17, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -337,6 +337,12 @@ describe('the two hundred and eighty-nine skins', () => {
       ['skin_orivax_2', 'minion_skin', { type: 'card', id: 'd2_orivax' }, 'epic'],
       ['skin_shrieker_2', 'minion_skin', { type: 'card', id: 'd2_shrieker' }, 'epic'],
       ['skin_voicekeeper_1', 'minion_skin', { type: 'card', id: 'd2_voicekeeper' }, 'ancient'],
+      // skins batch 17 (2026-11-12): "i added the final units"
+      ['skin_yazzus_1', 'minion_skin', { type: 'card', id: 'yazzus' }, 'common'],
+      ['skin_yazzus_2', 'minion_skin', { type: 'card', id: 'yazzus' }, 'rare'],
+      ['skin_yazzus_3', 'minion_skin', { type: 'card', id: 'yazzus' }, 'epic'],
+      ['skin_salvatore_1', 'minion_skin', { type: 'card', id: 'salvatore' }, 'epic'],
+      ['skin_uron_1', 'minion_skin', { type: 'card', id: 'uron' }, 'legendary'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });

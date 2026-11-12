@@ -681,6 +681,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_orivax_2', 'minion_skin', 'Voxel Orivax', 'epic', 'd2_orivax', 'Voxel Orivax.png'),
   skin('skin_shrieker_2', 'minion_skin', 'Wraith Shrieker', 'epic', 'd2_shrieker', 'Wraith Shrieker.png'),
   skin('skin_voicekeeper_1', 'minion_skin', 'Baby Voicekeeper', 'ancient', 'd2_voicekeeper', 'Baby Voicekeeper.png'),
+  // Skins batch 17 (owner 2026-11-12: "i added the final units"). First skins for Yazzus, Salvatore McKlusky and Uron.
+  // Rarity = the folder. 'Monster Hunter Salvator.png' ships as Hunter Salvatore (20 characters max, and the card's spelling).
+  skin('skin_yazzus_1', 'minion_skin', 'Mystic Arts Yazzus', 'common', 'yazzus', 'Mystic Arts Yazzus.png'),
+  skin('skin_yazzus_2', 'minion_skin', 'Mystic Yazzus', 'rare', 'yazzus', 'Mystic Yazzus.png'),
+  skin('skin_yazzus_3', 'minion_skin', 'Celestial Yazzus', 'epic', 'yazzus', 'Celestial Yazzus.png'),
+  skin('skin_salvatore_1', 'minion_skin', 'Hunter Salvatore', 'epic', 'salvatore', 'Monster Hunter Salvator.png'),
+  skin('skin_uron_1', 'minion_skin', 'Captain Uron', 'legendary', 'uron', 'Captain Uron.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

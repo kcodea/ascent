@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Void. Your hero throws dark orbs that drag light into them.',
+        details: [
+          'Small hits throw one dark orb with a bright rim. Bigger hits throw two, then five.',
+          'The biggest hits and knockouts pull the orbs into a black hole over the enemy hero. It drags both heroes toward it, collapses to a point and blasts outward.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Minion art is 5% larger inside its frame, so the straight bottom edge of the picture no longer shows.',
       },
       {

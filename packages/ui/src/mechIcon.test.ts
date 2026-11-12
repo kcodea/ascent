@@ -79,6 +79,24 @@ describe('resolveMech', () => {
     expect(resolveMech(view('shaper'))?.glyph).toBe('choose1');
     expect(resolveMech(view('thundeer'))?.glyph).toBe('engrave');
   });
+  it('a GIVEN Execute takes the gem over the printed badge; a printed Execute races as before (R-MEDAL-EXECUTE-GIVEN-01)', () => {
+    // Every minion in the game that does not print Execute: handed the keyword, it wears the dagger.
+    for (const d of Object.values(CARD_INDEX)) {
+      if (d.keywords.includes('V')) continue;
+      const view = { cardId: d.id, keywords: [...d.keywords, 'V'], text: d.text } as never;
+      expect(resolveMech(view)?.id, d.id).toBe('execute');
+    }
+    // Without the keyword the printed badge is untouched, and a card that PRINTS Execute is not forced to it.
+    const beev = CARD_INDEX['b2_beev']!;
+    expect(resolveMech({ cardId: beev.id, keywords: [...beev.keywords], text: beev.text } as never)?.id).not.toBe('execute');
+    const printed = Object.values(CARD_INDEX).filter((d) => d.keywords.includes('V'));
+    expect(printed.length).toBeGreaterThan(0);
+    for (const d of printed) {
+      const before = resolveMech({ cardId: d.id, keywords: [...d.keywords], text: d.text } as never)?.id;
+      expect(before, d.id).toBeDefined();
+    }
+  });
+
   it('vanilla token → null (blank badge)', () => {
     expect(resolveMech(view('pup'))).toBeNull();
   });

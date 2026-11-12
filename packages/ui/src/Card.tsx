@@ -832,7 +832,11 @@ export const Card = memo(function Card({
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
   // Printed + GRANTED triggers (R-MEDAL-GRANTED-01), memoized on exactly what the resolver reads.
-  const mech = useMemo(() => resolveMech(card), [card.cardId, card.keywords, card.text, card.grantedTriggers]);
+  // A travelling "On Execute given" effect holds the dagger with the aura: the gem changes when the beam lands.
+  const mech = useMemo(
+    () => resolveMech(executeHeld ? { ...card, keywords: card.keywords.filter((k) => k !== 'V') } : card),
+    [card.cardId, card.keywords, card.text, card.grantedTriggers, executeHeld],
+  );
   // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,

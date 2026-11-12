@@ -3,7 +3,8 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { compileMoments, DEFAULT_RULES } from './compile';
 import { attackerOfImpact, meleePairOfImpact } from '../combatBeats';
-import { wavesAheadOf } from './channels/windupWaves';
+import { passSettleMs, wavesAheadOf } from './channels/windupWaves';
+import { bindingFor } from './bindings';
 import { struckUidsIn } from './cardFx';
 import { fanIntensity, FAN_PARTICLE_BUDGETS } from '../fx/fanBudget';
 
@@ -77,6 +78,19 @@ describe('Gasket presentation: one moment per pass, parked swing, the clash keep
     const ai = moments.findIndex((m) => m.primary.type === 'attack');
     const atk = moments[ai]!.primary as Extract<CombatEvent, { type: 'attack' }>;
     expect(wavesAheadOf(moments[ai]!, events, atk.attacker)).toBe(false);
+  });
+});
+
+describe('the breath after a pass (owner 2026-11-12)', () => {
+  const ids = new Map([['m0', 'dm_gasket'], ['m1', 'dm_clerk'], ['m2', 'trainingdummy'], ['m3', 'dm_clerk'], ['m4', 'dm_clerk'], ['m5', 'trainingdummy']]);
+  it('each Gasket pass holds 200 ms after its damage; the wind-up and the clash do not', () => {
+    const { events } = fight(true);
+    const { moments, ai } = firstSwing(events);
+    expect(passSettleMs(moments[ai]!, events, ids, bindingFor)).toBe(0);
+    expect(passSettleMs(moments[ai + 1]!, events, ids, bindingFor)).toBe(200);
+    expect(passSettleMs(moments[ai + 2]!, events, ids, bindingFor)).toBe(200);
+    expect(passSettleMs(moments[ai + 3]!, events, ids, bindingFor)).toBe(0);
+    expect(passSettleMs(undefined, events, ids, bindingFor)).toBe(0);
   });
 });
 

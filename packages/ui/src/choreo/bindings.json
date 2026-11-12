@@ -1975,13 +1975,22 @@
       }
     },
     "dm_gasket": {
-      "damage": {
+      "rally": {
         "def": "gasket",
-        "fanOut": "struck"
+        "also": [
+          "sfx-gasket-rally"
+        ],
+        "holdMs": 210
+      },
+      "damage": {
+        "def": "gasket-burst",
+        "fanOut": "pass",
+        "settleMs": 200
       },
       "shieldPop": {
-        "def": "gasket",
-        "fanOut": "struck"
+        "def": "gasket-burst",
+        "fanOut": "pass",
+        "settleMs": 200
       }
     },
     "b4_hawg": {

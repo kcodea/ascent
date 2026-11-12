@@ -157,8 +157,11 @@ export interface FxBinding {
    *   location when it should be happening at the target of the buff's location."* Two anchor conventions
    *   already existed in this codebase; this names the second one instead of leaving it reachable only from
    *   the `minionBuffed` path.
+   * - `pass`: ONCE per wave pass of damage the card sprayed (Gasket's Rally pass), on the source, and never on its
+   *   own melee strike (also a `damage` moment). For a board-wide effect that belongs to the pass, not to any one
+   *   victim: it claims no stock hit-burst, so every victim still shows its own hit (owner 2026-11-12, Gasket).
    */
-  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed' | 'buffedOn';
+  fanOut?: 'primary' | 'damaged' | 'struck' | 'selfBuffed' | 'buffed' | 'buffedOn' | 'pass';
   /**
    * A sound to fire alongside the def, named from {@link BINDING_SFX}.
    *
@@ -204,6 +207,17 @@ export interface FxBinding {
    * like `def` (`bindings.test.ts`). Honoured by the sites that play through `bindingDefIds`.
    */
   also?: string[];
+  /**
+   * On a `rally` binding only: extra milliseconds the rallier HOLDS its wound-up pose after the medallion pulse,
+   * before whatever the Rally does lands. For an effect whose sound has a beat the consequence should land ON
+   * (Gasket: the damage pass waits for the sizzle in its Rally clip, owner 2026-11-12). Presentation only.
+   */
+  holdMs?: number;
+  /**
+   * On a `pass` binding only: extra milliseconds the pass stays on screen AFTER its damage lands, before the next
+   * beat (a reaction, the next pass, the strike). See `passSettleMs`. Presentation only.
+   */
+  settleMs?: number;
 }
 
 /** Every def a binding plays at once: its `def`, then each `also`. */
@@ -211,7 +225,7 @@ export function bindingDefIds(b: FxBinding): string[] {
   return b.also?.length ? [b.def, ...b.also] : [b.def];
 }
 
-const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
+const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn', 'pass'];
 
 /**
  * The sounds a binding may name. Deliberately a short list rather than every key of the `sfx` module: most of
@@ -322,6 +336,14 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.also must be a list of def ids — dropped.`);
     return null;
   }
+  if (v.holdMs !== undefined && (typeof v.holdMs !== 'number' || !Number.isFinite(v.holdMs) || v.holdMs < 0)) {
+    devError(`[fx] bindings.json: ${where}.holdMs must be a number ≥ 0 — dropped.`);
+    return null;
+  }
+  if (v.settleMs !== undefined && (typeof v.settleMs !== 'number' || !Number.isFinite(v.settleMs) || v.settleMs < 0)) {
+    devError(`[fx] bindings.json: ${where}.settleMs must be a number >= 0, dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
@@ -329,6 +351,8 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
   if (v.launchOnDeath === true) out.launchOnDeath = true;
   if (typeof v.gain === 'number' && Number.isFinite(v.gain) && v.gain >= 0 && v.gain !== 1) out.gain = v.gain;
   if (Array.isArray(v.also) && v.also.length > 0) out.also = [...(v.also as string[])];
+  if (typeof v.holdMs === 'number' && v.holdMs > 0) out.holdMs = v.holdMs;
+  if (typeof v.settleMs === 'number' && v.settleMs > 0) out.settleMs = v.settleMs;
   return out;
 }
 

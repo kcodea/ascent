@@ -29,3 +29,25 @@ export function wavesAheadOf(moment: Moment, events: CombatEvent[], attackerUid:
   }
   return false;
 }
+
+/**
+ * THE BREATH AFTER A PASS (owner 2026-11-12, Gasket: "a 200ms pause AFTER the damage is dealt before any followup
+ * reactions occur"). `shown` is the beat on screen; when it is a wave pass whose dealing card has a `pass` binding
+ * with a `settleMs`, the clock holds that much longer before the next beat (a Rad Rachel tendril, the next pass, the
+ * parked strike). 0 for everything else. `resolve` is `bindingFor` in the app (injected so this stays pure).
+ */
+export function passSettleMs(
+  shown: Moment | undefined,
+  events: CombatEvent[],
+  cardIds: ReadonlyMap<string, string>,
+  resolve: (cardId: string | null, kind: Moment['kind']) => { fanOut?: string; settleMs?: number } | null,
+): number {
+  if (!shown || shown.primary.wave === undefined) return 0;
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type !== 'dmg' || e.wave === undefined || typeof e.source !== 'string') continue;
+    const b = resolve(cardIds.get(e.source) ?? null, shown.kind);
+    return b?.fanOut === 'pass' ? Math.max(0, b.settleMs ?? 0) : 0;
+  }
+  return 0;
+}

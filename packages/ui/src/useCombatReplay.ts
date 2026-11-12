@@ -37,7 +37,7 @@ import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { RALLY_PROC_STRIDE_MS, attackSummonUids, isOwnNarration, ownRallyBindingFor, ownRallyFloatDelayMs, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { getLungeConfig } from './lungeConfig';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
-import { wavesAheadOf } from './choreo/channels/windupWaves';
+import { passSettleMs, wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -2498,6 +2498,9 @@ export function useCombatReplay(
       );
       if (lead) d += lead / combatSpeedRef.current;
     }
+    // A wave pass with a `settleMs` (Gasket) stays a breath longer after its damage, before whatever follows.
+    const settle = passSettleMs(shown, events, cardIds, bindingFor);
+    if (settle > 0) d += settle / combatSpeedRef.current;
     // A PARKED swing whose own damage beat is `next`: after the stillness, RESUME the strike and let its real
     // contact advance the clock — exactly what an ordinary swing's lunge does. The clock used to advance on the
     // timer alone and the layout effect resumed the strike as the damage beat became current, so the numbers
@@ -3478,14 +3481,16 @@ export function useCombatReplay(
             // Ally procs (Echohorn) keep the `rallyFx` cue's source→target path; see `ownRallyBindingFor`.
             if (ownRally && canPlayDefs()) {
               const a = anchorsForUnits(atkUid, atkUid);
-              if (a) playDef(ownRally.def, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
+              // `also` rides along (Gasket's Rally sound is its own def), like every other binding's extra defs.
+              if (a) for (const id of bindingDefIds(ownRally)) playDef(id, a, { uids: { source: atkUid, target: atkUid }, gain: ownRally.gain });
             }
           } : undefined,
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
           rallyProcs: rallyProcsFor(cur, events, atkUid),
           // The absorbed forced Echo's stillness before the strike — the parked swing's lead, on the wind-up.
-          windupSettleMs: absorbedEcho ? PARKED_COMMIT_LEAD_MS : 0,
+          // …plus the card's own On Rally hold (`holdMs`): Gasket's damage pass waits for the sizzle in its Rally clip.
+          windupSettleMs: (absorbedEcho ? PARKED_COMMIT_LEAD_MS : 0) + (ownRally?.holdMs ?? 0),
           // Supplying this does two things: it fires the stock buff cues at the top of the wind-up, AND it is
           // what switches the wind-up PAUSE on (see `windupPauseS` in `channels/lunge.ts`). For a Ruby or an
           // aura both lists are empty and the callback fires nothing — the gem and the board wash are told by

@@ -500,14 +500,29 @@ describe('Gem Sage — When you get a Ruby, also get a random Ruby', () => {
     mintRubies(gilded, 1);
     expect(rubiesInHand(gilded)).toHaveLength(3);
   });
-  it('a Ruby won in combat counts too — it arrives through the same mint at settle', () => {
-    const r = simulate([{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'] } as BoardMinion],
-      [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    // Re-pin 2026-10-10: Rik's Rally is now RANDOM Rubies, carried back by type (`playerRubyGrantIds`). 2026-10-24: 1 Ruby.
-    const won = (r.playerRubyGrants ?? 0) + (r.playerRubyGrantIds?.length ?? 0);
-    expect(won, "one Rally: Rik's 1 random Ruby").toBe(1);
+  // R-RUBY-03 re-pin 2026-11-11 (owner report: "gem sage isnt granting the ruby in real time"): the Sage pays IN the
+  // fight, on the beat the Ruby is won, as its own live `toHand`; settle mints what the fight won and pays nothing more.
+  const sageFight = (sages: BoardMinion[]) => simulate(
+    [{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'] } as BoardMinion, ...sages],
+    [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+  const sage = (uid: string, golden = false): BoardMinion => ({ cardId: 'k_gemsage', attack: 0, health: 300, sourceUid: uid, keywords: [], golden } as BoardMinion);
+  const sageHands = (r: ReturnType<typeof simulate>) => r.events.filter((e) => e.type === 'toHand' && (e as { srcCard?: string }).srcCard === 'k_gemsage');
+  it('a Ruby won in combat pays the Sage LIVE, mid-fight, and settle does not pay it again', () => {
+    const base = sageFight([]);
+    expect((base.playerRubyGrants ?? 0) + (base.playerRubyGrantIds?.length ?? 0), "one Rally: Rik's 1 random Ruby").toBe(1);
+    const r = sageFight([sage('gs')]);
+    const live = sageHands(r);
+    expect(live, 'the Sage flies its Ruby to hand during the fight').toHaveLength(1);
+    const won = r.events.findIndex((e) => e.type === 'toHand');
+    expect(r.events.indexOf(live[0]!), 'right after the Ruby that caused it').toBe(won + 1);
+    expect((r.playerRubyGrants ?? 0) + (r.playerRubyGrantIds?.length ?? 0), 'the won Ruby plus the one from the Sage').toBe(2);
     const s = act(run({ phase: 'combat', lastCombat: r, board: [body('gs', 'k_gemsage'), body('T', 'k_tunnelcharger')] } as Partial<RunState>), { type: 'resolveCombat' });
-    expect(rubiesInHand(s).length, 'each won Ruby pays one more').toBe(won * 2);
+    expect(rubiesInHand(s).length, 'two Rubies home, not three: settle holds the Sage').toBe(2);
+  });
+  it('in combat too: two Sages pay once each and never hear each other; Gilded pays 2; a dead Sage pays nothing', () => {
+    expect(sageHands(sageFight([sage('g1'), sage('g2')]))).toHaveLength(2);
+    expect(sageHands(sageFight([sage('g', true)]))).toHaveLength(2);
+    expect(sageHands(sageFight([{ ...sage('d'), health: 0 }]))).toHaveLength(0);
   });
 });
 

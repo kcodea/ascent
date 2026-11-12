@@ -3046,6 +3046,14 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  *  Rubies a Sage grants never re-trigger a Sage. Synchronous and restored in a `finally`, so a reduce can never
  *  leave it set. */
 let gemSageMinting = false;
+/** Run `fn` with every Gem Sage held quiet. Settle mints the Rubies a fight won through here: the Sages already paid
+ *  for those live, in combat, on the beat each Ruby was won (R-RUBY-03), so the mint must not pay them again. Every
+ *  other get-a-Ruby watcher still hears the mint. */
+export function withGemSagesHeld<T>(fn: () => T): T {
+  const was = gemSageMinting;
+  gemSageMinting = true;
+  try { return fn(); } finally { gemSageMinting = was; }
+}
 
 /** "Get a random Ruby" (owner Ruby batch 2026-09-24): `count` Rubies, EACH drawn separately from all six types
  *  (`RUBY_TYPE_IDS`) at equal odds on the run cursor, then minted through `mintRubies` one at a time so each one

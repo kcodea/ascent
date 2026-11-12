@@ -66,6 +66,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Gem Sage now gives its random Ruby during combat, the moment you win a Ruby, instead of after the fight.',
+        details: [
+          'A Gem Sage that has died in the fight gives nothing for Rubies won after its death.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Rubies look and sound new. A Ruby landing shatters into shards with a ringing sound, and when your Rubies get stronger you now see a dagger or heart with the amount gained.',
         details: [
           'When your Rubies gain Attack or Health, a gem effect plays on the card that caused it, and a dagger (Attack) or heart (Health) floats up beside the amount.',

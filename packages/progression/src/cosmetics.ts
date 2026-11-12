@@ -700,6 +700,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_boulderdash_2', 'minion_skin', 'Retro Boulderdash', 'epic', 'k_boulderdash', 'Retro Game Boulderdash.png'),
   skin('skin_echohorn_4', 'minion_skin', '8 Bit Echohorn', 'legendary', 'b2_echohorn', '8 Bit Echohorn.png'),
   skin('skin_sylus_4', 'minion_skin', '8 Bit Sylus', 'legendary', 'sylus', '8 Bit Sylus.png'),
+  // Skins batch 19 (owner 2026-11-12: "added a few more"): one more 8 Bit skin. Rarity = the folder.
+  skin('skin_ropewrangler_3', 'minion_skin', '8 Bit Wrangler', 'legendary', 'ropewrangler', '8 Bit Wrangler.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
@@ -896,6 +898,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   portraitFrame('frame_solar_flare', 'Solar Flare', 'epic', 'Epic/Solar Flare Frame.png'),
   portraitFrame('frame_color_doodle', 'Color Doodle', 'rare', 'Rare/Color Doodle Frame.png'),
   portraitFrame('frame_neon_ring', 'Neon Ring', 'rare', 'Rare/Neon Ring.png'),
+  // Portrait frames batch 10 (owner 2026-11-12: "added a few more"): the six 8 Bit rings, all Epic by the folder.
+  portraitFrame('frame_8_bit_cyber', '8 Bit Cyber', 'epic', 'Epic/8 Bit Cyber.png'),
+  portraitFrame('frame_8_bit_electric', '8 Bit Electric', 'epic', 'Epic/8 Bit Electric.png'),
+  portraitFrame('frame_8_bit_jade_energy', '8 Bit Jade Energy', 'epic', 'Epic/8 Bit Jade Energy.png'),
+  portraitFrame('frame_8_bit_pearl', '8 Bit Pearl', 'epic', 'Epic/8 Bit Pearl.png'),
+  portraitFrame('frame_8_bit_ruby', '8 Bit Ruby', 'epic', 'Epic/8 Bit Ruby.png'),
+  portraitFrame('frame_8_bit_water', '8 Bit Water', 'epic', 'Epic/8 Bit Water.png'),
   portraitFrame('frame_chromatic_dragonscale', 'Chromatic Scale', 'legendary', 'Legendary/ChromaticDragonscale.png'),
   // The first ANCIENT frames (owner 2026-10-02: "i added a new rarity -> Ancient"): rarity = the Portraits/Ancient folder.
   portraitFrame('frame_bonds', 'Bonds', 'ancient', 'Ancient/Bonds.png'),

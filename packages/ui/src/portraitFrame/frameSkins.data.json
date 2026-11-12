@@ -1,4 +1,40 @@
 {
+  "frame_8_bit_cyber": {
+    "aspect": 1,
+    "holeD": 0.7775,
+    "holeCx": 0.4956,
+    "holeCy": 0.4825
+  },
+  "frame_8_bit_electric": {
+    "aspect": 1,
+    "holeD": 0.7193,
+    "holeCx": 0.4944,
+    "holeCy": 0.4772
+  },
+  "frame_8_bit_jade_energy": {
+    "aspect": 1,
+    "holeD": 0.7648,
+    "holeCx": 0.4983,
+    "holeCy": 0.4798
+  },
+  "frame_8_bit_pearl": {
+    "aspect": 1,
+    "holeD": 0.815,
+    "holeCx": 0.4907,
+    "holeCy": 0.4892
+  },
+  "frame_8_bit_ruby": {
+    "aspect": 1,
+    "holeD": 0.7767,
+    "holeCx": 0.4935,
+    "holeCy": 0.4803
+  },
+  "frame_8_bit_water": {
+    "aspect": 1,
+    "holeD": 0.7616,
+    "holeCx": 0.4952,
+    "holeCy": 0.4916
+  },
   "frame_ale": {
     "aspect": 1,
     "holeD": 0.8254,

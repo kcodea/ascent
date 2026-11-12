@@ -93,6 +93,11 @@ describe('the sounds (owner 2026-11-12)', () => {
     expect(src).toContain('if (landed.has(g.source)) return;');
     expect(src).toContain('if (!sliced.has(g.source))');
   });
+  it('the effect follows its receiver to the slot it settles in (owner 2026-11-12, a death collapsing the row)', () => {
+    const src = readFileSync(new URL('../../fx/executeGivenLaunch.ts', import.meta.url), 'utf8');
+    expect(src).toContain('const settle = trackSettledSlot(() => document.querySelector(unitSelector(g.target)));');
+    expect(src).toContain('target: settle?.get, onDone: settle?.stop');
+  });
 });
 
 describe('the aura hold', () => {

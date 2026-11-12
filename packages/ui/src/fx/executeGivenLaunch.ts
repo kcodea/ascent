@@ -2,7 +2,8 @@ import type { CombatEvent } from '@game/core';
 import type { Moment } from '../choreo/compile';
 import { bindingFor } from '../choreo/bindings';
 import { executesGivenIn, type ExecuteGiven } from '../choreo/channels/executeGiven';
-import { anchorsForUnits } from './combatAnchors';
+import { anchorsForUnits, unitSelector } from './combatAnchors';
+import { trackSettledSlot } from './settledSlot';
 import { defArrivalMs } from './defArrival';
 import { getDef } from './fxDefs';
 import { canPlayDefs, playDef } from './playDef';
@@ -67,7 +68,12 @@ export function launchExecuteGiven(
   const launch = (): void => {
     const anchors = anchorsForUnits(g.source, g.target);
     if (!anchors) { land(); return; } // a unit already left the screen: just show the aura
-    playDef(b.def, anchors, { uids: { source: g.source, target: g.target }, index, gain: b.gain });
+    // LAND WHERE THE MINION ENDS UP (owner 2026-11-12): the death that fired an Avenge collapses the row while the
+    // effect flies, so aim at the receiver's SETTLED slot and keep following it until the effect retires.
+    const settle = trackSettledSlot(() => document.querySelector(unitSelector(g.target)));
+    const stop = playDef(b.def, settle ? { ...anchors, target: settle.start } : anchors,
+      { uids: { source: g.source, target: g.target }, index, gain: b.gain, target: settle?.get, onDone: settle?.stop });
+    if (!stop) settle?.stop(); // nothing played: no retire will ever call onDone
     if (!sliced.has(g.source)) { sliced.add(g.source); playDef('sfx-execute-slice', anchors, { uids: { source: g.source, target: g.target } }); }
     if (arrive <= 0) land(); else opts.register(window.setTimeout(land, arrive / s));
   };

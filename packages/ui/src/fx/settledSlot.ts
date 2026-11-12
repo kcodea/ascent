@@ -70,3 +70,21 @@ export function createSettlingPoint(start: Point, now: () => number = () => perf
     setGoal(p: Point): void { goal = { ...p }; },
   };
 }
+
+/** How often a tracked landing point re-measures its unit, and the longest it keeps doing so. */
+export const SETTLE_TRACK_REMEASURE_MS = 100;
+export const SETTLE_TRACK_MAX_MS = 3000;
+
+/**
+ * A landing point that FOLLOWS a unit to its settled slot for one travelling effect: starts at the settled slot of
+ * `find()`, re-measures it on a light timer (a few layout reads per play, never one per frame) and eases onto each new
+ * goal. Hand `get` to `playDef`'s `target` and `stop` to its `onDone`. Null when the unit is not in a row.
+ */
+export function trackSettledSlot(find: () => Element | null): { start: Point; get: () => Point; stop: () => void } | null {
+  const start = settledSlotCenter(find());
+  if (!start) return null;
+  const pt = createSettlingPoint(start);
+  const iv = setInterval(() => { const g = settledSlotCenter(find()); if (g) pt.setGoal(g); }, SETTLE_TRACK_REMEASURE_MS);
+  const backstop = setTimeout(() => clearInterval(iv), SETTLE_TRACK_MAX_MS);
+  return { start, get: pt.get, stop: () => { clearInterval(iv); clearTimeout(backstop); } };
+}

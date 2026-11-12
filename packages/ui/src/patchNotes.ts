@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Rubies look and sound new. A Ruby landing shatters into shards with a ringing sound, and when your Rubies get stronger you now see a dagger or heart with the amount gained.',
+        details: [
+          'When your Rubies gain Attack or Health, a gem effect plays on the card that caused it, and a dagger (Attack) or heart (Health) floats up beside the amount.',
+          'That moment has its own sound: a whoosh and a pickaxe strike. The usual Shout sound no longer plays over it.',
+          'The Ruby landing sound has a short echo and its pitch varies a little each time.',
+          'A Ruby that gives Ward (Warding Ruby on a Kobold) now plays the Ward sound just after the gem, so you hear both.',
+          'Rubies no longer play the generic spell burst on their target.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fifty-five more minion skins in chests, for the Demons, Neutrals and Dragons that had none.',
         details: [
           'Among them: Baby Voicekeeper (Ancient), Cookie Chomper, DJ Conductor, Purple Reign Orivax, Lich Grobbus and Double O Agent.',

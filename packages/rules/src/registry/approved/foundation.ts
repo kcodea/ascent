@@ -15108,4 +15108,113 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-11 (feat/skins-batch-16). Eight names are shorter than their filename (20 characters max, cosmetics.test.ts): Actionstar Transcendant -> Action Transcendant, Bonaparte Captain Flamus -> Bonaparte Flamus, Ceremonial Standard Bearer -> Ceremonial Bearer, Whack-a-Mole Tauntbreaker -> Whack-a-Mole Breaker, Pastoral Legion Shepherd -> Pastoral Shepherd, Friendship Demon Horse -> Friendship Horse, Keyboard Warrior Heckler -> Keyboard Warrior, Vintage Comic Wrangler -> Comic Wrangler. Matched from the prompt sheet, not the filename: Bug Collector (Roarcollector), Kaiju Chomper and Cookie Chomper (Chipper). These are Claude calls for the owner to confirm. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-11' },
   },
+  {
+    id: 'R-RUBY-SFX-01',
+    title: 'A Ruby landing makes one layered sound with echo and a varied pitch',
+    statement:
+      'When a Ruby gem lands on a minion it plays its layered landing sound (break, tone and ding together, each on its own mixer channel under the gem group), '
+      + 'sent through a reverb and pitched a little differently each time, never twice in a row at the same pitch.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, replacing the ruby apply sound', quote: 'we will want to toy with the levels here' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'can we apply a satisfying echoey reverb to the new sound effect? can we also have the sounds semitones randomized' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'change the reverb to a 29% wet mix. lets VERY SLIGHTLY reduce the pitch spread too' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/sfx.ts (gemApply: rubybreak/rubytone/rubyding, RUBY_REVERB_MIX 0.29, RUBY_PITCH_RANGE 1.75), audio/clipFamily.ts, audio/config.ts (gemapply 0.245)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, one gemapply.mp3 clip played at a fixed pitch with no reverb. '
+      + 'PARTIAL pin: the test below pins the Ward timing around the landing sound, not the layers, reverb or pitch, which live only in sfx.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyWardSound.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RUBY-SFX-02',
+    title: 'A Ward a Ruby grants sounds just after the gem lands',
+    statement:
+      'When a Ruby grants Ward as it lands, the Ward sound plays a short beat after the gem\x27s landing sound, so both are heard. '
+      + 'A Ward gained any other way still sounds at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, Warding Ruby on a Kobold', quote: 'the ward sound effect didnt play alongside the ruby apply sound' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10, asked whether to play the Ward a beat after the gem', quote: 'Yes, offset it' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/store.ts (actionSfx delays sfx.shield by RUBY_WARD_SOUND_DELAY_MS on a Ruby play)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, the Ward sound fired on the same instant as the gem and was buried under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyWardSound.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RUBY-FX-01',
+    title: 'A Ruby cast plays no generic spell burst',
+    statement:
+      'Casting any Ruby on a minion in the shop plays only the Ruby\x27s own gem landing, never the generic shop spell-cast burst on its target.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'the spell burst effect from targeting a unit with a shop spell is casting on playing ruby spells, can we remove it for all ruby target spells' },
+      { kind: 'fix-pr', ref: 'fx/ruby-gem-sound: packages/ui/src/Recruit.tsx (cast presenter returns early for a ruby card)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, every Ruby also played spell-sparks on its target, on top of its gem landing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyNoCastBurst.test.ts'], lastVerifiedAt: '2026-11-10' },
+  },
+  {
+    id: 'R-RUBY-BUFF-01',
+    title: 'A Ruby strength gain shows the gem on its source and an icon with a number per stat',
+    statement:
+      'When your Rubies gain Attack or Health, the authored gem effect plays on the card that caused it, and each stat that rose shows its own icon (a dagger for Attack, a heart for Health) beside a plain number of how much it rose, floating up together. This holds in the shop, at End of Turn and in combat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'i want to see a symbol and +1 signifying how much it just got buffed. just like the old effect, but i will replaced stuff.' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'i want to remove the gem effect from the spell buff effect. i want it to apply on the source whenever a ruby buff effect occurs though' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'remove the + symbol' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/rubyPowerFxConfig.ts (playRubyBuffFx, floatRubyPowerNumber), called from Recruit.tsx and useCombatReplay.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). The scenario pins the icon scale wiring and that the icons follow the number rise curve; that the gem, icons and numbers appear on every path is checked by the owner in play, not by a test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-RUBY-BUFF-02',
+    title: 'The Ruby buff cue lands on the slot the played card settles into',
+    statement:
+      'A Ruby strength cue caused by a card you just played is placed on the board slot that card lands in, never where the card is drawn mid-glide from the cursor.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'when playing a gem buff unit, the gem is appearing where my mouse is when i drop the card onto the board, despite it being set to source and card center in the fx workbench. it should be where the card is when it lands' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/Recruit.tsx (the rubyPowerFxSeq watcher and the rubyAura presenter measure with restingCenterOf)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, both sites used the drawn rect of a card still gliding in, so the cue played at the cursor.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-RUBY-BUFF-SFX-01',
+    title: 'A Ruby strength gain has its own sound and no generic Shout sound',
+    statement:
+      'A Ruby strength gain plays a whoosh that leads one randomly picked pickaxe strike. When the card you just played is what raised Ruby strength, its Shout burst plays without its own sound and the generic trigger chime is skipped, so the Ruby sound is the only one. A Shout that does not raise Ruby strength keeps its sound.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'we will use on of these four sounds at random whenever gems are upgraded alongside this woosh sound' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'can you remove the generic buff sound from the ruby buff effect?' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'can we have the woosh start earlier?' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/sfx.ts (rubyWhoosh, rubyStrike), rubyPowerFxConfig.ts (strikeDelay), Recruit.tsx and choreo/recruitCues.ts (muteSound on the Shout moment)' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-11 (fx/more-unit-fx): covers a card played from hand (a Shout or a Choose One pick). A Ruby gain from an End of Turn or Start of Turn source still plays that beat\x27s trigger chime.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-FX-CUSTOM-SCALE-01',
+    title: 'An image layer resizes with the per-call scale',
+    statement:
+      'An FX image (custom) layer responds to the per-call scale option like every other primitive\x27s size, so a caller or tuner that scales an effect also scales its pictures.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'i like these but the icon size isnt changing with the dials' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/fx/primitives/custom.ts (size is on the scale axis)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, the custom primitive declared no scale axis, so a per-call scale left an image at its authored size.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
 ];

@@ -252,6 +252,8 @@ function dropBoardFx(): void {
 /** Fire the sound for a dispatched action (+ a sparkle when a triple just formed).
  *  EXPORTED (2026-09-19) so replay playback fires the SAME mapping when it applies a recorded shop frame —
  *  one table of action → cue, never two (see `replayPlayer.ts`'s `fireFrameSfx`). */
+/** How long after a Ruby lands its granted Ward sound plays (ms). */
+export const RUBY_WARD_SOUND_DELAY_MS = 220;
 export function actionSfx(action: Action, prev: RunState, next: RunState): void {
   // The reducer returns the *same* reference for a rejected action (can't afford, board/hand
   // full, timer up). For the actions a player actively triggers expecting something to happen,
@@ -325,7 +327,13 @@ export function actionSfx(action: Action, prev: RunState, next: RunState): void 
   // A friendly minion was just GIVEN Ward ('DS') in the shop — it was on the board WITHOUT Ward and now has it
   // (skips minions bought/played already-warded, handled on-play above). Plays the same shield cue as combat.
   const wasWard = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('DS')]));
-  if (next.board.some((m) => m.keywords.includes('DS') && wasWard.get(m.uid) === false)) sfx.shield();
+  if (next.board.some((m) => m.keywords.includes('DS') && wasWard.get(m.uid) === false)) {
+    // A Ruby-granted Ward (Warding Ruby on a Kobold) rings a beat AFTER the gem's own landing sound, so the Ward
+    // reads as its own hit instead of being buried under the gem (owner 2026-11-10).
+    const rubyPlay = action.type === 'play' && !!CARD_INDEX[prev.hand.find((c) => c.uid === action.uid)?.cardId ?? '']?.ruby;
+    if (rubyPlay) setTimeout(() => sfx.shield(), RUBY_WARD_SOUND_DELAY_MS);
+    else sfx.shield();
+  }
   // A triple made at Start of Turn lands with `resolveCombat`, under the return wipe: the Shop parks that gild and plays
   // its sound when the gild actually plays (R-SOT-GILD-01, `turnStartGild.ts`), so it never rings over the transition.
   // Same test the Shop parks on (`gildMustWait`): the recruit phase with the wipe still moving.

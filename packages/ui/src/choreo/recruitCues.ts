@@ -35,6 +35,9 @@ export interface RecruitCueContext {
   onLand?: (uid: string) => void;
   /** Hold every land this long first: a buffer's turn in a wave (`buffSourceDelayMs`, R-FX-BUFF-WATCHER-01). */
   delayMs?: number;
+  /** Play the def's visuals WITHOUT its Sound layers or binding sound: the moment already has a sound of its own
+   *  (a Shout that raises Ruby strength rings the Ruby cue's whoosh + strike, owner 2026-11-11). */
+  muteSound?: boolean;
 }
 
 /**
@@ -331,10 +334,10 @@ function fireLand(land: Land, binding: FxBinding, ctx: RecruitCueContext): void 
   if (!p) return;
   // Both anchors are the minion itself: a shop effect lands ON a card, with nothing to travel between.
   // `uids` names it so a `react` layer has a subject — the shop path was the one that had none.
-  playDef(binding.def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group, gain: binding.gain });
+  playDef(binding.def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group, gain: binding.gain, ...(ctx.muteSound ? { muteSound: true } : {}) });
   // The binding's own sound, fired WITH the visual rather than by the caller, so the two cannot drift apart
   // and a re-bind carries its sound along. Whitelisted at parse time (see `BINDING_SFX`), so this lookup is
   // total; the `?.` guards a name whose sfx entry was removed without updating the list.
-  if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+  if (binding.sfx !== undefined && !ctx.muteSound) sfx[binding.sfx]?.();
   ctx.onLand?.(land.uid);
 }

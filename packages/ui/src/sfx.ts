@@ -140,6 +140,9 @@ let lastTriggerPulse = 0;
 let lastTriggerGlow = 0;
 /** Timestamp (ms) of the last shield-break sound — dedupes shields breaking on the same beat. */
 let lastGemApply = 0;
+let lastRubyPower = 0;
+let lastRubyWhoosh = 0;
+let lastRubyStrike = 0;
 let lastShieldBreak = 0;
 /** Timestamps (ms) of the last reborn shatter / summon sounds — dedupe simultaneous reborns on a beat. */
 let lastRebornShatter = 0;
@@ -725,6 +728,25 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
 }
 /** The chat pop's pitch shifts, in semitones (subtle: a few steps either side of the clip's own pitch). */
 const CHAT_POP_SEMITONES = [-3, -2, -1, 0, 1, 2, 3] as const;
+/** The Ruby landing's reverb (owner 2026-11-10: "a satisfying echoey reverb"): wet send level (0 to 1) and tail
+ *  length in seconds. Raise MIX for more echo, SEC for a longer, roomier tail. */
+const RUBY_REVERB_MIX = 0.29;
+const RUBY_REVERB_SEC = 2.2;
+/** The Ruby landing's random pitch (owner 2026-11-10: "semitones randomized to a degree"): each play picks a shift
+ *  anywhere within ± this many semitones, at least RUBY_PITCH_MIN_STEP away from the last one so two gems in a
+ *  row never sound identical. */
+const RUBY_PITCH_RANGE = 1.75;
+const RUBY_PITCH_MIN_STEP = 0.5;
+let lastRubySemi = 0;
+function randomRubySemitones(): number {
+  let semi = 0;
+  for (let i = 0; i < 6; i++) {
+    semi = (Math.random() * 2 - 1) * RUBY_PITCH_RANGE;
+    if (Math.abs(semi - lastRubySemi) >= RUBY_PITCH_MIN_STEP) break;
+  }
+  lastRubySemi = semi;
+  return semi;
+}
 let lastChatPopSemi: number | null = null;
 interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 /** The Good Luck intro's spark clip (an FX-workbench import, also the Stellar Lens sparkle). */
@@ -2281,8 +2303,38 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastGemApply < 20) return;
     lastGemApply = now;
-    if (playSample('gemapply', 'gemapply')) return;
+    // Three layered clips (owner 2026-11-10): BREAK + TONE + DING, all on the `gemapply` fader, each with its own
+    // channel fader in the SFX Mixer so the blend can be tuned by ear. Every play gets an echoey reverb tail and a
+    // random pitch (one shared shift for all three layers, so the blend stays in tune with itself).
+    const rate = 2 ** (randomRubySemitones() / 12);
+    const tail: TailOpts = { fadeOutMs: 0, reverbMix: RUBY_REVERB_MIX, reverbSec: RUBY_REVERB_SEC };
+    const hit = (['rubybreak', 'rubytone', 'rubyding'] as const).map((c) => playTailedSample(c, 'gemapply', 1, 0, tail, undefined, rate));
+    if (hit.some(Boolean)) return;
     tone({ freq: 1180, dur: 0.1, type: 'triangle', vol: 0.09, slideTo: 1560, category: 'gemapply' });
+  },
+  // YOUR RUBIES GOT STRONGER (owner 2026-11-10: "we will use one of these four sounds at random whenever gems are
+  // upgraded alongside this woosh sound"): the whoosh plus ONE of the four pickaxe strikes, picked at random, on the
+  // `rubypower` fader (each clip has its own channel fader in the Mixer). Throttled so a burst of procs is one hit.
+  rubyPower: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastRubyPower < 60) return;
+    lastRubyPower = now;
+    playSample('rubywhoosh', 'rubypower');
+    playSample(pickVariant('rubystrike'), 'rubypower');
+  },
+  // The two halves on their own, so the cue can start the whoosh AHEAD of the hit (owner 2026-11-11). Each has its
+  // own throttle: a burst of procs is one whoosh and one strike.
+  rubyWhoosh: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastRubyWhoosh < 60) return;
+    lastRubyWhoosh = now;
+    playSample('rubywhoosh', 'rubypower');
+  },
+  rubyStrike: () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    if (now - lastRubyStrike < 60) return;
+    lastRubyStrike = now;
+    playSample(pickVariant('rubystrike'), 'rubypower');
   },
   // A Reborn aura SHATTERS in combat (the unit dies + its spirit releases). Deduped like shieldBreak.
   rebornShatter: () => {
@@ -2524,7 +2576,7 @@ export function setSampleVolume(key: string, v: number): void {
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, discoverSelect: sfx.discoverSelect, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
-  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
+  unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, gemapply: sfx.gemApply, rubypower: sfx.rubyPower, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   uihover: sfx.uiHover, chatpop: sfx.chatPop,
   // Equipment — each preview plays the clip its fader actually governs.
   eqEquipClang: () => sfx.equipClang(),

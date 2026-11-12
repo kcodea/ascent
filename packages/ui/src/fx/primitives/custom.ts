@@ -104,7 +104,9 @@ const SPECS = {
     help: 'The picture this layer draws. Import a PNG or SVG (it is written to defs/images/ and ships with the def — only commit art meant to ship). Nothing draws until one is picked.',
   },
   size: {
-    kind: 'slider', label: 'Size', group: 'Image', min: 8, max: 1200, step: 1, default: 200, essential: true,
+    // On the SCALE axis: a caller's per-call `scale` option resizes the picture, like every other primitive's
+    // size (owner report 2026-11-11: the Ruby buff icon-size dials moved nothing, because an image had no axis).
+    kind: 'slider', label: 'Size', group: 'Image', min: 8, max: 1200, step: 1, default: 200, essential: true, axis: 'scale',
     help: 'Longest side in px of ONE frame (the whole image unless it is a sprite sheet), at the reference board size. The other side follows the frame\'s own aspect. With Stretch to target on, this is the THICKNESS instead. The Transform envelope\'s Scale / time multiplies this over life.',
   },
   durationMs: {

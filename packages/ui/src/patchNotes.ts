@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Raven and Tort now send a beam to the Beast they give Execute, and its Execute appears when the beam lands.',
+        text: 'Raven and Tort now send a beam to the Beast they give Execute, and its Execute appears when the beam lands. Raven does the same when his Rally triggers at End of Turn.',
       },
       {
         category: 'Systems',

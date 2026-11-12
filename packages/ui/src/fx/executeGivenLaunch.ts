@@ -38,10 +38,46 @@ export function executeLaunchDelayMs(g: ExecuteGiven, attackerUid: string | null
   return attackerUid !== null && g.source === attackerUid ? Math.max(0, windupMs) : 0;
 }
 
+/** Once-per-giver sound gates for one beat: a giver's two beams are one slice and one landing. */
+export interface ExecuteSoundGate { sliced: Set<string>; landed: Set<string> }
+export const executeSoundGate = (): ExecuteSoundGate => ({ sliced: new Set(), landed: new Set() });
+
 /**
- * Beat start: hide each given Execute aura, launch its giver's effect, and show the aura when it lands. `register`
- * keeps the timers in the combat-lifetime registry so a seek / reset cancels them (a cancelled hold still expires on
- * its own, see `executeHold.ts`).
+ * ONE grant, in either phase: hide the receiver's Execute aura, launch the giver's bound effect after `launchAt` ms
+ * (at 1x), and show the aura with the landing sounds when it arrives. `register` receives every timer id.
+ */
+export function launchExecuteGiven(
+  g: ExecuteGiven,
+  index: number,
+  opts: { speed: number; launchAt: number; gate: ExecuteSoundGate; register: (id: number) => void },
+): void {
+  const b = bindingFor(g.cardId, 'executeGiven');
+  if (!b || !canPlayDefs()) return;
+  const s = opts.speed > 0 ? opts.speed : 1;
+  const { sliced, landed } = opts.gate;
+  const arrive = defArrivalMs(getDef(b.def));
+  holdExecute(g.target, (opts.launchAt + arrive) / s + 50); // safety net; `land` releases it on time
+  const land = (): void => {
+    holdExecute(g.target, 0);
+    if (landed.has(g.source)) return;
+    landed.add(g.source);
+    const at = anchorsForUnits(g.target, g.target);
+    if (at) playDef('sfx-execute-applied', at, { uids: { source: g.target, target: g.target } });
+  };
+  const launch = (): void => {
+    const anchors = anchorsForUnits(g.source, g.target);
+    if (!anchors) { land(); return; } // a unit already left the screen: just show the aura
+    playDef(b.def, anchors, { uids: { source: g.source, target: g.target }, index, gain: b.gain });
+    if (!sliced.has(g.source)) { sliced.add(g.source); playDef('sfx-execute-slice', anchors, { uids: { source: g.source, target: g.target } }); }
+    if (arrive <= 0) land(); else opts.register(window.setTimeout(land, arrive / s));
+  };
+  if (opts.launchAt <= 0) launch(); else opts.register(window.setTimeout(launch, opts.launchAt / s));
+}
+
+/**
+ * Beat start in COMBAT: hide each given Execute aura, launch its giver's effect, and show the aura when it lands.
+ * `register` keeps the timers in the combat-lifetime registry so a seek / reset cancels them (a cancelled hold still
+ * expires on its own, see `executeHold.ts`).
  */
 export function startExecutesGiven(
   moment: Moment,
@@ -53,27 +89,27 @@ export function startExecutesGiven(
   windupMs: number,
 ): void {
   if (!canPlayDefs()) return;
-  const s = speed > 0 ? speed : 1;
-  const sliced = new Set<string>(); // givers whose slice has rung this beat
-  const landed = new Set<string>(); // givers whose landing has rung this beat
+  const gate = executeSoundGate();
   executesGivenIn(moment, events, cardIds).filter(isTravelledExecute).forEach((g, k) => {
-    const b = bindingFor(g.cardId, 'executeGiven')!;
-    const arrive = defArrivalMs(getDef(b.def));
-    const launchAt = executeLaunchDelayMs(g, attackerUid, windupMs);
-    holdExecute(g.target, (launchAt + arrive) / s + 50); // safety net; `land` releases it on time
-    const land = (): void => {
-      holdExecute(g.target, 0);
-      if (landed.has(g.source)) return;
-      landed.add(g.source);
-      const at = anchorsForUnits(g.target, g.target);
-      if (at) playDef('sfx-execute-applied', at, { uids: { source: g.target, target: g.target } });
-    };
-    register(window.setTimeout(() => {
-      const anchors = anchorsForUnits(g.source, g.target);
-      if (!anchors) { land(); return; } // a unit already left the screen: just show the aura
-      playDef(b.def, anchors, { uids: { source: g.source, target: g.target }, index: k, gain: b.gain });
-      if (!sliced.has(g.source)) { sliced.add(g.source); playDef('sfx-execute-slice', anchors, { uids: { source: g.source, target: g.target } }); }
-      if (arrive <= 0) land(); else register(window.setTimeout(land, arrive / s));
-    }, launchAt / s));
+    launchExecuteGiven(g, k, { speed, launchAt: executeLaunchDelayMs(g, attackerUid, windupMs), gate, register });
   });
+}
+
+/**
+ * THE SHOP (R-FX-EXECUTE-GIVEN-01, owner 2026-11-12 "Yes, add the Shop"): a Rally forced in the Shop (an End-of-Turn
+ * Rally replay, Rune of Rallying) delivers its Execute as a `keywordChanged` on the giver's own beat. The beat has
+ * already pulsed the giver, so the effect leaves at once. One sound gate per (beat, giver).
+ */
+const shopGates = new Map<string, ExecuteSoundGate>();
+export function launchShopExecuteGiven(g: ExecuteGiven, beatId: string, index: number): boolean {
+  if (!isTravelledExecute(g) || g.source === g.target || !canPlayDefs()) return false;
+  const key = `${beatId}|${g.source}`;
+  let gate = shopGates.get(key);
+  if (!gate) {
+    if (shopGates.size > 64) shopGates.clear(); // beats are long past; never grows with a run
+    gate = executeSoundGate();
+    shopGates.set(key, gate);
+  }
+  launchExecuteGiven(g, index, { speed: 1, launchAt: 0, gate, register: () => {} });
+  return true;
 }

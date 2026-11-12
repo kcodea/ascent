@@ -497,18 +497,22 @@ export const ORDERING_RULES: GameRule[] = [
       'When a minion gives another minion Execute and has its own "On Execute given" effect (the Rally of Raven, the '
       + 'Avenge of Tort), the effect flies from the giver to each minion that gains Execute, and that minion shows its '
       + 'Execute only when the effect lands. A Rally sends it as the Rally medallion pulses; any other giver sends it as '
-      + 'the grant happens. A giver that gives Execute to two minions sends one effect to each.',
+      + 'the grant happens. A giver that gives Execute to two minions sends one effect to each. The same holds in every '
+      + 'phase: a Rally forced in the Shop sends it on the beat of the giver.',
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Execute applications', quote: 'applying execute is another effect much like ward, that applies instantly. i want you to understand the fx change we did to ward (specifically look at lastlight as an example of how it is applied in combat) and get ready for me to send you a tendril effect for execute applications' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-12, the effect', quote: 'ok i saved it called execute-beam' },
-      { kind: 'code', ref: 'fx/execute-given: packages/ui/src/fx/executeGivenLaunch.ts; packages/ui/src/choreo/channels/executeGiven.ts; packages/ui/src/fx/executeHold.ts; packages/ui/src/Card.tsx (the held aura)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, asked whether the beam should also play when a Rally is forced in the Shop', quote: 'Yes, add the Shop' },
+      { kind: 'code', ref: 'fx/execute-given: packages/ui/src/fx/executeGivenLaunch.ts; packages/ui/src/choreo/channels/executeGiven.ts; packages/ui/src/fx/executeHold.ts; packages/ui/src/Card.tsx (the held aura); the Shop: packages/ui/src/choreographer/consequencePresenters.ts (keywordChanged carries the giver) + packages/ui/src/Recruit.tsx (keywordChanged cue)' },
     ],
     contentIds: ['b2_raven', 'b2_tort'],
-    currentBehaviour: 'PARTIAL from 2026-11-12 (fx/execute-given): combat only. A Rally forced in the Shop still shows Execute at once '
-      + 'with no travelling effect (R-PHASE-01 gap, awaiting the owner). The pure parts are pinned (which grants travel, '
-      + 'when each leaves, the hold); the scheduled play itself needs a live renderer and is not under test.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/executeGiven.test.ts'], lastVerifiedAt: '2026-11-12' },
+    currentBehaviour: 'PARTIAL from 2026-11-12 (fx/execute-given): combat, and every Shop Rally that plays as an End of Turn beat (the '
+      + 'keywordChanged consequence on the beat of the giver). Not covered: a Rally forced in the Shop OUTSIDE the End of Turn '
+      + 'beats (the Echo of Scavvers on a body destroyed mid-turn) still shows Execute at once, and a quiet repeat tick '
+      + 'skips the effect with its other cues. The pure parts are pinned (which grants travel, when each leaves, the hold, '
+      + 'the giver reaching the Shop cue); the scheduled play itself needs a live renderer and is not under test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/executeGiven.test.ts', 'packages/ui/src/choreo/channels/executeGivenShop.test.ts'], lastVerifiedAt: '2026-11-12' },
   },
 ];

@@ -15217,4 +15217,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, the custom primitive declared no scale axis, so a per-call scale left an image at its authored size.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
   },
+  {
+    id: 'R-PROG-ATTACK-38',
+    title: 'Void (attack_void, Legendary): dark orbs with a bright rim, circled by sparks they drag in, are thrown nearly flat (one / two / five); IV pulls them into a black hole over the target that drags both portraits in, collapses to a point and blasts outward; the blow lands ONCE',
+    statement:
+      'attack_void ("Void"; Legendary, crate, account-wide, style void): after the shared damage formation '
+      + '(R-PROG-ATTACK-08) the striking hero throws DARK ORBS at the struck hero. An orb is a near-black disc that stays '
+      + 'dark on any board, with a thin bright rim, a swirl of light spinning into it and sparks that are caught at an '
+      + 'outer reach, circle faster as they fall and vanish at the rim; nothing is shed outward from an orb. Its trail is a '
+      + 'dark streak edged in light. The throw is NEARLY FLAT (the rise is a small fraction of the distance), never a high '
+      + 'lob. It escalates on the shared tiers (thresholds 6 / 12 / 20; a knockout plays IV, R-PROG-ATTACK-20): I one orb, '
+      + 'II two, III five. IV the black hole: the orbs orbit the struck hero, a BLACK HOLE opens in the eye of the orbit '
+      + 'and grows as the ring tightens, light is dragged in from far out, the striking portrait leans toward it and the '
+      + 'struck portrait is crushed toward its centre; it collapses to a point that flares white, then blasts outward. The '
+      + 'consequence (the damage, Armor, Resolve) lands exactly ONCE: on I to III when the last orb hits, on IV at the '
+      + 'collapse. Both portraits\x27 transforms are restored exactly on every exit. No hit-stop or freeze '
+      + '(R-PROG-ATTACK-10); presentation only. It has no Knockout variant of its own (R-PROG-ATTACK-20 applies).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (Mike builds the Void attack)', quote: 'lets do void!' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (Mike builds the Void attack)', quote: 'i want particles circling the oorbs and pulling in, like it has major gravitational force' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (Mike builds the Void attack)', quote: 'it shouldnt arc as much, it would defy those phsysics' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-11 (the cosmetic; Mike picked Legendary and the name Void)', quote: 'doesnt need his go ahed. i can do it' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_void); packages/ui/src/heroVoid/ (voidPlan / voidCues, the flight and vortex paths, the camera, playHeroVoid, HeroVoidScene, heroVoidTextures); PRs kcodea/ascent#2667 (the attack) and this one (the cosmetic)' },
+    ],
+    currentBehaviour: 'Conforms. The attack was built 2026-11-11 (#2667, dev only); the cosmetic was added 2026-11-11. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot. PARTIAL on proof: the tests pin the plan, the single landing, the flat throw and the portrait restore; the LOOK (dark disc, rim, sparks, black hole) is not pinned by a test, and no prod-build frame profile has been run.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroVoid/heroVoid.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
 ];

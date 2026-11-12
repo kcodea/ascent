@@ -119,8 +119,7 @@
  * breakaway past defenders (rolled: stepovers, a nutmeg or a rainbow flick) with a slow-mo finish; IV a bicycle kick
  * upside down in slow mo, a thunderbolt into an exploding net and a knee slide (`../heroSoccer/`).
  *
- * `void` is IN PROGRESS and has NO cosmetic yet (Mike 2026-11-11: "lets do void!"), so no player can equip it; it
- * plays only through the dev "Attack style" override. Built on Arcana: dark orbs with a hot rim are lobbed from the
+ * `void` is a Legendary (`attack_void`, "Void"; Mike 2026-11-11: "lets do void!"). Built on Arcana: dark orbs with a hot rim are lobbed from the
  * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
@@ -168,7 +167,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   bullettime: 'Timebreak (Ancient of Time)',
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
-  void: 'Void (in progress, no cosmetic yet)',
+  void: 'Void',
 };
 
 const KEY = 'ascent.heroattackstyle';

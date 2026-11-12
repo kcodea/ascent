@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Void. Your hero throws dark orbs that drag light into them.',
+        details: [
+          'Small hits throw one dark orb with a bright rim. Bigger hits throw two, then five.',
+          'The biggest hits and knockouts pull the orbs into a black hole over the enemy hero. It drags both heroes toward it, collapses to a point and blasts outward.',
+          'Found in crates. Equip it in the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Rubies look and sound new. A Ruby landing shatters into shards with a ringing sound, and when your Rubies get stronger you now see a dagger or heart with the amount gained.',
         details: [
           'When your Rubies gain Attack or Health, a gem effect plays on the card that caused it, and a dagger (Attack) or heart (Health) floats up beside the amount.',

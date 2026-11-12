@@ -804,6 +804,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // a corner kick (an Olimpico, a header, or a short corner), a breakaway past defenders, and a bicycle kick into an
   // exploding net. Four tiers, so Legendary like the Basketball. The name is the builder's placeholder (the id stays).
   heroAttack('attack_soccer', 'Golazo', 'legendary', 'soccer'),
+  // Mike 2026-11-11: "lets do void!" Dark orbs with a hot rim, circled by sparks they drag in, are thrown nearly flat
+  // (one, two, five); the top tier pulls them into a black hole over the target that drags both portraits in, collapses
+  // to a point and blasts outward. Four tiers, so Legendary (Mike's pick 2026-11-12, with the name "Void").
+  heroAttack('attack_void', 'Void', 'legendary', 'void'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

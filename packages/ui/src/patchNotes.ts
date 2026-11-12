@@ -58,6 +58,10 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-12',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Gasket\'s Rally has a new look and sound: his cannon belches as the Rally medallion flashes, then a burst of gas rolls across the board as the damage lands.',
+      },
       { category: 'Systems', text: 'Duos fights now show whoever is fighting. The left portrait, the runes and the hand are the player whose board is up; the other player waits in the teammate spot, and the two slide to swap places. A player whose board has fallen is greyed out.' },
       { category: 'Systems', text: 'More of the 8 Bit set in chests: six 8 Bit portrait frames (Cyber, Electric, Jade Energy, Pearl, Ruby and Water) and the 8 Bit Wrangler skin.' },
       { category: 'Systems', text: 'The 8 Bit set arrives in chests: seven 8 Bit card plates (Storm, Flame, Void, Arcane, Earth, Frost and Standard) and 8 Bit skins for Beggy, Dawnclaw, Orin, Echohorn and Sylus.' },

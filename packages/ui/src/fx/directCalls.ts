@@ -223,7 +223,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // NINE since 2026-09-21: `playCardMechanic` — ONE `playDef(binding.def, …)` shared by the `startOfCombatFx`
   // and `avengeFx` scan channels (the By-card binder's "On Start of Combat" / "On Avenge" cues), resolving
   // `bindingFor(cardId, 'startOfCombat'|'avenge')` per acting card. One helper, one play, both channels.
-  'choreo/score.ts': 9,
+  'choreo/score.ts': 10,
   // The shop's binding path, the recruit-phase twin of score.ts's. Six `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
   // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), the `spellCast` cast-FX

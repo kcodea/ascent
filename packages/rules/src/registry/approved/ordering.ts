@@ -132,23 +132,32 @@ export const ORDERING_RULES: GameRule[] = [
   },
   {
     id: 'R-FX-WAVE-WINDUP-01',
-    title: 'A volley a swing\x27s wind-up sprays plays before the strike, on every struck unit, inside the frame budget',
+    title: 'A volley a swing\x27s wind-up sprays plays before the strike, as its own beat, with the effect its card binds',
     statement:
       'When a swing\x27s own wind-up produces a wave volley (Gasket\x27s Rally, one wave per pass), the attacker holds its '
       + 'wind-up while each pass plays as its own beat, then strikes (or settles, when a pass killed its target). A pass is '
-      + 'not the melee exchange: every unit it struck (the defender included) gets the bound effect, played once per unit at '
-      + 'the moment the pass lands, and the clash after the passes keeps its melee pair. A wide pass of a heavy authored '
-      + 'effect spawns every play at the same, evenly reduced particle count (its fan budget); one target plays exactly '
-      + 'as authored.',
+      + 'not the melee exchange, and the clash after the passes keeps its melee pair. The card chooses how a pass is shown: '
+      + 'a per-unit effect plays once on every unit the pass struck (the defender included), thinned evenly to its fan '
+      + 'budget when the pass is wide; a board-wide effect plays ONCE per pass, never on the card\x27s own melee strike, and '
+      + 'leaves each victim its ordinary hit. Gasket: his own effect and its sound play on him at the Rally medallion '
+      + 'pulse, he holds the wind-up a little longer so the damage lands on the sizzle in that sound, the board-wide burst '
+      + 'plays once on each pass, and each pass stays a brief moment after its damage before anything that follows it.',
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner FX for Gasket 2026-10-10', quote: 'plays on all valid targets, aka all non-friendly demons' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Gasket Rally effect', quote: 'its the effect on gasket himself, bind it to on rally- making the global hit now' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Gasket board-wide burst', quote: 'i added a gasket-burst effect that i want to go off right after the rally effect' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Gasket damage timing', quote: 'i want the damage to hold a bit while also moving the sizzle a bit earlier in the sound clip' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Gasket breath', quote: 'can there be a 200ms pause AFTER the damage is dealt before any followup reactions occur? just a brief moment' },
+      { kind: 'code', ref: 'fx/gasket-rally: packages/ui/src/choreo/score.ts (pass fan-out); packages/ui/src/choreo/channels/windupWaves.ts passSettleMs; packages/ui/src/choreo/bindings.ts (pass, holdMs, settleMs); packages/ui/src/useCombatReplay.ts (own-Rally also + hold, the settle on the beat clock)' },
       { kind: 'code', ref: 'packages/ui/src/choreo/channels/windupWaves.ts wavesAheadOf; packages/ui/src/combatBeats.ts meleePairOfImpact/attackerOfImpact (skip wave beats); packages/ui/src/fx/fanBudget.ts; packages/ui/src/choreo/score.ts (struck fan-out intensity)' },
     ],
     contentIds: ['dm_gasket'],
-    currentBehaviour: 'Conforms as of 2026-10-11.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/gasketBeats.test.ts', 'packages/ui/src/choreo/score.test.ts'], lastVerifiedAt: '2026-10-11' },
+    currentBehaviour: 'Conforms as of 2026-11-12 (fx/gasket-rally). PARTIAL on timing: the wind-up hold that lines the damage up '
+      + 'with the sizzle is tuned for 1x; the hold scales with combat speed and the sound does not, so at faster speeds the '
+      + 'damage lands before the sizzle. The hold itself (holdMs) is pinned only as binding data, not by a timeline test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/gasketBeats.test.ts', 'packages/ui/src/choreo/score.test.ts', 'packages/ui/src/choreo/bindings.test.ts'], lastVerifiedAt: '2026-11-12' },
   },
   {
     id: 'R-DEMON-DMG-BEATS-01',

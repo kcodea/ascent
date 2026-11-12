@@ -41,6 +41,9 @@ export function otherFriends(ctx: CombatContext, self: Minion, pred?: (m: Minion
 /** Re-entrancy depth of the "a Dwarf gained Attack" watchers (Kneel / Tankerchief) — see `onTribeGainAttackBuffSelf`.
  *  Module-local like `huntGuard`: combat is synchronous and single-threaded, so a counter is exactly right. */
 let gainWatchDepth = 0;
+/** Gem Sage's combat latch: true while a Sage is granting its random Ruby, so a Ruby a Sage grants never triggers
+ *  a Sage (this one or a copy). The combat twin of `gemSageMinting` in the run's `recruit.ts`. */
+let gemSageGranting = false;
 
 /** `onGainCard` is a BUS broadcast, and the bus reaches every subscribed body on BOTH sides. "Your hand" means
  *  the owner's, so a reactor only fires for a card that reached its OWN side's hand — without this an enemy
@@ -1540,6 +1543,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onGainAleBuffSelf: (ctx, self, params, payload) => {
     if (!gainedByOwnSide(self, payload)) return;
     ARENA_EFFECTS.onGainAleBuffSelf(combatArena(ctx, self), params, (payload as { cardId?: string }).cardId);
+  },
+
+  /** GEM SAGE in combat (R-RUBY-03, owner report 2026-11-11: "gem sage isnt granting the ruby in real time"): a Ruby
+   *  reached this side's hand mid-fight, so each living Sage pays its random Ruby NOW, on that beat (a live
+   *  `toHand` from the Sage), instead of at settle. The simulator broadcasts `onGetRuby` once per Ruby from every
+   *  combat Ruby grant; settle then mints the fight's Rubies with the run's Sages held, so nothing pays twice. */
+  onGetRubyRandomRuby: (ctx, self, params, payload) => {
+    if (self.dead || self.health <= 0 || !gainedByOwnSide(self, payload) || gemSageGranting) return;
+    gemSageGranting = true;
+    try { ctx.grantRandomRubies(num(params.count, 1) * mul(self), self.side, self.uid); } finally { gemSageGranting = false; }
   },
 
   /** Deathrattle: summon `count` copies of token `tokenId` beside self. (Echo Warden adds copies

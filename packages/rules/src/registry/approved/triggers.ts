@@ -628,18 +628,22 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-RUBY-03',
     title: 'Gem Sage pays a random Ruby for every Ruby you get, from any source, and never for its own',
     statement:
-      'Whenever a Ruby reaches your hand (a Shop mint, a Discover pick, a Rune, a Ruby won in combat and minted at '
-      + 'settle), each Gem Sage on your board gets you a random Ruby (two if Gilded). A Ruby granted by any Gem Sage '
-      + 'never triggers a Gem Sage, so two Sages turn one Ruby into three, never a loop.',
+      'Whenever a Ruby reaches your hand (a Shop mint, a Discover pick, a Rune, a Ruby won in combat), each Gem Sage '
+      + 'on your board gets you a random Ruby (two if Gilded). A Ruby granted by any Gem Sage never triggers a Gem '
+      + 'Sage, so two Sages turn one Ruby into three, never a loop. It pays in REAL TIME: a Ruby won mid-fight pays '
+      + 'on that beat, from each Sage still alive in the fight (a live toHand from the Sage), and settle mints the '
+      + 'Rubies the fight won without paying the Sages a second time.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Ruby batch follow-up, 2026-09-24', quote: 'this grants a random ruby from the pool of 6 whenever a player gets a ruby added to hand. recruit, shop etc all count. doesn\'t trigger off itself or copies of itself.' },
+      { kind: 'owner-chat', ref: 'bug report, 2026-11-11', quote: 'gem sage isnt granting the ruby in real time' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts onGetRubyRandomRuby (the gemSageMinting latch) via fireOnRubyGained / mintRubies' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onGetRubyRandomRuby (combat), fired by the simulator onGetRuby broadcast from grantRubies / grantRandomRubies / mintRubies; packages/sim/src/reducer.ts withGemSagesHeld at settle' },
     ],
     contentIds: ['k_gemsage'],
-    currentBehaviour: 'Conforms as of 2026-09-24.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
+    currentBehaviour: 'Conforms as of 2026-11-11 (before: a combat-won Ruby paid the Sage only at settle).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-11-11' },
   },
   {
     id: 'R-MINIONCAST-01',

@@ -1868,6 +1868,7 @@ export function simulate(
       for (let i = 0; i < count; i++) {
         emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
         emitGainCard('ruby', side);
+        bus.emit('onGetRuby', { side }); // R-RUBY-03: a Ruby reached this hand, the get-a-Ruby watchers (Gem Sage) pay now
       }
     },
     grantRandomRubies: (count, side, sourceUid) => {
@@ -1882,6 +1883,7 @@ export function simulate(
         rubyGrantIds[side].push(id);
         emit({ type: 'toHand', cardId: id, side, source: sourceUid });
         emitGainCard(id, side);
+        bus.emit('onGetRuby', { side }); // R-RUBY-03 (a Sage's own grant comes through here too; its latch stops the loop)
       }
     },
     queueNextTurnSpellCopy: (count, side) => {
@@ -1913,7 +1915,7 @@ export function simulate(
       rubyMintCount[side] += count;
       // The replay sees each Ruby fly to hand on the trigger beat; the actual mint happens at settle through
       // the run's real `mintRubies` (rubyBonus baked in, Candle Conduit fired, hand cap respected).
-      for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+      for (let i = 0; i < count; i++) { emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid }); bus.emit('onGetRuby', { side }); } // R-RUBY-03
     },
     gainRubyBonus: (attack, health, side, sourceUid) => {
       // Set 2 (Veinbreaker / Crownvein) — BOTH sides accumulate, because the value is read live mid-fight

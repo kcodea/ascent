@@ -41,7 +41,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   // recruit-only, so a missing combat factory was never a hole. Combat emits it from `ctx.grantToHand` and
   // `ctx.grantRubies`. See `combatEmitAgreement.test.ts`, the oracle that now derives this from source.
   onGainCard: 'both',
-  onGetRuby: 'recruit',
+  onGetRuby: 'both',
   cardsBought: 'recruit',
   goldSpent: 'recruit',
   minionSold: 'recruit',
@@ -124,6 +124,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
   onDragonAttackCastWhisper: { phase: 'recruit', kind: 'no-surface', why: 'Whaloo (Set 3, 2026-10-14) answers a Dragon ATTACKING; no attack happens in the Shop (a shop-side Rally pass is not an attack), and "3 times per combat" is a fight cap' },
   friendlyAttacksPlayRubiesSelf: { phase: 'recruit', kind: 'no-surface', why: 'Frack Attack (Set 3, 2026-10-22) counts friendly ATTACKS in a per-combat meter; no attack happens in the Shop (a shop-side Rally pass is not an attack), the Whaloo reading' },
   rallyGrantFirstSpellCopy: { phase: 'recruit', kind: 'no-surface', why: 'Comet Conductor is "once per COMBAT" by its text; a shop Rally pass (Chef) is not a fight, and the copy is the payout of the fight' },
+  rubyGainedCast: { phase: 'combat', kind: 'other-channel', why: 'Candle Conduit (archived): casts a Ruby on a run-board Kobold when a Ruby is gained. A combat-won Ruby still reaches it at settle, through the run mint (`mintRubies` -> `fireOnRubyGained`); only Gem Sage is held there (`withGemSagesHeld`), because it pays live in combat (R-RUBY-03)' },
   // ── Set 3 Celestials, THE STARFORM ROSTER (2026-09-12): the token lives IN THE SHOP; no shop exists mid-fight ──
   battlecryCreateStarformOrBuff: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: Star Seed creates / feeds the Starform, a SHOP token (starform.ts). A combat re-fire logs its line live; settle feeds the token once' },
   battlecryStarformConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'SHOP_ONLY_SHOUTS: the Starform eats a Shop minion. A combat re-fire logs its line live; settle applies the meal once' },

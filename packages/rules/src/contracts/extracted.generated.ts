@@ -19952,7 +19952,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onGetRuby",
-        "phase": "shop",
+        "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],

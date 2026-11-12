@@ -377,7 +377,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune
     // Owner Ruby batch 2026-09-24: "When you get a Ruby, also get a random Ruby" — every Ruby that reaches your
-    // hand, from any source in any phase (a combat-won Ruby lands at settle through the same mint), pays one
+    // hand, from any source in any phase (a combat-won Ruby pays LIVE, mid-fight, from the living Sage: R-RUBY-03), pays one
     // random Ruby (all six types). A Ruby a Gem Sage granted never re-triggers a Gem Sage (the factory's own
     // re-entrancy latch). Gilded: 2 random Rubies (judgement call, flagged in the PR).
     effects: [{ on: 'onGetRuby', do: 'onGetRubyRandomRuby', params: { count: 1 } }],

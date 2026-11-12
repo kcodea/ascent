@@ -83,7 +83,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'freeze-break': ['FreezeButton.tsx'],
   // The Versus room's VS slam (R-VERSUS-ROOM-ENTER-01): the entrance and the face-off beat, under the VS mark.
   // + the Duos hand-off (R-DUOS-HANDOFF-BEAT-01): the same slam, in the team's colour, under the last body of a tag-in.
-  'ground-slam': ['choreo/channels/duosHandoff.ts', 'versus/VersusRoom.tsx'],
+  'ground-slam': ['versus/VersusRoom.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
   // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets

@@ -11,8 +11,8 @@
  *  - a fallen board: one soft shadow falling over its row (a static gradient, opacity and scale only), in the pause
  *    that already sat between the fallen board and the reserve. Nothing is lengthened (`clock.ts`). (The lobby's
  *    knockout veil was tried here first: it is sized for a rail row and read as three small puffs on a board.)
- *  - a tag-in: each body lands in the summon's own `landing-dust`, and the LAST one lands on the Versus room's
- *    `ground-slam` in that team's colour, with the board shake a death already uses.
+ *  - a tag-in: each body lands in the summon's own `landing-dust`, and the board shake a death already uses plays as
+ *    the LAST one touches down. (Until 2026-11-12 the last landing also drew a team-coloured `ground-slam` ring.)
  *  - a fly-in: the landing dust only (nothing is at stake any more).
  *
  * It never computes an outcome: who fell and who arrives is read off the events. Everything is timed by the fight's
@@ -27,10 +27,6 @@ import { rectToStage, stageHost } from '../../stage';
 import { FALLEN_DIM_MS, tagLandMs, tagLastLandMs, tagOrder, type Handoff, type HandoffSide } from './duosHandoffTiming';
 
 export * from './duosHandoffTiming';
-
-/** My team's hand-off colour (the pass stream's teal, rim to core) and the other team's (ember). */
-export const HANDOFF_TEAL: readonly number[] = [0x0a5f73, 0x22b8d6, 0x8be9f5, 0xffffff];
-export const HANDOFF_EMBER: readonly number[] = [0x7a1f12, 0xe0562b, 0xffb37a, 0xffffff];
 
 const reducedMotion = (): boolean => {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -63,11 +59,6 @@ function dimRow(r: DOMRect, side: HandoffSide, speed: number): void {
   el.addEventListener('animationcancel', done);
   stageHost().appendChild(el);
   window.setTimeout(done, FALLEN_DIM_MS / speed + 400); // a hidden tab fires no animation events
-}
-
-/** The slam's size for an arrived board `span` px wide (screen px): 1.4 for a lone body up to 2.6 for a full row. Pure. */
-export function slamScale(span: number): number {
-  return Math.min(2.6, Math.max(1.4, span / 260));
 }
 
 export interface HandoffFxContext {
@@ -109,20 +100,10 @@ export function playHandoffFx(handoffs: readonly Handoff[], ctx: HandoffFxContex
           tagLandMs(tagOrder(h.side, i, count), speed));
       });
     }
-    if (h.kind === 'tagIn') {
-      const laid = rects.filter((b): b is NonNullable<typeof b> => !!b && b.w >= 1);
-      const first = laid[0];
-      const last = laid[laid.length - 1];
-      ctx.later(() => {
-        if (!calm) ctx.shake();
-        if (!defs || calm || !first || !last) return;
-        // The slam sits under the middle of the arrived board, at its feet, and grows with the board: a full row of
-        // seven gets a ring that spans it, a lone body a small one.
-        const at = { x: (first.cx + last.cx) / 2, y: first.cy + first.h * 0.34 };
-        const span = Math.abs(last.cx - first.cx) + first.w;
-        playDef('ground-slam', { source: at, target: at }, { scale: slamScale(span), recolor: h.side === 'player' ? HANDOFF_TEAL : HANDOFF_EMBER, recolorGlow: true, slot: 'under' });
-      }, tagLastLandMs(count, speed));
-    }
+    // THE RING IS GONE (owner 2026-11-12: "the ring is bad"). A tag-in used to end on the Versus room's `ground-slam`
+    // stretched under the whole board in the team's colour. The landing is now each body's own dust and one short
+    // board shake as the last one touches down.
+    if (h.kind === 'tagIn' && !calm) ctx.later(() => { ctx.shake(); }, tagLastLandMs(count, speed));
     n += 1;
   }
   return n;

@@ -22,8 +22,8 @@ import type { Moment } from '../compile';
 import { getScore } from '../score';
 import { playMomentSfx } from './sfx';
 import {
-  FALLEN_DIM_MS, HANDOFF_EMBER, HANDOFF_TEAL, TAG_FLY_MS, TAG_LAND_FRAC, TAG_MAX_ORDER, TAG_STAGGER_MS, handoffsIn, playHandoffFx, tagAnimClass,
-  slamScale, tagEntranceMs, tagLandMs, tagLastLandMs, tagOrder,
+  FALLEN_DIM_MS, TAG_FLY_MS, TAG_LAND_FRAC, TAG_MAX_ORDER, TAG_STAGGER_MS, handoffsIn, playHandoffFx, tagAnimClass,
+  tagEntranceMs, tagLandMs, tagLandsMs, tagLastLandMs, tagOrder,
 } from './duosHandoff';
 
 const css = readFileSync(join(__dirname, '../../styles.css'), 'utf8');
@@ -131,9 +131,9 @@ describe('every hand-off event rings (it was silent)', () => {
     const ev = [tagIn('enemy', 5)];
     playMomentSfx(moment(ev), ev, undefined, 2);
     expect(tag).toHaveBeenCalledTimes(1);
-    expect(tag).toHaveBeenCalledWith('enemy', tagLastLandMs(5, 2));
+    expect(tag).toHaveBeenCalledWith('enemy', tagLandsMs(5, 2));
     playMomentSfx(moment(ev), ev); // no speed given = 1x
-    expect(tag).toHaveBeenLastCalledWith('enemy', tagLastLandMs(5, 1));
+    expect(tag).toHaveBeenLastCalledWith('enemy', tagLandsMs(5, 1));
   });
 
   it('a fallen board and a fly-in ring their own cues, once per side per moment', () => {
@@ -144,7 +144,7 @@ describe('every hand-off event rings (it was silent)', () => {
     const r = playMomentSfx(moment(ev), ev, undefined, 1);
     expect(fell).toHaveBeenCalledTimes(1);
     expect(fell).toHaveBeenCalledWith('player');
-    expect(fly).toHaveBeenCalledWith('enemy', tagLastLandMs(2, 1));
+    expect(fly).toHaveBeenCalledWith('enemy', tagLandsMs(2, 1));
     expect(tag).not.toHaveBeenCalled();
     expect(r.shake).toBe(false); // the shake is the landing's, from the accent, not the beat's start
   });
@@ -173,7 +173,7 @@ describe('the accent', () => {
     ]);
   });
 
-  it('a tag-in: dust under each body as it lands, then the team-coloured slam and the shake under the last', () => {
+  it('a tag-in: dust under each body as it lands, then the shake under the last. No ring (owner 2026-11-12)', () => {
     const shake = vi.fn();
     const ev = [tagIn('player', 3)];
     expect(playHandoffFx(handoffsIn(moment(ev), ev), ctx(1, shake))).toBe(1);
@@ -182,15 +182,12 @@ describe('the accent', () => {
     expect(fx.plays.map((p) => p.id)).toEqual(['landing-dust']);
     expect(shake).not.toHaveBeenCalled();
     vi.advanceTimersByTime(tagLastLandMs(3, 1) - tagLandMs(0, 1));
-    expect(fx.plays.filter((p) => p.id === 'landing-dust')).toHaveLength(3);
-    const slam = fx.plays.find((p) => p.id === 'ground-slam');
-    expect(slam?.opts?.recolor).toBe(HANDOFF_TEAL);
-    expect(slam?.opts?.scale).toBe(slamScale(2 * 150 + 130)); // three bodies 150 px apart, 130 px wide
-    expect([slamScale(130), slamScale(1100)]).toEqual([1.4, 2.6]);
+    expect(fx.plays.map((p) => p.id)).toEqual(['landing-dust', 'landing-dust', 'landing-dust']);
+    expect(fx.plays.some((p) => p.id === 'ground-slam')).toBe(false);
     expect(shake).toHaveBeenCalledTimes(1);
   });
 
-  it('the other team\'s slam is ember, and at 2x everything lands in half the time', () => {
+  it('the other team lands the same way, and at 2x everything lands in half the time', () => {
     const shake = vi.fn();
     const ev = [tagIn('enemy', 7)];
     playHandoffFx(handoffsIn(moment(ev), ev), ctx(2, shake));
@@ -198,7 +195,7 @@ describe('the accent', () => {
     expect(shake).not.toHaveBeenCalled();
     vi.advanceTimersByTime(4);
     expect(shake).toHaveBeenCalledTimes(1);
-    expect(fx.plays.find((p) => p.id === 'ground-slam')?.opts?.recolor).toBe(HANDOFF_EMBER);
+    expect(fx.plays.some((p) => p.id === 'ground-slam')).toBe(false);
     expect(tagLastLandMs(7, 2)).toBeCloseTo(tagLastLandMs(7, 1) / 2);
   });
 

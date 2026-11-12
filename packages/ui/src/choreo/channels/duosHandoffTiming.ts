@@ -62,6 +62,11 @@ export function tagLastLandMs(count: number, speed: number): number {
   return tagLandMs(Math.max(0, Math.min(TAG_MAX_ORDER, count - 1)), speed);
 }
 
+/** Every touchdown of `count` arriving bodies, in the order they land, ms after the beat starts, at `speed`. */
+export function tagLandsMs(count: number, speed: number): number[] {
+  return Array.from({ length: Math.max(1, Math.min(TAG_MAX_ORDER + 1, count)) }, (_, o) => tagLandMs(o, speed));
+}
+
 /** The whole entrance of `count` bodies, ms at `speed`: what the beat's hold has to cover. */
 export function tagEntranceMs(count: number, speed: number): number {
   return (Math.max(0, Math.min(TAG_MAX_ORDER, count - 1)) * TAG_STAGGER_MS + TAG_FLY_MS) / (speed > 0 ? speed : 1);

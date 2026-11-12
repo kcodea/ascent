@@ -8,9 +8,9 @@
  *  - `sample`: a clip of the core bank (always decoded), on the cue's own fader;
  *  - `tone`: a note of the synth (`tone()`), the same one the game's fallback blips use.
  *
- * THE TEAM MOTIF. Duos had no sound of its own besides the ready ding. These cues share one small figure so the mode
- * reads as one thing: a RISING fifth and octave (G, D, G) for "my team steps up" (my tag-in, a teammate joining, a
- * win), and the same figure FALLING and lower (D, B flat, G) for the other team's hand-off and for a loss.
+ * THE TEAM MOTIF. Duos had no sound of its own besides the ready ding. The menu and result cues share one small figure:
+ * a RISING fifth and octave (G, D, G) for "my team steps up" (a teammate joining, a win), and the same figure FALLING
+ * and lower (D, B flat, G) for a loss. The combat hand-off does NOT use it any more (2026-11-12): it plays landings.
  *
  * NOBODY HAS HEARD THESE YET. The levels are starting points for the desk.
  */
@@ -22,11 +22,12 @@ export type DuosCueLayer =
 
 export type DuosSide = 'player' | 'enemy';
 
-/** The heavy whoosh into a hit (the greatsword's clip). Its hit sits this far in at rate 1 (heroBlades.ts, measured). */
-const STINGER_CLIP = 'fx/universfield-cinematic-swoosh-impact-454392';
-export const DUOS_STINGER_HIT_MS = 480;
+/** A light whoosh. Its sound starts this far into the file (measured: 326 ms of lead-in silence). */
 const WHOOSH_CLIP = 'fx/whoosh-03';
+const WHOOSH_LEAD_MS = 300;
+/** A low ground hit. Its hit sits this far into the file (measured), so it is started that much into itself. */
 const GROUND_CLIP = 'fx/universfield-ground-impact-352053';
+const GROUND_LEAD_MS = 90;
 
 /** My team: G4, D5, G5. */
 const RISE = [392, 587.33, 783.99] as const;
@@ -38,41 +39,37 @@ function motif(freqs: readonly number[], vol: number, stepMs: number, atMs = 0, 
   return freqs.map((freq, i): DuosCueLayer => ({ kind: 'tone', freq, durMs, type: 'triangle', vol, delayMs: atMs + i * stepMs }));
 }
 
-/**
- * Start the stinger so its HIT lands `landMs` from now: late enough when there is room, sped up when there is not (a
- * fast fight or a Skip), never more than 2.5x. Pure.
- */
-export function stingerLanding(landMs: number): { delayMs: number; rate: number } {
-  const land = Math.max(80, landMs);
-  if (land >= DUOS_STINGER_HIT_MS) return { delayMs: Math.round(land - DUOS_STINGER_HIT_MS), rate: 1 };
-  return { delayMs: 0, rate: Math.min(2.5, DUOS_STINGER_HIT_MS / land) };
+/** Each body's touchdown as a card landing (the sound a card already makes when it lands), `lands` ms from now. */
+function landings(lands: readonly number[], gain: number): DuosCueLayer[] {
+  return lands.map((l): DuosCueLayer => ({ kind: 'sample', clip: 'cardlanding', gain, delayMs: Math.max(0, Math.round(l)) }));
 }
 
 /**
- * THE TAG-IN (the hand-off): the motif as the board leaves its edge, the whoosh under the flight, and its hit plus a
- * low thud as the LAST body lands (`landMs` from the beat's start, already divided by the fight's speed).
+ * THE TAG-IN (the hand-off), second pass (owner 2026-11-12: "the teammate landing looks really bad still - the sound is
+ * off, and the ring is bad"). The first cue was a cinematic whoosh-into-hit SPED UP to fit the short drop (so it played
+ * pitched up, at a different pitch for every board size) under three synth notes. Now it is only what is on screen: a
+ * light whoosh as the board drops, the game's own card landing on EACH body's touchdown (`lands`, ms from the beat's
+ * start, already divided by the fight's speed), and one low ground hit under the last. No notes, nothing re-pitched.
  */
-export function duosTagInCue(side: DuosSide, landMs: number): DuosCueLayer[] {
+export function duosTagInCue(side: DuosSide, lands: readonly number[]): DuosCueLayer[] {
   const mine = side === 'player';
-  const s = stingerLanding(landMs);
-  const step = Math.max(28, Math.min(70, landMs / 6));
+  const ls = lands.length > 0 ? lands : [0];
+  const last = Math.max(0, Math.round(Math.max(...ls)));
   return [
-    ...motif(mine ? RISE : FALL, mine ? 0.075 : 0.06, step, 0, mine ? 160 : 190),
-    { kind: 'fx', clip: STINGER_CLIP, gain: mine ? 0.5 : 0.42, rate: s.rate * (mine ? 1 : 0.92), delayMs: s.delayMs },
-    { kind: 'sample', clip: 'tallyimpact', gain: 0.8, delayMs: Math.max(0, landMs) },
+    { kind: 'fx', clip: WHOOSH_CLIP, gain: 0.2, startOffsetMs: WHOOSH_LEAD_MS, fadeOutMs: 180 },
+    ...landings(ls, 0.5),
+    { kind: 'fx', clip: GROUND_CLIP, gain: mine ? 0.32 : 0.26, startOffsetMs: GROUND_LEAD_MS, delayMs: last, fadeOutMs: 260 },
   ];
 }
 
 /**
- * THE FLY-IN after a won fight (the teammate's unfought board joins the survivors): the same entrance, lighter. A
- * soft whoosh, two notes of the motif, a card landing. No hit: nothing is at stake any more.
+ * THE FLY-IN after a won fight (the teammate's unfought board joins the survivors): the same entrance, lighter. The
+ * whoosh and each body's card landing, no ground hit: nothing is at stake any more.
  */
-export function duosFlyInCue(side: DuosSide, landMs: number): DuosCueLayer[] {
-  const mine = side === 'player';
+export function duosFlyInCue(_side: DuosSide, lands: readonly number[]): DuosCueLayer[] {
   return [
-    ...motif((mine ? RISE : FALL).slice(0, 2), 0.05, Math.max(28, Math.min(70, landMs / 5))),
-    { kind: 'fx', clip: WHOOSH_CLIP, gain: 0.32, rate: mine ? 1.15 : 1, fadeOutMs: 160 },
-    { kind: 'sample', clip: 'cardlanding', gain: 0.6, delayMs: Math.max(0, landMs) },
+    { kind: 'fx', clip: WHOOSH_CLIP, gain: 0.16, startOffsetMs: WHOOSH_LEAD_MS, fadeOutMs: 160 },
+    ...landings(lands.length > 0 ? lands : [0], 0.4),
   ];
 }
 

@@ -15157,4 +15157,64 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-10 (fx/ruby-gem-sound). Before, every Ruby also played spell-sparks on its target, on top of its gem landing.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyNoCastBurst.test.ts'], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: 'R-RUBY-BUFF-01',
+    title: 'A Ruby strength gain shows the gem on its source and an icon with a number per stat',
+    statement:
+      'When your Rubies gain Attack or Health, the authored gem effect plays on the card that caused it, and each stat that rose shows its own icon (a dagger for Attack, a heart for Health) beside a plain number of how much it rose, floating up together. This holds in the shop, at End of Turn and in combat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'i want to see a symbol and +1 signifying how much it just got buffed. just like the old effect, but i will replaced stuff.' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'i want to remove the gem effect from the spell buff effect. i want it to apply on the source whenever a ruby buff effect occurs though' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'remove the + symbol' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/rubyPowerFxConfig.ts (playRubyBuffFx, floatRubyPowerNumber), called from Recruit.tsx and useCombatReplay.ts' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). The scenario pins the icon scale wiring and that the icons follow the number rise curve; that the gem, icons and numbers appear on every path is checked by the owner in play, not by a test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-RUBY-BUFF-02',
+    title: 'The Ruby buff cue lands on the slot the played card settles into',
+    statement:
+      'A Ruby strength cue caused by a card you just played is placed on the board slot that card lands in, never where the card is drawn mid-glide from the cursor.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'when playing a gem buff unit, the gem is appearing where my mouse is when i drop the card onto the board, despite it being set to source and card center in the fx workbench. it should be where the card is when it lands' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/Recruit.tsx (the rubyPowerFxSeq watcher and the rubyAura presenter measure with restingCenterOf)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, both sites used the drawn rect of a card still gliding in, so the cue played at the cursor.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-RUBY-BUFF-SFX-01',
+    title: 'A Ruby strength gain has its own sound and no generic Shout sound',
+    statement:
+      'A Ruby strength gain plays a whoosh that leads one randomly picked pickaxe strike. When the card you just played is what raised Ruby strength, its Shout burst plays without its own sound and the generic trigger chime is skipped, so the Ruby sound is the only one. A Shout that does not raise Ruby strength keeps its sound.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-10', quote: 'we will use on of these four sounds at random whenever gems are upgraded alongside this woosh sound' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'can you remove the generic buff sound from the ruby buff effect?' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'can we have the woosh start earlier?' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/sfx.ts (rubyWhoosh, rubyStrike), rubyPowerFxConfig.ts (strikeDelay), Recruit.tsx and choreo/recruitCues.ts (muteSound on the Shout moment)' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-11 (fx/more-unit-fx): covers a card played from hand (a Shout or a Choose One pick). A Ruby gain from an End of Turn or Start of Turn source still plays that beat\x27s trigger chime.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
+  {
+    id: 'R-FX-CUSTOM-SCALE-01',
+    title: 'An image layer resizes with the per-call scale',
+    statement:
+      'An FX image (custom) layer responds to the per-call scale option like every other primitive\x27s size, so a caller or tuner that scales an effect also scales its pictures.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-11', quote: 'i like these but the icon size isnt changing with the dials' },
+      { kind: 'fix-pr', ref: 'fx/more-unit-fx: packages/ui/src/fx/primitives/custom.ts (size is on the scale axis)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, the custom primitive declared no scale axis, so a per-call scale left an image at its authored size.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
+  },
 ];

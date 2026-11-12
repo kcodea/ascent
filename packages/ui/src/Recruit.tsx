@@ -1798,7 +1798,7 @@ export function Recruit() {
   // reported. A sourced bump (a card you played) still fires in any phase.
   const prevRubyPowerSeq = useSwapRef(run.rubyPowerFxSeq, swapped);
   /** The Ruby-power seq the Shout-chime effect last saw, so it can tell "this play raised Ruby strength". */
-  const shoutRubySeqRef = useRef(run.rubyPowerFxSeq);
+  const shoutRubySeqRef = useSwapRef(run.rubyPowerFxSeq, swapped);
   useEffect(() => {
     const seq = run.rubyPowerFxSeq;
     if (seq === undefined || seq === prevRubyPowerSeq.current) return;

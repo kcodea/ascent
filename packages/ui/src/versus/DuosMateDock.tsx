@@ -253,30 +253,40 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   // Whose face: my teammate on my board, me while I watch them. One primitive key, so the dock only re-renders when
   // the face, its name or its cosmetics change.
   // THE SCENE BUILDER'S PLACEHOLDER TEAMMATE (DEV, R-SB-DUOS-01): no match, so the faces come from the local seam.
+  // THE FIGHTER VIEW (owner 2026-11-12, R-DUOS-FIGHTER-VIEW-01): "only show the player's portrait that is fighting in
+  // the left side area. keep the teammate/player not fighting in the teammate pass area". While my teammate's board
+  // fights, THEY stand in my hero slot (StatusBar, off `useDuosCombat.fighter`) and I stand here, so a mid-fight pass
+  // still has someone to fly to.
+  const mateLive = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && st.mateLive);
+  const showMe = watching || mateLive;
   const localKey = useLocalMate((s) => {
-    const f = watching ? s.me : s.mate;
+    const f = showMe ? s.me : s.mate;
     return f && !heroSelect ? JSON.stringify([f.hero, f.name, null, null]) : null;
   });
+  const localMateKey = useLocalMate((s) => (inCombat && s.mate ? JSON.stringify([s.mate.hero, s.mate.name, null, null]) : null));
   // THE SCENE BUILDER IS ITS OWN TABLE (R-RANKED-DUOS-CONCEDE-01, owner report 2026-11-01: "in scene builder it looked
   // like i was still in a duos game with him"): while the local teammate is installed, a Versus match still held in the
   // Versus store (one I conceded, watched, or left the screen of) never paints this portrait or its signals.
   const local = useLocalMate((s) => s.me !== null || s.mate !== null);
-  const versusKey = useVersus((s) => {
+  const versusFace = (s: ReturnType<typeof useVersus.getState>, me: boolean): string | null => {
     if (local) return null;
     const g = s.match?.group;
     const d = g?.duos;
     const viewer = g?.me ?? watchedSeat;
     if (!g || !viewer || !d) return null;
-    const seat = watching ? viewer : d.mate ?? duosMateOf(viewer);
+    const seat = me ? viewer : d.mate ?? duosMateOf(viewer);
     const row = g.raw.seats.find((x) => x.seat === seat);
     if (!row) return null;
     const profile = s.room?.members.find((m) => m.userId === row.userId)?.profile;
     const cos = profile?.cosmetics ?? null;
-    const hero = heroSelect ? (watching ? myPick : matePick) : row.hero;
+    const hero = heroSelect ? (me ? myPick : matePick) : row.hero;
     const avatar = heroSelect && !hero && typeof profile?.avatar === 'string' ? profile.avatar : null;
     return JSON.stringify([hero, row.name, cos ?? null, avatar]);
-  });
+  };
+  const versusKey = useVersus((s) => versusFace(s, showMe));
+  const versusMateKey = useVersus((s) => (inCombat ? versusFace(s, false) : null));
   const key = local ? localKey : versusKey;
+  const mateKey = local ? localMateKey : versusMateKey;
   // My teammate dropped out (their board plays on auto): the portrait says so before any drag.
   const away = useVersus((s) => {
     const g = s.match?.group;
@@ -290,8 +300,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   const passOver = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passOver), Object.is);
   const passReason = useDragSlice((st) => (watching || inCombat || heroSelect || stands ? null : st.passReason), Object.is);
   const note = useDuosPassNote((st) => (watching || heroSelect || stands || !st.text ? null : `${st.n}|${st.text}`));
-  // THE TAG-IN (R-DUOS-SLOTS-02): my teammate's board is fighting on my side right now.
-  const tagged = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && !!st.selfSeatId);
+  // Whoever stands HERE has lost their board this fight: greyed (owner: "if a teammate is dead, grey out their portrait").
+  const fallen = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && (st.mateLive ? st.meFallen : st.mateFallen));
+  const swaps = useDuosCombat((st) => (inCombat && st.on ? st.swaps : 0));
   // MY TEAMMATE'S SIGNALS (owner 2026-10-27, R-DUOS-MATE-SIGNALS-01): only while this portrait is THEIRS (on my board, in
   // the shop or the fight; never while I watch them, where their own screen shows it, nor at Hero Select).
   const signals = !local && !watching && !heroSelect;
@@ -335,10 +346,54 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     if (!key) return null;
     const [hero, name, cosRaw, avatar] = JSON.parse(key) as [string | null, string, unknown, string | null];
     const cos = parseCosmeticSnapshot(cosRaw) ?? undefined;
-    const skins = watching ? cos ?? null : opponentSkins(showOppSkins, cos);
+    const skins = showMe ? cos ?? null : opponentSkins(showOppSkins, cos);
     const art = hero ? heroPortrait(hero, skins) : avatarSrc(avatar);
     return { name, art, frameId: frameIdOf(skins) };
-  }, [key, watching, showOppSkins]);
+  }, [key, showMe, showOppSkins]);
+  // My teammate's face for my hero slot while they fight (StatusBar reads it): published while live, cleared after.
+  const fighterFace = useMemo(() => {
+    if (!mateLive || !mateKey) return null;
+    const [hero, name, cosRaw, avatar] = JSON.parse(mateKey) as [string | null, string, unknown, string | null];
+    const skins = opponentSkins(showOppSkins, parseCosmeticSnapshot(cosRaw) ?? undefined);
+    return { name, art: hero ? heroPortrait(hero, skins) : avatarSrc(avatar), frameId: frameIdOf(skins) };
+  }, [mateLive, mateKey, showOppSkins]);
+  useEffect(() => {
+    useDuosCombat.setState({ fighter: fighterFace });
+    return () => { if (useDuosCombat.getState().fighter === fighterFace) useDuosCombat.setState({ fighter: null }); };
+  }, [fighterFace]);
+  // THE SWAP (owner: "when the teammates swap, have them slide/drop into their places"). On a hand-off the two
+  // portraits trade places: each one starts where the OTHER stood and slides home. The start offsets are measured once
+  // per swap (an event, never a frame) and handed to both through CSS variables on the root; the slide itself is a
+  // one-shot transform animation (`duosslide`, versus.css).
+  const [slide, setSlide] = useState(0);
+  const seenSwaps = useRef(0);
+  useLayoutEffect(() => {
+    if (swaps === seenSwaps.current) return undefined;
+    const fresh = swaps > seenSwaps.current;
+    seenSwaps.current = swaps;
+    if (!fresh) return undefined;
+    const heroEl = document.querySelector<HTMLElement>('.statusbar .hero .herolunge');
+    const dockEl = document.querySelector<HTMLElement>('.duosdock .duosdock-hold');
+    const h = heroEl?.getBoundingClientRect();
+    const d = dockEl?.getBoundingClientRect();
+    if (!heroEl || !dockEl || !h || !d || !(h.width > 0) || !(d.width > 0)) return undefined;
+    const dx = d.left + d.width / 2 - (h.left + h.width / 2);
+    const dy = d.top + d.height / 2 - (h.top + h.height / 2);
+    // Each element's own px are scaled by its ancestors (the stage, the hero's 1.2): divide the screen delta by that.
+    const kh = h.width / Math.max(1, heroEl.offsetWidth);
+    const kd = d.width / Math.max(1, dockEl.offsetWidth);
+    const root = document.documentElement.style;
+    root.setProperty('--duos-swap-hx', `${(dx / kh).toFixed(1)}px`);
+    root.setProperty('--duos-swap-hy', `${(dy / kh).toFixed(1)}px`);
+    root.setProperty('--duos-swap-hs', (d.width / h.width).toFixed(3));
+    root.setProperty('--duos-swap-dx', `${(-dx / kd).toFixed(1)}px`);
+    root.setProperty('--duos-swap-dy', `${(-dy / kd).toFixed(1)}px`);
+    root.setProperty('--duos-swap-ds', (h.width / d.width).toFixed(3));
+    useDuosCombat.setState({ slideSeq: swaps });
+    setSlide(swaps);
+    const t = window.setTimeout(() => { setSlide(0); useDuosCombat.setState({ slideSeq: 0 }); }, DUOS_SLIDE_MS + 80);
+    return () => window.clearTimeout(t);
+  }, [swaps]);
   // THE SAME RING AS YOUR OWN PORTRAIT: the bottom-left hero's frame surface ('self', 'socket'), worn with THEIR
   // equipped frame (through "Show opponent cosmetics", like every other player's face), or the default look when they
   // have none.
@@ -394,7 +449,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   return (
     <>
     <div
-      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${tagged ? ' tagged' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}`}
+      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${fallen ? ' fallen' : ''}${slide ? ' duosslide' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}`}
       style={style}
       // LIVE PINGS (R-PING-08): the teammate portrait (the pass slot) takes a ping. It is the TEAMMATE on your screen and
       // your own portrait while you watch theirs: the same person, on both screens.
@@ -412,7 +467,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           the same one) and passing is shop-only, so it takes no click. */}
       {/* A SPECTATOR's (`stands`) is a face too, in the shop as well: nothing they press reaches the game. */}
       {inCombat || stands ? (
-        <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={stands ? `${face.name}, the teammate of the player you watch.` : `${face.name}, your teammate.`}>
+        <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={mateLive ? `${face.name}. Your teammate's board is fighting.` : stands ? `${face.name}, the teammate of the player you watch.` : `${face.name}, your teammate.`}>
           <span className="duosdock-work" aria-hidden="true" />
           {disc}
         </div>
@@ -447,41 +502,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
         </span>
       )}
     </div>
-    {inCombat && geo?.hero && <DuosTagIn on={tagged} hero={geo.hero} art={face.art} frame={frame} name={face.name} working={working} />}
     </>
   );
 });
 
-/** How long the tag-in copy takes to fade out before it unmounts (matches `duostagout` in versus.css). */
-const TAG_OUT_MS = 240;
-
-/**
- * THE TAG-IN COPY (R-DUOS-SLOTS-02): my teammate's portrait over my own hero bottom left, a little up and to the right
- * (the pair, like a tag team), while their board fights on my side. Fades in, and out again when it ends (it stays
- * mounted for the fade-out, then goes). Pointer-events none: my hero underneath keeps its own clicks and its lunge.
- * Fixed in stage px off my hero disc's measured box, so it never reads layout itself.
- */
-function DuosTagIn({ on, hero, art, frame, name, working }: { on: boolean; hero: NonNullable<DockGeometry['hero']>; art: string | undefined; frame: ReturnType<typeof usePortraitFrame>; name: string; working: boolean }): JSX.Element | null {
-  const [shown, setShown] = useState(on);
-  const timer = useRef(0);
-  useEffect(() => {
-    window.clearTimeout(timer.current);
-    if (on) setShown(true);
-    else timer.current = window.setTimeout(() => setShown(false), TAG_OUT_MS);
-    return () => window.clearTimeout(timer.current);
-  }, [on]);
-  if (!shown && !on) return null;
-  // `--duos-hero-left`: how far my hero disc stands in from the stage's left edge, so the copy's offset can stop at that
-  // edge and never be cut by it (R-DUOS-TAGIN-ONSCREEN-01; the clamp is CSS, off this one measured number).
-  const style = { '--duos-d': `${hero.d}px`, '--duos-hero-left': `${hero.left}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
-  return (
-    <div className={`duostagin${on ? '' : ' out'}${working ? ' working' : ''}`} style={style} aria-label={`${name} is fighting for your team.`}>
-      <div className="duostagin-hold">
-        {/* While their portrait stands in over mine, it carries their "still working" glow too (R-DUOS-MATE-SIGNALS-01). */}
-        <span className="duosdock-work" aria-hidden="true" />
-        <FoePortraitDisc art={art} gauntlet={false} frame={frame} extraClass=" duosdock-disc" />
-        <span className="duosdock-name hudpill-name">{name}</span>
-      </div>
-    </div>
-  );
-}
+/** The portrait swap's slide, ms (`duosslide` in versus.css carries the same number; the test pins both). */
+export const DUOS_SLIDE_MS = 460;

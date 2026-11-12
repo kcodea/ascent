@@ -45,8 +45,43 @@ interface DuosCombatState {
   tag: DuosCombatNow['tag'];
   /** A Duos fight is on screen (the hero slots key their art by the live player, so a swap fades the new face in). */
   on: boolean;
+  /** THE FIGHTER VIEW (owner 2026-11-12, R-DUOS-FIGHTER-VIEW-01): my TEAMMATE's board is the one fighting on my side
+   *  right now. Read off the result alone (`duosLiveAt`), so it works with no match too (the Scene Builder). */
+  mateLive: boolean;
+  /** My board / my teammate's board has fallen this fight (its owner's portrait greys out). */
+  meFallen: boolean;
+  mateFallen: boolean;
+  /** How many hand-offs my side has had this fight (0 at the opening): a portrait only slides on a real swap. */
+  swaps: number;
+  /** The OTHER team's second board has stepped in (their slot shows that player: face, runes, buffs). */
+  foeTagged: boolean;
+  /** The hand-off the two portraits are sliding for right now (0 = at rest). Set by the dock, read by the hero slot. */
+  slideSeq: number;
+  /** My teammate's face for the hero slot while they fight (set by the dock, which resolves both faces). */
+  fighter: DuosFace | null;
 }
-export const useDuosCombat = create<DuosCombatState>(() => ({ foeSeatId: null, selfSeatId: null, tag: null, on: false }));
+export interface DuosFace { art: string | undefined; name: string; frameId: string | null }
+const IDLE = { foeSeatId: null, selfSeatId: null, tag: null, on: false, mateLive: false, meFallen: false, mateFallen: false, swaps: 0, foeTagged: false, slideSeq: 0 } as const;
+export const useDuosCombat = create<DuosCombatState>(() => ({ ...IDLE, fighter: null }));
+
+/**
+ * WHO IS FIGHTING ON MY SIDE, from the result alone. `combat.duosMember` is MY board's place in the team (0 = it fought
+ * first, 1 = it waited as the reserve); a `tagIn` on the player side hands over to the other member; a `boardFallen`
+ * names the member whose board fell. Null when the fight is not a tag-team fight. Pure.
+ */
+export function duosLiveAt(combat: Pick<CombatResult, 'duosMember' | 'tagTeam'>, events: readonly CombatEvent[], through: number): { mateLive: boolean; meFallen: boolean; mateFallen: boolean; swaps: number; foeTagged: boolean } | null {
+  if (combat.duosMember == null && !combat.tagTeam) return null;
+  const mine = combat.duosMember ?? 0;
+  let live = 0, swaps = 0, meFallen = false, mateFallen = false, foeTagged = false;
+  const end = Math.min(through, events.length);
+  for (let i = 0; i < end; i++) {
+    const e = events[i]!;
+    if (e.type === 'tagIn' && e.side === 'player') { live = e.member; swaps += 1; }
+    else if (e.type === 'tagIn' && e.side === 'enemy') foeTagged = true;
+    else if (e.type === 'boardFallen' && e.side === 'player') { if (e.member === mine) meFallen = true; else mateFallen = true; }
+  }
+  return { mateLive: live !== mine, meFallen, mateFallen, swaps, foeTagged };
+}
 
 /** Recruit calls this with the replay's cursor: keeps `useDuosCombat` in step with the fight on screen. */
 export function useDuosCombatSync(combat: CombatResult | undefined, events: readonly CombatEvent[], processedEnd: number, fighting: boolean): void {
@@ -56,12 +91,17 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
   const seat = viewer ?? watched;
   useEffect(() => {
     const cur = useDuosCombat.getState();
-    if (!fighting || !combat?.duosFirst || !seat || !raw) {
-      if (cur.foeSeatId || cur.selfSeatId || cur.tag || cur.on) useDuosCombat.setState({ foeSeatId: null, selfSeatId: null, tag: null, on: false });
+    const live = fighting && combat ? duosLiveAt(combat, events, processedEnd) : null;
+    if (!live || !combat) {
+      if (cur.foeSeatId || cur.selfSeatId || cur.tag || cur.on) useDuosCombat.setState({ ...IDLE });
       return;
     }
-    const now = duosCombatAt(combat, raw, seat, events, processedEnd);
-    if (!cur.on || cur.foeSeatId !== now.foeSeatId || cur.selfSeatId !== now.selfSeatId || cur.tag?.at !== now.tag?.at || cur.tag?.kind !== now.tag?.kind) useDuosCombat.setState({ ...now, on: true });
+    // The seats (the foe's portrait swap, the attack cosmetics) still need the match; the fighter view does not.
+    const now = combat.duosFirst && seat && raw ? duosCombatAt(combat, raw, seat, events, processedEnd) : { foeSeatId: null, selfSeatId: null, tag: null };
+    if (!cur.on || cur.foeSeatId !== now.foeSeatId || cur.selfSeatId !== now.selfSeatId || cur.tag?.at !== now.tag?.at || cur.tag?.kind !== now.tag?.kind
+      || cur.mateLive !== live.mateLive || cur.meFallen !== live.meFallen || cur.mateFallen !== live.mateFallen || cur.swaps !== live.swaps || cur.foeTagged !== live.foeTagged) {
+      useDuosCombat.setState({ ...now, ...live, on: true });
+    }
   }, [combat, events, processedEnd, fighting, seat, raw]);
   // REAL TIME (owner: "show the cards in real time"): each gift my board sent mid-fight is shipped to my teammate the
   // moment the replay reaches its beat. Only my own seat (a spectator sends nothing). Cheap: one scan per beat, and only

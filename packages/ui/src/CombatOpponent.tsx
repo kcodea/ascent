@@ -6,7 +6,8 @@ import { badgePulsesFromProgress } from './choreo/triggerCounts';
 import { runeAccentTribe } from './RuneCard';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
-import { playerOpponent, getHero } from '@game/sim';
+import { playerOpponent, getHero, seatBoardThisRound } from '@game/sim';
+import { localMate } from './versus/localMate';
 import { RUNE_INDEX } from '@game/content';
 import { runeArt, heroPowerArt } from './art';
 import { heroPortrait, opponentSkins, seatCosmetics } from './skins/skins';
@@ -83,7 +84,15 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const duosOn = useDuosCombat((s) => s.on);
   const forcedFoe = active && lobby ? playerOpponent(lobby) : null;
   const duosSeat = duosFoe && lobby ? lobby.seats.find((x) => x.id === duosFoe) : undefined;
-  const live = forcedFoe && duosSeat ? { ...forcedFoe, seat: duosSeat } : forcedFoe;
+  // THE FIGHTER VIEW, THEIR SIDE (owner 2026-11-12: "the opponents should swap their portrait to the active player as
+  // well w/ their runes etc"). The slot becomes the other team's second player WHOLE: the face, and the board that
+  // carries their runes, buffs and tier (it used to swap the face and keep the first player's runes). In a match that
+  // is the seat the fight names and the board it fielded; with no match (the Scene Builder) the local team supplies it.
+  const foeTagged = useDuosCombat((s) => s.on && s.foeTagged);
+  const localFoe = useMemo(() => (foeTagged && !duosSeat ? localMate()?.foeMate?.() ?? null : null), [foeTagged, duosSeat]);
+  const live = forcedFoe && duosSeat && lobby
+    ? { ...forcedFoe, seat: duosSeat, board: seatBoardThisRound(lobby, duosSeat) ?? forcedFoe.board }
+    : forcedFoe && localFoe ? { ...forcedFoe, ...localFoe } : forcedFoe;
   if ((inCombat || preview) && live?.seat) cached.current = live;
   useEffect(() => {
     setPhase(active ? 'in' : 'hidden');
@@ -163,7 +172,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
             // VERSUS DUOS (owner 2026-10-26): the slot swaps to whoever's board is live, the new face fading in.
-            artKey={duosOn && duosFoe && !gauntlet ? `duos:${seat.id}` : undefined}
+            artKey={duosOn && (duosFoe || foeTagged) && !gauntlet ? `duos:${seat.id}` : undefined}
           >
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (

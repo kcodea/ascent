@@ -2,6 +2,10 @@ import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect
 import { catchPulse, isPassArrival, mateDoor, noteCastRelease, playDrop } from './versus/passLob';
 import { duosPassRefusal, notePassRefused, overMateFrame, passariaAimHoldsHand, passOnRelease } from './versus/duosPassUi';
 import { useDuosCombat, useDuosCombatSync } from './versus/duosCombat';
+import { duosMateRunNow } from './versus/duosMateRun';
+
+/** No mid-fight hand previews (a stable empty list: the hand row is memoized). */
+const NO_HAND_PREVIEWS: CardView[] = [];
 import { targetPromptFor } from './targetPrompt';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
@@ -4562,6 +4566,21 @@ export function Recruit() {
     // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
     [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts, run.edictCharges, run.edictExtra],
   );
+  // DUOS, THE FIGHTER VIEW (owner 2026-11-12, R-DUOS-FIGHTER-VIEW-01): "the player that is fighting should show their
+  // full view, so their runes, cards in hand etc." While my TEAMMATE's board fights on my side the hand row shows THEIR
+  // hand (read once as they step in, render-only: nothing in a fight can be played from a hand). Mine returns when my
+  // board is the one up, and in the Shop.
+  const duosMateLive = useDuosCombat((st) => st.on && st.mateLive);
+  const duosHandRun = useMemo(() => (duosMateLive && inCombat ? duosMateRunNow() : null), [duosMateLive, inCombat]);
+  const duosHand = useMemo(() => {
+    if (!duosHandRun) return null;
+    const liveOpts = handLiveOf(duosHandRun, duosHandRun.cardBuffs ?? {}, sellState);
+    return {
+      cards: duosHandRun.hand,
+      order: duosHandRun.hand.map((c) => c.uid),
+      views: new Map(duosHandRun.hand.map((m) => [m.uid, handCardView(duosHandRun, m, liveOpts)] as const)),
+    };
+  }, [duosHandRun, sellState]);
   // The hand row's views: a dissipating Whisper the commit already removed keeps the view it last showed.
   const handRowViews = useMemo(() => {
     if (!whisperFade || handRow.every((c) => handViews.has(c.uid))) return handViews;
@@ -8992,9 +9011,9 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:hand">
       <HandRow
-        gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
-        handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
-        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewShown} handPreviewSpent={handPreviewSpent}
+        gambleHand={duosHand ? duosHand.cards : handRow} handOrder={duosHand ? duosHand.order : handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
+        handViews={duosHand ? duosHand.views : handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={duosHand ? null : combatHandSummoned}
+        onCardPointerDown={onCardPointerDown} handPreviewViews={duosHand ? NO_HAND_PREVIEWS : handPreviewShown} handPreviewSpent={handPreviewSpent}
         mateTripleUids={mateTripleUids}
       />
       </PerfProfiler>

@@ -38,6 +38,8 @@ import { goldClockOf } from './goldClock';
 import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
 import { useWatchedName } from './versus/spectate';
+import { useDuosCombat } from './versus/duosCombat';
+import { duosMateRunNow } from './versus/duosMateRun';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { useAmplifiedReleaseFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
@@ -189,7 +191,16 @@ const AMP_MOTES: { x: string; y: string; dx: string; d: string }[] = [
 ];
 
 export function StatusBar() {
-  const run = useGame((s) => s.run);
+  const ownRun = useGame((s) => s.run);
+  // DUOS, THE FIGHTER VIEW (owner 2026-11-12, R-DUOS-FIGHTER-VIEW-01, replacing R-DUOS-SLOTS-02's "my slot is always
+  // mine"): "only show the player's portrait that is fighting in the left side area ... it should show the current
+  // hero's hero power etc as well. just keep it 1:1 as if it were their view in a fight". While my TEAMMATE's board
+  // fights on my side this whole cluster is drawn from THEIR run (hero, name, frame, hero power, buffs, runes), read
+  // once as they step in and render-only: nothing here can be pressed in a fight. I stand in the teammate dock
+  // (`DuosMateDock`) until my board is the one up.
+  const duosFighter = useDuosCombat((s) => (s.on && s.mateLive ? s.fighter : null));
+  const duosFighterRun = useMemo(() => (duosFighter ? duosMateRunNow() : null), [duosFighter]);
+  const run = duosFighterRun ?? ownRun;
   // Practice's timer choice: the Gold Fuse's length (and so a parked fuse's Thymepiece reading) folds it in.
   const practiceTimer = useGame((s) => s.practiceTimer);
   // GORUN'S COUNTER, LIVE (owner report 2026-08-31). `run.bladeAttacks` is banked at settle, so during a fight
@@ -223,9 +234,9 @@ export function StatusBar() {
   // 2026-10-14). Their portrait skin and frame already come from the watched run's recorded cosmetics (`useRunSkins`).
   const watchedName = useWatchedName();
   const ownName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
-  // VERSUS DUOS (owner 2026-10-26, R-DUOS-SLOTS-02): my hero slot is ALWAYS mine. While my teammate's board fights on my
-  // side their portrait tags in beside mine instead (`DuosMateDock`'s tag-in copy, bottom left), never in my slot.
-  const playerName = watchedName ?? ownName;
+  const duosFallen = useDuosCombat((s) => s.on && (s.mateLive ? s.mateFallen : s.meFallen));
+  const duosSlide = useDuosCombat((s) => (s.on ? s.slideSeq : 0));
+  const playerName = duosFighter ? duosFighter.name : watchedName ?? ownName;
   const heroArmed = useGame((s) => s.heroArmed);
   const heroArmedSlot = useGame((s) => s.heroArmedSlot);
   const armHero = useGame((s) => s.armHero);
@@ -245,11 +256,16 @@ export function StatusBar() {
   const ownSkins = useRunSkins();
   const runSkins = ownSkins;
   // R-PHONE-HERO-SHARP-01: a phone draws this ~300 device px, so it loads the 512 px master once decoded.
+  // DUOS (R-DUOS-FIGHTER-VIEW-01): my teammate's own portrait (their skin) while their board fights.
   const heroImg = useSharpArt(heroPortrait(hero.id, runSkins));
+  const shownHeroImg = duosFighter ? duosFighter.art ?? heroImg : heroImg;
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).
-  const frame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
+  const ownFrame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
+  // DUOS (R-DUOS-FIGHTER-VIEW-01): while my teammate fights, the ring is THEIRS (the same surface and seat).
+  const fighterFrame = usePortraitFrame('self', duosFighter ? duosFighter.frameId : null, 'socket');
+  const frame = duosFighter ? fighterFrame : ownFrame;
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];
@@ -912,7 +928,7 @@ export function StatusBar() {
     // class alone stays on in combat, where a power cannot be used.
     <div className={`statusbar${run.phase === 'recruit' ? ' shopphase' : ''}`}>
       {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
-      <QuestBadges />
+      <QuestBadges run={duosFighterRun ?? undefined} />
       <div className="statusrow">
         {/* `pf-top` (owner report 2026-09-29): with a portrait-frame ring on, the whole hero block ranks ABOVE
             the hero-power diamond (a z41 sibling inside the bar's stacking context), so the ring's overhang
@@ -949,14 +965,14 @@ export function StatusBar() {
                 This wrapper has NO base transform, so the lunge is clean; the 1.2 lives on `.f` as its ancestor
                 (heroStrike divides by the measured scale, so the geometry is unaffected). Everything visual —
                 the art, name and attack pill — rides it together. */}
-            <div className={`herolunge${pfClass(frame)}`} style={frame?.hostStyle}>
+            <div className={`herolunge${pfClass(frame)}${duosSlide ? ' duosslide' : ''}${duosFallen ? ' duosfallen' : ''}`} style={frame?.hostStyle}>
             {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
                 grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
             {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
             {/* (The post-combat green attack pill and the red damage-taken number were retired 2026-09-28: the shared
                 damage formation builds the blow and every hero attack punches the same big -N onto the target.) */}
-            {heroImg ? (
-              <img decoding="sync" className="heroimg" src={heroImg} alt={hero.name} draggable={false} />
+            {shownHeroImg ? (
+              <img decoding="sync" className="heroimg" src={shownHeroImg} alt={duosFighter ? duosFighter.name : hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

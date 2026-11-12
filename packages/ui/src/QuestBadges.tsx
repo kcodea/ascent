@@ -88,8 +88,14 @@ function writeRuneChainsBroken(runKey: string): void {
   try { localStorage.setItem(`${CHAINS_BROKEN_KEY}:${runKey}`, '1'); } catch { /* ignore */ }
 }
 
-export function QuestBadges() {
-  const run = useGame((s) => s.run);
+/** `run` (R-DUOS-FIGHTER-VIEW-01): another player's run to show instead of the store's, render-only. Duos passes my
+ *  TEAMMATE's while their board fights on my side, so the row above the hero is the fighter's runes and quests. The
+ *  fight's pulses still land (the player-side triggers of that stretch ARE that board's); the one-shot ceremonies that
+ *  belong to my own run (the chain break, a rune's arrival) stand down. */
+export function QuestBadges({ run: shownRun }: { run?: RunState } = {}) {
+  const ownRun = useGame((s) => s.run);
+  const run = shownRun ?? ownRun;
+  const borrowed = !!shownRun;
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
   // A self-improving rune prints its CURRENT value, ticking mid-fight (R-RUNE-LIVE-TEXT-01).
   const runeLive = usePlayerRuneLive();
@@ -112,7 +118,7 @@ export function QuestBadges() {
   const canThird = canReachThirdRune(run);
   const [chainsBroken, setChainsBroken] = useState(() => readRuneChainsBroken(runKey));
   useEffect(() => {
-    if (!canThird || chainsBroken) return;
+    if (!canThird || chainsBroken || borrowed) return;
     const t = window.setTimeout(() => {
       // Shatter FX at the locked slot (the chains' own screen position), then remove the chains.
       const el = document.querySelector('.questbadges .rune-chains');
@@ -179,7 +185,7 @@ export function QuestBadges() {
   useRuneTriggerFx(runeSlots);
   // Chains on the LOCKED third rune slot — shown from the very start for EVERY run, until they BREAK (above).
   // The badge row renders for the chains alone, even with no quests and no runes yet.
-  const showChains = !chainsBroken;
+  const showChains = borrowed ? !canThird : !chainsBroken; // a borrowed run shows its slot as it stands, no ceremony
   if (nodes.length === 0 && runes.length === 0 && !showChains) return null;
   const isDone = (aq: (typeof nodes)[number]): boolean =>
     aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId);

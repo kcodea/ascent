@@ -14,7 +14,7 @@ import { HeroPicker, HeroPickerTrigger } from './SceneBuilderHeroPicker';
 import { archivedCardRows, archivedRuneRows, cardRowsFor, duosCardRowsFor, matches, runeRowsFor, searchTerms, type CardRow, type RuneRow } from './cardSearch';
 import { DuosMateDock } from './versus/DuosMateDock';
 import { TeammateFrame, enterTeammateView, exitTeammateView, useTeammateViewKeys } from './versus/teammateView';
-import { installSbDuos, sbMateClear, sbMateFillHand, sbMatePasses, sbMateSells, uninstallSbDuos, useSbDuos, SB_MATE_NAME } from './sbDuos';
+import { installSbDuos, sbMateClear, sbMateFillHand, sbMatePasses, sbMateSells, setSbFirst, uninstallSbDuos, useSbDuos, SB_MATE_NAME } from './sbDuos';
 import { closeSceneBuilderPanel, openSceneBuilderPanel, useSbPanel } from './sceneBuilderPanel';
 import './sceneBuilder.css';
 
@@ -728,6 +728,7 @@ function SbDuosHud(): JSX.Element | null {
 function SbTeammate({ all, folded, onFold }: { all: readonly CardRow[]; folded: Record<string, boolean>; onFold: (id: string, closed: boolean) => void }): JSX.Element {
   const viewing = useSbDuos((s) => s.viewing);
   const note = useSbDuos((s) => s.note);
+  const first = useSbDuos((s) => s.first);
   // The teammate's run, wherever it is (the store while you view it, held aside otherwise).
   const aside = useSbDuos((s) => (s.viewing ? null : s.other));
   const storeRun = useGame((s) => s.run);
@@ -748,6 +749,14 @@ function SbTeammate({ all, folded, onFold }: { all: readonly CardRow[]; folded: 
         aria-description={viewing ? 'Back to your own board (Esc)' : 'Swap to your teammate board: every Scene Builder tool then edits their run (Tab peeks)'}>
         {viewing ? 'Back to your board' : 'View their board'}
       </button>
+      <div className="sb-sub">Next fight: who fights first</div>
+      <div className="sb-two">
+        <button type="button" className={`sb-seg-btn${first === 'me' ? ' on' : ''}`} aria-pressed={first === 'me'} onClick={() => setSbFirst('me')}
+          aria-description="Your board fights first; your teammate board steps in if yours falls">You first</button>
+        <button type="button" className={`sb-seg-btn${first === 'mate' ? ' on' : ''}`} aria-pressed={first === 'mate'} onClick={() => setSbFirst('mate')}
+          aria-description="Your teammate board fights first; yours steps in if theirs falls">Them first</button>
+      </div>
+      <div className="sb-mini sb-note">End Turn fights both boards as a team. The other team is your Enemy board, then the Enemy board set while you view your teammate.</div>
       <div className="sb-sub">Teammate passes to you</div>
       <input className="sb-search" placeholder="Card to pass… ↵ passes top match" value={q} onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && top) { e.preventDefault(); sbMatePasses({ kind: 'card', cardId: top.id }); e.currentTarget.select(); } }}

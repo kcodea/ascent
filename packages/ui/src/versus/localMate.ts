@@ -10,7 +10,7 @@
  * null read in a real game.
  */
 import { create } from 'zustand';
-import type { Action } from '@game/sim';
+import type { Action, RunState } from '@game/sim';
 
 /** Who a portrait shows: a hero and a name pill. */
 export interface LocalMateFace { hero: string; name: string }
@@ -27,6 +27,11 @@ export interface LocalMateApi {
   viewing(): boolean;
   /** The combat replay reached these `teamSend` beats of the run on screen (R-DUOS-RUNES-02): send them now. */
   releaseCombatFx(wave: number, idx: readonly number[]): void;
+  /** THE DUOS LOBBY (R-SB-DUOS-03): my End Turn becomes the team fight. Returns the action to run (the same one when the
+   *  teammate cannot fight this round). */
+  endTurn?(run: RunState, action: Action): Action;
+  /** After my End Turn committed: land the same fight on the teammate's run. */
+  afterCommit?(action: Action, next: RunState): void;
 }
 
 /** The two faces (mine and the teammate's), for the portrait. Null = no local teammate. */
@@ -43,9 +48,18 @@ export function installLocalMate(next: LocalMateApi | null): void {
 /** The local teammate, when the Scene Builder has one. */
 export const localMate = (): LocalMateApi | null => api;
 
+/** My own End Turn with a local teammate: the tag-team fight (`sbDuos.ts`). A null read in a real game. */
+export function localMateAction(run: RunState, action: Action): Action {
+  if (!api?.endTurn || api.viewing() || action.type !== 'faceOmen' || action.deferFight || action.sandboxDuos) return action;
+  return api.endTurn(run, action);
+}
+export function localMateAfterCommit(action: Action, next: RunState): void {
+  api?.afterCommit?.(action, next);
+}
+
 /**
- * While the screen shows the placeholder teammate's run, it never ends a turn: their run does not fight (tag-team
- * combat is out of scope for the rig). End Turn there, or the shop clock running out, takes you back to your own
+ * While the screen shows the placeholder teammate's run, it never ends a turn itself: their turn ends WITH yours (your
+ * End Turn fights both boards as one team). End Turn there, or the shop clock running out, takes you back to your own
  * board instead, where End Turn works as usual.
  */
 export function localMateRefuses(action: Action): boolean {

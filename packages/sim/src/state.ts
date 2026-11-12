@@ -2924,6 +2924,20 @@ export interface PreparedCombatSide {
   vitals?: { resolve: number; armor: number };
 }
 
+/**
+ * DEV, the Scene Builder's Duos lobby (owner 2026-11-12: "scene builder duos mode needs to actually turn it into a
+ * 'duos' lobby so i can test various combat interactions"). Rides `faceOmen` on a SANDBOX Duos run only (refused
+ * everywhere else): the fight becomes the real tag-team fight, one `simulate()` with a reserve on each side.
+ */
+export interface SandboxDuosFight {
+  /** The placeholder teammate's prepared side (their own `faceOmen { deferFight }`). */
+  mate: PreparedCombatSide;
+  /** The other team's SECOND board (the teammate run's opponent for this wave). Absent or null = they have no reserve. */
+  foeMate?: BoardSnapshot | null;
+  /** Whose board fights first for my team. An empty first board hands straight over, as in a match. */
+  first?: 'me' | 'mate';
+}
+
 /** The landing payload of a deferred fight — see `Action` `resolveCombat`. */
 export interface DeferredFight {
   /** The authoritative result from THIS seat's perspective (`player` = this run). */
@@ -3014,7 +3028,7 @@ export type Action =
   | { type: 'closeScout' } // Farseer's Report: dismiss the scout reveal
   /** End the turn. `deferFight` (balance bot B1): end the turn and prepare the full combat side, but resolve NO
    *  fight — the self-play lobby simulates the pair once and lands the result via `resolveCombat { fight }`. */
-  | { type: 'faceOmen'; deferFight?: true }
+  | { type: 'faceOmen'; deferFight?: true; sandboxDuos?: SandboxDuosFight }
   | { type: 'settleCombat' }
   /** Leave combat. `fight` lands a DEFERRED fight's result (this seat's perspective) + the damage the lobby
    *  charged it, then settles and advances exactly as a bare `resolveCombat` does. */

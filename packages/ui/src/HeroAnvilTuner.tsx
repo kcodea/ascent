@@ -1,8 +1,6 @@
-// SCAFFOLDED from heroCoin/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Coin, not this style, until rewritten.
 import {
   ANVIL_LEVELS, ANVIL_LEVEL_SUFFIXES, HERO_ANVIL_DEFAULTS, HERO_ANVIL_RANGES, anvilPlan, getHeroAnvilConfig, heroAnvilStore,
-  type CoinLevelSuffix,
+  type AnvilLevelSuffix,
 } from './heroAnvil/heroAnvilConfig';
 import { playHeroAnvil } from './heroAnvil/heroAnvil';
 import { previewLeadIn } from './heroAttack/attackDemo';
@@ -10,62 +8,60 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the COIN FLICK hero attack (a Rare; owner ask 2026-09-29: "build 5 animations that range from rare ->
- * epic ... rare and epics should only have 2 or 3 tiers"). Two groups of per-tier dials: Small (shared tiers I-II) and
- * Big (III-IV, and every knockout). The Play buttons run the real runner between the two real portraits.
+ * DEV tuner for LOOK OUT BELOW (style id `anvil`, a Rare hero attack): a shadow grows on the struck portrait, an anvil
+ * (Small) or an upright piano (Big) drops out of the sky and squashes it flat, and it pops back like an accordion. Two
+ * groups of per-tier dials: Small (shared tiers I-II) and Big (III-IV, and every knockout). The Play buttons run the
+ * real runner between the two real portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here the coin plays Big.', 'Damage tiers'],
+  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small (the anvil) still plays here.', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here the piano plays.', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
-  absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
-  heroDipPx: ['Wind back', 'px', 'How far the hero dips back from the target as it readies the flick.', 'Ready'],
-  heroFlickPx: ['Flick', 'px', 'How far the hero snaps toward the target on the flick.', 'Ready'],
-  anvilPx: ['Anvil size', 'px', 'The coin\'s diameter (the per-tier size multiplies it).', 'Anvil'],
-  ghosts: ['Afterimages', undefined, 'Ghost coins trailing the flying coin (0 = none).', 'Anvil'],
-  ghostMs: ['Afterimage gap', 'ms', 'How far back along the path each afterimage sits.', 'Anvil'],
-  glintAlpha: ['Glint', 'opacity', 'The star glint that winks as the face turns square to you.', 'Anvil'],
-  pingSize: ['Ping size', '×', 'The size of the sparkle, ring and glitter on every ping.', 'Ping'],
-  caromMs: ['Carom', 'ms', 'Small: how long the coin tumbles away off the face after the ping.', 'Ping'],
-  showerSpeed: ['Shower speed', undefined, 'px/s. Big: how hard the shower of coins spills out.', 'Ping'],
-  showerGravity: ['Shower gravity', undefined, 'px/s². Big: how fast the shower falls.', 'Ping'],
-  knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back on the impact.', 'Camera and portraits'],
-  squash: ['Squash', '×', 'How much the struck portrait squashes on the impact.', 'Camera and portraits'],
-  shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
-  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
-  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxFlickGain: ['flick: gain', undefined, 'The swish of the coin leaving the hand.', 'Sound: flick'],
-  sfxFlickRate: ['flick: pitch', '×', 'Pitch of the swish.', 'Sound: flick'],
-  sfxSnapGain: ['snap: gain', undefined, 'The finger snap under the flick.', 'Sound: snap'],
-  sfxSnapRate: ['snap: pitch', '×', 'Pitch of the snap.', 'Sound: snap'],
-  sfxDingGain: ['ding: gain', undefined, 'The DING of every ping (climbs a step on each ricochet).', 'Sound: ding'],
-  sfxDingRate: ['ding: pitch', '×', 'Pitch of the first ding.', 'Sound: ding'],
-  sfxSparkleGain: ['sparkle: gain', undefined, 'A shimmer under each ding.', 'Sound: sparkle'],
-  sfxSparkleRate: ['sparkle: pitch', '×', 'Pitch of the shimmer.', 'Sound: sparkle'],
-  sfxImpactGain: ['impact: gain', undefined, 'A light smack under the last ping.', 'Sound: impact'],
-  sfxImpactRate: ['impact: pitch', '×', 'Pitch of the smack.', 'Sound: impact'],
-  sfxShowerGain: ['shower: gain', undefined, 'Big: the coins spilling out.', 'Sound: shower'],
-  sfxShowerRate: ['shower: pitch', '×', 'Pitch of the spill.', 'Sound: shower'],
-  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the coin plays (1 = no duck).', 'Sound: mix'],
+  absorbMs: ['Absorb', 'ms', 'The total sinking into the striking hero.', 'Cue'],
+  heroHopPx: ['Hop', 'px', 'How high the striking hero hops as its spark goes up.', 'Cue'],
+  shadowAlpha: ['Shadow', 'opacity', 'How dark the shadow on the struck portrait gets just before the landing.', 'Drop'],
+  popHz: ['Spring speed', undefined, 'Accordion bounces per second as the portrait pops back.', 'Pop back'],
+  popTauMs: ['Spring decay', 'ms', 'How fast the accordion bounces die away (lower = fewer overshoots).', 'Pop back'],
+  tipMs: ['Tip off', 'ms', 'How long the tossed object is drawn as it falls away and fades.', 'Pop back'],
+  tipSpeed: ['Toss', undefined, 'px/s. How hard the pop tosses the object off the portrait.', 'Pop back'],
+  tipGravity: ['Toss gravity', undefined, 'px/s². How fast the tossed object falls.', 'Pop back'],
+  keySpeed: ['Key speed', undefined, 'px/s. Big: how hard the piano keys are thrown.', 'Piano keys'],
+  keyGravity: ['Key gravity', undefined, 'px/s². Big: how fast the piano keys fall (they bounce twice).', 'Piano keys'],
+  shakeMs: ['Shake length', 'ms', 'How long the landing shake takes to die away.', 'Camera'],
+  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the pop.', 'Camera'],
+  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera'],
+  sfxCueGain: ['cue: gain', undefined, 'The small swish of the spark the striking hero sends up.', 'Sound: cue'],
+  sfxCueRate: ['cue: pitch', '×', 'Pitch of the swish.', 'Sound: cue'],
+  sfxWhistleGain: ['whistle: gain', undefined, 'The falling slide whistle (it plays for exactly the fall).', 'Sound: whistle'],
+  sfxWhistleRate: ['whistle: pitch', '×', 'Pitch of the whistle for the anvil (the piano plays it lower and longer).', 'Sound: whistle'],
+  sfxClangGain: ['clang: gain', undefined, 'Small: the iron anvil landing.', 'Sound: clang'],
+  sfxClangRate: ['clang: pitch', '×', 'Pitch of the clang.', 'Sound: clang'],
+  sfxPianoGain: ['piano: gain', undefined, 'Big: the piano crash.', 'Sound: piano'],
+  sfxPianoRate: ['piano: pitch', '×', 'Pitch of the crash.', 'Sound: piano'],
+  sfxThudGain: ['thud: gain', undefined, 'Big: a low ground thump under the piano crash.', 'Sound: thud'],
+  sfxThudRate: ['thud: pitch', '×', 'Pitch of the thump.', 'Sound: thud'],
+  sfxPopGain: ['pop: gain', undefined, 'The swish of the portrait springing back.', 'Sound: pop'],
+  sfxPopRate: ['pop: pitch', '×', 'Pitch of the pop.', 'Sound: pop'],
+  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
 };
 
-const LEVEL_SPECS: Record<CoinLevelSuffix, RareLevelSpec> = {
-  ReadyMs: ['Ready', 'ms', 'The hero readying the flick. The view pushes in over this.'],
-  FlightMs: ['Flight', 'ms', 'The coin crossing the board (at 1600 px; lower = faster).'],
-  Arc: ['Arc', '×', 'How high the coin arcs, as a fraction of the distance.'],
-  Pings: ['Pings', undefined, 'How many times the coin pings the face (the last is the blow; the rest ricochet).'],
-  HopMs: ['Ricochet hop', 'ms', 'Each ricochet hop off the face and back.'],
-  HopLift: ['Hop height', '×', 'How high each ricochet bounces (in portrait radii).'],
-  CoinSize: ['Anvil size', '×', 'The coin size multiplier for this tier.'],
-  FlipHz: ['Flip speed', undefined, 'Flips per second (the edge-on turn).'],
-  Sparkles: ['Glitter', undefined, 'Glitter sprayed off each ping.'],
-  Shower: ['Shower coins', undefined, 'Coins spilled by the last ping (0 = the coin caroms off instead).'],
-  Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
-  Zoom: ['Push in', '×', 'How far the view pushes in through the ready.'],
-  Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
-  SettleMs: ['Settle', 'ms', 'Hold after the last beat before the sequence ends.'],
+const LEVEL_SPECS: Record<AnvilLevelSuffix, RareLevelSpec> = {
+  ReadyMs: ['Cue', 'ms', 'The cue from the striking hero before the shadow appears.'],
+  FallMs: ['Fall', 'ms', 'The shadow growing and the whistle falling, up to the landing.'],
+  DropMs: ['Visible drop', 'ms', 'The object crossing the screen at the end of the fall (lower = faster).'],
+  HoldMs: ['Hold flat', 'ms', 'How long the portrait stays flat under the weight.'],
+  SettleMs: ['Pop back', 'ms', 'The accordion spring after the pop, to the end of the sequence.'],
+  Size: ['Object size', '×', 'How wide the object is, in portrait radii.'],
+  Shadow: ['Shadow size', '×', 'The radius of the shadow at the landing, in portrait radii.'],
+  Flat: ['Flatness', '×', 'The height of the squashed portrait (0.2 = a fifth of its height).'],
+  Bulge: ['Spread', '×', 'How far the squashed portrait spreads sideways.'],
+  Dust: ['Dust', undefined, 'Dust puffs rolling out along the ground from the landing.'],
+  Keys: ['Piano keys', undefined, 'Loose keys thrown out by the landing (the piano only).'],
+  Shake: ['Shake', 'px', 'How hard the view is driven down on the landing.'],
+  Zoom: ['Push in', '×', 'How far the view pushes in through the fall.'],
+  Punch: ['Impact punch', '×', 'Extra push on the landing before the view settles.'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
@@ -81,26 +77,25 @@ const built = rareTunerSpec({
   suffixes: ANVIL_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
-    ['colorGold', 'Gold', 'The coin, the rings and the shower.'],
-    ['colorAmber', 'Amber', 'The warm glow round the coin, its afterimages and the ping bloom.'],
-    ['colorShine', 'Shine', 'The gleam, the glints and the sparkle cores.'],
-    ['colorDeep', 'Deep', 'The bronze the coin shades to as it turns edge-on.'],
-    ['colorPlayer', 'Your side', 'Your total colour when YOU flick.'],
-    ['colorFoe', 'Foe side', 'Their total colour when THEY flick.'],
+    ['colorDust', 'Dust', 'The dust puffs and the ground ring.'],
+    ['colorSpark', 'Spark', 'The cue spark and the stars knocked out of the landing.'],
+    ['colorShadow', 'Shadow', 'The shadow on the struck portrait.'],
+    ['colorPlayer', 'Your side', 'Your total colour when YOU strike.'],
+    ['colorFoe', 'Foe side', 'Their total colour when THEY strike.'],
   ],
   clipOf: {
-    'Sound: flick': 'sfxFlickClip', 'Sound: snap': 'sfxSnapClip', 'Sound: ding': 'sfxDingClip', 'Sound: sparkle': 'sfxSparkleClip',
-    'Sound: impact': 'sfxImpactClip', 'Sound: shower': 'sfxShowerClip',
+    'Sound: cue': 'sfxCueClip', 'Sound: whistle': 'sfxWhistleClip', 'Sound: clang': 'sfxClangClip', 'Sound: piano': 'sfxPianoClip',
+    'Sound: thud': 'sfxThudClip', 'Sound: pop': 'sfxPopClip',
   },
   note: () => {
     const c = getHeroAnvilConfig();
-    const p = anvilPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${p.level} · ${p.pings.length} ping${p.pings.length === 1 ? '' : 's'}${p.shower ? `, ${p.shower} coins` : ''} · impact ${Math.round(p.impactAt - p.chargeAt)} · end ${Math.round(p.endAt - p.chargeAt)} ms after the formation`;
+    const p = anvilPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage }, c);
+    return `dev · ${p.level} · the ${p.object}${p.keys ? `, ${p.keys} keys` : ''} · lands ${Math.round(p.impactAt - p.chargeAt)} · pops ${Math.round(p.popAt - p.chargeAt)} · end ${Math.round(p.endAt - p.chargeAt)} ms after the formation`;
   },
   play: (o) => playHeroAnvil(o),
-  verb: 'flicks a coin at',
-  smallHint: 'Small, one coin pings and caroms off.',
-  bigHint: 'Big, a ricochet volley and a shower of coins.',
+  verb: 'drops something heavy on',
+  smallHint: 'Small, an anvil lands and the portrait pops back.',
+  bigHint: 'Big, a piano lands and its keys scatter.',
 });
 
 export const SPEC = built.spec;

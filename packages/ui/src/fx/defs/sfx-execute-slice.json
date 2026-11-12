@@ -1,1 +1,1 @@
-{"version":1,"id":"sfx-execute-slice","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/execute-slice"}}]}
+{"version":1,"id":"sfx-execute-slice","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/execute-slice","gain":0.56}}]}

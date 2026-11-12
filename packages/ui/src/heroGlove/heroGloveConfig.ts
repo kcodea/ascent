@@ -1,27 +1,30 @@
-// SCAFFOLDED from heroBoomerang/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Boomerang, not this style, until rewritten.
 /**
- * THE BOOMERANG HERO ATTACK (a RARE): its tuned values, its pure timeline, the pure flight paths and the pure camera.
+ * THE SUCKER PUNCH HERO ATTACK (style id `glove`, a RARE): its tuned values, its pure timeline, the pure pose of the
+ * glove on its spring, and the pure camera. Built 2026-11-12 on the scaffold `npm run attack:new` made from Boomerang.
  *
- * Owner 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics should only have 2 or 3 tiers to
- * them and generally be less exciting, but still extremely clean and fun. get creative".
+ * ONE CLEAR IDEA: A BOXING GLOVE ON A SPRING. A little hatch pops open on the edge of the striking portrait and a red
+ * boxing glove BOINGS out on a zig-zag coil spring that stays attached to the hero the whole way: it stretches right
+ * across the board to the struck portrait, bops it, and retracts with the coil compressing back into the hatch. No other
+ * attack is tethered to its hero.
  *
- * ONE CLEAR IDEA: a carved wooden boomerang whirls out on a curved path, THWACKS the struck hero, and curves back round
- * to the hero, who catches it with a little pop.
+ * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`gloveLevel`): I-II play SMALL, III-IV play BIG,
+ * so a knockout (which always forces the shared Tier IV) plays BIG.
+ *  - SMALL: pop, boing out, ONE bop (THE impact), a little wobble on the end of the spring, and back in.
+ *  - BIG: the glove winds back first (the coil squeezes, a quiver), fires harder, bops (a tick) and OVERSHOOTS past the
+ *    face, the spring sways side to side with the glove bobbing on its end, and it bops a SECOND time on the rebound
+ *    (harder: THE impact). Three little stars circle the struck head for a moment. Then it retracts.
  *
- * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`gloveLevel`): I-II play SMALL, III-IV
- * play BIG, so a knockout (which always forces the shared Tier IV) plays BIG.
- *  - SMALL: one boomerang: out on one side of the line, THWACK (THE impact), back round the other side, caught.
- *  - BIG: two, thrown a beat apart from either hand on CROSSING paths (each swings wide on its own side and lands on
- *    the other side of the face, so they cross in an X), a double
- *    thwack (the first a tick, the second THE impact), and both curve home crossing again and are caught in turn.
+ * THE BEATS: the shared damage formation (its end is this style's start); READY (the total sinks in, the hatch pops, the
+ * glove peeks out and, Big, winds back); FIRE; BOP (the consequence lands ONCE, on the LAST bop); the retract and the
+ * hatch closing are looks only (they happen after the blow). No hit-stop anywhere. Reduced motion: no glove, shake or
+ * zoom; the numbers fade and the blow lands.
  *
- * THE BEATS: the shared damage formation (its end is this style's start); READY (the total sinks in, the hero winds back);
- * THROW; THWACK (the consequence lands ONCE, on the last one); the return and the catch are looks only (they happen after
- * the blow). No hit-stop anywhere. Reduced motion: no flight, shake or zoom; the numbers fade and the blow lands.
+ * THE SPRING AT ANY DISTANCE AND ANGLE: everything is laid out along the line between the two portraits (`gloveMotion`),
+ * the overshoot, the draw back and the sway are in portrait radii (not fractions of the distance), and the coil has a
+ * fixed length of wire per turn, so it is fat and tight when squeezed and thin and open when stretched.
  */
 import { configStore } from '../heroAttack/configStore';
-import { clamp, type Pt } from '../heroAttack/easing';
+import { clamp, clamp01, easeOutBack, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
@@ -29,84 +32,91 @@ import {
 export type { TierNum };
 
 export const GLOVE_LEVELS = ['small', 'big'] as const;
-export type BoomerangLevel = (typeof GLOVE_LEVELS)[number];
+export type GloveLevel = (typeof GLOVE_LEVELS)[number];
 
 /** The shared four tiers onto this Rare's two: I-II small, III-IV big (a knockout forces IV, so it plays big). */
-export function gloveLevel(tier: TierNum): BoomerangLevel { return tier >= 3 ? 'big' : 'small'; }
+export function gloveLevel(tier: TierNum): GloveLevel { return tier >= 3 ? 'big' : 'small'; }
 
 export const GLOVE_LEVEL_SUFFIXES = [
-  'ReadyMs', 'OutMs', 'BackMs', 'Bulge', 'Count', 'StaggerMs', 'Size', 'SpinHz', 'Chips', 'Shake', 'Zoom', 'Punch', 'SettleMs', 'Dim',
+  'ReadyMs', 'OutMs', 'WobbleMs', 'HoldMs', 'BackMs', 'Wind', 'Over', 'Sway', 'Size', 'Stars', 'StarsMs', 'Shake', 'Zoom', 'Punch', 'SettleMs', 'Dim',
 ] as const;
-export type BoomerangLevelSuffix = (typeof GLOVE_LEVEL_SUFFIXES)[number];
-type LevelKey = `${BoomerangLevel}${BoomerangLevelSuffix}`;
+export type GloveLevelSuffix = (typeof GLOVE_LEVEL_SUFFIXES)[number];
+type LevelKey = `${GloveLevel}${GloveLevelSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
   heroWindPx: number;
-  heroThrowPx: number;
-  catchPop: number;
-  catchMs: number;
-  boomPx: number;
-  trailMs: number;
-  trailWidth: number;
-  whirl: number;
-  thwackSize: number;
+  heroKickPx: number;
+  homePop: number;
+  closeMs: number;
+  glovePx: number;
+  hatchPx: number;
+  springPitch: number;
+  springWidth: number;
+  springThick: number;
+  bopSize: number;
+  gloveSquash: number;
   knockPx: number;
   squash: number;
   shakeMs: number;
   zoomOutMs: number;
   reducedFadeMs: number;
-  colorWood: string;
-  colorGrain: string;
-  colorTeal: string;
-  colorTealDeep: string;
+  colorGlove: string;
+  colorTrim: string;
+  colorSpring: string;
+  colorHatch: string;
+  colorStar: string;
   colorFlash: string;
   colorPlayer: string;
   colorFoe: string;
-  sfxThrowClip: string; sfxThrowGain: number; sfxThrowRate: number;
-  sfxWhirlClip: string; sfxWhirlGain: number; sfxWhirlRate: number;
-  sfxThwackClip: string; sfxThwackGain: number; sfxThwackRate: number;
-  sfxKnockClip: string; sfxKnockGain: number; sfxKnockRate: number;
-  sfxCatchClip: string; sfxCatchGain: number; sfxCatchRate: number;
+  sfxPopClip: string; sfxPopGain: number; sfxPopRate: number;
+  sfxBoingClip: string; sfxBoingGain: number; sfxBoingRate: number;
+  sfxPunchClip: string; sfxPunchGain: number; sfxPunchRate: number;
+  sfxRetractClip: string; sfxRetractGain: number; sfxRetractRate: number;
+  sfxHomeClip: string; sfxHomeGain: number; sfxHomeRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
 }
 export type HeroGloveConfig = GlobalConfig & Record<LevelKey, number>;
 
-export const HERO_GLOVE_COLOR_KEYS = ['colorWood', 'colorGrain', 'colorTeal', 'colorTealDeep', 'colorFlash', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_GLOVE_CLIP_KEYS = ['sfxThrowClip', 'sfxWhirlClip', 'sfxThwackClip', 'sfxKnockClip', 'sfxCatchClip'] as const;
+export const HERO_GLOVE_COLOR_KEYS = ['colorGlove', 'colorTrim', 'colorSpring', 'colorHatch', 'colorStar', 'colorFlash', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_GLOVE_CLIP_KEYS = ['sfxPopClip', 'sfxBoingClip', 'sfxPunchClip', 'sfxRetractClip', 'sfxHomeClip'] as const;
 export type HeroGloveStrKey = (typeof HERO_GLOVE_COLOR_KEYS)[number] | (typeof HERO_GLOVE_CLIP_KEYS)[number];
 export type HeroGloveNumKey = Exclude<keyof HeroGloveConfig, HeroGloveStrKey>;
 
-const LEVEL_DEFAULTS: Record<BoomerangLevelSuffix, [number, number]> = {
-  ReadyMs: [280, 320],
-  OutMs: [440, 460],
-  BackMs: [520, 540],
-  Bulge: [0.22, 0.26],
-  Count: [1, 2],
-  StaggerMs: [0, 130],
-  Size: [1, 0.95],
-  SpinHz: [4.5, 5],
-  Chips: [6, 9],
-  Shake: [5, 8],
+const LEVEL_DEFAULTS: Record<GloveLevelSuffix, [number, number]> = {
+  ReadyMs: [280, 460],
+  OutMs: [170, 150],
+  WobbleMs: [0, 560],
+  HoldMs: [190, 240],
+  BackMs: [260, 300],
+  Wind: [0.2, 1],
+  Over: [0, 1],
+  Sway: [0.14, 0.5],
+  Size: [1, 1.2],
+  Stars: [0, 3],
+  StarsMs: [0, 900],
+  Shake: [5, 9],
   Zoom: [0.02, 0.035],
   Punch: [0.015, 0.03],
-  SettleMs: [180, 220],
+  SettleMs: [160, 180],
   Dim: [0.08, 0.2],
 };
 
-export const GLOVE_LEVEL_RANGES: Record<BoomerangLevelSuffix, [number, number, number]> = {
-  ReadyMs: [60, 1200, 10],
-  OutMs: [150, 1200, 10],
-  BackMs: [150, 1500, 10],
-  Bulge: [0, 0.6, 0.01],
-  Count: [1, 2, 1],
-  StaggerMs: [0, 500, 5],
+export const GLOVE_LEVEL_RANGES: Record<GloveLevelSuffix, [number, number, number]> = {
+  ReadyMs: [160, 1200, 10],
+  OutMs: [80, 800, 10],
+  WobbleMs: [0, 1500, 10],
+  HoldMs: [0, 1000, 10],
+  BackMs: [120, 1200, 10],
+  Wind: [0, 1, 0.05],
+  Over: [0, 2.5, 0.05],
+  Sway: [0, 1.5, 0.01],
   Size: [0.4, 2.5, 0.05],
-  SpinHz: [0, 12, 0.25],
-  Chips: [0, 24, 1],
+  Stars: [0, 5, 1],
+  StarsMs: [0, 2000, 10],
   Shake: [0, 30, 0.5],
   Zoom: [0, 0.1, 0.002],
   Punch: [0, 0.08, 0.001],
@@ -119,32 +129,35 @@ const levelDefaults = Object.fromEntries(GLOVE_LEVELS.flatMap((l, i) => GLOVE_LE
 export const HERO_GLOVE_DEFAULTS: HeroGloveConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
-  heroWindPx: 10,
-  heroThrowPx: 12,
-  catchPop: 0.07,
-  catchMs: 180,
-  boomPx: 74,
-  trailMs: 120,
-  trailWidth: 12,
-  whirl: 0.3,
-  thwackSize: 1,
+  heroWindPx: 9,
+  heroKickPx: 12,
+  homePop: 0.06,
+  closeMs: 160,
+  glovePx: 112,
+  hatchPx: 64,
+  springPitch: 30,
+  springWidth: 19,
+  springThick: 7,
+  bopSize: 1,
+  gloveSquash: 0.3,
   knockPx: 14,
   squash: 0.07,
   shakeMs: 280,
   zoomOutMs: 340,
   reducedFadeMs: 260,
-  colorWood: '#d0914f',
-  colorGrain: '#6b3f1d',
-  colorTeal: '#2de0c8',
-  colorTealDeep: '#0f7f86',
-  colorFlash: '#f4fffb',
-  colorPlayer: '#7fffe6',
+  colorGlove: '#e8281e',
+  colorTrim: '#fff6e6',
+  colorSpring: '#c4ccd6',
+  colorHatch: '#d6a24a',
+  colorStar: '#ffd447',
+  colorFlash: '#fffbe6',
+  colorPlayer: '#ffd98a',
   colorFoe: '#ff7a5c',
-  sfxThrowClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxThrowGain: 0.45, sfxThrowRate: 1.2,
-  sfxWhirlClip: 'fx/metal-woosh', sfxWhirlGain: 0.28, sfxWhirlRate: 1.35,
-  sfxThwackClip: 'smack1', sfxThwackGain: 0.6, sfxThwackRate: 1.05,
-  sfxKnockClip: 'clickthock', sfxKnockGain: 0.45, sfxKnockRate: 0.85,
-  sfxCatchClip: 'cardlanding', sfxCatchGain: 0.45, sfxCatchRate: 1.25,
+  sfxPopClip: 'clickthock', sfxPopGain: 0.4, sfxPopRate: 1.35,
+  sfxBoingClip: 'fx/glove-boing', sfxBoingGain: 0.55, sfxBoingRate: 1,
+  sfxPunchClip: 'fx/glove-punch', sfxPunchGain: 0.75, sfxPunchRate: 1,
+  sfxRetractClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxRetractGain: 0.3, sfxRetractRate: 1.5,
+  sfxHomeClip: 'clickthock', sfxHomeGain: 0.4, sfxHomeRate: 0.9,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -155,24 +168,26 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGloveStrKey>, [numbe
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
   heroWindPx: [0, 40, 1],
-  heroThrowPx: [0, 50, 1],
-  catchPop: [0, 0.3, 0.005],
-  catchMs: [60, 600, 10],
-  boomPx: [24, 200, 1],
-  trailMs: [0, 400, 5],
-  trailWidth: [1, 40, 0.5],
-  whirl: [0, 1, 0.01],
-  thwackSize: [0.3, 3, 0.05],
+  heroKickPx: [0, 50, 1],
+  homePop: [0, 0.3, 0.005],
+  closeMs: [40, 600, 10],
+  glovePx: [40, 260, 1],
+  hatchPx: [20, 160, 1],
+  springPitch: [12, 80, 1],
+  springWidth: [4, 60, 0.5],
+  springThick: [2, 20, 0.5],
+  bopSize: [0.3, 3, 0.05],
+  gloveSquash: [0, 0.6, 0.01],
   knockPx: [0, 60, 1],
   squash: [0, 0.3, 0.01],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxThrowGain: [0, 2, 0.05], sfxThrowRate: [0.5, 2.5, 0.01],
-  sfxWhirlGain: [0, 2, 0.05], sfxWhirlRate: [0.5, 2.5, 0.01],
-  sfxThwackGain: [0, 2, 0.05], sfxThwackRate: [0.5, 2.5, 0.01],
-  sfxKnockGain: [0, 2, 0.05], sfxKnockRate: [0.5, 2.5, 0.01],
-  sfxCatchGain: [0, 2, 0.05], sfxCatchRate: [0.5, 2.5, 0.01],
+  sfxPopGain: [0, 2, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
+  sfxBoingGain: [0, 2, 0.05], sfxBoingRate: [0.5, 2.5, 0.01],
+  sfxPunchGain: [0, 2, 0.05], sfxPunchRate: [0.5, 2.5, 0.01],
+  sfxRetractGain: [0, 2, 0.05], sfxRetractRate: [0.5, 2.5, 0.01],
+  sfxHomeGain: [0, 2, 0.05], sfxHomeRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -183,7 +198,8 @@ export const HERO_GLOVE_RANGES: Record<HeroGloveNumKey, [number, number, number]
   ...(Object.fromEntries(GLOVE_LEVELS.flatMap((l) => GLOVE_LEVEL_SUFFIXES.map((s) => [`${l}${s}`, GLOVE_LEVEL_RANGES[s]]))) as Record<LevelKey, [number, number, number]>),
 };
 
-export const GLOVE_CAPS = { count: 2, chips: 24, shakePx: 30, zoom: 0.1 } as const;
+/** Hard caps whatever a tuner types: the coil's turns (sprites), the circling stars, the shake and the zoom. */
+export const GLOVE_CAPS = { segs: 40, stars: 5, shakePx: 30, zoom: 0.1 } as const;
 
 const store = configStore<HeroGloveConfig>({
   key: 'ascent.heroglove.v1', defaults: HERO_GLOVE_DEFAULTS, ranges: HERO_GLOVE_RANGES,
@@ -197,13 +213,17 @@ export const heroGloveConfigJson = store.json;
 /** The preview speed hook (Recruit + the Collection read one per style). Always 1: the Rare tuners have none. */
 export function heroGlovePreviewSpeed(): number { return 1; }
 
-export function gloveLevelDials(level: BoomerangLevel, c: HeroGloveConfig = store.get()): Record<BoomerangLevelSuffix, number> {
-  return Object.fromEntries(GLOVE_LEVEL_SUFFIXES.map((s) => [s, c[`${level}${s}`]])) as Record<BoomerangLevelSuffix, number>;
+export function gloveLevelDials(level: GloveLevel, c: HeroGloveConfig = store.get()): Record<GloveLevelSuffix, number> {
+  return Object.fromEntries(GLOVE_LEVEL_SUFFIXES.map((s) => [s, c[`${level}${s}`]])) as Record<GloveLevelSuffix, number>;
 }
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const GLOVE_REF_DISTANCE = 1600;
+/** How long after the charge the hatch pops (the total is still sinking in). */
+export const GLOVE_POP_DELAY = 40;
+/** The shortest wobble between the two bops that still reads as two (and gives the sway room). */
+export const GLOVE_MIN_WOBBLE = 260;
 
 /** A leg for a distance: the level's time, scaled gently by the distance. */
 export function gloveLegMs(distance: number, levelMs: number): number {
@@ -211,195 +231,333 @@ export function gloveLegMs(distance: number, levelMs: number): number {
   return Math.round(levelMs * clamp(Math.sqrt(d / GLOVE_REF_DISTANCE), 0.62, 1.15));
 }
 
-export interface BoomerangThrow {
-  throwAt: number;
-  outMs: number;
-  backMs: number;
-  /** It thwacks the target. */
-  arriveAt: number;
-  /** It is caught. */
-  catchAt: number;
-  /** Which side of the line it leaves from (+1 / -1; 0 = the centre, a single throw). */
-  side: number;
-}
-
-export interface BoomerangPlanInput extends AttackTierContext {
+export interface GlovePlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   distance: number;
   reduced?: boolean;
 }
 
-export interface BoomerangPlan {
+export interface GlovePlan {
   reduced: boolean;
   tier: TierNum;
-  level: BoomerangLevel;
+  level: GloveLevel;
   k: number;
   total: number;
   chargeAt: number;
   absorbEnd: number;
-  throwAt: number;
-  throws: BoomerangThrow[];
-  /** Thwacks BEFORE the impact (ticks). */
+  /** The hatch pops and the glove peeks out. */
+  popAt: number;
+  /** The spring lets go. */
+  fireAt: number;
+  /** Bops BEFORE the impact (ticks): Big's first bop, before the overshoot. */
   hits: number[];
+  /** THE blow: the last bop. */
   impactAt: number;
-  catches: number[];
+  /** The glove starts back. */
+  retractAt: number;
+  /** The glove is back in the hatch. */
+  homeAt: number;
   endAt: number;
+  /** 0..1: how far the glove winds back before it fires. */
+  wind: number;
+  /** In struck-portrait radii: how far past the bop it overshoots, and how wide the spring sways. */
+  over: number;
+  sway: number;
   size: number;
-  bulge: number;
-  spinHz: number;
-  chips: number;
+  stars: number;
+  starsMs: number;
   shakePx: number;
   zoom: number;
   punch: number;
   dim: number;
 }
 
-/** The whole Glove, in base ms. Pure and deterministic. */
-export function glovePlan(input: BoomerangPlanInput, c: HeroGloveConfig = store.get()): BoomerangPlan {
+/** The whole Sucker Punch, in base ms. Pure and deterministic. */
+export function glovePlan(input: GlovePlanInput, c: HeroGloveConfig = store.get()): GlovePlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
   const level = gloveLevel(tier);
   const L = gloveLevelDials(level, c);
   const k = (tier - 1) / 3;
+  const stars = Math.round(clamp(L.Stars, 0, GLOVE_CAPS.stars));
   const base = {
-    tier, level, k, total, size: L.Size, bulge: L.Bulge, spinHz: L.SpinHz, chips: Math.round(clamp(L.Chips, 0, GLOVE_CAPS.chips)),
+    tier, level, k, total, wind: clamp01(L.Wind), over: Math.max(0, L.Over), sway: Math.max(0, L.Sway), size: L.Size,
+    stars, starsMs: stars > 0 ? Math.max(0, L.StarsMs) : 0,
     shakePx: clamp(L.Shake, 0, GLOVE_CAPS.shakePx), zoom: clamp(L.Zoom, 0, GLOVE_CAPS.zoom), punch: L.Punch, dim: L.Dim,
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      ...base, reduced: true, chargeAt: at, absorbEnd: at, throwAt: at, throws: [], hits: [], impactAt: at, catches: [], endAt: r.endAt,
-      size: 0, chips: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0,
+      ...base, reduced: true, chargeAt: at, absorbEnd: at, popAt: at, fireAt: at, hits: [], impactAt: at, retractAt: at, homeAt: at, endAt: r.endAt,
+      wind: 0, over: 0, sway: 0, size: 0, stars: 0, starsMs: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const throwAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs);
-  const n = clamp(Math.round(L.Count), 1, GLOVE_CAPS.count);
-  const outMs = gloveLegMs(input.distance, L.OutMs);
-  const backMs = gloveLegMs(input.distance, L.BackMs);
-  // A pair leaves a beat apart (at least 90 ms, so the two thwacks read as two).
-  const stagger = n > 1 ? Math.max(90, L.StaggerMs) : 0;
-  const throws: BoomerangThrow[] = Array.from({ length: n }, (_, i) => {
-    const at = throwAt + i * stagger;
-    return { throwAt: at, outMs, backMs, arriveAt: at + outMs, catchAt: at + outMs + backMs, side: n === 1 ? 0 : (i === 0 ? 1 : -1) };
-  });
-  const impactAt = throws[n - 1]!.arriveAt;
-  const catches = throws.map((t) => t.catchAt);
-  const endAt = Math.max(impactAt + c.zoomOutMs * 0.8, catches[catches.length - 1]! + c.catchMs) + L.SettleMs;
-  return {
-    ...base, reduced: false, chargeAt, absorbEnd, throwAt, throws, hits: throws.slice(0, -1).map((t) => t.arriveAt), impactAt, catches, endAt,
-  };
+  const popAt = chargeAt + GLOVE_POP_DELAY;
+  const fireAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs, GLOVE_POP_DELAY + 120);
+  const firstBop = fireAt + gloveLegMs(input.distance, L.OutMs);
+  // A wobble makes it a double bop: the first is a tick, the rebound is THE impact.
+  const wobble = L.WobbleMs > 0 ? Math.max(GLOVE_MIN_WOBBLE, L.WobbleMs) : 0;
+  const impactAt = firstBop + wobble;
+  const retractAt = impactAt + Math.max(0, L.HoldMs);
+  const homeAt = retractAt + gloveLegMs(input.distance, L.BackMs);
+  const endAt = Math.max(impactAt + c.zoomOutMs * 0.8, homeAt + c.closeMs, impactAt + base.starsMs) + L.SettleMs;
+  return { ...base, reduced: false, chargeAt, absorbEnd, popAt, fireAt, hits: wobble > 0 ? [firstBop] : [], impactAt, retractAt, homeAt, endAt };
 }
 
-export type BoomerangCueKind = 'charge' | 'throw' | 'hit' | 'impact' | 'catch' | 'end';
-export interface BoomerangCue { at: number; kind: BoomerangCueKind; i: number }
+export type GloveCueKind = 'charge' | 'pop' | 'fire' | 'hit' | 'impact' | 'retract' | 'home' | 'end';
+export interface GloveCue { at: number; kind: GloveCueKind; i: number }
 
-export function gloveCues(p: BoomerangPlan): BoomerangCue[] {
-  const out: BoomerangCue[] = [];
+export function gloveCues(p: GlovePlan): GloveCue[] {
+  const out: GloveCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    p.throws.forEach((t, i) => out.push({ at: t.throwAt, kind: 'throw', i }));
+    out.push({ at: p.popAt, kind: 'pop', i: 0 });
+    out.push({ at: p.fireAt, kind: 'fire', i: 0 });
     p.hits.forEach((at, i) => out.push({ at, kind: 'hit', i }));
-    p.catches.forEach((at, i) => out.push({ at, kind: 'catch', i }));
+    out.push({ at: p.retractAt, kind: 'retract', i: 0 });
+    out.push({ at: p.homeAt, kind: 'home', i: 0 });
   }
-  out.push({ at: p.impactAt, kind: 'impact', i: p.throws.length - 1 });
+  out.push({ at: p.impactAt, kind: 'impact', i: p.hits.length });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BoomerangCueKind, number> = { charge: 0, throw: 1, hit: 2, impact: 3, catch: 4, end: 5 };
+  const order: Record<GloveCueKind, number> = { charge: 0, pop: 1, fire: 2, hit: 3, impact: 4, retract: 5, home: 6, end: 7 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
-// ─── the flight (pure) ─────────────────────────────────────────────────────────────────────────────────────────
-
-/** One boomerang's whole flight: out from `rel` bowing through `co` to the thwack at `hit`, back through `cb`. */
-export interface BoomerangMotion { rel: Pt; co: Pt; hit: Pt; cb: Pt; outMs: number; backMs: number; spin: number; arrive: Pt }
-
-function quad(a: Pt, c: Pt, b: Pt, e: number): Pt {
-  const m = 1 - e;
-  return { x: m * m * a.x + 2 * m * e * c.x + e * e * b.x, y: m * m * a.y + 2 * m * e * c.y + e * e * b.y };
-}
-
-/** Out: flung hard and still quick into the thwack. */
-export const outEase = (u: number): number => { const t = Math.min(1, Math.max(0, Number.isFinite(u) ? u : 0)); return 0.8 * t + 0.2 * t * t; };
-/** Back: it rebounds off the face with pace, swings wide and slows into the hand. */
-export const backEase = (u: number): number => { const t = Math.min(1, Math.max(0, Number.isFinite(u) ? u : 0)); return 0.55 * t + 0.45 * (0.5 - 0.5 * Math.cos(Math.PI * t)); };
+// ─── the glove on its spring (pure) ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Every boomerang's flight, from the plan and the two heroes. A single one bows toward the TOP of the screen on the way
- * out and swings back round the other side (a loop). A pair leaves from either side of the hero, each swings wide on its
- * OWN side and lands on the OTHER side of the face, so the two cross in an X on the way in (mirror images), and again on
- * the way home. `avoid`
- * is where the big -N pops (the thwacks land clear of it). Pure.
+ * Where everything is, for one punch. All times are ms AFTER THE POP (the scene's own clock starts there); all lengths
+ * are overlay px. The glove's centre runs along the axis `u` from `base` (the hatch); `n` is across it.
  */
-export function gloveMotions(p: BoomerangPlan, a: Pt, d: Pt, radius: number, aRadius: number, ceilY = Number.NEGATIVE_INFINITY, avoid: Pt | null = null): BoomerangMotion[] {
-  if (p.reduced) return [];
-  const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
-  const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
-  const nrm = { x: -u.y, y: u.x };
-  const up = nrm.y > 0 ? -1 : 1; // +1 * up * nrm points toward the top of the screen
-  let back = Math.atan2(a.y - d.y, a.x - d.x);
-  if (avoid && Math.hypot(avoid.x - d.x, avoid.y - d.y) > 1) {
-    const av = Math.atan2(avoid.y - d.y, avoid.x - d.x);
-    let diff = Math.atan2(Math.sin(back - av), Math.cos(back - av));
-    if (Math.abs(diff) < 1.0 && p.throws.length === 1) { diff = (diff === 0 ? 1 : Math.sign(diff)) * 1.0; back = av + diff; }
-  }
-  return p.throws.map((t) => {
-    const s = t.side;
-    const rel = { x: a.x + u.x * aRadius * 0.8 + nrm.x * up * s * aRadius * 0.4, y: a.y + u.y * aRadius * 0.8 + nrm.y * up * s * aRadius * 0.4 };
-    // One thwacks the near side of the face. A pair crosses over: the one from the top lands low, the one from the
-    // bottom lands high (either side of the middle), so the two paths make a clean X.
-    const bx = Math.cos(back), by = Math.sin(back);
-    const hx = bx * 0.8 - s * up * nrm.x * 0.75, hy = by * 0.8 - s * up * nrm.y * 0.75;
-    const hl = Math.hypot(hx, hy) || 1;
-    const r = (s === 0 ? 0.42 : 0.45) * radius;
-    const hit = { x: d.x + (hx / hl) * r, y: d.y + (hy / hl) * r };
-    const D = Math.hypot(hit.x - rel.x, hit.y - rel.y) || 1;
-    const mid = { x: (rel.x + hit.x) / 2, y: (rel.y + hit.y) / 2 };
-    // Out swings wide on its own side (a single one: toward the top); back swings round the far side.
-    const outSide = s === 0 ? 1 : s;
-    const co = { x: mid.x + nrm.x * up * outSide * p.bulge * D, y: Math.max(ceilY, mid.y + nrm.y * up * outSide * p.bulge * D) };
-    const cb = { x: mid.x - nrm.x * up * outSide * p.bulge * 0.9 * D, y: Math.max(ceilY, mid.y - nrm.y * up * outSide * p.bulge * 0.9 * D) };
-    const ax = hit.x - co.x, ay = hit.y - co.y;
-    const al = Math.hypot(ax, ay) || 1;
-    // Spun so the leading arm sweeps forward: clockwise flying right, anticlockwise flying left.
-    const spin = u.x >= 0 ? 1 : -1;
-    return { rel, co, hit, cb, outMs: t.outMs, backMs: t.backMs, spin, arrive: { x: ax / al, y: ay / al } };
-  });
+export interface GloveMotion {
+  /** The hatch, on the edge of the striking portrait facing the target. */
+  base: Pt;
+  /** The glove's centre at the bop. */
+  hit: Pt;
+  u: Pt;
+  n: Pt;
+  /** base -> hit. */
+  len: number;
+  /** How far the glove pokes out of the hatch at rest. */
+  peek: number;
+  /** How far it squeezes back from the peek as it winds up. */
+  wind: number;
+  /** How far past the bop it overshoots; how far it draws back before the rebound; how wide the spring sways. */
+  over: number;
+  back: number;
+  sway: number;
+  /** How far it bounces off the last bop. */
+  rec: number;
+  /** Which side it glances past on (+1 / -1, seeded). */
+  side: number;
+  /** True when the first bop is a tick and the rebound is the impact. */
+  double: boolean;
+  tFire: number;
+  tHit: number;
+  tImpact: number;
+  tRetract: number;
+  tHome: number;
+  /** The coil: how many zig-zag strokes, and the fixed length of wire in each. */
+  segs: number;
+  wire: number;
+  /** The glove's length on screen. */
+  glove: number;
 }
 
-/** Where a boomerang is `t` ms after its throw (held in the hand after the catch). Pure. */
-export function glovePos(m: BoomerangMotion, t: number): Pt {
-  if (t <= 0) return { x: m.rel.x, y: m.rel.y };
-  if (t < m.outMs) return quad(m.rel, m.co, m.hit, outEase(t / m.outMs));
-  if (t < m.outMs + m.backMs) return quad(m.hit, m.cb, m.rel, backEase((t - m.outMs) / m.backMs));
-  return { x: m.rel.x, y: m.rel.y };
+export interface GloveGeometry {
+  attacker: Pt;
+  defender: Pt;
+  radius: number;
+  aRadius: number;
+  /** The glove's length and the coil's pitch at full stretch, overlay px. */
+  glovePx: number;
+  pitchPx: number;
+  seed: number;
 }
 
-// ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
+/**
+ * One punch, from the plan and the two heroes. The overshoot, the draw back and the sway are in struck-portrait radii
+ * and the coil's turn count follows the distance, so it reads the same with the portraits close or far, at any angle.
+ * Null with reduced motion. Pure.
+ */
+export function gloveMotion(p: GlovePlan, g: GloveGeometry): GloveMotion | null {
+  if (p.reduced) return null;
+  const { attacker: a, defender: d } = g;
+  const D = Math.hypot(d.x - a.x, d.y - a.y) || 1;
+  const u = { x: (d.x - a.x) / D, y: (d.y - a.y) / D };
+  const n = { x: -u.y, y: u.x };
+  const glove = Math.max(8, g.glovePx);
+  const base = { x: a.x + u.x * g.aRadius * 0.86, y: a.y + u.y * g.aRadius * 0.86 };
+  // The knuckles sink a little way into the face: the glove's centre stops short of the portrait's middle.
+  const stop = Math.min(D - g.aRadius * 0.86 - glove * 0.6, g.radius * 0.5 + glove * 0.24);
+  const len = Math.max(glove * 0.7, D - g.aRadius * 0.86 - Math.max(0, stop));
+  const hit = { x: base.x + u.x * len, y: base.y + u.y * len };
+  const peek = Math.min(glove * 0.5, len * 0.5);
+  const double = p.hits.length > 0;
+  const over = double ? p.over * g.radius : 0;
+  const back = double ? Math.min(len * 0.45, g.radius * 1.9) : 0;
+  const pitch = Math.max(6, g.pitchPx);
+  let segs = Math.round(clamp((len + over) / pitch, 8, GLOVE_CAPS.segs));
+  if (segs % 2) segs += 1; // an even count: the coil starts and ends on the same side
+  segs = Math.min(GLOVE_CAPS.segs, segs);
+  return {
+    base, hit, u, n, len, peek, wind: p.wind * peek * 0.7, over, back, sway: p.sway * g.radius,
+    rec: clamp(len * 0.1, glove * 0.25, glove * 0.7) * (double ? 1.25 : 1),
+    side: (g.seed >>> 0) % 2 === 0 ? 1 : -1, double,
+    tFire: p.fireAt - p.popAt, tHit: (p.hits[0] ?? p.impactAt) - p.popAt, tImpact: p.impactAt - p.popAt,
+    tRetract: p.retractAt - p.popAt, tHome: p.homeAt - p.popAt,
+    segs, wire: ((len + over) / segs) * 1.12, glove,
+  };
+}
+
+/** The glove on its spring at one instant. Reused by the scene (one object, no per-frame allocation). */
+export interface GlovePose {
+  /** The glove's centre: px along the axis from the hatch, and px across it. */
+  ext: number;
+  lat: number;
+  /** How far the middle of the spring bows across the axis. */
+  bow: number;
+  /** The glove's squash along / across its own axis (1 = none). */
+  sx: number;
+  sy: number;
+  /** 0..1: how much of the glove is out of the hatch (it tucks away as this falls). */
+  vis: number;
+}
+
+export function newGlovePose(): GlovePose { return { ext: 0, lat: 0, bow: 0, sx: 1, sy: 1, vis: 0 }; }
 
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
-/** The camera: a small push in through the ready, a kick on the tick thwack, a punch and shake on the impact. Pure. */
-export function gloveCameraAt(p: BoomerangPlan, c: HeroGloveConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
+/** How long the glove takes to poke out of the hatch. */
+export const GLOVE_EMERGE_MS = 130;
+/** The sway between Big's two bops: how many half turns of side to side, and how far the spring's bow lags the glove. */
+const SWAY_TURNS = 3.5 * Math.PI;
+const BOW_LAG = 0.9;
+/** Where the overshoot ends and the rebound begins, as fractions of the wobble. */
+const OVER_END = 0.2;
+const REBOUND_FROM = 0.78;
+
+/** After the last bop: the bounce off the face and the boing on the end of the spring (`tau` ms since the bop). */
+function recoil(m: GloveMotion, tau: number, out: GlovePose): void {
+  const settle = 1 - Math.exp(-tau / 50);
+  out.ext = m.len - m.rec * settle - m.rec * 0.3 * Math.exp(-tau / 110) * Math.sin(2 * Math.PI * 7 * (tau / 1000));
+  const wob = (m.double ? 0.3 : 1) * m.sway * Math.exp(-tau / 130) * (1 - Math.exp(-tau / 30));
+  out.lat = m.side * wob * Math.sin(2 * Math.PI * 6 * (tau / 1000));
+  out.bow = -m.side * wob * 0.9 * Math.sin(2 * Math.PI * 6 * (tau / 1000) - BOW_LAG);
+}
+
+/**
+ * The glove `t` ms after the pop, written into `out`: it pokes out, (Big) winds back with a quiver, fires, bops,
+ * (Big) overshoots, sways and rebounds into the second bop, bounces off, and retracts into the hatch. `squash` is the
+ * glove's own squash on a bop (0 = none). Pure, no allocation.
+ */
+export function glovePoseAt(m: GloveMotion, t: number, squash: number, out: GlovePose): GlovePose {
+  out.ext = 0; out.lat = 0; out.bow = 0; out.sx = 1; out.sy = 1; out.vis = 0;
+  if (!(t > 0) || t >= m.tHome) return out;
+  out.vis = 1;
+  if (t < m.tFire) {
+    // Poke out with a little bounce, then squeeze back against the coil, quivering.
+    const w = clamp01((t - GLOVE_EMERGE_MS) / Math.max(1, m.tFire - GLOVE_EMERGE_MS - 30));
+    const e = sine(w);
+    out.ext = m.peek * easeOutBack(t / GLOVE_EMERGE_MS, 2.4) - m.wind * e;
+    out.vis = clamp01(t / (GLOVE_EMERGE_MS * 0.7));
+    const q = m.wind / Math.max(1, m.peek * 0.7); // 0..1: how hard it winds
+    out.lat = Math.sin(t * 0.11) * m.glove * 0.03 * q * e;
+    out.sx = 1 - 0.16 * q * e; out.sy = 1 + 0.1 * q * e;
+    return out;
+  }
+  if (t < m.tHit) {
+    // Let go: quick off the mark and still quick into the bop, stretched along its path.
+    const v = (t - m.tFire) / Math.max(1, m.tHit - m.tFire);
+    const from = m.peek - m.wind;
+    out.ext = from + (m.len - from) * v * (0.55 + 0.45 * v);
+    const st = 0.14 * Math.sin(Math.PI * Math.min(1, v * 1.15));
+    out.sx = 1 + st; out.sy = 1 - st * 0.5;
+    return out;
+  }
+  let sq = 0;
+  if (t < m.tImpact) {
+    // BIG, between the bops: past the face on one side, back with the spring swaying, then the rebound.
+    const W = m.tImpact - m.tHit;
+    const tau = t - m.tHit;
+    const slip = m.sway * 0.55;
+    const a = OVER_END * W, b = REBOUND_FROM * W;
+    if (tau < a) {
+      const s = Math.sin((tau / a) * Math.PI * 0.5);
+      out.ext = m.len + m.over * s;
+      out.lat = m.side * slip * s;
+      out.bow = m.side * slip * 0.8 * Math.cos(-BOW_LAG) * s;
+    } else if (tau < b) {
+      const q = (tau - a) / (b - a);
+      out.ext = m.len + m.over - (m.over + m.back) * sine(q);
+      const amp = slip + (m.sway - slip) * Math.sin(Math.PI * q);
+      out.lat = m.side * amp * Math.cos(SWAY_TURNS * q);
+      out.bow = m.side * amp * 0.8 * Math.cos(SWAY_TURNS * q - BOW_LAG);
+    } else {
+      const q = (tau - b) / Math.max(1, W - b);
+      out.ext = m.len - m.back + m.back * q * (0.4 + 0.6 * q);
+      out.bow = m.side * slip * 0.8 * Math.cos(SWAY_TURNS - BOW_LAG) * (1 - q) * (1 - q);
+      const st = 0.16 * Math.sin(Math.PI * q);
+      out.sx = 1 + st; out.sy = 1 - st * 0.5;
+    }
+    sq = 0.7 * springAt(tau, 8, 45);
+  } else {
+    const at = Math.min(t, m.tRetract) - m.tImpact;
+    recoil(m, at, out);
+    sq = (m.double ? 1.25 : 1) * springAt(t - m.tImpact, 7, 55);
+    if (t > m.tRetract) {
+      // Home: the coil hauls it in, slowly at first then with a snap, and it tucks into the hatch.
+      const r = (t - m.tRetract) / Math.max(1, m.tHome - m.tRetract);
+      const g = r * r * (0.35 + 0.65 * r);
+      out.ext *= 1 - g; out.lat *= 1 - r; out.bow *= 1 - r;
+      out.vis = clamp01(out.ext / Math.max(1, m.peek));
+      out.sx = 1 + 0.1 * Math.sin(Math.PI * r); out.sy = 1 - 0.05 * Math.sin(Math.PI * r);
+    }
+  }
+  out.sx *= 1 - squash * sq; out.sy *= 1 + squash * 0.7 * sq;
+  return out;
+}
+
+/** The glove's centre `t` ms after the pop (the hatch when it is not out). Allocates: tests and one-off reads only. */
+export function glovePos(m: GloveMotion, t: number): Pt {
+  const p = glovePoseAt(m, t, 0, newGlovePose());
+  return { x: m.base.x + m.u.x * p.ext + m.n.x * p.lat, y: m.base.y + m.u.y * p.ext + m.n.y * p.lat };
+}
+
+/**
+ * The coil's half width when it spans `cur` px: every stroke holds `wire` px of wire, so squeezed it is wide and tight
+ * and stretched it thins toward a straight line. Capped at `max`. Pure.
+ */
+export function coilAmp(m: GloveMotion, cur: number, max: number): number {
+  const per = Math.max(0, cur) / m.segs;
+  return Math.min(max, 0.5 * Math.sqrt(Math.max(0, m.wire * m.wire - per * per)));
+}
+
+// ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** The camera: a small push in through the ready, a kick as it fires and on the tick bop, a punch and shake on the impact. Pure. */
+export function gloveCameraAt(p: GlovePlan, c: HeroGloveConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.throwAt - p.chargeAt));
+  if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
   else if (t >= p.impactAt) z += (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
-  kick(p.throwAt, -p.shakePx * 0.12, 40, 14);
-  for (const at of p.hits) kick(at, p.shakePx * 0.4, 40, 18);
+  kick(p.fireAt, -p.shakePx * 0.15, 40, 14);
+  for (const at of p.hits) kick(at, p.shakePx * 0.45, 40, 18);
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16);
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** The anchor: the attacker through the ready, following the throw, the defender from the thwack, home for the catch. */
-export function gloveCameraFocus(p: BoomerangPlan, t: number, a: Pt, d: Pt): Pt {
-  const first = p.throws[0]?.arriveAt ?? p.impactAt;
-  if (t <= p.throwAt) return a;
-  if (t < first) { const e = sine((t - p.throwAt) / Math.max(1, first - p.throwAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
+/** The anchor: the attacker through the ready, following the glove out, the defender from the first bop on. */
+export function gloveCameraFocus(p: GlovePlan, t: number, a: Pt, d: Pt): Pt {
+  const first = p.hits[0] ?? p.impactAt;
+  if (t <= p.fireAt) return a;
+  if (t < first) { const e = sine((t - p.fireAt) / Math.max(1, first - p.fireAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
   return d;
 }

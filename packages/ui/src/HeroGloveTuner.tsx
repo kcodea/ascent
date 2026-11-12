@@ -1,8 +1,6 @@
-// SCAFFOLDED from heroBoomerang/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Boomerang, not this style, until rewritten.
 import {
   GLOVE_LEVELS, GLOVE_LEVEL_SUFFIXES, HERO_GLOVE_DEFAULTS, HERO_GLOVE_RANGES, glovePlan,
-  getHeroGloveConfig, heroGloveStore, type BoomerangLevelSuffix,
+  getHeroGloveConfig, heroGloveStore, type GloveLevelSuffix,
 } from './heroGlove/heroGloveConfig';
 import { playHeroGlove } from './heroGlove/heroGlove';
 import { previewLeadIn } from './heroAttack/attackDemo';
@@ -10,58 +8,63 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the BOOMERANG hero attack (a Rare; owner ask 2026-09-29). Two groups of per-tier dials: Small (shared
- * tiers I-II: one boomerang) and Big (III-IV and every knockout: two on crossing paths). The Play buttons run the real
- * runner between the two real portraits.
+ * DEV tuner for the SUCKER PUNCH hero attack (style id `glove`, a Rare; built 2026-11-12): a boxing glove on a coil
+ * spring. Two groups of per-tier dials: Small (shared tiers I-II: one bop) and Big (III-IV and every knockout: a wind
+ * up, an overshoot, a sway and a second, harder bop). The Play buttons run the real runner between the two real
+ * portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
   tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here two boomerangs fly (Big).', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here the glove winds up and bops twice (Big).', 'Damage tiers'],
   tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
-  heroWindPx: ['Wind back', 'px', 'How far the hero leans back as it winds up the throw.', 'Ready'],
-  heroThrowPx: ['Throw snap', 'px', 'How far the hero snaps toward the target on each throw.', 'Ready'],
-  catchPop: ['Catch pop', '×', 'How much the hero swells as it catches a boomerang.', 'Ready'],
-  catchMs: ['Catch tuck', 'ms', 'How long a caught boomerang takes to tuck away (and the ring at the hand).', 'Ready'],
-  boomPx: ['Glove size', 'px', 'The boomerang\'s span (the per-tier size multiplies it).', 'Glove'],
-  trailMs: ['Trail length', 'ms', 'How much of its flight the teal trail spans (0 = no trail).', 'Glove'],
-  trailWidth: ['Trail width', 'px', 'How thick the teal trail is.', 'Glove'],
-  whirl: ['Whirl blur', 'opacity', 'The faint spin smear round the boomerang when it is fastest.', 'Glove'],
-  thwackSize: ['Thwack size', '×', 'The impact star, ring and chips on every thwack.', 'Thwack'],
+  heroWindPx: ['Lean back', 'px', 'How far the hero leans back as the glove winds up.', 'Ready'],
+  heroKickPx: ['Recoil', 'px', 'How far the hero is kicked back as the spring lets go.', 'Ready'],
+  homePop: ['Home bump', '×', 'How much the hero swells as the glove thumps home.', 'Ready'],
+  closeMs: ['Hatch shut', 'ms', 'How long the hatch takes to shut once the glove is home.', 'Ready'],
+  glovePx: ['Glove size', 'px', 'The length of the glove (the per-tier size multiplies it).', 'Glove and spring'],
+  hatchPx: ['Hatch size', 'px', 'The riveted hatch on the edge of the striking portrait.', 'Glove and spring'],
+  springPitch: ['Coil spacing', 'px', 'The gap between the turns of the spring at full stretch (smaller = more turns).', 'Glove and spring'],
+  springWidth: ['Coil width', 'px', 'The widest the coil gets (half its width) when it is squeezed.', 'Glove and spring'],
+  springThick: ['Wire thickness', 'px', 'How thick the wire of the spring is.', 'Glove and spring'],
+  gloveSquash: ['Glove squash', '×', 'How much the glove squashes on a bop.', 'Bop'],
+  bopSize: ['Bop size', '×', 'The impact star, ring and flung stars on every bop.', 'Bop'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back on the impact.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes on the impact.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxThrowGain: ['throw: gain', undefined, 'The swish of each throw.', 'Sound: throw'],
-  sfxThrowRate: ['throw: pitch', '×', 'Pitch of the swish.', 'Sound: throw'],
-  sfxWhirlGain: ['whirl: gain', undefined, 'The woosh as it swings wide, and again as it swings home.', 'Sound: whirl'],
-  sfxWhirlRate: ['whirl: pitch', '×', 'Pitch of the woosh.', 'Sound: whirl'],
-  sfxThwackGain: ['thwack: gain', undefined, 'The THWACK on the face.', 'Sound: thwack'],
-  sfxThwackRate: ['thwack: pitch', '×', 'Pitch of the thwack.', 'Sound: thwack'],
-  sfxKnockGain: ['knock: gain', undefined, 'A woody knock under the thwack.', 'Sound: knock'],
-  sfxKnockRate: ['knock: pitch', '×', 'Pitch of the knock.', 'Sound: knock'],
-  sfxCatchGain: ['catch: gain', undefined, 'The slap of the catch.', 'Sound: catch'],
-  sfxCatchRate: ['catch: pitch', '×', 'Pitch of the catch.', 'Sound: catch'],
-  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the boomerang plays (1 = no duck).', 'Sound: mix'],
+  sfxPopGain: ['pop: gain', undefined, 'The hatch popping open.', 'Sound: pop'],
+  sfxPopRate: ['pop: pitch', '×', 'Pitch of the pop.', 'Sound: pop'],
+  sfxBoingGain: ['boing: gain', undefined, 'The spring letting go (and again, softer and higher, as it overshoots).', 'Sound: boing'],
+  sfxBoingRate: ['boing: pitch', '×', 'Pitch of the boing.', 'Sound: boing'],
+  sfxPunchGain: ['punch: gain', undefined, 'The padded thud of every bop.', 'Sound: punch'],
+  sfxPunchRate: ['punch: pitch', '×', 'Pitch of the thud.', 'Sound: punch'],
+  sfxRetractGain: ['retract: gain', undefined, 'The swish as the coil hauls the glove home.', 'Sound: retract'],
+  sfxRetractRate: ['retract: pitch', '×', 'Pitch of the swish.', 'Sound: retract'],
+  sfxHomeGain: ['home: gain', undefined, 'The clunk as the glove lands back in the hatch.', 'Sound: home'],
+  sfxHomeRate: ['home: pitch', '×', 'Pitch of the clunk.', 'Sound: home'],
+  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the punch plays (1 = no duck).', 'Sound: mix'],
 };
 
-const LEVEL_SPECS: Record<BoomerangLevelSuffix, RareLevelSpec> = {
-  ReadyMs: ['Ready', 'ms', 'The hero winding up. The view pushes in over this.'],
-  OutMs: ['Out', 'ms', 'The flight out to the thwack (at 1600 px; lower = faster).'],
-  BackMs: ['Back', 'ms', 'The swing home to the catch.'],
-  Bulge: ['Curve', '×', 'How wide the loop swings, as a fraction of the distance.'],
-  Count: ['Boomerangs', undefined, 'One, or two on crossing paths.'],
-  StaggerMs: ['Stagger', 'ms', 'Two: the gap between the throws (and so the two thwacks).'],
-  Size: ['Size', '×', 'The boomerang size multiplier for this tier.'],
-  SpinHz: ['Spin', undefined, 'Turns per second in flight.'],
-  Chips: ['Wood chips', undefined, 'Splinters knocked off by the last thwack.'],
+const LEVEL_SPECS: Record<GloveLevelSuffix, RareLevelSpec> = {
+  ReadyMs: ['Ready', 'ms', 'The hatch pops, the glove peeks out and winds up. The view pushes in over this.'],
+  OutMs: ['Out', 'ms', 'The punch out to the first bop (at 1600 px; lower = faster).'],
+  WobbleMs: ['Wobble', 'ms', 'Overshoot, sway and rebound between the first bop and the second (0 = one bop only).'],
+  HoldMs: ['Hold', 'ms', 'How long the glove bobs on the face after the last bop before it starts home.'],
+  BackMs: ['Back', 'ms', 'The retract into the hatch.'],
+  Wind: ['Wind up', '×', 'How far the glove squeezes back against the coil before it fires (0 = none).'],
+  Over: ['Overshoot', '×', 'How far past the first bop it flies, in portrait radii.'],
+  Sway: ['Sway', '×', 'How wide the spring sways side to side, in portrait radii.'],
+  Size: ['Size', '×', 'The glove size multiplier for this tier.'],
+  Stars: ['Circling stars', undefined, 'Stars left circling the struck head after the last bop.'],
+  StarsMs: ['Stars time', 'ms', 'How long they circle.'],
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the ready.'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
-  SettleMs: ['Settle', 'ms', 'Hold after the last catch before the sequence ends.'],
+  SettleMs: ['Settle', 'ms', 'Hold after everything is put away before the sequence ends.'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
@@ -77,27 +80,28 @@ const built = rareTunerSpec({
   suffixes: GLOVE_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
-    ['colorWood', 'Wood', 'The boomerang\'s body, the chips and the dust.'],
-    ['colorGrain', 'Grain', 'The darker wood of some chips.'],
-    ['colorTeal', 'Teal', 'The inlay, the trail, the glow, the rings.'],
-    ['colorTealDeep', 'Deep teal', 'The deeper teal in the wide outer glow of the trail.'],
-    ['colorFlash', 'Flash', 'The impact star and the catch glint.'],
-    ['colorPlayer', 'Your side', 'Your total colour when YOU throw.'],
-    ['colorFoe', 'Foe side', 'Their total colour when THEY throw.'],
+    ['colorGlove', 'Glove', 'The leather of the boxing glove.'],
+    ['colorTrim', 'Laces and shine', 'The laces, the piping round the cuff and the glossy highlights.'],
+    ['colorSpring', 'Spring', 'The steel of the coil.'],
+    ['colorHatch', 'Hatch', 'The riveted ring the glove springs from.'],
+    ['colorStar', 'Stars', 'The impact star of a bop and the little stars.'],
+    ['colorFlash', 'Flash', 'The white heart of the bop.'],
+    ['colorPlayer', 'Your side', 'Your total colour when YOU punch.'],
+    ['colorFoe', 'Foe side', 'Their total colour when THEY punch.'],
   ],
   clipOf: {
-    'Sound: throw': 'sfxThrowClip', 'Sound: whirl': 'sfxWhirlClip', 'Sound: thwack': 'sfxThwackClip', 'Sound: knock': 'sfxKnockClip',
-    'Sound: catch': 'sfxCatchClip',
+    'Sound: pop': 'sfxPopClip', 'Sound: boing': 'sfxBoingClip', 'Sound: punch': 'sfxPunchClip', 'Sound: retract': 'sfxRetractClip',
+    'Sound: home': 'sfxHomeClip',
   },
   note: () => {
     const c = getHeroGloveConfig();
     const p = glovePlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${p.level} · ${p.throws.length} boomerang${p.throws.length === 1 ? '' : 's'} · impact ${Math.round(p.impactAt - p.chargeAt)} · end ${Math.round(p.endAt - p.chargeAt)} ms after the formation`;
+    return `dev · ${p.level} · ${p.hits.length + 1} bop${p.hits.length ? 's' : ''} · impact ${Math.round(p.impactAt - p.chargeAt)} · end ${Math.round(p.endAt - p.chargeAt)} ms after the formation`;
   },
   play: (o) => playHeroGlove(o),
-  verb: 'throws a boomerang at',
-  smallHint: 'Small, one boomerang out, thwack, and caught.',
-  bigHint: 'Big, two on crossing paths, a double thwack, both caught.',
+  verb: 'springs a boxing glove at',
+  smallHint: 'Small, the glove boings out, one bop, and back in.',
+  bigHint: 'Big, a wind up, a bop, an overshoot and a sway, a second harder bop, circling stars.',
 });
 
 export const SPEC = built.spec;

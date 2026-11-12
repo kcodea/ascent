@@ -1,20 +1,23 @@
-// SCAFFOLDED from heroBoomerang/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Boomerang, not this style, until rewritten.
 /**
- * THE BOOMERANG RUNNER (a Rare hero attack): plays one Glove (the beats are in `heroGloveConfig.ts`) and lands
- * the consequence on its impact beat (the last thwack). Presentation only: the total and the blow are the engine's; this
- * file only decides WHEN on screen they happen.
+ * THE SUCKER PUNCH RUNNER (style id `glove`, a Rare hero attack): plays one spring-glove punch (the beats are in
+ * `heroGloveConfig.ts`) and lands the consequence on its impact beat (the LAST bop). Presentation only: the total and
+ * the blow are the engine's; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
  * `#stage` camera (applied ONCE: `stageCamera.ts`), the portraits (transform only, restored after), the voices, the dim,
  * reduced motion, finish / cancel and the safety timer.
  *
- * THE DOUBLE THWACK CONTRACT: a thwack before the last is a tick (FX and sound only). The consequence (`onImpact`) lands
- * exactly ONCE, on the last thwack. The swing home and the catch come after it and are looks only.
+ * THE DOUBLE BOP CONTRACT: Big's first bop is a tick (FX and sound only). The consequence (`onImpact`) lands exactly
+ * ONCE, on the last bop. The retract and the hatch shutting come after it and are looks only.
  *
- * Perf: DOM moves are `transform` / `opacity` from the clock; no layout reads after the opening measure; pooled sprites
- * under a hard cap, two ribbon strips per boomerang made once, textures painted once per session and pre-warmed during
- * the formation; the updater unhooks the moment the scene drains.
+ * GEOMETRY is measured once, from the two portrait centres and radii the caller hands in: the hatch sits on the edge of
+ * the striking portrait facing the target and the whole punch runs along that line (`gloveMotion`), so it works in both
+ * directions and at any distance and angle. The one rolled variation (which side the glove glances past on the
+ * overshoot) comes from `rollSeed` (or, without one, from the blow itself), never from `Math.random`.
+ *
+ * Perf: DOM moves are `transform` only, from the clock; no layout reads after the opening measure; the hatch, the coil's
+ * strokes and the glove are taken from the pool once at the pop and only moved after that; textures painted once per
+ * session and pre-warmed during the formation; the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -27,8 +30,8 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  gloveCameraAt, gloveCameraFocus, gloveCues, gloveMotions, glovePlan, getHeroGloveConfig,
-  type BoomerangCue, type BoomerangMotion, type BoomerangPlan, type HeroGloveConfig,
+  gloveCameraAt, gloveCameraFocus, gloveCues, gloveMotion, glovePlan, getHeroGloveConfig,
+  type GloveCue, type GloveMotion, type GlovePlan, type HeroGloveConfig,
 } from './heroGloveConfig';
 import { HeroGloveScene, type HeroGloveTextures } from './heroGloveScene';
 import { heroGloveTextures } from './heroGloveTextures';
@@ -39,17 +42,19 @@ export interface HeroGloveOptions extends HeroAttackOptions {
 }
 
 export interface HeroGloveHandle extends HeroAttackHandle {
-  readonly plan: BoomerangPlan;
-  readonly motions: readonly BoomerangMotion[];
+  readonly plan: GlovePlan;
+  /** The punch's geometry (null with reduced motion). */
+  readonly motion: GloveMotion | null;
   readonly scene: HeroGloveScene | null;
   readonly mirrorsCamera: boolean;
 }
 
+/** The seed when the caller rolls none: the blow itself, so the same fight plays the same. */
 export function gloveSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 4513 + Math.round(distance) * 29 + (side === 'opp' ? 173 : 19)) >>> 0;
 }
 
-/** Play the Glove. Returns a handle; the blow lands via `onImpact` on the last thwack. */
+/** Play the Sucker Punch. Returns a handle; the blow lands via `onImpact` on the last bop. */
 export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
   const c = o.cfg ?? getHeroGloveConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -72,16 +77,19 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hglove',
   });
 
-  const motions = gloveMotions(plan, o.attacker, o.defender, radius, aRadius, (local ? 8 : 36) * s, nums.pts.hit);
-  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-  const lastIn = motions[motions.length - 1]?.arrive ?? toFoe;
+  const seed = (o.rollSeed ?? gloveSeed(o.total, dist, o.side)) >>> 0;
+  const motion = gloveMotion(plan, {
+    attacker: o.attacker, defender: o.defender, radius, aRadius, glovePx: c.glovePx * plan.size * s, pitchPx: c.springPitch * s, seed,
+  });
+  const toFoe = motion ? motion.u : (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
+  const big = plan.hits.length > 0;
 
   const textures = o.textures !== undefined ? o.textures : heroGloveTextures();
-  const scene = textures && !reduced
+  const scene = textures && motion
     ? new HeroGloveScene(textures, {
-      wood: hexToNum(c.colorWood), grain: hexToNum(c.colorGrain), teal: hexToNum(c.colorTeal), tealDeep: hexToNum(c.colorTealDeep),
-      flash: hexToNum(c.colorFlash), side: hexToNum(sideHex),
-    }, { px: c.boomPx, trailMs: c.trailMs, trailWidth: c.trailWidth, whirl: c.whirl, thwack: c.thwackSize, catchMs: c.catchMs }, s, gloveSeed(o.total, dist, o.side))
+      glove: hexToNum(c.colorGlove), trim: hexToNum(c.colorTrim), spring: hexToNum(c.colorSpring), hatch: hexToNum(c.colorHatch),
+      star: hexToNum(c.colorStar), flash: hexToNum(c.colorFlash), side: hexToNum(sideHex),
+    }, { hatchPx: c.hatchPx * (0.85 + 0.15 * plan.size), springWidth: c.springWidth, springThick: c.springThick, bop: c.bopSize, squash: c.gloveSquash, closeMs: c.closeMs }, s, seed)
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -92,45 +100,48 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxThrowClip, c.sfxWhirlClip, c.sfxThwackClip, c.sfxKnockClip, c.sfxCatchClip]);
-  const hand = motions[0]?.rel ?? o.attacker;
+  voices.warm([c.sfxPopClip, c.sfxBoingClip, c.sfxPunchClip, c.sfxRetractClip, c.sfxHomeClip]);
+  /** Where a bop bursts: the knuckles at the bop (the glove's centre there, plus most of half its length). */
+  const bopAt = motion ? { x: motion.hit.x + motion.u.x * motion.glove * 0.42, y: motion.hit.y + motion.u.y * motion.glove * 0.42 } : o.defender;
 
-  const fire = (q: BoomerangCue | FormationCue): void => {
+  const fire = (q: GloveCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.startCharge(hand, plan.throwAt - plan.chargeAt);
         cam.start();
         break;
-      case 'throw': {
-        const m = motions[q.i];
-        cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate + 0.06 * q.i, { lenMs: 300, fadeMs: 120 });
-        // The whirl: a woosh as it swings wide, and another as it swings home.
-        cue(c.sfxWhirlClip, c.sfxWhirlGain, c.sfxWhirlRate + 0.05 * q.i, { delayMs: (plan.throws[q.i]!.outMs * 0.35) / speed, lenMs: 420, fadeMs: 180 });
-        cue(c.sfxWhirlClip, c.sfxWhirlGain * 0.8, c.sfxWhirlRate - 0.1 + 0.05 * q.i, { delayMs: (plan.throws[q.i]!.outMs + plan.throws[q.i]!.backMs * 0.3) / speed, lenMs: 420, fadeMs: 200 });
-        if (m && scene) scene.throw(m, plan.size, plan.spinHz, q.i, t - q.at);
+      case 'pop':
+        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { lenMs: 220, fadeMs: 90 });
+        if (motion) scene?.pop(motion, t - q.at);
         break;
-      }
-      case 'hit': {
-        cue(c.sfxThwackClip, c.sfxThwackGain * 0.8, c.sfxThwackRate + 0.08, { lenMs: 350, fadeMs: 140 });
-        cue(c.sfxKnockClip, c.sfxKnockGain * 0.7, c.sfxKnockRate + 0.1, { lenMs: 250, fadeMs: 100 });
-        const m = motions[q.i];
-        if (m) scene?.thwack(q.i, m.hit, m.arrive, 0.85, Math.round(plan.chips * 0.6));
+      case 'fire':
+        // The boing as the coil lets go (Big: lower and fuller).
+        cue(c.sfxBoingClip, c.sfxBoingGain * (big ? 1 : 0.85), c.sfxBoingRate * (big ? 0.94 : 1.08), { fadeMs: 160 });
+        scene?.fire();
         break;
-      }
-      case 'impact': {
-        cue(c.sfxThwackClip, c.sfxThwackGain, c.sfxThwackRate, { lenMs: 450, fadeMs: 160, tail: 0.08 });
-        cue(c.sfxKnockClip, c.sfxKnockGain, c.sfxKnockRate, { lenMs: 300, fadeMs: 120 });
-        const m = motions[q.i];
-        if (m) scene?.thwack(q.i, m.hit, m.arrive, plan.level === 'big' ? 1.25 : 1.05, plan.chips);
+      case 'hit':
+        // The first bop (a tick), and the spring boings again as it overshoots and sways.
+        cue(c.sfxPunchClip, c.sfxPunchGain * 0.7, c.sfxPunchRate * 1.18, { lenMs: 320, fadeMs: 140 });
+        cue(c.sfxBoingClip, c.sfxBoingGain * 0.6, c.sfxBoingRate * 1.3, { delayMs: 50 / speed, fadeMs: 200 });
+        scene?.bop(bopAt, toFoe, 0.8, 3);
+        break;
+      case 'impact':
+        cue(c.sfxPunchClip, c.sfxPunchGain * (big ? 1 : 0.85), c.sfxPunchRate * (big ? 0.92 : 1), { fadeMs: 180, tail: big ? 0.08 : 0 });
+        scene?.bop(bopAt, toFoe, big ? 1.3 : 1, big ? 7 : 4);
+        if (plan.stars > 0) {
+          // Stars circle the struck head: a flat ring over the top of the portrait.
+          scene?.seeStars({ x: o.defender.x, y: o.defender.y - radius * 0.86 }, radius * 0.62, radius * 0.17, plan.stars, plan.starsMs, 34 * plan.size);
+        }
         seq.land();
         break;
-      }
-      case 'catch':
-        cue(c.sfxCatchClip, c.sfxCatchGain, c.sfxCatchRate + 0.08 * q.i, { lenMs: 300, fadeMs: 120 });
-        scene?.catchAt(q.i);
+      case 'retract':
+        cue(c.sfxRetractClip, c.sfxRetractGain, c.sfxRetractRate, { lenMs: 320, fadeMs: 160 });
+        break;
+      case 'home':
+        cue(c.sfxHomeClip, c.sfxHomeGain, c.sfxHomeRate, { lenMs: 240, fadeMs: 100 });
+        scene?.home();
         break;
       default:
         break;
@@ -139,56 +150,56 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.throwAt, plan.impactAt + 200);
-    const cm = gloveCameraAt(plan, c, t, lastIn);
+    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.impactAt + 200);
+    const cm = gloveCameraAt(plan, c, t, toFoe);
     const unit = local ? 1 : s;
     cam.apply(gloveCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
-    if (hero.el && t >= plan.chargeAt) {
-      // The wind back (a lean away and a twist), the throw (a snap toward the target), and a little pop on each catch.
-      let sc = 1, bx = 0, by = 0, rot = 0;
-      if (t < plan.throwAt) {
-        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.throwAt - plan.chargeAt));
-        bx = -toFoe.x * c.heroWindPx * px * u; by = -toFoe.y * c.heroWindPx * px * u;
-        rot = -4 * u * (toFoe.x >= 0 ? 1 : -1);
+    if (hero.el && t >= plan.popAt) {
+      // A hop as the hatch pops, a lean back as the glove winds up, a kick BACK as the spring lets go (the recoil),
+      // and a bump as the glove thumps home.
+      const sgn = toFoe.x >= 0 ? 1 : -1;
+      let sc = 1 + 0.04 * Math.max(0, spring(t - plan.popAt, 5, 55));
+      let lean = 0, rot = 0;
+      if (t < plan.fireAt) {
+        const u = easeInOutSine((t - plan.popAt - 100) / Math.max(1, plan.fireAt - plan.popAt - 100));
+        lean = -c.heroWindPx * plan.wind * u;
+        rot = -3.5 * plan.wind * u * sgn;
       } else {
-        const back = Math.max(0, spring(t - plan.throwAt, 3, 80));
-        bx = -toFoe.x * c.heroWindPx * px * back; by = -toFoe.y * c.heroWindPx * px * back;
-        rot = -4 * back * (toFoe.x >= 0 ? 1 : -1);
-        for (const th of plan.throws) {
-          if (th.throwAt > t) continue;
-          const f = c.heroThrowPx * px * spring(t - th.throwAt, 5, 60);
-          bx += toFoe.x * f; by += toFoe.y * f;
-        }
+        const k = spring(t - plan.fireAt, 4.5, 75);
+        lean = -(c.heroWindPx * plan.wind * 0.4 + c.heroKickPx * (0.6 + 0.4 * plan.wind)) * k;
+        rot = -3.5 * plan.wind * Math.max(0, k) * sgn;
       }
-      for (const at of plan.catches) if (t >= at) sc += c.catchPop * Math.max(0, spring(t - at, 4, 70));
+      if (t >= plan.homeAt) {
+        const k = spring(t - plan.homeAt, 5, 65);
+        lean -= c.heroKickPx * 0.5 * k;
+        sc += c.homePop * Math.max(0, k);
+      }
+      const bx = toFoe.x * lean * px, by = toFoe.y * lean * px;
       const still = Math.abs(sc - 1) < 1e-4 && Math.abs(bx) + Math.abs(by) < 0.05 && Math.abs(rot) < 0.01;
       hero.set(still ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${sc.toFixed(4)})`);
     }
+    // The struck portrait: a nudge on the tick bop, the knock back and squash on the impact.
     let fx = 0, fy = 0;
     let css: string | null = null;
-    let kx = 0, ky = 0;
-    for (let i = 0; i < plan.hits.length; i++) {
-      const k = Math.max(0, spring(t - plan.hits[i]!, 6, 45));
-      const d = motions[i]?.arrive ?? lastIn;
-      kx += d.x * k * 8; ky += d.y * k * 8;
-    }
+    let nudge = 0;
+    for (const at of plan.hits) nudge += Math.max(0, spring(t - at, 6, 50)) * 9;
     if (t >= plan.impactAt) {
       const k = spring(t - plan.impactAt, 4.5, 80);
-      const knock = c.knockPx * (plan.level === 'big' ? 1.2 : 1) * k * px;
-      const sq = c.squash * (plan.level === 'big' ? 1.2 : 1) * k;
-      fx = lastIn.x * knock + kx * px; fy = lastIn.y * knock + ky * px;
-      css = Math.abs(k) < 0.004 && Math.abs(kx) + Math.abs(ky) < 0.05 ? null
+      const knock = (c.knockPx * (big ? 1.25 : 1) * k + nudge) * px;
+      const sq = c.squash * (big ? 1.25 : 1) * k;
+      fx = toFoe.x * knock; fy = toFoe.y * knock;
+      css = Math.abs(k) < 0.004 && nudge < 0.05 ? null
         : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
-    } else if (Math.abs(kx) + Math.abs(ky) >= 0.05) {
-      fx = kx * px; fy = ky * px;
+    } else if (nudge >= 0.05) {
+      fx = toFoe.x * nudge * px; fy = toFoe.y * nudge * px;
       css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
     }
     foe.set(css);
     scene?.setFoeOffset(fx * unit, fy * unit);
   };
 
-  const seq: Sequence<BoomerangCue | FormationCue> = new Sequence<BoomerangCue | FormationCue>({
+  const seq: Sequence<GloveCue | FormationCue> = new Sequence<GloveCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
@@ -201,7 +212,7 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
 
   return {
     plan,
-    motions,
+    motion,
     scene,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,

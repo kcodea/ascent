@@ -139,7 +139,8 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],
   glove: [
-    'fx/metal-woosh',
+    'fx/glove-boing',
+    'fx/glove-punch',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],
   bubble: [

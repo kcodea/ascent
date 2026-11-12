@@ -688,6 +688,18 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_yazzus_3', 'minion_skin', 'Celestial Yazzus', 'epic', 'yazzus', 'Celestial Yazzus.png'),
   skin('skin_salvatore_1', 'minion_skin', 'Hunter Salvatore', 'epic', 'salvatore', 'Monster Hunter Salvator.png'),
   skin('skin_uron_1', 'minion_skin', 'Captain Uron', 'legendary', 'uron', 'Captain Uron.png'),
+  // Skins batch 18 (owner 2026-11-12: "i added more minion and card plate cosmetics"). First skins for Beggy and Scrapper,
+  // and the 8 Bit set. Rarity = the folder. '8 bit Beggy.png' ships as 8 Bit Beggy (capital B, like the others) and
+  // 'Retro Game Boulderdash.png' as Retro Boulderdash (20 characters max).
+  skin('skin_beggy_1', 'minion_skin', 'Storybook Beggy', 'common', 'k_beggy', 'Storybook Beggy.png'),
+  skin('skin_faultline_1', 'minion_skin', 'Graffiti Scrapper', 'rare', 'k_faultline', 'Graffiti Scrapper.png'),
+  skin('skin_beggy_2', 'minion_skin', '8 Bit Beggy', 'epic', 'k_beggy', '8 bit Beggy.png'),
+  skin('skin_dawnclaw_5', 'minion_skin', '8 Bit Dawnclaw', 'epic', 'b2_dawnclaw', '8 Bit Dawnclaw.png'),
+  skin('skin_orin_2', 'minion_skin', '8 Bit Orin', 'epic', 'dw_orin', '8 Bit Orin.png'),
+  skin('skin_yazzus_4', 'minion_skin', 'Blown Glass Yazzus', 'epic', 'yazzus', 'Blown Glass Yazzus.png'),
+  skin('skin_boulderdash_2', 'minion_skin', 'Retro Boulderdash', 'epic', 'k_boulderdash', 'Retro Game Boulderdash.png'),
+  skin('skin_echohorn_4', 'minion_skin', '8 Bit Echohorn', 'legendary', 'b2_echohorn', '8 Bit Echohorn.png'),
+  skin('skin_sylus_4', 'minion_skin', '8 Bit Sylus', 'legendary', 'sylus', '8 Bit Sylus.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is
@@ -1072,6 +1084,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   cardPlate('plate_tattle', 'Tattle', 'epic', 'Tattle Plate.png'),
   cardPlate('plate_trichalice', 'Trichalice', 'epic', 'Trichalice Plate.png'),
   cardPlate('plate_gjally', 'Gjally', 'ancient', 'Gjally Plate.png'),
+  // Card plates batch 8 (owner 2026-11-12: "i added more minion and card plate cosmetics"): the 8 Bit set, rarity from the folder, on the Dark
+  // interior (the last batch's ruling; none named this time). '8 Bit Standard Plate.png' ships as 8 Bit Standard.
+  cardPlate('plate_8_bit_storm', '8 Bit Storm', 'common', '8 Bit Storm.png'),
+  cardPlate('plate_8_bit_flame', '8 Bit Flame', 'rare', '8 Bit Flame.png'),
+  cardPlate('plate_8_bit_void', '8 Bit Void', 'rare', '8 Bit Void.png'),
+  cardPlate('plate_8_bit_arcane', '8 Bit Arcane', 'epic', '8 Bit Arcane.png'),
+  cardPlate('plate_8_bit_earth', '8 Bit Earth', 'epic', '8 Bit Earth.png'),
+  cardPlate('plate_8_bit_frost', '8 Bit Frost', 'epic', '8 Bit Frost.png'),
+  cardPlate('plate_8_bit_standard', '8 Bit Standard', 'legendary', '8 Bit Standard Plate.png'),
   // THE PLUSHIE PLATE (owner 2026-10-27): the first SECRET item, the reward for owning every Plushie Beast skin. Never in
   // a crate, and hidden in the Collection until owned.
   { ...cardPlate(PLUSHIE_PLATE_ID, 'Plushie', 'secret', 'Plushie Plate.png'), acquisition: { type: 'achievement', id: PLUSHIE_BEASTS_COLLECTION_ID } },

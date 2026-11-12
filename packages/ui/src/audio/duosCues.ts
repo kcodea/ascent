@@ -2,7 +2,7 @@
  * THE DUOS CUES (2026-11-10, owner: "make the beats much stronger for duos"). WHAT each Duos moment plays, as data:
  * pure, so the tests can read a cue without an AudioContext (nobody can hear a headless run). `sfx.ts` plays them.
  *
- * NO NEW AUDIO FILES. Every layer is one of three things the game could already produce:
+ * Every layer is one of three things (the hand-off's two generated clips, 2026-11-12, are the only new audio files):
  *  - `fx`: a clip of the FX bank that code already names (`audio/codeClips.ts` `CODE_FX_CLIPS`, so a phone decodes
  *    nothing extra), played through `playFxSound` at its own gain and rate;
  *  - `sample`: a clip of the core bank (always decoded), on the cue's own fader;
@@ -22,9 +22,14 @@ export type DuosCueLayer =
 
 export type DuosSide = 'player' | 'enemy';
 
-/** A light whoosh. Its sound starts this far into the file (measured: 326 ms of lead-in silence). */
+/** The drop's own air (generated for this beat, 2026-11-12): a soft half-second swell, peaking about 200 to 340 ms in,
+ *  so started on the beat it crests as the first bodies touch down. */
+const DROP_WHOOSH_CLIP = 'fx/duos-drop-whoosh';
+/** One body touching down (generated for this beat): a short, soft, dry thump. Its hit sits this far into the file. */
+const LAND_CLIP = 'fx/duos-land';
+const LAND_LEAD_MS = 20;
+/** A light whoosh (the pass cues). */
 const WHOOSH_CLIP = 'fx/whoosh-03';
-const WHOOSH_LEAD_MS = 300;
 /** A low ground hit. Its hit sits this far into the file (measured), so it is started that much into itself. */
 const GROUND_CLIP = 'fx/universfield-ground-impact-352053';
 const GROUND_LEAD_MS = 90;
@@ -39,36 +44,45 @@ function motif(freqs: readonly number[], vol: number, stepMs: number, atMs = 0, 
   return freqs.map((freq, i): DuosCueLayer => ({ kind: 'tone', freq, durMs, type: 'triangle', vol, delayMs: atMs + i * stepMs }));
 }
 
-/** Each body's touchdown as a card landing (the sound a card already makes when it lands), `lands` ms from now. */
+/** How much each later body's landing rises in pitch: a small run up the row (the whimsy), never past `LAND_RATE_MAX`. */
+export const LAND_RATE_BASE = 0.94;
+export const LAND_RATE_STEP = 0.03;
+export const LAND_RATE_MAX = 1.12;
+
+/** Each body's touchdown, `lands` ms from now: the same soft thump, each one a touch higher than the last, so a board
+ *  arriving reads as a quick run of steps up the row. The pitch depends only on the body's turn, never on the board's
+ *  size or the fight's speed. */
 function landings(lands: readonly number[], gain: number): DuosCueLayer[] {
-  return lands.map((l): DuosCueLayer => ({ kind: 'sample', clip: 'cardlanding', gain, delayMs: Math.max(0, Math.round(l)) }));
+  return lands.map((l, i): DuosCueLayer => {
+    const rate = Math.min(LAND_RATE_MAX, LAND_RATE_BASE + i * LAND_RATE_STEP);
+    return { kind: 'fx', clip: LAND_CLIP, gain, rate, delayMs: Math.max(0, Math.round(l - LAND_LEAD_MS / rate)) };
+  });
 }
 
 /**
- * THE TAG-IN (the hand-off), second pass (owner 2026-11-12: "the teammate landing looks really bad still - the sound is
- * off, and the ring is bad"). The first cue was a cinematic whoosh-into-hit SPED UP to fit the short drop (so it played
- * pitched up, at a different pitch for every board size) under three synth notes. Now it is only what is on screen: a
- * light whoosh as the board drops, the game's own card landing on EACH body's touchdown (`lands`, ms from the beat's
- * start, already divided by the fight's speed), and one low ground hit under the last. No notes, nothing re-pitched.
+ * THE TAG-IN (the hand-off), third pass (owner 2026-11-12: "clean it up and add a tiny bit of whimsy"). Only what is on
+ * screen: the drop's air as the board comes down, one soft thump on EACH body's touchdown (`lands`, ms from the beat's
+ * start, already divided by the fight's speed), each a touch higher than the last, and a quiet ground hit under the
+ * final one. No synth notes; the two generated clips are in `audio/fx/` (`duos-drop-whoosh`, `duos-land`).
  */
 export function duosTagInCue(side: DuosSide, lands: readonly number[]): DuosCueLayer[] {
   const mine = side === 'player';
   const ls = lands.length > 0 ? lands : [0];
   const last = Math.max(0, Math.round(Math.max(...ls)));
   return [
-    { kind: 'fx', clip: WHOOSH_CLIP, gain: 0.2, startOffsetMs: WHOOSH_LEAD_MS, fadeOutMs: 180 },
+    { kind: 'fx', clip: DROP_WHOOSH_CLIP, gain: 0.26, fadeOutMs: 200 },
     ...landings(ls, 0.5),
-    { kind: 'fx', clip: GROUND_CLIP, gain: mine ? 0.32 : 0.26, startOffsetMs: GROUND_LEAD_MS, delayMs: last, fadeOutMs: 260 },
+    { kind: 'fx', clip: GROUND_CLIP, gain: mine ? 0.2 : 0.17, startOffsetMs: GROUND_LEAD_MS, delayMs: last, fadeOutMs: 260 },
   ];
 }
 
 /**
  * THE FLY-IN after a won fight (the teammate's unfought board joins the survivors): the same entrance, lighter. The
- * whoosh and each body's card landing, no ground hit: nothing is at stake any more.
+ * air and each body's thump, no ground hit: nothing is at stake any more.
  */
 export function duosFlyInCue(_side: DuosSide, lands: readonly number[]): DuosCueLayer[] {
   return [
-    { kind: 'fx', clip: WHOOSH_CLIP, gain: 0.16, startOffsetMs: WHOOSH_LEAD_MS, fadeOutMs: 160 },
+    { kind: 'fx', clip: DROP_WHOOSH_CLIP, gain: 0.2, fadeOutMs: 180 },
     ...landings(lands.length > 0 ? lands : [0], 0.4),
   ];
 }

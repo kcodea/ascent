@@ -61,7 +61,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'More of the 8 Bit set in chests: six 8 Bit portrait frames (Cyber, Electric, Jade Energy, Pearl, Ruby and Water) and the 8 Bit Wrangler skin.' },
       { category: 'Systems', text: 'The 8 Bit set arrives in chests: seven 8 Bit card plates (Storm, Flame, Void, Arcane, Earth, Frost and Standard) and 8 Bit skins for Beggy, Dawnclaw, Orin, Echohorn and Sylus.' },
       { category: 'Systems', text: 'Four more minion skins in chests: Storybook Beggy, Graffiti Scrapper, Blown Glass Yazzus and Retro Boulderdash.' },
-      { category: 'Systems', text: 'Duos: a teammate’s board stepping in no longer draws a ring on the ground, and each minion now makes a landing sound as it touches down.' },
+      { category: 'Systems', text: 'Duos: a teammate’s board stepping in is cleaner. Minions drop into place with a small bounce and a soft landing sound each, the ring and the dark shadow are gone, and the pause before they arrive is shorter.' },
       { category: 'Systems', text: 'Five more minion skins in chests: three for Yazzus, one for Salvatore McKlusky and one for Uron.' },
     ],
   },

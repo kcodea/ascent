@@ -23,43 +23,13 @@
  */
 import { canPlayDefs, playDef } from '../../fx/playDef';
 import { cardFxScale } from '../../fx/cardScale';
-import { rectToStage, stageHost } from '../../stage';
-import { FALLEN_DIM_MS, tagLandMs, tagLastLandMs, tagOrder, type Handoff, type HandoffSide } from './duosHandoffTiming';
+import { tagLandMs, tagLastLandMs, tagOrder, type Handoff } from './duosHandoffTiming';
 
 export * from './duosHandoffTiming';
 
 const reducedMotion = (): boolean => {
   try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 };
-
-/** A side's row in the fight, measured once (screen px), or null off screen. */
-function rowBox(side: HandoffSide): DOMRect | null {
-  if (typeof document === 'undefined') return null;
-  const zone = side === 'player' ? 'warband' : 'tavern';
-  const el = document.querySelector(`[data-zone="${zone}"] .row`) ?? document.querySelector(`[data-zone="${zone}"]`);
-  const r = el?.getBoundingClientRect();
-  return r && r.width > 0 && r.height > 0 ? r : null;
-}
-
-/** One soft dim over the fallen row (transform / opacity, removed when it ends). The box is the row grown past its own
- *  edges, so the gradient fades to nothing inside it and never shows a straight edge. */
-function dimRow(r: DOMRect, side: HandoffSide, speed: number): void {
-  const row = rectToStage(r);
-  const s = { left: row.left - row.width * 0.08, top: row.top - row.height * 0.75, width: row.width * 1.16, height: row.height * 2.5 };
-  const el = document.createElement('div');
-  el.className = `duosfell ${side}`;
-  el.setAttribute('aria-hidden', 'true');
-  el.style.left = `${s.left}px`;
-  el.style.top = `${s.top}px`;
-  el.style.width = `${s.width}px`;
-  el.style.height = `${s.height}px`;
-  el.style.animationDuration = `${Math.max(60, Math.round(FALLEN_DIM_MS / speed))}ms`;
-  const done = (): void => el.remove();
-  el.addEventListener('animationend', done);
-  el.addEventListener('animationcancel', done);
-  stageHost().appendChild(el);
-  window.setTimeout(done, FALLEN_DIM_MS / speed + 400); // a hidden tab fires no animation events
-}
 
 export interface HandoffFxContext {
   /** The fight's live speed (the cue's own divide). */
@@ -80,14 +50,9 @@ export function playHandoffFx(handoffs: readonly Handoff[], ctx: HandoffFxContex
   const defs = canPlayDefs();
   let n = 0;
   for (const h of handoffs) {
-    if (h.kind === 'boardFallen') {
-      const r = rowBox(h.side);
-      if (!r) continue;
-      if (calm) continue;
-      dimRow(r, h.side, speed);
-      n += 1;
-      continue;
-    }
+    // A FALLEN BOARD draws nothing (owner 2026-11-12: "the shadow looks off"). It used to dim its row with a dark
+    // gradient; the beat is now its sound and the short pause before the reserve drops.
+    if (h.kind === 'boardFallen') continue;
     // tagIn / flyIn: dust under each body as it lands, read once, now (the slots are laid out; the cards are flying).
     const rects = h.uids.map((uid) => ctx.slotRectOf(uid));
     const count = h.uids.length;

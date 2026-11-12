@@ -15,14 +15,18 @@ export interface Handoff {
 }
 
 /** The entrance's own numbers. `styles.css` (`.unit.tagin`) carries the same two as literals; the test pins them. */
-export const TAG_FLY_MS = 400;
-export const TAG_STAGGER_MS = 50;
-/** How far into its drop a body touches down (the `60%` keyframe; the squash and settle come after). */
-export const TAG_LAND_FRAC = 0.6;
+export const TAG_FLY_MS = 360;
+export const TAG_STAGGER_MS = 70;
+/** How far into its drop a body touches down (the `55%` keyframe; the squash and settle come after). */
+export const TAG_LAND_FRAC = 0.55;
 /** A row holds at most this many bodies, so the stagger classes stop here. */
 export const TAG_MAX_ORDER = 6;
-/** The fallen board's dim, ms at 1x: it plays between the fallen beat and the tag-in that follows it (`TAG_IN_LEAD` below). */
-export const FALLEN_DIM_MS = 420;
+/** How long the fallen board is read before the reserve starts to drop, ms at 1x (its low hit rings in this pause).
+ *  The name is historical: a dim over the row used to play here (removed 2026-11-12, "the shadow looks off"). */
+export const FALLEN_DIM_MS = 300;
+/** The breath after the last body has settled, before anything follows the hand-off (ms at 1x): without it the new
+ *  board's first swing wound up on the same frame its last body stopped moving. */
+export const TAG_SETTLE_MS = 140;
 
 /** Every hand-off event in the moment window, in event order. */
 export function handoffsIn(moment: Pick<Moment, 'start' | 'end'>, events: readonly CombatEvent[]): Handoff[] {
@@ -69,5 +73,5 @@ export function tagLandsMs(count: number, speed: number): number[] {
 
 /** The whole entrance of `count` bodies, ms at `speed`: what the beat's hold has to cover. */
 export function tagEntranceMs(count: number, speed: number): number {
-  return (Math.max(0, Math.min(TAG_MAX_ORDER, count - 1)) * TAG_STAGGER_MS + TAG_FLY_MS) / (speed > 0 ? speed : 1);
+  return (Math.max(0, Math.min(TAG_MAX_ORDER, count - 1)) * TAG_STAGGER_MS + TAG_FLY_MS + TAG_SETTLE_MS) / (speed > 0 ? speed : 1);
 }

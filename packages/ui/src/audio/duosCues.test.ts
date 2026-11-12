@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { CODE_FX_CLIPS } from './codeClips';
 import {
   duosBoardFallenCue, duosFlyInCue, duosLockedInCue, duosMateJoinedCue, duosPassReceiveCue, duosPassSendCue,
-  duosPlacementToneAs, duosTagInCue, duosTeamOutCue, duosTeamResultCue, duosViewSwapCue, type DuosCueLayer,
+  LAND_RATE_BASE, LAND_RATE_MAX, LAND_RATE_STEP, duosPlacementToneAs, duosTagInCue, duosTeamOutCue, duosTeamResultCue, duosViewSwapCue, type DuosCueLayer,
 } from './duosCues';
 
 const ALL: Record<string, DuosCueLayer[]> = {
@@ -57,31 +57,46 @@ describe('the Duos cues use only audio the game already had', () => {
 
 // Second pass, owner 2026-11-12: "the sound is off". The first cue sped a cinematic whoosh-into-hit up to fit the drop
 // (re-pitched per board size) under three synth notes. These pin what replaced it.
-describe('the tag-in plays what is on screen: a landing per body, one hit under the last', () => {
-  it('one card landing on each touchdown, at the times given, and the ground hit on the last', () => {
-    for (const lands of [[240], [240, 290, 340], [120, 145, 170, 195, 220, 245, 270]]) {
+// Third pass, owner 2026-11-12: "clean it up and add a tiny bit of whimsy". The cue is the drop's air, one soft thump
+// per body (each a touch higher than the last) and a quiet ground hit under the final one.
+describe('the tag-in plays what is on screen: a thump per body, one hit under the last', () => {
+  const thumps = (cue: DuosCueLayer[]) => cue.filter((l): l is Extract<DuosCueLayer, { kind: 'fx' }> => l.kind === 'fx' && l.clip === 'fx/duos-land');
+  /** When a thump's HIT sounds (its file has a 20 ms lead-in, shortened by its rate). */
+  const hitAt = (l: Extract<DuosCueLayer, { kind: 'fx' }>): number => (l.delayMs ?? 0) + 20 / (l.rate ?? 1);
+
+  it('one thump on each touchdown, at the times given, and the ground hit on the last', () => {
+    for (const lands of [[240], [240, 310, 380], [120, 155, 190, 225, 260, 295, 330]]) {
       const cue = duosTagInCue('player', lands);
-      const landed = cue.filter((l) => l.kind === 'sample');
-      expect(landed.map((l) => l.delayMs)).toEqual(lands);
-      expect(landed.every((l) => l.kind === 'sample' && l.clip === 'cardlanding')).toBe(true);
-      const hit = cue.filter((l) => l.kind === 'fx' && (l.delayMs ?? 0) > 0);
+      const t = thumps(cue);
+      expect(t).toHaveLength(lands.length);
+      t.forEach((l, i) => expect(Math.abs(hitAt(l) - lands[i]!), `body ${i}`).toBeLessThanOrEqual(1));
+      const hit = cue.filter((l) => l.kind === 'fx' && /ground-impact/.test(l.clip));
       expect(hit).toHaveLength(1);
       expect(hit[0]!.delayMs).toBe(Math.max(...lands));
     }
   });
 
-  it('nothing is re-pitched and no synth note plays (the old cue changed pitch with the board size)', () => {
+  it('each thump is a touch higher than the last, by the body\'s turn alone, and never far from true pitch', () => {
+    const rates = thumps(duosTagInCue('player', [100, 200, 300, 400, 500, 600, 700])).map((l) => l.rate ?? 1);
+    expect(rates[0]).toBe(LAND_RATE_BASE);
+    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeGreaterThanOrEqual(rates[i - 1]!);
+    expect(rates[1]! - rates[0]!).toBeCloseTo(LAND_RATE_STEP, 6);
+    expect(Math.max(...rates)).toBeLessThanOrEqual(LAND_RATE_MAX);
+    // the same turn sounds the same whatever the board size or the fight's speed (the old cue re-pitched by both)
+    expect(thumps(duosTagInCue('enemy', [60, 90]))[1]!.rate).toBe(rates[1]);
+  });
+
+  it('no synth note plays and the sped-up cinematic stinger is gone', () => {
     for (const cue of [ALL.tagMine!, ALL.tagTheirs!, ALL.flyIn!]) {
       expect(cue.some((l) => l.kind === 'tone')).toBe(false);
-      for (const l of cue) if (l.kind === 'fx') expect(l.rate ?? 1).toBe(1);
       expect(cue.some((l) => l.kind !== 'tone' && /swoosh-impact/.test(l.clip))).toBe(false);
     }
   });
 
-  it('the fly-in is the same landings with no ground hit', () => {
-    const cue = duosFlyInCue('player', [240, 290]);
-    expect(cue.filter((l) => l.kind === 'sample').map((l) => l.delayMs)).toEqual([240, 290]);
-    expect(cue.filter((l) => l.kind === 'fx' && (l.delayMs ?? 0) > 0)).toHaveLength(0);
+  it('the fly-in is the same thumps with no ground hit', () => {
+    const cue = duosFlyInCue('player', [240, 310]);
+    expect(thumps(cue)).toHaveLength(2);
+    expect(cue.some((l) => l.kind === 'fx' && /ground-impact/.test(l.clip))).toBe(false);
   });
 });
 

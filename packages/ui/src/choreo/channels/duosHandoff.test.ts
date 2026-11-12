@@ -101,7 +101,7 @@ describe('the entrance is speed-true', () => {
     for (const speed of [1, 2, 5]) expect(holdMs(moment([tagIn('player', 7)]), fallenBeat, speed)).toBeGreaterThanOrEqual(FALLEN_DIM_MS / speed);
     // the lead-in before the fallen beat itself is untouched (the last death settles)
     const death: Moment = { start: 0, end: 1, primary: { type: 'death', target: 'x', side: 'player' } as CombatEvent, stepGroups: [[]], kind: 'death' };
-    expect(holdMs(fallenBeat, death, 1)).toBe(380 * cfg.speed);
+    expect(holdMs(fallenBeat, death, 1)).toBe(260 * cfg.speed); // tightened 2026-11-12 (was 380: a long stall after the last death)
   });
 
   it('reduced motion swaps the drop for a fade (same length, same stagger)', () => {
@@ -208,23 +208,12 @@ describe('the accent', () => {
     expect(shake).not.toHaveBeenCalled();
   });
 
-  it('a fallen board: one dim over its row that removes itself (no Pixi play: the dim is the accent)', () => {
+  it('a fallen board draws nothing: no dim over its row (owner 2026-11-12: "the shadow looks off")', () => {
     document.body.innerHTML = '<div data-zone="tavern"><div class="row"></div></div>';
-    const row = document.querySelector('.row')!;
-    row.getBoundingClientRect = () => ({ left: 200, top: 100, width: 1000, height: 200, right: 1200, bottom: 300, x: 200, y: 100, toJSON: () => ({}) });
     const ev = [fallen('enemy')];
-    expect(playHandoffFx(handoffsIn(moment(ev), ev), ctx(2, vi.fn()))).toBe(1);
-    expect(fx.plays).toHaveLength(0);
-    const dim = document.querySelector<HTMLElement>('.duosfell');
-    expect(dim).not.toBeNull();
-    expect(dim!.style.animationDuration).toBe(`${FALLEN_DIM_MS / 2}ms`); // the fight's speed
-    vi.advanceTimersByTime(FALLEN_DIM_MS / 2 + 500);
+    expect(playHandoffFx(handoffsIn(moment(ev), ev), ctx(2, vi.fn()))).toBe(0);
+    vi.advanceTimersByTime(1000);
     expect(document.querySelector('.duosfell')).toBeNull();
-  });
-
-  it('a fallen board with no row on screen draws nothing (and throws nothing)', () => {
-    const ev = [fallen('player')];
-    expect(playHandoffFx(handoffsIn(moment(ev), ev), ctx(1, vi.fn()))).toBe(0);
     expect(fx.plays).toHaveLength(0);
   });
 

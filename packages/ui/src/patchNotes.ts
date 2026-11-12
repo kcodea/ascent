@@ -58,6 +58,8 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-12',
     changes: [
+      { category: 'Systems', text: 'The 8 Bit set arrives in chests: seven 8 Bit card plates (Storm, Flame, Void, Arcane, Earth, Frost and Standard) and 8 Bit skins for Beggy, Dawnclaw, Orin, Echohorn and Sylus.' },
+      { category: 'Systems', text: 'Four more minion skins in chests: Storybook Beggy, Graffiti Scrapper, Blown Glass Yazzus and Retro Boulderdash.' },
       { category: 'Systems', text: 'Five more minion skins in chests: three for Yazzus, one for Salvatore McKlusky and one for Uron.' },
     ],
   },

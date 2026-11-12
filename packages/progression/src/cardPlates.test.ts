@@ -101,6 +101,14 @@ describe('the card plate catalog', () => {
       ['plate_tattle', 'Tattle', 'epic', 'crate', 'plate_tattle', 'Tattle Plate.png', undefined],
       ['plate_trichalice', 'Trichalice', 'epic', 'crate', 'plate_trichalice', 'Trichalice Plate.png', undefined],
       ['plate_gjally', 'Gjally', 'ancient', 'crate', 'plate_gjally', 'Gjally Plate.png', undefined],
+      // Card plates batch 8 (owner 2026-11-12): the 8 Bit set.
+      ['plate_8_bit_storm', '8 Bit Storm', 'common', 'crate', 'plate_8_bit_storm', '8 Bit Storm.png', undefined],
+      ['plate_8_bit_flame', '8 Bit Flame', 'rare', 'crate', 'plate_8_bit_flame', '8 Bit Flame.png', undefined],
+      ['plate_8_bit_void', '8 Bit Void', 'rare', 'crate', 'plate_8_bit_void', '8 Bit Void.png', undefined],
+      ['plate_8_bit_arcane', '8 Bit Arcane', 'epic', 'crate', 'plate_8_bit_arcane', '8 Bit Arcane.png', undefined],
+      ['plate_8_bit_earth', '8 Bit Earth', 'epic', 'crate', 'plate_8_bit_earth', '8 Bit Earth.png', undefined],
+      ['plate_8_bit_frost', '8 Bit Frost', 'epic', 'crate', 'plate_8_bit_frost', '8 Bit Frost.png', undefined],
+      ['plate_8_bit_standard', '8 Bit Standard', 'legendary', 'crate', 'plate_8_bit_standard', '8 Bit Standard Plate.png', undefined],
       // The Secret Plushie Plate (owner 2026-10-27): the Plushie Collector's reward, never in a crate.
       ['plate_plushie', 'Plushie', 'secret', 'achievement', 'plate_plushie', 'Plushie Plate.png', undefined],
     ]);

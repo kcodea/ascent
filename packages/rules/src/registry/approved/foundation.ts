@@ -15235,4 +15235,39 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-17). Monster Hunter Salvator.png ships as Hunter Salvatore (20 characters max, and the card spelling); a Claude call for the owner to confirm. After this batch three buyable Set 2 minions have no skin: Scrapper, Beggy and Auric Runemaster. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-PROG-SKINS-26',
+    title: 'Skins batch 18: nine minion skins (first skins for Beggy and Scrapper, and the 8 Bit skins) join the crates at their folder rarity',
+    statement:
+      'Nine minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Storybook Beggy. Rare: Graffiti Scrapper. Epic: 8 Bit Beggy, 8 Bit Dawnclaw, 8 Bit Orin, Blown Glass Yazzus, Retro Boulderdash. Legendary: 8 Bit Echohorn, 8 Bit Sylus. '
+      + 'With them and card plates batch 8 in, a first crate holds 92 Common, 145 Rare, 140 Epic, 106 Legendary and 33 Ancient items (each Common 0.38%, Rare 0.214%, Epic 0.157%, Legendary 0.085%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (skins batch 18)', quote: 'i added more minion and card plate cosmetics' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 18); packages/ui/src/art/skins/ (9 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-18). 8 bit Beggy.png ships as 8 Bit Beggy (capital B) and Retro Game Boulderdash.png as Retro Boulderdash (20 characters max, cosmetics.test.ts); Claude calls for the owner to confirm. After this batch one buyable Set 2 minion has no skin: Auric Runemaster. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
+  },
+  {
+    id: 'R-PROG-PLATE-07',
+    title: 'Card plates batch 8: the seven 8 Bit plates join the crates at their folder rarity, layered on the Dark interior',
+    statement:
+      'Seven card plates are targetless crate items at the rarity of the Card Plates folder their master sits in: '
+      + 'Common: 8 Bit Storm. Rare: 8 Bit Flame, 8 Bit Void. Epic: 8 Bit Arcane, 8 Bit Earth, 8 Bit Frost. Legendary: 8 Bit Standard. '
+      + 'Each is a layered plate on the Dark interior with no text darkening. 8 Bit Storm is the first Common card plate, so a '
+      + 'Card Plates focus can now roll Common. With them and skins batch 18 in, a first crate holds 92 Common, 145 Rare, 140 Epic, 106 Legendary and 33 Ancient items (each Common 0.38%, Rare 0.214%, Epic 0.157%, Legendary 0.085%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (card plates batch 8)', quote: 'i added more minion and card plate cosmetics' },
+      { kind: 'owner-chat', ref: 'docs/devlog/2026-10-27-card-plates-batch-7.md', quote: 'use the dark card back for all of them' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card plates batch 8); packages/ui/src/cardPlate/cardPlateLook.ts (SETTINGS); apps/web/public/frames/plates/plate_8_bit_*' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-18). The owner named no interior this time; Dark carries over from the batch 7 ruling and is a Claude call to confirm. 8 Bit Standard Plate.png ships as 8 Bit Standard. The seats are the build script fit, not yet tuned by the owner in the Card Plate Editor; the openings are 3% to 6% narrower than Galaxy with no artScale set. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx'], lastVerifiedAt: '2026-11-12' },
+  },
 ];

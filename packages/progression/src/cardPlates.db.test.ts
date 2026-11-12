@@ -94,6 +94,13 @@ afterAll(async () => { await db?.close(); });
 
 /** Every active plate's rarity (owner's rarity pass, 2026-10-19). */
 const PLATE_RARITY: Record<string, string> = {
+  plate_8_bit_arcane: 'epic',
+  plate_8_bit_earth: 'epic',
+  plate_8_bit_flame: 'rare',
+  plate_8_bit_frost: 'epic',
+  plate_8_bit_standard: 'legendary',
+  plate_8_bit_storm: 'common',
+  plate_8_bit_void: 'rare',
   plate_amethyst: 'rare',
   plate_aquarium_rocks: 'rare',
   plate_armored_knight: 'legendary',
@@ -175,11 +182,11 @@ const PLATE_RARITY: Record<string, string> = {
 };
 
 describe('the card plate slot', () => {
-  it('the sync switches the category on (global) and adds the seventy-eight active plates as targetless crate items at their rarity', async () => {
+  it('the sync switches the category on (global) and adds the eighty-five active plates as targetless crate items at their rarity', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'card_plate'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query("select cosmetic_id, rarity, acquisition_source, target_type from public.cosmetic_catalog where category = 'card_plate' and active and acquisition_source = 'crate' order by cosmetic_id")).rows;
-    expect(rows).toEqual(['plate_amethyst', 'plate_aquarium_rocks', 'plate_armored_knight', 'plate_astral_relic', 'plate_bamboo', 'plate_battletorn', 'plate_beach', 'plate_blood_omen', 'plate_blossom', 'plate_blue_hand_drawn', 'plate_bordered_land', 'plate_burden', 'plate_carved_aetherstone', 'plate_celestial', 'plate_chrome', 'plate_crackling_gemstone', 'plate_dark_arcane', 'plate_divine', 'plate_elder', 'plate_elegant', 'plate_emerald', 'plate_ethereal', 'plate_frozen_aurora', 'plate_galaxy', 'plate_gilt_etched', 'plate_gjally', 'plate_goop', 'plate_green_hand_drawn', 'plate_gryphon', 'plate_hand_drawn', 'plate_hivemind', 'plate_honey', 'plate_huffle', 'plate_iridescent', 'plate_ironwood', 'plate_magma', 'plate_mooncloud', 'plate_moonstone', 'plate_mystic_obsidian', 'plate_mytho', 'plate_nano', 'plate_nimbus_2k', 'plate_plasma', 'plate_porcelain', 'plate_raven', 'plate_round_magic', 'plate_runic', 'plate_shotsun', 'plate_simple_black', 'plate_simple_glass', 'plate_simple_white', 'plate_slyther', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_iridescent', 'plate_smooth_red', 'plate_solar', 'plate_soulwitch', 'plate_spades', 'plate_spirit_carving', 'plate_standard_black', 'plate_standard_blue', 'plate_standard_pink', 'plate_standard_teal', 'plate_static', 'plate_stonevines', 'plate_tattle', 'plate_the_howl', 'plate_the_last', 'plate_topaz', 'plate_trichalice', 'plate_twisted_ether', 'plate_verdant', 'plate_verdant_magic', 'plate_vintage_oak', 'plate_volcanic', 'plate_white_magic', 'plate_wither']
+    expect(rows).toEqual(['plate_8_bit_arcane', 'plate_8_bit_earth', 'plate_8_bit_flame', 'plate_8_bit_frost', 'plate_8_bit_standard', 'plate_8_bit_storm', 'plate_8_bit_void', 'plate_amethyst', 'plate_aquarium_rocks', 'plate_armored_knight', 'plate_astral_relic', 'plate_bamboo', 'plate_battletorn', 'plate_beach', 'plate_blood_omen', 'plate_blossom', 'plate_blue_hand_drawn', 'plate_bordered_land', 'plate_burden', 'plate_carved_aetherstone', 'plate_celestial', 'plate_chrome', 'plate_crackling_gemstone', 'plate_dark_arcane', 'plate_divine', 'plate_elder', 'plate_elegant', 'plate_emerald', 'plate_ethereal', 'plate_frozen_aurora', 'plate_galaxy', 'plate_gilt_etched', 'plate_gjally', 'plate_goop', 'plate_green_hand_drawn', 'plate_gryphon', 'plate_hand_drawn', 'plate_hivemind', 'plate_honey', 'plate_huffle', 'plate_iridescent', 'plate_ironwood', 'plate_magma', 'plate_mooncloud', 'plate_moonstone', 'plate_mystic_obsidian', 'plate_mytho', 'plate_nano', 'plate_nimbus_2k', 'plate_plasma', 'plate_porcelain', 'plate_raven', 'plate_round_magic', 'plate_runic', 'plate_shotsun', 'plate_simple_black', 'plate_simple_glass', 'plate_simple_white', 'plate_slyther', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_iridescent', 'plate_smooth_red', 'plate_solar', 'plate_soulwitch', 'plate_spades', 'plate_spirit_carving', 'plate_standard_black', 'plate_standard_blue', 'plate_standard_pink', 'plate_standard_teal', 'plate_static', 'plate_stonevines', 'plate_tattle', 'plate_the_howl', 'plate_the_last', 'plate_topaz', 'plate_trichalice', 'plate_twisted_ether', 'plate_verdant', 'plate_verdant_magic', 'plate_vintage_oak', 'plate_volcanic', 'plate_white_magic', 'plate_wither']
       .map((cosmetic_id) => ({ cosmetic_id, rarity: PLATE_RARITY[cosmetic_id], acquisition_source: 'crate', target_type: null })));
     // Plus the Secret Plushie Plate (owner 2026-10-27), an achievement reward and never a crate item.
     expect(await one("select rarity, acquisition_source, achievement_id from public.cosmetic_catalog where cosmetic_id = 'plate_plushie'"))

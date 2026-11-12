@@ -243,9 +243,9 @@ describe('the Chest Shop screen (owner 2026-10-20: "a dedicated full screen expe
       expect([...tip.querySelectorAll('.cshop-orow')].map((r) => norm(r.textContent)))
         .toEqual(sl.byCategory.map((c) => `${COSMETIC_CATEGORY_DEFS[c.category].label}${c.count}`));
     });
-    // A focus narrows the pool: Standard + Card Plates shows no Common.
+    // A focus narrows the pool: Standard + Emotes shows no Common. (Card Plates until 8 Bit Storm, the first Common plate, 2026-11-12.)
     click(tier('Standard'));
-    click(toggle('Card Plates'));
+    click(toggle('Emotes'));
     const pcts = $$('.cshop-seg .atip-title').map((t) => norm(t.textContent));
     expect(pcts.some((t) => t.startsWith('Common'))).toBe(false);
     expect(pcts.length).toBeGreaterThan(0);

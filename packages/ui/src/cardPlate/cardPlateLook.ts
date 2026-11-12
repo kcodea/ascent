@@ -279,6 +279,15 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_tattle: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.025, interiorY: 0.0009, darken: false },
   plate_trichalice: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1.055, interiorSy: 1.026, interiorY: -0.0028, darken: false },
   plate_gjally: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.026, interiorY: -0.0019, darken: false },
+  // Card plates batch 8 (owner 2026-11-12): the 8 Bit set on Dark, no darkening. Standard template; the openings are 3% to 6%
+  // narrower than Galaxy's, and frameX centres each where Galaxy's sits.
+  plate_8_bit_storm: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.028, interiorSy: 0.991, interiorY: 0.0188, darken: false },
+  plate_8_bit_flame: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.013, interiorSx: 1.018, interiorSy: 0.982, interiorY: 0.0253, darken: false },
+  plate_8_bit_void: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.012, interiorSx: 1.011, interiorSy: 0.993, interiorY: 0.0225, darken: false },
+  plate_8_bit_arcane: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 1.011, interiorSy: 0.987, interiorY: 0.0169, darken: false },
+  plate_8_bit_earth: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.017, interiorSx: 1.026, interiorSy: 1.006, interiorY: 0.0281, darken: false },
+  plate_8_bit_frost: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.004, interiorSy: 0.992, interiorY: 0.0328, darken: false },
+  plate_8_bit_standard: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.009, interiorSx: 1.026, interiorSy: 0.999, interiorY: 0.0169, darken: false },
   plate_plushie: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.008, interiorSx: 0.983, interiorSy: 0.958, interiorY: -0.0075, darken: false },
 };
 

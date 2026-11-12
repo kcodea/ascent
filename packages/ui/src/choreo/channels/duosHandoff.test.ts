@@ -104,8 +104,9 @@ describe('the entrance is speed-true', () => {
     expect(holdMs(fallenBeat, death, 1)).toBe(380 * cfg.speed);
   });
 
-  it('reduced motion swaps the sweep for a fade (same length, same stagger)', () => {
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.unit\.tagin \.card, \.zone\[data-zone='tavern'\] \.unit\.tagin \.card \{ animation-name: taginfade;/);
+  it('reduced motion swaps the drop for a fade (same length, same stagger)', () => {
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.unit\.tagin \.card \{ animation-name: taginfade;/);
+    expect(css).not.toMatch(/taginflyfoe/); // 2026-11-11: one drop-in entrance for both teams, the mirrored sideways sweep is gone
   });
 });
 

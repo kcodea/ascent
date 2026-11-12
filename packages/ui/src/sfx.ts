@@ -2173,9 +2173,9 @@ export const sfx = {
   //    `audio/duosCues.ts` (the team motif, the clips, the timings); here they are only routed. Built from clips the
   //    bank already had plus the synth: no new audio files. Not heard by anyone yet; the levels are starting points.
   /** THE TAG-IN: the teammate's board flies in. `landMs`: when its last body lands (already speed-scaled). */
-  duosTagIn: (side: DuosSide, landMs: number) => { playDuosCue(duosTagInCue(side, landMs), 'duostag'); },
+  duosTagIn: (side: DuosSide, lands: readonly number[]) => { playDuosCue(duosTagInCue(side, lands), 'duostag'); },
   /** The fly-in after a won fight: the same entrance, lighter. */
-  duosFlyIn: (side: DuosSide, landMs: number) => { playDuosCue(duosFlyInCue(side, landMs), 'duostag'); },
+  duosFlyIn: (side: DuosSide, lands: readonly number[]) => { playDuosCue(duosFlyInCue(side, lands), 'duostag'); },
   /** A board has fallen (the beat before the hand-off). */
   duosBoardFallen: (side: DuosSide) => { playDuosCue(duosBoardFallenCue(side), 'duosfall'); },
   /** A pass leaves for the teammate. ONE voice: several sends on one beat (a board of gift effects) ring once. */
@@ -2590,7 +2590,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   eqUseThymepiece: () => sfx.equipmentUse('thymepiece'),
   eqUseDeathfibrillator: () => sfx.equipmentUse('deathfibrillator'),
   runeArrival: () => sfx.runeSelectImplosion(),
-  duostag: () => sfx.duosTagIn('player', 735), duosfall: () => sfx.duosBoardFallen('player'),
+  duostag: () => sfx.duosTagIn('player', [240, 290, 340, 390]), duosfall: () => sfx.duosBoardFallen('player'),
   duospass: () => sfx.duosPassReceive(360), duoscue: () => sfx.duosMateJoined(),
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },

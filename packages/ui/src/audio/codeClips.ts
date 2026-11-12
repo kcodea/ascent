@@ -13,6 +13,8 @@
 export const CODE_FX_CLIPS: readonly string[] = [
   'fx/alexis_gaming_cam-woosh-long-cartoon-370386',
   'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
+  'fx/duos-drop-whoosh',
+  'fx/duos-land',
   'fx/metal-woosh',
   'fx/soumages-magic-spell-333896',
   'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',

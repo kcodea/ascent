@@ -6242,7 +6242,7 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 .unit.summoned { animation: summonexpand 0.34s ease; }
 .unit.summoned .card { width: var(--cw); animation: summonpop 0.34s ease; }
 /* VERSUS DUOS (R-DUOS-TAGTEAM-01): THE HAND-OFF. When a board falls, the teammate's board FLIES IN after it: each body
-   drops into its slot, landing on a 50 ms stagger. One-shot, transform / opacity only (compositor), no fill so the lunge's inline transform still
+   drops into its slot, landing on a 70 ms stagger. One-shot, transform / opacity only (compositor), no fill so the lunge's inline transform still
    owns the unit afterwards.
    SPEED-TRUE (R-DUOS-HANDOFF-BEAT-01, 2026-11-10): the flight and the stagger divide by `--combat-speed` (Unit.tsx
    stamps the live speed on the unit as the entrance starts, as it does for a death), so at 2x and under a Skip the
@@ -6250,41 +6250,35 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
    that scaled: at 2x the new board fought while still flying in.
    ORDER-TRUE: the stagger is each body's TURN off the edge (`tagi-N`, set by the replay from the body's place in the
    event, mirrored for the other team), never its slot: one body joining six survivors leaves at once, and the foe's
-   nearest body leaves first. choreo/channels/duosHandoffTiming.ts holds the same 400 / 50 (duosHandoff.test.ts pins both). */
+   nearest body leaves first. choreo/channels/duosHandoffTiming.ts holds the same 360 / 70 (duosHandoff.test.ts pins both). */
 /* THE DROP-IN (owner 2026-11-11: "the duos animation when the next team's minions come in is a 5/10. can you clean
    that up significantly"). It was a 62vw sideways sweep with a 9deg tilt, see-through for most of its flight: seven
    ghost cards sliding across each other. Now each body DROPS into its own slot from just above it: solid within the
    first fifth, no tilt, no travel across the row, a small squash as it lands, then still. Same one-shot, transform /
    opacity only. Both teams use the one entrance (the team reads from the slam's colour, not the direction). */
-.unit.tagin .card { animation: taginfly calc(0.4s / var(--combat-speed, 1)) linear backwards; transform-origin: 50% 100%; }
-.unit.tagin.tagi-1 .card { animation-delay: calc(50ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-2 .card { animation-delay: calc(100ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-3 .card { animation-delay: calc(150ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-4 .card { animation-delay: calc(200ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-5 .card { animation-delay: calc(250ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-6 .card { animation-delay: calc(300ms / var(--combat-speed, 1)); }
+.unit.tagin .card { animation: taginfly calc(0.36s / var(--combat-speed, 1)) linear backwards; transform-origin: 50% 100%; --tag-tilt: -3deg; }
+/* A LITTLE LIFE (owner 2026-11-12: "add a tiny bit of whimsy"): each body leans a few degrees as it falls, alternating
+   left and right down the row, stretches on the way down, squashes on the floor and gives one small hop before it is
+   still (the keyframes read `--tag-tilt`). */
+.unit.tagin.tagi-1 .card, .unit.tagin.tagi-3 .card, .unit.tagin.tagi-5 .card { --tag-tilt: 3deg; }
+.unit.tagin.tagi-1 .card { animation-delay: calc(70ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-2 .card { animation-delay: calc(140ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-3 .card { animation-delay: calc(210ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-4 .card { animation-delay: calc(280ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-5 .card { animation-delay: calc(350ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-6 .card { animation-delay: calc(420ms / var(--combat-speed, 1)); }
 /* Reduced motion: the board fades in where it stands (same length, same stagger), no sweep across the screen. */
 @media (prefers-reduced-motion: reduce) {
   .unit.tagin .card { animation-name: taginfade; animation-timing-function: ease-out; }
 }
 @keyframes taginfade { from { opacity: 0; } to { opacity: 1; } }
-/* A BOARD HAS FALLEN (the beat before the hand-off): one soft dim over the fallen row, placed and timed by
-   choreo/channels/duosHandoff.ts (`dimRow`, its length divided by the fight's speed). A static gradient whose
-   opacity and scale animate once (compositor only); it removes itself. Not drawn under reduced motion. */
-.duosfell { position: fixed; z-index: 60; pointer-events: none; opacity: 0;
-  background: radial-gradient(closest-side, rgba(6, 10, 22, 0.6) 0%, rgba(6, 10, 22, 0.36) 45%, rgba(6, 10, 22, 0.1) 78%, rgba(6, 10, 22, 0) 100%);
-  animation: duosfell 420ms ease-out both; will-change: transform, opacity; }
-@keyframes duosfell {
-  0% { opacity: 0; transform: scale(0.92, 0.78); }
-  32% { opacity: 1; transform: scale(1, 1); }
-  100% { opacity: 0; transform: scale(1.04, 1.1); }
-}
 @keyframes taginfly {
-  0% { opacity: 0; transform: translateY(calc(var(--cw, 150px) * -0.62)) scale(1.16); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.45); }
-  20% { opacity: 1; }
-  60% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: ease-out; }
-  74% { opacity: 1; transform: translateY(0) scale(1.05, 0.93); animation-timing-function: ease-in-out; }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(calc(var(--cw, 150px) * -0.7)) rotate(var(--tag-tilt, 0deg)) scale(0.95, 1.1); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.45); }
+  18% { opacity: 1; }
+  55% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1, 1); animation-timing-function: ease-out; }
+  66% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1.09, 0.88); animation-timing-function: ease-out; }
+  83% { opacity: 1; transform: translateY(calc(var(--cw, 150px) * -0.05)) rotate(0deg) scale(0.97, 1.04); animation-timing-function: ease-in; }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1, 1); }
 }
 
 @keyframes summonexpand {

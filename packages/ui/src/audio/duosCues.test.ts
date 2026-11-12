@@ -8,12 +8,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CODE_FX_CLIPS } from './codeClips';
 import {
-  DUOS_STINGER_HIT_MS, duosBoardFallenCue, duosFlyInCue, duosLockedInCue, duosMateJoinedCue, duosPassReceiveCue, duosPassSendCue,
-  duosPlacementToneAs, duosTagInCue, duosTeamOutCue, duosTeamResultCue, duosViewSwapCue, stingerLanding, type DuosCueLayer,
+  duosBoardFallenCue, duosFlyInCue, duosLockedInCue, duosMateJoinedCue, duosPassReceiveCue, duosPassSendCue,
+  LAND_RATE_BASE, LAND_RATE_MAX, LAND_RATE_STEP, duosPlacementToneAs, duosTagInCue, duosTeamOutCue, duosTeamResultCue, duosViewSwapCue, type DuosCueLayer,
 } from './duosCues';
 
 const ALL: Record<string, DuosCueLayer[]> = {
-  tagMine: duosTagInCue('player', 735), tagTheirs: duosTagInCue('enemy', 735), flyIn: duosFlyInCue('player', 500),
+  tagMine: duosTagInCue('player', [240, 290, 340]), tagTheirs: duosTagInCue('enemy', [240, 290, 340]), flyIn: duosFlyInCue('player', [240, 290]),
   fallenMine: duosBoardFallenCue('player'), fallenTheirs: duosBoardFallenCue('enemy'),
   send: duosPassSendCue(), receive: duosPassReceiveCue(360), swapIn: duosViewSwapCue(true), swapOut: duosViewSwapCue(false),
   joined: duosMateJoinedCue(), locked: duosLockedInCue(), out: duosTeamOutCue(),
@@ -55,28 +55,48 @@ describe('the Duos cues use only audio the game already had', () => {
   });
 });
 
-describe('the tag-in stinger lands with the last body', () => {
-  it('the hit is delayed to the landing when there is room, sped up when there is not', () => {
-    expect(stingerLanding(735)).toEqual({ delayMs: 735 - DUOS_STINGER_HIT_MS, rate: 1 });
-    const fast = stingerLanding(240); // a 2x fight, a few bodies
-    expect(fast.delayMs).toBe(0);
-    expect(DUOS_STINGER_HIT_MS / fast.rate).toBeCloseTo(240, 5);
-    expect(stingerLanding(20).rate).toBeLessThanOrEqual(2.5); // a Skip: never sped past 2.5x
+// Second pass, owner 2026-11-12: "the sound is off". The first cue sped a cinematic whoosh-into-hit up to fit the drop
+// (re-pitched per board size) under three synth notes. These pin what replaced it.
+// Third pass, owner 2026-11-12: "clean it up and add a tiny bit of whimsy". The cue is the drop's air, one soft thump
+// per body (each a touch higher than the last) and a quiet ground hit under the final one.
+describe('the tag-in plays what is on screen: a thump per body, one hit under the last', () => {
+  const thumps = (cue: DuosCueLayer[]) => cue.filter((l): l is Extract<DuosCueLayer, { kind: 'fx' }> => l.kind === 'fx' && l.clip === 'fx/duos-land');
+  /** When a thump's HIT sounds (its file has a 20 ms lead-in, shortened by its rate). */
+  const hitAt = (l: Extract<DuosCueLayer, { kind: 'fx' }>): number => (l.delayMs ?? 0) + 20 / (l.rate ?? 1);
+
+  it('one thump on each touchdown, at the times given, and the ground hit on the last', () => {
+    for (const lands of [[240], [240, 310, 380], [120, 155, 190, 225, 260, 295, 330]]) {
+      const cue = duosTagInCue('player', lands);
+      const t = thumps(cue);
+      expect(t).toHaveLength(lands.length);
+      t.forEach((l, i) => expect(Math.abs(hitAt(l) - lands[i]!), `body ${i}`).toBeLessThanOrEqual(1));
+      const hit = cue.filter((l) => l.kind === 'fx' && /ground-impact/.test(l.clip));
+      expect(hit).toHaveLength(1);
+      expect(hit[0]!.delayMs).toBe(Math.max(...lands));
+    }
   });
 
-  it('at 1x, 2x and 5x the hit and the thud land on the given landing time', () => {
-    for (const land of [735, 367, 147]) {
-      const cue = duosTagInCue('player', land);
-      const hit = cue.find((l) => l.kind === 'fx')!;
-      const thud = cue.find((l) => l.kind === 'sample')!;
-      const hitAt = (hit.delayMs ?? 0) + DUOS_STINGER_HIT_MS / ((hit.kind === 'fx' && hit.rate) || 1);
-      if (land >= 192) expect(hitAt).toBeCloseTo(land, 0); // above the 2.5x cap the hit is exact
-      else expect(hitAt).toBeLessThanOrEqual(DUOS_STINGER_HIT_MS / 2.5 + 1);
-      expect(thud.delayMs).toBe(land);
-      // the motif never runs past the landing
-      const lastNote = Math.max(...cue.filter((l) => l.kind === 'tone').map((l) => l.delayMs ?? 0));
-      expect(lastNote).toBeLessThan(land);
+  it('each thump is a touch higher than the last, by the body\'s turn alone, and never far from true pitch', () => {
+    const rates = thumps(duosTagInCue('player', [100, 200, 300, 400, 500, 600, 700])).map((l) => l.rate ?? 1);
+    expect(rates[0]).toBe(LAND_RATE_BASE);
+    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeGreaterThanOrEqual(rates[i - 1]!);
+    expect(rates[1]! - rates[0]!).toBeCloseTo(LAND_RATE_STEP, 6);
+    expect(Math.max(...rates)).toBeLessThanOrEqual(LAND_RATE_MAX);
+    // the same turn sounds the same whatever the board size or the fight's speed (the old cue re-pitched by both)
+    expect(thumps(duosTagInCue('enemy', [60, 90]))[1]!.rate).toBe(rates[1]);
+  });
+
+  it('no synth note plays and the sped-up cinematic stinger is gone', () => {
+    for (const cue of [ALL.tagMine!, ALL.tagTheirs!, ALL.flyIn!]) {
+      expect(cue.some((l) => l.kind === 'tone')).toBe(false);
+      expect(cue.some((l) => l.kind !== 'tone' && /swoosh-impact/.test(l.clip))).toBe(false);
     }
+  });
+
+  it('the fly-in is the same thumps with no ground hit', () => {
+    const cue = duosFlyInCue('player', [240, 310]);
+    expect(thumps(cue)).toHaveLength(2);
+    expect(cue.some((l) => l.kind === 'fx' && /ground-impact/.test(l.clip))).toBe(false);
   });
 });
 
@@ -97,12 +117,7 @@ describe('the cues are distinct from each other', () => {
     expect(Math.max(...ALL.receive!.map((l) => l.delayMs ?? 0))).toBe(360);
   });
 
-  it('my tag-in rises and theirs falls; my fallen board sinks lower than theirs', () => {
-    const notes = (c: DuosCueLayer[]): number[] => c.filter((l) => l.kind === 'tone').map((l) => (l.kind === 'tone' ? l.freq : 0));
-    const mine = notes(ALL.tagMine!);
-    const theirs = notes(ALL.tagTheirs!);
-    expect(mine).toEqual([...mine].sort((a, b) => a - b));
-    expect(theirs).toEqual([...theirs].sort((a, b) => b - a));
+  it('my fallen board sinks lower than theirs', () => {
     expect(sig(ALL.fallenMine!)).not.toBe(sig(ALL.fallenTheirs!));
     const sink = (c: DuosCueLayer[]): number => { const t = c.find((l) => l.kind === 'tone'); return t && t.kind === 'tone' ? t.slideTo ?? 0 : 0; };
     expect(sink(ALL.fallenMine!)).toBeLessThan(sink(ALL.fallenTheirs!));

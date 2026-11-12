@@ -31,8 +31,24 @@ import { SPEC as SOCCER } from '../HeroSoccerTuner';
 import { SPEC as VOID } from '../HeroVoidTuner';
 import { SPEC as STITCH } from '../HeroStitchTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
+import { SPEC as STARS } from '../HeroStarsTuner';
+import { SPEC as GLASS } from '../HeroGlassTuner';
+import { SPEC as REAPING } from '../HeroReapingTuner';
+import { SPEC as WARHOST } from '../HeroWarhostTuner';
+import { SPEC as PINBALL } from '../HeroPinballTuner';
+import { SPEC as COMBO } from '../HeroComboTuner';
+import { SPEC as WRESTLE } from '../HeroWrestleTuner';
+import { SPEC as TRAIN } from '../HeroTrainTuner';
+import { SPEC as CHORD } from '../HeroChordTuner';
+import { SPEC as FIREWORKS } from '../HeroFireworksTuner';
+import { SPEC as CLAW } from '../HeroClawTuner';
+import { SPEC as CHESS } from '../HeroChessTuner';
+import { SPEC as GLOVE } from '../HeroGloveTuner';
+import { SPEC as ANVIL } from '../HeroAnvilTuner';
+import { SPEC as FLICK } from '../HeroFlickTuner';
+import { SPEC as STAMP } from '../HeroStampTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, VOID, STITCH, BULLET_TIME, FORMATION };
+const SPECS = { STARS, GLASS, REAPING, WARHOST, PINBALL, COMBO, WRESTLE, TRAIN, CHORD, FIREWORKS, CLAW, CHESS, GLOVE, ANVIL, FLICK, STAMP, BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, VOID, STITCH, BULLET_TIME, FORMATION };
 import { SPEC as BULLET_TIME } from '../HeroBulletTimeTuner';
 
 describe('the attack tuners', () => {

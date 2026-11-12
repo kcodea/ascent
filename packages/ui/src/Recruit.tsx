@@ -128,29 +128,61 @@ import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
 import { playHeroCards } from './heroCards/heroCards';
+import { playHeroClaw } from './heroClaw/heroClaw';
+import { playHeroChess } from './heroChess/heroChess';
 import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { heroClawPreviewSpeed } from './heroClaw/heroClawConfig';
+import { heroChessPreviewSpeed } from './heroChess/heroChessConfig';
 import { playHeroStorm } from './heroStorm/heroStorm';
+import { playHeroChord } from './heroChord/heroChord';
+import { playHeroFireworks } from './heroFireworks/heroFireworks';
 import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
+import { heroChordPreviewSpeed } from './heroChord/heroChordConfig';
+import { heroFireworksPreviewSpeed } from './heroFireworks/heroFireworksConfig';
 import { playHeroCoin } from './heroCoin/heroCoin';
+import { playHeroAnvil } from './heroAnvil/heroAnvil';
+import { playHeroStamp } from './heroStamp/heroStamp';
 import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
+import { heroAnvilPreviewSpeed } from './heroAnvil/heroAnvilConfig';
+import { heroStampPreviewSpeed } from './heroStamp/heroStampConfig';
 import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
+import { playHeroGlove } from './heroGlove/heroGlove';
 import { heroBoomerangPreviewSpeed } from './heroBoomerang/heroBoomerangConfig';
+import { heroGlovePreviewSpeed } from './heroGlove/heroGloveConfig';
 import { playHeroBubble } from './heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from './heroBackstab/heroBackstab';
+import { playHeroFlick } from './heroFlick/heroFlick';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
+import { heroFlickPreviewSpeed } from './heroFlick/heroFlickConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { playHeroBaseball } from './heroBaseball/heroBaseball';
+import { playHeroCombo } from './heroCombo/heroCombo';
+import { playHeroWrestle } from './heroWrestle/heroWrestle';
 import { heroBaseballPreviewSpeed } from './heroBaseball/heroBaseballConfig';
+import { heroComboPreviewSpeed } from './heroCombo/heroComboConfig';
+import { heroWrestlePreviewSpeed } from './heroWrestle/heroWrestleConfig';
 import { playHeroSoccer } from './heroSoccer/heroSoccer';
+import { playHeroPinball } from './heroPinball/heroPinball';
+import { playHeroTrain } from './heroTrain/heroTrain';
 import { heroSoccerPreviewSpeed } from './heroSoccer/heroSoccerConfig';
+import { heroPinballPreviewSpeed } from './heroPinball/heroPinballConfig';
+import { heroTrainPreviewSpeed } from './heroTrain/heroTrainConfig';
 import { playHeroVoid } from './heroVoid/heroVoid';
 import { heroVoidPreviewSpeed } from './heroVoid/heroVoidConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
+import { playHeroReaping } from './heroReaping/heroReaping';
 import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
+import { heroReapingPreviewSpeed } from './heroReaping/heroReapingConfig';
 import { playHeroBulletTime } from './heroBulletTime/heroBulletTime';
+import { playHeroStars } from './heroStars/heroStars';
+import { playHeroGlass } from './heroGlass/heroGlass';
+import { playHeroWarhost } from './heroWarhost/heroWarhost';
 import { heroBulletTimePreviewSpeed } from './heroBulletTime/heroBulletTimeConfig';
+import { heroStarsPreviewSpeed } from './heroStars/heroStarsConfig';
+import { heroGlassPreviewSpeed } from './heroGlass/heroGlassConfig';
+import { heroWarhostPreviewSpeed } from './heroWarhost/heroWarhostConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -3812,6 +3844,38 @@ export function Recruit() {
     if (attackStyle !== 'classic') {
       const runner = attackStyle === 'bullettime'
         ? { play: playHeroBulletTime, preview: heroBulletTimePreviewSpeed() }
+        : attackStyle === 'stars'
+        ? { play: playHeroStars, preview: heroStarsPreviewSpeed() }
+        : attackStyle === 'glass'
+        ? { play: playHeroGlass, preview: heroGlassPreviewSpeed() }
+        : attackStyle === 'reaping'
+        ? { play: playHeroReaping, preview: heroReapingPreviewSpeed() }
+        : attackStyle === 'warhost'
+        ? { play: playHeroWarhost, preview: heroWarhostPreviewSpeed() }
+        : attackStyle === 'pinball'
+        ? { play: playHeroPinball, preview: heroPinballPreviewSpeed() }
+        : attackStyle === 'combo'
+        ? { play: playHeroCombo, preview: heroComboPreviewSpeed() }
+        : attackStyle === 'wrestle'
+        ? { play: playHeroWrestle, preview: heroWrestlePreviewSpeed() }
+        : attackStyle === 'train'
+        ? { play: playHeroTrain, preview: heroTrainPreviewSpeed() }
+        : attackStyle === 'chord'
+        ? { play: playHeroChord, preview: heroChordPreviewSpeed() }
+        : attackStyle === 'fireworks'
+        ? { play: playHeroFireworks, preview: heroFireworksPreviewSpeed() }
+        : attackStyle === 'claw'
+        ? { play: playHeroClaw, preview: heroClawPreviewSpeed() }
+        : attackStyle === 'chess'
+        ? { play: playHeroChess, preview: heroChessPreviewSpeed() }
+        : attackStyle === 'glove'
+        ? { play: playHeroGlove, preview: heroGlovePreviewSpeed() }
+        : attackStyle === 'anvil'
+        ? { play: playHeroAnvil, preview: heroAnvilPreviewSpeed() }
+        : attackStyle === 'flick'
+        ? { play: playHeroFlick, preview: heroFlickPreviewSpeed() }
+        : attackStyle === 'stamp'
+        ? { play: playHeroStamp, preview: heroStampPreviewSpeed() }
         : attackStyle === 'stitch'
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
         : attackStyle === 'basketball'

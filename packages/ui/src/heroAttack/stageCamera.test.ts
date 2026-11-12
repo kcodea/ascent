@@ -31,17 +31,33 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroClaw } from '../heroClaw/heroClaw';
+import { playHeroChess } from '../heroChess/heroChess';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroChord } from '../heroChord/heroChord';
+import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { playHeroCoin } from '../heroCoin/heroCoin';
+import { playHeroAnvil } from '../heroAnvil/heroAnvil';
+import { playHeroStamp } from '../heroStamp/heroStamp';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { playHeroGlove } from '../heroGlove/heroGlove';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
+import { playHeroFlick } from '../heroFlick/heroFlick';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroCombo } from '../heroCombo/heroCombo';
+import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
+import { playHeroPinball } from '../heroPinball/heroPinball';
+import { playHeroTrain } from '../heroTrain/heroTrain';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroReaping } from '../heroReaping/heroReaping';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { playHeroStars } from '../heroStars/heroStars';
+import { playHeroGlass } from '../heroGlass/heroGlass';
+import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 
 afterEach(() => { document.body.innerHTML = ''; });
 
@@ -148,18 +164,34 @@ const STYLES: [string, Runner][] = [
   ['frost', playHeroFrost as Runner], ['holy', playHeroHoly as Runner], ['fire', playHeroFire as Runner],
   ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner], ['banana', playHeroBanana as Runner],
   ['bleed', playHeroBleed as Runner], ['cards', playHeroCards as Runner], ['storm', playHeroStorm as Runner],
+  ['chord', playHeroChord as Runner],
+  ['fireworks', playHeroFireworks as Runner],
+  ['claw', playHeroClaw as Runner],
+  ['chess', playHeroChess as Runner],
   ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
+  ['glove', playHeroGlove as Runner],
+  ['anvil', playHeroAnvil as Runner],
+  ['stamp', playHeroStamp as Runner],
   ['bubble', playHeroBubble as Runner], ['backstab', playHeroBackstab as Runner],
+  ['flick', playHeroFlick as Runner],
   ['basketball', playHeroBasketball as Runner],
   ['stitch', playHeroStitch as Runner],
+  ['reaping', playHeroReaping as Runner],
   ['bullettime', playHeroBulletTime as Runner],
+  ['stars', playHeroStars as Runner],
+  ['glass', playHeroGlass as Runner],
+  ['warhost', playHeroWarhost as Runner],
   ['baseball', playHeroBaseball as Runner],
+  ['combo', playHeroCombo as Runner],
+  ['wrestle', playHeroWrestle as Runner],
   ['soccer', playHeroSoccer as Runner],
+  ['pinball', playHeroPinball as Runner],
+  ['train', playHeroTrain as Runner],
   ['void', playHeroVoid as Runner],
 ];
 
 /** Styles whose camera only PUNCHES (a brief small zoom on each hit, no push-in): Backstab. */
-const PUNCH_ONLY = new Set(['backstab']);
+const PUNCH_ONLY = new Set(['backstab', 'flick']);
 
 /** Parse the camera's `translate(ax, ay) scale(z)` (the frame the DOM shows); null at rest. */
 function domCam(el: HTMLElement): { ax: number; ay: number; z: number } | null {

@@ -28,29 +28,61 @@ import { heroBananaPreviewSpeed } from '../heroBanana/heroBananaConfig';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from '../heroBleed/heroBleedConfig';
 import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroClaw } from '../heroClaw/heroClaw';
+import { playHeroChess } from '../heroChess/heroChess';
 import { heroCardsPreviewSpeed } from '../heroCards/heroCardsConfig';
+import { heroClawPreviewSpeed } from '../heroClaw/heroClawConfig';
+import { heroChessPreviewSpeed } from '../heroChess/heroChessConfig';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroChord } from '../heroChord/heroChord';
+import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { heroStormPreviewSpeed } from '../heroStorm/heroStormConfig';
+import { heroChordPreviewSpeed } from '../heroChord/heroChordConfig';
+import { heroFireworksPreviewSpeed } from '../heroFireworks/heroFireworksConfig';
 import { playHeroCoin } from '../heroCoin/heroCoin';
+import { playHeroAnvil } from '../heroAnvil/heroAnvil';
+import { playHeroStamp } from '../heroStamp/heroStamp';
 import { heroCoinPreviewSpeed } from '../heroCoin/heroCoinConfig';
+import { heroAnvilPreviewSpeed } from '../heroAnvil/heroAnvilConfig';
+import { heroStampPreviewSpeed } from '../heroStamp/heroStampConfig';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
+import { playHeroGlove } from '../heroGlove/heroGlove';
 import { heroBoomerangPreviewSpeed } from '../heroBoomerang/heroBoomerangConfig';
+import { heroGlovePreviewSpeed } from '../heroGlove/heroGloveConfig';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from '../heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
+import { playHeroFlick } from '../heroFlick/heroFlick';
 import { heroBackstabPreviewSpeed } from '../heroBackstab/heroBackstabConfig';
+import { heroFlickPreviewSpeed } from '../heroFlick/heroFlickConfig';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from '../heroBasketball/heroBasketballConfig';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroCombo } from '../heroCombo/heroCombo';
+import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { heroBaseballPreviewSpeed } from '../heroBaseball/heroBaseballConfig';
+import { heroComboPreviewSpeed } from '../heroCombo/heroComboConfig';
+import { heroWrestlePreviewSpeed } from '../heroWrestle/heroWrestleConfig';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
+import { playHeroPinball } from '../heroPinball/heroPinball';
+import { playHeroTrain } from '../heroTrain/heroTrain';
 import { heroSoccerPreviewSpeed } from '../heroSoccer/heroSoccerConfig';
+import { heroPinballPreviewSpeed } from '../heroPinball/heroPinballConfig';
+import { heroTrainPreviewSpeed } from '../heroTrain/heroTrainConfig';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { heroVoidPreviewSpeed } from '../heroVoid/heroVoidConfig';
 import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroReaping } from '../heroReaping/heroReaping';
 import { heroStitchPreviewSpeed } from '../heroStitch/heroStitchConfig';
+import { heroReapingPreviewSpeed } from '../heroReaping/heroReapingConfig';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { playHeroStars } from '../heroStars/heroStars';
+import { playHeroGlass } from '../heroGlass/heroGlass';
+import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 import { heroBulletTimePreviewSpeed } from '../heroBulletTime/heroBulletTimeConfig';
+import { heroStarsPreviewSpeed } from '../heroStars/heroStarsConfig';
+import { heroGlassPreviewSpeed } from '../heroGlass/heroGlassConfig';
+import { heroWarhostPreviewSpeed } from '../heroWarhost/heroWarhostConfig';
 import { playHeroBlast } from './heroBlast';
 import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
@@ -76,17 +108,33 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   banana: { play: (o) => playHeroBanana(o), speed: heroBananaPreviewSpeed },
   bleed: { play: (o) => playHeroBleed(o), speed: heroBleedPreviewSpeed },
   cards: { play: (o) => playHeroCards(o), speed: heroCardsPreviewSpeed },
+  claw: { play: (o) => playHeroClaw(o), speed: heroClawPreviewSpeed },
+  chess: { play: (o) => playHeroChess(o), speed: heroChessPreviewSpeed },
   storm: { play: (o) => playHeroStorm(o), speed: heroStormPreviewSpeed },
+  chord: { play: (o) => playHeroChord(o), speed: heroChordPreviewSpeed },
+  fireworks: { play: (o) => playHeroFireworks(o), speed: heroFireworksPreviewSpeed },
   coin: { play: (o) => playHeroCoin(o), speed: heroCoinPreviewSpeed },
+  anvil: { play: (o) => playHeroAnvil(o), speed: heroAnvilPreviewSpeed },
+  stamp: { play: (o) => playHeroStamp(o), speed: heroStampPreviewSpeed },
   boomerang: { play: (o) => playHeroBoomerang(o), speed: heroBoomerangPreviewSpeed },
+  glove: { play: (o) => playHeroGlove(o), speed: heroGlovePreviewSpeed },
   bubble: { play: (o) => playHeroBubble(o), speed: heroBubblePreviewSpeed },
   backstab: { play: (o) => playHeroBackstab(o), speed: heroBackstabPreviewSpeed },
+  flick: { play: (o) => playHeroFlick(o), speed: heroFlickPreviewSpeed },
   basketball: { play: (o) => playHeroBasketball(o), speed: heroBasketballPreviewSpeed },
   baseball: { play: (o) => playHeroBaseball(o), speed: heroBaseballPreviewSpeed },
+  combo: { play: (o) => playHeroCombo(o), speed: heroComboPreviewSpeed },
+  wrestle: { play: (o) => playHeroWrestle(o), speed: heroWrestlePreviewSpeed },
   soccer: { play: (o) => playHeroSoccer(o), speed: heroSoccerPreviewSpeed },
+  pinball: { play: (o) => playHeroPinball(o), speed: heroPinballPreviewSpeed },
+  train: { play: (o) => playHeroTrain(o), speed: heroTrainPreviewSpeed },
   void: { play: (o) => playHeroVoid(o), speed: heroVoidPreviewSpeed },
   stitch: { play: (o) => playHeroStitch(o), speed: heroStitchPreviewSpeed },
+  reaping: { play: (o) => playHeroReaping(o), speed: heroReapingPreviewSpeed },
   bullettime: { play: (o) => playHeroBulletTime(o), speed: heroBulletTimePreviewSpeed },
+  stars: { play: (o) => playHeroStars(o), speed: heroStarsPreviewSpeed },
+  glass: { play: (o) => playHeroGlass(o), speed: heroGlassPreviewSpeed },
+  warhost: { play: (o) => playHeroWarhost(o), speed: heroWarhostPreviewSpeed },
 };
 
 /**

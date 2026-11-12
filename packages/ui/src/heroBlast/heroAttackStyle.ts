@@ -124,6 +124,54 @@
  * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
+ * `stamp` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroStamp/`.
+ *
+ * `flick` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `backstab` (`npm run attack:new`), see `../heroFlick/`.
+ *
+ * `anvil` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroAnvil/`.
+ *
+ * `glove` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `boomerang` (`npm run attack:new`), see `../heroGlove/`.
+ *
+ * `chess` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroChess/`.
+ *
+ * `claw` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroClaw/`.
+ *
+ * `fireworks` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroFireworks/`.
+ *
+ * `chord` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroChord/`.
+ *
+ * `train` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroTrain/`.
+ *
+ * `wrestle` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroWrestle/`.
+ *
+ * `combo` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroCombo/`.
+ *
+ * `pinball` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroPinball/`.
+ *
+ * `warhost` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroWarhost/`.
+ *
+ * `reaping` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `stitch` (`npm run attack:new`), see `../heroReaping/`.
+ *
+ * `glass` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroGlass/`.
+ *
+ * `stars` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroStars/`.
+ *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
  * its animation in `assets.style`; an unknown, retired or unrecognised item plays Classic.
@@ -136,7 +184,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'stamp', 'flick', 'anvil', 'glove', 'chess', 'claw', 'fireworks', 'chord', 'train', 'wrestle', 'combo', 'pinball', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -153,7 +201,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'stamp', 'flick', 'anvil', 'glove', 'chess', 'claw', 'fireworks', 'chord', 'train', 'wrestle', 'combo', 'pinball', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -169,6 +217,22 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
   void: 'Void (in progress, no cosmetic yet)',
+  stamp: 'Paid in Full (stamp, Rare) (in progress, no cosmetic yet)',
+  flick: 'The Flick (Rare) (in progress, no cosmetic yet)',
+  anvil: 'Look Out Below (anvil, Rare) (in progress, no cosmetic yet)',
+  glove: 'Sucker Punch (spring glove, Rare) (in progress, no cosmetic yet)',
+  chess: 'Checkmate (chess, Epic) (in progress, no cosmetic yet)',
+  claw: 'Grabby Claw (claw machine, Epic) (in progress, no cosmetic yet)',
+  fireworks: 'Grand Finale (fireworks, Epic) (in progress, no cosmetic yet)',
+  chord: 'Power Chord (Epic) (in progress, no cosmetic yet)',
+  train: 'Right on Schedule (train) (in progress, no cosmetic yet)',
+  wrestle: 'Top Rope (wrestling) (in progress, no cosmetic yet)',
+  combo: 'Flawless (fighting game) (in progress, no cosmetic yet)',
+  pinball: 'Multiball (pinball) (in progress, no cosmetic yet)',
+  warhost: 'Warhost (Ancient of War) (in progress, no cosmetic yet)',
+  reaping: 'The Reaping (Ancient of Death) (in progress, no cosmetic yet)',
+  glass: 'Fourth Wall (Ancient) (in progress, no cosmetic yet)',
+  stars: 'Written in the Stars (Ancient) (in progress, no cosmetic yet)',
 };
 
 const KEY = 'ascent.heroattackstyle';

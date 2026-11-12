@@ -146,7 +146,7 @@ import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug
 import { parseBugScenario } from './bug-report/bugScenario';
 import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
 import { holdUntilVersusFight, versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
-import { localMateRefuses } from './versus/localMate';
+import { localMateAction, localMateAfterCommit, localMateRefuses } from './versus/localMate';
 import { HALL_VISIBLE } from './hallFlag';
 import { openDockOn } from './friends/dock/dockStore';
 
@@ -2602,6 +2602,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // VERSUS (R-VERSUS-EARLY-EOT-01): an End Turn started at the round's close commits once its fight is in.
     if (holdUntilVersusFight(get().run, action, () => get().dispatch(action))) return;
     action = versusAction(get().run, action); // VERSUS: End Turn parks the side for the server
+    action = localMateAction(get().run, action); // SCENE BUILDER DUOS (dev): End Turn is the team fight
     // The run BEFORE the action — the tutorial bus reads it to resolve a buy/play/sell uid back to its cardId
     // (the card is gone from the committed run). Captured only to hand to the bus; the reducer never sees it.
     const prev = get().run;
@@ -2653,6 +2654,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // so it's safe on the hot path. Only the tutorial controller subscribes, and only while a course is live.
     notifyTutorialActions(action, prev, get().run);
     versusAfterCommit(action, prev, get().run);
+    localMateAfterCommit(action, get().run);
     // LIVE RANKED LOBBY: the watchers replay it (a no-op with nobody watching). A REJECTED action (the reducer returned
     // the same run: no Gold, a full board) is not tagged: the stands would ring its success sound for nothing.
     if (get().run.mode !== 'versus' && get().run !== prev) tapAct(action);
@@ -2672,6 +2674,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     if (versusRefuses(s.run, action)) return null; // VERSUS: a paused match takes no End Turn either
     if (localMateRefuses(action)) return null; // SCENE BUILDER DUOS (dev): nor the placeholder teammate's screen
     action = versusAction(s.run, action); // VERSUS: End Turn parks the side for the server
+    action = localMateAction(s.run, action); // SCENE BUILDER DUOS (dev): End Turn is the team fight
     const prepared = prepareActionWithPresentation(s.run, action);
     // SPECTATORS (owner 2026-10-15): the End Turn press and the beats it is about to play, tapped NOW so the stands
     // play the same recorded beats in step with this screen (a no-op with nobody watching).
@@ -2703,6 +2706,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // stalls forever. No-op on every non-tutorial run.
     notifyTutorialActions(tx.action, prev, get().run);
     versusAfterCommit(tx.action, prev, get().run);
+    localMateAfterCommit(tx.action, get().run);
     if (get().run.mode !== 'versus' && get().run !== prev) tapAct(tx.action);
   },
   /**

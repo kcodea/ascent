@@ -15,15 +15,17 @@
  * VIEWING THE TEAMMATE puts THEIR run in the store (my own is held here, untouched), exactly like the real teammate view
  * holds my run aside, but their screen is LIVE, not a watch screen: every Scene Builder tool (the library, the edit
  * mode, the board and shop sweeps) and every normal play edits their run, and a drag onto the portrait (it is you while
- * you look) passes to you. Their run never fights: End Turn on their screen takes you back to yours.
+ * you look) passes to you. Their turn ends WITH yours: your End Turn fights both boards as one team (the real tag-team
+ * fight, `endTurn` below). End Turn on their screen takes you back to yours.
  */
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
 import {
-  createLobbyRun, duosPassBlocked, duosPassCost, handCap, modalOpen, passMinionToTeammate, playableHeroes, reduce,
-  type Action, type BoardCard, type PracticeConfig, type PracticeTribe, type RunState,
+  createLobbyRun, duosMemberView, duosPassBlocked, duosPassCost, handCap, modalOpen, passMinionToTeammate, playableHeroes, reduce,
+  type Action, type BoardCard, type PracticeConfig, type PracticeTribe, type RunState, type SandboxDuosFight,
 } from '@game/sim';
 import { useGame } from './store';
+import { foeSnapshotOf } from './sandboxEdit';
 import { installLocalMate, useLocalMate, type LocalMateApi } from './versus/localMate';
 import { noteLocalMateTriples } from './versus/mateTriples';
 import { useSpectate } from './versus/spectate';
@@ -49,9 +51,16 @@ interface SbDuosState {
   mateSeed: number | null;
   /** The last tuner result (or why it could not), for the panel. */
   note: string | null;
+  /** THE DUOS LOBBY (R-SB-DUOS-03): whose board fights first for my team in the next fight. */
+  first: 'me' | 'mate';
 }
 
-export const useSbDuos = create<SbDuosState>(() => ({ other: null, viewing: false, forSeed: null, mateSeed: null, note: null }));
+export const useSbDuos = create<SbDuosState>(() => ({ other: null, viewing: false, forSeed: null, mateSeed: null, note: null, first: 'me' }));
+/** Who fights first next fight (the Teammate panel's switch). */
+export const setSbFirst = (first: 'me' | 'mate'): void => useSbDuos.setState({ first });
+
+/** The team fight prepared for my End Turn (the teammate's turn is ended once, however often the press is prepared). */
+let preparedFight: { seed: number; wave: number; fight: SandboxDuosFight } | null = null;
 
 let ledger: SbLedger = newSbLedger();
 
@@ -152,12 +161,14 @@ function syncTeam(run: RunState): void {
   const mate = makeSbMateRun(run, useGame.getState().sbRules === 'god');
   ledger = newSbLedger();
   seenOutbox = run.duos.outbox.length;
+  preparedFight = null;
   useSbDuos.setState({ other: mate, forSeed: run.seed, mateSeed: mate.seed, viewing: false, note: null });
   useLocalMate.setState({ me: { hero: run.heroId, name: 'You' }, mate: { hero: mate.heroId, name: SB_MATE_NAME } });
 }
 
 function resetTeam(): void {
   if (useSbDuos.getState().viewing) useSpectate.setState({ teammate: false });
+  preparedFight = null;
   useSbDuos.setState({ other: null, viewing: false, forSeed: null, mateSeed: null, note: null });
   ledger = newSbLedger();
   useLocalMate.setState({ me: null, mate: null });
@@ -197,6 +208,33 @@ const api: LocalMateApi = {
     const run = useGame.getState().run;
     for (const e of run.duos?.outbox ?? []) if (e.wave === wave && e.combatIdx != null && idx.includes(e.combatIdx)) playEntryFlight(e, run);
     releaseSbCombatFx(ledger, onScreenSeat(), wave, idx);
+    schedulePump();
+  },
+  // THE DUOS LOBBY (owner 2026-11-12, R-SB-DUOS-03): "scene builder duos mode needs to actually turn it into a 'duos'
+  // lobby so i can test various combat interactions". My End Turn ends the teammate's turn too (their real
+  // `faceOmen { deferFight }`: End of Turn, banks, the prepared side) and the fight is the real tag-team fight: my board
+  // and theirs against my foe with THEIR foe as its reserve. The reducer runs it (`SandboxDuosFight`).
+  endTurn: (mine, action) => {
+    const st = useSbDuos.getState();
+    if (!mine.sandbox || !mine.duos || mine.phase !== 'recruit' || !st.other || st.viewing) return action;
+    if (preparedFight && preparedFight.seed === mine.seed && preparedFight.wave === mine.wave) return { ...action, sandboxDuos: preparedFight.fight } as Action;
+    const mate = st.other;
+    const foeMate = foeSnapshotOf(mate);
+    const ended = mate.phase === 'recruit' ? reduce(mate, { type: 'faceOmen', deferFight: true }) : mate;
+    if (!ended.pendingCombatSide) { say('They could not end their turn (a choice is open on their board). You fought alone'); return action; }
+    useSbDuos.setState({ other: ended });
+    preparedFight = { seed: mine.seed, wave: mine.wave, fight: { mate: ended.pendingCombatSide, foeMate, first: st.first } };
+    return { ...action, sandboxDuos: preparedFight.fight } as Action;
+  },
+  afterCommit: (action, next) => {
+    if (action.type !== 'faceOmen' || !action.sandboxDuos || next.phase !== 'combat' || !next.lastCombat) return;
+    preparedFight = null;
+    const mate = useSbDuos.getState().other;
+    if (!mate?.pendingCombatSide) return;
+    // Their own board's view of the same fight, landed and settled at once: they are back in their shop, one wave on,
+    // with their carry-backs, while your replay plays. The sandbox is invulnerable: no damage.
+    const theirs = duosMemberView(next.lastCombat, (next.lastCombat.duosMember ?? 0) === 0 ? 1 : 0);
+    useSbDuos.setState({ other: reduce(mate, { type: 'resolveCombat', fight: { result: theirs, damageTaken: 0 } }) });
     schedulePump();
   },
 };

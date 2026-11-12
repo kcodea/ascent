@@ -25,6 +25,7 @@ import { generateQuestOffer, questOfferPlan } from './quests';
 import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId, powerHolderId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
+import { duosMemberView } from './versus/duos';
 import type { BoardSnapshot } from './snapshot';
 import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS, STAR_DESTROYER, equipmentOf, poolFor } from '@game/content';
 const STAR_DESTROYER_ID = STAR_DESTROYER.id;
@@ -4288,7 +4289,25 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // Marked Target is no longer applied here: it rides `questMods.markFoeRightmostTaunt` and `simulate` gives
         // the holder's FOE's right-most minion Taunt as a Start of Combat step (core `bankedOpeners.ts`), for the
         // real fight and every odds sim alike — and for a served board that holds it, against you.
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
+        // SCENE BUILDER DUOS (DEV, R-SB-DUOS-03): the real tag-team fight. My board and the placeholder teammate's are one
+        // team (one fights, the other waits as the reserve), against the served foe with the teammate run's foe as ITS
+        // reserve. One `simulate()`, exactly as `resolveVersusDuosRound` builds it; the run keeps ITS OWN board's view
+        // (`duosMemberView`), and the rig lands the teammate's view on their run from the same result.
+        const sd = s.sandbox === true && s.duos && action.sandboxDuos ? action.sandboxDuos : null;
+        let combat: CombatResult;
+        if (sd) {
+          const mine = { board: player, state: playerState };
+          const mate = { board: structuredClone(sd.mate.board), state: structuredClone(sd.mate.state) };
+          const mateLeads = mate.board.length > 0 && (sd.first === 'mate' || mine.board.length === 0);
+          const lead = mateLeads ? mate : mine;
+          const waiting = mateLeads ? mine : mate;
+          const foeMate = sd.foeMate ? { board: opponentBoard(sd.foeMate), state: enemySideFrom(sd.foeMate, s.tier) } : null;
+          const team = simulate(lead.board, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, lead.state, enemyState,
+            { ...config, reserve: { player: waiting, ...(foeMate ? { enemy: foeMate } : {}) } });
+          combat = duosMemberView(team, mateLeads ? 1 : 0);
+        } else {
+          combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
+        }
         // PRACTICE BOTS bite harder (owner ask 2026-08-25: games ran far too long). The stock formula is
         // `opponent tier + 1 per surviving minion`, which tops out ~13 even at tier 6 with a full board — against
         // 30 Resolve + 15 Armor that is ~10 losing rounds, and far longer for a player winning some. Scale the
@@ -4305,7 +4324,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // inputs instead (the banks ride the side mods, which `simulate` never mutates, so the probe sees them
         // UN-SPENT and applies them exactly as the real fight did) and
         // let the UI run `computeCombatOdds` in idle time after the transition. Same seeds → identical odds.
-        combat.oddsInput = { player, enemy, playerState, enemyState, config };
+        if (!sd) combat.oddsInput = { player, enemy, playerState, enemyState, config }; // a tag-team fight has no 1v1 odds
         return combat;
       };
       // Belt-and-suspenders: a stale served board is filtered at load (`registerOpponents`), but if one ever

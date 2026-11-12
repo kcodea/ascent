@@ -15,10 +15,10 @@ export interface Handoff {
 }
 
 /** The entrance's own numbers. `styles.css` (`.unit.tagin`) carries the same two as literals; the test pins them. */
-export const TAG_FLY_MS = 520;
-export const TAG_STAGGER_MS = 60;
-/** How far into its flight a body reads as LANDED (the curve overshoots and settles after this). */
-export const TAG_LAND_FRAC = 0.72;
+export const TAG_FLY_MS = 400;
+export const TAG_STAGGER_MS = 50;
+/** How far into its drop a body touches down (the `60%` keyframe; the squash and settle come after). */
+export const TAG_LAND_FRAC = 0.6;
 /** A row holds at most this many bodies, so the stagger classes stop here. */
 export const TAG_MAX_ORDER = 6;
 /** The fallen board's dim, ms at 1x: it plays between the fallen beat and the tag-in that follows it (`TAG_IN_LEAD` below). */

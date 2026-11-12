@@ -6242,27 +6242,30 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 .unit.summoned { animation: summonexpand 0.34s ease; }
 .unit.summoned .card { width: var(--cw); animation: summonpop 0.34s ease; }
 /* VERSUS DUOS (R-DUOS-TAGTEAM-01): THE HAND-OFF. When a board falls, the teammate's board FLIES IN after it: each body
-   sweeps in from its team's edge of the screen (yours from the left, theirs from the right) with a slight turn, landing
-   on a 60 ms stagger. One-shot, transform / opacity only (compositor), no fill so the lunge's inline transform still
+   drops into its slot, landing on a 50 ms stagger. One-shot, transform / opacity only (compositor), no fill so the lunge's inline transform still
    owns the unit afterwards.
    SPEED-TRUE (R-DUOS-HANDOFF-BEAT-01, 2026-11-10): the flight and the stagger divide by `--combat-speed` (Unit.tsx
    stamps the live speed on the unit as the entrance starts, as it does for a death), so at 2x and under a Skip the
-   board has landed before the beat that holds it ends. It used to be a fixed 0.52 s + 60 ms a slot against a hold
+   board has landed before the beat that holds it ends. It used to be a fixed length and stagger against a hold
    that scaled: at 2x the new board fought while still flying in.
    ORDER-TRUE: the stagger is each body's TURN off the edge (`tagi-N`, set by the replay from the body's place in the
    event, mirrored for the other team), never its slot: one body joining six survivors leaves at once, and the foe's
-   nearest body leaves first. choreo/channels/duosHandoff.ts holds the same 520 / 60 (duosHandoff.test.ts pins both). */
-.unit.tagin .card { animation: taginfly calc(0.52s / var(--combat-speed, 1)) cubic-bezier(0.22, 1.18, 0.36, 1) backwards; }
-.zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginflyfoe; }
-.unit.tagin.tagi-1 .card { animation-delay: calc(60ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-2 .card { animation-delay: calc(120ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-3 .card { animation-delay: calc(180ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-4 .card { animation-delay: calc(240ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-5 .card { animation-delay: calc(300ms / var(--combat-speed, 1)); }
-.unit.tagin.tagi-6 .card { animation-delay: calc(360ms / var(--combat-speed, 1)); }
+   nearest body leaves first. choreo/channels/duosHandoffTiming.ts holds the same 400 / 50 (duosHandoff.test.ts pins both). */
+/* THE DROP-IN (owner 2026-11-11: "the duos animation when the next team's minions come in is a 5/10. can you clean
+   that up significantly"). It was a 62vw sideways sweep with a 9deg tilt, see-through for most of its flight: seven
+   ghost cards sliding across each other. Now each body DROPS into its own slot from just above it: solid within the
+   first fifth, no tilt, no travel across the row, a small squash as it lands, then still. Same one-shot, transform /
+   opacity only. Both teams use the one entrance (the team reads from the slam's colour, not the direction). */
+.unit.tagin .card { animation: taginfly calc(0.4s / var(--combat-speed, 1)) linear backwards; transform-origin: 50% 100%; }
+.unit.tagin.tagi-1 .card { animation-delay: calc(50ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-2 .card { animation-delay: calc(100ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-3 .card { animation-delay: calc(150ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-4 .card { animation-delay: calc(200ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-5 .card { animation-delay: calc(250ms / var(--combat-speed, 1)); }
+.unit.tagin.tagi-6 .card { animation-delay: calc(300ms / var(--combat-speed, 1)); }
 /* Reduced motion: the board fades in where it stands (same length, same stagger), no sweep across the screen. */
 @media (prefers-reduced-motion: reduce) {
-  .unit.tagin .card, .zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginfade; animation-timing-function: ease-out; }
+  .unit.tagin .card { animation-name: taginfade; animation-timing-function: ease-out; }
 }
 @keyframes taginfade { from { opacity: 0; } to { opacity: 1; } }
 /* A BOARD HAS FALLEN (the beat before the hand-off): one soft dim over the fallen row, placed and timed by
@@ -6277,14 +6280,11 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
   100% { opacity: 0; transform: scale(1.04, 1.1); }
 }
 @keyframes taginfly {
-  0% { opacity: 0; transform: translateX(calc(var(--lvw, 100vw) * -0.62)) rotate(-9deg) scale(0.86); }
-  70% { opacity: 1; }
-  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
-}
-@keyframes taginflyfoe {
-  0% { opacity: 0; transform: translateX(calc(var(--lvw, 100vw) * 0.62)) rotate(9deg) scale(0.86); }
-  70% { opacity: 1; }
-  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+  0% { opacity: 0; transform: translateY(calc(var(--cw, 150px) * -0.62)) scale(1.16); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.45); }
+  20% { opacity: 1; }
+  60% { opacity: 1; transform: translateY(0) scale(1); animation-timing-function: ease-out; }
+  74% { opacity: 1; transform: translateY(0) scale(1.05, 0.93); animation-timing-function: ease-in-out; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes summonexpand {

@@ -1,59 +1,57 @@
-// SCAFFOLDED from heroStitch/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Stitch, not this style, until rewritten.
 // @vitest-environment jsdom
 /**
- * SOUL STITCH (the Ancient of Bonds' hero attack, an ANCIENT; owner 2026-10-02: "this ancient binds things together and
- * using soulbindings", the concept "Soul Reaping": stitching the target to you; III the owner's pick "Pinned", IV
- * "Bound Together"): the shared four tiers (I needle, II cross, III pinned, IV bound; a knockout plays IV); the tuner values; the pure plan (the piercings and punctures are
- * ticks before THE impact, which follows the tug); the pure geometry (the needles fly from the striker's rim, sew ON the
- * struck portrait, never above the ceiling); the thread drawn along the needle's own path and tied to both portraits;
- * the runner on the shared clock (the blow lands exactly ONCE; the pull leans the striker back and yanks the target in;
- * both directions; replay; finish / cancel; cleanup; the camera applied once); the headless scene (pooled, bounded,
- * thread meshes batchable, drains, destroy leaves nothing); the cosmetic.
+ * THE REAPING (the Ancient of Death's hero attack, an ANCIENT): what the scythe cuts is colour. The shared four tiers
+ * (I cut, II cross, III shadow, IV the reaping; a knockout plays IV); the tuner values; the pure plan (II's first cut
+ * is a tick, the blow lands as the last blade crosses the portrait's middle); the pure geometry (every blade passes
+ * through the struck portrait and the shadow, candle and line stay on screen, both directions); the pure drain (what is
+ * grey when, and exactly nothing after the end); the runner on the shared clock (the blow lands exactly ONCE; every
+ * exit removes every pane and puts both portraits back; replay; reduced motion); the headless scene (pooled, bounded,
+ * drains, destroy leaves nothing); the dev-only registration.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Container, MeshSimple, Texture } from 'pixi.js';
-import { COSMETIC_INDEX } from '@game/progression';
+import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
-import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, resolveHeroAttackStyle, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
+import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
-  HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, clampHeroReapingValue, flightPoint, heroReapingConfigJson, needleAt, sanitizeHeroReapingConfig,
-  KNOT_PULSES, REAPING_KO, dragAt, knotAt, koSlamAt, slowMoExtraMs, reapingCameraAt, reapingTimeScale, stretchAt, reapingCues, reapingGeo, reapingKind, reapingPlan, tugAt, type HeroReapingConfig, type HeroReapingNumKey,
+  CROSS_AT, HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, SNUFF_MS, bladeAt, clampHeroReapingValue, drainAt, flameAt, foeMoveAt, heroReapingConfigJson, lineAt,
+  passAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingKind, reapingPlan, sanitizeHeroReapingConfig, scytheAt, shadowAt, swingAt,
+  type HeroReapingNumKey,
 } from './heroReapingConfig';
-import { HeroReapingScene, KNOT_LOOPS, LATCH_SNAP_MS, MAX_STITCH_SPRITES, SNAP_MS, THREAD_PTS, type HeroReapingTextures } from './heroReapingScene';
-import { foePull, playHeroReaping, type HeroReapingOptions } from './heroReaping';
+import { DRAIN_Z, ReapingDrain } from './heroReapingDrain';
+import { HeroReapingScene, MAX_MOTES, MAX_REAPING_SPRITES, type HeroReapingTextures } from './heroReapingScene';
+import { playHeroReaping, reapingSeed, type HeroReapingOptions } from './heroReaping';
 import { SPEC } from '../HeroReapingTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
 const W = Texture.WHITE;
-const TEX: HeroReapingTextures = {
-  glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W, needle: W, thread: W, shard: W,
-};
+const TEX: HeroReapingTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, blade: W, line: W, snath: W, shadow: W, candle: W, flame: W, mote: W };
 const C = HERO_REAPING_DEFAULTS;
 const plan = (total: number, o: { knockout?: boolean; reduced?: boolean } = {}) => reapingPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);
-const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
-const R = 80;
-const COLORS = { thread: 0xa855f7, lilac: 0xe9d5ff, deep: 0x2e1065, gold: 0xd4a537, bone: 0xefe6d2, side: 0xf0c75e };
-const LOOK = {
-  needleSize: C.needleSize, needleGlow: C.needleGlow, threadWidth: C.threadWidth, threadGlow: C.threadGlow, sag: C.sag, tautMs: C.tautMs,
-  twangPx: C.twangPx, knotSize: C.knotSize, ripRibbons: C.ripRibbons, rainShards: C.rainShards,
-};
+const R = 130;
+const BOUNDS = { w: 1920, h: 1080 };
+/** The two real seats at 1080p: yours bottom left, the foe's top right. */
+const YOU = { x: 171, y: 844 }, FOE = { x: 1773, y: 161 };
+const TOTALS = [3, 8, 14, 40] as const;
+const COLORS = { teal: 0x2fe0bc, bone: 0xefe9dc, shade: 0x05070a, motes: [0xffb24a, 0xff7a5c, 0xffe08a], side: 0xf0c75e };
+const LOOK = { bladeSize: C.bladeSize, moteMs: C.moteMs, moteSize: C.moteSize, stripWidth: C.stripWidth };
 
 describe('the tiers', () => {
-  it('uses the shared thresholds: I needle, II cross, III pinned, IV bound', () => {
+  it('uses the shared thresholds: I cut, II cross, III shadow, IV the reaping', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const p = plan(d);
       expect(p.tier, `dmg ${d}`).toBe(tierOf(d));
       expect(p.kind, `dmg ${d}`).toBe(reapingKind(tierOf(d)));
     }
-    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['needle', 'cross', 'pinned', 'bound']);
+    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['cut', 'cross', 'shadow', 'reaping']);
   });
 
-  it('a knockout always plays IV, bound together (the Huge version), whatever the number', () => {
+  it('a knockout always plays IV, whatever the number, and there is no separate knockout variant', () => {
     const p = plan(3, { knockout: true });
     expect(p.tier).toBe(4);
-    expect(p.kind).toBe('bound');
+    expect(p.kind).toBe('reaping');
+    expect(reapingPlan({ total: 3, distance: 1600, knockout: true, knockoutVariant: true }, C)).toEqual(reapingPlan({ total: 3, distance: 1600, knockout: true }, C));
   });
 });
 
@@ -65,251 +63,306 @@ describe('the tuner values', () => {
       expect(v, k).toBeLessThanOrEqual(max);
       expect(step, k).toBeGreaterThan(0);
     }
-    for (const k of ['colorThread', 'colorLilac', 'colorDeep', 'colorGold', 'colorBone', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
+    for (const k of ['colorTeal', 'colorBone', 'colorShade', 'colorMoteA', 'colorMoteB', 'colorMoteC', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('ships the Ancient of Bonds palette', () => {
-    expect(C.colorThread).toBe('#a855f7');
-    expect(C.colorLilac).toBe('#e9d5ff');
-    expect(C.colorDeep).toBe('#2e1065');
-    expect(C.colorGold).toBe('#d4a537');
-    expect(C.colorBone).toBe('#efe6d2');
+  it('ships the Ancient of Death teal, and its own three clips', () => {
+    expect(C.colorTeal).toBe('#2fe0bc');
+    expect([C.sfxBellClip, C.sfxSweepClip, C.sfxBreathClip]).toEqual(['fx/reaping-bell', 'fx/reaping-sweep', 'fx/reaping-breath']);
+    expect(ATTACK_FX_CLIPS.reaping).toEqual(['fx/reaping-bell', 'fx/reaping-breath', 'fx/reaping-sweep']);
   });
 
   it('clamps numbers into range; junk falls back; colours must be #rrggbb; unknown keys drop', () => {
-    expect(clampHeroReapingValue('t4Needles', 99)).toBe(8);
-    expect(clampHeroReapingValue('crush', 0)).toBe(0.3);
-    expect(clampHeroReapingValue('threadWidth', -3)).toBe(0.5);
-    expect(clampHeroReapingValue('threadWidth', 'abc')).toBe(C.threadWidth);
-    expect(clampHeroReapingValue('colorThread', '#ABCDEF')).toBe('#abcdef');
-    expect(clampHeroReapingValue('colorThread', 'violet')).toBe(C.colorThread);
-    expect(clampHeroReapingValue('nope' as keyof HeroReapingConfig, 1)).toBeUndefined();
-    const s = sanitizeHeroReapingConfig({ t3Passes: 400, bogus: 1 });
-    expect(s.t3Passes).toBe(24); // the range is shared (IV uses Passes)
-    expect('bogus' in s).toBe(false);
+    expect(clampHeroReapingValue('t4Motes', 999)).toBe(40);
+    expect(clampHeroReapingValue('grey', -3)).toBe(0);
+    expect(clampHeroReapingValue('drainMs', 'x')).toBe(C.drainMs);
+    expect(clampHeroReapingValue('colorTeal', 'teal')).toBe(C.colorTeal);
+    expect(clampHeroReapingValue('colorTeal', '#ABCDEF')).toBe('#abcdef');
+    const s = sanitizeHeroReapingConfig({ t1SweepMs: 99999, nope: 1, colorBone: 7 });
+    expect(s.t1SweepMs).toBe(1500);
+    expect(s.colorBone).toBe(C.colorBone);
+    expect('nope' in s).toBe(false);
   });
 
-  it('every config key has a control; Copy JSON drops the preview keys; the four tier buttons sit on top; the style row offers stitch', () => {
+  it('Copy JSON leaves the preview-only keys out', () => {
+    const j = JSON.parse(heroReapingConfigJson(C)) as Record<string, unknown>;
+    expect('previewDamage' in j).toBe(false);
+    expect(j.colorTeal).toBe('#2fe0bc');
+  });
+
+  it('the tuner offers every dial, the Play buttons on top, and the style in the dev list only', () => {
     const keys = new Set(SPEC.controls.map((c) => c.key));
-    for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
-    const json = JSON.parse(heroReapingConfigJson(C)) as Record<string, unknown>;
-    expect(json.previewDamage).toBeUndefined();
-    expect(json.t4Needles).toBe(6);
+    for (const k of Object.keys(HERO_REAPING_RANGES)) expect(keys.has(k as never), k).toBe(true);
     expect(SPEC.buttonsOnTop).toBe(true);
-    const labels = (SPEC.actions ?? []).map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) expect(labels).toContain(l);
-    expect(labels.filter((l) => /speed|reduced/i.test(l))).toEqual([]);
+    expect((SPEC.actions ?? []).filter((a) => a.label.startsWith('▶')).length).toBe(10);
     expect(SPEC.controls.find((c) => c.key === 'attackStyle')?.options).toContain('reaping');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('reaping');
+    expect(HERO_ATTACK_STYLES).toContain('reaping');
+  });
+
+  it('no words drawn or spoken to the player use a dash pair, an em dash, "Oath" or "climb"', () => {
+    const text = [SPEC.title, ...SPEC.controls.map((c) => `${c.label} ${c.hint ?? ''}`), ...(SPEC.actions ?? []).map((a) => `${a.label} ${a.hint ?? ''}`)].join(' ');
+    expect(text).not.toMatch(/—|--|\bOath\b|\bclimb\b/i);
   });
 });
 
-describe('the plan', () => {
-  it('I NEEDLE: one needle; its piercing is a tick; it hangs, the tug follows, then THE impact', () => {
-    const p = plan(3);
-    expect(p.kind).toBe('needle');
-    expect(p.needles).toHaveLength(1);
-    expect(p.hits).toEqual([p.needles[0]!.arriveAt]);
-    expect(p.tugAt).toBeGreaterThan(p.needles[0]!.arriveAt);
-    expect(p.impactAt).toBeGreaterThan(p.tugAt);
-    expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(2000);
-    const kinds = reapingCues(p).map((q) => q.kind);
-    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
-    expect(kinds.indexOf('pierce')).toBeLessThan(kinds.indexOf('tug'));
-    expect(kinds.indexOf('tug')).toBeLessThan(kinds.indexOf('impact'));
+describe('the plan (pure)', () => {
+  it('starts where the shared formation ends, and every beat is in order', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      expect(p.chargeAt).toBe(leadInOf([total]));
+      expect(p.launchAt).toBeGreaterThanOrEqual(p.chargeAt);
+      for (const q of p.cuts) { expect(q.startAt).toBeLessThan(q.crossAt); expect(q.crossAt).toBeLessThanOrEqual(q.endAt); }
+      expect(p.impactAt).toBe(p.cuts[p.cuts.length - 1]!.crossAt);
+      expect(p.returnAt).toBeGreaterThan(p.impactAt);
+      expect(p.returnEnd).toBeGreaterThan(p.returnAt);
+      expect(p.endAt).toBeGreaterThanOrEqual(p.returnEnd); // the portrait has ALL its colour back before the attack ends
+    }
   });
 
-  it('II CROSS: three needles, two sew the diagonals and the third only pins; every piercing a tick before the yank', () => {
-    const p = plan(8);
-    expect(p.kind).toBe('cross');
-    expect(p.needles).toHaveLength(3);
-    expect(p.needles[0]!.sewEnd).toBeGreaterThan(p.needles[0]!.arriveAt);
-    expect(p.needles[1]!.sewEnd).toBeGreaterThan(p.needles[1]!.arriveAt);
-    expect(p.needles[2]!.sewEnd).toBe(p.needles[2]!.arriveAt);
-    expect(p.hits).toHaveLength(3);
-    for (const h of p.hits) expect(h).toBeLessThan(p.tugAt);
-    expect(p.tugAt).toBeGreaterThanOrEqual(Math.max(...p.needles.map((q) => q.sewEnd)));
+  it('I one cut, II two (the first a tick), III the downswing after the rise, IV the line after the drain, the silence and the toll', () => {
+    expect(plan(3).cuts.length).toBe(1);
+    const two = plan(8);
+    expect(two.cuts.length).toBe(2);
+    expect(two.cuts[1]!.startAt - two.cuts[0]!.startAt).toBe(C.crossGapMs);
+    expect(two.cuts[0]!.crossAt).toBeLessThan(two.impactAt);
+    const three = plan(14);
+    expect(three.riseAt).toBe(three.chargeAt);
+    expect(three.raisedAt! - three.riseAt!).toBe(C.riseMs);
+    expect(three.cuts[0]!.startAt).toBe(three.raisedAt! + C.raiseMs);
+    expect([three.drainAt, three.tollAt, three.floodAt]).toEqual([null, null, null]);
+    const four = plan(40);
+    expect(four.drainAt).toBe(four.chargeAt);
+    expect(four.drainedAt! - four.drainAt!).toBe(C.drainMs);
+    expect(four.tollAt! - four.drainedAt!).toBe(C.silenceMs); // the silent gap
+    expect(four.cuts[0]!.startAt - four.tollAt!).toBe(C.tollMs);
+    expect(four.floodAt! - four.impactAt).toBe(C.streamMs);
+    expect(four.floodEnd! - four.floodAt!).toBe(C.floodMs);
+    expect(four.returnAt).toBeGreaterThan(four.floodEnd!); // the loser stays grey after the flood has passed
   });
 
-  it('III PINNED: five pins (ticks, one after another), the pull (the stretch), THE impact as they rip out', () => {
-    const p = plan(14);
-    expect(p.kind).toBe('pinned');
-    expect(p.needles).toHaveLength(5);
-    expect(p.hits).toHaveLength(5);
-    for (let i = 1; i < p.hits.length; i++) expect(p.hits[i]!).toBeGreaterThan(p.hits[i - 1]!);
-    for (const q of p.needles) expect(q.sewEnd).toBe(q.arriveAt); // pins do not sew
-    for (const h of p.hits) expect(h).toBeLessThan(p.tugAt);
-    expect(p.impactAt).toBeGreaterThan(p.tugAt);
-    const kinds = reapingCues(p).map((q) => q.kind);
-    expect(kinds.filter((k) => k === 'pierce')).toHaveLength(5);
-    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
-    expect(kinds.lastIndexOf('pierce')).toBeLessThan(kinds.indexOf('tug'));
-    expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(3200);
+  it('escalates: each tier runs longer, throws more motes and shakes harder; IV sits near its source attack', () => {
+    const ps = TOTALS.map((t) => plan(t));
+    for (let i = 1; i < ps.length; i++) {
+      expect(ps[i]!.endAt - ps[i]!.chargeAt).toBeGreaterThan(ps[i - 1]!.endAt - ps[i - 1]!.chargeAt);
+      expect(ps[i]!.motes).toBeGreaterThan(ps[i - 1]!.motes);
+      expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
+    }
+    expect(ps[0]!.endAt - ps[0]!.chargeAt).toBeLessThan(1800);
+    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeLessThan(4200);
+    expect(ps[3]!.motes).toBeLessThanOrEqual(MAX_MOTES);
   });
 
-  it('III: the stretch builds through the pull, snaps back through a squash, and is EXACTLY zero at rest', () => {
-    const p = plan(14);
-    expect(stretchAt(p, C, p.tugAt - 1)).toBe(0);
-    const mid = stretchAt(p, C, (p.tugAt + p.impactAt) / 2), full = stretchAt(p, C, p.impactAt - 1);
-    expect(mid).toBeGreaterThan(0);
-    expect(full).toBeGreaterThan(mid);
-    expect(full).toBeLessThanOrEqual(C.stretch + 1e-9);
-    let min = 0;
-    for (let t = p.impactAt; t < p.endAt; t += 4) min = Math.min(min, stretchAt(p, C, t));
-    expect(min).toBeLessThan(0); // the squash on the way back
-    expect(stretchAt(p, C, p.endAt)).toBe(0);
-    for (const d of [3, 8, 40]) { const q = plan(d); for (let t = q.chargeAt; t < q.endAt; t += 20) expect(stretchAt(q, C, t)).toBe(0); }
+  it('the cues: one impact, one end, in time order; ticks before the impact; no plan carries a hit-stop', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      const q = reapingCues(p);
+      expect(q.filter((c) => c.kind === 'impact')).toEqual([{ at: p.impactAt, kind: 'impact', i: 0 }]);
+      expect(q.filter((c) => c.kind === 'end').length).toBe(1);
+      for (let i = 1; i < q.length; i++) expect(q[i]!.at).toBeGreaterThanOrEqual(q[i - 1]!.at);
+      expect(q.filter((c) => c.kind === 'sweep').length).toBe(p.cuts.length);
+      expect(q.filter((c) => c.kind === 'cross').length).toBe(p.cuts.length - 1);
+      expect(q[q.length - 1]!.kind).toBe('end');
+      expect(Object.keys(p).join(' ')).not.toMatch(/hitStop|slamStop/i);
+    }
+    const four = reapingCues(plan(40)).map((c) => c.kind);
+    expect(four).toEqual(['charge', 'drain', 'hush', 'toll', 'sweep', 'impact', 'flood', 'return', 'end']);
+    expect(reapingCues(plan(14)).map((c) => c.kind)).toEqual(['charge', 'rise', 'sweep', 'impact', 'snuff', 'return', 'end']);
+    expect(reapingCues(plan(14)).find((c) => c.kind === 'snuff')!.at).toBe(plan(14).impactAt + SNUFF_MS);
   });
 
-  it('IV BOUND: six laces, the yank (the drag), into the knot, tied, the strike, THE burst, flung home; within the Huge budget', () => {
-    const p = plan(40);
-    expect(p.kind).toBe('bound');
-    expect(p.needles).toHaveLength(6);
-    expect(p.hits).toHaveLength(6);
-    expect(p.tugAt).toBeGreaterThan(Math.max(...p.needles.map((q) => q.sewEnd)));
-    expect(p.knotAt!).toBeGreaterThan(p.tugAt);
-    expect(p.strikeAt!).toBeGreaterThan(p.knotAt!);
-    expect(p.impactAt).toBeGreaterThan(p.strikeAt!);
-    expect(p.homeAt!).toBeGreaterThan(p.impactAt);
-    expect(p.endAt).toBeGreaterThanOrEqual(p.homeAt!); // home before the attack ends
-    expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(4500);
-    const kinds = reapingCues(p).map((q) => q.kind);
-    for (const k of ['tug', 'knot', 'tied', 'strike', 'impact', 'home'] as const) expect(kinds.filter((x) => x === k), k).toHaveLength(1);
-    expect(kinds.filter((x) => x === 'cinch')).toHaveLength(KNOT_PULSES);
-    expect(kinds.indexOf('knot')).toBeLessThan(kinds.indexOf('strike'));
-    expect(kinds.indexOf('strike')).toBeLessThan(kinds.indexOf('impact'));
-    expect(kinds.lastIndexOf('pierce')).toBeLessThan(kinds.indexOf('tug'));
-  });
-
-  it('IV: the drag goes out to the knot, holds through the tie and strike, and is EXACTLY zero from home (and before the yank)', () => {
-    const p = plan(40);
-    expect(dragAt(p, p.tugAt - 1)).toBe(0);
-    expect(dragAt(p, p.knotAt!)).toBe(1);
-    expect(dragAt(p, (p.knotAt! + p.impactAt) / 2)).toBe(1);
-    expect(dragAt(p, p.impactAt - 1)).toBe(1);
-    expect(Math.abs(dragAt(p, p.homeAt! - 1))).toBeLessThan(0.02);
-    expect(dragAt(p, p.homeAt!)).toBe(0);
-    expect(dragAt(p, p.endAt)).toBe(0);
-    // it really goes most of the way, and never far past the knot
-    let peak = 0;
-    for (let t = p.tugAt; t < p.homeAt!; t += 5) peak = Math.max(peak, dragAt(p, t));
-    expect(peak).toBeGreaterThanOrEqual(1);
-    expect(peak).toBeLessThan(1.25);
-    expect(knotAt(p, p.knotAt! - 1)).toBe(0);
-    expect(knotAt(p, p.strikeAt!)).toBe(1);
-    expect(knotAt(p, p.impactAt)).toBe(0);
-    // every other tier never drags
-    for (const d of [3, 8, 14]) { const q = plan(d); for (let t = q.chargeAt; t < q.endAt; t += 20) expect(dragAt(q, t)).toBe(0); }
-  });
-
-  it('IV: the burst gets a slow-mo dip, never a freeze (R-PROG-ATTACK-10), and only IV does', () => {
-    const p = plan(40);
-    expect(reapingTimeScale(p, C, p.impactAt - 1)).toBe(1);
-    expect(reapingTimeScale(p, C, p.impactAt)).toBeCloseTo(C.slowMo, 5);
-    let min = 1;
-    for (let t = p.impactAt - 50; t < p.endAt; t += 2) { const k = reapingTimeScale(p, C, t); expect(k).toBeGreaterThan(0); min = Math.min(min, k); }
-    expect(min).toBeLessThan(0.5);
-    expect(reapingTimeScale(p, C, p.impactAt + C.slowMoMs)).toBe(1);
-    expect(slowMoExtraMs(p, C)).toBeGreaterThan(0);
-    for (const d of [3, 8, 14]) { const q = plan(d); expect(slowMoExtraMs(q, C)).toBe(0); expect(reapingTimeScale(q, C, q.impactAt)).toBe(1); }
-  });
-
-  it('escalates: each tier lands later than the one below', () => {
-    const ats = [3, 8, 14, 40].map((d) => { const p = plan(d); return p.impactAt - p.chargeAt; });
-    for (let i = 1; i < ats.length; i++) expect(ats[i]!).toBeGreaterThan(ats[i - 1]!);
-  });
-
-  it('reduced motion: no needles; the blow lands at the end of the formation', () => {
+  it('reduced motion: no cuts, no drain; the blow lands where the formation ends', () => {
     const p = plan(40, { reduced: true });
     expect(p.reduced).toBe(true);
-    expect(p.needles).toEqual([]);
-    expect(p.impactAt).toBe(leadInOf([40], true));
-    expect(reapingGeo(p, A, D, R, R, C).needles).toEqual([]);
+    expect(p.cuts).toEqual([]);
+    expect(reapingCues(p).map((c) => c.kind)).toEqual(['impact', 'end']);
+    expect(drainAt(p, p.impactAt + 10)).toEqual({ strip: [0, 0], stripA: 0, full: 0, veil: 0, flood: 0 });
+    expect(reapingCameraAt(p, C, p.impactAt)).toEqual({ zoom: 1, x: 0, y: 0 });
   });
 
   it('is deterministic', () => {
-    expect(plan(40)).toEqual(plan(40));
-    expect(reapingGeo(plan(40), A, D, R, R, C)).toEqual(reapingGeo(plan(40), A, D, R, R, C));
-  });
-
-  it('the tug envelope rises to the impact and is gone after (I-II); IV holds it through the knot', () => {
-    const p = plan(3);
-    expect(tugAt(p, p.tugAt - 1)).toBe(0);
-    expect(tugAt(p, (p.tugAt + p.impactAt) / 2)).toBeGreaterThan(0.3);
-    expect(tugAt(p, p.impactAt - 1)).toBeGreaterThan(0.95);
-    expect(tugAt(p, p.impactAt + 1)).toBe(0);
-    expect(foePull(p, C, p.impactAt - 1).yank).toBeGreaterThan(C.foeYankPx * 0.9);
-    const q = plan(40);
-    expect(tugAt(q, q.knotAt! + 10)).toBe(1);
-    expect(tugAt(q, q.impactAt + 1)).toBe(0);
-    expect(foePull(q, C, q.knotAt!).yank).toBe(0); // IV moves the target by the drag, not the yank
+    for (const total of TOTALS) expect(plan(total)).toEqual(plan(total));
   });
 });
 
-describe('the geometry', () => {
-  for (const total of [3, 8, 14, 40]) {
-    it(`tier ${tierOf(total)}: summoned on the striker's rim, sewn on the struck portrait, flights under the ceiling`, () => {
-      const p = plan(total);
-      const g = reapingGeo(p, A, D, R, R, C, 20);
-      expect(g.needles).toHaveLength(p.needles.length);
-      for (const n of g.needles) {
-        expect(Math.hypot(n.spot.x - A.x, n.spot.y - A.y)).toBeLessThanOrEqual(R * 1.1);
-        // sewn into the target
-        const onFoe = n.sew.filter((_, j) => n.sewAt[j] === 1);
-        for (const pt of onFoe) expect(Math.hypot(pt.x - D.x, pt.y - D.y)).toBeLessThanOrEqual(R);
-        for (let e = 0; e <= 1; e += 0.05) expect(flightPoint(g, g.needles.indexOf(n), e).y).toBeGreaterThanOrEqual(20 - 1);
+describe('the geometry (pure), both directions', () => {
+  const DIRS: [string, typeof YOU, typeof FOE][] = [['you strike', YOU, FOE], ['the foe strikes', FOE, YOU]];
+
+  it('I-II: every blade passes through the middle of the struck portrait exactly at its crossing, point first', () => {
+    for (const [name, a, d] of DIRS) {
+      for (const total of [3, 8]) {
+        for (const flip of [false, true]) {
+          const p = plan(total);
+          const g = reapingGeo(p, a, d, R, R, C, BOUNDS, flip);
+          p.cuts.forEach((q, i) => {
+            expect(passAt(q, q.crossAt)).toBeCloseTo(CROSS_AT, 6);
+            const at = bladeAt(p, g, i, q.crossAt);
+            expect(at.visible, name).toBe(true);
+            expect(Math.hypot(at.x - d.x, at.y - d.y), `${name} ${total}`).toBeLessThan(0.5);
+            // it points the way it travels: along the cut
+            expect(Math.cos(at.rot - g.cuts[i]!.angle)).toBeGreaterThan(0.99);
+            expect(bladeAt(p, g, i, q.startAt - 1).visible).toBe(false);
+            expect(bladeAt(p, g, i, q.endAt).visible).toBe(false);
+          });
+        }
       }
-      // each needle is where its plan says: on its spot through the ready, at its entry when it pierces
-      p.needles.forEach((q, i) => {
-        const a0 = needleAt(p, g, i, q.launchAt - 1);
-        expect(Math.hypot(a0.x - g.needles[i]!.spot.x, a0.y - g.needles[i]!.spot.y)).toBeLessThan(0.5);
-        const at = needleAt(p, g, i, q.arriveAt);
-        expect(Math.hypot(at.x - g.needles[i]!.entry.x, at.y - g.needles[i]!.entry.y)).toBeLessThan(1);
-        expect(needleAt(p, g, i, p.impactAt).visible).toBe(false); // shattered
-      });
-    });
-  }
-
-  it('II: the two stitches cross (an X) and the pin is at the crossing', () => {
-    const g = reapingGeo(plan(8), A, D, R, R, C);
-    const [s1, s2, pin] = g.needles;
-    const v1 = { x: s1!.sew[1]!.x - s1!.sew[0]!.x, y: s1!.sew[1]!.y - s1!.sew[0]!.y };
-    const v2 = { x: s2!.sew[1]!.x - s2!.sew[0]!.x, y: s2!.sew[1]!.y - s2!.sew[0]!.y };
-    expect(Math.abs(v1.x * v2.x + v1.y * v2.y)).toBeLessThan(1); // perpendicular diagonals
-    expect(pin!.entry).toEqual(D);
-  });
-
-  it('III: the five pins sit on the rim at the points of a star, stabbed in star order', () => {
-    const p = plan(14);
-    const g = reapingGeo(p, A, D, R, R, C);
-    const angs = g.needles.map((n) => Math.atan2(n.entry.y - D.y, n.entry.x - D.x));
-    for (const n of g.needles) expect(Math.hypot(n.entry.x - D.x, n.entry.y - D.y)).toBeCloseTo(R * C.pinRim, 5);
-    const step = (2 * Math.PI) / 5;
-    const norm = (a: number): number => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    // consecutive pins are two star points apart (as a star is drawn), the first at the top
-    expect(angs[0]).toBeCloseTo(-Math.PI / 2, 5);
-    for (let i = 1; i < angs.length; i++) expect(norm(angs[i]! - angs[i - 1]!)).toBeCloseTo(2 * step, 5);
-  });
-
-  it('IV: every lace runs target -> striker -> target, and the drag is halfway across the gap', () => {
-    const p = plan(40);
-    const g = reapingGeo(p, A, D, R, R, C);
-    for (const n of g.needles) {
-      expect(n.sewAt).toEqual([1, 0, 1]);
-      expect(Math.hypot(n.sew[0]!.x - D.x, n.sew[0]!.y - D.y)).toBeLessThanOrEqual(R);
-      expect(Math.hypot(n.sew[1]!.x - A.x, n.sew[1]!.y - A.y)).toBeLessThanOrEqual(R);
     }
-    const gap = Math.hypot(D.x - A.x, D.y - A.y) - 2 * R;
-    expect(g.drag).toBeCloseTo(gap * C.dragReach, 5);
-    expect(reapingGeo(plan(14), A, D, R, R, C).drag).toBe(0);
   });
 
-  it('the camera pushes in through the ready, jerks on the tug and settles after the impact', () => {
+  it('II: the two cuts cross at right angles, 45 degrees either side of the strike line (the wedges between are half)', () => {
+    const p = plan(8);
+    const g = reapingGeo(p, YOU, FOE, R, R, C, BOUNDS);
+    const [c0, c1] = g.cuts;
+    expect(c0!.dir.x * c1!.dir.x + c0!.dir.y * c1!.dir.y).toBeCloseTo(0, 6);
+    expect(c0!.dir.x * g.u.x + c0!.dir.y * g.u.y).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(c1!.dir.x * g.u.x + c1!.dir.y * g.u.y).toBeCloseTo(Math.SQRT1_2, 6);
+  });
+
+  it('the seed mirrors the cut, and the same seed cuts the same way', () => {
+    const p = plan(3);
+    const g0 = reapingGeo(p, YOU, FOE, R, R, C, BOUNDS, false), g1 = reapingGeo(p, YOU, FOE, R, R, C, BOUNDS, true);
+    expect(g0.cuts[0]!.angle).not.toBeCloseTo(g1.cuts[0]!.angle, 3);
+    expect(reapingGeo(p, YOU, FOE, R, R, C, BOUNDS, true)).toEqual(g1);
+    expect(reapingSeed(9, 1600, 'player', 5)).toBe(reapingSeed(9, 1600, 'player', 5));
+    expect(reapingSeed(9, 1600, 'player', 5)).not.toBe(reapingSeed(9, 1600, 'player', 6));
+  });
+
+  it('III: the shadow, its raised scythe and the candle stay on screen; the MIDDLE of the blade crosses the portrait middle at the impact', () => {
+    for (const [name, a, d] of DIRS) {
+      const p = plan(14);
+      const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
+      const s = g.shadow!;
+      expect(s, name).not.toBeNull();
+      // the figure: its head inside the top edge, its sides inside the screen, on the striker's side of the portrait
+      expect(s.baseY - s.h, name).toBeGreaterThanOrEqual(0);
+      expect(s.x - s.h * 0.31, name).toBeGreaterThanOrEqual(0);
+      expect(s.x + s.h * 0.31, name).toBeLessThanOrEqual(BOUNDS.w);
+      expect(Math.sign(s.x - d.x), name).toBe(Math.sign(a.x - d.x));
+      // the candle on the other side, on screen
+      expect(Math.sign(s.candle.x - d.x), name).toBe(-Math.sign(a.x - d.x));
+      expect(s.candle.x).toBeGreaterThan(0); expect(s.candle.x).toBeLessThan(BOUNDS.w);
+      expect(s.candle.y).toBeGreaterThan(0); expect(s.candle.y).toBeLessThanOrEqual(BOUNDS.h);
+      // the swing: raised before, exactly through the portrait at the crossing, then on
+      const q = p.cuts[0]!;
+      expect(swingAt(p, s, q.startAt - 50)).toBe(s.a0);
+      const hit = scytheAt(s, swingAt(p, s, q.crossAt));
+      expect(Math.hypot(hit.mid.x - d.x, hit.mid.y - d.y), name).toBeLessThan(0.5);
+      expect(swingAt(p, s, q.endAt + 10)).toBeCloseTo(s.a1, 6);
+      // raised, the blade is above the hands (it comes down from above)
+      expect(scytheAt(s, s.a0).tip.y, name).toBeLessThan(s.pivot.y);
+      // the shadow is standing for the swing and gone before the colour returns; the flame is out SNUFF_MS after the cut
+      expect(shadowAt(p, p.chargeAt - 1)).toBe(0);
+      expect(shadowAt(p, q.startAt)).toBe(1);
+      expect(shadowAt(p, p.returnEnd)).toBe(0);
+      expect(flameAt(p, p.impactAt - 1)).toBe(1);
+      expect(flameAt(p, p.impactAt + SNUFF_MS)).toBe(0);
+    }
+  });
+
+  it('IV: the line crosses the WHOLE screen through the struck portrait, from the striker side, and is on it at the impact', () => {
+    for (const [name, a, d] of DIRS) {
+      const p = plan(40);
+      const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
+      const l = g.line!;
+      // both ends are off the screen, on opposite sides, and it starts on the striker's side
+      expect(Math.min(l.from.x, l.to.x), name).toBeLessThan(0);
+      expect(Math.max(l.from.x, l.to.x), name).toBeGreaterThan(BOUNDS.w);
+      expect(Math.sign(l.from.x - d.x), name).toBe(Math.sign(a.x - d.x));
+      const q = p.cuts[0]!;
+      expect(lineAt(p, g, q.startAt)).toBe(0);
+      const k = lineAt(p, g, q.crossAt);
+      expect(Math.hypot(l.from.x + (l.to.x - l.from.x) * k - d.x, l.from.y + (l.to.y - l.from.y) * k - d.y), name).toBeLessThan(0.5);
+      expect(lineAt(p, g, q.endAt)).toBe(1);
+      // nearly level: it stays inside the screen's height all the way across
+      for (const x of [0, BOUNDS.w]) {
+        const f = (x - l.from.x) / (l.to.x - l.from.x);
+        const y = l.from.y + (l.to.y - l.from.y) * f;
+        expect(y, name).toBeGreaterThan(0); expect(y, name).toBeLessThan(BOUNDS.h);
+      }
+    }
+  });
+});
+
+describe('the drain (pure): what is grey when', () => {
+  it('nothing is grey before the charge or from the end of the return, on any tier', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      const zero = { strip: [0, 0], stripA: 0, full: 0, veil: 0, flood: 0 };
+      expect(drainAt(p, p.chargeAt - 1)).toEqual(zero);
+      expect(drainAt(p, p.returnEnd)).toEqual(zero);
+      expect(drainAt(p, p.endAt + 500)).toEqual(zero);
+      expect(foeMoveAt(p, p.returnEnd)).toEqual({ knock: 0, sag: 0 });
+    }
+  });
+
+  it('I: the strip is drained BEHIND the blade (nothing before it reaches the portrait, all of it once it has left), then seeps back', () => {
+    const p = plan(3);
+    const q = p.cuts[0]!;
+    expect(drainAt(p, q.startAt + 20).strip[0]).toBe(0);
+    const mid = drainAt(p, q.crossAt).strip[0]!;
+    expect(mid).toBeGreaterThan(0.3); expect(mid).toBeLessThan(0.7);
+    expect(drainAt(p, q.endAt).strip[0]).toBe(1);
+    expect(drainAt(p, q.endAt).stripA).toBe(1);
+    expect(drainAt(p, q.endAt).full).toBe(0); // only the strip: the rest of the portrait keeps its colour
+    const half = drainAt(p, (p.returnAt + p.returnEnd) / 2).stripA;
+    expect(half).toBeGreaterThan(0.3); expect(half).toBeLessThan(0.7);
+  });
+
+  it('II: the first cut drains only its strip; the wedges go on the second', () => {
+    const p = plan(8);
+    const between = drainAt(p, p.cuts[0]!.endAt - 1);
+    expect(between.strip[0]).toBeGreaterThan(0.95);
+    expect(between.full).toBe(0);
+    const after = drainAt(p, p.impactAt + 200);
+    expect(after.full).toBe(1);
+    expect(after.strip).toEqual([1, 1]);
+  });
+
+  it('III: the whole portrait goes grey on the cut', () => {
+    const p = plan(14);
+    expect(drainAt(p, p.impactAt - 100).full).toBe(0);
+    expect(drainAt(p, p.impactAt + 120).full).toBe(1);
+    expect(drainAt(p, p.impactAt + 120).veil).toBe(0);
+  });
+
+  it('IV: the screen drains before the toll, stays monochrome through the sweep, floods back, and the LOSER stays grey after it', () => {
     const p = plan(40);
-    expect(reapingCameraAt(p, C, p.chargeAt - 10).zoom).toBe(1);
-    expect(reapingCameraAt(p, C, p.launchAt).zoom).toBeGreaterThan(1);
-    expect(reapingCameraAt(p, C, p.impactAt - 5).zoom).toBeGreaterThan(reapingCameraAt(p, C, p.tugAt).zoom);
-    expect(reapingCameraAt(p, C, p.impactAt + 3000).zoom).toBeCloseTo(1, 3);
+    expect(drainAt(p, p.drainAt! + 1).veil).toBeLessThan(0.05);
+    expect(drainAt(p, p.drainedAt!).veil).toBe(1);
+    expect(drainAt(p, p.tollAt!).veil).toBe(1);
+    expect(drainAt(p, p.impactAt).veil).toBe(1);
+    expect(drainAt(p, p.impactAt).flood).toBe(0);
+    const mid = drainAt(p, (p.floodAt! + p.floodEnd!) / 2);
+    expect(mid.flood).toBeCloseTo(0.5, 2);
+    const passed = drainAt(p, p.floodEnd! + 1);
+    expect(passed.veil).toBe(0); // the screen has its colour
+    expect(passed.full).toBe(1); // the struck portrait does not
+    expect(drainAt(p, p.returnAt).full).toBe(1);
+    expect(drainAt(p, p.returnEnd - 1).full).toBeLessThan(0.01);
+  });
+
+  it('the struck portrait is knocked on each crossing and sags only while it is grey', () => {
+    const p = plan(8);
+    expect(foeMoveAt(p, p.cuts[0]!.crossAt - 1)).toEqual({ knock: 0, sag: 0 });
+    expect(foeMoveAt(p, p.cuts[0]!.crossAt + 1).knock).toBeGreaterThan(0.3);
+    expect(foeMoveAt(p, p.impactAt + 1).knock).toBeGreaterThan(0.8);
+    expect(foeMoveAt(p, p.impactAt + 300).sag).toBe(1);
+    expect(foeMoveAt(p, p.returnEnd - 1).sag).toBeLessThan(0.01);
+  });
+
+  it('the camera pushes in to the blow and is at rest again by the end; IV holds its push until the flood', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      expect(reapingCameraAt(p, C, p.chargeAt - 1).zoom).toBe(1);
+      expect(reapingCameraAt(p, C, p.impactAt - 1).zoom).toBeGreaterThan(1 + p.zoom * 0.9);
+      const end = reapingCameraAt(p, C, p.endAt);
+      expect(end.zoom).toBeLessThan(1.004);
+      expect(Math.abs(end.x) + Math.abs(end.y)).toBeLessThan(0.2);
+      expect(reapingCameraFocus(p, p.impactAt, YOU, FOE)).toEqual(FOE);
+    }
+    const four = plan(40);
+    expect(reapingCameraAt(four, C, four.floodAt! - 1).zoom).toBeGreaterThan(1 + four.zoom * 0.95);
+    expect(reapingCameraAt(four, C, four.floodEnd!).zoom).toBeLessThan(1.002);
   });
 });
 
@@ -333,183 +386,167 @@ function run(over: Partial<HeroReapingOptions> = {}) {
   const defenderEl = document.createElement('div');
   document.body.append(host, camera);
   const h = playHeroReaping({
-    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 }, defenderRadius: R,
+    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: YOU, defender: FOE, defenderRadius: R, attackerRadius: R,
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl, ...over,
   });
   return { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl };
 }
 
-const translateOf = (el: HTMLElement): { x: number; y: number } => {
-  const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(el.style.transform);
-  return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: 0, y: 0 };
-};
+const panes = (): number => document.querySelectorAll('.hreaping-veil, .hreaping-patch, .hreaping-strip, .hreaping-full').length;
+const of = (total: number): Partial<HeroReapingOptions> => ({ total, formation: formationOf([total], total) });
 
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  for (const total of [3, 8, 14, 40]) {
-    it(`tier ${tierOf(total)}: the blow lands EXACTLY ONCE, on the impact, never on a piercing; everything is put back`, () => {
-      const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total, formation: formationOf([total], total) });
+  for (const total of TOTALS) {
+    it(`tier ${tierOf(total)}: the blow lands EXACTLY ONCE, on the impact; at the end everything is put back and nothing is left`, () => {
+      const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run(of(total));
+      attackerEl.style.transform = 'translate(1px, 2px)';
       expect(host.querySelector('.hblast.hreaping')).not.toBeNull();
-      const lastTick = Math.max(...h.plan.hits);
-      f.tick(lastTick + 8, 4);
-      expect(onImpact).not.toHaveBeenCalled();
-      f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
+      expect(panes()).toBeGreaterThan(0);
+      f.tick(h.plan.impactAt - 12, 4);
       expect(onImpact).not.toHaveBeenCalled();
       f.tick(24, 4);
       expect(onImpact).toHaveBeenCalledTimes(1);
       expect(camera.style.transform).toContain('scale(');
       expect(host.querySelector('.hblast-hit')!.textContent).toBe(`-${total}`);
-      f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8); // IV's slow-mo dip takes extra real time
+      f.tick(200, 4);
+      expect(defenderEl.style.transform).toContain('scale('); // it sags while it is grey
+      f.tick(h.plan.endAt - h.elapsed() + 32, 8);
       expect(onDone).toHaveBeenCalledTimes(1);
       expect(onImpact).toHaveBeenCalledTimes(1);
+      expect(panes()).toBe(0);
+      expect(h.drain.panes).toBe(0);
       expect(host.querySelector('.hblast')).toBeNull();
       expect(camera.style.transform).toBe('');
-      expect(attackerEl.style.transform).toBe('');
       expect(defenderEl.style.transform).toBe('');
-      f.tick(4000, 16);
+      expect(defenderEl.style.filter).toBe('');
+      expect(defenderEl.style.opacity).toBe('');
+      expect(document.body.className).toBe('');
+      f.tick(6000, 16);
       expect(f.hooked()).toBe(0);
-      expect(root.children).toHaveLength(0);
+      expect(root.children.length).toBe(0);
     });
   }
 
-  it('THE PULL: on the tug the striker leans BACK and the target is yanked TOWARD it; the thread stays tied to both', () => {
-    const a = { x: 100, y: 800 }, d = { x: 1400, y: 150 };
-    const { h, f, attackerEl, defenderEl } = run({ total: 3, formation: formationOf([3], 3), attacker: a, defender: d });
-    const u = h.geo.u;
-    f.tick(h.plan.impactAt - 8, 4);
-    const ht = translateOf(attackerEl), ft = translateOf(defenderEl);
-    expect(ht.x * u.x + ht.y * u.y).toBeLessThan(-5); // the striker leaned back, away from the target
-    expect(ft.x * u.x + ft.y * u.y).toBeLessThan(-5); // the target came toward the striker
-    // the thread runs from the striker's rim (riding its lean) to the needle in the face (riding the yank)
-    const ends = h.scene!.threadEnds(0)!;
-    const spot = h.geo.needles[0]!.spot, entry = h.geo.needles[0]!.entry;
-    expect(Math.hypot(ends.a.x - (spot.x + ht.x), ends.a.y - (spot.y + ht.y))).toBeLessThan(1);
-    expect(Math.hypot(ends.b.x - (entry.x + ft.x), ends.b.y - (entry.y + ft.y))).toBeLessThan(1);
+  it('II: the first cut is a tick (FX only); the consequence waits for the second', () => {
+    const { h, f, onImpact } = run(of(8));
+    f.tick(h.plan.cuts[0]!.crossAt + 20, 4);
+    expect(onImpact).not.toHaveBeenCalled();
+    expect(h.scene!.liveMotes).toBeGreaterThan(0); // a few motes already left with the first strip
+    f.tick(h.plan.impactAt - h.elapsed() + 8, 4);
+    expect(onImpact).toHaveBeenCalledTimes(1);
     h.cancel();
   });
 
-  it('the thread is drawn along the needle\'s own path while it flies (its end is the needle\'s tip)', () => {
-    const { h, f } = run({ total: 3, formation: formationOf([3], 3) });
-    const q = h.plan.needles[0]!;
-    f.tick((q.launchAt + q.arriveAt) / 2, 4);
-    const tip = h.scene!.needleTip(0)!;
-    const ends = h.scene!.threadEnds(0)!;
-    expect(Math.hypot(ends.b.x - tip.x, ends.b.y - tip.y)).toBeLessThan(2);
-    expect(Math.hypot(ends.a.x - h.geo.needles[0]!.spot.x, ends.a.y - h.geo.needles[0]!.spot.y)).toBeLessThan(2);
-    // longer than the straight chord: it bows along the arc
-    const chord = Math.hypot(tip.x - ends.a.x, tip.y - ends.a.y);
-    expect(h.scene!.threadLength(0)).toBeGreaterThan(chord);
+  it('the panes: a strip per cut on I-II, the wedge pane on II, the whole portrait on III-IV, the veil on IV only; all under the FX canvas', () => {
+    const count = (total: number) => {
+      const { h } = run(of(total));
+      const r = { veil: h.drain.veil ? 1 : 0, strips: h.drain.strips.length, full: h.drain.full ? 1 : 0 };
+      for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeGreaterThanOrEqual(DRAIN_Z);
+      for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeLessThan(200);
+      h.cancel();
+      return r;
+    };
+    expect(count(3)).toEqual({ veil: 0, strips: 1, full: 0 });
+    expect(count(8)).toEqual({ veil: 0, strips: 2, full: 1 });
+    expect(count(14)).toEqual({ veil: 0, strips: 0, full: 1 });
+    expect(count(40)).toEqual({ veil: 1, strips: 0, full: 1 });
+    expect(panes()).toBe(0);
+  });
+
+  it('the grey rides the struck portrait: the patch is written the portrait transform, and only opacity and transform change after the build', () => {
+    const { h, f, defenderEl } = run(of(8));
+    const patch = h.drain.patch!;
+    const rest = (): string => { const c = patch.cloneNode(false) as HTMLElement; c.style.transform = ''; return (c.getAttribute('style') ?? '').trim(); };
+    const before = rest();
+    f.tick(h.plan.impactAt + 40, 4);
+    expect(defenderEl.style.transform).not.toBe('');
+    expect(patch.style.transform).toBe(defenderEl.style.transform);
+    expect(rest()).toBe(before);
+    expect(Number(h.drain.full!.style.opacity)).toBeGreaterThan(0);
+    expect(h.drain.strips[0]!.style.transform).toContain('scaleX(1.0000)');
     h.cancel();
   });
 
-  it('III: the target STRETCHES toward the striker against the pins (which stay on it), then snaps back and comes home EXACTLY', () => {
-    const { h, f, defenderEl } = run({ total: 14, formation: formationOf([14], 14), camera: null });
-    f.tick(h.plan.impactAt - 4, 2);
-    expect(defenderEl.style.transform).toContain('matrix(');
-    const m = /matrix\(([^)]+)\)/.exec(defenderEl.style.transform)![1]!.split(',').map(Number);
-    // stretched along the line to the striker: |M u| > 1
-    const u = h.geo.u;
-    const mu = { x: m[0]! * u.x + m[2]! * u.y, y: m[1]! * u.x + m[3]! * u.y };
-    expect(Math.hypot(mu.x, mu.y)).toBeGreaterThan(1 + C.stretch * 0.8);
-    // every pin is drawn where the stretched portrait carries it
-    for (let i = 0; i < h.plan.needles.length; i++) {
-      const tip = h.scene!.needleTip(i)!;
-      const want = h.scene!.foePoint(h.geo.needles[i]!.entry.x, h.geo.needles[i]!.entry.y);
-      expect(Math.hypot(tip.x - want.x, tip.y - want.y)).toBeLessThan(1);
-    }
-    f.tick(h.plan.endAt - h.elapsed() + 32, 8);
-    expect(defenderEl.style.transform).toBe('');
-  });
-
-  it('III: every exit (cancel, finish, the end) puts the stretched portrait back exactly', () => {
-    for (const exit of ['cancel', 'finish', 'end'] as const) {
-      const { h, f, defenderEl } = run({ total: 14, formation: formationOf([14], 14), camera: null });
-      defenderEl.style.transform = 'translate(3px, 4px)';
-      f.tick((h.plan.tugAt + h.plan.impactAt) / 2, 4);
-      expect(defenderEl.style.transform).not.toBe('translate(3px, 4px)');
-      if (exit === 'cancel') h.cancel();
-      else if (exit === 'finish') h.finish();
-      else f.tick(h.plan.endAt + 100, 8);
-      expect(defenderEl.style.transform, exit).toBe('');
-    }
-  });
-
-  it('IV: the target is DRAGGED halfway across into the knot (crushed), the laces stay tied to it, and it is flung home EXACTLY', () => {
-    const a = { x: 100, y: 800 }, d = { x: 1400, y: 150 };
-    const { h, f, defenderEl, attackerEl } = run({ total: 40, formation: formationOf([40], 40), attacker: a, defender: d, camera: null });
-    const u = h.geo.u;
-    expect(h.geo.drag).toBeGreaterThan(300);
-    f.tick(h.plan.strikeAt! - 2, 2);
-    const ft = translateOf(defenderEl);
-    const along = ft.x * u.x + ft.y * u.y;
-    expect(along).toBeLessThan(-h.geo.drag + 12);
-    expect(along).toBeGreaterThan(-h.geo.drag - 12);
-    expect(defenderEl.style.transform).toContain(`matrix(${C.crush.toFixed(2)}`);
-    expect(h.scene!.visibleKnotLoops).toBe(KNOT_LOOPS);
-    // the lace's far end rides the dragged (and crushed) portrait
-    const ends = h.scene!.threadEnds(0)!;
-    const tip = h.geo.needles[0]!.sew[h.geo.needles[0]!.sew.length - 1]!;
-    const want = h.scene!.foePoint(tip.x, tip.y);
-    expect(Math.hypot(ends.b.x - want.x, ends.b.y - want.y)).toBeLessThan(1.5);
-    expect(Math.hypot(want.x - (tip.x + ft.x), want.y - (tip.y + ft.y))).toBeGreaterThan(5); // pulled in by the crush
-    f.tick(h.plan.homeAt! - h.elapsed() + 4 + slowMoExtraMs(h.plan, C), 4);
-    expect(Math.abs(h.foeDrag(h.elapsed()).x)).toBe(0);
-    f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8);
+  it('IV: monochrome before the toll, the line reaches the portrait on the impact, colour floods back, the loser stays grey, then nothing is left', () => {
+    const { h, f, onImpact } = run(of(40));
+    const p = h.plan;
+    f.tick(p.tollAt! + 4, 4);
+    expect(Number(h.drain.veil!.style.opacity)).toBe(1);
+    expect(onImpact).not.toHaveBeenCalled();
+    f.tick(p.impactAt - h.elapsed() + 4, 4);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    const head = h.scene!.lineHeadPos!;
+    expect(Math.hypot(head.x - FOE.x, head.y - FOE.y)).toBeLessThan(60);
+    expect(h.scene!.liveMotes).toBe(p.motes);
+    f.tick(p.floodEnd! - h.elapsed() + 8, 4);
+    expect(Number(h.drain.veil!.style.opacity)).toBe(0);
+    expect(Number(h.drain.full!.style.opacity)).toBe(1);
+    f.tick(p.endAt - h.elapsed() + 16, 4);
     expect(h.done).toBe(true);
-    expect(defenderEl.style.transform).toBe('');
-    expect(attackerEl.style.transform).toBe('');
+    expect(panes()).toBe(0);
   });
 
-  it('IV: the dragged portrait is raised over the other one while it moves; EVERY exit puts the portrait and the z-order back', () => {
-    for (const exit of ['cancel', 'finish', 'end'] as const) {
-      for (const side of ['player', 'opp'] as const) {
-        const cls = side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
-        const { h, f, defenderEl } = run({ side, total: 40, formation: formationOf([40], 40), camera: null });
-        defenderEl.style.transform = 'translate(3px, 4px)'; // a resting transform of its own
-        f.tick((h.plan.tugAt + h.plan.knotAt!) / 2, 4);
-        expect(document.body.classList.contains(cls), `${exit} ${side}`).toBe(true);
-        expect(defenderEl.style.transform).not.toBe('translate(3px, 4px)');
+  it('every exit (cancel, finish, the end) at every tier, mid-drain: panes gone, both portraits exactly as they were, the camera reset', () => {
+    for (const total of TOTALS) {
+      for (const exit of ['cancel', 'finish', 'end'] as const) {
+        const { h, f, onImpact, attackerEl, defenderEl, camera } = run(of(total));
+        attackerEl.style.transform = 'translate(3px, 4px)';
+        defenderEl.className = 'combatopp-body keep';
+        f.tick(h.plan.impactAt + 150, 4);
+        expect(panes(), `${total} ${exit}`).toBeGreaterThan(0);
+        expect(defenderEl.style.transform).not.toBe('');
         if (exit === 'cancel') h.cancel();
         else if (exit === 'finish') h.finish();
-        else f.tick(h.plan.endAt + 100 + slowMoExtraMs(h.plan, C), 8);
-        expect(document.body.classList.contains(cls), `${exit} ${side}`).toBe(false);
-        expect(defenderEl.style.transform, `${exit} ${side}`).toBe('');
+        else f.tick(h.plan.endAt, 8);
+        expect(panes(), `${total} ${exit}`).toBe(0);
+        expect(defenderEl.style.transform, `${total} ${exit}`).toBe('');
+        expect(defenderEl.getAttribute('style') ?? '', `${total} ${exit}`).toBe('');
+        expect(defenderEl.className).toBe('combatopp-body keep');
+        expect(camera.style.transform).toBe('');
+        expect(document.body.className).toBe('');
+        expect(onImpact).toHaveBeenCalledTimes(1);
+        f.tick(6000, 16);
+        expect(f.hooked(), `${total} ${exit}`).toBe(0);
       }
     }
   });
 
-  it('IV: a z-order class that was already on is left alone', () => {
-    document.body.classList.add('duel-attacker-opp');
-    const { h, f } = run({ side: 'player', total: 40, formation: formationOf([40], 40), camera: null });
-    f.tick(h.plan.knotAt!, 8);
-    h.cancel();
-    expect(document.body.classList.contains('duel-attacker-opp')).toBe(true);
-    document.body.classList.remove('duel-attacker-opp');
+  it('cancel before the blow never lands it; finish lands it once', () => {
+    const a = run(of(40));
+    a.f.tick(a.h.plan.tollAt!, 16);
+    a.h.cancel();
+    expect(a.onImpact).not.toHaveBeenCalled();
+    expect(a.onDone).not.toHaveBeenCalled();
+    expect(panes()).toBe(0);
+    expect(a.f.hooked()).toBe(0);
+    const b = run(of(40));
+    b.f.tick(b.h.plan.tollAt!, 16);
+    b.h.finish(); b.h.finish();
+    expect(b.onImpact).toHaveBeenCalledTimes(1);
+    expect(b.onDone).toHaveBeenCalledTimes(1);
+    expect(panes()).toBe(0);
   });
 
-  it('the snap: every thread is gone within SNAP_MS of the impact', () => {
-    const { h, f } = run({ total: 40, formation: formationOf([40], 40) });
-    f.tick(h.plan.impactAt - 4, 4);
-    expect(h.scene!.visibleStrands).toBeGreaterThanOrEqual(h.plan.needles.length);
-    f.tick(SNAP_MS + 40 + slowMoExtraMs(h.plan, C), 4);
-    expect(h.scene!.visibleStrands).toBe(0);
-    expect(h.scene!.liveRibbons).toBeGreaterThan(0); // IV's rip
-    h.cancel();
-  });
-
-  it('works in both directions at every tier, within the sprite cap', () => {
+  it('works in both directions at every tier, within the sprite cap, with everything it draws on the screen', () => {
     for (const side of ['player', 'opp'] as const) {
-      for (const total of [3, 8, 12, 40]) {
-        const a = side === 'player' ? { x: 100, y: 800 } : { x: 1400, y: 150 };
-        const d = side === 'player' ? { x: 1400, y: 150 } : { x: 100, y: 800 };
-        const { h, f, onImpact } = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
+      for (const total of TOTALS) {
+        const a = side === 'player' ? YOU : FOE, d = side === 'player' ? FOE : YOU;
+        const { h, f, onImpact } = run({ side, attacker: a, defender: d, ...of(total) });
         let peak = 0;
-        for (let t = 0; t < h.plan.impactAt + 600; t += 16) { f.tick(16, 16); peak = Math.max(peak, h.scene!.liveSprites); }
+        for (let t = 0; t < h.plan.endAt; t += 16) {
+          f.tick(16, 16);
+          peak = Math.max(peak, h.scene!.liveSprites);
+          const b = h.scene!.bladePos(0);
+          if (b && (h.plan.kind === 'cut' || h.plan.kind === 'cross')) {
+            // a blade passes THROUGH the portrait: it is never further from it than its reach
+            expect(Math.hypot(b.x - d.x, b.y - d.y)).toBeLessThanOrEqual(R * Math.hypot(C.bladeReach, C.bladeBow) + 1);
+          }
+        }
         expect(onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
-        expect(peak).toBeLessThanOrEqual(MAX_STITCH_SPRITES);
-        for (const n of h.geo.needles) n.sew.forEach((pt, j) => { if (n.sewAt[j] === 1) expect(Math.hypot(pt.x - d.x, pt.y - d.y)).toBeLessThanOrEqual(R); });
+        expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_REAPING_SPRITES);
         h.cancel();
       }
     }
@@ -518,7 +555,7 @@ describe('the runner (the shared clock)', () => {
   it('the camera is applied ONCE: the Pixi root stays at rest when the canvas already rides the camera element', () => {
     const camera = document.createElement('div');
     camera.appendChild(document.createElement('canvas'));
-    const { h, f, root } = run({ camera, total: 40, formation: formationOf([40], 40) });
+    const { h, f, root } = run({ camera, ...of(40) });
     f.tick(h.plan.impactAt + 20, 4);
     expect(h.mirrorsCamera).toBe(false);
     expect(camera.style.transform).toContain('scale(');
@@ -526,189 +563,169 @@ describe('the runner (the shared clock)', () => {
     expect(layer.scale.x).toBe(1);
     expect(layer.position.x).toBe(0);
     h.cancel();
-    const b = run({ total: 40, formation: formationOf([40], 40) });
-    b.f.tick(b.h.plan.launchAt + 20, 4);
-    expect(b.h.mirrorsCamera).toBe(true);
-    b.h.cancel();
   });
 
-  it('finish() lands once; cancel() never lands; a replay plays the same', () => {
-    const a = run();
-    a.f.tick(200, 16);
-    a.h.finish();
-    expect(a.onImpact).toHaveBeenCalledTimes(1);
-    a.h.finish();
-    expect(a.onImpact).toHaveBeenCalledTimes(1);
-    const b = run();
-    b.f.tick(200, 16);
-    b.h.cancel();
-    expect(b.onImpact).not.toHaveBeenCalled();
-    expect(b.f.hooked()).toBe(0);
-    const x = run({ total: 40, formation: formationOf([40], 40) });
-    const y = run({ total: 40, formation: formationOf([40], 40) });
+  it('a replay plays the same: the same seed gives the same plan, cut, panes and motes; another roll may mirror the cut', () => {
+    const x = run({ ...of(3), rollSeed: 7 }), y = run({ ...of(3), rollSeed: 7 });
     expect(x.h.plan).toEqual(y.h.plan);
     expect(x.h.geo).toEqual(y.h.geo);
-    x.f.tick(x.h.plan.impactAt + 60, 8); y.f.tick(y.h.plan.impactAt + 60, 8);
+    x.f.tick(x.h.plan.impactAt + 300, 8); y.f.tick(y.h.plan.impactAt + 300, 8);
     expect(x.h.scene!.liveSprites).toBe(y.h.scene!.liveSprites);
+    expect(x.h.drain.strips[0]!.style.transform).toBe(y.h.drain.strips[0]!.style.transform);
+    const angles = new Set([1, 2, 3, 4].map((roll) => { const r = run({ ...of(3), rollSeed: roll }); const a = r.h.geo.cuts[0]!.angle; r.h.cancel(); return a.toFixed(3); }));
+    expect(angles.size).toBe(2);
     x.h.cancel(); y.h.cancel();
   });
 
-  it('reduced motion: no scene, no camera; the blow still lands once', () => {
-    const { h, f, onImpact, camera } = run({ reduced: true });
+  it('reduced motion: no scene, no panes, no camera, no portrait moves; the blow still lands once', () => {
+    const { h, f, onImpact, camera, defenderEl } = run({ reduced: true, ...of(40) });
     expect(h.scene).toBeNull();
+    expect(panes()).toBe(0);
     f.tick(h.plan.endAt + 100, 16);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(camera.style.transform).toBe('');
-  });
-});
-
-describe('Tier V (the Knockout variant): the latch, the second yank and the slam', () => {
-  afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
-  const KO = { total: 40, knockout: true, knockoutVariant: true, formation: formationOf([40], 40) };
-  const koPlan = () => reapingPlan({ total: 40, knockout: true, knockoutVariant: true, distance: 1600, leadIn: leadInOf([40]) }, C);
-
-  it('the plan: the burst (a tick), the latch, the second FASTER yank, THE slam (the impact), both home; Huge is untouched', () => {
-    const p = koPlan(), huge = plan(40, { knockout: true });
-    expect(huge.burstAt).toBe(huge.impactAt);
-    expect(huge.koLatchAt).toBeNull();
-    expect(p.koLatchAt! - p.burstAt).toBe(REAPING_KO.latchDelayMs);
-    expect(p.koLatchedAt! - p.koLatchAt!).toBe(REAPING_KO.latchFlightMs);
-    expect(p.impactAt - p.koLatchedAt!).toBe(REAPING_KO.yankMs);
-    expect(p.koHomeAt! - p.impactAt).toBe(REAPING_KO.returnMs);
-    // The second yank is faster than the first (the drag into the knot).
-    expect(p.impactAt - p.koLatchedAt!).toBeLessThan(p.knotAt! - p.tugAt);
-    const kinds = reapingCues(p).map((q) => q.kind);
-    expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
-    expect(kinds.indexOf('burst')).toBeLessThan(kinds.indexOf('latch'));
-    expect(kinds.indexOf('latch')).toBeLessThan(kinds.indexOf('yank'));
-    expect(kinds.indexOf('yank')).toBeLessThan(kinds.indexOf('impact'));
-    expect(reapingCues(huge).some((q) => q.kind === 'burst' || q.kind === 'latch' || q.kind === 'yank')).toBe(false);
-    // The slow-mo dip moved onto the slam (never 0).
-    expect(reapingTimeScale(p, C, p.impactAt)).toBeLessThan(1);
-    expect(reapingTimeScale(p, C, p.impactAt)).toBeGreaterThan(0);
-    expect(reapingTimeScale(p, C, p.burstAt)).toBe(1);
-  });
-
-  it('the pose: the striker winds up, both are hauled in (accelerating), meet in the middle, and are EXACTLY home from koHomeAt', () => {
-    const p = koPlan();
-    expect(koSlamAt(p, p.koLatchAt! - 1)).toEqual({ foe: 0, hero: 0, squash: 0 });
-    expect(koSlamAt(p, p.koLatchedAt! - 1).hero).toBeLessThan(0); // the striker winds back
-    const early = koSlamAt(p, p.koLatchedAt! + (p.impactAt - p.koLatchedAt!) * 0.25).foe;
-    const late = koSlamAt(p, p.koLatchedAt! + (p.impactAt - p.koLatchedAt!) * 0.75).foe;
-    expect(late - early).toBeGreaterThan(early); // accelerating: a yank, not a slide
-    expect(koSlamAt(p, p.impactAt)).toMatchObject({ foe: 1, hero: 1 });
-    expect(koSlamAt(p, p.impactAt).squash).toBeGreaterThan(0);
-    expect(koSlamAt(p, p.koHomeAt!)).toEqual({ foe: 0, hero: 0, squash: 0 });
-    expect(koSlamAt(plan(40, { knockout: true }), 99999)).toEqual({ foe: 0, hero: 0, squash: 0 });
-    // The meeting point is the middle of the gap between the two rims; each portrait stops a little short of it.
-    const g = reapingGeo(p, A, D, R, R, C);
-    const L = Math.hypot(D.x - A.x, D.y - A.y);
-    const along = (q: { x: number; y: number }): number => (q.x - A.x) * g.u.x + (q.y - A.y) * g.u.y;
-    expect(along(g.slam!.meet)).toBeCloseTo(R + (L - 2 * R) / 2, 3);
-    expect(along({ x: D.x + g.slam!.foe.x, y: D.y + g.slam!.foe.y }) - along(g.slam!.meet)).toBeCloseTo(R * REAPING_KO.slamOverlap, 3);
-    expect(along(g.slam!.meet) - along({ x: A.x + g.slam!.hero.x, y: A.y + g.slam!.hero.y })).toBeCloseTo(R * REAPING_KO.slamOverlap, 3);
-    expect(reapingGeo(plan(40, { knockout: true }), A, D, R, R, C).slam).toBeNull();
-  });
-
-  it('the runner: the burst does NOT land the blow; the latch threads bite, the two are hauled together, it lands ONCE on the slam', () => {
-    const a = { x: 100, y: 800 }, d = { x: 1400, y: 150 };
-    const { h, f, onImpact, attackerEl, defenderEl, host } = run({ ...KO, attacker: a, defender: d, camera: null });
-    const u = h.geo.u;
-    f.tick(h.plan.burstAt + 20, 4);
-    expect(onImpact).not.toHaveBeenCalled(); // the heart-knot burst is a tick now
-    f.tick(h.plan.koLatchedAt! + (h.plan.impactAt - h.plan.koLatchedAt!) / 2 - h.elapsed(), 4);
-    expect(onImpact).not.toHaveBeenCalled();
-    expect(h.scene!.visibleLatches).toBe(3);
-    f.tick(h.plan.impactAt - h.elapsed() - 2, 2);
-    expect(onImpact).not.toHaveBeenCalled();
-    // At contact: the striker has flown toward the target and the target toward the striker, to the middle.
-    const ht = translateOf(attackerEl), ft = translateOf(defenderEl);
-    const sl = h.slamOffsets(h.elapsed());
-    expect(ht.x * u.x + ht.y * u.y).toBeGreaterThan(200);
-    expect(ft.x * u.x + ft.y * u.y).toBeLessThan(-200);
-    expect(Math.hypot(ht.x - sl.hero.x, ht.y - sl.hero.y)).toBeLessThan(40); // plus what is left of the burst's lunge spring
-    f.tick(8, 2);
-    expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(host.querySelector('.hblast-hit')!.textContent).toBe('-40');
-    f.tick(LATCH_SNAP_MS + 40 + slowMoExtraMs(h.plan, C), 4);
-    expect(h.scene!.visibleLatches).toBe(0);
-    f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8);
-    expect(h.done).toBe(true);
-    expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(attackerEl.style.transform).toBe('');
     expect(defenderEl.style.transform).toBe('');
   });
 
-  it('the striker is raised over the target for the slam; EVERY exit puts BOTH portraits and BOTH z-orders back', () => {
-    for (const exit of ['cancel', 'finish', 'end'] as const) {
-      for (const side of ['player', 'opp'] as const) {
-        const heroCls = side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player';
-        const foeCls = side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
-        const { h, f, attackerEl, defenderEl } = run({ ...KO, side, camera: null });
-        attackerEl.style.transform = 'translate(5px, 6px)';
-        defenderEl.style.transform = 'translate(3px, 4px)'; // resting transforms of their own
-        f.tick((h.plan.koLatchedAt! + h.plan.impactAt) / 2, 4);
-        const tag = exit + ' ' + side;
-        expect(document.body.classList.contains(heroCls), tag).toBe(true);
-        expect(document.body.classList.contains(foeCls), tag).toBe(false);
-        expect(attackerEl.style.transform).not.toBe('translate(5px, 6px)');
-        expect(defenderEl.style.transform).not.toBe('translate(3px, 4px)');
-        if (exit === 'cancel') h.cancel();
-        else if (exit === 'finish') h.finish();
-        else f.tick(h.plan.endAt + 200 + slowMoExtraMs(h.plan, C), 8);
-        expect(document.body.classList.contains(heroCls), tag).toBe(false);
-        expect(document.body.classList.contains(foeCls), tag).toBe(false);
-        expect(attackerEl.style.transform, tag).toBe('');
-        expect(defenderEl.style.transform, tag).toBe('');
-      }
-    }
+  it('a sandbox box (local space): the panes live inside the box, in its own px, and leave with it', () => {
+    const { h, f, host } = run({ space: 'local', pixiScale: 0.4, attacker: { x: 60, y: 200 }, defender: { x: 300, y: 60 }, defenderRadius: 30, attackerRadius: 30, ...of(40) });
+    expect(host.querySelector('.hreaping-veil')).not.toBeNull();
+    expect((host.querySelector('.hreaping-patch') as HTMLElement).style.position).toBe('absolute');
+    f.tick(h.plan.endAt + 32, 8);
+    expect(host.querySelector('.hreaping-veil, .hreaping-patch')).toBeNull();
+  });
+});
+
+describe('the drain panes (DOM)', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const setup = (kind: 'cut' | 'cross' | 'shadow' | 'reaping') => ({
+    doc: document, parent: document.body, local: false, css: (v: number) => v, kind, d: FOE, r: R, angles: kind === 'cut' ? [0.5] : kind === 'cross' ? [0.5, 0.5 + Math.PI / 2] : [],
+    strike: -0.4, stripWidth: C.stripWidth, grey: 1, bounds: BOUNDS,
   });
 
-  it('interrupted mid-slam (finish, cancel): the blow lands at most once and both portraits are home', () => {
-    for (const exit of ['cancel', 'finish'] as const) {
-      const { h, f, onImpact, attackerEl, defenderEl } = run({ ...KO, camera: null });
-      f.tick(h.plan.impactAt + 30, 4);
-      expect(onImpact).toHaveBeenCalledTimes(1);
-      if (exit === 'cancel') h.cancel(); else h.finish();
-      expect(onImpact).toHaveBeenCalledTimes(1);
-      expect(attackerEl.style.transform, exit).toBe('');
-      expect(defenderEl.style.transform, exit).toBe('');
-      expect(document.body.className).toBe('');
-    }
+  it('the patch is a round window exactly over the struck portrait; the veil covers the whole screen at any angle', () => {
+    const d = new ReapingDrain(setup('reaping'));
+    const p = d.patch!.style;
+    expect([parseFloat(p.left), parseFloat(p.top), parseFloat(p.width), parseFloat(p.height)]).toEqual([FOE.x - R, FOE.y - R, 2 * R, 2 * R]);
+    expect(p.borderRadius).toBe('50%');
+    expect(p.overflow).toBe('hidden');
+    const v = d.veil!.style;
+    const diag = Math.hypot(BOUNDS.w, BOUNDS.h);
+    expect(parseFloat(v.height)).toBeGreaterThanOrEqual(diag);
+    expect(parseFloat(v.width)).toBeGreaterThan(parseFloat(v.height)); // plus the feathered trailing edge
+    expect(parseFloat(v.top) + parseFloat(v.height) / 2).toBeCloseTo(BOUNDS.h / 2, 0);
+    expect(d.patch!.style.pointerEvents).toBe('none');
+    expect(v.pointerEvents).toBe('none');
+    d.remove();
   });
 
-  it('a striker z-order class that was already on is left alone', () => {
-    document.body.classList.add('duel-attacker-player');
-    const { h, f } = run({ ...KO, side: 'player', camera: null });
-    f.tick(h.plan.impactAt - 10, 8);
-    h.cancel();
-    expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
-    document.body.classList.remove('duel-attacker-player');
+  it('writes only when a value changes, and remove() is safe twice', () => {
+    const d = new ReapingDrain(setup('cut'));
+    const strip = d.strips[0]!;
+    const s = { strip: [0.5, 0] as [number, number], stripA: 1, full: 0, veil: 0, flood: 0 };
+    d.paint(s, null);
+    const first = strip.style.transform;
+    expect(first).toContain('scaleX(0.5000)');
+    expect(first).toContain(`translateX(${(-R * 0.5).toFixed(2)}px)`); // grown from the end the blade came in at
+    strip.style.transform = 'probe';
+    d.paint(s, null);
+    expect(strip.style.transform).toBe('probe');
+    d.remove(); d.remove();
+    expect(d.panes).toBe(0);
+    expect(document.querySelector('.hreaping-patch')).toBeNull();
+    d.paint(s, 'translate(1px, 1px)'); // a late frame after removal writes nothing
+  });
+
+  it('no setup (reduced motion): no panes, every call a no-op', () => {
+    const d = new ReapingDrain(null);
+    expect(d.panes).toBe(0);
+    d.paint({ strip: [1, 1], stripA: 1, full: 1, veil: 1, flood: 1 }, null);
+    d.remove();
   });
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('thread meshes stay batchable (under 100 vertices), the pool stays under the cap, drains, and destroy leaves nothing', () => {
-    const p = plan(40);
-    const g = reapingGeo(p, A, D, R, R, C);
-    const scene = new HeroReapingScene(TEX, COLORS, LOOK, p, g, { x: D.x, y: D.y, r: R }, 1, 7);
-    expect(THREAD_PTS * 2).toBeLessThanOrEqual(100);
-    const meshes: MeshSimple[] = [];
-    scene.root.children.forEach((ch) => ch.children.forEach((m) => { if (m instanceof MeshSimple) meshes.push(m); }));
-    for (const m of meshes) expect((m.vertices as Float32Array).length / 2).toBeLessThanOrEqual(100);
-    expect(scene.threadMeshes).toBe((p.needles.length + KNOT_LOOPS) * 4);
-    const frame = { heroX: 0, heroY: 0, foeX: 0, foeY: 0 };
-    for (let t = p.chargeAt; t < p.impactAt; t += 16) { scene.draw(t, frame); scene.update(16); }
-    scene.impact(D, R, g.u, { shards: 60, burst: 2, t: p.impactAt, foe: { x: 0, y: 0 }, hero: { x: 0, y: 0 } });
-    for (let t = p.impactAt; t < p.impactAt + SNAP_MS + 32; t += 16) { scene.draw(t, frame); scene.update(16); }
-    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_STITCH_SPRITES);
-    scene.hideOwn();
-    let alive = true;
-    for (let i = 0; i < 600 && alive; i++) alive = scene.update(16);
+  const make = (total: number, a = YOU, d = FOE) => {
+    const p = plan(total);
+    const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
+    return { p, g, s: new HeroReapingScene(TEX, COLORS, LOOK, p, g, { ...d, r: R }, { ...a, r: R }, 1, 42) };
+  };
+  const still = { heroX: 0, heroY: 0, foeX: 0, foeY: 0 };
+
+  it('I-II: a blade is drawn only during its pass, exactly where the pure blade is', () => {
+    const { p, g, s } = make(8);
+    s.draw(p.chargeAt, still);
+    expect(s.visibleBlades).toBe(0);
+    s.draw(p.cuts[0]!.crossAt, still);
+    expect(s.visibleBlades).toBe(1);
+    const at = bladeAt(p, g, 0, p.cuts[0]!.crossAt);
+    expect(s.bladePos(0)).toEqual({ x: at.x, y: at.y });
+    s.draw(p.cuts[1]!.crossAt, still);
+    expect(s.bladePos(1)).not.toBeNull();
+    s.draw(p.endAt, still);
+    expect(s.visibleBlades).toBe(0);
+    s.destroy();
+  });
+
+  it('III: the shadow and the flame are there for the swing; the flame is out and the shadow gone before the end', () => {
+    const { p, s } = make(14);
+    s.draw(p.cuts[0]!.startAt, still);
+    expect(s.shadowVisible).toBe(true);
+    expect(s.flameVisible).toBe(true);
+    s.draw(p.impactAt + SNUFF_MS + 1, still);
+    expect(s.flameVisible).toBe(false);
+    s.draw(p.returnEnd, still);
+    expect(s.shadowVisible).toBe(false);
+    s.destroy();
+  });
+
+  it('IV: the line is drawn from the sweep until it has thinned away', () => {
+    const { p, s } = make(40);
+    s.draw(p.tollAt!, still);
+    expect(s.lineVisible).toBe(false);
+    s.draw(p.impactAt, still);
+    expect(s.lineVisible).toBe(true);
+    s.draw(p.floodEnd!, still);
+    expect(s.lineVisible).toBe(false);
+    s.destroy();
+  });
+
+  it('the motes: capped, they all reach the striker, the scene drains, and the same seed streams the same', () => {
+    const { s } = make(40);
+    s.stream(999, 300, null);
+    expect(s.liveMotes).toBe(MAX_MOTES);
+    let alive = true, n = 0, peak = 0;
+    while (alive && n++ < 800) { alive = s.update(16); peak = Math.max(peak, s.liveSprites); }
     expect(alive).toBe(false);
-    expect(scene.liveSprites).toBe(0);
-    expect(scene.liveRibbons).toBe(0);
-    scene.destroy();
-    expect(scene.root.destroyed).toBe(true);
+    expect(s.liveMotes).toBe(0);
+    expect(s.arrived).toBe(MAX_MOTES);
+    expect(peak).toBeLessThanOrEqual(MAX_REAPING_SPRITES);
+    const a = make(3).s, b = make(3).s;
+    a.stream(5, 180, 0); b.stream(5, 180, 0);
+    for (let i = 0; i < 20; i++) { a.update(16); b.update(16); }
+    expect(a.liveSprites).toBe(b.liveSprites);
+    expect(a.root.children.map((c) => c.children.map((k) => `${k.position.x.toFixed(2)},${k.position.y.toFixed(2)}`))).toEqual(b.root.children.map((c) => c.children.map((k) => `${k.position.x.toFixed(2)},${k.position.y.toFixed(2)}`)));
+    s.destroy(); a.destroy(); b.destroy();
+  });
+
+  it('every beat fires without a renderer, hideOwn hides the scythe, and destroy leaves nothing', () => {
+    for (const total of TOTALS) {
+      const { p, s } = make(total, FOE, YOU);
+      const parent = new Container();
+      parent.addChild(s.root);
+      s.draw(p.impactAt, still);
+      s.cross(0); s.stream(p.motes, 200, total < 12 ? 0 : null); s.toll(); s.snuff();
+      s.update(16);
+      expect(s.liveFx).toBeGreaterThan(0);
+      s.hideOwn();
+      expect(s.visibleBlades).toBe(0);
+      expect(s.shadowVisible || s.lineVisible || s.flameVisible).toBe(false);
+      s.draw(p.impactAt, still); // a late frame after the end draws nothing
+      expect(s.visibleBlades).toBe(0);
+      s.clear();
+      expect(s.liveMotes).toBe(0);
+      s.destroy(); s.destroy();
+      expect(s.update(16)).toBe(false);
+    }
   });
 });

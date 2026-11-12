@@ -132,7 +132,7 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
         scene?.bop(bopAt, toFoe, big ? 1.3 : 1, big ? 7 : 4);
         if (plan.stars > 0) {
           // Stars circle the struck head: a flat ring over the top of the portrait.
-          scene?.seeStars({ x: o.defender.x, y: o.defender.y - radius * 0.86 }, radius * 0.62, radius * 0.17, plan.stars, plan.starsMs, 34 * plan.size);
+          scene?.seeStars({ x: o.defender.x, y: o.defender.y - radius * 0.86 }, radius * 0.62, radius * 0.17, plan.stars, plan.starsMs, 38 * plan.size);
         }
         seq.land();
         break;

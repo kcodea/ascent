@@ -94,7 +94,7 @@ const LEVEL_DEFAULTS: Record<GloveLevelSuffix, [number, number]> = {
   BackMs: [260, 300],
   Wind: [0.2, 1],
   Over: [0, 1],
-  Sway: [0.14, 0.5],
+  Sway: [0.16, 0.8],
   Size: [1, 1.2],
   Stars: [0, 3],
   StarsMs: [0, 900],
@@ -136,8 +136,8 @@ export const HERO_GLOVE_DEFAULTS: HeroGloveConfig = {
   glovePx: 112,
   hatchPx: 64,
   springPitch: 30,
-  springWidth: 19,
-  springThick: 7,
+  springWidth: 24,
+  springThick: 9,
   bopSize: 1,
   gloveSquash: 0.3,
   knockPx: 14,
@@ -410,7 +410,7 @@ export function gloveMotion(p: GlovePlan, g: GloveGeometry): GloveMotion | null 
     side: (g.seed >>> 0) % 2 === 0 ? 1 : -1, double,
     tFire: p.fireAt - p.popAt, tHit: (p.hits[0] ?? p.impactAt) - p.popAt, tImpact: p.impactAt - p.popAt,
     tRetract: p.retractAt - p.popAt, tHome: p.homeAt - p.popAt,
-    segs, wire: ((len + over) / segs) * 1.12, glove,
+    segs, wire: ((len + over) / segs) * 1.3, glove,
   };
 }
 
@@ -438,6 +438,8 @@ export const GLOVE_EMERGE_MS = 130;
 /** The sway between Big's two bops: how many half turns of side to side, and how far the spring's bow lags the glove. */
 const SWAY_TURNS = 3.5 * Math.PI;
 const BOW_LAG = 0.9;
+/** How far the middle of the spring is thrown across, against the glove's own swing. */
+const BOW_GAIN = 1.5;
 /** Where the overshoot ends and the rebound begins, as fractions of the wobble. */
 const OVER_END = 0.2;
 const REBOUND_FROM = 0.78;
@@ -448,7 +450,7 @@ function recoil(m: GloveMotion, tau: number, out: GlovePose): void {
   out.ext = m.len - m.rec * settle - m.rec * 0.3 * Math.exp(-tau / 110) * Math.sin(2 * Math.PI * 7 * (tau / 1000));
   const wob = (m.double ? 0.3 : 1) * m.sway * Math.exp(-tau / 130) * (1 - Math.exp(-tau / 30));
   out.lat = m.side * wob * Math.sin(2 * Math.PI * 6 * (tau / 1000));
-  out.bow = -m.side * wob * 0.9 * Math.sin(2 * Math.PI * 6 * (tau / 1000) - BOW_LAG);
+  out.bow = -m.side * wob * BOW_GAIN * Math.sin(2 * Math.PI * 6 * (tau / 1000) - BOW_LAG);
 }
 
 /**
@@ -491,17 +493,17 @@ export function glovePoseAt(m: GloveMotion, t: number, squash: number, out: Glov
       const s = Math.sin((tau / a) * Math.PI * 0.5);
       out.ext = m.len + m.over * s;
       out.lat = m.side * slip * s;
-      out.bow = m.side * slip * 0.8 * Math.cos(-BOW_LAG) * s;
+      out.bow = m.side * slip * BOW_GAIN * Math.cos(-BOW_LAG) * s;
     } else if (tau < b) {
       const q = (tau - a) / (b - a);
       out.ext = m.len + m.over - (m.over + m.back) * sine(q);
       const amp = slip + (m.sway - slip) * Math.sin(Math.PI * q);
       out.lat = m.side * amp * Math.cos(SWAY_TURNS * q);
-      out.bow = m.side * amp * 0.8 * Math.cos(SWAY_TURNS * q - BOW_LAG);
+      out.bow = m.side * amp * BOW_GAIN * Math.cos(SWAY_TURNS * q - BOW_LAG);
     } else {
       const q = (tau - b) / Math.max(1, W - b);
       out.ext = m.len - m.back + m.back * q * (0.4 + 0.6 * q);
-      out.bow = m.side * slip * 0.8 * Math.cos(SWAY_TURNS - BOW_LAG) * (1 - q) * (1 - q);
+      out.bow = m.side * slip * BOW_GAIN * Math.cos(SWAY_TURNS - BOW_LAG) * (1 - q) * (1 - q);
       const st = 0.16 * Math.sin(Math.PI * q);
       out.sx = 1 + st; out.sy = 1 - st * 0.5;
     }

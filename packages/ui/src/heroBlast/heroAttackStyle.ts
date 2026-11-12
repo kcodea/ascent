@@ -134,7 +134,7 @@
  * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroAnvil/`.
  *
  * `glove` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `boomerang` (`npm run attack:new`), see `../heroGlove/`.
+ * "Attack style" override. A Rare, "Sucker Punch": a boxing glove on a coil spring pops out of the hero, bops the target and retracts (Big: overshoot, sway, a second bop, circling stars), see `../heroGlove/`.
  *
  * `chess` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroChess/`.

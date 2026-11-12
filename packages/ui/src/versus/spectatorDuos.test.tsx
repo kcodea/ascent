@@ -106,7 +106,7 @@ describe('R-SPECTATE-CURSOR-LAYER-01: the watched hand paints over the whole HUD
       .filter((m) => sel.test(m[1]!)).map((m) => /z-index:\s*(\d+)/.exec(m[2]!)?.[1]).filter(Boolean).map(Number);
     const cursor = zOf(/^\s*\.replay-dragghost\s*$/);
     expect(cursor).toEqual([540]);
-    for (const hud of [/\.statusbar\s*$/, /\.lobbyrail(head)?\.vsdrawer/, /^\s*\.duosdock(\.\w+)?\s*$/, /^\s*\.duostagin\s*$/]) {
+    for (const hud of [/\.statusbar\s*$/, /\.lobbyrail(head)?\.vsdrawer/, /^\s*\.duosdock(\.\w+)?\s*$/]) { // (the tag-in copy `.duostagin` is gone: R-DUOS-FIGHTER-VIEW-01)
       const zs = zOf(hud);
       expect(zs.length, String(hud)).toBeGreaterThan(0);
       expect(Math.max(...zs), String(hud)).toBeLessThan(540);

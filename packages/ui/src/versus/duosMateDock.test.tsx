@@ -19,7 +19,7 @@ const { dragStore } = await import('../dragStore');
 const view = await import('./teammateView');
 const { playDrop, playEmerge, playArrival, isPassArrival, mateDoor, coinPoses, catchFrames } = await import('./passLob');
 const { mirrorOfHero, fitDock, fitFoot, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP, DOCK_FOOT_MAX, DOCK_FOOT_MIN, DOCK_HAND_SPILL } = await import('./DuosMateDock');
-const { useDuosCombat } = await import('./duosCombat');
+const { useDuosCombat, duosLiveAt } = await import('./duosCombat');
 
 const seat = (s: string, userId: string, name: string, hero: string) => ({ seat: s, userId, name, hero });
 function setMatch(): void {
@@ -175,29 +175,52 @@ describe('the teammate portrait, bottom right', () => {
     expect(read('versus.css')).toMatch(/@keyframes duosswapin \{ from \{ opacity: 0; scale: 0\.94; \}/);
   });
 
-  it('R-DUOS-SLOTS-02 (owner 2026-10-26: "the player frame doesn\'t need to swap to the teammate\'s when they come in to attack"): my slot never swaps; the teammate tags in over it', () => {
+  // R-DUOS-FIGHTER-VIEW-01 (owner 2026-11-12, replacing R-DUOS-SLOTS-02): "only show the player's portrait that is
+  // fighting in the left side area. keep the teammate/player not fighting in the teammate pass area ... when the
+  // teammates swap, have them slide/drop into their places. if a teammate is dead, grey out their portrait".
+  it('R-DUOS-FIGHTER-VIEW-01: the hero slot follows the fighter, the dock holds the other one, greyed when their board fell', () => {
     const read = (f: string) => readFileSync(join(__dirname, f), 'utf8');
     const bar = read('../StatusBar.tsx');
-    expect(bar).not.toMatch(/useDuosCombat|duosSelf/);
-    expect(bar).toMatch(/heroPortrait\(hero\.id, runSkins\)/);
-    // The tag-in: one-shot opacity / scale animations, nothing looping.
+    expect(bar).toContain('useDuosCombat((s) => (s.on && s.mateLive ? s.fighter : null))');
+    expect(bar).toContain('<QuestBadges run={duosFighterRun ?? undefined} />');
+    // The slide: one-shot, transform only, nothing looping; the old overlay copy is gone.
     const css = read('versus.css');
-    expect(css).toMatch(/@keyframes duostagin \{ from \{ opacity: 0; scale: 0\.88; \} to \{ opacity: 1; scale: 1; \} \}/);
-    expect(css).toMatch(/\.duosdock\.tagged \{ opacity: 0; \}/);
-    expect(css).not.toMatch(/duostag(in|out)[^;{]*infinite/);
-    // R-DUOS-TAGIN-ONSCREEN-01: the copy's offset to the left stops at the stage edge (never cut by it), off my hero's
-    // own measured inset; it is a static transform.
-    expect(css).toMatch(/\.duostagin \{[^}]*transform: translate\(max\(calc\(var\(--duos-d\) \* var\(--duos-tag-x\)\), calc\(var\(--duos-tag-edge\) - var\(--duos-hero-left, 0px\) - var\(--duos-d\) \* \(1 - var\(--duos-tag-s\)\) \/ 2\)\)/);
-    expect(read('DuosMateDock.tsx')).toContain("'--duos-hero-left': `${hero.left}px`");
-    // Live: while my teammate's board fights on my side, the bottom-right portrait fades out; then it comes back.
+    expect(css).toContain('.statusbar .hero .herolunge.duosslide { animation: duosslidehero 0.46s');
+    expect(css).toContain('.duosdock.duosslide .duosdock-hold { animation: duosslidedock 0.46s');
+    expect(css).not.toMatch(/duosslide(hero|dock)[^;{]*infinite/);
+    expect(css).not.toContain('.duostagin {');
+    expect(css).toContain('.duosdock.fallen .duosdock-disc { filter: grayscale(1)');
+    expect(read('DuosMateDock.tsx')).not.toContain('function DuosTagIn');
+    // Live: the dock stays on screen through a fight (a pass needs its target) and greys when its player's board fell.
     const ui = mount(<DuosMateDock watching={false} inCombat />);
+    const idle = { on: false, selfSeatId: null, foeSeatId: null, tag: null, mateLive: false, meFallen: false, mateFallen: false, swaps: 0, slideSeq: 0 };
     try {
-      expect(ui.container.querySelector('.duosdock.tagged')).toBeNull();
-      act(() => { useDuosCombat.setState({ on: true, selfSeatId: 's1', foeSeatId: null, tag: null }); });
-      expect(ui.container.querySelector('.duosdock.tagged')).not.toBeNull();
-      act(() => { useDuosCombat.setState({ on: true, selfSeatId: null, foeSeatId: null, tag: null }); });
-      expect(ui.container.querySelector('.duosdock.tagged')).toBeNull();
-    } finally { ui.unmount(); useDuosCombat.setState({ on: false, selfSeatId: null, foeSeatId: null, tag: null }); }
+      expect(ui.container.querySelector('.duosdock [data-duos-mate]')).not.toBeNull();
+      expect(ui.container.querySelector('.duosdock.fallen')).toBeNull();
+      // my teammate led and their board fell: they wait here, greyed, while mine fights
+      act(() => { useDuosCombat.setState({ ...idle, on: true, mateFallen: true, swaps: 1 }); });
+      expect(ui.container.querySelector('.duosdock.fallen')).not.toBeNull();
+      expect(ui.container.querySelector('.duosdock [data-duos-mate]')).not.toBeNull();
+      // my board fell and theirs is up: I stand here, greyed (the pass target is still here)
+      act(() => { useDuosCombat.setState({ ...idle, on: true, mateLive: true, meFallen: true, swaps: 1 }); });
+      expect(ui.container.querySelector('.duosdock.fallen')).not.toBeNull();
+      act(() => { useDuosCombat.setState({ ...idle, on: true, mateLive: true, swaps: 1 }); });
+      expect(ui.container.querySelector('.duosdock.fallen')).toBeNull();
+    } finally { ui.unmount(); useDuosCombat.setState({ ...idle, fighter: null }); }
+  });
+
+  it('duosLiveAt: who is fighting on my side, from the result alone (no match needed)', () => {
+    const tag = (member: number) => ({ type: 'tagIn', side: 'player', member, minions: [] });
+    const fell = (member: number) => ({ type: 'boardFallen', side: 'player', member });
+    const foe = { type: 'tagIn', side: 'enemy', member: 1, minions: [] };
+    const ev = [fell(0), tag(1), foe] as never[];
+    expect(duosLiveAt({ duosMember: undefined, tagTeam: undefined }, ev, 3)).toBeNull(); // not a tag-team fight
+    // my board fought first (member 0): before the hand-off I am live; after it my teammate is, and I have fallen
+    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: false, meFallen: false, mateFallen: false, swaps: 0 });
+    expect(duosLiveAt({ duosMember: 0, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: true, meFallen: true, mateFallen: false, swaps: 1 });
+    // I was the reserve (member 1): my teammate opens, then their board falls and mine steps in
+    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 0)).toEqual({ mateLive: true, meFallen: false, mateFallen: false, swaps: 0 });
+    expect(duosLiveAt({ duosMember: 1, tagTeam: undefined }, ev, 3)).toEqual({ mateLive: false, meFallen: false, mateFallen: true, swaps: 1 });
   });
 
   it('R-DUOS-VIEW-05 (owner 2026-10-26: "we dont need the health there"): no Health box under the teammate', () => {

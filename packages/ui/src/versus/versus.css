@@ -967,30 +967,34 @@ html.duos-vt { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }
 /* IN COMBAT the teammate portrait stays as a face only (owner 2026-10-25): no click, no pass target. */
 .duosdock.combat .duosdock-hold { pointer-events: none; }
-/* THE TAG-IN (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
-   can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left or slightly
-   offset"; R-DUOS-SLOTS-02). While my teammate's board fights on my side the bottom-right portrait fades out
-   (`.tagged`: an opacity TRANSITION, one-shot) and its copy (`.duostagin`, DuosMateDock) fades in over my own hero, up
-   and to the left by `--duos-tag-x` / `--duos-tag-y` of the disc, a touch smaller (`--duos-tag-s`), in front of it.
-   Back the same way. Opacity and the individual `scale` property only (the offset is a static transform), no loops. */
-.duosdock { transition: opacity 0.22s ease; }
-.duosdock.tagged { opacity: 0; }
-/* Owner 2026-10-26: "Move it more to the left so it isn't covering the hero so much": the copy now sits up and to the LEFT. */
-/* ON SCREEN, CLEAR OF MY FACE (R-DUOS-TAGIN-ONSCREEN-01): at -0.5 of the disc the copy ran off the stage's left edge (my
-   hero stands only a little in from it) and was cut there, still covering a third of my hero. The offset to the left now
-   STOPS at the stage edge (`max()` against my hero's own inset, `--duos-hero-left`, less `--duos-tag-edge` of air), and
-   the copy is smaller and higher, so it sits whole on my hero's upper left rim: my hero's face and name plate stay clear.
-   Still a static transform. */
-.duostagin { --duos-tag-x: -0.5; --duos-tag-y: 0.34; --duos-tag-s: 0.6; --duos-tag-edge: calc(8 * var(--u)); position: fixed; z-index: 41; pointer-events: none;
-  width: var(--duos-d); height: var(--duos-d);
-  transform: translate(max(calc(var(--duos-d) * var(--duos-tag-x)), calc(var(--duos-tag-edge) - var(--duos-hero-left, 0px) - var(--duos-d) * (1 - var(--duos-tag-s)) / 2)), calc(var(--duos-d) * var(--duos-tag-y) * -1)) scale(var(--duos-tag-s));
-  transform-origin: 50% 50%; animation: duostagin 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
-.duostagin.out { animation: duostagout 0.24s ease both; }
-.duostagin-hold { position: absolute; inset: 0; }
-.duostagin .duosdock-disc { width: 100%; height: 100%; box-sizing: border-box; border-width: calc(4 * var(--u)); }
-@keyframes duostagin { from { opacity: 0; scale: 0.88; } to { opacity: 1; scale: 1; } }
-@keyframes duostagout { from { opacity: 1; scale: 1; } to { opacity: 0; scale: 0.88; } }
-@media (prefers-reduced-motion: reduce) { .duostagin, .duostagin.out { animation-duration: 0.01s; } .duosdock { transition: none; } }
+/* THE FIGHTER VIEW (owner 2026-11-12, R-DUOS-FIGHTER-VIEW-01, replacing the 2026-10-26 tag-in copy): "only show the
+   player's portrait that is fighting in the left side area. keep the teammate/player not fighting in the teammate pass
+   area ... when the teammates swap, have them slide/drop into their places. if a teammate is dead, grey out their
+   portrait". The hero slot (StatusBar) shows whoever's board is up and this dock shows the other one.
+   THE SWAP: on a hand-off each portrait starts where the OTHER stood (the offsets are measured once per swap by
+   DuosMateDock and set on the root as `--duos-swap-*`) and slides home with a small dip and settle. One-shot,
+   transform only, `backwards` fill so nothing is held after it ends (the hero's lunge owns its transform again).
+   460 ms = `DUOS_SLIDE_MS` in DuosMateDock.tsx. */
+.statusbar .hero .herolunge.duosslide { animation: duosslidehero 0.46s cubic-bezier(0.3, 0.9, 0.35, 1) backwards; z-index: 3; }
+.duosdock.duosslide .duosdock-hold { animation: duosslidedock 0.46s cubic-bezier(0.3, 0.9, 0.35, 1) backwards; }
+@keyframes duosslidehero {
+  0% { transform: translate(var(--duos-swap-hx, 0px), var(--duos-swap-hy, 0px)) scale(var(--duos-swap-hs, 1)); }
+  78% { transform: translate(0, 3%) scale(1.04, 0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes duosslidedock {
+  0% { transform: translate(var(--duos-swap-dx, 0px), var(--duos-swap-dy, 0px)) scale(var(--duos-swap-ds, 1)); }
+  78% { transform: translate(0, 3%) scale(1.04, 0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+/* A FALLEN BOARD'S PLAYER: greyed and dimmed wherever they stand (the dock, or the hero slot if the fight ends on
+   them). A static filter with a one-shot transition, never animated in a loop. */
+.duosdock .duosdock-disc, .statusbar .hero .herolunge .heroimg { transition: filter 0.3s ease, opacity 0.3s ease; }
+.duosdock.fallen .duosdock-disc { filter: grayscale(1) brightness(0.62); opacity: 0.86; }
+.statusbar .hero .herolunge.duosfallen .heroimg { filter: grayscale(1) brightness(0.62); }
+@media (prefers-reduced-motion: reduce) {
+  .statusbar .hero .herolunge.duosslide, .duosdock.duosslide .duosdock-hold { animation-duration: 0.01s; }
+}
 
 /* HERO SELECT, WATCHED (owner 2026-10-26; R-SPECTATE-HEROSELECT-01, R-DUOS-HEROSELECT-01): another player's Hero Select
    drawn with the real screen (`HeroSelect` watch mode, `.hswatch`), read only. Its cards still lift on hover so their

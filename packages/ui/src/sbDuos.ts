@@ -61,6 +61,9 @@ export const setSbFirst = (first: 'me' | 'mate'): void => useSbDuos.setState({ f
 
 /** The team fight prepared for my End Turn (the teammate's turn is ended once, however often the press is prepared). */
 let preparedFight: { seed: number; wave: number; fight: SandboxDuosFight } | null = null;
+/** The teammate's run AS THE FIGHT BEGAN (their hand and runes going in). Their real run is settled the moment my End
+ *  Turn commits, so the HUD shows this one while their board fights (R-DUOS-FIGHTER-VIEW-01). Dropped back in my shop. */
+let fightMate: RunState | null = null;
 
 let ledger: SbLedger = newSbLedger();
 
@@ -141,6 +144,7 @@ function onStoreRun(run: RunState, prev: RunState): void {
     useSpectate.setState({ teammate: false });
   }
   syncTeam(run);
+  if (fightMate && run.phase !== 'combat') fightMate = null; // back in my shop: their live run is the one to read
   const out = run.duos?.outbox ?? [];
   if (out.length < seenOutbox) seenOutbox = 0;
   // A fight's gifts wait for their `teamSend` beat (`releaseCombatFx`), like the match's.
@@ -223,9 +227,11 @@ const api: LocalMateApi = {
     const ended = mate.phase === 'recruit' ? reduce(mate, { type: 'faceOmen', deferFight: true }) : mate;
     if (!ended.pendingCombatSide) { say('They could not end their turn (a choice is open on their board). You fought alone'); return action; }
     useSbDuos.setState({ other: ended });
+    fightMate = ended;
     preparedFight = { seed: mine.seed, wave: mine.wave, fight: { mate: ended.pendingCombatSide, foeMate, first: st.first } };
     return { ...action, sandboxDuos: preparedFight.fight } as Action;
   },
+  mateRun: () => fightMate ?? (useSbDuos.getState().viewing ? null : useSbDuos.getState().other),
   afterCommit: (action, next) => {
     if (action.type !== 'faceOmen' || !action.sandboxDuos || next.phase !== 'combat' || !next.lastCombat) return;
     preparedFight = null;

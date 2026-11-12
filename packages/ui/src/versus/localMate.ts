@@ -30,6 +30,8 @@ export interface LocalMateApi {
   /** THE DUOS LOBBY (R-SB-DUOS-03): my End Turn becomes the team fight. Returns the action to run (the same one when the
    *  teammate cannot fight this round). */
   endTurn?(run: RunState, action: Action): Action;
+  /** The teammate's run as the HUD should show it while THEIR board fights (R-DUOS-FIGHTER-VIEW-01). */
+  mateRun?(): RunState | null;
   /** After my End Turn committed: land the same fight on the teammate's run. */
   afterCommit?(action: Action, next: RunState): void;
 }

@@ -189,8 +189,9 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-whip-snap-242215',
   ],
   stamp: [
+    'fx/stamp-pad',
+    'fx/stamp-thunk',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-whip-snap-242215',
   ],
   enraged: [
     'fx/dragon-growl',

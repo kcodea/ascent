@@ -1,20 +1,19 @@
-// SCAFFOLDED from heroCoin/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Coin, not this style, until rewritten.
 /**
- * THE COIN FLICK RUNNER (a Rare hero attack): plays one Stamp Flick (the beats are in `heroStampConfig.ts`) and lands the
- * consequence on its impact beat (the last ping). Presentation only: the total it shows and the blow it lands are
- * handed in, already decided by the engine; this file only decides WHEN on screen they happen.
+ * PAID IN FULL'S RUNNER (the rubber stamp, a Rare hero attack): plays one attack (the beats are in
+ * `heroStampConfig.ts`) and lands the consequence on its impact beat (the last thunk). Presentation only: the total it
+ * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they
+ * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), as every style does: one clock (it never pauses), the
  * damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the portraits (transform only, restored after),
  * the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
- * THE RICOCHET CONTRACT: every ping before the last is a tick (FX and sound only). The consequence (`onImpact`) lands
- * exactly ONCE, on the last ping.
+ * THE THREE-STAMP CONTRACT: every thunk before the last is a tick (a mark, dust, ink and sound only). The consequence
+ * (`onImpact`) lands exactly ONCE, on the last thunk.
  *
- * Perf: DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after the opening measure;
- * the Pixi sprites are pooled (a hard cap), the textures painted once per session and pre-warmed during the formation,
- * and the updater unhooks the moment the scene drains.
+ * Perf: DOM moves are `transform` written from the clock; nothing reads layout after the opening measure; the Pixi
+ * sprites are pooled (a hard cap), the textures painted once per session and pre-warmed during the formation, the
+ * stamp's pose is written into one reused object, and the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -27,8 +26,8 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  stampCameraAt, stampCameraFocus, stampCues, stampPath, stampPlan, getHeroStampConfig,
-  type CoinCue, type CoinPath, type CoinPlan, type HeroStampConfig,
+  stampCameraAt, stampCameraFocus, stampCues, stampPlan, stampPress, stampTrack, getHeroStampConfig,
+  type StampCue, type StampPlan, type StampTrack, type HeroStampConfig,
 } from './heroStampConfig';
 import { HeroStampScene, type HeroStampTextures } from './heroStampScene';
 import { heroStampTextures } from './heroStampTextures';
@@ -39,21 +38,28 @@ export interface HeroStampOptions extends HeroAttackOptions {
 }
 
 export interface HeroStampHandle extends HeroAttackHandle {
-  readonly plan: CoinPlan;
-  /** The coin's whole path (empty under reduced motion). */
-  readonly path: CoinPath;
+  readonly plan: StampPlan;
+  /** The stamp's whole track (empty under reduced motion). */
+  readonly track: StampTrack;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). */
   readonly scene: HeroStampScene | null;
-  /** Whether the camera is mirrored onto the Pixi root (false when the canvas already rides the camera). */
+  /** Whether the camera is mirrored onto the Pixi root (false when the canvas already rides the camera element). */
   readonly mirrorsCamera: boolean;
 }
 
-/** The seed a fight's glitter is scattered from: the same fight sparkles the same way. */
+/** The seed a fight's marks are rolled from when the caller gives none: the same fight stamps the same crooked marks. */
 export function stampSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 6151 + Math.round(distance) * 37 + (side === 'opp' ? 211 : 13)) >>> 0;
 }
 
-/** Play the Stamp Flick. Returns a handle; the blow lands via `onImpact` on the last ping. */
+/** Each thunk's pitch and loudness: the ticks light and climbing down, the last one the lowest and the fullest. */
+function thunkVoice(i: number, n: number): { rate: number; gain: number } {
+  if (n <= 1) return { rate: 1, gain: 0.9 };
+  if (i === n - 1) return { rate: 0.86, gain: 1 };
+  return { rate: 1.16 - 0.1 * i, gain: 0.6 + 0.08 * i };
+}
+
+/** Play Paid in Full. Returns a handle; the blow lands via `onImpact` on the last thunk. */
 export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
   const c = o.cfg ?? getHeroStampConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -76,19 +82,19 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hstamp',
   });
 
-  const arc = c[`${plan.level}Arc`];
-  const path = stampPath(plan, o.attacker, o.defender, radius, aRadius, arc, (local ? 8 : 36) * s, nums.pts.hit, c[`${plan.level}HopLift`]);
-  const lastIn = path.arrive[path.arrive.length - 1] ?? (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
+  const seed = (o.rollSeed ?? stampSeed(o.total, dist, o.side)) >>> 0;
+  const track = stampTrack(plan, { a: o.attacker, d: o.defender, radius, aRadius, ceilY: (local ? 6 : 28) * s, seed, avoid: nums.pts.hit }, c);
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
+  // The stamp presses DOWN its own axis: the struck portrait is pushed that way and squashed across it.
+  const press = { x: -track.upD.x, y: -track.upD.y };
+  const axisDeg = (track.rotD * 180) / Math.PI;
+  const thunks = plan.thunks.length;
 
   const textures = o.textures !== undefined ? o.textures : heroStampTextures();
   const scene = textures && !reduced
     ? new HeroStampScene(textures, {
-      gold: hexToNum(c.colorGold), amber: hexToNum(c.colorAmber), shine: hexToNum(c.colorShine), deep: hexToNum(c.colorDeep), side: hexToNum(sideHex),
-    }, {
-      px: c.stampPx, ghosts: c.ghosts, ghostMs: c.ghostMs, glint: c.glintAlpha, ping: c.pingSize, caromMs: c.caromMs,
-      showerSpeed: c.showerSpeed, showerGravity: c.showerGravity,
-    }, s, stampSeed(o.total, dist, o.side))
+      ink: hexToNum(c.colorInk), inkDeep: hexToNum(c.colorInkDeep), shine: hexToNum(c.colorShine), dust: hexToNum(c.colorDust),
+    }, { markSize: c.markSize }, s, seed)
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -99,42 +105,41 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxFlickClip, c.sfxSnapClip, c.sfxDingClip, c.sfxSparkleClip, c.sfxImpactClip, c.sfxShowerClip]);
-  const hand = path.legs[0]?.a ?? o.attacker;
+  voices.warm([c.sfxWhooshClip, c.sfxThunkClip, c.sfxPadClip]);
 
-  const fire = (q: CoinCue | FormationCue): void => {
+  const thunk = (i: number, final: boolean): void => {
+    const v = thunkVoice(i, thunks);
+    // The clip's hit is about 20 ms in: start a touch inside it so the sound sits on the frame the die lands.
+    cue(c.sfxThunkClip, c.sfxThunkGain * v.gain, c.sfxThunkRate * v.rate, { startMs: 8, lenMs: 340, fadeMs: 140, tail: final ? 0.08 : 0 });
+    scene?.thunk(i, {
+      final, big: plan.level === 'big', skull: plan.knockout, droplets: plan.droplets,
+      hold: plan.markFadeAt - plan.thunks[i]!, fade: plan.markFadeMs,
+    });
+  };
+
+  const fire = (q: StampCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.startCharge(hand, plan.flickAt - plan.chargeAt);
+        scene?.start(plan, track, t - q.at);
         cam.start();
         break;
-      case 'flick':
-        cue(c.sfxFlickClip, c.sfxFlickGain, c.sfxFlickRate, { lenMs: 260, fadeMs: 100 });
-        cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { startMs: 440, lenMs: 160, fadeMs: 80 });
-        scene?.flick(path, plan.size, plan.flipHz, t - q.at);
+      case 'pad':
+        cue(c.sfxPadClip, c.sfxPadGain, c.sfxPadRate, { startMs: 10, lenMs: 280, fadeMs: 120 });
+        scene?.padTap();
         break;
-      case 'hit': {
-        // A ricochet ping: the ding climbs a step each time (a little tune), a sparkle under it. FX only.
-        cue(c.sfxDingClip, c.sfxDingGain * 0.8, c.sfxDingRate + 0.12 * q.i, { lenMs: 500, fadeMs: 200 });
-        cue(c.sfxSparkleClip, c.sfxSparkleGain * 0.6, c.sfxSparkleRate + 0.08 * q.i, { lenMs: 400, fadeMs: 160 });
-        const at = path.contacts[q.i];
-        if (at) scene?.ping(at, path.arrive[q.i] ?? toFoe, 0.85, Math.round(plan.sparkles * 0.6));
+      case 'launch':
+        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: Math.min(420, plan.flightMs + 60), fadeMs: 160 });
         break;
-      }
-      case 'impact': {
-        const up = plan.hits.length;
-        cue(c.sfxDingClip, c.sfxDingGain, c.sfxDingRate + 0.12 * up, { lenMs: 700, fadeMs: 260, tail: 0.12 });
-        cue(c.sfxSparkleClip, c.sfxSparkleGain, c.sfxSparkleRate + 0.08 * up, { lenMs: 500, fadeMs: 200 });
-        cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate, { lenMs: 400, fadeMs: 150 });
-        if (plan.shower > 0) cue(c.sfxShowerClip, c.sfxShowerGain, c.sfxShowerRate, { delayMs: 60 / speed, lenMs: 900, fadeMs: 300 });
-        const at = path.contacts[path.contacts.length - 1];
-        if (at) scene?.impact(at, lastIn, { big: plan.level === 'big', shower: plan.shower, sparkles: plan.sparkles });
+      case 'hit':
+        thunk(q.i, false); // a tick: FX and sound only
+        break;
+      case 'impact':
+        thunk(thunks - 1, true);
         seq.land();
         break;
-      }
       default:
         break;
     }
@@ -142,50 +147,42 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.flickAt, plan.impactAt + 200);
-    const cm = stampCameraAt(plan, c, t, lastIn);
+    nums.paintDim(t, plan.chargeAt, plan.launchAt, plan.impactAt + 200);
+    const cm = stampCameraAt(plan, c, t, press);
     const unit = local ? 1 : s;
     cam.apply(stampCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
-      // The ready: a small dip back (a wind of the wrist); the flick snaps it toward the target and springs home.
+      // The ready: a small dip back as the stamp comes out; the launch pushes the hero toward the target, then home.
       let sc = 1, bx = 0, by = 0;
-      if (t < plan.flickAt) {
-        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.flickAt - plan.chargeAt));
+      if (t < plan.launchAt) {
+        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.launchAt - plan.chargeAt));
         sc = 1 - 0.03 * u;
         bx = -toFoe.x * c.heroDipPx * px * u; by = -toFoe.y * c.heroDipPx * px * u + 2 * px * u;
       } else {
-        const back = Math.max(0, spring(t - plan.flickAt, 3, 80));
-        const f = c.heroFlickPx * px * spring(t - plan.flickAt, 5, 60);
-        sc = 1 - 0.03 * back + 0.02 * Math.max(0, f / Math.max(1, c.heroFlickPx * px));
+        const back = Math.max(0, spring(t - plan.launchAt, 3, 80));
+        const f = c.heroPushPx * px * spring(t - plan.launchAt, 5, 60);
+        sc = 1 - 0.03 * back + 0.02 * Math.max(0, f / Math.max(1, c.heroPushPx * px));
         bx = -toFoe.x * c.heroDipPx * px * back + toFoe.x * f; by = -toFoe.y * c.heroDipPx * px * back + toFoe.y * f;
       }
       hero.set(Math.abs(sc - 1) < 1e-4 && Math.abs(bx) + Math.abs(by) < 0.05 ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) scale(${sc.toFixed(4)})`);
     }
+    // The struck portrait: pressed along the stamp's axis and squashed flat across it, ringing out after every thunk.
+    const k = t >= plan.thunks[0]! ? stampPress(plan, t) : 0;
     let fx = 0, fy = 0;
-    let css: string | null = null;
-    if (t >= plan.impactAt) {
-      const k = spring(t - plan.impactAt, 4.5, 80);
-      const knock = c.knockPx * (plan.level === 'big' ? 1.2 : 0.9) * k * px;
-      const sq = c.squash * (plan.level === 'big' ? 1.2 : 0.9) * k;
-      fx = lastIn.x * knock; fy = lastIn.y * knock;
-      css = Math.abs(k) < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
-    } else if (plan.hits.length && t >= plan.hits[0]!) {
-      // Each ricochet ping nudges the face along the coin that hit it.
-      let kx = 0, ky = 0;
-      for (let i = 0; i < plan.hits.length; i++) {
-        const k = Math.max(0, spring(t - plan.hits[i]!, 6, 45));
-        const d = path.arrive[i] ?? lastIn;
-        kx += d.x * k; ky += d.y * k;
-      }
-      fx = kx * 6 * px; fy = ky * 6 * px;
-      css = Math.abs(fx) + Math.abs(fy) < 0.05 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
+    if (Math.abs(k) < 0.004) foe.set(null);
+    else {
+      const sq = c.squash * k;
+      fx = press.x * c.knockPx * k * px; fy = press.y * c.knockPx * k * px;
+      const squash = `scale(${(1 + sq * 0.55).toFixed(4)}, ${(1 - sq).toFixed(4)})`;
+      foe.set(Math.abs(axisDeg) < 0.5
+        ? `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) ${squash}`
+        : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) rotate(${axisDeg.toFixed(2)}deg) ${squash} rotate(${(-axisDeg).toFixed(2)}deg)`);
     }
-    foe.set(css);
     scene?.setFoeOffset(fx * unit, fy * unit);
   };
 
-  const seq: Sequence<CoinCue | FormationCue> = new Sequence<CoinCue | FormationCue>({
+  const seq: Sequence<StampCue | FormationCue> = new Sequence<StampCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
@@ -198,7 +195,7 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
 
   return {
     plan,
-    path,
+    track,
     scene,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,

@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-12',
+    changes: [
+      { category: 'Systems', text: 'Five more minion skins in chests: three for Yazzus, one for Salvatore McKlusky and one for Uron.' },
+    ],
+  },
+  {
     date: '2026-11-11',
     changes: [
       {

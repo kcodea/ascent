@@ -15217,4 +15217,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-11 (fx/more-unit-fx). Before, the custom primitive declared no scale axis, so a per-call scale left an image at its authored size.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rubyBuffCue.test.ts'], lastVerifiedAt: '2026-11-11' },
   },
+  {
+    id: 'R-PROG-SKINS-25',
+    title: 'Skins batch 17: five minion skins for Yazzus, Salvatore McKlusky and Uron join the crates at their folder rarity',
+    statement:
+      'Five minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Mystic Arts Yazzus. Rare: Mystic Yazzus. Epic: Celestial Yazzus, Hunter Salvatore. Legendary: Captain Uron. '
+      + 'With them in, a first crate holds 90 Common, 142 Rare, 132 Epic, 103 Legendary and 33 Ancient items (each Common '
+      + '0.389%, Rare 0.218%, Epic 0.167%, Legendary 0.087%, Ancient 0.091%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (skins batch 17)', quote: 'i added the final units.' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 17); packages/ui/src/art/skins/ (5 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-17). Monster Hunter Salvator.png ships as Hunter Salvatore (20 characters max, and the card spelling); a Claude call for the owner to confirm. After this batch three buyable Set 2 minions have no skin: Scrapper, Beggy and Auric Runemaster. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
+  },
 ];

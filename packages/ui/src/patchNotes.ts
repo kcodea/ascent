@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Raven and Tort now send a beam to the Beast they give Execute, and its Execute appears when the beam lands.',
+      },
+      {
+        category: 'Systems',
         text: 'Gasket\'s Rally has a new look and sound: his cannon belches as the Rally medallion flashes, then a burst of gas rolls across the board as the damage lands.',
       },
       { category: 'Systems', text: 'Duos fights now show whoever is fighting. The left portrait, the runes and the hand are the player whose board is up; the other player waits in the teammate spot, and the two slide to swap places. A player whose board has fallen is greyed out.' },

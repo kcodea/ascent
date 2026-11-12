@@ -490,4 +490,25 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-09 (feat/fx-sell).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/buffWatcher.test.ts'], lastVerifiedAt: '2026-11-09' },
   },
+  {
+    id: 'R-FX-EXECUTE-GIVEN-01',
+    title: 'An Execute given by another minion travels from the giver, and the Execute appears when it lands',
+    statement:
+      'When a minion gives another minion Execute and has its own "On Execute given" effect (the Rally of Raven, the '
+      + 'Avenge of Tort), the effect flies from the giver to each minion that gains Execute, and that minion shows its '
+      + 'Execute only when the effect lands. A Rally sends it as the Rally medallion pulses; any other giver sends it as '
+      + 'the grant happens. A giver that gives Execute to two minions sends one effect to each.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, Execute applications', quote: 'applying execute is another effect much like ward, that applies instantly. i want you to understand the fx change we did to ward (specifically look at lastlight as an example of how it is applied in combat) and get ready for me to send you a tendril effect for execute applications' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, the effect', quote: 'ok i saved it called execute-beam' },
+      { kind: 'code', ref: 'fx/execute-given: packages/ui/src/fx/executeGivenLaunch.ts; packages/ui/src/choreo/channels/executeGiven.ts; packages/ui/src/fx/executeHold.ts; packages/ui/src/Card.tsx (the held aura)' },
+    ],
+    contentIds: ['b2_raven', 'b2_tort'],
+    currentBehaviour: 'PARTIAL from 2026-11-12 (fx/execute-given): combat only. A Rally forced in the Shop still shows Execute at once '
+      + 'with no travelling effect (R-PHASE-01 gap, awaiting the owner). The pure parts are pinned (which grants travel, '
+      + 'when each leaves, the hold); the scheduled play itself needs a live renderer and is not under test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/executeGiven.test.ts'], lastVerifiedAt: '2026-11-12' },
+  },
 ];

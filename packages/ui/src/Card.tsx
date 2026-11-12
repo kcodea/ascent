@@ -1,4 +1,5 @@
 import { isWardHeld, subscribeWardHolds } from './fx/wardHold';
+import { isExecuteHeld, subscribeExecuteHolds } from './fx/executeHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -642,6 +643,8 @@ export const Card = memo(function Card({
   // reads 0 and never re-renders when some other card is gemmed.
   // A Ward given by an "On Ward given" effect waits for that effect to arrive (fx/wardHold).
   const wardHeld = useSyncExternalStore(subscribeWardHolds, () => (uid ? isWardHeld(uid) : false), () => false);
+  // …and an Execute given by an "On Execute given" effect waits the same way (fx/executeHold).
+  const executeHeld = useSyncExternalStore(subscribeExecuteHolds, () => (uid ? isExecuteHeld(uid) : false), () => false);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
@@ -1251,7 +1254,7 @@ export const Card = memo(function Card({
             over the art AND the frame but under the badges, exactly like the Ward shell (owner ruling) — not
             Flurry's z2. Every gradient/mask/blur is static paint precomputed in executeConfig; only transform
             and opacity animate. Replaced the old lime venom rim + drip globs (2026-07-21). */}
-        {card.keywords.includes('V') && <ExecuteAura />}
+        {card.keywords.includes('V') && !executeHeld && <ExecuteAura />}
         {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
             to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}

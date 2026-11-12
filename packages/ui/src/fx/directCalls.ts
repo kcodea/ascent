@@ -28,6 +28,9 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
+  // ON EXECUTE GIVEN (2026-11-12): the slice as the giver's effect leaves, the blood + ding as it lands.
+  'sfx-execute-slice': ['fx/executeGivenLaunch.ts'],
+  'sfx-execute-applied': ['fx/executeGivenLaunch.ts'],
   // ('amplified-slot', the looping Amplified glow on the Equipment slot, left on 2026-11-01: the owner-approved
   // "Charged" look replaced it with a CSS state on the slot. The def stays in the library, unplayed.)
   // The Amplified RELEASE (owner ask 2026-11-01): two soft rings on the slot as an Amplified activation fires.
@@ -281,6 +284,9 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // (Lastlight's beam, from its slot after the Echo skull) and the `shieldGain` binding (Orin's `ward-gain-blast`) on
   // each warded minion as its dome appears — the latter also fired by score.ts's `wardGainFx` row through this file.
   'fx/wardGivenLaunch.ts': 2,
+  // ON EXECUTE GIVEN (2026-11-12). One call in `fx/executeGivenLaunch.ts`: the giver's bound `executeGiven` def
+  // (Raven / Tort's `execute-beam`), via bindingFor.
+  'fx/executeGivenLaunch.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

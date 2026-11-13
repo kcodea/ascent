@@ -84,6 +84,15 @@ low-passed at 5.2 kHz) with no dry in it, made back up to the old loudness (-16.
 plays at 0.8. Every Rise sound layer carries `pitchVar: 0.07` (the Sound primitive's per-fire pitch jitter), so each
 beam of a cascade sounds slightly different. The wraith layer plays at 0.8.
 
+## Combat rune beams never matched (2026-11-13)
+
+Owner, on Deathtouched Apple: "this did not show the tendrils". The first matcher looked for a rune fire and its grant
+inside ONE beat, and my test fed it hand-made events shaped that way. In the real replay a `questTrigger` is its own
+beat. Apple logs the Rise inside the death beat and fires after; Rising Graves fires first and grants in later beats.
+The matcher now pairs them by the engine `step`, launches on the later of the two beats, and lets a grant with no
+fire of its own continue the fire it directly follows. The tests now run real simulated fights with the rune flag on
+through `replayBeats(replayOrder(...))`. Bell and thrum layers lowered to 0.45 (owner: "lowered by 25%").
+
 ## Not covered
 
 A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. The scheduled play needs a live renderer and is not under test.

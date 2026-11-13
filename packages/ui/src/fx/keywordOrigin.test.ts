@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import type { CombatEvent } from '@game/core';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { classifyKeywordOrigin } from './keywordOrigin';
 import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS, pointRect } from './keywordBeam';
 import { combatAnchorsFromRects } from './combatAnchors';
-import { runeKeywordGrantsIn } from './runeKeywordBeams';
+import { runeKeywordGrantsIn, type RuneCarry } from './runeKeywordBeams';
 import { getDef } from './fxDefs';
 
 /**
@@ -51,30 +53,42 @@ describe('a beam from a point (owner 2026-11-13: Lord of the Risen played the so
   });
 });
 
-describe('a rune giving a keyword in combat', () => {
-  const ev = (e: Record<string, unknown>): CombatEvent => e as unknown as CombatEvent;
-  const moment = (start: number, end: number) => ({ start, end, primary: ev({ type: 'keyword' }), stepGroups: [], kind: 'keyword' as const });
-  const events = [
-    ev({ type: 'questTrigger', flag: 'runeRisingGraves', side: 'player' }),
-    ev({ type: 'keyword', target: 'a', keyword: 'R', source: 'a' }),
-    ev({ type: 'keyword', target: 'b', keyword: 'R', source: 'b' }), // the next beat: no trigger of its own
-    ev({ type: 'keyword', target: 'c', keyword: 'R', source: 'giver' }), // a minion gave this one
-    ev({ type: 'questTrigger', flag: 'runeX', side: 'enemy' }),
-    ev({ type: 'shieldUp', target: 'd' }),
-  ];
-  it('a sourceless grant beside a player rune fire is the rune\'s', () => {
-    const out = runeKeywordGrantsIn(moment(0, 2), events, null);
-    expect(out.grants).toEqual([{ kw: 'R', target: 'a', flag: 'runeRisingGraves' }]);
-    expect(out.carry).toEqual({ flag: 'runeRisingGraves', end: 2 });
+describe('a rune giving a keyword in combat, on REAL simulated fights walked as the replay walks them', () => {
+  const bm = (cardId: string, attack: number, health: number, extra: Partial<BoardMinion> = {}): BoardMinion =>
+    ({ cardId, attack, health, keywords: [...(CARD_INDEX[cardId]?.keywords ?? [])], ...extra });
+  /** Every beat's launches, in order: [beat kind, grants]. */
+  function launches(flag: string, player: BoardMinion[]): Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> {
+    const { events: raw } = simulate(player, [bm('trainingdummy', 5, 60)], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4, questMods: { [flag]: true } } as never), combatSide({ tier: 4 }));
+    const events = replayOrder(raw);
+    let carry: RuneCarry | null = null;
+    const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> = [];
+    for (const beat of replayBeats(raw)) {
+      const r = runeKeywordGrantsIn(beat, events, carry);
+      carry = r.carry;
+      if (r.grants.length) out.push({ kind: beat.kind, grants: r.grants });
+    }
+    return out;
+  }
+
+  it('Deathtouched Apple (owner 2026-11-13: "this did not show the tendrils"): the Rise leaves on the FIRE beat of the rune', () => {
+    const got = launches('runeDeathtouchedApple', [bm('mumi', 2, 1, { keywords: ['R', 'T'] }), bm('mumi', 1, 60)]);
+    expect(got.length).toBeGreaterThanOrEqual(1);
+    // The grant is logged inside the death's beat; the launch waits for the fire, which is its own beat.
+    expect(got[0]).toEqual({ kind: 'questTrigger', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple' }] });
+    expect(got.every((g) => g.kind === 'questTrigger' && g.grants.every((x) => x.flag === 'runeDeathtouchedApple'))).toBe(true);
   });
-  it('the fire carries into the very next beat when it holds only such grants (Rising Graves, one Rise per beat)', () => {
-    const out = runeKeywordGrantsIn(moment(2, 3), events, { flag: 'runeRisingGraves', end: 2 });
-    expect(out.grants).toEqual([{ kw: 'R', target: 'b', flag: 'runeRisingGraves' }]);
-    expect(runeKeywordGrantsIn(moment(2, 3), events, { flag: 'runeRisingGraves', end: 1 }).grants).toEqual([]);
+
+  it('Rising Graves: the fire comes first, and each Rise leaves on its own beat', () => {
+    const got = launches('runeRisingGraves', [bm('mumi', 2, 60), bm('mumi', 1, 60), bm('mumi', 1, 60)]);
+    const rises = got.flatMap((g) => g.grants);
+    expect(rises.map((g) => g.target)).toEqual(['m0', 'm1']);
+    expect(rises.every((g) => g.kw === 'R' && g.flag === 'runeRisingGraves')).toBe(true);
+    expect(got.every((g) => g.kind !== 'questTrigger')).toBe(true);
   });
-  it('a minion\'s grant and the foe\'s rune are left alone', () => {
-    expect(runeKeywordGrantsIn(moment(3, 4), events, { flag: 'runeRisingGraves', end: 3 }).grants).toEqual([]);
-    expect(runeKeywordGrantsIn(moment(4, 6), events, null).grants).toEqual([]);
+
+  it('a grant a minion made is never credited to a rune: the Echo of Mumi with no rune held launches nothing here', () => {
+    expect(launches('runeNotARealFlag', [bm('mumi', 2, 1, { keywords: ['T'] }), bm('mumi', 1, 60)])).toEqual([]);
   });
 });
 

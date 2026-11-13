@@ -17,3 +17,4 @@ export * from './presentation/combatTrace'; // WP C — the pure post-hoc combat
 export * from './tribeGate';
 export * from './randomPool'; // the legal random minion (R-RANDOM-POOL-01)
 export * from './whisperTier'; // Whisper tiers (owner 2026-10-16, R-WHISPER-TIER-01)
+export * from './set2RunesBasicNeutral'; // Set 2 rune batch, Basic neutral (owner 2026-11-12)

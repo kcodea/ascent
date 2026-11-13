@@ -64,6 +64,10 @@ const NOT_A_METER: Record<string, string> = {
   rune_heavy_payroll: 'fires on EVERY Dwarf gained; the digits are the +12/+12 grant, not a count-up',
   rune_deep_currents: 'fires on EVERY Spirit played; the digits are the 2-target +2/+2 grant, not a count-up',
   rune_spell_fed_scales: 'fires on EVERY Shop Spell cast; the digits are the +6/+7 grant, not a count-up (2026-10-21)',
+  // ── Set 2 batch, Basic neutral (2026-11-12) ──
+  rune_hazard_pay: 'fires on EVERY lost combat; the digits are the 3 Gold grant, not a count-up',
+  rune_golden_handshake: 'fires on EVERY Gild; the digits are the +2/+2 grant, not a count-up',
+  rune_late_bloomer: 'fires on EVERY Shop upgrade; the digits are the 2 Gold and +3/+3 grant, not a count-up',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */
@@ -80,7 +84,7 @@ const armedRun = (): RunState => ({
   questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 3 },
   questScalingAuras: [{ tribe: 'beast', per: 5, event: 'summon', stepAttack: 4, stepHealth: 4, progress: 2 }],
   runeSlayingKills: 4,
-  questFlags: { runeSlaying: true, runePackcraft: true, runeClearVoices: true, runeSpellTempering: true }, // Packcraft prints its live per-summon grant (owner rework 2026-09-23); the two Set 3 Dragon meters (2026-10-21)
+  questFlags: { runeSlaying: true, runePackcraft: true, runeClearVoices: true, runeSpellTempering: true, runeLoyalCustomer: true }, // + Loyal Customer's N/4 (Set 2 batch 2026-11-12) // Packcraft prints its live per-summon grant (owner rework 2026-09-23); the two Set 3 Dragon meters (2026-10-21)
   clearVoicesIds: ['w4_tome'],
   runeSpellTemperingTick: 2,
   runeScale: { count: 3, attack: 3, health: 3, per: 5, tick: 2 },

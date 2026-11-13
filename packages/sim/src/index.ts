@@ -129,3 +129,4 @@ export {
   effectFactoryIds, effectDigestFor, manifestDigestOf, computeExperimentIdentity, UNKNOWN_ENVIRONMENT,
   type ResolvedManifest, type EnvironmentIdentity,
 } from './balance/identity';
+export * from './set2RunesBasicNeutral'; // Set 2 rune batch, Basic neutral (owner 2026-11-12)

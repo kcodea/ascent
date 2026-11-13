@@ -1,6 +1,6 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -306,6 +306,13 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_shifting_facets' && run.questFlags?.runeShiftingFacets) {
     return (run.runeShiftingFacetsTick ?? 0) % 2 === 0 ? '+1 Hp' : '+1 Atk';
   }
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12): the N/X integer counter convention. ──
+  // Piggy Bank, the REPEAT form: how many times the +1/+3 lands this End of Turn (the base plus one per unspent Gold).
+  if (runeId === 'rune_piggy_bank' && run.questRecurringEndOfTurn?.includes('runePiggyBank')) return `×${recurringTickCount(run, 'runePiggyBank')}`;
+  // Loyal Customer: minions bought toward the free one (3/4 = the next minion is free).
+  if (runeId === 'rune_loyal_customer' && run.questFlags?.runeLoyalCustomer) return `${(run.loyalCustomerBuys ?? 0) % SET2_BASIC_NEUTRAL.loyalCustomerEvery}/${SET2_BASIC_NEUTRAL.loyalCustomerEvery}`;
+  // Warm-Up: the side-wide Pummel tally toward the next multiple of 150 (it carries across fights).
+  if (runeId === 'rune_warm_up' && run.questFlags?.runeWarmUp) return `${(run.runeWarmUpDealt ?? 0) % SET2_BASIC_NEUTRAL.warmUp.every}/${SET2_BASIC_NEUTRAL.warmUp.every}`;
   return null;
 }
 

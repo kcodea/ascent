@@ -25,6 +25,7 @@ import type {
   Tribe,
 } from '../types';
 import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerContributors, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { SET2_BASIC_NEUTRAL } from '../set2RunesBasicNeutral';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -862,6 +863,10 @@ export function simulate(
     enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
   }));
   const ancientPummelPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** WARM-UP (Set 2 batch): the side-wide Pummel (150) tally (seeded LIFETIME from the run) and its once-per-combat latch. */
+  const warmUpDealt: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeWarmUpDealt ?? 0, enemy: modsFor('enemy').runeWarmUpDealt ?? 0 }));
+  const warmUpPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
   const ancientSpellImproved: Record<Side, { attack: number; health: number }> = sideReset(() => ({ player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } }));
   /** ANCIENT OF WAR × Frantic Frank: Clearance stacks this fight's hero Avenge gained, per side. */
@@ -1484,6 +1489,7 @@ export function simulate(
     } finally { gainCardDepth--; }
   }
   const ctx: CombatContext = {
+    onGilded: (m) => goldenHandshakeCombat(m), // Golden Handshake (Set 2 batch): a factory's combat Gild
     rng,
     bus,
     boards,
@@ -3539,6 +3545,7 @@ export function simulate(
    */
   function noteDamageDealt(dealer: Minion, amount: number): void {
     noteAncientPummel(dealer, amount);
+    noteWarmUp(dealer, amount);
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
     // marker's `do` decides the payout. Han Gover grants `count` random Dwarven Ales (×2 gilded) through
     // `grantToHand` — the standard combat→hand channel, so the card flies to hand in the replay and settles into
@@ -3671,6 +3678,42 @@ export function simulate(
    * of X crossed, at most one per combat, and crossings past the cap are spent. The payout is real time: the cards
    * fly to hand on the hit that crossed (`grantToHand`, a live `toHand`), mid-fight.
    */
+  /**
+   * WARM-UP (Set 2 batch, owner 2026-11-12): "Pummel (150): gain 2 Gold next turn. Counts all your minions. Once per
+   * combat." A SIDE-WIDE Pummel over the same landed hits the keyword reads (called from `noteDamageDealt`), from every
+   * friendly minion, into one LIFETIME tally (seeded from the run, carried home as `ShoutCarry.warmUpDealt`: the
+   * keyword's carry-over rule). Rune of the Heavy Hand's extra share applies. The first crossing of a multiple of 150
+   * each fight banks 2 Gold for next turn per copy held (`grantBonusGold`, live); later crossings that fight are spent.
+   */
+  function noteWarmUp(dealer: Minion, amount: number): void {
+    const side = dealer.side;
+    if (!modsFor(side).runeWarmUp || amount <= 0) return;
+    const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
+    const before = warmUpDealt[side];
+    const after = before + amount * (1 + heavy);
+    warmUpDealt[side] = after;
+    shoutCarry[side].warmUpDealt = after;
+    const every = SET2_BASIC_NEUTRAL.warmUp.every;
+    if (warmUpPaid[side] || Math.floor(after / every) - Math.floor(before / every) <= 0) return;
+    warmUpPaid[side] = true;
+    fireTrigger('runeWarmUp', side);
+    ctx.grantBonusGold(SET2_BASIC_NEUTRAL.warmUp.gold * flagCopiesOf(side, 'runeWarmUp'), side);
+  }
+
+  /** GOLDEN HANDSHAKE, the combat half (Set 2 batch, owner 2026-11-12): a combat Gild (Auric Runemaster's Shout via
+   *  `ctx.onGilded`, the Ancient of Time) gives the side's living minions +2/+2 for this fight (R-BUFF-PERM), per copy
+   *  held, real time. */
+  function goldenHandshakeCombat(gilded: Minion): void {
+    const gside = gilded.side;
+    if (!modsFor(gside).runeGoldenHandshake) return;
+    const band = living(gside);
+    if (band.length === 0) return;
+    const k = flagCopiesOf(gside, 'runeGoldenHandshake');
+    nextStep();
+    fireTrigger('runeGoldenHandshake', gside);
+    for (const m of band) ctx.buff(m, SET2_BASIC_NEUTRAL.goldenHandshake.attack * k, SET2_BASIC_NEUTRAL.goldenHandshake.health * k, 'Golden Handshake');
+  }
+
   function noteAncientPummel(dealer: Minion, amount: number): void {
     const ap = modsFor(dealer.side).ancientPummel;
     const pc = modsFor(dealer.side).ancientPummelCopy;
@@ -5485,6 +5528,7 @@ export function simulate(
           tail.golden = true;
           emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
           if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+          goldenHandshakeCombat(tail); // Golden Handshake (Set 2 batch): a combat Gild
         }
       }
       // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
@@ -6305,6 +6349,16 @@ export function simulate(
         if (!m.keywords.includes('R')) m.keywords.push('R');
         emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
         given++;
+      }
+    }
+    // SHIELD WALL (Set 2 batch, owner 2026-11-12): "Start of Combat: give your Taunt minions +4/+6." Every living friendly
+    // Taunt minion, a combat buff (R-BUFF-PERM), per copy held. A Start of Combat rune, so Twilight repeats it.
+    if (rmods.runeShieldWall) {
+      const taunts = living(rside).filter((m) => m.keywords.includes('T'));
+      if (taunts.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeShieldWall', rside);
+        const k = flagCopiesOf(rside, 'runeShieldWall');
+        for (const m of taunts) ctx.buff(m, SET2_BASIC_NEUTRAL.shieldWall.attack * k, SET2_BASIC_NEUTRAL.shieldWall.health * k, 'Shield Wall');
       }
     }
   };
@@ -7146,6 +7200,26 @@ export function simulate(
     });
   };
   for (const uside of SIDES) registerUnbrokenScales(uside, 0);
+  // SHATTERPROOF (Set 2 batch, owner 2026-11-12): "When a minion of yours loses Ward, give it +5/+5 permanently." EVERY
+  // Ward loss, no per-combat limit (owner ruling), per copy held. Permanent: booked as `permaGain` (the carry-back the
+  // Shop board keeps), unless an Engrave already kept it (R-ENGRAVE-05). A Ward that comes back (Unbroken Scales, a
+  // Bastion) and breaks again pays again. Registered per board (`member`), like Unbroken Scales.
+  const registerShatterproof = (uside: Side, member: number): void => {
+    if (!modsFor(uside).runeShatterproof) return;
+    bus.on('onLoseDivineShield', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== uside || activeMember[uside] !== member || minion.dead || minion.health <= 0) return;
+      const k = flagCopiesOf(uside, 'runeShatterproof');
+      const a = SET2_BASIC_NEUTRAL.shatterproof.attack * k;
+      const h = SET2_BASIC_NEUTRAL.shatterproof.health * k;
+      nextStep(); // its own beat, after the break
+      fireTrigger('runeShatterproof', uside);
+      const keptBy = ctx.buff(minion, a, h, 'Shatterproof').kept;
+      if (!keptBy) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + a, health: (minion.permaGain?.health ?? 0) + h };
+    });
+  };
+  for (const uside of SIDES) registerShatterproof(uside, 0);
+
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
   // and repeats its own Twilight passes here: a "Start of Combat:" rune, so each extra pass re-picks the living
@@ -7578,6 +7652,7 @@ export function simulate(
     socRunes([s]);
     registerSalvage(s, activeMember[s]);
     registerUnbrokenScales(s, activeMember[s]);
+    registerShatterproof(s, activeMember[s]); // Shatterproof (Set 2 batch): the stepped-in board hears its Ward losses
     socFirstClaws([s]);
     bloodlustFor(s);
     fillFreeSlots();

@@ -29,6 +29,7 @@ export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
+import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -1561,6 +1562,7 @@ export const NO_COPY_SPELLS: ReadonlySet<string> = NO_COPY_SPELL_IDS; // ONE set
 export function noteGilded(state: RunState | undefined): void {
   if (state?.ancientsEnabled && state.ancients) state.ancients.gilds = (state.ancients.gilds ?? 0) + 1;
   duosOnGild(state); // Teammate Synergy (Duos rune, R-DUOS-RUNES-01): a Triple Reward for the teammate
+  goldenHandshakeOnGild(state); // Golden Handshake (Set 2 batch, 2026-11-12): every Gild gives your board +2/+2
 }
 
 /** Gild `card`. Pass `state` when this is a NEW gild (it ticks the run's gild count); a restore of an already-gilded
@@ -11003,7 +11005,7 @@ export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const avail = runSpells(state).filter((c) => c.tier <= state.tier && !DISCOVER_EXCLUDED_SPELLS.has(c.id));
   const picks: string[] = [];
-  for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+  for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id); // Second Opinion: +1 per copy
   state.rngCursor = rng.state();
   if (picks.length > 0) state.discover = picks;
 }
@@ -11077,7 +11079,7 @@ export function offerDiscover(
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
     const target = Math.min(opts?.maxTier ?? discoverElevateCeiling(state), discoverTier); // R-RANDOM-TIER7-02: 7 only from a Tier 7 Shop (or an explicit maxTier)
     let floor = target;
-    while (pool.length < 3 && floor >= 1) {
+    while (pool.length < discoverOptionCount(state) && floor >= 1) { // Second Opinion widens the floor walk with the offer
       pool = poolOf(state).buyable.filter(
         (c) =>
           c.tier <= target &&
@@ -11104,7 +11106,7 @@ export function offerDiscover(
   const rng = makeRng(state.rngCursor);
   const avail = [...pool];
   const picks: string[] = [];
-  for (let i = 0; i < 3 && avail.length > 0; i++) {
+  for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) { // Second Opinion: +1 per copy
     picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   }
   state.rngCursor = rng.state();
@@ -11140,7 +11142,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     const rng = makeRng(state.rngCursor);
     const avail = [...pool];
     const picks: string[] = [];
-    for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!);
+    for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!); // Second Opinion: +1 per copy
     state.rngCursor = rng.state();
     state.discover = picks;
     state.discoverLockTier = undefined;
@@ -15357,6 +15359,8 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     const ends = st.board.length === 1 ? [st.board[0]!] : [st.board[0]!, st.board[st.board.length - 1]!];
     for (const m of ends) addBuff(m, 'Held Strength', held.attack * reps, held.health * reps);
   } });
+  // Shield Wall (Set 2 batch, 2026-11-12): Taunt minions +4/+6 per copy (permanent here).
+  if (f?.runeShieldWall) out.push({ id: 'rune_shield_wall', kind: 'rune', label: 'Shield Wall', fire: (st) => shieldWallShop(st) });
   return out;
 }
 
@@ -16153,6 +16157,14 @@ function runRecurringEndOfTurn(
         state.rngCursor = rng.state();
       });
     });
+  } else if (effect === 'runePiggyBank') {
+    // Piggy Bank (Set 2 batch, 2026-11-12): "End of Turn: give a minion +1/+3. Repeat for every unspent Gold." The
+    // REPEAT form (R-REPEAT-01): the base tick plus one per unspent Gold, each its own step and beat, a fresh seeded
+    // friendly per tick (`piggyBankTick`). The carry-over half is `piggyBankCarry`, at the end of the Shop turn.
+    forEachTick(tick === undefined ? undefined : { tick }, recurringTickCount(state, effect), () => {
+      if (state.board.length === 0) return;
+      step(() => piggyBankTick(state));
+    });
   } else if (effect === 'runeAncestralRoar') {
     // Rune of Ancestral Roar (balance 9/23): "End of Turn: give your Dragons +6/+6 for every Shout you triggered
     // this turn." LUMP form (R-REPEAT-01): ONE buff instance per Dragon sized by the count — 3 Shouts = one +18/+18.
@@ -16640,7 +16652,8 @@ export const RUNE_ACTION_GRANT = { count: 3, attack: 2, health: 2 } as const;
 /** How many TICKS one fire of a recurring End-of-Turn effect takes — the recurring twin of `eotTickCount`, read by
  *  the commit, the projection and the beat list so the three agree. Rune of Action is the REPEAT form: the base
  *  plus one per card played this turn. Every other recurrence fires once per trigger. */
-export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: string): number {
+export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'> & Partial<Pick<RunState, 'embers'>>, effect: string): number {
+  if (effect === 'runePiggyBank') return 1 + Math.max(0, state.embers ?? 0); // Piggy Bank: base + one per unspent Gold
   return effect === 'runeAction' ? 1 + (state.playedThisTurn?.length ?? 0) : 1;
 }
 
@@ -16666,6 +16679,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientBatchBEot: 'Ancient of Time',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
+  runePiggyBank: 'Piggy Bank',
 };
 
 /** Rune of Ancestral Roar's per-Shout step (balance 9/23): +6/+6 to every Dragon per Shout triggered this turn.

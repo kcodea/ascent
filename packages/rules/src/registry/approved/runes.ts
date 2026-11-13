@@ -3162,4 +3162,32 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-SET2-RUNE-IGGY-01',
+    title: 'Iggy Iggy: one Immune Iggy with Ward, on pickup',
+    statement: 'Iggy Iggy (Epic Dragon, 3, Set 2) grants ONE Immune Iggy (the Set 3 Dragon d3_iggy; the card index is global, so a Set 2 rune may hand it out) the moment the rune is taken, with Ward stamped on that granted copy only (never the shared card). It never grants again. A full hand follows every grant rune: the rune turn allows 20 cards in hand, then the board, then the hand over-caps (a rune reward is never lost).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition 2026-11-13 (Set 2 rune batch)', quote: 'Get an Immune Iggy with Ward.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_iggy_iggy (grant + grantKeywords, the Badger shape); packages/sim/src/reducer.ts applyQuestReward grant' },
+    ],
+    contentIds: ['rune_iggy_iggy', 'd3_iggy'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesCombined.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNE-SHOPMADNESS-01',
+    title: 'Shop Madness: Shop minions +3/+3 (ongoing), and the Shop always holds 6 minions',
+    statement: 'Shop Madness (Basic, 1, Set 2, Shop-only). On pickup it adds +3/+3 to the permanent run-wide Shop buff, so every minion in the Shop now AND every minion that enters it for the rest of the run shows and buys with +3/+3 (per copy taken). While held, the Shop row holds 6 MINIONS at every Shop Tier (a Refresh, the turn roll, a frozen top-up), and the moment a minion leaves it for any reason (bought, consumed, stolen, Discovered, passed, archived, a Starform cashed in) a fresh minion from the seeded pool takes its slot. Consumes and steals refill mid-action, so an effect that eats repeatedly (Hydraskus: every Demon eats) always finds a target; every other path refills at the action boundary. Row spells, Rubies, the spell slot and the Starform are not minions and are not counted. A refill never removes anything, so it cannot trigger another refill; a dry pool simply leaves the row short. Opponent snapshots are unaffected.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition + rulings 2026-11-13 (Set 2 rune batch)', quote: 'There are always 6 minions in the shop. ... hydraskus will trigger the consumes fully' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts refillShopMadness / rollShopRow / topUpTavern; packages/sim/src/recruit.ts consumeShopOffer + the steal chokepoint; packages/sim/src/reducer.ts settleAction + applyQuestReward combatFlag' },
+    ],
+    contentIds: ['rune_shop_madness', 'dm_hydraskus'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopMadness.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

@@ -60,12 +60,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Set 2 gets 40 new runes. Look for them in the Runeforge: 23 Basic and 17 Epic, for every tribe and for any board.',
+        text: 'Set 2 gets 42 new runes. Look for them in the Runeforge: 24 Basic and 18 Epic, for every tribe and for any board.',
         details: [
-          'Basic: Piggy Bank, Hazard Pay, Second Opinion, Shield Wall, Shatterproof, Warm-Up, Golden Handshake, Late Bloomer, Loyal Customer.',
+          'Basic: Piggy Bank, Hazard Pay, Second Opinion, Shield Wall, Shatterproof, Warm-Up, Golden Handshake, Late Bloomer, Loyal Customer, Shop Madness.',
           "Basic: Deep Pockets, Rowdy Crowd, Bloodscent, Last Howl, Trophy Hunter, Pitchforks, Imp Legion, Guel's Apprentice, Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Ruby Dust, Rough Cut.",
           'Epic: Top Shelf, Double Bill, Bulwark Line, Wholesale, Grudge, Bastion, Mirror Sheen.',
-          "Epic: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain.",
+          "Epic: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain, Iggy Iggy.",
         ],
       },
     ],

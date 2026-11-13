@@ -2113,7 +2113,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // all enemies; wildfire = an enemy's non-attack damage death deals 3 to all enemies (3 per combat); gemRain = SoC
   // 2 permanent Rubies on every friendly minion.
   | 'runeBigSpender' | 'runeRoyalTreasury' | 'runeFeralReturn' | 'runePackTactics' | 'runeBloodFrenzy' | 'runeHellfire'
-  | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain';
+  | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain'
+  // Set 2 rune batch, owner addition 2026-11-13: shopMadness = Shop minions +3/+3 (the run-wide Shop buff) and the Shop
+  // always holds 6 minions (Shop-only; packages/sim/src/shop.ts refillShopMadness).
+  | 'runeShopMadness';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {

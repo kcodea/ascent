@@ -184,3 +184,39 @@ describe('Second Opinion x Grudge', () => {
     for (const id of wide) expect(CARD_INDEX[id]!.tier).toBe(4);
   });
 });
+
+describe('Iggy Iggy (owner addition 2026-11-13): "Get an Immune Iggy with Ward."', () => {
+  it('content: an Epic Dragon rune, 3 Gold, Set 2 only, granting d3_iggy with Ward', () => {
+    const r = RUNE_INDEX['rune_iggy_iggy']!;
+    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Iggy Iggy', 3, true, ['dragon'], ['set2'], 'Get an **Immune Iggy** with **Ward**.']);
+    expect(r.reward).toEqual({ kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] });
+    expect(CARD_INDEX['d3_iggy']!.name).toBe('Immune Iggy');
+  });
+  it('taken: ONE Immune Iggy in hand, with Ward on that copy only (the shared card is untouched); nothing on later turns', () => {
+    const s = withRunes(['rune_iggy_iggy']);
+    // withRunes clears the hand after the buy, so read the buy itself.
+    let t = { ...createRun(3, 'runesmith', 'ascent', CONFIG.defaultLine, 'set2'), tribes: [...SETS.set2.tribes], wave: 7, tier: 3, phase: 'recruit', embers: 60, hand: [], board: [] } as RunState;
+    t = act({ ...t, runeforgeOffer: ['rune_iggy_iggy'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    const iggies = t.hand.filter((c) => c.cardId === 'd3_iggy');
+    expect(iggies).toHaveLength(1);
+    expect(iggies[0]!.keywords).toContain('DS');
+    expect(CARD_INDEX['d3_iggy']!.keywords).not.toContain('DS');
+    expect(s.ownedRunes).toContain('rune_iggy_iggy');
+    // A new turn grants nothing more.
+    const later = act(act(act({ ...t, hand: [] }, { type: 'faceOmen' }), { type: 'settleCombat' }), { type: 'resolveCombat' });
+    expect(later.hand.filter((c) => c.cardId === 'd3_iggy')).toHaveLength(0);
+  });
+  it('hand caps follow every grant rune: a 10-card hand takes it (the rune-turn cap is 20); a full 20 sends it to the board; hand AND board full over-cap the hand', () => {
+    const base = { ...createRun(3, 'runesmith', 'ascent', CONFIG.defaultLine, 'set2'), tribes: [...SETS.set2.tribes], wave: 7, tier: 3, phase: 'recruit', embers: 60 } as RunState;
+    // Gilded copies never triple, so one plain id can fill a hand.
+    const fill = (n: number, p: string) => Array.from({ length: n }, (_, i) => body(`${p}${i}`, PLAIN[0]!, { golden: true }));
+    const take = (h: number, b: number) => act({ ...base, hand: fill(h, 'h'), board: fill(b, 'b'), runeforgeOffer: ['rune_iggy_iggy'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    const iggy = (cs: BoardCard[]) => cs.filter((c) => c.cardId === 'd3_iggy').map((c) => c.keywords.includes('DS'));
+    const ten = take(10, 0);
+    expect([ten.hand.length, iggy(ten.hand), iggy(ten.board)]).toEqual([11, [true], []]);
+    const twenty = take(20, 0);
+    expect([twenty.hand.length, iggy(twenty.hand), iggy(twenty.board)]).toEqual([20, [], [true]]);
+    const both = take(20, 7);
+    expect([both.hand.length, iggy(both.hand), both.board.length]).toEqual([21, [true], 7]);
+  });
+});

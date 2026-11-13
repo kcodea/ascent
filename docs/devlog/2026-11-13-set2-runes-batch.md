@@ -1,4 +1,4 @@
-# 2026-11-13: Set 2 rune batch, combined (40 runes: 23 Basic, 17 Epic)
+# 2026-11-13: Set 2 rune batch, combined (42 runes: 24 Basic, 18 Epic)
 
 The owner's 40-rune Set 2 batch (design: `docs/design/2026-11-12-set2-rune-batch.md`, primary checkout only),
 built as four parallel slices off the same `origin/main` and merged here into one branch (`feat/set2-runes`).
@@ -13,7 +13,21 @@ Every rune is `sets: ['set2']`, glyph art only.
 | Epic neutral (7) | Top Shelf, Double Bill (was "Opening Act"), Bulwark Line, Wholesale, Grudge, Bastion, Mirror Sheen | `2026-11-13-set2-runes-epic-neutral.md` |
 | Epic tribal (10) | Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain | `2026-11-13-set2-runes-epic-tribal.md` |
 
-Merged in that order, one `--no-ff` merge per slice.
+Merged in that order, one `--no-ff` merge per slice. Then two owner additions, built here:
+
+- **Iggy Iggy** (Epic Dragon, 3): "Get an **Immune Iggy** with **Ward**." Pure data, the Badger shape
+  (`{ kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] }`): one Immune Iggy (the Set 3 card; `CARD_INDEX` is
+  global) on pickup, Ward stamped on that copy only. A full hand follows every grant rune: the rune turn allows 20 in
+  hand, then the board, then the hand over-caps. Rule R-SET2-RUNE-IGGY-01.
+- **Shop Madness** (Basic neutral, 1): "Minions in your Shop have **+3/+3**. Your Shop always has **6** minions."
+  Owner rulings: the +3/+3 is ongoing (it is the permanent run-wide Shop buff, `applyRunShopBuff`, added on pickup), and
+  the Shop refills whenever a minion leaves it for any reason. Engine: `refillShopMadness` in `shop.ts` draws from the
+  seeded pool (Tier ceiling, run tribes, copy limits) into the vacated slot; `rollShopRow` and `topUpTavern` build the row
+  to 6 minions at every Tier; the consume chokepoint (`consumeShopOffer`) and the steal chokepoint refill mid-action, and
+  `settleAction` refills everything else at the action boundary by diffing the row. Row spells, Rubies, the spell slot
+  and the Starform are not counted. A refill never removes an offer, so it cannot recurse; a dry pool leaves the row
+  short. Hydraskus + 6 Demons at a Tier 1 Shop: all 7 eat and the row ends at 6 (3 eat without the rune). Shop-only:
+  combat and snapshots never read it. Tests: `set2ShopMadness.test.ts`. Rule R-SET2-RUNE-SHOPMADNESS-01.
 
 ## Conflicts resolved
 
@@ -37,18 +51,19 @@ Every conflict was two builders appending to the same list; each was resolved by
   Rowdy Crowd windows, Elder's Voice) touch different fields.
 - **Generated files** regenerated, not hand-merged: `npm run contracts:extract`, `docbot:text`, `rules:seed`
   (`extracted.generated.ts`, `pendingWording.generated.ts`, `pending.generated.ts`, `docs/rulebook/TRIAGE.md`).
-  `docs/docbot2/final-report.md`'s contract total set to 1223 (1183 + 40) so `docbot:report -- --check` agrees.
+  `docs/docbot2/final-report.md`'s contract total set to 1225 (1183 + 42) so `docbot:report -- --check` agrees.
 
 ## Pinned counts set to the combined values
 
 | Pin | Value |
 |---|---|
-| `RUNES.length` (runes.test.ts) | 230 (207 + 9 + 14) |
-| Set 2 pool Basic / Epic (set3RuneRoster.test.ts) | [150, 131] (+23 Basic, +17 Epic) |
+| `RUNES.length` (runes.test.ts) | 231 (207 + 9 + 14 + Shop Madness) |
+| Set 2 pool Basic / Epic (set3RuneRoster.test.ts) | [151, 132] (+24 Basic, +18 Epic) |
 | Combat-mod inert queue (combatModLane.test.ts) | 140 (125 + 3 + 5 + 2 + 5) |
 | Gold-runes outside the economy grammar (textOracleEconomy.test.ts) | 12 (8 + 3 + 1) |
-| Unresolved text-parse cap (textParse.test.ts) | 217 (measured; the slice pins summed to 209) |
-| Strategy package census (packages.test.ts) | ale 37, demonConsume 19, economy 31, tempo 41 affine runes (measured) |
+| Unresolved text-parse cap (textParse.test.ts) | 218 (measured: 217 for the forty, the slice pins summed to 209; +1 Shop Madness) |
+| Strategy package census (packages.test.ts) | ale 37, demonConsume 20, economy 31, tempo 42 affine runes (measured) |
+| Doc Bot contract total (final-report.md) | 1225 (1183 + 42) |
 
 ## Interactions the slices could not test alone
 
@@ -84,3 +99,6 @@ New file `packages/sim/src/set2RunesCombined.test.ts`, seeded:
 - Hellfire's attack half fires at wind-up.
 - Elder's Voice is not repeated by Twilight.
 - Wildfire has no live "x/3" counter yet.
+- Shop Madness: the Starform takes a +3/+3 like every Shop minion (it follows the run-wide Shop buff), and a refill made
+  inside a frozen Shop is part of that frozen Shop.
+- Shop Madness: a second copy adds another +3/+3; the row size stays 6.

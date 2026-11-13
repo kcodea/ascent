@@ -21,7 +21,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlay
 import { botDamageMultFor } from './lobby/practiceBots';
 import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers, refillShopMadness, shopMadness, SHOP_MADNESS_BUFF } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId, powerHolderId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -1165,6 +1165,15 @@ export function reduce(state: RunState, action: Action): RunState {
 
 /** Everything an action owes the run once the core has resolved it: the boundary diffs, the quest ticks, the FX stamps. */
 function settleAction(state: RunState, action: Action, next: RunState): RunState {
+  // SHOP MADNESS (Set 2 Basic rune, owner 2026-11-13): "Your Shop always has 6 minions." ANY minion that left the row
+  // this action (bought, Discovered, passed, archived, a Starform cashed in, ...) is replaced in its own slot, here at
+  // the one action boundary every path crosses. The consume and steal chokepoints refill mid-action already (a repeated
+  // eat must see a fresh target), so this only tops up what is still short. Shop-only: never touches combat.
+  if (next !== state && next.phase === 'recruit' && shopMadness(next)) {
+    const after = new Set(next.shop.map((o) => o.uid));
+    const vacated = state.shop.map((o, i) => (after.has(o.uid) || CARD_INDEX[o.cardId]?.spell ? -1 : i)).filter((i) => i >= 0);
+    refillShopMadness(next, vacated);
+  }
   // DUOS (R-DUOS-PASS-FLIGHT-01): a send this play / buy queued streams from the card the player acted on, when its own
   // stamp names nothing on screen (a bare cast, or a card this action gave a fresh uid). Presentation only.
   if (next !== state && next.duos && (action.type === 'play' || action.type === 'buy')) {
@@ -7714,6 +7723,12 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Set 3 rune batch 3: the two AURA-STYLE grafts (Echoing Kobolds, Aggressive Golems) land on every body the
       // run already holds, board and hand; later arrivals are stamped at their arrival + the action-boundary sweep.
       if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes' || r.flag === 'runeImpLegion') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      // SHOP MADNESS (Set 2 Basic, owner 2026-11-13): "Minions in your Shop have +3/+3" is the permanent run-wide Shop
+      // buff (every offer now and every one that enters later, per copy taken); "always 6 minions" fills the row now.
+      if (r.flag === 'runeShopMadness') {
+        applyRunShopBuff(s, SHOP_MADNESS_BUFF.attack, SHOP_MADNESS_BUFF.health, 'Shop Madness');
+        refillShopMadness(s);
+      }
       break;
     }
     case 'questGoldTribeBuff':

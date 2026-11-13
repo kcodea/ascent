@@ -213,10 +213,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Elder's Voice, Vein Finder, Gem Rain): 189 -> 196, CONSCIOUSLY. Seven rune texts the grammar cannot read ("count each Gold
 // twice", "Beasts that Rise", "when that Beast is attacked", "dies to damage that is not an attack", "also triggers at Start
 // of Combat" and kin); the behaviour is pinned by packages/sim/src/set2EpicTribalRunes1112.test.ts.
-// COMBINED 2026-11-13 (all four Set 2 rune slices merged, forty rune texts): 189 -> 217, CONSCIOUSLY. The slice pins
+// COMBINED 2026-11-13 (all four Set 2 rune slices merged, forty rune texts): 189 -> 217, CONSCIOUSLY; +1 -> 218 for the
+// owner's Shop Madness ("Your Shop always has 6 minions." is a row rule the grammar does not read). The slice pins
 // summed to 209; the merged pool measures 217 (the Basic tribal slice's texts count here too). Pinned per rune by
 // packages/sim/src/set2Runes*.test.ts, set2EpicTribalRunes1112.test.ts and set2RunesCombined.test.ts.
-const UNRESOLVED_CAP = 217;
+const UNRESOLVED_CAP = 218;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

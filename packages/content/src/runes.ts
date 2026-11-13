@@ -2414,6 +2414,17 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeRoughCut' },
     sets: ['set2'],
   },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch). Shop-only. On pickup: +3/+3 to the permanent run-wide Shop buff (every
+    // offer now and every one that enters later, per copy). While held the row holds 6 MINIONS at every Tier and refills
+    // the moment a minion leaves (packages/sim/src/shop.ts `refillShopMadness`), so a Hydraskus feast never runs dry.
+    id: 'rune_shop_madness',
+    name: 'Shop Madness',
+    cost: 1,
+    text: 'Minions in your Shop have **+3/+3**. Your Shop always has **6** minions.',
+    reward: { kind: 'combatFlag', flag: 'runeShopMadness' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -4855,6 +4866,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeGemRain' },
+    sets: ['set2'],
+  },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch): the Badger shape. One Immune Iggy (the Set 3 Dragon `d3_iggy`; CARD_INDEX
+    // is global, so a Set 2 rune may hand it out) granted ONCE, on pickup, with Ward stamped on THAT copy only
+    // (`grantKeywords` writes the fresh BoardCard, never the shared CardDef). A full hand overflows like every grant rune.
+    id: 'rune_iggy_iggy',
+    tribes: ['dragon'],
+    name: 'Iggy Iggy',
+    cost: 3,
+    epic: true,
+    text: 'Get an **Immune Iggy** with **Ward**.',
+    previewCards: ['d3_iggy'],
+    reward: { kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] },
     sets: ['set2'],
   },
 ];

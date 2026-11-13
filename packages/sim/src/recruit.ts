@@ -27,7 +27,7 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
-import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID } from './shop';
+import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID, refillShopMadness } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
@@ -9739,6 +9739,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const card = CARD_INDEX[offer.cardId];
       if (!card) return;
       state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      refillShopMadness(state, [idx]); // SHOP MADNESS: the stolen slot refills at once (a repeated steal finds a fresh target)
       // THE LASSO BEAM's signal (owner ask 2026-09-22). Recorded HERE, at the one place every steal resolves, so
       // the spell, Rope Wrangler, Whiplass-o and Rune of Lassoing all feed one channel. The reducer still resolves
       // the theft immediately — the record is only what lets the UI pace it. `_origin` is set by the caller that
@@ -13936,6 +13937,9 @@ export function consumeShopOffer(
   // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would
   // visibly run the pool dry.
   returnToPool(state, def.id);
+  // SHOP MADNESS (Set 2 rune, owner 2026-11-13): the eaten slot refills AT ONCE, before the watchers hear the eat, so
+  // a Hydraskus feast (every Demon eats) or Bottomless Banquet's bonus bite always finds a fresh meal.
+  refillShopMadness(state, [offerIndex]);
   fire(ctx, 'onConsume', { minion: eater, shop: true }); // `shop` distinguishes a SHOP eat from a Fodder one (Broodlord counts only these)
   // Rune of the Empty Plate counts EVERY Consume (owner 2026-11-08): a Shop-minion eat ticks it here, ONE per minion
   // eaten (a Gilded `times: 2` is still one minion; Bottomless Banquet's bonus bite is its own). This covers a Demon's

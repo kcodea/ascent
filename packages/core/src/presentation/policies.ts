@@ -1366,6 +1366,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_elders_voice:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC: the turn's first Shout fires again
   'rune:rune_vein_finder:recruit': { policy: 'ownBeat', family: 'runeMechanic' },        // every 3rd Refresh: a Ruby on every minion
   'rune:rune_gem_rain:combat': { policy: 'foldedCue', family: 'combatModifier' },        // SoC: 2 permanent Rubies on every minion
+  'rune:rune_shop_madness:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: Shop +3/+3, the row refills to 6 minions (a price/row rule, no beat)
+  'rune:rune_iggy_iggy:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get an Immune Iggy with Ward (owner 2026-11-13)
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

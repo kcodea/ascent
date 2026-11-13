@@ -4430,6 +4430,129 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['duo_megamimic'],
     reward: { kind: 'grant', cards: ['duo_megamimic'] },
   },
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Append only. ──
+  {
+    // Shop: every "spend Gold" trigger inside `spendGold` (minion meters, Gold rune meters, Spellslinging, Food for
+    // Gold, the Golden Ledger, Bulk Order, Ancients) hears the spend x2 (x3 with two copies). The real Gold, the
+    // per-turn / run Gold-spent tallies and the "Spend N Gold" quest objective are not triggers and stay real.
+    id: 'rune_big_spender',
+    tribes: ['dwarf'],
+    name: 'Big Spender',
+    cost: 4,
+    epic: true,
+    text: 'Your "spend Gold" triggers count each Gold **twice**.',
+    reward: { kind: 'combatFlag', flag: 'runeBigSpender' },
+    sets: ['set2'],
+  },
+  {
+    // Shop: every Dwarf minion bought ticks a run-long meter; each 5th raises max Gold by 1 per copy (`maxGoldBonus`,
+    // above the cap). Repeats (owner 2026-11-12). The badge prints the meter and the max Gold given so far.
+    id: 'rune_royal_treasury',
+    tribes: ['dwarf'],
+    name: 'Royal Treasury',
+    cost: 4,
+    epic: true,
+    text: 'When you buy **5** **Dwarves**, gain **+1** maximum Gold.',
+    reward: { kind: 'combatFlag', flag: 'runeRoyalTreasury' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: Start of Combat, the left-most Beast without Rise gains Rise (Twilight repeats it). Both phases: a Beast
+    // that Rises gains +5/+5 (combat-only in a fight, permanent in the Shop).
+    id: 'rune_feral_return',
+    tribes: ['beast'],
+    name: 'Feral Return',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** give your left-most **Beast** **Rise**. **Beasts** that **Rise** gain **+5/+5**.',
+    reward: { kind: 'combatFlag', flag: 'runeFeralReturn' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a Beast with a Rally that is chosen as an attack's target fires its Rally (a free Rally, every Rally
+    // multiplier folded) as the swing winds up, before the hit.
+    id: 'rune_pack_tactics',
+    tribes: ['beast'],
+    name: 'Pack Tactics',
+    cost: 4,
+    epic: true,
+    text: "Your **Beasts'** **Rallies** also trigger when that Beast is attacked.",
+    reward: { kind: 'combatFlag', flag: 'runePackTactics' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a friendly Beast that kills an enemy minion by attacking (the Slaughter kill) fires the left-most Rally.
+    id: 'rune_blood_frenzy',
+    tribes: ['beast'],
+    name: 'Blood Frenzy',
+    cost: 4,
+    epic: true,
+    text: 'When a **Beast** kills a minion, trigger your left-most **Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodFrenzy' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a friendly Demon's attack (as it winds up) or death sends 1 damage to every enemy minion. The RUNE deals
+    // it (no minion source), so it is not Demon damage: Ruins, Pummel and Execute do not hear it.
+    id: 'rune_hellfire',
+    tribes: ['demon'],
+    name: 'Hellfire',
+    cost: 3,
+    epic: true,
+    text: 'When a **Demon** attacks or dies, deal **1** damage to all enemies.',
+    reward: { kind: 'combatFlag', flag: 'runeHellfire' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: an enemy minion whose killing hit was NOT an attack exchange (an Echo, a rune, a spell, a Bleed) sends
+    // 3 damage to every enemy minion. 3 times per combat per copy; its own damage can chain it.
+    id: 'rune_wildfire',
+    tribes: ['demon'],
+    name: 'Wildfire',
+    cost: 4,
+    epic: true,
+    text: 'When an enemy dies to damage that is not an attack, deal **3** damage to all enemies. (3 per combat.)',
+    reward: { kind: 'combatFlag', flag: 'runeWildfire' },
+    sets: ['set2'],
+  },
+  {
+    // Shop records the body whose Shout fires first each turn (`eldersVoiceUid`); combat fires that body's Shout once
+    // more at Start of Combat (per copy, Drakko folded), if it is still on the board. Not a "Start of Combat:" rune,
+    // so Twilight does not repeat it.
+    id: 'rune_elders_voice',
+    tribes: ['dragon'],
+    name: "Elder's Voice",
+    cost: 3,
+    epic: true,
+    text: 'Your first **Shout** each turn also triggers at **Start of Combat**.',
+    reward: { kind: 'combatFlag', flag: 'runeEldersVoice' },
+    sets: ['set2'],
+  },
+  {
+    // The `refresh` meter (the player's Refresh presses) at `per: 3`, paying the Mountain Trade Ruby shower.
+    id: 'rune_vein_finder',
+    tribes: ['kobold'],
+    name: 'Vein Finder',
+    cost: 3,
+    epic: true,
+    text: 'After every **3rd** Refresh, cast a **Ruby** on all your minions.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'refresh', per: 3, rubyAll: true },
+    sets: ['set2'],
+  },
+  {
+    // Combat: Start of Combat, 2 PERMANENT Rubies (`playRubyOn(..., permanent)`, the Red Start shape) on every living
+    // friendly minion, per copy. Twilight repeats it.
+    id: 'rune_gem_rain',
+    tribes: ['kobold'],
+    name: 'Gem Rain',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeGemRain' },
+    sets: ['set2'],
+  },
 ];
 
 /**

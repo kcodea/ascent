@@ -1,4 +1,5 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientSpoilsPassive } from './ancients'; // Mimic
@@ -12899,9 +12900,12 @@ export function stampEpicFire(state: RunState, uids: readonly string[]): void {
   state.epicFireFxSeq = (state.epicFireFxSeq ?? 0) + 1;
 }
 
-function shoutFireCount(state: RunState, def: CardDef): number {
+function shoutFireCount(state: RunState, def: CardDef, uid?: string): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
+  // ELDER'S VOICE (Set 2 Epic tribal rune, owner 2026-11-12): the body whose Shout fires FIRST this turn, played or
+  // triggered (every Shop Shout passes this fold), is remembered; its Shout fires again at Start of Combat.
+  if (isShout && state.questFlags?.runeEldersVoice && !state.eldersVoiceSeen) { state.eldersVoiceSeen = true; state.eldersVoiceUid = uid; }
   if (isShout) {
     // The Shout loops run this count right away: Drakko / Zyff and Orivax pulse as they add fires (R-FX-EPIC-FIRE-01).
     stampEpicFire(state, [
@@ -13175,7 +13179,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
   const def = CARD_INDEX[card.cardId];
   if (!def) return;
   // Warm Embers doubles this played (targeted) Shout while charged; Drakko still stacks on top.
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, card.uid);
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -13302,7 +13306,7 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   const ctx = makeContext(state);
   // A TRIGGERED Shout is a Shout (R-SHOUT-TRIGGER-01): the same fold a played Shout uses, so every multiplier,
   // charge and tally sees it (Drakko, the Choir family, Encore, Warm Embers, the War Drum, the Shout objectives).
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, card.uid);
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -14110,7 +14114,7 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
   if (def && onPlay.length > 0) {
     state.karwindFlash = [];
     const ctx = makeContext(state);
-    const repeats = shoutFireCount(state, def);
+    const repeats = shoutFireCount(state, def, card.uid);
     for (const effect of onPlay) {
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
@@ -17190,7 +17194,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   // the picker unconditionally for this case.
   if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, played.uid);
   // CELESTIAL: a Shout half gated on `align` only fires for the matching alignment (Eclipse fires both).
   // Read AFTER the card has entered the board, because entering re-centres the board and therefore decides
   // its own alignment — a Celestial's Shout reads the alignment it just landed in, not the one before.
@@ -17322,6 +17326,13 @@ function runeRiseRunesShop(state: RunState, risen: BoardCard): void {
   if (f?.runeRestless && state.board.includes(risen) && instanceEffects(risen).some((e) => e.on === 'onDeath')) {
     procRuneId(state, 'rune_restless');
     for (let k = 0; k < runeStacksOf(state, 'rune_restless'); k++) fireRecruitDeathrattles(makeContext(state), risen);
+  }
+  // FERAL RETURN (Set 2 Epic Beast rune, owner 2026-11-12), Shop half: "Beasts that Rise gain +5/+5" (a Shop buff is
+  // permanent), per copy held. All-types bodies count as Beasts.
+  if (f?.runeFeralReturn && state.board.includes(risen) && isTribe(risen, 'beast')) {
+    procRuneId(state, 'rune_feral_return');
+    const n = FERAL_RETURN_GAIN * runeStacksOf(state, 'rune_feral_return');
+    captureBuffFx(state, risen, 'spell', () => addBuff(risen, 'Feral Return', n, n));
   }
 }
 

@@ -1,6 +1,7 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
+import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -227,6 +228,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF THE COFFERS (owner report 2026-10-06, R-COFFERS-EVERY-EOT-01): the max Gold it has added so far, so each
   // End of Turn's raise is visible on the badge (the live-value rule).
   if (runeId === 'rune_coffers' && run.runeCoffers) return `+${run.runeCoffersGold ?? 0} max Gold`;
+  // ROYAL TREASURY (Set 2 Epic tribal runes, owner 2026-11-12): the Dwarf meter and the max Gold it has given so far.
+  if (runeId === 'rune_royal_treasury' && run.questFlags?.runeRoyalTreasury) return `${run.royalTreasuryTick ?? 0}/${ROYAL_TREASURY_PER} · +${run.royalTreasuryGold ?? 0} max Gold`;
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;
     return `${n} card${n === 1 ? '' : 's'}`;

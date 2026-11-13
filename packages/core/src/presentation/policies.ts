@@ -1321,6 +1321,18 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantEquipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
+  // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+  'rune:rune_big_spender:recruit': { policy: 'foldedCue', family: 'runeMechanic' },      // a Gold spend's triggers hear it twice (rides the spend)
+  'rune:rune_royal_treasury:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // 5 Dwarves bought: +1 max Gold
+  'rune:rune_feral_return:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC Rise on the left-most Beast; a Rising Beast +5/+5
+  'rune:rune_feral_return:recruit': { policy: 'foldedCue', family: 'runeMechanic' },     // a Shop Rise of a Beast: +5/+5 (rides the return)
+  'rune:rune_pack_tactics:combat': { policy: 'foldedCue', family: 'combatModifier' },    // an attacked Beast fires its Rally
+  'rune:rune_blood_frenzy:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a Beast's kill fires the left-most Rally
+  'rune:rune_hellfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a Demon attacks or dies: 1 damage to all enemies
+  'rune:rune_wildfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // an enemy's non-attack death: 3 damage to all enemies
+  'rune:rune_elders_voice:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC: the turn's first Shout fires again
+  'rune:rune_vein_finder:recruit': { policy: 'ownBeat', family: 'runeMechanic' },        // every 3rd Refresh: a Ruby on every minion
+  'rune:rune_gem_rain:combat': { policy: 'foldedCue', family: 'combatModifier' },        // SoC: 2 permanent Rubies on every minion
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

@@ -1,4 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
+import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -81,9 +82,14 @@ function spendGold(s: RunState, amount: number): void {
       s.indyGildRearmAt = undefined;
     }
   }
+  // BIG SPENDER (Set 2 Epic Dwarf rune, owner 2026-11-12): "Your 'spend Gold' triggers count each Gold twice." Every
+  // TRIGGER below hears `amount` x2 (x3 with two copies). The Gold paid, the run / turn Gold-spent tallies above, Indy's
+  // recharge and the "Spend N Gold" quest objective (`paid`) stay real. Rebound so the trigger lines read the counted amount.
+  const paid = amount;
+  if (s.questFlags?.runeBigSpender && amount > 0) { procRuneId(s, 'rune_big_spender'); amount *= 1 + runeStacksOf(s, 'rune_big_spender'); }
   applyGoldSpent(s, amount);
   ancientOnGoldSpent(s, amount); // ANCIENTS × Brackus: Fortune's 50 Gold Discover, Genesis' Gild (a no-op unless picked)
-  advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
+  advanceQuestsBy(s, (o) => o.event === 'spendGold', paid); // Coin Hoard: "Spend N Gold"
   // ANCIENT OF BONDS × Nadja (a no-op unless picked): every spend of 1+ Gold gives 2 random minions +2/+4. Placed above
   // Rune of Bulk Order's early `return`, so it hears every spend.
   ancientOnSpendGold(s, amount);
@@ -1437,6 +1443,19 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
       if (next.runeDraconicCuriosity && boughtMinion && defIsTribe(bdef, 'dragon', next)) {
         procRuneId(next, 'rune_draconic_curiosity');
         conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), runeGrantOverflow());
+      }
+      // ROYAL TREASURY (Set 2 Epic Dwarf rune, owner 2026-11-12: "repeats every 5 Dwarves bought"): every Dwarf minion
+      // bought (All-types bodies count) ticks a run-long meter; each 5th raises max Gold by 1 per copy held, above the
+      // cap (`maxGoldBonus`, the Coffers / Gold Font channel). The badge prints the meter and the total given.
+      if (next.questFlags?.runeRoyalTreasury && boughtMinion && defIsTribe(bdef, 'dwarf', next)) {
+        next.royalTreasuryTick = (next.royalTreasuryTick ?? 0) + 1;
+        if (next.royalTreasuryTick >= ROYAL_TREASURY_PER) {
+          next.royalTreasuryTick -= ROYAL_TREASURY_PER;
+          const gain = runeStacksOf(next, 'rune_royal_treasury');
+          procRuneId(next, 'rune_royal_treasury');
+          next.maxGoldBonus = (next.maxGoldBonus ?? 0) + gain;
+          next.royalTreasuryGold = (next.royalTreasuryGold ?? 0) + gain;
+        }
       }
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
@@ -6241,6 +6260,7 @@ function advanceCombat(s: RunState): void {
   }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
+  s.eldersVoiceUid = undefined; s.eldersVoiceSeen = undefined; // Elder's Voice: the new turn's first Shout is picked afresh
   // GIFTS — the turn-scoped channels (Demand an Encore, Arcane Clearance, Friends and Family) all expire here.
   s.shoutExtraTurn = 0;
   s.spellCostOffTurn = 0;
@@ -8803,6 +8823,14 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       if (!held || !hd || hd.spell || hd.ruby) return undefined;
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
+    // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+    runeFeralReturn: f?.runeFeralReturn,             // SoC: the left-most Beast gains Rise; a Rising Beast gains +5/+5
+    runePackTactics: f?.runePackTactics,             // an attacked Beast fires its own Rally
+    runeBloodFrenzy: f?.runeBloodFrenzy,             // a Beast's kill fires the left-most Rally
+    runeHellfire: f?.runeHellfire,                   // a Demon's attack or death: 1 damage to all enemies
+    runeWildfire: f?.runeWildfire,                   // an enemy's non-attack damage death: 3 damage to all enemies (3 per combat)
+    eldersVoiceUid: f?.runeEldersVoice ? s.eldersVoiceUid : undefined, // the turn's first Shout fires again at SoC
+    runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
   };
 }
 

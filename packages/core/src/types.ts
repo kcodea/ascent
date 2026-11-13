@@ -2085,7 +2085,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
-  | 'runeReturnCustomers';
+  | 'runeReturnCustomers'
+  // Set 2 rune batch, Epic tribal (owner 2026-11-12): bigSpender / royalTreasury / eldersVoice (its Shop half) are Shop
+  // hooks; feralReturn = SoC Rise on the left-most Beast + a Rising Beast gains +5/+5; packTactics = an attacked Beast
+  // fires its Rally; bloodFrenzy = a Beast's kill fires the left-most Rally; hellfire = a Demon attack/death deals 1 to
+  // all enemies; wildfire = an enemy's non-attack damage death deals 3 to all enemies (3 per combat); gemRain = SoC
+  // 2 permanent Rubies on every friendly minion.
+  | 'runeBigSpender' | 'runeRoyalTreasury' | 'runeFeralReturn' | 'runePackTactics' | 'runeBloodFrenzy' | 'runeHellfire'
+  | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2888,6 +2895,22 @@ export interface QuestCombatMods {
    *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
    *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
   runeHeldStrength?: { attack: number; health: number; copies?: number };
+  // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+  /** Feral Return: Start of Combat, the left-most Beast gains Rise; a Beast that Rises gains +5/+5 (per copy). */
+  runeFeralReturn?: boolean;
+  /** Pack Tactics: a Beast chosen as an attack's target fires its own Rally (per copy). */
+  runePackTactics?: boolean;
+  /** Blood Frenzy: a Beast that kills an enemy minion by attacking fires the left-most Rally (per copy). */
+  runeBloodFrenzy?: boolean;
+  /** Hellfire: a friendly Demon's attack or death deals 1 damage to every enemy minion (per copy). */
+  runeHellfire?: boolean;
+  /** Wildfire: an enemy minion dying to non-attack damage deals 3 damage to every enemy minion (3 per combat per copy). */
+  runeWildfire?: boolean;
+  /** Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout
+   *  fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held. */
+  eldersVoiceUid?: string;
+  /** Gem Rain: Start of Combat, 2 PERMANENT Rubies on every living friendly minion (per copy). */
+  runeGemRain?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -4698,3 +4721,14 @@ export interface CombatContext {
    *  resolution order or outcome; nesting is supported (an inner wave shadows the outer for its duration). */
   wave<T>(fn: () => T): T;
 }
+
+/** SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): the printed numbers both phases, the badge and the tests read.
+ *  Royal Treasury: "When you buy 5 Dwarves, gain +1 maximum Gold." Feral Return: "Beasts that Rise gain +5/+5."
+ *  Hellfire: "deal 1 damage to all enemies". Wildfire: "deal 3 damage to all enemies. (3 per combat.)" Gem Rain:
+ *  "cast 2 permanent Rubies on all your minions". Vein Finder rides the generic `refresh` threshold (per 3). */
+export const ROYAL_TREASURY_PER = 5;
+export const FERAL_RETURN_GAIN = 5;
+export const HELLFIRE_DAMAGE = 1;
+export const WILDFIRE_DAMAGE = 3;
+export const WILDFIRE_PER_COMBAT = 3;
+export const GEM_RAIN_RUBIES = 2;

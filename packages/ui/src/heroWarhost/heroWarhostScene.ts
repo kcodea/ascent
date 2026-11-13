@@ -1,386 +1,366 @@
-// SCAFFOLDED from heroBulletTime/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about BulletTime, not this style, until rewritten.
 /**
- * THE TIMEBREAK SCENE: everything Timebreak draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
- * so it runs (and is tested) headless. `heroWarhost.ts` mounts `root` on the above-portrait overlay, feeds
- * `update(dt)`, and each frame tells it where every dart is (`setDart`), how the clock reads (`setClock`) and how fast
- * the FX run (`setTimeScale`: the slow motion).
+ * THE WARHOST SCENE: everything the Warhost draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`), so
+ * it runs (and is tested) headless. `heroWarhost.ts` mounts `root` on the above-portrait overlay, hands it the staged
+ * look once (`deploy`: every soldier, shot and banner gets its sprite up front, in draw order, while the damage
+ * formation is still playing), then each frame calls `paint(t)` (every one of them placed from the clock by the pure
+ * `troopAt` / `shotAt`) and `update(dt)` (the fire-and-forget dust and flashes).
  *
- * CUTTING THROUGH TIME (owner review 2026-10-02: "more cutting through time than stopping it and dont grey out"): the
- * darts are gold clock-hand blades with a glow and a ribbon streak drawn along their own motion. As each one drops into
- * the slow motion it leaves a TEAR sliced through the air behind it (a white-hot gold slash over a violet rift glow
- * that lingers through the slow motion), and while it crawls, afterimages peel off it and glints run along its edge.
- * The clock over the target sweeps its hand, a spark trailing off its tip. The snap back is hard (a flash, a chromatic
- * burst); the impact is gold and violet, IV the biggest in the roster. Full colour throughout.
+ * AN ARMY OF TINY SOLDIERS: each is one sprite cut from the one atlas, with a two-frame run cycle, a bob, a lean into
+ * the run and a flip for his heading; the poses (stand, wind-up, throw, cheer, draw, release) are frames of the same
+ * atlas, picked from the clock. Riders gallop on two frames with a rocking bob. Spears and arrows turn along their
+ * arc, stick, twang and fade; a stuck one rides the struck portrait's knockback. Banners rise on a spring and ripple
+ * on two frames with a little skew. Dust is the only "particle": step puffs under the feet, clouds over the trample.
  *
- * Perf: pooled sprites under a hard cap; the darts (at most 64: a body, a glow and one ribbon strip each) and the clock
- * (a face and two hands) are own objects made once and reused; no allocation per frame beyond the pool's own.
+ * Perf: one sprite per soldier (the host: under 400), all from one texture source (one batch per layer); `paint` does
+ * a lerp, a sine and at most one texture swap per soldier and allocates nothing; dust is pooled and capped (a step
+ * puff only from every few soldiers); nothing is filtered or masked.
  */
 import type { Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { mixColor, whiten, type Pt } from '../heroAttack/easing';
+import { mixColor, spring, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
 import { KO_CYAN, KO_LILAC, KO_MAGENTA } from '../heroAttack/knockout';
-import { RibbonTrail } from '../heroAttack/ribbonTrail';
-import { DART_W, DIGIT_PX, FACE_PX, GLYPH_PX, WASH_PX } from './heroWarhostTextures';
+import { WARHOST_RELOAD_MS, shotAt, troopAt, type Banner, type Shot, type ShotAt, type Troop, type TroopAt, type WarhostStage } from './heroWarhostConfig';
+import {
+  ARROW_W, BANNER_AX, BANNER_AY, BANNER_H, CAV_AX, CAV_AY, CAV_H, DUST_PX, FOOT_AX, FOOT_AY, FOOT_H, SPEAR_W,
+} from './heroWarhostTextures';
 
 export interface HeroWarhostTextures extends HeroArcanaTextures {
-  /** A crystalline lance of light (the projectile). */
-  lance: Texture;
-  /** A spinning time rune. */
-  glyph: Texture;
-  glint: Texture;
-  mote: Texture;
-  clockFace: Texture;
-  wash: Texture;
-  digit3: Texture;
-  digit2: Texture;
-  digit1: Texture;
+  /** The foot soldier: two run frames, a stand, the wind-up, the throw, the cheer, two empty-handed run frames. */
+  infA: Texture; infB: Texture; infStand: Texture; spearWind: Texture; spearThrown: Texture; cheer: Texture; bareA: Texture; bareB: Texture;
+  /** The archer: two run frames, a stand, the draw, the release. */
+  archA: Texture; archB: Texture; archStand: Texture; archDraw: Texture; archLoose: Texture;
+  /** The rider: the stretch and the gather of the gallop. */
+  cavA: Texture; cavB: Texture;
+  bannerA: Texture; bannerB: Texture;
+  spear: Texture; arrow: Texture;
+  dust: Texture;
 }
 
-export interface BulletColors { gold: number; light: number; violet: number; side: number }
+export interface WarhostColors { red: number; brass: number; dust: number; side: number }
 
-export interface BulletLook {
-  dartPx: number;
-  trailMs: number;
-  trailWidth: number;
-  riftWidth: number;
-  impactSize: number;
-}
+export interface WarhostLook { soldierPx: number; cavalryPx: number; dust: number; impactSize: number }
 
-export type DartPhase = 'hand' | 'fly' | 'crawl' | 'strike' | 'done';
-
-/** Hard cap on sprites alive at once (IV's dome + collapse peak well under it). */
-export const MAX_BULLET_SPRITES = 900;
-export const MAX_DARTS = 64;
+/** Hard cap on sprites alive at once (the biggest host the caps allow, its arrows and its dust sit under it). */
+export const MAX_WARHOST_SPRITES = 900;
 const GLOW_PX = 128;
 const RING_PX = 160;
 const STAR_PX = 48;
-/** The chromatic burst on the restart: the Ancient prismatic pair (cyan, magenta). */
-const CHROMA_A = 0x8af5ff;
-const CHROMA_B = 0xff7ae0;
+/** A run frame lasts this long (a pattering little stride); a gallop frame a touch longer. */
+const FOOT_STRIDE = 92;
+const CAV_STRIDE = 112;
+/** The rear ranks shade toward this. */
+const SHADE = 0x5a3c30;
+const WOOD = 0x9b6a36;
 
-interface Dart { body: Sprite; glow: Sprite; rune: Sprite; trail: RibbonTrail; sparkAcc: number; on: boolean; phase: DartPhase; seed: number; tint: number; x: number; y: number; angle: number; k: number }
+interface TroopSprite { spec: Troop; s: Sprite; tex: Texture | null; on: boolean; x: number; y: number; a: number; nextDust: number }
+interface ShotSprite { spec: Shot; s: Sprite }
+interface BannerSprite { spec: Banner; s: Sprite; i: number }
 
 export class HeroWarhostScene extends FxPool {
-  private darts: Dart[] = [];
-  private clock: { face: Sprite; long: Sprite; short: Sprite; glow: Sprite } | null = null;
-  private clockOn = false;
-  private age = 0;
-  private glintAcc = 0;
-  private handAcc = 0;
-  private handTip: Pt | null = null;
-  /** The FX's own speed (the slow motion slows every spark, mote, ripple, glint and tear). */
-  private timeK = 1;
+  private troops: TroopSprite[] = [];
+  private shots: ShotSprite[] = [];
+  private banners: BannerSprite[] = [];
+  private face = 1;
+  private ownLive = false;
+  private readonly ta: TroopAt = { x: 0, y: 0, state: 'wait', alpha: 0, dir: 1 };
+  private readonly sa: ShotAt = { x: 0, y: 0, rot: 0, state: 'wait', alpha: 0 };
 
-  constructor(private readonly tex: HeroWarhostTextures, private readonly colors: BulletColors, private readonly look: BulletLook, scale = 1, seed = 1) {
-    super('heroWarhost', [tex.glow, tex.ring, tex.star, tex.spark, tex.lance, tex.glyph, tex.glint, tex.mote, tex.clockFace, tex.wash, tex.digit3, tex.digit2, tex.digit1, tex.ribbonSoft, tex.ribbonBody], scale, seed, MAX_BULLET_SPRITES);
+  constructor(private readonly tex: HeroWarhostTextures, private readonly colors: WarhostColors, private readonly look: WarhostLook, scale = 1, seed = 1) {
+    super('heroWarhost', [tex.glow, tex.ring, tex.star, tex.spark, tex.streak, tex.infA], scale, seed, MAX_WARHOST_SPRITES);
   }
 
-  get liveDarts(): number { let n = 0; for (const d of this.darts) if (d.on) n++; return n; }
-  get crawlingDarts(): number { let n = 0; for (const d of this.darts) if (d.on && d.phase === 'crawl') n++; return n; }
-  get timeScale(): number { return this.timeK; }
-  get clockVisible(): boolean { return this.clockOn; }
-
-  private dartAt(i: number, tint: number): Dart | null {
-    if (i < 0 || i >= MAX_DARTS) return null;
-    let d = this.darts[i];
-    if (!d) {
-      // A cast missile: a crystal lance of light (additive: it glows), a soft halo, a time rune spinning at its head,
-      // and a soft sparkling comet tail.
-      const glow = this.take('glow', this.tex.glow, tint);
-      const body = this.take('glow', this.tex.lance, tint);
-      const rune = this.take('core', this.tex.glyph, 0xffffff);
-      if (!glow || !body || !rune) { for (const q of [glow, body, rune]) this.give(q); return null; }
-      body.anchor.set(0.97, 0.5);
-      const trail = new RibbonTrail(this.layers.glow, this.tex.ribbonSoft, whiten(tint, 0.3), 'add');
-      d = { body, glow, rune, trail, sparkAcc: 0, on: false, phase: 'hand', seed: this.rnd() * 100, tint, x: 0, y: 0, angle: 0, k: 1 };
-      this.darts[i] = d;
-    }
-    return d;
-  }
-
-  /** The slow motion: every FX advances at `k` x the clock (1 = full speed). */
-  setTimeScale(k: number): void { this.timeK = Number.isFinite(k) ? Math.min(1, Math.max(0.02, k)) : 1; }
-
-  override update(dt: number): boolean { return super.update(dt * this.timeK); }
+  /** Soldiers on screen this frame. */
+  get liveTroops(): number { let n = 0; for (const q of this.troops) if (q.on) n++; return n; }
+  get deployedTroops(): number { return this.troops.length; }
+  /** Soldiers on screen this frame drawn facing right (the rest face left). */
+  get liveFacingRight(): number { let n = 0; for (const q of this.troops) if (q.on && q.s.scale.x > 0) n++; return n; }
+  /** Spears and arrows in the air or stuck this frame. */
+  get liveShots(): number { let n = 0; for (const q of this.shots) if (q.s.visible) n++; return n; }
+  get liveBanners(): number { let n = 0; for (const q of this.banners) if (q.s.visible) n++; return n; }
 
   /**
-   * Dart `i` this frame: `sample(ms)` is its position on the clock, `te` the time to draw it at, `phase` where it is in
-   * its life, `angle` its heading, `size` its scale, `tension` (0..1) the strain in the last beat before the snap.
+   * Take a sprite for every soldier, shot and banner of the staged look, in draw order (the striker's banners at the
+   * back, then the soldiers far to near, then the shots, then the planted banner). All hidden until their time.
    */
-  setDart(i: number, sample: (ms: number) => Pt, te: number, phase: DartPhase, angle: number, size: number, tint: number, tension = 0): void {
-    const d = this.darts[i] ?? (phase === 'fly' || phase === 'crawl' || phase === 'strike' ? this.dartAt(i, tint) : null);
-    if (!d) return;
-    const on = phase === 'fly' || phase === 'crawl' || phase === 'strike';
-    d.on = on; d.phase = phase;
-    d.body.visible = d.glow.visible = d.rune.visible = on;
-    if (!on) { d.trail.hide(); return; }
-    const S = this.scale;
-    const p = sample(te);
-    let x = p.x, y = p.y;
-    const a = angle;
-    if (phase === 'crawl' && tension > 0) {
-      // The strain in the last beat before the snap: a fine vibration (the anticipation).
-      const w = this.age * 0.08 + d.seed;
-      x += Math.sin(w * 3.1) * 2.2 * tension * S;
-      y += Math.cos(w * 2.3) * 2.2 * tension * S;
+  deploy(stage: WarhostStage): void {
+    this.face = stage.face;
+    const hold = (s: Sprite | null, ax: number, ay: number): Sprite | null => { if (s) { s.anchor.set(ax, ay); s.visible = false; } return s; };
+    stage.banners.forEach((spec, i) => {
+      if (spec.follow) return;
+      const s = hold(this.take('body', this.tex.bannerA, 0xffffff), BANNER_AX, BANNER_AY);
+      if (s) this.banners.push({ spec, s, i });
+    });
+    // Each soldier's sprite is taken far to near, but kept at his index in the stage (a banner's carrier is an index).
+    const order = stage.troops.map((_, i) => i).sort((p, q) => stage.troops[p]!.z - stage.troops[q]!.z);
+    const made: (TroopSprite | null)[] = stage.troops.map(() => null);
+    for (const i of order) {
+      const spec = stage.troops[i]!;
+      const cav = spec.unit === 'cav';
+      const s = hold(this.take('body', cav ? this.tex.cavA : this.tex.infA, spec.shade > 0 ? mixColor(0xffffff, SHADE, spec.shade) : 0xffffff), cav ? CAV_AX : FOOT_AX, cav ? CAV_AY : FOOT_AY);
+      if (s) made[i] = { spec, s, tex: null, on: false, x: spec.p0.x, y: spec.p0.y, a: 0, nextDust: spec.t0 };
     }
-    d.x = x; d.y = y; d.angle = a;
-    const k = (this.look.dartPx * size * S) / DART_W;
-    d.k = k;
-    d.body.position.set(x, y); d.body.rotation = a; d.body.scale.set(k, k * 1.3); d.body.alpha = 1; d.body.tint = whiten(tint, 0.35);
-    // The rune spins at the lance's head.
-    const rk = (this.look.dartPx * size * S * 0.34) / GLYPH_PX;
-    d.rune.position.set(x, y); d.rune.scale.set(rk); d.rune.rotation = this.age * 0.006 + d.seed; d.rune.tint = whiten(tint, 0.55); d.rune.alpha = 0.95;
-    d.glow.position.set(x, y); d.glow.scale.set((this.look.dartPx * size * S * 1.1) / GLOW_PX);
-    d.glow.alpha = phase === 'crawl' ? 0.6 + 0.2 * Math.sin(this.age * 0.012 + d.seed) + 0.2 * tension : 0.7;
-    d.glow.tint = tint;
-    if (this.look.trailMs > 0) {
-      d.trail.mesh.tint = whiten(tint, 0.3);
-      d.trail.draw(sample, te, this.look.trailMs, this.look.trailWidth * 1.6 * size * S, 0.85);
+    this.troopAtIndex = made;
+    for (const q of made) if (q) this.troops.push(q);
+    for (const spec of stage.shots) {
+      const s = hold(this.take('body', spec.kind === 'spear' ? this.tex.spear : this.tex.arrow, 0xffffff), 1, 0.5);
+      if (s) this.shots.push({ spec, s });
     }
+    stage.banners.forEach((spec, i) => {
+      if (!spec.follow) return;
+      const s = hold(this.take('body', this.tex.bannerA, 0xffffff), BANNER_AX, BANNER_AY);
+      if (s) this.banners.push({ spec, s, i });
+    });
   }
 
-  /**
-   * A blade drops into the slow motion: the TEAR it sliced through the air from `from` to `to` (a white-hot gold slash
-   * over a wider violet rift glow) lingers for `ms` (FX time), and a tick ring flashes at its tip.
-   */
-  cut(from: Pt, to: Pt, ms: number, k = 1): void {
-    const c = this.colors;
-    const dx = to.x - from.x, dy = to.y - from.y;
-    const len = Math.hypot(dx, dy);
-    if (len > 4 && this.look.riftWidth > 0) {
-      const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
-      const rot = Math.atan2(dy, dx);
-      const w = this.look.riftWidth * k * this.scale;
-      // A MAGICAL RIFT, not a hard slash: a soft violet aurora, a shimmering gold seam and a thin white-hot thread of light
-      // (soft-ended glows stretched along the cut), with time runes drifting off it.
-      const G = len / GLOW_PX / this.scale;
-      this.spawn('glow', this.tex.glow, c.violet, mx, my, { dur: ms + 180, from: G * 1.15, to: G * 1.2, sy: (w * 4.5) / len, a0: 0.6, mode: 'hold', ease: 'linear', rot });
-      this.spawn('glow', this.tex.glow, c.gold, mx, my, { dur: ms + 140, from: G, to: G * 1.04, sy: (w * 1.8) / len, a0: 0.85, mode: 'hold', ease: 'linear', rot });
-      this.spawn('core', this.tex.glint, 0xffffff, mx, my, { dur: ms * 0.7 + 90, from: len / 64 / this.scale, to: len / 64 / this.scale, sy: (8 * w * 0.5) / len, a0: 1, mode: 'hold', ease: 'linear', rot });
-      // (A dome of dozens sheds one rune per rift; a few blades shed three.)
-      const motes = k < 1 ? 1 : 3;
-      for (let i = 0; i < motes; i++) {
-        const u = 0.2 + this.rnd() * 0.6;
-        const gs = (0.25 + this.rnd() * 0.2) * k;
-        this.spawn('core', this.tex.glyph, i % 2 ? c.light : whiten(c.violet, 0.4), from.x + dx * u, from.y + dy * u, {
-          dur: ms + 200, from: gs, to: gs * 0.6, a0: 0.85, mode: 'punch', peakAt: 0.25, ease: 'linear', vx: (this.rnd() - 0.5) * 30, vy: -25 - this.rnd() * 30, drag: 1, spin: (this.rnd() - 0.5) * 0.01,
-        });
+  private troopAtIndex: (TroopSprite | null)[] = [];
+
+  /** Place every soldier, shot and banner for sequence time `t`. Allocation-free. */
+  paint(t: number): void {
+    if (this.destroyed) return;
+    const S = this.scale, T = this.tex;
+    let live = false;
+    const o = this.ta;
+    for (const q of this.troops) {
+      const tr = q.spec;
+      troopAt(tr, t, o);
+      q.x = o.x; q.y = o.y; q.a = o.alpha;
+      if (o.state === 'wait' || o.state === 'gone') { q.on = false; if (q.s.visible) q.s.visible = false; continue; }
+      live = true; q.on = true;
+      const cav = tr.unit === 'cav';
+      const moving = o.state !== 'hold';
+      const cyc = (t + tr.phase) / (cav ? CAV_STRIDE : FOOT_STRIDE);
+      const second = moving && (Math.floor(cyc) & 1) === 1;
+      const step = moving ? Math.abs(Math.sin(cyc * Math.PI)) : 0;
+      let tex: Texture;
+      let lift = 0, rot = 0;
+      if (cav) {
+        tex = second ? T.cavB : T.cavA;
+        lift = step * 4; rot = o.dir * Math.sin(cyc * Math.PI) * 0.055;
+      } else {
+        lift = step * 2.6; rot = moving ? o.dir * 0.07 : 0;
+        switch (tr.unit) {
+          case 'inf': tex = second ? T.infB : T.infA; break;
+          case 'spear':
+            if (o.state === 'out') tex = second ? T.infB : T.infA;
+            else if (o.state === 'back') tex = second ? T.bareB : T.bareA;
+            else if (t < tr.actAt) tex = T.infStand;
+            else if (t < tr.looseAt) { tex = T.spearWind; rot = -o.dir * 0.16 * Math.min(1, (t - tr.actAt) / 90); }
+            else if (tr.cheerAt < 0 || t < tr.cheerAt) { tex = T.spearThrown; rot = o.dir * 0.2 * Math.max(0, spring(t - tr.looseAt, 3, 90)); }
+            else { tex = T.cheer; lift = hop(t - tr.cheerAt, 2); }
+            break;
+          case 'archer':
+            if (moving) tex = second ? T.archB : T.archA;
+            else if (t < tr.actAt) tex = T.archStand;
+            else if (t < tr.looseAt) tex = T.archDraw;
+            else if (t <= tr.lastLooseAt) tex = (t - tr.looseAt) % WARHOST_RELOAD_MS < 40 ? T.archLoose : T.archDraw;
+            else tex = t < tr.lastLooseAt + 220 ? T.archLoose : T.archStand;
+            break;
+          default: // the banner bearer and the Knockout's cheerers
+            if (moving) tex = second ? T.bareB : T.bareA;
+            else if (tr.cheerAt >= 0 && t >= tr.cheerAt) { tex = T.cheer; lift = hop(t - tr.cheerAt, 6); }
+            else tex = tr.unit === 'bearer' ? T.spearThrown : T.infStand;
+        }
+      }
+      if (q.tex !== tex) { q.tex = tex; q.s.texture = tex; }
+      const k = ((cav ? this.look.cavalryPx / CAV_H : this.look.soldierPx / FOOT_H) * tr.size) * S;
+      const s = q.s;
+      if (!s.visible) s.visible = true;
+      s.position.set(o.x, o.y - lift * S);
+      s.scale.set(o.dir < 0 ? -k : k, k);
+      s.rotation = rot;
+      s.alpha = o.alpha;
+      if (moving && tr.dustMs > 0 && t >= q.nextDust) {
+        q.nextDust = t + tr.dustMs * (0.55 + this.rnd() * 0.9);
+        this.puff(o.x - o.dir * (cav ? 22 : 7) * S * tr.size + (this.rnd() - 0.5) * 14 * S, o.y - (2 + this.rnd() * 6) * S, (cav ? 1.3 : 0.8) * tr.size * (0.7 + this.rnd() * 0.6));
       }
     }
-    this.freeze(to, k);
+    const so = this.sa;
+    for (const q of this.shots) {
+      const sh = q.spec;
+      shotAt(sh, t, so);
+      if (so.state === 'wait' || so.state === 'gone') { if (q.s.visible) q.s.visible = false; continue; }
+      live = true;
+      const s = q.s;
+      if (!s.visible) s.visible = true;
+      const ride = so.state === 'stuck' && sh.stick;
+      s.position.set(so.x + (ride ? this.fox : 0), so.y + (ride ? this.foy : 0));
+      s.rotation = so.rot;
+      const k = (sh.kind === 'spear' ? (this.look.soldierPx * 1.55) / SPEAR_W : (this.look.soldierPx * 0.86) / ARROW_W) * sh.size * S;
+      // Stuck, the point is buried: it sits a little shorter.
+      s.scale.set(so.state === 'stuck' ? k * 0.84 : k, k);
+      s.alpha = so.alpha;
+    }
+    for (const q of this.banners) {
+      const b = q.spec, s = q.s;
+      const base = ((this.look.soldierPx * 2.5) / BANNER_H) * b.size * S;
+      if (t >= b.t2) { if (s.visible) s.visible = false; continue; }
+      if (t < b.t0) {
+        // Not planted yet: carried (small, tilted back over the shoulder) or not there.
+        const c = b.carrier >= 0 ? this.troopAtIndex[b.carrier] : null;
+        if (!c || !c.on) { if (s.visible) s.visible = false; continue; }
+        live = true;
+        if (!s.visible) s.visible = true;
+        if (s.texture !== this.tex.bannerA) s.texture = this.tex.bannerA;
+        s.position.set(c.x - this.face * 5 * S, c.y - this.look.soldierPx * 0.3 * S);
+        s.scale.set(-this.face * base * 0.62, base * 0.62);
+        s.rotation = -this.face * 0.2; s.skew.set(0.05 * Math.sin(t * 0.03), 0);
+        s.alpha = c.a;
+        continue;
+      }
+      live = true;
+      if (!s.visible) s.visible = true;
+      const since = t - b.t0;
+      const rise = Math.max(0, 1 - spring(since, 3.2, 110));
+      const frame = (Math.floor(t / 140) + q.i) & 1 ? this.tex.bannerB : this.tex.bannerA;
+      if (s.texture !== frame) s.texture = frame;
+      s.position.set(b.at.x + (b.follow ? this.fox : 0), b.at.y + (b.follow ? this.foy : 0));
+      s.scale.set(-this.face * base, base * rise);
+      s.rotation = b.lean + 0.1 * spring(since, 2.4, 160);
+      // The flag snaps as it goes up, then ripples.
+      s.skew.set(0.05 * Math.sin(t * 0.011 + q.i * 1.7) + 0.24 * spring(since, 4, 170), 0);
+      s.alpha = t < b.t1 ? 1 : 1 - (t - b.t1) / Math.max(1, b.t2 - b.t1);
+    }
+    this.ownLive = live;
   }
 
-  /** An afterimage peeling off a crawling blade: a ghost of it, fading where it was. */
-  ghost(i: number, k = 1): void {
-    const d = this.darts[i];
-    if (!d || !d.on) return;
-    const s = this.spawn('glow', this.tex.lance, mixColor(d.tint, this.colors.violet, 0.4), d.x, d.y, { dur: 110, from: d.k * k, to: d.k * k, sy: 1.3, a0: 0.45, ease: 'linear', rot: d.angle });
-    if (s) s.anchor.set(0.97, 0.5);
+  /** The sequence is over: hide every soldier, shot and banner (the dust drains by itself). */
+  retire(): void {
+    for (const q of this.troops) { q.on = false; q.s.visible = false; }
+    for (const q of this.shots) q.s.visible = false;
+    for (const q of this.banners) q.s.visible = false;
+    this.ownLive = false;
   }
 
-  /** A tick ring and a glint at a blade's tip. */
-  freeze(at: Pt, k = 1): void {
-    const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 220, from: 0.05 * k, to: 0.35 * k, a0: 0.9, ease: 'cubic' });
-    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 180, from: 0.3 * k, to: 0.9 * k, a0: 1, mode: 'punch', peakAt: 0.2, rot: 0.4 });
+  // ── the dust and the flashes (fire and forget) ──
+
+  /** A step puff under a foot or a hoof. */
+  puff(x: number, y: number, k = 1): void {
+    const D = this.look.dust;
+    if (D <= 0) return;
+    this.spawn('under', this.tex.dust, this.colors.dust, x, y, {
+      dur: 300 + this.rnd() * 260, from: 0.18 * k * D, to: 0.6 * k * D, a0: 0.42, ease: 'cubic', vx: (this.rnd() - 0.5) * 40, vy: -22 - this.rnd() * 16, drag: 0.3,
+      rot: this.rnd() * 6.28, spin: (this.rnd() - 0.5) * 0.003,
+    });
   }
 
-  /** TIME STOPS: a ripple off the target, a violet flash, dust motes over the area. */
-  stop(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, motes: number, big: boolean): void {
-    const c = this.colors;
-    this.ripple(at, radius * (big ? 1.6 : 1));
-    // The gold time ripple SWEEPS the whole screen as time stops.
-    const far = Math.hypot(area.w, area.h);
-    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 620, from: (radius * 0.8) / RING_PX, to: (far * 1.1) / RING_PX / this.scale, a0: 0.75, ease: 'cubic' });
-    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 700, from: (radius * 0.5) / RING_PX, to: (far * 0.9) / RING_PX / this.scale, a0: 0.5, ease: 'cubic', delay: 70 });
-    this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: 260, from: (radius * 1.2) / GLOW_PX, to: (radius * 3) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    this.motes(area, motes);
-  }
-
-  /** A gold time ripple pulsing off the target (stopped time stays alive). */
-  ripple(at: Pt, radius: number): void {
-    const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 520, from: (radius * 0.6) / RING_PX, to: (radius * 3.2) / RING_PX, a0: 0.5, ease: 'cubic' });
-  }
-
-  /** Dust motes drifting slowly through stopped time. */
-  motes(area: { x: number; y: number; w: number; h: number }, n: number): void {
-    const c = this.colors;
+  /** A dust cloud rolling up over `at` (the trample burying the portrait): `n` big soft puffs within `r`. */
+  cloud(at: Pt, r: number, n: number, k = 1, follow = false): void {
+    const D = this.look.dust;
+    if (D <= 0) return;
+    const S = this.scale;
     for (let i = 0; i < n; i++) {
-      const sz = 0.5 + this.rnd() * 0.7;
-      this.spawn('core', this.tex.mote, [c.light, c.gold, whiten(c.violet, 0.5)][i % 3]!, area.x + this.rnd() * area.w, area.y + this.rnd() * area.h, {
-        dur: 900 + this.rnd() * 900, from: sz, to: sz * 0.8, a0: 0.7, mode: 'punch', peakAt: 0.3, ease: 'linear',
-        vx: (this.rnd() - 0.5) * 30, vy: -10 - this.rnd() * 20, drag: 1, delay: this.rnd() * 300,
+      const a = this.rnd() * Math.PI * 2, rr = Math.sqrt(this.rnd()) * r;
+      const size = (r * (0.42 + this.rnd() * 0.4) * k) / DUST_PX / S;
+      this.spawn('body', this.tex.dust, mixColor(this.colors.dust, 0xffffff, this.rnd() * 0.18), at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr * 0.7, {
+        dur: 620 + this.rnd() * 520, from: size * 0.7, to: size * 1.8, a0: 0.5 * Math.min(1.4, D), mode: 'punch', peakAt: 0.22, ease: 'cubic',
+        vx: (this.rnd() - 0.5) * 90, vy: -20 - this.rnd() * 40, drag: 0.4, rot: this.rnd() * 6.28, spin: (this.rnd() - 0.5) * 0.002, delay: this.rnd() * 90, follow,
       });
     }
   }
 
-  /** The clock over the target: its face and two hands at opacity `a` (null hides). */
-  setClock(at: Pt, r: number, minute: number, a: number): void {
-    if (!this.clock) {
-      if (a <= 0.001) return;
-      const c = this.colors;
-      const face = this.take('glow', this.tex.clockFace, c.light);
-      const glow = this.take('glow', this.tex.glow, c.violet);
-      // The "hands" are two runes orbiting the circle (the long one the minutes, the short one the hours).
-      const long = this.take('core', this.tex.glyph, c.light);
-      const short = this.take('core', this.tex.glyph, whiten(c.violet, 0.4));
-      if (!face || !glow || !long || !short) { for (const s of [face, glow, long, short]) this.give(s); return; }
-      this.clock = { face, glow, long, short };
+  /** A spear or an arrow going into wood: a small bright knock, a ring, splinters thrown back the way it came. */
+  thunk(at: Pt, dir: Pt, k = 1): void {
+    const c = this.colors;
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 170, from: (26 * k) / STAR_PX, to: (78 * k) / STAR_PX, a0: 0.95, mode: 'punch', peakAt: 0.15, rot: 0.4, follow: true });
+    this.spawn('glow', this.tex.ring, c.brass, at.x, at.y, { dur: 260, from: (14 * k) / RING_PX, to: (110 * k) / RING_PX, a0: 0.8, ease: 'cubic', follow: true });
+    this.burst('body', this.tex.dust, [WOOD, mixColor(WOOD, 0xffffff, 0.35), c.dust], at.x, at.y, Math.round(5 + 3 * k), {
+      speed: 300 * k, dir: Math.atan2(-dir.y, -dir.x), spread: 2.2, life: 360, size: 0.1 * k, grav: 700, drag: 0.4, to: 0.6,
+    });
+  }
+
+  /** One arrow of the rain going in: a speck of a knock and a wisp of dust. */
+  arrowTick(at: Pt): void {
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 130, from: 12 / STAR_PX, to: 40 / STAR_PX, a0: 0.85, mode: 'punch', peakAt: 0.2, follow: true });
+    this.spawn('body', this.tex.dust, this.colors.dust, at.x, at.y, { dur: 300, from: 0.12, to: 0.4, a0: 0.5, ease: 'cubic', vy: -20, drag: 0.4, follow: true });
+  }
+
+  /** A war drum: a low ring off the striking hero's feet and a kick of dust. */
+  drum(at: Pt, r: number, i: number): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.ring, i === 2 ? whiten(c.brass, 0.3) : c.brass, at.x, at.y, { dur: 420, from: (r * 0.9) / RING_PX, to: (r * (2.6 + 0.5 * i)) / RING_PX, a0: 0.5 + 0.12 * i, ease: 'cubic' });
+    this.spawn('glow', this.tex.glow, c.red, at.x, at.y, { dur: 260, from: (r * 1.6) / GLOW_PX, to: (r * 2.6) / GLOW_PX, a0: 0.3 + 0.08 * i, mode: 'punch', peakAt: 0.15 });
+    for (let j = 0; j < 4 + i; j++) this.puff(at.x + (this.rnd() - 0.5) * r * 2.2, at.y + r * (0.8 + this.rnd() * 0.3), 1.3);
+  }
+
+  /** The horn: three sound rings rolling off the striker toward the target. */
+  horn(at: Pt, dir: Pt, r: number): void {
+    const c = this.colors;
+    for (let i = 0; i < 3; i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? c.red : c.brass, at.x + dir.x * r * (0.9 + i * 0.25), at.y + dir.y * r * (0.9 + i * 0.25), {
+        dur: 520, from: (r * 0.5) / RING_PX, to: (r * (1.9 + 0.5 * i)) / RING_PX, a0: 0.55, ease: 'cubic', delay: i * 130, vx: dir.x * 220, vy: dir.y * 220, drag: 0.5,
+      });
     }
-    const k = this.clock;
-    const on = a > 0.001;
-    this.clockOn = on;
-    k.face.visible = k.glow.visible = k.long.visible = k.short.visible = on;
-    if (!on) return;
-    // The circle turns slowly against its runes (a magic circle, alive).
-    k.face.position.set(at.x, at.y); k.face.scale.set((r * 2) / (FACE_PX * 0.92)); k.face.alpha = 0.75 * a; k.face.rotation = -minute * 0.08;
-    k.glow.position.set(at.x, at.y); k.glow.scale.set((r * 2.4) / GLOW_PX); k.glow.alpha = 0.22 * a;
-    const la = minute - Math.PI / 2, sa = minute / 12 - Math.PI / 2 + 2.1;
-    const lr = r * 0.9, sr = r * 0.62;
-    k.long.position.set(at.x + Math.cos(la) * lr, at.y + Math.sin(la) * lr); k.long.scale.set((r * 0.22) / GLYPH_PX); k.long.rotation = minute * 2; k.long.alpha = a;
-    // The orbiting rune CUTS through time too: sparks trail off it as it sweeps.
-    this.handTip = { x: at.x + Math.cos(la) * lr, y: at.y + Math.sin(la) * lr };
-    k.short.position.set(at.x + Math.cos(sa) * sr, at.y + Math.sin(sa) * sr); k.short.scale.set((r * 0.16) / GLYPH_PX); k.short.rotation = -minute; k.short.alpha = 0.9 * a;
-  }
-
-  /** A clock flash (III): the big face flares over the target and fades. */
-  clockFlash(at: Pt, r: number): void {
-    const c = this.colors;
-    this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 480, from: (r * 1.6) / FACE_PX, to: (r * 2.2) / FACE_PX, a0: 0.9, mode: 'punch', peakAt: 0.12, ease: 'cubic' });
-    this.spawn('glow', this.tex.glow, c.light, at.x, at.y, { dur: 260, from: (r * 1.2) / GLOW_PX, to: (r * 2.4) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.1 });
-  }
-
-  /** IV's countdown: a big digit slams in over the target and fades as the next comes. */
-  count(at: Pt, n: 1 | 2 | 3, r: number, ms: number): void {
-    const c = this.colors;
-    const t = n === 3 ? this.tex.digit3 : n === 2 ? this.tex.digit2 : this.tex.digit1;
-    const k = (r * 1.6) / DIGIT_PX;
-    this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: ms, from: (r * 2.4) / GLOW_PX, to: (r * 2) / GLOW_PX, a0: 0.5, mode: 'hold', ease: 'quint' });
-    this.spawn('core', t, n === 1 ? 0xffffff : c.light, at.x, at.y, { dur: ms, from: k * 1.6, to: k, a0: 1, mode: 'hold', ease: 'quint' });
-    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: ms * 0.8, from: (r * 0.8) / RING_PX, to: (r * 2.2) / RING_PX, a0: 0.7, ease: 'cubic' });
-  }
-
-  /** The glints: now and then one runs along a crawling blade's edge. */
-  private glints(dt: number): void {
-    this.glintAcc += dt;
-    if (this.glintAcc < 45) return;
-    this.glintAcc = 0;
-    const hung = this.darts.filter((d) => d.on && d.phase === 'crawl');
-    if (!hung.length) return;
-    const d = hung[Math.floor(this.rnd() * hung.length)]!;
-    const len = DART_W * d.k;
-    const back = d.angle + Math.PI;
-    const sx = d.x + Math.cos(back) * len * 0.8, sy = d.y + Math.sin(back) * len * 0.8;
-    const sp = (len * 0.8) / 0.16; // run the length of the blade in 160 ms
-    this.spawn('core', this.tex.glint, 0xffffff, sx, sy, {
-      dur: 160, from: (len * 0.35) / 64 / this.scale, to: (len * 0.35) / 64 / this.scale, sy: 0.4, a0: 0.95, mode: 'punch', peakAt: 0.5, ease: 'linear',
-      vx: (Math.cos(d.angle) * sp) / this.scale, vy: (Math.sin(d.angle) * sp) / this.scale, drag: 1, rot: d.angle,
-    });
-  }
-
-  /** TIME RESTARTS: a hard snap (a white flash over the area, a shock ring off the target). */
-  snap(at: Pt, radius: number, area: { x: number; y: number; w: number; h: number }, k = 1): void {
-    const c = this.colors;
-    this.spawn('glow', this.tex.wash, 0xffffff, area.x + area.w / 2, area.y + area.h / 2, {
-      dur: 150, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.55 * Math.min(1.2, k), mode: 'punch', peakAt: 0.08, ease: 'linear',
-    });
-    // A CHROMATIC burst: a cyan and a magenta ring split either side of the light one, and streaks flung outward.
-    const o = radius * 0.12;
-    this.spawn('glow', this.tex.ring, CHROMA_A, at.x - o, at.y, { dur: 300, from: (radius * 0.5) / RING_PX, to: (radius * 4.4 * k) / RING_PX, a0: 0.85, ease: 'cubic' });
-    this.spawn('glow', this.tex.ring, CHROMA_B, at.x + o, at.y, { dur: 300, from: (radius * 0.5) / RING_PX, to: (radius * 4.4 * k) / RING_PX, a0: 0.85, ease: 'cubic' });
-    this.burst('glow', this.tex.streak, [c.light, CHROMA_A, CHROMA_B], at.x, at.y, Math.round(14 * k), { speed: 1500 * k, life: 260, size: 1.6 * k, drag: 0.2, align: true, to: 0.6 });
-    this.spawn('glow', this.tex.ring, c.light, at.x, at.y, { dur: 260, from: (radius * 0.6) / RING_PX, to: (radius * 4 * k) / RING_PX, a0: 1, ease: 'cubic' });
-    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 340, from: (radius * 0.4) / RING_PX, to: (radius * 3 * k) / RING_PX, a0: 0.7, ease: 'cubic', delay: 40 });
-  }
-
-  /** A hit (a tick, or the impact's own): a flash, a star, rings, sparks. */
-  hit(at: Pt, dir: Pt, strength: number, sparks: number): void {
-    const c = this.colors;
-    const T = strength;
-    this.spawn('core', this.tex.glow, whiten(c.light, 0.5), at.x, at.y, { dur: 150, from: (50 * T) / GLOW_PX, to: (150 * T) / GLOW_PX, a0: 0.95, mode: 'punch', peakAt: 0.1 });
-    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 180, from: (40 * T) / STAR_PX, to: (120 * T) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.15, rot: 0.3 });
-    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 280, from: (20 * T) / RING_PX, to: (170 * T) / RING_PX, a0: 0.9, ease: 'cubic' });
-    this.burst('core', this.tex.spark, [c.light, c.gold, 0xffffff], at.x, at.y, sparks, { speed: 520 * T, dir: Math.atan2(-dir.y, -dir.x), spread: 2.6, life: 380, size: 0.6 * T, drag: 0.3, to: 0.3 });
-    this.burst('glow', this.tex.streak, [c.light, c.gold], at.x, at.y, Math.round(6 + 2 * T), { speed: 1100 * T, life: 200, size: 1.1 * T, drag: 0.2, align: true, to: 0.5 });
   }
 
   /**
-   * THE impact. I-III: a big gold hit with a violet ring. IV, the dome collapsing: the biggest in the roster: a white
-   * core, a gold and violet fireball, four shock rings, the clock face blown outward, a storm of sparks and glints.
+   * THE blow. I, II: the knock of the spear or the last arrow (a thunk and a ring). III: the point rider's hit (a red
+   * and brass shock, speed lines, a first roll of dust). IV: the front rank's (the same, far bigger, and the dust
+   * goes up over the whole portrait).
    */
-  impact(at: Pt, dir: Pt, radius: number, tier: number, area: { x: number; y: number; w: number; h: number }): void {
+  impact(at: Pt, strike: Pt, dir: Pt, radius: number, tier: number): void {
     const c = this.colors;
-    const X = this.look.impactSize * (1 + 0.15 * (tier - 1));
-    this.hit(at, dir, 1.3 * X, 16 + 4 * tier);
-    this.spawn('glow', this.tex.ring, c.violet, at.x, at.y, { dur: 420, from: (30 * X) / RING_PX, to: (260 * X) / RING_PX, a0: 0.8, ease: 'cubic', delay: 40 });
-    // A RUNE-RING shockwave: the time circle itself blasts outward off the hit.
-    this.spawn('glow', this.tex.clockFace, c.light, at.x, at.y, { dur: 460, from: (radius * 1.2) / FACE_PX, to: (radius * 3.4 * X) / FACE_PX, a0: 0.85, spin: 0.006, ease: 'cubic' });
-    this.burst('core', this.tex.star, [c.light, 0xffffff, whiten(c.violet, 0.4)], at.x, at.y, 6 + 2 * tier, { speed: 520 * X, life: 520, size: (16 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
-    if (tier < 4) return;
-    this.spawn('glow', this.tex.wash, mixColor(c.gold, 0xffffff, 0.5), area.x + area.w / 2, area.y + area.h / 2, {
-      dur: 180, from: area.w / WASH_PX / this.scale, to: area.w / WASH_PX / this.scale, sy: area.h / area.w, a0: 0.3, mode: 'punch', peakAt: 0.08, ease: 'linear',
+    const X = this.look.impactSize;
+    if (tier <= 2) {
+      this.thunk(strike, dir, (tier === 1 ? 1.5 : 1.3) * X);
+      this.spawn('glow', this.tex.ring, c.red, at.x, at.y, { dur: 340, from: (radius * 0.7) / RING_PX, to: (radius * (1.9 + 0.5 * tier) * X) / RING_PX, a0: 0.7, ease: 'cubic', follow: true });
+      if (tier === 2) this.cloud(at, radius * 0.7, 3, 0.7, true);
+      return;
+    }
+    const big = tier >= 4 ? 1.5 : 1;
+    this.spawn('core', this.tex.glow, whiten(c.brass, 0.4), at.x, at.y, { dur: 180, from: (radius * 1.1) / GLOW_PX, to: (radius * 2.2 * X) / GLOW_PX, a0: 0.55, mode: 'punch', peakAt: 0.1 });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 220, from: (radius * 0.8) / STAR_PX, to: (radius * 2.6 * big * X) / STAR_PX, a0: 0.95, mode: 'punch', peakAt: 0.14, rot: 0.3 });
+    [c.brass, c.red, whiten(c.brass, 0.3)].forEach((tint, i) => {
+      if (i === 2 && tier < 4) return;
+      this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 380 + i * 110, from: (radius * 0.6) / RING_PX, to: (radius * (2.6 + i * 0.9) * big * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: i * 50 });
     });
-    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 360, from: (140 * X) / GLOW_PX, to: (520 * X) / GLOW_PX, a0: 1, mode: 'punch', peakAt: 0.06 });
-    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 700, from: (200 * X) / GLOW_PX, to: (640 * X) / GLOW_PX, a0: 0.7, mode: 'punch', peakAt: 0.1 });
-    this.spawn('glow', this.tex.glow, c.violet, at.x, at.y, { dur: 900, from: (220 * X) / GLOW_PX, to: (760 * X) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.2 });
-    [c.light, c.gold, c.violet, 0xffffff].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 560 + i * 140, from: (40 * X) / RING_PX, to: ((420 + i * 160) * X) / RING_PX, a0: 0.95, ease: 'cubic', delay: i * 60 }));
-    this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 700, from: (radius * 2.6) / FACE_PX, to: (radius * 7 * X) / FACE_PX, a0: 0.85, spin: 0.004, ease: 'cubic' });
-    this.burst('core', this.tex.spark, [c.light, c.gold, c.violet, 0xffffff], at.x, at.y, 70, { speed: 1000 * X, life: 700, size: 0.9 * X, drag: 0.35, to: 0.3 });
-    this.burst('glow', this.tex.streak, [c.light, c.gold, c.violet, CHROMA_A, CHROMA_B], at.x, at.y, 26, { speed: 2000 * X, life: 380, size: 2.4 * X, drag: 0.2, align: true, to: 0.6 });
-    this.spawn('glow', this.tex.ring, CHROMA_A, at.x - radius * 0.15, at.y, { dur: 480, from: (60 * X) / RING_PX, to: (700 * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: 30 });
-    this.spawn('glow', this.tex.ring, CHROMA_B, at.x + radius * 0.15, at.y, { dur: 480, from: (60 * X) / RING_PX, to: (700 * X) / RING_PX, a0: 0.7, ease: 'cubic', delay: 30 });
-    this.burst('core', this.tex.star, [c.light, c.violet], at.x, at.y, 14, { speed: 640 * X, life: 600, size: (22 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
-    // Prismatic flecks and drifting runes (starlight, not debris).
-    this.burst('core', this.tex.mote, [CHROMA_A, c.light, CHROMA_B, c.gold], at.x, at.y, 30, { speed: 760 * X, life: 900, size: 1.2 * X, drag: 0.4, to: 0.3 });
-    this.burst('core', this.tex.glyph, [c.light, whiten(c.violet, 0.4)], at.x, at.y, 8, { speed: 420 * X, life: 900, size: 0.4 * X, drag: 0.3, spin: 0.01, to: 0.5 });
+    // Speed lines flung on past the target, the way the charge is going.
+    this.burst('glow', this.tex.streak, [c.brass, c.red, whiten(c.brass, 0.5)], at.x, at.y, Math.round(8 * big), {
+      speed: 1500 * big * X, dir: Math.atan2(dir.y, dir.x), spread: 1.3, life: 240, size: 1.4 * big * X, drag: 0.2, align: true, to: 0.5,
+    });
+    this.burst('core', this.tex.spark, [c.brass, 0xffffff, c.red], at.x, at.y, Math.round(14 * big), { speed: 620 * big * X, life: 420, size: 0.6 * X, drag: 0.3, grav: 500, to: 0.3 });
+    this.cloud(at, radius * (tier >= 4 ? 1.5 : 1.1), tier >= 4 ? 18 : 9, 1);
   }
 
-  /**
-   * THE KNOCKOUT's PRISMATIC collapse (on top of IV's impact): cyan, lilac and magenta shockwaves, a prism clock face
-   * blown outward, prism streaks and glints.
-   */
+  /** A later row or rank going over the target: more dust up over it, a few kicked sparks. */
+  buffet(at: Pt, radius: number, k: number): void {
+    this.cloud(at, radius * 1.3 * k, Math.round(7 * k + 3), 0.9);
+    this.burst('core', this.tex.spark, [this.colors.brass, 0xffffff], at.x, at.y, 5, { speed: 420, life: 320, size: 0.45, drag: 0.3, grav: 500, to: 0.3 });
+  }
+
+  /** The banner goes in: a kick of dust round its foot, a brass glint and a ring. */
+  plant(at: Pt, radius: number): void {
+    const c = this.colors;
+    this.spawn('glow', this.tex.ring, c.brass, at.x, at.y, { dur: 420, from: (radius * 0.3) / RING_PX, to: (radius * 2.2) / RING_PX, a0: 0.8, ease: 'cubic', follow: true });
+    this.spawn('core', this.tex.star, whiten(c.brass, 0.6), at.x, at.y - radius * 1.2, { dur: 420, from: 0.3, to: 1.3, a0: 0.9, mode: 'punch', peakAt: 0.25, spin: 0.004, follow: true });
+    this.cloud({ x: at.x, y: at.y + radius * 0.1 }, radius * 0.6, 4, 0.5, true);
+  }
+
+  /** THE KNOCKOUT's prismatic shock (on top of IV's impact): cyan, lilac and magenta rings, prism streaks and stars. */
   koFlourish(at: Pt, radius: number): void {
-    const X = this.look.impactSize * 1.5;
-    [KO_CYAN, KO_LILAC, KO_MAGENTA].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 700 + i * 120, from: (60 * X) / RING_PX, to: ((520 + i * 180) * X) / RING_PX, a0: 0.9, ease: 'cubic', delay: 40 + i * 70 }));
-    this.spawn('glow', this.tex.clockFace, KO_MAGENTA, at.x, at.y, { dur: 760, from: (radius * 3) / FACE_PX, to: (radius * 9 * X) / FACE_PX, a0: 0.75, spin: -0.006, ease: 'cubic' });
-    this.spawn('glow', this.tex.glow, KO_CYAN, at.x, at.y, { dur: 820, from: (200 * X) / GLOW_PX, to: (640 * X) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    this.burst('glow', this.tex.streak, [KO_CYAN, KO_LILAC, KO_MAGENTA], at.x, at.y, 22, { speed: 2200 * X, life: 420, size: 2.4 * X, drag: 0.2, align: true, to: 0.6 });
-    this.burst('core', this.tex.star, [KO_CYAN, KO_MAGENTA, 0xffffff], at.x, at.y, 12, { speed: 700 * X, life: 700, size: (24 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
+    const X = this.look.impactSize * 1.3;
+    [KO_CYAN, KO_LILAC, KO_MAGENTA].forEach((tint, i) => this.spawn('glow', this.tex.ring, tint, at.x, at.y, {
+      dur: 640 + i * 120, from: (radius * 0.8) / RING_PX, to: (radius * (4.2 + i * 1.2) * X) / RING_PX, a0: 0.85, ease: 'cubic', delay: 40 + i * 70,
+    }));
+    this.spawn('glow', this.tex.glow, KO_CYAN, at.x, at.y, { dur: 700, from: (radius * 1.6) / GLOW_PX, to: (radius * 4.4 * X) / GLOW_PX, a0: 0.4, mode: 'punch', peakAt: 0.15 });
+    this.burst('glow', this.tex.streak, [KO_CYAN, KO_LILAC, KO_MAGENTA], at.x, at.y, 18, { speed: 1900 * X, life: 400, size: 2 * X, drag: 0.2, align: true, to: 0.6 });
+    this.burst('core', this.tex.star, [KO_CYAN, KO_MAGENTA, 0xffffff], at.x, at.y, 10, { speed: 620 * X, life: 680, size: (22 * X) / STAR_PX, drag: 0.3, spin: 0.02 });
   }
 
-  protected override tick(dt: number): boolean {
-    this.age += dt;
-    this.glints(dt);
-    // The comet tails sparkle: specks of light shed off each flying missile (fewer when there are dozens).
-    const every = this.darts.length > 12 ? 90 : 30;
-    for (const d of this.darts) {
-      if (!d.on || d.phase !== 'fly') continue;
-      d.sparkAcc += dt;
-      if (d.sparkAcc < every) continue;
-      d.sparkAcc = 0;
-      this.spawn('core', this.tex.star, whiten(d.tint, 0.5), d.x, d.y, { dur: 300, from: 0.22, to: 0.05, a0: 0.9, ease: 'linear', vx: (this.rnd() - 0.5) * 60, vy: (this.rnd() - 0.5) * 60, drag: 0.5, spin: 0.02 });
-    }
-    if (this.clockOn && this.handTip) {
-      this.handAcc += dt;
-      if (this.handAcc >= 14) {
-        this.handAcc = 0;
-        const h = this.handTip;
-        this.spawn('core', this.tex.star, this.colors.light, h.x, h.y, { dur: 260, from: 0.25, to: 0.05, a0: 0.9, ease: 'linear' });
-      }
-    }
-    let own = this.clockOn;
-    for (const d of this.darts) if (d.on) { own = true; break; }
-    return own;
-  }
+  protected override tick(dt: number): boolean { void dt; return this.ownLive; }
 
   protected override clearOwn(): void {
-    for (const d of this.darts) { d.trail.hide(); for (const s of [d.body, d.glow, d.rune]) { s.visible = true; this.give(s); } }
-    this.darts = [];
-    if (this.clock) { for (const s of [this.clock.face, this.clock.glow, this.clock.long, this.clock.short]) { s.visible = true; this.give(s); } this.clock = null; this.clockOn = false; }
+    for (const q of this.troops) { q.s.visible = true; q.s.skew.set(0, 0); this.give(q.s); }
+    for (const q of this.shots) { q.s.visible = true; this.give(q.s); }
+    for (const q of this.banners) { q.s.visible = true; q.s.skew.set(0, 0); this.give(q.s); }
+    this.troops = []; this.shots = []; this.banners = []; this.troopAtIndex = [];
+    this.ownLive = false;
   }
 }
 
+/** A cheer: `n` little hops (px of lift at stage scale 1), then feet on the ground. */
+function hop(ms: number, n: number): number {
+  const each = 180;
+  if (ms < 0 || ms >= each * n) return 0;
+  return Math.abs(Math.sin((ms / each) * Math.PI)) * 12;
+}

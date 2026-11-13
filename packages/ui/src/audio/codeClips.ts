@@ -156,9 +156,16 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-ground-impact-352053',
   ],
   warhost: [
-    'fx/blue-impact-hit',
-    'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
+    'fx/cheering',
+    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-cinematic-swoosh-impact-454392',
+    'fx/universfield-ground-impact-352053',
+    'fx/warhost-charge',
+    'fx/warhost-drum',
+    'fx/warhost-gallop',
+    'fx/warhost-horn',
+    'fx/warhost-loose',
+    'fx/warhost-thunk',
   ],
   cards: [
     'fx/djartmusic-christmas-sparkle-whoosh-1-275404',

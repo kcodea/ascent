@@ -12,7 +12,7 @@
  *  - LIMB: a soft capsule (the hunter's ghost body between the lines).
  *  - VEIL: the night sky's vertical fade (lighter at the top, deepest at the bottom), tinted blue-black by the scene.
  *
- * The one piece of art it reads is the STRIKING HERO'S OWN PORTRAIT (IV: "this hero, in the stars"): the portrait
+ * The one piece of art it reads is the STRIKING HERO'S OWN PORTRAIT (Tier 4: "this hero, in the stars"): the portrait
  * image already on screen is copied once per image into a round, soft-edged texture and cached (`portraitStarTexture`).
  */
 import { CanvasSource, Texture } from 'pixi.js';
@@ -177,7 +177,7 @@ export function heroStarsTextures(): HeroStarsTextures | null {
 const portraits = new Map<string, Texture | null>();
 
 /**
- * The striking hero's portrait as a round, soft-edged texture (IV's ghost in the medallion), painted once per image
+ * The striking hero's portrait as a round, soft-edged texture (Tier 4's ghost in the medallion), painted once per image
  * and cached. Null when there is no image, it has not loaded, or the canvas cannot read it back (the medallion then
  * shows its star bust alone).
  */

@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
 /**
  * THE WRITTEN IN THE STARS HERO ATTACK (ANCIENT; dev-only, no cosmetic yet): the shared four tiers; the tuner values;
- * the pure plan (I the arrow, II the bow, III the hunter, IV the medallion and the comet) and its cue timing; the
- * constellations (every line starts from a star that is already lit; the figures stay on screen in both directions
- * and on any layout; the comet always ARRIVES moving down: a straight fall, or an arc over the whole sky); the draw of
- * the bow; IV's held breath (the swell, the hush) and aftermath (the flare, the scatter); the runner on the shared
- * clock (the blow lands exactly ONCE; both directions; replay; finish / cancel; every exit puts the portraits and the
- * camera back); the headless scene (the path and its tail, the nova, the jolt, the falling sparks).
+ * the pure plan (Tier 1 the arrow, Tier 2 the bow, Tier 3 the hunter, Tier 4 the medallion and the comet) and its cue
+ * timing; the constellations (every line starts from a star that is already lit; the figures stay on screen in both
+ * directions and on any layout; the comet always ARRIVES moving down: a straight fall, or an arc over the whole sky);
+ * the draw of the bow; Tier 4's held breath (the swell, the hush) and aftermath (the flare, the scatter); THE
+ * VARIATIONS (five launch places for Tiers 1 and 2, three Tier 3 figures, four Tier 4 finishers: rolled from the seed,
+ * each forceable, each keeping its tier's timeline, each on screen and landing on the struck hero; the riders, the
+ * wheel's lock, the nova's gather); the runner on the shared clock (the blow lands exactly ONCE; both directions; every
+ * variation; replay; finish / cancel; every exit puts the portraits and the camera back); the headless scene (the path
+ * and its tail, the nova, the jolt, the falling sparks).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,10 +18,10 @@ import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import {
-  HERO_STARS_CLIP_KEYS, HERO_STARS_DEFAULTS, HERO_STARS_RANGES, STARS_SLOTS, aliveAmount, clampHeroStarsValue, drawAmount, figureAmount, flareAmount,
-  heroStarsConfigJson, hushAmount, placeFigure, pluckPoint, shotAt, shotArrival, shotPoint, skyAmount, slotAt, starFigure, starLitAt, starsCameraAt,
-  starsCues, starsPlan, swellAmount,
-  type Box, type HeroStarsNumKey, type StarFigure, type StarsPlan,
+  HERO_STARS_CLIP_KEYS, HERO_STARS_DEFAULTS, HERO_STARS_RANGES, STARS_FIGURES3, STARS_FIGURES4, STARS_LAUNCHES, STARS_SLOTS, aliveAmount, clampHeroStarsValue,
+  drawAmount, figureAmount, flareAmount, gatherAmount, heroStarsConfigJson, hushAmount, launchCentre, placeFigure, pluckPoint, shotAt, shotArrival, shotPoint,
+  skyAmount, slotAt, spinAmount, starFigure, starLitAt, starsCameraAt, starsCues, starsPlan, starsVariant, swellAmount,
+  type Box, type HeroStarsConfig, type HeroStarsNumKey, type StarFigure, type StarsLaunch, type StarsPlan, type StarsVariant,
 } from './heroStarsConfig';
 import { HeroStarsScene, MAX_STARS_SPRITES, type HeroStarsTextures, type SkyFrame, type StarsLook } from './heroStarsScene';
 import { playHeroStars, starsSeed, type HeroStarsOptions } from './heroStars';
@@ -31,6 +34,8 @@ const TEX: HeroStarsTextures = {
   glint: W, dot: W, line: W, trail: W, arrow: W, limb: W, veil: W, halo: W,
 };
 const C = HERO_STARS_DEFAULTS;
+/** The defaults with every variation forced to its first option (the hunter, written in the stars, beside the striker). */
+const CW: HeroStarsConfig = { ...C, launch: '1', figure3: '1', figure4: '1' };
 const plan = (total: number, o: { knockout?: boolean; knockoutVariant?: boolean; reduced?: boolean } = {}): StarsPlan =>
   starsPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);
 const TOTALS = [3, 8, 14, 40] as const;
@@ -42,7 +47,7 @@ const fig = (total: number, a = YOU, d = FOE, bounds = SCREEN, r = R): StarFigur
   starFigure(plan(total), { attacker: a, defender: d, radius: r, attackerRadius: r, bounds }, C)!;
 
 describe('the tiers', () => {
-  it('uses the shared thresholds; a knockout plays IV (written in the stars)', () => {
+  it('uses the shared thresholds; a knockout plays Tier 4 (written in the stars)', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).tier, `dmg ${d}`).toBe(tierOf(d));
     expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'written', ko: false });
@@ -65,9 +70,23 @@ describe('the tuner values', () => {
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
     expect(JSON.parse(heroStarsConfigJson(C)).previewParts).toBeUndefined();
     expect(SPEC.buttonsOnTop).toBe(true);
-    const labels = SPEC.actions!.map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    // The four tier buttons in both directions (their labels belong to the shared tuner builder).
+    const labels = SPEC.actions!.map((a) => a.label).join(' | ');
+    for (const n of ['(3)', '(8)', '(12)', '(40)']) expect(labels).toContain(n);
+    expect(SPEC.actions!.filter((a) => a.label.includes('(40)')).length).toBeGreaterThanOrEqual(2);
+    // The three Variation rows sit right under the Attack style row, with Random first and one option per variation.
+    const rows = SPEC.controls.slice(1, 4);
+    expect(rows.map((c) => c.key)).toEqual(['launch', 'figure3', 'figure4']);
+    expect(rows.map((c) => (c.options ?? []).length)).toEqual([1 + STARS_LAUNCHES.length, 1 + STARS_FIGURES3.length, 1 + STARS_FIGURES4.length]);
+    for (const c of rows) expect(c.options![0]).toBe('');
+    expect(JSON.parse(heroStarsConfigJson(CW)).figure4).toBeUndefined(); // a DEV override never ships
     expect(DEV_HERO_ATTACK_CHOICES).toContain('stars');
+  });
+
+  it('labels the looks Tier 1 to Tier 4 (no roman numerals, no Small / Huge)', () => {
+    const text = SPEC.controls.map((c) => `${c.label} ${c.hint ?? ''}`).join(' ');
+    expect(text).not.toMatch(/\bTier (I|II|III|IV)\b|\b(I|II|III|IV):|\bHuge\b/);
+    expect(text).toContain('Tier 4');
   });
 
   it('every sound it names is a real clip; none is the rune explosion or the turn explosion', () => {
@@ -96,13 +115,13 @@ describe('the plan', () => {
       expect(p.endAt - p.impactAt, t).toBe(C[`t${p.tier}SettleMs`]);
       expect(slotAt(p, p.slots), t).toBe(p.tracedAt);
     }
-    // IV's fall is its own length; an arrow's flight follows the board.
+    // Tier 4's fall is its own length; an arrow's flight follows the board.
     expect(plan(40).impactAt - plan(40).looseAt).toBe(C.t4FlyMs);
     const near = starsPlan({ total: 3, distance: 600 }, C), far = starsPlan({ total: 3, distance: 1600 }, C);
     expect(near.impactAt - near.looseAt).toBeLessThan(far.impactAt - far.looseAt);
   });
 
-  it('the blow grows with the tier: the shake, the punch and the flash on the sky; only IV scatters its lines', () => {
+  it('the blow grows with the tier: the shake, the punch and the flash on the sky; only Tier 4 scatters its lines', () => {
     const ps = TOTALS.map((t) => plan(t));
     for (let i = 1; i < ps.length; i++) {
       expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
@@ -143,7 +162,7 @@ describe('the plan', () => {
     }
   });
 
-  it('pace: I to III stay short; IV takes its time, and the time is in the anticipation and the aftermath, not the trace', () => {
+  it('pace: Tiers 1 to 3 stay short; Tier 4 takes its time, and the time is in the anticipation and the aftermath, not the trace', () => {
     const len = (d: number): number => { const p = plan(d); return p.endAt - p.chargeAt; };
     expect(len(3)).toBeLessThan(1700);
     expect(len(8)).toBeLessThan(2200);
@@ -151,7 +170,7 @@ describe('the plan', () => {
     expect(len(3)).toBeLessThan(len(8));
     expect(len(8)).toBeLessThan(len(14));
     expect(len(14)).toBeLessThan(len(40));
-    // IV: longer than Soccer IV and Frost IV (3.3 s and 3.1 s after the formation), but not a cutscene.
+    // Tier 4: longer than Soccer Tier 4 and Frost Tier 4 (3.3 s and 3.1 s after the formation), but not a cutscene.
     const p = plan(40);
     expect(len(40)).toBeGreaterThan(4200);
     expect(len(40)).toBeLessThan(5200);
@@ -187,7 +206,7 @@ const LAYOUTS: { name: string; a: { x: number; y: number }; d: { x: number; y: n
 ];
 
 describe('the constellations', () => {
-  it('I: three stars in a row aimed at the struck hero, and two barbs; II: eight stars; III: sixteen; IV: a ring of twelve, a crown, a bust, an arm and the star', () => {
+  it('Tier 1: three stars in a row aimed at the struck hero, and two barbs; Tier 2: eight stars; Tier 3: sixteen; Tier 4: a ring of twelve, a crown, a bust, an arm and the star', () => {
     const a = fig(3);
     expect(a.stars).toHaveLength(5);
     const [tail, mid, head] = a.stars as [typeof a.stars[0], typeof a.stars[0], typeof a.stars[0]];
@@ -257,7 +276,7 @@ describe('the constellations', () => {
     }
   });
 
-  it('III: the hunter stands upright in a braced stance and faces the struck hero', () => {
+  it('Tier 3: the hunter stands upright in a braced stance and faces the struck hero', () => {
     for (const [a, d] of [[YOU, FOE], [FOE, YOU]] as const) {
       const f = fig(14, a, d);
       expect(f.facing).toBe(d.x >= f.centre.x ? 1 : -1);
@@ -271,7 +290,7 @@ describe('the constellations', () => {
     }
   });
 
-  it('IV: the comet comes DOWN onto the struck hero: a straight fall down the sky when there is sky above, else an arc over the whole sky from the far side', () => {
+  it('Tier 4: the comet comes DOWN onto the struck hero: a straight fall down the sky when there is sky above, else an arc over the whole sky from the far side', () => {
     // The foe strikes you (you are low on the screen): straight down, as far as the dial or the sky allows.
     const down = fig(40, FOE, YOU);
     expect(down.arc).toBe(false);
@@ -325,6 +344,106 @@ describe('the constellations', () => {
   });
 });
 
+const vplan = (total: number, v: Partial<StarsVariant> = {}): StarsPlan =>
+  starsPlan({ total, distance: 1600, leadIn: leadInOf([total]), variant: { launch: 'striker', fig3: 'hunter', fig4: 'written', ...v } }, C);
+const VARIANT_CASES: { total: number; v: Partial<StarsVariant> }[] = [
+  ...STARS_LAUNCHES.flatMap((launch) => [{ total: 3, v: { launch } }, { total: 8, v: { launch } }]),
+  ...STARS_FIGURES3.map((fig3) => ({ total: 14, v: { fig3 } })),
+  ...STARS_FIGURES4.map((fig4) => ({ total: 40, v: { fig4 } })),
+];
+
+describe('the variations', () => {
+  it('rolled from the stable seed: the same seed rolls the same, every option turns up, and the tuner forces each one', () => {
+    const seen = { launch: new Set<string>(), fig3: new Set<string>(), fig4: new Set<string>() };
+    for (let s = 0; s < 300; s++) {
+      const v = starsVariant(s, C);
+      expect(starsVariant(s, C)).toEqual(v);
+      seen.launch.add(v.launch); seen.fig3.add(v.fig3); seen.fig4.add(v.fig4);
+    }
+    expect(seen.launch.size).toBe(STARS_LAUNCHES.length);
+    expect(seen.fig3.size).toBe(STARS_FIGURES3.length);
+    expect(seen.fig4.size).toBe(STARS_FIGURES4.length);
+    STARS_LAUNCHES.forEach((x, i) => { for (const s of [1, 77, 901]) expect(starsVariant(s, { ...C, launch: String(i + 1) }).launch).toBe(x); });
+    STARS_FIGURES3.forEach((x, i) => { for (const s of [1, 77, 901]) expect(starsVariant(s, { ...C, figure3: String(i + 1) }).fig3).toBe(x); });
+    STARS_FIGURES4.forEach((x, i) => { for (const s of [1, 77, 901]) expect(starsVariant(s, { ...C, figure4: String(i + 1) }).fig4).toBe(x); });
+    // A nonsense override rolls instead.
+    expect(starsVariant(5, { ...C, figure4: '9' })).toEqual(starsVariant(5, C));
+    // The tier picks which choice matters.
+    expect(vplan(14, { fig3: 'wolf', fig4: 'nova' }).kind).toBe('wolf');
+    expect(vplan(40, { fig3: 'wolf', fig4: 'nova' }).kind).toBe('nova');
+    expect(vplan(3, { fig3: 'wolf', fig4: 'nova', launch: 'open' })).toMatchObject({ kind: 'arrow', launch: 'open' });
+  });
+
+  it('each variation keeps its tier\'s timeline (the trace, the alive, the draw, the hold); only the flight and the aftermath differ', () => {
+    for (const { total, v } of VARIANT_CASES) {
+      const p = vplan(total, v), base = plan(total);
+      const t = `${p.kind} ${p.launch}`;
+      expect(p.slots, t).toBe(base.slots);
+      expect(p.looseAt, t).toBe(base.looseAt);
+      expect(p.impactAt, t).toBeGreaterThan(p.looseAt + 60);
+      expect(p.endAt - p.impactAt, t).toBe(base.endAt - base.impactAt);
+      const cues = starsCues(p, null);
+      expect(cues.filter((q) => q.kind === 'impact'), t).toHaveLength(1);
+      expect(cues.filter((q) => q.kind === 'lock').map((q) => q.at), t).toEqual(p.kind === 'wheel' ? [p.lockAt] : []);
+      if (p.tier === 4) {
+        expect(p.endAt - p.chargeAt, t).toBeGreaterThan(4200);
+        expect(p.endAt - p.chargeAt, t).toBeLessThan(5200);
+        expect(p.scatterAt, t).toBe(p.impactAt + C.scatterMs);
+      } else if (p.kind === 'wolf' || p.kind === 'serpent') expect(p.scatterAt, t).toBe(p.impactAt + 90);
+      else expect(p.scatterAt, t).toBe(Infinity);
+    }
+    // The wolf's leap takes longer than the hunter's arrow; the serpent's strike is quicker; the beam is quickest.
+    const fly = (p: StarsPlan): number => p.impactAt - p.looseAt;
+    expect(fly(vplan(14, { fig3: 'wolf' }))).toBeGreaterThan(fly(plan(14)));
+    expect(fly(vplan(14, { fig3: 'serpent' }))).toBeLessThan(fly(plan(14)));
+    expect(fly(vplan(40, { fig4: 'wheel' }))).toBeLessThan(fly(vplan(40, { fig4: 'nova' })));
+  });
+
+  it('every variation\'s figure: lines start from lit stars, it fills its slots, it stays on screen at rest, at full draw and turned, on every layout, and the shot lands on the struck portrait', () => {
+    for (const lay of LAYOUTS) for (const { total, v } of VARIANT_CASES) {
+      const p = vplan(total, v);
+      const f = starFigure(p, { attacker: lay.a, defender: lay.d, radius: lay.r, attackerRadius: lay.r, bounds: lay.bounds, launch: p.launch }, C)!;
+      const b = lay.bounds;
+      const t = `${lay.name} ${f.kind} ${p.launch}`;
+      expect(f.kind, t).toBe(p.kind);
+      for (const st of f.stars) expect(Number.isFinite(st.slot), t).toBe(true);
+      for (const e of f.edges) {
+        expect(f.stars[e.a]!.slot, t).toBeLessThanOrEqual(e.slot);
+        expect(f.stars[e.b]!.slot, t).toBeLessThanOrEqual(e.slot + 1);
+      }
+      expect(Math.max(...f.edges.map((e) => e.slot)) + 1, t).toBe(STARS_SLOTS[f.kind]);
+      expect(Math.min(...f.stars.map((st) => st.slot)), t).toBe(0);
+      f.stars.forEach((st, i) => { if (!st.pluck || f.kind !== 'written') expect(f.edges.some((e) => e.a === i || e.b === i), `${t} star ${i}`).toBe(true); });
+      const on = (x: number, y: number, what: string): void => {
+        expect(x, `${t} ${what}`).toBeGreaterThanOrEqual(b.x - 0.5); expect(x, `${t} ${what}`).toBeLessThanOrEqual(b.x + b.w + 0.5);
+        expect(y, `${t} ${what}`).toBeGreaterThanOrEqual(b.y - 0.5); expect(y, `${t} ${what}`).toBeLessThanOrEqual(b.y + b.h + 0.5);
+      };
+      for (const st of f.stars) for (const w of [0, 1]) on(st.x + st.px * w, st.y + st.py * w, `w${w}`);
+      if (f.pivot) for (const st of f.stars) if (st.spin) for (const a of [0.3, 0.7, 1]) {
+        const ang = f.spinTurns * a, dx = st.x - f.pivot.x, dy = st.y - f.pivot.y;
+        on(f.pivot.x + dx * Math.cos(ang) - dy * Math.sin(ang), f.pivot.y + dx * Math.sin(ang) + dy * Math.cos(ang), `turned ${a}`);
+      }
+      on(f.shotFrom.x, f.shotFrom.y, 'from'); on(f.centre.x, f.centre.y, 'centre');
+      expect(Math.hypot(f.shotTo.x - lay.d.x, f.shotTo.y - lay.d.y), t).toBeLessThan(lay.r * 0.5);
+      expect(shotPoint(f, 1).x, t).toBeCloseTo(f.shotTo.x, 6);
+      // The riders' path stays near the sky (a hop never dives below the straight line, the top is clamped).
+      for (let u = 0; u <= 1.0001; u += 0.05) { const q = shotPoint(f, Math.min(1, u)); expect(q.y, t).toBeGreaterThanOrEqual(b.y - b.h * 0.05); }
+    }
+  });
+
+  it('Tiers 1 and 2 trace in five different places, and on the real layout none covers either portrait', () => {
+    for (const [a, d] of [[YOU, FOE], [FOE, YOU]] as const) {
+      const i = { attacker: a, defender: d, radius: R, attackerRadius: R, bounds: SCREEN };
+      const cs = STARS_LAUNCHES.map((l) => launchCentre(l, i, 180, 180));
+      for (let x = 0; x < cs.length; x++) for (let y = x + 1; y < cs.length; y++) expect(Math.hypot(cs[x]!.x - cs[y]!.x, cs[x]!.y - cs[y]!.y), `${STARS_LAUNCHES[x]} vs ${STARS_LAUNCHES[y]}`).toBeGreaterThan(R * 2.5);
+      for (const total of [3, 8]) for (const launch of STARS_LAUNCHES as readonly StarsLaunch[]) {
+        const f = starFigure(vplan(total, { launch }), { ...i, launch }, C)!;
+        for (const st of f.stars) for (const h of [a, d]) expect(Math.hypot(st.x - h.x, st.y - h.y), `${total} ${launch}`).toBeGreaterThan(R * 0.9);
+      }
+    }
+  });
+});
+
 describe('the motion', () => {
   it('the bow draws back smoothly, holds, and snaps forward on the loose', () => {
     const p = plan(8);
@@ -353,7 +472,7 @@ describe('the motion', () => {
     }
   });
 
-  it('IV holds its breath: the star swells through the hold and is gone with the loose; the sky stays hushed until the blow', () => {
+  it('Tier 4 holds its breath: the star swells through the hold and is gone with the loose; the sky stays hushed until the blow', () => {
     const p = plan(40);
     expect(swellAmount(p, p.holdAt - 1)).toBe(0);
     let prev = 0;
@@ -368,7 +487,7 @@ describe('the motion', () => {
     for (const total of [3, 8, 14]) { const q = plan(total); for (let t = q.chargeAt; t < q.endAt; t += 20) { expect(swellAmount(q, t)).toBe(0); expect(hushAmount(q, t)).toBe(0); } }
   });
 
-  it('after the blow the lines flare; IV then lets go of its figure (the scatter), the others keep theirs', () => {
+  it('after the blow the lines flare; Tier 4 then lets go of its figure (the scatter), the others keep theirs', () => {
     for (const total of TOTALS) {
       const p = plan(total);
       expect(flareAmount(p, p.impactAt - 1)).toBe(0);
@@ -391,7 +510,7 @@ describe('the motion', () => {
       }
       expect(peak).toBeLessThan(1.15);
       expect(starsCameraAt(p, C, p.endAt + 2000).zoom).toBeCloseTo(1, 3);
-      // The hit: the view is thrown along the shot's line on the blow, and IV keeps creeping in while the star swells.
+      // The hit: the view is thrown along the shot's line on the blow, and Tier 4 keeps creeping in while the star swells.
       expect(Math.hypot(starsCameraAt(p, C, p.impactAt).x, starsCameraAt(p, C, p.impactAt).y)).toBeGreaterThan(p.shakePx * 0.9);
     }
     const iv = plan(40);
@@ -423,7 +542,7 @@ function run(over: Partial<HeroStarsOptions> = {}) {
   document.body.append(host, camera);
   const h = playHeroStars({
     formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: YOU, defender: FOE, defenderRadius: R, attackerRadius: R,
-    reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
+    reduced: false, cfg: CW, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl, ...over,
   });
   return { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl };
@@ -445,7 +564,7 @@ function expectRestored(r: ReturnType<typeof run>): void {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('II: the stars light one by one, the bow draws (the string star pulls back), the arrow flies and the blow lands once; everything is put back', () => {
+  it('Tier 2: the stars light one by one, the bow draws (the string star pulls back), the arrow flies and the blow lands once; everything is put back', () => {
     const r = run({ total: 8, formation: formationOf([8], 8) });
     const { h, f, root, onImpact, onDone, host } = r;
     const p = h.plan, g = h.figure!;
@@ -483,7 +602,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('IV: the medallion is traced, the star is plucked and swells, the comet arcs over the sky, the blow lands once on it; the tail hangs, the lines scatter', () => {
+  it('Tier 4: the medallion is traced, the star is plucked and swells, the comet arcs over the sky, the blow lands once on it; the tail hangs, the lines scatter', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, f, onImpact, defenderEl } = r;
     const p = h.plan, g = h.figure!;
@@ -590,6 +709,105 @@ describe('the runner (the shared clock)', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('every variation in both directions: one blow, within the sprite cap, everything put back', () => {
+    const cases: [number, Partial<HeroStarsConfig>][] = [
+      ...STARS_LAUNCHES.map((_, i) => [3, { launch: String(i + 1) }] as [number, Partial<HeroStarsConfig>]),
+      ...STARS_LAUNCHES.map((_, i) => [8, { launch: String(i + 1) }] as [number, Partial<HeroStarsConfig>]),
+      ...STARS_FIGURES3.map((_, i) => [14, { figure3: String(i + 1) }] as [number, Partial<HeroStarsConfig>]),
+      ...STARS_FIGURES4.map((_, i) => [40, { figure4: String(i + 1) }] as [number, Partial<HeroStarsConfig>]),
+    ];
+    for (const side of ['player', 'opp'] as const) for (const [total, over] of cases) {
+      const r = run({ side, attacker: side === 'player' ? YOU : FOE, defender: side === 'player' ? FOE : YOU, total, formation: formationOf([total], total), cfg: { ...CW, ...over } });
+      const { h, f, onImpact } = r;
+      const t = `${side} ${total} ${h.plan.kind} ${h.plan.launch}`;
+      let peak = 0;
+      for (let ms = 0; ms < h.plan.endAt + 600; ms += 16) { f.tick(16, 16); peak = Math.max(peak, h.scene!.liveSprites); }
+      expect(onImpact, t).toHaveBeenCalledTimes(1);
+      expect(peak, t).toBeLessThanOrEqual(MAX_STARS_SPRITES);
+      expect(h.done, t).toBe(true);
+      expectRestored(r);
+      f.tick(2500, 16);
+      expect(f.hooked(), t).toBe(0);
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('the riders: the wolf lands whole on the struck hero, the serpent strikes with its tail anchored, the giant brings its fist down', () => {
+    const at = (figure3: string, figure4: string, total: number) => {
+      const r = run({ total, formation: formationOf([total], total), cfg: { ...CW, figure3, figure4 } });
+      return r;
+    };
+    // The wolf: before the leap every star is home; on landing its nose is on the struck hero and its whole body came with it.
+    const w = at('2', '1', 14);
+    const wf = w.h.figure!;
+    expect(wf.kind).toBe('wolf');
+    w.f.tick(w.h.plan.holdAt + 10, 4);
+    const tail0 = w.h.scene!.starPos(10);
+    w.f.tick(w.h.plan.impactAt - w.h.elapsed() + 2, 2);
+    const nose = w.h.scene!.starPos(0);
+    expect(Math.hypot(nose.x - wf.shotTo.x, nose.y - wf.shotTo.y)).toBeLessThan(R * 0.3);
+    const tail1 = w.h.scene!.starPos(10);
+    expect(Math.hypot(tail1.x - tail0.x, tail1.y - tail0.y)).toBeGreaterThan(400); // the tail flew too
+    w.h.cancel(); document.body.innerHTML = '';
+    // The serpent: the head lands, the tail tip never moves.
+    const sp = at('3', '1', 14);
+    const sf = sp.h.figure!;
+    expect(sf.kind).toBe('serpent');
+    sp.f.tick(sp.h.plan.drawAt - 20, 4);
+    const tip0 = sp.h.scene!.starPos(0);
+    sp.f.tick(sp.h.plan.impactAt - sp.h.elapsed() + 2, 2);
+    const head = sp.h.scene!.starPos(10), tip1 = sp.h.scene!.starPos(0);
+    expect(Math.hypot(head.x - sf.shotTo.x, head.y - sf.shotTo.y)).toBeLessThan(R * 0.3);
+    expect(Math.hypot(tip1.x - tip0.x, tip1.y - tip0.y)).toBeLessThan(R * 0.1);
+    sp.h.cancel(); document.body.innerHTML = '';
+    // The giant: the fist goes up over the head in the draw, then comes down on the struck hero.
+    const g = at('1', '3', 40);
+    const gf = g.h.figure!;
+    expect(gf.kind).toBe('giant');
+    const fist = gf.charge;
+    g.f.tick(g.h.plan.drawAt - 20, 4);
+    const low = g.h.scene!.starPos(fist);
+    g.f.tick(g.h.plan.looseAt - g.h.elapsed() - 10, 4);
+    const high = g.h.scene!.starPos(fist);
+    expect(high.y).toBeLessThan(low.y - 300);
+    expect(high.y).toBeLessThan(g.h.scene!.starPos(gf.head).y + gf.unit * 0.05); // up by the crown
+    g.f.tick(g.h.plan.impactAt - g.h.elapsed() + 2, 2);
+    const down = g.h.scene!.starPos(fist);
+    expect(Math.hypot(down.x - gf.shotTo.x, down.y - gf.shotTo.y)).toBeLessThan(R * 0.3);
+    expect(shotArrival(gf).y).toBeGreaterThan(0); // it comes DOWN onto the foe
+    g.h.cancel();
+  });
+
+  it('the wheel turns, slows and locks with its marker in the pointer\'s mouth before it fires; the nova draws the sky into one point', () => {
+    const r = run({ total: 40, formation: formationOf([40], 40), cfg: { ...CW, figure4: '2' } });
+    const { h, f } = r;
+    const g = h.figure!, p = h.plan;
+    expect(g.kind).toBe('wheel');
+    expect(p.lockAt).toBeGreaterThan(p.holdAt);
+    expect(p.lockAt).toBeLessThan(p.looseAt - 200);
+    expect(spinAmount(p, p.drawAt)).toBe(0);
+    let prev = 0, maxStep = 0;
+    for (let t = p.drawAt; t <= p.lockAt; t += 8) { const a = spinAmount(p, t); expect(a).toBeGreaterThanOrEqual(prev - 1e-9); maxStep = Math.max(maxStep, a - prev); prev = a; }
+    expect(prev).toBe(1);
+    expect(spinAmount(p, p.lockAt - 30)).toBeGreaterThan(0.97); // it coasts into the lock
+    expect(Math.abs(g.spinTurns)).toBeGreaterThan(Math.PI * 2); // more than a full turn
+    f.tick(p.drawAt + (p.lockAt - p.drawAt) / 2, 4);
+    const mid = h.scene!.starPos(g.pluck);
+    expect(Math.hypot(mid.x - g.shotFrom.x, mid.y - g.shotFrom.y)).toBeGreaterThan(g.unit * 0.3); // still turning
+    f.tick(p.lockAt - h.elapsed() + 20, 4);
+    const locked = h.scene!.starPos(g.pluck);
+    expect(Math.hypot(locked.x - g.shotFrom.x, locked.y - g.shotFrom.y)).toBeLessThan(2);
+    h.cancel(); document.body.innerHTML = '';
+    // The nova: the sky comes in over the draw and the hold, all of it by the loose; the sigil closes on its heart.
+    const n = starsPlan({ total: 40, distance: 1600, leadIn: leadInOf([40]), variant: { launch: 'striker', fig3: 'hunter', fig4: 'nova' } }, C);
+    expect(gatherAmount(n, n.drawAt)).toBe(0);
+    expect(gatherAmount(n, (n.drawAt + n.looseAt) / 2)).toBeGreaterThan(0.3);
+    expect(gatherAmount(n, n.looseAt)).toBe(1);
+    const nf = starFigure(n, { attacker: YOU, defender: FOE, radius: R, attackerRadius: R, bounds: SCREEN }, C)!;
+    for (const st of nf.stars) if (!st.pluck) expect(Math.hypot(st.x + st.px - nf.shotFrom.x, st.y + st.py - nf.shotFrom.y)).toBeLessThan(1e-6);
+    for (const q of [n, plan(40)]) expect(gatherAmount(q === n ? plan(14) : q, q.looseAt)).toBe(0);
+  });
+
   it('a replay plays the same; reduced motion lands once with no scene', () => {
     const x = run({ total: 40, formation: formationOf([40], 40), rollSeed: 5 });
     const y = run({ total: 40, formation: formationOf([40], 40), rollSeed: 5 });
@@ -611,17 +829,18 @@ describe('the scene (headless Pixi)', () => {
   const frame = (p: StarsPlan, t: number): SkyFrame => ({
     t, sky: skyAmount(p, t), veil: p.veil, draw: drawAmount(p, t), alive: aliveAmount(p, t), ghost: 1, arrow: t < p.looseAt ? 1 : 0, pluck: 1,
     swell: swellAmount(p, t), hush: hushAmount(p, t), flare: flareAmount(p, t), fig: figureAmount(p, t),
+    spin: 0, ride: shotAt(p, t).u, loosed: t >= p.looseAt, gather: gatherAmount(p, t),
     shimmerAt: t >= p.impactAt ? p.impactAt : Infinity, shimmerX: FOE.x, shimmerY: FOE.y,
   });
 
-  it('the same seed scatters the same sky; pools, stays under the cap through IV, its nova and its falling sparks, drains, and destroy leaves nothing', () => {
+  it('the same seed scatters the same sky; pools, stays under the cap through Tier 4, its nova and its falling sparks, drains, and destroy leaves nothing', () => {
     const p = plan(40, { knockout: true, knockoutVariant: true });
     const f = fig(40);
     const make = (seed: number): HeroStarsScene => {
       const s = new HeroStarsScene(TEX, colors, look, 1, seed);
       s.setSky(SCREEN, p.skyStars);
       s.setFigure(f, f.stars.map((st) => slotAt(p, st.slot)), f.edges.map((e) => slotAt(p, e.slot)), p.stepMs);
-      s.setPath(f.shotFrom, f.shotCtrl, f.shotTo, true, 280, 44);
+      s.setPath(f.shotFrom, f.shotCtrl, f.shotTo, 'comet', 280, 44);
       s.setPortrait(W);
       return s;
     };

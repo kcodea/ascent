@@ -233,3 +233,117 @@ between the last tick and the pluck, and the comet's first 300 ms at about -36 d
   Knockout button still shows the prismatic remix.
 - The arc's peak passes through the medallion's crown. It reads as crossing behind it; it was not staged to avoid it.
 - Not looked at in the Collection preview box or on a phone.
+
+---
+
+# Third pass (2026-11-13): variations, launch places, and tiers named Tier 1 to Tier 4
+
+Owner's note, verbatim: "Written in the Stars - this one is good, but add a few different t3 options so it's
+different sometimes, and make 3 or 4 of the t4 options as well so this one has some unique attacks. make the t1 and t2
+shoot from different locations." The look (night sky, lines drawn star to star, cold starlight, no props) is kept;
+everything above still describes the hunter, written in the stars and the shared machinery. Store key bumped to
+`ascent.herostars.v4`. The looks are now called Tier 1 to Tier 4 everywhere in this attack's files.
+
+## The variations
+
+Rolled per blow from the stable `rollSeed` (`starsVariant`: three independent hashes of the seed, one per choice), so a
+replay plays the same one; without a `rollSeed` the blow's own seed is used. The tuner has three **Variation** rows
+under the Attack style row (Random, or force one): `launch` (Tiers 1 and 2), `figure3`, `figure4`. They are preview
+keys, so Copy JSON never ships them. Every variation keeps its tier's timeline (the same slots, trace, alive, draw and
+hold); only the flight and the aftermath differ.
+
+- **Tiers 1 and 2: five launch places** (`launchCentre`): beside the striker (as before), high above the board,
+  from beneath the board, right under the struck hero (over it when it sits at the bottom), and "the most open sky":
+  of a 7 x 5 grid of places that cover neither portrait, the one farthest from the other four (often a corner), so the
+  five always read as five different places. Each has its own sound accents (`LAUNCH_SOUND`): the snap's pitch, how
+  long the arrow's pass of air lasts, and from high above a falling whistle under the shot.
+- **Tier 3: three figures.**
+  - The hunter (as before).
+  - **The wolf**: seventeen stars, a running wolf facing the struck hero. It howls as it comes alive, crouches (the
+    body sinks and draws back, the paws stay planted), and LEAPS: every star rides the shot along a hop as high as the
+    sky allows, the body tipping with the curve, and it lands nose first on the struck hero and bursts into stardust.
+  - **The serpent**: thirteen stars, an S of a body under a wedge of a head and a forked tongue. It hisses and coils
+    back, then STRIKES: the head rides the shot and the body stretches after it in proportion, the tail anchored, a
+    long line of stars across the sky; it bursts into stardust where it bit.
+- **Tier 4: four finishers.**
+  - Written in the stars (as before).
+  - **The wheel**: a great wheel over the board (a rim of twelve, a hub, six spokes, six sign marks, a bright marker on
+    a tooth) and a fixed pointer of three stars aimed at the struck hero. It turns one and a quarter turns, slowing like
+    a heavy wheel with a ratchet tick per spoke, and LOCKS with the marker in the pointer's mouth (a clunk); the marker
+    charges through the held breath and fires a BEAM (a white core over a wide glow, sparks running down it).
+  - **The giant**: an Orion-shaped giant as tall as the sky, traced from its feet up (so it rises) to a belt of three
+    stars, broad shoulders, a small head, a shield arc on its far arm, a sword under the belt and a fist of three stars,
+    a ghost body filling in along its limbs. It raises its fist by its head (the fist charges), then brings it down on
+    the struck hero, the arm reaching after it. When the struck hero sits on the top edge the fist comes over the top of
+    the sky at a shallow angle (there is no sky above it to come down through).
+  - **The nova**: a sigil is traced over the struck hero (a ring of eight, an eight-point star, four rays into its
+    heart). The sigil closes into its heart and EVERY star of the sky streams into it (nearest first, stretched along
+    their way); the heart swells, drops the last short way and explodes: the usual Tier 4 blow plus the swallowed sky
+    thrown back out to every edge, a white bloom and two slow rings.
+
+## How
+
+- Pure, in `heroStarsConfig.ts`: `StarsKind` grew to nine kinds; the plan takes the variant (`STARS_KIND_FLY` scales the
+  flight per kind; the wolf and serpent scatter 90 ms after the blow; the wheel has a `lockAt` cue). Stars gained
+  `ride` (0..1: how much of the shot's path a star follows; after the loose a rider stays at full draw) and `spin`
+  (turns about the wheel's pivot); figures gained `charge` (the star that swells through Tier 4's held breath, which
+  is no longer always the plucked one), `pivot` and `spinTurns`, `tilt` (the wolf) and `gather` (the nova), and `lead`
+  (the shot's head: arrow, comet or spark). `hop` computes a control point whose curve tops out exactly at a given
+  height, so the riders never leave the top of the screen. `spinAmount` and `gatherAmount` are new pure amounts.
+- In the scene the per-star placement adds the wheel's turn, the riders' offset along the path (and the wolf's tip),
+  and the nova's gather on the sky's stars. New one-shot effects: `beam` and `novaBurst`. Nothing new runs per frame
+  beyond a few multiplies per star; no new textures.
+
+## Sound
+
+Six ElevenLabs calls (budget eight), six clips kept, 8.4 s in all; each trimmed, faded, mono 44.1 kHz 128 kb/s and
+levelled to about -20 LUFS with the peak at or under -4.6 dB:
+
+| clip | what | length | used |
+| --- | --- | --- | --- |
+| `fx/stars-howl` | a distant ghostly wolf howl | 1.75 s | the wolf comes alive |
+| `fx/stars-hiss` | a big snake's hiss | 1.10 s | the serpent coils; its end again on the strike |
+| `fx/stars-grind` | a heavy stone wheel grinding, slowing | 1.30 s | the wheel turns (cut to end at the lock) |
+| `fx/stars-beam` | a bright crystalline beam with a humming body | 1.20 s | the wheel fires |
+| `fx/stars-rumble` | a deep rumble swelling as something huge rises | 1.90 s | the giant rises under its trace |
+| `fx/stars-implode` | a shimmering whoosh pulled inward, ending dead (baked reversed) | 1.15 s | the nova gathers the sky (ends on the drop) |
+
+Reused for the new beats: the tick (the wheel's ratchet, the lock, the crouch, the fist going up), the rise (the
+crouch, the fist, the gather), the boom (the lock's clunk; the giant and the nova land a little heavier), the thrum (the
+wolf's spring, the giant's swing, the nova's drop), the slowed whoosh (the leap, the fist) and the falling whistle (the
+nova's drop, and the arrow from high above).
+
+Levels, measured not heard (each look played with sound in headless Chrome, the output tapped, "own" = after the damage
+formation): Tier 4 written -30.8 dB mean (impact window -24.2), wheel -31.1 (-25.3), giant -29.0 (-23.0), nova -30.5
+(-23.3); Tier 3 hunter -31.8, wolf -31.4, serpent -33.3 (the hiss and the beam were raised a little after this, not
+re-measured); Tier 1 from high above -33.2. The second pass matched written to Frost IV at -30.9.
+
+## Verified in this pass
+
+- `npx vitest run packages/ui/src/heroStars packages/ui/src/heroAttack packages/ui/src/audio`: `heroStars.test.ts` is
+  now 39 tests (new: the roll is stable and every option turns up and is forceable; each variation keeps its tier's
+  timeline; every variation's figure on every layout lights before it draws, fills its slots, stays on screen at rest,
+  at full draw and turned, and lands on the struck portrait; the five launch places are distinct and cover neither
+  portrait on the real layout; the riders land (the wolf whole, the serpent with its tail anchored, the giant's fist
+  coming down); the wheel locks with the marker in the pointer before it fires; the nova gathers; every variation in
+  both directions lands once, stays under the sprite cap and puts everything back). The tier-button assertion only
+  checks the "(3)" to "(40)" parts, so it holds whichever labels the shared builder uses.
+- One shared failure, NOT from this attack: `phoneAudioQuality.test.ts` "a busy game's working set fits the phone
+  LRU" fails on the merged batch branch. It counts the two largest attack styles; those are warhost (24.4 s) and
+  wrestle (18.1 s). Stars is third at 17.9 s, so its clips do not enter the sum (but it would if either shrank).
+- `npm run typecheck` clean; `npm run lint` 0 errors, no warnings in this attack's files.
+- Contact sheets read for every variation: the five launch places at Tier 1 (you striking) and Tier 2 (the foe
+  striking), the wolf and the serpent in both directions, and the wheel, the giant, the nova and written in the stars
+  in both directions. Nothing left on screen, no portrait left moved.
+- Perf, DEV build, headless Chrome with a screencast running: median 4.2 ms on every look, p99 12.5 to 16.7 ms on the
+  Tier 4 variants (worst frames 41 to 54 ms, at the shared start and teardown as in the earlier passes). Not measured on
+  a production build.
+
+## Still weak or not done
+
+- Nobody has heard the new sounds; placed and levelled by measurement only.
+- When you strike, the struck portrait sits on the top edge, so the giant's fist comes over the top of the sky at a
+  shallow angle (a reach more than a hammer blow); it comes straight down when the foe strikes you.
+- The nova's blow washes the whole sky white for a frame or two (the sky flash plus its bloom); deliberate, but heavy.
+- The wolf's tail tip can brush the screen edge under the camera's push when it is traced in a corner.
+- The variations are not in `KNOCKOUT_VARIANT_STYLES` either; a knockout plays whichever Tier 4 finisher rolls.

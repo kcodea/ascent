@@ -106,17 +106,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-position-01",
-    "title": "Wording: left-most vs leftmost · 77 vs 1",
+    "title": "Wording: left-most vs leftmost · 79 vs 1",
     "statement": "Positional words are hyphenated: \"left-most\" / \"right-most\", never \"leftmost\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"left-most\" in 77 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"left-most\" in 79 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
     "cardText": "\"left-most\" — Echohorn: \"Rally: trigger your left-most Echo.\" · \"leftmost\" — Grave Body: \"Copy your leftmost Echo when summoned.\"",
     "example": "Grave Body would be re-worded to the \"left-most\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 77 vs 1)"
+        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 79 vs 1)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -132,17 +132,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 156 vs 40",
+    "title": "Wording: Shout vs Battlecry · 157 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 156 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 157 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 156 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 157 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -226,17 +226,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 107 vs 2",
+    "title": "Wording: trigger vs fire/proc · 111 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 107 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 111 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 107 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 111 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

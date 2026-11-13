@@ -2909,6 +2909,8 @@ export interface QuestCombatMods {
   /** Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout
    *  fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held. */
   eldersVoiceUid?: string;
+  /** Elder's Voice is held (gates `eldersVoiceUid`; per-copy count rides `flagCopies`). */
+  runeEldersVoice?: boolean;
   /** Gem Rain: Start of Combat, 2 PERMANENT Rubies on every living friendly minion (per copy). */
   runeGemRain?: boolean;
 }

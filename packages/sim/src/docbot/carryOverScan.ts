@@ -249,4 +249,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   clearVoicesIds: { kind: 'no-combat-meaning', why: "Clear Voices' distinct Whispers cast FROM HAND this turn; only the Shop casts from hand" },
   clearVoicesPaid: { kind: 'no-combat-meaning', why: "Clear Voices' once-per-turn Gold latch; a Shop payout" },
   openTreasuryUsed: { kind: 'no-combat-meaning', why: "Open Treasury's first-spell-bought latch; buying is a Shop action" },
+  // Set 2 Epic tribal runes (2026-11-12)
+  eldersVoiceUid: { kind: 'needs-staging', why: "Elder's Voice: threaded as questMods.eldersVoiceUid only while the rune is held (questCombatMods); the fixture holds no Elder's Voice. Combat half pinned in set2EpicTribalRunes1112.test.ts" },
+  eldersVoiceSeen: { kind: 'no-combat-meaning', why: "Elder's Voice: the Shop's 'first Shout seen this turn' latch; combat reads only the recorded uid" },
 };

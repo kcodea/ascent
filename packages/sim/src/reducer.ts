@@ -8829,6 +8829,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeBloodFrenzy: f?.runeBloodFrenzy,             // a Beast's kill fires the left-most Rally
     runeHellfire: f?.runeHellfire,                   // a Demon's attack or death: 1 damage to all enemies
     runeWildfire: f?.runeWildfire,                   // an enemy's non-attack damage death: 3 damage to all enemies (3 per combat)
+    runeEldersVoice: f?.runeEldersVoice,             // Elder's Voice held (its per-turn body rides eldersVoiceUid)
     eldersVoiceUid: f?.runeEldersVoice ? s.eldersVoiceUid : undefined, // the turn's first Shout fires again at SoC
     runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
   };

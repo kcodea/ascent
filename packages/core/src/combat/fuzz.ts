@@ -44,7 +44,7 @@ const BOOL_FLAGS = (
   + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
   + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
   + 'runeGoleming runeRedStart runeRoseysGarden ' // Set 3 Kobold runes (2026-10-22)
-  + 'runeFeralReturn runePackTactics runeBloodFrenzy runeHellfire runeWildfire runeGemRain' // Set 2 Epic tribal runes (2026-11-12)
+  + 'runeFeralReturn runePackTactics runeBloodFrenzy runeHellfire runeWildfire runeGemRain runeEldersVoice' // Set 2 Epic tribal runes (2026-11-12)
 ).split(' ');
 
 /** Every non-boolean combat mod, with a value of its real shape (labels are display-only). */

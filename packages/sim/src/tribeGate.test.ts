@@ -58,6 +58,12 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
   // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
+  // Set 2 rune batch (owner 2026-11-12) lists Big Spender under Dwarf: "spend Gold" triggers are the Dwarf line.
+  rune_big_spender: 'dwarf',
+  // …and Wildfire under Demon: effect damage (Fel Spikes, Gasket, Hellfire) is the Demon line.
+  rune_wildfire: 'demon',
+  // …and Elder's Voice under Dragon: Shouts are the Set 2 Dragon line.
+  rune_elders_voice: 'dragon',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

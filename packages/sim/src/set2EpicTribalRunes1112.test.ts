@@ -57,7 +57,7 @@ const wall = (attack: number, uid = 'w', health = 5000): BoardMinion => bm(uid, 
 const dummy = (uid: string, health = 1): BoardMinion => bm(uid, PLAIN[2]!, { attack: 0, health, keywords: [] });
 const side = (mods: object) => combatSide({ tier: 6, tribes: [...SETS.set2.tribes], questMods: mods });
 const fight = (p: BoardMinion[], e: BoardMinion[], mods: object, seed = 4, enemyMods: object = {}) =>
-  ({ ...simulate(p, e, makeRng(seed), CARD_INDEX, side(mods), side(enemyMods)), src: { player: p.map((m) => m.uid), enemy: e.map((m) => m.uid) } });
+  ({ ...simulate(p, e, makeRng(seed), CARD_INDEX, side(mods), side(enemyMods)), src: { player: p.map((m) => m.sourceUid!), enemy: e.map((m) => m.sourceUid!) } });
 type Fight = ReturnType<typeof fight>;
 const triggers = (evs: readonly CombatEvent[], flag: string, s: 'player' | 'enemy' = 'player') =>
   evs.filter((e) => e.type === 'questTrigger' && e.flag === flag && (e as { side?: string }).side === s);
@@ -320,12 +320,12 @@ describe("ELDER'S VOICE: Your first Shout each turn also triggers at Start of Co
   it('combat: that body Shouts once more at Start of Combat, once per copy; gone from the board, nothing', () => {
     const shouts = (r: Fight, src: string) => r.events.filter((e) => e.type === 'shout' && (e as { source: string }).source === uidOf(r, src)).length;
     const p = () => [bm('v', 'd2_broodfire', { health: 5000 }), bm('d', 'd2_humphry', { health: 5000 })];
-    const on = fight(p(), [wall(0)], { eldersVoiceUid: 'v' });
+    const on = fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v' });
     expect(shouts(on, 'v')).toBe(1);
     expect(triggers(on.events, 'runeEldersVoice')).toHaveLength(1);
-    expect(shouts(fight(p(), [wall(0)], { eldersVoiceUid: 'v', flagCopies: { runeEldersVoice: 2 } }), 'v')).toBe(2);
-    expect(shouts(fight(p(), [wall(0)], { eldersVoiceUid: 'v', runeTwilight: true }), 'v'), 'not a "Start of Combat:" rune: Twilight does not repeat it').toBe(1);
-    expect(triggers(fight(p(), [wall(0)], { eldersVoiceUid: 'gone' }).events, 'runeEldersVoice')).toHaveLength(0);
+    expect(shouts(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v', flagCopies: { runeEldersVoice: 2 } }), 'v')).toBe(2);
+    expect(shouts(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'v', runeTwilight: true }), 'v'), 'not a "Start of Combat:" rune: Twilight does not repeat it').toBe(1);
+    expect(triggers(fight(p(), [wall(0)], { runeEldersVoice: true, eldersVoiceUid: 'gone' }).events, 'runeEldersVoice')).toHaveLength(0);
     expect(shouts(fight(p(), [wall(0)], {}), 'v')).toBe(0);
   });
 });

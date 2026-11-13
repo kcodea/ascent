@@ -1,9 +1,7 @@
-// SCAFFOLDED from heroCards/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Cards, not this style, until rewritten.
 import {
-  CARD_LEVELS, CARD_LEVEL_NAMES, CLAW_LEVEL_SUFFIXES, HERO_CLAW_DEFAULTS, HERO_CLAW_RANGES, clawPlan, getHeroClawConfig,
+  CLAW_LEVELS, CLAW_LEVEL_NAMES, CLAW_LEVEL_SUFFIXES, HERO_CLAW_DEFAULTS, HERO_CLAW_RANGES, clawPlan, getHeroClawConfig,
   heroClawConfigJson, resetHeroClawConfig, setHeroClawValue,
-  type CardLevel, type CardsLevelSuffix, type HeroClawConfig, type HeroClawNumKey, type HeroClawStrKey,
+  type ClawLevel, type ClawLevelSuffix, type HeroClawConfig, type HeroClawNumKey, type HeroClawStrKey,
 } from './heroClaw/heroClawConfig';
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
@@ -13,13 +11,14 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV tuner for the CARD SHARK hero attack (an Epic; owner ask 2026-09-29: "build 5 animations that range from rare ->
- * epic ... rare and epics should only have 2 or 3 tiers"). Three looks: Small (one card), Medium (three of a kind), Big
- * (the royal flush). The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in
- * either direction. A preview never touches the run. The "Attack style" row is the same dev override as the other
- * attack tuners' (Auto = what a player would see). Production plays the baked defaults.
+ * DEV tuner for the GRABBY CLAW hero attack (an Epic, in progress, no cosmetic yet): an arcade claw machine claw comes
+ * down from the top of the screen and picks the struck portrait up. Three looks: Fumble (a short lift, dropped), Shake
+ * (lifted higher and shaken, coins falling out) and Prize (carried to a prize chute and dropped in). The Play buttons
+ * run the REAL runner between the two real hero portraits (works from the shop), in either direction. A preview never
+ * touches the run. The "Attack style" row is the same dev override as the other attack tuners' (Auto = what a player
+ * would see). Production plays the baked defaults.
  */
-type CardsTunerValues = HeroClawConfig & { attackStyle: string };
+type ClawTunerValues = HeroClawConfig & { attackStyle: string };
 
 type Spec = [string, TunerUnit | undefined, string, string];
 type GlobalNumKey = Exclude<HeroClawNumKey, `v${number}${string}`>;
@@ -27,98 +26,85 @@ type GlobalNumKey = Exclude<HeroClawNumKey, `v${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Medium from', undefined, 'Damage at which the shared Tier II starts (Card Shark plays Medium from here). Shared with every style (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'The shared Tier III (still Medium for an Epic). Shared (12).', 'Damage tiers'],
-  tier4At: ['Big from', undefined, 'Damage at which the shared Tier IV starts: the royal flush. Shared (20). A knockout always plays it.', 'Damage tiers'],
-  absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
-  heroCoilPx: ['Lean back', 'px', 'How far the hero leans back from the target as it readies.', 'Ready'],
-  heroFlickPx: ['Throw flick', 'px', 'How far the hero flicks toward the target on each throw.', 'Ready'],
-  cardLength: ['Card height', 'px', 'How tall a thrown card is (the look size multiplies it).', 'Claw'],
-  cardGlow: ['Card glow', 'opacity', 'The soft glow round each card, in your side colour (0 = none).', 'Claw'],
-  ghostAlpha: ['Spin ghosts', 'opacity', 'The faint copies trailing a spinning card (0 = none).', 'Claw'],
-  embed: ['Stick depth', '×', 'How much of the card sinks past the point it hits (edge first).', 'Claw'],
-  quiver: ['Quiver', undefined, 'How hard a stuck card quivers (radians).', 'Claw'],
-  stickHoldMs: ['Stick hold', 'ms', 'Small and Medium: how long the cards stay stuck before they fall away.', 'Claw'],
-  dealMs: ['Deal time', 'ms', 'Big: one card flying from the hero into the fanned hand.', 'Royal flush (Big)'],
-  dealStaggerMs: ['Deal stagger', 'ms', 'Big: the gap between cards being dealt.', 'Royal flush (Big)'],
-  flipMs: ['Flip time', 'ms', 'Big: one card turning face up.', 'Royal flush (Big)'],
-  flipStaggerMs: ['Flip stagger', 'ms', 'Big: the gap between flips (the reveal rolls left to right).', 'Royal flush (Big)'],
-  goldMs: ['Gold reveal', 'ms', 'Big: the faces turning to gold, the shine sweeping across.', 'Royal flush (Big)'],
-  holdMs: ['Hold', 'ms', 'Big: the golden hand held up a beat before it fires.', 'Royal flush (Big)'],
-  fanSize: ['Hand size', '×', 'Big: how big the fanned hand is compared to a thrown card.', 'Royal flush (Big)'],
-  fanReach: ['Hand reach', '×', 'Big: how far in front of the hero the hand fans out (portrait radii).', 'Royal flush (Big)'],
-  fanSpread: ['Fan spread', '°', 'Big: the angle between neighbouring cards in the hand.', 'Royal flush (Big)'],
-  confetti: ['Confetti', undefined, 'Big: card confetti pieces per card in the burst.', 'Royal flush (Big)'],
-  confettiGravity: ['Confetti gravity', undefined, 'px/s². How fast the confetti falls.', 'Royal flush (Big)'],
-  flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Camera and portraits'],
-  knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
-  squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
-  shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
-  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
-  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxDrawGain: ['draw: gain', undefined, 'A card drawn as the hero readies.', 'Sound: draw'],
-  sfxDrawRate: ['draw: pitch', '×', 'Pitch of the draw.', 'Sound: draw'],
-  sfxFlickGain: ['flick: gain', undefined, 'The quick swish of each card leaving (each a little higher).', 'Sound: flick'],
-  sfxFlickRate: ['flick: pitch', '×', 'Pitch of the first swish.', 'Sound: flick'],
-  sfxSnapGain: ['snap: gain', undefined, 'The snap layered on each throw.', 'Sound: snap'],
-  sfxSnapRate: ['snap: pitch', '×', 'Pitch of the snap.', 'Sound: snap'],
-  sfxThunkGain: ['thunk: gain', undefined, 'A card sticking in (climbs per card).', 'Sound: thunk'],
-  sfxThunkRate: ['thunk: pitch', '×', 'Pitch of the first thunk.', 'Sound: thunk'],
-  sfxPunchGain: ['punch: gain', undefined, 'A low punch under each thunk.', 'Sound: punch'],
-  sfxPunchRate: ['punch: pitch', '×', 'Pitch of the punch.', 'Sound: punch'],
-  sfxImpactGain: ['impact: gain', undefined, 'THE impact: the last card, or under the flush burst.', 'Sound: impact'],
-  sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
-  sfxBigGain: ['big hit: gain', undefined, 'Medium and Big: an extra crack on the impact.', 'Sound: big hit'],
-  sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxDealGain: ['deal: gain', undefined, 'Big: each card dealt into the hand.', 'Sound: deal'],
-  sfxDealRate: ['deal: pitch', '×', 'Pitch of the first deal (climbs per card).', 'Sound: deal'],
-  sfxFlipGain: ['flip: gain', undefined, 'Big: each card turning face up.', 'Sound: flip'],
-  sfxFlipRate: ['flip: pitch', '×', 'Pitch of the first flip (climbs per card).', 'Sound: flip'],
-  sfxRevealGain: ['reveal: gain', undefined, 'Big: the royal flush turning gold.', 'Sound: reveal'],
-  sfxRevealRate: ['reveal: pitch', '×', 'Pitch of the reveal.', 'Sound: reveal'],
-  sfxBurstGain: ['burst: gain', undefined, 'Big: the flush bursting into confetti.', 'Sound: burst'],
-  sfxBurstRate: ['burst: pitch', '×', 'Pitch of the burst.', 'Sound: burst'],
-  sfxSparkleGain: ['sparkle: gain', undefined, 'Big: the glitter on the gold reveal and the burst.', 'Sound: sparkle'],
-  sfxSparkleRate: ['sparkle: pitch', '×', 'Pitch of the sparkle.', 'Sound: sparkle'],
-  sfxFlickLenMs: ['flick length', 'ms', 'Each flick swish is cut to this long (with a fade).', 'Sound: mix'],
-  sfxImpactLenMs: ['impact length', 'ms', 'The impact and burst clips are cut to this long (with a fade).', 'Sound: mix'],
+  tier2At: ['Shake from', undefined, 'Damage at which the shared Tier II starts (the claw plays Shake from here). Shared with every style (6).', 'Damage tiers'],
+  tier3At: ['Tier III from', undefined, 'The shared Tier III (still Shake for an Epic). Shared (12).', 'Damage tiers'],
+  tier4At: ['Prize from', undefined, 'Damage at which the shared Tier IV starts: the prize chute. Shared (20). A knockout always plays it.', 'Damage tiers'],
+  absorbMs: ['Absorb', 'ms', 'The total sinking into the striking hero.', 'Operator'],
+  heroLeanPx: ['Operator lean', 'px', 'How far the striking hero leans with the trolley, presses on the drop and hops on the blow.', 'Operator'],
+  clawSize: ['Claw size', '×', 'The claw against the struck portrait (1 = the prongs just wrap it).', 'Claw'],
+  hubOff: ['Hub height', '×', 'How far the hub sits above the centre of the held portrait (portrait radii).', 'Claw'],
+  hoverGap: ['Hover height', '×', 'How far above its grip the claw hovers before it drops (portrait radii).', 'Claw'],
+  hoverMs: ['Hover', 'ms', 'The beat the claw hangs over the portrait before it drops.', 'Claw'],
+  dropMs: ['Drop', 'ms', 'The claw dropping onto the portrait.', 'Claw'],
+  clampMs: ['Clamp', 'ms', 'The prongs closing on the portrait.', 'Claw'],
+  squeeze: ['Squeeze', '×', 'How much the portrait is squeezed in the grip.', 'Claw'],
+  leaveMs: ['Retract', 'ms', 'The empty claw going back up its cable.', 'Claw'],
+  peekMs: ['Show first', 'ms', 'No headroom: extra time for the claw to show itself in the open before it goes over the portrait.', 'Claw'],
+  pullOut: ['Pull out', '×', 'No headroom: how far toward the middle the portrait is pulled out (portrait radii).', 'Claw'],
+  fumbleMs: ['Fumble', 'ms', 'Fumble: how long the grip rattles before it lets go.', 'Fumble and Shake'],
+  shakes: ['Shakes', undefined, 'Shake: how many hard shakes.', 'Fumble and Shake'],
+  shakeMs: ['Shake time', 'ms', 'Shake: one whole side to side swing.', 'Fumble and Shake'],
+  shakeAmp: ['Shake reach', '×', 'Shake: how far the claw jerks to each side (portrait radii).', 'Fumble and Shake'],
+  coins: ['Coins', undefined, 'Shake: coins that fall out on each shake.', 'Fumble and Shake'],
+  carryReach: ['Carry reach', '×', 'Prize: how far the portrait is carried to the chute (portrait radii; less when the edge is near).', 'Prize chute'],
+  carryMs: ['Carry', 'ms', 'Prize: the carry across.', 'Prize chute'],
+  holdMs: ['Hold', 'ms', 'Prize: the beat it hangs over the chute before the claw lets go.', 'Prize chute'],
+  returnMs: ['Away', 'ms', 'Prize: how long the portrait is gone down the chute.', 'Prize chute'],
+  popMs: ['Pop back', 'ms', 'Prize: the portrait popping back up in its socket.', 'Prize chute'],
+  chuteSize: ['Chute size', '×', 'Prize: the size of the chute.', 'Prize chute'],
+  flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Camera and landing'],
+  squash: ['Squash', '×', 'How much the portrait squashes when it lands.', 'Camera and landing'],
+  bounceMs: ['Bounce length', 'ms', 'Fumble and Shake: how long the landing bounce takes to settle.', 'Camera and landing'],
+  shakeDecayMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and landing'],
+  zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and landing'],
+  reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and landing'],
+  sfxServoGain: ['servo: gain', undefined, 'The motor whirr: the trolley running in, the winch, each shake, the carry.', 'Sound: servo'],
+  sfxServoRate: ['servo: pitch', '×', 'Pitch of the servo.', 'Sound: servo'],
+  sfxClampGain: ['clamp: gain', undefined, 'The prongs clamping shut (and, softer, springing open).', 'Sound: clamp'],
+  sfxClampRate: ['clamp: pitch', '×', 'Pitch of the clamp.', 'Sound: clamp'],
+  sfxCoinGain: ['coins: gain', undefined, 'Shake: coins falling out (a little higher each shake).', 'Sound: coins'],
+  sfxCoinRate: ['coins: pitch', '×', 'Pitch of the first coins.', 'Sound: coins'],
+  sfxThudGain: ['thud: gain', undefined, 'THE impact of Fumble and Shake: the portrait landing in its socket.', 'Sound: thud'],
+  sfxThudRate: ['thud: pitch', '×', 'Pitch of the thud.', 'Sound: thud'],
+  sfxChuteGain: ['chute: gain', undefined, 'THE impact of Prize: the clatter down the chute.', 'Sound: chute'],
+  sfxChuteRate: ['chute: pitch', '×', 'Pitch of the clatter.', 'Sound: chute'],
+  sfxWinGain: ['winner: gain', undefined, 'Prize: the WINNER sign.', 'Sound: winner'],
+  sfxWinRate: ['winner: pitch', '×', 'Pitch of the winner sting.', 'Sound: winner'],
+  sfxPopGain: ['pop: gain', undefined, 'Prize: the chute sliding up, and the portrait popping back.', 'Sound: pop'],
+  sfxPopRate: ['pop: pitch', '×', 'Pitch of the pop.', 'Sound: pop'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
-  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the cards play (1 = no duck).', 'Sound: mix'],
+  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the claw plays (1 = no duck).', 'Sound: mix'],
 };
 
-const LEVEL_SPECS: Record<CardsLevelSuffix, [string, TunerUnit | undefined, string]> = {
-  ChargeMs: ['Ready', 'ms', 'The hero readying before the first card leaves (Big: before the deal). The view pushes in over this.'],
-  Claw: ['Card count', undefined, 'How many cards (Small one, Medium three of a kind, Big the five of the flush).'],
-  StaggerMs: ['Throw stagger', 'ms', 'Gap between each throw (the thunk, thunk, thunk).'],
-  FlightMs: ['Card speed', 'ms', 'A card crossing the board (at 1600 px; lower = faster).'],
-  Arc: ['Arc', '×', 'How high a card arcs, as a fraction of the distance.'],
-  Fan: ['Fan', '×', 'How far the throws spread their arcs apart.'],
-  Spins: ['Spins', undefined, 'Whole turns a card spins in flight.'],
-  CardSize: ['Card size', '×', 'The card size multiplier for this look.'],
+const LEVEL_SPECS: Record<ClawLevelSuffix, [string, TunerUnit | undefined, string]> = {
+  SlideMs: ['Slide in', 'ms', 'The claw running in over the struck portrait.'],
+  LiftMs: ['Lift time', 'ms', 'The claw lifting the portrait.'],
+  Lift: ['Lift height', '×', 'How high the portrait is lifted (portrait radii; less near the top of the screen).'],
+  FallMs: ['Fall', 'ms', 'The portrait falling from the claw to THE impact.'],
+  Bounce: ['Bounce', 'px', 'How high the portrait bounces when it lands (at a 100 px portrait).'],
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
-  Zoom: ['Push in', '×', 'How far the view pushes in through the ready.'],
+  Zoom: ['Push in', '×', 'How far the view pushes in while the portrait is in the air.'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
   Sparks: ['Sparks', undefined, 'Sparks thrown by the impact.'],
-  Burst: ['Burst size', '×', 'Scale of the impact flash, rings and confetti spread.'],
   SettleMs: ['Settle', 'ms', 'Hold after the last beat before the sequence ends.'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
 const CLIP_OF: Partial<Record<string, HeroClawStrKey>> = {
-  'Sound: draw': 'sfxDrawClip', 'Sound: flick': 'sfxFlickClip', 'Sound: snap': 'sfxSnapClip', 'Sound: thunk': 'sfxThunkClip',
-  'Sound: punch': 'sfxPunchClip', 'Sound: impact': 'sfxImpactClip', 'Sound: big hit': 'sfxBigClip', 'Sound: deal': 'sfxDealClip',
-  'Sound: flip': 'sfxFlipClip', 'Sound: reveal': 'sfxRevealClip', 'Sound: burst': 'sfxBurstClip', 'Sound: sparkle': 'sfxSparkleClip',
+  'Sound: servo': 'sfxServoClip', 'Sound: clamp': 'sfxClampClip', 'Sound: coins': 'sfxCoinClip', 'Sound: thud': 'sfxThudClip',
+  'Sound: chute': 'sfxChuteClip', 'Sound: winner': 'sfxWinClip', 'Sound: pop': 'sfxPopClip',
 };
 
 const COLORS: [HeroClawStrKey, string, string][] = [
-  ['colorIvory', 'Ivory', 'The paper of the card faces at rest, and ivory confetti.'],
-  ['colorRed', 'Red', 'The red confetti.'],
-  ['colorGold', 'Gold', 'The royal flush gilding, the gold rings, glints and confetti.'],
-  ['colorPlayer', 'Your side', 'The card glow and total colour when YOU deal.'],
-  ['colorFoe', 'Foe side', 'The card glow and total colour when THEY deal.'],
+  ['colorChrome', 'Chrome', 'A tint over the claw (white = the painted steel as it is).'],
+  ['colorLamp', 'Lamp', 'The lamp on the hub and the two on the chute.'],
+  ['colorCoin', 'Coins', 'The coins shaken out, and the gold of the chute sparks.'],
+  ['colorDust', 'Dust', 'The dust a landing throws up.'],
+  ['colorPlayer', 'Your side', 'The rings and total colour when YOUR claw grabs.'],
+  ['colorFoe', 'Foe side', 'The rings and total colour when THEIR claw grabs.'],
 ];
 
-type Ctl = TunerControl<Extract<keyof CardsTunerValues, string>>;
+type Ctl = TunerControl<Extract<keyof ClawTunerValues, string>>;
 
 function clipOptions(): string[] {
   let names: string[] = [];
@@ -139,12 +125,12 @@ function buildControls(): Ctl[] {
   };
   const globals = Object.entries(SPECS) as [GlobalNumKey, Spec][];
   for (const [key, spec] of globals) if (!spec[3].startsWith('Sound')) push(key, spec);
-  for (const v of CARD_LEVELS) {
+  for (const v of CLAW_LEVELS) {
     for (const s of CLAW_LEVEL_SUFFIXES) {
       const [label, unit, hint] = LEVEL_SPECS[s];
       const key = `v${v}${s}` as HeroClawNumKey;
       const [min, max, step] = HERO_CLAW_RANGES[key];
-      out.push({ key, label, unit, hint, group: CARD_LEVEL_NAMES[v as CardLevel], min, max, step });
+      out.push({ key, label, unit, hint, group: CLAW_LEVEL_NAMES[v as ClawLevel], min, max, step });
     }
   }
   for (const [ck, cl, ch] of COLORS) out.push({ key: ck, label: cl, hint: ch, group: 'Colours', kind: 'color', min: 0, max: 0, step: 0 });
@@ -164,7 +150,7 @@ function buildControls(): Ctl[] {
 
 let live: HeroClawHandle | null = null;
 
-/** Play the real Card Shark between the two portraits, from the shop or a fight, without touching the run. */
+/** Play the real Grabby Claw between the two portraits, from the shop or a fight, without touching the run. */
 export function demo(
   side: 'player' | 'opp',
   opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroClawOptions['frames']; sound?: boolean; safety?: boolean } = {},
@@ -182,15 +168,15 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { __heroClaw?: unknown }).__heroClaw = { demo, previewParts, play: playHeroClaw };
 }
 
-const LOOK_OF: Record<CardLevel, string> = { 1: 'one card', 2: 'three of a kind', 3: 'the royal flush' };
+const LOOK_OF: Record<ClawLevel, string> = { 1: 'grabbed and dropped', 2: 'shaken', 3: 'the prize chute' };
 
-export const SPEC: TunerSpec<CardsTunerValues> = {
+export const SPEC: TunerSpec<ClawTunerValues> = {
   id: 'heroclaw',                   // FROZEN: indexes this panel's dragged position in localStorage
-  title: 'Hero Attack: Card Shark',
+  title: 'Hero Attack: Grabby Claw',
   note: () => {
     const c = getHeroClawConfig();
-    const p = clawPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${CARD_LEVEL_NAMES[p.level]} (${LOOK_OF[p.level]}) · throw ${Math.round(p.throwAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    const p = clawPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage }, c);
+    return `dev · ${CLAW_LEVEL_NAMES[p.level]} (${LOOK_OF[p.level]}) · grab ${Math.round(p.grabAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroClawConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroClawValue(key as keyof HeroClawConfig, value),
@@ -202,15 +188,15 @@ export const SPEC: TunerSpec<CardsTunerValues> = {
   copyLabel: 'Copy JSON',
   buttonsOnTop: true,
   actions: [
-    { label: '▶ You deal', hint: 'Your hero deals cards at the foe for the preview damage.', run: () => { void demo('player'); } },
-    { label: '▶ Foe deals', hint: 'The foe deals cards at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero deals for 3: Small, one card.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Medium (8)', hint: 'Your hero deals for 8: Medium, three of a kind.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero deals for 12 from four numbers: still Medium (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Big (40)', hint: 'Your hero deals for 40 from seven numbers: Big, the royal flush.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe deals at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe medium (8)', hint: 'The foe deals at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe big (40)', hint: 'The foe deals at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ You grab', hint: 'Your claw grabs the foe for the preview damage.', run: () => { void demo('player'); } },
+    { label: '▶ Foe grabs', hint: 'The foe claw grabs your hero for the preview damage.', run: () => { void demo('opp'); } },
+    { label: '▶ Fumble (3)', hint: 'Your claw grabs for 3: Fumble, a short lift and a drop.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Shake (8)', hint: 'Your claw grabs for 8: Shake, three hard shakes and a drop from height.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Shake (12)', hint: 'Your claw grabs for 12 from four numbers: still Shake (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Prize (40)', hint: 'Your claw grabs for 40 from seven numbers: Prize, carried to the chute.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe fumble (3)', hint: 'The foe claw grabs your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe shake (8)', hint: 'The foe claw grabs your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe prize (40)', hint: 'The foe claw grabs your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

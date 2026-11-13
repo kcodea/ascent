@@ -412,7 +412,11 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   b2_packstrider: { minionPlayed: { def: 'sfx-vo-b2-packstrider', gain: 0.3 }, death: { def: 'sfx-vo-b2-packstrider-death', gain: 0.3 } },
   b2_bullseye: { minionPlayed: { def: 'sfx-vo-b2-bullseye', gain: 0.3 }, death: { def: 'sfx-vo-b2-bullseye-death', gain: 0.3 } },
   b2_beardsley: { minionBuffed: { def: 'beast-buff-bite' }, watcher: { def: 'beast-buff-bite-watcher' }, buffWave: { def: 'beast-buff-bite', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-vo-b2-beardsley', gain: 0.3 }, death: { def: 'sfx-vo-b2-beardsley-death', gain: 0.3 } },
-  b2_wolvie: { minionPlayed: { def: 'sfx-vo-b2-wolvie', gain: 0.3 }, death: { def: 'sfx-vo-b2-wolvie-death', gain: 0.3 } },
+  b2_wolvie: { minionPlayed: { def: 'sfx-vo-b2-wolvie', gain: 0.3 }, death: { def: 'sfx-vo-b2-wolvie-death', gain: 0.3 }, riseGiven: { def: 'rise-beam' } },
+  // ON RISE GIVEN (2026-11-12): the other three Rise givers carry only the beam.
+  mumi: { riseGiven: { def: 'rise-beam' } },
+  anubis: { riseGiven: { def: 'rise-beam' } },
+  gravewarden: { riseGiven: { def: 'rise-beam' } },
   b2_armadiyo: { minionPlayed: { def: 'sfx-vo-b2-armadiyo', gain: 0.3 }, death: { def: 'sfx-vo-b2-armadiyo-death', gain: 0.3 } },
   b2_voidmother: { minionPlayed: { def: 'sfx-vo-b2-voidmother', gain: 0.3 }, death: { def: 'sfx-vo-b2-voidmother-death', gain: 0.3 } },
   b2_hawkus: { minionPlayed: { def: 'sfx-vo-b2-hawkus', gain: 0.3 }, death: { def: 'sfx-vo-b2-hawkus-death', gain: 0.3 } },

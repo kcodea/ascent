@@ -61,6 +61,7 @@ import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_
 import { anchorsForUnits } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
 import { startExecutesGiven } from './fx/executeGivenLaunch';
+import { startRisesGiven, launchRisesGiven } from './fx/riseGivenLaunch';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -3072,6 +3073,10 @@ export function useCombatReplay(
     // sits in the giver's own wind-up, so it leaves at the medallion pulse (the wind-up's length from now).
     startExecutesGiven(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id),
       beat.primary.type === 'attack' ? beat.primary.attacker : null, getLungeConfig().windupDur * 1000);
+    // "On Rise given" (Mumi, Wolvie, Anubis, Gravewarden): hide each given Rise dome until its giver's effect lands.
+    // A living giver's leave now, one after another; an Echo's leave from its slot after its skull (below).
+    startRisesGiven(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id),
+      beat.primary.type === 'attack' ? beat.primary.attacker : null, getLungeConfig().windupDur * 1000);
     // EPIC multipliers (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve): each one the engine
     // marked as adding fires to a trigger in this beat plays its On Watcher effect on its own card, once per beat
     // (R-FX-EPIC-FIRE-01). Not bound / defs off: nothing plays.
@@ -3118,6 +3123,8 @@ export function useCombatReplay(
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
       // …and an Echo that GIVES Ward (Lastlight) launches its bound effect from this slot a breath after the skull.
       if (r) launchWardsGiven(e.target, r, beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), goldenAt(e.target));
+      // …and an Echo that GIVES Rise (Mumi, Wolvie, Anubis) launches its own from this slot, one after another.
+      if (r) launchRisesGiven(e.target, r, beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
       // Fel Spikes' Echo: LAUNCH the spike volley from the dying body — a breath after the skull, while it is
       // still on screen — toward every unit its upcoming spray will strike, a beat before the damage lands (the
       // beat clock holds that beat for the beam's travel, `echoDeliveryLead`). Golden sprays twice as two quick
@@ -3290,6 +3297,7 @@ export function useCombatReplay(
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
             // An Echo that gives Ward (Lastlight killed mid-attack) launches from HOME, after its skull.
             if (hasDR) launchWardsGiven(impactAtk, rect, cur, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), !!combat?.initial.player.concat(combat.initial.enemy).find((m) => m.uid === impactAtk)?.golden);
+            if (hasDR) launchRisesGiven(impactAtk, rect, cur, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
             // Fel Spikes killed MID-ATTACK (it swung and died to retaliation) lands here, not the immediate
             // death loop — so its Echo volley must launch from the pulled-home body here too, or the death
             // shows no spikes (owner report 2026-08-20: a second Fel Spikes didn't fire). Registered in the

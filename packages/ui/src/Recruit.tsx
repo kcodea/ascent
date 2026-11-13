@@ -15,6 +15,7 @@ import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
+import { launchShopRiseGiven } from './fx/riseGivenLaunch';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
@@ -7742,6 +7743,8 @@ export function Recruit() {
         // EXECUTE GIVEN by a minion with a bound effect (Raven's forced Rally): its beam travels from the giver and
         // the aura waits for it, exactly as in combat. The beam replaces the generic flash (R-FX-EXECUTE-GIVEN-01).
         if (keyword === 'V' && from && launchShopExecuteGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId, index)) return;
+        // RISE GIVEN by a minion with a bound effect: the same travel, one after another when a beat gives several.
+        if (keyword === 'R' && from && launchShopRiseGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId)) return;
         const el = findEl(uid);
         if (!el) return;
         const r = el.getBoundingClientRect();

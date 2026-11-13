@@ -1,0 +1,1 @@
+{"version":1,"id":"sfx-rise-applied","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-wraith"}},{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-chime"}}]}

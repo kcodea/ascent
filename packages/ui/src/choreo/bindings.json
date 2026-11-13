@@ -1832,6 +1832,9 @@
       "death": {
         "def": "sfx-vo-b2-wolvie-death",
         "gain": 0.3
+      },
+      "riseGiven": {
+        "def": "rise-beam"
       }
     },
     "b2_armadiyo": {
@@ -2069,6 +2072,21 @@
     "quicksale": {
       "sell": {
         "def": "sell"
+      }
+    },
+    "mumi": {
+      "riseGiven": {
+        "def": "rise-beam"
+      }
+    },
+    "anubis": {
+      "riseGiven": {
+        "def": "rise-beam"
+      }
+    },
+    "gravewarden": {
+      "riseGiven": {
+        "def": "rise-beam"
       }
     }
   }

@@ -65,8 +65,8 @@ export const SHOP_ACTION_BINDING_KINDS: readonly ShopActionBindingKind[] = ['sel
  * `startOfCombatFx` / `avengeFx` channels scan the moment's events for the simulator's own `key`/`avenge`
  * stamps instead (see the header on those channels), exactly as `rallyFx`/`shoutFx` scan for their events.
  */
-export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge' | 'wardGiven' | 'executeGiven';
-export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge', 'wardGiven', 'executeGiven'];
+export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge' | 'wardGiven' | 'executeGiven' | 'riseGiven';
+export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge', 'wardGiven', 'executeGiven', 'riseGiven'];
 
 /**
  * A binding key for a MELEE HIT whose attacker's Attack badge sits at a high milestone tier — the pink (4,

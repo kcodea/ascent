@@ -16,8 +16,9 @@
  */
 export interface Point { x: number; y: number }
 
-/** A unit that is leaving its slot (its death collapse) will not hold one once the row settles. */
-const leaving = (el: Element): boolean => el.classList.contains('dying');
+/** A unit that is leaving its slot (its death collapse) will not hold one once the row settles. A RISING body
+ *  keeps its slot: it re-forms there. */
+const leaving = (el: Element): boolean => el.classList.contains('dying') && !el.classList.contains('rising');
 
 /**
  * The screen point `unitEl` will occupy once its row stops reflowing, or null when it is not in a row. All

@@ -9,7 +9,7 @@ import { TunerPanel } from './TunerPanel';
 
 /**
  * DEV tuner for the COMBO hero attack ("Flawless", a Legendary, in progress with no cosmetic yet): the blow played as an
- * arcade fighting game combo with a HUD, a combo counter that ends on the real damage, a super cut-in and K.O. Four
+ * arcade fighting game combo with a HUD, a combo counter that counts the hits, a super cut-in and K.O. Four
  * groups of per-tier dials (I the jab, II the string, III the launcher, IV the super), the fight's geometry, the HUD,
  * the colours and one clip / gain / pitch row per sound cue. The Play buttons run the real runner between the two real
  * portraits.
@@ -28,8 +28,10 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   flinch: ['Flinch', '×', 'How far the target is knocked by a hit (target radii).', 'The fight'],
   flinchRot: ['Flinch rock', '°', 'How far the target rocks with a hit.', 'The fight'],
   sparkSize: ['Spark size', '×', 'The hit sparks and the fist.', 'The fight'],
-  counterSize: ['Counter size', '×', 'The combo counter (it ends on the real damage).', 'The HUD'],
-  counterRollMs: ['Counter roll', 'ms', 'How fast the counter races through a hit worth several.', 'The HUD'],
+  counterSize: ['Counter size', '×', 'The combo counter (it counts the hits landed).', 'The HUD'],
+  tapGapMs: ['Tap gap', 'ms', 'I: the time between the jab\'s quick taps (a blow of 1, 2 or 3 is that many taps).', 'The fight'],
+  koHoldMs: ['K.O. hold', 'ms', 'IV: how long the K.O. word stays up.', 'The HUD'],
+  flashAlpha: ['Impact flash', 'opacity', 'IV: the whole-screen white flash on the heavy blow (III\'s slam and K.O. use part of it).', 'Camera and portraits'],
   koSize: ['K.O. size', '×', 'IV: the K.O. word (0 = none).', 'The HUD'],
   koDelayMs: ['K.O. delay', 'ms', 'IV: how long after the heavy blow K.O. slams in.', 'The HUD'],
   launchMs: ['Uppercut gap', 'ms', 'III: the beat before the uppercut.', 'III: the launcher'],
@@ -67,13 +69,19 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxSuperRate: ['super: pitch', '×', 'Pitch of the super.', 'Sound: super'],
   sfxKoGain: ['K.O.: gain', undefined, 'IV: the K.O. sting (an impact and a gong, no voice).', 'Sound: K.O.'],
   sfxKoRate: ['K.O.: pitch', '×', 'Pitch of the K.O. sting.', 'Sound: K.O.'],
+  sfxPunchGain: ['punch: gain', undefined, 'The low body layer under every hit (lower and louder on the launcher, the spike and the heavy blow) and the landings after the K.O. blow.', 'Sound: punch'],
+  sfxPunchRate: ['punch: pitch', '×', 'Pitch of the body punch.', 'Sound: punch'],
+  sfxChargeGain: ['charge: gain', undefined, 'IV: the charge that climbs through the super freeze, and the riser into the heavy blow.', 'Sound: charge'],
+  sfxChargeRate: ['charge: pitch', '×', 'Pitch of the charge.', 'Sound: charge'],
+  sfxBoomGain: ['boom: gain', undefined, 'The deep boom under K.O., the heavy blow and III\'s slam.', 'Sound: boom'],
+  sfxBoomRate: ['boom: pitch', '×', 'Pitch of the boom.', 'Sound: boom'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
 };
 
 const LEVEL_SPECS: Record<ComboTierSuffix, RareLevelSpec> = {
   ReadyMs: ['Ready', 'ms', 'A beat before the striker steps in.'],
   StepMs: ['Step in', 'ms', 'The dash to the stance beside the target.'],
-  GapMs: ['Hit gap', 'ms', 'The rhythm of the ground hits. I: unused (one jab).'],
+  GapMs: ['Hit gap', 'ms', 'The rhythm of the ground hits. I: unused (its taps have their own gap).'],
   HoldMs: ['Hold', 'ms', 'After the impact before the striker heads home (the counter stays up).'],
   ReturnMs: ['Return', 'ms', 'The striker hopping home.'],
   Knock: ['Knockback', '×', 'How far the target is knocked on the impact (I and II).'],
@@ -106,7 +114,7 @@ const built = rareTunerSpec({
     ['colorPlayer', 'Your side', 'Your rings, speed lines and total colour when YOU strike.'],
     ['colorFoe', 'Foe side', 'Their rings, speed lines and total colour when THEY strike.'],
   ],
-  clipOf: { 'Sound: whoosh': 'sfxStepClip', 'Sound: hit': 'sfxHitClip', 'Sound: heavy': 'sfxHeavyClip', 'Sound: super': 'sfxSuperClip', 'Sound: K.O.': 'sfxKoClip' },
+  clipOf: { 'Sound: whoosh': 'sfxStepClip', 'Sound: hit': 'sfxHitClip', 'Sound: heavy': 'sfxHeavyClip', 'Sound: super': 'sfxSuperClip', 'Sound: K.O.': 'sfxKoClip', 'Sound: punch': 'sfxPunchClip', 'Sound: charge': 'sfxChargeClip', 'Sound: boom': 'sfxBoomClip' },
   note: () => {
     const c = getHeroComboConfig();
     const p = comboPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage }, c);
@@ -118,10 +126,10 @@ const built = rareTunerSpec({
   smallHint: 'the jab.',
   bigHint: 'the launcher.',
   tierHints: [
-    'the jab: step in, one quick jab, the counter pops.',
+    'the jab: step in, one to three quick taps (a blow of 1, 2 or 3 is that many), the counter counting each.',
     'the string: jab, cross, low kick, the counter ticking with each.',
     'the launcher: two hits, an uppercut that launches the target, an air juggle, a spike back down.',
-    'the super: opening hits, the cut-in with the hero\'s portrait and the inputs, a flurry, a heavy blow. K.O.',
+    'the super: opening hits, the cut-in with the hero\'s portrait and the inputs, a flurry, a held wind-up, a heavy blow that blasts the target away. K.O.',
   ],
 });
 

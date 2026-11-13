@@ -78,3 +78,57 @@ brightness were measured with ffmpeg, so the mix is a first guess for the owner'
 - Found in passing, not fixed (shared file): the tuner's "Foe attacks" preview measures the foe's preview portrait
   while it is still scaling in, so a style that moves that portrait a long way lands it about 17% off in the preview.
   A real fight's portrait is settled. The capture script waits for it.
+
+## Second pass (2026-11-12, after the owner played it)
+
+The owner's verdict on the batch: the attacks need sound, and the big looks are quick and not impactful.
+
+**The counter now counts real hits.** The first pass shared the damage out over the hits, so a one-hit jab for 3 read
+`1 HIT` and then rolled to `3 HITS`. That is gone (`comboCounts` and the roll are deleted): hit n reads n, on every
+tier. The damage is the game's own number (the formation and the `-N`). On the smallest blows the two agree anyway:
+a blow of 1, 2 or 3 is now that many quick taps (`jabTaps`; 4 and 5 are three taps), so Tier I reads `1 HIT`,
+`2 HITS`, `3 HITS` as they land. The "counter ends on the real damage" paragraphs above describe the first pass only.
+
+**Sound.** Measured with a recorder on the audio output (100 ms RMS windows, after the formation). First pass, Tier IV:
+mean -34.2 dB, hits about -31 to -36 dB per window, and 400 ms of silence (-61 dB or lower) through the super freeze.
+Reference, measured the same way: Soccer IV -32.0 dB mean, Frost IV -31.8 dB. Now: IV mean -24.8 dB (peak -7.8 dB),
+hits -21 to -28, the freeze -28 to -29 all the way through, the flurry -26 to -28, the heavy blow -18, K.O. -15 to -21
+for about a second (the formation's own peak is -17). III: mean -27.2 dB. No window after the first hit is under
+-34 dB until the tail. This is deliberately louder than the two references. Levels are measured, not heard.
+
+- Three new clips (three ElevenLabs calls): `fx/combo-punch` (0.45 s, a low body punch), `fx/combo-charge` (1.14 s, a
+  rising charge), `fx/combo-boom` (1.5 s, a deep boom). The attack's own clips are now seven, 6.6 s in total.
+- Every hit is a body punch under the snap, both re-pitched by the kind of hit (jab high, kick low, spike lowest); the
+  launcher, the spike and every finisher add the heavy thump.
+- The super freeze: the charge is placed as a riser that peaks as the band leaves. The input ticks are louder.
+- The flurry rises in pitch and level through all 14 hits, a body punch under every other one.
+- The heavy blow has a wind-up riser that peaks on the impact, then heavy + punch + snap + a short boom.
+- K.O.: the sting over the full boom. The two landings after the blow each get a thud.
+- The gains of the first four clips went up (hit 0.6 to 0.9, heavy 0.75 to 1.1, super 0.6 to 0.8, K.O. 0.7 to 1).
+
+**Impact (IV).** Running time after the formation: 4036 ms before, 5436 ms now (Soccer IV 3308, Frost IV 3083). The
+extra time is anticipation and aftermath, nothing was slowed evenly:
+- A held WIND-UP between the flurry and the heavy blow (300 to 600 ms): the striker rears back further and swells, light
+  is pulled into it (`gather`), the view pushes in and trembles.
+- The blow: a whole-screen flash, shake 18 to 30 px over 560 ms (was 300), a bigger punch-in, a white-hot core, more
+  rings, shards that arc down under gravity.
+- The aftermath: the target is blasted away in 150 ms, lands, bounces twice, rocks and settles there (dust, embers and
+  a low glow on each landing), and the striker stays for 1.7 s (was 0.9). K.O. holds 1.75 s (was 1.15) with its own
+  jolt, a hot bar of light behind it and sparks off its ends.
+- The cut-in is longer (760 to 980 ms) so the charge has room. III's slam got more shake (11 to 18), a flash and dust.
+
+**Style.** The cartoon fist (a drawn white glove on the jab and the heavy blow) is removed; drive lines through the hit
+carry that beat. No new drawn objects. The input arrows and the band stay: they are the HUD, which is the idea.
+
+**Verified this pass.** `heroCombo.test.ts` rewritten for the hit counter, the taps, the wind-up, the aftermath and the
+new scene calls. Sheets of all four looks with the player striking and IV with the foe striking. Frame times on IV in
+the dev build, on a machine also running other builders: median 4.2 ms, 99th percentile 4.3 to 8.4 ms over three runs;
+the only frames over 12.5 ms were in the first 130 ms (first use of the textures), plus one 37 ms frame once.
+
+**Still weak.** The `-N` still overlaps the K.O. word. The first frame of the flash is close to a white-out. Nobody
+has heard the mix. The config key moved to `ascent.herocombo.v3`, so tuner values saved for the first pass are dropped.
+
+Note on the three new clips: the raw clips decoded about 2 dB over full scale, so they were clipping when the numbers
+above were measured. They were then re-levelled to a true -1.2 dB peak and their gains raised by the same 2 dB
+(punch 1, charge 0.7, boom 0.95). The loudness numbers were NOT re-measured after that last step; they should be
+within a dB.

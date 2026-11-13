@@ -9,8 +9,9 @@
  *    scale punch each time it moves and a bigger one when it reads the final number.
  *  - THE SUPER CUT-IN (IV): the screen dim, the slanted band, the striking hero's portrait art on it, the input glyphs.
  *
- * FIRE-AND-FORGET (pooled, under a hard cap): the flat hit sparks, the fist, the step's and the launch's dust, the slam,
- * the super's flash and the band's speed lines, the heavy blow and K.O.
+ * FIRE-AND-FORGET (pooled, under a hard cap): the flat hit sparks, the drive lines, the step's and the launch's dust, the
+ * slam, the super's flash and the band's speed lines, the wind-up's gather, the heavy blow, its aftermath and K.O.
+ * Everything here is light, lines, rings, dust and shards: no drawn props (the first pass's cartoon fist is gone).
  */
 import { Container, Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -22,8 +23,6 @@ export interface HeroComboTextures extends HeroArcanaTextures {
   hitLight: Texture;
   hitSharp: Texture;
   hitHeavy: Texture;
-  fistR: Texture;
-  fistL: Texture;
   arrow: Texture;
   button: Texture;
   band: Texture;
@@ -56,7 +55,6 @@ const RING_PX = 160;
 const GLOW_PX = 128;
 const STREAK_PX = 64;
 const SPARK_PX = 256;
-const FIST_PX = 160;
 const GLYPH_PX = 112;
 const BAND_W = 512;
 const BAND_H = 128;
@@ -87,7 +85,7 @@ export class HeroComboScene extends FxPool {
     private readonly aR: number, private readonly dR: number, scale = 1, seed = 1, cutin: Texture | null = null,
   ) {
     super('heroCombo', [
-      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.hitLight, tex.hitSharp, tex.hitHeavy, tex.fistR, tex.fistL, tex.arrow, tex.button, tex.band, tex.dust,
+      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.hitLight, tex.hitSharp, tex.hitHeavy, tex.arrow, tex.button, tex.band, tex.dust,
       tex.labelHit, tex.labelHits, tex.wordKo, tex.d0, tex.d1, tex.d2, tex.d3, tex.d4, tex.d5, tex.d6, tex.d7, tex.d8, tex.d9, ...(cutin ? [cutin] : []),
     ], scale, seed, MAX_COMBO_SPRITES);
     this.digitTex = [tex.d0, tex.d1, tex.d2, tex.d3, tex.d4, tex.d5, tex.d6, tex.d7, tex.d8, tex.d9];
@@ -242,15 +240,19 @@ export class HeroComboScene extends FxPool {
     });
   }
 
-  /** The FIST: the jab's fist-shaped spark (and, bigger, the heavy blow's), driving in the way the striker faces. */
-  fist(at: Pt, big = false): void {
+  /** The DRIVE: speed lines punched through the hit the way the striker faces (the jab's last tap; bigger, the heavy blow). */
+  drive(at: Pt, big = false): void {
     const S = this.scale;
     const face = this.look.face;
-    const px = this.dR * (big ? 1.7 : 1.2) * this.look.sparkSize;
-    const k = px / FIST_PX / S;
-    this.spawn('body', face > 0 ? this.tex.fistR : this.tex.fistL, 0xffffff, at.x - face * px * 0.42, at.y, {
-      dur: big ? 320 : 210, from: k * 0.7, to: k * 1.06, a0: 1, mode: 'hold', ease: 'quint', vx: face * 120, drag: 0.02,
-    });
+    const r = this.dR * this.look.sparkSize;
+    const n = big ? 9 : 4;
+    for (let i = 0; i < n; i++) {
+      const y = at.y + ((i + 0.5) / n - 0.5) * r * (big ? 1.5 : 0.8);
+      this.spawn('core', this.tex.streak, i % 3 === 1 ? this.colors.side : 0xffffff, at.x - face * r * (big ? 1.5 : 0.9), y, {
+        dur: big ? 300 : 180, from: (r * (big ? 2.4 : 1.2)) / STREAK_PX / S, to: (r * (big ? 4.2 : 1.9)) / STREAK_PX / S, a0: big ? 0.85 : 0.6, sy: big ? 0.11 : 0.09,
+        rot: 0, vx: face * (big ? 2200 : 1300), drag: 0.05, ease: 'linear', delay: i * (big ? 8 : 6),
+      });
+    }
   }
 
   /** The step in: a couple of flat dust puffs kicked up behind the striker. */
@@ -339,36 +341,103 @@ export class HeroComboScene extends FxPool {
     });
   }
 
-  /** IV: THE HEAVY BLOW (THE impact): the big red spark, the big fist, rings, speed lines the way it sends the target. */
+  /**
+   * IV: THE WIND-UP (the anticipation before THE impact): light is pulled into the striker over `ms`, a glow swelling on
+   * it and rings closing in, so the blow has something to release.
+   */
+  gather(at: Pt, ms: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const r = this.aR;
+    this.spawn('core', this.tex.glow, c.side, at.x, at.y, { dur: ms + 60, from: (r * 1.0) / GLOW_PX / S, to: (r * 3.4) / GLOW_PX / S, a0: 0.85, mode: 'punch', peakAt: 0.92, ease: 'linear' });
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: ms + 40, from: (r * 0.5) / GLOW_PX / S, to: (r * 1.7) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.95, ease: 'linear' });
+    for (let i = 0; i < 3; i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? 0xffffff : c.side, at.x, at.y, {
+        dur: ms * 0.5, from: (r * 5) / RING_PX / S, to: (r * 0.9) / RING_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.7, ease: 'cubic', delay: i * ms * 0.2,
+      });
+    }
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.rnd() * 0.3;
+      const d = r * (3.2 + this.rnd() * 1.6), life = 230 + this.rnd() * 90;
+      const sp = (d / S) / (life / 1000) * 1.05;
+      this.spawn('core', this.tex.streak, i % 3 ? c.spark : 0xffffff, at.x + Math.cos(a) * d, at.y + Math.sin(a) * d, {
+        dur: life, from: (r * 1.3) / STREAK_PX / S, to: (r * 0.4) / STREAK_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.5, sy: 0.09, rot: a,
+        vx: -Math.cos(a) * sp, vy: -Math.sin(a) * sp, ease: 'linear', delay: (i * 37) % Math.max(1, ms - life),
+      });
+    }
+  }
+
+  /** A whole-screen white flash (bright at once, gone in `ms`). */
+  screenFlash(alpha: number, ms = 170): void {
+    if (alpha <= 0) return;
+    const { frameW, frameH, band } = this.look;
+    const S = this.scale;
+    const k = (frameW * 1.6) / GLOW_PX / S;
+    // The soft glow texture stretched far past the screen: its middle is flat white across the whole view.
+    this.spawn('core', this.tex.glow, 0xffffff, band.x, band.y, { dur: ms, from: k * 3, to: k * 3, a0: alpha, sy: Math.max(1, frameH / Math.max(1, frameW)), ease: 'linear' });
+  }
+
+  /**
+   * IV: THE HEAVY BLOW (THE impact): the big red spark, drive lines blown through the target, a white-hot core, shock
+   * rings, and shards thrown wide that arc down under gravity.
+   */
   heavy(at: Pt, k: number, rings: number): void {
     const S = this.scale;
     const c = this.colors;
     const r = this.dR;
     const face = this.look.face;
-    this.hitSpark(at, 'heavy', Math.min(1.6, 0.7 * k));
-    this.fist(at, true);
-    this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 260, from: (r * 1.2) / GLOW_PX / S, to: (r * 3.4 * k) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.1 });
-    for (let i = 0; i < Math.min(6, rings); i++) {
+    this.hitSpark(at, 'heavy', Math.min(1.9, 0.85 * k));
+    this.drive(at, true);
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 200, from: (r * 2) / GLOW_PX / S, to: (r * 5 * k) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.08 });
+    this.spawn('core', this.tex.glow, c.heavy, at.x, at.y, { dur: 900, from: (r * 2.2) / GLOW_PX / S, to: (r * 4.4 * k) / GLOW_PX / S, a0: 0.75, ease: 'cubic' });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 420, from: 1.2, to: 5.2, a0: 1, mode: 'punch', peakAt: 0.1, rot: 0.3, spin: 0.0015 });
+    for (let i = 0; i < Math.min(7, rings + 1); i++) {
       this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.heavy, at.x, at.y, {
-        dur: 420 + 70 * i, from: (r * 0.5) / RING_PX / S, to: (r * (1.8 + 0.8 * i) * k) / RING_PX / S, a0: 0.8 - 0.1 * i, ease: 'cubic', delay: 55 * i,
+        dur: 520 + 90 * i, from: (r * 0.5) / RING_PX / S, to: (r * (2.2 + 1.0 * i) * k) / RING_PX / S, a0: 0.9 - 0.1 * i, ease: 'cubic', delay: 60 * i,
       });
     }
-    for (let i = 0; i < 6; i++) {
-      const y = at.y + (i - 2.5) * r * 0.3;
-      this.spawn('glow', this.tex.streak, i % 2 ? c.side : 0xffffff, at.x + face * r * 0.4, y, {
-        dur: 240, from: (r * 1.6) / STREAK_PX / S, to: (r * 3) / STREAK_PX / S, a0: 0.6, sy: 0.1, rot: 0, vx: face * 1500, drag: 0.1, ease: 'linear', delay: i * 12,
-      });
-    }
-    this.burst('core', this.tex.spark, [c.heavy, c.spark, 0xffffff], at.x, at.y, Math.round(8 * k), { speed: 760, dir: face > 0 ? 0 : Math.PI, spread: 2.6, life: 320, size: 0.5, drag: 0.1, align: true });
+    this.burst('core', this.tex.spark, [c.heavy, c.spark, 0xffffff], at.x, at.y, Math.round(14 * k), { speed: 1100, dir: face > 0 ? 0 : Math.PI, spread: 2.9, life: 760, size: 0.62, drag: 0.25, grav: 1500, align: true, lift: 260 });
+    this.burst('core', this.tex.spark, [0xffffff, c.spark], at.x, at.y, Math.round(8 * k), { speed: 520, life: 520, size: 0.4, drag: 0.2, align: true });
   }
 
-  /** IV: "K.O." SLAMS IN: it starts huge and lands hard at its size, holds, then fades. A white flash behind it. */
-  ko(at: Pt, width: number): void {
+  /**
+   * IV: THE AFTERMATH, where the blasted target comes down (`at`): dust thrown up both ways on the landing, embers
+   * drifting up and a low glow that takes its time to go. It is what makes the blow linger.
+   */
+  aftermath(at: Pt, strength = 1): void {
+    const S = this.scale;
+    const c = this.colors;
+    const r = this.dR;
+    this.spawn('glow', this.tex.glow, c.heavy, at.x, at.y, { dur: 1300 * strength, from: (r * 2.6) / GLOW_PX / S, to: (r * 3.6) / GLOW_PX / S, a0: 0.4 * strength, mode: 'hold', ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y + r * 0.6, { dur: 520, from: (r * 0.7) / RING_PX / S, to: (r * 3.4 * strength) / RING_PX / S, a0: 0.7 * strength, sy: 0.34, ease: 'cubic' });
+    for (let i = 0; i < Math.round(8 * strength); i++) {
+      const sx = i % 2 ? 1 : -1;
+      this.spawn('body', this.tex.dust, i % 3 ? c.dust : whiten(c.dust, 0.4), at.x + sx * r * 0.4, at.y + r * 0.7, {
+        dur: 700 + this.rnd() * 500, from: (r * 0.4) / PUFF_PX / S, to: (r * (0.9 + this.rnd() * 0.5)) / PUFF_PX / S, a0: 0.85, mode: 'hold', ease: 'cubic',
+        vx: sx * (140 + 110 * i) * strength, vy: -50 - this.rnd() * 110, drag: 0.06,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.heavy, c.spark], at.x, at.y + r * 0.3, Math.round(10 * strength), { speed: 260, dir: -Math.PI / 2, spread: 2.2, life: 1100, size: 0.32, drag: 0.5, grav: -140 });
+  }
+
+  /**
+   * IV: "K.O." SLAMS IN: it starts huge and lands hard at its size, HOLDS for `holdMs`, then fades. A white flash and a
+   * hot bar of light behind it, shock rings off the landing, and sparks knocked out along its length.
+   */
+  ko(at: Pt, width: number, holdMs = 1750): void {
     if (width <= 0) return;
     const S = this.scale;
+    const c = this.colors;
     const k = width / KO_W / S;
-    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 300, from: (width * 0.8) / GLOW_PX / S, to: (width * 2) / GLOW_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.1, sy: 0.5 });
-    this.spawn('glow', this.tex.ring, this.colors.heavy, at.x, at.y, { dur: 460, from: (width * 0.4) / RING_PX / S, to: (width * 1.5) / RING_PX / S, a0: 0.7, sy: 0.45, ease: 'cubic' });
-    this.spawn('body', this.tex.wordKo, 0xffffff, at.x, at.y, { dur: 1150, from: k * 2.9, to: k, a0: 1, mode: 'hold', ease: 'quint', rot: -0.07 });
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 340, from: (width * 0.9) / GLOW_PX / S, to: (width * 2.4) / GLOW_PX / S, a0: 0.85, mode: 'punch', peakAt: 0.1, sy: 0.5 });
+    this.spawn('glow', this.tex.glow, c.heavy, at.x, at.y, { dur: holdMs, from: (width * 1.5) / GLOW_PX / S, to: (width * 1.8) / GLOW_PX / S, a0: 0.5, mode: 'hold', sy: 0.42, ease: 'cubic' });
+    for (let i = 0; i < 3; i++) {
+      this.spawn('glow', this.tex.ring, i === 1 ? 0xffffff : c.heavy, at.x, at.y, { dur: 520 + 110 * i, from: (width * 0.4) / RING_PX / S, to: (width * (1.5 + 0.5 * i)) / RING_PX / S, a0: 0.8 - 0.15 * i, sy: 0.45, ease: 'cubic', delay: 60 * i });
+    }
+    for (const sx of [-1, 1]) {
+      this.burst('core', this.tex.spark, [c.spark, 0xffffff, c.heavy], at.x + sx * width * 0.3, at.y + width * 0.12, 7, { speed: 720, dir: sx > 0 ? -0.5 : Math.PI + 0.5, spread: 1.6, life: 620, size: 0.5, drag: 0.25, grav: 1300, align: true });
+    }
+    this.spawn('body', this.tex.wordKo, 0xffffff, at.x, at.y, { dur: holdMs, from: k * 3.2, to: k, a0: 1, mode: 'hold', ease: 'quint', rot: -0.07 });
   }
 }

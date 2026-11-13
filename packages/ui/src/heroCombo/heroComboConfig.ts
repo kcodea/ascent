@@ -4,18 +4,19 @@
  *
  * THE SIGNATURE: the blow is played as an arcade FIGHTING GAME COMBO with a HUD. The striking portrait steps in beside
  * the struck one (a 2D fighter: side by side, facing each other) and lands a combo of flat, chunky hit sparks while a
- * COMBO COUNTER ticks up beside it. The counter ENDS ON THE REAL DAMAGE of the blow (`total`, the engine's number):
- * every hit is worth a share of it, so the last hit always reads the true number. No other attack has a HUD or a counter.
+ * COMBO COUNTER ticks up beside it. The counter COUNTS REAL HITS (one hit, one count); the damage is the game's own
+ * number. No other attack has a HUD or a counter.
  *
  * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I THE JAB: step in, one quick jab (a fist-shaped hit spark), the struck portrait flinches back.
+ *  - I THE JAB: step in, one to three quick taps (a blow of 1, 2 or 3 is that many), the struck portrait flinches back.
  *  - II THE STRING: jab, cross, low kick. Three hits in rhythm at three heights, the struck portrait rocking with each.
  *  - III THE LAUNCHER: two quick hits, an UPPERCUT that launches the struck portrait into the air, the striker jumps
  *    after it and JUGGLES it (three or four air hits, rolled from the seed; it bobs up with each), then SPIKES it back
  *    down into its socket.
  *  - IV THE SUPER: a few opening hits, then the SUPER FREEZE: the screen dims, a diagonal cut-in band slides across with
  *    the striking hero's portrait art and a row of input arrows lighting one by one; then a rapid FLURRY with the counter
- *    racing, one last heavy blow that sends the struck portrait flying, and "K.O." slams in.
+ *    racing, a held WIND-UP (the gather), one last heavy blow that blasts the struck portrait away (it bounces, rocks
+ *    and settles), and "K.O." slams in and holds.
  *
  * THE CONTRACT: the blow lands exactly ONCE, on the impact (I the jab, II the low kick, III the slam into the socket,
  * IV the heavy blow). Every other hit is a TICK (no damage). Both portraits are restored exactly on every exit path (the
@@ -59,7 +60,7 @@ interface GlobalConfig {
   flinchRot: number;
   sparkSize: number;
   counterSize: number;
-  counterRollMs: number;
+  tapGapMs: number;
   launchMs: number;
   launchHeight: number;
   jumpDelayMs: number;
@@ -83,6 +84,8 @@ interface GlobalConfig {
   koSpin: number;
   koDelayMs: number;
   koSize: number;
+  koHoldMs: number;
+  flashAlpha: number;
   squash: number;
   shakeMs: number;
   zoomOutMs: number;
@@ -98,6 +101,9 @@ interface GlobalConfig {
   sfxHeavyClip: string; sfxHeavyGain: number; sfxHeavyRate: number;
   sfxSuperClip: string; sfxSuperGain: number; sfxSuperRate: number;
   sfxKoClip: string; sfxKoGain: number; sfxKoRate: number;
+  sfxPunchClip: string; sfxPunchGain: number; sfxPunchRate: number;
+  sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
+  sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
@@ -105,7 +111,7 @@ interface GlobalConfig {
 export type HeroComboConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_COMBO_COLOR_KEYS = ['colorSpark', 'colorHeavy', 'colorFlash', 'colorDust', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_COMBO_CLIP_KEYS = ['sfxStepClip', 'sfxHitClip', 'sfxHeavyClip', 'sfxSuperClip', 'sfxKoClip'] as const;
+export const HERO_COMBO_CLIP_KEYS = ['sfxStepClip', 'sfxHitClip', 'sfxHeavyClip', 'sfxSuperClip', 'sfxKoClip', 'sfxPunchClip', 'sfxChargeClip', 'sfxBoomClip'] as const;
 export type HeroComboStrKey = (typeof HERO_COMBO_COLOR_KEYS)[number] | (typeof HERO_COMBO_CLIP_KEYS)[number];
 export type HeroComboNumKey = Exclude<keyof HeroComboConfig, HeroComboStrKey>;
 
@@ -114,15 +120,15 @@ const TIER_DEFAULTS: Record<ComboTierSuffix, [number, number, number, number]> =
   ReadyMs: [100, 100, 100, 100],
   StepMs: [220, 210, 200, 190],
   GapMs: [0, 200, 150, 130],
-  HoldMs: [420, 440, 520, 900],
-  ReturnMs: [260, 280, 320, 380],
+  HoldMs: [420, 460, 760, 1700],
+  ReturnMs: [260, 280, 340, 460],
   Knock: [0.6, 0.9, 1, 1.4],
   Zoom: [0.02, 0.03, 0.04, 0.05],
-  Punch: [0.012, 0.018, 0.03, 0.05],
-  Shake: [3, 5, 11, 18],
-  Burst: [0.8, 1, 1.35, 1.8],
-  Rings: [1, 1, 2, 4],
-  Dim: [0.1, 0.14, 0.2, 0.28],
+  Punch: [0.014, 0.022, 0.045, 0.085],
+  Shake: [4, 7, 18, 30],
+  Burst: [0.8, 1, 1.45, 2],
+  Rings: [1, 1, 3, 5],
+  Dim: [0.1, 0.14, 0.24, 0.4],
 };
 
 export const COMBO_TIER_RANGES: Record<ComboTierSuffix, [number, number, number]> = {
@@ -153,7 +159,7 @@ export const HERO_COMBO_DEFAULTS: HeroComboConfig = {
   flinchRot: 9,
   sparkSize: 1,
   counterSize: 1,
-  counterRollMs: 130,
+  tapGapMs: 120,
   launchMs: 210,
   launchHeight: 1.7,
   jumpDelayMs: 90,
@@ -165,21 +171,23 @@ export const HERO_COMBO_DEFAULTS: HeroComboConfig = {
   slamMs: 95,
   openHits: 3,
   freezeDelayMs: 180,
-  cutinMs: 760,
+  cutinMs: 980,
   cutinSlideMs: 130,
   cutinDim: 0.62,
   cutinTilt: -8,
   cutinHeight: 0.27,
   flurryHits: 14,
   flurryGapMs: 56,
-  heavyWindMs: 300,
+  heavyWindMs: 600,
   koLaunch: 1.5,
   koSpin: 1.25,
-  koDelayMs: 110,
+  koDelayMs: 150,
   koSize: 1,
+  koHoldMs: 1750,
+  flashAlpha: 0.4,
   squash: 0.1,
-  shakeMs: 300,
-  zoomOutMs: 420,
+  shakeMs: 560,
+  zoomOutMs: 700,
   reducedFadeMs: 260,
   colorSpark: '#ffd23f',
   colorHeavy: '#ff5a3c',
@@ -187,11 +195,14 @@ export const HERO_COMBO_DEFAULTS: HeroComboConfig = {
   colorDust: '#e9dfc8',
   colorPlayer: '#ffcf5a',
   colorFoe: '#ff6a5a',
-  sfxStepClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxStepGain: 0.3, sfxStepRate: 1.25,
-  sfxHitClip: 'fx/combo-hit', sfxHitGain: 0.6, sfxHitRate: 1,
-  sfxHeavyClip: 'fx/combo-heavy', sfxHeavyGain: 0.75, sfxHeavyRate: 1,
-  sfxSuperClip: 'fx/combo-super', sfxSuperGain: 0.6, sfxSuperRate: 1,
-  sfxKoClip: 'fx/combo-ko', sfxKoGain: 0.7, sfxKoRate: 1,
+  sfxStepClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxStepGain: 0.5, sfxStepRate: 1.25,
+  sfxHitClip: 'fx/combo-hit', sfxHitGain: 0.9, sfxHitRate: 1,
+  sfxHeavyClip: 'fx/combo-heavy', sfxHeavyGain: 1.1, sfxHeavyRate: 1,
+  sfxSuperClip: 'fx/combo-super', sfxSuperGain: 0.8, sfxSuperRate: 1,
+  sfxKoClip: 'fx/combo-ko', sfxKoGain: 1, sfxKoRate: 1,
+  sfxPunchClip: 'fx/combo-punch', sfxPunchGain: 1, sfxPunchRate: 1,
+  sfxChargeClip: 'fx/combo-charge', sfxChargeGain: 0.7, sfxChargeRate: 1,
+  sfxBoomClip: 'fx/combo-boom', sfxBoomGain: 0.95, sfxBoomRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -209,7 +220,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroComboStrKey>, [numbe
   flinchRot: [0, 30, 0.5],
   sparkSize: [0.3, 2.5, 0.05],
   counterSize: [0.4, 2, 0.05],
-  counterRollMs: [0, 400, 5],
+  tapGapMs: [60, 400, 5],
   launchMs: [80, 800, 5],
   launchHeight: [0.5, 4, 0.05],
   jumpDelayMs: [0, 400, 5],
@@ -233,6 +244,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroComboStrKey>, [numbe
   koSpin: [0, 4, 0.25],
   koDelayMs: [0, 600, 10],
   koSize: [0, 2.5, 0.05],
+  koHoldMs: [400, 4000, 10],
+  flashAlpha: [0, 1, 0.01],
   squash: [0, 0.4, 0.01],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
@@ -242,6 +255,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroComboStrKey>, [numbe
   sfxHeavyGain: [0, 2, 0.05], sfxHeavyRate: [0.5, 2.5, 0.01],
   sfxSuperGain: [0, 2, 0.05], sfxSuperRate: [0.5, 2.5, 0.01],
   sfxKoGain: [0, 2, 0.05], sfxKoRate: [0.5, 2.5, 0.01],
+  sfxPunchGain: [0, 2, 0.05], sfxPunchRate: [0.5, 2.5, 0.01],
+  sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2.5, 0.01],
+  sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -253,14 +269,16 @@ export const HERO_COMBO_RANGES: Record<HeroComboNumKey, [number, number, number]
 };
 
 /** Hard caps (whatever the tuner says). */
-export const COMBO_CAPS = { shakePx: 40, flurry: 24, air: 6, open: 5 } as const;
+export const COMBO_CAPS = { shakePx: 40, flurry: 24, air: 6, open: 5, taps: 3 } as const;
 /** The super's input glyphs: how many, the gap between each lighting, and the wait after the band has slid in. */
 export const GLYPHS = 4;
 export const GLYPH_GAP_MS = 75;
 export const GLYPH_LEAD_MS = 70;
+/** IV: when the blasted target touches down (ms after the impact): the landing, then one bounce. */
+export const KO_LANDINGS = [150, 410] as const;
 
 const store = configStore<HeroComboConfig>({
-  key: 'ascent.herocombo.v2', defaults: HERO_COMBO_DEFAULTS, ranges: HERO_COMBO_RANGES,
+  key: 'ascent.herocombo.v3', defaults: HERO_COMBO_DEFAULTS, ranges: HERO_COMBO_RANGES,
   colorKeys: HERO_COMBO_COLOR_KEYS, clipKeys: HERO_COMBO_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroComboStore = store;
@@ -287,7 +305,7 @@ export function airHitsOf(rollSeed: number, c: HeroComboConfig = store.get()): n
 
 export type HitKind = 'jab' | 'cross' | 'kick' | 'upper' | 'air' | 'spike' | 'flurry' | 'heavy';
 
-/** One hit of the combo. `count` is what the counter reads once it has landed (the last hit's is the real damage). */
+/** One hit of the combo. `count` is what the counter reads once it has landed (hit n reads n). */
 export interface ComboHit { at: number; kind: HitKind; i: number; power: number; count: number }
 
 export interface ComboPlanInput extends AttackTierContext {
@@ -320,6 +338,8 @@ export interface ComboPlan {
   freezeAt: number | null;
   cutinEnd: number | null;
   flurryEnd: number | null;
+  /** IV: the heavy blow's wind-up starts (the gather: the anticipation before THE impact). */
+  windAt: number | null;
   koAt: number | null;
   /** THE impact. The blow lands here, once. */
   impactAt: number;
@@ -338,13 +358,10 @@ export interface ComboPlan {
 }
 
 /**
- * What the counter reads after each of `n` hits, ending EXACTLY on `total`: with more damage than hits every hit is
- * worth several (strictly climbing); with fewer, some hits do not move it (it never passes the real number). Pure.
+ * I: how many quick taps the jab is. A blow of 1, 2 or 3 is exactly that many taps (so on the smallest blows the hit
+ * count IS the damage); a bigger Tier I blow is three. Pure.
  */
-export function comboCounts(total: number, n: number): number[] {
-  const T = Math.max(0, Math.round(total));
-  return Array.from({ length: n }, (_, i) => (i === n - 1 ? T : T >= n ? Math.floor((T * (i + 1)) / n) : Math.ceil((T * (i + 1)) / n)));
-}
+export function jabTaps(total: number): number { return clamp(Math.round(total), 1, COMBO_CAPS.taps); }
 
 /** The whole attack, in base ms. Pure and deterministic. */
 export function comboPlan(input: ComboPlanInput, c: HeroComboConfig = store.get()): ComboPlan {
@@ -356,7 +373,7 @@ export function comboPlan(input: ComboPlanInput, c: HeroComboConfig = store.get(
     tier, kind, k: (tier - 1) / 3, total, knock: L.Knock, zoom: L.Zoom, punch: L.Punch, shakePx: clamp(L.Shake, 0, COMBO_CAPS.shakePx),
     burst: L.Burst, rings: Math.round(L.Rings), dim: L.Dim,
   };
-  const none = { launchAt: null, jumpAt: null, spikeAt: null, slamAt: null, freezeAt: null, cutinEnd: null, flurryEnd: null, koAt: null };
+  const none = { launchAt: null, jumpAt: null, spikeAt: null, slamAt: null, freezeAt: null, cutinEnd: null, flurryEnd: null, windAt: null, koAt: null };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
@@ -375,8 +392,10 @@ export function comboPlan(input: ComboPlanInput, c: HeroComboConfig = store.get(
   const times = { ...none } as { [K in keyof typeof none]: number | null };
   let impactAt: number;
   if (kind === 'jab') {
-    raw.push({ at: first, kind: 'jab', power: 0.5 });
-    impactAt = first;
+    // 1, 2 or 3 quick taps (jab, jab, cross): the last one is the impact.
+    const n = jabTaps(total), tg = Math.max(60, c.tapGapMs);
+    for (let i = 0; i < n; i++) raw.push({ at: first + i * tg, kind: i === 2 ? 'cross' : 'jab', power: i === n - 1 ? 0.55 : 0.35 });
+    impactAt = first + (n - 1) * tg;
   } else if (kind === 'string') {
     raw.push({ at: first, kind: 'jab', power: 0.35 }, { at: first + gap, kind: 'cross', power: 0.55 }, { at: first + gap * 2.15, kind: 'kick', power: 0.85 });
     impactAt = first + gap * 2.15;
@@ -401,18 +420,19 @@ export function comboPlan(input: ComboPlanInput, c: HeroComboConfig = store.get(
     const n = clamp(Math.round(c.flurryHits), 4, COMBO_CAPS.flurry);
     for (let i = 0; i < n; i++) raw.push({ at: times.cutinEnd + 60 + i * c.flurryGapMs, kind: 'flurry', power: 0.3 + (0.3 * i) / n });
     times.flurryEnd = times.cutinEnd + 60 + (n - 1) * c.flurryGapMs;
+    times.windAt = times.flurryEnd + 40;
     impactAt = times.flurryEnd + c.heavyWindMs;
     raw.push({ at: impactAt, kind: 'heavy', power: 1.25 });
     times.koAt = impactAt + c.koDelayMs;
   }
-  const counts = comboCounts(total, raw.length);
-  const hits: ComboHit[] = raw.map((h, i) => ({ ...h, i, count: counts[i]! }));
+  // THE COUNTER COUNTS REAL HITS: hit n reads n. (The damage is the game's own number, not the counter's.)
+  const hits: ComboHit[] = raw.map((h, i) => ({ ...h, i, count: i + 1 }));
   const homeAt = impactAt + L.HoldMs;
   const homeEnd = homeAt + L.ReturnMs;
   return { ...looks, ...times, reduced: false, chargeAt, absorbEnd, stepAt, stepEnd, hits, impactAt, homeAt, homeEnd, endAt: homeEnd + 80 };
 }
 
-export type ComboCueKind = 'charge' | 'step' | 'hit' | 'jump' | 'super' | 'glyph' | 'flurry' | 'impact' | 'ko' | 'home' | 'end';
+export type ComboCueKind = 'charge' | 'step' | 'hit' | 'jump' | 'super' | 'glyph' | 'flurry' | 'wind' | 'impact' | 'land' | 'ko' | 'home' | 'end';
 export interface ComboCue { at: number; kind: ComboCueKind; i: number }
 
 /** Every beat the runner fires, in time order. The blow lands on `impact`, once. */
@@ -428,12 +448,15 @@ export function comboCues(p: ComboPlan, c: HeroComboConfig = store.get()): Combo
       for (let i = 0; i < GLYPHS; i++) out.push({ at: glyphAt(p, c, i), kind: 'glyph', i });
       out.push({ at: p.cutinEnd, kind: 'flurry', i: 0 });
     }
+    if (p.windAt !== null) out.push({ at: p.windAt, kind: 'wind', i: 0 });
     if (p.koAt !== null) out.push({ at: p.koAt, kind: 'ko', i: 0 });
+    // IV: the blasted target comes down and bounces (the aftermath's two landings).
+    if (p.kind === 'super') for (let i = 0; i < KO_LANDINGS.length; i++) out.push({ at: p.impactAt + KO_LANDINGS[i]!, kind: 'land', i });
     out.push({ at: p.homeAt, kind: 'home', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<ComboCueKind, number> = { charge: 0, step: 1, super: 2, glyph: 3, flurry: 4, jump: 5, hit: 6, impact: 7, ko: 8, home: 9, end: 10 };
+  const order: Record<ComboCueKind, number> = { charge: 0, step: 1, super: 2, glyph: 3, flurry: 4, jump: 5, wind: 5, hit: 6, impact: 7, land: 8, ko: 9, home: 10, end: 11 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind] || a.i - b.i);
 }
 
@@ -489,7 +512,7 @@ export function clampToFrame(p: Pt, f: Frame | null, mx: number, my = mx): Pt {
 /** Whether a point is inside the frame (tests). */
 export const onScreen = inFrame;
 
-/** The counter's size for a blow of `total` beside a target of radius `dR`: [width, height, digit height]. Pure. */
+/** The counter's size for a combo of `total` hits beside a target of radius `dR`: [width, height, digit height]. Pure. */
 export function counterSize(total: number, dR: number, c: HeroComboConfig): { w: number; h: number; digit: number; digits: number } {
   const digits = String(Math.max(0, Math.round(total))).length;
   const digit = dR * 0.95 * c.counterSize;
@@ -502,10 +525,10 @@ export function counterSize(total: number, dR: number, c: HeroComboConfig): { w:
  * RING is the target's slot pulled in off the screen's edges just far enough for this tier's combo: room for the striker
  * and the counter behind it, room to be knocked back, and (III) headroom for the launch. Pure.
  */
-export function comboGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroComboConfig = store.get(), o: { side?: 'player' | 'opp'; total?: number; kind?: ComboKind } = {}): ComboGeo {
+export function comboGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroComboConfig = store.get(), o: { side?: 'player' | 'opp'; hits?: number; kind?: ComboKind } = {}): ComboGeo {
   const kind = o.kind ?? 'jab';
   const gap = (aR + dR) * c.stance;
-  const cs = counterSize(o.total ?? 0, dR, c);
+  const cs = counterSize(o.hits ?? 0, dR, c);
   // `s` = which side of the target the striker stands on (-1 = its left).
   const s: 1 | -1 = Math.abs(a.x - d.x) > (aR + dR) * 0.6 ? (a.x < d.x ? -1 : 1) : (o.side === 'opp' ? 1 : -1);
   const face = (-s) as 1 | -1;
@@ -561,7 +584,7 @@ const STRIKES: Record<HitKind, readonly [number, number, number, number, number,
   air: [60, 95, 0.2, 0.75, 0.8, 0, 8],
   spike: [110, 170, 0.5, 1.1, 0.45, 0.9, 18],
   flurry: [36, 42, 0.15, 0.6, 1, 0, 4],
-  heavy: [260, 280, 0.7, 1.5, 1.2, 0, 22],
+  heavy: [460, 320, 0.95, 1.6, 1.2, 0, 26],
 };
 
 /** How the target takes a hit: [knock, dir x (along the facing), dir y, rock degrees, decay ms]. */
@@ -688,8 +711,10 @@ export function strikerPose(p: ComboPlan, g: ComboGeo, c: HeroComboConfig, aR: n
   // IV: it swells a touch through the super freeze (held still: the cut-in is the show).
   if (p.freezeAt !== null && p.cutinEnd !== null && t >= p.freezeAt && t < p.impactAt) {
     pose.scale = 1 + 0.07 * easeOutCubic(win(t, p.freezeAt, p.freezeAt + 120));
+    // THE WIND-UP: it rears back (the strike's own pull) and swells as the power gathers.
+    if (p.windAt !== null && t >= p.windAt) pose.scale += 0.12 * easeInOutSine(win(t, p.windAt, p.impactAt - 40));
   }
-  if (t >= p.impactAt && p.kind === 'super') pose.scale = 1 + 0.07 * (1 - win(t, p.impactAt + 200, p.homeAt));
+  if (t >= p.impactAt && p.kind === 'super') pose.scale = 1 + 0.19 * (1 - easeOutCubic(win(t, p.impactAt + 60, p.impactAt + 420)));
   // HOME: a hop back to its slot, and a little settle.
   const home = easeInOutSine(win(t, p.homeAt, p.homeEnd));
   pose.x = x * (1 - home); pose.y = y * (1 - home) - Math.sin(Math.PI * home) * aR * 0.2;
@@ -733,13 +758,18 @@ export function targetPose(p: ComboPlan, g: ComboGeo, c: HeroComboConfig, dR: nu
   if (t >= p.impactAt) {
     const age = t - p.impactAt;
     if (p.kind === 'super') {
-      // K.O.: flung away (kept on screen), spinning, then it springs back home.
-      const fly = easeOutCubic(Math.min(1, age / 170));
+      // K.O.: BLASTED away (kept on screen) in a blink, spinning; it lands, bounces twice, rocks and SETTLES there
+      // (the aftermath lingers), then springs back home.
+      const fly = easeOutCubic(Math.min(1, age / 150));
       const back = easeInOutSine(win(t, p.homeAt, p.homeEnd));
-      pose.x = (g.pull.x + (g.launch.x - g.pull.x) * fly) * (1 - back); pose.y = (g.pull.y + (g.launch.y - g.pull.y) * fly) * (1 - back) - Math.sin(Math.PI * back) * dR * 0.12;
-      pose.rot = c.koSpin * 360 * g.face * easeOutCubic(Math.min(1, age / 620)) * (1 - back);
-      pose.scale = 1 - 0.12 * fly * (1 - back);
-      pose.squash = c.squash * 2 * Math.max(0, spring(age, 5, 110));
+      const la = age - 150;
+      const bounce = la > 0 && la < 780 ? Math.abs(Math.sin((Math.PI * la) / 260)) * Math.exp(-la / 230) * dR * 0.42 : 0;
+      const rock = la > 620 ? 13 * Math.exp(-(la - 620) / 260) * Math.sin((2 * Math.PI * (la - 620)) / 300) : 0;
+      pose.x = (g.pull.x + (g.launch.x - g.pull.x) * fly) * (1 - back);
+      pose.y = (g.pull.y + (g.launch.y - g.pull.y) * fly - bounce) * (1 - back) - Math.sin(Math.PI * back) * dR * 0.12;
+      pose.rot = (c.koSpin * 360 * g.face * easeOutCubic(Math.min(1, age / 620)) + g.face * rock) * (1 - back);
+      pose.scale = 1 - 0.14 * fly * (1 - back);
+      pose.squash = c.squash * 2.4 * Math.max(0, spring(age, 5, 130));
       if (t >= p.homeEnd) pose.squash += c.squash * 0.5 * Math.max(0, spring(t - p.homeEnd, 4, 70));
     } else if (p.kind === 'launcher') {
       // THE SLAM: flattened into its socket, one small bounce.
@@ -767,28 +797,20 @@ export function hitPoint(p: ComboPlan, g: ComboGeo, c: HeroComboConfig, dR: numb
 // ─── the HUD (pure) ────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * THE COMBO COUNTER at sequence time `t`: the number it reads (it rolls up through a hit's share, so a hit worth several
- * races through them), how long ago it last moved (the scale punch), whether it reads the final number (the real damage)
- * and how visible it is. Hidden before the first hit. Pure.
+ * THE COMBO COUNTER at sequence time `t`: the number it reads (the hits landed so far: one hit, one count), how long ago
+ * it last moved (the scale punch), whether it reads the final count and how visible it is. Hidden before the first hit.
+ * Pure.
  */
 export interface CounterState { value: number; pulse: number; final: boolean; alpha: number }
 export function comboCounter(p: ComboPlan, c: HeroComboConfig, t: number): CounterState {
+  void c;
   const hits = p.hits;
   if (p.reduced || !hits.length || t < hits[0]!.at) return { value: 0, pulse: Infinity, final: false, alpha: 0 };
   let j = 0;
   while (j + 1 < hits.length && hits[j + 1]!.at <= t) j++;
   const h = hits[j]!;
-  const prev = j ? hits[j - 1]!.count : 0;
-  const gapTo = j + 1 < hits.length ? hits[j + 1]!.at - h.at : 400;
-  const roll = Math.min(c.counterRollMs, gapTo * 0.8);
-  const e = roll > 0 ? clamp01((t - h.at) / roll) : 1;
-  const step = h.count - prev;
-  const value = step <= 0 ? h.count : e >= 1 ? h.count : prev + Math.max(1, Math.ceil(step * e));
-  // The punch restarts on the hit that last MOVED the counter.
-  let m = j;
-  while (m > 0 && hits[m]!.count === hits[m - 1]!.count) m--;
   const alpha = clamp01((t - hits[0]!.at) / 50 + 0.4) * (1 - win(t, p.homeAt, p.homeAt + Math.max(120, (p.homeEnd - p.homeAt) * 0.7)));
-  return { value, pulse: t - hits[m]!.at, final: j === hits.length - 1 && value === h.count, alpha };
+  return { value: h.count, pulse: t - h.at, final: j === hits.length - 1, alpha };
 }
 
 /**
@@ -823,6 +845,14 @@ export function comboCameraAt(p: ComboPlan, c: HeroComboConfig, t: number, face:
     const s = spring(age, 16, 45) * p.shakePx * 0.22 * (0.5 + h.power);
     x += face * s; y += hitHeight(h) * s * 0.5;
   }
+  // IV THE WIND-UP: a slow extra push in and a rising tremble (the held breath before the blow).
+  if (p.windAt !== null && t >= p.windAt && t < p.impactAt) {
+    const w = (t - p.windAt) / Math.max(1, p.impactAt - p.windAt);
+    z += p.punch * 0.5 * w * w;
+    x += Math.sin(t * 0.19) * p.shakePx * 0.1 * w; y += Math.cos(t * 0.23) * p.shakePx * 0.1 * w;
+  }
+  // IV "K.O." SLAMS IN: its own jolt, straight down.
+  if (p.koAt !== null && t >= p.koAt && t - p.koAt < 500) y += spring(t - p.koAt, 14, 90) * p.shakePx * 0.6;
   if (t >= p.impactAt) {
     const age = t - p.impactAt;
     const tau = Math.max(1, c.shakeMs / 4);

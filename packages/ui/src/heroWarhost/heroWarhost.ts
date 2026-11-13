@@ -3,18 +3,19 @@
  * staging are in `heroWarhostConfig.ts`) and lands the consequence on its impact beat. Presentation only: the total
  * and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * AN ARMY OF TINY SOLDIERS delivers the blow: I one spearman and his thrown spear; II a rank of archers and an arrow
- * rain; III a wedge of cavalry riding through the struck portrait and wheeling home round it; IV four quickening war
- * drums, a horn, banners, and the whole host flooding over it behind a wall of dust, leaving a few to plant a big banner
- * on it and cheer. The host always comes from the striker's side (every path is built from the two portrait points),
- * and its jitter is rolled from the blow's seed.
+ * A SILLY ARMY OF TINY SOLDIERS that gets more absurd and more powerful with every tier: Tier 1 one eager spearman who
+ * trips on his face and throws anyway; Tier 2 a squad of archers and the one who ran the wrong way, whose late golden
+ * arrow is the blow; Tier 3 two bickering mages (a fireball, a lightning bolt) and a cavalry charge; Tier 4 the whole
+ * host with a drum line, five mages' barrage, three volleys darkening the sky, a flaming catapult boulder, a straggler,
+ * and one tiny soldier planting a huge banner. The host always comes from the striker's side (every path is built from
+ * the two portrait points), and its jitter is rolled from the blow's seed.
  *
- * AN ARMY SOUNDS LIKE ONE (second pass). Every visible beat has a cue: steps as the spearman and the archers run out and
- * home; the throw; the bowstrings and then a VOLLEY (the hiss of arrows overhead and their patter going in); the horn;
- * hooves; on IV the drums quickening, a drum roll under the horn, the massed roar, a marching drum under the charge,
- * the two volleys; under every charge a ground RUMBLE (a synth) that builds as it crosses; the clash of steel and
- * shields with a boom under it on the blow; a thud per later row or rank; and the banner: a knock, a ground thud, the
- * flag snapping open, and the cheer of the ones who stayed.
+ * EVERY BEAT HAS A SOUND: steps, the faceplant's clatter, tiny pitched-up voices ("Charge!", "Wait for me!"), the mages'
+ * squeaky bickering, the rune circles igniting, each spell (a fireball's roar timed to peak as it lands, a frost
+ * sparkle and shatter, lightning's crack and zap), the bowstrings and volleys, the horn, the drums and the march, the
+ * ground RUMBLE (a synth) that builds as a charge crosses, the clash with a boom under it on the blow, the boulder's
+ * whistle and crash, a thud per later row or rank, and the banner: a knock, a ground thud, the flag snapping open, and
+ * the cheer of the ones who stayed.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; only the Knockout variant dips
  * it, through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the
@@ -41,7 +42,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  WARHOST_VOLLEY_LEAD_MS, WARHOST_VOLLEY_MS, getHeroWarhostConfig, warhostCameraAt, warhostCameraFocus, warhostCues, warhostPlan, warhostRumble, warhostScale,
+  WARHOST_SPEARMAN_SIZE, WARHOST_VOLLEY_LEAD_MS, WARHOST_VOLLEY_MS, getHeroWarhostConfig, warhostCameraAt, warhostCameraFocus, warhostCues, warhostPlan, warhostRumble, warhostScale,
   warhostSlowExtraMs, warhostStage,
   type HeroWarhostConfig, type WarhostCue, type WarhostPlan, type WarhostStage,
 } from './heroWarhostConfig';
@@ -65,9 +66,10 @@ export function warhostSeed(total: number, distance: number, side: 'player' | 'o
   return (Math.round(total) * 7919 + Math.round(distance) * 31 + (side === 'opp' ? 613 : 17)) >>> 0;
 }
 
-/** A charge throws up its dust wall this often, and IV's marching drum beats this often under the host. */
+/** A charge throws up its dust wall this often. */
 const WALL_MS = 44;
-const MARCH_BEAT_MS = 215;
+/** The fireball clip's roar peaks this far in (measured): it is cued so the peak lands with the fireball. */
+const FIRE_PEAK_MS = 397;
 
 /** Play the Warhost. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
@@ -107,7 +109,7 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const textures = o.textures !== undefined ? o.textures : heroWarhostTextures();
   const scene = textures && !reduced
     ? new HeroWarhostScene(textures, { red: hexToNum(c.colorRed), brass: hexToNum(c.colorBrass), dust: hexToNum(c.colorDust), side: hexToNum(sideHex) }, {
-      soldierPx: c.soldierPx, cavalryPx: c.cavalryPx, dust: c.dust, impactSize: c.impactSize,
+      soldierPx: c.soldierPx, cavalryPx: c.cavalryPx, dust: c.dust, impactSize: c.impactSize, spellSize: c.spellSize,
     }, s, seed)
     : null;
   // Every soldier's sprite is taken now, while the damage formation still plays: nothing is made on a hot beat.
@@ -123,8 +125,12 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
     voices.cue(clip, gain, rate * (0.85 + 0.15 * warhostScale(plan, seq ? seq.t : 0)), opts);
   voices.warm([
     c.sfxHornClip, c.sfxDrumClip, c.sfxChargeClip, c.sfxGallopClip, c.sfxLooseClip, c.sfxThunkClip, c.sfxWhooshClip, c.sfxThudClip, c.sfxBoomClip,
-    c.sfxCheerClip, c.sfxVolleyClip, c.sfxClashClip, c.sfxFlapClip,
+    c.sfxCheerClip, c.sfxVolleyClip, c.sfxClashClip, c.sfxFlapClip, c.sfxTripClip, c.sfxBickerClip, c.sfxRuneClip, c.sfxFireClip, c.sfxBurnClip,
+    c.sfxFrostClip, c.sfxShatterClip, c.sfxZapClip, c.sfxCrackClip, c.sfxWhistleClip, c.sfxBoulderClip, c.sfxCryClip, c.sfxWaitClip,
   ]);
+  /** A spell's sound plays once per school per landing moment (Tier 4's second round all lands at once: one roar). */
+  const sounded: Record<string, number> = {};
+  const once = (key: string, at: number): boolean => { if (sounded[key] === at) return false; sounded[key] = at; return true; };
   /** A few quick soft steps (the spearman running out, the archers jogging out or home). */
   const steps = (n: number, gapMs: number, gain = 0.16): void => { for (let i = 0; i < n; i++) cue(c.sfxThunkClip, c.sfxThunkGain * gain * (0.8 + 0.2 * (i % 2)), c.sfxThunkRate * (1.8 + 0.12 * (i % 3)), { startMs: 55, lenMs: 110, fadeMs: 60, delayMs: (i * gapMs) / speed }); };
   /**
@@ -147,6 +153,82 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
+      case 'trip': {
+        // FLAT ON HIS FACE: a stumble and a clatter of tin, a low knock as he hits the ground, the view thumps.
+        cue(c.sfxTripClip, c.sfxTripGain, c.sfxTripRate, { startMs: 80, fadeMs: 160 });
+        thunk(0.45, 0.6, 200);
+        const who = stage.troops[0];
+        if (who?.via) scene?.trip(who.via, who.via.x >= who.p0.x ? 1 : -1, WARHOST_SPEARMAN_SIZE * 0.5);
+        break;
+      }
+      case 'up':
+        // He scrambles up and carries on (a quick whoosh, two hurried steps).
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.35, c.sfxWhooshRate * 1.5, { lenMs: 200, fadeMs: 120 });
+        steps(3, 60, 0.45);
+        break;
+      case 'lost':
+        // The one who ran the wrong way stops and looks about.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.25, c.sfxWhooshRate * 1.7, { lenMs: 160, fadeMs: 100 });
+        break;
+      case 'turn':
+        // "Wait for me!" (a tiny voice), and he sprints back.
+        cue(c.sfxWaitClip, c.sfxWaitGain * (plan.kind === 'host' ? 0.6 : 1), c.sfxWaitRate * (plan.kind === 'host' ? 1.08 : 1));
+        if (plan.kind === 'archers') steps(5, 55, 0.4);
+        break;
+      case 'late':
+        // The straggler's golden arrow: one bowstring, a whistle in the air.
+        cue(c.sfxLooseClip, c.sfxLooseGain, c.sfxLooseRate * 0.92);
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate * 1.1, { lenMs: 360, fadeMs: 160, delayMs: 40 / speed });
+        break;
+      case 'mages':
+        // The mages pop out (a bright little shimmer).
+        cue(c.sfxRuneClip, c.sfxRuneGain * 0.45, c.sfxRuneRate * 1.4, { lenMs: 500, fadeMs: 250 });
+        break;
+      case 'bicker':
+        cue(c.sfxBickerClip, c.sfxBickerGain, c.sfxBickerRate, { lenMs: Math.max(300, (plan.bickerEnd - plan.bickerAt + 150) * c.sfxBickerRate), fadeMs: 200 });
+        break;
+      case 'rune':
+        // Their circles light up together.
+        cue(c.sfxRuneClip, c.sfxRuneGain, c.sfxRuneRate, { tail: c.sfxTailMix });
+        scene?.runesFlare();
+        break;
+      case 'cry':
+        // "CHARGE!" in a tiny voice (on Tier 4 two of them, a beat apart).
+        cue(c.sfxCryClip, c.sfxCryGain, c.sfxCryRate);
+        if (plan.kind === 'host') cue(c.sfxCryClip, c.sfxCryGain * 0.75, c.sfxCryRate * 1.12, { delayMs: 110 / speed });
+        break;
+      case 'cast': {
+        const sp = plan.spells[q.i]!, st = stage.spells[q.i];
+        const flightMs = sp.landAt - sp.castAt;
+        if (sp.school === 'fire') {
+          // The roar is cued so its peak lands with the fireball.
+          if (once('fire-cast-' + sp.round, sp.landAt)) {
+            const lead = FIRE_PEAK_MS / c.sfxFireRate;
+            cue(c.sfxFireClip, c.sfxFireGain, c.sfxFireRate, flightMs >= lead ? { delayMs: (flightMs - lead) / speed } : { startMs: FIRE_PEAK_MS - flightMs * c.sfxFireRate });
+          }
+        } else if (sp.school === 'frost') {
+          if (once('frost-cast-' + sp.round, sp.landAt)) cue(c.sfxFrostClip, c.sfxFrostGain, c.sfxFrostRate, { lenMs: 520, fadeMs: 260 });
+        } else if (sp.school === 'bolt') {
+          if (once('bolt-cast-' + sp.round, sp.landAt)) cue(c.sfxCrackClip, c.sfxCrackGain, c.sfxCrackRate);
+        } else cue(c.sfxWhistleClip, c.sfxWhistleGain, c.sfxWhistleRate, { lenMs: Math.max(300, flightMs * c.sfxWhistleRate), fadeMs: 200 });
+        if (st && st.caster >= 0) scene?.castFlash(st.from, sp.school);
+        break;
+      }
+      case 'spell': {
+        const sp = plan.spells[q.i]!, st = stage.spells[q.i];
+        if (once(sp.school + '-land', sp.landAt)) {
+          if (sp.school === 'fire') cue(c.sfxBurnClip, c.sfxBurnGain, c.sfxBurnRate);
+          else if (sp.school === 'frost') cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate);
+          else if (sp.school === 'bolt') cue(c.sfxZapClip, c.sfxZapGain, c.sfxZapRate);
+          else {
+            // THE BOULDER lands: the crash of rock and earth with a ground thud under it.
+            cue(c.sfxBoulderClip, c.sfxBoulderGain, c.sfxBoulderRate, { tail: c.sfxTailMix, fadeMs: 400 });
+            cue(c.sfxThudClip, c.sfxThudGain * 0.8, c.sfxThudRate * 0.7, { lenMs: 900, fadeMs: 400 });
+          }
+        }
+        if (st) scene?.spellHit(sp.school, st.to, radius, sp.round === 2 ? 1.25 : 1);
+        break;
+      }
       case 'drum':
         // The war drums: each a little lower and louder than the last, and each sooner (the plan quickens them).
         cue(c.sfxDrumClip, c.sfxDrumGain * (0.7 + 0.1 * q.i), c.sfxDrumRate * (1 - 0.03 * q.i), { tail: c.sfxTailMix });
@@ -172,13 +254,15 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         } else if (plan.kind === 'host') {
           // THE HOST: the massed roar (twice, overlapping, so it lasts the crossing and the trample), hooves on the
           // flanks, the ground rumbling, and a marching drum under it all.
-          const cross = plan.passAt - plan.marchAt;
           cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate);
           cue(c.sfxChargeClip, c.sfxChargeGain * 0.9, c.sfxChargeRate * 0.93, { delayMs: 800 / speed, fadeMs: 400 });
           cue(c.sfxGallopClip, c.sfxGallopGain * 0.6, c.sfxGallopRate * 0.9);
           cue(c.sfxGallopClip, c.sfxGallopGain * 0.5, c.sfxGallopRate * 0.85, { delayMs: 700 / speed });
           rumble(c.sfxRumbleGain);
-          for (let i = 0; i * MARCH_BEAT_MS < cross - 80; i++) cue(c.sfxDrumClip, c.sfxDrumGain * 0.42, c.sfxDrumRate * (i % 2 ? 1.12 : 0.96), { lenMs: 300, fadeMs: 150, delayMs: (i * MARCH_BEAT_MS) / speed });
+          // The drum line's marching beat under it all.
+          for (let i = plan.drums.length, j = 0; i < plan.beats.length; i++, j++) {
+            cue(c.sfxDrumClip, c.sfxDrumGain * 0.42, c.sfxDrumRate * (j % 2 ? 1.12 : 0.96), { lenMs: 300, fadeMs: 150, delayMs: Math.max(0, plan.beats[i]! - plan.marchAt) / speed });
+          }
         } else steps(plan.kind === 'spear' ? 4 : 6, plan.kind === 'spear' ? 70 : 50, plan.kind === 'spear' ? 0.5 : 0.4);
         break;
       case 'arrive':
@@ -244,9 +328,8 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         scene?.buffet(o.defender, radius, plan.kind === 'host' ? 1 : 0.7);
         break;
       case 'cheer':
-        // A tiny cheer (the crowd clip pitched up and trimmed to a second): one man on I, a few on the Knockout.
-        // I: one man's tiny cheer (the crowd clip pitched up, quiet, short). IV: the ones who stayed, a real cheer.
-        if (plan.kind === 'spear') cue(c.sfxCheerClip, c.sfxCheerGain * 0.4, c.sfxCheerRate * 1.25, { startMs: 700, lenMs: 800, fadeMs: 360 });
+        // Tier 1, Tier 2: one man's tiny cheer (the crowd clip pitched up, quiet, short). Tier 4: the ones who stayed.
+        if (plan.kind === 'spear' || plan.kind === 'archers') cue(c.sfxCheerClip, c.sfxCheerGain * 0.4, c.sfxCheerRate * 1.25, { startMs: 700, lenMs: 800, fadeMs: 360 });
         else cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.2 : 1), c.sfxCheerRate, { startMs: 500, lenMs: Math.max(700, (plan.endAt - plan.cheerAt - 60) * c.sfxCheerRate), fadeMs: 260 });
         break;
       case 'plant':
@@ -312,13 +395,26 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
       const rot = -2.5 * flip * lean;
       if (t >= plan.marchAt) { const f = c.heroThrowPx * px * Math.max(0, spring(t - plan.marchAt, 5, 60)); bx += u.x * f; by += u.y * f; }
       for (let i = 0; i < plan.drums.length; i++) { const at = plan.drums[i]!; if (t >= at) sc += (0.06 + 0.012 * i) * Math.max(0, spring(t - at, 4, 80)); }
-      const still = Math.abs(bx) + Math.abs(by) < 0.05 && Math.abs(rot) < 0.01 && Math.abs(sc - 1) < 1e-4;
-      hero.set(still ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${sc.toFixed(4)})`);
+      // Tier 1: the hero CRINGES as his recruit hits the ground (a squash and a wince).
+      let wince = 0;
+      if (plan.tripAt >= 0 && t >= plan.tripAt + 80) { wince = Math.max(0, spring(t - plan.tripAt - 80, 2.2, 160)); sc -= 0.05 * wince; }
+      const hrot = rot + 4 * flip * wince;
+      const still = Math.abs(bx) + Math.abs(by) < 0.05 && Math.abs(hrot) < 0.01 && Math.abs(sc - 1) < 1e-4;
+      hero.set(still ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) rotate(${hrot.toFixed(3)}deg) scale(${sc.toFixed(4)})`);
     }
     // The struck portrait: ticked by each arrow, knocked by the blow, knocked ABOUT by every row and rank after it, and
     // shuddering under the trample.
     let fx = 0, fy = 0, rot = 0, sq = 0;
     for (const at of plan.hits) if (t >= at) { const k = Math.max(0, spring(t - at, 6, 40)) * 3 * px; fx += u.x * k; fy += u.y * k; }
+    // Each spell that lands before the blow knocks it (frost makes it shiver).
+    for (let i = 0; i < plan.spells.length; i++) {
+      const sp = plan.spells[i]!;
+      if (sp.landAt >= plan.impactAt || t < sp.landAt) continue;
+      const since = t - sp.landAt;
+      const k = Math.max(0, spring(since, 5, 60)) * 8 * px;
+      fx += u.x * k; fy += u.y * k;
+      if (sp.school === 'frost') fx += Math.sin(since * 0.3) * 3.5 * px * Math.exp(-since / 220);
+    }
     if (t >= plan.impactAt) {
       // A charge hits like a wall (a slower, longer spring) and BATTERS the portrait: every later row or rank throws
       // it to one side and back, tips it and squashes it again, and it shudders under the feet the whole time.

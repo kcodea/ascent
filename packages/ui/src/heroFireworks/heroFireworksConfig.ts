@@ -14,10 +14,13 @@
  *    the struck portrait in a small star burst of one colour (rolled from the seed). The pop is THE blow.
  *  - 2, THE ROMAN CANDLE. A tube is planted and thumps out THREE glowing balls in a row, each a different colour on its
  *    own arc. The first two pop on the portrait as TICKS (FX and sound only); the third pop is THE blow.
- *  - 3, THE MORTAR SHELL. A mortar tube is planted. A heavy thump, and one faint comet rises fast and leaves the TOP of
- *    the screen. Then the HELD BEAT: about 0.6 s with the screen dimmed, the camera still and nothing moving. Then a
- *    huge chrysanthemum opens above the struck portrait (two rings of sparks that expand and droop, a smaller bloom
- *    inside, crackle glitter) and its falling sparks rain onto the portrait. The bloom is THE blow.
+ *  - 3, THE MORTAR SHELL. A mortar tube is planted and its fuse fizzes. A heavy thump, and one comet whistles up and
+ *    leaves the TOP of the screen. Then the HELD BEAT: about 0.6 s with the screen dimmed, the camera still and nothing
+ *    moving. Then THE BLOOM fills a large part of the sky beside the struck portrait: a white core flash that lights
+ *    the whole view, four rings of stars that expand and droop, a slower willow ring that hangs and falls, the view
+ *    kicked hard and the portrait lit and rocked. The bloom is THE blow. Then THE FINALE: three smaller shells crack
+ *    open around it one after another (FX and sound only, each rocking the portrait again) while glitter crackles and
+ *    drifts down for well over a second.
  *
  * The damage formation (shared) opens every attack; this style starts where it ends. The consequence lands exactly
  * ONCE, on the impact beat. No hit-stop: the clock runs straight through the held beat (the stillness is staged, the
@@ -72,6 +75,12 @@ interface GlobalConfig {
   rainMs: number;
   glitter: number;
   skyFlash: number;
+  /** The finale: how many smaller shells follow the bloom, the gap between them and how long the aftermath lasts. */
+  finaleShots: number;
+  finaleGapMs: number;
+  aftermathMs: number;
+  /** How far the struck portrait is rocked by the bloom (degrees). */
+  rockDeg: number;
   dismissMs: number;
   // Camera and portraits
   flashAlpha: number;
@@ -95,6 +104,8 @@ interface GlobalConfig {
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
   sfxPopClip: string; sfxPopGain: number; sfxPopRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  sfxWhistleClip: string; sfxWhistleGain: number; sfxWhistleRate: number;
+  sfxCrackleClip: string; sfxCrackleGain: number; sfxCrackleRate: number;
   sfxTailMix: number;
   sfxDuck: number;
   // Preview only
@@ -104,7 +115,7 @@ interface GlobalConfig {
 export type HeroFireworksConfig = GlobalConfig & Record<LevelKey, number>;
 
 export const HERO_FIREWORKS_COLOR_KEYS = ['colorCore', 'colorGold', 'colorMagenta', 'colorCyan', 'colorGreen', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_FIREWORKS_CLIP_KEYS = ['sfxPlantClip', 'sfxFuseClip', 'sfxSquealClip', 'sfxThumpClip', 'sfxPopClip', 'sfxBoomClip'] as const;
+export const HERO_FIREWORKS_CLIP_KEYS = ['sfxPlantClip', 'sfxFuseClip', 'sfxSquealClip', 'sfxThumpClip', 'sfxPopClip', 'sfxBoomClip', 'sfxWhistleClip', 'sfxCrackleClip'] as const;
 type ColorKey = (typeof HERO_FIREWORKS_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_FIREWORKS_CLIP_KEYS)[number];
 export type HeroFireworksStrKey = ColorKey | ClipKey;
@@ -112,16 +123,16 @@ export type HeroFireworksNumKey = Exclude<keyof HeroFireworksConfig, HeroFirewor
 
 /** Rocket, candle, mortar per suffix: the escalation ladder. */
 const LEVEL_DEFAULTS: Record<FireworksLevelSuffix, [number, number, number]> = {
-  FuseMs: [300, 240, 260],
-  FlyMs: [360, 330, 260],
+  FuseMs: [300, 240, 440],
+  FlyMs: [360, 330, 400],
   Size: [1, 1, 1],
-  Shake: [5, 7, 15],
-  Zoom: [0.02, 0.03, 0.045],
-  Punch: [0.015, 0.022, 0.05],
-  Sparks: [14, 10, 56],
-  Burst: [1.25, 1.2, 1.25],
+  Shake: [6, 9, 28],
+  Zoom: [0.02, 0.03, 0.05],
+  Punch: [0.018, 0.028, 0.08],
+  Sparks: [14, 10, 72],
+  Burst: [1.35, 1.3, 1.25],
   SettleMs: [240, 260, 300],
-  Dim: [0.14, 0.24, 0.6],
+  Dim: [0.14, 0.24, 0.7],
 };
 
 export const FIREWORKS_LEVEL_RANGES: Record<FireworksLevelSuffix, [number, number, number]> = {
@@ -150,20 +161,24 @@ export const HERO_FIREWORKS_DEFAULTS: HeroFireworksConfig = {
   trailMs: 9,
   candleGapMs: 180,
   candleSpread: 0.4,
-  holdMs: 600,
-  bloomSize: 3,
+  holdMs: 620,
+  bloomSize: 4.4,
   bloomLift: 0.62,
-  bloomMs: 1700,
-  rain: 22,
-  rainMs: 900,
-  glitter: 26,
-  skyFlash: 0.14,
+  bloomMs: 2100,
+  rain: 30,
+  rainMs: 1000,
+  glitter: 90,
+  skyFlash: 0.3,
+  finaleShots: 3,
+  finaleGapMs: 270,
+  aftermathMs: 1500,
+  rockDeg: 5,
   dismissMs: 260,
-  flashAlpha: 0.9,
-  knockPx: 14,
-  squash: 0.08,
-  shakeMs: 300,
-  zoomOutMs: 340,
+  flashAlpha: 0.95,
+  knockPx: 22,
+  squash: 0.1,
+  shakeMs: 460,
+  zoomOutMs: 480,
   reducedFadeMs: 260,
   colorCore: '#fffbea',
   colorGold: '#ffc94a',
@@ -172,12 +187,14 @@ export const HERO_FIREWORKS_DEFAULTS: HeroFireworksConfig = {
   colorGreen: '#6dff7c',
   colorPlayer: '#ffd66b',
   colorFoe: '#ff7bbd',
-  sfxPlantClip: 'placelow', sfxPlantGain: 0.3, sfxPlantRate: 1.2,
-  sfxFuseClip: 'fx/fireworks-fuse', sfxFuseGain: 0.5, sfxFuseRate: 1,
-  sfxSquealClip: 'fx/fireworks-squeal', sfxSquealGain: 0.42, sfxSquealRate: 1.1,
-  sfxThumpClip: 'fx/fireworks-thump', sfxThumpGain: 0.75, sfxThumpRate: 0.85,
-  sfxPopClip: 'fx/fireworks-boom', sfxPopGain: 0.5, sfxPopRate: 1.7,
-  sfxBoomClip: 'fx/fireworks-boom', sfxBoomGain: 0.95, sfxBoomRate: 0.92,
+  sfxPlantClip: 'placelow', sfxPlantGain: 0.6, sfxPlantRate: 1.1,
+  sfxFuseClip: 'fx/fireworks-fuse', sfxFuseGain: 1.8, sfxFuseRate: 1,
+  sfxSquealClip: 'fx/fireworks-squeal', sfxSquealGain: 1.7, sfxSquealRate: 1.1,
+  sfxThumpClip: 'fx/fireworks-thump', sfxThumpGain: 1.3, sfxThumpRate: 1,
+  sfxPopClip: 'fx/fireworks-pop', sfxPopGain: 1.1, sfxPopRate: 1,
+  sfxBoomClip: 'fx/fireworks-boom', sfxBoomGain: 1.6, sfxBoomRate: 1,
+  sfxWhistleClip: 'fx/fireworks-whistle', sfxWhistleGain: 0.55, sfxWhistleRate: 1,
+  sfxCrackleClip: 'fx/fireworks-crackle', sfxCrackleGain: 0.9, sfxCrackleRate: 1,
   sfxTailMix: 0.16,
   sfxDuck: 0.4,
   previewDamage: 12,
@@ -197,13 +214,17 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFireworksStrKey>, [n
   candleGapMs: [60, 600, 5],
   candleSpread: [0, 0.8, 0.01],
   holdMs: [0, 1500, 10],
-  bloomSize: [1, 4, 0.05],
+  bloomSize: [1, 6, 0.05],
   bloomLift: [0, 1.5, 0.01],
-  bloomMs: [400, 2500, 10],
+  bloomMs: [400, 3000, 10],
   rain: [0, 40, 1],
   rainMs: [300, 2000, 10],
-  glitter: [0, 50, 1],
+  glitter: [0, 120, 1],
   skyFlash: [0, 0.6, 0.01],
+  finaleShots: [0, 3, 1],
+  finaleGapMs: [120, 600, 10],
+  aftermathMs: [600, 3000, 10],
+  rockDeg: [0, 12, 0.5],
   dismissMs: [60, 1000, 10],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
@@ -217,6 +238,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFireworksStrKey>, [n
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.3, 2.5, 0.01],
   sfxPopGain: [0, 2, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.3, 2.5, 0.01],
+  sfxWhistleGain: [0, 2, 0.05], sfxWhistleRate: [0.3, 2.5, 0.01],
+  sfxCrackleGain: [0, 2, 0.05], sfxCrackleRate: [0.3, 2.5, 0.01],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -229,7 +252,7 @@ export const HERO_FIREWORKS_RANGES: Record<HeroFireworksNumKey, [number, number,
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say. */
-export const FIREWORKS_CAPS = { sparks: 80, rain: 40, glitter: 50, shakePx: 40, zoom: 0.12 } as const;
+export const FIREWORKS_CAPS = { sparks: 80, rain: 40, glitter: 120, shakePx: 40, zoom: 0.12, finale: 3 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_FIREWORKS_COLOR_KEYS as readonly string[]).includes(k);
@@ -260,7 +283,7 @@ export function sanitizeHeroFireworksConfig(saved: unknown): HeroFireworksConfig
   return out;
 }
 
-const KEY = 'ascent.herofireworks.v2';
+const KEY = 'ascent.herofireworks.v3';
 
 let cfg: HeroFireworksConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_FIREWORKS_DEFAULTS };
@@ -303,6 +326,8 @@ export type FireworkProp = 'rocket' | 'candle' | 'mortar';
 export const FIREWORK_OF: Record<FireworksLevel, FireworkProp> = { 1: 'rocket', 2: 'candle', 3: 'mortar' };
 /** How many balls the roman candle throws. */
 export const CANDLE_SHOTS = 3;
+/** The first finale shell opens this long after the bloom. */
+export const FINALE_LEAD_MS = 330;
 
 export interface FireworksPlanInput extends AttackTierContext {
   leadIn?: number;
@@ -336,6 +361,8 @@ export interface FireworksPlan {
   holdMs: number;
   /** THE consequence beat: the rocket pops, the third ball pops, or the shell blooms. */
   impactAt: number;
+  /** Mortar: THE FINALE, the smaller shells that crack open after the bloom (FX and sound only; empty otherwise). */
+  afters: number[];
   /** The tube is taken away (the rocket has flown, so it has none). */
   dismissAt: number;
   endAt: number;
@@ -361,7 +388,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
     const { impactAt } = r;
     return {
       reduced: true, tier, level, k, total, chargeAt: impactAt, absorbEnd: impactAt, fuseAt: impactAt, fuseMs: 0, launches: [], flyMs: 0,
-      hits: [], holdAt: impactAt, holdMs: 0, impactAt, dismissAt: impactAt, endAt: r.endAt,
+      hits: [], holdAt: impactAt, holdMs: 0, impactAt, afters: [], dismissAt: impactAt, endAt: r.endAt,
       propSize: V.Size, shakePx: 0, zoom: 0, punch: 0, sparks: 0, burst: 0, dim: 0,
     };
   }
@@ -375,6 +402,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
   let holdAt: number, holdMs = 0;
   let impactAt: number;
   let tail: number;
+  let afters: number[] = [];
 
   if (level === 1) {
     launches = [first];
@@ -394,8 +422,12 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
     holdAt = first + V.FlyMs;
     holdMs = c.holdMs;
     impactAt = holdAt + holdMs;
-    // The bloom hangs and droops; the scene keeps draining its last sparks after the end.
-    tail = Math.max(700, c.rainMs);
+    // THE FINALE: smaller shells crack open around the bloom, the first a good beat after it.
+    const shots = Math.round(clamp(c.finaleShots, 0, FIREWORKS_CAPS.finale));
+    afters = Array.from({ length: shots }, (_, i) => impactAt + FINALE_LEAD_MS + i * c.finaleGapMs);
+    // The aftermath: the bloom hangs and droops and its glitter crackles down; the scene keeps draining its last
+    // sparks after the end.
+    tail = Math.max(700, c.rainMs, c.aftermathMs, (afters[afters.length - 1] ?? impactAt) - impactAt + 500);
   }
 
   const dismissAt = impactAt + 240;
@@ -403,7 +435,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
 
   return {
     reduced: false, tier, level, k, total, chargeAt, absorbEnd, fuseAt, fuseMs: V.FuseMs, launches, flyMs: V.FlyMs, hits, holdAt, holdMs,
-    impactAt, dismissAt, endAt,
+    impactAt, afters, dismissAt, endAt,
     propSize: V.Size,
     shakePx: clamp(V.Shake, 0, FIREWORKS_CAPS.shakePx),
     zoom: clamp(V.Zoom, 0, FIREWORKS_CAPS.zoom),
@@ -414,7 +446,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
   };
 }
 
-export type FireworksCueKind = 'plant' | 'fuse' | 'launch' | 'hold' | 'pop' | 'impact' | 'dismiss' | 'end';
+export type FireworksCueKind = 'plant' | 'fuse' | 'launch' | 'hold' | 'pop' | 'impact' | 'after' | 'dismiss' | 'end';
 export interface FireworksCue { at: number; kind: FireworksCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a pop precedes the impact). */
@@ -428,9 +460,10 @@ export function fireworksCues(p: FireworksPlan): FireworksCue[] {
     p.hits.forEach((at, i) => out.push({ at, kind: 'pop', i }));
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
+  if (!p.reduced) p.afters.forEach((at, i) => out.push({ at, kind: 'after', i }));
   if (!p.reduced && p.level !== 1) out.push({ at: p.dismissAt, kind: 'dismiss', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<FireworksCueKind, number> = { plant: 0, fuse: 1, launch: 2, hold: 3, pop: 4, impact: 5, dismiss: 6, end: 7 };
+  const order: Record<FireworksCueKind, number> = { plant: 0, fuse: 1, launch: 2, hold: 3, pop: 4, impact: 5, after: 6, dismiss: 7, end: 8 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -493,7 +526,12 @@ export function fireworksPathAt(p: FireworksPath, e: number, out: Pt): Pt {
 export interface ViewBox { w: number; h: number }
 
 /** How close to an edge of the view the bloom's centre may sit, in bloom radii (so most of it is always on screen). */
-export const BLOOM_INSET = 0.65;
+export const BLOOM_INSET = 0.62;
+/** The bloom's radius is never more than this share of the view's shorter side. */
+export const BLOOM_VIEW = 0.44;
+/** The finale shells: the angle of each from the line (portrait -> bloom), and how far out (bloom radii). */
+const FINALE_ANGLES = [0.95, -1.05, 0.1] as const;
+const FINALE_REACH = [0.78, 0.72, 0.5] as const;
 
 export interface FireworksGeo {
   prop: FireworkProp | null;
@@ -517,9 +555,12 @@ export interface FireworksGeo {
   /** Mortar: the bloom's centre and its radius. */
   bloom: Pt | null;
   bloomR: number;
+  /** Mortar: where each finale shell opens (one per `plan.afters`), and their radius. */
+  afters: Pt[];
+  afterR: number;
 }
 
-const EMPTY_GEO: FireworksGeo = { prop: null, base: { x: 0, y: 0 }, angle: 0, dir: { x: 0, y: -1 }, k: 1, flip: 1, anchor: { x: 0, y: 0 }, mouth: { x: 0, y: 0 }, paths: [], strikes: [], bloom: null, bloomR: 0 };
+const EMPTY_GEO: FireworksGeo = { prop: null, base: { x: 0, y: 0 }, angle: 0, dir: { x: 0, y: -1 }, k: 1, flip: 1, anchor: { x: 0, y: 0 }, mouth: { x: 0, y: 0 }, paths: [], strikes: [], bloom: null, bloomR: 0, afters: [], afterR: 0 };
 
 /**
  * Where everything is, from the plan and the two heroes. The firework is planted beside the striking hero on the
@@ -555,17 +596,44 @@ export function fireworksGeometry(
   const mouth = { x: anchor.x + dir.x * M.mouth * k, y: anchor.y + dir.y * M.mouth * k };
 
   if (p.level === 3) {
-    const bloomR = radius * c.bloomSize;
-    // Above the portrait, its lowest stars just over the frame; kept (mostly) inside the view, so over a hero in a top
-    // corner it opens beside and over the portrait instead of off the screen.
-    let cy = Math.max(d.y - radius - bloomR * c.bloomLift, bloomR * BLOOM_INSET);
+    // It fills a large part of the sky, but never more of the view than `BLOOM_VIEW` (a small preview box).
+    const vw = view && view.w > 0 && view.h > 0 ? view.w : 0;
+    const vh = vw > 0 ? view!.h : 0;
+    const bloomR = vw > 0 ? Math.min(radius * c.bloomSize, Math.min(vw, vh) * BLOOM_VIEW) : radius * c.bloomSize;
+    // WHERE IT OPENS. With room above the struck portrait: straight above it, its lowest stars just over the frame.
+    // With no room above (the foe sits in the top corner): in the open sky on the side of the portrait that faces the
+    // middle of the view, so the bloom opens over the board with the portrait on its rim, washed by its outer ring,
+    // instead of being crushed into the corner on top of the portrait.
     let cx = d.x;
-    if (view && view.w > 0) { cx = clamp(cx, Math.min(bloomR * BLOOM_INSET, view.w / 2), Math.max(view.w - bloomR * BLOOM_INSET, view.w / 2)); cy = Math.min(cy, Math.max(view.h - bloomR * BLOOM_INSET, view.h / 2)); }
+    let cy = d.y - radius - bloomR * c.bloomLift;
+    if (vw > 0 && cy < bloomR * BLOOM_INSET) {
+      const mx = vw / 2 - d.x, my = vh / 2 - d.y;
+      const L = Math.hypot(mx, my) || 1;
+      const reach = radius + bloomR * 0.55;
+      cx = d.x + (mx / L) * reach; cy = d.y + (my / L) * reach;
+    }
+    if (vw > 0) {
+      cx = clamp(cx, Math.min(bloomR * BLOOM_INSET, vw / 2), Math.max(vw - bloomR * BLOOM_INSET, vw / 2));
+      cy = clamp(cy, Math.min(bloomR * BLOOM_INSET, vh / 2), Math.max(vh - bloomR * BLOOM_INSET, vh / 2));
+    } else cy = Math.max(cy, bloomR * BLOOM_INSET);
     const bloom = { x: cx, y: cy };
+    // THE FINALE: smaller shells round the bloom, on the side away from the struck portrait, each kept inside the view.
+    const afterR = bloomR * 0.46;
+    const away = Math.atan2(cy - d.y, cx - d.x);
+    const afters = p.afters.map((_, i): Pt => {
+      const a = away + FINALE_ANGLES[i % 3]!;
+      const r = bloomR * FINALE_REACH[i % 3]!;
+      let x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      if (vw > 0) {
+        x = clamp(x, Math.min(afterR * 0.8, vw / 2), Math.max(vw - afterR * 0.8, vw / 2));
+        y = clamp(y, Math.min(afterR * 0.8, vh / 2), Math.max(vh - afterR * 0.8, vh / 2));
+      }
+      return { x, y };
+    });
     // The comet: up out of the tube and off the top, drifting a little toward where the shell will open.
     const top = { x: mouth.x + (cx - mouth.x) * 0.22, y: -70 * scale };
     const ctrl = { x: mouth.x + dir.x * (mouth.y - top.y) * 0.5, y: (mouth.y + top.y) / 2 };
-    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from: mouth, ctrl, to: top, wiggle: 0, hz: 0 }], strikes: [{ x: d.x, y: d.y - radius * 0.1 }], bloom, bloomR };
+    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from: mouth, ctrl, to: top, wiggle: 0, hz: 0 }], strikes: [{ x: d.x, y: d.y - radius * 0.1 }], bloom, bloomR, afters, afterR };
   }
 
   const from = p.level === 1 ? anchor : mouth;
@@ -586,7 +654,7 @@ export function fireworksGeometry(
   if (p.level === 1) {
     const hit = { x: d.x - u.x * radius * 0.22, y: d.y - u.y * radius * 0.22 };
     const ctrl = bend(L * 0.42, (24 + c.wigglePx) * scale);
-    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from, ctrl, to: hit, wiggle: c.wigglePx * scale, hz: c.wiggleHz }], strikes: [hit], bloom: null, bloomR: 0 };
+    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from, ctrl, to: hit, wiggle: c.wigglePx * scale, hz: c.wiggleHz }], strikes: [hit], bloom: null, bloomR: 0, afters: [], afterR: 0 };
   }
   // The candle: three balls, each on its own arc, landing left, right and then in the middle of the face.
   const spread = radius * c.candleSpread;
@@ -598,7 +666,7 @@ export function fireworksGeometry(
   const paths = strikes.map((to, i): FireworksPath => {
     return { from: mouth, ctrl: bend(L * (0.36 + 0.07 * i), 30 * scale), to, wiggle: 0, hz: 0 };
   });
-  return { prop, base, angle, dir, k, flip, anchor, mouth, paths, strikes, bloom: null, bloomR: 0 };
+  return { prop, base, angle, dir, k, flip, anchor, mouth, paths, strikes, bloom: null, bloomR: 0, afters: [], afterR: 0 };
 }
 
 /** The direction THE blow arrives along: the last flight's final heading, or (the mortar) from the bloom down. Unit. */
@@ -616,6 +684,8 @@ export function fireworksArrivalDir(p: FireworksPlan, g: FireworksGeo, a: Pt, d:
 
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
+const CROSS_A: Pt = { x: 0.6, y: -0.8 };
+const CROSS_B: Pt = { x: -0.7, y: -0.7 };
 /** How long a launch kick lasts: it is CUT here, so the mortar's thump is over before the held beat. */
 export const LAUNCH_KICK_MS = 200;
 
@@ -633,6 +703,7 @@ export function fireworksCameraAt(p: FireworksPlan, c: HeroFireworksConfig, t: n
     z = mortar ? p.zoom * sine((t - first) / Math.max(1, p.holdAt - first)) : p.zoom * sine((t - p.chargeAt) / Math.max(1, first - p.chargeAt));
   } else if (t >= p.impactAt) {
     z = (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+    for (const at of p.afters) if (t >= at) z += p.punch * 0.3 * Math.exp(-(t - at) / 90);
   }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number, v: Pt, cut = Infinity): void => {
@@ -648,7 +719,9 @@ export function fireworksCameraAt(p: FireworksPlan, c: HeroFireworksConfig, t: n
   const down = { x: 0, y: 1 };
   for (const at of p.launches) kick(at, p.shakePx * (mortar ? 0.45 : p.level === 2 ? 0.22 : 0.3), 38, 17, down, LAUNCH_KICK_MS);
   for (const at of p.hits) kick(at, p.shakePx * 0.4, 40, 18, dir);
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir);
+  // The bloom's kick is slower and rolls on (a boom, not a tick); each finale shell nudges the view again.
+  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / (mortar ? 3 : 4)), mortar ? 12 : 16, dir);
+  for (let i = 0; i < p.afters.length; i++) kick(p.afters[i]!, p.shakePx * 0.3, 60, 14, i % 2 ? CROSS_A : CROSS_B);
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 

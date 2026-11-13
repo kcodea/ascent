@@ -4,7 +4,8 @@
  * bottle rocket, II and III the roman candle, IV the mortar shell; a knockout plays the mortar). Covered here: the
  * mapping; the tuner; the pure plan and its cue timing per look (the fuse, the launches, the pops, THE HELD BEAT, the
  * impact); the pure geometry in both directions (the firework stands on screen beside the striker, flights end on the
- * struck face, the comet leaves the top of the view, the bloom opens over the struck hero inside the view); the camera
+ * struck face, the comet leaves the top of the view, the bloom opens above the struck hero when there is room and
+ * beside it in the open sky when there is none, the finale shells open round it inside the view); the camera
  * (still through the held beat); the runner on the shared clock (the blow lands exactly ONCE, never on a tick; both
  * directions; nothing moves and nothing sounds through the held beat; replay; finish / cancel / the safety timer;
  * every exit restores the portraits and the camera); and the headless scene (pooled, capped, drains, destroy leaves
@@ -16,7 +17,7 @@ import { COSMETIC_INDEX } from '@game/progression';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
-  BLOOM_INSET, CANDLE_SHOTS, FIREWORKS_CAPS, HERO_FIREWORKS_CLIP_KEYS, HERO_FIREWORKS_COLOR_KEYS, HERO_FIREWORKS_DEFAULTS, HERO_FIREWORKS_RANGES, LAUNCH_KICK_MS, PROP_LEAN,
+  BLOOM_INSET, BLOOM_VIEW, CANDLE_SHOTS, FINALE_LEAD_MS, FIREWORKS_CAPS, HERO_FIREWORKS_CLIP_KEYS, HERO_FIREWORKS_COLOR_KEYS, HERO_FIREWORKS_DEFAULTS, HERO_FIREWORKS_RANGES, LAUNCH_KICK_MS, PROP_LEAN,
   PROP_METRICS, clampHeroFireworksValue, fireworksArrivalDir, fireworksCameraAt, fireworksCameraFocus, fireworksCues, fireworksGeometry, fireworksLevel,
   fireworksPathAt, fireworksPlan, heroFireworksConfigJson, propPoint, sanitizeHeroFireworksConfig, type HeroFireworksConfig, type HeroFireworksNumKey,
 } from './heroFireworksConfig';
@@ -33,7 +34,7 @@ const TEX: HeroFireworksTextures = {
 const C = HERO_FIREWORKS_DEFAULTS;
 const plan = (values: number[], total: number, distance = 1600, reduced = false, knockout = false) => fireworksPlan({ total, distance, reduced, knockout, leadIn: leadInOf(values, reduced) }, C);
 const COLORS = { core: 0xfffbea, gold: 0xffc94a, magenta: 0xff4fb0, cyan: 0x45dcff, green: 0x6dff7c, side: 0xffd66b };
-const LOOK = { trailMs: 9, bloomMs: 1700, rain: 22, rainMs: 900, glitter: 26, skyFlash: 0.14, dismissMs: 260, flashAlpha: 0.9, prefill: 0 };
+const LOOK = { trailMs: 9, bloomMs: 2100, rain: 30, rainMs: 1000, glitter: 90, skyFlash: 0.36, dismissMs: 260, flashAlpha: 0.95, prefill: 0 };
 // The real layout: you bottom left, the foe top right, on a 1920 x 1080 stage.
 const YOU = { x: 176, y: 847 }, FOE = { x: 1773, y: 160 };
 const R = 129;
@@ -120,9 +121,13 @@ describe('the tuner values', () => {
     expect(text).not.toMatch(/—|--|\bOath\b|\bclimb\b/i);
   });
 
-  it('the sound: its own four clips are in the bank list for this style, and every clip key has a default', () => {
-    expect([...(ATTACK_FX_CLIPS.fireworks ?? [])].sort()).toEqual(['fx/fireworks-boom', 'fx/fireworks-fuse', 'fx/fireworks-squeal', 'fx/fireworks-thump']);
+  it('the sound: its own seven clips are in the bank list for this style, and every clip key has a default that is in it or shared', () => {
+    const own = [...(ATTACK_FX_CLIPS.fireworks ?? [])].sort();
+    expect(own).toEqual(['fx/fireworks-boom', 'fx/fireworks-crackle', 'fx/fireworks-fuse', 'fx/fireworks-pop', 'fx/fireworks-squeal', 'fx/fireworks-thump', 'fx/fireworks-whistle']);
     for (const k of HERO_FIREWORKS_CLIP_KEYS) expect(C[k].length, k).toBeGreaterThan(0);
+    // Every clip of its own is actually cued by a default (none is dead weight in the phone budget).
+    const used = new Set(HERO_FIREWORKS_CLIP_KEYS.map((k) => C[k]));
+    for (const clip of own) expect(used.has(clip), clip).toBe(true);
   });
 });
 
@@ -156,15 +161,29 @@ describe('the plan (cue timing per look)', () => {
     expect(C.holdMs).toBeGreaterThanOrEqual(500);
     expect(C.holdMs).toBeLessThanOrEqual(700);
     const cues = fireworksCues(P4);
-    expect(cues.map((q) => q.kind)).toEqual(['plant', 'fuse', 'launch', 'hold', 'impact', 'dismiss', 'end']);
+    expect(cues.map((q) => q.kind)).toEqual(['plant', 'fuse', 'launch', 'hold', 'impact', 'dismiss', 'after', 'after', 'after', 'end']);
     // Nothing fires strictly inside the held beat.
     expect(cues.filter((q) => q.at > P4.holdAt && q.at < P4.impactAt)).toEqual([]);
   });
 
+  it('MORTAR: THE FINALE is three smaller shells after the bloom, a steady gap apart, with the aftermath still running after the last', () => {
+    expect(P4.afters).toEqual([0, 1, 2].map((i) => P4.impactAt + FINALE_LEAD_MS + i * C.finaleGapMs));
+    expect(P4.afters[0]! - P4.impactAt).toBeGreaterThanOrEqual(250); // the bloom has its own moment first
+    expect(P4.endAt - P4.afters[2]!).toBeGreaterThanOrEqual(500);
+    expect(P4.endAt - P4.impactAt).toBeGreaterThanOrEqual(C.aftermathMs); // the glitter hangs for a good while
+    // Only the mortar has one; the dial takes it away; it is capped.
+    expect([P1.afters, P2.afters]).toEqual([[], []]);
+    expect(fireworksPlan({ total: 40, distance: 1600 }, { ...C, finaleShots: 0 }).afters).toEqual([]);
+    expect(fireworksPlan({ total: 40, distance: 1600 }, { ...C, finaleShots: 99 }).afters.length).toBe(FIREWORKS_CAPS.finale);
+    expect(plan([40], 40, 1600, true).afters).toEqual([]); // reduced motion: none
+  });
+
   it('short to medium, as an Epic should be (ms from the first beat: first launch, impact, end)', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [rel(p, p.launches[0]!), rel(p, p.impactAt), rel(p, p.endAt)];
-    expect([t(P1), t(P2), t(P4)]).toEqual([[430, 790, 1450], [370, 1060, 1780], [390, 1250, 2450]]);
-    expect(t(P4)[2]).toBeLessThanOrEqual(2800);
+    expect([t(P1), t(P2), t(P4)]).toEqual([[430, 790, 1450], [370, 1060, 1780], [570, 1590, 3390]]);
+    // The mortar is the big look: it runs as long as the shipped top looks (Soccer IV 3308, Frost IV 3083), no longer.
+    expect(t(P4)[2]).toBeGreaterThanOrEqual(3000);
+    expect(t(P4)[2]).toBeLessThanOrEqual(3600);
   });
 
   it('every look escalates: more shake, zoom, punch and dim', () => {
@@ -285,26 +304,46 @@ describe('the geometry (both directions, on the real layout)', () => {
     expect(Math.min(...side)).toBeLessThan(0);
   });
 
-  it('MORTAR: the comet leaves the TOP of the view; the bloom opens over the struck hero, inside the view', () => {
+  it('MORTAR: the comet leaves the TOP of the view; the bloom fills a large part of the sky by the struck hero, inside the view', () => {
     for (const [name, a, d] of dirs) {
       const g = geo(P4, a, d);
       const comet = g.paths[0]!;
       expect(comet.from).toEqual(g.mouth);
       expect(comet.to.y, name).toBeLessThan(0);
       expect(g.bloom).not.toBeNull();
-      expect(g.bloomR).toBe(R * C.bloomSize);
-      // Mostly on screen, and near the struck hero (within a bloom and a half), never below it.
+      // Big: several portraits across, capped at a share of the view.
+      expect(g.bloomR).toBe(Math.min(R * C.bloomSize, VIEW.h * BLOOM_VIEW));
+      expect(g.bloomR * 2).toBeGreaterThan(VIEW.h * 0.7);
+      // Mostly on screen, and by the struck hero: the portrait is inside the bloom, never at its centre.
       expect(g.bloom!.x).toBeGreaterThanOrEqual(g.bloomR * BLOOM_INSET - 1e-6); expect(g.bloom!.x).toBeLessThanOrEqual(VIEW.w - g.bloomR * BLOOM_INSET + 1e-6);
-      expect(g.bloom!.y).toBeGreaterThanOrEqual(g.bloomR * BLOOM_INSET - 1e-6);
-      expect(g.bloom!.y, name).toBeLessThanOrEqual(d.y + R);
-      expect(Math.hypot(g.bloom!.x - d.x, g.bloom!.y - d.y)).toBeLessThan(g.bloomR * 1.5);
+      expect(g.bloom!.y).toBeGreaterThanOrEqual(g.bloomR * BLOOM_INSET - 1e-6); expect(g.bloom!.y).toBeLessThanOrEqual(VIEW.h - g.bloomR * BLOOM_INSET + 1e-6);
+      const off = Math.hypot(g.bloom!.x - d.x, g.bloom!.y - d.y);
+      expect(off, name).toBeLessThan(g.bloomR * 1.1);
+      expect(off, name).toBeGreaterThan(R * 1.5);
       expect(Math.hypot(g.strikes[0]!.x - d.x, g.strikes[0]!.y - d.y)).toBeLessThanOrEqual(R * 0.6);
+      // THE FINALE: one point per shell, inside the view, clear of the struck portrait, all in different places.
+      expect(g.afters.length).toBe(P4.afters.length);
+      expect(g.afterR).toBeGreaterThan(R); expect(g.afterR).toBeLessThan(g.bloomR * 0.6);
+      for (const q of g.afters) {
+        expect(q.x).toBeGreaterThan(0); expect(q.x).toBeLessThan(VIEW.w); expect(q.y).toBeGreaterThan(0); expect(q.y).toBeLessThan(VIEW.h);
+        expect(Math.hypot(q.x - d.x, q.y - d.y), name).toBeGreaterThan(R * 2);
+      }
+      for (let i = 0; i < g.afters.length; i++) for (let j = i + 1; j < g.afters.length; j++) expect(Math.hypot(g.afters[i]!.x - g.afters[j]!.x, g.afters[i]!.y - g.afters[j]!.y)).toBeGreaterThan(R);
     }
     // With room above (you, at the bottom of the screen) it hangs ABOVE the portrait, and the blow comes DOWN.
     const g = geo(P4, FOE, YOU);
     expect(g.bloom!.y).toBeLessThan(YOU.y - R);
     const dir = fireworksArrivalDir(P4, g, FOE, YOU);
     expect(dir.y).toBeGreaterThan(0.7);
+    // With NO room above (the foe in the top right corner) it opens in the open sky toward the middle of the view:
+    // left of and below the portrait, so the portrait sits on its rim and the blow comes from the board side.
+    const top = geo(P4, YOU, FOE);
+    expect(top.bloom!.x).toBeLessThan(FOE.x - R);
+    expect(top.bloom!.y).toBeGreaterThan(FOE.y);
+    const tdir = fireworksArrivalDir(P4, top, YOU, FOE);
+    expect(tdir.x).toBeGreaterThan(0.5);
+    // The rocket and the candle have no bloom and no finale.
+    expect([geo(P1).bloom, geo(P2).bloom, geo(P1).afters, geo(P2).afters]).toEqual([null, null, [], []]);
   });
 
   it('a small sandbox box (the Collection preview) keeps everything inside it', () => {
@@ -479,7 +518,23 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.liveStars).toBeLessThanOrEqual(MAX_STARS);
     expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_FIREWORKS_SPRITES);
     f.tick(60, 4);
-    expect(defenderEl.style.transform).toMatch(/scale\(1\.\d+, 0\.\d+\)/); // pressed DOWN under the bloom
+    // Knocked, ROCKED and squashed by the bloom.
+    expect(defenderEl.style.transform).toMatch(/^translate\(.+\) rotate\(-?\d+\.\d+deg\) scale\(\d\.\d+, \d\.\d+\)$/);
+    // THE FINALE: each smaller shell throws its own stars and rocks the portrait again; none lands anything.
+    for (let i = 0; i < h.plan.afters.length; i++) {
+      f.tick(h.plan.afters[i]! - h.elapsed() - 4, 4);
+      const before = h.scene!.liveStars;
+      f.tick(12, 4);
+      expect(h.scene!.liveStars, `finale shell ${i}`).toBeGreaterThan(before + 20);
+      expect(h.scene!.liveStars).toBeLessThanOrEqual(MAX_STARS);
+      expect(h.scene!.liveSprites).toBeLessThanOrEqual(MAX_FIREWORKS_SPRITES);
+      f.tick(40, 4);
+      expect(defenderEl.style.transform).toContain('rotate(');
+      expect(onImpact).toHaveBeenCalledTimes(1);
+    }
+    // The aftermath: stars and glitter still hang a second after the bloom.
+    f.tick(h.plan.impactAt + 1000 - h.elapsed(), 4);
+    expect(h.scene!.liveStars).toBeGreaterThan(40);
     f.tick(h.plan.endAt + 4000, 8);
     expect(h.scene!.liveStars).toBe(0);
     expect(onImpact).toHaveBeenCalledTimes(1);
@@ -657,15 +712,21 @@ describe('the scene (headless Pixi)', () => {
     s.plant(G4, 130); step(8);
     s.fuse(260); step(16);
     s.thump(COLORS.gold, 1.5, true);
-    s.comet(G4.paths[0]!, 260);
-    step(17);
+    s.comet(G4.paths[0]!, 400);
+    step(26);
     expect(s.cometUp).toBe(false);
     step(12); // the trail's last sparks
     for (let i = 0; i < 20; i++) { s.update(16); expect(s.moving).toBe(false); }
     expect(s.liveSprites).toBe(2); // the tube and its shadow, nothing else
-    s.bloom(G4.bloom!, G4.bloomR, FOE, R, 56, 1.25);
-    expect(s.liveStars).toBe(56 + Math.round(56 * 0.62) + Math.round(56 * 0.4) + LOOK.rain);
+    s.bloom(G4.bloom!, G4.bloomR, FOE, R, 72, 1.25);
+    // Four rings (gold, magenta, cyan, the white pistil), the willow, and the falling sparks.
+    const bloomStars = 72 + Math.round(72 * 0.62) + Math.round(72 * 0.4) + Math.round(72 * 0.2) + Math.round(72 * 0.55) + LOOK.rain;
+    expect(s.liveStars).toBe(bloomStars);
     step(10);
+    // THE FINALE: three smaller shells on top of the bloom, still inside every cap.
+    G4.afters.forEach((q, i) => { s.afterBurst(q, G4.afterR, [COLORS.magenta, COLORS.cyan, COLORS.green][i]!, FOE, R, 26); step(6); });
+    expect(s.liveStars).toBe(bloomStars + 3 * (26 + Math.round(26 * 0.45)));
+    expect(s.liveStars).toBeLessThanOrEqual(MAX_STARS);
     s.dismiss();
     step(30);
     expect(s.planted).toBe(false);

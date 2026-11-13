@@ -15,15 +15,19 @@
  *    RAIN arcs high and comes down on the struck portrait in a patter, each arrow sticking at its own angle (every
  *    arrow before the last is a tick; the last is the blow). They jog home.
  *  - III, THE CAVALRY: a war horn. A wedge of tiny cavalry (lances, pennants, a gallop bob) charges across the board
- *    from the striker's side kicking up a rolling dust line and rides THROUGH the struck portrait (the blow lands as
- *    the point rider hits; every row after it buffets the portrait), then wheels off screen.
- *  - IV, THE HOST: three war drums, a long horn, banners rise behind the striking hero, then the FULL HOST floods across
- *    the screen: rank after rank of infantry, cavalry on the flanks, arrow volleys overhead, all funnelling onto the
- *    struck portrait and trampling over it (the blow lands as the front rank hits; every rank after it buffets it and
- *    buries it in dust). The host passes, the dust thins, and one soldier stays to PLANT A BANNER (red with a gold
- *    emblem) on the struck portrait; it snaps in the wind for a beat, then everything clears.
- *  - KNOCKOUT ("Tier V", an Ancient knockout): IV remixed: three more soldiers stay to cheer round the banner, a
- *    prismatic shock on the front rank's hit, a 1.3x shake, a short slow-mo dip and the KO sting.
+ *    from the striker's side behind a ROLLING WALL OF DUST, the ground shaking harder the nearer it comes, and rides
+ *    THROUGH the struck portrait (the blow lands as the point rider hits; every row after it batters the portrait).
+ *    Just past it the wedge SPLITS and wheels back round both sides of the portrait, riding home across the board
+ *    (on screen, where the first pass left by the nearest edge).
+ *  - IV, THE HOST: FOUR war drums, each sooner than the last (a banner rises round the striking hero on each), the
+ *    long horn, then the FULL HOST floods across the screen behind its own wall of dust with a marching drum under it:
+ *    rank after rank of infantry, cavalry on the flanks, arrow volleys overhead, all funnelling onto the struck
+ *    portrait and trampling over it (the blow lands as the front rank hits; every third rank after it batters the
+ *    portrait about and buries it in dust, the whole view rumbling). The host passes, the dust thins, and one soldier
+ *    PLANTS A BIG BANNER on the struck portrait: a thud that kicks the view, a ring of dust, the flag snapping open,
+ *    and the four who stayed with him cheer round it for a second before everything clears.
+ *  - KNOCKOUT ("Tier V", an Ancient knockout): IV remixed: seven stay to cheer round the banner, a prismatic shock on
+ *    the front rank's hit, a 1.3x shake, a short slow-mo dip and the KO sting.
  *
  * THE HOST ALWAYS COMES FROM THE STRIKER'S SIDE: every path is built from the two portrait points, so it plays the same
  * in both directions. Formation jitter (each soldier's place in the rank, size and stride) is rolled from the seed.
@@ -66,7 +70,8 @@ interface GlobalConfig {
   cheerMs: number;
   /** III: the gap between each row of the wedge reaching the target (ms). */
   rowMs: number;
-  /** IV: the gap between the three drums (ms). */
+  /** IV: how many war drums, and the gap after the first (each later gap is shorter: the drums quicken). */
+  drums: number;
   drumMs: number;
   /** IV: the gap between ranks reaching the target (ms), soldiers per rank, the host's width (px), riders per flank. */
   rankMs: number;
@@ -105,6 +110,11 @@ interface GlobalConfig {
   sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxCheerClip: string; sfxCheerGain: number; sfxCheerRate: number;
+  sfxVolleyClip: string; sfxVolleyGain: number; sfxVolleyRate: number;
+  sfxClashClip: string; sfxClashGain: number; sfxClashRate: number;
+  sfxFlapClip: string; sfxFlapGain: number; sfxFlapRate: number;
+  /** The ground rumble under a charge (a synth: no clip). */
+  sfxRumbleGain: number;
   sfxTailMix: number;
   sfxDuck: number;
   previewDamage: number;
@@ -115,7 +125,7 @@ export type HeroWarhostConfig = GlobalConfig & Record<TierKey, number>;
 export const HERO_WARHOST_COLOR_KEYS = ['colorRed', 'colorBrass', 'colorDust', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_WARHOST_CLIP_KEYS = [
   'sfxHornClip', 'sfxDrumClip', 'sfxChargeClip', 'sfxGallopClip', 'sfxLooseClip', 'sfxThunkClip', 'sfxWhooshClip', 'sfxThudClip',
-  'sfxBoomClip', 'sfxCheerClip',
+  'sfxBoomClip', 'sfxCheerClip', 'sfxVolleyClip', 'sfxClashClip', 'sfxFlapClip',
 ] as const;
 export type HeroWarhostStrKey = (typeof HERO_WARHOST_COLOR_KEYS)[number] | (typeof HERO_WARHOST_CLIP_KEYS)[number];
 export type HeroWarhostNumKey = Exclude<keyof HeroWarhostConfig, HeroWarhostStrKey>;
@@ -130,16 +140,16 @@ export type HeroWarhostNumKey = Exclude<keyof HeroWarhostConfig, HeroWarhostStrK
  *  - Settle: after the blow (I, II: the cheer and the run home; III: the wedge wheeling off; IV: the clear after the banner).
  */
 const TIER_DEFAULTS: Record<WarhostTierSuffix, [number, number, number, number]> = {
-  ReadyMs: [120, 140, 400, 760],
-  MarchMs: [280, 320, 600, 820],
+  ReadyMs: [120, 140, 460, 1080],
+  MarchMs: [280, 320, 640, 820],
   HoldMs: [190, 280, 0, 0],
   FlightMs: [290, 420, 0, 0],
-  Troops: [1, 7, 10, 16],
-  Shake: [6, 9, 16, 24],
+  Troops: [1, 7, 10, 17],
+  Shake: [6, 10, 22, 30],
   Zoom: [0.02, 0.025, 0.035, 0.045],
-  Punch: [0.03, 0.04, 0.06, 0.08],
-  SettleMs: [700, 520, 760, 280],
-  Dim: [0.08, 0.12, 0.2, 0.3],
+  Punch: [0.03, 0.04, 0.065, 0.09],
+  SettleMs: [700, 520, 900, 300],
+  Dim: [0.08, 0.12, 0.22, 0.34],
 };
 
 export const WARHOST_TIER_RANGES: Record<WarhostTierSuffix, [number, number, number]> = {
@@ -168,39 +178,48 @@ export const HERO_WARHOST_DEFAULTS: HeroWarhostConfig = {
   patterMs: 20,
   cheerMs: 360,
   rowMs: 70,
-  drumMs: 290,
-  rankMs: 40,
+  drums: 4,
+  drumMs: 330,
+  rankMs: 44,
   hostFiles: 11,
   hostWidthPx: 600,
   hostCavalry: 6,
   hostArrows: 14,
   funnel: 0.5,
-  dustMs: 240,
-  bannerMs: 780,
-  dust: 1,
+  dustMs: 300,
+  bannerMs: 1050,
+  dust: 1.2,
   impactSize: 1,
   heroWindPx: 9,
   heroThrowPx: 12,
-  knockPx: 20,
-  squash: 0.09,
-  shakeMs: 380,
-  zoomOutMs: 420,
+  knockPx: 30,
+  squash: 0.1,
+  shakeMs: 480,
+  zoomOutMs: 460,
   reducedFadeMs: 260,
   colorRed: '#ff5a4f',
   colorBrass: '#e2b34a',
   colorDust: '#b9966a',
   colorPlayer: '#ffe9b0',
   colorFoe: '#ff7a5c',
+  // The horn and the charge were re-levelled in the second pass (about 8 dB hotter clips): their gains are per clip.
   sfxHornClip: 'fx/warhost-horn', sfxHornGain: 0.55, sfxHornRate: 1,
-  sfxDrumClip: 'fx/warhost-drum', sfxDrumGain: 0.6, sfxDrumRate: 1,
+  sfxDrumClip: 'fx/warhost-drum', sfxDrumGain: 1.05, sfxDrumRate: 1,
   sfxChargeClip: 'fx/warhost-charge', sfxChargeGain: 0.5, sfxChargeRate: 1,
-  sfxGallopClip: 'fx/warhost-gallop', sfxGallopGain: 0.55, sfxGallopRate: 1,
-  sfxLooseClip: 'fx/warhost-loose', sfxLooseGain: 0.4, sfxLooseRate: 1,
-  sfxThunkClip: 'fx/warhost-thunk', sfxThunkGain: 0.55, sfxThunkRate: 1,
-  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.3, sfxWhooshRate: 1.3,
-  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.45, sfxThudRate: 1,
-  sfxBoomClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBoomGain: 0.45, sfxBoomRate: 0.9,
-  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.16, sfxCheerRate: 1.5,
+  sfxGallopClip: 'fx/warhost-gallop', sfxGallopGain: 0.85, sfxGallopRate: 1,
+  sfxLooseClip: 'fx/warhost-loose', sfxLooseGain: 0.9, sfxLooseRate: 1,
+  sfxThunkClip: 'fx/warhost-thunk', sfxThunkGain: 1, sfxThunkRate: 1,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.6, sfxWhooshRate: 1.3,
+  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.9, sfxThudRate: 1,
+  sfxBoomClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBoomGain: 0.8, sfxBoomRate: 0.9,
+  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.9, sfxCheerRate: 1.2,
+  // A volley: the hiss of arrows in the air (400 ms), then their patter going in.
+  sfxVolleyClip: 'fx/warhost-volley', sfxVolleyGain: 0.8, sfxVolleyRate: 1,
+  // The charge striking: steel, shields and shouting.
+  sfxClashClip: 'fx/warhost-clash', sfxClashGain: 0.6, sfxClashRate: 1,
+  // The banner snapping open.
+  sfxFlapClip: 'fx/warhost-flap', sfxFlapGain: 1.1, sfxFlapRate: 1,
+  sfxRumbleGain: 0.5,
   sfxTailMix: 0.15,
   sfxDuck: 0.6,
   previewDamage: 12,
@@ -219,6 +238,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroWarhostStrKey>, [num
   patterMs: [0, 120, 2],
   cheerMs: [0, 1200, 10],
   rowMs: [20, 300, 5],
+  drums: [1, 5, 1],
   drumMs: [120, 800, 10],
   rankMs: [15, 160, 1],
   hostFiles: [3, 15, 1],
@@ -247,6 +267,10 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroWarhostStrKey>, [num
   sfxThudGain: [0, 2, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
   sfxCheerGain: [0, 2, 0.01], sfxCheerRate: [0.5, 2.5, 0.01],
+  sfxVolleyGain: [0, 2, 0.05], sfxVolleyRate: [0.5, 2.5, 0.01],
+  sfxClashGain: [0, 2, 0.05], sfxClashRate: [0.5, 2.5, 0.01],
+  sfxFlapGain: [0, 2, 0.05], sfxFlapRate: [0.5, 2.5, 0.01],
+  sfxRumbleGain: [0, 2, 0.05],
   sfxTailMix: [0, 1, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -259,10 +283,18 @@ export const HERO_WARHOST_RANGES: Record<HeroWarhostNumKey, [number, number, num
 };
 
 /** Hard caps whatever the tuner says (the host tops out at 22 x 15 foot + 16 horse: under the scene's sprite cap). */
-export const WARHOST_CAPS = { archers: 10, riders: 14, ranks: 22, files: 15, flank: 8, arrows: 24, shakePx: 40, zoom: 0.1 } as const;
+export const WARHOST_CAPS = { archers: 10, riders: 14, ranks: 22, files: 15, flank: 8, arrows: 24, shakePx: 40, zoom: 0.1, drums: 5 } as const;
+
+/** IV: each war drum comes this much sooner than the gap before it (the drums quicken into the horn). */
+export const WARHOST_DRUM_QUICKEN = 0.18;
+/** IV: how many stay to cheer round the planted banner (and on the Knockout). */
+export const WARHOST_CHEERERS = 4;
+export const WARHOST_KO_CHEERERS = 7;
+/** The volley clip's patter starts this far into it (after the hiss of the arrows in the air). */
+export const WARHOST_VOLLEY_LEAD_MS = 400;
 
 const store = configStore<HeroWarhostConfig>({
-  key: 'ascent.herowarhost.v1', defaults: HERO_WARHOST_DEFAULTS, ranges: HERO_WARHOST_RANGES,
+  key: 'ascent.herowarhost.v2', defaults: HERO_WARHOST_DEFAULTS, ranges: HERO_WARHOST_RANGES,
   colorKeys: HERO_WARHOST_COLOR_KEYS, clipKeys: HERO_WARHOST_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroWarhostStore = store;
@@ -280,6 +312,13 @@ export function warhostTierDials(tier: TierNum, c: HeroWarhostConfig = store.get
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const WARHOST_REF_DISTANCE = 1600;
+
+/** IV: the planted banner's size (x a rally banner's 1): big enough to be the last picture of the attack. */
+export const WARHOST_PLANT_SIZE = 2.3;
+/** A banner of size 1 stands this many soldier heights tall (the scene draws it so). */
+export const WARHOST_BANNER_TALL = 2.5;
+/** III: the wedge's riders are drawn bigger than the host's flank cavalry (ten horses have to carry a whole look). */
+export const WARHOST_WEDGE_SIZE = 1.3;
 
 /** The lone spearman (I) and the archers (II) are drawn bigger than a soldier of the host: one figure has to read alone. */
 export const WARHOST_SPEARMAN_SIZE = 2;
@@ -313,7 +352,7 @@ export interface WarhostPlan {
   ko: boolean;
   chargeAt: number;
   absorbEnd: number;
-  /** IV: the three drums. */
+  /** IV: the war drums (each sooner than the last). */
   drums: number[];
   /** III, IV: the horn (-1 = none). */
   hornAt: number;
@@ -421,16 +460,22 @@ export function warhostPlan(input: WarhostPlanInput, c: HeroWarhostConfig = stor
   } else {
     const ranks = Math.round(clamp(L.Troops, 3, WARHOST_CAPS.ranks));
     out.troops = ranks;
-    for (let i = 0; i < 3; i++) out.drums.push(chargeAt + i * c.drumMs);
-    out.hornAt = Math.min(marchAt, chargeAt + 2 * c.drumMs + 140);
-    out.impactAt = marchAt + Math.max(200, warhostLegMs(input.distance, L.MarchMs));
+    // THE BUILD-UP: the drums quicken (each gap shorter than the last), the horn answers the last one, and the host
+    // sets out a beat after the horn starts (never before it).
+    const nDrums = Math.round(clamp(c.drums, 1, WARHOST_CAPS.drums));
+    let drumAt = chargeAt;
+    for (let i = 0; i < nDrums; i++) { out.drums.push(drumAt); drumAt += c.drumMs * Math.max(0.3, 1 - WARHOST_DRUM_QUICKEN * i); }
+    out.hornAt = out.drums[nDrums - 1]! + 70;
+    out.marchAt = Math.max(marchAt, out.hornAt + 160);
+    out.looseAt = out.marchAt;
+    out.impactAt = out.marchAt + Math.max(200, warhostLegMs(input.distance, L.MarchMs));
     out.arriveAt = out.impactAt;
     // Every third rank is a buffet beat (a thud and a knock); the dust and the shudder run the whole trample.
     for (let r = 3; r < ranks; r += 3) out.buffets.push(out.impactAt + r * c.rankMs);
     out.passAt = out.impactAt + (ranks - 1) * c.rankMs;
     if (c.hostArrows > 0) out.volleys = [out.impactAt - 70, out.impactAt + Math.min(240, (out.passAt - out.impactAt) * 0.45)];
     out.plantAt = out.passAt + Math.max(0, c.dustMs);
-    out.cheerAt = out.plantAt + 120;
+    out.cheerAt = out.plantAt + 200;
     out.endAt = out.plantAt + Math.max(200, c.bannerMs) + L.SettleMs;
     if (ko) out.dip = { at: out.impactAt, lo: KO_DIP.lo, ms: KO_DIP.ms };
   }
@@ -524,6 +569,9 @@ export interface WarhostStage {
   strike: Pt;
 }
 
+/** How far in from the struck portrait's centre the spear sticks (radii): on the face, clear of what sits on the rim. */
+export const WARHOST_STRIKE_IN = 0.4;
+
 /** How far from `p` along `dir` the box's edge is (0 when already outside). */
 export function rayExit(p: Pt, dir: Pt, b: Box): number {
   let t = Infinity;
@@ -545,6 +593,12 @@ function arcCtrl(from: Pt, to: Pt, lift: number, b: Box | undefined, m: number):
   return { x: mx, y: my - Math.max(least, Math.min(lift, room)) };
 }
 
+/** Where each rally banner stands round the striking portrait (x in radii either side, y in radii above the centre). */
+const RALLY_X = [0, -1, 1, -0.55, 0.55] as const;
+const RALLY_Y = [0.78, 0.18, 0.18, 0.62, 0.62] as const;
+/** Where each soldier who stays stands round the planted banner: [side, x in radii, y in radii]. */
+const CHEER_SPOTS = [[1, 0.8, 0.8], [-1, 1.25, 0.5], [1, 1.3, 0.45], [-1, 0.75, 0.95], [1, 1.7, 0.75], [-1, 1.7, 0.8], [1, 0.3, 1.05]] as const;
+
 const troop = (unit: TroopUnit, o: Partial<Troop> & Pick<Troop, 'p0' | 'p1' | 'p2' | 't0' | 't1' | 't2' | 't3'>): Troop => ({
   unit, through: false, actAt: -1, looseAt: -1, lastLooseAt: -1, cheerAt: -1, phase: 0, size: 1, shade: 0, face: 1, dustMs: 0, z: o.p1.y, ...o,
 });
@@ -558,10 +612,11 @@ export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadi
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
   const n = { x: -u.y, y: u.x };
   const face: 1 | -1 = a.x > d.x ? -1 : 1;
-  // The blow lands on the struck portrait's rim, on the striker's side but swung toward the TOP of the portrait: the hit
-  // number is drawn straight down the line between the heroes and the health plate sits under the portrait, and the
-  // spear must not hide behind either.
-  const swing = (ang: number): Pt => ({ x: d.x + (-u.x * Math.cos(ang) + u.y * Math.sin(ang)) * radius * 0.66, y: d.y + (-u.x * Math.sin(ang) - u.y * Math.cos(ang)) * radius * 0.66 });
+  // The blow lands ON the struck portrait's face, on the striker's side but swung toward the TOP of the portrait: the
+  // hit number is drawn straight down the line between the heroes and the health plate sits under the portrait, and the
+  // spear must not hide behind either. Well inside the rim (second pass): the lobby rail's orbs sit ON the rim of a
+  // corner portrait and used to cover the spear's head.
+  const swing = (ang: number): Pt => ({ x: d.x + (-u.x * Math.cos(ang) + u.y * Math.sin(ang)) * radius * WARHOST_STRIKE_IN, y: d.y + (-u.x * Math.sin(ang) - u.y * Math.cos(ang)) * radius * WARHOST_STRIKE_IN });
   const sA = swing(0.8), sB = swing(-0.8);
   const strike = sA.y <= sB.y ? sA : sB;
   const stage: WarhostStage = { u, n, face, troops: [], shots: [], banners: [], strike };
@@ -629,13 +684,22 @@ export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadi
     };
     if (p.kind === 'cavalry') {
       const rows = wedgeRows(p.troops);
-      const gapLat = c.cavalryPx * s * 0.78;
-      // They wheel off to one side past the target (the seed picks which).
-      const wheel = (rnd() < 0.5 ? -1 : 1) * fore * 0.55;
+      const gapLat = c.cavalryPx * s * 0.78 * WARHOST_WEDGE_SIZE;
+      // THE WHEEL (second pass). The struck portrait sits in a corner, so riding on past it left the screen at once.
+      // Instead each rider goes THROUGH the portrait, turns just beyond it (still on screen) and rides HOME round
+      // the side of the portrait he was on, fanning out: the wedge splits in two and comes back across the board.
+      const split = rnd() < 0.5 ? -1 : 1; // which way the middle rider of an odd row turns
+      const past = Math.min(radius * 0.85, fore * 0.6);
       rows.forEach((count, r) => {
         for (let j = 0; j < count; j++) {
           const lat = (j - (count - 1) / 2) * gapLat + jit(4 * s);
-          stage.troops.push(runner('cav', p.impactAt + r * c.rowMs + jit(8), lat * 1.25, lat, lat * 1.6 + wheel, { dustMs: 55, size: 0.94 + rnd() * 0.14 }));
+          const tr = runner('cav', p.impactAt + r * c.rowMs + jit(8), lat * 1.25, lat, 0, { dustMs: 55, size: (0.94 + rnd() * 0.14) * WARHOST_WEDGE_SIZE });
+          const side = Math.abs(lat) < gapLat * 0.25 ? split : Math.sign(lat);
+          tr.p1 = inBox(at(d, past, lat * 0.8), bounds, m);
+          tr.t1 = tr.t2 = tr.t1 + past / v;
+          tr.p2 = inBox(at(d, -L * (0.44 + rnd() * 0.08), side * (radius * 2.3 + Math.abs(lat) * 1.5 + r * gapLat * 0.5)), bounds, m);
+          tr.t3 = tr.t2 + Math.hypot(tr.p2.x - tr.p1.x, tr.p2.y - tr.p1.y) / (v * 0.92);
+          stage.troops.push(tr);
         }
       });
     } else {
@@ -677,9 +741,10 @@ export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadi
       // The banners rising behind the striking hero, one a drum.
       const end = p.impactAt + 140;
       p.drums.forEach((drum, i) => {
-        // Round the striking portrait's rim: one at its crown, then one at each shoulder (kept on screen).
-        const sx = i === 0 ? 0 : i === 1 ? -1 : 1;
-        const foot = { x: a.x + sx * aRadius * 0.92, y: a.y - aRadius * (i === 0 ? 0.78 : 0.18) };
+        // Round the striking portrait's rim: one at its crown, one at each shoulder, then more between them (kept on
+        // screen).
+        const sx = RALLY_X[i % RALLY_X.length]!, sy = RALLY_Y[i % RALLY_Y.length]!;
+        const foot = { x: a.x + sx * aRadius * 0.92, y: a.y - aRadius * sy };
         stage.banners.push({
           at: inBox(foot, bounds, 26 * s), t0: drum + 30, t1: end + i * 60, t2: end + 260 + i * 60, size: i === 0 ? 1.7 : 1.4,
           follow: false, carrier: -1, lean: sx * 0.07,
@@ -696,16 +761,25 @@ export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadi
       stage.troops.push(bearer);
       const bearerIdx = stage.troops.length - 1;
       const flyEnd = p.endAt - 200;
-      stage.banners.push({ at: { x: d.x, y: d.y + radius * 0.35 }, t0: p.plantAt, t1: flyEnd, t2: p.endAt - 20, size: 1.6, follow: true, carrier: bearerIdx, lean: 0 });
-      if (p.ko) {
-        // THE KNOCKOUT's extra beat: three more stay and cheer round the banner.
-        [[1, 0.8, 0.8], [-1, 1.25, 0.5], [1, 1.3, 0.45]].forEach(([sd, kx, ky], i) => {
-          const spot = inBox({ x: d.x + sd! * side * radius * kx!, y: d.y + radius * ky! }, bounds, m);
-          stage.troops.push(troop('cheerer', {
-            p0: at(d, -L * 0.36, jit(40 * s)), p1: spot, p2: spot, t0: p.plantAt - 40 - (L * 0.36) / v + i * 50, t1: p.plantAt - 20 + i * 50, t2: p.endAt - 180, t3: p.endAt - 20,
-            cheerAt: p.cheerAt + 40 + i * 70, face: (sd! * side > 0 ? -1 : 1) as 1 | -1, dustMs: 90, phase: i * 130, size: 1.45, z: 1e6 + 1 + i,
-          }));
-        });
+      // A BIG banner: the planting is a beat of its own. It stands on the portrait; under a portrait at the top of the
+      // screen there is no room for it above, so its foot drops to the portrait's lower edge and it is drawn as tall as
+      // fits (never off the top of the view).
+      const tall = c.soldierPx * WARHOST_BANNER_TALL * s;
+      const top = bounds ? bounds.y + 10 * s : -Infinity;
+      let footY = d.y + radius * 0.35;
+      if (footY - tall * WARHOST_PLANT_SIZE < top) footY = Math.min(d.y + radius * 0.95, top + tall * WARHOST_PLANT_SIZE);
+      const plantSize = Math.min(WARHOST_PLANT_SIZE, Math.max(1, (footY - top) / tall));
+      stage.banners.push({ at: { x: d.x, y: footY }, t0: p.plantAt, t1: flyEnd, t2: p.endAt - 20, size: plantSize, follow: true, carrier: bearerIdx, lean: 0 });
+      // The ones who stay and cheer round the banner (more of them on THE KNOCKOUT).
+      const stay = p.ko ? WARHOST_KO_CHEERERS : WARHOST_CHEERERS;
+      for (let i = 0; i < stay; i++) {
+        const [sd, kx, ky] = CHEER_SPOTS[i % CHEER_SPOTS.length]!;
+        const spot = inBox({ x: d.x + sd * side * radius * kx, y: d.y + radius * ky }, bounds, m);
+        const lag = Math.min(i, 4) * 45;
+        stage.troops.push(troop('cheerer', {
+          p0: at(d, -L * 0.36, jit(40 * s)), p1: spot, p2: spot, t0: p.plantAt - 40 - (L * 0.36) / v + lag, t1: p.plantAt - 20 + lag, t2: p.endAt - 180, t3: p.endAt - 20,
+          cheerAt: p.cheerAt + 40 + (i % 4) * 70, face: (sd * side > 0 ? -1 : 1) as 1 | -1, dustMs: 90, phase: i * 130, size: 1.45, z: 1e6 + 1 + i,
+        }));
       }
     }
   }
@@ -772,17 +846,25 @@ export function shotAt(sh: Shot, t: number, out: ShotAt): ShotAt {
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
-/** How hard the ground shakes under the charge at `t` (0..1): up as the front nears, down as the last rank leaves. */
+/**
+ * How hard the ground shakes under the charge at `t` (0..1): it starts as the charge sets out and grows all the way
+ * across (the nearer the host, the harder), holds while the ranks pass, and dies as the last one leaves.
+ */
 export function warhostRumble(p: WarhostPlan, t: number): number {
   if (p.reduced || (p.kind !== 'host' && p.kind !== 'cavalry')) return 0;
-  const up = clamp01((t - (p.impactAt - 420)) / 420);
-  const down = 1 - clamp01((t - p.passAt) / 260);
+  const k = clamp01((t - p.marchAt) / Math.max(1, p.impactAt - p.marchAt));
+  const up = 0.12 * k + 0.88 * k * k;
+  const down = 1 - clamp01((t - p.passAt) / 320);
   return up * down;
 }
 
+/** The charge's rumble, as a share of the blow's shake (IV: the whole host; III: ten horses). */
+export const WARHOST_RUMBLE_AMP = { host: 0.34, cavalry: 0.24 } as const;
+
 /**
- * The camera: a push in through the ready (held to the blow); each drum kicks it; the blow punches and shakes; under
- * the charge the ground rumbles (a small steady shake while the ranks pass). Pure.
+ * The camera: a push in through the ready (held to the blow); each drum kicks it; under the charge the ground rumbles,
+ * harder the nearer the host comes (the screen shakes as it passes); the blow punches and shakes (a charge slower and
+ * longer than a spear); every later row or rank kicks it again; the banner going in kicks it straight down. Pure.
  */
 export function warhostCameraAt(p: WarhostPlan, c: HeroWarhostConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
@@ -791,14 +873,17 @@ export function warhostCameraAt(p: WarhostPlan, c: HeroWarhostConfig, t: number,
   else if (t >= p.impactAt) z += (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
-  for (const at of p.drums) { kick(at, -p.shakePx * 0.16, 50, 12); z += p.zoom * 0.25 * Math.max(0, springAt(t - at, 5, 70)); }
+  // Each drum thumps the view (harder as they quicken); the banner going in kicks it straight down.
+  for (let i = 0; i < p.drums.length; i++) { const at = p.drums[i]!; kick(at, -p.shakePx * (0.14 + 0.03 * i), 50, 12); z += p.zoom * 0.25 * Math.max(0, springAt(t - at, 5, 70)); }
   for (const at of p.hits) kick(at, p.shakePx * 0.12, 30, 20);
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16);
-  for (const at of p.buffets) kick(at, p.shakePx * 0.3, 45, 17);
+  const charge = p.kind === 'host' || p.kind === 'cavalry';
+  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / (charge ? 3 : 4)), charge ? 13 : 16);
+  for (const at of p.buffets) kick(at, p.shakePx * 0.38, 55, 15);
+  if (p.plantAt >= 0) { const sp = springAt(t - p.plantAt, 11, 70); y += p.shakePx * 0.42 * sp; z += p.punch * 0.4 * Math.max(0, sp); }
   const r = warhostRumble(p, t);
   if (r > 0) {
-    const amp = p.shakePx * (p.kind === 'host' ? 0.16 : 0.1) * r;
-    x += amp * Math.sin(t * 0.087); y += amp * Math.sin(t * 0.131 + 1.3);
+    const amp = p.shakePx * (p.kind === 'host' ? WARHOST_RUMBLE_AMP.host : WARHOST_RUMBLE_AMP.cavalry) * r;
+    x += amp * Math.sin(t * 0.087) * Math.sin(t * 0.023 + 0.6); y += amp * Math.sin(t * 0.131 + 1.3);
   }
   return { zoom: 1 + Math.max(0, z), x, y };
 }

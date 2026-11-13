@@ -12,14 +12,16 @@ import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES } from '../heroBlast/heroAttackStyle';
 import {
-  HERO_WARHOST_DEFAULTS, HERO_WARHOST_RANGES, WARHOST_CAPS, clampHeroWarhostValue, heroWarhostConfigJson, shotAt, troopAt, warhostCameraAt, warhostCues,
-  warhostPlan, warhostScale, warhostSlowExtraMs, warhostStage, wedgeRows, type HeroWarhostNumKey, type ShotAt, type TroopAt,
+  HERO_WARHOST_CLIP_KEYS, HERO_WARHOST_DEFAULTS, HERO_WARHOST_RANGES, WARHOST_BANNER_TALL, WARHOST_CAPS, WARHOST_CHEERERS, WARHOST_DRUM_QUICKEN, WARHOST_KO_CHEERERS, WARHOST_PLANT_SIZE,
+  WARHOST_RUMBLE_AMP, WARHOST_STRIKE_IN, clampHeroWarhostValue, heroWarhostConfigJson, shotAt, troopAt, warhostCameraAt, warhostCues,
+  warhostPlan, warhostRumble, warhostScale, warhostSlowExtraMs, warhostStage, wedgeRows, type HeroWarhostNumKey, type ShotAt, type TroopAt,
 } from './heroWarhostConfig';
 import { HeroWarhostScene, MAX_WARHOST_SPRITES, type HeroWarhostTextures } from './heroWarhostScene';
 import { warhostAtlasLayout, WARHOST_ATLAS_W } from './heroWarhostTextures';
 import { playHeroWarhost, warhostSeed, type HeroWarhostOptions } from './heroWarhost';
 import { SPEC } from '../HeroWarhostTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
+import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 
 const W = Texture.WHITE;
 const TEX: HeroWarhostTextures = {
@@ -112,20 +114,33 @@ describe('the plan', () => {
     expect(p.hits).toEqual([]);
   });
 
-  it('IV, the host: three drums build, the horn, the charge; the front rank is the blow; the banner goes in after the last rank', () => {
+  it('IV, the host: four drums QUICKEN, the horn answers the last, the charge sets out a beat after it; the front rank is the blow; the banner goes in after the last rank', () => {
     const p = plan(40);
-    expect(p.drums).toHaveLength(3);
+    expect(p.drums).toHaveLength(C.drums);
+    expect(C.drums).toBeGreaterThanOrEqual(4);
     expect(p.drums[1]! - p.drums[0]!).toBe(C.drumMs);
-    expect(p.hornAt).toBeGreaterThan(p.drums[2]!);
-    expect(p.hornAt).toBeLessThanOrEqual(p.marchAt);
+    // Each gap is shorter than the one before it: a build-up, not a metronome.
+    for (let i = 2; i < p.drums.length; i++) expect(p.drums[i]! - p.drums[i - 1]!).toBeCloseTo(C.drumMs * (1 - WARHOST_DRUM_QUICKEN * (i - 1)), 6);
+    for (let i = 2; i < p.drums.length; i++) expect(p.drums[i]! - p.drums[i - 1]!).toBeLessThan(p.drums[i - 1]! - p.drums[i - 2]!);
+    expect(p.hornAt).toBeGreaterThan(p.drums[p.drums.length - 1]!);
+    expect(p.marchAt - p.hornAt).toBeGreaterThanOrEqual(160); // the horn is heard before the host moves
+    expect(p.marchAt - p.chargeAt).toBeGreaterThanOrEqual(1000); // a real build-up
     expect(p.impactAt).toBeGreaterThan(p.marchAt);
     expect(p.passAt - p.impactAt).toBe((p.troops - 1) * C.rankMs);
     expect(p.buffets.length).toBeGreaterThanOrEqual(3);
     for (const at of p.buffets) { expect(at).toBeGreaterThan(p.impactAt); expect(at).toBeLessThanOrEqual(p.passAt); }
     expect(p.volleys).toHaveLength(2);
     expect(p.plantAt).toBe(p.passAt + C.dustMs);
+    expect(p.cheerAt).toBeGreaterThan(p.plantAt); // the thud first, then the cheer
     expect(p.endAt).toBe(p.plantAt + C.bannerMs + C.t4SettleMs); // the banner flies for its beat, then it all clears
+    expect(C.bannerMs).toBeGreaterThanOrEqual(1000); // the aftermath lingers
     expect(p.hits).toEqual([]);
+    // The dial changes the count; it is capped; a wild build-up never pushes the horn past the charge.
+    expect(warhostPlan({ total: 40, distance: 1600 }, { ...C, drums: 2 }).drums).toHaveLength(2);
+    const wild = warhostPlan({ total: 40, distance: 1600 }, { ...C, drums: 99, drumMs: 800 });
+    expect(wild.drums).toHaveLength(WARHOST_CAPS.drums);
+    expect(wild.marchAt).toBeGreaterThanOrEqual(wild.hornAt + 160);
+    expect(wild.impactAt).toBeGreaterThan(wild.marchAt);
   });
 
   it('exactly one impact cue on every look, in time order, ending on `end`', () => {
@@ -136,7 +151,7 @@ describe('the plan', () => {
       expect(cues[cues.length - 1]!.kind).toBe('end');
     }
     const four = warhostCues(plan(40));
-    expect(four.filter((q) => q.kind === 'drum')).toHaveLength(3);
+    expect(four.filter((q) => q.kind === 'drum')).toHaveLength(C.drums);
     expect(four.filter((q) => q.kind === 'plant')).toHaveLength(1);
   });
 
@@ -145,7 +160,10 @@ describe('the plan', () => {
     expect(len(3)).toBeLessThan(1700);
     expect(len(8)).toBeLessThan(2200);
     expect(len(14)).toBeLessThan(2100);
-    expect(len(40)).toBeLessThanOrEqual(3700);
+    // IV: longer than the first pass's 3515 (the drum build-up and the banner's beat), and about a second longer than
+    // the shipped top looks (Soccer IV 3308, Frost IV 3083): it is an Ancient, and it has an epilogue.
+    expect(len(40)).toBeGreaterThanOrEqual(3900);
+    expect(len(40)).toBeLessThanOrEqual(4500);
     expect(len(40)).toBeGreaterThan(len(14));
   });
 
@@ -220,24 +238,46 @@ describe('the staging (from the two portrait points)', () => {
     }
   });
 
-  it('III: a wedge comes from the striker\'s side, rides THROUGH the struck portrait at a steady pace, and on off screen', () => {
+  it('III: a wedge comes from the striker\'s side, rides THROUGH the struck portrait at a steady pace, then splits and wheels HOME round both sides of it, on screen', () => {
     for (const [name, a, d] of dirs) {
       const p = plan(14);
       const st = warhostStage(p, a, d, R, R, C, 1, 7, SCREEN);
       expect(st.troops, name).toHaveLength(p.troops);
+      // The point rider IS the blow: he is on the portrait's centre at the impact, and turns just beyond it.
       const point = st.troops[0]!;
-      expect(point.t1).toBeGreaterThan(p.impactAt - 10);
-      expect(point.t1).toBeLessThan(p.impactAt + 10); // the point rider IS the blow
-      expect(Math.hypot(point.p1.x - d.x, point.p1.y - d.y)).toBeLessThan(R * 0.2);
+      const o: TroopAt = { x: 0, y: 0, state: 'wait', alpha: 0, dir: 1 };
+      troopAt(point, p.impactAt, o);
+      expect(Math.hypot(o.x - d.x, o.y - d.y), name).toBeLessThan(R * 0.35);
+      expect(point.t1).toBeGreaterThan(p.impactAt);
+      expect(point.t1).toBeLessThan(p.impactAt + 120);
+      const sides = new Set<number>();
+      const L = Math.hypot(d.x - a.x, d.y - a.y);
       for (const tr of st.troops) {
         expect(tr.unit).toBe('cav');
         expect(tr.through).toBe(true);
         expect(along(tr.p0, a, d), name).toBeLessThan(0); // from behind the striker
         expect(Math.hypot(tr.p1.x - d.x, tr.p1.y - d.y), name).toBeLessThan(R * 1.6); // over the portrait
-        expect(onScreen(tr.p2), name).toBe(false); // and gone
+        // THE WHEEL: the turn and the whole ride home are ON SCREEN (the first pass left by the nearest edge).
+        expect(onScreen(tr.p1), name).toBe(true);
+        expect(onScreen(tr.p2), name).toBe(true);
+        expect(along(tr.p2, a, d), name).toBeLessThan(L * 0.75); // well back toward the striker
+        expect(Math.hypot(tr.p2.x - d.x, tr.p2.y - d.y), name).toBeGreaterThan(R * 2.5); // clear of the portrait
+        expect(tr.t3 - tr.t2).toBeGreaterThan(200); // a real ride, not a pop
+        expect(tr.t3).toBeLessThanOrEqual(p.endAt);
         expect(tr.t1).toBeGreaterThanOrEqual(p.impactAt - 10);
         expect(tr.face).toBe(a.x < d.x ? 1 : -1);
+        sides.add(Math.sign((tr.p2.x - d.x) * st.n.x + (tr.p2.y - d.y) * st.n.y));
       }
+      expect(sides.has(1) && sides.has(-1), name).toBe(true); // the wedge splits both ways
+    }
+  });
+
+  it('I: the spear sticks ON the struck face, well inside the rim (the rail\'s orbs sit on the rim and used to cover it)', () => {
+    for (const [name, a, d] of dirs) {
+      const st = warhostStage(plan(3), a, d, R, R, C, 1, 7, SCREEN);
+      expect(Math.hypot(st.strike.x - d.x, st.strike.y - d.y), name).toBeCloseTo(R * WARHOST_STRIKE_IN, 6);
+      expect(WARHOST_STRIKE_IN).toBeLessThanOrEqual(0.5);
+      expect(st.shots[0]!.to).toEqual(st.strike);
     }
   });
 
@@ -263,15 +303,28 @@ describe('the staging (from the two portrait points)', () => {
       expect(horse.filter((tr) => latOf(tr) < -half)).toHaveLength(C.hostCavalry);
       expect(st.shots).toHaveLength(2 * C.hostArrows);
       for (const sh of st.shots) expect(onScreen(sh.to), name).toBe(true);
-      // Three banners round the striker (one a drum), on screen; one on the struck portrait, carried in by the bearer.
+      // A banner round the striker for every drum, on screen and all in different places; one BIG one on the struck
+      // portrait, carried in by the bearer.
       const rally = st.banners.filter((b) => !b.follow), planted = st.banners.filter((b) => b.follow);
-      expect(rally).toHaveLength(3);
+      expect(rally).toHaveLength(p.drums.length);
+      expect(new Set(rally.map((b) => `${Math.round(b.at.x)},${Math.round(b.at.y)}`)).size).toBe(rally.length);
       rally.forEach((b, i) => { expect(onScreen(b.at), name).toBe(true); expect(Math.hypot(b.at.x - a.x, b.at.y - a.y)).toBeLessThan(R * 1.6); expect(b.t0).toBeGreaterThanOrEqual(p.drums[i]!); expect(b.t2).toBeLessThan(p.plantAt); });
       expect(planted).toHaveLength(1);
       expect(planted[0]).toMatchObject({ t0: p.plantAt, follow: true });
-      expect(Math.hypot(planted[0]!.at.x - d.x, planted[0]!.at.y - d.y)).toBeLessThan(R);
+      expect(Math.hypot(planted[0]!.at.x - d.x, planted[0]!.at.y - d.y)).toBeLessThanOrEqual(R);
       expect(st.troops[planted[0]!.carrier]!.unit).toBe('bearer');
-      expect(planted[0]!.t1 - planted[0]!.t0).toBeGreaterThan(500); // it snaps in the wind for a beat
+      expect(planted[0]!.t1 - planted[0]!.t0).toBeGreaterThan(800); // it snaps in the wind for a good beat
+      // As big as fits: full size with room above the portrait, a little smaller under the top of the screen, and its
+      // top never off the view.
+      expect(planted[0]!.size).toBeLessThanOrEqual(WARHOST_PLANT_SIZE);
+      expect(planted[0]!.size).toBeGreaterThanOrEqual(1.9);
+      if (d.y > 500) expect(planted[0]!.size).toBe(WARHOST_PLANT_SIZE);
+      expect(planted[0]!.at.y - C.soldierPx * WARHOST_BANNER_TALL * planted[0]!.size, name).toBeGreaterThanOrEqual(0);
+      for (const b of rally) expect(planted[0]!.size).toBeGreaterThan(b.size * 1.2); // the biggest banner of the attack
+      // The ones who stay and cheer round it: beside the portrait, on screen, cheering after the thud.
+      const stay = st.troops.filter((tr) => tr.unit === 'cheerer');
+      expect(stay, name).toHaveLength(WARHOST_CHEERERS);
+      for (const tr of stay) { expect(onScreen(tr.p1), name).toBe(true); expect(tr.cheerAt).toBeGreaterThan(p.plantAt); expect(tr.t3).toBeLessThanOrEqual(p.endAt); }
       const bearer = bearers[0]!;
       expect(onScreen(bearer.p1), name).toBe(true);
       expect(bearer.t1).toBeLessThanOrEqual(p.plantAt);
@@ -279,14 +332,15 @@ describe('the staging (from the two portrait points)', () => {
     }
   });
 
-  it('the Knockout: three more stay to cheer round the banner (the rest is IV)', () => {
+  it('the Knockout: more stay to cheer round the banner (the rest is IV)', () => {
     const base = warhostStage(plan(40), ME, FOE, R, R, C, 1, 7, SCREEN);
     const p = plan(40, { knockout: true, knockoutVariant: true });
     const ko = warhostStage(p, ME, FOE, R, R, C, 1, 7, SCREEN);
     const cheerers = ko.troops.filter((tr) => tr.unit === 'cheerer');
-    expect(cheerers).toHaveLength(3);
-    expect(ko.troops.length).toBe(base.troops.length + 3);
-    for (const tr of cheerers) { expect(tr.cheerAt).toBeGreaterThan(p.plantAt); expect(Math.hypot(tr.p1.x - FOE.x, tr.p1.y - FOE.y)).toBeLessThan(R * 2.2); }
+    expect(cheerers).toHaveLength(WARHOST_KO_CHEERERS);
+    expect(WARHOST_KO_CHEERERS).toBeGreaterThan(WARHOST_CHEERERS);
+    expect(ko.troops.length).toBe(base.troops.length + WARHOST_KO_CHEERERS - WARHOST_CHEERERS);
+    for (const tr of cheerers) { expect(tr.cheerAt).toBeGreaterThan(p.plantAt); expect(Math.hypot(tr.p1.x - FOE.x, tr.p1.y - FOE.y)).toBeLessThan(R * 2.6); }
   });
 
   it('deterministic: the same seed fields the same host; another seed jitters it; nothing reads Math.random', () => {
@@ -338,6 +392,45 @@ describe('the staging (from the two portrait points)', () => {
 });
 
 describe('the camera (pure)', () => {
+  it('the charge shakes the screen AS IT PASSES: the rumble starts when it sets out, grows all the way across, holds through the trample and dies after', () => {
+    for (const d of [14, 40]) {
+      const p = plan(d);
+      expect(warhostRumble(p, p.marchAt - 1)).toBe(0);
+      const q = [0.25, 0.5, 0.75, 1].map((k) => warhostRumble(p, p.marchAt + (p.impactAt - p.marchAt) * k));
+      expect(q[0]!).toBeGreaterThan(0.03);
+      for (let i = 1; i < q.length; i++) expect(q[i]!).toBeGreaterThan(q[i - 1]!);
+      expect(q[3]!).toBeCloseTo(1, 6);
+      expect(warhostRumble(p, (p.impactAt + p.passAt) / 2)).toBeCloseTo(1, 6);
+      expect(warhostRumble(p, p.passAt + 400)).toBe(0);
+      // On screen: several px of shake before the blow lands, more for the host than for ten horses.
+      let peak = 0;
+      for (let t = p.marchAt; t < p.impactAt - 4; t += 4) { const cm = warhostCameraAt(p, C, t); peak = Math.max(peak, Math.hypot(cm.x, cm.y)); }
+      expect(peak, `dmg ${d}`).toBeGreaterThan(d === 40 ? 6 : 3);
+    }
+    expect(WARHOST_RUMBLE_AMP.host).toBeGreaterThan(WARHOST_RUMBLE_AMP.cavalry);
+    expect(warhostRumble(plan(3), plan(3).impactAt)).toBe(0); // a spearman does not shake the ground
+  });
+
+  it('IV: the banner going in kicks the view straight DOWN', () => {
+    const p = plan(40);
+    const bare = { ...p, plantAt: -1 };
+    const a = warhostCameraAt(p, C, p.plantAt + 4), b = warhostCameraAt(bare, C, p.plantAt + 4);
+    expect(a.y - b.y).toBeGreaterThan(p.shakePx * 0.3);
+    expect(Math.abs(a.x - b.x)).toBeLessThan(0.01);
+  });
+
+  it('the sound: nine clips of its own, every one cued by a default, and every fx clip a default names is in the style\'s list', () => {
+    const listed = [...(ATTACK_FX_CLIPS.warhost ?? [])];
+    expect(listed.filter((c) => c.startsWith('fx/warhost-')).sort()).toEqual([
+      'fx/warhost-charge', 'fx/warhost-clash', 'fx/warhost-drum', 'fx/warhost-flap', 'fx/warhost-gallop', 'fx/warhost-horn', 'fx/warhost-loose', 'fx/warhost-thunk',
+      'fx/warhost-volley',
+    ]);
+    const used = new Set(HERO_WARHOST_CLIP_KEYS.map((k) => C[k]));
+    for (const clip of listed) expect(used.has(clip), clip).toBe(true);
+    for (const clip of used) if (clip.startsWith('fx/')) expect(listed, clip).toContain(clip);
+    expect(C.sfxRumbleGain).toBeGreaterThan(0);
+  });
+
   it('pushes in through the ready, punches on the blow, rumbles under the host, and is back at rest by the end', () => {
     for (const d of TOTALS) {
       const p = plan(d);
@@ -435,8 +528,8 @@ describe('the runner (the shared clock)', () => {
   it('IV: banners rise on the drums, the host floods, the blow is the front rank, the struck portrait is knocked about, the banner flies, then all is put back', () => {
     const { h, f, onImpact, onDone, defenderEl, restored } = run(of(40));
     const p = h.plan;
-    f.tick(p.drums[2]! + 120, 4);
-    expect(h.scene!.liveBanners).toBe(3);
+    f.tick(p.drums[p.drums.length - 1]! + 120, 4);
+    expect(h.scene!.liveBanners).toBe(p.drums.length);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(p.impactAt - h.elapsed() - 30, 4);
     expect(h.scene!.liveTroops).toBeGreaterThan(100); // the flood
@@ -444,11 +537,21 @@ describe('the runner (the shared clock)', () => {
     f.tick(p.impactAt - h.elapsed() + 8, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
     const seen = new Set<string>();
-    while (h.elapsed() < p.passAt) { f.tick(16, 16); seen.add(defenderEl.style.transform); }
+    let far = 0, tip = 0;
+    while (h.elapsed() < p.passAt) {
+      f.tick(16, 16); seen.add(defenderEl.style.transform);
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) rotate\((-?[\d.]+)deg\)/.exec(defenderEl.style.transform);
+      if (m) { far = Math.max(far, Math.hypot(Number(m[1]), Number(m[2]))); tip = Math.max(tip, Math.abs(Number(m[3]))); }
+    }
     expect(seen.size).toBeGreaterThan(20); // buffeted the whole trample
-    f.tick(p.plantAt - h.elapsed() + 200, 4);
+    expect(far).toBeGreaterThan(C.knockPx * 0.8); // BATTERED: thrown well off its spot
+    expect(tip).toBeGreaterThan(4); // and tipped
+    // The banner going in is a beat: the portrait is driven down and the view kicks.
+    f.tick(p.plantAt - h.elapsed() + 24, 4);
+    expect(defenderEl.style.transform).toMatch(/translate\(/);
+    f.tick(176, 4);
     expect(h.scene!.liveBanners).toBe(1); // the one on the struck portrait
-    expect(h.scene!.liveTroops).toBe(1); // and the one who planted it
+    expect(h.scene!.liveTroops).toBe(1 + WARHOST_CHEERERS); // the one who planted it, and the ones who stayed to cheer
     f.tick(p.endAt - h.elapsed() + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);

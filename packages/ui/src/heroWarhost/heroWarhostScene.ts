@@ -20,7 +20,7 @@ import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { mixColor, spring, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
 import { KO_CYAN, KO_LILAC, KO_MAGENTA } from '../heroAttack/knockout';
-import { WARHOST_RELOAD_MS, shotAt, troopAt, type Banner, type Shot, type ShotAt, type Troop, type TroopAt, type WarhostStage } from './heroWarhostConfig';
+import { WARHOST_BANNER_TALL, WARHOST_RELOAD_MS, shotAt, troopAt, type Banner, type Shot, type ShotAt, type Troop, type TroopAt, type WarhostStage } from './heroWarhostConfig';
 import {
   ARROW_W, BANNER_AX, BANNER_AY, BANNER_H, CAV_AX, CAV_AY, CAV_H, DUST_PX, FOOT_AX, FOOT_AY, FOOT_H, SPEAR_W,
 } from './heroWarhostTextures';
@@ -42,7 +42,7 @@ export interface WarhostColors { red: number; brass: number; dust: number; side:
 export interface WarhostLook { soldierPx: number; cavalryPx: number; dust: number; impactSize: number }
 
 /** Hard cap on sprites alive at once (the biggest host the caps allow, its arrows and its dust sit under it). */
-export const MAX_WARHOST_SPRITES = 900;
+export const MAX_WARHOST_SPRITES = 1200;
 const GLOW_PX = 128;
 const RING_PX = 160;
 const STAR_PX = 48;
@@ -193,7 +193,7 @@ export class HeroWarhostScene extends FxPool {
     }
     for (const q of this.banners) {
       const b = q.spec, s = q.s;
-      const base = ((this.look.soldierPx * 2.5) / BANNER_H) * b.size * S;
+      const base = ((this.look.soldierPx * WARHOST_BANNER_TALL) / BANNER_H) * b.size * S;
       if (t >= b.t2) { if (s.visible) s.visible = false; continue; }
       if (t < b.t0) {
         // Not planted yet: carried (small, tilted back over the shoulder) or not there.
@@ -259,6 +259,27 @@ export class HeroWarhostScene extends FxPool {
     }
   }
 
+  /**
+   * THE ROLLING DUST WALL: big soft clouds thrown up along a line across the charge's front (`at`, running along the
+   * normal `n` for `half` px either side) and carried forward along `u` with it. Called every few frames while the
+   * charge crosses, so the front of the host is always coming out of its own dust. `k` scales it (III is smaller).
+   */
+  dustWall(at: Pt, u: Pt, n: Pt, half: number, count: number, k = 1): void {
+    const D = this.look.dust;
+    if (D <= 0) return;
+    const S = this.scale;
+    for (let i = 0; i < count; i++) {
+      const lat = (this.rnd() - 0.5) * 2 * half;
+      const along = (this.rnd() - 0.2) * 70 * S;
+      const size = ((90 + this.rnd() * 90) * k) / DUST_PX;
+      // Most of it rolls under the feet; some billows up in front of the ranks.
+      this.spawn(i % 3 === 0 ? 'body' : 'under', this.tex.dust, mixColor(this.colors.dust, 0xffffff, this.rnd() * 0.22), at.x + n.x * lat + u.x * along, at.y + n.y * lat + u.y * along, {
+        dur: 640 + this.rnd() * 520, from: size * 0.5, to: size * (1.7 + this.rnd() * 0.8), a0: (i % 3 === 0 ? 0.2 : 0.46) * Math.min(1.4, D), mode: 'punch', peakAt: 0.2, ease: 'cubic',
+        vx: u.x * (170 + this.rnd() * 150) + (this.rnd() - 0.5) * 70, vy: u.y * (170 + this.rnd() * 150) - 24 - this.rnd() * 44, drag: 0.35, rot: this.rnd() * 6.28, spin: (this.rnd() - 0.5) * 0.002,
+      });
+    }
+  }
+
   /** A spear or an arrow going into wood: a small bright knock, a ring, splinters thrown back the way it came. */
   thunk(at: Pt, dir: Pt, k = 1): void {
     const c = this.colors;
@@ -318,22 +339,46 @@ export class HeroWarhostScene extends FxPool {
     this.burst('glow', this.tex.streak, [c.brass, c.red, whiten(c.brass, 0.5)], at.x, at.y, Math.round(8 * big), {
       speed: 1500 * big * X, dir: Math.atan2(dir.y, dir.x), spread: 1.3, life: 240, size: 1.4 * big * X, drag: 0.2, align: true, to: 0.5,
     });
-    this.burst('core', this.tex.spark, [c.brass, 0xffffff, c.red], at.x, at.y, Math.round(14 * big), { speed: 620 * big * X, life: 420, size: 0.6 * X, drag: 0.3, grav: 500, to: 0.3 });
-    this.cloud(at, radius * (tier >= 4 ? 1.5 : 1.1), tier >= 4 ? 18 : 9, 1);
+    this.burst('core', this.tex.spark, [c.brass, 0xffffff, c.red], at.x, at.y, Math.round(20 * big), { speed: 720 * big * X, life: 460, size: 0.7 * X, drag: 0.3, grav: 500, to: 0.3 });
+    // The hit lights the struck portrait for a moment, and the dust goes up over it.
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 240, from: (radius * 1.8) / GLOW_PX, to: (radius * 3.4 * big * X) / GLOW_PX, a0: 0.5, mode: 'punch', peakAt: 0.1, follow: true });
+    this.spawn('glow', this.tex.glow, c.red, at.x, at.y, { dur: 620, from: (radius * 2.2) / GLOW_PX, to: (radius * 3.2 * big) / GLOW_PX, a0: 0.45, mode: 'punch', peakAt: 0.12, ease: 'cubic', follow: true });
+    this.cloud(at, radius * (tier >= 4 ? 1.7 : 1.3), tier >= 4 ? 26 : 14, 1.1);
   }
 
   /** A later row or rank going over the target: more dust up over it, a few kicked sparks. */
   buffet(at: Pt, radius: number, k: number): void {
-    this.cloud(at, radius * 1.3 * k, Math.round(7 * k + 3), 0.9);
-    this.burst('core', this.tex.spark, [this.colors.brass, 0xffffff], at.x, at.y, 5, { speed: 420, life: 320, size: 0.45, drag: 0.3, grav: 500, to: 0.3 });
+    this.cloud(at, radius * 1.4 * k, Math.round(9 * k + 4), 1);
+    this.spawn('glow', this.tex.ring, this.colors.brass, at.x, at.y, { dur: 300, from: (radius * 0.8) / RING_PX, to: (radius * 2.6 * k) / RING_PX, a0: 0.5, ease: 'cubic', follow: true });
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 150, from: (radius * 1.4) / GLOW_PX, to: (radius * 2.2) / GLOW_PX, a0: 0.28, mode: 'punch', peakAt: 0.15, follow: true });
+    this.burst('core', this.tex.spark, [this.colors.brass, 0xffffff, this.colors.red], at.x, at.y, 9, { speed: 520, life: 340, size: 0.5, drag: 0.3, grav: 500, to: 0.3 });
   }
 
-  /** The banner goes in: a kick of dust round its foot, a brass glint and a ring. */
+  /**
+   * THE BANNER GOES IN, a beat of its own: a hard knock where the pole bites, two rings rolling out along the ground, a
+   * ring of dust kicked out round its foot, a shower of brass sparks, and a long glint off the finial.
+   */
   plant(at: Pt, radius: number): void {
     const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.brass, at.x, at.y, { dur: 420, from: (radius * 0.3) / RING_PX, to: (radius * 2.2) / RING_PX, a0: 0.8, ease: 'cubic', follow: true });
-    this.spawn('core', this.tex.star, whiten(c.brass, 0.6), at.x, at.y - radius * 1.2, { dur: 420, from: 0.3, to: 1.3, a0: 0.9, mode: 'punch', peakAt: 0.25, spin: 0.004, follow: true });
-    this.cloud({ x: at.x, y: at.y + radius * 0.1 }, radius * 0.6, 4, 0.5, true);
+    const S = this.scale;
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 200, from: (radius * 1.2) / GLOW_PX, to: (radius * 3) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.12, follow: true });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 220, from: (radius * 0.5) / STAR_PX, to: (radius * 1.8) / STAR_PX, a0: 0.95, mode: 'punch', peakAt: 0.15, rot: 0.4, follow: true });
+    this.spawn('glow', this.tex.ring, c.brass, at.x, at.y, { dur: 460, from: (radius * 0.3) / RING_PX, to: (radius * 3.2) / RING_PX, a0: 0.85, sy: 0.45, ease: 'cubic', follow: true });
+    this.spawn('glow', this.tex.ring, c.red, at.x, at.y, { dur: 620, from: (radius * 0.4) / RING_PX, to: (radius * 4.4) / RING_PX, a0: 0.55, sy: 0.45, ease: 'cubic', delay: 70, follow: true });
+    this.spawn('glow', this.tex.glow, c.brass, at.x, at.y - radius * 0.9, { dur: 900, from: (radius * 2.2) / GLOW_PX, to: (radius * 3.2) / GLOW_PX, a0: 0.4, mode: 'punch', peakAt: 0.15, ease: 'cubic', follow: true });
+    // The ring of dust: puffs thrown outward along the ground, all round the foot.
+    const D = this.look.dust;
+    for (let i = 0; i < 14 && D > 0; i++) {
+      const a = (i / 14) * Math.PI * 2 + this.rnd() * 0.3;
+      const sp = 240 + this.rnd() * 160;
+      this.spawn('body', this.tex.dust, mixColor(c.dust, 0xffffff, this.rnd() * 0.2), at.x + Math.cos(a) * radius * 0.3, at.y + Math.sin(a) * radius * 0.14, {
+        dur: 520 + this.rnd() * 300, from: (radius * 0.3) / DUST_PX / S, to: (radius * 0.9) / DUST_PX / S, a0: 0.5 * Math.min(1.4, D), mode: 'punch', peakAt: 0.2, ease: 'cubic',
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.45 - 20, drag: 0.2, rot: this.rnd() * 6.28, follow: true,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.brass, 0xffffff, c.red], at.x, at.y, 16, { speed: 560, dir: -Math.PI / 2, spread: 2.6, life: 520, size: 0.6, drag: 0.3, grav: 700, to: 0.3 });
+    // The glint off the finial as the flag snaps open.
+    this.spawn('core', this.tex.star, whiten(c.brass, 0.6), at.x, at.y - radius * 1.7, { dur: 520, from: 0.3, to: 1.8, a0: 0.95, mode: 'punch', peakAt: 0.25, spin: 0.004, delay: 90, follow: true });
   }
 
   /** THE KNOCKOUT's prismatic shock (on top of IV's impact): cyan, lilac and magenta rings, prism streaks and stars. */

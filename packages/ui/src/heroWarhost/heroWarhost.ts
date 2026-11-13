@@ -4,9 +4,17 @@
  * and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
  * AN ARMY OF TINY SOLDIERS delivers the blow: I one spearman and his thrown spear; II a rank of archers and an arrow
- * rain; III a wedge of cavalry riding through the struck portrait; IV three war drums, a horn, banners, and the whole
- * host flooding over it, leaving one soldier to plant a banner on it. The host always comes from the striker's side
- * (every path is built from the two portrait points), and its jitter is rolled from the blow's seed.
+ * rain; III a wedge of cavalry riding through the struck portrait and wheeling home round it; IV four quickening war
+ * drums, a horn, banners, and the whole host flooding over it behind a wall of dust, leaving a few to plant a big banner
+ * on it and cheer. The host always comes from the striker's side (every path is built from the two portrait points),
+ * and its jitter is rolled from the blow's seed.
+ *
+ * AN ARMY SOUNDS LIKE ONE (second pass). Every visible beat has a cue: steps as the spearman and the archers run out and
+ * home; the throw; the bowstrings and then a VOLLEY (the hiss of arrows overhead and their patter going in); the horn;
+ * hooves; on IV the drums quickening, a drum roll under the horn, the massed roar, a marching drum under the charge,
+ * the two volleys; under every charge a ground RUMBLE (a synth) that builds as it crosses; the clash of steel and
+ * shields with a boom under it on the blow; a thud per later row or rank; and the banner: a knock, a ground thud, the
+ * flag snapping open, and the cheer of the ones who stayed.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; only the Knockout variant dips
  * it, through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the
@@ -22,6 +30,7 @@
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
+import { playRumble } from '../sfx';
 import { stageScale } from '../stage';
 import { AttackVoices, type CueOpts } from '../heroAttack/attackSound';
 import { playKoSting } from '../heroAttack/knockout';
@@ -32,7 +41,8 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  getHeroWarhostConfig, warhostCameraAt, warhostCameraFocus, warhostCues, warhostPlan, warhostRumble, warhostScale, warhostSlowExtraMs, warhostStage,
+  WARHOST_VOLLEY_LEAD_MS, WARHOST_VOLLEY_MS, getHeroWarhostConfig, warhostCameraAt, warhostCameraFocus, warhostCues, warhostPlan, warhostRumble, warhostScale,
+  warhostSlowExtraMs, warhostStage,
   type HeroWarhostConfig, type WarhostCue, type WarhostPlan, type WarhostStage,
 } from './heroWarhostConfig';
 import { HeroWarhostScene, type HeroWarhostTextures } from './heroWarhostScene';
@@ -54,6 +64,10 @@ export interface HeroWarhostHandle extends HeroAttackHandle {
 export function warhostSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 7919 + Math.round(distance) * 31 + (side === 'opp' ? 613 : 17)) >>> 0;
 }
+
+/** A charge throws up its dust wall this often, and IV's marching drum beats this often under the host. */
+const WALL_MS = 44;
+const MARCH_BEAT_MS = 215;
 
 /** Play the Warhost. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
@@ -87,6 +101,8 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const stage = warhostStage(plan, o.attacker, o.defender, radius, aRadius, c, s, seed, screen);
   const u = stage.u, n = stage.n;
   const feet = { x: o.attacker.x, y: o.attacker.y + aRadius * 0.2 };
+  /** IV: the banner planted on the struck portrait (its foot is where the plant's FX go). */
+  const planted = stage.banners.find((b) => b.follow) ?? null;
 
   const textures = o.textures !== undefined ? o.textures : heroWarhostTextures();
   const scene = textures && !reduced
@@ -107,8 +123,20 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
     voices.cue(clip, gain, rate * (0.85 + 0.15 * warhostScale(plan, seq ? seq.t : 0)), opts);
   voices.warm([
     c.sfxHornClip, c.sfxDrumClip, c.sfxChargeClip, c.sfxGallopClip, c.sfxLooseClip, c.sfxThunkClip, c.sfxWhooshClip, c.sfxThudClip, c.sfxBoomClip,
-    c.sfxCheerClip,
+    c.sfxCheerClip, c.sfxVolleyClip, c.sfxClashClip, c.sfxFlapClip,
   ]);
+  /** A few quick soft steps (the spearman running out, the archers jogging out or home). */
+  const steps = (n: number, gapMs: number, gain = 0.16): void => { for (let i = 0; i < n; i++) cue(c.sfxThunkClip, c.sfxThunkGain * gain * (0.8 + 0.2 * (i % 2)), c.sfxThunkRate * (1.8 + 0.12 * (i % 3)), { startMs: 55, lenMs: 110, fadeMs: 60, delayMs: (i * gapMs) / speed }); };
+  /**
+   * THE GROUND RUMBLE under a charge (a synth, no clip): it builds as the charge crosses, holds while the rows or ranks
+   * pass over the struck portrait, and dies after the last. Kept with the voices so a cancel stops it.
+   */
+  const rumble = (gain: number): void => {
+    if (!sound || !(gain > 0)) return;
+    try {
+      voices.keep(playRumble('attack', { gain, buildMs: (plan.impactAt - plan.marchAt) / speed, holdMs: (plan.passAt - plan.impactAt) / speed, tailMs: 520 / speed, lowHz: 28, highHz: 240 }));
+    } catch { /* no audio here */ }
+  };
   /** The thunk's knock sits 87 ms into its clip: skip most of the lead so it lands on the beat. */
   const thunk = (gain: number, rate: number, lenMs = 360): void => cue(c.sfxThunkClip, c.sfxThunkGain * gain, c.sfxThunkRate * rate, { startMs: 55, lenMs, fadeMs: 120 });
 
@@ -120,56 +148,89 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         cam.start();
         break;
       case 'drum':
-        // Three heavy hits, each a little lower and louder than the last.
-        cue(c.sfxDrumClip, c.sfxDrumGain * (0.8 + 0.15 * q.i), c.sfxDrumRate * (1 - 0.035 * q.i), { tail: c.sfxTailMix });
-        scene?.drum(feet, aRadius, q.i);
+        // The war drums: each a little lower and louder than the last, and each sooner (the plan quickens them).
+        cue(c.sfxDrumClip, c.sfxDrumGain * (0.7 + 0.1 * q.i), c.sfxDrumRate * (1 - 0.03 * q.i), { tail: c.sfxTailMix });
+        if (q.i >= 2) cue(c.sfxThudClip, c.sfxThudGain * 0.3, c.sfxThudRate * 0.8, { lenMs: 420, fadeMs: 200 });
+        scene?.drum(feet, aRadius, Math.min(2, q.i));
         break;
       case 'horn':
         // III: a quick call over the charge. IV: the long deep one after the drums.
-        if (plan.kind === 'host') cue(c.sfxHornClip, c.sfxHornGain, c.sfxHornRate * 0.94, { tail: c.sfxTailMix });
-        else cue(c.sfxHornClip, c.sfxHornGain * 0.85, c.sfxHornRate * 1.1, { lenMs: 1150, fadeMs: 350 });
+        if (plan.kind === 'host') {
+          cue(c.sfxHornClip, c.sfxHornGain, c.sfxHornRate * 0.94, { tail: c.sfxTailMix });
+          // A drum roll under the horn, running into the charge.
+          for (let i = 0; i < 3; i++) cue(c.sfxDrumClip, c.sfxDrumGain * 0.4, c.sfxDrumRate * 1.2, { lenMs: 240, fadeMs: 120, delayMs: (60 + i * 75) / speed });
+        } else cue(c.sfxHornClip, c.sfxHornGain * 0.85, c.sfxHornRate * 1.1, { lenMs: 1150, fadeMs: 350 });
         scene?.horn(o.attacker, u, aRadius);
         break;
       case 'march':
         if (plan.kind === 'cavalry') {
+          // Hooves (twice, overlapping, so they run the whole way across), a war cry, and the ground rumbling.
           cue(c.sfxGallopClip, c.sfxGallopGain, c.sfxGallopRate);
-          cue(c.sfxChargeClip, c.sfxChargeGain * 0.4, c.sfxChargeRate * 1.15, { lenMs: 1100, fadeMs: 400 });
+          cue(c.sfxGallopClip, c.sfxGallopGain * 0.8, c.sfxGallopRate * 0.92, { delayMs: 520 / speed });
+          cue(c.sfxChargeClip, c.sfxChargeGain * 0.5, c.sfxChargeRate * 1.15, { lenMs: 1100, fadeMs: 400 });
+          rumble(c.sfxRumbleGain * 0.75);
         } else if (plan.kind === 'host') {
+          // THE HOST: the massed roar (twice, overlapping, so it lasts the crossing and the trample), hooves on the
+          // flanks, the ground rumbling, and a marching drum under it all.
+          const cross = plan.passAt - plan.marchAt;
           cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate);
+          cue(c.sfxChargeClip, c.sfxChargeGain * 0.9, c.sfxChargeRate * 0.93, { delayMs: 800 / speed, fadeMs: 400 });
           cue(c.sfxGallopClip, c.sfxGallopGain * 0.6, c.sfxGallopRate * 0.9);
-        }
+          cue(c.sfxGallopClip, c.sfxGallopGain * 0.5, c.sfxGallopRate * 0.85, { delayMs: 700 / speed });
+          rumble(c.sfxRumbleGain);
+          for (let i = 0; i * MARCH_BEAT_MS < cross - 80; i++) cue(c.sfxDrumClip, c.sfxDrumGain * 0.42, c.sfxDrumRate * (i % 2 ? 1.12 : 0.96), { lenMs: 300, fadeMs: 150, delayMs: (i * MARCH_BEAT_MS) / speed });
+        } else steps(plan.kind === 'spear' ? 4 : 6, plan.kind === 'spear' ? 70 : 50, plan.kind === 'spear' ? 0.5 : 0.4);
         break;
       case 'arrive':
-        if (plan.kind === 'spear') { const who = stage.troops[0]; if (who) for (let i = 0; i < 3; i++) scene?.puff(who.p1.x + (i - 1) * 8 * s, who.p1.y - 2 * s, 1.2); }
+        if (plan.kind === 'spear') {
+          // He plants his feet (a low knock) and winds up.
+          thunk(0.35, 0.8, 160);
+          const who = stage.troops[0]; if (who) for (let i = 0; i < 3; i++) scene?.puff(who.p1.x + (i - 1) * 8 * s, who.p1.y - 2 * s, 1.2);
+        } else {
+          // The line halts (a stamp) and the bows come up: a low creak of the draw through the held beat.
+          thunk(0.3, 0.7, 160);
+          cue(c.sfxLooseClip, c.sfxLooseGain * 0.35, c.sfxLooseRate * 0.5, { delayMs: 60 / speed });
+          cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.4, c.sfxWhooshRate * 0.55, { lenMs: 300, fadeMs: 160, delayMs: 90 / speed });
+        }
         break;
       case 'loose':
-        if (plan.kind === 'spear') cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 320, fadeMs: 140 });
-        else {
+        if (plan.kind === 'spear') {
+          cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 320, fadeMs: 140 });
+          cue(c.sfxLooseClip, c.sfxLooseGain * 0.5, c.sfxLooseRate * 0.7); // the snap of the throw
+        } else {
+          // The bowstrings (twice), then the VOLLEY: the hiss of the arrows in the air and their patter going in,
+          // placed so the patter starts as the first arrow lands.
           cue(c.sfxLooseClip, c.sfxLooseGain, c.sfxLooseRate);
           cue(c.sfxLooseClip, c.sfxLooseGain * 0.7, c.sfxLooseRate * 1.12, { delayMs: 90 / speed });
-          cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate * 0.8, { lenMs: 520, fadeMs: 240 });
+          cue(c.sfxVolleyClip, c.sfxVolleyGain, c.sfxVolleyRate, { delayMs: Math.max(0, (plan.lands[0] ?? plan.impactAt) - plan.looseAt - WARHOST_VOLLEY_LEAD_MS) / speed });
         }
         break;
       case 'volley':
+        // IV: a volley goes up over the host (the bowstrings), hisses overhead and patters down round the target.
         cue(c.sfxLooseClip, c.sfxLooseGain * 0.75, c.sfxLooseRate * (0.95 + 0.08 * q.i));
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.75, { lenMs: 560, fadeMs: 260 });
+        cue(c.sfxVolleyClip, c.sfxVolleyGain * 0.85, c.sfxVolleyRate * (1 + 0.06 * q.i), { delayMs: Math.max(0, WARHOST_VOLLEY_MS - WARHOST_VOLLEY_LEAD_MS) / speed });
         break;
       case 'hit': {
         // One arrow of the rain: every other one knocks (a patter, not a wall of noise).
-        if (q.i % 2 === 0) thunk(0.42, 1.35 + 0.06 * ((q.i / 2) % 4), 180);
+        if (q.i % 2 === 0) thunk(0.3, 1.35 + 0.06 * ((q.i / 2) % 4), 180);
         scene?.arrowTick(stage.shots[q.i]?.to ?? stage.strike);
         break;
       }
       case 'impact':
-        if (plan.tier === 1) thunk(1, 1);
-        else if (plan.tier === 2) { thunk(0.9, 1.1); cue(c.sfxThudClip, c.sfxThudGain * 0.5, c.sfxThudRate * 1.3, { lenMs: 500, fadeMs: 200 }); }
+        // Every blow has a low body under its own sound.
+        if (plan.tier === 1) { thunk(1, 1); cue(c.sfxThudClip, c.sfxThudGain * 0.4, c.sfxThudRate * 1.4, { lenMs: 420, fadeMs: 200 }); }
+        else if (plan.tier === 2) { thunk(0.9, 1.1); cue(c.sfxThudClip, c.sfxThudGain * 0.6, c.sfxThudRate * 1.3, { lenMs: 500, fadeMs: 200 }); }
         else if (plan.tier === 3) {
+          // The wedge striking: a heavy body hit, a boom under it, and the clatter of steel and shields.
           cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate * 0.95, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 350 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 0.5, c.sfxBoomRate * 1.15, { lenMs: 900, fadeMs: 350 });
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.6, c.sfxBoomRate * 1.15, { lenMs: 900, fadeMs: 350 });
+          cue(c.sfxClashClip, c.sfxClashGain * 0.75, c.sfxClashRate * 1.1, { lenMs: 1000, fadeMs: 400 });
           thunk(0.6, 0.8);
         } else {
+          // The host striking: the boom, the body hit, and the full clash of the charge going in.
           cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate, { tail: c.sfxTailMix, lenMs: 1600, fadeMs: 600 });
           cue(c.sfxThudClip, c.sfxThudGain * 1.2, c.sfxThudRate * 0.8, { tail: c.sfxTailMix, lenMs: 1100, fadeMs: 400 });
+          cue(c.sfxClashClip, c.sfxClashGain, c.sfxClashRate, { tail: c.sfxTailMix, fadeMs: 300 });
           thunk(0.5, 0.7);
         }
         scene?.impact(o.defender, stage.strike, u, radius, plan.tier);
@@ -178,17 +239,29 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         seq.land();
         break;
       case 'buffet':
-        cue(c.sfxThudClip, c.sfxThudGain * 0.45, c.sfxThudRate * (1.15 + 0.04 * q.i), { lenMs: 420, fadeMs: 180 });
+        cue(c.sfxThudClip, c.sfxThudGain * 0.55, c.sfxThudRate * (1.15 + 0.04 * q.i), { lenMs: 420, fadeMs: 180 });
+        thunk(0.35, 0.62 + 0.05 * (q.i % 3), 200);
         scene?.buffet(o.defender, radius, plan.kind === 'host' ? 1 : 0.7);
         break;
       case 'cheer':
         // A tiny cheer (the crowd clip pitched up and trimmed to a second): one man on I, a few on the Knockout.
-        cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.5 : 1), c.sfxCheerRate, { startMs: 700, lenMs: plan.kind === 'spear' ? 650 : 900, fadeMs: 320 });
+        // I: one man's tiny cheer (the crowd clip pitched up, quiet, short). IV: the ones who stayed, a real cheer.
+        if (plan.kind === 'spear') cue(c.sfxCheerClip, c.sfxCheerGain * 0.4, c.sfxCheerRate * 1.25, { startMs: 700, lenMs: 800, fadeMs: 360 });
+        else cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.2 : 1), c.sfxCheerRate, { startMs: 500, lenMs: Math.max(700, (plan.endAt - plan.cheerAt - 60) * c.sfxCheerRate), fadeMs: 260 });
         break;
       case 'plant':
-        thunk(0.8, 0.8);
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.5, c.sfxWhooshRate * 0.7, { lenMs: 420, fadeMs: 200 });
-        scene?.plant({ x: o.defender.x, y: o.defender.y + radius * 0.35 }, radius);
+        // THE BANNER GOES IN: the pole biting (a knock and a ground thud with a boom under it), then the flag
+        // snapping open.
+        thunk(1, 0.7);
+        cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate * 0.85, { tail: c.sfxTailMix, lenMs: 800, fadeMs: 350 });
+        cue(c.sfxDrumClip, c.sfxDrumGain * 0.9, c.sfxDrumRate * 0.8, { tail: c.sfxTailMix });
+        cue(c.sfxFlapClip, c.sfxFlapGain, c.sfxFlapRate, { delayMs: 70 / speed });
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.7, { lenMs: 420, fadeMs: 200, delayMs: 40 / speed });
+        scene?.plant(planted ? planted.at : { x: o.defender.x, y: o.defender.y + radius * 0.35 }, radius);
+        break;
+      case 'home':
+        // I, II: running home.
+        steps(plan.kind === 'spear' ? 4 : 6, plan.kind === 'spear' ? 70 : 50, 0.3);
         break;
       default:
         break;
@@ -199,6 +272,30 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const flip = stage.face;
   const dimOut = plan.kind === 'host' ? plan.plantAt + c.bannerMs * 0.5 : plan.kind === 'cavalry' ? plan.passAt + 160 : plan.impactAt + 200;
   const knockK = c.knockPx * (0.7 + 0.4 * plan.k);
+  // The rolling dust wall under a charge: thrown up every `WALL_MS` along the front as it crosses (never on a seek).
+  const charge = plan.kind === 'host' || plan.kind === 'cavalry';
+  const chargeV = dist / Math.max(1, plan.impactAt - plan.marchAt);
+  const wallHalf = (plan.kind === 'host' ? c.hostWidthPx * 0.5 : c.cavalryPx * 2.4) * s;
+  let nextWall = plan.marchAt;
+  let lastT = -1;
+  const wallPt = { x: 0, y: 0 };
+  const dustWall = (t: number): void => {
+    if (!scene || !charge || t < nextWall || t > plan.passAt) return;
+    nextWall = t + WALL_MS;
+    if (lastT < 0 || t - lastT > 120) return; // a jump (finish / a hitch): do not dump a wall of dust in one frame
+    const reach = chargeV * (t - plan.marchAt);
+    const k = Math.min(1, reach / Math.max(1, dist));
+    // The host funnels as it nears the target; behind the target the wall stays over it (the trample's dust).
+    const half = wallHalf * (plan.kind === 'host' ? 1 - (1 - c.funnel) * k : 1);
+    const along = Math.min(reach, dist);
+    wallPt.x = o.attacker.x + u.x * along; wallPt.y = o.attacker.y + u.y * along;
+    scene.dustWall(wallPt, u, n, half, plan.kind === 'host' ? 5 : 4, plan.kind === 'host' ? 1 : 1.1);
+    // The body of the host kicks up its own, further back.
+    if (plan.kind === 'host' && reach > dist * 0.25) {
+      wallPt.x = o.attacker.x + u.x * along * 0.55; wallPt.y = o.attacker.y + u.y * along * 0.55;
+      scene.dustWall(wallPt, u, n, wallHalf * 0.9, 2, 0.8);
+    }
+  };
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
@@ -214,7 +311,7 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
       bx -= u.x * c.heroWindPx * px * lean; by -= u.y * c.heroWindPx * px * lean;
       const rot = -2.5 * flip * lean;
       if (t >= plan.marchAt) { const f = c.heroThrowPx * px * Math.max(0, spring(t - plan.marchAt, 5, 60)); bx += u.x * f; by += u.y * f; }
-      for (const at of plan.drums) if (t >= at) sc += 0.06 * Math.max(0, spring(t - at, 4, 80));
+      for (let i = 0; i < plan.drums.length; i++) { const at = plan.drums[i]!; if (t >= at) sc += (0.06 + 0.012 * i) * Math.max(0, spring(t - at, 4, 80)); }
       const still = Math.abs(bx) + Math.abs(by) < 0.05 && Math.abs(rot) < 0.01 && Math.abs(sc - 1) < 1e-4;
       hero.set(still ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${sc.toFixed(4)})`);
     }
@@ -223,25 +320,31 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
     let fx = 0, fy = 0, rot = 0, sq = 0;
     for (const at of plan.hits) if (t >= at) { const k = Math.max(0, spring(t - at, 6, 40)) * 3 * px; fx += u.x * k; fy += u.y * k; }
     if (t >= plan.impactAt) {
-      const k = spring(t - plan.impactAt, 4.5, 90);
+      // A charge hits like a wall (a slower, longer spring) and BATTERS the portrait: every later row or rank throws
+      // it to one side and back, tips it and squashes it again, and it shudders under the feet the whole time.
+      const k = charge ? spring(t - plan.impactAt, 3.4, 130) : spring(t - plan.impactAt, 4.5, 90);
       fx += u.x * knockK * k * px; fy += u.y * knockK * k * px;
       sq = c.squash * (0.8 + 0.4 * plan.k) * k;
       rot += 3 * flip * k * (0.5 + plan.k);
       for (let i = 0; i < plan.buffets.length; i++) {
         const at = plan.buffets[i]!;
         if (t < at) break;
-        const b = spring(t - at, 5, 70) * knockK * 0.45 * px;
+        const bs = spring(t - at, 5, 80);
+        const b = bs * knockK * 0.7 * px;
         const side = i % 2 ? 1 : -1;
-        fx += (u.x * 0.5 + n.x * side * 0.7) * b; fy += (u.y * 0.5 + n.y * side * 0.7) * b;
-        rot += side * 2.4 * spring(t - at, 5, 70);
+        fx += (u.x * 0.5 + n.x * side * 0.8) * b; fy += (u.y * 0.5 + n.y * side * 0.8) * b;
+        rot += side * 4.2 * bs;
+        sq += c.squash * 0.5 * Math.max(0, bs);
       }
-      const r = plan.kind === 'host' ? warhostRumble(plan, t) : 0;
-      if (r > 0) { fx += Math.sin(t * 0.11) * 3 * r * px; fy += Math.sin(t * 0.17 + 1) * 2.4 * r * px; }
-      if (plan.plantAt >= 0 && t >= plan.plantAt) fy += 5 * px * spring(t - plan.plantAt, 4, 70);
+      const r = charge ? warhostRumble(plan, t) : 0;
+      if (r > 0) { const amp = (plan.kind === 'host' ? 6 : 3.5) * r * px; fx += Math.sin(t * 0.11) * amp; fy += Math.sin(t * 0.17 + 1) * amp * 0.8; }
+      // The banner going in drives the portrait down, and it rocks as the flag snaps open.
+      if (plan.plantAt >= 0 && t >= plan.plantAt) { const ps = spring(t - plan.plantAt, 4, 90); fy += 13 * px * ps; rot += -2.2 * flip * ps; sq += c.squash * 0.7 * Math.max(0, ps); }
     }
     const still = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(rot) < 0.02 && Math.abs(sq) < 4e-4;
     foe.set(still ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`);
-    if (scene) { scene.setFoeOffset(fx * unit, fy * unit); scene.paint(t); }
+    if (scene) { scene.setFoeOffset(fx * unit, fy * unit); dustWall(t); scene.paint(t); }
+    lastT = t;
   };
 
   const seq: Sequence<WarhostCue | FormationCue> = new Sequence<WarhostCue | FormationCue>({

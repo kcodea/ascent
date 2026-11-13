@@ -13,6 +13,8 @@ this one is a beam, a bolt or a glow: it is men, horses, spears, arrows, banners
 
 ## What each look does
 
+(As it is NOW, after the second pass; see "Second pass" at the end for what changed and why.)
+
 Four looks on the shared damage tiers (a knockout always plays IV). The host always comes from the striker's side:
 every path is built from the two portrait points, so both directions play the same.
 
@@ -22,17 +24,21 @@ every path is built from the two portrait points, so both directions play the sa
 - **II, the archers:** seven archers jog out and form a line across the way to the target, draw together (a held
   beat), and loose twice: fourteen arrows arc high and come down on the struck portrait in a patter, each sticking at
   its own angle. Every arrow before the last is a tick; the last is the blow. They jog home.
-- **III, the cavalry:** a war horn, then a wedge of ten riders (1, 2, 3, 4) charges from behind the striker at one
-  steady pace, kicking up dust, and rides THROUGH the struck portrait. The point rider is the blow; each row after it
-  buffets the portrait (knocked side to side). They wheel off screen.
-- **IV, the host:** three war drums (a banner rises round the striking hero on each), the long horn, then the full
-  host floods across: sixteen ranks of eleven foot (176), six riders on each flank, two volleys of fourteen arrows
-  overhead, funnelling to half its width over the struck portrait. The front rank is the blow; the ranks after it
-  buffet and shudder the portrait and bury it in dust. When the last rank has passed and the dust thins, one soldier
-  runs in carrying a banner and PLANTS it on the struck portrait; it snaps in the wind for a beat, he cheers, and
-  everything clears.
-- **Knockout (the Ancient "Tier V"):** IV remixed: three more soldiers stay to cheer round the banner, a prismatic
-  shock on the front rank's hit, a 1.3x shake, the shared short slow-mo dip (never a freeze) and the KO sting.
+- **III, the cavalry:** a war horn, then a wedge of ten riders (1, 2, 3, 4), drawn 1.3x the host's flank cavalry,
+  charges from behind the striker at one steady pace behind a rolling wall of dust, the ground shaking harder the nearer
+  it comes, and rides THROUGH the struck portrait. The point rider is the blow; each row after it batters the portrait
+  (thrown side to side, tipped, squashed). Just beyond the portrait the wedge splits in two and wheels HOME round both
+  sides of it, back across the board, on screen.
+- **IV, the host:** FOUR war drums, each sooner than the last (a banner rises round the striking hero on each, the view
+  thumps), the long horn with a drum roll under it, then the full host floods across behind its own wall of dust with a
+  marching drum under it: seventeen ranks of eleven foot (187), six riders on each flank, two volleys of fourteen arrows
+  overhead, funnelling to half its width over the struck portrait, the whole view rumbling. The front rank is the blow;
+  every third rank after it batters the portrait about and buries it in dust. When the last rank has passed and the
+  dust thins, one soldier runs in and PLANTS A BIG BANNER on the struck portrait: a knock that kicks the view straight
+  down and drives the portrait down with it, a ring of dust and two rings rolling out along the ground, the flag
+  snapping open with a glint; the four who stayed with him cheer round it for a second, and everything clears.
+- **Knockout (the Ancient "Tier V"):** IV remixed: seven stay to cheer round the banner, a prismatic shock on the
+  front rank's hit, a 1.3x shake, the shared short slow-mo dip (never a freeze) and the KO sting.
 
 ## How
 
@@ -56,28 +62,56 @@ every path is built from the two portrait points, so both directions play the sa
 
 ## Sound
 
-Seven ElevenLabs calls, six clips kept, 6.21 s in all (`packages/ui/src/audio/fx/warhost-*.mp3`; mono, 44.1 kHz,
-128 kb/s; trimmed to the event with short fades; the three long ones levelled to -20 LUFS, the three short hits
-peak-normalised under -1 dB since LUFS is undefined below 400 ms):
+Rebuilt in the second pass from measurements. Nine clips of its own, about 10 s in all (10.2 s by file length) (`warhost-*.mp3`; mono, 44.1 kHz,
+128 kb/s), from ten ElevenLabs calls across both passes (three in the second).
 
 | clip | length | used for | measured |
 | --- | --- | --- | --- |
-| `warhost-horn` | 1.60 s | III (pitched up, cut to 1.15 s), IV (pitched down) | steady from 0.14 s to 1.1 s, gone by 1.45 s |
-| `warhost-drum` | 0.62 s | IV, three times, each lower and louder | peak at 34 ms |
-| `warhost-charge` | 1.90 s | IV at the march (the battle cry and feet); quietly under III | full from the start to 1.75 s |
-| `warhost-gallop` | 1.45 s | III at the march; quietly under IV | peak at 77 ms, hooves to 1.3 s |
-| `warhost-loose` | 0.22 s | II (twice, the second 90 ms later), IV's volleys | peak at 61 ms |
-| `warhost-thunk` | 0.42 s | the spear, every other arrow (higher, softer), the banner pole | peak at 87 ms: cued from 55 ms in |
+| `warhost-horn` | 1.60 s | III (pitched up, cut to 1.15 s), IV (pitched down) | re-levelled 8.8 dB up in the second pass (its peak was -10 dB); steady from 0.14 s to 1.1 s |
+| `warhost-drum` | 0.62 s | IV: the four war drums (each lower and louder), the roll under the horn, the marching beat under the host, the banner going in | a 90 Hz hit, peak at 34 ms |
+| `warhost-charge` | 1.90 s | IV at the march, twice and overlapping, so the roar lasts the crossing and the trample; quietly under III | re-levelled 7.1 dB up; a 1.1 kHz roar, full from the start to 1.75 s |
+| `warhost-gallop` | 1.45 s | III at the march (twice, overlapping); under IV for the flanks | hooves to 1.3 s |
+| `warhost-loose` | 0.22 s | the bowstrings (II twice, IV's volleys); low and quiet, the draw; the snap of the spear throw | peak at 61 ms |
+| `warhost-thunk` | 0.42 s | the spear, every other arrow, a hoof or boot per later row or rank, the banner pole; high and short, footsteps | peak at 87 ms: cued from 55 ms in |
+| `warhost-volley` | 1.34 s | NEW. II's arrow rain and IV's two volleys | the hiss of arrows in the air for 400 ms (4.5 kHz), then a patter of fourteen knocks thinning out over 800 ms |
+| `warhost-clash` | 1.72 s | NEW. The charge striking (IV whole, III the first second) | a dense clatter of steel, shields and shouting, about -6 dB RMS for 1.5 s |
+| `warhost-flap` | 0.60 s | NEW. The banner snapping open | two flaps of heavy cloth (150 to 300 Hz) at 100 and 400 ms |
 
-The seventh call was a second try at an "arrow volley whoosh and patter": both tries came back as two separate
-knocks with a second of silence between them, so the patter is made in code instead (the thunk cued on every other
-arrow) and the bowstring snap was cut from the first try. Reused shared clips: the swish (the spear leaving the hand,
-arrows in the air, the flag), the ground impact (the charge striking, each buffet), the cinematic boom (under III and
-IV's blow) and the crowd `cheering` clip pitched up 1.5x and trimmed to under a second (a tiny cheer).
+The VOLLEY, which the first pass could not get: the third generated take again came back as one whoosh and one knock
+with silence between. So the clip is BUILT: the whoosh from that take (slowed to 0.8x) for the arrows in the air, then
+fourteen copies of the thunk at fixed times, pitches and levels for the patter. It is cued so its patter starts as the
+first arrow lands. The first pass's per-arrow thunk still plays under it, quieter.
+
+The GROUND RUMBLE under III and IV is a synth (`playRumble`, the one the Quake attack uses: filtered brown noise), not
+a clip: it builds as the charge crosses, holds while the rows or ranks pass, and dies after the last.
+
+Reused shared clips: the swish (the spear in the air, the flag), the ground impact (the charge striking, each buffet,
+the banner), the cinematic boom (under III and IV's blow) and the crowd `cheering` clip (the spearman's tiny cheer
+pitched up; on IV the cheer of the ones who stayed, at 1.2x and much louder than the first pass).
+
+Measured in play (the attack played with sound in headless Chrome, the output tapped and cut into 100 ms windows, RMS
+in dBFS; "own" is from the attack's first beat to 400 ms after its end, so the shared damage formation is left out):
+
+| | own RMS, first pass | own RMS, now | loudest own window now |
+| --- | --- | --- | --- |
+| IV, the host | -27.5 dB | -20.1 dB | -14.7 (the blow; -15 to -17 for 600 ms) |
+| III, the cavalry | -29.2 dB | -23.3 dB | -18.6 |
+| II, the archers | -31.4 dB | -26.3 dB | -20.0 |
+| I, the spearman | -30.3 dB | -27.3 dB | -17.3 |
+| Soccer IV / Frost IV | | -28.3 / -27.7 dB | -22.8 / -21.6 |
+| Storm Call IV | | -22.6 dB | -17.9 |
+
+IV, beat by beat: the drums -20 to -27 (each louder), the horn and the roll -18 to -20, the charge -19 to -22 for
+900 ms, the blow and the trample -15 to -17, a dip to -26 as the dust thins (200 ms), the banner -15 to -18, the cheer
+-18 to -26 for 800 ms. No stretch of IV with action on screen is under -27 dB. I and II are quiet for their first
+half second (a tiny man's footsteps, -27 to -40 dB) on purpose. IV is the loudest attack measured here: if that is
+too much, `sfxChargeGain`, `sfxRumbleGain` and `sfxDrumGain` bring the crossing down without touching the blow.
+
+Nobody has LISTENED to any of this: every level and offset is measured from the recorded output.
 
 ## Verified
 
-- `npx vitest run packages/ui/src/heroWarhost packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 891 tests
+- (First pass.) `npx vitest run packages/ui/src/heroWarhost packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 891 tests
   green (32 of them this attack's own: plan and cue timing per look, both directions, staging on screen, the blow
   landing exactly once, every exit (the end, `finish()`, `cancel()` before and mid-trample, the safety timer)
   restoring both portraits' transform, opacity, filter and class and the camera, determinism from the seed, the atlas
@@ -101,7 +135,71 @@ IV's blow) and the crowd `cheering` clip pitched up 1.5x and trimmed to under a 
 
 - No cosmetic, no Collection entry, no patch note (by design: the coordinator adds those).
 - Nobody has LISTENED to the sounds: levels and cue offsets are from measured envelopes only.
-- The struck portrait sits in a corner in the real layout, so III's wheel-off and most of IV's exit happen off
-  screen almost at once; the charge reads on the way in.
 - The run cycle is two frames with a bob. Up close (the 2x spearman) it is a little stiff.
-- IV runs about 3.5 s after the formation, longer than the source attack's 3.2 s.
+
+## Second pass (2026-11-12): an army that sounds like one, and a charge with weight
+
+The owner played the batch: the attacks "need sound effects" and the big looks are "quick and not impactful". The
+tiny soldiers stay (the idea reads at once); nothing new is drawn. What changed:
+
+**Sound.** See "Sound" above (rewritten): three new clips (the volley, the clash, the flag), a synth ground rumble,
+the drums used as a build-up, a roll and a marching beat, two overlapping takes of the roar and the hooves so they
+last the crossing, footsteps and a draw for the small looks, a body under every blow, and a real cheer. IV's own sound
+went from -27.5 to -20.1 dB RMS.
+
+**The charge shakes the screen as it passes (III, IV).** The rumble used to start 420 ms before the blow at 16 percent
+of the blow's shake; it now starts when the charge sets out and grows all the way across to 34 percent (IV) or 24
+percent (III), about 10 px and 5 px. The blow's shake is 30 px on IV (was 24) and 22 px on III (was 16), on a slower,
+longer spring.
+
+**A rolling dust wall (III, IV).** Every 44 ms while the charge crosses, big soft clouds are thrown up along its
+front and carried forward with it (IV also along the body of the host), so the host comes out of its own dust. The
+first pass had only the step puffs.
+
+**The struck portrait is battered about.** Knocked 30 px (was 20) on a slower spring; each later row or rank throws
+it 0.7 of a knock to one side (was 0.45), tips it 4.2 degrees (was 2.4) and squashes it again; it shudders 6 px under
+the host (was 3) and now under the cavalry too; and a white flash and a red glow light it on the blow.
+
+**The banner plant is a beat (IV).** The banner is 2.3x a rally banner (was 1.6x; a little smaller under the top of
+the screen so it never leaves the view), the plant kicks the view straight down and drives the portrait down 13 px,
+with a flash, two ground rings, a ring of dust, sparks and a glint; four soldiers stay and cheer round it (seven on
+the Knockout, which had three); the flag flies for 1050 ms (was 780).
+
+**The drum build-up (IV).** Four drums that quicken (gaps of 330, 271 and 211 ms) instead of three at an even 290, a
+banner and a thump of the view on each, the horn 70 ms after the last with a drum roll under it, and the host setting
+out 200 ms into the horn.
+
+**Running time of IV:** 3515 ms before, 4289 ms now (Soccer IV 3308, Frost IV 3083). The blow lands once, 1935 ms in
+(was 1615): 320 ms more build-up before it, 450 ms more aftermath after it. III: 1786 ms before, 2028 now. No hit-stop.
+
+**The two notes from the first pass.**
+- The stuck spear on I was partly covered by a lobby rail orb: the orbs sit ON the rim of a corner portrait. The spear
+  now sticks in the face, 0.4 of a radius from the centre (was 0.66), where nothing covers it.
+- The cavalry's wheel-off on III happened off screen. They now ride through the portrait, turn just beyond it and ride
+  home round both sides of it across the board (see III above), all on screen.
+
+### Verified (second pass)
+
+- `npx vitest run packages/ui/src/heroWarhost packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 898 tests, all passing (36 tests in
+  `heroWarhost.test.ts`: the quickening drums and the build-up, the new running time, the wheel home on screen in both
+  directions, the spear on the face, the rally banners and the big planted one fitting the view, the cheerers, the
+  rumble growing across the charge, the plant's kick, the portrait thrown and tipped through the trample, the clip
+  list). `npm run typecheck` clean. `npm run lint` 0 errors, no warning in these files.
+- Looked at in headless Chrome at 1920 x 1080 (real-time screencast, sound off): IV in both directions and a close-up
+  of the banner plant, III, II, and a close-up of I's spear. After every run both portraits and the stage had no
+  transform left.
+- Frame times, DEV build, headless Chrome, vsync off, no capture. IV, three runs (two you, one the foe): median 0.6 ms,
+  99th percentile 3.4 to 3.9 ms, worst 17 to 18 ms. The worst frames are the shared opening and teardown in every run,
+  plus a few isolated 15 to 17 ms frames mid-charge that moved from run to run. The attack's own per-frame step: 0.3 to
+  0.4 ms at the 99th percentile, 1.1 to 2.3 ms at worst. III: 99th percentile 4.5 ms, worst 20 ms; its own step worst
+  2.4 ms. Not measured on a production build.
+
+### Still weak or unverified
+
+- Unheard (see Sound). IV is deliberately the loudest attack measured.
+- The built volley is a whoosh and a fixed patter; an ear may find the patter mechanical.
+- On III the ride home is thin: ten riders fan out and fade over about 400 ms. It reads as a wheel, not as a spectacle.
+- The dust over the host lowers the contrast of the soldiers a little while they cross.
+- On I the spear's shaft still passes under the hit number for the first 400 ms.
+- IV is about a second longer than the shipped top looks.
+- The run cycle is still two frames. Not seen on a real display, a phone, or in the Collection preview.

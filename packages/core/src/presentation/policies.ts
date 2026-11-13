@@ -1321,6 +1321,14 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantEquipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12)
+  'rune:rune_top_shelf:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Refresh: one offer from the Tier above (rides the refresh)
+  'rune:rune_double_bill:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: left-most + right-most Shouts (each a counted shout beat)
+  'rune:rune_bulwark_line:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: Taunt minions gain Ward
+  'rune:rune_wholesale:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop minions cost 1 less (a price, no beat)
+  'rune:rune_grudge:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: a Discover from the Tier above (its own Start of Turn beat)
+  'rune:rune_bastion:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first Ward loss each combat: the Ward re-forms
+  'rune:rune_mirror_sheen:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: that minion deals its Attack to a random enemy
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

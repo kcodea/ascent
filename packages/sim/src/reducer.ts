@@ -356,7 +356,10 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Emerald Warden: a minion of your Shop tier is set to 2 Gold (never raised above its own).
   const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
-  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
+  // RUNE OF WHOLESALE (Set 2 Epic, owner 2026-11-12): "Minions in the Shop cost 1 less." 1 per copy held, minions only.
+  const wsDef = CARD_INDEX[offer.cardId];
+  const wholesaleOff = !freeBuy && s.questFlags?.runeWholesale && !wsDef?.spell && !wsDef?.ruby ? Math.max(1, s.flagCopies?.runeWholesale ?? 1) : 0;
+  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
 }
 
@@ -486,6 +489,42 @@ function upgradeRightmostOffer(s: RunState, done?: Set<string>): void {
   stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the right-most slot's enchant
   done?.add(s.shop[idx]!.uid);
   ancientOnContraband(s, s.shop[idx]!); // ANCIENTS × Pete (a no-op otherwise): the Contrabanana mark; War's random keyword
+}
+
+/** Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): "Every Refresh offers 1 minion from the Tier above your Shop."
+ *  The Open Enrollment shape (the Shop never grows): a short row fills a free slot, a full row REPLACES the right-most
+ *  minion offer that is not already above your Tier (never a spell, Ruby or the Starform). The displaced offer goes
+ *  back to the pool. At the top Tier there is no Tier above, so nothing happens (owner ruling 2026-11-12). The new
+ *  offer carries the `contraband` flash, the UI's "an offer from the Tier above" marker. */
+function offerTopShelf(s: RunState): void {
+  const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
+  const tgt = s.tier + 1;
+  if (tgt > ceiling) return;
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt && inRunTribes(c, s.tribes) && (s.pool[c.id] ?? 0) > 0);
+  if (pool.length === 0) return;
+  let idx = -1;
+  if (s.shop.length >= tierSlots(s.tier)) {
+    for (let i = s.shop.length - 1; i >= 0; i--) {
+      const d = CARD_INDEX[s.shop[i]!.cardId];
+      if (d && !d.spell && !d.ruby && !s.shop[i]!.starform && d.tier <= s.tier) { idx = i; break; }
+    }
+    if (idx < 0) return;
+  }
+  const rng = makeRng(s.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  procRuneId(s, 'rune_top_shelf');
+  if (idx < 0) {
+    takeFromPool(s, pick.id);
+    const added = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true as const };
+    s.shop.push(added);
+    stampNewShopOffers(s, [added], { onRefresh: true, cia: true });
+    return;
+  }
+  returnToPool(s, s.shop[idx]!.cardId);
+  takeFromPool(s, pick.id);
+  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true };
+  stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the replaced slot's enchant
 }
 
 /**
@@ -3103,6 +3142,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // ANCIENTS × Pete (3 and 1 unless picked): Time triggers it every 2 Refreshes; Genesis upgrades the 2 right-most.
         if (s.refreshCount % ancientContrabandEvery(s) === 0) { const done = new Set<string>(); for (let k = 0; k < ancientContrabandCount(s); k++) upgradeRightmostOffer(s, done); }
       }
+      // Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): one offer from the Tier above per copy held. AFTER Pete, and it
+      // never replaces an offer already above your Tier, so the two never undo each other.
+      if (s.questFlags?.runeTopShelf) for (let k = 0; k < Math.max(1, s.flagCopies?.runeTopShelf ?? 1); k++) offerTopShelf(s);
       return s;
     }
 
@@ -6651,6 +6693,15 @@ function advanceCombat(s: RunState): void {
   });
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
   if (s.runeFreshPages) recordSotBeat(s, runeKindSource('runeFreshPages'), () => { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); });
+  // Rune of Grudge (Set 2 Epic, owner 2026-11-12): "After you lose a combat, Discover a minion from the Tier above your
+  // Shop. (Up to Tier 7.)" A Discover can only open in the Shop, so it opens as the next Shop does (its own Start of Turn
+  // beat). A draw is not a loss. Shop Tier + 1, capped at 7 (owner ruling: the cap is Tier 7, so a Tier 6 Shop offers
+  // Tier 7, like the Summit's fixed-tier offer). One Discover per copy held.
+  if (s.questFlags?.runeGrudge && s.lastCombat?.result === 'lose') recordSotBeat(s, runeSource('rune_grudge'), () => {
+    procRuneId(s, 'rune_grudge');
+    const tier = Math.min(7, s.tier + 1);
+    for (let k = 0; k < Math.max(1, s.flagCopies?.runeGrudge ?? 1); k++) queueDiscover(s, { kind: 'minion', tier, exactTier: tier });
+  });
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -8803,6 +8854,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       if (!held || !hd || hd.spell || hd.ruby) return undefined;
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
+    // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+    runeDoubleBill: f?.runeDoubleBill,               // Start of Combat: trigger the left-most and right-most Shouts
+    runeBulwarkLine: f?.runeBulwarkLine,             // Start of Combat: Taunt minions gain Ward
+    runeBastion: f?.runeBastion,                     // the first Ward loss each combat: the Ward comes back
+    runeMirrorSheen: f?.runeMirrorSheen,             // a Ward loss: that minion deals its Attack to a random enemy
   };
 }
 

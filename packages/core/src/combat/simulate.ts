@@ -6307,6 +6307,37 @@ export function simulate(
         given++;
       }
     }
+    // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12). Both texts begin "Start of Combat:", so Twilight repeats them. ──
+    // BULWARK LINE: every living friendly Taunt minion without a Ward gains one (a normal Ward). One beat; idempotent,
+    // so a duplicate pays the sweetener instead (RUNE_DUP_SWEETENER).
+    if (rmods.runeBulwarkLine) {
+      const taunts = boards[rside].filter((m) => !m.dead && m.health > 0 && m.keywords.includes('T') && !m.divineShield);
+      if (taunts.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeBulwarkLine', rside);
+        for (const m of taunts) {
+          m.divineShield = true;
+          if (!m.keywords.includes('DS')) m.keywords.push('DS');
+          emit({ type: 'shieldUp', target: m.uid });
+        }
+      }
+    }
+    // DOUBLE BILL: trigger the left-most and the right-most living minion WITH a Shout (the Shared Scripture "left-most
+    // Shout" convention). One Shout minion is both ends and fires once. Each fire goes through the shared `fireShout`
+    // (R-SHOUT-TRIGGER-01: a counted `shout` beat, the Shout extras, `battlecryTriggered`), Drakko-folded, per copy.
+    if (rmods.runeDoubleBill) {
+      const shouts = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay'));
+      const ends = shouts.length <= 1 ? shouts : [shouts[0]!, shouts[shouts.length - 1]!];
+      if (ends.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeDoubleBill', rside);
+        for (let k = 0; k < flagCopiesOf(rside, 'runeDoubleBill'); k++) {
+          for (const m of ends) {
+            if (m.dead || m.health <= 0) continue;
+            const reps = drakkoRepeats(ctx, rside);
+            for (let r = 0; r < reps; r++) fireShout(ctx, m, m);
+          }
+        }
+      }
+    }
   };
   const socRunes = (sides: readonly Side[]): void => {
     for (const rside of sides) {
@@ -7146,6 +7177,44 @@ export function simulate(
     });
   };
   for (const uside of SIDES) registerUnbrokenScales(uside, 0);
+  // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12): the two Ward-loss runes, registered per board like the above. ──
+  // BASTION: "The first minion of yours to lose Ward each combat gains Ward." A SIDE-WIDE budget (one per copy held) per
+  // fight. The Ward comes back AT ONCE as a normal Ward (owner 2026-11-12), so a later hit pops it again and every
+  // Ward-loss trigger (Mirror Sheen, Shatterproof) hears that second loss too. Registered BEFORE Mirror Sheen so the Ward
+  // is already back when the reflected damage lands. The keyed `shieldUp` plays as a Ward re-form (clashOrder.ts).
+  // MIRROR SHEEN: "When a minion of yours loses Ward, it deals damage equal to its Attack to a random enemy." Every loss,
+  // no cap (each loss spends a Ward, so a chain is bounded by the Wards on the table); one hit per copy held, each a
+  // fresh seeded pick. The minion is the damage source (kill credit, "a friendly minion dealt damage" watchers).
+  const BASTION_KEY = 'rune:runeBastion';
+  const registerWardRunes = (wside: Side, member: number): void => {
+    if (modsFor(wside).runeBastion) {
+      let left = flagCopiesOf(wside, 'runeBastion');
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== wside || activeMember[wside] !== member || left <= 0 || minion.dead || minion.health <= 0 || minion.divineShield) return;
+        left--;
+        fireTrigger('runeBastion', wside);
+        minion.divineShield = true;
+        if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+        emit({ type: 'shieldUp', target: minion.uid, key: BASTION_KEY });
+      });
+    }
+    if (modsFor(wside).runeMirrorSheen) {
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== wside || activeMember[wside] !== member || minion.dead || minion.health <= 0 || minion.attack <= 0) return;
+        const foe: Side = wside === 'player' ? 'enemy' : 'player';
+        if (living(foe).length === 0) return;
+        fireTrigger('runeMirrorSheen', wside);
+        for (let k = 0; k < flagCopiesOf(wside, 'runeMirrorSheen'); k++) {
+          const targets = living(foe).filter((t) => t.health > 0);
+          if (targets.length === 0 || minion.dead || minion.health <= 0) break;
+          ctx.damage(targets[rng.int(targets.length)]!, minion.attack, false, false, minion);
+        }
+      });
+    }
+  };
+  for (const wside of SIDES) registerWardRunes(wside, 0);
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
   // and repeats its own Twilight passes here: a "Start of Combat:" rune, so each extra pass re-picks the living
@@ -7578,6 +7647,7 @@ export function simulate(
     socRunes([s]);
     registerSalvage(s, activeMember[s]);
     registerUnbrokenScales(s, activeMember[s]);
+    registerWardRunes(s, activeMember[s]);
     socFirstClaws([s]);
     bloodlustFor(s);
     fillFreeSlots();

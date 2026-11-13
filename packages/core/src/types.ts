@@ -2085,7 +2085,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
-  | 'runeReturnCustomers';
+  | 'runeReturnCustomers'
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12): topShelf = every Refresh offers 1 minion from the Tier above;
+  // doubleBill = Start of Combat, trigger the left-most and right-most Shouts; bulwarkLine = Start of Combat, Taunt
+  // minions gain Ward; wholesale = Shop minions cost 1 less; grudge = after a lost combat, Discover from the Tier above;
+  // bastion = the first friendly Ward loss each combat regains Ward; mirrorSheen = a friendly Ward loss deals its Attack.
+  | 'runeTopShelf' | 'runeDoubleBill' | 'runeBulwarkLine' | 'runeWholesale' | 'runeGrudge' | 'runeBastion' | 'runeMirrorSheen';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2888,6 +2893,15 @@ export interface QuestCombatMods {
    *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
    *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
   runeHeldStrength?: { attack: number; health: number; copies?: number };
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+  /** Double Bill: Start of Combat, trigger the left-most and right-most friendly Shouts (per copy). */
+  runeDoubleBill?: boolean;
+  /** Bulwark Line: Start of Combat, every friendly Taunt minion gains Ward. */
+  runeBulwarkLine?: boolean;
+  /** Bastion: the first friendly minion to lose Ward each combat (side-wide; one per copy held) gains Ward again. */
+  runeBastion?: boolean;
+  /** Mirror Sheen: when a friendly minion loses Ward, it deals damage equal to its Attack to a random enemy (per copy). */
+  runeMirrorSheen?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

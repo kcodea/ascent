@@ -755,7 +755,10 @@ export function chessBoard(
     // The queen ends on the side she came from, so the word prefers the other side.
     const busyAbove = (!!avoid && avoid.y < d.y - radius * 0.5) || dir.y > 0.3;
     const useBelow = roomBelow && (!roomAbove || busyAbove);
-    const wx = view && view.w > 0 ? clamp(d.x, wordW / 2 + 8, view.w - wordW / 2 - 8) : d.x;
+    // When it has to share the queen's side (no room on the other), it sets beside her, toward the middle of the view.
+    const shared = useBelow ? dir.y < -0.3 : dir.y > 0.3;
+    const cx = shared ? stops[0]!.x + (mid.x >= d.x ? 1 : -1) * (wordW / 2 + sq * 0.42) : d.x;
+    const wx = view && view.w > 0 ? clamp(cx, wordW / 2 + 8, view.w - wordW / 2 - 8) : cx;
     word = { x: wx, y: useBelow ? below : above };
   }
   return { sq, ang, u, n, start, stops, dir, face, k, kingK, jumpLift, diag, cells, king, kingFall, word, wordW };

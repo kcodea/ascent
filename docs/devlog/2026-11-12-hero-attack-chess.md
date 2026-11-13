@@ -51,7 +51,8 @@ Geometry choices worth knowing:
 - The knight's arc is capped by the room above it (the foe's portrait is at the top of the screen), and under a hero at
   the very top it lands a little lower so its head stays in view.
 - The king stands on the first free square beside the struck hero that is on screen, and tips whichever way keeps it on
-  screen. CHECKMATE sets above or below the portrait, on the side away from the queen when there is room.
+  screen. CHECKMATE sets above or below the portrait, on the side away from the queen when there is room; when it has
+  to share her side it sets beside her, toward the middle of the view.
 
 ## Sound
 
@@ -78,11 +79,18 @@ no longer named).
 
 ## Verified
 
-See the PR notes of the coordinator's merge for the gate results as run on this branch; the numbers measured here are
-in the builder's report. In short: the style's own test file (plan and cues per look, the board from every screen
-corner in both directions, the poses, the camera, the runner's exits, the headless scene), the shared `heroAttack`
-sweeps, the audio tests, typecheck and lint, and contact sheets of every look in both directions from a headless
-Chrome at 1920 x 1080.
+- `npx vitest run packages/ui/src/heroChess`: 42 tests pass (plan and cues per look, the board from the four screen
+  corners in both directions, the poses, the camera, the runner's exits restoring both portraits, the headless scene).
+  `packages/ui/src/heroAttack` (196) and `packages/ui/src/audio` pass; three audio suites timed out in their setup hook
+  on the first run while the machine was busy and passed when rerun alone. `npm run typecheck` clean; `npm run lint`
+  0 errors and no warning in this style's files.
+- Looked at in headless Chrome at 1920 x 1080 from this worktree's dev server: contact sheets of all three looks in both
+  directions, recorded at 0.35x so the fast beats are caught.
+- Frame times (requestAnimationFrame deltas, DEV build, headless Chrome on a 240 Hz display, while fifteen other
+  builders were using the machine): median 4.2 ms and 99th percentile 4.3 ms in most queen runs (12.5 ms in one), worst
+  frame 29 to 58 ms. The slow frames fall about 50 ms after the ready starts and on the end cue. Card Shark, measured
+  the same way in the same session, has the same two spikes (29 to 46 ms and 21 to 29 ms), so they belong to the shared
+  start and teardown (the camera and the dim), not to this style. Not measured on a production build.
 
 ## Not done, or weak
 

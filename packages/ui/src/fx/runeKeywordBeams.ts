@@ -2,15 +2,17 @@ import type { CombatEvent } from '@game/core';
 import { badgeIdsForCombatFlag } from '@game/content';
 import type { Moment } from '../choreo/compile';
 import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword } from './keywordBeam';
-import { runeSlotPoint } from './keywordOrigin';
+import { foeRuneSlotPoint, runeSlotPoint } from './keywordOrigin';
 import { bankedCastPlayerAnchor } from '../castPreview';
+import { bankedCastAnchor } from '../choreo/channels/bankedCast';
 import { canPlayDefs } from './playDef';
 
 /**
  * A RUNE GIVES RISE, EXECUTE OR WARD IN COMBAT (R-FX-KEYWORD-ORIGIN-01, owner 2026-11-13: "this same logic should
  * apply from any RUNE slot that applies these effects ... it would tendril from the rune slot itself"). The engine
  * marks a rune's fire with a `questTrigger` on its side and logs the grant with no giving minion (no source, or the
- * receiver named as its own source). The player's runes only: the foe's rack is not a slot these beams can leave.
+ * receiver named as its own source). Either side's runes: the foe's leave its own rune badge beside its portrait
+ * (owner 2026-11-13: "all of these effects should also be reflected on the opponents runes, units and spells").
  *
  * THE FIRE AND ITS GRANT ARE DIFFERENT BEATS (owner report 2026-11-13: Deathtouched Apple "did not show the
  * tendrils"). A `questTrigger` is its own beat, so the first version, which looked for both inside one beat, never
@@ -21,10 +23,11 @@ import { canPlayDefs } from './playDef';
  *    hitting a unit that isnt there, can it resummon and then get the tendril?").
  *  - Rising Graves' second Rise is a later step with no fire of its own: it continues the fire it directly follows.
  */
-export interface RuneKeywordGrant { kw: BeamKeyword; target: string; flag: string }
+export type BeamSide = 'player' | 'enemy';
+export interface RuneKeywordGrant { kw: BeamKeyword; target: string; flag: string; side: BeamSide }
 
 /** The last rune fire, and where the run of beats that belong to it ends (the next beat may continue it). */
-export interface RuneCarry { flag: string; end: number }
+export interface RuneCarry { flag: string; side: BeamSide; end: number }
 
 /** A grant held for its receiver to return to the board. */
 export type WaitingGrant = RuneKeywordGrant;
@@ -44,12 +47,12 @@ function grantOf(e: CombatEvent | undefined): { kw: BeamKeyword; target: string 
   return null;
 }
 
-/** The player rune fire sharing `step`, within the window around `at` and inside [lo, hi). */
-function fireWithStep(events: CombatEvent[], at: number, step: number | undefined, lo: number, hi: number): string | null {
+/** The rune fire (either side's) sharing `step`, within the window around `at` and inside [lo, hi). */
+function fireWithStep(events: CombatEvent[], at: number, step: number | undefined, lo: number, hi: number): { flag: string; side: BeamSide } | null {
   if (step === undefined) return null;
   for (let i = Math.max(lo, at - STEP_WINDOW); i < Math.min(hi, at + STEP_WINDOW + 1); i++) {
     const e = events[i];
-    if (e?.type === 'questTrigger' && e.side === 'player' && e.step === step) return e.flag;
+    if (e?.type === 'questTrigger' && e.step === step) return { flag: e.flag, side: e.side };
   }
   return null;
 }
@@ -82,37 +85,36 @@ export function runeKeywordGrantsIn(
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (e?.type === 'questTrigger') {
-      if (e.side !== 'player') continue;
-      next = { flag: e.flag, end: moment.end };
+      next = { flag: e.flag, side: e.side, end: moment.end };
       // (b) grants logged before this beat that share the fire's step.
       for (let j = Math.max(0, moment.start - STEP_WINDOW); j < moment.start; j++) {
         const g = grantOf(events[j]);
         if (!g || events[j]!.step !== e.step) continue;
-        if (awaitsReturn(g.target, j, moment.end)) stillWaiting.push({ ...g, flag: e.flag });
-        else grants.push({ ...g, flag: e.flag });
+        if (awaitsReturn(g.target, j, moment.end)) stillWaiting.push({ ...g, flag: e.flag, side: e.side });
+        else grants.push({ ...g, flag: e.flag, side: e.side });
       }
       continue;
     }
     const g = grantOf(e);
     if (!g) { onlyGrants = false; continue; }
     // (a) its fire is at or before this beat's end (a later fire launches it itself, case b)...
-    const flag = fireWithStep(events, i, e!.step, 0, moment.end)
+    const fire = fireWithStep(events, i, e!.step, 0, moment.end)
       // ...or it directly continues the previous beat's fire.
-      ?? (carry && carry.end === moment.start && fireWithStep(events, i, e!.step, moment.end, events.length) === null ? carry.flag : null);
-    if (flag) { grants.push({ ...g, flag }); next = { flag, end: moment.end }; }
+      ?? (carry && carry.end === moment.start && fireWithStep(events, i, e!.step, moment.end, events.length) === null ? { flag: carry.flag, side: carry.side } : null);
+    if (fire) { grants.push({ ...g, ...fire }); next = { ...fire, end: moment.end }; }
   }
   // A beat of nothing but continued grants keeps the carry alive for the one after it.
-  if (!next && carry && carry.end === moment.start && onlyGrants && grants.length > 0) next = { flag: carry.flag, end: moment.end };
+  if (!next && carry && carry.end === moment.start && onlyGrants && grants.length > 0) next = { flag: carry.flag, side: carry.side, end: moment.end };
   return { grants, returned, carry: next, waiting: stillWaiting };
 }
 
 /**
  * A NEXT-COMBAT SPELL GIVES A KEYWORD AS THE FIGHT OPENS (Executioner's Edge: Critical Strike; Last Stand: Rise). The
- * engine logs a `bankedCast` marker for the player's spell and then one `keyword` per minion it lands on. Those
- * grants, for the ones in this beat: the run of keyword events directly behind a PLAYER marker.
+ * engine logs a `bankedCast` marker for the spell (either side's) and then one `keyword` per minion it lands on. Those
+ * grants, for the ones in this beat: the run of keyword events directly behind a marker, with the marker's side.
  */
-export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, events: readonly CombatEvent[]): Array<{ kw: BeamKeyword; target: string }> {
-  const out: Array<{ kw: BeamKeyword; target: string }> = [];
+export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, events: readonly CombatEvent[]): Array<{ kw: BeamKeyword; target: string; side: BeamSide }> {
+  const out: Array<{ kw: BeamKeyword; target: string; side: BeamSide }> = [];
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (e?.type !== 'keyword' || e.source !== undefined) continue;
@@ -120,7 +122,7 @@ export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, eve
     let j = i - 1;
     while (j >= 0 && events[j]?.type === 'keyword') j--;
     const marker = events[j];
-    if (marker?.type === 'bankedCast' && marker.side === 'player') out.push({ kw: e.keyword, target: e.target });
+    if (marker?.type === 'bankedCast') out.push({ kw: e.keyword, target: e.target, side: marker.side });
   }
   return out;
 }
@@ -137,15 +139,16 @@ export function startRuneKeywordBeams(moment: Moment, events: CombatEvent[], spe
   // A banked spell's keyword leaves where its cast card shows (the rune rack, else the hero power slot).
   const banked = canPlayDefs() ? bankedKeywordGrantsIn(moment, events) : [];
   if (banked.length > 0) {
-    const a = bankedCastPlayerAnchor();
-    if (a) banked.forEach((g, i) => { launchKeywordBeam(g.kw, { x: a.left + a.width / 2, y: a.top + a.height / 2 }, g.target, { launchAt: i * KEYWORD_BEAM_GAP_MS, speed, sound: i < KEYWORD_BEAM_SOUND_MAX, register }); });
+    // The foe's cast card shows mirrored across the screen (`bankedCastAnchor`), so its beam leaves from there.
+    const p = bankedCastPlayerAnchor();
+    if (p) banked.forEach((g, i) => { const a = bankedCastAnchor(g.side, p, window.innerWidth); launchKeywordBeam(g.kw, { x: a.left + a.width / 2, y: a.top + a.height / 2 }, g.target, { launchAt: i * KEYWORD_BEAM_GAP_MS, speed, sound: i < KEYWORD_BEAM_SOUND_MAX, register }); });
   }
   if (!canPlayDefs() || (out.grants.length === 0 && out.returned.length === 0)) return;
   let k = 0;
   const ordered = [...out.returned.map((g) => ({ g, first: RUNE_BEAM_AFTER_RETURN_MS })), ...out.grants.map((g) => ({ g, first: 0 }))];
   for (const { g, first } of ordered) {
     let at: { x: number; y: number } | null = null;
-    for (const id of badgeIdsForCombatFlag(g.flag)) { at = runeSlotPoint(id); if (at) break; }
+    for (const id of badgeIdsForCombatFlag(g.flag)) { at = g.side === 'enemy' ? foeRuneSlotPoint(id) : runeSlotPoint(id); if (at) break; }
     if (!at) continue; // the flag belongs to something with no slot on screen (a quest): today's cue stands
     if (launchKeywordBeam(g.kw, at, g.target, { launchAt: first + k * KEYWORD_BEAM_GAP_MS, speed, sound: k < KEYWORD_BEAM_SOUND_MAX, register })) k++;
   }

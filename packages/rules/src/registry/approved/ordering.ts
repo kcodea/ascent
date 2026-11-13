@@ -565,10 +565,10 @@ export const ORDERING_RULES: GameRule[] = [
     ],
     currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
       + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
-      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of the player (its slot), found by the '
+      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of EITHER side (the player: its slot; the foe: its rune badge beside the foe portrait), found by the '
       + 'rune fire beside a grant that names no giving minion; at Start of Turn, any source (the recorder notes each '
       + 'keyword gain on the beat of its source, and the beam leaves that source). Not covered: a rune that gives a '
-      + 'keyword mid-turn in the Shop (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
+      + 'keyword mid-turn in the Shop (a mid-turn action carries no record of which rune acted), and '
       + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
       + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
       + 'the author.',
@@ -611,14 +611,15 @@ export const ORDERING_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'now im making a crit beam. fx is crit-beam' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the foe', quote: 'all of these effects should also be reflected  on the opponents runes, units and spells' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the combat runes', quote: 'i thought i was very clear that these effects should come from runes that apply these effects to minions' },
       { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.CR); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn keyword cue); packages/core/src/combat/simulate.ts (runeVanguard, runeCenterline log the grant); packages/ui/src/fx/runeKeywordBeams.ts (bankedKeywordGrantsIn)' },
     ],
     currentBehaviour: 'PARTIAL from 2026-11-13: the Shop (a mid-turn grant read off the board, and a rune or hero '
       + 'grant at End of Turn) and combat. In combat the engine now logs a `keyword` event when a rune (Vanguard, '
       + 'Centerline) gives Critical Strike, and the beam leaves the slot of the rune; a keyword banked by a spell for '
-      + 'the next combat (the Edge of the Executioner) leaves where its cast card shows. Not covered: the runes and '
-      + 'banked spells of the foe. A blade shing as it leaves and an impact as it lands. Critical Strike has no look on the card, so nothing is held '
+      + 'the next combat (the Edge of the Executioner) leaves where its cast card shows. The foe is covered the same way: its runes leave its rune badge, '
+      + 'its banked spell leaves its mirrored cast card. A rising sting as it leaves and a blade shing as it lands (owner pick). Critical Strike has no look on the card, so nothing is held '
       + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts', 'packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
   },

@@ -1,1 +1,0 @@
-{"version":1,"id":"sfx-crit-impact","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/crit-impact","gain":0.8,"pitchVar":0.07}}]}

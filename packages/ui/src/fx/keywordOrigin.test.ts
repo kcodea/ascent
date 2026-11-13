@@ -57,13 +57,13 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
   const bm = (cardId: string, attack: number, health: number, extra: Partial<BoardMinion> = {}): BoardMinion =>
     ({ cardId, attack, health, keywords: [...(CARD_INDEX[cardId]?.keywords ?? [])], ...extra });
   /** Every beat's launches, in order: [beat kind, grants]. */
-  function launches(flag: string, player: BoardMinion[]): Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> {
+  function launches(flag: string, player: BoardMinion[]): Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string; side: string }> }> {
     const { events: raw } = simulate(player, [bm('trainingdummy', 5, 60)], makeRng(7), CARD_INDEX,
       combatSide({ tier: 4, questMods: { [flag]: true } } as never), combatSide({ tier: 4 }));
     const events = replayOrder(raw);
     let carry: RuneCarry | null = null;
     let waiting: WaitingGrant[] = [];
-    const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> = [];
+    const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string; side: string }> }> = [];
     for (const beat of replayBeats(raw)) {
       const r = runeKeywordGrantsIn(beat, events, carry, waiting);
       carry = r.carry;
@@ -79,7 +79,7 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
     expect(got.length).toBeGreaterThanOrEqual(1);
     // The grant is logged inside the death's beat and the rune fires on the next, but the body is not back yet:
     // the beam waits for the beat the body RETURNS on (owner 2026-11-13: "its hitting a unit that isnt there").
-    expect(got[0]).toEqual({ kind: 'reborn', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple' }] });
+    expect(got[0]).toEqual({ kind: 'reborn', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple', side: 'player' }] });
     expect(got.every((g) => g.kind === 'reborn' && g.grants.every((x) => x.flag === 'runeDeathtouchedApple'))).toBe(true);
     expect(RUNE_BEAM_AFTER_RETURN_MS).toBeGreaterThanOrEqual(200);
   });
@@ -105,6 +105,19 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
     expect(got.every((g) => g.target === 'm1' && g.flag === 'runeCenterline')).toBe(true);
   });
 
+  it('THE FOE (owner 2026-11-13: "also be reflected on the opponents runes"): its Vanguard sends beams to ITS minions, marked as the foe', () => {
+    const { events: raw } = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4, questMods: { runeVanguard: true } } as never));
+    const events = replayOrder(raw);
+    const foeUids = new Set(raw.flatMap((e) => (e.type === 'keyword' || e.type === 'shieldUp' ? [e.target] : [])));
+    let carry: RuneCarry | null = null;
+    let waiting: WaitingGrant[] = [];
+    const got = replayBeats(raw).flatMap((beat) => { const r = runeKeywordGrantsIn(beat, events, carry, waiting); carry = r.carry; waiting = r.waiting; return [...r.returned, ...r.grants]; });
+    expect(got.length).toBe(4); // Critical Strike and Ward for each of its two
+    expect(got.every((g) => g.side === 'enemy' && g.flag === 'runeVanguard' && foeUids.has(g.target))).toBe(true);
+    expect(got.map((g) => g.kw).sort()).toEqual(['CR', 'CR', 'DS', 'DS']);
+  });
+
   it('a minion that already has Critical Strike gets no second one', () => {
     const got = launches('runeVanguard', [bm('trainingdummy', 1, 60, { keywords: ['CR'] })]).flatMap((g) => g.grants);
     expect(got.filter((g) => g.kw === 'CR')).toEqual([]);
@@ -115,11 +128,13 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
       combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 1, keyword: 'CR', critChance: 0.5 }] } } as never), combatSide({ tier: 4 }));
     const events = replayOrder(raw);
     const got = replayBeats(raw).flatMap((beat) => bankedKeywordGrantsIn(beat, events));
-    expect(got).toEqual([{ kw: 'CR', target: 'm1' }]);
-    // The foe's banked spell is not the player's to show.
+    expect(got).toEqual([{ kw: 'CR', target: 'm1', side: 'player' }]);
+    // The foe's banked spell shows too, marked as the foe's (its beam leaves the mirrored cast card).
     const foe = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 5, 60, { keywords: [] })], makeRng(7), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 0, keyword: 'CR', critChance: 0.5 }] } } as never));
-    expect(replayBeats(foe.events).flatMap((beat) => bankedKeywordGrantsIn(beat, replayOrder(foe.events)))).toEqual([]);
+    const foeGot = replayBeats(foe.events).flatMap((beat) => bankedKeywordGrantsIn(beat, replayOrder(foe.events)));
+    expect(foeGot.map((g) => [g.kw, g.side])).toEqual([['CR', 'enemy']]);
+    expect(foeGot[0]!.target).not.toBe('m0'); // a foe body, not the player's
   });
 
   it('a grant a minion made is never credited to a rune: the Echo of Mumi with no rune held launches nothing here', () => {

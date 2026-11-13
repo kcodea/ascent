@@ -137,7 +137,9 @@
  * "Attack style" override. Scaffolded from `boomerang` (`npm run attack:new`), see `../heroGlove/`.
  *
  * `chess` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroChess/`.
+ * "Attack style" override. CHECKMATE (an Epic, `../heroChess/`): chess pieces that move by their own rules on a faint
+ * board beside the struck hero. A pawn hops up its file and captures diagonally; a knight makes its L-shaped jump onto
+ * the portrait; a queen sweeps the long diagonal, the struck side's king tips over and CHECKMATE sets.
  *
  * `claw` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroClaw/`.

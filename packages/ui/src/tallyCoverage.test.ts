@@ -64,6 +64,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_heavy_payroll: 'fires on EVERY Dwarf gained; the digits are the +12/+12 grant, not a count-up',
   rune_deep_currents: 'fires on EVERY Spirit played; the digits are the 2-target +2/+2 grant, not a count-up',
   rune_spell_fed_scales: 'fires on EVERY Shop Spell cast; the digits are the +6/+7 grant, not a count-up (2026-10-21)',
+  rune_top_shelf: 'the 1 is how many offers each Refresh gets from the Tier above; it pays on EVERY Refresh, nothing to count toward (Set 2 Epic, 2026-11-13)',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */

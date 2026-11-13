@@ -2832,4 +2832,65 @@ export const RUNES_RULES: GameRule[] = [
     example: 'A Demon that eats the right-most Shop minion at End of Turn: one this turn, one next turn, and the second hands you a Shop spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/emptyPlateConsume.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+  {
+    id: 'R-SET2RUNE-EN-01',
+    title: 'Top Shelf, Wholesale and Grudge: the Shop-side Epic neutral runes',
+    statement:
+      'Top Shelf: after every Refresh you press, one minion offer is from the Tier above your Shop (per copy held). The Shop '
+      + 'never grows: a short row fills a free slot, a full row replaces the right-most minion offer that is not already '
+      + 'above your Tier. At the top Tier it does nothing. Wholesale: every Shop minion offer costs 1 less per copy held, '
+      + 'floored at 0; spells and Rubies are untouched. Grudge: after a lost combat (a draw is not a loss) the next Shop '
+      + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (Epic, neutral); owner rulings 2026-11-12', quote: 'Top Shelf does nothing extra at the top Tier' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts offerTopShelf (roll branch) / offerBuyPrice wholesaleOff / advanceCombat Grudge recordSotBeat' },
+    ],
+    contentIds: ['rune_top_shelf', 'rune_wholesale', 'rune_grudge'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Tier 3 Shop with Top Shelf: every Refresh shows one Tier 4 minion. Lose a fight at Tier 6 with Grudge: the next Shop opens a Tier 7 Discover.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2RUNE-EN-02',
+    title: 'Double Bill and Bulwark Line: Start of Combat runes, with Shop replays',
+    statement:
+      'Double Bill (renamed from "Opening Act", which belongs to the hero quests of Fi): at Start of Combat the left-most and '
+      + 'right-most minions with a Shout fire it through the shared Shout path (a counted shout, Drakko folded); one Shout '
+      + 'minion fires once; per copy held. Bulwark Line: at Start of Combat every Taunt minion gains a normal Ward. Both '
+      + 'texts begin "Start of Combat:", so Twilight repeats them, and both have a Combat Prowess Shop replay (R-RUNE-14). '
+      + 'A second Bulwark Line pays the duplicate sweetener (a Ward cannot stack).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (Epic, neutral); owner rename 2026-11-12', quote: 'Opening Act (Epic) is renamed "Double Bill"' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (runeBulwarkLine / runeDoubleBill); packages/sim/src/recruit.ts socRuneReplaysOf' },
+    ],
+    contentIds: ['rune_double_bill', 'rune_bulwark_line'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Three Shout minions: the first and the last Shout at the bell, the middle one does not.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2RUNE-EN-03',
+    title: 'Bastion re-forms a normal Ward that every Ward-loss trigger hears again; Mirror Sheen fires on every Ward loss',
+    statement:
+      'Bastion: the first friendly minion to lose Ward each combat (side-wide, one per copy held) gets the Ward back at '
+      + 'once, as a normal Ward. When that Ward is lost again, every Ward-loss trigger (Mirror Sheen, Shatterproof) fires '
+      + 'again. Mirror Sheen: whenever a friendly minion loses Ward, it deals damage equal to its Attack to a random enemy '
+      + '(the minion is the damage source; 0 Attack deals nothing; one hit per copy held). Both work identically for an '
+      + 'opponent snapshot holding the rune.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-11-12 (Set 2 rune batch brief)', quote: 'the regained Ward DOES retrigger Shatterproof and Mirror Sheen when it is lost again' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts registerWardRunes (onLoseDivineShield, BASTION_KEY)' },
+    ],
+    contentIds: ['rune_bastion', 'rune_mirror_sheen'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'A Warded 7-Attack minion with both runes: its Ward breaks (7 damage to a random enemy), comes back, breaks again (7 more).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

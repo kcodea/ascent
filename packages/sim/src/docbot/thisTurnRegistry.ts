@@ -73,6 +73,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   rune_recurrence: { kind: 'conforms', why: 'EoT re-casts the first Shop spell cast this turn — resolves at EoT while the record is live' },
   rune_lapidary: { kind: 'conforms', why: 'EoT plays a Ruby per card played this turn — resolves at EoT with the full tally; the Ruby buffs bake onto the board before combat' },
   rune_ancestral_roar: { kind: 'conforms', why: 'EoT gives every Dragon one +6/+6 lump per Shout FIRE this turn (balance 9/23) — resolves at EoT with the full `shoutFiresThisTurn` tally; the buffs bake onto the board before combat' },
+  rune_dragon_hoard: { kind: 'conforms', why: 'End of Turn reads the Shop spells cast this turn (`shopSpellCasts`, wave-tagged, every cast path through noteSpellCast), so every cast this turn counts and none from the turn before; the Dragonflame lands in hand before combat (Set 2 rune batch 2026-11-13)' },
 
   // ── shop-action scopes: nothing in the combat half can consume them ──
   quicksale: { kind: 'no-combat-meaning', why: '"the next minion you sell this turn": selling exists only in the shop half' },

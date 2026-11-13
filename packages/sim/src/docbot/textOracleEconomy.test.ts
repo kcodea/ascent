@@ -105,7 +105,8 @@ describe('Doc Bot — text as oracle tranche 3 (printed economy)', () => {
     // ornate_clock GRADUATED on 2026-09-22: its 2 Gold lives inside `scheduleRuneforge`, which
     // runeEconomySubjects now reads as an immediate leaf for the Epic branch, and the reducer now pays it.
     // +2 → 8 on 2026-11-01: hand_me_downs + gild_pact (Duos batch 2) pay the TEAMMATE (a team effect), outside the grammar.
-    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(8);
+    // +1 → 9 on 2026-11-13: trophy_hunter (Set 2 rune batch) banks 1 Gold per Beast kill in combat, capped 3 per combat (per-each in combat, the ashen_payroll shape).
+    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(9);
     expect(skipped, 'Ornate Clock is IN the oracle (its Gold is paid on resolve)').not.toContain('rune_ornate_clock');
   });
 

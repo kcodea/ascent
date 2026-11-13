@@ -83,3 +83,41 @@ Total new audio 3.5 s.
 - The Collection sandbox (`space: 'local'`) was not looked at. There the squash pivots on the wrapper's own centre
   plus a radius, without the one-time measure.
 - Phones and reduced motion were covered by tests only.
+
+## Second pass (2026-11-12, after the owner played the batch: "great, but they need sound effects")
+
+**Sound (measured, not heard).** The attack's output was recorded in headless Chrome (a tap on the audio destination)
+and read in 100 ms windows. Before, Big: the whistle sat at -38 to -41 dB RMS for the whole fall (close to inaudible),
+the landing reached -30 dB RMS (peak -18 dBFS) and the pop -39. The reference Rare (the Coin Flick) runs -32 to -40 dB
+RMS with -20 peaks; the shared formation boom that opens every attack is -17 to -20 dB RMS, peak -10.
+
+- `fx/anvil-whistle` REPLACED: a descending slide whistle (about 1700 Hz down to 800 Hz), levelled 9 dB hotter. The cue
+  plays the loud glide for exactly the fall and stops on the landing.
+- `fx/anvil-boing` NEW (0.62 s): a springy boing for the accordion pop (lower under the piano).
+- `fx/anvil-keys` NEW (0.6 s): loose wooden keys clattering, a quarter of a second after the piano lands.
+- The ground thud is now the shared `fx/heavy-rock-impact` (pitched down, under BOTH objects). The old thud clip has
+  its hit 400 ms into the file and was cued from the start, so it arrived late and quiet. The swish cues (the spark, the
+  toss) now play the loud part of the shared swish.
+- 3 ElevenLabs calls this pass; the five own clips total 4.8 s.
+- After, Big: whistle -24 to -26 dB RMS through the whole fall, the landing -18 to -20 for 0.7 s (peak -9), fading
+  through the boing and the keys. Small: whistle -24, landing -19 (peak -10). The landing is the loudest moment and
+  matches the formation boom. No stretch of the attack is silent.
+
+**The top of the screen: the portrait ducks.** Against a foe in the top right corner the fall was off screen and the
+piano was shrunk to fit. Now a struck portrait with no headroom SINKS under the growing shadow (`anvilPull`, at most one
+radius, eased over the first half of the fall), is flattened down there, and comes back up as it pops; the shadow, the
+dust and the object follow it. That gives the piano its full size and about 180 px of visible fall at 1080p. With
+headroom (the foe striking you) nothing ducks. The transform is restored exactly on every exit (tested). The cost: for
+that second the ducked portrait sits behind its own health plate.
+
+**Impact (Big).** Shake 13 to 19 px and longer (300 to 380 ms), a bigger punch-in, a second slow dust ring 8 radii
+wide, 26 dust puffs (from 18), rings 20% larger. Running time 1.87 s to 1.93 s after the formation (the settle only).
+No new drawn objects.
+
+**Perf.** The struck portrait now holds `will-change: transform` while it is squashed (the browser re-rastered it at
+every new scale), restored on every exit. DEV build, headless, a loaded machine, top look, both directions: median
+4.2 ms (240 Hz), 99th percentile 4.3 ms, worst 25 to 33 ms on the two frames where the shared camera starts and
+resets (the Coin Flick shows the same two). Not measured on a production build.
+
+Sheets: `scratchpad/attacks/anvil/sheets-v2/`. Still weak: nobody has listened; the ducked portrait overlaps its plate;
+the big `-N` still covers the object on the landing frame.

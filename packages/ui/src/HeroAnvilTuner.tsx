@@ -21,6 +21,8 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the striking hero.', 'Cue'],
   heroHopPx: ['Hop', 'px', 'How high the striking hero hops as its spark goes up.', 'Cue'],
+  pullMax: ['Duck (most)', '×', 'A struck portrait against the top of the screen ducks under the shadow to give the drop room: the most it sinks, in radii.', 'Drop'],
+  fallRoom: ['Fall on show', '×', 'How much of the fall must show above the ducked portrait, in object heights.', 'Drop'],
   shadowAlpha: ['Shadow', 'opacity', 'How dark the shadow on the struck portrait gets just before the landing.', 'Drop'],
   popHz: ['Spring speed', undefined, 'Accordion bounces per second as the portrait pops back.', 'Pop back'],
   popTauMs: ['Spring decay', 'ms', 'How fast the accordion bounces die away (lower = fewer overshoots).', 'Pop back'],
@@ -40,10 +42,14 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxClangRate: ['clang: pitch', '×', 'Pitch of the clang.', 'Sound: clang'],
   sfxPianoGain: ['piano: gain', undefined, 'Big: the piano crash.', 'Sound: piano'],
   sfxPianoRate: ['piano: pitch', '×', 'Pitch of the crash.', 'Sound: piano'],
-  sfxThudGain: ['thud: gain', undefined, 'Big: a low ground thump under the piano crash.', 'Sound: thud'],
+  sfxThudGain: ['thud: gain', undefined, 'The deep ground thud under the landing (fuller and lower under the piano).', 'Sound: thud'],
   sfxThudRate: ['thud: pitch', '×', 'Pitch of the thump.', 'Sound: thud'],
   sfxPopGain: ['pop: gain', undefined, 'The swish of the portrait springing back.', 'Sound: pop'],
   sfxPopRate: ['pop: pitch', '×', 'Pitch of the pop.', 'Sound: pop'],
+  sfxBoingGain: ['boing: gain', undefined, 'The springy boing as the portrait pops back (lower under the piano).', 'Sound: boing'],
+  sfxBoingRate: ['boing: pitch', '×', 'Pitch of the boing.', 'Sound: boing'],
+  sfxKeysGain: ['keys: gain', undefined, 'Big: the loose piano keys clattering down.', 'Sound: keys'],
+  sfxKeysRate: ['keys: pitch', '×', 'Pitch of the clatter.', 'Sound: keys'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
 };
 
@@ -85,7 +91,7 @@ const built = rareTunerSpec({
   ],
   clipOf: {
     'Sound: cue': 'sfxCueClip', 'Sound: whistle': 'sfxWhistleClip', 'Sound: clang': 'sfxClangClip', 'Sound: piano': 'sfxPianoClip',
-    'Sound: thud': 'sfxThudClip', 'Sound: pop': 'sfxPopClip',
+    'Sound: thud': 'sfxThudClip', 'Sound: pop': 'sfxPopClip', 'Sound: boing': 'sfxBoingClip', 'Sound: keys': 'sfxKeysClip',
   },
   note: () => {
     const c = getHeroAnvilConfig();

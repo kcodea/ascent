@@ -31,7 +31,7 @@ import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import { restingRect } from '../heroBlast/portraits';
 import {
-  anvilCameraAt, anvilCameraFocus, anvilCues, anvilPlan, anvilRestOffset, anvilSquashAt, getHeroAnvilConfig,
+  anvilCameraAt, anvilCameraFocus, anvilCues, anvilPlan, anvilPull, anvilPullAt, anvilRestOffset, anvilSquashAt, getHeroAnvilConfig,
   type AnvilCue, type AnvilPlan, type HeroAnvilConfig,
 } from './heroAnvilConfig';
 import { HeroAnvilScene, type HeroAnvilTextures } from './heroAnvilScene';
@@ -47,6 +47,8 @@ export interface HeroAnvilHandle extends HeroAttackHandle {
   /** Where the object's foot comes into view (above the top of the screen) and where it lands (the top of the portrait). */
   readonly startY: number;
   readonly landY: number;
+  /** How far the struck portrait ducks to give the drop room, px (0 with headroom above it). */
+  readonly pull: number;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). */
   readonly scene: HeroAnvilScene | null;
   /** Whether the camera is mirrored onto the Pixi root (false when the canvas already rides the camera element). */
@@ -65,8 +67,8 @@ export function anvilSeed(total: number, distance: number, side: 'player' | 'opp
  * with the portrait at rest. Without a measurable box (a test, a sandbox in its own px) the origin is taken as the
  * art's centre and `unit` as the ratio.
  */
-function squashPivot(el: HTMLElement | null, d: Pt, radius: number, unit: number, measure: boolean): Pt {
-  const fallback = { x: 0, y: radius / unit };
+function squashPivot(el: HTMLElement | null, d: Pt, radius: number, unit: number, measure: boolean): Pt & { ky: number } {
+  const fallback = { x: 0, y: radius / unit, ky: unit };
   if (!el || !measure || typeof window === 'undefined') return fallback;
   try {
     const r = restingRect(el, el.closest('.combatopp'));
@@ -76,7 +78,7 @@ function squashPivot(el: HTMLElement | null, d: Pt, radius: number, unit: number
     const parts = window.getComputedStyle(el).transformOrigin.split(' ');
     let ox = parseFloat(parts[0] ?? ''), oy = parseFloat(parts[1] ?? '');
     if (!Number.isFinite(ox) || !Number.isFinite(oy)) { ox = w / 2; oy = h / 2; }
-    const out = { x: (d.x - (r.left + ox * kx)) / kx, y: (d.y + radius - (r.top + oy * ky)) / ky };
+    const out = { x: (d.x - (r.left + ox * kx)) / kx, y: (d.y + radius - (r.top + oy * ky)) / ky, ky };
     return Number.isFinite(out.x) && Number.isFinite(out.y) ? out : fallback;
   } catch { return fallback; }
 }
@@ -103,10 +105,13 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
   const aspect = piano ? PIANO_H / PIANO_W : ANVIL_H / ANVIL_W;
   // A portrait near the top of the screen has little room above it: the object is sized down (never under 1.6 radii
   // wide) so that, resting on the flattened portrait, the whole of it is still on screen.
-  const restFoot = o.defender.y + radius * anvilRestOffset(first.flat);
+  // First the portrait ducks (`anvilPull`): that buys the drop its room and usually the object its full size.
+  const pull = reduced ? 0 : anvilPull(o.defender.y, radius, radius * first.size * aspect, c);
+  const struck = { x: o.defender.x, y: o.defender.y + pull }; // where the portrait is when the thing lands
+  const restFoot = struck.y + radius * anvilRestOffset(first.flat);
   const size = Math.max(Math.min(first.size, 1.6), Math.min(first.size, (restFoot - 10 * s) / (radius * aspect)));
   const objH = radius * size * aspect;
-  const landY = o.defender.y + radius * anvilRestOffset(1);
+  const landY = struck.y + radius * anvilRestOffset(1);
   const startY = Math.min(0, landY - radius) - objH * 0.1 - 12 * s;
   const plan = { ...anvilPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, fallPx: (landY - startY) / Math.max(0.05, s) }, c), size };
   const cues = withFormation(fplan, anvilCues(plan));
@@ -127,8 +132,9 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
     }, s, anvilSeed(o.total, dist, o.side, o.rollSeed))
     : null;
   // The screen's width (not a layout read): a portrait in a corner keeps its piano on screen.
-  if (local || typeof window === 'undefined') scene?.setTarget(o.defender, radius);
-  else scene?.setTarget(o.defender, radius, 0, window.innerWidth);
+  if (local || typeof window === 'undefined') scene?.setTarget(struck, radius);
+  else scene?.setTarget(struck, radius, 0, window.innerWidth);
+  scene?.setPull(-pull);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -138,11 +144,15 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const unit = local ? 1 : s; // portrait px -> overlay px
   const pivot = squashPivot(foe.el, o.defender, radius, unit, !local);
+  // The squash SCALES the struck portrait: without a layer hint the browser re-rasters it at every new scale (a run of
+  // dropped frames, measured on the stamp). The hint is held for the attack only and put back exactly on every exit.
+  const foeWill = foe.el ? foe.el.style.willChange : '';
+  if (foe.el) foe.el.style.willChange = 'transform';
   // The object tips off toward the striking hero's side of the screen (the side with the room).
   const tipDir = o.attacker.x < o.defender.x - 1 ? -1 : 1;
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxCueClip, c.sfxWhistleClip, piano ? c.sfxPianoClip : c.sfxClangClip, piano ? c.sfxThudClip : '', c.sfxPopClip]);
+  voices.warm([c.sfxCueClip, c.sfxWhistleClip, piano ? c.sfxPianoClip : c.sfxClangClip, c.sfxThudClip, c.sfxPopClip, c.sfxBoingClip, piano ? c.sfxKeysClip : '']);
 
   const fire = (q: AnvilCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -150,14 +160,17 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
     switch (q.kind) {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        cue(c.sfxCueClip, c.sfxCueGain, c.sfxCueRate, { lenMs: 240, fadeMs: 100 });
+        // The shared swish is loudest about 440 ms into its clip: play that part, short, as the spark goes up.
+        cue(c.sfxCueClip, c.sfxCueGain, c.sfxCueRate, { startMs: 300, lenMs: 380, fadeMs: 140 });
         scene?.cue(o.attacker, aRadius);
         cam.start();
         break;
       case 'shadow': {
-        // The whistle falls for exactly the fall (a window of the glide), lower and longer for the piano.
+        // The whistle slides DOWN for exactly the fall and stops on the landing: the last stretch of the clip's glide,
+        // as long as the fall, lower and longer for the piano.
         const rate = c.sfxWhistleRate * (piano ? 0.72 : 1);
-        cue(c.sfxWhistleClip, c.sfxWhistleGain, rate, { lenMs: Math.min(980, (plan.fallMs / speed) * rate), fadeMs: 50 });
+        const len = Math.min(1000, (plan.fallMs / speed) * rate);
+        cue(c.sfxWhistleClip, c.sfxWhistleGain, rate, { startMs: Math.max(0, 800 - len), lenMs: len, fadeMs: 40 }); // the glide is loud to 800 ms, then dies away
         scene?.startShadow(plan.shadow, plan.fallMs, t - q.at);
         break;
       }
@@ -165,15 +178,23 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
         scene?.drop(plan.object, plan.size, plan.dropMs, startY, t - q.at);
         break;
       case 'impact':
+        // THE loudest moment: the object's own crash on top, a deep ground thud under it (lower and fuller for the piano).
         if (piano) {
-          cue(c.sfxPianoClip, c.sfxPianoGain, c.sfxPianoRate, { fadeMs: 200 });
-          cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 500, fadeMs: 200 });
-        } else cue(c.sfxClangClip, c.sfxClangGain, c.sfxClangRate, { fadeMs: 150 });
+          cue(c.sfxPianoClip, c.sfxPianoGain, c.sfxPianoRate, { fadeMs: 200, tail: 0.1 });
+          cue(c.sfxThudClip, c.sfxThudGain * 1.2, c.sfxThudRate * 0.85, { lenMs: 620, fadeMs: 380 });
+          // The loose keys come down and clatter about a quarter of a second later.
+          if (plan.keys > 0) cue(c.sfxKeysClip, c.sfxKeysGain, c.sfxKeysRate, { fadeMs: 160, delayMs: 260 / speed });
+        } else {
+          cue(c.sfxClangClip, c.sfxClangGain, c.sfxClangRate, { fadeMs: 150, tail: 0.08 });
+          cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 480, fadeMs: 300 });
+        }
         scene?.land({ dust: plan.dust, keys: plan.keys, big: piano });
         seq.land();
         break;
       case 'pop':
-        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { lenMs: 260, fadeMs: 110 });
+        // The accordion: a springy boing (lower under the piano) with the swish of the thing being tossed off.
+        cue(c.sfxBoingClip, c.sfxBoingGain, c.sfxBoingRate * (piano ? 0.85 : 1.1), { fadeMs: 180 });
+        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { startMs: 300, lenMs: 320, fadeMs: 120 });
         scene?.pop(tipDir);
         break;
       default:
@@ -196,13 +217,16 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
       }
     }
     const q = anvilSquashAt(plan, c, t);
-    if (q.sx === 1 && q.sy === 1) foe.set(null);
+    // The duck: sunk under the shadow, flattened down there, back up with the pop.
+    const e = pull > 0 ? anvilPullAt(plan, t) : 0;
+    if (q.sx === 1 && q.sy === 1 && e === 0) foe.set(null);
     else {
       // Scaled about the bottom of the round art: the pivot stays put, whatever the wrapper's own origin is.
-      const tx = pivot.x * (1 - q.sx), ty = pivot.y * (1 - q.sy);
+      const tx = pivot.x * (1 - q.sx), ty = pivot.y * (1 - q.sy) + (pull * e) / pivot.ky;
       foe.set(`translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${q.sx.toFixed(4)}, ${q.sy.toFixed(4)})`);
     }
     scene?.setSquash(q.sy);
+    scene?.setPull(pull * (e - 1));
   };
 
   const seq: Sequence<AnvilCue | FormationCue> = new Sequence<AnvilCue | FormationCue>({
@@ -212,7 +236,7 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
     safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
-    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
+    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); if (foe.el) foe.el.style.willChange = foeWill; voices.unduck(); },
     stopVoices: () => voices.stopAll(),
   });
 
@@ -220,6 +244,7 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
     plan,
     startY,
     landY,
+    pull,
     scene,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,

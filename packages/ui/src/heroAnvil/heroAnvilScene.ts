@@ -77,6 +77,8 @@ export class HeroAnvilScene extends FxPool {
   private d: Pt = { x: 0, y: 0 };
   private r = 0;
   private sy = 1;
+  /** The struck portrait is this far (px, 0 or negative) above where it will be flattened: it is still ducking, or coming back up. */
+  private lift = 0;
   /** The screen's left and right edges (the object is kept inside them when the portrait sits in a corner). */
   private minX = Number.NEGATIVE_INFINITY;
   private maxX = Number.POSITIVE_INFINITY;
@@ -102,6 +104,9 @@ export class HeroAnvilScene extends FxPool {
   setTarget(d: Pt, radius: number, minX = Number.NEGATIVE_INFINITY, maxX = Number.POSITIVE_INFINITY): void {
     this.d = { x: d.x, y: d.y }; this.r = radius; this.minX = minX; this.maxX = maxX;
   }
+
+  /** Where the ducking portrait is this frame, as an offset from its struck position (0 = fully down, negative = higher). */
+  setPull(dy: number): void { this.lift = Number.isFinite(dy) ? Math.min(0, dy) : 0; }
 
   /** The struck portrait's squashed height this frame: the resting object rides its top edge. */
   setSquash(sy: number): void { this.sy = Number.isFinite(sy) ? sy : 1; }
@@ -160,10 +165,12 @@ export class HeroAnvilScene extends FxPool {
     const S = this.scale;
     const R = this.r / S; // the pool multiplies sizes and speeds by the stage scale
     const x = this.d.x, floor = this.d.y + this.r * 0.82, top = this.d.y - this.r * 0.2;
-    const big = o.big ? 1.2 : 1;
+    const big = o.big ? 1.45 : 1;
     // A flat shock ring along the ground line, and a smaller one where the weight met the portrait.
     this.spawn('glow', this.tex.ring, c.dust, x, floor, { dur: 420, from: (R * 0.8) / RING_PX, to: (R * 5.2 * big) / RING_PX, sy: 0.26, a0: 0.8, ease: 'cubic' });
     this.spawn('glow', this.tex.ring, c.spark, x, top, { dur: 260, from: (R * 0.6) / RING_PX, to: (R * 3 * big) / RING_PX, sy: 0.32, a0: 0.55, ease: 'cubic' });
+    // The piano: a second, slower, wider ring along the ground.
+    if (o.big) this.spawn('glow', this.tex.ring, c.dust, x, floor, { dur: 640, from: (R * 1.4) / RING_PX, to: (R * 8.4) / RING_PX, sy: 0.22, a0: 0.6, ease: 'cubic', delay: 60 });
     // The dust: puffs rolling out left and right along the ground, swelling as they thin.
     for (let i = 0; i < o.dust; i++) {
       const dir = i % 2 ? 1 : -1;
@@ -264,6 +271,7 @@ export class HeroAnvilScene extends FxPool {
     // It swells faster as the thing nears (the object is accelerating), and darkens with it.
     const e = 0.35 * u + 0.65 * u * u;
     const rad = sh.r0 + (sh.r1 - sh.r0) * e;
+    sh.s.position.set(this.d.x, this.d.y + this.lift); // it stays on the portrait as it ducks
     sh.s.scale.set((rad * 2) / SHADOW_PX, (rad * 2 * 0.86) / SHADOW_PX);
     const out = sh.fade >= 0 ? 1 - clamp01(sh.fade / 90) : 1;
     sh.s.alpha = this.look.shadowAlpha * (0.62 + 0.38 * u) * clamp01(sh.age / 90) * out;

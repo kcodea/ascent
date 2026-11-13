@@ -175,8 +175,14 @@ export interface ShopChangedConsequence extends ConsequenceBase {
   type: 'shopChanged';
   change: 'buffed' | 'consumed' | 'destroyed' | 'refilled' | 'replaced';
   target: ZoneTargetRef;
+  /** `buffed`: the stat DELTA. `refilled`: the new offer's full Shop stats (what its card shows). */
   attack?: number;
   health?: number;
+  /** `refilled` only: the new offer's slot in the Shop row right after this trigger (Shop Madness). */
+  index?: number;
+  /** `refilled` only: the uid of the offer whose slot it took (the minion this trigger ate, bought, ...), so the
+   *  projection can show the newcomer exactly where that card stood. Absent when it took no one's slot. */
+  replaces?: string;
 }
 export interface AuraChangedConsequence extends ConsequenceBase {
   type: 'auraChanged';
@@ -225,6 +231,8 @@ export interface FodderEatenConsequence extends ConsequenceBase {
   /** The minion that ate it — the FX flies from the Fodder to this card. */
   eaterUid: string;
   fodderId: string;
+  /** A SHOP minion's meal only: the eaten offer's uid, so the eat FX launches from the slot it actually sat in. */
+  offerUid?: string;
   /** The consumed token's own stats, and what the eater gained (they differ when a rule scales the meal). */
   attack: number;
   health: number;

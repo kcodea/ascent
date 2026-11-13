@@ -107,7 +107,8 @@ export interface PresenterContext {
    * A Fodder token was consumed — the ghost-crumble choreography, flying the meal into its eater. Carries the
    * full meal because a destroy event alone cannot express it (see `FodderEatenConsequence`).
    */
-  fodderEaten: (meal: { eaterUid: string; fodderId: string; attack: number; health: number; gainAttack: number; gainHealth: number }) => void;
+  /** `offerUid`: a SHOP minion's meal names the eaten offer, so the eat launches from the slot it sat in. */
+  fodderEaten: (meal: { eaterUid: string; fodderId: string; offerUid?: string; attack: number; health: number; gainAttack: number; gainHealth: number }) => void;
 }
 
 /** What a presenter is handed: the consequence, the beat that caused it, and the FX surface. */
@@ -204,7 +205,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   fodderEaten: ({ consequence: c, ctx }) => {
     if (c.type !== 'fodderEaten') return;
     ctx.fodderEaten({
-      eaterUid: c.eaterUid, fodderId: c.fodderId,
+      eaterUid: c.eaterUid, fodderId: c.fodderId, ...(c.offerUid ? { offerUid: c.offerUid } : {}),
       attack: c.attack, health: c.health, gainAttack: c.gainAttack, gainHealth: c.gainHealth,
     });
   },
@@ -221,6 +222,9 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   shopChanged: ({ consequence: c, ctx }) => {
     if (c.type !== 'shopChanged' || !c.target.uid) return;
     if (c.change === 'consumed' || c.change === 'destroyed') { ctx.cardDestroyed(c.target.uid, 'shop'); return; }
+    // A Shop Madness refill is an ARRIVAL, not a buff: the projection (`shopRefills`) puts the card in its slot on
+    // this delivery, and the row's own entrance plays it in. No climb, no gust.
+    if (c.change === 'refilled') return;
     ctx.shopBuffed(c.target.uid, c.attack ?? 0, c.health ?? 0);
     ctx.tavernGust(c.target.uid, c.target.cardId); // the shop-wide rush that accompanies the climb
   },

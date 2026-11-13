@@ -33,7 +33,7 @@ import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, logEpicFire, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
-import { FERAL_RETURN_GAIN, HELLFIRE_DAMAGE, WILDFIRE_DAMAGE, WILDFIRE_PER_COMBAT, GEM_RAIN_RUBIES } from '../types'; // Set 2 Epic tribal runes (2026-11-12)
+import { FERAL_RETURN_GAIN, HELLFIRE_DAMAGE, WILDFIRE_PER_COMBAT, GEM_RAIN_RUBIES } from '../types'; // Set 2 Epic tribal runes (2026-11-12)
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
@@ -238,19 +238,18 @@ export function simulate(
   // channel the rune Avenge dispatchers have consumed since 2026-08-06; `?? 1` keeps every single-copy run
   // (and every pre-counter snapshot) byte-identical.
   const flagCopiesOf = (side: Side, flag: string): number => Math.max(1, modsFor(side).flagCopies?.[flag] ?? 1);
-  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): Wildfire's bookkeeping ──
-  /** Wildfire: volleys left this fight per side (3 per copy held, the Deathtouched Apple budget shape). */
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, reworked 2026-11-13): Wildfire's bookkeeping ──
+  /** Wildfire: hits left this fight per side (3 per copy held, the Deathtouched Apple budget shape). */
   const wildfireLeft: Record<Side, number> = sideReset(() => ({
     player: modsFor('player').runeWildfire ? WILDFIRE_PER_COMBAT * flagCopiesOf('player', 'runeWildfire') : 0,
     enemy: modsFor('enemy').runeWildfire ? WILDFIRE_PER_COMBAT * flagCopiesOf('enemy', 'runeWildfire') : 0,
   }));
-  /** True only for the damage instances an ATTACK EXCHANGE deals (the swing, Cleave / splash, the retaliation): set by
-   *  `exchangeHit` and consumed at the top of `applyDamage`, so anything a hit sets off (on-damaged watchers, Demon
-   *  reactions) is effect damage again. */
-  let attackHitPending = false;
-  /** uid → whether the hit that left the body at 0 Health (or executed it) was an attack hit. Read and cleared by the
-   *  death watchers (Wildfire: "dies to damage that is not an attack"); a body killed by a destroy has no entry. */
-  const lethalByAttack = new Map<string, boolean>();
+  /** uid → the MINION credited with the hit that left the body at 0 Health (or executed it): the `poisoner` /
+   *  dealer `applyDamage` was handed (an attacker, a retaliator, an Echo / Rally sprayer, a Bleeder, a Hellfire Demon),
+   *  or `null` for sourceless damage (a rune volley, Wildfire itself, a spell). The latest lethal hit wins. Read and
+   *  cleared by the death watchers (Wildfire: "When one of your minions kills an enemy"); a body killed by a destroy
+   *  has no entry. */
+  const lethalSource = new Map<string, Minion | null>();
   /** Set 3 rune batch 3 (owner 2026-09-25): Rune of Echoing Kobolds' "Echo: get a Ruby" (one Ruby per copy held, a
    *  Gilded Kobold still gets the same count: `fixed`) and Rune of Aggressive Golems' Rally, grafted onto a combat
    *  SUMMON. Idempotent by factory id, so a body that already carries the Shop graft is untouched. */
@@ -4428,46 +4427,61 @@ export function simulate(
     }
   }
 
-  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): the effect-damage runes ──
-  /** One rune volley: `amount` damage to every living enemy of `side`, all hits landing before any death resolves (the
-   *  attack exchange's two phases), then each felled body dies in board order. No minion source: the RUNE deals it,
-   *  so it is not Demon damage (Ruins, Rad Rachel), feeds no Pummel meter and never Executes. */
-  function runeVolley(side: Side, amount: number, runeId: string): void {
-    const foes = living(OTHER[side]);
-    // The hits are ONE presentation wave (R-RUNE-SPIKE-FX-01): the whole volley, and any reaction a victim's own
-    // `onDamaged` emits while it lands, is one beat (one spray), the way a Fel Spikes pass is. Tag ONLY: `waveN` alone,
-    // not `withWave`, so no Demon-reaction queueing changes how anything resolves (the volley has no dealer anyway).
-    // The deaths below stay outside it, so whatever they set off keeps its own beats.
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, reworked 2026-11-13): the rune-damage runes ──
+  /** HELLFIRE's volley: 1 damage to every living enemy of `demon`'s side, DEALT BY THAT DEMON (owner 2026-11-13:
+   *  "Hellfire only counts as Demon damage"). The Fel Spikes spray shape (`sprayDamageExceptFriendlyTribe`): every hit
+   *  lands first, with its `friendlyDemonDealtDamage` reactions QUEUED (R-DEMON-DMG-DEATH-01), then the queue flushes
+   *  in hit order (one reaction per LANDED hit: Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins), then each
+   *  felled body dies in board order, the Demon credited as its killer. Because the Demon is the dealer, each landed
+   *  hit also advances that Demon's Pummel meter and an Execute Demon executes what it lands on (its venom spends on
+   *  the first landed hit, exactly as a spray's). The death half's dealer is the dying Demon, as Fel Spikes' Echo. The
+   *  hits and their flushed reactions carry one presentation WAVE tag (R-RUNE-SPIKE-FX-01): the volley is ONE beat (one
+   *  fel spike spray), and the swinging Demon parks reared back until it lands (`wavesAheadOf`). A bare `waveN` tag,
+   *  not `withWave`: the queueing above is this function's own, so nothing about resolution changes. */
+  function hellfireVolley(demon: Minion): void {
+    const foes = living(OTHER[demon.side]);
+    const outerQueue = demonReactQueue;
+    demonReactQueue = [];
     const prevWave = waveN;
     waveN = ++waveSeq;
     try {
-      for (const t of foes) { const at = events.length; applyDamage(t, amount, false, false); tagRuneHit(runeId, t, at); }
-    } finally { waveN = prevWave; }
-    for (const t of foes) if (isFelled(t)) killOrReborn(t);
+      for (const t of foes) { const at = events.length; applyDamage(t, HELLFIRE_DAMAGE, false, false, demon); tagRuneHit('rune_hellfire', t, at); }
+      flushDemonReactions(); // the volley's reactions land BEFORE its death checks, as a spray's
+    } finally { demonReactQueue = outerQueue; waveN = prevWave; }
+    for (const t of foes) if (isFelled(t)) killOrReborn(t, demon);
   }
-  /** HELLFIRE: 1 damage to all enemies, once per copy held, each volley its own beat. `demon` is the Demon that
-   *  attacked or died: the volley's presentation source (`from` on the trigger), never a damage source. */
-  function runeHellfire(side: Side, demon: Minion): void {
+  /** HELLFIRE: one volley per copy held, each its own beat, dealt by `demon` (the swinging or the dying Demon). */
+  function runeHellfire(demon: Minion): void {
+    const side = demon.side;
     for (let k = 0; k < flagCopiesOf(side, 'runeHellfire'); k++) {
       if (living(OTHER[side]).length === 0) break;
       nextStep(); fireTrigger('runeHellfire', side, demon.uid);
-      runeVolley(side, HELLFIRE_DAMAGE, 'rune_hellfire');
+      hellfireVolley(demon);
     }
   }
   /** Every death path's rune-damage watchers (a Rise / Rebirth death is a real death, R-DEATH-RETURN-01):
-   *  HELLFIRE's death half ("When a Demon dies") and WILDFIRE ("When an enemy dies to damage that is not an attack,
-   *  deal 3 damage to all enemies. (3 per combat.)"). Wildfire's own volleys are not attacks, so they can chain it until
-   *  the budget (3 per copy) is spent. A body felled by a destroy (no damage) never counts. */
+   *  HELLFIRE's death half ("When a Demon dies") and WILDFIRE (owner rework 2026-11-13: "When one of your minions
+   *  kills an enemy, deal that enemy's Attack as damage to a random enemy minion. (3 times per combat.)").
+   *  Wildfire reads the MINION credited with the lethal hit (`lethalSource`): it fires only when that minion is on the
+   *  rune's side (an attack, a retaliation, Cleave, an Echo / Rally / Bleed it deals, a Hellfire volley; the dealer
+   *  may itself be dead). A sourceless kill (a rune volley without a dealer, a spell, Wildfire's own hit) or a destroy
+   *  never counts, so it CANNOT CHAIN: its own hit is sourceless. Damage = the dead enemy's Attack as it died, to ONE
+   *  random living enemy minion (seeded `rng`). A 0-Attack death, or no enemy left, spends no use. */
   function runeFireOnDeath(minion: Minion): void {
-    const byAttack = lethalByAttack.get(minion.uid);
-    lethalByAttack.delete(minion.uid);
-    if (modsFor(minion.side).runeHellfire && isTribeOf(minion, 'demon', cards)) runeHellfire(minion.side, minion);
+    const src = lethalSource.get(minion.uid);
+    lethalSource.delete(minion.uid);
+    if (modsFor(minion.side).runeHellfire && isTribeOf(minion, 'demon', cards)) runeHellfire(minion);
     const owner = OTHER[minion.side];
-    if (byAttack === false && wildfireLeft[owner] > 0 && living(minion.side).length > 0) {
+    if (src && src.side === owner && wildfireLeft[owner] > 0 && minion.attack > 0) {
+      const pool = living(minion.side);
+      if (pool.length === 0) return;
       wildfireLeft[owner] -= 1;
-      // `from` = the enemy that just died: the fire spreads out of its body (presentation only).
+      // `from` = the enemy that just died (presentation only): its Attack is flung out of its body at the target.
       nextStep(); fireTrigger('runeWildfire', owner, minion.uid);
-      runeVolley(owner, WILDFIRE_DAMAGE, 'rune_wildfire');
+      const hit = rng.pick(pool);
+      const at = events.length;
+      dealDamage(hit, minion.attack, false, false);
+      tagRuneHit('rune_wildfire', hit, at);
     }
   }
   /** The Avenge-paced side watchers (deaths[side] % N), called right after `emitAvenge` on every death path. The
@@ -4698,7 +4712,6 @@ export function simulate(
     // Echo (Fel Spikes, gilded / Sylus / Echohorn) hits the SAME captured targets each pass and defers death to
     // the end, so a low-HP victim reads EVERY volley's damage — and procs the per-volley reactors + pops a Ward
     // on the first, takes damage on the next — instead of vanishing after the first hit.
-    const byAttack = attackHitPending; attackHitPending = false; // Wildfire: was THIS hit an attack exchange's?
     if (target.dead || (!overkill && target.health <= 0)) return;
     // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
@@ -4779,14 +4792,8 @@ export function simulate(
         emit({ type: 'venomLost', target: poisoner.uid });
       }
     }
-    // Wildfire: remember what kind of hit felled this body (read at its death, `runeFireOnDeath`).
-    if (target.health <= 0 || executed.has(target.uid)) lethalByAttack.set(target.uid, byAttack);
-  }
-  /** An attack exchange's hit (Set 2 Epic tribal runes, 2026-11-12): `applyDamage` with the attack mark, so Wildfire
-   *  can tell a swing's kill from effect damage. */
-  function exchangeHit(target: Minion, amount: number, poison: boolean, poisoner: Minion): void {
-    attackHitPending = true;
-    try { applyDamage(target, amount, poison, false, poisoner); } finally { attackHitPending = false; }
+    // Wildfire: remember which minion (if any) felled this body (read at its death, `runeFireOnDeath`).
+    if (target.health <= 0 || executed.has(target.uid)) lethalSource.set(target.uid, poisoner ?? null);
   }
 
   /** One-shot damage (effects, bolts, Deathrattle damage): apply + resolve any death immediately. Attack
@@ -4949,9 +4956,9 @@ export function simulate(
         for (let k = 0; k < flagCopiesOf(target.side, 'runePackTactics'); k++) { if (canRally(target)) fireFreeRally(target, target.side); }
       }
       // HELLFIRE (Set 2 Epic Demon rune, owner 2026-11-12), the attack half: "When a Demon attacks, deal 1 damage to all
-      // enemies." As the swing winds up (the Rally moment). The rune deals it, so it can fell the target first: the
-      // swing is then spent (the dead-target rule below).
-      if (modsFor(attacker.side).runeHellfire && !attacker.dead && isTribeOf(attacker, 'demon', cards)) runeHellfire(attacker.side, attacker);
+      // enemies." As the swing winds up (the Rally moment), dealt BY the attacker (Demon damage, owner 2026-11-13). It
+      // can fell the target first: the swing is then spent (the dead-target rule below).
+      if (modsFor(attacker.side).runeHellfire && !attacker.dead && isTribeOf(attacker, 'demon', cards)) runeHellfire(attacker);
       // DEEP BREATHS (Set 3 Dragon runes, owner 2026-10-21): each of the side's first 2 Dragon swings this fight casts
       // Growth, once per copy (a real rune cast through the attacker; Windfury swings count as attacks, as for Rallies).
       if (modsFor(attacker.side).runeDeepBreaths && !attacker.dead && isTribeOf(attacker, 'dragon', cards)
@@ -5285,7 +5292,7 @@ export function simulate(
         const neighbours = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
         for (const n of neighbours) {
           victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
-          exchangeHit(n, attacker.attack * critMult, poison, attacker);
+          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
       // Mauron's splash — ONE adjacent enemy, or BOTH when gilded. Deliberately separate from Cleave (which
@@ -5297,7 +5304,7 @@ export function simulate(
         const hit = attacker.golden ? both : both.slice(0, 1); // ungilded: the first available side
         for (const n of hit) {
           victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
-          exchangeHit(n, attacker.attack * critMult, poison, attacker);
+          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
 
@@ -5307,7 +5314,7 @@ export function simulate(
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, rises0: targetRises0 });
-      exchangeHit(target, attacker.attack * critMult, poison, attacker); // main hit (Critical Strike doubles it)
+      applyDamage(target, attacker.attack * critMult, poison, false, attacker); // main hit (Critical Strike doubles it)
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
       if ((attacker.attackImmuneLeft ?? 0) > 0) {
@@ -5315,7 +5322,7 @@ export function simulate(
         if (!cards[attacker.cardId]?.attackImmuneAlways) attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
       } else {
         victims.push({ m: attacker, killer: target, rises0: risesOf(attacker) });
-        exchangeHit(attacker, counterAttack, counterVenom, target); // retaliation
+        applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
       }
 
       // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's

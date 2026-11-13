@@ -385,6 +385,11 @@ function repeatPaceKeyOf(node: TimelineSourceNode, value: ResolvedBeatConfig): s
   const rep = node.repeat;
   if (!rep || rep.count < 2 || rep.index < 0 || rep.index >= rep.count) return null;
   if (value.mode !== 'ownBeat') return null;
+  // A tick that EATS a minion is never accelerated (R-SHOPMADNESS-REALTIME-01, owner report 2026-11-13). Its eat is a
+  // real animation (the meal shakes, is pulled into the eater, the eater's stats climb as it lands, and with Shop
+  // Madness the fresh minion then takes the slot), so it keeps the full beat. Hydraskus's "every Demon eats" ticks
+  // were paced like a Kringle stat tick and seven eats overlapped into the last half second of End of Turn.
+  if (node.consequences.some((c) => c.kind === 'fodderEaten')) return null;
   const full = value.completionOffsetMs + value.recoveryMs;
   if (!(full > 0)) return null;
   const s = node.source;

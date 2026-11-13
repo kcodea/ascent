@@ -14,17 +14,22 @@ spike connects and a fight is not longer for it.
 |---|---|---|
 | Pitchforks | the summoned Imp | 2 targets; a reaction that splits the two hits gives each its own spike + beat |
 | Imp Legion | the dying Imp | a new `questTrigger` (the badge pulse) splits its Echo hit off the death beat |
-| Hellfire | the Demon that attacked or died | one wave per volley: ONE spray at every enemy; the attacker parks reared back (`wavesAheadOf`) and strikes after |
-| Wildfire | the enemy that died | the fire spreads out of its body, from its remembered slot once the row has collapsed |
+| Hellfire | the Demon that attacked or died (its own damage since #2693) | one wave per volley: ONE spray at every enemy; the attacker parks reared back (`wavesAheadOf`) and strikes after |
+| Wildfire | the enemy your minion killed | #2693's single hit (its Attack at one random enemy) flies out of that enemy's slot, remembered after the row collapses |
 | Mirror Sheen | the minion that lost its Ward | |
 
 ## Plumbing
 
+- **Depends on #2693** (`feat/hellfire-wildfire`, merged into this branch): Hellfire's volley is Demon damage
+  (`hellfireVolley`, the Demon as dealer) and Wildfire is a sourceless single hit. The merge kept #2693's resolution
+  verbatim and added only the presentation stamps on top.
 - **Engine (presentation only, no outcome change):** `tagRuneHit` stamps a rune hit's OWN event (`dmg`, or the Ward pop
   that absorbed it) with `key: 'rune:<runeId>:hit'` + `srcCard`; the rune's `questTrigger` gains `from` (the body the
-  effect comes from; a new optional field, not `source`, so the stock quest-trigger def stays dormant). Hellfire and
-  Wildfire's hits are wrapped in a bare `waveN` tag (not `withWave`, so Demon-reaction queueing is untouched); their
-  deaths stay outside the wave. Imp Legion's grafted Echo logs a `questTrigger` (`from` = the Imp) when there is an enemy.
+  effect comes from; a new optional field, not `source`, so the stock quest-trigger def stays dormant). Hellfire's hits
+  and their flushed reactions carry a bare `waveN` tag (not `withWave`: #2693's own queueing is untouched); its deaths
+  stay outside the wave. A wave hit no longer spends the swing's "opener" in `compileMoments` / `buildBeats` (the same
+  rule `ownStrikeAt` already used), so a Hellfire Demon's strike keeps its own beat instead of merging into the
+  volley's deaths. Imp Legion's grafted Echo logs a `questTrigger` (`from` = the Imp) when there is an enemy.
 - **Bindings:** rune ids are now valid `cards` keys in `bindings.json` (`rune_hellfire.damage` → `fel-spike`,
   `struck`, `launchOnDeath`); `bindings.test.ts` accepts `RUNE_INDEX` ids.
 - **UI:** `choreo/channels/runeHits.ts` (pure: which hits are a rune's, grouped per rune + source); `useCombatReplay`

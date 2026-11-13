@@ -4,8 +4,8 @@
  * which units.
  *
  * A rune has no body and no card, so the ordinary binding path (the moment's source → its card → `bindings.json`)
- * cannot reach it: Hellfire's and Wildfire's volleys are sourceless, and a Pitchforks or Mirror Sheen hit names
- * whatever Imp or Warded minion dealt it. The engine therefore stamps each rune hit's OWN event (`tagRuneHit` in
+ * cannot reach it: Wildfire's hit and Imp Legion's Echo are sourceless, and a Pitchforks, Hellfire or Mirror Sheen hit names
+ * whatever Imp, Demon or Warded minion dealt it. The engine therefore stamps each rune hit's OWN event (`tagRuneHit` in
  * `simulate.ts`: its `dmg`, or the Ward pop that absorbed it) with `key: 'rune:<runeId>:hit'` + `srcCard: <runeId>`,
  * and the rune's `questTrigger` names the body the effect visibly comes FROM (`from`). Imp Legion's hit is a grafted
  * Echo whose effect key is its own (`factory:deathrattleDamageLowestEnemy:onDeath`, used by nothing else), so it is
@@ -46,7 +46,7 @@ function flagOfRune(runeId: string): string | null {
 export interface RuneHitGroup {
   runeId: string;
   /** The body the effect comes FROM: the hit's own `source` (the Imp, the Warded minion) or, for a sourceless volley
-   *  (Hellfire, Wildfire), the `from` on the rune's trigger that preceded it. Null when neither names one. */
+   *  (Wildfire, Imp Legion), the `from` on the rune's trigger that preceded it. Null when neither names one. */
   from: string | null;
   /** The units struck, in log order, de-duplicated (a Ward-absorbed hit included). */
   targets: string[];

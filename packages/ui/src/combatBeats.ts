@@ -95,7 +95,8 @@ export function buildBeats(events: CombatEvent[]): Beat[] {
     for (let i = 0; i < events.length; i++) {
       const e = events[i]!;
       if (e.type === 'attack') pending.add(e.attacker);
-      else if (e.type === 'dmg' && typeof e.source === 'string' && pending.has(e.source)) {
+      // A WAVE hit is never the swing's own (R-RUNE-SPIKE-FX-01: a Hellfire volley the attacker deals as it winds up).
+      else if (e.type === 'dmg' && e.wave === undefined && typeof e.source === 'string' && pending.has(e.source)) {
         opensSwing[i] = true;
         pending.delete(e.source);
       }

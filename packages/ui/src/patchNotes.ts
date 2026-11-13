@@ -64,7 +64,20 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Hellfire and Wildfire are reworked. Hellfire now counts as Demon damage, and Wildfire turns your kills into one big hit.',
+        details: [
+          'Hellfire: the Demon that attacks or dies deals the damage, so every hit that lands counts as Demon damage. Rad Rachel, Impossible Todd, Ruinous Lord and Rune of Ruins react to each hit.',
+          "Wildfire: when one of your minions kills an enemy, that enemy's Attack is dealt as damage to a random enemy minion. 3 times per combat.",
+          'Wildfire no longer chains off its own damage.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Traveling Salesman now offers a Golden minion when it is the only copy you control. It used to leave Golden minions out.',
+      },
+      {
+        category: 'Systems',
+        text: 'Shop Madness now shows each eaten or bought Shop minion being replaced in its slot as it happens, and Demons that eat at End of Turn gain their stats one bite at a time.',
       },
       {
         category: 'Systems',

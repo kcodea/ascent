@@ -1482,8 +1482,10 @@ function rememberRuneSourceRects(beat: Moment, events: CombatEvent[], findEl: (u
     for (let j = i + 1; j < Math.min(events.length, i + 80); j++) {
       const t = events[j];
       if (t?.type !== 'questTrigger' || t.from !== e.target) continue;
-      const r = findEl(e.target)?.getBoundingClientRect();
-      if (r && r.width > 0) runeSourceRects.set(e.target, { left: r.left, top: r.top, width: r.width, height: r.height });
+      // Its SLOT (`layoutRectOf`), not where a lunge left it: a body that died mid-swing still throws from its own place.
+      const el = findEl(e.target);
+      const r = el ? layoutRectOf(el) : null;
+      if (r && r.w > 0) runeSourceRects.set(e.target, { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h });
       break;
     }
   }

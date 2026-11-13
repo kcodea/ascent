@@ -629,9 +629,9 @@ export const ORDERING_RULES: GameRule[] = [
     statement:
       'The hits of these runes play the Fel Spikes effect. Each spike leaves the body the rune names: the summoned Imp '
       + '(Pitchforks), the dying Imp (Imp Legion), the Demon that attacked or died (Hellfire), the enemy that died '
-      + '(Wildfire, where the fire spreads from) and the minion that lost its Ward (Mirror Sheen). A body that already left '
+      + '(Wildfire: the enemy your minion killed, its Attack flung at one random enemy) and the minion that lost its Ward (Mirror Sheen). A body that already left '
       + 'the board throws from where it stood. The spikes launch as the rune fires and the damage numbers land as they '
-      + 'connect. A volley that hits every enemy (Hellfire, Wildfire) is one spray on one beat; a Hellfire attack waits '
+      + 'connect. A Hellfire volley that hits every enemy is one spray on one beat; a Hellfire attack waits '
       + 'with the Demon reared back until its volley lands, then the Demon strikes.',
     domain: 'ordering',
     status: 'approved',

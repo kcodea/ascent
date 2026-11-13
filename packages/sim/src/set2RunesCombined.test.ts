@@ -10,7 +10,8 @@ import { CONFIG, createRun, reduce, type Action, type BoardCard, type BoardSnaps
  *
  *  - Bastion (Epic neutral) x Shatterproof (Basic neutral): the re-formed Ward breaks again and pays again.
  *  - Mirror Sheen (Epic neutral) x Shatterproof: the +5/+5 lands first, so the reflected hit carries it.
- *  - Hellfire / Wildfire (Epic tribal) x Pitchforks / Imp Legion (Basic tribal): rune damage is not an attack.
+ *  - Hellfire / Wildfire (Epic tribal) x Pitchforks / Imp Legion (Basic tribal): who is credited with the kill
+ *    (Wildfire reworked 2026-11-13: it hears a kill by one of your MINIONS, the dealer of the lethal hit).
  *  - Big Spender (Epic tribal) x Deep Pockets (Basic tribal): the per-turn Gold window hears each Gold twice.
  *  - Second Opinion (Basic neutral) x Grudge (Epic neutral): the lost-combat Discover offers the extra option.
  */
@@ -107,19 +108,23 @@ describe('Hellfire / Wildfire x Pitchforks / Imp Legion', () => {
     expect(fork).toBeLessThan(hell); // Echo (and the arrival it causes) resolves before the death half of Hellfire
   });
 
-  it('Wildfire + Pitchforks: an enemy the Pitchforks kill died to non-attack damage, so Wildfire fires', () => {
-    const r = fight([knocked()], [wall('w', 5), ...dummies(2, 3)], { runeWildfire: true, runePitchforks: true });
+  // 2-Attack victims: Wildfire deals the dead enemy's Attack, so a 0-Attack death would spend nothing.
+  const armed = (n: number, health: number) => Array.from({ length: n }, (_, i) => bm(`d${i}`, PLAIN[1]!, { attack: 2, health, keywords: [] }));
+
+  it('Wildfire + Pitchforks: the Imp deals the Pitchforks hit, so an enemy it kills is a minion kill and Wildfire fires', () => {
+    const r = fight([knocked()], [wall('w', 5), ...armed(2, 3)], { runeWildfire: true, runePitchforks: true });
     expect(triggers(r.events, 'runePitchforks')).toHaveLength(1);
     expect(triggers(r.events, 'runeWildfire').length).toBeGreaterThanOrEqual(1);
-    expect(triggers(fight([knocked()], [wall('w', 5), ...dummies(2, 3)], { runePitchforks: true }).events, 'runeWildfire')).toHaveLength(0);
+    expect(triggers(fight([knocked()], [wall('w', 5), ...armed(2, 3)], { runePitchforks: true }).events, 'runeWildfire')).toHaveLength(0);
   });
 
-  it('Wildfire + Imp Legion: the grafted Echo kill counts as non-attack damage', () => {
-    // The Imp Scrap dies to the wall; its Imp Legion Echo hits the lowest-Health enemy (a 3-Health dummy) for 3.
-    const r = fight([knocked()], [wall('w', 5, 5000), bm('d', PLAIN[1]!, { attack: 0, health: 3, keywords: [] })], { runeWildfire: true, runeImpLegion: true });
+  it('Wildfire + Imp Legion: the grafted Echo deals SOURCELESS damage (the shared arena body), so its kill does not fire Wildfire', () => {
+    // The Imp Scrap dies to the wall; its Imp Legion Echo hits the lowest-Health enemy (a 3-Health dummy) for 3. That
+    // Echo routes through the shared arena body, which credits no minion, so the engine has no killer to read.
+    const r = fight([knocked()], [wall('w', 5, 5000), bm('d', PLAIN[1]!, { attack: 2, health: 3, keywords: [] })], { runeWildfire: true, runeImpLegion: true });
     const low = r.initial.enemy[1]!.uid;
     expect(of(r.events, 'death').some((e) => e.target === low)).toBe(true);
-    expect(triggers(r.events, 'runeWildfire').length).toBeGreaterThanOrEqual(1);
+    expect(triggers(r.events, 'runeWildfire')).toHaveLength(0);
   });
 
   it('Hellfire + Imp Legion: the Imp is a Demon, so its death fires Hellfire AND its Echo', () => {

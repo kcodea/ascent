@@ -90,7 +90,10 @@ describe('rune hits resolve to the fel spike', () => {
     // The swing's own strike is NOT in the volley's beat: the attacker parks while the volley plays.
     const moments = compileMoments(r.events);
     const first = moments[v[0]!.moment]!;
-    expect(r.events.slice(first.start, first.end).some((e) => e.type === 'dmg' && typeof e.source === 'string')).toBe(false);
+    const attacker = uidOf(r, 'player', 0);
+    expect(r.events.slice(first.start, first.end).some((e) => e.type === 'dmg' && e.wave === undefined && e.source === attacker)).toBe(false);
+    // Hellfire is the Demon's own damage (#2693): every volley hit names it, and the spike leaves it.
+    expect(r.events.slice(first.start, first.end).filter((e) => runeOfHit(e) === 'rune_hellfire').every((e) => e.type !== 'dmg' || e.source === attacker)).toBe(true);
   });
 
   it('Pitchforks: a hit a reaction splits off still gets its own launch + hold, each number on its own spike', () => {
@@ -109,15 +112,16 @@ describe('rune hits resolve to the fel spike', () => {
     expect(v[0]!.from).toBe(demon);
   });
 
-  it('Wildfire: an enemy felled by non-attack damage spreads the fire out of its own body to every enemy', () => {
-    // Imp Legion's Echo (not an attack) fells the 3-Health dummy; Wildfire then sprays the rest of its board.
-    const r = fight([bm('k', 'dm_knocked', { attack: 0, health: 1 })], [wall('w', 5), wall('d', 0, 3), wall('x', 0, 50)], { runeWildfire: true, runeImpLegion: true });
-    const dummy = r.initial.enemy.find((m) => m.health === 3)!.uid;
+  it('Wildfire: the enemy one of your minions killed flings its Attack out of its own body at ONE random enemy', () => {
+    // The 5/5 attacks into a wall and dies to the retaliation (a kill by one of your minions); Wildfire then deals 5 to
+    // one random enemy minion, sourceless, so the spike leaves the dead enemy.
+    const r = fight([wall('w', 10)], [bm('x', PLAIN[1]!, { attack: 5, health: 5, keywords: [] }), wall('a', 0, 50), wall('b', 0, 50)], { runeWildfire: true });
+    const killed = r.initial.enemy.find((m) => m.attack === 5)!.uid;
     const v = volleys(r.events).filter((g) => g.runeId === 'rune_wildfire');
     expect(v.length).toBeGreaterThan(0);
-    expect(v[0]!.from).toBe(dummy);
-    expect(v[0]!.targets).not.toContain(dummy);
-    expect(v[0]!.targets.length).toBeGreaterThan(1);
+    expect(v[0]!.from).toBe(killed);
+    expect(v[0]!.targets).toHaveLength(1);
+    expect(v[0]!.targets).not.toContain(killed);
   });
 
   it('Mirror Sheen: the minion that lost its Ward throws at its random enemy', () => {

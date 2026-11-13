@@ -145,8 +145,10 @@
  * `claw` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroClaw/`.
  *
- * `fireworks` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroFireworks/`.
+ * `fireworks` ("Grand Finale", an Epic) has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. Fireworks, never flame: a bottle rocket squeals off a stick and pops in one colour; a roman
+ * candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD BEAT of quiet, then
+ * a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
  *
  * `chord` (Power Chord, an Epic: a musical staff strung between the heroes, a note or a three-note chord riding it,
  * and on its Big look a speaker stack whose bass wave bends the staff and blows the struck portrait back) is IN PROGRESS

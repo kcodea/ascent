@@ -296,8 +296,10 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/heavy-rock-impact',
   ],
   fireworks: [
-    'fx/blue-impact-hit',
-    'fx/heavy-rock-impact',
+    'fx/fireworks-boom',
+    'fx/fireworks-fuse',
+    'fx/fireworks-squeal',
+    'fx/fireworks-thump',
   ],
   undead: [
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',

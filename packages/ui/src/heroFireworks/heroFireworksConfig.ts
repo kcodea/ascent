@@ -1,35 +1,41 @@
 /**
- * THE GRAND FINALE HERO ATTACK (style `fireworks`, an EPIC): its tuned values, its pure timeline, the pure geometry
- * (where the firework stands, every flight path, where the shell blooms) and the pure camera.
+ * THE GRAND FINALE HERO ATTACK (style `fireworks`, an EPIC): its tuned values, its pure timeline (every shell, when it
+ * leaves, when it bursts), the pure geometry (where the spark is lit, every flight, where every shell opens) and the
+ * pure camera.
  *
- * ONE IDEA: fireworks, and above all the HELD BEAT OF QUIET before a big shell blooms. No flame anywhere (Inferno owns
- * fireballs and meteors): this is fuses, coloured sparks, glitter trails and star bursts in gold, magenta, cyan and
- * green.
+ * ONE IDEA: a fireworks show, launched from LIGHT. There is no launcher anywhere (the third pass took out the painted
+ * rocket, candle and mortar): a spark ignites on the rim of the striking hero's portrait, a fuse of crackling sparks
+ * crawls round the rim, and every shell leaves from that light as a glowing head with a glittering trail. Every shell is
+ * live particle work: stars that burst, slow under drag and droop under gravity, glitter that flickers, crackle that
+ * pops late, stars that change colour, ring, heart, spiral and smiley shells, and smoke that hangs and drifts.
  *
- * THE THREE LOOKS. Every hero attack reads its tier from the shared `attackTier` (thresholds I 1-5 / II 6-11 /
- * III 12-19 / IV 20+, and a knockout always plays IV). An Epic maps those four onto three looks, exactly as Storm Call
- * does (`fireworksLevel`): I -> the BOTTLE ROCKET, II and III -> the ROMAN CANDLE, IV -> the MORTAR SHELL.
- *  - 1, THE BOTTLE ROCKET. A little rocket on a stick is planted beside the striking hero, leaning at the target. Its
- *    fuse fizzes for a beat, then it SQUEALS off on a slightly wiggly path with a thin spark trail and pops against
- *    the struck portrait in a small star burst of one colour (rolled from the seed). The pop is THE blow.
- *  - 2, THE ROMAN CANDLE. A tube is planted and thumps out THREE glowing balls in a row, each a different colour on its
- *    own arc. The first two pop on the portrait as TICKS (FX and sound only); the third pop is THE blow.
- *  - 3, THE MORTAR SHELL. A mortar tube is planted and its fuse fizzes. A heavy thump, and one comet whistles up and
- *    leaves the TOP of the screen. Then the HELD BEAT: about 0.6 s with the screen dimmed, the camera still and nothing
- *    moving. Then THE BLOOM fills a large part of the sky beside the struck portrait: a white core flash that lights
- *    the whole view, four rings of stars that expand and droop, a slower willow ring that hangs and falls, the view
- *    kicked hard and the portrait lit and rocked. The bloom is THE blow. Then THE FINALE: three smaller shells crack
- *    open around it one after another (FX and sound only, each rocking the portrait again) while glitter crackles and
- *    drifts down for well over a second.
+ * THE THREE LOOKS. Every hero attack reads its tier from the shared `attackTier` (shared tiers 1 to 4; a knockout always
+ * plays 4). An Epic maps those four onto three looks (`fireworksLevel`): shared tier 1 plays TIER 1, shared tiers 2 and 3
+ * play TIER 2, shared tier 4 (and any knockout) plays TIER 3.
+ *  - TIER 1: one shell. The spark is lit, the fuse crawls, and the variant's shell flies at the struck portrait and
+ *    bursts on it (the blow).
+ *  - TIER 2: a volley of three. A ring shell opens round the struck face, a heart shell over it (both ticks: FX, sound and
+ *    a flinch), then the variant's shell lands THE blow.
+ *  - TIER 3, THE GRAND FINALE: a long rising barrage, wave after wave of shells from the hero's spark and from the bottom
+ *    of the screen, across the whole sky (one shell per wave bursts on the struck portrait, which flinches and is singed).
+ *    Then one comet rises off the top of the screen and THE HELD BEAT: a hush, the smoke hanging. Then ONE ENORMOUS
+ *    SHELL fills the screen (the blow) with a camera push and a big shake and a crackling glitter rain over everything,
+ *    and last a final flash on the struck portrait.
+ *
+ * THE VARIANT (rolled from the stable `rollSeed`, forced by the DEV tuner's Variation row) gives every tier its own
+ * whimsy: 1 THE SMILEY (a shell that bursts into a smiley face, which winks and melts), 2 THE PINWHEEL (a catherine
+ * wheel that spins up on the hero's rim before it flies, and spiral shells), 3 THE FAKE-OUT (Tier 1: a dud that fizzles
+ * and flops, then the real one; Tier 2: a shell that hangs and sputters, then goes off all at once; Tier 3: the barrage
+ * opens with a dud).
  *
  * The damage formation (shared) opens every attack; this style starts where it ends. The consequence lands exactly
- * ONCE, on the impact beat. No hit-stop: the clock runs straight through the held beat (the stillness is staged, the
- * clock never pauses). Reduced motion: no firework, shake or zoom; the numbers fade and the blow lands.
+ * ONCE, on the impact beat. No hit-stop: the clock runs straight through the held beat. Reduced motion: no fireworks,
+ * shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always plays
  * DEFAULTS.
  */
-import { clamp, hexToNum, type Pt } from '../heroAttack/easing';
+import { clamp, hexToNum, seededRng, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
@@ -38,16 +44,24 @@ export { hexToNum, type TierNum };
 
 export const FIREWORKS_LEVELS = [1, 2, 3] as const;
 export type FireworksLevel = (typeof FIREWORKS_LEVELS)[number];
-export const FIREWORKS_LEVEL_NAMES: Record<FireworksLevel, string> = { 1: 'Bottle rocket', 2: 'Roman candle', 3: 'Mortar shell' };
+export const FIREWORKS_LEVEL_NAMES: Record<FireworksLevel, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3' };
+/** Which shared damage tiers play each look (for the tuner's hints). */
+export const FIREWORKS_LEVEL_TIERS: Record<FireworksLevel, string> = { 1: 'shared tier 1', 2: 'shared tiers 2 and 3', 3: 'shared tier 4 and every knockout' };
 
-/** The shared four damage tiers mapped onto the three looks: I rocket, II and III candle, IV (and a knockout) mortar. */
+/** The shared four damage tiers mapped onto the three looks: 1 -> Tier 1, 2 and 3 -> Tier 2, 4 (and a knockout) -> Tier 3. */
 export function fireworksLevel(tier: TierNum): FireworksLevel {
   return tier <= 1 ? 1 : tier >= 4 ? 3 : 2;
 }
 
+// ─── the variant roll (pure) ─────────────────────────────────────────────────────────────────────────────────
+
+export type FireworksVariant = 1 | 2 | 3;
+export const FIREWORKS_VARIANTS: readonly FireworksVariant[] = [1, 2, 3];
+export const FIREWORKS_VARIANT_NAMES: Record<FireworksVariant, string> = { 1: 'The smiley', 2: 'The pinwheel', 3: 'The fake-out' };
+
 /** The per-look dials. A config key is `v1..v3` + one of these. */
 export const FIREWORKS_LEVEL_SUFFIXES = [
-  'FuseMs', 'FlyMs', 'Size', 'Shake', 'Zoom', 'Punch', 'Sparks', 'Burst', 'SettleMs', 'Dim',
+  'FuseMs', 'FlyMs', 'Stars', 'Burst', 'Shake', 'Zoom', 'Punch', 'SettleMs', 'Dim',
 ] as const;
 export type FireworksLevelSuffix = (typeof FIREWORKS_LEVEL_SUFFIXES)[number];
 type LevelKey = `v${FireworksLevel}${FireworksLevelSuffix}`;
@@ -56,33 +70,40 @@ interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   // Ready
   absorbMs: number;
-  plantMs: number;
   heroCoilPx: number;
   heroFlinchPx: number;
-  // The rocket
-  wigglePx: number;
-  wiggleHz: number;
-  trailMs: number;
-  // The candle
-  candleGapMs: number;
-  candleSpread: number;
-  // The mortar and the bloom
+  /** How far round the hero's rim the fuse crawls (degrees). */
+  fuseArcDeg: number;
+  // Whimsy
+  /** The pinwheel spins on the rim this long before it flies. */
+  spinMs: number;
+  /** The dud's whole life (up, sputter, flop), and the pause before the real one. */
+  dudMs: number;
+  dudPauseMs: number;
+  /** The fake-out shell hangs and sputters this long before it goes off all at once. */
+  sputterMs: number;
+  // Tier 2
+  volleyGapMs: number;
+  // Tier 3: the barrage
+  waves: number;
+  waveShells: number;
+  waveGapMs: number;
+  waveSpanMs: number;
+  // Tier 3: the enormous shell
+  riseMs: number;
   holdMs: number;
-  bloomSize: number;
-  bloomLift: number;
-  bloomMs: number;
+  giantSize: number;
+  giantStars: number;
   rain: number;
   rainMs: number;
-  glitter: number;
   skyFlash: number;
-  /** The finale: how many smaller shells follow the bloom, the gap between them and how long the aftermath lasts. */
-  finaleShots: number;
-  finaleGapMs: number;
+  finalMs: number;
   aftermathMs: number;
-  /** How far the struck portrait is rocked by the bloom (degrees). */
-  rockDeg: number;
-  dismissMs: number;
+  // Atmosphere
+  smoke: number;
+  singe: number;
   // Camera and portraits
+  rockDeg: number;
   flashAlpha: number;
   knockPx: number;
   squash: number;
@@ -95,10 +116,11 @@ interface GlobalConfig {
   colorMagenta: string;
   colorCyan: string;
   colorGreen: string;
+  colorViolet: string;
   colorPlayer: string;
   colorFoe: string;
   // Sound
-  sfxPlantClip: string; sfxPlantGain: number; sfxPlantRate: number;
+  sfxIgniteClip: string; sfxIgniteGain: number; sfxIgniteRate: number;
   sfxFuseClip: string; sfxFuseGain: number; sfxFuseRate: number;
   sfxSquealClip: string; sfxSquealGain: number; sfxSquealRate: number;
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
@@ -106,46 +128,54 @@ interface GlobalConfig {
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxWhistleClip: string; sfxWhistleGain: number; sfxWhistleRate: number;
   sfxCrackleClip: string; sfxCrackleGain: number; sfxCrackleRate: number;
+  sfxDudClip: string; sfxDudGain: number; sfxDudRate: number;
+  sfxPinwheelClip: string; sfxPinwheelGain: number; sfxPinwheelRate: number;
+  sfxVolleyClip: string; sfxVolleyGain: number; sfxVolleyRate: number;
+  sfxOohClip: string; sfxOohGain: number; sfxOohRate: number;
+  sfxAahClip: string; sfxAahGain: number; sfxAahRate: number;
   sfxTailMix: number;
   sfxDuck: number;
+  /** DEV: '' = rolled per blow, '1' / '2' / '3' force a variant (a string so the tuner shows it as a select). */
+  variation: string;
   // Preview only
   previewDamage: number;
   previewParts: number;
 }
 export type HeroFireworksConfig = GlobalConfig & Record<LevelKey, number>;
 
-export const HERO_FIREWORKS_COLOR_KEYS = ['colorCore', 'colorGold', 'colorMagenta', 'colorCyan', 'colorGreen', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_FIREWORKS_CLIP_KEYS = ['sfxPlantClip', 'sfxFuseClip', 'sfxSquealClip', 'sfxThumpClip', 'sfxPopClip', 'sfxBoomClip', 'sfxWhistleClip', 'sfxCrackleClip'] as const;
+export const HERO_FIREWORKS_COLOR_KEYS = ['colorCore', 'colorGold', 'colorMagenta', 'colorCyan', 'colorGreen', 'colorViolet', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_FIREWORKS_CLIP_KEYS = [
+  'sfxIgniteClip', 'sfxFuseClip', 'sfxSquealClip', 'sfxThumpClip', 'sfxPopClip', 'sfxBoomClip', 'sfxWhistleClip', 'sfxCrackleClip',
+  'sfxDudClip', 'sfxPinwheelClip', 'sfxVolleyClip', 'sfxOohClip', 'sfxAahClip',
+] as const;
 type ColorKey = (typeof HERO_FIREWORKS_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_FIREWORKS_CLIP_KEYS)[number];
-export type HeroFireworksStrKey = ColorKey | ClipKey;
+export type HeroFireworksStrKey = ColorKey | ClipKey | 'variation';
 export type HeroFireworksNumKey = Exclude<keyof HeroFireworksConfig, HeroFireworksStrKey>;
 
-/** Rocket, candle, mortar per suffix: the escalation ladder. */
+/** Tier 1, Tier 2, Tier 3 per suffix: the escalation ladder. */
 const LEVEL_DEFAULTS: Record<FireworksLevelSuffix, [number, number, number]> = {
-  FuseMs: [300, 240, 440],
-  FlyMs: [360, 330, 400],
-  Size: [1, 1, 1],
-  Shake: [6, 9, 28],
+  FuseMs: [340, 300, 420],
+  FlyMs: [420, 400, 520],
+  Stars: [1, 1.1, 1],
+  Burst: [1, 1, 1],
+  Shake: [8, 12, 34],
   Zoom: [0.02, 0.03, 0.05],
-  Punch: [0.018, 0.028, 0.08],
-  Sparks: [14, 10, 72],
-  Burst: [1.35, 1.3, 1.25],
-  SettleMs: [240, 260, 300],
-  Dim: [0.14, 0.24, 0.7],
+  Punch: [0.02, 0.03, 0.09],
+  SettleMs: [200, 240, 300],
+  Dim: [0.58, 0.66, 0.78],
 };
 
 export const FIREWORKS_LEVEL_RANGES: Record<FireworksLevelSuffix, [number, number, number]> = {
-  FuseMs: [60, 1500, 10],
-  FlyMs: [120, 1200, 10],
-  Size: [0.5, 2, 0.05],
-  Shake: [0, 40, 0.5],
+  FuseMs: [80, 1500, 10],
+  FlyMs: [160, 1200, 10],
+  Stars: [0.3, 2, 0.05],
+  Burst: [0.4, 2.5, 0.05],
+  Shake: [0, 50, 0.5],
   Zoom: [0, 0.12, 0.002],
-  Punch: [0, 0.1, 0.001],
-  Sparks: [4, 80, 1],
-  Burst: [0.3, 3, 0.05],
+  Punch: [0, 0.14, 0.001],
   SettleMs: [0, 1600, 10],
-  Dim: [0, 0.8, 0.01],
+  Dim: [0, 0.85, 0.01],
 };
 
 const levelDefaults = Object.fromEntries(FIREWORKS_LEVELS.flatMap((v) => FIREWORKS_LEVEL_SUFFIXES.map((s) => [`v${v}${s}`, LEVEL_DEFAULTS[s][v - 1]]))) as Record<LevelKey, number>;
@@ -153,50 +183,60 @@ const levelDefaults = Object.fromEntries(FIREWORKS_LEVELS.flatMap((v) => FIREWOR
 export const HERO_FIREWORKS_DEFAULTS: HeroFireworksConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 190,
-  plantMs: 130,
   heroCoilPx: 4,
   heroFlinchPx: 6,
-  wigglePx: 38,
-  wiggleHz: 3,
-  trailMs: 9,
-  candleGapMs: 180,
-  candleSpread: 0.4,
-  holdMs: 620,
-  bloomSize: 4.4,
-  bloomLift: 0.62,
-  bloomMs: 2100,
-  rain: 30,
-  rainMs: 1000,
-  glitter: 90,
-  skyFlash: 0.3,
-  finaleShots: 3,
-  finaleGapMs: 270,
-  aftermathMs: 1500,
-  rockDeg: 5,
-  dismissMs: 260,
+  fuseArcDeg: 80,
+  spinMs: 520,
+  dudMs: 640,
+  dudPauseMs: 200,
+  sputterMs: 440,
+  volleyGapMs: 250,
+  waves: 3,
+  waveShells: 6,
+  waveGapMs: 470,
+  waveSpanMs: 340,
+  riseMs: 520,
+  holdMs: 520,
+  giantSize: 1,
+  giantStars: 180,
+  rain: 170,
+  rainMs: 1700,
+  skyFlash: 0.32,
+  finalMs: 1350,
+  aftermathMs: 2200,
+  smoke: 1,
+  singe: 1,
+  rockDeg: 6,
   flashAlpha: 0.95,
   knockPx: 22,
   squash: 0.1,
-  shakeMs: 460,
-  zoomOutMs: 480,
+  shakeMs: 520,
+  zoomOutMs: 520,
   reducedFadeMs: 260,
   colorCore: '#fffbea',
   colorGold: '#ffc94a',
   colorMagenta: '#ff4fb0',
   colorCyan: '#45dcff',
   colorGreen: '#6dff7c',
+  colorViolet: '#b285ff',
   colorPlayer: '#ffd66b',
   colorFoe: '#ff7bbd',
-  sfxPlantClip: 'placelow', sfxPlantGain: 0.6, sfxPlantRate: 1.1,
-  sfxFuseClip: 'fx/fireworks-fuse', sfxFuseGain: 1.8, sfxFuseRate: 1,
-  sfxSquealClip: 'fx/fireworks-squeal', sfxSquealGain: 1.7, sfxSquealRate: 1.1,
-  sfxThumpClip: 'fx/fireworks-thump', sfxThumpGain: 1.3, sfxThumpRate: 1,
+  sfxIgniteClip: 'fx/fireworks-ignite', sfxIgniteGain: 1.5, sfxIgniteRate: 1,
+  sfxFuseClip: 'fx/fireworks-fuse', sfxFuseGain: 2, sfxFuseRate: 1,
+  sfxSquealClip: 'fx/fireworks-squeal', sfxSquealGain: 1.5, sfxSquealRate: 1.1,
+  sfxThumpClip: 'fx/fireworks-thump', sfxThumpGain: 1.2, sfxThumpRate: 1,
   sfxPopClip: 'fx/fireworks-pop', sfxPopGain: 1.1, sfxPopRate: 1,
   sfxBoomClip: 'fx/fireworks-boom', sfxBoomGain: 1.6, sfxBoomRate: 1,
-  sfxWhistleClip: 'fx/fireworks-whistle', sfxWhistleGain: 0.55, sfxWhistleRate: 1,
+  sfxWhistleClip: 'fx/fireworks-whistle', sfxWhistleGain: 0.6, sfxWhistleRate: 1,
   sfxCrackleClip: 'fx/fireworks-crackle', sfxCrackleGain: 0.9, sfxCrackleRate: 1,
+  sfxDudClip: 'fx/fireworks-dud', sfxDudGain: 1.2, sfxDudRate: 1,
+  sfxPinwheelClip: 'fx/fireworks-pinwheel', sfxPinwheelGain: 1.8, sfxPinwheelRate: 1,
+  sfxVolleyClip: 'fx/fireworks-volley', sfxVolleyGain: 1.4, sfxVolleyRate: 1,
+  sfxOohClip: 'fx/soccer-crowd-ooh', sfxOohGain: 0.5, sfxOohRate: 1.05,
+  sfxAahClip: 'fx/fireworks-aah', sfxAahGain: 1.1, sfxAahRate: 1,
   sfxTailMix: 0.16,
   sfxDuck: 0.4,
+  variation: '',
   previewDamage: 12,
   previewParts: 4,
   ...levelDefaults,
@@ -205,34 +245,37 @@ export const HERO_FIREWORKS_DEFAULTS: HeroFireworksConfig = {
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFireworksStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
-  plantMs: [40, 600, 10],
   heroCoilPx: [0, 40, 1],
   heroFlinchPx: [0, 50, 1],
-  wigglePx: [0, 60, 1],
-  wiggleHz: [0, 8, 0.1],
-  trailMs: [6, 80, 1],
-  candleGapMs: [60, 600, 5],
-  candleSpread: [0, 0.8, 0.01],
+  fuseArcDeg: [0, 180, 1],
+  spinMs: [120, 1500, 10],
+  dudMs: [200, 1500, 10],
+  dudPauseMs: [0, 1000, 10],
+  sputterMs: [80, 1500, 10],
+  volleyGapMs: [80, 800, 5],
+  waves: [1, 4, 1],
+  waveShells: [2, 10, 1],
+  waveGapMs: [150, 1200, 10],
+  waveSpanMs: [0, 900, 10],
+  riseMs: [200, 1500, 10],
   holdMs: [0, 1500, 10],
-  bloomSize: [1, 6, 0.05],
-  bloomLift: [0, 1.5, 0.01],
-  bloomMs: [400, 3000, 10],
-  rain: [0, 40, 1],
-  rainMs: [300, 2000, 10],
-  glitter: [0, 120, 1],
+  giantSize: [0.3, 1.4, 0.01],
+  giantStars: [40, 320, 1],
+  rain: [0, 360, 1],
+  rainMs: [400, 3000, 10],
   skyFlash: [0, 0.6, 0.01],
-  finaleShots: [0, 3, 1],
-  finaleGapMs: [120, 600, 10],
-  aftermathMs: [600, 3000, 10],
-  rockDeg: [0, 12, 0.5],
-  dismissMs: [60, 1000, 10],
+  finalMs: [300, 2500, 10],
+  aftermathMs: [800, 4000, 10],
+  smoke: [0, 2, 0.05],
+  singe: [0, 2, 0.05],
+  rockDeg: [0, 14, 0.5],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
   squash: [0, 0.3, 0.01],
-  shakeMs: [0, 1200, 10],
+  shakeMs: [0, 1400, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxPlantGain: [0, 2, 0.05], sfxPlantRate: [0.5, 2.5, 0.01],
+  sfxIgniteGain: [0, 2, 0.05], sfxIgniteRate: [0.5, 2.5, 0.01],
   sfxFuseGain: [0, 2, 0.05], sfxFuseRate: [0.5, 2.5, 0.01],
   sfxSquealGain: [0, 2, 0.05], sfxSquealRate: [0.5, 2.5, 0.01],
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.3, 2.5, 0.01],
@@ -240,6 +283,11 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFireworksStrKey>, [n
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.3, 2.5, 0.01],
   sfxWhistleGain: [0, 2, 0.05], sfxWhistleRate: [0.3, 2.5, 0.01],
   sfxCrackleGain: [0, 2, 0.05], sfxCrackleRate: [0.3, 2.5, 0.01],
+  sfxDudGain: [0, 2, 0.05], sfxDudRate: [0.5, 2.5, 0.01],
+  sfxPinwheelGain: [0, 2, 0.05], sfxPinwheelRate: [0.5, 2.5, 0.01],
+  sfxVolleyGain: [0, 2, 0.05], sfxVolleyRate: [0.5, 2.5, 0.01],
+  sfxOohGain: [0, 2, 0.05], sfxOohRate: [0.5, 2.5, 0.01],
+  sfxAahGain: [0, 2, 0.05], sfxAahRate: [0.5, 2.5, 0.01],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -252,7 +300,7 @@ export const HERO_FIREWORKS_RANGES: Record<HeroFireworksNumKey, [number, number,
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say. */
-export const FIREWORKS_CAPS = { sparks: 80, rain: 40, glitter: 120, shakePx: 40, zoom: 0.12, finale: 3 } as const;
+export const FIREWORKS_CAPS = { shells: 40, waves: 4, waveShells: 10, shakePx: 50, zoom: 0.12 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_FIREWORKS_COLOR_KEYS as readonly string[]).includes(k);
@@ -261,6 +309,10 @@ const isClipKey = (k: string): k is ClipKey => (HERO_FIREWORKS_CLIP_KEYS as read
 export function clampHeroFireworksValue<K extends keyof HeroFireworksConfig>(key: K, value: unknown): HeroFireworksConfig[K] | undefined {
   if (!Object.prototype.hasOwnProperty.call(HERO_FIREWORKS_DEFAULTS, key)) return undefined;
   const def = HERO_FIREWORKS_DEFAULTS[key];
+  if (key === 'variation') {
+    const v = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
+    return (v === '1' || v === '2' || v === '3' ? v : '') as HeroFireworksConfig[K];
+  }
   if (isColorKey(key)) {
     if (typeof value !== 'string') return def;
     const v = value.trim();
@@ -283,7 +335,8 @@ export function sanitizeHeroFireworksConfig(saved: unknown): HeroFireworksConfig
   return out;
 }
 
-const KEY = 'ascent.herofireworks.v3';
+// v4: the third pass (no launchers, new dials); an older saved tuning is dropped rather than half applied.
+const KEY = 'ascent.herofireworks.v4';
 
 let cfg: HeroFireworksConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_FIREWORKS_DEFAULTS };
@@ -309,11 +362,23 @@ export function heroFireworksConfigJson(c: HeroFireworksConfig = cfg): string {
   const ship: Partial<HeroFireworksConfig> = { ...c };
   delete ship.previewDamage;
   delete ship.previewParts;
+  delete ship.variation;
   return JSON.stringify(ship, null, 2);
 }
 
 /** The preview speed. Previews always play at 1x (owner 2026-09-29: no Speed buttons on the attack tuners). */
 export function heroFireworksPreviewSpeed(): number { return 1; }
+
+/** The variant a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
+export function fireworksVariantOf(rollSeed: number, c: Pick<HeroFireworksConfig, 'variation'> = cfg): FireworksVariant {
+  const forced = Number(c.variation);
+  if (c.variation !== '' && (forced === 1 || forced === 2 || forced === 3)) return forced;
+  let h = ((Math.round(rollSeed) | 0) ^ 0x2f6b9d35) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return ((h % 3) + 1) as FireworksVariant;
+}
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -321,362 +386,365 @@ export function fireworksLevelDials(level: FireworksLevel, c: HeroFireworksConfi
   return Object.fromEntries(FIREWORKS_LEVEL_SUFFIXES.map((s) => [s, c[`v${level}${s}`]])) as Record<FireworksLevelSuffix, number>;
 }
 
-/** Which firework is planted. */
-export type FireworkProp = 'rocket' | 'candle' | 'mortar';
-export const FIREWORK_OF: Record<FireworksLevel, FireworkProp> = { 1: 'rocket', 2: 'candle', 3: 'mortar' };
-/** How many balls the roman candle throws. */
-export const CANDLE_SHOTS = 3;
-/** The first finale shell opens this long after the bloom. */
-export const FINALE_LEAD_MS = 330;
+/** How a shell bursts. `none`: it never does (the dud). `giant`: the enormous shell. */
+export type ShellKind = 'peony' | 'ring' | 'heart' | 'spiral' | 'smiley' | 'crackle' | 'willow' | 'giant' | 'none';
+/**
+ * How a shell gets there. `rise`: up from the light on a glittering trail. `pinwheel`: it spins on the hero's rim for
+ * `spinMs` first, then flies still spinning. `dud`: it rises part way, sputters, flops over and fizzles out. `sputter`:
+ * it reaches the top, hangs and sputters for `sputterMs`, then goes off all at once. `comet`: the enormous shell's
+ * rise, off the top of the screen.
+ */
+export type ShellFlight = 'rise' | 'pinwheel' | 'dud' | 'sputter' | 'comet';
+/** What a burst does: FX only, a TICK on the struck portrait (a flinch and a singe), or THE blow. */
+export type ShellRole = 'fx' | 'hit' | 'impact';
+
+export interface ShellPlan {
+  kind: ShellKind;
+  flight: ShellFlight;
+  role: ShellRole;
+  /** Where it leaves from: the spark on the hero's rim, or the bottom of the screen. */
+  from: 'hero' | 'ground';
+  /** It appears (the pinwheel starts spinning). */
+  launchAt: number;
+  /** It leaves the ground (later than `launchAt` only for the pinwheel). */
+  takeoffAt: number;
+  flyMs: number;
+  /** The dud starts to sputter / the fake-out starts to hang (`-1` = never). */
+  sputterAt: number;
+  /** It bursts (the dud: it is gone). */
+  burstAt: number;
+  /** Its colours: palette indices (gold, magenta, cyan, green, violet); `tint2` -1 = it does not change colour. */
+  tint: number;
+  tint2: number;
+  /** Its size, in struck-portrait radii (the giant: a share of the view, see the geometry). */
+  size: number;
+  /** Tier 3: which wave (-1 = not a barrage shell). */
+  wave: number;
+}
 
 export interface FireworksPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   distance: number;
   reduced?: boolean;
+  variant?: FireworksVariant;
+  /** Seeds the barrage's spread, kinds and colours (the runner's fight seed; a replay plays the same show). */
+  seed?: number;
 }
 
 export interface FireworksPlan {
   reduced: boolean;
   /** The SHARED damage tier (1..4; a knockout is 4). */
   tier: TierNum;
-  /** The look: 1 bottle rocket, 2 roman candle, 3 mortar shell. */
+  /** The look: Tier 1, Tier 2 or Tier 3. */
   level: FireworksLevel;
+  variant: FireworksVariant;
   k: number;
   total: number;
-  /** The firework is planted beside the hero (the attack's first beat). */
+  /** The spark is lit on the hero's rim (the attack's first beat). */
   chargeAt: number;
   absorbEnd: number;
-  /** The fuse is lit, and fizzes for `fuseMs`. */
-  fuseAt: number;
+  /** The fuse crawls round the rim for `fuseMs` from `chargeAt`. */
   fuseMs: number;
-  /** Every launch: the rocket leaving, each candle ball thumping out, the mortar firing. */
-  launches: number[];
-  /** A flight's length: the rocket's, each ball's, or the comet's rise off the top of the screen. */
-  flyMs: number;
-  /** Pops that land BEFORE the impact (the candle's first two balls). FX only. */
+  /** Every shell, in launch order. */
+  shells: ShellPlan[];
+  /** The shell that lands THE blow (its burst is `impactAt`). */
+  impactShell: number;
+  /** Bursts that TICK the struck portrait before the blow (a flinch and a singe). */
   hits: number[];
-  /** Mortar: THE HELD BEAT, from the comet leaving the screen (`holdAt`) for `holdMs`. Otherwise `holdMs` is 0. */
+  /** Tier 3: THE HELD BEAT, from the comet leaving the screen (`holdAt`) for `holdMs`. Otherwise `holdMs` is 0. */
   holdAt: number;
   holdMs: number;
-  /** THE consequence beat: the rocket pops, the third ball pops, or the shell blooms. */
+  /** THE consequence beat. */
   impactAt: number;
-  /** Mortar: THE FINALE, the smaller shells that crack open after the bloom (FX and sound only; empty otherwise). */
-  afters: number[];
-  /** The tube is taken away (the rocket has flown, so it has none). */
-  dismissAt: number;
+  /** Tier 3: the final flash on the struck portrait (-1 otherwise). */
+  finalAt: number;
   endAt: number;
-  propSize: number;
+  stars: number;
+  burst: number;
   shakePx: number;
   zoom: number;
   punch: number;
-  sparks: number;
-  burst: number;
   dim: number;
 }
 
-/** The whole Grand Finale, in base ms. Pure and deterministic. */
+/** The five colours a shell may take, by index. */
+export const PALETTE_KEYS = ['colorGold', 'colorMagenta', 'colorCyan', 'colorGreen', 'colorViolet'] as const;
+const BARRAGE_KINDS: readonly ShellKind[] = ['peony', 'ring', 'peony', 'heart', 'crackle', 'willow', 'spiral', 'peony'];
+
+const shell = (o: Partial<ShellPlan> & Pick<ShellPlan, 'kind' | 'flight' | 'role' | 'launchAt' | 'flyMs'>): ShellPlan => {
+  const takeoffAt = o.takeoffAt ?? o.launchAt;
+  return {
+    from: 'hero', sputterAt: -1, burstAt: takeoffAt + o.flyMs, tint: 0, tint2: -1, size: 1, wave: -1, ...o, takeoffAt,
+  };
+};
+
+/** The whole Grand Finale, in base ms. Pure and deterministic (the same input and seed plan the same show). */
 export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig = cfg): FireworksPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts), so the mortar
+  const tier = attackTier(total, input, c); // a knockout always plays shared tier 4 (heroAttack/tiers.ts): Tier 3
   const level = fireworksLevel(tier);
+  const variant: FireworksVariant = input.variant ?? 1;
   const V = fireworksLevelDials(level, c);
   const k = (level - 1) / 2;
+  const base = {
+    tier, level, variant, k, total, stars: V.Stars, burst: V.Burst,
+  };
 
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const { impactAt } = r;
     return {
-      reduced: true, tier, level, k, total, chargeAt: impactAt, absorbEnd: impactAt, fuseAt: impactAt, fuseMs: 0, launches: [], flyMs: 0,
-      hits: [], holdAt: impactAt, holdMs: 0, impactAt, afters: [], dismissAt: impactAt, endAt: r.endAt,
-      propSize: V.Size, shakePx: 0, zoom: 0, punch: 0, sparks: 0, burst: 0, dim: 0,
+      ...base, reduced: true, chargeAt: impactAt, absorbEnd: impactAt, fuseMs: 0, shells: [], impactShell: -1, hits: [], holdAt: impactAt, holdMs: 0,
+      impactAt, finalAt: -1, endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, dim: 0,
     };
   }
 
+  const rnd = seededRng(((input.seed ?? 1) >>> 0) ^ 0x9e3779b9);
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const fuseAt = chargeAt + c.plantMs;
-  const first = fuseAt + V.FuseMs;
-  let launches: number[];
-  let hits: number[] = [];
-  let holdAt: number, holdMs = 0;
-  let impactAt: number;
-  let tail: number;
-  let afters: number[] = [];
+  const first = chargeAt + V.FuseMs;
+  const F = V.FlyMs;
+  const shells: ShellPlan[] = [];
+  let holdAt = 0, holdMs = 0, finalAt = -1;
 
   if (level === 1) {
-    launches = [first];
-    impactAt = first + V.FlyMs;
-    holdAt = impactAt;
-    tail = 420;
+    if (variant === 1) shells.push(shell({ kind: 'smiley', flight: 'rise', role: 'impact', launchAt: first, flyMs: F, tint: 0, size: 1.75 }));
+    else if (variant === 2) shells.push(shell({ kind: 'spiral', flight: 'pinwheel', role: 'impact', launchAt: first, takeoffAt: first + c.spinMs, flyMs: F * 0.9, tint: 2, tint2: 1, size: 1.9 }));
+    else {
+      // THE DUD: up, a sputter, a flop and a fizzle. A breath. Then the real one, quick and straight.
+      shells.push(shell({ kind: 'none', flight: 'dud', role: 'fx', launchAt: first, flyMs: c.dudMs, sputterAt: first + c.dudMs * 0.4, tint: 3 }));
+      const real = first + c.dudMs + c.dudPauseMs;
+      shells.push(shell({ kind: 'peony', flight: 'rise', role: 'impact', launchAt: real, flyMs: F * 0.75, tint: 1, tint2: 0, size: 2 }));
+    }
   } else if (level === 2) {
-    launches = Array.from({ length: CANDLE_SHOTS }, (_, i) => first + i * c.candleGapMs);
-    const pops = launches.map((at) => at + V.FlyMs);
-    impactAt = pops[pops.length - 1]!;
-    hits = pops.slice(0, -1);
-    holdAt = impactAt;
-    tail = 460;
+    const g = c.volleyGapMs;
+    shells.push(shell({ kind: 'ring', flight: 'rise', role: 'hit', launchAt: first, flyMs: F, tint: 2, size: 1.7 }));
+    shells.push(shell({ kind: 'heart', flight: 'rise', role: 'hit', launchAt: first + g, flyMs: F, tint: 1, size: 1.5 }));
+    const at = first + 2 * g;
+    if (variant === 1) shells.push(shell({ kind: 'smiley', flight: 'rise', role: 'impact', launchAt: at, flyMs: F, tint: 0, size: 1.8 }));
+    else if (variant === 2) shells.push(shell({ kind: 'spiral', flight: 'rise', role: 'impact', launchAt: at, flyMs: F, tint: 3, tint2: 4, size: 2 }));
+    else shells.push(shell({ kind: 'crackle', flight: 'sputter', role: 'impact', launchAt: at, flyMs: F, sputterAt: at + F, tint: 0, tint2: 1, size: 2.1 }));
+    const last = shells[2]!;
+    if (last.flight === 'sputter') last.burstAt = last.takeoffAt + F + c.sputterMs;
   } else {
-    // The thump, the comet off the top of the screen, THE HELD BEAT, then the bloom.
-    launches = [first];
-    holdAt = first + V.FlyMs;
+    // THE BARRAGE: wave after wave across the whole sky, from the hero's spark and from the bottom of the screen.
+    const waves = Math.round(clamp(c.waves, 1, FIREWORKS_CAPS.waves));
+    let start = first;
+    if (variant === 3) {
+      // The fake-out: the show opens with a dud that fizzles out. Then everything goes.
+      shells.push(shell({ kind: 'none', flight: 'dud', role: 'fx', launchAt: first, flyMs: c.dudMs, sputterAt: first + c.dudMs * 0.4, tint: 3 }));
+      start = first + c.dudMs * 0.75;
+    }
+    for (let w = 0; w < waves; w++) {
+      const n = Math.round(clamp(c.waveShells + w * 2, 2, FIREWORKS_CAPS.waveShells + 4));
+      const hitAt = 1 + Math.floor(rnd() * Math.max(1, n - 2));
+      for (let j = 0; j < n && shells.length < FIREWORKS_CAPS.shells - 1; j++) {
+        const launchAt = Math.max(first, start + w * c.waveGapMs + (n > 1 ? (j / (n - 1)) * c.waveSpanMs : 0) + (rnd() - 0.5) * 50);
+        const fly = F * (0.82 + rnd() * 0.36);
+        const tint = Math.floor(rnd() * 5);
+        const change = rnd() < 0.4;
+        let kind = BARRAGE_KINDS[Math.floor(rnd() * BARRAGE_KINDS.length)]!;
+        let flight: ShellFlight = 'rise';
+        let size = 1 + rnd() * 0.8;
+        const role: ShellRole = j === hitAt ? 'hit' : 'fx';
+        if (role === 'hit') { kind = w % 2 ? 'ring' : 'peony'; size = 1.2; }
+        const from: 'hero' | 'ground' = role === 'hit' || j % 3 === 0 ? 'hero' : 'ground';
+        // The variant's whimsy rides the barrage: a smiley in the sky, a pinwheel off the hero's rim.
+        let takeoffAt = launchAt;
+        if (variant === 1 && w === Math.min(1, waves - 1) && j === n - 1) { kind = 'smiley'; size = 1.7; }
+        if (variant === 2 && w === 0 && j === 0) { kind = 'spiral'; flight = 'pinwheel'; takeoffAt = launchAt + c.spinMs; size = 1.6; }
+        shells.push(shell({
+          kind, flight, role, from, launchAt, takeoffAt, flyMs: fly, tint, tint2: change ? (tint + 1 + Math.floor(rnd() * 4)) % 5 : -1, size, wave: w,
+        }));
+      }
+    }
+    // THE ENORMOUS SHELL: its comet rises as the last wave bursts, leaves the top, and the HELD BEAT follows.
+    const lastLaunch = Math.max(...shells.map((s) => s.takeoffAt));
+    const lastBurst = Math.max(...shells.map((s) => s.burstAt));
+    const giantAt = Math.max(lastLaunch + 160, lastBurst - c.riseMs * 0.4);
+    holdAt = giantAt + c.riseMs;
     holdMs = c.holdMs;
-    impactAt = holdAt + holdMs;
-    // THE FINALE: smaller shells crack open around the bloom, the first a good beat after it.
-    const shots = Math.round(clamp(c.finaleShots, 0, FIREWORKS_CAPS.finale));
-    afters = Array.from({ length: shots }, (_, i) => impactAt + FINALE_LEAD_MS + i * c.finaleGapMs);
-    // The aftermath: the bloom hangs and droops and its glitter crackles down; the scene keeps draining its last
-    // sparks after the end.
-    tail = Math.max(700, c.rainMs, c.aftermathMs, (afters[afters.length - 1] ?? impactAt) - impactAt + 500);
+    const impactAt = holdAt + holdMs;
+    shells.push(shell({ kind: 'giant', flight: 'comet', role: 'impact', launchAt: giantAt, flyMs: c.riseMs, burstAt: impactAt, tint: 0, tint2: 4, size: 1 }));
+    finalAt = impactAt + c.finalMs;
   }
 
-  const dismissAt = impactAt + 240;
-  const endAt = Math.max(impactAt + tail, impactAt + c.zoomOutMs * 0.8) + V.SettleMs;
+  const impactShell = shells.findIndex((s) => s.role === 'impact');
+  const impactAt = shells[impactShell]!.burstAt;
+  const hits = shells.filter((s) => s.role === 'hit' && s.burstAt < impactAt).map((s) => s.burstAt).sort((a, b) => a - b);
+  const tail = level === 3 ? Math.max(c.aftermathMs, c.finalMs + 500, c.zoomOutMs) : level === 2 ? 900 : 760;
+  const endAt = impactAt + tail + V.SettleMs;
+  if (level !== 3) holdAt = impactAt;
 
   return {
-    reduced: false, tier, level, k, total, chargeAt, absorbEnd, fuseAt, fuseMs: V.FuseMs, launches, flyMs: V.FlyMs, hits, holdAt, holdMs,
-    impactAt, afters, dismissAt, endAt,
-    propSize: V.Size,
+    ...base, reduced: false, chargeAt, absorbEnd, fuseMs: V.FuseMs, shells, impactShell, hits, holdAt, holdMs, impactAt, finalAt, endAt,
     shakePx: clamp(V.Shake, 0, FIREWORKS_CAPS.shakePx),
     zoom: clamp(V.Zoom, 0, FIREWORKS_CAPS.zoom),
     punch: V.Punch,
-    sparks: Math.round(clamp(V.Sparks, 0, FIREWORKS_CAPS.sparks)),
-    burst: V.Burst,
     dim: V.Dim,
   };
 }
 
-export type FireworksCueKind = 'plant' | 'fuse' | 'launch' | 'hold' | 'pop' | 'impact' | 'after' | 'dismiss' | 'end';
+export type FireworksCueKind = 'ignite' | 'launch' | 'takeoff' | 'sputter' | 'burst' | 'hold' | 'impact' | 'final' | 'end';
 export interface FireworksCue { at: number; kind: FireworksCueKind; i: number }
 
-/** Every beat the runner fires, in time order (ties keep this declaration order, so a pop precedes the impact). */
+/** Every beat the runner fires, in time order (ties keep this declaration order, so a burst precedes the impact). */
 export function fireworksCues(p: FireworksPlan): FireworksCue[] {
   const out: FireworksCue[] = [];
   if (!p.reduced) {
-    out.push({ at: p.chargeAt, kind: 'plant', i: 0 });
-    out.push({ at: p.fuseAt, kind: 'fuse', i: 0 });
-    p.launches.forEach((at, i) => out.push({ at, kind: 'launch', i }));
+    out.push({ at: p.chargeAt, kind: 'ignite', i: 0 });
+    p.shells.forEach((s, i) => {
+      out.push({ at: s.launchAt, kind: 'launch', i });
+      if (s.takeoffAt > s.launchAt) out.push({ at: s.takeoffAt, kind: 'takeoff', i });
+      if (s.sputterAt >= 0) out.push({ at: s.sputterAt, kind: 'sputter', i });
+      if (s.role !== 'impact') out.push({ at: s.burstAt, kind: 'burst', i });
+    });
     if (p.holdMs > 0) out.push({ at: p.holdAt, kind: 'hold', i: 0 });
-    p.hits.forEach((at, i) => out.push({ at, kind: 'pop', i }));
   }
-  out.push({ at: p.impactAt, kind: 'impact', i: 0 });
-  if (!p.reduced) p.afters.forEach((at, i) => out.push({ at, kind: 'after', i }));
-  if (!p.reduced && p.level !== 1) out.push({ at: p.dismissAt, kind: 'dismiss', i: 0 });
+  out.push({ at: p.impactAt, kind: 'impact', i: Math.max(0, p.impactShell) });
+  if (!p.reduced && p.finalAt >= 0) out.push({ at: p.finalAt, kind: 'final', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<FireworksCueKind, number> = { plant: 0, fuse: 1, launch: 2, hold: 3, pop: 4, impact: 5, after: 6, dismiss: 7, end: 8 };
+  const order: Record<FireworksCueKind, number> = { ignite: 0, launch: 1, takeoff: 2, sputter: 3, burst: 4, hold: 5, impact: 6, final: 7, end: 8 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
 // ─── the geometry (pure) ─────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * How each firework is painted (`heroFireworksTextures.ts`), in texture px: the canvas, the anchor the sprite turns
- * about (the tube's foot; the rocket's body), how tall it stands on screen at stage scale 1 (`px`, the whole canvas),
- * where its mouth is and where its fuse burns from and to (offsets from the anchor, the firework standing upright).
- * Every fuse is painted on the LEFT; the firework is mirrored when the hero that lit it stands to its right.
+ * A flight: a quadratic curve `from` -> `to` bent by `ctrl`. The point `e` (0..1) along it is written into `out` (no
+ * allocation: the scene calls this every frame).
  */
-export const PROP_METRICS: Record<FireworkProp, {
-  w: number; h: number; ax: number; ay: number; px: number;
-  /** From the anchor to the mouth (the rocket: to its nose), up the firework. */
-  mouth: number;
-  /** The rocket only: from the foot of its stick up to the anchor. */
-  foot: number;
-  fuse0: readonly [number, number]; fuse1: readonly [number, number];
-}> = {
-  rocket: { w: 56, h: 184, ax: 24 / 56, ay: 60 / 184, px: 190, mouth: 52, foot: 118, fuse0: [-13, 62], fuse1: [-2, 34] },
-  candle: { w: 72, h: 184, ax: 36 / 72, ay: 176 / 184, px: 205, mouth: 160, foot: 0, fuse0: [-30, -148], fuse1: [-15, -157] },
-  mortar: { w: 132, h: 156, ax: 66 / 132, ay: 148 / 156, px: 186, mouth: 128, foot: 0, fuse0: [-58, -36], fuse1: [-31, -54] },
-};
+export interface FireworksPath { from: Pt; ctrl: Pt; to: Pt }
 
-/** How far a firework may lean from upright toward the target (radians). The mortar stands nearly straight. */
-export const PROP_LEAN: Record<FireworkProp, number> = { rocket: 0.82, candle: 0.55, mortar: 0.1 };
-
-/** A point painted on a firework (texture px from its anchor, upright) -> where it is on screen. Writes into `out`. */
-export function propPoint(g: Pick<FireworksGeo, 'anchor' | 'angle' | 'k' | 'flip'>, lx: number, ly: number, out: Pt): Pt {
-  const x = lx * g.flip * g.k, y = ly * g.k;
-  const cs = Math.cos(g.angle), sn = Math.sin(g.angle);
-  out.x = g.anchor.x + x * cs - y * sn; out.y = g.anchor.y + x * sn + y * cs;
-  return out;
-}
-
-
-/**
- * A flight: a quadratic curve `from` -> `to` bent by `ctrl`, plus a sideways WIGGLE (the bottle rocket: `wiggle` px at
- * `hz` cycles over the flight, pinned to zero at both ends so it leaves the stick and hits the face exactly).
- */
-export interface FireworksPath { from: Pt; ctrl: Pt; to: Pt; wiggle: number; hz: number }
-
-/** The point `e` (0..1) along a flight, written into `out` (no allocation: the scene calls this every frame). */
 export function fireworksPathAt(p: FireworksPath, e: number, out: Pt): Pt {
   const t = e < 0 ? 0 : e > 1 ? 1 : e;
   const m = 1 - t;
-  let x = m * m * p.from.x + 2 * m * t * p.ctrl.x + t * t * p.to.x;
-  let y = m * m * p.from.y + 2 * m * t * p.ctrl.y + t * t * p.to.y;
-  if (p.wiggle !== 0) {
-    const dx = p.to.x - p.from.x, dy = p.to.y - p.from.y;
-    const L = Math.hypot(dx, dy) || 1;
-    const w = p.wiggle * Math.sin(Math.PI * t) * Math.sin(2 * Math.PI * p.hz * t);
-    x += (-dy / L) * w; y += (dx / L) * w;
-  }
-  out.x = x; out.y = y;
+  out.x = m * m * p.from.x + 2 * m * t * p.ctrl.x + t * t * p.to.x;
+  out.y = m * m * p.from.y + 2 * m * t * p.ctrl.y + t * t * p.to.y;
   return out;
 }
 
 /** The view everything must stay inside. */
 export interface ViewBox { w: number; h: number }
 
-/** How close to an edge of the view the bloom's centre may sit, in bloom radii (so most of it is always on screen). */
-export const BLOOM_INSET = 0.62;
-/** The bloom's radius is never more than this share of the view's shorter side. */
-export const BLOOM_VIEW = 0.44;
-/** The finale shells: the angle of each from the line (portrait -> bloom), and how far out (bloom radii). */
-const FINALE_ANGLES = [0.95, -1.05, 0.1] as const;
-const FINALE_REACH = [0.78, 0.72, 0.5] as const;
+/** A shell's place: its flight and where (and how big) it opens. */
+export interface ShellGeo { path: FireworksPath; at: Pt; R: number }
 
 export interface FireworksGeo {
-  prop: FireworkProp | null;
-  /** Where the firework stands (the tube's foot, or the foot of the rocket's stick). */
-  base: Pt;
-  /** Its lean from upright (radians, + = to the right), and the unit direction it points. */
-  angle: number;
-  dir: Pt;
-  /** Texture px -> screen px. */
-  k: number;
-  /** 1 as painted (the fuse on the left, toward a hero standing to its left), -1 mirrored. */
-  flip: 1 | -1;
-  /** Where the sprite's anchor sits (the tube's foot; the rocket's body). */
-  anchor: Pt;
-  /** The open end a ball or the shell leaves from (the rocket: its nose). */
-  mouth: Pt;
-  /** Every flight, one per launch (the mortar's is the comet's rise off the top of the screen). */
-  paths: FireworksPath[];
-  /** Where each pop lands on the struck portrait; the last is THE blow (the mortar: where the bloom's light lands). */
-  strikes: Pt[];
-  /** Mortar: the bloom's centre and its radius. */
+  /** The spark on the rim of the striking hero's portrait: every hero shell leaves from it. */
+  ember: Pt;
+  /** The fuse: an arc of the rim (centre, radius, from angle, to angle) it crawls along to the spark. */
+  fuse: { c: Pt; r: number; a0: number; a1: number };
+  shells: ShellGeo[];
+  /** Tier 3: the enormous shell's centre and radius (null otherwise). */
   bloom: Pt | null;
   bloomR: number;
-  /** Mortar: where each finale shell opens (one per `plan.afters`), and their radius. */
-  afters: Pt[];
-  afterR: number;
+  /** Where THE blow lands on the struck portrait. */
+  strike: Pt;
 }
 
-const EMPTY_GEO: FireworksGeo = { prop: null, base: { x: 0, y: 0 }, angle: 0, dir: { x: 0, y: -1 }, k: 1, flip: 1, anchor: { x: 0, y: 0 }, mouth: { x: 0, y: 0 }, paths: [], strikes: [], bloom: null, bloomR: 0, afters: [], afterR: 0 };
+const EMPTY_GEO: FireworksGeo = { ember: { x: 0, y: 0 }, fuse: { c: { x: 0, y: 0 }, r: 0, a0: 0, a1: 0 }, shells: [], bloom: null, bloomR: 0, strike: { x: 0, y: 0 } };
+
+/** A shell's radius never passes this share of the view's shorter side (the giant has its own rule). */
+export const SHELL_VIEW = 0.26;
 
 /**
- * Where everything is, from the plan and the two heroes. The firework is planted beside the striking hero on the
- * target's side, standing on the line of the portrait's lower edge and leaning toward the target (never past
- * `PROP_LEAN`, so it always reads as standing on the ground: a target below is reached by a lobbed arc). Flights leave
- * along the lean and bend onto the struck face. The mortar's comet leaves the TOP of the view, and the shell blooms
- * above the struck portrait (with no room above a hero at the top of the screen, as low over it as it must). Pure.
+ * Where everything is, from the plan and the two heroes. The spark sits on the striker's rim, turned between the target
+ * and straight up. Tier 1 and 2 shells open ON the struck portrait (the heart just above it); the barrage spreads
+ * across the whole sky (seeded), its tick shells beside the struck portrait; the enormous shell opens between the
+ * middle of the view and the struck hero, sized to the view. Every point that must be seen is kept inside the view.
+ * Pure.
  */
 export function fireworksGeometry(
   p: FireworksPlan, a: Pt, d: Pt, radius: number, aRadius: number,
-  c: Pick<HeroFireworksConfig, 'wigglePx' | 'wiggleHz' | 'candleSpread' | 'bloomSize' | 'bloomLift'>, scale = 1, view: ViewBox | null = null,
+  c: Pick<HeroFireworksConfig, 'fuseArcDeg' | 'giantSize'>, scale = 1, view: ViewBox | null = null, seed = 1,
 ): FireworksGeo {
   if (p.reduced) return EMPTY_GEO;
-  const prop = FIREWORK_OF[p.level];
-  const M = PROP_METRICS[prop];
-  const k = (M.px * p.propSize * scale) / M.h;
+  const v = view && view.w > 0 && view.h > 0 ? view : { w: Math.max(1920 * scale, a.x + 400 * scale, d.x + 400 * scale), h: Math.max(1080 * scale, a.y + 300 * scale, d.y + 300 * scale) };
+  const rnd = seededRng(((seed >>> 0) ^ 0x51ed270b) >>> 0);
+  const inX = (x: number, m: number): number => clamp(x, Math.min(m, v.w / 2), Math.max(v.w - m, v.w / 2));
+  const inY = (y: number, m: number): number => clamp(y, Math.min(m, v.h / 2), Math.max(v.h - m, v.h / 2));
+
+  // THE SPARK: on the rim, turned from the target toward straight up (shells rise out of it).
+  const toward = Math.atan2(d.y - a.y, d.x - a.x);
   const side = d.x >= a.x ? 1 : -1;
-  let bx = a.x + side * aRadius * 1.3;
-  let by = a.y + aRadius * 0.66;
-  if (view && view.w > 0 && view.h > 0) {
-    bx = clamp(bx, 36 * scale, view.w - 36 * scale);
-    by = Math.min(by, view.h - 8 * scale);
-  }
-  const base = { x: bx, y: by };
-  const flip: 1 | -1 = side === 1 ? 1 : -1;
-  // The lean: toward the target, clamped. 0 = straight up, + = to the right.
-  const up = (M.foot + M.mouth) * k;
-  const aim = Math.atan2(d.x - bx, -(d.y - (by - up)));
-  const lean = PROP_LEAN[prop];
-  const angle = clamp(aim, -lean, lean);
-  const dir = { x: Math.sin(angle), y: -Math.cos(angle) };
-  const anchor = { x: bx + dir.x * M.foot * k, y: by + dir.y * M.foot * k };
-  const mouth = { x: anchor.x + dir.x * M.mouth * k, y: anchor.y + dir.y * M.mouth * k };
+  const up = -Math.PI / 2;
+  let diff = toward - up;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  const emberAng = up + diff * 0.5;
+  const rimR = aRadius * 1.04;
+  const ember = { x: inX(a.x + Math.cos(emberAng) * rimR, 24 * scale), y: inY(a.y + Math.sin(emberAng) * rimR, 24 * scale) };
+  const arc = (c.fuseArcDeg * Math.PI) / 180;
+  // The fuse crawls up the rim from below the spark, on the side away from the target.
+  const fuse = { c: { x: a.x, y: a.y }, r: rimR, a0: emberAng + side * arc, a1: emberAng };
 
-  if (p.level === 3) {
-    // It fills a large part of the sky, but never more of the view than `BLOOM_VIEW` (a small preview box).
-    const vw = view && view.w > 0 && view.h > 0 ? view.w : 0;
-    const vh = vw > 0 ? view!.h : 0;
-    const bloomR = vw > 0 ? Math.min(radius * c.bloomSize, Math.min(vw, vh) * BLOOM_VIEW) : radius * c.bloomSize;
-    // WHERE IT OPENS. With room above the struck portrait: straight above it, its lowest stars just over the frame.
-    // With no room above (the foe sits in the top corner): in the open sky on the side of the portrait that faces the
-    // middle of the view, so the bloom opens over the board with the portrait on its rim, washed by its outer ring,
-    // instead of being crushed into the corner on top of the portrait.
-    let cx = d.x;
-    let cy = d.y - radius - bloomR * c.bloomLift;
-    if (vw > 0 && cy < bloomR * BLOOM_INSET) {
-      const mx = vw / 2 - d.x, my = vh / 2 - d.y;
-      const L = Math.hypot(mx, my) || 1;
-      const reach = radius + bloomR * 0.55;
-      cx = d.x + (mx / L) * reach; cy = d.y + (my / L) * reach;
-    }
-    if (vw > 0) {
-      cx = clamp(cx, Math.min(bloomR * BLOOM_INSET, vw / 2), Math.max(vw - bloomR * BLOOM_INSET, vw / 2));
-      cy = clamp(cy, Math.min(bloomR * BLOOM_INSET, vh / 2), Math.max(vh - bloomR * BLOOM_INSET, vh / 2));
-    } else cy = Math.max(cy, bloomR * BLOOM_INSET);
-    const bloom = { x: cx, y: cy };
-    // THE FINALE: smaller shells round the bloom, on the side away from the struck portrait, each kept inside the view.
-    const afterR = bloomR * 0.46;
-    const away = Math.atan2(cy - d.y, cx - d.x);
-    const afters = p.afters.map((_, i): Pt => {
-      const a = away + FINALE_ANGLES[i % 3]!;
-      const r = bloomR * FINALE_REACH[i % 3]!;
-      let x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-      if (vw > 0) {
-        x = clamp(x, Math.min(afterR * 0.8, vw / 2), Math.max(vw - afterR * 0.8, vw / 2));
-        y = clamp(y, Math.min(afterR * 0.8, vh / 2), Math.max(vh - afterR * 0.8, vh / 2));
-      }
-      return { x, y };
-    });
-    // The comet: up out of the tube and off the top, drifting a little toward where the shell will open.
-    const top = { x: mouth.x + (cx - mouth.x) * 0.22, y: -70 * scale };
-    const ctrl = { x: mouth.x + dir.x * (mouth.y - top.y) * 0.5, y: (mouth.y + top.y) / 2 };
-    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from: mouth, ctrl, to: top, wiggle: 0, hz: 0 }], strikes: [{ x: d.x, y: d.y - radius * 0.1 }], bloom, bloomR, afters, afterR };
-  }
+  const shellR = (s: ShellPlan): number => Math.min(radius * s.size * p.burst, Math.min(v.w, v.h) * SHELL_VIEW);
+  const toCentre = (() => { const mx = v.w / 2 - d.x, my = v.h / 2 - d.y; const L = Math.hypot(mx, my) || 1; return { x: mx / L, y: my / L }; })();
 
-  const from = p.level === 1 ? anchor : mouth;
-  const L = Math.hypot(d.x - from.x, d.y - from.y) || 1;
-  // A flight never leaves the view: a curve stays inside its three points, so the point that bends it (straight out
-  // along the lean) is pulled back along the lean until it is inside, with room for the rocket's wiggle.
-  const bend = (reach: number, pad: number): Pt => {
-    let r = reach;
-    if (view && view.w > 0 && view.h > 0) {
-      if (dir.x > 1e-6) r = Math.min(r, Math.max(0, view.w - pad - from.x) / dir.x);
-      if (dir.x < -1e-6) r = Math.min(r, Math.max(0, from.x - pad) / -dir.x);
-      if (dir.y < -1e-6) r = Math.min(r, Math.max(0, from.y - pad) / -dir.y);
+  let bloom: Pt | null = null;
+  let bloomR = 0;
+  let k = 0;
+  const shells = p.shells.map((s): ShellGeo => {
+    const R = s.kind === 'giant' ? 0 : shellR(s);
+    let at: Pt;
+    if (s.kind === 'giant') {
+      bloomR = Math.min(v.w, v.h) * c.giantSize;
+      bloom = { x: inX(v.w / 2 + (d.x - v.w / 2) * 0.3, bloomR * 0.35), y: inY(v.h * 0.42 + (d.y - v.h * 0.42) * 0.2, bloomR * 0.35) };
+      at = bloom;
+    } else if (p.level === 3 && s.wave >= 0 && s.role !== 'hit') {
+      // The barrage: spread evenly across the sky with a seeded wobble (a golden-ratio walk across the width).
+      k++;
+      const fx = (k * 0.618034 + rnd() * 0.18) % 1;
+      at = { x: inX(v.w * (0.07 + 0.86 * fx), R * 0.6), y: inY(v.h * (0.1 + 0.42 * rnd()), R * 0.6) };
+    } else if (p.level === 3 && s.role === 'hit') {
+      // A tick: just beside the struck portrait, toward the middle of the view and a little above.
+      const lean = rnd() < 0.5 ? -1 : 1;
+      at = { x: inX(d.x + toCentre.x * radius * 1.0 + lean * radius * 0.5, R * 0.5), y: inY(d.y + toCentre.y * radius * 0.6 - radius * 0.7, R * 0.5) };
+    } else if (s.kind === 'heart') {
+      at = { x: inX(d.x + toCentre.x * radius * 1.6 + (toCentre.x >= 0 ? -1 : 1) * radius * 0.3, R * 0.8), y: inY(d.y + toCentre.y * radius * 1.6 - radius * 0.3, R * 0.8) };
+    } else if (s.flight === 'dud') {
+      // The dud only gets a little way up off the hero before it gives out.
+      at = { x: inX(ember.x + side * radius * 0.9, radius * 0.5), y: inY(ember.y - radius * 2.4, radius * 0.5) };
+    } else {
+      // Beside the struck portrait on the side facing the middle of the view (where the dim makes it glow), so its
+      // stars sweep across the portrait: a ring just round it, the rest a little farther out.
+      const off = radius * (s.kind === 'ring' ? 0.45 : s.kind === 'smiley' ? 1.5 : 1.15);
+      at = { x: inX(d.x + toCentre.x * off, R * 0.45), y: inY(d.y + toCentre.y * off, R * 0.45) };
     }
-    return { x: from.x + dir.x * r, y: from.y + dir.y * r };
-  };
-  const u = { x: (d.x - from.x) / L, y: (d.y - from.y) / L };
-  const n = { x: -u.y, y: u.x };
-  if (p.level === 1) {
-    const hit = { x: d.x - u.x * radius * 0.22, y: d.y - u.y * radius * 0.22 };
-    const ctrl = bend(L * 0.42, (24 + c.wigglePx) * scale);
-    return { prop, base, angle, dir, k, flip, anchor, mouth, paths: [{ from, ctrl, to: hit, wiggle: c.wigglePx * scale, hz: c.wiggleHz }], strikes: [hit], bloom: null, bloomR: 0, afters: [], afterR: 0 };
-  }
-  // The candle: three balls, each on its own arc, landing left, right and then in the middle of the face.
-  const spread = radius * c.candleSpread;
-  const strikes: Pt[] = [
-    { x: d.x + n.x * spread - u.x * radius * 0.1, y: d.y + n.y * spread - u.y * radius * 0.1 },
-    { x: d.x - n.x * spread - u.x * radius * 0.1, y: d.y - n.y * spread - u.y * radius * 0.1 },
-    { x: d.x - u.x * radius * 0.05, y: d.y - u.y * radius * 0.05 },
-  ];
-  const paths = strikes.map((to, i): FireworksPath => {
-    return { from: mouth, ctrl: bend(L * (0.36 + 0.07 * i), 30 * scale), to, wiggle: 0, hz: 0 };
+    // The flight: from the spark (or the bottom of the view), bending up and over onto the burst point.
+    let from: Pt;
+    let ctrl: Pt;
+    if (s.flight === 'comet') {
+      from = ember;
+      const top = { x: ember.x + ((bloom?.x ?? d.x) - ember.x) * 0.3, y: -90 * scale };
+      ctrl = { x: ember.x, y: (ember.y + top.y) / 2 };
+      return { path: { from, ctrl, to: top }, at, R: bloomR };
+    }
+    if (s.from === 'ground') {
+      from = { x: clamp(at.x + (rnd() - 0.5) * v.w * 0.25, 20 * scale, v.w - 20 * scale), y: v.h + 30 * scale };
+      ctrl = { x: from.x + (at.x - from.x) * 0.15, y: (from.y + at.y) / 2 };
+    } else {
+      from = ember;
+      const peak = Math.max(24 * scale, Math.min(from.y, at.y) - Math.max(radius * 0.9, Math.abs(at.x - from.x) * 0.22));
+      ctrl = { x: from.x + (at.x - from.x) * 0.35, y: peak };
+    }
+    ctrl = { x: inX(ctrl.x, 10 * scale), y: Math.max(10 * scale, ctrl.y) };
+    return { path: { from, ctrl, to: at }, at, R };
   });
-  return { prop, base, angle, dir, k, flip, anchor, mouth, paths, strikes, bloom: null, bloomR: 0, afters: [], afterR: 0 };
+  return { ember, fuse, shells, bloom, bloomR, strike: { x: d.x, y: d.y } };
 }
 
-/** The direction THE blow arrives along: the last flight's final heading, or (the mortar) from the bloom down. Unit. */
+/** The direction THE blow arrives along: the impact flight's final heading, or (the giant) from the bloom down. Unit. */
 export function fireworksArrivalDir(p: FireworksPlan, g: FireworksGeo, a: Pt, d: Pt): Pt {
   let from = a, to = d;
-  if (g.bloom) { from = g.bloom; to = { x: d.x, y: d.y + 1 }; } else {
-    const path = g.paths[g.paths.length - 1];
-    if (path) { from = path.ctrl; to = path.to; }
+  if (g.bloom) { from = g.bloom; to = { x: d.x, y: d.y + 1 }; if (Math.hypot(d.x - from.x, d.y - from.y) > 1) to = d; } else {
+    const s = g.shells[p.impactShell];
+    if (s) { from = s.path.ctrl; to = s.path.to; }
   }
-  const L = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+  const L = Math.hypot(to.x - from.x, to.y - from.y);
+  if (L < 1e-6) return { x: 0, y: 1 };
   return { x: (to.x - from.x) / L, y: (to.y - from.y) / L };
 }
 
@@ -686,24 +754,28 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 const CROSS_A: Pt = { x: 0.6, y: -0.8 };
 const CROSS_B: Pt = { x: -0.7, y: -0.7 };
-/** How long a launch kick lasts: it is CUT here, so the mortar's thump is over before the held beat. */
+/** How long a launch or tick kick lasts: it is CUT here, so nothing of the barrage shakes into the held beat. */
 export const LAUNCH_KICK_MS = 200;
 
 /**
- * The camera at sequence time `t`: a small push in while the fuse burns (the mortar: as the comet rises); a kick on
- * every launch; a nudge on every pop; on THE impact a punch in and a directional shake. Through the mortar's HELD
- * BEAT it is exactly still (the same zoom, no offset). Deterministic. Pure.
+ * The camera at sequence time `t`: a small push in while the fuse burns; a kick on every hero launch and every tick;
+ * Tier 3 pushes in as the comet rises and is exactly STILL through the held beat; on THE impact a punch in and a
+ * directional shake; the final flash punches once more. Deterministic. Pure.
  */
 export function fireworksCameraAt(p: FireworksPlan, c: HeroFireworksConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
-  const first = p.launches[0] ?? p.impactAt;
-  const mortar = p.holdMs > 0;
+  const first = p.shells[0]?.launchAt ?? p.impactAt;
+  const giant = p.holdMs > 0 || p.level === 3;
+  const riseFrom = giant ? (p.shells[p.impactShell]?.launchAt ?? first) : first;
   let z = 0;
   if (t >= p.chargeAt && t < p.impactAt) {
-    z = mortar ? p.zoom * sine((t - first) / Math.max(1, p.holdAt - first)) : p.zoom * sine((t - p.chargeAt) / Math.max(1, first - p.chargeAt));
+    if (giant) {
+      // A light push while the barrage plays, then all the way in as the comet rises; held through the beat.
+      z = p.zoom * 0.4 * sine((t - p.chargeAt) / Math.max(1, first - p.chargeAt)) + p.zoom * 0.6 * sine((t - riseFrom) / Math.max(1, p.holdAt - riseFrom));
+    } else z = p.zoom * sine((t - p.chargeAt) / Math.max(1, first - p.chargeAt));
   } else if (t >= p.impactAt) {
-    z = (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
-    for (const at of p.afters) if (t >= at) z += p.punch * 0.3 * Math.exp(-(t - at) / 90);
+    z = (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 3));
+    if (p.finalAt >= 0 && t >= p.finalAt) z += p.punch * 0.5 * Math.exp(-(t - p.finalAt) / 120);
   }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number, v: Pt, cut = Infinity): void => {
@@ -715,22 +787,37 @@ export function fireworksCameraAt(p: FireworksPlan, c: HeroFireworksConfig, t: n
     x += v.x * amp * s - v.y * across;
     y += v.y * amp * s + v.x * across;
   };
-  // A launch kicks the view DOWN (the recoil of the tube), hardest for the mortar.
   const down = { x: 0, y: 1 };
-  for (const at of p.launches) kick(at, p.shakePx * (mortar ? 0.45 : p.level === 2 ? 0.22 : 0.3), 38, 17, down, LAUNCH_KICK_MS);
-  for (const at of p.hits) kick(at, p.shakePx * 0.4, 40, 18, dir);
-  // The bloom's kick is slower and rolls on (a boom, not a tick); each finale shell nudges the view again.
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / (mortar ? 3 : 4)), mortar ? 12 : 16, dir);
-  for (let i = 0; i < p.afters.length; i++) kick(p.afters[i]!, p.shakePx * 0.3, 60, 14, i % 2 ? CROSS_A : CROSS_B);
+  for (let i = 0; i < p.shells.length; i++) {
+    const s = p.shells[i]!;
+    if (s.from !== 'hero') continue;
+    const amp = s.flight === 'comet' ? 0.4 : giant ? 0.08 : 0.2;
+    kick(s.takeoffAt, p.shakePx * amp, 38, 17, down, LAUNCH_KICK_MS);
+  }
+  for (const at of p.hits) kick(at, p.shakePx * (giant ? 0.18 : 0.4), 40, 18, dir, LAUNCH_KICK_MS);
+  // THE blow: slower and rolling for the enormous shell (a boom, not a tick).
+  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / (giant ? 3 : 4)), giant ? 11 : 16, dir);
+  if (p.finalAt >= 0) kick(p.finalAt, p.shakePx * 0.35, 70, 14, CROSS_A);
+  if (giant) kick(p.impactAt + 260, p.shakePx * 0.4, 90, 9, CROSS_B);
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** Where the camera anchors: the ATTACKER until the first launch, gliding to the struck hero over the first flight. Pure. */
-export function fireworksCameraFocus(p: FireworksPlan, t: number, a: Pt, d: Pt): Pt {
-  const from = p.launches[0] ?? p.impactAt;
-  const to = from + Math.max(1, p.flyMs);
+/**
+ * Where the camera anchors: the ATTACKER until the first shell leaves, gliding to the struck hero over its flight; Tier
+ * 3 glides on toward the enormous shell's heart as its comet rises. Pure.
+ */
+export function fireworksCameraFocus(p: FireworksPlan, t: number, a: Pt, d: Pt, bloom: Pt | null = null): Pt {
+  const s0 = p.shells[0];
+  const from = s0?.takeoffAt ?? p.impactAt;
+  const to = from + Math.max(1, s0?.flyMs ?? 1);
+  let x = d.x, y = d.y;
   if (t <= from) return a;
-  if (t >= to) return d;
-  const e = sine((t - from) / (to - from));
-  return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e };
+  if (t < to) { const e = sine((t - from) / (to - from)); x = a.x + (d.x - a.x) * e; y = a.y + (d.y - a.y) * e; }
+  if (bloom && p.holdMs > 0) {
+    const g = p.shells[p.impactShell];
+    const g0 = g?.launchAt ?? p.holdAt;
+    const e = sine((t - g0) / Math.max(1, p.holdAt - g0)) * 0.5;
+    x += (bloom.x - x) * e; y += (bloom.y - y) * e;
+  }
+  return { x, y };
 }

@@ -131,9 +131,10 @@
  *    One piece per tier: Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight makes its L-shaped
  *    jump onto the portrait; Tier 3 a rook charges straight down the hero's file and rams it; Tier 4 a queen sweeps the
  *    long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
- *  - `fireworks` ("Grand Finale", an Epic): fireworks, never flame. A bottle rocket squeals off a stick and pops in one
- *    colour; a roman candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD
- *    BEAT of quiet, then a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
+ *  - `fireworks` ("Grand Finale", an Epic): fireworks launched from light (a spark on the hero's rim, no launcher).
+ *    Tier 1 one shell on the target (a smiley, a pinwheel, or a dud then the real one); Tier 2 a ring, a heart and a
+ *    third; Tier 3 a barrage across the sky, a HELD BEAT, one enormous shell that fills the screen and a glitter rain
+ *    (`../heroFireworks/`).
  *  - `wrestle` ("Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
  *    about: Tier 1 a chop; Tier 2 a lift and a body slam; Tier 3 an elbow drop from off the top of the screen under a spotlight;
  *    Tier 4 ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell (`../heroWrestle/`).

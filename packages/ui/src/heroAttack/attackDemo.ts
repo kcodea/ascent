@@ -61,7 +61,7 @@ export interface DemoOpts {
   safety?: boolean;
   /**
    * Preview a KNOCKOUT (the tuners' Knockout buttons): the blow is played as one that eliminates the struck hero, with
-   * the attack's Knockout variant (an Ancient attack's "Tier V"; any other style just plays Huge).
+   * the attack's Knockout variant (an Ancient attack's "Tier 5"; any other style just plays Tier 4).
    */
   knockout?: boolean;
 }

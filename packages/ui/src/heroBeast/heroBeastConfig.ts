@@ -11,20 +11,20 @@
  *  2. THE GROWL. The total sinks into the hero, who crouches back from the target while feral energy gathers round it:
  *     an amber ring closing in, a green bloom, embers drawn in, a low growl.
  *  3. THE RUSH. Spirit beasts (wolf heads of amber energy with streaming green manes and gleaming fangs) burst off the
- *     hero and LEAP at the target, jaws opening as they close in: I one; II two, staggered; III a pack of five
+ *     hero and LEAP at the target, jaws opening as they close in: Tier 1 one; Tier 2 two, staggered; Tier 3 a pack of five
  *     streaming across in lanes, kicking up dust.
  *  4. THE CHOMP. As each beast arrives, a pair of spectral jaws (a front view: an upper fang row and a lower one) snaps
  *     SHUT over the struck portrait: a hard clamp, the fangs interlocking, a white flash, bite marks left in the face,
  *     the portrait squashed between the jaws and shaken. Every chomp before the last is a TICK (FX and sound only, a
  *     smaller bite off-centre). The LAST is THE impact: the big `-N`, the full-size clamp dead centre, the knockback.
  *     The consequence (the damage, Armor, Resolve) lands ONCE, there.
- *  IV. THE COLOSSUS. Six beasts rush and chomp all round the face (all ticks). Then a GIANT primal beast rises behind
+ *  Tier 4. THE COLOSSUS. Six beasts rush and chomp all round the face (all ticks). Then a GIANT primal beast rises behind
  *     the target: colossal jaws fade in far above and below it (the screen framed by fangs), its eyes ignite and its
  *     mane flares, the jaws creep in, breathing; then they SLAM shut over the whole portrait (THE impact: the blow lands
  *     there) and, a beat later, the beast ROARS: the jaws spring open, shockwave rings and speed lines tear outward and
  *     the view trembles, then the colossus dissolves into embers.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). No hit-stop anywhere (owner
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). No hit-stop anywhere (owner
  * 2026-09-28: "it looks like lag"). Flat 2D (owner 2026-09-29): every jaw, ring and mark is a flat shape, never a
  * tilted plane. Reduced motion: no beasts, jaws, shake or zoom; the numbers fade and the blow lands.
  *
@@ -67,7 +67,7 @@ interface GlobalConfig {
   biteMarkMs: number;
   tintAlpha: number;
   dustSize: number;
-  // The colossus (Tier IV)
+  // The colossus (Tier 4)
   riseMs: number;
   slamMs: number;
   colossalSize: number;
@@ -124,7 +124,7 @@ type ClipKey = (typeof HERO_BEAST_CLIP_KEYS)[number];
 export type HeroBeastStrKey = ColorKey | ClipKey;
 export type HeroBeastNumKey = Exclude<keyof HeroBeastConfig, HeroBeastStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<BeastTierSuffix, [number, number, number, number]> = {
   ChargeMs: [340, 380, 420, 440],
   Beasts: [1, 2, 5, 6],
@@ -411,7 +411,7 @@ export interface BeastPlanInput extends AttackTierContext {
 export interface BeastPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The growl starts: the total sinks into the hero, feral energy gathers. */
@@ -420,21 +420,21 @@ export interface BeastPlan {
   /** The first beast leaps. */
   launchAt: number;
   beasts: BeastPlanItem[];
-  /** The pack kicks up dust (III and IV). */
+  /** The pack kicks up dust (Tiers 3 and 4). */
   dust: boolean;
-  /** Tier IV: the colossus rises, slams its jaws and roars. */
+  /** Tier 4: the colossus rises, slams its jaws and roars. */
   colossal: boolean;
-  /** Tier IV: the colossus starts to rise behind the target (else the impact). */
+  /** Tier 4: the colossus starts to rise behind the target (else the impact). */
   riseAt: number;
-  /** Tier IV: the colossal jaws start to slam (else the impact). */
+  /** Tier 4: the colossal jaws start to slam (else the impact). */
   slamAt: number;
-  /** Chomps that land BEFORE the impact, sequence ms: the rhythm ticks (Tier IV: every beast). */
+  /** Chomps that land BEFORE the impact, sequence ms: the rhythm ticks (Tier 4: every beast). */
   chomps: number[];
-  /** THE consequence beat: the last chomp (I-III) or the colossal jaws shutting (IV). */
+  /** THE consequence beat: the last chomp (Tiers 1-3) or the colossal jaws shutting (Tier 4). */
   impactAt: number;
-  /** Tier IV: the roar (FX only; else the impact). */
+  /** Tier 4: the roar (FX only; else the impact). */
   roarAt: number;
-  /** When the last jaws let go (I-III: the impact's clamp releasing; IV: the colossus dissolving). */
+  /** When the last jaws let go (Tiers 1-3: the impact's clamp releasing; Tier 4: the colossus dissolving). */
   releaseAt: number;
   endAt: number;
   size: number;
@@ -449,7 +449,7 @@ export interface BeastPlan {
 /** The whole Stampede, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function beastPlan(input: BeastPlanInput, c: HeroBeastConfig = cfg): BeastPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = beastTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -526,7 +526,7 @@ export function beastCues(p: BeastPlan): BeastCue[] {
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.beasts.forEach((d, i) => out.push({ at: d.launchAt, kind: 'launch', i }));
-    // Every beast but the last chomps as a tick (Tier IV: every beast); the last one IS the impact.
+    // Every beast but the last chomps as a tick (Tier 4: every beast); the last one IS the impact.
     p.beasts.forEach((d, i) => { if (p.colossal || i < p.beasts.length - 1) out.push({ at: d.arriveAt, kind: 'chomp', i }); });
     if (p.colossal) out.push({ at: p.riseAt, kind: 'rise', i: 0 });
   }
@@ -588,9 +588,9 @@ const jitter = (i: number, salt: number): number => { const s = Math.sin((i + 1)
 
 /**
  * Where each chomp clamps on the struck portrait (offset from its centre in portrait radii), how big (a fraction of
- * the full clamp) and its tilt. THE impact (the last beast, I-III) bites dead centre at full size. The ticks bite
+ * the full clamp) and its tilt. THE impact (the last beast, Tiers 1-3) bites dead centre at full size. The ticks bite
  * smaller and off-centre, on the side of the face that looks back at the pack, swung clear of the big `-N` (it pops
- * from the struck hero toward the middle of the screen). IV's six ticks ring the whole face, so the colossus has a
+ * from the struck hero toward the middle of the screen). Tier 4's six ticks ring the whole face, so the colossus has a
  * mauled portrait to close on.
  */
 export function biteOffset(p: BeastPlan, i: number, a: Pt, d: Pt, avoid: Pt | null = null): { x: number; y: number; scale: number; tilt: number } {
@@ -704,7 +704,7 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the growl; a
  * small recoil on each leap; a VERTICAL kick on each chomp (the jaws snap top to bottom) with a nudge along the beast;
- * on THE impact a punch in and a hard shake. Tier IV instead builds: the view pushes in on the target while the
+ * on THE impact a punch in and a hard shake. Tier 4 instead builds: the view pushes in on the target while the
  * colossus rises and a low tremor grows, the slam punches hardest, and the roar rattles the view fast both ways.
  * Deterministic (sines and springs): a replay moves identically. Pure.
  */

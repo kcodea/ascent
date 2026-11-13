@@ -79,7 +79,7 @@ export function cameraAt(p: BlastPlan, c: HeroBlastConfig, t: number, dir: Pt = 
     y += dir.y * amp * s + perp.y * across;
   };
   p.bolts.forEach((b) => kick(b.fireAt, -p.shakePx * 0.18, 45, 14));
-  // The supernova (Tier IV) detonates harder than any bolt; the beam landing before it is a lighter opening kick.
+  // The supernova (Tier 4) detonates harder than any bolt; the beam landing before it is a lighter opening kick.
   kick(p.impactAt, p.shakePx * (p.nova ? 1.25 : 1), Math.max(1, c.shakeMs / 4) * (p.nova ? 1.3 : 1), 16);
   if (p.nova) kick(p.beamHitAt, p.shakePx * 0.55, 60, 16);
   p.bolts.slice(1).forEach((b) => kick(b.arriveAt, p.shakePx * 0.35, 40, 18));
@@ -185,7 +185,7 @@ export function playHeroBlast(o: HeroBlastOptions): HeroBlastHandle {
         break;
       }
       case 'beamhit':
-        // Tier IV: the beam lands. Heavy, but only the opening: the blow waits for the supernova.
+        // Tier 4: the beam lands. Heavy, but only the opening: the blow waits for the supernova.
         cue(c.sfxImpactClip, c.sfxImpactGain * 0.7, c.sfxImpactRate * 1.08, { lenMs: 500, fadeMs: 200 });
         cue(c.sfxThumpClip, c.sfxThumpGain * 0.8, c.sfxThumpRate, { lenMs: 400, fadeMs: 150 });
         scene?.beamHit(o.defender.x, o.defender.y, dir, 1.3 * c.novaSize);

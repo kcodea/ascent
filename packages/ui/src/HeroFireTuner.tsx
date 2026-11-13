@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the FIRE hero attack (owner ask 2026-09-29: "we need a fire animation ... it should look like live
  * flame/fires pixi sprites"). The Play buttons run the REAL runner between the two real hero portraits (works from the
- * shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40; the Play row sits at the TOP of the panel
+ * shop), in either direction, at Tier 1 (3) / Tier 2 (8) / Tier 3 (12) / Tier 4 (40); the Play row sits at the TOP of the panel
  * and there are no speed or reduced-motion buttons (owner 2026-09-29, every attack tuner). A preview never touches the run. The "Attack style" row is the same dev override as the other attack tuners' (Auto =
  * what a player would see). Production plays the baked defaults.
  */
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroFireNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which Fire steps up to Tier II (two fireballs). Shared with every hero attack (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which Fire becomes the volley of five that sets the target ablaze. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which Fire adds the meteor. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which Fire steps up to Tier 2 (two fireballs). Shared with every hero attack (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which Fire becomes the volley of five that sets the target ablaze. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which Fire adds the meteor. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Kindle'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the fire gathers.', 'Kindle'],
   recoilPx: ['Recoil', 'px', 'How far the hero kicks back as each fireball leaves.', 'Kindle'],
@@ -47,16 +47,16 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   smoke: ['Smoke', '×', 'How much smoke the fire leaves as it dies.', 'Live fire'],
   embers: ['Embers', '×', 'How many embers break off and flutter up.', 'Live fire'],
   explodeSize: ['Burst size', '×', 'Scale of every fireball burst (the flash, the fire ball, the ring).', 'Bursts and blaze'],
-  blazeSize: ['Blaze size', '×', 'How big the fire burning on the struck portrait’s rim is (II briefly, III ablaze).', 'Bursts and blaze'],
-  summonMs: ['Summon', 'ms', 'Tier IV: the column of fire hurled into the sky before the meteor falls.', 'Meteor (Tier IV)'],
-  meteorMs: ['Meteor fall', 'ms', 'Tier IV: the meteor falling onto the target (at 1600 px; scales gently with distance).', 'Meteor (Tier IV)'],
-  meteorSize: ['Meteor size', '×', 'Tier IV: the meteor, in portrait radii.', 'Meteor (Tier IV)'],
-  novaSize: ['Nova reach', '×', 'Tier IV: how far the fire nova races out from the detonation, in portrait radii.', 'Meteor (Tier IV)'],
-  novaMs: ['Nova time', 'ms', 'Tier IV: how long the fire nova races outward.', 'Meteor (Tier IV)'],
-  engulfMs: ['Engulf', 'ms', 'Tier IV: how long the pillar of fire engulfs the struck hero at full blaze.', 'Meteor (Tier IV)'],
-  burnoutMs: ['Burn out', 'ms', 'Tier IV: how long the engulfing fire takes to die down to embers and smoke.', 'Meteor (Tier IV)'],
-  scorch: ['Scorch', '×', 'Tier IV: the burnt ground left round the struck hero.', 'Meteor (Tier IV)'],
-  flashAlpha: ['Flash', 'opacity', 'How bright the burst and detonation flashes are.', 'Meteor (Tier IV)'],
+  blazeSize: ['Blaze size', '×', 'How big the fire burning on the struck portrait’s rim is (Tier 2 briefly, Tier 3 ablaze).', 'Bursts and blaze'],
+  summonMs: ['Summon', 'ms', 'Tier 4: the column of fire hurled into the sky before the meteor falls.', 'Meteor (Tier 4)'],
+  meteorMs: ['Meteor fall', 'ms', 'Tier 4: the meteor falling onto the target (at 1600 px; scales gently with distance).', 'Meteor (Tier 4)'],
+  meteorSize: ['Meteor size', '×', 'Tier 4: the meteor, in portrait radii.', 'Meteor (Tier 4)'],
+  novaSize: ['Nova reach', '×', 'Tier 4: how far the fire nova races out from the detonation, in portrait radii.', 'Meteor (Tier 4)'],
+  novaMs: ['Nova time', 'ms', 'Tier 4: how long the fire nova races outward.', 'Meteor (Tier 4)'],
+  engulfMs: ['Engulf', 'ms', 'Tier 4: how long the pillar of fire engulfs the struck hero at full blaze.', 'Meteor (Tier 4)'],
+  burnoutMs: ['Burn out', 'ms', 'Tier 4: how long the engulfing fire takes to die down to embers and smoke.', 'Meteor (Tier 4)'],
+  scorch: ['Scorch', '×', 'Tier 4: the burnt ground left round the struck hero.', 'Meteor (Tier 4)'],
+  flashAlpha: ['Flash', 'opacity', 'How bright the burst and detonation flashes are.', 'Meteor (Tier 4)'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
@@ -78,17 +78,17 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
   sfxThumpGain: ['thump: gain', undefined, 'A low punch under the impact (punchy, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: an extra crack layered on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: an extra crack layered on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxSummonGain: ['summon: gain', undefined, 'Tier IV: the roar of the column of fire going up.', 'Sound: summon'],
+  sfxSummonGain: ['summon: gain', undefined, 'Tier 4: the roar of the column of fire going up.', 'Sound: summon'],
   sfxSummonRate: ['summon: pitch', '×', 'Pitch of the summon.', 'Sound: summon'],
-  sfxMeteorGain: ['meteor: gain', undefined, 'Tier IV: the falling meteor (placed so its hit lands on the detonation).', 'Sound: meteor'],
+  sfxMeteorGain: ['meteor: gain', undefined, 'Tier 4: the falling meteor (placed so its hit lands on the detonation).', 'Sound: meteor'],
   sfxMeteorRate: ['meteor: pitch', '×', 'Pitch of the fall.', 'Sound: meteor'],
-  sfxDetonateGain: ['detonate: gain', undefined, 'Tier IV: the ground-shaking boom of the detonation.', 'Sound: detonate'],
+  sfxDetonateGain: ['detonate: gain', undefined, 'Tier 4: the ground-shaking boom of the detonation.', 'Sound: detonate'],
   sfxDetonateRate: ['detonate: pitch', '×', 'Pitch of the detonation.', 'Sound: detonate'],
-  sfxBoomGain: ['aftershock: gain', undefined, 'Tier IV: the fire bursts after the detonation.', 'Sound: aftershock'],
+  sfxBoomGain: ['aftershock: gain', undefined, 'Tier 4: the fire bursts after the detonation.', 'Sound: aftershock'],
   sfxBoomRate: ['aftershock: pitch', '×', 'Pitch of the first aftershock.', 'Sound: aftershock'],
-  sfxRoarGain: ['fire roar: gain', undefined, 'Tier IV: the synth roar building from the summon to the detonation.', 'Sound: fire roar'],
+  sfxRoarGain: ['fire roar: gain', undefined, 'Tier 4: the synth roar building from the summon to the detonation.', 'Sound: fire roar'],
   sfxRoarLowHz: ['fire roar: low', undefined, 'Hz. The roar’s floor (nothing muddier than this).', 'Sound: fire roar'],
   sfxRoarHighHz: ['fire roar: open', undefined, 'Hz. How bright the roar opens up at the detonation.', 'Sound: fire roar'],
   sfxCrackleGain: ['crackle: gain', undefined, 'The synth fire crackle while the hero kindles, the target burns and the fire dies down.', 'Sound: crackle'],
@@ -100,7 +100,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 
 const TIER_SPECS: Record<FireTierSuffix, [string, TunerUnit | undefined, string]> = {
   FormMs: ['Kindle', 'ms', 'The fireballs igniting before the first one is hurled. The view pushes in over this.'],
-  Balls: ['Fireballs', undefined, 'How many fireballs ignite and fly (I one, II two, III the volley of five, IV three before the meteor).'],
+  Balls: ['Fireballs', undefined, 'How many fireballs ignite and fly (Tier 1 one, Tier 2 two, Tier 3 the volley of five, Tier 4 three before the meteor).'],
   LaunchStaggerMs: ['Launch stagger', 'ms', 'Gap between each fireball leaving (the volley rhythm).'],
   FlightMs: ['Flight', 'ms', 'A fireball crossing the board (at 1600 px; scales gently with distance).'],
   BallSize: ['Fireball size', '×', 'Size of the fireballs (the last of a volley is a little bigger).'],
@@ -109,7 +109,7 @@ const TIER_SPECS: Record<FireTierSuffix, [string, TunerUnit | undefined, string]
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
   Zoom: ['Push in', '×', 'How far the view pushes in while the fire gathers (and the meteor falls).'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
-  Burst: ['Burst size', '×', 'Scale of the impact flash (Tier IV: the detonation).'],
+  Burst: ['Burst size', '×', 'Scale of the impact flash (Tier 4: the detonation).'],
   Blaze: ['Blaze', '×', 'How hard the struck portrait’s rim burns after the impact (0 = not at all).'],
   BlazeMs: ['Blaze time', 'ms', 'How long it burns before dying down to smoke.'],
   Embers: ['Embers', undefined, 'Embers thrown by the impact.'],
@@ -117,7 +117,7 @@ const TIER_SPECS: Record<FireTierSuffix, [string, TunerUnit | undefined, string]
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroFireStrKey>> = {
   'Sound: ignite': 'sfxIgniteClip', 'Sound: fireball': 'sfxFormClip', 'Sound: hurl': 'sfxLaunchClip', 'Sound: flame roar': 'sfxTrailClip',
@@ -226,14 +226,14 @@ export const SPEC: TunerSpec<FireTunerValues> = {
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Fire at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Fire at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero casts for 3: Tier I, one fireball.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero casts for 8: Tier II, two fireballs.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero casts for 12 from four numbers: Tier III, the volley of five that sets the target ablaze.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero casts for 40 from seven numbers: Tier IV, fireballs then the meteor.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero casts for 3: Tier 1, one fireball.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero casts for 8: Tier 2, two fireballs.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero casts for 12 from four numbers: Tier 3, the volley of five that sets the target ablaze.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero casts for 40 from seven numbers: Tier 4, fireballs then the meteor.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

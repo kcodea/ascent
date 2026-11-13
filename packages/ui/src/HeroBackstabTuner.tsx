@@ -10,19 +10,19 @@ import { TunerPanel } from './TunerPanel';
 /**
  * DEV tuner for the BACKSTAB hero attack (a Rare; owner ask 2026-09-29: "add a stealth backstab attack to the rare
  * branch. portrait fades and attacks from behind the target back towards the player portrait and settles"). Two groups
- * of per-tier dials: Small (shared tiers I-II: fade, step out behind, stab) and Big (III-IV and every knockout: a lunge,
+ * of per-tier dials: Tier 1 (shared tiers 1-2: fade, step out behind, stab) and Tier 2 (Tiers 3-4 and every knockout: a lunge,
  * then a stab from the side, then from behind). The Play buttons run the real runner between the two real portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here it plays Big (lunge, side, behind).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Shared damage tier 2 (6). The Tier 1 look still plays here.', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Shared damage tier 3 (12): from here it plays its Tier 2 look (lunge, side, behind).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Shared damage tier 4 (20). The Tier 2 look (a knockout always plays it).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
-  lungeWindMs: ['Lunge coil', 'ms', 'Big: the opening lunge\'s coil back (Classic\'s swing).', 'Lunge (Big)'],
-  lungeStrikeMs: ['Lunge drive', 'ms', 'Big: the opening lunge\'s drive into the target.', 'Lunge (Big)'],
-  lungeDepth: ['Lunge coil depth', '×', 'Big: how far the lunge coils back (1 = Classic\'s).', 'Lunge (Big)'],
+  lungeWindMs: ['Lunge coil', 'ms', 'Tier 2: the opening lunge\'s coil back (Classic\'s swing).', 'Lunge (Tier 2)'],
+  lungeStrikeMs: ['Lunge drive', 'ms', 'Tier 2: the opening lunge\'s drive into the target.', 'Lunge (Tier 2)'],
+  lungeDepth: ['Lunge coil depth', '×', 'Tier 2: how far the lunge coils back (1 = Classic\'s).', 'Lunge (Tier 2)'],
   behindGap: ['Step-out distance', '×', 'How far past the target\'s rim the striker steps out (in its own radii).', 'Stab'],
   contactStop: ['Stab depth', '×', 'Where the stab stops (0.2 deep over the face, 1.2 just touching).', 'Stab'],
   windPx: ['Draw back', 'px', 'How far the striker draws back before each stab.', 'Stab'],
@@ -41,7 +41,7 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxSlashRate: ['slash: pitch', '×', 'Pitch of the snap.', 'Sound: slash'],
   sfxStabGain: ['stab: gain', undefined, 'The hit of each stab (the last one hardest).', 'Sound: stab'],
   sfxStabRate: ['stab: pitch', '×', 'Pitch of the hit.', 'Sound: stab'],
-  sfxLungeGain: ['lunge: gain', undefined, 'Big: the opening lunge\'s wind-up.', 'Sound: lunge'],
+  sfxLungeGain: ['lunge: gain', undefined, 'Tier 2: the opening lunge\'s wind-up.', 'Sound: lunge'],
   sfxLungeRate: ['lunge: pitch', '×', 'Pitch of the wind-up.', 'Sound: lunge'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the backstab plays (1 = no duck).', 'Sound: mix'],
 };
@@ -70,7 +70,7 @@ const built = rareTunerSpec({
   ranges: HERO_BACKSTAB_RANGES,
   globals: GLOBALS,
   levels: BACKSTAB_LEVELS,
-  levelNames: { small: 'Small (tiers I-II)', big: 'Big (tiers III-IV, knockouts)' },
+  levelNames: { small: 'Tier 1 (shared tiers 1-2)', big: 'Tier 2 (shared tiers 3-4, knockouts)' },
   suffixes: BACKSTAB_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
@@ -92,8 +92,8 @@ const built = rareTunerSpec({
   },
   play: (o) => playHeroBackstab(o),
   verb: 'backstabs',
-  smallHint: 'Small, it fades, steps out behind the target and stabs back toward home.',
-  bigHint: 'Big, a lunge, then a stab from the side, then from behind.',
+  smallHint: 'its Tier 1 look, it fades, steps out behind the target and stabs back toward home.',
+  bigHint: 'its Tier 2 look, a lunge, then a stab from the side, then from behind.',
 });
 
 export const SPEC = built.spec;

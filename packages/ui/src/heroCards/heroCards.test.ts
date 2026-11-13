@@ -2,7 +2,7 @@
 /**
  * CARD SHARK, an EPIC hero attack (owner 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics
  * should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun"): the shared
- * four damage tiers map to THREE looks (I small, II and III medium, IV big; a knockout plays big); the looks (one Ace /
+ * four damage tiers map to THREE looks (shared Tier 1 plays Tier 1, Tiers 2 and 3 play Tier 2, Tier 4 plays Tier 3; a knockout plays Tier 3); the looks (one Ace /
  * three Aces thunk thunk thunk / the royal flush dealt, flipped, gilded and fired together into confetti); the tuner;
  * the pure plan, paths, hand fan and camera; the runner on the shared clock (the blow lands exactly ONCE, never on a
  * tick; both directions; slow motion; replay; finish / cancel; cleanup; the camera is applied ONCE); the headless scene
@@ -38,7 +38,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the three looks (an Epic maps the shared four tiers onto three)', () => {
-  it('reads the SHARED tier (thresholds 6 / 12 / 20) and maps I small, II and III medium, IV big', () => {
+  it('reads the SHARED tier (thresholds 6 / 12 / 20) and maps shared Tier 1 to Tier 1, Tiers 2 and 3 to Tier 2, Tier 4 to Tier 3', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     expect([1, 2, 3, 4].map((t) => cardsLevel(t as 1 | 2 | 3 | 4))).toEqual([1, 2, 2, 3]);
     for (let d = 0; d <= 60; d++) {
@@ -49,7 +49,7 @@ describe('the three looks (an Epic maps the shared four tiers onto three)', () =
     expect([P1, P2, P3, P4].map((p) => p.level)).toEqual([1, 2, 2, 3]);
   });
 
-  it('a knockout always plays Big (the royal flush), whatever the number', () => {
+  it('a knockout always plays Tier 3 (the royal flush), whatever the number', () => {
     const ko = plan([2, 1], 3, 1600, false, true);
     expect(ko.tier).toBe(4);
     expect(ko.level).toBe(3);
@@ -105,13 +105,13 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('cards');
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Medium (8)', '▶ Big (40)', '▶ Foe small (3)', '▶ Foe big (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
     expect(labels.filter((l) => /speed|reduced motion/i.test(l))).toEqual([]);
   });
 });
 
 describe('the plan', () => {
-  it('SMALL: one card, straight to the impact (no ticks)', () => {
+  it('TIER 1: one card, straight to the impact (no ticks)', () => {
     expect(P1.cards).toHaveLength(1);
     expect(P1.hits).toEqual([]);
     expect(P1.impactAt).toBe(P1.cards[0]!.arriveAt);
@@ -120,7 +120,7 @@ describe('the plan', () => {
     expect(kinds).not.toContain('deal');
   });
 
-  it('MEDIUM: thunk thunk thunk; the first two are ticks, the THIRD is the impact (only one impact beat)', () => {
+  it('TIER 2: thunk thunk thunk; the first two are ticks, the THIRD is the impact (only one impact beat)', () => {
     const arr = P2.cards.map((d) => d.arriveAt);
     for (let i = 1; i < arr.length; i++) expect(arr[i]!).toBeGreaterThan(arr[i - 1]!);
     expect(P2.impactAt).toBe(arr[2]);
@@ -133,7 +133,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('impact')).toBeLessThan(kinds.indexOf('dissolve'));
   });
 
-  it('BIG: dealt one by one, flipped one by one, gilded, held, then all five fire TOGETHER and land together (the burst is the impact)', () => {
+  it('TIER 3: dealt one by one, flipped one by one, gilded, held, then all five fire TOGETHER and land together (the burst is the impact)', () => {
     expect(P4.deals).toHaveLength(5);
     expect(P4.flips).toHaveLength(5);
     for (let i = 1; i < 5; i++) { expect(P4.deals[i]!).toBeGreaterThan(P4.deals[i - 1]!); expect(P4.flips[i]!).toBeGreaterThan(P4.flips[i - 1]!); }
@@ -153,7 +153,7 @@ describe('the plan', () => {
     expect(kinds.lastIndexOf('throw')).toBeLessThan(at('impact'));
   });
 
-  it('short to medium, as an Epic should be: about 1.2 s small, 1.6 s medium, 2.5 s big (from the ready, 1600 px apart)', () => {
+  it('short to medium, as an Epic should be: about 1.2 s at Tier 1, 1.6 s at Tier 2, 2.5 s at Tier 3 (from the ready, 1600 px apart)', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.throwAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P4)]).toEqual([[320, 580, 1260], [360, 890, 1610], [1518, 1778, 2518]]);
     expect(t(P1)[2]).toBeGreaterThanOrEqual(1000);
@@ -215,7 +215,7 @@ describe('the card paths and the hand', () => {
     expect(cardEase(1)).toBe(1);
   });
 
-  it('Medium sticks three cards at VARIED angles and spread positions round the face', () => {
+  it('Tier 2 sticks three cards at VARIED angles and spread positions round the face', () => {
     const ms = cardMotions(P2, A, D, R, R, 104, C, 36, null, heldPoses(P2, A, D, R));
     const hs = ms.map((m) => m.h);
     expect(Math.max(...hs) - Math.min(...hs)).toBeGreaterThan(0.2);
@@ -224,7 +224,7 @@ describe('the card paths and the hand', () => {
     }
   });
 
-  it('the Big hand fans out UPRIGHT in front of the hero, toward the target, and stays on screen from a corner', () => {
+  it('the Tier 3 hand fans out UPRIGHT in front of the hero, toward the target, and stays on screen from a corner', () => {
     const fan = fanPoses(5, A, D, R, 130, C, { w: 1600, h: 900 });
     expect(fan).toHaveLength(5);
     const cx = fan.reduce((s, p) => s + p.x, 0) / 5, cy = fan.reduce((s, p) => s + p.y, 0) / 5;
@@ -261,7 +261,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Big: the focus moves from the hero to the hand for the reveal, then to the target; the zoom stays gentle', () => {
+  it('Tier 3: the focus moves from the hero to the hand for the reveal, then to the target; the zoom stays gentle', () => {
     const hand = { x: 500, y: 700 };
     expect(cardsCameraFocus(P4, P4.chargeAt, A, D, hand)).toEqual(A);
     expect(cardsCameraFocus(P4, P4.goldAt, A, D, hand)).toEqual(hand);
@@ -305,7 +305,7 @@ function run(over: Partial<HeroCardsOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('MEDIUM lands the blow EXACTLY ONCE, on the THIRD card: never on a tick; the cards stick; ends clean', () => {
+  it('TIER 2 lands the blow EXACTLY ONCE, on the THIRD card: never on a tick; the cards stick; ends clean', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 8, formation: formationOf([8], 8) });
     expect(h.plan.cards).toHaveLength(3);
     expect(host.querySelector('.hblast.hcards')).not.toBeNull();
@@ -333,7 +333,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('BIG: the hand is dealt, flipped face up, turned GOLD, fired together, and bursts ONCE into confetti', () => {
+  it('TIER 3: the hand is dealt, flipped face up, turned GOLD, fired together, and bursts ONCE into confetti', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.flush).toBe(true);
     f.tick(h.plan.flips[0]! - 8, 4);
@@ -481,7 +481,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Big stays in the cap and drains; every drawn number is finite; destroy leaves nothing', () => {
+  it('a whole Tier 3 stays in the cap and drains; every drawn number is finite; destroy leaves nothing', () => {
     const s = new HeroCardsScene(TEX, COLORS, LOOK, 1, 42);
     const fan = fanPoses(5, A, D, R, 135, C, { w: 1600, h: 900 });
     const ms = cardMotions(P4, A, D, R, R, 135, C, 36, null, fan);

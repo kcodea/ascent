@@ -31,8 +31,16 @@ import { SPEC as SOCCER } from '../HeroSoccerTuner';
 import { SPEC as VOID } from '../HeroVoidTuner';
 import { SPEC as STITCH } from '../HeroStitchTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
+import { SPEC as STARS } from '../HeroStarsTuner';
+import { SPEC as GLASS } from '../HeroGlassTuner';
+import { SPEC as REAPING } from '../HeroReapingTuner';
+import { SPEC as WARHOST } from '../HeroWarhostTuner';
+import { SPEC as COMBO } from '../HeroComboTuner';
+import { SPEC as WRESTLE } from '../HeroWrestleTuner';
+import { SPEC as FIREWORKS } from '../HeroFireworksTuner';
+import { SPEC as CHESS } from '../HeroChessTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, VOID, STITCH, BULLET_TIME, FORMATION };
+const SPECS = { STARS, GLASS, REAPING, WARHOST, COMBO, WRESTLE, FIREWORKS, CHESS, BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, BASEBALL, SOCCER, VOID, STITCH, BULLET_TIME, FORMATION };
 import { SPEC as BULLET_TIME } from '../HeroBulletTimeTuner';
 
 describe('the attack tuners', () => {

@@ -43,7 +43,7 @@ export interface HeroCardsHandle extends HeroAttackHandle {
   readonly plan: CardsPlan;
   /** Every card's flight (empty under reduced motion). Exposed for tests and the capture rig. */
   readonly motions: readonly CardMotion[];
-  /** Where the cards are held (Small, Medium) or fanned (Big) before they leave. */
+  /** Where the cards are held (Tier 1, Tier 2) or fanned (Tier 3) before they leave. */
   readonly hand: readonly FanPose[];
   /** The Pixi scene (null under reduced motion or with no 2D canvas). */
   readonly scene: HeroCardsScene | null;
@@ -77,7 +77,7 @@ export function playHeroCards(o: HeroCardsOptions): HeroCardsHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hcards',
   });
 
-  // The view the Big hand must stay inside (measured once, at the start).
+  // The view the Tier 3 hand must stay inside (measured once, at the start).
   const view = local ? { w: o.host?.clientWidth || 400, h: o.host?.clientHeight || 300 } : { w: typeof window !== 'undefined' ? window.innerWidth : 1920, h: typeof window !== 'undefined' ? window.innerHeight : 1080 };
   const cardH = c.cardLength * s * plan.size;
   const hand = plan.reduced ? [] : plan.flush
@@ -119,7 +119,7 @@ export function playHeroCards(o: HeroCardsOptions): HeroCardsHandle {
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // A card is drawn: a soft riffle, and (Small, Medium) the cards snap into the hand face up.
+        // A card is drawn: a soft riffle, and (Tier 1, Tier 2) the cards snap into the hand face up.
         cue(c.sfxDrawClip, c.sfxDrawGain, c.sfxDrawRate, { lenMs: 500, fadeMs: 200 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.startCharge(plan.flush ? handCentre : (hand[0] ?? o.attacker), (plan.flush ? (plan.deals[0] ?? plan.throwAt) : plan.throwAt) - plan.chargeAt);

@@ -3,7 +3,7 @@
  * THE STAMPEDE, the beast chomp rush hero attack (owner 2026-09-29: "make some more attack types ... a beast chomp rush
  * animation ... use the same 4 tier strategy we have been"): the tier mapping SHARED with every style; the tier ->
  * beasts ladder (1 / 2 / a pack of 5 / six and the colossus); the tuner defaults + clamping; the pure plan (the total is
- * the engine's number, the pack rhythm, the impact beat, the colossus at IV, reduced motion, determinism); the jaw
+ * the engine's number, the pack rhythm, the impact beat, the colossus at Tier 4, reduced motion, determinism); the jaw
  * clamp curve (the SNAP lands exactly on the bite); the pure leaps (from the attacker's rim, a leap that comes down onto
  * the struck portrait, ticks off-centre, the impact dead centre); the camera; the runner on the shared clock (the
  * consequence lands exactly ONCE, on the last chomp or the slam, never on a tick; both directions; slow motion; replay;
@@ -43,7 +43,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with every style)', () => {
-  it('the Stampede steps up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('the Stampede steps up on exactly the blows Blast does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -52,7 +52,7 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE beast, II TWO staggered, III a PACK of five kicking up dust, IV six and the COLOSSUS', () => {
+  it('the ladder: Tier 1 ONE beast, Tier 2 TWO staggered, Tier 3 a PACK of five kicking up dust, Tier 4 six and the COLOSSUS', () => {
     expect([P1, P2, P3, P4].map((p) => p.beasts.length)).toEqual([1, 2, 5, 6]);
     expect([P1, P2, P3, P4].map((p) => p.colossal)).toEqual([false, false, false, true]);
     expect([P1, P2, P3, P4].map((p) => p.dust)).toEqual([false, false, true, true]);
@@ -106,7 +106,7 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('beast');
     // Owner 2026-09-29: no Speed or Reduced motion buttons, and the button row at the TOP (the shared buttonsOnTop, #1843).
     const labels = BEAST_TUNER_PLAYS.map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
     for (const l of ['▶ Reduced motion', 'Speed 1x', 'Speed 0.5x', 'Speed 0.25x']) expect(labels).not.toContain(l);
     expect(SPEC.actions).toBe(BEAST_TUNER_PLAYS);
     expect(SPEC.buttonsOnTop).toBe(true);
@@ -131,7 +131,7 @@ describe('the plan', () => {
     expect(kinds).not.toContain('roar');
   });
 
-  it('Tier II is a staggered double chomp (one tick, then the impact); Tier I one beast, straight to the impact', () => {
+  it('Tier 2 is a staggered double chomp (one tick, then the impact); Tier 1 one beast, straight to the impact', () => {
     expect(P2.beasts[1]!.launchAt - P2.beasts[0]!.launchAt).toBeGreaterThanOrEqual(150);
     expect(P2.beasts[1]!.arriveAt - P2.beasts[0]!.arriveAt).toBeGreaterThanOrEqual(120); // two distinct chomps, not one
     expect(P2.chomps).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.beasts[0]!.arriveAt);
   });
 
-  it('Tier IV: EVERY beast is a tick; then the colossus rises, and the SLAM is the impact (the one consequence); the roar comes after', () => {
+  it('Tier 4: EVERY beast is a tick; then the colossus rises, and the SLAM is the impact (the one consequence); the roar comes after', () => {
     const kinds = beastCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'chomp')).toHaveLength(6);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -168,7 +168,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [340, 740, 1340], [380, 989, 1629], [420, 1260, 1920], [440, 2042, 2942],
     ]);
-    // Chunky, not rushed, never dragging: Tier I about 1.3 s, Tier IV under 3 s.
+    // Chunky, not rushed, never dragging: Tier 1 about 1.3 s, Tier 4 under 3 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
     expect(t(P4)[2]).toBeLessThanOrEqual(3000);
   });
@@ -274,7 +274,7 @@ describe('the leaps', () => {
     }
   });
 
-  it('Tier IV\'s six chomps ring the whole face (a mauled portrait for the colossus to close on)', () => {
+  it('Tier 4\'s six chomps ring the whole face (a mauled portrait for the colossus to close on)', () => {
     const ms = beastMotions(P4, A, D, R, R);
     const angs = ms.map((m) => Math.atan2(m.bite.y - D.y, m.bite.x - D.x)).sort((a, b) => a - b);
     const gaps = angs.map((a, i) => (i ? a - angs[i - 1]! : a + 2 * Math.PI - angs[angs.length - 1]!));
@@ -302,7 +302,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(1);
   });
 
-  it('Tier IV builds through the rise, the slam punches hardest, the roar rattles; focus moves from attacker to target', () => {
+  it('Tier 4 builds through the rise, the slam punches hardest, the roar rattles; focus moves from attacker to target', () => {
     const early = beastCameraAt(P4, C, P4.riseAt + 20);
     const late = beastCameraAt(P4, C, P4.impactAt - 5);
     expect(late.zoom).toBeGreaterThan(early.zoom);
@@ -385,7 +385,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: six beasts chomp (ticks), the colossus rises, and the blow lands ONCE as its jaws SLAM shut', () => {
+  it('Tier 4: six beasts chomp (ticks), the colossus rises, and the blow lands ONCE as its jaws SLAM shut', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.colossal).toBe(true);
     f.tick(h.plan.riseAt + 40, 4);
@@ -522,7 +522,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('manes are strips of MANE_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier IV stays in the caps and drains; destroy leaves nothing', () => {
+  it('manes are strips of MANE_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier 4 stays in the caps and drains; destroy leaves nothing', () => {
     expect(MANE_POINTS * 2).toBeLessThanOrEqual(100);
     const s = new HeroBeastScene(TEX, COLORS, LOOK, 1, 42);
     const ms = beastMotions(P4, A, D, R, R);

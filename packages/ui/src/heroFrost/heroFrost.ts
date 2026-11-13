@@ -1,17 +1,17 @@
 /**
  * THE FROST RUNNER: plays one Frost hero attack (the beats are in `heroFrostConfig.ts`) and lands the consequence on
- * its impact beat (the last icicle shattering, or Tier IV's encasement shattering). Presentation only: the total it
+ * its impact beat (the last icicle shattering, or Tier 4's encasement shattering). Presentation only: the total it
  * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they
  * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses: the ICE holds still, the clock does not), the damage formation, the `#stage` camera (on the FX once:
  * stageCamera.ts), the portraits (transform only, restored after), the voices, the dim, reduced motion, finish / cancel
- * and the safety timer. What is Frost's own: the icicles, the frost creep, the Tier IV nova and encasement, its camera and its
+ * and the safety timer. What is Frost's own: the icicles, the frost creep, the Tier 4 nova and encasement, its camera and its
  * sound.
  *
  * THE VOLLEY CONTRACT: every icicle that lands before the last is a tick (FX and a glassy crack only). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last icicle (Tier IV: on the encasement shattering).
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last icicle (Tier 4: on the encasement shattering).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites and strips are pooled per layer, textures painted once per session and pre-warmed
@@ -44,7 +44,7 @@ export interface HeroFrostHandle extends HeroAttackHandle {
   readonly plan: FrostPlan;
   /** Every icicle's life (empty under reduced motion). Exposed for tests and the capture rig. */
   readonly motions: readonly IcicleMotion[];
-  /** The Tier IV nova's run (null below Tier IV and under reduced motion). */
+  /** The Tier 4 nova's run (null below Tier 4 and under reduced motion). */
   readonly nova: NovaMotion | null;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroFrostScene | null;
@@ -55,7 +55,7 @@ export function frostSeed(total: number, distance: number, side: 'player' | 'opp
   return (Math.round(total) * 7919 + Math.round(distance) * 41 + (side === 'opp' ? 307 : 13)) >>> 0;
 }
 
-/** How many ice spikes burst from the struck portrait's rim on the impact, per tier (IV: off the shattered shell). */
+/** How many ice spikes burst from the struck portrait's rim on the impact, per tier (Tier 4: off the shattered shell). */
 const SPIKES: Record<number, number> = { 1: 0, 2: 5, 3: 7, 4: 10 };
 
 /** Play Frost. Returns a handle; the blow lands via `onImpact` on the impact beat. */
@@ -225,7 +225,7 @@ export function playHeroFrost(o: HeroFrostOptions): HeroFrostHandle {
     const cm = frostCameraAt(plan, c, t, dir);
     cam.apply(frostCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, local ? 1 : s);
     if (hero.el && t >= plan.chargeAt) {
-      // Swell while the ice forms; a small recoil along the line on each launch; Tier IV: a deeper gather, a thrust.
+      // Swell while the ice forms; a small recoil along the line on each launch; Tier 4: a deeper gather, a thrust.
       let sc = 1, bx = 0, by = 0;
       if (t < plan.fireAt) sc = 1 + c.heroSwell * easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.fireAt - plan.chargeAt));
       else sc = 1 + c.heroSwell * Math.max(0, spring(t - plan.fireAt, 4, 70));

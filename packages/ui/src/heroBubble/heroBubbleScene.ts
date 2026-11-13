@@ -5,7 +5,7 @@
  * The BUBBLE is the subject: an iridescent FILM (its colours slowly turning), a SHEEN of reflections that stays upright
  * over it, and a faint pastel glow. It wobbles the whole time (a squash one way, a stretch the other, opacity-free:
  * transform only). It swells at the hand, drifts, swells round the struck face (riding its knockback), strains, and
- * POPS: a quick ring of light, droplets flung from its rim, a fizz of tiny bubbles, and on Big a splash ring.
+ * POPS: a quick ring of light, droplets flung from its rim, a fizz of tiny bubbles, and on Tier 2 a splash ring.
  */
 import type { Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -124,7 +124,7 @@ export class HeroBubbleScene extends FxPool {
     this.popFx(at, r, { drops: 5, tinies: 2, splash: 0, strength: 0.6 });
   }
 
-  /** THE pop: a ring of light, droplets flung from the rim, a fizz of tiny bubbles, and (big) a splash ring. */
+  /** THE pop: a ring of light, droplets flung from the rim, a fizz of tiny bubbles, and (Tier 2) a splash ring. */
   pop(o: { drops: number; tinies: number; splash: number }): void {
     const b = this.main;
     if (!b) return;

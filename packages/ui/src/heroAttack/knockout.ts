@@ -1,9 +1,9 @@
 /**
- * THE KNOCKOUT VARIANT'S SHARED PIECES ("Tier V", owner ask 2026-10-02: "ancient tier animations should have a
+ * THE KNOCKOUT VARIANT'S SHARED PIECES ("Tier 5", owner ask 2026-10-02: "ancient tier animations should have a
  * separate tier of dmg specific for knockouts. they can just be small changes to the 'huge' tier ... slightly more
  * emphasis on the knockout animation").
  *
- * An Ancient attack's Knockout variant is its Huge (Tier IV) REMIXED, never a new animation: one extra beat (the
+ * An Ancient attack's Knockout variant is its Tier 4 REMIXED, never a new animation: one extra beat (the
  * style's own), plus the same four accents every variant shares, which live here:
  *  - THE PRISM: the Ancient rarity's prismatic palette (cyan #8af5ff to magenta #ff7ae0) layered over the attack's own
  *    colours on the final blast.
@@ -13,7 +13,7 @@
  *  - A short KO STING on the final impact: a bright two-note synth bell (no clip, so never the rune explosion or the
  *    turn explosion sounds, owner 2026-10-02).
  *
- * Presentation only. Each variant adds well under 500 ms over its Huge tier.
+ * Presentation only. Each variant adds well under 500 ms over its Tier 4.
  */
 import { playBellStrike } from '../sfx';
 import type { AttackVoices } from './attackSound';
@@ -24,7 +24,7 @@ export const KO_LILAC = 0xc4b8ff;
 export const KO_MAGENTA = 0xff7ae0;
 export const KO_PRISM: readonly number[] = [KO_CYAN, KO_LILAC, KO_MAGENTA];
 
-/** How much harder a Knockout variant shakes than its Huge tier. */
+/** How much harder a Knockout variant shakes than its Tier 4. */
 export const KO_SHAKE = 1.3;
 
 /** The slow-mo dip on the final blast (sequence ms; `lo` is the slowest speed, never 0). */

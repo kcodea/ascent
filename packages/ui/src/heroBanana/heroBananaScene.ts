@@ -11,7 +11,7 @@
  * (her palette, additive). Glows, rings and rays are soft light that frames the paintings, never drawn shapes that
  * compete with them.
  *
- * TIER IV'S JAM: the giant golden banana (the same painting, huge, gilded, with an additive sheen) lands as a STAKE in
+ * TIER 4'S JAM: the giant golden banana (the same painting, huge, gilded, with an additive sheen) lands as a STAKE in
  * the struck portrait's rim; each slam of the striking hero drives it deeper and squashes it flatter. The part driven IN
  * disappears into the face (the stake's texture frame is cropped at the entry point, so only the part still outside is
  * drawn: no stencil, so it never nests with the striker's cut), a crater ring and cracks spread from the entry point,
@@ -76,7 +76,7 @@ export interface BananaLook {
   juicePx: number;
   /** Orange-gold sparks as a banana leaves the hero. */
   launchSparks: number;
-  /** Tier IV: the finale. */
+  /** Tier 4: the finale. */
   giantSplat: number;
   ringSplats: number;
   showerBananas: number;
@@ -84,7 +84,7 @@ export interface BananaLook {
   goldRays: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV jam and finale peaks around 890 in the prod capture; headroom above). */
+/** Hard cap on sprites alive at once (a Tier 4 jam and finale peaks around 890 in the prod capture; headroom above). */
 export const MAX_BANANA_SPRITES = 1100;
 
 type LayerId = 'haze' | 'splat' | 'glow' | 'body' | 'core';
@@ -118,7 +118,7 @@ interface Banana {
  */
 interface Drip { stream: Sprite; head: Sprite; x: number; y0: number; y: number; vy: number; w: number; age: number; life: number; floor: number; dripAcc: number; wob: number }
 
-/** Tier IV's giant, stuck in the struck face as a stake along `u` (its inner part masked away by the face). */
+/** Tier 4's giant, stuck in the struck face as a stake along `u` (its inner part masked away by the face). */
 interface Stake {
   entry: Pt; u: Pt; len: number;
   /** How much of its length is sunk (0..1), easing toward `target` after each slam. */
@@ -423,7 +423,7 @@ export class HeroBananaScene {
 
   /**
    * The golden jungle FLOURISH on the striking hero: a warm bloom and a ring open on the portrait and gold motes are
-   * drawn in; held through the barrage. `big` = Tier IV's blaze before the giant (a far brighter halo, throbbing faster,
+   * drawn in; held through the barrage. `big` = Tier 4's blaze before the giant (a far brighter halo, throbbing faster,
    * glints flashing round the rim), released by the giant's fling.
    */
   flourish(x: number, y: number, radius: number, durMs: number, big = false): void {
@@ -504,7 +504,7 @@ export class HeroBananaScene {
   }
 
   /**
-   * THE impact (I-III): the last banana bursts. Layered painted splats (one big in the middle, the rest round it,
+   * THE impact (Tiers 1-3): the last banana bursts. Layered painted splats (one big in the middle, the rest round it,
    * staggered), the biggest juice burst, a short warm flash over the face, two rings. The fills are gone in ~150 ms, so
    * the big -N reads.
    */
@@ -528,7 +528,7 @@ export class HeroBananaScene {
     if (o.k > 0.5) this.sparkles(at.x, at.y, 10, 320, { life: 520 });
   }
 
-  // ── Tier IV ────────────────────────────────────────────────────────────────────────────────────────────────
+  // ── Tier 4 ────────────────────────────────────────────────────────────────────────────────────────────────
 
   /**
    * The giant HANGS at its apex: a crown-shaped glint flashes on its top (a big glitter star and a ring riding it), and
@@ -801,7 +801,7 @@ export class HeroBananaScene {
   }
 
   /**
-   * TIER IV'S FINALE (the finisher): the crushed giant BURSTS. A white-gold flash over the face, a massive painted splat,
+   * TIER 4'S FINALE (the finisher): the crushed giant BURSTS. A white-gold flash over the face, a massive painted splat,
    * a RING of splats bursting round it, a golden SHOCKWAVE, gold rays, the biggest juice burst, and a SHOWER of painted
    * bananas bursting up and tumbling down.
    */
@@ -876,7 +876,7 @@ export class HeroBananaScene {
     }
   }
 
-  /** A splat pop round the target after the finale (IV): a painted splat and a juice puff. */
+  /** A splat pop round the target after the finale (Tier 4): a painted splat and a juice puff. */
   boom(x: number, y: number, size: number): void {
     this.splatAt(x, y, this.look.splatPx * 0.8 * size, { follow: false });
     this.juice(x, y, 24, { speed: this.look.juiceSpeed * 0.9 });
@@ -1041,7 +1041,7 @@ export class HeroBananaScene {
         life, from: 0.45 * S, to: 0.15 * S, alpha: 1, align: true, tumble: 0, spin: 0,
       });
     }
-    // Tier IV: glints flash round the rim, one after another.
+    // Tier 4: glints flash round the rim, one after another.
     a.stars.forEach((s, j) => {
       const ph = (a.age * 0.0028 + j / Math.max(1, a.stars.length)) % 1;
       const fl = Math.exp(-(((ph - 0.5) / 0.12) ** 2));

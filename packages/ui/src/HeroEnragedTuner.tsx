@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the ENRAGED STRIKE hero attack (owner ask 2026-09-28: "a legendary version of this strike ... just
  * amplified or enraged"). The Play buttons run the REAL runner between the two real hero portraits (works from the shop),
- * in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40. A preview
+ * in either direction, at Tier 1 (3) / Tier 2 (8) / Tier 3 (12) / Tier 4 (40). A preview
  * never touches the run. The "Attack style" row is the same dev override as the other attack tuners'. Production plays
  * the baked defaults.
  */
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroEnragedNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which it becomes the double strike. Shared with every style (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which it becomes the flurry of three. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which it becomes the rampage and haymaker. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which it becomes the double strike. Shared with every style (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which it becomes the flurry of three. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which it becomes the rampage and haymaker. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Windup'],
   windupLeadMs: ['Windup lead', 'ms', 'How far into the absorb the hero starts pulling back.', 'Windup'],
   windupDepth: ['Pull back', '×', 'How much deeper than Classic the hero coils back before the lunge (1 = Classic).', 'Windup'],
@@ -44,15 +44,15 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   recoverX: ['Recover', '×', 'The elastic settle home, as a fraction of Classic\x27s (lower = snappier).', 'Lunge and strike'],
   burstMs: ['Rage burst lead', 'ms', 'The rage burst (the flare, the heat rings, the roar) fires this long before the first drive.', 'Rage burst'],
   burstSize: ['Rage burst size', '×', 'The flare and the heat-shimmer rings (0 = none).', 'Rage burst'],
-  craterSize: ['Ground cracks', '×', 'Tier IV: the molten cracks and scorch the haymaker leaves round the struck hero.', 'Haymaker (Tier IV)'],
-  debris: ['Rubble', undefined, 'Tier IV: chunks thrown up by the haymaker.', 'Haymaker (Tier IV)'],
-  haymakerCoilMs: ['Rear-back', 'ms', 'Tier IV: the huge rear-back (the roar, the rage at its peak) before the haymaker comes down.', 'Haymaker (Tier IV)'],
-  haymakerIn: ['Rear inward', '×', 'Tier IV: how far in over the board the hero rears (a fraction of the distance), so the whole rear-back is in view.', 'Haymaker (Tier IV)'],
-  haymakerLift: ['Rear height', '×', 'Tier IV: how high the hero rears up (a fraction of the distance; less near the top of the screen).', 'Haymaker (Tier IV)'],
-  haymakerSwell: ['Rear swell', '×', 'Tier IV: how much the hero swells toward the camera at the top of the rear-back.', 'Haymaker (Tier IV)'],
-  haymakerDriveX: ['Haymaker drive', '×', 'Tier IV: the overhead blow coming down, as a multiple of the drive.', 'Haymaker (Tier IV)'],
-  crescentSize: ['Crescent', '×', 'Tier IV: the giant flaming crescent cleaved across the struck hero (0 = none).', 'Haymaker (Tier IV)'],
-  shockSize: ['Rage shockwave', '×', 'Tier IV: the screen-filling shockwave of the knockout.', 'Haymaker (Tier IV)'],
+  craterSize: ['Ground cracks', '×', 'Tier 4: the molten cracks and scorch the haymaker leaves round the struck hero.', 'Haymaker (Tier 4)'],
+  debris: ['Rubble', undefined, 'Tier 4: chunks thrown up by the haymaker.', 'Haymaker (Tier 4)'],
+  haymakerCoilMs: ['Rear-back', 'ms', 'Tier 4: the huge rear-back (the roar, the rage at its peak) before the haymaker comes down.', 'Haymaker (Tier 4)'],
+  haymakerIn: ['Rear inward', '×', 'Tier 4: how far in over the board the hero rears (a fraction of the distance), so the whole rear-back is in view.', 'Haymaker (Tier 4)'],
+  haymakerLift: ['Rear height', '×', 'Tier 4: how high the hero rears up (a fraction of the distance; less near the top of the screen).', 'Haymaker (Tier 4)'],
+  haymakerSwell: ['Rear swell', '×', 'Tier 4: how much the hero swells toward the camera at the top of the rear-back.', 'Haymaker (Tier 4)'],
+  haymakerDriveX: ['Haymaker drive', '×', 'Tier 4: the overhead blow coming down, as a multiple of the drive.', 'Haymaker (Tier 4)'],
+  crescentSize: ['Crescent', '×', 'Tier 4: the giant flaming crescent cleaved across the struck hero (0 = none).', 'Haymaker (Tier 4)'],
+  shockSize: ['Rage shockwave', '×', 'Tier 4: the screen-filling shockwave of the knockout.', 'Haymaker (Tier 4)'],
   auraSize: ['Aura glow', '×', 'The hot glow round the hero.', 'Aura'],
   flames: ['Flames', undefined, 'How much live fire burns round the portrait rim (particles, not a flame picture; 0 = none).', 'Aura'],
   flameLength: ['Flame length', '×', 'How high the fire rises off the rim before it burns out.', 'Aura'],
@@ -76,7 +76,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   rimCracks: ['Rim cracks', '×', 'The glowing rage cracks left on the rim of the struck portrait (0 = none).', 'Impact'],
   scorch: ['Ground scorch', '×', 'The burn a dash leaves along the ground (0 = none).', 'Afterimages and wake'],
   scorchMs: ['Scorch fade', 'ms', 'How long the ground scorch lasts.', 'Afterimages and wake'],
-  emberStorm: ['Ember storm', undefined, 'Tier IV: embers the cracked ground throws up over the second after the haymaker.', 'Haymaker (Tier IV)'],
+  emberStorm: ['Ember storm', undefined, 'Tier 4: embers the cracked ground throws up over the second after the haymaker.', 'Haymaker (Tier 4)'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
@@ -88,7 +88,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxRoarRate: ['roar: pitch', '×', 'Pitch of the roar.', 'Sound: roar'],
   sfxWindupGain: ['windup: gain', undefined, 'Classic\x27s own windup clip, as the hero pulls back.', 'Sound: windup'],
   sfxWindupRate: ['windup: pitch', '×', 'Pitch of the windup.', 'Sound: windup'],
-  sfxChargeGain: ['charge: gain', undefined, 'The riser climbing to the first drive (IV: to the top of the rise).', 'Sound: charge'],
+  sfxChargeGain: ['charge: gain', undefined, 'The riser climbing to the first drive (Tier 4: to the top of the rise).', 'Sound: charge'],
   sfxChargeRate: ['charge: pitch', '×', 'Pitch of the riser.', 'Sound: charge'],
   sfxWhooshGain: ['whoosh: gain', undefined, 'Each dash (a little higher each strike; the haymaker lower).', 'Sound: whoosh'],
   sfxWhooshRate: ['whoosh: pitch', '×', 'Pitch of the first whoosh.', 'Sound: whoosh'],
@@ -102,30 +102,30 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxPunchRate: ['punch: pitch', '×', 'Pitch of the punch.', 'Sound: punch'],
   sfxThumpGain: ['thump: gain', undefined, 'The low end of the impact (tight, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (raise it if it gets muddy).', 'Sound: thump'],
-  sfxBigGain: ['crack: gain', undefined, 'Tiers III and IV: an extra crack on the impact.', 'Sound: crack'],
+  sfxBigGain: ['crack: gain', undefined, 'Tiers 3 and 4: an extra crack on the impact.', 'Sound: crack'],
   sfxBigRate: ['crack: pitch', '×', 'Pitch of the crack.', 'Sound: crack'],
-  sfxHaymakerGain: ['haymaker: gain', undefined, 'Tier IV: the knockout layer on the haymaker.', 'Sound: haymaker'],
+  sfxHaymakerGain: ['haymaker: gain', undefined, 'Tier 4: the knockout layer on the haymaker.', 'Sound: haymaker'],
   sfxHaymakerRate: ['haymaker: pitch', '×', 'Pitch of the knockout layer.', 'Sound: haymaker'],
-  sfxRubbleGain: ['rubble: gain', undefined, 'Tier IV: rubble landing round the cracked ground.', 'Sound: rubble'],
+  sfxRubbleGain: ['rubble: gain', undefined, 'Tier 4: rubble landing round the cracked ground.', 'Sound: rubble'],
   sfxRubbleRate: ['rubble: pitch', '×', 'Pitch of the first rubble hit.', 'Sound: rubble'],
   sfxToneGain: ['growl: gain', undefined, 'The synth rage growl rising through the windup (peaks on the drive).', 'Sound: growl'],
   sfxToneLowHz: ['growl: from', undefined, 'Hz. Where the growl starts.', 'Sound: growl'],
   sfxToneHighHz: ['growl: to', undefined, 'Hz. Where it has risen to at the drive.', 'Sound: growl'],
   sfxCrackleGain: ['crackle: gain', undefined, 'The synth ember crackle (through the windup and the smoulder).', 'Sound: synth'],
-  sfxRumbleGain: ['rumble: gain', undefined, 'Tier IV: the synth rumble building through the rear-back.', 'Sound: synth'],
+  sfxRumbleGain: ['rumble: gain', undefined, 'Tier 4: the synth rumble building through the rear-back.', 'Sound: synth'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clips are cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while it plays (1 = no duck).', 'Sound: mix'],
 };
 
 const TIER_SPECS: Record<EnragedTierSuffix, [string, TunerUnit | undefined, string]> = {
-  WindupX: ['Windup', '×', 'The coil and the rage building before the first drive, as a multiple of Classic\x27s windup (IV: the rise).'],
-  Strikes: ['Strikes', undefined, 'How many strikes (I one, II a double, III a combo of three, IV a rampage of five and the haymaker). Every one is a full hit; only the last lands the blow.'],
+  WindupX: ['Windup', '×', 'The coil and the rage building before the first drive, as a multiple of Classic\x27s windup (Tier 4: the rise).'],
+  Strikes: ['Strikes', undefined, 'How many strikes (Tier 1 one, Tier 2 a double, Tier 3 a combo of three, Tier 4 a rampage of five and the haymaker). Every one is a full hit; only the last lands the blow.'],
   DriveX: ['Drive', '×', 'Each dash into the foe, as a multiple of Classic\x27s distance-scaled strike (the haymaker has its own dial).'],
   GapMs: ['Rebound', 'ms', 'The pull back between strikes.'],
   Accel: ['Flurry speed-up', '×', 'Each pull back and drive before the finisher is this much shorter than the one before (lower = the flurry accelerates harder).'],
   FinisherMs: ['Finisher wind', 'ms', 'Extra pull back before the last strike of a flurry (3+ strikes).'],
-  Haymaker: ['Haymaker', undefined, 'The last strike is the overhead haymaker: rear way back and up, then come down on the foe (Tier IV).'],
+  Haymaker: ['Haymaker', undefined, 'The last strike is the overhead haymaker: rear way back and up, then come down on the foe (Tier 4).'],
   Shake: ['Shake', 'px', 'How hard the view shakes on the impact (capped by the shake cap).'],
   Zoom: ['Push in', '×', 'How far the view pushes in through the windup (capped).'],
   Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
@@ -138,7 +138,7 @@ const TIER_SPECS: Record<EnragedTierSuffix, [string, TunerUnit | undefined, stri
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroEnragedStrKey>> = {
   'Sound: roar': 'sfxRoarClip', 'Sound: windup': 'sfxWindupClip', 'Sound: charge': 'sfxChargeClip', 'Sound: whoosh': 'sfxWhooshClip',
@@ -243,14 +243,14 @@ export const SPEC: TunerSpec<EnragedTunerValues> = {
   actions: [
     { label: '▶ You strike', hint: 'Your hero strikes the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe strikes your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero strikes for 3: Tier I, one enraged hit.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero strikes for 8: Tier II, a double strike.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero strikes for 12 from four numbers: Tier III, a combo of three.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero strikes for 40 from seven numbers: Tier IV, the rampage and the haymaker.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe strikes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero strikes for 3: Tier 1, one enraged hit.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero strikes for 8: Tier 2, a double strike.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero strikes for 12 from four numbers: Tier 3, a combo of three.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero strikes for 40 from seven numbers: Tier 4, the rampage and the haymaker.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe strikes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

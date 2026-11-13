@@ -5,16 +5,16 @@
  * legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely
  * clean and fun. get creative". Storm Call is an EPIC: one idea (lightning), three visual tiers, short to medium.
  *
- * THE THREE VISUAL TIERS. Every hero attack reads its tier from the shared `attackTier` (the owner-approved thresholds I
- * 1-5 / II 6-11 / III 12-19 / IV 20+, and a knockout always plays IV). An Epic maps those four onto three looks here
- * (`stormLevel`, local to this style): I -> SMALL, II and III -> MEDIUM, IV -> BIG.
- *  - SMALL. Static crackles round the hero, then a jagged bolt ARCS from the hero to the target: the leader races across
+ * THE THREE VISUAL TIERS. Every hero attack reads its tier from the shared `attackTier` (the owner-approved thresholds Tier 1
+ * 1-5 / Tier 2 6-11 / Tier 3 12-19 / Tier 4 20+, and a knockout always plays Tier 4). An Epic maps those four onto three looks here
+ * (`stormLevel`, local to this style): Tier 1 -> TIER 1, Tiers 2 and 3 -> TIER 2, Tier 4 -> TIER 3.
+ *  - TIER 1. Static crackles round the hero, then a jagged bolt ARCS from the hero to the target: the leader races across
  *    in a blink, the bolt flickers (its shape regenerated every few frames, a live crackle) and a zap and a small spark
  *    burst land THE blow.
- *  - MEDIUM. A forked bolt: one trunk leaves the hero and SPLITS into two branches. The first branch strikes (a TICK:
+ *  - TIER 2. A forked bolt: one trunk leaves the hero and SPLITS into two branches. The first branch strikes (a TICK:
  *    FX and sound only), the second strikes a beat later (THE impact), and static crawls over the struck portrait while
  *    it jitters.
- *  - BIG. The hero calls up a thin bolt; a small STORM CLOUD gathers over the target and rumbles (lit from inside), then
+ *  - TIER 3. The hero calls up a thin bolt; a small STORM CLOUD gathers over the target and rumbles (lit from inside), then
  *    drops one THICK strike: a flash across the screen, a ring of sparks, a shock ring, and static crawling over the
  *    portrait while the cloud breaks up. The strike is THE impact.
  *
@@ -33,9 +33,9 @@ export { hexToNum, type TierNum };
 
 export const STORM_LEVELS = [1, 2, 3] as const;
 export type StormLevel = (typeof STORM_LEVELS)[number];
-export const STORM_LEVEL_NAMES: Record<StormLevel, string> = { 1: 'Small', 2: 'Medium', 3: 'Big' };
+export const STORM_LEVEL_NAMES: Record<StormLevel, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3' };
 
-/** The shared four damage tiers mapped onto Storm Call's three looks: I small, II and III medium, IV (and a knockout) big. */
+/** The shared four damage tiers mapped onto Storm Call's three looks: shared Tier 1 plays Tier 1, Tiers 2 and 3 play Tier 2, Tier 4 (and a knockout) plays Tier 3. */
 export function stormLevel(tier: TierNum): StormLevel {
   return tier <= 1 ? 1 : tier >= 4 ? 3 : 2;
 }
@@ -61,7 +61,7 @@ interface GlobalConfig {
   regenMs: number;
   fadeMs: number;
   bow: number;
-  // The fork (Medium)
+  // The fork (Tier 2)
   forkAt: number;
   forkGapMs: number;
   forkSpread: number;
@@ -69,7 +69,7 @@ interface GlobalConfig {
   staticMs: number;
   staticArcs: number;
   jitterPx: number;
-  // The storm (Big)
+  // The storm (Tier 3)
   callMs: number;
   gatherMs: number;
   rumbleMs: number;
@@ -118,7 +118,7 @@ type ClipKey = (typeof HERO_STORM_CLIP_KEYS)[number];
 export type HeroStormStrKey = ColorKey | ClipKey;
 export type HeroStormNumKey = Exclude<keyof HeroStormConfig, HeroStormStrKey>;
 
-/** Small, Medium, Big per suffix: the escalation ladder. */
+/** Tier 1, Tier 2, Tier 3 per suffix: the escalation ladder. */
 const LEVEL_DEFAULTS: Record<StormLevelSuffix, [number, number, number]> = {
   ChargeMs: [380, 380, 320],
   LeaderMs: [70, 80, 60],
@@ -325,7 +325,7 @@ export function stormLevelDials(level: StormLevel, c: HeroStormConfig = cfg): Re
   return Object.fromEntries(STORM_LEVEL_SUFFIXES.map((s) => [s, c[`v${level}${s}`]])) as Record<StormLevelSuffix, number>;
 }
 
-/** What a bolt is: the Small arc, the Medium trunk and its two branches, the Big call (up to the cloud) and strike. */
+/** What a bolt is: the Tier 1 arc, the Tier 2 trunk and its two branches, the Tier 3 call (up to the cloud) and strike. */
 export type BoltKind = 'arc' | 'trunk' | 'branch' | 'call' | 'strike';
 
 export interface BoltPlan {
@@ -357,24 +357,24 @@ export interface StormPlan {
   reduced: boolean;
   /** The SHARED damage tier (1..4; a knockout is 4). */
   tier: TierNum;
-  /** Storm Call's look: 1 small, 2 medium, 3 big. */
+  /** Storm Call's look: Tier 1, 2 or 3. */
   level: StormLevel;
   k: number;
   total: number;
   chargeAt: number;
   absorbEnd: number;
-  /** The first bolt leaves the hero (Big: the call). */
+  /** The first bolt leaves the hero (Tier 3: the call). */
   boltAt: number;
   bolts: BoltPlan[];
-  /** Big: the cloud gathers from here, and rumbles from `rumbleAt`. */
+  /** Tier 3: the cloud gathers from here, and rumbles from `rumbleAt`. */
   storm: boolean;
   gatherAt: number;
   rumbleAt: number;
-  /** Big: the flashes inside the cloud as it rumbles. */
+  /** Tier 3: the flashes inside the cloud as it rumbles. */
   rumbles: number[];
-  /** Strikes that land BEFORE the impact (Medium's first branch). */
+  /** Strikes that land BEFORE the impact (Tier 2's first branch). */
   hits: number[];
-  /** THE consequence beat: the Small arc, the Medium second branch, or the Big strike lands. */
+  /** THE consequence beat: the Tier 1 arc, the Tier 2 second branch, or the Tier 3 strike lands. */
   impactAt: number;
   /** Static crawls over the struck portrait from here (it jitters) until `staticEnd`. */
   staticAt: number;
@@ -391,7 +391,7 @@ export interface StormPlan {
 /** The whole Storm Call, in base ms. Pure and deterministic. */
 export function stormPlan(input: StormPlanInput, c: HeroStormConfig = cfg): StormPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts), so Big
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts), so Tier 3
   const level = stormLevel(tier);
   const V = stormLevelDials(level, c);
   const k = (level - 1) / 2;
@@ -499,7 +499,7 @@ export interface ViewBox { w: number; h: number }
 
 export interface StormGeo {
   bolts: BoltGeo[];
-  /** Big: the storm cloud's centre, and its half width in px. */
+  /** Tier 3: the storm cloud's centre, and its half width in px. */
   cloud: Pt | null;
   cloudR: number;
   /** Where each strike lands on the struck portrait (the hit flash, the sparks). */
@@ -507,8 +507,8 @@ export interface StormGeo {
 }
 
 /**
- * Where every bolt runs, from the plan and the two heroes. Small arcs from the striker's rim into the face; Medium's
- * trunk splits at `forkAt` and its two branches land either side of the middle of the face; Big's call runs from the
+ * Where every bolt runs, from the plan and the two heroes. Tier 1 arcs from the striker's rim into the face; Tier 2's
+ * trunk splits at `forkAt` and its two branches land either side of the middle of the face; Tier 3's call runs from the
  * hero up to a cloud gathered over the target (with no room above a hero at the top of the screen, the cloud rolls in
  * over the top edge and hangs just over the portrait), and the strike drops from the cloud into the top of the face. Pure: a replay strikes the same places.
  */
@@ -539,7 +539,7 @@ export function stormGeometry(p: StormPlan, a: Pt, d: Pt, radius: number, aRadiu
       cloud: null, cloudR: 0, strikes: [hitA, hitB],
     };
   }
-  // BIG: the cloud over the target.
+  // TIER 3: the cloud over the target.
   const cloudR = 190 * scale * c.cloudSize;
   const margin = 14 * scale + cloudR * 0.6;
   let cx = d.x;
@@ -581,9 +581,9 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
 /**
- * The camera at sequence time `t`: a small push in through the charge (Big: through the gathering storm, with a faint
+ * The camera at sequence time `t`: a small push in through the charge (Tier 3: through the gathering storm, with a faint
  * tremor as it rumbles); a kick along the bolt on each strike; on THE impact a punch in and a directional shake
- * (Big: hardest, mostly downward). Deterministic. Pure.
+ * (Tier 3: hardest, mostly downward). Deterministic. Pure.
  */
 export function stormCameraAt(p: StormPlan, c: HeroStormConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
@@ -613,7 +613,7 @@ export function stormCameraAt(p: StormPlan, c: HeroStormConfig, t: number, dir: 
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** Where the camera anchors: the ATTACKER through the charge, the struck hero from the bolt (Big: from the gather) on. Pure. */
+/** Where the camera anchors: the ATTACKER through the charge, the struck hero from the bolt (Tier 3: from the gather) on. Pure. */
 export function stormCameraFocus(p: StormPlan, t: number, a: Pt, d: Pt): Pt {
   const from = p.chargeAt;
   const to = p.storm ? p.gatherAt + (p.rumbleAt - p.gatherAt) * 0.5 : p.boltAt;

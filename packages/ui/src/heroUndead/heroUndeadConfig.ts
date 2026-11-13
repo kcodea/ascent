@@ -14,11 +14,11 @@
  *     rings pulse off it), then flies at the target on a slight arc, wobbling, trailing afterimages and shedding wisps,
  *     jaw wide, and BITES as it lands (the jaw snaps shut): it bursts into a swirl of ghost wisps, bone shards and a
  *     spectral echo of itself.
- *     I: one skull. II: TWO skulls weaving in on opposite arcs, the first a tick, the second bigger.
- *     III: a grave circle opens under the target, skeletal HANDS claw up out of the board round it and DRAG at it (the
+ *     Tier 1: one skull. Tier 2: TWO skulls weaving in on opposite arcs, the first a tick, the second bigger.
+ *     Tier 3: a grave circle opens under the target, skeletal HANDS claw up out of the board round it and DRAG at it (the
  *     portrait is pulled down into the grave), a SWARM of ghost wisps streams from the hero and strikes it in rhythm,
  *     then one big skull finishes it and the hands shatter into bone.
- *  IV. THE GRAVE RIFT (the showpiece):
+ *  Tier 4. THE GRAVE RIFT (the showpiece):
  *      1. A RIFT tears open in the board between the heroes (a jagged void, lit sickly green inside, cracks racing off
  *         it, grave dust and motes pouring up).
  *      2. A GIANT spectral SKULL MAW rises out of it (mist and wisps pouring round it), its eyes ignite.
@@ -29,10 +29,10 @@
  *     EVERYTHING IS FLAT 2D (the owner's rule since Holy, 2026-09-29): every circle, hole, rift and crack is a top-down
  *     shape on the board; nothing is tilted into faux 3D.
  *
- * THE CONSEQUENCE lands ONCE: on the last skull's bite (I-III) or on the maw's chomp (IV). Every earlier skull, every
+ * THE CONSEQUENCE lands ONCE: on the last skull's bite (Tiers 1-3) or on the maw's chomp (Tier 4). Every earlier skull, every
  * hand's grip and every wisp is a tick (FX and sound only). No hit-stop or freeze anywhere (owner 2026-09-28).
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Reduced motion: no skulls,
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Reduced motion: no skulls,
  * hands, wisps, rift, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -71,17 +71,17 @@ interface GlobalConfig {
   shedWisps: number;
   echoSize: number;
   shards: number;
-  // Wisps (every tier's bursts; the Tier III swarm)
+  // Wisps (every tier's bursts; the Tier 3 swarm)
   wispLife: number;
   wispWander: number;
   wispSize: number;
   wispBend: number;
-  // The hands (Tier III)
+  // The hands (Tier 3)
   handSize: number;
   handRing: number;
   handRiseMs: number;
   handDragPx: number;
-  // The rift and the maw (Tier IV)
+  // The rift and the maw (Tier 4)
   riftAlong: number;
   riftLen: number;
   riftMs: number;
@@ -149,7 +149,7 @@ type ClipKey = (typeof HERO_UNDEAD_CLIP_KEYS)[number];
 export type HeroUndeadStrKey = ColorKey | ClipKey;
 export type HeroUndeadNumKey = Exclude<keyof HeroUndeadConfig, HeroUndeadStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<UndeadTierSuffix, [number, number, number, number]> = {
   ChargeMs: [320, 360, 400, 440],
   Skulls: [1, 2, 1, 0],
@@ -437,9 +437,9 @@ export function undeadFlightMs(distance: number, tunedMs: number): number {
 
 /** One skull: it pops out of the hero and shrieks (`emergeAt`), is loosed (`launchAt`), and bites (`hitAt`). */
 export interface UndeadSkullPlan { emergeAt: number; launchAt: number; hitAt: number; size: number; arc: number }
-/** One skeletal hand (III): it claws up out of the board (`riseAt`) and grips (`gripAt`, a tick). */
+/** One skeletal hand (Tier 3): it claws up out of the board (`riseAt`) and grips (`gripAt`, a tick). */
 export interface UndeadHandPlan { riseAt: number; gripAt: number }
-/** One ghost wisp of the Tier III swarm: loosed off the hero, strikes the target (a tick). */
+/** One ghost wisp of the Tier 3 swarm: loosed off the hero, strikes the target (a tick). */
 export interface UndeadWispPlan { launchAt: number; hitAt: number }
 
 export interface UndeadPlanInput extends AttackTierContext {
@@ -455,7 +455,7 @@ export interface UndeadPlanInput extends AttackTierContext {
 export interface UndeadPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The raise starts: the total dives into the hero, the grave circle forms under it. */
@@ -463,28 +463,28 @@ export interface UndeadPlan {
   absorbEnd: number;
   /** The circle flares: the dead answer (the skulls, the hands, the rift follow). */
   raiseAt: number;
-  /** III: the grave circle opens under the target. */
+  /** Tier 3: the grave circle opens under the target. */
   graveAt: number;
   skulls: UndeadSkullPlan[];
   hands: UndeadHandPlan[];
   wisps: UndeadWispPlan[];
-  /** Tier IV: the grave rift and the maw. */
+  /** Tier 4: the grave rift and the maw. */
   maw: boolean;
-  /** IV: the rift tears open. */
+  /** Tier 4: the rift tears open. */
   riftAt: number;
-  /** IV: the maw starts rising out of it, and is up (eyes lit) at `shriekAt`. */
+  /** Tier 4: the maw starts rising out of it, and is up (eyes lit) at `shriekAt`. */
   riseAt: number;
-  /** IV: the jaw drops and it shrieks. */
+  /** Tier 4: the jaw drops and it shrieks. */
   shriekAt: number;
-  /** IV: it lunges at the struck hero. */
+  /** Tier 4: it lunges at the struck hero. */
   lungeAt: number;
-  /** IV: it arrives, jaw wide, and snaps shut over `chompMs` onto the impact. */
+  /** Tier 4: it arrives, jaw wide, and snaps shut over `chompMs` onto the impact. */
   chompAt: number;
-  /** IV: the rift and the ground marks start fading. */
+  /** Tier 4: the rift and the ground marks start fading. */
   fadeAt: number;
   /** Beats that land BEFORE the impact (earlier skulls, grips, wisps): the ticks. Sequence ms. */
   hits: number[];
-  /** THE consequence beat: the last skull's bite (I-III) or the maw's chomp (IV). */
+  /** THE consequence beat: the last skull's bite (Tiers 1-3) or the maw's chomp (Tier 4). */
   impactAt: number;
   endAt: number;
   shakePx: number;
@@ -498,7 +498,7 @@ export interface UndeadPlan {
 /** The whole Undead attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function undeadPlan(input: UndeadPlanInput, c: HeroUndeadConfig = cfg): UndeadPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = undeadTierDials(tier, c);
   const k = (tier - 1) / 3;
   const empty = { skulls: [] as UndeadSkullPlan[], hands: [] as UndeadHandPlan[], wisps: [] as UndeadWispPlan[], hits: [] as number[] };
@@ -533,7 +533,7 @@ export function undeadPlan(input: UndeadPlanInput, c: HeroUndeadConfig = cfg): U
     impactAt = chompAt + c.chompMs;
   } else {
     const flight = undeadFlightMs(input.distance, T.SkullFlightMs);
-    // III: the grave opens under the target; the hands claw up and grip; the wisp swarm strikes in rhythm.
+    // Tier 3: the grave opens under the target; the hands claw up and grip; the wisp swarm strikes in rhythm.
     graveAt = raiseAt + 40;
     const nHands = clamp(Math.round(T.Hands), 0, UNDEAD_CAPS.hands);
     for (let i = 0; i < nHands; i++) {
@@ -548,7 +548,7 @@ export function undeadPlan(input: UndeadPlanInput, c: HeroUndeadConfig = cfg): U
     }
     const ticksEnd = Math.max(0, ...hands.map((h) => h.gripAt), ...wisps.map((w) => w.hitAt));
     // The skulls: the first pops out as the raise answers; each next one emerges `SkullGapMs` after the last is loosed
-    // (so a pair weaves in close behind each other). After ticks (III), the finisher lands a beat after the last tick.
+    // (so a pair weaves in close behind each other). After ticks (Tier 3), the finisher lands a beat after the last tick.
     const nSkulls = Math.max(1, clamp(Math.round(T.Skulls), 0, UNDEAD_CAPS.skulls));
     let emergeAt = raiseAt + 40;
     if (ticksEnd > 0) emergeAt = Math.max(emergeAt, ticksEnd + 110 - flight - c.shriekMs);
@@ -635,11 +635,11 @@ export interface UndeadGeo {
   skulls: SkullPath[];
   hands: HandSpot[];
   wisps: WispPath[];
-  /** IV: the rift in the board between the heroes (its centre, its angle across the heroes' line, its length). */
+  /** Tier 4: the rift in the board between the heroes (its centre, its angle across the heroes' line, its length). */
   rift: { at: Pt; ang: number; len: number };
-  /** IV: where the maw is fully risen (just above the rift) and where it chomps. */
+  /** Tier 4: where the maw is fully risen (just above the rift) and where it chomps. */
   maw: { from: Pt; up: Pt; to: Pt; size: number };
-  /** IV: the cracks racing off the rift (angles and reaches). */
+  /** Tier 4: the cracks racing off the rift (angles and reaches). */
   cracks: { ang: number; len: number }[];
 }
 
@@ -736,7 +736,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the raise; a small
- * kick on each tick; on THE bite a punch in and a shake. Tier IV: the rift tearing kicks, the maw's shriek TREMBLES the
+ * kick on each tick; on THE bite a punch in and a shake. Tier 4: the rift tearing kicks, the maw's shriek TREMBLES the
  * view (growing), the lunge sucks it in, and the chomp punches hardest. Deterministic (sines and springs): a replay
  * moves identically. Pure.
  */
@@ -784,8 +784,8 @@ export function undeadCameraAt(p: UndeadPlan, c: HeroUndeadConfig, t: number): {
 }
 
 /**
- * Where the camera anchors: the ATTACKER through the raise, then the DEFENDER (I-III: easing over once the first skull is
- * loosed or the grave opens). Tier IV: the attacker, then the RIFT through the tear, the rise and the shriek, then along
+ * Where the camera anchors: the ATTACKER through the raise, then the DEFENDER (Tiers 1-3: easing over once the first skull is
+ * loosed or the grave opens). Tier 4: the attacker, then the RIFT through the tear, the rise and the shriek, then along
  * the lunge to the defender. A zoom anchored on a point keeps that point still. Pure.
  */
 export function undeadCameraFocus(p: UndeadPlan, t: number, a: Pt, d: Pt, rift: Pt | null = null): Pt {

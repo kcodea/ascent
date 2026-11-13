@@ -48,7 +48,7 @@ const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 
 const geo = (a = A, d = D) => enragedGeo(a, d, 80, 80, C, FRAME);
 
 describe('the damage tiers (shared with every style)', () => {
-  it('Enraged steps up on exactly the blows every other style does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Enraged steps up on exactly the blows every other style does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -58,7 +58,7 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE enraged hit, II a DOUBLE strike, III a COMBO of three, IV a RAMPAGE of five slams and the overhead HAYMAKER', () => {
+  it('the ladder: Tier 1 ONE enraged hit, Tier 2 a DOUBLE strike, Tier 3 a COMBO of three, Tier 4 a RAMPAGE of five slams and the overhead HAYMAKER', () => {
     expect([P1, P2, P3, P4].map((p) => p.strikes.length)).toEqual([1, 2, 3, 6]);
     expect([P1, P2, P3, P4].map((p) => p.haymaker)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.haymaker ? 'haymaker' : p.strikes.length; }))
@@ -113,7 +113,7 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('enraged');
     expect(DEV_HERO_ATTACK_LABELS.enraged).toBe('Enraged Strike');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)', '▶ Foe medium (12)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ You strike', '▶ Foe strikes', '▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 2 (8)', '▶ Foe tier 3 (12)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
     // Owner 2026-09-29 (every attack tuner): the Play row on TOP, and no speed or reduced-motion buttons.
@@ -161,20 +161,20 @@ describe('the plan', () => {
     expect(enragedPose(P2, g, C, (s1.coilAt + s1.driveAt) / 2).squash).toBeGreaterThan(0); // squashed in the coil
   });
 
-  it('the RAMPAGE (Tier IV) accelerates: each slam comes faster than the one before, then the haymaker', () => {
+  it('the RAMPAGE (Tier 4) accelerates: each slam comes faster than the one before, then the haymaker', () => {
     const gap = (i: number): number => P4.strikes[i]!.driveAt - P4.strikes[i - 1]!.contactAt;
     for (let i = 2; i < P4.strikes.length - 1; i++) expect(gap(i)).toBeLessThan(gap(i - 1));
     expect(gap(P4.strikes.length - 1)).toBeGreaterThan(gap(P4.strikes.length - 2)); // the rear-back is the long breath
   });
 
-  it('Tier II is a double strike; Tier I one hit straight to the impact', () => {
+  it('Tier 2 is a double strike; Tier 1 one hit straight to the impact', () => {
     expect(P2.ticks).toHaveLength(1);
     expect(P2.impactAt).toBe(P2.strikes[1]!.contactAt);
     expect(P1.ticks).toEqual([]);
     expect(P1.impactAt).toBe(P1.strikes[0]!.contactAt);
   });
 
-  it('Tier IV: five slams (ticks), then the hero REARS BACK and the overhead HAYMAKER is the impact; rubble lands after', () => {
+  it('Tier 4: five slams (ticks), then the hero REARS BACK and the overhead HAYMAKER is the impact; rubble lands after', () => {
     expect(P4.haymaker).toBe(true);
     const last = P4.strikes[P4.strikes.length - 1]!;
     expect(last.haymaker).toBe(true);
@@ -203,7 +203,7 @@ describe('the plan', () => {
     }
   });
 
-  it('every tier escalates: more shake, zoom, sparks and burst; II+ dims; all within the caps', () => {
+  it('every tier escalates: more shake, zoom, sparks and burst; Tier 2+ dims; all within the caps', () => {
     const ps = [P1, P2, P3, P4];
     for (let i = 1; i < 4; i++) {
       expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
@@ -410,7 +410,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: five slams, the rear-back, then the blow lands ONCE, on the haymaker; the shockwave, cracks and rubble follow; all within the caps', () => {
+  it('Tier 4: five slams, the rear-back, then the blow lands ONCE, on the haymaker; the shockwave, cracks and rubble follow; all within the caps', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.haymaker).toBe(true);
     f.tick(h.plan.rearAt + 100, 8);
@@ -523,7 +523,7 @@ describe('the scene (headless Pixi)', () => {
     return (t) => { const q = enragedPose(p, g, C, t); return { x: A.x + q.x, y: A.y + q.y, s: q.scale, heat: q.heat }; };
   };
 
-  it('a whole Tier IV stays in the caps and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 stays in the caps and drains; destroy leaves nothing', () => {
     const s = new HeroEnragedScene(TEX, COLORS, LOOK, 1, 42);
     s.setHero(path(P4), 80, null);
     let peak = 0, peakM = 0;

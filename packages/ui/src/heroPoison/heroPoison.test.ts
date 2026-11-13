@@ -3,7 +3,7 @@
  * THE POISON DARTS HERO ATTACK (owner 2026-09-28: "branch off and make a poison dart animation. the final one should
  * throw multiple poison darts that implode with poison"): the tier mapping SHARED with every style; the tier -> darts
  * ladder (1 / 2 / 5 / six that implode); the tuner defaults + clamping; the pure plan (the total is the engine's number,
- * the volley rhythm, the impact beat, the implosion at IV, reduced motion, determinism); the pure dart paths (a slight
+ * the volley rhythm, the impact beat, the implosion at Tier 4, reduced motion, determinism); the pure dart paths (a slight
  * arc that comes down onto the struck portrait and sticks at varied angles); the camera; the runner on the shared clock
  * (the consequence lands exactly ONCE, on the last dart or the burst, never on a tick; both directions; slow motion;
  * replay; finish / cancel; cleanup; stuck darts ride the knockback); the headless scene (pooled, bounded, drains,
@@ -43,7 +43,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with every style)', () => {
-  it('Poison steps up on exactly the blows Blast and Arcana do: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Poison steps up on exactly the blows Blast and Arcana do: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -53,7 +53,7 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE dart, II TWO in quick succession, III a fan of FIVE, IV SIX that IMPLODE (the owner\'s "multiple poison darts that implode")', () => {
+  it('the ladder: Tier 1 ONE dart, Tier 2 TWO in quick succession, Tier 3 a fan of FIVE, Tier 4 SIX that IMPLODE (the owner\'s "multiple poison darts that implode")', () => {
     expect([P1, P2, P3, P4].map((p) => p.darts.length)).toEqual([1, 2, 5, 6]);
     expect([P1, P2, P3, P4].map((p) => p.implode)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.implode ? 'implode' : p.darts.length; }))
@@ -105,7 +105,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('poison');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('poison');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
   });
@@ -129,7 +129,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('seep')).toBeLessThan(kinds.indexOf('dissolve'));
   });
 
-  it('Tier II is two darts in quick succession (one tick, then the impact); Tier I one dart, straight to the impact', () => {
+  it('Tier 2 is two darts in quick succession (one tick, then the impact); Tier 1 one dart, straight to the impact', () => {
     expect(P2.darts[1]!.throwAt - P2.darts[0]!.throwAt).toBeLessThanOrEqual(250);
     expect(P2.hits).toHaveLength(1);
     expect(P2.impactAt).toBe(P2.darts[1]!.arriveAt);
@@ -138,7 +138,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.darts[0]!.arriveAt);
   });
 
-  it('Tier IV: EVERY dart is a tick; then the swell, the suck, and the BURST is the impact (the one consequence)', () => {
+  it('Tier 4: EVERY dart is a tick; then the swell, the suck, and the BURST is the impact (the one consequence)', () => {
     const kinds = poisonCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(6);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -166,7 +166,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [300, 600, 1320], [340, 825, 1585], [400, 1130, 1930], [420, 2090, 2990],
     ]);
-    // Chunky, not rushed, never dragging: Tier I about 1.4 s, Tier IV under 3 s.
+    // Chunky, not rushed, never dragging: Tier 1 about 1.4 s, Tier 4 under 3 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
     expect(t(P4)[2]).toBeLessThanOrEqual(3200);
   });
@@ -237,7 +237,7 @@ describe('the dart paths', () => {
     for (const m of ms) expect(Math.hypot(m.aim.x - D.x, m.aim.y - D.y)).toBeLessThanOrEqual(R * 0.75);
   });
 
-  it('Tier IV sticks the darts ROUND the face (so the implosion has somewhere to pull them in from)', () => {
+  it('Tier 4 sticks the darts ROUND the face (so the implosion has somewhere to pull them in from)', () => {
     const ms = dartMotions(P4, A, D, R, R, C);
     const angs = ms.map((m) => Math.atan2(m.aim.y - D.y, m.aim.x - D.x)).sort((a, b) => a - b);
     const gaps = angs.map((a, i) => (i ? a - angs[i - 1]! : a + 2 * Math.PI - angs[angs.length - 1]!));
@@ -266,7 +266,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Tier IV builds through the swell and the suck, then the burst punches hardest; focus moves from thrower to target', () => {
+  it('Tier 4 builds through the swell and the suck, then the burst punches hardest; focus moves from thrower to target', () => {
     const early = poisonCameraAt(P4, C, P4.swellAt + 20);
     const late = poisonCameraAt(P4, C, P4.impactAt - 5);
     expect(late.zoom).toBeGreaterThan(early.zoom);
@@ -346,7 +346,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: six darts stick (ticks), swell, are SUCKED in, and the blow lands ONCE on the BURST', () => {
+  it('Tier 4: six darts stick (ticks), swell, are SUCKED in, and the blow lands ONCE on the BURST', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.implode).toBe(true);
     f.tick(h.plan.swellAt + 40, 4);
@@ -472,7 +472,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('trails are strips of TRAIL_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier IV stays in the caps and drains; destroy leaves nothing', () => {
+  it('trails are strips of TRAIL_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier 4 stays in the caps and drains; destroy leaves nothing', () => {
     expect(TRAIL_POINTS * 2).toBeLessThanOrEqual(100);
     const s = new HeroPoisonScene(TEX, COLORS, LOOK, 1, 42);
     const ms = dartMotions(P4, A, D, R, R, C);

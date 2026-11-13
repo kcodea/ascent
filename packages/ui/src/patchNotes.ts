@@ -68,6 +68,20 @@ export const PATCH_NOTES: PatchNote[] = [
           "Epic: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain, Iggy Iggy.",
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Eight new hero attacks are in crates. Equip one in the Collection to change how your hero strikes.',
+        details: [
+          'Checkmate (Epic): chess pieces move by their own rules and take the enemy hero.',
+          'Grand Finale (Epic): fireworks, ending in one huge shell over the enemy hero.',
+          'Fourth Wall (Epic): the screen is a pane of glass, and the hit breaks it.',
+          'Top Rope (Legendary): the two heroes wrestle, all the way to a three count.',
+          'Flawless (Legendary): a fighting game combo, with a counter that ends on the real damage.',
+          'Warhost (Ancient): an army of tiny soldiers. It has its own knockout version.',
+          'The Reaping (Ancient): the scythe cuts the colour out of the enemy hero.',
+          'Written in the Stars (Ancient): constellations come alive and strike.',
+        ],
+      },
     ],
   },
   {

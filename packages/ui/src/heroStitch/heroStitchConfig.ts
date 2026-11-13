@@ -7,28 +7,28 @@
  * needles trail violet soul thread from the striking hero and sew it into the struck hero. No other attack sews: the
  * thread is drawn along the needle's own path, it hangs, it goes taut, it is tugged and it snaps.
  *
- * FOUR TIERS (the shared, owner-approved thresholds: I 1-5, II 6-11, III 12-19, IV 20+; a knockout always plays IV).
- * I and II were approved as built on 5173 ("t1 and t2 are great"). IV is the owner's pick of three concept pairs, PAIR 2
- * "BOUND TOGETHER" ("the huge one looks pretty awesome"); III is the owner's pick of three later concepts, "PINNED" (the
- * first III, a seam across the board, was rejected: "t3 attack is HORRIBLE ... i hate the direction of it"):
- *  I    NEEDLE. One crystal needle flies out on an arc trailing a violet thread. It pierces the target and the thread
+ * FOUR TIERS (the shared, owner-approved thresholds: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+; a knockout always plays Tier 4).
+ * Tiers 1 and 2 were approved as built on 5173 ("t1 and t2 are great"). Tier 4 is the owner's pick of three concept pairs, PAIR 2
+ * "BOUND TOGETHER" ("the huge one looks pretty awesome"); Tier 3 is the owner's pick of three later concepts, "PINNED" (the
+ * first Tier 3, a seam across the board, was rejected: "t3 attack is HORRIBLE ... i hate the direction of it"):
+ *  Tier 1    NEEDLE. One crystal needle flies out on an arc trailing a violet thread. It pierces the target and the thread
  *       hangs taut between the two heroes. A tug (the hero leans back, the target is yanked toward it, a pulse of light
  *       runs down the thread), then the hit: the needle bursts into shards and the thread snaps.
- *  II   CROSS. Three needles cross-stitch an X into the target: two sew the diagonals across the face, the third pins
+ *  Tier 2   CROSS. Three needles cross-stitch an X into the target: two sew the diagonals across the face, the third pins
  *       the crossing. The hero yanks; the threads snap THROUGH the face, shards spraying along both stitches.
- *  III  PINNED. Five crystal needles stab into the target's rim at the points of a star, one after another, each
+ *  Tier 3  PINNED. Five crystal needles stab into the target's rim at the points of a star, one after another, each
  *       trailing a thread back to the hero. The hero leans back on all five and the portrait STRETCHES toward the hero
  *       against the pins; then all five pins rip out at once (five snaps, crystal splinters at each pin) and the
  *       portrait snaps back with the hit.
- *  IV   BOUND (Huge; always on a knockout). Six needles lash the two portraits together, each sewing a lace from the
+ *  Tier 4   BOUND (always on a knockout). Six needles lash the two portraits together, each sewing a lace from the
  *       target back to the hero and out again. The hero leans back and YANKS: the target's portrait is dragged off its
  *       spot halfway across the board, into a giant gold HEART-KNOT (the knot on the Ancient's chest) that ties shut
  *       round it, crushing it small. The hero strikes down the laces; the knot BURSTS in gold and violet ribbons and the
  *       target is flung back to its spot.
  *
  * THE CONTRACT: every piercing and every stitch before the impact is a TICK (FX and sound only). The consequence (the
- * damage, Armor, Resolve) lands ONCE: on the snap (I), the yank (II), the pins ripping out (III) or the knot bursting
- * (IV).
+ * damage, Armor, Resolve) lands ONCE: on the snap (Tier 1), the yank (Tier 2), the pins ripping out (Tier 3) or the knot bursting
+ * (Tier 4).
  *
  * Flat 2D. No hit-stop anywhere (owner 2026-09-28: "it looks like lag"). Reduced motion: no needles, threads, shake,
  * zoom or drag; the numbers fade and the blow lands. No rune or explosion sounds (owner 2026-10-02: "do not use the
@@ -50,7 +50,7 @@ export type { TierNum };
 export const STITCH_KINDS = ['needle', 'cross', 'pinned', 'bound'] as const;
 export type StitchKind = (typeof STITCH_KINDS)[number];
 
-/** Tier I..IV -> what it sews. */
+/** Tier 1..4 -> what it sews. */
 export function stitchKind(tier: TierNum): StitchKind { return STITCH_KINDS[tier - 1]!; }
 
 /** The four tiers' dial groups (a config key is `t1..t4` + a suffix). */
@@ -77,13 +77,13 @@ interface GlobalConfig {
   sag: number;
   tautMs: number;
   twangPx: number;
-  // The pull (I-II)
+  // The pull (Tiers 1-2)
   heroPullPx: number;
   foeYankPx: number;
-  // III: pinned
+  // Tier 3: pinned
   stretch: number;
   pinRim: number;
-  // IV: bound together
+  // Tier 4: bound together
   dragReach: number;
   knotMs: number;
   knotSize: number;
@@ -144,8 +144,8 @@ export type HeroStitchStrKey = (typeof HERO_STITCH_COLOR_KEYS)[number] | (typeof
 export type HeroStitchNumKey = Exclude<keyof HeroStitchConfig, HeroStitchStrKey>;
 
 /**
- * Tier I .. IV per suffix: the escalation ladder. I and II are the approved values (owner 2026-10-02: "t1 and t2 are
- * great"). III: `Needles` the pins, `TugMs` the stretch before they rip out (it does not sew). IV: `SewMs` each lace (to
+ * Tier 1 .. 4 per suffix: the escalation ladder. Tiers 1 and 2 are the approved values (owner 2026-10-02: "t1 and t2 are
+ * great"). Tier 3: `Needles` the pins, `TugMs` the stretch before they rip out (it does not sew). Tier 4: `SewMs` each lace (to
  * the hero and back out), `Passes` its legs, `TugMs` the drag across the board.
  */
 const TIER_DEFAULTS: Record<StitchTierSuffix, [number, number, number, number]> = {
@@ -319,7 +319,7 @@ export const HERO_STITCH_RANGES: Record<HeroStitchNumKey, [number, number, numbe
 export const STITCH_CAPS = { needles: 8, passes: 24, legs: 4, shards: 60, shakePx: 40, zoom: 0.14 } as const;
 
 const store = configStore<HeroStitchConfig>({
-  // v4: III rebuilt as "Pinned" and IV as "Bound Together" (owner picks 2026-10-02); older saved dials are dropped.
+  // v4: Tier 3 rebuilt as "Pinned" and Tier 4 as "Bound Together" (owner picks 2026-10-02); older saved dials are dropped.
   key: 'ascent.herostitch.v5', defaults: HERO_STITCH_DEFAULTS, ranges: HERO_STITCH_RANGES,
   colorKeys: HERO_STITCH_COLOR_KEYS, clipKeys: HERO_STITCH_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
@@ -382,25 +382,25 @@ export interface StitchPlan {
   /** Every tick ON THE TARGET before the impact (the piercings), in time order. */
   hits: number[];
   /**
-   * The action starts: I-II the tug (the hero leans back, the thread goes taut); III the pull on the pins (the portrait
-   * stretches); IV the yank (the drag across the board begins).
+   * The action starts: Tiers 1-2 the tug (the hero leans back, the thread goes taut); Tier 3 the pull on the pins (the portrait
+   * stretches); Tier 4 the yank (the drag across the board begins).
    */
   tugAt: number;
-  /** IV: the target has been dragged into the knot, which starts tying (null on other tiers). */
+  /** Tier 4: the target has been dragged into the knot, which starts tying (null on other tiers). */
   knotAt: number | null;
-  /** IV: the knot is tied; the hero strikes down the laces (null on other tiers). */
+  /** Tier 4: the knot is tied; the hero strikes down the laces (null on other tiers). */
   strikeAt: number | null;
   /**
-   * THE blow, where the consequence lands: the snap / the yank / the pins ripping out / the knot bursting (Tier V: the
+   * THE blow, where the consequence lands: the snap / the yank / the pins ripping out / the knot bursting (Tier 5: the
    * SLAM in the middle of the board, after the burst).
    */
   impactAt: number;
-  /** The heart-knot bursts (IV). On every tier but V it IS `impactAt` (V: the burst is a tick, the slam is the impact). */
+  /** The heart-knot bursts (Tier 4). On every tier but V it IS `impactAt` (V: the burst is a tick, the slam is the impact). */
   burstAt: number;
-  /** IV: the target is back on its spot (the fling home ends; null on other tiers). */
+  /** Tier 4: the target is back on its spot (the fling home ends; null on other tiers). */
   homeAt: number | null;
   /**
-   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge bind, remixed. The heart-knot DOUBLE-CINCHES: where
+   * THE KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02): the Tier 4 bind, remixed. The heart-knot DOUBLE-CINCHES: where
    * it would have tied it squeezes once more, hard, in a prismatic flash (`koCinchAt`), and only then ties (the tie,
    * the strike and the burst move back by `STITCH_KO.cinchMs`); the burst gets the Ancient prism, a bigger shake, a
    * deeper, longer slow-mo dip and a KO sting. False / null otherwise.
@@ -408,7 +408,7 @@ export interface StitchPlan {
   ko: boolean;
   koCinchAt: number | null;
   /**
-   * TIER V's FINAL BEAT (owner 2026-10-02: "do a second, faster pull. after the heart knocks them back, latch on and
+   * TIER 5's FINAL BEAT (owner 2026-10-02: "do a second, faster pull. after the heart knocks them back, latch on and
    * then yank and have the attacking hero slam into them in the middle of the board"): after the burst flings the
    * target home, fast needles LATCH onto it (`koLatchAt` they fly, `koLatchedAt` they bite), a SECOND, FASTER YANK pulls
    * it toward the middle while the striker launches at it, and they SLAM together there (`impactAt`: the consequence
@@ -431,7 +431,7 @@ export interface StitchPlan {
 /** The whole Soul Stitch, in base ms. Pure and deterministic. */
 export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.get()): StitchPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4 (heroAttack/tiers.ts)
   const kind = stitchKind(tier);
   const L = stitchTierDials(tier, c);
   const k = (tier - 1) / 3;
@@ -449,7 +449,7 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   const absorbEnd = chargeAt + c.absorbMs;
   const launchAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs);
   const flightMs = stitchFlightMs(input.distance, L.FlightMs);
-  // How many needles each tier sews with: I one, II three (two diagonals and the pin), III the pins, IV the laces'.
+  // How many needles each tier sews with: Tier 1 one, Tier 2 three (two diagonals and the pin), Tier 3 the pins, Tier 4 the laces'.
   const n = kind === 'needle' ? 1 : kind === 'cross' ? 3 : Math.round(clamp(L.Needles, kind === 'pinned' ? 3 : 2, STITCH_CAPS.needles));
   const passes = kind === 'bound' ? Math.round(clamp(L.Passes, 1, STITCH_CAPS.legs)) : 0;
   const sew = Math.max(0, L.SewMs);
@@ -457,7 +457,7 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   for (let i = 0; i < n; i++) {
     const at = launchAt + i * L.StaggerMs;
     const arriveAt = at + flightMs;
-    // II: the third needle only PINS the crossing; III's pins do not sew; IV laces for `SewMs`.
+    // Tier 2: the third needle only PINS the crossing; Tier 3's pins do not sew; Tier 4 laces for `SewMs`.
     const sewMs = kind === 'needle' || kind === 'pinned' ? 0 : kind === 'cross' ? (i < 2 ? sew : 0) : sew;
     needles.push({ launchAt: at, arriveAt, sewEnd: arriveAt + sewMs });
   }
@@ -470,13 +470,13 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   if (kind === 'bound') {
     knotAt = tugAt + L.TugMs;
     strikeAt = knotAt + c.knotMs;
-    // Tier V: the second cinch lands where the knot would have tied; the tie waits a beat for it.
+    // Tier 5: the second cinch lands where the knot would have tied; the tie waits a beat for it.
     if (ko) { koCinchAt = strikeAt; strikeAt += STITCH_KO.cinchMs; }
     burstAt = strikeAt + c.strikeMs;
     homeAt = burstAt + c.flingMs;
     impactAt = burstAt;
     if (ko) {
-      // Tier V: as the burst flings the target home, fast needles latch on; the second yank and the slam follow.
+      // Tier 5: as the burst flings the target home, fast needles latch on; the second yank and the slam follow.
       koLatchAt = burstAt + STITCH_KO.latchDelayMs;
       koLatchedAt = koLatchAt + STITCH_KO.latchFlightMs;
       impactAt = koLatchedAt + STITCH_KO.yankMs;
@@ -484,7 +484,7 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
     }
   } else { impactAt = tugAt + L.TugMs; burstAt = impactAt; }
   const hits = needles.map((q) => q.arriveAt).filter((t) => t < burstAt).sort((a, b) => a - b);
-  // The snap recoil and the ribbons drain after the end: the fight never waits on a falling shard. IV's fling home is
+  // The snap recoil and the ribbons drain after the end: the fight never waits on a falling shard. Tier 4's fling home is
   // inside the end (the portrait is back on its spot before the attack finishes).
   const endAt = Math.max(impactAt + Math.max(c.zoomOutMs * 0.8, 300), homeAt ?? 0, koHomeAt ?? 0) + L.SettleMs;
   return {
@@ -494,17 +494,17 @@ export function stitchPlan(input: StitchPlanInput, c: HeroStitchConfig = store.g
   };
 }
 
-/** IV: how many gold pulses the knot cinches in. */
+/** Tier 4: how many gold pulses the knot cinches in. */
 export const KNOT_PULSES = 3;
 
-/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Tier 4). */
 export const STITCH_KO = {
   /** The second cinch's beat before the knot ties. */
   cinchMs: 280,
   /** How much harder the second cinch squeezes (the knot's tightness bumps past 1 for `squeezeMs`). */
   squeeze: 0.22,
   squeezeMs: 240,
-  /** The burst's slow-mo dip: this much slower at its slowest, and this much longer, than the Huge one's. */
+  /** The burst's slow-mo dip: this much slower at its slowest, and this much longer, than the Tier 4 one's. */
   dipLo: 0.25,
   dipExtraMs: 100,
   /** The final beat: the latch needles fly this long after the burst, and take this long to bite. */
@@ -520,7 +520,7 @@ export const STITCH_KO = {
 } as const;
 
 /**
- * TIER V: the final beat's pose at `t` (pure). `foe` and `hero` are each portrait's way from its spot (0) to the
+ * TIER 5: the final beat's pose at `t` (pure). `foe` and `hero` are each portrait's way from its spot (0) to the
  * meeting point in the middle (1): the striker winds back a touch while the needles latch, then both are HAULED in,
  * accelerating, and slam; they hold contact a beat and spring back out, EXACTLY 0 from `koHomeAt`. `squash` is the
  * target's squash on the slam (0 outside it). Every other tier: zeros.
@@ -560,11 +560,11 @@ export function stitchCues(p: StitchPlan): StitchCue[] {
     });
     out.push({ at: p.tugAt, kind: 'tug', i: 0 });
     if (p.knotAt !== null) out.push({ at: p.knotAt, kind: 'knot', i: 0 });
-    // IV: the knot cinches in three pulses (gold sparks), between landing in it and the tie.
+    // Tier 4: the knot cinches in three pulses (gold sparks), between landing in it and the tie.
     if (p.knotAt !== null && p.strikeAt !== null) {
       const tieAt = p.koCinchAt ?? p.strikeAt;
       for (let i = 1; i <= KNOT_PULSES; i++) out.push({ at: p.knotAt + ((tieAt - p.knotAt) * i) / (KNOT_PULSES + 1), kind: 'cinch', i });
-      // Tier V: the double-cinch (the hard prismatic squeeze), the cinch after the last.
+      // Tier 5: the double-cinch (the hard prismatic squeeze), the cinch after the last.
       if (p.koCinchAt !== null) out.push({ at: p.koCinchAt, kind: 'cinch', i: KNOT_PULSES + 1 });
     }
     if (p.strikeAt !== null) {
@@ -572,7 +572,7 @@ export function stitchCues(p: StitchPlan): StitchCue[] {
       out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
     }
     if (p.homeAt !== null) out.push({ at: p.homeAt, kind: 'home', i: 0 });
-    // Tier V: the heart-knot bursts (a tick now: FX only), the needles latch on, the second yank, the slam (the impact).
+    // Tier 5: the heart-knot bursts (a tick now: FX only), the needles latch on, the second yank, the slam (the impact).
     if (p.burstAt !== p.impactAt) out.push({ at: p.burstAt, kind: 'burst', i: 0 });
     if (p.koLatchAt !== null) out.push({ at: p.koLatchAt, kind: 'latch', i: 0 });
     if (p.koLatchedAt !== null) out.push({ at: p.koLatchedAt, kind: 'yank', i: 0 });
@@ -611,10 +611,10 @@ export interface StitchGeo {
   u: Pt;
   nrm: Pt;
   needles: NeedleGeo[];
-  /** IV: how far (screen px, along `-u`) the target is dragged toward the striker, into the knot. 0 on other tiers. */
+  /** Tier 4: how far (screen px, along `-u`) the target is dragged toward the striker, into the knot. 0 on other tiers. */
   drag: number;
   /**
-   * Tier V: the slam. `foe` and `hero` are each portrait's offset (screen px) from its spot to where it meets the other,
+   * Tier 5: the slam. `foe` and `hero` are each portrait's offset (screen px) from its spot to where it meets the other,
    * `meet` the meeting point in the middle of the board. Null on every other tier.
    */
   slam: { foe: Pt; hero: Pt; meet: Pt } | null;
@@ -641,11 +641,11 @@ function lengths(pts: readonly Pt[]): number[] {
 /**
  * Every needle's path from the plan and the two heroes. The summon spots fan round the striker's rim on the side that
  * faces the target; the flights bow toward the TOP of the screen (never above `ceilY`); what each tier sews:
- *  I    the needle pierces the face just off centre, toward the striker (the thread runs straight back to it);
- *  II   two diagonals across the face (each entering on the corner nearer the striker), and a pin at the crossing;
- *  III  a pin at each point of a five-point star round the target's rim (`pinRim` radii out), stabbed in star order
+ *  Tier 1    the needle pierces the face just off centre, toward the striker (the thread runs straight back to it);
+ *  Tier 2   two diagonals across the face (each entering on the corner nearer the striker), and a pin at the crossing;
+ *  Tier 3  a pin at each point of a five-point star round the target's rim (`pinRim` radii out), stabbed in star order
  *       (each point two along from the last, as a star is drawn);
- *  IV   each needle pierces the target's rim (a fan facing the striker), laces back to the striker's rim and out to the
+ *  Tier 4   each needle pierces the target's rim (a fan facing the striker), laces back to the striker's rim and out to the
  *       target again, crossing its neighbours, so the laces bind the two portraits together.
  * Pure, so a replay sews the same.
  */
@@ -696,7 +696,7 @@ export function stitchGeo(p: StitchPlan, a: Pt, d: Pt, aR: number, dR: number, c
     }
     drag = Math.max(0, (L - aR - dR) * c.dragReach);
   }
-  // Tier V: where the two portraits meet for the slam: the middle of the gap between their rims, each a little short.
+  // Tier 5: where the two portraits meet for the slam: the middle of the gap between their rims, each a little short.
   let slam: StitchGeo['slam'] = null;
   if (p.ko) {
     const gap = Math.max(0, L - aR - dR);
@@ -754,7 +754,7 @@ const HIDDEN_NEEDLE: NeedleState = { visible: false, x: 0, y: 0, rot: 0, flying:
 /**
  * Needle `i` at sequence time `t` (pure): hidden before the charge; summoned on its spot through the ready (pointing
  * at the target); flown along its quadratic; then riding its sewing path; then held where it stopped. Hidden from the
- * impact on (it shatters there); IV's needles are gone once the laces are sewn (tied off).
+ * impact on (it shatters there); Tier 4's needles are gone once the laces are sewn (tied off).
  */
 export function needleAt(p: StitchPlan, g: StitchGeo, i: number, t: number): NeedleState {
   const q = p.needles[i], n = g.needles[i];
@@ -794,7 +794,7 @@ export function flightProgress(q: NeedleTiming, t: number): number {
 
 /**
  * The pull's envelope at `t` (pure): 0 before the action, rising (eased in and out) to 1 at its end, then released.
- * I-III: the tug / the stretch up to the impact. IV: the drag up to the knot.
+ * Tiers 1-3: the tug / the stretch up to the impact. Tier 4: the drag up to the knot.
  */
 export function tugAt(p: StitchPlan, t: number): number {
   const end = p.knotAt ?? p.burstAt;
@@ -804,7 +804,7 @@ export function tugAt(p: StitchPlan, t: number): number {
 }
 
 /**
- * III: how far the target is STRETCHED toward the striker (0 = not at all .. `stretch`), pure: pulled out against the
+ * Tier 3: how far the target is STRETCHED toward the striker (0 = not at all .. `stretch`), pure: pulled out against the
  * pins through the pull (eased in, so it strains harder and harder), then, the moment the pins rip out, it SNAPS back
  * through its rest (a squash: negative) and settles, exactly 0 again by the end. Every other tier: 0.
  */
@@ -821,7 +821,7 @@ export function stretchAt(p: StitchPlan, c: HeroStitchConfig, t: number): number
 const easeOutBackK = (x: number, k = 1.4): number => { const y = Math.min(1, Math.max(0, x)) - 1; return 1 + (k + 1) * y * y * y + k * y * y; };
 
 /**
- * IV: the target's DRAG at `t` (pure): 0 = on its spot, 1 = in the knot, `geo.drag` px toward the striker. It is
+ * Tier 4: the target's DRAG at `t` (pure): 0 = on its spot, 1 = in the knot, `geo.drag` px toward the striker. It is
  * yanked (a short hesitation, then hauled, landing with a small overshoot) from the yank to the knot, held in the knot
  * through the tie and the strike, and flung home from the impact (overshooting its spot a touch), EXACTLY 0 from
  * `homeAt` on (and before the yank). Every other tier: 0.
@@ -838,12 +838,12 @@ export function dragAt(p: StitchPlan, t: number): number {
   return 1 - easeOutBackK(u, 1.6);
 }
 
-/** IV: how tightly the knot holds the target (0 open .. 1 tied), from the knot to the strike; released on the burst. */
+/** Tier 4: how tightly the knot holds the target (0 open .. 1 tied), from the knot to the strike; released on the burst. */
 export function knotAt(p: StitchPlan, t: number): number {
   if (p.kind !== 'bound' || p.knotAt === null || p.strikeAt === null || t < p.knotAt || t >= p.burstAt) return 0;
   const tieAt = p.koCinchAt ?? p.strikeAt;
   const u = Math.min(1, (t - p.knotAt) / Math.max(1, tieAt - p.knotAt));
-  // Tier V: the second cinch squeezes past snug for a moment (the loops close tighter, the portrait crushed smaller).
+  // Tier 5: the second cinch squeezes past snug for a moment (the loops close tighter, the portrait crushed smaller).
   const second = p.koCinchAt !== null && t >= p.koCinchAt
     ? STITCH_KO.squeeze * Math.sin(Math.PI * Math.min(1, (t - p.koCinchAt) / STITCH_KO.squeezeMs)) : 0;
   return u * u * (3 - 2 * u) + second;
@@ -856,8 +856,8 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 
 /**
  * The camera at sequence time `t`: a push in through the ready, a small kick along each needle as it pierces, a steady
- * creep in through the action with a JERK as it starts (the tug back toward the striker; III's punch forward), and a
- * punch with a directional shake on the impact, settling back. IV pushes in harder on the knot and trembles as it
+ * creep in through the action with a JERK as it starts (the tug back toward the striker; Tier 3's punch forward), and a
+ * punch with a directional shake on the impact, settling back. Tier 4 pushes in harder on the knot and trembles as it
  * ties. Deterministic. Pure.
  */
 export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
@@ -867,7 +867,7 @@ export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, di
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.launchAt - p.chargeAt));
     if (t >= p.tugAt) z += p.zoom * 0.6 * sine((t - p.tugAt) / Math.max(1, p.burstAt - p.tugAt));
   } else if (t >= p.burstAt) z += (p.zoom * 1.6 + p.punch) * Math.exp(-(t - p.burstAt) / Math.max(1, c.zoomOutMs / 4));
-  // Tier V: the second yank creeps in, and the slam punches in hard.
+  // Tier 5: the second yank creeps in, and the slam punches in hard.
   if (p.ko && p.koLatchedAt !== null) {
     if (t >= p.koLatchedAt && t < p.impactAt) z += p.zoom * 0.5 * sine((t - p.koLatchedAt) / Math.max(1, p.impactAt - p.koLatchedAt));
     else if (t >= p.impactAt) z += (p.zoom * 1.2 + p.punch * 1.3) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
@@ -888,7 +888,7 @@ export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, di
     }
   }
   kick(p.burstAt, p.shakePx * (p.ko ? 1 / KO_SHAKE : 1), Math.max(1, c.shakeMs / 4), 15);
-  // Tier V: the latch tugs the view back toward the striker; the slam kicks it hardest of all (the KO shake).
+  // Tier 5: the latch tugs the view back toward the striker; the slam kicks it hardest of all (the KO shake).
   if (p.ko && p.koLatchedAt !== null) {
     kick(p.koLatchedAt, -0.3 * p.shakePx, 60, 11);
     kick(p.impactAt, p.shakePx * 1.15, Math.max(1, c.shakeMs / 4), 14);
@@ -898,8 +898,8 @@ export function stitchCameraAt(p: StitchPlan, c: HeroStitchConfig, t: number, di
 
 /**
  * Where the camera anchors: the striker through the ready, following the needles, then the target from the first
- * piercing. IV follows the target as it is dragged into the knot and flung home.
- * `foeDrag` is the target's drag offset (screen px) at `t` (IV).
+ * piercing. Tier 4 follows the target as it is dragged into the knot and flung home.
+ * `foeDrag` is the target's drag offset (screen px) at `t` (Tier 4).
  */
 export function stitchCameraFocus(p: StitchPlan, t: number, a: Pt, d: Pt, foeDrag: Pt = { x: 0, y: 0 }): Pt {
   const first = p.needles[0]?.arriveAt ?? p.impactAt;
@@ -910,14 +910,14 @@ export function stitchCameraFocus(p: StitchPlan, t: number, a: Pt, d: Pt, foeDra
 }
 
 /**
- * IV's WEIGHT ON THE BURST (owner 2026-10-02: "add some pixi blasts ... a punchier hit-stop"). The house rule is no
+ * Tier 4's WEIGHT ON THE BURST (owner 2026-10-02: "add some pixi blasts ... a punchier hit-stop"). The house rule is no
  * freeze (owner 2026-09-28: "remove the freezeing frame from all of the animations. it looks like lag",
  * R-PROG-ATTACK-10), so the burst gets a SLOW-MO DIP instead: the one clock drops to `slowMo` the instant the knot
  * bursts and eases back to full speed over `slowMoMs` (attack time), a smooth ramp that never reaches 0 (the
  * Basketball's technique). Every other tier and moment: 1.
  */
 export function stitchTimeScale(p: StitchPlan, c: HeroStitchConfig, t: number): number {
-  // Tier V dips deeper and longer (still a smooth ramp that never reaches 0).
+  // Tier 5 dips deeper and longer (still a smooth ramp that never reaches 0).
   const ms = c.slowMoMs + (p.ko && c.slowMoMs > 0 ? STITCH_KO.dipExtraMs : 0);
   if (p.kind !== 'bound' || p.reduced || ms <= 0 || t < p.impactAt || t >= p.impactAt + ms) return 1;
   const u = (t - p.impactAt) / ms;

@@ -13,17 +13,17 @@
  *     gathers, a riser climbs; the view pushes in on the hero.
  *  3. LOB. Clean magic RIBBONS (a tapering strip: a soft violet halo, an arcane glow, a violet body, a white-hot core and a
  *     thin cyan strand winding round it; an orb and a spinning sigil at the head) are LOBBED from the hero on high
- *     arcs: I one; II two (different heights, opposite sides); III a barrage of five, fanned, landing in rhythm.
+ *     arcs: Tier 1 one; Tier 2 two (different heights, opposite sides); Tier 3 a barrage of five, fanned, landing in rhythm.
  *  4. IMPACT. Each ribbon that lands before the last is a small arcane tick (a sigil flash, a crisp ring, glitter). The
  *     LAST one is THE impact: the big `-N`, a sigil flare, rings, spikes and glitter. The consequence
  *     (the damage, Armor, Resolve) lands ONCE, there.
- *  IV. SWIRL. The ribbons do not strike: they arc in and join an orbiting vortex over the struck hero's frame (a tilted
+ *  Tier 4. SWIRL. The ribbons do not strike: they arc in and join an orbiting vortex over the struck hero's frame (a tilted
  *     ellipse, so it reads as a ring of light circling the portrait), which TIGHTENS and SPEEDS UP under a rising tone
  *     while a sigil and a core of light build beneath it. Then they CONVERGE and EXPLODE: ribbons flung outward, a
  *     shockwave, a sigil flare, sparkles. The damage lands on the explosion.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Brisk at Tier I (~2 s), about
- * 4 s at Tier IV. Reduced motion: no flight, ribbons, shake or zoom; the numbers fade and the blow lands.
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Brisk at Tier 1 (~2 s), about
+ * 4 s at Tier 4. Reduced motion: no flight, ribbons, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
@@ -61,7 +61,7 @@ interface GlobalConfig {
   strand: number;
   headSize: number;
   sigilSize: number;
-  // Swirl (Tier IV)
+  // Swirl (Tier 4)
   swirlRadius: number;
   swirlTilt: number;
   swirlMs: number;
@@ -119,7 +119,7 @@ type ClipKey = (typeof HERO_ARCANA_CLIP_KEYS)[number];
 export type HeroArcanaStrKey = ColorKey | ClipKey;
 export type HeroArcanaNumKey = Exclude<keyof HeroArcanaConfig, HeroArcanaStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<ArcanaTierSuffix, [number, number, number, number]> = {
   ChargeMs: [260, 340, 420, 420],
   Ribbons: [1, 2, 5, 6],
@@ -397,7 +397,7 @@ export interface ArcanaPlanInput extends AttackTierContext {
 export interface ArcanaPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The charge starts: the total dives into the hero, the sigil opens. */
@@ -406,20 +406,20 @@ export interface ArcanaPlan {
   /** The first ribbon leaves. */
   fireAt: number;
   ribbons: ArcanaRibbonPlan[];
-  /** Tier IV: the ribbons swirl over the target, converge and explode. */
+  /** Tier 4: the ribbons swirl over the target, converge and explode. */
   swirl: boolean;
-  /** Tier IV: the first ribbon joins the vortex (else the impact). */
+  /** Tier 4: the first ribbon joins the vortex (else the impact). */
   swirlAt: number;
-  /** Tier IV: the vortex collapses inward (else the impact). */
+  /** Tier 4: the vortex collapses inward (else the impact). */
   convergeAt: number;
   /** Ribbons that land BEFORE the impact (non-swirl), sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last ribbon lands (I-III) or the vortex explodes (IV). */
+  /** THE consequence beat: the last ribbon lands (Tiers 1-3) or the vortex explodes (Tier 4). */
   impactAt: number;
-  /** Aftershocks around the target (IV). */
+  /** Aftershocks around the target (Tier 4). */
   booms: number[];
   /**
-   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge vortex, remixed. One EXTRA PULSE of the vortex
+   * THE KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02): the Tier 4 vortex, remixed. One EXTRA PULSE of the vortex
    * (a prismatic throb, `koPulseAt`) before it collapses (the collapse and the explosion move back by `ARCANA_KO.pulseMs`),
    * the Ancient prism on the explosion, a bigger shake, a slow-mo dip (`dip`) and a KO sting. False / null otherwise.
    */
@@ -439,7 +439,7 @@ export interface ArcanaPlan {
 /** The whole Arcana, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): ArcanaPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = arcanaTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -473,7 +473,7 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
     const fl = Math.round(flight * (1 + 0.06 * Math.abs(slot)));
     return { launchAt, flightMs: fl, arriveAt: launchAt + fl, lift, side, size: last ? 1.12 : count > 2 ? 0.86 : 1 };
   });
-  // Keep the launch order's rhythm on arrival: each lands at least `gap` after the one before (III's barrage).
+  // Keep the launch order's rhythm on arrival: each lands at least `gap` after the one before (Tier 3's barrage).
   const gap = count > 2 && !swirl ? Math.max(60, T.LaunchStaggerMs * 0.8) : 0;
   for (let i = 1; i < ribbons.length; i++) {
     const r = ribbons[i]!, prev = ribbons[i - 1]!;
@@ -483,7 +483,7 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   const lastIn = Math.max(...ribbons.map((r) => r.arriveAt));
   const swirlAt = swirl ? firstIn : lastIn;
   const ko = isKnockoutVariant(input);
-  // Tier V: the vortex throbs once more where it would have collapsed; the collapse waits for the pulse.
+  // Tier 5: the vortex throbs once more where it would have collapsed; the collapse waits for the pulse.
   const koPulseAt = ko && swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) : null;
   const convergeAt = swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) + (koPulseAt !== null ? ARCANA_KO.pulseMs : 0) : lastIn;
   const impactAt = swirl ? convergeAt + c.convergeMs : lastIn;
@@ -511,7 +511,7 @@ export function arcanaPlan(input: ArcanaPlanInput, c: HeroArcanaConfig = cfg): A
   };
 }
 
-/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Tier 4). */
 export const ARCANA_KO = { pulseMs: 300 } as const;
 
 export type ArcanaCueKind = 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'koPulse' | 'converge' | 'impact' | 'boom' | 'end';
@@ -548,7 +548,7 @@ export function arcanaCues(p: ArcanaPlan): ArcanaCue[] {
 export interface Lob { a: Pt; c1: Pt; c2: Pt; b: Pt }
 
 /**
- * The vortex a Tier IV ribbon joins: a tilted ellipse over the struck hero that tightens (radius `r0` down to `r1`)
+ * The vortex a Tier 4 ribbon joins: a tilted ellipse over the struck hero that tightens (radius `r0` down to `r1`)
  * and spins up (`w0` to `w1` rad/ms) between `start` and `end`, then collapses into the centre over `converge` ms.
  * `start` / `end` are ms after THIS ribbon's launch at which the RING (shared by every ribbon) forms and collapses, so
  * every ribbon rides the same spin; a ribbon joins it when its lob lands. `base` is this ribbon's slot angle; `dir`
@@ -556,7 +556,7 @@ export interface Lob { a: Pt; c1: Pt; c2: Pt; b: Pt }
  */
 export interface Vortex { cx: number; cy: number; r0: number; r1: number; tilt: number; base: number; dir: 1 | -1; w0: number; w1: number; start: number; end: number; converge: number }
 
-/** A ribbon's whole flight: the lob, then (Tier IV) the vortex. Times are ms after its launch. */
+/** A ribbon's whole flight: the lob, then (Tier 4) the vortex. Times are ms after its launch. */
 export interface RibbonMotion { lob: Lob; flightMs: number; vortex: Vortex | null }
 
 const cub = (a: number, b: number, c: number, d: number, t: number): number => {
@@ -633,7 +633,7 @@ export function ribbonPos(m: RibbonMotion, t: number): Pt {
 }
 
 /**
- * Every ribbon's whole flight, from the plan and the two heroes. Tier IV aims each ribbon at its own slot on the
+ * Every ribbon's whole flight, from the plan and the two heroes. Tier 4 aims each ribbon at its own slot on the
  * vortex (evenly spaced when the vortex collapses) and brings it in along the spin. Pure, so a replay flies the same
  * paths and the tests can check them.
  */
@@ -681,7 +681,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the charge; a
  * small recoil kick on each launch; a directional kick ALONG the landing ribbon on each barrage tick; on THE impact a
- * punch in and a directional shake along the last ribbon. Tier IV
+ * punch in and a directional shake along the last ribbon. Tier 4
  * instead builds: the view pushes in on the vortex as it tightens, a faint tremor grows, and the explosion punches in
  * hardest with a shake that rings both ways. Deterministic (sines and springs): a replay moves identically. Pure.
  */
@@ -723,7 +723,7 @@ export function arcanaCameraAt(p: ArcanaPlan, c: HeroArcanaConfig, t: number, di
       y += p.shakePx * env * Math.cos(age * 0.093);
     }
     p.booms.forEach((at, i) => kick(at, p.shakePx * 0.3, 45, 18, i % 2 ? perp : dir));
-    // Tier V: the extra pulse thumps the view (a short punch in and a kick up).
+    // Tier 5: the extra pulse thumps the view (a short punch in and a kick up).
     if (p.koPulseAt !== null) {
       kick(p.koPulseAt, p.shakePx * 0.35, 50, 15, { x: 0, y: -1 });
       if (t >= p.koPulseAt) z += p.punch * 0.5 * Math.exp(-(t - p.koPulseAt) / 90);
@@ -736,7 +736,7 @@ export function arcanaCameraAt(p: ArcanaPlan, c: HeroArcanaConfig, t: number, di
 
 /**
  * Where the camera anchors: the ATTACKER through the charge, following the volley in flight, and the DEFENDER from
- * the impact on (Tier IV: from the moment the vortex forms). A zoom anchored on a point keeps that point still. Pure.
+ * the impact on (Tier 4: from the moment the vortex forms). A zoom anchored on a point keeps that point still. Pure.
  */
 export function arcanaCameraFocus(p: ArcanaPlan, t: number, a: Pt, d: Pt): Pt {
   const settle = p.swirl ? p.swirlAt : p.impactAt;

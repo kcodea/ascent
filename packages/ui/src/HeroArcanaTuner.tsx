@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the ARCANA hero attack (owner ask 2026-09-28: "one more attack animation, same setup as the last 2, but
  * let's make like a magic one called arcana"). The Play buttons run the REAL runner between the two real hero portraits
- * (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40.
+ * (works from the shop), in either direction, at Tier 1 (3) / Tier 2 (8) / Tier 3 (12) / Tier 4 (40).
  * A preview never touches the run. The "Attack style" row is the same dev override as the other
  * attack tuners' (Auto = what a player would see). Production plays the baked defaults.
  */
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroArcanaNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which Arcana steps up to Tier II (two ribbons). Shared with Blast and Quake (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which Arcana becomes the barrage of five. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which Arcana becomes the vortex and explosion. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which Arcana steps up to Tier 2 (two ribbons). Shared with Blast and Quake (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which Arcana becomes the barrage of five. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which Arcana becomes the vortex and explosion. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the spell gathers.', 'Charge'],
   recoilPx: ['Recoil', 'px', 'How far the hero dips as each ribbon leaves.', 'Charge'],
@@ -39,15 +39,15 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   strand: ['Strand', '×', 'The thin cyan strand winding round the ribbon (0 = none).', 'Ribbons'],
   headSize: ['Head size', '×', 'The orb and flare at the ribbon head.', 'Ribbons'],
   sigilSize: ['Head sigil', '×', 'The spinning sigil at the ribbon head (0 = none).', 'Ribbons'],
-  swirlRadius: ['Vortex radius', '×', 'Tier IV: the vortex radius, in portrait radii.', 'Swirl (Tier IV)'],
-  swirlTilt: ['Vortex tilt', '×', 'Tier IV: how flat the ring looks (1 = a circle, lower = a tilted ring seen at an angle).', 'Swirl (Tier IV)'],
-  swirlMs: ['Swirl time', 'ms', 'Tier IV: how long the vortex spins from the first ribbon joining to the collapse.', 'Swirl (Tier IV)'],
-  swirlSpeed0: ['Spin start', undefined, 'Tier IV: turns a second as the vortex forms.', 'Swirl (Tier IV)'],
-  swirlSpeed1: ['Spin end', undefined, 'Tier IV: turns a second at the collapse (it speeds up to this).', 'Swirl (Tier IV)'],
-  swirlTighten: ['Tighten', '×', 'Tier IV: how far the ring closes in as it spins up (0 = not at all).', 'Swirl (Tier IV)'],
-  convergeMs: ['Collapse', 'ms', 'Tier IV: the ribbons snapping into the centre before the explosion.', 'Swirl (Tier IV)'],
-  explodeSize: ['Explosion size', '×', 'Tier IV: the scale of the explosion.', 'Explosion'],
-  explodeRibbons: ['Blast ribbons', undefined, 'Tier IV: ribbons flung outward by the explosion.', 'Explosion'],
+  swirlRadius: ['Vortex radius', '×', 'Tier 4: the vortex radius, in portrait radii.', 'Swirl (Tier 4)'],
+  swirlTilt: ['Vortex tilt', '×', 'Tier 4: how flat the ring looks (1 = a circle, lower = a tilted ring seen at an angle).', 'Swirl (Tier 4)'],
+  swirlMs: ['Swirl time', 'ms', 'Tier 4: how long the vortex spins from the first ribbon joining to the collapse.', 'Swirl (Tier 4)'],
+  swirlSpeed0: ['Spin start', undefined, 'Tier 4: turns a second as the vortex forms.', 'Swirl (Tier 4)'],
+  swirlSpeed1: ['Spin end', undefined, 'Tier 4: turns a second at the collapse (it speeds up to this).', 'Swirl (Tier 4)'],
+  swirlTighten: ['Tighten', '×', 'Tier 4: how far the ring closes in as it spins up (0 = not at all).', 'Swirl (Tier 4)'],
+  convergeMs: ['Collapse', 'ms', 'Tier 4: the ribbons snapping into the centre before the explosion.', 'Swirl (Tier 4)'],
+  explodeSize: ['Explosion size', '×', 'Tier 4: the scale of the explosion.', 'Explosion'],
+  explodeRibbons: ['Blast ribbons', undefined, 'Tier 4: ribbons flung outward by the explosion.', 'Explosion'],
   flashAlpha: ['Flash', 'opacity', 'How bright the impact and explosion flashes are.', 'Explosion'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
@@ -70,15 +70,15 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxChimeRate: ['chime: pitch', '×', 'Pitch of the chime.', 'Sound: chime'],
   sfxThumpGain: ['thump: gain', undefined, 'A low punch under the impact (punchy, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
-  sfxImplodeGain: ['collapse: gain', undefined, 'Tier IV: the vortex collapsing inward.', 'Sound: collapse'],
+  sfxImplodeGain: ['collapse: gain', undefined, 'Tier 4: the vortex collapsing inward.', 'Sound: collapse'],
   sfxImplodeRate: ['collapse: pitch', '×', 'Pitch of the collapse.', 'Sound: collapse'],
-  sfxExplodeGain: ['explosion: gain', undefined, 'Tier IV: the explosion (pitched up to crack, not boom).', 'Sound: explosion'],
+  sfxExplodeGain: ['explosion: gain', undefined, 'Tier 4: the explosion (pitched up to crack, not boom).', 'Sound: explosion'],
   sfxExplodeRate: ['explosion: pitch', '×', 'Pitch of the explosion.', 'Sound: explosion'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: an extra crack layered on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: an extra crack layered on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxBoomGain: ['aftershock: gain', undefined, 'Tier IV: the sparkle pops after the explosion.', 'Sound: aftershock'],
+  sfxBoomGain: ['aftershock: gain', undefined, 'Tier 4: the sparkle pops after the explosion.', 'Sound: aftershock'],
   sfxBoomRate: ['aftershock: pitch', '×', 'Pitch of the first aftershock.', 'Sound: aftershock'],
-  sfxSwirlGain: ['swirl: gain', undefined, 'Tier IV: the synth tone rising as the vortex spins up (peaks on the explosion).', 'Sound: swirl'],
+  sfxSwirlGain: ['swirl: gain', undefined, 'Tier 4: the synth tone rising as the vortex spins up (peaks on the explosion).', 'Sound: swirl'],
   sfxSwirlLowHz: ['swirl: from', undefined, 'Hz. Where the swirl tone starts.', 'Sound: swirl'],
   sfxSwirlHighHz: ['swirl: to', undefined, 'Hz. Where it has risen to at the explosion.', 'Sound: swirl'],
   sfxLaunchLenMs: ['launch length', 'ms', 'Each launch whoosh is cut to this long (with a fade).', 'Sound: mix'],
@@ -89,7 +89,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 
 const TIER_SPECS: Record<ArcanaTierSuffix, [string, TunerUnit | undefined, string]> = {
   ChargeMs: ['Charge', 'ms', 'The spell gathering before the first ribbon leaves. The view pushes in over this.'],
-  Ribbons: ['Ribbons', undefined, 'How many ribbons are lobbed (I one, II two, III the barrage of five, IV the vortex).'],
+  Ribbons: ['Ribbons', undefined, 'How many ribbons are lobbed (Tier 1 one, Tier 2 two, Tier 3 the barrage of five, Tier 4 the vortex).'],
   LaunchStaggerMs: ['Launch stagger', 'ms', 'Gap between each ribbon leaving (the barrage rhythm).'],
   FlightMs: ['Flight', 'ms', 'A ribbon crossing the board (at 1600 px; scales gently with distance).'],
   ArcHeight: ['Arc height', '×', 'How high the lob arcs, as a fraction of the distance.'],
@@ -105,7 +105,7 @@ const TIER_SPECS: Record<ArcanaTierSuffix, [string, TunerUnit | undefined, strin
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroArcanaStrKey>> = {
   'Sound: cast': 'sfxCastClip',
@@ -209,15 +209,15 @@ export const SPEC: TunerSpec<ArcanaTunerValues> = {
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Arcana at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Arcana at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero casts for 3: Tier I, one ribbon.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero casts for 8: Tier II, two ribbons.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero casts for 12 from four numbers: Tier III, the barrage of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero casts for 40 from seven numbers: Tier IV, the vortex and explosion.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
-    { label: '▶ Knockout (40)', hint: 'Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier V"): the Huge vortex, remixed: the vortex throbs with an extra prismatic pulse before it collapses, and the explosion bursts in cyan and magenta over the arcane violet, with a bigger shake, a slow-mo dip and a KO sting.', run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero casts for 3: Tier 1, one ribbon.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero casts for 8: Tier 2, two ribbons.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero casts for 12 from four numbers: Tier 3, the barrage of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero casts for 40 from seven numbers: Tier 4, the vortex and explosion.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Knockout (40)', hint: 'Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier 5"): the Tier 4 vortex, remixed: the vortex throbs with an extra prismatic pulse before it collapses, and the explosion bursts in cyan and magenta over the arcane violet, with a bigger shake, a slow-mo dip and a KO sting.', run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
     { label: '▶ Foe knockout (40)', hint: 'The foe knocks YOU out with 40 (the Knockout variant).', run: () => { void demo('opp', { damage: 40, parts: 7, knockout: true }); } },
   ],
 };

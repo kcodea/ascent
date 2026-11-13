@@ -170,7 +170,8 @@
  * "Attack style" override. Scaffolded from `stitch` (`npm run attack:new`), see `../heroReaping/`.
  *
  * `glass` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroGlass/`.
+ * "Attack style" override. "Fourth Wall" (Ancient): the SCREEN is a pane of glass and the blow breaks it (a chip, a
+ * web, a pane that falls out, then the whole view shatters and falls away), see `../heroGlass/`.
  *
  * `stars` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroStars/`.

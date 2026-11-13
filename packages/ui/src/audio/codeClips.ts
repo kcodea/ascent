@@ -281,9 +281,13 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/reaping-bell',
     'fx/reaping-breath',
     'fx/reaping-cleave',
+    'fx/reaping-crack',
     'fx/reaping-drain',
+    'fx/reaping-orb',
+    'fx/reaping-shatter',
     'fx/reaping-slash',
     'fx/reaping-sweep',
+    'fx/reaping-wind',
   ],
   storm: [
     'fx/blue-impact-hit',

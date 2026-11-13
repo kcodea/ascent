@@ -9,24 +9,28 @@
  * after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
  * THREE LAYERS, bottom to top: the game; the DRAIN panes (`heroReapingDrain.ts`: DOM, `backdrop-filter: grayscale`, so
- * whatever is under them loses its colour); the Pixi SCENE (`heroReapingScene.ts`: the blades, the great crescent and
- * its afterimages, the rings, the line and the motes, which keep their colour over the grey). Layout is read ONCE, at the start, by the caller (the
- * two portrait rects); this file reads none.
+ * whatever is under them loses its colour); the Pixi SCENE (`heroReapingScene.ts`: the blades, the great crescent, the
+ * orb, the ribbons, the shards, the cracks and the motes, which keep their colour over the grey). Layout is read ONCE,
+ * at the start, by the caller (the two portrait rects); this file reads none. The struck portrait's own colours are
+ * read from its art ONCE at the start too (`heroReapingPalette.ts`): what is stolen is THAT portrait's colour.
  *
- * THE PORTRAITS: the striker swells a breath through the ready and pulses as the colour reaches it (and on IV's toll);
- * the struck portrait takes a knock along the cut (a short one on I-II, a hard one on III-IV: it REELS) and then SAGS
+ * THE PORTRAITS: the striker swells a breath through the ready and pulses as the colour reaches it (and on Tier 4's toll);
+ * the struck portrait takes a knock along the cut (a short one on Tiers 1-2, a hard one on Tiers 3-4: it REELS) and then SAGS
  * while it is grey, easing back as its colour returns. No z-order class is touched.
  *
  * THE SOUND. Cold, but never thin (the owner heard the first pass as silent): every blade is three layers placed so
  * their bodies land on the crossing (the airy sweep, the low slash under it, a ring of steel over it); every blow has
- * a low body (the cleave, and on III-IV a boom); the colour leaving is a hollow rush of air. IV: the other buses are
- * hushed as the screen drains, a real beat of silence, then ONE bell (layered an octave down over a boom) breaks it;
- * the sweep; the cut lands with the deepest hit of the attack; the buses come back as the colour floods back.
+ * a low body (the cleave, and on Tiers 3-4 a boom); the colour leaving is a hollow rush of air. Tier 3: the rush as the
+ * world's colour is gathered, a resonant hum as the orb fills (cut off by the blow), a glass orb shattering over the
+ * cleave and the boom. Tier 4: the other buses are hushed as the screen drains, a real beat of silence, then ONE bell
+ * (layered an octave down over a boom) breaks it; silk whipped into a spiral as the ribbons wind out; the hum as the
+ * blade blazes; the sweep; the cut lands with the deepest hit of the attack and the crack of old paint; the buses come
+ * back as the colour floods back; the paint crumbles as the loser's colour returns.
  *
  * EVERY EXIT (the end, `finish()`, `cancel()`, the safety timer; an unmount cancels) removes every drain pane, puts
  * both portraits' transforms back exactly, resets the camera, restores the hushed buses and hides the scene.
  *
- * THE CONTRACT: II's first cut is a tick (FX and sound only). The consequence (`onImpact`) lands exactly ONCE.
+ * THE CONTRACT: Tier 2's first cut is a tick (FX and sound only). The consequence (`onImpact`) lands exactly ONCE.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -45,6 +49,7 @@ import {
 import { ReapingDrain } from './heroReapingDrain';
 import { HeroReapingScene, type HeroReapingTextures } from './heroReapingScene';
 import { heroReapingTextures } from './heroReapingTextures';
+import { portraitPalette } from './heroReapingPalette';
 
 export interface HeroReapingOptions extends HeroAttackOptions {
   cfg?: HeroReapingConfig;
@@ -108,11 +113,17 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   const cutDir = geo.cuts[geo.cuts.length - 1]?.dir ?? u;
 
   const textures = o.textures !== undefined ? o.textures : heroReapingTextures();
+  // THE STOLEN COLOUR: the struck portrait's own hues, read from its art once (the warm tuner hues if it cannot be read).
+  const fallback = [hexToNum(c.colorMoteA), hexToNum(c.colorMoteB), hexToNum(c.colorMoteC), hexToNum(c.colorWorldB)];
+  const stolen = reduced ? fallback : (portraitPalette(o.defenderEl, 4, fallback) ?? fallback);
   const scene = textures && !reduced
     ? new HeroReapingScene(textures, {
       teal: hexToNum(c.colorTeal), bone: hexToNum(c.colorBone), shade: hexToNum(c.colorShade),
-      motes: [hexToNum(c.colorMoteA), hexToNum(c.colorMoteB), hexToNum(c.colorMoteC)], side: hexToNum(sideHex),
-    }, { bladeSize: c.bladeSize, moteMs: c.moteMs, moteSize: c.moteSize, stripWidth: c.stripWidth }, plan, geo,
+      motes: stolen, world: [hexToNum(c.colorWorldA), hexToNum(c.colorWorldB), hexToNum(c.colorMoteC)], side: hexToNum(sideHex),
+    }, {
+      bladeSize: c.bladeSize, moteMs: c.moteMs, moteSize: c.moteSize, stripWidth: c.stripWidth, orbSize: c.orbSize, shardMs: c.shardMs,
+      ribbonWidth: c.ribbonWidth, aura: c.aura,
+    }, plan, geo,
     { x: o.defender.x, y: o.defender.y, r: radius }, { x: o.attacker.x, y: o.attacker.y, r: aRadius }, s, seed)
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -133,18 +144,23 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxBellClip, c.sfxSweepClip, c.sfxBreathClip, c.sfxThumpClip, c.sfxSlashClip, c.sfxMetalClip, c.sfxCleaveClip, c.sfxDrainClip, c.sfxBoomClip]);
+  voices.warm([
+    c.sfxBellClip, c.sfxSweepClip, c.sfxBreathClip, c.sfxThumpClip, c.sfxSlashClip, c.sfxMetalClip, c.sfxCleaveClip, c.sfxDrainClip, c.sfxBoomClip,
+    c.sfxOrbClip, c.sfxShatterClip, c.sfxWindClip, c.sfxCrackClip,
+  ]);
   const real = (ms: number): number => ms / speed;
   const unit = local ? 1 : s;
   const px = local ? 0.45 : 1;
   const big = plan.kind === 'reaping';
-  const fall = plan.kind === 'fall';
-  /** III-IV: the struck portrait REELS (I-II keep the short knock the owner approved). */
+  const fall = plan.kind === 'harvest';
+  /** Where the body of the ribbons' whirl sits in its clip (ms): placed so it swells as the ribbons are widest. */
+  const WIND_BODY_MS = 470;
+  /** Tiers 3-4: the struck portrait REELS (Tiers 1-2 keep the short knock the owner approved). */
   const reel = big ? 8 : fall ? 6 : 1;
   let hushed = false;
   /** When the colour last reached the striker (it pulses). */
   let fedAt = Number.POSITIVE_INFINITY;
-  /** IV: when the bell tolled (the striker jolts with it). */
+  /** Tier 4: when the bell tolled (the striker jolts with it). */
   let tolledAt = Number.POSITIVE_INFINITY;
 
   /** One clip placed so the part of it `bodyMs` in lands `inMs` (attack ms) from now: delayed, or started part way in. */
@@ -171,25 +187,44 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
         if (!big && c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
-      case 'wind':
-        // III: the crescent ignites and is drawn back: the rush of air SWELLS (the clip's own rise) and is cut off as it
-        // falls.
-        scene?.ignite();
-        cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { lenMs: Math.max(300, real(plan.launchAt - t) * 1.1), fadeMs: 90 });
-        cue(c.sfxMetalClip, c.sfxMetalGain * 0.7, c.sfxMetalRate * 0.7, { fadeMs: 200 });
+      case 'gather':
+        // Tier 3: the world's colour is drawn in from the edges: the long hollow rush, swelling as the grey closes.
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.15, c.sfxDrainRate * 0.9, { lenMs: Math.max(300, real((plan.gatherEnd ?? t) - t) + 200), fadeMs: 260 });
+        cue(c.sfxBreathClip, c.sfxBreathGain * 0.8, c.sfxBreathRate * 0.6, { fadeMs: 300 });
         break;
+      case 'orb':
+        // Tier 3: the orb fills: a resonant hum that rises with it, cut off clean by the blow.
+        scene?.orbBegin();
+        cue(c.sfxOrbClip, c.sfxOrbGain, c.sfxOrbRate, { lenMs: Math.max(300, real(plan.impactAt - t)), fadeMs: 60 });
+        break;
+      case 'wind':
+        // Tier 3: the crescent ignites and is drawn back over the orb: a ring of steel.
+        scene?.ignite();
+        cue(c.sfxMetalClip, c.sfxMetalGain * 0.8, c.sfxMetalRate * 0.7, { fadeMs: 200 });
+        cue(c.sfxSlashClip, c.sfxSlashGain * 0.6, c.sfxSlashRate * 0.6, { fadeMs: 200 });
+        break;
+      case 'ribbons': {
+        // Tier 4: the portrait's colour wound out: silk whipped into a spiral, twice (the second as the ribbons reach
+        // the blade), over the low hum of the blade filling.
+        scene?.ribbonsBegin();
+        const span = (plan.ribbonEnd ?? t) - t;
+        land(c.sfxWindClip, c.sfxWindGain, c.sfxWindRate * 0.85, span * 0.35, WIND_BODY_MS);
+        land(c.sfxWindClip, c.sfxWindGain * 0.9, c.sfxWindRate * 1.05, span * 0.8, WIND_BODY_MS);
+        cue(c.sfxOrbClip, c.sfxOrbGain * 0.8, c.sfxOrbRate * 0.75, { delayMs: real(span * 0.3), lenMs: Math.max(300, real(plan.impactAt - t - span * 0.3)), fadeMs: 80 });
+        break;
+      }
       case 'drain':
-        // IV: the colour goes out of the world: a long hollow exhale that ENDS as the silence starts, and every other
+        // Tier 4: the colour goes out of the world: a long hollow exhale that ENDS as the silence starts, and every other
         // bus is hushed under it.
         cue(c.sfxDrainClip, c.sfxDrainGain * 1.2, c.sfxDrainRate * 0.8, { startMs: 280, lenMs: Math.max(200, real((plan.drainedAt ?? t) - t) * 0.8 + 100), fadeMs: 260 });
         cue(c.sfxBreathClip, c.sfxBreathGain, c.sfxBreathRate * 0.7, { lenMs: Math.max(200, real((plan.drainedAt ?? t) - t)), fadeMs: 200 });
         if (c.sfxHush < 1) { voices.duck(c.sfxHush); hushed = true; }
         break;
       case 'hush':
-        // IV: silence. Nothing plays until the toll.
+        // Tier 4: silence. Nothing plays until the toll.
         break;
       case 'toll':
-        // IV: ONE bell breaks the silence, its whole tail: the bell, the same bell an octave down, and a low boom under
+        // Tier 4: ONE bell breaks the silence, its whole tail: the bell, the same bell an octave down, and a low boom under
         // the strike. The crescent ignites on it.
         cue(c.sfxBellClip, c.sfxBellGain * 1.3, c.sfxBellRate, { tail: 0.2 });
         cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate * 0.5, { tail: 0.2 });
@@ -199,9 +234,10 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
         tolledAt = t;
         break;
       case 'held':
-        // III-IV: fully lit: a glint on the point, a short ring of steel.
+        // Tiers 3-4: fully lit: a glint on the point, a short ring of steel (Tier 4: the blade blazing, and a high bell).
         scene?.held();
-        cue(c.sfxMetalClip, c.sfxMetalGain * 0.6, c.sfxMetalRate * 1.7, { startMs: 120, lenMs: 420, fadeMs: 240 });
+        cue(c.sfxMetalClip, c.sfxMetalGain * (big ? 0.9 : 0.6), c.sfxMetalRate * 1.7, { startMs: 120, lenMs: 420, fadeMs: 240 });
+        if (big) cue(c.sfxBellClip, c.sfxBellGain * 0.45, c.sfxBellRate * 1.5, { lenMs: 900, fadeMs: 500 });
         break;
       case 'sweep': {
         const cut = plan.cuts[q.i]!;
@@ -211,7 +247,7 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
         break;
       }
       case 'cross':
-        // II's first cut: a tick. A strip of colour goes, and a few motes with it.
+        // Tier 2's first cut: a tick. A strip of colour goes, and a few motes with it.
         scene?.cross(q.i, 0.7);
         scene?.stream(Math.round(plan.motes * 0.35), 160, q.i);
         cue(c.sfxCleaveClip, c.sfxCleaveGain * 0.75, c.sfxCleaveRate * 1.3, { fadeMs: 160 });
@@ -233,33 +269,41 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
             cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.05, c.sfxCleaveRate * 1.08, { fadeMs: 200 });
             leave(0.8, 1.08, 800);
           } else if (fall) {
-            // THE FALL lands: the cleave over a boom, a low bell (and the same bell an octave under it), and the rush
-            // of the colour torn out.
-            scene?.strike(1);
-            scene?.stream(plan.motes, 380, null, 1.7, { x: cd.x * radius * 2.4, y: cd.y * radius * 2.4 });
+            // THE HARVEST lands: the orb shatters (glass over the cleave and a boom, a low bell under it), and the rush
+            // of its colour drawn into the striker.
+            scene?.shatter(plan.motes);
+            cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate);
             cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.1, c.sfxCleaveRate * 0.9);
-            cue(c.sfxBoomClip, c.sfxBoomGain * 0.8, c.sfxBoomRate * 0.9, { lenMs: 1000, fadeMs: 500 });
-            cue(c.sfxBellClip, c.sfxBellGain * 0.65, c.sfxBellRate * 0.84, { lenMs: 2400, fadeMs: 1000, tail: 0.15 });
+            cue(c.sfxBoomClip, c.sfxBoomGain * 0.9, c.sfxBoomRate * 0.9, { lenMs: 1000, fadeMs: 500 });
             cue(c.sfxBellClip, c.sfxBellGain * 0.5, c.sfxBellRate * 0.42, { lenMs: 2200, fadeMs: 1000 });
-            cue(c.sfxDrainClip, c.sfxDrainGain * 0.9, c.sfxDrainRate * 0.95, { delayMs: real(60), fadeMs: 300 });
+            cue(c.sfxDrainClip, c.sfxDrainGain * 0.8, c.sfxDrainRate * 1.05, { delayMs: real(c.shardMs * 0.3), fadeMs: 300 });
           } else {
-            // IV, THE CUT: the deepest hit of the attack (the cleave and the boom, pitched down, and the bell's low
+            // Tier 4, THE CUT: the deepest hit of the attack (the cleave and the boom, pitched down, and the bell's low
             // octave struck again under them), then the portrait's colour is drawn out in a long thick stream, all the
             // way to the flood.
             scene?.strike(1.5);
-            scene?.stream(plan.motes, Math.max(120, (plan.floodAt ?? t) - t - 200), null, 1.6, { x: cd.x * radius * 3, y: cd.y * radius * 3 });
+            // The stolen colour spills off the line the rainbow blade cut, into the striker.
+            const ln = geo.line;
+            scene?.stream(plan.motes, Math.max(120, (plan.floodAt ?? t) - t - 260), null, 1.5, { x: cd.x * radius * 1.5, y: cd.y * radius * 1.5 },
+              ln ? { x: o.defender.x - cd.x * radius * 2.5, y: o.defender.y - cd.y * radius * 2.5, dx: cd.x, dy: cd.y, len: radius * 5 } : null);
             cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.3, c.sfxCleaveRate * 0.8);
+            cue(c.sfxCrackClip, c.sfxCrackGain, c.sfxCrackRate, { delayMs: real(30) });
             cue(c.sfxBoomClip, c.sfxBoomGain * 1.15, c.sfxBoomRate * 0.7, { lenMs: 1400, fadeMs: 700 });
             cue(c.sfxBellClip, c.sfxBellGain * 0.55, c.sfxBellRate * 0.5, { lenMs: 2600, fadeMs: 1200, tail: 0.15 });
             cue(c.sfxDrainClip, c.sfxDrainGain * 0.8, c.sfxDrainRate * 0.8, { delayMs: real(90), fadeMs: 320 });
           }
-          fedAt = t + c.moteMs * 0.8;
+          if (!big && !fall) fedAt = t + c.moteMs * 0.8;
         }
         seq.land();
         break;
       }
+      case 'stolen':
+        // Tiers 3-4: the stolen colour fills the striker: the hum, high and short.
+        cue(c.sfxOrbClip, c.sfxOrbGain * 0.7, c.sfxOrbRate * 1.5, { startMs: 200, lenMs: 700, fadeMs: 400 });
+        fedAt = t;
+        break;
       case 'flood':
-        // IV: colour floods back: the rush of air again, higher, a low sweep with it, and the hushed buses return.
+        // Tier 4: colour floods back: the rush of air again, higher, a low sweep with it, and the hushed buses return.
         scene?.flood();
         cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { startMs: 150, fadeMs: 200 });
         cue(c.sfxSweepClip, c.sfxSweepGain * 0.9, c.sfxSweepRate * 0.6, { fadeMs: 200 });
@@ -267,7 +311,8 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
         if (hushed) { voices.unduck(); hushed = false; }
         break;
       case 'return':
-        // The struck portrait's colour seeps back: a soft breath.
+        // The struck portrait's colour seeps back: a soft breath (Tier 4: the cracked paint crumbles off first).
+        if (big) { scene?.flake(); cue(c.sfxCrackClip, c.sfxCrackGain * 0.6, c.sfxCrackRate * 1.3, { fadeMs: 200 }); }
         cue(c.sfxBreathClip, c.sfxBreathGain * (big || fall ? 1 : 0.8), c.sfxBreathRate * (big || fall ? 0.9 : 1.15), { fadeMs: 160 });
         break;
       default:
@@ -278,7 +323,7 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   /** Both portraits, in their own px (scaled by the stage like every other style), and the drain panes. */
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    // The dim holds through the blow; IV keeps it until the colour floods back (it lifts with the wave).
+    // The dim holds through the blow; Tier 4 keeps it until the colour floods back (it lifts with the wave).
     nums.paintDim(t, plan.chargeAt, big ? (plan.drainedAt ?? plan.launchAt) : plan.launchAt, plan.floodAt ?? plan.impactAt + (fall ? 420 : 260));
     const cm = reapingCameraAt(plan, c, t, cutDir);
     cam.apply(reapingCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);

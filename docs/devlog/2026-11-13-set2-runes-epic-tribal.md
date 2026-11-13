@@ -11,8 +11,8 @@ Oracle: R-SET2-EPIC-TRIBAL-1112-01..06 (`registry/approved/runes.ts`). Tests: `p
 | Feral Return | Beast 4 | SoC Rise on the left-most Beast without Rise (Rising Graves walk); +5/+5 on a Beast Rise in `runeRiseRunes` (combat-only) and `runeRiseRunesShop` (permanent) |
 | Pack Tactics | Beast 4 | wind-up of `performAttack`: the target Beast's `fireFreeRally` |
 | Blood Frenzy | Beast 4 | on-kill block (attacker kills an enemy): the left-most `canRally` body's `fireFreeRally` |
-| Hellfire | Demon 3 | wind-up (attack half) + `runeFireOnDeath` (death half): `runeVolley(side, 1)` |
-| Wildfire | Demon 4 | `runeFireOnDeath`: an enemy whose lethal hit was not an attack exchange; `runeVolley(side, 3)`, budget 3 per copy |
+| Hellfire | Demon 3 | wind-up (attack half) + `runeFireOnDeath` (death half): `hellfireVolley(demon)`, which is Demon damage (reworked 2026-11-13) |
+| Wildfire | Demon 4 | `runeFireOnDeath`: a kill credited to a friendly minion (`lethalSource`) deals the dead enemy's Attack to 1 random enemy; budget 3 per copy (reworked 2026-11-13) |
 | Elder's Voice | Dragon 3 | `shoutFireCount` records the turn's first Shout body (`eldersVoiceUid`); SoC `fireShout` on the matching `sourceUid` |
 | Vein Finder | Kobold 3 | `runeThreshold` `refresh` meter, `per: 3`, `rubyAll` (data only) |
 | Gem Rain | Kobold 4 | SoC `playRubyOn(m, m, 2, permanent)` on every living friendly minion |
@@ -39,6 +39,8 @@ Oracle: R-SET2-EPIC-TRIBAL-1112-01..06 (`registry/approved/runes.ts`). Tests: `p
 
 - **Gem Rain + Engraving Gems**: Gem Rain's Rubies are already permanent, so Engraving adds nothing and does not claim them;
   they carry back once (pinned).
-- **Hellfire / Wildfire + Ruins**: the rune volleys are not Demon damage, so Ruins pumps once per Demon SWING, never per
-  Hellfire hit (pinned). Hellfire's volley is non-attack damage, so it feeds Wildfire (pinned, bounded by the budget).
+- **SUPERSEDED 2026-11-13** (see `2026-11-13-hellfire-wildfire-rework.md`). Hellfire is now Demon damage, so Ruins pumps
+  once per landed Hellfire hit, the same as a Fel Spikes spray. Wildfire now needs a minion kill and cannot chain.
+  The original note: **Hellfire / Wildfire + Ruins**: the rune volleys are not Demon damage, so Ruins pumps once per
+  Demon SWING, never per Hellfire hit (pinned). Hellfire's volley is non-attack damage, so it feeds Wildfire (pinned, bounded by the budget).
   Two Hellfire boards chain Demon deaths across but stay bounded (each body dies once per life).

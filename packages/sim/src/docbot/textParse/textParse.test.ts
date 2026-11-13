@@ -218,7 +218,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Golden Monkey ("replace a minion in your Shop" is a swap the grammar does not read). The slice pins
 // summed to 209; the merged pool measures 217 (the Basic tribal slice's texts count here too). Pinned per rune by
 // packages/sim/src/set2Runes*.test.ts, set2EpicTribalRunes1112.test.ts and set2RunesCombined.test.ts.
-const UNRESOLVED_CAP = 219;
+// 2026-11-13 (Hellfire / Wildfire rework, owner rulings): 219 -> 220, CONSCIOUSLY. Hellfire's "This counts as Demon damage."
+// and Wildfire's "deal that enemy's Attack as damage to a random enemy minion" are not read by the grammar; pinned by
+// packages/sim/src/set2EpicTribalRunes1112.test.ts.
+const UNRESOLVED_CAP = 220;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

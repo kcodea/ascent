@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-13',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Flurry now arrives on a beam of its own, with a gust of air and a flurry of blade swings. Runic Beetle sends it to the Beast he picks, and a spell, a hero power or a rune sends it the same way as Rise, Execute and Ward.',
+      },
+    ],
+  },
+  {
     date: '2026-11-12',
     changes: [
       {

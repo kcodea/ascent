@@ -37,6 +37,8 @@ const STEP_WINDOW = 16;
 function grantOf(e: CombatEvent | undefined): { kw: BeamKeyword; target: string } | null {
   if (!e) return null;
   if (e.type === 'keyword' && (e.keyword === 'R' || e.keyword === 'V') && !e.tint && (e.source === undefined || e.source === e.target)) return { kw: e.keyword, target: e.target };
+  // Flurry counts only with NO source: a body that gives itself Flurry (a Start of Combat) names itself.
+  if (e.type === 'keyword' && e.keyword === 'W' && e.source === undefined) return { kw: 'W', target: e.target };
   if (e.type === 'shieldUp' && (e as { srcCard?: string }).srcCard === undefined) return { kw: 'DS', target: e.target };
   return null;
 }

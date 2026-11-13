@@ -401,7 +401,7 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   d2_humphry: { minionPlayed: { def: 'sfx-vo-d2-humphry', gain: 0.3 }, death: { def: 'sfx-vo-d2-humphry-death', gain: 0.3 } },
   grim: { minionPlayed: { def: 'sfx-vo-grim', gain: 0.3 }, death: { def: 'sfx-vo-grim-death', gain: 0.3 } },
   seaurchin: { minionPlayed: { def: 'sfx-vo-seaurchin', gain: 0.3 }, death: { def: 'sfx-vo-seaurchin-death', gain: 0.3 } },
-  beetle: { minionPlayed: { def: 'sfx-vo-beetle', gain: 0.3 }, death: { def: 'sfx-vo-beetle-death', gain: 0.3 }, riseGiven: { def: 'rise-beam' } },
+  beetle: { minionPlayed: { def: 'sfx-vo-beetle', gain: 0.3 }, death: { def: 'sfx-vo-beetle-death', gain: 0.3 }, riseGiven: { def: 'rise-beam' }, flurryGiven: { def: 'flurry-beam' } },
   b2_elderhorn: { watcher: { def: 'drakko-effect' }, minionPlayed: { def: 'sfx-vo-b2-elderhorn', gain: 0.3 }, death: { def: 'sfx-vo-b2-elderhorn-death', gain: 0.3 } },
   b2_sunmane: { minionPlayed: { def: 'sfx-vo-b2-sunmane', gain: 0.3 }, death: { def: 'sfx-vo-b2-sunmane-death', gain: 0.3 } },
   b2_trex: { minionPlayed: { def: 'sfx-vo-b2-trex', gain: 0.3 }, death: { def: 'sfx-vo-b2-trex-death', gain: 0.3 } },

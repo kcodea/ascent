@@ -5,6 +5,7 @@ import { hasOwnBuffFx } from '../../choreo/buffWatcher';
 import { WARD_GIVING_EFFECTS } from '../../choreo/channels/wardGiven';
 import { givesExecute } from '../../choreo/channels/executeGiven';
 import { givesRise } from '../../choreo/channels/riseGiven';
+import { givesFlurry } from '../../choreo/channels/flurryGiven';
 import { CARD_INDEX } from '@game/content';
 import type { BindingKind } from '../../choreo/bindings';
 import type { FxCardRow } from './catalogView';
@@ -128,6 +129,14 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // `fx/riseGivenLaunch.ts` plays `bindingFor(cardId, 'riseGiven')` giver→minion per grant and holds that
     // minion’s dome until the travel lands.
     kindFor: (card) => (givesRise(card.cardId) ? 'riseGiven' : null),
+  },
+  {
+    id: 'flurryGiven',
+    label: 'On Flurry given',
+    blurb: 'Plays from this minion to the minion it gives Flurry (Runic Beetle), in the Shop. The Flurry swirl appears when the effect arrives: when its travelling layer lands.',
+    // `Recruit.tsx` reads the grant off the board (`playedFlurryGrants`) and plays `bindingFor(cardId, 'flurryGiven')`
+    // through `fx/keywordBeam.ts`, which holds that minion’s swirl until the travel lands.
+    kindFor: (card) => (givesFlurry(card.cardId) ? 'flurryGiven' : null),
   },
   {
     id: 'chooseOne',

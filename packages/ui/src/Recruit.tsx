@@ -17,6 +17,8 @@ import { presentConsequence, type PresenterContext } from './choreographer/conse
 import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
 import { launchShopRiseGiven } from './fx/riseGivenLaunch';
 import { playedRiseGrants } from './choreo/channels/riseGiven';
+import { playedFlurryGrants } from './choreo/channels/flurryGiven';
+import { unitSelector } from './fx/combatAnchors';
 import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword } from './fx/keywordBeam';
 import { heroPowerPoint, keywordOriginPoint, runeSlotPoint, shopKeywordOrigin } from './fx/keywordOrigin';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
@@ -5842,30 +5844,52 @@ export function Recruit() {
   // power (Lord of the Risen), the HERO POWER SLOT. Ward is the effect below (it owns the Ward-gained blast).
   const prevRiseRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   const prevExecuteRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
+  const prevFlurryRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   const riseBeamOwnedRef = useSwapRef<{ seq: number; pairs: Set<string> }>({ seq: -1, pairs: new Set() }, swapped);
   useLayoutEffect(() => {
-    if (inCombat) { prevRiseRef.current = null; prevExecuteRef.current = null; return; }
+    if (inCombat) { prevRiseRef.current = null; prevExecuteRef.current = null; prevFlurryRef.current = null; return; }
     const prev = prevRiseRef.current;
     const prevV = prevExecuteRef.current;
+    const prevW = prevFlurryRef.current;
     const claimed = new Set<string>();
+    const claimedW = new Set<string>();
     if (prev) {
       const played = playedRiseGrants(prev, run.board);
       for (const g of played) if (launchShopRiseGiven(g, 'played')) claimed.add(g.target);
       // The Rise beam replaces the giver's buff tendril on the same minion (owner 2026-11-13, Runic Beetle).
       if (claimed.size > 0) riseBeamOwnedRef.current = { seq: run.recruitFxSeq, pairs: new Set(played.filter((g) => claimed.has(g.target)).map((g) => `${g.source}|${g.target}`)) };
     }
-    const at = prev && prevV ? keywordOriginPoint(shopKeywordOrigin()) : null;
+    // FLURRY GIVEN BY A PLAYED MINION (owner 2026-11-13, Runic Beetle's other option): its bound beam leaves the
+    // minion that was just played, and replaces that minion's buff tendril on the receiver like the Rise beam does.
+    if (prevW) {
+      const pairs: string[] = [];
+      for (const g of playedFlurryGrants(prevW, run.board)) {
+        const b = bindingFor(g.cardId, 'flurryGiven');
+        const giver = (): { x: number; y: number } | null => {
+          const r = document.querySelector(unitSelector(g.source))?.getBoundingClientRect();
+          return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+        };
+        if (b && launchKeywordBeam('W', giver, g.target, { def: b.def, gain: b.gain })) { claimedW.add(g.target); pairs.push(`${g.source}|${g.target}`); }
+      }
+      if (pairs.length > 0) {
+        const cur = riseBeamOwnedRef.current.seq === run.recruitFxSeq ? [...riseBeamOwnedRef.current.pairs] : [];
+        riseBeamOwnedRef.current = { seq: run.recruitFxSeq, pairs: new Set([...cur, ...pairs]) };
+      }
+    }
+    const at = prev && prevV && prevW ? keywordOriginPoint(shopKeywordOrigin()) : null;
     if (at) {
       let k = 0;
       for (const c of run.board) {
         const gains: BeamKeyword[] = [];
         if (prev!.get(c.uid) === false && c.keywords.includes('R') && !claimed.has(c.uid)) gains.push('R');
         if (prevV!.get(c.uid) === false && c.keywords.includes('V')) gains.push('V');
+        if (prevW!.get(c.uid) === false && c.keywords.includes('W') && !claimedW.has(c.uid)) gains.push('W');
         for (const kw of gains) { launchKeywordBeam(kw, at, c.uid, { launchAt: k * KEYWORD_BEAM_GAP_MS, sound: k < KEYWORD_BEAM_SOUND_MAX }); k++; }
       }
     }
     prevRiseRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
     prevExecuteRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('V')]));
+    prevFlurryRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('W')]));
   }, [run.board, inCombat]);
 
   // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
@@ -7794,7 +7818,7 @@ export function Recruit() {
         if (keyword === 'R' && from && launchShopRiseGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId)) return;
         // GIVEN BY A RUNE OR THE HERO (R-FX-KEYWORD-ORIGIN-01): the keyword's beam leaves the rune's own slot, or the
         // hero power slot, a gap apart when one beat gives several.
-        if (origin && (keyword === 'R' || keyword === 'V' || keyword === 'DS')) {
+        if (origin && (keyword === 'R' || keyword === 'V' || keyword === 'DS' || keyword === 'W')) {
           const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;
           if (at && launchKeywordBeam(keyword, at, uid, { launchAt: index * KEYWORD_BEAM_GAP_MS, sound: index < KEYWORD_BEAM_SOUND_MAX })) return;
         }

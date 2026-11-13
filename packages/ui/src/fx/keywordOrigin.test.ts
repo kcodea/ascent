@@ -49,7 +49,7 @@ describe('a beam from a point (owner 2026-11-13: Lord of the Risen played the so
   });
   it('the launcher builds its source from that rect, never a zero-size one', () => {
     const src = readFileSync(new URL('./keywordBeam.ts', import.meta.url), 'utf8');
-    expect(src).toContain('source: pointRect(from), target');
+    expect(src).toContain('source: pointRect(origin), target');
   });
 });
 
@@ -104,7 +104,7 @@ describe('the call sites', () => {
   });
   it('the Shop: Rise and Execute mid-turn, Ward with its blast on landing, and a rune or hero End of Turn beat', () => {
     const recruit = read('../Recruit.tsx');
-    expect(recruit).toContain('const at = prev && prevV ? keywordOriginPoint(shopKeywordOrigin()) : null;');
+    expect(recruit).toContain('const at = prev && prevV && prevW ? keywordOriginPoint(shopKeywordOrigin()) : null;');
     expect(recruit).toContain("launchKeywordBeam('DS', wardFrom, c.uid, { launchAt: wardBeams * KEYWORD_BEAM_GAP_MS, sound: wardBeams < KEYWORD_BEAM_SOUND_MAX, onLand: blast })");
     expect(recruit).toContain("const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;");
   });

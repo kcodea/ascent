@@ -558,12 +558,12 @@ export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadi
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
   const n = { x: -u.y, y: u.x };
   const face: 1 | -1 = a.x > d.x ? -1 : 1;
-  // The blow lands on the struck portrait's rim, on the striker's side but swung a little toward the middle of the screen:
-  // the hit number is drawn straight down the line between the heroes, and the spear must not hide behind it.
-  const midY = bounds ? bounds.y + bounds.h / 2 : d.y + 1;
+  // The blow lands on the struck portrait's rim, on the striker's side but swung toward the TOP of the portrait: the hit
+  // number is drawn straight down the line between the heroes and the health plate sits under the portrait, and the
+  // spear must not hide behind either.
   const swing = (ang: number): Pt => ({ x: d.x + (-u.x * Math.cos(ang) + u.y * Math.sin(ang)) * radius * 0.66, y: d.y + (-u.x * Math.sin(ang) - u.y * Math.cos(ang)) * radius * 0.66 });
-  const sA = swing(0.75), sB = swing(-0.75);
-  const strike = Math.abs(sA.y - midY) <= Math.abs(sB.y - midY) ? sA : sB;
+  const sA = swing(0.8), sB = swing(-0.8);
+  const strike = sA.y <= sB.y ? sA : sB;
   const stage: WarhostStage = { u, n, face, troops: [], shots: [], banners: [], strike };
   if (p.reduced) return stage;
   const rnd = seededRng(seed);

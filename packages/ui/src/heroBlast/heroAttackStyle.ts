@@ -160,8 +160,10 @@
  * `pinball` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroPinball/`.
  *
- * `warhost` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroWarhost/`.
+ * `warhost` ("Warhost", the Ancient of War; ANCIENT, four looks) has NO cosmetic yet, so no player can equip it; it plays
+ * only through the dev "Attack style" override. AN ARMY OF TINY SOLDIERS in red and brass delivers the blow: I one spearman
+ * and his thrown spear; II a rank of archers and an arrow rain; III a cavalry wedge riding through the struck portrait;
+ * IV war drums, a horn, banners, the whole host flooding over it and one soldier planting a banner on it. See `../heroWarhost/`.
  *
  * `reaping` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `stitch` (`npm run attack:new`), see `../heroReaping/`.

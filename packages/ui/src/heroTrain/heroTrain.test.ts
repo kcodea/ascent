@@ -1,28 +1,25 @@
-// SCAFFOLDED from heroSoccer/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Soccer, not this style, until rewritten.
 // @vitest-environment jsdom
 /**
- * THE SOCCER HERO ATTACK ("Golazo", Legendary; owner 2026-11-02: "make 2 attack animations, a soccer one, and a
- * baseball one. get creative and fun with them, like a corner kick for soccer then a breakaway etc."): the shared tiers
- * onto the four moves; the tuner values; the pure plan (the blow lands ONCE: the ball in the net; the keepy-uppies, the
- * corner, the cross, the one-two, the skills, the flick and the contact never touch the target); the geometry (the
- * corner on the target's goal line, the penalty spot, the run up the pitch with its defenders, the bicycle kick's spot
- * and apex, every point on screen even with the target tucked in a corner, the ball always landing on the target's
- * centre); the pure pose and ball; the variations; the slow mo; the goal and the net bulge; the runner (the portrait's
- * transform, opacity and z-order restored exactly on the end, finish, cancel and the safety timer; the ball, shadows,
- * goal, flag and defenders hidden; the camera applied once); the scene; the sounds; the cosmetic.
+ * THE TRAIN HERO ATTACK ("Right on Schedule", a Legendary; DEV-ONLY): the shared tiers onto the four vehicles; the tuner
+ * values; the pure plan (the blow lands ONCE, when the vehicle's nose reaches the portrait; the track, the signal, the
+ * bell, the gate, the horn and the whistle never touch the target); the geometry (the track under the struck portrait,
+ * the vehicle always entering from the striker's side, the signal on screen); the consist and its motion (through the
+ * portrait and off the far edge on time); the struck portrait's reaction (nothing before the blow, settled exactly
+ * after); the runner (both portraits restored exactly on the end, finish, cancel and the safety timer; the track, the
+ * train and the signal hidden; the camera applied once); determinism; the scene; the sounds.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
-import { COSMETIC_INDEX } from '@game/progression';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
-import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import {
-  HERO_TRAIN_CLIP_KEYS, HERO_TRAIN_DEFAULTS, HERO_TRAIN_RANGES, arcHeight, clampHeroTrainValue, defenderAt, flagAt, goalAt, goalLayout,
-  heroTrainConfigJson, poseSegs, slowExtraMs, slowWindow, trainBall, trainCameraAt, trainCues, trainGeo, trainKind, trainPlan, trainPose,
-  trainTimeScale, variantOf, type HeroTrainNumKey, type SoccerVariant,
+  HERO_TRAIN_CLIP_KEYS, HERO_TRAIN_DEFAULTS, HERO_TRAIN_RANGES, UNIT_SHAPES, clampHeroTrainValue, consistLength, foePose, headlightAt, heroTrainConfigJson,
+  noseTravel, signalAt, strikerPose, trackAlpha, trainCameraAt, trainConsist, trainCues, trainGeo, trainKind, trainMotion, trainPlan,
+  type FoePose, type HeroTrainNumKey, type TierNum,
 } from './heroTrainConfig';
-import { HeroTrainScene, MAX_SOCCER_SPRITES, type HeroTrainTextures } from './heroTrainScene';
+import { HeroTrainScene, MAX_TRAIN_SPRITES, MAX_UNITS, type HeroTrainTextures } from './heroTrainScene';
 import { playHeroTrain, type HeroTrainOptions } from './heroTrain';
 import { SPEC } from '../HeroTrainTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
@@ -30,501 +27,576 @@ import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 const W = Texture.WHITE;
 const TEX: HeroTrainTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  ball: W, shadow: W, goal: W, net: W, flag: W, defender: W, confetti: W, wordGoal: W, wordGolazo: W, wordNutmeg: W, wordOle: W,
+  track: W, handcar: W, handle: W, cart: W, engine: W, tender: W, box: W, tank: W, hopper: W, flat: W, caboose: W, wheel: W, rod: W, signal: W, gate: W,
+  puff: W, ore: W, bonk: W,
 };
 const C = HERO_TRAIN_DEFAULTS;
-const plan = (total: number, o: { knockout?: boolean; reduced?: boolean; variant?: SoccerVariant } = {}) => trainPlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
-const A = { x: 960, y: 900 }, D = { x: 960, y: 200 };
-const R = 80;
+const DMG: Record<TierNum, number> = { 1: 3, 2: 8, 3: 12, 4: 40 };
+const TIERS: TierNum[] = [1, 2, 3, 4];
+const plan = (total: number, o: { knockout?: boolean; reduced?: boolean } = {}) => trainPlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
+const R = 120;
 const FRAME = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
-const ctx = (total: number, v: SoccerVariant = 1, a = A, d = D, frame = FRAME) => {
-  const p = plan(total, { variant: v });
-  const g = trainGeo(a, d, R, R, frame, C, v);
-  const segs = poseSegs(p, g, C, a, R);
-  return { p, g, segs, c: C, a, aR: R, frame };
-};
-const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
-const inFrame = (p: { x: number; y: number }, f = FRAME, m = 0) => p.x >= f.x0 + m - 0.01 && p.x <= f.x1 - m + 0.01 && p.y >= f.y0 + m - 0.01 && p.y <= f.y1 - m + 0.01;
-const VARIANTS: SoccerVariant[] = [1, 2, 3];
+// The two real layouts: you (bottom left) strike the foe (top right), and the other way round.
+const YOU = { x: 170, y: 845 }, FOE = { x: 1770, y: 160 };
+const pose = (): FoePose => ({ x: 0, y: 0, rot: 0, sx: 1, sy: 1 });
+const rest = (p: FoePose): boolean => Math.abs(p.x) < 0.05 && Math.abs(p.y) < 0.05 && Math.abs(p.rot) < 0.01 && Math.abs(p.sx - 1) < 1e-4 && Math.abs(p.sy - 1) < 1e-4;
 
-describe('the tiers: the shared four onto the four moves', () => {
-  it('uses the shared thresholds; I volley, II corner, III breakaway, IV bicycle kick; a knockout plays the bicycle kick', () => {
+describe('the tiers: the shared four onto the four vehicles', () => {
+  it('uses the shared thresholds; I handcar, II mine cart, III steam engine, IV freight; a knockout plays the freight', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(trainKind(tierOf(d)));
-    expect([1, 2, 3, 4].map((t) => trainKind(t as 1 | 2 | 3 | 4))).toEqual(['volley', 'corner', 'breakaway', 'bicycle']);
-    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'bicycle' });
+    expect(TIERS.map((t) => trainKind(t))).toEqual(['handcar', 'minecart', 'engine', 'freight']);
+    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'freight' });
   });
 });
 
 describe('the tuner values', () => {
-  it('defaults in range; clamping; every key has a control; Copy JSON; buttons on top; a clip row per sound', () => {
+  it('defaults in range; clamping; every key has a control; Copy JSON; buttons on top; a clip row per sound; DEV-ONLY', () => {
     for (const [k, [min, max]] of Object.entries(HERO_TRAIN_RANGES)) {
       const v = C[k as HeroTrainNumKey];
       expect(v, k).toBeGreaterThanOrEqual(min);
       expect(v, k).toBeLessThanOrEqual(max);
     }
-    expect(clampHeroTrainValue('skyHeight', 99)).toBe(5);
-    expect(clampHeroTrainValue('colorBall', 'nope')).toBe(C.colorBall);
+    expect(clampHeroTrainValue('cars', 99)).toBe(8);
+    expect(clampHeroTrainValue('colorSteam', 'nope')).toBe(C.colorSteam);
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
     expect(JSON.parse(heroTrainConfigJson(C)).previewDamage).toBeUndefined();
     expect(SPEC.buttonsOnTop).toBe(true);
     expect((SPEC.actions ?? []).map((a) => a.label).filter((l) => /speed|reduced motion/i.test(l))).toEqual([]);
     expect(DEV_HERO_ATTACK_CHOICES).toContain('train');
+    expect(HERO_ATTACK_STYLES).toContain('train');
     for (const k of HERO_TRAIN_CLIP_KEYS) {
       expect(keys.has(k as never), k).toBe(true);
       expect(keys.has(k.replace('Clip', 'Gain') as never), k).toBe(true);
       expect(keys.has(k.replace('Clip', 'Rate') as never), k).toBe(true);
     }
+    // Player-facing rules for anything a tuner prints: no em dash, no banned words.
+    const text = SPEC.controls.map((c) => `${c.label} ${c.hint ?? ''}`).join(' ');
+    expect(text).not.toMatch(/—|\bOath\b|\bclimb\b/i);
   });
 
-  it('the sounds: the owner clips for the whistle, the kick, the net, the crowd "Ooooh", the goal roar and the commentator GOLAZO!; every default clip exists', async () => {
-    expect(C.sfxWhistleClip).toBe('fx/soccer-whistle');
-    expect(C.sfxKickClip).toBe('fx/soccer-kick');
-    expect(C.sfxNetClip).toBe('fx/soccer-net');
-    expect(C.sfxOohClip).toBe('fx/soccer-crowd-ooh');
-    expect(C.sfxRoarClip).toBe('fx/soccer-goal-roar');
-    expect(C.sfxGolazoClip).toBe('fx/soccer-golazo');
-    const { existsSync } = await import('node:fs');
-    const { resolve } = await import('node:path');
-    for (const k of HERO_TRAIN_CLIP_KEYS) {
-      const id = C[k];
-      const base = resolve(__dirname, '../audio', id);
-      expect(existsSync(`${base}.mp3`) || existsSync(`${base}.wav`), `${k} = ${id}`).toBe(true);
-    }
+  it('the sounds: six clips made for it (bell, whistle, horn, pass, clatter, handcar) and two shared ones; every default clip exists', () => {
+    expect(C.sfxBellClip).toBe('fx/train-bell');
+    expect(C.sfxWhistleClip).toBe('fx/train-whistle');
+    expect(C.sfxHornClip).toBe('fx/train-horn');
+    expect(C.sfxPassClip).toBe('fx/train-pass');
+    expect(C.sfxClatterClip).toBe('fx/train-clatter');
+    expect(C.sfxSqueakClip).toBe('fx/train-handcar');
+    const bank = new Set(fs.readdirSync(path.join(__dirname, '..', 'audio', 'fx')).map((f) => f.replace(/\.(mp3|wav)$/, '')));
+    for (const k of HERO_TRAIN_CLIP_KEYS) expect(bank.has(C[k].replace('fx/', '')), C[k]).toBe(true);
   });
 });
 
 describe('the plan', () => {
-  it('every tier and variation: exactly one impact cue (the ball in the net), a whistle first, the strike before it, the end last', () => {
-    for (const total of [3, 8, 14, 40]) {
-      for (const v of VARIANTS) {
-        const p = plan(total, { variant: v });
-        const cues = trainCues(p);
-        expect(cues.filter((q) => q.kind === 'impact'), `${total} v${v}`).toHaveLength(1);
-        expect(cues[0]!.kind).toBe('charge');
-        expect(cues[cues.length - 1]!.kind).toBe('end');
-        expect(p.strikeAt, `${total} v${v}`).toBeLessThan(p.impactAt);
-        expect(p.impactAt).toBeLessThanOrEqual(p.endAt);
-        for (let i = 1; i < cues.length; i++) expect(cues[i]!.at).toBeGreaterThanOrEqual(cues[i - 1]!.at);
-      }
+  it('every tier: exactly one impact cue, the charge first, the end last, in time order; the plan never reads the portraits', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      const cues = trainCues(p);
+      expect(cues.filter((q) => q.kind === 'impact'), `tier ${t}`).toHaveLength(1);
+      expect(cues[0]!.kind).toBe('charge');
+      expect(cues.at(-1)!.kind).toBe('end');
+      for (let i = 1; i < cues.length; i++) expect(cues[i]!.at).toBeGreaterThanOrEqual(cues[i - 1]!.at);
+      expect(p.chargeAt).toBeLessThanOrEqual(p.enterAt);
+      expect(p.enterAt).toBeLessThan(p.impactAt);
+      expect(p.impactAt).toBeLessThan(p.passEnd);
+      expect(p.passEnd).toBeLessThan(p.exitEnd);
+      expect(p.exitEnd).toBeLessThanOrEqual(p.endAt);
+      expect(p.trackOutAt).toBeGreaterThanOrEqual(p.passEnd);
+      expect(p.trackOutAt + C.trackFadeMs).toBeLessThanOrEqual(p.endAt);
+      // Nothing that makes the target react is cued before the impact.
+      const before = cues.filter((q) => q.at < p.impactAt).map((q) => q.kind);
+      expect(before).not.toContain('car');
+      expect(before).not.toContain('tail');
     }
   });
 
-  it('I THE VOLLEY: keepy-uppies where it stands, a higher flick, the hop and the volley, then the goal', () => {
-    const p = plan(3);
-    expect(p.kind).toBe('volley');
-    expect(p.touches).toHaveLength(C.t1Touches);
-    expect(p.flickAt!).toBeGreaterThan(p.touches[p.touches.length - 1]!);
-    expect(p.takeoffAt).toBeLessThan(p.strikeAt);
-    expect(p.impactAt - p.strikeAt).toBe(C.t1FlightMs);
-    expect(p.homeEnd).toBe(p.homeAt); // it never leaves its slot
+  it('the running time grows with the tier and stays in a Legendary\'s range', () => {
+    const len = TIERS.map((t) => { const p = plan(DMG[t]); return p.endAt - p.chargeAt; });
+    expect(len[0]).toBeGreaterThan(1400); expect(len[0]).toBeLessThan(2400);
+    expect(len[1]).toBeGreaterThan(1300); expect(len[1]).toBeLessThan(2400);
+    expect(len[2]).toBeGreaterThan(1700); expect(len[2]).toBeLessThan(2800);
+    expect(len[3]).toBeGreaterThan(3000); expect(len[3]).toBeLessThan(4600);
+    expect(len[3]).toBeGreaterThan(len[2]!);
   });
 
-  it('II THE CORNER: the jog to the flag, the set, the run-up, the kick; the header meets the cross before the goal; the one-two comes back before the curler', () => {
-    const p1 = plan(8, { variant: 1 }), p2 = plan(8, { variant: 2 }), p3 = plan(8, { variant: 3 });
-    for (const p of [p1, p2, p3]) {
-      expect(p.kind).toBe('corner');
-      expect(p.approachEnd - p.startAt).toBe(C.t2ApproachMs);
-      expect(p.setAt!).toBeGreaterThanOrEqual(p.approachEnd);
-      expect(p.runUpAt!).toBeGreaterThan(p.setAt!);
-      expect(p.homeEnd).toBeGreaterThan(p.homeAt);
+  it('I: the pump squeaks on the way in. II: the cart rattles. III: the whistle before the engine. None has a signal', () => {
+    const h = plan(3), m = plan(8), e = plan(12);
+    expect(h.rollAts).toHaveLength(2);
+    expect(h.rollAts[0]).toBe(h.enterAt);
+    expect(m.rollAts.every((t) => t > m.enterAt && t < m.impactAt)).toBe(true);
+    expect(e.whistleAt).not.toBeNull();
+    expect(e.whistleAt!).toBeLessThan(e.enterAt);
+    for (const p of [h, m, e]) {
+      expect(p.signalAt).toBeNull(); expect(p.gateAt).toBeNull(); expect(p.hornAt).toBeNull(); expect(p.bellAts).toEqual([]); expect(p.carAts).toEqual([]);
     }
-    expect(p1.headAt).toBeNull();
-    expect(p2.headAt!).toBeGreaterThan(p2.strikeAt);
-    expect(p2.headAt!).toBeLessThan(p2.impactAt);
-    expect(trainCues(p2).some((q) => q.kind === 'head')).toBe(true);
-    expect(p3.passOutAt!).toBeLessThan(p3.returnAt!);
-    expect(p3.returnAt!).toBeLessThan(p3.strikeAt);
+    expect(trainCues(e).map((q) => q.kind)).toEqual(['charge', 'whistle', 'enter', 'impact', 'tail', 'trackout', 'end']);
   });
 
-  it('III THE BREAKAWAY: the run with its touches, a beat at each defender in order, the last touch and the finish', () => {
-    const p = plan(14);
-    expect(p.kind).toBe('breakaway');
-    expect(p.beats).toHaveLength(C.defenders);
-    for (const b of p.beats) { expect(b).toBeGreaterThan(p.startAt); expect(b).toBeLessThan(p.approachEnd); }
-    expect(p.touches).toHaveLength(C.t3Touches);
-    expect(p.strikeAt).toBeGreaterThanOrEqual(p.approachEnd);
-  });
-
-  it('IV THE BICYCLE KICK: the flick sky high, the sprint, the crouch, the leap; the kick at the top of the leap; the landing, the knee slide, home', () => {
+  it('IV: the signal rises, the lamps and bell, the gate drops, the horn, then the engine; a car at a time; the caboose; the gate lifts', () => {
     const p = plan(40);
-    expect(p.kind).toBe('bicycle');
-    expect(p.flickAt!).toBeLessThan(p.approachAt);
-    expect(p.approachEnd).toBeLessThanOrEqual(p.gatherAt);
-    expect(p.takeoffAt).toBeGreaterThan(p.gatherAt);
-    expect(p.strikeAt).toBeCloseTo(p.takeoffAt + C.t4LeapMs / 2, 5);
-    expect(p.landAt).toBeGreaterThan(p.strikeAt);
-    expect(p.slideAt!).toBeGreaterThanOrEqual(Math.max(p.landAt, p.impactAt));
-    expect(p.homeAt).toBeGreaterThan(p.slideEnd!);
+    expect(p.signalAt!).toBeLessThan(p.lampsAt!);
+    expect(p.lampsAt!).toBeLessThan(p.gateAt!);
+    expect(p.gateAt!).toBeLessThan(p.hornAt!);
+    expect(p.hornAt!).toBeLessThan(p.enterAt);
+    expect(p.bellAts[0]).toBe(p.lampsAt);
+    expect(p.bellAts.length).toBeGreaterThanOrEqual(2);
+    expect(p.bellAts.at(-1)!).toBeLessThan(p.passEnd);
+    // Seven cars and the caboose each arrive between the impact and the end of the pass, in order.
+    expect(p.cars).toBe(7);
+    expect(p.carAts).toHaveLength(8);
+    for (let i = 0; i < p.carAts.length; i++) {
+      expect(p.carAts[i]!).toBeGreaterThan(i ? p.carAts[i - 1]! : p.impactAt);
+      expect(p.carAts[i]!).toBeLessThan(p.passEnd);
+    }
+    expect(p.gateUpAt!).toBeGreaterThan(p.passEnd);
+    expect(clampHeroTrainValue('cars', 6)).toBe(6);
+    expect(trainPlan({ total: 40 }, { ...C, cars: 6 }).carAts).toHaveLength(7);
   });
 
-  it('reduced motion: the portrait never moves, no ball; the blow lands at the end of the formation', () => {
+  it('reduced motion: no track, no vehicle, no camera; the blow lands at the end of the formation', () => {
     const p = plan(40, { reduced: true });
     expect(p.reduced).toBe(true);
-    const g = trainGeo(A, D, R, R, FRAME, C);
-    expect(poseSegs(p, g, C, A, R)).toEqual([]);
-    expect(trainBall({ p, g, segs: [], c: C, a: A, aR: R, frame: FRAME }, p.impactAt).visible).toBe(false);
+    expect(p.impactAt).toBe(leadInOf([40], true));
     expect(trainCues(p).map((q) => q.kind)).toEqual(['impact', 'end']);
+    expect(trainConsist(p, R, C)).toEqual([]);
+    const g = trainGeo(YOU, FOE, R, FRAME, C);
+    for (const t of [0, p.impactAt, p.impactAt + 100, p.endAt]) {
+      expect(rest(foePose(p, g, C, R, t, pose()))).toBe(true);
+      expect(rest(strikerPose(p, g, R, t, pose()))).toBe(true);
+      expect(trackAlpha(p, C, t)).toBe(0);
+      expect(trainCameraAt(p, C, t, 1)).toEqual({ zoom: 1, x: 0, y: 0 });
+    }
   });
 });
 
 describe('the geometry', () => {
-  it('the corner sits on the target\'s goal line at the side with more room; the flag beside it; the penalty spot in front of the goal', () => {
-    const g = trainGeo({ x: 700, y: 900 }, { x: 1300, y: 200 }, R, R, FRAME, C);
-    expect(g.cornerSide).toBe(-1); // more room to the left of the target
-    expect(g.corner.y).toBeLessThan(200); // on the target's goal line (the top)
-    expect(g.corner.x).toBeLessThan(200);
-    expect(dist(g.flag, g.corner)).toBeLessThan(R * 1.2);
-    expect(g.header.y).toBeGreaterThan(200); // out in front of the goal (toward the pitch)
-    expect(dist(g.header, g.hit)).toBeGreaterThan(R * 2);
-    // A foe striking DOWN: the corner is on the bottom goal line.
-    const f = trainGeo({ x: 960, y: 200 }, { x: 960, y: 900 }, R, R, FRAME, C);
-    expect(f.corner.y).toBeGreaterThan(900);
+  it('the track runs under the struck portrait, past both edges; the vehicle ENTERS from the striker\'s side', () => {
+    const g = trainGeo(YOU, FOE, R, FRAME, C);
+    expect(g.dir).toBe(1);
+    expect(g.enterX).toBe(0); expect(g.exitX).toBe(1920);
+    expect(g.railY).toBeGreaterThan(FOE.y); expect(g.railY).toBeLessThan(FOE.y + R * 1.2);
+    expect(g.x0).toBeLessThan(0); expect(g.x1).toBeGreaterThan(1920);
+    // The nose is on the portrait's near edge on the impact.
+    expect(g.hitX).toBeLessThan(FOE.x); expect(g.hitX).toBeGreaterThan(FOE.x - R);
+    expect(g.distIn + g.distOut).toBeCloseTo(1920, 5);
+    const back = trainGeo(FOE, YOU, R, FRAME, C, 'opp');
+    expect(back.dir).toBe(-1);
+    expect(back.enterX).toBe(1920); expect(back.exitX).toBe(0);
+    expect(back.hitX).toBeGreaterThan(YOU.x);
+    expect(back.hit).toEqual(YOU);
   });
 
-  it('a target tucked in the top-right corner: every point on screen, and every shot still lands on its centre', () => {
-    const a = { x: 700, y: 900 }, d = { x: 1830, y: 90 };
-    for (const total of [3, 8, 14, 40]) {
-      for (const v of VARIANTS) {
-        const x = ctx(total, v, a, d);
-        const { g, p } = x;
-        for (const q of [g.corner, g.setBack, g.header, g.meet, g.shot, g.spot, g.contact, g.apex, g.slide, ...g.defenders.map((e) => e.at)]) expect(inFrame(q), `${total} v${v} ${JSON.stringify(q)}`).toBe(true);
-        expect(g.hit).toEqual(d);
-        // The ball is ON the target's centre the moment it hits the net.
-        const b = trainBall(x, p.impactAt - 0.001);
-        expect(dist(b, d), `${total} v${v}`).toBeLessThan(R * 0.35);
-        // The portrait stays on screen throughout.
-        for (let t = p.chargeAt; t < p.endAt; t += 20) {
-          const q = trainPose(p, x.segs, C, t);
-          expect(inFrame({ x: a.x + q.x, y: a.y + q.y }, FRAME, -R * 0.2), `${total} v${v} @${t}`).toBe(true);
-        }
+  it('a striker straight above or below: yours come from the left, the foe\'s from the right', () => {
+    expect(trainGeo({ x: 960, y: 900 }, { x: 960, y: 200 }, R, FRAME, C, 'player').dir).toBe(1);
+    expect(trainGeo({ x: 960, y: 200 }, { x: 960, y: 900 }, R, FRAME, C, 'opp').dir).toBe(-1);
+  });
+
+  it('the signal stands on screen beside the track (never on the portrait), as tall as the room above allows; the throw stays on screen', () => {
+    for (const [a, d, side] of [[YOU, FOE, 'player'], [FOE, YOU, 'opp'], [{ x: 1700, y: 900 }, { x: 80, y: 90 }, 'opp'], [{ x: 200, y: 200 }, { x: 1850, y: 1000 }, 'player']] as const) {
+      const g = trainGeo(a, d, R, FRAME, C, side);
+      expect(g.signal.x).toBeGreaterThan(0); expect(g.signal.x).toBeLessThan(1920);
+      expect(Math.abs(g.signal.x - d.x)).toBeGreaterThan(R * 1.5);
+      expect(g.signal.footY - g.signal.h).toBeGreaterThanOrEqual(0);
+      expect(g.signal.h).toBeGreaterThan(0);
+      // The arm lies away from the portrait.
+      expect(g.signal.arm).toBe(g.signal.x < d.x ? -1 : 1);
+      expect(g.lift).toBeGreaterThanOrEqual(0);
+      expect(d.y - g.lift - R).toBeGreaterThanOrEqual(-0.01 + Math.min(0, d.y - R));
+    }
+  });
+});
+
+describe('the consist and its motion', () => {
+  it('I one handcar, II one cart, III the engine and its tender, IV the engine, its tender, the cars and the caboose (a few textures repeated)', () => {
+    const kinds = (t: TierNum) => trainConsist(plan(DMG[t]), R, C).map((u) => u.kind);
+    expect(kinds(1)).toEqual(['handcar']);
+    expect(kinds(2)).toEqual(['cart']);
+    expect(kinds(3)).toEqual(['engine', 'tender']);
+    const f = kinds(4);
+    expect(f.slice(0, 2)).toEqual(['engine', 'tender']);
+    expect(f.at(-1)).toBe('caboose');
+    expect(f).toHaveLength(10);
+    expect(new Set(f.slice(2, -1)).size).toBeLessThanOrEqual(4);
+    expect(trainConsist(trainPlan({ total: 40 }, { ...C, cars: 8 }), R, { ...C, cars: 8 }).length).toBeLessThanOrEqual(MAX_UNITS);
+    // Units sit nose to tail with no gap or overlap, each at its painted aspect.
+    const units = trainConsist(plan(40), R, C);
+    units.forEach((u, i) => {
+      expect(u.off).toBeCloseTo(i ? units[i - 1]!.off + units[i - 1]!.w : 0, 5);
+      expect(u.w / u.h).toBeCloseTo(UNIT_SHAPES[u.kind].tw / UNIT_SHAPES[u.kind].th, 5);
+    });
+    expect(consistLength(units)).toBeCloseTo(units.at(-1)!.off + units.at(-1)!.w, 5);
+  });
+
+  it('every tier, both directions: off screen before it is due, its nose ON the portrait at the impact, its tail past the portrait by the end of the pass and off the far edge by the exit', () => {
+    for (const t of TIERS) {
+      for (const [a, d, side] of [[YOU, FOE, 'player'], [FOE, YOU, 'opp']] as const) {
+        const p = plan(DMG[t]);
+        const g = trainGeo(a, d, R, FRAME, C, side);
+        const units = trainConsist(p, R, C);
+        const len = consistLength(units);
+        const m = trainMotion(p, g, len, R);
+        const nose = (ms: number): number => g.hitX + g.dir * noseTravel(p, m, ms);
+        const along = (x: number): number => (x - g.enterX) * g.dir; // px past the entry edge
+        const label = `tier ${t} ${side}`;
+        expect(along(nose(m.arriveAt - 1)), label).toBeLessThan(0);
+        expect(m.arriveAt, label).toBeLessThan(p.impactAt);
+        if (t < 4) expect(m.arriveAt, label).toBeGreaterThanOrEqual(p.enterAt - 0.01);
+        expect(nose(p.impactAt), label).toBeCloseTo(g.hitX, 5);
+        // The tail (the nose less the train's length) is past the far side of the portrait by the end of the pass.
+        expect((nose(p.passEnd) - g.dir * len - d.x) * g.dir, label).toBeGreaterThanOrEqual(R * 0.8);
+        expect(along(nose(p.exitEnd) - g.dir * len), label).toBeGreaterThanOrEqual(1920);
+        // It never stops or backs up.
+        let prev = -Infinity;
+        for (let ms = p.chargeAt; ms <= p.endAt; ms += 16) { const x = along(nose(ms)); expect(x, label).toBeGreaterThan(prev); prev = x; }
       }
     }
   });
 
-  it('the arc is trimmed so the ball stays on screen', () => {
-    const h = arcHeight({ x: 900, y: 120 }, { x: 1200, y: 100 }, 1, FRAME, 20);
-    expect(100 - h).toBeGreaterThanOrEqual(-1);
-  });
-});
-
-describe('the pose and the ball', () => {
-  it('I: juggled up off the feet and back, in the air at the volley, then the ball flies at the goal', () => {
-    const x = ctx(3);
-    const { p } = x;
-    const t0 = p.touches[0]!;
-    const low = trainBall(x, t0 + 2), high = trainBall(x, t0 + p.touchMs / 2);
-    expect(high.y).toBeLessThan(low.y - R * 0.5);
-    expect(trainPose(p, x.segs, C, p.strikeAt).air).toBeGreaterThan(0.5);
-    expect(trainBall(x, (p.strikeAt + p.impactAt) / 2).flying).toBe(true);
-  });
-
-  it('II: the portrait jogs to the corner; the Olimpico BENDS (it leaves the straight line); the header leaps to the ball; the one-two goes off screen and back', () => {
-    const x1 = ctx(8, 1);
-    const at = trainPose(x1.p, x1.segs, C, x1.p.approachEnd + 1);
-    expect(dist({ x: A.x + at.x, y: A.y + at.y }, x1.g.corner)).toBeLessThan(2);
-    const mid = trainBall(x1, (x1.p.strikeAt + x1.p.impactAt) / 2);
-    const from = trainBall(x1, x1.p.strikeAt + 1);
-    // Distance of the mid-flight ball from the straight line corner -> goal.
-    const dx = D.x - from.x, dy = D.y - from.y, l = Math.hypot(dx, dy);
-    const off = Math.abs((mid.x - from.x) * dy - (mid.y - from.y) * dx) / l;
-    expect(off).toBeGreaterThan(R * 0.5);
-    const x2 = ctx(8, 2);
-    expect(trainPose(x2.p, x2.segs, C, x2.p.headAt!).air).toBeGreaterThan(0.5);
-    const hb = trainBall(x2, x2.p.headAt! - 0.5);
-    const hp = trainPose(x2.p, x2.segs, C, x2.p.headAt!);
-    expect(dist(hb, { x: A.x + hp.x, y: A.y + hp.y })).toBeLessThan(R * 1.2);
-    const x3 = ctx(8, 3);
-    const out = trainBall(x3, x3.p.passOutAt! + C.oneTwoMs - 1);
-    expect(inFrame(out)).toBe(false); // off the edge of the screen
-    expect(inFrame(trainBall(x3, x3.p.returnAt! - 1))).toBe(true);
-  });
-
-  it('III: the portrait goes ROUND each defender (not through it); the nutmeg rolls the ball straight through it; the rainbow lifts it over', () => {
-    for (const v of VARIANTS) {
-      const x = ctx(14, v);
-      const { p, g } = x;
-      g.defenders.forEach((d, i) => {
-        const q = trainPose(p, x.segs, C, p.beats[i]!);
-        expect(dist({ x: A.x + q.x, y: A.y + q.y }, d.at), `v${v} portrait at defender ${i}`).toBeGreaterThan(R * 0.9);
-        const b = trainBall(x, p.beats[i]!);
-        if (v === 2) expect(dist(b, d.at), `nutmeg ${i}`).toBeLessThan(R * 1.05);
-        if (v === 3) expect(b.air, `rainbow ${i}`).toBeGreaterThan(0.6);
-      });
-      // The defenders are drawn during the run, lunge, and are gone by the end.
-      const d0 = defenderAt(p, g, 0, R, p.beats[0]! - 300), d1 = defenderAt(p, g, 0, R, p.beats[0]!);
-      expect(d0.visible).toBe(true);
-      expect(dist(d0, d1)).toBeGreaterThan(R * 0.2);
-      expect(defenderAt(p, g, 0, R, p.endAt - 1).alpha).toBeLessThan(0.01);
+  it('IV: the whole train takes exactly the pass to clear the portrait, wherever the portraits are', () => {
+    const p = plan(40);
+    const len = consistLength(trainConsist(p, R, C));
+    for (const d of [FOE, { x: 900, y: 500 }, { x: 300, y: 300 }]) {
+      const m = trainMotion(p, trainGeo(YOU, d, R, FRAME, C), len, R);
+      expect(m.v0 * p.passMs).toBeCloseTo(len + R * 1.7, 3);
     }
-    const p1 = plan(8);
-    expect(defenderAt(p1, trainGeo(A, D, R, R, FRAME, C), 0, R, p1.startAt + 200).visible).toBe(false); // III only
   });
+});
 
-  it('IV: the ball goes sky high (bigger, higher than the portrait), comes down onto the contact, the flip is upside down at the kick, and the thunderbolt burns', () => {
-    const x = ctx(40);
-    const { p, g } = x;
-    const up = trainBall(x, (p.flickAt! + p.strikeAt) / 2);
-    expect(up.scale).toBeGreaterThan(1.6);
-    expect(up.y).toBeLessThan(g.contact.y);
-    expect(dist(trainBall(x, p.strikeAt - 0.5), g.contact)).toBeLessThan(R * 0.2);
-    const q = trainPose(p, x.segs, C, p.strikeAt);
-    expect(Math.abs(Math.abs(q.rot) - 180)).toBeLessThan(1);
-    expect(q.air).toBeGreaterThan(0.9);
-    expect(trainBall(x, (p.strikeAt + p.impactAt) / 2).fire).toBe(1);
-    // Upright again (a full turn) on the landing.
-    const l = trainPose(p, x.segs, C, p.landAt + 1);
-    expect(Math.abs(l.rot % 360)).toBeLessThan(1);
-  });
-
-  it('the goal shows before the shot lands, bulges on the impact and springs back; the flag is II\'s only; the camera pushes in on IV', () => {
-    for (const total of [3, 8, 14, 40]) {
-      const p = plan(total);
-      expect(goalAt(p, p.impactAt - 10).alpha, `${total}`).toBeGreaterThan(0.9);
-      expect(goalAt(p, p.impactAt - 10).bulge).toBe(0);
-      expect(goalAt(p, p.impactAt + 20).bulge).toBeGreaterThan(0.5 * p.bulge);
-      expect(goalAt(p, p.impactAt + 2000).bulge).toBeLessThan(0.02);
-      expect(goalAt(p, p.endAt + 600).alpha).toBe(0);
+describe('the track, the signal and the headlight', () => {
+  it('the track fades in at the charge and is gone by the end; I to III never show the signal or the headlight', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      expect(trackAlpha(p, C, p.chargeAt - 1)).toBe(0);
+      expect(trackAlpha(p, C, p.chargeAt + C.trackFadeMs)).toBeCloseTo(1, 5);
+      expect(trackAlpha(p, C, p.impactAt)).toBe(1);
+      expect(trackAlpha(p, C, p.endAt)).toBe(0);
+      if (t < 4) for (let ms = 0; ms <= p.endAt; ms += 40) { expect(signalAt(p, C, ms).alpha).toBe(0); expect(headlightAt(p, ms, p.enterAt)).toBe(0); }
     }
-    expect(plan(40).bulge).toBeGreaterThan(plan(3).bulge * 2);
-    expect(flagAt(plan(8), plan(8).strikeAt).alpha).toBeGreaterThan(0.9);
-    expect(flagAt(plan(14), plan(14).strikeAt).alpha).toBe(0);
-    const p4 = plan(40);
-    expect(trainCameraAt(p4, C, (p4.takeoffAt + p4.impactAt) / 2, { x: 0, y: -1 }).zoom).toBeGreaterThan(1);
-    const l = goalLayout(D, R, 1);
-    expect(l.center).toEqual(D);
-    expect(l.right - l.left).toBeCloseTo(l.w, 6);
   });
-});
 
-describe('variety (II rolls a corner, III a skill; rolled per blow)', () => {
-  it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
-    const seen = new Set<number>();
-    for (let s = 0; s < 60; s++) { expect(variantOf(s, C)).toBe(variantOf(s, C)); seen.add(variantOf(s, C)); }
-    expect([...seen].sort()).toEqual([1, 2, 3]);
-    for (const v of ['1', '2', '3']) expect(variantOf(7, { ...C, variation: v })).toBe(Number(v));
-  });
-});
-
-describe('slow mo (III on the last touch, IV on the bicycle kick; a smooth ramp, never a freeze)', () => {
-  it('III slows around the finish and IV around the contact, then IV runs a touch fast as the thunderbolt flies; never 0; I and II never slow', () => {
-    const p3 = plan(14), p4 = plan(40);
-    expect(trainTimeScale(p3, C, p3.strikeAt)).toBeCloseTo(C.breakSlow, 2);
-    expect(trainTimeScale(p4, C, p4.strikeAt)).toBeCloseTo(C.bikeSlow, 2);
-    const w = slowWindow(p4, C)!;
-    expect(Math.max(...Array.from({ length: 40 }, (_, i) => trainTimeScale(p4, C, w.b + (p4.impactAt - w.b) * (i / 40))))).toBeGreaterThan(1.05);
-    for (const p of [plan(3), plan(8), p3, p4]) {
-      let prev = trainTimeScale(p, C, 0);
-      for (let t = 0; t < p.endAt; t += 2) {
-        const k = trainTimeScale(p, C, t);
-        expect(k).toBeGreaterThan(0.05);
-        expect(Math.abs(k - prev)).toBeLessThan(0.08);
-        prev = k;
-      }
+  it('IV: the signal rises, its two lamps ALTERNATE (never both lit), the arm drops before the horn and lifts after the caboose, and it goes with the track', () => {
+    const p = plan(40);
+    expect(signalAt(p, C, p.signalAt! - 1).alpha).toBe(0);
+    expect(signalAt(p, C, p.gateAt! - 1)).toMatchObject({ arm: 0 });
+    expect(signalAt(p, C, p.signalAt! + 400).rise).toBeCloseTo(1, 1);
+    expect(signalAt(p, C, p.hornAt!).arm).toBeGreaterThan(0.9);
+    expect(signalAt(p, C, p.impactAt).arm).toBeCloseTo(1, 2);
+    expect(signalAt(p, C, p.gateUpAt! + 500).arm).toBeCloseTo(0, 5);
+    let a = 0, b = 0;
+    for (let ms = p.lampsAt!; ms < p.passEnd; ms += 10) {
+      const s = signalAt(p, C, ms);
+      expect(Math.min(s.lampA, s.lampB)).toBe(0);
+      if (s.lampA > 0.9) a++;
+      if (s.lampB > 0.9) b++;
     }
-    expect(slowWindow(plan(3), C)).toBeNull();
-    expect(slowWindow(plan(8), C)).toBeNull();
-    expect(slowExtraMs(p4, C)).toBeGreaterThan(200);
+    expect(a).toBeGreaterThan(20); expect(b).toBeGreaterThan(20);
+    expect(signalAt(p, C, p.gateUpAt! + 10)).toMatchObject({ lampA: 0, lampB: 0 });
+    expect(signalAt(p, C, p.endAt).alpha).toBe(0);
+    // The headlight grows from the horn and is gone once the engine is on screen.
+    const arrive = p.impactAt - 500;
+    expect(headlightAt(p, p.hornAt! - 1, arrive)).toBe(0);
+    expect(headlightAt(p, arrive - 100, arrive)).toBeGreaterThan(headlightAt(p, p.hornAt! + 150, arrive));
+    expect(headlightAt(p, arrive + 200, arrive)).toBe(0);
   });
 });
 
-function manualFrames(): { frames: HeroTrainOptions['frames']; tick: (ms: number, step?: number) => void; hooked: () => number } {
+describe('the struck portrait', () => {
+  const g = trainGeo(YOU, FOE, R, FRAME, C);
+  it('every tier: nothing before the impact; it reacts on it; it has settled to EXACTLY nothing by the end', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      for (let ms = 0; ms < p.impactAt; ms += 20) expect(rest(foePose(p, g, C, R, ms, pose())), `tier ${t} at ${ms}`).toBe(true);
+      expect(rest(foePose(p, g, C, R, p.impactAt + 60, pose())), `tier ${t} reacts`).toBe(false);
+      const end = foePose(p, g, C, R, p.endAt, pose());
+      expect(Math.abs(end.x), `tier ${t} x`).toBeLessThan(0.6);
+      expect(Math.abs(end.y), `tier ${t} y`).toBeLessThan(0.6);
+      expect(Math.abs(end.rot), `tier ${t} rot`).toBeLessThan(0.6);
+      expect(Math.abs(end.sy - 1), `tier ${t} sy`).toBeLessThan(0.01);
+    }
+  });
+
+  it('I a small nudge along the track; II knocked further and it wobbles; both the way the vehicle goes', () => {
+    const a = foePose(plan(3), g, C, R, plan(3).impactAt + 1, pose());
+    const b = foePose(plan(8), g, C, R, plan(8).impactAt + 1, pose());
+    expect(a.x).toBeGreaterThan(0); expect(b.x).toBeGreaterThan(a.x * 1.5);
+    expect(Math.abs(b.rot)).toBeGreaterThan(Math.abs(a.rot) * 2);
+    const back = trainGeo(FOE, YOU, R, FRAME, C, 'opp');
+    expect(foePose(plan(8), back, C, R, plan(8).impactAt + 1, pose()).x).toBeLessThan(0);
+  });
+
+  it('III: FLATTENED while the engine passes (pressed down onto the track, never under it), then it springs up past its height and settles', () => {
+    const p = plan(12);
+    const mid = foePose(p, g, C, R, (p.impactAt + p.passEnd) / 2, pose());
+    expect(mid.sy).toBeCloseTo(1 - C.flatten, 3);
+    expect(mid.sx).toBeGreaterThan(1.1);
+    expect(mid.y).toBeGreaterThan(0);
+    // Its lower edge rests on the near side of the track bed, not under it.
+    expect(FOE.y + mid.y + mid.sy * R).toBeLessThanOrEqual(g.railY - R * C.trackSize * 0.5 + 0.5);
+    let tallest = 0;
+    for (let ms = p.passEnd; ms < p.endAt; ms += 8) tallest = Math.max(tallest, foePose(p, g, C, R, ms, pose()).sy);
+    expect(tallest).toBeGreaterThan(1.05);
+  });
+
+  it('IV: thrown up and SPINNING whole turns while the cars pass, buffeted by each, upright as the caboose clears; then it drops and wobbles to rest', () => {
+    const p = plan(40);
+    const low = trainGeo(FOE, YOU, R, FRAME, C, 'opp'); // room above: the full throw
+    expect(low.lift).toBeCloseTo(R * C.liftSize, 5);
+    const mid = foePose(p, low, C, R, p.impactAt + 400, pose());
+    expect(mid.y).toBeLessThan(-low.lift * 0.8);
+    expect(Math.abs(mid.rot)).toBeGreaterThan(180);
+    expect(Math.sign(mid.rot)).toBe(low.dir);
+    const last = foePose(p, low, C, R, p.passEnd - 0.01, pose());
+    expect(Math.abs(last.rot)).toBeCloseTo(360 * C.spinTurns, 0); // whole turns: upright
+    // A car arriving jolts it.
+    const car = p.carAts[2]!;
+    expect(Math.abs(foePose(p, low, C, R, car + 1, pose()).x - foePose(p, low, C, R, car - 1, pose()).x)).toBeGreaterThan(3);
+    expect(foePose(p, low, C, R, p.passEnd + 190, pose()).y).toBeCloseTo(0, 1);
+    // A portrait tucked against the top of the screen is thrown only as far as there is room.
+    expect(g.lift).toBeLessThan(low.lift);
+    expect(FOE.y - g.lift - R).toBeGreaterThanOrEqual(0);
+  });
+
+  it('the striker only hops and leans down the line, and is home before the end', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      expect(rest(strikerPose(p, g, R, p.chargeAt - 1, pose()))).toBe(true);
+      const mid = strikerPose(p, g, R, p.chargeAt + 130, pose());
+      expect(mid.y).toBeLessThan(0);
+      expect(Math.sign(strikerPose(p, g, R, p.enterAt + 100, pose()).rot)).toBe(g.dir);
+      expect(rest(strikerPose(p, g, R, p.endAt, pose()))).toBe(true);
+    }
+  });
+
+  it('the camera pushes in as it comes, holds while it passes, shakes ALONG the track on the impact, and is back by the end', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      expect(trainCameraAt(p, C, p.chargeAt, 1).zoom).toBe(1);
+      expect(trainCameraAt(p, C, p.impactAt - 1, 1).zoom).toBeCloseTo(1 + p.zoom, 3);
+      expect(trainCameraAt(p, C, p.impactAt + 20, 1).x).not.toBe(0);
+      expect(trainCameraAt(p, C, p.impactAt, -1).x).toBeCloseTo(-trainCameraAt(p, C, p.impactAt, 1).x, 5);
+      expect(trainCameraAt(p, C, p.passEnd + C.zoomOutMs + 600, 1).zoom).toBeCloseTo(1, 3);
+    }
+    const iv = plan(40);
+    expect(trainCameraAt(iv, C, (iv.impactAt + iv.passEnd) / 2, 1).zoom).toBeGreaterThan(1.04);
+  });
+});
+
+// ─── the runner ────────────────────────────────────────────────────────────────────────────────────────────────
+
+function manualFrames() {
   const fns: ((dt: number) => void)[] = [];
   return {
-    frames: (fn) => { fns.push(fn); return () => { const i = fns.indexOf(fn); if (i >= 0) fns.splice(i, 1); }; },
-    tick: (ms, step = 16) => { for (let t = 0; t < ms; t += step) [...fns].forEach((f) => f(step)); },
+    frames: (fn: (dt: number) => void) => { fns.push(fn); return () => { const i = fns.indexOf(fn); if (i >= 0) fns.splice(i, 1); }; },
+    tick: (ms: number, step = 16) => { for (let t = 0; t < ms; t += step) [...fns].forEach((f) => f(Math.min(step, ms - t))); },
     hooked: () => fns.length,
   };
 }
 
-/** Tick real frames until the attack's own clock reaches `t` (slow mo makes real time and attack time differ). */
-function tickTo(r: { h: { elapsed(): number; done: boolean }; f: { tick: (ms: number, step?: number) => void } }, t: number, step = 4): void {
-  for (let i = 0; i < 20000 && !r.h.done && r.h.elapsed() < t; i++) r.f.tick(step, step);
-}
-
-function run(over: Partial<HeroTrainOptions> = {}) {
+function setup(total: number, side: 'player' | 'opp' = 'player', extra: Partial<HeroTrainOptions> = {}) {
   const f = manualFrames();
   const root = new Container();
-  const onImpact = vi.fn();
-  const onDone = vi.fn();
-  const host = document.createElement('div');
   const camera = document.createElement('div');
   const attackerEl = document.createElement('div');
   const defenderEl = document.createElement('div');
-  attackerEl.style.transform = 'translateX(3px)';
-  attackerEl.style.opacity = '0.95';
+  attackerEl.style.transform = 'translate(1px, 2px)';
+  attackerEl.style.opacity = '0.9';
+  defenderEl.style.transform = 'scale(0.5)';
+  defenderEl.style.opacity = '0.8';
   camera.append(attackerEl, defenderEl);
-  document.body.append(host, camera);
+  document.body.append(camera);
+  const onImpact = vi.fn(), onDone = vi.fn();
+  const a = side === 'player' ? YOU : FOE, d = side === 'player' ? FOE : YOU;
   const h = playHeroTrain({
-    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: { x: 960, y: 900 }, defender: { x: 960, y: 200 }, defenderRadius: R, attackerRadius: R,
-    reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
-    mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl, ...over,
+    formation: formationOf([2, 3], total), total, side, attacker: a, defender: d, defenderRadius: R, attackerRadius: R, reduced: false, onImpact, onDone,
+    frames: f.frames, textures: TEX, sound: false, safety: false, cfg: C, pixiScale: 1,
+    mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host: camera, camera, attackerEl, defenderEl, ...extra,
   });
-  return { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl };
+  const restored = (): void => {
+    expect(attackerEl.style.transform).toBe('translate(1px, 2px)');
+    expect(attackerEl.style.opacity).toBe('0.9');
+    expect(defenderEl.style.transform).toBe('scale(0.5)');
+    expect(defenderEl.style.opacity).toBe('0.8');
+    expect(camera.style.transform).toBe('');
+    expect(document.body.className).toBe('');
+    expect(document.querySelector('.dform')).toBeNull();
+  };
+  return { f, h, root, camera, attackerEl, defenderEl, onImpact, onDone, restored };
 }
 
-/** The portrait and the page are back EXACTLY as they were, and nothing of the attack is left drawing. */
-function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-player'): void {
-  expect(r.attackerEl.style.transform).toBe('translateX(3px)');
-  expect(r.attackerEl.style.opacity).toBe('0.95');
-  expect(r.defenderEl.style.transform).toBe('');
-  expect(r.camera.style.transform).toBe('');
-  expect(document.body.classList.contains(zClass)).toBe(false);
-  expect(r.host.querySelector('.hblast')).toBeNull();
-  expect(r.h.scene?.ownVisible ?? false).toBe(false);
-}
+describe('the runner (the shared clock, both portraits restored on every exit)', () => {
+  afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; vi.useRealTimers(); });
 
-describe('the runner (the shared clock, the portrait restored on every exit)', () => {
-  afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
+  it('IV: the signal, the bell, the gate, the horn and the train rolling in never land it; the blow lands ONCE as the engine hits; everything is put back EXACTLY at the end', () => {
+    const s = setup(40);
+    const p = s.h.plan;
+    s.f.tick(p.hornAt! + 40);
+    expect(s.onImpact).not.toHaveBeenCalled();
+    expect(s.defenderEl.style.transform).toBe('scale(0.5)'); // the target has not reacted
+    expect(s.h.scene!.ownVisible).toBe(true); // the track and the signal are up
+    s.f.tick(p.impactAt - p.hornAt! - 80);
+    expect(s.onImpact).not.toHaveBeenCalled();
+    expect(s.defenderEl.style.transform).toBe('scale(0.5)');
+    s.f.tick(96);
+    expect(s.onImpact).toHaveBeenCalledTimes(1);
+    expect(s.h.impacted).toBe(true);
+    expect(s.defenderEl.style.transform).toContain('rotate('); // thrown and spinning
+    expect(s.camera.style.transform).toContain('scale(');
+    s.f.tick(p.endAt);
+    expect(s.onImpact).toHaveBeenCalledTimes(1);
+    expect(s.onDone).toHaveBeenCalledTimes(1);
+    expect(s.h.done).toBe(true);
+    s.restored();
+    s.f.tick(3000);
+    expect(s.f.hooked()).toBe(0); // the scene drained and the updater unhooked
+    expect(s.root.children).toHaveLength(0);
+  });
 
-  it('IV: the flick, the sprint and the contact never land it; the blow lands ONCE in the net; the portrait moved, raised, and is put back EXACTLY at the end', () => {
-    const r = run({ total: 40, formation: formationOf([40], 40) });
-    const { h, f, onImpact, onDone } = r;
-    expect(r.host.querySelector('.hblast.htrain')).not.toBeNull();
-    // The struck portrait does not react at all until the ball is in the net.
-    for (let i = 0; i < 4000 && h.elapsed() < h.plan.impactAt - 8; i++) {
-      f.tick(4, 4);
-      if (h.elapsed() < h.plan.impactAt) expect(r.defenderEl.style.transform, `before the goal @${Math.round(h.elapsed())}`).toBe('');
+  it('cancel() mid-run, finish() mid-run and the safety timer each put both portraits back exactly (cancel never lands)', () => {
+    for (const t of TIERS) {
+      const c = setup(DMG[t]);
+      c.f.tick(c.h.plan.impactAt + 120);
+      expect(c.defenderEl.style.transform).not.toBe('scale(0.5)');
+      c.h.cancel();
+      c.restored();
+      expect(c.onDone).not.toHaveBeenCalled();
+      expect(c.f.hooked()).toBe(0);
+      expect(c.root.children).toHaveLength(0);
+
+      const early = setup(DMG[t]);
+      early.f.tick(early.h.plan.chargeAt + 100);
+      early.h.cancel();
+      expect(early.onImpact).not.toHaveBeenCalled();
+      early.restored();
+
+      const fin = setup(DMG[t]);
+      fin.f.tick(fin.h.plan.enterAt + 30);
+      fin.h.finish();
+      expect(fin.onImpact).toHaveBeenCalledTimes(1);
+      expect(fin.onDone).toHaveBeenCalledTimes(1);
+      fin.restored();
+      expect(fin.root.children).toHaveLength(0);
     }
-    expect(onImpact).not.toHaveBeenCalled();
-    expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
-    expect(r.attackerEl.style.transform).toContain('translate(');
-    expect(h.scene!.ownVisible).toBe(true);
-    tickTo(r, h.plan.impactAt + 12);
-    expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(r.host.querySelector('.hblast-hit')!.textContent).toBe('-40');
-    expect(r.defenderEl.style.transform).toContain('translate(');
-    tickTo(r, h.plan.endAt + 32, 8);
-    expect(onDone).toHaveBeenCalledTimes(1);
-    expect(onImpact).toHaveBeenCalledTimes(1);
-    expectRestored(r);
-    f.tick(4000, 16);
-    expect(f.hooked()).toBe(0);
-    expect(r.root.children).toHaveLength(0);
-  });
-
-  it('cancel() mid-run, finish() mid-corner and the safety timer each put the portrait back exactly (cancel never lands)', () => {
-    const a = run({ total: 14, formation: formationOf([14], 14) });
-    tickTo(a, a.h.plan.beats[0]!);
-    expect(a.attackerEl.style.transform).toContain('translate(');
-    a.h.cancel();
-    expect(a.onImpact).not.toHaveBeenCalled();
-    expectRestored(a);
-    expect(a.f.hooked()).toBe(0);
-    document.body.innerHTML = '';
-
-    const b = run({ total: 8, formation: formationOf([8], 8), side: 'opp', attacker: { x: 960, y: 200 }, defender: { x: 960, y: 900 } });
-    tickTo(b, b.h.plan.approachEnd + 30);
-    expect(b.attackerEl.style.transform).toContain('translate(');
-    b.h.finish();
-    expect(b.onImpact).toHaveBeenCalledTimes(1);
-    expectRestored(b, 'duel-attacker-opp');
-    document.body.innerHTML = '';
-
     vi.useFakeTimers();
-    try {
-      const c = run({ total: 40, formation: formationOf([40], 40), safety: true });
-      tickTo(c, c.h.plan.takeoffAt + 20);
-      vi.advanceTimersByTime(c.h.plan.endAt + slowExtraMs(c.h.plan, C) + 3000);
-      expect(c.onImpact).toHaveBeenCalledTimes(1);
-      expect(c.h.done).toBe(true);
-      expectRestored(c);
-    } finally { vi.useRealTimers(); }
+    const s = setup(40, 'player', { safety: true });
+    s.f.tick(s.h.plan.impactAt - 200); // then the tab is hidden: no more frames
+    vi.advanceTimersByTime(s.h.plan.endAt + 2600);
+    expect(s.onImpact).toHaveBeenCalledTimes(1);
+    expect(s.h.done).toBe(true);
+    s.restored();
+    expect(s.root.children).toHaveLength(0);
   });
 
-  it('an unmount mid-attack (Recruit cancels the handle) leaves no transform, no class and no drawn ball behind, at every tier and variation', () => {
-    for (const total of [3, 8, 14, 40]) {
-      for (const v of ['1', '2', '3']) {
-        const r = run({ total, formation: formationOf([total], total), cfg: { ...C, variation: v } });
-        tickTo(r, (r.h.plan.strikeAt + r.h.plan.startAt) / 2);
-        r.h.cancel();
-        expectRestored(r);
-        expect(r.f.hooked()).toBe(0);
-        expect(r.root.children, `${total} v${v}`).toHaveLength(0);
-        document.body.innerHTML = '';
+  it('both directions at every tier: within the sprite cap, the blow once, own objects hidden at the end, the camera applied once; reduced motion draws nothing', () => {
+    for (const t of TIERS) {
+      for (const side of ['player', 'opp'] as const) {
+        const s = setup(DMG[t], side);
+        expect(s.h.geo.dir).toBe(side === 'player' ? 1 : -1);
+        expect(s.h.mirrorsCamera).toBe(true); // the test canvas does not ride the camera element
+        let peak = 0;
+        for (let ms = 0; ms < s.h.plan.endAt + 32; ms += 16) { s.f.tick(16); peak = Math.max(peak, s.h.scene!.liveSprites); }
+        expect(peak, `tier ${t} ${side}`).toBeLessThanOrEqual(MAX_TRAIN_SPRITES);
+        expect(peak, `tier ${t} ${side}`).toBeLessThan(200);
+        expect(s.onImpact).toHaveBeenCalledTimes(1);
+        expect(s.h.scene!.ownVisible).toBe(false);
+        expect(s.h.scene!.ownSprites.every((sp) => !sp.visible)).toBe(true);
+        s.restored();
       }
     }
-  });
-
-  it('both directions at every tier and variation, within the cap, the blow once; the camera applied once; a replay is identical; reduced motion', () => {
-    for (const side of ['player', 'opp'] as const) {
-      for (const total of [3, 8, 12, 40]) {
-        for (const v of ['1', '2', '3']) {
-          const a = side === 'player' ? { x: 700, y: 900 } : { x: 1830, y: 90 };
-          const d = side === 'player' ? { x: 1830, y: 90 } : { x: 700, y: 900 };
-          const r = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total), cfg: { ...C, variation: v } });
-          let peak = 0;
-          for (let i = 0; i < 3000 && !r.h.done; i++) { r.f.tick(16, 16); peak = Math.max(peak, r.h.scene!.liveSprites); }
-          expect(r.onImpact, `${side} ${total} v${v}`).toHaveBeenCalledTimes(1);
-          expect(peak, `${side} ${total} v${v}`).toBeLessThanOrEqual(MAX_SOCCER_SPRITES);
-          expectRestored(r, side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player');
-          r.h.cancel();
-          document.body.innerHTML = '';
-        }
-      }
-    }
-    const camera = document.createElement('div');
-    camera.appendChild(document.createElement('canvas'));
-    const c = run({ camera, total: 40, formation: formationOf([40], 40) });
-    tickTo(c, c.h.plan.impactAt + 20);
-    expect(c.h.mirrorsCamera).toBe(false);
-    expect((c.root.children[0] as Container).scale.x).toBe(1);
-    c.h.cancel();
-    const x = run({ total: 40, formation: formationOf([40], 40), rollSeed: 77 });
-    const y = run({ total: 40, formation: formationOf([40], 40), rollSeed: 77 });
-    expect(x.h.plan).toEqual(y.h.plan);
-    expect(x.h.geo).toEqual(y.h.geo);
-    x.h.cancel(); y.h.cancel();
-    const r = run({ reduced: true });
+    const r = setup(40, 'player', { reduced: true });
     expect(r.h.scene).toBeNull();
-    r.f.tick(r.h.plan.endAt + 100, 16);
+    r.f.tick(r.h.plan.endAt + 32);
     expect(r.onImpact).toHaveBeenCalledTimes(1);
-    expect(r.attackerEl.style.transform).toBe('translateX(3px)');
+    expect(r.attackerEl.style.transform).toBe('translate(1px, 2px)');
+    expect(r.defenderEl.style.transform).toBe('scale(0.5)');
   });
 
-  it('the same rollSeed rolls the same variation (a replay); the clock really slows on IV and still lands once', () => {
-    for (let s = 0; s < 6; s++) {
-      const x = run({ total: 14, formation: formationOf([14], 14), rollSeed: s });
-      const y = run({ total: 14, formation: formationOf([14], 14), rollSeed: s });
-      expect(x.h.variant).toBe(y.h.variant);
-      expect(x.h.variant).toBe(variantOf(s, C));
-      x.h.cancel(); y.h.cancel();
+  it('the train is drawn THROUGH the portrait: off the track before it is due, over the portrait just after the impact, gone after the exit', () => {
+    for (const side of ['player', 'opp'] as const) {
+      const s = setup(40, side);
+      const p = s.h.plan;
+      const cars = (): number => s.h.scene!.ownSprites.filter((sp) => sp.visible && sp.anchor.y === 1 && sp.anchor.x === 0.5 && sp.y > s.h.geo.railY).length;
+      s.f.tick(p.hornAt!);
+      const before = cars();
+      s.f.tick(p.impactAt + 300 - p.hornAt!);
+      expect(cars()).toBeGreaterThan(before + 2); // several units on screen at once
+      expect((s.h.noseX(p.impactAt + 300) - s.h.geo.hit.x) * s.h.geo.dir).toBeGreaterThan(R); // the nose is out the far side
+      s.f.tick(p.endAt - p.impactAt);
+      expect(s.h.scene!.ownVisible).toBe(false);
+      s.h.cancel();
     }
-    const r = run({ total: 40, formation: formationOf([40], 40) });
-    let realMs = 0;
-    for (let i = 0; i < 6000 && !r.h.done; i++) { r.f.tick(4, 4); realMs += 4; }
-    expect(r.onImpact).toHaveBeenCalledTimes(1);
-    expect(realMs).toBeGreaterThan(r.h.plan.endAt + slowExtraMs(r.h.plan, C) * 0.6);
+  });
+
+  it('deterministic: the same blow plays the same frames (the portrait, the camera, the sprites); the seed only scatters the FX', () => {
+    const run = (seed?: number): string[] => {
+      const s = setup(40, 'player', seed === undefined ? {} : { rollSeed: seed });
+      const out: string[] = [];
+      for (let ms = 0; ms < s.h.plan.endAt + 32; ms += 16) {
+        s.f.tick(16);
+        const sc = s.h.scene!;
+        out.push(`${s.defenderEl.style.transform}|${s.camera.style.transform}|${sc.liveSprites}|${sc.root.children.map((l) => l.children.filter((ch) => ch.visible).map((ch) => `${ch.x.toFixed(1)},${ch.y.toFixed(1)}`).join(';')).join('/')}`);
+      }
+      s.h.cancel();
+      document.body.innerHTML = '';
+      return out;
+    };
+    expect(run()).toEqual(run());
+    expect(run(7)).toEqual(run(7));
+    expect(run(7)).not.toEqual(run(8));
+    // The plan and the portrait's pose never depend on the seed.
+    const a = setup(40, 'player', { rollSeed: 1 }), b = setup(40, 'player', { rollSeed: 2 });
+    expect(a.h.plan).toEqual(b.h.plan);
+    expect(a.h.foe(a.h.plan.impactAt + 300)).toEqual(b.h.foe(b.h.plan.impactAt + 300));
+    a.h.cancel(); b.h.cancel();
   });
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('pools, stays under the cap, hides its own objects, drains, and destroy leaves nothing', () => {
-    const scene = new HeroTrainScene(TEX, {
-      ball: 0xffffff, post: 0xffffff, net: 0xe6eeff, flag: 0xffd23f, defender: 0x2b3140, flash: 0xfff4dc, fire: 0xffb030, blast: 0xff7a1a, confettiA: 0x3fd17a, confettiB: 0xffd23f, side: 0xffcf5a,
-    }, { ballSize: 0.42, shadowDrop: 0.5, goalSize: 1, wordSize: 1 }, R, R, 1, 9);
-    scene.setBall({ visible: true, x: 10, y: 10, rot: 0, scale: 1, alpha: 1, air: 0.5, squash: 0.1, flying: true, fire: 1 });
-    scene.setHeroShadow({ x: 0, y: 0 }, 0.6, 1);
-    scene.setGoal(goalLayout(D, R, 1), 1, 0.3, 0.02, { x: 0, y: -1 });
-    scene.setFlag({ x: 30, y: 30 }, 1, 0.1);
-    scene.setDefender(0, { visible: true, x: 5, y: 5, rot: 0, scale: 1, alpha: 1 });
-    expect(scene.ownVisible).toBe(true);
-    for (let i = 0; i < 3; i++) {
-      scene.touch(A, 1); scene.strike(A, 1.2); scene.skid(A, { x: 0, y: -1 }, 1.4); scene.speedLine(A, D, R); scene.launch(A, 2); scene.contact(A, { x: 0, y: -1 }, 2);
-      scene.beaten(A, 'nutmeg'); scene.header(A); scene.slide(A, { x: 1, y: 0 });
-      scene.goalHit(D, { x: 0, y: -1 }, { burst: 2, rings: 8, confetti: 80, big: true, blast: 3 });
-      scene.trail({ visible: true, x: 5, y: 5, rot: 0, scale: 1, alpha: 1, air: 0.2, squash: 0, flying: true, fire: 1 });
-      scene.trail({ visible: true, x: 5, y: 5, rot: 0, scale: 1, alpha: 1, air: 0.2, squash: 0, flying: true, fire: 0 });
+  it('makes its own sprites once, mirrors a train going left, hides them all, drains, and destroy leaves nothing', () => {
+    for (const dirSide of ['player', 'opp'] as const) {
+      const p = plan(40);
+      const g = dirSide === 'player' ? trainGeo(YOU, FOE, R, FRAME, C) : trainGeo(FOE, YOU, R, FRAME, C, 'opp');
+      const units = trainConsist(p, R, C);
+      const sc = new HeroTrainScene(TEX, { steam: 1, ore: 2, lamp: 3, headlight: 4, spark: 5, star: 6, flash: 7, side: 8 }, { trackSize: C.trackSize, handleSwing: C.handleSwing, bounce: C.bounce }, g, units, p.kind, R, 1, 3);
+      const made = sc.ownSprites.length;
+      expect(sc.ownVisible).toBe(false);
+      sc.setTrack(1);
+      sc.setTrain(g.hitX + g.dir * 400, 400, true);
+      sc.setSignal({ alpha: 1, rise: 1, arm: 1, lampA: 1, lampB: 0 });
+      sc.setHeadlight(0.6);
+      expect(sc.ownVisible).toBe(true);
+      const car = sc.ownSprites.find((s) => s.visible && s.anchor.y === 1 && s.anchor.x === 0.5 && s.y > g.railY)!;
+      expect(Math.sign(car.scale.x)).toBe(g.dir);
+      expect(car.scale.y).toBeGreaterThan(0);
+      const f = sc.funnelAt(500, { x: 0, y: 0 })!;
+      expect((500 - f.x) * g.dir).toBeGreaterThan(0); // the funnel is behind the nose
+      expect(f.y).toBeLessThan(g.wheelY);
+      sc.puff(f); sc.wind(); sc.sparks(900, 4); sc.dust({ x: 900, y: 300 }); sc.hit(g.contact, 1.7); sc.buffet(g.hit); sc.lastPuff(g.hit);
+      expect(sc.liveFx).toBeGreaterThan(20);
+      expect(sc.liveSprites).toBeLessThanOrEqual(MAX_TRAIN_SPRITES);
+      expect(sc.ownSprites.length).toBe(made); // nothing is made per frame
+      sc.hideOwn();
+      expect(sc.ownVisible).toBe(false);
+      let alive = true;
+      for (let i = 0; i < 200 && alive; i++) alive = sc.update(16);
+      expect(alive).toBe(false);
+      expect(sc.liveFx).toBe(0);
+      sc.destroy();
+      expect(sc.update(16)).toBe(false);
     }
-    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_SOCCER_SPRITES);
-    scene.hideOwn();
-    expect(scene.ownVisible).toBe(false);
-    let alive = true;
-    for (let i = 0; i < 400 && alive; i++) alive = scene.update(16);
-    expect(alive).toBe(false);
-    expect(scene.liveSprites).toBe(0);
-    scene.destroy();
-    expect(scene.root.destroyed).toBe(true);
+  });
+
+  it('each look\'s hit: I throws its bonk stars, II spills ore, III and IV blow steam', () => {
+    for (const t of TIERS) {
+      const p = plan(DMG[t]);
+      const g = trainGeo(YOU, FOE, R, FRAME, C);
+      const sc = new HeroTrainScene(TEX, { steam: 1, ore: 2, lamp: 3, headlight: 4, spark: 5, star: 0xabcdef, flash: 7, side: 8 }, { trackSize: C.trackSize, handleSwing: C.handleSwing, bounce: C.bounce }, g, trainConsist(p, R, C), p.kind, R, 1, 3);
+      sc.update(500); // the pre-warm sprites are returned
+      const before = sc.liveFx;
+      sc.hit(g.contact, p.burst);
+      const n = sc.liveFx - before;
+      expect(n, `tier ${t}`).toBeGreaterThanOrEqual(t === 1 ? 5 : 15);
+      sc.destroy();
+    }
   });
 });

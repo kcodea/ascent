@@ -14,10 +14,10 @@ in parallel by separate builders on `feat/hero-attacks-16`. Eight are kept. Each
 | `combo` | Flawless | Legendary | a fighting game combo with a counter that ends on the blow's real damage |
 | `warhost` | Warhost (Ancient of War) | Ancient | an army of tiny soldiers: a spearman, archers, cavalry, the whole host |
 | `reaping` | The Reaping (Ancient of Death) | Ancient | the scythe cuts colour: the portrait, then the whole screen, drains to grey |
-| `glass` | Fourth Wall | Ancient | the screen is a pane of glass and the blow chips, webs, breaks and shatters it |
+| `glass` | Fourth Wall | Epic (owner 2026-11-13, was Ancient) | the screen is a pane of glass and the blow chips, webs, breaks and shatters it |
 | `stars` | Written in the Stars | Ancient | constellations are drawn star by star, come alive and strike |
 
-Eight of sixteen: the owner dropped eight after seeing them (below). What is kept is 2 Epic, 2 Legendary and 4 Ancient; no Rare survived.
+Eight of sixteen: the owner dropped eight after seeing them (below). What is kept is 3 Epic, 2 Legendary and 3 Ancient (Fourth Wall moved from Ancient to Epic on 2026-11-13); no Rare survived.
 
 ## Dev-only
 

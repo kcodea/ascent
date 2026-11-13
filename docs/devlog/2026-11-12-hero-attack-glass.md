@@ -1,8 +1,8 @@
-# Hero attack: Fourth Wall (`glass`, Ancient, dev-only)
+# Hero attack: Fourth Wall (`glass`, Epic, dev-only; was Ancient until the owner moved it on 2026-11-13)
 
 Built on the `npm run attack:new` scaffold (copied from `bullettime`); nothing of the Timebreak look remains. The style
 still has no cosmetic: it plays only through the dev "Attack style" override and its tuner (Dev menu, "Hero Attack:
-Fourth Wall (Ancient)").
+Fourth Wall (Epic)").
 
 ## The idea
 

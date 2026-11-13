@@ -150,7 +150,7 @@
  *    drains the struck portrait to grey along the cut (a strip, half, then all of it under one great falling
  *    crescent), and the top look drains the whole screen to monochrome before colour floods back to all but the loser
  *    (`../heroReaping/`).
- *  - `glass` ("Fourth Wall", an Ancient): the SCREEN is a pane of glass and the blow breaks it. Tier 1 a chip; Tier 2 a spider
+ *  - `glass` ("Fourth Wall", an Epic; dropped from Ancient by the owner 2026-11-13): the SCREEN is a pane of glass and the blow breaks it. Tier 1 a chip; Tier 2 a spider
  *    web; Tier 3 a pane that breaks out and falls away; Tier 4 a punch on the glass and the whole view shatters and falls
  *    (`../heroGlass/`).
  *  - `stars` ("Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
@@ -209,7 +209,7 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   combo: 'Flawless (fighting game) (in progress, no cosmetic yet)',
   warhost: 'Warhost (Ancient of War) (in progress, no cosmetic yet)',
   reaping: 'The Reaping (Ancient of Death) (in progress, no cosmetic yet)',
-  glass: 'Fourth Wall (Ancient) (in progress, no cosmetic yet)',
+  glass: 'Fourth Wall (Epic) (in progress, no cosmetic yet)',
   stars: 'Written in the Stars (Ancient) (in progress, no cosmetic yet)',
 };
 

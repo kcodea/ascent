@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 /**
  * THE WRITTEN IN THE STARS HERO ATTACK (ANCIENT; dev-only, no cosmetic yet): the shared four tiers; the tuner values;
- * the pure plan (I the arrow, II the bow, III the hunter, IV the medallion and the falling star) and its cue timing;
- * the constellations (every line starts from a star that is already lit; the figures stay on screen in both
- * directions and on any layout; the star always falls DOWN); the draw of the bow; the runner on the shared clock (the
- * blow lands exactly ONCE; both directions; replay; finish / cancel; every exit puts the portraits and the camera
- * back); the headless scene.
+ * the pure plan (I the arrow, II the bow, III the hunter, IV the medallion and the comet) and its cue timing; the
+ * constellations (every line starts from a star that is already lit; the figures stay on screen in both directions
+ * and on any layout; the comet always ARRIVES moving down: a straight fall, or an arc over the whole sky); the draw of
+ * the bow; IV's held breath (the swell, the hush) and aftermath (the flare, the scatter); the runner on the shared
+ * clock (the blow lands exactly ONCE; both directions; replay; finish / cancel; every exit puts the portraits and the
+ * camera back); the headless scene (the path and its tail, the nova, the jolt, the falling sparks).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,11 +15,12 @@ import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import {
-  HERO_STARS_CLIP_KEYS, HERO_STARS_DEFAULTS, HERO_STARS_RANGES, STARS_SLOTS, aliveAmount, clampHeroStarsValue, drawAmount, heroStarsConfigJson,
-  placeFigure, pluckPoint, shotAt, skyAmount, slotAt, starFigure, starLitAt, starsCameraAt, starsCues, starsPlan,
+  HERO_STARS_CLIP_KEYS, HERO_STARS_DEFAULTS, HERO_STARS_RANGES, STARS_SLOTS, aliveAmount, clampHeroStarsValue, drawAmount, figureAmount, flareAmount,
+  heroStarsConfigJson, hushAmount, placeFigure, pluckPoint, shotAt, shotArrival, shotPoint, skyAmount, slotAt, starFigure, starLitAt, starsCameraAt,
+  starsCues, starsPlan, swellAmount,
   type Box, type HeroStarsNumKey, type StarFigure, type StarsPlan,
 } from './heroStarsConfig';
-import { HeroStarsScene, MAX_STARS_SPRITES, type HeroStarsTextures, type SkyFrame } from './heroStarsScene';
+import { HeroStarsScene, MAX_STARS_SPRITES, type HeroStarsTextures, type SkyFrame, type StarsLook } from './heroStarsScene';
 import { playHeroStars, starsSeed, type HeroStarsOptions } from './heroStars';
 import { SPEC } from '../HeroStarsTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
@@ -91,12 +93,30 @@ describe('the plan', () => {
       expect(p.impactAt, t).toBeGreaterThan(p.looseAt + 60);
       expect(p.outAt, t).toBeGreaterThanOrEqual(p.impactAt);
       expect(p.endAt, t).toBeGreaterThan(p.outAt);
+      expect(p.endAt - p.impactAt, t).toBe(C[`t${p.tier}SettleMs`]);
       expect(slotAt(p, p.slots), t).toBe(p.tracedAt);
     }
     // IV's fall is its own length; an arrow's flight follows the board.
     expect(plan(40).impactAt - plan(40).looseAt).toBe(C.t4FlyMs);
     const near = starsPlan({ total: 3, distance: 600 }, C), far = starsPlan({ total: 3, distance: 1600 }, C);
     expect(near.impactAt - near.looseAt).toBeLessThan(far.impactAt - far.looseAt);
+  });
+
+  it('the blow grows with the tier: the shake, the punch and the flash on the sky; only IV scatters its lines', () => {
+    const ps = TOTALS.map((t) => plan(t));
+    for (let i = 1; i < ps.length; i++) {
+      expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
+      expect(ps[i]!.punch).toBeGreaterThan(ps[i - 1]!.punch);
+      expect(ps[i]!.flash).toBeGreaterThan(ps[i - 1]!.flash);
+    }
+    expect(ps[0]!.flash).toBeGreaterThan(0);
+    expect(ps[3]!.flash).toBeCloseTo(C.skyFlash, 6);
+    for (const p of ps.slice(0, 3)) expect(p.scatterAt).toBe(Infinity);
+    const iv = ps[3]!;
+    expect(iv.scatterAt - iv.impactAt).toBe(C.scatterMs);
+    // The night holds while the sparks drift, then fades.
+    expect(iv.outAt).toBeGreaterThan(iv.scatterAt + 300);
+    expect(iv.endAt - iv.outAt).toBeGreaterThan(500);
   });
 
   it('the cues: one star tick per star at the moment its line arrives, in order; exactly one impact and one end', () => {
@@ -117,18 +137,28 @@ describe('the plan', () => {
       }
       expect(cues.find((q) => q.kind === 'impact')!.at).toBe(p.impactAt);
       expect(cues.find((q) => q.kind === 'loose')!.at).toBe(p.looseAt);
+      expect(cues.find((q) => q.kind === 'hold')!.at).toBe(p.holdAt);
+      const sc = cues.filter((q) => q.kind === 'scatter');
+      expect(sc.map((q) => q.at)).toEqual(p.kind === 'written' ? [p.scatterAt] : []);
     }
   });
 
-  it('pace: in the range of the other Ancients (I under 1.5 s, II under 1.8 s, III under 2.3 s, IV about 3 s after the formation)', () => {
+  it('pace: I to III stay short; IV takes its time, and the time is in the anticipation and the aftermath, not the trace', () => {
     const len = (d: number): number => { const p = plan(d); return p.endAt - p.chargeAt; };
-    expect(len(3)).toBeLessThan(1500);
-    expect(len(8)).toBeLessThan(1800);
-    expect(len(14)).toBeLessThan(2300);
-    expect(len(40)).toBeLessThanOrEqual(3100);
+    expect(len(3)).toBeLessThan(1700);
+    expect(len(8)).toBeLessThan(2200);
+    expect(len(14)).toBeLessThan(2900);
     expect(len(3)).toBeLessThan(len(8));
     expect(len(8)).toBeLessThan(len(14));
     expect(len(14)).toBeLessThan(len(40));
+    // IV: longer than Soccer IV and Frost IV (3.3 s and 3.1 s after the formation), but not a cutscene.
+    const p = plan(40);
+    expect(len(40)).toBeGreaterThan(4200);
+    expect(len(40)).toBeLessThan(5200);
+    expect(p.looseAt - p.holdAt).toBeGreaterThanOrEqual(500); // the held breath
+    expect(p.impactAt - p.looseAt).toBeGreaterThanOrEqual(500); // the comet's fall
+    expect(p.endAt - p.impactAt).toBeGreaterThanOrEqual(1500); // the aftermath
+    expect(p.tracedAt - p.traceAt).toBeLessThan(1000); // the trace itself is no slower than it was
   });
 
   it('nothing holds or scales the clock (no dip, no stop); the Knockout remix only shakes harder', () => {
@@ -241,19 +271,36 @@ describe('the constellations', () => {
     }
   });
 
-  it('IV: the star falls DOWN onto the struck hero: straight down when there is sky above, else on the steepest line the screen allows', () => {
-    // The foe strikes you (you are low on the screen): straight down, the full length.
+  it('IV: the comet comes DOWN onto the struck hero: a straight fall down the sky when there is sky above, else an arc over the whole sky from the far side', () => {
+    // The foe strikes you (you are low on the screen): straight down, as far as the dial or the sky allows.
     const down = fig(40, FOE, YOU);
+    expect(down.arc).toBe(false);
     expect(down.shotFrom.x).toBeCloseTo(YOU.x, 6);
-    expect(YOU.y - down.shotFrom.y).toBeCloseTo(C.fallLen * R, 6);
-    // You strike the foe (it is in the top corner): there is no sky above it, so the star comes in along the sky.
-    const along = fig(40, YOU, FOE);
-    expect(along.shotFrom.y).toBeLessThan(FOE.y);
-    expect(along.shotFrom.y).toBeGreaterThanOrEqual(SCREEN.h * 0.05 - 1e-6);
-    expect(Math.hypot(along.shotFrom.x - FOE.x, along.shotFrom.y - FOE.y)).toBeCloseTo(C.fallLen * R, 4);
+    expect(YOU.y - down.shotFrom.y).toBeCloseTo(Math.min(C.fallLen * R, YOU.y - SCREEN.h * 0.05), 6);
+    expect(YOU.y - down.shotFrom.y).toBeGreaterThan(R * 5); // a long fall
+    expect(shotPoint(down, 0.5).x).toBeCloseTo(YOU.x, 6);
+    // You strike the foe (it is in the top corner): there is no sky above it, so the star is plucked on the FAR side
+    // of the medallion and thrown over the top of the sky.
+    const over = fig(40, YOU, FOE);
+    expect(over.arc).toBe(true);
+    expect(over.shotFrom.x).toBeLessThan(over.medallion!.x - over.medallion!.r); // beyond the medallion, away from the foe
+    expect(Math.abs(over.shotFrom.x - FOE.x)).toBeGreaterThan(SCREEN.w * 0.6); // the whole sky is its path
+    let top = Infinity;
+    for (let u = 0; u <= 1.0001; u += 0.02) {
+      const q = shotPoint(over, Math.min(1, u));
+      top = Math.min(top, q.y);
+      expect(q.x).toBeGreaterThanOrEqual(0); expect(q.x).toBeLessThanOrEqual(SCREEN.w);
+      expect(q.y).toBeGreaterThanOrEqual(0); expect(q.y).toBeLessThanOrEqual(SCREEN.h); // it never leaves the screen
+    }
+    expect(top).toBeLessThan(over.shotFrom.y - 200); // it climbs
+    expect(top).toBeLessThan(FOE.y); // above the struck hero, so it comes down onto it
     for (const lay of LAYOUTS) {
       const f = fig(40, lay.a, lay.d, lay.bounds, lay.r);
-      expect(f.shotTo.y, lay.name).toBeGreaterThanOrEqual(f.shotFrom.y - 1e-6); // never upward
+      // However it travels, it ARRIVES moving downward, and its path is monotonic toward the struck hero's side.
+      expect(shotArrival(f).y, lay.name).toBeGreaterThan(0.05);
+      expect(shotPoint(f, 1).y, lay.name).toBeGreaterThan(shotPoint(f, 0.97).y);
+      expect(shotPoint(f, 0), lay.name).toEqual(f.shotFrom);
+      expect(shotPoint(f, 1).x, lay.name).toBeCloseTo(f.shotTo.x, 6);
       expect(f.stars[f.pluck]!).toMatchObject({ x: f.shotFrom.x, y: f.shotFrom.y, pluck: true });
       // The arm's hand stops short of the star and reaches toward it.
       const hand = f.stars[f.pluck - 1]!;
@@ -261,7 +308,12 @@ describe('the constellations', () => {
       const after = Math.hypot(hand.x + hand.px - f.shotFrom.x, hand.y + hand.py - f.shotFrom.y);
       expect(after, lay.name).toBeLessThan(before);
     }
-    expect(pluckPoint({ x: 500, y: 0 }, 100, 3, { x: 900, y: 300 }, SCREEN).y).toBeLessThanOrEqual(0); // a hero on the top edge: level, never below it
+    // A hero on the very top edge: still an arc, its control point above the hero.
+    const edge = pluckPoint({ x: 500, y: 0 }, 100, 3, { x: 900, y: 300, r: 200 }, SCREEN);
+    expect(edge.arc).toBe(true);
+    expect(edge.ctrl.y).toBeLessThan(0);
+    // The arrows fly straight.
+    for (const total of [3, 8, 14]) { const f = fig(total); expect(f.arc).toBe(false); expect(shotPoint(f, 0.5).x).toBeCloseTo((f.shotFrom.x + f.shotTo.x) / 2, 6); }
   });
 
   it('the same blow draws the same sky (a replay matches); a different roll seeds a different scatter', () => {
@@ -301,7 +353,34 @@ describe('the motion', () => {
     }
   });
 
-  it('the camera is gentle: a slow push in, back to rest by the end, the shake within the tier cap', () => {
+  it('IV holds its breath: the star swells through the hold and is gone with the loose; the sky stays hushed until the blow', () => {
+    const p = plan(40);
+    expect(swellAmount(p, p.holdAt - 1)).toBe(0);
+    let prev = 0;
+    for (let t = p.holdAt; t < p.looseAt; t += 10) { const w = swellAmount(p, t); expect(w).toBeGreaterThanOrEqual(prev - 1e-9); prev = w; }
+    expect(prev).toBeGreaterThan(0.9);
+    expect(swellAmount(p, (p.holdAt + p.looseAt) / 2)).toBeLessThan(0.4); // slowly, then fast
+    expect(swellAmount(p, p.looseAt)).toBe(0);
+    expect(hushAmount(p, p.drawAt - 1)).toBe(0);
+    expect(hushAmount(p, p.looseAt)).toBeCloseTo(1, 6);
+    expect(hushAmount(p, p.impactAt - 1)).toBeCloseTo(1, 6);
+    expect(hushAmount(p, p.impactAt)).toBe(0); // released on the blow
+    for (const total of [3, 8, 14]) { const q = plan(total); for (let t = q.chargeAt; t < q.endAt; t += 20) { expect(swellAmount(q, t)).toBe(0); expect(hushAmount(q, t)).toBe(0); } }
+  });
+
+  it('after the blow the lines flare; IV then lets go of its figure (the scatter), the others keep theirs', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      expect(flareAmount(p, p.impactAt - 1)).toBe(0);
+      expect(flareAmount(p, p.impactAt + 70)).toBeCloseTo(1, 6);
+      expect(flareAmount(p, p.impactAt + 900)).toBeLessThan(0.1);
+      expect(figureAmount(p, p.impactAt + 100)).toBe(1);
+      if (p.kind === 'written') { expect(figureAmount(p, p.scatterAt + 70)).toBeCloseTo(0.5, 6); expect(figureAmount(p, p.scatterAt + 140)).toBe(0); }
+      else expect(figureAmount(p, p.endAt)).toBe(1);
+    }
+  });
+
+  it('the camera: a slow push in, a real hit on the blow, back to rest by the end, the shake within the tier cap', () => {
     for (const total of TOTALS) {
       const p = plan(total);
       let peak = 1;
@@ -310,9 +389,13 @@ describe('the motion', () => {
         peak = Math.max(peak, cm.zoom);
         expect(Math.hypot(cm.x, cm.y)).toBeLessThanOrEqual(p.shakePx * 1.25);
       }
-      expect(peak).toBeLessThan(1.12);
+      expect(peak).toBeLessThan(1.15);
       expect(starsCameraAt(p, C, p.endAt + 2000).zoom).toBeCloseTo(1, 3);
+      // The hit: the view is thrown along the shot's line on the blow, and IV keeps creeping in while the star swells.
+      expect(Math.hypot(starsCameraAt(p, C, p.impactAt).x, starsCameraAt(p, C, p.impactAt).y)).toBeGreaterThan(p.shakePx * 0.9);
     }
+    const iv = plan(40);
+    expect(starsCameraAt(iv, C, iv.looseAt - 1).zoom).toBeGreaterThan(starsCameraAt(iv, C, iv.holdAt).zoom + 0.02);
   });
 });
 
@@ -400,20 +483,42 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('IV: the medallion is traced, the star is plucked and falls, and the blow lands on the falling star, once', () => {
+  it('IV: the medallion is traced, the star is plucked and swells, the comet arcs over the sky, the blow lands once on it; the tail hangs, the lines scatter', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
-    const { h, f, onImpact } = r;
-    const p = h.plan;
+    const { h, f, onImpact, defenderEl } = r;
+    const p = h.plan, g = h.figure!;
     f.tick(p.looseAt - 20, 4);
-    expect(h.scene!.litStars).toBe(h.figure!.stars.length);
+    expect(h.scene!.litStars).toBe(g.stars.length);
     expect(h.scene!.skyStars).toBe(C.t4SkyStars);
+    expect(h.scene!.shotFlying).toBe(false);
     expect(onImpact).not.toHaveBeenCalled();
+    // Mid flight: the comet is on its arc, above the straight line from the plucked star to the foe.
+    f.tick((p.looseAt + p.impactAt) / 2 - h.elapsed(), 4);
+    expect(h.scene!.shotFlying).toBe(true);
+    const head = h.scene!.shotPos;
+    const chordY = g.shotFrom.y + ((head.x - g.shotFrom.x) / (g.shotTo.x - g.shotFrom.x)) * (g.shotTo.y - g.shotFrom.y);
+    expect(head.y).toBeLessThan(chordY - 60);
+    expect(h.scene!.tailShown).toBe(true);
     f.tick(p.impactAt - 30 - h.elapsed(), 4);
     expect(h.scene!.shotFlying).toBe(true);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(40, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(h.scene!.shotFlying).toBe(false);
+    expect(h.scene!.tailShown).toBe(true); // the line of light hangs along the path
+    // The struck portrait is rocked: knocked, tipped and squashed.
+    f.tick(24, 4);
+    expect(defenderEl.style.transform).toMatch(/translate\(.+\) rotate\(.+deg\) scale\(/);
+    // The lines are still there until the scatter, then they are sparks.
+    f.tick(p.scatterAt - 20 - h.elapsed(), 4);
+    expect(h.scene!.drawnLines).toBeGreaterThan(20);
+    const before = h.scene!.liveFx;
+    f.tick(40, 4);
+    expect(h.scene!.liveFx).toBeGreaterThan(before + 80);
+    f.tick(200, 4);
+    expect(h.scene!.litStars).toBe(0);
     f.tick(p.endAt - h.elapsed() + 32, 8);
+    expect(onImpact).toHaveBeenCalledTimes(1);
     expectRestored(r);
   });
 
@@ -502,19 +607,21 @@ describe('the runner (the shared clock)', () => {
 
 describe('the scene (headless Pixi)', () => {
   const colors = { star: 0xfff8e6, gold: 0xffe2a0, line: 0xb9cdfa, sky: 0x0a1440, side: 0xffe9b0 };
-  const look = { starPx: 46, lineWidth: 7, twinkle: 0.45, ghostAlpha: 0.3, portraitAlpha: 0.34, arrowPx: 230, trailWidth: 7, impactSize: 1 };
+  const look: StarsLook = { starPx: 46, lineWidth: 9, twinkle: 0.45, ghostAlpha: 0.3, portraitAlpha: 0.34, impactSize: 1, tier: 4, swell: 1.6, hush: 0.7 };
   const frame = (p: StarsPlan, t: number): SkyFrame => ({
     t, sky: skyAmount(p, t), veil: p.veil, draw: drawAmount(p, t), alive: aliveAmount(p, t), ghost: 1, arrow: t < p.looseAt ? 1 : 0, pluck: 1,
+    swell: swellAmount(p, t), hush: hushAmount(p, t), flare: flareAmount(p, t), fig: figureAmount(p, t),
     shimmerAt: t >= p.impactAt ? p.impactAt : Infinity, shimmerX: FOE.x, shimmerY: FOE.y,
   });
 
-  it('the same seed scatters the same sky; pools, stays under the cap through IV and its stardust, drains, and destroy leaves nothing', () => {
+  it('the same seed scatters the same sky; pools, stays under the cap through IV, its nova and its falling sparks, drains, and destroy leaves nothing', () => {
     const p = plan(40, { knockout: true, knockoutVariant: true });
     const f = fig(40);
     const make = (seed: number): HeroStarsScene => {
       const s = new HeroStarsScene(TEX, colors, look, 1, seed);
       s.setSky(SCREEN, p.skyStars);
       s.setFigure(f, f.stars.map((st) => slotAt(p, st.slot)), f.edges.map((e) => slotAt(p, e.slot)), p.stepMs);
+      s.setPath(f.shotFrom, f.shotCtrl, f.shotTo, true, 280, 44);
       s.setPortrait(W);
       return s;
     };
@@ -523,19 +630,36 @@ describe('the scene (headless Pixi)', () => {
     const layout = (s: HeroStarsScene): number[] => s.root.children.flatMap((layer) => (layer as Container).children.map((ch) => Math.round(ch.x * 10 + ch.y)));
     expect(layout(scene)).toEqual(layout(twin));
     twin.destroy();
-    let peak = 0;
+    let peak = 0, swellFx = 0, scattered = 0;
+    const rest = f.stars.map((st) => ({ x: st.x, y: st.y }));
+    let jolted = 0;
     for (let t = p.chargeAt; t < p.endAt; t += 16) {
       scene.frame(frame(p, t));
       if (Math.abs(t - p.tracedAt) < 8) { scene.comeAlive(); f.stars.forEach((_, i) => scene.starPop(i)); }
       const st = shotAt(p, t);
-      if (st.phase === 'fly') scene.setShot(true, f.shotFrom.x + (f.shotTo.x - f.shotFrom.x) * st.u, f.shotFrom.y + (f.shotTo.y - f.shotFrom.y) * st.u, f.aim, f.shotFrom.x, f.shotFrom.y, 1, true);
-      if (t >= p.impactAt && t < p.impactAt + 16) { scene.setShot(false); scene.impact(f.shotTo, { x: 0, y: 1 }, R, 4); scene.koFlourish(f.shotTo, R); scene.linger(f.shotFrom, f.shotTo, 500); }
+      if (st.phase === 'fly') {
+        scene.shotFrame(st.u, 0, true, 1);
+        const at = shotPoint(f, st.u);
+        expect(scene.shotPos.x).toBeCloseTo(at.x, 3); expect(scene.shotPos.y).toBeCloseTo(at.y, 3);
+        expect(scene.shotFlying).toBe(true);
+      }
+      if (t >= p.impactAt && t < p.impactAt + 16) { scene.shotFrame(1, 0, false, 1); scene.impact(f.shotTo, { x: 0, y: 1 }, R, 4, 0.36); scene.koFlourish(f.shotTo, R); expect(scene.tailShown).toBe(true); expect(scene.shotFlying).toBe(false); }
+      if (t >= p.scatterAt && t < p.scatterAt + 16) { const n = scene.liveFx; scene.scatter(1200); scattered = scene.liveFx - n; }
       if (t > p.tracedAt && t < p.looseAt) expect(scene.portraitShown).toBe(true);
+      // The swelling star draws motes of light into itself.
+      if (t > p.holdAt + 300 && t < p.looseAt) swellFx = Math.max(swellFx, scene.liveFx);
+      // The jolt: after the blow the constellation's stars are shoved off their places, then spring back.
+      if (t > p.impactAt + 100 && t < p.impactAt + 300) jolted = Math.max(jolted, ...rest.slice(0, 12).map((q, i) => Math.hypot(scene.starPos(i).x - q.x, scene.starPos(i).y - q.y)));
       scene.update(16);
       peak = Math.max(peak, scene.liveSprites);
     }
+    expect(swellFx).toBeGreaterThan(4);
+    expect(jolted).toBeGreaterThan(3);
+    expect(scattered).toBeGreaterThan(80); // every line and star sheds sparks
     expect(peak).toBeLessThanOrEqual(MAX_STARS_SPRITES);
     expect(peak).toBeGreaterThan(p.skyStars + f.stars.length * 2);
+    scene.shotFrame(1, 1, false, 0);
+    expect(scene.tailShown).toBe(false);
     scene.endSky();
     expect(scene.veilAlpha).toBe(0);
     let alive = true;
@@ -543,6 +667,21 @@ describe('the scene (headless Pixi)', () => {
     expect(alive).toBe(false);
     scene.destroy();
     expect(scene.root.destroyed).toBe(true);
+  });
+
+  it('the nova grows with the tier', () => {
+    const count = (tier: number): number => {
+      const scene = new HeroStarsScene(TEX, colors, { ...look, tier }, 1, 5);
+      scene.setSky(SCREEN, 10);
+      const n = scene.liveFx;
+      scene.impact(FOE, { x: 1, y: 0 }, R, tier, 0.2);
+      const out = scene.liveFx - n;
+      scene.destroy();
+      return out;
+    };
+    const n = [1, 2, 3, 4].map(count);
+    for (let i = 1; i < 4; i++) expect(n[i]!).toBeGreaterThan(n[i - 1]! + 15);
+    expect(n[0]!).toBeGreaterThan(40); // even the arrow lands in a proper burst
   });
 
   it('a full pool skips effects instead of throwing (the cap is hard)', () => {

@@ -123,3 +123,113 @@ and every cue has a clip, gain and pitch row in the tuner.
 - Not looked at in the Collection preview box or on a phone.
 - The first headless capture runs (before the coordinator's notice) did not block the live backend, so each of those
   page loads may have made an anonymous sign-up there. Every later run aborts requests to it.
+
+---
+
+# Second pass (same day): weight, payoff and sound
+
+Owner verdict on the first pass: the big looks are "quick and not impactful", and the batch "needs sound effects".
+The look (night sky, stars linked by lines, no props) is kept. Everything above about the shot, the blow, IV's fall,
+the timings and the sound is superseded by this section. Store key bumped to `ascent.herostars.v3`.
+
+## What changed on screen
+
+- **Every shot is a bolt of starlight on a path.** The shot now rides a quadratic curve (`shotFrom`, `shotCtrl`,
+  `shotTo`; a straight line for the arrows). Its tail is twenty segments laid along the path (a bright thread over a
+  wide soft glow), wider with the tier, and it HANGS along the path after the blow, draining toward the hit as it
+  fades (I and II trail part of the path, III and IV all of it). The arrow carries a bright point and a glow at its
+  tip and sheds stardust.
+- **Every blow is a nova.** Stardust thrown every way that is stopped by the air within a third of a second and then
+  hangs and sinks; a hot flash and long rays; one to three rings; a flash over the whole sky (`skyFlash`, IV in full,
+  I to III 22 / 34 / 55 percent of it); a JOLT that travels outward through every star, sky and constellation alike
+  (they are shoved away from the hit and spring back, so the lines flex); the struck portrait is knocked further,
+  tipped and squashed, and reels longer the bigger the look. All of it scales with the tier.
+- **The drawing-on has presence.** A soft glow builds behind the figure as each star joins it. Lines are 9 px at I and
+  30 percent wider per tier (17 px at IV, was 7 px everywhere), brighter, and the stars 10 percent bigger per tier.
+- **IV is rebuilt round its key moment.** After the arm plucks the star there is a HELD BREATH (640 ms): the star
+  swells and blazes (a second set of rays, a wide glow, motes of light streaming into it), every other star dims 70
+  percent and leans toward it, the veil deepens and the view creeps in. Then it falls as a COMET (a head 2.2 portrait
+  radii across with a white core, a tail half a radius wide) over 620 ms, and lands in the biggest moment of the
+  attack: the wide nova with its even ring of stardust, the sky flash, a hard shake along the comet's line over a
+  slower sway (26 px, was 14), the lines FLARING. 300 ms later the lines and stars SCATTER into about 160 sparks that
+  drift down for 1.2 s while the night fades.
+- **Staging when you strike** (the foe's portrait is on the top edge, so nothing can fall straight onto it). Chosen:
+  the star is plucked on the FAR side of the sky, beyond the medallion, and thrown in an ARC over the top of the sky.
+  It climbs, crosses above the medallion's crown and comes DOWN onto the portrait at about 20 degrees, with the whole
+  width of the sky as its path (about 1,500 px on a 1920 screen, was 450 px at 11 degrees). When the foe strikes you
+  there is sky above your portrait, so the comet falls straight down, now the full height of the sky (6.5 radii or
+  the top of the screen, was 3.6 radii). `pluckPoint` picks between the two from the portrait rects; the tests hold
+  that it always ARRIVES moving downward and never leaves the screen.
+- No props were added. The one drawn object from the first pass, the arrow of starlight, is kept as the bolt's head.
+
+## Running time (after the damage formation)
+
+| look | first pass | now | reference |
+| --- | --- | --- | --- |
+| I | 1404 ms | 1619 ms | |
+| II | 1725 ms | 2018 ms | |
+| III | 2209 ms | 2654 ms | |
+| IV | 3000 ms (blow at +2200) | 4836 ms (blow at +3136) | Soccer IV 3308 ms, Frost IV 3083 ms |
+
+IV was already as long as Soccer IV and Frost IV, so length alone was not why it felt weightless. The extra 1.8 s is
+anticipation (the held breath, 0.6 s; the longer fall, 0.2 s) and aftermath (0.9 s more: the flare, the scatter, the
+drifting sparks). The trace itself is no slower. No hit-stop: the blow still lands once, on the comet.
+
+## Sound
+
+Measured, not heard: each look was played with sound in headless Chrome, the audio output tapped and recorded, and
+the recording sliced into 100 ms windows (`snd.mjs` in the scratch folder). "Own" is everything after the formation.
+
+| | own mean | impact window mean (blow -50 to +500 ms) | impact peak |
+| --- | --- | --- | --- |
+| Stars IV, first pass | -36.6 dB | -42.2 dB | -28.1 dB |
+| Stars IV, now | -30.9 dB | -24.3 dB | -10.6 dB |
+| Frost IV (reference) | -30.9 dB | -26.7 dB | -13.3 dB |
+| Soccer IV (reference) | -31.5 dB | -31.5 dB | -13.3 dB |
+| Stars III / II / I, first pass | -36.1 / -35.5 / -36.2 dB | -41.6 / -41.8 / -41.6 dB | -22.6 / -23.7 / -23.0 dB |
+| Stars III / II / I, now | -31.4 / -31.8 / -32.2 dB | -27.2 / -29.2 / -31.8 dB | -14.8 / -15.3 / -17.2 dB |
+
+The III / II / I row was measured before the last trim (the boom's gain went from 0.9 to 0.6 after it), so their
+blows are a little quieter than the row says. They were not measured against Coin or Storm.
+
+Three ElevenLabs calls (budget six), three clips kept, 4.22 s; the attack's seven clips total 8.99 s:
+
+| clip | what | length |
+| --- | --- | --- |
+| `fx/stars-rise` | an airy rising swell that ends at its peak | 1.50 s |
+| `fx/stars-boom` | a deep sub boom, all body, 2 s decay | 2.00 s |
+| `fx/stars-release` | the deep thrum of a bowstring | 0.72 s |
+
+Cues now: the sky shimmer at about twice the gain; a tick on every star (every second star on III and IV) that
+CLIMBS about an octave through the trace; a short bloom of the shimmer when the figure comes alive; the DRAW is no
+longer silent (the rise, placed to peak on the loose, on II and III; one low tick at I); the loose is the snap over
+the new thrum over the whoosh; every arrow's landing has the first moment of the boom under it, quieter and higher.
+IV: a low tick on the pluck, the rise under the swelling star peaking as it falls, the whistle and a heavy slowed
+whoosh timed to peak just before the blow, then the full boom with the landing and the shimmer blooming over it, and
+the shimmer once more, lower, as the lines scatter. Quietest stretches in IV now: about 200 ms at -37 to -45 dB
+between the last tick and the pluck, and the comet's first 300 ms at about -36 dB (the breath before the boom).
+
+## Verified in this pass
+
+- `npx vitest run packages/ui/src/heroStars packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 891 tests
+  pass (`heroStars.test.ts` is now 31 tests: the arc and the straight fall, the held breath, the flare and scatter,
+  the tier-scaled blow, the tail, the jolt, the falling sparks, the pace). `phoneAudioQuality.test.ts` is green.
+- Contact sheets read for all four looks with you striking and IV with the foe striking (III with the foe striking
+  was captured but not read). Nothing left on screen, no portrait left moved. The sheets were captured before two
+  last changes that were NOT re-captured: the comet's tail widened from 0.34 to 0.5 radii, and the sound gains.
+- Perf, DEV build, headless Chrome, no screencast, two runs per look: idle 4.2 ms median; IV median 4.2 ms, p95
+  4.3 ms, p99 4.3 to 12.5 ms. Long frames remain at the shared start (42 to 83 ms about 60 ms after the charge) and
+  the shared teardown (29 to 46 ms), as in the first pass. NEW and not explained: one IV run of six had a 70 ms
+  frame about 100 ms after the blow, and most IV runs have one 16 to 25 ms frame near the scatter (about 160 sprites
+  spawned in one frame). Not measured on a production build, so the 6.25 ms bar is still unchecked.
+
+## Still weak or not done
+
+- Nobody has heard it. Levels are matched to Frost IV by measurement; IV's blow peaks about 3 dB hotter than Frost's.
+- The scatter's one-frame spawn could be spread over two or three frames if the prod build shows the hitch.
+- When the foe strikes you, the swollen star sits near the top left corner of the screen and its glow is cut by the
+  screen edge.
+- Knockout still plays plain IV in a real fight (not in `KNOCKOUT_VARIANT_STYLES`, a shared file); the tuner's
+  Knockout button still shows the prismatic remix.
+- The arc's peak passes through the medallion's crown. It reads as crossing behind it; it was not staged to avoid it.
+- Not looked at in the Collection preview box or on a phone.

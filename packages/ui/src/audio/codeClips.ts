@@ -191,11 +191,14 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-whip-snap-242215',
   ],
   chess: [
+    'fx/chess-knock',
+    'fx/chess-roll',
     'fx/chess-set',
     'fx/chess-slide',
     'fx/chess-topple',
     'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
+    'fx/duos-drop-whoosh',
+    'fx/universfield-ground-impact-352053',
   ],
   coin: [
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',

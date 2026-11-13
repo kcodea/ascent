@@ -16,7 +16,7 @@ import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAt
 import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
   CHESS_CAPS, HERO_CHESS_DEFAULTS, HERO_CHESS_RANGES, PIECE_TALL, chessBoard, chessBoardAlpha, chessCameraAt, chessCameraFocus,
-  chessCues, chessHintAt, chessKingAt, chessLevel, chessPieceAt, chessPlan, chessWordAt, clampHeroChessValue, heroChessConfigJson,
+  chessCues, chessHintAt, chessHintFlashAt, HINT_STEP_MS, KING_ROCKS, chessKingAt, chessLevel, chessPieceAt, chessPlan, chessWordAt, clampHeroChessValue, heroChessConfigJson,
   newPiecePose, sanitizeHeroChessConfig,
   type ChessGeo, type ChessPlan, type HeroChessConfig, type HeroChessNumKey,
 } from './heroChessConfig';
@@ -144,7 +144,7 @@ describe('the plan', () => {
   it('THE QUEEN: set down, the gleam, one slide (the impact); then the king wobbles, tips and lies, and the word sets', () => {
     expect(P4.moves.map((m) => m.kind)).toEqual(['slide']);
     expect(P4.gleamAt).toBeGreaterThan(P4.tapAt);
-    expect(P4.strikeAt).toBeGreaterThanOrEqual(P4.gleamAt + C.gleamMs);
+    expect(P4.strikeAt).toBeGreaterThanOrEqual(P4.gleamAt + C.gleamMs + C.coilMs); // the gleam, then the coil (a held breath)
     expect(P4.impactAt).toBe(P4.strikeAt + C.slideMs);
     expect(P4.king).toBe(true);
     expect(P4.tipAt).toBe(P4.impactAt + C.kingWobbleMs);
@@ -153,7 +153,14 @@ describe('the plan', () => {
     expect(P4.wordEndAt).toBe(P4.wordAt + C.wordHoldMs);
     expect(P4.dissolveAt).toBeGreaterThanOrEqual(P4.wordEndAt);
     expect(P4.endAt).toBeGreaterThan(P4.fallAt); // the fight waits for the king to be down
-    expect(chessCues(P4).map((q) => q.kind)).toEqual(['charge', 'set', 'tap', 'gleam', 'strike', 'impact', 'word', 'topple', 'dissolve', 'end']);
+    const kinds = chessCues(P4).map((q) => q.kind);
+    expect(kinds.filter((k) => k !== 'wobble')).toEqual(['charge', 'set', 'tap', 'gleam', 'strike', 'impact', 'word', 'topple', 'dissolve', 'end']);
+    // The king rocks on its base between the capture and the tip: a knock per rock, all before it falls.
+    const rocks = chessCues(P4).filter((q) => q.kind === 'wobble');
+    expect(rocks).toHaveLength(KING_ROCKS);
+    for (const r of rocks) { expect(r.at).toBeGreaterThan(P4.impactAt); expect(r.at).toBeLessThan(P4.tipAt); }
+    // A slow topple with weight: the wobble and the fall together take over a second.
+    expect(P4.fallAt - P4.impactAt).toBeGreaterThanOrEqual(1000);
   });
 
   it('exactly one impact cue and one end cue per look, in time order', () => {
@@ -166,13 +173,13 @@ describe('the plan', () => {
     }
   });
 
-  it('short to medium, as an Epic should be: about 1.5 s the pawn, 1.7 s the knight, 2.1 s the queen (from the ready)', () => {
+  it('short to medium, as an Epic should be: about 1.6 s the pawn, 1.8 s the knight; the queen runs about 3 s (her coil before and the king after)', () => {
     const len = (p: ChessPlan): number => p.endAt - p.chargeAt;
     expect(len(P1)).toBeGreaterThan(1100); expect(len(P1)).toBeLessThan(1800);
     expect(len(P2)).toBeGreaterThan(1300); expect(len(P2)).toBeLessThan(2100);
-    expect(len(P4)).toBeGreaterThan(1700); expect(len(P4)).toBeLessThan(2700);
+    expect(len(P4)).toBeGreaterThan(2600); expect(len(P4)).toBeLessThan(3600);
     expect(P1.impactAt - P1.chargeAt).toBeLessThan(1200);
-    expect(P4.impactAt - P4.chargeAt).toBeLessThan(1300);
+    expect(P4.impactAt - P4.chargeAt).toBeLessThan(1600);
   });
 
   it('every look escalates: more shake, zoom, sparks, burst and dim', () => {
@@ -330,7 +337,17 @@ describe('the board (pure geometry)', () => {
     expect(chessBoardAlpha(P4, C, P4.clearAt, 0)).toBe(0);
     expect(chessHintAt(P4, P4.tapAt - 1, 0)).toBe(0);
     expect(chessHintAt(P4, P4.strikeAt, 0)).toBeGreaterThan(0.9);
-    expect(chessHintAt(P4, P4.impactAt + 300, 0)).toBe(0);
+    expect(chessHintAt(P4, P4.impactAt + 400, 0)).toBe(0);
+    // The move's squares light ONE AFTER ANOTHER toward the struck hero, each with a flash as it comes on.
+    const first = P4.tapAt + 40;
+    expect(chessHintAt(P4, first + 60, 0)).toBeGreaterThan(0.3);
+    expect(chessHintAt(P4, first + 60, 0.5)).toBe(0);
+    expect(chessHintAt(P4, first + 0.5 * HINT_STEP_MS + 130, 0.5)).toBeGreaterThan(0.9);
+    expect(chessHintFlashAt(P4, first - 1, 0)).toBe(0);
+    expect(chessHintFlashAt(P4, first + 50, 0)).toBeCloseTo(1, 5);
+    expect(chessHintFlashAt(P4, first + 50, 0.5)).toBe(0);
+    expect(chessHintFlashAt(P4, first + 400, 0)).toBe(0);
+    expect(C.hintAlpha).toBeGreaterThan(C.boardAlpha + 0.1); // the lit squares stand well clear of the board
   });
 });
 
@@ -699,6 +716,9 @@ describe('the scene (headless Pixi)', () => {
       if (t <= P4.endAt) scene.drive(t);
       if (Math.abs(t - P4.tapAt) < 8) scene.tap(g.start.x, g.start.y, 1.3);
       if (Math.abs(t - P4.impactAt) < 8) scene.impact(FOE.x, FOE.y, R, g.dir, { level: 3, burst: P4.burst, sparks: P4.sparks, flashAlpha: 0.85 });
+      if (Math.abs(t - P4.impactAt) < 8) scene.screenFlash(0.38, 1920, 1080);
+      if (Math.abs(t - P4.wordAt) < 8 && g.word) scene.wordSlam(g.word.x, g.word.y, g.wordW);
+      if (Math.abs(t - P4.fallAt) < 8 && g.king) scene.kingDown(g.king.x, g.king.y, g.kingFall);
       alive = scene.update(16);
       peak = Math.max(peak, scene.liveSprites);
       if (t % 160 === 0) finite();

@@ -15,8 +15,8 @@
  *    along, one across) in a high arc, landing ON the struck portrait with a thud. The landing is THE impact.
  *  - THE QUEEN. A wider patch of board fades in, with a small king of the struck side standing beside the portrait. The
  *    queen is set down with weight, a gleam runs up to her crown, and she sweeps the long diagonal in one fast slide (a
- *    streak behind her) into the portrait: THE impact. The king wobbles and tips over on its side (the resignation) and
- *    the word CHECKMATE sets briefly.
+ *    streak behind her) into the portrait: THE impact (a flash, a hard shake). The king rocks on its base, hangs, and
+ *    topples slowly with weight, bouncing and rolling to rest (the resignation), and the word CHECKMATE slams in and holds.
  *
  * The striker's pieces are ivory when YOU strike and ebony when the foe does (each with gold bands); the king that
  * falls is the other colour. The squares that the move will cross light up gold first, the way a chess app shows a move.
@@ -103,6 +103,7 @@ interface GlobalConfig {
   jumpSpins: number;
   // The queen
   gleamMs: number;
+  coilMs: number;
   slideMs: number;
   diagMax: number;
   ghostAlpha: number;
@@ -135,6 +136,9 @@ interface GlobalConfig {
   sfxImpactClip: string; sfxImpactGain: number; sfxImpactRate: number;
   sfxBigClip: string; sfxBigGain: number; sfxBigRate: number;
   sfxToppleClip: string; sfxToppleGain: number; sfxToppleRate: number;
+  sfxKnockClip: string; sfxKnockGain: number; sfxKnockRate: number;
+  sfxRollClip: string; sfxRollGain: number; sfxRollRate: number;
+  sfxBodyClip: string; sfxBodyGain: number; sfxBodyRate: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
   sfxDuck: number;
@@ -147,7 +151,7 @@ export type HeroChessConfig = GlobalConfig & Record<LevelKey, number>;
 export const HERO_CHESS_COLOR_KEYS = ['colorIvory', 'colorEbony', 'colorGold', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_CHESS_CLIP_KEYS = [
   'sfxSetClip', 'sfxHopClip', 'sfxWhooshClip', 'sfxSlideClip', 'sfxGleamClip', 'sfxThudClip', 'sfxPunchClip',
-  'sfxImpactClip', 'sfxBigClip', 'sfxToppleClip',
+  'sfxImpactClip', 'sfxBigClip', 'sfxToppleClip', 'sfxKnockClip', 'sfxRollClip', 'sfxBodyClip',
 ] as const;
 type ColorKey = (typeof HERO_CHESS_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_CHESS_CLIP_KEYS)[number];
@@ -157,14 +161,14 @@ export type HeroChessNumKey = Exclude<keyof HeroChessConfig, HeroChessStrKey>;
 /** Pawn, Knight, Queen per suffix: the escalation ladder. */
 const LEVEL_DEFAULTS: Record<ChessLevelSuffix, [number, number, number]> = {
   ReadyMs: [200, 220, 240],
-  PieceSize: [1.2, 1.1, 1.05],
-  Shake: [5, 9, 15],
+  PieceSize: [1.2, 1.1, 1.1],
+  Shake: [6, 13, 28],
   Zoom: [0.02, 0.035, 0.055],
-  Punch: [0.015, 0.03, 0.05],
-  Sparks: [8, 14, 24],
-  Burst: [1, 1.2, 1.6],
-  SettleMs: [240, 280, 320],
-  Dim: [0, 0.16, 0.36],
+  Punch: [0.018, 0.04, 0.085],
+  Sparks: [10, 18, 34],
+  Burst: [1, 1.3, 2],
+  SettleMs: [240, 280, 340],
+  Dim: [0.1, 0.24, 0.46],
 };
 
 export const CHESS_LEVEL_RANGES: Record<ChessLevelSuffix, [number, number, number]> = {
@@ -188,13 +192,13 @@ export const HERO_CHESS_DEFAULTS: HeroChessConfig = {
   heroCoilPx: 7,
   heroNodPx: 11,
   squareK: 1.45,
-  boardAlpha: 0.3,
+  boardAlpha: 0.46,
   boardFadeMs: 240,
-  hintAlpha: 0.42,
+  hintAlpha: 0.62,
   pieceK: 1.2,
   setMs: 150,
   setDropPx: 54,
-  holdMs: 400,
+  holdMs: 480,
   pawnHops: 2,
   hopMs: 150,
   hopGapMs: 45,
@@ -204,20 +208,21 @@ export const HERO_CHESS_DEFAULTS: HeroChessConfig = {
   jumpMs: 440,
   jumpLift: 1.25,
   jumpSpins: 1,
-  gleamMs: 300,
+  gleamMs: 460,
+  coilMs: 200,
   slideMs: 230,
   diagMax: 4,
   ghostAlpha: 0.3,
-  kingWobbleMs: 280,
-  kingFallMs: 250,
-  wordAtMs: 130,
-  wordHoldMs: 720,
+  kingWobbleMs: 620,
+  kingFallMs: 520,
+  wordAtMs: 170,
+  wordHoldMs: 1300,
   wordSize: 1,
   flashAlpha: 0.85,
-  knockPx: 14,
-  squash: 0.08,
-  shakeMs: 300,
-  zoomOutMs: 340,
+  knockPx: 22,
+  squash: 0.09,
+  shakeMs: 460,
+  zoomOutMs: 520,
   reducedFadeMs: 260,
   colorIvory: '#f6ead0',
   colorEbony: '#231c2e',
@@ -225,16 +230,23 @@ export const HERO_CHESS_DEFAULTS: HeroChessConfig = {
   colorPlayer: '#ffd76a',
   colorFoe: '#ff5a6e',
   // The set-down tap peaks about 25 ms into its clip; the slide swells for 250 ms; the topple's clack is at its start.
-  sfxSetClip: 'fx/chess-set', sfxSetGain: 0.6, sfxSetRate: 1,
-  sfxHopClip: 'fx/chess-set', sfxHopGain: 0.4, sfxHopRate: 1.25,
-  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.34, sfxWhooshRate: 1.1,
-  sfxSlideClip: 'fx/chess-slide', sfxSlideGain: 0.55, sfxSlideRate: 1.3,
-  sfxGleamClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxGleamGain: 0.24, sfxGleamRate: 1.2,
-  sfxThudClip: 'fel-spike-echo-land', sfxThudGain: 0.5, sfxThudRate: 0.95,
-  sfxPunchClip: 'smack1', sfxPunchGain: 0.3, sfxPunchRate: 1.2,
-  sfxImpactClip: 'flurryhit', sfxImpactGain: 0.5, sfxImpactRate: 1,
-  sfxBigClip: 'crit', sfxBigGain: 0.3, sfxBigRate: 1.05,
-  sfxToppleClip: 'fx/chess-topple', sfxToppleGain: 0.6, sfxToppleRate: 1,
+  // Second pass: the KNOCK (a heavy piece slammed on wood, its hit at 0) is under every capture, the ROLL is the king
+  // falling and rocking to rest, and the BODY is the low layer (a shared ground impact whose hit is 380 ms into its clip).
+  sfxSetClip: 'fx/chess-set', sfxSetGain: 1.5, sfxSetRate: 1,
+  sfxHopClip: 'fx/chess-set', sfxHopGain: 1.4, sfxHopRate: 1.25,
+  // The whoosh is the shared drop whoosh: it is loud from its first 80 ms (the long swish the first pass used is silent
+  // for its first 0.2 s, so a short cue of it was nearly inaudible). The sparkle is played from 1.5 s in for the same reason.
+  sfxWhooshClip: 'fx/duos-drop-whoosh', sfxWhooshGain: 0.5, sfxWhooshRate: 1.1,
+  sfxSlideClip: 'fx/chess-slide', sfxSlideGain: 1.1, sfxSlideRate: 1.3,
+  sfxGleamClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxGleamGain: 0.8, sfxGleamRate: 1.2,
+  sfxThudClip: 'fel-spike-echo-land', sfxThudGain: 0.8, sfxThudRate: 0.95,
+  sfxPunchClip: 'smack1', sfxPunchGain: 0.5, sfxPunchRate: 1.2,
+  sfxImpactClip: 'flurryhit', sfxImpactGain: 0.8, sfxImpactRate: 1,
+  sfxBigClip: 'crit', sfxBigGain: 0.5, sfxBigRate: 1.05,
+  sfxToppleClip: 'fx/chess-topple', sfxToppleGain: 1.5, sfxToppleRate: 1,
+  sfxKnockClip: 'fx/chess-knock', sfxKnockGain: 1, sfxKnockRate: 1,
+  sfxRollClip: 'fx/chess-roll', sfxRollGain: 0.9, sfxRollRate: 1,
+  sfxBodyClip: 'fx/universfield-ground-impact-352053', sfxBodyGain: 0.9, sfxBodyRate: 1,
   sfxImpactLenMs: 700,
   sfxTailMix: 0.1,
   sfxDuck: 0.5,
@@ -266,6 +278,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroChessStrKey>, [numbe
   jumpLift: [0.2, 3, 0.05],
   jumpSpins: [0, 3, 1],
   gleamMs: [60, 1200, 10],
+  coilMs: [0, 800, 10],
   slideMs: [80, 1000, 10],
   diagMax: [2, 5, 1],
   ghostAlpha: [0, 0.8, 0.01],
@@ -290,6 +303,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroChessStrKey>, [numbe
   sfxImpactGain: [0, 2, 0.05], sfxImpactRate: [0.5, 2.5, 0.01],
   sfxBigGain: [0, 2, 0.05], sfxBigRate: [0.5, 2.5, 0.01],
   sfxToppleGain: [0, 2, 0.05], sfxToppleRate: [0.5, 2.5, 0.01],
+  sfxKnockGain: [0, 2, 0.05], sfxKnockRate: [0.5, 2.5, 0.01],
+  sfxRollGain: [0, 2, 0.05], sfxRollRate: [0.5, 2.5, 0.01],
+  sfxBodyGain: [0, 2, 0.05], sfxBodyRate: [0.5, 2.5, 0.01],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
@@ -338,7 +354,7 @@ export function sanitizeHeroChessConfig(saved: unknown): HeroChessConfig {
 }
 
 // A fresh key: the scaffold's `ascent.herochess.v1` held Card Shark's values under other names.
-const KEY = 'ascent.herochess.v2';
+const KEY = 'ascent.herochess.v3';
 
 let cfg: HeroChessConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_CHESS_DEFAULTS };
@@ -442,6 +458,8 @@ export interface ChessPlan {
   dim: number;
 }
 
+/** How many times the king rocks on its base before it tips (the wobble's knocks). */
+export const KING_ROCKS = 4;
 /** How long the fades at the very end take (the piece, the king, the word). */
 export const CHESS_FADE_MS = 220;
 
@@ -491,9 +509,9 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
     const at = rearAt + c.rearMs;
     moves.push({ kind: 'jump', at, ms: c.jumpMs, landAt: at + c.jumpMs });
   } else {
-    // THE QUEEN: the gleam runs up to her crown, a breath, then the slide.
+    // THE QUEEN: the gleam runs up to her crown, she draws herself back (the coil: a held breath), then the slide.
     gleamAt = tapAt + 80;
-    const at = gleamAt + c.gleamMs + 60;
+    const at = gleamAt + c.gleamMs + 60 + Math.max(0, c.coilMs);
     moves.push({ kind: 'slide', at, ms: c.slideMs, landAt: at + c.slideMs });
   }
 
@@ -524,7 +542,7 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
   };
 }
 
-export type ChessCueKind = 'charge' | 'set' | 'tap' | 'rear' | 'gleam' | 'hop' | 'land' | 'strike' | 'impact' | 'topple' | 'word' | 'dissolve' | 'end';
+export type ChessCueKind = 'charge' | 'set' | 'tap' | 'rear' | 'gleam' | 'hop' | 'land' | 'strike' | 'impact' | 'wobble' | 'topple' | 'word' | 'dissolve' | 'end';
 export interface ChessCue { at: number; kind: ChessCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order). */
@@ -539,12 +557,16 @@ export function chessCues(p: ChessPlan): ChessCue[] {
     p.moves.forEach((m, i) => {
       if (m.kind === 'hop') { out.push({ at: m.at, kind: 'hop', i }); out.push({ at: m.landAt, kind: 'land', i }); } else out.push({ at: m.at, kind: 'strike', i });
     });
-    if (p.king) { out.push({ at: p.fallAt, kind: 'topple', i: 0 }); out.push({ at: p.wordAt, kind: 'word', i: 0 }); }
+    if (p.king) {
+      // The king rocks on its base before it goes (a knock each time it comes down), then hits the board.
+      for (let i = 0; i < KING_ROCKS; i++) out.push({ at: p.impactAt + ((p.tipAt - p.impactAt) * (i + 0.5)) / KING_ROCKS, kind: 'wobble', i });
+      out.push({ at: p.fallAt, kind: 'topple', i: 0 }); out.push({ at: p.wordAt, kind: 'word', i: 0 });
+    }
     out.push({ at: p.dissolveAt, kind: 'dissolve', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<ChessCueKind, number> = { charge: 0, set: 1, tap: 2, rear: 3, gleam: 4, hop: 5, land: 6, strike: 7, impact: 8, topple: 9, word: 10, dissolve: 11, end: 12 };
+  const order: Record<ChessCueKind, number> = { charge: 0, set: 1, tap: 2, rear: 3, gleam: 4, hop: 5, land: 6, strike: 7, impact: 8, wobble: 9, topple: 10, word: 11, dissolve: 12, end: 13 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -746,7 +768,7 @@ export function chessBoard(
       if (tipX < 8 || tipX > view.w - 8) kingFall = kingFall === 1 ? -1 : 1;
     }
     // CHECKMATE sets above the portrait, or below it when there is no room above or the big -N pops there.
-    wordW = Math.min(radius * 3.3 * c.wordSize, view && view.w > 0 ? view.w * 0.8 : Infinity);
+    wordW = Math.min(radius * 4.6 * c.wordSize, view && view.w > 0 ? view.w * 0.8 : Infinity);
     const wh = wordW * 0.2;
     const gap = radius + wh * 0.75;
     const above = d.y - gap, below = d.y + gap;
@@ -776,9 +798,23 @@ export function chessBoardAlpha(p: ChessPlan, c: Pick<HeroChessConfig, 'boardFad
 /** How gold a hint square is at `t` (0..1): the move's squares light up in order from the tap and go out at the impact. */
 export function chessHintAt(p: ChessPlan, t: number, hintOrder: number): number {
   if (p.reduced || t < p.tapAt || t >= p.dissolveAt) return 0;
-  const lit = clamp01((t - p.tapAt - 40 - hintOrder * 160) / 140);
-  const out = clamp01((t - p.impactAt) / 240);
+  const lit = clamp01((t - p.tapAt - 40 - hintOrder * HINT_STEP_MS) / 120);
+  const out = clamp01((t - p.impactAt) / 320);
   return easeOutCubic(lit) * (1 - out);
+}
+
+/** The gap between one square of the move lighting and the next (ms). */
+export const HINT_STEP_MS = 150;
+
+/**
+ * The FLASH as a hint square lights (0..1): bright the moment it comes on, settled a quarter of a second later, so the
+ * squares visibly light ONE AFTER ANOTHER toward the struck hero. Pure.
+ */
+export function chessHintFlashAt(p: ChessPlan, t: number, hintOrder: number): number {
+  if (p.reduced) return 0;
+  const age = t - (p.tapAt + 40 + hintOrder * HINT_STEP_MS);
+  if (age < 0 || age > 300 || t >= p.impactAt) return 0;
+  return age < 50 ? age / 50 : 1 - (age - 50) / 250;
 }
 
 // ─── the poses (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -855,8 +891,10 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
       // The queen's slide: she leans into it and never leaves the board.
       const e = Math.pow(uu, 1.7);
       const fx = px, fy = py;
-      px = fx + (to.x - fx) * e; py = fy + (to.y - fy) * e;
-      if (!done) out.rot = 0.2 * g.face * Math.min(1, uu * 4);
+      // She leaves from her coil (drawn back along the diagonal), so there is no snap as the slide starts.
+      const back = g.sq * 0.16 * (1 - Math.min(1, uu * 3));
+      px = fx + (to.x - fx) * e - g.dir.x * back; py = fy + (to.y - fy) * e - g.dir.y * back;
+      if (!done) out.rot = 0.2 * g.face * Math.min(1, uu * 4) - 0.2 * g.face * (1 - Math.min(1, uu * 6));
     }
     if (i === last && done) {
       // It has taken the portrait: a thump, a small recoil, and it rides the knockback.
@@ -884,8 +922,11 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
       }
     } else if (p.level === 3 && t >= p.gleamAt) {
       const gu = clamp01((t - p.gleamAt) / Math.max(1, p.strikeAt - p.gleamAt));
-      squash = Math.max(squash, -0.06 * Math.sin(Math.PI * gu) + (gu > 0.8 ? 0.1 * ((gu - 0.8) / 0.2) : 0));
-      out.rot = -0.1 * g.face * (gu > 0.75 ? (gu - 0.75) / 0.25 : 0);
+      // She draws herself up with the gleam, then COILS: leaning back from the diagonal and sinking, held, before she goes.
+      const coil = gu > 0.6 ? easeInOutSine((gu - 0.6) / 0.4) : 0;
+      squash = Math.max(squash, -0.06 * Math.sin(Math.PI * Math.min(1, gu / 0.6)) * (gu < 0.6 ? 1 : 0) + 0.14 * coil);
+      out.rot = -0.2 * g.face * coil;
+      px -= g.dir.x * g.sq * 0.16 * coil; py -= g.dir.y * g.sq * 0.16 * coil;
     }
   }
 
@@ -921,18 +962,23 @@ export function chessKingAt(p: ChessPlan, g: ChessGeo, t: number, out: PiecePose
   const side = g.kingFall;
   const down = Math.PI / 2;
   if (t < p.tipAt) {
-    // The wobble: it rocks wider and wider, leaning the way it will go.
+    // The wobble: knocked by the capture, it rocks on its base, wider each time, leaning the way it will go.
     const w = (t - p.impactAt) / Math.max(1, p.tipAt - p.impactAt);
-    out.rot = side * (0.06 * w + 0.2 * w * Math.sin(w * Math.PI * 5));
-    out.lift = 0.02 * g.sq * Math.abs(Math.sin(w * Math.PI * 5));
+    const rock = Math.sin(w * Math.PI * KING_ROCKS);
+    out.rot = side * (0.1 * w + (0.1 + 0.2 * w) * rock);
+    out.lift = 0.03 * g.sq * Math.abs(rock);
+    out.x += side * 0.04 * g.sq * w;
   } else if (t < p.fallAt) {
+    // THE FALL: slow at first (it hangs past its balance), then it goes all at once. A heavy piece, not a flick.
     const w = (t - p.tipAt) / Math.max(1, p.fallAt - p.tipAt);
-    out.rot = side * (0.06 + (down - 0.06) * w * w);
+    out.rot = side * (0.1 + (down - 0.1) * Math.pow(w, 2.6));
+    out.x += side * 0.04 * g.sq;
   } else {
-    // On its side: one small bounce, and it rolls a little way to rest.
+    // On its side: it bounces off the board once, then rolls a little way and rocks slowly to rest.
     const ms = t - p.fallAt;
-    out.rot = side * (down - 0.16 * Math.abs(spring(ms, 4.5, 110)));
-    out.x += side * 0.14 * g.sq * (1 - Math.exp(-ms / 160));
+    out.rot = side * (down - 0.2 * Math.abs(spring(ms, 3.2, 170)));
+    out.lift = 0.1 * g.sq * Math.abs(Math.sin((Math.PI * Math.min(ms, 260)) / 260)) * (ms < 260 ? 1 : 0);
+    out.x += side * g.sq * (0.04 + 0.34 * (1 - Math.exp(-ms / 260)));
   }
   return out;
 }
@@ -941,8 +987,9 @@ export function chessKingAt(p: ChessPlan, g: ChessGeo, t: number, out: PiecePose
 export function chessWordAt(p: ChessPlan, t: number, out: { scale: number; alpha: number }): { scale: number; alpha: number } {
   out.scale = 1; out.alpha = 0;
   if (!p.king || p.reduced || t < p.wordAt || t >= p.wordEndAt + CHESS_FADE_MS) return out;
-  const inU = clamp01((t - p.wordAt) / 180);
-  out.scale = 1.5 - 0.5 * easeOutBack(inU, 1.6);
+  // It SLAMS in from big (a stamp), then holds.
+  const inU = clamp01((t - p.wordAt) / 200);
+  out.scale = 2.3 - 1.3 * easeOutBack(inU, 1.4);
   out.alpha = Math.min(1, inU * 3) * (1 - clamp01((t - p.wordEndAt) / CHESS_FADE_MS));
   return out;
 }
@@ -973,7 +1020,7 @@ export function chessCameraAt(p: ChessPlan, c: HeroChessConfig, t: number, dir: 
   kick(p.tapAt, p.shakePx * (p.level === 3 ? 0.22 : 0.12), 40, 16, 0, 1);
   for (let i = 0; i < p.taps.length; i++) kick(p.taps[i]!, p.shakePx * 0.1, 36, 18, 0, 1);
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir.x, dir.y);
-  if (p.king) kick(p.fallAt, p.shakePx * 0.22, 50, 14, 0, 1);
+  if (p.king) { kick(p.wordAt, p.shakePx * 0.3, 45, 15, 0, 1); kick(p.fallAt, p.shakePx * 0.45, 70, 13, 0, 1); }
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 

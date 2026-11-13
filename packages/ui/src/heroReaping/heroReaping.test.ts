@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 /**
  * THE REAPING (the Ancient of Death's hero attack, an ANCIENT): what the scythe cuts is colour. The shared four tiers
- * (I cut, II cross, III the fall, IV the reaping; a knockout plays IV); the tuner values; the pure plan (II's first cut
- * is a tick, the blow lands as the last blade crosses the portrait's middle); the pure geometry (every blade passes
- * through the struck portrait; the great crescent is held on screen and cuts the portrait's middle, both directions;
- * I and II are the owner-approved first pass and their timing is pinned); the pure drain (what is
- * grey when, and exactly nothing after the end); the runner on the shared clock (the blow lands exactly ONCE; every
- * exit removes every pane and puts both portraits back; replay; reduced motion); the headless scene (pooled, bounded,
- * drains, destroy leaves nothing); the dev-only registration.
+ * (Tier 1 the cut, Tier 2 the cross, Tier 3 the harvest, Tier 4 the reaping; a knockout plays Tier 4); the tuner
+ * values; the pure plan (Tier 2's first cut is a tick, the blow lands as the last blade crosses the portrait's middle);
+ * the pure geometry (every blade passes through the struck portrait; the great crescent is held on screen and cuts the
+ * portrait's middle, both directions; Tiers 1 and 2 are the owner-approved first pass and their timing is pinned); the
+ * pure drain, gather, orb, ribbons, rainbow, cracks and stolen glow (what is grey or drawn when, and exactly nothing
+ * after the end); the stolen palette (read from the portrait's own pixels); the runner on the shared clock (the blow
+ * lands exactly ONCE; every exit removes every pane and puts both portraits back; replay; reduced motion); the
+ * headless scene (pooled, bounded, drains, destroy leaves nothing); the dev-only registration.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
@@ -15,18 +16,20 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
-  CROSS_AT, FALL_RAISE, HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, SCAR_MS, bladeAt, clampHeroReapingValue, drainAt, foeMoveAt, heroReapingConfigJson, lineAt,
-  passAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingKind, reapingPlan, sanitizeHeroReapingConfig, swingAt, swingLight, swingPose,
+  CROSS_AT, FALL_RAISE, HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, SCAR_MS, bladeAt, clampHeroReapingValue, crackAt, drainAt, foeMoveAt, gatherAt01, gatherRadius,
+  heroReapingConfigJson, lineAt, orbAt, passAt, rainbowAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingKind, reapingPlan, ribbonPoint,
+  ribbonSpan, sanitizeHeroReapingConfig, stolenAt, swingAt, swingLight, swingPose,
   type HeroReapingNumKey,
 } from './heroReapingConfig';
-import { DRAIN_Z, ReapingDrain, veilSpan } from './heroReapingDrain';
-import { GHOSTS, HeroReapingScene, MAX_MOTES, MAX_REAPING_SPRITES, ghostLag, type HeroReapingTextures } from './heroReapingScene';
+import { DRAIN_Z, ReapingDrain, farCorner, gatherClip, veilSpan } from './heroReapingDrain';
+import { GHOSTS, HeroReapingScene, MAX_MOTES, MAX_REAPING_SPRITES, RIBBONS, ghostLag, type HeroReapingTextures } from './heroReapingScene';
+import { isWarm, paletteFromPixels } from './heroReapingPalette';
 import { playHeroReaping, reapingSeed, type HeroReapingOptions } from './heroReaping';
 import { SPEC } from '../HeroReapingTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
 const W = Texture.WHITE;
-const TEX: HeroReapingTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, blade: W, crescent: W, line: W, mote: W };
+const TEX: HeroReapingTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, blade: W, crescent: W, line: W, mote: W, rainbow: W, shard: W, ribbon: W, cracks: W };
 const C = HERO_REAPING_DEFAULTS;
 const plan = (total: number, o: { knockout?: boolean; reduced?: boolean } = {}) => reapingPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);
 const R = 130;
@@ -38,17 +41,17 @@ const COLORS = { teal: 0x2fe0bc, bone: 0xefe9dc, shade: 0x05070a, motes: [0xffb2
 const LOOK = { bladeSize: C.bladeSize, moteMs: C.moteMs, moteSize: C.moteSize, stripWidth: C.stripWidth };
 
 describe('the tiers', () => {
-  it('uses the shared thresholds: I cut, II cross, III the fall, IV the reaping', () => {
+  it('uses the shared thresholds: Tier 1 cut, Tier 2 cross, Tier 3 the harvest, Tier 4 the reaping', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const p = plan(d);
       expect(p.tier, `dmg ${d}`).toBe(tierOf(d));
       expect(p.kind, `dmg ${d}`).toBe(reapingKind(tierOf(d)));
     }
-    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['cut', 'cross', 'fall', 'reaping']);
+    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['cut', 'cross', 'harvest', 'reaping']);
   });
 
-  it('a knockout always plays IV, whatever the number, and there is no separate knockout variant', () => {
+  it('a knockout always plays Tier 4, whatever the number, and there is no separate knockout variant', () => {
     const p = plan(3, { knockout: true });
     expect(p.tier).toBe(4);
     expect(p.kind).toBe('reaping');
@@ -64,21 +67,25 @@ describe('the tuner values', () => {
       expect(v, k).toBeLessThanOrEqual(max);
       expect(step, k).toBeGreaterThan(0);
     }
-    for (const k of ['colorTeal', 'colorBone', 'colorShade', 'colorMoteA', 'colorMoteB', 'colorMoteC', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
+    for (const k of ['colorTeal', 'colorBone', 'colorShade', 'colorMoteA', 'colorMoteB', 'colorMoteC', 'colorWorldA', 'colorWorldB', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('ships the Ancient of Death teal, its own six clips and two shared ones, every fx clip it plays registered', () => {
+  it('ships the Ancient of Death teal, its own ten clips and two shared ones, every fx clip it plays registered', () => {
     expect(C.colorTeal).toBe('#2fe0bc');
     expect([C.sfxBellClip, C.sfxSweepClip, C.sfxBreathClip, C.sfxSlashClip, C.sfxCleaveClip, C.sfxDrainClip]).toEqual(['fx/reaping-bell', 'fx/reaping-sweep', 'fx/reaping-breath', 'fx/reaping-slash', 'fx/reaping-cleave', 'fx/reaping-drain']);
+    expect([C.sfxOrbClip, C.sfxShatterClip, C.sfxWindClip, C.sfxCrackClip]).toEqual(['fx/reaping-orb', 'fx/reaping-shatter', 'fx/reaping-wind', 'fx/reaping-crack']);
     expect([C.sfxMetalClip, C.sfxBoomClip]).toEqual(['fx/metal-woosh', 'fx/heavy-rock-impact']);
-    expect(ATTACK_FX_CLIPS.reaping).toEqual(['fx/heavy-rock-impact', 'fx/metal-woosh', 'fx/reaping-bell', 'fx/reaping-breath', 'fx/reaping-cleave', 'fx/reaping-drain', 'fx/reaping-slash', 'fx/reaping-sweep']);
-    for (const k of ['sfxBellClip', 'sfxSweepClip', 'sfxBreathClip', 'sfxSlashClip', 'sfxMetalClip', 'sfxCleaveClip', 'sfxDrainClip', 'sfxBoomClip'] as const) {
+    expect(ATTACK_FX_CLIPS.reaping).toEqual([
+      'fx/heavy-rock-impact', 'fx/metal-woosh', 'fx/reaping-bell', 'fx/reaping-breath', 'fx/reaping-cleave', 'fx/reaping-crack', 'fx/reaping-drain', 'fx/reaping-orb',
+      'fx/reaping-shatter', 'fx/reaping-slash', 'fx/reaping-sweep', 'fx/reaping-wind',
+    ]);
+    for (const k of ['sfxBellClip', 'sfxSweepClip', 'sfxBreathClip', 'sfxSlashClip', 'sfxMetalClip', 'sfxCleaveClip', 'sfxDrainClip', 'sfxBoomClip', 'sfxOrbClip', 'sfxShatterClip', 'sfxWindClip', 'sfxCrackClip'] as const) {
       expect(ATTACK_FX_CLIPS.reaping, k).toContain(C[k]);
     }
   });
 
   it('the sound has presence (the owner heard the first pass as silent): no cue of its own clips sits under half gain', () => {
-    for (const k of ['sfxBellGain', 'sfxSweepGain', 'sfxBreathGain', 'sfxSlashGain', 'sfxCleaveGain', 'sfxDrainGain'] as const) expect(C[k], k).toBeGreaterThanOrEqual(0.5);
+    for (const k of ['sfxBellGain', 'sfxSweepGain', 'sfxBreathGain', 'sfxSlashGain', 'sfxCleaveGain', 'sfxDrainGain', 'sfxOrbGain', 'sfxShatterGain', 'sfxWindGain', 'sfxCrackGain'] as const) expect(C[k], k).toBeGreaterThanOrEqual(0.5);
   });
 
   it('clamps numbers into range; junk falls back; colours must be #rrggbb; unknown keys drop', () => {
@@ -109,6 +116,12 @@ describe('the tuner values', () => {
     expect(HERO_ATTACK_STYLES).toContain('reaping');
   });
 
+  it('names its looks Tier 1 to Tier 4 (no roman numerals, no Small / Big / Huge in its own words)', () => {
+    const own = SPEC.controls.map((c) => `${c.label} ${c.hint ?? ''} ${c.group ?? ''}`).join(' ');
+    expect(own).toMatch(/Tier 1/); expect(own).toMatch(/Tier 4/);
+    expect(own).not.toMatch(/\b(I|II|III|IV)\b|\bSmall\b|\bBig\b|\bHuge\b/);
+  });
+
   it('no words drawn or spoken to the player use a dash pair, an em dash, "Oath" or "climb"', () => {
     const text = [SPEC.title, ...SPEC.controls.map((c) => `${c.label} ${c.hint ?? ''}`), ...(SPEC.actions ?? []).map((a) => `${a.label} ${a.hint ?? ''}`)].join(' ');
     expect(text).not.toMatch(/—|--|\bOath\b|\bclimb\b/i);
@@ -129,7 +142,7 @@ describe('the plan (pure)', () => {
     }
   });
 
-  it('I and II are the owner-approved first pass: their timing is pinned', () => {
+  it('Tiers 1 and 2 are the owner-approved first pass: their timing is pinned', () => {
     const one = plan(3), two = plan(8);
     expect([one.impactAt - one.chargeAt, one.endAt - one.chargeAt]).toEqual([450, 1350]);
     expect([two.impactAt - two.chargeAt, two.endAt - two.chargeAt]).toEqual([710, 1690]);
@@ -137,44 +150,50 @@ describe('the plan (pure)', () => {
     expect([C.bladeSize, C.bladeReach, C.bladeBow, C.stripWidth, C.knockPx, C.moteMs, C.moteSize]).toEqual([2.7, 2.3, 0.5, 0.46, 10, 700, 1.2]);
   });
 
-  it('I one cut, II two (the first a tick), III the fall after the wind-up and the hold, IV the sweep after the drain, the silence and the toll', () => {
+  it('Tier 1 one cut, Tier 2 two (the first a tick), Tier 3 the fall after the gather and the hold, Tier 4 the sweep after the drain, the silence, the toll and the ribbons', () => {
     expect(plan(3).cuts.length).toBe(1);
     const two = plan(8);
     expect(two.cuts.length).toBe(2);
     expect(two.cuts[1]!.startAt - two.cuts[0]!.startAt).toBe(C.crossGapMs);
     expect(two.cuts[0]!.crossAt).toBeLessThan(two.impactAt);
     const three = plan(14);
-    expect(three.windAt).toBe(three.chargeAt);
+    expect(three.gatherAt).toBe(three.chargeAt);
+    expect(three.gatherEnd! - three.gatherAt!).toBe(C.gatherMs);
+    expect(three.orbAt!).toBeGreaterThan(three.gatherAt!); expect(three.orbAt!).toBeLessThan(three.gatherEnd!);
+    expect(three.heldAt).toBe(three.gatherEnd); // the orb is full and the crescent held over it
     expect(three.heldAt! - three.windAt!).toBe(C.riseMs);
     expect(three.cuts[0]!.startAt).toBe(three.heldAt! + C.raiseMs);
-    expect(three.heldAt! - three.windAt! + C.raiseMs).toBeGreaterThanOrEqual(600); // a real wind-up before a fast fall
     expect(three.impactAt - three.cuts[0]!.startAt).toBeLessThanOrEqual(260);
-    expect([three.drainAt, three.tollAt, three.floodAt]).toEqual([null, null, null]);
+    expect(three.stolenAt).toBeGreaterThan(three.impactAt); expect(three.stolenFull).toBeGreaterThan(three.stolenAt);
+    expect([three.drainAt, three.tollAt, three.floodAt, three.ribbonAt]).toEqual([null, null, null, null]);
     const four = plan(40);
     expect(four.drainAt).toBe(four.chargeAt);
     expect(four.drainedAt! - four.drainAt!).toBe(C.drainMs);
     expect(four.tollAt! - four.drainedAt!).toBe(C.silenceMs); // the silent gap
-    expect(C.silenceMs).toBeGreaterThanOrEqual(360); // a beat long enough to be FELT as silence
-    expect(four.cuts[0]!.startAt - four.tollAt!).toBe(C.tollMs);
+    expect(C.silenceMs).toBeGreaterThanOrEqual(300); // a beat long enough to be FELT as silence
     expect(four.windAt).toBe(four.tollAt); // the crescent ignites on the toll
-    expect(four.heldAt!).toBeGreaterThan(four.windAt!); expect(four.heldAt!).toBeLessThan(four.cuts[0]!.startAt);
+    expect(four.ribbonAt! - four.tollAt!).toBe(C.tollMs);
+    expect(four.ribbonEnd! - four.ribbonAt!).toBe(C.windMs);
+    expect(four.heldAt).toBe(four.ribbonEnd); // the blade is full of colour: it blazes
+    expect(four.cuts[0]!.startAt - four.heldAt!).toBe(C.blazeMs);
+    expect([four.gatherAt, four.orbAt]).toEqual([null, null]);
     expect(four.floodAt! - four.impactAt).toBe(C.streamMs);
     expect(four.floodEnd! - four.floodAt!).toBe(C.floodMs);
     expect(four.returnAt).toBeGreaterThan(four.floodEnd!); // the loser stays grey after the flood has passed
   });
 
-  it('escalates: each tier runs longer, throws more motes and shakes harder; IV is the long one (anticipation and aftermath), under 5 s', () => {
+  it('escalates: each tier runs longer and shakes harder; Tier 4 is the long one (anticipation and aftermath), under 5.2 s', () => {
     const ps = TOTALS.map((t) => plan(t));
     for (let i = 1; i < ps.length; i++) {
       expect(ps[i]!.endAt - ps[i]!.chargeAt).toBeGreaterThan(ps[i - 1]!.endAt - ps[i - 1]!.chargeAt);
-      expect(ps[i]!.motes).toBeGreaterThan(ps[i - 1]!.motes);
       expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
     }
     expect(ps[0]!.endAt - ps[0]!.chargeAt).toBeLessThan(1800);
-    // Soccer IV runs about 3.3 s and Frost IV about 3.1 s after the formation; the first pass ran 3.7 s and felt weightless.
+    // Soccer Tier 4 runs about 3.3 s and Frost Tier 4 about 3.1 s after the formation; the first pass ran 3.7 s and felt weightless.
     expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeGreaterThan(4000);
-    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeLessThan(5000);
-    expect(ps[2]!.endAt - ps[2]!.chargeAt).toBeLessThan(2800);
+    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeLessThan(5200);
+    expect(ps[2]!.endAt - ps[2]!.chargeAt).toBeLessThan(3600);
+    expect(ps[2]!.motes).toBeGreaterThan(ps[1]!.motes * 3); // a storm of shards
     expect(ps[3]!.motes).toBeLessThanOrEqual(MAX_MOTES);
   });
 
@@ -191,8 +210,8 @@ describe('the plan (pure)', () => {
       expect(Object.keys(p).join(' ')).not.toMatch(/hitStop|slamStop/i);
     }
     const four = reapingCues(plan(40)).map((c) => c.kind);
-    expect(four).toEqual(['charge', 'drain', 'hush', 'toll', 'held', 'sweep', 'impact', 'flood', 'return', 'end']);
-    expect(reapingCues(plan(14)).map((c) => c.kind)).toEqual(['charge', 'wind', 'held', 'sweep', 'impact', 'return', 'end']);
+    expect(four).toEqual(['charge', 'drain', 'hush', 'toll', 'ribbons', 'held', 'sweep', 'impact', 'stolen', 'flood', 'return', 'end']);
+    expect(reapingCues(plan(14)).map((c) => c.kind)).toEqual(['charge', 'gather', 'orb', 'wind', 'held', 'sweep', 'impact', 'stolen', 'return', 'end']);
   });
 
   it('reduced motion: no cuts, no drain; the blow lands where the formation ends', () => {
@@ -200,7 +219,7 @@ describe('the plan (pure)', () => {
     expect(p.reduced).toBe(true);
     expect(p.cuts).toEqual([]);
     expect(reapingCues(p).map((c) => c.kind)).toEqual(['impact', 'end']);
-    expect(drainAt(p, p.impactAt + 10)).toEqual({ strip: [0, 0], stripA: 0, full: 0, veil: 0, flood: 0 });
+    expect(drainAt(p, p.impactAt + 10)).toEqual({ strip: [0, 0], stripA: 0, full: 0, gather: 0, gatherA: 0, veil: 0, flood: 0 });
     expect(reapingCameraAt(p, C, p.impactAt)).toEqual({ zoom: 1, x: 0, y: 0 });
   });
 
@@ -212,7 +231,7 @@ describe('the plan (pure)', () => {
 describe('the geometry (pure), both directions', () => {
   const DIRS: [string, typeof YOU, typeof FOE][] = [['you strike', YOU, FOE], ['the foe strikes', FOE, YOU]];
 
-  it('I-II: every blade passes through the middle of the struck portrait exactly at its crossing, point first', () => {
+  it('Tiers 1-2: every blade passes through the middle of the struck portrait exactly at its crossing, point first', () => {
     for (const [name, a, d] of DIRS) {
       for (const total of [3, 8]) {
         for (const flip of [false, true]) {
@@ -233,7 +252,7 @@ describe('the geometry (pure), both directions', () => {
     }
   });
 
-  it('II: the two cuts cross at right angles, 45 degrees either side of the strike line (the wedges between are half)', () => {
+  it('Tier 2: the two cuts cross at right angles, 45 degrees either side of the strike line (the wedges between are half)', () => {
     const p = plan(8);
     const g = reapingGeo(p, YOU, FOE, R, R, C, BOUNDS);
     const [c0, c1] = g.cuts;
@@ -253,7 +272,7 @@ describe('the geometry (pure), both directions', () => {
 
   const onScreen = (pt: { x: number; y: number }, pad = 0): boolean => pt.x >= -pad && pt.x <= BOUNDS.w + pad && pt.y >= -pad && pt.y <= BOUNDS.h + pad;
 
-  it('III: the great crescent is HUGE, held on screen, and its edge goes through the middle of the portrait exactly at the impact', () => {
+  it('Tier 3: the great crescent is HUGE, held on screen, and its edge goes through the middle of the portrait exactly at the impact', () => {
     for (const [name, a, d] of DIRS) {
       const p = plan(14);
       const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
@@ -298,7 +317,7 @@ describe('the geometry (pure), both directions', () => {
     expect(down.cuts[0]!.dir.y).toBeGreaterThan(0.99);
   });
 
-  it('IV: the crescent is as tall as half the screen, sweeps on a great arc from the striker through the struck portrait, and leaves a line across the WHOLE screen', () => {
+  it('Tier 4: the crescent is as tall as half the screen, sweeps on a great arc from the striker through the struck portrait, and leaves a line across the WHOLE screen', () => {
     for (const [name, a, d] of DIRS) {
       const p = plan(40);
       const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
@@ -329,7 +348,7 @@ describe('the geometry (pure), both directions', () => {
       expect(lineAt(p, p.impactAt + 120).len).toBe(1);
       expect(lineAt(p, p.impactAt + SCAR_MS)).toEqual({ len: 0, a: 0 });
     }
-    expect(lineAt(plan(14), plan(14).impactAt + 50)).toEqual({ len: 0, a: 0 }); // III leaves no line
+    expect(lineAt(plan(14), plan(14).impactAt + 50)).toEqual({ len: 0, a: 0 }); // Tier 3 leaves no line
   });
 });
 
@@ -337,7 +356,7 @@ describe('the drain (pure): what is grey when', () => {
   it('nothing is grey before the charge or from the end of the return, on any tier', () => {
     for (const total of TOTALS) {
       const p = plan(total);
-      const zero = { strip: [0, 0], stripA: 0, full: 0, veil: 0, flood: 0 };
+      const zero = { strip: [0, 0], stripA: 0, full: 0, gather: 0, gatherA: 0, veil: 0, flood: 0 };
       expect(drainAt(p, p.chargeAt - 1)).toEqual(zero);
       expect(drainAt(p, p.returnEnd)).toEqual(zero);
       expect(drainAt(p, p.endAt + 500)).toEqual(zero);
@@ -345,7 +364,7 @@ describe('the drain (pure): what is grey when', () => {
     }
   });
 
-  it('I: the strip is drained BEHIND the blade (nothing before it reaches the portrait, all of it once it has left), then seeps back', () => {
+  it('Tier 1: the strip is drained BEHIND the blade (nothing before it reaches the portrait, all of it once it has left), then seeps back', () => {
     const p = plan(3);
     const q = p.cuts[0]!;
     expect(drainAt(p, q.startAt + 20).strip[0]).toBe(0);
@@ -358,7 +377,7 @@ describe('the drain (pure): what is grey when', () => {
     expect(half).toBeGreaterThan(0.3); expect(half).toBeLessThan(0.7);
   });
 
-  it('II: the first cut drains only its strip; the wedges go on the second', () => {
+  it('Tier 2: the first cut drains only its strip; the wedges go on the second', () => {
     const p = plan(8);
     const between = drainAt(p, p.cuts[0]!.endAt - 1);
     expect(between.strip[0]).toBeGreaterThan(0.95);
@@ -368,17 +387,88 @@ describe('the drain (pure): what is grey when', () => {
     expect(after.strip).toEqual([1, 1]);
   });
 
-  it('III: the WHOLE portrait goes grey at once on the cut (inside 60 ms)', () => {
+  it('Tier 3: the world greys from the edges in, the portrait greys into the orb and is ALL grey on the cut, and the world gets its colour back first', () => {
     const p = plan(14);
-    expect(drainAt(p, p.impactAt - 100).full).toBe(0);
-    expect(drainAt(p, p.impactAt - 21).full).toBe(0);
+    expect(drainAt(p, p.gatherAt!).gather).toBe(0);
+    expect(drainAt(p, p.gatherAt! + 1).gatherA).toBe(1);
+    const half = drainAt(p, (p.gatherAt! + p.gatherEnd!) / 2).gather;
+    expect(half).toBeGreaterThan(0.3); expect(half).toBeLessThan(0.7);
+    expect(drainAt(p, p.gatherEnd!).gather).toBe(1);
+    expect(drainAt(p, p.orbAt! - 1).full).toBe(0); // the portrait keeps its colour until the orb starts taking it
+    const into = drainAt(p, p.heldAt!).full;
+    expect(into).toBeGreaterThan(0.6); expect(into).toBeLessThan(1);
     expect(drainAt(p, p.impactAt + 50).full).toBe(1);
-    expect(drainAt(p, p.impactAt + 120).full).toBe(1);
     expect(drainAt(p, p.impactAt + 120).veil).toBe(0);
+    // The board's grey lifts after the shatter; the portrait stays grey.
+    const lifted = drainAt(p, p.impactAt + 1000);
+    expect(lifted.gatherA).toBe(0);
+    expect(lifted.full).toBe(1);
+    // The hole: past the farthest corner at the start, on the portrait at the end.
+    const dMax = farCorner(FOE, BOUNDS);
+    expect(gatherRadius(0, dMax, R)).toBeGreaterThan(dMax);
+    expect(gatherRadius(1, dMax, R)).toBeCloseTo(R * 1.15, 3);
+    expect(gatherAt01(0)).toBe(0); expect(gatherAt01(1)).toBeCloseTo(1, 6);
+    for (let v = 0; v < 1; v += 0.05) expect(gatherAt01(v + 0.05)).toBeGreaterThan(gatherAt01(v));
   });
 
-  it('IV: the screen drains before the toll, stays monochrome through the sweep, floods back, and the LOSER stays grey after it', () => {
+  it('Tier 3: the orb forms from orbAt, is full by the hold, and is GONE on the impact (it shatters)', () => {
+    const p = plan(14);
+    expect(orbAt(p, p.orbAt! - 1)).toEqual({ k: 0, a: 0 });
+    expect(orbAt(p, p.heldAt!).k).toBeGreaterThan(0.95);
+    expect(orbAt(p, p.impactAt - 1).a).toBe(1);
+    expect(orbAt(p, p.impactAt)).toEqual({ k: 0, a: 0 });
+    expect(orbAt(plan(40), plan(40).impactAt - 100).a).toBe(0);
+  });
+
+  it('Tier 4: three ribbons grow out of the portrait, reach the blade, and are reeled onto it before the blaze; the blade turns rainbow', () => {
     const p = plan(40);
+    for (let j = 0; j < RIBBONS; j++) {
+      expect(ribbonSpan(p, j, p.ribbonAt! - 1)).toEqual({ tail: 0, head: 0 });
+      const mid = ribbonSpan(p, j, p.ribbonAt! + C.windMs * 0.5);
+      expect(mid.head).toBeGreaterThan(mid.tail);
+      expect(mid.tail).toBe(0); // still rooted in the portrait
+      expect(ribbonSpan(p, j, p.ribbonAt! + C.windMs * 0.9).head).toBe(1); // reached the blade
+      expect(ribbonSpan(p, j, p.ribbonEnd!)).toEqual({ tail: 0, head: 0 }); // all of it is on the blade
+    }
+    const a = { x: 100, y: 100 }, b = { x: 1100, y: 600 };
+    for (let j = 0; j < RIBBONS; j++) {
+      expect(ribbonPoint(a, b, j, 0, 1.3, 200)).toEqual({ x: a.x, y: a.y });
+      const e = ribbonPoint(a, b, j, 1, 1.3, 200);
+      expect(e.x).toBeCloseTo(b.x, 6); expect(e.y).toBeCloseTo(b.y, 6);
+    }
+    // The three are a braid: a third of a turn apart in the middle.
+    const m = [0, 1, 2].map((j) => ribbonPoint(a, b, j, 0.5, 0, 200));
+    expect(Math.hypot(m[0]!.x - m[1]!.x, m[0]!.y - m[1]!.y)).toBeGreaterThan(100);
+    expect(rainbowAt(p, p.ribbonAt!)).toBe(0);
+    expect(rainbowAt(p, p.heldAt!)).toBe(1);
+    expect(rainbowAt(plan(14), plan(14).impactAt)).toBe(0);
+  });
+
+  it('Tier 4: the loser cracks like old paint just after the cut, stays cracked while grey, and is clean by the end', () => {
+    const p = plan(40);
+    expect(crackAt(p, p.impactAt)).toBe(0);
+    expect(crackAt(p, p.impactAt + 200)).toBe(1);
+    expect(crackAt(p, p.returnAt)).toBe(1);
+    expect(crackAt(p, p.returnEnd)).toBe(0);
+    for (const t of [3, 8, 14]) expect(crackAt(plan(t), plan(t).impactAt + 200)).toBe(0);
+  });
+
+  it('every tier: the striker glows with the stolen colour only once it arrives, and not at all by the end', () => {
+    for (const total of TOTALS) {
+      const p = plan(total);
+      expect(stolenAt(p, p.stolenAt - 1)).toBe(0);
+      expect(stolenAt(p, p.impactAt)).toBe(0);
+      expect(stolenAt(p, p.stolenFull)).toBe(1);
+      expect(stolenAt(p, p.endAt)).toBe(0);
+    }
+  });
+
+  it('Tier 4: the screen drains before the toll (sparing the portrait), stays monochrome through the sweep, floods back, and the LOSER stays grey after it', () => {
+    const p = plan(40);
+    expect(drainAt(p, p.tollAt!).full).toBe(0); // the last colour in the world
+    const pulled = drainAt(p, (p.ribbonAt! + p.ribbonEnd!) / 2).full;
+    expect(pulled).toBeGreaterThan(0.3); expect(pulled).toBeLessThan(0.7);
+    expect(drainAt(p, p.ribbonEnd!).full).toBe(1);
     expect(drainAt(p, p.drainAt! + 1).veil).toBeLessThan(0.05);
     expect(drainAt(p, p.drainedAt!).veil).toBe(1);
     expect(drainAt(p, p.tollAt!).veil).toBe(1);
@@ -402,7 +492,7 @@ describe('the drain (pure): what is grey when', () => {
     expect(foeMoveAt(p, p.returnEnd - 1).sag).toBeLessThan(0.01);
   });
 
-  it('the camera pushes in to the blow and is at rest again by the end; IV is jolted by the toll and holds its push until the flood', () => {
+  it('the camera pushes in to the blow and is at rest again by the end; Tier 4 is jolted by the toll and holds its push until the flood', () => {
     for (const total of TOTALS) {
       const p = plan(total);
       expect(reapingCameraAt(p, C, p.chargeAt - 1).zoom).toBe(1);
@@ -415,7 +505,7 @@ describe('the drain (pure): what is grey when', () => {
     const four = plan(40);
     expect(reapingCameraAt(four, C, four.floodAt! - 1).zoom).toBeGreaterThan(1 + four.zoom * 0.95);
     expect(reapingCameraAt(four, C, four.floodEnd!).zoom).toBeLessThan(1.002);
-    // the toll: the view drops and kicks in; the cut hits harder than the toll, and harder than III's
+    // the toll: the view drops and kicks in; the cut hits harder than the toll, and harder than Tier 3's
     const before = reapingCameraAt(four, C, four.tollAt! - 1), jolt = reapingCameraAt(four, C, four.tollAt! + 30);
     expect(before.y).toBe(0);
     expect(Math.abs(jolt.y)).toBeGreaterThan(1.5);
@@ -491,7 +581,7 @@ describe('the runner (the shared clock)', () => {
     });
   }
 
-  it('II: the first cut is a tick (FX only); the consequence waits for the second', () => {
+  it('Tier 2: the first cut is a tick (FX only); the consequence waits for the second', () => {
     const { h, f, onImpact } = run(of(8));
     f.tick(h.plan.cuts[0]!.crossAt + 20, 4);
     expect(onImpact).not.toHaveBeenCalled();
@@ -501,19 +591,19 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
-  it('the panes: a strip per cut on I-II, the two wedges on II, the whole portrait on III-IV, the veil on IV only; all under the FX canvas', () => {
+  it('the panes: a strip per cut on Tiers 1-2, the two wedges on Tier 2, the whole portrait on Tiers 3-4, the gather on Tier 3, the veil on Tier 4; all under the FX canvas', () => {
     const count = (total: number) => {
       const { h } = run(of(total));
-      const r = { veil: h.drain.veil ? 1 : 0, strips: h.drain.strips.length, full: h.drain.fulls.length };
-      for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeGreaterThanOrEqual(DRAIN_Z);
-      for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeLessThan(200);
+      const r = { veil: h.drain.veil ? 1 : 0, gather: h.drain.gatherPane ? 1 : 0, strips: h.drain.strips.length, full: h.drain.fulls.length };
+      for (const el of [h.drain.veil, h.drain.gatherPane, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeGreaterThanOrEqual(DRAIN_Z);
+      for (const el of [h.drain.veil, h.drain.gatherPane, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeLessThan(200);
       h.cancel();
       return r;
     };
-    expect(count(3)).toEqual({ veil: 0, strips: 1, full: 0 });
-    expect(count(8)).toEqual({ veil: 0, strips: 2, full: 2 }); // the two wedges
-    expect(count(14)).toEqual({ veil: 0, strips: 0, full: 1 });
-    expect(count(40)).toEqual({ veil: 1, strips: 0, full: 1 });
+    expect(count(3)).toEqual({ veil: 0, gather: 0, strips: 1, full: 0 });
+    expect(count(8)).toEqual({ veil: 0, gather: 0, strips: 2, full: 2 }); // the two wedges
+    expect(count(14)).toEqual({ veil: 0, gather: 1, strips: 0, full: 1 });
+    expect(count(40)).toEqual({ veil: 1, gather: 0, strips: 0, full: 1 });
     expect(panes()).toBe(0);
   });
 
@@ -531,16 +621,24 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
-  it('III: nothing but the crescent before the blow; on it the portrait is grey, knocked hard, and a plume of motes is torn out', () => {
+  it('Tier 3: the world greys in toward the orb before the blow; on it the orb shatters into shards, the portrait is all grey and knocked hard', () => {
     const { h, f, onImpact, defenderEl } = run(of(14));
     const p = h.plan;
-    f.tick(p.cuts[0]!.startAt, 4);
+    const gather = h.drain.gatherPane!;
+    expect(gather).not.toBeNull();
+    f.tick((p.gatherAt! + p.gatherEnd!) / 2, 4);
+    expect(Number(gather.style.opacity)).toBe(1);
+    expect(gather.style.clipPath || gather.style.getPropertyValue('clip-path')).toContain('evenodd');
+    f.tick(p.cuts[0]!.startAt - h.elapsed(), 4);
     expect(h.scene!.crescentVisible).toBe(true);
-    expect(Number(h.drain.full!.style.opacity)).toBe(0);
+    expect(h.scene!.orbVisible).toBe(true);
+    const into = Number(h.drain.full!.style.opacity);
+    expect(into).toBeGreaterThan(0.5); expect(into).toBeLessThan(1); // its colour is going into the orb
     expect(h.scene!.liveMotes).toBe(0);
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(p.impactAt - h.elapsed() + 60, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(h.scene!.orbVisible).toBe(false);
     expect(Number(h.drain.full!.style.opacity)).toBe(1);
     expect(h.scene!.liveMotes).toBe(p.motes);
     let far = 0;
@@ -549,15 +647,17 @@ describe('the runner (the shared clock)', () => {
       const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(defenderEl.style.transform);
       if (m) far = Math.max(far, Math.hypot(Number(m[1]), Number(m[2])));
     }
-    expect(far).toBeGreaterThan(14); // it REELS (I-II move about 3 px)
+    expect(far).toBeGreaterThan(14); // it REELS (Tiers 1-2 move about 3 px)
     h.cancel();
   });
 
-  it('IV: monochrome and still before the toll, the crescent cuts the portrait on the impact, colour floods back behind a bright front, the loser stays grey, then nothing is left', () => {
+  it('Tier 4: monochrome but the foe and still before the toll, the crescent cuts the portrait on the impact, colour floods back behind a bright front, the loser stays grey, then nothing is left', () => {
     const { h, f, onImpact } = run(of(40));
     const p = h.plan;
     f.tick(p.tollAt! - 8, 4);
     expect(Number(h.drain.veil!.style.opacity)).toBe(1);
+    expect(h.drain.veil!.style.getPropertyValue('mask-image')).toContain('radial-gradient'); // the foe is spared
+    expect(Number(h.drain.full!.style.opacity)).toBe(0);
     expect(h.scene!.crescentVisible).toBe(false); // the silence is still: nothing is drawn until the bell
     expect(h.scene!.liveFx).toBe(0);
     expect(onImpact).not.toHaveBeenCalled();
@@ -571,6 +671,7 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.liveMotes).toBe(p.motes);
     f.tick((p.floodAt! + p.floodEnd!) / 2 - h.elapsed(), 4);
     expect(h.scene!.frontVisible).toBe(true);
+    expect(h.drain.veil!.style.getPropertyValue('mask-image')).not.toContain('radial-gradient'); // dropped as the flood began
     f.tick(p.floodEnd! - h.elapsed() + 8, 4);
     expect(h.scene!.frontVisible).toBe(false);
     expect(Number(h.drain.veil!.style.opacity)).toBe(0);
@@ -689,7 +790,7 @@ describe('the runner (the shared clock)', () => {
 
 describe('the drain panes (DOM)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
-  const setup = (kind: 'cut' | 'cross' | 'fall' | 'reaping') => ({
+  const setup = (kind: 'cut' | 'cross' | 'harvest' | 'reaping') => ({
     doc: document, parent: document.body, local: false, css: (v: number) => v, kind, d: FOE, r: R, angles: kind === 'cut' ? [0.5] : kind === 'cross' ? [0.5, 0.5 + Math.PI / 2] : [],
     strike: -0.4, stripWidth: C.stripWidth, grey: 1, bounds: BOUNDS,
   });
@@ -710,6 +811,13 @@ describe('the drain panes (DOM)', () => {
     d.remove();
   });
 
+  it('the gather clip (pure): the whole box minus a circle round the portrait, even-odd', () => {
+    const c = gatherClip(1920, 1080, 1773, 161, 300);
+    expect(c.startsWith('path(evenodd, "M0 0 H1920.0 V1080.0 H0 Z M1473.0 161.0')).toBe(true);
+    expect(c).toContain('a300.0 300.0 0 1 0 600.0 0');
+    expect(farCorner(FOE, BOUNDS)).toBeCloseTo(Math.hypot(1773, 1080 - 161), 6);
+  });
+
   it('the veil span (pure): the bright front starts off the striker side, ends off the far side, and runs with the flood', () => {
     const v = veilSpan(BOUNDS.w, BOUNDS.h, 240);
     const diag = Math.hypot(BOUNDS.w, BOUNDS.h);
@@ -722,7 +830,7 @@ describe('the drain panes (DOM)', () => {
   it('writes only when a value changes, and remove() is safe twice', () => {
     const d = new ReapingDrain(setup('cut'));
     const strip = d.strips[0]!;
-    const s = { strip: [0.5, 0] as [number, number], stripA: 1, full: 0, veil: 0, flood: 0 };
+    const s = { strip: [0.5, 0] as [number, number], stripA: 1, full: 0, gather: 0, gatherA: 0, veil: 0, flood: 0 };
     d.paint(s, null);
     const first = strip.style.transform;
     expect(first).toContain('scaleX(0.5000)');
@@ -739,7 +847,7 @@ describe('the drain panes (DOM)', () => {
   it('no setup (reduced motion): no panes, every call a no-op', () => {
     const d = new ReapingDrain(null);
     expect(d.panes).toBe(0);
-    d.paint({ strip: [1, 1], stripA: 1, full: 1, veil: 1, flood: 1 }, null);
+    d.paint({ strip: [1, 1], stripA: 1, full: 1, gather: 1, gatherA: 1, veil: 1, flood: 1 }, null);
     d.remove();
   });
 });
@@ -752,7 +860,7 @@ describe('the scene (headless Pixi)', () => {
   };
   const still = { heroX: 0, heroY: 0, foeX: 0, foeY: 0 };
 
-  it('I-II: a blade is drawn only during its pass, exactly where the pure blade is', () => {
+  it('Tiers 1-2: a blade is drawn only during its pass, exactly where the pure blade is', () => {
     const { p, g, s } = make(8);
     s.draw(p.chargeAt, still);
     expect(s.visibleBlades).toBe(0);
@@ -767,7 +875,7 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('III: the crescent is drawn from the wind-up to the end of the follow-through, on its arm, with afterimages only once it falls', () => {
+  it('Tier 3: the crescent is drawn from the wind-up to the end of the follow-through, on its arm, with afterimages only once it falls', () => {
     const { p, g, s } = make(14);
     const q = p.cuts[0]!, sw = g.swing!;
     s.draw(p.windAt! - 1, still);
@@ -789,7 +897,7 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('IV: the crescent from the toll, every afterimage fanned out at the cut, the line after it, and the front running with the flood', () => {
+  it('Tier 4: the crescent from the toll, every afterimage fanned out at the cut, the line after it, and the front running with the flood', () => {
     const { p, g, s } = make(40);
     const q = p.cuts[0]!;
     s.draw(p.tollAt! - 1, still);
@@ -817,16 +925,106 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('the strike is heavier on IV than on III, and I-II still mark a cut with exactly two effects', () => {
-    const three = make(14).s, four = make(40).s, one = make(3).s;
+  it('the cut: Tier 4 strikes harder than a bare Tier 3 strike; Tier 3 SHATTERS the orb into shards; Tiers 1-2 mark a cut with a hairline, a breath and a spray of the colour', () => {
+    const three = make(14).s, four = make(40).s, one = make(3).s, shat = make(14).s;
     three.strike(1); four.strike(1.5); one.cross(0, 1);
-    expect(one.liveFx).toBe(2);
-    expect(three.liveFx).toBeGreaterThanOrEqual(20);
+    expect(one.liveFx).toBe(2 + 8 + 4);
+    expect(three.liveFx).toBeGreaterThanOrEqual(15);
     expect(four.liveFx).toBeGreaterThan(three.liveFx);
-    three.destroy(); four.destroy(); one.destroy();
+    shat.shatter(40);
+    expect(shat.liveMotes).toBe(40); // the shards are in flight to the striker
+    expect(shat.liveFx).toBeGreaterThan(three.liveFx); // its own rings and sparkles on top of the strike
+    let n = 0;
+    while (shat.liveMotes > 0 && n++ < 400) shat.update(16);
+    expect(shat.arrived).toBe(40);
+    three.destroy(); four.destroy(); one.destroy(); shat.destroy();
   });
 
-  it('a plume (III-IV) is fatter than a drift (I-II), torn out along the cut, and rolls the same dice', () => {
+  it('Tier 3: the drops run in during the gather only, the orb is drawn until the impact, and the striker glows once its colour arrives', () => {
+    const { p, s } = make(14);
+    s.draw(p.gatherAt! - 1, still);
+    expect(s.visibleDrops).toBe(0);
+    expect(s.orbVisible).toBe(false);
+    let most = 0;
+    for (let t = p.gatherAt!; t < p.gatherEnd!; t += 40) { s.draw(t, still); most = Math.max(most, s.visibleDrops); }
+    expect(most).toBeGreaterThan(4);
+    s.draw(p.heldAt!, still);
+    expect(s.orbVisible).toBe(true);
+    expect(s.orbRadius).toBeGreaterThan(R * 0.8);
+    s.draw(p.impactAt, still);
+    expect(s.orbVisible).toBe(false);
+    expect(s.visibleDrops).toBe(0);
+    expect(s.auraAlpha).toBe(0);
+    s.draw(p.stolenFull, still);
+    expect(s.auraAlpha).toBeGreaterThan(0.2);
+    s.draw(p.endAt, still);
+    expect(s.auraAlpha).toBe(0);
+    s.destroy();
+  });
+
+  it('Tier 3 drops leave from the edge of the grey where it is ON the screen, in both directions', () => {
+    for (const [a, d] of [[YOU, FOE], [FOE, YOU]] as const) {
+      const { p, s } = make(14, a, d);
+      let onScreen = 0, seen = 0;
+      for (let t = p.gatherAt!; t < p.gatherEnd!; t += 16) {
+        s.draw(t, still);
+        for (const k of s.root.children[3]!.children) {
+          if (!k.visible || k.alpha < 0.05) continue;
+          seen++;
+          if (k.position.x > -40 && k.position.y > -40 && k.position.x < BOUNDS.w + 40 && k.position.y < BOUNDS.h + 40) onScreen++;
+        }
+      }
+      expect(seen).toBeGreaterThan(0);
+      expect(onScreen / seen).toBeGreaterThan(0.95);
+      s.destroy();
+    }
+  });
+
+  it('Tier 4: the ribbons wind from the portrait to the blade, the blade turns rainbow, the loser cracks after the cut', () => {
+    const { p, g, s } = make(40);
+    s.draw(p.ribbonAt! - 1, still);
+    expect(s.visibleRibbons).toBe(0);
+    s.draw(p.ribbonAt! + C.windMs * 0.5, still);
+    expect(s.visibleRibbons).toBe(RIBBONS);
+    expect(s.rainbowAlpha).toBeGreaterThan(0);
+    s.draw(p.ribbonAt! + C.windMs * 0.9, still);
+    // A ribbon's head is on the blade (its middle, on its arm).
+    const sw = g.swing!, ang = swingAt(p, sw, p.ribbonAt! + C.windMs * 0.9);
+    const head = s.ribbonHead(0)!;
+    expect(Math.hypot(head.x - (sw.pivot.x + Math.cos(ang) * sw.arm), head.y - (sw.pivot.y + Math.sin(ang) * sw.arm))).toBeLessThan(2);
+    s.draw(p.heldAt!, still);
+    expect(s.visibleRibbons).toBe(0);
+    expect(s.rainbowAlpha).toBeGreaterThan(0.95);
+    expect(s.cracksAlpha).toBe(0);
+    s.draw(p.impactAt + 200, still);
+    expect(s.cracksAlpha).toBeGreaterThan(0.85);
+    s.draw(p.returnEnd, still);
+    expect(s.cracksAlpha).toBe(0);
+    s.flake();
+    expect(s.liveFx).toBeGreaterThanOrEqual(26);
+    s.destroy();
+  });
+
+  it('the stolen colour is the portrait\'s own: picked from its pixels, vivid, with a warm and a cool, deterministic', () => {
+    const px = (rgb: [number, number, number], n: number): number[] => { const out: number[] = []; for (let i = 0; i < n; i++) out.push(rgb[0], rgb[1], rgb[2], 255); return out; };
+    // A mostly red portrait with a green cloak and some grey.
+    const data = [...px([200, 40, 40], 300), ...px([40, 160, 60], 150), ...px([120, 120, 120], 126)];
+    const fb = [0xffb24a, 0x5ab4ff];
+    const pal = paletteFromPixels(data, 4, fb);
+    expect(pal.length).toBeGreaterThanOrEqual(2);
+    expect(isWarm(pal[0]!)).toBe(true); // the red leads (the strongest)
+    expect(pal.some((c) => !isWarm(c))).toBe(true); // the green
+    expect(pal).toEqual(paletteFromPixels(data, 4, fb));
+    // Nothing but grey: the fallback hues.
+    const grey = paletteFromPixels(px([128, 128, 128], 100), 4, fb);
+    expect(grey.some((c) => isWarm(c)) && grey.some((c) => !isWarm(c))).toBe(true);
+    // One colour only: still a few shades of it, plus a cool.
+    const mono = paletteFromPixels(px([220, 60, 30], 200), 4, fb);
+    expect(mono.length).toBeGreaterThanOrEqual(3);
+    expect(mono.some((c) => !isWarm(c))).toBe(true);
+  });
+
+  it('a plume (Tiers 3-4) is fatter than a drift (Tiers 1-2), torn out along the cut, and rolls the same dice', () => {
     const a = make(40).s, b = make(40).s;
     a.stream(20, 200, null); b.stream(20, 200, null, 1.6, { x: 300, y: 0 });
     for (let i = 0; i < 30; i++) { a.update(16); b.update(16); }
@@ -864,12 +1062,16 @@ describe('the scene (headless Pixi)', () => {
       parent.addChild(s.root);
       s.draw(p.impactAt, still);
       s.cross(0); s.stream(p.motes, 200, total < 12 ? 0 : null); s.toll(); s.ignite(); s.held(); s.strike(1.5); s.flood();
+      s.orbBegin(); s.ribbonsBegin(); s.shatter(10); s.flake();
       s.update(16);
       expect(s.liveFx).toBeGreaterThan(0);
       s.hideOwn();
       expect(s.visibleBlades).toBe(0);
       expect(s.crescentVisible || s.lineVisible || s.frontVisible).toBe(false);
       expect(s.visibleGhosts).toBe(0);
+      expect(s.visibleRibbons + s.visibleDrops).toBe(0);
+      expect(s.orbVisible).toBe(false);
+      expect(s.cracksAlpha + s.auraAlpha).toBe(0);
       s.draw(p.impactAt, still); // a late frame after the end draws nothing
       expect(s.visibleBlades).toBe(0);
       expect(s.crescentVisible).toBe(false);

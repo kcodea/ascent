@@ -138,8 +138,18 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
   let lifted = false;
 
   const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate, opts);
-  voices.warm([c.sfxFlipperClip, c.sfxBumperClip, c.sfxRampClip, c.sfxReelClip, c.sfxWhooshClip, c.sfxBoomClip]);
+  voices.warm([c.sfxFlipperClip, c.sfxBumperClip, c.sfxRampClip, c.sfxReelClip, c.sfxWhooshClip, c.sfxBoomClip, c.sfxBellClip, c.sfxRollClip, c.sfxJackpotClip]);
+  /** Each bumper's own bell note (a major triad), so a rattle plays a tune and never one note repeated. */
+  const NOTE = [1, 1.26, 1.5] as const;
+  /** The ball ROLLING on the wood for `ms` (base ms): the clip is re-cued end to end, each piece faded, for as long as it runs. */
+  const rollFor = (ms: number, gain = 1): void => {
+    const PIECE = 1150;
+    for (let off = 0; off < ms; off += PIECE) {
+      cue(c.sfxRollClip, c.sfxRollGain * gain, c.sfxRollRate, { delayMs: off / speed, lenMs: Math.min(1380, ms - off + 120) / speed, fadeMs: 140 });
+    }
+  };
   const big = plan.kind === 'jackpot';
+  const lastHitAt = plan.hits.length ? plan.hits[plan.hits.length - 1]!.at : plan.impactAt;
   /** The striker's centre minus the target's (the arm the tilt swings it on). */
   const armX = o.attacker.x - o.defender.x, armY = o.attacker.y - o.defender.y;
 
@@ -152,67 +162,99 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
         break;
       case 'table':
-        // The table pops up out of the board: a soft swish, a ring under each piece.
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate * 0.9, { lenMs: 380, fadeMs: 180 });
+        // The table pops up out of the board: a swish and a mechanical clunk, a ring under each piece.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.8, c.sfxWhooshRate * 0.9, { lenMs: 380, fadeMs: 180 });
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.55, c.sfxBumperRate * 0.7);
+        for (let i = 0; i < plan.bumpers; i++) cue(c.sfxBumperClip, c.sfxBumperGain * 0.4, c.sfxBumperRate * (0.85 + 0.1 * i), { delayMs: (70 * i + 60) / speed });
         scene?.popAt(geo.pivot, geo.batLen * 0.4);
         for (let i = 0; i < plan.bumpers; i++) scene?.popAt(geo.bumpers[i]!, geo.bumperR, 70 * i);
         break;
-      case 'chase':
-        // IV: the lights run: three soft bells climbing, spread over the chase.
-        for (let i = 0; i < 3; i++) {
-          cue(c.sfxBumperClip, c.sfxBumperGain * 0.4, c.sfxBumperRate * (1.3 + 0.12 * i), { delayMs: (i * Math.max(0, plan.strikeAt - q.at)) / 3.2 / speed, lenMs: 300, fadeMs: 140 });
+      case 'chase': {
+        // IV: the lights run: bells climbing the triad twice over, faster toward the flip.
+        const span = Math.max(0, plan.strikeAt - q.at);
+        for (let i = 0; i < 6; i++) {
+          cue(c.sfxBellClip, c.sfxBellGain * (0.45 + 0.07 * i), c.sfxBellRate * NOTE[i % 3]! * (i >= 3 ? 2 : 1), { delayMs: (span * Math.pow(i / 6, 0.85)) / speed, lenMs: 380, fadeMs: 180 });
         }
         break;
+      }
       case 'flip':
-        // THE FLIPPER: the clack (its transient is 25 ms into the clip, so it starts a little in) and the ball's swish.
-        cue(c.sfxFlipperClip, c.sfxFlipperGain * (big ? 1.15 : 1), c.sfxFlipperRate, { startMs: 12 });
+        // THE FLIPPER: the clack over a low cabinet thump, the ball's swish, and the ball rolling until it lands.
+        cue(c.sfxFlipperClip, c.sfxFlipperGain * (big ? 1.15 : 1), c.sfxFlipperRate);
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.7, c.sfxBumperRate * 0.6);
         cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 360, fadeMs: 160 });
-        scene?.flip(geo.cradle, geo.u, 1 + 0.4 * plan.k);
+        rollFor((plan.rampInAt ?? plan.impactAt) - q.at, plan.kind === 'flipper' ? 0.8 : 1);
+        scene?.flip(geo.cradle, geo.u, 1.5 + 0.5 * plan.k);
         break;
       case 'ramp':
         // III: the ball takes the wire: it rolls for as long as it is on the ramp.
         cue(c.sfxRampClip, c.sfxRampGain, c.sfxRampRate, { lenMs: (Math.max(200, (plan.multiAt ?? q.at) - q.at) + 80) / speed, fadeMs: 140 });
+        rollFor(Math.max(200, (plan.multiAt ?? q.at) - q.at), 0.7);
         break;
       case 'multi': {
-        // MULTIBALL: one becomes three (a bright bell, a swish).
-        cue(c.sfxBumperClip, c.sfxBumperGain * 0.9, c.sfxBumperRate * 1.35, { lenMs: 420, fadeMs: 160 });
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.8, c.sfxWhooshRate * 1.2, { lenMs: 300, fadeMs: 140 });
+        // MULTIBALL: one becomes three: the triad rung fast, a thwack and a swish; three balls rolling.
+        for (let i = 0; i < 3; i++) cue(c.sfxBellClip, c.sfxBellGain * 0.9, c.sfxBellRate * NOTE[i]! * 1.5, { delayMs: (55 * i) / speed, lenMs: 520, fadeMs: 220 });
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.8, c.sfxBumperRate * 1.1);
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.9, c.sfxWhooshRate * 1.2, { lenMs: 300, fadeMs: 140 });
+        rollFor((plan.echoes[plan.echoes.length - 1] ?? plan.impactAt) - q.at, 1.15);
         const r = geo.ramp;
         scene?.split({ x: r.xs[r.n - 1]!, y: r.ys[r.n - 1]! });
         break;
       }
       case 'bump': {
-        // A POP BUMPER fires: each has its own pitch, so a rattle plays a little tune instead of one note repeated.
+        // A POP BUMPER fires: a solid solenoid thwack with its bell on top (each bumper its own note).
         const h = plan.hits[q.i]!;
         const at = geo.bumpers[h.bumper]!;
-        cue(c.sfxBumperClip, c.sfxBumperGain * (big ? 0.7 : plan.balls > 1 ? 0.75 : 0.9), c.sfxBumperRate * (0.92 + 0.09 * h.bumper + 0.03 * (q.i % 2)), { lenMs: 320, fadeMs: 150 });
+        const lvl = big ? 0.75 : plan.balls > 1 ? 0.85 : 1;
+        cue(c.sfxBumperClip, c.sfxBumperGain * lvl, c.sfxBumperRate * (0.92 + 0.08 * h.bumper + 0.03 * (q.i % 2)));
+        cue(c.sfxBellClip, c.sfxBellGain * lvl * 0.9, c.sfxBellRate * NOTE[h.bumper % 3]!, { lenMs: 420, fadeMs: 200 });
         const k = paths.kicks[q.i]!;
         const reach = geo.bumperR * 0.92;
         scene?.bump(at, { x: at.x - k.x * reach, y: at.y - k.y * reach }, h.score, big);
         break;
       }
       case 'tilt':
-        // IV: the striker shoves the table: a dull thud under the bells.
-        cue(c.sfxBoomClip, c.sfxBoomGain * 0.5, c.sfxBoomRate * 1.5, { lenMs: 320, fadeMs: 160 });
+        // IV: the striker shoves the table: a heavy thud, the cabinet's clunk and a low sour bell (the tilt warning).
+        cue(c.sfxBoomClip, c.sfxBoomGain * 0.9, c.sfxBoomRate * 1.4, { startMs: 380, lenMs: 520, fadeMs: 240 });
+        cue(c.sfxFlipperClip, c.sfxFlipperGain * 0.8, c.sfxFlipperRate * 0.6);
+        cue(c.sfxBellClip, c.sfxBellGain * 0.7, c.sfxBellRate * 0.53, { lenMs: 600, fadeMs: 260 });
+        cue(c.sfxBellClip, c.sfxBellGain * 0.6, c.sfxBellRate * 0.56, { delayMs: 230 / speed, lenMs: 600, fadeMs: 260 });
         break;
       case 'roll':
-        // IV: the score reels rattle up until the ball lands.
+        // IV: the score reels rattle up until the ball lands (the climbing ticks are their own cue).
         cue(c.sfxReelClip, c.sfxReelGain, c.sfxReelRate, { lenMs: (Math.max(120, plan.impactAt - q.at) + 60) / speed, fadeMs: 90 });
         break;
+      case 'tick': {
+        // The score climbs a step: a bell, higher and louder with every step (the rising rattle).
+        const u = plan.ticks.length > 1 ? q.i / (plan.ticks.length - 1) : 1;
+        cue(c.sfxBellClip, c.sfxBellGain * (0.4 + 0.45 * u), c.sfxBellRate * (1.5 + 1.2 * u), { lenMs: 200, fadeMs: 100 });
+        cue(c.sfxBumperClip, c.sfxBumperGain * (0.25 + 0.3 * u), c.sfxBumperRate * (1.3 + 0.6 * u), { lenMs: 140, fadeMs: 70 });
+        break;
+      }
       case 'impact': {
-        // THE BALL SLAMS THE TARGET: the bell, low and full, over a thud. IV: a second bell as the jackpot stops.
-        cue(c.sfxBumperClip, c.sfxBumperGain * (1 + 0.25 * plan.k), c.sfxBumperRate * 0.72, { tail: big ? 0.12 : 0 });
-        cue(c.sfxBoomClip, c.sfxBoomGain * (0.4 + 0.75 * plan.k), c.sfxBoomRate * (big ? 1 : 1.25), { lenMs: big ? 900 : 480, fadeMs: big ? 300 : 200 });
-        if (big) cue(c.sfxBumperClip, c.sfxBumperGain * 0.9, c.sfxBumperRate * 1.08, { delayMs: 110 / speed });
+        // THE BALL SLAMS THE TARGET: a low thwack and the bell, low and full, over a thud. IV: the jackpot payoff on top.
+        cue(c.sfxBumperClip, c.sfxBumperGain * (1.1 + 0.5 * plan.k), c.sfxBumperRate * 0.62, { tail: big ? 0.12 : 0 });
+        cue(c.sfxBellClip, c.sfxBellGain * (0.9 + 0.2 * plan.k), c.sfxBellRate * 0.75);
+        cue(c.sfxBoomClip, c.sfxBoomGain * (0.45 + 0.6 * plan.k), c.sfxBoomRate * (big ? 1 : 1.25), { startMs: 380, lenMs: big ? 1000 : 520, fadeMs: big ? 400 : 220 });
+        if (big) {
+          cue(c.sfxJackpotClip, c.sfxJackpotGain, c.sfxJackpotRate, { tail: 0.15 });
+          for (let i = 0; i < 3; i++) cue(c.sfxBellClip, c.sfxBellGain * 0.8, c.sfxBellRate * NOTE[i]!, { delayMs: (40 * i) / speed });
+        }
         scene?.impact(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, big });
-        if (big) scene?.jackpot();
+        if (big) { scene?.jackpot(); scene?.screenFlash(c.flashAlpha, vw, vh); }
         seq.land();
         break;
       }
       case 'echo':
-        // III: the second and third balls arrive (a bell each, climbing). They land nothing.
-        cue(c.sfxBumperClip, c.sfxBumperGain * 0.8, c.sfxBumperRate * (0.82 + 0.1 * (q.i + 1)), { lenMs: 400, fadeMs: 160 });
+        // III: the second and third balls arrive (a thwack and a bell each, climbing). They land nothing.
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.85, c.sfxBumperRate * (0.7 + 0.08 * (q.i + 1)));
+        cue(c.sfxBellClip, c.sfxBellGain * 0.85, c.sfxBellRate * NOTE[(q.i + 1) % 3]!, { lenMs: 500, fadeMs: 200 });
         scene?.echo(geo.hit, blowDir);
+        break;
+      case 'pay':
+        // IV: THE PAYOUT: the triad climbing an octave, a knock under each, sparks off the display.
+        cue(c.sfxBellClip, c.sfxBellGain * 0.75, c.sfxBellRate * NOTE[q.i % 3]! * (q.i >= 3 ? 2 : 1.5), { lenMs: 520, fadeMs: 220 });
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.5, c.sfxBumperRate * (0.9 + 0.08 * q.i));
+        scene?.payout(q.i);
         break;
       default:
         break;
@@ -225,14 +267,14 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.strikeAt, plan.impactAt + 300);
+    nums.paintDim(t, plan.chargeAt, plan.strikeAt, plan.impactAt + (big ? 1000 : 300));
     const cm = pinballCameraAt(plan, c, t, blowDir);
     const focus = o.defender;
     cam.apply(focus, cm.zoom, cm.x, cm.y, unitS);
     // The camera's screen offset: a portrait OUTSIDE `#stage` folds it in by hand (so it stays glued to the scene).
     const camOn = cam.active;
     const ax = focus.x * (1 - cm.zoom) + cm.x * unitS, ay = focus.y * (1 - cm.zoom) + cm.y * unitS;
-    const th = tiltAt(plan, c, t);
+    const th = tiltAt(plan, c, t) * geo.tiltSign;
     const deg = (th * 180) / Math.PI;
     if (hero.el) {
       const p = strikerPose(plan, t, aRadius);
@@ -251,7 +293,8 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
       let kx = 0, ky = 0, sq = 0;
       const px = local ? 0.45 : 1;
       if (t >= plan.impactAt) {
-        const k = spring(t - plan.impactAt, big ? 4 : 5, big ? 95 : 70);
+        // The jackpot's blow REELS the target: a longer, slower ring than the small looks.
+        const k = spring(t - plan.impactAt, big ? 3.2 : 5, big ? 190 : 70);
         const w = big ? 0.8 + 0.5 * plan.k : 0.35 + 0.25 * plan.k;
         kx += blowDir.x * c.knockPx * w * k * px; ky += blowDir.y * c.knockPx * w * k * px; sq += c.squash * (big ? 1 + 0.4 * plan.k : 0.4) * k;
         for (let i = 0; i < plan.echoes.length; i++) {
@@ -273,6 +316,17 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
       scene.setTilt(th, focus);
       scene.setFlipper(flipperAngle(plan, geo, t), tableIn(plan, t));
       for (let i = 0; i < MAX_BALLS; i++) scene.setBall(i, ballAt(paths.tracks[i], t, ballS[i]!, i === 0 ? 160 : 0));
+      // IV: the ball swells as it drops out of the bumpers onto the target (it comes at the eye).
+      if (big && lastHitAt < plan.impactAt && t > lastHitAt && ballS[0]!.visible) {
+        ballS[0]!.scale *= 1 + 0.55 * Math.pow((t - lastHitAt) / (plan.impactAt - lastHitAt), 2);
+        scene.setBall(0, ballS[0]!);
+      }
+      // THE LIT PLAYFIELD: up with the bumpers, a hot flash with every hit, the strobe and the impact.
+      let pulse = 0;
+      for (let h = plan.hits.length - 1; h >= 0; h--) { const since = t - plan.hits[h]!.at; if (since < 0) continue; pulse = Math.max(pulse, 1 - since / 220); break; }
+      if (plan.rollAt !== null && t >= plan.rollAt && t < plan.outAt) pulse = Math.max(pulse, Math.floor((t - plan.rollAt) / 70) % 2 ? 0.75 : 0.15);
+      if (t >= plan.impactAt) pulse = Math.max(pulse, 1 - (t - plan.impactAt) / 420);
+      scene.setPlayfield(plan.bumpers > 0 ? tableIn(plan, t, 60) : 0, pulse);
       for (let i = 0; i < BUMPERS; i++) scene.setBumper(i, bumperAt(plan, geo, paths, i, t, kickPx, bumpS[i]!));
       const lamp = lampAt(plan, t);
       scene.setLamps(tableIn(plan, t, 40), lamp.lit, lamp.step);

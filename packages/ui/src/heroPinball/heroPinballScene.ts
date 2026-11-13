@@ -3,6 +3,10 @@
  * (`../heroAttack/fxPool.ts`), so it runs (and is tested) headless. `heroPinball.ts` mounts `root` on the
  * above-portrait overlay and writes every own object from the pure state in `heroPinballConfig.ts`.
  *
+ * SECOND PASS (2026-11-12): everything is bigger (the ball, the bumpers, the display beside the bumpers), the playfield
+ * is LIT (a pool of light under the bumpers and the target that jumps with every hit), each ball carries a halo, and
+ * the jackpot pays out after the impact.
+ *
  * OWN OBJECTS (made once, placed by `placeTable`, written by the runner every frame, hidden the moment they are not
  * needed and on every exit): the FLIPPER, up to three steel BALLS (each with a shadow and a comet tail), the three pop
  * BUMPERS (an unlit and a lit face), the ring of LAMPS round the target, the lane's insert ARROWS, the wire RAMP (a
@@ -69,13 +73,16 @@ const GLYPH_H = 70;
 const GLYPH_W = 50;
 const SCORE_W = 128;
 /** The lamp ring's radius, in target radii. */
-export const LAMP_RING = 1.3;
+export const LAMP_RING = 1.45;
 
 export class HeroPinballScene extends FxPool {
   private readonly flipper: Sprite;
   private readonly balls: Sprite[] = [];
   private readonly shadows: Sprite[] = [];
   private readonly trails: Sprite[] = [];
+  private readonly halos: Sprite[] = [];
+  private readonly field: Sprite;
+  private readonly fieldHot: Sprite;
   private readonly bumpers: Sprite[] = [];
   private readonly lamps: Sprite;
   private readonly arrows: Sprite[] = [];
@@ -117,6 +124,8 @@ export class HeroPinballScene extends FxPool {
     };
     const { under, glow, body } = this.layers;
     // Bottom to top: the lane arrows, the target's lamps, the ramp, the shadows | the tails | bumpers, flipper, balls, display.
+    this.field = mk(under, tex.glow, 0.5, 0.5, true); this.field.tint = colors.side;
+    this.fieldHot = mk(under, tex.glow, 0.5, 0.5, true); this.fieldHot.tint = colors.lamp;
     for (let i = 0; i < PINBALL_CAPS.arrows; i++) this.arrows.push(mk(under, tex.arrow));
     this.lamps = mk(under, tex.lamps);
     this.rampBox.visible = false; this.rampBox.eventMode = 'none';
@@ -125,6 +134,7 @@ export class HeroPinballScene extends FxPool {
     for (let i = 0; i < MAX_BALLS; i++) { const s = mk(under, tex.shadow); s.tint = 0x000000; this.shadows.push(s); }
     this.rampGlow = mk(glow, tex.glow, 0.5, 0.5, true); this.rampGlow.tint = colors.lamp;
     for (let i = 0; i < MAX_BALLS; i++) { const s = mk(glow, tex.trail, 1, 0.5, true); s.tint = colors.spark; this.trails.push(s); }
+    for (let i = 0; i < MAX_BALLS; i++) { const s = mk(glow, tex.glow, 0.5, 0.5, true); s.tint = colors.spark; this.halos.push(s); }
     for (let i = 0; i < BUMPERS; i++) this.bumpers.push(mk(body, tex.bumper));
     this.flipper = mk(body, tex.flipper, FLIPPER_PIVOT, 0.5);
     for (let i = 0; i < MAX_BALLS; i++) this.balls.push(mk(body, tex.ball));
@@ -174,10 +184,27 @@ export class HeroPinballScene extends FxPool {
       const s = this.rails[i]!;
       s.position.set(r.xs[i]!, r.ys[i]!); s.rotation = r.rot[i]!; s.scale.set(sx, sy);
     }
-    const ak = (this.aR * 0.78) / ARROW_PX;
+    const ak = (this.aR * 1.2) / ARROW_PX;
     this.arrows.forEach((s, j) => { const p = g.arrows[j]; if (p) { s.position.set(p.x, p.y); s.rotation = g.arrowRot; s.scale.set(ak); } });
     this.lamps.position.set(g.hit.x, g.hit.y);
     this.panel.position.set(g.display.x, g.display.y);
+    this.field.position.set(g.field.x, g.field.y);
+    this.fieldHot.position.set(g.field.x, g.field.y);
+  }
+
+  /**
+   * THE LIT PLAYFIELD: a pool of light under the bumpers and the target, up by `k` (0 hides it), with `pulse` (0..1)
+   * a hot flash on top of it (a bumper firing, the strobe, the impact).
+   */
+  setPlayfield(k: number, pulse: number): void {
+    const g = this.geo;
+    if (this.destroyed || !g) return;
+    const f = this.field, h = this.fieldHot;
+    f.visible = k > 0.002;
+    h.visible = f.visible && pulse > 0.01;
+    if (!f.visible) return;
+    f.scale.set((g.fieldR * 2.5) / GLOW_PX); f.alpha = 0.34 * Math.min(1, k);
+    if (h.visible) { h.scale.set((g.fieldR * 2.1) / GLOW_PX); h.alpha = 0.5 * Math.min(1, pulse) * Math.min(1, k); }
   }
 
   /** The flipper at `angle`, popped up by `k` (0 hides it). */
@@ -194,21 +221,22 @@ export class HeroPinballScene extends FxPool {
 
   /** Ball `i`, its shadow and its tail (the tail stretches with the speed, px per ms). */
   setBall(i: number, b: BallState): void {
-    const s = this.balls[i], sh = this.shadows[i], tr = this.trails[i], g = this.geo;
-    if (this.destroyed || !s || !sh || !tr || !g) return;
+    const s = this.balls[i], sh = this.shadows[i], tr = this.trails[i], ha = this.halos[i], g = this.geo;
+    if (this.destroyed || !s || !sh || !tr || !ha || !g) return;
     const show = b.visible && b.scale > 0.002;
-    s.visible = show; sh.visible = show;
+    s.visible = show; sh.visible = show; ha.visible = show;
     if (!show) { tr.visible = false; return; }
     const d = g.ballR * 2 * b.scale;
+    ha.position.set(b.x, b.y); ha.scale.set((d * 3.2) / GLOW_PX); ha.alpha = 0.55;
     s.position.set(b.x, b.y); s.scale.set(d / BALL_PX);
     sh.position.set(b.x + g.ballR * 0.22, b.y + g.ballR * 0.34); sh.scale.set((d * 1.25) / SHADOW_PX); sh.alpha = 0.42;
     const sp = Math.hypot(b.vx, b.vy);
     tr.visible = sp > 0.25;
     if (tr.visible) {
-      const len = Math.min(g.ballR * 11, sp * 85);
+      const len = Math.min(g.ballR * 12, sp * 95);
       tr.position.set(b.x, b.y); tr.rotation = Math.atan2(b.vy, b.vx);
       tr.scale.set(len / TRAIL_W, (d * 0.95) / 32);
-      tr.alpha = Math.min(0.75, sp * 0.45);
+      tr.alpha = Math.min(0.85, sp * 0.5);
     }
   }
 
@@ -334,14 +362,17 @@ export class HeroPinballScene extends FxPool {
   /** A bumper fires: a ring off it, a hot pop and sparks where the ball met it, and the score popping off away from the target. */
   bump(center: Pt, contact: Pt, score: 10 | 50, big: boolean): void {
     const S = this.scale, c = this.colors, R = this.geo?.bumperR ?? this.dR * 0.5;
-    this.spawn('glow', this.tex.ring, c.lamp, center.x, center.y, { dur: 280, from: (R * 1.9) / RING_PX / S, to: (R * (big ? 4.4 : 3.6)) / RING_PX / S, a0: 0.6, ease: 'cubic' });
-    this.spawn('core', this.tex.glow, c.flash, contact.x, contact.y, { dur: 170, from: (R * 0.5) / GLOW_PX / S, to: (R * 1.5) / GLOW_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.15 });
+    this.spawn('glow', this.tex.ring, c.lamp, center.x, center.y, { dur: 340, from: (R * 1.9) / RING_PX / S, to: (R * (big ? 5 : 4.2)) / RING_PX / S, a0: 0.8, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.flash, center.x, center.y, { dur: 260, from: (R * 1.6) / RING_PX / S, to: (R * 3) / RING_PX / S, a0: 0.6, ease: 'cubic', delay: 50 });
+    // The bumper's own lamp flares: a hot bloom over the whole cap.
+    this.spawn('core', this.tex.glow, c.lamp, center.x, center.y, { dur: 260, from: (R * 2.2) / GLOW_PX / S, to: (R * 3.6) / GLOW_PX / S, a0: 0.75, mode: 'punch', peakAt: 0.12 });
+    this.spawn('core', this.tex.glow, c.flash, contact.x, contact.y, { dur: 190, from: (R * 0.7) / GLOW_PX / S, to: (R * 1.8) / GLOW_PX / S, a0: 0.95, mode: 'punch', peakAt: 0.15 });
     const out = Math.atan2(contact.y - center.y, contact.x - center.x);
-    this.burst('core', this.tex.spark, [c.spark, c.lamp, c.flash], contact.x, contact.y, big ? 5 : 3, { speed: 360, dir: out, spread: 1.6, life: 260, size: 0.36, drag: 0.2, align: true });
+    this.burst('core', this.tex.spark, [c.spark, c.lamp, c.flash], contact.x, contact.y, big ? 9 : 6, { speed: 620, dir: out, spread: 1.8, life: 340, size: 0.5, drag: 0.2, align: true });
     if (this.scoreSize <= 0) return;
     // The score rises from the bumper's far side (away from the target), so it never covers the portrait.
     const hx = center.x - (this.geo?.hit.x ?? center.x), hy = center.y - (this.geo?.hit.y ?? center.y), hl = Math.hypot(hx, hy) || 1;
-    const k = (R * 1.5 * this.scoreSize) / SCORE_W / S;
+    const k = (R * 1.25 * this.scoreSize) / SCORE_W / S;
     this.spawn('body', score === 50 ? this.tex.plus50 : this.tex.plus10, 0xffffff, center.x + (hx / hl) * R * 0.9, center.y + (hy / hl) * R * 0.9 - R * 0.5, {
       dur: 520, from: k * 0.6, to: k * 1.05, a0: 1, mode: 'hold', ease: 'quint', vx: (hx / hl) * 60, vy: (hy / hl) * 60 - 90, drag: 0.25, rot: (this.rnd() - 0.5) * 0.24,
     });
@@ -381,6 +412,11 @@ export class HeroPinballScene extends FxPool {
     this.burst('core', this.tex.star, [c.flash, c.lamp, c.side], at.x, at.y, Math.round(8 * b), { speed: 380 * b, life: 440, size: 0.36, drag: 0.15, spin: 0.01 });
     this.burst('core', this.tex.spark, [c.spark, c.flash], at.x, at.y, Math.round(8 * b), { speed: 620 * b, dir: Math.atan2(-dir.y, -dir.x), spread: 2.4, life: 340, size: 0.45, drag: 0.15, align: true, grav: 300 });
     if (!o.big) return;
+    // The jackpot: a white-hot core, a glow that takes its time to go, and steel sparks thrown wide that arc down.
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 220, from: (R * 2) / GLOW_PX / S, to: (R * 5.5) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.08 });
+    this.spawn('glow', this.tex.glow, c.lamp, at.x, at.y, { dur: 1300, from: (R * 3) / GLOW_PX / S, to: (R * 4.6) / GLOW_PX / S, a0: 0.5, mode: 'hold', ease: 'cubic' });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 460, from: 1.4, to: 5.5, a0: 1, mode: 'punch', peakAt: 0.1, rot: 0.3, spin: 0.0015 });
+    this.burst('core', this.tex.spark, [c.spark, c.flash, c.lamp], at.x, at.y, 22, { speed: 1100, dir: Math.atan2(-dir.y, -dir.x), spread: 3.6, life: 900, size: 0.6, drag: 0.3, align: true, grav: 1500, lift: 300 });
     // The jackpot's spokes: long streaks of light standing all round the target, in two beats.
     for (let w = 0; w < 2; w++) {
       for (let i = 0; i < 12; i++) {
@@ -391,6 +427,33 @@ export class HeroPinballScene extends FxPool {
       }
     }
     this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 620, from: (R * 2) / RING_PX / S, to: (R * 8) / RING_PX / S, a0: 0.6, ease: 'cubic', delay: 80 });
+  }
+
+  /** A whole-screen flash (bright at once, gone in `ms`): the soft glow stretched far past the view. */
+  screenFlash(alpha: number, w: number, h: number, ms = 170): void {
+    if (alpha <= 0) return;
+    const k = (Math.max(w, h) * 4.8) / GLOW_PX / this.scale;
+    this.spawn('core', this.tex.glow, 0xffffff, w / 2, h / 2, { dur: ms, from: k, to: k, a0: alpha, ease: 'linear' });
+  }
+
+  /**
+   * IV: THE JACKPOT PAYS OUT (beat `i`): a fountain of sparks off the display's top, a ring off every bumper and a ring
+   * off the target. What keeps the win on screen after the blow.
+   */
+  payout(i: number): void {
+    const g = this.geo;
+    if (!g) return;
+    const S = this.scale, c = this.colors, W = g.displayW, H = W * DISPLAY_ASPECT, R = g.bumperR;
+    for (let k = 0; k < 9; k++) {
+      const x = g.display.x + (this.rnd() - 0.5) * W * 0.9;
+      this.spawn('core', this.tex.star, k % 2 ? c.lamp : c.flash, x, g.display.y - H * 0.5, {
+        dur: 620 + this.rnd() * 300, from: 0.7, to: 0.2, a0: 1, ease: 'linear', vx: (this.rnd() - 0.5) * 420, vy: -420 - this.rnd() * 380, grav: 1100, drag: 0.4, spin: (this.rnd() - 0.5) * 0.02,
+      });
+    }
+    this.spawn('glow', this.tex.glow, c.lamp, g.display.x, g.display.y, { dur: 300, from: (W * 1.0) / GLOW_PX / S, to: (W * 1.5) / GLOW_PX / S, a0: 0.5, sy: 0.5, mode: 'punch', peakAt: 0.15 });
+    const b = g.bumpers[i % Math.max(1, g.bumpers.length)];
+    if (b) this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.lamp, b.x, b.y, { dur: 380, from: (R * 1.6) / RING_PX / S, to: (R * 4.4) / RING_PX / S, a0: 0.75, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, i % 2 ? c.lamp : c.flash, g.hit.x, g.hit.y, { dur: 460, from: (this.dR * 1.6) / RING_PX / S, to: (this.dR * (4 + i * 0.5)) / RING_PX / S, a0: 0.55, ease: 'cubic' });
   }
 
   /** III: a following ball hits the target: a smaller flash, one ring, a few sparks. */
@@ -406,11 +469,11 @@ export class HeroPinballScene extends FxPool {
     const g = this.geo;
     if (!g) return;
     const S = this.scale, c = this.colors, W = g.displayW, H = W * DISPLAY_ASPECT;
-    this.spawn('glow', this.tex.glow, c.lamp, g.display.x, g.display.y, { dur: 520, from: (W * 0.9) / GLOW_PX / S, to: (W * 1.7) / GLOW_PX / S, a0: 0.7, sy: 0.5, mode: 'punch', peakAt: 0.12 });
-    for (let i = 0; i < 10; i++) {
+    this.spawn('glow', this.tex.glow, c.lamp, g.display.x, g.display.y, { dur: 700, from: (W * 1.0) / GLOW_PX / S, to: (W * 2) / GLOW_PX / S, a0: 0.85, sy: 0.5, mode: 'punch', peakAt: 0.1 });
+    for (let i = 0; i < 16; i++) {
       const x = g.display.x + (this.rnd() - 0.5) * W * 0.9;
       this.spawn('core', this.tex.star, i % 2 ? c.lamp : c.flash, x, g.display.y - H * 0.5, {
-        dur: 520 + this.rnd() * 260, from: 0.5, to: 0.15, a0: 1, ease: 'linear', vx: (this.rnd() - 0.5) * 260, vy: -260 - this.rnd() * 240, grav: 700, drag: 0.4, spin: (this.rnd() - 0.5) * 0.02,
+        dur: 620 + this.rnd() * 300, from: 0.8, to: 0.2, a0: 1, ease: 'linear', vx: (this.rnd() - 0.5) * 480, vy: -460 - this.rnd() * 380, grav: 1100, drag: 0.4, spin: (this.rnd() - 0.5) * 0.02,
       });
     }
   }

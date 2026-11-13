@@ -41,6 +41,13 @@ const MEDALLION_OUTRANKS: ReadonlyArray<readonly [winner: string, loser: string]
  */
 export function resolveMech(view: CardView): Mechanic | null {
   const def = CARD_INDEX[view.cardId];
+  // A GIVEN Execute takes the gem (owner 2026-11-12, R-MEDAL-EXECUTE-GIVEN-01): a body that was handed Execute (the
+  // keyword is on the instance, not printed on its card) wears the red dagger over whatever badge it had, the eye
+  // included, for as long as it keeps the keyword. A PRINTED Execute still races under the ordinary precedence.
+  if (view.keywords.includes('V') && !def?.keywords.includes('V')) {
+    const execute = MECHANICS.find((m) => m.id === 'execute');
+    if (execute) return execute;
+  }
   const granted = view.grantedTriggers;
   let keywords = view.keywords;
   let effects: EffectDef[] = def?.effects ?? [];

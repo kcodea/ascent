@@ -702,6 +702,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_sylus_4', 'minion_skin', '8 Bit Sylus', 'legendary', 'sylus', '8 Bit Sylus.png'),
   // Skins batch 19 (owner 2026-11-12: "added a few more"): one more 8 Bit skin. Rarity = the folder.
   skin('skin_ropewrangler_3', 'minion_skin', '8 Bit Wrangler', 'legendary', 'ropewrangler', '8 Bit Wrangler.png'),
+  // Skins batch 20 (owner 2026-11-12: "added some priestess skins in our skins folder"): the first three skins for
+  // Priestess, the Duos-only hero. Rarity = the Hero Skins folder. Named like the other four Sweeney hero skins.
+  skin('skin_priestess_1', 'hero_skin', 'Hand Drawn Priestess', 'rare', 'priestess', 'HandDrawnPriestess.png'),
+  skin('skin_priestess_2', 'hero_skin', 'Minecraft Priestess', 'epic', 'priestess', 'MinecraftPriestess.png'),
+  skin('skin_priestess_3', 'hero_skin', 'Priestess Sweeney', 'ancient', 'priestess', 'PriestessSweeney.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

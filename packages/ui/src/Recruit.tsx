@@ -5538,7 +5538,10 @@ export function Recruit() {
     window.addEventListener('pointerdown', pick);
     window.addEventListener('contextmenu', rightClick, true);
     window.addEventListener('keydown', escape, true);
+    // No card hover while the aim is open (R-AIM-HOVER-01): the minions stop taking the pointer (styles.css).
+    document.body.classList.add('aimpick');
     return () => {
+      document.body.classList.remove('aimpick');
       if (raf) cancelAnimationFrame(raf);
       boardRects.dispose();
       shopRects?.dispose();

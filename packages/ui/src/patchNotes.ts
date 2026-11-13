@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Minions no longer light up under the pointer while you pick a target for a card effect, the same as when you aim a spell.',
+      },
+      {
+        category: 'Systems',
         text: 'Flurry now arrives on a beam of its own, with a gust of air and a flurry of blade swings. Runic Beetle sends it to the Beast he picks, and a spell, a hero power or a rune sends it the same way as Rise, Execute and Ward.',
       },
     ],

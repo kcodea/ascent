@@ -132,3 +132,65 @@ Note on the three new clips: the raw clips decoded about 2 dB over full scale, s
 above were measured. They were then re-levelled to a true -1.2 dB peak and their gains raised by the same 2 dB
 (punch 1, charge 0.7, boom 0.95). The loudness numbers were NOT re-measured after that last step; they should be
 within a dB.
+
+## Third pass (2026-11-13, the owner's notes)
+
+The owner: "a great idea but done pretty poorly"; the portraits fell behind UI (the foe's health plate and the like);
+the tiers felt alike; Tier 3 is his favourite; "not just jpeg looking pows". The looks are now called **Tier 1, Tier 2,
+Tier 3, Tier 4** everywhere in this attack's files (the kind ids are `counter`, `string`, `launcher`, `super`).
+
+**Portraits on top of ALL the UI.** A portrait sits several stacking contexts deep (`.herolunge` in `.f` in `.hero`
+in `.statusrow` in `.statusbar`; `.combatopp-body` at z0 under its own name and health pills, which are z2, in
+`.combatopp`). The `.duel-attacker-*` class only lifts the striker's root context to z100, under the FX canvas (z200),
+the round rail (z555) and the lobby damage floats (z2000), and it never lifted the TARGET at all, which is why the foe
+sank under its own health plate. The runner now writes an inline `z-index` on every element from each portrait up to
+the stage root (`ZLift` in `heroCombo.ts`): the target's chain at 2500, the striker's at 2501, then the attack's own FX
+canvas (`canvas.pixifx-above`) at 2502 and the damage numbers at 2503 so the hits still draw over the faces. Under the
+screen wipe (3000). Every inline value is recorded once at the charge and put back exactly on every exit (tests check
+an empty value stays empty and a pre-set one comes back). The `.duel-attacker-*` class still rides along (it fades the
+striker's own pills). Measured: lifting adds no frame cost (four variants measured on the same loaded machine, all
+p95 8.3 to 8.4 ms, the Baseball reference 8.4 ms).
+
+**Every hit is live Pixi.** The three painted starbursts (`hitLight`, `hitSharp`, `hitHeavy`) and the cel dust puff
+are gone. A hit (`hitFx`) is a white-hot additive core and a bloom in the tier's colour, crossing fighting-game hit
+blades (a new white `blade` spindle texture), radial speed lines flying out, a shock ring squashed along the hit, and
+sparks that stream as they arc down; a flurry tick is a lighter version. The struck portrait SMEARS (a `skewX` in its
+pose) and squashes on contact. Dust is a soft cloud. The parry, the launch pillar, the slam, the gather and the super
+flash are built from the same light.
+
+**Each tier its own look, colour, rhythm and camera:**
+- **Tier 1, the counter (ice blue).** The struck portrait lunges first and is PARRIED (a tall guard line of light, a
+  star of blades, rings, sparks deflected; it is thrown back off balance, smeared), the view snaps in and holds, then
+  ONE counter-hit with a straight trail, a jolt, a white blink and "COUNTER" with the announcer.
+- **Tier 2, the string (neon pink).** Jab, jab, cross on a steady beat, then the held-back roundhouse (THE impact);
+  every strike leaves its own trail (short streaks, then a long sweeping arc on the kick); the camera punches in on
+  each beat. The struck portrait reels in loops, DIZZY, three stars of light circling its head with the sound of birds.
+- **Tier 3, the launcher (gold, the centrepiece).** Unchanged beats, polished: a pillar of light on the launch, the
+  view RISES with the target (a third of its height), the juggle, then the struck portrait STRUGGLES (wriggles harder
+  and harder, a rattle) and "BREAKER?" pops, the combo-breaker tease; the spike SMASHES the word into shards and drives
+  it home: a slam with ground speed lines and rings. It lands dizzy.
+- **Tier 4, the super (red).** Letterbox bars close in with the freeze and again for the wind-up and the blow; the
+  cut-in pushes in slowly; the blow lands on an IMPACT FRAME (the whole screen thrown dark for 90 ms with a starburst of
+  white blades), then the flash. "K.O." with the announcer, then "PERFECT".
+
+**Call-outs** ("COUNTER", "BREAKER?", "K.O.", "PERFECT") are own HUD sprites that slam in from big with an overshoot,
+shake, trail two additive afterimages, catch a sweeping glint, hold and fade. **The counter** shakes as it moves,
+throws an additive afterimage of itself each count and gets a glint on the final count.
+
+**Sounds.** Six ElevenLabs calls, six clips kept (4.6 s): `combo-parry` (0.60 s, the parry clash), `combo-struggle`
+(0.85 s, the rattle under BREAKER?), `combo-dizzy` (1.40 s, birds), and three announcer lines (Charlie, stability
+0.3, style 0.7): `combo-vo-counter` (0.53 s), `combo-vo-ko` (0.60 s), `combo-vo-perfect` (0.62 s). Each trimmed to its
+onset, faded, mono 44.1 kHz 128 kb/s, -20 LUFS, peaks -1.6 to -10 dB. Tier 2's trails each get a whoosh. The attack's
+own clips are now thirteen, 11.2 s in total. Levels were measured, not heard; the loudness of the whole attack was NOT
+re-measured this pass.
+
+**Verified this pass.** `heroCombo.test.ts` rewritten for the four tiers (the parry, the string's beat, the struggle,
+dizzy, the letterbox, PERFECT, the smear, the call-outs, every lifted z-index restored on every exit). Sheets of all
+four tiers with you striking and Tier 3 and Tier 4 with the foe striking, showing the portraits over the foe's health
+plate, your own health plate and the lobby rail. Frame times on Tier 4 in the dev build on a machine at about 70% CPU
+from other sessions: median 4.2 ms, p95 8.2 to 8.4 ms, p99 8.4 to 20.8 ms (Baseball's top look on the same machine:
+p95 8.4 ms, p99 8.4 to 20.9 ms); the only big frames are in the first 100 ms and once in a first run.
+
+**Still weak.** The shared `-N` number still lands over the impact. The letterbox bars are drawn on the FX canvas, so
+they can clip the edge of a portrait at the very top or bottom of the screen for the half second they are in. Through
+the cut-in the dim covers the portraits (as before). Nobody has heard the new clips or the announcer.

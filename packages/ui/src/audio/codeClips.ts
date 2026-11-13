@@ -65,11 +65,17 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
   combo: [
     'fx/combo-boom',
     'fx/combo-charge',
+    'fx/combo-dizzy',
     'fx/combo-heavy',
     'fx/combo-hit',
     'fx/combo-ko',
+    'fx/combo-parry',
     'fx/combo-punch',
+    'fx/combo-struggle',
     'fx/combo-super',
+    'fx/combo-vo-counter',
+    'fx/combo-vo-ko',
+    'fx/combo-vo-perfect',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],
   wrestle: [

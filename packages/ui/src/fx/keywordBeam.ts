@@ -26,7 +26,7 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
   DS: { def: 'lastlight-beam', launchSfx: null, landSfx: null }, // the Ward sound is `sfx.shield()` at the landing
   W: { def: 'flurry-beam', launchSfx: 'sfx-flurry-whoosh', landSfx: 'sfx-flurry-swings' },
   CR: { def: 'crit-beam', launchSfx: 'sfx-crit-sting', landSfx: 'sfx-crit-shing' },
-  T: { def: 'taunt-beam', launchSfx: null, landSfx: null }, // Taunt: no sounds yet
+  T: { def: 'taunt-beam', launchSfx: 'sfx-taunt-whoosh', landSfx: null }, // the Taunt sound is `sfx.taunt()` at the landing
 };
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
@@ -79,6 +79,7 @@ export function launchKeywordBeam(
     hold(kw, targetUid, 0);
     if (sound) {
       if (kw === 'DS') sfx.shield();
+      if (kw === 'T') sfx.taunt(); // the game's own Taunt sound, as the shield frame appears (owner 2026-11-13)
       const at = beam.landSfx ? anchorsForUnits(targetUid, targetUid) : null;
       if (at && beam.landSfx) playDef(beam.landSfx, at, { uids: { source: targetUid, target: targetUid } });
     }

@@ -11,4 +11,6 @@ Owner: "now im making a taunt beam".
   and crosses the board. Pinned on a real simulated fight.
 - **Not a travel:** a body that arrives with Taunt (a summon, a Discover that grants it, Summoning Bulwark on a new
   body). No minion gives another minion Taunt, so there is no "On Taunt given" binding kind.
-- No sounds bound yet.
+- **Sounds (owner: "i just need a woosh sound. i already have the taunt sound for when the taunt is applied").** A
+  generated whoosh as the beam leaves (-18.4 LUFS at gain 1, the Crit level). The existing `sfx.taunt()` rings as the
+  beam lands. `store.ts` rang it at the grant, a beat early; it now skips that when a beam is on the way.

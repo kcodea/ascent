@@ -1,0 +1,1 @@
+{"version":1,"id":"sfx-taunt-whoosh","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/taunt-whoosh","gain":1,"pitchVar":0.07}}]}

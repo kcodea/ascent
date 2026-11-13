@@ -20,7 +20,14 @@ describe('the Taunt beam', () => {
     expect(KEYWORD_BEAMS.T.def).toBe('taunt-beam');
     expect(getDef('taunt-beam')).toBeDefined();
     expect(defArrivalMs(JSON.parse(read('./defs/taunt-beam.json')))).toBeGreaterThan(0);
-    for (const id of [KEYWORD_BEAMS.T.launchSfx, KEYWORD_BEAMS.T.landSfx]) if (id) expect(getDef(id), id).toBeDefined();
+    expect(KEYWORD_BEAMS.T.launchSfx).toBe('sfx-taunt-whoosh');
+    expect(getDef('sfx-taunt-whoosh')).toBeDefined();
+  });
+  it('the Taunt sound rings as the beam LANDS, and the Shop does not also ring it at the grant', () => {
+    expect(read('./keywordBeam.ts')).toContain("if (kw === 'T') sfx.taunt();");
+    const store = read('../store.ts');
+    expect(store).toContain("const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);");
+    expect(store).toContain("if (!tauntBeamComing && next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();");
   });
   it('the launcher holds the shield frame, and the card draws the Taunt frame only when it is not held', () => {
     holdKeywordLook('T', 't1', 500);

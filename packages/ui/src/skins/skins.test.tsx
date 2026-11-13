@@ -264,6 +264,22 @@ describe('the catalog <-> the bundle', () => {
     expect(skinArtOf(c)).toBeTruthy();
     expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
   });
+  // Skins batch 20 (owner 2026-11-12: "added some priestess skins in our skins folder"): the first three skins for
+  // Priestess, the Duos-only hero. Rarity = the Hero Skins folder. Same checks as batch 8.
+  const BATCH20_HEROES: [id: string, rarity: string, heroId: string, heroName: string, master: string][] = [
+    ['skin_priestess_1', 'rare', 'priestess', 'Priestess', 'HandDrawnPriestess.png'],
+    ['skin_priestess_2', 'epic', 'priestess', 'Priestess', 'MinecraftPriestess.png'],
+    ['skin_priestess_3', 'ancient', 'priestess', 'Priestess', 'PriestessSweeney.png'],
+  ];
+  it.each(BATCH20_HEROES)('batch 20: %s (%s) exists, targets the hero %s, and ships its art', (id, rarity, heroId, heroName, master) => {
+    const c = cosmeticOf(id)!;
+    expect(c).toBeTruthy();
+    expect([c.category, c.rarity, c.target, c.assets.master, c.active]).toEqual(['hero_skin', rarity, { type: 'hero', id: heroId }, master, true]);
+    expect(HEROES.find((h) => h.id === heroId)!.name).toBe(heroName);
+    expect(skinArtKeys()).toContain(id);
+    expect(skinArtOf(c)).toBeTruthy();
+    expect(heroSkinOf({ heroSkinByHeroId: { [heroId]: id } }, heroId)?.id).toBe(id);
+  });
   // Skins batch 9 (owner 2026-10-07: "yes add the new art to the catalog"): two minion skins, rarity = the Minion Skins
   // folder (both Rare). Both are Chorus Drake (d2_chorus), by the art: the card's three stacked singing heads, music
   // notes, chest gem and pose, repainted. Same checks as batch 6.

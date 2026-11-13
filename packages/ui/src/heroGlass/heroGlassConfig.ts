@@ -25,26 +25,36 @@
  *  - `ricochet`, THE RICOCHET: one fast point of light bounces off the inside of the screen edges, chipping each, and
  *    hits home. A lopsided SKID STAR thrown forward along its last leg, plus the chips on the edges.
  *
- * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays IV), each cause scaled across them:
- *  - I, THE CHIP: the cause's small mark. It heals (fades) after a beat.
- *  - II, THE WEB: the cause's mark spreads in creaking jumps to about the size of the portrait and a half.
- *  - III, THE PANE: it grows to about three portrait radii and the PANE round the struck portrait breaks out: its shards
- *    tip forward and fall off the bottom of the screen, a dark hole stays for a beat, then the pane repairs in a shimmer.
- *  - IV, THE SHATTER: the cause cracks the glass over the struck portrait, and from that mark ONE BOLD FRACTURE TEARS
- *    across the whole screen, both ways through both portraits, forking with a flash at every fork; a long held beat
- *    (fine cracks spreading everywhere, creaking, the glass trembling, a rising whine); then THE WHOLE SCREEN SHATTERS:
- *    forty to seventy shards that tile the view burst TOWARD the viewer over a white-blue flash, hang for a breath,
- *    tumble and fall, and glass dust sparkles after them. The blow lands at the shatter.
+ * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays Tier 4), each cause scaled across them.
+ * Third pass (owner: "the final attack is cool, but it's overall quite boring"): every tier is now a little SCENE with
+ * the glass as a character. A glare sweeps the screen as the attack starts (there IS a pane here), the striker's ghost
+ * shows in the glass over the target while the cause plays, the cracks GLOW and pulse with energy, glints of prismatic
+ * light run along them, and the struck hero REACTS: it comes up to the glass, presses its face to it (a fog print) and
+ * knocks on it from the inside, which only makes the cracks worse.
+ *  - Tier 1, THE CHIP: the cause's small mark, a prismatic flare, then the struck hero leans in to look at it, fogging
+ *    the glass. It heals in a shimmer.
+ *  - Tier 2, THE WEB: the mark spreads in creaking jumps; the struck hero presses against the glass and knocks twice
+ *    from the inside, each knock a ripple and a creak. Then it heals.
+ *  - Tier 3, THE PANE: it grows to about three and a half portrait radii, light leaking through the cracks; the struck
+ *    hero presses, knocks, and shoves, and the PANE round it breaks out: its shards tip forward and fall, a dark hole
+ *    stays for a beat, then the pane repairs in a shimmer.
+ *  - Tier 4, THE SHATTER: the cause cracks the glass over the struck portrait, and from that mark ONE BOLD FRACTURE TEARS
+ *    across the whole screen, both ways through both portraits, forking with a prismatic flash at every fork; a long
+ *    held beat (the web spreading everywhere and glowing brighter and faster, glints racing along it, the trapped hero
+ *    pounding on the glass from inside, the glass trembling, a swelling groan); then THE INHALE (the screen darkens and
+ *    the cracks blaze) and THE WHOLE SCREEN SHATTERS: forty to seventy shards that tile the view burst TOWARD the viewer
+ *    over a white-blue flash, hang for a breath, tumble and fall, and glass dust sparkles after them. The blow lands at
+ *    the shatter.
  *
- * ONE GEOMETRY for the break: IV's web is a fan of jittered spokes and rings round the struck portrait (`buildWeb`); its
+ * ONE GEOMETRY for the break: Tier 4's web is a fan of jittered spokes and rings round the struck portrait (`buildWeb`); its
  * spokes, rings and diagonals are the crack lines of the held beat and the same cells are the shards, so the screen
  * breaks exactly where it cracked. Everything is generated from the blow's seed (never `Math.random`).
  *
- * NEVER A FROZEN FRAME (R-PROG-ATTACK-10): the held beat keeps creaking and trembling, and IV's shatter gets a slow-mo
+ * NEVER A FROZEN FRAME (R-PROG-ATTACK-10): the held beat keeps creaking and trembling, and Tier 4's shatter gets a slow-mo
  * DIP through the frame source (a smooth ramp that never reaches 0), never a hit-stop.
  *
- * THE CONTRACT: every beat before the blow (a tap, a jerk, a bounce, IV's first crack) is FX and sound only. The
- * consequence lands exactly ONCE, on the impact beat (I to III: the glass first cracks; IV: the shatter). Reduced
+ * THE CONTRACT: every beat before the blow (a tap, a jerk, a bounce, Tier 4's first crack) is FX and sound only. The
+ * consequence lands exactly ONCE, on the impact beat (Tiers 1 to 3: the glass first cracks; Tier 4: the shatter). Reduced
  * motion: fades only.
  */
 import { configStore } from '../heroAttack/configStore';
@@ -70,19 +80,19 @@ interface GlobalConfig {
   /** DEV: '' = the cause is rolled per blow; a cause id forces it (a string so the tuner shows it as a select). */
   variation: string;
   absorbMs: number;
-  /** III: the pane breaks out this long after the glass cracks, and the hole stays this long before the repair. */
+  /** Tier 3: the pane breaks out this long after the glass cracks, and the hole stays this long before the repair. */
   breakMs: number;
   holeMs: number;
-  /** I to III: the cracks fade (the glass heals) over this. */
+  /** Tiers 1 to 3: the cracks fade (the glass heals) over this. */
   healMs: number;
   /** How many little jumps the cracks spread in (each one creaks). */
   creakJumps: number;
-  /** IV: how long the bold fracture takes to tear across the screen (at 1600 px between the portraits). */
+  /** Tier 4: how long the bold fracture takes to tear across the screen (at 1600 px between the portraits). */
   raceMs: number;
-  /** IV: the tear's thickness, and how far the glass trembles through the held beat (px). */
+  /** Tier 4: the tear's thickness, and how far the glass trembles through the held beat (px). */
   tearWidth: number;
   tremblePx: number;
-  /** IV: the slow-mo dip on the shatter (lowest clock speed, and how long it takes to ease back, attack ms). */
+  /** Tier 4: the slow-mo dip on the shatter (lowest clock speed, and how long it takes to ease back, attack ms). */
   slowMo: number;
   slowMoMs: number;
   /** The shards: gravity (px/s^2), the outward burst (px/s), the tumble (radians/s) and the rim highlight (px). */
@@ -90,13 +100,26 @@ interface GlobalConfig {
   shardBurst: number;
   shardSpin: number;
   shardRim: number;
-  /** IV: how far the shards jump TOWARD the viewer as the screen breaks (extra scale), and how much dust sparkles after. */
+  /** Tier 4: how far the shards jump TOWARD the viewer as the screen breaks (extra scale), and how much dust sparkles after. */
   shardLunge: number;
   dust: number;
   /** A crack line's thickness multiplier. */
   crackWidth: number;
-  /** IV: how strong the faint offset tint either side of the main crack is. */
+  /** Tier 4: how strong the faint offset tint either side of the main crack is. */
   splitAlpha: number;
+  /** How strongly the cracks glow with energy (an additive glow under every crack line, pulsing). */
+  crackGlow: number;
+  /** How many glints of light run along the cracks (a multiplier on each tier's count). */
+  glints: number;
+  /** How strong the prismatic (rainbow) refraction flares are where the glass cracks and forks. */
+  prism: number;
+  /** How far the struck hero comes up to the glass when it presses its face to it (extra scale). */
+  pressScale: number;
+  /** How strongly the striker's ghost shows in the glass while the cause plays. */
+  ghost: number;
+  /** Tier 4: THE INHALE before the shatter, its length (the screen darkens, the cracks blaze) and how dark. */
+  inhaleMs: number;
+  inhaleDark: number;
   impactSize: number;
   heroWindPx: number;
   heroThrowPx: number;
@@ -110,6 +133,7 @@ interface GlobalConfig {
   colorShade: string;
   colorFlash: string;
   colorHeat: string;
+  colorEnergy: string;
   colorPlayer: string;
   colorFoe: string;
   sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
@@ -125,6 +149,8 @@ interface GlobalConfig {
   sfxKnockClip: string; sfxKnockGain: number; sfxKnockRate: number;
   sfxSingClip: string; sfxSingGain: number; sfxSingRate: number;
   sfxPopClip: string; sfxPopGain: number; sfxPopRate: number;
+  sfxSqueakClip: string; sfxSqueakGain: number; sfxSqueakRate: number;
+  sfxSwellClip: string; sfxSwellGain: number; sfxSwellRate: number;
   sfxTailMix: number;
   sfxDuck: number;
   previewDamage: number;
@@ -132,27 +158,28 @@ interface GlobalConfig {
 }
 export type HeroGlassConfig = GlobalConfig & Record<TierKey, number>;
 
-export const HERO_GLASS_COLOR_KEYS = ['colorGlass', 'colorEdge', 'colorShade', 'colorFlash', 'colorHeat', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_GLASS_COLOR_KEYS = ['colorGlass', 'colorEdge', 'colorShade', 'colorFlash', 'colorHeat', 'colorEnergy', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_GLASS_CLIP_KEYS = [
   'sfxWhooshClip', 'sfxTickClip', 'sfxCreakClip', 'sfxRaceClip', 'sfxPaneClip', 'sfxShatterClip', 'sfxCrashClip', 'sfxRepairClip', 'sfxThudClip',
-  'sfxBodyClip', 'sfxKnockClip', 'sfxSingClip', 'sfxPopClip',
+  'sfxBodyClip', 'sfxKnockClip', 'sfxSingClip', 'sfxPopClip', 'sfxSqueakClip', 'sfxSwellClip',
 ] as const;
 export type HeroGlassStrKey = (typeof HERO_GLASS_COLOR_KEYS)[number] | (typeof HERO_GLASS_CLIP_KEYS)[number] | 'variation';
 export type HeroGlassNumKey = Exclude<keyof HeroGlassConfig, HeroGlassStrKey>;
 
 /**
- * Per look, I / II / III / IV. `CauseMs`: the base length of the cause, from its start to the glass first cracking
+ * Per look, Tier 1 / 2 / 3 / 4. `CauseMs`: the base length of the cause, from its start to the glass first cracking
  * (each cause scales it by its own pace: a headbutt is quick, a creeping crack slow). `GrowMs`: how long the cracks
- * keep spreading after that (IV: unused, the hold sets it). `HoldMs`: I and II how long the cracks stay before they
- * heal; IV the held beat before the shatter (III: unused, the pane's break and repair set it). `Web`: the mark's reach
- * in struck-portrait radii (IV: unused, it covers the screen).
+ * keep spreading after that (Tier 4: unused, the hold sets it). `HoldMs`: Tiers 1 and 2 how long the cracks stay
+ * before they heal (at least long enough for the struck hero's press and knocks); Tier 4 the held beat before the
+ * shatter (Tier 3: unused, the press, the shove and the repair set it). `Web`: the mark's reach in struck-portrait radii
+ * (Tier 4: unused, it covers the screen).
  */
 const TIER_DEFAULTS: Record<GlassTierSuffix, [number, number, number, number]> = {
   ReadyMs: [200, 220, 260, 380],
   CauseMs: [400, 430, 470, 430],
   GrowMs: [70, 320, 300, 0],
-  HoldMs: [460, 440, 0, 900],
-  Web: [0.9, 1.5, 3, 0],
+  HoldMs: [520, 660, 0, 1050],
+  Web: [1.4, 2.4, 3.4, 0],
   Shake: [4, 7, 14, 34],
   Zoom: [0.012, 0.018, 0.026, 0.035],
   Push: [0, 0, 0.02, 0.055],
@@ -198,6 +225,13 @@ export const HERO_GLASS_DEFAULTS: HeroGlassConfig = {
   dust: 70,
   crackWidth: 1,
   splitAlpha: 0.07,
+  crackGlow: 1,
+  glints: 1,
+  prism: 1,
+  pressScale: 0.1,
+  ghost: 1,
+  inhaleMs: 280,
+  inhaleDark: 0.38,
   impactSize: 1,
   heroWindPx: 10,
   heroThrowPx: 14,
@@ -211,6 +245,7 @@ export const HERO_GLASS_DEFAULTS: HeroGlassConfig = {
   colorShade: '#0a1626',
   colorFlash: '#e2f3ff',
   colorHeat: '#ff9a3c',
+  colorEnergy: '#6fd6ff',
   colorPlayer: '#ffe9b0',
   colorFoe: '#ff7a5c',
   sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.6, sfxWhooshRate: 1,
@@ -226,6 +261,8 @@ export const HERO_GLASS_DEFAULTS: HeroGlassConfig = {
   sfxKnockClip: 'fx/glass-knock', sfxKnockGain: 1, sfxKnockRate: 1,
   sfxSingClip: 'fx/glass-sing', sfxSingGain: 0.7, sfxSingRate: 1,
   sfxPopClip: 'fx/glass-pop', sfxPopGain: 1, sfxPopRate: 1,
+  sfxSqueakClip: 'fx/glass-squeak', sfxSqueakGain: 0.8, sfxSqueakRate: 1,
+  sfxSwellClip: 'fx/glass-swell', sfxSwellGain: 0.55, sfxSwellRate: 1,
   sfxTailMix: 0.18,
   sfxDuck: 0.6,
   previewDamage: 12,
@@ -253,6 +290,13 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGlassStrKey>, [numbe
   dust: [0, 120, 1],
   crackWidth: [0.3, 3, 0.05],
   splitAlpha: [0, 0.3, 0.005],
+  crackGlow: [0, 3, 0.05],
+  glints: [0, 3, 0.05],
+  prism: [0, 3, 0.05],
+  pressScale: [0, 0.3, 0.005],
+  ghost: [0, 2, 0.05],
+  inhaleMs: [0, 800, 10],
+  inhaleDark: [0, 0.8, 0.01],
   impactSize: [0.3, 3, 0.05],
   heroWindPx: [0, 40, 1],
   heroThrowPx: [0, 50, 1],
@@ -274,6 +318,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGlassStrKey>, [numbe
   sfxKnockGain: [0, 3, 0.05], sfxKnockRate: [0.5, 2.5, 0.01],
   sfxSingGain: [0, 3, 0.05], sfxSingRate: [0.5, 2.5, 0.01],
   sfxPopGain: [0, 3, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
+  sfxSqueakGain: [0, 3, 0.05], sfxSqueakRate: [0.5, 2.5, 0.01],
+  sfxSwellGain: [0, 3, 0.05], sfxSwellRate: [0.5, 2.5, 0.01],
   sfxTailMix: [0, 1, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -289,7 +335,7 @@ export const HERO_GLASS_RANGES: Record<HeroGlassNumKey, [number, number, number]
 export const GLASS_CAPS = { shards: 70, minShards: 40, cracks: 560, shakePx: 40, zoom: 0.1, forks: 8 } as const;
 
 const store = configStore<HeroGlassConfig>({
-  key: 'ascent.heroglass.v3', defaults: HERO_GLASS_DEFAULTS, ranges: HERO_GLASS_RANGES,
+  key: 'ascent.heroglass.v4', defaults: HERO_GLASS_DEFAULTS, ranges: HERO_GLASS_RANGES,
   colorKeys: HERO_GLASS_COLOR_KEYS, clipKeys: [...HERO_GLASS_CLIP_KEYS, 'variation'], previewKeys: ['previewDamage', 'previewParts', 'variation'],
 });
 export const heroGlassStore = store;
@@ -358,7 +404,7 @@ export function causeBeats(cause: GlassCause, tier: TierNum): number[] {
 
 export const GLASS_REF_DISTANCE = 1600;
 
-/** A crossing (a lunge, a ring of force, IV's tear) scaled gently by the distance between the two portraits. */
+/** A crossing (a lunge, a ring of force, Tier 4's tear) scaled gently by the distance between the two portraits. */
 export function glassLegMs(distance: number, ms: number): number {
   const d = Number.isFinite(distance) && distance > 0 ? distance : GLASS_REF_DISTANCE;
   return Math.round(ms * clamp(Math.sqrt(d / GLASS_REF_DISTANCE), 0.62, 1.15));
@@ -388,29 +434,39 @@ export interface GlassPlan {
   fireAt: number;
   /** The cause's own beats before the glass cracks (`causeBeats`), ascending. FX and sound only. */
   pre: number[];
-  /** The glass first cracks over the struck portrait. I to III: the blow. IV: where the tear starts. */
+  /** The glass first cracks over the struck portrait. Tiers 1 to 3: the blow. Tier 4: where the tear starts. */
   strikeAt: number;
-  /** IV: the bold fracture tears across the screen from `raceAt` to `raceEnd` (other looks: both the impact). */
+  /** Tier 4: the bold fracture tears across the screen from `raceAt` to `raceEnd` (other looks: both the impact). */
   raceAt: number;
   raceEnd: number;
   /** The cracks spread in little jumps: each time is one jump (and one creak). Ascending. */
   jumps: number[];
-  /** Marks on the glass over the struck portrait BEFORE the blow (IV: the first crack). */
+  /** Marks on the glass over the struck portrait BEFORE the blow (Tier 4: the first crack). */
   hits: number[];
   impactAt: number;
-  /** The glass breaks out: III's pane a beat after the crack, IV's whole screen on the impact (I, II: never, -1). */
+  /** The glass breaks out: Tier 3's pane a beat after the crack, Tier 4's whole screen on the impact (Tiers 1, 2: never, -1). */
   breakAt: number;
-  /** III: the pane repairs (-1 otherwise). */
+  /** Tier 3: the pane repairs (-1 otherwise). */
   repairAt: number;
-  /** I to III: the cracks fade from `healAt` to `healEnd` (IV: the shatter takes them, both the impact). */
+  /** Tiers 1 to 3: the cracks fade from `healAt` to `healEnd` (Tier 4: the shatter takes them, both the impact). */
   healAt: number;
   healEnd: number;
-  /** The Knockout variant ("Tier V"): IV with the prism, a bigger shake and a deeper dip. */
+  /**
+   * THE STRUCK HERO REACTS: it comes up to the glass at `pressAt` and presses its face to it until `pressEnd` (Tier 3:
+   * until the pane gives way under it; Tier 4: until the inhale). `knocksIn`: it knocks on the glass from the INSIDE
+   * (Tier 2 twice, Tier 3 once before its shove breaks the pane, Tier 4 twice through the held beat). FX and sound only.
+   */
+  pressAt: number;
+  pressEnd: number;
+  knocksIn: number[];
+  /** Tier 4: THE INHALE before the shatter (the screen darkens, the cracks blaze); -1 below Tier 4. */
+  inhaleAt: number;
+  /** The Knockout variant ("Tier V"): Tier 4 with the prism, a bigger shake and a deeper dip. */
   ko: boolean;
-  /** IV's slow-mo dip on the shatter (null below IV): the one clock eases down and back, never 0. */
+  /** Tier 4's slow-mo dip on the shatter (null below Tier 4): the one clock eases down and back, never 0. */
   dip: KoDip | null;
   endAt: number;
-  /** The mark's reach in struck radii (IV: 0, it covers the screen). */
+  /** The mark's reach in struck radii (Tier 4: 0, it covers the screen). */
   web: number;
   shakePx: number;
   zoom: number;
@@ -432,7 +488,7 @@ function spread(from: number, to: number, n: number): number[] {
 /** The whole Fourth Wall, in base ms. Pure and deterministic. */
 export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get()): GlassPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const kind = glassKind(tier);
   const cause: GlassCause = input.cause ?? 'butt';
   const ko = tier === 4 && isKnockoutVariant(input);
@@ -447,7 +503,7 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
     const at = r.impactAt;
     return {
       ...base, reduced: true, chargeAt: at, absorbEnd: at, fireAt: at, pre: [], strikeAt: at, raceAt: at, raceEnd: at, jumps: [], hits: [], impactAt: at,
-      breakAt: -1, repairAt: -1, healAt: at, healEnd: at, dip: null, endAt: r.endAt, web: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
+      breakAt: -1, repairAt: -1, healAt: at, healEnd: at, pressAt: -1, pressEnd: -1, knocksIn: [], inhaleAt: -1, dip: null, endAt: r.endAt, web: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
@@ -459,6 +515,8 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
   const J = Math.round(clamp(c.creakJumps, 2, 10));
   const hits: number[] = [];
   let raceAt: number, raceEnd: number, impactAt: number, jumps: number[], breakAt = -1, repairAt = -1, healAt: number, healEnd: number;
+  let pressAt: number, pressEnd: number, inhaleAt = -1;
+  const knocksIn: number[] = [];
   if (kind === 'shatter') {
     // The cause cracks the glass (a mark, not the blow); a breath later the tear is off; then the held beat; then the shatter.
     hits.push(strikeAt);
@@ -467,6 +525,12 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
     // The rest of the web starts creaking out while the tear is still running, and quickens up to the shatter.
     jumps = spread(raceAt + (raceEnd - raceAt) * 0.45, impactAt - 110, J + 3);
     breakAt = impactAt; healAt = impactAt; healEnd = impactAt;
+    // The trapped hero comes up to the glass and pounds on it twice; then THE INHALE, and the shatter.
+    const hold = impactAt - raceEnd;
+    inhaleAt = Math.max(raceEnd + 120, impactAt - Math.max(0, c.inhaleMs));
+    pressAt = raceEnd + Math.round(hold * 0.06);
+    knocksIn.push(Math.round(raceEnd + hold * 0.32), Math.round(raceEnd + hold * 0.56));
+    pressEnd = inhaleAt;
   } else {
     impactAt = strikeAt;
     raceAt = impactAt; raceEnd = impactAt;
@@ -474,25 +538,41 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
     jumps = kind === 'chip' ? [impactAt, impactAt + Math.max(20, L.GrowMs)] : [impactAt, ...spread(impactAt + 60, impactAt + Math.max(80, L.GrowMs), J - 1)];
     const grown = jumps[jumps.length - 1]!;
     if (kind === 'pane') {
-      breakAt = Math.max(grown + 40, impactAt + c.breakMs);
+      // It presses, knocks once, and SHOVES: the pane gives way under it.
+      pressAt = grown + 40;
+      knocksIn.push(pressAt + 200);
+      breakAt = Math.max(grown + 40, impactAt + c.breakMs, knocksIn[0]! + 190);
       repairAt = breakAt + c.holeMs;
       healAt = repairAt;
-    } else healAt = grown + L.HoldMs;
+      pressEnd = breakAt;
+    } else if (kind === 'web') {
+      // It presses its face to the glass and knocks twice from the inside; each knock creaks the web.
+      pressAt = grown + 60;
+      knocksIn.push(pressAt + 210, pressAt + 400);
+      healAt = Math.max(grown + L.HoldMs, knocksIn[1]! + 200);
+      pressEnd = healAt + c.healMs;
+    } else {
+      // It leans in to look at the chip, fogging the glass.
+      pressAt = grown + 90;
+      healAt = Math.max(grown + L.HoldMs, pressAt + 360);
+      pressEnd = healAt + c.healMs;
+    }
     healEnd = healAt + c.healMs;
   }
   const endAt = Math.max(impactAt + Math.max(c.zoomOutMs * 0.8, L.SettleMs), healEnd + 40);
-  // IV's dip on the shatter; the Knockout's is deeper and longer.
+  // Tier 4's dip on the shatter; the Knockout's is deeper and longer.
   const dip: KoDip | null = tier === 4 && c.slowMoMs > 0
     ? { at: impactAt, lo: ko ? Math.max(0.1, c.slowMo * 0.8) : c.slowMo, ms: c.slowMoMs + (ko ? 60 : 0) }
     : null;
-  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, pre, strikeAt, raceAt, raceEnd, jumps, hits, impactAt, breakAt, repairAt, healAt, healEnd, dip, endAt };
+  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, pre, strikeAt, raceAt, raceEnd, jumps, hits, impactAt, breakAt, repairAt, healAt, healEnd, pressAt, pressEnd, knocksIn, inhaleAt, dip, endAt };
 }
 
 /**
- * `fire`: the cause begins. `pre`: one of its beats. `strike`: IV's first crack (a mark, never the blow). `race`: IV's
- * tear is off. `tense`: IV's held beat begins. `creak`: a jump of the web.
+ * `fire`: the cause begins. `pre`: one of its beats. `strike`: Tier 4's first crack (a mark, never the blow). `race`:
+ * Tier 4's tear is off. `tense`: Tier 4's held beat begins. `creak`: a jump of the web. `press`: the struck hero comes up
+ * to the glass. `inknock`: it knocks from the inside. `inhale`: Tier 4's breath before the shatter.
  */
-export type GlassCueKind = 'charge' | 'fire' | 'pre' | 'strike' | 'race' | 'tense' | 'creak' | 'impact' | 'break' | 'repair' | 'heal' | 'end';
+export type GlassCueKind = 'charge' | 'fire' | 'pre' | 'strike' | 'race' | 'tense' | 'creak' | 'press' | 'inknock' | 'inhale' | 'impact' | 'break' | 'repair' | 'heal' | 'end';
 export interface GlassCue { at: number; kind: GlassCueKind; i: number }
 
 export function glassCues(p: GlassPlan): GlassCue[] {
@@ -508,17 +588,20 @@ export function glassCues(p: GlassPlan): GlassCue[] {
     }
     // The jump that IS the blow makes its own sound; the others creak.
     p.jumps.forEach((at, i) => { if (at !== p.impactAt) out.push({ at, kind: 'creak', i }); });
+    if (p.pressAt >= 0) out.push({ at: p.pressAt, kind: 'press', i: 0 });
+    p.knocksIn.forEach((at, i) => out.push({ at, kind: 'inknock', i }));
+    if (p.inhaleAt >= 0) out.push({ at: p.inhaleAt, kind: 'inhale', i: 0 });
     if (p.kind === 'pane') { out.push({ at: p.breakAt, kind: 'break', i: 0 }); out.push({ at: p.repairAt, kind: 'repair', i: 0 }); }
     if (p.kind !== 'shatter') out.push({ at: p.healAt, kind: 'heal', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<GlassCueKind, number> = { charge: 0, fire: 1, pre: 2, strike: 3, race: 4, tense: 5, creak: 6, impact: 7, break: 8, repair: 9, heal: 10, end: 11 };
+  const order: Record<GlassCueKind, number> = { charge: 0, fire: 1, pre: 2, strike: 3, race: 4, tense: 5, creak: 6, press: 7, inknock: 8, inhale: 9, impact: 10, break: 11, repair: 12, heal: 13, end: 14 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
 /**
- * IV's SLOW-MO DIP on the shatter (a freeze is banned, R-PROG-ATTACK-10): the one clock drops to `slowMo` the instant the
+ * Tier 4's SLOW-MO DIP on the shatter (a freeze is banned, R-PROG-ATTACK-10): the one clock drops to `slowMo` the instant the
  * screen breaks and eases back over `slowMoMs`, a smooth ramp never reaching 0, so the shards hang at the viewer.
  */
 export function glassScale(p: GlassPlan, c: HeroGlassConfig, t: number): number {
@@ -537,7 +620,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 /**
  * One crack line: a straight piece from `a` to `b` that GROWS from `a` between `t0` and `t1` (sequence ms; a jump is a
- * few tens of ms, IV's tear a real sweep). `w`: its thickness (the tear heavy, a hairline light).
+ * few tens of ms, Tier 4's tear a real sweep). `w`: its thickness (the tear heavy, a hairline light).
  */
 export interface CrackSeg { ax: number; ay: number; bx: number; by: number; len: number; ang: number; w: number; t0: number; t1: number }
 
@@ -631,14 +714,14 @@ export interface GlassGeo {
   chips: { at: Pt; size: number; t: number }[];
   /** Every crack line, in the order it starts growing. */
   segs: CrackSeg[];
-  /** The shards that fall (III: the pane's; IV: the whole screen's, tiling it). */
+  /** The shards that fall (Tier 3: the pane's; Tier 4: the whole screen's, tiling it). */
   tris: ShardTri[];
   /**
    * The cause's own path on the glass: `creep` the crack from the screen edge to the portrait (one node per jerk);
    * `ricochet` the bolt's legs (the hand, each bounce, the portrait). Empty otherwise.
    */
   path: Pt[];
-  /** IV: the tear's two ends on the screen edges, its speed (px per ms) and where and when it forks (null otherwise). */
+  /** Tier 4: the tear's two ends on the screen edges, its speed (px per ms) and where and when it forks (null otherwise). */
   main: { a: Pt; b: Pt; v: number; rear: number; fwd: number; back: number } | null;
   forks: { at: Pt; ang: number; t: number }[];
   /** `shock`: the haze over the craze (null otherwise). */
@@ -733,7 +816,7 @@ export function glassSeed(total: number, distance: number, side: 'player' | 'opp
 }
 
 /**
- * IV's whole-screen web round the struck portrait: spoke 0 points at the striker (so the tear runs through both
+ * Tier 4's whole-screen web round the struck portrait: spoke 0 points at the striker (so the tear runs through both
  * portraits), the last ring reaches past the farthest corner, and the spoke and ring counts are picked so the shards on
  * screen number forty to seventy (aiming for the mid fifties). Pure: each candidate is rolled from the same seed.
  */
@@ -1118,8 +1201,8 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 const JOLTS: ReadonlySet<GlassCause> = new Set(['knock', 'creep', 'ricochet', 'shock']);
 
 /**
- * The camera: a small push in through the ready; IV keeps pushing in through the tear and the held beat (the screen
- * never holds still); a knock, a jerk, a bounce and IV's first crack kick it; the impact punches and shakes (IV the
+ * The camera: a small push in through the ready; Tier 4 keeps pushing in through the tear and the held beat (the screen
+ * never holds still); a knock, a jerk, a bounce and Tier 4's first crack kick it; the impact punches and shakes (Tier 4 the
  * hardest, and for longer). Pure.
  */
 export function glassCameraAt(p: GlassPlan, c: HeroGlassConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
@@ -1128,6 +1211,8 @@ export function glassCameraAt(p: GlassPlan, c: HeroGlassConfig, t: number, dir: 
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
     if (t >= p.fireAt) z += p.push * sine((t - p.fireAt) / Math.max(1, p.impactAt - p.fireAt));
+    // Tier 4's inhale: one last lean in before the glass goes.
+    if (p.inhaleAt >= 0 && t >= p.inhaleAt) z += p.push * 0.6 * sine((t - p.inhaleAt) / Math.max(1, p.impactAt - p.inhaleAt));
   } else if (t >= p.impactAt) {
     z += (p.zoom + p.push * 0.5 + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   }
@@ -1135,9 +1220,11 @@ export function glassCameraAt(p: GlassPlan, c: HeroGlassConfig, t: number, dir: 
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
   if (JOLTS.has(p.cause)) for (const at of p.pre) kick(at, Math.max(2, p.shakePx * 0.2), 40, 18);
   for (const at of p.hits) kick(at, p.shakePx * 0.4, 50, 18);
+  // The struck hero's knocks from the inside jolt the view back the other way.
+  for (const at of p.knocksIn) kick(at, -Math.max(2.5, p.shakePx * 0.3), 45, 16);
   if (p.breakAt > p.impactAt) kick(p.breakAt, p.shakePx * 0.45, 70, 14);
   kick(p.impactAt, p.shakePx, Math.max(1, (c.shakeMs * (p.kind === 'shatter' ? 1 : 0.7)) / 4), 16);
-  // IV: a second, slower heave under the shake (the whole pane letting go).
+  // Tier 4: a second, slower heave under the shake (the whole pane letting go).
   if (p.kind === 'shatter') { const s = springAt(t - p.impactAt, 5, c.shakeMs / 2.5); x -= dir.y * p.shakePx * 0.35 * s; y += dir.x * p.shakePx * 0.35 * s; }
   return { zoom: 1 + Math.max(0, z), x, y };
 }

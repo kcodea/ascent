@@ -6,7 +6,7 @@
  *  - CRACK: one fracture line, drawn along +x: a thin bright thread with a darker line just under it (the far face of
  *    the break) and a faint halo, so a stretched sprite reads as a crack IN glass rather than a white stroke.
  *  - CHIP: the star-shaped pit a hard knock leaves: an irregular bright star with a dark underside and conchoidal rings.
- *  - TEAR: IV's bold fracture, drawn along +x: an open dark gap between two bright lips with a wide cold halo, so the
+ *  - TEAR: Tier 4's bold fracture, drawn along +x: an open dark gap between two bright lips with a wide cold halo, so the
  *    tear reads as the glass parting, three times the weight of a crack.
  *  - SHARD (a lookup, not a picture): u runs from a shard's RIM (bright, nearly opaque: the cut edge catching the light)
  *    to its FACE (a pale, see-through tint); v runs from resting to FLASHING (a shard turning face-on to the light). The
@@ -14,6 +14,11 @@
  *  - SLIVER: a tiny splinter (the dust of glass thrown off a hit).
  *  - GLINT: a thin bright streak (the shimmer sweeping a repaired pane, a refraction glint on a crack).
  *  - WASH: a flat white quad (the flash, the hole, the faint offset tints, the beam's core).
+ *  - LINE: a soft line of light along +x, full length, fading across its width (the energy glow under every crack, so
+ *    chained pieces read as one glowing fracture).
+ *  - GHOST (`ghostTexture`): the striker's own portrait art, cut to a soft-edged disc, for its reflection in the glass.
+ *    Painted once per portrait image (cached by its source), never per blow; null when the art is not there or not
+ *    loaded (the reflection is then simply skipped).
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -28,6 +33,9 @@ export const SHARD_LUT = 64;
 export const SLIVER_PX = 24;
 export const GLINT_W = 64;
 export const WASH_PX = 16;
+export const LINE_W = 64;
+export const LINE_H = 16;
+export const GHOST_PX = 160;
 
 function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderingContext2D } | null {
   if (typeof document === 'undefined') return null;
@@ -93,7 +101,7 @@ function paintChip(): HTMLCanvasElement | null {
   return k.c;
 }
 
-/** IV's tear: a wide cold halo, two bright lips and the dark gap between them. Full length (pieces chain). */
+/** Tier 4's tear: a wide cold halo, two bright lips and the dark gap between them. Full length (pieces chain). */
 function paintTear(): HTMLCanvasElement | null {
   const k = canvas(TEAR_W, TEAR_H); if (!k) return null;
   const g = k.g;
@@ -149,17 +157,57 @@ function paintWash(): HTMLCanvasElement | null {
   return k.c;
 }
 
+/** The energy line: a soft band of light, brightest along its middle, full length (pieces chain). */
+function paintLine(): HTMLCanvasElement | null {
+  const k = canvas(LINE_W, LINE_H); if (!k) return null;
+  const g = k.g;
+  const gr = g.createLinearGradient(0, 0, 0, LINE_H);
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.28)'); gr.addColorStop(0.5, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.7, 'rgba(255,255,255,0.28)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, LINE_W, LINE_H);
+  return k.c;
+}
+
+const ghosts = new Map<string, Texture>();
+
+/**
+ * The striker's REFLECTION: its portrait art (the first loaded `img` inside the portrait element) cut to a disc whose
+ * edge fades out, painted once per image source and kept. Null when there is no loaded image (headless, or the art is
+ * still decoding).
+ */
+export function ghostTexture(el: HTMLElement | null | undefined): Texture | null {
+  try {
+    const img = el?.querySelector('img');
+    if (!img || !img.complete || !(img.naturalWidth > 0)) return null;
+    const src = img.currentSrc || img.src;
+    const hit = ghosts.get(src);
+    if (hit) return hit;
+    const k = canvas(GHOST_PX, GHOST_PX); if (!k) return null;
+    const g = k.g;
+    const c = GHOST_PX / 2;
+    const iw = img.naturalWidth, ih = img.naturalHeight, side = Math.min(iw, ih);
+    g.drawImage(img, (iw - side) / 2, (ih - side) / 2, side, side, 0, 0, GHOST_PX, GHOST_PX);
+    g.globalCompositeOperation = 'destination-in';
+    const fade = g.createRadialGradient(c, c, c * 0.35, c, c, c);
+    fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(0.7, 'rgba(0,0,0,0.7)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade; g.fillRect(0, 0, GHOST_PX, GHOST_PX);
+    const t = tex(k.c);
+    ghosts.set(src, t);
+    return t;
+  } catch { return null; }
+}
+
 let cached: HeroGlassTextures | null = null;
 
 /** The session's textures, painted on first use. Null when no 2D canvas is available (the style then skips Pixi). */
 export function heroGlassTextures(): HeroGlassTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
-  const crack = paintCrack(), chip = paintChip(), tear = paintTear(), lut = paintShardLut(), sliver = paintSliver(), glint = paintGlint(), wash = paintWash();
-  if (!base || !crack || !chip || !tear || !lut || !sliver || !glint || !wash) return null;
+  const crack = paintCrack(), chip = paintChip(), tear = paintTear(), lut = paintShardLut(), sliver = paintSliver(), glint = paintGlint(), wash = paintWash(), line = paintLine();
+  if (!base || !crack || !chip || !tear || !lut || !sliver || !glint || !wash || !line) return null;
   cached = {
     glow: base.glow, ring: base.ring, star: base.star, spark: base.spark, streak: base.streak,
-    crack: tex(crack), chip: tex(chip), tear: tex(tear), shard: tex(lut), sliver: tex(sliver), glint: tex(glint), wash: tex(wash),
+    crack: tex(crack), chip: tex(chip), tear: tex(tear), shard: tex(lut), sliver: tex(sliver), glint: tex(glint), wash: tex(wash), line: tex(line),
   };
   return cached;
 }

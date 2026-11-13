@@ -25,7 +25,7 @@ function discoversOf(s: RunState): number {
  * Start of Turn fired even when its payoff is invisible, e.g. Equipment Charger's charge — the pulse is the beat).
  */
 export function recordSotBeat(s: RunState, source: SotBeatSource, run: () => void, opts?: { always?: boolean }): void {
-  const board = new Map(s.board.map((c) => [c.uid, { attack: c.attack, health: c.health, golden: !!c.golden }]));
+  const board = new Map(s.board.map((c) => [c.uid, { attack: c.attack, health: c.health, golden: !!c.golden, keywords: [...c.keywords] }]));
   const hand = new Set(s.hand.map((c) => c.uid));
   const shop = new Set(s.shop.map((o) => o.uid));
   const embers = s.embers;
@@ -36,6 +36,7 @@ export function recordSotBeat(s: RunState, source: SotBeatSource, run: () => voi
   run();
   const gains: SotBeatFx['gains'] = [];
   const gilds: string[] = [];
+  const keywords: NonNullable<SotBeatFx['keywords']> = [];
   const summons: string[] = [];
   for (const c of s.board) {
     const p = board.get(c.uid);
@@ -43,6 +44,7 @@ export function recordSotBeat(s: RunState, source: SotBeatSource, run: () => voi
     const da = c.attack - p.attack, dh = c.health - p.health;
     if (da > 0 || dh > 0) gains.push({ uid: c.uid, attack: Math.max(0, da), health: Math.max(0, dh) });
     if (c.golden && !p.golden) gilds.push(c.uid);
+    for (const k of c.keywords) if (!p.keywords.includes(k)) keywords.push({ uid: c.uid, keyword: k });
   }
   const handGrants = s.hand.filter((c) => !hand.has(c.uid) && !board.has(c.uid)).map((c) => c.uid);
   const shopAdds = s.shop.filter((o) => !shop.has(o.uid)).map((o) => o.uid);
@@ -56,7 +58,7 @@ export function recordSotBeat(s: RunState, source: SotBeatSource, run: () => voi
   const buffFx = s.recruitBuffFx.slice(buffStart);
   const equipFx = (s.equipFx ?? []).slice(equipStart);
   const hasProcs = Object.keys(procs).length > 0;
-  const did = gains.length > 0 || gilds.length > 0 || summons.length > 0 || handGrants.length > 0 || shopAdds.length > 0
+  const did = gains.length > 0 || gilds.length > 0 || keywords.length > 0 || summons.length > 0 || handGrants.length > 0 || shopAdds.length > 0
     || gold > 0 || discovered > 0 || hasProcs || equipFx.length > 0;
   if (!did && !opts?.always) return;
   pushSotBeat(s, {
@@ -66,6 +68,7 @@ export function recordSotBeat(s: RunState, source: SotBeatSource, run: () => voi
     ...(summons.length ? { summons } : {}),
     ...(shopAdds.length ? { shopAdds } : {}),
     ...(gilds.length ? { gilds } : {}),
+    ...(keywords.length ? { keywords } : {}),
     ...(gold > 0 ? { gold } : {}),
     ...(discovered > 0 ? { discovers: discovered } : {}),
     ...(hasProcs ? { procs } : {}),

@@ -566,12 +566,13 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
       + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
       + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of the player (its slot), found by the '
-      + 'rune fire beside a grant that names no giving minion. Not covered: a rune that gives a keyword mid-turn in the '
-      + 'Shop or at Start of Turn (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
+      + 'rune fire beside a grant that names no giving minion; at Start of Turn, any source (the recorder notes each '
+      + 'keyword gain on the beat of its source, and the beam leaves that source). Not covered: a rune that gives a '
+      + 'keyword mid-turn in the Shop (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
       + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
       + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
       + 'the author.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts', 'packages/sim/src/sotBeatKeywords.test.ts', 'packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
   {
     id: 'R-FX-FLURRY-GIVEN-01',

@@ -39,6 +39,12 @@ export const KEYWORD_BEAM_SOUND_MAX = 3;
  */
 export const pointRect = (p: Point): { left: number; top: number; width: number; height: number } => ({ left: p.x - 1, top: p.y - 1, width: 2, height: 2 });
 
+/** Is this keyword one that travels on a beam? */
+export const isBeamKeyword = (k: string): k is BeamKeyword => k in KEYWORD_BEAMS;
+
+/** Hide `kw`'s look on `uid` for `ms` (each hold expires on its own; 0 releases it). */
+export const holdKeywordLook = (kw: BeamKeyword, uid: string, ms: number): void => hold(kw, uid, ms);
+
 const hold = (kw: BeamKeyword, uid: string, ms: number): void => {
   if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else if (kw === 'W') holdFlurry(uid, ms); else if (kw === 'DS') holdWard(uid, ms);
   // Critical Strike has no look on the card to hold back: it is a line in the card's keywords.

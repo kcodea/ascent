@@ -19,7 +19,7 @@ import { launchShopRiseGiven } from './fx/riseGivenLaunch';
 import { playedRiseGrants } from './choreo/channels/riseGiven';
 import { playedFlurryGrants } from './choreo/channels/flurryGiven';
 import { unitSelector } from './fx/combatAnchors';
-import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword } from './fx/keywordBeam';
+import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword, holdKeywordLook, isBeamKeyword } from './fx/keywordBeam';
 import { heroPowerPoint, keywordOriginPoint, runeSlotPoint, shopKeywordOrigin } from './fx/keywordOrigin';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
@@ -6357,6 +6357,13 @@ export function Recruit() {
         }
         return;
       }
+      if (cue.kind === 'keyword') {
+        // A KEYWORD THE SOURCE GAVE (R-FX-KEYWORD-ORIGIN-01): its beam leaves the source's own slot (the rune, the hero
+        // power, the minion), and the look appears when it lands.
+        const from = sourceAt(cue.source);
+        if (from && isBeamKeyword(cue.keyword)) launchKeywordBeam(cue.keyword, from, cue.uid, { sound: cue.index < KEYWORD_BEAM_SOUND_MAX });
+        return;
+      }
       setSotHolds((prev) => releaseSotCue(prev, cue));
       if (cue.kind === 'arrive') {
         sotArrivedRef.current.add(cue.uid); // materialised by the layout pass below once the row renders it
@@ -6373,6 +6380,8 @@ export function Recruit() {
       });
     };
     const plan = planSotBeats(beats);
+    // Each given keyword's look stays hidden until its beam lands (the launch re-arms the hold on time).
+    for (const cue of plan.cues) if (cue.kind === 'keyword' && isBeamKeyword(cue.keyword)) holdKeywordLook(cue.keyword, cue.uid, cue.at + 600);
     for (const cue of plan.cues) {
       const id = window.setTimeout(() => {
         sotTimersRef.current = sotTimersRef.current.filter((t) => t !== id);

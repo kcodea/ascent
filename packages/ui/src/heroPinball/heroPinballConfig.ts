@@ -143,7 +143,7 @@ export const HERO_PINBALL_DEFAULTS: HeroPinballConfig = {
   kickPx: 9,
   rampMs: 720,
   rampBow: 0.2,
-  loopSize: 0.8,
+  loopSize: 1.25,
   splitMs: 150,
   cascadeMs: 95,
   chaseMs: 700,
@@ -485,7 +485,7 @@ function rampFor(e: Pt, x: Pt, n: Pt, side: 1 | -1, bow: number, loopR: number, 
   const run = { x: x.x - e.x, y: x.y - e.y };
   const turn = (-Math.sin(a0)) * run.x + Math.cos(a0) * run.y >= 0 ? 1 : -1;
   const raw: Pt[] = [];
-  const HALF = 12, LOOP = 22;
+  const HALF = 14, LOOP = 32;
   for (let i = 0; i <= HALF; i++) raw.push(bez((i / HALF) * 0.5));
   for (let i = 1; i <= LOOP; i++) { const a = a0 + turn * (i / LOOP) * Math.PI * 2; raw.push({ x: cc.x + Math.cos(a) * loopR, y: cc.y + Math.sin(a) * loopR }); }
   for (let i = 1; i <= HALF; i++) raw.push(bez(0.5 + (i / HALF) * 0.5));
@@ -493,7 +493,7 @@ function rampFor(e: Pt, x: Pt, n: Pt, side: 1 | -1, bow: number, loopR: number, 
   const cum = [0];
   for (let i = 1; i < raw.length; i++) cum.push(cum[i - 1]! + Math.hypot(raw[i]!.x - raw[i - 1]!.x, raw[i]!.y - raw[i - 1]!.y));
   const length = cum[cum.length - 1]!;
-  const count = clamp(Math.round(length / Math.max(8, margin * 1.25)) + 1, 8, PINBALL_CAPS.rampPts);
+  const count = clamp(Math.round(length / Math.max(6, margin * 0.8)) + 1, 8, PINBALL_CAPS.rampPts);
   const xs: number[] = [], ys: number[] = [], rot: number[] = [];
   let j = 0, fit = 1e6;
   for (let i = 0; i < count; i++) {

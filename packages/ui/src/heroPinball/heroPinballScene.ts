@@ -169,7 +169,7 @@ export class HeroPinballScene extends FxPool {
     this.geo = g;
     const r = g.ramp;
     this.railN = Math.min(r.n, this.rails.length);
-    const sy = (g.ballR * 2.5) / RAIL_GAUGE, sx = (r.spacing * 1.02) / RAIL_W;
+    const sy = (g.ballR * 2.15) / RAIL_GAUGE, sx = (r.spacing * 1.02) / RAIL_W;
     for (let i = 0; i < this.railN; i++) {
       const s = this.rails[i]!;
       s.position.set(r.xs[i]!, r.ys[i]!); s.rotation = r.rot[i]!; s.scale.set(sx, sy);

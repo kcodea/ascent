@@ -32,6 +32,24 @@ export function givesRise(cardId: string | null | undefined): boolean {
   return !!def.effects?.some(effectGivesRise) || !!def.chooseOne?.some((o) => o.effects?.some(effectGivesRise));
 }
 
+/**
+ * THE SHOP, MID-TURN: the Rises a minion PLAYED this action gave (Runic Beetle's Choose One option). A mid-turn action
+ * plays no presentation batch (production resolves it without one), so the grant is read off the board itself: a
+ * minion that was on the board WITHOUT Rise and now has it, in the same action that put a Rise-giving minion on the
+ * board. `prev` maps each uid on the board before the action to whether it had Rise. A Rise the played minion gave
+ * itself is not a travel.
+ */
+export function playedRiseGrants(
+  prev: ReadonlyMap<string, boolean>,
+  board: ReadonlyArray<{ uid: string; cardId: string; keywords: readonly string[] }>,
+): Array<{ cardId: string; source: string; target: string }> {
+  const giver = board.find((c) => !prev.has(c.uid) && givesRise(c.cardId));
+  if (!giver) return [];
+  return board
+    .filter((c) => prev.get(c.uid) === false && c.keywords.includes('R'))
+    .map((c) => ({ cardId: giver.cardId, source: giver.uid, target: c.uid }));
+}
+
 export interface RiseGiven {
   /** The giving card (the binding's key). */
   cardId: string;

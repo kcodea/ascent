@@ -32,6 +32,12 @@ beat, so binding `beetle` was enough to reach the launcher. Two changes: `givesR
 and the Shop launcher waits 120 ms for a giver that is not mounted yet (Beetle lands on the board in the same action
 that gives the Rise) before launching. A giver that never appears shows the Rise with its landing sound.
 
+**The first Beetle wiring played nothing** (owner: "No beam played"). The `keywordChanged` cue only runs for the End
+of Turn timeline. A mid-turn action is resolved with plain `reduce` in production (the batch exists only in DEV, for
+the Beat Lab), so no batch-driven cue can serve a mid-turn play. The fix reads the grant off the board
+(`playedRiseGrants`): a minion that gains Rise in the action that lands a Rise-giving minion. My earlier probe showed
+the batch and I took it as proof the cue would fire; it only proved the engine emits it.
+
 ## Sounds
 
 Generated with ElevenLabs sound generation, three takes each of a wisp, a wraith breath and a spectral chime. Picked by

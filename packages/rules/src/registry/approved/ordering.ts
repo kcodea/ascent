@@ -532,11 +532,13 @@ export const ORDERING_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-12, the Rise beam', quote: 'i made a rise beam as well. should be wired in all the exact same ways as the ward beam and execute beam were. make sure when rise is applied twice from and echo. they are staggered, really any instance of more than one rise being applied at the same time should be staggered. this effect should work in both shop and in combat.' },
       { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'runic beetle should case the rise effect when selecting the rise option of his choose 1' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, the first Beetle wiring only reached End of Turn beats', quote: 'No beam played' },
       { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/riseGivenLaunch.ts; packages/ui/src/choreo/channels/riseGiven.ts; packages/ui/src/fx/riseHold.ts; packages/ui/src/Card.tsx (the held dome); packages/ui/src/useCombatReplay.ts (beat start + both Echo skull sites); the Shop: packages/ui/src/Recruit.tsx (keywordChanged cue)' },
     ],
     contentIds: ['mumi', 'b2_wolvie', 'anubis', 'gravewarden', 'beetle'],
     currentBehaviour: 'PARTIAL from 2026-11-12 (fx/rise-given): combat (an Echo, a forced Echo, a Start of Combat), and every Shop '
-      + 'grant that plays as a beat of a minion, a Shout played from hand included (Runic Beetle). A Shop giver that never '
+      + 'grant that plays as an End of Turn beat of a minion, plus a Rise given by a minion played mid-turn (Runic Beetle, '
+      + 'read off the board because a mid-turn action carries no presentation batch). A Shop giver that never '
       + 'reaches the screen shows the Rise with its landing sound and no travel. Not covered: a Rise from a spell, a rune or a hero power (no giver minion), '
       + 'and a quiet repeat tick. A cascade rings its sounds on its first three effects only. The pure parts are pinned '
       + '(which grants travel, the gap, the hold, every call site); the scheduled play itself needs a live renderer and '

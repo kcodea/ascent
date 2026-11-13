@@ -16,6 +16,7 @@ import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repe
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
 import { launchShopRiseGiven } from './fx/riseGivenLaunch';
+import { playedRiseGrants } from './choreo/channels/riseGiven';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
@@ -5821,6 +5822,18 @@ export function Recruit() {
       }
     }
     prevWardRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('DS')]));
+  }, [run.board, inCombat]);
+
+  // SHOP RISE GIVEN BY A PLAYED MINION (owner 2026-11-13, Runic Beetle's Rise option: "No beam played"). A mid-turn
+  // play resolves without a presentation batch, so the keyword cue above never sees it. Read it off the board: a
+  // minion that gains Rise in the action that lands a Rise-giving minion. A layout effect, so the dome is held
+  // before the first paint that would show it. End of Turn grants arrive with no fresh giver and are left alone.
+  const prevRiseRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
+  useLayoutEffect(() => {
+    if (inCombat) { prevRiseRef.current = null; return; }
+    const prev = prevRiseRef.current;
+    if (prev) for (const g of playedRiseGrants(prev, run.board)) launchShopRiseGiven(g, 'played');
+    prevRiseRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
   }, [run.board, inCombat]);
 
   // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever

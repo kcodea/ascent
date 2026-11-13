@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { createRun, reduce, type BoardCard, type RunState } from '@game/sim';
 import { replayBeats, replayOrder } from '../replayOrder';
 import { bindingFor } from '../bindings';
-import { givesRise, risesGivenIn, type RiseGiven } from './riseGiven';
+import { givesRise, playedRiseGrants, risesGivenIn, type RiseGiven } from './riseGiven';
 import { isTravelledRise, riseLaunchAtMs, RISE_GIVEN_GAP_MS, RISE_LAND_SFX, RISE_LAUNCH_SFX } from '../../fx/riseGivenLaunch';
 import { holdRise, isRiseHeld, RISE_HOLD_MAX_MS } from '../../fx/riseHold';
 
@@ -113,6 +114,37 @@ describe('both phases call it', () => {
   it('the card hides a held Rise', () => {
     const card = readFileSync(new URL('../../Card.tsx', import.meta.url), 'utf8');
     expect(card).toContain("card.keywords.includes('R') && !riseHeld && (");
+  });
+});
+
+describe('a Rise given by a minion PLAYED mid-turn (owner 2026-11-13, Runic Beetle: "No beam played")', () => {
+  const card = (uid: string, cardId: string, keywords: string[] = []) => ({ uid, cardId, keywords });
+  const prev = new Map([['t', false], ['had', true]]);
+  it('Beetle lands and an existing Beast gains Rise: one grant from Beetle to that Beast', () => {
+    expect(playedRiseGrants(prev, [card('t', 'b2_beev', ['R']), card('had', 'b2_beev', ['R']), card('p', 'beetle')]))
+      .toEqual([{ cardId: 'beetle', source: 'p', target: 't' }]);
+  });
+  it('no grant without a fresh Rise giver, for a Rise the played minion gave itself, or for the Flurry option', () => {
+    expect(playedRiseGrants(prev, [card('t', 'b2_beev', ['R']), card('had', 'b2_beev', ['R'])])).toEqual([]);
+    expect(playedRiseGrants(prev, [card('t', 'b2_beev', ['R']), card('p', 'b2_raven')])).toEqual([]);
+    expect(playedRiseGrants(prev, [card('t', 'b2_beev'), card('p', 'beetle', ['R'])])).toEqual([]);
+    expect(playedRiseGrants(prev, [card('t', 'b2_beev', ['W']), card('p', 'beetle')])).toEqual([]);
+  });
+  it('a REAL play through the plain reducer (no presentation batch): play, pick Rise, target a Beast', () => {
+    const bc = (uid: string, cardId: string): BoardCard => {
+      const d = CARD_INDEX[cardId]!;
+      return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false } as BoardCard;
+    };
+    let run = { ...createRun(5, 'warden', 'ascent'), phase: 'recruit', embers: 30, hand: [bc('p', 'beetle')], board: [bc('t', 'b2_beev'), bc('t2', 'b2_beev')] } as unknown as RunState; // not Beetles: three would merge into a triple
+    for (const action of [{ type: 'play', uid: 'p' }, { type: 'chooseOne', index: 0 }]) run = reduce(run, action as never);
+    const before = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
+    expect(before.has('p'), 'Beetle is not on the board until its target is picked').toBe(false);
+    run = reduce(run, { type: 'battlecryTarget', targetUid: 't' } as never);
+    expect(playedRiseGrants(before, run.board)).toEqual([{ cardId: 'beetle', source: 'p', target: 't' }]);
+  });
+  it('the Shop reads it off the board after every action', () => {
+    const recruit = readFileSync(new URL('../../Recruit.tsx', import.meta.url), 'utf8');
+    expect(recruit).toContain("if (prev) for (const g of playedRiseGrants(prev, run.board)) launchShopRiseGiven(g, 'played');");
   });
 });
 

@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (129) — NOT owner questions
+## Doc Bot verification backlog (142) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -147,5 +147,18 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeMastery (Mastery: "Whenever one of your effects Improves, it improves an additional time.") — Rune of Mastery (Epic): +1 extra "Improve" step per copy held (read via `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27 duplicate rulings; `true` in older snapshots reads as 1 (= the classic double).
 - combat mod runeConduit (Conduit: "Your Rubies all bounce an additional time.") — Rune of the Conduit: "Your Rubies all bounce an additional time." Carries the COPY COUNT (repeat family, owner 2026-08-27 — the recruit half reads `runeStacksOf(state, 'rune_conduit')`); every Ruby CAST in combat on this side hops to one extra random other living friendly minion per copy (owner 2026-10-16: cross-phase).
 - combat mod oldPack — Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats.
+- combat mod runeShieldWall (Shield Wall: "Start of Combat: give your Taunt minions +4/+6.") — Shield Wall: Start of Combat, every living friendly Taunt minion +4/+6 (a combat buff).
+- combat mod runeWarmUpDealt — Warm-Up's LIFETIME side-wide tally going into this fight (the Pummel carry-over rule); it comes home as `ShoutCarry.warmUpDealt`.
+- combat mod runeGoldenHandshake (Golden Handshake: "When you Gild a minion, give your minions +2/+2.") — Golden Handshake: every combat Gild (Auric Runemaster, Ancient of Time) gives this side's minions +2/+2.
+- combat mod runePitchforks (Pitchforks: "Imps deal 3 damage to 2 enemies when summoned.") — Pitchforks: an Imp summoned in combat deals 3 damage to 2 different random enemies (per copy).
+- combat mod runeImpLegion (Imp Legion: "Your Imps gain "Echo: deal 3 damage to the lowest-Health enemy."") — Imp Legion: Imps summoned in combat carry "Echo: deal 3 damage to the lowest-Health enemy" (once per copy).
+- combat mod runeFlamekeeper (Flamekeeper: "After you cast a Dragonflame, give your Dragons +2/+2 permanently.") — Flamekeeper: every Dragonflame cast gives the side's living Dragons +2/+2 permanently (per copy).
+- combat mod runeRubyDust (Ruby Dust: "When a minion with Rubies dies, cast a permanent Ruby on a random friendly Kobold.") — Ruby Dust: a friendly minion with Rubies dying casts a permanent Ruby on a random friendly Kobold (per copy).
+- combat mod runeRoughCut (Rough Cut: "When you cast a Ruby on a Kobold, also cast one on a non-Kobold.") — Rough Cut: a Ruby cast on a Kobold also casts one on a random friendly non-Kobold (per copy).
 - combat mod runeDoubleBill (Double Bill: "Start of Combat: trigger your left-most and right-most Shouts.") — Double Bill: Start of Combat, trigger the left-most and right-most friendly Shouts (per copy).
 - combat mod runeBulwarkLine (Bulwark Line: "Start of Combat: give your Taunt minions Ward.") — Bulwark Line: Start of Combat, every friendly Taunt minion gains Ward.
+- combat mod runePackTactics (Pack Tactics: "Your Beasts' Rallies also trigger when that Beast is attacked.") — Pack Tactics: a Beast chosen as an attack's target fires its own Rally (per copy).
+- combat mod runeHellfire (Hellfire: "When a Demon attacks or dies, deal 1 damage to all enemies.") — Hellfire: a friendly Demon's attack or death deals 1 damage to every enemy minion (per copy).
+- combat mod runeWildfire (Wildfire: "When an enemy dies to damage that is not an attack, deal 3 damage to all enemies. (3 per combat.)") — Wildfire: an enemy minion dying to non-attack damage deals 3 damage to every enemy minion (3 per combat per copy).
+- combat mod eldersVoiceUid — Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held.
+- combat mod runeEldersVoice (Elder's Voice: "Your first Shout each turn also triggers at Start of Combat.") — Elder's Voice is held (gates `eldersVoiceUid`; per-copy count rides `flagCopies`).

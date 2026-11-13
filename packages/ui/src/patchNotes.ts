@@ -56,6 +56,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-13',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Set 2 gets 40 new runes. Look for them in the Runeforge: 23 Basic and 17 Epic, for every tribe and for any board.',
+        details: [
+          'Basic: Piggy Bank, Hazard Pay, Second Opinion, Shield Wall, Shatterproof, Warm-Up, Golden Handshake, Late Bloomer, Loyal Customer.',
+          "Basic: Deep Pockets, Rowdy Crowd, Bloodscent, Last Howl, Trophy Hunter, Pitchforks, Imp Legion, Guel's Apprentice, Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Ruby Dust, Rough Cut.",
+          'Epic: Top Shelf, Double Bill, Bulwark Line, Wholesale, Grudge, Bastion, Mirror Sheen.',
+          "Epic: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-12',
     changes: [
       {

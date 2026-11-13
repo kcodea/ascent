@@ -75,9 +75,22 @@ gain, a touch of tail). `ATTACK_FX_CLIPS.stamp` lists the three clips; the Coin'
 - `npx vitest run packages/ui/src/heroStamp`: 31 tests (tiers, tuner, plan and cue order per look, the track and the
   pose in both directions, the whole stamp on screen, the blow exactly once on the last thunk, finish / cancel / the
   safety timer / reduced motion put the portraits back exactly, determinism from the seed, the pooled scene drains).
+- `npx vitest run packages/ui/src/heroStamp packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 886 tests
+  pass (run with raised hook timeouts: on the loaded machine three audio suites timed out in their setup hooks at the
+  defaults). `npm run typecheck` clean; `npm run lint` 0 errors (148 warnings, none in this style's files).
 - Looked at in headless Chrome at 1920x1080 through the tuner's demo handle on a manual clock (stills at exact beats):
   Big and Small with you striking, Big and Small with the foe striking, and a knockout. After each run: no formation
   DOM left, `#stage` and both portraits with no inline transform, no updater hooked.
+- Perf, DEV build, headless Chrome (about 178 Hz), on a machine that was running fifteen other builders at the time,
+  so the frame times below are not a clean reading:
+  - The runner's OWN per-frame JavaScript (formation paint + stage paint + scene update, timed inside the updater) on
+    the top look, nine runs in both directions: median 0.1 ms, 99th percentile 0.5 to 1.5 ms, worst 1.4 to 2.6 ms.
+    The Coin Flick measured the same way in the same session: worst 1.4 to 1.8 ms.
+  - Whole frames (requestAnimationFrame deltas across the top look): median 5.6 to 6.0 ms, 99th percentile 18 to 43 ms,
+    worst 39 to 94 ms (one run 454 ms). The Coin Flick, interleaved: 99th percentile 23 to 41 ms, worst 49 to 76 ms. An
+    idle shop in between: 99th percentile 6.5 to 11 ms. So the long frames are not this attack's own code and the
+    existing Rare shows the same ones; where they come from (the dev build, the `#stage` camera, the loaded machine)
+    was not found. **The 6.25 ms bar is NOT shown to be met**: it needs a quiet machine and the production build.
 
 ## Not done / weak
 

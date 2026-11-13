@@ -14,6 +14,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
+import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
@@ -7786,10 +7787,13 @@ export function Recruit() {
           flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
         });
       },
-      keywordChanged: (uid, _keyword, gained) => {
+      keywordChanged: (uid, keyword, gained, from, index = 0) => {
         // The pip itself renders from the projection; the GRANT gets a flash so it reads as its own beat before
         // whatever it enables (a Deathfibrillator's Rise, then the death) — owner 2026-09-09. Losses stay silent.
         if (!gained) return;
+        // EXECUTE GIVEN by a minion with a bound effect (Raven's forced Rally): its beam travels from the giver and
+        // the aura waits for it, exactly as in combat. The beam replaces the generic flash (R-FX-EXECUTE-GIVEN-01).
+        if (keyword === 'V' && from && launchShopExecuteGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId, index)) return;
         const el = findEl(uid);
         if (!el) return;
         const r = el.getBoundingClientRect();

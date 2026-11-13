@@ -153,7 +153,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // `spellCast` row via `spellCastFxFor`), the shared play every phase's cast path reaches — like `fx/statMilestone.ts`.
     // `choreo/channels/impact.ts` (2026-09-24) is likewise a RESOLVER: the melee hit's `attackHitMilestoneN` row.
     // `fx/wardGivenLaunch.ts` (2026-11-04) too: the giver's `wardGiven` row and the `shieldGain` row, via bindingFor.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/buffWatcher.ts', 'choreo/channels/impact.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'fx/wardGivenLaunch.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/buffWatcher.ts', 'choreo/channels/impact.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/executeGivenLaunch.ts', 'fx/spellCastFx.ts', 'fx/statMilestone.ts', 'fx/wardGivenLaunch.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
@@ -244,7 +244,10 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'rune-buff-unit', 'rune-cast-flourish', 'rune-cast-mote', 'rune-select-implosion', 'rune-slot-break',
       // 'runeforge-embers' / 'runeforge-epic-flare' / 'runeforge-land-dust' joined on 2026-09-24: the Runeforge entrance
       // (`runeforgeEntrance/entrance.ts`): embers as the forge opens, the Epic flare, and the dust under each landing tablet.
-      'runeforge-embers', 'runeforge-epic-flare', 'runeforge-land-dust', 'self-buff-burst', 'shop-buff-purple', 'shop-tier-up', 'skip-sparks', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact',
+      'runeforge-embers', 'runeforge-epic-flare', 'runeforge-land-dust', 'self-buff-burst',
+      // 'sfx-execute-applied' + 'sfx-execute-slice' joined on 2026-11-12: the On Execute given sounds (`fx/executeGivenLaunch.ts`).
+      'sfx-execute-applied', 'sfx-execute-slice',
+      'shop-buff-purple', 'shop-tier-up', 'skip-sparks', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact',
       // 'tallyanimation1' left on 2026-09-28: Classic's centre tally was replaced by the shared damage formation (DOM).
       'tendril-trail',
       // 'tendril-trail-spirit' joined on 2026-09-17: the Spirit ribbon fires by literal id so its hits can be staggered.

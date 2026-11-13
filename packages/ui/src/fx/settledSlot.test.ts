@@ -77,3 +77,29 @@ describe('createSettlingPoint', () => {
     expect(pt.get().x).toBeCloseTo(100, 1);
   });
 });
+
+describe('trackSettledSlot: a travelling effect follows its unit to where the row settles (owner 2026-11-12, the Execute beam)', () => {
+  afterEach(() => vi.useRealTimers());
+  it('starts on the settled slot, then eases to the new one when a neighbour starts dying mid-flight', async () => {
+    const { SETTLE_TRACK_REMEASURE_MS, trackSettledSlot } = await import('./settledSlot');
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'performance'] });
+    stubGap();
+    // Three units; the first dies a moment after the effect leaves. Unit 2 settles at 620, then at 560.
+    const spec = { left: 0, width: 1000, gap: 20, units: [{ w: 100, dying: false }, { w: 100 }, { w: 100 }] };
+    const { units } = fakeRow(spec);
+    const t = trackSettledSlot(() => units[2]!.el)!;
+    expect(t.start.x).toBe(620);
+    spec.units[0]!.dying = true;
+    vi.advanceTimersByTime(SETTLE_TRACK_REMEASURE_MS + 1); // the re-measure picks up the collapse
+    vi.advanceTimersByTime(2000);                          // long past the ease
+    expect(t.get().x).toBeCloseTo(560, 0);
+    t.stop();
+    spec.units[1]!.dying = true; // after stop() nothing re-measures: the goal stays
+    vi.advanceTimersByTime(1000);
+    expect(t.get().x).toBeCloseTo(560, 0);
+  });
+  it('is null for a unit that is not on the board', async () => {
+    const { trackSettledSlot } = await import('./settledSlot');
+    expect(trackSettledSlot(() => null)).toBeNull();
+  });
+});

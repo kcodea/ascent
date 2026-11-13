@@ -258,7 +258,7 @@ export function planCardArtWrite(body: unknown, file: string): WritePlan {
 // `selfBuffed` while the reader grew `struck` / `buffed` / `buffedOn`, so every bindings save 400'd once any
 // row used one (found 2026-09-25: the FX Library's By-card edits never reached the file). `fxDefsPlugin.test.ts`
 // now reads both the reader's list and the committed file off disk and fails on any mismatch.
-export const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
+export const BINDING_FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn', 'pass'];
 
 /** Rejected at every key position, mirroring `bindings.ts`'s own `UNSAFE_KEYS` guard on the read side. A key
  *  the reader is guaranteed to drop must never earn a 200 here: the file would claim a binding the game can

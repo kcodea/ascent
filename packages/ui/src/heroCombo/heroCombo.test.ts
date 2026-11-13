@@ -1,28 +1,23 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 // @vitest-environment jsdom
 /**
- * THE BASEBALL HERO ATTACK ("Charge the Mound", Legendary; owner 2026-11-02: "baseball - have the opponent be the pitcher
- * and the batter be the player dealing dmg. the final lvl 4/knockout should be the player getting struck by the ball and
- * charging the mound and beating up the opponent in an over the top fast attack sequence"): the shared tiers onto the
- * four plays; the tuner values and the sounds; the pure plan (the TARGET pitches first; the blow lands ONCE: the bonk,
- * the crater, the haymaker; the pitch, the crack, the hop, the bean on the striker and every brawl hit are ticks); the
- * geometry (every point on screen, the brawl cloud pulled in off the edges); the pure poses of BOTH portraits, the ball
- * and the bat; the runner (both portraits' transforms, the striker's opacity and the z-order restored exactly on the end,
- * finish, cancel and the safety timer; the ball, bat and shadows hidden; the camera applied once); the variation roll;
- * slow mo and the fast brawl; the scene; the cosmetic.
+ * THE COMBO HERO ATTACK ("Flawless", a Legendary): the blow played as an arcade fighting game combo with a HUD. The
+ * shared tiers onto the four combos; the tuner values and the sounds; the pure plan (the blow lands ONCE: the jab, the
+ * low kick, the slam, the heavy blow; every other hit is a tick); THE COUNTER COUNTS REAL HITS; the geometry (the
+ * ring pulled out of a screen corner, everything on screen, both directions); the pure poses of BOTH portraits (the
+ * hit-freeze is a held pose, the launch, the juggle, the spike home, the K.O.); the super cut-in; the runner (both
+ * portraits' transforms, the striker's opacity and the z-order restored exactly on the end, finish, cancel, the safety
+ * timer and an unmount; the HUD hidden; the camera applied once); determinism from the seed; the scene.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
-import { COSMETIC_INDEX } from '@game/progression';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
-import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import {
-  FALL_LEAD_MS, HERO_COMBO_CLIP_KEYS, HERO_COMBO_DEFAULTS, HERO_COMBO_RANGES, comboBall, comboBat, comboCameraAt, comboCues, comboGeo,
-  comboKind, comboPlan, comboTimeScale, batterPose, clampHeroComboValue, heroComboConfigJson, moonShadow, onScreen, pitcherPose,
-  slowExtraMs, slowWindow, swingAngles, variantOf, type BaseballVariant, type HeroComboNumKey,
+  COMBO_CAPS, GLYPHS, HERO_COMBO_CLIP_KEYS, HERO_COMBO_DEFAULTS, HERO_COMBO_RANGES, airHitsOf, clampHeroComboValue, comboCameraAt, comboCounter, jabTaps, KO_LANDINGS,
+  comboCues, comboCutin, comboGeo, comboKind, comboPlan, counterSize, glyphAt, heroComboConfigJson, hitPoint, onScreen, strikerPose, targetPose,
+  type HeroComboNumKey,
 } from './heroComboConfig';
-import { HeroComboScene, MAX_BASEBALL_SPRITES, type HeroComboTextures } from './heroComboScene';
+import { HeroComboScene, MAX_COMBO_SPRITES, type HeroComboTextures } from './heroComboScene';
 import { playHeroCombo, type HeroComboOptions } from './heroCombo';
 import { SPEC } from '../HeroComboTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
@@ -30,27 +25,24 @@ import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 const W = Texture.WHITE;
 const TEX: HeroComboTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  ball: W, shadow: W, bat: W, puff: W, kapow: W, wordCrack: W, wordBonk: W, wordHomer: W, wordPow: W, wordBam: W, wordSmack: W, wordOut: W,
+  hitLight: W, hitSharp: W, hitHeavy: W, arrow: W, button: W, band: W, dust: W, labelHit: W, labelHits: W, wordKo: W,
+  d0: W, d1: W, d2: W, d3: W, d4: W, d5: W, d6: W, d7: W, d8: W, d9: W,
 };
 const C = HERO_COMBO_DEFAULTS;
-const plan = (total: number, o: { knockout?: boolean; reduced?: boolean; variant?: BaseballVariant } = {}) => comboPlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
-const A = { x: 960, y: 900 }, D = { x: 960, y: 200 };
-const R = 80;
+const plan = (total: number, o: { knockout?: boolean; reduced?: boolean; airHits?: number } = {}) => comboPlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
+const R = 120;
 const FRAME = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
-const ctxOf = (total: number, o: { variant?: BaseballVariant } = {}, a = A, d = D) => {
-  const p = plan(total, o);
-  const g = comboGeo(a, d, R, R, FRAME, C);
-  return { p, g, c: C, d, dR: R, aR: R, a };
-};
-const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
-const cueKinds = (total: number, o: { variant?: BaseballVariant } = {}) => comboCues(plan(total, o)).map((q) => q.kind);
+// The real screen: your hero in the bottom left corner, the foe in the top right.
+const YOU = { x: 171, y: 844 }, FOE = { x: 1773, y: 161 };
+const cueKinds = (total: number) => comboCues(plan(total), C).map((q) => q.kind);
 
-describe('the tiers: the shared four onto the four plays', () => {
-  it('uses the shared thresholds; I up the middle, II the hot shot, III the moonshot, IV charge the mound; a knockout charges the mound', () => {
+describe('the tiers: the shared four onto the four combos', () => {
+  it('uses the shared thresholds; I the jab, II the string, III the launcher, IV the super; a knockout plays the super', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(comboKind(tierOf(d)));
-    expect([1, 2, 3, 4].map((t) => comboKind(t as 1 | 2 | 3 | 4))).toEqual(['single', 'hotshot', 'moonshot', 'brawl']);
-    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'brawl' });
+    expect([1, 2, 3, 4].map((t) => comboKind(t as 1 | 2 | 3 | 4))).toEqual(['jab', 'string', 'launcher', 'super']);
+    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'super' });
+    expect(HERO_ATTACK_STYLES).toContain('combo');
   });
 });
 
@@ -61,8 +53,8 @@ describe('the tuner values', () => {
       expect(v, k).toBeGreaterThanOrEqual(min);
       expect(v, k).toBeLessThanOrEqual(max);
     }
-    expect(clampHeroComboValue('brawlHits', 99)).toBe(16);
-    expect(clampHeroComboValue('colorBall', 'nope')).toBe(C.colorBall);
+    expect(clampHeroComboValue('flurryHits', 99)).toBe(COMBO_CAPS.flurry);
+    expect(clampHeroComboValue('colorSpark', 'nope')).toBe(C.colorSpark);
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
     expect(JSON.parse(heroComboConfigJson(C)).previewDamage).toBeUndefined();
@@ -76,14 +68,14 @@ describe('the tuner values', () => {
     }
   });
 
-  it('the sounds: a bat crack, a glove pop, a bonk, a slide whistle, the organ\'s "Charge!" and the umpire are their own clips; every default clip exists', async () => {
-    expect(C.sfxCrackClip).toBe('fx/baseball-crack');
-    expect(C.sfxGloveClip).toBe('fx/baseball-glove');
-    expect(C.sfxBonkClip).toBe('fx/baseball-bonk');
-    expect(C.sfxFallClip).toBe('fx/baseball-fall');
-    expect(C.sfxChargeClip).toBe('fx/baseball-charge');
-    expect(C.sfxUmpClip).toBe('fx/baseball-out');
-    expect(C.sfxBrawlClip).toBe('fx/baseball-brawl');
+  it('the sounds: the hit, the body punch, the heavy blow, the super, the charge, the K.O. sting and the boom are its own clips; every default clip exists', async () => {
+    expect(C.sfxPunchClip).toBe('fx/combo-punch');
+    expect(C.sfxChargeClip).toBe('fx/combo-charge');
+    expect(C.sfxBoomClip).toBe('fx/combo-boom');
+    expect(C.sfxHitClip).toBe('fx/combo-hit');
+    expect(C.sfxHeavyClip).toBe('fx/combo-heavy');
+    expect(C.sfxSuperClip).toBe('fx/combo-super');
+    expect(C.sfxKoClip).toBe('fx/combo-ko');
     const { existsSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     for (const k of HERO_COMBO_CLIP_KEYS) {
@@ -94,229 +86,311 @@ describe('the tuner values', () => {
   });
 });
 
-describe('the plan (the target pitches first; the blow lands once)', () => {
-  it('I-III: glove pop, windup, the pitch, the swing, the CRACK, then the impact; the crack is before the impact', () => {
-    for (const total of [3, 8, 14]) {
-      const p = plan(total);
-      expect(p.chargeAt).toBeLessThan(p.windAt);
-      expect(p.windAt).toBeLessThan(p.releaseAt);
-      expect(p.releaseAt).toBeLessThan(p.arriveAt);
-      expect(p.swingAt).toBeLessThan(p.arriveAt);
-      expect(p.swingEnd).toBeGreaterThan(p.arriveAt);
-      expect(p.arriveAt).toBeLessThan(p.impactAt);
-      expect(p.endAt).toBeGreaterThan(p.impactAt);
-      const k = cueKinds(total);
-      expect(k.indexOf('charge')).toBe(0);
-      expect(k.indexOf('pitch')).toBeLessThan(k.indexOf('crack'));
-      expect(k.indexOf('crack')).toBeLessThan(k.indexOf('impact'));
-      expect(k).not.toContain('bean');
+describe('the plan (the blow lands once, on the last beat of the combo)', () => {
+  it('I: step in, one to three quick taps (a blow of 1, 2 or 3 is that many); the last tap = THE impact', () => {
+    expect([1, 2, 3, 4, 5].map(jabTaps)).toEqual([1, 2, 3, 3, 3]);
+    const one = plan(1);
+    expect(one.hits.map((h) => h.kind)).toEqual(['jab']);
+    expect(one.chargeAt).toBeLessThan(one.stepAt);
+    expect(one.stepEnd).toBeLessThan(one.hits[0]!.at);
+    expect(one.impactAt).toBe(one.hits[0]!.at);
+    expect(cueKinds(1)).toEqual(['charge', 'step', 'hit', 'impact', 'home', 'end']);
+    expect(plan(2).hits.map((h) => h.kind)).toEqual(['jab', 'jab']);
+    const p = plan(3);
+    expect(p.hits.map((h) => h.kind)).toEqual(['jab', 'jab', 'cross']);
+    expect(p.hits[1]!.at - p.hits[0]!.at).toBe(C.tapGapMs);
+    expect(p.impactAt).toBe(p.hits[2]!.at);
+    expect(plan(5).hits).toHaveLength(3);
+    expect(cueKinds(3)).toEqual(['charge', 'step', 'hit', 'hit', 'hit', 'impact', 'home', 'end']);
+  });
+
+  it('II: jab, cross, low kick in rhythm; the kick is THE impact', () => {
+    const p = plan(8);
+    expect(p.hits.map((h) => h.kind)).toEqual(['jab', 'cross', 'kick']);
+    expect(p.hits[1]!.at - p.hits[0]!.at).toBeGreaterThanOrEqual(120);
+    expect(p.hits[2]!.at - p.hits[1]!.at).toBeGreaterThanOrEqual(120);
+    expect(p.impactAt).toBe(p.hits[2]!.at);
+    expect(cueKinds(8).filter((k) => k === 'hit')).toHaveLength(3);
+  });
+
+  it('III: two hits, the uppercut launches, the jump, three or four air hits, the spike, then the slam = THE impact', () => {
+    for (const air of [3, 4]) {
+      const p = plan(14, { airHits: air });
+      expect(p.hits.map((h) => h.kind)).toEqual(['jab', 'cross', 'upper', ...Array.from({ length: air }, () => 'air'), 'spike']);
+      expect(p.launchAt).toBe(p.hits[2]!.at);
+      expect(p.jumpAt!).toBeGreaterThan(p.launchAt!);
+      expect(p.hits[3]!.at).toBeGreaterThan(p.jumpAt!);
+      expect(p.spikeAt).toBe(p.hits[p.hits.length - 1]!.at);
+      expect(p.slamAt!).toBeGreaterThan(p.spikeAt!);
+      expect(p.impactAt).toBe(p.slamAt);
     }
+    expect([...new Set(Array.from({ length: 40 }, (_, s) => airHitsOf(s, C)))].sort()).toEqual([3, 4]);
+    expect(airHitsOf(7, C)).toBe(airHitsOf(7, C));
   });
 
-  it('II: the liner is fastest, the grounder hops once on the way, the foul tip takes the long way round', () => {
-    const l = plan(8, { variant: 1 }), g = plan(8, { variant: 2 }), f = plan(8, { variant: 3 });
-    expect(l.impactAt - l.arriveAt).toBeLessThan(g.impactAt - g.arriveAt);
-    expect(g.hopAt).not.toBeNull();
-    expect(g.hopAt!).toBeGreaterThan(g.arriveAt);
-    expect(g.hopAt!).toBeLessThan(g.impactAt);
-    expect(cueKinds(8, { variant: 2 })).toContain('hop');
-    expect(cueKinds(8, { variant: 1 })).not.toContain('hop');
-    expect(f.impactAt - f.arriveAt).toBeGreaterThan(g.impactAt - g.arriveAt);
-  });
-
-  it('III: up and gone (the twinkle), then down from the sky; the slide whistle bottoms out on the crash; the bat flip lands', () => {
-    const p = plan(14);
-    expect(p.arriveAt).toBeLessThan(p.apexAt!);
-    expect(p.apexAt!).toBeLessThan(p.dropAt!);
-    expect(p.dropAt!).toBeLessThan(p.impactAt);
-    const cs = comboCues(p);
-    const fall = cs.find((q) => q.kind === 'fall')!;
-    expect(fall.at).toBeGreaterThanOrEqual(p.apexAt!);
-    expect(p.impactAt - fall.at).toBeLessThanOrEqual(FALL_LEAD_MS);
-    expect(cs.map((q) => q.kind)).toEqual(expect.arrayContaining(['twinkle', 'batland']));
-    expect(p.batLandAt!).toBeLessThan(p.endAt);
-  });
-
-  it('IV CHARGE THE MOUND: the bean, the bat slammed down, the fume, the charge, the collision, a flurry of hits inside the brawl, the haymaker = THE impact', () => {
+  it('IV: opening hits, the super freeze (the cut-in and its inputs), the flurry, the heavy blow = THE impact, then K.O.', () => {
     const p = plan(40);
-    expect(p.kind).toBe('brawl');
-    expect(p.beanAt).toBe(p.arriveAt);
-    expect(p.beanAt!).toBeLessThan(p.batDropAt!);
-    expect(p.batDropAt!).toBeLessThan(p.clatterAt!);
-    expect(p.staggerEnd!).toBeLessThanOrEqual(p.chargeRunAt!);
-    expect(p.chargeRunAt!).toBeLessThan(p.collideAt!);
-    expect(p.hits.length).toBe(C.brawlHits);
-    for (const h of p.hits) { expect(h).toBeGreaterThan(p.collideAt!); expect(h).toBeLessThan(p.brawlEnd!); }
-    expect([...p.hits].sort((a, b) => a - b)).toEqual(p.hits);
-    expect(p.koWindAt!).toBe(p.brawlEnd);
-    expect(p.impactAt).toBeGreaterThan(p.brawlEnd!);
-    const k = cueKinds(40);
-    expect(k).toEqual(expect.arrayContaining(['bean', 'batdrop', 'clatter', 'fume', 'run', 'collide', 'hit', 'kowind']));
-    expect(k).not.toContain('crack');
-    expect(k.indexOf('bean')).toBeLessThan(k.indexOf('run'));
+    const kinds = p.hits.map((h) => h.kind);
+    expect(kinds.filter((k) => k === 'flurry')).toHaveLength(C.flurryHits);
+    expect(kinds[kinds.length - 1]).toBe('heavy');
+    const open = p.hits.filter((h) => h.at < p.freezeAt!);
+    expect(open).toHaveLength(C.openHits);
+    // NOTHING is thrown during the freeze.
+    expect(p.hits.filter((h) => h.at >= p.freezeAt! && h.at < p.cutinEnd!)).toHaveLength(0);
+    expect(p.flurryEnd!).toBeGreaterThan(p.cutinEnd!);
+    expect(p.impactAt).toBe(p.hits[p.hits.length - 1]!.at);
+    expect(p.koAt!).toBeGreaterThan(p.impactAt);
+    // THE WIND-UP: a real held beat between the flurry's last hit and the heavy blow, and nothing lands in it.
+    expect(p.windAt!).toBeGreaterThan(p.flurryEnd!);
+    expect(p.impactAt - p.windAt!).toBeGreaterThanOrEqual(400);
+    expect(p.hits.filter((h) => h.at > p.flurryEnd! && h.at < p.impactAt)).toHaveLength(0);
+    // THE AFTERMATH: the striker stays for well over a second after the blow (K.O. holds, the target settles).
+    expect(p.homeAt - p.impactAt).toBeGreaterThanOrEqual(1400);
+    const cs = comboCues(p, C);
+    const k = cs.map((q) => q.kind);
+    expect(k.filter((x) => x === 'glyph')).toHaveLength(GLYPHS);
+    expect(k.indexOf('super')).toBeLessThan(k.indexOf('glyph'));
+    expect(k.lastIndexOf('glyph')).toBeLessThan(k.indexOf('flurry'));
     expect(k.lastIndexOf('hit')).toBeLessThan(k.indexOf('impact'));
+    expect(k.indexOf('impact')).toBeLessThan(k.indexOf('ko'));
+    expect(k.indexOf('wind')).toBeGreaterThan(k.indexOf('flurry'));
+    expect(k.indexOf('wind')).toBeLessThan(k.indexOf('impact'));
+    expect(cs.filter((q) => q.kind === 'land').map((q) => q.at - p.impactAt)).toEqual([...KO_LANDINGS]);
+    for (let i = 0; i < GLYPHS; i++) { expect(glyphAt(p, C, i)).toBeGreaterThan(p.freezeAt!); expect(glyphAt(p, C, i)).toBeLessThan(p.cutinEnd! - C.cutinSlideMs); }
   });
 
-  it('every tier: exactly one impact cue, the glove pop first, the end last', () => {
+  it('every tier: exactly one impact and one end, cues in time order; lengths in the range of a Legendary', () => {
+    const len: number[] = [];
     for (const total of [3, 8, 14, 40]) {
-      for (const variant of [1, 2, 3] as const) {
-        const cs = comboCues(plan(total, { variant }));
-        expect(cs.filter((q) => q.kind === 'impact')).toHaveLength(1);
-        expect(cs[0]!.kind).toBe('charge');
-        expect(cs[cs.length - 1]!.kind).toBe('end');
-        for (let i = 1; i < cs.length; i++) expect(cs[i]!.at).toBeGreaterThanOrEqual(cs[i - 1]!.at);
-      }
+      const p = plan(total);
+      const cs = comboCues(p, C);
+      expect(cs.filter((q) => q.kind === 'impact')).toHaveLength(1);
+      expect(cs[cs.length - 1]!.kind).toBe('end');
+      for (let i = 1; i < cs.length; i++) expect(cs[i]!.at).toBeGreaterThanOrEqual(cs[i - 1]!.at);
+      len.push(p.endAt - p.chargeAt);
     }
+    expect(len[0]!).toBeLessThan(1700);
+    expect(len[1]!).toBeLessThan(1900);
+    expect(len[2]!).toBeLessThan(3400);
+    // IV is long on purpose (the wind-up and the aftermath): in the range of Soccer IV, never past 6 s.
+    expect(len[3]!).toBeGreaterThan(4800);
+    expect(len[3]!).toBeLessThan(6000);
+    for (let i = 1; i < 4; i++) expect(len[i]!).toBeGreaterThan(len[i - 1]!);
   });
 
-  it('reduced motion: no pose, no ball, no bat; the blow lands at the end of the formation', () => {
+  it('reduced motion: no combo, the blow lands as the formation ends', () => {
     const p = plan(40, { reduced: true });
     expect(p.reduced).toBe(true);
-    expect(comboCues(p).map((q) => q.kind)).toEqual(['impact', 'end']);
-    const x = { p, g: comboGeo(A, D, R, R, FRAME, C), c: C, d: D, dR: R, aR: R, a: A };
-    for (let t = 0; t < p.endAt; t += 50) {
-      expect(comboBall(x, t).visible).toBe(false);
-      expect(comboBat(x, t).visible).toBe(false);
-      expect(batterPose(p, x.g, C, R, A, t)).toMatchObject({ x: 0, y: 0, rot: 0 });
-      expect(pitcherPose(p, x.g, C, R, t)).toMatchObject({ x: 0, y: 0, rot: 0 });
-    }
+    expect(p.hits).toEqual([]);
+    expect(comboCues(p, C).map((q) => q.kind)).toEqual(['impact', 'end']);
+    expect(comboCounter(p, C, p.impactAt + 10).alpha).toBe(0);
   });
 });
 
-describe('the geometry', () => {
-  it('the bat meets the ball in front of the batter; the pitcher releases in front of itself; the foul tip goes wide to the hands\' side', () => {
-    const g = comboGeo(A, D, R, R, FRAME, C);
-    expect(g.u).toEqual({ x: 0, y: -1 });
-    expect(g.plate.y).toBeLessThan(A.y); // toward the pitcher
-    expect(dist(g.plate, A)).toBeLessThan(R * 2.2);
-    expect(g.release.y).toBeGreaterThan(D.y);
-    // the foul tip loops out to the hands' side
-    const side = (p: { x: number; y: number }) => (p.x - A.x) * g.n.x * g.side + (p.y - A.y) * g.n.y * g.side;
-    expect(side(g.foul1)).toBeGreaterThan(R);
-    // the swing: cocked behind, across the front at contact, through to the follow
-    const s = swingAngles(g);
-    expect(Math.abs(s.contact - s.cock)).toBeGreaterThan(1);
-    expect(Math.abs(s.follow - s.contact)).toBeGreaterThan(1);
+describe('THE COUNTER COUNTS REAL HITS', () => {
+  it('hit n reads n, at every tier and on a knockout: the count never claims a hit that did not land', () => {
+    for (const [total, ko] of [[1, false], [3, false], [5, false], [6, false], [11, false], [12, false], [19, false], [20, false], [47, false], [137, false], [2, true], [9, true]] as const) {
+      const p = plan(total, { knockout: ko });
+      expect(p.hits.map((h) => h.count)).toEqual(p.hits.map((_, i) => i + 1));
+      expect(comboCounter(p, C, p.hits[0]!.at - 1).alpha).toBe(0);
+      for (let t = p.hits[0]!.at; t <= p.homeAt; t += 4) {
+        const landed = p.hits.filter((h) => h.at <= t).length;
+        expect(comboCounter(p, C, t).value, `${total} at ${t}`).toBe(landed);
+      }
+      const end = comboCounter(p, C, p.impactAt + 40);
+      expect(end.value, `${total}${ko ? ' knockout' : ''}`).toBe(p.hits.length);
+      expect(end.final).toBe(true);
+      expect(end.alpha).toBeGreaterThan(0.9);
+      expect(comboCounter(p, C, p.endAt).alpha).toBe(0);
+    }
   });
 
-  it('the foe tucked in the top-right corner (1920 x 1080 and 1600 x 900): the cloud, the brawl spots, the KO launch, the foul tip and the bat all on screen', () => {
-    for (const fr of [FRAME, { x0: 0, y0: 0, x1: 1600, y1: 900 }]) {
-      const a = { x: 140, y: fr.y1 - 160 }, d = { x: fr.x1 - 120, y: 110 };
-      for (const [s, t] of [[a, d], [d, a]]) {
-        const g = comboGeo(s, t, R, R, fr, C);
-        expect(onScreen(g.cloud, fr, R * 1.5), 'cloud').toBe(true);
-        expect(onScreen(g.mound, fr, 0), 'mound').toBe(true);
-        expect(onScreen({ x: t.x + g.pitcherBrawl.x, y: t.y + g.pitcherBrawl.y }, fr, 0), 'pitcher in the brawl').toBe(true);
-        expect(onScreen({ x: t.x + g.launch.x, y: t.y + g.launch.y }, fr, R * 0.4), 'launch').toBe(true);
-        expect(onScreen(g.foul1, fr, R * 0.5), 'foul1').toBe(true);
-        expect(onScreen(g.foul2, fr, R * 0.5), 'foul2').toBe(true);
-        expect(onScreen(g.batLand, fr, R * 0.3), 'bat').toBe(true);
-        expect(onScreen(g.batSlam, fr, R * 0.3), 'bat slam').toBe(true);
+  it('the smallest blows: 1, 2 and 3 damage are 1, 2 and 3 taps, so the count is the damage; it never rolls', () => {
+    for (const total of [1, 2, 3]) {
+      const p = plan(total);
+      expect(comboCounter(p, C, p.impactAt + 1)).toMatchObject({ value: total, final: true });
+    }
+    const q = plan(3);
+    expect(comboCounter(q, C, q.hits[0]!.at + 1).value).toBe(1);
+    expect(comboCounter(q, C, q.hits[1]!.at - 1).value).toBe(1); // no roll between hits
+    expect(comboCounter(q, C, q.hits[1]!.at + 5)).toMatchObject({ value: 2, pulse: 5 });
+  });
+});
+
+describe('the geometry (the ring; everything on screen; both directions)', () => {
+  it('a 2D fighter: the striker stands beside the target, level with it, on the side it comes from, facing it', () => {
+    const you = comboGeo(YOU, FOE, R, R, FRAME, C, { side: 'player', hits: 3, kind: 'string' });
+    expect(you.face).toBe(1);
+    expect(you.stance.x).toBeLessThan(you.ring.x);
+    expect(you.stance.y).toBe(you.ring.y);
+    const foe = comboGeo(FOE, YOU, R, R, FRAME, C, { side: 'opp', hits: 3, kind: 'string' });
+    expect(foe.face).toBe(-1);
+    expect(foe.stance.x).toBeGreaterThan(foe.ring.x);
+    // Straight above or below: your hero takes the left, the foe the right.
+    expect(comboGeo({ x: 960, y: 900 }, { x: 960, y: 300 }, R, R, FRAME, C, { side: 'player' }).face).toBe(1);
+    expect(comboGeo({ x: 960, y: 300 }, { x: 960, y: 900 }, R, R, FRAME, C, { side: 'opp' }).face).toBe(-1);
+  });
+
+  it('a target in the open fights in its own slot; one tucked in a corner hops out just far enough for its tier', () => {
+    const open = comboGeo({ x: 400, y: 540 }, { x: 1100, y: 600 }, R, R, FRAME, C, { side: 'player', hits: 18, kind: 'super' });
+    expect(open.pull).toEqual({ x: 0, y: 0 });
+    const jab = comboGeo(YOU, FOE, R, R, FRAME, C, { side: 'player', hits: 3, kind: 'jab' });
+    const launcher = comboGeo(YOU, FOE, R, R, FRAME, C, { side: 'player', hits: 8, kind: 'launcher' });
+    const sup = comboGeo(YOU, FOE, R, R, FRAME, C, { side: 'player', hits: 18, kind: 'super' });
+    expect(Math.hypot(jab.pull.x, jab.pull.y)).toBeLessThan(R * 0.5);
+    // III: headroom for the whole launch.
+    expect(launcher.lift).toBeCloseTo(R * C.launchHeight, 5);
+    expect(launcher.ring.y - launcher.lift - R).toBeGreaterThanOrEqual(0);
+    expect(jab.lift).toBe(0);
+    // IV: room to be sent flying.
+    expect(sup.ring.x + R * C.koLaunch + R * 0.75).toBeLessThanOrEqual(FRAME.x1 + 1e-6);
+  });
+
+  it('every tier, both directions, corners and edges: the stance, the counter, K.O. and both portraits stay on screen all the way through', () => {
+    const spots: [{ x: number; y: number }, { x: number; y: number }][] = [[YOU, FOE], [FOE, YOU], [{ x: 960, y: 900 }, { x: 960, y: 200 }], [{ x: 140, y: 140 }, { x: 1780, y: 940 }], [{ x: 1780, y: 940 }, { x: 140, y: 140 }], [{ x: 300, y: 540 }, { x: 150, y: 540 }]];
+    for (const [a, d] of spots) {
+      for (const total of [3, 8, 14, 40]) {
+        const p = plan(total);
+        const g = comboGeo(a, d, R, R, FRAME, C, { side: 'player', hits: p.hits.length, kind: p.kind });
+        const tag = `${JSON.stringify(a)} -> ${JSON.stringify(d)} ${p.kind}`;
+        expect(onScreen(g.stance, FRAME, R), tag).toBe(true);
+        expect(onScreen(g.ring, FRAME, R), tag).toBe(true);
+        expect(g.counter.x - g.counterW / 2, tag).toBeGreaterThanOrEqual(0);
+        expect(g.counter.x + g.counterW / 2, tag).toBeLessThanOrEqual(1920);
+        expect(g.counter.y - g.counterH / 2, tag).toBeGreaterThanOrEqual(0);
+        expect(g.counter.y + g.counterH / 2, tag).toBeLessThanOrEqual(1080);
+        expect(g.ko.x - g.koW / 2, tag).toBeGreaterThanOrEqual(0);
+        expect(g.ko.x + g.koW / 2, tag).toBeLessThanOrEqual(1920);
+        // The counter is never behind K.O.
+        const apart = Math.abs(g.ko.x - g.counter.x) >= (g.koW + g.counterW) / 2 || Math.abs(g.ko.y - g.counter.y) >= g.koW * 0.22 + g.counterH / 2;
+        expect(apart, `${tag}: K.O. clear of the counter`).toBe(true);
+        for (let t = p.chargeAt; t <= p.endAt; t += 6) {
+          const s = strikerPose(p, g, C, R, a, t), f = targetPose(p, g, C, R, d, t);
+          // A portrait's centre never leaves the screen (a slot that already sits near an edge is allowed its own spot).
+          expect(onScreen({ x: a.x + s.x, y: a.y + s.y }, FRAME, Math.min(R * 0.5, a.x, a.y, 1920 - a.x, 1080 - a.y) - 1), `${tag} striker at ${t}`).toBe(true);
+          expect(onScreen({ x: d.x + f.x, y: d.y + f.y }, FRAME, Math.min(R * 0.5, d.x, d.y, 1920 - d.x, 1080 - d.y) - 1), `${tag} target at ${t}`).toBe(true);
+        }
+        for (const h of p.hits) expect(onScreen(hitPoint(p, g, C, R, d, h), FRAME, 0), `${tag} hit ${h.i}`).toBe(true);
       }
     }
   });
+
+  it('the counter is sized for the final number and sits behind the striker, clear of the target', () => {
+    expect(counterSize(8, R, C).digits).toBe(1);
+    expect(counterSize(40, R, C).digits).toBe(2);
+    expect(counterSize(137, R, C).w).toBeGreaterThan(counterSize(40, R, C).w);
+    const g = comboGeo({ x: 400, y: 540 }, { x: 1100, y: 600 }, R, R, FRAME, C, { side: 'player', hits: 18, kind: 'super' });
+    expect(g.counter.x + g.counterW / 2).toBeLessThan(g.stance.x - R);
+  });
 });
 
-describe('the poses, the ball and the bat', () => {
-  it('the PITCHER winds up and lunges before anything is hit; the BATTER loads and swings through the contact', () => {
-    const x = ctxOf(3);
-    const { p, g } = x;
-    const mid = pitcherPose(p, g, C, R, p.windAt + (p.releaseAt - p.windAt) * 0.4);
-    expect(Math.hypot(mid.x, mid.y)).toBeGreaterThan(1);
-    expect(Math.abs(mid.rot)).toBeGreaterThan(1);
-    const lunge = pitcherPose(p, g, C, R, p.releaseAt + 80);
-    expect(lunge.x * g.u.x + lunge.y * g.u.y).toBeLessThan(0); // toward the batter
-    expect(batterPose(p, g, C, R, A, p.swingAt - 10).rot).not.toBe(batterPose(p, g, C, R, A, p.swingEnd).rot);
-    expect(batterPose(p, g, C, R, A, p.endAt - 1)).toMatchObject({ x: expect.closeTo(0, 0), y: expect.closeTo(0, 0) });
-  });
+describe('the poses (pure): both portraits', () => {
+  const A = { x: 400, y: 600 }, D = { x: 1100, y: 600 };
+  const setup = (total: number, air?: number) => {
+    const p = plan(total, { airHits: air });
+    const g = comboGeo(A, D, R, R, FRAME, C, { side: 'player', hits: p.hits.length, kind: p.kind });
+    return { p, g, s: (t: number) => strikerPose(p, g, C, R, A, t), f: (t: number) => targetPose(p, g, C, R, D, t) };
+  };
 
-  it('the ball: in the pitcher\'s hand, at the plate on the contact, on the pitcher on the impact, gone after', () => {
-    for (const [total, variant] of [[3, 1], [8, 1], [8, 2], [8, 3]] as const) {
-      const x = ctxOf(total, { variant });
-      const { p, g } = x;
-      const held = comboBall(x, p.windAt + 40);
-      expect(held.visible).toBe(true);
-      expect(dist(held, D)).toBeLessThan(R * 1.6);
-      expect(dist(comboBall(x, p.arriveAt - 0.5), g.plate)).toBeLessThan(R * 0.2);
-      expect(dist(comboBall(x, p.impactAt - 0.5), g.hit)).toBeLessThan(R * 0.3);
-      expect(comboBall(x, p.impactAt + 1).visible).toBe(false);
+  it('at rest before the step in and at the end; the striker reaches its stance; deterministic', () => {
+    for (const total of [3, 8, 14, 40]) {
+      const { p, g, s, f } = setup(total);
+      for (const t of [0, p.stepAt - 1, p.endAt, p.endAt + 500]) {
+        expect(s(t)).toEqual({ x: 0, y: 0, rot: 0, scale: 1, squash: 0 });
+        expect(f(t)).toEqual({ x: 0, y: 0, rot: 0, scale: 1, squash: 0 });
+      }
+      const at = s(p.stepEnd + 1);
+      expect(Math.abs(A.x + at.x - g.stance.x)).toBeLessThan(R * 0.2);
+      expect(s(p.hits[0]!.at + 30)).toEqual(s(p.hits[0]!.at + 30));
+      // Both are (all but) home again by the end.
+      expect(Math.hypot(s(p.homeEnd).x, s(p.homeEnd).y)).toBeLessThan(1);
+      expect(Math.hypot(f(p.endAt - 1).x, f(p.endAt - 1).y)).toBeLessThan(3);
     }
-    // the grounder is on the ground (no lift) at the hop
-    const gx = ctxOf(8, { variant: 2 });
-    expect(comboBall(gx, gx.p.hopAt!).lift).toBeLessThan(1);
   });
 
-  it('III: the ball rockets up and away (shrinking), is gone at the top, and comes down GROWING onto the pitcher, its shadow growing under it', () => {
-    const x = ctxOf(14);
-    const { p } = x;
-    const up = comboBall(x, (p.arriveAt + p.apexAt!) / 2);
-    expect(up.scale).toBeLessThan(1);
-    expect(up.lift).toBeGreaterThan(R);
-    expect(comboBall(x, (p.apexAt! + p.dropAt!) / 2).visible).toBe(false);
-    const a = comboBall(x, p.dropAt! + 30), b = comboBall(x, p.impactAt - 5);
-    expect(b.scale).toBeGreaterThan(a.scale);
-    expect(b.lift).toBeLessThan(a.lift);
-    expect(moonShadow(p, p.impactAt - 5)).toBeGreaterThan(moonShadow(p, p.dropAt! + 30));
-    expect(moonShadow(p, p.impactAt + 1)).toBe(0);
-    // the bat flip leaves the hands
-    const bat = comboBat(x, (p.arriveAt + p.batLandAt!) / 2);
-    expect(bat.lift).toBeGreaterThan(R * 0.3);
+  it('THE HIT-FREEZE is a held pose (visuals only): both portraits stand still for it on a hit, then recover', () => {
+    const { p, s, f } = setup(8);
+    const h = p.hits[1]!.at;
+    expect(s(h + 2)).toEqual(s(h + C.hitFreezeMs - 2));
+    const a = f(h + 2), b = f(h + C.hitFreezeMs - 2);
+    expect(Math.abs(a.x - b.x)).toBeLessThan(1.5);
+    expect(Math.abs(s(h + C.hitFreezeMs + 80).x - s(h + 2).x)).toBeGreaterThan(5);
+    // The striker lunges INTO the target on the hit, the target is knocked AWAY.
+    expect(s(h + 2).x).toBeGreaterThan(s(h - 90).x);
+    expect(f(h + 2).x).toBeGreaterThan(0);
   });
 
-  it('IV: the bean hits the BATTER (the ball ends on its face), the batter reels, charges to the mound, brawls, and both portraits go home', () => {
-    const x = ctxOf(40);
-    const { p, g } = x;
-    expect(dist(comboBall(x, p.beanAt! - 0.5), g.bean)).toBeLessThan(R * 0.2);
-    expect(comboBall(x, p.beanAt! + 1).visible).toBe(false);
-    expect(Math.abs(batterPose(p, g, C, R, A, p.beanAt! + 60).rot)).toBeGreaterThan(1);
-    const at = batterPose(p, g, C, R, A, p.collideAt! - 1);
-    expect(dist({ x: A.x + at.x, y: A.y + at.y }, g.mound)).toBeLessThan(R * 0.2);
-    // the pitcher is dragged into the cloud and shakes there; the batter too
-    const pb = pitcherPose(p, g, C, R, (p.collideAt! + p.brawlEnd!) / 2);
-    expect(dist({ x: D.x + pb.x, y: D.y + pb.y }, g.cloud)).toBeLessThan(R * 1.5);
-    // the bat lies in the dirt through the brawl
-    const bat = comboBat(x, (p.collideAt! + p.brawlEnd!) / 2);
-    expect(dist(bat, g.batSlam)).toBeLessThan(R * 0.5);
-    // home at the end, both of them
-    for (const q of [batterPose(p, g, C, R, A, p.endAt - 1), pitcherPose(p, g, C, R, p.endAt - 1)]) expect(Math.hypot(q.x, q.y)).toBeLessThan(2);
+  it('II: the three hits land at three heights, and the low kick leans the striker back', () => {
+    const { p, g } = setup(8);
+    const ys = p.hits.map((h) => hitPoint(p, g, C, R, D, h).y);
+    expect(ys[0]!).toBeLessThan(ys[1]!);
+    expect(ys[1]!).toBeLessThan(ys[2]!);
+    expect(strikerPose(p, g, C, R, A, p.hits[2]!.at + 2).rot).toBeLessThan(0);
   });
 
-  it('the camera pushes in and shakes on the impact; IV jolts on the bean and the brawl hits', () => {
+  it('III: the uppercut launches the target, the striker jumps after it, each air hit bobs it up, the spike drives it home', () => {
+    const { p, g, s, f } = setup(14, 4);
+    const air = p.hits.filter((h) => h.kind === 'air');
+    expect(f(p.launchAt! - 5).y).toBeGreaterThan(-R * 0.3);
+    expect(f(air[0]!.at).y).toBeLessThan(-g.lift * 0.7); // airborne
+    expect(s(air[0]!.at).y).toBeLessThan(-g.lift * 0.6); // the striker is up there with it
+    for (let i = 0; i < air.length - 1; i++) {
+      const mid = (air[i]!.at + air[i + 1]!.at) / 2 + C.hitFreezeMs / 2;
+      expect(f(mid).y, `air hit ${i} bobs it up`).toBeLessThan(f(air[i]!.at - 1).y - g.lift * 0.05);
+    }
+    expect(f(p.spikeAt! + C.hitFreezeMs + (p.slamAt! - p.spikeAt! - C.hitFreezeMs) * 0.5).y).toBeGreaterThan(f(p.spikeAt!).y);
+    expect(Math.abs(f(p.slamAt!).y)).toBeLessThan(2); // in its socket on the impact
+    expect(f(p.slamAt! + 30).squash).toBeGreaterThan(0.15);
+    // Never higher than the launch.
+    for (let t = p.launchAt!; t < p.slamAt!; t += 5) expect(f(t).y).toBeGreaterThan(-g.lift - R * 0.2);
+  });
+
+  it('IV: nobody moves through the super freeze; the heavy blow sends the target flying, spinning, and it comes home', () => {
+    const { p, g, s, f } = setup(40);
+    const a = p.freezeAt! + 200, b = p.cutinEnd! - 60;
+    expect(s(a)).toEqual(s(b));
+    expect(Math.hypot(f(a).x - f(b).x, f(a).y - f(b).y)).toBeLessThan(1.5); // only the last flinch dying away
+    expect(s(p.impactAt - 120).x).toBeLessThan(s(a).x); // the wind-up pulls back
+    expect(s(p.impactAt + 2).x).toBeGreaterThan(s(a).x + R * 0.3); // the heavy lunge
+    // THE WIND-UP: the striker swells as it rears back.
+    expect(s(p.impactAt - 60).scale).toBeGreaterThan(s(p.windAt! - 1).scale + 0.08);
+    const out = f(p.impactAt + 240);
+    expect(out.x).toBeCloseTo(g.launch.x, 0);
+    expect(Math.abs(out.rot)).toBeGreaterThan(180);
+    // THE AFTERMATH: it bounces off its landing, then SETTLES there (still, upright-turned) until the striker heads home.
+    expect(f(p.impactAt + 150 + 130).y).toBeLessThan(f(p.impactAt + 150).y - R * 0.1);
+    const rest = f(p.homeAt - 40), rest2 = f(p.homeAt - 10);
+    expect(Math.hypot(rest.x - rest2.x, rest.y - rest2.y)).toBeLessThan(0.5);
+    expect(rest.x).toBeCloseTo(g.launch.x, 0);
+    expect(Math.abs(f(p.homeEnd).x)).toBeLessThan(1);
+    expect(f(p.homeEnd).rot).toBeCloseTo(0, 5);
+  });
+
+  it('the cut-in: dim, the band slides in, holds, slides out; the inputs light one by one; none outside the freeze', () => {
     const p = plan(40);
-    expect(comboCameraAt(p, C, p.impactAt + 10, { x: 0, y: -1 }).zoom).toBeGreaterThan(1);
-    const j = comboCameraAt(p, C, p.hits[2]! + 20, { x: 0, y: -1 });
-    expect(Math.hypot(j.x, j.y)).toBeGreaterThan(0);
-    expect(comboCameraAt(plan(40, { reduced: true }), C, 1000, { x: 0, y: 1 })).toEqual({ zoom: 1, x: 0, y: 0 });
+    expect(comboCutin(p, C, p.freezeAt! - 1)).toBeNull();
+    expect(comboCutin(p, C, p.cutinEnd!)).toBeNull();
+    expect(comboCutin(plan(14), C, plan(14).impactAt)).toBeNull();
+    expect(comboCutin(p, C, p.freezeAt!)!.slide).toBe(-1);
+    const hold = comboCutin(p, C, (p.freezeAt! + p.cutinEnd!) / 2)!;
+    expect(hold.slide).toBe(0);
+    expect(hold.dim).toBeCloseTo(C.cutinDim, 5);
+    expect(comboCutin(p, C, p.cutinEnd! - 5)!.slide).toBeGreaterThan(0.8);
+    expect(comboCutin(p, C, p.cutinEnd! - 5)!.dim).toBeLessThan(0.05);
+    expect(comboCutin(p, C, glyphAt(p, C, 0) - 5)!.glyphAge).toBeLessThan(0);
+    expect(comboCutin(p, C, glyphAt(p, C, 2) + 1)!.glyphAge).toBeGreaterThan(0);
   });
-});
 
-describe('variety (II rolls one of three hits)', () => {
-  it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
-    const seen = new Set<number>();
-    for (let s = 0; s < 60; s++) { expect(variantOf(s, C)).toBe(variantOf(s, C)); seen.add(variantOf(s, C)); }
-    expect([...seen].sort()).toEqual([1, 2, 3]);
-    for (const v of ['1', '2', '3']) expect(variantOf(7, { ...C, variation: v })).toBe(Number(v));
-  });
-});
-
-describe('slow mo (III on the contact, IV on the bean) and the FAST brawl', () => {
-  it('III slows around the contact, IV around the bean and then runs fast through the brawl; never 0; I and II never slow', () => {
-    for (const total of [3, 8]) { const p = plan(total); expect(slowWindow(p, C)).toBeNull(); for (let t = 0; t < p.endAt; t += 10) expect(comboTimeScale(p, C, t)).toBe(1); }
-    const three = plan(14);
-    expect(comboTimeScale(three, C, three.arriveAt)).toBeCloseTo(C.contactSlow, 5);
-    const four = plan(40);
-    expect(comboTimeScale(four, C, four.beanAt!)).toBeLessThan(1);
-    expect(comboTimeScale(four, C, (four.collideAt! + four.brawlEnd!) / 2)).toBeCloseTo(C.brawlBoost, 5);
-    for (const p of [three, four]) {
-      let prev = comboTimeScale(p, C, 0);
-      for (let t = 0; t < p.endAt; t += 2) {
-        const k = comboTimeScale(p, C, t);
-        expect(k).toBeGreaterThan(0.05);
-        expect(Math.abs(k - prev)).toBeLessThan(0.05); // a smooth ramp
-        prev = k;
-      }
+  it('the camera: at rest before and long after; it pushes in for the fight and shakes on the impact, within the cap', () => {
+    for (const total of [3, 8, 14, 40]) {
+      const p = plan(total);
+      expect(comboCameraAt(p, C, p.stepAt - 1, 1)).toEqual({ zoom: 1, x: 0, y: 0 });
+      expect(comboCameraAt(p, C, p.impactAt - 1, 1).zoom).toBeGreaterThan(1 + p.zoom * 0.95);
+      let peak = 0;
+      for (let t = p.chargeAt; t < p.endAt; t += 3) { const c = comboCameraAt(p, C, t, 1); peak = Math.max(peak, Math.hypot(c.x, c.y)); }
+      expect(peak).toBeGreaterThan(1);
+      expect(peak).toBeLessThanOrEqual(COMBO_CAPS.shakePx * 1.5);
     }
-    expect(slowExtraMs(three, C)).toBeGreaterThan(50);
   });
 });
 
@@ -329,7 +403,6 @@ function manualFrames() {
   };
 }
 
-/** Tick real frames until the attack's own clock reaches `t` (slow mo makes real time and attack time differ). */
 function tickTo(r: { h: { elapsed(): number; done: boolean }; f: { tick: (ms: number, step?: number) => void } }, t: number, step = 4): void {
   for (let i = 0; i < 20000 && !r.h.done && r.h.elapsed() < t; i++) r.f.tick(step, step);
 }
@@ -345,11 +418,13 @@ function run(over: Partial<HeroComboOptions> = {}) {
   const defenderEl = document.createElement('div');
   attackerEl.style.transform = 'translateX(3px)';
   attackerEl.style.opacity = '0.95';
+  attackerEl.style.filter = 'saturate(1.1)';
   defenderEl.style.transform = 'translateY(2px)';
+  defenderEl.style.opacity = '0.9';
   camera.append(attackerEl, defenderEl);
   document.body.append(host, camera);
   const h = playHeroCombo({
-    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: { x: 960, y: 900 }, defender: { x: 960, y: 200 }, defenderRadius: R, attackerRadius: R,
+    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: YOU, defender: FOE, defenderRadius: R, attackerRadius: R,
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl, ...over,
   });
@@ -360,35 +435,45 @@ function run(over: Partial<HeroComboOptions> = {}) {
 function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-player'): void {
   expect(r.attackerEl.style.transform).toBe('translateX(3px)');
   expect(r.attackerEl.style.opacity).toBe('0.95');
+  expect(r.attackerEl.style.filter).toBe('saturate(1.1)');
   expect(r.defenderEl.style.transform).toBe('translateY(2px)');
+  expect(r.defenderEl.style.opacity).toBe('0.9');
   expect(r.camera.style.transform).toBe('');
   expect(document.body.classList.contains(zClass)).toBe(false);
   expect(r.host.querySelector('.hblast')).toBeNull();
   expect(r.h.scene?.ownVisible ?? false).toBe(false);
+  expect(r.h.scene?.counterValue ?? -1).toBe(-1);
 }
 
 describe('the runner (the shared clock, both portraits restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the bean, the collision and every brawl hit never land it; the blow lands ONCE on the haymaker; both portraits moved, raised, put back EXACTLY', () => {
-    const r = run({ total: 40, formation: formationOf([40], 40) });
+  it('IV: no opening hit, no flurry hit and not the freeze lands it; the blow lands ONCE on the heavy blow; the counter reads the hits; all put back EXACTLY', () => {
+    const r = run({ total: 37, formation: formationOf([37], 37) });
     const { h, onImpact, onDone } = r;
+    const p = h.plan;
     expect(r.host.querySelector('.hblast.hcombo')).not.toBeNull();
-    tickTo(r, h.plan.windAt + 120);
-    expect(r.defenderEl.style.transform).toContain('rotate('); // the pitcher winds up
-    tickTo(r, h.plan.beanAt! + 30);
-    expect(onImpact).not.toHaveBeenCalled(); // the bean is a tick
-    expect(r.attackerEl.style.transform).toContain('rotate(');
-    expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
-    tickTo(r, h.plan.hits[h.plan.hits.length - 1]! + 20);
-    expect(onImpact).not.toHaveBeenCalled(); // every brawl hit is a tick
-    expect(h.scene!.ownVisible).toBe(true); // the bat lies there
-    tickTo(r, h.plan.impactAt - 12);
+    tickTo(r, p.hits[0]!.at + 20);
     expect(onImpact).not.toHaveBeenCalled();
-    tickTo(r, h.plan.impactAt + 12);
+    expect(r.attackerEl.style.transform).toContain('translate('); // the striker has stepped in
+    expect(r.defenderEl.style.transform).toContain('translate('); // the target is out in the ring, flinching
+    expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
+    expect(h.scene!.counterValue).toBeGreaterThanOrEqual(1);
+    tickTo(r, (p.freezeAt! + p.cutinEnd!) / 2);
+    expect(onImpact).not.toHaveBeenCalled();
+    expect(h.scene!.ownVisible).toBe(true); // the cut-in is up
+    tickTo(r, p.flurryEnd! + 20);
+    expect(onImpact).not.toHaveBeenCalled(); // every flurry hit is a tick
+    expect(h.scene!.counterValue).toBe(p.hits.length - 1);
+    tickTo(r, p.impactAt - 8);
+    expect(onImpact).not.toHaveBeenCalled();
+    tickTo(r, p.impactAt + 8);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    expect(r.host.querySelector('.hblast-hit')!.textContent).toBe('-40');
-    tickTo(r, h.plan.endAt + 32, 8);
+    expect(r.host.querySelector('.hblast-hit')!.textContent).toBe('-37');
+    tickTo(r, p.impactAt + 30);
+    expect(h.scene!.counterValue).toBe(p.hits.length); // the hits that landed (the damage is the game's own -37)
+    expect(h.counter(h.elapsed())).toMatchObject({ value: p.hits.length, final: true });
+    tickTo(r, p.endAt + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expectRestored(r);
@@ -397,56 +482,83 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(r.root.children).toHaveLength(0);
   });
 
-  it('cancel() mid-moonshot, finish() mid-pitch and the safety timer each put both portraits back exactly (cancel never lands)', () => {
+  it('III: the juggle never lands it; it lands ONCE on the slam; I and II land on their last hit', () => {
+    const r = run({ total: 14, formation: formationOf([14], 14) });
+    tickTo(r, r.h.plan.spikeAt! + 20);
+    expect(r.onImpact).not.toHaveBeenCalled();
+    tickTo(r, r.h.plan.slamAt! + 12);
+    expect(r.onImpact).toHaveBeenCalledTimes(1);
+    expect(r.h.scene!.counterValue).toBe(r.h.plan.hits.length);
+    tickTo(r, r.h.plan.endAt + 32, 8);
+    expectRestored(r);
+    document.body.innerHTML = '';
+    for (const total of [3, 8]) {
+      const q = run({ total, formation: formationOf([total], total) });
+      tickTo(q, q.h.plan.impactAt - 8);
+      expect(q.onImpact).not.toHaveBeenCalled();
+      tickTo(q, q.h.plan.impactAt + 30);
+      expect(q.onImpact).toHaveBeenCalledTimes(1);
+      expect(q.h.scene!.counterValue).toBe(3);
+      tickTo(q, q.h.plan.endAt + 32, 8);
+      expect(q.onImpact).toHaveBeenCalledTimes(1);
+      expectRestored(q);
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('cancel() mid-juggle, finish() mid-cut-in and the safety timer each put both portraits back exactly (cancel never lands)', () => {
     const a = run({ total: 14, formation: formationOf([14], 14) });
-    tickTo(a, a.h.plan.apexAt! + 30);
+    tickTo(a, a.h.plan.jumpAt! + 260);
+    expect(a.defenderEl.style.transform).not.toBe('translateY(2px)');
     a.h.cancel();
     expect(a.onImpact).not.toHaveBeenCalled();
     expectRestored(a);
     expect(a.f.hooked()).toBe(0);
     document.body.innerHTML = '';
 
-    const b = run({ total: 8, formation: formationOf([8], 8), side: 'opp', attacker: { x: 960, y: 200 }, defender: { x: 960, y: 900 } });
-    tickTo(b, b.h.plan.releaseAt + 40);
-    expect(b.defenderEl.style.transform).not.toBe('translateY(2px)');
+    const b = run({ total: 40, formation: formationOf([40], 40), side: 'opp', attacker: FOE, defender: YOU });
+    tickTo(b, b.h.plan.freezeAt! + 300);
+    expect(b.h.scene!.ownVisible).toBe(true);
     b.h.finish();
     expect(b.onImpact).toHaveBeenCalledTimes(1);
+    expect(b.onDone).toHaveBeenCalledTimes(1);
     expectRestored(b, 'duel-attacker-opp');
     document.body.innerHTML = '';
 
     vi.useFakeTimers();
     try {
       const c = run({ total: 40, formation: formationOf([40], 40), safety: true });
-      tickTo(c, c.h.plan.collideAt! + 20);
-      vi.advanceTimersByTime(c.h.plan.endAt + slowExtraMs(c.h.plan, C) + 3000);
+      tickTo(c, c.h.plan.cutinEnd! + 200);
+      vi.advanceTimersByTime(c.h.plan.endAt + 3000);
       expect(c.onImpact).toHaveBeenCalledTimes(1);
       expect(c.h.done).toBe(true);
       expectRestored(c);
     } finally { vi.useRealTimers(); }
   });
 
-  it('an unmount mid-attack (Recruit cancels the handle) leaves no transform, no class and nothing drawn, at every tier and hit', () => {
-    for (const [total, v] of [[3, ''], [8, '1'], [8, '2'], [8, '3'], [14, ''], [40, '']] as const) {
-      const r = run({ total, formation: formationOf([total], total), cfg: { ...C, variation: v } });
-      tickTo(r, (r.h.plan.arriveAt + r.h.plan.impactAt) / 2);
-      r.h.cancel();
-      expectRestored(r);
-      expect(r.f.hooked()).toBe(0);
-      expect(r.root.children, `${total} ${v}`).toHaveLength(0);
-      document.body.innerHTML = '';
+  it('an unmount mid-attack (Recruit cancels the handle) leaves no transform, no class and nothing drawn, at every tier and many moments', () => {
+    for (const total of [3, 8, 14, 40]) {
+      for (const at of [0.15, 0.4, 0.65, 0.9]) {
+        const r = run({ total, formation: formationOf([total], total) });
+        tickTo(r, r.h.plan.chargeAt + (r.h.plan.endAt - r.h.plan.chargeAt) * at);
+        r.h.cancel();
+        expectRestored(r);
+        expect(r.f.hooked()).toBe(0);
+        expect(r.root.children, `${total} at ${at}`).toHaveLength(0);
+        document.body.innerHTML = '';
+      }
     }
   });
 
   it('both directions at every tier, within the cap, the blow once; the camera applied once; a replay is identical; reduced motion', () => {
     for (const side of ['player', 'opp'] as const) {
       for (const total of [3, 8, 12, 40]) {
-        const a = side === 'player' ? { x: 700, y: 900 } : { x: 1830, y: 90 };
-        const d = side === 'player' ? { x: 1830, y: 90 } : { x: 700, y: 900 };
-        const r = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
+        const r = run({ side, attacker: side === 'player' ? YOU : FOE, defender: side === 'player' ? FOE : YOU, total, formation: formationOf([total], total) });
         let peak = 0;
         for (let i = 0; i < 3000 && !r.h.done; i++) { r.f.tick(16, 16); peak = Math.max(peak, r.h.scene!.liveSprites); }
         expect(r.onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
-        expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_BASEBALL_SPRITES);
+        expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_COMBO_SPRITES);
+        expect(peak, `${side} ${total}: well under the cap`).toBeLessThan(200);
         expectRestored(r, side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player');
         r.h.cancel();
         document.body.innerHTML = '';
@@ -459,10 +571,13 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(c.h.mirrorsCamera).toBe(false);
     expect((c.root.children[0] as Container).scale.x).toBe(1);
     c.h.cancel();
-    const x = run({ total: 40, formation: formationOf([40], 40), rollSeed: 5 });
-    const y = run({ total: 40, formation: formationOf([40], 40), rollSeed: 5 });
+    // DETERMINISM: the same seed plays the same combo; III's air hits come from it.
+    const x = run({ total: 14, formation: formationOf([14], 14), rollSeed: 5 });
+    const y = run({ total: 14, formation: formationOf([14], 14), rollSeed: 5 });
     expect(x.h.plan).toEqual(y.h.plan);
     expect(x.h.geo).toEqual(y.h.geo);
+    expect(x.h.striker(x.h.plan.spikeAt!)).toEqual(y.h.striker(y.h.plan.spikeAt!));
+    expect(x.h.plan.hits.filter((q) => q.kind === 'air')).toHaveLength(airHitsOf(5, C));
     x.h.cancel(); y.h.cancel();
     const r = run({ reduced: true });
     expect(r.h.scene).toBeNull();
@@ -472,38 +587,51 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(r.defenderEl.style.transform).toBe('translateY(2px)');
   });
 
-  it('the runner: the clock really slows on III\'s contact and runs fast in IV\'s brawl; the blow still lands once', () => {
-    const r = run({ total: 14, formation: formationOf([14], 14) });
-    tickTo(r, r.h.plan.arriveAt - 2);
+  it('the clock never stops: through the hit-freeze and the super freeze it advances exactly with real time', () => {
+    const r = run({ total: 40, formation: formationOf([40], 40) });
+    tickTo(r, r.h.plan.freezeAt! + 100);
     const t0 = r.h.elapsed();
-    r.f.tick(40, 4);
-    expect(r.h.elapsed() - t0).toBeLessThan(40 * 0.7);
+    r.f.tick(200, 4);
+    expect(r.h.elapsed() - t0).toBeCloseTo(200, 5);
     r.h.cancel();
-    const b = run({ total: 40, formation: formationOf([40], 40) });
-    tickTo(b, (b.h.plan.collideAt! + b.h.plan.brawlEnd!) / 2);
-    const t1 = b.h.elapsed();
-    b.f.tick(40, 4);
-    expect(b.h.elapsed() - t1).toBeGreaterThan(40 * 1.15);
-    tickTo(b, b.h.plan.endAt + 40);
-    expect(b.onImpact).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('pools, stays under the cap, hides its own objects, drains, and destroy leaves nothing', () => {
-    const scene = new HeroComboScene(TEX, { ball: 0xffffff, bat: 0xd79b5c, dust: 0xd9c3a0, flash: 0xfff4dc, pow: 0xffd23f, side: 0xffcf5a },
-      { ballSize: 0.24, batLen: 120, shadowDrop: 0.5, wordSize: 1, frameH: 1080 }, R, R, 1, 9);
-    scene.setBall({ visible: true, x: 10, y: 10, lift: 20, rot: 0, scale: 1, alpha: 1, flying: true });
-    scene.setBat({ visible: true, x: 0, y: 0, lift: 0, rot: 1, alpha: 1 });
-    scene.setTargetShadow(D, 0.5);
+  const look = { sparkSize: 1, face: 1 as const, counter: { x: 300, y: 300 }, digit: 100, digits: 2, band: { x: 960, y: 540, w: 2400, h: 290, rot: -0.14 }, frameW: 1920, frameH: 1080 };
+  const colors = { spark: 0xffd23f, heavy: 0xff5a3c, flash: 0xfff4dc, dust: 0xe9dfc8, side: 0xffcf5a };
+
+  it('the counter is composed from pooled digit sprites: the number, HIT or HITS, hidden at 0 alpha; the cut-in shows and hides', () => {
+    const scene = new HeroComboScene(TEX, colors, look, R, R, 1, 9, W);
+    expect(scene.ownVisible).toBe(false);
+    scene.setCounter({ value: 1, pulse: 0, final: false, alpha: 1 });
+    expect(scene.counterValue).toBe(1);
     expect(scene.ownVisible).toBe(true);
-    for (let i = 0; i < 4; i++) {
-      scene.glovePop(D); scene.kick(D, { x: 0, y: 1 }); scene.crack(A, { x: 0, y: -1 }, 1.6); scene.bonk(D, { x: 0, y: -1 }, 2, { rings: 8, word: 'bonk' });
-      scene.hopDust(A); scene.twinkle(D); scene.crater(D, { x: 0, y: -1 }, 2, 6); scene.bean(A, { x: 0, y: 1 }); scene.fume(A); scene.clatter(A);
-      scene.chargeDust(A, D, R); scene.cloudBurst(D, 2); scene.cloudPuff(D, 2); scene.benchRush(D, 1920, 2); scene.brawlHit(D, i, 1); scene.ko(D, D, { x: 0, y: -1 }, 2, 8);
-      scene.popAway(D, { x: 1, y: 0 }); scene.trail({ visible: true, x: 5, y: 5, lift: 0, rot: 0, scale: 1, alpha: 1, flying: true });
+    scene.setCounter({ value: 37, pulse: 40, final: true, alpha: 1 });
+    expect(scene.counterValue).toBe(37);
+    scene.setCounter({ value: 37, pulse: 40, final: true, alpha: 0 });
+    expect(scene.counterValue).toBe(-1);
+    expect(scene.ownVisible).toBe(false);
+    scene.setCutin({ dim: 0.5, slide: 0, glyphAge: 400, age: 300 });
+    expect(scene.ownVisible).toBe(true);
+    scene.setCutin(null);
+    expect(scene.ownVisible).toBe(false);
+    scene.destroy();
+    expect(scene.root.destroyed).toBe(true);
+  });
+
+  it('pools, stays under the cap, hides its own objects, drains, and destroy leaves nothing', () => {
+    const scene = new HeroComboScene(TEX, colors, look, R, R, 1, 9);
+    const D = { x: 1100, y: 600 };
+    scene.setCounter({ value: 12, pulse: 0, final: false, alpha: 1 });
+    scene.setCutin({ dim: 0.5, slide: -0.4, glyphAge: 100, age: 100 });
+    for (let i = 0; i < 6; i++) {
+      for (const k of ['jab', 'cross', 'kick', 'upper', 'air', 'spike', 'flurry', 'heavy'] as const) scene.hitSpark(D, k, 1);
+      scene.drive(D); scene.drive(D, true); scene.gather(D, 560); scene.screenFlash(0.5); scene.aftermath(D); scene.stepDust(D, 1); scene.launch(D); scene.slam(D, 2, 8); scene.finisher(D, 2, 8); scene.superFlash(D);
+      for (let j = 0; j < 12; j++) scene.bandLine();
+      scene.heavy(D, 2, 8); scene.ko(D, 600);
     }
-    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_BASEBALL_SPRITES);
+    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_COMBO_SPRITES);
     scene.hideOwn();
     expect(scene.ownVisible).toBe(false);
     let alive = true;
@@ -512,5 +640,7 @@ describe('the scene (headless Pixi)', () => {
     expect(scene.liveSprites).toBe(0);
     scene.destroy();
     expect(scene.root.destroyed).toBe(true);
+    scene.setCounter({ value: 3, pulse: 0, final: false, alpha: 1 }); // after destroy: a no-op
+    scene.setCutin(null);
   });
 });

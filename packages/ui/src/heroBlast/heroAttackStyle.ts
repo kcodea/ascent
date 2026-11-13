@@ -124,56 +124,38 @@
  * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
- * `stamp` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroStamp/`.
- *
- * `flick` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `backstab` (`npm run attack:new`), see `../heroFlick/`.
- *
- * `anvil` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroAnvil/`.
- *
- * `glove` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `boomerang` (`npm run attack:new`), see `../heroGlove/`.
- *
- * `chess` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroChess/`.
- *
- * `claw` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroClaw/`.
- *
- * `fireworks` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroFireworks/`.
- *
- * `chord` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroChord/`.
- *
- * `train` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroTrain/`.
- *
- * `wrestle` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroWrestle/`.
- *
- * `combo` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroCombo/`.
- *
- * `pinball` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroPinball/`.
- *
- * `warhost` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroWarhost/`.
- *
- * `reaping` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `stitch` (`npm run attack:new`), see `../heroReaping/`.
- *
- * `glass` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroGlass/`.
- *
- * `stars` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. "Written in the Stars" (Ancient): CONSTELLATIONS. The board dims to a night sky and thin
- * lines join stars one by one into a figure that comes alive and strikes: I an arrow; II a bow that draws; III an archer;
- * IV the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
- * (`../heroStars/`).
+ * THE DEV-ONLY BATCH OF EIGHT (2026-11-12, `docs/devlog/2026-11-12-hero-attacks-batch-of-eight.md`). Like `void`,
+ * each of these is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. The names and rarities are the builders' working ones, for the owner to rename:
+ *  - `chess` ("Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
+ *    One piece per tier: Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight makes its L-shaped
+ *    jump onto the portrait; Tier 3 a rook charges straight down the hero's file and rams it; Tier 4 a queen sweeps the
+ *    long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
+ *  - `fireworks` ("Grand Finale", an Epic): fireworks, never flame. A bottle rocket squeals off a stick and pops in one
+ *    colour; a roman candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD
+ *    BEAT of quiet, then a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
+ *  - `wrestle` ("Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
+ *    about: I a chop; II a lift and a body slam; III an elbow drop from off the top of the screen under a spotlight;
+ *    IV ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell (`../heroWrestle/`).
+ *  - `combo` ("Flawless", a Legendary): an arcade fighting game combo with a HUD. The striker steps in beside the
+ *    target and a combo counter ticks up to the blow's real damage: I a jab; II a three-hit string; III a launcher, an
+ *    air juggle and a spike; IV a super freeze with input glyphs, a 14-hit flurry, one heavy blow and "K.O."
+ *    (`../heroCombo/`).
+ *  - `warhost` ("Warhost", the Ancient of War; an Ancient): an army of tiny soldiers in red and brass delivers the
+ *    blow. I one spearman and his thrown spear; II a rank of archers and an arrow rain; III a cavalry wedge riding
+ *    through the struck portrait; IV war drums, a horn, banners, the whole host flooding over it and one soldier
+ *    planting a banner on it (`../heroWarhost/`).
+ *  - `reaping` ("The Reaping", the Ancient of Death; an Ancient): what the scythe cuts is COLOUR. A blade of teal light
+ *    drains the struck portrait to grey along the cut (a strip, half, then all of it under one great falling
+ *    crescent), and the top look drains the whole screen to monochrome before colour floods back to all but the loser
+ *    (`../heroReaping/`).
+ *  - `glass` ("Fourth Wall", an Ancient): the SCREEN is a pane of glass and the blow breaks it. I a chip; II a spider
+ *    web; III a pane that breaks out and falls away; IV a punch on the glass and the whole view shatters and falls
+ *    (`../heroGlass/`).
+ *  - `stars` ("Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
+ *    stars one by one into a figure that comes alive and strikes: I an arrow; II a bow that draws; III an archer; IV
+ *    the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
+ *    (`../heroStars/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -187,7 +169,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'stamp', 'flick', 'anvil', 'glove', 'chess', 'claw', 'fireworks', 'chord', 'train', 'wrestle', 'combo', 'pinball', 'warhost', 'reaping', 'glass', 'stars'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'chess', 'fireworks', 'wrestle', 'combo', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -204,7 +186,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'stamp', 'flick', 'anvil', 'glove', 'chess', 'claw', 'fireworks', 'chord', 'train', 'wrestle', 'combo', 'pinball', 'warhost', 'reaping', 'glass', 'stars'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'chess', 'fireworks', 'wrestle', 'combo', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -220,18 +202,10 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
   void: 'Void (in progress, no cosmetic yet)',
-  stamp: 'Paid in Full (stamp, Rare) (in progress, no cosmetic yet)',
-  flick: 'The Flick (Rare) (in progress, no cosmetic yet)',
-  anvil: 'Look Out Below (anvil, Rare) (in progress, no cosmetic yet)',
-  glove: 'Sucker Punch (spring glove, Rare) (in progress, no cosmetic yet)',
   chess: 'Checkmate (chess, Epic) (in progress, no cosmetic yet)',
-  claw: 'Grabby Claw (claw machine, Epic) (in progress, no cosmetic yet)',
   fireworks: 'Grand Finale (fireworks, Epic) (in progress, no cosmetic yet)',
-  chord: 'Power Chord (Epic) (in progress, no cosmetic yet)',
-  train: 'Right on Schedule (train) (in progress, no cosmetic yet)',
   wrestle: 'Top Rope (wrestling) (in progress, no cosmetic yet)',
   combo: 'Flawless (fighting game) (in progress, no cosmetic yet)',
-  pinball: 'Multiball (pinball) (in progress, no cosmetic yet)',
   warhost: 'Warhost (Ancient of War) (in progress, no cosmetic yet)',
   reaping: 'The Reaping (Ancient of Death) (in progress, no cosmetic yet)',
   glass: 'Fourth Wall (Ancient) (in progress, no cosmetic yet)',

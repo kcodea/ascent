@@ -14,6 +14,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
+import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
@@ -128,33 +129,21 @@ import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
 import { playHeroCards } from './heroCards/heroCards';
-import { playHeroClaw } from './heroClaw/heroClaw';
 import { playHeroChess } from './heroChess/heroChess';
 import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
-import { heroClawPreviewSpeed } from './heroClaw/heroClawConfig';
 import { heroChessPreviewSpeed } from './heroChess/heroChessConfig';
 import { playHeroStorm } from './heroStorm/heroStorm';
-import { playHeroChord } from './heroChord/heroChord';
 import { playHeroFireworks } from './heroFireworks/heroFireworks';
 import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
-import { heroChordPreviewSpeed } from './heroChord/heroChordConfig';
 import { heroFireworksPreviewSpeed } from './heroFireworks/heroFireworksConfig';
 import { playHeroCoin } from './heroCoin/heroCoin';
-import { playHeroAnvil } from './heroAnvil/heroAnvil';
-import { playHeroStamp } from './heroStamp/heroStamp';
 import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
-import { heroAnvilPreviewSpeed } from './heroAnvil/heroAnvilConfig';
-import { heroStampPreviewSpeed } from './heroStamp/heroStampConfig';
 import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
-import { playHeroGlove } from './heroGlove/heroGlove';
 import { heroBoomerangPreviewSpeed } from './heroBoomerang/heroBoomerangConfig';
-import { heroGlovePreviewSpeed } from './heroGlove/heroGloveConfig';
 import { playHeroBubble } from './heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from './heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from './heroBackstab/heroBackstab';
-import { playHeroFlick } from './heroFlick/heroFlick';
 import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
-import { heroFlickPreviewSpeed } from './heroFlick/heroFlickConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { playHeroBaseball } from './heroBaseball/heroBaseball';
@@ -164,11 +153,7 @@ import { heroBaseballPreviewSpeed } from './heroBaseball/heroBaseballConfig';
 import { heroComboPreviewSpeed } from './heroCombo/heroComboConfig';
 import { heroWrestlePreviewSpeed } from './heroWrestle/heroWrestleConfig';
 import { playHeroSoccer } from './heroSoccer/heroSoccer';
-import { playHeroPinball } from './heroPinball/heroPinball';
-import { playHeroTrain } from './heroTrain/heroTrain';
 import { heroSoccerPreviewSpeed } from './heroSoccer/heroSoccerConfig';
-import { heroPinballPreviewSpeed } from './heroPinball/heroPinballConfig';
-import { heroTrainPreviewSpeed } from './heroTrain/heroTrainConfig';
 import { playHeroVoid } from './heroVoid/heroVoid';
 import { heroVoidPreviewSpeed } from './heroVoid/heroVoidConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
@@ -3852,30 +3837,14 @@ export function Recruit() {
         ? { play: playHeroReaping, preview: heroReapingPreviewSpeed() }
         : attackStyle === 'warhost'
         ? { play: playHeroWarhost, preview: heroWarhostPreviewSpeed() }
-        : attackStyle === 'pinball'
-        ? { play: playHeroPinball, preview: heroPinballPreviewSpeed() }
         : attackStyle === 'combo'
         ? { play: playHeroCombo, preview: heroComboPreviewSpeed() }
         : attackStyle === 'wrestle'
         ? { play: playHeroWrestle, preview: heroWrestlePreviewSpeed() }
-        : attackStyle === 'train'
-        ? { play: playHeroTrain, preview: heroTrainPreviewSpeed() }
-        : attackStyle === 'chord'
-        ? { play: playHeroChord, preview: heroChordPreviewSpeed() }
         : attackStyle === 'fireworks'
         ? { play: playHeroFireworks, preview: heroFireworksPreviewSpeed() }
-        : attackStyle === 'claw'
-        ? { play: playHeroClaw, preview: heroClawPreviewSpeed() }
         : attackStyle === 'chess'
         ? { play: playHeroChess, preview: heroChessPreviewSpeed() }
-        : attackStyle === 'glove'
-        ? { play: playHeroGlove, preview: heroGlovePreviewSpeed() }
-        : attackStyle === 'anvil'
-        ? { play: playHeroAnvil, preview: heroAnvilPreviewSpeed() }
-        : attackStyle === 'flick'
-        ? { play: playHeroFlick, preview: heroFlickPreviewSpeed() }
-        : attackStyle === 'stamp'
-        ? { play: playHeroStamp, preview: heroStampPreviewSpeed() }
         : attackStyle === 'stitch'
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
         : attackStyle === 'basketball'
@@ -7798,10 +7767,13 @@ export function Recruit() {
           flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
         });
       },
-      keywordChanged: (uid, _keyword, gained) => {
+      keywordChanged: (uid, keyword, gained, from, index = 0) => {
         // The pip itself renders from the projection; the GRANT gets a flash so it reads as its own beat before
         // whatever it enables (a Deathfibrillator's Rise, then the death) — owner 2026-09-09. Losses stay silent.
         if (!gained) return;
+        // EXECUTE GIVEN by a minion with a bound effect (Raven's forced Rally): its beam travels from the giver and
+        // the aura waits for it, exactly as in combat. The beam replaces the generic flash (R-FX-EXECUTE-GIVEN-01).
+        if (keyword === 'V' && from && launchShopExecuteGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId, index)) return;
         const el = findEl(uid);
         if (!el) return;
         const r = el.getBoundingClientRect();

@@ -1,53 +1,48 @@
-// SCAFFOLDED from heroStitch/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Stitch, not this style, until rewritten.
 /**
- * THE SOUL STITCH RUNNER (the Ancient of Bonds' hero attack, an ANCIENT): plays one Soul Reaping (the beats are in
- * `heroReapingConfig.ts`) and lands the consequence on its impact beat (the snap, the yank, the pins ripping out, or
- * the heart-knot bursting). Presentation only: the total and the blow are the engine's; this file only
- * decides WHEN on screen they happen.
+ * THE REAPING RUNNER (the Ancient of Death's hero attack, an ANCIENT): plays one Reaping (the beats are in
+ * `heroReapingConfig.ts`) and lands the consequence on its impact beat (the blade crossing the middle of the struck
+ * portrait). Presentation only: the total and the blow are the engine's; this file only decides WHEN on screen they
+ * happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`), as every style does: one clock (it never pauses), the damage
- * formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the portraits (transform only, restored after), the
- * voices, the dim, reduced motion, finish / cancel and the safety timer.
+ * It runs on the SHARED hero-attack core (`../heroAttack/`), as every style does: one clock (it never pauses or slows),
+ * the damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the portraits (transform only, restored
+ * after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
- * THE PORTRAITS are tied together by the thread, and the thread's ends ride them (the scene is handed their offsets
- * every frame). I-II: on the tug the striker leans BACK and the struck portrait is yanked TOWARD it, then the snap
- * knocks it back. III: the struck portrait is STRETCHED toward the striker against five pins (a linear transform about
- * its own centre, its far rim held), then snaps back as they rip out. IV: the struck portrait is DRAGGED across the
- * board into the heart-knot, crushed small, and flung home. III and IV's * pose is solved in screen px and written in the portrait's own units (its ancestors' scale measured ONCE at the start),
- * with the camera folded in for a portrait that lives outside the camera element (the foe's is a <body> portal), so
- * the knot stays tied round it. It is raised over the other portrait while it is dragged (the `.duel-attacker-*`
- * z-order of ITS side). EVERY exit (the end, `finish()`, `cancel()`, the safety timer) puts both portraits' transforms
- * back exactly and removes the z-order class (only if this attack added it).
+ * THREE LAYERS, bottom to top: the game; the DRAIN panes (`heroReapingDrain.ts`: DOM, `backdrop-filter: grayscale`, so
+ * whatever is under them loses its colour); the Pixi SCENE (`heroReapingScene.ts`: the blades, the great crescent and
+ * its afterimages, the rings, the line and the motes, which keep their colour over the grey). Layout is read ONCE, at the start, by the caller (the
+ * two portrait rects); this file reads none.
  *
- * TIER V (the Knockout variant) adds a final beat after the burst (owner 2026-10-02): fast needles LATCH onto the flung
- * target, a second, faster yank hauls it toward the middle of the board while the STRIKER's portrait launches at it,
- * and they SLAM together there. The striker is raised over the target for it (its own side's duel z-order), and both
- * portraits spring back to their spots, exactly (`koSlamAt` is 0 from `koHomeAt`); every exit restores both.
+ * THE PORTRAITS: the striker swells a breath through the ready and pulses as the colour reaches it (and on IV's toll);
+ * the struck portrait takes a knock along the cut (a short one on I-II, a hard one on III-IV: it REELS) and then SAGS
+ * while it is grey, easing back as its colour returns. No z-order class is touched.
  *
- * THE CONTRACT: every piercing and stitch before the impact is a tick (FX and sound only); Tier V's burst is a tick
- * too. The consequence (`onImpact`) lands exactly ONCE, on the impact (Tier V: the slam).
+ * THE SOUND. Cold, but never thin (the owner heard the first pass as silent): every blade is three layers placed so
+ * their bodies land on the crossing (the airy sweep, the low slash under it, a ring of steel over it); every blow has
+ * a low body (the cleave, and on III-IV a boom); the colour leaving is a hollow rush of air. IV: the other buses are
+ * hushed as the screen drains, a real beat of silence, then ONE bell (layered an octave down over a boom) breaks it;
+ * the sweep; the cut lands with the deepest hit of the attack; the buses come back as the colour floods back.
  *
- * Perf: DOM moves are `transform` written from the clock; layout is read once at the start (IV only); the Pixi sprites
- * are pooled under a hard cap, the thread meshes rewritten in place, the textures painted once per session and
- * pre-warmed during the formation, and the updater unhooks the moment the scene drains.
+ * EVERY EXIT (the end, `finish()`, `cancel()`, the safety timer; an unmount cancels) removes every drain pane, puts
+ * both portraits' transforms back exactly, resets the camera, restores the hushed buses and hides the scene.
+ *
+ * THE CONTRACT: II's first cut is a tick (FX and sound only). The consequence (`onImpact`) lands exactly ONCE.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
-import { restingRect } from '../heroBlast/portraits';
-import { stageScale } from '../stage';
+import { stageScale, toStage } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { easeInOutSine, easeOutCubic, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
+import { easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
-import { playKoSting } from '../heroAttack/knockout';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  KNOT_PULSES, dragAt, getHeroReapingConfig, knotAt, koSlamAt, needleAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingPlan, reapingTimeScale, slowMoExtraMs, stretchAt, tugAt,
-  type HeroReapingConfig, type StitchCue, type StitchGeo, type StitchPlan,
+  drainAt, emptyDrain, foeMoveAt, getHeroReapingConfig, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingPlan,
+  type HeroReapingConfig, type ReapingCue, type ReapingGeo, type ReapingPlan,
 } from './heroReapingConfig';
+import { ReapingDrain } from './heroReapingDrain';
 import { HeroReapingScene, type HeroReapingTextures } from './heroReapingScene';
 import { heroReapingTextures } from './heroReapingTextures';
 
@@ -57,47 +52,28 @@ export interface HeroReapingOptions extends HeroAttackOptions {
 }
 
 export interface HeroReapingHandle extends HeroAttackHandle {
-  readonly plan: StitchPlan;
-  /** Every needle's path (empty under reduced motion). */
-  readonly geo: StitchGeo;
+  readonly plan: ReapingPlan;
+  /** Every blade's path (empty under reduced motion). */
+  readonly geo: ReapingGeo;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). */
   readonly scene: HeroReapingScene | null;
+  /** The colour-drain panes (no panes under reduced motion). */
+  readonly drain: ReapingDrain;
   /** Whether the camera is mirrored onto the Pixi root (false when the canvas already rides the camera). */
   readonly mirrorsCamera: boolean;
-  /** IV: the struck portrait's drag at a sequence time (screen px), pure. Zero on other tiers. */
-  foeDrag(t: number): Pt;
-  /** Tier V: each portrait's slam offset at a sequence time (screen px), pure. Zero on other tiers. */
-  slamOffsets(t: number): { hero: Pt; foe: Pt };
 }
 
-/** The seed a fight's shards are scattered from: the same fight bursts the same way. */
-export function reapingSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
-  return (Math.round(total) * 4513 + Math.round(distance) * 41 + (side === 'opp' ? 223 : 19)) >>> 0;
+/** The seed a fight's cut and motes are rolled from: the same fight reaps the same way. */
+export function reapingSeed(total: number, distance: number, side: 'player' | 'opp' | undefined, roll = 0): number {
+  return (Math.round(total) * 4513 + Math.round(distance) * 41 + (side === 'opp' ? 223 : 19) + (roll >>> 0) * 7919) >>> 0;
 }
 
-/** I-II: the struck portrait's pull at `t` (px along `-u` toward the striker, and a tremble). Pure. */
-export function foePull(p: StitchPlan, c: HeroReapingConfig, t: number): { yank: number; tremble: number } {
-  if (p.kind !== 'needle' && p.kind !== 'cross') return { yank: 0, tremble: 0 };
-  const tug = tugAt(p, t);
-  return { yank: c.foeYankPx * tug, tremble: 0.3 * tug };
-}
+/** Where each blade layer's body sits (ms into its clip): a cue is placed so the bodies land together on the crossing. */
+export const SWEEP_BODY_MS = 420;
+export const SLASH_BODY_MS = 75;
+export const METAL_BODY_MS = 225;
 
-/**
- * One measure of a portrait, read ONCE, AT REST (`restingRect`: the foe's portrait drops in scaling up, and a tuner
- * preview starts while that is still running, so a plain measure there read it small and the drag over-shot the knot;
- * owner review 2026-10-02: "the heart isn't over the target enough"): `inv` = its own transform px per screen px (its
- * ancestors' scale), and `ox, oy` = where the round art's centre `art` sits from the wrapper's centre (the transform
- * origin), screen px, so a stretch or a crush is solved about the ART, not the wrapper (the player's holds its name).
- */
-function measure(el: HTMLElement | null | undefined, art: Pt): { inv: number; ox: number; oy: number } {
-  try {
-    const b = el ? restingRect(el, el.closest('.combatopp') ?? el) : null;
-    if (!el || !b || !(b.width > 0) || !(el.offsetWidth > 0)) return { inv: 1, ox: 0, oy: 0 };
-    return { inv: el.offsetWidth / b.width, ox: art.x - (b.left + b.width / 2), oy: art.y - (b.top + b.height / 2) };
-  } catch { return { inv: 1, ox: 0, oy: 0 }; }
-}
-
-/** Play Soul Reaping. Returns a handle; the blow lands via `onImpact` on the impact. */
+/** Play The Reaping. Returns a handle; the blow lands via `onImpact` on the impact. */
 export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   const c = o.cfg ?? getHeroReapingConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -120,389 +96,222 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hreaping',
   });
 
-  const geo = reapingGeo(plan, o.attacker, o.defender, aRadius, radius, c, (local ? 8 : 36) * s);
+  // The screen (or the sandbox box) the line crosses and the veil covers: its size, read once.
+  const bounds = { w: 1920, h: 1080 };
+  try {
+    if (local && host) { bounds.w = host.clientWidth || bounds.w; bounds.h = host.clientHeight || bounds.h; }
+    else if (typeof window !== 'undefined' && window.innerWidth > 0) { bounds.w = window.innerWidth; bounds.h = window.innerHeight; }
+  } catch { /* keep the design size */ }
+  const seed = reapingSeed(o.total, dist, o.side, o.rollSeed);
+  const geo = reapingGeo(plan, o.attacker, o.defender, aRadius, radius, c, bounds, (seed & 1) === 1);
   const u = geo.u;
-  const big = plan.kind === 'bound';
-  /** III and IV move the struck portrait far or reshape it: solved exactly in screen px. */
-  const exact = plan.kind === 'bound' || plan.kind === 'pinned';
+  const cutDir = geo.cuts[geo.cuts.length - 1]?.dir ?? u;
 
   const textures = o.textures !== undefined ? o.textures : heroReapingTextures();
   const scene = textures && !reduced
     ? new HeroReapingScene(textures, {
-      thread: hexToNum(c.colorThread), lilac: hexToNum(c.colorLilac), deep: hexToNum(c.colorDeep), gold: hexToNum(c.colorGold),
-      bone: hexToNum(c.colorBone), side: hexToNum(sideHex),
-    }, {
-      needleSize: c.needleSize, needleGlow: c.needleGlow, threadWidth: c.threadWidth, threadGlow: c.threadGlow, sag: c.sag, tautMs: c.tautMs,
-      twangPx: c.twangPx, knotSize: c.knotSize, ripRibbons: c.ripRibbons, rainShards: c.rainShards,
-    }, plan, geo, { x: o.defender.x, y: o.defender.y, r: radius }, s, reapingSeed(o.total, dist, o.side))
+      teal: hexToNum(c.colorTeal), bone: hexToNum(c.colorBone), shade: hexToNum(c.colorShade),
+      motes: [hexToNum(c.colorMoteA), hexToNum(c.colorMoteB), hexToNum(c.colorMoteC)], side: hexToNum(sideHex),
+    }, { bladeSize: c.bladeSize, moteMs: c.moteMs, moteSize: c.moteSize, stripWidth: c.stripWidth }, plan, geo,
+    { x: o.defender.x, y: o.defender.y, r: radius }, { x: o.attacker.x, y: o.attacker.y, r: aRadius }, s, seed)
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
+
+  // The drain panes: in `#stage` (they ride the camera with the portraits, under the FX canvas), or the sandbox box.
+  const paneParent = reduced || !doc ? null : (local ? host : (doc.getElementById('stage') ?? host));
+  const drain = new ReapingDrain(paneParent && doc ? {
+    doc, parent: paneParent, local, css: local ? (v: number) => v : toStage, kind: plan.kind, d: o.defender, r: radius,
+    angles: plan.kind === 'cut' || plan.kind === 'cross' ? geo.cuts.map((q) => q.angle) : [], strike: Math.atan2(u.y, u.x),
+    stripWidth: c.stripWidth, grey: c.grey, bounds,
+  } : null);
+  const dstate = emptyDrain();
 
   const cameraEl = reduced ? null : (o.camera !== undefined ? o.camera : (doc?.getElementById('stage') ?? null));
   const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
-  // III-IV place the portraits exactly: screen px -> their own px (measured once), with the camera folded in for a
-  // portrait outside the camera element. I-II keep the approved small moves as they are.
-  const heroM = exact && !local ? measure(hero.el, o.attacker) : { inv: 1, ox: 0, oy: 0 };
-  const foeM = exact && !local ? measure(foe.el, o.defender) : { inv: 1, ox: 0, oy: 0 };
-  const heroInCam = !!(cameraEl && hero.el && cameraEl.contains(hero.el));
-  const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
-  // IV: the dragged portrait is raised over the other one (its own side's duel z-order), only while this attack runs.
-  const foeZ = o.side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
-  const canRaise = big && !reduced && !local && !!foe.el && !!doc;
-  let raised = false;
-  // Tier V: the striker is raised over the target for the slam (its own side's duel z-order).
-  const heroZ = o.side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player';
-  const canRaiseHero = plan.ko && !reduced && !local && !!hero.el && !!doc;
-  let heroRaised = false;
 
   const cue = voices.cue.bind(voices);
-  voices.warm([
-    c.sfxSummonClip, c.sfxLaunchClip, c.sfxPierceClip, c.sfxStitchClip, c.sfxTugClip, c.sfxSnapClip, c.sfxImpactClip,
-    c.sfxThumpClip, c.sfxShatterClip, c.sfxTwangClip, c.sfxDragClip, c.sfxKnotClip, c.sfxStrainClip, c.sfxStrikeClip,
-  ]);
+  voices.warm([c.sfxBellClip, c.sfxSweepClip, c.sfxBreathClip, c.sfxThumpClip, c.sfxSlashClip, c.sfxMetalClip, c.sfxCleaveClip, c.sfxDrainClip, c.sfxBoomClip]);
   const real = (ms: number): number => ms / speed;
   const unit = local ? 1 : s;
   const px = local ? 0.45 : 1;
-  /** IV's small moves in screen px (a sandbox box moves less). */
-  const mv = local ? 0.45 : unit;
-  let pierced = 0;
+  const big = plan.kind === 'reaping';
+  const fall = plan.kind === 'fall';
+  /** III-IV: the struck portrait REELS (I-II keep the short knock the owner approved). */
+  const reel = big ? 8 : fall ? 6 : 1;
+  let hushed = false;
+  /** When the colour last reached the striker (it pulses). */
+  let fedAt = Number.POSITIVE_INFINITY;
+  /** IV: when the bell tolled (the striker jolts with it). */
+  let tolledAt = Number.POSITIVE_INFINITY;
 
-  /** IV: the struck portrait's drag (screen px) at `t`. */
-  const foeDrag = (t: number): Pt => {
-    const k = dragAt(plan, t) * geo.drag;
-    return { x: -u.x * k, y: -u.y * k };
+  /** One clip placed so the part of it `bodyMs` in lands `inMs` (attack ms) from now: delayed, or started part way in. */
+  const land = (clip: string, gain: number, rate: number, inMs: number, bodyMs: number): void => {
+    const wait = real(inMs) - bodyMs / rate; // real ms until the clip must start
+    cue(clip, gain, rate, wait >= 0 ? { delayMs: wait } : { startMs: Math.min(Math.max(0, bodyMs - 40), -wait * rate) });
+  };
+  /** A BLADE through the air, its body on the crossing `inMs` from now: the airy sweep, the low slash, a ring of steel. */
+  const bladeSound = (weight: number, rate: number, inMs: number): void => {
+    land(c.sfxSweepClip, c.sfxSweepGain * weight, c.sfxSweepRate * rate, inMs, SWEEP_BODY_MS);
+    land(c.sfxSlashClip, c.sfxSlashGain * weight, c.sfxSlashRate * rate, inMs, SLASH_BODY_MS);
+    land(c.sfxMetalClip, c.sfxMetalGain * weight, c.sfxMetalRate * rate * 1.1, inMs, METAL_BODY_MS);
+  };
+  /** The colour leaving: the hollow rush of air (a window of it on the small looks, all of it on the big ones). */
+  const leave = (gain: number, rate: number, lenMs?: number): void => {
+    cue(c.sfxDrainClip, c.sfxDrainGain * gain, c.sfxDrainRate * rate, lenMs ? { startMs: 300, lenMs, fadeMs: Math.min(300, lenMs * 0.4) } : { fadeMs: 300 });
   };
 
-  /** Tier V: the two portraits' slam offsets (screen px) at `t`: 0 off the final beat. */
-  const slamOffsets = (t: number): { hero: Pt; foe: Pt } => {
-    const sl = geo.slam;
-    if (!sl) return { hero: { x: 0, y: 0 }, foe: { x: 0, y: 0 } };
-    const k = koSlamAt(plan, t);
-    return { hero: { x: sl.hero.x * k.hero, y: sl.hero.y * k.hero }, foe: { x: sl.foe.x * k.foe, y: sl.foe.y * k.foe } };
-  };
-
-  // The portraits' offsets this frame, in SCREEN px (what the scene and the impact read).
-  const off = { hx: 0, hy: 0, fx: 0, fy: 0 };
-
-  const fire = (q: StitchCue | FormationCue): void => {
+  const fire = (q: ReapingCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // The needles crystallise on the rim: a crystal shimmer.
-        cue(c.sfxSummonClip, c.sfxSummonGain, c.sfxSummonRate, { lenMs: 900, fadeMs: 300 });
-        if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.summon(o.attacker, aRadius);
+        if (!big && c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
-      case 'launch':
-        // Each needle: a thin whip of air, a step higher each time.
-        cue(c.sfxLaunchClip, c.sfxLaunchGain * (big ? 0.8 : 1), c.sfxLaunchRate + 0.06 * q.i, { lenMs: 300, fadeMs: 120 });
-        scene?.launch(q.i);
+      case 'wind':
+        // III: the crescent ignites and is drawn back: the rush of air SWELLS (the clip's own rise) and is cut off as it
+        // falls.
+        scene?.ignite();
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { lenMs: Math.max(300, real(plan.launchAt - t) * 1.1), fadeMs: 90 });
+        cue(c.sfxMetalClip, c.sfxMetalGain * 0.7, c.sfxMetalRate * 0.7, { fadeMs: 200 });
         break;
-      case 'pierce': {
-        // A tick: a crystal ting as the needle goes in (and a soft whisper of thread behind it). FX only.
-        cue(c.sfxPierceClip, c.sfxPierceGain * (0.85 + 0.05 * pierced), c.sfxPierceRate + 0.05 * pierced, { lenMs: 450, fadeMs: 180 });
-        if (q.i === 0 || !big) cue(c.sfxStitchClip, c.sfxStitchGain * 0.7, c.sfxStitchRate, { lenMs: 500, fadeMs: 220 });
-        const st = needleAt(plan, geo, q.i, t);
-        if (st.visible) scene?.pierce({ x: st.x, y: st.y }, { x: Math.cos(st.rot), y: Math.sin(st.rot) }, big ? 0.75 : plan.kind === 'pinned' ? 0.85 : 1);
-        pierced++;
+      case 'drain':
+        // IV: the colour goes out of the world: a long hollow exhale that ENDS as the silence starts, and every other
+        // bus is hushed under it.
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.2, c.sfxDrainRate * 0.8, { startMs: 280, lenMs: Math.max(200, real((plan.drainedAt ?? t) - t) * 0.8 + 100), fadeMs: 260 });
+        cue(c.sfxBreathClip, c.sfxBreathGain, c.sfxBreathRate * 0.7, { lenMs: Math.max(200, real((plan.drainedAt ?? t) - t)), fadeMs: 200 });
+        if (c.sfxHush < 1) { voices.duck(c.sfxHush); hushed = true; }
         break;
-      }
-      case 'sewn': {
-        const n = geo.needles[q.i];
-        const end = n?.sew[n.sew.length - 1];
-        if (end) scene?.sewn(end);
-        if (!big) cue(c.sfxPierceClip, c.sfxPierceGain * 0.5, c.sfxPierceRate + 0.2, { lenMs: 260, fadeMs: 120 });
+      case 'hush':
+        // IV: silence. Nothing plays until the toll.
         break;
-      }
-      case 'tug':
-        if (plan.kind === 'pinned') {
-          // III: the hero leans back on all five: a taut-string TWANG, a wind-up, a riser as the portrait strains.
-          cue(c.sfxTwangClip, c.sfxTwangGain, c.sfxTwangRate, { lenMs: 500, fadeMs: 200, tail: 0.1 });
-          cue(c.sfxTugClip, c.sfxTugGain, c.sfxTugRate * 0.95, { lenMs: 700, fadeMs: 200 });
-          voices.riser(c.sfxStrainClip, c.sfxStrainGain * 0.8, c.sfxStrainRate * 1.1, real(plan.burstAt - plan.tugAt));
-          scene?.tug(o.attacker, aRadius, false);
-        } else if (big) {
-          // IV: the YANK: a wind-up, a heavy drag, and a riser that climaxes on the burst.
-          cue(c.sfxTugClip, c.sfxTugGain * 1.2, c.sfxTugRate * 0.85, { lenMs: 700, fadeMs: 200 });
-          cue(c.sfxDragClip, c.sfxDragGain, c.sfxDragRate, { lenMs: 900, fadeMs: 300 });
-          voices.riser(c.sfxStrainClip, c.sfxStrainGain, c.sfxStrainRate, real(plan.burstAt - plan.tugAt));
-          scene?.tug(o.attacker, aRadius, true);
-          if (canRaise && !doc!.body.classList.contains(foeZ)) { doc!.body.classList.add(foeZ); raised = true; }
-        } else {
-          // I-II: the hero takes the thread and pulls: a wind-up.
-          cue(c.sfxTugClip, c.sfxTugGain, c.sfxTugRate, { lenMs: 700, fadeMs: 200 });
-          scene?.tug(o.attacker, aRadius, false);
-        }
+      case 'toll':
+        // IV: ONE bell breaks the silence, its whole tail: the bell, the same bell an octave down, and a low boom under
+        // the strike. The crescent ignites on it.
+        cue(c.sfxBellClip, c.sfxBellGain * 1.3, c.sfxBellRate, { tail: 0.2 });
+        cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate * 0.5, { tail: 0.2 });
+        cue(c.sfxBoomClip, c.sfxBoomGain * 1.7, c.sfxBoomRate * 0.8, { lenMs: 1200, fadeMs: 600 });
+        scene?.toll();
+        scene?.ignite();
+        tolledAt = t;
         break;
-      case 'knot':
-        // IV: the target lands in the knot: a gold clank, a ring snapping in round it.
-        cue(c.sfxKnotClip, c.sfxKnotGain, c.sfxKnotRate, { lenMs: 600, fadeMs: 220 });
-        cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate, { lenMs: 400, fadeMs: 160 });
-        scene?.knotted(o.defender);
+      case 'held':
+        // III-IV: fully lit: a glint on the point, a short ring of steel.
+        scene?.held();
+        cue(c.sfxMetalClip, c.sfxMetalGain * 0.6, c.sfxMetalRate * 1.7, { startMs: 120, lenMs: 420, fadeMs: 240 });
         break;
-      case 'cinch':
-        if (q.i > KNOT_PULSES) {
-          // TIER V: the DOUBLE-CINCH: the knot squeezes once more, hard, in a prismatic flash (a heavy clank and a thump).
-          cue(c.sfxKnotClip, c.sfxKnotGain * 1.25, c.sfxKnotRate * 0.85, { lenMs: 500, fadeMs: 200 });
-          cue(c.sfxThumpClip, c.sfxThumpGain * 1.1, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
-          scene?.koCinch(o.defender); // rides the dragged portrait (`follow`), exactly as the cinches do
-          break;
-        }
-        // IV: the knot cinches tighter: a gold clink climbing each time, sparks off the heart.
-        cue(c.sfxKnotClip, c.sfxKnotGain * (0.6 + 0.1 * q.i), c.sfxKnotRate * (1 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
-        scene?.cinch(o.defender, q.i);
-        break;
-      case 'tied': {
-        // IV: the knot is tied shut: a higher clank and a crystal ting at the clasp.
-        cue(c.sfxKnotClip, c.sfxKnotGain * 1.1, c.sfxKnotRate * 1.3, { lenMs: 500, fadeMs: 200 });
-        cue(c.sfxPierceClip, c.sfxPierceGain, c.sfxPierceRate * 0.9, { lenMs: 400, fadeMs: 160 });
-        scene?.tied({ x: o.defender.x, y: o.defender.y - 0.564 * radius * c.knotSize });
+      case 'sweep': {
+        const cut = plan.cuts[q.i]!;
+        if (big) bladeSound(1.3, 0.78, cut.crossAt - t);
+        else if (fall) bladeSound(1.15, 0.9, cut.crossAt - t);
+        else bladeSound(1.25 + 0.15 * q.i, 1.22 - 0.14 * q.i, cut.crossAt - t);
         break;
       }
-      case 'strike':
-        // IV: the hero strikes down the laces: a rush of air.
-        cue(c.sfxLaunchClip, c.sfxLaunchGain * 1.3, c.sfxLaunchRate * 0.65, { lenMs: 500, fadeMs: 200 });
-        break;
-      case 'burst':
-        // TIER V: the heart-knot bursts as Huge's does, but it is a tick now: the slam is the impact.
-        burstFx(t);
-        break;
-      case 'latch':
-        // TIER V: three fast needles whip off the striker's rim (a quick rising whoosh each), and the striker is raised.
-        for (let k = 0; k < 3; k++) cue(c.sfxLaunchClip, c.sfxLaunchGain * 1.1, c.sfxLaunchRate * 1.25 + 0.08 * k, { lenMs: 260, fadeMs: 100, delayMs: real(25 * k) });
-        if (raised) { doc!.body.classList.remove(foeZ); raised = false; }
-        if (canRaiseHero && !doc!.body.classList.contains(heroZ)) { doc!.body.classList.add(heroZ); heroRaised = true; }
-        break;
-      case 'yank':
-        // TIER V: they bite (a crystal ting), then the SECOND, FASTER YANK: a heavy tug, a short drag, a riser to the slam.
-        cue(c.sfxPierceClip, c.sfxPierceGain * 1.1, c.sfxPierceRate * 1.1, { lenMs: 350, fadeMs: 140 });
-        cue(c.sfxTugClip, c.sfxTugGain * 1.3, c.sfxTugRate * 1.1, { lenMs: 500, fadeMs: 160 });
-        cue(c.sfxDragClip, c.sfxDragGain * 0.9, c.sfxDragRate * 1.35, { lenMs: 500, fadeMs: 180 });
-        voices.riser(c.sfxStrainClip, c.sfxStrainGain, c.sfxStrainRate * 1.2, real(plan.impactAt - t));
-        scene?.koLatched();
+      case 'cross':
+        // II's first cut: a tick. A strip of colour goes, and a few motes with it.
+        scene?.cross(q.i, 0.7);
+        scene?.stream(Math.round(plan.motes * 0.35), 160, q.i);
+        cue(c.sfxCleaveClip, c.sfxCleaveGain * 0.75, c.sfxCleaveRate * 1.3, { fadeMs: 160 });
+        leave(0.5, 1.3, 450);
         break;
       case 'impact': {
-        if (plan.ko) {
-          // TIER V: THE SLAM. The striker crashes into the target in the middle of the board: the strike, the impact,
-          // a heavy thump and boom, the crystal shatter and the snap of the latch threads, the KO sting. No rune or turn
-          // explosion sound (owner 2026-10-02).
-          cue(c.sfxStrikeClip, c.sfxStrikeGain * 1.1, c.sfxStrikeRate * 0.9, { lenMs: 900, fadeMs: 300, tail: 0.15 });
-          cue(c.sfxImpactClip, c.sfxImpactGain * 1.1, c.sfxImpactRate - 0.15, { lenMs: 800, fadeMs: 300 });
-          cue(c.sfxThumpClip, c.sfxThumpGain * 1.3, c.sfxThumpRate - 0.15, { lenMs: 500, fadeMs: 180 });
-          cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate * 1.1, { lenMs: 600, fadeMs: 220 });
-          cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate * 0.85, { lenMs: 1000, fadeMs: 360 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 1.1, c.sfxBoomRate * 0.9, { delayMs: real(40), lenMs: 700, fadeMs: 250 });
-          const at = geo.slam?.meet ?? { x: o.defender.x + off.fx, y: o.defender.y + off.fy };
-          scene?.koSlam(at, radius, plan.burst);
-          scene?.koFlourish(at, radius, plan.burst);
-          playKoSting(voices, sound, real);
-        } else burstFx(t);
+        if (!plan.reduced) {
+          const last = plan.cuts.length - 1;
+          const cd = geo.cuts[last]?.dir ?? u;
+          cue(c.sfxThumpClip, c.sfxThumpGain * (0.8 + 0.25 * plan.tier), c.sfxThumpRate - 0.04 * (plan.tier - 1), { lenMs: 420, fadeMs: 180 });
+          if (plan.kind === 'cut') {
+            scene?.cross(last, 1);
+            scene?.stream(plan.motes, 180, 0);
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.05, c.sfxCleaveRate * 1.2, { fadeMs: 180 });
+            leave(0.7, 1.2, 600);
+          } else if (plan.kind === 'cross') {
+            scene?.cross(last, 1);
+            scene?.stream(plan.motes - Math.round(plan.motes * 0.35), 260, null);
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.05, c.sfxCleaveRate * 1.08, { fadeMs: 200 });
+            leave(0.8, 1.08, 800);
+          } else if (fall) {
+            // THE FALL lands: the cleave over a boom, a low bell (and the same bell an octave under it), and the rush
+            // of the colour torn out.
+            scene?.strike(1);
+            scene?.stream(plan.motes, 380, null, 1.7, { x: cd.x * radius * 2.4, y: cd.y * radius * 2.4 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.1, c.sfxCleaveRate * 0.9);
+            cue(c.sfxBoomClip, c.sfxBoomGain * 0.8, c.sfxBoomRate * 0.9, { lenMs: 1000, fadeMs: 500 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.65, c.sfxBellRate * 0.84, { lenMs: 2400, fadeMs: 1000, tail: 0.15 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.5, c.sfxBellRate * 0.42, { lenMs: 2200, fadeMs: 1000 });
+            cue(c.sfxDrainClip, c.sfxDrainGain * 0.9, c.sfxDrainRate * 0.95, { delayMs: real(60), fadeMs: 300 });
+          } else {
+            // IV, THE CUT: the deepest hit of the attack (the cleave and the boom, pitched down, and the bell's low
+            // octave struck again under them), then the portrait's colour is drawn out in a long thick stream, all the
+            // way to the flood.
+            scene?.strike(1.5);
+            scene?.stream(plan.motes, Math.max(120, (plan.floodAt ?? t) - t - 200), null, 1.6, { x: cd.x * radius * 3, y: cd.y * radius * 3 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.3, c.sfxCleaveRate * 0.8);
+            cue(c.sfxBoomClip, c.sfxBoomGain * 1.15, c.sfxBoomRate * 0.7, { lenMs: 1400, fadeMs: 700 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.55, c.sfxBellRate * 0.5, { lenMs: 2600, fadeMs: 1200, tail: 0.15 });
+            cue(c.sfxDrainClip, c.sfxDrainGain * 0.8, c.sfxDrainRate * 0.8, { delayMs: real(90), fadeMs: 320 });
+          }
+          fedAt = t + c.moteMs * 0.8;
+        }
         seq.land();
         break;
       }
-      case 'home':
-        if (q.i === 1) {
-          // TIER V: both portraits settle back onto their spots after the slam.
-          cue(c.sfxThumpClip, c.sfxThumpGain * 0.6, c.sfxThumpRate + 0.15, { lenMs: 350, fadeMs: 140 });
-          break;
-        }
-        // IV: the target thuds back onto its spot.
-        cue(c.sfxThumpClip, c.sfxThumpGain * 0.8, c.sfxThumpRate + 0.1, { lenMs: 400, fadeMs: 160 });
+      case 'flood':
+        // IV: colour floods back: the rush of air again, higher, a low sweep with it, and the hushed buses return.
+        scene?.flood();
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { startMs: 150, fadeMs: 200 });
+        cue(c.sfxSweepClip, c.sfxSweepGain * 0.9, c.sfxSweepRate * 0.6, { fadeMs: 200 });
+        cue(c.sfxSlashClip, c.sfxSlashGain * 0.7, c.sfxSlashRate * 0.7, { delayMs: real(plan.floodEnd !== null ? (plan.floodEnd - t) * 0.45 : 200) });
+        if (hushed) { voices.unduck(); hushed = false; }
+        break;
+      case 'return':
+        // The struck portrait's colour seeps back: a soft breath.
+        cue(c.sfxBreathClip, c.sfxBreathGain * (big || fall ? 1 : 0.8), c.sfxBreathRate * (big || fall ? 0.9 : 1.15), { fadeMs: 160 });
         break;
       default:
         break;
     }
   };
 
-  /** The burst (I-IV's impact; Tier V's tick before the slam): the sounds and the scene's impact. */
-  function burstFx(t: number): void {
-    const dNow = { x: o.defender.x + off.fx, y: o.defender.y + off.fy };
-    if (plan.kind === 'pinned') {
-      // III: five crystal SNAPS one on another as the pins rip out, a twang, the hit and the splinters.
-      for (let k = 0; k < plan.needles.length; k++) {
-        cue(c.sfxSnapClip, c.sfxSnapGain * (0.75 - 0.05 * k), c.sfxSnapRate + 0.08 * k, { lenMs: 500, fadeMs: 200, delayMs: real(18 * k) });
-      }
-      cue(c.sfxPierceClip, c.sfxPierceGain * 1.2, c.sfxPierceRate * 0.85, { lenMs: 500, fadeMs: 200 });
-      cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate, { lenMs: 700, fadeMs: 260 });
-      cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate * 1.1, { lenMs: 900, fadeMs: 300 });
-      cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.06, { lenMs: 500, fadeMs: 180 });
-      cue(c.sfxBoomClip, c.sfxBoomGain * 0.8, c.sfxBoomRate * 1.15, { delayMs: real(30), lenMs: 600, fadeMs: 220 });
-    } else if (big) {
-      // IV: every lace SNAPS, the hero's strike lands, the knot bursts, the crystal chimes out.
-      cue(c.sfxSnapClip, c.sfxSnapGain * 1.15, c.sfxSnapRate * 0.85, { lenMs: 900, fadeMs: 300, tail: 0.12 });
-      cue(c.sfxStrikeClip, c.sfxStrikeGain, c.sfxStrikeRate, { lenMs: 1000, fadeMs: 320, tail: 0.15 });
-      cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.1, { lenMs: 800, fadeMs: 300 });
-      cue(c.sfxShatterClip, c.sfxShatterGain * 1.1, c.sfxShatterRate * 0.9, { lenMs: 1100, fadeMs: 400 });
-      cue(c.sfxRumbleClip, c.sfxRumbleGain, c.sfxRumbleRate, { lenMs: 1200, fadeMs: 400, tail: 0.2 });
-      cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate, { delayMs: real(90), lenMs: 700, fadeMs: 250 });
-      cue(c.sfxRainClip, c.sfxRainGain, c.sfxRainRate, { delayMs: real(420), lenMs: 1200, fadeMs: 500 });
-      cue(c.sfxSummonClip, c.sfxSummonGain * 0.8, c.sfxSummonRate * 1.25, { delayMs: real(220), lenMs: 1000, fadeMs: 400 });
-    } else {
-      // I-II: the taut thread snaps (a whip crack), the bright hit, a low punch; shards for II.
-      cue(c.sfxSnapClip, c.sfxSnapGain * (0.9 + 0.08 * plan.tier), c.sfxSnapRate - 0.04 * (plan.tier - 1), { lenMs: 900, fadeMs: 300, tail: 0.12 });
-      cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: 700, fadeMs: 260 });
-      cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
-      if (plan.tier >= 2) cue(c.sfxShatterClip, c.sfxShatterGain * 0.6, c.sfxShatterRate, { lenMs: 900, fadeMs: 300 });
-    }
-    scene?.impact(big ? dNow : o.defender, big ? radius * c.crush : radius, u, {
-      shards: plan.shards, burst: plan.burst, t, foe: { x: off.fx, y: off.fy }, hero: { x: off.hx, y: off.hy },
-    });
-  }
-
-  /** I-II: the approved moves (portrait px, scaled by the stage like every other style). */
-  const paintSmall = (t: number): void => {
-    const tug = tugAt(plan, t);
-    let hx = 0, hy = 0, hs = 1;
-    if (t >= plan.chargeAt) {
-      if (t < plan.launchAt) hs = 1 + c.heroSwell * easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.launchAt - plan.chargeAt));
-      else hs = 1 + c.heroSwell * Math.max(0, spring(t - plan.launchAt, 4, 80));
-      let flick = 0;
-      for (const q of plan.needles) flick += (t >= q.launchAt ? 1 : 0) * Math.max(0, spring(t - q.launchAt, 5, 50));
-      const pull = c.heroPullPx * (t < plan.impactAt ? tug : spring(t - plan.impactAt, 3.5, 90));
-      const d = (6 * flick - pull) * px;
-      hx = u.x * d; hy = u.y * d;
-    }
-    hero.set(Math.abs(hs - 1) < 1e-4 && Math.abs(hx) + Math.abs(hy) < 0.05 ? null : `translate(${hx.toFixed(2)}px, ${hy.toFixed(2)}px) scale(${hs.toFixed(4)})`);
-    let fx = 0, fy = 0, sx = 1, sy = 1;
-    if (t < plan.impactAt) {
-      let k = 0;
-      for (const at of plan.hits) k += (at <= t ? 1 : 0) * Math.max(0, spring(t - at, 6, 45));
-      const pl = foePull(plan, c, t);
-      const tr = pl.tremble * 2.2 * px;
-      fx = u.x * (k * 5 * px - pl.yank * px) + tr * Math.sin(t * 0.23);
-      fy = u.y * (k * 5 * px - pl.yank * px) + tr * Math.sin(t * 0.31 + 1);
-    } else {
-      const k = spring(t - plan.impactAt, 4.5, 80);
-      const knock = c.knockPx * (0.7 + 0.5 * plan.k) * k * px;
-      const sq = c.squash * (0.8 + 0.5 * plan.k) * k;
-      fx = u.x * knock; fy = u.y * knock;
-      sx = 1 - sq; sy = 1 + sq * 0.6;
-    }
-    const still = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(sx - 1) < 1e-4 && Math.abs(sy - 1) < 1e-4;
-    foe.set(still ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`);
-    off.hx = hx * unit; off.hy = hy * unit; off.fx = fx * unit; off.fy = fy * unit;
-  };
-
-  /**
-   * III: PINNED, and IV: BOUND TOGETHER. Solved in SCREEN px. III: the striker leans back on the five threads and
-   * springs home on the snap; the target STRETCHES toward it about its far rim (`stretchAt`), trembling, and snaps back
-   * through a squash, plus a knock. IV: the striker swells, flicks on each launch, LEANS BACK on the yank and holds,
-   * LUNGES at the knot on the strike and springs home; the target is dragged into the knot (`dragAt`), crushed with it
-   * (`knotAt`), trembling as it strains, and flung home on the burst with a squash, exactly on its spot from `homeAt`.
-   */
-  const paintExact = (t: number, cm: { zoom: number; x: number; y: number }, focus: Pt): { hx: number; hy: number; fx: number; fy: number; m: [number, number, number, number] } => {
-    const pin = plan.kind === 'pinned';
-    let hd = 0, hs = 1;
-    if (t >= plan.chargeAt) {
-      if (t < plan.launchAt) hs = 1 + c.heroSwell * easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.launchAt - plan.chargeAt));
-      else hs = 1 + c.heroSwell * Math.max(0, spring(t - plan.launchAt, 4, 80));
-      let flick = 0;
-      for (const q of plan.needles) flick += (t >= q.launchAt ? 1 : 0) * Math.max(0, spring(t - q.launchAt, 5, 50));
-      const lean = pin
-        ? c.heroPullPx * 1.4 * (t < plan.burstAt ? tugAt(plan, t) : spring(t - plan.burstAt, 3.5, 90))
-        : c.heroPullPx * 1.5 * (t < plan.strikeAt! ? tugAt(plan, t) : 0);
-      let lunge = 0;
-      if (pin) lunge = 0;
-      else if (t >= plan.strikeAt! && t < plan.burstAt) {
-        const v = (t - plan.strikeAt!) / Math.max(1, plan.burstAt - plan.strikeAt!);
-        lunge = c.heroLungePx * (v < 0.3 ? -0.6 * Math.sin((v / 0.3) * Math.PI * 0.5) : -0.6 + 1.6 * easeOutCubic((v - 0.3) / 0.7));
-      } else if (t >= plan.burstAt) lunge = c.heroLungePx * Math.max(0, spring(t - plan.burstAt, 3, 110));
-      hd = (6 * flick - lean + lunge) * mv;
-    }
-    const drag = foeDrag(t);
-    const tie = knotAt(plan, t);
-    const st = stretchAt(plan, c, t);
-    const strain = plan.strikeAt !== null && t >= plan.knotAt! && t < plan.burstAt ? Math.min(1, (t - plan.knotAt!) / Math.max(1, plan.burstAt - plan.knotAt!)) : 0;
-    let fx = drag.x, fy = drag.y, fsx = 1, fsy = 1;
-    // III: the stretch along the line to the striker (its far rim held): the centre slides toward the striker.
-    let m: [number, number, number, number] = [1, 0, 0, 1];
-    if (pin) {
-      const ku = 1 + st, kn = 1 - 0.3 * st;
-      m = [ku * u.x * u.x + kn * u.y * u.y, (ku - kn) * u.x * u.y, (ku - kn) * u.x * u.y, ku * u.y * u.y + kn * u.x * u.x];
-      fx -= u.x * radius * st; fy -= u.y * radius * st;
-    }
-    if (t < plan.burstAt) {
-      let k = 0;
-      for (const at of plan.hits) k += (at <= t ? 1 : 0) * Math.max(0, spring(t - at, 6, 45));
-      const tr = (pin ? 1.6 * tugAt(plan, t) : 0.3 * tugAt(plan, t) + 1.4 * strain) * 2.2 * mv;
-      fx += u.x * k * 5 * mv + tr * Math.sin(t * 0.23);
-      fy += u.y * k * 5 * mv + tr * Math.sin(t * 0.31 + 1);
-      const crush = 1 - (1 - c.crush) * tie;
-      fsx = crush; fsy = crush;
-    } else if (pin) {
-      // Snapped back: the stretch rings out through a squash (`stretchAt`), and a knock along the line.
-      const k = spring(t - plan.burstAt, 4.5, 85);
-      fx += u.x * c.knockPx * (0.7 + 0.5 * plan.k) * k * mv; fy += u.y * c.knockPx * (0.7 + 0.5 * plan.k) * k * mv;
-    } else {
-      // Flung home: the crush springs back out with a squash; the knock is along the line (away from the striker).
-      const since = t - plan.burstAt;
-      const back = 1 - (1 - c.crush) * Math.max(0, 1 - since / 140);
-      const k = spring(since, 4, 95);
-      const sq = c.squash * 1.3 * k;
-      fx += u.x * c.knockPx * 0.6 * k * mv; fy += u.y * c.knockPx * 0.6 * k * mv;
-      fsx = back * (1 - sq); fsy = back * (1 + sq * 0.6);
-    }
-    // Tier V: the second yank and the slam (each portrait toward the middle), the target squashed on contact.
-    const ks = plan.ko ? koSlamAt(plan, t) : null;
-    const sl = ks ? slamOffsets(t) : null;
-    if (sl && ks) { fx += sl.foe.x; fy += sl.foe.y; fsx *= 1 - ks.squash; fsy *= 1 + ks.squash * 0.5; }
-    if (!pin) m = [fsx, 0, 0, fsy];
-    // Screen offsets -> each portrait's own transform: the camera folded in for a portrait outside the camera element.
-    const ax = focus.x * (1 - cm.zoom) + cm.x * unit, ay = focus.y * (1 - cm.zoom) + cm.y * unit;
-    const fold = (at: Pt, ox: number, oy: number, inCam: boolean): { x: number; y: number; z: number } => (inCam || !cam.active
-      ? { x: ox, y: oy, z: 1 }
-      : { x: ox * cm.zoom + at.x * (cm.zoom - 1) + ax, y: oy * cm.zoom + at.y * (cm.zoom - 1) + ay, z: cm.zoom });
-    const hx = u.x * hd + (sl ? sl.hero.x : 0), hy = u.y * hd + (sl ? sl.hero.y : 0);
-    // A linear map M about the ART's centre, written about the wrapper's (the transform origin): the extra shift
-    // (I - M)(art - origin) keeps the art's centre where the offset puts it.
-    const place = (el: HTMLElement, at: Pt, me: { inv: number; ox: number; oy: number }, ox: number, oy: number, mm: readonly number[], inCam: boolean): void => {
-      const f = fold(at, ox, oy, inCam);
-      const a = mm[0]! * f.z, b = mm[1]! * f.z, cc = mm[2]! * f.z, dd = mm[3]! * f.z;
-      const x = f.x + (me.ox - (mm[0]! * me.ox + mm[1]! * me.oy)) * f.z, y = f.y + (me.oy - (mm[2]! * me.ox + mm[3]! * me.oy)) * f.z;
-      const moved = Math.abs(x) > 0.05 || Math.abs(y) > 0.05 || Math.abs(a - 1) > 1e-4 || Math.abs(dd - 1) > 1e-4 || Math.abs(b) > 1e-4 || Math.abs(cc) > 1e-4;
-      // CSS matrix(a, b, c, d, e, f) maps x' = a x + c y, y' = b x + d y.
-      const tf = `translate(${(x * me.inv).toFixed(2)}px, ${(y * me.inv).toFixed(2)}px) matrix(${a.toFixed(4)}, ${cc.toFixed(4)}, ${b.toFixed(4)}, ${dd.toFixed(4)}, 0, 0)`;
-      (el === hero.el ? hero : foe).set(moved ? tf : null);
-    };
-    if (hero.el) place(hero.el, o.attacker, heroM, hx, hy, [hs, 0, 0, hs], heroInCam);
-    if (foe.el) place(foe.el, o.defender, foeM, fx, fy, m, foeInCam);
-    off.hx = hx; off.hy = hy; off.fx = fx; off.fy = fy;
-    return { hx, hy, fx, fy, m };
-  };
-
+  /** Both portraits, in their own px (scaled by the stage like every other style), and the drain panes. */
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.launchAt, plan.impactAt + 260);
-    const cm = reapingCameraAt(plan, c, t, u);
-    const fd = foeDrag(t), sf = plan.ko ? slamOffsets(t).foe : null;
-    const focus = reapingCameraFocus(plan, t, o.attacker, o.defender, sf ? { x: fd.x + sf.x, y: fd.y + sf.y } : fd);
-    cam.apply(focus, cm.zoom, cm.x, cm.y, unit);
-    if (exact) {
-      const r = paintExact(t, cm, focus);
-      scene?.draw(t, { heroX: r.hx, heroY: r.hy, foeX: r.fx, foeY: r.fy, foeM: r.m });
-    } else {
-      paintSmall(t);
-      scene?.draw(t, { heroX: off.hx, heroY: off.hy, foeX: off.fx, foeY: off.fy });
+    // The dim holds through the blow; IV keeps it until the colour floods back (it lifts with the wave).
+    nums.paintDim(t, plan.chargeAt, big ? (plan.drainedAt ?? plan.launchAt) : plan.launchAt, plan.floodAt ?? plan.impactAt + (fall ? 420 : 260));
+    const cm = reapingCameraAt(plan, c, t, cutDir);
+    cam.apply(reapingCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
+    // The striker: a breath of a swell through the ready, and a pulse as the colour reaches it.
+    let hs = 1;
+    if (t >= plan.chargeAt) {
+      const ready = Math.max(1, plan.launchAt - plan.chargeAt);
+      hs += c.heroSwell * (t < plan.launchAt ? easeInOutSine((t - plan.chargeAt) / ready) : Math.max(0, 1 - (t - plan.launchAt) / 260));
+      if (t >= fedAt) hs += 0.03 * Math.max(0, spring(t - fedAt, 3, 140));
+      if (t >= tolledAt) hs += 0.05 * Math.max(-0.4, spring(t - tolledAt, 4, 110));
     }
+    hero.set(Math.abs(hs - 1) < 1e-4 ? null : `scale(${hs.toFixed(4)})`);
+    // The struck portrait: knocked along the cut, then sagging while it is grey.
+    const mv = foeMoveAt(plan, t);
+    const knock = c.knockPx * (0.7 + 0.5 * plan.k) * reel * mv.knock * px;
+    const fx = cutDir.x * knock, fy = cutDir.y * knock + 5 * mv.sag * px;
+    const fs = 1 - c.sag * mv.sag;
+    const still = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(fs - 1) < 1e-4;
+    const tf = still ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${fs.toFixed(4)})`;
+    foe.set(tf);
+    drain.paint(drainAt(plan, t, dstate), tf);
+    scene?.draw(t, { heroX: 0, heroY: 0, foeX: fx * unit, foeY: fy * unit });
   };
 
-  const seq: Sequence<StitchCue | FormationCue> = new Sequence<StitchCue | FormationCue>({
+  const seq: Sequence<ReapingCue | FormationCue> = new Sequence<ReapingCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // IV's slow-mo dip on the burst: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
-    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? reapingTimeScale(plan, c, seq.t) : 1))),
-    safetyMs: o.safety !== false ? (plan.endAt + slowMoExtraMs(plan, c)) / speed + 2500 : null,
+    frames: o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)),
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
-      nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); scene?.hideOwn();
-      if (raised) { doc!.body.classList.remove(foeZ); raised = false; }
-      if (heroRaised) { doc!.body.classList.remove(heroZ); heroRaised = false; }
+      nums.remove(); drain.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); hushed = false; scene?.hideOwn();
     },
     stopVoices: () => voices.stopAll(),
   });
@@ -511,8 +320,7 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
     plan,
     geo,
     scene,
-    foeDrag,
-    slamOffsets,
+    drain,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },

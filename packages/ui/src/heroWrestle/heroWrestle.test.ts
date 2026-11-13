@@ -1,56 +1,67 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 // @vitest-environment jsdom
 /**
- * THE BASEBALL HERO ATTACK ("Charge the Mound", Legendary; owner 2026-11-02: "baseball - have the opponent be the pitcher
- * and the batter be the player dealing dmg. the final lvl 4/knockout should be the player getting struck by the ball and
- * charging the mound and beating up the opponent in an over the top fast attack sequence"): the shared tiers onto the
- * four plays; the tuner values and the sounds; the pure plan (the TARGET pitches first; the blow lands ONCE: the bonk,
- * the crater, the haymaker; the pitch, the crack, the hop, the bean on the striker and every brawl hit are ticks); the
- * geometry (every point on screen, the brawl cloud pulled in off the edges); the pure poses of BOTH portraits, the ball
- * and the bat; the runner (both portraits' transforms, the striker's opacity and the z-order restored exactly on the end,
- * finish, cancel and the safety timer; the ball, bat and shadows hidden; the camera applied once); the variation roll;
- * slow mo and the fast brawl; the scene; the cosmetic.
+ * THE WRESTLING HERO ATTACK ("Top Rope", a Legendary, dev-only: no cosmetic yet): the shared tiers onto the four moves;
+ * the tuner values and the sounds; the pure plan (the blow lands ONCE: the chop, the slam, the elbow, the clothesline;
+ * the shove, the ropes, the landings, the count and the bell are ticks); the geometry (every spot on screen, in both
+ * directions and from the corners; the one exception is III's exit through the top); the pure poses of BOTH portraits;
+ * the ring of light (four corners, ropes on every side), the spotlight, the elbow star and the shadow; the runner (both
+ * portraits' transforms, the striker's opacity, the z-order and the backdrop's socket shades restored exactly on the end,
+ * finish, cancel and the safety timer; the ring, the light, the star and the shadow hidden; the camera applied once; the
+ * clock never changes speed); the scene.
+ *
+ * THE SECOND PASS (owner 2026-11-12: "quick and not impactful", "they need sound effects"): the held beats are real
+ * (II's lift, III's perch, IV's ropes at full stretch), the drops are short, the big hits shake the frame hard and are
+ * followed by an aftermath; the finisher's blow lands well after a second and a half of build-up; every beat has a sound
+ * and every body on the mat has the ring's low thud under it; the empty socket's black shade is switched off while a
+ * portrait is away.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
-import { COSMETIC_INDEX } from '@game/progression';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
-import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
+import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import {
-  FALL_LEAD_MS, HERO_WRESTLE_CLIP_KEYS, HERO_WRESTLE_DEFAULTS, HERO_WRESTLE_RANGES, wrestleBall, wrestleBat, wrestleCameraAt, wrestleCues, wrestleGeo,
-  wrestleKind, wrestlePlan, wrestleTimeScale, batterPose, clampHeroWrestleValue, heroWrestleConfigJson, moonShadow, onScreen, pitcherPose,
-  slowExtraMs, slowWindow, swingAngles, variantOf, type BaseballVariant, type HeroWrestleNumKey,
+  HERO_WRESTLE_CLIP_KEYS, HERO_WRESTLE_DEFAULTS, HERO_WRESTLE_RANGES, RING_BACK, RING_FRONT, clampHeroWrestleValue, heroWrestleConfigJson, onScreen, ringLayout,
+  ropeStretch, strikerPose,
+  victimPose, wrestleCameraAt, wrestleCues, wrestleElbow, wrestleGeo, wrestleKind, wrestlePlan, wrestleRing, wrestleShadow, wrestleSpot,
+  type HeroWrestleNumKey, type WrestleCtx,
 } from './heroWrestleConfig';
-import { HeroWrestleScene, MAX_BASEBALL_SPRITES, type HeroWrestleTextures } from './heroWrestleScene';
-import { playHeroWrestle, type HeroWrestleOptions } from './heroWrestle';
+import { HeroWrestleScene, MAX_WRESTLE_SPRITES, type HeroWrestleTextures } from './heroWrestleScene';
+import { playHeroWrestle, SocketShade, type HeroWrestleOptions } from './heroWrestle';
+import { WRESTLE_COUNTS, WRESTLE_WORDS } from './heroWrestleTextures';
 import { SPEC } from '../HeroWrestleTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
 const W = Texture.WHITE;
 const TEX: HeroWrestleTextures = {
   glow: W, spark: W, streak: W, ring: W, beam: W, ribbonSoft: W, ribbonBody: W, sigil: W, star: W,
-  ball: W, shadow: W, bat: W, puff: W, kapow: W, wordCrack: W, wordBonk: W, wordHomer: W, wordPow: W, wordBam: W, wordSmack: W, wordOut: W,
+  tube: W, mat: W, cone: W, hand: W, arc: W, impact: W, puff: W, shadow: W, wordWoo: W, wordSlam: W, wordWinner: W, num1: W, num2: W, num3: W,
 };
 const C = HERO_WRESTLE_DEFAULTS;
-const plan = (total: number, o: { knockout?: boolean; reduced?: boolean; variant?: BaseballVariant } = {}) => wrestlePlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
-const A = { x: 960, y: 900 }, D = { x: 960, y: 200 };
+const plan = (total: number, o: { knockout?: boolean; reduced?: boolean } = {}) => wrestlePlan({ total, leadIn: leadInOf([total], o.reduced), ...o }, C);
+const A = { x: 300, y: 860 }, D = { x: 1620, y: 220 };
 const R = 80;
 const FRAME = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
-const ctxOf = (total: number, o: { variant?: BaseballVariant } = {}, a = A, d = D) => {
+const ctxOf = (total: number, a = A, d = D, frame = FRAME, o: { knockout?: boolean } = {}): WrestleCtx => {
   const p = plan(total, o);
-  const g = wrestleGeo(a, d, R, R, FRAME, C);
-  return { p, g, c: C, d, dR: R, aR: R, a };
+  return { p, g: wrestleGeo(a, d, R, R, frame, p.kind, C), c: C, a, d, aR: R, dR: R };
 };
+const TOTALS = [3, 8, 14, 40] as const; // I, II, III, IV
+const cueKinds = (total: number) => wrestleCues(plan(total)).map((q) => q.kind);
+const at = (slot: { x: number; y: number }, p: { x: number; y: number }) => ({ x: slot.x + p.x, y: slot.y + p.y });
 const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
-const cueKinds = (total: number, o: { variant?: BaseballVariant } = {}) => wrestleCues(plan(total, o)).map((q) => q.kind);
 
-describe('the tiers: the shared four onto the four plays', () => {
-  it('uses the shared thresholds; I up the middle, II the hot shot, III the moonshot, IV charge the mound; a knockout charges the mound', () => {
+describe('the tiers: the shared four onto the four moves', () => {
+  it('uses the shared thresholds; I the chop, II the body slam, III the elbow drop, IV the finisher; a knockout plays the finisher', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(wrestleKind(tierOf(d)));
-    expect([1, 2, 3, 4].map((t) => wrestleKind(t as 1 | 2 | 3 | 4))).toEqual(['single', 'hotshot', 'moonshot', 'brawl']);
-    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'brawl' });
+    expect([1, 2, 3, 4].map((t) => wrestleKind(t as 1 | 2 | 3 | 4))).toEqual(['chop', 'slam', 'elbow', 'pin']);
+    expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'pin' });
+    expect(wrestleCues(plan(2, { knockout: true })).map((q) => q.kind)).toEqual(expect.arrayContaining(['whip', 'rope', 'count', 'bell']));
+  });
+
+  it('is a dev-only style (in the style list and the dev override)', () => {
+    expect(HERO_ATTACK_STYLES).toContain('wrestle');
+    expect(DEV_HERO_ATTACK_CHOICES).toContain('wrestle');
   });
 });
 
@@ -61,14 +72,13 @@ describe('the tuner values', () => {
       expect(v, k).toBeGreaterThanOrEqual(min);
       expect(v, k).toBeLessThanOrEqual(max);
     }
-    expect(clampHeroWrestleValue('brawlHits', 99)).toBe(16);
-    expect(clampHeroWrestleValue('colorBall', 'nope')).toBe(C.colorBall);
+    expect(clampHeroWrestleValue('flipTurns', 99)).toBe(3);
+    expect(clampHeroWrestleValue('colorMat', 'nope')).toBe(C.colorMat);
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
     expect(JSON.parse(heroWrestleConfigJson(C)).previewDamage).toBeUndefined();
     expect(SPEC.buttonsOnTop).toBe(true);
     expect((SPEC.actions ?? []).map((a) => a.label).filter((l) => /speed|reduced motion/i.test(l))).toEqual([]);
-    expect(DEV_HERO_ATTACK_CHOICES).toContain('wrestle');
     for (const k of HERO_WRESTLE_CLIP_KEYS) {
       expect(keys.has(k as never), k).toBe(true);
       expect(keys.has(k.replace('Clip', 'Gain') as never), k).toBe(true);
@@ -76,14 +86,17 @@ describe('the tuner values', () => {
     }
   });
 
-  it('the sounds: a bat crack, a glove pop, a bonk, a slide whistle, the organ\'s "Charge!" and the umpire are their own clips; every default clip exists', async () => {
-    expect(C.sfxCrackClip).toBe('fx/baseball-crack');
-    expect(C.sfxGloveClip).toBe('fx/baseball-glove');
-    expect(C.sfxBonkClip).toBe('fx/baseball-bonk');
-    expect(C.sfxFallClip).toBe('fx/baseball-fall');
-    expect(C.sfxChargeClip).toBe('fx/baseball-charge');
-    expect(C.sfxUmpClip).toBe('fx/baseball-out');
-    expect(C.sfxBrawlClip).toBe('fx/baseball-brawl');
+  it('the sounds: the chop, the mat slam, the bell and the crowd are its own clips; every default clip exists', async () => {
+    expect(C.sfxChopClip).toBe('fx/wrestle-chop');
+    expect(C.sfxSlamClip).toBe('fx/wrestle-slam');
+    expect(C.sfxBellClip).toBe('fx/wrestle-bell');
+    expect(C.sfxWooClip).toBe('fx/wrestle-woo');
+    // The second pass: the ring's low thud under every landing, the ropes, the mat slap, the crowd's roar, and a shared "ooh".
+    expect(C.sfxThudClip).toBe('fx/wrestle-thud');
+    expect(C.sfxRopeClip).toBe('fx/wrestle-rope');
+    expect(C.sfxSlapClip).toBe('fx/wrestle-slap');
+    expect(C.sfxRoarClip).toBe('fx/wrestle-roar');
+    expect(C.sfxOohClip).toBe('fx/soccer-crowd-ooh');
     const { existsSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     for (const k of HERO_WRESTLE_CLIP_KEYS) {
@@ -92,231 +105,421 @@ describe('the tuner values', () => {
       expect(existsSync(`${base}.mp3`) || existsSync(`${base}.wav`), `${k} = ${id}`).toBe(true);
     }
   });
+
+  it('the words on screen are short and plain', () => {
+    for (const w of [...WRESTLE_WORDS, ...WRESTLE_COUNTS]) {
+      expect(w.length).toBeLessThanOrEqual(7);
+      expect(w).not.toMatch(/—|--|oath|climb/i);
+    }
+  });
 });
 
-describe('the plan (the target pitches first; the blow lands once)', () => {
-  it('I-III: glove pop, windup, the pitch, the swing, the CRACK, then the impact; the crack is before the impact', () => {
-    for (const total of [3, 8, 14]) {
+describe('the plan (the striker walks in; the blow lands once)', () => {
+  it('every tier: the walk, the grip, then the move; exactly one impact cue; the charge first and the end last; in time order', () => {
+    for (const total of TOTALS) {
       const p = plan(total);
-      expect(p.chargeAt).toBeLessThan(p.windAt);
-      expect(p.windAt).toBeLessThan(p.releaseAt);
-      expect(p.releaseAt).toBeLessThan(p.arriveAt);
-      expect(p.swingAt).toBeLessThan(p.arriveAt);
-      expect(p.swingEnd).toBeGreaterThan(p.arriveAt);
-      expect(p.arriveAt).toBeLessThan(p.impactAt);
-      expect(p.endAt).toBeGreaterThan(p.impactAt);
-      const k = cueKinds(total);
-      expect(k.indexOf('charge')).toBe(0);
-      expect(k.indexOf('pitch')).toBeLessThan(k.indexOf('crack'));
-      expect(k.indexOf('crack')).toBeLessThan(k.indexOf('impact'));
-      expect(k).not.toContain('bean');
+      expect(p.chargeAt).toBeLessThan(p.walkAt);
+      expect(p.walkAt).toBeLessThan(p.gripAt);
+      expect(p.gripAt).toBeLessThan(p.impactAt);
+      expect(p.impactAt).toBeLessThan(p.homeAt);
+      expect(p.homeAt).toBeLessThan(p.homeEnd);
+      expect(p.homeEnd).toBeLessThanOrEqual(p.endAt);
+      const cs = wrestleCues(p);
+      expect(cs.filter((q) => q.kind === 'impact')).toHaveLength(1);
+      expect(cs[0]!.kind).toBe('charge');
+      expect(cs[cs.length - 1]!.kind).toBe('end');
+      for (let i = 1; i < cs.length; i++) expect(cs[i]!.at).toBeGreaterThanOrEqual(cs[i - 1]!.at);
     }
   });
 
-  it('II: the liner is fastest, the grounder hops once on the way, the foul tip takes the long way round', () => {
-    const l = plan(8, { variant: 1 }), g = plan(8, { variant: 2 }), f = plan(8, { variant: 3 });
-    expect(l.impactAt - l.arriveAt).toBeLessThan(g.impactAt - g.arriveAt);
-    expect(g.hopAt).not.toBeNull();
-    expect(g.hopAt!).toBeGreaterThan(g.arriveAt);
-    expect(g.hopAt!).toBeLessThan(g.impactAt);
-    expect(cueKinds(8, { variant: 2 })).toContain('hop');
-    expect(cueKinds(8, { variant: 1 })).not.toContain('hop');
-    expect(f.impactAt - f.arriveAt).toBeGreaterThan(g.impactAt - g.arriveAt);
+  it('I THE CHOP: a wind-up, then the arm comes through = THE impact; the shortest of the four', () => {
+    const p = plan(3);
+    expect(p.chopAt! - p.gripAt).toBe(C.chopWindMs);
+    expect(p.impactAt - p.chopAt!).toBe(C.chopMs);
+    expect(cueKinds(3)).toEqual(['charge', 'walk', 'grip', 'swing', 'impact', 'home', 'end']);
+    expect(p.endAt - p.chargeAt).toBeLessThan(plan(8).endAt - plan(8).chargeAt);
   });
 
-  it('III: up and gone (the twinkle), then down from the sky; the slide whistle bottoms out on the crash; the bat flip lands', () => {
+  it('II THE BODY SLAM: the dip, the lift, a held beat at the top, the slam = THE impact, then one bounce (a tick)', () => {
+    const p = plan(8);
+    expect(p.gripAt).toBeLessThan(p.liftAt!);
+    expect(p.liftAt!).toBeLessThan(p.topAt!);
+    expect(p.slamAt! - p.topAt!).toBe(C.hangMs);
+    expect(p.impactAt).toBeGreaterThan(p.slamAt!);
+    expect(p.bounceEnd!).toBeGreaterThan(p.impactAt);
+    expect(p.homeAt).toBeGreaterThan(p.bounceEnd!);
+    expect(cueKinds(8)).toEqual(['charge', 'walk', 'grip', 'lift', 'top', 'drop', 'impact', 'bounce', 'home', 'end']);
+  });
+
+  it('III THE ELBOW DROP: the shove flat, the climb out of the top, a held beat, the dive = THE impact', () => {
     const p = plan(14);
-    expect(p.arriveAt).toBeLessThan(p.apexAt!);
-    expect(p.apexAt!).toBeLessThan(p.dropAt!);
-    expect(p.dropAt!).toBeLessThan(p.impactAt);
-    const cs = wrestleCues(p);
-    const fall = cs.find((q) => q.kind === 'fall')!;
-    expect(fall.at).toBeGreaterThanOrEqual(p.apexAt!);
-    expect(p.impactAt - fall.at).toBeLessThanOrEqual(FALL_LEAD_MS);
-    expect(cs.map((q) => q.kind)).toEqual(expect.arrayContaining(['twinkle', 'batland']));
-    expect(p.batLandAt!).toBeLessThan(p.endAt);
+    expect(p.downAt! - p.gripAt).toBe(C.shoveMs);
+    expect(p.perchAt! - p.downAt!).toBe(C.climbMs);
+    expect(p.diveAt! - p.perchAt!).toBe(C.perchMs);
+    expect(p.impactAt - p.diveAt!).toBe(C.diveMs);
+    expect(p.bounceEnd! - p.impactAt).toBe(C.bounceMs);
+    expect(cueKinds(14)).toEqual(['charge', 'walk', 'grip', 'down', 'perch', 'dive', 'impact', 'bounce', 'home', 'end']);
   });
 
-  it('IV CHARGE THE MOUND: the bean, the bat slammed down, the fume, the charge, the collision, a flurry of hits inside the brawl, the haymaker = THE impact', () => {
+  it('IV THE FINISHER: the whip, the ropes, flung back, the clothesline = THE impact; then the landing, the cover, 1 2 3 and the bell (all ticks)', () => {
     const p = plan(40);
-    expect(p.kind).toBe('brawl');
-    expect(p.beanAt).toBe(p.arriveAt);
-    expect(p.beanAt!).toBeLessThan(p.batDropAt!);
-    expect(p.batDropAt!).toBeLessThan(p.clatterAt!);
-    expect(p.staggerEnd!).toBeLessThanOrEqual(p.chargeRunAt!);
-    expect(p.chargeRunAt!).toBeLessThan(p.collideAt!);
-    expect(p.hits.length).toBe(C.brawlHits);
-    for (const h of p.hits) { expect(h).toBeGreaterThan(p.collideAt!); expect(h).toBeLessThan(p.brawlEnd!); }
-    expect([...p.hits].sort((a, b) => a - b)).toEqual(p.hits);
-    expect(p.koWindAt!).toBe(p.brawlEnd);
-    expect(p.impactAt).toBeGreaterThan(p.brawlEnd!);
+    expect(p.kind).toBe('pin');
+    expect(p.whipAt!).toBeLessThan(p.ropeAt!);
+    expect(p.ropeAt!).toBeLessThan(p.flingAt!);
+    expect(p.flingAt!).toBeLessThan(p.impactAt);
+    expect(p.impactAt).toBeLessThan(p.landAt!);
+    expect(p.landAt!).toBeLessThan(p.pinAt!);
+    expect(p.counts).toHaveLength(3);
+    expect(p.counts[0]!).toBeGreaterThan(p.pinAt!);
+    expect(p.counts[1]! - p.counts[0]!).toBe(C.countMs);
+    expect(p.bellAt!).toBeGreaterThan(p.counts[2]!);
+    expect(p.homeAt).toBeGreaterThan(p.bellAt!);
     const k = cueKinds(40);
-    expect(k).toEqual(expect.arrayContaining(['bean', 'batdrop', 'clatter', 'fume', 'run', 'collide', 'hit', 'kowind']));
-    expect(k).not.toContain('crack');
-    expect(k.indexOf('bean')).toBeLessThan(k.indexOf('run'));
-    expect(k.lastIndexOf('hit')).toBeLessThan(k.indexOf('impact'));
+    expect(k).toEqual(['charge', 'walk', 'grip', 'whip', 'rope', 'fling', 'impact', 'land', 'hop', 'cover', 'count', 'count', 'count', 'bell', 'home', 'end']);
+    // A beat over the body before the leap for the cover.
+    expect(p.coverAt! - p.landAt!).toBe(C.afterMs);
+    expect(p.pinAt! - p.coverAt!).toBe(C.coverMs);
+    // The second pass: the blow has a real build-up (it used to land 1.4 s in), and the whole finisher, count and all, is
+    // long but bounded.
+    expect(p.impactAt - p.chargeAt).toBeGreaterThan(1500);
+    expect(p.endAt - p.chargeAt).toBeGreaterThan(5000);
+    expect(p.endAt - p.chargeAt).toBeLessThan(6200);
   });
 
-  it('every tier: exactly one impact cue, the glove pop first, the end last', () => {
-    for (const total of [3, 8, 14, 40]) {
-      for (const variant of [1, 2, 3] as const) {
-        const cs = wrestleCues(plan(total, { variant }));
-        expect(cs.filter((q) => q.kind === 'impact')).toHaveLength(1);
-        expect(cs[0]!.kind).toBe('charge');
-        expect(cs[cs.length - 1]!.kind).toBe('end');
-        for (let i = 1; i < cs.length; i++) expect(cs[i]!.at).toBeGreaterThanOrEqual(cs[i - 1]!.at);
-      }
-    }
+  it('WEIGHT: each big move is HELD, then FAST; the hit shakes hard (the elbow and the clothesline hardest); an aftermath follows', () => {
+    const [slam, elbow, pin] = [plan(8), plan(14), plan(40)];
+    // held at the top for at least half a second; the drop is under a third of the hold
+    expect(slam.slamAt! - slam.topAt!).toBeGreaterThanOrEqual(500);
+    expect(slam.impactAt - slam.slamAt!).toBeLessThan((slam.slamAt! - slam.topAt!) / 3);
+    expect(elbow.diveAt! - elbow.perchAt!).toBeGreaterThanOrEqual(700);
+    expect(elbow.impactAt - elbow.diveAt!).toBeLessThan((elbow.diveAt! - elbow.perchAt!) / 3);
+    expect(pin.flingAt! - pin.ropeAt!).toBeGreaterThanOrEqual(400);
+    expect(pin.impactAt - pin.flingAt!).toBeLessThan((pin.flingAt! - pin.ropeAt!) / 2);
+    // the shake
+    expect(slam.shakePx).toBeGreaterThanOrEqual(14);
+    expect(elbow.shakePx).toBeGreaterThan(slam.shakePx);
+    expect(pin.shakePx).toBeGreaterThan(elbow.shakePx);
+    const peak = (p: typeof slam, dir: { x: number; y: number }): number => {
+      let m = 0;
+      for (let t = p.impactAt; t < p.impactAt + 300; t += 4) { const k = wrestleCameraAt(p, C, t, dir); m = Math.max(m, Math.hypot(k.x, k.y)); }
+      return m;
+    };
+    expect(peak(elbow, { x: 0, y: 1 })).toBeGreaterThan(20);
+    expect(peak(pin, { x: 1, y: 0 })).toBeGreaterThan(24);
+    // the aftermath: nearly a second on the mat before anyone goes home
+    expect(slam.homeAt - slam.impactAt).toBeGreaterThanOrEqual(900);
+    expect(elbow.homeAt - elbow.impactAt).toBeGreaterThanOrEqual(1000);
+    // IV: the landing and each count jolt the frame, each count harder than the last
+    const ks = pin.counts.map((at) => pin.jolts.find((j) => j.at === at)!.k);
+    expect(ks[0]!).toBeGreaterThan(0.3);
+    expect(ks[1]!).toBeGreaterThan(ks[0]!);
+    expect(ks[2]!).toBeGreaterThan(ks[1]!);
+    expect(pin.jolts.find((j) => j.at === pin.landAt)!.k).toBeGreaterThan(0.7);
   });
 
-  it('reduced motion: no pose, no ball, no bat; the blow lands at the end of the formation', () => {
+  it('no hit-stop and no slow motion: the plan carries no hold', () => {
+    for (const total of TOTALS) expect(Object.keys(plan(total)).join(' ')).not.toMatch(/hitStop|slow|freeze/i);
+  });
+
+  it('reduced motion: no pose, no ring, no light; the blow lands at the end of the formation', () => {
     const p = plan(40, { reduced: true });
     expect(p.reduced).toBe(true);
     expect(wrestleCues(p).map((q) => q.kind)).toEqual(['impact', 'end']);
-    const x = { p, g: wrestleGeo(A, D, R, R, FRAME, C), c: C, d: D, dR: R, aR: R, a: A };
+    const x: WrestleCtx = { p, g: wrestleGeo(A, D, R, R, FRAME, p.kind, C), c: C, a: A, d: D, aR: R, dR: R };
     for (let t = 0; t < p.endAt; t += 50) {
-      expect(wrestleBall(x, t).visible).toBe(false);
-      expect(wrestleBat(x, t).visible).toBe(false);
-      expect(batterPose(p, x.g, C, R, A, t)).toMatchObject({ x: 0, y: 0, rot: 0 });
-      expect(pitcherPose(p, x.g, C, R, t)).toMatchObject({ x: 0, y: 0, rot: 0 });
+      expect(strikerPose(x, t)).toMatchObject({ x: 0, y: 0, rot: 0, squash: 0 });
+      expect(victimPose(x, t)).toMatchObject({ x: 0, y: 0, rot: 0, squash: 0 });
+      expect(wrestleRing(x, t).visible).toBe(false);
+      expect(wrestleSpot(x, t).visible).toBe(false);
+      expect(wrestleElbow(x, t).visible).toBe(false);
     }
+    expect(wrestleCameraAt(p, C, 1000, { x: 0, y: 1 })).toEqual({ zoom: 1, x: 0, y: 0 });
   });
 });
+
+/** Layouts: the usual diagonal (both ways), stacked, side by side, and both tucked hard into opposite corners. */
+const LAYOUTS: [string, { x: number; y: number }, { x: number; y: number }][] = [
+  ['you strike (bottom left -> top right)', A, D],
+  ['foe strikes (top right -> bottom left)', D, A],
+  ['stacked', { x: 960, y: 900 }, { x: 960, y: 200 }],
+  ['stacked, flipped', { x: 960, y: 200 }, { x: 960, y: 900 }],
+  ['side by side', { x: 400, y: 540 }, { x: 1500, y: 540 }],
+  ['corners', { x: 140, y: 920 }, { x: 1800, y: 110 }],
+  ['corners, flipped', { x: 1800, y: 110 }, { x: 140, y: 920 }],
+];
 
 describe('the geometry', () => {
-  it('the bat meets the ball in front of the batter; the pitcher releases in front of itself; the foul tip goes wide to the hands\' side', () => {
-    const g = wrestleGeo(A, D, R, R, FRAME, C);
-    expect(g.u).toEqual({ x: 0, y: -1 });
-    expect(g.plate.y).toBeLessThan(A.y); // toward the pitcher
-    expect(dist(g.plate, A)).toBeLessThan(R * 2.2);
-    expect(g.release.y).toBeGreaterThan(D.y);
-    // the foul tip loops out to the hands' side
-    const side = (p: { x: number; y: number }) => (p.x - A.x) * g.n.x * g.side + (p.y - A.y) * g.n.y * g.side;
-    expect(side(g.foul1)).toBeGreaterThan(R);
-    // the swing: cocked behind, across the front at contact, through to the follow
-    const s = swingAngles(g);
-    expect(Math.abs(s.contact - s.cock)).toBeGreaterThan(1);
-    expect(Math.abs(s.follow - s.contact)).toBeGreaterThan(1);
+  it('the striker stands BESIDE the struck portrait, on the side it came from, about two radii away and level with it', () => {
+    const g = wrestleGeo(A, D, R, R, FRAME, 'chop', C);
+    expect(g.s).toBe(-1); // it came from the left
+    expect(g.grab.y).toBe(D.y);
+    expect(D.x - g.grab.x).toBeCloseTo(2 * R * C.gap, 5);
+    expect(wrestleGeo(D, A, R, R, FRAME, 'chop', C).s).toBe(1);
+    // Stacked: the roomier side. Tucked against the right edge: the left.
+    expect(wrestleGeo({ x: 1800, y: 900 }, { x: 1800, y: 200 }, R, R, FRAME, 'chop', C).s).toBe(-1);
   });
 
-  it('the foe tucked in the top-right corner (1920 x 1080 and 1600 x 900): the cloud, the brawl spots, the KO launch, the foul tip and the bat all on screen', () => {
+  it('II: the struck portrait is held ABOVE the striker and slammed down beside it; III: the dive starts off the top, straight above the mat', () => {
+    const s = wrestleGeo(A, D, R, R, FRAME, 'slam', C);
+    expect(s.top.y).toBeLessThan(s.stand.y - R * 1.2);
+    expect(Math.abs(s.top.x - s.stand.x)).toBeLessThan(R * 0.5);
+    expect(s.mat.y).toBeGreaterThan(s.top.y + R * 1.2);
+    expect(Math.abs(s.mat.x - s.stand.x)).toBeGreaterThan(R);
+    const e = wrestleGeo(A, D, R, R, FRAME, 'elbow', C);
+    expect(e.sky.y).toBeLessThan(-R);
+    expect(e.sky.x).toBe(e.mat.x);
+    expect(e.cover.y).toBeLessThan(e.mat.y);
+  });
+
+  it('IV: the ring fits the screen; the struck slot is by the near ropes, the whip goes PAST the striker to the far ropes, which stretch OUT', () => {
+    for (const [name, a, d] of LAYOUTS) {
+      const g = wrestleGeo(a, d, R, R, FRAME, 'pin', C);
+      const { ring } = g;
+      expect(ring.half, name).toBeGreaterThan(R * 2);
+      for (const x of [ring.xNear, ring.xFar]) { expect(x, name).toBeGreaterThan(0); expect(x, name).toBeLessThan(1920); }
+      expect(Math.abs(d.x - ring.xNear), name).toBeLessThan(Math.abs(d.x - ring.xFar));
+      // the striker (at `grab`) is between the struck slot and the far ropes
+      expect((g.grab.x - d.x) * g.s, name).toBeGreaterThan(0);
+      expect((ring.xFar - g.grab.x) * g.s, name).toBeGreaterThan(0);
+      // the ropes stretch outward, away from the middle of the ring
+      expect((g.ropeMax.x - g.ropeHit.x) * g.s, name).toBeCloseTo(R * C.stretch, 5);
+      // the clothesline: the striker braced on the near side of where they meet
+      expect((g.meet.x - g.block.x) * g.s, name).toBeGreaterThan(0);
+      const [near, far] = ringLayout(g, R, R);
+      expect(near.out, name).toBe(-g.s);
+      expect(far.out, name).toBe(g.s);
+      for (const sd of [near, far]) {
+        for (const pt of [sd.back, sd.front]) expect(onScreen(pt, FRAME, 0), `${name} corner`).toBe(true);
+        // a floor in perspective: the back corners are up the screen and closer in, the front ones down it and further out
+        expect(sd.back.y, name).toBeCloseTo(ring.cy - R * RING_BACK, 5);
+        expect(sd.front.y, name).toBeCloseTo(ring.cy + R * RING_FRONT, 5);
+        expect((sd.front.x - sd.back.x) * sd.out, name).toBeGreaterThan(0);
+        // every rope is on screen: the top back rope and the top of each pillar
+        expect(sd.back.y - sd.backH, name).toBeGreaterThan(0);
+        // the back ropes pass ABOVE a portrait standing in the ring and the front ropes BELOW its middle
+        expect(sd.back.y - sd.backH * 0.4, name).toBeLessThan(ring.cy - R);
+        expect(sd.front.y - sd.frontH * 0.92, name).toBeGreaterThan(ring.cy + R * 0.9);
+      }
+      // BIG: the ring is at least six portrait radii wide and three and a half deep
+      expect(Math.abs(far.front.x - near.front.x), name).toBeGreaterThan(R * 6);
+      expect(near.front.y - near.back.y, name).toBeGreaterThan(R * 3.5);
+    }
+  });
+
+  it('every layout, every tier, 1920 x 1080 and 1600 x 900: every spot a portrait is sent to is on screen (III\'s exit through the top is the one exception)', () => {
     for (const fr of [FRAME, { x0: 0, y0: 0, x1: 1600, y1: 900 }]) {
-      const a = { x: 140, y: fr.y1 - 160 }, d = { x: fr.x1 - 120, y: 110 };
-      for (const [s, t] of [[a, d], [d, a]]) {
-        const g = wrestleGeo(s, t, R, R, fr, C);
-        expect(onScreen(g.cloud, fr, R * 1.5), 'cloud').toBe(true);
-        expect(onScreen(g.mound, fr, 0), 'mound').toBe(true);
-        expect(onScreen({ x: t.x + g.pitcherBrawl.x, y: t.y + g.pitcherBrawl.y }, fr, 0), 'pitcher in the brawl').toBe(true);
-        expect(onScreen({ x: t.x + g.launch.x, y: t.y + g.launch.y }, fr, R * 0.4), 'launch').toBe(true);
-        expect(onScreen(g.foul1, fr, R * 0.5), 'foul1').toBe(true);
-        expect(onScreen(g.foul2, fr, R * 0.5), 'foul2').toBe(true);
-        expect(onScreen(g.batLand, fr, R * 0.3), 'bat').toBe(true);
-        expect(onScreen(g.batSlam, fr, R * 0.3), 'bat slam').toBe(true);
+      const k = fr.x1 / 1920;
+      for (const [name, a0, d0] of LAYOUTS) {
+        const a = { x: a0.x * k, y: a0.y * k }, d = { x: d0.x * k, y: d0.y * k };
+        for (const kind of ['chop', 'slam', 'elbow', 'pin'] as const) {
+          const g = wrestleGeo(a, d, R, R, fr, kind, C);
+          for (const [label, pt] of Object.entries({ grab: g.grab, stagger: g.stagger, under: g.under, stand: g.stand, top: g.top, mat: g.mat, cover: g.cover, ropeHit: g.ropeHit, ropeMax: g.ropeMax, block: g.block, meet: g.meet, win: g.win, count: g.count })) {
+            expect(onScreen(pt, fr, R * 0.4), `${name} ${kind} ${label} (${Math.round(pt.x)}, ${Math.round(pt.y)})`).toBe(true);
+          }
+        }
       }
     }
   });
 });
 
-describe('the poses, the ball and the bat', () => {
-  it('the PITCHER winds up and lunges before anything is hit; the BATTER loads and swings through the contact', () => {
+describe('the poses (pure): both portraits, at every moment', () => {
+  it('both portraits stay on screen for the whole of every tier in every layout (the striker leaves only through the TOP, in III)', () => {
+    for (const [name, a, d] of LAYOUTS) {
+      for (const total of TOTALS) {
+        const x = ctxOf(total, a, d);
+        for (let t = x.p.chargeAt; t < x.p.endAt; t += 8) {
+          const sp = at(a, strikerPose(x, t)), vp = at(d, victimPose(x, t));
+          expect(onScreen(vp, FRAME, R * 0.3), `${name} ${total} victim at ${t}`).toBe(true);
+          if (x.p.kind === 'elbow' && t >= x.p.downAt! && t < x.p.impactAt) {
+            // the climb and the dive: on screen sideways, never below the floor
+            expect(sp.x, `${name} striker x at ${t}`).toBeGreaterThan(R * 0.3);
+            expect(sp.x).toBeLessThan(1920 - R * 0.3);
+            expect(sp.y).toBeLessThan(1080 - R * 0.3);
+          } else expect(onScreen(sp, FRAME, R * 0.3), `${name} ${total} striker at ${t} (${Math.round(sp.x)}, ${Math.round(sp.y)})`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('both portraits are exactly at rest before the charge and from the end; they move without a jump (no teleport on screen)', () => {
+    for (const total of TOTALS) {
+      const x = ctxOf(total);
+      for (const pose of [strikerPose, victimPose]) {
+        expect(pose(x, x.p.chargeAt - 1)).toEqual({ x: 0, y: 0, rot: 0, scale: 1, squash: 0 });
+        expect(pose(x, x.p.endAt)).toEqual({ x: 0, y: 0, rot: 0, scale: 1, squash: 0 });
+        const last = pose(x, x.p.endAt - 1);
+        expect(Math.hypot(last.x, last.y)).toBeLessThan(1);
+        expect(Math.abs(last.rot)).toBeLessThan(0.5);
+        let prev = pose(x, x.p.chargeAt);
+        for (let t = x.p.chargeAt + 4; t < x.p.endAt; t += 4) {
+          const q = pose(x, t);
+          // off screen (III's held beat) it may be carried across; on screen never more than a fast move per 4 ms
+          const hidden = x.p.kind === 'elbow' && pose === strikerPose && t >= x.p.perchAt! - 8 && t <= x.p.diveAt! + 8;
+          if (!hidden) expect(Math.hypot(q.x - prev.x, q.y - prev.y), `${total} at ${t}`).toBeLessThan(R * 0.6);
+          prev = q;
+        }
+      }
+    }
+  });
+
+  it('I: the striker walks to the grab spot, LEANS AWAY on the wind-up, comes through; the struck portrait only staggers after the impact', () => {
     const x = ctxOf(3);
     const { p, g } = x;
-    const mid = pitcherPose(p, g, C, R, p.windAt + (p.releaseAt - p.windAt) * 0.4);
-    expect(Math.hypot(mid.x, mid.y)).toBeGreaterThan(1);
-    expect(Math.abs(mid.rot)).toBeGreaterThan(1);
-    const lunge = pitcherPose(p, g, C, R, p.releaseAt + 80);
-    expect(lunge.x * g.u.x + lunge.y * g.u.y).toBeLessThan(0); // toward the batter
-    expect(batterPose(p, g, C, R, A, p.swingAt - 10).rot).not.toBe(batterPose(p, g, C, R, A, p.swingEnd).rot);
-    expect(batterPose(p, g, C, R, A, p.endAt - 1)).toMatchObject({ x: expect.closeTo(0, 0), y: expect.closeTo(0, 0) });
+    expect(dist(at(A, strikerPose(x, p.gripAt)), g.grab)).toBeLessThan(2);
+    const wound = strikerPose(x, p.chopAt! - 1);
+    expect(wound.rot * g.s).toBeCloseTo(C.chopLean, 0); // leaning away from the one it is about to chop
+    expect(strikerPose(x, p.impactAt - 1).rot * g.s).toBeLessThan(0); // and through
+    expect(Math.hypot(victimPose(x, p.impactAt - 1).x, victimPose(x, p.impactAt - 1).y)).toBeLessThan(1);
+    const hit = victimPose(x, p.impactAt + 200);
+    expect(hit.x * -g.s).toBeGreaterThan(R * 0.2); // a step away from the striker
+    expect(Math.abs(hit.y)).toBeLessThan(R * 0.2);
   });
 
-  it('the ball: in the pitcher\'s hand, at the plate on the contact, on the pitcher on the impact, gone after', () => {
-    for (const [total, variant] of [[3, 1], [8, 1], [8, 2], [8, 3]] as const) {
-      const x = ctxOf(total, { variant });
-      const { p, g } = x;
-      const held = wrestleBall(x, p.windAt + 40);
-      expect(held.visible).toBe(true);
-      expect(dist(held, D)).toBeLessThan(R * 1.6);
-      expect(dist(wrestleBall(x, p.arriveAt - 0.5), g.plate)).toBeLessThan(R * 0.2);
-      expect(dist(wrestleBall(x, p.impactAt - 0.5), g.hit)).toBeLessThan(R * 0.3);
-      expect(wrestleBall(x, p.impactAt + 1).visible).toBe(false);
-    }
-    // the grounder is on the ground (no lift) at the hop
-    const gx = ctxOf(8, { variant: 2 });
-    expect(wrestleBall(gx, gx.p.hopAt!).lift).toBeLessThan(1);
+  it('II: the striker dips (squashed, lower), the struck portrait rises ABOVE it tilted flat and is held, then is on the mat at the impact and bounces once', () => {
+    const x = ctxOf(8);
+    const { p, g } = x;
+    const dip = strikerPose(x, p.liftAt! - 1);
+    expect(dip.squash).toBeGreaterThan(0.15);
+    expect(at(A, dip).y).toBeGreaterThan(g.grab.y);
+    const held = victimPose(x, (p.topAt! + p.slamAt!) / 2);
+    const lifter = strikerPose(x, (p.topAt! + p.slamAt!) / 2);
+    expect(at(D, held).y).toBeLessThan(at(A, lifter).y - R * 1.3);
+    expect(Math.abs(at(D, held).x - at(A, lifter).x)).toBeLessThan(R * 0.4);
+    expect(Math.abs(held.rot)).toBeGreaterThan(80);
+    // the held beat really is held, then it is heaved a last notch HIGHER just before the drop
+    expect(dist(at(D, victimPose(x, p.topAt! + 10)), at(D, victimPose(x, p.slamAt! - 200)))).toBeLessThan(R * 0.1);
+    expect(at(D, victimPose(x, p.slamAt! - 1)).y).toBeLessThan(at(D, victimPose(x, p.slamAt! - 200)).y - R * 0.1);
+    expect(dist(at(D, victimPose(x, p.impactAt - 0.5)), g.mat)).toBeLessThan(R * 0.1);
+    const mid = victimPose(x, p.impactAt + C.bounceMs / 2);
+    expect(at(D, mid).y).toBeLessThan(g.mat.y - R * 0.2); // the bounce
+    expect(victimPose(x, p.impactAt + 10).squash).toBeGreaterThan(0.3); // flattened HARD against the mat
+    // the aftermath: the striker straightens up over the body and hops (a flex), the struck one stays down
+    const flex = strikerPose(x, p.impactAt + 420 + 115);
+    expect(at(A, flex).y).toBeLessThan(g.stand.y - R * 0.1);
+    expect(flex.scale).toBeGreaterThan(1.05);
+    expect(dist(at(D, victimPose(x, p.homeAt - 1)), g.mat)).toBeLessThan(R * 0.1);
+    expect(dist(at(D, victimPose(x, p.bounceEnd! + 20)), g.mat)).toBeLessThan(R * 0.1);
   });
 
-  it('III: the ball rockets up and away (shrinking), is gone at the top, and comes down GROWING onto the pitcher, its shadow growing under it', () => {
+  it('III: shoved flat (on its back, low), the striker leaves through the top, hangs there, and comes down FLAT onto it', () => {
     const x = ctxOf(14);
-    const { p } = x;
-    const up = wrestleBall(x, (p.arriveAt + p.apexAt!) / 2);
-    expect(up.scale).toBeLessThan(1);
-    expect(up.lift).toBeGreaterThan(R);
-    expect(wrestleBall(x, (p.apexAt! + p.dropAt!) / 2).visible).toBe(false);
-    const a = wrestleBall(x, p.dropAt! + 30), b = wrestleBall(x, p.impactAt - 5);
-    expect(b.scale).toBeGreaterThan(a.scale);
-    expect(b.lift).toBeLessThan(a.lift);
-    expect(moonShadow(p, p.impactAt - 5)).toBeGreaterThan(moonShadow(p, p.dropAt! + 30));
-    expect(moonShadow(p, p.impactAt + 1)).toBe(0);
-    // the bat flip leaves the hands
-    const bat = wrestleBat(x, (p.arriveAt + p.batLandAt!) / 2);
-    expect(bat.lift).toBeGreaterThan(R * 0.3);
+    const { p, g } = x;
+    const flat = victimPose(x, p.downAt! + 40);
+    expect(Math.abs(flat.rot)).toBeCloseTo(90, 0);
+    expect(at(D, flat).y).toBeGreaterThanOrEqual(D.y);
+    expect(at(A, strikerPose(x, p.perchAt! - 1)).y).toBeLessThan(-R); // out of the top
+    for (let t = p.perchAt!; t < p.diveAt!; t += 20) expect(at(A, strikerPose(x, t)).y).toBeLessThan(-R);
+    const a1 = at(A, strikerPose(x, p.diveAt! + C.diveMs * 0.4)), a2 = at(A, strikerPose(x, p.diveAt! + C.diveMs * 0.8));
+    expect(a2.y).toBeGreaterThan(a1.y);
+    expect(a2.y - a1.y).toBeGreaterThan(a1.y - g.sky.y); // accelerating
+    expect(a1.x).toBe(g.mat.x); // straight down
+    expect(Math.abs(strikerPose(x, p.impactAt - 1).rot)).toBeGreaterThan(80); // a flat dive
+    expect(dist(at(A, strikerPose(x, p.impactAt - 0.5)), g.cover)).toBeLessThan(R * 0.1);
+    expect(victimPose(x, p.impactAt + 10).squash).toBeGreaterThan(0.2);
   });
 
-  it('IV: the bean hits the BATTER (the ball ends on its face), the batter reels, charges to the mound, brawls, and both portraits go home', () => {
+  it('IV: whipped to the far ropes, out with them and back, met in the middle, a flip, flat on the mat; the striker covers, presses on each count, and jumps up on the bell', () => {
     const x = ctxOf(40);
     const { p, g } = x;
-    expect(dist(wrestleBall(x, p.beanAt! - 0.5), g.bean)).toBeLessThan(R * 0.2);
-    expect(wrestleBall(x, p.beanAt! + 1).visible).toBe(false);
-    expect(Math.abs(batterPose(p, g, C, R, A, p.beanAt! + 60).rot)).toBeGreaterThan(1);
-    const at = batterPose(p, g, C, R, A, p.collideAt! - 1);
-    expect(dist({ x: A.x + at.x, y: A.y + at.y }, g.mound)).toBeLessThan(R * 0.2);
-    // the pitcher is dragged into the cloud and shakes there; the batter too
-    const pb = pitcherPose(p, g, C, R, (p.collideAt! + p.brawlEnd!) / 2);
-    expect(dist({ x: D.x + pb.x, y: D.y + pb.y }, g.cloud)).toBeLessThan(R * 1.5);
-    // the bat lies in the dirt through the brawl
-    const bat = wrestleBat(x, (p.collideAt! + p.brawlEnd!) / 2);
-    expect(dist(bat, g.batSlam)).toBeLessThan(R * 0.5);
-    // home at the end, both of them
-    for (const q of [batterPose(p, g, C, R, A, p.endAt - 1), pitcherPose(p, g, C, R, p.endAt - 1)]) expect(Math.hypot(q.x, q.y)).toBeLessThan(2);
+    expect(dist(at(D, victimPose(x, p.ropeAt! - 0.5)), g.ropeHit)).toBeLessThan(R * 0.15);
+    expect(dist(at(D, victimPose(x, (p.ropeAt! + p.flingAt!) / 2)), g.ropeMax)).toBeLessThan(R * 0.05);
+    expect(victimPose(x, (p.ropeAt! + p.flingAt!) / 2).squash).toBeLessThan(-0.1); // narrowed against the ropes
+    expect(dist(at(D, victimPose(x, p.impactAt - 0.5)), g.meet)).toBeLessThan(R * 0.1);
+    // the two actually meet: overlapping at the clothesline
+    expect(dist(at(D, victimPose(x, p.impactAt)), at(A, strikerPose(x, p.impactAt)))).toBeLessThan(R * 1.4);
+    const air = victimPose(x, (p.impactAt + p.landAt!) / 2);
+    expect(at(D, air).y).toBeLessThan(g.meet.y - R * 0.5); // up in the air
+    expect(Math.abs(air.rot)).toBeGreaterThan(120); // turning over
+    const down = victimPose(x, p.landAt! + 250);
+    expect(dist(at(D, down), g.mat)).toBeLessThan(R * 0.1);
+    expect(Math.abs(down.rot)).toBe(90);
+    const pinned = strikerPose(x, p.pinAt! + 60);
+    expect(dist(at(A, pinned), g.cover)).toBeLessThan(R * 0.2);
+    expect(at(A, pinned).y).toBeLessThan(g.mat.y); // on top
+    expect(at(A, strikerPose(x, p.counts[1]! + 60)).y).toBeGreaterThan(at(A, strikerPose(x, p.counts[1]! - 60)).y); // the press
+    const up = strikerPose(x, p.bellAt! + 300);
+    expect(up.scale).toBeGreaterThan(1.1);
+    expect(dist(at(A, up), g.win)).toBeLessThan(R * 0.4);
   });
 
-  it('the camera pushes in and shakes on the impact; IV jolts on the bean and the brawl hits', () => {
-    const p = plan(40);
-    expect(wrestleCameraAt(p, C, p.impactAt + 10, { x: 0, y: -1 }).zoom).toBeGreaterThan(1);
-    const j = wrestleCameraAt(p, C, p.hits[2]! + 20, { x: 0, y: -1 });
-    expect(Math.hypot(j.x, j.y)).toBeGreaterThan(0);
-    expect(wrestleCameraAt(plan(40, { reduced: true }), C, 1000, { x: 0, y: 1 })).toEqual({ zoom: 1, x: 0, y: 0 });
-  });
-});
-
-describe('variety (II rolls one of three hits)', () => {
-  it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
-    const seen = new Set<number>();
-    for (let s = 0; s < 60; s++) { expect(variantOf(s, C)).toBe(variantOf(s, C)); seen.add(variantOf(s, C)); }
-    expect([...seen].sort()).toEqual([1, 2, 3]);
-    for (const v of ['1', '2', '3']) expect(variantOf(7, { ...C, variation: v })).toBe(Number(v));
-  });
-});
-
-describe('slow mo (III on the contact, IV on the bean) and the FAST brawl', () => {
-  it('III slows around the contact, IV around the bean and then runs fast through the brawl; never 0; I and II never slow', () => {
-    for (const total of [3, 8]) { const p = plan(total); expect(slowWindow(p, C)).toBeNull(); for (let t = 0; t < p.endAt; t += 10) expect(wrestleTimeScale(p, C, t)).toBe(1); }
-    const three = plan(14);
-    expect(wrestleTimeScale(three, C, three.arriveAt)).toBeCloseTo(C.contactSlow, 5);
-    const four = plan(40);
-    expect(wrestleTimeScale(four, C, four.beanAt!)).toBeLessThan(1);
-    expect(wrestleTimeScale(four, C, (four.collideAt! + four.brawlEnd!) / 2)).toBeCloseTo(C.brawlBoost, 5);
-    for (const p of [three, four]) {
-      let prev = wrestleTimeScale(p, C, 0);
-      for (let t = 0; t < p.endAt; t += 2) {
-        const k = wrestleTimeScale(p, C, t);
-        expect(k).toBeGreaterThan(0.05);
-        expect(Math.abs(k - prev)).toBeLessThan(0.05); // a smooth ramp
-        prev = k;
+  it('a pose is a pure function of the time (a replay is identical)', () => {
+    for (const total of TOTALS) {
+      const x = ctxOf(total), y = ctxOf(total);
+      for (let t = x.p.chargeAt; t < x.p.endAt; t += 37) {
+        expect(strikerPose(x, t)).toEqual(strikerPose(y, t));
+        expect(victimPose(x, t)).toEqual(victimPose(y, t));
       }
     }
-    expect(slowExtraMs(three, C)).toBeGreaterThan(50);
+  });
+});
+
+describe('the ring, the spotlight, the elbow star and the shadow (pure)', () => {
+  it('IV only: the ropes stand up as the striker walks in, the FAR ropes stretch out with the struck portrait, snap back, and the ring is gone by the end', () => {
+    for (const total of [3, 8, 14]) { const x = ctxOf(total); for (let t = 0; t < x.p.endAt; t += 40) expect(wrestleRing(x, t).visible).toBe(false); }
+    const x = ctxOf(40);
+    const { p, g } = x;
+    expect(wrestleRing(x, p.walkAt - 1).visible).toBe(false);
+    expect(wrestleRing(x, p.gripAt)).toMatchObject({ visible: true, far: 0, near: 0 });
+    expect(wrestleRing(x, p.gripAt).rise).toBeCloseTo(1, 1);
+    const full = Math.abs(g.ropeMax.x - g.ropeHit.x);
+    const len = p.flingAt! - p.ropeAt!;
+    // OUT fast, HELD at full stretch for a real beat, then snapped back
+    for (const u of [0.36, 0.5, 0.7]) expect(Math.abs(wrestleRing(x, p.ropeAt! + len * u).far - full), `u ${u}`).toBeLessThan(full * 0.05);
+    expect(wrestleRing(x, p.ropeAt! + len * 0.15).far).toBeGreaterThan(full * 0.5);
+    expect(ropeStretch(0)).toBe(0);
+    expect(ropeStretch(1)).toBeCloseTo(0, 5);
+    // the struck portrait is exactly as far out as the ropes are
+    const out = (at(D, victimPose(x, p.ropeAt! + len * 0.5)).x - g.ropeHit.x) * g.s;
+    expect(out).toBeCloseTo(wrestleRing(x, p.ropeAt! + len * 0.5).far, 3);
+    const mid = wrestleRing(x, (p.ropeAt! + p.flingAt!) / 2);
+    expect(Math.abs(mid.near)).toBeLessThan(R * 0.02);
+    expect(mid.drop).toBe(0);
+    // the whole ring shudders under the landing: the back and front ropes sag
+    let sag = 0;
+    for (let t = p.landAt!; t < p.landAt! + 200; t += 4) sag = Math.max(sag, Math.abs(wrestleRing(x, t).drop));
+    expect(sag).toBeGreaterThan(R * 0.08);
+    expect(wrestleRing(x, p.flingAt! + 40).far).toBeLessThan(0); // the snap back past rest
+    expect(Math.abs(wrestleRing(x, p.pinAt!).far)).toBeLessThan(R * 0.1);
+    expect(wrestleRing(x, p.homeAt + 300).visible).toBe(false);
+    expect(wrestleRing(x, p.endAt).visible).toBe(false);
+  });
+
+  it('III only: the spotlight comes on as the striker leaves, hunts and settles on the one on the mat; the elbow star leads the dive; a shadow grows', () => {
+    for (const total of [3, 8, 40]) { const x = ctxOf(total); for (let t = 0; t < x.p.endAt; t += 40) { expect(wrestleSpot(x, t).visible).toBe(false); expect(wrestleElbow(x, t).visible).toBe(false); } }
+    const x = ctxOf(14);
+    const { p, g } = x;
+    expect(wrestleSpot(x, p.downAt!).visible).toBe(false);
+    const first = wrestleSpot(x, p.perchAt! + 40), found = wrestleSpot(x, p.diveAt!);
+    expect(first.visible).toBe(true);
+    expect(Math.abs(first.toX - g.mat.x)).toBeGreaterThan(R);
+    expect(found).toMatchObject({ visible: true, toX: g.mat.x, toY: g.mat.y, fromY: 0 });
+    expect(wrestleSpot(x, p.impactAt + 200).visible).toBe(false);
+    expect(wrestleElbow(x, p.diveAt! - 1).visible).toBe(false);
+    const star = wrestleElbow(x, p.diveAt! + 100), body = at(A, strikerPose(x, p.diveAt! + 100));
+    expect(star.visible).toBe(true);
+    expect(star.y).toBeGreaterThan(body.y); // it leads
+    expect(wrestleElbow(x, p.impactAt).visible).toBe(false);
+    expect(wrestleShadow(x, p.impactAt - 5).k).toBeGreaterThan(wrestleShadow(x, p.diveAt!).k);
+    expect(wrestleShadow(x, p.impactAt + 1).k).toBe(0);
+    const s = ctxOf(8);
+    expect(wrestleShadow(s, s.p.slamAt!).k).toBeGreaterThan(0);
+    expect(wrestleShadow(s, s.p.impactAt).k).toBe(0);
+  });
+
+  it('the camera pushes in while they are locked up and shakes on the impact (down for the slam, sideways for the chop); the count jolts it', () => {
+    const slam = plan(8);
+    expect(wrestleCameraAt(slam, C, slam.gripAt - 1, { x: 0, y: 1 }).zoom).toBe(1);
+    expect(wrestleCameraAt(slam, C, slam.impactAt - 1, { x: 0, y: 1 }).zoom).toBeCloseTo(1 + slam.zoom, 3);
+    const hit = wrestleCameraAt(slam, C, slam.impactAt + 12, { x: 0, y: 1 });
+    expect(hit.y).toBeGreaterThan(1);
+    const chop = wrestleCameraAt(plan(3), C, plan(3).impactAt + 12, { x: -1, y: 0 });
+    expect(chop.x).toBeLessThan(0);
+    expect(chop.y).toBe(0);
+    const pin = plan(40);
+    const j = wrestleCameraAt(pin, C, pin.counts[1]! + 10, { x: 1, y: 0 });
+    expect(Math.abs(j.y)).toBeGreaterThan(0.5);
+    for (let t = 0; t < pin.endAt; t += 16) { const m = wrestleCameraAt(pin, C, t, { x: 1, y: 0 }); expect(Math.hypot(m.x, m.y)).toBeLessThan(45); }
+    expect(wrestleCameraAt(pin, C, pin.endAt, { x: 1, y: 0 }).zoom).toBeCloseTo(1, 2);
   });
 });
 
@@ -329,7 +532,7 @@ function manualFrames() {
   };
 }
 
-/** Tick real frames until the attack's own clock reaches `t` (slow mo makes real time and attack time differ). */
+/** Tick frames until the attack's own clock reaches `t`. */
 function tickTo(r: { h: { elapsed(): number; done: boolean }; f: { tick: (ms: number, step?: number) => void } }, t: number, step = 4): void {
   for (let i = 0; i < 20000 && !r.h.done && r.h.elapsed() < t; i++) r.f.tick(step, step);
 }
@@ -346,10 +549,11 @@ function run(over: Partial<HeroWrestleOptions> = {}) {
   attackerEl.style.transform = 'translateX(3px)';
   attackerEl.style.opacity = '0.95';
   defenderEl.style.transform = 'translateY(2px)';
+  defenderEl.style.opacity = '0.9';
   camera.append(attackerEl, defenderEl);
   document.body.append(host, camera);
   const h = playHeroWrestle({
-    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: { x: 960, y: 900 }, defender: { x: 960, y: 200 }, defenderRadius: R, attackerRadius: R,
+    formation: formationOf([3, 2, 4], 9), total: 9, side: 'player', attacker: A, defender: D, defenderRadius: R, attackerRadius: R,
     reduced: false, cfg: C, onImpact, onDone, frames: f.frames, textures: TEX, sound: false, safety: false,
     mount: (c) => { root.addChild(c); return () => root.removeChild(c); }, host, camera, attackerEl, defenderEl, ...over,
   });
@@ -361,6 +565,9 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
   expect(r.attackerEl.style.transform).toBe('translateX(3px)');
   expect(r.attackerEl.style.opacity).toBe('0.95');
   expect(r.defenderEl.style.transform).toBe('translateY(2px)');
+  expect(r.defenderEl.style.opacity).toBe('0.9');
+  expect(r.attackerEl.style.filter).toBe('');
+  expect(r.defenderEl.style.filter).toBe('');
   expect(r.camera.style.transform).toBe('');
   expect(document.body.classList.contains(zClass)).toBe(false);
   expect(r.host.querySelector('.hblast')).toBeNull();
@@ -370,24 +577,25 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
 describe('the runner (the shared clock, both portraits restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the bean, the collision and every brawl hit never land it; the blow lands ONCE on the haymaker; both portraits moved, raised, put back EXACTLY', () => {
+  it('IV: the ropes, the landing, the count and the bell never land it; the blow lands ONCE on the clothesline; both portraits moved, raised, put back EXACTLY', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hwrestle')).not.toBeNull();
-    tickTo(r, h.plan.windAt + 120);
-    expect(r.defenderEl.style.transform).toContain('rotate('); // the pitcher winds up
-    tickTo(r, h.plan.beanAt! + 30);
-    expect(onImpact).not.toHaveBeenCalled(); // the bean is a tick
-    expect(r.attackerEl.style.transform).toContain('rotate(');
+    tickTo(r, h.plan.gripAt + 20);
+    expect(r.attackerEl.style.transform).toContain('translate('); // it walked over
     expect(document.body.classList.contains('duel-attacker-player')).toBe(true);
-    tickTo(r, h.plan.hits[h.plan.hits.length - 1]! + 20);
-    expect(onImpact).not.toHaveBeenCalled(); // every brawl hit is a tick
-    expect(h.scene!.ownVisible).toBe(true); // the bat lies there
+    expect(h.scene!.ownVisible).toBe(true); // the ring is up
+    tickTo(r, h.plan.flingAt! + 20);
+    expect(onImpact).not.toHaveBeenCalled(); // the ropes are a tick
+    expect(r.defenderEl.style.transform).toContain('rotate(');
     tickTo(r, h.plan.impactAt - 12);
     expect(onImpact).not.toHaveBeenCalled();
     tickTo(r, h.plan.impactAt + 12);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(r.host.querySelector('.hblast-hit')!.textContent).toBe('-40');
+    tickTo(r, h.plan.bellAt! + 40);
+    expect(onImpact).toHaveBeenCalledTimes(1); // the landing, the cover, 1 2 3 and the bell are ticks
+    expect(r.defenderEl.style.transform).toMatch(/rotate\(-?90\.00deg\)/); // flat on its back
     tickTo(r, h.plan.endAt + 32, 8);
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onImpact).toHaveBeenCalledTimes(1);
@@ -397,18 +605,78 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(r.root.children).toHaveLength(0);
   });
 
-  it('cancel() mid-moonshot, finish() mid-pitch and the safety timer each put both portraits back exactly (cancel never lands)', () => {
+  it('THE EMPTY SOCKET: the backdrop shade under a portrait is off while it is away and put back EXACTLY on the end, finish and cancel', () => {
+    const shadeEl = (): HTMLElement => {
+      const el = document.createElement('div');
+      el.className = 'boardbg-shade';
+      el.style.setProperty('--psh-a', '0.8'); // an inline value of the page's own: it must come back
+      document.body.append(el);
+      return el;
+    };
+    const read = (el: HTMLElement) => ['--psh-a', '--bd-shade-r', '--bd-oshade-r'].map((k) => el.style.getPropertyValue(k));
+    // The player strikes (II): its shade goes as it walks off; the foe's only once it is lifted out of its socket.
+    let el = shadeEl();
+    const a = run({ total: 8, formation: formationOf([8], 8) });
+    tickTo(a, a.h.plan.walkAt + 20);
+    expect(read(el)).toEqual(['0.8', '', '']);
+    tickTo(a, a.h.plan.gripAt);
+    expect(read(el)).toEqual(['0', '0px', '']);
+    tickTo(a, a.h.plan.topAt!);
+    expect(read(el)).toEqual(['0', '0px', '0px']);
+    tickTo(a, a.h.plan.homeEnd - 20);
+    expect(read(el)).toEqual(['0.8', '', '']); // back just before they are home
+    tickTo(a, a.h.plan.endAt + 32, 8);
+    expect(read(el)).toEqual(['0.8', '', '']);
+    document.body.innerHTML = '';
+    // The foe strikes (IV), cancelled mid-count and finished mid-whip: both shades back exactly.
+    for (const exit of ['cancel', 'finish'] as const) {
+      el = shadeEl();
+      const b = run({ total: 40, formation: formationOf([40], 40), side: 'opp', attacker: D, defender: A });
+      tickTo(b, exit === 'cancel' ? b.h.plan.counts[1]! : b.h.plan.whipAt! + 60);
+      expect(read(el)).toEqual(['0', '0px', '0px']);
+      b.h[exit]();
+      expect(read(el)).toEqual(['0.8', '', '']);
+      document.body.innerHTML = '';
+    }
+    // I: the struck portrait only staggers, so its shade stays.
+    el = shadeEl();
+    const c = run({ total: 3, formation: formationOf([3], 3) });
+    tickTo(c, c.h.plan.impactAt + 100);
+    expect(read(el)).toEqual(['0', '0px', '']);
+    c.h.cancel();
+    expect(read(el)).toEqual(['0.8', '', '']);
+    // On its own: it restores a value that was never set to "not set", and never touches anything without a document.
+    const lone = new SocketShade(document);
+    lone.set('opp', true);
+    expect(lone.hidden('opp')).toBe(true);
+    lone.restore();
+    expect(lone.hidden('opp')).toBe(false);
+    expect(read(el)).toEqual(['0.8', '', '']);
+    expect(() => { const none = new SocketShade(null); none.set('player', true); none.restore(); }).not.toThrow();
+  });
+
+  it('the squash is written in SCREEN axes (outside the rotation), so a portrait on its back flattens against the mat', () => {
+    const r = run({ total: 8, formation: formationOf([8], 8) });
+    tickTo(r, r.h.plan.impactAt + 16);
+    const css = r.defenderEl.style.transform;
+    expect(css).toMatch(/translate\([^)]*\) scale\(1\.\d+, 0\.\d+\) rotate\(90\.00deg\) scale\(/);
+    r.h.cancel();
+  });
+
+  it('cancel() mid-dive, finish() mid-lift and the safety timer each put both portraits back exactly (cancel never lands)', () => {
     const a = run({ total: 14, formation: formationOf([14], 14) });
-    tickTo(a, a.h.plan.apexAt! + 30);
+    tickTo(a, a.h.plan.diveAt! + 60);
+    expect(a.h.scene!.ownVisible).toBe(true); // the spotlight, the star, the shadow
     a.h.cancel();
     expect(a.onImpact).not.toHaveBeenCalled();
     expectRestored(a);
     expect(a.f.hooked()).toBe(0);
     document.body.innerHTML = '';
 
-    const b = run({ total: 8, formation: formationOf([8], 8), side: 'opp', attacker: { x: 960, y: 200 }, defender: { x: 960, y: 900 } });
-    tickTo(b, b.h.plan.releaseAt + 40);
+    const b = run({ total: 8, formation: formationOf([8], 8), side: 'opp', attacker: D, defender: A });
+    tickTo(b, b.h.plan.topAt! + 40);
     expect(b.defenderEl.style.transform).not.toBe('translateY(2px)');
+    expect(document.body.classList.contains('duel-attacker-opp')).toBe(true);
     b.h.finish();
     expect(b.onImpact).toHaveBeenCalledTimes(1);
     expectRestored(b, 'duel-attacker-opp');
@@ -417,36 +685,46 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     vi.useFakeTimers();
     try {
       const c = run({ total: 40, formation: formationOf([40], 40), safety: true });
-      tickTo(c, c.h.plan.collideAt! + 20);
-      vi.advanceTimersByTime(c.h.plan.endAt + slowExtraMs(c.h.plan, C) + 3000);
+      tickTo(c, c.h.plan.ropeAt! + 20);
+      vi.advanceTimersByTime(c.h.plan.endAt + 3000);
       expect(c.onImpact).toHaveBeenCalledTimes(1);
       expect(c.h.done).toBe(true);
       expectRestored(c);
     } finally { vi.useRealTimers(); }
   });
 
-  it('an unmount mid-attack (Recruit cancels the handle) leaves no transform, no class and nothing drawn, at every tier and hit', () => {
-    for (const [total, v] of [[3, ''], [8, '1'], [8, '2'], [8, '3'], [14, ''], [40, '']] as const) {
-      const r = run({ total, formation: formationOf([total], total), cfg: { ...C, variation: v } });
-      tickTo(r, (r.h.plan.arriveAt + r.h.plan.impactAt) / 2);
-      r.h.cancel();
-      expectRestored(r);
-      expect(r.f.hooked()).toBe(0);
-      expect(r.root.children, `${total} ${v}`).toHaveLength(0);
-      document.body.innerHTML = '';
+  it('an unmount at any moment (Recruit cancels the handle) leaves no transform, no class and nothing drawn, at every tier', () => {
+    for (const total of TOTALS) {
+      for (const frac of [0.15, 0.35, 0.55, 0.75, 0.95]) {
+        const r = run({ total, formation: formationOf([total], total) });
+        tickTo(r, r.h.plan.chargeAt + (r.h.plan.endAt - r.h.plan.chargeAt) * frac, 8);
+        r.h.cancel();
+        expectRestored(r);
+        expect(r.f.hooked()).toBe(0);
+        expect(r.root.children, `${total} ${frac}`).toHaveLength(0);
+        document.body.innerHTML = '';
+      }
     }
   });
 
-  it('both directions at every tier, within the cap, the blow once; the camera applied once; a replay is identical; reduced motion', () => {
+  it('both directions at every tier, within the cap, the blow once; the clock never changes speed; the camera applied once; a replay is identical; reduced motion', () => {
     for (const side of ['player', 'opp'] as const) {
-      for (const total of [3, 8, 12, 40]) {
+      for (const total of TOTALS) {
         const a = side === 'player' ? { x: 700, y: 900 } : { x: 1830, y: 90 };
         const d = side === 'player' ? { x: 1830, y: 90 } : { x: 700, y: 900 };
         const r = run({ side, attacker: a, defender: d, total, formation: formationOf([total], total) });
         let peak = 0;
-        for (let i = 0; i < 3000 && !r.h.done; i++) { r.f.tick(16, 16); peak = Math.max(peak, r.h.scene!.liveSprites); }
+        let played = 0;
+        for (let i = 0; i < 3000 && !r.h.done; i++) {
+          const before = r.h.elapsed();
+          r.f.tick(16, 16); played += 16;
+          if (!r.h.done) expect(r.h.elapsed() - before).toBe(16);
+          peak = Math.max(peak, r.h.scene!.liveSprites);
+        }
+        expect(played).toBeLessThanOrEqual(r.h.plan.endAt + 32);
         expect(r.onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
-        expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_BASEBALL_SPRITES);
+        expect(peak, `${side} ${total}`).toBeLessThanOrEqual(MAX_WRESTLE_SPRITES);
+        expect(peak, `${side} ${total}: well under the cap`).toBeLessThan(MAX_WRESTLE_SPRITES * 0.8);
         expectRestored(r, side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player');
         r.h.cancel();
         document.body.innerHTML = '';
@@ -463,6 +741,10 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     const y = run({ total: 40, formation: formationOf([40], 40), rollSeed: 5 });
     expect(x.h.plan).toEqual(y.h.plan);
     expect(x.h.geo).toEqual(y.h.geo);
+    tickTo(x, x.h.plan.landAt! + 30); tickTo(y, y.h.plan.landAt! + 30);
+    expect(x.attackerEl.style.transform).toBe(y.attackerEl.style.transform);
+    expect(x.defenderEl.style.transform).toBe(y.defenderEl.style.transform);
+    expect(x.h.scene!.liveSprites).toBe(y.h.scene!.liveSprites);
     x.h.cancel(); y.h.cancel();
     const r = run({ reduced: true });
     expect(r.h.scene).toBeNull();
@@ -472,38 +754,35 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(r.defenderEl.style.transform).toBe('translateY(2px)');
   });
 
-  it('the runner: the clock really slows on III\'s contact and runs fast in IV\'s brawl; the blow still lands once', () => {
-    const r = run({ total: 14, formation: formationOf([14], 14) });
-    tickTo(r, r.h.plan.arriveAt - 2);
-    const t0 = r.h.elapsed();
-    r.f.tick(40, 4);
-    expect(r.h.elapsed() - t0).toBeLessThan(40 * 0.7);
-    r.h.cancel();
-    const b = run({ total: 40, formation: formationOf([40], 40) });
-    tickTo(b, (b.h.plan.collideAt! + b.h.plan.brawlEnd!) / 2);
-    const t1 = b.h.elapsed();
-    b.f.tick(40, 4);
-    expect(b.h.elapsed() - t1).toBeGreaterThan(40 * 1.15);
-    tickTo(b, b.h.plan.endAt + 40);
-    expect(b.onImpact).toHaveBeenCalledTimes(1);
+  it('a knockout for 2 plays the whole finisher (the ring, the count) and lands once on the clothesline', () => {
+    const r = run({ total: 2, knockout: true, formation: formationOf([2], 2) });
+    expect(r.h.plan.kind).toBe('pin');
+    tickTo(r, r.h.plan.impactAt + 12);
+    expect(r.onImpact).toHaveBeenCalledTimes(1);
+    tickTo(r, r.h.plan.endAt + 32, 8);
+    expect(r.onImpact).toHaveBeenCalledTimes(1);
+    expectRestored(r);
   });
 });
 
 describe('the scene (headless Pixi)', () => {
   it('pools, stays under the cap, hides its own objects, drains, and destroy leaves nothing', () => {
-    const scene = new HeroWrestleScene(TEX, { ball: 0xffffff, bat: 0xd79b5c, dust: 0xd9c3a0, flash: 0xfff4dc, pow: 0xffd23f, side: 0xffcf5a },
-      { ballSize: 0.24, batLen: 120, shadowDrop: 0.5, wordSize: 1, frameH: 1080 }, R, R, 1, 9);
-    scene.setBall({ visible: true, x: 10, y: 10, lift: 20, rot: 0, scale: 1, alpha: 1, flying: true });
-    scene.setBat({ visible: true, x: 0, y: 0, lift: 0, rot: 1, alpha: 1 });
-    scene.setTargetShadow(D, 0.5);
+    const scene = new HeroWrestleScene(TEX, { mat: 0xe9dfc8, flash: 0xfff4dc, pow: 0xffd23f, hand: 0xef3b2e, spot: 0xfff1c4, side: 0xffcf5a },
+      { ropeSize: 1, wordSize: 1, frameW: 1920, frameH: 1080 }, R, R, 1, 9);
+    const g = wrestleGeo(A, D, R, R, FRAME, 'pin', C);
+    scene.setRing(ringLayout(g, R, R), { visible: true, rise: 1, alpha: 1, near: 0, far: 40, drop: 0 });
+    expect(scene.ownVisible).toBe(true);
+    scene.setRing(ringLayout(g, R, R), { visible: false, rise: 0, alpha: 0, near: 0, far: 0, drop: 0 });
+    expect(scene.ownVisible).toBe(false);
+    scene.setSpot({ visible: true, fromX: 100, fromY: 0, toX: 200, toY: 500, alpha: 1 });
+    scene.setElbow({ visible: true, x: 10, y: 10, rot: 0, scale: 1 });
+    scene.setShadow(D, 0.5);
     expect(scene.ownVisible).toBe(true);
     for (let i = 0; i < 4; i++) {
-      scene.glovePop(D); scene.kick(D, { x: 0, y: 1 }); scene.crack(A, { x: 0, y: -1 }, 1.6); scene.bonk(D, { x: 0, y: -1 }, 2, { rings: 8, word: 'bonk' });
-      scene.hopDust(A); scene.twinkle(D); scene.crater(D, { x: 0, y: -1 }, 2, 6); scene.bean(A, { x: 0, y: 1 }); scene.fume(A); scene.clatter(A);
-      scene.chargeDust(A, D, R); scene.cloudBurst(D, 2); scene.cloudPuff(D, 2); scene.benchRush(D, 1920, 2); scene.brawlHit(D, i, 1); scene.ko(D, D, { x: 0, y: -1 }, 2, 8);
-      scene.popAway(D, { x: 1, y: 0 }); scene.trail({ visible: true, x: 5, y: 5, lift: 0, rot: 0, scale: 1, alpha: 1, flying: true });
+      scene.step(A, R, -1); scene.slapArc(D, -1, R); scene.chop(D, A, -1, 2, 8); scene.matRing(D, R, 2, 8); scene.matShock(D, R, 2, 3); scene.flash(D, 0.5); scene.wallop(D, R, 2); scene.ropeTwang(D, 1);
+      scene.rush(D, 1, R); scene.count(D, i); scene.matSlap(D, R); scene.bell(D, R); scene.winner(A, R, 2); scene.dizzy(D, R); scene.word('woo', D, 1); scene.word('slam', D, 1);
     }
-    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_BASEBALL_SPRITES);
+    expect(scene.liveSprites).toBeLessThanOrEqual(MAX_WRESTLE_SPRITES);
     scene.hideOwn();
     expect(scene.ownVisible).toBe(false);
     let alive = true;
@@ -512,5 +791,50 @@ describe('the scene (headless Pixi)', () => {
     expect(scene.liveSprites).toBe(0);
     scene.destroy();
     expect(scene.root.destroyed).toBe(true);
+  });
+
+  it('the ring of light: four pillars and three ropes on EVERY side; a side rope bends OUT and thins when run into, the back and front ropes sag', () => {
+    const scene = new HeroWrestleScene(TEX, { mat: 0, flash: 0, pow: 0, hand: 0, spot: 0, side: 0 }, { ropeSize: 1, wordSize: 1 }, R, R, 1, 9);
+    const g = wrestleGeo(A, D, R, R, FRAME, 'pin', C);
+    const sides = ringLayout(g, R, R);
+    const PILLAR = 0xffe2a0;
+    type Len = { x: number; y: number; len: number; rot: number; thick: number };
+    const lengths = (pillars: boolean): Len[] => scene.root.children.flatMap((layer) => (layer as Container).children)
+      .filter((s) => (s as { anchor?: { x: number } }).anchor?.x === 0 && s.visible && ((s as { tint: number }).tint === PILLAR) === pillars)
+      .map((s) => ({ x: s.x, y: s.y, len: s.scale.x * 64, rot: s.rotation, thick: s.scale.y }));
+    const state = { visible: true, rise: 1, alpha: 1, near: 0, far: 0, drop: 0 };
+    scene.setRing(sides, state);
+    // four corner pillars standing straight up from the corners' feet
+    const pillars = lengths(true);
+    expect(pillars).toHaveLength(4);
+    for (const q of pillars) expect(q.rot).toBeCloseTo(-Math.PI / 2, 5);
+    expect(pillars.map((q) => q.len).sort((a, b) => a - b)[0]!).toBeGreaterThan(R);
+    // 12 ropes, two lengths each, drawn back to front: the back side, the near side, the far side, the front side
+    const rest = lengths(false);
+    expect(rest).toHaveLength(24);
+    const BACK = 0, NEAR = 6, FAR = 12, FRONT = 18;
+    // the back and front ropes run side to side (level), right across the ring
+    for (const at0 of [BACK, FRONT]) for (let i = at0; i < at0 + 6; i += 2) {
+      expect(Math.abs(Math.sin(rest[i]!.rot))).toBeLessThan(0.01);
+      expect(rest[i]!.len + rest[i + 1]!.len).toBeGreaterThan(R * 5);
+    }
+    scene.setRing(sides, { ...state, far: 60 });
+    const pushed = lengths(false);
+    // only the far side moves: its second lengths start further OUT, and a stretched rope is longer and thinner
+    for (const at0 of [BACK, NEAR, FRONT]) for (let i = at0; i < at0 + 6; i++) expect(pushed[i]).toEqual(rest[i]);
+    for (let i = FAR; i < FAR + 6; i += 2) {
+      expect((pushed[i + 1]!.x - rest[i + 1]!.x) * sides[1].out).toBeGreaterThan(40);
+      expect(pushed[i]!.len).toBeGreaterThan(rest[i]!.len);
+      expect(pushed[i]!.thick).toBeLessThan(rest[i]!.thick);
+    }
+    // the ring shudders: the back and front ropes sag at the middle, the sides stay
+    scene.setRing(sides, { ...state, drop: 30 });
+    const sagged = lengths(false);
+    for (const at0 of [BACK, FRONT]) for (let i = at0; i < at0 + 6; i += 2) expect(sagged[i + 1]!.y - rest[i + 1]!.y).toBeGreaterThan(15);
+    for (let i = NEAR; i < FRONT; i++) expect(sagged[i]).toEqual(rest[i]);
+    scene.hideOwn();
+    expect(lengths(false)).toHaveLength(0);
+    expect(lengths(true)).toHaveLength(0);
+    scene.destroy();
   });
 });

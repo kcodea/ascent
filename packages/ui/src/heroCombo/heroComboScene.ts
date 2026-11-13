@@ -1,416 +1,443 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 /**
- * THE BASEBALL SCENE: what the Combo attack draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`), so
- * it runs (and is tested) headless. The PORTRAITS are the players (the runner moves both); this draws the ball, the bat,
- * the shadows and the hits. `heroCombo.ts` mounts `root` on the above-portrait overlay.
+ * THE COMBO SCENE: what the Combo attack ("Flawless") draws in Pixi, on the shared pooled scene
+ * (`../heroAttack/fxPool.ts`), so it runs (and is tested) headless. The PORTRAITS are the two fighters (the runner moves
+ * both); this draws the fighting game around them. `heroCombo.ts` mounts `root` on the above-portrait overlay.
  *
- * OWN OBJECTS (one each, positioned by the runner every frame from the pure paths, hidden the moment they are not needed
- * and on every exit): the BALL (spinning, lifted off its shadow), its SHADOW on the ground, the BAT (pivoting at the
- * handle), and III's growing TARGET SHADOW on the pitcher.
+ * THE HUD (own objects, on their own top layer; written by the runner every frame from the pure state, hidden the moment
+ * they are not needed and on every exit):
+ *  - THE COMBO COUNTER: pooled digit sprites and a HIT / HITS label, composed from painted textures (no DOM text), with a
+ *    scale punch each time it moves and a bigger one when it reads the final number.
+ *  - THE SUPER CUT-IN (IV): the screen dim, the slanted band, the striking hero's portrait art on it, the input glyphs.
  *
- * FIRE-AND-FORGET (pooled, under a hard cap): the ball's trail, the glove pop, the pitch's dust kick, the CRACK, every
- * BONK, the hop's dirt, the moonshot's twinkle and its crater, the bean's stars, the fumes, the bat's clatter, the charge's
- * dust and speed lines, the BRAWL (a boiling dust cloud, the benches clearing in from both edges, comic POW / BAM / SMACK
- * bursts) and the KO (the cloud blown apart, rings, stars, YER OUT!).
+ * FIRE-AND-FORGET (pooled, under a hard cap): the flat hit sparks, the drive lines, the step's and the launch's dust, the
+ * slam, the super's flash and the band's speed lines, the wind-up's gather, the heavy blow, its aftermath and K.O.
+ * Everything here is light, lines, rings, dust and shards: no drawn props (the first pass's cartoon fist is gone).
  */
-import { Sprite, type Texture } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import type { BallState, BatState } from './heroComboConfig';
+import { GLYPHS, GLYPH_GAP_MS, type CounterState, type CutinState, type HitKind } from './heroComboConfig';
 
 export interface HeroComboTextures extends HeroArcanaTextures {
-  ball: Texture;
-  shadow: Texture;
-  bat: Texture;
-  puff: Texture;
-  kapow: Texture;
-  wordCrack: Texture;
-  wordBonk: Texture;
-  wordHomer: Texture;
-  wordPow: Texture;
-  wordBam: Texture;
-  wordSmack: Texture;
-  wordOut: Texture;
+  hitLight: Texture;
+  hitSharp: Texture;
+  hitHeavy: Texture;
+  arrow: Texture;
+  button: Texture;
+  band: Texture;
+  dust: Texture;
+  labelHit: Texture;
+  labelHits: Texture;
+  wordKo: Texture;
+  d0: Texture; d1: Texture; d2: Texture; d3: Texture; d4: Texture; d5: Texture; d6: Texture; d7: Texture; d8: Texture; d9: Texture;
 }
 
-export interface BaseballColors { ball: number; bat: number; dust: number; flash: number; pow: number; side: number }
+export interface ComboColors { spark: number; heavy: number; flash: number; dust: number; side: number }
 
-export interface BaseballLook {
-  /** The ball's diameter in striker radii. */
-  ballSize: number;
-  /** The bat's length, screen px. */
-  batLen: number;
-  /** How far a shadow drops below what casts it, in striker radii at full height. */
-  shadowDrop: number;
-  wordSize: number;
-  /** The frame's height (screen px): the big words drop BELOW the target when there is room (the hit number sits above). */
-  frameH?: number;
+export interface ComboLook {
+  sparkSize: number;
+  /** The way the striker faces (+1 = toward +x). */
+  face: 1 | -1;
+  /** The counter: its centre, a digit's height (px) and how many digit slots (the final number's length). */
+  counter: Pt;
+  digit: number;
+  digits: number;
+  /** IV: the cut-in band (centre, length, height, tilt) and the frame it crosses. */
+  band: { x: number; y: number; w: number; h: number; rot: number };
+  frameW: number;
+  frameH: number;
 }
 
-/** Hard cap on pooled sprites alive at once (a Tier IV brawl peaks near 200). The own objects are outside the pool. */
-export const MAX_BASEBALL_SPRITES = 320;
+/** Hard cap on pooled sprites alive at once (a Tier IV flurry peaks near 120). The HUD's own sprites are outside it. */
+export const MAX_COMBO_SPRITES = 260;
 const RING_PX = 160;
 const GLOW_PX = 128;
-const SHADOW_PX = 64;
-const BALL_PX = 96;
-const BAT_W = 256;
-const PUFF_PX = 128;
-const BURST_PX = 256;
-const WORD_W = 512;
-const WORD_H = 160;
-/** The bat sprite's anchor: its grip, a little way up the handle from the knob. */
-const BAT_GRIP = 0.12;
-
-export type BaseballWord = 'crack' | 'bonk' | 'homer' | 'pow' | 'bam' | 'smack' | 'out';
+const STREAK_PX = 64;
+const SPARK_PX = 256;
+const GLYPH_PX = 112;
+const BAND_W = 512;
+const BAND_H = 128;
+const PUFF_PX = 96;
+const DIGIT_H = 128;
+const LABEL_H = 96;
+const KO_W = 512;
+const CUTIN_H = 288;
+/** The counter never needs more digit slots than this (a blow past 9999 is not a thing). */
+const MAX_DIGITS = 4;
 
 export class HeroComboScene extends FxPool {
-  private readonly ball: Sprite;
-  private readonly ballShadow: Sprite;
-  private readonly targetShadow: Sprite;
-  private readonly bat: Sprite;
+  private readonly hud = new Container();
+  private readonly dim: Sprite;
+  private readonly band: Sprite;
+  private readonly cutin: Sprite | null;
+  private readonly glyphs: Sprite[] = [];
+  private readonly counter = new Container();
+  private readonly digitSprites: Sprite[] = [];
+  private readonly label: Sprite;
+  private readonly digitTex: Texture[];
+  private shown = -1;
   private own = false;
 
-  /** `aR` / `dR`: the striking (batter) and struck (pitcher) portraits' radii (screen px). */
+  /** `aR` / `dR`: the striking and the struck portraits' radii (screen px). `cutin`: the striker's portrait panel. */
   constructor(
-    private readonly tex: HeroComboTextures, private readonly colors: BaseballColors, private readonly look: BaseballLook,
-    private readonly aR: number, private readonly dR: number, scale = 1, seed = 1,
+    private readonly tex: HeroComboTextures, private readonly colors: ComboColors, private readonly look: ComboLook,
+    private readonly aR: number, private readonly dR: number, scale = 1, seed = 1, cutin: Texture | null = null,
   ) {
-    super('heroCombo', [tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.ball, tex.puff, tex.kapow, tex.wordCrack, tex.wordBonk, tex.wordHomer, tex.wordPow, tex.wordBam, tex.wordSmack, tex.wordOut], scale, seed, MAX_BASEBALL_SPRITES);
-    const mk = (layer: 'under' | 'body', t: Texture, tint: number, ax = 0.5, ay = 0.5): Sprite => {
+    super('heroCombo', [
+      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.hitLight, tex.hitSharp, tex.hitHeavy, tex.arrow, tex.button, tex.band, tex.dust,
+      tex.labelHit, tex.labelHits, tex.wordKo, tex.d0, tex.d1, tex.d2, tex.d3, tex.d4, tex.d5, tex.d6, tex.d7, tex.d8, tex.d9, ...(cutin ? [cutin] : []),
+    ], scale, seed, MAX_COMBO_SPRITES);
+    this.digitTex = [tex.d0, tex.d1, tex.d2, tex.d3, tex.d4, tex.d5, tex.d6, tex.d7, tex.d8, tex.d9];
+    const mk = (parent: Container, t: Texture, ax = 0.5, ay = 0.5): Sprite => {
       const s = new Sprite(t);
-      s.anchor.set(ax, ay); s.tint = tint; s.visible = false; s.eventMode = 'none';
-      this.layers[layer].addChild(s);
+      s.anchor.set(ax, ay); s.visible = false; s.eventMode = 'none';
+      parent.addChild(s);
       return s;
     };
-    this.targetShadow = mk('under', tex.shadow, 0x000000);
-    this.ballShadow = mk('under', tex.shadow, 0x000000);
-    this.bat = mk('body', tex.bat, colors.bat, BAT_GRIP, 0.5);
-    this.ball = mk('body', tex.ball, colors.ball);
+    this.hud.label = 'heroCombo-hud';
+    this.hud.eventMode = 'none';
+    this.dim = mk(this.layers.under, Texture.WHITE);
+    this.dim.tint = 0x05060c;
+    this.band = mk(this.hud, tex.band);
+    this.cutin = cutin ? mk(this.hud, cutin) : null;
+    for (let i = 0; i < GLYPHS; i++) this.glyphs.push(mk(this.hud, i === GLYPHS - 1 ? tex.button : tex.arrow));
+    // The counter: `digits` slots (right-aligned) and the label after them, laid out once about the counter's centre.
+    const n = Math.min(MAX_DIGITS, Math.max(1, look.digits));
+    const h = look.digit, adv = h * 0.56, lh = h * 0.5;
+    const width = adv * n + h * 0.12 + lh * 2.3;
+    for (let i = 0; i < n; i++) {
+      const s = mk(this.counter, tex.d0);
+      s.scale.set(h / DIGIT_H);
+      s.position.set(-width / 2 + adv * (i + 0.5), 0);
+      s.visible = true;
+      this.digitSprites.push(s);
+    }
+    this.label = mk(this.counter, tex.labelHits, 0, 0.5);
+    this.label.scale.set(lh / LABEL_H);
+    this.label.position.set(-width / 2 + adv * n + h * 0.04, h * 0.2);
+    this.label.visible = true;
+    this.counter.position.set(look.counter.x, look.counter.y);
+    this.counter.rotation = -0.07;
+    this.counter.visible = false;
+    this.counter.eventMode = 'none';
+    this.hud.addChild(this.counter);
+    this.root.addChild(this.hud);
   }
 
-  /** Whether any own object still draws. */
+  /** Whether any own object (the counter, the cut-in) still draws. */
   get ownVisible(): boolean { return this.own; }
+  /** What the counter reads on screen right now (-1 = hidden). Tests. */
+  get counterValue(): number { return this.counter.visible ? this.shown : -1; }
 
-  private wordTex(w: BaseballWord): Texture {
-    const t = this.tex;
-    return { crack: t.wordCrack, bonk: t.wordBonk, homer: t.wordHomer, pow: t.wordPow, bam: t.wordBam, smack: t.wordSmack, out: t.wordOut }[w];
+  // ── the HUD (the runner writes it every frame) ────────────────────────────────────────────────────────────────
+
+  /** The combo counter. Textures are only swapped when the number changes. */
+  setCounter(s: CounterState): void {
+    if (this.destroyed) return;
+    const c = this.counter;
+    if (s.alpha <= 0.002) { if (c.visible) { c.visible = false; this.refresh(); } return; }
+    if (s.value !== this.shown) {
+      this.shown = s.value;
+      const n = this.digitSprites.length;
+      let v = Math.max(0, Math.floor(s.value));
+      for (let i = n - 1; i >= 0; i--) {
+        const d = this.digitSprites[i]!;
+        d.visible = v > 0 || i === n - 1;
+        if (d.visible) d.texture = this.digitTex[v % 10]!;
+        v = Math.floor(v / 10);
+      }
+      this.label.texture = s.value === 1 ? this.tex.labelHit : this.tex.labelHits;
+    }
+    const punch = (s.final ? 0.6 : 0.36) * Math.exp(-Math.max(0, s.pulse) / 85);
+    c.scale.set((s.final ? 1.1 : 1) + punch);
+    c.alpha = s.alpha;
+    if (!c.visible) { c.visible = true; this.refresh(); }
   }
 
-  // ── own objects (the runner writes them every frame) ──────────────────────────────────────────────────────────
-
-  /** The ball (drawn `lift` px above its ground point) and its shadow on the ground. */
-  setBall(b: BallState): void {
+  /** IV: the super cut-in (null hides it): the dim, the band on its slide, the portrait panel and the input glyphs. */
+  setCutin(s: CutinState | null): void {
     if (this.destroyed) return;
-    const s = this.ball, sh = this.ballShadow;
-    if (!b.visible || b.alpha <= 0.002 || b.scale <= 0.002) { s.visible = false; sh.visible = false; this.refresh(); return; }
-    const px = this.aR * 2 * this.look.ballSize * b.scale;
-    const k = px / BALL_PX;
-    s.visible = true;
-    s.position.set(b.x, b.y - b.lift);
-    s.rotation = b.rot;
-    s.scale.set(k);
-    s.alpha = b.alpha;
-    const air = Math.min(1, b.lift / Math.max(1, this.aR * 3));
-    const sk = (px * (1 - 0.5 * air)) / SHADOW_PX;
-    sh.visible = true;
-    sh.position.set(b.x, b.y + this.aR * this.look.shadowDrop * 0.3);
-    sh.scale.set(sk, sk * 0.45);
-    sh.alpha = 0.3 * (1 - 0.6 * air) * b.alpha;
-    this.refresh();
-  }
-
-  /** The bat (its grip at (x, y), `lift` px up, pointing along `rot`). */
-  setBat(b: BatState): void {
-    if (this.destroyed) return;
-    const s = this.bat;
-    if (!b.visible || b.alpha <= 0.002) { s.visible = false; this.refresh(); return; }
-    s.visible = true;
-    s.position.set(b.x, b.y - b.lift);
-    s.rotation = b.rot;
-    s.scale.set(this.look.batLen / (BAT_W * (1 - BAT_GRIP)));
-    s.alpha = b.alpha;
-    this.refresh();
-  }
-
-  /** III: the falling ball's shadow growing on the pitcher (`k` 0..1; 0 hides it). */
-  setTargetShadow(at: Pt, k: number): void {
-    if (this.destroyed) return;
-    const s = this.targetShadow;
-    if (k <= 0.002) { s.visible = false; this.refresh(); return; }
-    const px = this.dR * (0.4 + 2.2 * k);
-    s.visible = true;
-    s.position.set(at.x, at.y + this.dR * 0.35);
-    s.scale.set(px / SHADOW_PX, (px * 0.5) / SHADOW_PX);
-    s.alpha = 0.18 + 0.4 * k;
+    if (!s) {
+      if (this.band.visible || this.dim.visible) {
+        this.dim.visible = false; this.band.visible = false;
+        if (this.cutin) this.cutin.visible = false;
+        for (const g of this.glyphs) g.visible = false;
+        this.refresh();
+      }
+      return;
+    }
+    const { band: b, face, frameW, frameH } = this.look;
+    const ax = Math.cos(b.rot), ay = Math.sin(b.rot);
+    this.dim.visible = s.dim > 0.002;
+    this.dim.position.set(b.x, b.y);
+    this.dim.width = frameW * 1.5; this.dim.height = frameH * 1.5;
+    this.dim.alpha = s.dim;
+    // The band comes from behind the striker and leaves the way it faces.
+    const off = face * s.slide * b.w;
+    this.band.visible = true;
+    this.band.position.set(b.x + ax * off, b.y + ay * off);
+    this.band.rotation = b.rot;
+    this.band.scale.set(b.w / BAND_W, b.h / BAND_H);
+    if (this.cutin) {
+      // The portrait panel sits on the striker's side of the band and creeps forward while it holds.
+      const along = off * 1.15 - face * frameW * 0.2 + face * Math.min(40, s.age * 0.035) * (b.h / 280);
+      this.cutin.visible = true;
+      this.cutin.position.set(b.x + ax * along, b.y + ay * along);
+      this.cutin.rotation = b.rot;
+      this.cutin.scale.set((b.h * 1.2) / CUTIN_H);
+    }
+    const size = b.h * 0.42, gap = b.h * 0.5;
+    for (let i = 0; i < this.glyphs.length; i++) {
+      const g = this.glyphs[i]!;
+      const age = s.glyphAge - i * GLYPH_GAP_MS;
+      if (age < 0) { g.visible = false; continue; }
+      const along = off + face * frameW * (this.cutin ? 0.2 : 0) + (i - (this.glyphs.length - 1) / 2) * gap;
+      g.visible = true;
+      g.position.set(b.x + ax * along, b.y + ay * along);
+      // A quarter circle toward the foe, then the button: down, down-forward, forward, attack.
+      g.rotation = i === GLYPHS - 1 ? 0 : face > 0 ? [Math.PI / 2, Math.PI / 4, 0][i]! : [Math.PI / 2, (Math.PI * 3) / 4, Math.PI][i]!;
+      g.scale.set((size / GLYPH_PX) * (1 + 0.7 * Math.exp(-age / 70)));
+    }
     this.refresh();
   }
 
   /** Hide every own object (the end, a cancel). */
   hideOwn(): void {
-    for (const s of [this.ball, this.ballShadow, this.targetShadow, this.bat]) s.visible = false;
+    this.dim.visible = false; this.band.visible = false; this.counter.visible = false;
+    if (this.cutin) this.cutin.visible = false;
+    for (const g of this.glyphs) g.visible = false;
     this.own = false;
   }
 
-  private refresh(): void {
-    this.own = this.ball.visible || this.ballShadow.visible || this.targetShadow.visible || this.bat.visible;
-  }
+  private refresh(): void { this.own = this.counter.visible || this.band.visible || this.dim.visible; }
 
   protected override tick(): boolean { return this.own; }
   protected override clearOwn(): void { this.hideOwn(); }
 
+  override destroy(): void {
+    if (this.destroyed) return;
+    this.hideOwn();
+    const mine = [...this.hud.children, ...this.counter.children];
+    super.destroy();
+    for (const c of mine) if (!c.destroyed) c.destroy();
+  }
+
   // ── fire-and-forget ───────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A soft ghost of the ball left behind in flight. */
-  trail(b: BallState): void {
-    if (!b.visible) return;
-    const S = this.scale;
-    const k = (this.aR * 2 * this.look.ballSize * b.scale) / BALL_PX / S;
-    this.spawn('glow', this.tex.glow, this.colors.side, b.x, b.y - b.lift, { dur: 160, from: (k * BALL_PX * 0.9) / GLOW_PX, to: (k * BALL_PX * 0.4) / GLOW_PX, a0: 0.35, ease: 'linear' });
-  }
-
-  /** The ball smacked into the pitcher's mitt to start: a small puff of leather dust. */
-  glovePop(at: Pt): void {
-    const S = this.scale;
-    const r = this.dR * 0.5;
-    this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 220, from: (r * 0.5) / RING_PX / S, to: (r * 1.6) / RING_PX / S, a0: 0.5, ease: 'cubic' });
-    this.burst('body', this.tex.puff, [this.colors.dust], at.x, at.y, 3, { speed: 90, life: 280, size: (r * 0.5) / PUFF_PX / S, drag: 0.15 });
-  }
-
-  /** The pitch's push-off: dirt kicked up behind the pitcher. */
-  kick(at: Pt, dir: Pt): void {
-    const S = this.scale;
-    const head = Math.atan2(dir.y, dir.x);
-    for (let i = 0; i < 4; i++) {
-      const a = head + Math.PI + (this.rnd() - 0.5) * 1.6;
-      this.spawn('body', this.tex.puff, this.colors.dust, at.x, at.y, {
-        dur: 320 + this.rnd() * 120, from: (this.dR * 0.3) / PUFF_PX / S, to: (this.dR * 0.6) / PUFF_PX / S, a0: 0.55, vx: Math.cos(a) * 120, vy: Math.sin(a) * 80, drag: 0.12,
-      });
-    }
-  }
-
-  /** CRACK: the bat meets the ball. A white flash, a ring, speed streaks fanned out the way the ball goes, the word. */
-  crack(at: Pt, dir: Pt, k: number, word = true): void {
+  /** A HIT SPARK: the flat chunky burst of its kind, a quick flash under it and a few shards thrown back. */
+  hitSpark(at: Pt, kind: HitKind, power: number): void {
     const S = this.scale;
     const c = this.colors;
-    const r = this.aR * 0.6 * k;
-    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 220, from: 0.5 * k, to: 1.8 * k, a0: 1, mode: 'punch', peakAt: 0.12, rot: 0.3 });
-    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y, { dur: 260, from: (r * 0.6) / RING_PX / S, to: (r * 2.6) / RING_PX / S, a0: 0.8, ease: 'cubic' });
-    this.spawn('glow', this.tex.glow, c.side, at.x, at.y, { dur: 260, from: (r * 0.8) / GLOW_PX / S, to: (r * 2.4) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.15 });
-    const head = Math.atan2(dir.y, dir.x);
-    for (let i = 0; i < Math.round(5 * k); i++) {
-      const a = head + (this.rnd() - 0.5) * 0.9;
-      this.spawn('glow', this.tex.streak, 0xffffff, at.x + Math.cos(a) * r * 0.6, at.y + Math.sin(a) * r * 0.6, {
-        dur: 200, from: 0.5 * k, to: 0.9 * k, a0: 0.6, sy: 0.22, rot: a, vx: Math.cos(a) * 500, vy: Math.sin(a) * 500, drag: 0.05, ease: 'linear',
-      });
-    }
-    this.burst('core', this.tex.spark, [c.flash, 0xffffff], at.x, at.y, Math.round(6 * k), { speed: 420 * k, life: 240, size: 0.4, drag: 0.1, align: true });
-    if (word) this.word('crack', { x: at.x, y: at.y - this.aR * 0.5 }, 0.55 * k, -0.12);
+    const t = kind === 'cross' || kind === 'upper' ? this.tex.hitSharp : kind === 'spike' || kind === 'heavy' ? this.tex.hitHeavy : this.tex.hitLight;
+    const px = this.dR * (1.15 + 1.05 * power) * this.look.sparkSize;
+    const k = px / SPARK_PX / S;
+    this.spawn('body', t, 0xffffff, at.x, at.y, { dur: 150 + 110 * power, from: k * 0.45, to: k, a0: 1, mode: 'hold', ease: 'quint', rot: this.rnd() * Math.PI });
+    if (kind === 'flurry') return;
+    this.spawn('glow', this.tex.glow, c.flash, at.x, at.y, { dur: 150, from: (px * 0.5) / GLOW_PX / S, to: (px * 1.3) / GLOW_PX / S, a0: 0.45, mode: 'punch', peakAt: 0.15 });
+    this.burst('core', this.tex.spark, [c.spark, c.flash], at.x, at.y, 2 + Math.round(3 * power), {
+      speed: 560, dir: this.look.face > 0 ? Math.PI : 0, spread: 2.4, life: 210, size: 0.42, drag: 0.1, align: true,
+    });
   }
 
-  /** A hit on a portrait: a flash, stars, rings, dust, a comic burst and the word. `k` scales it. */
-  bonk(at: Pt, dir: Pt, k: number, o: { rings?: number; word?: BaseballWord; r?: number } = {}): void {
+  /** The DRIVE: speed lines punched through the hit the way the striker faces (the jab's last tap; bigger, the heavy blow). */
+  drive(at: Pt, big = false): void {
     const S = this.scale;
-    const c = this.colors;
-    const R = o.r ?? this.dR;
-    const b = Math.max(0.3, k);
-    this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 240, from: (R * 0.7 * b) / GLOW_PX / S, to: (R * 2.2 * b) / GLOW_PX / S, a0: 0.95, mode: 'punch', peakAt: 0.1 });
-    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 280, from: 0.7 * b, to: 2.2 * b, a0: 1, mode: 'punch', peakAt: 0.12, rot: 0.4 });
-    for (let i = 0; i < Math.min(8, o.rings ?? 1); i++) {
-      this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.flash, at.x, at.y, {
-        dur: 400 + 60 * i, from: (R * 0.5) / RING_PX / S, to: (R * (1.8 + 0.8 * i) * b) / RING_PX / S, a0: 0.8 - 0.1 * i, ease: 'cubic', delay: 60 * i,
-      });
-    }
-    this.burst('core', this.tex.star, [c.pow, c.flash, 0xffffff], at.x, at.y, Math.round(7 * b), { speed: 380 * b, life: 460, size: 0.32, drag: 0.15, spin: 0.012, lift: 80, grav: 300 });
-    const head = Math.atan2(dir.y, dir.x);
-    this.burst('core', this.tex.spark, [c.flash, c.side], at.x, at.y, Math.round(8 * b), { speed: 600 * b, dir: head, spread: 2.2, life: 300, size: 0.45, drag: 0.12, align: true });
-    if (o.word) this.word(o.word, at, b, (this.rnd() - 0.5) * 0.3);
-  }
-
-  /** II (the grounder): the one hop kicks up a spray of dirt. */
-  hopDust(at: Pt): void {
-    const S = this.scale;
-    const r = this.aR * 0.5;
-    this.spawn('glow', this.tex.ring, this.colors.dust, at.x, at.y, { dur: 260, from: (r * 0.5) / RING_PX / S, to: (r * 2) / RING_PX / S, a0: 0.5, sy: 0.45, ease: 'cubic' });
-    for (let i = 0; i < 5; i++) {
-      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 2.2;
-      this.spawn('body', this.tex.puff, this.colors.dust, at.x, at.y, {
-        dur: 360 + this.rnd() * 120, from: (r * 0.35) / PUFF_PX / S, to: (r * 0.8) / PUFF_PX / S, a0: 0.6, vx: Math.cos(a) * 140, vy: Math.sin(a) * 110, drag: 0.1, grav: 200,
+    const face = this.look.face;
+    const r = this.dR * this.look.sparkSize;
+    const n = big ? 9 : 4;
+    for (let i = 0; i < n; i++) {
+      const y = at.y + ((i + 0.5) / n - 0.5) * r * (big ? 1.5 : 0.8);
+      this.spawn('core', this.tex.streak, i % 3 === 1 ? this.colors.side : 0xffffff, at.x - face * r * (big ? 1.5 : 0.9), y, {
+        dur: big ? 300 : 180, from: (r * (big ? 2.4 : 1.2)) / STREAK_PX / S, to: (r * (big ? 4.2 : 1.9)) / STREAK_PX / S, a0: big ? 0.85 : 0.6, sy: big ? 0.11 : 0.09,
+        rot: 0, vx: face * (big ? 2200 : 1300), drag: 0.05, ease: 'linear', delay: i * (big ? 8 : 6),
       });
     }
   }
 
-  /** III: the moonshot twinkles off the top of the screen. */
-  twinkle(at: Pt): void {
-    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 420, from: 0.3, to: 1.4, a0: 1, mode: 'punch', peakAt: 0.3, rot: 0.5, spin: 0.004 });
-    this.spawn('core', this.tex.star, this.colors.pow, at.x, at.y, { dur: 520, from: 0.2, to: 0.9, a0: 0.7, mode: 'punch', peakAt: 0.4, rot: 0, spin: -0.003 });
-  }
-
-  /** III: the moonshot CRATERS the pitcher. A huge hit, a ring of dirt thrown out, fireworks and HOME RUN. */
-  crater(at: Pt, dir: Pt, k: number, rings: number): void {
-    const S = this.scale;
-    const c = this.colors;
-    const R = this.dR;
-    this.bonk(at, dir, k, { rings, word: 'homer' });
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2 + this.rnd() * 0.3;
-      this.spawn('body', this.tex.puff, i % 3 ? c.dust : whiten(c.dust, 0.3), at.x + Math.cos(a) * R * 0.5, at.y + Math.sin(a) * R * 0.3, {
-        dur: 520 + this.rnd() * 200, from: (R * 0.45) / PUFF_PX / S, to: (R * 0.9) / PUFF_PX / S, a0: 0.75, vx: Math.cos(a) * 260 * k, vy: Math.sin(a) * 140 * k, drag: 0.08,
-      });
-    }
-    // Fireworks: bursts popping round the target, one after another.
-    const tints = [c.pow, c.side, 0x6ad0ff, 0xff6ad0];
-    for (let i = 0; i < 4; i++) {
-      const a = -Math.PI / 2 + (i - 1.5) * 0.8;
-      const x = at.x + Math.cos(a) * R * 1.6, y = at.y + Math.sin(a) * R * 1.3;
-      const t = tints[i % tints.length]!;
-      this.spawn('core', this.tex.glow, t, x, y, { dur: 300, from: (R * 0.2) / GLOW_PX / S, to: (R * 0.9) / GLOW_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.1, delay: 140 + i * 110 });
-      for (let j = 0; j < 8; j++) {
-        const b = (j / 8) * Math.PI * 2;
-        this.spawn('core', this.tex.spark, t, x, y, { dur: 420, from: 0.45, to: 0.15, a0: 1, vx: Math.cos(b) * 320, vy: Math.sin(b) * 320, drag: 0.1, grav: 260, align: true, ease: 'linear', delay: 140 + i * 110 });
-      }
-    }
-  }
-
-  /** IV: the BEAN on the batter. A smaller BONK, a ring of dizzy stars. */
-  bean(at: Pt, dir: Pt): void {
-    this.bonk(at, dir, 0.9, { rings: 1, word: 'bonk', r: this.aR });
-    const S = this.scale;
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      this.spawn('core', this.tex.star, this.colors.pow, at.x + Math.cos(a) * this.aR * 0.7, at.y - this.aR * 0.6 + Math.sin(a) * this.aR * 0.22, {
-        dur: 700, from: 0.35 / S, to: 0.2 / S, a0: 1, mode: 'hold', vx: -Math.sin(a) * 90, vy: Math.cos(a) * 30, drag: 0.6, spin: 0.01,
-      });
-    }
-  }
-
-  /** IV: the batter FUMES (steam puffs rising off the top of the portrait). */
-  fume(at: Pt): void {
+  /** The step in: a couple of flat dust puffs kicked up behind the striker. */
+  stepDust(at: Pt, dirX: number): void {
     const S = this.scale;
     const r = this.aR;
-    for (const sx of [-0.45, 0.45]) {
-      this.spawn('body', this.tex.puff, 0xffffff, at.x + r * sx, at.y - r * 0.85, {
-        dur: 420 + this.rnd() * 140, from: (r * 0.18) / PUFF_PX / S, to: (r * 0.55) / PUFF_PX / S, a0: 0.75, vx: sx * 120, vy: -160, drag: 0.2,
+    for (let i = 0; i < 2; i++) {
+      this.spawn('body', this.tex.dust, this.colors.dust, at.x - dirX * r * (0.5 + 0.3 * i), at.y + r * 0.6, {
+        dur: 300 + 60 * i, from: (r * 0.35) / PUFF_PX / S, to: (r * 0.7) / PUFF_PX / S, a0: 0.9, ease: 'cubic', vx: -dirX * 160, vy: -50, drag: 0.1,
       });
     }
   }
 
-  /** IV: the bat SLAMMED down clatters (dust). */
-  clatter(at: Pt): void {
+  /** III: the LAUNCH. Speed lines straight up and dust where the target stood. */
+  launch(at: Pt): void {
     const S = this.scale;
-    const r = this.aR * 0.6;
-    this.spawn('glow', this.tex.ring, this.colors.dust, at.x, at.y, { dur: 260, from: (r * 0.5) / RING_PX / S, to: (r * 2.2) / RING_PX / S, a0: 0.55, sy: 0.45, ease: 'cubic' });
-    this.burst('body', this.tex.puff, [this.colors.dust], at.x, at.y, 5, { speed: 160, life: 380, size: (r * 0.4) / PUFF_PX / S, drag: 0.12, to: 1.6 });
-  }
-
-  /** IV: the charge's dust at the feet, and speed lines behind it. */
-  chargeDust(at: Pt, from: Pt, r: number): void {
-    const S = this.scale;
-    const dx = at.x - from.x, dy = at.y - from.y;
-    const l = Math.hypot(dx, dy);
-    const head = Math.atan2(dy, dx);
-    this.spawn('body', this.tex.puff, this.colors.dust, from.x, from.y + r * 0.5, { dur: 360, from: (r * 0.35) / PUFF_PX / S, to: (r * 0.8) / PUFF_PX / S, a0: 0.6, vx: -Math.cos(head) * 60, vy: -Math.sin(head) * 60, drag: 0.1 });
-    if (l < 2) return;
-    for (const off of [-0.6, 0, 0.6]) {
-      const x = from.x + Math.cos(head + Math.PI / 2) * r * off, y = from.y + Math.sin(head + Math.PI / 2) * r * off;
-      this.spawn('glow', this.tex.streak, 0xffffff, x, y, { dur: 180, from: (l * 2.4) / 128 / S, to: (l * 1.2) / 128 / S, a0: 0.45, sy: 0.18, rot: head, ease: 'linear' });
+    const r = this.dR;
+    for (const off of [-0.5, 0, 0.5]) {
+      this.spawn('glow', this.tex.streak, 0xffffff, at.x + r * off, at.y - r * 0.2, {
+        dur: 260, from: (r * 2.2) / STREAK_PX / S, to: (r * 3) / STREAK_PX / S, a0: 0.55, sy: 0.14, rot: -Math.PI / 2, vy: -900, drag: 0.2, ease: 'linear',
+      });
+    }
+    for (const sx of [-1, 1]) {
+      this.spawn('body', this.tex.dust, this.colors.dust, at.x + sx * r * 0.4, at.y + r * 0.7, {
+        dur: 360, from: (r * 0.4) / PUFF_PX / S, to: (r * 0.8) / PUFF_PX / S, a0: 0.9, ease: 'cubic', vx: sx * 200, vy: -40, drag: 0.08,
+      });
     }
   }
 
-  /** IV: one puff of the BRAWL CLOUD (the runner keeps it boiling while the brawl lasts). `k` scales it. */
-  cloudPuff(at: Pt, k: number): void {
-    if (k <= 0) return;
-    const S = this.scale;
-    // A ring of big puffs round the two portraits (the middle stays thin, so the brawlers show through and pop out).
-    const R = (this.aR + this.dR) * 0.5 * k;
-    const a = this.rnd() * Math.PI * 2;
-    const d = R * (0.75 + this.rnd() * 0.55);
-    const tint = this.rnd() < 0.3 ? whiten(this.colors.dust, 0.35) : this.colors.dust;
-    const D0 = R * (0.9 + this.rnd() * 0.5);
-    this.spawn('body', this.tex.puff, tint, at.x + Math.cos(a) * d, at.y + Math.sin(a) * d * 0.85, {
-      dur: 320 + this.rnd() * 180, from: D0 / PUFF_PX / S, to: (D0 * (1.25 + this.rnd() * 0.3)) / PUFF_PX / S, a0: 0.97, mode: 'hold', ease: 'cubic',
-      vx: Math.cos(a) * 50, vy: Math.sin(a) * 40 - 20, drag: 0.3,
-    });
-  }
-
-  /** IV: the brawl cloud BURSTS onto the scene at the collision (a ring of puffs at once). */
-  cloudBurst(at: Pt, k: number): void {
-    for (let i = 0; i < Math.round(14 * k); i++) this.cloudPuff(at, k);
-    const S = this.scale;
-    const R = (this.aR + this.dR) * 0.5 * k;
-    this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 300, from: (R * 0.5) / RING_PX / S, to: (R * 2.6) / RING_PX / S, a0: 0.6, ease: 'cubic' });
-  }
-
-  /** IV: THE BENCHES CLEAR: streaks of dust rushing in from both edges of the screen at the cloud. */
-  benchRush(at: Pt, width: number, k: number): void {
-    if (k <= 0) return;
-    const S = this.scale;
-    for (const side of [-1, 1]) {
-      for (let i = 0; i < Math.round(2 * k); i++) {
-        const y = at.y + (this.rnd() - 0.5) * this.dR * 2;
-        const x = side < 0 ? -40 : width + 40;
-        const dx = at.x - x;
-        this.spawn('glow', this.tex.streak, 0xffffff, x, y, { dur: 260, from: 1.6, to: 0.6, a0: 0.4, sy: 0.15, rot: dx > 0 ? 0 : Math.PI, vx: dx * 3.2, vy: (at.y - y) * 3, drag: 1, ease: 'linear', delay: this.rnd() * 60 });
-        this.spawn('body', this.tex.puff, this.colors.dust, x, y, {
-          dur: 300, from: (this.dR * 0.5) / PUFF_PX / S, to: (this.dR * 0.3) / PUFF_PX / S, a0: 0.75, mode: 'hold', vx: dx * 3.1, vy: (at.y - y) * 2.9, drag: 1, delay: this.rnd() * 60,
-        });
-      }
-    }
-  }
-
-  /** IV: one comic HIT in the brawl, at a spot on the cloud's edge: a kapow burst, a word, stars and sparks. */
-  brawlHit(at: Pt, i: number, k: number): void {
+  /** III: the SLAM into the socket (THE impact): the heavy spark, flat rings along the ground and dust thrown both ways. */
+  slam(at: Pt, k: number, rings: number): void {
     const S = this.scale;
     const c = this.colors;
-    const words: BaseballWord[] = ['pow', 'bam', 'smack'];
-    const R = this.dR * 0.9 * k;
-    const rot = (this.rnd() - 0.5) * 0.6;
-    this.spawn('core', this.tex.kapow, i % 2 ? c.pow : whiten(c.pow, 0.4), at.x, at.y, { dur: 260, from: (R * 0.5) / BURST_PX / S * 2, to: (R * 1.3) / BURST_PX / S * 2, a0: 0.95, mode: 'hold', ease: 'quint', rot });
-    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 200, from: 0.5 * k, to: 1.5 * k, a0: 1, mode: 'punch', peakAt: 0.1, rot: rot + 0.4 });
-    this.burst('core', this.tex.star, [c.pow, 0xffffff], at.x, at.y, 3, { speed: 340, life: 360, size: 0.28, drag: 0.15, spin: 0.012 });
-    this.burst('core', this.tex.spark, [c.flash, c.side], at.x, at.y, 4, { speed: 520, life: 220, size: 0.4, drag: 0.1, align: true });
-    this.word(words[i % words.length]!, at, 0.55 * k, rot, 340);
-  }
-
-  /** IV: THE KNOCKOUT. The cloud blown apart, a huge hit, rings, a storm of stars, YER OUT! */
-  ko(at: Pt, cloud: Pt, dir: Pt, k: number, rings: number): void {
-    const S = this.scale;
-    const R = (this.aR + this.dR) * 0.5;
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2 + this.rnd() * 0.3;
-      this.spawn('body', this.tex.puff, i % 3 ? this.colors.dust : whiten(this.colors.dust, 0.3), cloud.x + Math.cos(a) * R * 0.5, cloud.y + Math.sin(a) * R * 0.4, {
-        dur: 460 + this.rnd() * 160, from: (R * 0.8) / PUFF_PX / S, to: (R * 1.1) / PUFF_PX / S, a0: 0.9, vx: Math.cos(a) * 520, vy: Math.sin(a) * 380, drag: 0.04,
+    const r = this.dR;
+    this.hitSpark(at, 'heavy', Math.max(0.6, k * 0.8));
+    for (let i = 0; i < Math.min(6, rings); i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.flash, at.x, at.y + r * 0.55, {
+        dur: 380 + 70 * i, from: (r * 0.6) / RING_PX / S, to: (r * (2.2 + 0.8 * i) * k) / RING_PX / S, a0: 0.75 - 0.1 * i, sy: 0.36, ease: 'cubic', delay: 50 * i,
       });
     }
-    this.bonk(at, dir, k, { rings, word: 'out' });
-    this.burst('core', this.tex.kapow, [this.colors.pow], at.x, at.y, 1, { speed: 0, life: 360, size: (this.dR * 2.4) / BURST_PX / S, to: 1.2 });
+    for (let i = 0; i < 6; i++) {
+      const sx = i % 2 ? 1 : -1;
+      this.spawn('body', this.tex.dust, i % 3 ? c.dust : whiten(c.dust, 0.4), at.x + sx * r * 0.5, at.y + r * 0.7, {
+        dur: 420 + this.rnd() * 160, from: (r * 0.4) / PUFF_PX / S, to: (r * 0.85) / PUFF_PX / S, a0: 0.92, mode: 'hold', ease: 'cubic',
+        vx: sx * (180 + 90 * i) * k, vy: -60 - this.rnd() * 60, drag: 0.07,
+      });
+    }
   }
 
-  /** The ball popping up and away off whatever it hit. */
-  popAway(at: Pt, dir: Pt, lift = 0): void {
+  /** I and II: the last hit of a short combo. Rings off it and a few extra shards. */
+  finisher(at: Pt, k: number, rings: number): void {
     const S = this.scale;
-    const k = (this.aR * 2 * this.look.ballSize) / BALL_PX / S;
-    const sx = dir.x >= 0 ? 1 : -1;
-    this.spawn('body', this.tex.ball, this.colors.ball, at.x, at.y - lift, {
-      dur: 620, from: k, to: k * 0.9, a0: 1, mode: 'hold', ease: 'linear', vx: sx * 180 + dir.x * 80, vy: -520, grav: 2000, drag: 0.6, spin: sx * 0.02,
+    const c = this.colors;
+    const r = this.dR;
+    for (let i = 0; i < Math.min(4, rings); i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.flash, at.x, at.y, {
+        dur: 340 + 60 * i, from: (r * 0.4) / RING_PX / S, to: (r * (1.6 + 0.7 * i) * k) / RING_PX / S, a0: 0.7, ease: 'cubic', delay: 50 * i,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.spark, c.flash, c.side], at.x, at.y, Math.round(6 * k), { speed: 620 * k, dir: this.look.face > 0 ? 0 : Math.PI, spread: 2.2, life: 260, size: 0.45, drag: 0.1, align: true });
+  }
+
+  /** IV: the SUPER activates. A white star flash on the striker and rings in its colour. */
+  superFlash(at: Pt): void {
+    const S = this.scale;
+    const c = this.colors;
+    const r = this.aR;
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 360, from: 0.8, to: 3.4, a0: 1, mode: 'punch', peakAt: 0.14, rot: 0.2, spin: 0.002 });
+    this.spawn('core', this.tex.glow, c.side, at.x, at.y, { dur: 420, from: (r * 1.2) / GLOW_PX / S, to: (r * 3.6) / GLOW_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.12 });
+    for (let i = 0; i < 2; i++) {
+      this.spawn('glow', this.tex.ring, i ? 0xffffff : c.side, at.x, at.y, { dur: 420 + 120 * i, from: (r * 0.8) / RING_PX / S, to: (r * (3.4 + i)) / RING_PX / S, a0: 0.85, ease: 'cubic', delay: 70 * i });
+    }
+  }
+
+  /** IV: one SPEED LINE racing along the cut-in band (the runner keeps them coming while it holds). */
+  bandLine(): void {
+    const S = this.scale;
+    const { band: b, face, frameW } = this.look;
+    const ax = Math.cos(b.rot), ay = Math.sin(b.rot);
+    const along = (this.rnd() - 0.5) * frameW * 0.9, across = (this.rnd() - 0.5) * b.h * 0.72;
+    const len = b.h * (0.9 + this.rnd() * 1.6);
+    const v = (2600 + this.rnd() * 1400) * (b.h / 280) / S;
+    this.spawn('core', this.tex.streak, this.rnd() < 0.35 ? this.colors.side : 0xffffff, b.x + ax * along - ay * across, b.y + ay * along + ax * across, {
+      dur: 170 + this.rnd() * 80, from: len / STREAK_PX / S, to: (len * 1.3) / STREAK_PX / S, a0: 0.5 + this.rnd() * 0.3, sy: 0.05 + this.rnd() * 0.05, rot: b.rot,
+      vx: ax * face * v, vy: ay * face * v, ease: 'linear',
     });
   }
 
-  /** A comic word popping in over a point, a little tilted, and drifting up as it fades. */
-  private word(w: BaseballWord, at: Pt, strength: number, rot = -0.08, dur = 720): void {
-    if (this.look.wordSize <= 0) return;
+  /**
+   * IV: THE WIND-UP (the anticipation before THE impact): light is pulled into the striker over `ms`, a glow swelling on
+   * it and rings closing in, so the blow has something to release.
+   */
+  gather(at: Pt, ms: number): void {
     const S = this.scale;
-    const width = this.dR * 1.8 * this.look.wordSize * Math.min(1.5, 0.75 + 0.3 * strength);
-    const k = width / WORD_W / S;
-    // Above the point, but never off the top of the screen (a foe tucked in a corner). The two big calls (HOME RUN!,
-    // YER OUT!) go BELOW it when there is room, clear of the hit number that punches in above the target.
-    const hh = width * (WORD_H / WORD_W);
-    const big = w === 'out' || w === 'homer';
-    const below = at.y + this.dR * 1.15;
-    const y = big && below + hh * 0.6 < (this.look.frameH ?? Infinity) ? below : Math.max(at.y - this.dR * 0.9, hh * 0.75 + 24);
-    const t = this.wordTex(w);
-    this.spawn('body', t, w === 'out' || w === 'homer' ? this.colors.pow : 0xffffff, at.x, y, { dur, from: k * 0.5, to: k * 1.08, a0: 1, mode: 'hold', ease: 'quint', rot, vy: -40, drag: 0.4 });
-    this.spawn('glow', t, this.colors.side, at.x, y, { dur: dur * 0.7, from: k * 0.55, to: k * 1.25, a0: 0.4, mode: 'punch', peakAt: 0.15, rot });
+    const c = this.colors;
+    const r = this.aR;
+    this.spawn('core', this.tex.glow, c.side, at.x, at.y, { dur: ms + 60, from: (r * 1.0) / GLOW_PX / S, to: (r * 3.4) / GLOW_PX / S, a0: 0.85, mode: 'punch', peakAt: 0.92, ease: 'linear' });
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: ms + 40, from: (r * 0.5) / GLOW_PX / S, to: (r * 1.7) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.95, ease: 'linear' });
+    for (let i = 0; i < 3; i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? 0xffffff : c.side, at.x, at.y, {
+        dur: ms * 0.5, from: (r * 5) / RING_PX / S, to: (r * 0.9) / RING_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.7, ease: 'cubic', delay: i * ms * 0.2,
+      });
+    }
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.rnd() * 0.3;
+      const d = r * (3.2 + this.rnd() * 1.6), life = 230 + this.rnd() * 90;
+      const sp = (d / S) / (life / 1000) * 1.05;
+      this.spawn('core', this.tex.streak, i % 3 ? c.spark : 0xffffff, at.x + Math.cos(a) * d, at.y + Math.sin(a) * d, {
+        dur: life, from: (r * 1.3) / STREAK_PX / S, to: (r * 0.4) / STREAK_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.5, sy: 0.09, rot: a,
+        vx: -Math.cos(a) * sp, vy: -Math.sin(a) * sp, ease: 'linear', delay: (i * 37) % Math.max(1, ms - life),
+      });
+    }
+  }
+
+  /** A whole-screen white flash (bright at once, gone in `ms`). */
+  screenFlash(alpha: number, ms = 170): void {
+    if (alpha <= 0) return;
+    const { frameW, frameH, band } = this.look;
+    const S = this.scale;
+    const k = (frameW * 1.6) / GLOW_PX / S;
+    // The soft glow texture stretched far past the screen: its middle is flat white across the whole view.
+    this.spawn('core', this.tex.glow, 0xffffff, band.x, band.y, { dur: ms, from: k * 3, to: k * 3, a0: alpha, sy: Math.max(1, frameH / Math.max(1, frameW)), ease: 'linear' });
+  }
+
+  /**
+   * IV: THE HEAVY BLOW (THE impact): the big red spark, drive lines blown through the target, a white-hot core, shock
+   * rings, and shards thrown wide that arc down under gravity.
+   */
+  heavy(at: Pt, k: number, rings: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const r = this.dR;
+    const face = this.look.face;
+    this.hitSpark(at, 'heavy', Math.min(1.9, 0.85 * k));
+    this.drive(at, true);
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 200, from: (r * 2) / GLOW_PX / S, to: (r * 5 * k) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.08 });
+    this.spawn('core', this.tex.glow, c.heavy, at.x, at.y, { dur: 900, from: (r * 2.2) / GLOW_PX / S, to: (r * 4.4 * k) / GLOW_PX / S, a0: 0.75, ease: 'cubic' });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 420, from: 1.2, to: 5.2, a0: 1, mode: 'punch', peakAt: 0.1, rot: 0.3, spin: 0.0015 });
+    for (let i = 0; i < Math.min(7, rings + 1); i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.heavy, at.x, at.y, {
+        dur: 520 + 90 * i, from: (r * 0.5) / RING_PX / S, to: (r * (2.2 + 1.0 * i) * k) / RING_PX / S, a0: 0.9 - 0.1 * i, ease: 'cubic', delay: 60 * i,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.heavy, c.spark, 0xffffff], at.x, at.y, Math.round(14 * k), { speed: 1100, dir: face > 0 ? 0 : Math.PI, spread: 2.9, life: 760, size: 0.62, drag: 0.25, grav: 1500, align: true, lift: 260 });
+    this.burst('core', this.tex.spark, [0xffffff, c.spark], at.x, at.y, Math.round(8 * k), { speed: 520, life: 520, size: 0.4, drag: 0.2, align: true });
+  }
+
+  /**
+   * IV: THE AFTERMATH, where the blasted target comes down (`at`): dust thrown up both ways on the landing, embers
+   * drifting up and a low glow that takes its time to go. It is what makes the blow linger.
+   */
+  aftermath(at: Pt, strength = 1): void {
+    const S = this.scale;
+    const c = this.colors;
+    const r = this.dR;
+    this.spawn('glow', this.tex.glow, c.heavy, at.x, at.y, { dur: 1300 * strength, from: (r * 2.6) / GLOW_PX / S, to: (r * 3.6) / GLOW_PX / S, a0: 0.4 * strength, mode: 'hold', ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y + r * 0.6, { dur: 520, from: (r * 0.7) / RING_PX / S, to: (r * 3.4 * strength) / RING_PX / S, a0: 0.7 * strength, sy: 0.34, ease: 'cubic' });
+    for (let i = 0; i < Math.round(8 * strength); i++) {
+      const sx = i % 2 ? 1 : -1;
+      this.spawn('body', this.tex.dust, i % 3 ? c.dust : whiten(c.dust, 0.4), at.x + sx * r * 0.4, at.y + r * 0.7, {
+        dur: 700 + this.rnd() * 500, from: (r * 0.4) / PUFF_PX / S, to: (r * (0.9 + this.rnd() * 0.5)) / PUFF_PX / S, a0: 0.85, mode: 'hold', ease: 'cubic',
+        vx: sx * (140 + 110 * i) * strength, vy: -50 - this.rnd() * 110, drag: 0.06,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.heavy, c.spark], at.x, at.y + r * 0.3, Math.round(10 * strength), { speed: 260, dir: -Math.PI / 2, spread: 2.2, life: 1100, size: 0.32, drag: 0.5, grav: -140 });
+  }
+
+  /**
+   * IV: "K.O." SLAMS IN: it starts huge and lands hard at its size, HOLDS for `holdMs`, then fades. A white flash and a
+   * hot bar of light behind it, shock rings off the landing, and sparks knocked out along its length.
+   */
+  ko(at: Pt, width: number, holdMs = 1750): void {
+    if (width <= 0) return;
+    const S = this.scale;
+    const c = this.colors;
+    const k = width / KO_W / S;
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 340, from: (width * 0.9) / GLOW_PX / S, to: (width * 2.4) / GLOW_PX / S, a0: 0.85, mode: 'punch', peakAt: 0.1, sy: 0.5 });
+    this.spawn('glow', this.tex.glow, c.heavy, at.x, at.y, { dur: holdMs, from: (width * 1.5) / GLOW_PX / S, to: (width * 1.8) / GLOW_PX / S, a0: 0.5, mode: 'hold', sy: 0.42, ease: 'cubic' });
+    for (let i = 0; i < 3; i++) {
+      this.spawn('glow', this.tex.ring, i === 1 ? 0xffffff : c.heavy, at.x, at.y, { dur: 520 + 110 * i, from: (width * 0.4) / RING_PX / S, to: (width * (1.5 + 0.5 * i)) / RING_PX / S, a0: 0.8 - 0.15 * i, sy: 0.45, ease: 'cubic', delay: 60 * i });
+    }
+    for (const sx of [-1, 1]) {
+      this.burst('core', this.tex.spark, [c.spark, 0xffffff, c.heavy], at.x + sx * width * 0.3, at.y + width * 0.12, 7, { speed: 720, dir: sx > 0 ? -0.5 : Math.PI + 0.5, spread: 1.6, life: 620, size: 0.5, drag: 0.25, grav: 1300, align: true });
+    }
+    this.spawn('body', this.tex.wordKo, 0xffffff, at.x, at.y, { dur: holdMs, from: k * 3.2, to: k, a0: 1, mode: 'hold', ease: 'quint', rot: -0.07 });
   }
 }

@@ -1,9 +1,7 @@
-// SCAFFOLDED from heroCards/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Cards, not this style, until rewritten.
 import {
-  CARD_LEVELS, CARD_LEVEL_NAMES, CHESS_LEVEL_SUFFIXES, HERO_CHESS_DEFAULTS, HERO_CHESS_RANGES, chessPlan, getHeroChessConfig,
+  CHESS_LEVELS, CHESS_LEVEL_NAMES, CHESS_LEVEL_SUFFIXES, HERO_CHESS_DEFAULTS, HERO_CHESS_RANGES, chessPlan, getHeroChessConfig,
   heroChessConfigJson, resetHeroChessConfig, setHeroChessValue,
-  type CardLevel, type CardsLevelSuffix, type HeroChessConfig, type HeroChessNumKey, type HeroChessStrKey,
+  type ChessLevel, type ChessLevelSuffix, type HeroChessConfig, type HeroChessNumKey, type HeroChessStrKey,
 } from './heroChess/heroChessConfig';
 import { clipNames } from './sfx';
 import { DEV_HERO_ATTACK_CHOICES, DEV_HERO_ATTACK_LABELS, devHeroAttackChoice, setDevHeroAttackChoice } from './heroBlast/heroAttackStyle';
@@ -13,13 +11,15 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
- * DEV tuner for the CARD SHARK hero attack (an Epic; owner ask 2026-09-29: "build 5 animations that range from rare ->
- * epic ... rare and epics should only have 2 or 3 tiers"). Three looks: Small (one card), Medium (three of a kind), Big
- * (the royal flush). The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in
- * either direction. A preview never touches the run. The "Attack style" row is the same dev override as the other
- * attack tuners' (Auto = what a player would see). Production plays the baked defaults.
+ * DEV tuner for the CHECKMATE hero attack (style id `chess`, an Epic): chess pieces that move by their own rules on a
+ * faint board beside the struck hero. Four looks, one per shared damage tier: Tier 1 the Pawn (hops up its file and
+ * captures diagonally), Tier 2 the Knight (its L-shaped jump onto the portrait), Tier 3 the Rook (braces, then charges
+ * straight down the hero's file and rams it) and Tier 4 the Queen (the long diagonal, the king tipping over, CHECKMATE). The Play buttons
+ * run the REAL runner between the two real hero portraits (works from the shop), in either direction. A preview never
+ * touches the run. The "Attack style" row is the same dev override as the other attack tuners' (Auto = what a player
+ * would see). Production plays the baked defaults.
  */
-type CardsTunerValues = HeroChessConfig & { attackStyle: string };
+type ChessTunerValues = HeroChessConfig & { attackStyle: string };
 
 type Spec = [string, TunerUnit | undefined, string, string];
 type GlobalNumKey = Exclude<HeroChessNumKey, `v${number}${string}`>;
@@ -27,98 +27,112 @@ type GlobalNumKey = Exclude<HeroChessNumKey, `v${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Medium from', undefined, 'Damage at which the shared Tier II starts (Card Shark plays Medium from here). Shared with every style (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'The shared Tier III (still Medium for an Epic). Shared (12).', 'Damage tiers'],
-  tier4At: ['Big from', undefined, 'Damage at which the shared Tier IV starts: the royal flush. Shared (20). A knockout always plays it.', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which the shared Tier 2 starts: the Knight. Shared with every style (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which the shared Tier 3 starts: the Rook. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which the shared Tier 4 starts: the Queen. Shared (20). A knockout always plays it.', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
   heroCoilPx: ['Lean back', 'px', 'How far the hero leans back from the target as it readies.', 'Ready'],
-  heroFlickPx: ['Throw flick', 'px', 'How far the hero flicks toward the target on each throw.', 'Ready'],
-  cardLength: ['Card height', 'px', 'How tall a thrown card is (the look size multiplies it).', 'Chess'],
-  cardGlow: ['Card glow', 'opacity', 'The soft glow round each card, in your side colour (0 = none).', 'Chess'],
-  ghostAlpha: ['Spin ghosts', 'opacity', 'The faint copies trailing a spinning card (0 = none).', 'Chess'],
-  embed: ['Stick depth', '×', 'How much of the card sinks past the point it hits (edge first).', 'Chess'],
-  quiver: ['Quiver', undefined, 'How hard a stuck card quivers (radians).', 'Chess'],
-  stickHoldMs: ['Stick hold', 'ms', 'Small and Medium: how long the cards stay stuck before they fall away.', 'Chess'],
-  dealMs: ['Deal time', 'ms', 'Big: one card flying from the hero into the fanned hand.', 'Royal flush (Big)'],
-  dealStaggerMs: ['Deal stagger', 'ms', 'Big: the gap between cards being dealt.', 'Royal flush (Big)'],
-  flipMs: ['Flip time', 'ms', 'Big: one card turning face up.', 'Royal flush (Big)'],
-  flipStaggerMs: ['Flip stagger', 'ms', 'Big: the gap between flips (the reveal rolls left to right).', 'Royal flush (Big)'],
-  goldMs: ['Gold reveal', 'ms', 'Big: the faces turning to gold, the shine sweeping across.', 'Royal flush (Big)'],
-  holdMs: ['Hold', 'ms', 'Big: the golden hand held up a beat before it fires.', 'Royal flush (Big)'],
-  fanSize: ['Hand size', '×', 'Big: how big the fanned hand is compared to a thrown card.', 'Royal flush (Big)'],
-  fanReach: ['Hand reach', '×', 'Big: how far in front of the hero the hand fans out (portrait radii).', 'Royal flush (Big)'],
-  fanSpread: ['Fan spread', '°', 'Big: the angle between neighbouring cards in the hand.', 'Royal flush (Big)'],
-  confetti: ['Confetti', undefined, 'Big: card confetti pieces per card in the burst.', 'Royal flush (Big)'],
-  confettiGravity: ['Confetti gravity', undefined, 'px/s². How fast the confetti falls.', 'Royal flush (Big)'],
-  flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Camera and portraits'],
+  heroNodPx: ['Nod', 'px', 'How far the hero nods toward the board as the piece is set down and as it moves.', 'Ready'],
+  squareK: ['Square size', '×', 'A board square, in struck-portrait radii (the portrait sits on one square).', 'Board'],
+  boardAlpha: ['Board', 'opacity', 'How strong the dark squares are (the light ones are fainter).', 'Board'],
+  boardFadeMs: ['Board fade', 'ms', 'A square fading in, and the board fading out at the end.', 'Board'],
+  hintAlpha: ['Move hint', 'opacity', 'How bright the squares the move crosses glow gold.', 'Board'],
+  pieceK: ['Piece height', '×', 'The height of the piece box, in squares (the king fills it; the look size multiplies it).', 'Pieces'],
+  setMs: ['Set down', 'ms', 'The piece coming down onto its square.', 'Pieces'],
+  setDropPx: ['Set-down height', 'px', 'How far above the board the piece appears.', 'Pieces'],
+  holdMs: ['Hold', 'ms', 'Tier 1 and Tier 2: how long the piece stays after the capture before it fades.', 'Pieces'],
+  pawnHops: ['Pawn hops', undefined, 'How many squares the pawn walks before it captures.', 'Tier 1: Pawn'],
+  hopMs: ['Hop time', 'ms', 'One hop to the next square.', 'Tier 1: Pawn'],
+  hopGapMs: ['Hop gap', 'ms', 'The pause between hops.', 'Tier 1: Pawn'],
+  hopLift: ['Hop height', '×', 'How high a hop rises, in squares.', 'Tier 1: Pawn'],
+  captureMs: ['Capture', 'ms', 'The diagonal jab into the portrait.', 'Tier 1: Pawn'],
+  rearMs: ['Rear and spin', 'ms', 'The knight rearing back, then spinning once on its square.', 'Tier 2: Knight'],
+  jumpMs: ['Jump time', 'ms', 'The L-shaped jump, from take-off to landing.', 'Tier 2: Knight'],
+  jumpLift: ['Jump height', '×', 'How high the jump arcs, in squares.', 'Tier 2: Knight'],
+  jumpSpins: ['Somersaults', undefined, 'Whole turns the knight makes in the air.', 'Tier 2: Knight'],
+  rookRanks: ['Squares back', undefined, 'How many squares down the file the rook starts (it charges them all).', 'Tier 3: Rook'],
+  rookBraceMs: ['Brace', 'ms', 'The rook rocking back on its heel and grinding, drawn back like a ram, before it goes.', 'Tier 3: Rook'],
+  rookChargeMs: ['Charge time', 'ms', 'The charge down the file (it gathers speed, thumping over each seam).', 'Tier 3: Rook'],
+  rookHoldMs: ['Hold', 'ms', 'How long the rook stays after its ram before it fades.', 'Tier 3: Rook'],
+  gleamMs: ['Gleam', 'ms', 'The gleam running up the queen to her crown.', 'Tier 4: Queen'],
+  slideMs: ['Slide time', 'ms', 'The queen sweeping her diagonal.', 'Tier 4: Queen'],
+  diagMax: ['Diagonal', undefined, 'The longest diagonal the queen may sweep, in squares (it shortens to stay on screen).', 'Tier 4: Queen'],
+  ghostAlpha: ['Afterimages', 'opacity', 'The faint copies trailing the sliding queen (0 = none).', 'Tier 4: Queen'],
+  coilMs: ['Queen coil', 'ms', 'The held breath after the gleam: the queen leans back before she slides.', 'Tier 4: Queen'],
+  kingWobbleMs: ['King wobble', 'ms', 'The king wobbling after the capture before it tips.', 'Tier 4: Queen'],
+  kingFallMs: ['King fall', 'ms', 'The king tipping over onto its side.', 'Tier 4: Queen'],
+  wordAtMs: ['Word delay', 'ms', 'How long after the capture CHECKMATE sets.', 'Tier 4: Queen'],
+  wordHoldMs: ['Word hold', 'ms', 'How long CHECKMATE stays.', 'Tier 4: Queen'],
+  wordSize: ['Word size', '×', 'The size of CHECKMATE.', 'Tier 4: Queen'],
+  flashAlpha: ['Flash', 'opacity', 'How bright the capture flash is.', 'Camera and portraits'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxDrawGain: ['draw: gain', undefined, 'A card drawn as the hero readies.', 'Sound: draw'],
-  sfxDrawRate: ['draw: pitch', '×', 'Pitch of the draw.', 'Sound: draw'],
-  sfxFlickGain: ['flick: gain', undefined, 'The quick swish of each card leaving (each a little higher).', 'Sound: flick'],
-  sfxFlickRate: ['flick: pitch', '×', 'Pitch of the first swish.', 'Sound: flick'],
-  sfxSnapGain: ['snap: gain', undefined, 'The snap layered on each throw.', 'Sound: snap'],
-  sfxSnapRate: ['snap: pitch', '×', 'Pitch of the snap.', 'Sound: snap'],
-  sfxThunkGain: ['thunk: gain', undefined, 'A card sticking in (climbs per card).', 'Sound: thunk'],
-  sfxThunkRate: ['thunk: pitch', '×', 'Pitch of the first thunk.', 'Sound: thunk'],
-  sfxPunchGain: ['punch: gain', undefined, 'A low punch under each thunk.', 'Sound: punch'],
-  sfxPunchRate: ['punch: pitch', '×', 'Pitch of the punch.', 'Sound: punch'],
-  sfxImpactGain: ['impact: gain', undefined, 'THE impact: the last card, or under the flush burst.', 'Sound: impact'],
+  sfxSetGain: ['set down: gain', undefined, 'The piece set down on the board (also under the capture).', 'Sound: set down'],
+  sfxSetRate: ['set down: pitch', '×', 'Pitch of the set-down tap (the queen plays lower).', 'Sound: set down'],
+  sfxHopGain: ['hop: gain', undefined, 'A pawn hop landing (each a little higher), and the king settling.', 'Sound: hop'],
+  sfxHopRate: ['hop: pitch', '×', 'Pitch of the first hop.', 'Sound: hop'],
+  sfxWhooshGain: ['whoosh: gain', undefined, 'The knight leaving on its jump (and a short one on the pawn capture).', 'Sound: whoosh'],
+  sfxWhooshRate: ['whoosh: pitch', '×', 'Pitch of the whoosh.', 'Sound: whoosh'],
+  sfxSlideGain: ['slide: gain', undefined, 'The queen sliding on the wood.', 'Sound: slide'],
+  sfxSlideRate: ['slide: pitch', '×', 'Pitch (and speed) of the slide.', 'Sound: slide'],
+  sfxGleamGain: ['gleam: gain', undefined, 'The gleam running up the queen.', 'Sound: gleam'],
+  sfxGleamRate: ['gleam: pitch', '×', 'Pitch of the gleam.', 'Sound: gleam'],
+  sfxThudGain: ['thud: gain', undefined, 'The knight landing on the portrait.', 'Sound: thud'],
+  sfxThudRate: ['thud: pitch', '×', 'Pitch of the thud.', 'Sound: thud'],
+  sfxPunchGain: ['punch: gain', undefined, 'A punch under every capture.', 'Sound: punch'],
+  sfxPunchRate: ['punch: pitch', '×', 'Pitch of the punch (lower up the looks).', 'Sound: punch'],
+  sfxImpactGain: ['impact: gain', undefined, 'THE impact under every capture.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
-  sfxBigGain: ['big hit: gain', undefined, 'Medium and Big: an extra crack on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tier 4 (the queen) only: an extra crack on the capture.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxDealGain: ['deal: gain', undefined, 'Big: each card dealt into the hand.', 'Sound: deal'],
-  sfxDealRate: ['deal: pitch', '×', 'Pitch of the first deal (climbs per card).', 'Sound: deal'],
-  sfxFlipGain: ['flip: gain', undefined, 'Big: each card turning face up.', 'Sound: flip'],
-  sfxFlipRate: ['flip: pitch', '×', 'Pitch of the first flip (climbs per card).', 'Sound: flip'],
-  sfxRevealGain: ['reveal: gain', undefined, 'Big: the royal flush turning gold.', 'Sound: reveal'],
-  sfxRevealRate: ['reveal: pitch', '×', 'Pitch of the reveal.', 'Sound: reveal'],
-  sfxBurstGain: ['burst: gain', undefined, 'Big: the flush bursting into confetti.', 'Sound: burst'],
-  sfxBurstRate: ['burst: pitch', '×', 'Pitch of the burst.', 'Sound: burst'],
-  sfxSparkleGain: ['sparkle: gain', undefined, 'Big: the glitter on the gold reveal and the burst.', 'Sound: sparkle'],
-  sfxSparkleRate: ['sparkle: pitch', '×', 'Pitch of the sparkle.', 'Sound: sparkle'],
-  sfxFlickLenMs: ['flick length', 'ms', 'Each flick swish is cut to this long (with a fade).', 'Sound: mix'],
-  sfxImpactLenMs: ['impact length', 'ms', 'The impact and burst clips are cut to this long (with a fade).', 'Sound: mix'],
+  sfxToppleGain: ['topple: gain', undefined, 'The king hitting the board on its side.', 'Sound: topple'],
+  sfxToppleRate: ['topple: pitch', '×', 'Pitch of the topple.', 'Sound: topple'],
+  sfxKnockGain: ['knock: gain', undefined, 'A heavy piece slammed on wood: under every capture, each rock of the king and the word setting.', 'Sound: knock'],
+  sfxKnockRate: ['knock: pitch', '×', 'Pitch of the knock (lower up the looks).', 'Sound: knock'],
+  sfxRollGain: ['roll: gain', undefined, 'The king falling over and rocking to rest.', 'Sound: roll'],
+  sfxRollRate: ['roll: pitch', '×', 'Pitch of the roll.', 'Sound: roll'],
+  sfxBodyGain: ['body: gain', undefined, 'The low layer under every capture, the queen set down and the king hitting the board.', 'Sound: body'],
+  sfxBodyRate: ['body: pitch', '×', 'Pitch of the low layer.', 'Sound: body'],
+  sfxRumbleGain: ['rumble: gain', undefined, 'Tier 3: heavy wood grinding on the board (slowed under the brace, full speed under the charge).', 'Sound: rumble'],
+  sfxRumbleRate: ['rumble: pitch', '×', 'Pitch of the rumble.', 'Sound: rumble'],
+  sfxCrashGain: ['crash: gain', undefined, 'Tier 3: the rook ramming the portrait (a crunch of splintering wood).', 'Sound: crash'],
+  sfxCrashRate: ['crash: pitch', '×', 'Pitch of the crash.', 'Sound: crash'],
+  sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
-  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the cards play (1 = no duck).', 'Sound: mix'],
+  sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
 };
 
-const LEVEL_SPECS: Record<CardsLevelSuffix, [string, TunerUnit | undefined, string]> = {
-  ChargeMs: ['Ready', 'ms', 'The hero readying before the first card leaves (Big: before the deal). The view pushes in over this.'],
-  Chess: ['Card count', undefined, 'How many cards (Small one, Medium three of a kind, Big the five of the flush).'],
-  StaggerMs: ['Throw stagger', 'ms', 'Gap between each throw (the thunk, thunk, thunk).'],
-  FlightMs: ['Card speed', 'ms', 'A card crossing the board (at 1600 px; lower = faster).'],
-  Arc: ['Arc', '×', 'How high a card arcs, as a fraction of the distance.'],
-  Fan: ['Fan', '×', 'How far the throws spread their arcs apart.'],
-  Spins: ['Spins', undefined, 'Whole turns a card spins in flight.'],
-  CardSize: ['Card size', '×', 'The card size multiplier for this look.'],
-  Shake: ['Shake', 'px', 'How hard the view shakes on the impact.'],
-  Zoom: ['Push in', '×', 'How far the view pushes in through the ready.'],
-  Punch: ['Impact punch', '×', 'Extra push on the impact before the view settles.'],
-  Sparks: ['Sparks', undefined, 'Sparks thrown by the impact.'],
-  Burst: ['Burst size', '×', 'Scale of the impact flash, rings and confetti spread.'],
+const LEVEL_SPECS: Record<ChessLevelSuffix, [string, TunerUnit | undefined, string]> = {
+  ReadyMs: ['Ready', 'ms', 'The hero readying (and the board fading in) before the piece comes down. The view pushes in from here.'],
+  PieceSize: ['Piece size', '×', 'The piece size multiplier for this look.'],
+  Shake: ['Shake', 'px', 'How hard the view shakes on the capture.'],
+  Zoom: ['Push in', '×', 'How far the view pushes in before the capture.'],
+  Punch: ['Impact punch', '×', 'Extra push on the capture before the view settles.'],
+  Sparks: ['Sparks', undefined, 'Sparks thrown by the capture.'],
+  Burst: ['Burst size', '×', 'Scale of the capture flash and rings.'],
   SettleMs: ['Settle', 'ms', 'Hold after the last beat before the sequence ends.'],
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
 const CLIP_OF: Partial<Record<string, HeroChessStrKey>> = {
-  'Sound: draw': 'sfxDrawClip', 'Sound: flick': 'sfxFlickClip', 'Sound: snap': 'sfxSnapClip', 'Sound: thunk': 'sfxThunkClip',
-  'Sound: punch': 'sfxPunchClip', 'Sound: impact': 'sfxImpactClip', 'Sound: big hit': 'sfxBigClip', 'Sound: deal': 'sfxDealClip',
-  'Sound: flip': 'sfxFlipClip', 'Sound: reveal': 'sfxRevealClip', 'Sound: burst': 'sfxBurstClip', 'Sound: sparkle': 'sfxSparkleClip',
+  'Sound: set down': 'sfxSetClip', 'Sound: hop': 'sfxHopClip', 'Sound: whoosh': 'sfxWhooshClip', 'Sound: slide': 'sfxSlideClip',
+  'Sound: gleam': 'sfxGleamClip', 'Sound: thud': 'sfxThudClip', 'Sound: punch': 'sfxPunchClip', 'Sound: impact': 'sfxImpactClip',
+  'Sound: big hit': 'sfxBigClip', 'Sound: topple': 'sfxToppleClip', 'Sound: knock': 'sfxKnockClip', 'Sound: roll': 'sfxRollClip', 'Sound: body': 'sfxBodyClip',
+  'Sound: rumble': 'sfxRumbleClip', 'Sound: crash': 'sfxCrashClip',
 };
 
 const COLORS: [HeroChessStrKey, string, string][] = [
-  ['colorIvory', 'Ivory', 'The paper of the card faces at rest, and ivory confetti.'],
-  ['colorRed', 'Red', 'The red confetti.'],
-  ['colorGold', 'Gold', 'The royal flush gilding, the gold rings, glints and confetti.'],
-  ['colorPlayer', 'Your side', 'The card glow and total colour when YOU deal.'],
-  ['colorFoe', 'Foe side', 'The card glow and total colour when THEY deal.'],
+  ['colorIvory', 'Light squares', 'The light squares of the board, and the dust where a piece lands.'],
+  ['colorEbony', 'Dark squares', 'The dark squares of the board.'],
+  ['colorGold', 'Gold', 'The move hint, the gold rings and the glints.'],
+  ['colorPlayer', 'Your side', 'The ring, sparks and total colour when YOU strike.'],
+  ['colorFoe', 'Foe side', 'The ring, sparks and total colour when THEY strike.'],
 ];
 
-type Ctl = TunerControl<Extract<keyof CardsTunerValues, string>>;
+type Ctl = TunerControl<Extract<keyof ChessTunerValues, string>>;
 
 function clipOptions(): string[] {
   let names: string[] = [];
@@ -139,12 +153,12 @@ function buildControls(): Ctl[] {
   };
   const globals = Object.entries(SPECS) as [GlobalNumKey, Spec][];
   for (const [key, spec] of globals) if (!spec[3].startsWith('Sound')) push(key, spec);
-  for (const v of CARD_LEVELS) {
+  for (const v of CHESS_LEVELS) {
     for (const s of CHESS_LEVEL_SUFFIXES) {
       const [label, unit, hint] = LEVEL_SPECS[s];
       const key = `v${v}${s}` as HeroChessNumKey;
       const [min, max, step] = HERO_CHESS_RANGES[key];
-      out.push({ key, label, unit, hint, group: CARD_LEVEL_NAMES[v as CardLevel], min, max, step });
+      out.push({ key, label, unit, hint, group: CHESS_LEVEL_NAMES[v as ChessLevel], min, max, step });
     }
   }
   for (const [ck, cl, ch] of COLORS) out.push({ key: ck, label: cl, hint: ch, group: 'Colours', kind: 'color', min: 0, max: 0, step: 0 });
@@ -164,16 +178,16 @@ function buildControls(): Ctl[] {
 
 let live: HeroChessHandle | null = null;
 
-/** Play the real Card Shark between the two portraits, from the shop or a fight, without touching the run. */
+/** Play the real Checkmate between the two portraits, from the shop or a fight, without touching the run. */
 export function demo(
   side: 'player' | 'opp',
-  opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroChessOptions['frames']; sound?: boolean; safety?: boolean } = {},
+  opts: { damage?: number; parts?: number; reduced?: boolean; frames?: HeroChessOptions['frames']; sound?: boolean; safety?: boolean; speed?: number } = {},
 ): Promise<HeroChessHandle | null> {
   live?.cancel();
   const cfg = getHeroChessConfig();
   return playAttackDemo(side, (o) => playHeroChess(o), {
     board: boardOfDamage(opts.damage ?? cfg.previewDamage, opts.parts ?? cfg.previewParts),
-    speed: 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
+    speed: opts.speed ?? 1, reduced: opts.reduced, frames: opts.frames, sound: opts.sound, safety: opts.safety,
   }, () => { live = null; }).then((h) => { live = h; return h; });
 }
 
@@ -182,15 +196,15 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { __heroChess?: unknown }).__heroChess = { demo, previewParts, play: playHeroChess };
 }
 
-const LOOK_OF: Record<CardLevel, string> = { 1: 'one card', 2: 'three of a kind', 3: 'the royal flush' };
+const LOOK_OF: Record<ChessLevel, string> = { 1: 'hops and captures', 2: 'the L-shaped jump', 3: 'the charge down the file', 4: 'the long diagonal' };
 
-export const SPEC: TunerSpec<CardsTunerValues> = {
+export const SPEC: TunerSpec<ChessTunerValues> = {
   id: 'herochess',                   // FROZEN: indexes this panel's dragged position in localStorage
-  title: 'Hero Attack: Card Shark',
+  title: 'Hero Attack: Checkmate',
   note: () => {
     const c = getHeroChessConfig();
     const p = chessPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);
-    return `dev · ${CARD_LEVEL_NAMES[p.level]} (${LOOK_OF[p.level]}) · throw ${Math.round(p.throwAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
+    return `dev · ${CHESS_LEVEL_NAMES[p.level]} (${LOOK_OF[p.level]}) · set ${Math.round(p.tapAt)} · move ${Math.round(p.strikeAt)} · impact ${Math.round(p.impactAt)} · end ${Math.round(p.endAt)} ms`;
   },
   read: () => ({ ...getHeroChessConfig(), attackStyle: devHeroAttackChoice() }),
   write: (key, value) => setHeroChessValue(key as keyof HeroChessConfig, value),
@@ -202,15 +216,16 @@ export const SPEC: TunerSpec<CardsTunerValues> = {
   copyLabel: 'Copy JSON',
   buttonsOnTop: true,
   actions: [
-    { label: '▶ You deal', hint: 'Your hero deals cards at the foe for the preview damage.', run: () => { void demo('player'); } },
-    { label: '▶ Foe deals', hint: 'The foe deals cards at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero deals for 3: Small, one card.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Medium (8)', hint: 'Your hero deals for 8: Medium, three of a kind.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero deals for 12 from four numbers: still Medium (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Big (40)', hint: 'Your hero deals for 40 from seven numbers: Big, the royal flush.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe deals at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe medium (8)', hint: 'The foe deals at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe big (40)', hint: 'The foe deals at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ You strike', hint: 'Your hero plays a piece at the foe for the preview damage.', run: () => { void demo('player'); } },
+    { label: '▶ Foe strikes', hint: 'The foe plays a piece at your hero for the preview damage.', run: () => { void demo('opp'); } },
+    { label: '▶ Tier 1 (3)', hint: 'Tier 1 (damage 1 to 5). Your hero strikes for 3: the pawn hops up its file and captures diagonally.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Tier 2 (damage 6 to 11). Your hero strikes for 8: the knight makes its L-shaped jump.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (14)', hint: 'Tier 3 (damage 12 to 19). Your hero strikes for 14: the rook braces, charges down the file and rams the portrait.', run: () => { void demo('player', { damage: 14, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Tier 4 (damage 20 and up, and every knockout). Your hero strikes for 40: the queen, the king tipping over, CHECKMATE.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe Tier 1 (3)', hint: 'The foe strikes your hero for 3: the pawn.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe Tier 2 (8)', hint: 'The foe strikes your hero for 8: the knight.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe Tier 3 (14)', hint: 'The foe strikes your hero for 14: the rook.', run: () => { void demo('opp', { damage: 14, parts: 4 }); } },
+    { label: '▶ Foe Tier 4 (40)', hint: 'The foe strikes your hero for 40: the queen.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

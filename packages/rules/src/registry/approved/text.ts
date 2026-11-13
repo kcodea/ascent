@@ -763,4 +763,24 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Blessing: "Give a minion +3/+4 twice." with +3/+4 in light blue, softly glowing.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/spellBuffNumber.test.ts'], lastVerifiedAt: '2026-11-05' },
   },
+  {
+    id: 'R-MEDAL-EXECUTE-GIVEN-01',
+    title: 'A minion that is given Execute wears the red Execute dagger on its medallion',
+    statement:
+      'A minion that is GIVEN Execute (the keyword is on that body, not printed on its card) shows the red Execute '
+      + 'dagger on its medallion for as long as it keeps Execute, in place of whatever badge it had, in the Shop and in '
+      + 'combat. When the Execute arrives on a travelling effect, the dagger appears as the effect lands, with the aura. '
+      + 'A card that prints Execute keeps the ordinary medallion precedence.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, with a screenshot of a Beast given Execute still showing its Echo skull', quote: 'when applying execute to something, its icon should get the red dagger icon of execute over it' },
+      { kind: 'code', ref: 'fx/execute-given: packages/ui/src/mechIcon.ts (the given-Execute branch of resolveMech); packages/ui/src/Card.tsx (the gem waits on the Execute hold)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-12 (fx/execute-given). Before, a given Execute changed only the aura and the body kept its printed '
+      + 'badge. It also outranks the Watcher eye (an inference from the owner wording, not ruled on separately). An Epic '
+      + 'unit shows no mechanic gem at all, so it shows no dagger. The wait for a travelling effect is not under test.',
+    example: 'A Beast with an Echo skull that Raven gives Execute shows the red dagger instead of the skull.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/mechIcon.test.ts'], lastVerifiedAt: '2026-11-12' },
+  },
 ];

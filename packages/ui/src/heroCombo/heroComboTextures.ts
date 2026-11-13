@@ -1,15 +1,15 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 /**
  * The Combo attack's textures, painted ONCE per session on 2D canvases and kept (on top of the shared Blast / Arcana
- * set it reuses for glows, rings, stars, sparks and streaks). Flat 2D, clean shapes; most are light so a sprite tints
- * them:
- *  - BALL: a white baseball with its two red stitched seams (painted in colour: the ball is drawn untinted).
- *  - SHADOW: a soft dark disc (the ball's shadow on the ground, and III's growing shadow on the pitcher).
- *  - BAT: a wooden bat lying along +x, the knob at the left (the handle end is the sprite's anchor).
- *  - PUFF: a round cartoon dust puff, lit top left (the brawl cloud is many of them, tinted dust).
- *  - BURST: a comic "kapow" starburst behind each brawl word.
- *  - WORDS: CRACK!, BONK!, HOME RUN!, POW!, BAM!, SMACK!, YER OUT! in heavy italic letters with a dark outline.
+ * set it reuses for a few glows, rings and streaks). The look is a 2D ARCADE FIGHTER: flat fills, hard dark outlines,
+ * no soft shading. Everything is painted in its own colours (the sprites draw them untinted):
+ *  - HIT SPARKS: three chunky starbursts in flat layers (a dark outline, a colour, a paler colour, a white core): the
+ *    LIGHT one (yellow), the SHARP one (a blue cross flash) and the HEAVY one (red and orange, more points).
+ *  - ARROW and BUTTON: the input glyphs (a chunky yellow arrow, turned to point; a round red attack button).
+ *  - BAND: the super cut-in's band (navy, a halftone fade, white and gold rails).
+ *  - PUFF: a flat cel dust puff (the launch, the slam).
+ *  - DIGITS 0-9, HIT, HITS: the combo counter's heavy italic numerals (white to gold, a dark outline, a flat shadow).
+ *  - K.O.: the knockout word (yellow to red, a white inline, a dark outline, a flat shadow).
+ *  - CUT-IN: the striking hero's own portrait art, cropped into a slanted panel with a white rail (per image, cached).
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -25,134 +25,158 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-export const BALL_PX = 96;
-export const BAT_W = 256;
-export const BAT_H = 44;
-export const PUFF_PX = 128;
-export const BURST_PX = 256;
-export const WORD_W = 512;
-export const WORD_H = 160;
+export const SPARK_PX = 256;
+export const GLYPH_PX = 112;
+export const BAND_W = 512;
+export const BAND_H = 128;
+export const PUFF_PX = 96;
+export const DIGIT_W = 96;
+export const DIGIT_H = 128;
+export const LABEL_W = 256;
+export const LABEL_H = 96;
+export const KO_W = 512;
+export const KO_H = 224;
+export const CUTIN_W = 448;
+export const CUTIN_H = 288;
+/** How far the cut-in panel's sides lean (px of the texture): the parallelogram's slant. */
+export const CUTIN_SLANT = 64;
 
-function paintBall(D: number): HTMLCanvasElement | null {
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  const r = D / 2 - 2, cx = D / 2, cy = D / 2;
-  const gr = g.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
-  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.6, '#f3efe6'); gr.addColorStop(1, '#bdb5a6');
-  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
-  g.save();
-  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.clip();
-  // The two seams: arcs bowing in from the left and the right, with the red stitches across them.
-  for (const s of [-1, 1]) {
-    const ax = cx + s * r * 1.25;
-    const rr = r * 0.95;
-    g.strokeStyle = '#c81e1e'; g.lineWidth = D * 0.03;
-    g.beginPath(); g.arc(ax, cy, rr, s < 0 ? -0.95 : Math.PI - 0.95, s < 0 ? 0.95 : Math.PI + 0.95); g.stroke();
-    g.lineWidth = D * 0.022; g.lineCap = 'round';
-    for (let i = -4; i <= 4; i++) {
-      const a = (s < 0 ? 0 : Math.PI) + i * 0.21;
-      const px = ax + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
-      const tx = -Math.sin(a), ty = Math.cos(a);
-      const nx = Math.cos(a), ny = Math.sin(a);
-      g.beginPath();
-      g.moveTo(px - nx * D * 0.045 - tx * D * 0.015, py - ny * D * 0.045 - ty * D * 0.015);
-      g.lineTo(px + nx * D * 0.045 + tx * D * 0.015, py + ny * D * 0.045 + ty * D * 0.015);
-      g.stroke();
-    }
-  }
-  g.restore();
-  g.strokeStyle = 'rgba(60,50,40,0.6)'; g.lineWidth = D * 0.02;
-  g.beginPath(); g.arc(cx, cy, r - D * 0.01, 0, Math.PI * 2); g.stroke();
-  return k.c;
-}
+const INK = '#1a0f1f';
+const FONT = 'Impact, "Arial Black", "Helvetica Neue", sans-serif';
 
-function paintShadow(D: number): HTMLCanvasElement | null {
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  const gr = g.createRadialGradient(D / 2, D / 2, 0, D / 2, D / 2, D / 2);
-  gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, D, D);
-  return k.c;
-}
-
-function paintBat(W: number, H: number): HTMLCanvasElement | null {
-  const k = canvas(W, H); if (!k) return null;
-  const g = k.g;
-  const cy = H / 2;
-  // The outline: the knob, the thin handle, the taper, the fat barrel with a rounded end.
-  const knobX = 10, handleEnd = W * 0.42, barrelStart = W * 0.7, endX = W - 6;
-  const hw = H * 0.12, bw = H * 0.42;
+/** A starburst outline: `n` points, every other one at `inner`, the long ones a touch uneven (never random). */
+function star(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, n: number, inner: number, uneven: number, turn = 0): void {
   g.beginPath();
-  g.moveTo(knobX + 6, cy - hw);
-  g.lineTo(handleEnd, cy - hw * 1.05);
-  g.bezierCurveTo(W * 0.55, cy - hw * 1.2, W * 0.6, cy - bw, barrelStart, cy - bw);
-  g.lineTo(endX - bw, cy - bw);
-  g.arc(endX - bw, cy, bw, -Math.PI / 2, Math.PI / 2);
-  g.lineTo(barrelStart, cy + bw);
-  g.bezierCurveTo(W * 0.6, cy + bw, W * 0.55, cy + hw * 1.2, handleEnd, cy + hw * 1.05);
-  g.lineTo(knobX + 6, cy + hw);
-  g.closePath();
-  const gr = g.createLinearGradient(0, cy - bw, 0, cy + bw);
-  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, '#e9e2d6'); gr.addColorStop(1, '#9f9584');
-  g.fillStyle = gr; g.fill();
-  g.strokeStyle = 'rgba(40,26,14,0.85)'; g.lineWidth = 2.5; g.stroke();
-  // The knob.
-  g.fillStyle = '#d9d2c4';
-  g.beginPath(); g.ellipse(knobX + 4, cy, 5, hw * 2.1, 0, 0, Math.PI * 2); g.fill(); g.stroke();
-  // Grip tape on the handle, a little grain on the barrel.
-  g.strokeStyle = 'rgba(30,30,30,0.55)'; g.lineWidth = 2;
-  for (let x = knobX + 14; x < W * 0.3; x += 7) { g.beginPath(); g.moveTo(x, cy - hw); g.lineTo(x + 4, cy + hw); g.stroke(); }
-  g.strokeStyle = 'rgba(90,60,30,0.25)'; g.lineWidth = 1.5;
-  for (const f of [-0.45, 0.1, 0.5]) { g.beginPath(); g.moveTo(barrelStart - 20, cy + bw * f); g.lineTo(endX - bw * 0.5, cy + bw * f * 0.9); g.stroke(); }
-  return k.c;
-}
-
-function paintPuff(D: number): HTMLCanvasElement | null {
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  const r = D / 2 - 3, cx = D / 2, cy = D / 2;
-  const gr = g.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.15, cx, cy, r);
-  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.7, '#e2e2e2'); gr.addColorStop(0.92, '#b8b8b8'); gr.addColorStop(1, 'rgba(160,160,160,0)');
-  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
-  return k.c;
-}
-
-function paintBurst(D: number): HTMLCanvasElement | null {
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  const cx = D / 2, cy = D / 2;
-  const spikes = 12;
-  g.beginPath();
-  for (let i = 0; i < spikes * 2; i++) {
-    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
-    const r = (i % 2 ? 0.58 : 0.97 - 0.12 * ((i / 2) % 3 === 1 ? 1 : 0)) * (D / 2 - 6);
-    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+  for (let i = 0; i < n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2 + turn;
+    const long = 1 - uneven * (0.5 + 0.5 * Math.sin(i * 2.7 + 1.3));
+    const rr = r * (i % 2 ? inner : long);
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
     if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
   }
   g.closePath();
-  g.fillStyle = '#ffffff'; g.fill();
-  g.strokeStyle = 'rgba(30,14,6,0.9)'; g.lineWidth = 7; g.lineJoin = 'round'; g.stroke();
+}
+
+/** A flat, layered hit spark: outline, colour, paler colour, white core. */
+function paintSpark(D: number, n: number, inner: number, uneven: number, outer: string, mid: string, cross = false): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const c = D / 2, R = D / 2 - 8;
+  g.lineJoin = 'miter'; g.miterLimit = 3;
+  const layer = (r: number, fill: string, turn: number, outline = 0): void => {
+    if (cross) {
+      // The sharp one: four long blades and four short, a cross flash.
+      g.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + turn;
+        const rr = r * (i % 2 ? 0.2 : i % 4 === 0 ? 1 : 0.52);
+        const x = c + Math.cos(a) * rr, y = c + Math.sin(a) * rr;
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.closePath();
+    } else star(g, c, c, r, n, inner, uneven, turn);
+    if (outline) { g.strokeStyle = INK; g.lineWidth = outline; g.stroke(); }
+    g.fillStyle = fill; g.fill();
+  };
+  layer(R, outer, 0, 10);
+  layer(R * 0.7, mid, cross ? 0 : 0.16);
+  layer(R * 0.4, '#ffffff', cross ? 0 : 0.3);
   return k.c;
 }
 
-function paintWord(text: string, W: number, H: number): HTMLCanvasElement | null {
+/** An input arrow pointing +x: flat yellow, a dark outline (the sprite turns it to point). */
+function paintArrow(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const c = D / 2;
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(c - D * 0.36, c - D * 0.13); g.lineTo(c + D * 0.02, c - D * 0.13); g.lineTo(c + D * 0.02, c - D * 0.33);
+  g.lineTo(c + D * 0.38, c); g.lineTo(c + D * 0.02, c + D * 0.33); g.lineTo(c + D * 0.02, c + D * 0.13); g.lineTo(c - D * 0.36, c + D * 0.13);
+  g.closePath();
+  g.strokeStyle = INK; g.lineWidth = D * 0.12; g.stroke();
+  g.strokeStyle = '#ffffff'; g.lineWidth = D * 0.05; g.stroke();
+  g.fillStyle = '#ffd21f'; g.fill();
+  return k.c;
+}
+
+/** The round attack button: flat red, a pale crescent, a dark rim. */
+function paintButton(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const c = D / 2, r = D * 0.38;
+  g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2);
+  g.fillStyle = '#e8321e'; g.fill();
+  g.strokeStyle = '#ffffff'; g.lineWidth = D * 0.1; g.stroke();
+  g.strokeStyle = INK; g.lineWidth = D * 0.04;
+  g.beginPath(); g.arc(c, c, r + D * 0.06, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(c, c, r - D * 0.045, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = '#ff9d8c'; g.lineWidth = D * 0.06; g.lineCap = 'round';
+  g.beginPath(); g.arc(c, c, r * 0.58, Math.PI * 1.08, Math.PI * 1.55); g.stroke();
+  return k.c;
+}
+
+/** The cut-in band: flat navy, a halftone fade rising from the bottom, white and gold rails top and bottom. */
+function paintBand(W: number, H: number): HTMLCanvasElement | null {
   const k = canvas(W, H); if (!k) return null;
   const g = k.g;
-  let size = Math.round(H * 0.66);
-  g.font = `italic 900 ${size}px Impact, "Arial Black", "Helvetica Neue", sans-serif`;
-  const w = g.measureText(text).width;
-  if (w > W * 0.9) { size = Math.floor(size * ((W * 0.9) / w)); g.font = `italic 900 ${size}px Impact, "Arial Black", "Helvetica Neue", sans-serif`; }
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  const x = W / 2, y = H / 2 + 4;
-  g.lineJoin = 'round';
-  g.strokeStyle = 'rgba(20,12,6,0.95)'; g.lineWidth = size * 0.2;
-  g.strokeText(text, x, y);
-  g.fillStyle = '#ffffff';
-  g.fillText(text, x, y);
+  g.fillStyle = '#131c3a'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#22336b';
+  for (let row = 0; row < 7; row++) {
+    const y = H - 14 - row * 12;
+    const r = 5.2 - row * 0.7;
+    if (r <= 0.6) break;
+    for (let x = (row % 2) * 6; x < W; x += 12) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+  }
+  for (const [y, h, col] of [[0, 4, INK], [4, 7, '#ffffff'], [11, 4, '#ffcf3f'], [H - 15, 4, '#ffcf3f'], [H - 11, 7, '#ffffff'], [H - 4, 4, INK]] as const) {
+    g.fillStyle = col; g.fillRect(0, y, W, h);
+  }
   return k.c;
 }
 
-export const COMBO_WORDS = ['CRACK!', 'BONK!', 'HOME RUN!', 'POW!', 'BAM!', 'SMACK!', 'YER OUT!'] as const;
+/** A flat cel dust puff: three lobes, a pale top, a dark outline. */
+function paintPuff(D: number): HTMLCanvasElement | null {
+  const k = canvas(D, D); if (!k) return null;
+  const g = k.g;
+  const lobes: [number, number, number][] = [[0.36, 0.56, 0.26], [0.62, 0.58, 0.28], [0.5, 0.38, 0.27]];
+  const blob = (grow: number): void => { g.beginPath(); for (const [x, y, r] of lobes) { g.moveTo(x * D + r * D + grow, y * D); g.arc(x * D, y * D, r * D + grow, 0, Math.PI * 2); } };
+  blob(4); g.fillStyle = INK; g.fill();
+  blob(0); g.fillStyle = '#d9d2c4'; g.fill();
+  g.save(); blob(0); g.clip();
+  g.fillStyle = '#ffffff';
+  g.beginPath(); for (const [x, y, r] of lobes) { g.moveTo(x * D - 4 + r * D, y * D - 7); g.arc(x * D - 4, y * D - 7, r * D * 0.92, 0, Math.PI * 2); } g.fill();
+  g.restore();
+  return k.c;
+}
+
+/** Heavy italic arcade lettering: a flat shadow, a dark outline, a vertical gradient, an optional white inline. */
+function paintText(text: string, W: number, H: number, stops: readonly string[], o: { size?: number; inline?: boolean; align?: 'left' | 'center' } = {}): HTMLCanvasElement | null {
+  const k = canvas(W, H); if (!k) return null;
+  const g = k.g;
+  let size = Math.round(H * (o.size ?? 0.78));
+  const font = (): string => `italic 900 ${size}px ${FONT}`;
+  g.font = font();
+  const max = W * 0.86;
+  const w = g.measureText(text).width;
+  if (w > max) { size = Math.floor(size * (max / w)); g.font = font(); }
+  g.textAlign = o.align ?? 'center'; g.textBaseline = 'middle';
+  const x = o.align === 'left' ? size * 0.16 : W / 2 - size * 0.03, y = H / 2 + size * 0.03;
+  const lw = Math.max(6, size * 0.15);
+  g.lineJoin = 'round';
+  // The flat shadow (down and right), then the outline.
+  g.strokeStyle = INK; g.fillStyle = INK; g.lineWidth = lw;
+  g.strokeText(text, x + size * 0.06, y + size * 0.07); g.fillText(text, x + size * 0.06, y + size * 0.07);
+  g.strokeText(text, x, y);
+  if (o.inline) { g.strokeStyle = '#ffffff'; g.lineWidth = lw * 0.42; g.strokeText(text, x, y); }
+  const gr = g.createLinearGradient(0, y - size * 0.42, 0, y + size * 0.42);
+  stops.forEach((s, i) => gr.addColorStop(stops.length > 1 ? i / (stops.length - 1) : 0, s));
+  g.fillStyle = gr; g.fillText(text, x, y);
+  return k.c;
+}
+
+const DIGIT_STOPS = ['#ffffff', '#fff3a8', '#ffc21f', '#ff8a1f'] as const;
+const LABEL_STOPS = ['#ffffff', '#cfe6ff', '#7fb8ff'] as const;
+const KO_STOPS = ['#fff7a0', '#ffd21f', '#ff7a1f', '#e8321e'] as const;
 
 let cached: HeroComboTextures | null = null;
 
@@ -160,13 +184,60 @@ let cached: HeroComboTextures | null = null;
 export function heroComboTextures(): HeroComboTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
-  const ball = paintBall(BALL_PX), shadow = paintShadow(64), bat = paintBat(BAT_W, BAT_H), puff = paintPuff(PUFF_PX), burst = paintBurst(BURST_PX);
-  const words = COMBO_WORDS.map((w) => paintWord(w, WORD_W, WORD_H));
-  if (!base || !ball || !shadow || !bat || !puff || !burst || words.some((w) => !w)) return null;
-  const [crack, bonk, homer, pow, bam, smack, out] = words.map((w) => tex(w!));
-  cached = {
-    ...base, ball: tex(ball), shadow: tex(shadow), bat: tex(bat), puff: tex(puff), kapow: tex(burst),
-    wordCrack: crack!, wordBonk: bonk!, wordHomer: homer!, wordPow: pow!, wordBam: bam!, wordSmack: smack!, wordOut: out!,
+  const parts = {
+    hitLight: paintSpark(SPARK_PX, 9, 0.46, 0.3, '#ff8a1f', '#ffe14a'),
+    hitSharp: paintSpark(SPARK_PX, 8, 0.3, 0, '#2f8fff', '#bfeaff', true),
+    hitHeavy: paintSpark(SPARK_PX, 13, 0.52, 0.34, '#e8321e', '#ffb01f'),
+    arrow: paintArrow(GLYPH_PX),
+    button: paintButton(GLYPH_PX),
+    band: paintBand(BAND_W, BAND_H),
+    dust: paintPuff(PUFF_PX),
+    labelHit: paintText('HIT', LABEL_W, LABEL_H, LABEL_STOPS, { align: 'left' }),
+    labelHits: paintText('HITS', LABEL_W, LABEL_H, LABEL_STOPS, { align: 'left' }),
+    wordKo: paintText('K.O.', KO_W, KO_H, KO_STOPS, { size: 0.8, inline: true }),
   };
+  const digits = Array.from({ length: 10 }, (_, i) => paintText(String(i), DIGIT_W, DIGIT_H, DIGIT_STOPS, { size: 0.84 }));
+  if (!base || Object.values(parts).some((p) => !p) || digits.some((d) => !d)) return null;
+  const made = Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, tex(v!)])) as { [K in keyof typeof parts]: Texture };
+  const [d0, d1, d2, d3, d4, d5, d6, d7, d8, d9] = digits.map((d) => tex(d!));
+  cached = { ...base, ...made, d0: d0!, d1: d1!, d2: d2!, d3: d3!, d4: d4!, d5: d5!, d6: d6!, d7: d7!, d8: d8!, d9: d9! };
   return cached;
+}
+
+const cutins = new Map<string, Texture | null>();
+
+/**
+ * The striking hero's portrait art as the super's CUT-IN PANEL: cover-fitted into a slanted panel (its upper part, where
+ * a face is) with a white rail and a dark outline. Painted once per image src and cached. Null when there is no image, it
+ * has not loaded, or the canvas cannot read it back (the cut-in then shows the band, the speed lines and the inputs only).
+ */
+export function comboCutinTexture(img: HTMLImageElement | null | undefined): Texture | null {
+  if (!img || typeof document === 'undefined') return null;
+  const src = img.currentSrc || img.src;
+  if (!src) return null;
+  if (cutins.has(src)) return cutins.get(src) ?? null;
+  if (!img.complete || !(img.naturalWidth > 0)) return null; // not loaded yet: try again on the next attack
+  const k = canvas(CUTIN_W, CUTIN_H);
+  let out: Texture | null = null;
+  if (k) {
+    try {
+      const g = k.g;
+      const m = 10, W = CUTIN_W, H = CUTIN_H, S = CUTIN_SLANT;
+      const panel = (): void => { g.beginPath(); g.moveTo(S + m, m); g.lineTo(W - m, m); g.lineTo(W - S - m, H - m); g.lineTo(m, H - m); g.closePath(); };
+      g.save();
+      panel(); g.clip();
+      g.fillStyle = '#131c3a'; g.fillRect(0, 0, W, H);
+      const s = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      const w = img.naturalWidth * s, h = img.naturalHeight * s;
+      g.drawImage(img, (W - w) / 2, (H - h) * 0.22, w, h);
+      g.restore();
+      g.lineJoin = 'miter';
+      panel(); g.strokeStyle = INK; g.lineWidth = 16; g.stroke();
+      panel(); g.strokeStyle = '#ffffff'; g.lineWidth = 8; g.stroke();
+      g.getImageData(0, 0, 1, 1); // throws on a tainted canvas (a cross-origin image): WebGL could not upload it
+      out = tex(k.c);
+    } catch { out = null; }
+  }
+  cutins.set(src, out);
+  return out;
 }

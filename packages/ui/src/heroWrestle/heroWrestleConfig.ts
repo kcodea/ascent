@@ -1,41 +1,43 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 /**
- * THE BASEBALL HERO ATTACK ("Charge the Mound", a Legendary with four tiers): its tuned values, its pure timeline, the
- * pure geometry, the pure poses of BOTH portraits, the pure paths of the ball and the bat, the slow mo and the camera.
+ * THE WRESTLING HERO ATTACK ("Top Rope", a Legendary with four tiers): its tuned values, its pure timeline, the pure
+ * geometry, the pure poses of BOTH portraits, the ring ropes, the spotlight, the camera.
  *
- * Owner 2026-11-02: "baseball - have the opponent be the pitcher and the batter be the player dealing dmg. the final lvl
- * 4/knockout should be the player getting struck by the ball and charging the mound and beating up the opponent in an
- * over the top fast attack sequence", and "get creative and fun".
- *
- * THE SIGNATURE: the roles are flipped for the first time in any attack. The STRUCK hero acts first: its portrait is the
- * PITCHER, it winds up and throws, and the striker (the BATTER, holding a bat at its side) sends it right back. Both
- * portraits move.
+ * THE SIGNATURE: the two portraits WRESTLE EACH OTHER. The striking portrait walks over, takes hold of the struck one and
+ * throws it about: a chop, a lift and a slam, an elbow dropped from the top of the screen, and a full finisher inside
+ * ring ropes that ends in a pin and a three count. No other attack has grapples, a ring or a pin.
  *
  * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I UP THE MIDDLE: the pitcher winds up and throws, CRACK, a line drive straight back up the middle that BONKS the
- *    pitcher (THE impact) and pops away.
- *  - II THE HOT SHOT: a bigger, stepping swing, and one of three rolled hits: 1 a SCREAMING LINER (flat and fast, it spins
- *    the pitcher round), 2 a ONE-HOP GROUNDER (it skips once, kicks up dirt and hops into the pitcher), 3 a FOUL TIP
- *    BOOMERANG (it tips off foul, curves wide round the field and smacks the pitcher from BEHIND).
- *  - III THE MOONSHOT: slow mo on the contact, a huge CRACK, the BAT FLIP (it spins up and clatters down), the ball
- *    rockets off the top of the screen and twinkles; the pitcher looks round in a panic as a shadow grows under it and a
- *    slide whistle falls; the ball comes down from the sky and CRATERS the pitcher (THE impact): HOME RUN.
- *  - IV CHARGE THE MOUND (the owner's frame): the pitcher BEANS the batter (BONK on the striker; slow mo; it staggers,
- *    stars), the batter slams its bat down, fumes, and CHARGES THE MOUND to the ballpark organ's "Charge!" riff, a dash
- *    into a cartoon DUST-CLOUD BRAWL (the benches clear: streaks rush in from both edges; the two portraits shake and pop
- *    out of the boiling cloud; a fast flurry of comic hits, POW / BAM / SMACK, sped up), then the batter winds up one
- *    huge haymaker and sends the pitcher flying: YER OUT! (THE impact, the umpire's call).
+ *  - I THE CHOP: the striker strides up beside the struck portrait, leans away as it winds an arm back, and delivers a
+ *    flat knife-edge CHOP (THE impact): a wide slap arc, a red hand print on the struck portrait, which staggers a step.
+ *    The crowd goes "WOO".
+ *  - II THE BODY SLAM: it closes in, dips UNDER the struck portrait, LIFTS it overhead (tilted flat, a held beat at the
+ *    top) and SLAMS it to the mat (THE impact): a ring of canvas dust, the frame shakes, the struck portrait bounces once.
+ *  - III THE ELBOW DROP: a quick shove leaves the struck portrait flat on its back. The striker climbs out of the TOP of
+ *    the screen; a spotlight swings round and finds the one on the mat; then it drops in a flat dive, an elbow star
+ *    leading, and lands on it (THE impact).
+ *  - IV THE FINISHER: a RING OF LIGHT stands up round the two of them: a lit square of canvas, a pillar of light at each
+ *    corner and three ropes of light (red, white, blue) on EVERY side. The striker IRISH WHIPS the struck portrait across
+ *    the ring into the far ropes, which stretch a long way out, hold, and fling it back into a CLOTHESLINE (THE impact:
+ *    it flips high in the air and lands on its back with a second, heavy hit). A beat over the body, then the striker
+ *    leaps and drops on top for the PIN: 1, 2, 3 slam down LARGE with a slap of the mat and a shake each, the bell rings,
+ *    WINNER, the ring goes away and both go home.
  *
- * THE CONTRACT: the blow lands exactly ONCE, on the impact (the BONK, the crater, the haymaker). The pitch, the bean on
- * the striker, the hop, the foul tip and every brawl hit are TICKS (no damage). Both portraits are restored exactly on
- * every exit path (the runner owns that). No hit-stop: the slow mo is a smooth ramp that never reaches 0.
+ * WEIGHT (the second pass, owner 2026-11-12: "they are quick and not impactful"): every big move is HELD, then FAST, then
+ * HEAVY. A real held beat at the top (II's lift, III's perch, IV's ropes at full stretch), a short drop, and a hit that
+ * shakes the frame hard, flashes, throws a wide shock ring and dust that hangs in the air, flattens the struck portrait
+ * and bounces it; then a moment of aftermath (the striker flexes over the body) before anything else happens.
  *
- * VARIETY: II's hit is `variantOf(rollSeed)`, a stable per-blow seed (the run seed and the round), so a replay rolls the
- * same; the DEV tuner's "Variation" row forces one.
+ * THE CONTRACT: the blow lands exactly ONCE, on the impact (the chop, the slam, the elbow, the clothesline). The shove,
+ * the ropes, the landing, the count and the bell are TICKS (no damage). Both portraits are restored exactly on every
+ * exit path (the runner owns that). No hit-stop and no slow motion: the one clock never changes speed.
+ *
+ * WHERE IT HAPPENS: the striker always stands BESIDE the struck portrait (on the side it came from when there is room),
+ * and every lift, slam and fall is in screen up and down, so a wrestling move reads whichever corner the two heroes are
+ * in. Every spot is pulled in off the screen's edges. The one deliberate exception is III: the striker leaves through the
+ * top of the screen for a beat before it drops.
  */
 import { configStore } from '../heroAttack/configStore';
-import { clamp, clamp01, easeInOutSine, easeOutCubic, spring, type Pt } from '../heroAttack/easing';
+import { clamp, clamp01, easeInOutSine, easeOutBack, easeOutCubic, spring, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
@@ -43,133 +45,114 @@ import {
 export { TIERS };
 export type { TierNum };
 
-export const WRESTLE_KINDS = ['single', 'hotshot', 'moonshot', 'brawl'] as const;
-export type BaseballKind = (typeof WRESTLE_KINDS)[number];
+export const WRESTLE_KINDS = ['chop', 'slam', 'elbow', 'pin'] as const;
+export type WrestleKind = (typeof WRESTLE_KINDS)[number];
 
-/** Each tier's play. */
-export function wrestleKind(tier: TierNum): BaseballKind { return WRESTLE_KINDS[tier - 1]!; }
+/** Each tier's move. */
+export function wrestleKind(tier: TierNum): WrestleKind { return WRESTLE_KINDS[tier - 1]!; }
 
 export const WRESTLE_LEVELS = ['t1', 't2', 't3', 't4'] as const;
 
-export const WRESTLE_TIER_SUFFIXES = [
-  'ReadyMs', 'WindupMs', 'PitchMs', 'SwingMs', 'FlightMs', 'HoldMs', 'ReturnMs', 'Knock', 'Zoom', 'Punch', 'Shake', 'Burst', 'Rings', 'Dim',
-] as const;
-export type BaseballTierSuffix = (typeof WRESTLE_TIER_SUFFIXES)[number];
-type TierKey = `t${TierNum}${BaseballTierSuffix}`;
+export const WRESTLE_TIER_SUFFIXES = ['ReadyMs', 'WalkMs', 'HoldMs', 'ReturnMs', 'Knock', 'Zoom', 'Punch', 'Shake', 'Burst', 'Rings', 'Dim'] as const;
+export type WrestleTierSuffix = (typeof WRESTLE_TIER_SUFFIXES)[number];
+type TierKey = `t${TierNum}${WrestleTierSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
-  ballSize: number;
-  batSize: number;
-  spin: number;
-  trailMs: number;
-  shadowDrop: number;
-  windupBack: number;
-  windupLean: number;
-  lunge: number;
-  stride: number;
-  swingLean: number;
-  linerSpin: number;
-  hopAt: number;
-  hopHeight: number;
-  foulWide: number;
-  foulMs: number;
-  moonUpMs: number;
-  moonHangMs: number;
-  moonDownMs: number;
-  moonSize: number;
-  panic: number;
-  batFlipMs: number;
-  batFlipHeight: number;
-  batFlipTurns: number;
-  staggerMs: number;
-  staggerWobble: number;
-  batSlamMs: number;
-  fumeMs: number;
-  chargeMs: number;
-  brawlMs: number;
-  brawlHits: number;
-  brawlJitter: number;
-  brawlCloud: number;
-  benchRush: number;
-  koWindupMs: number;
-  koLaunch: number;
-  koSpin: number;
-  contactSlow: number;
-  contactSlowMs: number;
-  beanSlow: number;
-  beanSlowMs: number;
-  brawlBoost: number;
-  slowRampMs: number;
-  slowZoom: number;
-  /** DEV: '' = rolled per blow, '1' / '2' / '3' force II's hit (a string so the tuner shows it as a select). */
-  variation: string;
+  /** How close the two stand, as a fraction of their two radii added together. */
+  gap: number;
+  // I: the chop
+  chopWindMs: number;
+  chopMs: number;
+  chopLean: number;
+  stagger: number;
+  // II: the body slam
+  dipMs: number;
+  liftMs: number;
+  hangMs: number;
+  slamMs: number;
+  liftHeight: number;
+  bounceMs: number;
+  bounce: number;
+  // III: the elbow drop
+  shoveMs: number;
+  climbMs: number;
+  perchMs: number;
+  diveMs: number;
+  spot: number;
+  // IV: the finisher
+  ringWidth: number;
+  ropeSize: number;
+  grabMs: number;
+  whipMs: number;
+  stretchMs: number;
+  stretch: number;
+  reboundMs: number;
+  flipMs: number;
+  flipTurns: number;
+  /** IV: the beat over the body after it lands, before the striker leaps for the cover. */
+  afterMs: number;
+  coverMs: number;
+  countMs: number;
+  winMs: number;
   wordSize: number;
   squash: number;
+  /** How bright the whole-frame flash on a big hit is (0 = none). */
+  flash: number;
   shakeMs: number;
   zoomOutMs: number;
   reducedFadeMs: number;
-  colorBall: string;
-  colorBat: string;
-  colorDust: string;
+  colorMat: string;
   colorFlash: string;
   colorPow: string;
+  colorHand: string;
+  colorSpot: string;
   colorPlayer: string;
   colorFoe: string;
-  sfxGloveClip: string; sfxGloveGain: number; sfxGloveRate: number;
-  sfxPitchClip: string; sfxPitchGain: number; sfxPitchRate: number;
-  sfxCrackClip: string; sfxCrackGain: number; sfxCrackRate: number;
-  sfxBonkClip: string; sfxBonkGain: number; sfxBonkRate: number;
-  sfxHopClip: string; sfxHopGain: number; sfxHopRate: number;
-  sfxFallClip: string; sfxFallGain: number; sfxFallRate: number;
-  sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
-  sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
-  sfxBrawlClip: string; sfxBrawlGain: number; sfxBrawlRate: number;
-  sfxKoClip: string; sfxKoGain: number; sfxKoRate: number;
-  sfxUmpClip: string; sfxUmpGain: number; sfxUmpRate: number;
-  sfxOohClip: string; sfxOohGain: number; sfxOohRate: number;
+  sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
+  sfxChopClip: string; sfxChopGain: number; sfxChopRate: number;
+  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
+  sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  sfxBellClip: string; sfxBellGain: number; sfxBellRate: number;
+  sfxWooClip: string; sfxWooGain: number; sfxWooRate: number;
   sfxCheerClip: string; sfxCheerGain: number; sfxCheerRate: number;
+  sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
+  sfxRopeClip: string; sfxRopeGain: number; sfxRopeRate: number;
+  sfxSlapClip: string; sfxSlapGain: number; sfxSlapRate: number;
+  sfxRoarClip: string; sfxRoarGain: number; sfxRoarRate: number;
+  sfxOohClip: string; sfxOohGain: number; sfxOohRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
 }
 export type HeroWrestleConfig = GlobalConfig & Record<TierKey, number>;
 
-export const HERO_WRESTLE_COLOR_KEYS = ['colorBall', 'colorBat', 'colorDust', 'colorFlash', 'colorPow', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_WRESTLE_CLIP_KEYS = [
-  'sfxGloveClip', 'sfxPitchClip', 'sfxCrackClip', 'sfxBonkClip', 'sfxHopClip', 'sfxFallClip', 'sfxChargeClip', 'sfxThumpClip', 'sfxBrawlClip', 'sfxKoClip',
-  'sfxUmpClip', 'sfxOohClip', 'sfxCheerClip',
-] as const;
-export type HeroWrestleStrKey = (typeof HERO_WRESTLE_COLOR_KEYS)[number] | (typeof HERO_WRESTLE_CLIP_KEYS)[number] | 'variation';
+export const HERO_WRESTLE_COLOR_KEYS = ['colorMat', 'colorFlash', 'colorPow', 'colorHand', 'colorSpot', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_WRESTLE_CLIP_KEYS = ['sfxWhooshClip', 'sfxChopClip', 'sfxSlamClip', 'sfxBoomClip', 'sfxBellClip', 'sfxWooClip', 'sfxCheerClip', 'sfxThudClip', 'sfxRopeClip', 'sfxSlapClip', 'sfxRoarClip', 'sfxOohClip'] as const;
+export type HeroWrestleStrKey = (typeof HERO_WRESTLE_COLOR_KEYS)[number] | (typeof HERO_WRESTLE_CLIP_KEYS)[number];
 export type HeroWrestleNumKey = Exclude<keyof HeroWrestleConfig, HeroWrestleStrKey>;
 
-/** Per tier: [I, II, III, IV]. A dial a tier's play does not use is ignored there (the tuner says which). */
-const TIER_DEFAULTS: Record<BaseballTierSuffix, [number, number, number, number]> = {
-  ReadyMs: [100, 100, 100, 100],
-  WindupMs: [420, 440, 480, 460],
-  PitchMs: [230, 210, 220, 200],
-  SwingMs: [150, 170, 190, 0],
-  FlightMs: [240, 300, 0, 0],
-  HoldMs: [380, 360, 420, 420],
-  ReturnMs: [260, 320, 380, 440],
-  Knock: [0.6, 0.8, 1, 1.4],
-  Zoom: [0.02, 0.03, 0.04, 0.05],
-  Punch: [0.012, 0.018, 0.035, 0.05],
-  Shake: [3, 5, 12, 20],
-  Burst: [0.8, 1.05, 1.5, 1.9],
-  Rings: [1, 2, 4, 5],
-  Dim: [0.1, 0.14, 0.2, 0.28],
+/** Per tier: [I, II, III, IV]. A dial a tier's move does not use is ignored there (the tuner says which). */
+const TIER_DEFAULTS: Record<WrestleTierSuffix, [number, number, number, number]> = {
+  ReadyMs: [80, 80, 80, 80],
+  WalkMs: [300, 320, 320, 340],
+  HoldMs: [420, 950, 1050, 0],
+  ReturnMs: [300, 380, 420, 440],
+  Knock: [0.8, 1, 1, 1.2],
+  Zoom: [0.02, 0.035, 0.045, 0.055],
+  Punch: [0.012, 0.035, 0.06, 0.07],
+  Shake: [3, 16, 26, 30],
+  Burst: [0.8, 1.3, 1.8, 1.9],
+  Rings: [1, 2, 3, 3],
+  Dim: [0.1, 0.18, 0.26, 0.3],
 };
 
-export const WRESTLE_TIER_RANGES: Record<BaseballTierSuffix, [number, number, number]> = {
+export const WRESTLE_TIER_RANGES: Record<WrestleTierSuffix, [number, number, number]> = {
   ReadyMs: [0, 1000, 10],
-  WindupMs: [120, 1500, 10],
-  PitchMs: [60, 1000, 10],
-  SwingMs: [0, 600, 10],
-  FlightMs: [0, 1500, 10],
+  WalkMs: [80, 1500, 10],
   HoldMs: [0, 1500, 10],
-  ReturnMs: [0, 1500, 10],
+  ReturnMs: [60, 1500, 10],
   Knock: [0, 4, 0.05],
   Zoom: [0, 0.2, 0.005],
   Punch: [0, 0.1, 0.001],
@@ -184,75 +167,61 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => WRESTLE_TIER_SUFFIX
 export const HERO_WRESTLE_DEFAULTS: HeroWrestleConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
-  ballSize: 0.24,
-  batSize: 1,
-  spin: 3,
-  trailMs: 22,
-  shadowDrop: 0.5,
-  windupBack: 0.22,
-  windupLean: 14,
-  lunge: 0.32,
-  stride: 0.22,
-  swingLean: 12,
-  linerSpin: 1,
-  hopAt: 0.5,
-  hopHeight: 0.9,
-  foulWide: 0.9,
-  foulMs: 720,
-  moonUpMs: 420,
-  moonHangMs: 520,
-  moonDownMs: 380,
-  moonSize: 2.2,
-  panic: 0.16,
-  batFlipMs: 640,
-  batFlipHeight: 1.6,
-  batFlipTurns: 2.5,
-  staggerMs: 460,
-  staggerWobble: 18,
-  batSlamMs: 200,
-  fumeMs: 260,
-  chargeMs: 300,
-  brawlMs: 1050,
-  brawlHits: 9,
-  brawlJitter: 1,
-  brawlCloud: 1,
-  benchRush: 1,
-  koWindupMs: 240,
-  koLaunch: 1.6,
-  koSpin: 1.5,
-  contactSlow: 0.4,
-  contactSlowMs: 340,
-  beanSlow: 0.45,
-  beanSlowMs: 300,
-  brawlBoost: 1.3,
-  slowRampMs: 70,
-  slowZoom: 0.015,
-  variation: '',
+  gap: 0.86,
+  chopWindMs: 240,
+  chopMs: 100,
+  chopLean: 20,
+  stagger: 0.5,
+  dipMs: 200,
+  liftMs: 340,
+  hangMs: 520,
+  slamMs: 130,
+  liftHeight: 0.9,
+  bounceMs: 340,
+  bounce: 0.5,
+  shoveMs: 260,
+  climbMs: 400,
+  perchMs: 800,
+  diveMs: 220,
+  spot: 1,
+  ringWidth: 3.4,
+  ropeSize: 1,
+  grabMs: 260,
+  whipMs: 340,
+  stretchMs: 460,
+  stretch: 0.9,
+  reboundMs: 200,
+  flipMs: 560,
+  flipTurns: 1,
+  afterMs: 300,
+  coverMs: 360,
+  countMs: 400,
+  winMs: 950,
   wordSize: 1,
-  squash: 0.1,
-  shakeMs: 300,
+  squash: 0.14,
+  flash: 0.5,
+  shakeMs: 420,
   zoomOutMs: 420,
   reducedFadeMs: 260,
-  colorBall: '#ffffff',
-  colorBat: '#d79b5c',
-  colorDust: '#d9c3a0',
+  colorMat: '#e9dfc8',
   colorFlash: '#fff4dc',
   colorPow: '#ffd23f',
+  colorHand: '#ef3b2e',
+  colorSpot: '#fff1c4',
   colorPlayer: '#ffcf5a',
   colorFoe: '#ff6a5a',
-  sfxGloveClip: 'fx/baseball-glove', sfxGloveGain: 0.6, sfxGloveRate: 1,
-  sfxPitchClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxPitchGain: 0.3, sfxPitchRate: 1.3,
-  sfxCrackClip: 'fx/baseball-crack', sfxCrackGain: 1, sfxCrackRate: 1,
-  sfxBonkClip: 'fx/baseball-bonk', sfxBonkGain: 0.7, sfxBonkRate: 1,
-  sfxHopClip: 'fx/bball-dribble', sfxHopGain: 0.6, sfxHopRate: 1.25,
-  sfxFallClip: 'fx/baseball-fall', sfxFallGain: 0.5, sfxFallRate: 1,
-  sfxChargeClip: 'fx/baseball-charge', sfxChargeGain: 0.55, sfxChargeRate: 1,
-  sfxThumpClip: 'flurryhit', sfxThumpGain: 0.35, sfxThumpRate: 1.1,
-  sfxBrawlClip: 'fx/baseball-brawl', sfxBrawlGain: 0.8, sfxBrawlRate: 1,
-  sfxKoClip: 'fx/heavy-rock-impact', sfxKoGain: 0.45, sfxKoRate: 1.1,
-  sfxUmpClip: 'fx/baseball-out', sfxUmpGain: 0.75, sfxUmpRate: 1,
-  sfxOohClip: 'fx/bball-ooh', sfxOohGain: 0.7, sfxOohRate: 1,
-  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.25, sfxCheerRate: 1,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.55, sfxWhooshRate: 1,
+  sfxChopClip: 'fx/wrestle-chop', sfxChopGain: 0.85, sfxChopRate: 1,
+  sfxSlamClip: 'fx/wrestle-slam', sfxSlamGain: 0.9, sfxSlamRate: 1,
+  sfxBoomClip: 'fx/heavy-rock-impact', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
+  sfxBellClip: 'fx/wrestle-bell', sfxBellGain: 1, sfxBellRate: 1,
+  sfxWooClip: 'fx/wrestle-woo', sfxWooGain: 0.7, sfxWooRate: 1,
+  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.5, sfxCheerRate: 1,
+  sfxThudClip: 'fx/wrestle-thud', sfxThudGain: 1.05, sfxThudRate: 1,
+  sfxRopeClip: 'fx/wrestle-rope', sfxRopeGain: 1.25, sfxRopeRate: 1,
+  sfxSlapClip: 'fx/wrestle-slap', sfxSlapGain: 0.9, sfxSlapRate: 1,
+  sfxRoarClip: 'fx/wrestle-roar', sfxRoarGain: 1.4, sfxRoarRate: 1,
+  sfxOohClip: 'fx/soccer-crowd-ooh', sfxOohGain: 0.85, sfxOohRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -262,67 +231,54 @@ export const HERO_WRESTLE_DEFAULTS: HeroWrestleConfig = {
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroWrestleStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
-  ballSize: [0.1, 1, 0.01],
-  batSize: [0.3, 2.5, 0.05],
-  spin: [0, 10, 0.1],
-  trailMs: [10, 120, 1],
-  shadowDrop: [0, 1.5, 0.01],
-  windupBack: [0, 1, 0.01],
-  windupLean: [0, 40, 0.5],
-  lunge: [0, 1, 0.01],
-  stride: [0, 1, 0.01],
-  swingLean: [0, 40, 0.5],
-  linerSpin: [0, 4, 0.25],
-  hopAt: [0.2, 0.8, 0.01],
-  hopHeight: [0, 3, 0.05],
-  foulWide: [0.2, 2, 0.05],
-  foulMs: [200, 2000, 10],
-  moonUpMs: [100, 1500, 10],
-  moonHangMs: [0, 2000, 10],
-  moonDownMs: [100, 1500, 10],
-  moonSize: [1, 4, 0.05],
-  panic: [0, 1, 0.01],
-  batFlipMs: [200, 1500, 10],
-  batFlipHeight: [0, 4, 0.05],
-  batFlipTurns: [0, 6, 0.25],
-  staggerMs: [100, 1500, 10],
-  staggerWobble: [0, 45, 0.5],
-  batSlamMs: [60, 800, 10],
-  fumeMs: [0, 1200, 10],
-  chargeMs: [100, 1200, 10],
-  brawlMs: [300, 3000, 10],
-  brawlHits: [2, 16, 1],
-  brawlJitter: [0, 3, 0.05],
-  brawlCloud: [0, 3, 0.05],
-  benchRush: [0, 3, 0.05],
-  koWindupMs: [60, 1000, 10],
-  koLaunch: [0, 4, 0.05],
-  koSpin: [0, 4, 0.25],
-  contactSlow: [0.2, 1, 0.01],
-  contactSlowMs: [0, 1200, 10],
-  beanSlow: [0.2, 1, 0.01],
-  beanSlowMs: [0, 1200, 10],
-  brawlBoost: [1, 2, 0.01],
-  slowRampMs: [10, 300, 5],
-  slowZoom: [0, 0.08, 0.001],
+  gap: [0.5, 1.4, 0.01],
+  chopWindMs: [60, 1000, 10],
+  chopMs: [40, 600, 10],
+  chopLean: [0, 45, 0.5],
+  stagger: [0, 1.5, 0.01],
+  dipMs: [60, 800, 10],
+  liftMs: [100, 1200, 10],
+  hangMs: [0, 1500, 10],
+  slamMs: [60, 800, 10],
+  liftHeight: [0.5, 1.4, 0.01],
+  bounceMs: [60, 1000, 10],
+  bounce: [0, 1.5, 0.01],
+  shoveMs: [80, 800, 10],
+  climbMs: [120, 1500, 10],
+  perchMs: [0, 2000, 10],
+  diveMs: [100, 1200, 10],
+  spot: [0, 2, 0.05],
+  ringWidth: [2, 6, 0.05],
+  ropeSize: [0.3, 2.5, 0.05],
+  grabMs: [40, 800, 10],
+  whipMs: [100, 1200, 10],
+  stretchMs: [80, 1000, 10],
+  stretch: [0, 1.5, 0.01],
+  reboundMs: [80, 1000, 10],
+  flipMs: [150, 1200, 10],
+  flipTurns: [0, 3, 1],
+  afterMs: [0, 1500, 10],
+  coverMs: [100, 1000, 10],
+  countMs: [140, 1000, 10],
+  winMs: [200, 2000, 10],
   wordSize: [0, 2.5, 0.05],
   squash: [0, 0.4, 0.01],
+  flash: [0, 1, 0.05],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxGloveGain: [0, 2, 0.05], sfxGloveRate: [0.5, 2.5, 0.01],
-  sfxPitchGain: [0, 2, 0.05], sfxPitchRate: [0.5, 2.5, 0.01],
-  sfxCrackGain: [0, 2, 0.05], sfxCrackRate: [0.5, 2.5, 0.01],
-  sfxBonkGain: [0, 2, 0.05], sfxBonkRate: [0.5, 2.5, 0.01],
-  sfxHopGain: [0, 2, 0.05], sfxHopRate: [0.5, 2.5, 0.01],
-  sfxFallGain: [0, 2, 0.05], sfxFallRate: [0.5, 2.5, 0.01],
-  sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2.5, 0.01],
-  sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2.5, 0.01],
-  sfxBrawlGain: [0, 2, 0.05], sfxBrawlRate: [0.5, 2.5, 0.01],
-  sfxKoGain: [0, 2, 0.05], sfxKoRate: [0.5, 2.5, 0.01],
-  sfxUmpGain: [0, 2, 0.05], sfxUmpRate: [0.5, 2.5, 0.01],
-  sfxOohGain: [0, 2, 0.05], sfxOohRate: [0.5, 2.5, 0.01],
+  sfxWhooshGain: [0, 2, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
+  sfxChopGain: [0, 2, 0.05], sfxChopRate: [0.5, 2.5, 0.01],
+  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2.5, 0.01],
+  sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
+  sfxBellGain: [0, 2, 0.05], sfxBellRate: [0.5, 2.5, 0.01],
+  sfxWooGain: [0, 2, 0.05], sfxWooRate: [0.5, 2.5, 0.01],
   sfxCheerGain: [0, 2, 0.05], sfxCheerRate: [0.5, 2.5, 0.01],
+  sfxThudGain: [0, 3, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
+  sfxRopeGain: [0, 3, 0.05], sfxRopeRate: [0.5, 2.5, 0.01],
+  sfxSlapGain: [0, 3, 0.05], sfxSlapRate: [0.5, 2.5, 0.01],
+  sfxRoarGain: [0, 3, 0.05], sfxRoarRate: [0.5, 2.5, 0.01],
+  sfxOohGain: [0, 3, 0.05], sfxOohRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -334,11 +290,11 @@ export const HERO_WRESTLE_RANGES: Record<HeroWrestleNumKey, [number, number, num
 };
 
 /** Hard caps (whatever the tuner says). */
-export const WRESTLE_CAPS = { shakePx: 40, hits: 16 } as const;
+export const WRESTLE_CAPS = { shakePx: 40 } as const;
 
 const store = configStore<HeroWrestleConfig>({
-  key: 'ascent.herowrestle.v1', defaults: HERO_WRESTLE_DEFAULTS, ranges: HERO_WRESTLE_RANGES,
-  colorKeys: HERO_WRESTLE_COLOR_KEYS, clipKeys: [...HERO_WRESTLE_CLIP_KEYS, 'variation'], previewKeys: ['previewDamage', 'previewParts', 'variation'],
+  key: 'ascent.herowrestle.v2', defaults: HERO_WRESTLE_DEFAULTS, ranges: HERO_WRESTLE_RANGES,
+  colorKeys: HERO_WRESTLE_COLOR_KEYS, clipKeys: HERO_WRESTLE_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroWrestleStore = store;
 export const getHeroWrestleConfig = store.get;
@@ -348,79 +304,60 @@ export const heroWrestleConfigJson = store.json;
 /** The preview speed hook (Recruit + the Collection read one per style). Always 1: the tuner has no speed buttons. */
 export function heroWrestlePreviewSpeed(): number { return 1; }
 
-export function wrestleTierDials(tier: TierNum, c: HeroWrestleConfig = store.get()): Record<BaseballTierSuffix, number> {
-  return Object.fromEntries(WRESTLE_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<BaseballTierSuffix, number>;
-}
-
-// ─── the variation roll (pure) ──────────────────────────────────────────────────────────────────────────────────────
-
-export type BaseballVariant = 1 | 2 | 3;
-export const WRESTLE_VARIANTS: readonly BaseballVariant[] = [1, 2, 3];
-/** II's hits, by variant. */
-export const HOT_SHOTS: Record<BaseballVariant, string> = { 1: 'screaming liner', 2: 'one-hop grounder', 3: 'foul tip boomerang' };
-
-/** The variation a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
-export function variantOf(rollSeed: number, c: HeroWrestleConfig = store.get()): BaseballVariant {
-  const forced = Number(c.variation);
-  if (forced === 1 || forced === 2 || forced === 3) return forced;
-  let h = (Math.round(rollSeed) | 0) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return ((h % 3) + 1) as BaseballVariant;
+export function wrestleTierDials(tier: TierNum, c: HeroWrestleConfig = store.get()): Record<WrestleTierSuffix, number> {
+  return Object.fromEntries(WRESTLE_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<WrestleTierSuffix, number>;
 }
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
-export interface BaseballPlanInput extends AttackTierContext {
+export interface WrestlePlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
-  /** II's hit. Default 1. */
-  variant?: BaseballVariant;
 }
 
-export interface BaseballPlan {
+/** A small jolt of the view on a tick (the ropes, a landing, a slap of the mat): `k` of the tier's shake. */
+export interface WrestleJolt { at: number; k: number; vertical: boolean }
+
+export interface WrestlePlan {
   reduced: boolean;
   tier: TierNum;
-  kind: BaseballKind;
-  variant: BaseballVariant;
+  kind: WrestleKind;
   k: number;
   total: number;
   chargeAt: number;
   absorbEnd: number;
-  /** The pitcher's windup, and the pitch leaving the hand. */
-  windAt: number;
-  releaseAt: number;
-  /** The pitch arrives: the bat meets it (I-III), or it BEANS the batter (IV). */
-  arriveAt: number;
-  /** I-III: the swing around the contact. */
-  swingAt: number;
-  swingEnd: number;
-  /** II (the grounder): the one hop. */
-  hopAt: number | null;
-  /** III: the ball at the top (off the top of the screen), and starting down. */
-  apexAt: number | null;
-  dropAt: number | null;
-  /** III: the bat flip lands. */
-  batLandAt: number | null;
-  /** IV: the bean (= arriveAt), the stagger's end, the bat thrown down and landing, the charge, the collision. */
-  beanAt: number | null;
-  staggerEnd: number | null;
-  batDropAt: number | null;
-  clatterAt: number | null;
-  chargeRunAt: number | null;
-  collideAt: number | null;
-  /** IV: the brawl's comic hits (ticks), the brawl's end, and the haymaker's wind-up. */
-  hits: number[];
-  brawlEnd: number | null;
-  koWindAt: number | null;
+  /** The striker sets off, and arrives beside the struck portrait. */
+  walkAt: number;
+  gripAt: number;
+  /** I: the arm comes through (the wind-up runs from `gripAt` to here). */
+  chopAt: number | null;
+  /** II: the lift starts (the dip runs from `gripAt` to here), the top of the lift, the slam starts, the bounce ends. */
+  liftAt: number | null;
+  topAt: number | null;
+  slamAt: number | null;
+  bounceEnd: number | null;
+  /** III: the shoved portrait hits the mat (the striker starts to climb), the striker is out of the top, the dive. */
+  downAt: number | null;
+  perchAt: number | null;
+  diveAt: number | null;
+  /** IV: the whip, the far ropes (contact), flung back off them, landing on its back, the cover, the count, the bell. */
+  whipAt: number | null;
+  ropeAt: number | null;
+  flingAt: number | null;
+  landAt: number | null;
+  /** IV: the striker leaps for the cover (after the beat over the body). */
+  coverAt: number | null;
+  pinAt: number | null;
+  counts: number[];
+  bellAt: number | null;
   /** THE impact. The blow lands here, once. */
   impactAt: number;
-  /** The batter heads home (IV: from the mound), and is home. */
+  /** Both head home, and are home. */
   homeAt: number;
   homeEnd: number;
   endAt: number;
+  jolts: WrestleJolt[];
   // the looks
   knock: number;
   zoom: number;
@@ -432,122 +369,112 @@ export interface BaseballPlan {
 }
 
 /** The whole attack, in base ms. Pure and deterministic. */
-export function wrestlePlan(input: BaseballPlanInput, c: HeroWrestleConfig = store.get()): BaseballPlan {
+export function wrestlePlan(input: WrestlePlanInput, c: HeroWrestleConfig = store.get()): WrestlePlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
   const kind = wrestleKind(tier);
   const L = wrestleTierDials(tier, c);
-  const k = (tier - 1) / 3;
-  const variant: BaseballVariant = input.variant ?? 1;
   const looks = {
-    tier, kind, variant, k, total, knock: L.Knock, zoom: L.Zoom, punch: L.Punch, shakePx: clamp(L.Shake, 0, WRESTLE_CAPS.shakePx),
+    tier, kind, k: (tier - 1) / 3, total, knock: L.Knock, zoom: L.Zoom, punch: L.Punch, shakePx: clamp(L.Shake, 0, WRESTLE_CAPS.shakePx),
     burst: L.Burst, rings: Math.round(L.Rings), dim: L.Dim,
   };
   const none = {
-    hopAt: null, apexAt: null, dropAt: null, batLandAt: null, beanAt: null, staggerEnd: null, batDropAt: null, clatterAt: null,
-    chargeRunAt: null, collideAt: null, hits: [] as number[], brawlEnd: null, koWindAt: null,
+    chopAt: null, liftAt: null, topAt: null, slamAt: null, bounceEnd: null, downAt: null, perchAt: null, diveAt: null,
+    whipAt: null, ropeAt: null, flingAt: null, landAt: null, coverAt: null, pinAt: null, counts: [] as number[], bellAt: null, jolts: [] as WrestleJolt[],
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      ...looks, ...none, reduced: true, chargeAt: at, absorbEnd: at, windAt: at, releaseAt: at, arriveAt: at, swingAt: at, swingEnd: at,
-      impactAt: at, homeAt: at, homeEnd: at, endAt: r.endAt, zoom: 0, punch: 0, shakePx: 0, burst: 0, rings: 0, dim: 0, knock: 0,
+      ...looks, ...none, reduced: true, chargeAt: at, absorbEnd: at, walkAt: at, gripAt: at, impactAt: at, homeAt: at, homeEnd: at, endAt: r.endAt,
+      zoom: 0, punch: 0, shakePx: 0, burst: 0, rings: 0, dim: 0, knock: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const windAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs * 0.6);
-  const releaseAt = windAt + L.WindupMs;
-  const arriveAt = releaseAt + Math.max(40, L.PitchMs);
-  if (kind !== 'brawl') {
-    const swing = Math.max(60, L.SwingMs);
-    const swingAt = arriveAt - swing * 0.55;
-    const swingEnd = arriveAt + swing * 0.45;
-    let impactAt: number;
-    let hopAt: number | null = null;
-    let apexAt: number | null = null, dropAt: number | null = null, batLandAt: number | null = null;
-    if (kind === 'single') impactAt = arriveAt + Math.max(60, L.FlightMs);
-    else if (kind === 'hotshot') {
-      const f = Math.max(80, L.FlightMs);
-      if (variant === 1) impactAt = arriveAt + f * 0.72; // the liner: flat and FAST
-      else if (variant === 2) { hopAt = arriveAt + f * c.hopAt; impactAt = arriveAt + f * 1.1; }
-      else impactAt = arriveAt + Math.max(200, c.foulMs);
-    } else {
-      apexAt = arriveAt + c.moonUpMs;
-      dropAt = apexAt + c.moonHangMs;
-      impactAt = dropAt + c.moonDownMs;
-      batLandAt = arriveAt + 60 + c.batFlipMs;
-    }
-    const homeAt = Math.max(swingEnd + 80, impactAt + L.HoldMs * 0.4);
-    const homeEnd = homeAt + L.ReturnMs;
-    return {
-      ...looks, ...none, reduced: false, chargeAt, absorbEnd, windAt, releaseAt, arriveAt, swingAt, swingEnd, hopAt, apexAt, dropAt, batLandAt,
-      impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs, batLandAt !== null ? batLandAt + 360 : 0),
-    };
-  }
-  // IV: CHARGE THE MOUND.
-  const beanAt = arriveAt;
-  const staggerEnd = beanAt + c.staggerMs;
-  const batDropAt = beanAt + c.staggerMs * 0.6;
-  const clatterAt = batDropAt + c.batSlamMs;
-  const chargeRunAt = Math.max(staggerEnd, clatterAt) + c.fumeMs;
-  const collideAt = chargeRunAt + c.chargeMs;
-  const brawlEnd = collideAt + c.brawlMs;
-  const n = clamp(Math.round(c.brawlHits), 2, WRESTLE_CAPS.hits);
-  // The flurry: evenly spread, a touch ragged (deterministic), never before the collision or after the brawl.
-  const span = Math.max(1, c.brawlMs - 140);
-  const hits = Array.from({ length: n }, (_, i) => collideAt + 70 + (span * (i + 0.5)) / n + Math.sin(i * 2.17) * (span / n) * 0.22);
-  const koWindAt = brawlEnd;
-  const impactAt = koWindAt + c.koWindupMs;
-  const homeAt = impactAt + L.HoldMs;
-  const homeEnd = homeAt + L.ReturnMs;
-  return {
-    ...looks, ...none, reduced: false, chargeAt, absorbEnd, windAt, releaseAt, arriveAt, swingAt: arriveAt, swingEnd: arriveAt,
-    beanAt, staggerEnd, batDropAt, clatterAt, chargeRunAt, collideAt, hits, brawlEnd, koWindAt, impactAt, homeAt, homeEnd,
-    endAt: Math.max(homeEnd, impactAt + L.HoldMs),
+  const walkAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs * 0.6);
+  const gripAt = walkAt + Math.max(80, L.WalkMs);
+  const base = { ...looks, ...none, reduced: false, chargeAt, absorbEnd, walkAt, gripAt };
+  const tail = (impactAt: number, homeAt: number): { impactAt: number; homeAt: number; homeEnd: number; endAt: number } => {
+    const homeEnd = homeAt + Math.max(60, L.ReturnMs);
+    return { impactAt, homeAt, homeEnd, endAt: homeEnd + 80 };
   };
+  if (kind === 'chop') {
+    const chopAt = gripAt + c.chopWindMs;
+    const impactAt = chopAt + Math.max(40, c.chopMs);
+    return { ...base, chopAt, ...tail(impactAt, impactAt + L.HoldMs) };
+  }
+  if (kind === 'slam') {
+    const liftAt = gripAt + c.dipMs;
+    const topAt = liftAt + c.liftMs;
+    const slamAt = topAt + c.hangMs;
+    const impactAt = slamAt + Math.max(60, c.slamMs);
+    const bounceEnd = impactAt + c.bounceMs;
+    return { ...base, liftAt, topAt, slamAt, bounceEnd, jolts: [{ at: bounceEnd, k: 0.3, vertical: true }], ...tail(impactAt, Math.max(bounceEnd + 80, impactAt + L.HoldMs)) };
+  }
+  if (kind === 'elbow') {
+    const downAt = gripAt + c.shoveMs;
+    const perchAt = downAt + c.climbMs;
+    const diveAt = perchAt + c.perchMs;
+    const impactAt = diveAt + Math.max(100, c.diveMs);
+    // The elbow bounces both of them off the mat once (a tick).
+    const bounceEnd = impactAt + c.bounceMs;
+    return { ...base, downAt, perchAt, diveAt, bounceEnd, jolts: [{ at: downAt, k: 0.3, vertical: true }, { at: bounceEnd, k: 0.25, vertical: true }], ...tail(impactAt, Math.max(bounceEnd + 80, impactAt + L.HoldMs)) };
+  }
+  // IV: THE FINISHER.
+  const whipAt = gripAt + c.grabMs;
+  const ropeAt = whipAt + c.whipMs;
+  const flingAt = ropeAt + c.stretchMs;
+  const impactAt = flingAt + c.reboundMs;
+  const landAt = impactAt + c.flipMs;
+  const coverAt = landAt + Math.max(0, c.afterMs);
+  const pinAt = coverAt + c.coverMs;
+  const counts = [0, 1, 2].map((i) => pinAt + 200 + i * c.countMs);
+  const bellAt = counts[2]! + c.countMs * 0.9;
+  // The ticks that shake the frame: the ropes, the landing (a second heavy hit), the cover, and each count harder.
+  const jolts: WrestleJolt[] = [
+    { at: ropeAt, k: 0.25, vertical: false }, { at: landAt, k: 0.75, vertical: true }, { at: pinAt, k: 0.45, vertical: true },
+    ...counts.map((at, i) => ({ at, k: 0.34 + 0.08 * i, vertical: true })),
+  ];
+  return { ...base, whipAt, ropeAt, flingAt, landAt, coverAt, pinAt, counts, bellAt, jolts, ...tail(impactAt, bellAt + c.winMs) };
 }
 
-export type BaseballCueKind =
-  | 'charge' | 'windup' | 'pitch' | 'swing' | 'crack' | 'hop' | 'twinkle' | 'fall' | 'batland' | 'bean' | 'batdrop' | 'clatter' | 'fume'
-  | 'run' | 'collide' | 'hit' | 'kowind' | 'impact' | 'home' | 'end';
-export interface BaseballCue { at: number; kind: BaseballCueKind; i: number }
-
-/** III: how long before the crash the slide whistle starts (the clip's length). */
-export const FALL_LEAD_MS = 760;
+export type WrestleCueKind =
+  | 'charge' | 'walk' | 'grip' | 'swing' | 'lift' | 'top' | 'drop' | 'bounce' | 'down' | 'perch' | 'dive' | 'whip' | 'rope' | 'fling' | 'land'
+  | 'hop' | 'cover' | 'count' | 'bell' | 'impact' | 'home' | 'end';
+export interface WrestleCue { at: number; kind: WrestleCueKind; i: number }
 
 /** Every beat the runner fires, in time order. The blow lands on `impact`, once. */
-export function wrestleCues(p: BaseballPlan): BaseballCue[] {
-  const out: BaseballCue[] = [];
+export function wrestleCues(p: WrestlePlan): WrestleCue[] {
+  const out: WrestleCue[] = [];
+  const add = (at: number | null, kind: WrestleCueKind, i = 0): void => { if (at !== null) out.push({ at, kind, i }); };
   if (!p.reduced) {
-    out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    out.push({ at: p.windAt, kind: 'windup', i: 0 });
-    out.push({ at: p.releaseAt, kind: 'pitch', i: 0 });
-    if (p.kind !== 'brawl') {
-      out.push({ at: p.swingAt, kind: 'swing', i: 0 });
-      out.push({ at: p.arriveAt, kind: 'crack', i: 0 });
-    }
-    if (p.hopAt !== null) out.push({ at: p.hopAt, kind: 'hop', i: 0 });
-    if (p.apexAt !== null) out.push({ at: p.apexAt, kind: 'twinkle', i: 0 });
-    // The slide whistle (about 0.78 s long) is timed so it bottoms out on the crash.
-    if (p.dropAt !== null) out.push({ at: Math.max(p.apexAt ?? p.dropAt, p.impactAt - FALL_LEAD_MS), kind: 'fall', i: 0 });
-    if (p.batLandAt !== null) out.push({ at: p.batLandAt, kind: 'batland', i: 0 });
-    if (p.beanAt !== null) out.push({ at: p.beanAt, kind: 'bean', i: 0 });
-    if (p.batDropAt !== null) out.push({ at: p.batDropAt, kind: 'batdrop', i: 0 });
-    if (p.clatterAt !== null) out.push({ at: p.clatterAt, kind: 'clatter', i: 0 });
-    if (p.staggerEnd !== null) out.push({ at: p.staggerEnd, kind: 'fume', i: 0 });
-    if (p.chargeRunAt !== null) out.push({ at: p.chargeRunAt, kind: 'run', i: 0 });
-    if (p.collideAt !== null) out.push({ at: p.collideAt, kind: 'collide', i: 0 });
-    p.hits.forEach((at, i) => out.push({ at, kind: 'hit', i }));
-    if (p.koWindAt !== null) out.push({ at: p.koWindAt, kind: 'kowind', i: 0 });
-    if (p.homeEnd > p.homeAt) out.push({ at: p.homeAt, kind: 'home', i: 0 });
+    add(p.chargeAt, 'charge');
+    add(p.walkAt, 'walk');
+    add(p.gripAt, 'grip');
+    add(p.chopAt, 'swing');
+    add(p.liftAt, 'lift');
+    add(p.topAt, 'top');
+    add(p.slamAt, 'drop');
+    add(p.bounceEnd, 'bounce');
+    add(p.downAt, 'down');
+    add(p.perchAt, 'perch');
+    add(p.diveAt, 'dive');
+    add(p.whipAt, 'whip');
+    add(p.ropeAt, 'rope');
+    add(p.flingAt, 'fling');
+    add(p.landAt, 'land');
+    add(p.coverAt, 'hop');
+    add(p.pinAt, 'cover');
+    p.counts.forEach((at, i) => add(at, 'count', i));
+    add(p.bellAt, 'bell');
+    add(p.homeAt, 'home');
   }
-  out.push({ at: p.impactAt, kind: 'impact', i: 0 });
-  out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BaseballCueKind, number> = {
-    charge: 0, windup: 1, pitch: 2, swing: 3, crack: 4, hop: 5, twinkle: 6, fall: 7, batland: 8, bean: 9, batdrop: 10, clatter: 11, fume: 12,
-    run: 13, collide: 14, hit: 15, kowind: 16, impact: 17, home: 18, end: 19,
+  add(p.impactAt, 'impact');
+  add(p.endAt, 'end');
+  const order: Record<WrestleCueKind, number> = {
+    charge: 0, walk: 1, grip: 2, swing: 3, lift: 4, top: 5, drop: 6, down: 7, perch: 8, dive: 9, whip: 10, rope: 11, fling: 12, impact: 13, bounce: 14,
+    land: 15, hop: 16, cover: 17, count: 18, bell: 19, home: 20, end: 21,
   };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
@@ -556,510 +483,552 @@ export function wrestleCues(p: BaseballPlan): BaseballCue[] {
 
 export interface Frame { x0: number; y0: number; x1: number; y1: number }
 
-export interface BaseballGeo {
-  /** Unit, batter (striker) -> pitcher (target), its normal, and the distance. */
+/** IV's ring: its centre line, its half width, and the near (the struck slot's side) and far rope lines. */
+export interface WrestleRingGeo { cx: number; cy: number; half: number; xNear: number; xFar: number }
+
+export interface WrestleGeo {
+  /** Unit, striker -> struck, and the distance (the camera and the reduced look). */
   u: Pt;
-  n: Pt;
   dist: number;
-  /** Which side of the batter the hands (and the bat) are on: +1 along `n`, -1 against it (the side with more room). */
-  side: 1 | -1;
-  /** Every point below is SCREEN px. The batter's hands at rest (the bat's pivot), offset from its centre. */
-  hands: Pt;
-  /** Where the bat meets the ball (in front of the batter, on the barrel). */
-  plate: Pt;
-  /** The pitcher's release point (in front of it, toward the batter). */
-  release: Pt;
-  /** The target's centre: where every hit lands. */
-  hit: Pt;
-  /** IV: where the bean strikes the batter (its face). */
-  bean: Pt;
-  /** II (the grounder): the hop. */
-  hop: Pt;
-  /** II (the foul tip): the two control points of the boomerang curve (kept on screen). */
-  foul1: Pt;
-  foul2: Pt;
-  /** III: where the moonshot leaves the top of the screen, and where it comes down from (straight above the target). */
+  /** Which side of the struck portrait the striker stands on: +1 = to its right (screen +x). */
+  s: 1 | -1;
+  /** Every point below is SCREEN px. Where the striker stands to take hold (beside the struck slot). */
+  grab: Pt;
+  /** I: how far the chop staggers the struck portrait. */
+  stagger: Pt;
+  /** II: the dip (half under the struck portrait), where the striker stands for the lift, the top of the lift. */
+  under: Pt;
+  stand: Pt;
+  top: Pt;
+  /** II-IV: where the struck portrait ends up flat on the mat. */
+  mat: Pt;
+  /** III: where the striker leaves the top of the screen, and where it drops from (straight above the mat). */
+  exit: Pt;
   sky: Pt;
-  skyDrop: Pt;
-  /** III: where the flipped bat lands. IV: where the slammed bat lands. */
-  batLand: Pt;
-  batSlam: Pt;
-  /**
-   * IV: the brawl's centre (the cloud), pulled in off the edges so the whole cloud stays on screen; where the charge ends
-   * (the batter's side of it); the pitcher's spot in it, as an OFFSET from its slot (it is dragged into the cloud); and
-   * the pitcher's KO launch, an offset from its slot (kept on screen).
-   */
-  cloud: Pt;
-  mound: Pt;
-  pitcherBrawl: Pt;
-  launch: Pt;
+  /** III and IV: the striker on top of the one on the mat. */
+  cover: Pt;
+  /** IV: the ring; the struck portrait meeting the far ropes and at their fullest stretch; the striker braced for the
+   *  clothesline and where the two meet; the winner's spot; where the count's numbers slam down. */
+  ring: WrestleRingGeo;
+  ropeHit: Pt;
+  ropeMax: Pt;
+  block: Pt;
+  meet: Pt;
+  win: Pt;
+  count: Pt;
 }
+
+/** IV's ring, in portrait radii from its centre line: how far up the screen the back corners stand, how far down the
+ *  front ones, and how much narrower the back edge (wider the front edge) is than the rope line (a floor in perspective). */
+export const RING_BACK = 1.25;
+export const RING_FRONT = 2.3;
+export const RING_SKEW = 0.12;
 
 const inFrame = (p: Pt, f: Frame | null, m: number): boolean => !f || (p.x >= f.x0 + m && p.x <= f.x1 - m && p.y >= f.y0 + m && p.y <= f.y1 - m);
 
 /** A point clamped inside the frame with `m` px to spare (a tiny frame: its middle). Pure. */
-export function clampToFrame(p: Pt, f: Frame | null, m: number): Pt {
+export function clampToFrame(p: Pt, f: Frame | null, m: number): Pt { return clampXY(p, f, m, m, m); }
+
+/** A point clamped inside the frame with its own margins at the sides, the top and the bottom. Pure. */
+function clampXY(p: Pt, f: Frame | null, mx: number, top: number, bottom: number): Pt {
   if (!f) return p;
-  const cx = (f.x0 + f.x1) / 2, cy = (f.y0 + f.y1) / 2;
-  const x = f.x1 - f.x0 > 2 * m ? clamp(p.x, f.x0 + m, f.x1 - m) : cx;
-  const y = f.y1 - f.y0 > 2 * m ? clamp(p.y, f.y0 + m, f.y1 - m) : cy;
+  const x = f.x1 - f.x0 > 2 * mx ? clamp(p.x, f.x0 + mx, f.x1 - mx) : (f.x0 + f.x1) / 2;
+  const y = f.y1 - f.y0 > top + bottom ? clamp(p.y, f.y0 + top, f.y1 - bottom) : (f.y0 + f.y1) / 2;
   return { x, y };
 }
 
-const add = (a: Pt, b: Pt, k = 1): Pt => ({ x: a.x + b.x * k, y: a.y + b.y * k });
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const lerpPt = (a: Pt, b: Pt, t: number): Pt => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-
-/** The bat's length (screen px) for a batter of radius `aR`. */
-export function batLength(aR: number, c: HeroWrestleConfig): number { return aR * 1.55 * c.batSize; }
-
-/** Where every play goes, from the two heroes and the frame (screen px). Pure. */
-export function wrestleGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, c: HeroWrestleConfig = store.get()): BaseballGeo {
-  const dx = d.x - a.x, dy = d.y - a.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const u = { x: dx / dist, y: dy / dist };
-  const n = { x: -u.y, y: u.x };
-  const m = aR * 0.8;
-  // The batter's hands go on the side with more room (so the bat and the foul tip stay on screen).
-  const room = (p: Pt): number => (frame ? Math.min(p.x - frame.x0, frame.x1 - p.x, p.y - frame.y0, frame.y1 - p.y) : 0);
-  const side: 1 | -1 = room(add(a, n, aR * 2.5)) >= room(add(a, n, -aR * 2.5)) ? 1 : -1;
-  const L = batLength(aR, c);
-  const hands = add(add(a, n, side * aR * 0.62), u, aR * 0.55);
-  // At contact the bat points across the front of the batter (toward -side), the ball meets the barrel.
-  const plate = add(hands, n, -side * L * 0.7);
-  const release = add(d, u, -dR * 0.8);
-  const hit = { ...d };
-  const bean = add(a, u, aR * 0.15);
-  const hop = add(lerpPt(plate, d, c.hopAt), n, side * aR * 0.15);
-  // The foul tip: off foul to the hands' side, a wide loop round the field, back into the pitcher from BEHIND.
-  const wide = dist * c.foulWide;
-  const foul1 = clampToFrame(add(add(plate, u, dist * 0.15), n, side * wide), frame, m);
-  const foul2 = clampToFrame(add(add(d, u, dR * 2.6), n, side * wide * 0.7), frame, m);
-  // The moonshot: up and off the top of the screen halfway along; it comes back down straight above the target.
-  const topY = frame ? frame.y0 - aR * 1.5 : Math.min(a.y, d.y) - dist;
-  const sky = { x: lerpPt(plate, d, 0.5).x, y: topY };
-  const skyDrop = { x: d.x, y: topY };
-  const batLand = clampToFrame(add(add(a, n, side * aR * 1.55), u, -aR * 0.25), frame, m * 0.6);
-  const batSlam = clampToFrame(add(add(a, n, side * aR * 1.25), u, aR * 0.35), frame, m * 0.6);
-  // The brawl: just in front of the pitcher, pulled in off the edges so the whole cloud is on screen. The batter charges
-  // to its near side; the pitcher is dragged in to its far side.
-  const cloud = clampToFrame(add(d, u, -dR * 0.55), frame, (aR + dR) * 1.05 * Math.max(0.6, c.brawlCloud));
-  const mound = add(cloud, u, -aR * 0.38);
-  const pIn = add(cloud, u, dR * 0.38);
-  const pitcherBrawl = { x: pIn.x - d.x, y: pIn.y - d.y };
-  // The haymaker launches the pitcher away from the batter, out of the cloud, kept on screen (an offset from its slot).
-  const launchTo = clampToFrame(add(pIn, u, dR * c.koLaunch), frame, dR * 0.5);
-  const launch = { x: launchTo.x - d.x, y: launchTo.y - d.y };
-  return { u, n, dist, side, hands, plate, release, hit, bean, hop, foul1, foul2, sky, skyDrop, batLand, batSlam, cloud, mound, pitcherBrawl, launch };
-}
 
 /** Whether a point is inside the frame (tests). */
 export const onScreen = inFrame;
 
+/** Where every move goes, from the two heroes, the frame and the move (screen px). Pure. */
+export function wrestleGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | null, kind: WrestleKind, c: HeroWrestleConfig = store.get()): WrestleGeo {
+  const dx = d.x - a.x, dy = d.y - a.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const u = { x: dx / dist, y: dy / dist };
+  const gap = (aR + dR) * c.gap;
+  const Rm = (aR + dR) / 2;
+  // The striker stands on the side it comes from; when the two are stacked, or that side has no room, the roomier side.
+  const roomR = frame ? frame.x1 - d.x : Infinity, roomL = frame ? d.x - frame.x0 : Infinity;
+  const need = gap + aR * 0.7;
+  const roomier: 1 | -1 = roomR >= roomL ? 1 : -1;
+  const from: 1 | -1 = Math.abs(a.x - d.x) < gap * 0.5 ? roomier : a.x > d.x ? 1 : -1;
+  const s: 1 | -1 = (from === 1 ? roomR : roomL) >= need ? from : roomier;
+  const edge = aR * 0.6;
+  const grab = clampToFrame({ x: d.x + s * gap, y: d.y }, frame, edge);
+  const stagger = clampToFrame({ x: d.x - s * dR * c.stagger, y: d.y }, frame, dR * 0.6);
+  const zero = { x: d.x, y: d.y };
+  const noRing: WrestleRingGeo = { cx: d.x, cy: d.y, half: 0, xNear: d.x, xFar: d.x };
+  const blank = { under: grab, stand: grab, top: zero, mat: zero, exit: grab, sky: grab, cover: grab, ring: noRing, ropeHit: zero, ropeMax: zero, block: grab, meet: zero, win: grab, count: zero };
+  if (kind === 'chop') return { u, dist, s, grab, stagger, ...blank };
+  if (kind === 'slam') {
+    // The lift needs headroom: the mat is pulled down far enough that the one held overhead stays on screen, and in off
+    // the side so the slam lands in the open, clear of a corner.
+    const liftH = (aR + dR) * c.liftHeight;
+    const mat = clampXY({ x: d.x - s * dR * 0.1, y: d.y + dR * 0.15 }, frame, dR * 2.6, liftH + dR * 1.5, dR * 0.85);
+    const stand = clampToFrame({ x: mat.x + s * gap * 0.95, y: mat.y - dR * 0.15 }, frame, edge);
+    const under = clampToFrame({ x: lerp(d.x, grab.x, 0.45), y: d.y + aR * 0.3 }, frame, edge);
+    const top = { x: stand.x - s * aR * 0.1, y: stand.y - liftH };
+    return { u, dist, s, grab, stagger, ...blank, under, stand, top, mat, cover: stand };
+  }
+  if (kind === 'elbow') {
+    // The mat is pulled well down from the top (the drop needs a fall worth watching) and in off the side.
+    const mat = clampXY({ x: d.x - s * dR * 0.4, y: d.y + dR * 0.3 }, frame, dR * 2.6, Rm * 3.6, dR * 0.8);
+    const topY = (frame ? frame.y0 : Math.min(a.y, d.y) - dist) - aR * 1.4;
+    const exit = { x: lerp(grab.x, mat.x, 0.5), y: topY };
+    const sky = { x: mat.x, y: topY };
+    const cover = { x: mat.x, y: mat.y - dR * 0.3 };
+    return { u, dist, s, grab, stagger, ...blank, mat, exit, sky, cover };
+  }
+  // IV: THE RING. The struck slot sits just inside the near ropes; the whip goes PAST the striker to the far ropes.
+  const fw = frame ? frame.x1 - frame.x0 : Infinity;
+  const mF = dR * (0.15 + c.stretch); // the far ropes' fullest stretch stays on screen
+  const half = Math.max(Rm * 1.2, Math.min(c.ringWidth * Rm, (fw - 2 * mF) / 2));
+  // Room for the whole ring: the front corners stand a little outside the rope line, the back ropes above the two and
+  // the front ropes below them.
+  const mid = clampXY({ x: d.x + s * half * 0.7, y: d.y + dR * 0.2 }, frame, Math.max(half + mF, half * (1 + RING_SKEW) + Rm * 0.25), Rm * 3.3, Rm * (RING_FRONT + 0.2));
+  const ring: WrestleRingGeo = { cx: mid.x, cy: mid.y, half, xNear: mid.x - s * half, xFar: mid.x + s * half };
+  const ropeHit = { x: ring.xFar - s * dR * 0.9, y: ring.cy };
+  const ropeMax = { x: ropeHit.x + s * dR * c.stretch, y: ring.cy };
+  const block = { x: ring.cx - s * aR * 0.45, y: ring.cy };
+  const meet = { x: block.x + s * gap * 0.62, y: ring.cy };
+  const mat = clampXY({ x: meet.x + s * dR * 0.2, y: ring.cy + dR * 0.3 }, frame, dR, dR, dR * 0.8);
+  const cover = { x: mat.x - s * dR * 0.3, y: mat.y - dR * 0.45 };
+  const win = clampToFrame({ x: cover.x - s * aR * 0.35, y: mat.y - aR * 0.85 }, frame, edge);
+  const count = clampXY({ x: mat.x + s * dR * 0.25, y: cover.y - aR * 2.05 }, frame, dR * 1.2, Rm * 1.3, Rm);
+  return { u, dist, s, grab, stagger, ...blank, mat, cover, ring, ropeHit, ropeMax, block, meet, win, count };
+}
+
 // ─── the poses (pure) ──────────────────────────────────────────────────────────────────────────────────────────
 
-/** A portrait's offset from its slot (screen px), its rotation (degrees), its scale and a squash (+ = flattened). */
-export interface BaseballPose { x: number; y: number; rot: number; scale: number; squash: number }
-const REST: BaseballPose = { x: 0, y: 0, rot: 0, scale: 1, squash: 0 };
+/**
+ * A portrait's offset from its slot (screen px), its rotation (degrees: positive tips its top toward screen +x), its
+ * scale and a squash in SCREEN axes (+ = flattened and wider, - = taller and narrower), so a portrait lying on its back
+ * still flattens against the mat.
+ */
+export interface WrestlePose { x: number; y: number; rot: number; scale: number; squash: number }
+const REST: WrestlePose = { x: 0, y: 0, rot: 0, scale: 1, squash: 0 };
+
+/** Everything a pose needs: the plan, the geometry, the tuned values, the two slots and radii. */
+export interface WrestleCtx { p: WrestlePlan; g: WrestleGeo; c: HeroWrestleConfig; a: Pt; d: Pt; aR: number; dR: number }
 
 const easeIn = (u: number): number => { const x = clamp01(u); return x * x; };
 const win = (t: number, a: number, b: number): number => clamp01((t - a) / Math.max(1, b - a));
-/** A smooth 0..1 window: rises over `ramp` before `a`, holds to `b`, falls over `ramp` after. */
-function windowAt(t: number, a: number, b: number, ramp: number): number {
-  if (t <= a - ramp || t >= b + ramp) return 0;
-  if (t < a) return easeInOutSine((t - (a - ramp)) / ramp);
-  if (t <= b) return 1;
-  return 1 - easeInOutSine((t - b) / ramp);
-}
 /** A deterministic shiver (a sum of sines; never random), -1..1. */
 const jit = (t: number, f: number, ph: number): number => Math.sin(t * f + ph) * 0.6 + Math.sin(t * f * 2.31 + ph * 1.7) * 0.4;
+/** One hump, 0 -> 1 -> 0 over `len` ms from `at`. */
+const hump = (t: number, at: number, len: number): number => (t < at || t > at + len ? 0 : Math.sin(Math.PI * ((t - at) / len)));
 
-/** The leaning sign: a positive rotation tips a portrait's top toward +x. Leaning "toward" a direction `v`. */
-const leanToward = (v: Pt): number => (v.x >= 0 ? 1 : -1);
+/** A flex after a big move: two hops on the spot that die away, 0..1, from `from` ms after the hit. */
+const flexHop = (age: number, from: number): number => (age < from ? 0 : Math.abs(Math.sin((Math.PI * (age - from)) / 230)) * Math.exp(-(age - from) / 420));
+/**
+ * IV: how far the far ropes are stretched while the struck portrait is in them (`u` 0..1 of the beat), 0..1: OUT fast,
+ * HELD at full stretch (creaking, a small tremble), then SNAPPED back. The portrait and the ropes read the same curve.
+ */
+export function ropeStretch(u: number): number {
+  const x = clamp01(u);
+  if (x < 0.34) return easeOutCubic(x / 0.34);
+  if (x < 0.74) return 1 + 0.035 * Math.sin((x - 0.34) * 38);
+  return 1 - easeIn((x - 0.74) / 0.26);
+}
 
-/** The BATTER (the striking portrait) at sequence time `t` (its slot is (0, 0)). Pure and deterministic. */
-export function batterPose(p: BaseballPlan, g: BaseballGeo, c: HeroWrestleConfig, aR: number, a: Pt, t: number): BaseballPose {
-  if (p.reduced || t < p.chargeAt || t >= p.endAt) return { ...REST };
-  const pose = { ...REST };
-  const u = g.u;
-  const lean = c.swingLean * leanToward({ x: -g.n.x * g.side, y: 0 });
-  if (p.kind !== 'brawl') {
-    // The load (a lean back as the pitcher winds up), the stride and the swing, the follow-through, then home.
-    const load = easeInOutSine(win(t, p.windAt, p.swingAt));
-    const sw = win(t, p.swingAt, p.swingEnd);
-    const stride = c.stride * (p.kind === 'single' ? 0.4 : p.kind === 'hotshot' ? 1 : 1.3) * aR;
-    const home = easeInOutSine(win(t, p.homeAt, p.homeEnd));
-    const fwd = (t < p.swingAt ? -0.12 * aR * load : -0.12 * aR + (stride + 0.12 * aR) * easeOutCubic(sw)) * (1 - home);
-    pose.x = u.x * fwd; pose.y = u.y * fwd;
-    pose.rot = (t < p.swingAt ? -lean * 0.6 * load : -lean * 0.6 + lean * 1.6 * easeOutCubic(sw)) * (1 - home);
-    // The contact jolt, and a little settle home.
-    if (t >= p.arriveAt) pose.squash = c.squash * 0.5 * Math.max(0, spring(t - p.arriveAt, 5, 60));
-    if (t >= p.homeEnd) pose.squash += c.squash * 0.3 * Math.max(0, spring(t - p.homeEnd, 4, 60));
-    return pose;
-  }
-  // IV: rest until the bean; BONK: knocked back and wobbling; fuming; the CHARGE; the brawl; the haymaker; home.
-  const bean = p.beanAt!, st = p.staggerEnd!, run = p.chargeRunAt!, hitAt = p.collideAt!, brawlEnd = p.brawlEnd!;
-  const mound = { x: g.mound.x - a.x, y: g.mound.y - a.y };
-  if (t < bean) {
-    // Ready in the box (a small waggle with the windup).
-    pose.rot = -lean * 0.4 * easeInOutSine(win(t, p.windAt, p.releaseAt));
-    return pose;
-  }
-  if (t < run) {
-    const age = t - bean;
-    const back = -aR * 0.32 * Math.max(0, spring(age, 2.2, 260)) - aR * 0.1 * clamp01(age / 120) * (1 - win(t, st, run));
-    pose.x = u.x * back; pose.y = u.y * back;
-    pose.rot = c.staggerWobble * spring(age, 4.5, c.staggerMs * 0.45);
-    pose.squash = c.squash * 1.2 * Math.max(0, spring(age, 6, 90));
-    if (t >= st) {
-      // FUMING: a hot shiver, growing a touch, before the charge.
-      const f = win(t, st, run);
-      pose.x += jit(t, 0.11, 0.3) * aR * 0.035 * (0.5 + f);
-      pose.y += jit(t, 0.13, 1.1) * aR * 0.03 * (0.5 + f);
-      pose.scale = 1 + 0.05 * easeInOutSine(f);
+/** An absolute pose (a screen point), before it is made an offset from the slot. */
+interface Abs { x: number; y: number; rot: number; scale: number; squash: number }
+const abs = (pt: Pt, rot = 0, scale = 1, squash = 0): Abs => ({ x: pt.x, y: pt.y, rot, scale, squash });
+
+/** The STRIKER while it is acting (from `gripAt` until it heads home). */
+function strikerActing(x: WrestleCtx, t: number): Abs {
+  const { p, g, c, aR, dR } = x;
+  const s = g.s;
+  if (p.kind === 'chop') {
+    const chopAt = p.chopAt!;
+    if (t < chopAt) {
+      // THE WIND-UP: it leans away, the arm drawn back.
+      const w = easeInOutSine(win(t, p.gripAt, chopAt));
+      return abs({ x: g.grab.x + s * aR * 0.2 * w, y: g.grab.y }, s * c.chopLean * w, 1 + 0.04 * w);
     }
-    return pose;
+    if (t < p.impactAt) {
+      const e = easeIn(win(t, chopAt, p.impactAt));
+      return abs({ x: g.grab.x + s * aR * (0.2 - 0.5 * e), y: g.grab.y }, s * c.chopLean - s * (c.chopLean + 14) * e, 1.04);
+    }
+    const age = t - p.impactAt;
+    const back = easeOutCubic(age / 260);
+    return abs({ x: g.grab.x - s * aR * 0.3 * (1 - 0.7 * back), y: g.grab.y }, -s * 14 * (1 - back), 1.04 - 0.04 * back, c.squash * 0.5 * Math.max(0, spring(age, 5, 70)));
   }
-  if (t < hitAt) {
-    // THE CHARGE: accelerating at the mound, leaning in, a touch bigger.
-    const e = easeIn(win(t, run, hitAt));
-    const from = -aR * 0.1;
-    pose.x = u.x * from * (1 - e) + mound.x * e; pose.y = u.y * from * (1 - e) + mound.y * e;
-    pose.rot = 10 * leanToward(u) * Math.min(1, e * 3);
-    pose.scale = 1.05 + 0.05 * e;
-    return pose;
+  if (p.kind === 'slam') {
+    const liftAt = p.liftAt!, topAt = p.topAt!, slamAt = p.slamAt!;
+    if (t < liftAt) {
+      // THE DIP: down and in, half under the one it is about to lift.
+      const e = easeInOutSine(win(t, p.gripAt, liftAt));
+      const q = lerpPt(g.grab, g.under, e);
+      return abs(q, -s * 8 * e, 1, 0.2 * e);
+    }
+    if (t < topAt) {
+      const u = win(t, liftAt, topAt);
+      const q = lerpPt(g.under, g.stand, easeOutCubic(u));
+      return abs(q, -s * 8 * (1 - u), 1 + 0.04 * u, 0.2 * (1 - easeOutCubic(u)) - 0.07 * Math.sin(Math.PI * u));
+    }
+    if (t < slamAt) {
+      // THE HELD BEAT: straining under the weight.
+      // ...and heaving it a last notch higher just before the drop.
+      const hoist = easeInOutSine(win(t, slamAt - 170, slamAt));
+      return abs({ x: g.stand.x + jit(t, 0.09, 0.4) * aR * 0.02, y: g.stand.y + jit(t, 0.11, 1.3) * aR * 0.014 }, 0, 1.04, -0.03 - 0.06 * hoist);
+    }
+    const down = { x: g.stand.x - s * aR * 0.14, y: g.stand.y + aR * 0.16 };
+    if (t < p.impactAt) {
+      const e = easeIn(win(t, slamAt, p.impactAt));
+      return abs(lerpPt(g.stand, down, e), -s * 18 * e, 1.04, 0.1 * e);
+    }
+    const age = t - p.impactAt;
+    const up = easeOutCubic(age / 320);
+    // THE AFTERMATH: it straightens up over the body and flexes.
+    const q = lerpPt(down, g.stand, up);
+    return abs({ x: q.x, y: q.y - aR * 0.2 * flexHop(age, 420) }, -s * 18 * (1 - up), 1.04 - 0.04 * up + 0.08 * win(age, 400, 540), 0.1 * (1 - up) + c.squash * 0.6 * Math.max(0, spring(age, 5, 80)));
   }
-  if (t < brawlEnd) {
-    // THE BRAWL: shaking in the cloud, popping out on the hits.
-    const J = c.brawlJitter * aR;
-    let pop = 0;
-    for (const h of p.hits) if (t >= h && t < h + 120) pop = Math.max(pop, Math.sin(Math.PI * ((t - h) / 120)));
-    pose.x = mound.x + jit(t, 0.07, 0.2) * J * 0.28 - u.x * pop * aR * 0.3;
-    pose.y = mound.y + jit(t, 0.09, 2.1) * J * 0.24 - u.y * pop * aR * 0.3;
-    pose.rot = jit(t, 0.05, 0.7) * 14 * c.brawlJitter;
-    pose.scale = 1.08;
-    return pose;
+  if (p.kind === 'elbow') {
+    const downAt = p.downAt!, perchAt = p.perchAt!, diveAt = p.diveAt!;
+    if (t < downAt) {
+      // THE SHOVE: a quick lunge in and back.
+      const u = win(t, p.gripAt, downAt);
+      const push = u < 0.35 ? easeOutCubic(u / 0.35) : 1 - easeInOutSine((u - 0.35) / 0.65);
+      return abs({ x: g.grab.x - s * aR * 0.35 * push, y: g.grab.y }, -s * 12 * push, 1);
+    }
+    if (t < perchAt) {
+      // THE CLIMB: a crouch, then up and out of the top of the screen.
+      const u = win(t, downAt, perchAt);
+      if (u < 0.3) return abs(g.grab, 0, 1, 0.22 * Math.sin((Math.PI / 2) * (u / 0.3)));
+      const e = easeIn((u - 0.3) / 0.7);
+      return abs(lerpPt(g.grab, g.exit, e), 0, 1, 0.22 * (1 - Math.min(1, e * 4)) - 0.12 * Math.min(1, e * 4));
+    }
+    if (t < diveAt) return abs(g.sky, s * 100, 1.08);
+    if (t < p.impactAt) {
+      // THE DIVE: flat, accelerating, the elbow leading.
+      const e = easeIn(win(t, diveAt, p.impactAt));
+      return abs(lerpPt(g.sky, g.cover, e), s * 100, 1.08, -0.08);
+    }
+    const age = t - p.impactAt;
+    // It bounces off the body with it...
+    if (age < 300) return abs({ x: g.cover.x, y: g.cover.y - aR * 0.3 * hump(t, p.impactAt + 40, 260) }, s * 100, 1.08 - 0.08 * easeOutCubic(age / 300), c.squash * 1.8 * Math.max(0, spring(age, 4, 90)));
+    // ...then rolls off to its feet beside it and flexes (THE AFTERMATH).
+    const beside = { x: g.mat.x + s * (aR + dR) * c.gap * 0.95, y: g.mat.y - dR * 0.15 };
+    const e = easeInOutSine(win(age, 300, 620));
+    const q = lerpPt(g.cover, beside, e);
+    return abs({ x: q.x, y: q.y - aR * 0.35 * Math.sin(Math.PI * e) - aR * 0.2 * flexHop(age, 700) }, s * 100 * (1 - e), 1 + 0.08 * win(age, 640, 780), 0);
+  }
+  // IV: THE FINISHER.
+  const whipAt = p.whipAt!, ropeAt = p.ropeAt!, flingAt = p.flingAt!, landAt = p.landAt!, pinAt = p.pinAt!, bellAt = p.bellAt!;
+  if (t < whipAt) {
+    // It takes hold.
+    const e = easeInOutSine(win(t, p.gripAt, whipAt));
+    return abs({ x: g.grab.x - s * aR * 0.14 * e, y: g.grab.y }, -s * 9 * e, 1, 0.07 * e);
+  }
+  const back = { x: g.block.x - s * aR * 0.3, y: g.block.y };
+  if (t < ropeAt) {
+    // THE WHIP: it swings round with the throw, then crosses to the middle of the ring.
+    const u = win(t, whipAt, ropeAt);
+    const sw = easeOutCubic(Math.min(1, u * 1.8));
+    const q = lerpPt({ x: g.grab.x - s * aR * 0.14, y: g.grab.y }, back, easeInOutSine(win(u, 0.35, 1)));
+    return abs(q, -s * 9 + s * 31 * sw * (1 - easeInOutSine(win(u, 0.5, 1))), 1, 0.07 * (1 - sw));
+  }
+  if (t < flingAt) {
+    // Braced, an arm drawn back, as the ropes stretch.
+    const e = easeInOutSine(win(t, ropeAt, flingAt));
+    return abs(back, -s * 12 * e, 1 + 0.06 * e);
+  }
+  const through = { x: g.block.x + s * aR * 0.25, y: g.block.y };
+  if (t < p.impactAt) {
+    // THE CLOTHESLINE: it steps into it.
+    const e = easeIn(win(t, flingAt, p.impactAt));
+    return abs(lerpPt(back, through, e), -s * 12 + s * 28 * e, 1.06);
+  }
+  const follow = { x: through.x + s * aR * 0.2, y: through.y };
+  if (t < landAt) {
+    const age = t - p.impactAt;
+    const e = easeOutCubic(age / 220);
+    return abs(lerpPt(through, follow, e), s * 16 * (1 - easeOutCubic(age / 320)), 1.06 - 0.06 * e, c.squash * 0.5 * Math.max(0, spring(age, 5, 70)));
+  }
+  const coverRot = s * 28;
+  const coverAt = p.coverAt ?? landAt;
+  if (t < coverAt) {
+    // THE AFTERMATH: it stands over the body for a beat, flexing.
+    const age = t - landAt;
+    return abs({ x: follow.x, y: follow.y - aR * 0.16 * flexHop(age, 60) }, -s * 6 * win(age, 0, 160), 1 + 0.08 * win(age, 40, 180));
+  }
+  if (t < pinAt) {
+    // It leaps high and drops on top (a hit of its own).
+    const u = win(t, coverAt, pinAt);
+    const q = lerpPt(follow, g.cover, easeInOutSine(u));
+    return abs({ x: q.x, y: q.y - aR * 1.05 * Math.sin(Math.PI * Math.pow(u, 0.8)) }, -s * 6 * (1 - u) + coverRot * easeInOutSine(u), 1.08 - 0.08 * u, -0.06 * Math.sin(Math.PI * u));
+  }
+  if (t < bellAt) {
+    // THE PIN: it presses down with every count.
+    let press = 0;
+    for (const at of p.counts) press = Math.max(press, hump(t, at - 40, 200));
+    return abs({ x: g.cover.x, y: g.cover.y + dR * 0.09 * press }, coverRot + s * 4 * press, 1, c.squash * 1.6 * Math.max(0, spring(t - pinAt, 4, 80)) + 0.1 * press);
+  }
+  // WINNER: it springs up off the pin and bounces on the spot.
+  const age = t - bellAt;
+  const e = easeOutBack(age / 240, 1.6);
+  const q = lerpPt(g.cover, g.win, e);
+  return abs({ x: q.x, y: q.y - aR * 0.16 * Math.abs(Math.sin((Math.PI * Math.max(0, age - 240)) / 240)) }, coverRot * (1 - clamp01(age / 200)), 1 + 0.14 * clamp01(e), 0);
+}
+
+/** The STRUCK portrait while it is being wrestled (from `gripAt` until it heads home). */
+function victimActing(x: WrestleCtx, t: number): Abs {
+  const { p, g, c, d, dR } = x;
+  const s = g.s;
+  if (p.kind === 'chop') {
+    if (t < p.impactAt) return abs(d, -s * 4 * easeInOutSine(win(t, p.gripAt, p.chopAt!)));
+    // THE CHOP LANDS: it staggers a step away, rocking.
+    const age = t - p.impactAt;
+    const q = lerpPt(d, g.stagger, easeOutCubic(age / 200) * Math.min(1, p.knock));
+    return abs({ x: q.x, y: q.y - dR * 0.08 * Math.abs(Math.sin((Math.PI * Math.min(age, 360)) / 180)) }, -s * 14 * p.knock * spring(age, 2.6, 260), 1, c.squash * Math.max(0, spring(age, 5, 80)));
+  }
+  if (p.kind === 'slam') {
+    const liftAt = p.liftAt!, topAt = p.topAt!, slamAt = p.slamAt!;
+    const flat = -s * 90;
+    if (t < liftAt) return abs(d, -s * 4 * easeInOutSine(win(t, p.gripAt, liftAt)));
+    if (t < topAt) {
+      // HOISTED: up and over in an arc, tipping flat.
+      const e = easeInOutSine(win(t, liftAt, topAt));
+      const q = lerpPt(d, g.top, e);
+      return abs({ x: q.x - s * dR * 0.35 * Math.sin(Math.PI * e), y: q.y }, flat * e, 1 + 0.05 * e);
+    }
+    // HELD overhead (a real beat), and heaved a last notch higher just before the drop.
+    const hoistH = dR * 0.16;
+    if (t < slamAt) {
+      const hoist = easeInOutSine(win(t, slamAt - 170, slamAt));
+      return abs({ x: g.top.x + jit(t, 0.07, 2.2) * dR * 0.025, y: g.top.y + jit(t, 0.09, 0.9) * dR * 0.025 - hoistH * hoist }, flat + Math.sin((t - topAt) * 0.022) * 5, 1.05 + 0.03 * hoist);
+    }
+    if (t < p.impactAt) {
+      // THE SLAM: straight down, faster and faster.
+      const u = win(t, slamAt, p.impactAt);
+      return abs({ x: lerp(g.top.x, g.mat.x, easeOutCubic(u)), y: lerp(g.top.y - hoistH, g.mat.y, u * u) }, flat, 1.08 - 0.08 * u, -0.14 * u);
+    }
+    const age = t - p.impactAt;
+    const landed = t - p.bounceEnd!;
+    const sq = c.squash * 3 * Math.max(0, spring(age, 3.2, 130)) + (landed >= 0 ? c.squash * 0.9 * Math.max(0, spring(landed, 5, 70)) : 0);
+    return abs({ x: g.mat.x, y: g.mat.y - dR * c.bounce * hump(t, p.impactAt + 30, Math.max(40, c.bounceMs - 30)) }, flat + s * 5 * hump(t, p.impactAt + 30, Math.max(40, c.bounceMs - 30)), 1, sq);
+  }
+  if (p.kind === 'elbow') {
+    const downAt = p.downAt!;
+    const flat = -s * 90;
+    if (t < downAt) {
+      // SHOVED: it tips over backward onto the mat.
+      const u = win(t, p.gripAt, downAt);
+      if (u < 0.3) return abs(d);
+      const v = (u - 0.3) / 0.7;
+      const q = lerpPt(d, g.mat, easeOutCubic(v));
+      return abs({ x: q.x, y: q.y - dR * 0.22 * Math.sin(Math.PI * v) }, flat * easeIn(v));
+    }
+    if (t < p.impactAt) {
+      // Flat on its back, looking up: a nervous wriggle as the spotlight finds it.
+      const w = win(t, p.perchAt!, p.impactAt);
+      return abs({ x: g.mat.x + jit(t, 0.05, 0.6) * dR * 0.03 * w, y: g.mat.y }, flat + Math.sin((t - downAt) * 0.03) * 4 * w, 1, c.squash * 1.2 * Math.max(0, spring(t - downAt, 4, 80)));
+    }
+    // THE ELBOW LANDS: flattened hard, bounced off the mat once.
+    const age = t - p.impactAt;
+    const landed = t - p.bounceEnd!;
+    const up = hump(t, p.impactAt + 30, Math.max(40, c.bounceMs - 30));
+    return abs({ x: g.mat.x, y: g.mat.y - dR * c.bounce * 0.6 * up }, flat + s * 4 * up, 1, c.squash * 3.3 * Math.max(0, spring(age, 3, 160)) + (landed >= 0 ? c.squash * 0.9 * Math.max(0, spring(landed, 5, 70)) : 0));
+  }
+  // IV: THE FINISHER.
+  const whipAt = p.whipAt!, ropeAt = p.ropeAt!, flingAt = p.flingAt!, landAt = p.landAt!;
+  const held = { x: d.x + s * dR * 0.18, y: d.y };
+  if (t < whipAt) {
+    const e = easeInOutSine(win(t, p.gripAt, whipAt));
+    return abs(lerpPt(d, held, e), s * 6 * e);
+  }
+  if (t < ropeAt) {
+    // WHIPPED across the ring: running, leaning into it.
+    const u = win(t, whipAt, ropeAt);
+    const q = lerpPt(held, g.ropeHit, 0.35 * u + 0.65 * u * u);
+    return abs({ x: q.x, y: q.y - dR * 0.07 * Math.abs(Math.sin(Math.PI * 3 * u)) }, s * 6 + s * 10 * Math.min(1, u * 4), 1);
+  }
+  if (t < flingAt) {
+    // INTO THE ROPES: they stretch out with it, and it is narrowed against them.
+    const u = win(t, ropeAt, flingAt);
+    const k = ropeStretch(u);
+    return abs(lerpPt(g.ropeHit, g.ropeMax, k), s * 16 * (1 - 2 * u), 1, -0.2 * Math.min(1, k));
   }
   if (t < p.impactAt) {
-    // THE HAYMAKER: rear back, then lunge in.
-    const w = win(t, brawlEnd, p.impactAt);
-    const back = w < 0.7 ? -aR * 0.45 * easeOutCubic(w / 0.7) : -aR * 0.45 + aR * 0.85 * easeIn((w - 0.7) / 0.3);
-    pose.x = mound.x + u.x * back; pose.y = mound.y + u.y * back;
-    pose.rot = (w < 0.7 ? -16 * easeOutCubic(w / 0.7) : -16 + 36 * easeIn((w - 0.7) / 0.3)) * leanToward(u);
-    pose.scale = 1.08 + 0.06 * w;
-    return pose;
+    // FLUNG BACK.
+    const u = win(t, flingAt, p.impactAt);
+    const q = lerpPt(g.ropeHit, g.meet, 1 - Math.pow(1 - u, 1.5));
+    return abs({ x: q.x, y: q.y - dR * 0.06 * Math.abs(Math.sin(Math.PI * 2 * u)) }, -s * 16, 1);
   }
-  // After the haymaker: follow through at the mound, then hop home.
-  const fwd = aR * 0.4 * (1 - easeOutCubic(win(t, p.impactAt, p.homeAt)));
-  const home = easeInOutSine(win(t, p.homeAt, p.homeEnd));
-  pose.x = (mound.x + u.x * fwd) * (1 - home); pose.y = (mound.y + u.y * fwd) * (1 - home) - Math.sin(Math.PI * home) * aR * 0.25;
-  pose.rot = 20 * leanToward(u) * (1 - easeOutCubic(win(t, p.impactAt, p.homeAt + 120)));
-  pose.scale = 1 + 0.12 * (1 - home);
-  if (t >= p.homeEnd) pose.squash = c.squash * 0.4 * Math.max(0, spring(t - p.homeEnd, 4, 60));
-  return pose;
+  const flat = s * 90;
+  if (t < landAt) {
+    // CLOTHESLINED: its feet fly on, it flips flat in the air and comes down on its back.
+    const u = win(t, p.impactAt, landAt);
+    const e = 1 - Math.pow(1 - u, 1.6);
+    const turned = -s * 16 + (flat + s * 360 * Math.round(c.flipTurns) + s * 16) * e;
+    return abs({ x: lerp(g.meet.x, g.mat.x, easeOutCubic(u)), y: lerp(g.meet.y, g.mat.y, u) - dR * 1.35 * 4 * u * (1 - u) }, turned, 1 + 0.08 * Math.sin(Math.PI * u));
+  }
+  // On its back for the count.
+  const age = t - landAt;
+  let press = 0;
+  for (const at of p.counts) press = Math.max(press, hump(t, at - 40, 200));
+  const pinned = t - p.pinAt!;
+  return abs({ x: g.mat.x, y: g.mat.y - dR * 0.24 * hump(t, landAt + 20, 220) }, flat, 1, c.squash * 3 * Math.max(0, spring(age, 3.5, 120)) + (pinned >= 0 ? c.squash * 1.8 * Math.max(0, spring(pinned, 4, 90)) : 0) + 0.09 * press);
 }
 
-/** The PITCHER (the struck portrait) at sequence time `t` (its slot is (0, 0)). Pure and deterministic. */
-export function pitcherPose(p: BaseballPlan, g: BaseballGeo, c: HeroWrestleConfig, dR: number, t: number): BaseballPose {
+/** A portrait's whole path: at rest, the walk in (the striker), the move, then home with a little hop. */
+function poseOf(x: WrestleCtx, t: number, slot: Pt, R: number, striker: boolean): WrestlePose {
+  const { p, g, c } = x;
   if (p.reduced || t < p.chargeAt || t >= p.endAt) return { ...REST };
-  const pose = { ...REST };
-  const u = g.u; // toward the pitcher from the batter: +u is BACK for the pitcher
-  // THE WINDUP: rocks back (the leg kick lifts it a touch), then the lunge on the release, then it recovers.
-  if (t >= p.windAt) {
-    const w = win(t, p.windAt, p.releaseAt);
-    const rock = Math.sin(Math.PI * Math.min(1, w / 0.85)) * (w < 0.85 ? 1 : 0);
-    const back = dR * c.windupBack * rock;
-    const after = t >= p.releaseAt ? t - p.releaseAt : -1;
-    const lunge = after >= 0 ? dR * c.lunge * (after < 90 ? easeOutCubic(after / 90) : Math.max(0, 1 - (after - 90) / 260)) : 0;
-    pose.x = u.x * (back - lunge); pose.y = u.y * (back - lunge) - dR * 0.1 * rock;
-    pose.rot = c.windupLean * leanToward(u) * rock - c.windupLean * 0.7 * leanToward(u) * (lunge / Math.max(1, dR * c.lunge));
-    pose.scale = 1 + 0.05 * rock;
-  }
-  if (p.kind === 'moonshot' && p.apexAt !== null && t >= p.apexAt && t < p.impactAt) {
-    // PANIC: looking round as the shadow grows, shuffling side to side faster and faster.
-    const w = win(t, p.apexAt, p.impactAt);
-    const sh = Math.sin((t - p.apexAt) * (0.012 + 0.03 * w)) * dR * c.panic * (0.4 + w);
-    pose.x += g.n.x * sh; pose.y += g.n.y * sh;
-    pose.rot += Math.sin((t - p.apexAt) * 0.02) * 8 * (0.3 + w);
-  }
-  if (p.kind === 'brawl') {
-    const bean = p.beanAt!, hitAt = p.collideAt!, brawlEnd = p.brawlEnd!;
-    if (t >= bean && t < hitAt) {
-      // Uh oh: it backs up a step and trembles as the batter comes.
-      const w = easeOutCubic(win(t, p.chargeRunAt!, hitAt));
-      pose.x += u.x * dR * 0.12 * w + jit(t, 0.15, 0.4) * dR * 0.02 * w;
-      pose.y += u.y * dR * 0.12 * w;
+  const acting = striker ? strikerActing : victimActing;
+  let q: Abs;
+  if (t < p.walkAt) {
+    // The striker gathers itself: a small crouch.
+    q = abs(slot, 0, 1, striker ? c.squash * 0.7 * easeInOutSine(win(t, p.chargeAt, p.walkAt)) : 0);
+  } else if (t < p.gripAt) {
+    if (!striker) q = abs(slot);
+    else {
+      // THE WALK IN: three strides, rocking, a little bigger as it squares up.
+      const u = win(t, p.walkAt, p.gripAt);
+      const e = easeInOutSine(u);
+      const at = lerpPt(slot, g.grab, e);
+      q = abs({ x: at.x, y: at.y - R * 0.1 * Math.abs(Math.sin(Math.PI * 3 * u)) }, Math.sin(Math.PI * 6 * u) * 3.5, 1, c.squash * 0.7 * (1 - Math.min(1, u * 5)));
     }
-    if (t >= hitAt && t < p.impactAt) {
-      // Dragged into the cloud on the collision (quick), shaking in it, popping out on the hits.
-      const pull = easeOutCubic(win(t, hitAt, hitAt + 110));
-      const base = { x: u.x * dR * 0.12 * (1 - pull) + g.pitcherBrawl.x * pull, y: u.y * dR * 0.12 * (1 - pull) + g.pitcherBrawl.y * pull };
-      const J = c.brawlJitter * dR;
-      let pop = 0;
-      for (let i = 0; i < p.hits.length; i++) {
-        const h = p.hits[i]!;
-        if (t >= h && t < h + 140) pop = Math.max(pop, Math.sin(Math.PI * ((t - h) / 140)) * (i % 2 ? 1 : -1));
-      }
-      const settle = t >= brawlEnd ? 1 - win(t, brawlEnd, p.impactAt) * 0.6 : 1;
-      pose.x = base.x + (jit(t, 0.08, 1.4) * J * 0.26 + u.x * pop * dR * 0.25) * settle + g.n.x * pop * dR * 0.15;
-      pose.y = base.y + (jit(t, 0.1, 0.5) * J * 0.22 + u.y * pop * dR * 0.25) * settle + g.n.y * pop * dR * 0.15;
-      pose.rot = jit(t, 0.06, 2.4) * 16 * c.brawlJitter * settle;
-      pose.squash = 0.06 * pop * c.brawlJitter;
-      pose.scale = t >= brawlEnd ? 1 - 0.06 * win(t, brawlEnd, p.impactAt) : 1;
-    }
+  } else if (t < p.homeAt) {
+    q = acting(x, t);
+  } else {
+    // HOME: both get up and go back to their slots.
+    const from = acting(x, p.homeAt - 0.001);
+    const e = easeInOutSine(win(t, p.homeAt, p.homeEnd));
+    const settle = t >= p.homeEnd ? c.squash * 0.4 * Math.max(0, spring(t - p.homeEnd, 4, 60)) : 0;
+    q = abs({ x: lerp(from.x, slot.x, e), y: lerp(from.y, slot.y, e) - R * 0.22 * Math.sin(Math.PI * e) }, from.rot * (1 - easeOutCubic(win(t, p.homeAt, p.homeEnd))), lerp(from.scale, 1, e), from.squash * (1 - e) + settle);
   }
-  // THE IMPACT: the reaction, by play.
-  if (t >= p.impactAt) {
-    const age = t - p.impactAt;
-    const kpx = 26 * p.knock;
-    if (p.kind === 'brawl') {
-      // LAUNCHED: flung away (kept on screen), spinning, then it springs back home.
-      const out = age < 140 ? easeOutCubic(age / 140) : 1;
-      const back = easeInOutSine(win(t, p.homeAt, p.homeEnd));
-      const k = (1 - back);
-      pose.x = (g.pitcherBrawl.x + (g.launch.x - g.pitcherBrawl.x) * out) * k; pose.y = (g.pitcherBrawl.y + (g.launch.y - g.pitcherBrawl.y) * out) * k;
-      pose.rot = c.koSpin * 360 * leanToward(u) * easeOutCubic(Math.min(1, age / 520)) * (1 - back);
-      pose.scale = 1 - 0.15 * out * k;
-      pose.squash = c.squash * 2 * Math.max(0, spring(age, 5, 110));
-      if (t >= p.homeEnd) pose.squash += c.squash * 0.5 * Math.max(0, spring(t - p.homeEnd, 4, 70));
-      return pose;
-    }
-    // The foul tip comes from BEHIND: it knocks the pitcher toward the batter.
-    const dir = p.kind === 'hotshot' && p.variant === 3 ? -1 : 1;
-    const kk = spring(age, 4, 110);
-    pose.x += u.x * kpx * kk * dir; pose.y += u.y * kpx * kk * dir;
-    pose.squash += c.squash * (p.kind === 'moonshot' ? 3.2 : 1.1) * Math.max(0, spring(age, p.kind === 'moonshot' ? 3 : 5, p.kind === 'moonshot' ? 180 : 80));
-    if (p.kind === 'hotshot' && p.variant === 1) pose.rot += c.linerSpin * 360 * leanToward(u) * easeOutCubic(Math.min(1, age / 460));
-    else pose.rot += 14 * dir * leanToward(u) * spring(age, 3.5, 160);
-    if (p.kind === 'hotshot' && p.variant === 2) pose.y -= dR * 0.25 * Math.max(0, Math.sin(Math.PI * Math.min(1, age / 260)));
-  }
-  return pose;
+  return { x: q.x - slot.x, y: q.y - slot.y, rot: q.rot, scale: q.scale, squash: q.squash };
 }
 
-// ─── the ball (pure) ───────────────────────────────────────────────────────────────────────────────────────────
+/** The STRIKING portrait at sequence time `t` (its slot is (0, 0)). Pure and deterministic. */
+export function strikerPose(x: WrestleCtx, t: number): WrestlePose { return poseOf(x, t, x.a, x.aR, true); }
+
+/** The STRUCK portrait at sequence time `t` (its slot is (0, 0)). Pure and deterministic. */
+export function victimPose(x: WrestleCtx, t: number): WrestlePose { return poseOf(x, t, x.d, x.dR, false); }
+
+// ─── the ring ropes (IV, pure) ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The ball: `x, y` its point on the GROUND (where its shadow sits), `lift` its height above it (screen px, drawn as an
- * upward offset), `scale` its size (III's moonshot shrinks away and grows back huge), `rot` its spin.
+ * One side of the ring (near or far): its back and front CORNERS (their feet, screen px), how tall the pillar of light
+ * at each stands, and which way is out. The back and front ropes run between the two sides' corners.
  */
-export interface BallState { visible: boolean; x: number; y: number; lift: number; rot: number; scale: number; alpha: number; flying: boolean }
+export interface RingSide { out: 1 | -1; back: Pt; front: Pt; backH: number; frontH: number }
 
-const HIDDEN: BallState = { visible: false, x: 0, y: 0, lift: 0, rot: 0, scale: 1, alpha: 0, flying: false };
+/**
+ * Where the ring's four corners stand (near side first, then the far side): a floor seen in perspective, the back edge
+ * narrower and up the screen (its ropes pass ABOVE the two portraits), the front edge wider and down it (its ropes pass
+ * below them), so the ring frames the play area and nothing is drawn across a face. Pure.
+ */
+export function ringLayout(g: WrestleGeo, aR: number, dR: number): [RingSide, RingSide] {
+  const Rm = (aR + dR) / 2;
+  const side = (x: number, out: 1 | -1): RingSide => ({
+    out,
+    back: { x: x - out * g.ring.half * RING_SKEW, y: g.ring.cy - Rm * RING_BACK },
+    front: { x: x + out * g.ring.half * RING_SKEW, y: g.ring.cy + Rm * RING_FRONT },
+    backH: Rm * 1.5,
+    frontH: Rm * 1.45,
+  });
+  return [side(g.ring.xNear, -g.s as 1 | -1), side(g.ring.xFar, g.s)];
+}
 
-export interface BallCtx { p: BaseballPlan; g: BaseballGeo; c: HeroWrestleConfig; d: Pt; dR: number; aR: number }
+/**
+ * The ring: `rise` 0..1 (standing up, then away), how far each side's ropes are pushed OUT (screen px), and how far the
+ * back and front ropes sag (`drop`, screen px, + = down) as the whole ring shudders under a landing.
+ */
+export interface RingState { visible: boolean; rise: number; alpha: number; near: number; far: number; drop: number }
 
-function cubic(a: Pt, b: Pt, c2: Pt, d: Pt, t: number): Pt {
-  const s = 1 - t;
-  return {
-    x: s * s * s * a.x + 3 * s * s * t * b.x + 3 * s * t * t * c2.x + t * t * t * d.x,
-    y: s * s * s * a.y + 3 * s * s * t * b.y + 3 * s * t * t * c2.y + t * t * t * d.y,
+/** The ring at sequence time `t`. Pure. */
+export function wrestleRing(x: WrestleCtx, t: number): RingState {
+  const { p, g, c, dR } = x;
+  if (p.reduced || p.kind !== 'pin' || t < p.walkAt || t >= p.endAt) return { visible: false, rise: 0, alpha: 0, near: 0, far: 0, drop: 0 };
+  const up = easeOutBack(win(t, p.walkAt, p.walkAt + 320), 1.4);
+  const away = win(t, p.homeAt, p.homeAt + 260);
+  const rise = up * (1 - easeIn(away));
+  const full = Math.abs(g.ropeMax.x - g.ropeHit.x);
+  let far = 0;
+  if (t >= p.ropeAt! && t < p.flingAt!) far = full * ropeStretch(win(t, p.ropeAt!, p.flingAt!));
+  // Let go, they whip back past straight and ring down.
+  else if (t >= p.flingAt!) far = -full * 0.45 * spring(t - p.flingAt!, 5.5, 190) * Math.sin(Math.min(Math.PI / 2, (t - p.flingAt!) / 30));
+  // The near ropes kick as the struck portrait is thrown off them.
+  let near = t >= p.whipAt! ? -dR * 0.16 * spring(t - p.whipAt!, 6, 150) * Math.sin(Math.min(Math.PI / 2, (t - p.whipAt!) / 30)) : 0;
+  // The whole ring shudders under every landing: the body, the cover, and each slap of the mat.
+  let drop = 0;
+  const shudder = (at: number, k: number): void => {
+    if (t < at) return;
+    const w = dR * c.stretch * k * spring(t - at, 7, 150) * Math.sin(Math.min(Math.PI / 2, (t - at) / 24));
+    drop += w; near += w * 0.5; far += w * 0.5;
   };
+  shudder(p.landAt!, 0.26);
+  shudder(p.pinAt!, 0.16);
+  for (const at of p.counts) shudder(at, 0.1);
+  return { visible: rise > 0.004, rise, alpha: clamp01(up * 2) * (1 - away), near, far, drop };
 }
 
-/** Where the ball is at sequence time `t`. Pure and deterministic. */
-export function wrestleBall(x: BallCtx, t: number): BallState {
-  const { p, g, c, d, dR, aR } = x;
-  if (p.reduced || t < p.windAt || t >= p.impactAt) return { ...HIDDEN };
-  const spin = c.spin * Math.PI * 2 / 1000;
-  const lift0 = aR * 0.35; // a pitch and a liner travel about chest high
-  // IN THE PITCHER'S HAND through the windup: tucked at its front, reared back high behind it, then the release.
-  if (t < p.releaseAt) {
-    const w = win(t, p.windAt, p.releaseAt);
-    const pp = pitcherPose(p, g, c, dR, t);
-    const at = { x: d.x + pp.x, y: d.y + pp.y };
-    const front = add(add(at, g.u, -dR * 0.55), g.n, -g.side * dR * 0.35);
-    const behind = add(add(at, g.u, dR * 0.55), g.n, g.side * dR * 0.55);
-    const rel = add(at, g.u, -dR * 0.8);
-    const q = w < 0.7 ? lerpPt(front, behind, easeInOutSine(w / 0.7)) : lerpPt(behind, rel, easeIn((w - 0.7) / 0.3));
-    return { visible: true, x: q.x, y: q.y, lift: lift0 * (0.6 + 0.8 * Math.sin(Math.PI * Math.min(1, w / 0.8))), rot: 0, scale: 1, alpha: clamp01(w * 6), flying: false };
-  }
-  if (t < p.arriveAt) {
-    // THE PITCH: a fastball at the plate (IV: at the batter's face).
-    const e = win(t, p.releaseAt, p.arriveAt);
-    const to = p.kind === 'brawl' ? g.bean : g.plate;
-    const q = lerpPt(g.release, to, e);
-    return { visible: true, x: q.x, y: q.y, lift: lift0, rot: (t - p.releaseAt) * spin * 1.5, scale: 1, alpha: 1, flying: true };
-  }
-  if (p.kind === 'brawl') return { ...HIDDEN };
-  const age = t - p.arriveAt;
-  const rot = -age * spin * 2;
-  if (p.kind === 'single' || (p.kind === 'hotshot' && p.variant === 1)) {
-    // A LINER straight back up the middle (II's is flatter and faster, with more spin).
-    const e = win(t, p.arriveAt, p.impactAt);
-    const q = lerpPt(g.plate, g.hit, e);
-    const arc = p.kind === 'single' ? aR * 0.35 : aR * 0.12;
-    return { visible: true, x: q.x, y: q.y, lift: lift0 + arc * 4 * e * (1 - e), rot: rot * (p.kind === 'single' ? 1 : 1.6), scale: 1, alpha: 1, flying: true };
-  }
-  if (p.kind === 'hotshot' && p.variant === 2) {
-    // THE ONE-HOP GROUNDER: chopped down into the dirt, one big hop up into the pitcher.
-    const hop = p.hopAt!;
-    if (t < hop) {
-      const e = win(t, p.arriveAt, hop);
-      const q = lerpPt(g.plate, g.hop, e);
-      return { visible: true, x: q.x, y: q.y, lift: lift0 * (1 - e * e), rot, scale: 1, alpha: 1, flying: true };
-    }
-    const e = win(t, hop, p.impactAt);
-    const q = lerpPt(g.hop, g.hit, e);
-    const h = aR * c.hopHeight;
-    return { visible: true, x: q.x, y: q.y, lift: h * 4 * e * (1 - e) + lift0 * e * e, rot, scale: 1, alpha: 1, flying: true };
-  }
-  if (p.kind === 'hotshot') {
-    // THE FOUL TIP BOOMERANG: off foul, a wide loop round the field, back into the pitcher from behind.
-    const e = easeInOutSine(win(t, p.arriveAt, p.impactAt));
-    const q = cubic(g.plate, g.foul1, g.foul2, g.hit, e);
-    return { visible: true, x: q.x, y: q.y, lift: lift0 + aR * 0.5 * Math.sin(Math.PI * e), rot, scale: 1, alpha: 1, flying: true };
-  }
-  // III: THE MOONSHOT. Up and away off the top (shrinking), gone, then down from the sky onto the pitcher (growing).
-  if (t < p.apexAt!) {
-    const e = easeOutCubic(win(t, p.arriveAt, p.apexAt!));
-    const ground = lerpPt(g.plate, g.hit, e * 0.5);
-    const top = lerpPt(g.plate, g.sky, e);
-    return { visible: true, x: ground.x, y: ground.y, lift: Math.max(0, ground.y - top.y) + lift0 * (1 - e), rot, scale: 1 - 0.65 * e, alpha: 1, flying: true };
-  }
-  if (t < p.dropAt!) return { ...HIDDEN, x: g.hit.x, y: g.hit.y };
-  const e = easeIn(win(t, p.dropAt!, p.impactAt));
-  const top = lerpPt(g.skyDrop, g.hit, e);
-  return { visible: true, x: g.hit.x, y: g.hit.y, lift: Math.max(0, g.hit.y - top.y), rot, scale: 0.35 + (c.moonSize - 0.35) * e, alpha: 1, flying: true };
+// ─── the spotlight, the elbow and the shadow (pure) ────────────────────────────────────────────────────────────
+
+/** III's spotlight: from a point on the top edge to where it points, at `alpha`. */
+export interface SpotState { visible: boolean; fromX: number; fromY: number; toX: number; toY: number; alpha: number }
+
+/** The spotlight at sequence time `t`: it comes on as the striker leaves the screen, swings round and finds the one on the mat. */
+export function wrestleSpot(x: WrestleCtx, t: number, topY = 0): SpotState {
+  const { p, g, c, dR } = x;
+  if (p.reduced || p.kind !== 'elbow' || p.perchAt === null || t < p.perchAt - 80 || t >= p.impactAt + 160 || c.spot <= 0) return { visible: false, fromX: 0, fromY: 0, toX: 0, toY: 0, alpha: 0 };
+  const on = win(t, p.perchAt - 80, p.perchAt + 60) * (1 - win(t, p.impactAt, p.impactAt + 160));
+  // It hunts: starting off to one side, it swings over and settles on the target (a little overshoot).
+  const find = easeOutBack(win(t, p.perchAt, p.perchAt + Math.max(120, c.perchMs * 0.7)), 1.8);
+  return { visible: on > 0.004, fromX: g.mat.x, fromY: topY, toX: g.mat.x + g.s * dR * 2.4 * (1 - find), toY: g.mat.y, alpha: on * Math.min(1, c.spot) };
 }
 
-/** III: how far the falling ball's shadow has grown on the pitcher (0..1), from the apex to the crash. Pure. */
-export function moonShadow(p: BaseballPlan, t: number): number {
-  if (p.kind !== 'moonshot' || p.apexAt === null || t < p.apexAt || t >= p.impactAt) return 0;
-  return easeIn(win(t, p.apexAt, p.impactAt));
+/** III's elbow star, leading the dive. */
+export interface ElbowState { visible: boolean; x: number; y: number; rot: number; scale: number }
+
+export function wrestleElbow(x: WrestleCtx, t: number): ElbowState {
+  const { p, g, aR } = x;
+  if (p.reduced || p.kind !== 'elbow' || p.diveAt === null || t < p.diveAt || t >= p.impactAt) return { visible: false, x: 0, y: 0, rot: 0, scale: 0 };
+  const e = easeIn(win(t, p.diveAt, p.impactAt));
+  const at = lerpPt(g.sky, g.cover, e);
+  return { visible: true, x: at.x, y: at.y + aR * 1.1, rot: (t - p.diveAt) * 0.012, scale: 0.75 + 0.25 * Math.sin((t - p.diveAt) * 0.05) };
 }
 
-// ─── the bat (pure) ────────────────────────────────────────────────────────────────────────────────────────────
-
-/** The bat: its HANDLE end at (x, y) (screen px), pointing along `rot` (radians), lifted `lift` px, drawn at `alpha`. */
-export interface BatState { visible: boolean; x: number; y: number; lift: number; rot: number; alpha: number }
-
-const angleOf = (v: Pt): number => Math.atan2(v.y, v.x);
-/** The signed shortest turn from `a` to `b` (radians). */
-const turn = (a: number, b: number): number => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
-
-/** The swing's three angles: cocked over the shoulder, at contact (across the front), the follow-through. Pure. */
-export function swingAngles(g: BaseballGeo): { cock: number; contact: number; follow: number } {
-  const contact = angleOf({ x: -g.side * g.n.x, y: -g.side * g.n.y });
-  const back = angleOf({ x: -g.u.x, y: -g.u.y });
-  const d = turn(back, contact);
-  const cock = contact - d * 1.15;
-  return { cock, contact, follow: contact + d * 1.25 };
-}
-
-export interface BatCtx extends BallCtx { a: Pt }
-
-/** Where the bat is at sequence time `t`. Pure and deterministic. */
-export function wrestleBat(x: BatCtx, t: number): BatState {
-  const { p, g, c, a, aR } = x;
-  if (p.reduced || t < p.chargeAt || t >= p.endAt) return { visible: false, x: 0, y: 0, lift: 0, rot: 0, alpha: 0 };
-  const bp = batterPose(p, g, c, aR, a, t);
-  const hands = { x: g.hands.x + bp.x, y: g.hands.y + bp.y };
-  const A = swingAngles(g);
-  const alphaIn = clamp01((t - p.chargeAt) / 140);
-  const alphaOut = 1 - clamp01((t - (p.endAt - 240)) / 240);
-  const alpha = alphaIn * alphaOut;
-  const waggle = Math.sin(t * 0.012) * 0.08 * (t < p.swingAt ? 1 : 0);
-  if (p.kind !== 'brawl') {
-    let rot: number;
-    if (t < p.swingAt) rot = A.cock + waggle;
-    else if (t < p.arriveAt) rot = A.cock + (A.contact - A.cock) * easeIn(win(t, p.swingAt, p.arriveAt));
-    else rot = A.contact + (A.follow - A.contact) * easeOutCubic(win(t, p.arriveAt, p.swingEnd));
-    if (p.kind === 'moonshot' && t >= p.arriveAt + 60) {
-      // THE BAT FLIP: tossed up and spinning, it clatters down beside the batter and lies there.
-      const t0 = p.arriveAt + 60, t1 = p.batLandAt!;
-      const w = win(t, t0, t1);
-      const from = { x: hands.x, y: hands.y };
-      const q = lerpPt(from, g.batLand, easeOutCubic(w));
-      const lift = aR * c.batFlipHeight * 4 * w * (1 - w);
-      const r = A.follow + c.batFlipTurns * Math.PI * 2 * easeOutCubic(w) * -g.side;
-      const bounce = t >= t1 ? aR * 0.12 * Math.max(0, Math.sin(Math.PI * Math.min(1, (t - t1) / 140))) : 0;
-      return { visible: alpha > 0.004, x: q.x, y: q.y, lift: lift + bounce, rot: r, alpha };
-    }
-    if (t >= p.homeAt) rot = A.follow + (A.cock - A.follow) * easeInOutSine(win(t, p.homeAt, p.homeEnd));
-    return { visible: alpha > 0.004, x: hands.x, y: hands.y, lift: 0, rot, alpha };
-  }
-  // IV: cocked in the box; it droops on the bean; SLAMMED down; it lies there through the brawl.
-  if (t < p.batDropAt!) {
-    const droop = t >= p.beanAt! ? 0.9 * easeOutCubic(win(t, p.beanAt!, p.beanAt! + 160)) * g.side : 0;
-    return { visible: alpha > 0.004, x: hands.x, y: hands.y, lift: 0, rot: A.cock + waggle + droop, alpha };
-  }
-  const w = win(t, p.batDropAt!, p.clatterAt!);
-  const q = lerpPt(hands, g.batSlam, easeIn(w));
-  const r = A.cock + (Math.PI * 1.25 * g.side) * easeIn(w);
-  const bounce = t >= p.clatterAt! ? aR * 0.18 * Math.max(0, Math.sin(Math.PI * Math.min(1, (t - p.clatterAt!) / 150))) : 0;
-  return { visible: alpha > 0.004, x: q.x, y: q.y, lift: aR * 0.2 * (1 - w) + bounce, rot: r, alpha };
-}
-
-// ─── slow mo (pure) ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-/** The slow-mo window in SEQUENCE ms (a real-time length at a factor is `real * factor` of sequence time). */
-export function slowWindow(p: BaseballPlan, c: HeroWrestleConfig): { a: number; b: number; factor: number } | null {
-  if (p.reduced) return null;
-  if (p.kind === 'moonshot' && c.contactSlowMs > 0 && c.contactSlow < 1) {
-    const len = c.contactSlowMs * c.contactSlow;
-    return { a: p.arriveAt - len * 0.5, b: p.arriveAt + len * 0.5, factor: c.contactSlow };
-  }
-  if (p.kind === 'brawl' && c.beanSlowMs > 0 && c.beanSlow < 1 && p.beanAt !== null) {
-    const len = c.beanSlowMs * c.beanSlow;
-    return { a: p.beanAt - len * 0.35, b: p.beanAt + len * 0.65, factor: c.beanSlow };
-  }
-  return null;
-}
-
-/**
- * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the contact; IV slows around the bean, then
- * runs FAST through the brawl (the owner's "over the top fast attack sequence"). A smooth ramp, always > 0. Pure.
- */
-export function wrestleTimeScale(p: BaseballPlan, c: HeroWrestleConfig, t: number): number {
-  const w = slowWindow(p, c);
-  let k = 1;
-  if (w) k -= (1 - w.factor) * windowAt(t, w.a, w.b, Math.max(1, c.slowRampMs));
-  if (p.kind === 'brawl' && p.collideAt !== null && p.brawlEnd !== null && c.brawlBoost > 1) {
-    k += (c.brawlBoost - 1) * windowAt(t, p.collideAt + 30, p.brawlEnd - 30, 50);
-  }
-  return Math.max(0.05, k);
-}
-
-/** How much longer (real ms at speed 1) the slow mo makes the attack (negative when the speed-up wins). Pure. */
-export function slowExtraMs(p: BaseballPlan, c: HeroWrestleConfig): number {
-  if (p.reduced) return 0;
-  let extra = 0;
-  const step = 4;
-  for (let t = 0; t < p.endAt; t += step) extra += step / wrestleTimeScale(p, c, t) - step;
-  return Math.max(0, extra);
+/** What is about to land casts a growing shadow on the mat: II under the one held overhead, III on the one lying there. */
+export function wrestleShadow(x: WrestleCtx, t: number): { at: Pt; k: number } {
+  const { p, g } = x;
+  if (p.reduced) return { at: g.mat, k: 0 };
+  if (p.kind === 'slam' && t >= p.liftAt! && t < p.impactAt) return { at: g.mat, k: 0.35 * easeInOutSine(win(t, p.liftAt!, p.topAt!)) + 0.65 * easeIn(win(t, p.slamAt!, p.impactAt)) };
+  if (p.kind === 'elbow' && t >= p.perchAt! && t < p.impactAt) return { at: g.mat, k: 0.3 * win(t, p.perchAt!, p.diveAt!) + 0.7 * easeIn(win(t, p.diveAt!, p.impactAt)) };
+  return { at: g.mat, k: 0 };
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The camera: it pushes in on the pitcher while the ball flies back (I-III) or through the brawl (IV), punches and shakes
- * on the impact along the blow; IV jolts on the bean and on every brawl hit. Pure.
+ * The camera: it pushes in while the two are locked up (from the grip to the impact), punches and shakes on the impact
+ * along the blow (`dir`: sideways for the chop and the clothesline, straight down for the slam and the elbow), and jolts
+ * a little on the ticks (the ropes, a landing, each slap of the mat). Pure.
  */
-export function wrestleCameraAt(p: BaseballPlan, c: HeroWrestleConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
+export function wrestleCameraAt(p: WrestlePlan, c: HeroWrestleConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
-  const inFrom = p.kind === 'brawl' ? p.chargeRunAt! : p.arriveAt - 80;
-  const push = t < inFrom ? 0 : t < p.impactAt ? easeInOutSine((t - inFrom) / Math.max(1, p.impactAt - inFrom)) : 1 - easeInOutSine((t - p.impactAt) / Math.max(1, c.zoomOutMs));
+  const push = t < p.gripAt ? 0 : t < p.impactAt ? easeInOutSine((t - p.gripAt) / Math.max(1, p.impactAt - p.gripAt)) : 1 - easeInOutSine((t - p.impactAt) / Math.max(1, c.zoomOutMs));
   let z = p.zoom * clamp01(push);
-  const sw = slowWindow(p, c);
-  if (sw) z += c.slowZoom * windowAt(t, sw.a, sw.b, Math.max(1, c.slowRampMs) * 2);
   let x = 0, y = 0;
   const tau = Math.max(1, c.shakeMs / 4);
-  if (p.kind === 'brawl') {
-    if (p.beanAt !== null && t >= p.beanAt) { const s = spring(t - p.beanAt, 14, 60) * p.shakePx * 0.3; x -= dir.x * s; y -= dir.y * s; }
-    for (let i = 0; i < p.hits.length; i++) {
-      const h = p.hits[i]!;
-      if (t < h || t > h + 200) continue;
-      const s = spring(t - h, 16, 40) * p.shakePx * 0.25;
-      const a = i * 2.4;
-      x += Math.cos(a) * s; y += Math.sin(a) * s;
-    }
+  for (const j of p.jolts) {
+    if (t < j.at || t > j.at + 400) continue;
+    const sh = spring(t - j.at, 14, 55) * p.shakePx * j.k;
+    if (j.vertical) y += sh; else x += dir.x >= 0 ? sh : -sh;
   }
   if (t >= p.impactAt) {
     const age = t - p.impactAt;
     z += p.punch * Math.exp(-age / tau);
-    const s = spring(age, 15, tau) * p.shakePx;
-    x += dir.x * s; y += dir.y * s;
-    if (p.kind === 'brawl' || p.kind === 'moonshot') {
-      const r = p.shakePx * 0.4 * Math.exp(-age / (tau * 2));
+    const sh = spring(age, 15, tau) * p.shakePx;
+    x += dir.x * sh; y += dir.y * sh;
+    if (p.kind !== 'chop') {
+      const r = p.shakePx * 0.35 * Math.exp(-age / (tau * 2));
       x += Math.sin(age * 0.137) * r; y += Math.cos(age * 0.101) * r;
     }
   }

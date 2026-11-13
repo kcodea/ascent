@@ -14,15 +14,18 @@
  *    its tip. The moving stars (the string, the arrow, the bow tips, the reaching arm) carry their lines with them, so
  *    the string bends into a V as the bow draws. A soft GLOW builds behind the figure as each star joins it, and the
  *    higher the look the thicker and brighter its lines.
- *  - III's GHOST: a soft capsule along each body line, a soft head and torso, faint, for a beat.
- *  - IV's PORTRAIT: the striking hero's own portrait, faint and cold, inside the medallion.
- *  - THE SHOT: a bolt of starlight on a curved PATH: a bright head (the arrow; IV a large white-gold comet) and a long
- *    luminous tail laid in segments along the path, which hangs there after the blow and drains toward the hit.
- *  - IV's HELD BREATH: the plucked star swells and blazes, motes of light stream into it, every other star dims and
- *    leans toward it.
+ *  - THE GHOST BODY (the hunter, the giant): a soft capsule along each body line, a soft head and torso, faint.
+ *  - Written in the stars: the striking hero's own portrait, faint and cold, inside the medallion.
+ *  - THE SHOT: a bolt of starlight on a curved PATH: a bright head (an arrow, a large white-gold comet, or a spark at
+ *    the nose of a leaping wolf, a striking serpent, a falling fist or a beam) and a long luminous tail laid in
+ *    segments along the path, which hangs there after the blow and drains toward the hit. RIDING stars move with the
+ *    head (the wolf whole, tipping with its leap; the serpent's head with its body stretching after it; the fist).
+ *  - THE WHEEL turns its stars about its pivot; THE NOVA draws every star of the sky into its heart.
+ *  - Tier 4's HELD BREATH: the charging star swells and blazes, motes of light stream into it, every other star dims
+ *    and leans toward it.
  *  - THE BLOW: a nova of stardust that expands and hangs, a flash over the whole sky, rings, and a JOLT that travels
  *    outward through every star (they are shoved away from the hit and spring back). All of it scales with the tier.
- *    IV's constellation lines flare and then SCATTER into sparks that drift down.
+ *    Tier 4's lines and the beasts flare and then SCATTER into sparks that drift down.
  *
  * Perf: pooled sprites under a hard cap; the sky, the constellation and the shot are own sprites made once per attack
  * and only moved, scaled and faded after that (transform, alpha and tint writes only).
@@ -32,7 +35,7 @@ import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { clamp01, mixColor, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
 import { KO_CYAN, KO_LILAC, KO_MAGENTA } from '../heroAttack/knockout';
-import type { Box, StarFigure } from './heroStarsConfig';
+import type { Box, ShotHead, StarFigure } from './heroStarsConfig';
 import { ARROW_W, DOT_PX, GLINT_PX, HALO_PX, LIMB_H, LIMB_W, LINE_H, LINE_W, VEIL_H, VEIL_W } from './heroStarsTextures';
 
 export interface HeroStarsTextures extends HeroArcanaTextures {
@@ -57,7 +60,7 @@ export interface StarsLook {
   impactSize: number;
   /** The look (1..4): the higher, the thicker and brighter the lines, the bigger the shot and the blow. */
   tier: number;
-  /** IV: how far the plucked star swells (x its own size), and how far the rest of the sky dims while it does. */
+  /** Tier 4: how far the charging star swells (x its own size), and how far the rest of the sky dims while it does. */
   swell: number;
   hush: number;
 }
@@ -74,18 +77,26 @@ export interface SkyFrame {
   draw: number;
   /** How alive the figure is (0 while traced, 1 once it has brightened). */
   alive: number;
-  /** III's ghost body / IV's portrait (0..1). */
+  /** Tier 3's ghost body / Tier 4's portrait (0..1). */
   ghost: number;
-  /** The arrow's stars and lines (and IV's plucked star): 1 until they leave with the shot, then 0. */
+  /** The arrow's stars and lines (and Tier 4's plucked star): 1 until they leave with the shot, then 0. */
   arrow: number;
-  /** IV: how brightly the star being plucked burns (0..1). */
+  /** Tier 4: how brightly the charging star burns (0..1). */
   pluck: number;
-  /** IV: how far the plucked star has swollen (0..1), and the sky's held breath (0..1: the other stars dim and lean in). */
+  /** Tier 4: how far the charging star has swollen (0..1), and the sky's held breath (0..1: the other stars dim and lean in). */
   swell: number;
   hush: number;
+  /** The wheel: how far its stars have turned (radians). */
+  spin: number;
+  /** How far along its path the shot is (0 until the loose, 1 from the blow): the riding stars follow it. */
+  ride: number;
+  /** Whether the shot has left (the riding stars then stay at full draw instead of springing back). */
+  loosed: boolean;
+  /** The nova: how far the sky has been drawn into its heart (0..1). */
+  gather: number;
   /** After the blow: the constellation's lines flare (0..1). */
   flare: number;
-  /** How much of the constellation is still drawn (IV: 1 until its lines scatter, then 0). */
+  /** How much of the constellation is still drawn (Tier 4: 1 until its lines scatter, then 0). */
   fig: number;
   /** When the blow landed (the stars shimmer and jolt outward from it), or Infinity. */
   shimmerAt: number;
@@ -93,7 +104,7 @@ export interface SkyFrame {
   shimmerY: number;
 }
 
-/** Hard cap on sprites alive at once (IV's sky, medallion, comet, nova and falling sparks peak well under it). */
+/** Hard cap on sprites alive at once (Tier 4's sky, medallion, comet, nova and falling sparks peak well under it). */
 export const MAX_STARS_SPRITES = 900;
 /** How many segments the shot's tail is laid in along its path. */
 export const TAIL_SEGMENTS = 20;
@@ -104,7 +115,7 @@ interface SkyStar { s: Sprite; x: number; y: number; a: number; size: number; ph
 interface FigSprites { glint: Sprite; halo: Sprite }
 interface Shot {
   body: Sprite; glint: Sprite; glow: Sprite; core: Sprite; tail: Sprite[]; under: Sprite[];
-  star: boolean; on: boolean; x: number; y: number; acc: number; tailPx: number; headPx: number;
+  lead: ShotHead; on: boolean; x: number; y: number; acc: number; tailPx: number; headPx: number;
   x0: number; y0: number; cx: number; cy: number; x1: number; y1: number;
 }
 
@@ -213,8 +224,10 @@ export class HeroStarsScene extends FxPool {
     if (this.aura) {
       const U = fig.unit;
       this.aura.position.set(fig.centre.x, fig.centre.y);
-      if (fig.kind === 'hunter') this.aura.scale.set((U * 1.25) / GLOW_PX, (U * 1.7) / GLOW_PX);
-      else this.aura.scale.set((U * (fig.kind === 'written' ? 3.7 : 4.4)) / GLOW_PX);
+      if (fig.kind === 'hunter' || fig.kind === 'serpent') this.aura.scale.set((U * 1.25) / GLOW_PX, (U * 1.7) / GLOW_PX);
+      else if (fig.kind === 'giant') this.aura.scale.set((U * 0.9) / GLOW_PX, (U * 1.25) / GLOW_PX);
+      else if (fig.kind === 'wolf') this.aura.scale.set((U * 4.6) / GLOW_PX, (U * 2.6) / GLOW_PX);
+      else this.aura.scale.set((U * (fig.kind === 'written' ? 3.7 : fig.kind === 'wheel' ? 3.6 : fig.kind === 'nova' ? 3.4 : 4.4)) / GLOW_PX);
       this.aura.alpha = 0;
     }
     if (fig.medallion) {
@@ -235,8 +248,8 @@ export class HeroStarsScene extends FxPool {
       s.anchor.set(0, 0.5); s.alpha = 0;
       this.lineSprites.push(s);
     }
-    if (fig.pluck >= 0) {
-      // IV: the plucked star's blaze (a wide glow under it and a second, counter-turning set of rays).
+    if (fig.charge >= 0) {
+      // Tier 4: the charging star's blaze (a wide glow under it and a second, counter-turning set of rays).
       this.swellGlow = this.take('glow', this.tex.glow, mixColor(c.gold, c.star, 0.4));
       this.swellRays = this.take('core', this.tex.glint, mixColor(c.star, c.gold, 0.5));
       if (this.swellGlow) this.swellGlow.alpha = 0;
@@ -253,7 +266,7 @@ export class HeroStarsScene extends FxPool {
     this.ownOn = true;
   }
 
-  /** IV: the striking hero's portrait (a round soft-edged texture), shown faintly inside the medallion. */
+  /** Tier 4: the striking hero's portrait (a round soft-edged texture), shown faintly inside the medallion. */
   setPortrait(t: Texture | null): void {
     if (!t || this.portrait || !this.fig?.medallion) return;
     const s = this.take('glow', t, mixColor(this.colors.line, 0xffffff, 0.35));
@@ -267,23 +280,24 @@ export class HeroStarsScene extends FxPool {
 
   /**
    * THE SHOT's path (a quadratic curve from `from` through the control point `ctrl` to `to`) and its sprites: the head
-   * (`star`: IV's comet; else the arrow of starlight with a bright point at its tip), `headPx` across (the arrow:
+   * (`lead`: a comet; an arrow of starlight with a bright point at its tip; or a spark), `headPx` across (the arrow:
    * long), and a tail `tailPx` wide at the head, laid in segments along the path. Made once, hidden until `shotFrame`.
    */
-  setPath(from: Pt, ctrl: Pt, to: Pt, star: boolean, headPx: number, tailPx: number): void {
+  setPath(from: Pt, ctrl: Pt, to: Pt, lead: ShotHead, headPx: number, tailPx: number): void {
     if (this.shot) return;
     const c = this.colors;
     const under: Sprite[] = [], tail: Sprite[] = [];
     for (let i = 0; i < TAIL_SEGMENTS; i++) { const s = this.take('glow', this.tex.limb, mixColor(c.line, c.gold, 0.35)); if (s) { s.alpha = 0; under.push(s); } }
     for (let i = 0; i < TAIL_SEGMENTS; i++) { const s = this.take('glow', this.tex.line, mixColor(c.gold, c.star, 0.6)); if (s) { s.anchor.set(0, 0.5); s.alpha = 0; tail.push(s); } }
     const glow = this.take('glow', this.tex.glow, c.gold);
+    const star = lead !== 'arrow';
     const body = this.take('core', star ? this.tex.glint : this.tex.arrow, star ? mixColor(c.star, c.gold, 0.3) : c.star);
     const glint = this.take('core', this.tex.glint, star ? mixColor(c.star, c.gold, 0.5) : 0xffffff);
     const core = this.take('core', this.tex.dot, 0xffffff);
     if (!glow || !body || !glint || !core || tail.length < TAIL_SEGMENTS || under.length < TAIL_SEGMENTS) { for (const s of [glow, body, glint, core, ...tail, ...under]) this.give(s); return; }
     if (!star) body.anchor.set(0.97, 0.5);
     glow.alpha = body.alpha = glint.alpha = core.alpha = 0;
-    this.shot = { body, glint, glow, core, tail, under, star, on: false, x: from.x, y: from.y, acc: 0, tailPx, headPx, x0: from.x, y0: from.y, cx: ctrl.x, cy: ctrl.y, x1: to.x, y1: to.y };
+    this.shot = { body, glint, glow, core, tail, under, lead, on: false, x: from.x, y: from.y, acc: 0, tailPx, headPx, x0: from.x, y0: from.y, cx: ctrl.x, cy: ctrl.y, x1: to.x, y1: to.y };
     this.ownOn = true;
   }
 
@@ -302,7 +316,13 @@ export class HeroStarsScene extends FxPool {
     else {
       const flick = 1 + 0.07 * Math.sin(this.age * 0.05);
       sh.body.position.set(x, y); sh.glint.position.set(x, y); sh.glow.position.set(x, y); sh.core.position.set(x, y);
-      if (sh.star) {
+      if (sh.lead === 'spark') {
+        // A spark: a turning glint and a white core in a gold glow (the stars that ride the shot carry the shape).
+        sh.body.scale.set((sh.headPx * 0.7 * flick) / GLINT_PX); sh.body.rotation = this.age * 0.006;
+        sh.glint.scale.set((sh.headPx * 0.45) / GLINT_PX); sh.glint.rotation = Math.PI / 4 - this.age * 0.008;
+        sh.core.scale.set((sh.headPx * 0.2) / DOT_PX);
+        sh.glow.scale.set((sh.headPx * 1.2 * flick) / GLOW_PX); sh.glow.alpha = 0.75;
+      } else if (sh.lead === 'comet') {
         // The comet: long turning rays, a second set across them, a white-hot core in a wide gold glow.
         sh.body.scale.set((sh.headPx * flick) / GLINT_PX); sh.body.rotation = this.age * 0.004;
         sh.glint.scale.set((sh.headPx * 0.62) / GLINT_PX); sh.glint.rotation = Math.PI / 4 - this.age * 0.006;
@@ -351,32 +371,68 @@ export class HeroStarsScene extends FxPool {
     const jolting = shimmer && this.joltAmp > 0 && t - f.shimmerAt < 1500;
     if (this.veil) this.veil.alpha = Math.min(1, f.veil * sky * (1 + 0.16 * hush));
     if (this.haze) this.haze.alpha = 0.16 * sky * (1 - 0.5 * hush);
-    // The held breath: every other star dims and leans a little toward the star that is about to fall.
-    const dimSky = 1 - this.look.hush * hush;
-    const pk = fig && fig.pluck >= 0 ? fig.stars[fig.pluck]! : null;
-    const lean = pk ? 0.045 * hush : 0;
-    const move = jolting || lean > 0;
+    // The held breath: every other star dims and leans a little toward the star that is charging (where it is now). The
+    // nova instead draws every star of the sky INTO it.
+    const gather = fig?.gather ? clamp01(f.gather) : 0;
+    const ci = fig ? fig.charge : -1;
+    const pkx = ci >= 0 ? (this.px[ci] ?? 0) : 0, pky = ci >= 0 ? (this.py[ci] ?? 0) : 0;
+    const dimSky = fig?.gather ? 1 : 1 - this.look.hush * hush;
+    const lean = ci >= 0 && !fig?.gather ? 0.045 * hush : 0;
+    const move = jolting || lean > 0 || gather > 0 || this.skyMoved;
     for (const st of this.sky) {
       const appear = clamp01(sky * 2.4 - st.delay * 1.3);
       const b = this.wave(f, st.x, st.y);
-      st.s.alpha = Math.min(1, st.a * appear * (1 - tw + tw * (0.5 + 0.5 * Math.sin(this.age * st.speed + st.phase))) * (1 + 1.6 * b) * dimSky);
-      if (shimmer) st.s.scale.set(st.size * (1 + 0.6 * b));
+      let a = st.a * appear * (1 - tw + tw * (0.5 + 0.5 * Math.sin(this.age * st.speed + st.phase))) * (1 + 1.6 * b) * dimSky;
+      let x = st.x, y = st.y, sx = 1;
+      if (gather > 0) {
+        // The near stars go first; each one falls in faster and faster, stretched along its way, and goes out as it arrives.
+        const g = clamp01(gather * 1.7 - st.delay * 0.7);
+        const e = g * g * g;
+        x += (pkx - x) * e; y += (pky - y) * e;
+        sx = 1 + 5 * g * (1 - g) * 4 * (1 - e);
+        a = Math.min(1, a * (1 + 1.5 * g)) * (1 - clamp01((g - 0.82) / 0.18));
+        st.s.rotation = Math.atan2(pky - st.y, pkx - st.x);
+      }
+      st.s.alpha = Math.min(1, a);
+      if (shimmer || gather > 0) st.s.scale.set(st.size * (1 + 0.6 * b) * sx, st.size * (1 + 0.6 * b));
       if (move) {
-        let x = st.x, y = st.y;
-        if (pk) { x += (pk.x - x) * lean; y += (pk.y - y) * lean; }
+        if (lean > 0) { x += (pkx - x) * lean; y += (pky - y) * lean; }
         if (jolting) { this.jolt(f, x, y); x += this.jx; y += this.jy; }
         st.s.position.set(x, y);
-      } else if (this.skyMoved) st.s.position.set(st.x, st.y);
+      }
     }
-    this.skyMoved = move;
+    this.skyMoved = jolting || lean > 0 || gather > 0;
     if (!fig) return;
     const w = f.draw;
     const alive = clamp01(f.alive);
     const dimFig = (1 - 0.45 * this.look.hush * hush) * fg;
+    // The wheel's turn, and where the shot's head is (the riders follow it; the wolf tips with the curve of its leap).
+    const spinC = Math.cos(f.spin), spinS = Math.sin(f.spin), pv = fig.pivot;
+    const sh = this.shot;
+    let rx = 0, ry = 0, tiltC = 1, tiltS = 0;
+    if (sh && f.ride > 0) {
+      const u = clamp01(f.ride), m = 1 - u;
+      rx = m * m * sh.x0 + 2 * m * u * sh.cx + u * u * sh.x1 - sh.x0;
+      ry = m * m * sh.y0 + 2 * m * u * sh.cy + u * u * sh.y1 - sh.y0;
+      if (fig.tilt) {
+        const tu = Math.min(u, 0.999), tm = 1 - tu;
+        const ang = Math.atan2(2 * tm * (sh.cy - sh.y0) + 2 * tu * (sh.y1 - sh.cy), 2 * tm * (sh.cx - sh.x0) + 2 * tu * (sh.x1 - sh.cx));
+        let rel = ang - (fig.facing > 0 ? 0 : Math.PI);
+        rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+        const tilt = Math.max(-0.75, Math.min(0.75, rel * 0.65)) * Math.min(1, u * 6);
+        tiltC = Math.cos(tilt); tiltS = Math.sin(tilt);
+      }
+    }
     let lit = 0;
     for (let i = 0; i < this.starSprites.length; i++) {
       const st = fig.stars[i]!, sp = this.starSprites[i]!;
-      let x = st.x + st.px * w, y = st.y + st.py * w;
+      const wd = st.ride > 0 && f.loosed ? 1 : w;
+      let x = st.x + st.px * wd, y = st.y + st.py * wd;
+      if (st.spin && pv) { const dx = x - pv.x, dy = y - pv.y; x = pv.x + dx * spinC - dy * spinS; y = pv.y + dx * spinS + dy * spinC; }
+      if (st.ride > 0 && sh && f.ride > 0) {
+        if (fig.tilt) { const dx = x - sh.x0, dy = y - sh.y0; x = sh.x0 + dx * tiltC - dy * tiltS; y = sh.y0 + dx * tiltS + dy * tiltC; }
+        x += rx * st.ride; y += ry * st.ride;
+      }
       // At full draw the moving stars tremble a hair (the bow is under strain).
       if (w > 0.96 && (st.px || st.py)) { x += Math.sin(this.age * 0.09 + i) * 0.7 * S; y += Math.cos(this.age * 0.11 + i * 2) * 0.7 * S; }
       if (jolting) { this.jolt(f, x, y); x += this.jx; y += this.jy; }
@@ -388,22 +444,25 @@ export class HeroStarsScene extends FxPool {
       // It POPS as the line reaches it, then settles.
       const pop = u >= 1 ? 1 : (1 + 0.9 * (1 - u)) * clamp01(u * 4);
       const b = this.wave(f, x, y);
-      const burn = st.pluck ? f.pluck : 0;
-      const grow = st.pluck ? this.look.swell * swell * (1 + 0.06 * Math.sin(this.age * 0.04)) : 0;
+      const charging = i === fig.charge;
+      const burn = charging ? f.pluck : 0;
+      const grow = charging ? this.look.swell * (fig.gather ? 1.3 : 1) * swell * (1 + 0.06 * Math.sin(this.age * 0.04)) : 0;
       const flick = 1 + 0.06 * Math.sin(this.age * 0.006 + i * 1.7);
       const size = this.look.starPx * this.starK * S * st.size * pop * (1 + 0.3 * alive + 0.5 * b + 0.9 * burn + grow + 0.5 * flare) * flick;
       const a = Math.min(1, sky * part);
       sp.glint.position.set(x, y); sp.glint.scale.set(size / GLINT_PX); sp.glint.alpha = a;
-      if (st.pluck) sp.glint.rotation = this.age * 0.0012 * (1 + 4 * burn);
+      if (charging) sp.glint.rotation = this.age * 0.0012 * (1 + 4 * burn);
       sp.halo.position.set(x, y); sp.halo.scale.set((size * (1.5 + 0.9 * burn)) / GLOW_PX); sp.halo.alpha = a * Math.min(1, 0.32 + 0.22 * alive + 0.4 * b + 0.45 * burn + 0.4 * flare);
-      if (st.pluck) {
+      if (charging) {
         const g = this.swellGlow, r = this.swellRays;
-        if (g) { g.position.set(x, y); g.scale.set((size * (1.2 + 1.6 * swell)) / GLOW_PX); g.alpha = a * Math.min(1, 1.1 * swell); }
-        if (r) { r.position.set(x, y); r.scale.set((size * 0.66) / GLINT_PX); r.rotation = Math.PI / 4 - this.age * 0.004; r.alpha = a * Math.min(1, 1.6 * swell); }
+        // (The nova's heart is already huge: a smaller, fainter glow there, so its rays carry it.)
+        const gk = fig.gather ? 0.55 : 1;
+        if (g) { g.position.set(x, y); g.scale.set((size * (1.2 + 1.6 * swell * gk) * (fig.gather ? 0.8 : 1)) / GLOW_PX); g.alpha = a * Math.min(1, 1.1 * swell) * (fig.gather ? 0.55 : 1); }
+        if (r) { r.position.set(x, y); r.scale.set((size * (fig.gather ? 0.9 : 0.66)) / GLINT_PX); r.rotation = Math.PI / 4 - this.age * 0.004; r.alpha = a * Math.min(1, 1.6 * swell); }
       }
     }
     this.lit = lit;
-    if (this.swellGlow && (f.arrow <= 0.002 || sky <= 0.002)) { this.swellGlow.alpha = 0; if (this.swellRays) this.swellRays.alpha = 0; }
+    if (this.swellGlow && ((ci >= 0 && (fig.stars[ci]!.pluck || fig.stars[ci]!.arrow) && f.arrow <= 0.002) || sky <= 0.002 || (f.loosed && swell <= 0))) { this.swellGlow.alpha = 0; if (this.swellRays) this.swellRays.alpha = 0; }
     // The glow that builds behind the figure as each star joins it (and flares with the blow).
     if (this.aura) this.aura.alpha = Math.min(0.6, (lit / Math.max(1, this.starSprites.length)) * (0.1 + 0.035 * this.look.tier) * (1 + 0.5 * alive + 2.2 * flare)) * sky * dimFig;
     let pen = 0, drawn = 0;
@@ -434,7 +493,7 @@ export class HeroStarsScene extends FxPool {
     }
     for (let i = pen; i < this.pens.length; i++) this.pens[i]!.alpha = 0;
     this.drawn = drawn;
-    // III's ghost head and torso.
+    // Tier 3's ghost head and torso.
     if (this.bodySprites.length === 2 && fig.head >= 0 && fig.torso.length === 3) {
       const g = clamp01(f.ghost) * this.look.ghostAlpha * sky;
       const head = this.bodySprites[0]!, torso = this.bodySprites[1]!;
@@ -481,15 +540,17 @@ export class HeroStarsScene extends FxPool {
   comeAlive(): void {
     const f = this.fig;
     if (!f) return;
-    this.spawn('glow', this.tex.glow, this.colors.line, f.centre.x, f.centre.y, { dur: 560, from: this.k(f.unit * (f.kind === 'hunter' ? 0.9 : 2.2), GLOW_PX), to: this.k(f.unit * (f.kind === 'hunter' ? 1.4 : 3.4), GLOW_PX), a0: 0.2 + 0.04 * this.look.tier, mode: 'punch', peakAt: 0.3, ease: 'linear' });
+    const tall = f.kind === 'hunter' || f.kind === 'serpent' ? 1 : f.kind === 'giant' ? 0.6 : 0;
+    const k0 = tall ? 0.9 * tall : f.kind === 'wolf' ? 1.6 : 2.2, k1 = tall ? 1.4 * tall : f.kind === 'wolf' ? 2.6 : 3.4;
+    this.spawn('glow', this.tex.glow, this.colors.line, f.centre.x, f.centre.y, { dur: 560, from: this.k(f.unit * k0, GLOW_PX), to: this.k(f.unit * k1, GLOW_PX), a0: 0.2 + 0.04 * this.look.tier, mode: 'punch', peakAt: 0.3, ease: 'linear' });
   }
 
-  /** IV: the star is taken: a ring closes on it. */
+  /** Tier 4: the star is taken: a ring closes on it. */
   plucked(at: Pt, radius: number): void {
     this.spawn('glow', this.tex.halo, this.colors.gold, at.x, at.y, { dur: 340, from: this.k(radius * 1.9, RING_PX), to: this.k(radius * 0.25, RING_PX), a0: 0.8, mode: 'punch', peakAt: 0.7, ease: 'cubic' });
   }
 
-  /** IV: the star starts to swell: a second, wider ring closes on it. */
+  /** Tier 4: the star starts to swell: a second, wider ring closes on it. */
   swelling(at: Pt, radius: number): void {
     this.spawn('glow', this.tex.halo, this.colors.star, at.x, at.y, { dur: 520, from: this.k(radius * 3.4, RING_PX), to: this.k(radius * 0.3, RING_PX), a0: 0.5, mode: 'punch', peakAt: 0.75, ease: 'cubic' });
   }
@@ -503,7 +564,7 @@ export class HeroStarsScene extends FxPool {
     this.spawn('core', this.tex.glow, c.star, at.x, at.y, { dur: 200 + 30 * T, from: this.k(radius * 0.5 * X, GLOW_PX), to: this.k(radius * 1.3 * X, GLOW_PX), a0: 0.55, mode: 'punch', peakAt: 0.15 });
     this.burst('core', this.tex.dot, [c.star, c.gold], at.x, at.y, 4 + 4 * T, { speed: 150 * X, dir: angle + Math.PI, spread: 1.8, life: 460, size: 0.38, drag: 0.3, to: 0.2 });
     if (T < 4) return;
-    // IV: the swollen star lets go: its rays flash wide and a ring of motes is thrown off.
+    // Tier 4: the swollen star lets go: its rays flash wide and a ring of motes is thrown off.
     this.spawn('core', this.tex.glint, 0xffffff, at.x, at.y, { dur: 300, from: this.k(radius * 2.2, GLINT_PX), to: this.k(radius * 4.4, GLINT_PX), a0: 0.9, mode: 'punch', peakAt: 0.15, ease: 'cubic' });
     this.spawn('glow', this.tex.halo, c.gold, at.x, at.y, { dur: 520, from: this.k(radius * 0.6, RING_PX), to: this.k(radius * 3.2, RING_PX), a0: 0.6, ease: 'cubic' });
     this.burst('core', this.tex.dot, [c.star, c.gold, c.line], at.x, at.y, 18, { speed: 380, life: 620, size: 0.42, drag: 0.08, to: 0.2 });
@@ -512,7 +573,7 @@ export class HeroStarsScene extends FxPool {
   /**
    * THE BLOW: a NOVA of stardust (glints and points thrown every way, fast and then hanging in the air), a flash over
    * the whole sky (`flash`: its peak opacity), a hot flash and long rays at the hit, rings, and the jolt through the
-   * stars. Everything scales with the tier. IV adds its even ring of stardust, a second wave and a cloud that hangs.
+   * stars. Everything scales with the tier. Tier 4 adds its even ring of stardust, a second wave and a cloud that hangs.
    */
   impact(at: Pt, dir: Pt, radius: number, tier: number, flash = 0): void {
     const c = this.colors;
@@ -554,7 +615,7 @@ export class HeroStarsScene extends FxPool {
   }
 
   /**
-   * IV's aftermath: the constellation's lines break up. Every drawn line sheds points of light along its length and
+   * Tier 4's aftermath: the constellation's lines break up. Every drawn line sheds points of light along its length and
    * every star a glint; they drift, sink and go out over about `lifeMs`. (The runner fades the lines themselves.)
    */
   scatter(lifeMs: number): void {
@@ -585,7 +646,55 @@ export class HeroStarsScene extends FxPool {
     }
   }
 
-  /** THE KNOCKOUT's remix of IV: the ring of stardust goes prismatic (cyan, lilac, magenta) with three soft rings. */
+  /**
+   * The wheel's BEAM from `from` to `to`, `width` px wide: a white-hot core over a wide soft glow, both stretched along
+   * the line at once and fading over `dur`, with a burst of sparks running down it.
+   */
+  beam(from: Pt, to: Pt, width: number, dur: number): void {
+    const c = this.colors;
+    const len = Math.hypot(to.x - from.x, to.y - from.y);
+    if (len < 1) return;
+    const rot = Math.atan2(to.y - from.y, to.x - from.x);
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+    const layer = (tex: Texture, tw: number, th: number, w: number, tint: number, a0: number, d: number): void => {
+      const kx = len / tw / this.scale;
+      this.spawn('core', tex, tint, mx, my, { dur: d, from: kx, to: kx, sy: (w / th) / (len / tw), a0, mode: 'punch', peakAt: 0.06, ease: 'linear', rot });
+    };
+    layer(this.tex.limb, LIMB_W, LIMB_H, width * 2.6, mixColor(c.line, c.gold, 0.4), 0.55, dur * 1.2);
+    layer(this.tex.line, LINE_W, LINE_H, width, mixColor(c.gold, c.star, 0.6), 0.95, dur);
+    layer(this.tex.line, LINE_W, LINE_H, width * 0.35, 0xffffff, 1, dur * 0.8);
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const q = (i + this.rnd()) / n;
+      const v = 200 + this.rnd() * 260;
+      this.spawn('core', this.rnd() < 0.3 ? this.tex.glint : this.tex.dot, i % 2 ? c.star : c.gold, from.x + (to.x - from.x) * q, from.y + (to.y - from.y) * q, {
+        dur: 380 + this.rnd() * 300, from: 0.45, to: 0.1, a0: 1, ease: 'linear', vx: Math.cos(rot) * v + (this.rnd() - 0.5) * 120, vy: Math.sin(rot) * v + (this.rnd() - 0.5) * 120, drag: 0.3, delay: q * 120,
+      });
+    }
+  }
+
+  /**
+   * The nova's explosion, over the usual blow: the sky it swallowed is thrown back out (long glints flying to every
+   * edge of the sky and slowing there), a white core that blooms wide and two slow rings.
+   */
+  novaBurst(at: Pt, radius: number): void {
+    const c = this.colors;
+    const X = this.look.impactSize;
+    const R = radius * X;
+    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 520, from: this.k(R * 1.5, GLOW_PX), to: this.k(R * 5, GLOW_PX), a0: 0.7, mode: 'punch', peakAt: 0.08 });
+    this.spawn('core', this.tex.glint, mixColor(c.star, c.gold, 0.4), at.x, at.y, { dur: 700, from: this.k(R * 3, GLINT_PX), to: this.k(R * 11, GLINT_PX), a0: 0.9, mode: 'punch', peakAt: 0.1, ease: 'cubic', rot: Math.PI / 8 });
+    for (let i = 0; i < 2; i++) this.spawn('glow', this.tex.halo, i ? c.gold : c.star, at.x, at.y, { dur: 1300 + 300 * i, from: this.k(R * 0.8, RING_PX), to: this.k(R * (12 + 4 * i), RING_PX), a0: 0.55, ease: 'cubic', delay: 90 + 140 * i });
+    const N = 44;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2 + this.rnd() * 0.12;
+      const v = (900 + this.rnd() * 900) * X;
+      this.spawn('core', i % 4 ? this.tex.dot : this.tex.glint, i % 3 === 0 ? c.gold : i % 3 === 1 ? c.star : c.line, at.x, at.y, {
+        dur: 1100 + this.rnd() * 600, from: (i % 4 ? 0.7 : 0.3) * X, to: 0.15 * X, a0: 1, ease: 'linear', vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: 0.06, spin: 0.008,
+      });
+    }
+  }
+
+  /** THE KNOCKOUT's remix of Tier 4: the ring of stardust goes prismatic (cyan, lilac, magenta) with three soft rings. */
   koFlourish(at: Pt, radius: number): void {
     const X = this.look.impactSize * 1.3;
     const R = radius * X;
@@ -623,25 +732,27 @@ export class HeroStarsScene extends FxPool {
     const sh = this.shot;
     if (sh?.on) {
       sh.acc = Math.min(sh.acc + dt, 80);
-      const every = sh.star ? 11 : 26 - 3 * this.look.tier;
+      const comet = sh.lead === 'comet', spark = sh.lead === 'spark';
+      const every = comet ? 11 : spark ? 16 : 26 - 3 * this.look.tier;
       while (sh.acc >= every) {
         sh.acc -= every;
-        const j = sh.star ? sh.headPx * 0.16 : sh.tailPx * 0.8;
+        const j = comet ? sh.headPx * 0.16 : spark ? sh.headPx * 0.35 : sh.tailPx * 0.8;
         this.spawn('core', this.rnd() < 0.2 ? this.tex.glint : this.tex.dot, this.rnd() < 0.5 ? c.star : c.gold, sh.x + (this.rnd() - 0.5) * j, sh.y + (this.rnd() - 0.5) * j, {
-          dur: sh.star ? 700 + this.rnd() * 500 : 380, from: sh.star ? 0.5 + this.rnd() * 0.4 : 0.36, to: 0.08, a0: 0.9, ease: 'linear', vx: (this.rnd() - 0.5) * 70, vy: (this.rnd() - 0.5) * 70 + (sh.star ? 40 : 0), drag: 0.5, grav: sh.star ? 60 : 0,
+          dur: comet ? 700 + this.rnd() * 500 : spark ? 520 : 380, from: comet ? 0.5 + this.rnd() * 0.4 : spark ? 0.44 : 0.36, to: 0.08, a0: 0.9, ease: 'linear', vx: (this.rnd() - 0.5) * 70, vy: (this.rnd() - 0.5) * 70 + (comet ? 40 : 0), drag: 0.5, grav: comet || spark ? 60 : 0,
         });
       }
     }
-    // IV's held breath: motes of light stream INTO the swelling star, faster and thicker as it grows.
-    const pk = this.fig && this.fig.pluck >= 0 ? this.fig.stars[this.fig.pluck]! : null;
-    if (pk && this.swellNow > 0.02) {
+    // Tier 4's held breath: motes of light stream INTO the charging star (where it is now), faster and thicker as it grows.
+    const ci = this.fig ? this.fig.charge : -1;
+    if (ci >= 0 && this.swellNow > 0.02) {
+      const pkX = this.px[ci] ?? 0, pkY = this.py[ci] ?? 0;
       this.swellAcc = Math.min(this.swellAcc + dt, 80);
       const every = 46 - 30 * this.swellNow;
       while (this.swellAcc >= every) {
         this.swellAcc -= every;
         const a = this.rnd() * Math.PI * 2, d = this.look.starPx * (3 + this.rnd() * 5) * S, ms = 300 + this.rnd() * 160;
         // Speeds are px/s at stage scale 1 (the pool multiplies by the stage scale), so divide it back out.
-        this.spawn('core', this.tex.dot, this.rnd() < 0.5 ? c.star : c.gold, pk.x + Math.cos(a) * d, pk.y + Math.sin(a) * d, {
+        this.spawn('core', this.tex.dot, this.rnd() < 0.5 ? c.star : c.gold, pkX + Math.cos(a) * d, pkY + Math.sin(a) * d, {
           dur: ms, from: 0.2, to: 0.5, a0: 0.9, mode: 'punch', peakAt: 0.6, ease: 'linear', vx: (-Math.cos(a) * d) / (ms / 1000) / S, vy: (-Math.sin(a) * d) / (ms / 1000) / S,
         });
       }

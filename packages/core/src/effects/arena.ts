@@ -1220,6 +1220,20 @@ export const ARENA_EFFECTS = {
     arena.damageAll((typeof params.amount === 'number' ? params.amount : 3) * (arena.self.golden ? 2 : 1));
   },
 
+  /** Set 2 rune Imp Legion's graft — Echo: deal `amount` to the LOWEST-Health living enemy, `hits` times (one per rune
+   *  copy), re-reading the lowest before each hit. Ties go to the left-most. `fixed`: a Gilded Imp is not doubled (the
+   *  Echo is the rune's, not the card's). ENEMY-FACING: `enemies()` is empty in the Shop, so it is inert there. */
+  deathrattleDamageLowestEnemy(arena: EffectArena, params: Record<string, unknown>): void {
+    const amount = num(params.amount, 3) * (params.fixed ? 1 : arena.self.golden ? 2 : 1);
+    const hits = Math.max(1, num(params.hits, 1));
+    for (let i = 0; i < hits; i++) {
+      const foes = arena.enemies().filter((t) => t.health > 0);
+      if (foes.length === 0) return;
+      const target = foes.reduce((lo, t) => (t.health < lo.health ? t : lo));
+      arena.damage(target, amount);
+    }
+  },
+
   /** Nanon — Echo: summon `count` tokens (count FIXED); every one that can't fit instead buffs your `tribe`
    *  minions +a/+h EACH (golden doubles the buff). ARENA-BORN shop half — same class as Legion Shepherd. */
   deathrattleSummonOverflowBuff(arena: EffectArena, params: Record<string, unknown>): void {

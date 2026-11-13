@@ -2832,4 +2832,377 @@ export const RUNES_RULES: GameRule[] = [
     example: 'A Demon that eats the right-most Shop minion at End of Turn: one this turn, one next turn, and the second hands you a Shop spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/emptyPlateConsume.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-SET2-RUNES-BN-01',
+    title: 'Piggy Bank: all unspent Gold carries over, uncapped; its End of Turn is the repeat form',
+    statement:
+      'Piggy Bank (Basic, 2, Set 2) banks every Gold left when the Shop turn ends into next turn\'s opening (no cap, owner ruling), '
+      + 'after the End of Turn effects run. Its End of Turn half is the REPEAT form (R-REPEAT-01): +1/+3 on a random friendly '
+      + 'minion, once as the base and once more per unspent Gold, each tick its own beat and a fresh seeded pick. A second copy '
+      + 'runs the End of Turn half again; the carry itself happens once.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Piggy Bank: all unspent Gold carries over, with no cap.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts piggyBankCarry / piggyBankTick; recruit.ts runRecurringEndOfTurn (runePiggyBank) + recurringTickCount; reducer.ts endRecruitTurn' },
+    ],
+    contentIds: ['rune_piggy_bank'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-02',
+    title: 'Hazard Pay and Late Bloomer: Shop economy runes, paid per copy',
+    statement:
+      'Hazard Pay (Basic, 0) pays after a LOST combat (not a draw), as the next Shop opens, on its own Start of Turn beat: '
+      + '3 Gold and a banked free Refresh per copy held. Late Bloomer (Basic, 2) pays on every Shop Tier step, a free one '
+      + 'included (Summit Passage, a Citadel commission): 2 Gold and +3/+3 to every board minion (permanent), per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'After you lose a combat, gain 3 Gold and a free Refresh. / When you upgrade your Shop, gain 2 Gold and give your minions +3/+3.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts hazardPayTurnStart / lateBloomerOnUpgrade; reducer.ts advanceCombat, upgrade, upgradeShopTier, payCommissionOnce' },
+    ],
+    contentIds: ['rune_hazard_pay', 'rune_late_bloomer'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-03',
+    title: 'Second Opinion: every Discover offers one more option; its own Discover opens once, at the Shop Tier',
+    statement:
+      'Second Opinion (Basic, 3) raises every Discover\'s option count by 1 per copy held (`discoverOptionCount`: minion, spell, '
+      + 'Gift / pool, and the hero-power Discovers). Its own Discover opens ONCE when the rune is taken, a minion of exactly the '
+      + 'Shop Tier, and already offers the extra option (owner ruling 2026-11-12).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Your Discovers offer 1 more option. Discover a minion.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts discoverOptionCount; recruit.ts openDiscover / offerSpellDiscover / offerDiscover' },
+    ],
+    contentIds: ['rune_second_opinion'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-04',
+    title: 'Shield Wall, Shatterproof, Warm-Up: combat runes, symmetric on both sides',
+    statement:
+      'Shield Wall (Basic, 2) is a Start of Combat rune (Twilight repeats it, Combat Prowess replays it in the Shop): every '
+      + 'living friendly Taunt minion +4/+6 for the fight. Shatterproof (Basic, 2) pays EVERY friendly Ward loss (no cap, owner '
+      + 'ruling): that minion +5/+5 permanently, so a Ward that re-forms and breaks again pays again. Warm-Up (Basic, 2) is a '
+      + 'side-wide Pummel (150) over every friendly minion\'s landed damage, a lifetime tally carried across fights (Heavy Hand '
+      + 'doubles it); the first crossing each fight banks 2 Gold next turn per copy held, later crossings that fight are spent. '
+      + 'All three run off the side\'s own mods, so a served opponent holding them gets the same behaviour.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Shatterproof: every Ward loss gives +5/+5 permanently. No per-combat limit. Intended.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (Shield Wall), registerShatterproof, noteWarmUp' },
+    ],
+    contentIds: ['rune_shield_wall', 'rune_shatterproof', 'rune_warm_up'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-05',
+    title: 'Golden Handshake and Loyal Customer',
+    statement:
+      'Golden Handshake (Basic, 1) hears every Gild through the one chokepoint (`noteGilded`: a triple, a Gild effect, a '
+      + 'Gilded grant or Discover pick): your board +2/+2, permanent in the Shop. In combat a Gild (Auric Runemaster, the '
+      + 'Ancient of Time) gives that side\'s living minions +2/+2 for the fight. Loyal Customer (Basic, 3) counts minions bought '
+      + '(the Starform included; a displaced re-buy is not counted); every 4th costs 0, shown on the coin. A buy already free '
+      + 'for another reason still counts and leaves the free one unused. A duplicate pays the sweetener.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'When you Gild a minion, give your minions +2/+2. / Every 4th minion you buy is free.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts goldenHandshakeOnGild / loyalCustomerArmed / noteLoyalCustomerBuy; reducer.ts offerBuyPrice; simulate.ts goldenHandshakeCombat' },
+    ],
+    contentIds: ['rune_golden_handshake', 'rune_loyal_customer'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-01',
+    title: 'Deep Pockets and Rowdy Crowd are per-turn windows that pay once a turn',
+    statement:
+      'A threshold rune that counts "each turn" or "in a turn" (Deep Pockets: the first 8 Gold spent each turn gets a random '
+      + 'Dwarf; Rowdy Crowd: the 4th card played in a turn gives your board Dwarves +2/+2) starts every turn at 0, pays at most '
+      + 'once that turn, and carries no remainder across the rollover. Its badge reads x/N and stays full once it has paid.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md, Basic tribal)', quote: 'The first time you spend 8 Gold each turn, get a random Dwarf.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts the turn setup re-arm (resetEachTurn); packages/sim/src/recruit.ts advanceRuneThresholds' },
+    ],
+    contentIds: ['rune_deep_pockets', 'rune_rowdy_crowd'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The `resetEachTurn` field existed on the threshold engine but was never read until now.',
+    example: 'Spend 5 Gold this turn and 3 next turn: no Dwarf. Spend 16 Gold in one turn: one Dwarf.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-02',
+    title: 'Bloodscent and Trophy Hunter hear a Beast that kills by attacking',
+    statement:
+      '"When a Beast kills a minion" is a Slaughter: a friendly Beast attacks and its strike (or cleave) kills an enemy minion, '
+      + 'on either side. Bloodscent gives that Beast +4/+4 permanently per copy (kept after combat). Trophy Hunter banks 1 Gold '
+      + 'for next turn per copy, for the first 3 kills each combat.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (Set 2 rune batch)', quote: 'When a Beast kills a minion, gain 1 Gold next turn. (3 per combat.)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts set2TribalOnKill (the Slaughter block, the Rune of the Trophy reading)' },
+    ],
+    contentIds: ['rune_bloodscent', 'rune_trophy_hunter'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). A defending Beast that kills its attacker by retaliation does not count, as for every Slaughter.',
+    example: 'A Beast that kills five 1-Health minions: Trophy Hunter banks 3 Gold, Bloodscent gives it +20/+20 to keep.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-03',
+    title: 'Last Howl and Ruby Dust hear a friendly death after its Echo',
+    statement:
+      'Last Howl resummons the first friendly Beast with an Echo to die each combat, once, as its base card (a Gilded one at '
+      + 'its doubled base) with its Echo intact, after its own Echo has fired and taken the room it needs. Ruby Dust: a friendly '
+      + 'minion carrying Rubies (Shop Rubies or this fight\'s) dies, and a permanent Ruby is cast on a random living friendly '
+      + 'Kobold, per copy.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 plus the brief\'s ruling on the doc\'s open point 5', quote: 'Last Howl resummons once with base card stats and its Echo intact' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the avenge broadcast handler under SET 2 RUNES, BASIC TRIBAL' },
+    ],
+    contentIds: ['rune_last_howl', 'rune_ruby_dust'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Two T-Rexes die: the first comes back once at its base stats and can Echo again; the second stays dead.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-04',
+    title: 'Pitchforks and Imp Legion hit enemies, so they act in combat only',
+    statement:
+      'Pitchforks: every friendly Imp summoned (a token, a Rise return, a resummon) deals 3 damage to 2 different random '
+      + 'enemies, per copy, the Imp as the source. Imp Legion: every friendly Imp (board, hand and combat summons) carries '
+      + '"Echo: deal 3 damage to the lowest-Health enemy" (ties: the left-most; one hit per copy; a Gilded Imp is not '
+      + 'doubled). The Shop has no enemies, so both are inert there by membership.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (Pitchforks cost 4 at 3 damage to 2 enemies)', quote: 'Imps deal 3 damage to 2 enemies when summoned.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts pitchforksOnSummon; packages/core/src/effects/arena.ts deathrattleDamageLowestEnemy' },
+    ],
+    contentIds: ['rune_pitchforks', 'rune_imp_legion'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The doc assumed Pitchforks also fires in the Shop; the arena rule that the Shop has no enemies makes it a no-op there.',
+    example: 'An Imp summoned by an Echo picks two different enemies and deals 3 to each.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-05',
+    title: 'The Shop-side tribal runes: Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Rough Cut',
+    statement:
+      'Collections: selling a Demon raises the permanent Shop buff +2/+2. Flamekeeper: every Dragonflame cast (Shop or combat, '
+      + 'any caster) gives your board Dragons +2/+2 permanently. Hatchling Roost: a Dragon with a Shout costs 1 Gold in the '
+      + 'Shop, any Tier, other discounts on top. Dragon Hoard (owner rework 2026-11-13): every 3 Gold spent gets a '
+      + 'Dragonflame, REPEATING (10 Gold = 3), on the shared `gold` threshold meter, the remainder carried across turns, '
+      + 'and Big Spender doubles what it hears like every spend-Gold trigger; the badge prints x/3. Rough Cut: a Ruby cast on a Kobold (both phases) also casts '
+      + 'one on a random friendly non-Kobold, which never chains.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 plus the brief\'s rulings on open points 6 and 7', quote: "Rough Cut's extra Ruby goes to a random friendly non-Kobold and does not chain" },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicTribal.ts; packages/core/src/effects/factories.ts playRubyOn (Rough Cut)' },
+    ],
+    contentIds: ['rune_collections', 'rune_flamekeeper', 'rune_hatchling_roost', 'rune_dragon_hoard', 'rune_rough_cut', 'rune_guels_apprentice'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Cast a Ruby on a Kobold beside a Dwarf: the Dwarf gets a Ruby too. Cast one on the Dwarf: nothing extra.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+  {
+    id: 'R-SET2RUNE-EN-01',
+    title: 'Top Shelf, Wholesale and Grudge: the Shop-side Epic neutral runes',
+    statement:
+      'Top Shelf: after every Refresh you press, one minion offer is from the Tier above your Shop (per copy held). The Shop '
+      + 'never grows: a short row fills a free slot, a full row replaces the right-most minion offer that is not already '
+      + 'above your Tier. At the top Tier it does nothing. Wholesale: every Shop minion offer costs 1 less per copy held, '
+      + 'floored at 0; spells and Rubies are untouched. Grudge: after a lost combat (a draw is not a loss) the next Shop '
+      + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (Epic, neutral); owner rulings 2026-11-12', quote: 'Top Shelf does nothing extra at the top Tier' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts offerTopShelf (roll branch) / offerBuyPrice wholesaleOff / advanceCombat Grudge recordSotBeat' },
+    ],
+    contentIds: ['rune_top_shelf', 'rune_wholesale', 'rune_grudge'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Tier 3 Shop with Top Shelf: every Refresh shows one Tier 4 minion. Lose a fight at Tier 6 with Grudge: the next Shop opens a Tier 7 Discover.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2RUNE-EN-02',
+    title: 'Double Bill and Bulwark Line: Start of Combat runes, with Shop replays',
+    statement:
+      'Double Bill (renamed from "Opening Act", which belongs to the hero quests of Fi): at Start of Combat the left-most and '
+      + 'right-most minions with a Shout fire it through the shared Shout path (a counted shout, Drakko folded); one Shout '
+      + 'minion fires once; per copy held. Bulwark Line: at Start of Combat every Taunt minion gains a normal Ward. Both '
+      + 'texts begin "Start of Combat:", so Twilight repeats them, and both have a Combat Prowess Shop replay (R-RUNE-14). '
+      + 'A second Bulwark Line pays the duplicate sweetener (a Ward cannot stack).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (Epic, neutral); owner rename 2026-11-12', quote: 'Opening Act (Epic) is renamed "Double Bill"' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (runeBulwarkLine / runeDoubleBill); packages/sim/src/recruit.ts socRuneReplaysOf' },
+    ],
+    contentIds: ['rune_double_bill', 'rune_bulwark_line'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Three Shout minions: the first and the last Shout at the bell, the middle one does not.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2RUNE-EN-03',
+    title: 'Bastion re-forms a normal Ward that every Ward-loss trigger hears again; Mirror Sheen fires on every Ward loss',
+    statement:
+      'Bastion: the first friendly minion to lose Ward each combat (side-wide, one per copy held) gets the Ward back at '
+      + 'once, as a normal Ward. When that Ward is lost again, every Ward-loss trigger (Mirror Sheen, Shatterproof) fires '
+      + 'again. Mirror Sheen: whenever a friendly minion loses Ward, it deals damage equal to its Attack to a random enemy '
+      + '(the minion is the damage source; 0 Attack deals nothing; one hit per copy held). Both work identically for an '
+      + 'opponent snapshot holding the rune.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-11-12 (Set 2 rune batch brief)', quote: 'the regained Ward DOES retrigger Shatterproof and Mirror Sheen when it is lost again' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts registerWardRunes (onLoseDivineShield, BASTION_KEY)' },
+    ],
+    contentIds: ['rune_bastion', 'rune_mirror_sheen'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'A Warded 7-Attack minion with both runes: its Ward breaks (7 damage to a random enemy), comes back, breaks again (7 more).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-01',
+    title: 'Big Spender and Royal Treasury: the Dwarf economy Epics (Shop only)',
+    statement: 'Big Spender (Epic Dwarf, 4): every Gold spend is heard TWICE by the "spend Gold" triggers (three times with two copies): the minion Gold meters (Coinfire, Tapkeeper, Billings, Mountainbond), the Gold rune meters, Spellslinging, Food for Gold, the Golden Ledger, Bulk Order and the Ancients\' Gold hooks. The Gold actually paid, the run and per-turn Gold-spent tallies (Patch Job, Spending, the Wanderer), Indy\'s recharge and the "Spend N Gold" quest objective stay real. Royal Treasury (Epic Dwarf, 4): every Dwarf minion bought (All-types included) ticks a run-long meter; each 5th raises max Gold by 1 per copy held, above the cap, and it repeats. Its badge prints the meter and the max Gold given so far.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'Royal Treasury repeats every 5 Dwarves bought (owner ruling 2026-11-12)' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts spendGold (the Big Spender rebind) and the buy block (Royal Treasury); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_big_spender', 'rune_royal_treasury'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-02',
+    title: 'Feral Return: a Start of Combat Rise on the left-most Beast, and +5/+5 for every Beast that Rises',
+    statement: 'Feral Return (Epic Beast, 4). Start of Combat: the left-most living Beast that does not already hold Rise gains Rise (one per copy; Twilight repeats it and reaches the next Beast). Any friendly Beast that Rises, whatever gave it Rise, gains +5/+5 per copy right after its return: for that fight in combat, permanently in the Shop (a Shop buff is).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'Beasts that Rise gain +5/+5.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat + runeRiseRunes; packages/sim/src/recruit.ts runeRiseRunesShop' },
+    ],
+    contentIds: ['rune_feral_return'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-03',
+    title: 'Pack Tactics and Blood Frenzy: Beast Rallies fired without the Beast swinging',
+    statement: 'Pack Tactics (Epic Beast, 4): a friendly Beast that can Rally and is chosen as an attack\'s target fires its Rally as the swing winds up, before the hit (a free Rally: every Rally multiplier, the Rally watchers and the tallies), once per copy. A Cleave or splash neighbour is not attacked. Blood Frenzy (Epic Beast, 4): every enemy minion a friendly Beast kills by attacking (the Slaughter kill) fires the left-most living Rally once per copy, the same free Rally. Both are combat only.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'Your Beasts\' Rallies also trigger when that Beast is attacked. / When a Beast kills a minion, trigger your left-most Rally.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts performAttack (the wind-up, the on-kill block), fireFreeRally' },
+    ],
+    contentIds: ['rune_pack_tactics', 'rune_blood_frenzy'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-04',
+    title: 'Hellfire and Wildfire: rune volleys of effect damage, never Demon damage',
+    statement: 'Hellfire (Epic Demon, 3): a friendly Demon\'s swing (as it winds up) and a friendly Demon\'s death (a Rise death included) each deal 1 damage to every enemy minion, once per copy. Wildfire (Epic Demon, 4): an enemy minion whose killing hit was not an attack exchange (an Echo, a Rally, a rune volley, a Bleed) deals 3 damage to every enemy minion; 3 times per combat per copy, and its own volleys can chain it. A body destroyed without damage never counts. The RUNE deals both volleys (no minion source): they are not Demon damage, so Rune of Ruins, Rad Rachel and the Pummel meters do not hear them, and they never Execute. All hits of a volley land before any death resolves.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'When a Demon attacks or dies, deal 1 damage to all enemies. / When an enemy dies to damage that is not an attack, deal 3 damage to all enemies. (3 per combat.)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeVolley / runeHellfire / runeFireOnDeath; exchangeHit + lethalByAttack' },
+    ],
+    contentIds: ['rune_hellfire', 'rune_wildfire', 'rune_ruins'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-05',
+    title: 'Elder\'s Voice: the turn\'s first Shout fires again at Start of Combat',
+    statement: 'Elder\'s Voice (Epic Dragon, 3). The Shop remembers the body whose Shout fired first this turn, played or triggered. At Start of Combat that body, if it is still on the board, fires its Shout once more through the shared combat Shout path (Drakko folded), once per copy. It is not a "Start of Combat:" rune, so Twilight does not repeat it. The memory clears each turn and rides a served snapshot (matched by the body\'s source uid).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'Your first Shout each turn also triggers at Start of Combat.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts shoutFireCount (eldersVoiceUid); packages/core/src/combat/simulate.ts runRuneStartOfCombat' },
+    ],
+    contentIds: ['rune_elders_voice'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-EPIC-TRIBAL-1112-06',
+    title: 'Vein Finder and Gem Rain: Ruby showers (with Engraving Gems)',
+    statement: 'Vein Finder (Epic Kobold, 3): every 3rd Refresh the player presses (the refresh meter, free ones included) casts a Ruby on every board minion (the Mountain Trade shower); the badge counts N/3. Gem Rain (Epic Kobold, 4): Start of Combat, 2 PERMANENT Rubies on every living friendly minion, each its own caster, once per copy (Twilight repeats it). Beside Engraving Gems the Gem Rain Rubies are already permanent: they carry back once and Engraving does not claim them.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'docs/design/2026-11-12-set2-rune-batch.md (owner review of 78 concepts, 2026-11-12)', quote: 'After every 3rd Refresh, cast a Ruby on all your minions. / Start of Combat: cast 2 permanent Rubies on all your minions.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (Gem Rain); packages/sim/src/recruit.ts advanceRuneThresholds (rubyAll)' },
+    ],
+    contentIds: ['rune_vein_finder', 'rune_gem_rain', 'rune_engraving_gems'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2EpicTribalRunes1112.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNE-IGGY-01',
+    title: 'Iggy Iggy: one Immune Iggy with Ward, on pickup',
+    statement: 'Iggy Iggy (Epic Dragon, 3, Set 2) grants ONE Immune Iggy (the Set 3 Dragon d3_iggy; the card index is global, so a Set 2 rune may hand it out) the moment the rune is taken, with Ward stamped on that granted copy only (never the shared card). It never grants again. A full hand follows every grant rune: the rune turn allows 20 cards in hand, then the board, then the hand over-caps (a rune reward is never lost).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition 2026-11-13 (Set 2 rune batch)', quote: 'Get an Immune Iggy with Ward.' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_iggy_iggy (grant + grantKeywords, the Badger shape); packages/sim/src/reducer.ts applyQuestReward grant' },
+    ],
+    contentIds: ['rune_iggy_iggy', 'd3_iggy'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesCombined.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNE-SHOPMADNESS-01',
+    title: 'Shop Madness: Shop minions +3/+3 (ongoing), and the Shop always holds 6 minions',
+    statement: 'Shop Madness (Basic, 1, Set 2, Shop-only). On pickup it adds +3/+3 to the permanent run-wide Shop buff, so every minion in the Shop now AND every minion that enters it for the rest of the run shows and buys with +3/+3 (per copy taken). While held, the Shop row holds 6 MINIONS at every Shop Tier (a Refresh, the turn roll, a frozen top-up), and the moment a minion leaves it for any reason (bought, consumed, stolen, Discovered, passed, archived, a Starform cashed in) a fresh minion from the seeded pool takes its slot. Consumes and steals refill mid-action, so an effect that eats repeatedly (Hydraskus: every Demon eats) always finds a target; every other path refills at the action boundary. Row spells, Rubies, the spell slot and the Starform are not minions and are not counted. A refill never removes anything, so it cannot trigger another refill; a dry pool simply leaves the row short. Opponent snapshots are unaffected.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition + rulings 2026-11-13 (Set 2 rune batch)', quote: 'There are always 6 minions in the shop. ... hydraskus will trigger the consumes fully' },
+      { kind: 'code', ref: 'packages/sim/src/shop.ts refillShopMadness / rollShopRow / topUpTavern; packages/sim/src/recruit.ts consumeShopOffer + the steal chokepoint; packages/sim/src/reducer.ts settleAction + applyQuestReward combatFlag' },
+    ],
+    contentIds: ['rune_shop_madness', 'dm_hydraskus'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopMadness.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNE-GOLDENMONKEY-01',
+    title: 'Golden Monkey: every 5 Refreshes, a Shop minion becomes a Golden Monkey',
+    statement: 'Golden Monkey (Basic, 2, Set 2) reads the Indy meter: the `refresh` threshold ticks only when the player presses Refresh (a free one included; the fresh row of the turn and rune / spell / hero-power refreshes do not), cumulative and repeating. Every 5th tick REPLACES a random Shop minion (seeded; never a spell, Ruby, the Starform, a held offer or another Golden Monkey) with the Golden Monkey token (n3_goldenmonkey): the replaced offer returns to the pool and the Monkey takes its slot. With no minion to replace it fills a free slot. One meter per copy held. The row never grows, so Shop Madness keeps 6, and the Monkey wears the run-wide Shop buff like any Shop minion. The badge prints the live x/5.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition 2026-11-13 (Set 2 rune batch)', quote: 'when you refresh 5 times, replace a minion with a golden monkey. this uses the indy golden monkey mechanic' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts payRuneThreshold (replaceShopWith) + replaceShopOfferWith; packages/sim/src/reducer.ts roll (advanceRuneThresholds refresh)' },
+    ],
+    contentIds: ['rune_golden_monkey', 'n3_goldenmonkey', 'n3_indy'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2GoldenMonkeyRune.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

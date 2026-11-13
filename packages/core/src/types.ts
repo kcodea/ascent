@@ -1105,7 +1105,8 @@ export type EffectFactoryId =
   | 'discoverRestToTeammate' // cast: Discover a minion; your teammate gets the other options as gifts (Disco). Shop only (a Discover)
   | 'discoverSpellShareTeammate' // cast: Discover a spell; your teammate gets a copy of the pick (Double Down). Shop only (a Discover)
   | 'discoverMateTribePass' // Shout: Discover a minion of your teammate's most common type and pass it to them (Matchmaker). Combat: a random one, gifted at settle
-  | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
+  | 'dealtDamageGoldNextTurn' // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
+  | 'deathrattleDamageLowestEnemy'; // Set 2 rune Imp Legion's graft: Echo — deal `amount` to the lowest-Health living enemy, `hits` times (both phases; the Shop has no enemies, so it is inert there by membership)
 
 export interface EffectDef {
   on: GameEvent;
@@ -1575,6 +1576,9 @@ export type QuestReward =
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
+      /** Golden Monkey (Set 2 rune, owner 2026-11-13): REPLACE a random Shop minion with this card when the meter trips
+       *  (Indy's Golden Monkey, swapped in rather than added). */
+      replaceShopWith?: string;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
       grantGoldNextTurn?: number;
       /** The meter is a per-TURN window (no remainder carries across the rollover). */
@@ -1640,7 +1644,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' | 'runePiggyBank' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -2085,7 +2089,37 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
-  | 'runeReturnCustomers';
+  | 'runeReturnCustomers'
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 3 Gold + a free Refresh;
+  // shieldWall = Start of Combat, Taunt minions +4/+6; shatterproof = a Ward loss gives that minion +5/+5 permanently;
+  // warmUp = a side-wide Pummel (150) banking 2 Gold next turn, once per combat; goldenHandshake = a Gild gives your
+  // minions +2/+2; lateBloomer = a Shop upgrade gives 2 Gold and your minions +3/+3; loyalCustomer = every 4th minion
+  // bought is free.
+  | 'runeHazardPay' | 'runeShieldWall' | 'runeShatterproof' | 'runeWarmUp' | 'runeGoldenHandshake' | 'runeLateBloomer' | 'runeLoyalCustomer'
+  // Set 2 rune batch, Basic tribal (owner review 2026-11-12): bloodscent = a Beast's kill gives it +4/+4 permanently;
+  // lastHowl = the first Echo Beast to die each combat is resummoned; trophyHunter = a Beast's kill banks 1 Gold (3 per
+  // combat); pitchforks = a summoned Imp deals 3 to 2 enemies; impLegion = Imps carry "Echo: deal 3 to the lowest-Health
+  // enemy"; collections = selling a Demon gives the Shop +2/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
+  // your Dragons +2/+2 permanently; hatchlingRoost = Shout Dragons cost 1 Gold (Shop); rubyDust = a friendly minion with
+  // Rubies dying casts a permanent Ruby on a random friendly Kobold; roughCut = a Ruby cast on a Kobold also casts on a
+  // random friendly non-Kobold.
+  | 'runeBloodscent' | 'runeLastHowl' | 'runeTrophyHunter' | 'runePitchforks' | 'runeImpLegion' | 'runeCollections'
+  | 'runeFlamekeeper' | 'runeHatchlingRoost' | 'runeRubyDust' | 'runeRoughCut'
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12): topShelf = every Refresh offers 1 minion from the Tier above;
+  // doubleBill = Start of Combat, trigger the left-most and right-most Shouts; bulwarkLine = Start of Combat, Taunt
+  // minions gain Ward; wholesale = Shop minions cost 1 less; grudge = after a lost combat, Discover from the Tier above;
+  // bastion = the first friendly Ward loss each combat regains Ward; mirrorSheen = a friendly Ward loss deals its Attack.
+  | 'runeTopShelf' | 'runeDoubleBill' | 'runeBulwarkLine' | 'runeWholesale' | 'runeGrudge' | 'runeBastion' | 'runeMirrorSheen'
+  // Set 2 rune batch, Epic tribal (owner 2026-11-12): bigSpender / royalTreasury / eldersVoice (its Shop half) are Shop
+  // hooks; feralReturn = SoC Rise on the left-most Beast + a Rising Beast gains +5/+5; packTactics = an attacked Beast
+  // fires its Rally; bloodFrenzy = a Beast's kill fires the left-most Rally; hellfire = a Demon attack/death deals 1 to
+  // all enemies; wildfire = an enemy's non-attack damage death deals 3 to all enemies (3 per combat); gemRain = SoC
+  // 2 permanent Rubies on every friendly minion.
+  | 'runeBigSpender' | 'runeRoyalTreasury' | 'runeFeralReturn' | 'runePackTactics' | 'runeBloodFrenzy' | 'runeHellfire'
+  | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain'
+  // Set 2 rune batch, owner addition 2026-11-13: shopMadness = Shop minions +3/+3 (the run-wide Shop buff) and the Shop
+  // always holds 6 minions (Shop-only; packages/sim/src/shop.ts refillShopMadness).
+  | 'runeShopMadness';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2888,6 +2922,63 @@ export interface QuestCombatMods {
    *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
    *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
   runeHeldStrength?: { attack: number; health: number; copies?: number };
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12). Per copy held (`flagCopies`). ──
+  /** Shield Wall: Start of Combat, every living friendly Taunt minion +4/+6 (a combat buff). */
+  runeShieldWall?: boolean;
+  /** Shatterproof: every time a friendly minion loses Ward, it gains +5/+5 PERMANENTLY (`permaGain`). No cap. */
+  runeShatterproof?: boolean;
+  /** Warm-Up: a side-wide Pummel (150) over every friendly minion's landed damage; the first crossing each fight banks
+   *  2 Gold for next turn. */
+  runeWarmUp?: boolean;
+  /** Warm-Up's LIFETIME side-wide tally going into this fight (the Pummel carry-over rule); it comes home as
+   *  `ShoutCarry.warmUpDealt`. */
+  runeWarmUpDealt?: number;
+  /** Golden Handshake: every combat Gild (Auric Runemaster, Ancient of Time) gives this side's minions +2/+2. */
+  runeGoldenHandshake?: boolean;
+  // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12). Copies ride `flagCopies`. ──
+  /** Bloodscent: a Beast's kill (its Slaughter) gives it +4/+4 permanently (per copy). */
+  runeBloodscent?: boolean;
+  /** Last Howl: the first friendly Beast with an Echo to die each combat is resummoned at base stats (one per copy). */
+  runeLastHowl?: boolean;
+  /** Trophy Hunter: a Beast's kill banks 1 Gold for next turn (per copy), the first 3 kills each combat. */
+  runeTrophyHunter?: boolean;
+  /** Pitchforks: an Imp summoned in combat deals 3 damage to 2 different random enemies (per copy). */
+  runePitchforks?: boolean;
+  /** Imp Legion: Imps summoned in combat carry "Echo: deal 3 damage to the lowest-Health enemy" (once per copy). */
+  runeImpLegion?: boolean;
+  /** Flamekeeper: every Dragonflame cast gives the side's living Dragons +2/+2 permanently (per copy). */
+  runeFlamekeeper?: boolean;
+  /** Ruby Dust: a friendly minion with Rubies dying casts a permanent Ruby on a random friendly Kobold (per copy). */
+  runeRubyDust?: boolean;
+  /** Rough Cut: a Ruby cast on a Kobold also casts one on a random friendly non-Kobold (per copy). */
+  runeRoughCut?: boolean;
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+  /** Double Bill: Start of Combat, trigger the left-most and right-most friendly Shouts (per copy). */
+  runeDoubleBill?: boolean;
+  /** Bulwark Line: Start of Combat, every friendly Taunt minion gains Ward. */
+  runeBulwarkLine?: boolean;
+  /** Bastion: the first friendly minion to lose Ward each combat (side-wide; one per copy held) gains Ward again. */
+  runeBastion?: boolean;
+  /** Mirror Sheen: when a friendly minion loses Ward, it deals damage equal to its Attack to a random enemy (per copy). */
+  runeMirrorSheen?: boolean;
+  // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+  /** Feral Return: Start of Combat, the left-most Beast gains Rise; a Beast that Rises gains +5/+5 (per copy). */
+  runeFeralReturn?: boolean;
+  /** Pack Tactics: a Beast chosen as an attack's target fires its own Rally (per copy). */
+  runePackTactics?: boolean;
+  /** Blood Frenzy: a Beast that kills an enemy minion by attacking fires the left-most Rally (per copy). */
+  runeBloodFrenzy?: boolean;
+  /** Hellfire: a friendly Demon's attack or death deals 1 damage to every enemy minion (per copy). */
+  runeHellfire?: boolean;
+  /** Wildfire: an enemy minion dying to non-attack damage deals 3 damage to every enemy minion (3 per combat per copy). */
+  runeWildfire?: boolean;
+  /** Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout
+   *  fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held. */
+  eldersVoiceUid?: string;
+  /** Elder's Voice is held (gates `eldersVoiceUid`; per-copy count rides `flagCopies`). */
+  runeEldersVoice?: boolean;
+  /** Gem Rain: Start of Combat, 2 PERMANENT Rubies on every living friendly minion (per copy). */
+  runeGemRain?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -4260,6 +4351,8 @@ export interface ShoutCarry {
   borrowedFlameGain?: number;
   /** Rune of Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
   whispersCast?: number;
+  /** Warm-Up (Set 2 batch, 2026-11-12): the side's lifetime Pummel tally after this fight (settle writes it back). */
+  warmUpDealt?: number;
 }
 
 export interface CombatContext {
@@ -4509,6 +4602,8 @@ export interface CombatContext {
   /** Gravetwin (R-TARGET-06): record a copied Echo on `minion`'s run card, carried back once at settle
    *  (`ShoutCarry.copiedEchoes`). A body with no run card (a token, an enemy snapshot) carries nothing. */
   grantCopiedEcho?(minion: Minion, effects: EffectDef[], name?: string): void;
+  /** Golden Handshake (Set 2 batch, 2026-11-12): a combat effect just Gilded `minion` (Auric Runemaster's Shout). */
+  onGilded?(minion: Minion): void;
   /** The side's shared Reveler value (max 1, run value) — Limelight's combat half. */
   revelerValueFor(side: Side): number;
   /** Gold spent in the Shop turn that just ended (Baby Gastrid). */
@@ -4697,4 +4792,18 @@ export interface CombatContext {
    *  wave. Used by multi-pass AoE echoes (Fel Spikes) to pace each pass. Purely presentational — it changes no
    *  resolution order or outcome; nesting is supported (an inner wave shadows the outer for its duration). */
   wave<T>(fn: () => T): T;
+  /** Set 2 rune Rough Cut: how many extra Rubies a combat Ruby CAST on a Kobold also casts on a random friendly
+   *  non-Kobold on this side (0 = none; one per copy held). */
+  roughCutCopiesFor?(side: Side): number;
 }
+
+/** SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): the printed numbers both phases, the badge and the tests read.
+ *  Royal Treasury: "When you buy 5 Dwarves, gain +1 maximum Gold." Feral Return: "Beasts that Rise gain +5/+5."
+ *  Hellfire: "deal 1 damage to all enemies". Wildfire: "deal 3 damage to all enemies. (3 per combat.)" Gem Rain:
+ *  "cast 2 permanent Rubies on all your minions". Vein Finder rides the generic `refresh` threshold (per 3). */
+export const ROYAL_TREASURY_PER = 5;
+export const FERAL_RETURN_GAIN = 5;
+export const HELLFIRE_DAMAGE = 1;
+export const WILDFIRE_DAMAGE = 3;
+export const WILDFIRE_PER_COMBAT = 3;
+export const GEM_RAIN_RUBIES = 2;

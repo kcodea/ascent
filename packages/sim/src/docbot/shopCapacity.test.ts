@@ -137,6 +137,8 @@ describe('Doc Bot — the Shop never overflows its capacity', () => {
     'reducer.ts godPrint': 'UNBOUNDED BY DESIGN, and only in a God Mode practice run (`run.godMode`, refused '
       + 'everywhere else): the owner\'s God Mode spec (2026-10-08) rules "Printing into a full shop still adds the '
       + 'card" — the player is deliberately stocking the row. A roll clears the printed cards back to slot size',
+    'reducer.ts offerTopShelf': 'pushes only when `s.shop.length < tierSlots(s.tier)`, otherwise REPLACES the right-most '
+      + 'minion offer not above your Tier (Rune of Top Shelf, Set 2 Epic, 2026-11-13; the Open Enrollment shape)',
   };
 
   it('every `shop.push` site is declared with its bound', () => {

@@ -43,7 +43,10 @@ const BOOL_FLAGS = (
   + 'runeRuins runeGolems runeEngravingGems runeHerdingHorn runeDeathtouchedApple runeStokedMenagerie runeHerald runeMirrorMarch '
   + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
   + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
-  + 'runeGoleming runeRedStart runeRoseysGarden' // Set 3 Kobold runes (2026-10-22)
+  + 'runeGoleming runeRedStart runeRoseysGarden ' // Set 3 Kobold runes (2026-10-22)
+  + 'runeBloodscent runeLastHowl runeTrophyHunter runePitchforks runeImpLegion runeFlamekeeper runeRubyDust runeRoughCut ' // Set 2 runes, Basic tribal (2026-11-13)
+  + 'runeDoubleBill runeBulwarkLine runeBastion runeMirrorSheen ' // Set 2 rune batch, Epic neutral (2026-11-12)
+  + 'runeFeralReturn runePackTactics runeBloodFrenzy runeHellfire runeWildfire runeGemRain runeEldersVoice' // Set 2 Epic tribal runes (2026-11-12)
 ).split(' ');
 
 /** Every non-boolean combat mod, with a value of its real shape (labels are display-only). */
@@ -162,6 +165,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ runeConduit: 1 }), // Rune of the Conduit: copy count (owner 2026-10-16, cross-phase)
   () => ({ runeHeldStrength: { attack: 2, health: 2, copies: 1 } }),
   () => ({ flagCopies: { runeAftershocks: 2, runeSavagery: 2, runeFury: 2 } }),
+  (_r, { A }) => ({ eldersVoiceUid: A[0]! }), // Elder's Voice (Set 2 Epic tribal runes, 2026-11-12): the turn's first Shout body
 ];
 
 export function pickFuzzMods(r: Rng, ids: { A: string[]; pool: string[] }, n: number): QuestCombatMods {

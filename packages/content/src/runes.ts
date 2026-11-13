@@ -2182,6 +2182,265 @@ export const RUNES: RuneDef[] = [
     text: "When you trigger a **Shout**, give your teammate's **left-most** minion **+2/+3**.",
     reward: { kind: 'duosRune', rune: 'pepTalk' },
   },
+  // ── SET 2 RUNE BATCH, BASIC NEUTRAL (owner review 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Set 2 only.
+  //    Shop halves: packages/sim/src/set2RunesBasicNeutral.ts; combat halves: simulate.ts ("SET 2 BASIC NEUTRAL RUNES").
+  //    Numbers: SET2_BASIC_NEUTRAL in @game/core. Rulings: docs/devlog/2026-11-13-set2-runes-basic-neutral.md. ──
+  {
+    // Carry-over (no cap, owner ruling): the Gold left when the turn ends is banked into next turn's opening. The End of
+    // Turn half is the REPEAT form (R-REPEAT-01): the base tick plus one per unspent Gold, a fresh random friendly per tick.
+    id: 'rune_piggy_bank',
+    name: 'Piggy Bank',
+    cost: 2,
+    text: 'All unspent Gold carries over to next turn. **End of Turn:** give a minion **+1/+3**. Repeat for every unspent Gold.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'runePiggyBank' },
+    sets: ['set2'],
+  },
+  {
+    // Paid as the next Shop opens (a Start of Turn beat): 3 Gold and a banked free Refresh, per copy held.
+    id: 'rune_hazard_pay',
+    name: 'Hazard Pay',
+    cost: 0,
+    text: 'After you lose a combat, gain **3 Gold** and a free Refresh.',
+    reward: { kind: 'combatFlag', flag: 'runeHazardPay' },
+    sets: ['set2'],
+  },
+  {
+    // The Discover happens ONCE, when the rune is taken, from the Shop's Tier (owner ruling 2026-11-12), and already offers
+    // the extra option. Every Discover after offers 1 more per copy held (`discoverOptionCount`).
+    id: 'rune_second_opinion',
+    name: 'Second Opinion',
+    cost: 3,
+    text: 'Your **Discovers** offer **1** more option. **Discover** a minion.',
+    reward: { kind: 'discover' },
+    sets: ['set2'],
+  },
+  {
+    // A Start of Combat rune (Twilight repeats it; Combat Prowess replays it in the Shop, permanently there).
+    id: 'rune_shield_wall',
+    name: 'Shield Wall',
+    cost: 2,
+    text: '**Start of Combat:** give your **Taunt** minions **+4/+6**.',
+    reward: { kind: 'combatFlag', flag: 'runeShieldWall' },
+    sets: ['set2'],
+  },
+  {
+    // Every Ward loss, no per-combat limit (owner ruling). Permanent: `permaGain`, carried back at settle.
+    id: 'rune_shatterproof',
+    name: 'Shatterproof',
+    cost: 2,
+    text: 'When a minion of yours loses **Ward**, give it **+5/+5** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeShatterproof' },
+    sets: ['set2'],
+  },
+  {
+    // A SIDE-WIDE Pummel meter over every friendly minion's landed damage, a lifetime tally carried across fights (the
+    // keyword's carry-over rule); the first crossing each fight banks 2 Gold for next turn. Heavy Hand doubles the tally.
+    id: 'rune_warm_up',
+    name: 'Warm-Up',
+    cost: 2,
+    text: '**Pummel (150):** gain **2 Gold** next turn. Counts all your minions. Once per combat.',
+    reward: { kind: 'combatFlag', flag: 'runeWarmUp' },
+    sets: ['set2'],
+  },
+  {
+    // Every Gild (a triple, a Gild effect; in combat Auric Runemaster / Ancient of Time). Shop: permanent; combat: this fight.
+    id: 'rune_golden_handshake',
+    name: 'Golden Handshake',
+    cost: 1,
+    text: 'When you **Gild** a minion, give your minions **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeGoldenHandshake' },
+    sets: ['set2'],
+  },
+  {
+    // Every Shop Tier step (a paid upgrade and a free one: Summit Passage, a Citadel commission).
+    id: 'rune_late_bloomer',
+    name: 'Late Bloomer',
+    cost: 2,
+    text: 'When you upgrade your Shop, gain **2 Gold** and give your minions **+3/+3**.',
+    reward: { kind: 'combatFlag', flag: 'runeLateBloomer' },
+    sets: ['set2'],
+  },
+  {
+    // A running count of minions bought (the Starform included); the 4th, 8th, … costs 0.
+    id: 'rune_loyal_customer',
+    name: 'Loyal Customer',
+    cost: 3,
+    text: 'Every **4th** minion you buy is free.',
+    reward: { kind: 'combatFlag', flag: 'runeLoyalCustomer' },
+    sets: ['set2'],
+  },
+  // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12, docs/devlog/2026-11-13-set2-runes-basic-tribal.md). ──
+  // Shop hooks: packages/sim/src/set2RunesBasicTribal.ts. Combat halves: simulate.ts "SET 2 RUNES, BASIC TRIBAL".
+  {
+    // The `gold` meter as a per-TURN window (`resetEachTurn`) that pays once a turn (`oncePerTurn`).
+    id: 'rune_deep_pockets',
+    tribes: ['dwarf'],
+    name: 'Deep Pockets',
+    cost: 3,
+    text: 'The first time you spend **8 Gold** each turn, get a random **Dwarf**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 8, grantRandomTribe: 'dwarf', resetEachTurn: true, oncePerTurn: true },
+    sets: ['set2'],
+  },
+  {
+    // "Your Dwarves" = the board's Dwarves (`tribeBoard`, the Gator's Bite ruling), permanent (a Shop buff).
+    id: 'rune_rowdy_crowd',
+    tribes: ['dwarf'],
+    name: 'Rowdy Crowd',
+    cost: 2,
+    text: 'After you play **4** cards in a turn, give your **Dwarves +2/+2**.',
+    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 4, resetEachTurn: true, oncePerTurn: true, buff: { target: 'tribeBoard', tribe: 'dwarf', attack: 2, health: 2 } },
+    sets: ['set2'],
+  },
+  {
+    // A kill = a Slaughter (the attacking Beast felled an enemy), the Rune of the Trophy reading. Permanent: `permaGain`.
+    id: 'rune_bloodscent',
+    tribes: ['beast'],
+    name: 'Bloodscent',
+    cost: 1,
+    text: 'When a **Beast** kills a minion, it gains **+4/+4** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodscent' },
+    sets: ['set2'],
+  },
+  {
+    // Once per combat per side: the base card body (gilded = doubled base) with its Echo, grafted Echoes included.
+    id: 'rune_last_howl',
+    tribes: ['beast'],
+    name: 'Last Howl',
+    cost: 3,
+    text: 'Resummon the first **Beast** with an **Echo** that dies each combat.',
+    reward: { kind: 'combatFlag', flag: 'runeLastHowl' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_trophy_hunter',
+    tribes: ['beast'],
+    name: 'Trophy Hunter',
+    cost: 2,
+    text: 'When a **Beast** kills a minion, gain **1 Gold** next turn. (3 per combat.)',
+    reward: { kind: 'combatFlag', flag: 'runeTrophyHunter' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_pitchforks',
+    tribes: ['demon'],
+    name: 'Pitchforks',
+    cost: 4,
+    text: '**Imps** deal **3** damage to **2** enemies when summoned.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runePitchforks' },
+    sets: ['set2'],
+  },
+  {
+    // An aura-style graft (the Echoing Kobolds shape): every friendly Imp carries the Echo, board, hand and combat summons.
+    id: 'rune_imp_legion',
+    tribes: ['demon'],
+    name: 'Imp Legion',
+    cost: 3,
+    text: 'Your **Imps** gain "**Echo:** deal **3** damage to the lowest-Health enemy."',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeImpLegion' },
+    sets: ['set2'],
+  },
+  {
+    // The recurring-grant shape (Dragon Breath): one now, then one every Start of Turn.
+    id: 'rune_guels_apprentice',
+    tribes: ['demon'],
+    name: "Guel's Apprentice",
+    cost: 2,
+    text: 'Get a **Staff of Guel**. Repeat every turn.',
+    previewCards: ['staffofguel'],
+    reward: { kind: 'recurringGrant', cards: ['staffofguel'] },
+    sets: ['set2'],
+  },
+  {
+    // "Permanently" = the permanent Shop buff channel Staff of Guel feeds (`applyRunShopBuff`).
+    id: 'rune_collections',
+    tribes: ['demon'],
+    name: 'Collections',
+    cost: 3,
+    text: 'When you **Sell** a **Demon**, give minions in the Shop **+2/+2** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeCollections' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_flamekeeper',
+    tribes: ['dragon'],
+    name: 'Flamekeeper',
+    cost: 1,
+    text: 'After you cast a **Dragonflame**, give your **Dragons +2/+2** permanently.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'combatFlag', flag: 'runeFlamekeeper' },
+    sets: ['set2'],
+  },
+  {
+    // A set price (never raises a cheaper one); discounts still stack on top. Any Tier.
+    id: 'rune_hatchling_roost',
+    tribes: ['dragon'],
+    name: 'Hatchling Roost',
+    cost: 2,
+    text: '**Dragons** with a **Shout** cost **1 Gold**.',
+    reward: { kind: 'combatFlag', flag: 'runeHatchlingRoost' },
+    sets: ['set2'],
+  },
+  {
+    // Owner rework 2026-11-13 (was "End of Turn: if you cast 3 or more Shop spells this turn, get a Dragonflame."). The
+    // REPEATING `gold` meter (Rune of Spellslinging's shape): every 3 Gold spent gets a Dragonflame, the remainder carries
+    // across turns, and it hears Big Spender's doubled count like every "spend Gold" trigger. The badge prints x/3.
+    id: 'rune_dragon_hoard',
+    tribes: ['dragon'],
+    name: 'Dragon Hoard',
+    cost: 1,
+    text: 'When you spend **3** Gold, get a **Dragonflame**.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 3, grantCards: ['sp_dragonflame'] },
+    sets: ['set2'],
+  },
+  {
+    // "A minion with Rubies" = a FRIENDLY minion carrying Ruby stats (its Shop Rubies or this fight's).
+    id: 'rune_ruby_dust',
+    tribes: ['kobold'],
+    name: 'Ruby Dust',
+    cost: 2,
+    text: 'When a minion with **Rubies** dies, cast a permanent **Ruby** on a random friendly **Kobold**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRubyDust' },
+    sets: ['set2'],
+  },
+  {
+    // The extra Ruby lands on a random friendly non-Kobold (All-types bodies are Kobolds), so it never chains.
+    id: 'rune_rough_cut',
+    tribes: ['kobold'],
+    name: 'Rough Cut',
+    cost: 2,
+    text: 'When you cast a **Ruby** on a **Kobold**, also cast one on a non-**Kobold**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRoughCut' },
+    sets: ['set2'],
+  },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch). Shop-only. On pickup: +3/+3 to the permanent run-wide Shop buff (every
+    // offer now and every one that enters later, per copy). While held the row holds 6 MINIONS at every Tier and refills
+    // the moment a minion leaves (packages/sim/src/shop.ts `refillShopMadness`), so a Hydraskus feast never runs dry.
+    id: 'rune_shop_madness',
+    name: 'Shop Madness',
+    cost: 1,
+    text: 'Minions in your Shop have **+3/+3**. Your Shop always has **6** minions.',
+    reward: { kind: 'combatFlag', flag: 'runeShopMadness' },
+    sets: ['set2'],
+  },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch): Indy's Golden Monkey as a rune. The `refresh` threshold is Indy's meter
+    // exactly (the player pressing Refresh, a free one included; the turn's fresh row does not count), cumulative and
+    // repeating; each trip REPLACES a random Shop minion with the Golden Monkey token (`replaceShopWith`). One meter per
+    // copy held. The badge prints the live x/5.
+    id: 'rune_golden_monkey',
+    name: 'Golden Monkey',
+    cost: 2,
+    text: 'Every **5** Refreshes, replace a minion in your Shop with a **Golden Monkey**.',
+    previewCards: ['n3_goldenmonkey'],
+    reward: { kind: 'runeThreshold', meter: 'refresh', per: 5, replaceShopWith: 'n3_goldenmonkey' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -4430,6 +4689,215 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['duo_megamimic'],
     reward: { kind: 'grant', cards: ['duo_megamimic'] },
   },
+  // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Set 2 only. ──
+  {
+    // Shop: after every Refresh (the Refresh button, the Open Enrollment site), one minion offer is from the Tier above
+    // your Shop (`offerTopShelf`, reducer.ts), per copy held. At the top Tier it does nothing (owner ruling 2026-11-12).
+    id: 'rune_top_shelf',
+    name: 'Top Shelf',
+    cost: 3,
+    epic: true,
+    text: 'Every Refresh offers **1** minion from the Tier above your Shop.',
+    reward: { kind: 'combatFlag', flag: 'runeTopShelf' },
+    sets: ['set2'],
+  },
+  {
+    // Combat (Start of Combat rune pass, Twilight repeats it) + its Combat Prowess Shop replay. Renamed from "Opening
+    // Act" (owner 2026-11-12: that name belongs to Fi's hero quests).
+    id: 'rune_double_bill',
+    name: 'Double Bill',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** trigger your left-most and right-most **Shouts**.',
+    reward: { kind: 'combatFlag', flag: 'runeDoubleBill' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_bulwark_line',
+    name: 'Bulwark Line',
+    cost: 3,
+    epic: true,
+    text: '**Start of Combat:** give your **Taunt** minions **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeBulwarkLine' },
+    sets: ['set2'],
+  },
+  {
+    // `offerBuyPrice` (reducer.ts): -1 per copy held on every Shop MINION offer (the Starform included), floored at 0.
+    id: 'rune_wholesale',
+    name: 'Wholesale',
+    cost: 4,
+    epic: true,
+    text: 'Minions in the Shop cost **1** less.',
+    reward: { kind: 'combatFlag', flag: 'runeWholesale' },
+    sets: ['set2'],
+  },
+  {
+    // Start of Turn after a LOST combat (a draw is not a loss): a minion Discover from your Shop Tier + 1, capped at 7.
+    id: 'rune_grudge',
+    name: 'Grudge',
+    cost: 3,
+    epic: true,
+    text: 'After you lose a combat, **Discover** a minion from the Tier above your Shop. (Up to Tier 7.)',
+    reward: { kind: 'combatFlag', flag: 'runeGrudge' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a side-wide budget (1 per copy) per fight; the Ward comes back at once as a normal Ward, so every
+    // Ward-loss trigger (Mirror Sheen, Shatterproof) hears it lose again (owner ruling 2026-11-12).
+    id: 'rune_bastion',
+    name: 'Bastion',
+    cost: 4,
+    epic: true,
+    text: 'The first minion of yours to lose **Ward** each combat gains **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeBastion' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_mirror_sheen',
+    name: 'Mirror Sheen',
+    cost: 3,
+    epic: true,
+    text: 'When a minion of yours loses **Ward**, it deals damage equal to its Attack to a random enemy.',
+    reward: { kind: 'combatFlag', flag: 'runeMirrorSheen' },
+    sets: ['set2'],
+  },
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Append only. ──
+  {
+    // Shop: every "spend Gold" trigger inside `spendGold` (minion meters, Gold rune meters, Spellslinging, Food for
+    // Gold, the Golden Ledger, Bulk Order, Ancients) hears the spend x2 (x3 with two copies). The real Gold, the
+    // per-turn / run Gold-spent tallies and the "Spend N Gold" quest objective are not triggers and stay real.
+    id: 'rune_big_spender',
+    tribes: ['dwarf'],
+    name: 'Big Spender',
+    cost: 4,
+    epic: true,
+    text: 'Your "spend Gold" triggers count each Gold **twice**.',
+    reward: { kind: 'combatFlag', flag: 'runeBigSpender' },
+    sets: ['set2'],
+  },
+  {
+    // Shop: every Dwarf minion bought ticks a run-long meter; each 5th raises max Gold by 1 per copy (`maxGoldBonus`,
+    // above the cap). Repeats (owner 2026-11-12). The badge prints the meter and the max Gold given so far.
+    id: 'rune_royal_treasury',
+    tribes: ['dwarf'],
+    name: 'Royal Treasury',
+    cost: 4,
+    epic: true,
+    text: 'When you buy **5** **Dwarves**, gain **+1** maximum Gold.',
+    reward: { kind: 'combatFlag', flag: 'runeRoyalTreasury' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: Start of Combat, the left-most Beast without Rise gains Rise (Twilight repeats it). Both phases: a Beast
+    // that Rises gains +5/+5 (combat-only in a fight, permanent in the Shop).
+    id: 'rune_feral_return',
+    tribes: ['beast'],
+    name: 'Feral Return',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** give your left-most **Beast** **Rise**. **Beasts** that **Rise** gain **+5/+5**.',
+    reward: { kind: 'combatFlag', flag: 'runeFeralReturn' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a Beast with a Rally that is chosen as an attack's target fires its Rally (a free Rally, every Rally
+    // multiplier folded) as the swing winds up, before the hit.
+    id: 'rune_pack_tactics',
+    tribes: ['beast'],
+    name: 'Pack Tactics',
+    cost: 4,
+    epic: true,
+    text: "Your **Beasts'** **Rallies** also trigger when that Beast is attacked.",
+    reward: { kind: 'combatFlag', flag: 'runePackTactics' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a friendly Beast that kills an enemy minion by attacking (the Slaughter kill) fires the left-most Rally.
+    id: 'rune_blood_frenzy',
+    tribes: ['beast'],
+    name: 'Blood Frenzy',
+    cost: 4,
+    epic: true,
+    text: 'When a **Beast** kills a minion, trigger your left-most **Rally**.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodFrenzy' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a friendly Demon's attack (as it winds up) or death sends 1 damage to every enemy minion. The RUNE deals
+    // it (no minion source), so it is not Demon damage: Ruins, Pummel and Execute do not hear it.
+    id: 'rune_hellfire',
+    tribes: ['demon'],
+    name: 'Hellfire',
+    cost: 3,
+    epic: true,
+    text: 'When a **Demon** attacks or dies, deal **1** damage to all enemies.',
+    reward: { kind: 'combatFlag', flag: 'runeHellfire' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: an enemy minion whose killing hit was NOT an attack exchange (an Echo, a rune, a spell, a Bleed) sends
+    // 3 damage to every enemy minion. 3 times per combat per copy; its own damage can chain it.
+    id: 'rune_wildfire',
+    tribes: ['demon'],
+    name: 'Wildfire',
+    cost: 4,
+    epic: true,
+    text: 'When an enemy dies to damage that is not an attack, deal **3** damage to all enemies. (3 per combat.)',
+    reward: { kind: 'combatFlag', flag: 'runeWildfire' },
+    sets: ['set2'],
+  },
+  {
+    // Shop records the body whose Shout fires first each turn (`eldersVoiceUid`); combat fires that body's Shout once
+    // more at Start of Combat (per copy, Drakko folded), if it is still on the board. Not a "Start of Combat:" rune,
+    // so Twilight does not repeat it.
+    id: 'rune_elders_voice',
+    tribes: ['dragon'],
+    name: "Elder's Voice",
+    cost: 3,
+    epic: true,
+    text: 'Your first **Shout** each turn also triggers at **Start of Combat**.',
+    reward: { kind: 'combatFlag', flag: 'runeEldersVoice' },
+    sets: ['set2'],
+  },
+  {
+    // The `refresh` meter (the player's Refresh presses) at `per: 3`, paying the Mountain Trade Ruby shower.
+    id: 'rune_vein_finder',
+    tribes: ['kobold'],
+    name: 'Vein Finder',
+    cost: 3,
+    epic: true,
+    text: 'After every **3rd** Refresh, cast a **Ruby** on all your minions.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'refresh', per: 3, rubyAll: true },
+    sets: ['set2'],
+  },
+  {
+    // Combat: Start of Combat, 2 PERMANENT Rubies (`playRubyOn(..., permanent)`, the Red Start shape) on every living
+    // friendly minion, per copy. Twilight repeats it.
+    id: 'rune_gem_rain',
+    tribes: ['kobold'],
+    name: 'Gem Rain',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeGemRain' },
+    sets: ['set2'],
+  },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch): the Badger shape. One Immune Iggy (the Set 3 Dragon `d3_iggy`; CARD_INDEX
+    // is global, so a Set 2 rune may hand it out) granted ONCE, on pickup, with Ward stamped on THAT copy only
+    // (`grantKeywords` writes the fresh BoardCard, never the shared CardDef). A full hand overflows like every grant rune.
+    id: 'rune_iggy_iggy',
+    tribes: ['dragon'],
+    name: 'Iggy Iggy',
+    cost: 3,
+    epic: true,
+    text: 'Get an **Immune Iggy** with **Ward**.',
+    previewCards: ['d3_iggy'],
+    reward: { kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -5026,6 +5494,10 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_unity',
   // …and Lasting Words (Set 3 Dragon Epic B, 2026-10-21): a Whisper cast is either permanent or not.
   'rune_lasting_words',
+  // …and Loyal Customer (Set 2 batch, 2026-11-12): a buy is either free or not; a second copy has no second free buy.
+  'rune_loyal_customer',
+  // …and Bulwark Line (Set 2 Epic neutral, 2026-11-12): a Taunt minion either has Ward or not.
+  'rune_bulwark_line',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

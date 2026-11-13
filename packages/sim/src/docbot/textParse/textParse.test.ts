@@ -205,7 +205,20 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-01 (Duos batch 2: Double Down, Upgrade Assist, Hand-Me-Downs, Buddy System, Gild Pact, Pep Talk; Teammate Synergy reworded):
 // 182 -> 188, CONSCIOUSLY. The same teammate vocabulary; pinned by packages/sim/src/duosBatch2.test.ts.
 // 2026-11-04 (Priestess, Passaria): 188 -> 189, CONSCIOUSLY. The same "Pass" vocabulary; pinned by packages/sim/src/heroPriestess.test.ts.
-const UNRESOLVED_CAP = 189;
+// 2026-11-13 (Set 2 rune batch, Basic neutral): 189 -> 197, CONSCIOUSLY. Nine new rune texts (carry-over Gold, lost-combat pay, extra Discover options, side-wide Pummel, Gild / upgrade / every-4th-buy triggers); pinned by packages/sim/src/set2RunesBasicNeutral.test.ts.
+// 2026-11-13 (Set 2 Epic neutral runes): 189 -> 194, CONSCIOUSLY. Five new rune texts the grammar does not parse yet
+// (Top Shelf's per-Refresh offer, Wholesale's price, Grudge's lost-combat Discover, Bastion's Ward re-form, Mirror Sheen's
+// Ward-loss damage); pinned by packages/sim/src/set2RunesEpicNeutral.test.ts.
+// 2026-11-13 (Set 2 Epic tribal runes: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire,
+// Elder's Voice, Vein Finder, Gem Rain): 189 -> 196, CONSCIOUSLY. Seven rune texts the grammar cannot read ("count each Gold
+// twice", "Beasts that Rise", "when that Beast is attacked", "dies to damage that is not an attack", "also triggers at Start
+// of Combat" and kin); the behaviour is pinned by packages/sim/src/set2EpicTribalRunes1112.test.ts.
+// COMBINED 2026-11-13 (all four Set 2 rune slices merged, forty rune texts): 189 -> 217, CONSCIOUSLY; +1 -> 218 for the
+// owner's Shop Madness ("Your Shop always has 6 minions." is a row rule the grammar does not read); +1 -> 219 for
+// Golden Monkey ("replace a minion in your Shop" is a swap the grammar does not read). The slice pins
+// summed to 209; the merged pool measures 217 (the Basic tribal slice's texts count here too). Pinned per rune by
+// packages/sim/src/set2Runes*.test.ts, set2EpicTribalRunes1112.test.ts and set2RunesCombined.test.ts.
+const UNRESOLVED_CAP = 219;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

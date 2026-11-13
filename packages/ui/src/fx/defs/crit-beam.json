@@ -15,9 +15,9 @@
         "width": 56,
         "coreWidth": 2.3,
         "segments": 34,
-        "waver": 0.07,
-        "waverFreq": 0,
-        "waverSpeed": 3.3,
+        "waver": 0.74,
+        "waverFreq": 0.8,
+        "waverSpeed": 6,
         "endSoftness": 0.5,
         "midSoftness": 0.6,
         "arc": 0.24,
@@ -30,9 +30,9 @@
         "flowDir": "target",
         "glowStrength": 0.28,
         "gain": 2.4,
-        "coreColor": 16737894,
-        "tipColor": 16745090,
-        "glowColor": 16752543,
+        "coreColor": 11206656,
+        "tipColor": 10485760,
+        "glowColor": 11083037,
         "flicker": 0,
         "blendMode": "normal",
         "blur": 0,
@@ -75,7 +75,7 @@
           ]
         ],
         "glowOn": true,
-        "glowAmt": 6.3,
+        "glowAmt": 1.2,
         "glowCurve": [
           [
             0,
@@ -87,9 +87,9 @@
           ]
         ],
         "glow_inner": 0,
-        "glow_alpha": 0.51,
-        "glow_knockout": true,
-        "glow_color": 16524581,
+        "glow_alpha": 1,
+        "glow_knockout": false,
+        "glow_color": 10684424,
         "godrayOn": false,
         "godrayAmt": 0.5,
         "godrayCurve": [
@@ -310,7 +310,7 @@
         ],
         "outline_alpha": 1,
         "outline_knockout": false,
-        "outline_color": 16734296,
+        "outline_color": 9573396,
         "rgbSplitOn": false,
         "rgbSplitAmt": -10,
         "rgbSplitCurve": [
@@ -485,13 +485,13 @@
       "anchor": "travel",
       "at": 0,
       "params": {
-        "count": 141,
+        "count": 95,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
         "angle": -90,
-        "speed": 545,
-        "speedVar": 0.5,
+        "speed": 1290,
+        "speedVar": 0.19,
         "reverse": false,
         "speedCurve": [
           [
@@ -503,8 +503,8 @@
             1
           ]
         ],
-        "drag": 0.9,
-        "gravity": 1230,
+        "drag": 0.75,
+        "gravity": -150,
         "pointGravity": 0,
         "life": 1560,
         "orientToVelocity": false,
@@ -1036,7 +1036,7 @@
       "anchor": "target",
       "at": 320,
       "params": {
-        "count": 141,
+        "count": 14,
         "interval": 600,
         "spread": 1,
         "aimMode": "travel",
@@ -1055,11 +1055,11 @@
           ]
         ],
         "drag": 0.9,
-        "gravity": 1160,
+        "gravity": 0,
         "pointGravity": 0,
         "life": 1770,
         "orientToVelocity": false,
-        "spinMul": 2.8,
+        "spinMul": 0.9,
         "spinCurve": [
           [
             0,
@@ -1070,7 +1070,7 @@
             1
           ]
         ],
-        "turbulence": 345,
+        "turbulence": 105,
         "turbScale": 0.1,
         "fieldPhase": 1,
         "emitShape": "point",
@@ -1083,8 +1083,8 @@
         "offsetX": 0,
         "offsetY": 0,
         "inheritVel": 0,
-        "shape": "shard",
-        "size": 9,
+        "shape": "art:crit",
+        "size": 14,
         "sizeVar": 0.5,
         "stretchX": 1,
         "stretchY": 1,
@@ -1128,9 +1128,9 @@
           11803933,
           9051678,
           13839918,
-          14564155
+          4722190
         ],
-        "blendMode": "add",
+        "blendMode": "normal",
         "glow": 0.32,
         "blur": 0,
         "blurCurve": [
@@ -1165,7 +1165,7 @@
         "advancedBloom_brightness": 1,
         "advancedBloom_blur": 8,
         "bloomOn": true,
-        "bloomAmt": 3.5,
+        "bloomAmt": 1.5,
         "bloomCurve": [
           [
             0,

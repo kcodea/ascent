@@ -16,8 +16,9 @@ describe('the Critical Strike beam', () => {
     // Read from the file: the library drops layers here, where no primitive is registered.
     expect(defArrivalMs(JSON.parse(read('./defs/crit-beam.json')))).toBeGreaterThan(0);
   });
-  it('any sound it names is in the library', () => {
-    for (const id of [KEYWORD_BEAMS.CR.launchSfx, KEYWORD_BEAMS.CR.landSfx]) if (id) expect(getDef(id), id).toBeDefined();
+  it('it has a launch and a landing sound, both in the library', () => {
+    expect(KEYWORD_BEAMS.CR).toEqual({ def: 'crit-beam', launchSfx: 'sfx-crit-shing', landSfx: 'sfx-crit-impact' });
+    for (const id of ['sfx-crit-shing', 'sfx-crit-impact']) expect(getDef(id), id).toBeDefined();
   });
   it('the Shop sends it mid-turn (a board read) and at End of Turn (a rune or the hero)', () => {
     const recruit = read('../Recruit.tsx');

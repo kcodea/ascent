@@ -24,7 +24,7 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
   V: { def: 'execute-beam', launchSfx: 'sfx-execute-slice', landSfx: 'sfx-execute-applied' },
   DS: { def: 'lastlight-beam', launchSfx: null, landSfx: null }, // the Ward sound is `sfx.shield()` at the landing
   W: { def: 'flurry-beam', launchSfx: 'sfx-flurry-whoosh', landSfx: 'sfx-flurry-swings' },
-  CR: { def: 'crit-beam', launchSfx: null, landSfx: null }, // Critical Strike: no sounds yet
+  CR: { def: 'crit-beam', launchSfx: 'sfx-crit-shing', landSfx: 'sfx-crit-impact' },
 };
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */

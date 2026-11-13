@@ -171,9 +171,9 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-whip-snap-242215',
   ],
   claw: [
-    'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-whip-snap-242215',
+    'fx/claw-chute',
+    'fx/claw-clamp',
+    'fx/claw-servo',
   ],
   chess: [
     'fx/djartmusic-christmas-sparkle-whoosh-1-275404',

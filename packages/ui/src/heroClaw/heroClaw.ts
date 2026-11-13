@@ -1,23 +1,28 @@
-// SCAFFOLDED from heroCards/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Cards, not this style, until rewritten.
 /**
- * THE CARD SHARK RUNNER: plays one Card Shark hero attack (the beats are in `heroClawConfig.ts`) and lands the
- * consequence on its impact beat (the last card sticking, or the flush bursting). Presentation only: the total it shows
- * and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
+ * THE GRABBY CLAW RUNNER: plays one Grabby Claw hero attack (the beats, the geometry and the pose are pure, in
+ * `heroClawConfig.ts`) and lands the consequence on its impact beat (the portrait hitting its socket, or dropping into
+ * the prize chute). Presentation only: the total it shows and the blow it lands are handed in, already decided by the
+ * engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
- * pauses), the damage formation, the `#stage` camera, the portraits (transform only, restored after), the voices, the
- * dim, reduced motion, finish / cancel and the safety timer. What is Card Shark's own: the hand, the card paths, the
- * royal flush, its camera and its sound.
+ * pauses), the damage formation, the `#stage` camera, the voices, the dim, reduced motion, finish / cancel and the
+ * safety timer. What is the claw's own: the claw, the chute, and THE STRUCK PORTRAIT ITSELF BEING PICKED UP.
  *
- * THE CAMERA IS APPLIED ONCE. Since the scaled stage (#1762) the shared FX canvas lives INSIDE `#stage`, so the DOM
- * camera already zooms and shakes it; the Pixi root mirrors the camera only when its canvas is NOT inside the camera
- * element (a sandbox that mounts its own canvas elsewhere). Mirroring both applied it twice and made FX overshoot the
- * portrait at peak zoom (found by the Banana attack, PR #1839).
+ * THE STRUCK PORTRAIT MOVES. It is the real DOM portrait, moved by its own `transform` (and, down the chute, its
+ * `opacity`) from the one pose the claw is drawn from, so the prongs and the portrait can never drift apart. While it is
+ * in the air its side of the board is raised over everything (Classic's `.duel-attacker-*` z-order class, here on the
+ * STRUCK side), and that class comes off the moment the blow lands. EVERY exit path (the end, `finish()`, `cancel()`,
+ * the safety timer, and an unmount, which cancels) restores its transform, its opacity and the z-order class exactly,
+ * restores the striker's transform, and hides the claw, the chute and the sign.
  *
- * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
- * the opening measure; Pixi sprites are pooled per layer and capped, textures painted once per session and pre-warmed
- * during the formation, and the updater unhooks the moment the scene drains.
+ * THE CAMERA IS APPLIED ONCE. The shared FX canvas lives INSIDE `#stage`, so the DOM camera already zooms and shakes it;
+ * the Pixi root mirrors the camera only when its canvas is NOT inside the camera element (see `stageCamera.ts`). A
+ * portrait outside the camera element has the camera folded into its own transform by hand, so it stays in the prongs.
+ *
+ * Perf (docs/performance.md): DOM writes are `transform` / `opacity` from the clock; layout is read once, at the start;
+ * the claw's sprites are taken once and only moved; the pose, the camera focus and the operator's nudge are refilled in
+ * place each frame (no allocation); the pool is capped; textures are painted once per session and pre-warmed during the
+ * formation; and the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -25,13 +30,13 @@ import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
+import { hexToNum, prefersReducedMotion, type Pt } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  cardArrivalDir, cardMotions, clawCameraAt, clawCameraFocus, clawCues, clawPlan, fanPoses, getHeroClawConfig, heldPoses,
-  type CardMotion, type CardsCue, type CardsPlan, type FanPose, type HeroClawConfig,
+  blankPose, clawCameraAt, clawCameraFocus, clawCramped, clawCues, clawGeo, clawPlan, clawPose, getHeroClawConfig, operatorAt,
+  type ClawCue, type ClawGeo, type ClawPlan, type ClawPose, type HeroClawConfig,
 } from './heroClawConfig';
 import { HeroClawScene, type HeroClawTextures } from './heroClawScene';
 import { heroClawTextures } from './heroClawTextures';
@@ -42,21 +47,30 @@ export interface HeroClawOptions extends HeroAttackOptions {
 }
 
 export interface HeroClawHandle extends HeroAttackHandle {
-  readonly plan: CardsPlan;
-  /** Every card's flight (empty under reduced motion). Exposed for tests and the capture rig. */
-  readonly motions: readonly CardMotion[];
-  /** Where the cards are held (Small, Medium) or fanned (Big) before they leave. */
-  readonly hand: readonly FanPose[];
+  readonly plan: ClawPlan;
+  /** Where everything is laid out (measured once, at the start). */
+  readonly geo: ClawGeo;
+  /** The pose at any sequence time (a fresh object; for tests and the capture rig). */
+  pose(t: number): ClawPose;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). */
   readonly scene: HeroClawScene | null;
 }
 
-/** The seed a fight's confetti is scattered from: the same fight (same blow, same geometry) bursts the same way. */
+/** The seed a fight's coins and sparks are scattered from when the caller gives none: the same blow scatters the same. */
 export function clawSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
-  return (Math.round(total) * 6151 + Math.round(distance) * 37 + (side === 'opp' ? 211 : 17)) >>> 0;
+  return (Math.round(total) * 5393 + Math.round(distance) * 41 + (side === 'opp' ? 227 : 19)) >>> 0;
 }
 
-/** Play Card Shark. Returns a handle; the blow lands via `onImpact` on the impact beat. */
+/** One measure of a portrait: `inv` = its own transform px per screen px (the stage may be scaled). */
+function invOf(el: HTMLElement | null | undefined): number {
+  try {
+    const b = el?.getBoundingClientRect();
+    if (!el || !b || !(b.width > 0)) return 1;
+    return el.offsetWidth > 0 ? el.offsetWidth / b.width : 1;
+  } catch { return 1; }
+}
+
+/** Play the Grabby Claw. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroClaw(o: HeroClawOptions): HeroClawHandle {
   const c = o.cfg ?? getHeroClawConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -66,12 +80,20 @@ export function playHeroClaw(o: HeroClawOptions): HeroClawHandle {
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = clawPlan({ total: o.total, knockout: o.knockout, distance: dist, reduced, leadIn: fplan.endAt }, c);
-  const cues = withFormation(fplan, clawCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
-  const aRadius = o.attackerRadius ?? radius;
+  // Layout is read ONCE, here: the portraits' own px per screen px, and the view.
+  const heroInv = local ? 1 : invOf(o.attackerEl);
+  const foeInv = local ? 1 : invOf(o.defenderEl);
+  const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
+  const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
+  const frame = { x0: 0, y0: 0, x1: vw, y1: vh };
+  // No room above the struck portrait (the opponent's sits against the top edge): it is pulled out, not lifted.
+  const plan = clawPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, cramped: clawCramped(o.defender, radius, frame, c) }, c);
+  const cues = withFormation(fplan, clawCues(plan));
+  const geo = clawGeo(plan, o.attacker, o.defender, radius, frame, c);
+  const yank = plan.heldTo > plan.releaseAt;
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
   const voices = new AttackVoices(sound);
   const nums = new DamageFormation({
@@ -79,24 +101,12 @@ export function playHeroClaw(o: HeroClawOptions): HeroClawHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hclaw',
   });
 
-  // The view the Big hand must stay inside (measured once, at the start).
-  const view = local ? { w: o.host?.clientWidth || 400, h: o.host?.clientHeight || 300 } : { w: typeof window !== 'undefined' ? window.innerWidth : 1920, h: typeof window !== 'undefined' ? window.innerHeight : 1080 };
-  const cardH = c.cardLength * s * plan.size;
-  const hand = plan.reduced ? [] : plan.flush
-    ? fanPoses(plan.cards.length, o.attacker, o.defender, aRadius, cardH * c.fanSize, c, view)
-    : heldPoses(plan, o.attacker, o.defender, aRadius);
-  const motions = cardMotions(plan, o.attacker, o.defender, radius, aRadius, plan.flush ? cardH * c.fanSize : cardH, c, (local ? 8 : 36) * s, nums.pts.hit, hand);
-  const last = motions[motions.length - 1];
-  const dir = cardArrivalDir(last, o.attacker, o.defender);
-  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-  const handCentre = hand.length ? { x: hand.reduce((a, p) => a + p.x, 0) / hand.length, y: hand.reduce((a, p) => a + p.y, 0) / hand.length } : o.attacker;
-
   // ── Pixi ──
   const textures = o.textures !== undefined ? o.textures : heroClawTextures();
   const scene = textures && !reduced
     ? new HeroClawScene(textures, {
-      ivory: hexToNum(c.colorIvory), red: hexToNum(c.colorRed), gold: hexToNum(c.colorGold), ink: 0x1b1620, side: hexToNum(sideHex),
-    }, { length: c.cardLength, glow: c.cardGlow, ghosts: c.ghostAlpha, quiver: c.quiver, confetti: c.confetti, gravity: c.confettiGravity }, s, clawSeed(o.total, dist, o.side))
+      chrome: hexToNum(c.colorChrome), lamp: hexToNum(c.colorLamp), coin: hexToNum(c.colorCoin), dust: hexToNum(c.colorDust), side: hexToNum(sideHex),
+    }, radius, c.clawSize, s, o.rollSeed ?? clawSeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -106,78 +116,100 @@ export function playHeroClaw(o: HeroClawOptions): HeroClawHandle {
   const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
+  const foeOpacity0 = foe.el ? foe.el.style.opacity : '';
+  let foeFaded = false;
+  const heroInCam = !!(cameraEl && hero.el && cameraEl.contains(hero.el));
+  const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
+  // The STRUCK side is raised over the board while its portrait is in the air (Classic's own duel z-order classes).
+  const zClass = o.side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
+  const canRaise = !reduced && !local && !!foe.el && !!doc;
+  let raised = false;
+  const raise = (): void => {
+    // A class someone else already put there (the fight's own duel) is theirs: it is left alone, going up and coming down.
+    if (!canRaise || raised || doc!.body.classList.contains(zClass)) return;
+    doc!.body.classList.add(zClass); raised = true;
+  };
+  const lower = (): void => { if (raised) { doc!.body.classList.remove(zClass); raised = false; } };
 
   const cue = voices.cue.bind(voices);
-  voices.warm([
-    c.sfxDrawClip, c.sfxFlickClip, c.sfxSnapClip, c.sfxThunkClip, c.sfxPunchClip, c.sfxImpactClip, c.sfxBigClip,
-    c.sfxDealClip, c.sfxFlipClip, c.sfxRevealClip, c.sfxBurstClip, c.sfxSparkleClip,
-  ]);
-  const n = plan.cards.length;
-  const sizeK = plan.size * (plan.flush ? c.fanSize : 1);
-  let hitStep = 0;
+  voices.warm([c.sfxServoClip, c.sfxClampClip, c.sfxCoinClip, c.sfxThudClip, c.sfxChuteClip, c.sfxWinClip, c.sfxPopClip]);
 
-  const fire = (q: CardsCue | FormationCue): void => {
+  const pose = blankPose();
+  const focus: Pt = { x: o.defender.x, y: o.defender.y };
+  const op = { x: 0, y: 0, sx: 1, sy: 1 };
+  /** The held portrait's centre right now (overlay px). */
+  const heldAt = (): Pt => ({ x: o.defender.x + pose.px, y: o.defender.y + pose.py });
+
+  const fire = (q: ClawCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
-    const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // A card is drawn: a soft riffle, and (Small, Medium) the cards snap into the hand face up.
-        cue(c.sfxDrawClip, c.sfxDrawGain, c.sfxDrawRate, { lenMs: 500, fadeMs: 200 });
+        // The trolley runs in: the servo.
+        cue(c.sfxServoClip, c.sfxServoGain, c.sfxServoRate, { lenMs: Math.max(160, plan.hoverAt - plan.chargeAt + 60), fadeMs: 120 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.startCharge(plan.flush ? handCentre : (hand[0] ?? o.attacker), (plan.flush ? (plan.deals[0] ?? plan.throwAt) : plan.throwAt) - plan.chargeAt);
-        if (scene && !plan.flush) plan.cards.forEach((cp, i) => scene.hold(i, cp.face, hand[i]!, plan.size * (cp.size ?? 1)));
         cam.start();
+        // The struck side goes over the board now, on the frame the camera is promoted anyway (the class change
+        // restyles the page: one busy frame here, none on the clamp).
+        raise();
         break;
-      case 'deal':
-        cue(c.sfxDealClip, c.sfxDealGain, c.sfxDealRate + 0.04 * q.i, { lenMs: 300, fadeMs: 120 });
-        scene?.deal(q.i, plan.cards[q.i]!.face, { x: o.attacker.x + toFoe.x * aRadius * 0.5, y: o.attacker.y + toFoe.y * aRadius * 0.5 }, hand[q.i]!, sizeK, c.dealMs);
+      case 'drop':
+        // The winch lets the claw down: a shorter, higher whirr.
+        cue(c.sfxServoClip, c.sfxServoGain * 0.7, c.sfxServoRate * 1.35, { lenMs: Math.max(120, plan.clampAt - plan.dropAt + 40), fadeMs: 80 });
         break;
-      case 'flip':
-        cue(c.sfxFlipClip, c.sfxFlipGain, c.sfxFlipRate + 0.06 * q.i, { lenMs: 260, fadeMs: 100 });
-        scene?.flip(q.i, c.flipMs);
+      case 'grab':
+        // CLAMP: the prongs bite.
+        cue(c.sfxClampClip, c.sfxClampGain, c.sfxClampRate);
+        scene?.grab(o.defender.x, o.defender.y);
         break;
-      case 'gold':
-        // THE ROYAL FLUSH turns gold: a bright reveal and a sparkle.
-        cue(c.sfxRevealClip, c.sfxRevealGain, c.sfxRevealRate, { lenMs: 1200, fadeMs: 400 });
-        cue(c.sfxSparkleClip, c.sfxSparkleGain, c.sfxSparkleRate, { lenMs: 900, fadeMs: 300 });
-        scene?.gild(c.goldMs);
+      case 'lift':
+        cue(c.sfxServoClip, c.sfxServoGain * 0.8, c.sfxServoRate * 0.88, { lenMs: Math.max(140, plan.liftEnd - plan.grabAt), fadeMs: 110 });
         break;
-      case 'throw': {
-        // SNAP: a quick swish and a whip-snap (a little higher per card). The flush fires all five at once: one big swish.
-        if (plan.flush && q.i > 0) { scene?.throw(q.i, plan.cards[q.i]!.face, motions[q.i]!, sizeK, t - q.at); break; }
-        cue(c.sfxFlickClip, c.sfxFlickGain * (plan.flush ? 1.3 : 1), c.sfxFlickRate + 0.05 * q.i - (plan.flush ? 0.25 : 0), { lenMs: c.sfxFlickLenMs, fadeMs: 110 });
-        cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate + 0.05 * q.i, { startMs: 440, lenMs: 170, fadeMs: 80 });
-        const m = motions[q.i];
-        if (m && scene) scene.throw(q.i, plan.cards[q.i]!.face, m, plan.flush ? sizeK : plan.size * (plan.cards[q.i]!.size ?? 1), t - q.at);
+      case 'slip':
+        // Fumble: the grip rattles loose.
+        cue(c.sfxClampClip, c.sfxClampGain * 0.55, c.sfxClampRate * 1.5, { startMs: 50, lenMs: 150, fadeMs: 60 });
+        break;
+      case 'shake': {
+        // A hard shake: the servo jerks, coins fall out (a little higher each time).
+        cue(c.sfxServoClip, c.sfxServoGain * 0.6, c.sfxServoRate * (1.5 + 0.08 * q.i), { lenMs: 120, fadeMs: 60 });
+        cue(c.sfxCoinClip, c.sfxCoinGain, c.sfxCoinRate + 0.08 * q.i, { lenMs: 420, fadeMs: 200 });
+        const at = heldAt();
+        scene?.shakeOut(at.x, at.y, q.i % 2 === 0 ? 1 : -1, plan.coins);
         break;
       }
-      case 'hit':
-        // THUNK: a card before the last sticks. FX and sound only.
-        cue(c.sfxThunkClip, c.sfxThunkGain * 0.85, c.sfxThunkRate + 0.06 * hitStep, { lenMs: 420, fadeMs: 150 });
-        cue(c.sfxPunchClip, c.sfxPunchGain * 0.7, c.sfxPunchRate + 0.05 * hitStep, { lenMs: 260, fadeMs: 100 });
-        scene?.hit(q.i, hitStep);
-        hitStep++;
+      case 'chute':
+        // Prize: the chute slides up.
+        cue(c.sfxPopClip, c.sfxPopGain * 0.8, c.sfxPopRate * 0.75, { lenMs: 300, fadeMs: 120 });
+        break;
+      case 'carry':
+        cue(c.sfxServoClip, c.sfxServoGain, c.sfxServoRate * 1.08, { lenMs: Math.max(200, plan.carryEnd - plan.carryAt + 40), fadeMs: 140 });
+        break;
+      case 'release':
+        // The prongs spring open; or (pulled out) the winch snatches the portrait back up.
+        if (yank) cue(c.sfxServoClip, c.sfxServoGain * 0.9, c.sfxServoRate * 1.6, { lenMs: Math.max(120, plan.impactAt - plan.releaseAt), fadeMs: 60 });
+        else cue(c.sfxClampClip, c.sfxClampGain * 0.7, c.sfxClampRate * 1.25, { lenMs: 120, fadeMs: 50 });
         break;
       case 'impact':
-        if (plan.flush) {
-          // THE FLUSH BURSTS into card confetti.
-          cue(c.sfxBurstClip, c.sfxBurstGain, c.sfxBurstRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 300 });
-          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate, { lenMs: 600, fadeMs: 200 });
-          cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
-          cue(c.sfxSparkleClip, c.sfxSparkleGain * 0.8, c.sfxSparkleRate + 0.1, { lenMs: 900, fadeMs: 300 });
-          scene?.burst(o.defender.x, o.defender.y, radius, { burst: plan.burst, sparks: plan.sparks, flashAlpha: c.flashAlpha });
+        if (plan.level === 3 && geo.chute) {
+          // Down the chute: the clatter.
+          cue(c.sfxChuteClip, c.sfxChuteGain, c.sfxChuteRate, { tail: c.sfxTailMix });
+          cue(c.sfxThudClip, c.sfxThudGain * 0.6, c.sfxThudRate * 0.9, { lenMs: 420, fadeMs: 180 });
+          scene?.swallow(geo.chute, { sparks: plan.sparks, flashAlpha: c.flashAlpha });
         } else {
-          // THE LAST CARD: the thunk, a punch and the impact; a crack on the three of a kind.
-          cue(c.sfxThunkClip, c.sfxThunkGain, c.sfxThunkRate + 0.06 * hitStep, { tail: c.sfxTailMix, lenMs: 520, fadeMs: 180 });
-          cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.1 * plan.level), c.sfxImpactRate, { lenMs: c.sfxImpactLenMs, fadeMs: 280 });
-          cue(c.sfxPunchClip, c.sfxPunchGain, c.sfxPunchRate - 0.05 * plan.level, { lenMs: 320, fadeMs: 120 });
-          if (plan.level >= 2) cue(c.sfxBigClip, c.sfxBigGain * 0.8, c.sfxBigRate, { lenMs: 600, fadeMs: 220 });
-          scene?.impact(n - 1, radius, { level: plan.level, burst: plan.burst, sparks: plan.sparks, flashAlpha: c.flashAlpha });
+          // Back in its socket: the thud (heavier from the height of a shake).
+          cue(c.sfxThudClip, c.sfxThudGain * (plan.level === 2 ? 1.25 : 0.9), c.sfxThudRate * (plan.level === 2 ? 0.92 : 1.08), { tail: c.sfxTailMix, lenMs: 520, fadeMs: 220 });
+          if (yank) cue(c.sfxClampClip, c.sfxClampGain * 0.6, c.sfxClampRate * 1.25, { lenMs: 120, fadeMs: 50 });
+          scene?.land(o.defender.x, o.defender.y, { level: plan.level, sparks: plan.sparks, flashAlpha: c.flashAlpha, slam: yank });
         }
+        lower();
         seq.land();
         break;
-      case 'dissolve':
-        scene?.dissolve();
+      case 'win':
+        cue(c.sfxWinClip, c.sfxWinGain, c.sfxWinRate, { lenMs: 900, fadeMs: 350 });
+        if (geo.chute) scene?.win(geo.chute);
+        break;
+      case 'return':
+        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { lenMs: 320, fadeMs: 120 });
+        scene?.pop(o.defender.x, o.defender.y);
         break;
       default:
         break;
@@ -186,67 +218,59 @@ export function playHeroClaw(o: HeroClawOptions): HeroClawHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.throwAt, plan.impactAt + (plan.flush ? 380 : 200));
-    const cm = clawCameraAt(plan, c, t, dir);
+    nums.paintDim(t, plan.chargeAt, plan.grabAt, plan.impactAt + 300);
+    const cm = clawCameraAt(plan, c, t);
     const unit = local ? 1 : s;
-    cam.apply(clawCameraFocus(plan, t, o.attacker, o.defender, plan.flush ? handCentre : null), cm.zoom, cm.x, cm.y, unit);
-    const px = local ? 0.45 : 1;
-    if (hero.el && t >= plan.chargeAt) {
-      // The ready: a small lean back and swell; every card leaving (dealt, or thrown) flicks the hero toward the target.
-      let sc = 1, bx = 0, by = 0;
-      const readyEnd = plan.flush ? (plan.deals[0] ?? plan.throwAt) : plan.throwAt;
-      if (t < readyEnd) {
-        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, readyEnd - plan.chargeAt));
-        sc = 1 + 0.035 * u;
-        bx = -toFoe.x * c.heroCoilPx * px * u; by = -toFoe.y * c.heroCoilPx * px * u;
-      } else {
-        const back = Math.max(0, spring(t - readyEnd, 3, 90));
-        sc = 1 + 0.035 * back;
-        bx = -toFoe.x * c.heroCoilPx * px * back; by = -toFoe.y * c.heroCoilPx * px * back;
-        const flicks = plan.flush ? [...plan.deals, plan.throwAt] : plan.cards.map((d) => d.throwAt);
-        for (const at of flicks) {
-          if (at > t) continue;
-          const f = c.heroFlickPx * px * spring(t - at, 5, 60) * (plan.flush && at !== plan.throwAt ? 0.35 : 1);
-          bx += toFoe.x * f; by += toFoe.y * f;
-        }
-      }
-      hero.set(Math.abs(sc - 1) < 1e-4 && Math.abs(bx) + Math.abs(by) < 0.05 ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) scale(${sc.toFixed(4)})`);
+    clawCameraFocus(plan, geo, t, focus);
+    cam.apply(focus, cm.zoom, cm.x, cm.y, unit);
+    clawPose(plan, geo, c, t, pose);
+    if (scene) { scene.setPose(pose, geo); scene.setFoeOffset(pose.px, pose.py); }
+    // The camera's screen offset: a portrait OUTSIDE the camera element folds it in by hand (so it stays in the prongs).
+    const camOn = cam.active;
+    const ax = focus.x * (1 - cm.zoom) + cm.x * unit, ay = focus.y * (1 - cm.zoom) + cm.y * unit;
+    if (foe.el) {
+      const own = foeInCam || !camOn;
+      const z = own ? 1 : cm.zoom;
+      const x = own ? pose.px : pose.px * cm.zoom + o.defender.x * (cm.zoom - 1) + ax;
+      const y = own ? pose.py : pose.py * cm.zoom + o.defender.y * (cm.zoom - 1) + ay;
+      const still = Math.abs(x) < 0.05 && Math.abs(y) < 0.05 && Math.abs(pose.prot) < 1e-4 && Math.abs(pose.psx * z - 1) < 1e-4 && Math.abs(pose.psy * z - 1) < 1e-4;
+      foe.set(still ? null
+        : `translate(${(x * foeInv).toFixed(2)}px, ${(y * foeInv).toFixed(2)}px) rotate(${((pose.prot * 180) / Math.PI).toFixed(2)}deg) scale(${(pose.psx * z).toFixed(4)}, ${(pose.psy * z).toFixed(4)})`);
+      if (pose.palpha < 0.999) { foe.el.style.opacity = pose.palpha.toFixed(3); foeFaded = true; } else if (foeFaded) { foe.el.style.opacity = foeOpacity0; foeFaded = false; }
     }
-    let fx = 0, fy = 0;
-    if (foe.el || scene) {
-      let css: string | null = null;
-      if (t >= plan.impactAt) {
-        const k = spring(t - plan.impactAt, 4.5, 90);
-        const knock = c.knockPx * (0.7 + 0.5 * plan.k) * k * px;
-        const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
-        fx = dir.x * knock; fy = dir.y * knock;
-        css = Math.abs(k) < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
-      } else if (plan.hits.length && t >= plan.hits[0]!) {
-        let k = 0;
-        for (const at of plan.hits) k += at <= t ? Math.max(0, spring(t - at, 6, 45)) : 0;
-        fx = dir.x * k * 6 * px; fy = dir.y * k * 6 * px;
-        css = k < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
-      }
-      foe.set(css);
+    if (hero.el) {
+      operatorAt(plan, geo, c, t, op);
+      const px = local ? 0.45 : 1;
+      const own = heroInCam || !camOn;
+      const z = own ? 1 : cm.zoom;
+      const x = own ? op.x * px : op.x * px * cm.zoom + o.attacker.x * (cm.zoom - 1) + ax;
+      const y = own ? op.y * px : op.y * px * cm.zoom + o.attacker.y * (cm.zoom - 1) + ay;
+      const still = Math.abs(x) < 0.05 && Math.abs(y) < 0.05 && Math.abs(op.sx * z - 1) < 1e-4 && Math.abs(op.sy * z - 1) < 1e-4;
+      hero.set(still ? null : `translate(${(x * heroInv).toFixed(2)}px, ${(y * heroInv).toFixed(2)}px) scale(${(op.sx * z).toFixed(4)}, ${(op.sy * z).toFixed(4)})`);
     }
-    scene?.setFoeOffset(fx * unit, fy * unit);
   };
 
-  const seq: Sequence<CardsCue | FormationCue> = new Sequence<CardsCue | FormationCue>({
+  const seq: Sequence<ClawCue | FormationCue> = new Sequence<ClawCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
     safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
-    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
+    teardownDom: () => {
+      nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
+      if (foe.el) foe.el.style.opacity = foeOpacity0;
+      foeFaded = false;
+      scene?.hideOwn();
+      lower();
+    },
     stopVoices: () => voices.stopAll(),
   });
 
   return {
     plan,
-    motions,
-    hand,
+    geo,
+    pose: (t: number) => clawPose(plan, geo, c, t),
     scene,
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },

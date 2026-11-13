@@ -170,7 +170,10 @@
  * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroGlass/`.
  *
  * `stars` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroStars/`.
+ * "Attack style" override. "Written in the Stars" (Ancient): CONSTELLATIONS. The board dims to a night sky and thin
+ * lines join stars one by one into a figure that comes alive and strikes: I an arrow; II a bow that draws; III an archer;
+ * IV the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
+ * (`../heroStars/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names

@@ -1,6 +1,7 @@
 /**
  * THE CHECKMATE RUNNER: plays one Checkmate hero attack (the beats are in `heroChessConfig.ts`) and lands the
- * consequence on its impact beat (the pawn's capture, the knight's landing, the queen's slide arriving). Presentation
+ * consequence on its impact beat (Tier 1 the pawn's capture, Tier 2 the knight's landing, Tier 3 the rook's ram, Tier 4
+ * the queen's slide arriving). Presentation
  * only: the total it shows and the blow it lands are handed in, already decided by the engine; this file only decides
  * WHEN on screen they happen.
  *
@@ -29,7 +30,7 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  KING_ROCKS, chessBoard, chessCameraAt, chessCameraFocus, chessCues, chessPlan, getHeroChessConfig,
+  KING_ROCKS, QUEEN_LEVEL, ROOK_LEVEL, chessBoard, chessPieceAt, newPiecePose, chessCameraAt, chessCameraFocus, chessCues, chessPlan, getHeroChessConfig,
   type ChessCue, type ChessGeo, type ChessPlan, type HeroChessConfig,
 } from './heroChessConfig';
 import { HeroChessScene, type HeroChessTextures } from './heroChessScene';
@@ -105,8 +106,11 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
   const cue = voices.cue.bind(voices);
   voices.warm([
     c.sfxSetClip, c.sfxHopClip, c.sfxWhooshClip, c.sfxSlideClip, c.sfxGleamClip, c.sfxThudClip, c.sfxPunchClip,
-    c.sfxImpactClip, c.sfxBigClip, c.sfxToppleClip, c.sfxKnockClip, c.sfxRollClip, c.sfxBodyClip,
+    c.sfxImpactClip, c.sfxBigClip, c.sfxToppleClip, c.sfxKnockClip, c.sfxRollClip, c.sfxBodyClip, c.sfxRumbleClip, c.sfxCrashClip,
   ]);
+  const queen = plan.level === QUEEN_LEVEL, rook = plan.level === ROOK_LEVEL;
+  const heavy = plan.level >= ROOK_LEVEL;
+  const seamPose = newPiecePose();
   /** THE LOW LAYER (the shared ground impact; its hit is 380 ms into the clip, so it starts there). */
   const body = (gain: number, rate = 1, lenMs = 600, delayMs = 0): void => cue(c.sfxBodyClip, c.sfxBodyGain * gain, c.sfxBodyRate * rate, { startMs: 380, lenMs, fadeMs: Math.round(lenMs * 0.45), delayMs });
   let hop = 0;
@@ -120,10 +124,11 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
         break;
       case 'tap':
         // The piece is set down: one solid wooden tap (lower and fuller up the looks; the queen lands with a low thump).
-        cue(c.sfxSetClip, c.sfxSetGain * (plan.level === 3 ? 1.2 : 1), c.sfxSetRate * (plan.level === 3 ? 0.82 : plan.level === 2 ? 0.94 : 1.06), { fadeMs: 80 });
-        cue(c.sfxKnockClip, c.sfxKnockGain * (plan.level === 3 ? 0.7 : plan.level === 2 ? 0.5 : 0.35), c.sfxKnockRate * (plan.level === 3 ? 0.85 : 1.1));
-        if (plan.level === 3) body(0.4, 1.3, 380);
-        scene?.tap(geo.start.x, geo.start.y, plan.level === 3 ? 1.5 : 1.1);
+        // (The rook and the queen come down heavy.)
+        cue(c.sfxSetClip, c.sfxSetGain * (heavy ? 1.2 : 1), c.sfxSetRate * (queen ? 0.82 : rook ? 0.78 : plan.level === 2 ? 0.94 : 1.06), { fadeMs: 80 });
+        cue(c.sfxKnockClip, c.sfxKnockGain * (queen ? 0.7 : rook ? 0.8 : plan.level === 2 ? 0.5 : 0.35), c.sfxKnockRate * (queen ? 0.85 : rook ? 0.8 : 1.1));
+        if (heavy) body(rook ? 0.55 : 0.4, 1.3, 380);
+        scene?.tap(geo.start.x, geo.start.y, heavy ? 1.5 : 1.1);
         break;
       case 'hop':
         // A pawn hop leaves the board: a short swish.
@@ -142,6 +147,11 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
         // The knight rears: a low swish as it winds up.
         cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.7, { lenMs: 320, fadeMs: 160 });
         break;
+      case 'brace':
+        // The rook braces: heavy wood grinding on the board as it rocks back, slowed and low, dying away at the full draw.
+        cue(c.sfxRumbleClip, c.sfxRumbleGain * 0.75, c.sfxRumbleRate * 0.62, { lenMs: Math.round(c.rookBraceMs * 0.95), fadeMs: Math.round(c.rookBraceMs * 0.4) });
+        cue(c.sfxKnockClip, c.sfxKnockGain * 0.3, c.sfxKnockRate * 0.75, { delayMs: (c.rookBraceMs * 0.85) / speed });
+        break;
       case 'gleam':
         // The gleam runs up the queen, and a low swish rises under it as she coils (the held breath before the slide).
         // (The sparkle clip is near silent for its first 1.4 s: it is played from where it is rising.)
@@ -153,24 +163,43 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
         // The move that takes the portrait leaves: the knight's jump is a whoosh; the queen's slide is wood on wood
         // under a fast whoosh, timed so the slide's swell ends as she arrives.
         if (plan.level === 2) cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 460, fadeMs: 160 });
-        else if (plan.level === 3) {
+        else if (rook) {
+          // The rook's charge: the rumble at full speed (its 0.42 s fills the run), and a rush of air rising into the ram.
+          cue(c.sfxRumbleClip, c.sfxRumbleGain * 1.1, c.sfxRumbleRate * 1.1, { fadeMs: 60 });
+          cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.75, c.sfxWhooshRate * 0.85, { delayMs: (c.rookChargeMs * 0.45) / speed, lenMs: Math.round(c.rookChargeMs * 0.6), fadeMs: 70 });
+        } else if (queen) {
           cue(c.sfxSlideClip, c.sfxSlideGain, c.sfxSlideRate, { startMs: 80, fadeMs: 90 });
           cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.1, c.sfxWhooshRate * 1.35, { lenMs: 300, fadeMs: 110 });
         } else cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate + 0.5, { lenMs: 200, fadeMs: 90 });
         break;
+      case 'cross': {
+        // The rook thumps over a seam: a knock on the wood over a short low layer, harder (and lower) each time.
+        cue(c.sfxKnockClip, c.sfxKnockGain * (0.55 + 0.18 * q.i), c.sfxKnockRate * (0.95 - 0.06 * q.i));
+        cue(c.sfxSetClip, c.sfxSetGain * 0.7, c.sfxSetRate * (0.9 - 0.05 * q.i), { fadeMs: 60 });
+        body(0.35 + 0.15 * q.i, 1.4, 260);
+        chessPieceAt(plan, geo, c, q.at, seamPose);
+        scene?.seam(seamPose.x, seamPose.y, q.i);
+        break;
+      }
       case 'impact':
         // THE capture: a hard wooden knock over a low body, under the hit. The pawn pokes; the knight thuds down; the
-        // queen cracks through.
-        cue(c.sfxKnockClip, c.sfxKnockGain * (0.8 + 0.2 * plan.level), c.sfxKnockRate * (plan.level === 1 ? 1.1 : plan.level === 2 ? 0.9 : 0.75), { tail: plan.level === 3 ? 0.12 : 0 });
-        body(plan.level === 1 ? 0.6 : plan.level === 2 ? 1 : 1.2, plan.level === 1 ? 1.35 : plan.level === 2 ? 1.15 : 1, plan.level === 3 ? 900 : 520);
-        cue(c.sfxSetClip, c.sfxSetGain * 0.9, c.sfxSetRate * (plan.level === 1 ? 1.15 : 0.8), { fadeMs: 80 });
-        cue(c.sfxPunchClip, c.sfxPunchGain * (0.8 + 0.2 * plan.level), c.sfxPunchRate - 0.1 * (plan.level - 1), { lenMs: 320, fadeMs: 120 });
-        cue(c.sfxImpactClip, c.sfxImpactGain * (0.75 + 0.12 * plan.level), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 280 });
-        if (plan.level === 2) cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 520, fadeMs: 180 });
-        if (plan.level === 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 650, fadeMs: 240 });
+        // queen cracks through. The rook RAMS: the same knock and low layer, under a crash of splintering wood.
+        // (The queen keeps the levels the second pass set: `lv` is the old three-look ladder, the rook sits between.)
+        {
+          const lv = queen ? 3 : rook ? 2.6 : plan.level;
+          cue(c.sfxKnockClip, c.sfxKnockGain * (0.8 + 0.2 * lv), c.sfxKnockRate * (plan.level === 1 ? 1.1 : plan.level === 2 ? 0.9 : rook ? 0.8 : 0.75), { tail: queen ? 0.12 : rook ? 0.08 : 0 });
+          body(plan.level === 1 ? 0.6 : plan.level === 2 ? 1 : rook ? 1.2 : 1.2, plan.level === 1 ? 1.35 : plan.level === 2 ? 1.15 : rook ? 1.05 : 1, queen ? 900 : rook ? 760 : 520);
+          cue(c.sfxSetClip, c.sfxSetGain * 0.9, c.sfxSetRate * (plan.level === 1 ? 1.15 : 0.8), { fadeMs: 80 });
+          cue(c.sfxPunchClip, c.sfxPunchGain * (0.8 + 0.2 * lv), c.sfxPunchRate - 0.1 * (lv - 1), { lenMs: 320, fadeMs: 120 });
+          cue(c.sfxImpactClip, c.sfxImpactGain * (0.75 + 0.12 * lv), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 280 });
+          if (plan.level === 2) cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 520, fadeMs: 180 });
+          if (rook) cue(c.sfxCrashClip, c.sfxCrashGain, c.sfxCrashRate, { tail: 0.1, fadeMs: 200 });
+          if (queen) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 650, fadeMs: 240 });
+        }
         scene?.impact(plan.level === 2 ? o.defender.x : contact.x + dir.x * radius * 0.3, plan.level === 2 ? o.defender.y : contact.y + dir.y * radius * 0.3, radius, dir,
           { level: plan.level, burst: plan.burst, sparks: plan.sparks, flashAlpha: c.flashAlpha });
-        if (plan.level === 3) scene?.screenFlash(0.38, view.w, view.h);
+        if (queen) scene?.screenFlash(0.38, view.w, view.h);
+        else if (rook) scene?.screenFlash(0.24, view.w, view.h, 120);
         seq.land();
         break;
       case 'wobble':
@@ -202,7 +231,7 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
     scene?.drive(t);
-    nums.paintDim(t, plan.chargeAt, plan.strikeAt, plan.impactAt + (plan.king ? 1100 : 260));
+    nums.paintDim(t, plan.chargeAt, plan.strikeAt, plan.impactAt + (plan.king ? 1100 : rook ? 500 : 260));
     const cm = chessCameraAt(plan, c, t, dir);
     const unit = local ? 1 : s;
     cam.apply(chessCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
@@ -228,9 +257,10 @@ export function playHeroChess(o: HeroChessOptions): HeroChessHandle {
     if (foe.el || scene) {
       let css: string | null = null;
       if (t >= plan.impactAt) {
-        // The queen's capture REELS the portrait (a slower, longer ring); the small looks snap back.
-        const k = spring(t - plan.impactAt, plan.level === 3 ? 3.4 : 4.5, plan.level === 3 ? 170 : 90);
-        const knock = c.knockPx * (0.7 + 0.5 * plan.k) * k * px;
+        // The queen's capture REELS the portrait (a slower, longer ring); the rook's ram drives it straight back, hard;
+        // the small looks snap back.
+        const k = spring(t - plan.impactAt, queen ? 3.4 : rook ? 3.9 : 4.5, queen ? 170 : rook ? 130 : 90);
+        const knock = c.knockPx * (0.7 + 0.5 * plan.k) * (rook ? 1.35 : 1) * k * px;
         const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
         fx = dir.x * knock; fy = dir.y * knock;
         css = Math.abs(k) < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 + sq * 0.6).toFixed(4)}, ${(1 - sq).toFixed(4)})`;

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 /**
  * CHECKMATE (style `chess`), an EPIC hero attack: chess pieces that move by their own rules on a faint board beside the
- * struck hero. The shared four damage tiers map to THREE looks (I the pawn, II and III the knight, IV the queen; a
- * knockout plays the queen). Covered here: the looks; the tuner; the pure plan and its cues per look; the pure board
- * (aligned to the hero line, on screen from every corner, both directions); the pure poses (the pawn walks its file and
- * captures diagonally, the knight jumps an L, the queen slides her diagonal, the king tips over, the word sets); the
+ * struck hero. Each of the shared four damage tiers plays its OWN piece (Tier 1 the pawn, Tier 2 the knight, Tier 3 the
+ * rook, Tier 4 the queen; a knockout plays the queen). Covered here: the looks; the tuner; the pure plan and its cues per
+ * look; the pure board (aligned to the hero line, on screen from every corner, both directions); the pure poses (the pawn
+ * walks its file and captures diagonally, the knight jumps an L, the rook braces and charges straight down the hero's
+ * own file, the queen slides her diagonal, the king tips over, the word sets); the
  * camera; the runner on the shared clock (the blow lands exactly ONCE, never on a tap; both directions; slow motion;
  * replay; finish / cancel; every exit restores the portraits; the camera is applied ONCE); and the headless scene
  * (pooled, bounded, drains, destroy leaves nothing).
@@ -16,7 +17,7 @@ import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAt
 import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
   CHESS_CAPS, HERO_CHESS_DEFAULTS, HERO_CHESS_RANGES, PIECE_TALL, chessBoard, chessBoardAlpha, chessCameraAt, chessCameraFocus,
-  chessCues, chessHintAt, chessHintFlashAt, HINT_STEP_MS, KING_ROCKS, chessKingAt, chessLevel, chessPieceAt, chessPlan, chessWordAt, clampHeroChessValue, heroChessConfigJson,
+  chessCues, chessHintAt, chessHintFlashAt, HINT_STEP_MS, KING_ROCKS, ROOK_DRAW, rookTimeAt, rookTravel, chessKingAt, chessLevel, chessPieceAt, chessPlan, chessWordAt, clampHeroChessValue, heroChessConfigJson,
   newPiecePose, sanitizeHeroChessConfig,
   type ChessGeo, type ChessPlan, type HeroChessConfig, type HeroChessNumKey,
 } from './heroChessConfig';
@@ -30,7 +31,7 @@ import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 const W = Texture.WHITE;
 const TEX: HeroChessTextures = {
   glow: W, spark: W, streak: W, ring: W, star: W, pawnIvory: W, pawnEbony: W, knightIvory: W, knightEbony: W,
-  queenIvory: W, queenEbony: W, kingIvory: W, kingEbony: W, square: W, shadow: W, word: W,
+  rookIvory: W, rookEbony: W, queenIvory: W, queenEbony: W, kingIvory: W, kingEbony: W, square: W, shadow: W, word: W, chip: W,
 };
 const C = HERO_CHESS_DEFAULTS;
 const plan = (values: number[], total: number, reduced = false, knockout = false) => chessPlan({ total, distance: 1600, reduced, knockout, leadIn: leadInOf(values, reduced) }, C);
@@ -43,16 +44,22 @@ const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 
 const board = (p: ChessPlan, a = YOU, d = FOE, view: { w: number; h: number } | null = VIEW): ChessGeo => chessBoard(p, a, d, R, R, C, view);
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-describe('the three looks (an Epic maps the shared four tiers onto three)', () => {
-  it('reads the SHARED tier (thresholds 6 / 12 / 20) and maps I the pawn, II and III the knight, IV the queen', () => {
+describe('the four looks, Tier 1 to Tier 4 (each shared damage tier plays its own piece)', () => {
+  it('reads the SHARED tier (thresholds 6 / 12 / 20): Tier 1 the pawn, Tier 2 the knight, Tier 3 the rook, Tier 4 the queen', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
-    expect([1, 2, 3, 4].map((t) => chessLevel(t as 1 | 2 | 3 | 4))).toEqual([1, 2, 2, 3]);
+    expect([1, 2, 3, 4].map((t) => chessLevel(t as 1 | 2 | 3 | 4))).toEqual([1, 2, 3, 4]);
     for (let d = 0; d <= 60; d++) {
       const p = plan([d], d);
       expect(p.tier, `dmg ${d}`).toBe(tierOf(d));
       expect(p.level).toBe(chessLevel(tierOf(d)));
     }
-    expect([P1, P2, P3, P4].map((p) => p.piece)).toEqual(['pawn', 'knight', 'knight', 'queen']);
+    expect([P1, P2, P3, P4].map((p) => p.piece)).toEqual(['pawn', 'knight', 'rook', 'queen']);
+  });
+
+  it('no two tiers play the same move: each has its own piece and its own strike', () => {
+    const strikes = [P1, P2, P3, P4].map((p) => p.moves[p.moves.length - 1]!.kind);
+    expect(strikes).toEqual(['capture', 'jump', 'charge', 'slide']);
+    expect(new Set([P1, P2, P3, P4].map((p) => p.piece)).size).toBe(4);
   });
 
   it('a knockout always plays the queen, whatever the number', () => {
@@ -66,7 +73,7 @@ describe('the three looks (an Epic maps the shared four tiers onto three)', () =
   it('is registered as a dev-only style with its own clips, and its one word is plain', () => {
     expect(HERO_ATTACK_STYLES).toContain('chess');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('chess');
-    for (const clip of ['fx/chess-set', 'fx/chess-slide', 'fx/chess-topple']) expect(ATTACK_FX_CLIPS.chess).toContain(clip);
+    for (const clip of ['fx/chess-set', 'fx/chess-slide', 'fx/chess-topple', 'fx/chess-rumble', 'fx/chess-crash']) expect(ATTACK_FX_CLIPS.chess).toContain(clip);
     expect(CHESS_WORD).toBe('CHECKMATE');
     expect(CHESS_WORD).not.toMatch(/oath|climb|—|--/i);
   });
@@ -94,8 +101,8 @@ describe('the tuner values', () => {
     expect(clampHeroChessValue('colorPlayer', 'gold')).toBe(C.colorPlayer);
     expect(clampHeroChessValue('sfxSlideClip', '  fx/x  ')).toBe('fx/x');
     expect(clampHeroChessValue('nope' as keyof HeroChessConfig, 1)).toBeUndefined();
-    const s = sanitizeHeroChessConfig({ v3Sparks: 400, colorIvory: 'x', bogus: 3 });
-    expect(s.v3Sparks).toBe(60);
+    const s = sanitizeHeroChessConfig({ v4Sparks: 400, colorIvory: 'x', bogus: 3 });
+    expect(s.v4Sparks).toBe(60);
     expect(s.colorIvory).toBe(C.colorIvory);
     expect('bogus' in s).toBe(false);
     expect(sanitizeHeroChessConfig('junk')).toEqual(C);
@@ -110,7 +117,10 @@ describe('the tuner values', () => {
     expect(SPEC.controls.find((c) => c.key === 'attackStyle')?.options).toContain('chess');
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Pawn (3)', '▶ Knight (8)', '▶ Queen (40)', '▶ Foe pawn (3)', '▶ Foe queen (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (14)', '▶ Tier 4 (40)', '▶ Foe Tier 1 (3)', '▶ Foe Tier 3 (14)', '▶ Foe Tier 4 (40)']) expect(labels).toContain(l);
+    // Tiers are named Tier 1 to Tier 4 (owner 2026-11-13): no roman numerals, no Small / Big / Huge, in any label or group.
+    const words = [...labels, ...SPEC.controls.map((c) => `${c.label} ${c.group ?? ''} ${c.hint ?? ''}`)];
+    for (const w of words) expect(w).not.toMatch(/\bTier (I|II|III|IV)\b|\b(Small|Big|Huge)\b/);
     expect(labels.filter((l) => /speed|reduced motion/i.test(l))).toEqual([]);
   });
 });
@@ -131,7 +141,7 @@ describe('the plan', () => {
   });
 
   it('THE KNIGHT: set down, rears, one jump; the landing is the impact (no taps before it)', () => {
-    for (const p of [P2, P3]) {
+    for (const p of [P2]) {
       expect(p.moves.map((m) => m.kind)).toEqual(['jump']);
       expect(p.taps).toEqual([]);
       expect(p.rearAt).toBeGreaterThan(p.tapAt);
@@ -139,6 +149,23 @@ describe('the plan', () => {
       expect(p.impactAt).toBe(p.strikeAt + C.jumpMs);
       expect(chessCues(p).map((q) => q.kind)).toEqual(['charge', 'set', 'tap', 'rear', 'strike', 'impact', 'dissolve', 'end']);
     }
+  });
+
+  it('THE ROOK: set down, braces, then ONE charge down the file, thumping over each seam faster and faster; the ram is the impact', () => {
+    expect(P3.moves.map((m) => m.kind)).toEqual(['charge']);
+    expect(P3.taps).toEqual([]);
+    expect(P3.ranks).toBe(C.rookRanks);
+    expect(P3.rearAt).toBeGreaterThan(P3.tapAt);
+    expect(P3.strikeAt).toBe(P3.rearAt + C.rookBraceMs);
+    expect(P3.impactAt).toBe(P3.strikeAt + C.rookChargeMs);
+    expect(P3.king).toBe(false);
+    // A seam between each pair of squares, all inside the charge, each gap shorter than the last (it is speeding up).
+    expect(P3.crosses).toHaveLength(P3.ranks - 1);
+    for (const x of P3.crosses) { expect(x).toBeGreaterThan(P3.strikeAt); expect(x).toBeLessThan(P3.impactAt); }
+    const beats = [P3.strikeAt, ...P3.crosses, P3.impactAt];
+    for (let i = 2; i < beats.length; i++) expect(beats[i]! - beats[i - 1]!).toBeLessThan(beats[i - 1]! - beats[i - 2]!);
+    expect(rookTravel(rookTimeAt(0.5))).toBeCloseTo(0.5, 6);
+    expect(chessCues(P3).map((q) => q.kind)).toEqual(['charge', 'set', 'tap', 'brace', 'strike', 'cross', 'cross', 'impact', 'dissolve', 'end']);
   });
 
   it('THE QUEEN: set down, the gleam, one slide (the impact); then the king wobbles, tips and lies, and the word sets', () => {
@@ -173,10 +200,11 @@ describe('the plan', () => {
     }
   });
 
-  it('short to medium, as an Epic should be: about 1.6 s the pawn, 1.8 s the knight; the queen runs about 3 s (her coil before and the king after)', () => {
+  it('each tier runs a step longer than the one under it: about 1.6 s the pawn, 1.9 s the knight, 2.2 s the rook; the queen about 3 s', () => {
     const len = (p: ChessPlan): number => p.endAt - p.chargeAt;
     expect(len(P1)).toBeGreaterThan(1100); expect(len(P1)).toBeLessThan(1800);
     expect(len(P2)).toBeGreaterThan(1300); expect(len(P2)).toBeLessThan(2100);
+    expect(len(P3)).toBeGreaterThan(len(P2)); expect(len(P3)).toBeLessThan(len(P4));
     expect(len(P4)).toBeGreaterThan(2600); expect(len(P4)).toBeLessThan(3600);
     expect(P1.impactAt - P1.chargeAt).toBeLessThan(1200);
     expect(P4.impactAt - P4.chargeAt).toBeLessThan(1600);
@@ -185,14 +213,16 @@ describe('the plan', () => {
   it('every look escalates: more shake, zoom, sparks, burst and dim', () => {
     for (const k of ['shakePx', 'zoom', 'sparks', 'burst', 'dim'] as const) {
       expect(P2[k], k).toBeGreaterThan(P1[k]);
-      expect(P4[k], k).toBeGreaterThan(P2[k]);
+      expect(P3[k], k).toBeGreaterThan(P2[k]);
+      expect(P4[k], k).toBeGreaterThan(P3[k]);
     }
   });
 
   it('the caps always hold', () => {
-    const wild = sanitizeHeroChessConfig({ ...C, pawnHops: 99, v3Shake: 999, v3Zoom: 9, v3Sparks: 999 });
+    const wild = sanitizeHeroChessConfig({ ...C, pawnHops: 99, rookRanks: 99, v4Shake: 999, v4Zoom: 9, v4Sparks: 999 });
     const p1 = chessPlan({ total: 3, distance: 1600 }, wild), p4 = chessPlan({ total: 40, distance: 1600 }, wild);
     expect(p1.hops).toBeLessThanOrEqual(CHESS_CAPS.hops);
+    expect(chessPlan({ total: 14, distance: 1600 }, wild).ranks).toBeLessThanOrEqual(CHESS_CAPS.ranks);
     expect(p4.shakePx).toBeLessThanOrEqual(CHESS_CAPS.shakePx);
     expect(p4.zoom).toBeLessThanOrEqual(CHESS_CAPS.zoom);
     expect(p4.sparks).toBeLessThanOrEqual(CHESS_CAPS.sparks);
@@ -271,6 +301,26 @@ describe('the board (pure geometry)', () => {
     expect(pose.lift).toBeGreaterThan(g.jumpLift * 0.8);
   });
 
+  it('THE ROOK stands on the struck hero\'s OWN file, a few squares back, and charges straight down it', () => {
+    const g = board(P3);
+    const rel = { x: FOE.x - g.start.x, y: FOE.y - g.start.y };
+    expect(rel.x * g.u.x + rel.y * g.u.y).toBeCloseTo(P3.ranks * g.sq, 3);
+    expect(Math.abs(rel.x * g.n.x + rel.y * g.n.y)).toBeLessThan(1e-6);
+    expect(g.dir.x).toBeCloseTo(g.u.x, 6); expect(g.dir.y).toBeCloseTo(g.u.y, 6);
+    expect(g.cells.filter((c) => c.hint).map((c) => `${c.f},${c.r}`).sort()).toEqual(['0,1', '0,2', '0,3']);
+    expect(dist(g.stops[0]!, FOE)).toBeLessThan(R);
+    expect(g.king).toBeNull();
+    // Every frame of the charge stays on the file (no sideways drift), and the rook's foot hardly leaves the board.
+    const pose = newPiecePose();
+    const m = P3.moves[0]!;
+    for (let t = m.at; t <= m.landAt; t += 6) {
+      chessPieceAt(P3, g, C, t, pose);
+      const off = { x: pose.x - FOE.x, y: pose.y - FOE.y };
+      expect(Math.abs(off.x * g.n.x + off.y * g.n.y)).toBeLessThan(1e-6);
+      expect(pose.lift).toBeLessThan(g.sq * 0.1);
+    }
+  });
+
   it('THE QUEEN starts on the long diagonal (as many squares as fit on screen) and slides straight down it', () => {
     const g = board(P4);
     expect(g.diag).toBeGreaterThanOrEqual(2);
@@ -289,7 +339,7 @@ describe('the board (pure geometry)', () => {
   it('stays on screen in BOTH directions and from every corner: the piece, its whole path, the king and the word', () => {
     const corners = [YOU, FOE, { x: 105, y: 137 }, { x: 1773, y: 950 }];
     const pose = newPiecePose();
-    for (const p of [P1, P2, P4]) {
+    for (const p of [P1, P2, P3, P4]) {
       for (const a of corners) {
         for (const d of corners) {
           if (a === d) continue;
@@ -354,7 +404,7 @@ describe('the board (pure geometry)', () => {
 describe('the poses (pure)', () => {
   it('the piece is set down from above, stands on each stop in turn, and ends on the contact riding the portrait', () => {
     const pose = newPiecePose();
-    for (const p of [P1, P2, P4]) {
+    for (const p of [P1, P2, P3, P4]) {
       const g = board(p);
       expect(chessPieceAt(p, g, C, p.setAt - 1, pose).alpha).toBe(0);
       chessPieceAt(p, g, C, p.setAt + C.setMs * 0.3, pose);
@@ -390,6 +440,25 @@ describe('the poses (pure)', () => {
     expect(minSx).toBeLessThan(-0.8);
     const g4 = board(P4), slide = P4.moves[0]!;
     for (let t = slide.at; t <= slide.landAt; t += 10) expect(chessPieceAt(P4, g4, C, t, pose).lift).toBe(0);
+  });
+
+  it('THE ROOK braces (drawn back down its file, leaning back), leaves from that point without a snap, and leans into the charge', () => {
+    const g = board(P3);
+    const pose = newPiecePose();
+    chessPieceAt(P3, g, C, P3.strikeAt - 1, pose);
+    const drawn = (pose.x - g.start.x) * g.dir.x + (pose.y - g.start.y) * g.dir.y;
+    expect(drawn).toBeCloseTo(-ROOK_DRAW * g.sq, 0);
+    expect(Math.sign(pose.rot)).toBe(-g.face); // leaning back
+    const before = { x: pose.x, y: pose.y, rot: pose.rot };
+    chessPieceAt(P3, g, C, P3.strikeAt + 1, pose);
+    expect(dist(pose, before)).toBeLessThan(g.sq * 0.03);
+    expect(Math.abs(pose.rot - before.rot)).toBeLessThan(0.08);
+    chessPieceAt(P3, g, C, P3.strikeAt + C.rookChargeMs * 0.6, pose);
+    expect(Math.sign(pose.rot)).toBe(g.face); // leaning in
+    // On the ram it bucks back off the blow.
+    chessPieceAt(P3, g, C, P3.impactAt + 40, pose);
+    expect(Math.sign(pose.rot)).toBe(-g.face);
+    expect(pose.ride).toBe(true);
   });
 
   it('THE KING stands until the impact, wobbles, tips over onto its side and stays down', () => {
@@ -532,6 +601,23 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
+  it('THE ROOK lands the blow once, on the ram (never on a seam), and is driven straight into the portrait', () => {
+    const { h, f, onImpact, onDone, restored } = run({ total: 14, formation: formationOf([14], 14) });
+    expect(h.plan.piece).toBe('rook');
+    f.tick(h.plan.crosses[h.plan.crosses.length - 1]! + 8, 4);
+    expect(onImpact).not.toHaveBeenCalled();
+    expect(h.scene!.pieceShown).toBe(true);
+    f.tick(h.plan.impactAt - h.elapsed() + 12, 4);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(dist(h.scene!.piecePos, FOE)).toBeLessThan(R * 1.5);
+    f.tick(h.plan.endAt - h.elapsed() + 16, 8);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    restored('the rook end');
+    f.tick(2500, 16);
+    expect(f.hooked()).toBe(0);
+  });
+
   it('THE QUEEN: the board, the king and the word; the king is down and CHECKMATE is up after the one impact', () => {
     const { h, f, onImpact, onDone, restored, root } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.piece).toBe('queen');
@@ -562,7 +648,7 @@ describe('the runner (the shared clock)', () => {
   });
 
   it('works in both directions at every look: the blow lands once on whichever hero is struck, in the striker\'s wood, inside the cap', () => {
-    for (const total of [3, 8, 40]) {
+    for (const total of [3, 8, 14, 40]) {
       for (const side of ['player', 'opp'] as const) {
         const a = side === 'player' ? YOU : FOE, d = side === 'player' ? FOE : YOU;
         const { h, f, onImpact, onDone, restored } = run({ total, side, attacker: a, defender: d, formation: formationOf([total], total) });
@@ -715,7 +801,7 @@ describe('the scene (headless Pixi)', () => {
       // Driven by the runner until the end; after it the scene keeps its own time.
       if (t <= P4.endAt) scene.drive(t);
       if (Math.abs(t - P4.tapAt) < 8) scene.tap(g.start.x, g.start.y, 1.3);
-      if (Math.abs(t - P4.impactAt) < 8) scene.impact(FOE.x, FOE.y, R, g.dir, { level: 3, burst: P4.burst, sparks: P4.sparks, flashAlpha: 0.85 });
+      if (Math.abs(t - P4.impactAt) < 8) scene.impact(FOE.x, FOE.y, R, g.dir, { level: 4, burst: P4.burst, sparks: P4.sparks, flashAlpha: 0.85 });
       if (Math.abs(t - P4.impactAt) < 8) scene.screenFlash(0.38, 1920, 1080);
       if (Math.abs(t - P4.wordAt) < 8 && g.word) scene.wordSlam(g.word.x, g.word.y, g.wordW);
       if (Math.abs(t - P4.fallAt) < 8 && g.king) scene.kingDown(g.king.x, g.king.y, g.kingFall);
@@ -731,6 +817,25 @@ describe('the scene (headless Pixi)', () => {
     scene.destroy();
     expect(scene.root.destroyed).toBe(true);
     scene.destroy(); // twice is safe
+  });
+
+  it('a whole rook (the seams and its ram) stays in the cap and drains by itself', () => {
+    const g = board(P3);
+    const scene = new HeroChessScene(TEX, COLORS, P3, g, C, 'ebony', 1, 5);
+    let peak = 0, alive = true;
+    const pose = newPiecePose();
+    for (let t = 0; t < P3.clearAt + 1200; t += 16) {
+      if (t <= P3.endAt) scene.drive(t);
+      for (let i = 0; i < P3.crosses.length; i++) if (Math.abs(t - P3.crosses[i]!) < 8) { chessPieceAt(P3, g, C, t, pose); scene.seam(pose.x, pose.y, i); }
+      if (Math.abs(t - P3.impactAt) < 8) scene.impact(FOE.x, FOE.y, R, g.dir, { level: 3, burst: P3.burst, sparks: P3.sparks, flashAlpha: 0.85 });
+      alive = scene.update(16);
+      peak = Math.max(peak, scene.liveSprites);
+    }
+    expect(peak).toBeGreaterThan(g.cells.length + 20);
+    expect(peak).toBeLessThanOrEqual(MAX_CHESS_SPRITES);
+    expect(alive).toBe(false);
+    expect(scene.liveSprites).toBe(0);
+    scene.destroy();
   });
 
   it('clear() drops everything at once; the pool is reused, not regrown', () => {

@@ -159,3 +159,45 @@ first run only (13 ms in the second, none in the third).
 
 **Still weak.** The knight's lit squares are its two-along file, not the whole L. The board still lies over the rail
 and the shop. Nobody has heard the mix. The config key moved to `ascent.herochess.v3`.
+
+## Third pass (2026-11-13): Tier 3 gets its own piece, the rook
+
+The owner's note: "this one is awesome but change the t3 so it's not the same knight attack and something else." Tier 2
+and Tier 3 both played the knight (an Epic's three looks). Now every shared damage tier plays its own piece by its own
+chess move, and the looks are named Tier 1 to Tier 4 everywhere in this style's files (tuner groups, play buttons, hints,
+tier dials, comments, tests):
+
+| tier | damage | piece | the move |
+| --- | --- | --- | --- |
+| Tier 1 | 1 to 5 | pawn | unchanged |
+| Tier 2 | 6 to 11 | knight | unchanged |
+| Tier 3 | 12 to 19 | **rook** (new) | set down hard on the struck hero's OWN file, three squares back; the file lights square by square (softer than the other looks, since the lit squares touch and read as one bar); it BRACES (rocks back on its heel, drawn back a quarter square like a ram, grinding, puffs of grit), then CHARGES straight down the file, gathering speed (travel = u^1.8), thumping over each seam (a flash on the square it leaves, a dust ring, specks, a camera jolt, a knock, harder each time) and RAMS the portrait head on: a shock front of flat rings and a bar thrown on through the portrait, a fan of tumbling wooden chips off its battlements, a low dust cloud, a light screen flash, and the portrait driven straight back hard. The rook bucks back off the blow and stays 0.62 s. |
+| Tier 4 | 20+ and every knockout | queen | unchanged (and still the knockout look) |
+
+Running time from the ready: pawn 1.65 s, knight 1.88 s, rook 2.13 s (impact at 1.29 s), queen 3.06 s. Every per-tier
+dial (shake, zoom, punch, sparks, burst, dim) steps up 1 < 2 < 3 < 4; the queen's dials are unchanged.
+
+- The rook is a turned piece like the pawn, queen and king: a broad parapet drum over a shaded neck, a gold collar, the
+  tower tapering to the shared base; its crenels are cut out after painting (three merlons face you, the far wall shows
+  dark through the gaps, a lit rim on the merlon tops). A small wooden chip texture is new too (tinted to the striker's
+  wood, tumbling with a flip as it falls).
+- The rook's file is the hero line itself, so it cannot pick a side like the others: under a hero at the very top with
+  the striker level with it (not a layout the game has) the whole line drops just enough for its battlements to stay in
+  view, capped well inside the portrait.
+- The config key moved to `ascent.herochess.v4` (the old `v3...` dials were the queen's; they are the rook's now, the
+  queen's are `v4...`).
+
+**Sound.** Two ElevenLabs calls, two clips kept (0.42 s + 0.72 s; own clips now seven, 3.6 s):
+`chess-rumble` (heavy wood grinding fast across a wooden board, loud from its first frame, -20 LUFS looped, peak
+-6 dB) and `chess-crash` (a ram into a heavy wooden door: one crunch at 0, splinters to about 0.5 s, -20 LUFS looped,
+peak -7 dB). The brace plays the rumble slowed (0.62x) and fading; the charge plays it at 1.1x with the shared drop
+whoosh rising into the ram from 45% in; each seam is a knock and a tap over a short low layer, louder and lower each
+time; the ram is the shared capture stack (knock, low layer, tap, punch, impact) at a level between the knight's and
+the queen's, with the crash on top. The set-down is the heavy one the queen has. Levels are measured, not heard.
+
+**Verified this pass.** `heroChess.test.ts` (52 tests): the four tiers map one to one; no two tiers share a piece or a
+strike; the rook's plan (brace, one charge, seams that come faster and faster, the ram the only impact); the rook stands
+on the hero's own file and never leaves it during the charge; it leans back in the brace, leaves without a snap, leans
+into the run and bucks back on the ram; it lands the blow once and restores everything; both directions at all four
+tiers; the on-screen sweep from every corner; a whole rook stays in the sprite cap and drains; the tier labels contain
+no roman numerals or Small/Big/Huge. Sheets of every look, the rook both ways.

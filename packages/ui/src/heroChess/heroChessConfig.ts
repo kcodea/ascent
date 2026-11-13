@@ -6,14 +6,19 @@
  * the struck hero. The board's squares are aligned to the line between the two heroes, and the struck portrait sits on
  * one of them like a piece about to be taken. No other attack moves anything on a grid.
  *
- * THE THREE LOOKS. Every hero attack reads its tier from the shared `attackTier` (the owner-approved damage thresholds
- * I 1-5 / II 6-11 / III 12-19 / IV 20+, and a knockout always plays IV). An Epic maps those four onto its three looks
- * here (`chessLevel`, the same mapping Card Shark uses): I -> the PAWN, II and III -> the KNIGHT, IV -> the QUEEN.
- *  - THE PAWN. A few squares fade in. A pawn is set down with a tap on the file beside the struck hero, hops forward
- *    square by square (a tap each) and takes the portrait DIAGONALLY, as a pawn captures. The capture is THE impact.
- *  - THE KNIGHT. A knight is set down, rears back, spins once on its square and makes its L-shaped jump (two squares
- *    along, one across) in a high arc, landing ON the struck portrait with a thud. The landing is THE impact.
- *  - THE QUEEN. A wider patch of board fades in, with a small king of the struck side standing beside the portrait. The
+ * THE FOUR LOOKS, one per shared damage tier. Every hero attack reads its tier from the shared `attackTier` (the
+ * owner-approved damage thresholds: Tier 1 1-5, Tier 2 6-11, Tier 3 12-19, Tier 4 20+, and a knockout always plays
+ * Tier 4). Checkmate gives each tier its own piece and its own move by chess rules (owner 2026-11-13: Tier 3 played the
+ * knight again and must be something else), so `chessLevel` is the tier itself:
+ *  - TIER 1, THE PAWN. A few squares fade in. A pawn is set down with a tap on the file beside the struck hero, hops
+ *    forward square by square (a tap each) and takes the portrait DIAGONALLY, as a pawn captures. The capture is THE impact.
+ *  - TIER 2, THE KNIGHT. A knight is set down, rears back, spins once on its square and makes its L-shaped jump (two
+ *    squares along, one across) in a high arc, landing ON the struck portrait with a thud. The landing is THE impact.
+ *  - TIER 3, THE ROOK. It is set down hard on the struck hero's own FILE, a few squares back. The file lights square by
+ *    square; the rook BRACES (it rocks back on its heel and grinds, drawn back like a ram), then CHARGES straight down
+ *    the file, gathering speed, thumping over every seam (each square it crosses flashes and kicks up dust), and RAMS
+ *    the portrait head on: THE impact (its battlements throw wooden chips, a shock runs on through the portrait).
+ *  - TIER 4, THE QUEEN (the top look, and every knockout). A wider patch of board fades in, with a small king of the struck side standing beside the portrait. The
  *    queen is set down with weight, a gleam runs up to her crown, and she sweeps the long diagonal in one fast slide (a
  *    streak behind her) into the portrait: THE impact (a flash, a hard shake). The king rocks on its base, hangs, and
  *    topples slowly with weight, bouncing and rolling to rest (the resignation), and the word CHECKMATE slams in and holds.
@@ -39,14 +44,18 @@ import {
 
 export { hexToNum, type TierNum };
 
-/** Checkmate's three looks. */
-export const CHESS_LEVELS = [1, 2, 3] as const;
+/** Checkmate's four looks, Tier 1 to Tier 4 (one per shared damage tier). */
+export const CHESS_LEVELS = [1, 2, 3, 4] as const;
 export type ChessLevel = (typeof CHESS_LEVELS)[number];
-export const CHESS_LEVEL_NAMES: Record<ChessLevel, string> = { 1: 'Pawn', 2: 'Knight', 3: 'Queen' };
+export const CHESS_LEVEL_NAMES: Record<ChessLevel, string> = { 1: 'Tier 1: Pawn', 2: 'Tier 2: Knight', 3: 'Tier 3: Rook', 4: 'Tier 4: Queen' };
+/** The rook's look (Tier 3). */
+export const ROOK_LEVEL = 3;
+/** The top look (the queen, the king and CHECKMATE): Tier 4 and every knockout. */
+export const QUEEN_LEVEL = 4;
 
 /** The pieces painted (`heroChessTextures.ts`). */
-export type PieceKind = 'pawn' | 'knight' | 'queen' | 'king';
-export const PIECE_OF_LEVEL: Record<ChessLevel, PieceKind> = { 1: 'pawn', 2: 'knight', 3: 'queen' };
+export type PieceKind = 'pawn' | 'knight' | 'rook' | 'queen' | 'king';
+export const PIECE_OF_LEVEL: Record<ChessLevel, PieceKind> = { 1: 'pawn', 2: 'knight', 3: 'rook', 4: 'queen' };
 
 /**
  * THE PIECE BOX (texture px; `heroChessTextures.ts` paints into it): every piece stands on its base at `PIECE_BASE_Y`
@@ -56,18 +65,18 @@ export const PIECE_OF_LEVEL: Record<ChessLevel, PieceKind> = { 1: 'pawn', 2: 'kn
 export const PIECE_W = 128;
 export const PIECE_H = 192;
 export const PIECE_BASE_Y = 182;
-export const PIECE_TALL: Record<PieceKind, number> = { pawn: 112, knight: 140, queen: 168, king: 176 };
-export const PIECE_MID: Record<PieceKind, number> = { pawn: 50, knight: 64, queen: 80, king: 84 };
+export const PIECE_TALL: Record<PieceKind, number> = { pawn: 112, knight: 140, rook: 132, queen: 168, king: 176 };
+export const PIECE_MID: Record<PieceKind, number> = { pawn: 50, knight: 64, rook: 62, queen: 80, king: 84 };
 export const PIECE_BASE_HALF = 32;
 /** The fallen king is drawn a little smaller than the piece that beat it. */
 export const KING_SIZE = 0.82;
 
-/** The shared four damage tiers mapped onto the three looks: I the pawn, II and III the knight, IV (and a knockout) the queen. */
+/** The shared damage tier IS the look: Tier 1 the pawn, Tier 2 the knight, Tier 3 the rook, Tier 4 (and a knockout) the queen. */
 export function chessLevel(tier: TierNum): ChessLevel {
-  return tier <= 1 ? 1 : tier >= 4 ? 3 : 2;
+  return tier <= 1 ? 1 : tier >= 4 ? 4 : tier === 2 ? 2 : 3;
 }
 
-/** The per-look dials. A config key is `v1..v3` + one of these. */
+/** The per-look dials. A config key is `v1..v4` + one of these. */
 export const CHESS_LEVEL_SUFFIXES = [
   'ReadyMs', 'PieceSize', 'Shake', 'Zoom', 'Punch', 'Sparks', 'Burst', 'SettleMs', 'Dim',
 ] as const;
@@ -101,6 +110,11 @@ interface GlobalConfig {
   jumpMs: number;
   jumpLift: number;
   jumpSpins: number;
+  // The rook
+  rookRanks: number;
+  rookBraceMs: number;
+  rookChargeMs: number;
+  rookHoldMs: number;
   // The queen
   gleamMs: number;
   coilMs: number;
@@ -139,6 +153,8 @@ interface GlobalConfig {
   sfxKnockClip: string; sfxKnockGain: number; sfxKnockRate: number;
   sfxRollClip: string; sfxRollGain: number; sfxRollRate: number;
   sfxBodyClip: string; sfxBodyGain: number; sfxBodyRate: number;
+  sfxRumbleClip: string; sfxRumbleGain: number; sfxRumbleRate: number;
+  sfxCrashClip: string; sfxCrashGain: number; sfxCrashRate: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
   sfxDuck: number;
@@ -152,23 +168,24 @@ export const HERO_CHESS_COLOR_KEYS = ['colorIvory', 'colorEbony', 'colorGold', '
 export const HERO_CHESS_CLIP_KEYS = [
   'sfxSetClip', 'sfxHopClip', 'sfxWhooshClip', 'sfxSlideClip', 'sfxGleamClip', 'sfxThudClip', 'sfxPunchClip',
   'sfxImpactClip', 'sfxBigClip', 'sfxToppleClip', 'sfxKnockClip', 'sfxRollClip', 'sfxBodyClip',
+  'sfxRumbleClip', 'sfxCrashClip',
 ] as const;
 type ColorKey = (typeof HERO_CHESS_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_CHESS_CLIP_KEYS)[number];
 export type HeroChessStrKey = ColorKey | ClipKey;
 export type HeroChessNumKey = Exclude<keyof HeroChessConfig, HeroChessStrKey>;
 
-/** Pawn, Knight, Queen per suffix: the escalation ladder. */
-const LEVEL_DEFAULTS: Record<ChessLevelSuffix, [number, number, number]> = {
-  ReadyMs: [200, 220, 240],
-  PieceSize: [1.2, 1.1, 1.1],
-  Shake: [6, 13, 28],
-  Zoom: [0.02, 0.035, 0.055],
-  Punch: [0.018, 0.04, 0.085],
-  Sparks: [10, 18, 34],
-  Burst: [1, 1.3, 2],
-  SettleMs: [240, 280, 340],
-  Dim: [0.1, 0.24, 0.46],
+/** Tier 1 (pawn), Tier 2 (knight), Tier 3 (rook), Tier 4 (queen) per suffix: the escalation ladder. */
+const LEVEL_DEFAULTS: Record<ChessLevelSuffix, [number, number, number, number]> = {
+  ReadyMs: [200, 220, 230, 240],
+  PieceSize: [1.2, 1.1, 1.15, 1.1],
+  Shake: [6, 13, 20, 28],
+  Zoom: [0.02, 0.035, 0.045, 0.055],
+  Punch: [0.018, 0.04, 0.062, 0.085],
+  Sparks: [10, 18, 26, 34],
+  Burst: [1, 1.3, 1.6, 2],
+  SettleMs: [240, 280, 300, 340],
+  Dim: [0.1, 0.24, 0.34, 0.46],
 };
 
 export const CHESS_LEVEL_RANGES: Record<ChessLevelSuffix, [number, number, number]> = {
@@ -208,6 +225,10 @@ export const HERO_CHESS_DEFAULTS: HeroChessConfig = {
   jumpMs: 440,
   jumpLift: 1.25,
   jumpSpins: 1,
+  rookRanks: 3,
+  rookBraceMs: 440,
+  rookChargeMs: 380,
+  rookHoldMs: 620,
   gleamMs: 460,
   coilMs: 200,
   slideMs: 230,
@@ -247,6 +268,10 @@ export const HERO_CHESS_DEFAULTS: HeroChessConfig = {
   sfxKnockClip: 'fx/chess-knock', sfxKnockGain: 1, sfxKnockRate: 1,
   sfxRollClip: 'fx/chess-roll', sfxRollGain: 0.9, sfxRollRate: 1,
   sfxBodyClip: 'fx/universfield-ground-impact-352053', sfxBodyGain: 0.9, sfxBodyRate: 1,
+  // Third pass, the rook: the RUMBLE (heavy wood grinding on wood, loud from its start, 0.42 s) under the brace and the
+  // charge, and the CRASH (a ram into a heavy door: one crunch at 0, splinters to about 0.5 s) under its impact.
+  sfxRumbleClip: 'fx/chess-rumble', sfxRumbleGain: 1, sfxRumbleRate: 1,
+  sfxCrashClip: 'fx/chess-crash', sfxCrashGain: 1, sfxCrashRate: 1,
   sfxImpactLenMs: 700,
   sfxTailMix: 0.1,
   sfxDuck: 0.5,
@@ -277,6 +302,10 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroChessStrKey>, [numbe
   jumpMs: [160, 1500, 10],
   jumpLift: [0.2, 3, 0.05],
   jumpSpins: [0, 3, 1],
+  rookRanks: [2, 4, 1],
+  rookBraceMs: [80, 1200, 10],
+  rookChargeMs: [120, 1200, 10],
+  rookHoldMs: [100, 2000, 10],
   gleamMs: [60, 1200, 10],
   coilMs: [0, 800, 10],
   slideMs: [80, 1000, 10],
@@ -306,6 +335,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroChessStrKey>, [numbe
   sfxKnockGain: [0, 2, 0.05], sfxKnockRate: [0.5, 2.5, 0.01],
   sfxRollGain: [0, 2, 0.05], sfxRollRate: [0.5, 2.5, 0.01],
   sfxBodyGain: [0, 2, 0.05], sfxBodyRate: [0.5, 2.5, 0.01],
+  sfxRumbleGain: [0, 2, 0.05], sfxRumbleRate: [0.5, 2.5, 0.01],
+  sfxCrashGain: [0, 2, 0.05], sfxCrashRate: [0.5, 2.5, 0.01],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
@@ -320,7 +351,7 @@ export const HERO_CHESS_RANGES: Record<HeroChessNumKey, [number, number, number]
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say. */
-export const CHESS_CAPS = { hops: 3, diag: 5, sparks: 60, shakePx: 40, zoom: 0.12 } as const;
+export const CHESS_CAPS = { hops: 3, ranks: 4, diag: 5, sparks: 60, shakePx: 40, zoom: 0.12 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_CHESS_COLOR_KEYS as readonly string[]).includes(k);
@@ -353,8 +384,9 @@ export function sanitizeHeroChessConfig(saved: unknown): HeroChessConfig {
   return out;
 }
 
-// A fresh key: the scaffold's `ascent.herochess.v1` held Card Shark's values under other names.
-const KEY = 'ascent.herochess.v3';
+// A fresh key: the scaffold's `ascent.herochess.v1` held Card Shark's values under other names, and `v3` held the
+// three-look dials (its `v3...` keys were the queen's; they are the rook's now).
+const KEY = 'ascent.herochess.v4';
 
 let cfg: HeroChessConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_CHESS_DEFAULTS };
@@ -394,8 +426,16 @@ export function chessLevelDials(level: ChessLevel, c: HeroChessConfig = cfg): Re
   return Object.fromEntries(CHESS_LEVEL_SUFFIXES.map((s) => [s, c[`v${level}${s}`]])) as Record<ChessLevelSuffix, number>;
 }
 
-/** One move of the piece: a pawn's hop or its diagonal capture, the knight's jump, the queen's slide. */
-export interface ChessMove { kind: 'hop' | 'capture' | 'jump' | 'slide'; at: number; ms: number; landAt: number }
+/** One move of the piece: a pawn's hop or its diagonal capture, the knight's jump, the rook's charge, the queen's slide. */
+export interface ChessMove { kind: 'hop' | 'capture' | 'jump' | 'charge' | 'slide'; at: number; ms: number; landAt: number }
+
+/**
+ * THE ROOK'S CHARGE: how far down the file it has come (0..1) at `u` (0..1) of the charge. It gathers speed like a heavy
+ * thing (slow off the mark, fastest as it hits), and `rookTimeAt` is its inverse (when it reaches a fraction of the way).
+ */
+export const ROOK_ACCEL = 1.8;
+export function rookTravel(u: number): number { return Math.pow(clamp01(u), ROOK_ACCEL); }
+export function rookTimeAt(f: number): number { return Math.pow(clamp01(f), 1 / ROOK_ACCEL); }
 
 export interface ChessPlanInput extends AttackTierContext {
   /** When the style's own attack starts: the end of the shared damage formation (`formationPlan().endAt`). */
@@ -411,10 +451,10 @@ export interface ChessPlan {
   reduced: boolean;
   /** The SHARED damage tier (1..4; a knockout is 4). */
   tier: TierNum;
-  /** Checkmate's look: 1 the pawn, 2 the knight, 3 the queen. */
+  /** Checkmate's look (Tier 1 to Tier 4): 1 the pawn, 2 the knight, 3 the rook, 4 the queen. */
   level: ChessLevel;
   piece: PieceKind;
-  /** 0..1 across the looks (pawn 0, queen 1). */
+  /** 0..1 across the looks (pawn 0, rook 2/3, queen 1). */
   k: number;
   total: number;
   /** The ready starts: the total sinks into the hero and the board starts to fade in. */
@@ -424,13 +464,18 @@ export interface ChessPlan {
   setAt: number;
   /** It touches the board (the tap). */
   tapAt: number;
-  /** The knight rears (it spins on its square over the last part); the queen's gleam starts. */
+  /** The knight rears (it spins on its square over the last part); the rook braces (rocks back and grinds); the queen's
+   * gleam starts. */
   rearAt: number;
   gleamAt: number;
   /** Every move, in order. The last one is the strike (the capture, the jump, the slide). */
   moves: ChessMove[];
   /** The pawn's hops (how many squares it walks before it captures). */
   hops: number;
+  /** The rook only: how many squares back down the file it starts, and when (during the charge) it thumps over each seam
+   * between them (FX and sound only; the last seam is the struck hero's own square, which is the impact). */
+  ranks: number;
+  crosses: number[];
   /** The strike move starts. */
   strikeAt: number;
   /** Hop landings BEFORE the impact: the rhythm taps (the pawn only). FX and sound only. */
@@ -469,7 +514,7 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
   const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts), so the queen
   const level = chessLevel(tier);
   const V = chessLevelDials(level, c);
-  const k = (level - 1) / 2;
+  const k = (level - 1) / 3;
   const piece = PIECE_OF_LEVEL[level];
 
   if (input.reduced) {
@@ -477,7 +522,7 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
     const { impactAt } = r;
     return {
       reduced: true, tier, level, piece, k, total, chargeAt: impactAt, absorbEnd: impactAt, setAt: impactAt, tapAt: impactAt,
-      rearAt: impactAt, gleamAt: impactAt, moves: [], hops: 0, strikeAt: impactAt, taps: [], impactAt, king: false, tipAt: impactAt,
+      rearAt: impactAt, gleamAt: impactAt, moves: [], hops: 0, ranks: 0, crosses: [], strikeAt: impactAt, taps: [], impactAt, king: false, tipAt: impactAt,
       fallAt: impactAt, wordAt: impactAt, wordEndAt: impactAt, dissolveAt: impactAt, clearAt: impactAt, endAt: r.endAt,
       size: 0, shakePx: 0, zoom: 0, punch: 0, sparks: 0, burst: 0, dim: 0,
     };
@@ -489,8 +534,9 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
   const tapAt = setAt + c.setMs;
   const moves: ChessMove[] = [];
   const taps: number[] = [];
+  const crosses: number[] = [];
   let rearAt = tapAt, gleamAt = tapAt;
-  let hops = 0;
+  let hops = 0, ranks = 0;
 
   if (level === 1) {
     // THE PAWN: a beat on its square, then hop, hop, and the diagonal capture.
@@ -508,6 +554,14 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
     rearAt = tapAt + 70;
     const at = rearAt + c.rearMs;
     moves.push({ kind: 'jump', at, ms: c.jumpMs, landAt: at + c.jumpMs });
+  } else if (level === ROOK_LEVEL) {
+    // THE ROOK: it braces (rocks back on its heel, grinding, drawn back like a ram), then charges straight down the file.
+    ranks = clamp(Math.round(c.rookRanks), 2, CHESS_CAPS.ranks);
+    rearAt = tapAt + 90;
+    const at = rearAt + c.rookBraceMs;
+    moves.push({ kind: 'charge', at, ms: c.rookChargeMs, landAt: at + c.rookChargeMs });
+    // It gathers speed (`rookTravel`), so the seams come faster and faster: dun... dun. dun-CRASH.
+    for (let i = 1; i < ranks; i++) crosses.push(at + c.rookChargeMs * rookTimeAt(i / ranks));
   } else {
     // THE QUEEN: the gleam runs up to her crown, she draws herself back (the coil: a held breath), then the slide.
     gleamAt = tapAt + 80;
@@ -517,12 +571,12 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
 
   const strike = moves[moves.length - 1]!;
   const impactAt = strike.landAt;
-  const king = level === 3;
+  const king = level === QUEEN_LEVEL;
   const tipAt = impactAt + c.kingWobbleMs;
   const fallAt = tipAt + c.kingFallMs;
   const wordAt = impactAt + c.wordAtMs;
   const wordEndAt = wordAt + c.wordHoldMs;
-  const dissolveAt = king ? Math.max(wordEndAt, fallAt + 300) : impactAt + c.holdMs;
+  const dissolveAt = king ? Math.max(wordEndAt, fallAt + 300) : impactAt + (level === ROOK_LEVEL ? c.rookHoldMs : c.holdMs);
   const clearAt = dissolveAt + Math.max(CHESS_FADE_MS, c.boardFadeMs);
   // The fades play out AFTER the end (the scene drains on its own), so the fight never waits on a fading board. The
   // queen's end waits for the king to be down and the word to have been read.
@@ -530,7 +584,7 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
   const endAt = lastBeat + V.SettleMs;
 
   return {
-    reduced: false, tier, level, piece, k, total, chargeAt, absorbEnd, setAt, tapAt, rearAt, gleamAt, moves, hops,
+    reduced: false, tier, level, piece, k, total, chargeAt, absorbEnd, setAt, tapAt, rearAt, gleamAt, moves, hops, ranks, crosses,
     strikeAt: strike.at, taps, impactAt, king, tipAt, fallAt, wordAt, wordEndAt, dissolveAt, clearAt, endAt,
     size: V.PieceSize,
     shakePx: clamp(V.Shake, 0, CHESS_CAPS.shakePx),
@@ -542,7 +596,7 @@ export function chessPlan(input: ChessPlanInput, c: HeroChessConfig = cfg): Ches
   };
 }
 
-export type ChessCueKind = 'charge' | 'set' | 'tap' | 'rear' | 'gleam' | 'hop' | 'land' | 'strike' | 'impact' | 'wobble' | 'topple' | 'word' | 'dissolve' | 'end';
+export type ChessCueKind = 'charge' | 'set' | 'tap' | 'rear' | 'brace' | 'gleam' | 'hop' | 'land' | 'strike' | 'cross' | 'impact' | 'wobble' | 'topple' | 'word' | 'dissolve' | 'end';
 export interface ChessCue { at: number; kind: ChessCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order). */
@@ -553,10 +607,12 @@ export function chessCues(p: ChessPlan): ChessCue[] {
     out.push({ at: p.setAt, kind: 'set', i: 0 });
     out.push({ at: p.tapAt, kind: 'tap', i: 0 });
     if (p.level === 2) out.push({ at: p.rearAt, kind: 'rear', i: 0 });
-    if (p.level === 3) out.push({ at: p.gleamAt, kind: 'gleam', i: 0 });
+    if (p.level === ROOK_LEVEL) out.push({ at: p.rearAt, kind: 'brace', i: 0 });
+    if (p.level === QUEEN_LEVEL) out.push({ at: p.gleamAt, kind: 'gleam', i: 0 });
     p.moves.forEach((m, i) => {
       if (m.kind === 'hop') { out.push({ at: m.at, kind: 'hop', i }); out.push({ at: m.landAt, kind: 'land', i }); } else out.push({ at: m.at, kind: 'strike', i });
     });
+    p.crosses.forEach((at, i) => out.push({ at, kind: 'cross', i }));
     if (p.king) {
       // The king rocks on its base before it goes (a knock each time it comes down), then hits the board.
       for (let i = 0; i < KING_ROCKS; i++) out.push({ at: p.impactAt + ((p.tipAt - p.impactAt) * (i + 0.5)) / KING_ROCKS, kind: 'wobble', i });
@@ -566,7 +622,7 @@ export function chessCues(p: ChessPlan): ChessCue[] {
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<ChessCueKind, number> = { charge: 0, set: 1, tap: 2, rear: 3, gleam: 4, hop: 5, land: 6, strike: 7, impact: 8, wobble: 9, topple: 10, word: 11, dissolve: 12, end: 13 };
+  const order: Record<ChessCueKind, number> = { charge: 0, set: 1, tap: 2, rear: 3, brace: 3, gleam: 4, hop: 5, land: 6, strike: 7, cross: 7.5, impact: 8, wobble: 9, topple: 10, word: 11, dissolve: 12, end: 13 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -638,7 +694,7 @@ export function chessBoard(
   const n0 = { x: -u.y, y: u.x };
   const ang = Math.atan2(u.y, u.x);
   // The ranks the look needs between the two heroes; the squares shrink if the heroes are close (a sandbox box).
-  const need = p.level === 1 ? p.hops + 1 : 2;
+  const need = p.level === 1 ? p.hops + 1 : p.level === ROOK_LEVEL ? p.ranks : 2;
   const sq0 = Math.max(8, Math.min(radius * c.squareK, (L - aRadius * 0.4) / (need + 0.5)));
   const pieceHOf = (side: number): number => (PIECE_TALL[p.piece] * side * c.pieceK * Math.max(0.1, p.size)) / PIECE_H;
   const mid = view ? { x: view.w / 2, y: view.h / 2 } : { x: (a.x + d.x) / 2, y: (a.y + d.y) / 2 };
@@ -649,7 +705,7 @@ export function chessBoard(
   const fitsAt = (side: number, pt: Pt): boolean => inView(pt, view, side * 0.35, pieceHOf(side) * 1.05 + headroom * side, side * 0.2);
   const nearer = (side: number, f: number, r: number): 1 | -1 => {
     const A = startOf(side, 1, f, r), B = startOf(side, -1, f, r);
-    const also = p.level === 1 ? 1 : p.level === 2 ? 0 : -1;
+    const also = p.level === 1 ? 1 : p.level === 2 ? 0 : -1; // the rook's file is the hero's own: both sides alike
     // The start square on screen matters most; then the other square the move needs.
     const score = (sg: number, pt: Pt): number => (fitsAt(side, pt) ? 2 : 0) + (also < 0 || fitsAt(side, startOf(side, sg, f, also)) ? 1 : 0);
     const fa = score(1, A), fb = score(-1, B);
@@ -661,7 +717,7 @@ export function chessBoard(
   let sign: 1 | -1 = 1;
   let diag = 0;
   let sf = 1, sr = need;
-  if (p.level === 3) {
+  if (p.level === QUEEN_LEVEL) {
     // The longest diagonal that starts on screen (preferring the side nearer the middle). A diagonal of three squares
     // is worth smaller squares (a hero in a corner leaves little room); two full-size squares are the last resort.
     const max = clamp(Math.round(c.diagMax), 2, CHESS_CAPS.diag);
@@ -675,6 +731,10 @@ export function chessBoard(
       if (fitsAt(side, startOf(side, pref, n, n))) { diag = n; sign = pref; sq = side; break; }
     }
     sf = diag; sr = diag;
+  } else if (p.level === ROOK_LEVEL) {
+    // The rook stands on the struck hero's OWN file, `ranks` squares back toward the striker, and charges straight down it.
+    sf = 0;
+    sign = nearer(sq, 0, need);
   } else {
     sign = nearer(sq, 1, need);
   }
@@ -684,9 +744,15 @@ export function chessBoard(
   const kingH = PIECE_TALL.king * kingK;
   const n = { x: n0.x * sign, y: n0.y * sign };
   const at = (f: number, r: number): Pt => cellAt(d, u, n, sq, f, r);
-  const start = at(sf, sr);
+  let start = at(sf, sr);
+  // The rook's file is the hero line itself, so it cannot pick a side: under a hero at the very top of the view (with the
+  // striker level with it, not a layout the game has) its whole line drops just enough for its battlements to stay in
+  // view. It still rams the portrait (the drop is capped well inside it).
+  const drop = p.level === ROOK_LEVEL && view && view.h > 0 ? clamp(pieceH * 1.05 - start.y, 0, radius * 0.6) : 0;
+  if (drop > 0) start = { x: start.x, y: start.y + drop };
 
-  // The stops: the pawn's squares up its file, then the contact; the knight lands on the portrait; the queen's contact.
+  // The stops: the pawn's squares up its file, then the contact; the knight lands on the portrait; the rook's and the
+  // queen's contact (each straight down its line, stopping short of the middle as it meets the portrait).
   const stops: Pt[] = [];
   let dir: Pt;
   let jumpLift = 0;
@@ -717,10 +783,11 @@ export function chessBoard(
     const ll = Math.hypot(lx, radius) || 1;
     dir = { x: lx / ll, y: radius / ll };
   } else {
-    const dl = Math.hypot(d.x - start.x, d.y - start.y) || 1;
-    dir = { x: (d.x - start.x) / dl, y: (d.y - start.y) / dl };
+    const ty = d.y + drop;
+    const dl = Math.hypot(d.x - start.x, ty - start.y) || 1;
+    dir = { x: (d.x - start.x) / dl, y: (ty - start.y) / dl };
     const reach = Math.min(radius * 0.72, dl * 0.6);
-    stops.push({ x: d.x - dir.x * reach, y: d.y - dir.y * reach });
+    stops.push({ x: d.x - dir.x * reach, y: ty - dir.y * reach });
   }
   const face: 1 | -1 = d.x - start.x >= 0 ? 1 : -1;
 
@@ -730,6 +797,7 @@ export function chessBoard(
   const hintOf = (f: number, r: number): number => {
     if (p.level === 1) return f === 1 && r >= 1 && r <= need ? (need - r) / Math.max(1, need) : -1;
     if (p.level === 2) return f === 1 && r >= 0 && r <= 2 ? (2 - r) / 3 : -1;
+    if (p.level === ROOK_LEVEL) return f === 0 && r >= 1 && r <= need ? (need - r) / Math.max(1, need) : -1;
     return f === r && f >= 1 && f <= diag ? (diag - f) / Math.max(1, diag) : -1;
   };
   const cells: ChessCell[] = [];
@@ -829,6 +897,10 @@ export interface PiecePose { x: number; y: number; lift: number; rot: number; sp
 
 export function newPiecePose(): PiecePose { return { x: 0, y: 0, lift: 0, rot: 0, spin: 0, sx: 1, sy: 1, alpha: 0, ride: false }; }
 
+/** The rook's brace: how far it is drawn back down the file (squares) and how far it rocks back on its heel (radians). */
+export const ROOK_DRAW = 0.24;
+export const ROOK_LEAN = 0.2;
+
 /** A landing's squash: a quick dip that springs back. */
 const landSquash = (ms: number, amp: number): number => (ms < 0 ? 0 : amp * spring(ms, 7, 55));
 
@@ -848,7 +920,7 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
     out.alpha = Math.min(1, uu * 2.5);
     return out;
   }
-  let squash = landSquash(t - p.tapAt, p.level === 3 ? 0.16 : 0.12);
+  let squash = landSquash(t - p.tapAt, p.level >= ROOK_LEVEL ? 0.16 : 0.12);
   let px = g.start.x, py = g.start.y;
   const last = p.moves.length - 1;
 
@@ -887,6 +959,19 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
         out.lift = g.jumpLift * 4 * uu * (1 - uu);
         out.spin = g.face * Math.PI * 2 * c.jumpSpins * easeInOutSine(uu);
       }
+    } else if (m.kind === 'charge') {
+      // The rook's charge: straight down the file, gathering speed, thumping over every seam. It leaves from its brace
+      // (drawn back, leaning back), so there is no snap as it goes; it pitches forward into the run.
+      const e = rookTravel(uu);
+      const fx = px, fy = py;
+      const back = g.sq * ROOK_DRAW * (1 - Math.min(1, uu * 2.5));
+      px = fx + (to.x - fx) * e - g.dir.x * back; py = fy + (to.y - fy) * e - g.dir.y * back;
+      if (!done) {
+        const a = easeOutCubic(Math.min(1, uu * 4));
+        const seam = Math.PI * Math.max(1, p.ranks) * e;
+        out.lift = 0.08 * g.sq * Math.abs(Math.sin(seam)) * a;
+        out.rot = g.face * (-ROOK_LEAN * (1 - a) + 0.15 * a + 0.05 * Math.sin(seam * 2) * a);
+      }
     } else {
       // The queen's slide: she leans into it and never leaves the board.
       const e = Math.pow(uu, 1.7);
@@ -900,8 +985,14 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
       // It has taken the portrait: a thump, a small recoil, and it rides the knockback.
       const ms = t - m.landAt;
       out.ride = true;
-      squash = Math.max(squash, landSquash(ms, p.level === 2 ? 0.2 : 0.12));
-      if (p.level !== 2) {
+      squash = Math.max(squash, landSquash(ms, p.level === 2 ? 0.2 : p.level === ROOK_LEVEL ? 0.26 : 0.12));
+      if (p.level === ROOK_LEVEL) {
+        // The ram: it stops dead, bucks back off the blow and settles, crushed for a moment.
+        const back = 0.16 * g.sq * (1 - Math.exp(-ms / 60));
+        px -= g.dir.x * back; py -= g.dir.y * back;
+        out.rot = -0.26 * g.face * spring(ms, 4.5, 90);
+        out.lift = 0.12 * g.sq * Math.max(0, Math.sin(Math.PI * Math.min(1, ms / 200)));
+      } else if (p.level !== 2) {
         const back = 0.07 * g.sq * (1 - Math.exp(-ms / 70));
         px -= g.dir.x * back; py -= g.dir.y * back;
         out.rot = 0.16 * g.face * spring(ms, 5, 70);
@@ -909,7 +1000,7 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
     }
   }
 
-  // Before the strike: the knight rears back and spins on its square; the queen draws herself up.
+  // Before the strike: the knight rears back and spins on its square; the rook braces; the queen draws herself up.
   if (t < p.strikeAt) {
     if (p.level === 2 && t >= p.rearAt) {
       const ru = clamp01((t - p.rearAt) / Math.max(1, p.strikeAt - p.rearAt));
@@ -920,7 +1011,17 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
         out.sx = Math.cos(Math.PI * 2 * easeInOutSine(su));
         squash = Math.max(squash, 0.14 * su * su);
       }
-    } else if (p.level === 3 && t >= p.gleamAt) {
+    } else if (p.level === ROOK_LEVEL && t >= p.rearAt) {
+      // The rook BRACES: it rocks back on its heel and is drawn back down the file like a ram, crouching, grinding on
+      // the wood (a rumble that dies away as it reaches the full draw, so it leaves from a still point).
+      const bu = clamp01((t - p.rearAt) / Math.max(1, p.strikeAt - p.rearAt));
+      const draw = easeInOutSine(bu);
+      const grind = Math.sin(Math.PI * bu);
+      out.rot = g.face * (-ROOK_LEAN * draw + 0.035 * grind * Math.sin((t - p.rearAt) * 0.13));
+      out.lift = 0.025 * g.sq * grind * Math.abs(Math.sin((t - p.rearAt) * 0.09));
+      squash = Math.max(squash, 0.09 * draw);
+      px -= g.dir.x * g.sq * ROOK_DRAW * draw; py -= g.dir.y * g.sq * ROOK_DRAW * draw;
+    } else if (p.level === QUEEN_LEVEL && t >= p.gleamAt) {
       const gu = clamp01((t - p.gleamAt) / Math.max(1, p.strikeAt - p.gleamAt));
       // She draws herself up with the gleam, then COILS: leaning back from the diagonal and sinking, held, before she goes.
       const coil = gu > 0.6 ? easeInOutSine((gu - 0.6) / 0.4) : 0;
@@ -938,13 +1039,13 @@ export function chessPieceAt(p: ChessPlan, g: ChessGeo, c: HeroChessConfig, t: n
 
 /** Where the queen's gleam is on her at `t`: 0 at her base, 1 at her crown; -1 when it is not showing. */
 export function chessGleamAt(p: ChessPlan, c: Pick<HeroChessConfig, 'gleamMs'>, t: number): number {
-  if (p.level !== 3 || p.reduced || t < p.gleamAt || t > p.gleamAt + c.gleamMs) return -1;
+  if (p.level !== QUEEN_LEVEL || p.reduced || t < p.gleamAt || t > p.gleamAt + c.gleamMs) return -1;
   return easeOutCubic((t - p.gleamAt) / Math.max(1, c.gleamMs));
 }
 
 /** How strong the queen's streak is at `t` (0..1): it grows with the slide and fades after the impact. */
 export function chessStreakAt(p: ChessPlan, t: number): number {
-  if (p.level !== 3 || p.reduced || t < p.strikeAt) return 0;
+  if (p.level !== QUEEN_LEVEL || p.reduced || t < p.strikeAt) return 0;
   if (t < p.impactAt) return clamp01((t - p.strikeAt) / Math.max(1, (p.impactAt - p.strikeAt) * 0.4));
   return 1 - clamp01((t - p.impactAt) / 260);
 }
@@ -1017,8 +1118,10 @@ export function chessCameraAt(p: ChessPlan, c: HeroChessConfig, t: number, dir: 
     x += vx * amp * s - vy * across;
     y += vy * amp * s + vx * across;
   };
-  kick(p.tapAt, p.shakePx * (p.level === 3 ? 0.22 : 0.12), 40, 16, 0, 1);
+  kick(p.tapAt, p.shakePx * (p.level >= ROOK_LEVEL ? 0.22 : 0.12), 40, 16, 0, 1);
   for (let i = 0; i < p.taps.length; i++) kick(p.taps[i]!, p.shakePx * 0.1, 36, 18, 0, 1);
+  // The rook thumps over each seam: a jolt each, harder as it gathers speed.
+  for (let i = 0; i < p.crosses.length; i++) kick(p.crosses[i]!, p.shakePx * (0.1 + 0.06 * i), 34, 18, 0, 1);
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir.x, dir.y);
   if (p.king) { kick(p.wordAt, p.shakePx * 0.3, 45, 15, 0, 1); kick(p.fallAt, p.shakePx * 0.45, 70, 13, 0, 1); }
   return { zoom: 1 + Math.max(0, z), x, y };

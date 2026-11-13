@@ -128,8 +128,9 @@
  * each of these is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. The names and rarities are the builders' working ones, for the owner to rename:
  *  - `chess` ("Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
- *    A pawn hops up its file and captures diagonally; a knight makes its L-shaped jump onto the portrait; a queen
- *    sweeps the long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
+ *    One piece per tier: Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight makes its L-shaped
+ *    jump onto the portrait; Tier 3 a rook charges straight down the hero's file and rams it; Tier 4 a queen sweeps the
+ *    long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
  *  - `fireworks` ("Grand Finale", an Epic): fireworks, never flame. A bottle rocket squeals off a stick and pops in one
  *    colour; a roman candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD
  *    BEAT of quiet, then a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).

@@ -4,10 +4,11 @@
  *
  * A PIECE is painted on a 128 x 192 box, standing on its base at `PIECE_BASE_Y`, in two woods: IVORY and EBONY, each
  * with gold bands (the base rim, the collar, the crown) and a thin gold keyline round the silhouette so it reads on any
- * board. The turned pieces (pawn, queen, king) are painted the way a lathe makes them: one row at a time, each row a
+ * board. The turned pieces (pawn, rook, queen, king) are painted the way a lathe makes them: one row at a time, each row a
  * strip of the same left-to-right shading (a dark edge, a bright gloss line, a soft rim light), so every bulge and neck
  * is shaded like the round thing it is; rows on an upward-facing slope are lit and rows on an underside are shaded. The
- * knight's head is a drawn profile (facing right; the scene mirrors it) on a turned base.
+ * knight's head is a drawn profile (facing right; the scene mirrors it) on a turned base. The rook is a turned tower whose
+ * parapet has its crenels cut out after it is painted (three merlons face you, the far wall shows dark through the gaps).
  *
  * A SQUARE is a white tile with a faint bevel (the scene tints it ivory, ebony or gold and sets its opacity). The
  * SHADOW is a soft dark ellipse. CHECKMATE is the one word this attack draws: the game's banner face (Outfit, heavy) in gold on a slim navy band.
@@ -144,6 +145,13 @@ const BASE: [number, number][] = [[158, 27], [160, 30], [168, 32], [173, 33], [P
 const BASE_GOLD: [number, number] = [169, 175];
 
 const SHAPES: Record<Exclude<PieceKind, 'knight'>, { parts: Turned[]; gold: [number, number][] }> = {
+  rook: {
+    parts: [
+      // The parapet (a broad drum, flaring a little to its rim), a shaded neck under it, the tower tapering out to the base.
+      { pts: [[50, 25], [53, 27], [74, 26], [78, 23], [82, 19], [88, 18], [96, 18], [128, 20], [146, 23], [154, 27], [158, 28], ...BASE] },
+    ],
+    gold: [[82, 88], BASE_GOLD],
+  },
   pawn: {
     parts: [
       { balls: [[88, 18]] },
@@ -199,6 +207,47 @@ function paintTurnedPiece(kind: Exclude<PieceKind, 'knight'>, wood: Wood): HTMLC
   }
   // A crisp inner edge.
   g.strokeStyle = pal.outline; g.globalAlpha = 0.55; g.lineWidth = 1; g.stroke(path); g.globalAlpha = 1;
+  if (kind === 'rook') cutCrenels(g, cx, wood);
+  return k.c;
+}
+
+/** The rook's battlements: the three crenels (two whole and the far wall's dark showing through), cut AFTER it is painted. */
+function cutCrenels(g: CanvasRenderingContext2D, cx: number, wood: Wood): void {
+  const pal = WOODS[wood];
+  const top = 46, deep = 62, half = 4.6;
+  // The far wall seen through each gap (the inside of the parapet, in shade), then the gap itself cut clean.
+  for (const dx of [-12.5, 12.5]) {
+    g.save();
+    g.globalCompositeOperation = 'destination-out';
+    g.fillRect(cx + dx - half, top, half * 2, deep - top - 6);
+    g.restore();
+    const inner = g.createLinearGradient(0, deep - 8, 0, deep);
+    inner.addColorStop(0, wood === 'ivory' ? '#6e5a3c' : '#050408'); inner.addColorStop(1, wood === 'ivory' ? '#9a8460' : '#1c1824');
+    g.fillStyle = inner; g.fillRect(cx + dx - half, deep - 8, half * 2, 8);
+    // Its edges: a dark line round the cut, a bright lip on the floor of the gap.
+    g.strokeStyle = pal.outline; g.lineWidth = 2; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(cx + dx - half, top); g.lineTo(cx + dx - half, deep); g.lineTo(cx + dx + half, deep); g.lineTo(cx + dx + half, top); g.stroke();
+    g.strokeStyle = GOLD_LINE; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(cx + dx - half - 1.5, top + 1); g.lineTo(cx + dx - half - 1.5, deep + 1.5); g.lineTo(cx + dx + half + 1.5, deep + 1.5); g.lineTo(cx + dx + half + 1.5, top + 1); g.stroke();
+    g.fillStyle = wood === 'ivory' ? 'rgba(255,253,240,0.7)' : 'rgba(170,160,210,0.45)'; g.fillRect(cx + dx - half + 1, deep - 1.6, half * 2 - 2, 1.2);
+  }
+  // The top of the merlons: a thin lit rim, so the parapet reads as a hollow drum and not a flat lid.
+  g.fillStyle = wood === 'ivory' ? 'rgba(255,255,250,0.8)' : 'rgba(170,160,210,0.55)';
+  for (const [x0, x1] of [[-24, -17.5], [-7.5, 7.5], [17.5, 24]] as const) g.fillRect(cx + x0 + 1, 51, x1 - x0 - 2, 1.3);
+}
+
+/** A small wooden chip, white with a darker face and a lit edge (tinted to the striker's wood; it tumbles as it flies). */
+function paintChip(): HTMLCanvasElement | null {
+  const k = canvas(32, 32); if (!k) return null;
+  const g = k.g;
+  const shard = new Path2D();
+  shard.moveTo(5, 12); shard.lineTo(17, 4); shard.lineTo(28, 10); shard.lineTo(25, 24); shard.lineTo(12, 28); shard.closePath();
+  g.fillStyle = 'rgba(20,12,4,0.85)'; g.lineWidth = 3; g.lineJoin = 'round'; g.strokeStyle = 'rgba(20,12,4,0.85)'; g.stroke(shard);
+  const gr = g.createLinearGradient(6, 4, 26, 28);
+  gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.5, '#e6e6e6'); gr.addColorStop(1, '#9a9a9a');
+  g.fillStyle = gr; g.fill(shard);
+  g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(6, 12); g.lineTo(17, 5); g.lineTo(27, 10); g.stroke();
   return k.c;
 }
 
@@ -344,17 +393,19 @@ export function heroChessTextures(): HeroChessTextures | null {
   const made: Record<string, HTMLCanvasElement | null> = {
     pawnIvory: paintTurnedPiece('pawn', 'ivory'), pawnEbony: paintTurnedPiece('pawn', 'ebony'),
     knightIvory: paintKnight('ivory'), knightEbony: paintKnight('ebony'),
+    rookIvory: paintTurnedPiece('rook', 'ivory'), rookEbony: paintTurnedPiece('rook', 'ebony'),
     queenIvory: paintTurnedPiece('queen', 'ivory'), queenEbony: paintTurnedPiece('queen', 'ebony'),
     kingIvory: paintTurnedPiece('king', 'ivory'), kingEbony: paintTurnedPiece('king', 'ebony'),
-    square: paintSquare(), shadow: paintShadow(), word: paintWord(),
+    square: paintSquare(), shadow: paintShadow(), word: paintWord(), chip: paintChip(),
   };
   if (Object.values(made).some((c) => !c)) return null;
   const t = Object.fromEntries(Object.entries(made).map(([k, c]) => [k, tex(c!)])) as Record<string, Texture>;
   cached = {
     glow: base.glow, spark: base.spark, streak: base.streak, ring: base.ring, star: base.star,
     pawnIvory: t.pawnIvory!, pawnEbony: t.pawnEbony!, knightIvory: t.knightIvory!, knightEbony: t.knightEbony!,
+    rookIvory: t.rookIvory!, rookEbony: t.rookEbony!,
     queenIvory: t.queenIvory!, queenEbony: t.queenEbony!, kingIvory: t.kingIvory!, kingEbony: t.kingEbony!,
-    square: t.square!, shadow: t.shadow!, word: t.word!,
+    square: t.square!, shadow: t.shadow!, word: t.word!, chip: t.chip!,
   };
   return cached;
 }

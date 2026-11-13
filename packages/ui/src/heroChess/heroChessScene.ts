@@ -26,7 +26,7 @@ import type { Sprite, Texture } from 'pixi.js';
 import { clamp01, mixColor, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
 import {
-  chessBoardAlpha, chessGleamAt, chessHintAt, chessHintFlashAt, chessKingAt, chessPieceAt, chessStreakAt, chessWordAt, newPiecePose,
+  QUEEN_LEVEL, ROOK_LEVEL, chessBoardAlpha, chessGleamAt, chessHintAt, chessHintFlashAt, chessKingAt, chessPieceAt, chessStreakAt, chessWordAt, newPiecePose,
   PIECE_BASE_HALF, PIECE_BASE_Y, PIECE_H, PIECE_MID, PIECE_TALL,
   type ChessGeo, type ChessPlan, type HeroChessConfig, type PieceKind, type PiecePose,
 } from './heroChessConfig';
@@ -38,6 +38,7 @@ export interface HeroChessTextures {
   /** The pieces, in both woods (a 128 x 192 box each, standing on the base line). */
   pawnIvory: Texture; pawnEbony: Texture;
   knightIvory: Texture; knightEbony: Texture;
+  rookIvory: Texture; rookEbony: Texture;
   queenIvory: Texture; queenEbony: Texture;
   kingIvory: Texture; kingEbony: Texture;
   /** A board square (white; tinted). */
@@ -46,6 +47,8 @@ export interface HeroChessTextures {
   shadow: Texture;
   /** The word CHECKMATE. */
   word: Texture;
+  /** A small wooden chip (white; tinted to the striker's wood): what the rook's battlements throw on its ram. */
+  chip: Texture;
 }
 
 export interface ChessColors { ivory: number; ebony: number; gold: number; side: number }
@@ -59,6 +62,7 @@ const GHOST_STEP_MS = 16;
 const pieceTex = (t: HeroChessTextures, kind: PieceKind, wood: Wood): Texture => {
   if (kind === 'pawn') return wood === 'ivory' ? t.pawnIvory : t.pawnEbony;
   if (kind === 'knight') return wood === 'ivory' ? t.knightIvory : t.knightEbony;
+  if (kind === 'rook') return wood === 'ivory' ? t.rookIvory : t.rookEbony;
   if (kind === 'queen') return wood === 'ivory' ? t.queenIvory : t.queenEbony;
   return wood === 'ivory' ? t.kingIvory : t.kingEbony;
 };
@@ -80,6 +84,8 @@ export class HeroChessScene extends FxPool {
   private streak: Sprite | null = null;
   private ghosts: Sprite[] = [];
   private twinkled = false;
+  /** How many puffs of grit the rook's brace has thrown (it throws three, as it rocks back). */
+  private grinds = 0;
   /** Px per texture px for the striking piece and for the king. */
   private readonly k: number;
   private readonly kingK: number;
@@ -92,7 +98,7 @@ export class HeroChessScene extends FxPool {
     private readonly geo: ChessGeo, private readonly cfg: HeroChessConfig, readonly wood: Wood, scale = 1, seed = 1,
   ) {
     super('heroChess', [
-      tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.square, tex.shadow, tex.word,
+      tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.square, tex.shadow, tex.word, tex.chip,
       pieceTex(tex, plan.piece, wood), pieceTex(tex, 'king', wood === 'ivory' ? 'ebony' : 'ivory'),
     ], scale, seed, MAX_CHESS_SPRITES);
     this.k = geo.k;
@@ -121,7 +127,7 @@ export class HeroChessScene extends FxPool {
     }
     // Back to front on the body layer: the ghosts, the king, the piece, the word.
     const pt = pieceTex(tex, plan.piece, wood);
-    if (plan.level === 3) {
+    if (plan.level === QUEEN_LEVEL) {
       for (let j = 0; j < QUEEN_GHOSTS && cfg.ghostAlpha > 0; j++) {
         const gs = this.take('body', pt, 0xffffff);
         if (gs) { this.anchor(gs, plan.piece); gs.alpha = 0; this.ghosts.push(gs); }
@@ -137,7 +143,7 @@ export class HeroChessScene extends FxPool {
     this.piece = this.take('body', pt, 0xffffff);
     if (this.piece) { this.anchor(this.piece, plan.piece); this.piece.alpha = 0; }
     if (this.pieceShadow) this.pieceShadow.alpha = 0;
-    if (plan.level === 3) {
+    if (plan.level === QUEEN_LEVEL) {
       this.streak = this.take('core', tex.streak, mixColor(colors.side, 0xffffff, 0.35));
       this.gleam = this.take('core', tex.star, 0xffffff);
       if (this.streak) this.streak.alpha = 0;
@@ -190,7 +196,8 @@ export class HeroChessScene extends FxPool {
     this.spawn('glow', tex.glow, colors.gold, x, y, { dur: 340, from: d * 0.4, to: d * 1.0 * o.burst, a0: 0.42, mode: 'punch', peakAt: 0.15, follow: true });
     this.spawn('glow', tex.ring, colors.side, x, y, { dur: 320, from: rw * 0.2, to: rw * 0.7 * o.burst, a0: 0.75, follow: true });
     if (o.level >= 2) this.spawn('glow', tex.ring, colors.gold, x, y, { dur: 440, from: rw * 0.25, to: rw * 1.05 * o.burst, a0: 0.5, follow: true, sy: o.level === 2 ? 0.45 : 1 });
-    if (o.level === 3) {
+    if (o.level === ROOK_LEVEL) this.ram(x, y, radius, dir, o.burst, o.sparks);
+    if (o.level === QUEEN_LEVEL) {
       // The queen's cut: a bright slit along her diagonal, through the portrait.
       const len = (radius * 3.2) / tex.streak.width / S;
       this.spawn('core', tex.streak, 0xffffff, x, y, { dur: 280, from: len * 0.6, to: len * 1.25, a0: 0.95, sy: 0.16, rot: heading, follow: true });
@@ -201,10 +208,10 @@ export class HeroChessScene extends FxPool {
     if (o.level >= 2) {
       // WEIGHT: a white-hot core, a glow that takes its time to go, and chips thrown up that fall back under gravity.
       this.spawn('core', tex.glow, 0xffffff, x, y, { dur: 190, from: d * 0.6, to: d * 1.5 * o.burst, a0: Math.min(1, o.flashAlpha * 1.1), mode: 'punch', peakAt: 0.08, follow: true });
-      this.spawn('glow', tex.glow, colors.gold, x, y, { dur: o.level === 3 ? 1100 : 600, from: d * 0.9, to: d * 1.5 * o.burst, a0: 0.4, mode: 'hold', ease: 'cubic', follow: true });
+      this.spawn('glow', tex.glow, colors.gold, x, y, { dur: o.level === QUEEN_LEVEL ? 1100 : o.level === ROOK_LEVEL ? 800 : 600, from: d * 0.9, to: d * 1.5 * o.burst, a0: 0.4, mode: 'hold', ease: 'cubic', follow: true });
       this.burst('core', tex.spark, [colors.gold, colors.ivory, 0xffffff], x, y, Math.round(o.sparks * 0.6), { speed: 520 * o.burst, life: 720, size: 0.3, grav: 1300, drag: 0.25, lift: 240 });
     }
-    if (o.level === 3) {
+    if (o.level === QUEEN_LEVEL) {
       // The queen's capture: shock rings one after another, and a second cut across the first.
       for (let i = 0; i < 3; i++) this.spawn('glow', tex.ring, i % 2 ? colors.gold : colors.side, x, y, { dur: 480 + 110 * i, from: rw * 0.3, to: rw * (1.4 + 0.6 * i) * o.burst * 0.6, a0: 0.7 - 0.15 * i, ease: 'cubic', delay: 70 * (i + 1), follow: true });
       const len2 = (radius * 2.4) / tex.streak.width / S;
@@ -218,6 +225,70 @@ export class HeroChessScene extends FxPool {
         dur: 260 + this.rnd() * 220, from: 0.1, to: 0.6 + this.rnd() * 0.4, a0: 0.95, mode: 'punch', peakAt: 0.3, rot: this.rnd() * Math.PI, delay: this.rnd() * 90, follow: true,
       });
     }
+  }
+
+  /**
+   * THE ROOK'S RAM (on top of the shared capture): it hits head on, so everything runs ON along its line. A shock front
+   * (a wide flat ring and a bright bar, both across the line) bursts through and out the far side of the portrait, a
+   * fan of wooden chips knocked off its battlements tumbles back and falls, and a low cloud of dust rolls out both ways.
+   */
+  private ram(x: number, y: number, radius: number, dir: Pt, burst: number, sparks: number): void {
+    const { tex, colors } = this;
+    const S = this.scale;
+    const heading = Math.atan2(dir.y, dir.x);
+    const rw = (radius * 2) / tex.ring.width / S;
+    const d = (radius * 2) / tex.glow.width / S;
+    // The shock front: flat rings across the line, thrown on through the portrait.
+    for (let i = 0; i < 3; i++) {
+      const ahead = radius * (0.25 + 0.55 * i);
+      this.spawn('glow', tex.ring, i === 1 ? colors.gold : colors.side, x + dir.x * ahead, y + dir.y * ahead, {
+        dur: 360 + 90 * i, from: rw * 0.3, to: rw * (0.9 + 0.35 * i) * burst, a0: 0.75 - 0.18 * i, sy: 0.42, rot: heading + Math.PI / 2, ease: 'cubic', delay: 45 * i, vx: dir.x * 520, vy: dir.y * 520, drag: 0.04, follow: true,
+      });
+    }
+    const bar = (radius * 2.6) / tex.streak.width / S;
+    this.spawn('core', tex.streak, 0xffffff, x, y, { dur: 220, from: bar * 0.5, to: bar * 1.1, a0: 0.95, sy: 0.2, rot: heading + Math.PI / 2, follow: true });
+    this.spawn('core', tex.streak, colors.gold, x + dir.x * radius * 0.6, y + dir.y * radius * 0.6, { dur: 300, from: bar * 0.6, to: bar * 1.5, a0: 0.7, sy: 0.12, rot: heading, vx: dir.x * 700, vy: dir.y * 700, drag: 0.05, follow: true });
+    // The chips: wood knocked off the battlements, thrown back up the file and up into the air, tumbling as they fall.
+    const wood = this.wood === 'ivory' ? colors.ivory : 0x4a4160;
+    const chips = Math.round(Math.min(26, 10 + sparks * 0.4));
+    this.burst('body', tex.chip, [wood, wood, colors.gold], x - dir.x * radius * 0.3, y - dir.y * radius * 0.3, chips, {
+      speed: 560 * burst, dir: heading + Math.PI, spread: 2.6, life: 900, size: 0.8, grav: 1500, drag: 0.35, lift: 420, spin: 0.03, flip: 0.02, to: 0.9, edgeTint: mixColor(wood, 0x000000, 0.45),
+    });
+    // The dust: a low cloud rolling out both ways across the line, slow to go.
+    for (const side of [-1, 1]) {
+      const nx = -dir.y * side, ny = dir.x * side;
+      for (let i = 0; i < 3; i++) {
+        this.spawn('glow', tex.glow, colors.ivory, x + nx * radius * 0.2, y + ny * radius * 0.2 + radius * 0.3, {
+          dur: 700 + 160 * i, from: d * 0.25, to: d * (0.6 + 0.2 * i), a0: 0.2, mode: 'punch', peakAt: 0.15, ease: 'cubic', sy: 0.55, vx: nx * (140 + 90 * i), vy: ny * (140 + 90 * i) - 20, drag: 0.15, delay: 30 * i,
+        });
+      }
+    }
+  }
+
+  /**
+   * The rook thumps over a SEAM between two squares mid-charge: the square it is leaving flashes, dust kicks up behind
+   * it, and a few specks are thrown back up the file. `i` counts the seams (each harder than the last: it is speeding up).
+   */
+  seam(x: number, y: number, i: number): void {
+    const { tex, colors, geo } = this;
+    const S = this.scale;
+    const w = geo.sq / tex.square.width / S;
+    const back = Math.atan2(-geo.dir.y, -geo.dir.x);
+    const power = 1 + 0.25 * i;
+    this.spawn('glow', tex.square, colors.gold, x - geo.dir.x * geo.sq * 0.5, y - geo.dir.y * geo.sq * 0.5, { dur: 260, from: w * 0.96, to: w * 1.05, a0: 0.4, rot: geo.ang, ease: 'linear' });
+    this.spawn('glow', tex.ring, colors.ivory, x, y, { dur: 260, from: (geo.sq * 0.2) / tex.ring.width / S, to: (geo.sq * 0.9 * power) / tex.ring.width / S, a0: 0.45, sy: 0.4 });
+    this.spawn('glow', tex.glow, colors.ivory, x - geo.dir.x * geo.sq * 0.25, y - geo.dir.y * geo.sq * 0.25, {
+      dur: 520, from: (geo.sq * 0.3) / tex.glow.width / S, to: (geo.sq * 0.9) / tex.glow.width / S, a0: 0.22, sy: 0.5, mode: 'punch', peakAt: 0.2, ease: 'cubic', vx: -geo.dir.x * 90, vy: -geo.dir.y * 90 - 30, drag: 0.2,
+    });
+    this.burst('core', tex.spark, [colors.ivory, colors.gold], x, y, 4 + i * 2, { speed: 260 * power, dir: back, spread: 1.4, life: 360, size: 0.18, grav: 700, drag: 0.15, lift: 120 });
+  }
+
+  /** The rook braces: grit ground out from under its base, a little each way (fired a few times through the brace). */
+  grind(x: number, y: number): void {
+    const { tex, colors, geo } = this;
+    const back = Math.atan2(-geo.dir.y, -geo.dir.x);
+    this.burst('core', tex.spark, [colors.ivory, colors.gold], x, y, 3, { speed: 150, dir: back, spread: 2.2, life: 260, size: 0.13, grav: 500, drag: 0.2, lift: 50 });
+    this.spawn('glow', tex.glow, colors.ivory, x, y, { dur: 380, from: (geo.sq * 0.2) / tex.glow.width / this.scale, to: (geo.sq * 0.55) / tex.glow.width / this.scale, a0: 0.14, sy: 0.45, mode: 'punch', peakAt: 0.3 });
   }
 
   /** A whole-view flash (bright at once, gone in `ms`): the soft glow stretched far past the view. */
@@ -290,14 +361,16 @@ export class HeroChessScene extends FxPool {
 
     // The board (only touched while it fades or a hint is lit; it is static in between).
     const cells = geo.cells;
+    // The rook's lit squares touch edge to edge (a solid bar down the file), so they glow softer than the others.
+    const hk = plan.level === ROOK_LEVEL ? 0.5 : 1;
     for (let i = 0; i < this.squares.length; i++) {
       const cell = cells[i]!, s = this.squares[i]!;
       const base = cfg.boardAlpha * cell.weight * (cell.dark ? 1 : 0.6) * chessBoardAlpha(plan, cfg, t, cell.order);
       if (cell.hint) {
-        const h = chessHintAt(plan, t, cell.hintOrder);
+        const h = chessHintAt(plan, t, cell.hintOrder) * hk;
         s.tint = mixColor(cell.dark ? colors.ebony : colors.ivory, colors.gold, h);
         s.alpha = base + (cfg.hintAlpha - base) * h * (base > 0 ? 1 : 0);
-        const fl = chessHintFlashAt(plan, t, cell.hintOrder);
+        const fl = chessHintFlashAt(plan, t, cell.hintOrder) * (hk < 1 ? 0.8 : 1);
         const ht = this.hintTiles[i], hb = this.hintBlooms[i];
         if (ht) ht.alpha = base > 0 ? cfg.hintAlpha * (0.28 * h + 0.6 * fl) : 0;
         if (hb) hb.alpha = base > 0 ? cfg.hintAlpha * (0.3 * h + 0.55 * fl) : 0;
@@ -309,6 +382,10 @@ export class HeroChessScene extends FxPool {
     if (this.piece) {
       chessPieceAt(plan, geo, cfg, t, this.pose);
       this.place(this.piece, this.pieceShadow, kind, this.pose, this.k, geo.face, 1);
+    }
+    if (plan.level === ROOK_LEVEL && t >= plan.rearAt && t < plan.strikeAt) {
+      const due = Math.min(3, Math.floor((t - plan.rearAt) / 130) + 1);
+      while (this.grinds < due) { this.grinds++; this.grind(this.pose.x, this.pose.y); }
     }
     const streakK = chessStreakAt(plan, t);
     for (let j = 0; j < this.ghosts.length; j++) {

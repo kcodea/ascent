@@ -3,6 +3,7 @@ import { isEpicUnit } from '../../epicMedallion';
 import { boostsNextSell, hasSellMedallion } from '../../sellMedallion';
 import { hasOwnBuffFx } from '../../choreo/buffWatcher';
 import { WARD_GIVING_EFFECTS } from '../../choreo/channels/wardGiven';
+import { givesExecute } from '../../choreo/channels/executeGiven';
 import { CARD_INDEX } from '@game/content';
 import type { BindingKind } from '../../choreo/bindings';
 import type { FxCardRow } from './catalogView';
@@ -110,6 +111,14 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // A Ward-giving effect (`WARD_GIVING_EFFECTS`). The combat score’s `wardGivenFx` channel plays
     // `bindingFor(cardId, 'wardGiven')` giver→minion per Ward and holds that minion’s dome until the travel lands.
     kindFor: (card) => (CARD_INDEX[card.cardId]?.effects?.some((e) => WARD_GIVING_EFFECTS.has(e.do)) ? 'wardGiven' : null),
+  },
+  {
+    id: 'executeGiven',
+    label: 'On Execute given',
+    blurb: 'Plays from this minion to each minion it gives Execute (Raven’s Rally, Tort’s Avenge), in combat. The Execute aura appears when the effect arrives: when its travelling layer lands.',
+    // `fx/executeGivenLaunch.ts` plays `bindingFor(cardId, 'executeGiven')` giver→minion per grant and holds that
+    // minion’s aura until the travel lands.
+    kindFor: (card) => (givesExecute(card.cardId) ? 'executeGiven' : null),
   },
   {
     id: 'chooseOne',

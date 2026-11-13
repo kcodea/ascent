@@ -1892,6 +1892,9 @@
       "death": {
         "def": "sfx-vo-b2-raven-death",
         "gain": 0.3
+      },
+      "executeGiven": {
+        "def": "execute-beam"
       }
     },
     "b2_tort": {
@@ -1902,6 +1905,9 @@
       "death": {
         "def": "sfx-vo-b2-tort-death",
         "gain": 0.3
+      },
+      "executeGiven": {
+        "def": "execute-beam"
       }
     },
     "b2_beev": {

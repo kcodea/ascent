@@ -60,6 +60,7 @@ import { authoredBuffDefFor, bindingDefIds, bindingFor, heroPowerBuffLabelFor, l
 import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
+import { startExecutesGiven } from './fx/executeGivenLaunch';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -3067,6 +3068,10 @@ export function useCombatReplay(
     // "On Ward given" (Lastlight): hide each Ward its giver will travel to, until the launch below lands it; a FORCED
     // Echo's (Spots, an Echohorn Rally) launches right here, from the living giver.
     startTravelledWards(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
+    // "On Execute given" (Raven, Tort): hide each given Execute aura until its giver's effect lands. A Rally's grant
+    // sits in the giver's own wind-up, so it leaves at the medallion pulse (the wind-up's length from now).
+    startExecutesGiven(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id),
+      beat.primary.type === 'attack' ? beat.primary.attacker : null, getLungeConfig().windupDur * 1000);
     // EPIC multipliers (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve): each one the engine
     // marked as adding fires to a trigger in this beat plays its On Watcher effect on its own card, once per beat
     // (R-FX-EPIC-FIRE-01). Not bound / defs off: nothing plays.

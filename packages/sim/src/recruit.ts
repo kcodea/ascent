@@ -1378,15 +1378,16 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
 function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive): string {
   const power = activePowers(state)[which] ?? primaryPower(state);
   if (power.kind === 'magicHat') {
-    // Magician (R-DUOS-MAGICIAN-01): the live count toward the hat, a plain ACTIVE state when the next buy is copied,
-    // and the copies left this turn (the per-turn cap's "(N left this turn)" convention). All from `magicHatView`,
-    // the read `magicHatBuy` itself gates on, so the text cannot disagree with the buy.
+    // Magician (R-DUOS-MAGICIAN-01; three buys and a random copy, owner 2026-11-12): the live count toward the hat, a
+    // plain READY state when the next buy sends the copy, and the copies left this turn (the per-turn cap's "(N left
+    // this turn)" convention). All from `magicHatView`, the read `magicHatBuy` itself gates on, so the text cannot
+    // disagree with the buy.
     const hat = magicHatView(state);
     // ANCIENT OF BONDS x Magician: no per-turn cap (`noCap`), so the cap line says so instead of counting down.
     const cap = hat.noCap ? 'No limit each turn.' : `Twice per turn (**${hat.left}** left this turn).`;
-    if (hat.active) return `Your hat is **active**. The next card you buy, your teammate gets a copy. ${cap}`;
-    const progress = hat.capped ? `**${hat.count}/${hat.need}**, active next turn` : `**${hat.count}/${hat.need}**`;
-    return `After you buy **${hat.need}** cards, your hat activates (${progress}). The next card you buy, your teammate gets a copy. ${cap}`;
+    if (hat.active) return `Your hat is **ready** (**${hat.count}/${hat.need}**). The next card you buy sends your teammate a copy of a random card in it. ${cap}`;
+    const progress = hat.capped ? `**${hat.count}/${hat.need}**, sends on your first buy next turn` : `**${hat.count}/${hat.need}**`;
+    return `After you buy **${hat.need}** cards (${progress}), your teammate gets a copy of a random one. ${cap}`;
   }
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';

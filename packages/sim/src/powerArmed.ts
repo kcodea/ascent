@@ -10,7 +10,8 @@
  * the Shop and drops it the moment the power fires (`powerArmedUi.ts` in `@game/ui`). This file is a READ: each arm
  * below restates the gate its own fire site checks, from the same run fields, and changes nothing.
  *
- *  - Magician (`magicHat`):    the hat is active (`magicHatView`): the next card bought is copied.
+ *  - Magician (`magicHat`):    the hat is one buy short of firing (`magicHatView().active`): the next card bought
+ *                              sends the teammate a copy of a random card in it.
  *  - Re-Pete (`secondHand`):   this is the turn at whose end Second Hand fires (`wave % every === 0`, every = 3, or 2
  *                              with the Ancient of Time) AND it has something to copy right now (`ancientSecondHandSources`:
  *                              the left-most hand card; Bonds: the board's edges). Nothing to copy = it would fire nothing.

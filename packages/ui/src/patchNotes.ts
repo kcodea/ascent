@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-12',
     changes: [
       {
+        category: 'Balance',
+        text: 'Magician: the Magic Hat now fires on your third buy. Your teammate gets a copy of a random one of those three cards.',
+        details: [
+          'It used to take 5 buys, and then copy the next card you bought.',
+          'Minions and spells can both come out of the hat. Each of the three cards has the same chance.',
+          'The copy is the card as you bought it. You keep all three, and what you do with them later does not change the copy.',
+          'The copy now rises out of the Magic Hat, so you can see which card was picked, and flies to your teammate from there.',
+          'Still at most 2 copies per turn. After that your buys fill the hat up to 3, and it sends on your first buy next turn.',
+          'The power shows its count out of 3, and glows when your next buy will send a copy.',
+          'Magician now says one of five lines when the hat sends a copy. Your teammate hears it too.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Raven and Tort now send a beam to the Beast they give Execute, and its Execute appears when the beam lands. Raven does the same when his Rally triggers at End of Turn.',
       },

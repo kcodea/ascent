@@ -1879,7 +1879,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           keywords: [...spellDef.keywords],
           golden: false,
         });
-        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null, action.uid); // Magician: a bought spell counts, and is copied by an active hat
+        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null); // Magician: a bought spell goes into the hat like any card
         // Croupier Ayse: an Enchanted slot spell advances her prize counter too (owner 2026-08-22: the slot rolls for the
         // mark). It never did: the slot was the one buy path without this call (R-LUCKYSEAT-01). After the push, so a
         // prize that lands in hand sees the real hand.
@@ -1907,7 +1907,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (offer.cartCut) for (const o of s.shop) o.cartCut = undefined; // Spell Cart: the first buy spends the cut
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
-        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null, action.uid); // Magician: same for a spell bought out of the minion row
+        magicHatBuy(s, s.hand[s.hand.length - 1] ?? null); // Magician: same for a spell bought out of the minion row
         tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         // There are TWO ways to buy a spell — the right-hand spell slot and a spell offer in the minion row —
         // and `spellBought` must fire from both. It only fired from the slot, so Moonhowl Mentor silently did
@@ -1954,7 +1954,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         tiffBuyDiscount(s, card);
         gorrQuestBuy(s, card);
         jugglerBuy(s, offer.cardId);
-        magicHatBuy(s, null); // Magician: a Starform is a card bought (it counts), but leaves no body to copy
+        magicHatBuy(s, null); // Magician: a Starform is a card bought (it counts), but leaves no card to put in the hat
         keshiCrownBuy(s, card);
         return s;
       }
@@ -1977,7 +1977,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
         jugglerBuy(s, offer.cardId);
-        magicHatBuy(s, restored, action.uid); // Magician: a re-bought displaced minion is a card bought (before the triple check folds it)
+        magicHatBuy(s, restored); // Magician: a re-bought displaced minion is a card bought (before the triple check folds it)
         checkTriples(s); // a restored copy can still complete a triple
         keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
         // so a buy that completes a triple (3→1) frees hand space before the guard checks it (owner report: a
@@ -2119,9 +2119,10 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
       jugglerBuy(s, offer.cardId);
-      // Magician (Magic Hat, R-DUOS-MAGICIAN-01): the buy counts; an active hat sends the teammate a copy of the card as
-      // it was bought. BEFORE checkTriples, so a buy that completes a triple still copies the plain card that was bought.
-      magicHatBuy(s, bought, action.uid);
+      // Magician (Magic Hat, R-DUOS-MAGICIAN-01): the card goes into the hat as it was bought; the buy that fills the hat
+      // sends the teammate a copy of a random card in it. BEFORE checkTriples, so a buy that completes a triple still
+      // puts the plain card that was bought in the hat.
+      magicHatBuy(s, bought);
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown — AFTER checkTriples, so a
       // buy that completes a triple (3→1) frees hand space before the full-hand guard checks it

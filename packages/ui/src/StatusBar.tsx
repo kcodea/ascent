@@ -5,6 +5,7 @@ import { AncientGate } from './ancients/AncientGate';
 import { ancientColor } from './ancients/ancientsConfig';
 import { renameTerms } from './terms';
 import { magicHatBadge } from './magicHatUi';
+import './versus/hatSend'; // registers the Magic Hat's send (the copy's face rising out of this button) with the pass module
 import { activePowerPayout, passivePowerReady } from './powerArmedUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
@@ -728,9 +729,9 @@ export function StatusBar() {
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
     !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
     !(power.kind === 'passaria' && !passariaHasTarget(run)); // Priestess: no teammate, or nothing she may pass
-  // MAGICIAN'S MAGIC HAT (owner 2026-11-10, R-DUOS-MAGICIAN-01): a PASSIVE power that still calls out. While the hat is
-  // active in the Shop the panel and the button wear the existing `ready` classes (the READY CALL, as authored) on top of
-  // `passive`, and keep them until the next buy sends the copy. Never in combat (`hat.ready` is Shop only), and never
+  // MAGICIAN'S MAGIC HAT (owner 2026-11-10, R-DUOS-MAGICIAN-01): a PASSIVE power that still calls out. While the next
+  // buy would send the copy (the hat is one buy short of full, 2/3, with a copy left this turn) the panel and the button
+  // wear the existing `ready` classes (the READY CALL, as authored) on top of `passive`, and keep them until that buy. Never in combat (`hat.ready` is Shop only), and never
   // while this turn's two copies are spent. The same component renders my teammate's view of my board, so they see it too.
   const hat = magicHatBadge(run);
   // THE SAME CALL FOR EVERY COUNTING PASSIVE (owner 2026-11-10: "perfect, add it to those too"): Re-Pete, Gorr, Juggler,
@@ -845,7 +846,7 @@ export function StatusBar() {
   }, [run.heroReady, run.heroPowerSpent, run.phase]);
 
   // MAGICIAN (R-DUOS-MAGICIAN-01): the copy just left (this turn's sent count rose in the Shop): the same activation
-  // burst a used power sprays, so the send is attributed to the hat as well as to the stream from the bought card.
+  // burst a used power sprays, under the copy's face as it rises out of the hat (`versus/hatSend.tsx`).
   const hatSent = hat && run.magicHatSentWave === run.wave ? run.magicHatSent ?? 0 : 0;
   const prevHatSent = useRef(hatSent);
   useEffect(() => {

@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-13',
     changes: [
       {
+        category: 'Systems',
+        text: 'Taunt given to a minion by a spell, a hero power or a rune now arrives on a beam of its own, and the shield frame appears as it lands.',
+      },
+      {
         category: 'Balance',
         text: 'Traveling Salesman now offers a Golden minion when it is the only copy you control. It used to leave Golden minions out.',
       },

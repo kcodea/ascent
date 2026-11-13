@@ -42,7 +42,7 @@ function grantOf(e: CombatEvent | undefined): { kw: BeamKeyword; target: string 
   if (!e) return null;
   if (e.type === 'keyword' && (e.keyword === 'R' || e.keyword === 'V') && !e.tint && (e.source === undefined || e.source === e.target)) return { kw: e.keyword, target: e.target };
   // Flurry counts only with NO source: a body that gives itself Flurry (a Start of Combat) names itself.
-  if (e.type === 'keyword' && (e.keyword === 'W' || e.keyword === 'CR') && e.source === undefined) return { kw: e.keyword, target: e.target };
+  if (e.type === 'keyword' && (e.keyword === 'W' || e.keyword === 'CR' || e.keyword === 'T') && e.source === undefined) return { kw: e.keyword, target: e.target };
   if (e.type === 'shieldUp' && (e as { srcCard?: string }).srcCard === undefined) return { kw: 'DS', target: e.target };
   return null;
 }
@@ -118,7 +118,7 @@ export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, eve
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (e?.type !== 'keyword' || e.source !== undefined) continue;
-    if (e.keyword !== 'R' && e.keyword !== 'V' && e.keyword !== 'W' && e.keyword !== 'CR') continue;
+    if (e.keyword !== 'R' && e.keyword !== 'V' && e.keyword !== 'W' && e.keyword !== 'CR' && e.keyword !== 'T') continue;
     let j = i - 1;
     while (j >= 0 && events[j]?.type === 'keyword') j--;
     const marker = events[j];

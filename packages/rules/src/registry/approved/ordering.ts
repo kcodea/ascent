@@ -623,4 +623,27 @@ export const ORDERING_RULES: GameRule[] = [
       + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts', 'packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-FX-TAUNT-GIVEN-01',
+    title: 'Taunt given to a minion travels on the Taunt beam, and the shield frame shows when it lands',
+    statement:
+      'When a minion already in play is given Taunt, the Taunt beam travels to it and its shield frame appears only when '
+      + 'the beam lands. The beam leaves from the cause, by the same rule as Rise, Execute, Ward, Flurry and Critical '
+      + 'Strike (R-FX-KEYWORD-ORIGIN-01): the pointer for a targeted spell, the hero portrait for an untargeted one, the '
+      + 'hero power slot, the slot of the rune, or the cast card of a spell banked for the fight. Either side.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'now im making a taunt beam' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the foe', quote: 'all of these effects should also be reflected  on the opponents runes, units and spells' },
+      { kind: 'code', ref: 'fx/taunt-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.T); packages/ui/src/fx/tauntHold.ts; packages/ui/src/Card.tsx (tauntShown); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn and Start of Turn cues); packages/ui/src/fx/runeKeywordBeams.ts' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/taunt-given). Covered: the Shop (a targeted spell or gift mid-turn, a rune or '
+      + 'hero grant at End of Turn or Start of Turn) and, in combat, Marked Target (the Taunt leaves the cast card of the '
+      + 'caster for the foe minion it marks) and any rune grant the engine logs. NOT covered: a body that ARRIVES with '
+      + 'Taunt (a summon, a Discover that grants it, Summoning Bulwark on a new body) is not a travel. No minion gives '
+      + 'another minion Taunt, so there is no minion path. No sounds yet. Pinned on a real simulated fight (Marked '
+      + 'Target) and at the source; not seen in game by the author when it was written.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/tauntBeam.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

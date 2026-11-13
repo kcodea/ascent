@@ -1,0 +1,51 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { replayBeats, replayOrder } from '../choreo/replayOrder';
+import { KEYWORD_BEAMS, holdKeywordLook, isBeamKeyword } from './keywordBeam';
+import { bankedKeywordGrantsIn } from './runeKeywordBeams';
+import { isTauntHeld } from './tauntHold';
+import { getDef } from './fxDefs';
+import { defArrivalMs } from './defArrival';
+
+/**
+ * THE TAUNT BEAM (R-FX-TAUNT-GIVEN-01, owner 2026-11-13: "now im making a taunt beam"): Taunt given by a spell, a hero
+ * power or a rune travels on `taunt-beam`, and the shield frame appears when it lands.
+ */
+describe('the Taunt beam', () => {
+  const read = (p: string): string => readFileSync(new URL(p, import.meta.url), 'utf8');
+  it('is in the library, travels, and is the beam for Taunt', () => {
+    expect(isBeamKeyword('T')).toBe(true);
+    expect(KEYWORD_BEAMS.T.def).toBe('taunt-beam');
+    expect(getDef('taunt-beam')).toBeDefined();
+    expect(defArrivalMs(JSON.parse(read('./defs/taunt-beam.json')))).toBeGreaterThan(0);
+    for (const id of [KEYWORD_BEAMS.T.launchSfx, KEYWORD_BEAMS.T.landSfx]) if (id) expect(getDef(id), id).toBeDefined();
+  });
+  it('the launcher holds the shield frame, and the card draws the Taunt frame only when it is not held', () => {
+    holdKeywordLook('T', 't1', 500);
+    expect(isTauntHeld('t1')).toBe(true);
+    holdKeywordLook('T', 't1', 0);
+    expect(isTauntHeld('t1')).toBe(false);
+    const card = read('../Card.tsx');
+    expect(card).toContain("const tauntShown = card.keywords.includes('T') && !tauntHeld;");
+    expect(card.split("card.keywords.includes('T')").length).toBe(2); // every other read goes through tauntShown
+  });
+  it('the Shop sends it mid-turn (a board read) and at End of Turn (a rune or the hero)', () => {
+    const recruit = read('../Recruit.tsx');
+    expect(recruit).toContain("if (prevT!.get(c.uid) === false && c.keywords.includes('T')) gains.push('T');");
+    expect(recruit).toContain("keyword === 'CR' || keyword === 'T')) {");
+  });
+  it('Marked Target, banked in the Shop, on a REAL fight: the Taunt leaves the caster for the FOE minion it marks', () => {
+    const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ cardId, attack, health, keywords: [] });
+    const { events: raw } = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 1, 60), bm('trainingdummy', 1, 60)], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4, questMods: { markFoeRightmostTaunt: true } } as never), combatSide({ tier: 4 }));
+    const events = replayOrder(raw);
+    const got = replayBeats(raw).flatMap((beat) => bankedKeywordGrantsIn(beat, events));
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ kw: 'T', side: 'player' }); // the player cast it...
+    const taunt = raw.find((e) => e.type === 'keyword' && e.keyword === 'T') as { target: string };
+    expect(got[0]!.target).toBe(taunt.target); // ...and it lands on the minion the engine marked
+    expect(got[0]!.target).not.toBe('m0');
+  });
+});

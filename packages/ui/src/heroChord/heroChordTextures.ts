@@ -3,20 +3,17 @@
  * and Arcana basics it shares).
  *
  * The STAFF LINES are strips whose U runs along the line and V across it, so their two textures only vary ACROSS (down
- * the canvas): a soft bell for the glow, a solid middle with a thin feather for the string itself.
+ * the canvas): a soft bell for the glow (also the dark band laid under the whole staff), and a white-hot core with a
+ * soft shoulder for the string itself. Both strings are drawn ADDITIVE: a string is light, not ink.
  *
  * The NOTES (an eighth note and a beamed pair) are painted in WHITE with a dark ink outline, a soft top-left to
  * bottom-right shade and a gloss spot on each head, so a sprite's tint colours the body while the outline stays dark and
  * the note reads on any board. `NOTE_HEAD` / `BEAM_HEAD` are each texture's anchor: the middle of its (first) head, the
  * point that sits ON a staff line.
  *
- * The SPEAKERS are painted in their own colours (black tolex, silver corners, grille cloth): a cabinet with two round
- * recesses, the amp head that sits on top of the stack, and one CONE (surround, ribbed paper, glossy dust cap) that is
- * drawn over each recess as its own sprite so it can pump.
- *
- * The BASS WAVE is one crescent: a slice of a big circle's rim, bright at its leading edge with a soft wake behind and
- * fading toward both tips. `WAVE_ANCHOR_X` puts a sprite's anchor on that circle's CENTRE (far outside the texture), so
- * scaling the sprite grows the arc outward from the speakers like a real wavefront.
+ * The BASS WAVE is one THICK crescent: a slice of a big circle's rim, a wide bright front with a bloom and a broad wake
+ * behind it, fading toward both tips. `WAVE_ANCHOR_X` puts a sprite's anchor on that circle's CENTRE (far outside the texture), so
+ * scaling the sprite grows the arc outward from the speaker like a real wavefront.
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -46,12 +43,12 @@ function paintLineGlow(): HTMLCanvasElement | null {
   return k.c;
 }
 
-/** The string itself: a dark ink edge either side of a bright solid middle, so it reads on light and dark boards alike. */
+/** The string itself: a white-hot middle with a soft shoulder either side (drawn additive: light, not ink). */
 function paintLineCore(): HTMLCanvasElement | null {
   const k = canvas(8, 32); if (!k) return null;
   const gr = k.g.createLinearGradient(0, 0, 0, 32);
-  gr.addColorStop(0, 'rgba(24,14,44,0)'); gr.addColorStop(0.14, 'rgba(24,14,44,0.9)'); gr.addColorStop(0.3, 'rgba(24,14,44,0.95)'); gr.addColorStop(0.36, 'rgba(255,255,255,1)');
-  gr.addColorStop(0.64, 'rgba(255,255,255,1)'); gr.addColorStop(0.7, 'rgba(24,14,44,0.95)'); gr.addColorStop(0.86, 'rgba(24,14,44,0.9)'); gr.addColorStop(1, 'rgba(24,14,44,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.22, 'rgba(255,255,255,0.35)'); gr.addColorStop(0.4, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.6, 'rgba(255,255,255,1)'); gr.addColorStop(0.78, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   k.g.fillStyle = gr; k.g.fillRect(0, 0, 8, 32);
   return k.c;
 }
@@ -155,147 +152,6 @@ function paintBeam(): HTMLCanvasElement | null {
   return k.c;
 }
 
-// ── the speakers ─────────────────────────────────────────────────────────────────────────────────────────────
-
-export const CAB_W = 256, CAB_H = 176;
-/** The two cone recesses in a cabinet (texture px) and their radius. */
-export const CAB_CONES = [{ x: 74, y: 90 }, { x: 182, y: 90 }] as const;
-export const CAB_CONE_R = 50;
-export const AMP_W = 232, AMP_H = 76;
-export const CONE_D = 128;
-
-function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  g.beginPath();
-  g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
-  g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
-  g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
-  g.closePath();
-}
-
-/** The black tolex box every piece of the stack is built from: lit from the top, an ink edge, four silver corners. */
-function paintBox(g: CanvasRenderingContext2D, w: number, h: number): void {
-  roundRect(g, 3, 3, w - 6, h - 6, 12);
-  const body = g.createLinearGradient(0, 0, 0, h);
-  body.addColorStop(0, '#4a4658'); body.addColorStop(0.12, '#2d2a38'); body.addColorStop(1, '#17151f');
-  g.fillStyle = body; g.fill();
-  g.strokeStyle = '#0b0912'; g.lineWidth = 5; g.stroke();
-  // A soft light along the top edge (the tolex catching it).
-  g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(16, 8.5); g.lineTo(w - 16, 8.5); g.stroke();
-  // Silver corner caps.
-  for (const [cx, cy, fx, fy] of [[3, 3, 1, 1], [w - 3, 3, -1, 1], [3, h - 3, 1, -1], [w - 3, h - 3, -1, -1]] as const) {
-    g.save();
-    g.translate(cx, cy); g.scale(fx, fy);
-    g.beginPath(); g.moveTo(0, 10); g.quadraticCurveTo(0, 0, 10, 0); g.lineTo(24, 0); g.quadraticCurveTo(20, 20, 0, 24); g.closePath();
-    const m = g.createLinearGradient(0, 0, 20, 20);
-    m.addColorStop(0, '#f4f6fb'); m.addColorStop(0.5, '#a9afbf'); m.addColorStop(1, '#5d6274');
-    g.fillStyle = m; g.fill();
-    g.strokeStyle = '#0b0912'; g.lineWidth = 2; g.stroke();
-    g.restore();
-  }
-}
-
-/** A speaker cabinet: the box, a grille-cloth panel and two dark round recesses (the cones are their own sprites). */
-function paintCab(): HTMLCanvasElement | null {
-  const k = canvas(CAB_W, CAB_H); if (!k) return null;
-  const g = k.g;
-  paintBox(g, CAB_W, CAB_H);
-  // The grille cloth: a warm dark weave inside a thin piping line.
-  roundRect(g, 14, 16, CAB_W - 28, CAB_H - 32, 9);
-  const cloth = g.createLinearGradient(0, 16, 0, CAB_H - 16);
-  cloth.addColorStop(0, '#34303f'); cloth.addColorStop(1, '#201d2a');
-  g.fillStyle = cloth; g.fill();
-  g.save();
-  g.clip();
-  g.strokeStyle = 'rgba(255,255,255,0.05)'; g.lineWidth = 1;
-  for (let i = -CAB_H; i < CAB_W + CAB_H; i += 6) {
-    g.beginPath(); g.moveTo(i, 0); g.lineTo(i + CAB_H, CAB_H); g.stroke();
-    g.beginPath(); g.moveTo(i + CAB_H, 0); g.lineTo(i, CAB_H); g.stroke();
-  }
-  g.restore();
-  roundRect(g, 14, 16, CAB_W - 28, CAB_H - 32, 9);
-  g.strokeStyle = '#d9c48a'; g.lineWidth = 1.6; g.stroke();
-  // The recesses: a dark well with a lit lower lip.
-  for (const p of CAB_CONES) {
-    const well = g.createRadialGradient(p.x, p.y - 6, CAB_CONE_R * 0.4, p.x, p.y, CAB_CONE_R + 5);
-    well.addColorStop(0, '#07060b'); well.addColorStop(0.85, '#0c0a12'); well.addColorStop(1, '#3b374a');
-    g.fillStyle = well;
-    g.beginPath(); g.arc(p.x, p.y, CAB_CONE_R + 5, 0, Math.PI * 2); g.fill();
-  }
-  return k.c;
-}
-
-/** The amp head on top of the stack: the box, a brushed metal face plate, a row of knobs and a red jewel lamp. */
-function paintAmp(): HTMLCanvasElement | null {
-  const k = canvas(AMP_W, AMP_H); if (!k) return null;
-  const g = k.g;
-  paintBox(g, AMP_W, AMP_H);
-  roundRect(g, 18, 26, AMP_W - 36, 30, 5);
-  const plate = g.createLinearGradient(0, 26, 0, 56);
-  plate.addColorStop(0, '#f1dfa6'); plate.addColorStop(0.45, '#c9a95a'); plate.addColorStop(1, '#8a6d2c');
-  g.fillStyle = plate; g.fill();
-  g.strokeStyle = '#0b0912'; g.lineWidth = 2; g.stroke();
-  for (let i = 0; i < 5; i++) {
-    const x = 44 + i * 27, y = 41;
-    const kn = g.createRadialGradient(x - 3, y - 3, 1, x, y, 9);
-    kn.addColorStop(0, '#6c687c'); kn.addColorStop(1, '#15131c');
-    g.fillStyle = kn; g.beginPath(); g.arc(x, y, 9, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#f6f2e4'; g.lineWidth = 2;
-    const a = -2.2 + i * 0.75;
-    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7); g.stroke();
-  }
-  // The lamp: lit.
-  const lx = AMP_W - 40, ly = 41;
-  const halo = g.createRadialGradient(lx, ly, 1, lx, ly, 16);
-  halo.addColorStop(0, 'rgba(255,120,90,0.9)'); halo.addColorStop(1, 'rgba(255,60,40,0)');
-  g.fillStyle = halo; g.beginPath(); g.arc(lx, ly, 16, 0, Math.PI * 2); g.fill();
-  const lamp = g.createRadialGradient(lx - 2, ly - 2, 0.5, lx, ly, 7);
-  lamp.addColorStop(0, '#fff3ea'); lamp.addColorStop(0.4, '#ff6a4a'); lamp.addColorStop(1, '#8e1d12');
-  g.fillStyle = lamp; g.beginPath(); g.arc(lx, ly, 7, 0, Math.PI * 2); g.fill();
-  return k.c;
-}
-
-/** One speaker cone, face on: a rubber surround, ribbed paper falling away to the middle, a glossy dust cap. */
-function paintCone(): HTMLCanvasElement | null {
-  const D = CONE_D;
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  const c = D / 2;
-  // The steel basket rim and its screws.
-  const rim = g.createLinearGradient(0, 0, D, D);
-  rim.addColorStop(0, '#c9cedb'); rim.addColorStop(0.5, '#6f7486'); rim.addColorStop(1, '#3a3d4b');
-  g.fillStyle = rim; g.beginPath(); g.arc(c, c, c - 2, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#0b0912'; g.lineWidth = 2.5; g.stroke();
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.26;
-    g.fillStyle = '#1a1822'; g.beginPath(); g.arc(c + Math.cos(a) * (c - 7.5), c + Math.sin(a) * (c - 7.5), 2.4, 0, Math.PI * 2); g.fill();
-  }
-  // The rubber surround: a rolled ring, lit on its upper left.
-  const sur = g.createRadialGradient(c - 10, c - 12, c * 0.55, c, c, c - 11);
-  sur.addColorStop(0, '#4f4b5e'); sur.addColorStop(0.8, '#24212d'); sur.addColorStop(1, '#0e0c14');
-  g.fillStyle = sur; g.beginPath(); g.arc(c, c, c - 12, 0, Math.PI * 2); g.fill();
-  // The paper cone: darker toward the middle (it falls away), with faint ribs.
-  const paper = g.createRadialGradient(c, c, c * 0.2, c, c, c - 21);
-  paper.addColorStop(0, '#16141d'); paper.addColorStop(0.55, '#2b2836'); paper.addColorStop(1, '#4b4759');
-  g.fillStyle = paper; g.beginPath(); g.arc(c, c, c - 21, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,0.07)'; g.lineWidth = 1.2;
-  for (const r of [c - 27, c - 33, c - 39]) { g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.stroke(); }
-  // A sweep of light across the upper left of the paper.
-  g.save();
-  g.beginPath(); g.arc(c, c, c - 21, 0, Math.PI * 2); g.clip();
-  const sheen = g.createLinearGradient(c - 40, c - 44, c + 10, c + 6);
-  sheen.addColorStop(0, 'rgba(255,255,255,0.3)'); sheen.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = sheen; g.fillRect(0, 0, D, D);
-  g.restore();
-  // The dust cap: a glossy dome.
-  const cap = g.createRadialGradient(c - 7, c - 8, 1.5, c, c, c * 0.34);
-  cap.addColorStop(0, '#eceaf4'); cap.addColorStop(0.3, '#7f7b90'); cap.addColorStop(1, '#1f1c29');
-  g.fillStyle = cap; g.beginPath(); g.arc(c, c, c * 0.33, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(8,6,14,0.8)'; g.lineWidth = 1.5; g.stroke();
-  return k.c;
-}
-
 // ── the bass wave ────────────────────────────────────────────────────────────────────────────────────────────
 
 export const WAVE_W = 176, WAVE_H = 512;
@@ -305,28 +161,30 @@ const WAVE_CX = -232;
 /** A wave sprite's x anchor: the circle's centre, far to the left of the texture. Its y anchor is 0.5. */
 export const WAVE_ANCHOR_X = WAVE_CX / WAVE_W;
 
-/** The crescent: a bright leading edge, a soft wake behind it, both fading toward the tips. */
+/** The crescent: a wide bright front with a bloom, a broad wake behind it, both fading toward the tips. */
 function paintWave(): HTMLCanvasElement | null {
   const k = canvas(WAVE_W, WAVE_H); if (!k) return null;
   const g = k.g;
   const cy = WAVE_H / 2;
   const half = Math.asin((WAVE_H / 2 - 10) / WAVE_R);
   g.lineCap = 'butt';
-  // The wake: wide and faint, trailing behind the front.
-  g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 58;
-  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 34, -half, half); g.stroke();
-  g.strokeStyle = 'rgba(255,255,255,0.2)'; g.lineWidth = 30;
-  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 18, -half, half); g.stroke();
-  // The front: a crisp bright rim with a soft bloom.
+  // The wake: broad and faint, trailing well behind the front.
+  g.strokeStyle = 'rgba(255,255,255,0.1)'; g.lineWidth = 120;
+  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 70, -half, half); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 70;
+  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 42, -half, half); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.26)'; g.lineWidth = 38;
+  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 24, -half, half); g.stroke();
+  // The front: a thick bright rim with a bloom.
   g.save();
-  g.shadowColor = 'rgba(255,255,255,0.9)'; g.shadowBlur = 12;
-  g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 9;
-  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 6, -half, half); g.stroke();
+  g.shadowColor = 'rgba(255,255,255,0.95)'; g.shadowBlur = 18;
+  g.strokeStyle = 'rgba(255,255,255,0.98)'; g.lineWidth = 17;
+  g.beginPath(); g.arc(WAVE_CX, cy, WAVE_R - 11, -half, half); g.stroke();
   g.restore();
   // Fade toward both tips.
   g.globalCompositeOperation = 'destination-in';
   const fade = g.createLinearGradient(0, 0, 0, WAVE_H);
-  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.3, 'rgba(0,0,0,1)'); fade.addColorStop(0.7, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.28, 'rgba(0,0,0,1)'); fade.addColorStop(0.72, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = fade; g.fillRect(0, 0, WAVE_W, WAVE_H);
   g.globalCompositeOperation = 'source-over';
   return k.c;
@@ -339,11 +197,8 @@ export function heroChordTextures(): HeroChordTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
   const lineGlow = paintLineGlow(), lineCore = paintLineCore(), note = paintNote(), beam = paintBeam();
-  const cab = paintCab(), amp = paintAmp(), cone = paintCone(), wave = paintWave();
-  if (!base || !lineGlow || !lineCore || !note || !beam || !cab || !amp || !cone || !wave) return null;
-  cached = {
-    ...base, lineGlow: tex(lineGlow), lineCore: tex(lineCore), note: tex(note), pair: tex(beam),
-    cab: tex(cab), amp: tex(amp), cone: tex(cone), wave: tex(wave),
-  };
+  const wave = paintWave();
+  if (!base || !lineGlow || !lineCore || !note || !beam || !wave) return null;
+  cached = { ...base, lineGlow: tex(lineGlow), lineCore: tex(lineCore), note: tex(note), pair: tex(beam), wave: tex(wave) };
   return cached;
 }

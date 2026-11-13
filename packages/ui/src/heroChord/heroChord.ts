@@ -6,12 +6,22 @@
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera, the portraits (transform only, restored after), the voices, the
  * dim, reduced motion, finish / cancel and the safety timer. What is Power Chord's own: the staff, the notes, the
- * speaker stack, the bass wave, the way the struck portrait is blown back, its camera and its sound.
+ * striking portrait as the speaker, the bass wave, the way the struck portrait is blown back, its camera and its sound.
  *
- * THE STRUCK PORTRAIT IS BLOWN BACK BY TRANSFORM ONLY. On Big the wave shoves it downwind and skews it (the top of the
- * portrait leans the way the wave travels, like hair in a dryer), then it springs upright. That is one `transform`
- * string on the portrait's wrapper, written from the clock through `PortraitMover`, which saved the wrapper's own
- * transform at the start and puts it back on every exit (the end, `finish()`, `cancel()`, the safety timer).
+ * THE STRIKING PORTRAIT IS THE SPEAKER (Big). It swells on every pump of the count-in (a little more each time), shrinks
+ * a touch through the inhale, and kicks back on the drop. Transform only.
+ *
+ * THE STRUCK PORTRAIT IS BLOWN BACK BY TRANSFORM ONLY. On Big the wave shoves it hard downwind and skews it (the top of
+ * the portrait leans the way the wave travels, like hair in a dryer); it is pinned there, fluttering, while the rest of
+ * the wave train batters it again (`plan.echoes`), then it springs upright. That is one `transform` string on the
+ * portrait's wrapper, written from the clock through `PortraitMover`, which saved the wrapper's own transform at the
+ * start and puts it back on every exit (the end, `finish()`, `cancel()`, the safety timer).
+ *
+ * SOUND IS THE ATTACK. Every beat has a cue: the five strings (plucks walking up a scale), the note (a clear pluck with
+ * a soft kick under it) or the chord (the full distorted power chord), and on Big the amp's feedback swelling through
+ * the count-in, a kick drum on every pump (louder each time), a beat of near quiet for the inhale, then the power chord
+ * with its sustain and the sub-bass drop together as the wave leaves, the air it pushes, and on the impact a heavy thud
+ * with a kick under each later front.
  *
  * THE CAMERA IS APPLIED ONCE (as Card Shark, see `../heroCards/heroCards.ts`): the Pixi root mirrors the DOM camera only
  * when its canvas is NOT already inside the camera element.
@@ -45,7 +55,7 @@ export interface HeroChordOptions extends HeroAttackOptions {
 
 export interface HeroChordHandle extends HeroAttackHandle {
   readonly plan: ChordPlan;
-  /** The staff's ends, the speaker stack's spot and where the blow lands. */
+  /** The staff's ends, the speaker (the striking portrait) and where the blow lands. */
   readonly geo: ChordGeo;
   readonly scene: HeroChordScene | null;
 }
@@ -62,8 +72,8 @@ export function chordSeed(total: number, distance: number, side: 'player' | 'opp
 /** The five strings' pitches as the staff strings itself: a major pentatonic walking up (playback rates). */
 export const STRING_RATES = [1, 1.122, 1.26, 1.498, 1.682] as const;
 
-/** How long the wave holds the struck portrait pinned back (its later bands are still passing) before it springs upright. */
-export const BLOW_HOLD_MS = 150;
+/** How long the wave holds the struck portrait pinned back (the rest of the wave train is still passing) before it springs upright. */
+export const BLOW_HOLD_MS = 560;
 
 /**
  * How hard the bass wave has the struck portrait at `ms` after the front arrives: 1 the instant it hits, held nearly
@@ -71,8 +81,9 @@ export const BLOW_HOLD_MS = 150;
  */
 export function blowAt(ms: number): number {
   if (ms < 0) return 0;
-  if (ms < BLOW_HOLD_MS) return 1 - 0.14 * (ms / BLOW_HOLD_MS);
-  return 0.86 * spring(ms - BLOW_HOLD_MS, 2.3, 170);
+  // Pinned, easing a little and FLUTTERING in the wind; then it swings back through upright and settles.
+  if (ms < BLOW_HOLD_MS) return 1 - 0.2 * (ms / BLOW_HOLD_MS) + 0.05 * Math.sin(ms * 0.085) * (1 - ms / BLOW_HOLD_MS);
+  return 0.8 * spring(ms - BLOW_HOLD_MS, 2.3, 170);
 }
 
 /** Play Power Chord. Returns a handle; the blow lands via `onImpact` on the impact beat. */
@@ -98,9 +109,9 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hchord',
   });
 
-  // The view (measured once, at the start): the speaker stack lands inside it.
+  // The view (measured once, at the start): Big's flash covers it.
   const view = local ? { w: o.host?.clientWidth || 400, h: o.host?.clientHeight || 300 } : { w: typeof window !== 'undefined' ? window.innerWidth : 1920, h: typeof window !== 'undefined' ? window.innerHeight : 1080 };
-  const geo = chordGeometry(plan, o.attacker, o.defender, radius, aRadius, c, s, view);
+  const geo = chordGeometry(plan, o.attacker, o.defender, radius, aRadius, c, s);
   const dir = chordArrivalDir(geo, o.attacker, o.defender);
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
 
@@ -126,7 +137,7 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxStringClip, c.sfxPluckClip, c.sfxStrumClip, c.sfxBassClip, c.sfxThudClip, c.sfxPumpClip, c.sfxImpactClip]);
+  voices.warm([c.sfxStringClip, c.sfxPluckClip, c.sfxStrumClip, c.sfxBassClip, c.sfxThudClip, c.sfxPumpClip, c.sfxRiserClip, c.sfxWhooshClip, c.sfxImpactClip]);
 
   const fire = (q: ChordCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -141,41 +152,68 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
         if (geo.from && geo.to) scene?.string(geo.from, geo.to, geo.across, geo.gap, t - q.at);
         cam.start();
         break;
-      case 'drop':
-        if (geo.stack) scene?.dropStack(geo.stack, plan.thudAt - plan.dropAt, t - q.at);
+      case 'amp':
+        // The striking portrait powers up as the speaker: a low thump, and the amp's feedback starts to swell (it
+        // peaks exactly on the drop).
+        cue(c.sfxPumpClip, c.sfxPumpGain * 0.5, c.sfxPumpRate * 0.8, { fadeMs: 120 });
+        voices.riser(c.sfxRiserClip, c.sfxRiserGain, c.sfxRiserRate, (plan.releaseAt - plan.ampAt) / speed);
+        if (geo.speaker) scene?.speakerOn(geo.speaker, t - q.at);
         break;
-      case 'thud':
-        cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 520, fadeMs: 260 });
+      case 'pump': {
+        // The count-in: a kick drum, the portrait swells, rings punch out, notes pop onto the staff. Harder each time.
+        const up = 1 + 0.22 * q.i;
+        cue(c.sfxPumpClip, c.sfxPumpGain * (0.8 + 0.2 * q.i), c.sfxPumpRate * (1 - 0.04 * q.i), { fadeMs: 120 });
+        cue(c.sfxStringClip, c.sfxStringGain * 1.2, c.sfxStringRate * STRING_RATES[(q.i * 2) % STRING_RATES.length]! * 0.5, { lenMs: 260, fadeMs: 140 });
+        scene?.pump(up, 2);
+        scene?.rest(3, 0.16 + 0.05 * q.i, 0.7 + 0.06 * q.i);
+        scene?.pluck(-1, c.pluckPx * (0.7 + 0.2 * q.i));
         break;
-      case 'pump':
-        // The count-in: the cones kick, a low thump, and a few notes pop onto the staff.
-        cue(c.sfxPumpClip, c.sfxPumpGain * (1 + 0.15 * q.i), c.sfxPumpRate, { lenMs: 190, fadeMs: 110 });
-        scene?.pump(1, 2);
-        scene?.rest(3, q.i === 0 ? 0.18 : 0.26, q.i === 0 ? 0.74 : 0.82);
-        scene?.pluck(-1, c.pluckPx * 0.7);
+      }
+      case 'inhale':
+        // The breath before the drop: the rings pull in, nothing new sounds (only the feedback, climbing).
+        scene?.inhale(plan.releaseAt - plan.inhaleAt);
         break;
       case 'release':
-        if (plan.stack) {
-          // THE DROP: the hero hits the chord and the speakers throw it.
+        if (plan.speaker) {
+          // THE DROP: the power chord with its sustain, the sub-bass under it, and the air the wave pushes.
+          cue(c.sfxStrumClip, c.sfxStrumGain * 0.8, c.sfxStrumRate * 0.94, { tail: c.sfxTailMix, fadeMs: 300 });
           cue(c.sfxBassClip, c.sfxBassGain, c.sfxBassRate, { tail: c.sfxTailMix });
-          cue(c.sfxStrumClip, c.sfxStrumGain * 0.85, c.sfxStrumRate * 0.94, { startMs: 25, fadeMs: 200 });
-          scene?.pump(1.9, 3);
-          if (geo.waveFrom) scene?.bass(geo.waveFrom, o.defender, plan.flyMs, t - q.at);
+          cue(c.sfxPumpClip, c.sfxPumpGain * 1.2, c.sfxPumpRate * 0.85, { fadeMs: 120 });
+          cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: (plan.flyMs + 260) * c.sfxWhooshRate, fadeMs: 220 });
+          scene?.pump(2.1, 3);
+          scene?.pluck(-1, c.thrumPx * 0.6);
+          if (geo.waveFrom) scene?.bass(geo.waveFrom, o.defender, plan.flyMs, t - q.at, aRadius);
         } else {
-          if (plan.level === 1) cue(c.sfxPluckClip, c.sfxPluckGain, c.sfxPluckRate, { tail: c.sfxTailMix });
-          else cue(c.sfxStrumClip, c.sfxStrumGain, c.sfxStrumRate, { startMs: 25, tail: c.sfxTailMix, fadeMs: 200 });
+          if (plan.level === 1) {
+            cue(c.sfxPluckClip, c.sfxPluckGain, c.sfxPluckRate, { tail: c.sfxTailMix });
+            cue(c.sfxPumpClip, c.sfxPumpGain * 0.35, c.sfxPumpRate * 1.3, { fadeMs: 100 });
+          } else {
+            cue(c.sfxStrumClip, c.sfxStrumGain * 1.15, c.sfxStrumRate, { tail: c.sfxTailMix, lenMs: 1100, fadeMs: 380 });
+            cue(c.sfxPumpClip, c.sfxPumpGain * 0.6, c.sfxPumpRate, { fadeMs: 100 });
+          }
           for (const r of plan.riders) {
             scene?.ride(r.line, { flyMs: r.flyMs, lag: r.lag, size: plan.noteSize, hue: r.hue, late: t - q.at });
             scene?.pluck(r.line, c.pluckPx * 1.2, 2);
           }
         }
         break;
+      case 'echo':
+        // A later front of the wave train leaves the speaker: another kick, another pump, another thick crescent.
+        cue(c.sfxPumpClip, c.sfxPumpGain * (0.75 - 0.15 * q.i), c.sfxPumpRate * (0.8 - 0.06 * q.i), { fadeMs: 120 });
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.9, { lenMs: (plan.flyMs + 200) * c.sfxWhooshRate, fadeMs: 200 });
+        scene?.pump(1.4 - 0.25 * q.i, 0);
+        if (geo.waveFrom) scene?.echo(geo.waveFrom, o.defender, plan.flyMs, 0.9 - 0.2 * q.i, aRadius);
+        break;
       case 'impact':
         cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.1 * plan.level), c.sfxImpactRate - 0.08 * (plan.level - 1), { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 300 });
-        if (plan.stack) cue(c.sfxThudClip, c.sfxThudGain * 0.8, c.sfxThudRate * 1.15, { lenMs: 500, fadeMs: 260 });
+        // Weight under every landing: a kick under the note and the chord, the heavy thud and a low kick under the wave.
+        if (plan.speaker) {
+          cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { tail: c.sfxTailMix, lenMs: 700, fadeMs: 320 });
+          cue(c.sfxPumpClip, c.sfxPumpGain * 1.3, c.sfxPumpRate * 0.7, { fadeMs: 140 });
+        } else cue(c.sfxPumpClip, c.sfxPumpGain * (plan.level === 2 ? 0.9 : 0.6), c.sfxPumpRate * (plan.level === 2 ? 0.85 : 1.05), { fadeMs: 110 });
         // A chord (and the wave) makes the whole staff thrum; a single note just rings the line it rode.
         if (plan.level >= 2) scene?.thrum(); else scene?.pluck(2, c.thrumPx * 0.7);
-        scene?.strike(geo.hit.x, geo.hit.y, radius, { level: plan.level, notes: plan.notes, sparks: plan.sparks, burst: plan.burst, flashAlpha: c.flashAlpha, dir: plan.stack ? dir : undefined });
+        scene?.strike(geo.hit.x, geo.hit.y, radius, { level: plan.level, notes: plan.notes, sparks: plan.sparks, burst: plan.burst, flashAlpha: c.flashAlpha, dir: plan.speaker ? dir : undefined, view });
         seq.land();
         break;
       case 'slack':
@@ -188,22 +226,31 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.releaseAt, plan.impactAt + (plan.stack ? 380 : 200));
+    nums.paintDim(t, plan.chargeAt, plan.speaker ? plan.inhaleAt : plan.releaseAt, plan.speaker ? plan.slackAt - 200 : plan.impactAt + 200);
     const cm = chordCameraAt(plan, c, t, dir);
     const unit = local ? 1 : s;
     cam.apply(chordCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
-      // The wind-up: a lean back and a little swell; playing throws the hero forward. On Big it bobs to the count-in.
+      // The wind-up: a lean back and a little swell; playing throws the hero forward. On Big the portrait IS the
+      // speaker: it swells on every pump (more each time), draws in through the inhale, and kicks BACK on the drop
+      // and on every later front (the recoil of a cone).
       let sc = 1, bx = 0, by = 0;
       if (t < plan.releaseAt) {
         const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.releaseAt - plan.chargeAt));
         sc = 1 + 0.035 * u;
         bx = -toFoe.x * c.heroCoilPx * px * u; by = -toFoe.y * c.heroCoilPx * px * u;
-        if (plan.stack) {
-          if (t >= plan.thudAt) by += 5 * px * spring(t - plan.thudAt, 6, 70);
-          for (const at of plan.pumps) if (t >= at) sc += 0.03 * Math.max(0, spring(t - at, 5, 60));
+        if (plan.speaker) {
+          for (let i = 0; i < plan.pumps.length; i++) { const at = plan.pumps[i]!; if (t >= at) sc += (0.05 + 0.02 * i) * Math.max(0, spring(t - at, 5, 60)); }
+          if (t >= plan.inhaleAt) sc -= 0.05 * easeInOutSine((t - plan.inhaleAt) / Math.max(1, plan.releaseAt - plan.inhaleAt));
         }
+      } else if (plan.speaker) {
+        const age = t - plan.releaseAt;
+        let kick = spring(age, 4.5, 80);
+        sc = 1 + 0.035 * Math.max(0, spring(age, 3, 90)) + 0.11 * Math.max(0, kick);
+        for (const at of plan.echoes) { const a2 = t - (at - plan.flyMs); if (a2 >= 0) { const k2 = spring(a2, 4.5, 70); kick += 0.5 * k2; sc += 0.05 * Math.max(0, k2); } }
+        const f = c.heroThrustPx * px * kick;
+        bx = -toFoe.x * f; by = -toFoe.y * f;
       } else {
         const back = Math.max(0, spring(t - plan.releaseAt, 3, 90));
         const f = c.heroThrustPx * px * spring(t - plan.releaseAt, 5, 60);
@@ -216,9 +263,11 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
     if ((foe.el || scene) && t >= plan.impactAt) {
       let css: string | null = null;
       const age = t - plan.impactAt;
-      if (plan.stack) {
-        // BLOWN BACK: shoved downwind and skewed (its top leans the way the wave travels), then it springs upright.
-        const k = blowAt(age);
+      if (plan.speaker) {
+        // BLOWN BACK: shoved hard downwind and skewed (its top leans the way the wave travels), pinned and fluttering
+        // while the later fronts batter it again, then it springs upright.
+        let k = blowAt(age);
+        for (const at of plan.echoes) if (t >= at) k += 0.3 * Math.max(-0.4, spring(t - at, 5, 70));
         fx = dir.x * c.blowPx * k * px; fy = dir.y * c.blowPx * k * px;
         const skew = -(dir.x >= 0 ? 1 : -1) * c.blowSkew * k;
         const sq = c.squash * k;

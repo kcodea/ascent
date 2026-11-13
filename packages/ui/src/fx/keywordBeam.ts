@@ -29,6 +29,13 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
   T: { def: 'taunt-beam', launchSfx: 'sfx-taunt-whoosh', landSfx: null }, // the Taunt sound is `sfx.taunt()` at the landing
 };
 
+/**
+ * How long BEFORE its beam's tip arrives a keyword's look and landing sound play (ms at 1x). Taunt's shield frame is a
+ * whole-card change, and landing it exactly on arrival read late (owner 2026-11-13: "it just needs to be JUST a bit
+ * earlier").
+ */
+export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 90 };
+
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;
 /** A cascade rings its sounds on its first few beams only. */
@@ -97,7 +104,8 @@ export function launchKeywordBeam(
       { uids: { source: null, target: targetUid }, index: 0, gain: opts.gain, target: settle?.get, onDone: settle?.stop });
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
-    if (arrive <= 0) land(); else register(window.setTimeout(land, arrive / s));
+    const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));
+    if (landAt <= 0) land(); else register(window.setTimeout(land, landAt / s));
   };
   if (launchAt <= 0) launch(); else register(window.setTimeout(launch, launchAt / s));
   return true;

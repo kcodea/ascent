@@ -15,3 +15,8 @@ Owner: "now im making a taunt beam".
   whoosh as the beam leaves: the owner's own `deeptauntwoosh.mp3`, cut to start at its rise (1.05 s in) and faded out from 1.65 s to
   2.2 s (owner: "its a bit much, can we have it fade earlier?"), -18.4 LUFS at gain 1 (the Crit level). The existing `sfx.taunt()` rings as the
   beam lands. `store.ts` rang it at the grant, a beat early; it now skips that when a beam is on the way.
+- **Timing pass (owner: "the card is switching over to the taunt frame a bit late", "JUST a bit earlier").** Two
+  causes. The shield frame image was only requested when the hold lifted, so its fetch and decode started AT the
+  landing: `Card.tsx` now warms it while the beam flies. And the look landed exactly on the tip's arrival (380 ms):
+  `KEYWORD_LAND_LEAD_MS.T` lands the frame and the Taunt sound 90 ms before it. The whoosh is back at level 1, recut
+  shorter (starts 1.22 s into the original, 0.78 s long).

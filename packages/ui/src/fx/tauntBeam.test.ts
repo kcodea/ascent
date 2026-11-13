@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
-import { KEYWORD_BEAMS, holdKeywordLook, isBeamKeyword } from './keywordBeam';
+import { KEYWORD_BEAMS, KEYWORD_LAND_LEAD_MS, holdKeywordLook, isBeamKeyword } from './keywordBeam';
 import { bankedKeywordGrantsIn } from './runeKeywordBeams';
 import { isTauntHeld } from './tauntHold';
 import { getDef } from './fxDefs';
@@ -23,6 +23,13 @@ describe('the Taunt beam', () => {
     expect(KEYWORD_BEAMS.T.launchSfx).toBe('sfx-taunt-whoosh');
     expect(getDef('sfx-taunt-whoosh')).toBeDefined();
   });
+  it('the shield frame lands a touch BEFORE the tip arrives, and only Taunt leads', () => {
+    const arrive = defArrivalMs(JSON.parse(read('./defs/taunt-beam.json')));
+    expect(KEYWORD_LAND_LEAD_MS.T).toBeGreaterThan(0);
+    expect(KEYWORD_LAND_LEAD_MS.T!).toBeLessThan(arrive / 2);
+    expect(Object.keys(KEYWORD_LAND_LEAD_MS)).toEqual(['T']);
+    expect(read('./keywordBeam.ts')).toContain('const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));');
+  });
   it('the Taunt sound rings as the beam LANDS, and the Shop does not also ring it at the grant', () => {
     expect(read('./keywordBeam.ts')).toContain("if (kw === 'T') sfx.taunt();");
     const store = read('../store.ts');
@@ -37,6 +44,8 @@ describe('the Taunt beam', () => {
     const card = read('../Card.tsx');
     expect(card).toContain("const tauntShown = card.keywords.includes('T') && !tauntHeld;");
     expect(card.split("card.keywords.includes('T')").length).toBe(2); // every other read goes through tauntShown
+    // The shield frame is fetched and decoded while the beam flies, not when it lands.
+    expect(card).toContain("useEffect(() => { if (tauntHeld) requestArt(tauntFrameSrcFor(card.tribe, !!card.golden), 'now'); }, [tauntHeld, card.tribe, card.golden]);");
   });
   it('the Shop sends it mid-turn (a board read) and at End of Turn (a rune or the hero)', () => {
     const recruit = read('../Recruit.tsx');

@@ -115,7 +115,7 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
 import './cardPillsConfig';
 import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC, WHISPER_MEDALLION_SRC } from './spellMedallion';
 import { artFor, artVariantKey } from './art';
-import { useArtFade } from './artPreload';
+import { requestArt, useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
 import { useMinionSkinMap } from './skins/skinArt';
 import { useCardPlateLook } from './cardPlate/cardPlateLook';
@@ -655,6 +655,10 @@ export const Card = memo(function Card({
   // ...and a Taunt whose beam is still travelling keeps the ordinary frame until it lands (fx/tauntHold).
   const tauntHeld = useSyncExternalStore(subscribeTauntHolds, () => (uid ? isTauntHeld(uid) : false), () => false);
   const tauntShown = card.keywords.includes('T') && !tauntHeld;
+  // WARM THE SHIELD FRAME WHILE THE BEAM FLIES (owner 2026-11-13: "the card is switching over to the taunt frame a
+  // bit late"). The frame image is only mounted once the hold lifts, so without this its fetch and decode START at
+  // the landing and the frame shows a beat after it.
+  useEffect(() => { if (tauntHeld) requestArt(tauntFrameSrcFor(card.tribe, !!card.golden), 'now'); }, [tauntHeld, card.tribe, card.golden]);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.

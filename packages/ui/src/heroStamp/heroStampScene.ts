@@ -1,242 +1,236 @@
-// SCAFFOLDED from heroCoin/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Coin, not this style, until rewritten.
 /**
- * THE COIN FLICK SCENE: everything the Stamp Flick draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`),
- * so it runs (and is tested) headless. `heroStamp.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
+ * PAID IN FULL'S SCENE: everything the rubber stamp attack draws in Pixi, on the shared pooled scene
+ * (`../heroAttack/fxPool.ts`), so it runs (and is tested) headless. `heroStamp.ts` mounts `root` on the above-portrait
+ * overlay and feeds `update(dt)`.
  *
- * The COIN is the subject: four sprites on one transform (a warm glow behind it, the gold FACE, an additive GLEAM that
- * flares as the face turns square to the view, and a glint star at the peak), plus a short trail of afterimages sampled
- * BACK IN TIME along its path (no mesh). Its spin is a flat in-plane turn plus an edge-on flip: the face's width closes
- * and opens (scale.x = |cos|) and shades toward the deep bronze as it goes edge-on. Flat 2D.
+ * The STAMP is the subject: one sprite anchored on its rubber face, posed every frame by the pure `stampPose` (the
+ * scene keeps its own clock from the charge, advanced by the same `dt` as the sequence, so the two never drift), with a
+ * soft shadow on the struck portrait that tightens as it comes down. Big adds the INK PAD beside the striking hero: it
+ * pops up, dips when tapped and drops away as the stamp leaves.
  *
- * A ping is a four-point sparkle, a gold ring and a spray of glitter. After the last ping the coin either CAROMS off the
- * face (small: a tumbling bounce up and away under gravity, fading) or BURSTS into a small shower of coins (big).
+ * A THUNK leaves a MARK: the seal (tinted with the ink) and its wet gloss (additive), which ride the struck portrait's
+ * knockback. A mark pops in under the stamp, shines, dries (the gloss goes, the ink dulls toward the deep ink), then
+ * fades; an older mark dims a little when a new one lands over it. Round it: a puff of paper dust either side of the
+ * stamp and a few flung drops of ink; the last thunk of a big one adds a spray of droplets and a few blots round the seal.
  */
 import type { Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, mixColor, whiten, type Pt } from '../heroAttack/easing';
+import { clamp01, easeOutBack, easeOutCubic, mixColor } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import { stampPathMs, stampPos, type CoinPath } from './heroStampConfig';
-import { STAMP_TEX_D } from './heroStampTextures';
+import { newStampPose, stampPose, type StampPlan, type StampTrack } from './heroStampConfig';
+import { DROP_PX, MARK_INK_PX, PAD_W, SPLAT_PX, STAMP_BASE_W, STAMP_FACE_Y, STAMP_TEX_H } from './heroStampTextures';
 
 export interface HeroStampTextures extends HeroArcanaTextures {
-  stampFace: Texture;
-  stampShine: Texture;
+  stampBody: Texture;
+  stampMark: Texture;
+  stampSkull: Texture;
+  stampGloss: Texture;
+  stampSkullGloss: Texture;
+  stampPad: Texture;
+  stampDrop: Texture;
+  stampSplat: Texture;
 }
 
-export interface CoinColors { gold: number; amber: number; shine: number; deep: number; side: number }
+export interface StampColors { ink: number; inkDeep: number; shine: number; dust: number }
 
-export interface CoinLook {
-  /** The coin's diameter, px at stage scale 1. */
-  px: number;
-  /** Afterimages behind the flying coin, and their spacing back in time. */
-  ghosts: number;
-  ghostMs: number;
-  /** The glint star's peak opacity. */
-  glint: number;
-  /** Scale of the ping sparkle. */
-  ping: number;
-  caromMs: number;
-  showerSpeed: number;
-  showerGravity: number;
+export interface StampLook {
+  /** The mark's diameter, in stamp base widths. */
+  markSize: number;
 }
 
-/** Hard cap on sprites alive at once (a big impact peaks well under 100). */
-export const MAX_COIN_SPRITES = 220;
+/** Hard cap on sprites alive at once (a big impact peaks well under it). */
+export const MAX_STAMP_SPRITES = 120;
+/** Marks alive at once (one per thunk; the plan caps the thunks at five). */
+export const MAX_STAMP_MARKS = 6;
 const GLOW_PX = 128;
-const RING_PX = 160;
-const STAR_PX = 48;
 
-interface Stamp {
-  path: CoinPath;
-  age: number;
-  /** Diameter px / texture px (the size, the tier size and the stage scale folded in). */
-  k: number;
-  flipHz: number;
-  face: Sprite; glow: Sprite; shine: Sprite; glint: Sprite;
-  ghosts: Sprite[];
-  /** After the last ping: the carom (-1 = still on its path). */
-  carom: number;
-  x: number; y: number; vx: number; vy: number;
-  spin: number;
-  gone: boolean;
+interface Mark {
+  ink: Sprite; gloss: Sprite;
+  x: number; y: number; k: number; rot: number;
+  age: number; hold: number; fade: number;
+  /** Dimmed by a newer mark landing over it. */
+  under: boolean;
 }
 
 export class HeroStampScene extends FxPool {
-  private coin: Stamp | null = null;
-  private charge: { glint: Sprite; ring: Sprite; x: number; y: number; age: number; dur: number } | null = null;
+  private plan: StampPlan | null = null;
+  private track: StampTrack | null = null;
+  private age = 0;
+  private body: Sprite | null = null;
+  private shadow: Sprite | null = null;
+  private pad: Sprite | null = null;
+  private padHit = -1;
+  private readonly marks: Mark[] = [];
+  private readonly pose = newStampPose();
 
-  constructor(private readonly tex: HeroStampTextures, private readonly colors: CoinColors, private readonly look: CoinLook, scale = 1, seed = 1) {
-    super('heroStamp', [tex.glow, tex.ring, tex.star, tex.spark, tex.stampFace, tex.stampShine], scale, seed, MAX_COIN_SPRITES);
+  constructor(private readonly tex: HeroStampTextures, private readonly colors: StampColors, private readonly look: StampLook, scale = 1, seed = 1) {
+    super('heroStamp', [tex.glow, tex.stampBody, tex.stampMark, tex.stampSkull, tex.stampGloss, tex.stampSkullGloss, tex.stampPad, tex.stampDrop, tex.stampSplat], scale, seed, MAX_STAMP_SPRITES);
   }
 
-  get flying(): boolean { return !!this.coin && this.coin.carom < 0 && !this.coin.gone; }
-  get hasCoin(): boolean { return !!this.coin && !this.coin.gone; }
-  get charging(): boolean { return this.charge !== null; }
+  /** The stamp is on screen (risen and not yet lifted away). */
+  get hasStamp(): boolean { return this.body !== null; }
+  /** The ink pad is up. */
+  get hasPad(): boolean { return this.pad !== null; }
+  /** Marks still on the struck portrait. */
+  get liveMarks(): number { return this.marks.length; }
 
-  /** The hero readies: a glint gathers at the flicking hand and a thin gold ring closes in on it. */
-  startCharge(hand: Pt, durMs: number): void {
-    if (this.charge) return;
-    const glint = this.take('core', this.tex.star, this.colors.shine);
-    const ring = this.take('glow', this.tex.ring, this.colors.gold);
-    if (!glint || !ring) { this.give(glint); this.give(ring); return; }
-    glint.position.set(hand.x, hand.y); ring.position.set(hand.x, hand.y);
-    glint.alpha = 0; ring.alpha = 0;
-    this.charge = { glint, ring, x: hand.x, y: hand.y, age: 0, dur: Math.max(1, durMs) };
-  }
-
-  /** The coin leaves the hand along `path`. `age0` = ms already elapsed (a late frame). */
-  flick(path: CoinPath, size: number, flipHz: number, age0 = 0): void {
-    if (this.charge) { this.give(this.charge.glint); this.give(this.charge.ring); this.charge = null; }
-    const a = path.legs[0]?.a;
-    if (!a) return;
-    const S = this.scale;
-    // The snap: a small flash and a flick of glitter at the hand.
-    this.spawn('core', this.tex.glow, this.colors.shine, a.x, a.y, { dur: 140, from: 0.2, to: 0.55, a0: 0.8 });
-    this.burst('core', this.tex.star, [this.colors.shine, this.colors.gold], a.x, a.y, 4, { speed: 220, life: 260, size: 0.22 });
-    const glow = this.take('glow', this.tex.glow, this.colors.amber);
-    const face = this.take('body', this.tex.stampFace, this.colors.gold);
-    const shine = this.take('core', this.tex.stampShine, this.colors.shine);
-    const glint = this.take('core', this.tex.star, this.colors.shine);
-    if (!glow || !face || !shine || !glint) { for (const s of [glow, face, shine, glint]) this.give(s); return; }
-    const ghosts: Sprite[] = [];
-    for (let i = 0; i < Math.max(0, Math.round(this.look.ghosts)); i++) {
-      const g = this.take('glow', this.tex.stampFace, this.colors.amber);
-      if (g) ghosts.push(g);
+  /** The stamp rises out of the striking hero (and, big, the ink pad pops up beside it). `age0` = ms already elapsed. */
+  start(plan: StampPlan, track: StampTrack, age0 = 0): void {
+    if (this.body || plan.reduced || !track.contacts.length) return;
+    const body = this.take('body', this.tex.stampBody, 0xffffff);
+    const shadow = this.take('under', this.tex.glow, 0x000000);
+    if (!body || !shadow) { this.give(body); this.give(shadow); return; }
+    body.anchor.set(0.5, STAMP_FACE_Y / STAMP_TEX_H);
+    body.alpha = 0; shadow.alpha = 0;
+    this.plan = plan; this.track = track; this.age = Math.max(0, age0);
+    this.body = body; this.shadow = shadow;
+    if (track.pad) {
+      const pad = this.take('under', this.tex.stampPad, 0xffffff);
+      if (pad) { pad.position.set(track.pad.x, track.pad.y); pad.alpha = 0; this.pad = pad; }
     }
-    const k = (this.look.px * size * S) / STAMP_TEX_D;
-    this.coin = { path, age: Math.max(0, age0), k, flipHz, face, glow, shine, glint, ghosts, carom: -1, x: a.x, y: a.y, vx: 0, vy: 0, spin: 0, gone: false };
-    this.drawCoin(0);
+    this.padHit = -1;
+    this.draw();
   }
 
-  /** A ping on the face (a tick, or the impact's own sparkle): a four-point sparkle, a ring and a spray of glitter. */
-  ping(at: Pt, dir: Pt, strength: number, sparkles: number): void {
-    const P = this.look.ping * strength;
-    const c = this.colors;
-    this.spawn('core', this.tex.star, c.shine, at.x, at.y, { dur: 260, from: (0.9 * P * 64) / STAR_PX, to: (2.1 * P * 64) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.12, rot: 0.2 });
-    this.spawn('core', this.tex.star, c.gold, at.x, at.y, { dur: 300, from: (0.6 * P * 64) / STAR_PX, to: (1.5 * P * 64) / STAR_PX, a0: 0.8, mode: 'punch', peakAt: 0.15, rot: Math.PI / 4 });
-    this.spawn('glow', this.tex.glow, c.amber, at.x, at.y, { dur: 240, from: (60 * P) / GLOW_PX, to: (150 * P) / GLOW_PX, a0: 0.7, mode: 'punch', peakAt: 0.1 });
-    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 300, from: (24 * P) / RING_PX, to: (120 * P) / RING_PX, a0: 0.9, ease: 'cubic' });
-    // Glitter sprays back off the face (against the coin's travel), with a little lift.
-    const back = Math.atan2(-dir.y, -dir.x);
-    this.burst('core', this.tex.star, [c.shine, c.gold, whiten(c.amber, 0.3)], at.x, at.y, sparkles, { speed: 380 * P, dir: back, spread: 2.6, life: 420, size: 0.26 * P, drag: 0.08, grav: 500 });
+  /** The stamp taps the ink pad: the pad dips, a small splat, a few drops hop up. */
+  padTap(): void {
+    const tr = this.track;
+    if (!tr?.pad) return;
+    this.padHit = this.age;
+    const u = tr.padW / (this.scale * 100);
+    this.spawn('under', this.tex.stampSplat, this.colors.ink, tr.pad.x, tr.pad.y, { dur: 320, from: (0.3 * u * 100) / SPLAT_PX, to: (0.6 * u * 100) / SPLAT_PX, a0: 0.9, rot: this.rnd() * 6 });
+    this.burst('body', this.tex.stampDrop, [this.colors.ink, this.colors.inkDeep], tr.pad.x, tr.pad.y, 5, {
+      speed: 300 * u, dir: -Math.PI / 2, spread: 2.2, life: 380, size: (0.09 * u * 100) / DROP_PX, grav: 1400 * u, drag: 0.4, to: 0.7,
+    });
   }
 
-  /** THE last ping. Small: the coin caroms off, tumbling away. Big: it bursts into `shower` coins that spill and fall. */
-  impact(at: Pt, dir: Pt, o: { big: boolean; shower: number; sparkles: number }): void {
-    const cn = this.coin;
-    this.ping(at, dir, o.big ? 1.45 : 1.1, o.sparkles);
+  /** Thunk `i` lands: its mark, the dust, the ink. `final` is THE impact; `hold` and `fade` are the mark's life from now. */
+  thunk(i: number, o: { final: boolean; big: boolean; skull: boolean; droplets: number; hold: number; fade: number }): void {
+    const tr = this.track;
+    const at = tr?.contacts[i];
+    if (!tr || !at) return;
     const c = this.colors;
     const S = this.scale;
-    if (o.big) {
-      // A bright bloom and a second, wider ring: the payout.
-      this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 380, from: 0.6, to: 2.4, a0: 0.75, mode: 'punch', peakAt: 0.1 });
-      this.spawn('glow', this.tex.ring, c.amber, at.x, at.y, { dur: 440, from: 0.2, to: 1.3, a0: 0.8, ease: 'cubic', delay: 50 });
-      if (cn) { this.dropCoin(cn); this.coin = null; }
-      const k = cn ? cn.k : (this.look.px * S) / STAMP_TEX_D;
-      for (let i = 0; i < o.shower; i++) {
-        // A fan up and out, the first few straight up (so the spill reads as a payout, not a spray).
-        const a = -Math.PI / 2 + (i / Math.max(1, o.shower - 1) - 0.5) * 2.6 + (this.rnd() - 0.5) * 0.3;
-        const sp = this.look.showerSpeed * (0.6 + this.rnd() * 0.55);
-        const sz = (k / S) * (0.5 + this.rnd() * 0.25);
-        this.spawn('body', this.tex.stampFace, c.gold, at.x, at.y, {
-          dur: 900 + this.rnd() * 300, from: sz, to: sz * 0.9, a0: 1, mode: 'hold', ease: 'linear',
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.6, grav: this.look.showerGravity,
-          flip: 0.012 + this.rnd() * 0.012, spin: (this.rnd() - 0.5) * 0.02, rot: this.rnd() * Math.PI, edgeTint: c.deep,
+    const u = tr.w / (S * 100); // sizes below are written for a 100 px stamp
+    const hard = o.final ? (o.big ? 1.35 : 1) : 0.7;
+    const up = tr.upD;
+    const side = { x: -up.y, y: up.x };
+    // The mark (under the stamp), and its wet gloss.
+    for (const m of this.marks) m.under = true;
+    if (this.marks.length < MAX_STAMP_MARKS) {
+      const ink = this.take('under', o.skull ? this.tex.stampSkull : this.tex.stampMark, c.ink);
+      const gloss = this.take('glow', o.skull ? this.tex.stampSkullGloss : this.tex.stampGloss, c.shine);
+      if (ink && gloss) {
+        const k = (tr.w * this.look.markSize * (tr.sizes[i] ?? 1)) / MARK_INK_PX;
+        const rot = tr.tilts[i] ?? 0;
+        ink.rotation = rot; gloss.rotation = rot;
+        this.marks.push({ ink, gloss, x: at.x, y: at.y, k, rot, age: 0, hold: Math.max(1, o.hold), fade: Math.max(1, o.fade), under: false });
+        this.drawMark(this.marks[this.marks.length - 1]!);
+      } else { this.give(ink); this.give(gloss); }
+    }
+    // Paper dust puffs out either side of the die.
+    for (const s of [-1, 1]) {
+      for (let j = 0; j < (o.final ? 2 : 1); j++) {
+        const sp = (150 + 110 * this.rnd()) * hard * u;
+        this.spawn('under', this.tex.glow, c.dust, at.x + side.x * s * tr.w * 0.4, at.y + side.y * s * tr.w * 0.4, {
+          dur: 360 + 120 * this.rnd(), from: (46 * u) / GLOW_PX, to: (120 * hard * u) / GLOW_PX, a0: 0.7, ease: 'cubic',
+          vx: side.x * s * sp + up.x * 40 * u * j, vy: side.y * s * sp + up.y * 40 * u * j - 30 * u, drag: 0.02, follow: true,
         });
       }
-      // A few glints wink on the falling coins' way down (late sparkles, not a second burst).
-      for (let i = 0; i < 4; i++) {
-        this.spawn('core', this.tex.star, c.shine, at.x + (this.rnd() - 0.5) * 140 * S, at.y - (20 + this.rnd() * 90) * S, {
-          dur: 220, from: 0.1, to: 0.5, a0: 0.9, mode: 'punch', peakAt: 0.3, delay: 120 + i * 90,
+    }
+    // Ink squeezed out from under the die: flung sideways and a little back up the handle.
+    if (o.droplets > 0) {
+      const n = o.final ? o.droplets : Math.max(2, Math.round(o.droplets * 0.3));
+      for (const s of [-1, 1]) {
+        this.burst('body', this.tex.stampDrop, [c.ink, c.inkDeep, c.ink], at.x + side.x * s * tr.w * 0.34, at.y + side.y * s * tr.w * 0.34, Math.ceil(n / 2), {
+          speed: 430 * hard * u, dir: Math.atan2(side.y * s + up.y * 0.55, side.x * s + up.x * 0.55), spread: 1.5, life: 420, size: (0.085 * hard * u * 100) / DROP_PX,
+          grav: 1500 * u, drag: 0.25, align: true, to: 0.6,
         });
       }
-    } else if (cn) {
-      // The carom: it bounces up and back off the face, tumbling faster, and falls away.
-      const bx = -dir.x * 0.55, by = -dir.y * 0.55 - 0.85;
-      const bl = Math.hypot(bx, by) || 1;
-      cn.carom = 0;
-      cn.x = at.x; cn.y = at.y;
-      cn.vx = (bx / bl) * 440 * S; cn.vy = (by / bl) * 440 * S;
-      cn.spin = (dir.x >= 0 ? -1 : 1) * 0.012;
-      cn.flipHz *= 1.6;
+    }
+    if (o.final && o.big) {
+      // The hard one: a few blots land round the seal (never under it: the seal has to stay readable).
+      for (let j = 0; j < 4; j++) {
+        const a = this.rnd() * Math.PI * 2, r = tr.w * this.look.markSize * (0.56 + 0.16 * this.rnd());
+        const sz = (0.2 + 0.16 * this.rnd()) * u * 100;
+        this.spawn('under', this.tex.stampSplat, j % 2 ? c.inkDeep : c.ink, at.x + Math.cos(a) * r, at.y + Math.sin(a) * r, {
+          dur: o.hold + o.fade * 0.6, from: (sz * 0.5) / SPLAT_PX, to: sz / SPLAT_PX, a0: 0.85, mode: 'hold', rot: this.rnd() * 6, follow: true, delay: 20 + 25 * j,
+        });
+      }
     }
   }
 
   protected override tick(dt: number): boolean {
-    const ch = this.charge;
-    if (ch) {
-      ch.age += dt;
-      const u = clamp01(ch.age / ch.dur);
-      ch.glint.alpha = this.look.glint * (0.35 + 0.65 * u);
-      ch.glint.scale.set(((10 + 22 * u) * this.scale) / STAR_PX);
-      ch.glint.rotation = u * 1.2;
-      ch.ring.alpha = 0.7 * Math.sin(Math.PI * u);
-      ch.ring.scale.set(((90 - 70 * u) * this.scale) / RING_PX);
+    this.age += dt;
+    for (let i = this.marks.length - 1; i >= 0; i--) {
+      const m = this.marks[i]!;
+      m.age += dt;
+      if (m.age >= m.hold + m.fade) { this.give(m.ink); this.give(m.gloss); this.marks.splice(i, 1); continue; }
+      this.drawMark(m);
     }
-    const cn = this.coin;
-    if (!cn) return ch !== null;
-    cn.age += dt;
-    if (cn.carom >= 0) {
-      cn.carom += dt;
-      const sec = dt / 1000;
-      cn.vy += 1500 * this.scale * sec;
-      cn.x += cn.vx * sec; cn.y += cn.vy * sec;
-      if (cn.carom >= this.look.caromMs) { this.dropCoin(cn); this.coin = null; return ch !== null; }
-    }
-    this.drawCoin(dt);
-    return true;
+    this.draw();
+    return this.body !== null || this.pad !== null || this.marks.length > 0;
   }
 
-  private drawCoin(dt: number): void {
-    const cn = this.coin;
-    if (!cn) return;
-    void dt;
-    const flying = cn.carom < 0;
-    const p = flying ? stampPos(cn.path, cn.age) : { x: cn.x, y: cn.y, dx: cn.vx, dy: cn.vy };
-    const turn = 2 * Math.PI * cn.flipHz * (cn.age / 1000);
-    const w = Math.cos(turn);
-    const open = Math.max(0.1, Math.abs(w));
-    const rot = flying ? 0.35 * Math.sin(cn.age * 0.006) : (cn.carom * cn.spin);
-    const fade = flying ? 1 : 1 - clamp01((cn.carom - this.look.caromMs * 0.55) / (this.look.caromMs * 0.45));
-    const born = clamp01(cn.age / 60);
-    const k = cn.k * (0.6 + 0.4 * born);
-    cn.face.position.set(p.x, p.y); cn.face.rotation = rot; cn.face.scale.set(k * open, k);
-    // Edge-on, the face shades toward deep bronze (the rim catches less light).
-    cn.face.tint = mixColor(this.colors.deep, this.colors.gold, open);
-    cn.face.alpha = fade;
-    cn.shine.position.set(p.x, p.y); cn.shine.rotation = rot; cn.shine.scale.set(k * open, k);
-    cn.shine.alpha = fade * Math.pow(open, 6) * 0.9;
-    const gk = (this.look.px * 2.2 * this.scale) / GLOW_PX;
-    cn.glow.position.set(p.x, p.y); cn.glow.scale.set(gk * (0.8 + 0.2 * open)); cn.glow.alpha = fade * 0.45;
-    // The glint winks when the face turns square to the view.
-    const peak = Math.pow(open, 14);
-    cn.glint.position.set(p.x - 0.18 * k * STAMP_TEX_D, p.y - 0.2 * k * STAMP_TEX_D);
-    cn.glint.scale.set((k * STAMP_TEX_D * 0.9 * (0.4 + 0.6 * peak)) / STAR_PX);
-    cn.glint.rotation = cn.age * 0.004;
-    cn.glint.alpha = fade * this.look.glint * peak;
-    // The afterimages: the coin's own shape, sampled back along its path, fading.
-    const ghostOn = flying && cn.age < stampPathMs(cn.path) + 30;
-    for (let i = 0; i < cn.ghosts.length; i++) {
-      const g = cn.ghosts[i]!;
-      const back = cn.age - (i + 1) * this.look.ghostMs;
-      if (!ghostOn || back <= 0) { g.alpha = 0; continue; }
-      const q = stampPos(cn.path, back);
-      g.position.set(q.x, q.y);
-      g.scale.set(k * 0.92 * open, k * 0.92);
-      g.rotation = rot;
-      g.alpha = 0.34 * (1 - i / (cn.ghosts.length + 0.5));
-    }
+  private drawMark(m: Mark): void {
+    const pop = m.age < 80 ? 0.82 + 0.18 * easeOutBack(m.age / 80, 2.4) : 1;
+    const out = m.age < m.hold ? 1 : 1 - clamp01((m.age - m.hold) / m.fade);
+    // Wet for the first part of its hold, then dry: the shine goes and the ink dulls.
+    const wet = 1 - clamp01(m.age / (m.hold * 0.75));
+    const x = m.x + this.fox, y = m.y + this.foy;
+    m.ink.position.set(x, y); m.ink.scale.set(m.k * pop);
+    m.ink.tint = mixColor(mixColor(this.colors.ink, this.colors.inkDeep, 0.4), this.colors.ink, wet);
+    m.ink.alpha = (m.under ? 0.36 : 0.96) * out;
+    m.gloss.position.set(x, y); m.gloss.scale.set(m.k * pop);
+    m.gloss.alpha = 0.8 * wet * wet * out * (m.under ? 0.25 : 1);
   }
 
-  private dropCoin(cn: Stamp): void {
-    cn.gone = true;
-    for (const s of [cn.face, cn.glow, cn.shine, cn.glint, ...cn.ghosts]) this.give(s);
+  private draw(): void {
+    const p = this.plan, tr = this.track;
+    if (!p || !tr) return;
+    const t = p.chargeAt + this.age;
+    const body = this.body, shadow = this.shadow;
+    if (body && shadow) {
+      const q = stampPose(p, tr, t, this.pose);
+      if (q.alpha <= 0 && t > p.impactAt) {
+        this.give(body); this.give(shadow); this.body = null; this.shadow = null;
+      } else {
+        const k = tr.w / STAMP_BASE_W;
+        // Over the struck portrait it rides the knockback it causes (so the die never floats off the mark).
+        const ride = q.target >= 0 && t >= p.thunks[0]! ? 1 : 0;
+        body.position.set(q.x + this.fox * ride, q.y + this.foy * ride);
+        body.rotation = q.rot; body.scale.set(k * q.sx, k * q.sy); body.alpha = q.alpha;
+        const hit = q.target >= 0 ? tr.contacts[q.target] : undefined;
+        if (hit) {
+          const dist = Math.hypot(q.x - hit.x, q.y - hit.y);
+          const near = 1 - clamp01(dist / (tr.w * 1.6));
+          shadow.position.set(hit.x + this.fox, hit.y + this.foy);
+          shadow.scale.set((tr.w * (1.5 + 0.9 * (1 - near))) / GLOW_PX);
+          shadow.alpha = 0.5 * near * near * q.alpha;
+        } else shadow.alpha = 0;
+      }
+    }
+    const pad = this.pad;
+    if (pad && tr.pad) {
+      const k = tr.padW / PAD_W;
+      const since = t - p.chargeAt - 40;
+      const gone = t - p.launchAt - 60;
+      if (gone >= 220) { this.give(pad); this.pad = null; } else {
+        const pop = since <= 0 ? 0 : easeOutBack(since / 200, 2);
+        const dip = this.padHit >= 0 ? 0.16 * Math.exp(-(this.age - this.padHit) / 90) * Math.cos((this.age - this.padHit) * 0.03) : 0;
+        const leave = gone > 0 ? easeOutCubic(gone / 220) : 0;
+        pad.alpha = clamp01(since / 80) * (1 - leave);
+        pad.scale.set(k * pop * (1 + dip * 0.4) * (1 - 0.15 * leave), k * pop * (1 - dip) * (1 - 0.15 * leave));
+        pad.position.set(tr.pad.x, tr.pad.y + tr.padW * (0.12 * leave + 0.055)); // the felt sits a little above the tin's centre
+      }
+    }
   }
 
   protected override clearOwn(): void {
-    if (this.coin) { this.dropCoin(this.coin); this.coin = null; }
-    if (this.charge) { this.give(this.charge.glint); this.give(this.charge.ring); this.charge = null; }
+    this.give(this.body); this.give(this.shadow); this.give(this.pad);
+    this.body = null; this.shadow = null; this.pad = null;
+    for (const m of this.marks) { this.give(m.ink); this.give(m.gloss); }
+    this.marks.length = 0;
+    this.plan = null; this.track = null;
   }
 }
-

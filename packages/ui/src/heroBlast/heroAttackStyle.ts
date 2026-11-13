@@ -125,7 +125,8 @@
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
  * `stamp` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroStamp/`.
+ * "Attack style" override. Paid in Full (a Rare): a wooden-handled rubber stamp thunks down on the struck portrait and
+ * leaves a wet ink seal on it (Small one stamp; Big an ink pad tap, then three crooked stamps), see `../heroStamp/`.
  *
  * `flick` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `backstab` (`npm run attack:new`), see `../heroFlick/`.

@@ -17,9 +17,15 @@
  *    hunter draws and shoots, the arrow leaving a long line of light across the sky.
  *  - IV, WRITTEN IN THE STARS: the veil deepens and the sky fills. A medallion of stars with a crown and a bust is
  *    traced above the board and the striking hero's own portrait fades in inside it as a ghost; an arm of stars reaches
- *    out over the struck hero, plucks one star from the sky, and it FALLS (straight down when there is room above the
- *    struck portrait, else on the steepest line the screen allows) and lands in a ring of stardust. The blow lands on
- *    the falling star.
+ *    out and plucks one star from the sky. The star SWELLS and blazes while the whole sky holds its breath (every
+ *    other star dims and leans toward it), then falls as a large white-gold COMET with a long tail: straight down the
+ *    whole sky when there is sky above the struck portrait, else thrown from the far side in an ARC over the top of
+ *    the sky, coming down onto it. It lands in a wide nova of stardust and a sky-wide flash; the constellation's lines
+ *    flare, then SCATTER into sparks that drift down before the night fades. The blow lands on the comet.
+ *
+ * EVERY SHOT is a bolt of starlight on a PATH (a quadratic curve; a straight line for the arrows): a bright head and a
+ * long luminous tail that hangs along the path after the blow. EVERY BLOW is a nova of stardust that expands and hangs,
+ * a flash on the sky, the struck portrait rocked and the nearby stars jolted; all of it scales with the tier.
  *
  * A TRACE is made of STROKES: each stroke is a path of stars drawn edge by edge, one edge per SLOT (`StepMs` long). Two
  * strokes may share slots (the hunter's two legs are drawn by two pens at once). A star lights the moment the first
@@ -63,13 +69,25 @@ interface GlobalConfig {
   hunterSize: number;
   /** IV: the medallion's radius (a fraction of the screen height). */
   medallionSize: number;
-  /** IV: how far the star falls (struck portrait radii). */
+  /** IV: how far the star falls when there is sky above the struck hero (struck portrait radii; the sky caps it). */
   fallLen: number;
+  /** IV: how far the plucked star swells before it falls (x its own size). */
+  swell: number;
+  /** IV: how far every other star dims while the plucked star swells (0 = not at all). */
+  hush: number;
+  /** IV: the comet's head (struck portrait radii across). */
+  cometSize: number;
+  /** The flash on the sky on the blow (IV's peak opacity; the lower looks flash a fraction of it). */
+  skyFlash: number;
+  /** IV: after the blow, when the constellation's lines break into falling sparks. */
+  scatterMs: number;
+  /** IV: how long the falling sparks drift. */
+  sparkFallMs: number;
   /** The loosed arrow's least length (px at stage scale 1): it is drawn as long as the figure's own arrow, never shorter than this. */
   arrowPx: number;
-  /** The thin trail behind the arrow and the falling star (px wide). */
+  /** The luminous tail behind the arrow (px wide at the head, at I; wider on the higher looks, widest behind the comet). */
   trailWidth: number;
-  /** How long the hunter's line of light and the falling star's trail linger after the blow. */
+  /** How long the shot's line of light hangs along its path after the blow (III and IV in full; I and II half). */
   trailLingerMs: number;
   impactSize: number;
   /** After the blow, how long before the sky starts to fade. */
@@ -96,6 +114,12 @@ interface GlobalConfig {
   /** Where in the falling star clip its landing begins (clip ms): the descent before it, the soft impact after. */
   sfxFallHitMs: number;
   sfxHitGain: number; sfxHitRate: number;
+  /** The rising swell under the draw of the bow, and under IV's star as it swells (its climax lands on the loose). */
+  sfxRiseClip: string; sfxRiseGain: number; sfxRiseRate: number;
+  /** The low body under every blow: IV plays the whole deep boom and its tail, the arrows its first moment, quieter and higher. */
+  sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  /** The deep thrum of the bowstring under its snap (I to III). */
+  sfxThrumClip: string; sfxThrumGain: number; sfxThrumRate: number;
   /** IV: how loudly the sky's shimmer blooms again under the landing (the stars answering). */
   sfxBloomGain: number;
   sfxTailMix: number;
@@ -106,25 +130,25 @@ interface GlobalConfig {
 export type HeroStarsConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_STARS_COLOR_KEYS = ['colorStar', 'colorGold', 'colorLine', 'colorSky', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_STARS_CLIP_KEYS = ['sfxSkyClip', 'sfxTickClip', 'sfxLooseClip', 'sfxWhooshClip', 'sfxFallClip'] as const;
+export const HERO_STARS_CLIP_KEYS = ['sfxSkyClip', 'sfxTickClip', 'sfxLooseClip', 'sfxWhooshClip', 'sfxFallClip', 'sfxRiseClip', 'sfxBoomClip', 'sfxThrumClip'] as const;
 export type HeroStarsStrKey = (typeof HERO_STARS_COLOR_KEYS)[number] | (typeof HERO_STARS_CLIP_KEYS)[number];
 export type HeroStarsNumKey = Exclude<keyof HeroStarsConfig, HeroStarsStrKey>;
 
 /** Per tier, I / II / III / IV. */
 const TIER_DEFAULTS: Record<StarsTierSuffix, [number, number, number, number]> = {
-  SkyMs: [240, 240, 260, 300],
-  StepMs: [95, 52, 60, 50],
-  AliveMs: [140, 110, 220, 200],
-  DrawMs: [130, 260, 260, 320],
-  HoldMs: [0, 90, 90, 60],
-  FlyMs: [200, 200, 210, 420],
+  SkyMs: [260, 260, 300, 360],
+  StepMs: [100, 56, 62, 52],
+  AliveMs: [160, 140, 260, 220],
+  DrawMs: [160, 300, 320, 360],
+  HoldMs: [40, 120, 160, 640],
+  FlyMs: [210, 220, 240, 620],
   Size: [1.3, 1.25, 1, 1],
-  Shake: [5, 7, 9, 14],
-  Zoom: [0.022, 0.026, 0.03, 0.036],
-  Punch: [0.02, 0.028, 0.036, 0.06],
-  SettleMs: [400, 400, 440, 800],
-  Dim: [0.4, 0.42, 0.46, 0.5],
-  Veil: [0.5, 0.54, 0.58, 0.68],
+  Shake: [7, 10, 14, 26],
+  Zoom: [0.022, 0.028, 0.034, 0.044],
+  Punch: [0.03, 0.04, 0.055, 0.075],
+  SettleMs: [480, 520, 620, 1700],
+  Dim: [0.4, 0.42, 0.46, 0.52],
+  Veil: [0.5, 0.54, 0.6, 0.72],
   SkyStars: [50, 64, 84, 130],
 };
 
@@ -133,13 +157,13 @@ export const STARS_TIER_RANGES: Record<StarsTierSuffix, [number, number, number]
   StepMs: [20, 300, 1],
   AliveMs: [0, 1000, 10],
   DrawMs: [0, 1200, 10],
-  HoldMs: [0, 1000, 10],
-  FlyMs: [80, 1200, 10],
+  HoldMs: [0, 2000, 10],
+  FlyMs: [80, 1500, 10],
   Size: [0.4, 2, 0.05],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.1, 0.002],
   Punch: [0, 0.15, 0.001],
-  SettleMs: [200, 2000, 10],
+  SettleMs: [200, 4000, 10],
   Dim: [0, 0.9, 0.01],
   Veil: [0, 0.9, 0.01],
   SkyStars: [0, 160, 1],
@@ -151,22 +175,28 @@ export const HERO_STARS_DEFAULTS: HeroStarsConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 160,
   starPx: 46,
-  lineWidth: 7,
+  lineWidth: 9,
   twinkle: 0.45,
   ghostAlpha: 0.32,
   portraitAlpha: 0.34,
   hunterSize: 4.3,
   medallionSize: 0.2,
-  fallLen: 3.6,
+  fallLen: 6.5,
+  swell: 1.6,
+  hush: 0.7,
+  cometSize: 2.2,
+  skyFlash: 0.36,
+  scatterMs: 300,
+  sparkFallMs: 1200,
   arrowPx: 230,
-  trailWidth: 7,
-  trailLingerMs: 520,
+  trailWidth: 11,
+  trailLingerMs: 700,
   impactSize: 1,
-  skyHoldMs: 180,
+  skyHoldMs: 220,
   heroLiftPx: 8,
-  knockPx: 18,
-  squash: 0.08,
-  shakeMs: 340,
+  knockPx: 24,
+  squash: 0.09,
+  shakeMs: 420,
   zoomOutMs: 420,
   reducedFadeMs: 260,
   colorStar: '#fff8e6',
@@ -175,15 +205,18 @@ export const HERO_STARS_DEFAULTS: HeroStarsConfig = {
   colorSky: '#0a1440',
   colorPlayer: '#ffe9b0',
   colorFoe: '#ff7a5c',
-  sfxSkyClip: 'fx/stars-sky', sfxSkyGain: 0.45, sfxSkyRate: 1,
-  sfxTickClip: 'fx/stars-tick', sfxTickGain: 0.22, sfxTickRate: 1,
-  sfxLooseClip: 'fx/stars-loose', sfxLooseGain: 0.3, sfxLooseRate: 1,
-  sfxWhooshClip: 'fx/whoosh-03', sfxWhooshGain: 0.3, sfxWhooshRate: 1.3,
+  sfxSkyClip: 'fx/stars-sky', sfxSkyGain: 1, sfxSkyRate: 1,
+  sfxTickClip: 'fx/stars-tick', sfxTickGain: 0.6, sfxTickRate: 1,
+  sfxLooseClip: 'fx/stars-loose', sfxLooseGain: 0.7, sfxLooseRate: 1,
+  sfxWhooshClip: 'fx/whoosh-03', sfxWhooshGain: 0.7, sfxWhooshRate: 1.3,
   sfxWhooshStartMs: 420,
-  sfxFallClip: 'fx/stars-fall', sfxFallGain: 0.55, sfxFallRate: 1,
+  sfxFallClip: 'fx/stars-fall', sfxFallGain: 1.2, sfxFallRate: 1,
   sfxFallHitMs: 1150,
-  sfxHitGain: 0.42, sfxHitRate: 1.12,
-  sfxBloomGain: 0.22,
+  sfxHitGain: 0.8, sfxHitRate: 1.12,
+  sfxRiseClip: 'fx/stars-rise', sfxRiseGain: 0.9, sfxRiseRate: 1,
+  sfxBoomClip: 'fx/stars-boom', sfxBoomGain: 0.6, sfxBoomRate: 1,
+  sfxThrumClip: 'fx/stars-release', sfxThrumGain: 0.7, sfxThrumRate: 1,
+  sfxBloomGain: 0.5,
   sfxTailMix: 0.2,
   sfxDuck: 0.6,
   previewDamage: 12,
@@ -201,10 +234,16 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroStarsStrKey>, [numbe
   portraitAlpha: [0, 1, 0.01],
   hunterSize: [2, 7, 0.1],
   medallionSize: [0.1, 0.3, 0.005],
-  fallLen: [1.5, 7, 0.1],
+  fallLen: [1.5, 9, 0.1],
+  swell: [0, 5, 0.05],
+  hush: [0, 1, 0.01],
+  cometSize: [0.4, 3, 0.05],
+  skyFlash: [0, 1, 0.01],
+  scatterMs: [0, 1500, 10],
+  sparkFallMs: [200, 3000, 10],
   arrowPx: [60, 500, 2],
   trailWidth: [1, 30, 0.5],
-  trailLingerMs: [0, 1500, 10],
+  trailLingerMs: [0, 2500, 10],
   impactSize: [0.3, 3, 0.05],
   skyHoldMs: [0, 1000, 10],
   heroLiftPx: [0, 40, 1],
@@ -221,6 +260,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroStarsStrKey>, [numbe
   sfxFallGain: [0, 2, 0.05], sfxFallRate: [0.5, 2.5, 0.01],
   sfxFallHitMs: [0, 4000, 10],
   sfxHitGain: [0, 2, 0.05], sfxHitRate: [0.5, 2.5, 0.01],
+  sfxRiseGain: [0, 2, 0.05], sfxRiseRate: [0.5, 2.5, 0.01],
+  sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
+  sfxThrumGain: [0, 2, 0.05], sfxThrumRate: [0.5, 2.5, 0.01],
   sfxBloomGain: [0, 2, 0.05],
   sfxTailMix: [0, 1, 0.01],
   sfxDuck: [0, 1, 0.05],
@@ -234,10 +276,10 @@ export const HERO_STARS_RANGES: Record<HeroStarsNumKey, [number, number, number]
 };
 
 /** Hard caps whatever the tuner says. */
-export const STARS_CAPS = { skyStars: 160, shakePx: 40, zoom: 0.1 } as const;
+export const STARS_CAPS = { skyStars: 160, shakePx: 40, zoom: 0.12 } as const;
 
 const store = configStore<HeroStarsConfig>({
-  key: 'ascent.herostars.v2', defaults: HERO_STARS_DEFAULTS, ranges: HERO_STARS_RANGES,
+  key: 'ascent.herostars.v3', defaults: HERO_STARS_DEFAULTS, ranges: HERO_STARS_RANGES,
   colorKeys: HERO_STARS_COLOR_KEYS, clipKeys: HERO_STARS_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroStarsStore = store;
@@ -262,6 +304,9 @@ export function starsKind(tier: TierNum): StarsKind { return tier === 1 ? 'arrow
 export const STARS_SLOTS: Record<StarsKind, number> = { arrow: 3, bow: 8, hunter: 12, written: 18 };
 
 export const STARS_REF_DISTANCE = 1600;
+
+/** How much of the sky flash each look shows (IV the whole of `skyFlash`). */
+export const STARS_FLASH = [0.22, 0.34, 0.55, 1] as const;
 
 /** An arrow's flight scales gently with how far it has to go. */
 export function starsLegMs(distance: number, ms: number): number {
@@ -300,9 +345,13 @@ export interface StarsPlan {
   /** The arrow leaves (IV: the star detaches and falls). */
   looseAt: number;
   impactAt: number;
+  /** IV: the constellation's lines break into falling sparks (the other looks: never, `Infinity`). */
+  scatterAt: number;
   /** The sky starts to fade. */
   outAt: number;
   endAt: number;
+  /** The flash on the sky on the blow (peak opacity). */
+  flash: number;
   size: number;
   shakePx: number;
   zoom: number;
@@ -324,13 +373,14 @@ export function starsPlan(input: StarsPlanInput, c: HeroStarsConfig = store.get(
     tier, kind, k: (tier - 1) / 3, total, ko, slots, stepMs: Math.max(20, L.StepMs), size: L.Size,
     shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, STARS_CAPS.shakePx), zoom: clamp(L.Zoom, 0, STARS_CAPS.zoom), punch: L.Punch * (ko ? 1.2 : 1),
     dim: L.Dim, veil: L.Veil, skyStars: Math.round(clamp(L.SkyStars, 0, STARS_CAPS.skyStars)),
+    flash: clamp01(c.skyFlash) * STARS_FLASH[tier - 1]!,
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
       ...base, reduced: true, chargeAt: at, absorbEnd: at, traceAt: at, tracedAt: at, drawAt: at, holdAt: at, looseAt: at, impactAt: at, outAt: at,
-      endAt: r.endAt, size: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0, veil: 0, skyStars: 0,
+      scatterAt: Infinity, endAt: r.endAt, size: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0, veil: 0, skyStars: 0, flash: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
@@ -343,8 +393,12 @@ export function starsPlan(input: StarsPlanInput, c: HeroStarsConfig = store.get(
   // The arrows cross the board (a longer board, a slightly longer flight); the star's fall is its own fixed length.
   const impactAt = looseAt + (kind === 'written' ? Math.max(80, Math.round(L.FlyMs)) : starsLegMs(input.distance, L.FlyMs));
   const endAt = impactAt + Math.max(200, L.SettleMs);
-  const outAt = Math.min(endAt - 120, impactAt + Math.max(0, c.skyHoldMs) * (kind === 'written' ? 1.6 : 1));
-  return { ...base, reduced: false, chargeAt, absorbEnd, traceAt, tracedAt, drawAt, holdAt, looseAt, impactAt, outAt, endAt };
+  // IV: the lines flare, then scatter; the night holds while the sparks drift, and fades over the rest.
+  const scatterAt = kind === 'written' ? Math.min(endAt - 200, impactAt + Math.max(0, c.scatterMs)) : Infinity;
+  const outAt = kind === 'written'
+    ? Math.min(endAt - 120, scatterAt + Math.max(0, c.sparkFallMs) * 0.4)
+    : Math.min(endAt - 120, impactAt + Math.max(0, c.skyHoldMs));
+  return { ...base, reduced: false, chargeAt, absorbEnd, traceAt, tracedAt, drawAt, holdAt, looseAt, impactAt, scatterAt, outAt, endAt };
 }
 
 /** When edge slot `n` starts. */
@@ -377,6 +431,10 @@ export interface StarFigure {
   /** Where the shot leaves from (the arrow's head at full draw; IV: the plucked star) and where it lands. */
   shotFrom: Pt;
   shotTo: Pt;
+  /** The shot's path is a quadratic curve through this control point (the arrows: the midpoint, a straight line). */
+  shotCtrl: Pt;
+  /** IV: the comet is thrown in an arc over the top of the sky (no sky above the struck hero to fall through). */
+  arc: boolean;
   /** How long the figure's own arrow is (px): the loosed arrow of starlight is drawn the same length. 0 for IV. */
   arrowLen: number;
   /** III: the head star and the torso's three stars (the ghost body), else -1 / []. */
@@ -472,7 +530,7 @@ function arrowFigure(p: StarsPlan, i: FigureInput): StarFigure {
   const shotFrom = L(1.25 - 0.34, 0);
   const pts = [c, shotFrom];
   fitFigure(b.stars, pts, i.bounds);
-  return { kind: 'arrow', arrowLen: 2.5 * U, centre: c, unit: U, aim, facing: cos >= 0 ? 1 : -1, stars: b.stars, edges: b.edges, shotFrom, shotTo: shotEnd(shotFrom, i), head: -1, torso: [], medallion: null, pluck: -1 };
+  return { kind: 'arrow', arrowLen: 2.5 * U, centre: c, unit: U, aim, facing: cos >= 0 ? 1 : -1, stars: b.stars, edges: b.edges, ...straightShot(shotFrom, i), head: -1, torso: [], medallion: null, pluck: -1 };
 }
 
 /** II: a bow of five stars, its string through a nock star, and a two-star arrow on the string. */
@@ -502,7 +560,7 @@ function bowFigure(p: StarsPlan, i: FigureInput): StarFigure {
   const shotFrom = L(tipX + 1.9 - DRAW, 0);
   const pts = [c, shotFrom];
   fitFigure(b.stars, pts, i.bounds);
-  return { kind: 'bow', arrowLen: 1.9 * U, centre: c, unit: U, aim, facing: cos >= 0 ? 1 : -1, stars: b.stars, edges: b.edges, shotFrom, shotTo: shotEnd(shotFrom, i), head: -1, torso: [], medallion: null, pluck: -1 };
+  return { kind: 'bow', arrowLen: 1.9 * U, centre: c, unit: U, aim, facing: cos >= 0 ? 1 : -1, stars: b.stars, edges: b.edges, ...straightShot(shotFrom, i), head: -1, torso: [], medallion: null, pluck: -1 };
 }
 
 /** III: the archer, upright in a braced stance, facing the struck hero; its bow arm and bow aim at it. */
@@ -552,22 +610,37 @@ function hunterFigure(p: StarsPlan, i: FigureInput, c0: HeroStarsConfig): StarFi
   const shotFrom = B(0.34 - DRAW, 0);
   const pts = [c, shotFrom];
   fitFigure(b.stars, pts, i.bounds);
-  return { kind: 'hunter', arrowLen: 0.42 * H, centre: c, unit: H, aim: Math.atan2(ay, ax), facing: f, stars: b.stars, edges: b.edges, shotFrom, shotTo: shotEnd(shotFrom, i), head, torso: [sF, sB, hip], medallion: null, pluck: -1 };
+  return { kind: 'hunter', arrowLen: 0.42 * H, centre: c, unit: H, aim: Math.atan2(ay, ax), facing: f, stars: b.stars, edges: b.edges, ...straightShot(shotFrom, i), head, torso: [sF, sB, hip], medallion: null, pluck: -1 };
 }
 
 /**
- * Where IV's star is plucked from: straight above the struck hero when there is sky above it; when the struck hero is
- * at the top of the screen it is taken from further along the sky (toward the medallion), so the star still falls a
- * full length, on the steepest line the screen allows. Always falling DOWN, never up.
+ * Where IV's star is plucked from, and the path it falls on.
+ *  - Sky ABOVE the struck hero (the foe striking you): it is plucked from straight above and falls straight DOWN, as
+ *    far as `fallLen` radii or the top of the sky allows.
+ *  - NO sky above (you striking the foe, whose portrait sits on the top edge): it is plucked from the FAR side of the
+ *    sky (beyond the medallion, away from the struck hero) and thrown in an ARC over the top of the sky: it climbs,
+ *    crosses above the medallion and comes DOWN onto the portrait. The whole sky is its path.
+ * Either way it ARRIVES moving downward, never up.
  */
-export function pluckPoint(d: Pt, radius: number, fallLen: number, toward: Pt, bounds: Box): Pt {
+export function pluckPoint(d: Pt, radius: number, fallLen: number, medallion: { x: number; y: number; r: number }, bounds: Box): { p: Pt; ctrl: Pt; arc: boolean } {
   const len = Math.max(radius, fallLen * radius);
   const top = bounds.y + bounds.h * 0.05;
-  const drop = clamp(d.y - top, 0, len);
-  const side = Math.sqrt(Math.max(0, len * len - drop * drop));
-  const dir = toward.x >= d.x ? 1 : -1;
-  const m = bounds.w * 0.03;
-  return { x: clamp(d.x + dir * side, bounds.x + m, bounds.x + bounds.w - m), y: d.y - drop };
+  const room = d.y - top;
+  if (room >= Math.min(len, bounds.h * 0.4) * 0.75) {
+    const p = { x: d.x, y: d.y - Math.min(room, len) };
+    return { p, ctrl: { x: d.x, y: (p.y + d.y) / 2 }, arc: false };
+  }
+  const side = medallion.x >= d.x ? 1 : -1;
+  const m = bounds.w * 0.06;
+  const p = {
+    x: clamp(medallion.x + side * (medallion.r * 1.05 + bounds.w * 0.2), bounds.x + m, bounds.x + bounds.w - m),
+    y: clamp(medallion.y + medallion.r * 0.3, top, bounds.y + bounds.h * 0.62),
+  };
+  // The top of the arc sits just inside the top of the sky; the control point is always above the struck hero, so the
+  // comet comes down onto it.
+  const peak = bounds.y + bounds.h * 0.07;
+  const ctrl = { x: (p.x + d.x) / 2, y: Math.min(2 * peak - (p.y + d.y) / 2, d.y - radius * 0.9) };
+  return { p, ctrl, arc: true };
 }
 
 /** IV: a medallion ring of twelve stars with a crown and a bust, and an arm of stars reaching for the plucked star. */
@@ -586,7 +659,8 @@ function writtenFigure(p: StarsPlan, i: FigureInput, c0: HeroStarsConfig): StarF
   const nL = b.star(M(-0.17, 0.07), 0.36), sL1 = b.star(M(-0.54, 0.2), 0.5), sL0 = b.star(M(-0.72, 0.54), 0.42);
   const nR = b.star(M(0.17, 0.07), 0.36), sR1 = b.star(M(0.54, 0.2), 0.5), sR0 = b.star(M(0.72, 0.54), 0.42);
   // The plucked star, and the arm that reaches for it from the nearest star of the ring.
-  const P = pluckPoint(i.defender, i.radius, c0.fallLen, mc, bd);
+  const pk = pluckPoint(i.defender, i.radius, c0.fallLen, { x: mc.x, y: mc.y, r: R }, bd);
+  const P = pk.p;
   const ang = Math.atan2(P.y - mc.y, P.x - mc.x);
   const near = ((Math.round((ang * 180 / Math.PI + 90) / 30) % 12) + 12) % 12;
   const s0 = b.stars[ring[near]!]!;
@@ -610,17 +684,33 @@ function writtenFigure(p: StarsPlan, i: FigureInput, c0: HeroStarsConfig): StarF
   b.stroke(12, [chin, nL, sL1, sL0], { soft: true });
   b.stroke(12, [chin, nR, sR1, sR0], { soft: true });
   b.stroke(15, [ring[near]!, arm1, arm2, hand]);
-  const fall = unitTo(P, i.defender);
+  // It lands a little short of the portrait's middle, along the line it arrives on.
+  const fall = unitTo(pk.ctrl, i.defender);
   const shotTo = { x: i.defender.x - fall.x * i.radius * 0.15, y: i.defender.y - fall.y * i.radius * 0.15 };
   return {
     kind: 'written', arrowLen: 0, centre: mc, unit: R, aim: Math.atan2(fall.y, fall.x), facing: P.x >= mc.x ? 1 : -1, stars: b.stars, edges: b.edges,
-    shotFrom: P, shotTo, head: -1, torso: [], medallion: { x: mc.x, y: mc.y, r: R }, pluck,
+    shotFrom: P, shotTo, shotCtrl: pk.ctrl, arc: pk.arc, head: -1, torso: [], medallion: { x: mc.x, y: mc.y, r: R }, pluck,
   };
 }
 
-function shotEnd(from: Pt, i: FigureInput): Pt {
+/** An arrow's shot: a straight line from the bow to just short of the struck portrait's middle. */
+function straightShot(from: Pt, i: FigureInput): { shotFrom: Pt; shotTo: Pt; shotCtrl: Pt; arc: boolean } {
   const u = unitTo(from, i.defender);
-  return { x: i.defender.x - u.x * i.radius * 0.25, y: i.defender.y - u.y * i.radius * 0.25 };
+  const to = { x: i.defender.x - u.x * i.radius * 0.25, y: i.defender.y - u.y * i.radius * 0.25 };
+  return { shotFrom: from, shotTo: to, shotCtrl: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, arc: false };
+}
+
+/** Where the shot is at `u` along its path (0 the bow or the plucked star, 1 the struck hero). */
+export function shotPoint(f: Pick<StarFigure, 'shotFrom' | 'shotCtrl' | 'shotTo'>, u: number): Pt {
+  const m = 1 - u;
+  return { x: m * m * f.shotFrom.x + 2 * m * u * f.shotCtrl.x + u * u * f.shotTo.x, y: m * m * f.shotFrom.y + 2 * m * u * f.shotCtrl.y + u * u * f.shotTo.y };
+}
+
+/** The unit direction the shot ARRIVES on (the camera's kick, the struck portrait's knock). */
+export function shotArrival(f: Pick<StarFigure, 'shotCtrl' | 'shotTo' | 'shotFrom'>): Pt {
+  const dx = f.shotTo.x - f.shotCtrl.x, dy = f.shotTo.y - f.shotCtrl.y;
+  const L = Math.hypot(dx, dy);
+  return L > 1e-6 ? { x: dx / L, y: dy / L } : unitTo(f.shotFrom, f.shotTo);
 }
 
 /** The look's constellation, placed from the two portraits and kept on screen. Pure. */
@@ -654,6 +744,38 @@ export function aliveAmount(p: StarsPlan, t: number): number {
   return sine((t - p.tracedAt) / Math.max(60, p.drawAt - p.tracedAt));
 }
 
+/**
+ * IV: how far the plucked star has SWOLLEN at `t` (0..1): it builds through the hold, slowly then fast, and is gone
+ * with the loose (the comet takes over). 0 for the other looks.
+ */
+export function swellAmount(p: StarsPlan, t: number): number {
+  if (p.reduced || p.kind !== 'written' || t < p.holdAt || t >= p.looseAt) return 0;
+  const u = (t - p.holdAt) / Math.max(1, p.looseAt - p.holdAt);
+  return 0.35 * sine(u) + 0.65 * u * u * u;
+}
+
+/**
+ * IV: the sky holding its breath (0..1): every other star dims as the arm reaches and the star swells, stays dim while
+ * the comet falls, and is released on the blow. 0 for the other looks.
+ */
+export function hushAmount(p: StarsPlan, t: number): number {
+  if (p.reduced || p.kind !== 'written' || t < p.drawAt || t >= p.impactAt) return 0;
+  return sine((t - p.drawAt) / Math.max(1, (p.looseAt - p.drawAt) * 0.8));
+}
+
+/** The constellation after the blow: its lines FLARE (0..1, a quick rise and a slower fall). IV flares hardest. */
+export function flareAmount(p: StarsPlan, t: number): number {
+  if (p.reduced || t < p.impactAt) return 0;
+  const ms = t - p.impactAt;
+  return ms < 70 ? ms / 70 : Math.exp(-(ms - 70) / (p.kind === 'written' ? 260 : 150));
+}
+
+/** How much of the constellation is still drawn (1 until IV's lines scatter into sparks, then quickly 0). */
+export function figureAmount(p: StarsPlan, t: number): number {
+  if (p.reduced) return 0;
+  return t < p.scatterAt ? 1 : 1 - clamp01((t - p.scatterAt) / 140);
+}
+
 /** The sky's opacity at `t` (0..1): in through the opening, out after the blow. */
 export function skyAmount(p: StarsPlan, t: number): number {
   if (p.reduced || t < p.chargeAt) return 0;
@@ -670,7 +792,7 @@ export function shotAt(p: StarsPlan, t: number): { phase: 'nocked' | 'fly' | 'do
   return { phase: 'fly', u: p.kind === 'written' ? x * x * (0.55 + 0.45 * x) : 0.25 * x + 0.75 * x * x };
 }
 
-export type StarsCueKind = 'sky' | 'star' | 'alive' | 'draw' | 'loose' | 'impact' | 'end';
+export type StarsCueKind = 'sky' | 'star' | 'alive' | 'draw' | 'hold' | 'loose' | 'impact' | 'scatter' | 'end';
 export interface StarsCue { at: number; kind: StarsCueKind; i: number }
 
 export function starsCues(p: StarsPlan, f: StarFigure | null): StarsCue[] {
@@ -680,11 +802,13 @@ export function starsCues(p: StarsPlan, f: StarFigure | null): StarsCue[] {
     if (f) f.stars.forEach((s, i) => { if (!s.pluck) out.push({ at: slotAt(p, s.slot), kind: 'star', i }); });
     out.push({ at: p.tracedAt, kind: 'alive', i: 0 });
     out.push({ at: p.drawAt, kind: 'draw', i: 0 });
+    out.push({ at: p.holdAt, kind: 'hold', i: 0 });
     out.push({ at: p.looseAt, kind: 'loose', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
+  if (!p.reduced && Number.isFinite(p.scatterAt)) out.push({ at: p.scatterAt, kind: 'scatter', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<StarsCueKind, number> = { sky: 0, star: 1, alive: 2, draw: 3, loose: 4, impact: 5, end: 6 };
+  const order: Record<StarsCueKind, number> = { sky: 0, star: 1, alive: 2, draw: 3, hold: 4, loose: 5, impact: 6, scatter: 7, end: 8 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind] || a.i - b.i);
 }
 
@@ -692,7 +816,9 @@ export function starsCues(p: StarsPlan, f: StarFigure | null): StarsCue[] {
 
 /**
  * The camera: a slow push in while the figure is traced (looking up at the sky), a little more through the draw, a
- * small kick on the loose, and a soft punch and shake on the blow. Gentle: this attack is quiet.
+ * small kick on the loose, and a punch and a shake on the blow that grow with the tier. IV: the view keeps creeping in
+ * while the star swells (the held breath), and the blow is a real hit: a hard shake along the comet's line that takes
+ * longer to die, over a slower sway.
  */
 export function starsCameraAt(p: StarsPlan, c: HeroStarsConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
@@ -700,13 +826,16 @@ export function starsCameraAt(p: StarsPlan, c: HeroStarsConfig, t: number, dir: 
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.tracedAt - p.chargeAt));
     z += p.zoom * 0.4 * Math.max(0, Math.min(1, drawAmount(p, Math.min(t, p.looseAt - 1))));
+    if (p.kind === 'written' && t > p.holdAt) z += p.zoom * 0.7 * sine((t - p.holdAt) / Math.max(1, p.looseAt - p.holdAt));
   } else if (t >= p.impactAt) {
     z += (p.zoom * 1.4 + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
   kick(p.looseAt, -p.shakePx * 0.2, 45, 14);
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 15);
+  kick(p.impactAt, p.shakePx, Math.max(1, (c.shakeMs * (1 + 0.5 * p.k)) / 4), 15 - 3 * p.k);
+  // A second, slower sway across the line of the hit (the bigger the look, the more of it): a body under the rattle.
+  if (t >= p.impactAt) { const ms = t - p.impactAt; const sw = Math.exp(-ms / Math.max(1, c.shakeMs * 0.45)) * Math.sin(2 * Math.PI * 3.2 * (ms / 1000)) * p.shakePx * 0.35 * p.k; x -= dir.y * sw; y += dir.x * sw; }
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 

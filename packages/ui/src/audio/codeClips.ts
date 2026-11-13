@@ -151,8 +151,11 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-cinematic-swoosh-impact-454392',
   ],
   stars: [
+    'fx/stars-boom',
     'fx/stars-fall',
     'fx/stars-loose',
+    'fx/stars-release',
+    'fx/stars-rise',
     'fx/stars-sky',
     'fx/stars-tick',
     'fx/whoosh-03',

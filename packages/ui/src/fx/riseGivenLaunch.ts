@@ -171,18 +171,20 @@ export function launchRisesGiven(
 /**
  * THE SHOP: a Rise given by a minion's own beat (an Echo fired in the Shop, a forced Rally or Start of Combat replay
  * at End of Turn) arrives as a `keywordChanged` on the giver's beat. The beat has already pulsed the giver, so the
- * effect leaves at once; a beat's further grants follow a gap apart. False (the generic flash plays) when the card has
- * no effect bound or the giver is no longer on screen.
+ * effect leaves at once; a beat's further grants follow a gap apart. A giver that is not on screen YET (Runic Beetle
+ * gives its Rise in the same action that puts it on the board) gets a short wait to mount; one that never appears
+ * just shows the Rise with its landing sound. False (the generic flash plays) only when the card has no effect bound.
  */
+export const RISE_SHOP_MOUNT_WAIT_MS = 120;
 const shopCounts = new Map<string, number>();
 export function launchShopRiseGiven(g: Omit<RiseGiven, 'died'>, beatId: string): boolean {
   const grant: RiseGiven = { ...g, died: false };
   if (!isTravelledRise(grant) || g.source === g.target || !canPlayDefs()) return false;
-  if (!anchorsForUnits(g.source, g.target)) return false;
+  const wait = anchorsForUnits(g.source, g.target) ? 0 : RISE_SHOP_MOUNT_WAIT_MS;
   const key = `${beatId}|${g.source}`;
   if (shopCounts.size > 64) shopCounts.clear(); // beats are long past; never grows with a run
   const k = shopCounts.get(key) ?? 0;
   shopCounts.set(key, k + 1);
-  launchRiseGiven(grant, { speed: 1, launchAt: riseLaunchAtMs(k), sound: k < RISE_GIVEN_SOUND_MAX, from: null, register: () => {} });
+  launchRiseGiven(grant, { speed: 1, launchAt: riseLaunchAtMs(k, wait), sound: k < RISE_GIVEN_SOUND_MAX, from: null, register: () => {} });
   return true;
 }

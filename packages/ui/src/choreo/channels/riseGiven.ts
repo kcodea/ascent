@@ -15,10 +15,21 @@ const KEYWORD_PARAM_EFFECTS: ReadonlySet<string> = new Set([
   'avengeGrantKeywordRandomTribe',
 ]);
 
-/** Does this card give ANOTHER minion Rise? The cards the workbench offers an "On Rise given" slot. */
+/** Does one effect give another minion Rise? */
+const effectGivesRise = (f: { do: string; params?: Record<string, unknown> }): boolean =>
+  RISE_GIVING_EFFECTS.has(f.do)
+  || (KEYWORD_PARAM_EFFECTS.has(f.do) && f.params?.keyword === 'R')
+  // A targeted Shout that grants keywords (Runic Beetle's Rise option).
+  || (f.do === 'battlecryGrantKeyword' && Array.isArray(f.params?.keywords) && f.params.keywords.includes('R'));
+
+/**
+ * Does this card give ANOTHER minion Rise? The cards the workbench offers an "On Rise given" slot. A Choose One
+ * card counts when any of its options does (Runic Beetle).
+ */
 export function givesRise(cardId: string | null | undefined): boolean {
-  return !!cardId && !!CARD_INDEX[cardId]?.effects?.some((f) =>
-    RISE_GIVING_EFFECTS.has(f.do) || (KEYWORD_PARAM_EFFECTS.has(f.do) && f.params?.keyword === 'R'));
+  const def = cardId ? CARD_INDEX[cardId] : undefined;
+  if (!def) return false;
+  return !!def.effects?.some(effectGivesRise) || !!def.chooseOne?.some((o) => o.effects?.some(effectGivesRise));
 }
 
 export interface RiseGiven {

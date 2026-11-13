@@ -68,7 +68,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Mumi, Wolvie, Anubis and Gravewarden now send a ghostly beam to each minion they give Rise, in combat and in the Shop. The Rise appears when the beam lands, and several at once go out one after another.',
+        text: 'Mumi, Wolvie, Anubis, Gravewarden and Runic Beetle now send a ghostly beam to each minion they give Rise, in combat and in the Shop. The Rise appears when the beam lands, and several at once go out one after another.',
       },
       {
         category: 'Systems',

@@ -24,15 +24,15 @@ function given(player: BoardMinion[], enemy: BoardMinion[]): RiseGiven[][] {
 }
 
 describe('which cards give Rise', () => {
-  it('Mumi, Wolvie, Anubis and Gravewarden do; an Execute giver and a plain minion do not', () => {
-    for (const id of ['mumi', 'b2_wolvie', 'anubis', 'gravewarden']) expect(givesRise(id), id).toBe(true);
+  it('Mumi, Wolvie, Anubis, Gravewarden and Runic Beetle (its Choose One option) do; an Execute giver and a plain minion do not', () => {
+    for (const id of ['mumi', 'b2_wolvie', 'anubis', 'gravewarden', 'beetle']) expect(givesRise(id), id).toBe(true);
     expect(givesRise('b2_raven')).toBe(false);
     expect(givesRise('trainingdummy')).toBe(false);
     expect(givesRise(null)).toBe(false);
   });
 
-  it('all four are bound to the owner\'s beam', () => {
-    for (const id of ['mumi', 'b2_wolvie', 'anubis', 'gravewarden']) expect(bindingFor(id, 'riseGiven')?.def, id).toBe('rise-beam');
+  it('all five are bound to the owner\'s beam', () => {
+    for (const id of ['mumi', 'b2_wolvie', 'anubis', 'gravewarden', 'beetle']) expect(bindingFor(id, 'riseGiven')?.def, id).toBe('rise-beam');
   });
 });
 
@@ -86,7 +86,7 @@ describe('more than one Rise at once is a cascade (owner 2026-11-12)', () => {
   it('every launch path spaces its grants: a living giver, an Echo after its skull, the Shop', () => {
     expect(src).toContain('launchAt: riseLaunchAtMs(k, first)');
     expect(src).toContain('launchAt: riseLaunchAtMs(k, firstMs)');
-    expect(src).toContain('launchAt: riseLaunchAtMs(k), sound');
+    expect(src).toContain('launchAt: riseLaunchAtMs(k, wait), sound');
     expect(src).toContain('launchCascade(given, RISE_GIVEN_LAUNCH_DELAY_MS, from, speed, register)');
   });
   it('the dome is released by its own effect landing, and the effect follows its receiver', () => {

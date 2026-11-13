@@ -521,7 +521,7 @@ export const ORDERING_RULES: GameRule[] = [
     id: 'R-FX-RISE-GIVEN-01',
     title: 'A Rise given by another minion travels from the giver, one after another, and the Rise appears when it lands',
     statement:
-      'When a minion gives another minion Rise and has its own "On Rise given" effect (Mumi, Wolvie, Anubis, Gravewarden), '
+      'When a minion gives another minion Rise and has its own "On Rise given" effect (Mumi, Wolvie, Anubis, Gravewarden, the Rise option of Runic Beetle), '
       + 'the effect flies from the giver to each minion that gains Rise, and that minion shows its Rise only when its own '
       + 'effect lands. When more than one Rise is given at the same time, the effects leave one after another with a gap '
       + 'between them, never all at once. An Echo sends them from the slot of the dead giver after its skull; a living giver '
@@ -531,12 +531,13 @@ export const ORDERING_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-12, the Rise beam', quote: 'i made a rise beam as well. should be wired in all the exact same ways as the ward beam and execute beam were. make sure when rise is applied twice from and echo. they are staggered, really any instance of more than one rise being applied at the same time should be staggered. this effect should work in both shop and in combat.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'runic beetle should case the rise effect when selecting the rise option of his choose 1' },
       { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/riseGivenLaunch.ts; packages/ui/src/choreo/channels/riseGiven.ts; packages/ui/src/fx/riseHold.ts; packages/ui/src/Card.tsx (the held dome); packages/ui/src/useCombatReplay.ts (beat start + both Echo skull sites); the Shop: packages/ui/src/Recruit.tsx (keywordChanged cue)' },
     ],
-    contentIds: ['mumi', 'b2_wolvie', 'anubis', 'gravewarden'],
+    contentIds: ['mumi', 'b2_wolvie', 'anubis', 'gravewarden', 'beetle'],
     currentBehaviour: 'PARTIAL from 2026-11-12 (fx/rise-given): combat (an Echo, a forced Echo, a Start of Combat), and every Shop '
-      + 'grant that plays as a beat of a minion still on screen. Not covered: a Shop grant whose giver has already left the '
-      + 'screen (it falls back to the generic keyword flash), a Rise from a spell, a rune or a hero power (no giver minion), '
+      + 'grant that plays as a beat of a minion, a Shout played from hand included (Runic Beetle). A Shop giver that never '
+      + 'reaches the screen shows the Rise with its landing sound and no travel. Not covered: a Rise from a spell, a rune or a hero power (no giver minion), '
       + 'and a quiet repeat tick. A cascade rings its sounds on its first three effects only. The pure parts are pinned '
       + '(which grants travel, the gap, the hold, every call site); the scheduled play itself needs a live renderer and '
       + 'is not under test.',

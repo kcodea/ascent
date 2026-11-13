@@ -24,6 +24,14 @@ both shop and in combat."
 - **A rising body keeps its slot.** `settledSlotCenter` no longer treats a `dying rising` unit as leaving the row,
   so a beam aimed past a Mumi that is itself rising does not land half a slot off.
 
+## Runic Beetle (2026-11-13)
+
+Owner: "runic beetle should case the rise effect when selecting the rise option of his choose 1". The Rise option is a
+targeted Shout (`battlecryGrantKeyword`), and the Shop already emits its grant as a `keywordChanged` on Beetle's own
+beat, so binding `beetle` was enough to reach the launcher. Two changes: `givesRise` now reads Choose One options,
+and the Shop launcher waits 120 ms for a giver that is not mounted yet (Beetle lands on the board in the same action
+that gives the Rise) before launching. A giver that never appears shows the Rise with its landing sound.
+
 ## Sounds
 
 Generated with ElevenLabs sound generation, three takes each of a wisp, a wraith breath and a spectral chime. Picked by
@@ -34,5 +42,4 @@ them on its first three beams only.
 
 ## Not covered
 
-A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. A Shop giver that has left the
-screen falls back to the flash. The scheduled play needs a live renderer and is not under test.
+A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. The scheduled play needs a live renderer and is not under test.

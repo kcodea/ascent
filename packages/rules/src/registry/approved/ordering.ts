@@ -598,4 +598,25 @@ export const ORDERING_RULES: GameRule[] = [
       + 'author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/flurryGiven.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-FX-CRIT-GIVEN-01',
+    title: 'Critical Strike given to a minion travels on the Crit beam',
+    statement:
+      'When a minion is given Critical Strike by something that is not a minion, the Crit beam travels to it from the '
+      + 'cause, by the same rule as Rise, Execute, Ward and Flurry (R-FX-KEYWORD-ORIGIN-01): the pointer for a targeted '
+      + 'spell, the hero portrait for an untargeted one, the hero power slot, or the slot of the rune. Several at once '
+      + 'leave one after another.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'now im making a crit beam. fx is crit-beam' },
+      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.CR); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn keyword cue)' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13: the Shop only (a mid-turn grant read off the board, and a rune or hero '
+      + 'grant at End of Turn). NOT in combat: the engine logs no event when a rune (Vanguard, Centerline) gives '
+      + 'Critical Strike in a fight, so there is nothing to launch from; the Critical Strike banked by a spell for the '
+      + 'next combat is not covered either. No sounds yet. Critical Strike has no look on the card, so nothing is held '
+      + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

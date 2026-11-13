@@ -16,7 +16,7 @@ import type { Point } from './keywordOrigin';
  * and the keyword's look appears when it lands. The same hold, sounds and follow-the-receiver behaviour as the
  * minion-given paths (`riseGivenLaunch.ts`, `executeGivenLaunch.ts`, `wardGivenLaunch.ts`).
  */
-export type BeamKeyword = 'R' | 'V' | 'DS' | 'W';
+export type BeamKeyword = 'R' | 'V' | 'DS' | 'W' | 'CR';
 
 /** Each keyword's beam, launch sound and landing sound (null = none / played another way). */
 export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSfx: string | null; landSfx: string | null }>> = {
@@ -24,6 +24,7 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
   V: { def: 'execute-beam', launchSfx: 'sfx-execute-slice', landSfx: 'sfx-execute-applied' },
   DS: { def: 'lastlight-beam', launchSfx: null, landSfx: null }, // the Ward sound is `sfx.shield()` at the landing
   W: { def: 'flurry-beam', launchSfx: 'sfx-flurry-whoosh', landSfx: 'sfx-flurry-swings' },
+  CR: { def: 'crit-beam', launchSfx: null, landSfx: null }, // Critical Strike: no sounds yet
 };
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
@@ -39,7 +40,8 @@ export const KEYWORD_BEAM_SOUND_MAX = 3;
 export const pointRect = (p: Point): { left: number; top: number; width: number; height: number } => ({ left: p.x - 1, top: p.y - 1, width: 2, height: 2 });
 
 const hold = (kw: BeamKeyword, uid: string, ms: number): void => {
-  if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else if (kw === 'W') holdFlurry(uid, ms); else holdWard(uid, ms);
+  if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else if (kw === 'W') holdFlurry(uid, ms); else if (kw === 'DS') holdWard(uid, ms);
+  // Critical Strike has no look on the card to hold back: it is a line in the card's keywords.
 };
 
 /**

@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Critical Strike given in the Shop by a spell, a hero power or a rune now arrives on a beam of its own.',
+      },
+      {
+        category: 'Systems',
         text: 'Minions no longer light up under the pointer while you pick a target for a card effect, the same as when you aim a spell.',
       },
       {

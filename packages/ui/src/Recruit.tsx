@@ -5848,12 +5848,14 @@ export function Recruit() {
   const prevRiseRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   const prevExecuteRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   const prevFlurryRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
+  const prevCritRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
   const riseBeamOwnedRef = useSwapRef<{ seq: number; pairs: Set<string> }>({ seq: -1, pairs: new Set() }, swapped);
   useLayoutEffect(() => {
-    if (inCombat) { prevRiseRef.current = null; prevExecuteRef.current = null; prevFlurryRef.current = null; return; }
+    if (inCombat) { prevRiseRef.current = null; prevExecuteRef.current = null; prevFlurryRef.current = null; prevCritRef.current = null; return; }
     const prev = prevRiseRef.current;
     const prevV = prevExecuteRef.current;
     const prevW = prevFlurryRef.current;
+    const prevCR = prevCritRef.current;
     const claimed = new Set<string>();
     const claimedW = new Set<string>();
     if (prev) {
@@ -5879,7 +5881,7 @@ export function Recruit() {
         riseBeamOwnedRef.current = { seq: run.recruitFxSeq, pairs: new Set([...cur, ...pairs]) };
       }
     }
-    const at = prev && prevV && prevW ? keywordOriginPoint(shopKeywordOrigin()) : null;
+    const at = prev && prevV && prevW && prevCR ? keywordOriginPoint(shopKeywordOrigin()) : null;
     if (at) {
       let k = 0;
       for (const c of run.board) {
@@ -5887,12 +5889,14 @@ export function Recruit() {
         if (prev!.get(c.uid) === false && c.keywords.includes('R') && !claimed.has(c.uid)) gains.push('R');
         if (prevV!.get(c.uid) === false && c.keywords.includes('V')) gains.push('V');
         if (prevW!.get(c.uid) === false && c.keywords.includes('W') && !claimedW.has(c.uid)) gains.push('W');
+        if (prevCR!.get(c.uid) === false && c.keywords.includes('CR')) gains.push('CR');
         for (const kw of gains) { launchKeywordBeam(kw, at, c.uid, { launchAt: k * KEYWORD_BEAM_GAP_MS, sound: k < KEYWORD_BEAM_SOUND_MAX }); k++; }
       }
     }
     prevRiseRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
     prevExecuteRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('V')]));
     prevFlurryRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('W')]));
+    prevCritRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('CR')]));
   }, [run.board, inCombat]);
 
   // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
@@ -7821,7 +7825,7 @@ export function Recruit() {
         if (keyword === 'R' && from && launchShopRiseGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId)) return;
         // GIVEN BY A RUNE OR THE HERO (R-FX-KEYWORD-ORIGIN-01): the keyword's beam leaves the rune's own slot, or the
         // hero power slot, a gap apart when one beat gives several.
-        if (origin && (keyword === 'R' || keyword === 'V' || keyword === 'DS' || keyword === 'W')) {
+        if (origin && (keyword === 'R' || keyword === 'V' || keyword === 'DS' || keyword === 'W' || keyword === 'CR')) {
           const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;
           if (at && launchKeywordBeam(keyword, at, uid, { launchAt: index * KEYWORD_BEAM_GAP_MS, sound: index < KEYWORD_BEAM_SOUND_MAX })) return;
         }

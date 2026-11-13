@@ -104,7 +104,7 @@ describe('the call sites', () => {
   });
   it('the Shop: Rise and Execute mid-turn, Ward with its blast on landing, and a rune or hero End of Turn beat', () => {
     const recruit = read('../Recruit.tsx');
-    expect(recruit).toContain('const at = prev && prevV && prevW ? keywordOriginPoint(shopKeywordOrigin()) : null;');
+    expect(recruit).toContain('const at = prev && prevV && prevW && prevCR ? keywordOriginPoint(shopKeywordOrigin()) : null;');
     expect(recruit).toContain("launchKeywordBeam('DS', wardFrom, c.uid, { launchAt: wardBeams * KEYWORD_BEAM_GAP_MS, sound: wardBeams < KEYWORD_BEAM_SOUND_MAX, onLand: blast })");
     expect(recruit).toContain("const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;");
   });

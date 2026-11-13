@@ -130,8 +130,10 @@
  * `flick` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `backstab` (`npm run attack:new`), see `../heroFlick/`.
  *
- * `anvil` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `coin` (`npm run attack:new`), see `../heroAnvil/`.
+ * `anvil` (LOOK OUT BELOW, a Rare) has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. The cartoon drop: a shadow grows on the struck portrait while a slide whistle falls, an
+ * anvil (Small) or an upright piano (Big) drops from above the screen, the portrait squashes flat under it and pops
+ * back like an accordion (`../heroAnvil/`).
  *
  * `glove` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. A Rare, "Sucker Punch": a boxing glove on a coil spring pops out of the hero, bops the target and retracts (Big: overshoot, sway, a second bop, circling stars), see `../heroGlove/`.

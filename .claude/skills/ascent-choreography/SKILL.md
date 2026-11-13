@@ -63,6 +63,11 @@ Two failures worth knowing because both shipped here:
   each step. A replay reorder that slides a buff past an event carrying ABSOLUTE stats (a `dmg`'s `remainingHp`, a
   `summon` snapshot) must tag it (`prefoldedShareOf`) or the gain prints twice.
 
+- **A repeat tick that EATS keeps its full beat** (R-SHOPMADNESS-REALTIME-01). End-of-Turn repeat ticks accelerate
+  (R-REPEAT-04), but a tick carrying a `fodderEaten` is never paced (`repeatPaceKeyOf`): a 530 ms consume pull cannot
+  fit a Kringle-speed tick, and Hydraskus's seven bites overlapped into the last half second. A Shop offer that ENTERS
+  the row inside a trigger (Shop Madness's refill) is its own `shopChanged: refilled` consequence (`replaces` = the
+  slot it took, `consume.refill` marker), folded into the row by `choreographer/shopRefillRow.ts`.
 - **A hold is the wait BEFORE its beat, not the time the beat stays up** (R-DUOS-HANDOFF-BEAT-01). `holdMs(next, shown)`
   in `choreo/clock.ts` is keyed on NEXT's event type, so a kind's number in `choreoConfig.ts` is its lead-in. The time a
   beat's own presentation gets is the hold of whatever FOLLOWS it. The Duos `tagIn: 640` was sized for its 0.88 s

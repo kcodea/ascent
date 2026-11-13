@@ -49,6 +49,19 @@ export interface DrainSetup {
 /** The panes' z-order: over the dim (150) and both portraits, under the above-portrait FX canvas (200). */
 export const DRAIN_Z = 160;
 
+/**
+ * IV's veil, in whatever px `w`, `h` and `pad` are given in (pure): a square of `side` that covers the screen at any
+ * angle, a `feather` strip on its trailing (striker's) side, and the distance it slides off along the strike line.
+ * `frontAt(flood)` is where the middle of that feathered edge is, along the strike line from the screen's middle: the
+ * scene draws the bright front of the returning colour there.
+ */
+export function veilSpan(w: number, h: number, pad: number): { side: number; feather: number; slide: number; frontAt: (flood: number) => number } {
+  const side = Math.hypot(w, h) + pad;
+  const feather = side * 0.2;
+  const slide = side + feather + pad / 6;
+  return { side, feather, slide, frontAt: (flood: number) => -side / 2 - feather / 2 + slide * flood };
+}
+
 const put = (el: HTMLElement, css: Record<string, string>): void => { for (const k of Object.keys(css)) el.style.setProperty(k, css[k]!); };
 
 export class ReapingDrain {
@@ -84,8 +97,7 @@ export class ReapingDrain {
     };
     if (o.kind === 'reaping') {
       // A square big enough to cover the screen at any angle, plus a feathered strip on its trailing (striker's) side.
-      const side = Math.hypot(css(o.bounds.w), css(o.bounds.h)) + 240;
-      const feather = side * 0.2;
+      const { side, feather, slide } = veilSpan(css(o.bounds.w), css(o.bounds.h), 240);
       const cx = css(o.bounds.w / 2), cy = css(o.bounds.h / 2);
       const veil = pane('hreaping-veil');
       const mask = `linear-gradient(to right, transparent 0px, #000 ${feather.toFixed(0)}px)`;
@@ -97,7 +109,7 @@ export class ReapingDrain {
       });
       this.veilRot = `rotate(${o.strike.toFixed(4)}rad)`;
       veil.style.transform = this.veilRot;
-      this.slidePx = side + feather + 40;
+      this.slidePx = slide;
       o.parent.appendChild(veil);
       this.veil = veil;
     }

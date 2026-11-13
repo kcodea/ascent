@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
  * THE REAPING (the Ancient of Death's hero attack, an ANCIENT): what the scythe cuts is colour. The shared four tiers
- * (I cut, II cross, III shadow, IV the reaping; a knockout plays IV); the tuner values; the pure plan (II's first cut
+ * (I cut, II cross, III the fall, IV the reaping; a knockout plays IV); the tuner values; the pure plan (II's first cut
  * is a tick, the blow lands as the last blade crosses the portrait's middle); the pure geometry (every blade passes
- * through the struck portrait and the shadow, candle and line stay on screen, both directions); the pure drain (what is
+ * through the struck portrait; the great crescent is held on screen and cuts the portrait's middle, both directions;
+ * I and II are the owner-approved first pass and their timing is pinned); the pure drain (what is
  * grey when, and exactly nothing after the end); the runner on the shared clock (the blow lands exactly ONCE; every
  * exit removes every pane and puts both portraits back; replay; reduced motion); the headless scene (pooled, bounded,
  * drains, destroy leaves nothing); the dev-only registration.
@@ -14,18 +15,18 @@ import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAttackStyle';
 import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
-  CROSS_AT, HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, SNUFF_MS, bladeAt, clampHeroReapingValue, drainAt, flameAt, foeMoveAt, heroReapingConfigJson, lineAt,
-  passAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingKind, reapingPlan, sanitizeHeroReapingConfig, scytheAt, shadowAt, swingAt,
+  CROSS_AT, FALL_RAISE, HERO_REAPING_DEFAULTS, HERO_REAPING_RANGES, SCAR_MS, bladeAt, clampHeroReapingValue, drainAt, foeMoveAt, heroReapingConfigJson, lineAt,
+  passAt, reapingCameraAt, reapingCameraFocus, reapingCues, reapingGeo, reapingKind, reapingPlan, sanitizeHeroReapingConfig, swingAt, swingLight, swingPose,
   type HeroReapingNumKey,
 } from './heroReapingConfig';
-import { DRAIN_Z, ReapingDrain } from './heroReapingDrain';
-import { HeroReapingScene, MAX_MOTES, MAX_REAPING_SPRITES, type HeroReapingTextures } from './heroReapingScene';
+import { DRAIN_Z, ReapingDrain, veilSpan } from './heroReapingDrain';
+import { GHOSTS, HeroReapingScene, MAX_MOTES, MAX_REAPING_SPRITES, ghostLag, type HeroReapingTextures } from './heroReapingScene';
 import { playHeroReaping, reapingSeed, type HeroReapingOptions } from './heroReaping';
 import { SPEC } from '../HeroReapingTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
 const W = Texture.WHITE;
-const TEX: HeroReapingTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, blade: W, line: W, snath: W, shadow: W, candle: W, flame: W, mote: W };
+const TEX: HeroReapingTextures = { glow: W, spark: W, streak: W, ring: W, beam: W, blade: W, crescent: W, line: W, mote: W };
 const C = HERO_REAPING_DEFAULTS;
 const plan = (total: number, o: { knockout?: boolean; reduced?: boolean } = {}) => reapingPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);
 const R = 130;
@@ -37,14 +38,14 @@ const COLORS = { teal: 0x2fe0bc, bone: 0xefe9dc, shade: 0x05070a, motes: [0xffb2
 const LOOK = { bladeSize: C.bladeSize, moteMs: C.moteMs, moteSize: C.moteSize, stripWidth: C.stripWidth };
 
 describe('the tiers', () => {
-  it('uses the shared thresholds: I cut, II cross, III shadow, IV the reaping', () => {
+  it('uses the shared thresholds: I cut, II cross, III the fall, IV the reaping', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const p = plan(d);
       expect(p.tier, `dmg ${d}`).toBe(tierOf(d));
       expect(p.kind, `dmg ${d}`).toBe(reapingKind(tierOf(d)));
     }
-    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['cut', 'cross', 'shadow', 'reaping']);
+    expect([1, 2, 3, 4].map((t) => reapingKind(t as 1 | 2 | 3 | 4))).toEqual(['cut', 'cross', 'fall', 'reaping']);
   });
 
   it('a knockout always plays IV, whatever the number, and there is no separate knockout variant', () => {
@@ -66,14 +67,22 @@ describe('the tuner values', () => {
     for (const k of ['colorTeal', 'colorBone', 'colorShade', 'colorMoteA', 'colorMoteB', 'colorMoteC', 'colorPlayer', 'colorFoe'] as const) expect(C[k]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('ships the Ancient of Death teal, and its own three clips', () => {
+  it('ships the Ancient of Death teal, its own six clips and two shared ones, every fx clip it plays registered', () => {
     expect(C.colorTeal).toBe('#2fe0bc');
-    expect([C.sfxBellClip, C.sfxSweepClip, C.sfxBreathClip]).toEqual(['fx/reaping-bell', 'fx/reaping-sweep', 'fx/reaping-breath']);
-    expect(ATTACK_FX_CLIPS.reaping).toEqual(['fx/reaping-bell', 'fx/reaping-breath', 'fx/reaping-sweep']);
+    expect([C.sfxBellClip, C.sfxSweepClip, C.sfxBreathClip, C.sfxSlashClip, C.sfxCleaveClip, C.sfxDrainClip]).toEqual(['fx/reaping-bell', 'fx/reaping-sweep', 'fx/reaping-breath', 'fx/reaping-slash', 'fx/reaping-cleave', 'fx/reaping-drain']);
+    expect([C.sfxMetalClip, C.sfxBoomClip]).toEqual(['fx/metal-woosh', 'fx/heavy-rock-impact']);
+    expect(ATTACK_FX_CLIPS.reaping).toEqual(['fx/heavy-rock-impact', 'fx/metal-woosh', 'fx/reaping-bell', 'fx/reaping-breath', 'fx/reaping-cleave', 'fx/reaping-drain', 'fx/reaping-slash', 'fx/reaping-sweep']);
+    for (const k of ['sfxBellClip', 'sfxSweepClip', 'sfxBreathClip', 'sfxSlashClip', 'sfxMetalClip', 'sfxCleaveClip', 'sfxDrainClip', 'sfxBoomClip'] as const) {
+      expect(ATTACK_FX_CLIPS.reaping, k).toContain(C[k]);
+    }
+  });
+
+  it('the sound has presence (the owner heard the first pass as silent): no cue of its own clips sits under half gain', () => {
+    for (const k of ['sfxBellGain', 'sfxSweepGain', 'sfxBreathGain', 'sfxSlashGain', 'sfxCleaveGain', 'sfxDrainGain'] as const) expect(C[k], k).toBeGreaterThanOrEqual(0.5);
   });
 
   it('clamps numbers into range; junk falls back; colours must be #rrggbb; unknown keys drop', () => {
-    expect(clampHeroReapingValue('t4Motes', 999)).toBe(40);
+    expect(clampHeroReapingValue('t4Motes', 999)).toBe(64);
     expect(clampHeroReapingValue('grey', -3)).toBe(0);
     expect(clampHeroReapingValue('drainMs', 'x')).toBe(C.drainMs);
     expect(clampHeroReapingValue('colorTeal', 'teal')).toBe(C.colorTeal);
@@ -120,28 +129,41 @@ describe('the plan (pure)', () => {
     }
   });
 
-  it('I one cut, II two (the first a tick), III the downswing after the rise, IV the line after the drain, the silence and the toll', () => {
+  it('I and II are the owner-approved first pass: their timing is pinned', () => {
+    const one = plan(3), two = plan(8);
+    expect([one.impactAt - one.chargeAt, one.endAt - one.chargeAt]).toEqual([450, 1350]);
+    expect([two.impactAt - two.chargeAt, two.endAt - two.chargeAt]).toEqual([710, 1690]);
+    expect([one.motes, two.motes, one.shakePx, two.shakePx, one.dim, two.dim]).toEqual([5, 10, 3, 5, 0.05, 0.12]);
+    expect([C.bladeSize, C.bladeReach, C.bladeBow, C.stripWidth, C.knockPx, C.moteMs, C.moteSize]).toEqual([2.7, 2.3, 0.5, 0.46, 10, 700, 1.2]);
+  });
+
+  it('I one cut, II two (the first a tick), III the fall after the wind-up and the hold, IV the sweep after the drain, the silence and the toll', () => {
     expect(plan(3).cuts.length).toBe(1);
     const two = plan(8);
     expect(two.cuts.length).toBe(2);
     expect(two.cuts[1]!.startAt - two.cuts[0]!.startAt).toBe(C.crossGapMs);
     expect(two.cuts[0]!.crossAt).toBeLessThan(two.impactAt);
     const three = plan(14);
-    expect(three.riseAt).toBe(three.chargeAt);
-    expect(three.raisedAt! - three.riseAt!).toBe(C.riseMs);
-    expect(three.cuts[0]!.startAt).toBe(three.raisedAt! + C.raiseMs);
+    expect(three.windAt).toBe(three.chargeAt);
+    expect(three.heldAt! - three.windAt!).toBe(C.riseMs);
+    expect(three.cuts[0]!.startAt).toBe(three.heldAt! + C.raiseMs);
+    expect(three.heldAt! - three.windAt! + C.raiseMs).toBeGreaterThanOrEqual(600); // a real wind-up before a fast fall
+    expect(three.impactAt - three.cuts[0]!.startAt).toBeLessThanOrEqual(260);
     expect([three.drainAt, three.tollAt, three.floodAt]).toEqual([null, null, null]);
     const four = plan(40);
     expect(four.drainAt).toBe(four.chargeAt);
     expect(four.drainedAt! - four.drainAt!).toBe(C.drainMs);
     expect(four.tollAt! - four.drainedAt!).toBe(C.silenceMs); // the silent gap
+    expect(C.silenceMs).toBeGreaterThanOrEqual(360); // a beat long enough to be FELT as silence
     expect(four.cuts[0]!.startAt - four.tollAt!).toBe(C.tollMs);
+    expect(four.windAt).toBe(four.tollAt); // the crescent ignites on the toll
+    expect(four.heldAt!).toBeGreaterThan(four.windAt!); expect(four.heldAt!).toBeLessThan(four.cuts[0]!.startAt);
     expect(four.floodAt! - four.impactAt).toBe(C.streamMs);
     expect(four.floodEnd! - four.floodAt!).toBe(C.floodMs);
     expect(four.returnAt).toBeGreaterThan(four.floodEnd!); // the loser stays grey after the flood has passed
   });
 
-  it('escalates: each tier runs longer, throws more motes and shakes harder; IV sits near its source attack', () => {
+  it('escalates: each tier runs longer, throws more motes and shakes harder; IV is the long one (anticipation and aftermath), under 5 s', () => {
     const ps = TOTALS.map((t) => plan(t));
     for (let i = 1; i < ps.length; i++) {
       expect(ps[i]!.endAt - ps[i]!.chargeAt).toBeGreaterThan(ps[i - 1]!.endAt - ps[i - 1]!.chargeAt);
@@ -149,7 +171,10 @@ describe('the plan (pure)', () => {
       expect(ps[i]!.shakePx).toBeGreaterThan(ps[i - 1]!.shakePx);
     }
     expect(ps[0]!.endAt - ps[0]!.chargeAt).toBeLessThan(1800);
-    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeLessThan(4200);
+    // Soccer IV runs about 3.3 s and Frost IV about 3.1 s after the formation; the first pass ran 3.7 s and felt weightless.
+    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeGreaterThan(4000);
+    expect(ps[3]!.endAt - ps[3]!.chargeAt).toBeLessThan(5000);
+    expect(ps[2]!.endAt - ps[2]!.chargeAt).toBeLessThan(2800);
     expect(ps[3]!.motes).toBeLessThanOrEqual(MAX_MOTES);
   });
 
@@ -166,9 +191,8 @@ describe('the plan (pure)', () => {
       expect(Object.keys(p).join(' ')).not.toMatch(/hitStop|slamStop/i);
     }
     const four = reapingCues(plan(40)).map((c) => c.kind);
-    expect(four).toEqual(['charge', 'drain', 'hush', 'toll', 'sweep', 'impact', 'flood', 'return', 'end']);
-    expect(reapingCues(plan(14)).map((c) => c.kind)).toEqual(['charge', 'rise', 'sweep', 'impact', 'snuff', 'return', 'end']);
-    expect(reapingCues(plan(14)).find((c) => c.kind === 'snuff')!.at).toBe(plan(14).impactAt + SNUFF_MS);
+    expect(four).toEqual(['charge', 'drain', 'hush', 'toll', 'held', 'sweep', 'impact', 'flood', 'return', 'end']);
+    expect(reapingCues(plan(14)).map((c) => c.kind)).toEqual(['charge', 'wind', 'held', 'sweep', 'impact', 'return', 'end']);
   });
 
   it('reduced motion: no cuts, no drain; the blow lands where the formation ends', () => {
@@ -227,59 +251,85 @@ describe('the geometry (pure), both directions', () => {
     expect(reapingSeed(9, 1600, 'player', 5)).not.toBe(reapingSeed(9, 1600, 'player', 6));
   });
 
-  it('III: the shadow, its raised scythe and the candle stay on screen; the MIDDLE of the blade crosses the portrait middle at the impact', () => {
+  const onScreen = (pt: { x: number; y: number }, pad = 0): boolean => pt.x >= -pad && pt.x <= BOUNDS.w + pad && pt.y >= -pad && pt.y <= BOUNDS.h + pad;
+
+  it('III: the great crescent is HUGE, held on screen, and its edge goes through the middle of the portrait exactly at the impact', () => {
     for (const [name, a, d] of DIRS) {
       const p = plan(14);
       const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
-      const s = g.shadow!;
+      const s = g.swing!;
       expect(s, name).not.toBeNull();
-      // the figure: its head inside the top edge, its sides inside the screen, on the striker's side of the portrait
-      expect(s.baseY - s.h, name).toBeGreaterThanOrEqual(0);
-      expect(s.x - s.h * 0.31, name).toBeGreaterThanOrEqual(0);
-      expect(s.x + s.h * 0.31, name).toBeLessThanOrEqual(BOUNDS.w);
-      expect(Math.sign(s.x - d.x), name).toBe(Math.sign(a.x - d.x));
-      // the candle on the other side, on screen
-      expect(Math.sign(s.candle.x - d.x), name).toBe(-Math.sign(a.x - d.x));
-      expect(s.candle.x).toBeGreaterThan(0); expect(s.candle.x).toBeLessThan(BOUNDS.w);
-      expect(s.candle.y).toBeGreaterThan(0); expect(s.candle.y).toBeLessThanOrEqual(BOUNDS.h);
-      // the swing: raised before, exactly through the portrait at the crossing, then on
+      expect(g.line, name).toBeNull();
+      expect(s.blade, name).toBeGreaterThanOrEqual(R * 3); // longer than the portrait is wide, by half again
       const q = p.cuts[0]!;
-      expect(swingAt(p, s, q.startAt - 50)).toBe(s.a0);
-      const hit = scytheAt(s, swingAt(p, s, q.crossAt));
+      // drawn back through the wind-up, then held still at a0
+      expect(Math.abs(swingAt(p, s, p.windAt!) - s.a0), name).toBeCloseTo(s.back, 6);
+      expect(swingAt(p, s, p.heldAt!)).toBe(s.a0);
+      expect(swingAt(p, s, q.startAt)).toBe(s.a0);
+      expect(Math.abs(s.a0 - s.aHit)).toBeCloseTo(FALL_RAISE, 6);
+      // held, the whole crescent is on the screen (a few px of its point may graze the edge)
+      const up = swingPose(s, s.a0);
+      expect(onScreen(up.mid), name).toBe(true);
+      expect(onScreen(up.tip, 20), `${name} tip ${JSON.stringify(up.tip)}`).toBe(true);
+      expect(onScreen(up.heel), name).toBe(true);
+      // the cut: the arm points at the middle of the portrait, and the blade covers the WHOLE portrait
+      const hit = swingPose(s, swingAt(p, s, q.crossAt));
       expect(Math.hypot(hit.mid.x - d.x, hit.mid.y - d.y), name).toBeLessThan(0.5);
+      expect(Math.hypot(hit.heel.x - d.x, hit.heel.y - d.y), name).toBeGreaterThanOrEqual(R);
+      expect(Math.hypot(hit.tip.x - d.x, hit.tip.y - d.y), name).toBeGreaterThanOrEqual(R);
+      // it accelerates into the cut, and follows through
+      const early = Math.abs(swingAt(p, s, q.startAt + 40) - s.a0), late = Math.abs(swingAt(p, s, q.crossAt) - swingAt(p, s, q.crossAt - 40));
+      expect(late, name).toBeGreaterThan(early * 3);
       expect(swingAt(p, s, q.endAt + 10)).toBeCloseTo(s.a1, 6);
-      // raised, the blade is above the hands (it comes down from above)
-      expect(scytheAt(s, s.a0).tip.y, name).toBeLessThan(s.pivot.y);
-      // the shadow is standing for the swing and gone before the colour returns; the flame is out SNUFF_MS after the cut
-      expect(shadowAt(p, p.chargeAt - 1)).toBe(0);
-      expect(shadowAt(p, q.startAt)).toBe(1);
-      expect(shadowAt(p, p.returnEnd)).toBe(0);
-      expect(flameAt(p, p.impactAt - 1)).toBe(1);
-      expect(flameAt(p, p.impactAt + SNUFF_MS)).toBe(0);
+      // the cut's direction is the tangent of the swing
+      expect(g.cuts[0]!.dir.x * Math.cos(s.aHit) + g.cuts[0]!.dir.y * Math.sin(s.aHit)).toBeCloseTo(0, 6);
+      // its light: nothing before the wind-up, building through it, full at the cut, gone by the end of the follow
+      expect(swingLight(p, p.windAt! - 1)).toEqual({ a: 0, build: 0 });
+      expect(swingLight(p, p.heldAt!).a).toBe(1);
+      expect(swingLight(p, q.startAt).build).toBe(1);
+      expect(swingLight(p, (p.windAt! + q.startAt) / 2).build).toBeCloseTo(0.5, 6);
+      expect(swingLight(p, q.crossAt).a).toBe(1);
+      expect(swingLight(p, q.endAt)).toEqual({ a: 0, build: 0 });
     }
+    // with room above (your portrait, bottom left) it is raised ABOVE the portrait and FALLS through it
+    const p = plan(14);
+    const down = reapingGeo(p, FOE, YOU, R, R, C, BOUNDS);
+    expect(swingPose(down.swing!, down.swing!.a0).mid.y).toBeLessThan(YOU.y - R);
+    expect(down.cuts[0]!.dir.y).toBeGreaterThan(0.99);
   });
 
-  it('IV: the line crosses the WHOLE screen through the struck portrait, from the striker side, and is on it at the impact', () => {
+  it('IV: the crescent is as tall as half the screen, sweeps on a great arc from the striker through the struck portrait, and leaves a line across the WHOLE screen', () => {
     for (const [name, a, d] of DIRS) {
       const p = plan(40);
       const g = reapingGeo(p, a, d, R, R, C, BOUNDS);
-      const l = g.line!;
-      // both ends are off the screen, on opposite sides, and it starts on the striker's side
-      expect(Math.min(l.from.x, l.to.x), name).toBeLessThan(0);
-      expect(Math.max(l.from.x, l.to.x), name).toBeGreaterThan(BOUNDS.w);
-      expect(Math.sign(l.from.x - d.x), name).toBe(Math.sign(a.x - d.x));
+      const s = g.swing!, l = g.line!;
+      expect(s.blade, name).toBeGreaterThanOrEqual(BOUNDS.h * 0.5);
       const q = p.cuts[0]!;
-      expect(lineAt(p, g, q.startAt)).toBe(0);
-      const k = lineAt(p, g, q.crossAt);
-      expect(Math.hypot(l.from.x + (l.to.x - l.from.x) * k - d.x, l.from.y + (l.to.y - l.from.y) * k - d.y), name).toBeLessThan(0.5);
-      expect(lineAt(p, g, q.endAt)).toBe(1);
-      // nearly level: it stays inside the screen's height all the way across
-      for (const x of [0, BOUNDS.w]) {
-        const f = (x - l.from.x) / (l.to.x - l.from.x);
-        const y = l.from.y + (l.to.y - l.from.y) * f;
-        expect(y, name).toBeGreaterThan(0); expect(y, name).toBeLessThan(BOUNDS.h);
-      }
+      // held over the striker; through the struck portrait at the impact; then on
+      const from = swingPose(s, s.a0), hit = swingPose(s, swingAt(p, s, q.crossAt));
+      expect(Math.hypot(from.mid.x - a.x, from.mid.y - a.y), name).toBeLessThan(1);
+      expect(Math.hypot(hit.mid.x - d.x, hit.mid.y - d.y), name).toBeLessThan(0.5);
+      expect(Math.sign(s.a1 - s.aHit), name).toBe(s.sgn);
+      // most of the blade lies on the screen side of the portrait (toward the pivot, which is far off the screen)
+      expect(onScreen(s.pivot), name).toBe(false);
+      expect(s.arm, name).toBeGreaterThan(Math.hypot(d.x - a.x, d.y - a.y));
+      expect(onScreen({ x: (hit.heel.x + hit.mid.x) / 2, y: (hit.heel.y + hit.mid.y) / 2 }), name).toBe(true);
+      // half way through the sweep the edge is still nearer the striker (it accelerates): the afterimages fan out
+      const half = swingPose(s, swingAt(p, s, (q.startAt + q.crossAt) / 2));
+      expect(Math.hypot(half.mid.x - a.x, half.mid.y - a.y), name).toBeLessThan(Math.hypot(half.mid.x - d.x, half.mid.y - d.y));
+      // the line: through the portrait, both ends off the screen, along the sweep
+      expect(onScreen(l.from), name).toBe(false);
+      expect(onScreen(l.to), name).toBe(false);
+      expect(Math.hypot(l.from.x + (l.to.x - l.from.x) * l.hitK - d.x, l.from.y + (l.to.y - l.from.y) * l.hitK - d.y), name).toBeLessThan(0.5);
+      expect(Math.cos(l.angle - g.cuts[0]!.angle)).toBeCloseTo(1, 6);
+      // it is not there before the cut, opens out from the portrait, and has thinned away SCAR_MS later
+      expect(lineAt(p, p.impactAt - 1)).toEqual({ len: 0, a: 0 });
+      expect(lineAt(p, p.impactAt).a).toBe(1);
+      expect(lineAt(p, p.impactAt).len).toBeLessThan(0.2);
+      expect(lineAt(p, p.impactAt + 120).len).toBe(1);
+      expect(lineAt(p, p.impactAt + SCAR_MS)).toEqual({ len: 0, a: 0 });
     }
+    expect(lineAt(plan(14), plan(14).impactAt + 50)).toEqual({ len: 0, a: 0 }); // III leaves no line
   });
 });
 
@@ -318,9 +368,11 @@ describe('the drain (pure): what is grey when', () => {
     expect(after.strip).toEqual([1, 1]);
   });
 
-  it('III: the whole portrait goes grey on the cut', () => {
+  it('III: the WHOLE portrait goes grey at once on the cut (inside 60 ms)', () => {
     const p = plan(14);
     expect(drainAt(p, p.impactAt - 100).full).toBe(0);
+    expect(drainAt(p, p.impactAt - 21).full).toBe(0);
+    expect(drainAt(p, p.impactAt + 50).full).toBe(1);
     expect(drainAt(p, p.impactAt + 120).full).toBe(1);
     expect(drainAt(p, p.impactAt + 120).veil).toBe(0);
   });
@@ -350,7 +402,7 @@ describe('the drain (pure): what is grey when', () => {
     expect(foeMoveAt(p, p.returnEnd - 1).sag).toBeLessThan(0.01);
   });
 
-  it('the camera pushes in to the blow and is at rest again by the end; IV holds its push until the flood', () => {
+  it('the camera pushes in to the blow and is at rest again by the end; IV is jolted by the toll and holds its push until the flood', () => {
     for (const total of TOTALS) {
       const p = plan(total);
       expect(reapingCameraAt(p, C, p.chargeAt - 1).zoom).toBe(1);
@@ -363,6 +415,15 @@ describe('the drain (pure): what is grey when', () => {
     const four = plan(40);
     expect(reapingCameraAt(four, C, four.floodAt! - 1).zoom).toBeGreaterThan(1 + four.zoom * 0.95);
     expect(reapingCameraAt(four, C, four.floodEnd!).zoom).toBeLessThan(1.002);
+    // the toll: the view drops and kicks in; the cut hits harder than the toll, and harder than III's
+    const before = reapingCameraAt(four, C, four.tollAt! - 1), jolt = reapingCameraAt(four, C, four.tollAt! + 30);
+    expect(before.y).toBe(0);
+    expect(Math.abs(jolt.y)).toBeGreaterThan(1.5);
+    expect(jolt.zoom).toBeGreaterThan(before.zoom + four.punch * 0.3);
+    const peak = (p: ReturnType<typeof plan>, from: number): number => { let m = 0; for (let t = from; t < from + 200; t += 4) { const c = reapingCameraAt(p, C, t, { x: 1, y: 0 }); m = Math.max(m, Math.hypot(c.x, c.y)); } return m; };
+    expect(peak(four, four.impactAt)).toBeGreaterThan(peak(four, four.tollAt!) * 2);
+    expect(peak(four, four.impactAt)).toBeGreaterThan(peak(plan(14), plan(14).impactAt) * 1.3);
+    expect(peak(plan(14), plan(14).impactAt)).toBeGreaterThan(peak(plan(8), plan(8).impactAt) * 2);
   });
 });
 
@@ -470,18 +531,48 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
-  it('IV: monochrome before the toll, the line reaches the portrait on the impact, colour floods back, the loser stays grey, then nothing is left', () => {
+  it('III: nothing but the crescent before the blow; on it the portrait is grey, knocked hard, and a plume of motes is torn out', () => {
+    const { h, f, onImpact, defenderEl } = run(of(14));
+    const p = h.plan;
+    f.tick(p.cuts[0]!.startAt, 4);
+    expect(h.scene!.crescentVisible).toBe(true);
+    expect(Number(h.drain.full!.style.opacity)).toBe(0);
+    expect(h.scene!.liveMotes).toBe(0);
+    expect(onImpact).not.toHaveBeenCalled();
+    f.tick(p.impactAt - h.elapsed() + 60, 4);
+    expect(onImpact).toHaveBeenCalledTimes(1);
+    expect(Number(h.drain.full!.style.opacity)).toBe(1);
+    expect(h.scene!.liveMotes).toBe(p.motes);
+    let far = 0;
+    for (let i = 0; i < 50; i++) {
+      f.tick(4, 4);
+      const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(defenderEl.style.transform);
+      if (m) far = Math.max(far, Math.hypot(Number(m[1]), Number(m[2])));
+    }
+    expect(far).toBeGreaterThan(14); // it REELS (I-II move about 3 px)
+    h.cancel();
+  });
+
+  it('IV: monochrome and still before the toll, the crescent cuts the portrait on the impact, colour floods back behind a bright front, the loser stays grey, then nothing is left', () => {
     const { h, f, onImpact } = run(of(40));
     const p = h.plan;
-    f.tick(p.tollAt! + 4, 4);
+    f.tick(p.tollAt! - 8, 4);
     expect(Number(h.drain.veil!.style.opacity)).toBe(1);
+    expect(h.scene!.crescentVisible).toBe(false); // the silence is still: nothing is drawn until the bell
+    expect(h.scene!.liveFx).toBe(0);
+    expect(onImpact).not.toHaveBeenCalled();
+    f.tick(p.cuts[0]!.startAt - h.elapsed(), 4);
+    expect(h.scene!.crescentVisible).toBe(true); // it ignited on the toll and is held
     expect(onImpact).not.toHaveBeenCalled();
     f.tick(p.impactAt - h.elapsed() + 4, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
-    const head = h.scene!.lineHeadPos!;
-    expect(Math.hypot(head.x - FOE.x, head.y - FOE.y)).toBeLessThan(60);
+    expect(h.scene!.lineVisible).toBe(true);
+    expect(h.scene!.visibleGhosts).toBe(GHOSTS);
     expect(h.scene!.liveMotes).toBe(p.motes);
+    f.tick((p.floodAt! + p.floodEnd!) / 2 - h.elapsed(), 4);
+    expect(h.scene!.frontVisible).toBe(true);
     f.tick(p.floodEnd! - h.elapsed() + 8, 4);
+    expect(h.scene!.frontVisible).toBe(false);
     expect(Number(h.drain.veil!.style.opacity)).toBe(0);
     expect(Number(h.drain.full!.style.opacity)).toBe(1);
     f.tick(p.endAt - h.elapsed() + 16, 4);
@@ -598,7 +689,7 @@ describe('the runner (the shared clock)', () => {
 
 describe('the drain panes (DOM)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
-  const setup = (kind: 'cut' | 'cross' | 'shadow' | 'reaping') => ({
+  const setup = (kind: 'cut' | 'cross' | 'fall' | 'reaping') => ({
     doc: document, parent: document.body, local: false, css: (v: number) => v, kind, d: FOE, r: R, angles: kind === 'cut' ? [0.5] : kind === 'cross' ? [0.5, 0.5 + Math.PI / 2] : [],
     strike: -0.4, stripWidth: C.stripWidth, grey: 1, bounds: BOUNDS,
   });
@@ -617,6 +708,15 @@ describe('the drain panes (DOM)', () => {
     expect(d.patch!.style.pointerEvents).toBe('none');
     expect(v.pointerEvents).toBe('none');
     d.remove();
+  });
+
+  it('the veil span (pure): the bright front starts off the striker side, ends off the far side, and runs with the flood', () => {
+    const v = veilSpan(BOUNDS.w, BOUNDS.h, 240);
+    const diag = Math.hypot(BOUNDS.w, BOUNDS.h);
+    expect(v.side).toBeGreaterThanOrEqual(diag);
+    expect(v.frontAt(0)).toBeLessThan(-diag / 2);
+    expect(v.frontAt(1)).toBeGreaterThan(diag / 2);
+    expect(v.frontAt(0.5)).toBeGreaterThan(v.frontAt(0.25));
   });
 
   it('writes only when a value changes, and remove() is safe twice', () => {
@@ -667,27 +767,76 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('III: the shadow and the flame are there for the swing; the flame is out and the shadow gone before the end', () => {
-    const { p, s } = make(14);
-    s.draw(p.cuts[0]!.startAt, still);
-    expect(s.shadowVisible).toBe(true);
-    expect(s.flameVisible).toBe(true);
-    s.draw(p.impactAt + SNUFF_MS + 1, still);
-    expect(s.flameVisible).toBe(false);
-    s.draw(p.returnEnd, still);
-    expect(s.shadowVisible).toBe(false);
+  it('III: the crescent is drawn from the wind-up to the end of the follow-through, on its arm, with afterimages only once it falls', () => {
+    const { p, g, s } = make(14);
+    const q = p.cuts[0]!, sw = g.swing!;
+    s.draw(p.windAt! - 1, still);
+    expect(s.crescentVisible).toBe(false);
+    s.draw(p.heldAt!, still);
+    expect(s.crescentVisible).toBe(true);
+    expect(s.visibleGhosts).toBe(0); // held: no afterimage
+    const heel = swingPose(sw, sw.a0).heel;
+    expect(Math.hypot(s.crescentPose!.x - heel.x, s.crescentPose!.y - heel.y)).toBeLessThan(6); // held: it only trembles
+    s.draw(q.crossAt, still);
+    expect(s.crescentPose!.rot).toBeCloseTo(sw.aHit, 6);
+    expect(s.visibleGhosts).toBeGreaterThanOrEqual(3);
+    s.draw(q.endAt + 1, still);
+    expect(s.crescentVisible).toBe(false);
+    expect(s.visibleGhosts).toBeGreaterThan(0); // the afterimages are still finishing the pass
+    s.draw(q.endAt + ghostLag(GHOSTS) + 1, still);
+    expect(s.visibleGhosts).toBe(0);
+    expect(s.lineVisible).toBe(false);
     s.destroy();
   });
 
-  it('IV: the line is drawn from the sweep until it has thinned away', () => {
-    const { p, s } = make(40);
-    s.draw(p.tollAt!, still);
+  it('IV: the crescent from the toll, every afterimage fanned out at the cut, the line after it, and the front running with the flood', () => {
+    const { p, g, s } = make(40);
+    const q = p.cuts[0]!;
+    s.draw(p.tollAt! - 1, still);
+    expect(s.crescentVisible || s.lineVisible || s.frontVisible).toBe(false);
+    s.draw(p.heldAt!, still);
+    expect(s.crescentVisible).toBe(true);
+    s.draw(p.impactAt - 1, still);
     expect(s.lineVisible).toBe(false);
     s.draw(p.impactAt, still);
     expect(s.lineVisible).toBe(true);
-    s.draw(p.floodEnd!, still);
+    expect(s.visibleGhosts).toBe(GHOSTS);
+    s.draw(p.impactAt + SCAR_MS, still);
     expect(s.lineVisible).toBe(false);
+    expect(q.endAt + ghostLag(GHOSTS)).toBeLessThan(p.floodAt!); // every afterimage is gone before the colour returns
+    // the front: only during the flood, and it travels from the striker's side toward the struck portrait's
+    s.draw(p.floodAt! - 1, still);
+    expect(s.frontVisible).toBe(false);
+    s.draw(p.floodAt! + (p.floodEnd! - p.floodAt!) * 0.3, still);
+    const f0 = s.frontPos!;
+    s.draw(p.floodAt! + (p.floodEnd! - p.floodAt!) * 0.7, still);
+    const f1 = s.frontPos!;
+    expect((f1.x - f0.x) * g.u.x + (f1.y - f0.y) * g.u.y).toBeGreaterThan(400);
+    s.draw(p.floodEnd!, still);
+    expect(s.frontVisible).toBe(false);
     s.destroy();
+  });
+
+  it('the strike is heavier on IV than on III, and I-II still mark a cut with exactly two effects', () => {
+    const three = make(14).s, four = make(40).s, one = make(3).s;
+    three.strike(1); four.strike(1.5); one.cross(0, 1);
+    expect(one.liveFx).toBe(2);
+    expect(three.liveFx).toBeGreaterThanOrEqual(20);
+    expect(four.liveFx).toBeGreaterThan(three.liveFx);
+    three.destroy(); four.destroy(); one.destroy();
+  });
+
+  it('a plume (III-IV) is fatter than a drift (I-II), torn out along the cut, and rolls the same dice', () => {
+    const a = make(40).s, b = make(40).s;
+    a.stream(20, 200, null); b.stream(20, 200, null, 1.6, { x: 300, y: 0 });
+    for (let i = 0; i < 30; i++) { a.update(16); b.update(16); }
+    const bodies = (s: HeroReapingScene) => s.root.children[2]!.children.filter((k) => k.visible);
+    expect(bodies(a).length).toBe(bodies(b).length);
+    const size = (s: HeroReapingScene): number => bodies(s).reduce((m, k) => m + k.scale.x, 0);
+    const xs = (s: HeroReapingScene): number => bodies(s).reduce((m, k) => m + k.position.x, 0);
+    expect(size(b)).toBeGreaterThan(size(a) * 1.4);
+    expect(xs(b)).toBeGreaterThan(xs(a));
+    a.destroy(); b.destroy();
   });
 
   it('the motes: capped, they all reach the striker, the scene drains, and the same seed streams the same', () => {
@@ -714,14 +863,16 @@ describe('the scene (headless Pixi)', () => {
       const parent = new Container();
       parent.addChild(s.root);
       s.draw(p.impactAt, still);
-      s.cross(0); s.stream(p.motes, 200, total < 12 ? 0 : null); s.toll(); s.snuff();
+      s.cross(0); s.stream(p.motes, 200, total < 12 ? 0 : null); s.toll(); s.ignite(); s.held(); s.strike(1.5); s.flood();
       s.update(16);
       expect(s.liveFx).toBeGreaterThan(0);
       s.hideOwn();
       expect(s.visibleBlades).toBe(0);
-      expect(s.shadowVisible || s.lineVisible || s.flameVisible).toBe(false);
+      expect(s.crescentVisible || s.lineVisible || s.frontVisible).toBe(false);
+      expect(s.visibleGhosts).toBe(0);
       s.draw(p.impactAt, still); // a late frame after the end draws nothing
       expect(s.visibleBlades).toBe(0);
+      expect(s.crescentVisible).toBe(false);
       s.clear();
       expect(s.liveMotes).toBe(0);
       s.destroy(); s.destroy();

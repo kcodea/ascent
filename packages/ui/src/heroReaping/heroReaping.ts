@@ -9,16 +9,19 @@
  * after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
  * THREE LAYERS, bottom to top: the game; the DRAIN panes (`heroReapingDrain.ts`: DOM, `backdrop-filter: grayscale`, so
- * whatever is under them loses its colour); the Pixi SCENE (`heroReapingScene.ts`: the scythe, the shadow, the candle,
- * the line and the motes, which keep their colour over the grey). Layout is read ONCE, at the start, by the caller (the
+ * whatever is under them loses its colour); the Pixi SCENE (`heroReapingScene.ts`: the blades, the great crescent and
+ * its afterimages, the rings, the line and the motes, which keep their colour over the grey). Layout is read ONCE, at the start, by the caller (the
  * two portrait rects); this file reads none.
  *
- * THE PORTRAITS move very little, on purpose (it is a cold attack): the striker swells a breath through the ready and
- * pulses as the colour reaches it; the struck portrait takes a short knock along the cut and then SAGS while it is
- * grey, easing back as its colour returns. No z-order class is touched.
+ * THE PORTRAITS: the striker swells a breath through the ready and pulses as the colour reaches it (and on IV's toll);
+ * the struck portrait takes a knock along the cut (a short one on I-II, a hard one on III-IV: it REELS) and then SAGS
+ * while it is grey, easing back as its colour returns. No z-order class is touched.
  *
- * THE SOUND (IV): the other buses are hushed as the screen drains, there is a beat of silence, ONE bell tolls, the
- * sweep, and the buses come back as the colour floods back.
+ * THE SOUND. Cold, but never thin (the owner heard the first pass as silent): every blade is three layers placed so
+ * their bodies land on the crossing (the airy sweep, the low slash under it, a ring of steel over it); every blow has
+ * a low body (the cleave, and on III-IV a boom); the colour leaving is a hollow rush of air. IV: the other buses are
+ * hushed as the screen drains, a real beat of silence, then ONE bell (layered an octave down over a boom) breaks it;
+ * the sweep; the cut lands with the deepest hit of the attack; the buses come back as the colour floods back.
  *
  * EVERY EXIT (the end, `finish()`, `cancel()`, the safety timer; an unmount cancels) removes every drain pane, puts
  * both portraits' transforms back exactly, resets the camera, restores the hushed buses and hides the scene.
@@ -65,8 +68,10 @@ export function reapingSeed(total: number, distance: number, side: 'player' | 'o
   return (Math.round(total) * 4513 + Math.round(distance) * 41 + (side === 'opp' ? 223 : 19) + (roll >>> 0) * 7919) >>> 0;
 }
 
-/** Where the sweep clip's body sits (ms into the clip): a cue is placed so it lands on the crossing. */
+/** Where each blade layer's body sits (ms into its clip): a cue is placed so the bodies land together on the crossing. */
 export const SWEEP_BODY_MS = 420;
+export const SLASH_BODY_MS = 75;
+export const METAL_BODY_MS = 225;
 
 /** Play The Reaping. Returns a handle; the blow lands via `onImpact` on the impact. */
 export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
@@ -128,20 +133,34 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxBellClip, c.sfxSweepClip, c.sfxBreathClip, c.sfxThumpClip]);
+  voices.warm([c.sfxBellClip, c.sfxSweepClip, c.sfxBreathClip, c.sfxThumpClip, c.sfxSlashClip, c.sfxMetalClip, c.sfxCleaveClip, c.sfxDrainClip, c.sfxBoomClip]);
   const real = (ms: number): number => ms / speed;
   const unit = local ? 1 : s;
   const px = local ? 0.45 : 1;
   const big = plan.kind === 'reaping';
+  const fall = plan.kind === 'fall';
+  /** III-IV: the struck portrait REELS (I-II keep the short knock the owner approved). */
+  const reel = big ? 8 : fall ? 6 : 1;
   let hushed = false;
   /** When the colour last reached the striker (it pulses). */
   let fedAt = Number.POSITIVE_INFINITY;
+  /** IV: when the bell tolled (the striker jolts with it). */
+  let tolledAt = Number.POSITIVE_INFINITY;
 
-  /** The sweep, placed so the clip's body lands on the crossing `inMs` (attack ms) from now. */
-  const sweep = (gain: number, rate: number, inMs: number): void => {
-    const lead = SWEEP_BODY_MS / rate; // real ms from the clip's start to its body
-    const wait = real(inMs) - lead;
-    cue(c.sfxSweepClip, gain, rate, wait >= 0 ? { delayMs: wait } : { startMs: Math.min(SWEEP_BODY_MS - 60, -wait * rate) });
+  /** One clip placed so the part of it `bodyMs` in lands `inMs` (attack ms) from now: delayed, or started part way in. */
+  const land = (clip: string, gain: number, rate: number, inMs: number, bodyMs: number): void => {
+    const wait = real(inMs) - bodyMs / rate; // real ms until the clip must start
+    cue(clip, gain, rate, wait >= 0 ? { delayMs: wait } : { startMs: Math.min(Math.max(0, bodyMs - 40), -wait * rate) });
+  };
+  /** A BLADE through the air, its body on the crossing `inMs` from now: the airy sweep, the low slash, a ring of steel. */
+  const bladeSound = (weight: number, rate: number, inMs: number): void => {
+    land(c.sfxSweepClip, c.sfxSweepGain * weight, c.sfxSweepRate * rate, inMs, SWEEP_BODY_MS);
+    land(c.sfxSlashClip, c.sfxSlashGain * weight, c.sfxSlashRate * rate, inMs, SLASH_BODY_MS);
+    land(c.sfxMetalClip, c.sfxMetalGain * weight, c.sfxMetalRate * rate * 1.1, inMs, METAL_BODY_MS);
+  };
+  /** The colour leaving: the hollow rush of air (a window of it on the small looks, all of it on the big ones). */
+  const leave = (gain: number, rate: number, lenMs?: number): void => {
+    cue(c.sfxDrainClip, c.sfxDrainGain * gain, c.sfxDrainRate * rate, lenMs ? { startMs: 300, lenMs, fadeMs: Math.min(300, lenMs * 0.4) } : { fadeMs: 300 });
   };
 
   const fire = (q: ReapingCue | FormationCue): void => {
@@ -152,71 +171,104 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
         if (!big && c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
-      case 'rise':
-        // III: the shadow rises: a long low breath.
-        cue(c.sfxBreathClip, c.sfxBreathGain * 0.9, c.sfxBreathRate * 0.62, { fadeMs: 200 });
+      case 'wind':
+        // III: the crescent ignites and is drawn back: the rush of air SWELLS (the clip's own rise) and is cut off as it
+        // falls.
+        scene?.ignite();
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { lenMs: Math.max(300, real(plan.launchAt - t) * 1.1), fadeMs: 90 });
+        cue(c.sfxMetalClip, c.sfxMetalGain * 0.7, c.sfxMetalRate * 0.7, { fadeMs: 200 });
         break;
       case 'drain':
-        // IV: the colour goes out of the world: a slow exhale, and every other bus is hushed under it.
-        cue(c.sfxBreathClip, c.sfxBreathGain * 1.1, c.sfxBreathRate * 0.7, { fadeMs: 200 });
+        // IV: the colour goes out of the world: a long hollow exhale that ENDS as the silence starts, and every other
+        // bus is hushed under it.
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.2, c.sfxDrainRate * 0.8, { startMs: 280, lenMs: Math.max(200, real((plan.drainedAt ?? t) - t) * 0.8 + 100), fadeMs: 260 });
+        cue(c.sfxBreathClip, c.sfxBreathGain, c.sfxBreathRate * 0.7, { lenMs: Math.max(200, real((plan.drainedAt ?? t) - t)), fadeMs: 200 });
         if (c.sfxHush < 1) { voices.duck(c.sfxHush); hushed = true; }
         break;
       case 'hush':
         // IV: silence. Nothing plays until the toll.
         break;
       case 'toll':
-        // IV: ONE bell, its whole tail.
-        cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate, { tail: 0.18 });
+        // IV: ONE bell breaks the silence, its whole tail: the bell, the same bell an octave down, and a low boom under
+        // the strike. The crescent ignites on it.
+        cue(c.sfxBellClip, c.sfxBellGain * 1.3, c.sfxBellRate, { tail: 0.2 });
+        cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate * 0.5, { tail: 0.2 });
+        cue(c.sfxBoomClip, c.sfxBoomGain * 1.7, c.sfxBoomRate * 0.8, { lenMs: 1200, fadeMs: 600 });
         scene?.toll();
+        scene?.ignite();
+        tolledAt = t;
+        break;
+      case 'held':
+        // III-IV: fully lit: a glint on the point, a short ring of steel.
+        scene?.held();
+        cue(c.sfxMetalClip, c.sfxMetalGain * 0.6, c.sfxMetalRate * 1.7, { startMs: 120, lenMs: 420, fadeMs: 240 });
         break;
       case 'sweep': {
         const cut = plan.cuts[q.i]!;
-        if (big) sweep(c.sfxSweepGain * 1.15, c.sfxSweepRate * 0.78, cut.crossAt - t);
-        else if (plan.kind === 'shadow') sweep(c.sfxSweepGain, c.sfxSweepRate * 0.9, cut.crossAt - t);
-        else sweep(c.sfxSweepGain * (0.8 + 0.1 * q.i), c.sfxSweepRate * (1.22 - 0.14 * q.i), cut.crossAt - t);
+        if (big) bladeSound(1.3, 0.78, cut.crossAt - t);
+        else if (fall) bladeSound(1.15, 0.9, cut.crossAt - t);
+        else bladeSound(1.25 + 0.15 * q.i, 1.22 - 0.14 * q.i, cut.crossAt - t);
         break;
       }
       case 'cross':
         // II's first cut: a tick. A strip of colour goes, and a few motes with it.
         scene?.cross(q.i, 0.7);
         scene?.stream(Math.round(plan.motes * 0.35), 160, q.i);
-        cue(c.sfxBreathClip, c.sfxBreathGain * 0.5, c.sfxBreathRate * 1.25, { lenMs: 500, fadeMs: 200 });
+        cue(c.sfxCleaveClip, c.sfxCleaveGain * 0.75, c.sfxCleaveRate * 1.3, { fadeMs: 160 });
+        leave(0.5, 1.3, 450);
         break;
       case 'impact': {
         if (!plan.reduced) {
           const last = plan.cuts.length - 1;
-          scene?.cross(last, big ? 1.3 : 1);
+          const cd = geo.cuts[last]?.dir ?? u;
           cue(c.sfxThumpClip, c.sfxThumpGain * (0.8 + 0.25 * plan.tier), c.sfxThumpRate - 0.04 * (plan.tier - 1), { lenMs: 420, fadeMs: 180 });
           if (plan.kind === 'cut') {
+            scene?.cross(last, 1);
             scene?.stream(plan.motes, 180, 0);
-            cue(c.sfxBreathClip, c.sfxBreathGain * 0.7, c.sfxBreathRate * 1.1, { lenMs: 600, fadeMs: 240 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.05, c.sfxCleaveRate * 1.2, { fadeMs: 180 });
+            leave(0.7, 1.2, 600);
           } else if (plan.kind === 'cross') {
+            scene?.cross(last, 1);
             scene?.stream(plan.motes - Math.round(plan.motes * 0.35), 260, null);
-            cue(c.sfxBreathClip, c.sfxBreathGain * 0.85, c.sfxBreathRate, { lenMs: 700, fadeMs: 260 });
-          } else if (plan.kind === 'shadow') {
-            // A low bell, cut short of its full tail, and the breath of the colour going.
-            scene?.stream(plan.motes, 320, null);
-            cue(c.sfxBellClip, c.sfxBellGain * 0.75, c.sfxBellRate * 0.84, { lenMs: 2200, fadeMs: 900, tail: 0.12 });
-            cue(c.sfxBreathClip, c.sfxBreathGain * 0.9, c.sfxBreathRate * 0.9, { fadeMs: 260 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.05, c.sfxCleaveRate * 1.08, { fadeMs: 200 });
+            leave(0.8, 1.08, 800);
+          } else if (fall) {
+            // THE FALL lands: the cleave over a boom, a low bell (and the same bell an octave under it), and the rush
+            // of the colour torn out.
+            scene?.strike(1);
+            scene?.stream(plan.motes, 380, null, 1.7, { x: cd.x * radius * 2.4, y: cd.y * radius * 2.4 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.1, c.sfxCleaveRate * 0.9);
+            cue(c.sfxBoomClip, c.sfxBoomGain * 0.8, c.sfxBoomRate * 0.9, { lenMs: 1000, fadeMs: 500 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.65, c.sfxBellRate * 0.84, { lenMs: 2400, fadeMs: 1000, tail: 0.15 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.5, c.sfxBellRate * 0.42, { lenMs: 2200, fadeMs: 1000 });
+            cue(c.sfxDrainClip, c.sfxDrainGain * 0.9, c.sfxDrainRate * 0.95, { delayMs: real(60), fadeMs: 300 });
           } else {
-            // IV: the portrait's colour is drawn out in a long stream, all the way to the flood.
-            scene?.stream(plan.motes, Math.max(120, (plan.floodAt ?? t) - t - 160), null);
-            cue(c.sfxBreathClip, c.sfxBreathGain, c.sfxBreathRate * 0.85, { fadeMs: 260 });
+            // IV, THE CUT: the deepest hit of the attack (the cleave and the boom, pitched down, and the bell's low
+            // octave struck again under them), then the portrait's colour is drawn out in a long thick stream, all the
+            // way to the flood.
+            scene?.strike(1.5);
+            scene?.stream(plan.motes, Math.max(120, (plan.floodAt ?? t) - t - 200), null, 1.6, { x: cd.x * radius * 3, y: cd.y * radius * 3 });
+            cue(c.sfxCleaveClip, c.sfxCleaveGain * 1.3, c.sfxCleaveRate * 0.8);
+            cue(c.sfxBoomClip, c.sfxBoomGain * 1.15, c.sfxBoomRate * 0.7, { lenMs: 1400, fadeMs: 700 });
+            cue(c.sfxBellClip, c.sfxBellGain * 0.55, c.sfxBellRate * 0.5, { lenMs: 2600, fadeMs: 1200, tail: 0.15 });
+            cue(c.sfxDrainClip, c.sfxDrainGain * 0.8, c.sfxDrainRate * 0.8, { delayMs: real(90), fadeMs: 320 });
           }
           fedAt = t + c.moteMs * 0.8;
         }
         seq.land();
         break;
       }
-      case 'snuff':
-        // III: the flame is out: a small puff.
-        scene?.snuff();
-        cue(c.sfxBreathClip, c.sfxBreathGain * 0.35, c.sfxBreathRate * 1.7, { lenMs: 260, fadeMs: 140 });
-        break;
       case 'flood':
-        // IV: colour floods back: the breath again, drawn IN this time, and the hushed buses return.
-        cue(c.sfxBreathClip, c.sfxBreathGain * 0.9, c.sfxBreathRate * 0.8, { reverse: true, fadeMs: 120 });
+        // IV: colour floods back: the rush of air again, higher, a low sweep with it, and the hushed buses return.
+        scene?.flood();
+        cue(c.sfxDrainClip, c.sfxDrainGain * 1.1, c.sfxDrainRate * 1.1, { startMs: 150, fadeMs: 200 });
+        cue(c.sfxSweepClip, c.sfxSweepGain * 0.9, c.sfxSweepRate * 0.6, { fadeMs: 200 });
+        cue(c.sfxSlashClip, c.sfxSlashGain * 0.7, c.sfxSlashRate * 0.7, { delayMs: real(plan.floodEnd !== null ? (plan.floodEnd - t) * 0.45 : 200) });
         if (hushed) { voices.unduck(); hushed = false; }
+        break;
+      case 'return':
+        // The struck portrait's colour seeps back: a soft breath.
+        cue(c.sfxBreathClip, c.sfxBreathGain * (big || fall ? 1 : 0.8), c.sfxBreathRate * (big || fall ? 0.9 : 1.15), { fadeMs: 160 });
         break;
       default:
         break;
@@ -226,7 +278,8 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
   /** Both portraits, in their own px (scaled by the stage like every other style), and the drain panes. */
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.launchAt, plan.impactAt + 260);
+    // The dim holds through the blow; IV keeps it until the colour floods back (it lifts with the wave).
+    nums.paintDim(t, plan.chargeAt, big ? (plan.drainedAt ?? plan.launchAt) : plan.launchAt, plan.floodAt ?? plan.impactAt + (fall ? 420 : 260));
     const cm = reapingCameraAt(plan, c, t, cutDir);
     cam.apply(reapingCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     // The striker: a breath of a swell through the ready, and a pulse as the colour reaches it.
@@ -235,11 +288,12 @@ export function playHeroReaping(o: HeroReapingOptions): HeroReapingHandle {
       const ready = Math.max(1, plan.launchAt - plan.chargeAt);
       hs += c.heroSwell * (t < plan.launchAt ? easeInOutSine((t - plan.chargeAt) / ready) : Math.max(0, 1 - (t - plan.launchAt) / 260));
       if (t >= fedAt) hs += 0.03 * Math.max(0, spring(t - fedAt, 3, 140));
+      if (t >= tolledAt) hs += 0.05 * Math.max(-0.4, spring(t - tolledAt, 4, 110));
     }
     hero.set(Math.abs(hs - 1) < 1e-4 ? null : `scale(${hs.toFixed(4)})`);
     // The struck portrait: knocked along the cut, then sagging while it is grey.
     const mv = foeMoveAt(plan, t);
-    const knock = c.knockPx * (0.7 + 0.5 * plan.k) * mv.knock * px;
+    const knock = c.knockPx * (0.7 + 0.5 * plan.k) * reel * mv.knock * px;
     const fx = cutDir.x * knock, fy = cutDir.y * knock + 5 * mv.sag * px;
     const fs = 1 - c.sag * mv.sag;
     const still = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(fs - 1) < 1e-4;

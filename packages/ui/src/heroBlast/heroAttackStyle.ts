@@ -176,7 +176,7 @@
  *
  * `reaping` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. THE REAPING (the Ancient of Death, an Ancient): what the scythe cuts is COLOUR. A blade of
- * teal light drains the struck portrait to grey along the cut (a strip, half, all of it under a hooded shadow), and the
+ * teal light drains the struck portrait to grey along the cut (a strip, half, all of it under one great falling crescent), and the
  * top look drains the whole screen to monochrome before colour floods back to all but the loser. See `../heroReaping/`.
  *
  * `glass` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev

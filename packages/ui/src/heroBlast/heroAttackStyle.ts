@@ -161,7 +161,7 @@
  * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroCombo/`.
  *
  * `pinball` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroPinball/`.
+ * "Attack style" override. The board becomes a pinball table (flipper, bumpers, ramp, jackpot), see `../heroPinball/`.
  *
  * `warhost` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `bullettime` (`npm run attack:new`), see `../heroWarhost/`.

@@ -1,28 +1,29 @@
-// SCAFFOLDED from heroSoccer/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Soccer, not this style, until rewritten.
 /**
- * THE SOCCER RUNNER ("Golazo", a Legendary): plays one Pinball attack (the beats are in `heroPinballConfig.ts`) and
- * lands the consequence on its impact beat (the ball in the net). Presentation only: the total and the blow are the
- * engine's; this file only decides WHEN on screen they happen.
+ * THE PINBALL RUNNER ("Multiball", a Legendary): plays one Pinball attack (the beats are in `heroPinballConfig.ts`)
+ * and lands the consequence on its impact beat (the ball slamming the target). Presentation only: the total and the
+ * blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
- * `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish / cancel and the safety
- * timer.
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses or changes pace), the damage
+ * formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish / cancel
+ * and the safety timer.
  *
- * THE PORTRAIT MOVES (as the Basketball's does): its pose is solved in screen px and written as a transform in the
- * portrait's own units (its ancestors' scale measured ONCE at the start). The foe's portrait is a <body> portal outside
- * the `#stage` camera, so when it is the striker the camera's zoom and shake are folded into its own transform. The
- * striker is raised over the target for the whole attack (Classic's `.duel-attacker-*` z-order). EVERY exit path (the
- * end, `finish()`, `cancel()`, the safety timer, and an unmount, which cancels) restores its transform, its opacity and
- * the z-order class exactly, and hides the ball, the shadows, the goal, the flag and the defenders.
+ * THE DAMAGE NUMBER: the jackpot (IV) stops on `o.total`, the blow the engine decided (the same number the shared
+ * formation shows), read through the plan (`plan.total`).
  *
- * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE: when the ball hits the net. Nothing before it (the
- * keepy-uppies, the corner, the one-two, the header's cross, the skills, the sky-high flick, the contact) lands it or
- * makes the target react.
+ * THE PORTRAITS: the striker leans into the flip and, on IV, shoves the table; the struck one is knocked back on the
+ * impact. On IV's TILT both are turned about the target by the same angle as the scene's own root, with their own
+ * transforms (the game's DOM is never rotated). A portrait outside the `#stage` camera (the foe's is a <body> portal)
+ * folds the camera's zoom and shake into its own transform. The striker is raised over the target for the whole attack
+ * (Classic's `.duel-attacker-*` z-order). EVERY exit path (the end, `finish()`, `cancel()`, the safety timer, and an
+ * unmount, which cancels) restores both transforms, the opacity and the z-order class exactly, hides every own object
+ * and levels the scene's root.
+ *
+ * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE: when the (first) ball hits the target. Nothing before
+ * it (the flip, the bumpers, the ramp, the tilt, the roll-up) lands it or makes the target react.
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
- * plus nine own objects; textures painted once per session and pre-warmed during the formation; the updater unhooks
- * the moment the scene drains.
+ * plus the table's own objects, all made once; the balls' paths are built once and read with no allocation; textures
+ * are painted once per session and pre-warmed during the formation; the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -30,16 +31,16 @@ import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { hexToNum, mixColor, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
+import { hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  defenderAt, flagAt, getHeroPinballConfig, goalAt, goalLayout, poseSegs, shotFrom, slowExtraMs, pinballBall, pinballCameraAt, pinballCues, pinballGeo,
-  pinballPlan, pinballPose, pinballTimeScale, variantOf,
-  type BallState, type HeroPinballConfig, type SoccerCue, type SoccerGeo, type SoccerPlan, type SoccerPose,
+  BUMPERS, MAX_BALLS, PINBALL_CAPS, arrowLit, ballAt, bumperAt, displayAt, flipperAngle, getHeroPinballConfig, jackpotDigits, lampAt, newBallState,
+  newBumperState, pinballCameraAt, pinballCues, pinballGeo, pinballPaths, pinballPlan, rampAt, strikerPose, tableIn, tiltAt,
+  type BallState, type HeroPinballConfig, type PinballCue, type PinballGeo, type PinballPaths, type PinballPlan,
 } from './heroPinballConfig';
-import { HeroPinballScene, MAX_DEFENDERS, type HeroPinballTextures } from './heroPinballScene';
+import { HeroPinballScene, type HeroPinballTextures } from './heroPinballScene';
 import { heroPinballTextures } from './heroPinballTextures';
 
 export interface HeroPinballOptions extends HeroAttackOptions {
@@ -48,17 +49,18 @@ export interface HeroPinballOptions extends HeroAttackOptions {
 }
 
 export interface HeroPinballHandle extends HeroAttackHandle {
-  readonly plan: SoccerPlan;
-  readonly geo: SoccerGeo;
+  readonly plan: PinballPlan;
+  readonly geo: PinballGeo;
+  readonly paths: PinballPaths;
   readonly scene: HeroPinballScene | null;
   readonly mirrorsCamera: boolean;
-  /** The rolled variation (II's corner, III's skill). */
-  readonly variant: 1 | 2 | 3;
-  /** The striking portrait's pose, and the ball, at a sequence time (pure). */
-  pose(t: number): SoccerPose;
-  ball(t: number): BallState;
+  /** Ball `i` at a sequence time (pure). */
+  ball(i: number, t: number): BallState;
+  /** What the jackpot's reels read at a sequence time, leftmost first (pure). */
+  digits(t: number): number[];
 }
 
+/** The fallback bounce seed when the caller gives no `rollSeed`: stable for the same blow between the same portraits. */
 export function pinballSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
   return (Math.round(total) * 2711 + Math.round(distance) * 43 + (side === 'opp' ? 199 : 23)) >>> 0;
 }
@@ -72,7 +74,7 @@ function rectOf(el: HTMLElement | null | undefined, r: number): { width: number;
   } catch { return { width: r * 2, height: r * 2, inv: 1 }; }
 }
 
-/** Play the Pinball attack. Returns a handle; the blow lands via `onImpact` when the ball hits the net. */
+/** Play the Pinball attack. Returns a handle; the blow lands via `onImpact` when the ball slams the target. */
 export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
   const c = o.cfg ?? getHeroPinballConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -88,24 +90,21 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  // THE VARIATION (II's corner, III's skill), rolled from the stable per-blow seed (or forced by the DEV tuner).
-  const variant = variantOf(o.rollSeed ?? pinballSeed(o.total, dist, o.side), c);
-  const plan = pinballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
+  // THE BOUNCE ORDER is rolled from the stable per-blow seed (the run seed and the round), so a replay bounces the same.
+  const seed = o.rollSeed ?? pinballSeed(o.total, dist, o.side);
+  const plan = pinballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, seed }, c);
   const cues = withFormation(fplan, pinballCues(plan));
-  // The frame the striker must stay inside (the screen, or the sandbox box).
+  // The frame the table must stay inside (the screen, or the sandbox box).
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
-  const frame = { x0: 0, y0: 0, x1: vw, y1: vh };
-  const geo = pinballGeo(o.attacker, o.defender, aRadius, radius, frame, c, plan.variant);
-  const segs = poseSegs(plan, geo, c, o.attacker, aRadius);
-  const pose = (t: number): SoccerPose => pinballPose(plan, segs, c, t);
-  const ballCtx = { p: plan, g: geo, segs, c, a: o.attacker, aR: aRadius, frame };
-  const ball = (t: number): BallState => pinballBall(ballCtx, t);
-  // The way the blow drives: along the final shot.
-  const from = shotFrom(plan, geo, o.attacker, aRadius);
-  const bl = Math.hypot(geo.hit.x - from.x, geo.hit.y - from.y);
-  const blowDir: Pt = bl > 1 ? { x: (geo.hit.x - from.x) / bl, y: (geo.hit.y - from.y) / bl } : geo.u;
-  const goal = goalLayout(geo.hit, radius, c.goalSize);
+  const geo = pinballGeo(o.attacker, o.defender, aRadius, radius, { x0: 0, y0: 0, x1: vw, y1: vh }, c);
+  const paths = pinballPaths(plan, geo);
+  const blowDir = paths.blowDir;
+  // Scratch state, written every frame (no allocation in the paint).
+  const ballS = Array.from({ length: MAX_BALLS }, newBallState);
+  const bumpS = Array.from({ length: BUMPERS }, newBumperState);
+  const reels: number[] = [];
+  const ball = (i: number, t: number): BallState => ballAt(paths.tracks[i], t, newBallState(), i === 0 ? 160 : 0);
 
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
   const voices = new AttackVoices(sound);
@@ -116,14 +115,10 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
 
   const textures = o.textures !== undefined ? o.textures : heroPinballTextures();
   const scene = textures && !reduced
-    ? new HeroPinballScene(textures, {
-      ball: hexToNum(c.colorBall), post: hexToNum(c.colorPost), net: hexToNum(c.colorNet), flag: hexToNum(c.colorFlag),
-      // The defenders wear the DEFENDING side's colour (the struck hero's), deepened.
-      defender: mixColor(hexToNum(c.colorDefender), hexToNum(o.side === 'opp' ? c.colorPlayer : c.colorFoe), 0.45),
-      flash: hexToNum(c.colorFlash), fire: hexToNum(c.colorFire), blast: hexToNum(c.colorBlast), confettiA: hexToNum(c.colorConfettiA), confettiB: hexToNum(c.colorConfettiB),
-      side: hexToNum(sideHex),
-    }, { ballSize: c.ballSize, shadowDrop: c.shadowDrop, goalSize: c.goalSize, wordSize: c.wordSize }, aRadius, radius, s, pinballSeed(o.total, dist, o.side))
+    ? new HeroPinballScene(textures, { flash: hexToNum(c.colorFlash), lamp: hexToNum(c.colorLamp), spark: hexToNum(c.colorSpark), side: hexToNum(sideHex) },
+      c.scoreSize, aRadius, radius, s, seed)
     : null;
+  scene?.placeTable(geo);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -142,213 +137,166 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
   const lift = !reduced && !local && !!hero.el && !!doc;
   let lifted = false;
 
-  // During a slow-mo beat a cue is pitched down a touch (subtle), with the clock.
-  const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate * (0.88 + 0.12 * Math.min(1, pinballTimeScale(plan, c, seq.t))), opts);
-  voices.warm([c.sfxWhistleClip, c.sfxKickClip, c.sfxTouchClip, c.sfxWhooshClip, c.sfxNetClip, c.sfxPostClip, c.sfxBoomClip, c.sfxOohClip, c.sfxRoarClip, c.sfxGolazoClip]);
-  const heroAt = (t: number): Pt => { const p = pose(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y }; };
-  /** The way the portrait is moving at `t` (for the skids), or along the line when it is still. */
-  const heading = (t: number): Pt => {
-    const a = heroAt(t), b = heroAt(t + 40);
-    const dx = b.x - a.x, dy = b.y - a.y;
-    const l = Math.hypot(dx, dy);
-    return l > 0.5 ? { x: dx / l, y: dy / l } : geo.u;
-  };
-  const big = plan.kind === 'bicycle';
+  const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate, opts);
+  voices.warm([c.sfxFlipperClip, c.sfxBumperClip, c.sfxRampClip, c.sfxReelClip, c.sfxWhooshClip, c.sfxBoomClip]);
+  const big = plan.kind === 'jackpot';
+  /** The striker's centre minus the target's (the arm the tilt swings it on). */
+  const armX = o.attacker.x - o.defender.x, armY = o.attacker.y - o.defender.y;
 
-  const fire = (q: SoccerCue | FormationCue): void => {
+  const fire = (q: PinballCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
-    const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // The referee's whistle opens it (softer on the volley).
-        cue(c.sfxWhistleClip, c.sfxWhistleGain * (plan.tier === 1 ? 0.6 : 1), c.sfxWhistleRate);
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
         break;
-      case 'touch': {
-        // A keepy-uppy or a dribble touch: a soft tap and a puff of grass.
-        cue(c.sfxTouchClip, c.sfxTouchGain * (0.85 + 0.1 * (q.i % 3)), c.sfxTouchRate * (1 + 0.05 * ((q.i % 3) - 1)));
-        const b = ball(t);
-        scene?.touch({ x: b.x, y: b.y }, 0.8);
+      case 'table':
+        // The table pops up out of the board: a soft swish, a ring under each piece.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate * 0.9, { lenMs: 380, fadeMs: 180 });
+        scene?.popAt(geo.pivot, geo.batLen * 0.4);
+        for (let i = 0; i < plan.bumpers; i++) scene?.popAt(geo.bumpers[i]!, geo.bumperR, 70 * i);
         break;
-      }
-      case 'flick': {
-        // I: the higher flick for the volley; IV: SKY HIGH (a whoosh going up, and the crowd begins to rise).
-        cue(c.sfxTouchClip, c.sfxTouchGain * (big ? 1.4 : 1.1), c.sfxTouchRate * (big ? 0.85 : 1));
-        if (big) {
-          cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.1, c.sfxWhooshRate * 0.8, { lenMs: 600, fadeMs: 240 });
-          // The crowd's "Ooooh" rises as the ball goes up (it peaks about a second in: the leap).
-          cue(c.sfxOohClip, c.sfxOohGain, c.sfxOohRate, { fadeMs: 400 });
-        }
-        const b = ball(t);
-        scene?.touch({ x: b.x, y: b.y }, big ? 1.4 : 1);
-        break;
-      }
-      case 'set': {
-        // II: the ball set down at the corner flag (a tap), the crowd hushes.
-        cue(c.sfxTouchClip, c.sfxTouchGain * 0.8, c.sfxTouchRate * 1.1);
-        const b = ball(t + 20);
-        scene?.touch({ x: b.x, y: b.y }, 0.7);
-        break;
-      }
-      case 'runup':
-        // II: the run-up (a step and the arm raised); a quick skid.
-        scene?.skid(heroAt(t), heading(t), 0.6);
-        break;
-      case 'beat': {
-        // III: past a defender: the skill (a tap, a whoosh) and the defender beaten (a nutmeg / the stepovers get a word).
-        cue(c.sfxTouchClip, c.sfxTouchGain * 1.1, c.sfxTouchRate * 1.12);
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 1.3, { lenMs: 300, fadeMs: 120 });
-        // The crowd's "Ooooh" starts on the first defender, so its peak (about a second in) lands on the finish.
-        if (q.i === 0) cue(c.sfxOohClip, c.sfxOohGain * 0.85, c.sfxOohRate, { fadeMs: 350 });
-        const d = geo.defenders[q.i];
-        if (d) scene?.beaten(d.at, plan.variant === 2 ? 'nutmeg' : plan.variant === 1 && q.i === 0 ? 'ole' : null);
-        break;
-      }
-      case 'pass': {
-        // II-3: the short corner rolled off the edge of the screen.
-        cue(c.sfxKickClip, c.sfxKickGain * 0.55, c.sfxKickRate * 1.2);
-        const b = ball(t + 10);
-        scene?.strike({ x: b.x, y: b.y }, 0.6);
-        break;
-      }
-      case 'return': {
-        // II-3: the one-two comes back (a tap into the stride).
-        cue(c.sfxTouchClip, c.sfxTouchGain, c.sfxTouchRate * 1.05);
-        break;
-      }
-      case 'jump':
-        // The take-off (a skid); IV's launch out of the crouch is a shock ring of grass and dust.
-        scene?.skid(heroAt(t), heading(t - 60), big ? 1.4 : 0.8);
-        if (big) {
-          cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.2, c.sfxWhooshRate * 0.75, { lenMs: 600, fadeMs: 220 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 0.3, c.sfxBoomRate * 1.4, { lenMs: 300, fadeMs: 120 });
-          scene?.launch(heroAt(t), c.launchSize);
+      case 'chase':
+        // IV: the lights run: three soft bells climbing, spread over the chase.
+        for (let i = 0; i < 3; i++) {
+          cue(c.sfxBumperClip, c.sfxBumperGain * 0.4, c.sfxBumperRate * (1.3 + 0.12 * i), { delayMs: (i * Math.max(0, plan.strikeAt - q.at)) / 3.2 / speed, lenMs: 300, fadeMs: 140 });
         }
         break;
-      case 'head': {
-        // II-2: THE HEADER (a thud, a flash on the ball).
-        cue(c.sfxKickClip, c.sfxKickGain * 0.9, c.sfxKickRate * 0.8);
-        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate * 1.2, { lenMs: 360, fadeMs: 160 });
-        const b = ball(t);
-        scene?.header({ x: b.x, y: b.y });
+      case 'flip':
+        // THE FLIPPER: the clack (its transient is 25 ms into the clip, so it starts a little in) and the ball's swish.
+        cue(c.sfxFlipperClip, c.sfxFlipperGain * (big ? 1.15 : 1), c.sfxFlipperRate, { startMs: 12 });
+        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 360, fadeMs: 160 });
+        scene?.flip(geo.cradle, geo.u, 1 + 0.4 * plan.k);
+        break;
+      case 'ramp':
+        // III: the ball takes the wire: it rolls for as long as it is on the ramp.
+        cue(c.sfxRampClip, c.sfxRampGain, c.sfxRampRate, { lenMs: (Math.max(200, (plan.multiAt ?? q.at) - q.at) + 80) / speed, fadeMs: 140 });
+        break;
+      case 'multi': {
+        // MULTIBALL: one becomes three (a bright bell, a swish).
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.9, c.sfxBumperRate * 1.35, { lenMs: 420, fadeMs: 160 });
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.8, c.sfxWhooshRate * 1.2, { lenMs: 300, fadeMs: 140 });
+        const r = geo.ramp;
+        scene?.split({ x: r.xs[r.n - 1]!, y: r.ys[r.n - 1]! });
         break;
       }
-      case 'strike': {
-        // The kick that sends it (the volley, the corner, the finish, the BICYCLE KICK upside down in slow mo).
-        const b = ball(t + 1);
-        if (big) {
-          cue(c.sfxKickClip, c.sfxKickGain * 1.3, c.sfxKickRate * 0.82, { tail: 0.1 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 0.7, c.sfxBoomRate * 1.2, { lenMs: 500, fadeMs: 200 });
-          cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.4, c.sfxWhooshRate * 0.9, { lenMs: 500, fadeMs: 200 });
-          scene?.contact({ x: b.x, y: b.y }, blowDir, 1.4);
-        } else {
-          cue(c.sfxKickClip, c.sfxKickGain * (plan.kind === 'breakaway' ? 1.1 : 1), c.sfxKickRate);
-          cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 420, fadeMs: 180 });
-          scene?.strike({ x: b.x, y: b.y }, plan.kind === 'breakaway' ? 1.2 : 1);
-          // II's corner: the crowd's "Ooooh" rises with the ball in flight (it peaks about a second in, near the goal).
-          if (plan.kind === 'corner' && plan.variant !== 3) cue(c.sfxOohClip, c.sfxOohGain * 0.7, c.sfxOohRate, { fadeMs: 400 });
-        }
+      case 'bump': {
+        // A POP BUMPER fires: each has its own pitch, so a rattle plays a little tune instead of one note repeated.
+        const h = plan.hits[q.i]!;
+        const at = geo.bumpers[h.bumper]!;
+        cue(c.sfxBumperClip, c.sfxBumperGain * (big ? 0.7 : plan.balls > 1 ? 0.75 : 0.9), c.sfxBumperRate * (0.92 + 0.09 * h.bumper + 0.03 * (q.i % 2)), { lenMs: 320, fadeMs: 150 });
+        const k = paths.kicks[q.i]!;
+        const reach = geo.bumperR * 0.92;
+        scene?.bump(at, { x: at.x - k.x * reach, y: at.y - k.y * reach }, h.score, big);
         break;
       }
+      case 'tilt':
+        // IV: the striker shoves the table: a dull thud under the bells.
+        cue(c.sfxBoomClip, c.sfxBoomGain * 0.5, c.sfxBoomRate * 1.5, { lenMs: 320, fadeMs: 160 });
+        break;
+      case 'roll':
+        // IV: the score reels rattle up until the ball lands.
+        cue(c.sfxReelClip, c.sfxReelGain, c.sfxReelRate, { lenMs: (Math.max(120, plan.impactAt - q.at) + 60) / speed, fadeMs: 90 });
+        break;
       case 'impact': {
-        // THE BALL IN THE NET: the net, the crowd. IV: the frame rings, a boom, the explosion, the roar.
-        cue(c.sfxNetClip, c.sfxNetGain * (big ? 1.3 : plan.kind === 'breakaway' ? 1.1 : 1), c.sfxNetRate * (big ? 0.9 : 1));
-        if (big) {
-          cue(c.sfxPostClip, c.sfxPostGain * 1.2, c.sfxPostRate, { lenMs: 1000, fadeMs: 300 });
-          cue(c.sfxBoomClip, c.sfxBoomGain * 1.25, c.sfxBoomRate, { lenMs: 900, fadeMs: 300, tail: 0.12 });
-          // The stadium erupts (the roar swells in its first few hundred ms) and the commentator screams GOLAZO! with the
-          // word (the voice starts about 80 ms into its clip, as the word pops).
-          cue(c.sfxRoarClip, c.sfxRoarGain * 1.3, c.sfxRoarRate, { fadeMs: 700 });
-          cue(c.sfxGolazoClip, c.sfxGolazoGain, c.sfxGolazoRate, { fadeMs: 600 });
-        } else {
-          // The stadium roars (soft on the volley, fuller up the tiers).
-          cue(c.sfxRoarClip, c.sfxRoarGain * (plan.tier === 1 ? 0.45 : plan.tier === 2 ? 0.75 : 1), c.sfxRoarRate, { lenMs: plan.tier === 1 ? 1400 : undefined, fadeMs: 600 });
-        }
-        scene?.goalHit(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, confetti: plan.confetti, big, blast: c.blastSize });
+        // THE BALL SLAMS THE TARGET: the bell, low and full, over a thud. IV: a second bell as the jackpot stops.
+        cue(c.sfxBumperClip, c.sfxBumperGain * (1 + 0.25 * plan.k), c.sfxBumperRate * 0.72, { tail: big ? 0.12 : 0 });
+        cue(c.sfxBoomClip, c.sfxBoomGain * (0.4 + 0.75 * plan.k), c.sfxBoomRate * (big ? 1 : 1.25), { lenMs: big ? 900 : 480, fadeMs: big ? 300 : 200 });
+        if (big) cue(c.sfxBumperClip, c.sfxBumperGain * 0.9, c.sfxBumperRate * 1.08, { delayMs: 110 / speed });
+        scene?.impact(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, big });
+        if (big) scene?.jackpot();
         seq.land();
         break;
       }
-      case 'land':
-        scene?.skid(heroAt(t), heading(t - 40), big ? 1.2 : 0.6);
-        if (big) cue(c.sfxTouchClip, c.sfxTouchGain * 1.2, c.sfxTouchRate * 0.6);
-        break;
-      case 'slide':
-        // IV: the knee slide celebration (a skid of grass).
-        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.7, { lenMs: 500, fadeMs: 250 });
-        scene?.slide(heroAt(t), heading(t + 40));
-        break;
-      case 'home':
-        scene?.skid(heroAt(t), heading(t), 0.5);
+      case 'echo':
+        // III: the second and third balls arrive (a bell each, climbing). They land nothing.
+        cue(c.sfxBumperClip, c.sfxBumperGain * 0.8, c.sfxBumperRate * (0.82 + 0.1 * (q.i + 1)), { lenMs: 400, fadeMs: 160 });
+        scene?.echo(geo.hit, blowDir);
         break;
       default:
         break;
     }
   };
 
-  let lastTrail = -Infinity;
-  let lastLine = -Infinity;
+  let lastGlint = -Infinity;
+  const unitS = local ? 1 : s;
+  const kickPx = c.kickPx * unitS;
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
     nums.paintDim(t, plan.chargeAt, plan.strikeAt, plan.impactAt + 300);
     const cm = pinballCameraAt(plan, c, t, blowDir);
-    const unitS = local ? 1 : s;
     const focus = o.defender;
     cam.apply(focus, cm.zoom, cm.x, cm.y, unitS);
     // The camera's screen offset: a portrait OUTSIDE `#stage` folds it in by hand (so it stays glued to the scene).
+    const camOn = cam.active;
     const ax = focus.x * (1 - cm.zoom) + cm.x * unitS, ay = focus.y * (1 - cm.zoom) + cm.y * unitS;
-    const place = (at: Pt, off: Pt, inCam: boolean): Pt => (inCam || !cam.active
-      ? off
-      : { x: off.x * cm.zoom + at.x * (cm.zoom - 1) + ax, y: off.y * cm.zoom + at.y * (cm.zoom - 1) + ay });
-    const p = pose(t);
+    const th = tiltAt(plan, c, t);
+    const deg = (th * 180) / Math.PI;
     if (hero.el) {
-      const off = place(o.attacker, p, heroInCam);
-      const sc = p.scale * (heroInCam || !cam.active ? 1 : cm.zoom);
-      const moved = Math.abs(off.x) > 0.05 || Math.abs(off.y) > 0.05 || Math.abs(sc - 1) > 1e-4 || Math.abs(p.rot) > 0.01;
-      const sq = Math.abs(p.squash) > 0.002 ? ` scale(${(1 + p.squash * 0.6).toFixed(4)}, ${(1 - p.squash).toFixed(4)})` : '';
-      hero.set(!moved && !sq ? null
-        : `translate(${(off.x / heroUnit).toFixed(2)}px, ${(off.y / heroUnit).toFixed(2)}px) rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})${sq}`);
-    }
-    if (scene) {
-      const b = ball(t);
-      scene.setBall(b);
-      if (b.flying && t - lastTrail >= (b.fire > 0 ? c.trailMs * 0.6 : c.trailMs)) { scene.trail(b); lastTrail = t; }
-      // Speed lines behind a sprint (IV's run to the spot, and the leap).
-      if (big && t >= plan.approachAt && t < plan.strikeAt && t - lastLine >= 50) { scene.speedLine(heroAt(t), heroAt(t - 40), aRadius); lastLine = t; }
-      scene.setHeroShadow(p.air > 0.02 ? { x: o.attacker.x + p.x, y: o.attacker.y + p.y } : null, p.air, p.scale);
-      const gs = goalAt(plan, t);
-      scene.setGoal(goal, gs.alpha, gs.bulge, gs.shake, blowDir);
-      const fl = flagAt(plan, t);
-      scene.setFlag(geo.flag, fl.alpha, fl.wave);
-      for (let i = 0; i < MAX_DEFENDERS; i++) scene.setDefender(i, defenderAt(plan, geo, i, aRadius, t));
+      const p = strikerPose(plan, t, aRadius);
+      // The lean, the jolt and the shove, plus the tilt swinging the striker round the target.
+      let x = geo.u.x * p.along + geo.n.x * p.across, y = geo.u.y * p.along + geo.n.y * p.across;
+      if (th !== 0) { const cs = Math.cos(th), sn = Math.sin(th); x += armX * cs - armY * sn - armX; y += armX * sn + armY * cs - armY; }
+      const fold = !heroInCam && camOn;
+      if (fold) { x = x * cm.zoom + o.attacker.x * (cm.zoom - 1) + ax; y = y * cm.zoom + o.attacker.y * (cm.zoom - 1) + ay; }
+      const z = fold ? cm.zoom : 1;
+      const rot = p.rot * (geo.u.x >= 0 ? 1 : -1) + deg;
+      const still = Math.abs(x) < 0.05 && Math.abs(y) < 0.05 && Math.abs(z - 1) < 1e-4 && Math.abs(rot) < 0.01;
+      hero.set(still ? null : `translate(${(x / heroUnit).toFixed(2)}px, ${(y / heroUnit).toFixed(2)}px) rotate(${rot.toFixed(2)}deg) scale(${z.toFixed(4)})`);
     }
     if (foe.el) {
-      // The target takes the blow: knocked back along the shot and squashed. Nothing before it.
+      // The target takes the blow: knocked back along the shot and squashed (III: a smaller knock per echo). Nothing before it.
       let kx = 0, ky = 0, sq = 0;
       const px = local ? 0.45 : 1;
       if (t >= plan.impactAt) {
         const k = spring(t - plan.impactAt, big ? 4 : 5, big ? 95 : 70);
         const w = big ? 0.8 + 0.5 * plan.k : 0.35 + 0.25 * plan.k;
         kx += blowDir.x * c.knockPx * w * k * px; ky += blowDir.y * c.knockPx * w * k * px; sq += c.squash * (big ? 1 + 0.4 * plan.k : 0.4) * k;
+        for (let i = 0; i < plan.echoes.length; i++) {
+          const since = t - plan.echoes[i]!;
+          if (since < 0) break;
+          const e = spring(since, 5, 60);
+          kx += blowDir.x * c.knockPx * 0.3 * e * px; ky += blowDir.y * c.knockPx * 0.3 * e * px; sq += c.squash * 0.25 * e;
+        }
       }
-      const off = place(o.defender, { x: kx, y: ky }, foeInCam);
-      const z = foeInCam || !cam.active ? 1 : cm.zoom;
-      const still = Math.abs(kx) < 0.05 && Math.abs(ky) < 0.05 && Math.abs(sq) < 0.002;
-      foe.set(still && (foeInCam || !cam.active || Math.abs(z - 1) < 1e-4) ? null
-        : `translate(${(off.x / foeUnit).toFixed(2)}px, ${(off.y / foeUnit).toFixed(2)}px) scale(${((1 + sq * 0.55) * z).toFixed(4)}, ${((1 - sq) * z).toFixed(4)})`);
+      const fold = !foeInCam && camOn;
+      let x = kx, y = ky;
+      if (fold) { x = x * cm.zoom + o.defender.x * (cm.zoom - 1) + ax; y = y * cm.zoom + o.defender.y * (cm.zoom - 1) + ay; }
+      const z = fold ? cm.zoom : 1;
+      const still = Math.abs(kx) < 0.05 && Math.abs(ky) < 0.05 && Math.abs(sq) < 0.002 && Math.abs(deg) < 0.01 && Math.abs(z - 1) < 1e-4;
+      foe.set(still ? null
+        : `translate(${(x / foeUnit).toFixed(2)}px, ${(y / foeUnit).toFixed(2)}px) rotate(${deg.toFixed(2)}deg) scale(${((1 + sq * 0.55) * z).toFixed(4)}, ${((1 - sq) * z).toFixed(4)})`);
+    }
+    if (scene) {
+      scene.setTilt(th, focus);
+      scene.setFlipper(flipperAngle(plan, geo, t), tableIn(plan, t));
+      for (let i = 0; i < MAX_BALLS; i++) scene.setBall(i, ballAt(paths.tracks[i], t, ballS[i]!, i === 0 ? 160 : 0));
+      for (let i = 0; i < BUMPERS; i++) scene.setBumper(i, bumperAt(plan, geo, paths, i, t, kickPx, bumpS[i]!));
+      const lamp = lampAt(plan, t);
+      scene.setLamps(tableIn(plan, t, 40), lamp.lit, lamp.step);
+      const lanes = plan.bumpers > 0 ? geo.arrows.length : 0;
+      for (let j = 0; j < PINBALL_CAPS.arrows; j++) scene.setArrow(j, j < lanes ? tableIn(plan, t, 120 + 40 * j) : 0, arrowLit(plan, j, lanes, t));
+      const rp = rampAt(plan, t);
+      scene.setRamp(rp.reveal, rp.alpha);
+      const ds = displayAt(plan, t);
+      scene.setDisplay(ds, ds.score ? jackpotDigits(plan, t, reels) : null);
+      // The ball on the wire throws glints off the rails.
+      if (plan.rampInAt !== null && plan.multiAt !== null && t >= plan.rampInAt && t < plan.multiAt && t - lastGlint >= 42 && ballS[0]!.visible) {
+        scene.rail(ballS[0]!);
+        lastGlint = t;
+      }
+      scene.refresh();
     }
   };
 
-  const seq: Sequence<SoccerCue | FormationCue> = new Sequence<SoccerCue | FormationCue>({
+  const seq: Sequence<PinballCue | FormationCue> = new Sequence<PinballCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // SLOW MO: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0), so the portrait, the ball,
-    // the FX, the camera and the cue timing all slow and speed up together.
-    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? pinballTimeScale(plan, c, seq.t) : 1))),
-    safetyMs: o.safety !== false ? (plan.endAt + slowExtraMs(plan, c)) / speed + 2500 : null,
+    frames: o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)),
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
@@ -362,10 +310,10 @@ export function playHeroPinball(o: HeroPinballOptions): HeroPinballHandle {
   return {
     plan,
     geo,
-    variant: plan.variant,
+    paths,
     scene,
-    pose,
     ball,
+    digits: (t: number) => jackpotDigits(plan, t, []),
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },

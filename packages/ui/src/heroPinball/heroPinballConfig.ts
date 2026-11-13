@@ -17,8 +17,9 @@
  *    its loop and comes off as THREE balls ("MULTIBALL" on the display), which hit the bumpers and then the target in
  *    a quick cascade. The blow lands with the FIRST of the three; the other two are its echoes.
  *  - IV THE JACKPOT: the bumpers and the lane arrows chase, the ball goes wild between the bumpers, the striker shoves
- *    the table and the whole play area TILTS a few degrees and back ("TILT" blinks), then every light strobes and the
- *    JACKPOT rolls up, its last reel stopping on the damage number as the ball slams the target.
+ *    the table and the whole play area TILTS five degrees and rocks back ("TILT" blinks), then every light strobes and
+ *    the JACKPOT score ROLLS UP from 0, reaching the damage number exactly as the ball slams the target; then it pays
+ *    out (bells, sparks, the lights strobing) while the target reels.
  *
  * The bounce order is rolled from the stable per-blow seed, so a replay bounces the same. Every point is computed from
  * the two portraits and kept on screen, so it works in both directions and on any layout. No hit-stop and no slow
@@ -69,6 +70,7 @@ interface GlobalConfig {
   displaySize: number;
   scoreSize: number;
   knockPx: number;
+  flashAlpha: number;
   squash: number;
   shakeMs: number;
   zoomOutMs: number;
@@ -84,6 +86,9 @@ interface GlobalConfig {
   sfxReelClip: string; sfxReelGain: number; sfxReelRate: number;
   sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
+  sfxBellClip: string; sfxBellGain: number; sfxBellRate: number;
+  sfxRollClip: string; sfxRollGain: number; sfxRollRate: number;
+  sfxJackpotClip: string; sfxJackpotGain: number; sfxJackpotRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
@@ -91,7 +96,7 @@ interface GlobalConfig {
 export type HeroPinballConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_PINBALL_COLOR_KEYS = ['colorFlash', 'colorLamp', 'colorSpark', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_PINBALL_CLIP_KEYS = ['sfxFlipperClip', 'sfxBumperClip', 'sfxRampClip', 'sfxReelClip', 'sfxWhooshClip', 'sfxBoomClip'] as const;
+export const HERO_PINBALL_CLIP_KEYS = ['sfxFlipperClip', 'sfxBumperClip', 'sfxRampClip', 'sfxReelClip', 'sfxWhooshClip', 'sfxBoomClip', 'sfxBellClip', 'sfxRollClip', 'sfxJackpotClip'] as const;
 export type HeroPinballStrKey = (typeof HERO_PINBALL_COLOR_KEYS)[number] | (typeof HERO_PINBALL_CLIP_KEYS)[number];
 export type HeroPinballNumKey = Exclude<keyof HeroPinballConfig, HeroPinballStrKey>;
 
@@ -102,15 +107,15 @@ const TIER_DEFAULTS: Record<PinballTierSuffix, [number, number, number, number]>
   FlightMs: [280, 240, 200, 230],
   Bounces: [0, 6, 2, 4],
   BounceMs: [100, 108, 112, 94],
-  DropMs: [0, 150, 140, 160],
-  HoldMs: [420, 440, 480, 760],
-  OutMs: [220, 240, 240, 280],
+  DropMs: [0, 150, 140, 280],
+  HoldMs: [440, 480, 620, 1600],
+  OutMs: [220, 240, 260, 340],
   Zoom: [0.02, 0.03, 0.035, 0.055],
-  Punch: [0.01, 0.015, 0.02, 0.045],
-  Shake: [2, 3, 6, 16],
-  Burst: [0.8, 1, 1.25, 1.8],
-  Rings: [1, 1, 2, 4],
-  Dim: [0.12, 0.2, 0.26, 0.36],
+  Punch: [0.012, 0.02, 0.03, 0.08],
+  Shake: [3, 5, 10, 28],
+  Burst: [0.8, 1, 1.3, 2.2],
+  Rings: [1, 1, 2, 5],
+  Dim: [0.14, 0.24, 0.3, 0.44],
 };
 
 export const PINBALL_TIER_RANGES: Record<PinballTierSuffix, [number, number, number]> = {
@@ -135,43 +140,48 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => PINBALL_TIER_SUFFIX
 export const HERO_PINBALL_DEFAULTS: HeroPinballConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
-  ballSize: 0.27,
+  ballSize: 0.44,
   flipperSize: 1,
   swingMs: 70,
-  bumperSize: 0.5,
+  bumperSize: 0.74,
   bumperDist: 1,
-  kickPx: 9,
+  kickPx: 24,
   rampMs: 720,
   rampBow: 0.2,
   loopSize: 1.25,
   splitMs: 150,
   cascadeMs: 95,
   chaseMs: 700,
-  tiltDeg: 2.4,
-  tiltMs: 520,
-  rollMs: 660,
+  tiltDeg: 5,
+  tiltMs: 760,
+  rollMs: 950,
   displaySize: 1,
   scoreSize: 1,
-  knockPx: 18,
+  knockPx: 30,
+  flashAlpha: 0.4,
   squash: 0.09,
-  shakeMs: 300,
-  zoomOutMs: 420,
+  shakeMs: 520,
+  zoomOutMs: 650,
   reducedFadeMs: 260,
   colorFlash: '#fff6e0',
   colorLamp: '#ffc13a',
   colorSpark: '#cfe6ff',
   colorPlayer: '#ffcf5a',
   colorFoe: '#ff6a5a',
-  // ElevenLabs clips (2026-11-12), each trimmed to its hit and levelled to about -20 LUFS: the flipper's clack (its
-  // transient is 25 ms in), a pop bumper (a solenoid thwack with a soft bell, its hit at 0), the ball on the wire ramp,
-  // and a score reel rattling.
-  sfxFlipperClip: 'fx/pinball-flipper', sfxFlipperGain: 0.6, sfxFlipperRate: 1,
-  sfxBumperClip: 'fx/pinball-bumper', sfxBumperGain: 0.75, sfxBumperRate: 1,
-  sfxRampClip: 'fx/pinball-ramp', sfxRampGain: 0.5, sfxRampRate: 1,
-  sfxReelClip: 'fx/pinball-reel', sfxReelGain: 0.5, sfxReelRate: 1,
+  // ElevenLabs clips (2026-11-12; the second pass replaced the thin first clack and bumper), each trimmed to its hit and
+  // levelled to a true peak under -1 dB: the flipper's CLACK (a solenoid clack over a cabinet thump), a pop bumper's
+  // THWACK (a deep solenoid thunk, its hit at 0) and its BELL (a warm chime, re-pitched per bumper), the ball ROLLING on
+  // the wood, the ball on the wire ramp, a score reel rattling, and the JACKPOT payoff (bells and reels together).
+  sfxFlipperClip: 'fx/pinball-clack', sfxFlipperGain: 1, sfxFlipperRate: 1,
+  sfxBumperClip: 'fx/pinball-thwack', sfxBumperGain: 0.95, sfxBumperRate: 1,
+  sfxRampClip: 'fx/pinball-ramp', sfxRampGain: 0.75, sfxRampRate: 1,
+  sfxReelClip: 'fx/pinball-reel', sfxReelGain: 0.7, sfxReelRate: 1,
   // The whoosh and the boom are SHARED clips (always decoded on a phone), so they cost the phone audio budget nothing.
-  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.26, sfxWhooshRate: 1.25,
-  sfxBoomClip: 'fx/universfield-ground-impact-352053', sfxBoomGain: 0.4, sfxBoomRate: 1,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.45, sfxWhooshRate: 1.25,
+  sfxBoomClip: 'fx/universfield-ground-impact-352053', sfxBoomGain: 1.1, sfxBoomRate: 1,
+  sfxBellClip: 'fx/pinball-bell', sfxBellGain: 0.85, sfxBellRate: 1,
+  sfxRollClip: 'fx/pinball-roll', sfxRollGain: 0.55, sfxRollRate: 1,
+  sfxJackpotClip: 'fx/pinball-jackpot', sfxJackpotGain: 1.25, sfxJackpotRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -193,12 +203,13 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroPinballStrKey>, [num
   splitMs: [60, 600, 10],
   cascadeMs: [30, 400, 5],
   chaseMs: [0, 2000, 10],
-  tiltDeg: [0, 6, 0.1],
+  tiltDeg: [0, 12, 0.1],
   tiltMs: [120, 1500, 10],
   rollMs: [200, 2000, 10],
   displaySize: [0.4, 2, 0.05],
   scoreSize: [0, 2.5, 0.05],
-  knockPx: [0, 60, 1],
+  knockPx: [0, 80, 1],
+  flashAlpha: [0, 1, 0.01],
   squash: [0, 0.3, 0.01],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
@@ -209,6 +220,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroPinballStrKey>, [num
   sfxReelGain: [0, 2, 0.05], sfxReelRate: [0.5, 2.5, 0.01],
   sfxWhooshGain: [0, 2, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
+  sfxBellGain: [0, 2, 0.05], sfxBellRate: [0.5, 2.5, 0.01],
+  sfxRollGain: [0, 2, 0.05], sfxRollRate: [0.5, 2.5, 0.01],
+  sfxJackpotGain: [0, 2, 0.05], sfxJackpotRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -220,12 +234,14 @@ export const HERO_PINBALL_RANGES: Record<HeroPinballNumKey, [number, number, num
 };
 
 /** Hard caps (whatever the tuner says). */
-export const PINBALL_CAPS = { shakePx: 40, bounces: 10, hits: 24, arrows: 5, rampPts: 56, cells: 4 } as const;
+export const PINBALL_CAPS = { shakePx: 40, bounces: 10, hits: 24, arrows: 5, rampPts: 56, cells: 4, ticks: 14, tiltDeg: 12 } as const;
+/** IV: the jackpot pays out after the impact: bursts of bells and sparks, this many ms after it. */
+export const PAYOUTS = [180, 400, 620, 860, 1120] as const;
 export const BUMPERS = 3;
 export const MAX_BALLS = 3;
 
 const store = configStore<HeroPinballConfig>({
-  key: 'ascent.heropinball.v1', defaults: HERO_PINBALL_DEFAULTS, ranges: HERO_PINBALL_RANGES,
+  key: 'ascent.heropinball.v2', defaults: HERO_PINBALL_DEFAULTS, ranges: HERO_PINBALL_RANGES,
   colorKeys: HERO_PINBALL_COLOR_KEYS, clipKeys: HERO_PINBALL_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroPinballStore = store;
@@ -284,6 +300,8 @@ export interface PinballPlan {
   tiltEnd: number | null;
   /** IV: every light strobes and the jackpot rolls up, from here until the impact. */
   rollAt: number | null;
+  /** IV: the score's steps as it climbs (a tick each, closer together toward the impact). */
+  ticks: number[];
   /** THE impact: the (first) ball slams the target. The blow lands here, once. */
   impactAt: number;
   /** III: the second and third balls hitting the target (echoes of the blow; they land nothing). */
@@ -315,7 +333,7 @@ export function pinballPlan(input: PinballPlanInput, c: HeroPinballConfig = stor
     tier, kind, k, total, seed, zoom: L.Zoom, punch: L.Punch, shakePx: clamp(L.Shake, 0, PINBALL_CAPS.shakePx), burst: L.Burst,
     rings: Math.round(L.Rings), dim: L.Dim, swingMs: Math.max(30, c.swingMs),
   };
-  const none = { chaseAt: null, rampInAt: null, multiAt: null, tiltAt: null, tiltEnd: null, rollAt: null, hits: [] as PinballHit[], echoes: [] as number[] };
+  const none = { chaseAt: null, rampInAt: null, multiAt: null, tiltAt: null, tiltEnd: null, rollAt: null, ticks: [] as number[], hits: [] as PinballHit[], echoes: [] as number[] };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
@@ -392,10 +410,13 @@ export function pinballPlan(input: PinballPlanInput, c: HeroPinballConfig = stor
   const tiltAt = hits[Math.min(before, hits.length) - 1]!.at;
   const impactAt = Math.max(hits[hits.length - 1]!.at + drop, tiltAt + tiltMs + 200);
   const rollAt = Math.max(tiltAt + tiltMs, impactAt - rollMs);
-  return { ...base, bumpers: BUMPERS, balls: 1, chaseAt, strikeAt, hits, tiltAt, tiltEnd: tiltAt + tiltMs, rollAt, ...finish(impactAt, impactAt) };
+  // The score climbs in steps that come faster and faster (never one per point past the cap).
+  const nt = clamp(total, 6, PINBALL_CAPS.ticks);
+  const ticks = Array.from({ length: nt }, (_, i) => rollAt + (impactAt - rollAt) * Math.pow((i + 0.5) / nt, 0.72));
+  return { ...base, bumpers: BUMPERS, balls: 1, chaseAt, strikeAt, hits, tiltAt, tiltEnd: tiltAt + tiltMs, rollAt, ticks, ...finish(impactAt, impactAt) };
 }
 
-export type PinballCueKind = 'charge' | 'table' | 'chase' | 'flip' | 'ramp' | 'multi' | 'bump' | 'tilt' | 'roll' | 'impact' | 'echo' | 'out' | 'end';
+export type PinballCueKind = 'charge' | 'table' | 'chase' | 'flip' | 'ramp' | 'multi' | 'bump' | 'tilt' | 'roll' | 'tick' | 'impact' | 'echo' | 'pay' | 'out' | 'end';
 export interface PinballCue { at: number; kind: PinballCueKind; i: number }
 
 /** The plan's beats in time order (the runner fires each once). `bump`'s `i` indexes `plan.hits`. */
@@ -411,6 +432,8 @@ export function pinballCues(p: PinballPlan): PinballCue[] {
     p.hits.forEach((h, i) => out.push({ at: h.at, kind: 'bump', i }));
     if (p.tiltAt !== null) out.push({ at: p.tiltAt, kind: 'tilt', i: 0 });
     if (p.rollAt !== null) out.push({ at: p.rollAt, kind: 'roll', i: 0 });
+    p.ticks.forEach((at, i) => out.push({ at, kind: 'tick', i }));
+    if (p.kind === 'jackpot') PAYOUTS.forEach((ms, i) => { if (p.impactAt + ms < p.outAt) out.push({ at: p.impactAt + ms, kind: 'pay', i }); });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   p.echoes.forEach((at, i) => out.push({ at, kind: 'echo', i }));
@@ -464,6 +487,11 @@ export interface PinballGeo {
   /** The dot-matrix display: its centre and width (its height is `DISPLAY_ASPECT` of it). */
   display: Pt;
   displayW: number;
+  /** The lit playfield: the middle of the bumpers and the target, and how far its glow reaches. */
+  field: Pt;
+  fieldR: number;
+  /** Which way IV's tilt swings first (+1 / -1): the way that carries the striker toward the middle of the frame. */
+  tiltSign: 1 | -1;
 }
 
 export const DISPLAY_ASPECT = 0.36;
@@ -561,7 +589,7 @@ export function pinballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | 
 
   // THE LANE: insert arrows from past the flipper to short of the front bumper.
   const s0 = fwd + aR * 1.7, s1 = dist - (3.05 * dR * bk + bumperR * 1.9);
-  const step = aR * 0.95;
+  const step = aR * 1.35;
   const count = s1 - s0 < step * 0.5 ? 0 : clamp(Math.floor((s1 - s0) / step) + 1, 1, PINBALL_CAPS.arrows);
   const arrows: Pt[] = [];
   for (let i = 0; i < count; i++) arrows.push(add(a, u, count === 1 ? (s0 + s1) / 2 : s0 + ((s1 - s0) * i) / (count - 1)));
@@ -581,12 +609,37 @@ export function pinballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | 
   }
   const ramp = best!.path;
 
-  // THE DISPLAY: on the other side of the lane from the ramp, kept whole on screen.
-  const displayW = dR * 3.3 * c.displaySize;
+  // THE DISPLAY: big, and beside the bumpers, where the eye already is. Three places are tried (just outside either
+  // flank bumper, and on the lane just short of the front bumper); the one the frame moves least wins, the nearer
+  // flank on a tie. It is then kept whole on screen.
+  const displayW = dR * 6.4 * c.displaySize;
   const dh = displayW * DISPLAY_ASPECT;
-  const display = clampToFrame(add(add(a, u, dist * 0.56), n, -ramp.side * (dist * 0.09 + dh * 0.5)), frame, displayW / 2 + 10, dh / 2 + 10);
+  const ext = (v: Pt): number => (displayW / 2) * Math.abs(v.x) + (dh / 2) * Math.abs(v.y);
+  const spots = [1, -1].map((sd) => add(add(d, u, -1.5 * dR * bk), n, sd * (1.75 * dR * bk + bumperR * 1.25 + ext(n))));
+  spots.push(add(d, u, -(3.05 * dR * bk + bumperR * 1.25 + ext(u))));
+  let display = spots[0]!, moved = Infinity;
+  for (const sp of spots) {
+    const q = clampToFrame(sp, frame, displayW / 2 + 10, dh / 2 + 10);
+    const m = Math.hypot(q.x - sp.x, q.y - sp.y);
+    if (m < moved - 1) { moved = m; display = q; }
+  }
 
-  return { u, n, dist, ballR, pivot: fl.pivot, batLen, restAng, upAng, cradle, hit: { x: d.x, y: d.y }, bumperR, bumpers, arrows, arrowRot: Math.atan2(u.y, u.x), ramp, display, displayW };
+  // THE LIT PLAYFIELD: a pool of light under the bumpers and the target.
+  const field = add(d, u, -1.5 * dR * bk);
+  const fieldR = dR * (3.4 * bk + 1.2) + bumperR;
+
+  // THE TILT'S FIRST SWING carries the striker toward the middle of the frame (never off the screen's edge).
+  let tiltSign: 1 | -1 = 1;
+  if (frame) {
+    const mx = (frame.x0 + frame.x1) / 2 - a.x, my = (frame.y0 + frame.y1) / 2 - a.y;
+    // A small positive turn about the target moves the striker along (-(a-d).y, (a-d).x).
+    if (-(a.y - d.y) * mx + (a.x - d.x) * my < 0) tiltSign = -1;
+  }
+
+  return {
+    u, n, dist, ballR, pivot: fl.pivot, batLen, restAng, upAng, cradle, hit: { x: d.x, y: d.y }, bumperR, bumpers, arrows, arrowRot: Math.atan2(u.y, u.x), ramp,
+    display, displayW, field, fieldR, tiltSign,
+  };
 }
 
 // ─── the balls' paths (built once per attack) ──────────────────────────────────────────────────────────────────
@@ -684,7 +737,7 @@ export function flipperAngle(p: PinballPlan, g: PinballGeo, t: number): number {
 
 export interface BumperState { x: number; y: number; scale: number; lit: boolean; alpha: number }
 export const newBumperState = (): BumperState => ({ x: 0, y: 0, scale: 0, lit: false, alpha: 0 });
-const FLASH_MS = 130;
+const FLASH_MS = 190;
 
 /** Bumper `i` at `t`: popped up, flashing and kicked by a hit, chasing and strobing on the jackpot. Pure. */
 export function bumperAt(p: PinballPlan, g: PinballGeo, paths: PinballPaths, i: number, t: number, kickPx: number, out: BumperState): BumperState {
@@ -701,7 +754,7 @@ export function bumperAt(p: PinballPlan, g: PinballGeo, paths: PinballPaths, i: 
     if (since < 400) {
       const s = spring(since, 7, 55);
       const dir = paths.kicks[h]!;
-      kx += dir.x * kickPx * s; ky += dir.y * kickPx * s; punch += 0.16 * s;
+      kx += dir.x * kickPx * s; ky += dir.y * kickPx * s; punch += 0.3 * s;
     }
   }
   if (p.chaseAt !== null && t >= p.chaseAt && t < p.strikeAt) lit = lit || Math.floor((t - p.chaseAt) / 90) % BUMPERS === i;
@@ -766,24 +819,24 @@ export function jackpotCells(total: number): number {
   return clamp(String(Math.max(0, Math.round(total))).length, 2, PINBALL_CAPS.cells);
 }
 
-/** When reel `i` (0 = the leftmost) stops. The last one stops exactly on the impact. */
-export function reelStopAt(p: PinballPlan, i: number, cells: number): number {
-  if (p.rollAt === null) return p.impactAt;
-  return p.rollAt + (p.impactAt - p.rollAt) * (0.5 + (0.5 * (i + 1)) / cells);
+/**
+ * THE JACKPOT'S SCORE at `t`: it ROLLS UP from 0 to the damage of the blow between the roll-up's start and the impact,
+ * slowly at first and faster toward the end, never past the damage and never falling. From the impact on it reads
+ * exactly `total`. Pure.
+ */
+export function jackpotValue(p: PinballPlan, t: number): number {
+  const shown = Math.min(p.total, Math.pow(10, jackpotCells(p.total)) - 1);
+  if (p.rollAt === null || t >= p.impactAt) return shown;
+  const v = clamp01((t - p.rollAt) / Math.max(1, p.impactAt - p.rollAt));
+  return Math.min(Math.max(0, shown - 1), Math.floor(shown * Math.pow(v, 1.5)));
 }
 
-/**
- * THE JACKPOT'S REELS at `t`, written into `out` (one digit per reel, leftmost first): each spins until its stop, then
- * shows its digit of the DAMAGE. From the impact on, the display reads exactly `total`. Pure.
- */
+/** The score's digits at `t`, written into `out` (zero-padded, leftmost first). Pure. */
 export function jackpotDigits(p: PinballPlan, t: number, out: number[]): number[] {
   const cells = jackpotCells(p.total);
-  const shown = Math.min(p.total, Math.pow(10, cells) - 1);
+  const value = jackpotValue(p, t);
   out.length = cells;
-  for (let i = 0; i < cells; i++) {
-    const digit = Math.floor(shown / Math.pow(10, cells - 1 - i)) % 10;
-    out[i] = t >= reelStopAt(p, i, cells) ? digit : (Math.floor(t / 42) * (3 + 2 * i) + i * 7 + (p.seed % 10)) % 10;
-  }
+  for (let i = 0; i < cells; i++) out[i] = Math.floor(value / Math.pow(10, cells - 1 - i)) % 10;
   return out;
 }
 
@@ -791,7 +844,7 @@ export function jackpotDigits(p: PinballPlan, t: number, out: number[]): number[
 export function tiltAt(p: PinballPlan, c: HeroPinballConfig, t: number): number {
   if (p.tiltAt === null || p.tiltEnd === null || t <= p.tiltAt || t >= p.tiltEnd) return 0;
   const v = (t - p.tiltAt) / (p.tiltEnd - p.tiltAt);
-  const max = (clamp(c.tiltDeg, 0, 6) * Math.PI) / 180;
+  const max = (clamp(c.tiltDeg, 0, PINBALL_CAPS.tiltDeg) * Math.PI) / 180;
   // A fast shove up to the peak (a fifth of the way in), a smaller rock back past level, and settled at exactly 0.
   return max * 1.36 * Math.sin(v * Math.PI * 2.5) * Math.pow(1 - v, 1.5) * Math.min(1, v * 8);
 }
@@ -826,6 +879,8 @@ export function pinballCameraAt(p: PinballPlan, c: HeroPinballConfig, t: number,
     jolt(t - p.impactAt, p.shakePx, dir);
   }
   for (const e of p.echoes) jolt(t - e, p.shakePx * 0.5, dir);
+  // Every bumper kicks the view a little (a table you can feel).
+  for (const h of p.hits) { const since = t - h.at; if (since < 0) break; if (since < 260) jolt(since, p.shakePx * 0.14, { x: dir.y, y: -dir.x }); }
   if (p.tiltAt !== null) jolt(t - p.tiltAt, p.shakePx * 0.45, { x: -dir.y, y: dir.x });
   return { zoom, x, y };
 }

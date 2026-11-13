@@ -15,8 +15,8 @@ import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES } from '../heroBlast/heroAt
 import { ATTACK_FX_CLIPS } from '../audio/codeClips';
 import {
   BUMPERS, DISPLAY_ASPECT, HERO_PINBALL_CLIP_KEYS, HERO_PINBALL_DEFAULTS, HERO_PINBALL_RANGES, PINBALL_CAPS, arrowLit, ballAt, bumperAt, clampHeroPinballValue,
-  displayAt, flipperAngle, heroPinballConfigJson, jackpotCells, jackpotDigits, lampAt, newBallState, newBumperState, pinballCameraAt, pinballCues, pinballGeo,
-  pinballKind, pinballPaths, pinballPlan, rampAt, reelStopAt, strikerPose, tableIn, tiltAt, type HeroPinballNumKey,
+  displayAt, flipperAngle, heroPinballConfigJson, jackpotCells, jackpotDigits, jackpotValue, PAYOUTS, lampAt, newBallState, newBumperState, pinballCameraAt, pinballCues, pinballGeo,
+  pinballKind, pinballPaths, pinballPlan, rampAt, strikerPose, tableIn, tiltAt, type HeroPinballNumKey,
 } from './heroPinballConfig';
 import { HeroPinballScene, MAX_PINBALL_SPRITES, type HeroPinballTextures } from './heroPinballScene';
 import { playHeroPinball, pinballSeed, type HeroPinballOptions } from './heroPinball';
@@ -67,7 +67,7 @@ describe('the tuner values', () => {
       expect(v, k).toBeGreaterThanOrEqual(min);
       expect(v, k).toBeLessThanOrEqual(max);
     }
-    expect(clampHeroPinballValue('tiltDeg', 99)).toBe(6);
+    expect(clampHeroPinballValue('tiltDeg', 99)).toBe(12);
     expect(clampHeroPinballValue('colorLamp', 'nope')).toBe(C.colorLamp);
     const keys = new Set(SPEC.controls.map((c) => c.key));
     for (const k of Object.keys(C)) expect(keys.has(k as never), k).toBe(true);
@@ -170,7 +170,10 @@ describe('the plan', () => {
     const len = TOTALS.map((t) => { const p = plan(t); return p.endAt - p.chargeAt; });
     expect(len[0]!).toBeGreaterThan(900); expect(len[0]!).toBeLessThan(1800);
     expect(len[1]!).toBeGreaterThan(len[0]!); expect(len[2]!).toBeGreaterThan(len[1]!); expect(len[3]!).toBeGreaterThan(len[2]!);
-    expect(len[3]!).toBeLessThan(4600);
+    // IV is long on purpose (the roll-up before the blow and the payout after it), never past 6 s.
+    expect(len[3]!).toBeGreaterThan(4600); expect(len[3]!).toBeLessThan(6000);
+    const p4 = plan(40);
+    expect(p4.outAt - p4.impactAt).toBeGreaterThanOrEqual(1400); // the aftermath lingers
     expect(Object.keys(plan(40)).join(' ')).not.toMatch(/hitStop|freeze|slow/i);
   });
 
@@ -187,6 +190,15 @@ describe('the plan', () => {
       expect(q.find((x) => x.kind === 'impact')!.at).toBe(p.impactAt);
       expect(q.filter((x) => x.kind === 'tilt' || x.kind === 'roll' || x.kind === 'chase')).toHaveLength(total === 40 ? 3 : 0);
       expect(q.filter((x) => x.kind === 'ramp' || x.kind === 'multi')).toHaveLength(total === 14 ? 2 : 0);
+      // IV only: the score's climbing ticks (all inside the roll-up, closer together toward the impact) and the payout.
+      const ticks = q.filter((x) => x.kind === 'tick');
+      expect(ticks).toHaveLength(p.ticks.length);
+      expect(p.ticks.length).toBe(total === 40 ? PINBALL_CAPS.ticks : 0);
+      for (const tk of p.ticks) { expect(tk).toBeGreaterThan(p.rollAt!); expect(tk).toBeLessThan(p.impactAt); }
+      if (p.ticks.length > 3) expect(p.ticks[p.ticks.length - 1]! - p.ticks[p.ticks.length - 2]!).toBeLessThan(p.ticks[1]! - p.ticks[0]!);
+      const pays = q.filter((x) => x.kind === 'pay');
+      expect(pays).toHaveLength(total === 40 ? PAYOUTS.length : 0);
+      for (const py of pays) { expect(py.at).toBeGreaterThan(p.impactAt); expect(py.at).toBeLessThan(p.outAt); }
     }
   });
 
@@ -243,6 +255,14 @@ describe('the geometry: from the two portraits, on screen in every layout', () =
         }
       }
       expect(Math.abs(turned)).toBeGreaterThan(Math.PI);
+      // The display is BIG (wider than three target diameters) and beside the action: nearer the target than the striker.
+      expect(g.displayW).toBeGreaterThan(R * 6);
+      expect(Math.hypot(g.display.x - g.hit.x, g.display.y - g.hit.y)).toBeLessThan(Math.max(g.dist * 0.5, g.displayW * 1.2));
+      // The bumpers are big and the ball is one you can follow.
+      expect(g.bumperR).toBeGreaterThan(R * 0.7);
+      expect(g.ballR).toBeGreaterThan(R * 0.4);
+      expect(Math.abs(g.tiltSign)).toBe(1);
+      expect(g.fieldR).toBeGreaterThan(g.bumperR * 3);
       // The display is whole on screen.
       const hw = g.displayW / 2, hh = (g.displayW * DISPLAY_ASPECT) / 2;
       expect(g.display.x - hw).toBeGreaterThanOrEqual(0); expect(g.display.x + hw).toBeLessThanOrEqual(1920);
@@ -424,7 +444,7 @@ describe('the table at a time: the flipper, the lights, the display, the tilt, t
     for (const total of [3, 8]) expect(displayAt(plan(total), plan(total).impactAt).alpha).toBe(0);
   });
 
-  it('THE JACKPOT stops on the damage of the blow: the reels spin, stop left to right, the last one exactly on the impact', () => {
+  it('THE JACKPOT ROLLS UP to the damage of the blow: from 0, never falling, never past it, exactly it on the impact', () => {
     for (const total of [20, 23, 40, 57, 99, 100, 137, 2, 7]) {
       const p = plan(total, { knockout: total < 20, seed: total });
       const cells = jackpotCells(total);
@@ -432,13 +452,21 @@ describe('the table at a time: the flipper, the lights, the display, the tilt, t
       const read = (t: number): string => jackpotDigits(p, t, []).join('');
       expect(read(p.impactAt), `total ${total}`).toBe(String(total).padStart(cells, '0'));
       expect(Number(read(p.impactAt + 400))).toBe(total);
-      expect(reelStopAt(p, cells - 1, cells)).toBe(p.impactAt);
-      for (let i = 1; i < cells; i++) expect(reelStopAt(p, i, cells)).toBeGreaterThan(reelStopAt(p, i - 1, cells));
-      expect(reelStopAt(p, 0, cells)).toBeGreaterThan(p.rollAt!);
-      // While it rolls, the reels really spin (several different readings), and every digit is a digit.
-      const seen = new Set<string>();
-      for (let t = p.rollAt!; t < p.impactAt - 1; t += 20) { const s = read(t); seen.add(s); expect(s).toMatch(/^\d+$/); expect(s).toHaveLength(cells); }
-      expect(seen.size).toBeGreaterThan(6);
+      expect(jackpotValue(p, p.rollAt!)).toBe(0);
+      // It only ever climbs, it is short of the damage until the impact, and every reading is the right width.
+      let prev = 0;
+      const seen = new Set<number>();
+      for (let t = p.rollAt!; t < p.impactAt - 0.5; t += 10) {
+        const v = jackpotValue(p, t);
+        expect(v, `total ${total} at ${t}`).toBeGreaterThanOrEqual(prev);
+        expect(v).toBeLessThan(total);
+        expect(read(t)).toHaveLength(cells);
+        expect(Number(read(t))).toBe(v);
+        prev = v; seen.add(v);
+      }
+      if (total >= 20) expect(seen.size).toBeGreaterThan(8);
+      // Halfway through it is well short (it races at the end).
+      expect(jackpotValue(p, (p.rollAt! + p.impactAt) / 2)).toBeLessThan(total * 0.5);
     }
     // A reused array is rewritten in place.
     const out: number[] = [9, 9, 9, 9];
@@ -446,7 +474,8 @@ describe('the table at a time: the flipper, the lights, the display, the tilt, t
     expect(out).toEqual([4, 0]);
   });
 
-  it('the tilt: a few degrees one way, a smaller rock back, level at both ends, never past the dial; only on IV', () => {
+  it('the tilt: five degrees one way (a tilt you can see), a smaller rock back, level at both ends, never past the dial; only on IV', () => {
+    expect(C.tiltDeg).toBeGreaterThanOrEqual(4);
     const p = plan(40);
     const max = (C.tiltDeg * Math.PI) / 180;
     expect(tiltAt(p, C, p.tiltAt!)).toBe(0);
@@ -725,7 +754,7 @@ describe('the scene', () => {
       s.bump(geo.bumpers[i % 3]!, geo.bumpers[i % 3]!, i % 2 ? 10 : 50, true);
       s.rail(geo.cradle); s.split(geo.cradle);
       s.impact(geo.hit, geo.u, { burst: 1.8, rings: 4, big: true });
-      s.echo(geo.hit, geo.u); s.jackpot(); s.popAt(geo.pivot, 40);
+      s.echo(geo.hit, geo.u); s.jackpot(); s.popAt(geo.pivot, 40); s.payout(i); s.screenFlash(0.4, 1920, 1080);
     }
     expect(s.liveSprites).toBeLessThanOrEqual(MAX_PINBALL_SPRITES);
     for (let i = 0; i < 400; i++) s.update(16);
@@ -733,6 +762,6 @@ describe('the scene', () => {
     expect(s.update(16)).toBe(false);
     s.destroy();
     expect(s.root.destroyed).toBe(true);
-    s.setFlipper(0, 1); s.setTilt(0.1, geo.hit); s.setBall(0, newBallState()); // safe after destroy
+    s.setFlipper(0, 1); s.setTilt(0.1, geo.hit); s.setBall(0, newBallState()); s.setPlayfield(1, 1); // safe after destroy
   });
 });

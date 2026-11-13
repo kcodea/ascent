@@ -11,7 +11,7 @@ import { TunerPanel } from './TunerPanel';
  * DEV tuner for the PINBALL hero attack ("Multiball", a Legendary, dev-only until it has a cosmetic). Four groups of
  * per-tier dials (I the flipper shot, II the bumpers, III the ramp and multiball, IV the jackpot), the table's
  * geometry, the tilt and the roll-up, the colours and one clip / gain / pitch row per sound cue (flipper, bumper, ramp,
- * score reel, whoosh, boom). The Play buttons run the real runner between the two real portraits; each preview rolls a
+ * score reel, whoosh, boom, bell, ball roll, jackpot). The Play buttons run the real runner between the two real portraits; each preview rolls a
  * fresh bounce order.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
@@ -36,25 +36,32 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   chaseMs: ['Light chase', 'ms', 'IV: how long the bumpers and the lane arrows chase before the flipper fires.', 'The jackpot (IV)'],
   tiltDeg: ['Tilt', '°', 'IV: how far the play area tilts when the striker shoves it (0 = none).', 'The jackpot (IV)'],
   tiltMs: ['Tilt length', 'ms', 'IV: the tilt, there and back (TILT blinks for as long).', 'The jackpot (IV)'],
-  rollMs: ['Roll-up', 'ms', 'IV: how long the jackpot\'s reels spin before the last one stops on the damage.', 'The jackpot (IV)'],
+  rollMs: ['Roll-up', 'ms', 'IV: how long the jackpot score rolls up from 0 before it reaches the damage on the impact.', 'The jackpot (IV)'],
   displaySize: ['Display size', '×', 'The dot-matrix display (MULTIBALL, TILT, JACKPOT and the score).', 'The jackpot (IV)'],
+  flashAlpha: ['Impact flash', 'opacity', 'IV: the whole-screen flash as the ball slams the target (0 = none).', 'Camera and portraits'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked when the ball lands.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes on the impact.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
   zoomOutMs: ['Settle back', 'ms', 'The view easing back to rest after the impact.', 'Camera and portraits'],
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
-  sfxFlipperGain: ['flipper: gain', undefined, 'The flipper\'s clack as it fires.', 'Sound: flipper'],
+  sfxFlipperGain: ['flipper: gain', undefined, 'The flipper\'s clack as it fires (a solenoid clack over a cabinet thump).', 'Sound: flipper'],
   sfxFlipperRate: ['flipper: pitch', '×', 'Pitch of the flipper.', 'Sound: flipper'],
-  sfxBumperGain: ['bumper: gain', undefined, 'A pop bumper (a thwack and a soft bell): every bounce, the chase, the multiball bell and, lower, the impact.', 'Sound: bumper'],
+  sfxBumperGain: ['bumper: gain', undefined, 'A pop bumper\'s solenoid thwack: every bounce, the table popping up and, lower, the flipper, the echoes and the impact.', 'Sound: bumper'],
   sfxBumperRate: ['bumper: pitch', '×', 'Base pitch of the bumper (each bumper plays a little higher than the last).', 'Sound: bumper'],
   sfxRampGain: ['ramp: gain', undefined, 'III: the ball rolling on the wire ramp.', 'Sound: ramp'],
   sfxRampRate: ['ramp: pitch', '×', 'Pitch of the ramp.', 'Sound: ramp'],
-  sfxReelGain: ['reel: gain', undefined, 'IV: the score reels rattling as the jackpot rolls up.', 'Sound: score reel'],
+  sfxReelGain: ['reel: gain', undefined, 'IV: the score reels rattling as the jackpot rolls up (the climbing ticks are the bell).', 'Sound: score reel'],
   sfxReelRate: ['reel: pitch', '×', 'Pitch of the reels.', 'Sound: score reel'],
   sfxWhooshGain: ['whoosh: gain', undefined, 'The table popping up, the launched ball, the multiball split.', 'Sound: whoosh'],
   sfxWhooshRate: ['whoosh: pitch', '×', 'Pitch of the whoosh.', 'Sound: whoosh'],
   sfxBoomGain: ['boom: gain', undefined, 'The thud under the impact (bigger up the tiers) and under IV\'s shove.', 'Sound: boom'],
   sfxBoomRate: ['boom: pitch', '×', 'Pitch of the boom.', 'Sound: boom'],
+  sfxBellGain: ['bell: gain', undefined, 'The chime on every bumper (each bumper its own note), the chase, the multiball, the score\'s climbing ticks, the impact and the payout.', 'Sound: bell'],
+  sfxBellRate: ['bell: pitch', '×', 'Base pitch of the bell.', 'Sound: bell'],
+  sfxRollGain: ['roll: gain', undefined, 'The steel ball rolling on the wood for as long as it is in play.', 'Sound: ball roll'],
+  sfxRollRate: ['roll: pitch', '×', 'Pitch of the roll.', 'Sound: ball roll'],
+  sfxJackpotGain: ['jackpot: gain', undefined, 'IV: the payoff as the ball lands (bells and reels together).', 'Sound: jackpot'],
+  sfxJackpotRate: ['jackpot: pitch', '×', 'Pitch of the payoff.', 'Sound: jackpot'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
 };
 
@@ -97,7 +104,7 @@ const built = rareTunerSpec({
   ],
   clipOf: {
     'Sound: flipper': 'sfxFlipperClip', 'Sound: bumper': 'sfxBumperClip', 'Sound: ramp': 'sfxRampClip', 'Sound: score reel': 'sfxReelClip',
-    'Sound: whoosh': 'sfxWhooshClip', 'Sound: boom': 'sfxBoomClip',
+    'Sound: whoosh': 'sfxWhooshClip', 'Sound: boom': 'sfxBoomClip', 'Sound: bell': 'sfxBellClip', 'Sound: ball roll': 'sfxRollClip', 'Sound: jackpot': 'sfxJackpotClip',
   },
   note: () => {
     const c = getHeroPinballConfig();
@@ -113,7 +120,7 @@ const built = rareTunerSpec({
     'the flipper shot, the bat thwacks the ball straight into the target.',
     'the bumpers, three pop bumpers rise and the ball rattles between them before it drops on the target.',
     'the ramp and multiball, the ball loops a wire ramp and comes off as three, which cascade through the bumpers onto the target.',
-    'the jackpot, the lights chase, the ball goes wild, the table tilts, and the jackpot rolls up to the damage as the ball lands.',
+    'the jackpot, the lights chase, the ball goes wild, the table tilts, the score rolls up to the damage as the ball lands, and the jackpot pays out.',
   ],
 });
 

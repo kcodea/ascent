@@ -1,642 +1,635 @@
-// SCAFFOLDED from heroStorm/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Storm, not this style, until rewritten.
 /**
- * THE STORM CALL SCENE: everything Chord Call draws in Pixi, as a plain scene graph with no renderer, so it runs (and is
- * tested) headless. `heroChord.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
+ * THE POWER CHORD SCENE: everything Power Chord draws in Pixi, as a plain scene graph with no renderer, so it runs (and
+ * is tested) headless. `heroChord.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
  *
- * Design rule (an Epic is one strong idea; the owner's "clean" bar): the BOLT is the subject. A bolt is three strips
- * over one jagged centreline (a wide soft glow in the bolt colour, a narrower body, a white-hot core), all additive, and
- * its jag is REGENERATED every `regenMs` from the seeded generator (a live crackle, never a static zigzag), its endpoints
- * pinned. The leader races out first (the far end of the strip collapsed onto the moving head), then the whole bolt
- * flickers and fades. Short side FORKS crackle off it, re-picked with every regeneration. STATIC is the same trick in
- * miniature: little arcs that crawl over a portrait. The Big CLOUD is a handful of normal-blend billows (so it reads as a
- * dark cloud on any board) lit from inside by additive glows when it rumbles.
+ * Design rule (an Epic is one strong idea): the STAFF is the stage and SOUND is the subject. The staff is five strips
+ * between the two heroes; nothing on it is ever a static line. Each string is drawn in from the striker's end and twangs
+ * as it pulls taut; a note riding a line drags a shiver along behind it; a chord landing makes every line thrum; and the
+ * bass wave pushes a ripple down all five as its front crosses them. All of that is ONE sideways offset per point (sag +
+ * vibration + shiver + ripple), written in place into the strips' vertices each frame: about 140 points in all.
  *
- * LAYERS, bottom to top: haze (normal: the cloud) | glow (additive: bolt glows, blooms, rings, the inner cloud light) |
- * core (additive: bolt bodies and cores, sparks, flashes), so the scene batches in three runs. Strips are pooled per
- * layer and per point count; every strip is at most `BOLT_POINTS` x 2 vertices, under Pixi's 100-vertex batch limit.
+ * LAYERS (the shared `FxPool`'s four, plus the staff slotted in above `under`):
+ *   under (normal: dust, the wave's shade) | staff (the strips) | glow (additive: halos, rings, the wave) |
+ *   body (normal: the notes, the speakers) | core (additive: flashes, sparks)
  *
- * Contract: sprites and strips are POOLED and bounded by `MAX_STORM_SPRITES` / `MAX_STORM_MESHES`; textures are the
- * caller's (pre-warmed on the GPU during the damage formation); positions are the overlay's px; `setCamera` mirrors the
- * DOM camera when the runner asks it to; `update` returns whether anything still draws; `destroy()` leaves nothing
- * behind. Everything random is seeded (a replay crackles the same way).
+ * The SPEAKER STACK is seven pooled sprites (two cabinets, the amp head, four cones) laid out from its foot, so it can
+ * fall in, squash on landing with each piece hopping a little later than the one under it, and kick on every pump. The
+ * BASS WAVE is a few pooled crescents scaled out from the speakers along the line to the struck hero (see
+ * `heroChordTextures.ts` for the anchor trick); it carries no filter and reads no pixels: the "bend" is the staff ripple
+ * here and the struck portrait's skew in the runner.
+ *
+ * Contract: sprites are POOLED (`FxPool`, capped by `MAX_CHORD_SPRITES`) and the strips are made once per attack
+ * (`MAX_CHORD_MESHES`); textures are the caller's (pre-warmed on the GPU during the damage formation); positions are the
+ * overlay's px; `setCamera` mirrors the DOM camera when the runner asks it to; `update` returns whether anything still
+ * draws; `destroy()` leaves nothing behind. Everything random is seeded (a replay scatters the same notes).
  */
-import { Container, MeshSimple, Sprite, Texture } from 'pixi.js';
+import { Container, MeshSimple, type Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, easeOutCubic, easeOutQuint, mixColor, seededRng, type Pt } from '../heroAttack/easing';
-import type { BoltGeo, BoltKind } from './heroChordConfig';
+import { clamp01, easeOutBack, easeOutCubic, mixColor, spring, whiten, type Pt } from '../heroAttack/easing';
+import { FxPool } from '../heroAttack/fxPool';
+import { STAFF_LINES, type StackGeo } from './heroChordConfig';
+import { BEAM_H, BEAM_HEAD, CAB_CONE_R, CAB_CONES, CAB_H, CAB_W, CONE_D, NOTE_H, NOTE_HEAD, WAVE_ANCHOR_X, WAVE_R } from './heroChordTextures';
 
 export interface HeroChordTextures extends HeroArcanaTextures {
-  /** A bolt strip's glow (a soft bell across V). */
-  boltGlow: Texture;
-  /** A bolt strip's body and core (solid across the middle). */
-  boltCore: Texture;
-  /** Two storm-cloud billows. */
-  puff: Texture;
-  puff2: Texture;
+  /** A staff line's glow (a soft bell across V). */
+  lineGlow: Texture;
+  /** The string itself (an ink edge either side of a solid middle). */
+  lineCore: Texture;
+  /** An eighth note and a beamed pair: white, ink outline, glossy head. */
+  note: Texture;
+  pair: Texture;
+  /** The speaker stack: a cabinet (two recesses), the amp head, and one cone. */
+  cab: Texture;
+  amp: Texture;
+  cone: Texture;
+  /** The bass wave's crescent. */
+  wave: Texture;
 }
 
-export interface StormColors { core: number; bolt: number; violet: number; cloud: number; side: number }
+export interface ChordColors { staff: number; noteA: number; noteB: number; noteC: number; wave: number; side: number }
 
-export interface StormLook {
-  /** A bolt's body width, px at stage scale 1 (the look's width multiplies it). */
+export interface ChordLook {
+  /** The string's width, px at stage scale 1, and its glow as a multiple of that. */
   width: number;
-  /** The glow's width as a multiple of the body. */
   glow: number;
-  /** How often a bolt's jag is regenerated (ms). */
-  regenMs: number;
-  /** How long a bolt takes to fade out. */
-  fadeMs: number;
+  /** The sag at the middle of the staff, as a fraction of its length. */
+  sag: number;
+  /** One string's draw-in, and the delay between one string and the next. */
+  stringMs: number;
+  staggerMs: number;
+  /** How far a string swings when it is plucked taut / when a chord lands (px at stage scale 1). */
+  pluckPx: number;
+  thrumPx: number;
+  /** A string's vibration: how fast it swings and how long it takes to die away. */
+  vibHz: number;
+  vibMs: number;
+  /** How long the staff takes to go slack and fade. */
+  slackMs: number;
+  /** How far the bass wave pushes the staff as its front crosses (px at stage scale 1). */
+  bendPx: number;
+  /** How far a cone kicks out on a pump (a fraction of its size). */
+  pumpScale: number;
+  /** The bass wave: how many bands, and their size. */
+  waveBands: number;
+  waveSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Big strike peaks around 120). */
-export const MAX_STORM_SPRITES = 500;
-/** Hard cap on strips alive at once. */
-export const MAX_STORM_MESHES = 64;
-/** Points along a bolt (48 vertices) and along a small arc (fork, static; 20 vertices). */
-export const BOLT_POINTS = 24;
-export const ARC_POINTS = 10;
+/** Hard cap on sprites alive at once (a Big impact peaks around 110). */
+export const MAX_CHORD_SPRITES = 320;
+/** The strips of one staff: a glow and a string per line. */
+export const MAX_CHORD_MESHES = STAFF_LINES * 2;
+/** Points along a staff line (56 vertices a strip, under Pixi's 100-vertex batch limit). */
+export const STAFF_POINTS = 28;
 
-type LayerId = 'haze' | 'glow' | 'core';
-const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['haze', 'normal'], ['glow', 'add'], ['core', 'add']];
-const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
+/** How far apart the lines stand at `f` along the staff (0..1): pinched to a point at both ends, parallel between. */
+export function staffSpread(f: number): number {
+  const e = clamp01(Math.min(f, 1 - f) / 0.075);
+  return e * e * (3 - 2 * e);
+}
 
-interface Strip { mesh: MeshSimple; v: Float32Array; layer: LayerId; n: number }
+/** A rider's progress along the staff at `u` of its ride (0..1): it pulls away gently and is still speeding up as it lands. */
+export function rideEase(u: number): number {
+  const x = clamp01(u);
+  return 0.4 * x + 0.6 * x * x;
+}
 
-/** A small jagged arc (a fork, a crawl of static, the crackle round the hero, a flicker inside the cloud). */
-interface Arc {
+/** The angle a note leans at so it sits naturally on a staff running at `ang`: the staff's own slope, never upside down, capped. */
+export function noteLean(ang: number): number {
+  let a = ang;
+  while (a > Math.PI / 2) a -= Math.PI;
+  while (a < -Math.PI / 2) a += Math.PI;
+  return Math.max(-0.7, Math.min(0.7, a));
+}
+
+interface Strip { mesh: MeshSimple; v: Float32Array }
+
+interface Line {
   glow: Strip | null; core: Strip | null;
-  ax: number; ay: number; bx: number; by: number;
-  on: boolean;
-  width: number;
-  alpha: number;
-  /** A fork: the bolt point it leaves from. */
-  j: number;
-  /** A crawl's flicker for this regeneration. */
-  flick: number;
+  /** Ms before this string starts drawing in. */
+  delay: number;
+  /** Its current vibration: ms since it was struck (-1 = still), the swing in px, and how many humps it has. */
+  vibAge: number; vibAmp: number; vibMode: number;
+  taut: boolean;
 }
 
-interface Bolt {
-  kind: BoltKind;
-  age: number;
-  leaderMs: number; holdMs: number; fadeMs: number;
-  width: number; jag: number;
-  /** The base curve (x, y per point) and its unit normals. */
-  bx: Float32Array; by: Float32Array; nx: Float32Array; ny: Float32Array;
-  off: Float32Array;
-  len: number;
-  regen: number;
-  flick: number;
-  glow: Strip | null; body: Strip | null; core: Strip | null;
-  forks: Arc[];
-  tint: number;
+interface Staff {
+  ax: number; ay: number; dx: number; dy: number; len: number;
+  nx: number; ny: number; gap: number; sagPx: number;
+  age: number; lines: Line[];
+  /** Ms into going slack (-1 = taut). */
+  slack: number;
 }
 
-interface Crawl { x: number; y: number; r: number; age: number; dur: number; arcs: Arc[]; regen: number; follow: boolean; tint: number }
+interface Rider { s: Sprite; halo: Sprite | null; line: number; age: number; flyMs: number; lag: number; size: number; tint: number; trail: number }
 
-type AlphaMode = 'out' | 'punch';
-interface Fx { s: Sprite; age: number; dur: number; from: number; to: number; a0: number; mode: AlphaMode; peakAt: number; follow: boolean; x: number; y: number }
+/** A small note waiting on the staff (Big): the bass wave sweeps it away as its front arrives. */
+interface Rest { s: Sprite; line: number; f: number; age: number; tint: number; size: number }
 
-interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number; life: number; max: number; size: number }
-
-interface Puff { s: Sprite; hx: number; hy: number; ox: number; oy: number; size: number; delay: number; ph: number; dark: boolean }
-interface Cloud {
-  x: number; y: number; r: number; age: number; gatherMs: number;
-  puffs: Puff[]; lights: Sprite[];
-  flash: number;
-  /** Ms into the break-up after the strike (-1 = not yet). */
-  breaking: number;
-  arc: Arc | null; arcLife: number;
+interface Stack {
+  g: StackGeo; sc: number; age: number; dropMs: number; fall: number;
+  cabs: Sprite[]; amp: Sprite | null; cones: Sprite[];
+  landed: boolean;
+  /** Ms since the last pump (-1 = none yet) and how hard it was. */
+  pumpAge: number; pumpAmp: number;
+  /** Ms into leaving (-1 = staying). */
+  out: number;
 }
 
-export class HeroChordScene {
-  readonly root = new Container();
-  private readonly layers: Record<LayerId, Container>;
-  private readonly freeSprites: Record<LayerId, Sprite[]>;
-  private readonly freeMeshes = new Map<string, MeshSimple[]>();
-  private readonly uvs = new Map<number, Float32Array>();
-  private readonly idx = new Map<number, Uint32Array>();
-  private used = 0;
-  private meshes = 0;
-  private bolts: Bolt[] = [];
-  private crawls: Crawl[] = [];
-  private fx: Fx[] = [];
-  private particles: Particle[] = [];
-  private cloud: Cloud | null = null;
-  private screen: { s: Sprite; age: number; a0: number } | null = null;
-  private heroGlow: { s: Sprite; age: number; dur: number } | null = null;
-  private warm: Sprite[] = [];
-  private warmLeft = 0;
-  private destroyed = false;
-  private fox = 0;
-  private foy = 0;
-  private viewW = 1920;
-  private viewH = 1080;
-  private readonly rnd: () => number;
+interface Band { light: Sprite | null; shade: Sprite | null; lag: number }
+interface Wave { ox: number; oy: number; ang: number; ux: number; uy: number; dist: number; age: number; travelMs: number; bands: Band[]; sigma: number }
 
-  constructor(private readonly tex: HeroChordTextures, private readonly colors: StormColors, private readonly look: StormLook, private readonly scale = 1, seed = 1) {
-    this.root.eventMode = 'none';
-    this.root.label = 'heroChord';
-    this.layers = {} as Record<LayerId, Container>;
-    this.freeSprites = {} as Record<LayerId, Sprite[]>;
-    for (const [id] of LAYERS) {
-      const c = new Container();
-      c.label = `storm-${id}`;
-      this.root.addChild(c);
-      this.layers[id] = c;
-      this.freeSprites[id] = [];
+export class HeroChordScene extends FxPool {
+  private readonly staffLayer = new Container();
+  private staff: Staff | null = null;
+  private strips: Strip[] = [];
+  private riders: Rider[] = [];
+  private rests: Rest[] = [];
+  private stack: Stack | null = null;
+  private wave: Wave | null = null;
+  private lean = 0;
+  // The point `lineAt` last computed (no allocation on the hot path).
+  private px = 0;
+  private py = 0;
+
+  constructor(private readonly tex: HeroChordTextures, private readonly colors: ChordColors, private readonly look: ChordLook, scale = 1, seed = 1) {
+    super('heroChord', [tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.lineGlow, tex.lineCore, tex.note, tex.pair, tex.cab, tex.amp, tex.cone, tex.wave], scale, seed, MAX_CHORD_SPRITES);
+    this.staffLayer.label = 'heroChord-staff';
+    this.root.addChildAt(this.staffLayer, 1);
+  }
+
+  get liveMeshes(): number { return this.strips.length; }
+  get staffUp(): boolean { return this.staff !== null; }
+  get liveRiders(): number { return this.riders.length; }
+  get liveRests(): number { return this.rests.length; }
+  get stackUp(): boolean { return this.stack !== null; }
+  get stackLanded(): boolean { return !!this.stack?.landed; }
+  get waveUp(): boolean { return this.wave !== null; }
+  /** How far the wave's leading front has rolled (px from the speakers; 0 = no wave). */
+  get waveFront(): number { const w = this.wave; return w ? this.frontOf(w, 0) : 0; }
+
+  private noteTint(i: number): number { const c = this.colors; return i % 3 === 0 ? c.noteA : i % 3 === 1 ? c.noteB : c.noteC; }
+
+  // ── the staff ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** String the staff from `from` to `to`: five lines `gap` apart across it, drawn in one after another. */
+  string(from: Pt, to: Pt, across: Pt, gap: number, late = 0): void {
+    if (this.destroyed || this.staff) return;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const n = STAFF_POINTS;
+    const uv = new Float32Array(n * 4);
+    for (let j = 0; j < n; j++) { const u = j / (n - 1); uv.set([u, 0, u, 1], j * 4); }
+    const ix = new Uint32Array((n - 1) * 6);
+    for (let j = 0; j < n - 1; j++) { const a = j * 2; ix.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
+    const strip = (t: Texture, tint: number, blend: 'normal' | 'add'): Strip => {
+      const mesh = new MeshSimple({ texture: t, vertices: new Float32Array(n * 4), uvs: uv, indices: ix });
+      mesh.blendMode = blend; mesh.tint = tint; mesh.alpha = 0;
+      this.staffLayer.addChild(mesh);
+      const s = { mesh, v: mesh.vertices as Float32Array };
+      this.strips.push(s);
+      return s;
+    };
+    const lines: Line[] = [];
+    // Every glow first, then every string: the staff batches in two runs.
+    const glows = Array.from({ length: STAFF_LINES }, () => strip(this.tex.lineGlow, this.colors.side, 'add'));
+    for (let i = 0; i < STAFF_LINES; i++) {
+      lines.push({ glow: glows[i]!, core: strip(this.tex.lineCore, this.colors.staff, 'normal'), delay: i * this.look.staggerMs, vibAge: -1, vibAmp: 0, vibMode: 1, taut: false });
     }
-    this.rnd = seededRng(seed);
-    for (const n of [BOLT_POINTS, ARC_POINTS]) {
-      const uv = new Float32Array(n * 4);
-      for (let j = 0; j < n; j++) { const u = j / (n - 1); uv.set([u, 0, u, 1], j * 4); }
-      this.uvs.set(n, uv);
-      const ix = new Uint32Array((n - 1) * 6);
-      for (let j = 0; j < n - 1; j++) { const a = j * 2; ix.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
-      this.idx.set(n, ix);
-    }
-    // PRE-WARM (the damage formation is still playing): every texture on the GPU before the first bolt needs it.
-    const t = tex;
-    for (const w of [t.glow, t.spark, t.streak, t.ring, t.star, t.boltGlow, t.boltCore, t.puff, t.puff2]) {
-      const s = this.take('core', w, 0xffffff);
-      if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); }
-    }
-    this.warmLeft = 400;
+    this.lean = noteLean(Math.atan2(dy, dx));
+    this.staff = { ax: from.x, ay: from.y, dx, dy, len, nx: across.x, ny: across.y, gap, sagPx: this.look.sag * len, age: Math.max(0, late), lines, slack: -1 };
   }
 
-  get liveSprites(): number { return this.used; }
-  get liveMeshes(): number { return this.meshes; }
-  get liveBolts(): number { return this.bolts.length; }
-  get staticActive(): boolean { return this.crawls.some((c) => c.follow); }
-  get cloudUp(): boolean { return this.cloud !== null; }
-  get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) for (const ch of this.layers[id].children) if (ch instanceof Sprite) n++; return n; }
-
-  /** Mirror the DOM camera: zoom `z` about the origin with offset `(ax, ay)` already folded in. */
-  setCamera(ax: number, ay: number, z: number): void {
-    if (this.destroyed) return;
-    this.root.position.set(ax, ay);
-    this.root.scale.set(z);
-  }
-
-  /** The struck portrait's knockback and jitter this frame (overlay px): the static on it rides along. */
-  setFoeOffset(dx: number, dy: number): void { this.fox = Number.isFinite(dx) ? dx : 0; this.foy = Number.isFinite(dy) ? dy : 0; }
-
-  /** The view (overlay px), measured once by the runner: the screen flash covers it. */
-  setView(w: number, h: number): void { if (w > 0 && h > 0) { this.viewW = w; this.viewH = h; } }
-
-  // ── pools ──────────────────────────────────────────────────────────────────────────────────────────────────
-
-  private take(layer: LayerId, t: Texture, tint: number): Sprite | null {
-    if (this.destroyed || this.used >= MAX_STORM_SPRITES) return null;
-    let s = this.freeSprites[layer].pop();
-    if (!s) { s = new Sprite(t); s.blendMode = BLEND[layer]; this.layers[layer].addChild(s); } else s.texture = t;
-    s.anchor.set(0.5);
-    s.tint = tint; s.visible = true; s.alpha = 1; s.rotation = 0; s.scale.set(1);
-    this.used++;
-    return s;
-  }
-
-  private give(s: Sprite): void {
-    const layer = (s.parent?.label?.replace('storm-', '') ?? 'core') as LayerId;
-    s.visible = false; this.freeSprites[layer].push(s); this.used--;
-  }
-
-  private strip(layer: LayerId, t: Texture, tint: number, n: number): Strip | null {
-    if (this.destroyed || this.meshes >= MAX_STORM_MESHES) return null;
-    const key = `${layer}:${n}`;
-    let mesh = this.freeMeshes.get(key)?.pop();
-    if (!mesh) {
-      mesh = new MeshSimple({ texture: t, vertices: new Float32Array(n * 4), uvs: this.uvs.get(n)!, indices: this.idx.get(n)! });
-      mesh.blendMode = BLEND[layer];
-      mesh.label = key;
-      this.layers[layer].addChild(mesh);
-    } else mesh.texture = t;
-    mesh.tint = tint; mesh.alpha = 0; mesh.visible = true;
-    this.meshes++;
-    return { mesh, v: mesh.vertices as Float32Array, layer, n };
-  }
-
-  private giveStrip(st: Strip | null): void {
+  /** Strike one line (it swings `px` and rings down), or every line when `line` is -1 (alternating, so the staff shimmers). */
+  pluck(line: number, px: number, mode = 1): void {
+    const st = this.staff;
     if (!st) return;
-    st.mesh.visible = false;
-    const key = `${st.layer}:${st.n}`;
-    const list = this.freeMeshes.get(key) ?? [];
-    list.push(st.mesh);
-    this.freeMeshes.set(key, list);
-    this.meshes--;
+    st.lines.forEach((l, i) => {
+      if (line >= 0 && i !== line) return;
+      l.vibAge = 0;
+      l.vibAmp = px * this.scale * (line < 0 && i % 2 ? -1 : 1);
+      l.vibMode = line < 0 ? 1 + (i % 2) : mode;
+    });
   }
 
-  private fxs(layer: LayerId, t: Texture, tint: number, x: number, y: number, o: Partial<Omit<Fx, 's' | 'age' | 'x' | 'y'>> & { dur: number; from: number; to: number; a0: number }): Fx | null {
-    const s = this.take(layer, t, tint);
-    if (!s) return null;
-    const f: Fx = { s, age: 0, mode: 'out', peakAt: 0.2, follow: false, x, y, ...o };
-    s.position.set(x + (f.follow ? this.fox : 0), y + (f.follow ? this.foy : 0));
-    s.scale.set(f.from * this.scale);
-    s.alpha = f.mode === 'punch' ? 0 : f.a0;
-    this.fx.push(f);
-    return f;
+  /** Every line thrums (a chord landed). */
+  thrum(): void { this.pluck(-1, this.look.thrumPx); }
+
+  /** The staff goes slack and fades; the speakers (if any) leave with it. */
+  slacken(): void {
+    if (this.staff && this.staff.slack < 0) this.staff.slack = 0;
+    if (this.stack && this.stack.out < 0) this.stack.out = 0;
   }
 
-  private sparks(x: number, y: number, n: number, speed: number, o: { dir?: number; spread?: number; life?: number; size?: number; ring?: number } = {}): void {
+  /** The sideways offset of line `i` at `f` along the staff (everything that moves a string, in one number). */
+  private offsetAt(st: Staff, i: number, f: number): number {
+    const l = st.lines[i]!;
+    const slackU = st.slack < 0 ? 0 : clamp01(st.slack / this.look.slackMs);
+    const hump = Math.sin(Math.PI * f);
+    let o = (i - (STAFF_LINES - 1) / 2) * st.gap * staffSpread(f) + st.sagPx * hump * (1 + 2.2 * slackU);
+    if (l.vibAge >= 0) o += l.vibAmp * spring(l.vibAge, this.look.vibHz, this.look.vibMs) * Math.sin(Math.PI * f * l.vibMode);
+    // The shiver a riding note drags behind it on its own line.
+    for (const r of this.riders) {
+      if (r.line !== i) continue;
+      const back = (this.riderF(r) - f) * st.len;
+      if (back <= 0) continue;
+      o += this.look.pluckPx * 0.8 * this.scale * Math.sin(back * 0.085) * Math.exp(-back / (150 * this.scale)) * hump;
+    }
+    // The bass wave's front crossing: a push ahead of it and a dip behind (one ripple, riding the front).
+    const w = this.wave;
+    if (w) {
+      const x = st.ax + st.dx * f - w.ox, y = st.ay + st.dy * f - w.oy;
+      const q = (Math.hypot(x, y) - this.frontOf(w, 0)) / w.sigma;
+      if (q > -3 && q < 3) o += this.look.bendPx * this.scale * 2.33 * q * Math.exp(-q * q) * hump * this.waveFade(w);
+    }
+    return o;
+  }
+
+  /** Where line `i` is at `f` along the staff, into `px` / `py`. */
+  private lineAt(st: Staff, i: number, f: number): void {
+    const o = this.offsetAt(st, i, f);
+    this.px = st.ax + st.dx * f + st.nx * o;
+    this.py = st.ay + st.dy * f + st.ny * o;
+  }
+
+  private writeStaff(st: Staff, dt: number): boolean {
+    const n = STAFF_POINTS;
+    const L = this.look;
     const S = this.scale;
+    if (st.slack >= 0) st.slack += dt;
+    const slackU = st.slack < 0 ? 0 : clamp01(st.slack / L.slackMs);
+    const alpha = 1 - slackU;
+    const hw = L.width * S * 0.5, gw = hw * L.glow;
+    for (let i = 0; i < st.lines.length; i++) {
+      const l = st.lines[i]!;
+      if (l.vibAge >= 0) { l.vibAge += dt; if (l.vibAge > L.vibMs * 6) l.vibAge = -1; }
+      const drawn = easeOutCubic((st.age - l.delay) / L.stringMs);
+      if (!l.taut && st.age - l.delay >= L.stringMs) {
+        // Pulled taut: it twangs.
+        l.taut = true; l.vibAge = 0; l.vibAmp = L.pluckPx * S * (i % 2 ? -1 : 1); l.vibMode = 1;
+      }
+      const head = drawn * (n - 1);
+      const g = l.glow, c = l.core;
+      if (!g || !c) continue;
+      for (let j = 0; j < n; j++) {
+        const f = Math.min(j, head) / (n - 1);
+        this.lineAt(st, i, f);
+        const past = j > head + 1 ? 0 : 1;
+        const k = j * 4;
+        g.v[k] = this.px + st.nx * gw * past; g.v[k + 1] = this.py + st.ny * gw * past; g.v[k + 2] = this.px - st.nx * gw * past; g.v[k + 3] = this.py - st.ny * gw * past;
+        c.v[k] = this.px + st.nx * hw * past; c.v[k + 1] = this.py + st.ny * hw * past; c.v[k + 2] = this.px - st.nx * hw * past; c.v[k + 3] = this.py - st.ny * hw * past;
+      }
+      const on = st.age >= l.delay ? 1 : 0;
+      // A string glows brighter while it is swinging.
+      const ring = l.vibAge >= 0 ? Math.exp(-l.vibAge / L.vibMs) : 0;
+      g.mesh.alpha = on * alpha * (0.4 + 0.5 * ring);
+      c.mesh.alpha = on * alpha * 0.95;
+    }
+    return slackU < 1;
+  }
+
+  // ── the notes ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  private riderF(r: Rider): number { return rideEase(r.age / r.flyMs) * (1 - r.lag); }
+
+  /** A note leaves the striker's end of line `line` and rides it to the struck hero over `flyMs`. */
+  ride(line: number, o: { flyMs: number; lag: number; size: number; hue: number; late?: number }): void {
+    if (!this.staff) return;
+    const tint = this.noteTint(o.hue);
+    const halo = this.take('glow', this.tex.glow, tint);
+    const s = this.take('body', this.tex.note, whiten(tint, 0.12));
+    if (!s) { this.give(halo); return; }
+    s.anchor.set(NOTE_HEAD.x, NOTE_HEAD.y);
+    s.alpha = 0;
+    if (halo) halo.alpha = 0;
+    this.riders.push({ s, halo, line: Math.max(0, Math.min(STAFF_LINES - 1, Math.round(line))), age: Math.max(0, o.late ?? 0), flyMs: Math.max(1, o.flyMs), lag: o.lag, size: o.size, tint, trail: 0 });
+  }
+
+  /** Small notes pop onto the staff and wait there (Big: one batch per pump). The bass wave sweeps them away. */
+  rest(n: number, fromF = 0.16, toF = 0.8): void {
+    const st = this.staff;
+    if (!st) return;
     for (let i = 0; i < n; i++) {
-      const s = this.take('core', this.tex.streak, i % 3 === 0 ? this.colors.core : i % 3 === 1 ? this.colors.bolt : this.colors.violet);
+      const hue = this.rests.length;
+      const s = this.take('body', hue % 4 === 3 ? this.tex.pair : this.tex.note, this.noteTint(hue));
       if (!s) return;
-      const a = o.ring !== undefined ? (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.2 : o.dir === undefined ? this.rnd() * Math.PI * 2 : o.dir + (this.rnd() - 0.5) * (o.spread ?? 1.4);
-      const sp = speed * (o.ring !== undefined ? 0.85 + this.rnd() * 0.3 : 0.45 + this.rnd() * 0.75) * S;
-      const life = (o.life ?? 260) * (0.7 + this.rnd() * 0.6);
-      const r0 = (o.ring ?? 0) * S;
-      const sx = x + Math.cos(a) * r0, sy = y + Math.sin(a) * r0;
-      s.position.set(sx, sy);
-      this.particles.push({ s, x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.03, grav: 260 * S, life, max: life, size: (o.size ?? 0.34) * S });
+      const pair = hue % 4 === 3;
+      s.anchor.set(pair ? BEAM_HEAD.x : NOTE_HEAD.x, pair ? BEAM_HEAD.y : NOTE_HEAD.y);
+      s.alpha = 0;
+      const f = fromF + (toF - fromF) * ((i + 0.2 + this.rnd() * 0.6) / n);
+      const line = Math.floor(this.rnd() * STAFF_LINES) % STAFF_LINES;
+      this.rests.push({ s, line, f, age: -i * 45, tint: this.noteTint(hue), size: 0.5 + this.rnd() * 0.14 });
     }
   }
 
-  private newArc(width: number, tint: number): Arc {
-    return {
-      glow: this.strip('glow', this.tex.boltGlow, tint, ARC_POINTS), core: this.strip('core', this.tex.boltCore, this.colors.core, ARC_POINTS),
-      ax: 0, ay: 0, bx: 0, by: 0, on: false, width, alpha: 0, j: 0, flick: 1,
-    };
-  }
+  /** The height (px) a note is drawn at for a size of 1, at stage scale 1. */
+  private static readonly NOTE_PX = 118;
 
-  private dropArc(a: Arc): void { this.giveStrip(a.glow); this.giveStrip(a.core); a.glow = null; a.core = null; }
-
-  /** Write a small arc from (ax, ay) to (bx, by), jagged by `jag` of its length, fresh from the generator. */
-  private writeArc(a: Arc, alpha: number, jag: number, ox = 0, oy = 0): void {
-    const n = ARC_POINTS;
-    const dx = a.bx - a.ax, dy = a.by - a.ay;
-    const L = Math.hypot(dx, dy) || 1;
-    const nx = -dy / L, ny = dx / L;
-    const w = a.width * this.scale;
-    const glowW = w * this.look.glow * 0.8;
-    for (let j = 0; j < n; j++) {
-      const f = j / (n - 1);
-      const env = Math.sin(Math.PI * f);
-      const o = (this.rnd() - 0.5) * 2 * jag * L * env;
-      const x = a.ax + dx * f + nx * o + ox, y = a.ay + dy * f + ny * o + oy;
-      const taper = 1 - 0.6 * f;
-      if (a.glow) { const v = a.glow.v; v[j * 4] = x + nx * glowW * taper; v[j * 4 + 1] = y + ny * glowW * taper; v[j * 4 + 2] = x - nx * glowW * taper; v[j * 4 + 3] = y - ny * glowW * taper; }
-      if (a.core) { const v = a.core.v; v[j * 4] = x + nx * w * 0.5 * taper; v[j * 4 + 1] = y + ny * w * 0.5 * taper; v[j * 4 + 2] = x - nx * w * 0.5 * taper; v[j * 4 + 3] = y - ny * w * 0.5 * taper; }
+  private tickNotes(st: Staff, dt: number): void {
+    const S = this.scale;
+    const unit = (HeroChordScene.NOTE_PX / NOTE_H) * S;
+    for (let i = this.riders.length - 1; i >= 0; i--) {
+      const r = this.riders[i]!;
+      r.age += dt;
+      if (r.age >= r.flyMs) { this.give(r.s); this.give(r.halo); this.riders.splice(i, 1); continue; }
+      this.lineAt(st, r.line, this.riderF(r));
+      const pop = easeOutBack(r.age / 110, 2.6);
+      const sc = unit * r.size * pop;
+      r.s.position.set(this.px, this.py);
+      r.s.scale.set(sc);
+      r.s.rotation = this.lean + Math.sin(r.age * 0.021 + r.line) * 0.1;
+      r.s.alpha = clamp01(r.age / 50);
+      if (r.halo) {
+        r.halo.position.set(this.px, this.py);
+        r.halo.scale.set(((HeroChordScene.NOTE_PX * 1.5) / 128) * r.size * S * (1 + 0.08 * Math.sin(r.age * 0.03)));
+        r.halo.alpha = 0.5 * clamp01(r.age / 80);
+      }
+      // A sparkle shed along the line every few frames.
+      r.trail += dt;
+      if (r.trail >= 28) {
+        r.trail = 0;
+        this.spawn('core', this.rnd() < 0.5 ? this.tex.star : this.tex.spark, whiten(r.tint, 0.4), this.px + (this.rnd() - 0.5) * 14 * S, this.py + (this.rnd() - 0.5) * 14 * S, {
+          dur: 240 + this.rnd() * 120, from: 0.42 * r.size, to: 0.08, a0: 0.9, rot: this.rnd() * 3, spin: 0.004,
+        });
+      }
     }
-    this.setArcAlpha(a, alpha);
-  }
-
-  private setArcAlpha(a: Arc, alpha: number): void {
-    a.alpha = alpha;
-    if (a.glow) a.glow.mesh.alpha = Math.max(0, alpha * 0.55);
-    if (a.core) a.core.mesh.alpha = Math.max(0, alpha);
-  }
-
-  // ── the beats ─────────────────────────────────────────────────────────────────────────────────────────────
-
-  /** The charge: a glow builds on the hero and static crackles round its rim. */
-  startCharge(x: number, y: number, r: number, durMs: number, arcs: number): void {
-    const s = this.take('glow', this.tex.glow, this.colors.side);
-    if (s) { s.position.set(x, y); s.alpha = 0; this.heroGlow = { s, age: 0, dur: Math.max(60, durMs) }; }
-    if (arcs > 0) this.crawl(x, y, r, durMs + 120, arcs, false, this.colors.side);
-  }
-
-  /** Static crawling over a portrait for `durMs` (`follow`: it rides the struck portrait's knockback and jitter). */
-  crawl(x: number, y: number, r: number, durMs: number, arcs: number, follow = true, tint = this.colors.bolt): void {
-    if (arcs <= 0 || durMs <= 0) return;
-    const list: Arc[] = [];
-    for (let i = 0; i < arcs; i++) list.push(this.newArc(2.2, tint));
-    this.crawls.push({ x, y, r, age: 0, dur: durMs, arcs: list, regen: 55, follow, tint });
-  }
-
-  /** A bolt leaves `g.from` for `g.to`: its leader races out over `leaderMs`, it flickers for `holdMs`, then fades. */
-  bolt(kind: BoltKind, g: BoltGeo, o: { leaderMs: number; holdMs: number; width: number; jag: number; forks: number; late?: number; tint?: number }): void {
-    const n = BOLT_POINTS;
-    const bx = new Float32Array(n), by = new Float32Array(n), nx = new Float32Array(n), ny = new Float32Array(n);
-    const dx = g.to.x - g.from.x, dy = g.to.y - g.from.y;
-    const L = Math.hypot(dx, dy) || 1;
-    // The base curve: a quadratic bowed sideways by `bow` of the length.
-    const cx = (g.from.x + g.to.x) / 2 + (-dy / L) * g.bow * L, cy = (g.from.y + g.to.y) / 2 + (dx / L) * g.bow * L;
-    for (let j = 0; j < n; j++) {
-      const e = j / (n - 1), m = 1 - e;
-      bx[j] = m * m * g.from.x + 2 * m * e * cx + e * e * g.to.x;
-      by[j] = m * m * g.from.y + 2 * m * e * cy + e * e * g.to.y;
+    const w = this.wave;
+    for (let i = this.rests.length - 1; i >= 0; i--) {
+      const r = this.rests[i]!;
+      r.age += dt;
+      if (r.age < 0) continue;
+      this.lineAt(st, r.line, r.f);
+      const tall = r.s.texture === this.tex.pair ? BEAM_H : NOTE_H;
+      const sc = (HeroChordScene.NOTE_PX / tall) * S * r.size * easeOutBack(r.age / 150, 3);
+      // Swept away: the front has reached it.
+      if (w && Math.hypot(this.px - w.ox, this.py - w.oy) <= this.frontOf(w, 0) + 30 * S) {
+        const tx = r.s.texture, ax = r.s.anchor.x, ay = r.s.anchor.y;
+        this.give(r.s);
+        const sp = 900 + this.rnd() * 500, side = (this.rnd() - 0.5) * 520;
+        const b = this.spawn('body', tx, r.tint, this.px, this.py, {
+          dur: 420 + this.rnd() * 160, from: sc / S, to: (sc / S) * 0.7, a0: 1, mode: 'hold', ease: 'linear',
+          vx: w.ux * sp - w.uy * side, vy: w.uy * sp + w.ux * side - 120, drag: 0.12, grav: 500, rot: this.lean, spin: (this.rnd() - 0.5) * 0.03,
+        });
+        b?.anchor.set(ax, ay);
+        this.rests.splice(i, 1);
+        continue;
+      }
+      r.s.position.set(this.px, this.py);
+      r.s.scale.set(sc);
+      r.s.rotation = this.lean + Math.sin(r.age * 0.006 + r.f * 20) * 0.12;
+      r.s.alpha = clamp01(r.age / 60);
     }
-    for (let j = 0; j < n; j++) {
-      const a = Math.max(0, j - 1), b = Math.min(n - 1, j + 1);
-      const tx = bx[b]! - bx[a]!, ty = by[b]! - by[a]!;
-      const l = Math.hypot(tx, ty) || 1;
-      nx[j] = -ty / l; ny[j] = tx / l;
+  }
+
+  /**
+   * THE impact: a hot flash, a ring and a RING OF SMALL NOTES thrown off the struck portrait (they fly out, slow, tip
+   * over and fall). Medium adds a second ring and twinkles; Big a wide shock ring.
+   */
+  strike(x: number, y: number, radius: number, o: { level: number; notes: number; sparks: number; burst: number; flashAlpha: number; dir?: Pt }): void {
+    const S = this.scale;
+    const c = this.colors;
+    const d = (radius * 2) / 128 / S;
+    const rd = (radius * 2) / 160 / S; // a ring the size of the portrait
+    this.spawn('core', this.tex.glow, 0xffffff, x, y, { dur: 230, from: d * 0.35, to: d * 0.85 * o.burst, a0: o.flashAlpha, follow: true });
+    this.spawn('glow', this.tex.glow, c.noteA, x, y, { dur: 380, from: d * 0.5, to: d * 1.15 * o.burst, a0: 0.5, mode: 'punch', peakAt: 0.12, follow: true });
+    this.spawn('glow', this.tex.ring, c.noteA, x, y, { dur: 340, from: rd * 0.3, to: rd * 1.15 * o.burst, a0: 0.8, follow: true });
+    if (o.level >= 2) this.spawn('glow', this.tex.ring, c.noteB, x, y, { dur: 460, from: rd * 0.4, to: rd * 1.6 * o.burst, a0: 0.55, follow: true });
+    if (o.level >= 3) this.spawn('glow', this.tex.ring, c.wave, x, y, { dur: 560, from: rd * 0.5, to: rd * 2.4 * o.burst, a0: 0.6 });
+    // The ring of notes: evenly round the face, each one thrown outward.
+    const n = Math.max(0, Math.round(o.notes));
+    const start = this.rnd() * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = start + (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.22;
+      const pair = i % 4 === 3;
+      const sp = (560 + this.rnd() * 300) * (0.85 + 0.15 * o.burst);
+      const r0 = radius * 0.35;
+      const size = ((HeroChordScene.NOTE_PX * (0.46 + this.rnd() * 0.16)) / (pair ? BEAM_H : NOTE_H)) * (0.9 + 0.1 * o.burst);
+      // On Big the ring leans downwind (the wave carries it).
+      const wx = o.dir ? o.dir.x * 260 : 0, wy = o.dir ? o.dir.y * 260 : 0;
+      const s = this.spawn('body', pair ? this.tex.pair : this.tex.note, this.noteTint(i), x + Math.cos(a) * r0, y + Math.sin(a) * r0, {
+        dur: 620 + this.rnd() * 220, from: size * 0.5, to: size, a0: 1, mode: 'hold', ease: 'quint',
+        vx: Math.cos(a) * sp + wx, vy: Math.sin(a) * sp + wy - 90, drag: 0.06, grav: 620, rot: this.lean + (this.rnd() - 0.5) * 0.5, spin: (this.rnd() - 0.5) * 0.008,
+      });
+      s?.anchor.set(pair ? BEAM_HEAD.x : NOTE_HEAD.x, pair ? BEAM_HEAD.y : NOTE_HEAD.y);
     }
-    const tint = o.tint ?? (kind === 'call' ? this.colors.violet : this.colors.bolt);
-    const bolt: Bolt = {
-      kind, age: Math.max(0, o.late ?? 0), leaderMs: Math.max(1, o.leaderMs), holdMs: Math.max(0, o.holdMs), fadeMs: this.look.fadeMs,
-      width: o.width, jag: o.jag, bx, by, nx, ny, off: new Float32Array(n), len: L, regen: 0, flick: 1,
-      glow: this.strip('glow', this.tex.boltGlow, tint, n), body: this.strip('core', this.tex.boltCore, tint, n), core: this.strip('core', this.tex.boltCore, this.colors.core, n),
-      forks: [], tint,
-    };
-    for (let i = 0; i < Math.max(0, Math.round(o.forks)); i++) bolt.forks.push(this.newArc(o.width * 2.4, tint));
-    this.regenBolt(bolt);
-    this.bolts.push(bolt);
-  }
-
-  /** A strike that is only a tick (Medium's first branch): a zap flash and a few sparks. FX only. */
-  zap(x: number, y: number, radius: number, sparks: number): void {
-    const d = (radius * 2) / 128 / this.scale;
-    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 170, from: d * 0.25, to: d * 0.55, a0: 0.85, follow: true });
-    this.fxs('glow', this.tex.ring, this.colors.bolt, x, y, { dur: 240, from: 0.12, to: 0.45, a0: 0.6, follow: true });
-    this.sparks(x, y, Math.round(sparks * 0.5), 560, { life: 220 });
-  }
-
-  /** THE impact: a hot flash, a ring and a burst of sparks; Big adds a ring of sparks, a shock ring and a screen flash. */
-  strike(x: number, y: number, radius: number, o: { level: number; burst: number; sparks: number; flashAlpha: number; screen: number }): void {
-    const d = (radius * 2) / 128 / this.scale;
-    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 240, from: d * 0.35, to: d * 0.8 * o.burst, a0: o.flashAlpha, follow: true });
-    this.fxs('glow', this.tex.glow, this.colors.bolt, x, y, { dur: 380, from: d * 0.5, to: d * 1.1 * o.burst, a0: 0.5, mode: 'punch', peakAt: 0.12, follow: true });
-    this.fxs('glow', this.tex.ring, this.colors.bolt, x, y, { dur: 320, from: 0.15, to: 0.7 * o.burst, a0: 0.8, follow: true });
-    this.sparks(x, y, o.sparks, 700, { life: 300 });
-    if (o.level >= 2) this.fxs('glow', this.tex.ring, this.colors.violet, x, y, { dur: 440, from: 0.2, to: 1.0 * o.burst, a0: 0.5, follow: true });
-    if (o.level >= 3) {
-      this.sparks(x, y, Math.round(o.sparks * 0.75), 780, { ring: radius * 0.45 / this.scale, life: 340, size: 0.42 });
-      this.fxs('glow', this.tex.ring, this.colors.core, x, y, { dur: 520, from: 0.3, to: 1.9 * o.burst, a0: 0.6 });
+    this.burst('core', this.tex.streak, [0xffffff, c.noteA, c.noteB, c.noteC], x, y, o.sparks, { speed: 720, life: 300, size: 0.34, grav: 260, drag: 0.03, align: true });
+    if (o.level >= 2) {
       for (let i = 0; i < 5; i++) {
         const a = this.rnd() * Math.PI * 2, rr = radius * (0.4 + this.rnd() * 0.9);
-        const f = this.fxs('core', this.tex.star, this.colors.core, x + Math.cos(a) * rr, y + Math.sin(a) * rr, { dur: 260 + this.rnd() * 200, from: 0.05, to: 0.3, a0: 0.9, mode: 'punch', peakAt: 0.3 });
-        if (f) f.s.rotation = this.rnd() * Math.PI;
+        this.spawn('core', this.tex.star, 0xffffff, x + Math.cos(a) * rr, y + Math.sin(a) * rr, { dur: 260 + this.rnd() * 200, from: 0.1, to: 0.6, a0: 0.9, mode: 'punch', peakAt: 0.3, rot: this.rnd() * Math.PI, delay: this.rnd() * 120 });
       }
-      if (o.screen > 0) {
-        const s = this.take('core', Texture.WHITE, 0xdcecff);
-        if (s) {
-          // The flash covers the whole view in the overlay's own px (the root's camera is undone so it never slides).
-          s.anchor.set(0);
-          this.screen = { s, age: 0, a0: o.screen };
+    }
+  }
+
+  // ── the speakers ──────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The speaker stack falls in from above the view and lands in `g` after `dropMs`. */
+  dropStack(g: StackGeo, dropMs: number, late = 0): void {
+    if (this.destroyed || this.stack) return;
+    const sc = g.w / CAB_W;
+    const cabs: Sprite[] = [];
+    for (let i = 0; i < 2; i++) { const s = this.take('body', this.tex.cab, 0xffffff); if (s) { s.anchor.set(0.5, 1); cabs.push(s); } }
+    const amp = this.take('body', this.tex.amp, 0xffffff);
+    amp?.anchor.set(0.5, 1);
+    const cones: Sprite[] = [];
+    for (let i = 0; i < cabs.length * CAB_CONES.length; i++) { const s = this.take('body', this.tex.cone, 0xffffff); if (s) cones.push(s); }
+    // It starts just above the top of the view, however high its spot is.
+    const fall = Math.max(g.h * 0.8, g.y + g.h / 2 + 30 * this.scale);
+    this.stack = { g, sc, age: Math.max(0, late), dropMs: Math.max(1, dropMs), fall, cabs, amp, cones, landed: false, pumpAge: -1, pumpAmp: 0, out: -1 };
+    this.layStack(this.stack);
+  }
+
+  /** The cones kick (`amp` 1 = a count-in pump; the drop kicks harder) and a soft ring leaves each one. */
+  pump(amp = 1, notes = 0): void {
+    const st = this.stack;
+    if (!st) return;
+    st.pumpAge = 0; st.pumpAmp = amp;
+    for (const cn of st.cones) {
+      this.spawn('glow', this.tex.ring, this.colors.wave, cn.x, cn.y, { dur: 300, from: (CAB_CONE_R * 2 * st.sc) / 160 / this.scale, to: (CAB_CONE_R * 2 * (1.7 + 0.5 * amp) * st.sc) / 160 / this.scale, a0: 0.5 * Math.min(1.4, amp), ease: 'cubic' });
+    }
+    // Notes pop out of the top of the stack.
+    const top = st.g.y - st.g.h * 0.5;
+    for (let i = 0; i < notes; i++) {
+      const s = this.spawn('body', this.tex.note, this.noteTint(i + (amp > 1 ? 1 : 0)), st.g.x + (this.rnd() - 0.5) * st.g.w * 0.7, top + st.g.h * 0.12, {
+        dur: 520 + this.rnd() * 160, from: 0.1, to: (HeroChordScene.NOTE_PX * 0.36) / NOTE_H, a0: 1, mode: 'hold',
+        vx: (this.rnd() - 0.5) * 260, vy: -(300 + this.rnd() * 160), drag: 0.25, grav: 520, rot: (this.rnd() - 0.5) * 0.5, spin: (this.rnd() - 0.5) * 0.006,
+      });
+      s?.anchor.set(NOTE_HEAD.x, NOTE_HEAD.y);
+    }
+  }
+
+  /** Lay the stack's seven sprites out from its foot for this frame (the fall, the landing squash, the hop, the pump). */
+  private layStack(st: Stack): boolean {
+    const S = this.scale;
+    const { g, sc } = st;
+    const landing = st.age - st.dropMs;
+    const u = clamp01(st.age / st.dropMs);
+    const fallY = -st.fall * (1 - u * u);
+    // The landing: the whole stack squashes and rings back.
+    const sq = landing >= 0 ? 0.13 * spring(landing, 5.5, 85) : -0.05 * u;
+    const kick = st.pumpAge >= 0 ? st.pumpAmp * Math.max(0, spring(st.pumpAge, 6, 70)) : 0;
+    const out = st.out < 0 ? 0 : clamp01(st.out / 240);
+    const outE = out * out;
+    const sx = (1 + sq * 0.6 + kick * 0.03) * (1 - 0.1 * outE), sy = (1 - sq + kick * 0.02) * (1 - 0.1 * outE);
+    const alpha = 1 - outE;
+    const foot = g.y + g.h / 2 + fallY + 40 * S * outE;
+    const cabH = (CAB_H - 4) * sc;
+    let y = foot;
+    for (let i = 0; i < st.cabs.length; i++) {
+      const s = st.cabs[i]!;
+      // Each piece hops a little later and a little higher than the one under it.
+      const hop = landing >= 0 && i > 0 ? this.hop(landing, i) : 0;
+      const k = i === 0 ? 1 : 0.94;
+      s.position.set(g.x, y - hop);
+      s.scale.set(sc * sx * k, sc * sy * k);
+      s.alpha = alpha;
+      for (let j = 0; j < CAB_CONES.length; j++) {
+        const cn = st.cones[i * CAB_CONES.length + j];
+        if (!cn) continue;
+        const p = CAB_CONES[j]!;
+        const csc = ((CAB_CONE_R * 2) / CONE_D) * sc * k;
+        cn.position.set(g.x + (p.x - CAB_W / 2) * sc * sx * k, y - hop - (CAB_H - p.y) * sc * sy * k);
+        // The cone leaps out of its recess on a pump (the lower pair a touch harder).
+        const pk = 1 + this.look.pumpScale * kick * (i === 0 ? 1 : 0.85);
+        cn.scale.set(csc * sx * pk, csc * sy * pk);
+        cn.alpha = alpha;
+        cn.tint = kick > 0.02 ? mixColor(0xffffff, whiten(this.colors.wave, 0.3), Math.min(1, kick)) : 0xffffff;
+      }
+      y -= cabH * sy * k;
+    }
+    if (st.amp) {
+      const hop = landing >= 0 ? this.hop(landing, 2) : 0;
+      st.amp.position.set(g.x, y - hop + 2 * sc);
+      st.amp.scale.set(sc * sx * 0.94, sc * sy * 0.94);
+      st.amp.alpha = alpha;
+    }
+    return out < 1;
+  }
+
+  /** A stacked piece's hop after the landing: piece `i` leaves later, rises higher and takes longer. */
+  private hop(landing: number, i: number): number {
+    const t = (landing - 18 * i) / (130 + 45 * i);
+    return t > 0 && t < 1 ? Math.sin(Math.PI * t) * (5 + 6 * i) * this.scale : 0;
+  }
+
+  private tickStack(st: Stack, dt: number): boolean {
+    st.age += dt;
+    if (st.pumpAge >= 0) st.pumpAge += dt;
+    if (st.out >= 0) st.out += dt;
+    if (!st.landed && st.age >= st.dropMs) {
+      st.landed = true;
+      // Dust kicked out along the floor either side, and a soft ring off the foot.
+      const S = this.scale;
+      const foot = st.g.y + st.g.h / 2;
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 3; i++) {
+          this.spawn('under', this.tex.glow, 0xd9cdb8, st.g.x + side * st.g.w * 0.35, foot - 4 * S, {
+            dur: 420 + i * 70, from: 0.18, to: (st.g.w / 128 / S) * (0.5 + 0.18 * i), a0: 0.4, sy: 0.55, ease: 'cubic', vx: side * (150 + 90 * i), vy: -24 - 18 * i, drag: 0.05,
+          });
         }
       }
-      const cl = this.cloud;
-      if (cl) { cl.flash = 1; cl.breaking = 0; }
+      this.spawn('glow', this.tex.ring, 0xfff2d6, st.g.x, foot, { dur: 300, from: 0.2, to: (st.g.w * 1.9) / 160 / S, a0: 0.45, sy: 0.28, ease: 'cubic' });
     }
+    return this.layStack(st);
   }
 
-  /** Big: the storm cloud gathers over (x, y), its billows sliding in from the sides over `gatherMs`. */
-  gather(x: number, y: number, r: number, gatherMs: number): void {
-    if (this.cloud) return;
-    const puffs: Puff[] = [];
-    const n = 9;
+  // ── the bass wave ─────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The bass wave rolls out of the speakers at `from` and its front reaches `to` after `travelMs`. */
+  bass(from: Pt, to: Pt, travelMs: number, late = 0): void {
+    if (this.destroyed || this.wave) return;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const bands: Band[] = [];
+    const n = Math.max(1, Math.min(4, Math.round(this.look.waveBands)));
     for (let i = 0; i < n; i++) {
-      const f = i / (n - 1);
-      const dark = i % 3 === 1;
-      const hx = (f - 0.5) * 2 * r * 0.78 + (this.rnd() - 0.5) * r * 0.12;
-      const hy = (dark ? r * 0.16 : -r * 0.1 * Math.sin(Math.PI * f) * 1.4) + (this.rnd() - 0.5) * r * 0.08;
-      const s = this.take('haze', i % 2 ? this.tex.puff2 : this.tex.puff, dark ? mixColor(this.colors.cloud, 0x000000, 0.35) : this.colors.cloud);
-      if (!s) break;
-      s.alpha = 0;
-      puffs.push({ s, hx, hy, ox: hx * 1.9, oy: hy * 1.5 - r * 0.25, size: (0.8 + this.rnd() * 0.45) * (1 - 0.35 * Math.abs(f - 0.5)), delay: this.rnd() * gatherMs * 0.3, ph: this.rnd() * 6, dark });
+      const shade = this.take('under', this.tex.wave, 0x0a0f2a);
+      const light = this.take('glow', this.tex.wave, i === 0 ? whiten(this.colors.wave, 0.35) : this.colors.wave);
+      for (const s of [shade, light]) { if (s) { s.anchor.set(WAVE_ANCHOR_X, 0.5); s.alpha = 0; s.rotation = Math.atan2(dy, dx); s.position.set(from.x, from.y); } }
+      bands.push({ light, shade, lag: i * 78 });
     }
-    const lights: Sprite[] = [];
-    for (let i = 0; i < 3; i++) { const s = this.take('glow', this.tex.glow, this.colors.bolt); if (s) { s.alpha = 0; lights.push(s); } }
-    this.cloud = { x, y, r, age: 0, gatherMs: Math.max(1, gatherMs), puffs, lights, flash: 0, breaking: -1, arc: null, arcLife: 0 };
+    this.wave = { ox: from.x, oy: from.y, ang: Math.atan2(dy, dx), ux: dx / dist, uy: dy / dist, dist, age: Math.max(0, late), travelMs: Math.max(1, travelMs), bands, sigma: 70 * this.scale };
   }
 
-  /** Big: the cloud rumbles: it lights up from inside and a small arc flickers across it. */
-  rumble(): void {
-    const cl = this.cloud;
-    if (!cl) return;
-    cl.flash = 0.85;
-    if (!cl.arc) cl.arc = this.newArc(2.4, this.colors.bolt);
-    const a = cl.arc;
-    a.ax = cl.x - cl.r * (0.2 + this.rnd() * 0.4); a.ay = cl.y + (this.rnd() - 0.2) * cl.r * 0.2;
-    a.bx = cl.x + cl.r * (0.2 + this.rnd() * 0.4); a.by = cl.y + (this.rnd() - 0.2) * cl.r * 0.2;
-    cl.arcLife = 150;
-    this.writeArc(a, 1, 0.3);
+  /** How far a band's front is from the speakers (constant speed: it reaches the struck hero at `travelMs` and rolls on). */
+  private frontOf(w: Wave, lag: number): number { return Math.max(0, (w.age - lag) / w.travelMs) * w.dist; }
+
+  /** The wave's strength: full while it crosses, dying away once the front is past the struck hero. */
+  private waveFade(w: Wave): number { return 1 - clamp01((w.age / w.travelMs - 1) / 0.32); }
+
+  private tickWave(w: Wave, dt: number): boolean {
+    w.age += dt;
+    const S = this.scale;
+    let alive = false;
+    for (const b of w.bands) {
+      const r = this.frontOf(w, b.lag);
+      const u = (w.age - b.lag) / w.travelMs;
+      const on = u > 0 && u < 1.34;
+      // Each band fades in as it clears the speakers and out once it is past the struck hero; later bands are fainter.
+      const a = on ? clamp01(r / (120 * S)) * (1 - clamp01((u - 1) / 0.32)) * (1 - 0.22 * (b.lag / 78)) : 0;
+      const sc = Math.max(0.02, r / WAVE_R);
+      // Its size across follows the radius (a real front), its thickness is held nearer constant so it stays a crisp band.
+      const sx = sc * this.look.waveSize * (0.55 + 0.45 * Math.min(1, (400 * S) / Math.max(1, r)));
+      if (b.light) { b.light.scale.set(sx, sc); b.light.alpha = a; this.placeBand(b.light, w, r, sx); }
+      if (b.shade) { b.shade.scale.set(sx, sc); b.shade.alpha = a * 0.34; this.placeBand(b.shade, w, r - 26 * S, sx); }
+      if (u < 1.34) alive = true;
+    }
+    if (!alive) {
+      for (const b of w.bands) { this.give(b.light); this.give(b.shade); }
+      this.wave = null;
+    }
+    return alive;
+  }
+
+  /** Put a crescent so its leading rim sits `r` out from the speakers, whatever its x scale (its thickness) is. */
+  private placeBand(s: Sprite, w: Wave, r: number, sx: number): void {
+    // The sprite's anchor is the circle's centre, so at x scale `sx` its rim sits `WAVE_R * sx` from its position.
+    const back = Math.max(0, r) - WAVE_R * sx;
+    s.position.set(w.ox + w.ux * back, w.oy + w.uy * back);
   }
 
   // ── the frame ─────────────────────────────────────────────────────────────────────────────────────────────
 
-  private regenBolt(b: Bolt): void {
-    const n = BOLT_POINTS;
-    const amp = b.jag * b.len;
-    // Two octaves: a coarse wander (every 4th point, eased between) and a fine crackle, pinned at both ends.
-    const coarse: number[] = [];
-    for (let k = 0; k <= Math.ceil((n - 1) / 4); k++) coarse.push((this.rnd() - 0.5) * 2);
-    for (let j = 0; j < n; j++) {
-      const f = j / (n - 1);
-      const env = Math.pow(Math.sin(Math.PI * f), 0.6);
-      const kf = j / 4, k0 = Math.floor(kf), t = kf - k0;
-      const c = coarse[k0]! + (coarse[Math.min(coarse.length - 1, k0 + 1)]! - coarse[k0]!) * (t * t * (3 - 2 * t));
-      b.off[j] = (c * 0.75 + (this.rnd() - 0.5) * 0.5) * amp * env;
+  protected override tick(dt: number): boolean {
+    let alive = false;
+    const st = this.staff;
+    if (this.wave && this.tickWave(this.wave, dt)) alive = true;
+    if (st) {
+      st.age += dt;
+      this.tickNotes(st, dt);
+      if (this.writeStaff(st, dt)) alive = true;
+      else this.dropStaff();
     }
-    b.flick = 0.72 + 0.28 * this.rnd();
-    // Re-pick the side forks: off the middle of the bolt, angled forward and away from it (drawn once per regeneration).
-    for (const a of b.forks) {
-      const j = Math.floor((0.2 + this.rnd() * 0.6) * (n - 1));
-      const side = this.rnd() < 0.5 ? -1 : 1;
-      const nx = b.nx[j]!, ny = b.ny[j]!;
-      const ang = 0.45 + this.rnd() * 0.5;
-      const L = b.len * (0.08 + this.rnd() * 0.1);
-      a.ax = b.bx[j]! + nx * b.off[j]!; a.ay = b.by[j]! + ny * b.off[j]!;
-      // Along the bolt is (ny, -nx); the side is the normal.
-      a.bx = a.ax + (ny * Math.cos(ang) + nx * side * Math.sin(ang)) * L;
-      a.by = a.ay + (-nx * Math.cos(ang) + ny * side * Math.sin(ang)) * L;
-      a.on = this.rnd() < 0.8;
-      a.j = j;
-      this.writeArc(a, 0, 0.2);
+    if (this.stack) {
+      if (this.tickStack(this.stack, dt)) alive = true;
+      else this.dropStack_();
     }
+    return alive || this.riders.length > 0 || this.rests.length > 0;
   }
 
-  private writeBolt(b: Bolt): void {
-    const n = BOLT_POINTS;
-    const lead = clamp01(b.age / b.leaderMs);
-    const head = lead * (n - 1);
-    const hi = Math.floor(head), hf = head - hi;
-    const since = b.age - b.leaderMs;
-    const fade = since <= b.holdMs ? 1 : 1 - clamp01((since - b.holdMs) / b.fadeMs);
-    // Just landed: a hot restrike (brighter, fuller), then the flicker.
-    const hot = since >= 0 && since < 70 ? 1.25 : 1;
-    const alpha = (lead < 1 ? 1 : since < 70 ? 1 : b.flick) * fade;
-    const w = b.width * this.look.width * this.scale;
-    const hx = (j: number): number => b.bx[j]! + b.nx[j]! * b.off[j]!;
-    const hy = (j: number): number => b.by[j]! + b.ny[j]! * b.off[j]!;
-    const headX = hi >= n - 1 ? hx(n - 1) : hx(hi) + (hx(hi + 1) - hx(hi)) * hf;
-    const headY = hi >= n - 1 ? hy(n - 1) : hy(hi) + (hy(hi + 1) - hy(hi)) * hf;
-    const strips: [Strip | null, number][] = [[b.glow, this.look.glow], [b.body, 1], [b.core, 0.38]];
-    for (const [st, mult] of strips) {
-      if (!st) continue;
-      const v = st.v;
-      for (let j = 0; j < n; j++) {
-        const f = j / (n - 1);
-        const past = j > head;
-        const x = past ? headX : hx(j), y = past ? headY : hy(j);
-        const taper = (0.65 + 0.35 * Math.sin(Math.PI * Math.min(1, f * 1.1 + 0.05))) * (past ? 0 : 1);
-        const h = w * 0.5 * mult * taper * (mult < 1 ? 1 : hot);
-        v[j * 4] = x + b.nx[j]! * h; v[j * 4 + 1] = y + b.ny[j]! * h;
-        v[j * 4 + 2] = x - b.nx[j]! * h; v[j * 4 + 3] = y - b.ny[j]! * h;
-      }
-    }
-    if (b.glow) b.glow.mesh.alpha = 0.8 * alpha;
-    if (b.body) b.body.mesh.alpha = 0.85 * alpha;
-    if (b.core) b.core.mesh.alpha = Math.min(1, alpha * hot);
-    for (const a of b.forks) this.setArcAlpha(a, a.on && a.j <= head ? alpha * 0.75 : 0);
+  private dropStaff(): void {
+    for (const r of this.riders) { this.give(r.s); this.give(r.halo); }
+    for (const r of this.rests) this.give(r.s);
+    this.riders = []; this.rests = [];
+    for (const s of this.strips) { this.staffLayer.removeChild(s.mesh); s.mesh.destroy(); }
+    this.strips = [];
+    this.staff = null;
   }
 
-  /** Advance everything by `dt` ms. Returns whether anything still draws. */
-  update(dt: number): boolean {
-    if (this.destroyed) return false;
-    const S = this.scale;
-    const sec = dt / 1000;
-    if (this.warmLeft > 0) {
-      this.warmLeft -= dt;
-      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; }
-    }
-
-    const hg = this.heroGlow;
-    if (hg) {
-      hg.age += dt;
-      const u = clamp01(hg.age / hg.dur);
-      const out = clamp01((hg.age - hg.dur) / 200);
-      hg.s.scale.set((0.8 + 0.8 * u) * S * (1 + 0.06 * Math.sin(hg.age * 0.05)));
-      hg.s.alpha = 0.45 * u * (1 - out);
-      if (out >= 1) { this.give(hg.s); this.heroGlow = null; }
-    }
-
-    for (let i = this.bolts.length - 1; i >= 0; i--) {
-      const b = this.bolts[i]!;
-      b.age += dt;
-      b.regen += dt;
-      if (b.regen >= this.look.regenMs) { b.regen = 0; this.regenBolt(b); }
-      if (b.age >= b.leaderMs + b.holdMs + b.fadeMs) {
-        this.giveStrip(b.glow); this.giveStrip(b.body); this.giveStrip(b.core);
-        for (const a of b.forks) this.dropArc(a);
-        this.bolts.splice(i, 1);
-        continue;
-      }
-      this.writeBolt(b);
-    }
-
-    for (let i = this.crawls.length - 1; i >= 0; i--) {
-      const c = this.crawls[i]!;
-      c.age += dt;
-      c.regen += dt;
-      if (c.age >= c.dur) { for (const a of c.arcs) this.dropArc(a); this.crawls.splice(i, 1); continue; }
-      const env = Math.min(1, c.age / 60) * (1 - clamp01((c.age - c.dur * 0.6) / (c.dur * 0.4)));
-      const ox = c.follow ? this.fox : 0, oy = c.follow ? this.foy : 0;
-      if (c.regen >= 55) {
-        c.regen = 0;
-        for (const a of c.arcs) {
-          // A crawl across the face: from a point near the rim, inward and across.
-          const th = this.rnd() * Math.PI * 2;
-          const r0 = c.r * (0.55 + this.rnd() * 0.35);
-          a.ax = c.x + Math.cos(th) * r0; a.ay = c.y + Math.sin(th) * r0;
-          const th2 = th + Math.PI + (this.rnd() - 0.5) * 1.8;
-          const len = c.r * (0.3 + this.rnd() * 0.45);
-          a.bx = a.ax + Math.cos(th2) * len; a.by = a.ay + Math.sin(th2) * len;
-          a.on = this.rnd() < 0.8;
-          a.flick = 0.65 + 0.35 * this.rnd();
-          // The geometry is drawn once per regeneration (a crackle, not a per-frame shimmer), where the portrait is now.
-          this.writeArc(a, 0, 0.28, ox, oy);
-        }
-      }
-      for (const a of c.arcs) this.setArcAlpha(a, a.on ? env * a.flick : 0);
-    }
-
-    const cl = this.cloud;
-    if (cl) {
-      cl.age += dt;
-      cl.flash = Math.max(0, cl.flash - dt / 200);
-      const brk = cl.breaking >= 0 ? (cl.breaking += dt) : -1;
-      const bu = brk >= 0 ? clamp01(brk / 700) : 0;
-      const pscale = (cl.r * 0.95) / 128;
-      for (const p of cl.puffs) {
-        const u = easeOutCubic(clamp01((cl.age - p.delay) / (cl.gatherMs * 0.7)));
-        const bob = Math.sin(cl.age * 0.004 + p.ph) * cl.r * 0.02;
-        const x = cl.x + p.ox + (p.hx - p.ox) * u + p.hx * 0.5 * bu;
-        const y = cl.y + p.oy + (p.hy - p.oy) * u + bob - cl.r * 0.2 * bu;
-        p.s.position.set(x, y);
-        p.s.scale.set(pscale * p.size * (0.55 + 0.45 * u) * (1 + 0.25 * bu), pscale * p.size * 0.8 * (0.55 + 0.45 * u) * (1 + 0.25 * bu));
-        p.s.alpha = 0.95 * u * (1 - bu);
-        const base = p.dark ? mixColor(this.colors.cloud, 0x000000, 0.35) : this.colors.cloud;
-        p.s.tint = cl.flash > 0 ? mixColor(base, 0xcfe4ff, 0.55 * cl.flash) : base;
-      }
-      cl.lights.forEach((s, i) => {
-        const p = cl.puffs[(i * 3 + 1) % Math.max(1, cl.puffs.length)];
-        if (p) s.position.set(p.s.x, p.s.y);
-        s.scale.set((cl.r * 1.1) / 128 * (0.9 + 0.2 * i));
-        s.alpha = (0.1 * clamp01(cl.age / cl.gatherMs) + 0.75 * cl.flash) * (1 - bu);
-      });
-      if (cl.arc) {
-        cl.arcLife -= dt;
-        this.setArcAlpha(cl.arc, cl.arcLife > 0 ? clamp01(cl.arcLife / 80) : 0);
-      }
-      if (bu >= 1) {
-        for (const p of cl.puffs) this.give(p.s);
-        for (const s of cl.lights) this.give(s);
-        if (cl.arc) this.dropArc(cl.arc);
-        this.cloud = null;
-      }
-    }
-
-    const sc = this.screen;
-    if (sc) {
-      sc.age += dt;
-      const u = clamp01(sc.age / 220);
-      // Undo the root's camera so the flash always covers exactly the view.
-      const z = this.root.scale.x || 1;
-      sc.s.position.set(-this.root.position.x / z, -this.root.position.y / z);
-      sc.s.scale.set(this.viewW / z, this.viewH / z);
-      sc.s.alpha = sc.a0 * (1 - u) * (1 - u);
-      if (u >= 1) { this.give(sc.s); this.screen = null; }
-    }
-
-    for (let i = this.fx.length - 1; i >= 0; i--) {
-      const q = this.fx[i]!;
-      q.age += dt;
-      const u = clamp01(q.age / q.dur);
-      q.s.scale.set((q.from + (q.to - q.from) * easeOutQuint(u)) * S);
-      q.s.position.set(q.x + (q.follow ? this.fox : 0), q.y + (q.follow ? this.foy : 0));
-      q.s.alpha = q.mode === 'punch'
-        ? (u < q.peakAt ? q.a0 * (u / q.peakAt) : q.a0 * (1 - (u - q.peakAt) / (1 - q.peakAt)))
-        : q.a0 * (1 - u) * (1 - u * 0.3);
-      if (u >= 1) { this.give(q.s); this.fx.splice(i, 1); }
-    }
-
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i]!;
-      p.life -= dt;
-      if (p.life <= 0) { this.give(p.s); this.particles.splice(i, 1); continue; }
-      const damp = Math.pow(p.drag, sec);
-      p.vx *= damp; p.vy = p.vy * damp + p.grav * sec;
-      p.x += p.vx * sec; p.y += p.vy * sec;
-      const t = 1 - p.life / p.max;
-      const v = Math.hypot(p.vx, p.vy);
-      p.s.position.set(p.x, p.y);
-      p.s.rotation = Math.atan2(p.vy, p.vx);
-      p.s.scale.set(p.size * (0.6 + Math.min(1.8, v / (700 * S))), p.size * 0.45);
-      p.s.alpha = 1 - t;
-    }
-
-    return this.used > this.warm.length || this.meshes > 0;
+  private dropStack_(): void {
+    const st = this.stack;
+    if (!st) return;
+    for (const s of st.cabs) this.give(s);
+    for (const s of st.cones) { s.tint = 0xffffff; this.give(s); }
+    this.give(st.amp);
+    this.stack = null;
   }
 
-  /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */
-  clear(): void {
-    for (const b of this.bolts) { this.giveStrip(b.glow); this.giveStrip(b.body); this.giveStrip(b.core); for (const a of b.forks) this.dropArc(a); }
-    for (const c of this.crawls) for (const a of c.arcs) this.dropArc(a);
-    for (const q of this.fx) this.give(q.s);
-    for (const p of this.particles) this.give(p.s);
-    for (const s of this.warm) this.give(s);
-    if (this.cloud) { for (const p of this.cloud.puffs) this.give(p.s); for (const s of this.cloud.lights) this.give(s); if (this.cloud.arc) this.dropArc(this.cloud.arc); }
-    if (this.screen) this.give(this.screen.s);
-    if (this.heroGlow) this.give(this.heroGlow.s);
-    this.bolts = []; this.crawls = []; this.fx = []; this.particles = []; this.warm = []; this.cloud = null; this.screen = null; this.heroGlow = null;
+  protected override clearOwn(): void {
+    this.dropStaff();
+    this.dropStack_();
+    if (this.wave) { for (const b of this.wave.bands) { this.give(b.light); this.give(b.shade); } this.wave = null; }
   }
 
-  /** Tear down: every sprite and strip destroyed, the root emptied and destroyed. Textures are the caller's. */
-  destroy(): void {
-    if (this.destroyed) return;
-    this.clear();
-    this.destroyed = true;
-    for (const [id] of LAYERS) {
-      this.freeSprites[id].length = 0;
-      this.layers[id].removeChildren().forEach((c) => c.destroy());
-    }
-    this.freeMeshes.clear();
-    this.root.removeChildren().forEach((c) => c.destroy());
-    this.root.destroy();
-  }
 }
 
 export type { Pt };

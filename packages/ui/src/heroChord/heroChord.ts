@@ -1,21 +1,25 @@
-// SCAFFOLDED from heroStorm/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Storm, not this style, until rewritten.
 /**
- * THE STORM CALL RUNNER: plays one Chord Call hero attack (the beats are in `heroChordConfig.ts`) and lands the
- * consequence on its impact beat (the Small arc, the Medium second branch, or the Big strike). Presentation only: the
- * total it shows and the blow it lands are handed in, already decided by the engine.
+ * THE POWER CHORD RUNNER: plays one Power Chord hero attack (the beats are in `heroChordConfig.ts`) and lands the
+ * consequence on its impact beat (the note or the chord arriving, or the bass wave's front reaching the struck hero).
+ * Presentation only: the total it shows and the blow it lands are handed in, already decided by the engine.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera, the portraits (transform only, restored after), the voices, the
- * dim, reduced motion, finish / cancel and the safety timer. What is Chord Call's own: the bolt geometry, the fork, the
- * cloud, the static jitter, its camera and its sound.
+ * dim, reduced motion, finish / cancel and the safety timer. What is Power Chord's own: the staff, the notes, the
+ * speaker stack, the bass wave, the way the struck portrait is blown back, its camera and its sound.
+ *
+ * THE STRUCK PORTRAIT IS BLOWN BACK BY TRANSFORM ONLY. On Big the wave shoves it downwind and skews it (the top of the
+ * portrait leans the way the wave travels, like hair in a dryer), then it springs upright. That is one `transform`
+ * string on the portrait's wrapper, written from the clock through `PortraitMover`, which saved the wrapper's own
+ * transform at the start and puts it back on every exit (the end, `finish()`, `cancel()`, the safety timer).
  *
  * THE CAMERA IS APPLIED ONCE (as Card Shark, see `../heroCards/heroCards.ts`): the Pixi root mirrors the DOM camera only
  * when its canvas is NOT already inside the camera element.
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
- * the opening measure; strips and sprites are pooled and capped, bolt vertices rewritten in place, textures painted once
- * per session and pre-warmed during the formation, and the updater unhooks the moment the scene drains.
+ * the opening measure; sprites are pooled and capped, the staff's vertices are rewritten in place, there is no filter
+ * anywhere, textures are painted once per session and pre-warmed during the formation, and the updater unhooks the
+ * moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -23,13 +27,13 @@ import { stageScale } from '../stage';
 import { AttackVoices } from '../heroAttack/attackSound';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
+import { easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  getHeroChordConfig, chordArrivalDir, chordCameraAt, chordCameraFocus, chordCues, chordGeometry, chordPlan,
-  type HeroChordConfig, type StormCue, type StormGeo, type StormPlan,
+  getHeroChordConfig, chordArrivalDir, chordCameraAt, chordCameraFocus, chordCues, chordGeometry, chordPlan, STAFF_LINES,
+  type HeroChordConfig, type ChordCue, type ChordGeo, type ChordPlan,
 } from './heroChordConfig';
 import { HeroChordScene, type HeroChordTextures } from './heroChordScene';
 import { heroChordTextures } from './heroChordTextures';
@@ -40,25 +44,38 @@ export interface HeroChordOptions extends HeroAttackOptions {
 }
 
 export interface HeroChordHandle extends HeroAttackHandle {
-  readonly plan: StormPlan;
-  /** Every bolt's ends, the cloud and the strike points (empty under reduced motion). */
-  readonly geo: StormGeo;
+  readonly plan: ChordPlan;
+  /** The staff's ends, the speaker stack's spot and where the blow lands. */
+  readonly geo: ChordGeo;
   readonly scene: HeroChordScene | null;
 }
 
-/** The seed a fight's crackle is drawn from: the same fight (same blow, same geometry) crackles the same way. */
-export function chordSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
-  return (Math.round(total) * 4969 + Math.round(distance) * 53 + (side === 'opp' ? 401 : 29)) >>> 0;
+/**
+ * The seed a fight's scatter is drawn from (which line each waiting note sits on, how the ring of notes is thrown): the
+ * fight's own `rollSeed` when the caller has one, folded with the blow so two blows in one fight differ; else the blow
+ * and the geometry. The same fight scatters the same way.
+ */
+export function chordSeed(total: number, distance: number, side: 'player' | 'opp' | undefined, rollSeed = 0): number {
+  return (Math.round(total) * 4969 + Math.round(distance) * 53 + (side === 'opp' ? 401 : 29) + Math.imul(rollSeed >>> 0, 2654435761)) >>> 0;
 }
 
-/** The static jitter of a struck portrait: a fixed stutter (a new offset every 30 ms), deterministic. Unit square. */
-export function staticJitter(t: number): { x: number; y: number } {
-  const q = Math.floor(t / 30);
-  const h = (k: number): number => { const s = Math.sin(q * 12.9898 + k * 78.233) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; };
-  return { x: h(1), y: h(2) };
+/** The five strings' pitches as the staff strings itself: a major pentatonic walking up (playback rates). */
+export const STRING_RATES = [1, 1.122, 1.26, 1.498, 1.682] as const;
+
+/** How long the wave holds the struck portrait pinned back (its later bands are still passing) before it springs upright. */
+export const BLOW_HOLD_MS = 150;
+
+/**
+ * How hard the bass wave has the struck portrait at `ms` after the front arrives: 1 the instant it hits, held nearly
+ * there while the rest of the wave passes, then swinging back through upright (a little past it) and settling. Pure.
+ */
+export function blowAt(ms: number): number {
+  if (ms < 0) return 0;
+  if (ms < BLOW_HOLD_MS) return 1 - 0.14 * (ms / BLOW_HOLD_MS);
+  return 0.86 * spring(ms - BLOW_HOLD_MS, 2.3, 170);
 }
 
-/** Play Chord Call. Returns a handle; the blow lands via `onImpact` on the impact beat. */
+/** Play Power Chord. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
   const c = o.cfg ?? getHeroChordConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -81,20 +98,24 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hchord',
   });
 
-  // The view (measured once, at the start): the cloud stays inside it and the Big flash covers it.
+  // The view (measured once, at the start): the speaker stack lands inside it.
   const view = local ? { w: o.host?.clientWidth || 400, h: o.host?.clientHeight || 300 } : { w: typeof window !== 'undefined' ? window.innerWidth : 1920, h: typeof window !== 'undefined' ? window.innerHeight : 1080 };
   const geo = chordGeometry(plan, o.attacker, o.defender, radius, aRadius, c, s, view);
-  const dir = chordArrivalDir(plan, geo, o.attacker, o.defender);
+  const dir = chordArrivalDir(geo, o.attacker, o.defender);
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
 
   // ── Pixi ──
   const textures = o.textures !== undefined ? o.textures : heroChordTextures();
   const scene = textures && !reduced
     ? new HeroChordScene(textures, {
-      core: hexToNum(c.colorCore), bolt: hexToNum(c.colorBolt), violet: hexToNum(c.colorViolet), cloud: hexToNum(c.colorCloud), side: hexToNum(sideHex),
-    }, { width: c.boltWidth, glow: c.glowWidth, regenMs: c.regenMs, fadeMs: c.fadeMs }, s, chordSeed(o.total, dist, o.side))
+      staff: hexToNum(c.colorStaff), noteA: hexToNum(c.colorNoteA), noteB: hexToNum(c.colorNoteB), noteC: hexToNum(c.colorNoteC),
+      wave: hexToNum(c.colorWave), side: hexToNum(sideHex),
+    }, {
+      width: c.staffWidth, glow: c.staffGlow, sag: c.staffSag, stringMs: c.stringMs, staggerMs: c.stringStaggerMs, pluckPx: c.pluckPx,
+      thrumPx: c.thrumPx, vibHz: c.vibHz, vibMs: c.vibMs, slackMs: c.slackMs, bendPx: c.bendPx, pumpScale: c.pumpScale,
+      waveBands: c.waveBands, waveSize: c.waveSize,
+    }, s, chordSeed(o.total, dist, o.side, o.rollSeed))
     : null;
-  scene?.setView(view.w, view.h);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -105,63 +126,60 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxChargeClip, c.sfxZapClip, c.sfxCrackClip, c.sfxImpactClip, c.sfxStaticClip, c.sfxCallClip, c.sfxRumbleClip, c.sfxThunderClip]);
-  const strikePt = geo.strikes[geo.strikes.length - 1] ?? o.defender;
-  const releases = plan.bolts.filter((b) => b.kind !== 'branch').map((b) => b.at);
+  voices.warm([c.sfxStringClip, c.sfxPluckClip, c.sfxStrumClip, c.sfxBassClip, c.sfxThudClip, c.sfxPumpClip, c.sfxImpactClip]);
 
-  const fire = (q: StormCue | FormationCue): void => {
+  const fire = (q: ChordCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // Static gathers on the hero: a rising charge hum and crackles round its rim.
-        cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, { lenMs: 700, fadeMs: 250 });
+        // The staff strings itself, one line after another: five quiet plucks walking up a scale.
+        for (let i = 0; i < STAFF_LINES; i++) {
+          cue(c.sfxStringClip, c.sfxStringGain, c.sfxStringRate * STRING_RATES[i % STRING_RATES.length]!, { delayMs: (c.stringMs * 0.6 + i * c.stringStaggerMs) / speed, lenMs: 300, fadeMs: 140 });
+        }
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
-        scene?.startCharge(o.attacker.x, o.attacker.y, aRadius, plan.boltAt - plan.chargeAt, c.chargeArcs);
+        if (geo.from && geo.to) scene?.string(geo.from, geo.to, geo.across, geo.gap, t - q.at);
         cam.start();
         break;
-      case 'bolt': {
-        const b = plan.bolts[q.i]!;
-        const g = geo.bolts[q.i];
-        if (b.kind === 'call') cue(c.sfxCallClip, c.sfxCallGain, c.sfxCallRate, { lenMs: 600, fadeMs: 220 });
-        else if (b.kind !== 'branch') cue(c.sfxCrackClip, c.sfxCrackGain * 0.7, c.sfxCrackRate + 0.1, { lenMs: 260, fadeMs: 100 });
-        if (g && scene) scene.bolt(b.kind, g, { leaderMs: b.leaderMs, holdMs: b.holdMs, width: b.width, jag: b.jag, forks: b.forks, late: t - q.at });
+      case 'drop':
+        if (geo.stack) scene?.dropStack(geo.stack, plan.thudAt - plan.dropAt, t - q.at);
         break;
-      }
-      case 'gather':
-        // The storm gathers over the target: a low rumble under it.
-        cue(c.sfxRumbleClip, c.sfxRumbleGain * 0.7, c.sfxRumbleRate, { lenMs: 1400, fadeMs: 600 });
-        if (geo.cloud && scene) scene.gather(geo.cloud.x, geo.cloud.y, geo.cloudR, c.gatherMs);
+      case 'thud':
+        cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate, { lenMs: 520, fadeMs: 260 });
         break;
-      case 'rumble':
-        cue(c.sfxRumbleClip, c.sfxRumbleGain * (0.8 + 0.2 * q.i), c.sfxRumbleRate + 0.05 * q.i, { lenMs: 900, fadeMs: 400 });
-        scene?.rumble();
+      case 'pump':
+        // The count-in: the cones kick, a low thump, and a few notes pop onto the staff.
+        cue(c.sfxPumpClip, c.sfxPumpGain * (1 + 0.15 * q.i), c.sfxPumpRate, { lenMs: 190, fadeMs: 110 });
+        scene?.pump(1, 2);
+        scene?.rest(3, q.i === 0 ? 0.18 : 0.26, q.i === 0 ? 0.74 : 0.82);
+        scene?.pluck(-1, c.pluckPx * 0.7);
         break;
-      case 'hit': {
-        // The first branch strikes: a zap, FX only; static starts crawling over the struck hero.
-        const p = geo.strikes[0] ?? o.defender;
-        cue(c.sfxZapClip, c.sfxZapGain * 0.8, c.sfxZapRate, { lenMs: 450, fadeMs: 160 });
-        cue(c.sfxStaticClip, c.sfxStaticGain, c.sfxStaticRate, { lenMs: 500, fadeMs: 200 });
-        scene?.zap(p.x, p.y, radius, plan.sparks);
-        scene?.crawl(o.defender.x, o.defender.y, radius, plan.staticEnd - plan.staticAt, c.staticArcs);
-        break;
-      }
-      case 'impact':
-        if (plan.storm) {
-          // THE STRIKE: thunder, a hard zap and the impact.
-          cue(c.sfxThunderClip, c.sfxThunderGain, c.sfxThunderRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs * 1.4, fadeMs: 500 });
-          cue(c.sfxZapClip, c.sfxZapGain, c.sfxZapRate - 0.2, { lenMs: 600, fadeMs: 200 });
-          cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.1, { lenMs: c.sfxImpactLenMs, fadeMs: 300 });
-          cue(c.sfxStaticClip, c.sfxStaticGain * 1.3, c.sfxStaticRate - 0.2, { lenMs: 700, fadeMs: 300 });
-          scene?.crawl(o.defender.x, o.defender.y, radius, plan.staticEnd - plan.staticAt, c.staticArcs + 1);
+      case 'release':
+        if (plan.stack) {
+          // THE DROP: the hero hits the chord and the speakers throw it.
+          cue(c.sfxBassClip, c.sfxBassGain, c.sfxBassRate, { tail: c.sfxTailMix });
+          cue(c.sfxStrumClip, c.sfxStrumGain * 0.85, c.sfxStrumRate * 0.94, { startMs: 25, fadeMs: 200 });
+          scene?.pump(1.9, 3);
+          if (geo.waveFrom) scene?.bass(geo.waveFrom, o.defender, plan.flyMs, t - q.at);
         } else {
-          cue(c.sfxZapClip, c.sfxZapGain, c.sfxZapRate - 0.1 * (plan.level - 1), { tail: c.sfxTailMix, lenMs: 600, fadeMs: 200 });
-          cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.1 * plan.level), c.sfxImpactRate, { lenMs: c.sfxImpactLenMs, fadeMs: 300 });
-          if (plan.level >= 2) cue(c.sfxCrackClip, c.sfxCrackGain, c.sfxCrackRate, { lenMs: 600, fadeMs: 220 });
-          else scene?.crawl(o.defender.x, o.defender.y, radius, 300, 1);
+          if (plan.level === 1) cue(c.sfxPluckClip, c.sfxPluckGain, c.sfxPluckRate, { tail: c.sfxTailMix });
+          else cue(c.sfxStrumClip, c.sfxStrumGain, c.sfxStrumRate, { startMs: 25, tail: c.sfxTailMix, fadeMs: 200 });
+          for (const r of plan.riders) {
+            scene?.ride(r.line, { flyMs: r.flyMs, lag: r.lag, size: plan.noteSize, hue: r.hue, late: t - q.at });
+            scene?.pluck(r.line, c.pluckPx * 1.2, 2);
+          }
         }
-        scene?.strike(strikePt.x, strikePt.y, radius, { level: plan.level, burst: plan.burst, sparks: plan.sparks, flashAlpha: c.flashAlpha, screen: c.screenFlash });
+        break;
+      case 'impact':
+        cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.1 * plan.level), c.sfxImpactRate - 0.08 * (plan.level - 1), { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 300 });
+        if (plan.stack) cue(c.sfxThudClip, c.sfxThudGain * 0.8, c.sfxThudRate * 1.15, { lenMs: 500, fadeMs: 260 });
+        // A chord (and the wave) makes the whole staff thrum; a single note just rings the line it rode.
+        if (plan.level >= 2) scene?.thrum(); else scene?.pluck(2, c.thrumPx * 0.7);
+        scene?.strike(geo.hit.x, geo.hit.y, radius, { level: plan.level, notes: plan.notes, sparks: plan.sparks, burst: plan.burst, flashAlpha: c.flashAlpha, dir: plan.stack ? dir : undefined });
         seq.land();
+        break;
+      case 'slack':
+        scene?.slacken();
         break;
       default:
         break;
@@ -170,62 +188,56 @@ export function playHeroChord(o: HeroChordOptions): HeroChordHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.storm ? plan.rumbleAt : plan.boltAt, plan.impactAt + (plan.storm ? 380 : 200));
+    nums.paintDim(t, plan.chargeAt, plan.releaseAt, plan.impactAt + (plan.stack ? 380 : 200));
     const cm = chordCameraAt(plan, c, t, dir);
     const unit = local ? 1 : s;
     cam.apply(chordCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
-      // The charge: a lean back and a little swell; every bolt the hero throws (or the call) thrusts it forward.
+      // The wind-up: a lean back and a little swell; playing throws the hero forward. On Big it bobs to the count-in.
       let sc = 1, bx = 0, by = 0;
-      if (t < plan.boltAt) {
-        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.boltAt - plan.chargeAt));
+      if (t < plan.releaseAt) {
+        const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.releaseAt - plan.chargeAt));
         sc = 1 + 0.035 * u;
         bx = -toFoe.x * c.heroCoilPx * px * u; by = -toFoe.y * c.heroCoilPx * px * u;
-        // A faint hum of static in the hero as it charges.
-        const j = staticJitter(t);
-        bx += j.x * 0.8 * u * px; by += j.y * 0.8 * u * px;
-      } else {
-        const back = Math.max(0, spring(t - plan.boltAt, 3, 90));
-        sc = 1 + 0.035 * back;
-        bx = -toFoe.x * c.heroCoilPx * px * back; by = -toFoe.y * c.heroCoilPx * px * back;
-        for (const at of releases) {
-          if (at > t) continue;
-          const f = c.heroThrustPx * px * spring(t - at, 5, 60);
-          if (plan.storm && at === plan.boltAt) by -= f; // the call: the hero thrusts UP at the sky
-          else { bx += toFoe.x * f; by += toFoe.y * f; }
+        if (plan.stack) {
+          if (t >= plan.thudAt) by += 5 * px * spring(t - plan.thudAt, 6, 70);
+          for (const at of plan.pumps) if (t >= at) sc += 0.03 * Math.max(0, spring(t - at, 5, 60));
         }
+      } else {
+        const back = Math.max(0, spring(t - plan.releaseAt, 3, 90));
+        const f = c.heroThrustPx * px * spring(t - plan.releaseAt, 5, 60);
+        sc = 1 + 0.035 * back;
+        bx = -toFoe.x * c.heroCoilPx * px * back + toFoe.x * f; by = -toFoe.y * c.heroCoilPx * px * back + toFoe.y * f;
       }
       hero.set(Math.abs(sc - 1) < 1e-4 && Math.abs(bx) + Math.abs(by) < 0.05 ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) scale(${sc.toFixed(4)})`);
     }
     let fx = 0, fy = 0;
-    if (foe.el || scene) {
+    if ((foe.el || scene) && t >= plan.impactAt) {
       let css: string | null = null;
-      let sx = 1, sy = 1;
-      if (t >= plan.impactAt) {
-        const k = spring(t - plan.impactAt, 4.5, 90);
+      const age = t - plan.impactAt;
+      if (plan.stack) {
+        // BLOWN BACK: shoved downwind and skewed (its top leans the way the wave travels), then it springs upright.
+        const k = blowAt(age);
+        fx = dir.x * c.blowPx * k * px; fy = dir.y * c.blowPx * k * px;
+        const skew = -(dir.x >= 0 ? 1 : -1) * c.blowSkew * k;
+        const sq = c.squash * k;
+        if (Math.abs(k) >= 0.004) css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) skewX(${skew.toFixed(2)}deg) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.5).toFixed(4)})`;
+        else { fx = 0; fy = 0; }
+      } else {
+        const k = spring(age, 4.5, 90);
         const knock = c.knockPx * (0.7 + 0.5 * plan.k) * k * px;
         const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
         fx = dir.x * knock; fy = dir.y * knock;
-        if (Math.abs(k) >= 0.004) { sx = 1 - sq; sy = 1 + sq * 0.6; }
-      } else if (plan.hits.length && t >= plan.hits[0]!) {
-        let k = 0;
-        for (const at of plan.hits) k += at <= t ? Math.max(0, spring(t - at, 6, 45)) : 0;
-        fx = dir.x * k * 6 * px; fy = dir.y * k * 6 * px;
+        if (Math.abs(k) >= 0.004) css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
+        else { fx = 0; fy = 0; }
       }
-      // STATIC: the struck portrait jitters (a fixed stutter) while static crawls over it.
-      if (t >= plan.staticAt && t < plan.staticEnd) {
-        const env = 1 - clamp01((t - plan.staticAt) / Math.max(1, plan.staticEnd - plan.staticAt));
-        const j = staticJitter(t);
-        fx += j.x * c.jitterPx * env * px; fy += j.y * c.jitterPx * env * px;
-      }
-      if (Math.abs(fx) + Math.abs(fy) >= 0.05 || sx !== 1) css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)${sx !== 1 ? ` scale(${sx.toFixed(4)}, ${sy.toFixed(4)})` : ''}`;
       foe.set(css);
     }
     scene?.setFoeOffset(fx * unit, fy * unit);
   };
 
-  const seq: Sequence<StormCue | FormationCue> = new Sequence<StormCue | FormationCue>({
+  const seq: Sequence<ChordCue | FormationCue> = new Sequence<ChordCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,

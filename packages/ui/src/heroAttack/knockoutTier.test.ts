@@ -29,13 +29,9 @@ import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
 import { playHeroChess } from '../heroChess/heroChess';
 import { playHeroStorm } from '../heroStorm/heroStorm';
-import { playHeroChord } from '../heroChord/heroChord';
 import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { playHeroCoin } from '../heroCoin/heroCoin';
-import { playHeroAnvil } from '../heroAnvil/heroAnvil';
-import { playHeroStamp } from '../heroStamp/heroStamp';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
-import { playHeroGlove } from '../heroGlove/heroGlove';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
@@ -43,7 +39,6 @@ import { playHeroBaseball } from '../heroBaseball/heroBaseball';
 import { playHeroCombo } from '../heroCombo/heroCombo';
 import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
-import { playHeroPinball } from '../heroPinball/heroPinball';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
 import { playHeroReaping } from '../heroReaping/heroReaping';
@@ -101,13 +96,9 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
     ['chess', (o) => playHeroChess({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
-    ['chord', (o) => playHeroChord({ ...o, textures: null })],
     ['fireworks', (o) => playHeroFireworks({ ...o, textures: null })],
     ['coin', (o) => playHeroCoin({ ...o, textures: null })],
-    ['anvil', (o) => playHeroAnvil({ ...o, textures: null })],
-    ['stamp', (o) => playHeroStamp({ ...o, textures: null })],
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
-    ['glove', (o) => playHeroGlove({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
     ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
     ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
@@ -121,7 +112,6 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['combo', (o) => playHeroCombo({ ...o, textures: null })],
     ['wrestle', (o) => playHeroWrestle({ ...o, textures: null })],
     ['soccer', (o) => playHeroSoccer({ ...o, textures: null })],
-    ['pinball', (o) => playHeroPinball({ ...o, textures: null })],
     ['void', (o) => playHeroVoid({ ...o, textures: null })],
   ];
 

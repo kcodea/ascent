@@ -129,15 +129,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/metal-woosh',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],
-  glove: [
-    'fx/glove-boing',
-    'fx/glove-punch',
-    'fx/glove-ratchet',
-    'fx/glove-recoil',
-    'fx/glove-spring',
-    'fx/soccer-kick',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-  ],
   bubble: [
     'fx/oona-splat',
   ],
@@ -204,21 +195,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-whip-snap-242215',
   ],
-  anvil: [
-    'fx/anvil-boing',
-    'fx/anvil-clang',
-    'fx/anvil-keys',
-    'fx/anvil-piano',
-    'fx/anvil-whistle',
-    'fx/heavy-rock-impact',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-  ],
-  stamp: [
-    'fx/stamp-body',
-    'fx/stamp-pad',
-    'fx/stamp-thunk',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-  ],
   enraged: [
     'fx/dragon-growl',
     'fx/heavy-rock-impact',
@@ -274,17 +250,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-ground-impact-352053',
   ],
-  pinball: [
-    'fx/pinball-bell',
-    'fx/pinball-clack',
-    'fx/pinball-jackpot',
-    'fx/pinball-ramp',
-    'fx/pinball-reel',
-    'fx/pinball-roll',
-    'fx/pinball-thwack',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-ground-impact-352053',
-  ],
   stitch: [
     'fx/blue-impact-hit',
     'fx/heavy-rock-impact',
@@ -307,15 +272,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
   storm: [
     'fx/blue-impact-hit',
     'fx/heavy-rock-impact',
-  ],
-  chord: [
-    'fx/chord-bass',
-    'fx/chord-feedback',
-    'fx/chord-kick',
-    'fx/chord-pluck',
-    'fx/chord-strum',
-    'fx/heavy-rock-impact',
-    'fx/whoosh-03',
   ],
   fireworks: [
     'fx/fireworks-boom',

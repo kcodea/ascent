@@ -58,7 +58,10 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('glove');
     expect(C.sfxBoingClip).toBe('fx/glove-boing');
     expect(C.sfxPunchClip).toBe('fx/glove-punch');
-    expect(ATTACK_FX_CLIPS.glove).toEqual(expect.arrayContaining([C.sfxBoingClip, C.sfxPunchClip]));
+    expect(ATTACK_FX_CLIPS.glove).toEqual(expect.arrayContaining([C.sfxBoingClip, C.sfxPunchClip, C.sfxSpringClip, C.sfxRatchetClip, C.sfxBodyClip, C.sfxRecoilClip, C.sfxRetractClip]));
+    // Bold at full board distance: a thick coil and a glove about two thirds of a portrait wide.
+    expect(C.springThick).toBeGreaterThanOrEqual(14);
+    expect(C.glovePx).toBeGreaterThanOrEqual(140);
   });
 });
 
@@ -82,7 +85,8 @@ describe('the plan', () => {
     expect(p.hits).toHaveLength(1);
     expect(p.wind).toBe(1);
     expect(p.over).toBeGreaterThan(0);
-    expect(p.stars).toBe(3);
+    expect(p.stars).toBe(4);
+    expect(p.shakePx).toBeGreaterThan(glovePlan({ total: 3, distance: 1500, leadIn: 0 }, C).shakePx * 2); // the second bop is the hard one
     expect(p.hits[0]!).toBeGreaterThan(p.fireAt);
     expect(p.impactAt - p.hits[0]!).toBeGreaterThanOrEqual(260); // room to overshoot, sway and rebound
     expect(p.retractAt).toBeGreaterThan(p.impactAt);
@@ -224,6 +228,7 @@ function expectRestored(r: ReturnType<typeof run>): void {
   expect(r.defenderEl.className).toBe('hero-d keep');
   expect(r.attackerEl.style.opacity).toBe('0.9');
   expect(r.defenderEl.style.filter).toBe('none');
+  expect(r.defenderEl.style.willChange).toBe(''); // the layer hint held for the squash is gone
   expect(r.camera.style.transform).toBe('');
   expect(r.host.querySelector('.hblast')).toBeNull();
 }
@@ -249,7 +254,7 @@ describe('the runner (the shared clock)', () => {
     f.tick(24, 4);
     expect(onImpact).toHaveBeenCalledTimes(1);
     expect(host.querySelector('.hblast-hit')!.textContent).toBe('-14');
-    expect(h.scene!.liveDizzy).toBe(3);
+    expect(h.scene!.liveDizzy).toBe(4);
     expect(defenderEl.style.transform).toContain('scale('); // knocked back and squashed
     f.tick(h.plan.homeAt - h.elapsed() + 8, 4);
     expect(h.scene!.gloveOut).toBe(false); // back in the hatch

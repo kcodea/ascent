@@ -29,6 +29,13 @@ export const KEYWORD_BEAM_GAP_MS = 180;
 /** A cascade rings its sounds on its first few beams only. */
 export const KEYWORD_BEAM_SOUND_MAX = 3;
 
+/**
+ * A screen point as a rect the anchor builder accepts. It rejects a zero-size rect as an unmounted element (the first
+ * version passed one, so every point-origin beam fell through to its landing: sound and keyword, no beam; owner
+ * report 2026-11-13, Lord of the Risen), so the point is a 2 px box centred on itself.
+ */
+export const pointRect = (p: Point): { left: number; top: number; width: number; height: number } => ({ left: p.x - 1, top: p.y - 1, width: 2, height: 2 });
+
 const hold = (kw: BeamKeyword, uid: string, ms: number): void => {
   if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else holdWard(uid, ms);
 };
@@ -65,7 +72,7 @@ export function launchKeywordBeam(
   const launch = (): void => {
     const tEl = document.querySelector(unitSelector(targetUid));
     const anchors = tEl
-      ? combatAnchorsFromRects({ source: { left: from.x, top: from.y, width: 0, height: 0 }, target: tEl.getBoundingClientRect(), row: null, viewport: { w: window.innerWidth, h: window.innerHeight } })
+      ? combatAnchorsFromRects({ source: pointRect(from), target: tEl.getBoundingClientRect(), row: null, viewport: { w: window.innerWidth, h: window.innerHeight } })
       : null;
     if (!anchors) { land(); return; }
     const settle = trackSettledSlot(() => document.querySelector(unitSelector(targetUid)));

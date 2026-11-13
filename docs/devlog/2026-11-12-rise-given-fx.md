@@ -70,6 +70,9 @@ portrait when it is not; Lord of the Risen sends it from the hero power slot; a 
   per beat and fires once, so the fire carries into a directly following beat that holds only such grants.
 - **Beetle's buff tendril is gone** on the minion its Rise beam travels to (`riseBeamOwnedRef`, the same per-action
   claim the Ale trail uses).
+- **First version drew no beam** (owner: Lord of the Risen "did the sound and applied the rise effect, but not the
+  tendril"). The launcher passed the origin point as a zero-size rect, which the anchor builder rejects as an unmounted
+  element, so every point-origin beam fell through to its landing. The point is now a 2 px box (`pointRect`), pinned.
 - **Not covered:** a rune that gives a keyword mid-turn in the Shop or at Start of Turn, and the foe's runes.
 
 ## Not covered

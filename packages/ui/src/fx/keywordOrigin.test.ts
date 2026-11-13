@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { CombatEvent } from '@game/core';
 import { classifyKeywordOrigin } from './keywordOrigin';
-import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS } from './keywordBeam';
+import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS, pointRect } from './keywordBeam';
+import { combatAnchorsFromRects } from './combatAnchors';
 import { runeKeywordGrantsIn } from './runeKeywordBeams';
 import { getDef } from './fxDefs';
 
@@ -35,6 +36,18 @@ describe('the beams', () => {
     expect(KEYWORD_BEAMS.DS.def).toBe('lastlight-beam');
     for (const b of Object.values(KEYWORD_BEAMS)) expect(getDef(b.def), b.def).toBeDefined();
     expect(KEYWORD_BEAM_GAP_MS).toBeGreaterThanOrEqual(120);
+  });
+});
+
+describe('a beam from a point (owner 2026-11-13: Lord of the Risen played the sound and the Rise, no beam)', () => {
+  it('the point makes real anchors: the beam starts on it and ends on the receiver', () => {
+    const a = combatAnchorsFromRects({ source: pointRect({ x: 100, y: 700 }), target: { left: 400, top: 300, width: 120, height: 160 }, row: null, viewport: { w: 1920, h: 1080 } });
+    expect(a?.source).toEqual({ x: 100, y: 700 });
+    expect(a?.target).toEqual({ x: 460, y: 380 });
+  });
+  it('the launcher builds its source from that rect, never a zero-size one', () => {
+    const src = readFileSync(new URL('./keywordBeam.ts', import.meta.url), 'utf8');
+    expect(src).toContain('source: pointRect(from), target');
   });
 });
 

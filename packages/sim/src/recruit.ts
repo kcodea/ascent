@@ -29,6 +29,7 @@ export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
+import { collectionsOnSale, flamekeeperOnCast, impLegionGraft, noteShopSpellCastThisTurn, roughCutShop, runDragonHoard } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -6997,6 +6998,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleDamageAll: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleDamageAll(shopArena(ctx.state, self), params);
   },
+  /** Set 2 rune Imp Legion's graft: the Shop has no enemies, so the arena body returns at once (inert by membership). */
+  deathrattleDamageLowestEnemy: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleDamageLowestEnemy(shopArena(ctx.state, self), params);
+  },
   /** Set 2 — Fel Spikes (Echo), SHOP half: a borrowed / shop-fired Echo damages YOUR board (there is no enemy
    *  in the shop, same ruling as Blaster) EXCEPT your minions of `exceptTribe`. Bodies taken to 0 die here too,
    *  their own Echoes firing — mirroring the shop `damageAll`. */
@@ -12443,6 +12448,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // SET 3 DESIGN PASS: a Ruby CAST on a minion (every landing site, never a bounce hop): the Keepsake Gem lands its
   // stats on the left-most hand minion too; the Gem Star feeds the Starform the first 4 each turn.
   runeRubyCastShop(state, card, rubyAttack, rubyHealth, rubyKeyword);
+  roughCutShop(state, card, rubyAttack, rubyHealth, rubyKeyword); // Set 2 rune Rough Cut: a Ruby on a Kobold also casts on a non-Kobold
   // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
   // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
@@ -12648,6 +12654,7 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // Ruby Sales (Set 3 Kobold rune, owner 2026-10-22): the `sell` threshold ticks once per minion sold, from any sale
   // path (the manual Sell and a spell that Sells both settle here).
   advanceRuneThresholds(state, 'sell', 1);
+  collectionsOnSale(state, sold); // Set 2 rune Collections: a Demon sold gives the Shop +2/+2 permanently
   // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
   // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
   // tavern) → nothing to give.
@@ -13603,7 +13610,7 @@ export const ENDLESS_MARCH_TOKEN = 'knit';
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
   const gildedEcho = ancientGildedEchoGraft(state); // ANCIENT OF DEATH × Midas
-  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho) return;
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho && !state.questFlags?.runeImpLegion) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -13628,6 +13635,8 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
     const n = 2 * runeStacksOf(state, 'rune_stellar_echoes');
     graft({ on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } });
   }
+  // Set 2 rune Imp Legion: every friendly Imp carries "Echo: deal 3 damage to the lowest-Health enemy", one hit per copy.
+  if (state.questFlags?.runeImpLegion && def.imp) graft(impLegionGraft(runeStacksOf(state, 'rune_imp_legion')));
   if (state.questFlags?.runeAggressiveGolems && card.cardId === 'gemheart-shard') {
     graft({ on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} });
     if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
@@ -14455,6 +14464,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
+  flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
 
 
@@ -14606,6 +14616,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
+  noteShopSpellCastThisTurn(state, spellDef); // Set 2 rune Dragon Hoard: the turn's Shop spell casts
   // ── Set 3 batch 2: the spell-count runes (Charted Skies / the Astral Refrain). Owner rework 2026-09-18: EVERY
   //    spell counts — a Gift (Clue included) is a spell cast, so it advances them here; a Ruby advances them from
   //    its own reducer branch through the same `noteSpellForCountRunes`. ──
@@ -16065,6 +16076,8 @@ function runRecurringEndOfTurn(
     ancientRunRayseEotRise(state, step);
   } else if (effect === 'ancientBatchBEot') {
     ancientRunBatchBEot(state, step);
+  } else if (effect === 'runeDragonHoard') {
+    runDragonHoard(state); // Set 2 rune Dragon Hoard: 3+ Shop spells cast this turn → a Dragonflame
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -16666,6 +16679,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientBatchBEot: 'Ancient of Time',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
+  runeDragonHoard: 'Dragon Hoard',
 };
 
 /** Rune of Ancestral Roar's per-Shout step (balance 9/23): +6/+6 to every Dragon per Shout triggered this turn.

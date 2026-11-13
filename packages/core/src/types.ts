@@ -1105,7 +1105,8 @@ export type EffectFactoryId =
   | 'discoverRestToTeammate' // cast: Discover a minion; your teammate gets the other options as gifts (Disco). Shop only (a Discover)
   | 'discoverSpellShareTeammate' // cast: Discover a spell; your teammate gets a copy of the pick (Double Down). Shop only (a Discover)
   | 'discoverMateTribePass' // Shout: Discover a minion of your teammate's most common type and pass it to them (Matchmaker). Combat: a random one, gifted at settle
-  | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
+  | 'dealtDamageGoldNextTurn' // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
+  | 'deathrattleDamageLowestEnemy'; // Set 2 rune Imp Legion's graft: Echo — deal `amount` to the lowest-Health living enemy, `hits` times (both phases; the Shop has no enemies, so it is inert there by membership)
 
 export interface EffectDef {
   on: GameEvent;
@@ -1640,7 +1641,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' | 'runeDragonHoard' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -2085,7 +2086,16 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
-  | 'runeReturnCustomers';
+  | 'runeReturnCustomers'
+  // Set 2 rune batch, Basic tribal (owner review 2026-11-12): bloodscent = a Beast's kill gives it +4/+4 permanently;
+  // lastHowl = the first Echo Beast to die each combat is resummoned; trophyHunter = a Beast's kill banks 1 Gold (3 per
+  // combat); pitchforks = a summoned Imp deals 3 to 2 enemies; impLegion = Imps carry "Echo: deal 3 to the lowest-Health
+  // enemy"; collections = selling a Demon gives the Shop +2/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
+  // your Dragons +2/+2 permanently; hatchlingRoost = Shout Dragons cost 1 Gold (Shop); rubyDust = a friendly minion with
+  // Rubies dying casts a permanent Ruby on a random friendly Kobold; roughCut = a Ruby cast on a Kobold also casts on a
+  // random friendly non-Kobold.
+  | 'runeBloodscent' | 'runeLastHowl' | 'runeTrophyHunter' | 'runePitchforks' | 'runeImpLegion' | 'runeCollections'
+  | 'runeFlamekeeper' | 'runeHatchlingRoost' | 'runeRubyDust' | 'runeRoughCut';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2888,6 +2898,23 @@ export interface QuestCombatMods {
    *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
    *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
   runeHeldStrength?: { attack: number; health: number; copies?: number };
+  // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12). Copies ride `flagCopies`. ──
+  /** Bloodscent: a Beast's kill (its Slaughter) gives it +4/+4 permanently (per copy). */
+  runeBloodscent?: boolean;
+  /** Last Howl: the first friendly Beast with an Echo to die each combat is resummoned at base stats (one per copy). */
+  runeLastHowl?: boolean;
+  /** Trophy Hunter: a Beast's kill banks 1 Gold for next turn (per copy), the first 3 kills each combat. */
+  runeTrophyHunter?: boolean;
+  /** Pitchforks: an Imp summoned in combat deals 3 damage to 2 different random enemies (per copy). */
+  runePitchforks?: boolean;
+  /** Imp Legion: Imps summoned in combat carry "Echo: deal 3 damage to the lowest-Health enemy" (once per copy). */
+  runeImpLegion?: boolean;
+  /** Flamekeeper: every Dragonflame cast gives the side's living Dragons +2/+2 permanently (per copy). */
+  runeFlamekeeper?: boolean;
+  /** Ruby Dust: a friendly minion with Rubies dying casts a permanent Ruby on a random friendly Kobold (per copy). */
+  runeRubyDust?: boolean;
+  /** Rough Cut: a Ruby cast on a Kobold also casts one on a random friendly non-Kobold (per copy). */
+  runeRoughCut?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -4697,4 +4724,7 @@ export interface CombatContext {
    *  wave. Used by multi-pass AoE echoes (Fel Spikes) to pace each pass. Purely presentational — it changes no
    *  resolution order or outcome; nesting is supported (an inner wave shadows the outer for its duration). */
   wave<T>(fn: () => T): T;
+  /** Set 2 rune Rough Cut: how many extra Rubies a combat Ruby CAST on a Kobold also casts on a random friendly
+   *  non-Kobold on this side (0 = none; one per copy held). */
+  roughCutCopiesFor?(side: Side): number;
 }

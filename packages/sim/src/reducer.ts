@@ -52,6 +52,7 @@ import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurn
 import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
+import { hatchlingRoostPrice } from './set2RunesBasicTribal'; // Set 2 rune Hatchling Roost: the Shout Dragon set price
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
@@ -354,7 +355,7 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Ayse: an Enchanted offer is set to the Fortune price (never raised above its own).
   // ANCIENT OF FORTUNE × Disco Dan: every copy of a Setlist card is set to 1 Gold (never raised above its own).
   // ANCIENT OF FORTUNE × Emerald Warden: a minion of your Shop tier is set to 2 Gold (never raised above its own).
-  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer)].filter((c): c is number => c !== undefined);
+  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer), hatchlingRoostPrice(s, offer.cardId)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
   const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
@@ -1156,7 +1157,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next) || ancientGildedEchoGraft(next)) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next) || ancientGildedEchoGraft(next) || next.questFlags?.runeImpLegion) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -6175,7 +6176,7 @@ function advanceCombat(s: RunState): void {
   s.collectorBoughtThisTurn = []; // Rune of the Collector: "3 minions in one turn" counts afresh (balance 9/23)
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
-  for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
+  for (const t of s.runeThresholds ?? []) { t.usedThisTurn = false; if (t.resetEachTurn) t.tick = 0; } // oncePerTurn threshold runes re-arm; a per-TURN window (Deep Pockets, Rowdy Crowd) starts empty
   if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   // Set 3 batch 2 (2026-09-16) tranche-B per-turn latches.
   s.eventideUsedThisTurn = undefined;
@@ -7625,7 +7626,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
       // Set 3 rune batch 3: the two AURA-STYLE grafts (Echoing Kobolds, Aggressive Golems) land on every body the
       // run already holds, board and hand; later arrivals are stamped at their arrival + the action-boundary sweep.
-      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes' || r.flag === 'runeImpLegion') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
       break;
     }
     case 'questGoldTribeBuff':
@@ -8803,6 +8804,15 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       if (!held || !hd || hd.spell || hd.ruby) return undefined;
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
+    // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12); copies ride `flagCopies` ──
+    runeBloodscent: f?.runeBloodscent,               // a Beast's kill: it gains +4/+4 permanently
+    runeLastHowl: f?.runeLastHowl,                   // the first Echo Beast to die each combat is resummoned
+    runeTrophyHunter: f?.runeTrophyHunter,           // a Beast's kill banks 1 Gold (3 per combat)
+    runePitchforks: f?.runePitchforks,               // a summoned Imp deals 3 damage to 2 enemies
+    runeImpLegion: f?.runeImpLegion,                 // combat-summoned Imps carry the Echo graft too
+    runeFlamekeeper: f?.runeFlamekeeper,             // a Dragonflame cast: your Dragons +2/+2 permanently
+    runeRubyDust: f?.runeRubyDust,                   // a friendly minion with Rubies dies: a permanent Ruby on a Kobold
+    runeRoughCut: f?.runeRoughCut,                   // a Ruby cast on a Kobold also casts on a non-Kobold
   };
 }
 

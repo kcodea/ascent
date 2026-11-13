@@ -129,3 +129,4 @@ export {
   effectFactoryIds, effectDigestFor, manifestDigestOf, computeExperimentIdentity, UNKNOWN_ENVIRONMENT,
   type ResolvedManifest, type EnvironmentIdentity,
 } from './balance/identity';
+export { hatchlingRoostPrice, shopSpellsCastThisTurn } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal (2026-11-13)

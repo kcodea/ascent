@@ -1,6 +1,6 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_TRIBAL_RUNES } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -335,7 +335,10 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
 /** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
  *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
-export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1): string | null {
+export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1, fires = 0): string | null {
+  // TROPHY HUNTER (Set 2 rune batch, 2026-11-13): "(3 per combat.)" Its paid kills this fight out of the 3 (the replay's
+  // own trigger count for the badge, `fires`), so the cap is visible as it fills.
+  if (runeId === 'rune_trophy_hunter') return `${Math.min(fires, SET2_TRIBAL_RUNES.trophyHunterPerCombat)}/${SET2_TRIBAL_RUNES.trophyHunterPerCombat}`;
   // RUNE OF REINVESTMENT: not a countdown — the Shop buff this fight has EARNED so far (+3/+4 per friendly summon
   // per copy held, `REINVESTMENT_PER_SUMMON` — the same constant settle pays), ticking with the replay's summon
   // delta (owner ask 2026-09-10; amounts owner balance 2026-09-23).

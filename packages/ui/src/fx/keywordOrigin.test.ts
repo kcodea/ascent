@@ -6,7 +6,7 @@ import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { classifyKeywordOrigin } from './keywordOrigin';
 import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS, pointRect } from './keywordBeam';
 import { combatAnchorsFromRects } from './combatAnchors';
-import { RUNE_BEAM_AFTER_RETURN_MS, runeKeywordGrantsIn, type RuneCarry, type WaitingGrant } from './runeKeywordBeams';
+import { RUNE_BEAM_AFTER_RETURN_MS, bankedKeywordGrantsIn, runeKeywordGrantsIn, type RuneCarry, type WaitingGrant } from './runeKeywordBeams';
 import { getDef } from './fxDefs';
 
 /**
@@ -90,6 +90,36 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
     expect(rises.map((g) => g.target)).toEqual(['m0', 'm1']);
     expect(rises.every((g) => g.kw === 'R' && g.flag === 'runeRisingGraves')).toBe(true);
     expect(got.every((g) => g.kind !== 'questTrigger')).toBe(true);
+  });
+
+  it('Rune of the Vanguard (owner 2026-11-13): Critical Strike AND Ward leave the rune for each of the 3 leftmost', () => {
+    const got = launches('runeVanguard', [bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })]).flatMap((g) => g.grants);
+    expect(got.every((g) => g.flag === 'runeVanguard')).toBe(true);
+    expect(got.filter((g) => g.kw === 'CR').map((g) => g.target)).toEqual(['m0', 'm1', 'm2']);
+    expect(got.filter((g) => g.kw === 'DS').map((g) => g.target)).toEqual(['m0', 'm1', 'm2']);
+  });
+
+  it('Rune of Centerline: the middle minion of two different types gets both beams', () => {
+    const got = launches('runeCenterline', [bm('mumi', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('b2_beev', 1, 60, { keywords: [] })]).flatMap((g) => g.grants);
+    expect(got.map((g) => g.kw).sort()).toEqual(['CR', 'DS']);
+    expect(got.every((g) => g.target === 'm1' && g.flag === 'runeCenterline')).toBe(true);
+  });
+
+  it('a minion that already has Critical Strike gets no second one', () => {
+    const got = launches('runeVanguard', [bm('trainingdummy', 1, 60, { keywords: ['CR'] })]).flatMap((g) => g.grants);
+    expect(got.filter((g) => g.kw === 'CR')).toEqual([]);
+  });
+
+  it("Executioner's Edge, banked in the Shop: the Critical Strike leaves on the beat the fight opens with", () => {
+    const { events: raw } = simulate([bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })], [bm('trainingdummy', 5, 60)], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 1, keyword: 'CR', critChance: 0.5 }] } } as never), combatSide({ tier: 4 }));
+    const events = replayOrder(raw);
+    const got = replayBeats(raw).flatMap((beat) => bankedKeywordGrantsIn(beat, events));
+    expect(got).toEqual([{ kw: 'CR', target: 'm1' }]);
+    // The foe's banked spell is not the player's to show.
+    const foe = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 5, 60, { keywords: [] })], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 0, keyword: 'CR', critChance: 0.5 }] } } as never));
+    expect(replayBeats(foe.events).flatMap((beat) => bankedKeywordGrantsIn(beat, replayOrder(foe.events)))).toEqual([]);
   });
 
   it('a grant a minion made is never credited to a rune: the Echo of Mumi with no rune held launches nothing here', () => {

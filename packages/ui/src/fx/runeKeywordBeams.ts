@@ -3,6 +3,7 @@ import { badgeIdsForCombatFlag } from '@game/content';
 import type { Moment } from '../choreo/compile';
 import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword } from './keywordBeam';
 import { runeSlotPoint } from './keywordOrigin';
+import { bankedCastPlayerAnchor } from '../castPreview';
 import { canPlayDefs } from './playDef';
 
 /**
@@ -38,7 +39,7 @@ function grantOf(e: CombatEvent | undefined): { kw: BeamKeyword; target: string 
   if (!e) return null;
   if (e.type === 'keyword' && (e.keyword === 'R' || e.keyword === 'V') && !e.tint && (e.source === undefined || e.source === e.target)) return { kw: e.keyword, target: e.target };
   // Flurry counts only with NO source: a body that gives itself Flurry (a Start of Combat) names itself.
-  if (e.type === 'keyword' && e.keyword === 'W' && e.source === undefined) return { kw: 'W', target: e.target };
+  if (e.type === 'keyword' && (e.keyword === 'W' || e.keyword === 'CR') && e.source === undefined) return { kw: e.keyword, target: e.target };
   if (e.type === 'shieldUp' && (e as { srcCard?: string }).srcCard === undefined) return { kw: 'DS', target: e.target };
   return null;
 }
@@ -105,6 +106,25 @@ export function runeKeywordGrantsIn(
   return { grants, returned, carry: next, waiting: stillWaiting };
 }
 
+/**
+ * A NEXT-COMBAT SPELL GIVES A KEYWORD AS THE FIGHT OPENS (Executioner's Edge: Critical Strike; Last Stand: Rise). The
+ * engine logs a `bankedCast` marker for the player's spell and then one `keyword` per minion it lands on. Those
+ * grants, for the ones in this beat: the run of keyword events directly behind a PLAYER marker.
+ */
+export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, events: readonly CombatEvent[]): Array<{ kw: BeamKeyword; target: string }> {
+  const out: Array<{ kw: BeamKeyword; target: string }> = [];
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (e?.type !== 'keyword' || e.source !== undefined) continue;
+    if (e.keyword !== 'R' && e.keyword !== 'V' && e.keyword !== 'W' && e.keyword !== 'CR') continue;
+    let j = i - 1;
+    while (j >= 0 && events[j]?.type === 'keyword') j--;
+    const marker = events[j];
+    if (marker?.type === 'bankedCast' && marker.side === 'player') out.push({ kw: e.keyword, target: e.target });
+  }
+  return out;
+}
+
 let carry: RuneCarry | null = null;
 let waiting: WaitingGrant[] = [];
 
@@ -114,6 +134,12 @@ export function startRuneKeywordBeams(moment: Moment, events: CombatEvent[], spe
   const out = runeKeywordGrantsIn(moment, events, carry, waiting);
   carry = out.carry;
   waiting = out.waiting.slice(-8);
+  // A banked spell's keyword leaves where its cast card shows (the rune rack, else the hero power slot).
+  const banked = canPlayDefs() ? bankedKeywordGrantsIn(moment, events) : [];
+  if (banked.length > 0) {
+    const a = bankedCastPlayerAnchor();
+    if (a) banked.forEach((g, i) => { launchKeywordBeam(g.kw, { x: a.left + a.width / 2, y: a.top + a.height / 2 }, g.target, { launchAt: i * KEYWORD_BEAM_GAP_MS, speed, sound: i < KEYWORD_BEAM_SOUND_MAX, register }); });
+  }
   if (!canPlayDefs() || (out.grants.length === 0 && out.returned.length === 0)) return;
   let k = 0;
   const ordered = [...out.returned.map((g) => ({ g, first: RUNE_BEAM_AFTER_RETURN_MS })), ...out.grants.map((g) => ({ g, first: 0 }))];

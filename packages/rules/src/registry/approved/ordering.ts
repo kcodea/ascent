@@ -610,13 +610,15 @@ export const ORDERING_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'now im making a crit beam. fx is crit-beam' },
-      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.CR); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn keyword cue)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the combat runes', quote: 'i thought i was very clear that these effects should come from runes that apply these effects to minions' },
+      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.CR); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn keyword cue); packages/core/src/combat/simulate.ts (runeVanguard, runeCenterline log the grant); packages/ui/src/fx/runeKeywordBeams.ts (bankedKeywordGrantsIn)' },
     ],
-    currentBehaviour: 'PARTIAL from 2026-11-13: the Shop only (a mid-turn grant read off the board, and a rune or hero '
-      + 'grant at End of Turn). NOT in combat: the engine logs no event when a rune (Vanguard, Centerline) gives '
-      + 'Critical Strike in a fight, so there is nothing to launch from; the Critical Strike banked by a spell for the '
-      + 'next combat is not covered either. A blade shing as it leaves and an impact as it lands. Critical Strike has no look on the card, so nothing is held '
+    currentBehaviour: 'PARTIAL from 2026-11-13: the Shop (a mid-turn grant read off the board, and a rune or hero '
+      + 'grant at End of Turn) and combat. In combat the engine now logs a `keyword` event when a rune (Vanguard, '
+      + 'Centerline) gives Critical Strike, and the beam leaves the slot of the rune; a keyword banked by a spell for '
+      + 'the next combat (the Edge of the Executioner) leaves where its cast card shows. Not covered: the runes and '
+      + 'banked spells of the foe. A blade shing as it leaves and an impact as it lands. Critical Strike has no look on the card, so nothing is held '
       + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts', 'packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
 ];

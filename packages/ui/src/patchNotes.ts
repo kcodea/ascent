@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Critical Strike given in the Shop by a spell, a hero power or a rune now arrives on a beam of its own.',
+        text: 'Critical Strike given by a spell, a hero power or a rune now arrives on a beam of its own, in the Shop and in combat.',
       },
       {
         category: 'Systems',

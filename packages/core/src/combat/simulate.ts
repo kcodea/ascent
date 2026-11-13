@@ -6030,7 +6030,8 @@ export function simulate(
         const rt = typeOf(right);
         if (lt && rt && lt !== rt) {
           nextStep(); twilightPulse(rside, pass); fireTrigger('runeCenterline', rside);
-          if (!mid.keywords.includes('CR')) mid.keywords.push('CR');
+          // Logged, like a rune-given Flurry, so the replay can show the grant (R-FX-CRIT-GIVEN-01).
+          if (!mid.keywords.includes('CR')) { mid.keywords.push('CR'); emit({ type: 'keyword', target: mid.uid, keyword: 'CR' }); }
           if (!mid.divineShield) {
             mid.divineShield = true;
             if (!mid.keywords.includes('DS')) mid.keywords.push('DS');
@@ -6157,7 +6158,7 @@ export function simulate(
       if (front.length > 0) {
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeVanguard', rside);
         for (const m of front) {
-          if (!m.keywords.includes('CR')) m.keywords.push('CR');
+          if (!m.keywords.includes('CR')) { m.keywords.push('CR'); emit({ type: 'keyword', target: m.uid, keyword: 'CR' }); }
           if (!m.divineShield) {
             m.divineShield = true;
             if (!m.keywords.includes('DS')) m.keywords.push('DS');

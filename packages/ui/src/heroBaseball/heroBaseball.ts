@@ -8,7 +8,7 @@
  * timer.
  *
  * BOTH PORTRAITS MOVE: the struck hero is the PITCHER (it winds up, throws, reacts, is launched) and the striker is the
- * BATTER (it swings; at IV it staggers, charges the mound, brawls and lands the haymaker). Each pose is solved in screen
+ * BATTER (it swings; at Tier 4 it staggers, charges the mound, brawls and lands the haymaker). Each pose is solved in screen
  * px and written as a transform in the portrait's own units (its ancestors' scale measured ONCE at the start). A portrait
  * outside the `#stage` camera (the foe's <body> portal) folds the camera's zoom and shake into its own transform. The
  * striker is raised over the target for the whole attack (Classic's `.duel-attacker-*` z-order). EVERY exit path (the
@@ -16,7 +16,7 @@
  * opacity and the z-order class exactly, and hides the ball, the bat and the shadows.
  *
  * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE, on the impact. The pitch, the CRACK, the hop, the bean on
- * the striker and every brawl hit are ticks; the target only reacts on the impact (its windup and IV's brawl shaking
+ * the striker and every brawl hit are ticks; the target only reacts on the impact (its windup and Tier 4's brawl shaking
  * are its own acting, not a hit reaction).
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
@@ -51,7 +51,7 @@ export interface HeroBaseballHandle extends HeroAttackHandle {
   readonly geo: BaseballGeo;
   readonly scene: HeroBaseballScene | null;
   readonly mirrorsCamera: boolean;
-  /** The rolled variation (II's hit). */
+  /** The rolled variation (Tier 2's hit). */
   readonly variant: 1 | 2 | 3;
   /** The batter's and the pitcher's poses, the ball and the bat, at a sequence time (pure). */
   batter(t: number): BaseballPose;
@@ -97,7 +97,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  // THE VARIATION (II's hit), rolled from the stable per-blow seed (or forced by the DEV tuner).
+  // THE VARIATION (Tier 2's hit), rolled from the stable per-blow seed (or forced by the DEV tuner).
   const variant = variantOf(o.rollSeed ?? baseballSeed(o.total, dist, o.side), c);
   const plan = baseballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
   const cues = withFormation(fplan, baseballCues(plan));
@@ -176,7 +176,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
         cue(c.sfxPitchClip, c.sfxPitchGain * 0.6, c.sfxPitchRate * 0.8, { lenMs: 300, fadeMs: 120 });
         break;
       case 'crack': {
-        // THE BAT MEETS THE BALL (a tick). III's is huge (and in slow mo).
+        // THE BAT MEETS THE BALL (a tick). Tier 3's is huge (and in slow mo).
         const k = plan.kind === 'moonshot' ? 1.6 : plan.kind === 'hotshot' ? 1.15 : 0.9;
         cue(c.sfxCrackClip, c.sfxCrackGain * (0.8 + 0.25 * k), c.sfxCrackRate * (plan.kind === 'moonshot' ? 0.92 : 1), { tail: plan.kind === 'moonshot' ? 0.18 : 0 });
         if (plan.kind === 'moonshot') cue(c.sfxOohClip, c.sfxOohGain * 0.7, c.sfxOohRate * 1.05, { delayMs: real(220), fadeMs: 400 });
@@ -322,7 +322,7 @@ export function playHeroBaseball(o: HeroBaseballOptions): HeroBaseballHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // SLOW MO (and IV's fast brawl): the frame source hands the ONE clock a scaled step (a smooth ramp, never 0), so the
+    // SLOW MO (and Tier 4's fast brawl): the frame source hands the ONE clock a scaled step (a smooth ramp, never 0), so the
     // portraits, the ball, the FX, the camera and the cue timing all slow and speed up together.
     frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? baseballTimeScale(plan, c, seq.t) : 1))),
     safetyMs: o.safety !== false ? (plan.endAt + slowExtraMs(plan, c)) / speed + 2500 : null,

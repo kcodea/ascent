@@ -71,6 +71,51 @@ const availableOffers = (state: RunState): CardDef[] =>
       (state.pool[card.id] ?? 0) > 0,
   );
 
+// ── SHOP MADNESS (Set 2 Basic rune, owner 2026-11-13): "Minions in your Shop have +3/+3. Your Shop always has 6 minions."
+// The +3/+3 is the permanent run-wide Shop buff (`applyRunShopBuff`, on pickup). The "always 6" half lives here: while
+// the rune is held the row is built to SHOP_MADNESS_MINIONS minion offers at every Tier (a Refresh, the turn's roll, a
+// frozen top-up), and `refillShopMadness` puts a fresh minion back the moment one leaves (bought, consumed, stolen,
+// Discovered, ...). Spells in the row (Scroll Drake), Rubies and the Starform are not minions and are never counted.
+export const SHOP_MADNESS_MINIONS = 6;
+/** Shop Madness's run-wide Shop buff, per copy taken. */
+export const SHOP_MADNESS_BUFF = { attack: 3, health: 3 } as const;
+export const shopMadness = (state: Pick<RunState, 'questFlags'>): boolean => !!state.questFlags?.runeShopMadness;
+/** A minion offer: not a spell, not a Ruby, not the Starform. */
+const isMinionOffer = (o: ShopCard): boolean => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; };
+export const shopMinionCount = (state: Pick<RunState, 'shop'>): number => state.shop.filter(isMinionOffer).length;
+
+/**
+ * SHOP MADNESS: fill the row back up to 6 minion offers from the run's seeded pool (the ordinary draw: Tier ceiling,
+ * run tribes, copy limits; each copy taken from the pool). `vacated` lists the slots that just emptied, in row order:
+ * each new offer lands in the next one, so a bought or eaten minion is replaced where it stood; any further offer goes
+ * after the last minion (left of a row spell or the Starform). Never removes anything itself, so a refill can never
+ * trigger another refill; it stops when the pool is dry. A no-op without the rune.
+ */
+export function refillShopMadness(state: RunState, vacated: number[] = []): void {
+  if (!shopMadness(state)) return;
+  const need = SHOP_MADNESS_MINIONS - shopMinionCount(state);
+  if (need <= 0) return;
+  const slots = [...vacated].sort((x, y) => x - y);
+  const rng = makeRng(state.rngCursor);
+  const added: ShopCard[] = [];
+  for (let k = 0; k < need; k++) {
+    const id = drawOfferId(rng, availableOffers(state), state.pool);
+    if (!id) break; // the pool is dry: fewer offers, like any roll
+    state.pool[id] -= 1;
+    const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId: id };
+    const at = slots.shift();
+    if (at !== undefined) state.shop.splice(Math.min(at, state.shop.length), 0, offer);
+    else {
+      let end = 0;
+      state.shop.forEach((o, i) => { if (isMinionOffer(o)) end = i + 1; });
+      state.shop.splice(end, 0, offer);
+    }
+    added.push(offer);
+  }
+  state.rngCursor = rng.state();
+  if (added.length > 0) stampNewShopOffers(state, added, { onRefresh: false, inPlace: true, cia: true });
+}
+
 /**
  * Draw one offer id from the available pool, WEIGHTED BY THE COPIES LEFT (owner ruling 2026-09-10: "the number of
  * copies should directly impact how likely a card is to be found"). Every remaining copy is one ticket, so a
@@ -287,7 +332,10 @@ function rollShopRow(state: RunState, slots: number): void {
   const rollTribe = state.ancientsEnabled ? state.ancients?.rollTribe : undefined;
   // SCROLL DRAKE: a spell owed to the row takes a MINION's place, so the row draws that many fewer minions.
   const spellsOwed = rowSpellsOwed(state, kept);
-  for (let i = kept.length; i < slots - spellsOwed; i++) {
+  // SHOP MADNESS: the row holds 6 minions at every Tier (kept minions count; a row spell sits beside them, not in place).
+  const madness = shopMadness(state);
+  const target = madness ? kept.length + Math.max(0, SHOP_MADNESS_MINIONS - kept.filter(isMinionOffer).length) : slots - spellsOwed;
+  for (let i = kept.length; i < target; i++) {
     const pool = availableOffers(state);
     // Re-filtered per slot so the stock decrements below are respected; falls back only when the tier is
     // genuinely exhausted, which is the one case where a narrowed shop cannot be filled.
@@ -334,7 +382,7 @@ function rollShopRow(state: RunState, slots: number): void {
   // SCROLL DRAKE: the row's extra spell, drawn AFTER the slot spell so a run without the Drake keeps its exact
   // rng stream. Same tier gate as the slot spell; a different spell when one exists.
   if (spellsOwed > 0) {
-    const extra = pushRowSpell(state, rng, slots);
+    const extra = pushRowSpell(state, rng, madness ? state.shop.length + 1 : slots);
     if (extra) stampNewShopOffers(state, [extra], { onRefresh: true });
   }
   state.rngCursor = rng.state();
@@ -470,7 +518,8 @@ export function topUpTavern(state: RunState): void {
   const slots = tierSlots(state.tier);
   const added: ShopCard[] = [];
   const spellsOwed = rowSpellsOwed(state, state.shop); // SCROLL DRAKE: a frozen row tops up its spell too
-  while (state.shop.length < slots - spellsOwed) {
+  const madness = shopMadness(state); // SHOP MADNESS: a frozen row tops up to 6 minions, whatever the Tier
+  while (madness ? shopMinionCount(state) < SHOP_MADNESS_MINIONS : state.shop.length < slots - spellsOwed) {
     const id = drawOfferId(rng, availableOffers(state), state.pool);
     if (!id) break;
     state.pool[id] -= 1;
@@ -483,7 +532,7 @@ export function topUpTavern(state: RunState): void {
     if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
   }
   if (spellsOwed > 0) {
-    const extra = pushRowSpell(state, rng, slots);
+    const extra = pushRowSpell(state, rng, madness ? state.shop.length + 1 : slots);
     if (extra) added.push(extra);
   }
   state.rngCursor = rng.state();

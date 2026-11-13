@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 /**
- * THE ANCIENT KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02: "ancient tier animations should have a separate tier
+ * THE ANCIENT KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02: "ancient tier animations should have a separate tier
  * of dmg specific for knockouts. they can just be small changes to the 'huge' tier ... can you do this for all 4
  * ancient tier animations?"). Oracle R-PROG-ATTACK-20 (the Ancient exception).
  *
  *  - an Ancient attack + a knockout plays its Knockout variant;
  *  - an Ancient attack without a knockout plays the normal tiers;
- *  - a non-Ancient attack + a knockout still plays Huge;
- *  - an Ancient attack with no variant falls back to Huge.
- * And each variant is a small remix of its Huge: one extra beat, at most ~500 ms more, inside the particle caps, the
+ *  - a non-Ancient attack + a knockout still plays Tier 4;
+ *  - an Ancient attack with no variant falls back to Tier 4.
+ * And each variant is a small remix of its Tier 4: one extra beat, at most ~500 ms more, inside the particle caps, the
  * consequence landing once, and the clock never stopping (the slow-mo dip is never a freeze, R-PROG-ATTACK-10).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -51,7 +51,7 @@ const ANCIENT_STYLES = COSMETICS.filter((c) => c.category === 'hero_attack' && c
 
 describe('the plumbing: driven by the attack\'s rarity', () => {
   it('Arcana, Consecration and Soul Stitch are Ancient, and each has a variant', () => {
-    for (const id of ['attack_arcana', 'attack_holy', 'attack_soul_stitch']) {
+    for (const id of ['attack_arcana', 'attack_holy', 'attack_soul_stitch', 'attack_bullet_time', 'attack_warhost']) {
       const def = COSMETICS.find((c) => c.id === id)!;
       expect(def.rarity, id).toBe('ancient');
       expect(KNOCKOUT_VARIANT_STYLES.has(String(def.assets.style)), id).toBe(true);
@@ -64,6 +64,11 @@ describe('the plumbing: driven by the attack\'s rarity', () => {
     expect(knockoutVariantFor({ style: 'arcana', knockout: true })).toBe(true);
     expect(knockoutVariantFor({ style: 'holy', knockout: true, cosmeticId: 'attack_holy' })).toBe(true);
     expect(knockoutVariantFor({ style: 'stitch', knockout: true, cosmeticId: 'attack_soul_stitch' })).toBe(true);
+    // Warhost, the Ancient of War (2026-11-13): an Ancient cosmetic with a coded variant. Fourth Wall (glass) has one too but is an
+    // EPIC (owner 2026-11-13), so it is not listed and a knockout plays its plain Tier 4.
+    expect(knockoutVariantFor({ style: 'warhost', knockout: true, cosmeticId: 'attack_warhost' })).toBe(true);
+    expect(KNOCKOUT_VARIANT_STYLES.has('glass')).toBe(false);
+    expect(knockoutVariantFor({ style: 'glass', knockout: true, cosmeticId: 'attack_glass' })).toBe(false);
   });
 
   it('an Ancient attack without a knockout plays the normal tiers', () => {
@@ -71,16 +76,16 @@ describe('the plumbing: driven by the attack\'s rarity', () => {
     expect(isKnockoutVariant({ knockout: false, knockoutVariant: true })).toBe(false);
   });
 
-  it('a non-Ancient attack + a knockout still plays Huge (every other rarity, and Classic)', () => {
+  it('a non-Ancient attack + a knockout still plays Tier 4 (every other rarity, and Classic)', () => {
     const others = COSMETICS.filter((c) => c.category === 'hero_attack' && c.rarity !== 'ancient');
     expect(others.length).toBeGreaterThan(5);
     for (const c of others) expect(knockoutVariantFor({ style: String(c.assets.style), knockout: true, cosmeticId: c.id }), c.id).toBe(false);
     expect(knockoutVariantFor({ style: 'classic', knockout: true })).toBe(false);
-    // Even if a non-Ancient runner were (wrongly) listed as having a variant, the rarity gate keeps it on Huge.
+    // Even if a non-Ancient runner were (wrongly) listed as having a variant, the rarity gate keeps it on Tier 4.
     expect(knockoutVariantFor({ style: 'blast', knockout: true, variants: new Set(['blast']) })).toBe(false);
   });
 
-  it('an Ancient attack with no variant falls back to Huge', () => {
+  it('an Ancient attack with no variant falls back to Tier 4', () => {
     expect(knockoutVariantFor({ style: 'arcana', knockout: true, variants: new Set() })).toBe(false);
     expect(playsKnockoutVariant({ knockout: true, rarity: 'ancient', hasVariant: false })).toBe(false);
     expect(playsKnockoutVariant({ knockout: true, rarity: 'ancient', hasVariant: true })).toBe(true);
@@ -141,11 +146,11 @@ function stepTo<H extends HeroAttackHandle>(play: (o: HeroAttackOptions) => H, v
 }
 const sprites = (h: { scene: unknown }): number => (h.scene as Liveish)?.liveSprites ?? 0;
 
-describe('each variant is its Huge, remixed', () => {
+describe('each variant is its Tier 4, remixed', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
   type Runner = (o: HeroAttackOptions) => HeroAttackHandle & { scene: unknown; plan: unknown };
-  // [name, runner, sprite cap, the most real ms the Knockout may add over Huge, the least]. Soul Stitch's Knockout grew
+  // [name, runner, sprite cap, the most real ms the Knockout may add over Tier 4, the least]. Soul Stitch's Knockout grew
   // its own final beat (owner tuning 2026-10-02: the latch, a second faster yank and the slam): ~0.5 s more than the rest.
   const cases: [string, Runner, number, number, number][] = [
     ['arcana', (o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), MAX_ARCANA_SPRITES, 520, 150],
@@ -155,22 +160,22 @@ describe('each variant is its Huge, remixed', () => {
   ];
 
   for (const [name, play, cap, maxExtra, minExtra] of cases) {
-    it(`${name}: Knockout plays the variant (tier IV underneath), adds its beats (at most ${maxExtra} ms), stays in the caps, lands once, never stops the clock`, () => {
+    it(`${name}: Knockout plays the variant (tier 4 underneath), adds its beats (at most ${maxExtra} ms), stays in the caps, lands once, never stops the clock`, () => {
       const huge = run(play, { total: 40, knockout: true, variant: false }, sprites);
       const ko = run(play, { total: 40, knockout: true, variant: true }, sprites);
       const plain = run(play, { total: 3, knockout: false, variant: true }, sprites);
       const hp = huge.h.plan as unknown as { tier: number; ko: boolean };
       const kp = ko.h.plan as unknown as { tier: number; ko: boolean };
-      // The variant: still the shared Tier IV underneath (every per-tier dial reads IV), with the Knockout remix on top.
+      // The variant: still the shared Tier 4 underneath (every per-tier dial reads Tier 4), with the Knockout remix on top.
       expect(kp.tier).toBe(4);
       expect(kp.ko).toBe(true);
-      // Huge (a knockout without the variant, i.e. the fallback) is exactly the Huge it always was.
+      // Tier 4 (a knockout without the variant, i.e. the fallback) is exactly the Tier 4 it always was.
       expect(hp.tier).toBe(4);
       expect(hp.ko).toBe(false);
-      // No knockout: the normal tiers (a 3 is Tier I), the variant flag ignored.
+      // No knockout: the normal tiers (a 3 is Tier 1), the variant flag ignored.
       expect((plain.h.plan as unknown as { tier: number; ko: boolean }).tier).toBe(1);
       expect((plain.h.plan as unknown as { ko: boolean }).ko).toBe(false);
-      // A remix: more than Huge, but bounded (real time over it).
+      // A remix: more than Tier 4, but bounded (real time over it).
       const extraMs = (ko.frames - huge.frames) * (1000 / 60);
       expect(extraMs).toBeGreaterThan(minExtra);
       expect(extraMs).toBeLessThanOrEqual(maxExtra);
@@ -197,7 +202,7 @@ describe('each variant is its Huge, remixed', () => {
     expect(meshes.peak).toBeLessThanOrEqual(MAX_ARCANA_MESHES);
   });
 
-  it('Arcana (owner tuning 2026-10-02): the swirl TURNS crimson-pink and electric blue; Huge keeps its own colours', () => {
+  it('Arcana (owner tuning 2026-10-02): the swirl TURNS crimson-pink and electric blue; Tier 4 keeps its own colours', () => {
     const at = (h: { plan: { swirlAt: number; koPulseAt: number | null; convergeAt: number } }): number => (h.plan.koPulseAt ?? h.plan.convergeAt) - 20;
     const ko = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), true, at);
     const huge = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), false, at);
@@ -209,12 +214,12 @@ describe('each variant is its Huge, remixed', () => {
     ko.cancel(); huge.cancel();
   });
 
-  it('Arcana: the Knockout explosion bursts OUTWARD harder than Huge (more flung ribbons, and a bigger, faster ring)', () => {
+  it('Arcana: the Knockout explosion bursts OUTWARD harder than Tier 4 (more flung ribbons, and a bigger, faster ring)', () => {
     const after = (h: { plan: { impactAt: number } }): number => h.plan.impactAt + 120;
     const ko = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), true, after);
     const huge = stepTo<ReturnType<typeof playHeroArcana>>((o) => playHeroArcana({ ...o, textures: ARCANA_TEX }), false, after);
     expect(ko.scene!.liveMeshes).toBeGreaterThan(huge.scene!.liveMeshes);
-    // The widest ring on screen 120 ms in: the Knockout's has raced far past the Huge one's.
+    // The widest ring on screen 120 ms in: the Knockout's has raced far past the Tier 4 one's.
     const widest = (root: Container): number => {
       let w = 0;
       const walk = (c: Container): void => { for (const ch of c.children) { if (ch instanceof Sprite && ch.visible) w = Math.max(w, ch.scale.x); if (ch instanceof Container) walk(ch); } };
@@ -225,7 +230,7 @@ describe('each variant is its Huge, remixed', () => {
     ko.cancel(); huge.cancel();
   });
 
-  it('Consecration (owner tuning 2026-10-02): the wave that comes out is PINK + GOLD; Huge stays gold', () => {
+  it('Consecration (owner tuning 2026-10-02): the wave that comes out is PINK + GOLD; Tier 4 stays gold', () => {
     const mid = (h: { plan: { spreadAt: number; arriveAt: number } }): number => (h.plan.spreadAt + h.plan.arriveAt) / 2;
     const ko = stepTo<ReturnType<typeof playHeroHoly>>((o) => playHeroHoly({ ...o, textures: HOLY_TEX }), true, mid);
     const huge = stepTo<ReturnType<typeof playHeroHoly>>((o) => playHeroHoly({ ...o, textures: HOLY_TEX }), false, mid);
@@ -255,7 +260,7 @@ describe('each variant is its Huge, remixed', () => {
   it('Soul Stitch (owner tuning 2026-10-02): after the burst, the latch, a second FASTER yank and the slam (the one impact)', () => {
     const huge = run((o) => playHeroStitch({ ...o, textures: null }), { total: 40, knockout: true, variant: false }, () => 0).h.plan;
     const ko = run((o) => playHeroStitch({ ...o, textures: null }), { total: 40, knockout: true, variant: true }, () => 0).h.plan;
-    // The burst lands where Huge's impact does (plus the double-cinch); the slam is the impact, after it.
+    // The burst lands where Tier 4's impact does (plus the double-cinch); the slam is the impact, after it.
     expect(ko.burstAt - huge.impactAt).toBe(STITCH_KO.cinchMs);
     expect(ko.impactAt - ko.burstAt).toBe(STITCH_KO.latchDelayMs + STITCH_KO.latchFlightMs + STITCH_KO.yankMs);
     expect(ko.koHomeAt! - ko.impactAt).toBe(STITCH_KO.returnMs);
@@ -274,7 +279,7 @@ describe('each variant is its Huge, remixed', () => {
     // The second cinch squeezes past snug for a moment, then settles back to tied.
     expect(knotAt(ko, ko.koCinchAt! + STITCH_KO.squeezeMs / 2)).toBeGreaterThan(1.1);
     expect(knotAt(ko, ko.strikeAt! - 1)).toBeCloseTo(1, 5);
-    // A deeper, longer dip than Huge's, still never 0.
+    // A deeper, longer dip than Tier 4's, still never 0.
     const c = HERO_STITCH_DEFAULTS;
     expect(slowMoExtraMs(ko, c)).toBeGreaterThan(slowMoExtraMs(huge, c));
     for (let t = ko.impactAt; t < ko.impactAt + 600; t += 10) expect(stitchTimeScale(ko, c, t)).toBeGreaterThan(0);
@@ -303,9 +308,9 @@ describe('each variant is its Huge, remixed', () => {
   });
 });
 
-describe('a style with no variant ignores the flag and plays Huge', () => {
+describe('a style with no variant ignores the flag and plays Tier 4', () => {
   afterEach(() => { document.body.innerHTML = ''; });
-  it('Blast, Basketball and Baseball (Legendaries): a knockout with the flag forced on is still their plain Tier IV', () => {
+  it('Blast, Basketball and Baseball (Legendaries): a knockout with the flag forced on is still their plain Tier 4', () => {
     const base = { formation: formationOf([1, 2], 3), total: 3, knockout: true, side: 'player' as const, attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 },
       reduced: false, onImpact: vi.fn(), frames: () => () => {}, sound: false, safety: false, host: document.body, camera: null, mount: () => () => {} };
     for (const play of [playHeroBlast, playHeroBasketball, playHeroBaseball]) {

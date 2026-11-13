@@ -11,7 +11,7 @@
  *  - MOTE: a soft speck of drifting light.
  *  - RUNE CIRCLE (`clockFace`): the time motif as a MAGIC CIRCLE: two luminous rings with twelve time runes between them
  *    (hourglass, crescent, eye, diamond), a ring of sixty points, a small inner ring. Not a dial: no tick bars.
- *  - DIGITS: the 3, 2 and 1 of IV's countdown as glowing runes (a soft halo, no hard outline).
+ *  - DIGITS: the 3, 2 and 1 of Tier 4's countdown as glowing runes (a soft halo, no hard outline).
  *  - WASH: a flat white quad (the snap's flash).
  * No hero or Ancient art is used (owner 2026-10-02: "i dont like using the art for the attack").
  */

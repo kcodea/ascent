@@ -1,6 +1,6 @@
 /**
  * THE ENRAGED STRIKE RUNNER: plays one Enraged Strike (the beats are in `heroEnragedConfig.ts`) and lands the
- * consequence on its impact beat (the last strike, or Tier IV's haymaker). Presentation only: the total it shows and the
+ * consequence on its impact beat (the last strike, or Tier 4's haymaker). Presentation only: the total it shows and the
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (never paused),
@@ -9,7 +9,7 @@
  * silhouette, the hero PORTRAIT drives at the foe), the aura, the afterimages, the combo and the haymaker.
  *
  * THE STRIKE CONTRACT: every strike before the last is a tick (its own full impact: FX and a sound). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last strike (Tier IV: on the haymaker).
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last strike (Tier 4: on the haymaker).
  *
  * THE PORTRAIT MOVES IN SCREEN SPACE. The pose is solved in screen px (the same space as the Pixi overlay), then written
  * as a transform in the portrait's own units: the scale of its ancestors is measured ONCE at the start (a scaled stage,
@@ -96,7 +96,7 @@ export function playHeroEnraged(o: HeroEnragedOptions): HeroEnragedHandle {
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
   const plan = enragedPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, swing: swing.times, tempo: getClassicConfig().tempo }, c);
   const cues = withFormation(fplan, enragedCues(plan));
-  // The coil and the Tier IV rise never take the hero off the screen (or out of the sandbox box).
+  // The coil and the Tier 4 rise never take the hero off the screen (or out of the sandbox box).
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const geo = enragedGeo(o.attacker, o.defender, aRadius, radius, c, { x0: 0, y0: 0, x1: vw, y1: vh }, swing, aRect.inv);

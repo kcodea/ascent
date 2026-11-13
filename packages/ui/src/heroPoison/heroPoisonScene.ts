@@ -79,7 +79,7 @@ export interface DartLook {
   cloudSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV burst peaks around 250). */
+/** Hard cap on sprites alive at once (a Tier 4 burst peaks around 250). */
 export const MAX_POISON_SPRITES = 700;
 /** Hard cap on trail strips alive at once (three per dart). */
 export const MAX_POISON_MESHES = 48;
@@ -435,7 +435,7 @@ export class HeroPoisonScene {
   private dartOf(i: number): Dart | undefined { return this.darts.find((d) => d.idx === i); }
 
   /**
-   * THE impact (I-III): the last dart thunks in. The first frame is the brightest: a short white-green flash over the
+   * THE impact (Tiers 1-3): the last dart thunks in. The first frame is the brightest: a short white-green flash over the
    * face, a big crisp splat (two, crossed), two rings, venom spurts, a spray of droplets arcing out and falling, toxic
    * puffs, bubbles, and the strongest tint pulse. The fills are gone in ~150 ms, so the big -N reads.
    */
@@ -475,7 +475,7 @@ export class HeroPoisonScene {
     this.tintPulse(x, y, radius, 1, 480);
   }
 
-  /** I-III, a beat after the impact: the poison seeps in. A second tint pulse, bubbles, a drip off each stuck dart. */
+  /** Tiers 1-3, a beat after the impact: the poison seeps in. A second tint pulse, bubbles, a drip off each stuck dart. */
   seep(x: number, y: number, radius: number): void {
     this.tintPulse(x, y, radius, 0.7, 560);
     this.bubbles(x, y, radius, 6, { life: 760, size: 0.5 });
@@ -489,7 +489,7 @@ export class HeroPoisonScene {
     }
   }
 
-  /** I-III: the stuck darts dissolve (fade, sink a little) with a last wisp each. */
+  /** Tiers 1-3: the stuck darts dissolve (fade, sink a little) with a last wisp each. */
   dissolve(): void {
     for (const d of this.darts) {
       if (d.fade >= 0) continue;
@@ -499,7 +499,7 @@ export class HeroPoisonScene {
   }
 
   /**
-   * TIER IV: the stuck darts GLOW and PULSE while the venom SWELLS over the face: a toxic aura rising, a bloom, a rim
+   * TIER 4: the stuck darts GLOW and PULSE while the venom SWELLS over the face: a toxic aura rising, a bloom, a rim
    * throbbing faster, bubbles boiling off and wisps curling up. `durMs` is the swell; `suckMs` the collapse.
    */
   startSwell(x: number, y: number, radius: number, durMs: number, suckMs: number): void {
@@ -537,7 +537,7 @@ export class HeroPoisonScene {
   }
 
   /**
-   * TIER IV's TOXIC BURST: the point bursts. A short flash, a GREEN-BLACK shockwave (a thick dark ring with a venom ring
+   * TIER 4's TOXIC BURST: the point bursts. A short flash, a GREEN-BLACK shockwave (a thick dark ring with a venom ring
    * riding inside it and a flat acid ring), big splats, bubbling toxic cloud puffs rolling out, acid droplets arcing
    * out and falling, venom spurts, a lingering poison haze that dissipates, and the strongest tint on the face.
    */
@@ -599,7 +599,7 @@ export class HeroPoisonScene {
     this.tintPulse(x, y, radius, 1.2, 700);
   }
 
-  /** A bubbling pop round the target after the burst (IV): a small splat, a ring, droplets, bubbles. */
+  /** A bubbling pop round the target after the burst (Tier 4): a small splat, a ring, droplets, bubbles. */
   boom(x: number, y: number, size: number): void {
     const f = this.fxs('body', this.tex.splat2, this.colors.venom, x, y, { dur: 380, from: 0.1 * size, to: 0.34 * size, a0: 0.9, mode: 'hold' });
     if (f) f.s.rotation = this.rnd() * Math.PI * 2;

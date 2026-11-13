@@ -155,6 +155,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   grantRuby2: 'End of Turn: get 2 Rubies',
   grantFacetwright: 'Start of every turn: get a Facetwright',
   demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
+  runePiggyBank: 'All unspent Gold carries over to next turn. End of Turn: give a minion +1/+3. Repeat for every unspent Gold',
 };
 
 export function questRewardText(r: QuestReward, live?: { completed?: boolean; shoutCharges?: number; repeatTurns?: number }): string {

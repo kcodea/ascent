@@ -1,6 +1,6 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -227,6 +227,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF THE COFFERS (owner report 2026-10-06, R-COFFERS-EVERY-EOT-01): the max Gold it has added so far, so each
   // End of Turn's raise is visible on the badge (the live-value rule).
   if (runeId === 'rune_coffers' && run.runeCoffers) return `+${run.runeCoffersGold ?? 0} max Gold`;
+  // ROYAL TREASURY (Set 2 Epic tribal runes, owner 2026-11-12): the Dwarf meter and the max Gold it has given so far.
+  if (runeId === 'rune_royal_treasury' && run.questFlags?.runeRoyalTreasury) return `${run.royalTreasuryTick ?? 0}/${ROYAL_TREASURY_PER} · +${run.royalTreasuryGold ?? 0} max Gold`;
   if (runeId === 'rune_lapidary' && run.runeLapidary) {
     const n = (run.playedThisTurn ?? []).length;
     return `${n} card${n === 1 ? '' : 's'}`;
@@ -306,6 +308,13 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_shifting_facets' && run.questFlags?.runeShiftingFacets) {
     return (run.runeShiftingFacetsTick ?? 0) % 2 === 0 ? '+1 Hp' : '+1 Atk';
   }
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12): the N/X integer counter convention. ──
+  // Piggy Bank, the REPEAT form: how many times the +1/+3 lands this End of Turn (the base plus one per unspent Gold).
+  if (runeId === 'rune_piggy_bank' && run.questRecurringEndOfTurn?.includes('runePiggyBank')) return `×${recurringTickCount(run, 'runePiggyBank')}`;
+  // Loyal Customer: minions bought toward the free one (3/4 = the next minion is free).
+  if (runeId === 'rune_loyal_customer' && run.questFlags?.runeLoyalCustomer) return `${(run.loyalCustomerBuys ?? 0) % SET2_BASIC_NEUTRAL.loyalCustomerEvery}/${SET2_BASIC_NEUTRAL.loyalCustomerEvery}`;
+  // Warm-Up: the side-wide Pummel tally toward the next multiple of 150 (it carries across fights).
+  if (runeId === 'rune_warm_up' && run.questFlags?.runeWarmUp) return `${(run.runeWarmUpDealt ?? 0) % SET2_BASIC_NEUTRAL.warmUp.every}/${SET2_BASIC_NEUTRAL.warmUp.every}`;
   return null;
 }
 
@@ -335,7 +344,10 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
 /** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
  *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
-export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1): string | null {
+export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1, fires = 0): string | null {
+  // TROPHY HUNTER (Set 2 rune batch, 2026-11-13): "(3 per combat.)" Its paid kills this fight out of the 3 (the replay's
+  // own trigger count for the badge, `fires`), so the cap is visible as it fills.
+  if (runeId === 'rune_trophy_hunter') return `${Math.min(fires, SET2_TRIBAL_RUNES.trophyHunterPerCombat)}/${SET2_TRIBAL_RUNES.trophyHunterPerCombat}`;
   // RUNE OF REINVESTMENT: not a countdown — the Shop buff this fight has EARNED so far (+3/+4 per friendly summon
   // per copy held, `REINVESTMENT_PER_SUMMON` — the same constant settle pays), ticking with the replay's summon
   // delta (owner ask 2026-09-10; amounts owner balance 2026-09-23).

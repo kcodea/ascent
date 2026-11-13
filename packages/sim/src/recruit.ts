@@ -1,4 +1,5 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientSpoilsPassive } from './ancients'; // Mimic
@@ -26,9 +27,11 @@ import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
-import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID } from './shop';
+import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants, SCROLL_DRAKE_ID, refillShopMadness } from './shop';
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
+import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
+import { collectionsOnSale, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -1561,6 +1564,7 @@ export const NO_COPY_SPELLS: ReadonlySet<string> = NO_COPY_SPELL_IDS; // ONE set
 export function noteGilded(state: RunState | undefined): void {
   if (state?.ancientsEnabled && state.ancients) state.ancients.gilds = (state.ancients.gilds ?? 0) + 1;
   duosOnGild(state); // Teammate Synergy (Duos rune, R-DUOS-RUNES-01): a Triple Reward for the teammate
+  goldenHandshakeOnGild(state); // Golden Handshake (Set 2 batch, 2026-11-12): every Gild gives your board +2/+2
 }
 
 /** Gild `card`. Pass `state` when this is a NEW gild (it ticks the run's gild count); a restore of an already-gilded
@@ -2328,6 +2332,10 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
   // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
   // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
+  // GOLDEN MONKEY (Set 2 rune, owner 2026-11-13): Indy's Golden Monkey, but SWAPPED IN: a random Shop minion (seeded;
+  // never a spell, Ruby, the Starform, a held offer or another copy of the card) leaves for the pool and the card
+  // takes its slot (`replaceShopOfferWith`). With no minion to replace, it fills a free slot instead (`addCardToShop`).
+  if (t.replaceShopWith && CARD_INDEX[t.replaceShopWith]) replaceShopOfferWith(state, t.replaceShopWith);
   if (t.rubyAll) {
     const rb = rubyStatBonus(state);
     for (const c of [...state.board]) {
@@ -6997,6 +7005,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   deathrattleDamageAll: (ctx, self, params) => {
     ARENA_EFFECTS.deathrattleDamageAll(shopArena(ctx.state, self), params);
   },
+  /** Set 2 rune Imp Legion's graft: the Shop has no enemies, so the arena body returns at once (inert by membership). */
+  deathrattleDamageLowestEnemy: (ctx, self, params) => {
+    ARENA_EFFECTS.deathrattleDamageLowestEnemy(shopArena(ctx.state, self), params);
+  },
   /** Set 2 — Fel Spikes (Echo), SHOP half: a borrowed / shop-fired Echo damages YOUR board (there is no enemy
    *  in the shop, same ruling as Blaster) EXCEPT your minions of `exceptTribe`. Bodies taken to 0 die here too,
    *  their own Echoes firing — mirroring the shop `damageAll`. */
@@ -9731,6 +9743,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const card = CARD_INDEX[offer.cardId];
       if (!card) return;
       state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      refillShopMadness(state, [idx]); // SHOP MADNESS: the stolen slot refills at once (a repeated steal finds a fresh target)
       // THE LASSO BEAM's signal (owner ask 2026-09-22). Recorded HERE, at the one place every steal resolves, so
       // the spell, Rope Wrangler, Whiplass-o and Rune of Lassoing all feed one channel. The reducer still resolves
       // the theft immediately — the record is only what lets the UI pace it. `_origin` is set by the caller that
@@ -11003,7 +11016,7 @@ export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
   const avail = runSpells(state).filter((c) => c.tier <= state.tier && !DISCOVER_EXCLUDED_SPELLS.has(c.id));
   const picks: string[] = [];
-  for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
+  for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id); // Second Opinion: +1 per copy
   state.rngCursor = rng.state();
   if (picks.length > 0) state.discover = picks;
 }
@@ -11077,7 +11090,7 @@ export function offerDiscover(
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
     const target = Math.min(opts?.maxTier ?? discoverElevateCeiling(state), discoverTier); // R-RANDOM-TIER7-02: 7 only from a Tier 7 Shop (or an explicit maxTier)
     let floor = target;
-    while (pool.length < 3 && floor >= 1) {
+    while (pool.length < discoverOptionCount(state) && floor >= 1) { // Second Opinion widens the floor walk with the offer
       pool = poolOf(state).buyable.filter(
         (c) =>
           c.tier <= target &&
@@ -11104,7 +11117,7 @@ export function offerDiscover(
   const rng = makeRng(state.rngCursor);
   const avail = [...pool];
   const picks: string[] = [];
-  for (let i = 0; i < 3 && avail.length > 0; i++) {
+  for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) { // Second Opinion: +1 per copy
     picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   }
   state.rngCursor = rng.state();
@@ -11140,7 +11153,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     const rng = makeRng(state.rngCursor);
     const avail = [...pool];
     const picks: string[] = [];
-    for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!);
+    for (let i = 0; i < discoverOptionCount(state) && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!); // Second Opinion: +1 per copy
     state.rngCursor = rng.state();
     state.discover = picks;
     state.discoverLockTier = undefined;
@@ -12443,6 +12456,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // SET 3 DESIGN PASS: a Ruby CAST on a minion (every landing site, never a bounce hop): the Keepsake Gem lands its
   // stats on the left-most hand minion too; the Gem Star feeds the Starform the first 4 each turn.
   runeRubyCastShop(state, card, rubyAttack, rubyHealth, rubyKeyword);
+  roughCutShop(state, card, rubyAttack, rubyHealth, rubyKeyword); // Set 2 rune Rough Cut: a Ruby on a Kobold also casts on a non-Kobold
   // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
   // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
@@ -12648,6 +12662,7 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // Ruby Sales (Set 3 Kobold rune, owner 2026-10-22): the `sell` threshold ticks once per minion sold, from any sale
   // path (the manual Sell and a spell that Sells both settle here).
   advanceRuneThresholds(state, 'sell', 1);
+  collectionsOnSale(state, sold); // Set 2 rune Collections: a Demon sold gives the Shop +2/+2 permanently
   // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
   // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
   // tavern) → nothing to give.
@@ -12899,9 +12914,12 @@ export function stampEpicFire(state: RunState, uids: readonly string[]): void {
   state.epicFireFxSeq = (state.epicFireFxSeq ?? 0) + 1;
 }
 
-function shoutFireCount(state: RunState, def: CardDef): number {
+function shoutFireCount(state: RunState, def: CardDef, uid?: string): number {
   let n = drummerRepeats(state); // 1 + Drakko's extra
   const isShout = def.effects.some((e) => e.on === 'onPlay');
+  // ELDER'S VOICE (Set 2 Epic tribal rune, owner 2026-11-12): the body whose Shout fires FIRST this turn, played or
+  // triggered (every Shop Shout passes this fold), is remembered; its Shout fires again at Start of Combat.
+  if (isShout && state.questFlags?.runeEldersVoice && !state.eldersVoiceSeen) { state.eldersVoiceSeen = true; state.eldersVoiceUid = uid; }
   if (isShout) {
     // The Shout loops run this count right away: Drakko / Zyff and Orivax pulse as they add fires (R-FX-EPIC-FIRE-01).
     stampEpicFire(state, [
@@ -13175,7 +13193,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
   const def = CARD_INDEX[card.cardId];
   if (!def) return;
   // Warm Embers doubles this played (targeted) Shout while charged; Drakko still stacks on top.
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, card.uid);
   for (const effect of def.effects) {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
@@ -13302,7 +13320,7 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   const ctx = makeContext(state);
   // A TRIGGERED Shout is a Shout (R-SHOUT-TRIGGER-01): the same fold a played Shout uses, so every multiplier,
   // charge and tally sees it (Drakko, the Choir family, Encore, Warm Embers, the War Drum, the Shout objectives).
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, card.uid);
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -13603,7 +13621,7 @@ export const ENDLESS_MARCH_TOKEN = 'knit';
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   const rallyGold = ancientRallyGoldGraft(state); // ANCIENT OF WAR × Tradesman
   const gildedEcho = ancientGildedEchoGraft(state); // ANCIENT OF DEATH × Midas
-  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho) return;
+  if (!state.runeEndlessMarch && !state.runeLastTool && !state.questFlags?.runeEchoingKobolds && !state.questFlags?.runeAggressiveGolems && !state.questFlags?.runeStellarEchoes && !rallyGold && !gildedEcho && !state.questFlags?.runeImpLegion) return;
   const def = CARD_INDEX[card.cardId];
   if (!def || def.spell || def.ruby) return;
   const graft = (effect: EffectDef): void => {
@@ -13628,6 +13646,8 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
     const n = 2 * runeStacksOf(state, 'rune_stellar_echoes');
     graft({ on: 'onDeath', do: 'deathrattleBuffStarform', params: { attack: n, health: n, fixed: true } });
   }
+  // Set 2 rune Imp Legion: every friendly Imp carries "Echo: deal 3 damage to the lowest-Health enemy", one hit per copy.
+  if (state.questFlags?.runeImpLegion && def.imp) graft(impLegionGraft(runeStacksOf(state, 'rune_imp_legion')));
   if (state.questFlags?.runeAggressiveGolems && card.cardId === 'gemheart-shard') {
     graft({ on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} });
     if (!card.keywords.includes('RL')) card.keywords = [...card.keywords, 'RL'];
@@ -13921,6 +13941,9 @@ export function consumeShopOffer(
   // shrank the run's pool, and with eight Demons eating — two of them every single turn — a long run would
   // visibly run the pool dry.
   returnToPool(state, def.id);
+  // SHOP MADNESS (Set 2 rune, owner 2026-11-13): the eaten slot refills AT ONCE, before the watchers hear the eat, so
+  // a Hydraskus feast (every Demon eats) or Bottomless Banquet's bonus bite always finds a fresh meal.
+  refillShopMadness(state, [offerIndex]);
   fire(ctx, 'onConsume', { minion: eater, shop: true }); // `shop` distinguishes a SHOP eat from a Fodder one (Broodlord counts only these)
   // Rune of the Empty Plate counts EVERY Consume (owner 2026-11-08): a Shop-minion eat ticks it here, ONE per minion
   // eaten (a Gilded `times: 2` is still one minion; Bottomless Banquet's bonus bite is its own). This covers a Demon's
@@ -13988,6 +14011,31 @@ export function addCardToShop(state: RunState, cardId: string): string | null {
   takeFromPool(state, cardId);
   state.shop[idx] = offer;
   stampNewShopOffers(state, [offer], { onRefresh: false, cia: true, inPlace: true }); // it took the replaced slot's enchant
+  return offer.uid;
+}
+
+/**
+ * REPLACE a random Shop minion with `cardId` (Golden Monkey rune, owner 2026-11-13: "replace a minion with a golden
+ * monkey"). The pick is seeded off `rngCursor`: a minion offer that is not the Starform, a held (Displacement) offer or
+ * already a copy of `cardId`. The replaced offer returns to the pool like a reroll; the new offer takes its slot and its
+ * slot enchant (`inPlace`). No minion to replace: the card fills a free slot instead (`addCardToShop`; nothing when the
+ * row is full of non-minions). The row never grows past a replace, so Shop Madness's 6 stay 6. Returns the new uid.
+ */
+export function replaceShopOfferWith(state: RunState, cardId: string): string | null {
+  const idxs: number[] = [];
+  state.shop.forEach((o, i) => {
+    const d = CARD_INDEX[o.cardId];
+    if (d && !d.spell && !d.ruby && !o.starform && !o.held && o.cardId !== cardId) idxs.push(i);
+  });
+  if (idxs.length === 0) return addCardToShop(state, cardId);
+  const rng = makeRng(state.rngCursor);
+  const idx = idxs[rng.int(idxs.length)]!;
+  state.rngCursor = rng.state();
+  const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId };
+  returnToPool(state, state.shop[idx]!.cardId);
+  takeFromPool(state, cardId);
+  state.shop[idx] = offer;
+  stampNewShopOffers(state, [offer], { onRefresh: false, cia: true, inPlace: true });
   return offer.uid;
 }
 
@@ -14110,7 +14158,7 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
   if (def && onPlay.length > 0) {
     state.karwindFlash = [];
     const ctx = makeContext(state);
-    const repeats = shoutFireCount(state, def);
+    const repeats = shoutFireCount(state, def, card.uid);
     for (const effect of onPlay) {
       const fn = RECRUIT_FACTORIES[effect.do];
       if (!fn) continue;
@@ -14455,6 +14503,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
+  flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
 
 
@@ -15357,6 +15406,22 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     const ends = st.board.length === 1 ? [st.board[0]!] : [st.board[0]!, st.board[st.board.length - 1]!];
     for (const m of ends) addBuff(m, 'Held Strength', held.attack * reps, held.health * reps);
   } });
+  // Shield Wall (Set 2 batch, 2026-11-12): Taunt minions +4/+6 per copy (permanent here).
+  if (f?.runeShieldWall) out.push({ id: 'rune_shield_wall', kind: 'rune', label: 'Shield Wall', fire: (st) => shieldWallShop(st) });
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12): the Shop twins of the two Start-of-Combat runes (R-RUNE-14). ──
+  // Bulwark Line: every Taunt minion gains Ward (permanent here, idempotent).
+  if (f?.runeBulwarkLine) out.push({ id: 'rune_bulwark_line', kind: 'rune', label: 'Bulwark Line', fire: (st) => {
+    for (const m of st.board) if (m.keywords.includes('T')) grantKw(m, 'DS');
+  } });
+  // Double Bill: the left-most and right-most Shout minions fire their Shout (one Shout minion fires once), through
+  // `replayBattlecry` (a triggered Shout is a Shout: Drakko and every Shout tally see it), once per copy held.
+  if (f?.runeDoubleBill) out.push({ id: 'rune_double_bill', kind: 'rune', label: 'Double Bill', fire: (st) => {
+    const shouts = st.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    const ends = shouts.length <= 1 ? shouts : [shouts[0]!, shouts[shouts.length - 1]!];
+    for (let k = 0; k < Math.max(1, st.flagCopies?.runeDoubleBill ?? 1); k++) {
+      for (const c of ends) if (st.board.includes(c)) replayBattlecry(st, c);
+    }
+  } });
   return out;
 }
 
@@ -16153,6 +16218,14 @@ function runRecurringEndOfTurn(
         state.rngCursor = rng.state();
       });
     });
+  } else if (effect === 'runePiggyBank') {
+    // Piggy Bank (Set 2 batch, 2026-11-12): "End of Turn: give a minion +1/+3. Repeat for every unspent Gold." The
+    // REPEAT form (R-REPEAT-01): the base tick plus one per unspent Gold, each its own step and beat, a fresh seeded
+    // friendly per tick (`piggyBankTick`). The carry-over half is `piggyBankCarry`, at the end of the Shop turn.
+    forEachTick(tick === undefined ? undefined : { tick }, recurringTickCount(state, effect), () => {
+      if (state.board.length === 0) return;
+      step(() => piggyBankTick(state));
+    });
   } else if (effect === 'runeAncestralRoar') {
     // Rune of Ancestral Roar (balance 9/23): "End of Turn: give your Dragons +6/+6 for every Shout you triggered
     // this turn." LUMP form (R-REPEAT-01): ONE buff instance per Dragon sized by the count — 3 Shouts = one +18/+18.
@@ -16640,7 +16713,8 @@ export const RUNE_ACTION_GRANT = { count: 3, attack: 2, health: 2 } as const;
 /** How many TICKS one fire of a recurring End-of-Turn effect takes — the recurring twin of `eotTickCount`, read by
  *  the commit, the projection and the beat list so the three agree. Rune of Action is the REPEAT form: the base
  *  plus one per card played this turn. Every other recurrence fires once per trigger. */
-export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: string): number {
+export function recurringTickCount(state: Pick<RunState, 'playedThisTurn'> & Partial<Pick<RunState, 'embers'>>, effect: string): number {
+  if (effect === 'runePiggyBank') return 1 + Math.max(0, state.embers ?? 0); // Piggy Bank: base + one per unspent Gold
   return effect === 'runeAction' ? 1 + (state.playedThisTurn?.length ?? 0) : 1;
 }
 
@@ -16666,6 +16740,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientBatchBEot: 'Ancient of Time',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
+  runePiggyBank: 'Piggy Bank',
 };
 
 /** Rune of Ancestral Roar's per-Shout step (balance 9/23): +6/+6 to every Dragon per Shout triggered this turn.
@@ -17190,7 +17265,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   // the picker unconditionally for this case.
   if (taughtAimSpell(played)) return;
   // Drakko the Drummer makes Battlecries fire extra times; Warm Embers doubles the next few played Shouts.
-  const repeats = shoutFireCount(state, def);
+  const repeats = shoutFireCount(state, def, played.uid);
   // CELESTIAL: a Shout half gated on `align` only fires for the matching alignment (Eclipse fires both).
   // Read AFTER the card has entered the board, because entering re-centres the board and therefore decides
   // its own alignment — a Celestial's Shout reads the alignment it just landed in, not the one before.
@@ -17322,6 +17397,13 @@ function runeRiseRunesShop(state: RunState, risen: BoardCard): void {
   if (f?.runeRestless && state.board.includes(risen) && instanceEffects(risen).some((e) => e.on === 'onDeath')) {
     procRuneId(state, 'rune_restless');
     for (let k = 0; k < runeStacksOf(state, 'rune_restless'); k++) fireRecruitDeathrattles(makeContext(state), risen);
+  }
+  // FERAL RETURN (Set 2 Epic Beast rune, owner 2026-11-12), Shop half: "Beasts that Rise gain +5/+5" (a Shop buff is
+  // permanent), per copy held. All-types bodies count as Beasts.
+  if (f?.runeFeralReturn && state.board.includes(risen) && isTribe(risen, 'beast')) {
+    procRuneId(state, 'rune_feral_return');
+    const n = FERAL_RETURN_GAIN * runeStacksOf(state, 'rune_feral_return');
+    captureBuffFx(state, risen, 'spell', () => addBuff(risen, 'Feral Return', n, n));
   }
 }
 

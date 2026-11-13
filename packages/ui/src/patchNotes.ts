@@ -70,6 +70,30 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Flurry now arrives on a beam of its own, with a gust of air and a flurry of blade swings. Runic Beetle sends it to the Beast he picks, and a spell, a hero power or a rune sends it the same way as Rise, Execute and Ward.',
       },
+      {
+        category: 'Balance',
+        text: 'Set 2 gets 43 new runes. Look for them in the Runeforge: 25 Basic and 18 Epic, for every tribe and for any board.',
+        details: [
+          'Basic: Piggy Bank, Hazard Pay, Second Opinion, Shield Wall, Shatterproof, Warm-Up, Golden Handshake, Late Bloomer, Loyal Customer, Shop Madness, Golden Monkey.',
+          "Basic: Deep Pockets, Rowdy Crowd, Bloodscent, Last Howl, Trophy Hunter, Pitchforks, Imp Legion, Guel's Apprentice, Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Ruby Dust, Rough Cut.",
+          'Epic: Top Shelf, Double Bill, Bulwark Line, Wholesale, Grudge, Bastion, Mirror Sheen.',
+          "Epic: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire, Elder's Voice, Vein Finder, Gem Rain, Iggy Iggy.",
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Eight new hero attacks are in crates. Equip one in the Collection to change how your hero strikes.',
+        details: [
+          'Checkmate (Epic): chess pieces move by their own rules and take the enemy hero.',
+          'Grand Finale (Epic): fireworks, ending in one huge shell over the enemy hero.',
+          'Fourth Wall (Epic): the screen is a pane of glass, and the hit breaks it.',
+          'Top Rope (Legendary): the two heroes wrestle, all the way to a three count.',
+          'Flawless (Legendary): a fighting game combo, with a counter that ends on the real damage.',
+          'Warhost (Ancient): an army of tiny soldiers. It has its own knockout version.',
+          'The Reaping (Ancient): the scythe cuts the colour out of the enemy hero.',
+          'Written in the Stars (Ancient): constellations come alive and strike.',
+        ],
+      },
     ],
   },
   {

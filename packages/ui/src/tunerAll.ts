@@ -81,17 +81,25 @@ import { SPEC as HeroBeastSpec } from './HeroBeastTuner';
 import { SPEC as HeroBananaSpec } from './HeroBananaTuner';
 import { SPEC as HeroBleedSpec } from './HeroBleedTuner';
 import { SPEC as HeroCardsSpec } from './HeroCardsTuner';
+import { SPEC as HeroChessSpec } from './HeroChessTuner';
 import { SPEC as HeroStormSpec } from './HeroStormTuner';
+import { SPEC as HeroFireworksSpec } from './HeroFireworksTuner';
 import { SPEC as HeroCoinSpec } from './HeroCoinTuner';
 import { SPEC as HeroBoomerangSpec } from './HeroBoomerangTuner';
 import { SPEC as HeroBubbleSpec } from './HeroBubbleTuner';
 import { SPEC as HeroBackstabSpec } from './HeroBackstabTuner';
 import { SPEC as HeroBasketballSpec } from './HeroBasketballTuner';
 import { SPEC as HeroBaseballSpec } from './HeroBaseballTuner';
+import { SPEC as HeroComboSpec } from './HeroComboTuner';
+import { SPEC as HeroWrestleSpec } from './HeroWrestleTuner';
 import { SPEC as HeroSoccerSpec } from './HeroSoccerTuner';
 import { SPEC as HeroVoidSpec } from './HeroVoidTuner';
 import { SPEC as HeroStitchSpec } from './HeroStitchTuner';
+import { SPEC as HeroReapingSpec } from './HeroReapingTuner';
 import { SPEC as HeroBulletTimeSpec } from './HeroBulletTimeTuner';
+import { SPEC as HeroStarsSpec } from './HeroStarsTuner';
+import { SPEC as HeroGlassSpec } from './HeroGlassTuner';
+import { SPEC as HeroWarhostSpec } from './HeroWarhostTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -188,17 +196,25 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroBananaSpec,
   HeroBleedSpec,
   HeroCardsSpec,
+  HeroChessSpec,
   HeroStormSpec,
+  HeroFireworksSpec,
   HeroCoinSpec,
   HeroBoomerangSpec,
   HeroBubbleSpec,
   HeroBackstabSpec,
   HeroBasketballSpec,
   HeroBaseballSpec,
+  HeroComboSpec,
+  HeroWrestleSpec,
   HeroSoccerSpec,
   HeroVoidSpec,
   HeroStitchSpec,
+  HeroReapingSpec,
   HeroBulletTimeSpec,
+  HeroStarsSpec,
+  HeroGlassSpec,
+  HeroWarhostSpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

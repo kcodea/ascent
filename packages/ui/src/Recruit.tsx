@@ -135,9 +135,13 @@ import { heroBananaPreviewSpeed } from './heroBanana/heroBananaConfig';
 import { playHeroBleed } from './heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from './heroBleed/heroBleedConfig';
 import { playHeroCards } from './heroCards/heroCards';
+import { playHeroChess } from './heroChess/heroChess';
 import { heroCardsPreviewSpeed } from './heroCards/heroCardsConfig';
+import { heroChessPreviewSpeed } from './heroChess/heroChessConfig';
 import { playHeroStorm } from './heroStorm/heroStorm';
+import { playHeroFireworks } from './heroFireworks/heroFireworks';
 import { heroStormPreviewSpeed } from './heroStorm/heroStormConfig';
+import { heroFireworksPreviewSpeed } from './heroFireworks/heroFireworksConfig';
 import { playHeroCoin } from './heroCoin/heroCoin';
 import { heroCoinPreviewSpeed } from './heroCoin/heroCoinConfig';
 import { playHeroBoomerang } from './heroBoomerang/heroBoomerang';
@@ -149,15 +153,27 @@ import { heroBackstabPreviewSpeed } from './heroBackstab/heroBackstabConfig';
 import { playHeroBasketball } from './heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from './heroBasketball/heroBasketballConfig';
 import { playHeroBaseball } from './heroBaseball/heroBaseball';
+import { playHeroCombo } from './heroCombo/heroCombo';
+import { playHeroWrestle } from './heroWrestle/heroWrestle';
 import { heroBaseballPreviewSpeed } from './heroBaseball/heroBaseballConfig';
+import { heroComboPreviewSpeed } from './heroCombo/heroComboConfig';
+import { heroWrestlePreviewSpeed } from './heroWrestle/heroWrestleConfig';
 import { playHeroSoccer } from './heroSoccer/heroSoccer';
 import { heroSoccerPreviewSpeed } from './heroSoccer/heroSoccerConfig';
 import { playHeroVoid } from './heroVoid/heroVoid';
 import { heroVoidPreviewSpeed } from './heroVoid/heroVoidConfig';
 import { playHeroStitch } from './heroStitch/heroStitch';
+import { playHeroReaping } from './heroReaping/heroReaping';
 import { heroStitchPreviewSpeed } from './heroStitch/heroStitchConfig';
+import { heroReapingPreviewSpeed } from './heroReaping/heroReapingConfig';
 import { playHeroBulletTime } from './heroBulletTime/heroBulletTime';
+import { playHeroStars } from './heroStars/heroStars';
+import { playHeroGlass } from './heroGlass/heroGlass';
+import { playHeroWarhost } from './heroWarhost/heroWarhost';
 import { heroBulletTimePreviewSpeed } from './heroBulletTime/heroBulletTimeConfig';
+import { heroStarsPreviewSpeed } from './heroStars/heroStarsConfig';
+import { heroGlassPreviewSpeed } from './heroGlass/heroGlassConfig';
+import { heroWarhostPreviewSpeed } from './heroWarhost/heroWarhostConfig';
 import { resolveHeroAttackStyle } from './heroBlast/heroAttackStyle';
 import { attackerCosmeticOf } from './heroBlast/attackerCosmetic';
 import { heroStrikeDamage, heroStrikeKnockout, heroStrikeNumbers } from './heroBlast/heroStrikeDamage';
@@ -3819,6 +3835,22 @@ export function Recruit() {
     if (attackStyle !== 'classic') {
       const runner = attackStyle === 'bullettime'
         ? { play: playHeroBulletTime, preview: heroBulletTimePreviewSpeed() }
+        : attackStyle === 'stars'
+        ? { play: playHeroStars, preview: heroStarsPreviewSpeed() }
+        : attackStyle === 'glass'
+        ? { play: playHeroGlass, preview: heroGlassPreviewSpeed() }
+        : attackStyle === 'reaping'
+        ? { play: playHeroReaping, preview: heroReapingPreviewSpeed() }
+        : attackStyle === 'warhost'
+        ? { play: playHeroWarhost, preview: heroWarhostPreviewSpeed() }
+        : attackStyle === 'combo'
+        ? { play: playHeroCombo, preview: heroComboPreviewSpeed() }
+        : attackStyle === 'wrestle'
+        ? { play: playHeroWrestle, preview: heroWrestlePreviewSpeed() }
+        : attackStyle === 'fireworks'
+        ? { play: playHeroFireworks, preview: heroFireworksPreviewSpeed() }
+        : attackStyle === 'chess'
+        ? { play: playHeroChess, preview: heroChessPreviewSpeed() }
         : attackStyle === 'stitch'
         ? { play: playHeroStitch, preview: heroStitchPreviewSpeed() }
         : attackStyle === 'basketball'

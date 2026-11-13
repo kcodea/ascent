@@ -41,6 +41,9 @@ jobs:
       # separate steps so a red build names the layer that broke. Keep them in sync with package.json.
       - run: npm run typecheck:pkgs  # engine: core/content/sim/tools — the highest-value Claude-break catcher
       - run: npm run typecheck:web   # presentation: @game/ui + apps/web (vite build strips types, so this is the ONLY gate)
+        env:
+          # The UI's hero-attack folders push this tsc past Node's default heap on the runner (OOM, exit 134 on #2681/#2685).
+          NODE_OPTIONS: --max-old-space-size=6144
       - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim/tools)
       - run: npm run build:web   # vite build MUST succeed = the game compiles
 

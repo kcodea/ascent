@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the PHANTOM BLADES hero attack (owner ask 2026-09-28: "make a new style animation and surprise me with
  * it"). The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in either
- * direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40. A preview never
+ * direction, at Tier 1 (3) / Tier 2 (8) / Tier 3 (12) / Tier 4 (40). A preview never
  * touches the run. The "Attack style" row is the same dev override as the other attack tuners' (Auto = what a player
  * would see). Production plays the baked defaults.
  */
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroBladesNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which the Blades step up to Tier II (a crossed pair). Shared with every hero attack (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which the Blades become the fan of five. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which the Blades bring down the greatsword. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which the Blades step up to Tier 2 (a crossed pair). Shared with every hero attack (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which the Blades become the fan of five. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which the Blades bring down the greatsword. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero before the blades appear.', 'Summon and aim'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the blades are summoned.', 'Summon and aim'],
   recoilPx: ['Recoil', 'px', 'How far the hero kicks back as each blade is loosed.', 'Summon and aim'],
@@ -45,14 +45,14 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   cutLine: ['Cut line', 'opacity', 'The thin line of light a blade leaves behind its point in flight.', 'Blades'],
   quiver: ['Quiver', '°', 'How far a stuck blade quivers.', 'Blades'],
   shatterDelayMs: ['Shatter after', 'ms', 'How long the stuck blades hold after the impact before they shatter.', 'Shatter'],
-  greatSize: ['Greatsword size', '×', 'Tier IV: the greatsword, as a multiple of the blade length.', 'Greatsword (Tier IV)'],
-  greatForm: ['Greatsword distance', '×', 'Tier IV: how far from the hero it forms, in portrait radii.', 'Greatsword (Tier IV)'],
-  greatManifestMs: ['Greatsword unfurl', 'ms', 'Tier IV: the greatsword forming.', 'Greatsword (Tier IV)'],
-  greatAimMs: ['Greatsword aim', 'ms', 'Tier IV: its heavy swing round to aim.', 'Greatsword (Tier IV)'],
-  greatHangMs: ['Hang', 'ms', 'Tier IV: aimed and trembling while the judgement locks on (the big anticipation).', 'Greatsword (Tier IV)'],
-  greatPullMs: ['Greatsword kick back', 'ms', 'Tier IV: its draw back before the thrust.', 'Greatsword (Tier IV)'],
-  greatFlight: ['Greatsword flight', '×', 'Tier IV: its thrust time as a multiple of the tier flight.', 'Greatsword (Tier IV)'],
-  bindBeams: ['Binding spokes', 'opacity', 'Tier IV: the spokes of light from each stuck blade into the target while it hangs (0 = none).', 'Greatsword (Tier IV)'],
+  greatSize: ['Greatsword size', '×', 'Tier 4: the greatsword, as a multiple of the blade length.', 'Greatsword (Tier 4)'],
+  greatForm: ['Greatsword distance', '×', 'Tier 4: how far from the hero it forms, in portrait radii.', 'Greatsword (Tier 4)'],
+  greatManifestMs: ['Greatsword unfurl', 'ms', 'Tier 4: the greatsword forming.', 'Greatsword (Tier 4)'],
+  greatAimMs: ['Greatsword aim', 'ms', 'Tier 4: its heavy swing round to aim.', 'Greatsword (Tier 4)'],
+  greatHangMs: ['Hang', 'ms', 'Tier 4: aimed and trembling while the judgement locks on (the big anticipation).', 'Greatsword (Tier 4)'],
+  greatPullMs: ['Greatsword kick back', 'ms', 'Tier 4: its draw back before the thrust.', 'Greatsword (Tier 4)'],
+  greatFlight: ['Greatsword flight', '×', 'Tier 4: its thrust time as a multiple of the tier flight.', 'Greatsword (Tier 4)'],
+  bindBeams: ['Binding spokes', 'opacity', 'Tier 4: the spokes of light from each stuck blade into the target while it hangs (0 = none).', 'Greatsword (Tier 4)'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
@@ -78,19 +78,19 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxClangRate: ['clang: pitch', '×', 'Pitch of the first clang.', 'Sound: clang'],
   sfxImpactGain: ['impact: gain', undefined, 'THE impact: the last blade, or the greatsword.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: an extra crack layered on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: an extra crack layered on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
   sfxThumpGain: ['thump: gain', undefined, 'A low punch under the impact (punchy, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
   sfxShatterGain: ['shatter: gain', undefined, 'The stuck blades shattering.', 'Sound: shatter'],
   sfxShatterRate: ['shatter: pitch', '×', 'Pitch of the shatter.', 'Sound: shatter'],
-  sfxGreatGain: ['greatsword: gain', undefined, 'Tier IV: a cinematic swoosh timed so its hit lands exactly on the greatsword going in.', 'Sound: greatsword'],
+  sfxGreatGain: ['greatsword: gain', undefined, 'Tier 4: a cinematic swoosh timed so its hit lands exactly on the greatsword going in.', 'Sound: greatsword'],
   sfxGreatRate: ['greatsword: pitch', '×', 'Pitch of the greatsword swoosh.', 'Sound: greatsword'],
-  sfxSlamDownGain: ['judgement: gain', undefined, 'Tier IV: the greatsword going in.', 'Sound: judgement'],
+  sfxSlamDownGain: ['judgement: gain', undefined, 'Tier 4: the greatsword going in.', 'Sound: judgement'],
   sfxSlamDownRate: ['judgement: pitch', '×', 'Pitch of the judgement.', 'Sound: judgement'],
-  sfxBoomGain: ['aftershock: gain', undefined, 'Tier IV: the pops after the shatter.', 'Sound: aftershock'],
+  sfxBoomGain: ['aftershock: gain', undefined, 'Tier 4: the pops after the shatter.', 'Sound: aftershock'],
   sfxBoomRate: ['aftershock: pitch', '×', 'Pitch of the first aftershock.', 'Sound: aftershock'],
-  sfxHumGain: ['steel hum: gain', undefined, 'Tier IV: the synth ring of the greatsword straining, peaking on the loose.', 'Sound: steel hum'],
+  sfxHumGain: ['steel hum: gain', undefined, 'Tier 4: the synth ring of the greatsword straining, peaking on the loose.', 'Sound: steel hum'],
   sfxHumHz: ['steel hum: pitch', undefined, 'Hz. The hum\'s base pitch.', 'Sound: steel hum'],
   sfxHumRise: ['steel hum: rise', '×', 'How far the hum climbs by the loose (1 = flat).', 'Sound: steel hum'],
   sfxLooseLenMs: ['loose length', 'ms', 'Each loose whoosh is cut to this long (with a fade).', 'Sound: mix'],
@@ -100,7 +100,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const TIER_SPECS: Record<BladesTierSuffix, [string, TunerUnit | undefined, string]> = {
-  Blades: ['Blades', undefined, 'How many blades are summoned (I one, II a crossed pair, III the fan of five, IV six before the greatsword).'],
+  Blades: ['Blades', undefined, 'How many blades are summoned (Tier 1 one, Tier 2 a crossed pair, Tier 3 the fan of five, Tier 4 six before the greatsword).'],
   SummonStaggerMs: ['Summon stagger', 'ms', 'Gap between each blade appearing.'],
   AimHoldMs: ['Hover', 'ms', 'The raised blades hover before they swing round to aim.'],
   LooseStaggerMs: ['Loose stagger', 'ms', 'Gap between each blade being loosed (the rhythm).'],
@@ -119,7 +119,7 @@ const TIER_SPECS: Record<BladesTierSuffix, [string, TunerUnit | undefined, strin
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroBladesStrKey>> = {
   'Sound: summon': 'sfxSummonClip',
@@ -225,14 +225,14 @@ export const SPEC: TunerSpec<BladesTunerValues> = {
   actions: [
     { label: '▶ You strike', hint: 'Your hero looses the Blades at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe strikes', hint: 'The foe looses the Blades at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero strikes for 3: Tier I, one blade.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero strikes for 8: Tier II, a crossed pair.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero strikes for 12 from four numbers: Tier III, the fan of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero strikes for 40 from seven numbers: Tier IV, six blades and the greatsword.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe strikes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero strikes for 3: Tier 1, one blade.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero strikes for 8: Tier 2, a crossed pair.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero strikes for 12 from four numbers: Tier 3, the fan of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero strikes for 40 from seven numbers: Tier 4, six blades and the greatsword.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe strikes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe strikes your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

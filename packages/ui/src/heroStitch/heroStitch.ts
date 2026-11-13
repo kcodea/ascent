@@ -9,24 +9,24 @@
  * voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
  * THE PORTRAITS are tied together by the thread, and the thread's ends ride them (the scene is handed their offsets
- * every frame). I-II: on the tug the striker leans BACK and the struck portrait is yanked TOWARD it, then the snap
- * knocks it back. III: the struck portrait is STRETCHED toward the striker against five pins (a linear transform about
- * its own centre, its far rim held), then snaps back as they rip out. IV: the struck portrait is DRAGGED across the
- * board into the heart-knot, crushed small, and flung home. III and IV's * pose is solved in screen px and written in the portrait's own units (its ancestors' scale measured ONCE at the start),
+ * every frame). Tiers 1-2: on the tug the striker leans BACK and the struck portrait is yanked TOWARD it, then the snap
+ * knocks it back. Tier 3: the struck portrait is STRETCHED toward the striker against five pins (a linear transform about
+ * its own centre, its far rim held), then snaps back as they rip out. Tier 4: the struck portrait is DRAGGED across the
+ * board into the heart-knot, crushed small, and flung home. Tiers 3 and 4's * pose is solved in screen px and written in the portrait's own units (its ancestors' scale measured ONCE at the start),
  * with the camera folded in for a portrait that lives outside the camera element (the foe's is a <body> portal), so
  * the knot stays tied round it. It is raised over the other portrait while it is dragged (the `.duel-attacker-*`
  * z-order of ITS side). EVERY exit (the end, `finish()`, `cancel()`, the safety timer) puts both portraits' transforms
  * back exactly and removes the z-order class (only if this attack added it).
  *
- * TIER V (the Knockout variant) adds a final beat after the burst (owner 2026-10-02): fast needles LATCH onto the flung
+ * TIER 5 (the Knockout variant) adds a final beat after the burst (owner 2026-10-02): fast needles LATCH onto the flung
  * target, a second, faster yank hauls it toward the middle of the board while the STRIKER's portrait launches at it,
  * and they SLAM together there. The striker is raised over the target for it (its own side's duel z-order), and both
  * portraits spring back to their spots, exactly (`koSlamAt` is 0 from `koHomeAt`); every exit restores both.
  *
- * THE CONTRACT: every piercing and stitch before the impact is a tick (FX and sound only); Tier V's burst is a tick
- * too. The consequence (`onImpact`) lands exactly ONCE, on the impact (Tier V: the slam).
+ * THE CONTRACT: every piercing and stitch before the impact is a tick (FX and sound only); Tier 5's burst is a tick
+ * too. The consequence (`onImpact`) lands exactly ONCE, on the impact (Tier 5: the slam).
  *
- * Perf: DOM moves are `transform` written from the clock; layout is read once at the start (IV only); the Pixi sprites
+ * Perf: DOM moves are `transform` written from the clock; layout is read once at the start (Tier 4 only); the Pixi sprites
  * are pooled under a hard cap, the thread meshes rewritten in place, the textures painted once per session and
  * pre-warmed during the formation, and the updater unhooks the moment the scene drains.
  */
@@ -62,9 +62,9 @@ export interface HeroStitchHandle extends HeroAttackHandle {
   readonly scene: HeroStitchScene | null;
   /** Whether the camera is mirrored onto the Pixi root (false when the canvas already rides the camera). */
   readonly mirrorsCamera: boolean;
-  /** IV: the struck portrait's drag at a sequence time (screen px), pure. Zero on other tiers. */
+  /** Tier 4: the struck portrait's drag at a sequence time (screen px), pure. Zero on other tiers. */
   foeDrag(t: number): Pt;
-  /** Tier V: each portrait's slam offset at a sequence time (screen px), pure. Zero on other tiers. */
+  /** Tier 5: each portrait's slam offset at a sequence time (screen px), pure. Zero on other tiers. */
   slamOffsets(t: number): { hero: Pt; foe: Pt };
 }
 
@@ -73,7 +73,7 @@ export function stitchSeed(total: number, distance: number, side: 'player' | 'op
   return (Math.round(total) * 4513 + Math.round(distance) * 41 + (side === 'opp' ? 223 : 19)) >>> 0;
 }
 
-/** I-II: the struck portrait's pull at `t` (px along `-u` toward the striker, and a tremble). Pure. */
+/** Tiers 1-2: the struck portrait's pull at `t` (px along `-u` toward the striker, and a tremble). Pure. */
 export function foePull(p: StitchPlan, c: HeroStitchConfig, t: number): { yank: number; tremble: number } {
   if (p.kind !== 'needle' && p.kind !== 'cross') return { yank: 0, tremble: 0 };
   const tug = tugAt(p, t);
@@ -121,7 +121,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
   const geo = stitchGeo(plan, o.attacker, o.defender, aRadius, radius, c, (local ? 8 : 36) * s);
   const u = geo.u;
   const big = plan.kind === 'bound';
-  /** III and IV move the struck portrait far or reshape it: solved exactly in screen px. */
+  /** Tiers 3 and 4 move the struck portrait far or reshape it: solved exactly in screen px. */
   const exact = plan.kind === 'bound' || plan.kind === 'pinned';
 
   const textures = o.textures !== undefined ? o.textures : heroStitchTextures();
@@ -141,17 +141,17 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
   const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
-  // III-IV place the portraits exactly: screen px -> their own px (measured once), with the camera folded in for a
-  // portrait outside the camera element. I-II keep the approved small moves as they are.
+  // Tiers 3-4 place the portraits exactly: screen px -> their own px (measured once), with the camera folded in for a
+  // portrait outside the camera element. Tiers 1-2 keep the approved small moves as they are.
   const heroM = exact && !local ? measure(hero.el, o.attacker) : { inv: 1, ox: 0, oy: 0 };
   const foeM = exact && !local ? measure(foe.el, o.defender) : { inv: 1, ox: 0, oy: 0 };
   const heroInCam = !!(cameraEl && hero.el && cameraEl.contains(hero.el));
   const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
-  // IV: the dragged portrait is raised over the other one (its own side's duel z-order), only while this attack runs.
+  // Tier 4: the dragged portrait is raised over the other one (its own side's duel z-order), only while this attack runs.
   const foeZ = o.side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
   const canRaise = big && !reduced && !local && !!foe.el && !!doc;
   let raised = false;
-  // Tier V: the striker is raised over the target for the slam (its own side's duel z-order).
+  // Tier 5: the striker is raised over the target for the slam (its own side's duel z-order).
   const heroZ = o.side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player';
   const canRaiseHero = plan.ko && !reduced && !local && !!hero.el && !!doc;
   let heroRaised = false;
@@ -164,17 +164,17 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
   const real = (ms: number): number => ms / speed;
   const unit = local ? 1 : s;
   const px = local ? 0.45 : 1;
-  /** IV's small moves in screen px (a sandbox box moves less). */
+  /** Tier 4's small moves in screen px (a sandbox box moves less). */
   const mv = local ? 0.45 : unit;
   let pierced = 0;
 
-  /** IV: the struck portrait's drag (screen px) at `t`. */
+  /** Tier 4: the struck portrait's drag (screen px) at `t`. */
   const foeDrag = (t: number): Pt => {
     const k = dragAt(plan, t) * geo.drag;
     return { x: -u.x * k, y: -u.y * k };
   };
 
-  /** Tier V: the two portraits' slam offsets (screen px) at `t`: 0 off the final beat. */
+  /** Tier 5: the two portraits' slam offsets (screen px) at `t`: 0 off the final beat. */
   const slamOffsets = (t: number): { hero: Pt; foe: Pt } => {
     const sl = geo.slam;
     if (!sl) return { hero: { x: 0, y: 0 }, foe: { x: 0, y: 0 } };
@@ -219,65 +219,65 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
       }
       case 'tug':
         if (plan.kind === 'pinned') {
-          // III: the hero leans back on all five: a taut-string TWANG, a wind-up, a riser as the portrait strains.
+          // Tier 3: the hero leans back on all five: a taut-string TWANG, a wind-up, a riser as the portrait strains.
           cue(c.sfxTwangClip, c.sfxTwangGain, c.sfxTwangRate, { lenMs: 500, fadeMs: 200, tail: 0.1 });
           cue(c.sfxTugClip, c.sfxTugGain, c.sfxTugRate * 0.95, { lenMs: 700, fadeMs: 200 });
           voices.riser(c.sfxStrainClip, c.sfxStrainGain * 0.8, c.sfxStrainRate * 1.1, real(plan.burstAt - plan.tugAt));
           scene?.tug(o.attacker, aRadius, false);
         } else if (big) {
-          // IV: the YANK: a wind-up, a heavy drag, and a riser that climaxes on the burst.
+          // Tier 4: the YANK: a wind-up, a heavy drag, and a riser that climaxes on the burst.
           cue(c.sfxTugClip, c.sfxTugGain * 1.2, c.sfxTugRate * 0.85, { lenMs: 700, fadeMs: 200 });
           cue(c.sfxDragClip, c.sfxDragGain, c.sfxDragRate, { lenMs: 900, fadeMs: 300 });
           voices.riser(c.sfxStrainClip, c.sfxStrainGain, c.sfxStrainRate, real(plan.burstAt - plan.tugAt));
           scene?.tug(o.attacker, aRadius, true);
           if (canRaise && !doc!.body.classList.contains(foeZ)) { doc!.body.classList.add(foeZ); raised = true; }
         } else {
-          // I-II: the hero takes the thread and pulls: a wind-up.
+          // Tiers 1-2: the hero takes the thread and pulls: a wind-up.
           cue(c.sfxTugClip, c.sfxTugGain, c.sfxTugRate, { lenMs: 700, fadeMs: 200 });
           scene?.tug(o.attacker, aRadius, false);
         }
         break;
       case 'knot':
-        // IV: the target lands in the knot: a gold clank, a ring snapping in round it.
+        // Tier 4: the target lands in the knot: a gold clank, a ring snapping in round it.
         cue(c.sfxKnotClip, c.sfxKnotGain, c.sfxKnotRate, { lenMs: 600, fadeMs: 220 });
         cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate, { lenMs: 400, fadeMs: 160 });
         scene?.knotted(o.defender);
         break;
       case 'cinch':
         if (q.i > KNOT_PULSES) {
-          // TIER V: the DOUBLE-CINCH: the knot squeezes once more, hard, in a prismatic flash (a heavy clank and a thump).
+          // TIER 5: the DOUBLE-CINCH: the knot squeezes once more, hard, in a prismatic flash (a heavy clank and a thump).
           cue(c.sfxKnotClip, c.sfxKnotGain * 1.25, c.sfxKnotRate * 0.85, { lenMs: 500, fadeMs: 200 });
           cue(c.sfxThumpClip, c.sfxThumpGain * 1.1, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
           scene?.koCinch(o.defender); // rides the dragged portrait (`follow`), exactly as the cinches do
           break;
         }
-        // IV: the knot cinches tighter: a gold clink climbing each time, sparks off the heart.
+        // Tier 4: the knot cinches tighter: a gold clink climbing each time, sparks off the heart.
         cue(c.sfxKnotClip, c.sfxKnotGain * (0.6 + 0.1 * q.i), c.sfxKnotRate * (1 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
         scene?.cinch(o.defender, q.i);
         break;
       case 'tied': {
-        // IV: the knot is tied shut: a higher clank and a crystal ting at the clasp.
+        // Tier 4: the knot is tied shut: a higher clank and a crystal ting at the clasp.
         cue(c.sfxKnotClip, c.sfxKnotGain * 1.1, c.sfxKnotRate * 1.3, { lenMs: 500, fadeMs: 200 });
         cue(c.sfxPierceClip, c.sfxPierceGain, c.sfxPierceRate * 0.9, { lenMs: 400, fadeMs: 160 });
         scene?.tied({ x: o.defender.x, y: o.defender.y - 0.564 * radius * c.knotSize });
         break;
       }
       case 'strike':
-        // IV: the hero strikes down the laces: a rush of air.
+        // Tier 4: the hero strikes down the laces: a rush of air.
         cue(c.sfxLaunchClip, c.sfxLaunchGain * 1.3, c.sfxLaunchRate * 0.65, { lenMs: 500, fadeMs: 200 });
         break;
       case 'burst':
-        // TIER V: the heart-knot bursts as Huge's does, but it is a tick now: the slam is the impact.
+        // TIER 5: the heart-knot bursts as Tier 4's does, but it is a tick now: the slam is the impact.
         burstFx(t);
         break;
       case 'latch':
-        // TIER V: three fast needles whip off the striker's rim (a quick rising whoosh each), and the striker is raised.
+        // TIER 5: three fast needles whip off the striker's rim (a quick rising whoosh each), and the striker is raised.
         for (let k = 0; k < 3; k++) cue(c.sfxLaunchClip, c.sfxLaunchGain * 1.1, c.sfxLaunchRate * 1.25 + 0.08 * k, { lenMs: 260, fadeMs: 100, delayMs: real(25 * k) });
         if (raised) { doc!.body.classList.remove(foeZ); raised = false; }
         if (canRaiseHero && !doc!.body.classList.contains(heroZ)) { doc!.body.classList.add(heroZ); heroRaised = true; }
         break;
       case 'yank':
-        // TIER V: they bite (a crystal ting), then the SECOND, FASTER YANK: a heavy tug, a short drag, a riser to the slam.
+        // TIER 5: they bite (a crystal ting), then the SECOND, FASTER YANK: a heavy tug, a short drag, a riser to the slam.
         cue(c.sfxPierceClip, c.sfxPierceGain * 1.1, c.sfxPierceRate * 1.1, { lenMs: 350, fadeMs: 140 });
         cue(c.sfxTugClip, c.sfxTugGain * 1.3, c.sfxTugRate * 1.1, { lenMs: 500, fadeMs: 160 });
         cue(c.sfxDragClip, c.sfxDragGain * 0.9, c.sfxDragRate * 1.35, { lenMs: 500, fadeMs: 180 });
@@ -286,7 +286,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
         break;
       case 'impact': {
         if (plan.ko) {
-          // TIER V: THE SLAM. The striker crashes into the target in the middle of the board: the strike, the impact,
+          // TIER 5: THE SLAM. The striker crashes into the target in the middle of the board: the strike, the impact,
           // a heavy thump and boom, the crystal shatter and the snap of the latch threads, the KO sting. No rune or turn
           // explosion sound (owner 2026-10-02).
           cue(c.sfxStrikeClip, c.sfxStrikeGain * 1.1, c.sfxStrikeRate * 0.9, { lenMs: 900, fadeMs: 300, tail: 0.15 });
@@ -305,11 +305,11 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
       }
       case 'home':
         if (q.i === 1) {
-          // TIER V: both portraits settle back onto their spots after the slam.
+          // TIER 5: both portraits settle back onto their spots after the slam.
           cue(c.sfxThumpClip, c.sfxThumpGain * 0.6, c.sfxThumpRate + 0.15, { lenMs: 350, fadeMs: 140 });
           break;
         }
-        // IV: the target thuds back onto its spot.
+        // Tier 4: the target thuds back onto its spot.
         cue(c.sfxThumpClip, c.sfxThumpGain * 0.8, c.sfxThumpRate + 0.1, { lenMs: 400, fadeMs: 160 });
         break;
       default:
@@ -317,11 +317,11 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
     }
   };
 
-  /** The burst (I-IV's impact; Tier V's tick before the slam): the sounds and the scene's impact. */
+  /** The burst (Tiers 1-4's impact; Tier 5's tick before the slam): the sounds and the scene's impact. */
   function burstFx(t: number): void {
     const dNow = { x: o.defender.x + off.fx, y: o.defender.y + off.fy };
     if (plan.kind === 'pinned') {
-      // III: five crystal SNAPS one on another as the pins rip out, a twang, the hit and the splinters.
+      // Tier 3: five crystal SNAPS one on another as the pins rip out, a twang, the hit and the splinters.
       for (let k = 0; k < plan.needles.length; k++) {
         cue(c.sfxSnapClip, c.sfxSnapGain * (0.75 - 0.05 * k), c.sfxSnapRate + 0.08 * k, { lenMs: 500, fadeMs: 200, delayMs: real(18 * k) });
       }
@@ -331,7 +331,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
       cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.06, { lenMs: 500, fadeMs: 180 });
       cue(c.sfxBoomClip, c.sfxBoomGain * 0.8, c.sfxBoomRate * 1.15, { delayMs: real(30), lenMs: 600, fadeMs: 220 });
     } else if (big) {
-      // IV: every lace SNAPS, the hero's strike lands, the knot bursts, the crystal chimes out.
+      // Tier 4: every lace SNAPS, the hero's strike lands, the knot bursts, the crystal chimes out.
       cue(c.sfxSnapClip, c.sfxSnapGain * 1.15, c.sfxSnapRate * 0.85, { lenMs: 900, fadeMs: 300, tail: 0.12 });
       cue(c.sfxStrikeClip, c.sfxStrikeGain, c.sfxStrikeRate, { lenMs: 1000, fadeMs: 320, tail: 0.15 });
       cue(c.sfxImpactClip, c.sfxImpactGain, c.sfxImpactRate - 0.1, { lenMs: 800, fadeMs: 300 });
@@ -341,7 +341,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
       cue(c.sfxRainClip, c.sfxRainGain, c.sfxRainRate, { delayMs: real(420), lenMs: 1200, fadeMs: 500 });
       cue(c.sfxSummonClip, c.sfxSummonGain * 0.8, c.sfxSummonRate * 1.25, { delayMs: real(220), lenMs: 1000, fadeMs: 400 });
     } else {
-      // I-II: the taut thread snaps (a whip crack), the bright hit, a low punch; shards for II.
+      // Tiers 1-2: the taut thread snaps (a whip crack), the bright hit, a low punch; shards for Tier 2.
       cue(c.sfxSnapClip, c.sfxSnapGain * (0.9 + 0.08 * plan.tier), c.sfxSnapRate - 0.04 * (plan.tier - 1), { lenMs: 900, fadeMs: 300, tail: 0.12 });
       cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: 700, fadeMs: 260 });
       cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
@@ -352,7 +352,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
     });
   }
 
-  /** I-II: the approved moves (portrait px, scaled by the stage like every other style). */
+  /** Tiers 1-2: the approved moves (portrait px, scaled by the stage like every other style). */
   const paintSmall = (t: number): void => {
     const tug = tugAt(plan, t);
     let hx = 0, hy = 0, hs = 1;
@@ -387,9 +387,9 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
   };
 
   /**
-   * III: PINNED, and IV: BOUND TOGETHER. Solved in SCREEN px. III: the striker leans back on the five threads and
+   * Tier 3: PINNED, and Tier 4: BOUND TOGETHER. Solved in SCREEN px. Tier 3: the striker leans back on the five threads and
    * springs home on the snap; the target STRETCHES toward it about its far rim (`stretchAt`), trembling, and snaps back
-   * through a squash, plus a knock. IV: the striker swells, flicks on each launch, LEANS BACK on the yank and holds,
+   * through a squash, plus a knock. Tier 4: the striker swells, flicks on each launch, LEANS BACK on the yank and holds,
    * LUNGES at the knot on the strike and springs home; the target is dragged into the knot (`dragAt`), crushed with it
    * (`knotAt`), trembling as it strains, and flung home on the burst with a squash, exactly on its spot from `homeAt`.
    */
@@ -417,7 +417,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
     const st = stretchAt(plan, c, t);
     const strain = plan.strikeAt !== null && t >= plan.knotAt! && t < plan.burstAt ? Math.min(1, (t - plan.knotAt!) / Math.max(1, plan.burstAt - plan.knotAt!)) : 0;
     let fx = drag.x, fy = drag.y, fsx = 1, fsy = 1;
-    // III: the stretch along the line to the striker (its far rim held): the centre slides toward the striker.
+    // Tier 3: the stretch along the line to the striker (its far rim held): the centre slides toward the striker.
     let m: [number, number, number, number] = [1, 0, 0, 1];
     if (pin) {
       const ku = 1 + st, kn = 1 - 0.3 * st;
@@ -445,7 +445,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
       fx += u.x * c.knockPx * 0.6 * k * mv; fy += u.y * c.knockPx * 0.6 * k * mv;
       fsx = back * (1 - sq); fsy = back * (1 + sq * 0.6);
     }
-    // Tier V: the second yank and the slam (each portrait toward the middle), the target squashed on contact.
+    // Tier 5: the second yank and the slam (each portrait toward the middle), the target squashed on contact.
     const ks = plan.ko ? koSlamAt(plan, t) : null;
     const sl = ks ? slamOffsets(t) : null;
     if (sl && ks) { fx += sl.foe.x; fy += sl.foe.y; fsx *= 1 - ks.squash; fsy *= 1 + ks.squash * 0.5; }
@@ -493,7 +493,7 @@ export function playHeroStitch(o: HeroStitchOptions): HeroStitchHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // IV's slow-mo dip on the burst: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
+    // Tier 4's slow-mo dip on the burst: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
     frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? stitchTimeScale(plan, c, seq.t) : 1))),
     safetyMs: o.safety !== false ? (plan.endAt + slowMoExtraMs(plan, c)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

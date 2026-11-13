@@ -13,7 +13,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the POISON DARTS hero attack (owner ask 2026-09-28: "branch off and make a poison dart animation. the
  * final one should throw multiple poison darts that implode with poison"). The Play buttons run the REAL runner between
- * the two real hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 / Medium 12 / Huge 40.
+ * the two real hero portraits (works from the shop), in either direction, at Tier 1 (3) / Tier 2 (8) / Tier 3 (12) / Tier 4 (40).
  * A preview never touches the run. The "Attack style" row is the same dev
  * override as the other attack tuners' (Auto = what a player would see). Production plays the baked defaults.
  */
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroPoisonNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which the darts step up to Tier II (two darts). Shared with every style (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which the darts become the fan of five. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which the darts implode into the toxic burst. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which the darts step up to Tier 2 (two darts). Shared with every style (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which the darts become the fan of five. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which the darts implode into the toxic burst. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
   heroCoilPx: ['Lean back', 'px', 'How far the hero leans back from the target as it readies.', 'Ready'],
   heroFlickPx: ['Throw flick', 'px', 'How far the hero flicks toward the target on each throw.', 'Ready'],
@@ -41,17 +41,17 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   splashSize: ['Venom splash', '×', 'The size of the venom splat on each hit.', 'Hit'],
   tickDrops: ['Tick droplets', undefined, 'Green droplets splashing back off each dart before the last.', 'Hit'],
   tintAlpha: ['Tint strength', 'opacity', 'The sickly green tint pulse over the struck portrait.', 'Hit'],
-  stickHoldMs: ['Stick hold', 'ms', 'Tiers I to III: how long the darts stay stuck after the impact before dissolving.', 'Hit'],
-  seepMs: ['Seep', 'ms', 'Tiers I to III: when the poison seeps in after the impact (a second tint pulse and bubbles).', 'Hit'],
-  swellMs: ['Swell time', 'ms', 'Tier IV: how long the stuck darts glow and pulse while the venom swells.', 'Implosion (Tier IV)'],
-  suckMs: ['Suck', 'ms', 'Tier IV: the collapse, everything pulled into one point before the burst.', 'Implosion (Tier IV)'],
-  burstSize: ['Burst size', '×', 'Tier IV: the scale of the toxic burst.', 'Implosion (Tier IV)'],
-  cloudPuffs: ['Cloud puffs', undefined, 'Tier IV: bubbling toxic cloud puffs rolling out of the burst.', 'Implosion (Tier IV)'],
-  cloudSize: ['Cloud size', '×', 'Tier IV: how big the cloud puffs grow.', 'Implosion (Tier IV)'],
-  dropGravity: ['Droplet gravity', undefined, 'px/s². How hard the acid droplets fall.', 'Implosion (Tier IV)'],
-  hazeAlpha: ['Haze', 'opacity', 'Tier IV: the lingering poison haze (0 = none).', 'Implosion (Tier IV)'],
-  hazeMs: ['Haze time', 'ms', 'Tier IV: how long the haze takes to dissipate.', 'Implosion (Tier IV)'],
-  flashAlpha: ['Flash', 'opacity', 'How bright the impact and burst flashes are.', 'Implosion (Tier IV)'],
+  stickHoldMs: ['Stick hold', 'ms', 'Tiers 1 to 3: how long the darts stay stuck after the impact before dissolving.', 'Hit'],
+  seepMs: ['Seep', 'ms', 'Tiers 1 to 3: when the poison seeps in after the impact (a second tint pulse and bubbles).', 'Hit'],
+  swellMs: ['Swell time', 'ms', 'Tier 4: how long the stuck darts glow and pulse while the venom swells.', 'Implosion (Tier 4)'],
+  suckMs: ['Suck', 'ms', 'Tier 4: the collapse, everything pulled into one point before the burst.', 'Implosion (Tier 4)'],
+  burstSize: ['Burst size', '×', 'Tier 4: the scale of the toxic burst.', 'Implosion (Tier 4)'],
+  cloudPuffs: ['Cloud puffs', undefined, 'Tier 4: bubbling toxic cloud puffs rolling out of the burst.', 'Implosion (Tier 4)'],
+  cloudSize: ['Cloud size', '×', 'Tier 4: how big the cloud puffs grow.', 'Implosion (Tier 4)'],
+  dropGravity: ['Droplet gravity', undefined, 'px/s². How hard the acid droplets fall.', 'Implosion (Tier 4)'],
+  hazeAlpha: ['Haze', 'opacity', 'Tier 4: the lingering poison haze (0 = none).', 'Implosion (Tier 4)'],
+  hazeMs: ['Haze time', 'ms', 'Tier 4: how long the haze takes to dissipate.', 'Implosion (Tier 4)'],
+  flashAlpha: ['Flash', 'opacity', 'How bright the impact and burst flashes are.', 'Implosion (Tier 4)'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
@@ -71,18 +71,18 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxSplashRate: ['splash: pitch', '×', 'Pitch of the splat.', 'Sound: splash'],
   sfxImpactGain: ['impact: gain', undefined, 'THE impact: the last dart, or layered on the burst.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: an extra crack on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: an extra crack on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxSuckGain: ['suck: gain', undefined, 'Tier IV: the poison sucked into one point.', 'Sound: suck'],
+  sfxSuckGain: ['suck: gain', undefined, 'Tier 4: the poison sucked into one point.', 'Sound: suck'],
   sfxSuckRate: ['suck: pitch', '×', 'Pitch of the suck.', 'Sound: suck'],
-  sfxBurstGain: ['burst: gain', undefined, 'Tier IV: the toxic burst (pitched up to punch, not boom).', 'Sound: burst'],
+  sfxBurstGain: ['burst: gain', undefined, 'Tier 4: the toxic burst (pitched up to punch, not boom).', 'Sound: burst'],
   sfxBurstRate: ['burst: pitch', '×', 'Pitch of the burst.', 'Sound: burst'],
-  sfxGushGain: ['gush: gain', undefined, 'Tier IV: the big wet gush of the burst.', 'Sound: gush'],
+  sfxGushGain: ['gush: gain', undefined, 'Tier 4: the big wet gush of the burst.', 'Sound: gush'],
   sfxGushRate: ['gush: pitch', '×', 'Pitch of the gush (lower = heavier).', 'Sound: gush'],
-  sfxBoomGain: ['pop: gain', undefined, 'The wet pops after the burst (IV) and the seep (I to III).', 'Sound: pop'],
+  sfxBoomGain: ['pop: gain', undefined, 'The wet pops after the burst (Tier 4) and the seep (Tiers 1 to 3).', 'Sound: pop'],
   sfxBoomRate: ['pop: pitch', '×', 'Pitch of the first pop.', 'Sound: pop'],
   sfxSizzleGain: ['sizzle: gain', undefined, 'A synth acid sizzle under every splash (0 = none).', 'Sound: synth'],
-  sfxFizzGain: ['fizz: gain', undefined, 'Tier IV: the synth bubbling fizz rising through the swell (peaks on the suck).', 'Sound: synth'],
+  sfxFizzGain: ['fizz: gain', undefined, 'Tier 4: the synth bubbling fizz rising through the swell (peaks on the suck).', 'Sound: synth'],
   sfxFizzLowHz: ['fizz: from', undefined, 'Hz. Where the fizz starts.', 'Sound: synth'],
   sfxFizzHighHz: ['fizz: to', undefined, 'Hz. Where it has risen to at the suck.', 'Sound: synth'],
   sfxThrowLenMs: ['throw length', 'ms', 'Each throw swish is cut to this long (with a fade).', 'Sound: mix'],
@@ -93,7 +93,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 
 const TIER_SPECS: Record<PoisonTierSuffix, [string, TunerUnit | undefined, string]> = {
   ChargeMs: ['Ready', 'ms', 'The hero readying before the first throw. The view pushes in over this.'],
-  Darts: ['Dart count', undefined, 'How many darts are thrown (I one, II two, III the fan of five, IV the implosion).'],
+  Darts: ['Dart count', undefined, 'How many darts are thrown (Tier 1 one, Tier 2 two, Tier 3 the fan of five, Tier 4 the implosion).'],
   ThrowStaggerMs: ['Throw stagger', 'ms', 'Gap between each throw (the rhythm of the thunks).'],
   FlightMs: ['Dart speed', 'ms', 'A dart crossing the board (at 1600 px; lower = faster; scales gently with distance).'],
   Arc: ['Arc', '×', 'How high the dart arcs, as a fraction of the distance (a slight arc).'],
@@ -109,7 +109,7 @@ const TIER_SPECS: Record<PoisonTierSuffix, [string, TunerUnit | undefined, strin
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroPoisonStrKey>> = {
   'Sound: ready': 'sfxReadyClip', 'Sound: throw': 'sfxThrowClip', 'Sound: thwip': 'sfxSnapClip', 'Sound: thunk': 'sfxThunkClip',
@@ -213,14 +213,14 @@ export const SPEC: TunerSpec<PoisonTunerValues> = {
   actions: [
     { label: '▶ You throw', hint: 'Your hero throws poison darts at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe throws', hint: 'The foe throws poison darts at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero throws for 3: Tier I, one dart.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero throws for 8: Tier II, two darts in quick succession.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero throws for 12 from four numbers: Tier III, the fan of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero throws for 40 from seven numbers: Tier IV, the darts implode into a toxic burst.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe throws at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe throws at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe throws at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe throws at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero throws for 3: Tier 1, one dart.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero throws for 8: Tier 2, two darts in quick succession.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero throws for 12 from four numbers: Tier 3, the fan of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero throws for 40 from seven numbers: Tier 4, the darts implode into a toxic burst.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe throws at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe throws at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe throws at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe throws at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

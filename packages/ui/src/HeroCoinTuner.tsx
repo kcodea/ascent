@@ -9,15 +9,15 @@ import { TunerPanel } from './TunerPanel';
 
 /**
  * DEV tuner for the COIN FLICK hero attack (a Rare; owner ask 2026-09-29: "build 5 animations that range from rare ->
- * epic ... rare and epics should only have 2 or 3 tiers"). Two groups of per-tier dials: Small (shared tiers I-II) and
- * Big (III-IV, and every knockout). The Play buttons run the real runner between the two real portraits.
+ * epic ... rare and epics should only have 2 or 3 tiers"). Two groups of per-tier dials: Tier 1 (shared tiers 1-2) and
+ * Tier 2 (Tiers 3-4, and every knockout). The Play buttons run the real runner between the two real portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here the coin plays Big.', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Shared damage tier 2 (6). The Tier 1 look still plays here.', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Shared damage tier 3 (12): from here the coin plays its Tier 2 look.', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Shared damage tier 4 (20). The Tier 2 look (a knockout always plays it).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
   heroDipPx: ['Wind back', 'px', 'How far the hero dips back from the target as it readies the flick.', 'Ready'],
   heroFlickPx: ['Flick', 'px', 'How far the hero snaps toward the target on the flick.', 'Ready'],
@@ -26,9 +26,9 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   ghostMs: ['Afterimage gap', 'ms', 'How far back along the path each afterimage sits.', 'Coin'],
   glintAlpha: ['Glint', 'opacity', 'The star glint that winks as the face turns square to you.', 'Coin'],
   pingSize: ['Ping size', '×', 'The size of the sparkle, ring and glitter on every ping.', 'Ping'],
-  caromMs: ['Carom', 'ms', 'Small: how long the coin tumbles away off the face after the ping.', 'Ping'],
-  showerSpeed: ['Shower speed', undefined, 'px/s. Big: how hard the shower of coins spills out.', 'Ping'],
-  showerGravity: ['Shower gravity', undefined, 'px/s². Big: how fast the shower falls.', 'Ping'],
+  caromMs: ['Carom', 'ms', 'Tier 1: how long the coin tumbles away off the face after the ping.', 'Ping'],
+  showerSpeed: ['Shower speed', undefined, 'px/s. Tier 2: how hard the shower of coins spills out.', 'Ping'],
+  showerGravity: ['Shower gravity', undefined, 'px/s². Tier 2: how fast the shower falls.', 'Ping'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back on the impact.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes on the impact.', 'Camera and portraits'],
   shakeMs: ['Shake length', 'ms', 'How long the impact shake takes to die away.', 'Camera and portraits'],
@@ -44,7 +44,7 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxSparkleRate: ['sparkle: pitch', '×', 'Pitch of the shimmer.', 'Sound: sparkle'],
   sfxImpactGain: ['impact: gain', undefined, 'A light smack under the last ping.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the smack.', 'Sound: impact'],
-  sfxShowerGain: ['shower: gain', undefined, 'Big: the coins spilling out.', 'Sound: shower'],
+  sfxShowerGain: ['shower: gain', undefined, 'Tier 2: the coins spilling out.', 'Sound: shower'],
   sfxShowerRate: ['shower: pitch', '×', 'Pitch of the spill.', 'Sound: shower'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the coin plays (1 = no duck).', 'Sound: mix'],
 };
@@ -75,7 +75,7 @@ const built = rareTunerSpec({
   ranges: HERO_COIN_RANGES,
   globals: GLOBALS,
   levels: COIN_LEVELS,
-  levelNames: { small: 'Small (tiers I-II)', big: 'Big (tiers III-IV, knockouts)' },
+  levelNames: { small: 'Tier 1 (shared tiers 1-2)', big: 'Tier 2 (shared tiers 3-4, knockouts)' },
   suffixes: COIN_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
@@ -97,8 +97,8 @@ const built = rareTunerSpec({
   },
   play: (o) => playHeroCoin(o),
   verb: 'flicks a coin at',
-  smallHint: 'Small, one coin pings and caroms off.',
-  bigHint: 'Big, a ricochet volley and a shower of coins.',
+  smallHint: 'its Tier 1 look, one coin pings and caroms off.',
+  bigHint: 'its Tier 2 look, a ricochet volley and a shower of coins.',
 });
 
 export const SPEC = built.spec;

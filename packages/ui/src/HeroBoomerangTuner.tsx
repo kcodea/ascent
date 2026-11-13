@@ -8,16 +8,16 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the BOOMERANG hero attack (a Rare; owner ask 2026-09-29). Two groups of per-tier dials: Small (shared
- * tiers I-II: one boomerang) and Big (III-IV and every knockout: two on crossing paths). The Play buttons run the real
+ * DEV tuner for the BOOMERANG hero attack (a Rare; owner ask 2026-09-29). Two groups of per-tier dials: Tier 1 (shared
+ * tiers 1-2: one boomerang) and Tier 2 (Tiers 3-4 and every knockout: two on crossing paths). The Play buttons run the real
  * runner between the two real portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here two boomerangs fly (Big).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Shared damage tier 2 (6). The Tier 1 look still plays here.', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Shared damage tier 3 (12): from here two boomerangs fly (the Tier 2 look).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Shared damage tier 4 (20). The Tier 2 look (a knockout always plays it).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
   heroWindPx: ['Wind back', 'px', 'How far the hero leans back as it winds up the throw.', 'Ready'],
   heroThrowPx: ['Throw snap', 'px', 'How far the hero snaps toward the target on each throw.', 'Ready'],
@@ -71,7 +71,7 @@ const built = rareTunerSpec({
   ranges: HERO_BOOMERANG_RANGES,
   globals: GLOBALS,
   levels: BOOMERANG_LEVELS,
-  levelNames: { small: 'Small (tiers I-II)', big: 'Big (tiers III-IV, knockouts)' },
+  levelNames: { small: 'Tier 1 (shared tiers 1-2)', big: 'Tier 2 (shared tiers 3-4, knockouts)' },
   suffixes: BOOMERANG_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
@@ -94,8 +94,8 @@ const built = rareTunerSpec({
   },
   play: (o) => playHeroBoomerang(o),
   verb: 'throws a boomerang at',
-  smallHint: 'Small, one boomerang out, thwack, and caught.',
-  bigHint: 'Big, two on crossing paths, a double thwack, both caught.',
+  smallHint: 'its Tier 1 look, one boomerang out, thwack, and caught.',
+  bigHint: 'its Tier 2 look, two on crossing paths, a double thwack, both caught.',
 });
 
 export const SPEC = built.spec;

@@ -10,16 +10,16 @@
  * PITCHER, it winds up and throws, and the striker (the BATTER, holding a bat at its side) sends it right back. Both
  * portraits move.
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I UP THE MIDDLE: the pitcher winds up and throws, CRACK, a line drive straight back up the middle that BONKS the
+ * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays Tier 4):
+ *  - Tier 1 UP THE MIDDLE: the pitcher winds up and throws, CRACK, a line drive straight back up the middle that BONKS the
  *    pitcher (THE impact) and pops away.
- *  - II THE HOT SHOT: a bigger, stepping swing, and one of three rolled hits: 1 a SCREAMING LINER (flat and fast, it spins
+ *  - Tier 2 THE HOT SHOT: a bigger, stepping swing, and one of three rolled hits: 1 a SCREAMING LINER (flat and fast, it spins
  *    the pitcher round), 2 a ONE-HOP GROUNDER (it skips once, kicks up dirt and hops into the pitcher), 3 a FOUL TIP
  *    BOOMERANG (it tips off foul, curves wide round the field and smacks the pitcher from BEHIND).
- *  - III THE MOONSHOT: slow mo on the contact, a huge CRACK, the BAT FLIP (it spins up and clatters down), the ball
+ *  - Tier 3 THE MOONSHOT: slow mo on the contact, a huge CRACK, the BAT FLIP (it spins up and clatters down), the ball
  *    rockets off the top of the screen and twinkles; the pitcher looks round in a panic as a shadow grows under it and a
  *    slide whistle falls; the ball comes down from the sky and CRATERS the pitcher (THE impact): HOME RUN.
- *  - IV CHARGE THE MOUND (the owner's frame): the pitcher BEANS the batter (BONK on the striker; slow mo; it staggers,
+ *  - Tier 4 CHARGE THE MOUND (the owner's frame): the pitcher BEANS the batter (BONK on the striker; slow mo; it staggers,
  *    stars), the batter slams its bat down, fumes, and CHARGES THE MOUND to the ballpark organ's "Charge!" riff, a dash
  *    into a cartoon DUST-CLOUD BRAWL (the benches clear: streaks rush in from both edges; the two portraits shake and pop
  *    out of the boiling cloud; a fast flurry of comic hits, POW / BAM / SMACK, sped up), then the batter winds up one
@@ -29,7 +29,7 @@
  * the striker, the hop, the foul tip and every brawl hit are TICKS (no damage). Both portraits are restored exactly on
  * every exit path (the runner owns that). No hit-stop: the slow mo is a smooth ramp that never reaches 0.
  *
- * VARIETY: II's hit is `variantOf(rollSeed)`, a stable per-blow seed (the run seed and the round), so a replay rolls the
+ * VARIETY: Tier 2's hit is `variantOf(rollSeed)`, a stable per-blow seed (the run seed and the round), so a replay rolls the
  * same; the DEV tuner's "Variation" row forces one.
  */
 import { configStore } from '../heroAttack/configStore';
@@ -101,7 +101,7 @@ interface GlobalConfig {
   brawlBoost: number;
   slowRampMs: number;
   slowZoom: number;
-  /** DEV: '' = rolled per blow, '1' / '2' / '3' force II's hit (a string so the tuner shows it as a select). */
+  /** DEV: '' = rolled per blow, '1' / '2' / '3' force Tier 2's hit (a string so the tuner shows it as a select). */
   variation: string;
   wordSize: number;
   squash: number;
@@ -142,7 +142,7 @@ export const HERO_BASEBALL_CLIP_KEYS = [
 export type HeroBaseballStrKey = (typeof HERO_BASEBALL_COLOR_KEYS)[number] | (typeof HERO_BASEBALL_CLIP_KEYS)[number] | 'variation';
 export type HeroBaseballNumKey = Exclude<keyof HeroBaseballConfig, HeroBaseballStrKey>;
 
-/** Per tier: [I, II, III, IV]. A dial a tier's play does not use is ignored there (the tuner says which). */
+/** Per tier: [Tiers 1, 2, 3, 4]. A dial a tier's play does not use is ignored there (the tuner says which). */
 const TIER_DEFAULTS: Record<BaseballTierSuffix, [number, number, number, number]> = {
   ReadyMs: [100, 100, 100, 100],
   WindupMs: [420, 440, 480, 460],
@@ -354,7 +354,7 @@ export function baseballTierDials(tier: TierNum, c: HeroBaseballConfig = store.g
 
 export type BaseballVariant = 1 | 2 | 3;
 export const BASEBALL_VARIANTS: readonly BaseballVariant[] = [1, 2, 3];
-/** II's hits, by variant. */
+/** Tier 2's hits, by variant. */
 export const HOT_SHOTS: Record<BaseballVariant, string> = { 1: 'screaming liner', 2: 'one-hop grounder', 3: 'foul tip boomerang' };
 
 /** The variation a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
@@ -374,7 +374,7 @@ export interface BaseballPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
-  /** II's hit. Default 1. */
+  /** Tier 2's hit. Default 1. */
   variant?: BaseballVariant;
 }
 
@@ -390,32 +390,32 @@ export interface BaseballPlan {
   /** The pitcher's windup, and the pitch leaving the hand. */
   windAt: number;
   releaseAt: number;
-  /** The pitch arrives: the bat meets it (I-III), or it BEANS the batter (IV). */
+  /** The pitch arrives: the bat meets it (Tiers 1-3), or it BEANS the batter (Tier 4). */
   arriveAt: number;
-  /** I-III: the swing around the contact. */
+  /** Tiers 1-3: the swing around the contact. */
   swingAt: number;
   swingEnd: number;
-  /** II (the grounder): the one hop. */
+  /** Tier 2 (the grounder): the one hop. */
   hopAt: number | null;
-  /** III: the ball at the top (off the top of the screen), and starting down. */
+  /** Tier 3: the ball at the top (off the top of the screen), and starting down. */
   apexAt: number | null;
   dropAt: number | null;
-  /** III: the bat flip lands. */
+  /** Tier 3: the bat flip lands. */
   batLandAt: number | null;
-  /** IV: the bean (= arriveAt), the stagger's end, the bat thrown down and landing, the charge, the collision. */
+  /** Tier 4: the bean (= arriveAt), the stagger's end, the bat thrown down and landing, the charge, the collision. */
   beanAt: number | null;
   staggerEnd: number | null;
   batDropAt: number | null;
   clatterAt: number | null;
   chargeRunAt: number | null;
   collideAt: number | null;
-  /** IV: the brawl's comic hits (ticks), the brawl's end, and the haymaker's wind-up. */
+  /** Tier 4: the brawl's comic hits (ticks), the brawl's end, and the haymaker's wind-up. */
   hits: number[];
   brawlEnd: number | null;
   koWindAt: number | null;
   /** THE impact. The blow lands here, once. */
   impactAt: number;
-  /** The batter heads home (IV: from the mound), and is home. */
+  /** The batter heads home (Tier 4: from the mound), and is home. */
   homeAt: number;
   homeEnd: number;
   endAt: number;
@@ -432,7 +432,7 @@ export interface BaseballPlan {
 /** The whole attack, in base ms. Pure and deterministic. */
 export function baseballPlan(input: BaseballPlanInput, c: HeroBaseballConfig = store.get()): BaseballPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const kind = baseballKind(tier);
   const L = baseballTierDials(tier, c);
   const k = (tier - 1) / 3;
@@ -484,7 +484,7 @@ export function baseballPlan(input: BaseballPlanInput, c: HeroBaseballConfig = s
       impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs, batLandAt !== null ? batLandAt + 360 : 0),
     };
   }
-  // IV: CHARGE THE MOUND.
+  // Tier 4: CHARGE THE MOUND.
   const beanAt = arriveAt;
   const staggerEnd = beanAt + c.staggerMs;
   const batDropAt = beanAt + c.staggerMs * 0.6;
@@ -512,7 +512,7 @@ export type BaseballCueKind =
   | 'run' | 'collide' | 'hit' | 'kowind' | 'impact' | 'home' | 'end';
 export interface BaseballCue { at: number; kind: BaseballCueKind; i: number }
 
-/** III: how long before the crash the slide whistle starts (the clip's length). */
+/** Tier 3: how long before the crash the slide whistle starts (the clip's length). */
 export const FALL_LEAD_MS = 760;
 
 /** Every beat the runner fires, in time order. The blow lands on `impact`, once. */
@@ -569,21 +569,21 @@ export interface BaseballGeo {
   release: Pt;
   /** The target's centre: where every hit lands. */
   hit: Pt;
-  /** IV: where the bean strikes the batter (its face). */
+  /** Tier 4: where the bean strikes the batter (its face). */
   bean: Pt;
-  /** II (the grounder): the hop. */
+  /** Tier 2 (the grounder): the hop. */
   hop: Pt;
-  /** II (the foul tip): the two control points of the boomerang curve (kept on screen). */
+  /** Tier 2 (the foul tip): the two control points of the boomerang curve (kept on screen). */
   foul1: Pt;
   foul2: Pt;
-  /** III: where the moonshot leaves the top of the screen, and where it comes down from (straight above the target). */
+  /** Tier 3: where the moonshot leaves the top of the screen, and where it comes down from (straight above the target). */
   sky: Pt;
   skyDrop: Pt;
-  /** III: where the flipped bat lands. IV: where the slammed bat lands. */
+  /** Tier 3: where the flipped bat lands. Tier 4: where the slammed bat lands. */
   batLand: Pt;
   batSlam: Pt;
   /**
-   * IV: the brawl's centre (the cloud), pulled in off the edges so the whole cloud stays on screen; where the charge ends
+   * Tier 4: the brawl's centre (the cloud), pulled in off the edges so the whole cloud stays on screen; where the charge ends
    * (the batter's side of it); the pitcher's spot in it, as an OFFSET from its slot (it is dragged into the cloud); and
    * the pitcher's KO launch, an offset from its slot (kept on screen).
    */
@@ -694,7 +694,7 @@ export function batterPose(p: BaseballPlan, g: BaseballGeo, c: HeroBaseballConfi
     if (t >= p.homeEnd) pose.squash += c.squash * 0.3 * Math.max(0, spring(t - p.homeEnd, 4, 60));
     return pose;
   }
-  // IV: rest until the bean; BONK: knocked back and wobbling; fuming; the CHARGE; the brawl; the haymaker; home.
+  // Tier 4: rest until the bean; BONK: knocked back and wobbling; fuming; the CHARGE; the brawl; the haymaker; home.
   const bean = p.beanAt!, st = p.staggerEnd!, run = p.chargeRunAt!, hitAt = p.collideAt!, brawlEnd = p.brawlEnd!;
   const mound = { x: g.mound.x - a.x, y: g.mound.y - a.y };
   if (t < bean) {
@@ -837,7 +837,7 @@ export function pitcherPose(p: BaseballPlan, g: BaseballGeo, c: HeroBaseballConf
 
 /**
  * The ball: `x, y` its point on the GROUND (where its shadow sits), `lift` its height above it (screen px, drawn as an
- * upward offset), `scale` its size (III's moonshot shrinks away and grows back huge), `rot` its spin.
+ * upward offset), `scale` its size (Tier 3's moonshot shrinks away and grows back huge), `rot` its spin.
  */
 export interface BallState { visible: boolean; x: number; y: number; lift: number; rot: number; scale: number; alpha: number; flying: boolean }
 
@@ -871,7 +871,7 @@ export function baseballBall(x: BallCtx, t: number): BallState {
     return { visible: true, x: q.x, y: q.y, lift: lift0 * (0.6 + 0.8 * Math.sin(Math.PI * Math.min(1, w / 0.8))), rot: 0, scale: 1, alpha: clamp01(w * 6), flying: false };
   }
   if (t < p.arriveAt) {
-    // THE PITCH: a fastball at the plate (IV: at the batter's face).
+    // THE PITCH: a fastball at the plate (Tier 4: at the batter's face).
     const e = win(t, p.releaseAt, p.arriveAt);
     const to = p.kind === 'brawl' ? g.bean : g.plate;
     const q = lerpPt(g.release, to, e);
@@ -881,7 +881,7 @@ export function baseballBall(x: BallCtx, t: number): BallState {
   const age = t - p.arriveAt;
   const rot = -age * spin * 2;
   if (p.kind === 'single' || (p.kind === 'hotshot' && p.variant === 1)) {
-    // A LINER straight back up the middle (II's is flatter and faster, with more spin).
+    // A LINER straight back up the middle (Tier 2's is flatter and faster, with more spin).
     const e = win(t, p.arriveAt, p.impactAt);
     const q = lerpPt(g.plate, g.hit, e);
     const arc = p.kind === 'single' ? aR * 0.35 : aR * 0.12;
@@ -906,7 +906,7 @@ export function baseballBall(x: BallCtx, t: number): BallState {
     const q = cubic(g.plate, g.foul1, g.foul2, g.hit, e);
     return { visible: true, x: q.x, y: q.y, lift: lift0 + aR * 0.5 * Math.sin(Math.PI * e), rot, scale: 1, alpha: 1, flying: true };
   }
-  // III: THE MOONSHOT. Up and away off the top (shrinking), gone, then down from the sky onto the pitcher (growing).
+  // Tier 3: THE MOONSHOT. Up and away off the top (shrinking), gone, then down from the sky onto the pitcher (growing).
   if (t < p.apexAt!) {
     const e = easeOutCubic(win(t, p.arriveAt, p.apexAt!));
     const ground = lerpPt(g.plate, g.hit, e * 0.5);
@@ -919,7 +919,7 @@ export function baseballBall(x: BallCtx, t: number): BallState {
   return { visible: true, x: g.hit.x, y: g.hit.y, lift: Math.max(0, g.hit.y - top.y), rot, scale: 0.35 + (c.moonSize - 0.35) * e, alpha: 1, flying: true };
 }
 
-/** III: how far the falling ball's shadow has grown on the pitcher (0..1), from the apex to the crash. Pure. */
+/** Tier 3: how far the falling ball's shadow has grown on the pitcher (0..1), from the apex to the crash. Pure. */
 export function moonShadow(p: BaseballPlan, t: number): number {
   if (p.kind !== 'moonshot' || p.apexAt === null || t < p.apexAt || t >= p.impactAt) return 0;
   return easeIn(win(t, p.apexAt, p.impactAt));
@@ -975,7 +975,7 @@ export function baseballBat(x: BatCtx, t: number): BatState {
     if (t >= p.homeAt) rot = A.follow + (A.cock - A.follow) * easeInOutSine(win(t, p.homeAt, p.homeEnd));
     return { visible: alpha > 0.004, x: hands.x, y: hands.y, lift: 0, rot, alpha };
   }
-  // IV: cocked in the box; it droops on the bean; SLAMMED down; it lies there through the brawl.
+  // Tier 4: cocked in the box; it droops on the bean; SLAMMED down; it lies there through the brawl.
   if (t < p.batDropAt!) {
     const droop = t >= p.beanAt! ? 0.9 * easeOutCubic(win(t, p.beanAt!, p.beanAt! + 160)) * g.side : 0;
     return { visible: alpha > 0.004, x: hands.x, y: hands.y, lift: 0, rot: A.cock + waggle + droop, alpha };
@@ -1004,7 +1004,7 @@ export function slowWindow(p: BaseballPlan, c: HeroBaseballConfig): { a: number;
 }
 
 /**
- * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the contact; IV slows around the bean, then
+ * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). Tier 3 slows around the contact; Tier 4 slows around the bean, then
  * runs FAST through the brawl (the owner's "over the top fast attack sequence"). A smooth ramp, always > 0. Pure.
  */
 export function baseballTimeScale(p: BaseballPlan, c: HeroBaseballConfig, t: number): number {
@@ -1029,8 +1029,8 @@ export function slowExtraMs(p: BaseballPlan, c: HeroBaseballConfig): number {
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The camera: it pushes in on the pitcher while the ball flies back (I-III) or through the brawl (IV), punches and shakes
- * on the impact along the blow; IV jolts on the bean and on every brawl hit. Pure.
+ * The camera: it pushes in on the pitcher while the ball flies back (Tiers 1-3) or through the brawl (Tier 4), punches and shakes
+ * on the impact along the blow; Tier 4 jolts on the bean and on every brawl hit. Pure.
  */
 export function baseballCameraAt(p: BaseballPlan, c: HeroBaseballConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };

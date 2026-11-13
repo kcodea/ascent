@@ -1,4 +1,5 @@
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
+import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -20,7 +21,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlay
 import { botDamageMultFor } from './lobby/practiceBots';
 import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers, refillShopMadness, shopMadness, SHOP_MADNESS_BUFF } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId, powerHolderId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -44,6 +45,7 @@ import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTrigg
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
+import { discoverOptionCount, hazardPayTurnStart, lateBloomerOnUpgrade, loyalCustomerArmed, noteLoyalCustomerBuy, piggyBankCarry } from './set2RunesBasicNeutral';
 import { spellFizzles } from './spellFizzle';
 import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
@@ -52,6 +54,7 @@ import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurn
 import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { unusedEquipmentCount } from './equipment';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
+import { hatchlingRoostPrice } from './set2RunesBasicTribal'; // Set 2 rune Hatchling Roost: the Shout Dragon set price
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
@@ -81,9 +84,14 @@ function spendGold(s: RunState, amount: number): void {
       s.indyGildRearmAt = undefined;
     }
   }
+  // BIG SPENDER (Set 2 Epic Dwarf rune, owner 2026-11-12): "Your 'spend Gold' triggers count each Gold twice." Every
+  // TRIGGER below hears `amount` x2 (x3 with two copies). The Gold paid, the run / turn Gold-spent tallies above, Indy's
+  // recharge and the "Spend N Gold" quest objective (`paid`) stay real. Rebound so the trigger lines read the counted amount.
+  const paid = amount;
+  if (s.questFlags?.runeBigSpender && amount > 0) { procRuneId(s, 'rune_big_spender'); amount *= 1 + runeStacksOf(s, 'rune_big_spender'); }
   applyGoldSpent(s, amount);
   ancientOnGoldSpent(s, amount); // ANCIENTS × Brackus: Fortune's 50 Gold Discover, Genesis' Gild (a no-op unless picked)
-  advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
+  advanceQuestsBy(s, (o) => o.event === 'spendGold', paid); // Coin Hoard: "Spend N Gold"
   // ANCIENT OF BONDS × Nadja (a no-op unless picked): every spend of 1+ Gold gives 2 random minions +2/+4. Placed above
   // Rune of Bulk Order's early `return`, so it hears every spend.
   ancientOnSpendGold(s, amount);
@@ -319,6 +327,8 @@ export interface OfferBuyPrice {
   tradeInOff: number;
   spiritOff: number;
   giftMinionOff: number;
+  /** Loyal Customer made this buy free (the 4th, 8th, ... minion). */
+  loyalFree: boolean;
 }
 export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean }): OfferBuyPrice {
   // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
@@ -332,20 +342,24 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Foreman Flint: "Your first Dwarf each turn is free." The same override and shared marker.
   const flintFree = ancientTribeFirstFree(s, offer.cardId);
   const freeBuy = ((s.rift === 'freedom' || !!s.questFreeFirstBuy || gorrFree || flintFree) && !s.freeBuyUsedThisTurn) || (s.nextCardFree ?? 0) > 0;
+  // Loyal Customer (Set 2 batch, 2026-11-12): the 4th, 8th, ... minion bought is free. Its OWN override (it spends no
+  // other free-buy marker); a buy already free for another reason leaves it unused (the count still advances).
+  const loyalFree = !freeBuy && loyalCustomerArmed(s) && !CARD_INDEX[offer.cardId]?.spell;
+  const noDiscount = freeBuy || loyalFree;
   // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says (−1 per copy held).
-  const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0;
+  const cadenceOff = !noDiscount ? gateUses(s.cadenceMinionOff) : 0;
   // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
-  const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
+  const giftMinionOff = noDiscount ? 0 : (s.minionCostOffTurn ?? 0);
   // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
-  const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
+  const spiritOff = !noDiscount && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
   // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-  const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
+  const tradeInOff = !noDiscount && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
   // ANCIENT OF FORTUNE × Drakko: "Shout minions cost 1 Gold less." (floored at 0 with every other discount below).
   // ANCIENT OF FORTUNE × Keshi: "Minions of your Tier cost 1 less." (the same additive channel, floored at 0 below).
   // ANCIENT OF TIME × Gambler: "While Dice is locked, your first minion each turn costs 1 Gold less." (the same channel)
-  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) + ancientLockedFirstDiscount(s, offer) : 0;
+  const shoutOff = !noDiscount ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) + ancientLockedFirstDiscount(s, offer) : 0;
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
   // source above, the Starform's live price included, is capped; the discounts below still apply on top).
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
@@ -354,10 +368,14 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Ayse: an Enchanted offer is set to the Fortune price (never raised above its own).
   // ANCIENT OF FORTUNE × Disco Dan: every copy of a Setlist card is set to 1 Gold (never raised above its own).
   // ANCIENT OF FORTUNE × Emerald Warden: a minion of your Shop tier is set to 2 Gold (never raised above its own).
-  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer)].filter((c): c is number => c !== undefined);
+  const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer), hatchlingRoostPrice(s, offer.cardId)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
-  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
+  // RUNE OF WHOLESALE (Set 2 Epic, owner 2026-11-12): "Minions in the Shop cost 1 less." 1 per copy held, minions only.
+  // A Loyal Customer free buy (`noDiscount`) is already 0, so Wholesale has nothing to take off it.
+  const wsDef = CARD_INDEX[offer.cardId];
+  const wholesaleOff = !noDiscount && s.questFlags?.runeWholesale && !wsDef?.spell && !wsDef?.ruby ? Math.max(1, s.flagCopies?.runeWholesale ?? 1) : 0;
+  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, loyalFree };
 }
 
 /** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
@@ -486,6 +504,42 @@ function upgradeRightmostOffer(s: RunState, done?: Set<string>): void {
   stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the right-most slot's enchant
   done?.add(s.shop[idx]!.uid);
   ancientOnContraband(s, s.shop[idx]!); // ANCIENTS × Pete (a no-op otherwise): the Contrabanana mark; War's random keyword
+}
+
+/** Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): "Every Refresh offers 1 minion from the Tier above your Shop."
+ *  The Open Enrollment shape (the Shop never grows): a short row fills a free slot, a full row REPLACES the right-most
+ *  minion offer that is not already above your Tier (never a spell, Ruby or the Starform). The displaced offer goes
+ *  back to the pool. At the top Tier there is no Tier above, so nothing happens (owner ruling 2026-11-12). The new
+ *  offer carries the `contraband` flash, the UI's "an offer from the Tier above" marker. */
+function offerTopShelf(s: RunState): void {
+  const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
+  const tgt = s.tier + 1;
+  if (tgt > ceiling) return;
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt && inRunTribes(c, s.tribes) && (s.pool[c.id] ?? 0) > 0);
+  if (pool.length === 0) return;
+  let idx = -1;
+  if (s.shop.length >= tierSlots(s.tier)) {
+    for (let i = s.shop.length - 1; i >= 0; i--) {
+      const d = CARD_INDEX[s.shop[i]!.cardId];
+      if (d && !d.spell && !d.ruby && !s.shop[i]!.starform && d.tier <= s.tier) { idx = i; break; }
+    }
+    if (idx < 0) return;
+  }
+  const rng = makeRng(s.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  s.rngCursor = rng.state();
+  procRuneId(s, 'rune_top_shelf');
+  if (idx < 0) {
+    takeFromPool(s, pick.id);
+    const added = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true as const };
+    s.shop.push(added);
+    stampNewShopOffers(s, [added], { onRefresh: true, cia: true });
+    return;
+  }
+  returnToPool(s, s.shop[idx]!.cardId);
+  takeFromPool(s, pick.id);
+  s.shop[idx] = { uid: `s${s.uidSeq++}`, cardId: pick.id, contraband: true };
+  stampNewShopOffers(s, [s.shop[idx]!], { onRefresh: true, cia: true, inPlace: true }); // keeps the replaced slot's enchant
 }
 
 /**
@@ -1111,6 +1165,15 @@ export function reduce(state: RunState, action: Action): RunState {
 
 /** Everything an action owes the run once the core has resolved it: the boundary diffs, the quest ticks, the FX stamps. */
 function settleAction(state: RunState, action: Action, next: RunState): RunState {
+  // SHOP MADNESS (Set 2 Basic rune, owner 2026-11-13): "Your Shop always has 6 minions." ANY minion that left the row
+  // this action (bought, Discovered, passed, archived, a Starform cashed in, ...) is replaced in its own slot, here at
+  // the one action boundary every path crosses. The consume and steal chokepoints refill mid-action already (a repeated
+  // eat must see a fresh target), so this only tops up what is still short. Shop-only: never touches combat.
+  if (next !== state && next.phase === 'recruit' && shopMadness(next)) {
+    const after = new Set(next.shop.map((o) => o.uid));
+    const vacated = state.shop.map((o, i) => (after.has(o.uid) || CARD_INDEX[o.cardId]?.spell ? -1 : i)).filter((i) => i >= 0);
+    refillShopMadness(next, vacated);
+  }
   // DUOS (R-DUOS-PASS-FLIGHT-01): a send this play / buy queued streams from the card the player acted on, when its own
   // stamp names nothing on screen (a bare cast, or a card this action gave a fresh uid). Presentation only.
   if (next !== state && next.duos && (action.type === 'play' || action.type === 'buy')) {
@@ -1156,7 +1219,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     syncStarDestroyer(next);
     // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
     // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
-    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next) || ancientGildedEchoGraft(next)) {
+    if (next.runeEndlessMarch || next.runeLastTool || next.questFlags?.runeEchoingKobolds || next.questFlags?.runeAggressiveGolems || next.questFlags?.runeStellarEchoes || ancientRallyGoldGraft(next) || ancientGildedEchoGraft(next) || next.questFlags?.runeImpLegion) {
       for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
     }
     // RUNE OF THE SOUL FURNACE (Set 3 design pass): the Aura's derived Health term follows the Aura Attack at every
@@ -1437,6 +1500,19 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
       if (next.runeDraconicCuriosity && boughtMinion && defIsTribe(bdef, 'dragon', next)) {
         procRuneId(next, 'rune_draconic_curiosity');
         conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), runeGrantOverflow());
+      }
+      // ROYAL TREASURY (Set 2 Epic Dwarf rune, owner 2026-11-12: "repeats every 5 Dwarves bought"): every Dwarf minion
+      // bought (All-types bodies count) ticks a run-long meter; each 5th raises max Gold by 1 per copy held, above the
+      // cap (`maxGoldBonus`, the Coffers / Gold Font channel). The badge prints the meter and the total given.
+      if (next.questFlags?.runeRoyalTreasury && boughtMinion && defIsTribe(bdef, 'dwarf', next)) {
+        next.royalTreasuryTick = (next.royalTreasuryTick ?? 0) + 1;
+        if (next.royalTreasuryTick >= ROYAL_TREASURY_PER) {
+          next.royalTreasuryTick -= ROYAL_TREASURY_PER;
+          const gain = runeStacksOf(next, 'rune_royal_treasury');
+          procRuneId(next, 'rune_royal_treasury');
+          next.maxGoldBonus = (next.maxGoldBonus ?? 0) + gain;
+          next.royalTreasuryGold = (next.royalTreasuryGold ?? 0) + gain;
+        }
       }
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
@@ -1928,7 +2004,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // block in `reduce`, keyed off the action), Juggler, Gorr, Keshi, Ayse's Enchanted count, Cadence's
       // spell-discount arming, Fried Circuits — all tick exactly as for a paid buy.
       if (offer.starform) {
-        const { cost: sfCost, freeBuy: sfFree, cadenceOff: sfCad, tradeInOff: sfTi, spiritOff: sfSpirit } = offerBuyPrice(s, offer);
+        const { cost: sfCost, freeBuy: sfFree, cadenceOff: sfCad, tradeInOff: sfTi, spiritOff: sfSpirit, loyalFree: sfLoyal } = offerBuyPrice(s, offer);
         if (s.embers < sfCost) return state;
         const standIn = starformStandIn(s, offer);
         spendGold(s, sfCost);
@@ -1936,6 +2012,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
+        noteLoyalCustomerBuy(s, sfLoyal); // Loyal Customer: the Starform is a minion bought
         ancientSpendRobinBonds(s, offer.cardId); // ANCIENT OF BONDS × Robin: a matching buy spends its type's mark
         ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
         ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh
@@ -1986,7 +2063,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       // THE price — `offerBuyPrice` is the single source for every price source and discount, shared with the
       // UI's cost coin so the shown price IS the charged price (Doc Bot holds the pair equal).
-      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff } = offerBuyPrice(s, offer);
+      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, loyalFree } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
@@ -2021,6 +2098,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence'); // …and buying a minion arms the spell discount (−1 per copy)
       if (freeBuy) s.freeBuyUsedThisTurn = true;
+      noteLoyalCustomerBuy(s, loyalFree); // Loyal Customer (Set 2 batch): count the buy; the free one pulses the badge
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
       if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
@@ -3103,6 +3181,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // ANCIENTS × Pete (3 and 1 unless picked): Time triggers it every 2 Refreshes; Genesis upgrades the 2 right-most.
         if (s.refreshCount % ancientContrabandEvery(s) === 0) { const done = new Set<string>(); for (let k = 0; k < ancientContrabandCount(s); k++) upgradeRightmostOffer(s, done); }
       }
+      // Rune of Top Shelf (Set 2 Epic, owner 2026-11-12): one offer from the Tier above per copy held. AFTER Pete, and it
+      // never replaces an offer already above your Tier, so the two never undo each other.
+      if (s.questFlags?.runeTopShelf) for (let k = 0; k < Math.max(1, s.flagCopies?.runeTopShelf ?? 1); k++) offerTopShelf(s);
       return s;
     }
 
@@ -3137,6 +3218,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, wishboneReps(s)); // Wishbone: two
       }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s); // Late Bloomer (Set 2 batch): 2 Gold + your board +3/+3
       return s;
     }
 
@@ -4030,7 +4112,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const rng = makeRng(s.rngCursor);
         const pool = [...dead];
         const picks: string[] = [];
-        while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+        while (picks.length < discoverOptionCount(s) && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!); // Second Opinion
         s.rngCursor = rng.state();
         s.discover = picks;
         ancientMarkSoulkeeperDiscover(s); // ANCIENTS × Underdweller: this pick is a Soulkeeper minion
@@ -4056,7 +4138,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const rng = makeRng(s.rngCursor);
         const opts = [...pool];
         const picks: string[] = [];
-        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        while (picks.length < discoverOptionCount(s) && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id); // Second Opinion
         s.rngCursor = rng.state();
         // The pick REPLACES the targeted offer rather than landing in hand — see `discoverIntoShopUid`.
         s.discoverIntoShopUid = s.shop[shopIdx]!.uid;
@@ -4980,6 +5062,7 @@ function endRecruitTurn(s: RunState): void {
     });
   }
   advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
+  piggyBankCarry(s); // Piggy Bank (Set 2 batch): the Gold left now opens next turn (no cap)
 }
 
 /**
@@ -5905,6 +5988,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (s.questFlags?.runeBorrowedFlame && result.playerShoutCarry?.borrowedFlameGain) {
     s.runeBorrowedFlame = borrowedFlameValue(s) + result.playerShoutCarry.borrowedFlameGain;
   }
+  // Warm-Up (Set 2 batch, 2026-11-12): the side-wide Pummel tally comes home (its payout already banked live).
+  if (s.questFlags?.runeWarmUp && result.playerShoutCarry?.warmUpDealt !== undefined) s.runeWarmUpDealt = result.playerShoutCarry.warmUpDealt;
   if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
     s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
   }
@@ -6102,6 +6187,8 @@ function advanceCombat(s: RunState): void {
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
+  // Hazard Pay (Set 2 batch, 2026-11-12): after a LOST combat, 3 Gold + a free Refresh, as this Shop opens (its own beat).
+  if (s.questFlags?.runeHazardPay && s.lastCombat?.result === 'lose') recordSotBeat(s, runeSource('rune_hazard_pay'), () => hazardPayTurnStart(s, true));
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
   s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills
@@ -6175,7 +6262,7 @@ function advanceCombat(s: RunState): void {
   s.collectorBoughtThisTurn = []; // Rune of the Collector: "3 minions in one turn" counts afresh (balance 9/23)
   s.consumeDoubleUsedThisTurn = false; // Bottomless Banquet re-arms each turn
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
-  for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
+  for (const t of s.runeThresholds ?? []) { t.usedThisTurn = false; if (t.resetEachTurn) t.tick = 0; } // oncePerTurn threshold runes re-arm; a per-TURN window (Deep Pockets, Rowdy Crowd) starts empty
   if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
   // Set 3 batch 2 (2026-09-16) tranche-B per-turn latches.
   s.eventideUsedThisTurn = undefined;
@@ -6241,6 +6328,7 @@ function advanceCombat(s: RunState): void {
   }
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
+  s.eldersVoiceUid = undefined; s.eldersVoiceSeen = undefined; // Elder's Voice: the new turn's first Shout is picked afresh
   // GIFTS — the turn-scoped channels (Demand an Encore, Arcane Clearance, Friends and Family) all expire here.
   s.shoutExtraTurn = 0;
   s.spellCostOffTurn = 0;
@@ -6651,6 +6739,15 @@ function advanceCombat(s: RunState): void {
   });
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
   if (s.runeFreshPages) recordSotBeat(s, runeKindSource('runeFreshPages'), () => { procRune(s, 'runeFreshPages'); queueDiscover(s, { kind: 'spell' }); });
+  // Rune of Grudge (Set 2 Epic, owner 2026-11-12): "After you lose a combat, Discover a minion from the Tier above your
+  // Shop. (Up to Tier 7.)" A Discover can only open in the Shop, so it opens as the next Shop does (its own Start of Turn
+  // beat). A draw is not a loss. Shop Tier + 1, capped at 7 (owner ruling: the cap is Tier 7, so a Tier 6 Shop offers
+  // Tier 7, like the Summit's fixed-tier offer). One Discover per copy held.
+  if (s.questFlags?.runeGrudge && s.lastCombat?.result === 'lose') recordSotBeat(s, runeSource('rune_grudge'), () => {
+    procRuneId(s, 'rune_grudge');
+    const tier = Math.min(7, s.tier + 1);
+    for (let k = 0; k < Math.max(1, s.flagCopies?.runeGrudge ?? 1); k++) queueDiscover(s, { kind: 'minion', tier, exactTier: tier });
+  });
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -7625,7 +7722,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
       // Set 3 rune batch 3: the two AURA-STYLE grafts (Echoing Kobolds, Aggressive Golems) land on every body the
       // run already holds, board and hand; later arrivals are stamped at their arrival + the action-boundary sweep.
-      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      if (r.flag === 'runeEchoingKobolds' || r.flag === 'runeAggressiveGolems' || r.flag === 'runeStellarEchoes' || r.flag === 'runeImpLegion') for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      // SHOP MADNESS (Set 2 Basic, owner 2026-11-13): "Minions in your Shop have +3/+3" is the permanent run-wide Shop
+      // buff (every offer now and every one that enters later, per copy taken); "always 6 minions" fills the row now.
+      if (r.flag === 'runeShopMadness') {
+        applyRunShopBuff(s, SHOP_MADNESS_BUFF.attack, SHOP_MADNESS_BUFF.health, 'Shop Madness');
+        refillShopMadness(s);
+      }
       break;
     }
     case 'questGoldTribeBuff':
@@ -7705,7 +7808,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, replaceShopWith: r.replaceShopWith, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
@@ -7873,8 +7976,10 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // tier exactly as a paid upgrade does (the `payCommission` citadel idiom). Reads `hasTier7Access`, so the
       // Tier-7 unlock sitting EARLIER in the same `multi` reward is already in effect and this step can use it.
       const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
+      const tierBefore = s.tier;
       for (let i = 0; i < r.by && s.tier < ceiling; i++) s.tier += 1;
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s, s.tier - tierBefore); // Late Bloomer (Set 2 batch): a free upgrade is an upgrade
       break;
     }
     case 'attachmentDeal':
@@ -8803,6 +8908,35 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       if (!held || !hd || hd.spell || hd.ruby) return undefined;
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
+    // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
+    runeShieldWall: f?.runeShieldWall,               // SoC: Taunt minions +4/+6
+    runeShatterproof: f?.runeShatterproof,           // a Ward loss: that minion +5/+5 permanently
+    runeWarmUp: f?.runeWarmUp,                       // side-wide Pummel (150): 2 Gold next turn, once per combat
+    runeWarmUpDealt: f?.runeWarmUp ? s.runeWarmUpDealt ?? 0 : undefined, // ...its lifetime tally (the Pummel carry-over)
+    runeGoldenHandshake: f?.runeGoldenHandshake,     // a combat Gild: your minions +2/+2
+    // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12); copies ride `flagCopies` ──
+    runeBloodscent: f?.runeBloodscent,               // a Beast's kill: it gains +4/+4 permanently
+    runeLastHowl: f?.runeLastHowl,                   // the first Echo Beast to die each combat is resummoned
+    runeTrophyHunter: f?.runeTrophyHunter,           // a Beast's kill banks 1 Gold (3 per combat)
+    runePitchforks: f?.runePitchforks,               // a summoned Imp deals 3 damage to 2 enemies
+    runeImpLegion: f?.runeImpLegion,                 // combat-summoned Imps carry the Echo graft too
+    runeFlamekeeper: f?.runeFlamekeeper,             // a Dragonflame cast: your Dragons +2/+2 permanently
+    runeRubyDust: f?.runeRubyDust,                   // a friendly minion with Rubies dies: a permanent Ruby on a Kobold
+    runeRoughCut: f?.runeRoughCut,                   // a Ruby cast on a Kobold also casts on a non-Kobold
+    // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+    runeDoubleBill: f?.runeDoubleBill,               // Start of Combat: trigger the left-most and right-most Shouts
+    runeBulwarkLine: f?.runeBulwarkLine,             // Start of Combat: Taunt minions gain Ward
+    runeBastion: f?.runeBastion,                     // the first Ward loss each combat: the Ward comes back
+    runeMirrorSheen: f?.runeMirrorSheen,             // a Ward loss: that minion deals its Attack to a random enemy
+    // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+    runeFeralReturn: f?.runeFeralReturn,             // SoC: the left-most Beast gains Rise; a Rising Beast gains +5/+5
+    runePackTactics: f?.runePackTactics,             // an attacked Beast fires its own Rally
+    runeBloodFrenzy: f?.runeBloodFrenzy,             // a Beast's kill fires the left-most Rally
+    runeHellfire: f?.runeHellfire,                   // a Demon's attack or death: 1 damage to all enemies
+    runeWildfire: f?.runeWildfire,                   // an enemy's non-attack damage death: 3 damage to all enemies (3 per combat)
+    runeEldersVoice: f?.runeEldersVoice,             // Elder's Voice held (its per-turn body rides eldersVoiceUid)
+    eldersVoiceUid: f?.runeEldersVoice ? s.eldersVoiceUid : undefined, // the turn's first Shout fires again at SoC
+    runeGemRain: f?.runeGemRain,                     // SoC: 2 permanent Rubies on every friendly minion
   };
 }
 
@@ -8901,6 +9035,7 @@ function payCommissionOnce(s: RunState, c: Commission): void {
     if (s.tier < ceiling) {
       s.tier += 1;
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s); // Late Bloomer (Set 2 batch): a free upgrade is an upgrade
     }
     return;
   }
@@ -8978,7 +9113,7 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
         const rng = makeRng(s.rngCursor);
         const opts = [...pool];
         const picks: string[] = [];
-        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        while (picks.length < discoverOptionCount(s) && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id); // Second Opinion
         s.rngCursor = rng.state();
         s.discover = picks;
       }

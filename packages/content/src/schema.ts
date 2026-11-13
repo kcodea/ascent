@@ -676,6 +676,7 @@ export const EffectFactoryIdSchema = z.enum([
   'whisperGrantSeedEcho',         // Seed (Gardener's Whisper, 2026-10-15): grant "Echo: summon a 3/3 Drake Pup with Taunt"
   'whisperGetTribeOfTier',        // Hatcher's Whisper (2026-10-15): get a random Dragon of the Whisper's tier
   'whisperGrantKeyword',          // Warding Call (Whispwarder's Whisper, 2026-10-15): Ward until your next turn (Gilded: Resilient Ward)
+  'deathrattleDamageLowestEnemy', // Set 2 rune Imp Legion's graft (2026-11-13): Echo, deal N to the lowest-Health enemy
 ]);
 
 export const EffectDefSchema = z.object({
@@ -840,7 +841,19 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 Kobold runes (owner 2026-10-22)
   'runeGoleming', 'runeRedStart', 'runeRoseysGarden',
   // Set 3 Dwarf rune, Epic (owner 2026-10-23)
-  'runeReturnCustomers']);
+  'runeReturnCustomers',
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12)
+  'runeHazardPay', 'runeShieldWall', 'runeShatterproof', 'runeWarmUp', 'runeGoldenHandshake', 'runeLateBloomer', 'runeLoyalCustomer',
+  // Set 2 rune batch, Basic tribal (owner review 2026-11-12)
+  'runeBloodscent', 'runeLastHowl', 'runeTrophyHunter', 'runePitchforks', 'runeImpLegion', 'runeCollections',
+  'runeFlamekeeper', 'runeHatchlingRoost', 'runeRubyDust', 'runeRoughCut',
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12)
+  'runeTopShelf', 'runeDoubleBill', 'runeBulwarkLine', 'runeWholesale', 'runeGrudge', 'runeBastion', 'runeMirrorSheen',
+  // Set 2 rune batch, Epic tribal (owner 2026-11-12)
+  'runeBigSpender', 'runeRoyalTreasury', 'runeFeralReturn', 'runePackTactics', 'runeBloodFrenzy', 'runeHellfire',
+  'runeWildfire', 'runeEldersVoice', 'runeGemRain',
+  // Set 2 rune batch, owner addition 2026-11-13 (Shop-only)
+  'runeShopMadness']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -998,6 +1011,7 @@ z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast',
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
   rubyAll: z.boolean().optional(),
+  replaceShopWith: z.string().min(1).optional(), // Golden Monkey (Set 2 rune, 2026-11-13): swap a random Shop minion for this card
   grantGoldNextTurn: z.number().int().positive().optional(),
   resetEachTurn: z.boolean().optional(),
   grantGold: z.number().int().positive().optional(),
@@ -1023,7 +1037,7 @@ z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tr
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar', 'runePiggyBank']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

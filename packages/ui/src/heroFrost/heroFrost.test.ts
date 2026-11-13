@@ -43,7 +43,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with every hero attack)', () => {
-  it('Frost steps up on exactly the blows the other styles do: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Frost steps up on exactly the blows the other styles do: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -52,7 +52,7 @@ describe('the damage tiers (shared with every hero attack)', () => {
     }
   });
 
-  it('the ladder: I ONE icicle, II TWO, III a volley of FIVE, IV four icicles THEN the frost nova', () => {
+  it('the ladder: Tier 1 ONE icicle, Tier 2 TWO, Tier 3 a volley of FIVE, Tier 4 four icicles THEN the frost nova', () => {
     expect([P1, P2, P3, P4].map((p) => p.icicles.length)).toEqual([1, 2, 5, 4]);
     expect([P1, P2, P3, P4].map((p) => p.nova)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.nova ? `${p.icicles.length}+nova` : p.icicles.length; }))
@@ -103,8 +103,8 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('frost');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('frost');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ You cast', '▶ Foe casts', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)',
-      '▶ Foe medium (12)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ You cast', '▶ Foe casts', '▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 2 (8)',
+      '▶ Foe tier 3 (12)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
   });
@@ -138,7 +138,7 @@ describe('the plan', () => {
     }
   });
 
-  it('Tier II is a pair from either side; Tier I one icicle straight to the impact', () => {
+  it('Tier 2 is a pair from either side; Tier 1 one icicle straight to the impact', () => {
     const [a, b] = P2.icicles;
     expect(Math.sign(a!.slot)).not.toBe(Math.sign(b!.slot));
     expect(P2.hits).toHaveLength(1);
@@ -147,7 +147,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.icicles[0]!.arriveAt);
   });
 
-  it('Tier IV: every icicle is a tick, THEN the nova is gathered, released, reaches the target and encases it; the SHATTER is the impact', () => {
+  it('Tier 4: every icicle is a tick, THEN the nova is gathered, released, reaches the target and encases it; the SHATTER is the impact', () => {
     const kinds = frostCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(4);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -163,7 +163,7 @@ describe('the plan', () => {
     expect(Math.max(...P4.hits)).toBeLessThan(P4.novaAt);
   });
 
-  it('every tier escalates: more shake, zoom, shards, burst and frost; II+ dims', () => {
+  it('every tier escalates: more shake, zoom, shards, burst and frost; Tier 2+ dims', () => {
     const ps = [P1, P2, P3, P4];
     for (let i = 1; i < 4; i++) {
       for (const k of ['shakePx', 'zoom', 'shards', 'burst', 'creep', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
@@ -176,7 +176,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [480, 780, 1328], [540, 990, 1598], [620, 1330, 1998], [560, 2255, 3055],
     ]);
-    // Brisk at Tier I, about 3 s at Tier IV (owner: "chunky and satisfying, not rushed").
+    // Brisk at Tier 1, about 3 s at Tier 4 (owner: "chunky and satisfying, not rushed").
     expect(t(P1)[2]).toBeLessThanOrEqual(1500);
     expect(t(P4)[2]).toBeLessThanOrEqual(3400);
   });
@@ -283,7 +283,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.6);
   });
 
-  it('Tier IV keeps both heroes in frame: it follows the volley in, pans home for the gather, rides the nova, and the shatter punches hardest', () => {
+  it('Tier 4 keeps both heroes in frame: it follows the volley in, pans home for the gather, rides the nova, and the shatter punches hardest', () => {
     expect(frostCameraFocus(P4, P4.fireAt, A, D)).toEqual(A);
     expect(frostCameraFocus(P4, P4.hits[P4.hits.length - 1]!, A, D)).toEqual(D);
     const home = frostCameraFocus(P4, P4.novaAt, A, D);
@@ -361,7 +361,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the icicles tick, the nova rolls and encases, and the blow lands ONCE, on the encasement SHATTERING', () => {
+  it('Tier 4: the icicles tick, the nova rolls and encases, and the blow lands ONCE, on the encasement SHATTERING', () => {
     const { h, f, onImpact, defenderEl } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.nova).toBe(true);
     expect(h.nova).not.toBeNull();
@@ -489,7 +489,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV stays in the caps, strips stay under the batching limit, everything drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 stays in the caps, strips stay under the batching limit, everything drains; destroy leaves nothing', () => {
     expect(SHEET_POINTS * 2).toBeLessThanOrEqual(100);
     const s = new HeroFrostScene(TEX, COLORS, LOOK, 1, 42);
     const ms = icicleMotions(P4, A, D, R, R, C);

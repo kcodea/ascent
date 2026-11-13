@@ -1321,6 +1321,54 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantEquipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
+  'rune:rune_piggy_bank:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // a random minion +1/+3, repeated per unspent Gold (one beat per tick)
+  'rune:rune_hazard_pay:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: 3 Gold + a free Refresh (a Start of Turn beat)
+  'rune:rune_second_opinion:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Discover a minion (with the extra option)
+  'rune:rune_shield_wall:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: Taunt minions +4/+6
+  'rune:rune_shatterproof:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: +5/+5 permanently
+  'rune:rune_warm_up:combat': { policy: 'foldedCue', family: 'combatModifier' }, // side-wide Pummel (150): 2 Gold next turn, once per combat
+  'rune:rune_golden_handshake:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Gild: your minions +2/+2 (both phases)
+  'rune:rune_late_bloomer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Shop upgrade: 2 Gold + your minions +3/+3 (Shop)
+  'rune:rune_loyal_customer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th minion bought is free (Shop)
+  // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12) ──
+  'rune:rune_deep_pockets:recruit': { policy: 'ownBeat', family: 'runeMechanic' },    // first 8 Gold spent each turn: a random Dwarf
+  'rune:rune_rowdy_crowd:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // 4 cards played in a turn: your Dwarves +2/+2
+  'rune:rune_bloodscent:combat': { policy: 'foldedCue', family: 'combatModifier' },   // a Beast's kill: it gains +4/+4 permanently
+  'rune:rune_last_howl:combat': { policy: 'foldedCue', family: 'combatModifier' },    // the first Echo Beast to die each combat returns
+  'rune:rune_trophy_hunter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Beast's kill: 1 Gold next turn (3 per combat)
+  'rune:rune_pitchforks:combat': { policy: 'foldedCue', family: 'combatModifier' },   // a summoned Imp deals 3 damage to 2 enemies
+  'rune:rune_imp_legion:combat': { policy: 'foldedCue', family: 'combatModifier' },   // Imps carry "Echo: deal 3 to the lowest-Health enemy"
+  'rune:rune_guels_apprentice:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // a Staff of Guel now + every Start of Turn
+  'rune:rune_collections:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Demon sold: the Shop +2/+2 permanently (Shop)
+  'rune:rune_flamekeeper:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Dragonflame cast: your Dragons +2/+2 permanently
+  'rune:rune_hatchling_roost:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shout Dragons cost 1 Gold (Shop price)
+  'rune:rune_dragon_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // every 3 Gold spent: a Dragonflame (owner rework 2026-11-13)
+  'rune:rune_ruby_dust:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a friendly minion with Rubies dies: a permanent Ruby on a Kobold
+  'rune:rune_rough_cut:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a Ruby on a Kobold also casts on a non-Kobold
+  'factory:deathrattleDamageLowestEnemy:onDeath': { policy: 'ownBeat', family: 'echo' }, // Imp Legion's grafted Echo
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12)
+  'rune:rune_top_shelf:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Refresh: one offer from the Tier above (rides the refresh)
+  'rune:rune_double_bill:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: left-most + right-most Shouts (each a counted shout beat)
+  'rune:rune_bulwark_line:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: Taunt minions gain Ward
+  'rune:rune_wholesale:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop minions cost 1 less (a price, no beat)
+  'rune:rune_grudge:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: a Discover from the Tier above (its own Start of Turn beat)
+  'rune:rune_bastion:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first Ward loss each combat: the Ward re-forms
+  'rune:rune_mirror_sheen:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: that minion deals its Attack to a random enemy
+  // ── Set 2 rune batch, Epic tribal (owner 2026-11-12) ──
+  'rune:rune_big_spender:combat': { policy: 'foldedCue', family: 'combatModifier' },     // Shop-only flag: a Gold spend's triggers hear it twice (rides the spend)
+  'rune:rune_royal_treasury:combat': { policy: 'foldedCue', family: 'combatModifier' },  // Shop-only flag: 5 Dwarves bought, +1 max Gold (rides the buy)
+  'rune:rune_feral_return:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC Rise on the left-most Beast; a Rising Beast +5/+5
+  'rune:rune_pack_tactics:combat': { policy: 'foldedCue', family: 'combatModifier' },    // an attacked Beast fires its Rally
+  'rune:rune_blood_frenzy:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a Beast's kill fires the left-most Rally
+  'rune:rune_hellfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a Demon attacks or dies: 1 damage to all enemies
+  'rune:rune_wildfire:combat': { policy: 'foldedCue', family: 'combatModifier' },        // an enemy's non-attack death: 3 damage to all enemies
+  'rune:rune_elders_voice:combat': { policy: 'foldedCue', family: 'combatModifier' },    // SoC: the turn's first Shout fires again
+  'rune:rune_vein_finder:recruit': { policy: 'ownBeat', family: 'runeMechanic' },        // every 3rd Refresh: a Ruby on every minion
+  'rune:rune_gem_rain:combat': { policy: 'foldedCue', family: 'combatModifier' },        // SoC: 2 permanent Rubies on every minion
+  'rune:rune_golden_monkey:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every 5 Refreshes: a Shop minion becomes a Golden Monkey (owner 2026-11-13)
+  'rune:rune_shop_madness:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: Shop +3/+3, the row refills to 6 minions (a price/row rule, no beat)
+  'rune:rune_iggy_iggy:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get an Immune Iggy with Ward (owner 2026-11-13)
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

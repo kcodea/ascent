@@ -2,7 +2,7 @@
 /**
  * STORM CALL, an EPIC hero attack (owner 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics
  * should only have 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun"): the shared
- * four damage tiers map to THREE looks (I small, II and III medium, IV big; a knockout plays big); the looks (a crackling
+ * four damage tiers map to THREE looks (shared Tier 1 plays Tier 1, Tiers 2 and 3 play Tier 2, Tier 4 plays Tier 3; a knockout plays Tier 3); the looks (a crackling
  * arc / a forked bolt that strikes twice with static / a storm cloud that drops a thick strike); the tuner; the pure
  * plan, bolt geometry and camera; the runner on the shared clock (the blow lands exactly ONCE, never on a tick; both
  * directions; replay; finish / cancel; cleanup; static jitter; the camera applied once); the headless scene (bolts are
@@ -36,7 +36,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the three looks (an Epic maps the shared four tiers onto three)', () => {
-  it('reads the SHARED tier (thresholds 6 / 12 / 20) and maps I small, II and III medium, IV big', () => {
+  it('reads the SHARED tier (thresholds 6 / 12 / 20) and maps shared Tier 1 to Tier 1, Tiers 2 and 3 to Tier 2, Tier 4 to Tier 3', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     expect([1, 2, 3, 4].map((t) => stormLevel(t as 1 | 2 | 3 | 4))).toEqual([1, 2, 2, 3]);
     for (let d = 0; d <= 60; d++) {
@@ -47,12 +47,12 @@ describe('the three looks (an Epic maps the shared four tiers onto three)', () =
     expect([P1, P2, P3, P4].map((p) => p.level)).toEqual([1, 2, 2, 3]);
   });
 
-  it('a knockout always plays Big (the storm), whatever the number', () => {
+  it('a knockout always plays Tier 3 (the storm), whatever the number', () => {
     const ko = plan([2, 1], 3, 1600, false, true);
     expect([ko.tier, ko.level, ko.storm]).toEqual([4, 3, true]);
   });
 
-  it('Small is one arc; Medium a trunk that forks into two striking branches; Big a call up to the sky and one thick strike', () => {
+  it('Tier 1 is one arc; Tier 2 a trunk that forks into two striking branches; Tier 3 a call up to the sky and one thick strike', () => {
     expect(P1.bolts.map((b) => b.kind)).toEqual(['arc']);
     expect(P2.bolts.map((b) => b.kind)).toEqual(['trunk', 'branch', 'branch']);
     expect(P4.bolts.map((b) => b.kind)).toEqual(['call', 'strike']);
@@ -99,13 +99,13 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('storm');
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Medium (8)', '▶ Big (40)', '▶ Foe small (3)', '▶ Foe big (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
     expect(labels.filter((l) => /speed|reduced motion/i.test(l))).toEqual([]);
   });
 });
 
 describe('the plan', () => {
-  it('SMALL: the arc lands (THE impact) the moment its leader arrives; no ticks', () => {
+  it('TIER 1: the arc lands (THE impact) the moment its leader arrives; no ticks', () => {
     expect(P1.impactAt).toBe(P1.bolts[0]!.at + P1.bolts[0]!.leaderMs);
     expect(P1.hits).toEqual([]);
     const kinds = stormCues(P1).map((q) => q.kind);
@@ -113,7 +113,7 @@ describe('the plan', () => {
     expect(kinds).not.toContain('gather');
   });
 
-  it('MEDIUM: the first branch strikes (a tick), the second strikes `forkGapMs` later (THE impact); static crawls from the first', () => {
+  it('TIER 2: the first branch strikes (a tick), the second strikes `forkGapMs` later (THE impact); static crawls from the first', () => {
     expect(P2.hits).toHaveLength(1);
     expect(P2.impactAt - P2.hits[0]!).toBe(C.forkGapMs);
     const [trunk, b1, b2] = P2.bolts;
@@ -128,7 +128,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('hit')).toBeLessThan(kinds.indexOf('impact'));
   });
 
-  it('BIG: the call, the cloud gathers, rumbles twice, then the strike lands (THE impact); no ticks', () => {
+  it('TIER 3: the call, the cloud gathers, rumbles twice, then the strike lands (THE impact); no ticks', () => {
     expect(P4.storm).toBe(true);
     expect(P4.gatherAt).toBeGreaterThan(P4.boltAt);
     expect(P4.rumbleAt).toBe(P4.gatherAt + C.gatherMs);
@@ -184,13 +184,13 @@ describe('the plan', () => {
 });
 
 describe('the bolt geometry', () => {
-  it('Small arcs from the striker\'s rim into the struck face', () => {
+  it('Tier 1 arcs from the striker\'s rim into the struck face', () => {
     const g = stormGeometry(P1, A, D, R, R, C);
     expect(Math.hypot(g.bolts[0]!.from.x - A.x, g.bolts[0]!.from.y - A.y)).toBeLessThanOrEqual(R);
     expect(Math.hypot(g.bolts[0]!.to.x - D.x, g.bolts[0]!.to.y - D.y)).toBeLessThanOrEqual(R * 0.5);
   });
 
-  it('Medium: the trunk ends where both branches start (the fork), and they land either side of the face', () => {
+  it('Tier 2: the trunk ends where both branches start (the fork), and they land either side of the face', () => {
     const g = stormGeometry(P2, A, D, R, R, C);
     const [trunk, b1, b2] = g.bolts;
     expect(b1!.from).toEqual(trunk!.to);
@@ -200,7 +200,7 @@ describe('the bolt geometry', () => {
     expect(g.strikes).toEqual([b1!.to, b2!.to]);
   });
 
-  it('Big: the cloud gathers ABOVE a target with room over it, and the strike DROPS from the cloud onto the face', () => {
+  it('Tier 3: the cloud gathers ABOVE a target with room over it, and the strike DROPS from the cloud onto the face', () => {
     const g = stormGeometry(P4, D, A, R, R, C, 1, { w: 1600, h: 900 }); // the foe (top right) strikes you (bottom left)
     expect(g.cloud!.y).toBeLessThan(A.y - R * 1.5);
     expect(Math.abs(g.cloud!.x - A.x)).toBeLessThan(R * 0.5);
@@ -227,7 +227,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Big: the focus moves from the hero to the target as the storm gathers; the zoom stays gentle', () => {
+  it('Tier 3: the focus moves from the hero to the target as the storm gathers; the zoom stays gentle', () => {
     expect(stormCameraFocus(P4, P4.chargeAt, A, D)).toEqual(A);
     expect(stormCameraFocus(P4, P4.rumbleAt, A, D)).toEqual(D);
     let peak = 1;
@@ -269,7 +269,7 @@ function run(over: Partial<HeroStormOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('MEDIUM lands the blow EXACTLY ONCE, on the second branch: never on the first; the portrait jitters with static; ends clean', () => {
+  it('TIER 2 lands the blow EXACTLY ONCE, on the second branch: never on the first; the portrait jitters with static; ends clean', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 8, formation: formationOf([8], 8) });
     expect(h.plan.level).toBe(2);
     expect(host.querySelector('.hblast.hstorm')).not.toBeNull();
@@ -299,7 +299,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('BIG: the cloud gathers and rumbles, the thick strike lands the blow ONCE, and the cloud breaks up', () => {
+  it('TIER 3: the cloud gathers and rumbles, the thick strike lands the blow ONCE, and the cloud breaks up', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.storm).toBe(true);
     f.tick(h.plan.rumbleAt + 20, 4);
@@ -433,7 +433,7 @@ describe('the scene (headless Pixi)', () => {
     s.destroy();
   });
 
-  it('a whole Big stays in the caps and drains; destroy leaves nothing', () => {
+  it('a whole Tier 3 stays in the caps and drains; destroy leaves nothing', () => {
     const s = new HeroStormScene(TEX, COLORS, LOOK, 1, 42);
     const g = stormGeometry(P4, A, D, R, R, C, 1, { w: 1600, h: 900 });
     s.setView(1600, 900);

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * SOUL STITCH (the Ancient of Bonds' hero attack, an ANCIENT; owner 2026-10-02: "this ancient binds things together and
- * using soulbindings", the concept "Soul Stitch": stitching the target to you; III the owner's pick "Pinned", IV
- * "Bound Together"): the shared four tiers (I needle, II cross, III pinned, IV bound; a knockout plays IV); the tuner values; the pure plan (the piercings and punctures are
+ * using soulbindings", the concept "Soul Stitch": stitching the target to you; Tier 3 the owner's pick "Pinned", Tier 4
+ * "Bound Together"): the shared four tiers (Tier 1 needle, Tier 2 cross, Tier 3 pinned, Tier 4 bound; a knockout plays Tier 4); the tuner values; the pure plan (the piercings and punctures are
  * ticks before THE impact, which follows the tug); the pure geometry (the needles fly from the striker's rim, sew ON the
  * struck portrait, never above the ceiling); the thread drawn along the needle's own path and tied to both portraits;
  * the runner on the shared clock (the blow lands exactly ONCE; the pull leans the striker back and yanks the target in;
@@ -38,7 +38,7 @@ const LOOK = {
 };
 
 describe('the tiers', () => {
-  it('uses the shared thresholds: I needle, II cross, III pinned, IV bound', () => {
+  it('uses the shared thresholds: Tier 1 needle, Tier 2 cross, Tier 3 pinned, Tier 4 bound', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const p = plan(d);
@@ -48,7 +48,7 @@ describe('the tiers', () => {
     expect([1, 2, 3, 4].map((t) => stitchKind(t as 1 | 2 | 3 | 4))).toEqual(['needle', 'cross', 'pinned', 'bound']);
   });
 
-  it('a knockout always plays IV, bound together (the Huge version), whatever the number', () => {
+  it('a knockout always plays Tier 4, bound together (the Tier 4 version), whatever the number', () => {
     const p = plan(3, { knockout: true });
     expect(p.tier).toBe(4);
     expect(p.kind).toBe('bound');
@@ -83,7 +83,7 @@ describe('the tuner values', () => {
     expect(clampHeroStitchValue('colorThread', 'violet')).toBe(C.colorThread);
     expect(clampHeroStitchValue('nope' as keyof HeroStitchConfig, 1)).toBeUndefined();
     const s = sanitizeHeroStitchConfig({ t3Passes: 400, bogus: 1 });
-    expect(s.t3Passes).toBe(24); // the range is shared (IV uses Passes)
+    expect(s.t3Passes).toBe(24); // the range is shared (Tier 4 uses Passes)
     expect('bogus' in s).toBe(false);
   });
 
@@ -95,7 +95,7 @@ describe('the tuner values', () => {
     expect(json.t4Needles).toBe(6);
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = (SPEC.actions ?? []).map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
     expect(labels.filter((l) => /speed|reduced/i.test(l))).toEqual([]);
     expect(SPEC.controls.find((c) => c.key === 'attackStyle')?.options).toContain('stitch');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('stitch');
@@ -103,7 +103,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('I NEEDLE: one needle; its piercing is a tick; it hangs, the tug follows, then THE impact', () => {
+  it('Tier 1 NEEDLE: one needle; its piercing is a tick; it hangs, the tug follows, then THE impact', () => {
     const p = plan(3);
     expect(p.kind).toBe('needle');
     expect(p.needles).toHaveLength(1);
@@ -117,7 +117,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('tug')).toBeLessThan(kinds.indexOf('impact'));
   });
 
-  it('II CROSS: three needles, two sew the diagonals and the third only pins; every piercing a tick before the yank', () => {
+  it('Tier 2 CROSS: three needles, two sew the diagonals and the third only pins; every piercing a tick before the yank', () => {
     const p = plan(8);
     expect(p.kind).toBe('cross');
     expect(p.needles).toHaveLength(3);
@@ -129,7 +129,7 @@ describe('the plan', () => {
     expect(p.tugAt).toBeGreaterThanOrEqual(Math.max(...p.needles.map((q) => q.sewEnd)));
   });
 
-  it('III PINNED: five pins (ticks, one after another), the pull (the stretch), THE impact as they rip out', () => {
+  it('Tier 3 PINNED: five pins (ticks, one after another), the pull (the stretch), THE impact as they rip out', () => {
     const p = plan(14);
     expect(p.kind).toBe('pinned');
     expect(p.needles).toHaveLength(5);
@@ -145,7 +145,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(3200);
   });
 
-  it('III: the stretch builds through the pull, snaps back through a squash, and is EXACTLY zero at rest', () => {
+  it('Tier 3: the stretch builds through the pull, snaps back through a squash, and is EXACTLY zero at rest', () => {
     const p = plan(14);
     expect(stretchAt(p, C, p.tugAt - 1)).toBe(0);
     const mid = stretchAt(p, C, (p.tugAt + p.impactAt) / 2), full = stretchAt(p, C, p.impactAt - 1);
@@ -159,7 +159,7 @@ describe('the plan', () => {
     for (const d of [3, 8, 40]) { const q = plan(d); for (let t = q.chargeAt; t < q.endAt; t += 20) expect(stretchAt(q, C, t)).toBe(0); }
   });
 
-  it('IV BOUND: six laces, the yank (the drag), into the knot, tied, the strike, THE burst, flung home; within the Huge budget', () => {
+  it('Tier 4 BOUND: six laces, the yank (the drag), into the knot, tied, the strike, THE burst, flung home; within the Tier 4 budget', () => {
     const p = plan(40);
     expect(p.kind).toBe('bound');
     expect(p.needles).toHaveLength(6);
@@ -179,7 +179,7 @@ describe('the plan', () => {
     expect(kinds.lastIndexOf('pierce')).toBeLessThan(kinds.indexOf('tug'));
   });
 
-  it('IV: the drag goes out to the knot, holds through the tie and strike, and is EXACTLY zero from home (and before the yank)', () => {
+  it('Tier 4: the drag goes out to the knot, holds through the tie and strike, and is EXACTLY zero from home (and before the yank)', () => {
     const p = plan(40);
     expect(dragAt(p, p.tugAt - 1)).toBe(0);
     expect(dragAt(p, p.knotAt!)).toBe(1);
@@ -200,7 +200,7 @@ describe('the plan', () => {
     for (const d of [3, 8, 14]) { const q = plan(d); for (let t = q.chargeAt; t < q.endAt; t += 20) expect(dragAt(q, t)).toBe(0); }
   });
 
-  it('IV: the burst gets a slow-mo dip, never a freeze (R-PROG-ATTACK-10), and only IV does', () => {
+  it('Tier 4: the burst gets a slow-mo dip, never a freeze (R-PROG-ATTACK-10), and only Tier 4 does', () => {
     const p = plan(40);
     expect(stitchTimeScale(p, C, p.impactAt - 1)).toBe(1);
     expect(stitchTimeScale(p, C, p.impactAt)).toBeCloseTo(C.slowMo, 5);
@@ -230,7 +230,7 @@ describe('the plan', () => {
     expect(stitchGeo(plan(40), A, D, R, R, C)).toEqual(stitchGeo(plan(40), A, D, R, R, C));
   });
 
-  it('the tug envelope rises to the impact and is gone after (I-II); IV holds it through the knot', () => {
+  it('the tug envelope rises to the impact and is gone after (Tiers 1-2); Tier 4 holds it through the knot', () => {
     const p = plan(3);
     expect(tugAt(p, p.tugAt - 1)).toBe(0);
     expect(tugAt(p, (p.tugAt + p.impactAt) / 2)).toBeGreaterThan(0.3);
@@ -240,7 +240,7 @@ describe('the plan', () => {
     const q = plan(40);
     expect(tugAt(q, q.knotAt! + 10)).toBe(1);
     expect(tugAt(q, q.impactAt + 1)).toBe(0);
-    expect(foePull(q, C, q.knotAt!).yank).toBe(0); // IV moves the target by the drag, not the yank
+    expect(foePull(q, C, q.knotAt!).yank).toBe(0); // Tier 4 moves the target by the drag, not the yank
   });
 });
 
@@ -268,7 +268,7 @@ describe('the geometry', () => {
     });
   }
 
-  it('II: the two stitches cross (an X) and the pin is at the crossing', () => {
+  it('Tier 2: the two stitches cross (an X) and the pin is at the crossing', () => {
     const g = stitchGeo(plan(8), A, D, R, R, C);
     const [s1, s2, pin] = g.needles;
     const v1 = { x: s1!.sew[1]!.x - s1!.sew[0]!.x, y: s1!.sew[1]!.y - s1!.sew[0]!.y };
@@ -277,7 +277,7 @@ describe('the geometry', () => {
     expect(pin!.entry).toEqual(D);
   });
 
-  it('III: the five pins sit on the rim at the points of a star, stabbed in star order', () => {
+  it('Tier 3: the five pins sit on the rim at the points of a star, stabbed in star order', () => {
     const p = plan(14);
     const g = stitchGeo(p, A, D, R, R, C);
     const angs = g.needles.map((n) => Math.atan2(n.entry.y - D.y, n.entry.x - D.x));
@@ -289,7 +289,7 @@ describe('the geometry', () => {
     for (let i = 1; i < angs.length; i++) expect(norm(angs[i]! - angs[i - 1]!)).toBeCloseTo(2 * step, 5);
   });
 
-  it('IV: every lace runs target -> striker -> target, and the drag is halfway across the gap', () => {
+  it('Tier 4: every lace runs target -> striker -> target, and the drag is halfway across the gap', () => {
     const p = plan(40);
     const g = stitchGeo(p, A, D, R, R, C);
     for (const n of g.needles) {
@@ -359,7 +359,7 @@ describe('the runner (the shared clock)', () => {
       expect(onImpact).toHaveBeenCalledTimes(1);
       expect(camera.style.transform).toContain('scale(');
       expect(host.querySelector('.hblast-hit')!.textContent).toBe(`-${total}`);
-      f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8); // IV's slow-mo dip takes extra real time
+      f.tick(h.plan.endAt - h.elapsed() + 32 + slowMoExtraMs(h.plan, C), 8); // Tier 4's slow-mo dip takes extra real time
       expect(onDone).toHaveBeenCalledTimes(1);
       expect(onImpact).toHaveBeenCalledTimes(1);
       expect(host.querySelector('.hblast')).toBeNull();
@@ -402,7 +402,7 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
-  it('III: the target STRETCHES toward the striker against the pins (which stay on it), then snaps back and comes home EXACTLY', () => {
+  it('Tier 3: the target STRETCHES toward the striker against the pins (which stay on it), then snaps back and comes home EXACTLY', () => {
     const { h, f, defenderEl } = run({ total: 14, formation: formationOf([14], 14), camera: null });
     f.tick(h.plan.impactAt - 4, 2);
     expect(defenderEl.style.transform).toContain('matrix(');
@@ -421,7 +421,7 @@ describe('the runner (the shared clock)', () => {
     expect(defenderEl.style.transform).toBe('');
   });
 
-  it('III: every exit (cancel, finish, the end) puts the stretched portrait back exactly', () => {
+  it('Tier 3: every exit (cancel, finish, the end) puts the stretched portrait back exactly', () => {
     for (const exit of ['cancel', 'finish', 'end'] as const) {
       const { h, f, defenderEl } = run({ total: 14, formation: formationOf([14], 14), camera: null });
       defenderEl.style.transform = 'translate(3px, 4px)';
@@ -434,7 +434,7 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
-  it('IV: the target is DRAGGED halfway across into the knot (crushed), the laces stay tied to it, and it is flung home EXACTLY', () => {
+  it('Tier 4: the target is DRAGGED halfway across into the knot (crushed), the laces stay tied to it, and it is flung home EXACTLY', () => {
     const a = { x: 100, y: 800 }, d = { x: 1400, y: 150 };
     const { h, f, defenderEl, attackerEl } = run({ total: 40, formation: formationOf([40], 40), attacker: a, defender: d, camera: null });
     const u = h.geo.u;
@@ -460,7 +460,7 @@ describe('the runner (the shared clock)', () => {
     expect(attackerEl.style.transform).toBe('');
   });
 
-  it('IV: the dragged portrait is raised over the other one while it moves; EVERY exit puts the portrait and the z-order back', () => {
+  it('Tier 4: the dragged portrait is raised over the other one while it moves; EVERY exit puts the portrait and the z-order back', () => {
     for (const exit of ['cancel', 'finish', 'end'] as const) {
       for (const side of ['player', 'opp'] as const) {
         const cls = side === 'opp' ? 'duel-attacker-player' : 'duel-attacker-opp';
@@ -478,7 +478,7 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
-  it('IV: a z-order class that was already on is left alone', () => {
+  it('Tier 4: a z-order class that was already on is left alone', () => {
     document.body.classList.add('duel-attacker-opp');
     const { h, f } = run({ side: 'player', total: 40, formation: formationOf([40], 40), camera: null });
     f.tick(h.plan.knotAt!, 8);
@@ -493,7 +493,7 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.visibleStrands).toBeGreaterThanOrEqual(h.plan.needles.length);
     f.tick(SNAP_MS + 40 + slowMoExtraMs(h.plan, C), 4);
     expect(h.scene!.visibleStrands).toBe(0);
-    expect(h.scene!.liveRibbons).toBeGreaterThan(0); // IV's rip
+    expect(h.scene!.liveRibbons).toBeGreaterThan(0); // Tier 4's rip
     h.cancel();
   });
 
@@ -560,12 +560,12 @@ describe('the runner (the shared clock)', () => {
   });
 });
 
-describe('Tier V (the Knockout variant): the latch, the second yank and the slam', () => {
+describe('Tier 5 (the Knockout variant): the latch, the second yank and the slam', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
   const KO = { total: 40, knockout: true, knockoutVariant: true, formation: formationOf([40], 40) };
   const koPlan = () => stitchPlan({ total: 40, knockout: true, knockoutVariant: true, distance: 1600, leadIn: leadInOf([40]) }, C);
 
-  it('the plan: the burst (a tick), the latch, the second FASTER yank, THE slam (the impact), both home; Huge is untouched', () => {
+  it('the plan: the burst (a tick), the latch, the second FASTER yank, THE slam (the impact), both home; Tier 4 is untouched', () => {
     const p = koPlan(), huge = plan(40, { knockout: true });
     expect(huge.burstAt).toBe(huge.impactAt);
     expect(huge.koLatchAt).toBeNull();

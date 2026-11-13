@@ -7,10 +7,10 @@
  * ONE CLEAR IDEA, soft and playful: an iridescent soap bubble wobbles out of the hero, drifts over to the struck hero,
  * swells round its face and POPS into droplets and tiny bubbles.
  *
- * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`bubbleLevel`): I-II play SMALL, III-IV play
- * BIG, so a knockout (which always forces the shared Tier IV) plays BIG.
- *  - SMALL: one bubble is blown at the hero's rim, drifts over on a gentle wobble, engulfs the face and POPS (THE impact).
- *  - BIG: a stream of little bubbles first (each blips on the face: ticks), while one BIG bubble is blown behind them; it
+ * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`bubbleLevel`): Tiers 1-2 play TIER 1, Tiers 3-4 play
+ * TIER 2, so a knockout (which always forces the shared Tier 4) plays TIER 2.
+ *  - TIER 1: one bubble is blown at the hero's rim, drifts over on a gentle wobble, engulfs the face and POPS (THE impact).
+ *  - TIER 2: a stream of little bubbles first (each blips on the face: ticks), while one big bubble is blown behind them; it
  *    drifts over, swells round the whole portrait, strains, and pops with a splash ring (THE impact).
  *
  * THE BEATS: the shared damage formation (its end is this style's start); BLOW (the total sinks in while the bubble
@@ -28,7 +28,7 @@ export type { TierNum };
 export const BUBBLE_LEVELS = ['small', 'big'] as const;
 export type BubbleLevel = (typeof BUBBLE_LEVELS)[number];
 
-/** The shared four tiers onto this Rare's two: I-II small, III-IV big (a knockout forces IV, so it plays big). */
+/** The shared four tiers onto this Rare's two: shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2 (a knockout forces Tier 4, so it plays Tier 2). */
 export function bubbleLevel(tier: TierNum): BubbleLevel { return tier >= 3 ? 'big' : 'small'; }
 
 export const BUBBLE_LEVEL_SUFFIXES = [
@@ -239,7 +239,7 @@ export interface BubblePlan {
   arriveAt: number;
   /** It has swelled round the face. */
   engulfAt: number;
-  /** Big: the little bubbles, in order (each pop is a tick). */
+  /** Tier 2: the little bubbles, in order (each pop is a tick). */
   stream: BubbleStreamPlan[];
   hits: number[];
   /** THE pop (the consequence). */
@@ -264,7 +264,7 @@ export const jitter = (i: number, salt: number): number => { const s = Math.sin(
 /** The whole Bubble Pop, in base ms. Pure and deterministic. */
 export function bubblePlan(input: BubblePlanInput, c: HeroBubbleConfig = store.get()): BubblePlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const level = bubbleLevel(tier);
   const L = bubbleLevelDials(level, c);
   const k = (tier - 1) / 3;

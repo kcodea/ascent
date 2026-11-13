@@ -39,7 +39,7 @@ export interface HeroBladesTextures extends HeroBlastTextures {
   shard: Texture;
   /** A thin lens of light (a cut, a glint). */
   slash: Texture;
-  /** The judgement reticle (Tier IV's lock-on). */
+  /** The judgement reticle (Tier 4's lock-on). */
   reticle: Texture;
 }
 
@@ -60,7 +60,7 @@ export interface BladeLook {
   cutLine: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV shatter peaks around 350). */
+/** Hard cap on sprites alive at once (a Tier 4 shatter peaks around 350). */
 export const MAX_BLADES_SPRITES = 800;
 /** Most afterimages a sword draws. */
 export const MAX_GHOSTS = 5;
@@ -85,7 +85,7 @@ interface Blade {
   cutBody: Sprite;
   /** Extra glow (a flash on the unfurl, the lock glint, the binding): decays. */
   flare: number;
-  /** Tier IV: the stuck blades are bound to the judgement (a steady pulse). */
+  /** Tier 4: the stuck blades are bound to the judgement (a steady pulse). */
   bound: boolean;
 }
 
@@ -321,7 +321,7 @@ export class HeroBladesScene {
   }
 
   /**
-   * THE impact (I-III, and Tier IV's greatsword): everything starts AT its peak so the first frame is the brightest
+   * THE impact (Tiers 1-3, and Tier 4's greatsword): everything starts AT its peak so the first frame is the brightest
    * frame: a short flash over the portrait, a white burst, a side bloom, a big CROSS CUT (two lenses at +-45 degrees to
    * the blow), two rings, a spray of sparks carried through, and an afterglow. Fills are short (the big -N must read).
    */
@@ -407,7 +407,7 @@ export class HeroBladesScene {
   }
 
   /**
-   * TIER IV: the judgement locks on. A reticle closes and spins onto the target, and the stuck blades are BOUND: a spoke
+   * TIER 4: the judgement locks on. A reticle closes and spins onto the target, and the stuck blades are BOUND: a spoke
    * of light from each one's guard into the centre, and a steady pulse, until the greatsword goes in. `durMs` is the
    * hang (the lock tightens over it).
    */
@@ -437,7 +437,7 @@ export class HeroBladesScene {
   private spokeAlpha = 0;
   private lastGreat = false;
 
-  /** An aftershock round the target (IV): a small flash, a ring and a few sparks. */
+  /** An aftershock round the target (Tier 4): a small flash, a ring and a few sparks. */
   boom(x: number, y: number, size: number): void {
     this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 200, from: 0.8 * size, to: 2 * size, a0: 0.9 });
     this.fxs('air', this.tex.glow, this.colors.side, x, y, { dur: 420, from: 1.2 * size, to: 3 * size, a0: 0.55 });

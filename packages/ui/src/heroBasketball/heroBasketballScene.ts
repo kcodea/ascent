@@ -9,8 +9,8 @@
  * (the backboard, the net and the rim; the rim is drawn over the ball so a shot goes THROUGH it, and it rattles).
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the ball's soft trail, the dribble's dust, the sneakers' skid marks, the
- * release glint, the SWISH (a net ring, sparkles, the word), IV's launch, aura and speed lines, the catch flashes, and the SLAM
- * (a flash, shockwave rings, sparks, dust, the word; IV adds an explosion: a fireball, debris,
+ * release glint, the SWISH (a net ring, sparkles, the word), Tier 4's launch, aura and speed lines, the catch flashes, and the SLAM
+ * (a flash, shockwave rings, sparks, dust, the word; Tier 4 adds an explosion: a fireball, debris,
  * the backboard's glass shards).
  */
 import { Sprite, type Texture } from 'pixi.js';
@@ -42,7 +42,7 @@ export interface BasketballLook {
   wordSize: number;
 }
 
-/** Hard cap on pooled sprites alive at once (a Tier IV peaks near 150). The six own objects are outside the pool. */
+/** Hard cap on pooled sprites alive at once (a Tier 4 peaks near 150). The six own objects are outside the pool. */
 export const MAX_BASKETBALL_SPRITES = 320;
 const RING_PX = 160;
 const GLOW_PX = 128;
@@ -198,7 +198,7 @@ export class HeroBasketballScene extends FxPool {
   }
 
   /**
-   * SWISH: the net snaps (a white ring down through it), sparkles, the word pops over the target. `extra` (III's three):
+   * SWISH: the net snaps (a white ring down through it), sparkles, the word pops over the target. `extra` (Tier 3's three):
    * more rings rippling out and a pop of confetti.
    */
   swish(at: Pt, burst: number, extra?: { rings: number; confetti: number }): void {
@@ -219,7 +219,7 @@ export class HeroBasketballScene extends FxPool {
   }
 
   /**
-   * IV's EXPLOSION under the slam: a white-hot core, a fireball blooming out and rolling up, a second shock ring, a
+   * Tier 4's EXPLOSION under the slam: a white-hot core, a fireball blooming out and rolling up, a second shock ring, a
    * ring of debris chunks thrown out and falling, and embers. `k` scales it.
    */
   private explosion(at: Pt, k: number): void {
@@ -247,7 +247,7 @@ export class HeroBasketballScene extends FxPool {
     this.burst('core', this.tex.spark, [c.blast, c.flash, whiten(c.blast, 0.5)], at.x, at.y, Math.round(18 * k), { speed: 900 * k, life: 520, size: 0.6, drag: 0.15, align: true, grav: 400 });
   }
 
-  /** A ball dropping away through the net (IV's opening threes: the next ball is already on its way). */
+  /** A ball dropping away through the net (Tier 4's opening threes: the next ball is already on its way). */
   dropBall(at: Pt, dir: number): void {
     const S = this.scale;
     const k = (this.aR * 2 * this.look.ballSize) / BALL_PX / S;
@@ -271,7 +271,7 @@ export class HeroBasketballScene extends FxPool {
     }
   }
 
-  /** IV: the chest pass BANGS the backboard (`at` on the glass): a small glass ring and a few sparks, on the board only. */
+  /** Tier 4: the chest pass BANGS the backboard (`at` on the glass): a small glass ring and a few sparks, on the board only. */
   bang(at: Pt): void {
     const S = this.scale;
     const r = this.aR * this.look.ballSize;
@@ -279,7 +279,7 @@ export class HeroBasketballScene extends FxPool {
     this.burst('core', this.tex.spark, [0xffffff, this.colors.glass], at.x, at.y, 5, { speed: 360, life: 220, size: 0.35, drag: 0.1, align: true });
   }
 
-  /** IV's LAUNCH out of the crouch: a shock ring of dust at the take-off point, a burst of grit, a flash under the feet. */
+  /** Tier 4's LAUNCH out of the crouch: a shock ring of dust at the take-off point, a burst of grit, a flash under the feet. */
   launch(at: Pt, r: number, k: number): void {
     if (k <= 0) return;
     const S = this.scale;
@@ -297,7 +297,7 @@ export class HeroBasketballScene extends FxPool {
     this.burst('core', this.tex.spark, [c.flash, c.side], feet.x, feet.y, Math.round(8 * k), { speed: 420 * k, life: 300, size: 0.4, drag: 0.1, align: true, lift: 200 });
   }
 
-  /** IV: the aura round the striker from the crouch to the slam (a soft pulse of its colour; `k` grows as it builds). */
+  /** Tier 4: the aura round the striker from the crouch to the slam (a soft pulse of its colour; `k` grows as it builds). */
   aura(at: Pt, r: number, k: number): void {
     if (k <= 0) return;
     const S = this.scale;
@@ -306,7 +306,7 @@ export class HeroBasketballScene extends FxPool {
     this.spawn('core', this.tex.star, whiten(this.colors.side, 0.4), at.x + Math.cos(a) * r * 0.9, at.y + Math.sin(a) * r * 0.9, { dur: 380, from: 0.25, to: 0.05, a0: 0.8, vy: -60, drag: 0.4 });
   }
 
-  /** IV: a speed line behind the launch, from where the striker was a moment ago to where it is. */
+  /** Tier 4: a speed line behind the launch, from where the striker was a moment ago to where it is. */
   speedLine(at: Pt, from: Pt, r: number): void {
     const S = this.scale;
     const dx = at.x - from.x, dy = at.y - from.y;
@@ -319,7 +319,7 @@ export class HeroBasketballScene extends FxPool {
     }
   }
 
-  /** A catch (III: the pass; IV: at the top of the leap): a bright flash on the ball. `k` scales it. */
+  /** A catch (Tier 3: the pass; Tier 4: at the top of the leap): a bright flash on the ball. `k` scales it. */
   catchFlash(at: Pt, k = 1): void {
     const S = this.scale;
     const r = this.aR * this.look.ballSize * k;
@@ -330,7 +330,7 @@ export class HeroBasketballScene extends FxPool {
 
   /**
    * THE SLAM on the target (`at` = its centre; `dir` = the way the slam drives). A flash, shockwave rings, sparks and
-   * dust thrown out, the word; IV's backboard bursts into glass shards and confetti rains.
+   * dust thrown out, the word; Tier 4's backboard bursts into glass shards and confetti rains.
    */
   slam(at: Pt, dir: Pt, o: { burst: number; rings: number; shards: number; confetti: number; blast?: number; boardAt?: Pt }): void {
     const S = this.scale;

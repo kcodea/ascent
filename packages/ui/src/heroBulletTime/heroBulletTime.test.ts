@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * THE TIMEBREAK HERO ATTACK (the Ancient of Time, ANCIENT; owner 2026-10-02 picked "BULLET TIME"): the shared four
- * tiers; the tuner values; the pure plan (I one dart; II three round the target; III a spiral volley and a run; IV the
+ * tiers; the tuner values; the pure plan (Tier 1 one dart; Tier 2 three round the target; Tier 3 a spiral volley and a run; Tier 4 the
  * dome, the 3-2-1 and the collapse); every shape CENTRED ON THE TARGET; the blades brake into SLOW MOTION and keep
  * crawling (never stop); the runner on the shared clock (the blow lands exactly ONCE; the FX slow down then snap back;
  * nothing is greyed; both directions; replay; finish / cancel; cleanup; the camera applied once); the headless scene;
@@ -32,7 +32,7 @@ const A = { x: 200, y: 850 }, D = { x: 1500, y: 300 };
 const R = 80;
 
 describe('the tiers', () => {
-  it('uses the shared thresholds; a knockout plays IV (the dome)', () => {
+  it('uses the shared thresholds; a knockout plays Tier 4 (the dome)', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).tier, `dmg ${d}`).toBe(tierOf(d));
     expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'dome' });
@@ -54,7 +54,7 @@ describe('the tuner values', () => {
     expect(JSON.parse(heroBulletTimeConfigJson(C)).previewParts).toBeUndefined();
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions!.map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)']) expect(labels).toContain(l);
     expect(DEV_HERO_ATTACK_CHOICES).toContain('bullettime');
   });
 
@@ -64,7 +64,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan: stopped time', () => {
-  it('I: one dart stops (time stops), hangs, resumes and hits: the blow', () => {
+  it('Tier 1: one dart stops (time stops), hangs, resumes and hits: the blow', () => {
     const p = plan(3);
     expect(p.darts).toHaveLength(1);
     const d = p.darts[0]!;
@@ -74,7 +74,7 @@ describe('the plan: stopped time', () => {
     expect(p.hits).toEqual([]);
   });
 
-  it('II: three blades come in evenly round the target (CENTRED on it), then all hit together (one blow)', () => {
+  it('Tier 2: three blades come in evenly round the target (CENTRED on it), then all hit together (one blow)', () => {
     const p = plan(8);
     expect(p.darts).toHaveLength(3);
     expect(new Set(p.darts.map((d) => d.hitAt)).size).toBe(1);
@@ -90,7 +90,7 @@ describe('the plan: stopped time', () => {
     for (const x of g) expect(x.aim).toBeCloseTo(Math.atan2(T.y - x.hang.y, T.x - x.hang.x), 6);
   });
 
-  it('III: the volley brakes into slow motion at ONE instant, in a spiral round the target; after the snap it lands in a run (ticks, then the blow)', () => {
+  it('Tier 3: the volley brakes into slow motion at ONE instant, in a spiral round the target; after the snap it lands in a run (ticks, then the blow)', () => {
     const p = plan(14);
     expect(p.darts.length).toBe(C.t3Darts);
     expect(new Set(p.darts.map((d) => d.hangAt))).toEqual(new Set([p.stopAt]));
@@ -101,7 +101,7 @@ describe('the plan: stopped time', () => {
     for (let i = 1; i < r.length; i++) expect(r[i]!).toBeGreaterThan(r[i - 1]!); // a spiral: each one further out
   });
 
-  it('IV: slow motion from the moment the blades leave; dozens crawl in a dome CENTRED on the target; 3-2-1; the dome collapses at once', () => {
+  it('Tier 4: slow motion from the moment the blades leave; dozens crawl in a dome CENTRED on the target; 3-2-1; the dome collapses at once', () => {
     const p = plan(40);
     expect(p.darts.length).toBe(C.domeRings * C.domeBlades);
     expect(p.darts.length).toBeGreaterThanOrEqual(24);
@@ -157,7 +157,7 @@ describe('the plan: stopped time', () => {
     expect(Math.hypot(dartAt(d, g!, d.hitAt).p.x - D.x, dartAt(d, g!, d.hitAt).p.y - D.y)).toBeLessThan(R * 0.5);
   });
 
-  it('pace: I and II under Bleed and Banana (1470 / 1740 ms after the formation); IV about 3 s', () => {
+  it('pace: Tiers 1 and 2 under Bleed and Banana (1470 / 1740 ms after the formation); Tier 4 about 3 s', () => {
     const len = (d: number): number => { const p = plan(d); return p.endAt - p.chargeAt + bulletSlowExtraMs(p, C); };
     expect(len(3)).toBeLessThan(1470);
     expect(len(8)).toBeLessThan(1740);
@@ -165,7 +165,7 @@ describe('the plan: stopped time', () => {
     expect(len(40)).toBeLessThanOrEqual(3200);
   });
 
-  it('IV\'s collapse gets a slow-mo DIP that never freezes (R-PROG-ATTACK-10); no other tier dips', () => {
+  it('Tier 4\'s collapse gets a slow-mo DIP that never freezes (R-PROG-ATTACK-10); no other tier dips', () => {
     const p = plan(40);
     for (let t = p.impactAt - 50; t < p.impactAt + C.slowMoMs + 50; t += 5) expect(bulletTimeScale(p, C, t)).toBeGreaterThan(0.09);
     for (const d of [3, 8, 14]) { const q = plan(d); expect(bulletTimeScale(q, C, q.impactAt + 10)).toBe(1); }
@@ -208,7 +208,7 @@ function run(over: Partial<HeroBulletTimeOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('II: the blades crawl in slow motion (the FX slowed, nothing greyed), then hit once; everything is put back', () => {
+  it('Tier 2: the blades crawl in slow motion (the FX slowed, nothing greyed), then hit once; everything is put back', () => {
     const board = document.createElement('div'); board.setAttribute('data-zone', 'warband');
     board.style.filter = 'blur(0px)';
     document.body.appendChild(board);
@@ -238,7 +238,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('IV: dozens of blades crawl in the dome through the 3-2-1, then the collapse is the one blow', () => {
+  it('Tier 4: dozens of blades crawl in the dome through the 3-2-1, then the collapse is the one blow', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     f.tick(h.plan.counts[2]! + 20, 4);
     expect(h.scene!.crawlingDarts).toBe(h.plan.darts.length);

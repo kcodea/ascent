@@ -23,41 +23,41 @@
  *    brings down a greatsword (`../heroBlades/`).
  *  - `enraged` is the fifth (`attack_enraged`, "Enraged Strike" until the owner renames it; owner ask 2026-09-28: "a
  *    legendary version of this strike ... just amplified or enraged"): Classic's own lunge, enraged. The hero burns with
- *    a rage aura, dashes in leaving afterimages and strikes with white-hot impacts and claw rips; II strikes twice, III a
- *    flurry of three, and IV rises and slams down like a meteor (`../heroEnraged/`).
+ *    a rage aura, dashes in leaving afterimages and strikes with white-hot impacts and claw rips; Tier 2 strikes twice, Tier 3 a
+ *    flurry of three, and Tier 4 rises and slams down like a meteor (`../heroEnraged/`).
  *  - `poison` is the sixth (`attack_poison`, "Venom Volley" until the owner renames it; owner ask 2026-09-28: "make a
  *    poison dart animation. the final one should throw multiple poison darts that implode with poison"): small, sleek
- *    poison darts flicked on a slight arc, thunking in and sticking at varied angles with venom splashes; II two, III a
- *    fan of five, and IV sticks six that swell, implode into one point and burst in a toxic cloud (`../heroPoison/`).
+ *    poison darts flicked on a slight arc, thunking in and sticking at varied angles with venom splashes; Tier 2 two, Tier 3 a
+ *    fan of five, and Tier 4 sticks six that swell, implode into one point and burst in a toxic cloud (`../heroPoison/`).
  *  - `frost` is the seventh (`attack_frost`, "Frost Nova" until the owner renames it; owner ask 2026-09-28: "icicles
  *    and then a frost nova blast that blasts across the screen from the attacker to the target"): icicles crystallise
- *    round the hero and fire (I one, II two, III a volley of five), shattering and leaving frost creeping over the
- *    portrait; IV adds a frost nova that rolls across the screen, encases the target in ice and shatters (`../heroFrost/`).
+ *    round the hero and fire (Tier 1 one, Tier 2 two, Tier 3 a volley of five), shattering and leaving frost creeping over the
+ *    portrait; Tier 4 adds a frost nova that rolls across the screen, encases the target in ice and shatters (`../heroFrost/`).
  *  - `holy` is the eighth (`attack_holy`, "Consecration" until the owner renames it; owner ask 2026-09-28: "a holy
- *    weapon + consecration attack"): a golden sigil and a pillar of light smite the target; II smites twice, III rains
- *    light spears that plant consecration seeds, and IV brings a huge holy sword down into the middle of the board and a
+ *    weapon + consecration attack"): a golden sigil and a pillar of light smite the target; Tier 2 smites twice, Tier 3 rains
+ *    light spears that plant consecration seeds, and Tier 4 brings a huge holy sword down into the middle of the board and a
  *    consecration races from it to erupt under the target (`../heroHoly/`).
  *  - `fire` is the ninth (`attack_fire`, "Inferno" until the owner renames it; owner ask 2026-09-29: "we need a fire
  *    animation ... it should look like live flame/fires pixi sprites"): fireballs of live particle fire ignite round the
- *    hero and are hurled (I one, II two, III a volley of five that sets the struck hero ablaze), and IV calls down a
+ *    hero and are hurled (Tier 1 one, Tier 2 two, Tier 3 a volley of five that sets the struck hero ablaze), and Tier 4 calls down a
  *    meteor that detonates into a fire nova and engulfs the target, burning out to embers and smoke (`../heroFire/`).
  *  - `undead` is the tenth (`attack_undead`, "Grave Call" until the owner renames it; owner ask 2026-09-29: "some sort
- *    of an undead animation"): a spectral skull shrieks out of the hero and bites the target (I one, II two weaving in);
- *    III skeletal hands claw up round the target and drag at it while a swarm of ghost wisps strikes, then a skull
- *    finishes it; IV a grave rift tears open, a giant skull maw rises out of it, shrieks, lunges and chomps the target,
+ *    of an undead animation"): a spectral skull shrieks out of the hero and bites the target (Tier 1 one, Tier 2 two weaving in);
+ *    Tier 3 skeletal hands claw up round the target and drag at it while a swarm of ghost wisps strikes, then a skull
+ *    finishes it; Tier 4 a grave rift tears open, a giant skull maw rises out of it, shrieks, lunges and chomps the target,
  *    and a wave of necrotic mist washes out (`../heroUndead/`).
  *  - `beast` is the eleventh (`attack_beast`, "Stampede" until the owner renames it; owner ask 2026-09-29: "a beast chomp
- *    rush animation"): spirit beasts leap from the hero and front jaws chomp shut on the target (I one wolf, II a
- *    staggered pair, III a pack of five kicking up dust), and IV raises a colossal beast whose jaws slam over the whole
+ *    rush animation"): spirit beasts leap from the hero and front jaws chomp shut on the target (Tier 1 one wolf, Tier 2 a
+ *    staggered pair, Tier 3 a pack of five kicking up dust), and Tier 4 raises a colossal beast whose jaws slam over the whole
  *    portrait before it roars (`../heroBeast/`).
  *  - `banana` is the twelfth (`attack_banana`, "Oona's Banana Cannon" until the owner renames it; owner ask
  *    2026-09-29: "i would love a king oona banana cannon animation", rebuilt the same day on King Oona's own painted card
- *    FX): her painted bananas spin out of the hero on high arcs and burst into her painted juice splats (I one, II a
- *    double, III a barrage of eight), and IV lands a giant golden banana stuck in the target that the striking hero
+ *    FX): her painted bananas spin out of the hero on high arcs and burst into her painted juice splats (Tier 1 one, Tier 2 a
+ *    double, Tier 3 a barrage of eight), and Tier 4 lands a giant golden banana stuck in the target that the striking hero
  *    slams in six times, juice flying, until it bursts (`../heroBanana/`).
  *  - `bleed` is the thirteenth (`attack_bleed`, "Hemorrhage" until the owner renames it; owner ask 2026-09-29: "a bleed/gash
- *    animation ... use the same 4 tier strategy"): crimson crescents fly in and cut gashes that open and bleed (I one
- *    diagonal, II a cross, III a flurry ending in a claw rake); IV throbs with a heartbeat, splits the screen with a
+ *    animation ... use the same 4 tier strategy"): crimson crescents fly in and cut gashes that open and bleed (Tier 1 one
+ *    diagonal, Tier 2 a cross, Tier 3 a flurry ending in a claw rake); Tier 4 throbs with a heartbeat, splits the screen with a
  *    mega-slash and erupts in a blood nova (`../heroBleed/`).
  *  - `cards` is the first EPIC (`attack_cards`, "Card Shark" until the owner renames it; owner ask 2026-09-29: "build 5
  *    animations that range from rare -> epic ... rare and epics should only have 2 or 3 tiers"): the hero deals playing
@@ -70,59 +70,94 @@
  *
  * THE RARES (owner ask 2026-09-29: "build 5 animations that range from rare -> epic ... rare and epics should only have
  * 2 or 3 tiers to them and generally be less exciting, but still extremely clean and fun"). A Rare has TWO visual tiers:
- * the shared I-II play Small, III-IV play Big (so a knockout, which forces IV, plays Big). Each maps that inside its own
+ * the shared Tiers 1-2 play its Tier 1, Tiers 3-4 its Tier 2 (so a knockout, which forces Tier 4, plays Tier 2). Each maps that inside its own
  * config. Names are the builder's placeholders for the owner to rename (the ids stay):
  *  - `coin` (`attack_coin`, "Pocket Change"): a gleaming gold coin flicked spinning (a flat turn plus an edge-on flip)
- *    pings off the target with a bright ding; Big ricochets it off the face twice more and it bursts into a small shower
+ *    pings off the target with a bright ding; Tier 2 ricochets it off the face twice more and it bursts into a small shower
  *    of coins (`../heroCoin/`).
  *  - `boomerang` (`attack_boomerang`, "Come Back Around"): a carved wooden boomerang whirls out on a curve, thwacks the
- *    target and curves back to the hero, who catches it; Big throws two on crossing paths, a double thwack, both caught
+ *    target and curves back to the hero, who catches it; Tier 2 throws two on crossing paths, a double thwack, both caught
  *    (`../heroBoomerang/`).
  *  - `bubble` (`attack_bubble`, "Bubble Trouble"): an iridescent soap bubble wobbles out, drifts to the target, engulfs
- *    its face and POPS into droplets and tiny bubbles; Big blows a stream of little ones first, then one big bubble that
+ *    its face and POPS into droplets and tiny bubbles; Tier 2 blows a stream of little ones first, then one big bubble that
  *    swells round the portrait and pops with a splash ring (`../heroBubble/`).
  *  - `backstab` (`attack_backstab`, "Shadow Step"; owner ask 2026-09-29: "portrait fades and attacks from behind the
  *    target back towards the player portrait and settles"): the striking PORTRAIT fades into smoke, steps out behind the
- *    target and stabs back toward home, then smokes back and settles; Big lunges first, vanishes, strikes from the side,
+ *    target and stabs back toward home, then smokes back and settles; Tier 2 lunges first, vanishes, strikes from the side,
  *    vanishes again and strikes from behind (`../heroBackstab/`).
  *
  * `basketball` is the fourteenth Legendary (`attack_basketball`, "Nothing But Net" until the owner renames it; owner ask
- * 2026-09-29: "make a basketball attack animation"): the striking PORTRAIT plays ball. I a jump shot from where it
- * stands that swishes through a net on the target; II a fadeaway (a slide to mid court, a fade back to one side, a high
- * arc, swish); III a pull-up three (a scoot up court, a pass from off the right edge, a pump fake, a dribble back, a long
- * swish); IV a self alley-oop (fired off the backboard over the target, bounced high, caught at the top of a leap and
+ * 2026-09-29: "make a basketball attack animation"): the striking PORTRAIT plays ball. Tier 1 a jump shot from where it
+ * stands that swishes through a net on the target; Tier 2 a fadeaway (a slide to mid court, a fade back to one side, a high
+ * arc, swish); Tier 3 a pull-up three (a scoot up court, a pass from off the right edge, a pump fake, a dribble back, a long
+ * swish); Tier 4 a self alley-oop (fired off the backboard over the target, bounced high, caught at the top of a leap and
  * slammed down into an explosion; the backboard shatters). A whistle, dribbles, sneaker squeaks,
  * the swish, the rim and a crowd "ooh" (`../heroBasketball/`).
  *
  * `stitch` is the first attack BUILT at the Ancient rarity (`attack_soul_stitch`, "Soul Stitch"; owner ask 2026-10-02,
  * for the Ancient of Bonds: "this ancient binds things together and using soulbindings"): crystal needles on violet soul
- * thread stitch the struck hero to the striker. I a needle pierces, the thread hangs taut, a tug and the snap; II three
- * needles cross-stitch an X and the threads snap through; III five pins stab in at the points of a star and the target
- * is stretched toward the hero until they rip out; IV the heroes laced together, the target dragged into a gold heart-knot that
+ * thread stitch the struck hero to the striker. Tier 1 a needle pierces, the thread hangs taut, a tug and the snap; Tier 2 three
+ * needles cross-stitch an X and the threads snap through; Tier 3 five pins stab in at the points of a star and the target
+ * is stretched toward the hero until they rip out; Tier 4 the heroes laced together, the target dragged into a gold heart-knot that
  * ties shut and bursts as it is flung home (`../heroStitch/`).
  * `bullettime` (`attack_bullet_time`, "Timebreak", the Ancient of Time; Ancient; owner 2026-10-02 picked "BULLET TIME",
  * then "more cutting through time than stopping it"): gold clock-hand blades tear cuts through the air and crawl in
- * dramatic slow motion round the target, then time snaps back and they land. I one blade; II three round the target; III a
- * spiral volley and a finger snap; IV a dome of blades and a 3-2-1, collapsing in one massive impact. Every shape centres
+ * dramatic slow motion round the target, then time snaps back and they land. Tier 1 one blade; Tier 2 three round the target; Tier 3 a
+ * spiral volley and a finger snap; Tier 4 a dome of blades and a 3-2-1, collapsing in one massive impact. Every shape centres
  * on the target (`../heroBulletTime/`).
  *
  * `baseball` is a Legendary (`attack_baseball`, "Charge the Mound" until the owner renames it; owner ask 2026-11-02:
  * "have the opponent be the pitcher and the batter be the player dealing dmg"): BOTH portraits play. The struck hero
- * PITCHES and the striker BATS. I a line drive straight back up the middle; II a hot shot (a liner, a one-hop grounder or
- * a foul tip that boomerangs into its back); III a slow-mo moonshot, a bat flip, the ball down from the sky: HOME RUN; IV
+ * PITCHES and the striker BATS. Tier 1 a line drive straight back up the middle; Tier 2 a hot shot (a liner, a one-hop grounder or
+ * a foul tip that boomerangs into its back); Tier 3 a slow-mo moonshot, a bat flip, the ball down from the sky: HOME RUN; Tier 4
  * the batter is BEANED, slams the bat down, charges the mound and wins a fast dust-cloud brawl: YER OUT!
  * (`../heroBaseball/`).
  * `soccer` is a Legendary (`attack_soccer`, "Golazo" until the owner renames it; owner ask 2026-11-02: "make 2 attack
  * animations, a soccer one, and a baseball one ... like a corner kick for soccer then a breakaway"): the striking
- * PORTRAIT plays football into a goal drawn on the struck hero, and every blow ends with the ball bulging the net. I a
- * volley off keepy-uppies; II a corner kick (rolled: an Olimpico, a cross and a header, or a short corner one-two); III a
- * breakaway past defenders (rolled: stepovers, a nutmeg or a rainbow flick) with a slow-mo finish; IV a bicycle kick
+ * PORTRAIT plays football into a goal drawn on the struck hero, and every blow ends with the ball bulging the net. Tier 1 a
+ * volley off keepy-uppies; Tier 2 a corner kick (rolled: an Olimpico, a cross and a header, or a short corner one-two); Tier 3 a
+ * breakaway past defenders (rolled: stepovers, a nutmeg or a rainbow flick) with a slow-mo finish; Tier 4 a bicycle kick
  * upside down in slow mo, a thunderbolt into an exploding net and a knee slide (`../heroSoccer/`).
  *
  * `void` is IN PROGRESS and has NO cosmetic yet (Mike 2026-11-11: "lets do void!"), so no player can equip it; it
  * plays only through the dev "Attack style" override. Built on Arcana: dark orbs with a hot rim are lobbed from the
- * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
+ * hero (Tier 1 one, Tier 2 two, Tier 3 five), and Tier 4 pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
+ *
+ * THE BATCH OF EIGHT (built 2026-11-12, `docs/devlog/2026-11-12-hero-attacks-batch-of-eight.md`; crate cosmetics since
+ * 2026-11-13, `docs/devlog/2026-11-13-hero-attacks-batch-of-eight-cosmetics.md`, owner: "merge the attack animations
+ * and run w/e you need to to get them ... added to shop"). The names are the builders' working ones (the ids stay):
+ *  - `chess` (`attack_chess`, "Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
+ *    One piece per tier: Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight makes its L-shaped
+ *    jump onto the portrait; Tier 3 a rook charges straight down the hero's file and rams it; Tier 4 a queen sweeps the
+ *    long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
+ *  - `fireworks` (`attack_fireworks`, "Grand Finale", an Epic): fireworks launched from light (a spark on the hero's rim, no launcher).
+ *    Tier 1 one shell on the target (a smiley, a pinwheel, or a dud then the real one); Tier 2 a ring, a heart and a
+ *    third; Tier 3 a barrage across the sky, a HELD BEAT, one enormous shell that fills the screen and a glitter rain
+ *    (`../heroFireworks/`).
+ *  - `wrestle` (`attack_wrestle`, "Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
+ *    about: Tier 1 a chop; Tier 2 a lift and a body slam; Tier 3 an elbow drop from off the top of the screen under a spotlight;
+ *    Tier 4 ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell (`../heroWrestle/`).
+ *  - `combo` (`attack_combo`, "Flawless", a Legendary): an arcade fighting game combo with a HUD. The striker steps in beside the
+ *    target and a combo counter ticks up to the blow's real damage: Tier 1 a jab; Tier 2 a three-hit string; Tier 3 a launcher, an
+ *    air juggle and a spike; Tier 4 a super freeze with input glyphs, a 14-hit flurry, one heavy blow and "K.O."
+ *    (`../heroCombo/`).
+ *  - `warhost` (`attack_warhost`, "Warhost", the Ancient of War; an Ancient with a Knockout variant): an army of tiny soldiers in red and brass delivers the
+ *    blow. Tier 1 one spearman and his thrown spear; Tier 2 a rank of archers and an arrow rain; Tier 3 a cavalry wedge riding
+ *    through the struck portrait; Tier 4 war drums, a horn, banners, the whole host flooding over it and one soldier
+ *    planting a banner on it (`../heroWarhost/`).
+ *  - `reaping` (`attack_reaping`, "The Reaping", the Ancient of Death; an Ancient): what the scythe cuts is COLOUR. A blade of teal light
+ *    drains the struck portrait to grey along the cut (a strip, half, then all of it under one great falling
+ *    crescent), and the top look drains the whole screen to monochrome before colour floods back to all but the loser
+ *    (`../heroReaping/`).
+ *  - `glass` (`attack_glass`, "Fourth Wall", an Epic; dropped from Ancient by the owner 2026-11-13; its coded Knockout
+ *    variant plays only from its tuner): the SCREEN is a pane of glass and the blow breaks it. Tier 1 a chip; Tier 2 a spider
+ *    web; Tier 3 a pane that breaks out and falls away; Tier 4 a punch on the glass and the whole view shatters and falls
+ *    (`../heroGlass/`).
+ *  - `stars` (`attack_stars`, "Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
+ *    stars one by one into a figure that comes alive and strikes: Tier 1 an arrow; Tier 2 a bow that draws; Tier 3 an archer; Tier 4
+ *    the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
+ *    (`../heroStars/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names
@@ -136,7 +171,7 @@
  */
 import { heroAttackOf } from '@game/progression';
 
-export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
+export const HERO_ATTACK_STYLES = ['classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'chess', 'fireworks', 'wrestle', 'combo', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type HeroAttackStyle = (typeof HERO_ATTACK_STYLES)[number];
 
 /** What a player without an equipped hero attack sees (owner 2026-09-28: Blast is a cosmetic, not a new default). */
@@ -153,7 +188,7 @@ export function styleOfCosmetic(id: string | null | undefined): HeroAttackStyle 
 }
 
 /** The dev override: `auto` = what a player would see; the others force one style for BOTH sides. */
-export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void'] as const;
+export const DEV_HERO_ATTACK_CHOICES = ['auto', 'classic', 'blast', 'quake', 'arcana', 'blades', 'enraged', 'poison', 'frost', 'holy', 'fire', 'undead', 'beast', 'banana', 'bleed', 'cards', 'storm', 'coin', 'boomerang', 'bubble', 'backstab', 'basketball', 'stitch', 'bullettime', 'baseball', 'soccer', 'void', 'chess', 'fireworks', 'wrestle', 'combo', 'warhost', 'reaping', 'glass', 'stars'] as const;
 export type DevHeroAttackChoice = (typeof DEV_HERO_ATTACK_CHOICES)[number];
 
 /** The dev "Attack style" row's labels, shared by every hero attack tuner. */
@@ -169,6 +204,14 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
   void: 'Void (in progress, no cosmetic yet)',
+  chess: 'Checkmate (chess, Epic)',
+  fireworks: 'Grand Finale (fireworks, Epic)',
+  wrestle: 'Top Rope (wrestling)',
+  combo: 'Flawless (fighting game)',
+  warhost: 'Warhost (Ancient of War)',
+  reaping: 'The Reaping (Ancient of Death)',
+  glass: 'Fourth Wall (glass, Epic)',
+  stars: 'Written in the Stars (Ancient)',
 };
 
 const KEY = 'ascent.heroattackstyle';

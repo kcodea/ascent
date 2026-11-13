@@ -31,17 +31,25 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroChess } from '../heroChess/heroChess';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroCombo } from '../heroCombo/heroCombo';
+import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroReaping } from '../heroReaping/heroReaping';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { playHeroStars } from '../heroStars/heroStars';
+import { playHeroGlass } from '../heroGlass/heroGlass';
+import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 import { SPEC, boardOf } from '../DamageFormationTuner';
 import { Sequence } from './sequence';
 import type { HeroAttackHandle, HeroAttackOptions } from './options';
@@ -352,15 +360,23 @@ describe('the runners', () => {
       ['banana', (o) => playHeroBanana({ ...o, textures: TEX })],
       ['bleed', (o) => playHeroBleed({ ...o, textures: TEX })],
       ['cards', (o) => playHeroCards({ ...o, textures: null })],
+      ['chess', (o) => playHeroChess({ ...o, textures: null })],
       ['storm', (o) => playHeroStorm({ ...o, textures: null })],
+      ['fireworks', (o) => playHeroFireworks({ ...o, textures: null })],
       ['coin', (o) => playHeroCoin({ ...o, textures: TEX })],
       ['boomerang', (o) => playHeroBoomerang({ ...o, textures: TEX })],
       ['bubble', (o) => playHeroBubble({ ...o, textures: TEX })],
       ['backstab', (o) => playHeroBackstab({ ...o, textures: TEX })],
       ['basketball', (o) => playHeroBasketball({ ...o, textures: TEX })],
       ['stitch', (o) => playHeroStitch({ ...o, textures: TEX })],
+      ['reaping', (o) => playHeroReaping({ ...o, textures: TEX })],
       ['bullettime', (o) => playHeroBulletTime({ ...o, textures: TEX })],
+      ['stars', (o) => playHeroStars({ ...o, textures: TEX })],
+      ['glass', (o) => playHeroGlass({ ...o, textures: TEX })],
+      ['warhost', (o) => playHeroWarhost({ ...o, textures: TEX })],
       ['baseball', (o) => playHeroBaseball({ ...o, textures: TEX })],
+      ['combo', (o) => playHeroCombo({ ...o, textures: TEX })],
+      ['wrestle', (o) => playHeroWrestle({ ...o, textures: TEX })],
       ['soccer', (o) => playHeroSoccer({ ...o, textures: TEX })],
     ];
     const lead = leadInOf([4, 2, 3, 4], false, true);
@@ -513,15 +529,23 @@ describe('no attack ever pauses its clock (owner 2026-09-28: "remove the freezei
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
+    ['chess', (o) => playHeroChess({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
+    ['fireworks', (o) => playHeroFireworks({ ...o, textures: null })],
     ['coin', (o) => playHeroCoin({ ...o, textures: null })],
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
     ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
     ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
     ['stitch', (o) => playHeroStitch({ ...o, textures: null })],
+    ['reaping', (o) => playHeroReaping({ ...o, textures: null })],
     ['bullettime', (o) => playHeroBulletTime({ ...o, textures: null })],
+    ['stars', (o) => playHeroStars({ ...o, textures: null })],
+    ['glass', (o) => playHeroGlass({ ...o, textures: null })],
+    ['warhost', (o) => playHeroWarhost({ ...o, textures: null })],
     ['baseball', (o) => playHeroBaseball({ ...o, textures: null })],
+    ['combo', (o) => playHeroCombo({ ...o, textures: null })],
+    ['wrestle', (o) => playHeroWrestle({ ...o, textures: null })],
     ['soccer', (o) => playHeroSoccer({ ...o, textures: null })],
     ['void', (o) => playHeroVoid({ ...o, textures: null })],
   ];

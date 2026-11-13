@@ -1,6 +1,6 @@
 /**
  * THE TIMEBREAK RUNNER ("Timebreak", the Ancient of Time; ANCIENT): plays one Timebreak hero attack (the beats are
- * in `heroBulletTimeConfig.ts`) and lands the consequence on its impact beat (the hit, or IV's collapse). Presentation
+ * in `heroBulletTimeConfig.ts`) and lands the consequence on its impact beat (the hit, or Tier 4's collapse). Presentation
  * only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
  * CUTTING THROUGH TIME (owner review 2026-10-02: "prefer slow motion vs stopped/grey time. like more cutting through time
@@ -10,12 +10,12 @@
  * Then time SNAPS back to full speed and everything lands. Every shape centres on the struck hero (its point is the
  * portrait's at-rest centre: `portraitGeometry` measures with `restingRect`). Full colour, never grey.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; IV's collapse gets a slow-mo DIP
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; Tier 4's collapse gets a slow-mo DIP
  * through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the portraits
  * (transform only, restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
- * THE CONTRACT: every hit before the last (III's run) is a tick (FX and sound only). The consequence (`onImpact`) lands
- * exactly ONCE, on the last hit (IV: the collapse).
+ * THE CONTRACT: every hit before the last (Tier 3's run) is a tick (FX and sound only). The consequence (`onImpact`) lands
+ * exactly ONCE, on the last hit (Tier 4: the collapse).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` from the clock; no layout reads after the opening
  * measure; pooled sprites under a hard cap plus the darts and the clock as own objects; textures painted once per
@@ -89,7 +89,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   const samplers = plan.darts.map((d, i) => (ms: number): Pt => dartAt(d, geos[i]!, ms).p);
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
   const flip = o.attacker.x > o.defender.x ? -1 : 1;
-  // The clock CENTRES ON THE TARGET (owner 2026-10-02): a dial ringing the struck portrait, bigger each tier (IV's
+  // The clock CENTRES ON THE TARGET (owner 2026-10-02): a dial ringing the struck portrait, bigger each tier (Tier 4's
   // ringing the whole dome).
   const clockAt = clockCentre(plan, o.attacker, o.defender);
   const clockR = c.clockSize * radius * (plan.kind === 'dome' ? 3.4 : plan.kind === 'spiral' ? 2.5 : 1.35);
@@ -120,7 +120,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
   // A big volley would be a wall of noise: one launch / freeze sound every few darts.
   const every = n > 12 ? 4 : n > 3 ? 3 : 1;
   let rippleNext = 0;
-  // When each crawling blade last shed an afterimage (IV sheds less often: dozens of blades).
+  // When each crawling blade last shed an afterimage (Tier 4 sheds less often: dozens of blades).
   const ghostEvery = c.ghostMs * (plan.kind === 'dome' ? 4 : 1);
   const lastGhost = plan.darts.map((_, i) => -i * 13);
 
@@ -152,16 +152,16 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
         break;
       }
       case 'slow':
-        // TIME SLOWS: a low reversed swell; a ripple sweeps the screen, motes drift; III's and IV's clock flashes in.
+        // TIME SLOWS: a low reversed swell; a ripple sweeps the screen, motes drift; Tier 3's and Tier 4's clock flashes in.
         cue(c.sfxStopClip, c.sfxStopGain, c.sfxStopRate, { lenMs: 700, fadeMs: 260, reverse: true });
         scene?.stop(o.defender, radius, screen, Math.round(c.motes), plan.kind === 'dome');
         if (plan.kind === 'spiral' || plan.kind === 'dome') scene?.clockFlash(clockAt, clockR);
-        // The anticipation: a riser into the restart (III, IV).
+        // The anticipation: a riser into the restart (Tiers 3, 4).
         if (plan.kind === 'spiral' || plan.kind === 'dome') voices.riser(c.sfxStopClip, c.sfxStopGain * 0.9, c.sfxStopRate * 1.5, (plan.resumeAt - plan.stopAt) / speed);
         rippleNext = plan.stopAt + c.rippleMs;
         break;
       case 'count': {
-        // IV: 3 ... 2 ... 1, each a heavier tick.
+        // Tier 4: 3 ... 2 ... 1, each a heavier tick.
         const k = (3 - q.i) as 1 | 2 | 3;
         cue(c.sfxTickClip, c.sfxTickGain * 1.3, c.sfxTickRate * (0.85 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
         cue(c.sfxFreezeClip, c.sfxFreezeGain * 0.8, c.sfxFreezeRate * (0.7 + 0.1 * q.i), { lenMs: 300, fadeMs: 120 });
@@ -176,7 +176,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
         // TIME SNAPS BACK TO FULL SPEED: the hero snaps its fingers, a rising whoosh, a flash, a chromatic burst.
         cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { lenMs: 500, fadeMs: 200 });
         cue(c.sfxRestartClip, c.sfxRestartGain, c.sfxRestartRate, { lenMs: 420, fadeMs: 160 });
-        // A bell tone for the time snap (a bright fifth; IV lower and fuller).
+        // A bell tone for the time snap (a bright fifth; Tier 4 lower and fuller).
         if (sound) {
           const lo = plan.kind === 'dome' ? 0.75 : 1;
           voices.keep(playBellStrike('attack', { gain: 0.45, hz: 1047 * lo, decayMs: 600 / speed }));
@@ -282,7 +282,7 @@ export function playHeroBulletTime(o: HeroBulletTimeOptions): HeroBulletTimeHand
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // IV's slow-mo dip on the collapse: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
+    // Tier 4's slow-mo dip on the collapse: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
     frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? bulletTimeScale(plan, c, seq.t) : 1))),
     safetyMs: o.safety !== false ? (plan.endAt + bulletSlowExtraMs(plan, c)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

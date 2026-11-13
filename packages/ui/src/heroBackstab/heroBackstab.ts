@@ -5,7 +5,7 @@
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
  * `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish / cancel and the safety
- * timer. Big opens with CLASSIC'S OWN LUNGE (`classicSwing`: the same coil, contact geometry and strike ease).
+ * timer. Tier 2 opens with CLASSIC'S OWN LUNGE (`classicSwing`: the same coil, contact geometry and strike ease).
  *
  * THE PORTRAIT MOVES (as Classic and Enraged do): its pose is solved in screen px and written as a transform in the
  * portrait's own units (its ancestors' scale measured ONCE at the start), plus its OPACITY for the vanishes. The foe's
@@ -79,7 +79,7 @@ export function playHeroBackstab(o: HeroBackstabOptions): HeroBackstabHandle {
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
   const aRadius = o.attackerRadius ?? radius;
-  // Classic's swing between these two portraits (one measure of each), for Big's opening lunge.
+  // Classic's swing between these two portraits (one measure of each), for Tier 2's opening lunge.
   const aRect = local ? { width: aRadius * 2, height: aRadius * 2, inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { width: radius * 2, height: radius * 2, inv: 1 } : rectOf(o.defenderEl, radius);
   const swing = classicSwing(o.attacker, o.defender, aRect, dRect, aRect.inv);

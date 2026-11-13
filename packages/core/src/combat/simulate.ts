@@ -25,6 +25,7 @@ import type {
   Tribe,
 } from '../types';
 import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerContributors, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { SET2_BASIC_NEUTRAL } from '../set2RunesBasicNeutral';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -32,9 +33,11 @@ import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, logEpicFire, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
+import { FERAL_RETURN_GAIN, HELLFIRE_DAMAGE, WILDFIRE_DAMAGE, WILDFIRE_PER_COMBAT, GEM_RAIN_RUBIES } from '../types'; // Set 2 Epic tribal runes (2026-11-12)
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
+import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES } from '../set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
@@ -235,6 +238,19 @@ export function simulate(
   // channel the rune Avenge dispatchers have consumed since 2026-08-06; `?? 1` keeps every single-copy run
   // (and every pre-counter snapshot) byte-identical.
   const flagCopiesOf = (side: Side, flag: string): number => Math.max(1, modsFor(side).flagCopies?.[flag] ?? 1);
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): Wildfire's bookkeeping ──
+  /** Wildfire: volleys left this fight per side (3 per copy held, the Deathtouched Apple budget shape). */
+  const wildfireLeft: Record<Side, number> = sideReset(() => ({
+    player: modsFor('player').runeWildfire ? WILDFIRE_PER_COMBAT * flagCopiesOf('player', 'runeWildfire') : 0,
+    enemy: modsFor('enemy').runeWildfire ? WILDFIRE_PER_COMBAT * flagCopiesOf('enemy', 'runeWildfire') : 0,
+  }));
+  /** True only for the damage instances an ATTACK EXCHANGE deals (the swing, Cleave / splash, the retaliation): set by
+   *  `exchangeHit` and consumed at the top of `applyDamage`, so anything a hit sets off (on-damaged watchers, Demon
+   *  reactions) is effect damage again. */
+  let attackHitPending = false;
+  /** uid → whether the hit that left the body at 0 Health (or executed it) was an attack hit. Read and cleared by the
+   *  death watchers (Wildfire: "dies to damage that is not an attack"); a body killed by a destroy has no entry. */
+  const lethalByAttack = new Map<string, boolean>();
   /** Set 3 rune batch 3 (owner 2026-09-25): Rune of Echoing Kobolds' "Echo: get a Ruby" (one Ruby per copy held, a
    *  Gilded Kobold still gets the same count: `fixed`) and Rune of Aggressive Golems' Rally, grafted onto a combat
    *  SUMMON. Idempotent by factory id, so a body that already carries the Shop graft is untouched. */
@@ -261,6 +277,7 @@ export function simulate(
     if (ge && minion.golden && !card.spell && !card.ruby && !minion.effects.some((e) => e.params?.ancientMidasEcho)) {
       minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: ge.cardId, count: 1, fixed: true, ancientMidasEcho: true } }];
     }
+    set2TribalGraft(minion, card, side); // Set 2 runes: Imp Legion's Echo on a summoned Imp; Last Howl's carried Echoes
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -862,6 +879,10 @@ export function simulate(
     enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
   }));
   const ancientPummelPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** WARM-UP (Set 2 batch): the side-wide Pummel (150) tally (seeded LIFETIME from the run) and its once-per-combat latch. */
+  const warmUpDealt: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeWarmUpDealt ?? 0, enemy: modsFor('enemy').runeWarmUpDealt ?? 0 }));
+  const warmUpPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
   const ancientSpellImproved: Record<Side, { attack: number; health: number }> = sideReset(() => ({ player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } }));
   /** ANCIENT OF WAR × Frantic Frank: Clearance stacks this fight's hero Avenge gained, per side. */
@@ -1484,6 +1505,7 @@ export function simulate(
     } finally { gainCardDepth--; }
   }
   const ctx: CombatContext = {
+    onGilded: (m) => goldenHandshakeCombat(m), // Golden Handshake (Set 2 batch): a factory's combat Gild
     rng,
     bus,
     boards,
@@ -2234,6 +2256,7 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellResolved: (side, spellId) => {
+      flamekeeperCombat(side, spellId); // Set 2 rune Flamekeeper: a Dragonflame cast, any caster
       // RUNE OF THE STAR TAP (Set 3 design pass): a Dwarven Ale cast in combat banks +3/+3 for the Starform (per copy).
       if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
         fireTrigger('runeStarTap', side);
@@ -2311,6 +2334,7 @@ export function simulate(
     // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
     rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
     rubyConduitBouncesFor: (side) => Math.max(0, modsFor(side).runeConduit ?? 0), // Rune of the Conduit (copy count)
+    roughCutCopiesFor: (side) => (modsFor(side).runeRoughCut ? flagCopiesOf(side, 'runeRoughCut') : 0), // Set 2 rune Rough Cut
     battleRefractionRepsFor: (side) => {
       // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
       // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.
@@ -2909,6 +2933,7 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
+    pitchforksOnSummon(minion, side); // Set 2 rune Pitchforks: a summoned Imp deals 3 damage to 2 enemies
     // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
     // Counted at this single summon chokepoint, so a token, a Rise and a resummon each count exactly once —
     // the same contract the Remains / Reinvestment counters above rely on. Either side: `grantRandomMinion`
@@ -3539,6 +3564,7 @@ export function simulate(
    */
   function noteDamageDealt(dealer: Minion, amount: number): void {
     noteAncientPummel(dealer, amount);
+    noteWarmUp(dealer, amount);
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
     // marker's `do` decides the payout. Han Gover grants `count` random Dwarven Ales (×2 gilded) through
     // `grantToHand` — the standard combat→hand channel, so the card flies to hand in the replay and settles into
@@ -3671,6 +3697,42 @@ export function simulate(
    * of X crossed, at most one per combat, and crossings past the cap are spent. The payout is real time: the cards
    * fly to hand on the hit that crossed (`grantToHand`, a live `toHand`), mid-fight.
    */
+  /**
+   * WARM-UP (Set 2 batch, owner 2026-11-12): "Pummel (150): gain 2 Gold next turn. Counts all your minions. Once per
+   * combat." A SIDE-WIDE Pummel over the same landed hits the keyword reads (called from `noteDamageDealt`), from every
+   * friendly minion, into one LIFETIME tally (seeded from the run, carried home as `ShoutCarry.warmUpDealt`: the
+   * keyword's carry-over rule). Rune of the Heavy Hand's extra share applies. The first crossing of a multiple of 150
+   * each fight banks 2 Gold for next turn per copy held (`grantBonusGold`, live); later crossings that fight are spent.
+   */
+  function noteWarmUp(dealer: Minion, amount: number): void {
+    const side = dealer.side;
+    if (!modsFor(side).runeWarmUp || amount <= 0) return;
+    const heavy = modsFor(side).runeHeavyHand ? flagCopiesOf(side, 'runeHeavyHand') : 0;
+    const before = warmUpDealt[side];
+    const after = before + amount * (1 + heavy);
+    warmUpDealt[side] = after;
+    shoutCarry[side].warmUpDealt = after;
+    const every = SET2_BASIC_NEUTRAL.warmUp.every;
+    if (warmUpPaid[side] || Math.floor(after / every) - Math.floor(before / every) <= 0) return;
+    warmUpPaid[side] = true;
+    fireTrigger('runeWarmUp', side);
+    ctx.grantBonusGold(SET2_BASIC_NEUTRAL.warmUp.gold * flagCopiesOf(side, 'runeWarmUp'), side);
+  }
+
+  /** GOLDEN HANDSHAKE, the combat half (Set 2 batch, owner 2026-11-12): a combat Gild (Auric Runemaster's Shout via
+   *  `ctx.onGilded`, the Ancient of Time) gives the side's living minions +2/+2 for this fight (R-BUFF-PERM), per copy
+   *  held, real time. */
+  function goldenHandshakeCombat(gilded: Minion): void {
+    const gside = gilded.side;
+    if (!modsFor(gside).runeGoldenHandshake) return;
+    const band = living(gside);
+    if (band.length === 0) return;
+    const k = flagCopiesOf(gside, 'runeGoldenHandshake');
+    nextStep();
+    fireTrigger('runeGoldenHandshake', gside);
+    for (const m of band) ctx.buff(m, SET2_BASIC_NEUTRAL.goldenHandshake.attack * k, SET2_BASIC_NEUTRAL.goldenHandshake.health * k, 'Golden Handshake');
+  }
+
   function noteAncientPummel(dealer: Minion, amount: number): void {
     const ap = modsFor(dealer.side).ancientPummel;
     const pc = modsFor(dealer.side).ancientPummelCopy;
@@ -4351,9 +4413,42 @@ export function simulate(
     }
   }
 
+  // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): the effect-damage runes ──
+  /** One rune volley: `amount` damage to every living enemy of `side`, all hits landing before any death resolves (the
+   *  attack exchange's two phases), then each felled body dies in board order. No minion source: the RUNE deals it,
+   *  so it is not Demon damage (Ruins, Rad Rachel), feeds no Pummel meter and never Executes. */
+  function runeVolley(side: Side, amount: number): void {
+    const foes = living(OTHER[side]);
+    for (const t of foes) applyDamage(t, amount, false, false);
+    for (const t of foes) if (isFelled(t)) killOrReborn(t);
+  }
+  /** HELLFIRE: 1 damage to all enemies, once per copy held, each volley its own beat. */
+  function runeHellfire(side: Side): void {
+    for (let k = 0; k < flagCopiesOf(side, 'runeHellfire'); k++) {
+      if (living(OTHER[side]).length === 0) break;
+      nextStep(); fireTrigger('runeHellfire', side);
+      runeVolley(side, HELLFIRE_DAMAGE);
+    }
+  }
+  /** Every death path's rune-damage watchers (a Rise / Rebirth death is a real death, R-DEATH-RETURN-01):
+   *  HELLFIRE's death half ("When a Demon dies") and WILDFIRE ("When an enemy dies to damage that is not an attack,
+   *  deal 3 damage to all enemies. (3 per combat.)"). Wildfire's own volleys are not attacks, so they can chain it until
+   *  the budget (3 per copy) is spent. A body felled by a destroy (no damage) never counts. */
+  function runeFireOnDeath(minion: Minion): void {
+    const byAttack = lethalByAttack.get(minion.uid);
+    lethalByAttack.delete(minion.uid);
+    if (modsFor(minion.side).runeHellfire && isTribeOf(minion, 'demon', cards)) runeHellfire(minion.side);
+    const owner = OTHER[minion.side];
+    if (byAttack === false && wildfireLeft[owner] > 0 && living(minion.side).length > 0) {
+      wildfireLeft[owner] -= 1;
+      nextStep(); fireTrigger('runeWildfire', owner);
+      runeVolley(owner, WILDFIRE_DAMAGE);
+    }
+  }
   /** The Avenge-paced side watchers (deaths[side] % N), called right after `emitAvenge` on every death path. The
    *  last-minion checks only on a true death (`trueDeath`): a Rise / Rebirth body is about to return. */
   function avengePacedDeathWatchers(minion: Minion, trueDeath: boolean): void {
+    runeFireOnDeath(minion); // Set 2 Epic tribal runes (2026-11-12): Hellfire's death half, Wildfire
     const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
@@ -4578,6 +4673,7 @@ export function simulate(
     // Echo (Fel Spikes, gilded / Sylus / Echohorn) hits the SAME captured targets each pass and defers death to
     // the end, so a low-HP victim reads EVERY volley's damage — and procs the per-volley reactors + pops a Ward
     // on the first, takes damage on the next — instead of vanishing after the first hit.
+    const byAttack = attackHitPending; attackHitPending = false; // Wildfire: was THIS hit an attack exchange's?
     if (target.dead || (!overkill && target.health <= 0)) return;
     // Immune: takes no damage at all (A.4) — even from Venomous or destroy effects.
     if (target.keywords.includes('IMM')) return;
@@ -4658,6 +4754,14 @@ export function simulate(
         emit({ type: 'venomLost', target: poisoner.uid });
       }
     }
+    // Wildfire: remember what kind of hit felled this body (read at its death, `runeFireOnDeath`).
+    if (target.health <= 0 || executed.has(target.uid)) lethalByAttack.set(target.uid, byAttack);
+  }
+  /** An attack exchange's hit (Set 2 Epic tribal runes, 2026-11-12): `applyDamage` with the attack mark, so Wildfire
+   *  can tell a swing's kill from effect damage. */
+  function exchangeHit(target: Minion, amount: number, poison: boolean, poisoner: Minion): void {
+    attackHitPending = true;
+    try { applyDamage(target, amount, poison, false, poisoner); } finally { attackHitPending = false; }
   }
 
   /** One-shot damage (effects, bolts, Deathrattle damage): apply + resolve any death immediately. Attack
@@ -4811,6 +4915,18 @@ export function simulate(
         fireTrigger('runeSunpony', attacker.side);
         FACTORIES.rallySpreadTribeBuff?.(ctx, attacker, { tribe: 'beast', attack: flagCopiesOf(attacker.side, 'runeSunpony'), fixed: true, includeSelf: true }, { minion: attacker, side: attacker.side });
       }
+      // PACK TACTICS (Set 2 Epic Beast rune, owner 2026-11-12): "Your Beasts' Rallies also trigger when that Beast is
+      // attacked." The swing's TARGET, if it is a living friendly-to-the-rune Beast that can Rally, fires its Rally as a
+      // free Rally (`fireFreeRally`: every Rally multiplier, the watchers, the tally), on its own beat after the
+      // attacker's Rally and before the hit lands. Once per copy held. Cleave / splash neighbours are not "attacked".
+      if (modsFor(target.side).runePackTactics && canRally(target) && isTribeOf(target, 'beast', cards)) {
+        nextStep(); fireTrigger('runePackTactics', target.side);
+        for (let k = 0; k < flagCopiesOf(target.side, 'runePackTactics'); k++) { if (canRally(target)) fireFreeRally(target, target.side); }
+      }
+      // HELLFIRE (Set 2 Epic Demon rune, owner 2026-11-12), the attack half: "When a Demon attacks, deal 1 damage to all
+      // enemies." As the swing winds up (the Rally moment). The rune deals it, so it can fell the target first: the
+      // swing is then spent (the dead-target rule below).
+      if (modsFor(attacker.side).runeHellfire && !attacker.dead && isTribeOf(attacker, 'demon', cards)) runeHellfire(attacker.side);
       // DEEP BREATHS (Set 3 Dragon runes, owner 2026-10-21): each of the side's first 2 Dragon swings this fight casts
       // Growth, once per copy (a real rune cast through the attacker; Windfury swings count as attacks, as for Rallies).
       if (modsFor(attacker.side).runeDeepBreaths && !attacker.dead && isTribeOf(attacker, 'dragon', cards)
@@ -5144,7 +5260,7 @@ export function simulate(
         const neighbours = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
         for (const n of neighbours) {
           victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
-          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
+          exchangeHit(n, attacker.attack * critMult, poison, attacker);
         }
       }
       // Mauron's splash — ONE adjacent enemy, or BOTH when gilded. Deliberately separate from Cleave (which
@@ -5156,7 +5272,7 @@ export function simulate(
         const hit = attacker.golden ? both : both.slice(0, 1); // ungilded: the first available side
         for (const n of hit) {
           victims.push({ m: n, killer: attacker, rises0: risesOf(n) });
-          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
+          exchangeHit(n, attacker.attack * critMult, poison, attacker);
         }
       }
 
@@ -5166,7 +5282,7 @@ export function simulate(
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, rises0: targetRises0 });
-      applyDamage(target, attacker.attack * critMult, poison, false, attacker); // main hit (Critical Strike doubles it)
+      exchangeHit(target, attacker.attack * critMult, poison, attacker); // main hit (Critical Strike doubles it)
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
       if ((attacker.attackImmuneLeft ?? 0) > 0) {
@@ -5174,7 +5290,7 @@ export function simulate(
         if (!cards[attacker.cardId]?.attackImmuneAlways) attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
       } else {
         victims.push({ m: attacker, killer: target, rises0: risesOf(attacker) });
-        applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
+        exchangeHit(attacker, counterAttack, counterVenom, target); // retaliation
       }
 
       // PHASE 2 — deaths resolve in damage order (cleave victims → target → attacker). Each fallen body's
@@ -5242,6 +5358,7 @@ export function simulate(
               // Blood Trail (Beast → hand): the side's Start-of-Combat-marked body's kills conjure a random Beast.
               // Either side (R-SYMMETRY-01: the mark and the payout used to exist on the player board only).
               if (kmods.bloodTrail && killer === bloodTrailMinion[killer.side] && killerAlive) ctx.grantRandomMinion(1, 'beast', killer.side, undefined, killer.uid);
+              set2TribalOnKill(killer, killerAlive); // Set 2 runes Bloodscent + Trophy Hunter: a Beast's kill
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
@@ -5281,6 +5398,16 @@ export function simulate(
                   pendingAttackOnSummon.push({ minion: nb });
                   break;
                 }
+              }
+            }
+            // BLOOD FRENZY (Set 2 Epic Beast rune, owner 2026-11-12): "When a Beast kills a minion, trigger your left-most
+            // Rally." Every enemy minion a friendly Beast kills by attacking (the Slaughter kill, the killer alive or not)
+            // fires the left-most living Rally once per copy held: a free Rally (`fireFreeRally`), every multiplier folded.
+            if (kmods.runeBloodFrenzy && isTribeOf(killer, 'beast', cards)) {
+              const lead = boards[killer.side].find((x) => canRally(x));
+              if (lead) {
+                nextStep(); fireTrigger('runeBloodFrenzy', killer.side);
+                for (let k = 0; k < flagCopiesOf(killer.side, 'runeBloodFrenzy'); k++) { if (canRally(lead)) fireFreeRally(lead, killer.side); }
               }
             }
           }
@@ -5443,6 +5570,111 @@ export function simulate(
     }
     flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
   };
+  // ── SET 2 RUNES, BASIC TRIBAL (owner review 2026-11-12) — the combat halves ─────────────────────────────────────────
+  // Declared BEFORE the first Start of Combat pass (socReclaim below) so a Start-of-Combat summon, kill or death already
+  // hears them. Every handler reads the side's OWN mods (R-SYMMETRY-01) and scales by its copy count (`flagCopiesOf`).
+  // The Shop halves live in packages/sim/src/set2RunesBasicTribal.ts; the numbers in core/src/set2TribalRunes.ts.
+  const trophyHunterPaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const lastHowlUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** The Echoes a Last Howl resummon carries beyond its printed ones (a grafted Echo), set around its `summonMinion`. */
+  let lastHowlCarry: { cardId: string; effects: EffectDef[] } | null = null;
+  /** Imp Legion's graft on a summoned Imp (idempotent by factory), and Last Howl's carried Echoes on its resummon. */
+  function set2TribalGraft(minion: Minion, card: CardDef, side: Side): void {
+    if (modsFor(side).runeImpLegion && card.imp && !minion.effects.some((e) => e.do === 'deathrattleDamageLowestEnemy')) {
+      minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleDamageLowestEnemy', params: { amount: SET2_TRIBAL_RUNES.impLegionDamage, hits: flagCopiesOf(side, 'runeImpLegion'), fixed: true } }];
+    }
+    if (lastHowlCarry && lastHowlCarry.cardId === card.id) {
+      const extra = lastHowlCarry.effects.filter((e) => !minion.effects.some((x) => x.do === e.do));
+      if (extra.length > 0) minion.effects = [...minion.effects, ...extra];
+    }
+  }
+  /** PITCHFORKS: "Imps deal 3 damage to 2 enemies when summoned." Every friendly Imp arrival (a token, a Rise return, a
+   *  resummon: the summon-entry chokepoint), per copy held: 2 DIFFERENT random living enemies, picked up front, each hit
+   *  by the Imp (it is the source, so Demon-damage watchers hear it). No enemy: nothing. */
+  function pitchforksOnSummon(minion: Minion, side: Side): void {
+    if (!modsFor(side).runePitchforks || minion.side !== side || minion.dead || !cards[minion.cardId]?.imp) return;
+    const foe: Side = side === 'player' ? 'enemy' : 'player';
+    for (let k = 0; k < flagCopiesOf(side, 'runePitchforks'); k++) {
+      const pool = living(foe);
+      if (pool.length === 0) return;
+      const picks: Minion[] = [];
+      for (let i = 0; i < SET2_TRIBAL_RUNES.pitchforksTargets && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+      nextStep();
+      fireTrigger('runePitchforks', side);
+      for (const t of picks) if (!t.dead && t.health > 0) ctx.damage(t, SET2_TRIBAL_RUNES.pitchforksDamage, false, false, minion);
+    }
+  }
+  /** BLOODSCENT + TROPHY HUNTER: `killer` (an attacker) just killed an opponent's minion (a Slaughter, the Rune of the
+   *  Trophy reading of "kills"). Bloodscent: a living killing Beast gains +4/+4 per copy, PERMANENTLY (`permaGain`).
+   *  Trophy Hunter: 1 Gold next turn per copy, the first 3 kills each combat (the side's own cap). */
+  function set2TribalOnKill(killer: Minion, killerAlive: boolean): void {
+    const side = killer.side;
+    const m = modsFor(side);
+    if (!(m.runeBloodscent || m.runeTrophyHunter) || !isTribeOf(killer, 'beast', cards)) return;
+    if (m.runeBloodscent && killerAlive) {
+      const n = flagCopiesOf(side, 'runeBloodscent');
+      const a = SET2_TRIBAL_RUNES.bloodscent.attack * n, h = SET2_TRIBAL_RUNES.bloodscent.health * n;
+      nextStep();
+      fireTrigger('runeBloodscent', side);
+      const kept = ctx.buff(killer, a, h, 'Bloodscent').kept; // an Engrave already kept it (R-ENGRAVE-05)
+      if (!kept) killer.permaGain = { attack: (killer.permaGain?.attack ?? 0) + a, health: (killer.permaGain?.health ?? 0) + h };
+    }
+    if (m.runeTrophyHunter && trophyHunterPaid[side] < SET2_TRIBAL_RUNES.trophyHunterPerCombat) {
+      trophyHunterPaid[side] += 1;
+      fireTrigger('runeTrophyHunter', side);
+      ctx.grantBonusGold(SET2_TRIBAL_RUNES.trophyHunterGold * flagCopiesOf(side, 'runeTrophyHunter'), side);
+    }
+  }
+  /** FLAMEKEEPER: one Dragonflame repetition resolved on `side` (`castInCombat`'s per-cast hook, any caster): the side's
+   *  living Dragons gain +2/+2 per copy, PERMANENTLY. No Dragon: nothing. */
+  function flamekeeperCombat(side: Side, spellId: string): void {
+    if (spellId !== DRAGONFLAME_ID || !modsFor(side).runeFlamekeeper) return;
+    const dragons = living(side).filter((d) => isTribeOf(d, 'dragon', cards));
+    if (dragons.length === 0) return;
+    const n = flagCopiesOf(side, 'runeFlamekeeper');
+    const a = SET2_TRIBAL_RUNES.flamekeeper.attack * n, h = SET2_TRIBAL_RUNES.flamekeeper.health * n;
+    fireTrigger('runeFlamekeeper', side);
+    for (const d of dragons) {
+      const kept = ctx.buff(d, a, h, 'Flamekeeper').kept;
+      if (!kept) d.permaGain = { attack: (d.permaGain?.attack ?? 0) + a, health: (d.permaGain?.health ?? 0) + h };
+    }
+  }
+  // LAST HOWL + RUBY DUST hear a friendly death on the `avenge` broadcast: it goes out once per friendly death (a Rise death
+  // included), AFTER the body's own Echo and its re-fires, so the Echo's summons take the room first (the 2026-09-18
+  // room ruling) and a Ruby the Echo cast is already on the board.
+  if (playerState.questMods.runeLastHowl || enemyState.questMods.runeLastHowl || playerState.questMods.runeRubyDust || enemyState.questMods.runeRubyDust
+      || reserveHas((m) => !!m.runeLastHowl || !!m.runeRubyDust)) {
+    bus.on('avenge', (payload) => {
+      const { side, victim } = payload as { side: Side; victim?: Minion };
+      if (!victim || victim.side !== side) return;
+      const m = modsFor(side);
+      // LAST HOWL: the FIRST friendly Beast with an Echo to die this combat returns as its base card (gilded = doubled
+      // base), its printed Echo plus any grafted one intact. One body per copy held (the Second Litter precedent).
+      if (m.runeLastHowl && !lastHowlUsed[side] && isTribeOf(victim, 'beast', cards) && victim.effects.some((e) => e.on === 'onDeath')) {
+        const def = cards[victim.cardId];
+        if (def) {
+          lastHowlUsed[side] = true;
+          nextStep();
+          fireTrigger('runeLastHowl', side);
+          lastHowlCarry = { cardId: def.id, effects: victim.effects.filter((e) => e.on === 'onDeath' && !def.effects.includes(e)) };
+          try {
+            for (let k = 0; k < flagCopiesOf(side, 'runeLastHowl'); k++) summonMinion(side, def, victim.uid, undefined, !!victim.golden);
+          } finally { lastHowlCarry = null; }
+        }
+      }
+      // RUBY DUST: a friendly minion carrying Rubies (its Shop Rubies or this fight's) died: a PERMANENT Ruby on a random
+      // living friendly Kobold, per copy (each a fresh pick). No Kobold left: nothing.
+      if (m.runeRubyDust) {
+        const shopRuby = victim.buffs?.find((b) => b.source === 'Ruby');
+        const hadRubies = (!!shopRuby && (shopRuby.attack > 0 || shopRuby.health > 0)) || (!!victim.rubyGain && (victim.rubyGain.attack > 0 || victim.rubyGain.health > 0));
+        if (hadRubies && living(side).some((k) => isTribeOf(k, 'kobold', cards))) {
+          nextStep();
+          fireTrigger('runeRubyDust', side);
+          for (let k = 0; k < flagCopiesOf(side, 'runeRubyDust'); k++) rubyOnRandomKobolds(side, 1, true);
+        }
+      }
+    });
+  }
   socReclaim(SIDES);
 
   // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).
@@ -5485,6 +5717,7 @@ export function simulate(
           tail.golden = true;
           emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
           if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+          goldenHandshakeCombat(tail); // Golden Handshake (Set 2 batch): a combat Gild
         }
       }
       // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
@@ -6308,6 +6541,85 @@ export function simulate(
         given++;
       }
     }
+    // SHIELD WALL (Set 2 batch, owner 2026-11-12): "Start of Combat: give your Taunt minions +4/+6." Every living friendly
+    // Taunt minion, a combat buff (R-BUFF-PERM), per copy held. A Start of Combat rune, so Twilight repeats it.
+    if (rmods.runeShieldWall) {
+      const taunts = living(rside).filter((m) => m.keywords.includes('T'));
+      if (taunts.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeShieldWall', rside);
+        const k = flagCopiesOf(rside, 'runeShieldWall');
+        for (const m of taunts) ctx.buff(m, SET2_BASIC_NEUTRAL.shieldWall.attack * k, SET2_BASIC_NEUTRAL.shieldWall.health * k, 'Shield Wall');
+      }
+    }
+    // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12). Both texts begin "Start of Combat:", so Twilight repeats them. ──
+    // BULWARK LINE: every living friendly Taunt minion without a Ward gains one (a normal Ward). One beat; idempotent,
+    // so a duplicate pays the sweetener instead (RUNE_DUP_SWEETENER).
+    if (rmods.runeBulwarkLine) {
+      const taunts = boards[rside].filter((m) => !m.dead && m.health > 0 && m.keywords.includes('T') && !m.divineShield);
+      if (taunts.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeBulwarkLine', rside);
+        for (const m of taunts) {
+          m.divineShield = true;
+          if (!m.keywords.includes('DS')) m.keywords.push('DS');
+          emit({ type: 'shieldUp', target: m.uid });
+        }
+      }
+    }
+    // DOUBLE BILL: trigger the left-most and the right-most living minion WITH a Shout (the Shared Scripture "left-most
+    // Shout" convention). One Shout minion is both ends and fires once. Each fire goes through the shared `fireShout`
+    // (R-SHOUT-TRIGGER-01: a counted `shout` beat, the Shout extras, `battlecryTriggered`), Drakko-folded, per copy.
+    if (rmods.runeDoubleBill) {
+      const shouts = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay'));
+      const ends = shouts.length <= 1 ? shouts : [shouts[0]!, shouts[shouts.length - 1]!];
+      if (ends.length > 0) {
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeDoubleBill', rside);
+        for (let k = 0; k < flagCopiesOf(rside, 'runeDoubleBill'); k++) {
+          for (const m of ends) {
+            if (m.dead || m.health <= 0) continue;
+            const reps = drakkoRepeats(ctx, rside);
+            for (let r = 0; r < reps; r++) fireShout(ctx, m, m);
+          }
+        }
+      }
+    }
+    // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12) ──
+    // FERAL RETURN: "Start of Combat: give your left-most Beast Rise." The left-most living Beast that does not already
+    // hold Rise (the Rising Graves walk, so a copy is never wasted on a body that has it), one per copy held. A
+    // "Start of Combat:" rune, so Twilight repeats it (the next pass reaches the next Beast). Its "+5/+5 on Rise" half is
+    // `runeRiseRunes`.
+    if (rmods.runeFeralReturn) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeFeralReturn'); k++) {
+        const m = boards[rside].find((x) => !x.dead && x.health > 0 && !x.rebornAvailable && isTribeOf(x, 'beast', cards));
+        if (!m) break;
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeFeralReturn', rside);
+        m.rebornAvailable = true;
+        if (!m.keywords.includes('R')) m.keywords.push('R');
+        emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
+      }
+    }
+    // GEM RAIN: "Start of Combat: cast 2 permanent Rubies on all your minions." The Red Start shape on every living
+    // friendly minion: `playRubyOn(..., permanent)`, each body its own caster, so Ruby strength, the Paragon, Battle
+    // Refraction, bounces and every Ruby watcher see real casts. Engraving Gems adds nothing here (already permanent).
+    // Per copy held; Twilight repeats it.
+    if (rmods.runeGemRain) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeGemRain'); k++) {
+        const all = living(rside);
+        if (all.length === 0) break;
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeGemRain', rside);
+        for (const m of all) playRubyOn(ctx, m, m, GEM_RAIN_RUBIES, true);
+      }
+    }
+    // ELDER'S VOICE: "Your first Shout each turn also triggers at Start of Combat." The body the Shop recorded
+    // (`eldersVoiceUid`, matched on `sourceUid`) fires its Shout once more through the shared combat Shout path,
+    // Drakko folded, once per copy held. Not a "Start of Combat:" rune: base pass only. Gone from the board: nothing.
+    if (base && rmods.runeEldersVoice && rmods.eldersVoiceUid) {
+      const voice = boards[rside].find((x) => !x.dead && x.health > 0 && x.sourceUid === rmods.eldersVoiceUid && x.effects.some((e) => e.on === 'onPlay'));
+      if (voice) {
+        nextStep(); fireTrigger('runeEldersVoice', rside);
+        const reps = drakkoRepeats(ctx, rside) * flagCopiesOf(rside, 'runeEldersVoice');
+        for (let r = 0; r < reps; r++) fireShout(ctx, voice, voice); // R-SHOUT-TRIGGER-01: the shared Shout path
+      }
+    }
   };
   const socRunes = (sides: readonly Side[]): void => {
     for (const rside of sides) {
@@ -6363,6 +6675,14 @@ export function simulate(
       nextStep();
       fireTrigger('runeRestless', side);
       for (let k = 0; k < flagCopiesOf(side, 'runeRestless'); k++) triggerEcho(ctx, minion, minion, 1);
+    }
+    // FERAL RETURN (Set 2 Epic Beast rune, owner 2026-11-12): "Beasts that Rise gain +5/+5." Any friendly Beast's Rise,
+    // whatever gave it the Rise. A combat gain (no "permanently"), per copy held, on its own beat after the return.
+    if (m.runeFeralReturn && !minion.dead && minion.health > 0 && isTribeOf(minion, 'beast', cards)) {
+      const n = FERAL_RETURN_GAIN * flagCopiesOf(side, 'runeFeralReturn');
+      nextStep();
+      fireTrigger('runeFeralReturn', side);
+      ctx.buff(minion, n, n, 'Feral Return');
     }
   }
   /** RUNE OF UNITY: does `side` NATURALLY control every active minion type? Printed tribes and All-types cards only
@@ -7147,6 +7467,64 @@ export function simulate(
     });
   };
   for (const uside of SIDES) registerUnbrokenScales(uside, 0);
+  // SHATTERPROOF (Set 2 batch, owner 2026-11-12): "When a minion of yours loses Ward, give it +5/+5 permanently." EVERY
+  // Ward loss, no per-combat limit (owner ruling), per copy held. Permanent: booked as `permaGain` (the carry-back the
+  // Shop board keeps), unless an Engrave already kept it (R-ENGRAVE-05). A Ward that comes back (Unbroken Scales, a
+  // Bastion) and breaks again pays again. Registered per board (`member`), like Unbroken Scales.
+  const registerShatterproof = (uside: Side, member: number): void => {
+    if (!modsFor(uside).runeShatterproof) return;
+    bus.on('onLoseDivineShield', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== uside || activeMember[uside] !== member || minion.dead || minion.health <= 0) return;
+      const k = flagCopiesOf(uside, 'runeShatterproof');
+      const a = SET2_BASIC_NEUTRAL.shatterproof.attack * k;
+      const h = SET2_BASIC_NEUTRAL.shatterproof.health * k;
+      nextStep(); // its own beat, after the break
+      fireTrigger('runeShatterproof', uside);
+      const keptBy = ctx.buff(minion, a, h, 'Shatterproof').kept;
+      if (!keptBy) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + a, health: (minion.permaGain?.health ?? 0) + h };
+    });
+  };
+  for (const uside of SIDES) registerShatterproof(uside, 0);
+
+  // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12): the two Ward-loss runes, registered per board like the above. ──
+  // BASTION: "The first minion of yours to lose Ward each combat gains Ward." A SIDE-WIDE budget (one per copy held) per
+  // fight. The Ward comes back AT ONCE as a normal Ward (owner 2026-11-12), so a later hit pops it again and every
+  // Ward-loss trigger (Mirror Sheen, Shatterproof) hears that second loss too. Registered BEFORE Mirror Sheen so the Ward
+  // is already back when the reflected damage lands. The keyed `shieldUp` plays as a Ward re-form (clashOrder.ts).
+  // MIRROR SHEEN: "When a minion of yours loses Ward, it deals damage equal to its Attack to a random enemy." Every loss,
+  // no cap (each loss spends a Ward, so a chain is bounded by the Wards on the table); one hit per copy held, each a
+  // fresh seeded pick. The minion is the damage source (kill credit, "a friendly minion dealt damage" watchers).
+  const BASTION_KEY = 'rune:runeBastion';
+  const registerWardRunes = (wside: Side, member: number): void => {
+    if (modsFor(wside).runeBastion) {
+      let left = flagCopiesOf(wside, 'runeBastion');
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== wside || activeMember[wside] !== member || left <= 0 || minion.dead || minion.health <= 0 || minion.divineShield) return;
+        left--;
+        fireTrigger('runeBastion', wside);
+        minion.divineShield = true;
+        if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+        emit({ type: 'shieldUp', target: minion.uid, key: BASTION_KEY });
+      });
+    }
+    if (modsFor(wside).runeMirrorSheen) {
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== wside || activeMember[wside] !== member || minion.dead || minion.health <= 0 || minion.attack <= 0) return;
+        const foe: Side = wside === 'player' ? 'enemy' : 'player';
+        if (living(foe).length === 0) return;
+        fireTrigger('runeMirrorSheen', wside);
+        for (let k = 0; k < flagCopiesOf(wside, 'runeMirrorSheen'); k++) {
+          const targets = living(foe).filter((t) => t.health > 0);
+          if (targets.length === 0 || minion.dead || minion.health <= 0) break;
+          ctx.damage(targets[rng.int(targets.length)]!, minion.attack, false, false, minion);
+        }
+      });
+    }
+  };
+  for (const wside of SIDES) registerWardRunes(wside, 0);
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
   // and repeats its own Twilight passes here: a "Start of Combat:" rune, so each extra pass re-picks the living
@@ -7579,6 +7957,8 @@ export function simulate(
     socRunes([s]);
     registerSalvage(s, activeMember[s]);
     registerUnbrokenScales(s, activeMember[s]);
+    registerShatterproof(s, activeMember[s]); // Shatterproof (Set 2 batch): the stepped-in board hears its Ward losses
+    registerWardRunes(s, activeMember[s]);
     socFirstClaws([s]);
     bloodlustFor(s);
     fillFreeSlots();

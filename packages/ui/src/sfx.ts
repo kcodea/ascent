@@ -1956,6 +1956,11 @@ export const sfx = {
   // A hero POWER activates — drop `audio/heroes/<heroId>.power.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no power clip.
   heroPower: (heroId: string) => { playSample(`heroes/${heroId}.power`, 'heroPower'); },
+  // MAGICIAN'S MAGIC HAT sends a copy (owner 2026-11-12): one of his five spoken lines, `audio/heroes/magician.pass<n>.mp3`
+  // (n = 1..5; replace a file to swap a line). A VOICE line, so it rides the Hero Select fader like every hero's spoken
+  // line (the clips are levelled to the same target). Which line, and that it plays once per copy on every screen that
+  // sees the send, is `versus/hatLines.ts`. Silent if the clip is missing.
+  magicianPass: (line: number) => { playSample(`heroes/magician.pass${line}`, 'heroSelect'); },
   // A token is summoned — a general "summon" pop (sourced `summon` clip; synth rising blip fallback) LAYERED
   // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
   // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).

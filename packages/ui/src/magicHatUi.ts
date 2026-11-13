@@ -11,14 +11,14 @@
 import { activePowers, magicHatView, type RunState } from '@game/sim';
 
 export interface MagicHatBadge {
-  /** The counter above the power: buys toward the hat, "3/5". */
+  /** The counter above the power: buys toward the hat, "2/3". */
   tally: string;
-  /** The hat is active AND the Shop is open: the button wears the ready call until the next buy sends the copy. Never
-   *  in combat (no card can be bought there, so a glow would be stale). */
+  /** The next buy sends the copy AND the Shop is open: the button wears the ready call until that buy. Never in combat
+   *  (no card can be bought there, so a glow would be stale). */
   ready: boolean;
-  /** The hat is active (any phase): what the next buy does. */
+  /** The next card bought sends the copy (any phase): the hat is one buy short of full, or full, with a copy left. */
   active: boolean;
-  /** Full, but this turn's two copies are spent: it turns active next turn. The badge does not look ready. */
+  /** Full, but this turn's two copies are spent: it sends on the first buy of the next turn. The badge does not look ready. */
   capped: boolean;
   /** The tip's short status line. */
   status: string;
@@ -30,6 +30,6 @@ export function magicHatBadge(run: HatRun, slot = 0): MagicHatBadge | null {
   if (activePowers(run)[slot]?.kind !== 'magicHat') return null;
   const hat = magicHatView(run);
   const tally = `${hat.count}/${hat.need}`;
-  const status = hat.active ? 'active' : hat.capped ? `${tally} · active next turn` : tally;
+  const status = hat.active ? `${tally} · ready` : hat.capped ? `${tally} · sends next turn` : tally;
   return { tally, ready: hat.active && run.phase === 'recruit', active: hat.active, capped: hat.capped, status };
 }

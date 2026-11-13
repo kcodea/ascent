@@ -647,8 +647,16 @@ const nowMs = (): number => (typeof performance !== 'undefined' ? performance.no
  * player's own transport plays theirs. A fight's gifts wait for their beat (`duosCombat.tsx`).
  */
 function watchedPassFlights(cur: RunState, next: RunState): (() => void) | null {
-  if (asPlayer || next.mode !== 'versus' || !next.duos) return null;
+  if (next.mode !== 'versus' || !next.duos) return null;
   const passes = watchedPasses(cur, next);
+  // A DUOS PLAYER WATCHING THEIR TEAMMATE sees (and hears) that teammate's MAGIC HAT send (R-DUOS-MAGICIAN-01, owner
+  // 2026-11-12: "The teammate should hear these lines too"): the copy rises out of the hat and streams into the dock's
+  // portrait, with the Magician's line. Every other pass on this view is unchanged (none streams); the copy itself
+  // lands, with the usual arrival and no second line, when they are back on their own screen.
+  if (asPlayer) {
+    for (const e of passes.sends) if (e.hat) playEntryFlight(e, cur, cur.runId);
+    return null;
+  }
   if (!passes.sends.length && !passes.arrivals.length) return null;
   const now = nowMs();
   for (const e of passes.sends) {

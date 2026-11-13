@@ -1437,9 +1437,12 @@ export interface RunState {
   heroGrantRune?: HeroGrantRuneFootprint;
   /** Juggler (Baldgecoin): minions bought toward the next Gold Pouch. Wraps at 3 rather than accumulating. */
   jugglerBuys?: number;
-  /** Magician (Magic Hat, Duos only; R-DUOS-MAGICIAN-01): Shop buys toward the hat, 0..5. Carries across turns and
-   *  stops at 5; the buy that sends the copy puts it back to 0. Read through `magicHatView` (magicHat.ts). */
+  /** Magician (Magic Hat, Duos only; R-DUOS-MAGICIAN-01): Shop buys toward the hat, 0..3. Carries across turns and
+   *  stops at 3; the buy that fills the hat fires it and puts it back to 0. Read through `magicHatView` (magicHat.ts). */
   magicHatBuys?: number;
+  /** Magician: the cards in the hat, each AS IT WAS BOUGHT (a clone taken at the buy; a Starform buy leaves none). The
+   *  fired hat copies one at random to the teammate and empties this. Carries across turns with `magicHatBuys`. */
+  magicHatCards?: BoardCard[];
   /** Magician: copies the hat sent on turn `magicHatSentWave` (at most 2 a turn). A stamp from an earlier turn reads
    *  0, so nothing has to reset at the turn flip. */
   magicHatSent?: number;

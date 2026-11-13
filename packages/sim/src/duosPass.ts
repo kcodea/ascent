@@ -58,7 +58,8 @@ export interface DuosOutboxEntry {
   power?: 0 | 1;
   /** MAGICIAN'S MAGIC HAT (R-DUOS-MAGICIAN-01): this entry is a COPY of a card the sender bought (and kept). It travels
    *  as `via: 'sale'` (free, may be Golden, a refusal returns nothing) with `passHat: true`, and is not a pass for the
-   *  pass watchers on either run. `card.uid` is the copy's own (`hat<n>`); `src` names the Shop offer it streams from. */
+   *  pass watchers on either run. `card` is the copy itself (the as-bought card the hat picked, under its own uid `hat<n>`):
+   *  the screen shows that face rising out of the hat (the hero power), where the stream leaves from. */
   hat?: true;
   /** ANCIENTS x the Duos heroes (R-ANCDUOS-01; set only on a run with Ancients on, by `ancientOnPassMade` / `magicHatBuy`):
    *  - `ancRise`: Priestess x Death gave this passed minion Rise (a refund takes it off again);

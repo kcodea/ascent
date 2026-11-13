@@ -3336,18 +3336,26 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: "R-DUOS-MAGICIAN-01",
-    title: "Magician is Duos only; the Magic Hat copies the card bought after 5 Shop buys to the teammate, twice per turn",
+    title: "Magician is Duos only; the third Shop buy fires the Magic Hat: the teammate gets a copy of a random one of the three cards, twice per turn",
     statement:
-      "Magician is a `duosOnly` hero with 8 Armor and the passive Magic Hat. Every card bought from the Shop counts one (a "
-      + "minion, a spell, a re-bought displaced minion, a Starform); nothing else does. The count carries across turns and "
-      + "stops at 5, where the hat is active. The next card bought while it is active sends the teammate a copy of that card "
-      + "as it was bought (Golden only if it was) and puts the count back to 0; that buy does not count toward the next 5. At "
-      + "most 2 copies a turn: past the cap buys still count up to 5 but the hat is not active, and a full hat is active at "
-      + "the start of the next turn. The copy rides the pass channel as an effect pass that returns nothing (`via: 'sale'`, "
-      + "`hat`): free, never refused for a full hand, dropped on a room refusal. It is not a pass for any pass watcher on "
-      + "either run. It plays the pass stream on the sender's screen and the pass arrival on the teammate's. The power "
-      + "prints its live count, shows it on its counter badge, and wears the ready call while active in the Shop only. "
-      + "`magicHatView` is the one read for the buy, the text, the badge and the glow.",
+      "Magician is a `duosOnly` hero with 8 Armor and the passive Magic Hat. Every card bought from the Shop counts one "
+      + "and goes into the hat as it was bought (a minion, a spell, a re-bought displaced minion; a Starform counts and "
+      + "puts no card in); nothing else does. The count carries across turns and stops at 3. The buy that fills the hat "
+      + "fires it at once: the teammate gets a copy of ONE card in the hat, picked uniformly at random (minions and spells "
+      + "alike, no preference) by one seeded draw off the run cursor, and the hat is emptied (count 0). The copy is the card "
+      + "as it was bought (Golden only if it was): what the Magician later does with the cards they keep (play, sell, buff, "
+      + "triple) never changes or cancels it. At most 2 copies a turn: past the cap buys still go in up to 3 and stop, and "
+      + "a full capped hat fires on the first buy of a later turn from the cards it already holds (that buy then starts "
+      + "the next hat); nothing runs at the turn flip. The copy rides the pass channel as an effect pass that returns "
+      + "nothing (`via: 'sale'`, `hat`): free, never refused for a full hand, dropped on a room refusal. It is not a pass "
+      + "for any pass watcher on either run. On screen the copy's face rises out of the Magic Hat hero power button and "
+      + "the pass stream leaves from there (never from a Shop card), and the teammate's screen plays the pass arrival. The "
+      + "Magician says one of five lines as it fires; the teammate hears the same line (it is a pure function of the copy's "
+      + "uid, which rides the pass row), once per copy on any screen. The power prints its live count, shows it on its "
+      + "counter badge, and wears the ready call in the Shop while the next buy would send the copy (one buy short of "
+      + "full, or a full hat a new turn has uncapped). `magicHatView` is the one read for the buy, the text, the badge and "
+      + "the glow. A reload's restore counts each copy the server holds against the turn and empties the hat, so a reload "
+      + "never yields a third copy in one turn.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -3355,11 +3363,14 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Add a twice per turn max to magician" },
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Add a counter for magician and when it activates, the hero power should get an obvious animation / glow that it's going to fire. You can use the hero power ready animation for this" },
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10", quote: "Make sure the pass animation fires when this happens too" },
-      { kind: 'code', ref: "packages/sim/src/magicHat.ts magicHatBuy / magicHatView / restoreMagicHatSend; packages/sim/src/reducer.ts the buy branches, receivePass, restoreEffectPass; packages/sim/src/duosPass.ts duosWireOf; packages/ui/src/magicHatUi.ts; packages/ui/src/versus/passLob.ts passFlightOf" },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-12", quote: "Change magician to be 3 buys, and it passes a random minion from those 3 buys, so the pass will come from his hat hero power instead of the minion bought area" },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-12", quote: "The hat can send spells too, it's whatever 3 cards were 'put in his hat' so to speak" },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-12", quote: "Come up with 5 different pass lines that he can randomly say when triggering his hero power. The teammate should hear these lines too." },
+      { kind: 'code', ref: "packages/sim/src/magicHat.ts magicHatBuy / fireHat / magicHatView / restoreMagicHatSend; packages/sim/src/state.ts magicHatCards; packages/sim/src/reducer.ts the buy branches, receivePass, restoreEffectPass; packages/sim/src/duosPass.ts duosWireOf; packages/ui/src/magicHatUi.ts; packages/ui/src/versus/passLob.ts passFlightOf / playEntryFlight; packages/ui/src/versus/hatSend.tsx; packages/ui/src/versus/hatLines.ts" },
     ],
-    currentBehaviour: "Built 2026-11-10.",
-    example: "Ann, as Magician, buys 5 cards over two turns: her hat glows. She buys a Tier 4 minion: she keeps it, and a copy lands in Amy's hand. Her counter reads 0/5.",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroMagician.test.ts", "packages/ui/src/magicHat.test.tsx"], lastVerifiedAt: '2026-11-10' },
+    currentBehaviour: "Built 2026-11-10 as 5 buys then the next card bought; rebuilt 2026-11-12 as 3 buys and a random one of the three, leaving from the hat. Open owner call: what a hat that filled past the per-turn cap does (built: it fires on the first buy of a later turn, from the cards it holds).",
+    example: "Ann, as Magician, buys a minion and a spell: her counter reads 2/3 and her hat glows. She buys a third card: she keeps all three, one of them (it may be the spell) rises out of her hat and a copy lands in Amy's hand. Her counter reads 0/3.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroMagician.test.ts", "packages/ui/src/magicHat.test.tsx", "packages/ui/src/versus/hatLines.test.ts"], lastVerifiedAt: '2026-11-12' },
   },
   {
     id: "R-HERO-PICK-CLEAN-01",

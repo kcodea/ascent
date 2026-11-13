@@ -1,6 +1,6 @@
 /**
  * ANCIENTS × MAGICIAN (Duos only; owner pairings 2026-11-10, R-ANCMAGICIAN-01..06). Magic Hat (passive): "After you buy
- * 5 cards, your hat activates. The next card you buy, your teammate gets a copy. Twice per turn." Every pairing through
+ * 3 cards, your teammate gets a copy of a random one. Twice per turn." (three buys: owner 2026-11-12) Every pairing through
  * the real reducer on two teammates' runs (the copy travels as `duosWireOf` and lands through `receivePass`), and War
  * through the Duos round resolver (the tag-team fight the Worker runs).
  *
@@ -54,6 +54,9 @@ const buyOf = (s: RunState, o: Partial<ShopCard> = {}): RunState => {
   return { ...reduce({ ...s, shop: [{ ...offer(n), ...o, uid }] }, { type: 'buy', uid }), hand: [] };
 };
 const buyN = (s: RunState, count: number): RunState => { let out = s; for (let i = 0; i < count; i++) out = buyOf(out); return out; };
+/** A WHOLE HAT OF ONE OFFER: every buy that fills it is `o` (the hand is emptied between buys, so nothing triples), so
+ *  whichever card the hat picks, the copy is `o`. The last buy fires it. `need`: the hat's size (3; Genesis: 8). */
+const hatOf = (s: RunState, o: Partial<ShopCard> = {}, need = 3): RunState => { let out = s; for (let i = 0; i < need; i++) out = buyOf(out, o); return out; };
 function ship(from: RunState, to: RunState, since = 0): RunState {
   let out = to;
   for (const e of from.duos!.outbox.slice(since)) out = reduce(out, { type: 'receivePass', from: 'p1', seq: e.seq, card: duosWireOf(e) });
@@ -80,11 +83,11 @@ describe('Magician × every Ancient has a written pairing', () => {
   });
 
   it('a Duos game without Ancients is untouched: the hat of before, the same bytes, nothing new on the wire', () => {
-    const play = (): RunState => buyOf(buyN(base({}, false), 5), { cardId: ECHO });
+    const play = (): RunState => hatOf(base({}, false), { cardId: ECHO });
     const s = play();
-    n -= 6;
+    n -= 3;
     expect(serialize(play())).toBe(serialize(s));
-    expect(magicHatView(s)).toEqual({ count: 0, need: 5, left: 1, perTurn: 2, active: false, capped: false });
+    expect(magicHatView(s)).toEqual({ count: 0, need: 3, left: 1, perTurn: 2, full: false, active: false, capped: false });
     const e = last(s);
     expect(e.hat).toBe(true);
     expect(e.copies).toBeUndefined();
@@ -94,15 +97,15 @@ describe('Magician × every Ancient has a written pairing', () => {
   });
 
   it('Ancients on but nothing picked yet: still the hat of before', () => {
-    const s = buyOf(buyN(base(), 5), { cardId: ECHO });
-    expect(magicHatView(s)).toMatchObject({ need: 5, left: 1 });
+    const s = hatOf(base(), { cardId: ECHO });
+    expect(magicHatView(s)).toMatchObject({ need: 3, left: 1 });
     expect(last(s).card).toMatchObject({ golden: false, keywords: CARD_INDEX[ECHO]!.keywords });
   });
 });
 
 describe('Magician × DEATH: "Echo minions passed from Magic Hat gain Rise or Taunt at random."', () => {
   it('the copy of a minion with an Echo arrives with exactly one of Rise or Taunt; my own card is unchanged', () => {
-    let s = buyN(picked('death'), 5);
+    let s = hatOf(picked('death'), { cardId: ECHO }, 2);
     const kept = reduce({ ...s, shop: [{ uid: 'e', cardId: ECHO }] }, { type: 'buy', uid: 'e' });
     const got = last(kept).card.keywords.filter((k) => k === 'R' || k === 'T');
     expect(got).toHaveLength(1);
@@ -115,8 +118,8 @@ describe('Magician × DEATH: "Echo minions passed from Magic Hat gain Rise or Ta
 
   it('seeded: the same run rolls the same keyword, and both keywords come up across seeds', () => {
     const roll = (cursor: number): string => {
-      const s = buyN({ ...picked('death'), rngCursor: cursor }, 5);
-      return last(buyOf(s, { cardId: ECHO })).card.keywords.filter((k) => k === 'R' || k === 'T').join('');
+      const s = { ...picked('death'), rngCursor: cursor };
+      return last(hatOf(s, { cardId: ECHO })).card.keywords.filter((k) => k === 'R' || k === 'T').join('');
     };
     expect(roll(5)).toBe(roll(5));
     const seen = new Set(Array.from({ length: 24 }, (_, i) => roll(1000 + i * 7919)));
@@ -125,9 +128,8 @@ describe('Magician × DEATH: "Echo minions passed from Magic Hat gain Rise or Ta
 
   it('a keyword it already has is never the one given: with Rise it gains Taunt, with both it gains nothing', () => {
     const fire = (keywords: BoardCard['keywords']): BoardCard['keywords'] => {
-      const s = buyN(picked('death'), 5);
-      // A Shop offer that already carries the keyword (a Shop buff), bought with it.
-      return last(buyOf(s, { cardId: ECHO, keywords })).card.keywords;
+      // Shop offers that already carry the keyword (a Shop buff), bought with it.
+      return last(hatOf(picked('death'), { cardId: ECHO, keywords })).card.keywords;
     };
     expect(fire(['R']).filter((k) => k === 'R' || k === 'T').sort()).toEqual(['R', 'T']);
     expect(fire(['T']).filter((k) => k === 'R' || k === 'T').sort()).toEqual(['R', 'T']);
@@ -135,32 +137,32 @@ describe('Magician × DEATH: "Echo minions passed from Magic Hat gain Rise or Ta
   });
 
   it('a minion with no Echo, and a spell, gain nothing', () => {
-    expect(last(buyOf(buyN(picked('death'), 5))).card.keywords).toEqual([]);
-    const sp = reduce({ ...buyN(picked('death'), 5), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    expect(last(hatOf(picked('death'))).card.keywords).toEqual([]);
+    const sp = hatOf(picked('death'), { cardId: SPELL });
     expect(last(sp).card.cardId).toBe(SPELL);
     expect(last(sp).card.keywords).toEqual(CARD_INDEX[SPELL]!.keywords);
   });
 
   it('another Ancient picked: no keyword (the test fails without the effect)', () => {
-    expect(last(buyOf(buyN(picked('time'), 5), { cardId: ECHO })).card.keywords).toEqual(CARD_INDEX[ECHO]!.keywords);
+    expect(last(hatOf(picked('time'), { cardId: ECHO })).card.keywords).toEqual(CARD_INDEX[ECHO]!.keywords);
   });
 });
 
 describe('Magician × FORTUNE: "Triggering Magic Hat reduces your Shop upgrade cost by 4."', () => {
   it('each copy sent takes 4 Gold off the Shop upgrade, never below 0, and the text prints the price', () => {
     let s = picked('fortune', { tier: 2, upgradeCost: 7 });
-    s = buyN(s, 5);
+    s = buyN(s, 2);
     expect(s.upgradeCost).toBe(7); // filling the hat is not a trigger
     s = buyOf(s);
     expect(s.upgradeCost).toBe(3);
     expect(heroPowerText(s)).toContain('Each copy sent makes your Shop upgrade cost **4** Gold less. Upgrading costs **3 Gold** now.');
-    s = buyOf(buyN(s, 5));
+    s = buyN(s, 3);
     expect(s.upgradeCost).toBe(Math.max(CONFIG.upgradeCostFloor, 0));
     expect(s.upgradeCost).toBe(0);
   });
 
   it('it is for the upgrade in front of you: tiering up starts the next price fresh', () => {
-    let s = buyOf(buyN(picked('fortune', { tier: 2, upgradeCost: 7 }), 5));
+    let s = hatOf(picked('fortune', { tier: 2, upgradeCost: 7 }));
     s = reduce(s, { type: 'upgrade' });
     expect(s.tier).toBe(3);
     expect(s.upgradeCost).toBe(CONFIG.upgradeCost[4]);
@@ -173,7 +175,7 @@ describe('Magician × FORTUNE: "Triggering Magic Hat reduces your Shop upgrade c
   });
 
   it('another Ancient picked: the price does not move (the test fails without the effect)', () => {
-    expect(buyOf(buyN(picked('time', { tier: 2, upgradeCost: 7 }), 5)).upgradeCost).toBe(7);
+    expect(hatOf(picked('time', { tier: 2, upgradeCost: 7 })).upgradeCost).toBe(7);
   });
 });
 
@@ -181,21 +183,25 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
   it('the hat needs 8 buys; the counter, the text and the ready glow all follow it', () => {
     let s = picked('genesis');
     expect(magicHatView(s)).toMatchObject({ count: 0, need: 8, active: false });
-    expect(heroPowerText(s)).toContain('After you buy **8** cards, your hat activates (**0/8**).');
+    expect(heroPowerText(s)).toContain('After you buy **8** cards (**0/8**), your teammate gets a copy of a random one.');
     s = buyN(s, 5);
     expect(magicHatView(s)).toMatchObject({ count: 5, need: 8, active: false });
     expect(heroPowerArmed(s)).toBe(false);
-    expect(s.duos!.outbox).toHaveLength(0);
-    s = buyN(s, 3);
-    expect(magicHatView(s)).toMatchObject({ count: 8, need: 8, active: true });
+    s = buyN(s, 2);
+    // One buy short of the eighth: the next card bought sends the copy.
+    expect(magicHatView(s)).toMatchObject({ count: 7, need: 8, active: true });
+    expect(s.magicHatCards).toHaveLength(7);
     expect(heroPowerArmed(s)).toBe(true);
-    expect(heroPowerText(s)).toContain('Your hat is **active**.');
+    expect(s.duos!.outbox).toHaveLength(0);
+    expect(heroPowerText(s)).toContain('Your hat is **ready** (**7/8**).');
     expect(heroPowerText(s)).toContain('A minion copy arrives **Gilded**. A spell arrives as **3** copies.');
   });
 
   it('a minion copy arrives Gilded (double the printed stats on top of what it was bought with); I keep the plain one', () => {
     const d = CARD_INDEX[PLAIN[0]!]!;
-    const s = reduce({ ...buyN(picked('genesis'), 8), shop: [{ uid: 'g', cardId: d.id, atk: 2, hp: 3 }] }, { type: 'buy', uid: 'g' });
+    // All eight buys are the same buffed offer, so whichever the hat picks, the copy is that card as it was bought.
+    const s = reduce({ ...hatOf(picked('genesis'), { cardId: d.id, atk: 2, hp: 3 }, 7), shop: [{ uid: 'g', cardId: d.id, atk: 2, hp: 3 }] }, { type: 'buy', uid: 'g' });
+    expect(s.duos!.outbox).toHaveLength(1); // the eighth buy fired it
     expect(s.hand[0]).toMatchObject({ cardId: d.id, golden: false, attack: d.attack + 2, health: d.health + 3 });
     expect(last(s).card).toMatchObject({ cardId: d.id, golden: true, attack: d.attack * 2 + 2, health: d.health * 2 + 3 });
     const b = ship(s, mate());
@@ -204,7 +210,7 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
   });
 
   it('a spell arrives as 3 copies from ONE pass; the same pass delivered again adds nothing', () => {
-    const s = reduce({ ...buyN(picked('genesis'), 8), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    const s = hatOf(picked('genesis'), { cardId: SPELL }, 8);
     expect(s.duos!.outbox).toHaveLength(1);
     expect(duosWireOf(last(s)).passCopies).toBe(3);
     const b = ship(s, mate());
@@ -215,7 +221,7 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
   });
 
   it('a full hand: the three copies wait and land as room opens, none lost', () => {
-    const s = reduce({ ...buyN(picked('genesis'), 8), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    const s = hatOf(picked('genesis'), { cardId: SPELL }, 8);
     const filler = minionDefs.filter((c) => c.tier <= 2 && c.effects.length > 0).slice(0, 10).map((c, i) => card(`h${i}`, c.id));
     let b = ship(s, mate({ hand: filler.slice(0, handCap(mate())) }));
     expect(duosWaitingCount(b)).toBe(3);
@@ -229,7 +235,7 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
   });
 
   it('a spell copy count a client inflates is cut to 3, and only a Magic Hat copy may carry one', () => {
-    const s = reduce({ ...buyN(picked('genesis'), 8), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    const s = hatOf(picked('genesis'), { cardId: SPELL }, 8);
     const big = reduce(mate(), { type: 'receivePass', from: 'p1', seq: 0, card: { ...duosWireOf(last(s)), passCopies: 50 } as BoardCard });
     expect(big.hand).toHaveLength(3);
     const { passHat: _h, ...notHat } = duosWireOf(last(s));
@@ -238,7 +244,7 @@ describe('Magician × GENESIS: "Magic Hat triggers after 8 buys, but Gilds the m
   });
 
   it('save and restore keep the count that rides the pass', () => {
-    const s = reduce({ ...buyN(picked('genesis'), 8), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    const s = hatOf(picked('genesis'), { cardId: SPELL }, 8);
     expect(duosWireOf(last(deserialize(serialize(s))))).toEqual(duosWireOf(last(s)));
   });
 });
@@ -296,19 +302,19 @@ describe('Magician × TIME: "Start of Turn: Get a random copy of a card you\'ve 
 describe('Magician × BONDS: "Magic Hat has no maximum triggers per turn."', () => {
   it('a third and a fourth copy go out in one turn; the text and the view say so', () => {
     let s = picked('bonds');
-    expect(heroPowerText(s)).toBe('After you buy **5** cards, your hat activates (**0/5**). The next card you buy, your teammate gets a copy. No limit each turn.');
-    for (let i = 0; i < 4; i++) s = buyOf(buyN(s, 5));
+    expect(heroPowerText(s)).toBe('After you buy **3** cards (**0/3**), your teammate gets a copy of a random one. No limit each turn.');
+    for (let i = 0; i < 4; i++) s = buyN(s, 3);
     expect(s.duos!.outbox.filter((e) => e.hat)).toHaveLength(4);
-    s = buyN(s, 5);
-    expect(magicHatView(s)).toMatchObject({ count: 5, active: true, capped: false, noCap: true });
+    s = buyN(s, 2);
+    expect(magicHatView(s)).toMatchObject({ count: 2, active: true, capped: false, noCap: true });
     expect(heroPowerArmed(s)).toBe(true);
-    expect(heroPowerText(s)).toBe('Your hat is **active**. The next card you buy, your teammate gets a copy. No limit each turn.');
+    expect(heroPowerText(s)).toBe('Your hat is **ready** (**2/3**). The next card you buy sends your teammate a copy of a random card in it. No limit each turn.');
   });
 
   it('without it the third copy waits for the next turn (the test fails without the effect)', () => {
     let s = picked('time');
-    for (let i = 0; i < 2; i++) s = buyOf(buyN(s, 5));
-    s = buyN(s, 5);
+    for (let i = 0; i < 2; i++) s = buyN(s, 3);
+    s = buyN(s, 3);
     expect(magicHatView(s)).toMatchObject({ active: false, capped: true });
     expect(buyOf(s).duos!.outbox.filter((e) => e.hat)).toHaveLength(2);
     expect(magicHatView(nextTurn(s)).active).toBe(true);

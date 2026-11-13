@@ -15438,21 +15438,21 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-INSPECT-01',
-    title: 'An inspected rune and the cards it names are one centred group, side by side, never overlapping',
+    title: 'An inspected rune and the cards it names line up in one centred row, never overlapping',
     statement:
       'When a rune is inspected (a press in the Compendium, a hold on a Runeforge offer), the rune card and every card its reward '
-      + 'names sit as ONE group centred on the dimmed backdrop: each named card beside the rune with a clear gap between what '
-      + 'each one paints (plate, frame spill and the label under it included), never over the rune or over another named card, '
-      + 'its plate top level with the rune card top, and the whole group fully on screen at any window size (on a tall narrow '
-      + 'window the cards may stack under the rune, centred). The rune keeps its Runeforge look (the same name wrap and text); '
-      + 'each named card keeps the size ratio of the rune hover preview. A rune that names no card is shown alone, centred.',
+      + 'names sit side by side in ONE row centred on the dimmed backdrop: each named card beside the one before with a clear gap '
+      + 'between what each one paints (plate, frame spill and the label under it included), never over the rune or over another '
+      + 'named card, its plate top level with the rune card top. Lining up never resizes anything: the rune and the cards keep '
+      + 'the Inspect sizes. A rune that names no card is shown alone, centred.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (Compendium rune inspect)', quote: 'this is in the compendium, inspecting a rune. fix this view please' },
-      { kind: 'code', ref: 'packages/ui/src/RuneInspect.tsx (fitGroup); packages/ui/src/runeInspectLayout.ts (planRuneInspect); packages/ui/src/styles.css (.rune-inspect)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (PR #2692 review)', quote: 'revert that and just line them up so they are in line together' },
+      { kind: 'code', ref: 'packages/ui/src/RuneInspect.tsx (lineUp); packages/ui/src/runeInspectLayout.ts (planRuneInspect); packages/ui/src/styles.css (.rune-inspect-row)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-11-13 (fix/compendium-rune-inspect). Before it the view used the card Inspect flex row and fixed scale: a plated card painted past its layout box, so it lapped over the rune, hung lower than it, and two named cards could land on one spot.',
+    currentBehaviour: 'Conforms, built 2026-11-13 (fix/compendium-rune-inspect, PR #2692). Before it the view used the card Inspect flex row alone: a plated card painted past its layout box, so it lapped over the rune, hung lower than it, and two named cards could land on one spot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeInspectLayout.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
 ];

@@ -1,196 +1,300 @@
-// SCAFFOLDED from heroSoccer/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Soccer, not this style, until rewritten.
 /**
- * THE SOCCER SCENE: what the Train attack draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`), so it
- * runs (and is tested) headless. The PORTRAIT is the player (the runner moves it); this draws the ball, the shadows,
- * the goal on the target, II's corner flag, III's defenders and the hits. `heroTrain.ts` mounts `root` on the
- * above-portrait overlay.
+ * THE TRAIN SCENE: what the Train attack ("Right on Schedule") draws in Pixi, on the shared pooled scene
+ * (`../heroAttack/fxPool.ts`), so it runs (and is tested) headless. `heroTrain.ts` mounts `root` on the above-portrait
+ * overlay and writes the own objects every frame from the pure plan.
  *
- * OWN OBJECTS (one each, positioned by the runner every frame from the pure path, hidden the moment they are not
- * needed and on every exit): the BALL (spinning, squashing on a strike), its SHADOW on the grass, the PORTRAIT'S SHADOW
- * (only while it is in the air), the GOAL on the target (the net, then the frame drawn over the ball so a shot goes IN;
- * the net BULGES on the impact and the frame shakes), the CORNER FLAG (II) and up to three DEFENDERS (III).
+ * OWN OBJECTS (made once, positioned by the runner every frame, hidden the moment they are not needed and on every
+ * exit):
+ *  - THE TRACK: one painted tile (two rails on sleepers) repeated from edge to edge under the struck portrait.
+ *  - THE CONSIST: one sprite per vehicle (the handcar, the mine cart, the engine and its tender, the freight cars, the
+ *    caboose). A long train is the same few car textures repeated; a unit off screen is hidden.
+ *  - THE TURNING PARTS: the wheels drawn as their own sprites (the handcar's, the cart's, the engine's drivers), the
+ *    engine's side ROD riding their cranks, and the handcar's see-saw HANDLE.
+ *  - IV: the CROSSING SIGNAL (a post with a crossbuck and two lamps), its striped GATE ARM, the two lamp glows, and
+ *    the HEADLIGHT glow at the edge of the screen.
  *
- * FIRE-AND-FORGET (pooled, under a hard cap): the ball's trail (a fire trail on IV's thunderbolt), the grass puffs of a
- * touch, the strike's flash, the speed lines of a sprint, the knee slide's spray, a beaten defender's puff and word, and
- * THE GOAL (net ripples, sparks, the word; IV adds an explosion, a fireball and a confetti storm).
+ * FIRE-AND-FORGET (pooled, under a hard cap): the funnel's steam puffs, the wind streaks, the handcar's bonk star, the
+ * mine cart's spilled ore, the wheel sparks and the hit itself.
  */
 import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import type { BallState, DefenderState, GoalLayout } from './heroTrainConfig';
+import { FUNNEL_MOUTH, HANDLE_PIVOT, ROD_CRANK, UNIT_SHAPES, type SignalState, type TrainGeo, type TrainKind, type TrainUnit, type UnitKind } from './heroTrainConfig';
 
 export interface HeroTrainTextures extends HeroArcanaTextures {
-  ball: Texture;
-  shadow: Texture;
-  goal: Texture;
-  net: Texture;
-  flag: Texture;
-  defender: Texture;
-  confetti: Texture;
-  wordGoal: Texture;
-  wordGolazo: Texture;
-  wordNutmeg: Texture;
-  wordOle: Texture;
+  track: Texture;
+  handcar: Texture;
+  handle: Texture;
+  cart: Texture;
+  engine: Texture;
+  tender: Texture;
+  box: Texture;
+  tank: Texture;
+  hopper: Texture;
+  flat: Texture;
+  caboose: Texture;
+  wheel: Texture;
+  rod: Texture;
+  signal: Texture;
+  gate: Texture;
+  puff: Texture;
+  ore: Texture;
+  bonk: Texture;
 }
 
-export interface SoccerColors {
-  ball: number; post: number; net: number; flag: number; defender: number; flash: number; fire: number; blast: number; confettiA: number; confettiB: number; side: number;
+export interface TrainColors { steam: number; ore: number; lamp: number; headlight: number; spark: number; star: number; flash: number; side: number }
+
+export interface TrainLook {
+  /** The track's height, in struck portrait radii. */
+  trackSize: number;
+  /** How far the see-saw handle rocks (radians) and how high the cart bounces (radii). */
+  handleSwing: number;
+  bounce: number;
 }
 
-export interface SoccerLook {
-  /** The ball's diameter in striker radii. */
-  ballSize: number;
-  /** How far a shadow drops below what casts it, in striker radii at full height. */
-  shadowDrop: number;
-  goalSize: number;
-  wordSize: number;
-}
+/** Hard cap on pooled sprites alive at once (a Tier IV peaks near 120). The own objects are outside the pool. */
+export const MAX_TRAIN_SPRITES = 260;
+/** The most track tiles, vehicles and turning wheels ever made. */
+export const MAX_TRACK_TILES = 26;
+export const MAX_UNITS = 12;
+export const MAX_WHEELS = 4;
 
-export type SoccerWord = 'goal' | 'golazo' | 'nutmeg' | 'ole';
-
-/** Hard cap on pooled sprites alive at once (a Tier IV peaks near 200). The own objects are outside the pool. */
-export const MAX_SOCCER_SPRITES = 340;
+// Painted sizes (px): the scene scales from these, never from a texture's own size (so it is the same headless).
+export const TRACK_W = 384;
+export const TRACK_H = 96;
+export const WHEEL_PX = 128;
+export const ROD_W = 256;
+export const ROD_H = 24;
+export const HANDLE_W = 240;
+export const SIGNAL_W = 192;
+export const SIGNAL_H = 448;
+export const GATE_W = 416;
+export const GATE_H = 44;
+export const PUFF_PX = 128;
+export const ORE_PX = 64;
+export const BONK_PX = 128;
 const RING_PX = 160;
 const GLOW_PX = 128;
-const SHADOW_PX = 64;
-const BALL_PX = 128;
-const GOAL_W = 320;
-const FLAG_H = 128;
-const DEFENDER_PX = 128;
-const WORD_W = 640;
-const WORD_H = 176;
-const GRASS = 0x7fc46a;
+/** Where on the painted signal its lamps and its gate arm's pivot are (fractions: x from its centre in widths, y up from its foot in heights). */
+const LAMP_Y = 1 - 200 / SIGNAL_H;
+const LAMP_DX = 52 / SIGNAL_W;
+const ARM_Y = 1 - 300 / SIGNAL_H;
+/** The gate arm's pivot along its texture, and how far up it stands when open (radians from level). */
+const ARM_PIVOT = 34 / GATE_W;
+const ARM_UP = 1.42;
+const IRON = 0x8d949e;
+const DRIVER_RED = 0xd4564a;
 const DUST = 0xd9c7a6;
-export const MAX_DEFENDERS = 3;
 
 export class HeroTrainScene extends FxPool {
-  private readonly ball: Sprite;
-  private readonly ballShadow: Sprite;
-  private readonly heroShadow: Sprite;
-  private readonly net: Sprite;
-  private readonly goal: Sprite;
-  private readonly flag: Sprite;
-  private readonly defenders: Sprite[] = [];
+  private readonly tiles: Sprite[] = [];
+  private readonly cars: Sprite[] = [];
+  private readonly wheels: Sprite[] = [];
+  private readonly rod: Sprite;
+  private readonly handle: Sprite;
+  private readonly post: Sprite;
+  private readonly arm: Sprite;
+  private readonly lampA: Sprite;
+  private readonly lampB: Sprite;
+  private readonly headlight: Sprite;
+  private readonly all: Sprite[] = [];
+  private readonly tileW: number;
   private own = false;
+  private trainOn = false;
 
-  /** `aR` / `dR`: the striking and struck portraits' radii (screen px). */
+  /** `dR`: the struck portrait's radius (screen px); `units`: the consist, front to back. */
   constructor(
-    private readonly tex: HeroTrainTextures, private readonly colors: SoccerColors, private readonly look: SoccerLook,
-    private readonly aR: number, private readonly dR: number, scale = 1, seed = 1,
+    private readonly tex: HeroTrainTextures, private readonly colors: TrainColors, private readonly look: TrainLook,
+    private readonly g: TrainGeo, private readonly units: readonly TrainUnit[], private readonly kind: TrainKind,
+    private readonly dR: number, scale = 1, seed = 1,
   ) {
-    super('heroTrain', [tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.ball, tex.confetti, tex.wordGoal, tex.wordGolazo, tex.wordNutmeg, tex.wordOle], scale, seed, MAX_SOCCER_SPRITES);
-    const mk = (layer: 'under' | 'body', t: Texture, tint: number, ax = 0.5, ay = 0.5): Sprite => {
+    super('heroTrain', [
+      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.track, tex.handcar, tex.handle, tex.cart, tex.engine, tex.tender, tex.box, tex.tank, tex.hopper,
+      tex.flat, tex.caboose, tex.wheel, tex.rod, tex.signal, tex.gate, tex.puff, tex.ore, tex.bonk,
+    ], scale, seed, MAX_TRAIN_SPRITES);
+    const mk = (layer: 'under' | 'glow' | 'body' | 'core', t: Texture, tint: number, ax = 0.5, ay = 0.5): Sprite => {
       const s = new Sprite(t);
       s.anchor.set(ax, ay); s.tint = tint; s.visible = false; s.eventMode = 'none';
+      if (layer === 'glow' || layer === 'core') s.blendMode = 'add';
       this.layers[layer].addChild(s);
+      this.all.push(s);
       return s;
     };
-    this.heroShadow = mk('under', tex.shadow, 0x000000);
-    this.ballShadow = mk('under', tex.shadow, 0x000000);
-    this.net = mk('body', tex.net, colors.net);
-    for (let i = 0; i < MAX_DEFENDERS; i++) this.defenders.push(mk('body', tex.defender, colors.defender));
-    this.ball = mk('body', tex.ball, colors.ball);
-    this.goal = mk('body', tex.goal, colors.post);
-    // The flag's anchor is the pole's foot (lower left of the texture).
-    this.flag = mk('body', tex.flag, colors.flag, 0.3, 0.97);
+    // THE TRACK: enough tiles to run from edge to edge (a very wide screen stretches them rather than making more).
+    const th = dR * look.trackSize;
+    const span = g.x1 - g.x0;
+    const n = Math.max(1, Math.min(MAX_TRACK_TILES, Math.ceil(span / ((th * TRACK_W) / TRACK_H))));
+    this.tileW = span / n;
+    for (let i = 0; i < n; i++) {
+      const s = mk('under', tex.track, 0xffffff, 0, 0.5);
+      s.position.set(g.x0 + i * this.tileW, g.railY);
+      // A hair of overlap so no seam shows between tiles.
+      s.scale.set((this.tileW + 1) / TRACK_W, th / TRACK_H);
+      this.tiles.push(s);
+    }
+    this.headlight = mk('glow', tex.glow, colors.headlight);
+    // THE CONSIST, front to back (anchored at the wheels' feet), then its turning parts over it.
+    for (const u of units.slice(0, MAX_UNITS)) {
+      const s = mk('body', this.unitTexture(u.kind), u.tint, 0.5, 1);
+      s.scale.set((g.dir * u.w) / UNIT_SHAPES[u.kind].tw, u.h / UNIT_SHAPES[u.kind].th);
+      this.cars.push(s);
+    }
+    const lead = units[0];
+    const slots = lead ? UNIT_SHAPES[lead.kind].wheels : [];
+    for (const w of slots.slice(0, MAX_WHEELS)) {
+      const s = mk('body', tex.wheel, lead!.kind === 'engine' && !w.small ? DRIVER_RED : IRON);
+      s.scale.set((lead!.h * w.r * 2) / WHEEL_PX);
+      this.wheels.push(s);
+    }
+    this.rod = mk('body', tex.rod, 0xffffff);
+    this.handle = mk('body', tex.handle, 0xffffff);
+    if (lead?.kind === 'engine') {
+      // The rod spans the three drivers (their first and last centres, plus a pin's width each end).
+      const span3 = lead.w * (slots[2]!.fx - slots[0]!.fx) * 1.12;
+      this.rod.scale.set(span3 / ROD_W, (lead.h * 0.07) / ROD_H);
+    }
+    if (lead?.kind === 'handcar') this.handle.scale.set((lead.w * 0.78) / HANDLE_W);
+    // IV's crossing signal stands in FRONT of the train (the near side of the track): the post, the arm, the lamps.
+    const sk = g.signal.h / SIGNAL_H;
+    this.arm = mk('body', tex.gate, 0xffffff, ARM_PIVOT, 0.5);
+    this.arm.scale.set(g.signal.arm * sk * 1.05, sk * 1.05);
+    this.post = mk('body', tex.signal, 0xffffff, 0.5, 1);
+    this.lampA = mk('core', tex.glow, colors.lamp);
+    this.lampB = mk('core', tex.glow, colors.lamp);
   }
+
+  private unitTexture(k: UnitKind): Texture { return this.tex[k]; }
 
   /** Whether any own object still draws. */
   get ownVisible(): boolean { return this.own; }
+  /** The own sprites (the tests count and inspect them). */
+  get ownSprites(): readonly Sprite[] { return this.all; }
 
   // ── own objects (the runner writes them every frame) ──────────────────────────────────────────────────────────
 
-  /** The ball and its shadow. */
-  setBall(b: BallState): void {
+  /** The track's opacity. */
+  setTrack(alpha: number): void {
     if (this.destroyed) return;
-    const s = this.ball, sh = this.ballShadow;
-    if (!b.visible || b.alpha <= 0.002 || b.scale <= 0.002) { s.visible = false; sh.visible = false; this.refresh(); return; }
-    const px = this.aR * 2 * this.look.ballSize * b.scale;
-    const k = px / BALL_PX;
-    s.visible = true;
-    s.position.set(b.x, b.y);
-    s.rotation = b.rot;
-    s.scale.set(k * (1 + b.squash * 0.6), k * (1 - b.squash));
-    s.alpha = b.alpha;
-    // The shadow on the grass: below the ball, further and smaller and fainter the higher it is.
-    const drop = this.aR * this.look.shadowDrop * (0.2 + b.air * 1.2);
-    const sk = (this.aR * 2 * this.look.ballSize * (1 - 0.45 * b.air)) / SHADOW_PX;
-    sh.visible = true;
-    sh.position.set(b.x, b.y + drop);
-    sh.scale.set(sk, sk * 0.45);
-    sh.alpha = 0.32 * (1 - 0.5 * b.air) * b.alpha;
-    this.refresh();
-  }
-
-  /** The portrait's shadow while it is off the grass (`at` = its centre, screen px; `air` 0..1). Hidden on the grass. */
-  setHeroShadow(at: Pt | null, air: number, scale: number): void {
-    if (this.destroyed) return;
-    const s = this.heroShadow;
-    if (!at || air <= 0.02) { s.visible = false; this.refresh(); return; }
-    const px = this.aR * 1.9 * scale * (1 - 0.4 * air);
-    s.visible = true;
-    s.position.set(at.x, at.y + this.aR * (0.35 + this.look.shadowDrop * air));
-    s.scale.set(px / SHADOW_PX, (px * 0.42) / SHADOW_PX);
-    s.alpha = 0.38 * Math.min(1, air * 4) * (1 - 0.45 * air);
+    const show = alpha > 0.004;
+    for (const s of this.tiles) { s.visible = show; s.alpha = alpha; }
     this.refresh();
   }
 
   /**
-   * The goal on the target (ONE assembly from `goalLayout`): its opacity, the NET'S BULGE (pushed out along `dir`, the way
-   * the shot went in) and the frame's shake (radians).
+   * The whole train: `noseX` = its nose (screen px), `travel` = how far it has rolled (px; turns the wheels, rocks the
+   * handle, bounces the cart). A unit wholly off the track is hidden.
    */
-  setGoal(gl: GoalLayout, alpha: number, bulge: number, shake: number, dir: Pt): void {
+  setTrain(noseX: number, travel: number, show: boolean): void {
     if (this.destroyed) return;
-    const show = alpha > 0.004;
-    this.goal.visible = show; this.net.visible = show;
+    const g = this.g, dir = g.dir;
+    let any = false;
+    for (let i = 0; i < this.cars.length; i++) {
+      const u = this.units[i]!, s = this.cars[i]!;
+      const cx = noseX - dir * (u.off + u.w / 2);
+      const on = show && cx + u.w / 2 > g.x0 && cx - u.w / 2 < g.x1;
+      s.visible = on;
+      if (!on) continue;
+      any = true;
+      let y = g.wheelY, rot = 0;
+      if (u.kind === 'cart') {
+        // It rattles: a hop off the rails at every joint and a little rock.
+        y -= Math.abs(Math.sin(travel / (this.dR * 0.9))) * this.dR * this.look.bounce;
+        rot = 0.05 * Math.sin(travel / (this.dR * 0.37));
+      } else if (u.kind !== 'handcar' && u.kind !== 'engine') {
+        // Each car sways on its springs, out of step with its neighbours.
+        rot = 0.008 * Math.sin(travel / (this.dR * 1.3) + i * 1.7);
+      }
+      s.position.set(cx, y);
+      s.rotation = rot;
+    }
+    const lead = this.units[0];
+    const leadOn = !!lead && !!this.cars[0]?.visible;
+    const slots = lead ? UNIT_SHAPES[lead.kind].wheels : [];
+    const leadY = this.cars[0]?.y ?? g.wheelY;
+    for (let i = 0; i < this.wheels.length; i++) {
+      const s = this.wheels[i]!, w = slots[i]!;
+      s.visible = leadOn;
+      if (!leadOn) continue;
+      const r = lead!.h * w.r;
+      s.position.set(noseX - dir * lead!.w * w.fx, leadY - r);
+      s.rotation = (dir * travel) / r;
+    }
+    const engine = leadOn && lead!.kind === 'engine';
+    this.rod.visible = engine;
+    if (engine) {
+      // The side rod stays level and rides the drivers' crank pins round.
+      const r = lead!.h * slots[0]!.r, a = (dir * travel) / r, crank = lead!.h * ROD_CRANK;
+      this.rod.position.set(noseX - dir * lead!.w * slots[1]!.fx + Math.cos(a) * crank, leadY - r + Math.sin(a) * crank);
+    }
+    const handcar = leadOn && lead!.kind === 'handcar';
+    this.handle.visible = handcar;
+    if (handcar) {
+      this.handle.position.set(noseX - dir * lead!.w * HANDLE_PIVOT.fx, leadY - lead!.h * HANDLE_PIVOT.fy);
+      this.handle.rotation = this.look.handleSwing * Math.sin(travel / (this.dR * 0.42));
+    }
+    this.trainOn = any;
+    this.refresh();
+  }
+
+  /** Where the engine's funnel mouth is for a nose position (screen px), or null when this consist has no engine. */
+  funnelAt(noseX: number, out: Pt): Pt | null {
+    const lead = this.units[0];
+    if (!lead || lead.kind !== 'engine') return null;
+    out.x = noseX - this.g.dir * lead.w * FUNNEL_MOUTH.fx;
+    out.y = this.g.wheelY - lead.h * FUNNEL_MOUTH.fy;
+    return out;
+  }
+
+  /** IV's crossing signal. */
+  setSignal(st: SignalState): void {
+    if (this.destroyed) return;
+    const g = this.g.signal;
+    const show = st.alpha > 0.004 && st.rise > 0.004;
+    this.post.visible = show; this.arm.visible = show;
+    this.lampA.visible = show && st.lampA > 0.01; this.lampB.visible = show && st.lampB > 0.01;
     if (show) {
-      const k = gl.w / GOAL_W;
-      this.goal.position.set(gl.center.x, gl.center.y); this.goal.scale.set(k); this.goal.rotation = shake; this.goal.alpha = alpha;
-      const b = Math.max(0, bulge);
-      this.net.position.set(gl.center.x + dir.x * gl.h * 0.3 * b, gl.center.y + dir.y * gl.h * 0.3 * b);
-      this.net.scale.set(k * (1 + b * 0.22), k * (1 + b * 0.45));
-      this.net.rotation = shake * 0.6;
-      this.net.alpha = alpha * (0.62 + 0.3 * Math.min(1, b * 2));
+      const k = g.h / SIGNAL_H;
+      const h = g.h * st.rise;
+      this.post.position.set(g.x, g.footY);
+      this.post.scale.set(k * (0.6 + 0.4 * Math.min(1, st.rise)), k * st.rise);
+      this.post.alpha = st.alpha;
+      this.arm.position.set(g.x, g.footY - h * ARM_Y);
+      // Up: standing nearly straight; down: level across the road. (Mirrored with the arm's side.)
+      this.arm.rotation = -g.arm * ARM_UP * (1 - st.arm);
+      this.arm.alpha = st.alpha * Math.min(1, st.rise);
+      const lr = (g.h * 0.2) / GLOW_PX;
+      const ly = g.footY - h * LAMP_Y;
+      const dx = g.h * (SIGNAL_W / SIGNAL_H) * LAMP_DX;
+      this.lampA.position.set(g.x - dx, ly); this.lampA.scale.set(lr * (0.8 + 0.3 * st.lampA)); this.lampA.alpha = st.alpha * st.lampA;
+      this.lampB.position.set(g.x + dx, ly); this.lampB.scale.set(lr * (0.8 + 0.3 * st.lampB)); this.lampB.alpha = st.alpha * st.lampB;
     }
     this.refresh();
   }
 
-  /** II's corner flag (its pole's foot at `at`): opacity and a wave (radians). */
-  setFlag(at: Pt, alpha: number, wave: number): void {
+  /** IV's headlight glow at the entry edge (0..1). */
+  setHeadlight(k: number): void {
     if (this.destroyed) return;
-    const s = this.flag;
-    s.visible = alpha > 0.004;
+    const s = this.headlight;
+    s.visible = k > 0.004;
     if (s.visible) {
-      const k = (this.aR * 1.4) / FLAG_H;
-      s.position.set(at.x, at.y); s.scale.set(k * (1 + wave * 0.6), k); s.skew.set(wave * 0.5, 0); s.alpha = alpha;
-    }
-    this.refresh();
-  }
-
-  /** III's defender `i`. */
-  setDefender(i: number, d: DefenderState): void {
-    if (this.destroyed) return;
-    const s = this.defenders[i];
-    if (!s) return;
-    s.visible = d.visible && d.alpha > 0.004;
-    if (s.visible) {
-      const k = (this.aR * 2 * d.scale) / DEFENDER_PX;
-      s.position.set(d.x, d.y); s.scale.set(k); s.rotation = d.rot; s.alpha = d.alpha * 0.92;
+      const g = this.g;
+      const px = this.dR * (1.2 + 3.4 * k);
+      s.position.set(g.enterX, g.wheelY - this.dR * 0.55);
+      s.scale.set((px * 1.5) / GLOW_PX, px / GLOW_PX);
+      s.alpha = 0.85 * k;
     }
     this.refresh();
   }
 
   /** Hide every own object (the end, a cancel). */
   hideOwn(): void {
-    for (const s of [this.ball, this.ballShadow, this.heroShadow, this.net, this.goal, this.flag, ...this.defenders]) s.visible = false;
-    this.own = false;
+    for (const s of this.all) s.visible = false;
+    this.own = false; this.trainOn = false;
   }
 
   private refresh(): void {
-    this.own = this.ball.visible || this.ballShadow.visible || this.heroShadow.visible || this.net.visible || this.goal.visible || this.flag.visible
-      || this.defenders.some((s) => s.visible);
+    this.own = this.trainOn || !!this.tiles[0]?.visible || this.post.visible || this.headlight.visible;
   }
 
   protected override tick(): boolean { return this.own; }
@@ -198,199 +302,104 @@ export class HeroTrainScene extends FxPool {
 
   // ── fire-and-forget ───────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A soft ghost of the ball left behind in flight; IV's thunderbolt leaves FIRE (`b.fire`). */
-  trail(b: BallState): void {
-    if (!b.visible) return;
+  /** A puff of steam from the funnel: it rolls up and back the way the train came, growing as it thins. `k` scales it. */
+  puff(at: Pt, k = 1, life = 1): void {
+    const S = this.scale, r = this.dR * 0.5 * k;
+    const back = -this.g.dir;
+    this.spawn('body', this.tex.puff, this.colors.steam, at.x + (this.rnd() - 0.5) * r * 0.3, at.y, {
+      dur: (620 + this.rnd() * 260) * life, from: (r * 0.7) / PUFF_PX / S, to: (r * (2 + this.rnd() * 0.8)) / PUFF_PX / S, a0: 0.85, ease: 'cubic',
+      vx: back * (90 + this.rnd() * 120), vy: -(130 + this.rnd() * 90), drag: 0.25, rot: this.rnd() * Math.PI * 2, spin: (this.rnd() - 0.5) * 0.002,
+    });
+  }
+
+  /** A gust of wind streaks along the train's flank near the portrait (IV, while the cars go by). */
+  wind(): void {
+    const S = this.scale, g = this.g, R = this.dR;
+    const x = g.hit.x + (this.rnd() - 0.5) * R * 7;
+    const y = g.wheelY - R * (0.1 + this.rnd() * 1.5);
+    const len = R * (1.6 + this.rnd() * 1.8);
+    this.spawn('glow', this.tex.streak, 0xffffff, x, y, {
+      dur: 200 + this.rnd() * 80, from: len / 128 / S, to: (len * 1.5) / 128 / S, a0: 0.3, sy: 0.07, rot: g.dir > 0 ? 0 : Math.PI, ease: 'linear',
+      vx: g.dir * 1500, drag: 0.5,
+    });
+  }
+
+  /** Sparks thrown back off a wheel on the rail at `x`. */
+  sparks(x: number, n: number): void {
+    const g = this.g;
+    this.burst('core', this.tex.spark, [this.colors.spark, whiten(this.colors.spark, 0.5)], x, g.wheelY, n, {
+      speed: 420, dir: g.dir > 0 ? Math.PI * 1.12 : -Math.PI * 0.12, spread: 0.7, life: 260, size: 0.34, drag: 0.2, grav: 900, align: true,
+    });
+  }
+
+  /** A little dust kicked up off the sleepers (the track arriving, a landing). */
+  dust(at: Pt, k = 1): void {
     const S = this.scale;
-    const k = (this.aR * 2 * this.look.ballSize * b.scale) / BALL_PX / S;
-    if (b.fire > 0) {
-      const c = this.colors;
-      this.spawn('glow', this.tex.glow, c.fire, b.x, b.y, { dur: 260, from: (k * BALL_PX * 1.4) / GLOW_PX, to: (k * BALL_PX * 0.5) / GLOW_PX, a0: 0.8 * b.fire, ease: 'linear', vy: -30 });
-      this.spawn('core', this.tex.glow, whiten(c.fire, 0.6), b.x, b.y, { dur: 160, from: (k * BALL_PX * 0.9) / GLOW_PX, to: (k * BALL_PX * 0.3) / GLOW_PX, a0: 0.7 * b.fire, ease: 'linear' });
-      this.spawn('core', this.tex.spark, c.blast, b.x + (this.rnd() - 0.5) * k * 60, b.y + (this.rnd() - 0.5) * k * 60, { dur: 300, from: 0.5, to: 0.1, a0: 0.9, vx: (this.rnd() - 0.5) * 120, vy: (this.rnd() - 0.5) * 120, drag: 0.3 });
-      return;
-    }
-    this.spawn('body', this.tex.ball, whiten(this.colors.ball, 0.25), b.x, b.y, { dur: 160, from: k * 0.92, to: k * 0.7, a0: 0.22, rot: b.rot, ease: 'linear' });
-  }
-
-  /** A touch on the ball (a keepy-uppy, a dribble touch, the corner set down): a little puff of grass. */
-  touch(at: Pt, strength: number): void {
-    const S = this.scale;
-    const r = this.aR * this.look.ballSize;
-    this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 220, from: (r * 0.7) / RING_PX / S, to: (r * 1.8) / RING_PX / S, a0: 0.22 * strength, sy: 0.45, ease: 'cubic' });
-    for (let i = 0; i < 3; i++) {
-      const a = -Math.PI / 2 + (i - 1) * 0.8 + (this.rnd() - 0.5) * 0.4;
-      this.spawn('body', this.tex.confetti, i % 2 ? GRASS : whiten(GRASS, 0.3), at.x, at.y + r * 0.3, {
-        dur: 360 + this.rnd() * 120, from: 0.7, to: 0.5, a0: 0.9 * strength, mode: 'hold', ease: 'linear', vx: Math.cos(a) * 140, vy: Math.sin(a) * 160, grav: 700, drag: 0.4,
-        rot: this.rnd() * Math.PI, spin: (this.rnd() - 0.5) * 0.03,
-      });
-    }
-  }
-
-  /** The strike: a flash and a ring at the boot, `k` scales it. */
-  strike(at: Pt, k = 1): void {
-    const S = this.scale;
-    const r = this.aR * this.look.ballSize * k;
-    this.spawn('core', this.tex.star, this.colors.flash, at.x, at.y, { dur: 220, from: 0.4 * k, to: 1.3 * k, a0: 0.95, mode: 'punch', peakAt: 0.2, rot: 0.4 });
-    this.spawn('glow', this.tex.ring, this.colors.side, at.x, at.y, { dur: 260, from: (r * 0.8) / RING_PX / S, to: (r * 2.8) / RING_PX / S, a0: 0.55, ease: 'cubic' });
-    this.spawn('glow', this.tex.glow, this.colors.side, at.x, at.y, { dur: 240, from: (r * 0.8) / GLOW_PX / S, to: (r * 2.2) / GLOW_PX / S, a0: 0.4, mode: 'punch', peakAt: 0.2 });
-  }
-
-  /** A footstep's skid of dust and grass, along `dir` (a sprint, a landing). */
-  skid(at: Pt, dir: Pt, k = 1): void {
-    const S = this.scale;
-    const feet = { x: at.x, y: at.y + this.aR * 0.8 };
-    this.spawn('under', this.tex.glow, DUST, feet.x, feet.y, { dur: 320, from: (this.aR * 0.5) / GLOW_PX / S, to: (this.aR * 1.2 * k) / GLOW_PX / S, a0: 0.22, sy: 0.5 });
-    for (let i = 0; i < Math.round(3 * k); i++) {
-      const a = Math.atan2(-dir.y, -dir.x) + (this.rnd() - 0.5) * 1.2;
-      this.spawn('body', this.tex.confetti, i % 2 ? GRASS : whiten(GRASS, 0.25), feet.x, feet.y, {
-        dur: 380, from: 0.6, to: 0.4, a0: 0.85, mode: 'hold', ease: 'linear', vx: Math.cos(a) * 220 * k, vy: Math.sin(a) * 120 - 120, grav: 800, drag: 0.4, rot: this.rnd() * 3,
-      });
-    }
-  }
-
-  /** A speed line behind a sprint (or the launch), from where the striker was a moment ago to where it is. */
-  speedLine(at: Pt, from: Pt, r: number): void {
-    const S = this.scale;
-    const dx = at.x - from.x, dy = at.y - from.y;
-    const l = Math.hypot(dx, dy);
-    if (l < 2) return;
-    const head = Math.atan2(dy, dx);
-    for (const off of [-0.55, 0, 0.55]) {
-      const x = from.x + Math.cos(head + Math.PI / 2) * r * off, y = from.y + Math.sin(head + Math.PI / 2) * r * off;
-      this.spawn('glow', this.tex.streak, 0xffffff, x, y, { dur: 200, from: (l * 2.2) / 128 / S, to: (l * 1.2) / 128 / S, a0: 0.35, sy: 0.18, rot: head, ease: 'linear' });
-    }
-  }
-
-  /** IV's launch out of the crouch: a shock ring of dust and grass at the take-off point, a flash under the feet. */
-  launch(at: Pt, k: number): void {
-    if (k <= 0) return;
-    const S = this.scale, r = this.aR, c = this.colors;
-    const feet = { x: at.x, y: at.y + r * 0.6 };
-    this.spawn('glow', this.tex.ring, 0xffffff, feet.x, feet.y, { dur: 420, from: (r * 0.6) / RING_PX / S, to: (r * 3.4 * k) / RING_PX / S, a0: 0.7, sy: 0.45, ease: 'cubic' });
-    this.spawn('glow', this.tex.ring, c.side, feet.x, feet.y, { dur: 520, from: (r * 0.5) / RING_PX / S, to: (r * 2.6 * k) / RING_PX / S, a0: 0.5, sy: 0.45, ease: 'cubic', delay: 60 });
-    this.spawn('core', this.tex.glow, c.flash, feet.x, feet.y, { dur: 220, from: (r * 0.6) / GLOW_PX / S, to: (r * 1.8 * k) / GLOW_PX / S, a0: 0.6, mode: 'punch', peakAt: 0.15 });
-    for (let i = 0; i < Math.round(10 * k); i++) {
-      const a = -Math.PI / 2 + (this.rnd() - 0.5) * Math.PI * 1.4;
-      this.spawn('body', this.tex.confetti, i % 2 ? GRASS : whiten(GRASS, 0.3), feet.x, feet.y, {
-        dur: 520 + this.rnd() * 200, from: 0.8, to: 0.5, a0: 0.9, mode: 'hold', ease: 'linear', vx: Math.cos(a) * 340 * k, vy: Math.sin(a) * 300 * k, grav: 900, drag: 0.4,
-        rot: this.rnd() * 3, spin: (this.rnd() - 0.5) * 0.03,
-      });
-    }
-  }
-
-  /** IV's CONTACT upside down: a white-hot pop on the ball, a shock ring, and streaks flung out along the shot. */
-  contact(at: Pt, dir: Pt, k: number): void {
-    const S = this.scale, c = this.colors, r = this.aR * this.look.ballSize * k;
-    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 260, from: (r * 0.8) / GLOW_PX / S, to: (r * 4) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.1 });
-    this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 340, from: 0.6 * k, to: 2.4 * k, a0: 1, mode: 'punch', peakAt: 0.12, rot: 0.3 });
-    for (let i = 0; i < 3; i++) this.spawn('glow', this.tex.ring, i % 2 ? c.fire : c.flash, at.x, at.y, { dur: 380 + 80 * i, from: (r * 0.6) / RING_PX / S, to: (r * (3 + 1.4 * i)) / RING_PX / S, a0: 0.75 - 0.15 * i, ease: 'cubic', delay: 40 * i });
-    const head = Math.atan2(dir.y, dir.x);
-    this.burst('core', this.tex.spark, [c.fire, c.flash, c.blast], at.x, at.y, Math.round(12 * k), { speed: 620 * k, life: 360, size: 0.5, drag: 0.15, align: true });
-    for (let i = 0; i < 4; i++) {
-      const a = head + (this.rnd() - 0.5) * 0.5;
-      this.spawn('glow', this.tex.streak, c.fire, at.x, at.y, { dur: 260, from: 1.6 * k, to: 0.6, a0: 0.6, sy: 0.25, rot: a, vx: Math.cos(a) * 900, vy: Math.sin(a) * 900, drag: 0.2 });
-    }
-  }
-
-  /** III: a defender is beaten (a puff where it stood) and, for the nutmeg / the stepovers, the word. */
-  beaten(at: Pt, word: SoccerWord | null): void {
-    const S = this.scale;
-    this.spawn('under', this.tex.glow, DUST, at.x, at.y + this.aR * 0.4, { dur: 380, from: (this.aR * 0.6) / GLOW_PX / S, to: (this.aR * 1.5) / GLOW_PX / S, a0: 0.25, sy: 0.5 });
-    if (word) this.word(word, { x: at.x, y: at.y - this.aR * 0.2 }, 0.8, this.aR * 2.4);
-  }
-
-  /** The header: a flash on the ball at the head. */
-  header(at: Pt): void {
-    const S = this.scale, r = this.aR * this.look.ballSize;
-    this.spawn('core', this.tex.star, this.colors.flash, at.x, at.y, { dur: 260, from: 0.5, to: 1.6, a0: 1, mode: 'punch', peakAt: 0.15, rot: 0.6 });
-    this.spawn('glow', this.tex.ring, this.colors.side, at.x, at.y, { dur: 300, from: r / RING_PX / S, to: (r * 3.4) / RING_PX / S, a0: 0.6, ease: 'cubic' });
-  }
-
-  /** The knee slide: a spray of grass and a skid streak behind it. */
-  slide(at: Pt, dir: Pt): void {
-    const S = this.scale;
-    const feet = { x: at.x, y: at.y + this.aR * 0.75 };
-    const head = Math.atan2(dir.y, dir.x);
-    this.spawn('under', this.tex.streak, whiten(GRASS, 0.2), feet.x, feet.y, { dur: 700, from: (this.aR * 1.6) / 128 / S, to: (this.aR * 2.2) / 128 / S, a0: 0.35, sy: 0.3, rot: head, mode: 'hold', ease: 'linear' });
-    for (let i = 0; i < 4; i++) {
-      const a = head + Math.PI + (this.rnd() - 0.5) * 1.4;
-      this.spawn('body', this.tex.confetti, i % 2 ? GRASS : whiten(GRASS, 0.3), feet.x, feet.y, {
-        dur: 460, from: 0.7, to: 0.4, a0: 0.9, mode: 'hold', ease: 'linear', vx: Math.cos(a) * 200, vy: Math.sin(a) * 120 - 160, grav: 900, drag: 0.4, rot: this.rnd() * 3,
-      });
-    }
+    this.spawn('under', this.tex.glow, DUST, at.x, at.y, { dur: 360, from: (this.dR * 0.5) / GLOW_PX / S, to: (this.dR * 1.5 * k) / GLOW_PX / S, a0: 0.22, sy: 0.45 });
   }
 
   /**
-   * THE GOAL (`at` = the target's centre; `dir` = the way the shot went in): the net ripples (squashed rings pulsing
-   * out), sparks, the word. `o.big` (IV): an explosion, a fireball and a confetti storm.
+   * THE HIT (`at` = the contact point, the portrait's near edge), by look.
+   *  - the handcar BONKS it: one fat star spinning up off the bump and two small ones;
+   *  - the mine cart spills its ORE: glowing chunks tumbling out the way it was going;
+   *  - the engine and the freight: a burst of steam, a flash, rings and sparks.
    */
-  goalHit(at: Pt, dir: Pt, o: { burst: number; rings: number; confetti: number; big: boolean; blast: number }): void {
-    const S = this.scale;
-    const c = this.colors;
-    const R = this.dR;
-    const w = R * 2.5 * this.look.goalSize;
-    const b = Math.max(0.3, o.burst);
-    this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 260, from: (R * 0.6 * b) / GLOW_PX / S, to: (R * 2 * b) / GLOW_PX / S, a0: 0.85, mode: 'punch', peakAt: 0.1 });
-    this.spawn('glow', this.tex.glow, c.side, at.x, at.y, { dur: 420, from: (R * 1 * b) / GLOW_PX / S, to: (R * 2.8 * b) / GLOW_PX / S, a0: 0.45, mode: 'punch', peakAt: 0.12 });
-    // The net's ripples.
-    for (let i = 0; i < Math.max(1, Math.min(8, o.rings + 1)); i++) {
-      this.spawn('glow', this.tex.ring, i % 2 ? c.side : c.net, at.x + dir.x * w * 0.04 * i, at.y + dir.y * w * 0.04 * i, {
-        dur: 380 + 70 * i, from: (w * 0.3) / RING_PX / S, to: (w * (0.9 + 0.35 * i) * Math.min(1.6, b)) / RING_PX / S, a0: 0.7 - 0.08 * i, sy: 0.6, ease: 'cubic', delay: 60 * i,
+  hit(at: Pt, burst: number): void {
+    const S = this.scale, c = this.colors, R = this.dR, dir = this.g.dir;
+    const b = Math.max(0.3, burst);
+    this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 240, from: (R * 0.5 * b) / GLOW_PX / S, to: (R * 1.7 * b) / GLOW_PX / S, a0: 0.8, mode: 'punch', peakAt: 0.12 });
+    this.spawn('glow', this.tex.ring, c.side, at.x, at.y, { dur: 360, from: (R * 0.4) / RING_PX / S, to: (R * 1.9 * b) / RING_PX / S, a0: 0.55, ease: 'cubic' });
+    if (this.kind === 'handcar') {
+      const top = { x: at.x + dir * R * 0.2, y: at.y - R * 0.75 };
+      this.spawn('body', this.tex.bonk, c.star, top.x, top.y, {
+        dur: 720, from: (R * 0.25) / BONK_PX / S, to: (R * 0.95) / BONK_PX / S, a0: 1, mode: 'hold', ease: 'quint', vx: dir * 60, vy: -150, drag: 0.2, spin: dir * 0.012,
+      });
+      for (let i = 0; i < 2; i++) {
+        this.spawn('body', this.tex.bonk, whiten(c.star, 0.35), top.x, top.y, {
+          dur: 560, from: (R * 0.3) / BONK_PX / S, to: (R * 0.36) / BONK_PX / S, a0: 1, mode: 'hold', ease: 'linear', vx: (i ? 1 : -1) * 190 + dir * 40, vy: -260, grav: 700, drag: 0.4,
+          spin: (i ? 1 : -1) * 0.014, delay: 40 * i,
+        });
+      }
+      return;
+    }
+    if (this.kind === 'minecart') {
+      for (let i = 0; i < 9; i++) {
+        const a = -Math.PI / 2 + dir * (0.25 + this.rnd() * 0.9);
+        const sp = 360 + this.rnd() * 420;
+        const x = at.x - dir * R * 0.3 + (this.rnd() - 0.5) * R * 0.5, y = at.y - R * 0.45;
+        const size = (R * (0.2 + this.rnd() * 0.16)) / ORE_PX / S;
+        const o = { dur: 760 + this.rnd() * 240, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 1500, drag: 0.6, delay: i * 14 };
+        this.spawn('body', this.tex.ore, i % 3 === 2 ? whiten(c.ore, 0.45) : c.ore, x, y, { ...o, from: size, to: size * 0.9, a0: 1, mode: 'hold', ease: 'linear', rot: this.rnd() * 6, spin: (this.rnd() - 0.5) * 0.03 });
+        this.spawn('glow', this.tex.glow, c.ore, x, y, { ...o, from: size * 1.4, to: size * 0.9, a0: 0.55, mode: 'hold', ease: 'linear' });
+      }
+      this.sparks(at.x, 6);
+      return;
+    }
+    const big = this.kind === 'freight';
+    // Steam blown out and UP off the buffers (kept small and quick, so the portrait's reaction is never hidden).
+    for (let i = 0; i < (big ? 6 : 4); i++) {
+      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 1.8;
+      const sp = 260 + this.rnd() * 260;
+      this.spawn('body', this.tex.puff, c.steam, at.x, at.y - R * 0.5, {
+        dur: 380 + this.rnd() * 160, from: (R * 0.3) / PUFF_PX / S, to: (R * (0.7 + this.rnd() * 0.4) * b * 0.8) / PUFF_PX / S, a0: 0.85, ease: 'cubic',
+        vx: Math.cos(a) * sp - dir * 160, vy: Math.sin(a) * sp, drag: 0.15, rot: this.rnd() * 6,
       });
     }
-    this.burst('core', this.tex.star, [c.flash, c.side, c.net], at.x, at.y, Math.round(8 * b), { speed: 360 * b, life: 420, size: 0.35, drag: 0.15, spin: 0.01, lift: 120, grav: 380 });
-    if (o.big) this.explosion(at, dir, o.blast);
-    if (o.confetti > 0) this.confettiBurst(at, o.confetti);
-    this.word(o.big ? 'golazo' : 'goal', at, b, this.dR * 2.2 * (o.big ? 1.2 : 1));
+    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y, { dur: 460, from: (R * 0.5) / RING_PX / S, to: (R * 3 * b) / RING_PX / S, a0: 0.6, ease: 'cubic', delay: 50 });
+    this.burst('core', this.tex.spark, [c.spark, c.flash, c.side], at.x, at.y, Math.round(9 * b), { speed: 700 * b, dir: dir > 0 ? 0 : Math.PI, spread: 2.2, life: 380, size: 0.5, drag: 0.15, align: true, grav: 500 });
+    this.sparks(at.x, big ? 10 : 6);
   }
 
-  /** IV's EXPLOSION in the goal: a white-hot core, a fireball rolling up, a shock ring, embers. `k` scales it. */
-  private explosion(at: Pt, dir: Pt, k: number): void {
-    if (k <= 0) return;
-    const S = this.scale;
-    const c = this.colors;
-    const R = this.dR * k;
-    this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 220, from: (R * 0.6) / GLOW_PX / S, to: (R * 2.2) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.08 });
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + this.rnd() * 0.5;
-      const d = R * (0.2 + this.rnd() * 0.35);
-      this.spawn('glow', this.tex.glow, i % 3 ? c.blast : whiten(c.fire, 0.3), at.x + Math.cos(a) * d + dir.x * R * 0.2, at.y + Math.sin(a) * d + dir.y * R * 0.2, {
-        dur: 520 + this.rnd() * 220, from: (R * 0.7) / GLOW_PX / S, to: (R * (1.8 + this.rnd() * 0.8)) / GLOW_PX / S, a0: 0.75, mode: 'punch', peakAt: 0.12,
-        ease: 'cubic', vx: Math.cos(a) * 160 + dir.x * 120, vy: Math.sin(a) * 110 - 120 + dir.y * 120, drag: 0.2,
-      });
-    }
-    this.spawn('glow', this.tex.ring, c.blast, at.x, at.y, { dur: 520, from: (R * 0.5) / RING_PX / S, to: (R * 4.2) / RING_PX / S, a0: 0.8, ease: 'cubic', delay: 40 });
-    this.burst('core', this.tex.spark, [c.blast, c.flash, c.fire], at.x, at.y, Math.round(18 * k), { speed: 900 * k, life: 520, size: 0.6, drag: 0.15, align: true, grav: 400 });
+  /** IV: a car slams past the portrait: a small flash and a few sparks off the rail. */
+  buffet(at: Pt): void {
+    const S = this.scale, R = this.dR;
+    this.spawn('glow', this.tex.glow, this.colors.side, at.x, at.y, { dur: 200, from: (R * 0.8) / GLOW_PX / S, to: (R * 1.6) / GLOW_PX / S, a0: 0.3, mode: 'punch', peakAt: 0.2 });
+    this.sparks(at.x, 3);
   }
 
-  /** Confetti thrown up from a point, fluttering down. */
-  private confettiBurst(at: Pt, count: number): void {
-    const c = this.colors;
-    const tints = [c.confettiA, c.confettiB, c.side, 0xffffff];
-    for (let i = 0; i < Math.min(80, count); i++) {
-      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 2.8;
-      const sp = 300 + this.rnd() * 500;
-      this.spawn('body', this.tex.confetti, tints[i % tints.length]!, at.x, at.y - this.dR * 0.2, {
-        dur: 1000 + this.rnd() * 500, from: 1.1 + this.rnd() * 0.8, to: 1, a0: 1, mode: 'hold', ease: 'linear',
-        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 200, drag: 0.25, grav: 520, rot: this.rnd() * Math.PI, spin: (this.rnd() - 0.5) * 0.02, flip: 0.02,
-        delay: this.rnd() * 60,
-      });
-    }
-  }
-
-  /** A word popping in above a point and drifting up as it fades. */
-  private word(which: SoccerWord, at: Pt, strength: number, width: number): void {
-    if (this.look.wordSize <= 0) return;
-    const t = which === 'golazo' ? this.tex.wordGolazo : which === 'nutmeg' ? this.tex.wordNutmeg : which === 'ole' ? this.tex.wordOle : this.tex.wordGoal;
-    const S = this.scale;
-    const w = width * this.look.wordSize * Math.min(1.4, 0.8 + 0.25 * strength);
-    const k = w / WORD_W / S;
-    // Above the point; when that would leave the top of the screen (a foe tucked against the top), BELOW it instead.
-    const hh = w * (WORD_H / WORD_W);
-    const above = at.y - this.dR * 1.05;
-    const y = above - hh * 0.5 >= 12 ? above : at.y + this.dR * 1.1;
-    this.spawn('body', t, 0xffffff, at.x, y, { dur: 760, from: k * 0.55, to: k * 1.08, a0: 1, mode: 'hold', ease: 'quint', rot: -0.08, vy: y === above ? -40 : 30, drag: 0.4 });
-    this.spawn('glow', t, this.colors.side, at.x, y, { dur: 540, from: k * 0.6, to: k * 1.25, a0: 0.45, mode: 'punch', peakAt: 0.15, rot: -0.08 });
+  /** The last puff as the tail clears the portrait (a soft cloud left where the train was) and dust off the sleepers. */
+  lastPuff(at: Pt): void {
+    for (let i = 0; i < 4; i++) this.puff({ x: at.x + (this.rnd() - 0.5) * this.dR * 1.6, y: this.g.wheelY - this.dR * (0.5 + this.rnd() * 0.5) }, 1, 0.7);
+    this.dust({ x: at.x, y: this.g.wheelY }, 1.4);
   }
 }

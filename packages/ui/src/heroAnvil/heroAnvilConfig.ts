@@ -51,6 +51,9 @@ interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
   heroHopPx: number;
+  /** The most a struck portrait with no headroom ducks, in radii, and how much fall must show above it, in object heights. */
+  pullMax: number;
+  fallRoom: number;
   shadowAlpha: number;
   popHz: number;
   popTauMs: number;
@@ -73,6 +76,9 @@ interface GlobalConfig {
   sfxPianoClip: string; sfxPianoGain: number; sfxPianoRate: number;
   sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
   sfxPopClip: string; sfxPopGain: number; sfxPopRate: number;
+  /** The accordion spring-back, and the piano's loose keys clattering down. */
+  sfxBoingClip: string; sfxBoingGain: number; sfxBoingRate: number;
+  sfxKeysClip: string; sfxKeysGain: number; sfxKeysRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
@@ -80,7 +86,7 @@ interface GlobalConfig {
 export type HeroAnvilConfig = GlobalConfig & Record<LevelKey, number>;
 
 export const HERO_ANVIL_COLOR_KEYS = ['colorDust', 'colorSpark', 'colorShadow', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_ANVIL_CLIP_KEYS = ['sfxCueClip', 'sfxWhistleClip', 'sfxClangClip', 'sfxPianoClip', 'sfxThudClip', 'sfxPopClip'] as const;
+export const HERO_ANVIL_CLIP_KEYS = ['sfxCueClip', 'sfxWhistleClip', 'sfxClangClip', 'sfxPianoClip', 'sfxThudClip', 'sfxPopClip', 'sfxBoingClip', 'sfxKeysClip'] as const;
 export type HeroAnvilStrKey = (typeof HERO_ANVIL_COLOR_KEYS)[number] | (typeof HERO_ANVIL_CLIP_KEYS)[number];
 export type HeroAnvilNumKey = Exclude<keyof HeroAnvilConfig, HeroAnvilStrKey>;
 
@@ -90,16 +96,16 @@ const LEVEL_DEFAULTS: Record<AnvilLevelSuffix, [number, number]> = {
   FallMs: [480, 720],
   DropMs: [210, 250],
   HoldMs: [270, 350],
-  SettleMs: [470, 540],
+  SettleMs: [470, 600],
   Size: [1.9, 2.5],
   Shadow: [0.95, 1.7],
   Flat: [0.26, 0.17],
   Bulge: [0.42, 0.5],
-  Dust: [10, 18],
+  Dust: [10, 26],
   Keys: [0, 14],
-  Shake: [7, 13],
+  Shake: [8, 19],
   Zoom: [0.02, 0.035],
-  Punch: [0.02, 0.035],
+  Punch: [0.02, 0.045],
   Dim: [0.1, 0.22],
 };
 
@@ -127,6 +133,8 @@ export const HERO_ANVIL_DEFAULTS: HeroAnvilConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 180,
   heroHopPx: 10,
+  pullMax: 1,
+  fallRoom: 0.6,
   shadowAlpha: 0.8,
   popHz: 5.5,
   popTauMs: 95,
@@ -135,7 +143,7 @@ export const HERO_ANVIL_DEFAULTS: HeroAnvilConfig = {
   tipGravity: 2600,
   keySpeed: 760,
   keyGravity: 2300,
-  shakeMs: 300,
+  shakeMs: 380,
   zoomOutMs: 340,
   reducedFadeMs: 260,
   colorDust: '#d9cdb8',
@@ -143,12 +151,14 @@ export const HERO_ANVIL_DEFAULTS: HeroAnvilConfig = {
   colorShadow: '#05060a',
   colorPlayer: '#ffd76a',
   colorFoe: '#ff6a4d',
-  sfxCueClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxCueGain: 0.22, sfxCueRate: 2,
-  sfxWhistleClip: 'fx/anvil-whistle', sfxWhistleGain: 0.4, sfxWhistleRate: 1.3,
-  sfxClangClip: 'fx/anvil-clang', sfxClangGain: 0.7, sfxClangRate: 1,
-  sfxPianoClip: 'fx/anvil-piano', sfxPianoGain: 0.7, sfxPianoRate: 1,
-  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.3, sfxThudRate: 1.1,
-  sfxPopClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxPopGain: 0.2, sfxPopRate: 1.5,
+  sfxCueClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxCueGain: 0.55, sfxCueRate: 2,
+  sfxWhistleClip: 'fx/anvil-whistle', sfxWhistleGain: 0.9, sfxWhistleRate: 1.25,
+  sfxClangClip: 'fx/anvil-clang', sfxClangGain: 1.5, sfxClangRate: 1,
+  sfxPianoClip: 'fx/anvil-piano', sfxPianoGain: 1.4, sfxPianoRate: 1,
+  sfxThudClip: 'fx/heavy-rock-impact', sfxThudGain: 0.75, sfxThudRate: 0.7,
+  sfxPopClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxPopGain: 0.45, sfxPopRate: 1.5,
+  sfxBoingClip: 'fx/anvil-boing', sfxBoingGain: 0.6, sfxBoingRate: 1,
+  sfxKeysClip: 'fx/anvil-keys', sfxKeysGain: 0.9, sfxKeysRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -159,6 +169,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroAnvilStrKey>, [numbe
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
   heroHopPx: [0, 40, 1],
+  pullMax: [0, 2, 0.05],
+  fallRoom: [0, 1.5, 0.05],
   shadowAlpha: [0, 1, 0.01],
   popHz: [2, 12, 0.1],
   popTauMs: [30, 300, 5],
@@ -176,6 +188,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroAnvilStrKey>, [numbe
   sfxPianoGain: [0, 2, 0.05], sfxPianoRate: [0.5, 2.5, 0.01],
   sfxThudGain: [0, 2, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
   sfxPopGain: [0, 2, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
+  sfxBoingGain: [0, 2, 0.05], sfxBoingRate: [0.5, 2.5, 0.01],
+  sfxKeysGain: [0, 2, 0.05], sfxKeysRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -364,10 +378,37 @@ export function anvilSquashAt(p: AnvilPlan, c: HeroAnvilConfig, t: number): { sx
  */
 export function anvilRestOffset(sy: number): number { return 1 - 1.84 * sy; }
 
+const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
+
+// ─── the duck (pure) ─────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A struck portrait hard against the top of the screen leaves the drop no room: nearly all of the fall would be off
+ * screen and the object would have to be shrunk to fit. So the portrait DUCKS under the growing shadow: it sinks by
+ * `anvilPull` px while the thing falls, is flattened down there, and comes back up as it pops. This is how far: enough
+ * that `fallRoom` object heights of fall show above it, never more than `pullMax` radii, and 0 with headroom.
+ */
+export function anvilPull(defenderY: number, radius: number, objH: number, c: HeroAnvilConfig = store.get()): number {
+  const want = objH * c.fallRoom - (defenderY + radius * anvilRestOffset(1));
+  return clamp(want, 0, Math.max(0, c.pullMax) * radius);
+}
+
+/**
+ * How far into the duck the portrait is at `t` (0 at rest, 1 fully down): it sinks over the first half of the fall,
+ * stays down under the weight, and comes back up over the pop, reaching exactly 0 before the end. Pure.
+ */
+export function anvilPullAt(p: AnvilPlan, t: number): number {
+  if (p.reduced || t <= p.shadowAt) return 0;
+  if (t < p.popAt) return sine((t - p.shadowAt) / Math.max(1, p.fallMs * 0.5));
+  const v = (t - p.popAt) / Math.max(1, Math.min(320, (p.endAt - p.popAt) * 0.7));
+  if (v >= 1) return 0;
+  const r = (1 - v) * (1 - v) * (1 - v);
+  return r < ANVIL_REST_EPS ? 0 : r;
+}
+
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
-const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
 /**
  * The camera at sequence time `t`: a small push in through the cue and the fall, a punch and a straight DOWN shake on

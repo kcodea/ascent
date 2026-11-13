@@ -12,7 +12,7 @@ import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES } from '../heroBlast/heroAttackStyle';
 import {
-  ANVIL_REST_EPS, HERO_ANVIL_DEFAULTS, HERO_ANVIL_RANGES, anvilCameraAt, anvilCameraFocus, anvilCues, anvilDropMs, anvilLevel, anvilPlan,
+  ANVIL_REST_EPS, HERO_ANVIL_DEFAULTS, HERO_ANVIL_RANGES, anvilCameraAt, anvilCameraFocus, anvilCues, anvilDropMs, anvilLevel, anvilPlan, anvilPull, anvilPullAt,
   anvilRestOffset, anvilSquashAt, clampHeroAnvilValue, heroAnvilConfigJson, sanitizeHeroAnvilConfig, type HeroAnvilConfig, type HeroAnvilNumKey,
 } from './heroAnvilConfig';
 import { HeroAnvilScene, MAX_ANVIL_SPRITES, type HeroAnvilTextures } from './heroAnvilScene';
@@ -253,6 +253,7 @@ function expectRestored(r: ReturnType<typeof run>): void {
   expect(r.defenderEl.style.transform).toBe('rotate(2deg)');
   expect(r.defenderEl.style.opacity).toBe('0.9');
   expect(r.defenderEl.style.filter).toBe('saturate(1.1)');
+  expect(r.defenderEl.style.willChange).toBe('');
   expect(r.defenderEl.className).toBe('combatopp-body is-front');
   expect(r.attackerEl.className).toBe('');
   expect(r.camera.style.transform).toBe('');
@@ -278,7 +279,11 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.shadowRadius).toBeGreaterThan(r0);
     expect(h.scene!.objectState).toBe('fall');
     expect(h.scene!.objectKind).toBe('piano');
-    expect(defenderEl.style.transform).toBe('rotate(2deg)'); // untouched until the landing
+    // No headroom above this portrait: it has ducked under the shadow (moved, not yet squashed), on its own layer.
+    expect(h.pull).toBeGreaterThan(0);
+    const duck = /^translate\(0\.00px, ([\d.]+)px\) scale\(1\.0000, 1\.0000\)$/.exec(defenderEl.style.transform)!;
+    expect(+duck[1]!).toBeCloseTo(h.pull, 0);
+    expect(defenderEl.style.willChange).toBe('transform');
     const y0 = h.scene!.objectAt!.y;
     f.tick(p.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
@@ -296,7 +301,7 @@ describe('the runner (the shared clock)', () => {
     const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+), ([\d.]+)\)/.exec(defenderEl.style.transform)!;
     expect(+m[4]!).toBeLessThan(0.3);
     expect(+m[3]!).toBeGreaterThan(1.3);
-    expect(+m[2]!).toBeCloseTo(R * (1 - +m[4]!), 0); // the bottom edge of the round art stays put
+    expect(+m[2]!).toBeCloseTo(R * (1 - +m[4]!) + h.pull, 0); // the bottom edge of the round art stays put, down where it ducked
     expect(h.scene!.objectAt!.y).toBeGreaterThan(h.landY + R); // it followed the portrait down
     expect(h.scene!.shadowOn).toBe(false);
     // The pop: the piano is tossed off, the portrait springs up past its height.
@@ -336,7 +341,9 @@ describe('the runner (the shared clock)', () => {
         const { h, f, onImpact } = r;
         const tag = `${side} ${total}`;
         expect(h.startY, tag).toBeLessThan(0);
-        expect(h.landY, tag).toBeLessThan(d.y);
+        expect(h.landY, tag).toBeLessThan(d.y + h.pull);
+        if (side === 'opp') expect(h.pull, tag).toBe(0); // headroom above the struck hero: nobody ducks
+        else { if (total >= 12) expect(h.pull, tag).toBeGreaterThan(0); expect(h.pull, tag).toBeLessThanOrEqual(C.pullMax * R); } // the tall piano needs the room
         expect(h.landY, tag).toBeGreaterThanOrEqual(d.y - R);
         let peak = 0, sawFall = false;
         for (let t = 0; t < h.plan.popAt + 120; t += 8) {
@@ -356,6 +363,24 @@ describe('the runner (the shared clock)', () => {
         expectRestored(r);
       }
     }
+  });
+
+  it('THE DUCK: a portrait with no headroom sinks under the shadow so the drop has room, and the object keeps its full size', () => {
+    const p = anvilPlan({ total: 40, leadIn: 1000 }, C);
+    expect(anvilPullAt(p, p.shadowAt)).toBe(0);
+    expect(anvilPullAt(p, p.shadowAt + p.fallMs * 0.25)).toBeGreaterThan(0.2);
+    expect(anvilPullAt(p, p.dropAt)).toBe(1); // fully down before the thing comes into view
+    expect(anvilPullAt(p, p.impactAt + 10)).toBe(1);
+    expect(anvilPullAt(p, p.popAt + 100)).toBeLessThan(0.5);
+    expect(anvilPullAt(p, p.endAt)).toBe(0);
+    expect(anvilPull(800, R, 300, C)).toBe(0);
+    expect(anvilPull(70, R, 300, C)).toBeGreaterThan(0);
+    expect(anvilPull(-500, R, 300, C)).toBe(C.pullMax * R);
+    const { h, f, defenderEl } = run({ defender: { x: 1400, y: 150 }, total: 40, formation: formationOf([40], 40) });
+    expect(h.plan.size).toBe(C.bigSize); // not shrunk to fit
+    expect(h.landY).toBeGreaterThanOrEqual(R * 0.5); // real room for the foot to fall through
+    f.tick(h.plan.endAt + 3000, 16);
+    expect(defenderEl.style.transform).toBe('rotate(2deg)');
   });
 
   it('a portrait right at the top of the screen still gets a visible drop from off screen', () => {

@@ -185,11 +185,13 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-whip-snap-242215',
   ],
   anvil: [
+    'fx/anvil-boing',
     'fx/anvil-clang',
+    'fx/anvil-keys',
     'fx/anvil-piano',
     'fx/anvil-whistle',
+    'fx/heavy-rock-impact',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-ground-impact-352053',
   ],
   stamp: [
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',

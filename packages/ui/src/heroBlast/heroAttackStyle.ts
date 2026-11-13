@@ -124,61 +124,52 @@
  * hero (I one, II two, III five), and IV pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
- * `stamp` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Paid in Full (a Rare): a wooden-handled rubber stamp thunks down on the struck portrait and
- * leaves a wet ink seal on it (Small one stamp; Big an ink pad tap, then three crooked stamps), see `../heroStamp/`.
- *
- * `anvil` (LOOK OUT BELOW, a Rare) has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. The cartoon drop: a shadow grows on the struck portrait while a slide whistle falls, an
- * anvil (Small) or an upright piano (Big) drops from above the screen, the portrait squashes flat under it and pops
- * back like an accordion (`../heroAnvil/`).
- *
- * `glove` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. A Rare, "Sucker Punch": a boxing glove on a coil spring pops out of the hero, bops the target and retracts (Big: overshoot, sway, a second bop, circling stars), see `../heroGlove/`.
- *
- * `chess` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. CHECKMATE (an Epic, `../heroChess/`): chess pieces that move by their own rules on a faint
- * board beside the struck hero. A pawn hops up its file and captures diagonally; a knight makes its L-shaped jump onto
- * the portrait; a queen sweeps the long diagonal, the struck side's king tips over and CHECKMATE sets.
- *
- * `fireworks` ("Grand Finale", an Epic) has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Fireworks, never flame: a bottle rocket squeals off a stick and pops in one colour; a roman
- * candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD BEAT of quiet, then
- * a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
- *
- * `chord` (Power Chord, an Epic: a musical staff strung between the heroes, a note or a three-note chord riding it,
- * and on its Big look a speaker stack whose bass wave bends the staff and blows the struck portrait back) is IN PROGRESS
- * and has NO cosmetic yet, so no player can equip it; it plays only through the dev "Attack style" override. See
- * `../heroChord/`.
- *
- * `wrestle` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroWrestle/`.
- *
- * `combo` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `baseball` (`npm run attack:new`), see `../heroCombo/`.
- *
- * `pinball` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. The board becomes a pinball table (flipper, bumpers, ramp, jackpot), see `../heroPinball/`.
- *
- * `warhost` ("Warhost", the Ancient of War; ANCIENT, four looks) has NO cosmetic yet, so no player can equip it; it plays
- * only through the dev "Attack style" override. AN ARMY OF TINY SOLDIERS in red and brass delivers the blow: I one spearman
- * and his thrown spear; II a rank of archers and an arrow rain; III a cavalry wedge riding through the struck portrait;
- * IV war drums, a horn, banners, the whole host flooding over it and one soldier planting a banner on it. See `../heroWarhost/`.
- *
- * `reaping` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. THE REAPING (the Ancient of Death, an Ancient): what the scythe cuts is COLOUR. A blade of
- * teal light drains the struck portrait to grey along the cut (a strip, half, all of it under one great falling crescent), and the
- * top look drains the whole screen to monochrome before colour floods back to all but the loser. See `../heroReaping/`.
- *
- * `glass` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. "Fourth Wall" (Ancient): the SCREEN is a pane of glass and the blow breaks it (a chip, a
- * web, a pane that falls out, then the whole view shatters and falls away), see `../heroGlass/`.
- *
- * `stars` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. "Written in the Stars" (Ancient): CONSTELLATIONS. The board dims to a night sky and thin
- * lines join stars one by one into a figure that comes alive and strikes: I an arrow; II a bow that draws; III an archer;
- * IV the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
- * (`../heroStars/`).
+ * THE DEV-ONLY BATCH OF THIRTEEN (2026-11-12, `docs/devlog/2026-11-12-hero-attacks-batch-of-thirteen.md`). Like `void`,
+ * each of these is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
+ * "Attack style" override. The names and rarities are the builders' working ones, for the owner to rename:
+ *  - `stamp` ("Paid in Full", a Rare): a wooden-handled rubber stamp thunks down on the struck portrait and leaves a
+ *    wet ink seal on it (a skull on a knockout). Small one stamp; Big an ink pad tap, then three crooked stamps
+ *    (`../heroStamp/`).
+ *  - `anvil` ("Look Out Below", a Rare): the cartoon drop. A shadow grows on the struck portrait while a slide whistle
+ *    falls, an anvil (Small) or an upright piano (Big) drops from above the screen, and the portrait squashes flat
+ *    under it and pops back like an accordion (`../heroAnvil/`).
+ *  - `glove` ("Sucker Punch", a Rare): a boxing glove on a coil spring pops out of a hatch on the hero, bops the target
+ *    and retracts. Big winds back, overshoots, sways and bops a second time, and stars circle the struck head
+ *    (`../heroGlove/`).
+ *  - `chess` ("Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
+ *    A pawn hops up its file and captures diagonally; a knight makes its L-shaped jump onto the portrait; a queen
+ *    sweeps the long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
+ *  - `fireworks` ("Grand Finale", an Epic): fireworks, never flame. A bottle rocket squeals off a stick and pops in one
+ *    colour; a roman candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD
+ *    BEAT of quiet, then a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
+ *  - `chord` ("Power Chord", an Epic): visible sound. A five-line musical staff is strung between the heroes; one note
+ *    rides it, then a three-note chord, and on the Big look a speaker stack whose bass wave bends the staff and blows
+ *    the struck portrait back (`../heroChord/`).
+ *  - `wrestle` ("Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
+ *    about: I a chop; II a lift and a body slam; III an elbow drop from off the top of the screen under a spotlight;
+ *    IV ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell (`../heroWrestle/`).
+ *  - `combo` ("Flawless", a Legendary): an arcade fighting game combo with a HUD. The striker steps in beside the
+ *    target and a combo counter ticks up to the blow's real damage: I a jab; II a three-hit string; III a launcher, an
+ *    air juggle and a spike; IV a super freeze with input glyphs, a 14-hit flurry, one heavy blow and "K.O."
+ *    (`../heroCombo/`).
+ *  - `pinball` ("Multiball", a Legendary): the board becomes a pinball table and the blow is a chrome ball. I a flipper
+ *    shot; II the ball rattles round three pop bumpers; III a ramp, a loop and a three-ball multiball; IV a tilt, then
+ *    JACKPOT reels that stop on the damage of the blow (`../heroPinball/`).
+ *  - `warhost` ("Warhost", the Ancient of War; an Ancient): an army of tiny soldiers in red and brass delivers the
+ *    blow. I one spearman and his thrown spear; II a rank of archers and an arrow rain; III a cavalry wedge riding
+ *    through the struck portrait; IV war drums, a horn, banners, the whole host flooding over it and one soldier
+ *    planting a banner on it (`../heroWarhost/`).
+ *  - `reaping` ("The Reaping", the Ancient of Death; an Ancient): what the scythe cuts is COLOUR. A blade of teal light
+ *    drains the struck portrait to grey along the cut (a strip, half, then all of it under one great falling
+ *    crescent), and the top look drains the whole screen to monochrome before colour floods back to all but the loser
+ *    (`../heroReaping/`).
+ *  - `glass` ("Fourth Wall", an Ancient): the SCREEN is a pane of glass and the blow breaks it. I a chip; II a spider
+ *    web; III a pane that breaks out and falls away; IV a punch on the glass and the whole view shatters and falls
+ *    (`../heroGlass/`).
+ *  - `stars` ("Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
+ *    stars one by one into a figure that comes alive and strikes: I an arrow; II a bow that draws; III an archer; IV
+ *    the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
+ *    (`../heroStars/`).
  *
  * The style is the ATTACKER's: the equipped item recorded in the striking player's cosmetic snapshot (yours when you
  * win; the foe's seat snapshot when they win, and only while "Show opponent cosmetics" is on). The catalog item names

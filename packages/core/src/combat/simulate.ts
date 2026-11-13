@@ -4413,23 +4413,26 @@ export function simulate(
   }
 
   // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, reworked 2026-11-13): the rune-damage runes ──
-  /** HELLFIRE's volley: 1 damage to every living enemy of `demon`'s side, DEALT BY THAT DEMON (owner 2026-11-13:
-   *  "Hellfire only counts as Demon damage"). The Fel Spikes spray shape (`sprayDamageExceptFriendlyTribe`): every hit
-   *  lands first, with its `friendlyDemonDealtDamage` reactions QUEUED (R-DEMON-DMG-DEATH-01), then the queue flushes
-   *  in hit order (one reaction per LANDED hit: Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins), then each
-   *  felled body dies in board order, the Demon credited as its killer. Because the Demon is the dealer, each landed
-   *  hit also advances that Demon's Pummel meter and an Execute Demon executes what it lands on (its venom spends on
-   *  the first landed hit, exactly as a spray's). The death half's dealer is the dying Demon, as Fel Spikes' Echo. No
-   *  presentation wave is opened: the volley keeps its own Hellfire beat. */
-  function hellfireVolley(demon: Minion): void {
-    const foes = living(OTHER[demon.side]);
+  /** A rune volley DEALT BY a minion (owner 2026-11-13: Hellfire, Pitchforks and Imp Legion are Demon damage): `amount`
+   *  to each of `targets`, the Fel Spikes spray shape (`sprayDamageExceptFriendlyTribe`). Every hit lands first, with
+   *  its `friendlyDemonDealtDamage` reactions QUEUED (R-DEMON-DMG-DEATH-01), then the queue flushes in hit order (one
+   *  reaction per LANDED hit: Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins), then each felled body dies in
+   *  order, the dealer credited as its killer. Because the dealer is the source, each landed hit also advances its
+   *  Pummel meter and an Execute dealer executes what it lands on (its venom spends on the first landed hit, exactly as
+   *  a spray's). A dead dealer (a dying Demon) deals it the same way, as Fel Spikes' Echo. No presentation wave is
+   *  opened: the volley keeps its rune's own beat. */
+  function sourcedVolley(dealer: Minion, targets: Minion[], amount: number): void {
     const outerQueue = demonReactQueue;
     demonReactQueue = [];
     try {
-      for (const t of foes) applyDamage(t, HELLFIRE_DAMAGE, false, false, demon);
+      for (const t of targets) applyDamage(t, amount, false, false, dealer);
       flushDemonReactions(); // the volley's reactions land BEFORE its death checks, as a spray's
     } finally { demonReactQueue = outerQueue; }
-    for (const t of foes) if (isFelled(t)) killOrReborn(t, demon);
+    for (const t of targets) if (isFelled(t)) killOrReborn(t, dealer);
+  }
+  /** HELLFIRE's volley: 1 damage to every living enemy, DEALT BY `demon` (the swinging or the dying Demon). */
+  function hellfireVolley(demon: Minion): void {
+    sourcedVolley(demon, living(OTHER[demon.side]), HELLFIRE_DAMAGE);
   }
   /** HELLFIRE: one volley per copy held, each its own beat, dealt by `demon` (the swinging or the dying Demon). */
   function runeHellfire(demon: Minion): void {
@@ -5599,7 +5602,8 @@ export function simulate(
   }
   /** PITCHFORKS: "Imps deal 3 damage to 2 enemies when summoned." Every friendly Imp arrival (a token, a Rise return, a
    *  resummon: the summon-entry chokepoint), per copy held: 2 DIFFERENT random living enemies, picked up front, each hit
-   *  by the Imp (it is the source, so Demon-damage watchers hear it). No enemy: nothing. */
+   *  by the Imp. DEMON DAMAGE (owner 2026-11-13): one copy's throw is a `sourcedVolley` (the Fel Spikes spray rule:
+   *  both hits land, one Demon-damage reaction per landed hit, then the deaths, the Imp credited). No enemy: nothing. */
   function pitchforksOnSummon(minion: Minion, side: Side): void {
     if (!modsFor(side).runePitchforks || minion.side !== side || minion.dead || !cards[minion.cardId]?.imp) return;
     const foe: Side = side === 'player' ? 'enemy' : 'player';
@@ -5610,7 +5614,7 @@ export function simulate(
       for (let i = 0; i < SET2_TRIBAL_RUNES.pitchforksTargets && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
       nextStep();
       fireTrigger('runePitchforks', side);
-      for (const t of picks) if (!t.dead && t.health > 0) ctx.damage(t, SET2_TRIBAL_RUNES.pitchforksDamage, false, false, minion);
+      sourcedVolley(minion, picks.filter((t) => !t.dead && t.health > 0), SET2_TRIBAL_RUNES.pitchforksDamage);
     }
   }
   /** BLOODSCENT + TROPHY HUNTER: `killer` (an attacker) just killed an opponent's minion (a Slaughter, the Rune of the

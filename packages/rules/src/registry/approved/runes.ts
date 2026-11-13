@@ -2985,17 +2985,21 @@ export const RUNES_RULES: GameRule[] = [
       'Pitchforks: every friendly Imp summoned (a token, a Rise return, a resummon) deals 3 damage to 2 different random '
       + 'enemies, per copy, the Imp as the source. Imp Legion: every friendly Imp (board, hand and combat summons) carries '
       + '"Echo: deal 3 damage to the lowest-Health enemy" (ties: the left-most; one hit per copy; a Gilded Imp is not '
-      + 'doubled). The Shop has no enemies, so both are inert there by membership.',
+      + 'doubled). The Shop has no enemies, so both are inert there by membership. DEMON DAMAGE (owner 2026-11-13): the Imp '
+      + 'deals both (the dying Imp deals the Imp Legion Echo), each counted like a Fel Spikes spray: one friendly-Demon-damage '
+      + 'reaction per LANDED hit (Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins), the Imp\'s Pummel and Execute, '
+      + 'and its kill is a minion kill for Wildfire. One Pitchforks throw lands both hits, then the reactions, then the deaths.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (Pitchforks cost 4 at 3 damage to 2 enemies)', quote: 'Imps deal 3 damage to 2 enemies when summoned.' },
-      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts pitchforksOnSummon; packages/core/src/effects/arena.ts deathrattleDamageLowestEnemy' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts pitchforksOnSummon + sourcedVolley; packages/core/src/effects/arena.ts deathrattleDamageLowestEnemy (combat factory passes the dying Imp as source)' },
+      { kind: 'owner-chat', ref: 'owner ruling 2026-11-13 (via coordinator)', quote: 'What about pitchforks and imp legion? Those should also count as demon damage' },
     ],
     contentIds: ['rune_pitchforks', 'rune_imp_legion'],
     currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The doc assumed Pitchforks also fires in the Shop; the arena rule that the Shop has no enemies makes it a no-op there.',
     example: 'An Imp summoned by an Echo picks two different enemies and deals 3 to each.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts', 'packages/sim/src/set2RunesCombined.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
   {
     id: 'R-SET2-TRIBAL-RUNES-05',
@@ -3124,7 +3128,7 @@ export const RUNES_RULES: GameRule[] = [
   {
     id: 'R-SET2-EPIC-TRIBAL-1112-04',
     title: 'Hellfire is Demon damage dealt by the Demon; Wildfire turns a friendly minion\'s kill into one sourceless hit',
-    statement: 'Hellfire (Epic Demon, 3): a friendly Demon\'s swing (as it winds up) and a friendly Demon\'s death (a Rise death included) each deal 1 damage to every enemy minion, once per copy, DEALT BY THAT DEMON (the dying Demon for the death half). It is Demon damage, counted exactly like one Fel Spikes spray: every hit lands, then one friendly-Demon-damage reaction per LANDED hit (Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins) in hit order, then the deaths, the Demon credited as killer. Each landed hit advances that Demon\'s Pummel, and an Execute Demon executes what it lands on (its venom spends on the first landed hit). Wildfire (Epic Demon, 4): when an enemy minion dies and the hit that felled it was dealt by a minion on the rune\'s side (an attack, a retaliation, Cleave, a sourced Echo / Rally / Bleed, Pitchforks, a Hellfire volley; the dealer may itself be dead), deal the dead enemy\'s Attack as it died to ONE random living enemy minion (seeded). 3 times per combat per copy. Wildfire\'s own hit has no minion source, so it never chains, and it is not Demon damage. A sourceless kill (a rune volley, a spell, an arena-routed Echo such as Imp Legion\'s), a destroy, a 0-Attack death or an empty enemy board spends no use.',
+    statement: 'Hellfire (Epic Demon, 3): a friendly Demon\'s swing (as it winds up) and a friendly Demon\'s death (a Rise death included) each deal 1 damage to every enemy minion, once per copy, DEALT BY THAT DEMON (the dying Demon for the death half). It is Demon damage, counted exactly like one Fel Spikes spray: every hit lands, then one friendly-Demon-damage reaction per LANDED hit (Rad Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins) in hit order, then the deaths, the Demon credited as killer. Each landed hit advances that Demon\'s Pummel, and an Execute Demon executes what it lands on (its venom spends on the first landed hit). Wildfire (Epic Demon, 4): when an enemy minion dies and the hit that felled it was dealt by a minion on the rune\'s side (an attack, a retaliation, Cleave, a sourced Echo / Rally / Bleed, Pitchforks, Imp Legion\'s Echo, a Hellfire volley; the dealer may itself be dead), deal the dead enemy\'s Attack as it died to ONE random living enemy minion (seeded). 3 times per combat per copy. Wildfire\'s own hit has no minion source, so it never chains, and it is not Demon damage. A sourceless kill (a rune volley without a dealer, a spell), a destroy, a 0-Attack death or an empty enemy board spends no use.',
     domain: 'runes',
     status: 'approved',
     evidence: [

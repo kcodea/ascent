@@ -2332,6 +2332,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     // An aura-style graft (the Echoing Kobolds shape): every friendly Imp carries the Echo, board, hand and combat summons.
+    // The dying Imp deals the hit, so it is Demon damage (owner 2026-11-13), and Pitchforks' hits are the Imp's too.
     id: 'rune_imp_legion',
     tribes: ['demon'],
     name: 'Imp Legion',

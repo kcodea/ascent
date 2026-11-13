@@ -96,3 +96,20 @@ export function anchorsForUnits(sourceUid: string | null, targetUid: string | nu
     viewport: { w: window.innerWidth, h: window.innerHeight },
   });
 }
+
+/**
+ * Anchors from a REMEMBERED source rect to a live target unit: a source that has already left the board (a dying
+ * body whose effect fires a beat later, R-RUNE-SPIKE-FX-01's Wildfire spreading out of the enemy that died) still
+ * launches from where it stood. Null when the target is not on screen.
+ */
+export function anchorsFromRectToUnit(source: RectLike, targetUid: string): FxAnchors | null {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return null;
+  const targetEl = document.querySelector(unitSelector(targetUid));
+  if (targetEl === null) return null;
+  return combatAnchorsFromRects({
+    source,
+    target: targetEl.getBoundingClientRect(),
+    row: targetEl.closest('.row')?.getBoundingClientRect() ?? null,
+    viewport: { w: window.innerWidth, h: window.innerHeight },
+  });
+}

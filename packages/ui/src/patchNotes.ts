@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-13',
     changes: [
       {
+        category: 'Systems',
+        text: 'Pitchforks, Imp Legion, Hellfire, Wildfire and Mirror Sheen now throw fel spikes at the enemies they hit, and the damage lands as the spikes connect.',
+      },
+      {
         category: 'Balance',
         text: 'Traveling Salesman now offers a Golden minion when it is the only copy you control. It used to leave Golden minions out.',
       },

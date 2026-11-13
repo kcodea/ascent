@@ -446,7 +446,22 @@ export function simulate(
   const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); if (engraveKwScan) engraveKwScan(); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
-  const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
+  const fireTrigger = (flag: string, side: Side, from?: string): void => emit({ type: 'questTrigger', flag, side, ...(from !== undefined ? { from } : {}) });
+  /** RUNE HIT IDENTITY (R-RUNE-SPIKE-FX-01, owner 2026-11-13: "for pitchforks and other similar runes/effects, use
+   *  the fel spikes animation"). After a rune's own damage call on `target` (begun at log index `from`), stamp the
+   *  hit's own event (its `dmg`, or the Ward pop that absorbed it) with `key: 'rune:<id>:hit'` + `srcCard: <id>`, so
+   *  the replay can tell exactly which hits are the rune's and play its authored effect on them. Only that ONE event
+   *  is stamped: anything the hit cascaded into (a death, an Echo, another rune) keeps its own identity. Presentation
+   *  metadata only; resolution never reads it. */
+  const tagRuneHit = (runeId: string, target: Minion, from: number): void => {
+    for (let i = from; i < events.length; i++) {
+      const e = events[i]!;
+      if ((e.type === 'dmg' || e.type === 'shield' || e.type === 'wardDowngrade') && e.target === target.uid) {
+        events[i] = { ...e, key: `rune:${runeId}:hit`, srcCard: runeId };
+        return;
+      }
+    }
+  };
   /** Rune of Unbroken Scales: fires per side per combat, and the presentation key its re-formed Ward carries. */
   const UNBROKEN_SCALES_PER_COMBAT = 2;
   const UNBROKEN_SCALES_KEY = 'rune:runeUnbrokenScales';
@@ -4417,17 +4432,26 @@ export function simulate(
   /** One rune volley: `amount` damage to every living enemy of `side`, all hits landing before any death resolves (the
    *  attack exchange's two phases), then each felled body dies in board order. No minion source: the RUNE deals it,
    *  so it is not Demon damage (Ruins, Rad Rachel), feeds no Pummel meter and never Executes. */
-  function runeVolley(side: Side, amount: number): void {
+  function runeVolley(side: Side, amount: number, runeId: string): void {
     const foes = living(OTHER[side]);
-    for (const t of foes) applyDamage(t, amount, false, false);
+    // The hits are ONE presentation wave (R-RUNE-SPIKE-FX-01): the whole volley, and any reaction a victim's own
+    // `onDamaged` emits while it lands, is one beat (one spray), the way a Fel Spikes pass is. Tag ONLY: `waveN` alone,
+    // not `withWave`, so no Demon-reaction queueing changes how anything resolves (the volley has no dealer anyway).
+    // The deaths below stay outside it, so whatever they set off keeps its own beats.
+    const prevWave = waveN;
+    waveN = ++waveSeq;
+    try {
+      for (const t of foes) { const at = events.length; applyDamage(t, amount, false, false); tagRuneHit(runeId, t, at); }
+    } finally { waveN = prevWave; }
     for (const t of foes) if (isFelled(t)) killOrReborn(t);
   }
-  /** HELLFIRE: 1 damage to all enemies, once per copy held, each volley its own beat. */
-  function runeHellfire(side: Side): void {
+  /** HELLFIRE: 1 damage to all enemies, once per copy held, each volley its own beat. `demon` is the Demon that
+   *  attacked or died: the volley's presentation source (`from` on the trigger), never a damage source. */
+  function runeHellfire(side: Side, demon: Minion): void {
     for (let k = 0; k < flagCopiesOf(side, 'runeHellfire'); k++) {
       if (living(OTHER[side]).length === 0) break;
-      nextStep(); fireTrigger('runeHellfire', side);
-      runeVolley(side, HELLFIRE_DAMAGE);
+      nextStep(); fireTrigger('runeHellfire', side, demon.uid);
+      runeVolley(side, HELLFIRE_DAMAGE, 'rune_hellfire');
     }
   }
   /** Every death path's rune-damage watchers (a Rise / Rebirth death is a real death, R-DEATH-RETURN-01):
@@ -4437,12 +4461,13 @@ export function simulate(
   function runeFireOnDeath(minion: Minion): void {
     const byAttack = lethalByAttack.get(minion.uid);
     lethalByAttack.delete(minion.uid);
-    if (modsFor(minion.side).runeHellfire && isTribeOf(minion, 'demon', cards)) runeHellfire(minion.side);
+    if (modsFor(minion.side).runeHellfire && isTribeOf(minion, 'demon', cards)) runeHellfire(minion.side, minion);
     const owner = OTHER[minion.side];
     if (byAttack === false && wildfireLeft[owner] > 0 && living(minion.side).length > 0) {
       wildfireLeft[owner] -= 1;
-      nextStep(); fireTrigger('runeWildfire', owner);
-      runeVolley(owner, WILDFIRE_DAMAGE);
+      // `from` = the enemy that just died: the fire spreads out of its body (presentation only).
+      nextStep(); fireTrigger('runeWildfire', owner, minion.uid);
+      runeVolley(owner, WILDFIRE_DAMAGE, 'rune_wildfire');
     }
   }
   /** The Avenge-paced side watchers (deaths[side] % N), called right after `emitAvenge` on every death path. The
@@ -4926,7 +4951,7 @@ export function simulate(
       // HELLFIRE (Set 2 Epic Demon rune, owner 2026-11-12), the attack half: "When a Demon attacks, deal 1 damage to all
       // enemies." As the swing winds up (the Rally moment). The rune deals it, so it can fell the target first: the
       // swing is then spent (the dead-target rule below).
-      if (modsFor(attacker.side).runeHellfire && !attacker.dead && isTribeOf(attacker, 'demon', cards)) runeHellfire(attacker.side);
+      if (modsFor(attacker.side).runeHellfire && !attacker.dead && isTribeOf(attacker, 'demon', cards)) runeHellfire(attacker.side, attacker);
       // DEEP BREATHS (Set 3 Dragon runes, owner 2026-10-21): each of the side's first 2 Dragon swings this fight casts
       // Growth, once per copy (a real rune cast through the attacker; Windfury swings count as attacks, as for Rallies).
       if (modsFor(attacker.side).runeDeepBreaths && !attacker.dead && isTribeOf(attacker, 'dragon', cards)
@@ -5600,8 +5625,13 @@ export function simulate(
       const picks: Minion[] = [];
       for (let i = 0; i < SET2_TRIBAL_RUNES.pitchforksTargets && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
       nextStep();
-      fireTrigger('runePitchforks', side);
-      for (const t of picks) if (!t.dead && t.health > 0) ctx.damage(t, SET2_TRIBAL_RUNES.pitchforksDamage, false, false, minion);
+      fireTrigger('runePitchforks', side, minion.uid);
+      for (const t of picks) {
+        if (t.dead || t.health <= 0) continue;
+        const at = events.length;
+        ctx.damage(t, SET2_TRIBAL_RUNES.pitchforksDamage, false, false, minion);
+        tagRuneHit('rune_pitchforks', t, at);
+      }
     }
   }
   /** BLOODSCENT + TROPHY HUNTER: `killer` (an attacker) just killed an opponent's minion (a Slaughter, the Rune of the
@@ -7515,11 +7545,14 @@ export function simulate(
         if (side !== wside || activeMember[wside] !== member || minion.dead || minion.health <= 0 || minion.attack <= 0) return;
         const foe: Side = wside === 'player' ? 'enemy' : 'player';
         if (living(foe).length === 0) return;
-        fireTrigger('runeMirrorSheen', wside);
+        fireTrigger('runeMirrorSheen', wside, minion.uid);
         for (let k = 0; k < flagCopiesOf(wside, 'runeMirrorSheen'); k++) {
           const targets = living(foe).filter((t) => t.health > 0);
           if (targets.length === 0 || minion.dead || minion.health <= 0) break;
-          ctx.damage(targets[rng.int(targets.length)]!, minion.attack, false, false, minion);
+          const t = targets[rng.int(targets.length)]!;
+          const at = events.length;
+          ctx.damage(t, minion.attack, false, false, minion);
+          tagRuneHit('rune_mirror_sheen', t, at);
         }
       });
     }

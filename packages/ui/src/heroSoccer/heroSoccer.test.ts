@@ -46,7 +46,7 @@ const inFrame = (p: { x: number; y: number }, f = FRAME, m = 0) => p.x >= f.x0 +
 const VARIANTS: SoccerVariant[] = [1, 2, 3];
 
 describe('the tiers: the shared four onto the four moves', () => {
-  it('uses the shared thresholds; I volley, II corner, III breakaway, IV bicycle kick; a knockout plays the bicycle kick', () => {
+  it('uses the shared thresholds; Tier 1 volley, Tier 2 corner, Tier 3 breakaway, Tier 4 bicycle kick; a knockout plays the bicycle kick', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(soccerKind(tierOf(d)));
     expect([1, 2, 3, 4].map((t) => soccerKind(t as 1 | 2 | 3 | 4))).toEqual(['volley', 'corner', 'breakaway', 'bicycle']);
@@ -109,7 +109,7 @@ describe('the plan', () => {
     }
   });
 
-  it('I THE VOLLEY: keepy-uppies where it stands, a higher flick, the hop and the volley, then the goal', () => {
+  it('Tier 1 THE VOLLEY: keepy-uppies where it stands, a higher flick, the hop and the volley, then the goal', () => {
     const p = plan(3);
     expect(p.kind).toBe('volley');
     expect(p.touches).toHaveLength(C.t1Touches);
@@ -119,7 +119,7 @@ describe('the plan', () => {
     expect(p.homeEnd).toBe(p.homeAt); // it never leaves its slot
   });
 
-  it('II THE CORNER: the jog to the flag, the set, the run-up, the kick; the header meets the cross before the goal; the one-two comes back before the curler', () => {
+  it('Tier 2 THE CORNER: the jog to the flag, the set, the run-up, the kick; the header meets the cross before the goal; the one-two comes back before the curler', () => {
     const p1 = plan(8, { variant: 1 }), p2 = plan(8, { variant: 2 }), p3 = plan(8, { variant: 3 });
     for (const p of [p1, p2, p3]) {
       expect(p.kind).toBe('corner');
@@ -136,7 +136,7 @@ describe('the plan', () => {
     expect(p3.returnAt!).toBeLessThan(p3.strikeAt);
   });
 
-  it('III THE BREAKAWAY: the run with its touches, a beat at each defender in order, the last touch and the finish', () => {
+  it('Tier 3 THE BREAKAWAY: the run with its touches, a beat at each defender in order, the last touch and the finish', () => {
     const p = plan(14);
     expect(p.kind).toBe('breakaway');
     expect(p.beats).toHaveLength(C.defenders);
@@ -145,7 +145,7 @@ describe('the plan', () => {
     expect(p.strikeAt).toBeGreaterThanOrEqual(p.approachEnd);
   });
 
-  it('IV THE BICYCLE KICK: the flick sky high, the sprint, the crouch, the leap; the kick at the top of the leap; the landing, the knee slide, home', () => {
+  it('Tier 4 THE BICYCLE KICK: the flick sky high, the sprint, the crouch, the leap; the kick at the top of the leap; the landing, the knee slide, home', () => {
     const p = plan(40);
     expect(p.kind).toBe('bicycle');
     expect(p.flickAt!).toBeLessThan(p.approachAt);
@@ -208,7 +208,7 @@ describe('the geometry', () => {
 });
 
 describe('the pose and the ball', () => {
-  it('I: juggled up off the feet and back, in the air at the volley, then the ball flies at the goal', () => {
+  it('Tier 1: juggled up off the feet and back, in the air at the volley, then the ball flies at the goal', () => {
     const x = ctx(3);
     const { p } = x;
     const t0 = p.touches[0]!;
@@ -218,7 +218,7 @@ describe('the pose and the ball', () => {
     expect(soccerBall(x, (p.strikeAt + p.impactAt) / 2).flying).toBe(true);
   });
 
-  it('II: the portrait jogs to the corner; the Olimpico BENDS (it leaves the straight line); the header leaps to the ball; the one-two goes off screen and back', () => {
+  it('Tier 2: the portrait jogs to the corner; the Olimpico BENDS (it leaves the straight line); the header leaps to the ball; the one-two goes off screen and back', () => {
     const x1 = ctx(8, 1);
     const at = soccerPose(x1.p, x1.segs, C, x1.p.approachEnd + 1);
     expect(dist({ x: A.x + at.x, y: A.y + at.y }, x1.g.corner)).toBeLessThan(2);
@@ -239,7 +239,7 @@ describe('the pose and the ball', () => {
     expect(inFrame(soccerBall(x3, x3.p.returnAt! - 1))).toBe(true);
   });
 
-  it('III: the portrait goes ROUND each defender (not through it); the nutmeg rolls the ball straight through it; the rainbow lifts it over', () => {
+  it('Tier 3: the portrait goes ROUND each defender (not through it); the nutmeg rolls the ball straight through it; the rainbow lifts it over', () => {
     for (const v of VARIANTS) {
       const x = ctx(14, v);
       const { p, g } = x;
@@ -257,10 +257,10 @@ describe('the pose and the ball', () => {
       expect(defenderAt(p, g, 0, R, p.endAt - 1).alpha).toBeLessThan(0.01);
     }
     const p1 = plan(8);
-    expect(defenderAt(p1, soccerGeo(A, D, R, R, FRAME, C), 0, R, p1.startAt + 200).visible).toBe(false); // III only
+    expect(defenderAt(p1, soccerGeo(A, D, R, R, FRAME, C), 0, R, p1.startAt + 200).visible).toBe(false); // Tier 3 only
   });
 
-  it('IV: the ball goes sky high (bigger, higher than the portrait), comes down onto the contact, the flip is upside down at the kick, and the thunderbolt burns', () => {
+  it('Tier 4: the ball goes sky high (bigger, higher than the portrait), comes down onto the contact, the flip is upside down at the kick, and the thunderbolt burns', () => {
     const x = ctx(40);
     const { p, g } = x;
     const up = soccerBall(x, (p.flickAt! + p.strikeAt) / 2);
@@ -276,7 +276,7 @@ describe('the pose and the ball', () => {
     expect(Math.abs(l.rot % 360)).toBeLessThan(1);
   });
 
-  it('the goal shows before the shot lands, bulges on the impact and springs back; the flag is II\'s only; the camera pushes in on IV', () => {
+  it('the goal shows before the shot lands, bulges on the impact and springs back; the flag is Tier 2\'s only; the camera pushes in on Tier 4', () => {
     for (const total of [3, 8, 14, 40]) {
       const p = plan(total);
       expect(goalAt(p, p.impactAt - 10).alpha, `${total}`).toBeGreaterThan(0.9);
@@ -296,7 +296,7 @@ describe('the pose and the ball', () => {
   });
 });
 
-describe('variety (II rolls a corner, III a skill; rolled per blow)', () => {
+describe('variety (Tier 2 rolls a corner, Tier 3 a skill; rolled per blow)', () => {
   it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
     const seen = new Set<number>();
     for (let s = 0; s < 60; s++) { expect(variantOf(s, C)).toBe(variantOf(s, C)); seen.add(variantOf(s, C)); }
@@ -305,8 +305,8 @@ describe('variety (II rolls a corner, III a skill; rolled per blow)', () => {
   });
 });
 
-describe('slow mo (III on the last touch, IV on the bicycle kick; a smooth ramp, never a freeze)', () => {
-  it('III slows around the finish and IV around the contact, then IV runs a touch fast as the thunderbolt flies; never 0; I and II never slow', () => {
+describe('slow mo (Tier 3 on the last touch, Tier 4 on the bicycle kick; a smooth ramp, never a freeze)', () => {
+  it('Tier 3 slows around the finish and Tier 4 around the contact, then Tier 4 runs a touch fast as the thunderbolt flies; never 0; Tiers 1 and 2 never slow', () => {
     const p3 = plan(14), p4 = plan(40);
     expect(soccerTimeScale(p3, C, p3.strikeAt)).toBeCloseTo(C.breakSlow, 2);
     expect(soccerTimeScale(p4, C, p4.strikeAt)).toBeCloseTo(C.bikeSlow, 2);
@@ -376,7 +376,7 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
 describe('the runner (the shared clock, the portrait restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the flick, the sprint and the contact never land it; the blow lands ONCE in the net; the portrait moved, raised, and is put back EXACTLY at the end', () => {
+  it('Tier 4: the flick, the sprint and the contact never land it; the blow lands ONCE in the net; the portrait moved, raised, and is put back EXACTLY at the end', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, f, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hsoccer')).not.toBeNull();
@@ -481,7 +481,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
     expect(r.attackerEl.style.transform).toBe('translateX(3px)');
   });
 
-  it('the same rollSeed rolls the same variation (a replay); the clock really slows on IV and still lands once', () => {
+  it('the same rollSeed rolls the same variation (a replay); the clock really slows on Tier 4 and still lands once', () => {
     for (let s = 0; s < 6; s++) {
       const x = run({ total: 14, formation: formationOf([14], 14), rollSeed: s });
       const y = run({ total: 14, formation: formationOf([14], 14), rollSeed: s });

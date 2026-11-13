@@ -7,10 +7,10 @@
  * ONE CLEAR IDEA: a carved wooden boomerang whirls out on a curved path, THWACKS the struck hero, and curves back round
  * to the hero, who catches it with a little pop.
  *
- * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`boomerangLevel`): I-II play SMALL, III-IV
- * play BIG, so a knockout (which always forces the shared Tier IV) plays BIG.
- *  - SMALL: one boomerang: out on one side of the line, THWACK (THE impact), back round the other side, caught.
- *  - BIG: two, thrown a beat apart from either hand on CROSSING paths (each swings wide on its own side and lands on
+ * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`boomerangLevel`): Tiers 1-2 play TIER 1, Tiers 3-4
+ * play TIER 2, so a knockout (which always forces the shared Tier 4) plays TIER 2.
+ *  - TIER 1: one boomerang: out on one side of the line, THWACK (THE impact), back round the other side, caught.
+ *  - TIER 2: two, thrown a beat apart from either hand on CROSSING paths (each swings wide on its own side and lands on
  *    the other side of the face, so they cross in an X), a double
  *    thwack (the first a tick, the second THE impact), and both curve home crossing again and are caught in turn.
  *
@@ -29,7 +29,7 @@ export type { TierNum };
 export const BOOMERANG_LEVELS = ['small', 'big'] as const;
 export type BoomerangLevel = (typeof BOOMERANG_LEVELS)[number];
 
-/** The shared four tiers onto this Rare's two: I-II small, III-IV big (a knockout forces IV, so it plays big). */
+/** The shared four tiers onto this Rare's two: shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2 (a knockout forces Tier 4, so it plays Tier 2). */
 export function boomerangLevel(tier: TierNum): BoomerangLevel { return tier >= 3 ? 'big' : 'small'; }
 
 export const BOOMERANG_LEVEL_SUFFIXES = [
@@ -256,7 +256,7 @@ export interface BoomerangPlan {
 /** The whole Boomerang, in base ms. Pure and deterministic. */
 export function boomerangPlan(input: BoomerangPlanInput, c: HeroBoomerangConfig = store.get()): BoomerangPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const level = boomerangLevel(tier);
   const L = boomerangLevelDials(level, c);
   const k = (tier - 1) / 3;

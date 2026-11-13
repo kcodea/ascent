@@ -10,11 +10,11 @@
  *     and ICICLES grow out of the air round the portrait rim one by one (a faceted, translucent ice spear: a white
  *     specular edge, a pale cyan body, a deep glacier-blue core and a frosty rim), each aimed at the struck hero.
  *  3. LAUNCH. Each icicle draws back a hair, then fires FAST on a near-straight line, trailing shimmering ice dust:
- *     I one; II two (from either side of the hero); III a volley of five, fanned, landing in rhythm.
+ *     Tier 1 one; Tier 2 two (from either side of the hero); Tier 3 a volley of five, fanned, landing in rhythm.
  *  4. SHATTER. Each icicle that lands before the last is a tick: it shatters into glittering shards and a snow puff,
  *     and frost CREEPS over the struck portrait's edge. The LAST one is THE impact (the big `-N`). The consequence
  *     (the damage, Armor, Resolve) lands ONCE, there.
- *  IV. THE FROST NOVA. Four icicles form and fire (every one a tick). Then the hero gathers the cold (a howl rises,
+ *  Tier 4. THE FROST NOVA. Four icicles form and fire (every one a tick). Then the hero gathers the cold (a howl rises,
  *     snow spirals in) and releases a FROST NOVA: a wide rolling wave front of frost that blasts ACROSS THE SCREEN
  *     from the attacker to the target, swirling snow and ice crystals, a biting cold light on its leading edge, and a
  *     frozen ice sheet with frost ferns spreading along the path behind it. It hits the struck hero, the portrait is
@@ -23,8 +23,8 @@
  * The ICE freezes, the clock never does (owner 2026-09-28: no hit-stop or freeze frames, "it looks like lag"): the
  * encasement is ice holding still while the shared clock runs on.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Brisk at Tier I (about 1.3 s
- * after the formation), about 3 s at Tier IV. Reduced motion: no icicles, nova, shake or zoom; the numbers fade and
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Brisk at Tier 1 (about 1.3 s
+ * after the formation), about 3 s at Tier 4. Reduced motion: no icicles, nova, shake or zoom; the numbers fade and
  * the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -71,7 +71,7 @@ interface GlobalConfig {
   creepMs: number;
   creepFerns: number;
   creepReach: number;
-  // The nova (Tier IV)
+  // The nova (Tier 4)
   novaWindupMs: number;
   novaMs: number;
   novaWidth: number;
@@ -136,7 +136,7 @@ type ClipKey = (typeof HERO_FROST_CLIP_KEYS)[number];
 export type HeroFrostStrKey = ColorKey | ClipKey;
 export type HeroFrostNumKey = Exclude<keyof HeroFrostConfig, HeroFrostStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<FrostTierSuffix, [number, number, number, number]> = {
   FormMs: [480, 540, 620, 560],
   Icicles: [1, 2, 5, 4],
@@ -446,7 +446,7 @@ export interface FrostPlanInput extends AttackTierContext {
 export interface FrostPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The total dives into the hero, the frost rune opens, the first icicle starts to grow. */
@@ -455,19 +455,19 @@ export interface FrostPlan {
   /** The first icicle leaves. */
   fireAt: number;
   icicles: FrostIciclePlan[];
-  /** Tier IV: the frost nova follows the icicles and carries the blow. */
+  /** Tier 4: the frost nova follows the icicles and carries the blow. */
   nova: boolean;
-  /** Tier IV: the hero gathers the cold for the nova (else the impact). */
+  /** Tier 4: the hero gathers the cold for the nova (else the impact). */
   novaChargeAt: number;
-  /** Tier IV: the nova is released (else the impact). */
+  /** Tier 4: the nova is released (else the impact). */
   novaAt: number;
-  /** Tier IV: the nova reaches the struck hero and the ice encases it (else the impact). */
+  /** Tier 4: the nova reaches the struck hero and the ice encases it (else the impact). */
   contactAt: number;
   /** Icicles that land BEFORE the impact, sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last icicle shatters (I-III) or the encasement shatters (IV). */
+  /** THE consequence beat: the last icicle shatters (Tiers 1-3) or the encasement shatters (Tier 4). */
   impactAt: number;
-  /** Tinkling aftershocks round the target (IV). */
+  /** Tinkling aftershocks round the target (Tier 4). */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -483,7 +483,7 @@ export interface FrostPlan {
 /** The whole Frost attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function frostPlan(input: FrostPlanInput, c: HeroFrostConfig = cfg): FrostPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = frostTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -556,7 +556,7 @@ export function frostCues(p: FrostPlan): FrostCue[] {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.icicles.forEach((r, i) => out.push({ at: r.formAt, kind: 'grow', i }));
     p.icicles.forEach((r, i) => out.push({ at: r.launchAt, kind: 'fire', i }));
-    // Every icicle but the last lands as a tick (Tier IV: every icicle, the nova carries the blow).
+    // Every icicle but the last lands as a tick (Tier 4: every icicle, the nova carries the blow).
     p.icicles.forEach((r, i) => { if (p.nova || i < p.icicles.length - 1) out.push({ at: r.arriveAt, kind: 'hit', i }); });
     if (p.nova) {
       out.push({ at: p.novaChargeAt, kind: 'novaCharge', i: 0 });
@@ -749,7 +749,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero while the ice forms; a
  * small recoil kick on each launch; a directional kick ALONG the icicle on each tick; on THE impact a punch in and a
- * directional shake. Tier IV builds on the nova: a deeper push while the cold gathers, a low tremor while the wave
+ * directional shake. Tier 4 builds on the nova: a deeper push while the cold gathers, a low tremor while the wave
  * rolls, a jolt as it hits, and the shatter punches hardest with a shake that rings both ways. Deterministic. Pure.
  */
 export function frostCameraAt(p: FrostPlan, c: HeroFrostConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
@@ -812,7 +812,7 @@ export function frostCameraAt(p: FrostPlan, c: HeroFrostConfig, t: number, dir: 
 
 /**
  * Where the camera anchors: the ATTACKER while the ice forms, following the volley in flight, and the DEFENDER from the
- * impact on. Tier IV: back toward the attacker while the cold gathers, then riding the nova's front to the target. A
+ * impact on. Tier 4: back toward the attacker while the cold gathers, then riding the nova's front to the target. A
  * zoom anchored on a point keeps that point still. Pure.
  */
 export function frostCameraFocus(p: FrostPlan, t: number, a: Pt, d: Pt): Pt {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A KNOCKOUT ALWAYS PLAYS THE HUGE ATTACK (owner ask 2026-09-29: "add logic so that if a player knocks someone out, it
+ * A KNOCKOUT ALWAYS PLAYS THE TIER 4 ATTACK (owner ask 2026-09-29: "add logic so that if a player knocks someone out, it
  * always plays the "huge" animation"). Oracle R-PROG-ATTACK-20.
  *
  * The rule lives in ONE place (`attackTier` in `tiers.ts`); every style's plan takes its tier from it, and the
@@ -49,12 +49,12 @@ import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
 describe('attackTier: the one shared tier rule', () => {
-  it('a knockout is always Tier IV, whatever the number', () => {
+  it('a knockout is always Tier 4, whatever the number', () => {
     expect(KNOCKOUT_TIER).toBe(4);
     for (const total of [0, 1, 3, 5, 6, 11, 12, 19, 20, 40]) expect(attackTier(total, { knockout: true })).toBe(4);
   });
 
-  it('without a knockout it is exactly the damage tier (I 1-5, II 6-11, III 12-19, IV 20+)', () => {
+  it('without a knockout it is exactly the damage tier (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+)', () => {
     for (const total of [0, 1, 3, 5, 6, 11, 12, 19, 20, 40]) {
       expect(attackTier(total, { knockout: false })).toBe(tierOf(total));
       expect(attackTier(total, {})).toBe(tierOf(total));
@@ -71,7 +71,7 @@ describe('attackTier: the one shared tier rule', () => {
   });
 });
 
-describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a non-lethal 3', () => {
+describe('every style plays its Tier 4 on a knockout blow of 3, and Tier 1 on a non-lethal 3', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const opts = (knockout: boolean): HeroAttackOptions => ({
     formation: formationOf([1, 2], 3), total: 3, knockout, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 },
@@ -92,7 +92,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
-    // The Epics map Tier IV to their Big look (plan.tier stays the shared tier).
+    // The Epics map Tier 4 to their Tier 3 look (plan.tier stays the shared tier).
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
     ['chess', (o) => playHeroChess({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
@@ -126,7 +126,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     }
   });
 
-  it('Classic (its plan carries the tier as k: I = 0, IV = 1)', () => {
+  it('Classic (its plan carries the tier as k: Tier 1 = 0, Tier 4 = 1)', () => {
     const ko = playHeroClassic({ ...opts(true), impactFx: false });
     expect(ko.plan.k).toBe(1);
     ko.cancel();

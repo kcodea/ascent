@@ -10,7 +10,7 @@
  * same texture flipped for the lower) that fade in wide and SLAM shut over the struck portrait on the arrival beat,
  * interlocking; the bite marks they leave ride the portrait. Sparks, embers and dust are seasoning, and short.
  *
- * THE COLOSSUS (Tier IV) is the same jaws, huge: they fade in far above and below the target (the screen framed by
+ * THE COLOSSUS (Tier 4) is the same jaws, huge: they fade in far above and below the target (the screen framed by
  * fangs) over a darkening backdrop, with burning eyes and a flaring mane of light, creep in breathing, SLAM, then spring
  * open on the roar and dissolve.
  *
@@ -74,7 +74,7 @@ export interface BeastLook {
   roarSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV peaks around 400). */
+/** Hard cap on sprites alive at once (a Tier 4 peaks around 400). */
 export const MAX_BEAST_SPRITES = 800;
 /** Hard cap on mane strips alive at once (three per beast). */
 export const MAX_BEAST_MESHES = 48;
@@ -411,7 +411,7 @@ export class HeroBeastScene {
   }
 
   /**
-   * A beast bursts off the hero along `m`: a flash, a ring, embers flung back (and dust at III and up), and the beast
+   * A beast bursts off the hero along `m`: a flash, a ring, embers flung back (and dust at Tier 3 and up), and the beast
    * itself with its mane and the jaws that will clamp at `m.bite`. `radius` is the struck portrait's. `age0` = ms elapsed.
    */
   launch(m: BeastMotion, size: number, radius: number, age0 = 0, idx = this.beasts.length, dust = false): void {
@@ -467,7 +467,7 @@ export class HeroBeastScene {
 
   /**
    * A chomp lands before the last (a tick): a flash where the fangs meet, a ring, a spray of sparks, bite marks left in
-   * the face, a feral tint pulse and (III and up) a puff of dust. `step` grows each tick.
+   * the face, a feral tint pulse and (Tier 3 and up) a puff of dust. `step` grows each tick.
    */
   chomp(i: number, x: number, y: number, radius: number, step: number): void {
     const b = this.beastOf(i);
@@ -489,9 +489,9 @@ export class HeroBeastScene {
   }
 
   /**
-   * THE impact (I-III): the last chomp, full size, dead centre. The first frame is the brightest: a white-hot flash
+   * THE impact (Tiers 1-3): the last chomp, full size, dead centre. The first frame is the brightest: a white-hot flash
    * over the face, a flash where the fangs meet, two rings, a burst of sparks sideways off the bite line, embers, deep
-   * bite marks, the strongest tint pulse and (III) a ring of dust. The fills are gone in ~150 ms, so the big -N reads.
+   * bite marks, the strongest tint pulse and (Tier 3) a ring of dust. The fills are gone in ~150 ms, so the big -N reads.
    */
   impact(i: number, x: number, y: number, radius: number, o: { tier: number; k: number; burst: number; sparks: number; flashAlpha: number }): void {
     const c = this.colors;
@@ -526,7 +526,7 @@ export class HeroBeastScene {
   }
 
   /**
-   * TIER IV: the colossus rises behind the target. Its jaws fade in far above and below (the screen framed by fangs)
+   * TIER 4: the colossus rises behind the target. Its jaws fade in far above and below (the screen framed by fangs)
    * over a darkening backdrop; its eyes ignite; a mane of light flares round it. The jaws creep in (`riseMs`), SLAM
    * (`slamMs`), spring open on the roar (`roarAfter` ms after the rise starts) and dissolve (`releaseAfter`).
    */
@@ -563,7 +563,7 @@ export class HeroBeastScene {
   }
 
   /**
-   * TIER IV's SLAM (THE impact): the colossal jaws are shut over the whole portrait. A white flash over the face, a
+   * TIER 4's SLAM (THE impact): the colossal jaws are shut over the whole portrait. A white flash over the face, a
    * shockwave, a thick amber ring, a flash along the bite line, a storm of sparks off both sides, embers, huge bite
    * marks, dust thrown out all round and the strongest tint.
    */
@@ -595,7 +595,7 @@ export class HeroBeastScene {
   }
 
   /**
-   * TIER IV's ROAR (FX only, after the blow): the jaws spring open; shockwave rings tear outward one after another;
+   * TIER 4's ROAR (FX only, after the blow): the jaws spring open; shockwave rings tear outward one after another;
    * speed lines streak away all round; the mane blasts outward and dust is thrown off.
    */
   roar(x: number, y: number, radius: number): void {
@@ -784,7 +784,7 @@ export class HeroBeastScene {
       else { this.giveStrip(b.shade); this.giveStrip(b.mglow); this.giveStrip(b.mcore); b.shade = b.mglow = b.mcore = null; }
     }
 
-    // Embers and (III and up) dust shed along the leap.
+    // Embers and (Tier 3 and up) dust shed along the leap.
     if (flying) {
       const moved = Math.hypot(x - b.lastX, y - b.lastY);
       if (L.embers > 0) {

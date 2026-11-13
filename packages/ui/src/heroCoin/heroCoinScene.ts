@@ -8,7 +8,7 @@
  * and opens (scale.x = |cos|) and shades toward the deep bronze as it goes edge-on. Flat 2D.
  *
  * A ping is a four-point sparkle, a gold ring and a spray of glitter. After the last ping the coin either CAROMS off the
- * face (small: a tumbling bounce up and away under gravity, fading) or BURSTS into a small shower of coins (big).
+ * face (Tier 1: a tumbling bounce up and away under gravity, fading) or BURSTS into a small shower of coins (Tier 2).
  */
 import type { Sprite, Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -120,7 +120,7 @@ export class HeroCoinScene extends FxPool {
     this.burst('core', this.tex.star, [c.shine, c.gold, whiten(c.amber, 0.3)], at.x, at.y, sparkles, { speed: 380 * P, dir: back, spread: 2.6, life: 420, size: 0.26 * P, drag: 0.08, grav: 500 });
   }
 
-  /** THE last ping. Small: the coin caroms off, tumbling away. Big: it bursts into `shower` coins that spill and fall. */
+  /** THE last ping. Tier 1: the coin caroms off, tumbling away. Tier 2: it bursts into `shower` coins that spill and fall. */
   impact(at: Pt, dir: Pt, o: { big: boolean; shower: number; sparkles: number }): void {
     const cn = this.coin;
     this.ping(at, dir, o.big ? 1.45 : 1.1, o.sparkles);

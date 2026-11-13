@@ -12,12 +12,12 @@
  *    and cools into smoke), a short white flash, a crisp shock ring and embers.
  *  - ABLAZE is a ring emitter on the struck portrait's UPPER rim (fire rises: never burning across the face) that burns
  *    for a beat and dies down, leaving smoke.
- *  - THE METEOR (IV) is a big emitter falling from above the screen onto a MARKED target (the ground under it glowing
+ *  - THE METEOR (Tier 4) is a big emitter falling from above the screen onto a MARKED target (the ground under it glowing
  *    hotter, heat rings closing in, flames licking up round it); the DETONATION is layered: a white-hot core and flash,
  *    shockwaves, a FIRE NOVA (a ring emitter racing outward), a dome of fire, a fireball ROLLING UP into a mushroom of
  *    smoke a beat later, BURNING DEBRIS (ballistic embers each trailing its own fire), a pillar of fire ENGULFING the
  *    struck hero (a disc emitter with hard buoyancy) that burns out to embers, and a scorch left round it.
- *  - Tier III's last fireball FLARES the struck hero up (a gout of flame off the portrait) over its burning rim.
+ *  - Tier 3's last fireball FLARES the struck hero up (a gout of flame off the portrait) over its burning rim.
  *
  * LAYERS, bottom to top: ground (normal: the scorch, a dark pressure ring) | under (additive: the light fire casts) |
  * the fire's back (normal: smoke, the deep body) | fx (additive: rings, flashes) | the fire's front (additive: flame,
@@ -63,7 +63,7 @@ export interface FireLook {
 
 /** Hard cap on the sprites (light, rings, flashes, hearts) alive at once. */
 export const MAX_FIRE_SPRITES = 260;
-/** Hard cap on live fire particles (a Tier IV detonation peaks near it; the pool never grows past it). */
+/** Hard cap on live fire particles (a Tier 4 detonation peaks near it; the pool never grows past it). */
 export const MAX_FIRE_PARTICLES = 1100;
 
 type LayerId = 'ground' | 'under' | 'fx' | 'hot';
@@ -97,7 +97,7 @@ interface Debris { em: FireEmitter; core: Sprite; x: number; y: number; vx: numb
 /** A layer of the detonation that lands a beat later (the fireball rolling up, the mushroom cap), in scene ms. */
 interface Later { at: number; kind: 'billow' | 'cap'; x: number; y: number; R: number }
 
-/** Tier IV: the struck hero MARKED while the meteor comes (the ground heating, flames licking up round it). */
+/** Tier 4: the struck hero MARKED while the meteor comes (the ground heating, flames licking up round it). */
 interface Mark { em: FireEmitter; glow: Sprite; R: number; age: number; dur: number }
 
 export class HeroFireScene {
@@ -297,7 +297,7 @@ export class HeroFireScene {
   }
 
   /**
-   * THE SUMMON (Tier IV): the hero hurls a column of fire into the sky, a jet of flame roaring up off the top of the
+   * THE SUMMON (Tier 4): the hero hurls a column of fire into the sky, a jet of flame roaring up off the top of the
    * portrait for `durMs`, a flare and a ring.
    */
   summon(x: number, y: number, R: number, durMs: number): void {
@@ -315,7 +315,7 @@ export class HeroFireScene {
   }
 
   /**
-   * The struck hero FLARES UP (Tier III's last fireball, owner 2026-09-29: "make the 3rd fire tier a bit better"): a gout
+   * The struck hero FLARES UP (Tier 3's last fireball, owner 2026-09-29: "make the 3rd fire tier a bit better"): a gout
    * of flame roars up off the whole portrait for a moment, over the blaze on its rim.
    */
   flareUp(x: number, y: number, R: number, amount: number): void {
@@ -328,7 +328,7 @@ export class HeroFireScene {
   }
 
   /**
-   * Tier IV: the struck hero is MARKED for `durMs` while the meteor comes (owner 2026-09-29: "slightly slower build up"):
+   * Tier 4: the struck hero is MARKED for `durMs` while the meteor comes (owner 2026-09-29: "slightly slower build up"):
    * the ground under it glows hotter and hotter, heat rings close in on it, and flames lick up round it, growing as the
    * meteor nears.
    */
@@ -367,7 +367,7 @@ export class HeroFireScene {
   }
 
   /**
-   * THE DETONATION (Tier IV, the consequence frame, no freeze): a white flash, shockwaves (and a dark pressure ring for
+   * THE DETONATION (Tier 4, the consequence frame, no freeze): a white flash, shockwaves (and a dark pressure ring for
    * contrast), a FIRE NOVA racing outward, a dome of fire, a pillar of fire ENGULFING the struck hero that burns out to
    * embers and smoke, and a scorch left round it.
    */

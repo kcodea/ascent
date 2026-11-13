@@ -2,7 +2,7 @@
  * THE DAMAGE TIERS every hero attack escalates by (shared by every style since 2026-09-28). The numbers each attack opens
  * with are the shared damage formation (`formationConfig.ts`).
  *
- * Tiers follow the engine's per-round loss caps of 5 / 10 / 15 / 20: I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by
+ * Tiers follow the engine's per-round loss caps of 5 / 10 / 15 / 20: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+. APPROVED by
  * the owner 2026-09-28 for Blast ("those are good thresholds, this blast animation looks good!") and carried to Quake
  * by the ask that made it ("same attack dmg threshold logic as blast"). Each style's tuner can move them in DEV
  * only; production plays these defaults, so every style steps up on exactly the same blow.
@@ -35,20 +35,20 @@ export function tierOf(total: number, c: TierThresholds = HERO_ATTACK_TIER_THRES
 export interface AttackTierContext {
   knockout?: boolean;
   /**
-   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the caller decided this blow plays the attack's own
-   * Knockout version, a remix of its Huge (Tier IV) with more emphasis. Set only for an ANCIENT-rarity attack that has
+   * THE KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02): the caller decided this blow plays the attack's own
+   * Knockout version, a remix of its Tier 4 with more emphasis. Set only for an ANCIENT-rarity attack that has
    * one (`knockoutVariantFor` in `knockoutVariant.ts`), and only counts together with `knockout`. The shared tier stays
-   * IV (every per-tier dial reads IV); a style reads `isKnockoutVariant` for its extra beat, colour and weight.
+   * Tier 4 (every per-tier dial reads Tier 4); a style reads `isKnockoutVariant` for its extra beat, colour and weight.
    */
   knockoutVariant?: boolean;
 }
 
-/** The blow plays the attack's Knockout variant (Tier V): a knockout AND the caller asked for the variant. */
+/** The blow plays the attack's Knockout variant (Tier 5): a knockout AND the caller asked for the variant. */
 export function isKnockoutVariant(ctx: AttackTierContext | undefined): boolean {
   return !!(ctx?.knockout && ctx.knockoutVariant);
 }
 
-/** A knockout always plays Tier IV ("Huge"), whatever the number. */
+/** A knockout always plays Tier 4, whatever the number. */
 export const KNOCKOUT_TIER: TierNum = 4;
 
 /**

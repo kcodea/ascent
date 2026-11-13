@@ -134,7 +134,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         break;
       }
       case 'throw': {
-        // A boulder ripped out of the ground and HURLED (tiers I-III): a heavy whoosh, pitch stepping up per boulder.
+        // A boulder ripped out of the ground and HURLED (tiers 1-3): a heavy whoosh, pitch stepping up per boulder.
         const n = plan.throws.length;
         cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate + 0.08 * q.i, { lenMs: 700, fadeMs: 250 });
         if (q.i > 0) cue(c.sfxCrackClip, c.sfxCrackGain * 0.45, c.sfxCrackRate + 0.2, { lenMs: 300, fadeMs: 120 });
@@ -161,7 +161,7 @@ export function playHeroQuake(o: HeroQuakeOptions): HeroQuakeHandle {
         break;
       }
       case 'impact':
-        // THE ERUPTION: rock bursting (pitched down per tier), splitting rock, a big blast on III+, then debris patter.
+        // THE ERUPTION: rock bursting (pitched down per tier), splitting rock, a big blast on Tier 3+, then debris patter.
         cue(c.sfxEruptClip, c.sfxEruptGain * (0.8 + 0.06 * plan.tier), c.sfxEruptRate - 0.05 * (plan.tier - 1), { tail: c.sfxTailMix, lenMs: c.sfxEruptLenMs, fadeMs: 450 });
         cue(c.sfxThumpClip, c.sfxThumpGain * 1.1, c.sfxThumpRate - 0.05 * plan.tier, { lenMs: 600, fadeMs: 200 });
         cue(c.sfxCrackClip, c.sfxCrackGain, c.sfxCrackRate, { lenMs: 700, fadeMs: 250 });

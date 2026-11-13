@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * THE BUBBLE POP HERO ATTACK (a Rare; owner 2026-09-29): the shared tiers on TWO visual tiers (I-II small, III-IV big, a
- * knockout big); the tuner values; the pure plan (one bubble small; a stream of little ones big, each blip a tick, then
+ * THE BUBBLE POP HERO ATTACK (a Rare; owner 2026-09-29): the shared tiers on TWO visual tiers (shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2, a
+ * knockout plays Tier 2); the tuner values; the pure plan (one bubble at Tier 1; a stream of little ones at Tier 2, each blip a tick, then
  * THE pop); the pure drift (from the hero's rim to the struck face); the runner on the shared clock (the blow lands
  * exactly ONCE, on the pop; both directions; replay; finish / cancel; cleanup; the camera applied once); the headless
  * scene; the cosmetic.
@@ -28,7 +28,7 @@ const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const R = 80;
 
 describe('the tiers: the shared four onto a Rare\'s two', () => {
-  it('uses the shared thresholds; I-II small, III-IV big; a knockout big', () => {
+  it('uses the shared thresholds; shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2; a knockout plays Tier 2', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).level, `dmg ${d}`).toBe(tierOf(d) >= 3 ? 'big' : 'small');
     expect([1, 2, 3, 4].map((t) => bubbleLevel(t as 1 | 2 | 3 | 4))).toEqual(['small', 'small', 'big', 'big']);
@@ -54,7 +54,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('SMALL: one bubble, blown, drifted, engulfing, and THE pop; no ticks; short (a Rare)', () => {
+  it('TIER 1: one bubble, blown, drifted, engulfing, and THE pop; no ticks; short (a Rare)', () => {
     const p = plan(3);
     expect(p.stream).toEqual([]);
     expect(p.hits).toEqual([]);
@@ -65,7 +65,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(1900);
   });
 
-  it('BIG: a stream of little bubbles (ticks) before THE pop, with a splash ring; the pop is the only impact', () => {
+  it('TIER 2: a stream of little bubbles (ticks) before THE pop, with a splash ring; the pop is the only impact', () => {
     const p = plan(14);
     expect(p.stream.length).toBeGreaterThanOrEqual(3);
     for (const at of p.hits) expect(at).toBeLessThan(p.impactAt);
@@ -132,7 +132,7 @@ function run(over: Partial<HeroBubbleOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('BIG: the little bubbles blip (never the blow), the big one engulfs the face, and the blow lands ONCE on the pop', () => {
+  it('TIER 2: the little bubbles blip (never the blow), the big one engulfs the face, and the blow lands ONCE on the pop', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(host.querySelector('.hblast.hbubble')).not.toBeNull();
     f.tick(h.plan.stream[0]!.releaseAt + 40, 4);

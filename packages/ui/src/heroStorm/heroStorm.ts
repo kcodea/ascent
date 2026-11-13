@@ -1,6 +1,6 @@
 /**
  * THE STORM CALL RUNNER: plays one Storm Call hero attack (the beats are in `heroStormConfig.ts`) and lands the
- * consequence on its impact beat (the Small arc, the Medium second branch, or the Big strike). Presentation only: the
+ * consequence on its impact beat (the Tier 1 arc, the Tier 2 second branch, or the Tier 3 strike). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
@@ -79,7 +79,7 @@ export function playHeroStorm(o: HeroStormOptions): HeroStormHandle {
     defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hstorm',
   });
 
-  // The view (measured once, at the start): the cloud stays inside it and the Big flash covers it.
+  // The view (measured once, at the start): the cloud stays inside it and the Tier 3 flash covers it.
   const view = local ? { w: o.host?.clientWidth || 400, h: o.host?.clientHeight || 300 } : { w: typeof window !== 'undefined' ? window.innerWidth : 1920, h: typeof window !== 'undefined' ? window.innerHeight : 1080 };
   const geo = stormGeometry(plan, o.attacker, o.defender, radius, aRadius, c, s, view);
   const dir = stormArrivalDir(plan, geo, o.attacker, o.defender);

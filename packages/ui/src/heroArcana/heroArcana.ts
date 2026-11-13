@@ -1,15 +1,15 @@
 /**
  * THE ARCANA RUNNER: plays one Arcana hero attack (the beats are in `heroArcanaConfig.ts`) and lands the consequence on
- * its impact beat (the last ribbon landing, or Tier IV's explosion). Presentation only: the total it shows and the
+ * its impact beat (the last ribbon landing, or Tier 4's explosion). Presentation only: the total it shows and the
  * blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast and Quake do: one clock (it never pauses),
  * the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only, restored
  * after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Arcana's own: the ribbon
- * paths, the barrage rhythm, the Tier IV vortex, its camera and its sound.
+ * paths, the barrage rhythm, the Tier 4 vortex, its camera and its sound.
  *
  * THE BARRAGE CONTRACT: every ribbon that lands before the last is a tick (FX and a chime only). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last ribbon (Tier IV: on the explosion).
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last ribbon (Tier 4: on the explosion).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites and strip meshes are pooled per layer, textures painted once per session, and the
@@ -94,7 +94,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
       headSize: c.headSize, sigilSize: c.sigilSize,
     }, s, arcanaSeed(o.total, dist, o.side))
     : null;
-  // Tier V (owner 2026-10-02): the swirl turns crimson-pink and electric blue, and the explosion bursts outward harder.
+  // Tier 5 (owner 2026-10-02): the swirl turns crimson-pink and electric blue, and the explosion bursts outward harder.
   scene?.setKoSwirl(plan.ko);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -159,7 +159,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
         }
         break;
       case 'koPulse':
-        // TIER V: the vortex throbs once more before it collapses: a prismatic pulse ring and a deep chime.
+        // TIER 5: the vortex throbs once more before it collapses: a prismatic pulse ring and a deep chime.
         cue(c.sfxChimeClip, c.sfxChimeGain * 0.9, c.sfxChimeRate * 0.8, { lenMs: 700, fadeMs: 260 });
         cue(c.sfxThumpClip, c.sfxThumpGain * 0.9, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
         scene?.koPulse(o.defender.x, o.defender.y, radius, c.swirlTilt);
@@ -180,7 +180,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
             burst: plan.burst, size: c.explodeSize, ribbons: Math.min(16, c.explodeRibbons), motes: plan.motes, flashAlpha: c.flashAlpha,
             tilt: c.swirlTilt, dir: spinDir, width: plan.width, ko: plan.ko,
           });
-          // TIER V: the Ancient prism layered over the explosion, and the KO sting.
+          // TIER 5: the Ancient prism layered over the explosion, and the KO sting.
           if (plan.ko) {
             scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: c.explodeSize, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
             playKoSting(voices, sound, real);
@@ -193,7 +193,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
           cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
           if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
           scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, flashAlpha: c.flashAlpha, motes: plan.motes });
-          // TIER V with the vortex tuned off: the prism and the sting still land on the last ribbon.
+          // TIER 5 with the vortex tuned off: the prism and the sting still land on the last ribbon.
           if (plan.ko) {
             scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: 1, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
             playKoSting(voices, sound, real);
@@ -258,7 +258,7 @@ export function playHeroArcana(o: HeroArcanaOptions): HeroArcanaHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // Tier V's slow-mo dip on the explosion: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
+    // Tier 5's slow-mo dip on the explosion: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
     frames: scaledFrames(o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)), () => (seq && !seq.done ? koTimeScale(plan.dip, seq.t) : 1)),
     safetyMs: o.safety !== false ? (plan.endAt + koDipExtraMs(plan.dip)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

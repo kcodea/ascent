@@ -8,14 +8,14 @@
  * visual tiers, short to medium, no giant cinematic.
  *
  * THE THREE VISUAL TIERS. Every hero attack reads its tier from the shared `attackTier` (the owner-approved damage
- * thresholds I 1-5 / II 6-11 / III 12-19 / IV 20+, and a knockout always plays IV). An Epic maps those four onto its
- * three looks here (`cardsLevel`, local to this style): I -> SMALL, II and III -> MEDIUM, IV -> BIG. It reads like a
+ * thresholds Tier 1: 1-5 / Tier 2: 6-11 / Tier 3: 12-19 / Tier 4: 20+, and a knockout always plays Tier 4). An Epic maps those four onto its
+ * three looks here (`cardsLevel`, local to this style): Tier 1 -> TIER 1, Tiers 2 and 3 -> TIER 2, Tier 4 -> TIER 3. It reads like a
  * poker hand climbing the ranks:
- *  - SMALL (high card). One card, the Ace of spades, is drawn and flicked spinning into the struck hero, where it sticks
+ *  - TIER 1 (high card). One card, the Ace of spades, is drawn and flicked spinning into the struck hero, where it sticks
  *    edge first with a little flash. That card is THE impact.
- *  - MEDIUM (three of a kind). Three Aces are thrown in quick sequence, thunk thunk thunk, each sticking at its own
+ *  - TIER 2 (three of a kind). Three Aces are thrown in quick sequence, thunk thunk thunk, each sticking at its own
  *    angle round the face. The first two are TICKS (FX and sound only); the third is THE impact.
- *  - BIG (a royal flush). Five cards are dealt face down into a hand fanned out in front of the hero. They flip over one
+ *  - TIER 3 (a royal flush). Five cards are dealt face down into a hand fanned out in front of the hero. They flip over one
  *    by one (10, J, Q, K, A of spades), the faces turn to GOLD with a shine sweeping across, then all five fire together
  *    and burst into card confetti on the struck hero. The burst is THE impact.
  *
@@ -36,9 +36,9 @@ export { hexToNum, type TierNum };
 /** Card Shark's three looks. */
 export const CARD_LEVELS = [1, 2, 3] as const;
 export type CardLevel = (typeof CARD_LEVELS)[number];
-export const CARD_LEVEL_NAMES: Record<CardLevel, string> = { 1: 'Small', 2: 'Medium', 3: 'Big' };
+export const CARD_LEVEL_NAMES: Record<CardLevel, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3' };
 
-/** The shared four damage tiers mapped onto Card Shark's three looks: I small, II and III medium, IV (and a knockout) big. */
+/** The shared four damage tiers mapped onto Card Shark's three looks: shared Tier 1 plays Tier 1, Tiers 2 and 3 play Tier 2, Tier 4 (and a knockout) plays Tier 3. */
 export function cardsLevel(tier: TierNum): CardLevel {
   return tier <= 1 ? 1 : tier >= 4 ? 3 : 2;
 }
@@ -64,7 +64,7 @@ interface GlobalConfig {
   embed: number;
   quiver: number;
   stickHoldMs: number;
-  // The royal flush (Big)
+  // The royal flush (Tier 3)
   dealMs: number;
   dealStaggerMs: number;
   flipMs: number;
@@ -122,7 +122,7 @@ type ClipKey = (typeof HERO_CARDS_CLIP_KEYS)[number];
 export type HeroCardsStrKey = ColorKey | ClipKey;
 export type HeroCardsNumKey = Exclude<keyof HeroCardsConfig, HeroCardsStrKey>;
 
-/** Small, Medium, Big per suffix: the escalation ladder. */
+/** Tier 1, Tier 2, Tier 3 per suffix: the escalation ladder. */
 const LEVEL_DEFAULTS: Record<CardsLevelSuffix, [number, number, number]> = {
   ChargeMs: [320, 360, 380],
   Cards: [1, 3, 5],
@@ -406,30 +406,30 @@ export interface CardsPlan {
   reduced: boolean;
   /** The SHARED damage tier (1..4; a knockout is 4). */
   tier: TierNum;
-  /** Card Shark's look: 1 small, 2 medium, 3 big. */
+  /** Card Shark's look: Tier 1, 2 or 3. */
   level: CardLevel;
-  /** 0..1 across the looks (small 0, big 1). */
+  /** 0..1 across the looks (Tier 1 = 0, Tier 3 = 1). */
   k: number;
   total: number;
   /** The ready starts: the total sinks into the hero, a card is drawn. */
   chargeAt: number;
   absorbEnd: number;
-  /** The first card leaves the hand (Big: all five fire together). */
+  /** The first card leaves the hand (Tier 3: all five fire together). */
   throwAt: number;
   cards: CardPlan[];
-  /** Big: the royal flush is dealt, revealed and gilded before it fires. */
+  /** Tier 3: the royal flush is dealt, revealed and gilded before it fires. */
   flush: boolean;
-  /** Big: each card is dealt into the fan (it leaves the hero), and lands there `dealMs` later. */
+  /** Tier 3: each card is dealt into the fan (it leaves the hero), and lands there `dealMs` later. */
   deals: number[];
-  /** Big: each card starts to flip face up. */
+  /** Tier 3: each card starts to flip face up. */
   flips: number[];
-  /** Big: the faces turn to gold (the shine sweeps). */
+  /** Tier 3: the faces turn to gold (the shine sweeps). */
   goldAt: number;
-  /** Cards that land BEFORE the impact: the rhythm ticks (Medium only). */
+  /** Cards that land BEFORE the impact: the rhythm ticks (Tier 2 only). */
   hits: number[];
-  /** THE consequence beat: the last card sticks (Small, Medium) or the flush bursts (Big). */
+  /** THE consequence beat: the last card sticks (Tier 1, Tier 2) or the flush bursts (Tier 3). */
   impactAt: number;
-  /** Small, Medium: the stuck cards fall away. */
+  /** Tier 1, Tier 2: the stuck cards fall away. */
   dissolveAt: number;
   endAt: number;
   size: number;
@@ -444,7 +444,7 @@ export interface CardsPlan {
 /** The whole Card Shark, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function cardsPlan(input: CardsPlanInput, c: HeroCardsConfig = cfg): CardsPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts), so Big
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts), so Tier 3
   const level = cardsLevel(tier);
   const V = cardsLevelDials(level, c);
   const k = (level - 1) / 2;
@@ -562,7 +562,7 @@ export interface FanPose { x: number; y: number; rot: number }
 export interface ViewBox { w: number; h: number }
 
 /**
- * Where the Big hand fans out: in front of the striking hero, toward the target, UPRIGHT on screen like a hand held up
+ * Where the Tier 3 hand fans out: in front of the striking hero, toward the target, UPRIGHT on screen like a hand held up
  * to show, fanned round a pivot below it. `cardH` is a card's height in px. The whole fan is shifted to stay inside the
  * view (a hero in a corner still shows every card). Pure.
  */
@@ -593,7 +593,7 @@ export function fanPoses(n: number, a: Pt, d: Pt, aRadius: number, cardH: number
 }
 
 /**
- * Small and Medium: where the drawn cards are held before they are flicked, just off the striker's rim toward the
+ * Tier 1 and Tier 2: where the drawn cards are held before they are flicked, just off the striker's rim toward the
  * target, fanned a little by slot and held upright (tilted a touch per slot). Pure.
  */
 export function heldPoses(p: CardsPlan, a: Pt, d: Pt, aRadius: number): FanPose[] {
@@ -648,8 +648,8 @@ export function sideNormal(a: Pt, b: Pt): Pt {
 const jitter = (i: number, salt: number): number => { const s = Math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453; return s - Math.floor(s) - 0.5; };
 
 /**
- * Where each card hits the struck portrait (offsets from its centre, in portrait radii). Small and Medium stick on the
- * side of the face that looks back at the thrower, fanned by slot and swung clear of the big `-N`; the Big flush
+ * Where each card hits the struck portrait (offsets from its centre, in portrait radii). Tier 1 and Tier 2 stick on the
+ * side of the face that looks back at the thrower, fanned by slot and swung clear of the big `-N`; the Tier 3 flush
  * converges on a tight ring round the middle, where it bursts. Pure.
  */
 export function cardStickOffset(p: CardsPlan, i: number, a: Pt, d: Pt, avoid: Pt | null = null): Pt {
@@ -676,7 +676,7 @@ export function cardStickOffset(p: CardsPlan, i: number, a: Pt, d: Pt, avoid: Pt
 
 /**
  * Every card's whole flight, from the plan and the two heroes. `cardH` is a thrown card's height in px (the look's size
- * folded in by the caller). `fan` is the Big hand's poses (each card leaves from its own). The arc never rises above
+ * folded in by the caller). `fan` is the Tier 3 hand's poses (each card leaves from its own). The arc never rises above
  * `ceilY`. `avoid` is where the big -N pops. Pure, so a replay flies the same paths.
  */
 export function cardMotions(
@@ -715,7 +715,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
 /**
- * The camera at sequence time `t`: a small push in through the ready (Big: through the deal and the reveal, with a
+ * The camera at sequence time `t`: a small push in through the ready (Tier 3: through the deal and the reveal, with a
  * little bump when the faces turn gold); a tiny recoil on each throw; a kick ALONG the card on each tick; on THE impact
  * a punch in and a directional shake. Deterministic. Pure.
  */
@@ -744,7 +744,7 @@ export function cardsCameraAt(p: CardsPlan, c: HeroCardsConfig, t: number, dir: 
 }
 
 /**
- * Where the camera anchors: the ATTACKER through the ready (Big: the fanned hand through the reveal), following the
+ * Where the camera anchors: the ATTACKER through the ready (Tier 3: the fanned hand through the reveal), following the
  * cards in flight, and the DEFENDER from the first landing on. A zoom anchored on a point keeps that point still. Pure.
  */
 export function cardsCameraFocus(p: CardsPlan, t: number, a: Pt, d: Pt, hand: Pt | null = null): Pt {

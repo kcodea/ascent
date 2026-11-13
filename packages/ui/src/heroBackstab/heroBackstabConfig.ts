@@ -9,12 +9,12 @@
  * It is the PORTRAIT itself that moves (as Classic and Enraged do), so every exit path restores its transform, opacity
  * and z-order exactly (the runner owns that).
  *
- * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`backstabLevel`): I-II play SMALL, III-IV play
- * BIG, so a knockout (which always forces the shared Tier IV) plays BIG.
- *  - SMALL: the striker fades into smoke where it stands, steps out BEHIND the target (the far side, beyond it along the
+ * TWO VISUAL TIERS (a Rare has two). The shared four map onto them here (`backstabLevel`): Tiers 1-2 play TIER 1, Tiers 3-4 play
+ * TIER 2, so a knockout (which always forces the shared Tier 4) plays TIER 2.
+ *  - TIER 1: the striker fades into smoke where it stands, steps out BEHIND the target (the far side, beyond it along the
  *    line from the striker), draws back a hair and stabs back TOWARD home (a dagger slash; the target jolts toward the
  *    striker's side): THE impact. Then it fades, reappears in its own slot and settles.
- *  - BIG: Classic's own lunge first (a tick), then it vanishes into smoke, steps out at the target's SIDE and stabs across
+ *  - TIER 2: Classic's own lunge first (a tick), then it vanishes into smoke, steps out at the target's SIDE and stabs across
  *    (a tick), vanishes again, steps out BEHIND and stabs back toward home (THE impact), then smokes home and settles.
  *
  * Positions are kept ON SCREEN: a "behind" or "side" spot that would leave the frame swings round the target until it
@@ -32,7 +32,7 @@ export type { TierNum };
 export const BACKSTAB_LEVELS = ['small', 'big'] as const;
 export type BackstabLevel = (typeof BACKSTAB_LEVELS)[number];
 
-/** The shared four tiers onto this Rare's two: I-II small, III-IV big (a knockout forces IV, so it plays big). */
+/** The shared four tiers onto this Rare's two: shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2 (a knockout forces Tier 4, so it plays Tier 2). */
 export function backstabLevel(tier: TierNum): BackstabLevel { return tier >= 3 ? 'big' : 'small'; }
 
 export const BACKSTAB_LEVEL_SUFFIXES = [
@@ -227,10 +227,10 @@ export interface BackstabPlan {
   total: number;
   chargeAt: number;
   absorbEnd: number;
-  /** Small: the striker fades out of its slot here (big: the lunge opens instead). */
+  /** Tier 1: the striker fades out of its slot here (Tier 2: the lunge opens instead). */
   fadeOutAt: number;
   fadeOutEnd: number;
-  /** Big: Classic's lunge (its hit is a tick). */
+  /** Tier 2: Classic's lunge (its hit is a tick). */
   lunge: LungeTimes | null;
   blinks: BlinkTimes[];
   /** Every hit before the last (ticks). */
@@ -251,7 +251,7 @@ export interface BackstabPlan {
 /** The whole Backstab, in base ms. Pure and deterministic. */
 export function backstabPlan(input: BackstabPlanInput, c: HeroBackstabConfig = store.get()): BackstabPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const level = backstabLevel(tier);
   const L = backstabLevelDials(level, c);
   const k = (tier - 1) / 3;
@@ -304,7 +304,7 @@ export type BackstabCueKind = 'charge' | 'lunge' | 'vanish' | 'appear' | 'strike
 export interface BackstabCue { at: number; kind: BackstabCueKind; i: number }
 
 /**
- * Every beat the runner fires, in time order. `vanish` i: 0 = the first fade (small: out of the slot; big: off the
+ * Every beat the runner fires, in time order. `vanish` i: 0 = the first fade (Tier 1: out of the slot; Tier 2: off the
  * lunge), then one per blink (i = blink + 1). `hit` i: the tick's index in `hits`.
  */
 export function backstabCues(p: BackstabPlan): BackstabCue[] {
@@ -491,7 +491,7 @@ export function backstabPose(p: BackstabPlan, g: BackstabGeo, c: HeroBackstabCon
   }
   // Between the first fade and the first blink: in the shadows.
   if (t >= p.fadeOutEnd) return { ...REST, alpha: 0 };
-  // Big: Classic's lunge, then up in smoke on the face.
+  // Tier 2: Classic's lunge, then up in smoke on the face.
   const ln = p.lunge;
   if (ln) {
     const G = g.lunge;
@@ -516,7 +516,7 @@ export function backstabPose(p: BackstabPlan, g: BackstabGeo, c: HeroBackstabCon
     }
     return pose;
   }
-  // Small: a beat of readiness (a small crouch), then it fades out of its slot in smoke.
+  // Tier 1: a beat of readiness (a small crouch), then it fades out of its slot in smoke.
   if (t < p.fadeOutAt) {
     const u = clamp01((t - p.chargeAt) / Math.max(1, p.fadeOutAt - p.chargeAt));
     return { ...REST, scale: 1 - 0.04 * easeOutCubic(u), x: -g.u.x * 5 * u, y: -g.u.y * 5 * u };

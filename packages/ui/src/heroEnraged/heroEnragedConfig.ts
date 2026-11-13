@@ -19,17 +19,17 @@
  *     speed lines. It STOPS AT THE STRUCK PORTRAIT'S RIM (never over its face), so every hit reads on contact.
  *  4. STRIKE. A white flash, a crisp shock rim, claw rips raked across the foe, glowing cracks on its rim, sparks that
  *     bounce back into view, a camera punch, the foe knocked back and squashed, the striker squashed against it.
- *  5. THE COMBO (II, III, IV). Every hit is a FULL CYCLE: a hard RECOIL off the foe (stretched), a COIL (squashed,
+ *  5. THE COMBO (Tiers 2, 3, 4). Every hit is a FULL CYCLE: a hard RECOIL off the foe (stretched), a COIL (squashed,
  *     trembling), a drive back in with its own streak and afterimages, and its own impact, each harder than the last.
- *     II is a double; III a combo of three, the last a finisher after a deeper wind; IV a RAMPAGE of five slams that
+ *     Tier 2 is a double; Tier 3 a combo of three, the last a finisher after a deeper wind; Tier 4 a RAMPAGE of five slams that
  *     come faster and faster, then the HAYMAKER: the hero REARS BACK way up over the board at the peak of its rage (the
  *     flames tower, the biggest roar, a dark ring of pressure closing in) and brings an overhead blow DOWN on an arc
  *     onto the foe: a giant flaming crescent, a screen-filling rage shockwave, molten cracks round the foe, rubble and
  *     an ember storm, the strongest camera punch. Every strike before the last is a TICK (FX and sound only).
  *  6. RECOVER. The hero springs home trailing embers and wisps; the foe smoulders.
  *
- * THE CONSEQUENCE (the damage, Armor, Resolve) lands exactly ONCE, on the LAST strike (IV: the haymaker). The big `-N`
- * lands there too. TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+).
+ * THE CONSEQUENCE (the damage, Armor, Resolve) lands exactly ONCE, on the LAST strike (Tier 4: the haymaker). The big `-N`
+ * lands there too. TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+).
  *
  * Tuner convention (the others'): localStorage in DEV only, values clamped on write and on load; production always plays
  * DEFAULTS. The preview speed is how you are LOOKING and is never saved.
@@ -78,7 +78,7 @@ interface GlobalConfig {
   reboundDepth: number;
   holdMs: number;
   recoverX: number;
-  // The rage burst and Tier IV's haymaker
+  // The rage burst and Tier 4's haymaker
   burstMs: number;
   burstSize: number;
   craterSize: number;
@@ -160,7 +160,7 @@ type ClipKey = (typeof HERO_ENRAGED_CLIP_KEYS)[number];
 export type HeroEnragedStrKey = ColorKey | ClipKey;
 export type HeroEnragedNumKey = Exclude<keyof HeroEnragedConfig, HeroEnragedStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<EnragedTierSuffix, [number, number, number, number]> = {
   WindupX: [1.25, 1.25, 1.3, 1.15],
   Strikes: [1, 2, 3, 6],
@@ -225,7 +225,7 @@ export const HERO_ENRAGED_DEFAULTS: HeroEnragedConfig = {
   // the gap is a hard recoil off the foe (stretched); the rest is the coil (a squash, a tremble), then the next drive.
   recoilShare: 0.5,
   coilSquash: 0.12,
-  // THE HAYMAKER (Tier IV's knockout, owner 2026-09-28: "fully redo the huge animation"): the hero rears way back and UP
+  // THE HAYMAKER (Tier 4's knockout, owner 2026-09-28: "fully redo the huge animation"): the hero rears way back and UP
   // over the board, swollen with rage, then brings an overhead blow DOWN on an arc onto the foe.
   haymakerCoilMs: 540,
   haymakerIn: 0.12,
@@ -475,7 +475,7 @@ export interface EnragedStrike {
   contactAt: number;
   /** The last strike: the consequence lands here. */
   final: boolean;
-  /** Tier IV's knockout: the overhead HAYMAKER (it comes down on an arc from a huge rear-back). */
+  /** Tier 4's knockout: the overhead HAYMAKER (it comes down on an arc from a huge rear-back). */
   haymaker: boolean;
   /** How deep the coil BEFORE this drive goes, as a multiple of the windup depth (the windup is 1). */
   pull: number;
@@ -503,7 +503,7 @@ export const TYPICAL_SWING: SwingTimes = { windupS: 0.54, strikeS: 0.22, smackLe
 export interface EnragedPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The total starts diving into the hero. */
@@ -514,9 +514,9 @@ export interface EnragedPlan {
   /** THE RAGE BURST: the portrait flares and a roar tears out, just before the first drive. */
   burstAt: number;
   strikes: EnragedStrike[];
-  /** Tier IV: the combo ends in the overhead haymaker. */
+  /** Tier 4: the combo ends in the overhead haymaker. */
   haymaker: boolean;
-  /** Tier IV: the hero REARS BACK for the haymaker (the build: the roar, the flare, the dim). Else = the impact. */
+  /** Tier 4: the hero REARS BACK for the haymaker (the build: the roar, the flare, the dim). Else = the impact. */
   rearAt: number;
   /** Contacts BEFORE the impact (sequence ms): the ticks. */
   ticks: number[];
@@ -528,7 +528,7 @@ export interface EnragedPlan {
   reboundEnd: number;
   /** The hero is home. */
   homeAt: number;
-  /** Tier IV: rubble landing round the cracked ground (sequence ms). */
+  /** Tier 4: rubble landing round the cracked ground (sequence ms). */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -545,7 +545,7 @@ export interface EnragedPlan {
 /** The whole Enraged Strike, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function enragedPlan(input: EnragedPlanInput, c: HeroEnragedConfig = cfg): EnragedPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = enragedTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -655,9 +655,9 @@ export interface EnragedGeo {
   back: Pt;
   /** Where the hero's centre lands on contact (an offset from rest): on the struck portrait's rim, so the hit reads. */
   contact: Pt;
-  /** Tier IV: the top of the haymaker's rear-back (an offset from rest): back along the line and UP, kept on screen. */
+  /** Tier 4: the top of the haymaker's rear-back (an offset from rest): back along the line and UP, kept on screen. */
   rear: Pt;
-  /** Tier IV: the haymaker's arc control point (an offset from rest): high over the line, so it comes DOWN on the foe. */
+  /** Tier 4: the haymaker's arc control point (an offset from rest): high over the line, so it comes DOWN on the foe. */
   arc: Pt;
   /** The lean that leads with a corner (degrees, signed): Classic's, harder. */
   tilt: number;
@@ -746,7 +746,7 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
  * The striking hero's pose at sequence time `t`: CLASSIC's swing (a power1.out coil back along the line with the swell
  * and the lean, the distance-scaled strike on Classic's ease, a power2.out rebound off the clack, the elastic.out settle
  * home), amplified into a brawler's combo: every hit is a full cycle (a hard RECOIL off the foe, stretched; a COIL with a
- * squash and a tremble; a DRIVE back in), and Tier IV rears way back and UP and brings an overhead HAYMAKER down on an
+ * squash and a tremble; a DRIVE back in), and Tier 4 rears way back and UP and brings an overhead HAYMAKER down on an
  * arc. Pure and deterministic (the tremble is sines): a replay moves identically, and the scene draws the afterimages
  * and the streak by sampling this back in time.
  */
@@ -865,7 +865,7 @@ function drivePose(p: EnragedPlan, g: EnragedGeo, c: HeroEnragedConfig, i: numbe
 /**
  * The camera at sequence time `t` (px in the points' space). A push in on the hero through the windup with a growing
  * tremor; a kick back as each drive leaves; on EVERY hit a punch in and a sharp kick ALONG the blow, escalating up the
- * combo; on THE impact the biggest punch and a shake along the blow. Tier IV eases the push off as the hero rears back
+ * combo; on THE impact the biggest punch and a shake along the blow. Tier 4 eases the push off as the hero rears back
  * (so the whole rear-back is framed) under a growing tremor, then the haymaker punches hardest and rings both ways.
  * Deterministic (sines and springs). Pure.
  */
@@ -916,7 +916,7 @@ export function enragedCameraAt(p: EnragedPlan, c: HeroEnragedConfig, t: number,
 }
 
 /**
- * Where the camera anchors: the hero through the windup, sliding to the foe over the first drive, the foe after. Tier IV
+ * Where the camera anchors: the hero through the windup, sliding to the foe over the first drive, the foe after. Tier 4
  * slides to the middle of the rear-back and the foe while the hero rears up, so the whole haymaker is framed.
  */
 export function enragedCameraFocus(p: EnragedPlan, t: number, a: Pt, d: Pt, rear: Pt | null = null): Pt {

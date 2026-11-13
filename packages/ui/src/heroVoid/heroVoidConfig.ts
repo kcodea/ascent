@@ -7,22 +7,22 @@
  *
  * STARTED AS A COPY OF ARCANA (the reference bar): the plan, the cues, the lob and vortex paths and the camera are
  * Arcana's, renamed, so the timing is already proven. A "ribbon" in these names is an ORB's flight and its dark trail.
- * The look (`heroVoidScene.ts`) and the Tier IV portrait pull (`heroVoid.ts`) are the Void's own.
+ * The look (`heroVoidScene.ts`) and the Tier 4 portrait pull (`heroVoid.ts`) are the Void's own.
  *
  * THE BEATS (base ms before the playback speed):
  *  1. THE DAMAGE FORMATION (shared by every style, `../heroAttack/damageFormation.ts`). Its end is this style's start.
  *  2. CHARGE. The total dives into the attacking hero; an accretion swirl opens under the portrait and a small dark
  *     orb forms over it, light spiralling in; the view pushes in on the hero.
  *  3. THROW. Dark ORBS (a near-black disc with a hot rim, a swirl of light spinning into it, motes circling it and
- *     spiralling in, a black trail edged in light) are thrown from the hero nearly FLAT (they are heavy): I one; II two (different heights, opposite sides); III five,
+ *     spiralling in, a black trail edged in light) are thrown from the hero nearly FLAT (they are heavy): Tier 1 one; Tier 2 two (different heights, opposite sides); Tier 3 five,
  *     fanned, landing in rhythm.
  *  4. IMPACT. Each orb that lands before the last is a small tick. The LAST one is THE impact: a dark burst over the
  *     portrait inside a hot rim, rings, spikes. The consequence (the damage, Armor, Resolve) lands ONCE, there.
- *  IV. THE BLACK HOLE. The orbs do not strike: they arc in and join a ring orbiting the struck hero, which TIGHTENS and
+ *  Tier 4. THE BLACK HOLE. The orbs do not strike: they arc in and join a ring orbiting the struck hero, which TIGHTENS and
  *     SPEEDS UP while a black hole opens in its eye and grows, light streaking into it from far out; both portraits
  *     lean toward it. Then it COLLAPSES to a pinpoint and BLASTS outward. The damage lands on the blast.
  *
- * TIERS are the shared thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Reduced motion: no flight, orbs, shake or zoom;
+ * TIERS are the shared thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Reduced motion: no flight, orbs, shake or zoom;
  * the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -67,7 +67,7 @@ interface GlobalConfig {
   orbReach: number;
   /** Turns a second at the outer edge (they speed up as they fall in). */
   orbSpin: number;
-  // Swirl (Tier IV)
+  // Swirl (Tier 4)
   swirlRadius: number;
   swirlTilt: number;
   swirlMs: number;
@@ -75,9 +75,9 @@ interface GlobalConfig {
   swirlSpeed1: number;
   swirlTighten: number;
   convergeMs: number;
-  /** Tier IV: how far the STRIKING portrait leans toward the black hole (px at full pull). */
+  /** Tier 4: how far the STRIKING portrait leans toward the black hole (px at full pull). */
   pullPx: number;
-  /** Tier IV: how much the STRUCK portrait is crushed toward the hole's centre (a scale fraction at full pull). */
+  /** Tier 4: how much the STRUCK portrait is crushed toward the hole's centre (a scale fraction at full pull). */
   crush: number;
   // Explosion
   explodeSize: number;
@@ -129,7 +129,7 @@ type ClipKey = (typeof HERO_VOID_CLIP_KEYS)[number];
 export type HeroVoidStrKey = ColorKey | ClipKey;
 export type HeroVoidNumKey = Exclude<keyof HeroVoidConfig, HeroVoidStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<VoidTierSuffix, [number, number, number, number]> = {
   ChargeMs: [260, 340, 420, 420],
   Ribbons: [1, 2, 5, 6],
@@ -420,7 +420,7 @@ export interface VoidPlanInput extends AttackTierContext {
 export interface VoidPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The charge starts: the total dives into the hero, the sigil opens. */
@@ -429,20 +429,20 @@ export interface VoidPlan {
   /** The first ribbon leaves. */
   fireAt: number;
   ribbons: VoidRibbonPlan[];
-  /** Tier IV: the ribbons swirl over the target, converge and explode. */
+  /** Tier 4: the ribbons swirl over the target, converge and explode. */
   swirl: boolean;
-  /** Tier IV: the first ribbon joins the vortex (else the impact). */
+  /** Tier 4: the first ribbon joins the vortex (else the impact). */
   swirlAt: number;
-  /** Tier IV: the vortex collapses inward (else the impact). */
+  /** Tier 4: the vortex collapses inward (else the impact). */
   convergeAt: number;
   /** Ribbons that land BEFORE the impact (non-swirl), sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last ribbon lands (I-III) or the vortex explodes (IV). */
+  /** THE consequence beat: the last ribbon lands (Tiers 1-3) or the vortex explodes (Tier 4). */
   impactAt: number;
-  /** Aftershocks around the target (IV). */
+  /** Aftershocks around the target (Tier 4). */
   booms: number[];
   /**
-   * THE KNOCKOUT VARIANT ("Tier V"; inherited from Arcana and DORMANT until the Void has one): the Huge vortex, remixed. One EXTRA PULSE of the vortex
+   * THE KNOCKOUT VARIANT ("Tier 5"; inherited from Arcana and DORMANT until the Void has one): the Tier 4 vortex, remixed. One EXTRA PULSE of the vortex
    * (a prismatic throb, `koPulseAt`) before it collapses (the collapse and the explosion move back by `VOID_KO.pulseMs`),
    * the Ancient prism on the explosion, a bigger shake, a slow-mo dip (`dip`) and a KO sting. False / null otherwise.
    */
@@ -462,7 +462,7 @@ export interface VoidPlan {
 /** The whole Void, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function voidPlan(input: VoidPlanInput, c: HeroVoidConfig = cfg): VoidPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = voidTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -496,7 +496,7 @@ export function voidPlan(input: VoidPlanInput, c: HeroVoidConfig = cfg): VoidPla
     const fl = Math.round(flight * (1 + 0.06 * Math.abs(slot)));
     return { launchAt, flightMs: fl, arriveAt: launchAt + fl, lift, side, size: last ? 1.12 : count > 2 ? 0.86 : 1 };
   });
-  // Keep the launch order's rhythm on arrival: each lands at least `gap` after the one before (III's barrage).
+  // Keep the launch order's rhythm on arrival: each lands at least `gap` after the one before (Tier 3's barrage).
   const gap = count > 2 && !swirl ? Math.max(60, T.LaunchStaggerMs * 0.8) : 0;
   for (let i = 1; i < ribbons.length; i++) {
     const r = ribbons[i]!, prev = ribbons[i - 1]!;
@@ -506,7 +506,7 @@ export function voidPlan(input: VoidPlanInput, c: HeroVoidConfig = cfg): VoidPla
   const lastIn = Math.max(...ribbons.map((r) => r.arriveAt));
   const swirlAt = swirl ? firstIn : lastIn;
   const ko = isKnockoutVariant(input);
-  // Tier V: the vortex throbs once more where it would have collapsed; the collapse waits for the pulse.
+  // Tier 5: the vortex throbs once more where it would have collapsed; the collapse waits for the pulse.
   const koPulseAt = ko && swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) : null;
   const convergeAt = swirl ? Math.max(swirlAt + c.swirlMs, lastIn + 260) + (koPulseAt !== null ? VOID_KO.pulseMs : 0) : lastIn;
   const impactAt = swirl ? convergeAt + c.convergeMs : lastIn;
@@ -534,7 +534,7 @@ export function voidPlan(input: VoidPlanInput, c: HeroVoidConfig = cfg): VoidPla
   };
 }
 
-/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Tier 4). */
 export const VOID_KO = { pulseMs: 300 } as const;
 
 export type VoidCueKind = 'charge' | 'fire' | 'hit' | 'orbit' | 'swirl' | 'koPulse' | 'converge' | 'impact' | 'boom' | 'end';
@@ -571,7 +571,7 @@ export function voidCues(p: VoidPlan): VoidCue[] {
 export interface Lob { a: Pt; c1: Pt; c2: Pt; b: Pt }
 
 /**
- * The vortex a Tier IV ribbon joins: a tilted ellipse over the struck hero that tightens (radius `r0` down to `r1`)
+ * The vortex a Tier 4 ribbon joins: a tilted ellipse over the struck hero that tightens (radius `r0` down to `r1`)
  * and spins up (`w0` to `w1` rad/ms) between `start` and `end`, then collapses into the centre over `converge` ms.
  * `start` / `end` are ms after THIS ribbon's launch at which the RING (shared by every ribbon) forms and collapses, so
  * every ribbon rides the same spin; a ribbon joins it when its lob lands. `base` is this ribbon's slot angle; `dir`
@@ -579,7 +579,7 @@ export interface Lob { a: Pt; c1: Pt; c2: Pt; b: Pt }
  */
 export interface Vortex { cx: number; cy: number; r0: number; r1: number; tilt: number; base: number; dir: 1 | -1; w0: number; w1: number; start: number; end: number; converge: number }
 
-/** A ribbon's whole flight: the lob, then (Tier IV) the vortex. Times are ms after its launch. */
+/** A ribbon's whole flight: the lob, then (Tier 4) the vortex. Times are ms after its launch. */
 export interface RibbonMotion { lob: Lob; flightMs: number; vortex: Vortex | null }
 
 const cub = (a: number, b: number, c: number, d: number, t: number): number => {
@@ -656,7 +656,7 @@ export function ribbonPos(m: RibbonMotion, t: number): Pt {
 }
 
 /**
- * Every ribbon's whole flight, from the plan and the two heroes. Tier IV aims each ribbon at its own slot on the
+ * Every ribbon's whole flight, from the plan and the two heroes. Tier 4 aims each ribbon at its own slot on the
  * vortex (evenly spaced when the vortex collapses) and brings it in along the spin. Pure, so a replay flies the same
  * paths and the tests can check them.
  */
@@ -704,7 +704,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the charge; a
  * small recoil kick on each launch; a directional kick ALONG the landing ribbon on each barrage tick; on THE impact a
- * punch in and a directional shake along the last ribbon. Tier IV
+ * punch in and a directional shake along the last ribbon. Tier 4
  * instead builds: the view pushes in on the vortex as it tightens, a faint tremor grows, and the explosion punches in
  * hardest with a shake that rings both ways. Deterministic (sines and springs): a replay moves identically. Pure.
  */
@@ -746,7 +746,7 @@ export function voidCameraAt(p: VoidPlan, c: HeroVoidConfig, t: number, dir: Pt 
       y += p.shakePx * env * Math.cos(age * 0.093);
     }
     p.booms.forEach((at, i) => kick(at, p.shakePx * 0.3, 45, 18, i % 2 ? perp : dir));
-    // Tier V: the extra pulse thumps the view (a short punch in and a kick up).
+    // Tier 5: the extra pulse thumps the view (a short punch in and a kick up).
     if (p.koPulseAt !== null) {
       kick(p.koPulseAt, p.shakePx * 0.35, 50, 15, { x: 0, y: -1 });
       if (t >= p.koPulseAt) z += p.punch * 0.5 * Math.exp(-(t - p.koPulseAt) / 90);
@@ -759,7 +759,7 @@ export function voidCameraAt(p: VoidPlan, c: HeroVoidConfig, t: number, dir: Pt 
 
 /**
  * Where the camera anchors: the ATTACKER through the charge, following the volley in flight, and the DEFENDER from
- * the impact on (Tier IV: from the moment the vortex forms). A zoom anchored on a point keeps that point still. Pure.
+ * the impact on (Tier 4: from the moment the vortex forms). A zoom anchored on a point keeps that point still. Pure.
  */
 export function voidCameraFocus(p: VoidPlan, t: number, a: Pt, d: Pt): Pt {
   const settle = p.swirl ? p.swirlAt : p.impactAt;

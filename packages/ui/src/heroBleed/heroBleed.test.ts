@@ -3,7 +3,7 @@
  * THE BLEED HERO ATTACK ("Hemorrhage"; owner 2026-09-29: "make some more attack types - we need ... a bleed/gash
  * animation ... use the same 4 tier strategy we have been"): the tier mapping SHARED with every style; the ladder (one
  * gash / a cross / a flurry ending in a claw rake / three rakes and the Hemorrhage); the tuner defaults + clamping; the
- * pure plan (the total is the engine's number, the cut rhythm, the impact beat, the heartbeat and the mega-slash at IV,
+ * pure plan (the total is the engine's number, the cut rhythm, the impact beat, the heartbeat and the mega-slash at Tier 4,
  * reduced motion, determinism); the pure geometry (crescents from the attacker's rim, cuts across the struck face, the
  * cross, the rake, mirrored for a foe, the mega-slash through the target); the camera; the runner on the shared clock
  * (the consequence lands exactly ONCE, on the last cut or the explosion, never on a tick or a zip; both directions; slow motion;
@@ -46,7 +46,7 @@ const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 
 const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
 
 describe('the damage tiers (shared with every style)', () => {
-  it('Bleed steps up on exactly the blows Blast and Poison do: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Bleed steps up on exactly the blows Blast and Poison do: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -56,7 +56,7 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE clean gash, II a CROSS of two, III a FLURRY of five ending in a three-claw RAKE, IV three rakes and the HEMORRHAGE', () => {
+  it('the ladder: Tier 1 ONE clean gash, Tier 2 a CROSS of two, Tier 3 a FLURRY of five ending in a three-claw RAKE, Tier 4 three rakes and the HEMORRHAGE', () => {
     expect([P1, P2, P3, P4].map((p) => p.slashes.length)).toEqual([1, 2, 5, 3]);
     expect([P1, P2, P3, P4].map((p) => p.hemorrhage)).toEqual([false, false, false, true]);
     expect([P1, P2, P3, P4].map((p) => p.slashes.map((s) => s.lines))).toEqual([[1], [1, 1], [1, 1, 1, 1, 3], [3, 3, 3]]);
@@ -113,7 +113,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('bleed');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('bleed');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
     // Owner 2026-09-29 (every hero attack tuner): no speed or reduced-motion buttons, and the button row on TOP.
@@ -140,7 +140,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('bleed')).toBeLessThan(kinds.indexOf('close'));
   });
 
-  it('Tier II is a cross: two cuts on the two diagonals (one tick, then the impact); Tier I one cut, straight to the impact', () => {
+  it('Tier 2 is a cross: two cuts on the two diagonals (one tick, then the impact); Tier 1 one cut, straight to the impact', () => {
     expect(P2.slashes[1]!.swingAt - P2.slashes[0]!.swingAt).toBeLessThanOrEqual(250);
     expect(P2.hits).toHaveLength(1);
     expect(P2.impactAt).toBe(P2.slashes[1]!.arriveAt);
@@ -153,7 +153,7 @@ describe('the plan', () => {
     expect(P1.slashes[0]!.angle).toBeLessThan(1.2);
   });
 
-  it('Tier IV: EVERY rake and EVERY zip is a tick; heartbeats, the wind-up, EIGHT zips, the held tension, and the EXPLOSION is the impact (the one consequence)', () => {
+  it('Tier 4: EVERY rake and EVERY zip is a tick; heartbeats, the wind-up, EIGHT zips, the held tension, and the EXPLOSION is the impact (the one consequence)', () => {
     const kinds = bleedCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(3);
     expect(kinds.filter((k) => k === 'beat')).toHaveLength(C.beats);
@@ -207,7 +207,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [300, 530, 1470], [340, 760, 1740], [380, 970, 1990], [420, 3059, 4159],
     ]);
-    // Chunky, not rushed, never dragging: Tier I about 1.5 s; Tier IV, the over-the-top one, still under 4.5 s.
+    // Chunky, not rushed, never dragging: Tier 1 about 1.5 s; Tier 4, the over-the-top one, still under 4.5 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
     expect(t(P4)[2]).toBeLessThanOrEqual(4500);
   });
@@ -261,7 +261,7 @@ describe('the geometry', () => {
     expect(waveEase(1) - waveEase(0.9)).toBeGreaterThan(waveEase(0.1) - waveEase(0)); // still accelerating as it bites
   });
 
-  it('II draws an X (the two cuts cross at the heart of the face); III ends in a three-claw rake of parallel lines', () => {
+  it('Tier 2 draws an X (the two cuts cross at the heart of the face); Tier 3 ends in a three-claw rake of parallel lines', () => {
     const [a, b] = slashGeos(P2, A, D, R, R, C);
     const cross = Math.abs(Math.sin(a!.angle - b!.angle));
     expect(cross).toBeGreaterThan(0.8); // near perpendicular
@@ -319,7 +319,7 @@ describe('the geometry', () => {
     expect(megaPos(zs[0]!, Number.NaN)).toEqual(zs[0]!.from);
   });
 
-  it('Tier IV\'s claw rakes sweep WIDE lines too, in from the screen side, through the struck hero (owner 2026-09-29: "first 2 slash throughs on the huge attack still dont have the line slashes"); none below IV', () => {
+  it('Tier 4\'s claw rakes sweep WIDE lines too, in from the screen side, through the struck hero (owner 2026-09-29: "first 2 slash throughs on the huge attack still dont have the line slashes"); none below Tier 4', () => {
     const MID = { x: 960, y: 540 };
     const ls = rakeLines(P4, A, D, 3700, MID);
     expect(ls).toHaveLength(3);
@@ -354,7 +354,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Tier IV breathes in on each heartbeat, eases back through the wind-up, whips along every zip, creeps in through the tension, then the explosion punches hardest; focus moves from striker to target', () => {
+  it('Tier 4 breathes in on each heartbeat, eases back through the wind-up, whips along every zip, creeps in through the tension, then the explosion punches hardest; focus moves from striker to target', () => {
     const b = P4.beats[0]!;
     expect(bleedCameraAt(P4, C, b + 5).zoom).toBeGreaterThan(bleedCameraAt(P4, C, b - 5).zoom);
     expect(bleedCameraAt(P4, C, P4.megaAt - 5).zoom).toBeLessThan(bleedCameraAt(P4, C, P4.windAt).zoom + 1e-9);
@@ -440,7 +440,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: three rakes, the heartbeats, EIGHT zips (all ticks), the held tension, and the blow lands ONCE on the EXPLOSION', () => {
+  it('Tier 4: three rakes, the heartbeats, EIGHT zips (all ticks), the held tension, and the blow lands ONCE on the EXPLOSION', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.hemorrhage).toBe(true);
     expect(h.zips).toHaveLength(8);
@@ -583,7 +583,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV (eight zips and the explosion) stays in the cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 (eight zips and the explosion) stays in the cap and drains; destroy leaves nothing', () => {
     const s = new HeroBleedScene(TEX, COLORS, LOOK, 1, 42);
     const gs = slashGeos(P4, A, D, R, R, C);
     s.startCharge(A.x, A.y, gs[0]!.a, 70, 400, gs.length);

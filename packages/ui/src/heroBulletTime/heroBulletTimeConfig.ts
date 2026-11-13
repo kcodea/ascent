@@ -10,21 +10,21 @@
  * time-rift glow along the cut, afterimages trailing; then time SNAPS back to full speed and everything lands. Every
  * shape centres on the struck hero; the colours stay full (no grey).
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I: a gold clock-hand dart cuts in and slows to a crawl an inch from the target inside a clock dial; snap: the hit.
- *  - II: three darts cut in from round the target and crawl; snap: they all hit together.
- *  - III: a volley of twelve cuts in to a spiral round the target and crawls as a clock face appears; the hero SNAPS:
+ * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays Tier 4):
+ *  - Tier 1: a gold clock-hand dart cuts in and slows to a crawl an inch from the target inside a clock dial; snap: the hit.
+ *  - Tier 2: three darts cut in from round the target and crawl; snap: they all hit together.
+ *  - Tier 3: a volley of twelve cuts in to a spiral round the target and crawls as a clock face appears; the hero SNAPS:
  *    they land in a machine-gun run (the last is the blow).
- *  - IV (Huge): dozens of blades slice in to a DOME of rings round the target before a big clock face counting 3-2-1,
+ *  - Tier 4: dozens of blades slice in to a DOME of rings round the target before a big clock face counting 3-2-1,
  *    crawling; time snaps back and the whole dome collapses in one massive gold and violet impact, on a slow-mo dip.
- *  - KNOCKOUT ("Tier V", an Ancient knockout; owner rule 2026-10-02): IV remixed: one EXTRA ring of blades in the dome
+ *  - KNOCKOUT ("Tier 5", an Ancient knockout; owner rule 2026-10-02): Tier 4 remixed: one EXTRA ring of blades in the dome
  *    (cyan and magenta), a PRISMATIC collapse, a 1.3x shake, a deeper and longer slow-mo dip and the KO sting.
  *
  * NEVER A FROZEN FRAME (owner rule R-PROG-ATTACK-10: "it looks like lag"): in the slow motion EVERYTHING still moves, just
  * slowed (the blades crawl, the FX run at `slowFx` speed, the clock hand sweeps, the camera pushes in). The snap back is
  * hard: a flash, a chromatic burst, a shake.
  *
- * THE CONTRACT: every hit before the last (III's run) is a tick; the consequence lands exactly ONCE, on the last hit (or
+ * THE CONTRACT: every hit before the last (Tier 3's run) is a tick; the consequence lands exactly ONCE, on the last hit (or
  * the collapse). Reduced motion: fades only.
  */
 import { configStore } from '../heroAttack/configStore';
@@ -48,15 +48,15 @@ type TierKey = `${BulletLevel}${BulletTierSuffix}`;
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
-  /** III: the gap between each dart of the run after the snap (the last is the blow). */
+  /** Tier 3: the gap between each dart of the run after the snap (the last is the blow). */
   runMs: number;
-  /** IV: each count of the 3-2-1. */
+  /** Tier 4: each count of the 3-2-1. */
   countMs: number;
-  /** IV: the dome's three rings (blades per ring) and its size. */
+  /** Tier 4: the dome's three rings (blades per ring) and its size. */
   domeRings: number;
   domeBlades: number;
   domeSize: number;
-  /** IV: the slow-mo dip on the collapse (lowest clock speed, and how long it takes to ease back, attack ms). */
+  /** Tier 4: the slow-mo dip on the collapse (lowest clock speed, and how long it takes to ease back, attack ms). */
   slowMo: number;
   slowMoMs: number;
   /** How far short of the target a dart hangs (struck radii). */
@@ -70,7 +70,7 @@ interface GlobalConfig {
   slowFx: number;
   /** The gold TEAR each blade slices through the air (px). */
   riftWidth: number;
-  /** An afterimage peels off a crawling blade every this many ms (IV every three times this). */
+  /** An afterimage peels off a crawling blade every this many ms (Tier 4 every three times this). */
   ghostMs: number;
   /** The gold time ripple pulsing off the target in the slow motion (ms between pulses). */
   rippleMs: number;
@@ -116,7 +116,7 @@ export const HERO_BULLET_CLIP_KEYS = [
 export type HeroBulletStrKey = (typeof HERO_BULLET_COLOR_KEYS)[number] | (typeof HERO_BULLET_CLIP_KEYS)[number];
 export type HeroBulletNumKey = Exclude<keyof HeroBulletTimeConfig, HeroBulletStrKey>;
 
-/** Per tier, I / II / III / IV. (IV's darts come from the dome dials; its Darts dial is unused.) */
+/** Per tier, Tiers 1 / 2 / 3 / 4. (Tier 4's darts come from the dome dials; its Darts dial is unused.) */
 const TIER_DEFAULTS: Record<BulletTierSuffix, [number, number, number, number]> = {
   ReadyMs: [220, 220, 240, 300],
   Darts: [1, 3, 12, 36],
@@ -290,7 +290,7 @@ export interface BulletDart { launchAt: number; hangAt: number; resumeAt: number
 
 export interface BulletPlanInput extends AttackTierContext {
   /**
-   * Extra rings of blades on IV's dome (default 0). The bolt-on point for the Ancient "Knockout" remix of Huge (owner
+   * Extra rings of blades on Tier 4's dome (default 0). The bolt-on point for the Ancient "Knockout" remix of Tier 4 (owner
    * rule 2026-10-02; plumbing on its own branch): one more ring before the collapse.
    */
   extraRings?: number;
@@ -315,14 +315,14 @@ export interface BulletPlan {
   /** SLOW MOTION: from `stopAt` to `resumeAt` the shots crawl (everything keeps moving, slowed); then the snap. */
   stopAt: number;
   resumeAt: number;
-  /** IV: the 3-2-1 count (each count's time). */
+  /** Tier 4: the 3-2-1 count (each count's time). */
   counts: number[];
   /** Hits BEFORE the impact (ticks). */
   hits: number[];
   impactAt: number;
-  /** The Knockout variant ("Tier V"): IV remixed (an extra ring, the prism, a bigger shake, a deeper dip). */
+  /** The Knockout variant ("Tier 5"): Tier 4 remixed (an extra ring, the prism, a bigger shake, a deeper dip). */
   ko: boolean;
-  /** IV's slow-mo dip on the collapse (null below IV): the one clock eases down and back, never 0. */
+  /** Tier 4's slow-mo dip on the collapse (null below Tier 4): the one clock eases down and back, never 0. */
   dip: KoDip | null;
   endAt: number;
   size: number;
@@ -338,7 +338,7 @@ export function bulletKind(tier: TierNum): BulletKind { return tier === 1 ? 'dar
 /** The whole Timebreak, in base ms. Pure and deterministic. */
 export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = store.get()): BulletPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const kind = bulletKind(tier);
   const ko = tier === 4 && isKnockoutVariant(input);
   const L = bulletTierDials(tier, c);
@@ -401,7 +401,7 @@ export function bulletPlan(input: BulletPlanInput, c: HeroBulletTimeConfig = sto
   const impactAt = Math.max(...hitTimes);
   const hits = [...new Set(hitTimes.filter((t) => t < impactAt))].sort((a, b) => a - b);
   const endAt = impactAt + Math.max(c.zoomOutMs * 0.8, L.SettleMs);
-  // IV's dip on the collapse; the Knockout's is deeper and longer.
+  // Tier 4's dip on the collapse; the Knockout's is deeper and longer.
   const dip: KoDip | null = tier === 4 && c.slowMoMs > 0
     ? { at: impactAt, lo: ko ? Math.max(0.1, c.slowMo * 0.8) : c.slowMo, ms: c.slowMoMs + (ko ? 60 : 0) }
     : null;
@@ -441,7 +441,7 @@ export function bulletCues(p: BulletPlan): BulletCue[] {
 export function inSlowMo(p: BulletPlan, t: number): boolean { return !p.reduced && t >= p.stopAt && t < p.resumeAt; }
 
 /**
- * IV's SLOW-MO DIP on the collapse (the Basketball / Soul Stitch technique; a freeze is banned, R-PROG-ATTACK-10): the
+ * Tier 4's SLOW-MO DIP on the collapse (the Basketball / Soul Stitch technique; a freeze is banned, R-PROG-ATTACK-10): the
  * one clock drops to `slowMo` the instant the dome hits and eases back over `slowMoMs`, a smooth ramp never reaching 0.
  */
 export function bulletTimeScale(p: BulletPlan, c: HeroBulletTimeConfig, t: number): number {
@@ -466,8 +466,8 @@ type Box = { x: number; y: number; w: number; h: number };
 
 /**
  * Where each dart enters the slow motion, by tier, every shape CENTRED ON THE TARGET (owner review 2026-10-02: "looks
- * weird not being centered"): I an inch off it (on the striker's side); II three evenly round it; III a spiral round it;
- * IV a DOME of full rings round it. A target near an edge keeps its centre: the dome shrinks to fit (down to 60%), and
+ * weird not being centered"): Tier 1 an inch off it (on the striker's side); Tier 2 three evenly round it; Tier 3 a spiral round it;
+ * Tier 4 a DOME of full rings round it. A target near an edge keeps its centre: the dome shrinks to fit (down to 60%), and
  * any point still off screen is clamped onto it.
  */
 export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroBulletTimeConfig, bounds?: Box): Pt[] {
@@ -554,7 +554,7 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 
 /**
  * The camera: a push in through the ready; through the slow motion it keeps PUSHING IN (the screen never holds still);
- * the snap back to full speed KICKS it; the impact punches and shakes (IV the hardest in the roster). Pure.
+ * the snap back to full speed KICKS it; the impact punches and shakes (Tier 4 the hardest in the roster). Pure.
  */
 export function bulletCameraAt(p: BulletPlan, c: HeroBulletTimeConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };

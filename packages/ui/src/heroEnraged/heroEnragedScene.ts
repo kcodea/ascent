@@ -21,7 +21,7 @@
  *    chunky sparks thrown along the blow with gravity. The aura drops away on the last contact so the impact reads.
  *  - COMBO: every hit before the last is its own full impact (`tick`), scaled by its power up the combo; a `coil` ring
  *    tightens before each drive back in; each dash leaves a scorch skid.
- *  - HAYMAKER (IV): the `rear` maxes the rage (the fire towers and a column of flame roars up off the hero, a flare, a
+ *  - HAYMAKER (Tier 4): the `rear` maxes the rage (the fire towers and a column of flame roars up off the hero, a flare, a
  *    dark pressure ring), the slam trails fire, and the knockout adds a giant flaming crescent, a screen-filling rage
  *    shockwave, molten cracks round the struck portrait with fire bursting up out of the crater, rubble and an ember storm.
  * No hit-stop anywhere (owner 2026-09-28: "remove the freezeing frame from all of the animations. it looks like lag").
@@ -89,14 +89,14 @@ export interface EnragedLook {
   /** The ground scorch a dash leaves, and how long it lasts. */
   scorch: number;
   scorchMs: number;
-  /** Tier IV: embers the haymaker's cracked ground throws up over the next second. */
+  /** Tier 4: embers the haymaker's cracked ground throws up over the next second. */
   emberStorm: number;
 }
 
 /** The hero at a moment (screen px): centre, scale and rage. */
 export interface HeroAt { x: number; y: number; s: number; heat: number }
 
-/** Hard cap on sprites alive at once (a Tier IV haymaker peaks around 400). */
+/** Hard cap on sprites alive at once (a Tier 4 haymaker peaks around 400). */
 export const MAX_ENRAGED_SPRITES = 900;
 /** Hard cap on strip meshes alive at once (the streak: three; an X of claws: eighteen; the scorches: two each). */
 export const MAX_ENRAGED_MESHES = 128;
@@ -435,7 +435,7 @@ export class HeroEnragedScene {
   }
 
   /**
-   * THE HAYMAKER'S REAR-BACK (Tier IV's build): the rage goes to its maximum. The flames tower and stream, the halo blazes,
+   * THE HAYMAKER'S REAR-BACK (Tier 4's build): the rage goes to its maximum. The flames tower and stream, the halo blazes,
    * a big flare and three heat rings tear off the rim, and a dark ring of pressure closes in on the hero.
    */
   rear(): void {
@@ -617,7 +617,7 @@ export class HeroEnragedScene {
 
   /**
    * THE IMPACT (the consequence frame, no freeze): a short white flash and a hot core that are gone within ~200 ms (fills
-   * are short), a crisp hot ring and a slower red one, the claw rips (a big set; III and IV cross a second set over it),
+   * are short), a crisp hot ring and a slower red one, the claw rips (a big set; Tiers 3 and 4 cross a second set over it),
    * chunky sparks thrown along the blow, a few embers and two dark puffs; the foe smoulders after. The haymaker adds a
    * short screen flash, a giant flaming crescent, a screen-filling rage shockwave, molten cracks, rubble and an ember storm.
    */
@@ -639,7 +639,7 @@ export class HeroEnragedScene {
     this.fxs('glow', this.tex.ring, this.colors.hot, x, y, { dur: 220, from: (R * 0.6) / RING_R, to: (R * 1.5) / RING_R, a0: 0.7 });
     this.fxs('glow', this.tex.rim, this.glowC, x, y, { dur: 560, delay: 60, from: (R * 0.5) / RIM_R, to: (R * (3.2 + 0.6 * o.k) * L.ring2Size * b) / RIM_R, a0: 0.8 });
     if (o.haymaker) {
-      // THE KNOCKOUT (Tier IV): a SCREEN-FILLING RAGE SHOCKWAVE (a thin white-hot rim racing out, a dark pressure ring
+      // THE KNOCKOUT (Tier 4): a SCREEN-FILLING RAGE SHOCKWAVE (a thin white-hot rim racing out, a dark pressure ring
       // behind it for contrast, a late second rim) and a GIANT FLAMING CRESCENT slashed down across the foe along the blow.
       const shock = (R * 7.5 * L.shockSize) / RIM_R;
       this.fxs('glow', this.tex.rim, whiten(this.colors.hot, 0.5), x, y, { dur: 620, from: (R * 1) / RIM_R, to: shock, a0: 1 });
@@ -647,7 +647,7 @@ export class HeroEnragedScene {
       this.fxs('glow', this.tex.rim, this.colors.hot, x, y, { dur: 820, delay: 150, from: (R * 0.8) / RIM_R, to: (R * 5.2 * L.ring2Size) / RIM_R, a0: 0.7 });
       this.crescent(x, y, u, R);
     }
-    // The claws: one big set; a second set crossing it (an X) from Tier III; the slashes dial adds more crossing sets.
+    // The claws: one big set; a second set crossing it (an X) from Tier 3; the slashes dial adds more crossing sets.
     const sets = Math.max(0, Math.min(3, Math.round(o.slashes)));
     for (let i = 0; i < sets; i++) this.claws(x + this.clawOff.x, y + this.clawOff.y, u, R * (2.6 + 0.35 * o.k), i % 2 ? -1 : 1, 1.15 + 0.25 * o.k, i * 90);
     // Sparks and embers along the blow; a couple of dark puffs for contrast.
@@ -699,7 +699,7 @@ export class HeroEnragedScene {
       }
     }
     if (o.smoulderMs > 0 || o.haymaker) {
-      // IV: the crater throws up an EMBER STORM over its first second, on top of the smoulder.
+      // Tier 4: the crater throws up an EMBER STORM over its first second, on top of the smoulder.
       this.smoulders.push({ x, y, r: R, left: Math.max(o.smoulderMs, o.haymaker ? 1100 : 0), acc: 0, smokeAcc: 0, storm: o.haymaker ? this.look.emberStorm : 0, stormAcc: 0 });
     }
   }
@@ -734,7 +734,7 @@ export class HeroEnragedScene {
     const L = this.look;
     if ((this.dashing || this.lastStretch) && moved > 0) this.stampGhosts(prev, h, moved);
     for (const sc of this.scorches) if (sc.open) { sc.bx = h.x; sc.by = h.y; }
-    // THE COMET (IV): the slam sheds fire along its path.
+    // THE COMET (Tier 4): the slam sheds fire along its path.
     if (this.dashing && (this.aura?.comet ?? 0) > 0 && moved > 0) {
       this.cometAcc += moved;
       while (this.cometAcc > 12 * S) {

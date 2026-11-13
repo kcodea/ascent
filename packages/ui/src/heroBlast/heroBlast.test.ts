@@ -73,7 +73,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('damage tiers: I 1-5, II 6-11, III 12-19, IV 20+ (the engine caps are 5 / 10 / 15 / 20 by round)', () => {
+  it('damage tiers: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+ (the engine caps are 5 / 10 / 15 / 20 by round)', () => {
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => tierOf(d, C))).toEqual([1, 1, 2, 2, 3, 3, 4, 4]);
   });
 
@@ -104,7 +104,7 @@ describe('the plan', () => {
     ]);
   });
 
-  it('Tier IV: the beam lands (a tick), holds, pours in and implodes, and the blow lands on the SUPERNOVA', () => {
+  it('Tier 4: the beam lands (a tick), holds, pours in and implodes, and the blow lands on the SUPERNOVA', () => {
     const p = plan([6, 6, 6, 6, 6, 5, 5], 40);
     expect(p.beamHitAt).toBe(p.bolts[0]!.arriveAt);
     expect(p.collapseAt).toBe(p.beamHitAt + C.beamHoldMs);

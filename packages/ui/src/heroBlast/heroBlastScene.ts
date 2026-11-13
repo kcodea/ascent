@@ -12,7 +12,7 @@
  *  - IMPACT: starts AT its brightest (the first frame is the peak): a white core burst, a white flash
  *    over the whole portrait, a coloured bloom, a crisp ring and a slower wide one, 8 long spikes, chunky sparks with
  *    gravity carried through the target, and an afterglow that lingers. Trailing bolts land smaller hits.
- *  - SUPERNOVA (Tier IV, owner 2026-09-29 "add a tier to the blast attack so they all have 4"): the colossal beam lands
+ *  - SUPERNOVA (Tier 4, owner 2026-09-29 "add a tier to the blast attack so they all have 4"): the colossal beam lands
  *    (a tick), holds, then POURS into the struck hero (its tail races after its front) while a wide ring and motes
  *    implode onto it; then it detonates: rays, three shockwaves (the last sweeps most of the screen), a corona.
  *
@@ -148,7 +148,7 @@ export class HeroBlastScene {
   }
 
   /**
-   * THE SUPERNOVA'S INHALE (Tier IV): the beam pours into the struck hero while a wide ring closes in on it, light is
+   * THE SUPERNOVA'S INHALE (Tier 4): the beam pours into the struck hero while a wide ring closes in on it, light is
    * sucked in from all round and a core swells and throbs faster. Released (and replaced) by `nova`.
    */
   collapse(x: number, y: number, durMs: number, size: number, motes: number): void {
@@ -167,7 +167,7 @@ export class HeroBlastScene {
   }
 
   /**
-   * THE SUPERNOVA (Tier IV, on the consequence beat, layered over `impact`): the imploded light detonates. A white
+   * THE SUPERNOVA (Tier 4, on the consequence beat, layered over `impact`): the imploded light detonates. A white
    * core flash, a huge side bloom, long RAYS bursting out all round, three shockwaves (crisp, wide, and one that
    * sweeps most of the screen), a ring of fast streaks and a lingering corona. Few, bold elements; all pooled.
    */

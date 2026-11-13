@@ -15,17 +15,17 @@
  *  3. AIM. Every blade swings round to point at the target (a snappy turn with a little overshoot) and LOCKS: a glint
  *     runs off each tip and the view holds for a breath (the anticipation).
  *  4. LOOSE. Each blade kicks back a few px and then thrusts in a straight line, fast, leaving ghost afterimages and a
- *     thin cut of light: I one blade; II two that cross in an X; III a fan of five that hammer in, in rhythm.
+ *     thin cut of light: Tier 1 one blade; Tier 2 two that cross in an X; Tier 3 a fan of five that hammer in, in rhythm.
  *  5. STAB. Each blade that lands before the last STICKS in the portrait (a spark spray and a cut flash) and quivers.
  *     The LAST one is THE impact: the big `-N`, a cross-cut flash. The consequence (the damage, Armor,
  *     Resolve) lands ONCE, there. A beat later every stuck blade SHATTERS into shards.
- *  IV. JUDGEMENT. Six blades hammer in as ticks, then a GREATSWORD is summoned over the hero, raised, swung round to
+ *  Tier 4. JUDGEMENT. Six blades hammer in as ticks, then a GREATSWORD is summoned over the hero, raised, swung round to
  *     aim, and held trembling while the stuck blades are bound to it by beams of light and a reticle locks onto the
  *     target. Then it is loosed: a huge straight thrust that impales the target (THE impact), and a beat later the
  *     greatsword and every blade shatter together, with a pillar of light and a shockwave.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). About 2 s at Tier I, about
- * 4 s at Tier IV. Reduced motion: no blades, shake or zoom; the numbers fade and the blow lands.
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). About 2 s at Tier 1, about
+ * 4 s at Tier 4. Reduced motion: no blades, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
  * plays DEFAULTS. The preview speed is how you are LOOKING and is never saved.
@@ -70,7 +70,7 @@ interface GlobalConfig {
   quiver: number;
   // Shatter
   shatterDelayMs: number;
-  // The greatsword (Tier IV)
+  // The greatsword (Tier 4)
   greatSize: number;
   greatForm: number;
   greatManifestMs: number;
@@ -130,7 +130,7 @@ type ClipKey = (typeof HERO_BLADES_CLIP_KEYS)[number];
 export type HeroBladesStrKey = ColorKey | ClipKey;
 export type HeroBladesNumKey = Exclude<keyof HeroBladesConfig, HeroBladesStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<BladesTierSuffix, [number, number, number, number]> = {
   Blades: [1, 2, 5, 6],
   SummonStaggerMs: [0, 70, 55, 40],
@@ -422,7 +422,7 @@ export interface BladePlan {
   slot: number;
   /** Size multiplier (the last is the biggest). */
   size: number;
-  /** True for Tier IV's greatsword. */
+  /** True for Tier 4's greatsword. */
   great: boolean;
 }
 
@@ -439,7 +439,7 @@ export interface BladesPlanInput extends AttackTierContext {
 export interface BladesPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The total dives into the hero; the summoning starts. */
@@ -447,19 +447,19 @@ export interface BladesPlan {
   absorbEnd: number;
   /** The first blade looses (the camera's hand-off from the hero to the flight). */
   fireAt: number;
-  /** The small blades, in loose order (Tier IV's greatsword is NOT in here: see `great`). */
+  /** The small blades, in loose order (Tier 4's greatsword is NOT in here: see `great`). */
   blades: BladePlan[];
-  /** Tier IV: the greatsword. */
+  /** Tier 4: the greatsword. */
   great: BladePlan | null;
-  /** Tier IV: the greatsword starts to hang (aimed, trembling) and the binding beams light. */
+  /** Tier 4: the greatsword starts to hang (aimed, trembling) and the binding beams light. */
   hangAt: number;
   /** Blades that land BEFORE the impact, sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last blade (I-III) or the greatsword (IV) goes in. */
+  /** THE consequence beat: the last blade (Tiers 1-3) or the greatsword (Tier 4) goes in. */
   impactAt: number;
   /** Everything stuck in the target shatters. */
   shatterAt: number;
-  /** Aftershocks round the target (IV). */
+  /** Aftershocks round the target (Tier 4). */
   booms: number[];
   endAt: number;
   spread: number;
@@ -476,7 +476,7 @@ export interface BladesPlan {
 /** The whole Phantom Blades, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): BladesPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = bladesTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -512,7 +512,7 @@ export function bladesPlan(input: BladesPlanInput, c: HeroBladesConfig = cfg): B
       size: last && !withGreat && count > 1 ? 1.14 : 1, great: false,
     };
   });
-  // Keep the loose order's rhythm on arrival: each lands at least `gap` after the one before (III's hammering).
+  // Keep the loose order's rhythm on arrival: each lands at least `gap` after the one before (Tier 3's hammering).
   const gap = count > 2 ? Math.max(55, T.LooseStaggerMs * 0.8) : 0;
   for (let i = 1; i < blades.length; i++) {
     const b = blades[i]!, prev = blades[i - 1]!;
@@ -707,7 +707,7 @@ export function formationAngle(a: Pt, d: Pt, radius: number, ceilY: number): num
 }
 
 /**
- * Every blade's whole life (and Tier IV's greatsword, LAST in the list), from the plan, the two heroes, the portrait
+ * Every blade's whole life (and Tier 4's greatsword, LAST in the list), from the plan, the two heroes, the portrait
  * radii and the on-screen box. The formation is an arc round the hero, opening toward the target; the marks the tips
  * go in at CROSS (a blade from the left of the arc goes in right of centre), so a pair makes an X and a fan a
  * pin-cushion. Pure, so a replay flies the same paths and the tests can check them.
@@ -786,7 +786,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the summon and
  * the aim (held still on the lock: the breath before the loose); a recoil kick on each loose; a sharp directional kick
- * ALONG each blade that goes in; on THE impact a punch in and a hard directional shake. Tier IV instead builds on the
+ * ALONG each blade that goes in; on THE impact a punch in and a hard directional shake. Tier 4 instead builds on the
  * greatsword: the view pushes in further while it hangs, a tremor grows, and its impact punches hardest and rings both
  * ways. Deterministic (sines and springs): a replay moves identically. Pure.
  */
@@ -796,7 +796,7 @@ export function bladesCameraAt(p: BladesPlan, c: HeroBladesConfig, t: number, di
   const sine = (u: number): number => easeInOutSine(u);
   if (t >= p.chargeAt && t < p.impactAt) {
     let push = p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
-    // Tier IV: while the greatsword hangs the view eases back OUT to a wide shot (both heroes, the greatsword and the
+    // Tier 4: while the greatsword hangs the view eases back OUT to a wide shot (both heroes, the greatsword and the
     // bound target all in frame: the foe often sits at a screen corner), so the loose and the impact punch in from wide.
     if (p.great && t >= p.hangAt) push *= 1 - 0.85 * sine((t - p.hangAt) / Math.max(1, p.great.launchAt + c.greatPullMs - p.hangAt));
     z += push;
@@ -841,7 +841,7 @@ export function bladesCameraAt(p: BladesPlan, c: HeroBladesConfig, t: number, di
 
 /**
  * Where the camera anchors: the ATTACKER through the summon and the aim, following the volley in flight, the DEFENDER
- * once the last blade is in. Tier IV holds the midpoint while the greatsword hangs (both heroes in view), then swings
+ * once the last blade is in. Tier 4 holds the midpoint while the greatsword hangs (both heroes in view), then swings
  * to the defender as it is loosed. A zoom anchored on a point keeps that point still. Pure.
  */
 export function bladesCameraFocus(p: BladesPlan, t: number, a: Pt, d: Pt, c: HeroBladesConfig = cfg): Pt {

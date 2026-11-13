@@ -1,17 +1,17 @@
 /**
  * THE PHANTOM BLADES RUNNER: plays one Blades hero attack (the beats are in `heroBladesConfig.ts`) and lands the
- * consequence on its impact beat (the last blade going in, or Tier IV's greatsword). Presentation only: the total it
+ * consequence on its impact beat (the last blade going in, or Tier 4's greatsword). Presentation only: the total it
  * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen
  * they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Blast, Quake and Arcana do: one clock
  * (it never pauses), the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Blades' own:
- * the formation, the aim and the lock, the straight thrusts, the stuck blades and the shatter, the Tier IV greatsword
+ * the formation, the aim and the lock, the straight thrusts, the stuck blades and the shatter, the Tier 4 greatsword
  * and its judgement, its camera and its sound.
  *
  * THE STAB CONTRACT: every blade that goes in before the last is a tick (FX and a clang only). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last blade (Tier IV: on the greatsword). The
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last blade (Tier 4: on the greatsword). The
  * shatter that follows is FX only.
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
@@ -48,7 +48,7 @@ export interface HeroBladesOptions extends HeroAttackOptions {
 
 export interface HeroBladesHandle extends HeroAttackHandle {
   readonly plan: BladesPlan;
-  /** Every sword's life (the small blades in loose order, then Tier IV's greatsword). Empty under reduced motion. */
+  /** Every sword's life (the small blades in loose order, then Tier 4's greatsword). Empty under reduced motion. */
   readonly motions: readonly BladeMotion[];
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroBladesScene | null;

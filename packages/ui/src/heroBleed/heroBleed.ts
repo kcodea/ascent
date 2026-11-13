@@ -1,6 +1,6 @@
 /**
  * THE BLEED RUNNER: plays one Bleed ("Hemorrhage") hero attack (the beats are in `heroBleedConfig.ts`) and lands the
- * consequence on its impact beat (the last cut, or Tier IV's bloody explosion). Presentation only: the
+ * consequence on its impact beat (the last cut, or Tier 4's bloody explosion). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on
  * screen they happen.
  *
@@ -10,8 +10,8 @@
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Bleed's own: the
  * crescent paths, the cut rhythm, the wounds, the heartbeat, the eight zips, the explosion, its camera and its sound.
  *
- * THE CUT CONTRACT: every cut that lands before the last is a tick (FX and sound only; at Tier IV every cut is). The
- * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last cut (Tier IV: on the explosion;
+ * THE CUT CONTRACT: every cut that lands before the last is a tick (FX and sound only; at Tier 4 every cut is). The
+ * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last cut (Tier 4: on the explosion;
  * every zip before it is a tick).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
@@ -44,9 +44,9 @@ export interface HeroBleedHandle extends HeroAttackHandle {
   readonly plan: BleedPlan;
   /** Every slash's path (empty under reduced motion). Exposed for tests and the capture rig. */
   readonly geos: readonly SlashGeo[];
-  /** Tier IV's first zip line (null below IV or under reduced motion). */
+  /** Tier 4's first zip line (null below Tier 4 or under reduced motion). */
   readonly mega: MegaGeo | null;
-  /** Every Tier IV zip's line, in order (empty below IV or under reduced motion). */
+  /** Every Tier 4 zip's line, in order (empty below Tier 4 or under reduced motion). */
   readonly zips: readonly MegaGeo[];
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroBleedScene | null;
@@ -93,7 +93,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   const middle = local ? { x: (o.attacker.x + o.defender.x) / 2, y: (o.attacker.y + o.defender.y) / 2 } : { x: vw / 2, y: vh / 2 };
   const zipSpan = local ? dist * 2.1 : Math.max(dist * 2.1, Math.hypot(vw, vh) * 1.7);
   const zips = plan.hemorrhage ? zipGeos(plan, o.attacker, o.defender, zipSpan, middle) : [];
-  // Tier IV's claw rakes sweep a wide line too (the build-up), timed to cross the target as each rake bites.
+  // Tier 4's claw rakes sweep a wide line too (the build-up), timed to cross the target as each rake bites.
   const rakes = rakeLines(plan, o.attacker, o.defender, zipSpan, middle);
   // Where the blood may land: the screen (a sandbox box: round both heroes).
   const area = local
@@ -102,7 +102,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
   const zipDirs: Pt[] = zips.map((z) => ({ x: Math.cos(z.angle), y: Math.sin(z.angle) }));
   const mega = zips[0] ?? null;
   const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-  // The direction the blow ARRIVES from: the last cut (I-III), the last zip (IV). The shake and the knockback follow it.
+  // The direction the blow ARRIVES from: the last cut (Tiers 1-3), the last zip (Tier 4). The shake and the knockback follow it.
   const dir: Pt = zipDirs[zipDirs.length - 1] ?? cutDirs[cutDirs.length - 1] ?? toFoe;
   const flip = o.attacker.x > o.defender.x ? -1 : 1;
 
@@ -154,7 +154,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         cue(c.sfxSwingClip, c.sfxSwingGain * (lastOne ? 1 : 0.8), c.sfxSwingRate + 0.05 * q.i, { lenMs: c.sfxSwingLenMs, fadeMs: 120 });
         cue(c.sfxShingClip, c.sfxShingGain * (lastOne ? 1 : 0.75), c.sfxShingRate + 0.04 * q.i, { startMs: 440, lenMs: 180, fadeMs: 90 });
         if (g && scene) scene.swing(q.i, g, plan.slashes[q.i]!.lines > 1 ? 1.15 : 1, t - q.at);
-        // IV: each rake also sweeps its wide line across the screen, crossing the target as the rake bites.
+        // Tier 4: each rake also sweeps its wide line across the screen, crossing the target as the rake bites.
         const rl = rakes[q.i];
         if (rl && scene) scene.startMega(rl, plan.slashes[q.i]!.flightMs * 2);
         break;
@@ -217,7 +217,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
           cue(c.sfxSplatClip, c.sfxSplatGain, c.sfxSplatRate - 0.2, { lenMs: 800, fadeMs: 300 });
           scene?.explode(o.defender.x, o.defender.y, radius, zips[zips.length - 1] ?? null, { burst: plan.burst, drops: plan.drops, drips: plan.drips, flashAlpha: c.flashAlpha, toward: Math.atan2(o.attacker.y - o.defender.y, o.attacker.x - o.defender.x), area });
         } else {
-          // THE LAST CUT: the slice, the impact, the flesh, the splat (heavier per tier); a crack on III.
+          // THE LAST CUT: the slice, the impact, the flesh, the splat (heavier per tier); a crack on Tier 3.
           const g = geos[n - 1];
           cue(c.sfxSliceClip, c.sfxSliceGain, c.sfxSliceRate + 0.05 * hitStep, { tail: c.sfxTailMix, lenMs: 600, fadeMs: 200 });
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: c.sfxImpactLenMs, fadeMs: 300 });
@@ -257,7 +257,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
       // The draw: the hero draws BACK from the target and turns (the blade raised); each swing SNAPS it forward and
-      // round. IV: a deeper draw through the wind-up, then a lunge and a whip round on EVERY zip, alternating.
+      // round. Tier 4: a deeper draw through the wind-up, then a lunge and a whip round on EVERY zip, alternating.
       let bx = 0, by = 0, rot = 0, sc = 1;
       const coil = (u: number, k: number): void => {
         bx -= toFoe.x * c.heroCoilPx * px * u * k; by -= toFoe.y * c.heroCoilPx * px * u * k;
@@ -305,7 +305,7 @@ export function playHeroBleed(o: HeroBleedOptions): HeroBleedHandle {
         css = Math.abs(k) < 0.004 ? null
           : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
       } else if (plan.hits.length && t >= plan.hits[0]!) {
-        // Each cut nudges the target along its own line; IV's heartbeats throb it.
+        // Each cut nudges the target along its own line; Tier 4's heartbeats throb it.
         let kx = 0, ky = 0;
         plan.slashes.forEach((sl, i) => {
           if (sl.arriveAt > t || !plan.hits.includes(sl.arriveAt)) return;

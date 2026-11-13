@@ -1,4 +1,4 @@
-# 2026-11-12: eight new hero attack styles (dev-only, no cosmetics yet)
+# 2026-11-12: eight new hero attack styles (crate cosmetics since 2026-11-13)
 
 Sixteen hero attack styles were scaffolded with `npm run attack:new` (see `2026-11-11-attack-scaffold.md`) and built
 in parallel by separate builders on `feat/hero-attacks-16`. Eight are kept. Each has its own devlog
@@ -19,12 +19,15 @@ in parallel by separate builders on `feat/hero-attacks-16`. Eight are kept. Each
 
 Eight of sixteen: the owner dropped eight after seeing them (below). What is kept is 3 Epic, 2 Legendary and 3 Ancient (Fourth Wall moved from Ancient to Epic on 2026-11-13); no Rare survived.
 
-## Dev-only
+## Cosmetics (2026-11-13)
 
-All of them are DEV-ONLY, exactly like `void`: none has a cosmetic, so no player can equip one. They are in
-`HERO_ATTACK_STYLES` and play only through the dev "Attack style" override (and each one's tuner in the dev menu).
-Production ignores the override. The names and rarities are the builders' working ones; the owner renames.
-No patch note, no rules entry and no catalog entry were added.
+Built dev-only on 2026-11-12. On 2026-11-13 the owner said "merge the attack animations and run w/e you need to to get
+them ... added to shop", so all eight became crate cosmetics in the same PR (#2685): `attack_chess`,
+`attack_fireworks`, `attack_glass`, `attack_wrestle`, `attack_combo`, `attack_warhost`, `attack_reaping`,
+`attack_stars`, at the rarities in the table. Warhost joined the Ancient Knockout variants; Fourth Wall's coded variant
+stays tuner-only because it is an Epic. The wiring, the new crate odds and the production frame times are in
+`2026-11-13-hero-attacks-batch-of-eight-cosmetics.md`. The names are still the builders' working ones; the ids stay
+if the owner renames.
 
 ## Built and dropped: flick, train, claw, then stamp, anvil, glove, chord, pinball
 
@@ -41,8 +44,6 @@ mono 44.1 kHz at 128 kb/s and levelled; each style's own devlog lists its clips 
 
 ## NOT done
 
-- **Cosmetics.** No `packages/progression` catalog entries, no Collection items, no unlock rules, no patch note.
-- **Production-build frame times.** Every builder measured on the DEV build in headless Chrome, on a machine that was
-  running the other builders at the same time. Several saw frames over the 6.25 ms bar. None of the eight has been measured on `npm run build:web` output on a quiet machine.
+- ~~Cosmetics~~ and ~~production-build frame times~~: done 2026-11-13, see `2026-11-13-hero-attacks-batch-of-eight-cosmetics.md`.
 - **Phones.** No style was looked at on a phone; reduced motion is covered by tests only.
-- The owner has not approved all eight looks; a style can still be dropped the way the three above were.
+- The names are working names; the owner may still rename any of them (the ids stay).

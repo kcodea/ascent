@@ -8,7 +8,7 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the WRESTLING hero attack ("Top Rope", a Legendary, in progress: no cosmetic yet). The two portraits
+ * DEV tuner for the WRESTLING hero attack ("Top Rope", attack_wrestle, a Legendary). The two portraits
  * wrestle each other, as a comedy act: four groups of per-tier dials (Tier 1 the chop or the chair shot, Tier 2 the
  * airplane spin slam or the suplex, Tier 3 the turnbuckle taunt and the elbow drop or the splash, Tier 4 the ring and the
  * clothesline or the jumping cutter, then the pin), each move's own timings, the camera, the colours and one clip /

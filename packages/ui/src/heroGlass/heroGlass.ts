@@ -1,5 +1,5 @@
 /**
- * THE FOURTH WALL RUNNER ("Fourth Wall", style `glass`; ANCIENT, dev-only until it gets a cosmetic): plays one Fourth
+ * THE FOURTH WALL RUNNER ("Fourth Wall", style `glass`; the attack_glass cosmetic, an EPIC since 2026-11-13): plays one Fourth
  * Wall hero attack (the beats are in `heroGlassConfig.ts`) and lands the consequence on its impact beat. Presentation
  * only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *

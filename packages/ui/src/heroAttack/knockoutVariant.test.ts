@@ -51,7 +51,7 @@ const ANCIENT_STYLES = COSMETICS.filter((c) => c.category === 'hero_attack' && c
 
 describe('the plumbing: driven by the attack\'s rarity', () => {
   it('Arcana, Consecration and Soul Stitch are Ancient, and each has a variant', () => {
-    for (const id of ['attack_arcana', 'attack_holy', 'attack_soul_stitch']) {
+    for (const id of ['attack_arcana', 'attack_holy', 'attack_soul_stitch', 'attack_bullet_time', 'attack_warhost']) {
       const def = COSMETICS.find((c) => c.id === id)!;
       expect(def.rarity, id).toBe('ancient');
       expect(KNOCKOUT_VARIANT_STYLES.has(String(def.assets.style)), id).toBe(true);
@@ -64,6 +64,11 @@ describe('the plumbing: driven by the attack\'s rarity', () => {
     expect(knockoutVariantFor({ style: 'arcana', knockout: true })).toBe(true);
     expect(knockoutVariantFor({ style: 'holy', knockout: true, cosmeticId: 'attack_holy' })).toBe(true);
     expect(knockoutVariantFor({ style: 'stitch', knockout: true, cosmeticId: 'attack_soul_stitch' })).toBe(true);
+    // Warhost, the Ancient of War (2026-11-13): an Ancient cosmetic with a coded variant. Fourth Wall (glass) has one too but is an
+    // EPIC (owner 2026-11-13), so it is not listed and a knockout plays its plain Tier 4.
+    expect(knockoutVariantFor({ style: 'warhost', knockout: true, cosmeticId: 'attack_warhost' })).toBe(true);
+    expect(KNOCKOUT_VARIANT_STYLES.has('glass')).toBe(false);
+    expect(knockoutVariantFor({ style: 'glass', knockout: true, cosmeticId: 'attack_glass' })).toBe(false);
   });
 
   it('an Ancient attack without a knockout plays the normal tiers', () => {

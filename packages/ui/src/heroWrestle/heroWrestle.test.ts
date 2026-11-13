@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * THE WRESTLING HERO ATTACK ("Top Rope", a Legendary, dev-only: no cosmetic yet): the shared tiers onto the four moves
+ * THE WRESTLING HERO ATTACK ("Top Rope", attack_wrestle, a Legendary): the shared tiers onto the four moves
  * and their two variants each (rolled from the stable seed, each one forceable); the tuner values and the sounds; the
  * pure plan (the blow lands ONCE: the chop, the chair, the slam, the suplex, the elbow, the splash, the clothesline, the
  * cutter; the shove, the climb, the ropes, the landings, the count and the bell are ticks); the geometry (every spot on
@@ -74,7 +74,7 @@ describe('the tiers: the shared four onto the four moves, two variants each', ()
     expect(plan(8, { variant: 2 }).variant).toBe(2);
   });
 
-  it('is a dev-only style (in the style list and the dev override)', () => {
+  it('is a style (in the style list and the dev override; the Top Rope cosmetic plays it)', () => {
     expect(HERO_ATTACK_STYLES).toContain('wrestle');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('wrestle');
   });

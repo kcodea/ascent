@@ -70,7 +70,7 @@ describe('the four looks, Tier 1 to Tier 4 (each shared damage tier plays its ow
     expect(ko.total).toBe(3);
   });
 
-  it('is registered as a dev-only style with its own clips, and its one word is plain', () => {
+  it('is registered as a style (the Checkmate cosmetic, attack_chess) with its own clips, and its one word is plain', () => {
     expect(HERO_ATTACK_STYLES).toContain('chess');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('chess');
     for (const clip of ['fx/chess-set', 'fx/chess-slide', 'fx/chess-topple', 'fx/chess-rumble', 'fx/chess-crash']) expect(ATTACK_FX_CLIPS.chess).toContain(clip);

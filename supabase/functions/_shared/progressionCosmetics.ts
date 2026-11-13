@@ -830,6 +830,26 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   // a corner kick (an Olimpico, a header, or a short corner), a breakaway past defenders, and a bicycle kick into an
   // exploding net. Four tiers, so Legendary like the Basketball. The name is the builder's placeholder (the id stays).
   heroAttack('attack_soccer', 'Golazo', 'legendary', 'soccer'),
+  // THE BATCH OF EIGHT (built 2026-11-12, docs/devlog/2026-11-12-hero-attacks-batch-of-eight.md; made cosmetics on the
+  // owner's say-so 2026-11-13: "merge the attack animations and run w/e you need to to get them ... added to shop").
+  // The names are the builders' working names (the ids stay). EPICS (three looks each, like Card Shark and Storm Call):
+  // chess pieces that move by their own rules and take the portrait; fireworks launched from light, ending in one
+  // enormous shell; the SCREEN as a pane of glass the blow chips, webs, breaks and shatters (owner 2026-11-13: Epic, not
+  // Ancient).
+  heroAttack('attack_chess', 'Checkmate', 'epic', 'chess'),
+  heroAttack('attack_fireworks', 'Grand Finale', 'epic', 'fireworks'),
+  heroAttack('attack_glass', 'Fourth Wall', 'epic', 'glass'),
+  // LEGENDARIES (four tiers): both portraits wrestle (a chop, a body slam, an elbow drop, a pin and a three count); an
+  // arcade fighting game combo whose counter ticks up to the blow's real damage and ends on "K.O.".
+  heroAttack('attack_wrestle', 'Top Rope', 'legendary', 'wrestle'),
+  heroAttack('attack_combo', 'Flawless', 'legendary', 'combo'),
+  // ANCIENTS. WARHOST is the ANCIENT OF WAR's attack (an army of tiny soldiers: a spearman, archers, cavalry, the whole
+  // host; it has a Knockout variant). THE REAPING is the ANCIENT OF DEATH's (the scythe cuts colour: the portrait, then
+  // the whole screen, drains to grey). WRITTEN IN THE STARS belongs to no Ancient (constellations drawn star by star
+  // that come alive and strike).
+  heroAttack('attack_warhost', 'Warhost', 'ancient', 'warhost'),
+  heroAttack('attack_reaping', 'The Reaping', 'ancient', 'reaping'),
+  heroAttack('attack_stars', 'Written in the Stars', 'ancient', 'stars'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

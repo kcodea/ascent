@@ -9,7 +9,7 @@
  * striker's rim, every burst inside the view, the comet off the top); the camera (still through the held beat, at rest
  * by the end); the runner on the shared clock (the blow lands exactly ONCE, never on a tick, in every tier, variant and
  * direction; replay; finish / cancel / the safety timer; every exit restores the portraits and the camera); and the
- * headless scene (no painted launcher, pooled, capped, drains, destroy leaves nothing). The style is dev-only.
+ * headless scene (no painted launcher, pooled, capped, drains, destroy leaves nothing). The style is the Grand Finale cosmetic (attack_fireworks, Epic).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
@@ -64,10 +64,11 @@ describe('the three looks (an Epic maps the shared four tiers onto three)', () =
     expect(ko.shells[ko.impactShell]!.kind).toBe('giant');
   });
 
-  it('is dev-only: in the style list and the dev override, with no cosmetic that plays it', () => {
+  it('is a cosmetic (attack_fireworks, Grand Finale, Epic, 2026-11-13): in the style list and the dev override, and one item plays it', () => {
     expect(HERO_ATTACK_STYLES).toContain('fireworks');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('fireworks');
-    expect(Object.keys(COSMETIC_INDEX).filter((id) => styleOfCosmetic(id) === 'fireworks')).toEqual([]);
+    expect(Object.keys(COSMETIC_INDEX).filter((id) => styleOfCosmetic(id) === 'fireworks')).toEqual(['attack_fireworks']);
+    expect(COSMETIC_INDEX.attack_fireworks).toMatchObject({ category: 'hero_attack', rarity: 'epic', name: 'Grand Finale', active: true });
   });
 });
 

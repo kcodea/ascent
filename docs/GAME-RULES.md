@@ -810,7 +810,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   the bicycle kick, and a thunderbolt with a fire trail rockets into the goal (the net bursts, the frame rings, an
   explosion, confetti, GOLAZO! and the crowd's roar), then a knee slide and home. The blow lands once, when the ball
   hits the net; nothing before it touches the target. The roll comes from the run seed and the round, so a replay rolls
-  the same; every point stays on screen and the portrait is restored exactly after. **Card Shark** and
+  the same; every point stays on screen and the portrait is restored exactly after. **The batch of eight** (built
+  2026-11-12, from chests since 2026-11-13; R-PROG-ATTACK-38 to 45; the names are working names): three EPICS,
+  `attack_chess` ("Checkmate": one piece per tier, a pawn, a knight, a rook or a queen, moves by its own rules on a faint board beside the
+  struck hero and takes the portrait; the queen ends on CHECKMATE), `attack_fireworks` ("Grand Finale": fireworks
+  launched from light, the top look a held beat of quiet and one enormous shell blooming over the struck hero) and
+  `attack_glass` ("Fourth Wall", moved down from Ancient by the owner: the SCREEN is a pane of glass the blow chips,
+  webs, breaks and finally shatters; it has a coded Knockout variant but, as an Epic, a knockout plays its plain top
+  look); two LEGENDARIES, `attack_wrestle` ("Top Rope": both portraits wrestle, a chop, a body slam, an elbow drop from
+  the top of the screen, and ring ropes, a clothesline, the pin and a three count) and `attack_combo` ("Flawless": an
+  arcade fighting game combo whose counter ends on the blow's real damage, the top look a super with input glyphs and
+  K.O.); and three ANCIENTS, `attack_warhost` ("Warhost", the Ancient of War: an army of tiny soldiers, from one eager
+  spearman to the whole host; its Knockout variant keeps soldiers cheering round the banner with a prismatic shock and
+  a short dip), `attack_reaping` ("The Reaping", the Ancient of Death: the scythe cuts colour, the struck portrait and
+  then the whole screen drain to grey) and `attack_stars` ("Written in the Stars": constellations drawn star by star
+  that come alive and strike). Each lands the blow once and puts every portrait back exactly. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from chests): the hero

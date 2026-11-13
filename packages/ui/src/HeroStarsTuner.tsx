@@ -8,7 +8,7 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the WRITTEN IN THE STARS hero attack (Ancient; dev-only, no cosmetic yet): constellations. Four groups
+ * DEV tuner for the WRITTEN IN THE STARS hero attack (attack_stars, Ancient): constellations. Four groups
  * of per-tier dials (Tier 1 the arrow; Tier 2 the bow; Tier 3 the hunter, the wolf or the serpent; Tier 4 written in
  * the stars, the wheel, the giant or the nova), three Variation rows that force each variation (where Tiers 1 and 2 are
  * traced, Tier 3's figure, Tier 4's finisher; Random rolls it per blow like a real fight), the stars and lines, the

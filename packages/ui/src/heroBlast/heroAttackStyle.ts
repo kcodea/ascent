@@ -124,36 +124,37 @@
  * hero (Tier 1 one, Tier 2 two, Tier 3 five), and Tier 4 pulls them into a black hole over the target that drags both portraits in,
  * collapses to a point and blasts outward (`../heroVoid/`).
  *
- * THE DEV-ONLY BATCH OF EIGHT (2026-11-12, `docs/devlog/2026-11-12-hero-attacks-batch-of-eight.md`). Like `void`,
- * each of these is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. The names and rarities are the builders' working ones, for the owner to rename:
- *  - `chess` ("Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
+ * THE BATCH OF EIGHT (built 2026-11-12, `docs/devlog/2026-11-12-hero-attacks-batch-of-eight.md`; crate cosmetics since
+ * 2026-11-13, `docs/devlog/2026-11-13-hero-attacks-batch-of-eight-cosmetics.md`, owner: "merge the attack animations
+ * and run w/e you need to to get them ... added to shop"). The names are the builders' working ones (the ids stay):
+ *  - `chess` (`attack_chess`, "Checkmate", an Epic): chess pieces that move by their own rules on a faint board beside the struck hero.
  *    One piece per tier: Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight makes its L-shaped
  *    jump onto the portrait; Tier 3 a rook charges straight down the hero's file and rams it; Tier 4 a queen sweeps the
  *    long diagonal, the struck side's king tips over and CHECKMATE sets (`../heroChess/`).
- *  - `fireworks` ("Grand Finale", an Epic): fireworks launched from light (a spark on the hero's rim, no launcher).
+ *  - `fireworks` (`attack_fireworks`, "Grand Finale", an Epic): fireworks launched from light (a spark on the hero's rim, no launcher).
  *    Tier 1 one shell on the target (a smiley, a pinwheel, or a dud then the real one); Tier 2 a ring, a heart and a
  *    third; Tier 3 a barrage across the sky, a HELD BEAT, one enormous shell that fills the screen and a glitter rain
  *    (`../heroFireworks/`).
- *  - `wrestle` ("Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
+ *  - `wrestle` (`attack_wrestle`, "Top Rope", a Legendary): BOTH portraits wrestle. The striker walks over and throws the struck one
  *    about: Tier 1 a chop; Tier 2 a lift and a body slam; Tier 3 an elbow drop from off the top of the screen under a spotlight;
  *    Tier 4 ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell (`../heroWrestle/`).
- *  - `combo` ("Flawless", a Legendary): an arcade fighting game combo with a HUD. The striker steps in beside the
+ *  - `combo` (`attack_combo`, "Flawless", a Legendary): an arcade fighting game combo with a HUD. The striker steps in beside the
  *    target and a combo counter ticks up to the blow's real damage: Tier 1 a jab; Tier 2 a three-hit string; Tier 3 a launcher, an
  *    air juggle and a spike; Tier 4 a super freeze with input glyphs, a 14-hit flurry, one heavy blow and "K.O."
  *    (`../heroCombo/`).
- *  - `warhost` ("Warhost", the Ancient of War; an Ancient): an army of tiny soldiers in red and brass delivers the
+ *  - `warhost` (`attack_warhost`, "Warhost", the Ancient of War; an Ancient with a Knockout variant): an army of tiny soldiers in red and brass delivers the
  *    blow. Tier 1 one spearman and his thrown spear; Tier 2 a rank of archers and an arrow rain; Tier 3 a cavalry wedge riding
  *    through the struck portrait; Tier 4 war drums, a horn, banners, the whole host flooding over it and one soldier
  *    planting a banner on it (`../heroWarhost/`).
- *  - `reaping` ("The Reaping", the Ancient of Death; an Ancient): what the scythe cuts is COLOUR. A blade of teal light
+ *  - `reaping` (`attack_reaping`, "The Reaping", the Ancient of Death; an Ancient): what the scythe cuts is COLOUR. A blade of teal light
  *    drains the struck portrait to grey along the cut (a strip, half, then all of it under one great falling
  *    crescent), and the top look drains the whole screen to monochrome before colour floods back to all but the loser
  *    (`../heroReaping/`).
- *  - `glass` ("Fourth Wall", an Epic; dropped from Ancient by the owner 2026-11-13): the SCREEN is a pane of glass and the blow breaks it. Tier 1 a chip; Tier 2 a spider
+ *  - `glass` (`attack_glass`, "Fourth Wall", an Epic; dropped from Ancient by the owner 2026-11-13; its coded Knockout
+ *    variant plays only from its tuner): the SCREEN is a pane of glass and the blow breaks it. Tier 1 a chip; Tier 2 a spider
  *    web; Tier 3 a pane that breaks out and falls away; Tier 4 a punch on the glass and the whole view shatters and falls
  *    (`../heroGlass/`).
- *  - `stars` ("Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
+ *  - `stars` (`attack_stars`, "Written in the Stars", an Ancient): constellations. The board dims to a night sky and thin lines join
  *    stars one by one into a figure that comes alive and strikes: Tier 1 an arrow; Tier 2 a bow that draws; Tier 3 an archer; Tier 4
  *    the striking hero's own portrait as a medallion of stars, whose arm plucks a star that falls on the struck hero
  *    (`../heroStars/`).
@@ -203,14 +204,14 @@ export const DEV_HERO_ATTACK_LABELS: Record<DevHeroAttackChoice, string> = {
   baseball: 'Charge the Mound (baseball)',
   soccer: 'Golazo (soccer)',
   void: 'Void (in progress, no cosmetic yet)',
-  chess: 'Checkmate (chess, Epic) (in progress, no cosmetic yet)',
-  fireworks: 'Grand Finale (fireworks, Epic) (in progress, no cosmetic yet)',
-  wrestle: 'Top Rope (wrestling) (in progress, no cosmetic yet)',
-  combo: 'Flawless (fighting game) (in progress, no cosmetic yet)',
-  warhost: 'Warhost (Ancient of War) (in progress, no cosmetic yet)',
-  reaping: 'The Reaping (Ancient of Death) (in progress, no cosmetic yet)',
-  glass: 'Fourth Wall (Epic) (in progress, no cosmetic yet)',
-  stars: 'Written in the Stars (Ancient) (in progress, no cosmetic yet)',
+  chess: 'Checkmate (chess, Epic)',
+  fireworks: 'Grand Finale (fireworks, Epic)',
+  wrestle: 'Top Rope (wrestling)',
+  combo: 'Flawless (fighting game)',
+  warhost: 'Warhost (Ancient of War)',
+  reaping: 'The Reaping (Ancient of Death)',
+  glass: 'Fourth Wall (glass, Epic)',
+  stars: 'Written in the Stars (Ancient)',
 };
 
 const KEY = 'ascent.heroattackstyle';

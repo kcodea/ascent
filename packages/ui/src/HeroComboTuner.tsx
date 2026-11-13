@@ -8,7 +8,7 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the COMBO hero attack ("Flawless", a Legendary, in progress with no cosmetic yet): the blow played as an
+ * DEV tuner for the COMBO hero attack ("Flawless", attack_combo, a Legendary): the blow played as an
  * arcade fighting game combo with a HUD, a combo counter that counts the hits, call-outs and K.O. Four groups of per-tier
  * dials (Tier 1 the counter, Tier 2 the string, Tier 3 the launcher, Tier 4 the super), the fight's geometry, the HUD,
  * the colours (one per tier) and one clip / gain / pitch row per sound cue. The Play buttons run the real runner between

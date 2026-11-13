@@ -1,5 +1,5 @@
 /**
- * THE WRITTEN IN THE STARS HERO ATTACK ("Written in the Stars"; ANCIENT rarity; dev-only, no cosmetic yet): its tuned
+ * THE WRITTEN IN THE STARS HERO ATTACK ("Written in the Stars"; attack_stars, ANCIENT rarity): its tuned
  * values, its pure timeline, the pure constellation geometry, the variations, the draw and the pure camera.
  *
  * THE SIGNATURE is CONSTELLATIONS. The board dims to a night sky, stars appear, and thin lines CONNECT them one by one

@@ -8,7 +8,7 @@
  * pure drain, gather, orb, ribbons, rainbow, cracks and stolen glow (what is grey or drawn when, and exactly nothing
  * after the end); the stolen palette (read from the portrait's own pixels); the runner on the shared clock (the blow
  * lands exactly ONCE; every exit removes every pane and puts both portraits back; replay; reduced motion); the
- * headless scene (pooled, bounded, drains, destroy leaves nothing); the dev-only registration.
+ * headless scene (pooled, bounded, drains, destroy leaves nothing); the registration.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';

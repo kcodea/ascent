@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * THE WRITTEN IN THE STARS HERO ATTACK (ANCIENT; dev-only, no cosmetic yet): the shared four tiers; the tuner values;
+ * THE WRITTEN IN THE STARS HERO ATTACK (attack_stars, ANCIENT): the shared four tiers; the tuner values;
  * the pure plan (Tier 1 the arrow, Tier 2 the bow, Tier 3 the hunter, Tier 4 the medallion and the comet) and its cue
  * timing; the constellations (every line starts from a star that is already lit; the figures stay on screen in both
  * directions and on any layout; the comet always ARRIVES moving down: a straight fall, or an arc over the whole sky);

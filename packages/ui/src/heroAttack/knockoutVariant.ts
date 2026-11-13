@@ -19,8 +19,12 @@ export const KNOCKOUT_VARIANT_RARITY: CosmeticRarity = 'ancient';
 /**
  * The styles whose runner HAS a Knockout variant (their plan reads `isKnockoutVariant`). Adding an Ancient attack's
  * variant = its style here + the plan/runner change (see docs/devlog/2026-10-02-ancient-knockout-tier.md).
+ *
+ * Warhost (the Ancient of War) joined 2026-11-13 when it became a cosmetic. Fourth Wall (`glass`) also has a coded variant,
+ * but it is an EPIC (owner 2026-11-13), so it is NOT listed: the rarity gate would keep it on Tier 4 anyway, and the
+ * shared test requires every listed style to be an Ancient. Its variant plays only from its tuner's Knockout buttons.
  */
-export const KNOCKOUT_VARIANT_STYLES: ReadonlySet<string> = new Set(['arcana', 'holy', 'stitch', 'bullettime']);
+export const KNOCKOUT_VARIANT_STYLES: ReadonlySet<string> = new Set(['arcana', 'holy', 'stitch', 'bullettime', 'warhost']);
 
 /**
  * The rarity of the attack that plays: the attacker's equipped cosmetic when it is the one playing `style`, else the

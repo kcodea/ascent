@@ -3055,7 +3055,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'attack_bleed ("Hemorrhage", Legendary, style bleed: R-PROG-ATTACK-21), joined the same day under the same fixed odds, '
       + 'making Legendary sixteen items at 0.3125% each and the thirteen attacks together 4.06%. The four Rare attacks '
       + '(attack_coin, attack_boomerang, attack_bubble, attack_backstab: R-PROG-ATTACK-28 to 32) made Rare seventeen items '
-      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each). Golazo, attack_soccer (style soccer: R-PROG-ATTACK-37), joined Legendary on 2026-11-02 (Legendary 89 items, 0.101% each).',
+      + 'at 1.765% each; every hero attack together is now 11.1% of a first crate. The fourteenth Legendary, attack_basketball ("Nothing But Net", style basketball: R-PROG-ATTACK-33), made Legendary seventeen items at 0.294% each (2026-09-29). The first attack BUILT at Ancient, attack_soul_stitch ("Soul Stitch", style stitch: R-PROG-ATTACK-34), made Ancient eleven items at 0.273% each (2026-10-02, under the 35/31/22/9/3 odds). Charge the Mound, attack_baseball (style baseball: R-PROG-ATTACK-36), joined Legendary on 2026-11-02 (Legendary 88 items, 0.102% each). Golazo, attack_soccer (style soccer: R-PROG-ATTACK-37), joined Legendary on 2026-11-02 (Legendary 89 items, 0.101% each). The batch of eight joined on 2026-11-13 (R-PROG-ATTACK-38 to 45): three Epics (attack_chess "Checkmate", attack_fireworks "Grand Finale", attack_glass "Fourth Wall") made Epic 150 items at 0.147% each; two Legendaries (attack_wrestle "Top Rope", attack_combo "Flawless") made Legendary 109 items at 0.083% each; three Ancients (attack_warhost "Warhost", attack_reaping "The Reaping", attack_stars "Written in the Stars") made Ancient 37 items at 0.081% each; every hero attack together is now 3.5% of a first crate.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -3760,7 +3760,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'beat, the Ancient prismatic cyan-to-magenta accent on the final blast, a bigger shake, a slow-mo dip that is never '
       + 'a freeze, and a short KO sting), adding at most about 500 ms. Arcana (an extra vortex pulse before the burst), '
       + 'Consecration (a seventh, giant prismatic sword driven into the centre), Soul Stitch (the heart-knot '
-      + 'double-cinches) and Timebreak (an extra ring of prismatic blades in the dome) have one. It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
+      + 'double-cinches), Timebreak (an extra ring of prismatic blades in the dome) and Warhost (2026-11-13: seven soldiers stay to cheer round the banner, a prismatic shock on the blow, a bigger shake and a short dip) have one. Fourth Wall (glass) has a coded variant but is an EPIC, so a knockout plays its plain Tier IV (the variant plays only from its tuner). It is driven by the cosmetic\x27s RARITY (knockoutVariantFor in '
       + 'packages/ui/src/heroAttack/knockoutVariant.ts), not a list of ids: an Ancient attack whose runner has no variant '
       + 'yet falls back to Huge, and every other rarity (and Classic) keeps playing Huge on a knockout, unchanged. Without a '
       + 'knockout an Ancient attack plays its normal damage tiers. The shared tier stays IV underneath (every per-tier '
@@ -4152,6 +4152,118 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-02. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroSoccer/heroSoccer.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-02' },
+  },
+  {
+    id: 'R-PROG-ATTACK-38',
+    title: 'Checkmate (attack_chess, Epic): chess pieces move by their own rules on a faint board beside the struck hero and take the portrait: a pawn / a knight / a rook / a queen and CHECKMATE',
+    statement:
+      'attack_chess ("Checkmate", a working name; Epic, crate, account-wide, style chess): after the shared damage formation (R-PROG-ATTACK-08) a faint patch of chessboard fades in beside the struck hero, the squares the move crosses glow gold first, and the striker\x27s piece (ivory when you strike, ebony when the foe does) takes the portrait by its own rules. One piece per shared tier (a knockout plays Tier 4): Tier 1 a pawn hops up its file and captures diagonally; Tier 2 a knight jumps its L onto the portrait; Tier 3 a rook braces and charges straight down the struck hero\x27s own file and rams it; Tier 4 a queen sweeps the long diagonal, the struck side\x27s king tips over and CHECKMATE sets. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_chess); packages/ui/src/heroChess/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroChessTuner.tsx; packages/ui/src/audio/fx/chess-*.mp3; docs/devlog/2026-11-12-hero-attack-chess.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroChess/heroChess.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-39',
+    title: 'Grand Finale (attack_fireworks, Epic): fireworks launched from light, ending in a held beat of quiet and one enormous shell that blooms over the struck hero',
+    statement:
+      'attack_fireworks ("Grand Finale", a working name; Epic, crate, account-wide, style fireworks): after the shared damage formation fireworks are launched from a spark of light on the striking hero (no flame: fuses, coloured sparks, glitter and star bursts). THREE looks on the shared tier: one shell on the target; a few shells whose earlier pops are ticks (FX and sound only); a barrage across the sky, a HELD BEAT of quiet (staged, the clock runs straight through it) and one enormous shell that blooms over the struck portrait, then a glitter rain. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_fireworks); packages/ui/src/heroFireworks/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroFireworksTuner.tsx; packages/ui/src/audio/fx/fireworks-*.mp3; docs/devlog/2026-11-12-hero-attack-fireworks.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroFireworks/heroFireworks.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-40',
+    title: 'Fourth Wall (attack_glass, Epic): the SCREEN is a pane of glass and the blow breaks it: a chip / a web / a pane that breaks out / the whole view shatters',
+    statement:
+      'attack_glass ("Fourth Wall", a working name; Epic since the owner moved it down from Ancient on 2026-11-13; crate, account-wide, style glass): the cracks are drawn on the screen surface, over the board, the rail and the portraits alike. Its four looks play on the shared tiers: Tier 1 a chip; Tier 2 a spider web; Tier 3 a pane that breaks out and falls away; Tier 4 a punch on the glass and the whole view shatters into shards that fall away. What cracks it is rolled per blow. It has a coded Knockout variant, but as an Epic a knockout plays its plain Tier 4 (R-PROG-ATTACK-20); the variant plays only from its tuner. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_glass); packages/ui/src/heroGlass/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroGlassTuner.tsx; packages/ui/src/audio/fx/glass-*.mp3; docs/devlog/2026-11-12-hero-attack-glass.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroGlass/heroGlass.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-41',
+    title: 'Top Rope (attack_wrestle, Legendary): BOTH portraits wrestle: a chop / a body slam / an elbow drop from the top of the screen / ring ropes, a clothesline, the pin and a three count',
+    statement:
+      'attack_wrestle ("Top Rope", a working name; Legendary, crate, account-wide, style wrestle): the striking portrait walks over, stands beside the struck one and throws it about; both portraits\x27 DOM elements move, turn and squash. Four looks on the shared tiers (a knockout plays IV): I a chop; II a lift and a body slam; III an elbow drop from off the top of the screen under a spotlight; IV ring ropes, an Irish whip into a clothesline, the pin, a three count and the bell. No slow motion. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_wrestle); packages/ui/src/heroWrestle/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroWrestleTuner.tsx; packages/ui/src/audio/fx/wrestle-*.mp3; docs/devlog/2026-11-12-hero-attack-wrestle.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroWrestle/heroWrestle.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-42',
+    title: 'Flawless (attack_combo, Legendary): an arcade fighting game combo with a HUD whose counter ends on the blow\x27s REAL damage',
+    statement:
+      'attack_combo ("Flawless", a working name; Legendary, crate, account-wide, style combo): the striking portrait steps in beside the struck one and lands a combo while a COMBO COUNTER ticks up; it shares out the engine\x27s real damage over the hits, never passes it and always ends on it. Four looks on the shared tiers (a knockout plays IV): I a jab; II a three-hit string; III a launcher, an air juggle and a spike; IV a super freeze with input glyphs, a fourteen-hit flurry, one heavy blow and K.O. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_combo); packages/ui/src/heroCombo/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroComboTuner.tsx; packages/ui/src/audio/fx/combo-*.mp3; docs/devlog/2026-11-12-hero-attack-combo.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroCombo/heroCombo.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-43',
+    title: 'Warhost (attack_warhost, Ancient, the Ancient of War): an army of tiny soldiers delivers the blow, and a knockout plays its own Knockout variant',
+    statement:
+      'attack_warhost ("Warhost", the Ancient of War\x27s attack; Ancient, crate, account-wide, style warhost): small painted soldiers in red and brass come from the striker\x27s side and deliver the blow, growing more absurd and more powerful each tier (I an eager spearman; II a squad of archers and an arrow rain; III the cavalry and the mages; IV the whole absurd host, drums and banners). Four looks on the shared tiers. As an ANCIENT with a coded variant (KNOCKOUT_VARIANT_STYLES, R-PROG-ATTACK-20) a knockout plays its Knockout variant: Tier 4 remixed (soldiers stay to cheer, a prismatic shock, a bigger shake and a short slow-mo dip that is never a freeze). The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_warhost); packages/ui/src/heroWarhost/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroWarhostTuner.tsx; packages/ui/src/audio/fx/warhost-*.mp3; docs/devlog/2026-11-12-hero-attack-warhost.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroWarhost/heroWarhost.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-44',
+    title: 'The Reaping (attack_reaping, Ancient, the Ancient of Death): what the scythe cuts is COLOUR: the struck portrait, then the whole screen, drains to grey',
+    statement:
+      'attack_reaping ("The Reaping", the Ancient of Death\x27s attack; Ancient, crate, account-wide, style reaping): a blade of spectral teal light cuts the struck portrait\x27s colour away, and the stolen colour (in the portrait\x27s own hues) is carried into the striker. Four looks on the shared tiers (a knockout plays Tier 4; it has no Knockout variant, so as an Ancient it falls back to Tier 4): Tier 1 a strip of the portrait, Tier 2 more of it, Tier 3 the harvest (the board\x27s colour gathered into an orb and shattered), Tier 4 the whole screen drained to monochrome with the struck portrait the last colour, wound out onto the blade, the loser left grey. The blow lands as the blade crosses the struck portrait. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_reaping); packages/ui/src/heroReaping/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroReapingTuner.tsx; packages/ui/src/audio/fx/reaping-*.mp3; docs/devlog/2026-11-12-hero-attack-reaping.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroReaping/heroReaping.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-ATTACK-45',
+    title: 'Written in the Stars (attack_stars, Ancient): constellations drawn star by star come alive and strike',
+    statement:
+      'attack_stars ("Written in the Stars", a working name; Ancient, crate, account-wide, style stars; it belongs to no Ancient): the board dims to a night sky and thin lines join stars one by one into a figure that comes alive and strikes. Four looks on the shared tiers (a knockout plays Tier 4; no Knockout variant, so it falls back to Tier 4): Tier 1 an arrow; Tier 2 a bow that draws; Tier 3 an archer; Tier 4 the striking hero\x27s own portrait as a medallion of stars whose arm plucks a star that falls on the struck hero. The clock is never scaled or held. The consequence (the damage, Armor, Resolve) lands exactly ONCE, on the impact named; nothing before it touches the target. Every portrait it moves is restored exactly (transform, opacity, the .duel-attacker-* z-order class) and every sprite drained on every exit (the end, finish, cancel, the safety timer, an unmount). Any variation is rolled from the stable per-blow seed (the run seed and the round), so a replay rolls the same. No hit-stop or freeze (R-PROG-ATTACK-10); presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (the batch of eight made cosmetics, relayed by the coordinator)', quote: 'merge the attack animations and run w/e you need to to get them and the new art pieces added to shop' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_stars); packages/ui/src/heroStars/ (the plan, cues, scene, textures and runner); packages/ui/src/HeroStarsTuner.tsx; packages/ui/src/audio/fx/stars-*.mp3; docs/devlog/2026-11-12-hero-attack-stars.md' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12, a crate cosmetic since 2026-11-13. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroStars/heroStars.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
   {
     id: 'R-PROG-ATTACK-25',

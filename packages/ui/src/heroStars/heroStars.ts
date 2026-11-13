@@ -1,5 +1,5 @@
 /**
- * THE WRITTEN IN THE STARS RUNNER ("Written in the Stars"; ANCIENT; dev-only, no cosmetic yet): plays one constellation
+ * THE WRITTEN IN THE STARS RUNNER ("Written in the Stars"; attack_stars, ANCIENT): plays one constellation
  * hero attack (the beats, the geometry and the variations are in `heroStarsConfig.ts`) and lands the consequence on its
  * impact beat. Presentation only: the total and the blow are the engine's; this file only decides WHEN on screen they
  * happen, and which variation plays (rolled from the blow's stable `rollSeed`, so a replay plays the same one).

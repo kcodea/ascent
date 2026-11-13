@@ -1,5 +1,5 @@
 /**
- * THE FOURTH WALL HERO ATTACK ("Fourth Wall", style id `glass`; ANCIENT rarity, dev-only until it gets a cosmetic): its
+ * THE FOURTH WALL HERO ATTACK ("Fourth Wall", style id `glass`; the attack_glass cosmetic, EPIC rarity since 2026-11-13): its
  * tuned values, its pure timeline, the pure crack and shard geometry and the pure camera.
  *
  * THE SIGNATURE: THE SCREEN ITSELF IS A PANE OF GLASS between the player and the game, and the blow breaks it. The

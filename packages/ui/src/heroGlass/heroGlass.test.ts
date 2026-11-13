@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * THE FOURTH WALL HERO ATTACK (style `glass`, ANCIENT, dev-only): the shared four tiers; the tuner values; the SEVEN
+ * THE FOURTH WALL HERO ATTACK (style `glass`, the Fourth Wall cosmetic, an EPIC since 2026-11-13): the shared four tiers; the tuner values; the SEVEN
  * CAUSES (rolled from the stable roll seed, forced by the tuner, each with its own beats and its own crack shape); the
  * pure plan (Tier 1 the chip; Tier 2 the web; Tier 3 the pane that breaks out and repairs; Tier 4 the first crack, the tear, the held
  * beat and the shatter); the pure glass geometry (Tier 4's cracks ARE the shard edges; its shards number forty to seventy
@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf } from '../heroAttack/tiers';
 import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
+import { COSMETIC_INDEX } from '@game/progression';
 import {
   GLASS_CAPS, GLASS_CAUSES, GLASS_CAUSE_NAMES, HERO_GLASS_DEFAULTS, HERO_GLASS_RANGES, buildWeb, causeBeats, causeOf, clampHeroGlassValue, glassCameraAt,
   glassCues, glassGeo, glassPlan, glassScale, glassSeed, glassSlowExtraMs, heroGlassConfigJson, legPoint, rayExit, screenWeb, webFlips, webTris,
@@ -55,10 +56,11 @@ describe('the tiers', () => {
     expect([plan(3).kind, plan(8).kind, plan(14).kind, plan(40).kind]).toEqual(['chip', 'web', 'pane', 'shatter']);
   });
 
-  it('is registered as a dev-only style with no cosmetic', () => {
+  it('is the Fourth Wall cosmetic (attack_glass, an Epic since 2026-11-13), in the style list and the dev override', () => {
     expect(HERO_ATTACK_STYLES).toContain('glass');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('glass');
-    expect(styleOfCosmetic('attack_glass')).toBeNull();
+    expect(styleOfCosmetic('attack_glass')).toBe('glass');
+    expect(COSMETIC_INDEX.attack_glass).toMatchObject({ category: 'hero_attack', rarity: 'epic', name: 'Fourth Wall', active: true });
   });
 });
 

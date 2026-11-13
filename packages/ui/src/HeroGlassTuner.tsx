@@ -8,7 +8,7 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the FOURTH WALL hero attack (style `glass`, Epic; in progress, no cosmetic yet): the screen is a
+ * DEV tuner for the FOURTH WALL hero attack (style `glass`, the Fourth Wall cosmetic, Epic): the screen is a
  * pane of glass and the blow breaks it. WHAT cracks it is rolled per fight from seven causes (a headbutt, a knock, a
  * rising tone, a creeping crack, a shockwave, a beam, a ricochet); the Variation row forces one. Four groups of
  * per-look dials (Tier 1 the chip; Tier 2 the web; Tier 3 the pane; Tier 4 the shatter), the cracks, the shards, the colours and one

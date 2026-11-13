@@ -31,7 +31,11 @@ describe('the Taunt beam', () => {
     expect(read('./keywordBeam.ts')).toContain('const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));');
   });
   it('the Taunt sound rings as the beam LANDS, and the Shop does not also ring it at the grant', () => {
-    expect(read('./keywordBeam.ts')).toContain("if (kw === 'T') sfx.taunt();");
+    const kb = read('./keywordBeam.ts');
+    expect(kb).toContain("const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };");
+    // ...100 ms ahead of the frame, and still rung at the landing if that timer never ran.
+    expect(kb).toContain('register(window.setTimeout(ringTaunt, (landAt - TAUNT_SOUND_LEAD_MS) / s));');
+    expect(kb).toContain('export const TAUNT_SOUND_LEAD_MS = 100;');
     const store = read('../store.ts');
     expect(store).toContain("const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);");
     expect(store).toContain("if (!tauntBeamComing && next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();");

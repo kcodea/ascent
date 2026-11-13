@@ -20,3 +20,5 @@ Owner: "now im making a taunt beam".
   landing: `Card.tsx` now warms it while the beam flies. And the look landed exactly on the tip's arrival (380 ms):
   `KEYWORD_LAND_LEAD_MS.T` lands the frame and the Taunt sound 90 ms before it. The whoosh is back at level 1, recut
   shorter (starts 1.22 s into the original, 0.78 s long).
+- The Taunt sound leads the frame by 100 ms (`TAUNT_SOUND_LEAD_MS`; owner: "can we have the taunt deploy sound come in
+  100 ms earlier"): at 1x it rings 190 ms after launch, the frame appears at 290 ms.

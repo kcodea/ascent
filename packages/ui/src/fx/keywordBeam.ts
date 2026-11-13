@@ -36,6 +36,9 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
  */
 export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 90 };
 
+/** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier"). */
+export const TAUNT_SOUND_LEAD_MS = 100;
+
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;
 /** A cascade rings its sounds on its first few beams only. */
@@ -82,11 +85,14 @@ export function launchKeywordBeam(
   const register = opts.register ?? (() => {});
   const arrive = defArrivalMs(def);
   hold(kw, targetUid, (launchAt + arrive) / s + 50); // safety net; `land` releases it on time
+  // The game's own Taunt sound (owner 2026-11-13): it leads the shield frame, and rings once whichever path gets there.
+  let tauntRang = false;
+  const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };
   const land = (): void => {
     hold(kw, targetUid, 0);
+    ringTaunt();
     if (sound) {
       if (kw === 'DS') sfx.shield();
-      if (kw === 'T') sfx.taunt(); // the game's own Taunt sound, as the shield frame appears (owner 2026-11-13)
       const at = beam.landSfx ? anchorsForUnits(targetUid, targetUid) : null;
       if (at && beam.landSfx) playDef(beam.landSfx, at, { uids: { source: targetUid, target: targetUid } });
     }
@@ -105,6 +111,7 @@ export function launchKeywordBeam(
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
     const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));
+    if (kw === 'T' && landAt > TAUNT_SOUND_LEAD_MS) register(window.setTimeout(ringTaunt, (landAt - TAUNT_SOUND_LEAD_MS) / s));
     if (landAt <= 0) land(); else register(window.setTimeout(land, landAt / s));
   };
   if (launchAt <= 0) launch(); else register(window.setTimeout(launch, launchAt / s));

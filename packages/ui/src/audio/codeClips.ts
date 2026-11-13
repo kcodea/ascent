@@ -272,13 +272,9 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/universfield-whip-snap-242215',
   ],
   reaping: [
-    'fx/blue-impact-hit',
-    'fx/heavy-rock-impact',
-    'fx/metal-woosh',
-    'fx/oona-powerup',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/triple-impact',
-    'fx/universfield-whip-snap-242215',
+    'fx/reaping-bell',
+    'fx/reaping-breath',
+    'fx/reaping-sweep',
   ],
   storm: [
     'fx/blue-impact-hit',

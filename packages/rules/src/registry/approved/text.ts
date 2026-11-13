@@ -783,4 +783,25 @@ export const TEXT_RULES: GameRule[] = [
     example: 'A Beast with an Echo skull that Raven gives Execute shows the red dagger instead of the skull.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/mechIcon.test.ts'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-TEXT-PROPER-NAME-01',
+    title: 'The keyword rename never rewrites a card, rune, quest or Equipment name',
+    statement:
+      'The display rename (Golden to Gilded, Battlecry to Shout, and the rest in terms.ts) changes only the mechanic '
+      + 'word. A card, rune, quest or Equipment whose NAME contains one of those words keeps its name exactly as named '
+      + 'wherever text mentions it, plurals included: "replace a minion in your Shop with a Golden Monkey", never '
+      + '"Gilded Monkey". The mechanic word in the same sentence still renames.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'Golden Monkey renders in game as "...with a Gilded Monkey"' },
+      { kind: 'fix-pr', ref: 'fix/golden-monkey-name: packages/ui/src/terms.ts (PROTECTED_NAMES, derived from the content indices, masked before the rename)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-13 (fix/golden-monkey-name). Before, every "Golden" became "Gilded", so the Golden Monkey '
+      + 'rune, Indy and any text naming Golden Ruby, Golden Touch, Golden Ale, Golden Splinter, Golden Handshake or The '
+      + 'Golden Ledger named a card that does not exist.',
+    example: 'Golden Monkey rune: "Every 5 Refreshes, replace a minion in your Shop with a Golden Monkey."',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/terms.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

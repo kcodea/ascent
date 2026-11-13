@@ -9,8 +9,9 @@
  * Only `opacity` and `transform` are ever written after they are built (compositor only, from the one clock):
  *  - a STRIP (I-II) is a thin bar across the portrait, turned to the cut and grown along it with `scaleX` as the blade
  *    passes, inside a round wrapper that clips it to the portrait;
- *  - the FULL pane covers the round portrait (II: clipped ONCE, at build, to the two wedges between the cuts) and fades
- *    in and out with `opacity` (a half-opaque grey pane is a half-drained portrait);
+ *  - the FULL pane covers the round portrait and fades in and out with `opacity` (a half-opaque grey pane is a
+ *    half-drained portrait). On II it is two WEDGES instead: two squares with a corner on the portrait's middle, turned
+ *    so each fills the quarter between the cuts (a `clip-path` polygon on one pane was tried first and drained the whole portrait in the captures);
  *  - the VEIL (IV) covers the screen and fades in with `opacity`; colour floods back by SLIDING it off along the strike
  *    line with `translateX`, its trailing edge feathered by a mask painted once.
  * The wrapper rides the struck portrait's own transform, so the grey stays on the face while it is knocked.
@@ -54,7 +55,8 @@ export class ReapingDrain {
   readonly veil: HTMLDivElement | null = null;
   readonly patch: HTMLDivElement | null = null;
   readonly strips: HTMLDivElement[] = [];
-  readonly full: HTMLDivElement | null = null;
+  /** The rest of the portrait: one round pane (III-IV), or II's two wedges. They fade together. */
+  readonly fulls: HTMLDivElement[] = [];
   private readonly lenPx: number = 0;
   private readonly slidePx: number = 0;
   private readonly veilRot: string = '';
@@ -122,21 +124,30 @@ export class ReapingDrain {
         this.strips.push(s);
       });
     }
-    if (o.kind !== 'cut') {
+    if (o.kind === 'cross') {
+      // The two wedges between the cuts, either side of the strike line: exactly half the portrait. Each is a square
+      // with one corner on the portrait's middle, turned so its two edges lie along the cuts.
+      for (const a of [o.strike - Math.PI / 4, o.strike + Math.PI * 0.75]) {
+        const w = pane('hreaping-full');
+        put(w, {
+          position: 'absolute', left: '50%', top: '50%', width: `${(size * 0.55).toFixed(1)}px`, height: `${(size * 0.55).toFixed(1)}px`,
+          'transform-origin': '0 0', transform: `rotate(${a.toFixed(4)}rad)`, opacity: '0', 'will-change': 'opacity',
+        });
+        patch.appendChild(w);
+        this.fulls.push(w);
+      }
+    } else if (o.kind !== 'cut') {
       const full = pane('hreaping-full');
       put(full, { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', 'border-radius': '50%', opacity: '0', 'will-change': 'opacity' });
-      if (o.kind === 'cross') {
-        // The two wedges between the cuts, either side of the strike line: exactly half the portrait.
-        const pt = (a: number): string => `${(50 + 80 * Math.cos(a)).toFixed(1)}% ${(50 + 80 * Math.sin(a)).toFixed(1)}%`;
-        const q = Math.PI / 4, s = o.strike;
-        full.style.setProperty('clip-path', `polygon(50% 50%, ${pt(s + q)}, ${pt(s - q)}, 50% 50%, ${pt(s + Math.PI + q)}, ${pt(s + Math.PI - q)})`);
-      }
       patch.appendChild(full);
-      this.full = full;
+      this.fulls.push(full);
     }
     o.parent.appendChild(patch);
     this.patch = patch;
   }
+
+  /** The first of the full panes (null on I). */
+  get full(): HTMLDivElement | null { return this.fulls[0] ?? null; }
 
   /** Every pane this attack has in the DOM right now. */
   get panes(): number { return this.gone ? 0 : (this.veil ? 1 : 0) + (this.patch ? 1 : 0); }
@@ -162,7 +173,11 @@ export class ReapingDrain {
       for (const el of this.strips) el.style.opacity = a;
       this.lastStripA = s.stripA;
     }
-    if (this.full && s.full !== this.lastFull) { this.full.style.opacity = s.full.toFixed(3); this.lastFull = s.full; }
+    if (this.fulls.length && s.full !== this.lastFull) {
+      const a = s.full.toFixed(3);
+      for (const el of this.fulls) el.style.opacity = a;
+      this.lastFull = s.full;
+    }
     if (this.veil) {
       if (s.veil !== this.lastVeil) { this.veil.style.opacity = s.veil.toFixed(3); this.lastVeil = s.veil; }
       if (s.flood !== this.lastFlood) {

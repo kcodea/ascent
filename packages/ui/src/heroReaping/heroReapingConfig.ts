@@ -120,7 +120,7 @@ export type HeroReapingNumKey = Exclude<keyof HeroReapingConfig, HeroReapingStrK
  */
 const TIER_DEFAULTS: Record<ReapingTierSuffix, [number, number, number, number]> = {
   ReadyMs: [280, 300, 0, 0],
-  SweepMs: [300, 280, 300, 460],
+  SweepMs: [340, 320, 300, 460],
   Motes: [5, 10, 14, 30],
   HoldMs: [420, 480, 620, 380],
   ReturnMs: [420, 440, 480, 460],
@@ -158,7 +158,7 @@ export const HERO_REAPING_DEFAULTS: HeroReapingConfig = {
   grey: 1,
   sag: 0.035,
   moteMs: 700,
-  moteSize: 1,
+  moteSize: 1.2,
   crossGapMs: 250,
   riseMs: 520,
   raiseMs: 140,
@@ -502,7 +502,7 @@ export function reapingGeo(p: ReapingPlan, a: Pt, d: Pt, aR: number, dR: number,
     const aHit = phi + side * Math.atan2(blade / 2, reach);
     shadow = {
       x, baseY, h, side, pivot, reach, blade, a0: aHit + side * 1.75, aHit, a1: aHit - side * 0.62,
-      candle: { x: clamp(d.x - side * dR * 1.2, 20, Math.max(20, bounds.w - 20)), y: clamp(d.y + dR * 0.98, 60, Math.max(60, bounds.h - 6)) },
+      candle: { x: clamp(d.x - side * dR * 1.2, dR * 0.45, Math.max(dR * 0.45, bounds.w - dR * 0.45)), y: clamp(d.y + dR * 1.02, dR, Math.max(dR, bounds.h - 6)) },
     };
     // The blade's path, as a cut: tangent to the swing where it crosses the portrait.
     const dir = { x: Math.sin(phi) * side, y: -Math.cos(phi) * side };

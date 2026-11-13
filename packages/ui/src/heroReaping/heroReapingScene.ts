@@ -60,7 +60,7 @@ export const MAX_MOTES = 44;
 export const LINE_LINGER_MS = 460;
 
 interface Mote {
-  s: Sprite | null; age: number; delay: number; dur: number;
+  s: Sprite | null; g: Sprite | null; age: number; delay: number; dur: number;
   x0: number; y0: number; cx: number; cy: number; x1: number; y1: number;
   size: number; phase: number;
 }
@@ -127,7 +127,7 @@ export class HeroReapingScene extends FxPool {
         this.blades.push(own('core', tex.blade, 0.5, 0.42));
       }
     }
-    for (let i = 0; i < MAX_MOTES; i++) this.motes.push({ s: null, age: 0, delay: 0, dur: 1, x0: 0, y0: 0, cx: 0, cy: 0, x1: 0, y1: 0, size: 1, phase: 0 });
+    for (let i = 0; i < MAX_MOTES; i++) this.motes.push({ s: null, g: null, age: 0, delay: 0, dur: 1, x0: 0, y0: 0, cx: 0, cy: 0, x1: 0, y1: 0, size: 1, phase: 0 });
   }
 
   /** Motes in flight (or waiting to lift off). Exposed for tests. */
@@ -159,8 +159,8 @@ export class HeroReapingScene extends FxPool {
         b.visible = blade.visible; sh.visible = blade.visible;
         if (!blade.visible) continue;
         const flip = g.cuts[i]!.bow;
-        b.position.set(blade.x, blade.y); b.rotation = blade.rot; b.scale.set(k, k * flip); b.alpha = blade.alpha;
-        sh.position.set(blade.x + 3 * S, blade.y + 5 * S); sh.rotation = blade.rot; sh.scale.set(k * 1.04, k * 1.25 * flip); sh.alpha = 0.42 * blade.alpha;
+        b.position.set(blade.x, blade.y); b.rotation = blade.rot; b.scale.set(k, k * 1.5 * flip); b.alpha = blade.alpha;
+        sh.position.set(blade.x + 3 * S, blade.y + 5 * S); sh.rotation = blade.rot; sh.scale.set(k * 1.04, k * 1.8 * flip); sh.alpha = 0.42 * blade.alpha;
       }
     } else if (p.kind === 'shadow' && g.shadow) {
       this.drawShadow(t);
@@ -182,15 +182,17 @@ export class HeroReapingScene extends FxPool {
       sh.scale.set(-s.side * k, k * (0.9 + 0.1 * up));
       sh.alpha = 0.96 * up;
       const ang = swingAt(p, s, t);
+      // The scythe is light: once it has followed through it thins out of the air, before the shadow sinks.
+      const held = up * (1 - clamp01((t - p.cuts[0]!.endAt) / 240));
       const tx = s.pivot.x + Math.cos(ang) * s.reach, ty = s.pivot.y + Math.sin(ang) * s.reach + (1 - up) * s.h * 0.16;
       sn.position.set(s.pivot.x, s.pivot.y + (1 - up) * s.h * 0.16);
       sn.rotation = ang;
-      sn.scale.set(s.reach / (SNATH_TEX_W * 0.88), Math.max(1, (this.foe.r / 80)) * (10 / SNATH_TEX_H));
-      sn.alpha = up;
+      sn.scale.set(s.reach / (SNATH_TEX_W * 0.88), Math.max(1, (this.foe.r / 80)) * (16 / SNATH_TEX_H));
+      sn.alpha = held;
       const r = ang - s.side * Math.PI / 2;
       const kb = s.blade / ((BLADE_POINT_U - BLADE_HEEL_U) * BLADE_TEX_W);
-      b.position.set(tx, ty); b.rotation = r; b.scale.set(kb, -s.side * kb); b.alpha = up;
-      bs.position.set(tx + 3 * this.scale, ty + 5 * this.scale); bs.rotation = r; bs.scale.set(kb * 1.04, -s.side * kb * 1.25); bs.alpha = 0.4 * up;
+      b.position.set(tx, ty); b.rotation = r; b.scale.set(kb, -s.side * kb * 1.4); b.alpha = held;
+      bs.position.set(tx + 3 * this.scale, ty + 5 * this.scale); bs.rotation = r; bs.scale.set(kb * 1.04, -s.side * kb * 1.7); bs.alpha = 0.4 * held;
     }
     // The candle: there from the rise until the portrait's colour starts back; its flame steady, then guttering, then out.
     const c = this.candleS!, fl = this.flameS!, fg = this.flameGlow!;
@@ -199,12 +201,12 @@ export class HeroReapingScene extends FxPool {
     const burn = flameAt(p, t);
     fl.visible = c.visible && burn > 0.02; fg.visible = fl.visible;
     if (!c.visible) return;
-    const ch = this.foe.r * 0.5, kc = ch / CANDLE_TEX_H;
+    const ch = this.foe.r * 0.62, kc = ch / CANDLE_TEX_H;
     c.position.set(s.candle.x, s.candle.y); c.scale.set(kc); c.alpha = ca;
     if (!fl.visible) return;
     const gut = t >= p.impactAt ? 1 : 0;
     const flick = 0.05 * Math.sin(t * 0.021) + 0.035 * Math.sin(t * 0.047 + 1) + gut * (0.22 * Math.sin(t * 0.09) + 0.12 * Math.sin(t * 0.17 + 2));
-    const kf = (ch * 0.62 / FLAME_TEX_H) * (0.35 + 0.65 * burn);
+    const kf = (ch * 0.7 / FLAME_TEX_H) * (0.35 + 0.65 * burn);
     const fx = s.candle.x + kc, fy = s.candle.y - ch * 0.9;
     fl.position.set(fx, fy);
     fl.scale.set(kf * (1 - flick * 0.5), kf * (1 + flick));
@@ -275,8 +277,10 @@ export class HeroReapingScene extends FxPool {
       if (made >= n) break;
       if (m.s) continue;
       const tint = this.colors.motes[made % this.colors.motes.length] ?? 0xffb24a;
-      const s = this.take('core', this.tex.mote, tint);
-      if (!s) break;
+      // A solid warm fleck (it must read over a pale board as well as a grey one) inside a soft halo of its hue.
+      const g = this.take('glow', this.tex.glow, tint);
+      const s = this.take('body', this.tex.mote, whiten(tint, 0.25));
+      if (!s || !g) { this.give(s); this.give(g); break; }
       if (cut) {
         const al = (this.rnd() - 0.5) * 1.5 * r, ac = (this.rnd() - 0.5) * 2 * hw;
         m.x0 = x + cut.dir.x * al - cut.dir.y * ac; m.y0 = y + cut.dir.y * al + cut.dir.x * ac;
@@ -290,10 +294,11 @@ export class HeroReapingScene extends FxPool {
       m.x1 = this.hero.x + (this.rnd() - 0.5) * this.hero.r * 0.5; m.y1 = this.hero.y + (this.rnd() - 0.5) * this.hero.r * 0.5;
       m.age = 0; m.delay = n <= 1 ? 0 : (spanMs * made) / (n - 1) * (0.8 + this.rnd() * 0.2);
       m.dur = this.look.moteMs * (0.85 + this.rnd() * 0.4) * Math.min(1.25, Math.max(0.6, Math.sqrt(dist / 1600)));
-      m.size = this.look.moteSize * (9 + this.rnd() * 8) * this.scale;
+      m.size = this.look.moteSize * (15 + this.rnd() * 11) * this.scale;
       m.phase = this.rnd() * Math.PI * 2;
       s.alpha = 0; s.position.set(m.x0, m.y0);
-      m.s = s; this.flying++; made++;
+      g.alpha = 0; g.position.set(m.x0, m.y0);
+      m.s = s; m.g = g; this.flying++; made++;
     }
   }
 
@@ -303,7 +308,7 @@ export class HeroReapingScene extends FxPool {
     const S = this.scale;
     const span = Math.hypot(this.geo.bounds.w, this.geo.bounds.h);
     const k = (v: number): number => v / (this.tex.ring.width * 0.8) / S;
-    this.spawn('glow', this.tex.ring, this.colors.teal, this.hero.x, this.hero.y, { dur: 1500, from: k(this.hero.r * 2), to: k(span * 1.5), a0: 0.3, mode: 'out', ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, this.colors.teal, this.hero.x, this.hero.y, { dur: 1500, from: k(this.hero.r * 2), to: k(span * 0.8), a0: 0.14, mode: 'out', ease: 'cubic' });
     this.spawn('glow', this.tex.glow, this.colors.teal, this.hero.x, this.hero.y, { dur: 700, from: (this.hero.r * 2) / this.tex.glow.width / S, to: (this.hero.r * 4.4) / this.tex.glow.width / S, a0: 0.4, mode: 'punch', peakAt: 0.2, ease: 'cubic' });
   }
 
@@ -312,7 +317,7 @@ export class HeroReapingScene extends FxPool {
     const s = this.geo.shadow;
     if (this.destroyed || !s) return;
     const S = this.scale;
-    const ch = this.foe.r * 0.5;
+    const ch = this.foe.r * 0.62;
     const k = (v: number): number => v / this.tex.glow.width / S;
     for (let i = 0; i < 2; i++) {
       this.spawn('glow', this.tex.glow, 0x8f9a98, s.candle.x + (i ? 4 : -2) * S, s.candle.y - ch * 0.95, {
@@ -335,9 +340,11 @@ export class HeroReapingScene extends FxPool {
       const wob = Math.sin(m.phase + m.age * 0.008) * 6 * this.scale * (1 - e);
       s.position.set(q * q * m.x0 + 2 * q * e * m.cx + e * e * m.x1 + wob, q * q * m.y0 + 2 * q * e * m.cy + e * e * m.y1 - 14 * this.scale * Math.sin(Math.min(1, v * 3) * Math.PI * 0.5) * (1 - e));
       s.alpha = Math.min(1, v / 0.1, (1 - v) / 0.08);
-      s.scale.set((m.size * (1 - 0.45 * e)) / MOTE_TEX);
+      s.scale.set((m.size * (1 - 0.4 * e)) / MOTE_TEX);
+      const g = m.g;
+      if (g) { g.position.copyFrom(s.position); g.alpha = 0.55 * s.alpha; g.scale.set((m.size * 3.2 * (1 - 0.4 * e)) / this.tex.glow.width); }
       if (v >= 1) {
-        this.give(s); m.s = null; this.flying--; this.arrivedN++;
+        this.give(s); this.give(g); m.s = null; m.g = null; this.flying--; this.arrivedN++;
         // The striker takes it in: a small warm glint where it landed (every third, so a stream does not strobe).
         if (this.arrivedN % 3 === 1) {
           this.spawn('glow', this.tex.glow, this.colors.teal, m.x1, m.y1, { dur: 260, from: (this.hero.r * 0.5) / this.tex.glow.width / this.scale, to: (this.hero.r * 1.3) / this.tex.glow.width / this.scale, a0: 0.3, mode: 'punch', peakAt: 0.25, ease: 'cubic' });
@@ -357,7 +364,7 @@ export class HeroReapingScene extends FxPool {
 
   protected override clearOwn(): void {
     this.hideOwn();
-    for (const m of this.motes) { if (m.s) { this.give(m.s); m.s = null; } }
+    for (const m of this.motes) { if (m.s) { this.give(m.s); this.give(m.g); m.s = null; m.g = null; } }
     this.flying = 0;
   }
 }

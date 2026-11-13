@@ -440,17 +440,17 @@ describe('the runner (the shared clock)', () => {
     h.cancel();
   });
 
-  it('the panes: a strip per cut on I-II, the wedge pane on II, the whole portrait on III-IV, the veil on IV only; all under the FX canvas', () => {
+  it('the panes: a strip per cut on I-II, the two wedges on II, the whole portrait on III-IV, the veil on IV only; all under the FX canvas', () => {
     const count = (total: number) => {
       const { h } = run(of(total));
-      const r = { veil: h.drain.veil ? 1 : 0, strips: h.drain.strips.length, full: h.drain.full ? 1 : 0 };
+      const r = { veil: h.drain.veil ? 1 : 0, strips: h.drain.strips.length, full: h.drain.fulls.length };
       for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeGreaterThanOrEqual(DRAIN_Z);
       for (const el of [h.drain.veil, h.drain.patch]) if (el) expect(Number(el.style.zIndex)).toBeLessThan(200);
       h.cancel();
       return r;
     };
     expect(count(3)).toEqual({ veil: 0, strips: 1, full: 0 });
-    expect(count(8)).toEqual({ veil: 0, strips: 2, full: 1 });
+    expect(count(8)).toEqual({ veil: 0, strips: 2, full: 2 }); // the two wedges
     expect(count(14)).toEqual({ veil: 0, strips: 0, full: 1 });
     expect(count(40)).toEqual({ veil: 1, strips: 0, full: 1 });
     expect(panes()).toBe(0);

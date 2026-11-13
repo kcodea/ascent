@@ -143,9 +143,9 @@
  * "Attack style" override. Scaffolded from `cards` (`npm run attack:new`), see `../heroClaw/`.
  *
  * `fireworks` ("Grand Finale", an Epic) has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Fireworks, never flame: a bottle rocket squeals off a stick and pops in one colour; a roman
- * candle thumps out three coloured balls; a mortar fires a shell off the top of the screen, a HELD BEAT of quiet, then
- * a huge chrysanthemum blooms over the target and rains sparks on it (`../heroFireworks/`).
+ * "Attack style" override. Fireworks launched from light (a spark on the hero's rim, no launcher): one shell on the
+ * target (a smiley, a pinwheel or a dud then the real one); a ring, a heart and a third; then a barrage across the sky,
+ * a HELD BEAT, one enormous shell that fills the screen and a glitter rain (`../heroFireworks/`).
  *
  * `chord` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroChord/`.

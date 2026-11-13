@@ -203,3 +203,81 @@ sparks, not the tube).
 - The last half second of the aftermath is thin: a few falling willow stars and twinkles.
 - With the foe in the top right corner the bloom's top edge leaves the screen for a moment and it covers the lobby rail.
 - Not seen on a real display, a phone, or in the Collection preview box.
+
+## Third pass (2026-11-13): launched from light, live Pixi shells, whimsy, an overboard finale
+
+The owner's note: "this one's okay. i wish it had some more whimsy and pixi to it. the firework cannons and jpegs are
+pretty ugly ... the grand finale can be more overboard". Everything above this section describes the retired launchers
+and is kept as history only.
+
+### What changed
+
+- **No launcher, no painted object.** The rocket, the roman candle and the mortar (and their painted textures) are gone.
+  A spark ignites on the rim of the striking hero's portrait (turned between the target and straight up), a fuse of
+  crackling sparks crawls round the rim into it, and every shell leaves from that light as a hot head and a glow on a
+  short streak, dropping a glittering trail. The only texture of this style's own is a soft smoke puff.
+- **Every shell is particles** in flat typed arrays (`MAX_PARTICLES` 2000, sprites pooled, `MAX_FIREWORKS_SPRITES`
+  2400, made ahead while the formation plays): stars thrown out on a projected sphere with drag and gravity droop,
+  stretched along their speed, some changing colour part way, some trailing glitter, flickering as they die; crackle
+  stars that pop late; ring, heart, smiley and spiral (a spinning emitter) shells; willow stars that hang and fall;
+  smoke that hangs and drifts after every burst.
+- **Tier names**: Tier 1 (shared tier 1), Tier 2 (shared tiers 2 and 3), Tier 3 (shared tier 4 and every knockout),
+  in the tuner groups, play buttons, hints and tests.
+- **Variants** rolled from `rollSeed` (`fireworksVariantOf`), forced by the tuner's Variation row:
+  1 the smiley, 2 the pinwheel, 3 the fake-out.
+
+| tier | what it does | variant 1 | variant 2 | variant 3 |
+| --- | --- | --- | --- | --- |
+| Tier 1 | the spark, the fuse, one shell bursts beside the struck portrait, sweeping it | a smiley that winks and slowly melts | a catherine wheel spins up on the hero's rim, flies still spinning, bursts in a spiral | a dud climbs a little, sputters, flops and goes "pfft"; a pause; the real one zips in |
+| Tier 2 | a ring round the struck face and a heart beside it (ticks: a flinch, a singe), then the blow | a smiley | a spiral | it hangs and sputters faster and faster, then every crackle star pops at once |
+| Tier 3 | three waves of shells (6, 8, 10) from the hero's spark and the bottom of the screen across the whole sky, one per wave on the struck portrait; a comet rises off the top; THE HELD BEAT (smoke hanging, a crowd "ooh"); ONE ENORMOUS SHELL (radius = the screen's shorter side) with a camera push and a big shake, a crackling glitter rain over everything and a crowd "aah"; a final flash on the struck portrait | a smiley in the sky, a smiley inside the enormous shell | a pinwheel off the hero's rim, a spiral inside it | the show opens with a dud, a heart inside it |
+
+Running time (ms from the attack's first beat): Tier 1 1720 to 2460; Tier 2 2340 to 2780; Tier 3 impact about 3060
+(3590 with the dud), end about 5560 to 6090 (the mortar was 1590 / 3390).
+
+The struck portrait flinches and twists at every tick, is lit by every burst on it, and is SINGED: soot smudges, sparkles
+and wisps of smoke that ride its knockback and fade by the end.
+
+### Sound
+
+Six ElevenLabs calls (one a retake of the volley), five clips kept, 8.2 s in all: `fireworks-ignite` (0.55 s, the
+spark striking), `fireworks-dud` (0.68 s, a sputter and a deflating pfft), `fireworks-pinwheel` (1.54 s, a whirring
+spark hiss), `fireworks-volley` (2.12 s, a barrage of bursts then a rumble, under every Tier 3 wave),
+`fireworks-aah` (2.0 s, a small crowd's "aaah"). Peak-normalised to -1.5 dB (the pinwheel and the crowd levelled to
+-19 and -21 LUFS). The held beat reuses `soccer-crowd-ooh`, softly. Every beat has a cue (see the runner's header). The
+plant clip `placelow` is no longer used. Measured, not heard.
+
+### Verified
+
+- `npx vitest run packages/ui/src/heroFireworks packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 904
+  tests, all passing. `heroFireworks.test.ts` rewritten (39 tests): the variant roll (deterministic, all three reached,
+  each forceable), every tier and variant and both directions landing the blow exactly once, the ticks not landing it,
+  the held beat (no cue, camera still, portraits at rest), the geometry inside the view, no body-layer sprite ever drawn,
+  the smiley's shape, the dud throwing no stars, the caps, every exit restoring the portraits and the camera.
+- Contact sheets of every tier and variant (you striking) and Tier 3 the other way.
+
+### Loudness (measured, not heard)
+
+The attack's own sound (from its first beat to 400 ms after its end), recorded off the audio output in headless Chrome,
+100 ms windows: Tier 3 -23.1 dB RMS (loudest window -15.1), Tier 2 -27.7 (-19.1), Tier 1 -28.3 (-19.1). The second
+pass measured -21.0 / -25.5 / -27.3; the references Storm Call IV -22.6, Soccer IV -28.3, Frost IV -27.7. The means
+are a little lower than the second pass because the looks are longer and Tier 3 has a deliberately hushed held beat and
+a long glittering aftermath; the loudest moments are the same order.
+
+### Perf (DEV build, vite dev server, headless Chrome, 1920 x 1080, vsync and frame cap off, sound off, no capture)
+
+The machine was shared with other builders, so these are ceilings. Tier 3, five runs: frame p99 4.5 to 12.8 ms across
+the attack and 8 to 28 ms in the 1.3 s after the enormous shell; worst 16.5 to 35.8 ms. The attack's own JS step
+(formation paint, camera, portraits, the whole particle update) is p99 0.7 to 2.6 ms, worst 5.7 ms: the particle crowd
+is cheap on the CPU. The frames over budget sit on the enormous shell and the glitter rain, which is GPU fill (hundreds
+of additive sprites, a full-screen sky light, big smoke puffs over the dim layer). The particle cap (2000) is reached
+for a moment at the enormous shell, when the last of the barrage is still in the air (a few late sparks are then
+skipped, by design). The bar (no frame over 6.25 ms) is NOT shown met here; it needs a production bench on the owner's
+machine, and the dials to pull if it is too heavy are `giantStars`, `rain`, `smoke` and `v3Stars`.
+
+### Still weak or unverified
+
+- Unheard. The new clips were placed from envelopes only.
+- Tier 1 is small on screen, as the lightest look should be; the smiley's eyes sit under the shared hit number for a
+  moment, and the dud's flop is subtle (the "pfft" puff reads better than the fall).
+- Not measured on a production build or a phone; not seen in the Collection preview box (a geometry test covers it).

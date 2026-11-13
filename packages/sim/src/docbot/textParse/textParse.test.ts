@@ -206,7 +206,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 182 -> 188, CONSCIOUSLY. The same teammate vocabulary; pinned by packages/sim/src/duosBatch2.test.ts.
 // 2026-11-04 (Priestess, Passaria): 188 -> 189, CONSCIOUSLY. The same "Pass" vocabulary; pinned by packages/sim/src/heroPriestess.test.ts.
 // 2026-11-13 (Set 2 rune batch, Basic neutral): 189 -> 197, CONSCIOUSLY. Nine new rune texts (carry-over Gold, lost-combat pay, extra Discover options, side-wide Pummel, Gild / upgrade / every-4th-buy triggers); pinned by packages/sim/src/set2RunesBasicNeutral.test.ts.
-const UNRESOLVED_CAP = 197;
+// 2026-11-13 (Set 2 Epic neutral runes): 189 -> 194, CONSCIOUSLY. Five new rune texts the grammar does not parse yet
+// (Top Shelf's per-Refresh offer, Wholesale's price, Grudge's lost-combat Discover, Bastion's Ward re-form, Mirror Sheen's
+// Ward-loss damage); pinned by packages/sim/src/set2RunesEpicNeutral.test.ts.
+const UNRESOLVED_CAP = 202; // COMBINED 2026-11-13: 189 + 8 (Basic neutral) + 5 (Epic neutral).
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

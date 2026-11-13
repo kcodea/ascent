@@ -4662,6 +4662,78 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['duo_megamimic'],
     reward: { kind: 'grant', cards: ['duo_megamimic'] },
   },
+  // ── SET 2 RUNE BATCH, EPIC NEUTRAL (owner 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Set 2 only. ──
+  {
+    // Shop: after every Refresh (the Refresh button, the Open Enrollment site), one minion offer is from the Tier above
+    // your Shop (`offerTopShelf`, reducer.ts), per copy held. At the top Tier it does nothing (owner ruling 2026-11-12).
+    id: 'rune_top_shelf',
+    name: 'Top Shelf',
+    cost: 3,
+    epic: true,
+    text: 'Every Refresh offers **1** minion from the Tier above your Shop.',
+    reward: { kind: 'combatFlag', flag: 'runeTopShelf' },
+    sets: ['set2'],
+  },
+  {
+    // Combat (Start of Combat rune pass, Twilight repeats it) + its Combat Prowess Shop replay. Renamed from "Opening
+    // Act" (owner 2026-11-12: that name belongs to Fi's hero quests).
+    id: 'rune_double_bill',
+    name: 'Double Bill',
+    cost: 4,
+    epic: true,
+    text: '**Start of Combat:** trigger your left-most and right-most **Shouts**.',
+    reward: { kind: 'combatFlag', flag: 'runeDoubleBill' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_bulwark_line',
+    name: 'Bulwark Line',
+    cost: 3,
+    epic: true,
+    text: '**Start of Combat:** give your **Taunt** minions **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeBulwarkLine' },
+    sets: ['set2'],
+  },
+  {
+    // `offerBuyPrice` (reducer.ts): -1 per copy held on every Shop MINION offer (the Starform included), floored at 0.
+    id: 'rune_wholesale',
+    name: 'Wholesale',
+    cost: 4,
+    epic: true,
+    text: 'Minions in the Shop cost **1** less.',
+    reward: { kind: 'combatFlag', flag: 'runeWholesale' },
+    sets: ['set2'],
+  },
+  {
+    // Start of Turn after a LOST combat (a draw is not a loss): a minion Discover from your Shop Tier + 1, capped at 7.
+    id: 'rune_grudge',
+    name: 'Grudge',
+    cost: 3,
+    epic: true,
+    text: 'After you lose a combat, **Discover** a minion from the Tier above your Shop. (Up to Tier 7.)',
+    reward: { kind: 'combatFlag', flag: 'runeGrudge' },
+    sets: ['set2'],
+  },
+  {
+    // Combat: a side-wide budget (1 per copy) per fight; the Ward comes back at once as a normal Ward, so every
+    // Ward-loss trigger (Mirror Sheen, Shatterproof) hears it lose again (owner ruling 2026-11-12).
+    id: 'rune_bastion',
+    name: 'Bastion',
+    cost: 4,
+    epic: true,
+    text: 'The first minion of yours to lose **Ward** each combat gains **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeBastion' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_mirror_sheen',
+    name: 'Mirror Sheen',
+    cost: 3,
+    epic: true,
+    text: 'When a minion of yours loses **Ward**, it deals damage equal to its Attack to a random enemy.',
+    reward: { kind: 'combatFlag', flag: 'runeMirrorSheen' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -5260,6 +5332,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_lasting_words',
   // …and Loyal Customer (Set 2 batch, 2026-11-12): a buy is either free or not; a second copy has no second free buy.
   'rune_loyal_customer',
+  // …and Bulwark Line (Set 2 Epic neutral, 2026-11-12): a Taunt minion either has Ward or not.
+  'rune_bulwark_line',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

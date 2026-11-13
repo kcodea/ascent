@@ -44,7 +44,8 @@ const BOOL_FLAGS = (
   + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
   + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
   + 'runeGoleming runeRedStart runeRoseysGarden ' // Set 3 Kobold runes (2026-10-22)
-  + 'runeBloodscent runeLastHowl runeTrophyHunter runePitchforks runeImpLegion runeFlamekeeper runeRubyDust runeRoughCut' // Set 2 runes, Basic tribal (2026-11-13)
+  + 'runeBloodscent runeLastHowl runeTrophyHunter runePitchforks runeImpLegion runeFlamekeeper runeRubyDust runeRoughCut ' // Set 2 runes, Basic tribal (2026-11-13)
+  + 'runeDoubleBill runeBulwarkLine runeBastion runeMirrorSheen' // Set 2 rune batch, Epic neutral (2026-11-12)
 ).split(' ');
 
 /** Every non-boolean combat mod, with a value of its real shape (labels are display-only). */

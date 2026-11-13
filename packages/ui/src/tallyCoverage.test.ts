@@ -68,6 +68,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_hazard_pay: 'fires on EVERY lost combat; the digits are the 3 Gold grant, not a count-up',
   rune_golden_handshake: 'fires on EVERY Gild; the digits are the +2/+2 grant, not a count-up',
   rune_late_bloomer: 'fires on EVERY Shop upgrade; the digits are the 2 Gold and +3/+3 grant, not a count-up',
+  rune_top_shelf: 'the 1 is how many offers each Refresh gets from the Tier above; it pays on EVERY Refresh, nothing to count toward (Set 2 Epic, 2026-11-13)',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */

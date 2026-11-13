@@ -2101,7 +2101,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rubies dying casts a permanent Ruby on a random friendly Kobold; roughCut = a Ruby cast on a Kobold also casts on a
   // random friendly non-Kobold.
   | 'runeBloodscent' | 'runeLastHowl' | 'runeTrophyHunter' | 'runePitchforks' | 'runeImpLegion' | 'runeCollections'
-  | 'runeFlamekeeper' | 'runeHatchlingRoost' | 'runeRubyDust' | 'runeRoughCut';
+  | 'runeFlamekeeper' | 'runeHatchlingRoost' | 'runeRubyDust' | 'runeRoughCut'
+  // Set 2 rune batch, Epic neutral (owner 2026-11-12): topShelf = every Refresh offers 1 minion from the Tier above;
+  // doubleBill = Start of Combat, trigger the left-most and right-most Shouts; bulwarkLine = Start of Combat, Taunt
+  // minions gain Ward; wholesale = Shop minions cost 1 less; grudge = after a lost combat, Discover from the Tier above;
+  // bastion = the first friendly Ward loss each combat regains Ward; mirrorSheen = a friendly Ward loss deals its Attack.
+  | 'runeTopShelf' | 'runeDoubleBill' | 'runeBulwarkLine' | 'runeWholesale' | 'runeGrudge' | 'runeBastion' | 'runeMirrorSheen';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2934,6 +2939,15 @@ export interface QuestCombatMods {
   runeRubyDust?: boolean;
   /** Rough Cut: a Ruby cast on a Kobold also casts one on a random friendly non-Kobold (per copy). */
   runeRoughCut?: boolean;
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──
+  /** Double Bill: Start of Combat, trigger the left-most and right-most friendly Shouts (per copy). */
+  runeDoubleBill?: boolean;
+  /** Bulwark Line: Start of Combat, every friendly Taunt minion gains Ward. */
+  runeBulwarkLine?: boolean;
+  /** Bastion: the first friendly minion to lose Ward each combat (side-wide; one per copy held) gains Ward again. */
+  runeBastion?: boolean;
+  /** Mirror Sheen: when a friendly minion loses Ward, it deals damage equal to its Attack to a random enemy (per copy). */
+  runeMirrorSheen?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

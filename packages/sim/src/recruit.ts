@@ -15372,6 +15372,20 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   } });
   // Shield Wall (Set 2 batch, 2026-11-12): Taunt minions +4/+6 per copy (permanent here).
   if (f?.runeShieldWall) out.push({ id: 'rune_shield_wall', kind: 'rune', label: 'Shield Wall', fire: (st) => shieldWallShop(st) });
+  // ── Set 2 rune batch, Epic neutral (owner 2026-11-12): the Shop twins of the two Start-of-Combat runes (R-RUNE-14). ──
+  // Bulwark Line: every Taunt minion gains Ward (permanent here, idempotent).
+  if (f?.runeBulwarkLine) out.push({ id: 'rune_bulwark_line', kind: 'rune', label: 'Bulwark Line', fire: (st) => {
+    for (const m of st.board) if (m.keywords.includes('T')) grantKw(m, 'DS');
+  } });
+  // Double Bill: the left-most and right-most Shout minions fire their Shout (one Shout minion fires once), through
+  // `replayBattlecry` (a triggered Shout is a Shout: Drakko and every Shout tally see it), once per copy held.
+  if (f?.runeDoubleBill) out.push({ id: 'rune_double_bill', kind: 'rune', label: 'Double Bill', fire: (st) => {
+    const shouts = st.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
+    const ends = shouts.length <= 1 ? shouts : [shouts[0]!, shouts[shouts.length - 1]!];
+    for (let k = 0; k < Math.max(1, st.flagCopies?.runeDoubleBill ?? 1); k++) {
+      for (const c of ends) if (st.board.includes(c)) replayBattlecry(st, c);
+    }
+  } });
   return out;
 }
 

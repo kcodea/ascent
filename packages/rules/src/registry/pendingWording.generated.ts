@@ -48,17 +48,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-gild-01",
-    "title": "Wording: Gilded vs Golden · 12 vs 8",
+    "title": "Wording: Gilded vs Golden · 12 vs 9",
     "statement": "Upgraded cards are called \"Gilded\" in text; every \"Golden\"/\"golden\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Gilded\" in 12 printed texts, \"Golden\" in 8. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Gilded\" in 12 printed texts, \"Golden\" in 9. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
     "cardText": "\"Gilded\" — T-Rex: \"Echo: summon a Gilded T-Rex Baby with Taunt.\" · \"Golden\" — Eyes of Aresmar: \"Make a Tier 4 or lower minion Golden.\"",
     "example": "Eyes of Aresmar would be re-worded to the \"Gilded\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 12 vs 8)"
+        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 12 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -73,6 +73,7 @@ export const WORDING_PENDING: GameRule[] = [
       "goldcrafter",
       "goldentouch",
       "n3_indy",
+      "rune_golden_monkey",
       "rune_golden_splinter",
       "salvatore",
       "steadfast"
@@ -279,17 +280,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 244 vs 9",
+    "title": "Wording: Shop vs tavern · 245 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 244 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 245 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 244 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 245 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

@@ -3190,4 +3190,18 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopMadness.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-SET2-RUNE-GOLDENMONKEY-01',
+    title: 'Golden Monkey: every 5 Refreshes, a Shop minion becomes a Golden Monkey',
+    statement: 'Golden Monkey (Basic, 2, Set 2) reads the Indy meter: the `refresh` threshold ticks only when the player presses Refresh (a free one included; the fresh row of the turn and rune / spell / hero-power refreshes do not), cumulative and repeating. Every 5th tick REPLACES a random Shop minion (seeded; never a spell, Ruby, the Starform, a held offer or another Golden Monkey) with the Golden Monkey token (n3_goldenmonkey): the replaced offer returns to the pool and the Monkey takes its slot. With no minion to replace it fills a free slot. One meter per copy held. The row never grows, so Shop Madness keeps 6, and the Monkey wears the run-wide Shop buff like any Shop minion. The badge prints the live x/5.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner addition 2026-11-13 (Set 2 rune batch)', quote: 'when you refresh 5 times, replace a minion with a golden monkey. this uses the indy golden monkey mechanic' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts payRuneThreshold (replaceShopWith) + replaceShopOfferWith; packages/sim/src/reducer.ts roll (advanceRuneThresholds refresh)' },
+    ],
+    contentIds: ['rune_golden_monkey', 'n3_goldenmonkey', 'n3_indy'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2GoldenMonkeyRune.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

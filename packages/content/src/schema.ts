@@ -1011,6 +1011,7 @@ z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast',
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
   rubyAll: z.boolean().optional(),
+  replaceShopWith: z.string().min(1).optional(), // Golden Monkey (Set 2 rune, 2026-11-13): swap a random Shop minion for this card
   grantGoldNextTurn: z.number().int().positive().optional(),
   resetEachTurn: z.boolean().optional(),
   grantGold: z.number().int().positive().optional(),

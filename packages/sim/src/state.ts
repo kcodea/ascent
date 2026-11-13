@@ -1114,6 +1114,8 @@ export interface RunState {
     castStatSpell?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
     rubyAll?: boolean;
+    /** Golden Monkey: the card a trip swaps in for a random Shop minion. */
+    replaceShopWith?: string;
     /** Balance 9/23 (rune reworks A) — see the `runeThreshold` reward: Gold paid now (the Gem Dividend), a Ruby
      *  improvement (Gemspam), one-of-these cards (Hoardcalling), a random tribe minion (the Dragon's Pantry),
      *  spells cast on the trip (the Spellmarket's Staff of Guel). */

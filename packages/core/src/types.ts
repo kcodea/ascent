@@ -1576,6 +1576,9 @@ export type QuestReward =
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
       rubyAll?: boolean;
+      /** Golden Monkey (Set 2 rune, owner 2026-11-13): REPLACE a random Shop minion with this card when the meter trips
+       *  (Indy's Golden Monkey, swapped in rather than added). */
+      replaceShopWith?: string;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
       grantGoldNextTurn?: number;
       /** The meter is a per-TURN window (no remainder carries across the rollover). */

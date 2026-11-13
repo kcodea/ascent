@@ -2425,6 +2425,19 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeShopMadness' },
     sets: ['set2'],
   },
+  {
+    // Owner addition 2026-11-13 (Set 2 batch): Indy's Golden Monkey as a rune. The `refresh` threshold is Indy's meter
+    // exactly (the player pressing Refresh, a free one included; the turn's fresh row does not count), cumulative and
+    // repeating; each trip REPLACES a random Shop minion with the Golden Monkey token (`replaceShopWith`). One meter per
+    // copy held. The badge prints the live x/5.
+    id: 'rune_golden_monkey',
+    name: 'Golden Monkey',
+    cost: 2,
+    text: 'Every **5** Refreshes, replace a minion in your Shop with a **Golden Monkey**.',
+    previewCards: ['n3_goldenmonkey'],
+    reward: { kind: 'runeThreshold', meter: 'refresh', per: 5, replaceShopWith: 'n3_goldenmonkey' },
+    sets: ['set2'],
+  },
 ];
 
 /**

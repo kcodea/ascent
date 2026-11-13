@@ -2332,6 +2332,10 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
   // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
   // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
+  // GOLDEN MONKEY (Set 2 rune, owner 2026-11-13): Indy's Golden Monkey, but SWAPPED IN: a random Shop minion (seeded;
+  // never a spell, Ruby, the Starform, a held offer or another copy of the card) leaves for the pool and the card
+  // takes its slot (`replaceShopOfferWith`). With no minion to replace, it fills a free slot instead (`addCardToShop`).
+  if (t.replaceShopWith && CARD_INDEX[t.replaceShopWith]) replaceShopOfferWith(state, t.replaceShopWith);
   if (t.rubyAll) {
     const rb = rubyStatBonus(state);
     for (const c of [...state.board]) {
@@ -14007,6 +14011,31 @@ export function addCardToShop(state: RunState, cardId: string): string | null {
   takeFromPool(state, cardId);
   state.shop[idx] = offer;
   stampNewShopOffers(state, [offer], { onRefresh: false, cia: true, inPlace: true }); // it took the replaced slot's enchant
+  return offer.uid;
+}
+
+/**
+ * REPLACE a random Shop minion with `cardId` (Golden Monkey rune, owner 2026-11-13: "replace a minion with a golden
+ * monkey"). The pick is seeded off `rngCursor`: a minion offer that is not the Starform, a held (Displacement) offer or
+ * already a copy of `cardId`. The replaced offer returns to the pool like a reroll; the new offer takes its slot and its
+ * slot enchant (`inPlace`). No minion to replace: the card fills a free slot instead (`addCardToShop`; nothing when the
+ * row is full of non-minions). The row never grows past a replace, so Shop Madness's 6 stay 6. Returns the new uid.
+ */
+export function replaceShopOfferWith(state: RunState, cardId: string): string | null {
+  const idxs: number[] = [];
+  state.shop.forEach((o, i) => {
+    const d = CARD_INDEX[o.cardId];
+    if (d && !d.spell && !d.ruby && !o.starform && !o.held && o.cardId !== cardId) idxs.push(i);
+  });
+  if (idxs.length === 0) return addCardToShop(state, cardId);
+  const rng = makeRng(state.rngCursor);
+  const idx = idxs[rng.int(idxs.length)]!;
+  state.rngCursor = rng.state();
+  const offer: ShopCard = { uid: `s${state.uidSeq++}`, cardId };
+  returnToPool(state, state.shop[idx]!.cardId);
+  takeFromPool(state, cardId);
+  state.shop[idx] = offer;
+  stampNewShopOffers(state, [offer], { onRefresh: false, cia: true, inPlace: true });
   return offer.uid;
 }
 

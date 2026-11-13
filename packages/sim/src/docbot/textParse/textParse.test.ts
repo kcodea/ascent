@@ -205,7 +205,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-01 (Duos batch 2: Double Down, Upgrade Assist, Hand-Me-Downs, Buddy System, Gild Pact, Pep Talk; Teammate Synergy reworded):
 // 182 -> 188, CONSCIOUSLY. The same teammate vocabulary; pinned by packages/sim/src/duosBatch2.test.ts.
 // 2026-11-04 (Priestess, Passaria): 188 -> 189, CONSCIOUSLY. The same "Pass" vocabulary; pinned by packages/sim/src/heroPriestess.test.ts.
-const UNRESOLVED_CAP = 189;
+// 2026-11-13 (Set 2 Epic tribal runes: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire,
+// Elder's Voice, Vein Finder, Gem Rain): 189 -> 196, CONSCIOUSLY. Seven rune texts the grammar cannot read ("count each Gold
+// twice", "Beasts that Rise", "when that Beast is attacked", "dies to damage that is not an attack", "also triggers at Start
+// of Combat" and kin); the behaviour is pinned by packages/sim/src/set2EpicTribalRunes1112.test.ts.
+const UNRESOLVED_CAP = 196;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

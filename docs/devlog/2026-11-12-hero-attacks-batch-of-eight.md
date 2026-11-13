@@ -47,3 +47,12 @@ mono 44.1 kHz at 128 kb/s and levelled; each style's own devlog lists its clips 
 - ~~Cosmetics~~ and ~~production-build frame times~~: done 2026-11-13, see `2026-11-13-hero-attacks-batch-of-eight-cosmetics.md`.
 - **Phones.** No style was looked at on a phone; reduced motion is covered by tests only.
 - The names are working names; the owner may still rename any of them (the ids stay).
+
+## Phone audio cache raised to 46 MB (2026-11-13)
+
+After `origin/main` was merged in, `phoneAudioQuality.test.ts` failed again: the busy-game working set was 42.15 MB
+against the 41.52 MB ceiling (90% of the 44 MB phone cache). The cause was not these attacks' audio but Magician's six
+new voice clips (#2681, #2683; 2.11 MB), which made him the hero with the most clip audio, so the worst case's top four
+heroes grew by 1.25 MB. Owner decision (relayed): raise `PHONE_AUDIO_LRU_BYTES` from 44 to 46 MB, as on 2026-11-09;
+the test and its 90% / 48 MB rules are unchanged. The silent tails (below -60 dB) of five Magician clips were also cut
+without re-encoding (stream copy), saving about 0.2 MB. Working set now 41.94 MB against a 43.41 MB ceiling.

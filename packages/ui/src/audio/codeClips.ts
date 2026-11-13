@@ -298,9 +298,12 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
   ],
   chord: [
     'fx/chord-bass',
+    'fx/chord-feedback',
+    'fx/chord-kick',
     'fx/chord-pluck',
     'fx/chord-strum',
     'fx/heavy-rock-impact',
+    'fx/whoosh-03',
   ],
   fireworks: [
     'fx/fireworks-boom',

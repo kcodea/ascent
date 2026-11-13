@@ -12,7 +12,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
  * DEV tuner for the POWER CHORD hero attack (an Epic, 2026-11-12; in progress, no cosmetic yet). Three looks: Small (one
- * note rides the staff), Medium (a three-note chord) and Big (a speaker stack and its bass wave). The Play buttons run
+ * note rides the staff), Medium (a three-note chord) and Big (the striking hero as a speaker, and its bass wave). The Play buttons run
  * the REAL runner between the two real hero portraits, in either direction. A preview never touches the run. Production
  * plays the baked defaults.
  */
@@ -42,15 +42,16 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   vibMs: ['Vibration length', 'ms', 'How long a struck line takes to die away.', 'The staff'],
   slackMs: ['Go slack', 'ms', 'How long the staff takes to droop and fade at the end.', 'The staff'],
   chordSpread: ['Chord fan', '×', 'Medium: how far apart the three notes sit along the staff (a fraction of its length).', 'The chord (Medium)'],
-  stackSize: ['Stack size', '×', 'Big: how big the speaker stack is.', 'The speakers (Big)'],
-  dropMs: ['Drop', 'ms', 'Big: how long the stack takes to fall in.', 'The speakers (Big)'],
-  beatMs: ['Beat', 'ms', 'Big: the count-in. The thud, the two pumps and the drop are one beat apart.', 'The speakers (Big)'],
-  pumpScale: ['Cone kick', '×', 'Big: how far a cone leaps out on a pump.', 'The speakers (Big)'],
-  waveBands: ['Wave bands', undefined, 'Big: how many arcs the bass wave is made of.', 'The speakers (Big)'],
-  waveSize: ['Wave thickness', '×', 'Big: how thick each arc is.', 'The speakers (Big)'],
-  bendPx: ['Staff bend', 'px', 'Big: how far the wave pushes the staff as its front crosses.', 'The speakers (Big)'],
-  blowSkew: ['Blow-back lean', '°', 'Big: how far the struck portrait leans over as the wave hits.', 'The speakers (Big)'],
-  blowPx: ['Blow-back shove', 'px', 'Big: how far the struck portrait is shoved downwind.', 'The speakers (Big)'],
+  beatMs: ['Beat', 'ms', 'Big: the count-in. The three pumps are one beat apart, and the drop follows a beat (and the inhale) after the last.', 'The speaker (Big)'],
+  inhaleMs: ['Inhale', 'ms', 'Big: the extra held breath before the drop (the rings pull in).', 'The speaker (Big)'],
+  pumpScale: ['Ring kick', '×', 'Big: how far the rings round the striking portrait swell on a pump.', 'The speaker (Big)'],
+  echoes: ['Later fronts', undefined, 'Big: how many more thick fronts follow the first one down the staff.', 'The speaker (Big)'],
+  echoGapMs: ['Front gap', 'ms', 'Big: the gap between one front of the wave and the next.', 'The speaker (Big)'],
+  waveBands: ['Wave bands', undefined, 'Big: how many arcs the first front of the bass wave is made of.', 'The speaker (Big)'],
+  waveSize: ['Wave thickness', '×', 'Big: how thick each arc is.', 'The speaker (Big)'],
+  bendPx: ['Staff bend', 'px', 'Big: how far the wave pushes the staff as its front crosses.', 'The speaker (Big)'],
+  blowSkew: ['Blow-back lean', '°', 'Big: how far the struck portrait leans over as the wave hits.', 'The speaker (Big)'],
+  blowPx: ['Blow-back shove', 'px', 'Big: how far the struck portrait is shoved downwind.', 'The speaker (Big)'],
   flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Camera and portraits'],
   knockPx: ['Knockback', 'px', 'Small and Medium: how far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
@@ -63,12 +64,16 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxPluckRate: ['pluck: pitch', '×', 'Pitch of the note.', 'Sound: pluck'],
   sfxStrumGain: ['chord: gain', undefined, 'Medium and Big: the power chord.', 'Sound: chord'],
   sfxStrumRate: ['chord: pitch', '×', 'Pitch of the chord.', 'Sound: chord'],
-  sfxBassGain: ['bass: gain', undefined, 'Big: the bass drop as the wave leaves the speakers.', 'Sound: bass'],
+  sfxBassGain: ['bass: gain', undefined, 'Big: the sub-bass drop as the wave leaves the speaker.', 'Sound: bass'],
   sfxBassRate: ['bass: pitch', '×', 'Pitch of the bass drop (lower = deeper).', 'Sound: bass'],
-  sfxThudGain: ['thud: gain', undefined, 'Big: the stack landing, and under the impact.', 'Sound: thud'],
+  sfxThudGain: ['thud: gain', undefined, 'Big: the heavy thud under the impact.', 'Sound: thud'],
   sfxThudRate: ['thud: pitch', '×', 'Pitch of the thud.', 'Sound: thud'],
-  sfxPumpGain: ['pump: gain', undefined, 'Big: the two count-in thumps.', 'Sound: pump'],
-  sfxPumpRate: ['pump: pitch', '×', 'Pitch of the count-in thumps.', 'Sound: pump'],
+  sfxPumpGain: ['kick: gain', undefined, 'The kick drum: every pump of the count-in, each later front, and under every landing.', 'Sound: kick'],
+  sfxPumpRate: ['kick: pitch', '×', 'Pitch of the kick drum.', 'Sound: kick'],
+  sfxRiserGain: ['feedback: gain', undefined, 'Big: the feedback swelling through the count-in (it peaks on the drop).', 'Sound: feedback'],
+  sfxRiserRate: ['feedback: pitch', '×', 'Pitch of the feedback.', 'Sound: feedback'],
+  sfxWhooshGain: ['air: gain', undefined, 'Big: the air each front of the wave pushes.', 'Sound: air'],
+  sfxWhooshRate: ['air: pitch', '×', 'Pitch of the air.', 'Sound: air'],
   sfxImpactGain: ['impact: gain', undefined, 'THE impact.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to about this long (with a fade).', 'Sound: mix'],
@@ -93,7 +98,7 @@ const LEVEL_SPECS: Record<ChordLevelSuffix, [string, TunerUnit | undefined, stri
 
 const CLIP_OF: Partial<Record<string, HeroChordStrKey>> = {
   'Sound: strings': 'sfxStringClip', 'Sound: pluck': 'sfxPluckClip', 'Sound: chord': 'sfxStrumClip', 'Sound: bass': 'sfxBassClip',
-  'Sound: thud': 'sfxThudClip', 'Sound: pump': 'sfxPumpClip', 'Sound: impact': 'sfxImpactClip',
+  'Sound: thud': 'sfxThudClip', 'Sound: kick': 'sfxPumpClip', 'Sound: feedback': 'sfxRiserClip', 'Sound: air': 'sfxWhooshClip', 'Sound: impact': 'sfxImpactClip',
 };
 
 const COLORS: [HeroChordStrKey, string, string][] = [
@@ -195,7 +200,7 @@ export const SPEC: TunerSpec<ChordTunerValues> = {
     { label: '▶ Small (3)', hint: 'Your hero strikes for 3: Small, one note rides the staff.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
     { label: '▶ Medium (8)', hint: 'Your hero strikes for 8: Medium, a three-note chord.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
     { label: '▶ Medium (12)', hint: 'Your hero strikes for 12 from four numbers: still Medium (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Big (40)', hint: 'Your hero strikes for 40 from seven numbers: Big, the speaker stack and its bass wave.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Big (40)', hint: 'Your hero strikes for 40 from seven numbers: Big, the hero as the speaker and its bass wave.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
     { label: '▶ Foe small (3)', hint: 'The foe strikes your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
     { label: '▶ Foe medium (8)', hint: 'The foe strikes your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
     { label: '▶ Foe big (40)', hint: 'The foe strikes your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },

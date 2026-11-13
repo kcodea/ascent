@@ -2,46 +2,45 @@
  * THE POWER CHORD SCENE: everything Power Chord draws in Pixi, as a plain scene graph with no renderer, so it runs (and
  * is tested) headless. `heroChord.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
  *
- * Design rule (an Epic is one strong idea): the STAFF is the stage and SOUND is the subject. The staff is five strips
- * between the two heroes; nothing on it is ever a static line. Each string is drawn in from the striker's end and twangs
- * as it pulls taut; a note riding a line drags a shiver along behind it; a chord landing makes every line thrum; and the
- * bass wave pushes a ripple down all five as its front crosses them. All of that is ONE sideways offset per point (sag +
+ * Design rule (an Epic is one strong idea): the STAFF is the stage and SOUND is the subject, and all of it is LIGHT. The
+ * staff is five glowing strings between the two heroes, laid over one soft dark band so they read as energy on a bright
+ * board; nothing on it is ever a static line. Each string is drawn in from the striker's end and twangs as it pulls
+ * taut; a note riding a line drags a shiver along behind it; a chord landing makes every line thrum; and the bass wave
+ * pushes a hard ripple down all five as its front crosses them. All of that is ONE sideways offset per point (sag +
  * vibration + shiver + ripple), written in place into the strips' vertices each frame: about 140 points in all.
  *
  * LAYERS (the shared `FxPool`'s four, plus the staff slotted in above `under`):
- *   under (normal: dust, the wave's shade) | staff (the strips) | glow (additive: halos, rings, the wave) |
- *   body (normal: the notes, the speakers) | core (additive: flashes, sparks)
+ *   under (normal: the wave's shade) | staff (the strips) | glow (additive: halos, rings, the wave) |
+ *   body (normal: the notes) | core (additive: flashes, sparks, the notes' own light)
  *
- * The SPEAKER STACK is seven pooled sprites (two cabinets, the amp head, four cones) laid out from its foot, so it can
- * fall in, squash on landing with each piece hopping a little later than the one under it, and kick on every pump. The
- * BASS WAVE is a few pooled crescents scaled out from the speakers along the line to the struck hero (see
- * `heroChordTextures.ts` for the anchor trick); it carries no filter and reads no pixels: the "bend" is the staff ripple
- * here and the struck portrait's skew in the runner.
+ * THE SPEAKER is the striking portrait itself (the first pass drew a stack of cabinets; the second pass cut it: no
+ * drawn prop). Rings of light settle round the portrait when it powers up, flare and punch outward on every pump of the
+ * count-in, pull in for the inhale, and are flung out on the drop. The BASS WAVE is a TRAIN of thick fronts: pooled
+ * crescents scaled out from the portrait along the line to the struck hero (see `heroChordTextures.ts` for the anchor
+ * trick), each with a coloured twin a little behind it, dragging streaks of air; later fronts follow as fire-and-forget
+ * crescents. It carries no filter and reads no pixels: the "bend" is the staff ripple and the swept notes here, and the
+ * struck portrait's skew in the runner.
  *
  * Contract: sprites are POOLED (`FxPool`, capped by `MAX_CHORD_SPRITES`) and the strips are made once per attack
  * (`MAX_CHORD_MESHES`); textures are the caller's (pre-warmed on the GPU during the damage formation); positions are the
  * overlay's px; `setCamera` mirrors the DOM camera when the runner asks it to; `update` returns whether anything still
  * draws; `destroy()` leaves nothing behind. Everything random is seeded (a replay scatters the same notes).
  */
-import { Container, MeshSimple, type Sprite, type Texture } from 'pixi.js';
+import { Container, MeshSimple, Texture, type Sprite } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, easeOutBack, easeOutCubic, mixColor, spring, whiten, type Pt } from '../heroAttack/easing';
+import { clamp01, easeOutBack, easeOutCubic, spring, whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import { STAFF_LINES, type StackGeo } from './heroChordConfig';
-import { BEAM_H, BEAM_HEAD, CAB_CONE_R, CAB_CONES, CAB_H, CAB_W, CONE_D, NOTE_H, NOTE_HEAD, WAVE_ANCHOR_X, WAVE_R } from './heroChordTextures';
+import { STAFF_LINES, type SpeakerGeo } from './heroChordConfig';
+import { BEAM_H, BEAM_HEAD, NOTE_H, NOTE_HEAD, WAVE_ANCHOR_X, WAVE_R } from './heroChordTextures';
 
 export interface HeroChordTextures extends HeroArcanaTextures {
-  /** A staff line's glow (a soft bell across V). */
+  /** A staff line's glow (a soft bell across V); also the dark band under the whole staff. */
   lineGlow: Texture;
-  /** The string itself (an ink edge either side of a solid middle). */
+  /** The string itself (a white-hot middle with a soft shoulder; drawn additive). */
   lineCore: Texture;
   /** An eighth note and a beamed pair: white, ink outline, glossy head. */
   note: Texture;
   pair: Texture;
-  /** The speaker stack: a cabinet (two recesses), the amp head, and one cone. */
-  cab: Texture;
-  amp: Texture;
-  cone: Texture;
   /** The bass wave's crescent. */
   wave: Texture;
 }
@@ -67,17 +66,19 @@ export interface ChordLook {
   slackMs: number;
   /** How far the bass wave pushes the staff as its front crosses (px at stage scale 1). */
   bendPx: number;
-  /** How far a cone kicks out on a pump (a fraction of its size). */
+  /** How far the speaker's rings swell on a pump (a fraction of their size). */
   pumpScale: number;
   /** The bass wave: how many bands, and their size. */
   waveBands: number;
   waveSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Big impact peaks around 110). */
-export const MAX_CHORD_SPRITES = 320;
-/** The strips of one staff: a glow and a string per line. */
-export const MAX_CHORD_MESHES = STAFF_LINES * 2;
+/** Hard cap on sprites alive at once (a Big impact peaks around 190). */
+export const MAX_CHORD_SPRITES = 420;
+/** The strips of one staff: the dark band under it, then a glow and a string per line. */
+export const MAX_CHORD_MESHES = STAFF_LINES * 2 + 1;
+/** The speaker's standing rings, as multiples of the portrait's radius. */
+export const SPEAKER_RINGS = [1.14, 1.42, 1.74] as const;
 /** Points along a staff line (56 vertices a strip, under Pixi's 100-vertex batch limit). */
 export const STAFF_POINTS = 28;
 
@@ -116,27 +117,31 @@ interface Staff {
   ax: number; ay: number; dx: number; dy: number; len: number;
   nx: number; ny: number; gap: number; sagPx: number;
   age: number; lines: Line[];
+  /** The soft dark band under the whole staff (so the strings read as light on a bright board). */
+  back: Strip | null;
   /** Ms into going slack (-1 = taut). */
   slack: number;
 }
 
-interface Rider { s: Sprite; halo: Sprite | null; line: number; age: number; flyMs: number; lag: number; size: number; tint: number; trail: number }
+interface Rider { s: Sprite; halo: Sprite | null; lit: Sprite | null; line: number; age: number; flyMs: number; lag: number; size: number; tint: number; trail: number }
 
 /** A small note waiting on the staff (Big): the bass wave sweeps it away as its front arrives. */
-interface Rest { s: Sprite; line: number; f: number; age: number; tint: number; size: number }
+interface Rest { s: Sprite; halo: Sprite | null; line: number; f: number; age: number; tint: number; size: number }
 
-interface Stack {
-  g: StackGeo; sc: number; age: number; dropMs: number; fall: number;
-  cabs: Sprite[]; amp: Sprite | null; cones: Sprite[];
-  landed: boolean;
+/** The speaker: the striking portrait, wearing rings of light. */
+interface Speaker {
+  g: SpeakerGeo; age: number;
+  rings: Sprite[]; glow: Sprite | null;
   /** Ms since the last pump (-1 = none yet) and how hard it was. */
   pumpAge: number; pumpAmp: number;
+  /** The inhale: ms into it (-1 = not inhaling) and how long it lasts. */
+  inAge: number; inMs: number;
   /** Ms into leaving (-1 = staying). */
   out: number;
 }
 
-interface Band { light: Sprite | null; shade: Sprite | null; lag: number }
-interface Wave { ox: number; oy: number; ang: number; ux: number; uy: number; dist: number; age: number; travelMs: number; bands: Band[]; sigma: number }
+interface Band { light: Sprite | null; twin: Sprite | null; shade: Sprite | null; lag: number }
+interface Wave { ox: number; oy: number; ang: number; ux: number; uy: number; dist: number; r0: number; age: number; travelMs: number; bands: Band[]; sigma: number; acc: number }
 
 export class HeroChordScene extends FxPool {
   private readonly staffLayer = new Container();
@@ -144,15 +149,16 @@ export class HeroChordScene extends FxPool {
   private strips: Strip[] = [];
   private riders: Rider[] = [];
   private rests: Rest[] = [];
-  private stack: Stack | null = null;
+  private speaker: Speaker | null = null;
   private wave: Wave | null = null;
+  private flashFx: { s: Sprite; age: number; a0: number; w: number; h: number } | null = null;
   private lean = 0;
   // The point `lineAt` last computed (no allocation on the hot path).
   private px = 0;
   private py = 0;
 
   constructor(private readonly tex: HeroChordTextures, private readonly colors: ChordColors, private readonly look: ChordLook, scale = 1, seed = 1) {
-    super('heroChord', [tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.lineGlow, tex.lineCore, tex.note, tex.pair, tex.cab, tex.amp, tex.cone, tex.wave], scale, seed, MAX_CHORD_SPRITES);
+    super('heroChord', [tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.lineGlow, tex.lineCore, tex.note, tex.pair, tex.wave], scale, seed, MAX_CHORD_SPRITES);
     this.staffLayer.label = 'heroChord-staff';
     this.root.addChildAt(this.staffLayer, 1);
   }
@@ -161,10 +167,11 @@ export class HeroChordScene extends FxPool {
   get staffUp(): boolean { return this.staff !== null; }
   get liveRiders(): number { return this.riders.length; }
   get liveRests(): number { return this.rests.length; }
-  get stackUp(): boolean { return this.stack !== null; }
-  get stackLanded(): boolean { return !!this.stack?.landed; }
+  get speakerUp(): boolean { return this.speaker !== null; }
+  /** How hard the speaker is kicking right now (0 at rest; the runner's tests read it). */
+  get speakerKick(): number { const k = this.speaker; return k && k.pumpAge >= 0 ? k.pumpAmp * Math.max(0, spring(k.pumpAge, 6, 70)) : 0; }
   get waveUp(): boolean { return this.wave !== null; }
-  /** How far the wave's leading front has rolled (px from the speakers; 0 = no wave). */
+  /** How far the wave's leading front has rolled (px from the speaker's centre; 0 = no wave). */
   get waveFront(): number { const w = this.wave; return w ? this.frontOf(w, 0) : 0; }
 
   private noteTint(i: number): number { const c = this.colors; return i % 3 === 0 ? c.noteA : i % 3 === 1 ? c.noteB : c.noteC; }
@@ -190,13 +197,14 @@ export class HeroChordScene extends FxPool {
       return s;
     };
     const lines: Line[] = [];
-    // Every glow first, then every string: the staff batches in two runs.
+    // The dark band first (normal), then every glow, then every string (both additive): three runs.
+    const back = strip(this.tex.lineGlow, 0x0b0f2e, 'normal');
     const glows = Array.from({ length: STAFF_LINES }, () => strip(this.tex.lineGlow, this.colors.side, 'add'));
     for (let i = 0; i < STAFF_LINES; i++) {
-      lines.push({ glow: glows[i]!, core: strip(this.tex.lineCore, this.colors.staff, 'normal'), delay: i * this.look.staggerMs, vibAge: -1, vibAmp: 0, vibMode: 1, taut: false });
+      lines.push({ glow: glows[i]!, core: strip(this.tex.lineCore, whiten(this.colors.staff, 0.3), 'add'), delay: i * this.look.staggerMs, vibAge: -1, vibAmp: 0, vibMode: 1, taut: false });
     }
     this.lean = noteLean(Math.atan2(dy, dx));
-    this.staff = { ax: from.x, ay: from.y, dx, dy, len, nx: across.x, ny: across.y, gap, sagPx: this.look.sag * len, age: Math.max(0, late), lines, slack: -1 };
+    this.staff = { ax: from.x, ay: from.y, dx, dy, len, nx: across.x, ny: across.y, gap, sagPx: this.look.sag * len, age: Math.max(0, late), lines, back, slack: -1 };
   }
 
   /** Strike one line (it swings `px` and rings down), or every line when `line` is -1 (alternating, so the staff shimmers). */
@@ -214,10 +222,10 @@ export class HeroChordScene extends FxPool {
   /** Every line thrums (a chord landed). */
   thrum(): void { this.pluck(-1, this.look.thrumPx); }
 
-  /** The staff goes slack and fades; the speakers (if any) leave with it. */
+  /** The staff goes slack and fades; the speaker's rings (if any) fade with it. */
   slacken(): void {
     if (this.staff && this.staff.slack < 0) this.staff.slack = 0;
-    if (this.stack && this.stack.out < 0) this.stack.out = 0;
+    if (this.speaker && this.speaker.out < 0) this.speaker.out = 0;
   }
 
   /** The sideways offset of line `i` at `f` along the staff (everything that moves a string, in one number). */
@@ -279,10 +287,25 @@ export class HeroChordScene extends FxPool {
         c.v[k] = this.px + st.nx * hw * past; c.v[k + 1] = this.py + st.ny * hw * past; c.v[k + 2] = this.px - st.nx * hw * past; c.v[k + 3] = this.py - st.ny * hw * past;
       }
       const on = st.age >= l.delay ? 1 : 0;
-      // A string glows brighter while it is swinging.
+      // A string is light: it glows steadily and flares while it is swinging.
       const ring = l.vibAge >= 0 ? Math.exp(-l.vibAge / L.vibMs) : 0;
-      g.mesh.alpha = on * alpha * (0.4 + 0.5 * ring);
-      c.mesh.alpha = on * alpha * 0.95;
+      g.mesh.alpha = on * alpha * (0.62 + 0.38 * ring);
+      c.mesh.alpha = on * alpha * (0.85 + 0.15 * ring);
+    }
+    // The dark band follows the middle line, as wide as the staff, drawn in with the first string.
+    const b = st.back;
+    if (b) {
+      const mid = (STAFF_LINES - 1) / 2;
+      const l0 = st.lines[0]!;
+      const head = easeOutCubic((st.age - l0.delay) / L.stringMs) * (n - 1);
+      for (let j = 0; j < n; j++) {
+        const f = Math.min(j, head) / (n - 1);
+        this.lineAt(st, mid, f);
+        const bw = j > head + 1 ? 0 : (mid + 1.1) * st.gap * staffSpread(f) + gw;
+        const k = j * 4;
+        b.v[k] = this.px + st.nx * bw; b.v[k + 1] = this.py + st.ny * bw; b.v[k + 2] = this.px - st.nx * bw; b.v[k + 3] = this.py - st.ny * bw;
+      }
+      b.mesh.alpha = 0.5 * alpha * clamp01(st.age / 120);
     }
     return slackU < 1;
   }
@@ -301,7 +324,10 @@ export class HeroChordScene extends FxPool {
     s.anchor.set(NOTE_HEAD.x, NOTE_HEAD.y);
     s.alpha = 0;
     if (halo) halo.alpha = 0;
-    this.riders.push({ s, halo, line: Math.max(0, Math.min(STAFF_LINES - 1, Math.round(line))), age: Math.max(0, o.late ?? 0), flyMs: Math.max(1, o.flyMs), lag: o.lag, size: o.size, tint, trail: 0 });
+    // The note's own light: the same note again, additive, so it glows instead of sitting there as ink.
+    const lit = this.take('core', this.tex.note, tint);
+    if (lit) { lit.anchor.set(NOTE_HEAD.x, NOTE_HEAD.y); lit.alpha = 0; }
+    this.riders.push({ s, halo, lit, line: Math.max(0, Math.min(STAFF_LINES - 1, Math.round(line))), age: Math.max(0, o.late ?? 0), flyMs: Math.max(1, o.flyMs), lag: o.lag, size: o.size, tint, trail: 0 });
   }
 
   /** Small notes pop onto the staff and wait there (Big: one batch per pump). The bass wave sweeps them away. */
@@ -315,14 +341,16 @@ export class HeroChordScene extends FxPool {
       const pair = hue % 4 === 3;
       s.anchor.set(pair ? BEAM_HEAD.x : NOTE_HEAD.x, pair ? BEAM_HEAD.y : NOTE_HEAD.y);
       s.alpha = 0;
+      const halo = this.take('glow', this.tex.glow, this.noteTint(hue));
+      if (halo) halo.alpha = 0;
       const f = fromF + (toF - fromF) * ((i + 0.2 + this.rnd() * 0.6) / n);
       const line = Math.floor(this.rnd() * STAFF_LINES) % STAFF_LINES;
-      this.rests.push({ s, line, f, age: -i * 45, tint: this.noteTint(hue), size: 0.5 + this.rnd() * 0.14 });
+      this.rests.push({ s, halo, line, f, age: -i * 45, tint: this.noteTint(hue), size: 0.58 + this.rnd() * 0.16 });
     }
   }
 
   /** The height (px) a note is drawn at for a size of 1, at stage scale 1. */
-  private static readonly NOTE_PX = 118;
+  private static readonly NOTE_PX = 132;
 
   private tickNotes(st: Staff, dt: number): void {
     const S = this.scale;
@@ -330,7 +358,7 @@ export class HeroChordScene extends FxPool {
     for (let i = this.riders.length - 1; i >= 0; i--) {
       const r = this.riders[i]!;
       r.age += dt;
-      if (r.age >= r.flyMs) { this.give(r.s); this.give(r.halo); this.riders.splice(i, 1); continue; }
+      if (r.age >= r.flyMs) { this.give(r.s); this.give(r.halo); this.give(r.lit); this.riders.splice(i, 1); continue; }
       this.lineAt(st, r.line, this.riderF(r));
       const pop = easeOutBack(r.age / 110, 2.6);
       const sc = unit * r.size * pop;
@@ -340,8 +368,14 @@ export class HeroChordScene extends FxPool {
       r.s.alpha = clamp01(r.age / 50);
       if (r.halo) {
         r.halo.position.set(this.px, this.py);
-        r.halo.scale.set(((HeroChordScene.NOTE_PX * 1.5) / 128) * r.size * S * (1 + 0.08 * Math.sin(r.age * 0.03)));
-        r.halo.alpha = 0.5 * clamp01(r.age / 80);
+        r.halo.scale.set(((HeroChordScene.NOTE_PX * 2.1) / 128) * r.size * S * (1 + 0.1 * Math.sin(r.age * 0.03)));
+        r.halo.alpha = 0.8 * clamp01(r.age / 80);
+      }
+      if (r.lit) {
+        r.lit.position.set(this.px, this.py);
+        r.lit.scale.set(sc);
+        r.lit.rotation = r.s.rotation;
+        r.lit.alpha = (0.45 + 0.2 * Math.sin(r.age * 0.04)) * clamp01(r.age / 80);
       }
       // A sparkle shed along the line every few frames.
       r.trail += dt;
@@ -363,7 +397,8 @@ export class HeroChordScene extends FxPool {
       // Swept away: the front has reached it.
       if (w && Math.hypot(this.px - w.ox, this.py - w.oy) <= this.frontOf(w, 0) + 30 * S) {
         const tx = r.s.texture, ax = r.s.anchor.x, ay = r.s.anchor.y;
-        this.give(r.s);
+        this.give(r.s); this.give(r.halo);
+        this.spawn('core', this.tex.star, whiten(r.tint, 0.5), this.px, this.py, { dur: 220, from: 0.2, to: 0.9, a0: 0.9, mode: 'punch', peakAt: 0.25, rot: this.rnd() * 3 });
         const sp = 900 + this.rnd() * 500, side = (this.rnd() - 0.5) * 520;
         const b = this.spawn('body', tx, r.tint, this.px, this.py, {
           dur: 420 + this.rnd() * 160, from: sc / S, to: (sc / S) * 0.7, a0: 1, mode: 'hold', ease: 'linear',
@@ -377,6 +412,11 @@ export class HeroChordScene extends FxPool {
       r.s.scale.set(sc);
       r.s.rotation = this.lean + Math.sin(r.age * 0.006 + r.f * 20) * 0.12;
       r.s.alpha = clamp01(r.age / 60);
+      if (r.halo) {
+        r.halo.position.set(this.px, this.py);
+        r.halo.scale.set(((HeroChordScene.NOTE_PX * 1.5) / 128) * r.size * S * (1 + 0.1 * Math.sin(r.age * 0.012 + r.f * 9)));
+        r.halo.alpha = 0.55 * clamp01(r.age / 120);
+      }
     }
   }
 
@@ -384,9 +424,19 @@ export class HeroChordScene extends FxPool {
    * THE impact: a hot flash, a ring and a RING OF SMALL NOTES thrown off the struck portrait (they fly out, slow, tip
    * over and fall). Medium adds a second ring and twinkles; Big a wide shock ring.
    */
-  strike(x: number, y: number, radius: number, o: { level: number; notes: number; sparks: number; burst: number; flashAlpha: number; dir?: Pt }): void {
+  strike(x: number, y: number, radius: number, o: { level: number; notes: number; sparks: number; burst: number; flashAlpha: number; dir?: Pt; view?: { w: number; h: number } }): void {
     const S = this.scale;
     const c = this.colors;
+    // Big: the whole view flashes for a moment (the bass hits everything), and the struck portrait is lit hard.
+    if (o.level >= 3 && o.view && !this.flashFx) {
+      const f = this.take('glow', Texture.WHITE, whiten(c.wave, 0.5));
+      if (f) { f.anchor.set(0); f.alpha = 0; this.flashFx = { s: f, age: 0, a0: 0.22 * o.flashAlpha, w: o.view.w, h: o.view.h }; }
+    }
+    if (o.level >= 3) {
+      const dd = (radius * 2) / 128 / S;
+      this.spawn('glow', this.tex.glow, c.wave, x, y, { dur: 900, from: dd * 1.4, to: dd * 2.2, a0: 0.7, mode: 'punch', peakAt: 0.08, ease: 'cubic', follow: true });
+      this.spawn('glow', this.tex.ring, 0xffffff, x, y, { dur: 420, from: (radius * 2) / 160 / S * 0.6, to: (radius * 2) / 160 / S * 3.4 * o.burst, a0: 0.7, ease: 'cubic' });
+    }
     const d = (radius * 2) / 128 / S;
     const rd = (radius * 2) / 160 / S; // a ring the size of the portrait
     this.spawn('core', this.tex.glow, 0xffffff, x, y, { dur: 230, from: d * 0.35, to: d * 0.85 * o.burst, a0: o.flashAlpha, follow: true });
@@ -420,137 +470,144 @@ export class HeroChordScene extends FxPool {
     }
   }
 
-  // ── the speakers ──────────────────────────────────────────────────────────────────────────────────────────
+  // ── the speaker (the striking portrait) ───────────────────────────────────────────────────────────────────
 
-  /** The speaker stack falls in from above the view and lands in `g` after `dropMs`. */
-  dropStack(g: StackGeo, dropMs: number, late = 0): void {
-    if (this.destroyed || this.stack) return;
-    const sc = g.w / CAB_W;
-    const cabs: Sprite[] = [];
-    for (let i = 0; i < 2; i++) { const s = this.take('body', this.tex.cab, 0xffffff); if (s) { s.anchor.set(0.5, 1); cabs.push(s); } }
-    const amp = this.take('body', this.tex.amp, 0xffffff);
-    amp?.anchor.set(0.5, 1);
-    const cones: Sprite[] = [];
-    for (let i = 0; i < cabs.length * CAB_CONES.length; i++) { const s = this.take('body', this.tex.cone, 0xffffff); if (s) cones.push(s); }
-    // It starts just above the top of the view, however high its spot is.
-    const fall = Math.max(g.h * 0.8, g.y + g.h / 2 + 30 * this.scale);
-    this.stack = { g, sc, age: Math.max(0, late), dropMs: Math.max(1, dropMs), fall, cabs, amp, cones, landed: false, pumpAge: -1, pumpAmp: 0, out: -1 };
-    this.layStack(this.stack);
+  /** The striking portrait POWERS UP as a speaker: three rings of light settle round it and a warm glow sits on it. */
+  speakerOn(g: SpeakerGeo, late = 0): void {
+    if (this.destroyed || this.speaker) return;
+    const rings: Sprite[] = [];
+    for (let i = 0; i < SPEAKER_RINGS.length; i++) {
+      const r = this.take('glow', this.tex.ring, i === 0 ? whiten(this.colors.wave, 0.4) : this.colors.wave);
+      if (r) { r.position.set(g.x, g.y); r.alpha = 0; rings.push(r); }
+    }
+    const glow = this.take('glow', this.tex.glow, this.colors.side);
+    if (glow) { glow.position.set(g.x, g.y); glow.alpha = 0; }
+    this.speaker = { g, age: Math.max(0, late), rings, glow, pumpAge: -1, pumpAmp: 0, inAge: -1, inMs: 1, out: -1 };
+    // It switches on: one ring closes IN onto the portrait.
+    this.spawn('glow', this.tex.ring, this.colors.wave, g.x, g.y, { dur: 260, from: (g.r * 2 * 2.6) / 160 / this.scale, to: (g.r * 2 * 1.1) / 160 / this.scale, a0: 0.6, mode: 'punch', peakAt: 0.6, ease: 'cubic' });
+    this.laySpeaker(this.speaker);
   }
 
-  /** The cones kick (`amp` 1 = a count-in pump; the drop kicks harder) and a soft ring leaves each one. */
+  /**
+   * The speaker PUMPS (`amp` about 1 = a count-in pump, harder each time; the drop is about 2): its rings flare and
+   * swell, more rings punch out of the portrait, and `notes` small notes pop off its top.
+   */
   pump(amp = 1, notes = 0): void {
-    const st = this.stack;
-    if (!st) return;
-    st.pumpAge = 0; st.pumpAmp = amp;
-    for (const cn of st.cones) {
-      this.spawn('glow', this.tex.ring, this.colors.wave, cn.x, cn.y, { dur: 300, from: (CAB_CONE_R * 2 * st.sc) / 160 / this.scale, to: (CAB_CONE_R * 2 * (1.7 + 0.5 * amp) * st.sc) / 160 / this.scale, a0: 0.5 * Math.min(1.4, amp), ease: 'cubic' });
+    const k = this.speaker;
+    if (!k) return;
+    k.pumpAge = 0; k.pumpAmp = amp; k.inAge = -1;
+    const S = this.scale;
+    const d = (k.g.r * 2) / 160 / S;
+    const n = amp > 1.6 ? 4 : 2;
+    for (let i = 0; i < n; i++) {
+      this.spawn('glow', this.tex.ring, i % 2 ? this.colors.wave : whiten(this.colors.wave, 0.5), k.g.x, k.g.y, {
+        dur: 360 + 90 * i + 120 * amp, from: d * 1.02, to: d * (1.7 + 0.7 * amp + 0.35 * i), a0: Math.min(1, 0.5 + 0.22 * amp), ease: 'cubic', delay: i * 65,
+      });
     }
-    // Notes pop out of the top of the stack.
-    const top = st.g.y - st.g.h * 0.5;
+    this.spawn('core', this.tex.glow, 0xffffff, k.g.x, k.g.y, { dur: 200, from: (k.g.r * 2.2) / 128 / S, to: (k.g.r * (2.8 + 0.5 * amp)) / 128 / S, a0: Math.min(0.45, 0.12 + 0.14 * amp), mode: 'punch', peakAt: 0.15 });
+    // Notes pop off the top of the portrait.
+    const top = k.g.y - k.g.r * 0.85;
     for (let i = 0; i < notes; i++) {
-      const s = this.spawn('body', this.tex.note, this.noteTint(i + (amp > 1 ? 1 : 0)), st.g.x + (this.rnd() - 0.5) * st.g.w * 0.7, top + st.g.h * 0.12, {
+      const s = this.spawn('body', this.tex.note, this.noteTint(i + (amp > 1.6 ? 1 : 0)), k.g.x + (this.rnd() - 0.5) * k.g.r * 1.2, top, {
         dur: 520 + this.rnd() * 160, from: 0.1, to: (HeroChordScene.NOTE_PX * 0.36) / NOTE_H, a0: 1, mode: 'hold',
-        vx: (this.rnd() - 0.5) * 260, vy: -(300 + this.rnd() * 160), drag: 0.25, grav: 520, rot: (this.rnd() - 0.5) * 0.5, spin: (this.rnd() - 0.5) * 0.006,
+        vx: (this.rnd() - 0.5) * 300, vy: -(320 + this.rnd() * 180), drag: 0.25, grav: 520, rot: (this.rnd() - 0.5) * 0.5, spin: (this.rnd() - 0.5) * 0.006,
       });
       s?.anchor.set(NOTE_HEAD.x, NOTE_HEAD.y);
     }
   }
 
-  /** Lay the stack's seven sprites out from its foot for this frame (the fall, the landing squash, the hop, the pump). */
-  private layStack(st: Stack): boolean {
+  /** THE INHALE: over `ms` the speaker's rings pull in tight onto the portrait and brighten (the breath before the drop). */
+  inhale(ms: number): void {
+    const k = this.speaker;
+    if (!k) return;
+    k.inAge = 0; k.inMs = Math.max(1, ms);
     const S = this.scale;
-    const { g, sc } = st;
-    const landing = st.age - st.dropMs;
-    const u = clamp01(st.age / st.dropMs);
-    const fallY = -st.fall * (1 - u * u);
-    // The landing: the whole stack squashes and rings back.
-    const sq = landing >= 0 ? 0.13 * spring(landing, 5.5, 85) : -0.05 * u;
-    const kick = st.pumpAge >= 0 ? st.pumpAmp * Math.max(0, spring(st.pumpAge, 6, 70)) : 0;
-    const out = st.out < 0 ? 0 : clamp01(st.out / 240);
-    const outE = out * out;
-    const sx = (1 + sq * 0.6 + kick * 0.03) * (1 - 0.1 * outE), sy = (1 - sq + kick * 0.02) * (1 - 0.1 * outE);
-    const alpha = 1 - outE;
-    const foot = g.y + g.h / 2 + fallY + 40 * S * outE;
-    const cabH = (CAB_H - 4) * sc;
-    let y = foot;
-    for (let i = 0; i < st.cabs.length; i++) {
-      const s = st.cabs[i]!;
-      // Each piece hops a little later and a little higher than the one under it.
-      const hop = landing >= 0 && i > 0 ? this.hop(landing, i) : 0;
-      const k = i === 0 ? 1 : 0.94;
-      s.position.set(g.x, y - hop);
-      s.scale.set(sc * sx * k, sc * sy * k);
-      s.alpha = alpha;
-      for (let j = 0; j < CAB_CONES.length; j++) {
-        const cn = st.cones[i * CAB_CONES.length + j];
-        if (!cn) continue;
-        const p = CAB_CONES[j]!;
-        const csc = ((CAB_CONE_R * 2) / CONE_D) * sc * k;
-        cn.position.set(g.x + (p.x - CAB_W / 2) * sc * sx * k, y - hop - (CAB_H - p.y) * sc * sy * k);
-        // The cone leaps out of its recess on a pump (the lower pair a touch harder).
-        const pk = 1 + this.look.pumpScale * kick * (i === 0 ? 1 : 0.85);
-        cn.scale.set(csc * sx * pk, csc * sy * pk);
-        cn.alpha = alpha;
-        cn.tint = kick > 0.02 ? mixColor(0xffffff, whiten(this.colors.wave, 0.3), Math.min(1, kick)) : 0xffffff;
-      }
-      y -= cabH * sy * k;
+    // Light is drawn IN: two rings close onto the portrait.
+    for (let i = 0; i < 2; i++) {
+      this.spawn('glow', this.tex.ring, this.colors.wave, k.g.x, k.g.y, { dur: Math.max(80, ms - i * 40), from: (k.g.r * 2 * (3 + i)) / 160 / S, to: (k.g.r * 2 * 1.05) / 160 / S, a0: 0.55, mode: 'punch', peakAt: 0.7, ease: 'cubic', delay: i * 40 });
     }
-    if (st.amp) {
-      const hop = landing >= 0 ? this.hop(landing, 2) : 0;
-      st.amp.position.set(g.x, y - hop + 2 * sc);
-      st.amp.scale.set(sc * sx * 0.94, sc * sy * 0.94);
-      st.amp.alpha = alpha;
+  }
+
+  /** Lay the speaker's rings out for this frame (the settle, the pump, the inhale, the fade). */
+  private laySpeaker(k: Speaker): boolean {
+    const S = this.scale;
+    const on = clamp01(k.age / 220);
+    const kick = k.pumpAge >= 0 ? k.pumpAmp * Math.max(0, spring(k.pumpAge, 6, 70)) : 0;
+    const inU = k.inAge < 0 ? 0 : clamp01(k.inAge / k.inMs);
+    const out = k.out < 0 ? 0 : clamp01(k.out / 260);
+    const alpha = on * (1 - out);
+    for (let i = 0; i < k.rings.length; i++) {
+      const r = k.rings[i]!;
+      // Each ring breathes on its own, swells on a pump (the outer ones further) and pulls in for the inhale.
+      const base = SPEAKER_RINGS[i]! * (1 + 0.02 * Math.sin(k.age * 0.006 + i * 2.1));
+      const m = base * (1 + this.look.pumpScale * (i + 1) * kick) * (1 - (0.1 + 0.07 * i) * inU) * (1 + 0.5 * out);
+      r.scale.set((k.g.r * 2 * m) / 160);
+      r.alpha = alpha * Math.min(1, (0.3 - 0.07 * i) + 0.45 * Math.min(1.2, kick) + 0.35 * inU);
     }
+    if (k.glow) {
+      k.glow.scale.set((k.g.r * (3 + 0.5 * kick - 0.5 * inU)) / 128);
+      k.glow.alpha = alpha * (0.22 + 0.3 * Math.min(1.2, kick) + 0.35 * inU);
+    }
+    void S;
     return out < 1;
   }
 
-  /** A stacked piece's hop after the landing: piece `i` leaves later, rises higher and takes longer. */
-  private hop(landing: number, i: number): number {
-    const t = (landing - 18 * i) / (130 + 45 * i);
-    return t > 0 && t < 1 ? Math.sin(Math.PI * t) * (5 + 6 * i) * this.scale : 0;
-  }
-
-  private tickStack(st: Stack, dt: number): boolean {
-    st.age += dt;
-    if (st.pumpAge >= 0) st.pumpAge += dt;
-    if (st.out >= 0) st.out += dt;
-    if (!st.landed && st.age >= st.dropMs) {
-      st.landed = true;
-      // Dust kicked out along the floor either side, and a soft ring off the foot.
-      const S = this.scale;
-      const foot = st.g.y + st.g.h / 2;
-      for (const side of [-1, 1]) {
-        for (let i = 0; i < 3; i++) {
-          this.spawn('under', this.tex.glow, 0xd9cdb8, st.g.x + side * st.g.w * 0.35, foot - 4 * S, {
-            dur: 420 + i * 70, from: 0.18, to: (st.g.w / 128 / S) * (0.5 + 0.18 * i), a0: 0.4, sy: 0.55, ease: 'cubic', vx: side * (150 + 90 * i), vy: -24 - 18 * i, drag: 0.05,
-          });
-        }
-      }
-      this.spawn('glow', this.tex.ring, 0xfff2d6, st.g.x, foot, { dur: 300, from: 0.2, to: (st.g.w * 1.9) / 160 / S, a0: 0.45, sy: 0.28, ease: 'cubic' });
-    }
-    return this.layStack(st);
+  private tickSpeaker(k: Speaker, dt: number): boolean {
+    k.age += dt;
+    if (k.pumpAge >= 0) k.pumpAge += dt;
+    if (k.inAge >= 0) k.inAge += dt;
+    if (k.out >= 0) k.out += dt;
+    return this.laySpeaker(k);
   }
 
   // ── the bass wave ─────────────────────────────────────────────────────────────────────────────────────────
 
-  /** The bass wave rolls out of the speakers at `from` and its front reaches `to` after `travelMs`. */
-  bass(from: Pt, to: Pt, travelMs: number, late = 0): void {
+  /**
+   * The bass wave rolls out of the speaker at `from` and its front reaches `to` after `travelMs`. `clear` is the
+   * speaker's own radius: the fronts only show once they are outside it.
+   */
+  bass(from: Pt, to: Pt, travelMs: number, late = 0, clear = 0): void {
     if (this.destroyed || this.wave) return;
     const dx = to.x - from.x, dy = to.y - from.y;
     const dist = Math.hypot(dx, dy) || 1;
     const bands: Band[] = [];
     const n = Math.max(1, Math.min(4, Math.round(this.look.waveBands)));
+    const c = this.colors;
     for (let i = 0; i < n; i++) {
       const shade = this.take('under', this.tex.wave, 0x0a0f2a);
-      const light = this.take('glow', this.tex.wave, i === 0 ? whiten(this.colors.wave, 0.35) : this.colors.wave);
-      for (const s of [shade, light]) { if (s) { s.anchor.set(WAVE_ANCHOR_X, 0.5); s.alpha = 0; s.rotation = Math.atan2(dy, dx); s.position.set(from.x, from.y); } }
-      bands.push({ light, shade, lag: i * 78 });
+      // A coloured twin a little behind each front thickens the band and gives it an edge of colour.
+      const twin = this.take('glow', this.tex.wave, i % 2 ? c.noteC : c.noteB);
+      const light = this.take('glow', this.tex.wave, i === 0 ? whiten(c.wave, 0.45) : c.wave);
+      for (const s of [shade, twin, light]) { if (s) { s.anchor.set(WAVE_ANCHOR_X, 0.5); s.alpha = 0; s.rotation = Math.atan2(dy, dx); s.position.set(from.x, from.y); } }
+      bands.push({ light, twin, shade, lag: i * 70 });
     }
-    this.wave = { ox: from.x, oy: from.y, ang: Math.atan2(dy, dx), ux: dx / dist, uy: dy / dist, dist, age: Math.max(0, late), travelMs: Math.max(1, travelMs), bands, sigma: 70 * this.scale };
+    this.wave = { ox: from.x, oy: from.y, ang: Math.atan2(dy, dx), ux: dx / dist, uy: dy / dist, dist, r0: Math.max(0, clear), age: Math.max(0, late), travelMs: Math.max(1, travelMs), bands, sigma: 90 * this.scale, acc: 0 };
   }
 
-  /** How far a band's front is from the speakers (constant speed: it reaches the struck hero at `travelMs` and rolls on). */
+  /**
+   * A LATER FRONT of the wave train: one more thick crescent (and its shade) thrown from the speaker along the same
+   * line, fire-and-forget. It crosses to the struck hero in `travelMs` and rolls a little past, fading.
+   */
+  echo(from: Pt, to: Pt, travelMs: number, strength = 1, clear = 0): void {
+    if (this.destroyed) return;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const S = this.scale;
+    const ang = Math.atan2(dy, dx);
+    const over = 1.22;
+    // It appears at the speaker's rim (`clear`) a moment after it leaves the centre, already moving.
+    const r0 = Math.min(dist * 0.5, Math.max(0.12 * WAVE_R, clear * 1.05));
+    const lead = (r0 / dist) * travelMs;
+    const mk = (layer: 'under' | 'glow', tint: number, a0: number, back: number): void => {
+      const s = this.spawn(layer, this.tex.wave, tint, from.x, from.y, { dur: travelMs * over - lead, from: (r0 / WAVE_R) / S, to: ((dist * over - back) / WAVE_R) / S, a0, mode: 'hold', ease: 'linear', rot: ang, delay: lead });
+      s?.anchor.set(WAVE_ANCHOR_X, 0.5);
+    };
+    mk('under', 0x0a0f2a, 0.3 * strength, 30 * S);
+    mk('glow', this.colors.noteB, 0.5 * strength, 16 * S);
+    mk('glow', this.colors.wave, 0.85 * strength, 0);
+  }
+
+  /** How far a band's front is from the speaker's centre (constant speed: it reaches the struck hero at `travelMs` and rolls on). */
   private frontOf(w: Wave, lag: number): number { return Math.max(0, (w.age - lag) / w.travelMs) * w.dist; }
 
   /** The wave's strength: full while it crosses, dying away once the front is past the struck hero. */
@@ -564,23 +621,40 @@ export class HeroChordScene extends FxPool {
       const r = this.frontOf(w, b.lag);
       const u = (w.age - b.lag) / w.travelMs;
       const on = u > 0 && u < 1.34;
-      // Each band fades in as it clears the speakers and out once it is past the struck hero; later bands are fainter.
-      const a = on ? clamp01(r / (120 * S)) * (1 - clamp01((u - 1) / 0.32)) * (1 - 0.22 * (b.lag / 78)) : 0;
+      // Each band fades in as it clears the speaker and out once it is past the struck hero; later bands are fainter.
+      const a = on ? clamp01((r - w.r0) / (110 * S)) * (1 - clamp01((u - 1) / 0.32)) * (1 - 0.2 * (b.lag / 70)) : 0;
       const sc = Math.max(0.02, r / WAVE_R);
-      // Its size across follows the radius (a real front), its thickness is held nearer constant so it stays a crisp band.
+      // Its size across follows the radius (a real front), its thickness is held nearer constant so it stays a thick band.
       const sx = sc * this.look.waveSize * (0.55 + 0.45 * Math.min(1, (400 * S) / Math.max(1, r)));
-      if (b.light) { b.light.scale.set(sx, sc); b.light.alpha = a; this.placeBand(b.light, w, r, sx); }
-      if (b.shade) { b.shade.scale.set(sx, sc); b.shade.alpha = a * 0.34; this.placeBand(b.shade, w, r - 26 * S, sx); }
+      if (b.light) { b.light.scale.set(sx, sc); b.light.alpha = a * 0.85; this.placeBand(b.light, w, r, sx); }
+      if (b.twin) { b.twin.scale.set(sx * 1.15, sc); b.twin.alpha = a * 0.6; this.placeBand(b.twin, w, r - 20 * S, sx * 1.15); }
+      if (b.shade) { b.shade.scale.set(sx * 1.2, sc); b.shade.alpha = a * 0.42; this.placeBand(b.shade, w, r - 34 * S, sx * 1.2); }
       if (u < 1.34) alive = true;
     }
+    // THE AIR IT PUSHES: streaks thrown along the leading front, travelling with it.
+    const lead = this.frontOf(w, 0);
+    const lu = w.age / w.travelMs;
+    if (lead > w.r0 && lu < 1.05) {
+      w.acc += dt;
+      const speed = (w.dist / w.travelMs) * 1000 / S;
+      while (w.acc >= 11) {
+        w.acc -= 11;
+        const a = w.ang + (this.rnd() - 0.5) * 0.95;
+        const rr = lead - this.rnd() * 60 * S;
+        this.spawn('core', this.tex.streak, this.rnd() < 0.5 ? 0xffffff : this.colors.wave, w.ox + Math.cos(a) * rr, w.oy + Math.sin(a) * rr, {
+          dur: 170 + this.rnd() * 130, from: 0.5 + this.rnd() * 0.4, to: 0.2, a0: 0.8, ease: 'linear', sy: 0.5,
+          vx: Math.cos(a) * speed * 0.85, vy: Math.sin(a) * speed * 0.85, drag: 0.5, align: true,
+        });
+      }
+    }
     if (!alive) {
-      for (const b of w.bands) { this.give(b.light); this.give(b.shade); }
+      for (const b of w.bands) { this.give(b.light); this.give(b.twin); this.give(b.shade); }
       this.wave = null;
     }
     return alive;
   }
 
-  /** Put a crescent so its leading rim sits `r` out from the speakers, whatever its x scale (its thickness) is. */
+  /** Put a crescent so its leading rim sits `r` out from the speaker's centre, whatever its x scale (its thickness) is. */
   private placeBand(s: Sprite, w: Wave, r: number, sx: number): void {
     // The sprite's anchor is the circle's centre, so at x scale `sx` its rim sits `WAVE_R * sx` from its position.
     const back = Math.max(0, r) - WAVE_R * sx;
@@ -588,6 +662,20 @@ export class HeroChordScene extends FxPool {
   }
 
   // ── the frame ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The whole-view flash on Big's impact: up in a frame or two, gone in 300 ms. It undoes the camera so it covers the view. */
+  private tickFlash(dt: number): boolean {
+    const k = this.flashFx;
+    if (!k) return false;
+    k.age += dt;
+    const u = clamp01(k.age / 300);
+    const z = this.root.scale.x || 1;
+    k.s.position.set(-this.root.position.x / z, -this.root.position.y / z);
+    k.s.scale.set(k.w / z / (k.s.texture.width || 1), k.h / z / (k.s.texture.height || 1));
+    k.s.alpha = k.a0 * (u < 0.1 ? u / 0.1 : (1 - (u - 0.1) / 0.9) ** 2);
+    if (u >= 1) { this.give(k.s); this.flashFx = null; return false; }
+    return true;
+  }
 
   protected override tick(dt: number): boolean {
     let alive = false;
@@ -599,35 +687,36 @@ export class HeroChordScene extends FxPool {
       if (this.writeStaff(st, dt)) alive = true;
       else this.dropStaff();
     }
-    if (this.stack) {
-      if (this.tickStack(this.stack, dt)) alive = true;
-      else this.dropStack_();
+    if (this.speaker) {
+      if (this.tickSpeaker(this.speaker, dt)) alive = true;
+      else this.dropSpeaker();
     }
+    if (this.tickFlash(dt)) alive = true;
     return alive || this.riders.length > 0 || this.rests.length > 0;
   }
 
   private dropStaff(): void {
-    for (const r of this.riders) { this.give(r.s); this.give(r.halo); }
-    for (const r of this.rests) this.give(r.s);
+    for (const r of this.riders) { this.give(r.s); this.give(r.halo); this.give(r.lit); }
+    for (const r of this.rests) { this.give(r.s); this.give(r.halo); }
     this.riders = []; this.rests = [];
     for (const s of this.strips) { this.staffLayer.removeChild(s.mesh); s.mesh.destroy(); }
     this.strips = [];
     this.staff = null;
   }
 
-  private dropStack_(): void {
-    const st = this.stack;
-    if (!st) return;
-    for (const s of st.cabs) this.give(s);
-    for (const s of st.cones) { s.tint = 0xffffff; this.give(s); }
-    this.give(st.amp);
-    this.stack = null;
+  private dropSpeaker(): void {
+    const k = this.speaker;
+    if (!k) return;
+    for (const s of k.rings) this.give(s);
+    this.give(k.glow);
+    this.speaker = null;
   }
 
   protected override clearOwn(): void {
     this.dropStaff();
-    this.dropStack_();
-    if (this.wave) { for (const b of this.wave.bands) { this.give(b.light); this.give(b.shade); } this.wave = null; }
+    this.dropSpeaker();
+    if (this.wave) { for (const b of this.wave.bands) { this.give(b.light); this.give(b.twin); this.give(b.shade); } this.wave = null; }
+    if (this.flashFx) { this.give(this.flashFx.s); this.flashFx = null; }
   }
 
 }

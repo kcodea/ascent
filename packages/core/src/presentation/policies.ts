@@ -1343,7 +1343,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_collections:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Demon sold: the Shop +2/+2 permanently (Shop)
   'rune:rune_flamekeeper:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Dragonflame cast: your Dragons +2/+2 permanently
   'rune:rune_hatchling_roost:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shout Dragons cost 1 Gold (Shop price)
-  'rune:rune_dragon_hoard:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },     // 3+ Shop spells cast this turn: a Dragonflame
+  'rune:rune_dragon_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // every 3 Gold spent: a Dragonflame (owner rework 2026-11-13)
   'rune:rune_ruby_dust:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a friendly minion with Rubies dies: a permanent Ruby on a Kobold
   'rune:rune_rough_cut:combat': { policy: 'foldedCue', family: 'combatModifier' },    // a Ruby on a Kobold also casts on a non-Kobold
   'factory:deathrattleDamageLowestEnemy:onDeath': { policy: 'ownBeat', family: 'echo' }, // Imp Legion's grafted Echo

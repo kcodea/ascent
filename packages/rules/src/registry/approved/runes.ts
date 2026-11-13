@@ -3003,8 +3003,9 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'Collections: selling a Demon raises the permanent Shop buff +2/+2. Flamekeeper: every Dragonflame cast (Shop or combat, '
       + 'any caster) gives your board Dragons +2/+2 permanently. Hatchling Roost: a Dragon with a Shout costs 1 Gold in the '
-      + 'Shop, any Tier, other discounts on top. Dragon Hoard: at End of Turn, 3 or more Shop spells cast this turn (never a '
-      + 'Ruby, Gift, Whisper or token spell) get a Dragonflame. Rough Cut: a Ruby cast on a Kobold (both phases) also casts '
+      + 'Shop, any Tier, other discounts on top. Dragon Hoard (owner rework 2026-11-13): every 3 Gold spent gets a '
+      + 'Dragonflame, REPEATING (10 Gold = 3), on the shared `gold` threshold meter, the remainder carried across turns, '
+      + 'and Big Spender doubles what it hears like every spend-Gold trigger; the badge prints x/3. Rough Cut: a Ruby cast on a Kobold (both phases) also casts '
       + 'one on a random friendly non-Kobold, which never chains.',
     domain: 'runes',
     status: 'approved',

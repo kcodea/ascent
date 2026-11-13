@@ -1,9 +1,8 @@
 import { CARD_INDEX } from '@game/content';
-import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES, isShopPoolSpell, makeRng, type CardDef, type EffectDef, type Keyword } from '@game/core';
-import { poolOf } from './cardPool';
-import { addBuff, applyRunShopBuff, captureBuffFx, conjureToHand, defIsTribe, fireOnRubyPlayed, hasBattlecry, isTribe } from './recruit';
+import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES, makeRng, type CardDef, type EffectDef, type Keyword } from '@game/core';
+import { addBuff, applyRunShopBuff, captureBuffFx, defIsTribe, fireOnRubyPlayed, hasBattlecry, isTribe } from './recruit';
 import { runeStacksOf } from './runeDup';
-import { procRuneId, recordBounceFx, runeGrantOverflow, type BoardCard, type RunState } from './state';
+import { procRuneId, recordBounceFx, type BoardCard, type RunState } from './state';
 
 /**
  * ── SET 2 RUNE BATCH, BASIC TRIBAL (owner review 2026-11-12) — the Shop halves ─────────────────────────────────────
@@ -51,29 +50,6 @@ export function hatchlingRoostPrice(state: RunState, cardId: string): number | u
   const def = CARD_INDEX[cardId];
   if (!def || def.spell || !defIsTribe(def, 'dragon', state) || !hasBattlecry(def)) return undefined;
   return SET2_TRIBAL_RUNES.hatchlingRoostPrice;
-}
-
-/** The DRAGON HOARD count: one Shop spell CAST (R-SHOPSPELL-01: a Shop-pool spell, Ales included; never a Gift, reward /
- *  token spell, Whisper or Ruby). Called from `noteSpellCast`, once per resolved cast. */
-export function noteShopSpellCastThisTurn(state: RunState, spellDef: CardDef): void {
-  if (spellDef.gift || spellDef.whisper || spellDef.ruby || spellDef.rewardSpell) return;
-  if (!isShopPoolSpell(spellDef, poolOf(state).all)) return;
-  const cur = state.shopSpellCasts?.wave === state.wave ? state.shopSpellCasts.n : 0;
-  state.shopSpellCasts = { wave: state.wave, n: cur + 1 };
-}
-
-/** Shop spells cast this turn (a new wave reads 0 with no reset). */
-export function shopSpellsCastThisTurn(state: Pick<RunState, 'shopSpellCasts' | 'wave'>): number {
-  return state.shopSpellCasts?.wave === state.wave ? state.shopSpellCasts.n : 0;
-}
-
-/** DRAGON HOARD (one recurring End-of-Turn entry per copy held): 3+ Shop spells cast this turn → a Dragonflame. */
-export function runDragonHoard(state: RunState): void {
-  if (shopSpellsCastThisTurn(state) < SET2_TRIBAL_RUNES.dragonHoardSpells) return;
-  const def = CARD_INDEX[DRAGONFLAME_ID];
-  if (!def) return;
-  procRuneId(state, 'rune_dragon_hoard');
-  conjureToHand(state, [def], 1, runeGrantOverflow());
 }
 
 /** IMP LEGION's graft, one hit per copy held. `fixed`: a Gilded Imp gets the same (a rune-granted Echo is not the card's). */

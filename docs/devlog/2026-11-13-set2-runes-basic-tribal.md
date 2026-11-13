@@ -17,7 +17,7 @@ writes one for the batch). Oracle: R-SET2-TRIBAL-RUNES-01..05. Tests: `packages/
 | Collections | Demon 3 | flag; `settleMinionSale` → `applyRunShopBuff` |
 | Flamekeeper | Dragon 1 | flag; Shop `castSpell`, combat `spellResolved` |
 | Hatchling Roost | Dragon 2 | flag; a price cap in `offerBuyPrice` (the coin reads it too) |
-| Dragon Hoard | Dragon 1 | `recurringEndOfTurn` effect `runeDragonHoard`; new wave-tagged `shopSpellCasts` count |
+| Dragon Hoard | Dragon 1 | REWORKED 2026-11-13 (owner): now a repeating `gold` threshold, every 3 Gold spent gets a Dragonflame; see `2026-11-13-set2-runes-batch.md`. (Was: `recurringEndOfTurn` effect `runeDragonHoard` + `shopSpellCasts`, removed.) |
 | Ruby Dust | Kobold 2 | combat flag; the `avenge` broadcast, `rubyOnRandomKobolds(…, permanent)` |
 | Rough Cut | Kobold 2 | flag; Shop `fireOnRubyPlayed`, combat `playRubyOn` (new ctx hook `roughCutCopiesFor`) |
 

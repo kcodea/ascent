@@ -8,7 +8,7 @@ import { RUBY_TYPE_IDS, combatSide, makeRng, simulate, type BoardMinion, type Co
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, SETS, poolFor } from '@game/content';
 import { CONFIG, createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { questCombatMods, offerBuyPrice } from './reducer';
-import { advanceRuneThresholds, applyEndOfTurn, applyRuneGrafts, castSpell, mintRubies, noteSpellCast } from './recruit';
+import { advanceRuneThresholds, applyRuneGrafts, castSpell, mintRubies } from './recruit';
 import { runeTally, runeCombatTally } from '../../ui/src/runeTally';
 
 const IDS = ['rune_deep_pockets', 'rune_rowdy_crowd', 'rune_bloodscent', 'rune_last_howl', 'rune_trophy_hunter', 'rune_pitchforks',
@@ -60,7 +60,7 @@ describe('the fourteen runes as content', () => {
       ['rune_collections', 'Collections', 3, 'demon', 'When you **Sell** a **Demon**, give minions in the Shop **+2/+2** permanently.'],
       ['rune_flamekeeper', 'Flamekeeper', 1, 'dragon', 'After you cast a **Dragonflame**, give your **Dragons +2/+2** permanently.'],
       ['rune_hatchling_roost', 'Hatchling Roost', 2, 'dragon', '**Dragons** with a **Shout** cost **1 Gold**.'],
-      ['rune_dragon_hoard', 'Dragon Hoard', 1, 'dragon', '**End of Turn:** if you cast **3** or more Shop spells this turn, get a **Dragonflame**.'],
+      ['rune_dragon_hoard', 'Dragon Hoard', 1, 'dragon', 'When you spend **3** Gold, get a **Dragonflame**.'],
       ['rune_ruby_dust', 'Ruby Dust', 2, 'kobold', 'When a minion with **Rubies** dies, cast a permanent **Ruby** on a random friendly **Kobold**.'],
       ['rune_rough_cut', 'Rough Cut', 2, 'kobold', 'When you cast a **Ruby** on a **Kobold**, also cast one on a non-**Kobold**.'],
     ];
@@ -166,30 +166,42 @@ describe('Hatchling Roost', () => {
   });
 });
 
-describe('Dragon Hoard', () => {
-  it('End of Turn: 3+ Shop spells cast this turn get a Dragonflame; 2 do not; one per copy', () => {
-    const two = withRunes(['rune_dragon_hoard']);
-    noteSpellCast(two, SHOP_SPELL); noteSpellCast(two, SHOP_SPELL);
-    applyEndOfTurn(two);
-    expect(two.hand.filter((c) => c.cardId === 'sp_dragonflame').length).toBe(0);
-    const three = withRunes(['rune_dragon_hoard', 'rune_dragon_hoard']);
-    for (let i = 0; i < 3; i++) noteSpellCast(three, SHOP_SPELL);
-    applyEndOfTurn(three);
-    expect(three.hand.filter((c) => c.cardId === 'sp_dragonflame').length).toBe(2);
+describe('Dragon Hoard (owner rework 2026-11-13: a repeating spend-Gold meter)', () => {
+  const flames = (s: RunState) => s.hand.filter((c) => c.cardId === 'sp_dragonflame').length;
+  it('every 3 Gold spent gets a Dragonflame, repeating: 10 Gold = 3, the 1 left over carries into next turn; badge x/3', () => {
+    let s = withRunes(['rune_dragon_hoard']);
+    s.runeThresholds = (s.runeThresholds ?? []).map((t) => ({ ...t, tick: 0 })); // the rune purchase itself spent Gold
+    advanceRuneThresholds(s, 'gold', 2);
+    expect(flames(s)).toBe(0);
+    expect(runeTally(s, 'rune_dragon_hoard')).toMatch(/^2\/3/);
+    advanceRuneThresholds(s, 'gold', 8);
+    expect(flames(s)).toBe(3);
+    expect(runeTally(s, 'rune_dragon_hoard')).toMatch(/^1\/3/);
+    s = nextTurn({ ...s, hand: [] });
+    expect(runeTally(s, 'rune_dragon_hoard'), 'the remainder carries across the turn').toMatch(/^1\/3/);
+    advanceRuneThresholds(s, 'gold', 2);
+    expect(flames(s)).toBe(1);
   });
-  it('a Ruby or a Gift is not a Shop spell; last turn\'s casts do not count', () => {
-    const s = withRunes(['rune_dragon_hoard']);
-    noteSpellCast(s, SHOP_SPELL); noteSpellCast(s, SHOP_SPELL);
-    noteSpellCast(s, CARD_INDEX['ruby']!);
-    const gift = Object.values(CARD_INDEX).find((c) => c.gift)!;
-    noteSpellCast(s, gift);
-    applyEndOfTurn(s);
-    expect(s.hand.filter((c) => c.cardId === 'sp_dragonflame').length).toBe(0);
-    const old = withRunes(['rune_dragon_hoard']);
-    for (let i = 0; i < 3; i++) noteSpellCast(old, SHOP_SPELL);
-    old.wave += 1;
-    applyEndOfTurn(old);
-    expect(old.hand.filter((c) => c.cardId === 'sp_dragonflame').length).toBe(0);
+  it('real Gold spent through the Shop ticks it (3 paid Refreshes = 3 Gold = a Dragonflame)', () => {
+    let s = withRunes(['rune_dragon_hoard']);
+    s.runeThresholds = (s.runeThresholds ?? []).map((t) => ({ ...t, tick: 0 }));
+    const before = s.embers;
+    for (let i = 0; i < 3; i++) s = act(s, { type: 'roll' });
+    expect(before - s.embers).toBe(3);
+    expect(flames(s)).toBe(1);
+  });
+  it('with Big Spender each Gold counts twice: 3 Gold of Refreshes = 6 counted = 2 Dragonflames', () => {
+    let s = withRunes(['rune_dragon_hoard', 'rune_big_spender']);
+    s = { ...s, hand: [], runeThresholds: (s.runeThresholds ?? []).map((t) => ({ ...t, tick: 0 })) };
+    for (let i = 0; i < 3; i++) s = act(s, { type: 'roll' });
+    expect(flames(s)).toBe(2);
+  });
+  it('two copies: one meter each, so 3 Gold gets two Dragonflames', () => {
+    const s = withRunes(['rune_dragon_hoard', 'rune_dragon_hoard']);
+    s.runeThresholds = (s.runeThresholds ?? []).map((t) => ({ ...t, tick: 0 }));
+    s.hand = [];
+    advanceRuneThresholds(s, 'gold', 3);
+    expect(flames(s)).toBe(2);
   });
 });
 

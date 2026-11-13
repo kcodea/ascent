@@ -31950,9 +31950,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
+      "confidence": "medium",
       "unparsed": [
-        "reward:recurringEndOfTurn.effect"
+        "reward:runeThreshold.meter"
       ]
     },
     "setIds": [
@@ -31967,7 +31967,16 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:recurringEndOfTurn"
+        "kind": "reward:runeThreshold",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "per": 3
+          }
+        },
+        "refs": [
+          "sp_dragonflame"
+        ]
       }
     ],
     "textContract": {

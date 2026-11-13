@@ -31,7 +31,7 @@ import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
-import { collectionsOnSale, flamekeeperOnCast, impLegionGraft, noteShopSpellCastThisTurn, roughCutShop, runDragonHoard } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
+import { collectionsOnSale, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -14655,7 +14655,6 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
-  noteShopSpellCastThisTurn(state, spellDef); // Set 2 rune Dragon Hoard: the turn's Shop spell casts
   // ── Set 3 batch 2: the spell-count runes (Charted Skies / the Astral Refrain). Owner rework 2026-09-18: EVERY
   //    spell counts — a Gift (Clue included) is a spell cast, so it advances them here; a Ruby advances them from
   //    its own reducer branch through the same `noteSpellForCountRunes`. ──
@@ -16131,8 +16130,6 @@ function runRecurringEndOfTurn(
     ancientRunRayseEotRise(state, step);
   } else if (effect === 'ancientBatchBEot') {
     ancientRunBatchBEot(state, step);
-  } else if (effect === 'runeDragonHoard') {
-    runDragonHoard(state); // Set 2 rune Dragon Hoard: 3+ Shop spells cast this turn → a Dragonflame
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -16744,7 +16741,6 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
   runePiggyBank: 'Piggy Bank',
-  runeDragonHoard: 'Dragon Hoard',
 };
 
 /** Rune of Ancestral Roar's per-Shout step (balance 9/23): +6/+6 to every Dragon per Shout triggered this turn.

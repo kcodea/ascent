@@ -136,7 +136,6 @@ function keywordPhrase(kws: Keyword[]): string {
 const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
   lassoing: 'End of Turn: Cast Lasso and grant a random friendly minion +2/+2',
   runeAncestralRoar: 'End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn',
-  runeDragonHoard: 'End of Turn: if you cast 3 or more Shop spells this turn, get a Dragonflame',
   triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
   grantRandomShout: 'End of Turn: get a random Shout minion',
   grantAles3: 'End of Turn: get 3 random Dwarven Ales',

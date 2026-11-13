@@ -1042,9 +1042,6 @@ export interface RunState {
    *  `shopSpellsBoughtThisTurn`: a new wave reads 0 with no reset, and an old save (absent) reads 0. THE one "first Shop
    *  spell you buy each turn" count: Scrollz's discount and Emissary x Fortune's free spell both read it. */
   shopSpellBuys?: { wave: number; n: number };
-  /** Set 2 rune Dragon Hoard: Shop spells CAST on `wave` (every cast path through `noteSpellCast`; a Gift, reward / token
-   *  spell, Whisper or Ruby never counts, R-SHOPSPELL-01). Wave-tagged like `shopSpellBuys`, so it needs no reset. */
-  shopSpellCasts?: { wave: number; n: number };
   /** Set 2 — the run's Ruby STRENGTH: the extra Attack/Health every NEW Ruby is minted with, on top of the
    *  base 1/1 (raised by "Your Rubies gain +X"; future Rubies only, never retroactive). Absent = base 1/1. */
   rubyBonus?: { attack: number; health: number };
@@ -2684,7 +2681,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise' | 'ancientBatchBEot' | 'runePiggyBank' | 'runeDragonHoard')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners' | 'runeAncestralRoar' | 'ancientTimeWard' | 'ancientXeroxPairs' | 'ancientTradesUpgrade' | 'ancientRobinMaxGold' | 'ancientGorrEotCopy' | 'ancientAyseTime' | 'ancientDarahEotCopy' | 'ancientDrakkoEotShout' | 'ancientRayseEotRise' | 'ancientBatchBEot' | 'runePiggyBank')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

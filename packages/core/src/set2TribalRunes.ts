@@ -21,7 +21,6 @@ export const SET2_TRIBAL_RUNES = {
   /** Hatchling Roost: "Dragons with a Shout cost 1 Gold." */
   hatchlingRoostPrice: 1,
   /** Dragon Hoard: "if you cast 3 or more Shop spells this turn, get a Dragonflame." */
-  dragonHoardSpells: 3,
 } as const;
 
 /** The Dragonflame spell id (Flamekeeper hears it; Dragon Hoard grants it). */

@@ -2383,13 +2383,16 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
+    // Owner rework 2026-11-13 (was "End of Turn: if you cast 3 or more Shop spells this turn, get a Dragonflame."). The
+    // REPEATING `gold` meter (Rune of Spellslinging's shape): every 3 Gold spent gets a Dragonflame, the remainder carries
+    // across turns, and it hears Big Spender's doubled count like every "spend Gold" trigger. The badge prints x/3.
     id: 'rune_dragon_hoard',
     tribes: ['dragon'],
     name: 'Dragon Hoard',
     cost: 1,
-    text: '**End of Turn:** if you cast **3** or more Shop spells this turn, get a **Dragonflame**.',
+    text: 'When you spend **3** Gold, get a **Dragonflame**.',
     previewCards: ['sp_dragonflame'],
-    reward: { kind: 'recurringEndOfTurn', effect: 'runeDragonHoard' },
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 3, grantCards: ['sp_dragonflame'] },
     sets: ['set2'],
   },
   {

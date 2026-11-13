@@ -162,4 +162,24 @@ export const GILDING_RULES: GameRule[] = [
       + 'merge pending an owner call.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/gildedImproveSum1025.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
+  {
+    id: 'R-SALESMAN-01',
+    title: 'A lone Golden minion is "exactly one copy" for a count of the minions you control',
+    statement:
+      'An effect that counts how many copies of a minion you control (Traveling Salesman: "Discover a minion you control '
+      + 'exactly one copy of") counts the minions on the board, one each, Golden or not. A single Golden minion is exactly '
+      + 'one copy and qualifies; a Golden beside a plain copy of the same minion is two and does not.',
+    domain: 'gilding',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat', ref: 'Owner report, 2026-11-13 (Traveling Salesman sold beside a lone Golden Soul Defiler and a lone Golden Chipper)',
+        quote: 'travelling salesman doesnt seemto be working as intended - he was sold with this on board, and only lastlight and legion commander showed up when theres only one soul defiler and one chipper',
+      },
+      { kind: 'code', ref: 'fix/salesman-counts-golden: packages/sim/src/recruit.ts onSellDiscoverSingleton' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-11-13. Was: a Golden body weighed as three copies, so a lone Golden was never offered.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeMinionsAug20.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

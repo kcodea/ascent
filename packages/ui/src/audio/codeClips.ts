@@ -39,11 +39,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-whip-snap-242215',
   ],
-  flick: [
-    'fx/metal-woosh',
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-whip-snap-242215',
-  ],
   banana: [
     'fx/djartmusic-christmas-sparkle-whoosh-1-275404',
     'fx/heavy-rock-impact',
@@ -184,11 +179,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-whip-snap-242215',
   ],
-  claw: [
-    'fx/claw-chute',
-    'fx/claw-clamp',
-    'fx/claw-servo',
-  ],
   chess: [
     'fx/chess-set',
     'fx/chess-slide',
@@ -276,16 +266,6 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/pinball-ramp',
     'fx/pinball-reel',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/universfield-ground-impact-352053',
-  ],
-  train: [
-    'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
-    'fx/train-bell',
-    'fx/train-clatter',
-    'fx/train-handcar',
-    'fx/train-horn',
-    'fx/train-pass',
-    'fx/train-whistle',
     'fx/universfield-ground-impact-352053',
   ],
   stitch: [

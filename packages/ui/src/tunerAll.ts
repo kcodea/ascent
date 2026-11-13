@@ -81,7 +81,6 @@ import { SPEC as HeroBeastSpec } from './HeroBeastTuner';
 import { SPEC as HeroBananaSpec } from './HeroBananaTuner';
 import { SPEC as HeroBleedSpec } from './HeroBleedTuner';
 import { SPEC as HeroCardsSpec } from './HeroCardsTuner';
-import { SPEC as HeroClawSpec } from './HeroClawTuner';
 import { SPEC as HeroChessSpec } from './HeroChessTuner';
 import { SPEC as HeroStormSpec } from './HeroStormTuner';
 import { SPEC as HeroChordSpec } from './HeroChordTuner';
@@ -93,14 +92,12 @@ import { SPEC as HeroBoomerangSpec } from './HeroBoomerangTuner';
 import { SPEC as HeroGloveSpec } from './HeroGloveTuner';
 import { SPEC as HeroBubbleSpec } from './HeroBubbleTuner';
 import { SPEC as HeroBackstabSpec } from './HeroBackstabTuner';
-import { SPEC as HeroFlickSpec } from './HeroFlickTuner';
 import { SPEC as HeroBasketballSpec } from './HeroBasketballTuner';
 import { SPEC as HeroBaseballSpec } from './HeroBaseballTuner';
 import { SPEC as HeroComboSpec } from './HeroComboTuner';
 import { SPEC as HeroWrestleSpec } from './HeroWrestleTuner';
 import { SPEC as HeroSoccerSpec } from './HeroSoccerTuner';
 import { SPEC as HeroPinballSpec } from './HeroPinballTuner';
-import { SPEC as HeroTrainSpec } from './HeroTrainTuner';
 import { SPEC as HeroVoidSpec } from './HeroVoidTuner';
 import { SPEC as HeroStitchSpec } from './HeroStitchTuner';
 import { SPEC as HeroReapingSpec } from './HeroReapingTuner';
@@ -204,7 +201,6 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroBananaSpec,
   HeroBleedSpec,
   HeroCardsSpec,
-  HeroClawSpec,
   HeroChessSpec,
   HeroStormSpec,
   HeroChordSpec,
@@ -216,14 +212,12 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroGloveSpec,
   HeroBubbleSpec,
   HeroBackstabSpec,
-  HeroFlickSpec,
   HeroBasketballSpec,
   HeroBaseballSpec,
   HeroComboSpec,
   HeroWrestleSpec,
   HeroSoccerSpec,
   HeroPinballSpec,
-  HeroTrainSpec,
   HeroVoidSpec,
   HeroStitchSpec,
   HeroReapingSpec,

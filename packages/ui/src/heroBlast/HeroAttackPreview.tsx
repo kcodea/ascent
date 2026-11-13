@@ -28,10 +28,8 @@ import { heroBananaPreviewSpeed } from '../heroBanana/heroBananaConfig';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { heroBleedPreviewSpeed } from '../heroBleed/heroBleedConfig';
 import { playHeroCards } from '../heroCards/heroCards';
-import { playHeroClaw } from '../heroClaw/heroClaw';
 import { playHeroChess } from '../heroChess/heroChess';
 import { heroCardsPreviewSpeed } from '../heroCards/heroCardsConfig';
-import { heroClawPreviewSpeed } from '../heroClaw/heroClawConfig';
 import { heroChessPreviewSpeed } from '../heroChess/heroChessConfig';
 import { playHeroStorm } from '../heroStorm/heroStorm';
 import { playHeroChord } from '../heroChord/heroChord';
@@ -52,9 +50,7 @@ import { heroGlovePreviewSpeed } from '../heroGlove/heroGloveConfig';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { heroBubblePreviewSpeed } from '../heroBubble/heroBubbleConfig';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
-import { playHeroFlick } from '../heroFlick/heroFlick';
 import { heroBackstabPreviewSpeed } from '../heroBackstab/heroBackstabConfig';
-import { heroFlickPreviewSpeed } from '../heroFlick/heroFlickConfig';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { heroBasketballPreviewSpeed } from '../heroBasketball/heroBasketballConfig';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
@@ -65,10 +61,8 @@ import { heroComboPreviewSpeed } from '../heroCombo/heroComboConfig';
 import { heroWrestlePreviewSpeed } from '../heroWrestle/heroWrestleConfig';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
 import { playHeroPinball } from '../heroPinball/heroPinball';
-import { playHeroTrain } from '../heroTrain/heroTrain';
 import { heroSoccerPreviewSpeed } from '../heroSoccer/heroSoccerConfig';
 import { heroPinballPreviewSpeed } from '../heroPinball/heroPinballConfig';
-import { heroTrainPreviewSpeed } from '../heroTrain/heroTrainConfig';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { heroVoidPreviewSpeed } from '../heroVoid/heroVoidConfig';
 import { playHeroStitch } from '../heroStitch/heroStitch';
@@ -108,7 +102,6 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   banana: { play: (o) => playHeroBanana(o), speed: heroBananaPreviewSpeed },
   bleed: { play: (o) => playHeroBleed(o), speed: heroBleedPreviewSpeed },
   cards: { play: (o) => playHeroCards(o), speed: heroCardsPreviewSpeed },
-  claw: { play: (o) => playHeroClaw(o), speed: heroClawPreviewSpeed },
   chess: { play: (o) => playHeroChess(o), speed: heroChessPreviewSpeed },
   storm: { play: (o) => playHeroStorm(o), speed: heroStormPreviewSpeed },
   chord: { play: (o) => playHeroChord(o), speed: heroChordPreviewSpeed },
@@ -120,14 +113,12 @@ const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null 
   glove: { play: (o) => playHeroGlove(o), speed: heroGlovePreviewSpeed },
   bubble: { play: (o) => playHeroBubble(o), speed: heroBubblePreviewSpeed },
   backstab: { play: (o) => playHeroBackstab(o), speed: heroBackstabPreviewSpeed },
-  flick: { play: (o) => playHeroFlick(o), speed: heroFlickPreviewSpeed },
   basketball: { play: (o) => playHeroBasketball(o), speed: heroBasketballPreviewSpeed },
   baseball: { play: (o) => playHeroBaseball(o), speed: heroBaseballPreviewSpeed },
   combo: { play: (o) => playHeroCombo(o), speed: heroComboPreviewSpeed },
   wrestle: { play: (o) => playHeroWrestle(o), speed: heroWrestlePreviewSpeed },
   soccer: { play: (o) => playHeroSoccer(o), speed: heroSoccerPreviewSpeed },
   pinball: { play: (o) => playHeroPinball(o), speed: heroPinballPreviewSpeed },
-  train: { play: (o) => playHeroTrain(o), speed: heroTrainPreviewSpeed },
   void: { play: (o) => playHeroVoid(o), speed: heroVoidPreviewSpeed },
   stitch: { play: (o) => playHeroStitch(o), speed: heroStitchPreviewSpeed },
   reaping: { play: (o) => playHeroReaping(o), speed: heroReapingPreviewSpeed },

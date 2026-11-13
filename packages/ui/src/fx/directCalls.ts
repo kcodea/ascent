@@ -31,7 +31,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // ON EXECUTE GIVEN (2026-11-12): the slice as the giver's effect leaves, the blood + ding as it lands.
   'sfx-execute-slice': ['fx/executeGivenLaunch.ts'],
   'sfx-execute-applied': ['fx/executeGivenLaunch.ts'],
-  // ON RISE GIVEN (2026-11-12): a wisp as the giver's effect leaves, a wraith's breath + a chime as it lands.
+  // ON RISE GIVEN (2026-11-12): a wisp as the giver's effect leaves, a wraith's breath, a low bell and a thrum as it lands.
   'sfx-rise-wisp': ['fx/riseGivenLaunch.ts'],
   'sfx-rise-applied': ['fx/riseGivenLaunch.ts'],
   // ('amplified-slot', the looping Amplified glow on the Equipment slot, left on 2026-11-01: the owner-approved

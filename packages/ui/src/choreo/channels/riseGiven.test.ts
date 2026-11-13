@@ -119,9 +119,9 @@ describe('both phases call it', () => {
 describe('the sounds', () => {
   const clips = (id: string): string[] => (JSON.parse(readFileSync(new URL(`../../fx/defs/${id}.json`, import.meta.url), 'utf8')) as { layers: Array<{ params?: { clip?: string } }> })
     .layers.map((l) => String(l.params?.clip));
-  it('a wisp as the effect leaves; a wraith and a chime together as it lands', () => {
+  it('a wisp as the effect leaves; a wraith, a low bell and a thrum together as it lands', () => {
     expect(clips(RISE_LAUNCH_SFX)).toEqual(['fx/rise-wisp']);
-    expect(clips(RISE_LAND_SFX).sort()).toEqual(['fx/rise-chime', 'fx/rise-wraith']);
+    expect(clips(RISE_LAND_SFX).sort()).toEqual(['fx/rise-low-bell', 'fx/rise-thrum', 'fx/rise-wraith']);
   });
 });
 

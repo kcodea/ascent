@@ -40,6 +40,13 @@ swells, the chime with the cleanest decay. Trimmed and levelled to sit with the 
 -17.5, chime -19.7. The wisp plays as a beam leaves; the wraith and chime play together as it lands. A cascade rings
 them on its first three beams only.
 
+## The landing chime replaced (2026-11-13)
+
+Owner: "i dont like how high pitched it is", then "lets try low bell 2 and deep thrum 1. make sure they are a bit lower
+than the other effects". The chime is gone; the landing is now the wraith with a low bell and a deep thrum under it.
+Both new clips are levelled to -18.4 LUFS and play at 0.6 (about -4.5 dB, near -23), below the wraith (-17.5) and the
+wisp (-16.3).
+
 ## Not covered
 
 A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. The scheduled play needs a live renderer and is not under test.

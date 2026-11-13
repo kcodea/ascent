@@ -1,1 +1,1 @@
-{"version":1,"id":"sfx-rise-applied","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-wraith"}},{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-chime"}}]}
+{"version":1,"id":"sfx-rise-applied","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-wraith"}},{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-low-bell","gain":0.6}},{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-thrum","gain":0.6}}]}

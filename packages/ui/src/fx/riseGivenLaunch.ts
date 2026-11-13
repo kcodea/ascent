@@ -26,7 +26,7 @@ import { holdRise, RISE_HOLD_MAX_MS } from './riseHold';
 
 /** The sound as an effect leaves its giver (a wisp). */
 export const RISE_LAUNCH_SFX = 'sfx-rise-wisp';
-/** The sounds as it lands and the Rise appears (a wraith's breath + a spectral chime). */
+/** The sounds as it lands and the Rise appears (a wraith's breath + a low bell + a deep thrum). */
 export const RISE_LAND_SFX = 'sfx-rise-applied';
 
 /** Delay (ms at 1x) from the Echo skull to the first launch, matching the Ward path. */

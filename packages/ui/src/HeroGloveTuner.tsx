@@ -46,6 +46,14 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxRetractRate: ['retract: pitch', '×', 'Pitch of the swish.', 'Sound: retract'],
   sfxHomeGain: ['home: gain', undefined, 'The clunk as the glove lands back in the hatch.', 'Sound: home'],
   sfxHomeRate: ['home: pitch', '×', 'Pitch of the clunk.', 'Sound: home'],
+  sfxSpringGain: ['spring: gain', undefined, 'The steel coil twanging under the boing (pitched well down).', 'Sound: spring'],
+  sfxSpringRate: ['spring: pitch', '×', 'Pitch of the twang.', 'Sound: spring'],
+  sfxRatchetGain: ['ratchet: gain', undefined, 'The click of the hatch catch letting go.', 'Sound: ratchet'],
+  sfxRatchetRate: ['ratchet: pitch', '×', 'Pitch of the click.', 'Sound: ratchet'],
+  sfxBodyGain: ['body: gain', undefined, 'The low thump under every bop (fullest under the last) and under the glove landing home.', 'Sound: body'],
+  sfxBodyRate: ['body: pitch', '×', 'Pitch of the thump.', 'Sound: body'],
+  sfxRecoilGain: ['recoil: gain', undefined, 'The coil squeezing shut as it hauls the glove home.', 'Sound: recoil'],
+  sfxRecoilRate: ['recoil: pitch', '×', 'Pitch of the squeeze.', 'Sound: recoil'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the punch plays (1 = no duck).', 'Sound: mix'],
 };
 
@@ -91,7 +99,7 @@ const built = rareTunerSpec({
   ],
   clipOf: {
     'Sound: pop': 'sfxPopClip', 'Sound: boing': 'sfxBoingClip', 'Sound: punch': 'sfxPunchClip', 'Sound: retract': 'sfxRetractClip',
-    'Sound: home': 'sfxHomeClip',
+    'Sound: home': 'sfxHomeClip', 'Sound: spring': 'sfxSpringClip', 'Sound: ratchet': 'sfxRatchetClip', 'Sound: body': 'sfxBodyClip', 'Sound: recoil': 'sfxRecoilClip',
   },
   note: () => {
     const c = getHeroGloveConfig();

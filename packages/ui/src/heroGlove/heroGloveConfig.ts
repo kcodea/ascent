@@ -75,6 +75,11 @@ interface GlobalConfig {
   sfxPunchClip: string; sfxPunchGain: number; sfxPunchRate: number;
   sfxRetractClip: string; sfxRetractGain: number; sfxRetractRate: number;
   sfxHomeClip: string; sfxHomeGain: number; sfxHomeRate: number;
+  /** The steel coil's own twang (under the boing), the hatch's ratchet, the body under a bop, the coil winding back in. */
+  sfxSpringClip: string; sfxSpringGain: number; sfxSpringRate: number;
+  sfxRatchetClip: string; sfxRatchetGain: number; sfxRatchetRate: number;
+  sfxBodyClip: string; sfxBodyGain: number; sfxBodyRate: number;
+  sfxRecoilClip: string; sfxRecoilGain: number; sfxRecoilRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
@@ -82,7 +87,7 @@ interface GlobalConfig {
 export type HeroGloveConfig = GlobalConfig & Record<LevelKey, number>;
 
 export const HERO_GLOVE_COLOR_KEYS = ['colorGlove', 'colorTrim', 'colorSpring', 'colorHatch', 'colorStar', 'colorFlash', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_GLOVE_CLIP_KEYS = ['sfxPopClip', 'sfxBoingClip', 'sfxPunchClip', 'sfxRetractClip', 'sfxHomeClip'] as const;
+export const HERO_GLOVE_CLIP_KEYS = ['sfxPopClip', 'sfxBoingClip', 'sfxPunchClip', 'sfxRetractClip', 'sfxHomeClip', 'sfxSpringClip', 'sfxRatchetClip', 'sfxBodyClip', 'sfxRecoilClip'] as const;
 export type HeroGloveStrKey = (typeof HERO_GLOVE_COLOR_KEYS)[number] | (typeof HERO_GLOVE_CLIP_KEYS)[number];
 export type HeroGloveNumKey = Exclude<keyof HeroGloveConfig, HeroGloveStrKey>;
 
@@ -95,13 +100,13 @@ const LEVEL_DEFAULTS: Record<GloveLevelSuffix, [number, number]> = {
   Wind: [0.2, 1],
   Over: [0, 1],
   Sway: [0.16, 0.8],
-  Size: [1, 1.2],
-  Stars: [0, 3],
-  StarsMs: [0, 900],
-  Shake: [5, 9],
+  Size: [1, 1.25],
+  Stars: [0, 4],
+  StarsMs: [0, 1000],
+  Shake: [6, 16],
   Zoom: [0.02, 0.035],
-  Punch: [0.015, 0.03],
-  SettleMs: [160, 180],
+  Punch: [0.015, 0.045],
+  SettleMs: [160, 200],
   Dim: [0.08, 0.2],
 };
 
@@ -133,16 +138,16 @@ export const HERO_GLOVE_DEFAULTS: HeroGloveConfig = {
   heroKickPx: 12,
   homePop: 0.06,
   closeMs: 160,
-  glovePx: 112,
-  hatchPx: 64,
-  springPitch: 30,
-  springWidth: 24,
-  springThick: 9,
-  bopSize: 1,
+  glovePx: 150,
+  hatchPx: 84,
+  springPitch: 38,
+  springWidth: 44,
+  springThick: 16,
+  bopSize: 1.25,
   gloveSquash: 0.3,
   knockPx: 14,
   squash: 0.07,
-  shakeMs: 280,
+  shakeMs: 340,
   zoomOutMs: 340,
   reducedFadeMs: 260,
   colorGlove: '#e8281e',
@@ -153,11 +158,15 @@ export const HERO_GLOVE_DEFAULTS: HeroGloveConfig = {
   colorFlash: '#fffbe6',
   colorPlayer: '#ffd98a',
   colorFoe: '#ff7a5c',
-  sfxPopClip: 'clickthock', sfxPopGain: 0.4, sfxPopRate: 1.35,
-  sfxBoingClip: 'fx/glove-boing', sfxBoingGain: 0.55, sfxBoingRate: 1,
-  sfxPunchClip: 'fx/glove-punch', sfxPunchGain: 0.75, sfxPunchRate: 1,
-  sfxRetractClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxRetractGain: 0.3, sfxRetractRate: 1.5,
-  sfxHomeClip: 'clickthock', sfxHomeGain: 0.4, sfxHomeRate: 0.9,
+  sfxPopClip: 'clickthock', sfxPopGain: 1, sfxPopRate: 1.2,
+  sfxBoingClip: 'fx/glove-boing', sfxBoingGain: 1.1, sfxBoingRate: 0.88,
+  sfxPunchClip: 'fx/glove-punch', sfxPunchGain: 1.3, sfxPunchRate: 1,
+  sfxRetractClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxRetractGain: 0.6, sfxRetractRate: 1.5,
+  sfxHomeClip: 'clickthock', sfxHomeGain: 1, sfxHomeRate: 0.85,
+  sfxSpringClip: 'fx/glove-spring', sfxSpringGain: 1.1, sfxSpringRate: 0.62,
+  sfxRatchetClip: 'fx/glove-ratchet', sfxRatchetGain: 0.7, sfxRatchetRate: 0.8,
+  sfxBodyClip: 'fx/soccer-kick', sfxBodyGain: 1.15, sfxBodyRate: 0.85,
+  sfxRecoilClip: 'fx/glove-recoil', sfxRecoilGain: 0.45, sfxRecoilRate: 0.6,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -184,6 +193,10 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGloveStrKey>, [numbe
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
   sfxPopGain: [0, 2, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
+  sfxSpringGain: [0, 2, 0.05], sfxSpringRate: [0.5, 2.5, 0.01],
+  sfxRatchetGain: [0, 2, 0.05], sfxRatchetRate: [0.5, 2.5, 0.01],
+  sfxBodyGain: [0, 2, 0.05], sfxBodyRate: [0.5, 2.5, 0.01],
+  sfxRecoilGain: [0, 2, 0.05], sfxRecoilRate: [0.5, 2.5, 0.01],
   sfxBoingGain: [0, 2, 0.05], sfxBoingRate: [0.5, 2.5, 0.01],
   sfxPunchGain: [0, 2, 0.05], sfxPunchRate: [0.5, 2.5, 0.01],
   sfxRetractGain: [0, 2, 0.05], sfxRetractRate: [0.5, 2.5, 0.01],
@@ -410,7 +423,7 @@ export function gloveMotion(p: GlovePlan, g: GloveGeometry): GloveMotion | null 
     side: (g.seed >>> 0) % 2 === 0 ? 1 : -1, double,
     tFire: p.fireAt - p.popAt, tHit: (p.hits[0] ?? p.impactAt) - p.popAt, tImpact: p.impactAt - p.popAt,
     tRetract: p.retractAt - p.popAt, tHome: p.homeAt - p.popAt,
-    segs, wire: ((len + over) / segs) * 1.3, glove,
+    segs, wire: ((len + over) / segs) * 1.6, glove, // enough wire that the coil is still a bold zig-zag at full stretch
   };
 }
 

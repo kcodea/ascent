@@ -100,7 +100,11 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxPopClip, c.sfxBoingClip, c.sfxPunchClip, c.sfxRetractClip, c.sfxHomeClip]);
+  voices.warm([c.sfxPopClip, c.sfxBoingClip, c.sfxPunchClip, c.sfxRetractClip, c.sfxHomeClip, c.sfxSpringClip, c.sfxRatchetClip, c.sfxBodyClip, c.sfxRecoilClip]);
+  // The squash SCALES the struck portrait: without a layer hint the browser re-rasters it at every new scale (a run of
+  // dropped frames after the bop, measured). The hint is held for the attack only and put back exactly on every exit.
+  const foeWill = foe.el ? foe.el.style.willChange : '';
+  if (foe.el) foe.el.style.willChange = 'transform';
   /** Where a bop bursts: the knuckles at the bop (the glove's centre there, plus most of half its length). */
   const bopAt = motion ? { x: motion.hit.x + motion.u.x * motion.glove * 0.42, y: motion.hit.y + motion.u.y * motion.glove * 0.42 } : o.defender;
 
@@ -113,34 +117,50 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
         cam.start();
         break;
       case 'pop':
-        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { lenMs: 220, fadeMs: 90 });
+        // The hatch: a ratchet click, then the lid's thock (its hit is 50 ms into the clip).
+        cue(c.sfxRatchetClip, c.sfxRatchetGain, c.sfxRatchetRate, { fadeMs: 60 });
+        cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate, { startMs: 28, lenMs: 150, fadeMs: 70, delayMs: 30 / speed });
         if (motion) scene?.pop(motion, t - q.at);
         break;
       case 'fire':
         // The boing as the coil lets go (Big: lower and fuller).
         cue(c.sfxBoingClip, c.sfxBoingGain * (big ? 1 : 0.85), c.sfxBoingRate * (big ? 0.94 : 1.08), { fadeMs: 160 });
+        // Under it the steel coil's own twang (pitched well down, so it is a body, not a ping) and the rush of the glove.
+        cue(c.sfxSpringClip, c.sfxSpringGain * (big ? 1 : 0.8), c.sfxSpringRate * (big ? 1 : 1.15), { fadeMs: 220 });
+        cue(c.sfxRetractClip, c.sfxRetractGain * 0.8, c.sfxRetractRate, { startMs: 330, lenMs: 300, fadeMs: 120 });
         scene?.fire();
         break;
       case 'hit':
         // The first bop (a tick), and the spring boings again as it overshoots and sways.
-        cue(c.sfxPunchClip, c.sfxPunchGain * 0.7, c.sfxPunchRate * 1.18, { lenMs: 320, fadeMs: 140 });
-        cue(c.sfxBoingClip, c.sfxBoingGain * 0.6, c.sfxBoingRate * 1.3, { delayMs: 50 / speed, fadeMs: 200 });
-        scene?.bop(bopAt, toFoe, 0.8, 3);
+        cue(c.sfxPunchClip, c.sfxPunchGain * 0.55, c.sfxPunchRate * 1.18, { lenMs: 320, fadeMs: 140 });
+        cue(c.sfxBodyClip, c.sfxBodyGain * 0.35, c.sfxBodyRate * 1.25, { lenMs: 200, fadeMs: 120 });
+        cue(c.sfxBoingClip, c.sfxBoingGain * 0.8, c.sfxBoingRate * 1.3, { delayMs: 50 / speed, fadeMs: 200 });
+        cue(c.sfxSpringClip, c.sfxSpringGain * 0.6, c.sfxSpringRate * 1.3, { delayMs: 50 / speed, fadeMs: 260 });
+        // The sway: the coil wobbles once more, lower, half way to the second bop.
+        cue(c.sfxBoingClip, c.sfxBoingGain * 0.55, c.sfxBoingRate * 1.05, { delayMs: (plan.impactAt - q.at) * 0.5 / speed, lenMs: 300, fadeMs: 160 });
+        scene?.bop(bopAt, toFoe, 0.65, 2);
         break;
       case 'impact':
-        cue(c.sfxPunchClip, c.sfxPunchGain * (big ? 1 : 0.85), c.sfxPunchRate * (big ? 0.92 : 1), { fadeMs: 180, tail: big ? 0.08 : 0 });
-        scene?.bop(bopAt, toFoe, big ? 1.3 : 1, big ? 7 : 4);
+        // THE blow: the padded thud with a low body under it (Big: lower, fuller, clearly harder than the tick before).
+        cue(c.sfxPunchClip, c.sfxPunchGain * (big ? 1.25 : 0.9), c.sfxPunchRate * (big ? 0.88 : 1), { fadeMs: 180, tail: big ? 0.1 : 0 });
+        cue(c.sfxBodyClip, c.sfxBodyGain * (big ? 1.2 : 0.75), c.sfxBodyRate * (big ? 0.9 : 1.05), { lenMs: 420, fadeMs: 220 });
+        scene?.bop(bopAt, toFoe, big ? 1.75 : 1, big ? 9 : 4);
         if (plan.stars > 0) {
           // Stars circle the struck head: a flat ring over the top of the portrait.
-          scene?.seeStars({ x: o.defender.x, y: o.defender.y - radius * 0.86 }, radius * 0.62, radius * 0.17, plan.stars, plan.starsMs, 38 * plan.size);
+          scene?.seeStars({ x: o.defender.x, y: o.defender.y - radius * 0.86 }, radius * 0.66, radius * 0.18, plan.stars, plan.starsMs, 46 * plan.size);
         }
         seq.land();
         break;
       case 'retract':
-        cue(c.sfxRetractClip, c.sfxRetractGain, c.sfxRetractRate, { lenMs: 320, fadeMs: 160 });
+        // The coil winding back in: the ratchety squeeze, the boing played BACKWARD (it swells as the spring closes),
+        // and the rush of the glove coming home.
+        cue(c.sfxRecoilClip, c.sfxRecoilGain, c.sfxRecoilRate, { fadeMs: 80 });
+        cue(c.sfxBoingClip, c.sfxBoingGain * 0.5, c.sfxBoingRate * 1.1, { reverse: true, lenMs: 380, fadeMs: 60 });
+        cue(c.sfxRetractClip, c.sfxRetractGain, c.sfxRetractRate, { startMs: 300, lenMs: 360, fadeMs: 160 });
         break;
       case 'home':
-        cue(c.sfxHomeClip, c.sfxHomeGain, c.sfxHomeRate, { lenMs: 240, fadeMs: 100 });
+        cue(c.sfxHomeClip, c.sfxHomeGain, c.sfxHomeRate, { startMs: 28, lenMs: 150, fadeMs: 80 });
+        cue(c.sfxBodyClip, c.sfxBodyGain * 0.4, c.sfxBodyRate * 1.2, { lenMs: 200, fadeMs: 120 });
         scene?.home();
         break;
       default:
@@ -186,8 +206,8 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
     for (const at of plan.hits) nudge += Math.max(0, spring(t - at, 6, 50)) * 9;
     if (t >= plan.impactAt) {
       const k = spring(t - plan.impactAt, 4.5, 80);
-      const knock = (c.knockPx * (big ? 1.25 : 1) * k + nudge) * px;
-      const sq = c.squash * (big ? 1.25 : 1) * k;
+      const knock = (c.knockPx * (big ? 1.7 : 1) * k + nudge) * px;
+      const sq = c.squash * (big ? 1.7 : 1) * k;
       fx = toFoe.x * knock; fy = toFoe.y * knock;
       css = Math.abs(k) < 0.004 && nudge < 0.05 ? null
         : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
@@ -206,7 +226,7 @@ export function playHeroGlove(o: HeroGloveOptions): HeroGloveHandle {
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
     safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
-    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
+    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); if (foe.el) foe.el.style.willChange = foeWill; voices.unduck(); },
     stopVoices: () => voices.stopAll(),
   });
 

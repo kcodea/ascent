@@ -70,3 +70,37 @@ loudness, band energy: the punch is mostly under 250 Hz, the boing mostly 250 Hz
 - The sway of the spring is modest at full board distance.
 - Not seen in a real fight, in the Collection preview (`local` space) or at other window sizes.
 - No cosmetic, no patch note (dev-only until the coordinator adds one). The name "Sucker Punch" is a working name.
+
+## Second pass (2026-11-12, after the owner played the batch: "great, but they need sound effects")
+
+**Sound (measured, not heard).** The attack's output was recorded in headless Chrome (a tap on the audio destination)
+and read in 100 ms windows. Before, Big: the boing -33 dB RMS (peak -20 dBFS), the tick bop -33, the blow -30 (peak
+-17), the retract silent, the glove landing home -46; 13 of 26 windows under -50 dB. The reference Rare (the Coin
+Flick) runs -32 to -40 dB RMS with -20 peaks; the shared formation boom that opens every attack is -17 to -20, peak -10.
+
+- `fx/glove-spring` NEW (0.7 s): a steel coil twang, played well below pitch (0.62x) under the boing as its body.
+- `fx/glove-ratchet` NEW (0.15 s): the catch click as the hatch pops, ahead of the lid's thock.
+- `fx/glove-recoil` NEW (0.58 s, low-passed): the coil squeezing shut on the retract, with the boing played backward
+  (it swells as the spring closes) and the shared swish.
+- Under every bop a low body, the shared `fx/soccer-kick` (light on the tick, full and lower on the blow), and softly
+  under the glove landing home. One more low wobble of the boing half way through the sway.
+- 3 ElevenLabs calls this pass; the five own clips total 2.4 s.
+- After, Big: hatch -34 (peak -16), boing -25 to -28 for 300 ms (peak -13), tick -32, the sway -34, the blow -21 (peak
+  -9), the retract -33 to -46, home -33 (peak -13); 4 of 28 windows under -50, all after the end. Small: boing -26,
+  blow -24 (peak -12), nothing under -50. The blow now peaks with the formation boom.
+
+**Bolder.** The coil's wire is 16 px thick (from 9), up to 44 px wide each side (from 24), with more wire per turn
+(1.6x the stretched span, from 1.3x) so it is still a clear zig-zag at full board distance. The glove is 150 px (from
+112; Big 188 px), the hatch 84 px. No new drawn objects.
+
+**Impact (Big).** The first bop is lighter (burst 0.65, two stars) and the second clearly the harder: burst 1.75 on a
+25% larger base, nine flung stars, shake 9 to 16 px, knock back and squash 1.25x to 1.7x, a bigger punch-in, and four
+larger stars circling for 1.0 s (from three for 0.9 s). Running time 2.26 s to 2.38 s after the formation.
+
+**Perf.** The struck portrait holds `will-change: transform` while it is squashed (the browser re-rastered it at every
+new scale: a run of 8 ms frames after the blow in the first-pass build), restored on every exit. DEV build, headless,
+a loaded machine, top look, both directions: median 4.2 ms (240 Hz), 99th percentile 4.3 ms, worst 25 to 37 ms on the
+two frames where the shared camera starts and resets (one run 104 ms). Not measured on a production build.
+
+Sheets: `scratchpad/attacks/glove/v2/`. Still weak: nobody has listened (the spring and recoil clips are bright at
+source and lean on being pitched down); the big `-N` still covers the glove on the blow.

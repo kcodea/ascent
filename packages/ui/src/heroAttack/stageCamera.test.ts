@@ -208,7 +208,7 @@ function play(runner: Runner, canvasInCamera: boolean, total: number, side: 'pla
 describe('every style: the FX get the camera ONCE (the impact point stays on the struck portrait while zoomed)', () => {
   for (const [style, runner] of STYLES) {
     for (const inside of [true, false]) {
-      it(`${style}: canvas ${inside ? 'INSIDE' : 'outside'} the camera, Tier IV, both directions`, () => {
+      it(`${style}: canvas ${inside ? 'INSIDE' : 'outside'} the camera, Tier 4, both directions`, () => {
         for (const side of ['player', 'opp'] as const) {
           const r = play(runner, inside, 40, side);
           let zoomed = 0;

@@ -50,7 +50,7 @@ export interface HeroSoccerHandle extends HeroAttackHandle {
   readonly geo: SoccerGeo;
   readonly scene: HeroSoccerScene | null;
   readonly mirrorsCamera: boolean;
-  /** The rolled variation (II's corner, III's skill). */
+  /** The rolled variation (Tier 2's corner, Tier 3's skill). */
   readonly variant: 1 | 2 | 3;
   /** The striking portrait's pose, and the ball, at a sequence time (pure). */
   pose(t: number): SoccerPose;
@@ -86,7 +86,7 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  // THE VARIATION (II's corner, III's skill), rolled from the stable per-blow seed (or forced by the DEV tuner).
+  // THE VARIATION (Tier 2's corner, Tier 3's skill), rolled from the stable per-blow seed (or forced by the DEV tuner).
   const variant = variantOf(o.rollSeed ?? soccerSeed(o.total, dist, o.side), c);
   const plan = soccerPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
   const cues = withFormation(fplan, soccerCues(plan));
@@ -172,7 +172,7 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
         break;
       }
       case 'flick': {
-        // I: the higher flick for the volley; IV: SKY HIGH (a whoosh going up, and the crowd begins to rise).
+        // Tier 1: the higher flick for the volley; Tier 4: SKY HIGH (a whoosh going up, and the crowd begins to rise).
         cue(c.sfxTouchClip, c.sfxTouchGain * (big ? 1.4 : 1.1), c.sfxTouchRate * (big ? 0.85 : 1));
         if (big) {
           cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.1, c.sfxWhooshRate * 0.8, { lenMs: 600, fadeMs: 240 });
@@ -184,18 +184,18 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
         break;
       }
       case 'set': {
-        // II: the ball set down at the corner flag (a tap), the crowd hushes.
+        // Tier 2: the ball set down at the corner flag (a tap), the crowd hushes.
         cue(c.sfxTouchClip, c.sfxTouchGain * 0.8, c.sfxTouchRate * 1.1);
         const b = ball(t + 20);
         scene?.touch({ x: b.x, y: b.y }, 0.7);
         break;
       }
       case 'runup':
-        // II: the run-up (a step and the arm raised); a quick skid.
+        // Tier 2: the run-up (a step and the arm raised); a quick skid.
         scene?.skid(heroAt(t), heading(t), 0.6);
         break;
       case 'beat': {
-        // III: past a defender: the skill (a tap, a whoosh) and the defender beaten (a nutmeg / the stepovers get a word).
+        // Tier 3: past a defender: the skill (a tap, a whoosh) and the defender beaten (a nutmeg / the stepovers get a word).
         cue(c.sfxTouchClip, c.sfxTouchGain * 1.1, c.sfxTouchRate * 1.12);
         cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 1.3, { lenMs: 300, fadeMs: 120 });
         // The crowd's "Ooooh" starts on the first defender, so its peak (about a second in) lands on the finish.
@@ -205,19 +205,19 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
         break;
       }
       case 'pass': {
-        // II-3: the short corner rolled off the edge of the screen.
+        // Tier 2-3: the short corner rolled off the edge of the screen.
         cue(c.sfxKickClip, c.sfxKickGain * 0.55, c.sfxKickRate * 1.2);
         const b = ball(t + 10);
         scene?.strike({ x: b.x, y: b.y }, 0.6);
         break;
       }
       case 'return': {
-        // II-3: the one-two comes back (a tap into the stride).
+        // Tier 2-3: the one-two comes back (a tap into the stride).
         cue(c.sfxTouchClip, c.sfxTouchGain, c.sfxTouchRate * 1.05);
         break;
       }
       case 'jump':
-        // The take-off (a skid); IV's launch out of the crouch is a shock ring of grass and dust.
+        // The take-off (a skid); Tier 4's launch out of the crouch is a shock ring of grass and dust.
         scene?.skid(heroAt(t), heading(t - 60), big ? 1.4 : 0.8);
         if (big) {
           cue(c.sfxWhooshClip, c.sfxWhooshGain * 1.2, c.sfxWhooshRate * 0.75, { lenMs: 600, fadeMs: 220 });
@@ -226,7 +226,7 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
         }
         break;
       case 'head': {
-        // II-2: THE HEADER (a thud, a flash on the ball).
+        // Tier 2-2: THE HEADER (a thud, a flash on the ball).
         cue(c.sfxKickClip, c.sfxKickGain * 0.9, c.sfxKickRate * 0.8);
         cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate * 1.2, { lenMs: 360, fadeMs: 160 });
         const b = ball(t);
@@ -245,13 +245,13 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
           cue(c.sfxKickClip, c.sfxKickGain * (plan.kind === 'breakaway' ? 1.1 : 1), c.sfxKickRate);
           cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 420, fadeMs: 180 });
           scene?.strike({ x: b.x, y: b.y }, plan.kind === 'breakaway' ? 1.2 : 1);
-          // II's corner: the crowd's "Ooooh" rises with the ball in flight (it peaks about a second in, near the goal).
+          // Tier 2's corner: the crowd's "Ooooh" rises with the ball in flight (it peaks about a second in, near the goal).
           if (plan.kind === 'corner' && plan.variant !== 3) cue(c.sfxOohClip, c.sfxOohGain * 0.7, c.sfxOohRate, { fadeMs: 400 });
         }
         break;
       }
       case 'impact': {
-        // THE BALL IN THE NET: the net, the crowd. IV: the frame rings, a boom, the explosion, the roar.
+        // THE BALL IN THE NET: the net, the crowd. Tier 4: the frame rings, a boom, the explosion, the roar.
         cue(c.sfxNetClip, c.sfxNetGain * (big ? 1.3 : plan.kind === 'breakaway' ? 1.1 : 1), c.sfxNetRate * (big ? 0.9 : 1));
         if (big) {
           cue(c.sfxPostClip, c.sfxPostGain * 1.2, c.sfxPostRate, { lenMs: 1000, fadeMs: 300 });
@@ -273,7 +273,7 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
         if (big) cue(c.sfxTouchClip, c.sfxTouchGain * 1.2, c.sfxTouchRate * 0.6);
         break;
       case 'slide':
-        // IV: the knee slide celebration (a skid of grass).
+        // Tier 4: the knee slide celebration (a skid of grass).
         cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.7, { lenMs: 500, fadeMs: 250 });
         scene?.slide(heroAt(t), heading(t + 40));
         break;
@@ -313,7 +313,7 @@ export function playHeroSoccer(o: HeroSoccerOptions): HeroSoccerHandle {
       const b = ball(t);
       scene.setBall(b);
       if (b.flying && t - lastTrail >= (b.fire > 0 ? c.trailMs * 0.6 : c.trailMs)) { scene.trail(b); lastTrail = t; }
-      // Speed lines behind a sprint (IV's run to the spot, and the leap).
+      // Speed lines behind a sprint (Tier 4's run to the spot, and the leap).
       if (big && t >= plan.approachAt && t < plan.strikeAt && t - lastLine >= 50) { scene.speedLine(heroAt(t), heroAt(t - 40), aRadius); lastLine = t; }
       scene.setHeroShadow(p.air > 0.02 ? { x: o.attacker.x + p.x, y: o.attacker.y + p.y } : null, p.air, p.scale);
       const gs = goalAt(plan, t);

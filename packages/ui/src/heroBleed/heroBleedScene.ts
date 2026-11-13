@@ -84,12 +84,12 @@ export interface BleedLook {
   megaWidth: number;
   megaSize: number;
   novaSize: number;
-  /** Tier IV: the bloody explosion's scale (on top of the nova size). */
+  /** Tier 4: the bloody explosion's scale (on top of the nova size). */
   explosionSize: number;
 }
 
 /**
- * Hard cap on sprites alive at once. Tier IV paints the screen in blood (owner 2026-09-29: "it should be hilariously
+ * Hard cap on sprites alive at once. Tier 4 paints the screen in blood (owner 2026-09-29: "it should be hilariously
  * bloody by the end of the combo"): the piled-up spatter from eight zips, every wound, and the explosion peak around 400 live sprites (measured).
  */
 export const MAX_BLEED_SPRITES = 1400;
@@ -422,9 +422,9 @@ export class HeroBleedScene {
   }
 
   /**
-   * THE impact (I-III): the last cut lands. The first frame is the brightest: a short white-crimson flash over the face,
+   * THE impact (Tiers 1-3): the last cut lands. The first frame is the brightest: a short white-crimson flash over the face,
    * the cut bolder, big crossed splats, rings, arterial streaks off the blade's line, a spray of droplets flung along it
-   * and falling, and the strongest pulse over the face. `cross` marks the X (Tier II): a flare where the cuts meet.
+   * and falling, and the strongest pulse over the face. `cross` marks the X (Tier 2): a flare where the cuts meet.
    */
   impact(g: SlashGeo, x: number, y: number, radius: number, o: { tier: number; k: number; burst: number; drops: number; flashAlpha: number; cross: boolean }): void {
     const c = this.colors;
@@ -458,7 +458,7 @@ export class HeroBleedScene {
     this.tintPulse(x, y, radius, 1, 480);
   }
 
-  /** Tier IV: a heartbeat. Every wound flares and throbs, a crimson pulse, a ring pulled in, blood welling from each. */
+  /** Tier 4: a heartbeat. Every wound flares and throbs, a crimson pulse, a ring pulled in, blood welling from each. */
   beat(x: number, y: number, radius: number, i: number): void {
     const strength = 0.8 + 0.25 * i;
     for (const w of this.wounds) w.pulse = 0;
@@ -471,7 +471,7 @@ export class HeroBleedScene {
     }
   }
 
-  /** Tier IV: the striking hero winds the huge crescent at its hand (it grows, turns back and glows until loosed). */
+  /** Tier 4: the striking hero winds the huge crescent at its hand (it grows, turns back and glows until loosed). */
   windup(hand: Pt, heading: number, durMs: number): void {
     if (this.wind) return;
     const c = this.colors;
@@ -498,7 +498,7 @@ export class HeroBleedScene {
   }
 
   /**
-   * Tier IV's MEGA-SLASH, one ZIP of it: a huge crescent sweeps the whole line `m` (it crosses the target half-way), a
+   * Tier 4's MEGA-SLASH, one ZIP of it: a huge crescent sweeps the whole line `m` (it crosses the target half-way), a
    * white seam drawn behind it with a crimson bloom and a dark split beside it, lingering a moment after. Zips overlap
    * freely once they speed up.
    */
@@ -540,7 +540,7 @@ export class HeroBleedScene {
   }
 
   /**
-   * Tier IV: a zip FLINGS BLOOD ACROSS THE WHOLE SCREEN along its line: big splats landing along the on-screen half of it
+   * Tier 4: a zip FLINGS BLOOD ACROSS THE WHOLE SCREEN along its line: big splats landing along the on-screen half of it
    * (more with every zip as they speed up) that STAY, piling up through the combo until after the explosion (`holdMs`),
    * a few drips running down from them, and a spray of droplets flung back down the line.
    */
@@ -620,7 +620,7 @@ export class HeroBleedScene {
   }
 
   /**
-   * Tier IV: the held tension before the explosion (never a freeze). The wounds pulse faster and faster, blood is drawn
+   * Tier 4: the held tension before the explosion (never a freeze). The wounds pulse faster and faster, blood is drawn
    * in to the heart of the face, a crimson core swells there and a ring tightens round it.
    */
   tension(x: number, y: number, radius: number, durMs: number): void {
@@ -660,7 +660,7 @@ export class HeroBleedScene {
   }
 
   /**
-   * TIER IV's BLOODY EXPLOSION, the biggest thing in the attack roster: every wound RIPS open; a white-red flash core
+   * TIER 4's BLOODY EXPLOSION, the biggest thing in the attack roster: every wound RIPS open; a white-red flash core
    * and a crimson wash over the screen; FIVE shockwave rings one after another (dark bands and crimson light
    * alternating); a huge stain over the face; arterial streaks all round; blood thrown HIGH so it rains down over much
    * of the screen; spatter landing on the board out to the edges; and the stain drips.
@@ -726,7 +726,7 @@ export class HeroBleedScene {
     this.dripsFrom(x, y, radius, o.drips, 140, true);
   }
 
-  /** An arterial spurt after the explosion (IV): a small splat, a streak, a ring and a flick of droplets upward. */
+  /** An arterial spurt after the explosion (Tier 4): a small splat, a streak, a ring and a flick of droplets upward. */
   spurt(x: number, y: number, size: number, angle: number): void {
     const f = this.fxs('stain', this.tex.splat2, this.colors.blood, x, y, { dur: 420, from: 0.1 * size, to: 0.32 * size, a0: 0.9, mode: 'hold', follow: true });
     if (f) f.s.rotation = this.rnd() * Math.PI * 2;
@@ -737,7 +737,7 @@ export class HeroBleedScene {
     this.droplets(x, y, 8, 520, { dir: angle, spread: 0.8, life: 560, size: 0.45, lift: 180 });
   }
 
-  /** The wounds keep BLEEDING (I-III): drips run down the portrait from along the wounds, and a crimson pulse. */
+  /** The wounds keep BLEEDING (Tiers 1-3): drips run down the portrait from along the wounds, and a crimson pulse. */
   bleed(x: number, y: number, radius: number, drips: number): void {
     this.tintPulse(x, y, radius, 0.65, 520);
     const open = this.wounds.filter((w) => w.fade < 0);
@@ -770,7 +770,7 @@ export class HeroBleedScene {
     this.drips.push({ s, x, y, len, w: (0.8 + this.rnd() * 0.4) * S, age: 0, dur: this.look.dripMs * (0.8 + this.rnd() * 0.4), delay });
   }
 
-  /** I-III: the wounds close (they narrow and fade). */
+  /** Tiers 1-3: the wounds close (they narrow and fade). */
   close(): void { for (const w of this.wounds) if (w.fade < 0) w.fade = 0; }
 
   // ── the frame ──────────────────────────────────────────────────────────────────────────────────────────────

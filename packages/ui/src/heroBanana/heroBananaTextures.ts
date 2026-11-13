@@ -2,7 +2,7 @@
  * The Banana Barrage's textures. The STARS are King Oona's own PAINTED sprite sheets (owner 2026-09-29: "use oona's
  * animation as a guideline"), the same art her card FX (`fx/defs/oona-banana.json`) plays:
  *  - `defs/images/banana.png`: a 4 x 4 sheet (1024 px) of a glossy painted banana tumbling through 16 frames. Every
- *    projectile loops it (Oona plays it at ~41 fps with a random direction), and the Tier IV giant is the same banana,
+ *    projectile loops it (Oona plays it at ~41 fps with a random direction), and the Tier 4 giant is the same banana,
  *    huge and gilded.
  *  - `defs/images/chatgpt-image-sep-25-2026-09-40-24-am.png`: a 4 x 4 sheet of a juicy yellow splat bursting open and
  *    dissipating. Every impact plays it once through.

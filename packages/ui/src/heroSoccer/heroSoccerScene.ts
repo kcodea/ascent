@@ -1,17 +1,17 @@
 /**
  * THE SOCCER SCENE: what the Soccer attack draws in Pixi, on the shared pooled scene (`../heroAttack/fxPool.ts`), so it
  * runs (and is tested) headless. The PORTRAIT is the player (the runner moves it); this draws the ball, the shadows,
- * the goal on the target, II's corner flag, III's defenders and the hits. `heroSoccer.ts` mounts `root` on the
+ * the goal on the target, Tier 2's corner flag, Tier 3's defenders and the hits. `heroSoccer.ts` mounts `root` on the
  * above-portrait overlay.
  *
  * OWN OBJECTS (one each, positioned by the runner every frame from the pure path, hidden the moment they are not
  * needed and on every exit): the BALL (spinning, squashing on a strike), its SHADOW on the grass, the PORTRAIT'S SHADOW
  * (only while it is in the air), the GOAL on the target (the net, then the frame drawn over the ball so a shot goes IN;
- * the net BULGES on the impact and the frame shakes), the CORNER FLAG (II) and up to three DEFENDERS (III).
+ * the net BULGES on the impact and the frame shakes), the CORNER FLAG (Tier 2) and up to three DEFENDERS (Tier 3).
  *
- * FIRE-AND-FORGET (pooled, under a hard cap): the ball's trail (a fire trail on IV's thunderbolt), the grass puffs of a
+ * FIRE-AND-FORGET (pooled, under a hard cap): the ball's trail (a fire trail on Tier 4's thunderbolt), the grass puffs of a
  * touch, the strike's flash, the speed lines of a sprint, the knee slide's spray, a beaten defender's puff and word, and
- * THE GOAL (net ripples, sparks, the word; IV adds an explosion, a fireball and a confetti storm).
+ * THE GOAL (net ripples, sparks, the word; Tier 4 adds an explosion, a fireball and a confetti storm).
  */
 import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -48,7 +48,7 @@ export interface SoccerLook {
 
 export type SoccerWord = 'goal' | 'golazo' | 'nutmeg' | 'ole';
 
-/** Hard cap on pooled sprites alive at once (a Tier IV peaks near 200). The own objects are outside the pool. */
+/** Hard cap on pooled sprites alive at once (a Tier 4 peaks near 200). The own objects are outside the pool. */
 export const MAX_SOCCER_SPRITES = 340;
 const RING_PX = 160;
 const GLOW_PX = 128;
@@ -155,7 +155,7 @@ export class HeroSoccerScene extends FxPool {
     this.refresh();
   }
 
-  /** II's corner flag (its pole's foot at `at`): opacity and a wave (radians). */
+  /** Tier 2's corner flag (its pole's foot at `at`): opacity and a wave (radians). */
   setFlag(at: Pt, alpha: number, wave: number): void {
     if (this.destroyed) return;
     const s = this.flag;
@@ -167,7 +167,7 @@ export class HeroSoccerScene extends FxPool {
     this.refresh();
   }
 
-  /** III's defender `i`. */
+  /** Tier 3's defender `i`. */
   setDefender(i: number, d: DefenderState): void {
     if (this.destroyed) return;
     const s = this.defenders[i];
@@ -196,7 +196,7 @@ export class HeroSoccerScene extends FxPool {
 
   // ── fire-and-forget ───────────────────────────────────────────────────────────────────────────────────────────
 
-  /** A soft ghost of the ball left behind in flight; IV's thunderbolt leaves FIRE (`b.fire`). */
+  /** A soft ghost of the ball left behind in flight; Tier 4's thunderbolt leaves FIRE (`b.fire`). */
   trail(b: BallState): void {
     if (!b.visible) return;
     const S = this.scale;
@@ -260,7 +260,7 @@ export class HeroSoccerScene extends FxPool {
     }
   }
 
-  /** IV's launch out of the crouch: a shock ring of dust and grass at the take-off point, a flash under the feet. */
+  /** Tier 4's launch out of the crouch: a shock ring of dust and grass at the take-off point, a flash under the feet. */
   launch(at: Pt, k: number): void {
     if (k <= 0) return;
     const S = this.scale, r = this.aR, c = this.colors;
@@ -277,7 +277,7 @@ export class HeroSoccerScene extends FxPool {
     }
   }
 
-  /** IV's CONTACT upside down: a white-hot pop on the ball, a shock ring, and streaks flung out along the shot. */
+  /** Tier 4's CONTACT upside down: a white-hot pop on the ball, a shock ring, and streaks flung out along the shot. */
   contact(at: Pt, dir: Pt, k: number): void {
     const S = this.scale, c = this.colors, r = this.aR * this.look.ballSize * k;
     this.spawn('core', this.tex.glow, 0xffffff, at.x, at.y, { dur: 260, from: (r * 0.8) / GLOW_PX / S, to: (r * 4) / GLOW_PX / S, a0: 1, mode: 'punch', peakAt: 0.1 });
@@ -291,7 +291,7 @@ export class HeroSoccerScene extends FxPool {
     }
   }
 
-  /** III: a defender is beaten (a puff where it stood) and, for the nutmeg / the stepovers, the word. */
+  /** Tier 3: a defender is beaten (a puff where it stood) and, for the nutmeg / the stepovers, the word. */
   beaten(at: Pt, word: SoccerWord | null): void {
     const S = this.scale;
     this.spawn('under', this.tex.glow, DUST, at.x, at.y + this.aR * 0.4, { dur: 380, from: (this.aR * 0.6) / GLOW_PX / S, to: (this.aR * 1.5) / GLOW_PX / S, a0: 0.25, sy: 0.5 });
@@ -321,7 +321,7 @@ export class HeroSoccerScene extends FxPool {
 
   /**
    * THE GOAL (`at` = the target's centre; `dir` = the way the shot went in): the net ripples (squashed rings pulsing
-   * out), sparks, the word. `o.big` (IV): an explosion, a fireball and a confetti storm.
+   * out), sparks, the word. `o.big` (Tier 4): an explosion, a fireball and a confetti storm.
    */
   goalHit(at: Pt, dir: Pt, o: { burst: number; rings: number; confetti: number; big: boolean; blast: number }): void {
     const S = this.scale;
@@ -343,7 +343,7 @@ export class HeroSoccerScene extends FxPool {
     this.word(o.big ? 'golazo' : 'goal', at, b, this.dR * 2.2 * (o.big ? 1.2 : 1));
   }
 
-  /** IV's EXPLOSION in the goal: a white-hot core, a fireball rolling up, a shock ring, embers. `k` scales it. */
+  /** Tier 4's EXPLOSION in the goal: a white-hot core, a fireball rolling up, a shock ring, embers. `k` scales it. */
   private explosion(at: Pt, dir: Pt, k: number): void {
     if (k <= 0) return;
     const S = this.scale;

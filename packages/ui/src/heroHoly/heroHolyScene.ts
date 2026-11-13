@@ -10,9 +10,9 @@
  *  - THE SMITE: a PILLAR of light drops out of the sky (a normal-blend gold body under an additive white core, so it
  *    reads on the light board AND blooms on dark ground). Its landing is the brightest frame: a short flash, a cross
  *    gleam, god rays, a crisp ring and a ground ring, rising motes. Fills are gone in ~150 ms; the rays and rings linger.
- *  - THE SPEARS (III): lances of light thunk in round the target in rhythm, each planting a glowing SEED rune on the
+ *  - THE SPEARS (Tier 3): lances of light thunk in round the target in rhythm, each planting a glowing SEED rune on the
  *    ground; the final smite makes every seed erupt.
- *  - THE SWORD (IV): one huge ornate sword painted in its own colours (three aligned layers: a soft glow, the body, the
+ *  - THE SWORD (Tier 4): one huge ornate sword painted in its own colours (three aligned layers: a soft glow, the body, the
  *    hot highlights) descends out of a beam of light, hangs while a glint runs down its blade, then falls and SLAMS into
  *    the board (a shockwave, dust, light debris, radiant cracks). THE CONSECRATION erupts from it: a runic circle on the
  *    ground (a true ground-plane ellipse: rotation composed with the tilt through the sprite's skew, so it turns ON the
@@ -57,15 +57,15 @@ export interface HolyLook {
 }
 
 /**
- * TIER V's PINK + GOLD WAVE (owner 2026-10-02: "for consecration -> make the wave that comes out pink + gold instead of
+ * TIER 5's PINK + GOLD WAVE (owner 2026-10-02: "for consecration -> make the wave that comes out pink + gold instead of
  * just gold"): on a knockout the release, the flat blast, the surge and the eruption interleave hot pink and rose with
- * the gold, so the wave clearly reads pink AND gold. The Huge tier never sets it.
+ * the gold, so the wave clearly reads pink AND gold. Tier 4 never sets it.
  */
 export const HOLY_KO_PINK = 0xff4fa3;
 export const HOLY_KO_ROSE = 0xff8fc7;
 export const HOLY_KO_GOLD = 0xffd36b;
 
-/** Hard cap on sprites alive at once (a Tier IV eruption peaks around 450). */
+/** Hard cap on sprites alive at once (a Tier 4 eruption peaks around 450). */
 export const MAX_HOLY_SPRITES = 900;
 
 type LayerId = 'ground' | 'under' | 'body' | 'glow' | 'hot';
@@ -128,7 +128,7 @@ interface Pillar {
 interface Spear { body: Sprite; glow: Sprite; trail: Sprite; from: Pt; to: Pt; age: number; dur: number; size: number }
 
 /**
- * One sword of the Tier IV barrage: it flies from `from` to `tip` over `flight` ms (accelerating), then stays PLANTED
+ * One sword of the Tier 4 barrage: it flies from `from` to `tip` over `flight` ms (accelerating), then stays PLANTED
  * (pointing at the centre) until the implosion pulls it into the centre (`implodeT` counts up over `implodeMs`).
  */
 interface Sword {
@@ -176,7 +176,7 @@ export class HeroHolyScene {
   private readonly rnd: () => number;
 
   private readonly colors: HolyColors;
-  /** Tier V: the wave rolls out pink + gold (`setKoWave`). */
+  /** Tier 5: the wave rolls out pink + gold (`setKoWave`). */
   private koWave = false;
 
   constructor(private readonly tex: HeroHolyTextures, colors: HolyColors, private readonly look: HolyLook, private readonly scale = 1, seed = 1) {
@@ -206,9 +206,9 @@ export class HeroHolyScene {
     this.warmLeft = 400;
   }
 
-  /** Tier V: the release, the flat blast, the surge and the eruption interleave pink with the gold. */
+  /** Tier 5: the release, the flat blast, the surge and the eruption interleave pink with the gold. */
   setKoWave(on: boolean): void { this.koWave = on; }
-  /** The wave's gold, or (Tier V) pink and gold alternating by `i` (even = pink, odd = gold). */
+  /** The wave's gold, or (Tier 5) pink and gold alternating by `i` (even = pink, odd = gold). */
   private pg(i: number, gold: number): number { return this.koWave ? (i % 2 === 0 ? HOLY_KO_PINK : HOLY_KO_GOLD) : gold; }
 
   get liveSprites(): number { return this.used - this.warm.length; }
@@ -428,7 +428,7 @@ export class HeroHolyScene {
   }
 
   /**
-   * THE SMITE (I-III): the last pillar lands. The first frame is the brightest: a short flash over the portrait, a
+   * THE SMITE (Tiers 1-3): the last pillar lands. The first frame is the brightest: a short flash over the portrait, a
    * holy cross gleam, big god rays turning, a crisp ring and a ground ring, rising motes; the sigil flares out, and any
    * seeds planted by the spears erupt with it.
    */
@@ -454,7 +454,7 @@ export class HeroHolyScene {
     this.tw('ground', this.tex.ring, c.deep, x, y, { dur: 560, from: (r * 1.1) / RING_PX / S, to: ((r * 3.4) / RING_PX / S), a0: 0.45 });
     this.motes(x, y, Math.round(o.motes * 0.6), { lift: 220, speed: 160, life: 1000, ring: r * 0.7, grav: -30 });
     this.motes(x, y, Math.round(o.motes * 0.4), { lift: 60, speed: 320, life: 700, grav: 260, size: 0.36 });
-    // The seeds erupt with it (III): each a small pillar and a flare, then they fade.
+    // The seeds erupt with it (Tier 3): each a small pillar and a flare, then they fade.
     for (const h of this.held) {
       if (h.tag !== 'seed' || h.fadeT >= 0 || h.s.blendMode !== 'add' || !this.tex.glyphs.includes(h.s.texture)) continue;
       const sx = h.s.position.x, sy = h.s.position.y;
@@ -505,7 +505,7 @@ export class HeroHolyScene {
       this.hold('under', g, c.gold, to.x, to.y, 'seed', { a: 0.95 * Math.min(1, L.seedGlow), g0: gs * 1.8, g1: gs, gMs: 220, back: true, tilt: 1, rot: step * 0.9, inMs: 60, pulse: 0.2 });
       this.hold('under', this.tex.glow, c.gold, to.x, to.y, 'seed', { a: 0.45 * L.seedGlow, g1: ((r * 0.9) / GLOW_PX / S), inMs: 160, pulse: 0.25 });
     }
-    // Small radiant cracks round the seed: the ground starting to break with holy light (the language of Tier IV).
+    // Small radiant cracks round the seed: the ground starting to break with holy light (the language of Tier 4).
     for (let i = 0; i < 3; i++) {
       const th = step * 1.3 + (i / 3) * Math.PI * 2 + (this.rnd() - 0.5) * 0.6;
       const len = (r * (0.35 + this.rnd() * 0.25)) / 128 / S;
@@ -518,13 +518,13 @@ export class HeroHolyScene {
   }
 
   /**
-   * TIER IV (owner 2026-09-29: "have 6 swords fly in from different directions starting with 1, then they ramp up in
+   * TIER 4 (owner 2026-09-29: "have 6 swords fly in from different directions starting with 1, then they ramp up in
    * speed"): one sword flies in from off screen along its own heading, a light trail behind it, and plants its point by
    * the centre. `from` is where it starts (off screen), `tip` where its point stops, `flightMs` how long it takes.
    */
   launchSword(from: Pt, tip: Pt, centre: Pt, len: number, flightMs: number, prism = false): void {
     const c = this.colors;
-    // Tier V's knockout sword glows in the Ancient prism (a magenta aura, a cyan trail) round the same holy blade.
+    // Tier 5's knockout sword glows in the Ancient prism (a magenta aura, a cyan trail) round the same holy blade.
     const glow = this.take('under', this.tex.swordGlow, prism ? KO_MAGENTA : c.gold);
     const trail = this.take('glow', this.tex.pillar, prism ? KO_CYAN : c.gold);
     const trailCore = this.take('hot', this.tex.pillar, prism ? KO_LILAC : c.core);
@@ -735,7 +735,7 @@ export class HeroHolyScene {
   }
 
   /**
-   * THE ERUPTION (IV, THE blow): holy flames and a pillar of light burst up under the struck hero. The first frame is
+   * THE ERUPTION (Tier 4, THE blow): holy flames and a pillar of light burst up under the struck hero. The first frame is
    * the brightest; fills are short (the big -N reads through them); the flames, rays and rings carry it after.
    */
   eruptFoe(foot: Pt, d: Pt, r: number, o: { flames: number; flameHeight: number; burst: number; motes: number; flashAlpha: number }): void {
@@ -778,7 +778,7 @@ export class HeroHolyScene {
   }
 
   /**
-   * TIER V: the knockout sword bites DEAD CENTRE: a prismatic flare round the holy ring (a cyan ring and a magenta one a
+   * TIER 5: the knockout sword bites DEAD CENTRE: a prismatic flare round the holy ring (a cyan ring and a magenta one a
    * beat behind), a bright cross gleam, the hub kicked hard, and prism motes thrown up. One-shot pooled sprites.
    */
   koSwordHit(centre: Pt, r: number): void {
@@ -792,7 +792,7 @@ export class HeroHolyScene {
   }
 
   /**
-   * TIER V's PRISM on the eruption: a WIDER consecration ring in the Ancient palette (`ringScale` x the Huge one's
+   * TIER 5's PRISM on the eruption: a WIDER consecration ring in the Ancient palette (`ringScale` x the Tier 4 one's
    * reach: cyan, then magenta a beat behind), a prismatic star gleam over the gold, and prism motes rising. Short fills,
    * so the big -N still reads.
    */
@@ -806,7 +806,7 @@ export class HeroHolyScene {
     this.prismMotes(foot.x, foot.y, 28, { lift: 260, speed: 260, life: 1100, ring: r * 1.2, grav: -50 });
   }
 
-  /** Motes of light in the Ancient prism (Tier V). */
+  /** Motes of light in the Ancient prism (Tier 5). */
   private prismMotes(x: number, y: number, n: number, o: { speed: number; lift: number; life: number; grav: number; ring?: number }): void {
     const S = this.scale;
     for (let i = 0; i < n; i++) {

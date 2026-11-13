@@ -1,15 +1,15 @@
 /**
- * WHICH ATTACKS PLAY A KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02: "ancient tier animations should have a
+ * WHICH ATTACKS PLAY A KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02: "ancient tier animations should have a
  * separate tier of dmg specific for knockouts ... can you do this for all 4 ancient tier animations?").
  *
  * The rule, in one place:
- *  - a knockout always plays Tier IV ("Huge"), every style (owner 2026-09-29, R-PROG-ATTACK-20, `attackTier`);
+ *  - a knockout always plays Tier 4, every style (owner 2026-09-29, R-PROG-ATTACK-20, `attackTier`);
  *  - EXCEPT an ANCIENT-rarity attack that has a Knockout variant: it plays that instead.
  *
  * It is driven by the cosmetic's RARITY (the catalog in @game/progression), not a list of ids, so a future Ancient
  * attack gets it the moment its runner has a variant: add its style to `KNOCKOUT_VARIANT_STYLES` and read
- * `isKnockoutVariant(input)` in its plan. An Ancient attack with no variant yet (not in the set) falls back to Huge.
- * Every other rarity keeps playing Huge on a knockout, unchanged.
+ * `isKnockoutVariant(input)` in its plan. An Ancient attack with no variant yet (not in the set) falls back to Tier 4.
+ * Every other rarity keeps playing Tier 4 on a knockout, unchanged.
  */
 import { COSMETICS, cosmeticOf, type CosmeticRarity } from '@game/progression';
 

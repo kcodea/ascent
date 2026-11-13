@@ -13,9 +13,9 @@
  *    and a swirl of wisps.
  *  - WISPS are alive: a bright head, a feathered tail stretched along its velocity (longer the faster it goes), an echo
  *    a beat behind it, and a wander across its heading, so they curl and drift instead of flying straight.
- *  - THE HANDS (III): skeletal hands claw up out of dark holes round the target (they grow out of the board, flat, reaching
+ *  - THE HANDS (Tier 3): skeletal hands claw up out of dark holes round the target (they grow out of the board, flat, reaching
  *    in), grip, and drag at it, trembling; they shatter into bone on the blow.
- *  - THE RIFT (IV): a jagged void tears open across the board, lit green inside, cracks racing off it, grave dust and
+ *  - THE RIFT (Tier 4): a jagged void tears open across the board, lit green inside, cracks racing off it, grave dust and
  *    motes pouring up; the MAW (the same skull, huge) rises out of it, its eyes ignite, it shrieks (shriek rings), lunges
  *    trailing afterimages, and chomps. Then a wave of necrotic MIST washes out across the board.
  *
@@ -52,7 +52,7 @@ export interface UndeadLook {
   handSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV chomp and mist wave peaks around 400). */
+/** Hard cap on sprites alive at once (a Tier 4 chomp and mist wave peaks around 400). */
 export const MAX_UNDEAD_SPRITES = 900;
 
 type LayerId = 'ground' | 'under' | 'body' | 'glow' | 'hot';
@@ -102,7 +102,7 @@ interface Particle {
 
 /**
  * A ghost wisp: a head, a tail stretched along its velocity and an echo a beat behind. FREE wisps drift (velocity, drag,
- * a rise and a wander across their heading); PATH wisps (the Tier III swarm) ride a bent curve to their target and
+ * a rise and a wander across their heading); PATH wisps (the Tier 3 swarm) ride a bent curve to their target and
  * arrive on the planned beat.
  */
 interface Wisp {
@@ -115,7 +115,7 @@ interface Wisp {
 
 type SkullPhase = 'emerge' | 'hover' | 'fly' | 'rise' | 'hold' | 'shriek' | 'lunge' | 'chomp' | 'die';
 
-/** A spectral skull (a flying skull, or the Tier IV maw): its pieces, where it is, its jaw, what it is doing. */
+/** A spectral skull (a flying skull, or the Tier 4 maw): its pieces, where it is, its jaw, what it is doing. */
 interface Skull {
   id: number;
   body: Sprite; jawBody: Sprite; fill: Sprite; jawFill: Sprite; edge: Sprite; jawEdge: Sprite; halo: Sprite; eyes: Sprite[];
@@ -480,7 +480,7 @@ export class HeroUndeadScene {
     this.wispBurst(at.x, at.y, o.last ? Math.round(8 + o.motes * 0.25) : 5, o.last ? 190 : 140, { ring: r * 0.5, life: o.last ? 1000 : 650, size: o.last ? 1.15 : 0.9 });
     this.motes(at.x, at.y, Math.round(o.motes * (o.last ? 0.6 : 0.25)), { lift: 150, speed: 160, life: 900, ring: r * 0.6 });
     if (o.last) {
-      // The grave (III) flares with the blow; the hands shatter into bone.
+      // The grave (Tier 3) flares with the blow; the hands shatter into bone.
       this.kickTag('grave', 0.8);
       this.fadeTag('grave', 620, 0.3);
       for (const h of this.hands) if (h.outT < 0) h.outT = 0;
@@ -488,7 +488,7 @@ export class HeroUndeadScene {
     }
   }
 
-  /** III: a grave circle opens under the target, a dark pit in its middle. */
+  /** Tier 3: a grave circle opens under the target, a dark pit in its middle. */
   openGrave(x: number, y: number, r: number, durMs: number): void {
     const c = this.colors, L = this.look, S = this.scale;
     const sz = ((r * 2.8) / NECRO_PX / S) * Math.max(0.3, L.circleSize);
@@ -499,7 +499,7 @@ export class HeroUndeadScene {
     this.tw('hot', this.tex.ring, whiten(c.ghost, 0.4), x, y, { delay: durMs * 0.8, dur: 260, from: (r * 2.8) / RING_PX / S, to: (r * 2.3) / RING_PX / S, a0: 0.8, ease: easeOutCubic });
   }
 
-  /** III: a skeletal hand claws up out of a dark hole at `spot`, reaching in; it grips at the end of `riseMs`, then drags. */
+  /** Tier 3: a skeletal hand claws up out of a dark hole at `spot`, reaching in; it grips at the end of `riseMs`, then drags. */
   raiseHand(spot: HandSpot, riseMs: number, dragPx: number): void {
     const c = this.colors, S = this.scale;
     const parts = this.takeAll([
@@ -516,7 +516,7 @@ export class HeroUndeadScene {
     this.tw('body', this.tex.mist, mixColor(c.void, c.ghost, 0.25), spot.at.x, spot.at.y, { dur: 520, from: 0.5, to: 1.5, a0: 0.35, ease: easeOutCubic, inMs: 40 });
   }
 
-  /** III: a hand GRIPS (a tick): it clenches, the grave pulses. */
+  /** Tier 3: a hand GRIPS (a tick): it clenches, the grave pulses. */
   gripHand(i: number, at: Pt): void {
     const h = this.hands[i];
     const c = this.colors, S = this.scale;
@@ -525,7 +525,7 @@ export class HeroUndeadScene {
     this.tw('hot', this.tex.glow, c.ghost, at.x, at.y, { dur: 130, from: 0.3, to: (28 * S) / GLOW_PX / S, a0: 0.5 });
   }
 
-  /** III: a wisp of the swarm, loosed off the hero along its bent path, arriving in `flightMs`. */
+  /** Tier 3: a wisp of the swarm, loosed off the hero along its bent path, arriving in `flightMs`. */
   launchWisp(path: WispPath, flightMs: number): void {
     const w = this.makeWisp(path.from.x, path.from.y, 1.05 * this.look.wispSize, this.rnd() < 0.5 ? this.colors.ghost : this.colors.teal);
     if (!w) return;
@@ -535,7 +535,7 @@ export class HeroUndeadScene {
     this.wisps.push(w);
   }
 
-  /** III: a wisp strikes the target (a tick): a small green flash, a ring, a few wisps curling off. */
+  /** Tier 3: a wisp strikes the target (a tick): a small green flash, a ring, a few wisps curling off. */
   wispHit(to: Pt, r: number, step: number): void {
     const c = this.colors, S = this.scale;
     this.tw('hot', this.tex.glow, c.core, to.x, to.y, { dur: 100, from: 0.3, to: 0.9, a0: 0.7 });
@@ -545,7 +545,7 @@ export class HeroUndeadScene {
   }
 
   /**
-   * IV: the RIFT tears open at `at` across the board over `ms`: a jagged void (normal-blend purple-black) lit green inside,
+   * Tier 4: the RIFT tears open at `at` across the board over `ms`: a jagged void (normal-blend purple-black) lit green inside,
    * a burning rim, cracks racing off it, a kick of grave dust and bone; it keeps pouring motes and mist while open.
    */
   tearRift(at: Pt, ang: number, len: number, ms: number, cracks: { ang: number; len: number }[]): void {
@@ -582,7 +582,7 @@ export class HeroUndeadScene {
     if (this.rift === r) this.rift = null;
   }
 
-  /** IV: the MAW rises out of the rift: from the rift (small, dim) up to `up`, swelling to `widthPx`, over `ms`. */
+  /** Tier 4: the MAW rises out of the rift: from the rift (small, dim) up to `up`, swelling to `widthPx`, over `ms`. */
   riseMaw(from: Pt, up: Pt, widthPx: number, ms: number): void {
     const sk = this.makeSkull(99, from.x, from.y, widthPx, true);
     if (!sk) return;
@@ -593,7 +593,7 @@ export class HeroUndeadScene {
     this.tw('under', this.tex.glow, this.colors.ghost, from.x, from.y, { dur: ms, from: (widthPx * 0.5) / GLOW_PX / S, to: (widthPx * 1.3) / GLOW_PX / S, a0: 0.4, outFrom: 0.6 });
   }
 
-  /** IV: the maw SHRIEKS over `ms`: the jaw drops wide, the eyes blaze, shriek rings pulse off it, wisps are blown out. */
+  /** Tier 4: the maw SHRIEKS over `ms`: the jaw drops wide, the eyes blaze, shriek rings pulse off it, wisps are blown out. */
   shriekMaw(ms: number, r: number): void {
     const sk = this.skulls.find((s) => s.maw);
     if (!sk) return;
@@ -608,14 +608,14 @@ export class HeroUndeadScene {
     }
   }
 
-  /** IV: the maw LUNGES at `to` over `ms` (accelerating, growing by `grow`, jaw wide, afterimages streaming). */
+  /** Tier 4: the maw LUNGES at `to` over `ms` (accelerating, growing by `grow`, jaw wide, afterimages streaming). */
   lungeMaw(to: Pt, ms: number, grow: number): void {
     const sk = this.skulls.find((s) => s.maw);
     if (!sk) return;
     sk.phase = 'lunge'; sk.age = 0; sk.dur = Math.max(1, ms); sk.from = { x: sk.x, y: sk.y }; sk.to = { ...to }; sk.k0 = sk.k; sk.k1 = sk.k * grow;
   }
 
-  /** IV: the maw arrives and its jaw SNAPS shut over `ms` onto the impact. */
+  /** Tier 4: the maw arrives and its jaw SNAPS shut over `ms` onto the impact. */
   chompMaw(ms: number): void {
     const sk = this.skulls.find((s) => s.maw);
     if (!sk) return;
@@ -623,7 +623,7 @@ export class HeroUndeadScene {
   }
 
   /**
-   * IV, THE blow: the chomp lands. A short flash, the maw's spectral echo, rings, bone shards and a storm of wisps; the
+   * Tier 4, THE blow: the chomp lands. A short flash, the maw's spectral echo, rings, bone shards and a storm of wisps; the
    * maw dissolves; and a WAVE of necrotic mist washes out across the board (two rings of puffs racing out, dark under
    * green, with a flat ring leading them). The rift starts to close.
    */

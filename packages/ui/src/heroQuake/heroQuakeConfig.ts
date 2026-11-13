@@ -10,25 +10,25 @@
  * REWORKED the same day (owner: "the quake animation is not up to par with the others ... maybe only the huge hit should
  * quake, and the others can be slightly different? i think the line animation is over used. i also think the quake
  * itself could look a bit better, maybe faster but then have pixi burst out of it almost like an eruption"):
- *  - Tiers I-III HURL BOULDERS, no crack line: the hero stomps, a boulder is ripped out of the ground and lobbed high
- *    (a shadow sliding under it), and STONE SPIKES burst out round the target with a spray of molten grit. I: one
- *    boulder; II: two (the first a tick); III: three, hot, glowing, magma in the spikes.
- *  - Tier IV is the only EARTHQUAKE, faster: a quick fracture (~300 ms), then the ERUPTION: a light burst, a shock ring,
+ *  - Tiers 1-3 HURL BOULDERS, no crack line: the hero stomps, a boulder is ripped out of the ground and lobbed high
+ *    (a shadow sliding under it), and STONE SPIKES burst out round the target with a spray of molten grit. Tier 1: one
+ *    boulder; Tier 2: two (the first a tick); Tier 3: three, hot, glowing, magma in the spikes.
+ *  - Tier 4 is the only EARTHQUAKE, faster: a quick fracture (~300 ms), then the ERUPTION: a light burst, a shock ring,
  *    spikes, a violent upward spray of magma, the pillar, embers, the crater.
- * The original beats (the Tier IV path now):
+ * The original beats (the Tier 4 path now):
  *  2. WIND-UP. The total dives into the attacking hero, who RISES (anticipation) while pebbles lift off the ground
  *     around them and a low tremor starts; the view pushes in on the hero.
  *  3. SLAM. The hero drives down into the ground: a squash, a hard vertical jolt, a thick dust shockwave, a starburst of
- *     short cracks, pebbles slammed down. Tier IV: the slam cracks the whole board.
+ *     short cracks, pebbles slammed down. Tier 4: the slam cracks the whole board.
  *  4. TRAVEL. The quake rolls to the target: the main crack races along the ground (accelerating), opening up behind
- *     its tip, kicking up dust and grit; branches split off it (II+), parallel fissures and magma seams glow (III+),
- *     and secondary eruptions go off along the path (III+). The camera RUMBLES, mostly vertically, building as it goes.
+ *     its tip, kicking up dust and grit; branches split off it (Tier 2+), parallel fissures and magma seams glow (Tier 3+),
+ *     and secondary eruptions go off along the path (Tier 3+). The camera RUMBLES, mostly vertically, building as it goes.
  *  5. IMPACT. The ground ERUPTS under the target: a white flash, a magma bloom, a spurt of light, a burst of cracks
  *     around the portrait, rock chunks thrown up under gravity (with shadows, one bounce), a dust cloud,
- *     and the portrait jolted UP then down. THIS is the beat the consequence lands on. Tier IV adds a pillar of magma
+ *     and the portrait jolted UP then down. THIS is the beat the consequence lands on. Tier 4 adds a pillar of magma
  *     and rock, follow-up explosions and a lingering glowing crater; the heaviest, longest rumble.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Small hits stay brisk (~1.9 s);
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Small hits stay brisk (~1.9 s);
  * the top tier earns a ~4 s show. Reduced motion: no flight, cracks, shake or zoom; the numbers fade.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -116,7 +116,7 @@ type ClipKey = (typeof HERO_QUAKE_CLIP_KEYS)[number];
 export type HeroQuakeStrKey = ColorKey | ClipKey;
 export type HeroQuakeNumKey = Exclude<keyof HeroQuakeConfig, HeroQuakeStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> = {
   LiftMs: [230, 270, 330, 380],
   LiftPx: [4, 6, 9, 12],
@@ -141,7 +141,7 @@ const TIER_DEFAULTS: Record<QuakeTierSuffix, [number, number, number, number]> =
   SettleMs: [320, 420, 500, 520],
   Dim: [0, 0.15, 0.3, 0.45],
   // Owner 2026-09-28: "maybe only the huge hit should quake, and the others can be slightly different? i think the line
-  // animation is over used". Tiers I-III HURL BOULDERS (no crack line); only IV is the earthquake.
+  // animation is over used". Tiers 1-3 HURL BOULDERS (no crack line); only Tier 4 is the earthquake.
   Quake: [0, 0, 0, 1],
   Boulders: [1, 2, 3, 0],
   BoulderSize: [1, 1.12, 1.28, 1],
@@ -395,7 +395,7 @@ export interface QuakePlanInput extends AttackTierContext {
 export interface QuakePlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The wind-up starts: the total dives into the hero, who rises. */
@@ -403,7 +403,7 @@ export interface QuakePlan {
   absorbEnd: number;
   /** The hero hits the ground. The quake starts. */
   slamAt: number;
-  /** Tier IV (or any tier the tuner switches to it): a true EARTHQUAKE, the crack racing to the target. Otherwise the
+  /** Tier 4 (or any tier the tuner switches to it): a true EARTHQUAKE, the crack racing to the target. Otherwise the
    *  hero hurls boulders (no crack line). */
   quake: boolean;
   /** The boulders: when each leaves the hero and when it lands (the last one IS the impact). Empty for a quake. */
@@ -420,7 +420,7 @@ export interface QuakePlan {
   impactAt: number;
   /** Follow-up explosions around the target. */
   booms: number[];
-  /** Tier IV's pillar of magma and rock. */
+  /** Tier 4's pillar of magma and rock. */
   pillar: boolean;
   /** The cracks start fading. */
   fadeAt: number;
@@ -452,7 +452,7 @@ export interface QuakePlan {
 /** The whole Quake, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function quakePlan(input: QuakePlanInput, c: HeroQuakeConfig = cfg): QuakePlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = quakeTierDials(tier, c);
   const k = (tier - 1) / 3;
   const zeroes = {
@@ -563,7 +563,7 @@ const sine01 = (t: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1,
  * RUMBLES: mostly vertical, low (8 to 21 Hz), deterministic (sums of sines, so a replay shakes identically). A slight
  * push in on the hero through the wind-up; a hard DOWNWARD kick on the slam; a rumble that builds from a tremor to a
  * roar as the crack travels; the impact jolts the view UP (the ground erupting under the target), punches in and rings
- * out through a long rumble tail (longest at Tier IV); each burst and boom adds a vertical kick. At `t === impactAt`
+ * out through a long rumble tail (longest at Tier 4); each burst and boom adds a vertical kick. At `t === impactAt`
  * the frame is already displaced upward. Pure, so it is tested directly.
  */
 export function quakeCameraAt(p: QuakePlan, c: HeroQuakeConfig, t: number): { zoom: number; x: number; y: number } {

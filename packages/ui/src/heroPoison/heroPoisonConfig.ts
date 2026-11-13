@@ -10,19 +10,19 @@
  *  2. READY. The total sinks into the hero, who leans back away from the target (a sneaky coil) while venom gathers at
  *     the throwing point: a glint, a thin ring closing in, vapour drawn in.
  *  3. THROW. Small, sleek poison darts (a dark needle, a venom vial, acid fletching, a glowing green tip) are flicked
- *     from the hero with a snappy "thwip", fast, on a slight arc, each trailing a thin toxic vapour: I one; II two in
- *     quick succession; III a fan of five, thunking in in rhythm.
+ *     from the hero with a snappy "thwip", fast, on a slight arc, each trailing a thin toxic vapour: Tier 1 one; Tier 2 two in
+ *     quick succession; Tier 3 a fan of five, thunking in in rhythm.
  *  4. THUNK. Each dart sticks in the struck portrait at its own angle and quivers: a venom splat, green droplets, a
  *     tiny toxic puff and a sickly green tint pulse over the portrait. Every dart before the last is a TICK (FX and
  *     sound only). The LAST one is THE impact: the big `-N`, a bigger splash, a ring, the knockback. The consequence
  *     (the damage, Armor, Resolve) lands ONCE, there. A beat later the poison seeps (a second tint pulse and bubbles)
  *     and the darts dissolve.
- *  IV. IMPLODE. Six darts thunk in round the face (all ticks). Then the stuck darts GLOW and PULSE and the venom SWELLS
+ *  Tier 4. IMPLODE. Six darts thunk in round the face (all ticks). Then the stuck darts GLOW and PULSE and the venom SWELLS
  *     (a toxic aura rising over the portrait, bubbles, a tremor, a rising fizz); then everything COLLAPSES inward (the
  *     darts are sucked into one tight point, a dark ring contracts) and a violent TOXIC BURST lands the blow: a
  *     green-black shockwave, bubbling toxic cloud puffs, acid droplets arcing out with gravity, a lingering haze.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). No hit-stop anywhere (owner
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). No hit-stop anywhere (owner
  * 2026-09-28: "it looks like lag"). Reduced motion: no flight, darts, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -64,7 +64,7 @@ interface GlobalConfig {
   tintAlpha: number;
   stickHoldMs: number;
   seepMs: number;
-  // The implosion (Tier IV)
+  // The implosion (Tier 4)
   swellMs: number;
   suckMs: number;
   burstSize: number;
@@ -122,7 +122,7 @@ type ClipKey = (typeof HERO_POISON_CLIP_KEYS)[number];
 export type HeroPoisonStrKey = ColorKey | ClipKey;
 export type HeroPoisonNumKey = Exclude<keyof HeroPoisonConfig, HeroPoisonStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<PoisonTierSuffix, [number, number, number, number]> = {
   ChargeMs: [300, 340, 400, 420],
   Darts: [1, 2, 5, 6],
@@ -411,7 +411,7 @@ export interface PoisonPlanInput extends AttackTierContext {
 export interface PoisonPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The ready starts: the total sinks into the hero, venom gathers. */
@@ -420,21 +420,21 @@ export interface PoisonPlan {
   /** The first dart is thrown. */
   throwAt: number;
   darts: PoisonDartPlan[];
-  /** Tier IV: the stuck darts swell, implode and burst. */
+  /** Tier 4: the stuck darts swell, implode and burst. */
   implode: boolean;
-  /** Tier IV: the swell starts (else the impact). */
+  /** Tier 4: the swell starts (else the impact). */
   swellAt: number;
-  /** Tier IV: the collapse inward starts (else the impact). */
+  /** Tier 4: the collapse inward starts (else the impact). */
   suckAt: number;
-  /** Darts that thunk in BEFORE the impact, sequence ms: the rhythm ticks (Tier IV: every dart). */
+  /** Darts that thunk in BEFORE the impact, sequence ms: the rhythm ticks (Tier 4: every dart). */
   hits: number[];
-  /** THE consequence beat: the last dart thunks in (I-III) or the toxic burst (IV). */
+  /** THE consequence beat: the last dart thunks in (Tiers 1-3) or the toxic burst (Tier 4). */
   impactAt: number;
-  /** I-III: the poison seeps (a second tint pulse and bubbles; FX only). */
+  /** Tiers 1-3: the poison seeps (a second tint pulse and bubbles; FX only). */
   seepAt: number;
-  /** I-III: the stuck darts dissolve. */
+  /** Tiers 1-3: the stuck darts dissolve. */
   dissolveAt: number;
-  /** Tier IV: bubbling pops round the target after the burst. */
+  /** Tier 4: bubbling pops round the target after the burst. */
   booms: number[];
   endAt: number;
   size: number;
@@ -449,7 +449,7 @@ export interface PoisonPlan {
 /** The whole Poison Darts, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function poisonPlan(input: PoisonPlanInput, c: HeroPoisonConfig = cfg): PoisonPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = poisonTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -528,7 +528,7 @@ export function poisonCues(p: PoisonPlan): PoisonCue[] {
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.darts.forEach((d, i) => out.push({ at: d.throwAt, kind: 'throw', i }));
-    // Every dart but the last thunks in as a tick (Tier IV: every dart); the last one IS the impact.
+    // Every dart but the last thunks in as a tick (Tier 4: every dart); the last one IS the impact.
     p.darts.forEach((d, i) => { if (p.implode || i < p.darts.length - 1) out.push({ at: d.arriveAt, kind: 'hit', i }); });
     if (p.implode) {
       out.push({ at: p.swellAt, kind: 'swell', i: 0 });
@@ -598,7 +598,7 @@ const jitter = (i: number, salt: number): number => { const s = Math.sin((i + 1)
  * Where each dart buries itself in the struck portrait (offsets from its centre, in portrait radii). The big `-N` pops
  * over the MIDDLE of the face, so the darts go in on the side of the face that looks back at the thrower (a pincushion
  * facing where they came from): the needle is buried in the face and the body stands out past the rim, clear of the
- * number. I-III fan across that side by the slot; IV rings the whole face, so the implosion has somewhere to pull them
+ * number. Tiers 1-3 fan across that side by the slot; Tier 4 rings the whole face, so the implosion has somewhere to pull them
  * in from.
  */
 export function stickOffset(p: PoisonPlan, i: number, a: Pt, d: Pt, avoid: Pt | null = null): Pt {
@@ -670,7 +670,7 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 /**
  * The camera at sequence time `t` (px in the space the points are in). A small push in on the hero through the ready;
  * a tiny recoil on each throw; a kick ALONG the dart on each tick; on THE impact a punch in and a directional shake.
- * Tier IV instead builds: the view pushes in on the struck hero through the swell while a faint tremor grows, pulls in
+ * Tier 4 instead builds: the view pushes in on the struck hero through the swell while a faint tremor grows, pulls in
  * a hair more as the poison is sucked into a point, then the burst punches hardest with a shake that rings both ways.
  * Deterministic (sines and springs): a replay moves identically. Pure.
  */

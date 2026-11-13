@@ -44,7 +44,7 @@ const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number 
 const cueKinds = (total: number, o: { variant?: BaseballVariant } = {}) => baseballCues(plan(total, o)).map((q) => q.kind);
 
 describe('the tiers: the shared four onto the four plays', () => {
-  it('uses the shared thresholds; I up the middle, II the hot shot, III the moonshot, IV charge the mound; a knockout charges the mound', () => {
+  it('uses the shared thresholds; Tier 1 up the middle, Tier 2 the hot shot, Tier 3 the moonshot, Tier 4 charge the mound; a knockout charges the mound', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(baseballKind(tierOf(d)));
     expect([1, 2, 3, 4].map((t) => baseballKind(t as 1 | 2 | 3 | 4))).toEqual(['single', 'hotshot', 'moonshot', 'brawl']);
@@ -93,7 +93,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan (the target pitches first; the blow lands once)', () => {
-  it('I-III: glove pop, windup, the pitch, the swing, the CRACK, then the impact; the crack is before the impact', () => {
+  it('Tiers 1-3: glove pop, windup, the pitch, the swing, the CRACK, then the impact; the crack is before the impact', () => {
     for (const total of [3, 8, 14]) {
       const p = plan(total);
       expect(p.chargeAt).toBeLessThan(p.windAt);
@@ -111,7 +111,7 @@ describe('the plan (the target pitches first; the blow lands once)', () => {
     }
   });
 
-  it('II: the liner is fastest, the grounder hops once on the way, the foul tip takes the long way round', () => {
+  it('Tier 2: the liner is fastest, the grounder hops once on the way, the foul tip takes the long way round', () => {
     const l = plan(8, { variant: 1 }), g = plan(8, { variant: 2 }), f = plan(8, { variant: 3 });
     expect(l.impactAt - l.arriveAt).toBeLessThan(g.impactAt - g.arriveAt);
     expect(g.hopAt).not.toBeNull();
@@ -122,7 +122,7 @@ describe('the plan (the target pitches first; the blow lands once)', () => {
     expect(f.impactAt - f.arriveAt).toBeGreaterThan(g.impactAt - g.arriveAt);
   });
 
-  it('III: up and gone (the twinkle), then down from the sky; the slide whistle bottoms out on the crash; the bat flip lands', () => {
+  it('Tier 3: up and gone (the twinkle), then down from the sky; the slide whistle bottoms out on the crash; the bat flip lands', () => {
     const p = plan(14);
     expect(p.arriveAt).toBeLessThan(p.apexAt!);
     expect(p.apexAt!).toBeLessThan(p.dropAt!);
@@ -135,7 +135,7 @@ describe('the plan (the target pitches first; the blow lands once)', () => {
     expect(p.batLandAt!).toBeLessThan(p.endAt);
   });
 
-  it('IV CHARGE THE MOUND: the bean, the bat slammed down, the fume, the charge, the collision, a flurry of hits inside the brawl, the haymaker = THE impact', () => {
+  it('Tier 4 CHARGE THE MOUND: the bean, the bat slammed down, the fume, the charge, the collision, a flurry of hits inside the brawl, the haymaker = THE impact', () => {
     const p = plan(40);
     expect(p.kind).toBe('brawl');
     expect(p.beanAt).toBe(p.arriveAt);
@@ -244,7 +244,7 @@ describe('the poses, the ball and the bat', () => {
     expect(baseballBall(gx, gx.p.hopAt!).lift).toBeLessThan(1);
   });
 
-  it('III: the ball rockets up and away (shrinking), is gone at the top, and comes down GROWING onto the pitcher, its shadow growing under it', () => {
+  it('Tier 3: the ball rockets up and away (shrinking), is gone at the top, and comes down GROWING onto the pitcher, its shadow growing under it', () => {
     const x = ctxOf(14);
     const { p } = x;
     const up = baseballBall(x, (p.arriveAt + p.apexAt!) / 2);
@@ -261,7 +261,7 @@ describe('the poses, the ball and the bat', () => {
     expect(bat.lift).toBeGreaterThan(R * 0.3);
   });
 
-  it('IV: the bean hits the BATTER (the ball ends on its face), the batter reels, charges to the mound, brawls, and both portraits go home', () => {
+  it('Tier 4: the bean hits the BATTER (the ball ends on its face), the batter reels, charges to the mound, brawls, and both portraits go home', () => {
     const x = ctxOf(40);
     const { p, g } = x;
     expect(dist(baseballBall(x, p.beanAt! - 0.5), g.bean)).toBeLessThan(R * 0.2);
@@ -279,7 +279,7 @@ describe('the poses, the ball and the bat', () => {
     for (const q of [batterPose(p, g, C, R, A, p.endAt - 1), pitcherPose(p, g, C, R, p.endAt - 1)]) expect(Math.hypot(q.x, q.y)).toBeLessThan(2);
   });
 
-  it('the camera pushes in and shakes on the impact; IV jolts on the bean and the brawl hits', () => {
+  it('the camera pushes in and shakes on the impact; Tier 4 jolts on the bean and the brawl hits', () => {
     const p = plan(40);
     expect(baseballCameraAt(p, C, p.impactAt + 10, { x: 0, y: -1 }).zoom).toBeGreaterThan(1);
     const j = baseballCameraAt(p, C, p.hits[2]! + 20, { x: 0, y: -1 });
@@ -288,7 +288,7 @@ describe('the poses, the ball and the bat', () => {
   });
 });
 
-describe('variety (II rolls one of three hits)', () => {
+describe('variety (Tier 2 rolls one of three hits)', () => {
   it('the roll is stable per seed, covers all three, and the DEV override forces one', () => {
     const seen = new Set<number>();
     for (let s = 0; s < 60; s++) { expect(variantOf(s, C)).toBe(variantOf(s, C)); seen.add(variantOf(s, C)); }
@@ -297,8 +297,8 @@ describe('variety (II rolls one of three hits)', () => {
   });
 });
 
-describe('slow mo (III on the contact, IV on the bean) and the FAST brawl', () => {
-  it('III slows around the contact, IV around the bean and then runs fast through the brawl; never 0; I and II never slow', () => {
+describe('slow mo (Tier 3 on the contact, Tier 4 on the bean) and the FAST brawl', () => {
+  it('Tier 3 slows around the contact, Tier 4 around the bean and then runs fast through the brawl; never 0; Tiers 1 and 2 never slow', () => {
     for (const total of [3, 8]) { const p = plan(total); expect(slowWindow(p, C)).toBeNull(); for (let t = 0; t < p.endAt; t += 10) expect(baseballTimeScale(p, C, t)).toBe(1); }
     const three = plan(14);
     expect(baseballTimeScale(three, C, three.arriveAt)).toBeCloseTo(C.contactSlow, 5);
@@ -368,7 +368,7 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
 describe('the runner (the shared clock, both portraits restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the bean, the collision and every brawl hit never land it; the blow lands ONCE on the haymaker; both portraits moved, raised, put back EXACTLY', () => {
+  it('Tier 4: the bean, the collision and every brawl hit never land it; the blow lands ONCE on the haymaker; both portraits moved, raised, put back EXACTLY', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hbaseball')).not.toBeNull();
@@ -470,7 +470,7 @@ describe('the runner (the shared clock, both portraits restored on every exit)',
     expect(r.defenderEl.style.transform).toBe('translateY(2px)');
   });
 
-  it('the runner: the clock really slows on III\'s contact and runs fast in IV\'s brawl; the blow still lands once', () => {
+  it('the runner: the clock really slows on Tier 3\'s contact and runs fast in Tier 4\'s brawl; the blow still lands once', () => {
     const r = run({ total: 14, formation: formationOf([14], 14) });
     tickTo(r, r.h.plan.arriveAt - 2);
     const t0 = r.h.elapsed();

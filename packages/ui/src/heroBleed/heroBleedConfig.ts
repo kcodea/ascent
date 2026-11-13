@@ -16,8 +16,8 @@
  *  4. THE CUTS. Every slash before the last is a TICK (FX and sound only). The LAST is THE impact: the big `-N`, the
  *     biggest spray, the flash, the knockback. The consequence (the damage, Armor, Resolve) lands ONCE, there. A beat
  *     later the wounds BLEED (drips run down the portrait, a crimson pulse over the face) and then they close.
- *     I one clean diagonal gash; II a cross (X) of two; III a flurry of four fast slashes and a three-claw rake.
- *  IV. HEMORRHAGE, played hilariously over the top (owner 2026-09-29: "make the bleed one extremely extremely over the
+ *     Tier 1 one clean diagonal gash; Tier 2 a cross (X) of two; Tier 3 a flurry of four fast slashes and a three-claw rake.
+ *  Tier 4. HEMORRHAGE, played hilariously over the top (owner 2026-09-29: "make the bleed one extremely extremely over the
  *     top like hilariously over the top for the huge attack. like do 8 zips of the long attack animation and have a
  *     bloody explosion at the end"). Three claw rakes carve the face and the wounds THROB with a heartbeat while the
  *     striker winds a huge crescent. Then the screen-splitting MEGA-SLASH zips across EIGHT times (tunable), each one a
@@ -28,7 +28,7 @@
  *     BLOODY EXPLOSION lands the blow: a white-red flash core, shockwave rings one after another, a huge blood nova,
  *     blood thrown high to rain down over much of the screen, spatter on the board, dripping stains, arterial spurts.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). No hit-stop anywhere (owner
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). No hit-stop anywhere (owner
  * 2026-09-28: "it looks like lag"). Flat 2D throughout. Reduced motion: no flight, cuts, shake or zoom; the numbers
  * fade and the blow lands.
  *
@@ -75,7 +75,7 @@ interface GlobalConfig {
   bleedMs: number;
   holdMs: number;
   dripMs: number;
-  // Hemorrhage (Tier IV)
+  // Hemorrhage (Tier 4)
   beats: number;
   beatMs: number;
   windupMs: number;
@@ -142,7 +142,7 @@ type ClipKey = (typeof HERO_BLEED_CLIP_KEYS)[number];
 export type HeroBleedStrKey = ColorKey | ClipKey;
 export type HeroBleedNumKey = Exclude<keyof HeroBleedConfig, HeroBleedStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<BleedTierSuffix, [number, number, number, number]> = {
   ChargeMs: [300, 340, 380, 420],
   Slashes: [1, 2, 5, 3],
@@ -418,11 +418,11 @@ export function bleedFlightMs(distance: number, tierMs: number): number {
 
 /**
  * The cut angles, in order, for an attacker on the LEFT (radians; 0 = a cut drawn left to right, positive = downward).
- * I is one clean diagonal (the first); II the cross (the first two, mirror images); a flurry keeps alternating
+ * Tier 1 is one clean diagonal (the first); Tier 2 the cross (the first two, mirror images); a flurry keeps alternating
  * diagonals at varied steepness. Mirrored for an attacker on the right.
  */
 export const CUT_ANGLES: readonly number[] = [0.62, Math.PI - 0.62, 0.22, Math.PI - 0.3, 0.98, Math.PI - 1.02, 0.45, Math.PI - 0.5];
-/** III's last slash, the claw rake: steep, down and across. */
+/** Tier 3's last slash, the claw rake: steep, down and across. */
 export const RAKE_ANGLE = 1.08;
 /** Where each flurry cut sits on the face (portrait radii from its centre, attacker on the left). */
 export const CUT_OFFSETS: readonly (readonly [number, number])[] = [
@@ -432,7 +432,7 @@ export const CUT_OFFSETS: readonly (readonly [number, number])[] = [
 export interface BleedSlashPlan {
   swingAt: number;
   flightMs: number;
-  /** The crescent reaches the target and the cut starts to draw. A tick (or THE impact, for the last of I-III). */
+  /** The crescent reaches the target and the cut starts to draw. A tick (or THE impact, for the last of Tiers 1-3). */
   arriveAt: number;
   /** The cut's angle (attacker on the left; mirrored by the geometry). */
   angle: number;
@@ -444,7 +444,7 @@ export interface BleedSlashPlan {
   off: Pt;
 }
 
-/** One zip of Tier IV's mega-slash: its sweep starts `at`, lasts `dur`, and crosses the target at `hitAt` (a tick). */
+/** One zip of Tier 4's mega-slash: its sweep starts `at`, lasts `dur`, and crosses the target at `hitAt` (a tick). */
 export interface BleedZipPlan { at: number; dur: number; hitAt: number }
 
 export interface BleedPlanInput extends AttackTierContext {
@@ -460,7 +460,7 @@ export interface BleedPlanInput extends AttackTierContext {
 export interface BleedPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The ready starts: the total sinks into the hero, the blade is drawn. */
@@ -469,27 +469,27 @@ export interface BleedPlan {
   /** The first swing. */
   swingAt: number;
   slashes: BleedSlashPlan[];
-  /** Tier IV: the heartbeat, the wind-up and the mega-slash. */
+  /** Tier 4: the heartbeat, the wind-up and the mega-slash. */
   hemorrhage: boolean;
-  /** Tier IV: the heartbeats (empty below IV). */
+  /** Tier 4: the heartbeats (empty below Tier 4). */
   beats: number[];
-  /** Tier IV: the striking hero winds the huge crescent (else the impact). */
+  /** Tier 4: the striking hero winds the huge crescent (else the impact). */
   windAt: number;
-  /** Tier IV: the first zip of the mega-slash starts (else the impact). */
+  /** Tier 4: the first zip of the mega-slash starts (else the impact). */
   megaAt: number;
-  /** Tier IV: the mega-slash's zips, accelerating (empty below IV). */
+  /** Tier 4: the mega-slash's zips, accelerating (empty below Tier 4). */
   zips: BleedZipPlan[];
-  /** Tier IV: the last zip is done and the held tension starts (else the impact). */
+  /** Tier 4: the last zip is done and the held tension starts (else the impact). */
   tensionAt: number;
-  /** Cuts that land BEFORE the impact, sequence ms: the rhythm ticks (Tier IV: every slash and every zip). */
+  /** Cuts that land BEFORE the impact, sequence ms: the rhythm ticks (Tier 4: every slash and every zip). */
   hits: number[];
-  /** THE consequence beat: the last cut (I-III) or the bloody explosion (IV). */
+  /** THE consequence beat: the last cut (Tiers 1-3) or the bloody explosion (Tier 4). */
   impactAt: number;
   /** The wounds bleed: drips run down the portrait (FX only). */
   bleedAt: number;
-  /** I-III: the wounds close. */
+  /** Tiers 1-3: the wounds close. */
   closeAt: number;
-  /** Tier IV: arterial spurts after the explosion. */
+  /** Tier 4: arterial spurts after the explosion. */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -504,7 +504,7 @@ export interface BleedPlan {
 /** The whole Bleed attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): BleedPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = bleedTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -529,7 +529,7 @@ export function bleedPlan(input: BleedPlanInput, c: HeroBleedConfig = cfg): Blee
   const flight = bleedFlightMs(input.distance, T.FlightMs);
   const slashes: BleedSlashPlan[] = Array.from({ length: count }, (_, i) => {
     const last = i === count - 1;
-    // The claws: every slash at IV (the rakes that carve the face), else only the last (III's finishing rake).
+    // The claws: every slash at Tier 4 (the rakes that carve the face), else only the last (Tier 3's finishing rake).
     const lines = hemorrhage || last ? claws : 1;
     const angle = !hemorrhage && last && lines > 1 && count > 2 ? RAKE_ANGLE : CUT_ANGLES[i % CUT_ANGLES.length]!;
     // One cut, or a cross, sits on the middle of the face; a flurry spreads over it.
@@ -599,7 +599,7 @@ export function bleedCues(p: BleedPlan): BleedCue[] {
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.slashes.forEach((s, i) => out.push({ at: s.swingAt, kind: 'swing', i }));
-    // Every cut but the last is a tick (Tier IV: every cut); the last one IS the impact.
+    // Every cut but the last is a tick (Tier 4: every cut); the last one IS the impact.
     p.slashes.forEach((s, i) => { if (p.hemorrhage || i < p.slashes.length - 1) out.push({ at: s.arriveAt, kind: 'hit', i }); });
     p.beats.forEach((at, i) => out.push({ at, kind: 'beat', i }));
     if (p.hemorrhage) {
@@ -722,7 +722,7 @@ export function slashGeos(p: BleedPlan, a: Pt, d: Pt, radius: number, aRadius: n
   });
 }
 
-/** Tier IV's mega-slash: one line through the target, `span` px long, swept from `from` to `to`. */
+/** Tier 4's mega-slash: one line through the target, `span` px long, swept from `from` to `to`. */
 export interface MegaGeo { from: Pt; to: Pt; angle: number; span: number }
 
 /**
@@ -738,13 +738,13 @@ export interface MegaGeo { from: Pt; to: Pt; angle: number; span: number }
  */
 export const ZIP_FAN: readonly number[] = [0.06, -0.4, 0.46, -0.14, 0.32, -0.54, 0.18, -0.27, 0.56, -0.02, 0.4];
 
-/** Tier IV's claw rakes also sweep a wide line across the screen (the build-up): their turns off the inward axis. */
+/** Tier 4's claw rakes also sweep a wide line across the screen (the build-up): their turns off the inward axis. */
 export const RAKE_FAN: readonly number[] = [0.3, -0.24, 0.12];
 
 /**
- * Tier IV's claw rakes, each as a WIDE line like a zip's (owner 2026-09-29: "bleed's first 2 slash throughs on the huge
+ * Tier 4's claw rakes, each as a WIDE line like a zip's (owner 2026-09-29: "bleed's first 2 slash throughs on the huge
  * attack still dont have the line slashes"): through the struck hero, in from the screen side, crossing it exactly when
- * the rake's crescent bites (half-way through a sweep twice its flight). Empty below IV. Pure.
+ * the rake's crescent bites (half-way through a sweep twice its flight). Empty below Tier 4. Pure.
  */
 export function rakeLines(p: BleedPlan, a: Pt, d: Pt, span: number, center: Pt = { x: (a.x + d.x) / 2, y: (a.y + d.y) / 2 }): MegaGeo[] {
   if (!p.hemorrhage) return [];
@@ -790,7 +790,7 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 /**
  * The camera at sequence time `t` (px in the space the points are in). A small push in on the hero through the ready;
  * a tiny recoil on each swing; a kick ALONG each cut as it lands; on THE impact a punch in and a shake along the last
- * cut. Tier IV instead breathes in with each heartbeat, eases back through the wind-up, WHIPS along every zip (a kick
+ * cut. Tier 4 instead breathes in with each heartbeat, eases back through the wind-up, WHIPS along every zip (a kick
  * down its line and a small zoom pulse), creeps in with a growing tremor through the held tension, and the explosion
  * punches hardest of anything, with a shake that rings both ways. `cuts` are each slash's cut direction and `zipDirs`
  * each zip's (unit), in plan order. Deterministic (sines and springs): a replay moves identically. Pure.

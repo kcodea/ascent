@@ -10,14 +10,14 @@
  * so the thread stays tied to both heroes whatever they do. Once the needle pierces, the tether relaxes from its flight
  * arc into a hanging line (a little sag), twangs, and on the tug goes dead straight while a bead of light runs down it.
  *
- *  I-II  on the impact every thread SNAPS: the striker's half whips back, the rest is pulled out through the face.
- *  III   five pins hold the stretching portrait; on the impact all five rip out and every thread snaps.
- *  IV    the laces bind the portraits; the target is dragged into a gold HEART-KNOT (three gold thread loops drawn on
+ *  Tiers 1-2  on the impact every thread SNAPS: the striker's half whips back, the rest is pulled out through the face.
+ *  Tier 3   five pins hold the stretching portrait; on the impact all five rip out and every thread snaps.
+ *  Tier 4    the laces bind the portraits; the target is dragged into a gold HEART-KNOT (three gold thread loops drawn on
  *        and cinched round it, a violet crystal at the clasp); the strike sends beads down every lace; the knot bursts
  *        (its loops fly out and fade) in gold and violet soul ribbons (strip meshes sampled back along a curling flight).
  *
  * The NEEDLE is a painted crystal spike (point first, its thread out of the back) with a soft glow; it crystallises on
- * the striker's rim through the ready, flies, pierces, sews, and shatters on the impact (IV's tie off once laced).
+ * the striker's rim through the ready, flies, pierces, sews, and shatters on the impact (Tier 4's tie off once laced).
  *
  * Perf: a thread mesh is 32 x 2 vertices (under Pixi's 100-vertex batch limit), its vertex arrays rewritten in place,
  * its UVs and indices shared; every polyline lives in preallocated typed arrays (no allocation per frame); sprites are
@@ -53,7 +53,7 @@ export interface StitchLook {
   rainShards: number;
 }
 
-/** Hard cap on pooled sprites alive at once (IV's burst peaks well under it). */
+/** Hard cap on pooled sprites alive at once (Tier 4's burst peaks well under it). */
 export const MAX_STITCH_SPRITES = 520;
 /** Points a thread strand is drawn with (x 2 vertices: under Pixi's 100-vertex batch limit). */
 export const THREAD_PTS = 32;
@@ -67,9 +67,9 @@ const HEART_PTS = 64;
 export const KNOT_LOOPS = 3;
 /** How long the snap (the halves whipping back, the rest fading) takes. */
 export const SNAP_MS = 280;
-/** Tier V: the latch needles (fast, re-stitching onto the flung target before the second yank). */
+/** Tier 5: the latch needles (fast, re-stitching onto the flung target before the second yank). */
 export const KO_LATCH_NEEDLES = 3;
-/** Tier V: the latch threads part this fast on the slam. */
+/** Tier 5: the latch threads part this fast on the slam. */
 export const LATCH_SNAP_MS = 170;
 /** A needle's length, px at stage scale 1 (x the size dial). */
 const NEEDLE_PX = 104;
@@ -203,14 +203,14 @@ function drawStrand(st: Strand, th: Thread, s0: number, s1: number, w: number, g
 
 interface NeedleSprites { body: Sprite; glow: Sprite }
 
-/** Tier V: one latch: a fast needle and its thread, from the striker's rim to the flung target's (`fan` round its face). */
+/** Tier 5: one latch: a fast needle and its thread, from the striker's rim to the flung target's (`fan` round its face). */
 interface Latch { th: Thread; needle: NeedleSprites; fan: number }
 
 interface Ribbon { trail: RibbonTrail; age: number; life: number; cx: number; cy: number; dx: number; dy: number; reach: number; curl: number; w: number; phase: number; width: number }
 
 /**
  * What the runner hands `draw` each frame: the two portraits' offsets (overlay px) and, optionally, the struck
- * portrait's own linear transform about its centre (III's stretch, IV's crush), [a, b, c, d] for x' = a x + b y,
+ * portrait's own linear transform about its centre (Tier 3's stretch, Tier 4's crush), [a, b, c, d] for x' = a x + b y,
  * y' = c x + d y. Everything sewn into the target goes through it, so the pins and laces stay ON the portrait.
  */
 export interface StitchFrame { heroX: number; heroY: number; foeX: number; foeY: number; foeM?: readonly [number, number, number, number] }
@@ -223,17 +223,17 @@ export class HeroStitchScene extends FxPool {
   private readonly needleC = new Container();
   private readonly threads: Thread[] = [];
   private readonly needles: NeedleSprites[] = [];
-  /** IV: the heart-knot's gold loops and its violet crystal clasp. */
+  /** Tier 4: the heart-knot's gold loops and its violet crystal clasp. */
   private readonly knot: Thread[] = [];
   private gem: Sprite | null = null;
   private gemGlow: Sprite | null = null;
-  /** IV: the gold glow pulsing under the knot as it cinches (alpha and scale only: no paint property). */
+  /** Tier 4: the gold glow pulsing under the knot as it cinches (alpha and scale only: no paint property). */
   private knotGlow: Sprite | null = null;
-  /** IV: where the knot burst (the target's offset at the burst): the bursting loops stay there as it is flung home. */
+  /** Tier 4: where the knot burst (the target's offset at the burst): the bursting loops stay there as it is flung home. */
   private burstOff: Pt | null = null;
   private ribbons: Ribbon[] = [];
   private readonly ribbonPool: RibbonTrail[] = [];
-  /** Tier V: the latch needles and their threads (empty on every other tier). */
+  /** Tier 5: the latch needles and their threads (empty on every other tier). */
   private readonly latch: Latch[] = [];
   private ownOn = true;
   /** The last frame drawn (the impact bursts where things were last drawn). */
@@ -294,7 +294,7 @@ export class HeroStitchScene extends FxPool {
 
   /** Thread meshes alive (two strands x glow + core per thread, the knot's loops included). Exposed for tests. */
   get threadMeshes(): number { return (this.threads.length + this.knot.length + this.latch.length) * 4; }
-  /** Tier V: the latch threads drawing this frame. */
+  /** Tier 5: the latch threads drawing this frame. */
   get visibleLatches(): number { let n = 0; for (const l of this.latch) n += l.th.a.core.visible ? 1 : 0; return n; }
   /** Strand meshes drawing this frame (the needles' threads). */
   get visibleStrands(): number { let n = 0; for (const th of this.threads) n += (th.a.core.visible ? 1 : 0) + (th.b.core.visible ? 1 : 0); return n; }
@@ -332,7 +332,7 @@ export class HeroStitchScene extends FxPool {
     const tug = tugAt(p, t);
     const snapK = t >= p.burstAt ? clamp01((t - p.burstAt) / SNAP_MS) : 0;
     const fp = tmpFoe;
-    // IV: the strike sends beads down every lace (0..1 from the strike to the burst).
+    // Tier 4: the strike sends beads down every lace (0..1 from the strike to the burst).
     const strike = p.strikeAt !== null && t >= p.strikeAt && t < p.burstAt ? (t - p.strikeAt) / Math.max(1, p.burstAt - p.strikeAt) : -1;
     const hx = f.heroX, hy = f.heroY;
     for (let i = 0; i < p.needles.length; i++) {
@@ -416,7 +416,7 @@ export class HeroStitchScene extends FxPool {
       const total = th.length, tl = th.tetherLength;
       if (snapK <= 0) {        drawStrand(th.a, th, 0, total, w, gw, 1, glowA, coreTint, glowTint);
         th.b.hide();
-        // The tug: a bead of light runs down the tether from the striker to the target. IV: the strike sends one down
+        // The tug: a bead of light runs down the tether from the striker to the target. Tier 4: the strike sends one down
         // every lace (tether and legs) at once.
         if (strike >= 0 && total > 1) {
           th.at(total * strike, tmp);
@@ -432,7 +432,7 @@ export class HeroStitchScene extends FxPool {
         } else th.bead.visible = false;
       } else {
         // THE SNAP: it parts halfway along the tether; the striker's half whips back home, the rest is pulled through
-        // (II) or fades (I, IV), all inside SNAP_MS.
+        // (Tier 2) or fades (Tiers 1, 4), all inside SNAP_MS.
         const mid = tl * 0.5;
         const ease = 1 - (1 - snapK) * (1 - snapK);
         const fade = 1 - snapK;
@@ -447,7 +447,7 @@ export class HeroStitchScene extends FxPool {
   }
 
   /**
-   * TIER V: THE LATCH. As the burst flings the target home, fast gold-cored needles fly off the striker's rim and bite
+   * TIER 5: THE LATCH. As the burst flings the target home, fast gold-cored needles fly off the striker's rim and bite
    * into the target's face (a fan facing the striker); their threads go taut and a bead of light races down each on the
    * second yank, the two portraits hauled together; on the slam every thread snaps and whips away. Both ends ride their
    * portraits every frame (the offsets the runner hands `draw`).
@@ -522,7 +522,7 @@ export class HeroStitchScene extends FxPool {
   }
 
   /**
-   * IV: the HEART-KNOT. From the knot beat, three gold loops are drawn on round the dragged portrait (one after the
+   * Tier 4: the HEART-KNOT. From the knot beat, three gold loops are drawn on round the dragged portrait (one after the
    * other), each cinching in from wide to snug (and the struck portrait is crushed small with them, in the runner); a
    * violet crystal clasp flashes in where the lobes meet once it is tied. On the burst the loops fly outward and fade.
    */
@@ -621,27 +621,27 @@ export class HeroStitchScene extends FxPool {
     this.burst('body', this.tex.shard, [c.thread, c.lilac], at.x, at.y, Math.round(4 * k), { speed: 300 * k, dir: Math.atan2(-dir.y, -dir.x), spread: 2.2, life: 380, size: (12 * S) / SHARD_TEX, grav: 700, spin: 0.03 });
   }
 
-  /** A needle finishes sewing (II's diagonals, IV's laces): a tie-off glint. */
+  /** A needle finishes sewing (Tier 2's diagonals, Tier 4's laces): a tie-off glint. */
   sewn(at: Pt, follow = true): void {
     const c = this.colors, S = this.scale;
     this.spawn('core', this.tex.star, c.bone, at.x, at.y, { dur: 240, from: (8 * S) / STAR_PX, to: (34 * S) / STAR_PX, a0: 0.9, mode: 'punch', peakAt: 0.3, rot: 0.6, follow });
   }
 
-  /** The tug (I-III) or the yank (IV): the hero takes the thread: a flash at the striker's rim. */
+  /** The tug (Tiers 1-3) or the yank (Tier 4): the hero takes the thread: a flash at the striker's rim. */
   tug(at: Pt, radius: number, big: boolean): void {
     const c = this.colors;
     this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: big ? 520 : 320, from: (radius * 1.2) / RING_PX, to: (radius * (big ? 3.2 : 2.4)) / RING_PX, a0: 0.75, ease: 'cubic' });
     this.spawn('core', this.tex.glow, c.lilac, at.x, at.y, { dur: 220, from: (radius * 0.6) / GLOW_PX, to: (radius * 1.6) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.2 });
   }
 
-  /** IV: the target arrives in the knot: a gold ring snaps in round it (it rides the dragged portrait). */
+  /** Tier 4: the target arrives in the knot: a gold ring snaps in round it (it rides the dragged portrait). */
   knotted(at: Pt): void {
     const c = this.colors, r = this.foe.r;
     this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 420, from: (r * 4) / RING_PX, to: (r * 2.4) / RING_PX, a0: 0.9, mode: 'punch', peakAt: 0.2, follow: true });
     this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 360, from: (r * 1.4) / GLOW_PX, to: (r * 2.8) / GLOW_PX, a0: 0.45, mode: 'punch', peakAt: 0.2, follow: true });
   }
 
-  /** IV: a cinch of the knot (a tick): a gold pulse ring tightening in and sparks thrown off the heart. */
+  /** Tier 4: a cinch of the knot (a tick): a gold pulse ring tightening in and sparks thrown off the heart. */
   cinch(at: Pt, k: number): void {
     const c = this.colors, r = this.foe.r * this.look.knotSize, S = this.scale;
     this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 300, from: (r * 3.4) / RING_PX, to: (r * 2) / RING_PX, a0: 0.7 + 0.1 * k, mode: 'punch', peakAt: 0.25, follow: true });
@@ -650,7 +650,7 @@ export class HeroStitchScene extends FxPool {
   }
 
   /**
-   * TIER V: the DOUBLE-CINCH. The knot squeezes once more, hard: a prismatic pulse ring snapping in round it (cyan, then
+   * TIER 5: the DOUBLE-CINCH. The knot squeezes once more, hard: a prismatic pulse ring snapping in round it (cyan, then
    * magenta), a white-hot flash, and a spray of prism sparks off the heart. It rides the dragged portrait.
    */
   koCinch(at: Pt): void {
@@ -663,7 +663,7 @@ export class HeroStitchScene extends FxPool {
   }
 
   /**
-   * TIER V's PRISM over the heart-knot's burst: the Ancient palette (cyan to magenta) layered on the gold and violet.
+   * TIER 5's PRISM over the heart-knot's burst: the Ancient palette (cyan to magenta) layered on the gold and violet.
    * Two wider prismatic shockwaves, a prism nova, prism soul ribbons curling out through the gold ones, prism light
    * streaks. Short fills, so the big -N still reads.
    */
@@ -676,7 +676,7 @@ export class HeroStitchScene extends FxPool {
     this.rip(d, dR, KO_PRISM, 8);
   }
 
-  /** TIER V: a latch needle bites into the flung target (a tick): a gold-white flash and a few chips, riding it. */
+  /** TIER 5: a latch needle bites into the flung target (a tick): a gold-white flash and a few chips, riding it. */
   koLatched(): void {
     const c = this.colors, S = this.scale, g = this.geo;
     const back = Math.atan2(-g.u.y, -g.u.x);
@@ -689,7 +689,7 @@ export class HeroStitchScene extends FxPool {
   }
 
   /**
-   * TIER V: THE SLAM, where the consequence lands: the striker crashes into the target in the middle of the board. A
+   * TIER 5: THE SLAM, where the consequence lands: the striker crashes into the target in the middle of the board. A
    * white-gold flash, a nova, a gold shockwave and a violet one behind it, crystal shards and light streaks sprayed out
    * SIDEWAYS (the two hit along the line between them), the latch needles shattering, soul ribbons bursting out. `at`
    * is the contact point (screen px), `dR` the target's radius, `B` the tier's burst.
@@ -716,7 +716,7 @@ export class HeroStitchScene extends FxPool {
     this.rip(at, dR, [c.gold, c.thread, c.lilac], 10);
   }
 
-  /** IV: the knot is tied: the clasp flashes. */
+  /** Tier 4: the knot is tied: the clasp flashes. */
   tied(at: Pt): void {
     const c = this.colors, r = this.foe.r, S = this.scale;
     this.spawn('core', this.tex.star, c.bone, at.x, at.y, { dur: 300, from: (r * 0.3) / STAR_PX, to: (r * 1.6) / STAR_PX, a0: 1, mode: 'punch', peakAt: 0.15, follow: true });
@@ -725,12 +725,12 @@ export class HeroStitchScene extends FxPool {
 
   /**
    * THE IMPACT. The needles burst into shards and every thread snaps (a flash where each parts). Then:
-   *  I   a crystal burst back along the thread;
-   *  II  shards spray out along both stitches, an X flash;
-   *  III all five PINS rip out at once: a snap flash and a fan of crystal splinters torn out of each pin toward the
+   *  Tier 1   a crystal burst back along the thread;
+   *  Tier 2  shards spray out along both stitches, an X flash;
+   *  Tier 3 all five PINS rip out at once: a snap flash and a fan of crystal splinters torn out of each pin toward the
    *      striker, and a flash on the face as the portrait snaps back;
-   *  IV  the HEART-KNOT BURSTS: gold and violet soul ribbons, a gold and violet nova, shockwaves, crystal shards.
-   * `d` is where the struck portrait is now (IV: in the knot); `o.foe` the frame's target offset.
+   *  Tier 4  the HEART-KNOT BURSTS: gold and violet soul ribbons, a gold and violet nova, shockwaves, crystal shards.
+   * `d` is where the struck portrait is now (Tier 4: in the knot); `o.foe` the frame's target offset.
    */
   impact(d: Pt, dR: number, dir: Pt, o: { shards: number; burst: number; t: number; foe: Pt; hero: Pt }): void {
     const p = this.plan, g = this.geo, c = this.colors, S = this.scale, B = o.burst;
@@ -823,7 +823,7 @@ export class HeroStitchScene extends FxPool {
     }
   }
 
-  /** IV: gold and violet soul ribbons burst out of the knot and curl away (own strip meshes, sampled back along their flight). */
+  /** Tier 4: gold and violet soul ribbons burst out of the knot and curl away (own strip meshes, sampled back along their flight). */
   private rip(d: Pt, dR: number, tints: readonly number[] | null = null, count?: number): void {
     const c = this.colors, S = this.scale;
     const n = Math.max(0, Math.min(24, Math.round(count ?? this.look.ripRibbons)));
@@ -840,7 +840,7 @@ export class HeroStitchScene extends FxPool {
     }
   }
 
-  /** IV: crystal rain: shards fall over the board around the burst, staggered, glinting as they go. */
+  /** Tier 4: crystal rain: shards fall over the board around the burst, staggered, glinting as they go. */
   private rain(d: Pt, dR: number): void {
     const c = this.colors, S = this.scale;
     const n = Math.max(0, Math.min(60, Math.round(this.look.rainShards)));

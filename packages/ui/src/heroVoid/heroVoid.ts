@@ -1,15 +1,15 @@
 /**
  * THE VOID RUNNER: plays one Void hero attack (the beats are in `heroVoidConfig.ts`) and lands the consequence on its
- * impact beat (the last orb landing, or Tier IV's blast). Presentation only: the total it shows and the blow it lands
+ * impact beat (the last orb landing, or Tier 4's blast). Presentation only: the total it shows and the blow it lands
  * are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Arcana does (it started as Arcana's runner):
  * one clock (it never pauses), the damage formation, the `#stage` camera, the portraits (transform only, restored
- * after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Void's own: Tier IV
+ * after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Void's own: Tier 4
  * PULLS both portraits toward the black hole (the striker leans in, the struck hero is crushed toward its centre).
  *
  * THE BARRAGE CONTRACT: every orb that lands before the last is a tick (FX and a sound only). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last orb (Tier IV: on the blast).
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last orb (Tier 4: on the blast).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites and strip meshes are pooled per layer, textures painted once per session, and the
@@ -75,7 +75,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
   // The direction the blow ARRIVES from (the last ribbon's dive into the target): the shake and the spray follow it.
   const dir = plan.swirl ? { x: 0, y: 1 } : arrivalDir(last, o.attacker, o.defender);
   const spinDir = o.attacker.x <= o.defender.x ? 1 : -1;
-  // The unit direction from the striker to the struck hero: Tier IV drags the striker along it.
+  // The unit direction from the striker to the struck hero: Tier 4 drags the striker along it.
   const pullDir = dist > 1e-6 ? { x: (o.defender.x - o.attacker.x) / dist, y: (o.defender.y - o.attacker.y) / dist } : { x: 0, y: 0 };
 
   // ── DOM: the numbers (shared) ──
@@ -96,7 +96,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
       headSize: c.headSize, sigilSize: c.sigilSize, motes: c.orbMotes, moteReach: c.orbReach, moteSpin: c.orbSpin,
     }, s, voidSeed(o.total, dist, o.side))
     : null;
-  // Tier V (inherited from Arcana, dormant: no Knockout variant is designed for the Void yet).
+  // Tier 5 (inherited from Arcana, dormant: no Knockout variant is designed for the Void yet).
   scene?.setKoSwirl(plan.ko);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -161,7 +161,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
         }
         break;
       case 'koPulse':
-        // TIER V: the vortex throbs once more before it collapses: a prismatic pulse ring and a deep chime.
+        // TIER 5: the vortex throbs once more before it collapses: a prismatic pulse ring and a deep chime.
         cue(c.sfxChimeClip, c.sfxChimeGain * 0.9, c.sfxChimeRate * 0.8, { lenMs: 700, fadeMs: 260 });
         cue(c.sfxThumpClip, c.sfxThumpGain * 0.9, c.sfxThumpRate - 0.1, { lenMs: 400, fadeMs: 160 });
         scene?.koPulse(o.defender.x, o.defender.y, radius, c.swirlTilt);
@@ -182,7 +182,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
             burst: plan.burst, size: c.explodeSize, ribbons: Math.min(16, c.explodeRibbons), motes: plan.motes, flashAlpha: c.flashAlpha,
             tilt: c.swirlTilt, dir: spinDir, width: plan.width, ko: plan.ko,
           });
-          // TIER V: the Ancient prism layered over the explosion, and the KO sting.
+          // TIER 5: the Ancient prism layered over the explosion, and the KO sting.
           if (plan.ko) {
             scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: c.explodeSize, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
             playKoSting(voices, sound, real);
@@ -195,7 +195,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
           cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
           if (plan.tier >= 3) cue(c.sfxBigClip, c.sfxBigGain, c.sfxBigRate, { lenMs: 700, fadeMs: 250 });
           scene?.impact(o.defender.x, o.defender.y, dir, radius, { tier: plan.tier, k: plan.k, burst: plan.burst, flashAlpha: c.flashAlpha, motes: plan.motes });
-          // TIER V with the vortex tuned off: the prism and the sting still land on the last ribbon.
+          // TIER 5 with the vortex tuned off: the prism and the sting still land on the last ribbon.
           if (plan.ko) {
             scene?.koFlourish(o.defender.x, o.defender.y, radius, { size: 1, tilt: c.swirlTilt, dir: spinDir, width: plan.width, flashAlpha: c.flashAlpha });
             playKoSting(voices, sound, real);
@@ -229,7 +229,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
         sc = 1 + c.heroSwell * Math.max(0, spring(t - plan.fireAt, 4, 70));
         for (const r of plan.ribbons) back += c.recoilPx * px * Math.max(0, spring(t - r.launchAt, 3.5, 55)) * (r.launchAt <= t ? 1 : 0);
       }
-      // TIER IV: the striker itself is dragged toward the black hole as it grows, and springs home on the blast.
+      // TIER 4: the striker itself is dragged toward the black hole as it grows, and springs home on the blast.
       let lean = 0;
       if (plan.swirl && t >= plan.swirlAt) {
         if (t < plan.impactAt) { const u = clamp01((t - plan.swirlAt) / Math.max(1, plan.impactAt - plan.swirlAt)); lean = c.pullPx * px * u * u; }
@@ -266,7 +266,7 @@ export function playHeroVoid(o: HeroVoidOptions): HeroVoidHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // Tier V's slow-mo dip on the explosion: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
+    // Tier 5's slow-mo dip on the explosion: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
     frames: scaledFrames(o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)), () => (seq && !seq.done ? koTimeScale(plan.dip, seq.t) : 1)),
     safetyMs: o.safety !== false ? (plan.endAt + koDipExtraMs(plan.dip)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

@@ -42,7 +42,7 @@ const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 
 const motions = (p: ReturnType<typeof plan>, a = A, d = D, box = BOX): BladeMotion[] => bladeMotions(p, a, d, 80, 80, C, box, 1);
 
 describe('the damage tiers (shared with Blast, Quake and Arcana)', () => {
-  it('the Blades step up on exactly the blows every other style does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('the Blades step up on exactly the blows every other style does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -53,7 +53,7 @@ describe('the damage tiers (shared with Blast, Quake and Arcana)', () => {
     }
   });
 
-  it('the ladder: I ONE blade, II a PAIR, III a fan of FIVE, IV six and the GREATSWORD', () => {
+  it('the ladder: Tier 1 ONE blade, Tier 2 a PAIR, Tier 3 a fan of FIVE, Tier 4 six and the GREATSWORD', () => {
     expect([P1, P2, P3, P4].map((p) => p.blades.length)).toEqual([1, 2, 5, 6]);
     expect([P1, P2, P3, P4].map((p) => p.great !== null)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.great ? 'great' : p.blades.length; }))
@@ -104,7 +104,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('blades');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('blades');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
     // No em dashes in anything a player (or the owner) reads off the tuner.
@@ -138,7 +138,7 @@ describe('the plan', () => {
     expect(P3.blades[4]!.size).toBeGreaterThan(P3.blades[0]!.size);
   });
 
-  it('Tier II is a PAIR from opposite sides of the arc; Tier I one blade, straight to the impact', () => {
+  it('Tier 2 is a PAIR from opposite sides of the arc; Tier 1 one blade, straight to the impact', () => {
     expect(P2.blades.map((b) => b.slot)).toEqual([-1, 1]);
     expect(P2.hits).toHaveLength(1);
     expect(P1.blades).toHaveLength(1);
@@ -146,7 +146,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.blades[0]!.arriveAt);
   });
 
-  it('Tier IV: all six blades are TICKS; the greatsword forms while they fly, hangs, and IT is the impact', () => {
+  it('Tier 4: all six blades are TICKS; the greatsword forms while they fly, hangs, and IT is the impact', () => {
     const kinds = bladesCues(P4, C).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(6);
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -164,7 +164,7 @@ describe('the plan', () => {
     expect(P4.impactAt - Math.max(...P4.blades.map((b) => b.arriveAt))).toBeGreaterThanOrEqual(240); // a clear beat after
   });
 
-  it('every tier escalates: more shake, zoom, hit-stop and burst; II+ dims', () => {
+  it('every tier escalates: more shake, zoom, hit-stop and burst; Tier 2+ dims', () => {
     const ps = [P1, P2, P3, P4];
     for (let i = 1; i < 4; i++) {
       for (const k of ['shakePx', 'zoom', 'burst', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
@@ -176,7 +176,7 @@ describe('the plan', () => {
     // Timed from the charge: the style's own attack, after the shared damage formation (pinned in formation.test.ts).
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.fireAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual(TIMELINE);
-    // About 2 s at Tier I, about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
+    // About 2 s at Tier 1, about 4 s at Tier 4 (owner: "satisfying and chunky, not rushed").
     expect(t(P1)[2]).toBeLessThanOrEqual(2300);
     expect(t(P4)[2]).toBeLessThanOrEqual(4300);
   });
@@ -306,7 +306,7 @@ describe('the camera', () => {
     expect(bladesCameraFocus(P3, P3.impactAt, A, D, C)).toEqual(D);
   });
 
-  it('Tier IV eases out to a wide shot while the greatsword hangs, then its impact punches hardest', () => {
+  it('Tier 4 eases out to a wide shot while the greatsword hangs, then its impact punches hardest', () => {
     const g = P4.great!;
     const loose = g.launchAt + C.greatPullMs;
     const early = bladesCameraAt(P4, C, P4.hangAt + 1);
@@ -386,7 +386,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: six ticks, then the blow lands ONCE, on the greatsword (never on a blade going in)', () => {
+  it('Tier 4: six ticks, then the blow lands ONCE, on the greatsword (never on a blade going in)', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.great).not.toBeNull();
     expect(h.motions).toHaveLength(7);
@@ -496,7 +496,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV stays in the cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 stays in the cap and drains; destroy leaves nothing', () => {
     const s = new HeroBladesScene(TEX, COLORS, LOOK, 1, 42);
     const ms = motions(P4);
     s.startCharge(A.x, A.y, 70, 6, 1);
@@ -522,7 +522,7 @@ describe('the scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('a Tier I blade draws a finite transform every frame (no NaN from summon to stuck)', () => {
+  it('a Tier 1 blade draws a finite transform every frame (no NaN from summon to stuck)', () => {
     const s = new HeroBladesScene(TEX, COLORS, LOOK, 1, 3);
     const [m] = motions(P1);
     s.summon(m!, A, 0);

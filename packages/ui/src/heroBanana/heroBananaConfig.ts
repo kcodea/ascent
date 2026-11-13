@@ -17,19 +17,19 @@
  *  2. FLOURISH. The total sinks into the hero; a golden bloom and a ring open on it, gold motes are drawn in, and the
  *     hero coils back.
  *  3. FLING. Each banana bursts out of the hero with Oona's orange-gold spark burst and a flash, and TUMBLES (the painted
- *     sheet looping at Oona's 41 fps) along a high bowed arc, shedding gold juice sparkles: I one; II a double; III a
+ *     sheet looping at Oona's 41 fps) along a high bowed arc, shedding gold juice sparkles: Tier 1 one; Tier 2 a double; Tier 3 a
  *     barrage of eight on varied arcs.
  *  4. SPLAT. Each banana bursts on the struck portrait into the painted juice splat and Oona's juice burst. Every banana
  *     before the last is a TICK (FX and sound only). The LAST is THE impact: layered splats (one big, the rest round
  *     it), the biggest juice burst, a flash and a ring, the knockback. The consequence (the damage, Armor, Resolve)
  *     lands ONCE, there.
- *  IV. THE ROYAL BANANA. Four quick bananas splat in (ticks). The hero blazes gold (a halo builds, motes pour in), then
+ *  Tier 4. THE ROYAL BANANA. Four quick bananas splat in (ticks). The hero blazes gold (a halo builds, motes pour in), then
  *     flings a GIANT GOLDEN BANANA (the same painted banana, huge, gilded, glowing) high into the air. It HANGS at the top
  *     of its arc (slow, tumbling) while a crown-shaped glint flashes on it and a flat golden target ring locks on to the
  *     struck hero; then it drops fast and SLAMS: a massive layered splat, a RING of splats round it, a golden shockwave,
  *     gold rays, a huge juice burst and a SHOWER of painted bananas bursting up and raining down; then a few splat pops.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). No hit-stop anywhere (owner
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). No hit-stop anywhere (owner
  * 2026-09-28: "it looks like lag"). Flat 2D: every ring and marker is a full circle, never a perspective ellipse. Reduced
  * motion: no bananas, shake or zoom; the numbers fade and the blow lands.
  *
@@ -70,7 +70,7 @@ interface GlobalConfig {
   juiceSpeed: number;
   juiceLifeMs: number;
   juicePx: number;
-  // The royal banana (Tier IV)
+  // The royal banana (Tier 4)
   giantChargeMs: number;
   giantFlightMs: number;
   giantSize: number;
@@ -78,7 +78,7 @@ interface GlobalConfig {
   giantHangY: number;
   giantHang: number;
   giantSplat: number;
-  // The jam (Tier IV): the giant lands ON the struck hero and the striking hero pounds it in
+  // The jam (Tier 4): the giant lands ON the struck hero and the striking hero pounds it in
   slamCount: number;
   dashMs: number;
   slamGapMs: number;
@@ -142,7 +142,7 @@ type ClipKey = (typeof HERO_BANANA_CLIP_KEYS)[number];
 export type HeroBananaStrKey = ColorKey | ClipKey;
 export type HeroBananaNumKey = Exclude<keyof HeroBananaConfig, HeroBananaStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<BananaTierSuffix, [number, number, number, number]> = {
   ChargeMs: [340, 360, 400, 420],
   Shots: [1, 2, 8, 4],
@@ -442,7 +442,7 @@ export interface BananaShotPlan {
   slot: number;
   /** Size multiplier (the last regular banana is a touch bigger; the giant is the giant). */
   size: number;
-  /** Tier IV's royal banana: the GIANT GOLDEN BANANA. */
+  /** Tier 4's royal banana: the GIANT GOLDEN BANANA. */
   giant: boolean;
 }
 
@@ -459,7 +459,7 @@ export interface BananaPlanInput extends AttackTierContext {
 export interface BananaPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The flourish starts: the total sinks into the hero, gold gathers. */
@@ -467,27 +467,27 @@ export interface BananaPlan {
   absorbEnd: number;
   /** The first banana is flung. */
   fireAt: number;
-  /** Every banana, in fling order (Tier IV: the warm-ups, then the giant, last). */
+  /** Every banana, in fling order (Tier 4: the warm-ups, then the giant, last). */
   shots: BananaShotPlan[];
-  /** Tier IV: the royal banana plays. */
+  /** Tier 4: the royal banana plays. */
   giant: boolean;
-  /** Tier IV: the hero blazes gold before the giant (else the impact). */
+  /** Tier 4: the hero blazes gold before the giant (else the impact). */
   glintAt: number;
-  /** Tier IV: the giant hangs at its apex, the crown glint flashes, the target ring locks on (else the impact). */
+  /** Tier 4: the giant hangs at its apex, the crown glint flashes, the target ring locks on (else the impact). */
   hangAt: number;
-  /** Tier IV: the giant lands ON the struck hero and sticks (else the impact). */
+  /** Tier 4: the giant lands ON the struck hero and sticks (else the impact). */
   landAt: number;
-  /** Tier IV: the striking hero dashes across to it (else the impact). */
+  /** Tier 4: the striking hero dashes across to it (else the impact). */
   dashAt: number;
-  /** Tier IV: every slam of the striking hero into the stuck banana; the LAST is the impact (else []). */
+  /** Tier 4: every slam of the striking hero into the stuck banana; the LAST is the impact (else []). */
   slams: number[];
-  /** Tier IV: the striking hero is home again (else the impact). */
+  /** Tier 4: the striking hero is home again (else the impact). */
   homeAt: number;
   /** Bananas that splat BEFORE the impact, sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last banana splats (I-III) or the giant slams (IV). */
+  /** THE consequence beat: the last banana splats (Tiers 1-3) or the giant slams (Tier 4). */
   impactAt: number;
-  /** Tier IV: splat pops round the target after the slam. */
+  /** Tier 4: splat pops round the target after the slam. */
   booms: number[];
   endAt: number;
   size: number;
@@ -503,7 +503,7 @@ export interface BananaPlan {
 /** The whole Banana Barrage, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function bananaPlan(input: BananaPlanInput, c: HeroBananaConfig = cfg): BananaPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = bananaTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -607,7 +607,7 @@ export function bananaCues(p: BananaPlan): BananaCue[] {
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.shots.forEach((s, i) => out.push({ at: s.fireAt, kind: 'fire', i }));
-    // Every regular banana but the last splats as a tick (Tier IV: every regular banana); the last one IS the impact.
+    // Every regular banana but the last splats as a tick (Tier 4: every regular banana); the last one IS the impact.
     const lastRegular = p.giant ? -1 : p.shots.length - 1;
     p.shots.forEach((s, i) => { if (!s.giant && i !== lastRegular) out.push({ at: s.arriveAt, kind: 'hit', i }); });
     if (p.giant) {
@@ -721,8 +721,8 @@ export function splatOffset(p: BananaPlan, i: number, a: Pt, d: Pt, avoid: Pt | 
   const maxSlot = Math.max(1, ...regular.map((x) => Math.abs(x.slot)));
   const spread = n === 1 ? 0 : n === 2 ? 0.8 : 1.6;
   const ang = back + (n === 1 ? 0.2 : (slot / maxSlot) * spread) + jitter(i, 1) * 0.2;
-  // Tight to the centre (owner 2026-09-29: the Tier IV bananas "get sent too far and explode past the hero"): every
-  // banana lands well inside the face, Tier IV's warm-ups tightest of all.
+  // Tight to the centre (owner 2026-09-29: the Tier 4 bananas "get sent too far and explode past the hero"): every
+  // banana lands well inside the face, Tier 4's warm-ups tightest of all.
   const r = (p.giant ? 0.16 : 0.26) + 0.08 * jitter(i, 2);
   return { x: Math.cos(ang) * r, y: Math.sin(ang) * r };
 }
@@ -784,7 +784,7 @@ const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 /**
  * The camera at sequence time `t` (px in the space the points are in). A small push in on the hero through the flourish;
  * a small kick against each fling; a kick ALONG the banana on each splat; on THE impact a punch in and a directional
- * shake. Tier IV builds: the view pushes in on the blazing hero, EASES BACK OUT as the giant climbs (so you see how high
+ * shake. Tier 4 builds: the view pushes in on the blazing hero, EASES BACK OUT as the giant climbs (so you see how high
  * it hangs), pushes in as it drops, then the slam punches hardest with a shake that rings both ways. Deterministic
  * (sines and springs): a replay moves identically. Pure.
  */
@@ -850,7 +850,7 @@ export function bananaCameraAt(p: BananaPlan, c: HeroBananaConfig, t: number, di
 
 /**
  * Where the camera anchors: the ATTACKER through the flourish, following the barrage in flight, the DEFENDER from the
- * first splat on. Tier IV swings back to the blazing hero, then follows the giant down onto the target. A zoom anchored
+ * first splat on. Tier 4 swings back to the blazing hero, then follows the giant down onto the target. A zoom anchored
  * on a point keeps that point still. Pure.
  */
 export function bananaCameraFocus(p: BananaPlan, t: number, a: Pt, d: Pt): Pt {
@@ -864,7 +864,7 @@ export function bananaCameraFocus(p: BananaPlan, t: number, a: Pt, d: Pt): Pt {
   return lerp(a, d, (t - g.fireAt) / Math.max(1, g.flightMs * 0.85));
 }
 
-// ─── the jam (Tier IV, pure) ──────────────────────────────────────────────────────────────────────────────────
+// ─── the jam (Tier 4, pure) ──────────────────────────────────────────────────────────────────────────────────
 
 /**
  * The jam geometry (owner 2026-09-29: "is there any way to make it look like the banana is being jammed into them a bit

@@ -1,16 +1,16 @@
 /**
  * THE HOLY RUNNER: plays one Holy (Consecration) hero attack (the beats are in `heroHolyConfig.ts`) and lands the
- * consequence on its impact beat (the last smite, or Tier IV's eruption under the struck hero). Presentation only: the
+ * consequence on its impact beat (the last smite, or Tier 4's eruption under the struck hero). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on
  * screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Arcana does: one clock (it never pauses), the
  * damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only, restored after),
  * the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Holy's own: the invoke, the sigil,
- * the smites, the spear rain, the Tier IV sword and consecration, its camera and its sound.
+ * the smites, the spear rain, the Tier 4 sword and consecration, its camera and its sound.
  *
  * THE TICK CONTRACT: every smite before the last and every spear is a tick (FX and sound only). The consequence
- * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last smite (Tier IV: on the eruption).
+ * (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last smite (Tier 4: on the eruption).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites are pooled per layer, textures painted once per session and pre-warmed during the
@@ -94,7 +94,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
       swordGlow: c.swordGlow, pathWidth: c.pathWidth, flameHeight: c.flameHeight,
     }, s, holySeed(o.total, dist, o.side))
     : null;
-  // Tier V (owner 2026-10-02): the wave that comes out rolls pink + gold, not just gold.
+  // Tier 5 (owner 2026-10-02): the wave that comes out rolls pink + gold, not just gold.
   scene?.setKoWave(plan.ko);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -115,7 +115,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     if (sound && gain > 0) voices.keep(playBellStrike('attack', { gain, hz, decayMs: real(decayMs), delayMs: real(delayMs) }));
   };
   let tick = 0;
-  // The barrage's own swords (Tier V adds the knockout sword after them; it rings like the last, and louder).
+  // The barrage's own swords (Tier 5 adds the knockout sword after them; it rings like the last, and louder).
   const nb = barrageCount(plan);
   const isKoSword = (i: number): boolean => plan.ko && i >= nb;
 
@@ -193,7 +193,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         bell(c.sfxBellHz * (0.5 + 0.12 * q.i), c.sfxBellGain * (0.5 + 0.4 * k), 900);
         if (w) scene?.swordHit(w.tip, geo.centre, radius, Math.min(q.i, n - 1), n, { dust: c.slamDust, debris: c.slamDebris, shock: c.shockwave, flashAlpha: c.flashAlpha });
         if (ko) {
-          // TIER V: the knockout sword bites dead centre: a low thump under it and a prismatic flare round the hub.
+          // TIER 5: the knockout sword bites dead centre: a low thump under it and a prismatic flare round the hub.
           cue(c.sfxThumpClip, c.sfxThumpGain * 1.3, c.sfxThumpRate - 0.15, { lenMs: 500, fadeMs: 180 });
           bell(c.sfxBellHz * 0.75, c.sfxBellGain, 1200);
           scene?.koSwordHit(geo.centre, radius);
@@ -231,7 +231,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
           bell(c.sfxBellHz, c.sfxBellGain, 1800);
           bell(c.sfxBellHz * 1.5, c.sfxBellGain * 0.5, 1400, 40);
           scene?.eruptFoe(geo.foot, d, radius, { flames: c.flamePillars, flameHeight: 1, burst: plan.burst, motes: plan.motes, flashAlpha: c.flashAlpha });
-          // TIER V: the wider prismatic consecration ring and the KO sting.
+          // TIER 5: the wider prismatic consecration ring and the KO sting.
           if (plan.ko) {
             scene?.koFlourish(geo.foot, d, radius, HOLY_KO.ringScale);
             playKoSting(voices, sound, real);
@@ -281,7 +281,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
         const a = (0.8 + 2.4 * u) * px;
         css = `translate(${(a * Math.sin(t * 0.25)).toFixed(2)}px, ${(a * Math.sin(t * 0.33)).toFixed(2)}px)`;
       } else if (t >= plan.impactAt) {
-        // Smitten from above (IV: heaved up by the eruption): knocked, squashed, springing home.
+        // Smitten from above (Tier 4: heaved up by the eruption): knocked, squashed, springing home.
         const k = spring(t - plan.impactAt, 4.5, 90);
         const knock = c.knockPx * (0.7 + 0.4 * plan.k) * k * px * (plan.sword ? -0.8 : 1);
         const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
@@ -301,7 +301,7 @@ export function playHeroHoly(o: HeroHolyOptions): HeroHolyHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // Tier V's slow-mo dip on the eruption: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
+    // Tier 5's slow-mo dip on the eruption: the frame source hands the ONE clock a scaled step (never 0, never a freeze).
     frames: scaledFrames(o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)), () => (seq && !seq.done ? koTimeScale(plan.dip, seq.t) : 1)),
     safetyMs: o.safety !== false ? (plan.endAt + koDipExtraMs(plan.dip)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

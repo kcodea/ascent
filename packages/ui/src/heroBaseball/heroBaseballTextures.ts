@@ -3,7 +3,7 @@
  * set it reuses for glows, rings, stars, sparks and streaks). Flat 2D, clean shapes; most are light so a sprite tints
  * them:
  *  - BALL: a white baseball with its two red stitched seams (painted in colour: the ball is drawn untinted).
- *  - SHADOW: a soft dark disc (the ball's shadow on the ground, and III's growing shadow on the pitcher).
+ *  - SHADOW: a soft dark disc (the ball's shadow on the ground, and Tier 3's growing shadow on the pitcher).
  *  - BAT: a wooden bat lying along +x, the knob at the left (the handle end is the sprite's anchor).
  *  - PUFF: a round cartoon dust puff, lit top left (the brawl cloud is many of them, tinted dust).
  *  - BURST: a comic "kapow" starburst behind each brawl word.

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * THE BOOMERANG HERO ATTACK (a Rare; owner 2026-09-29): the shared tiers on TWO visual tiers (I-II small, III-IV big, a
- * knockout big); the tuner values; the pure plan (one boomerang small; two on crossing paths big, a double thwack, the
+ * THE BOOMERANG HERO ATTACK (a Rare; owner 2026-09-29): the shared tiers on TWO visual tiers (shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2, a
+ * knockout plays Tier 2); the tuner values; the pure plan (one boomerang at Tier 1; two on crossing paths at Tier 2, a double thwack, the
  * first a tick, the second THE impact, both caught AFTER the blow); the pure flight (out to the face, home to the hand,
  * the pair crossing); the runner on the shared clock (the blow lands exactly ONCE; both directions; replay; finish /
  * cancel; cleanup; the camera applied once); the headless scene; the cosmetic.
@@ -36,7 +36,7 @@ function crosses(p1: { x: number; y: number }, p2: { x: number; y: number }, q1:
 }
 
 describe('the tiers: the shared four onto a Rare\'s two', () => {
-  it('uses the shared thresholds; I-II small, III-IV big; a knockout big', () => {
+  it('uses the shared thresholds; shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2; a knockout plays Tier 2', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).level, `dmg ${d}`).toBe(tierOf(d) >= 3 ? 'big' : 'small');
     expect([1, 2, 3, 4].map((t) => boomerangLevel(t as 1 | 2 | 3 | 4))).toEqual(['small', 'small', 'big', 'big']);
@@ -62,7 +62,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('SMALL: one boomerang, the thwack IS the impact, the catch comes after; short (a Rare)', () => {
+  it('TIER 1: one boomerang, the thwack IS the impact, the catch comes after; short (a Rare)', () => {
     const p = plan(3);
     expect(p.throws).toHaveLength(1);
     expect(p.hits).toEqual([]);
@@ -72,7 +72,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(1800);
   });
 
-  it('BIG: two, a double thwack (a tick then THE impact), both caught after the blow', () => {
+  it('TIER 2: two, a double thwack (a tick then THE impact), both caught after the blow', () => {
     const p = plan(14);
     expect(p.throws).toHaveLength(2);
     expect(p.hits).toEqual([p.throws[0]!.arriveAt]);
@@ -146,7 +146,7 @@ function run(over: Partial<HeroBoomerangOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('BIG: the blow lands ONCE on the second thwack, never the first; both are caught; everything is put back', () => {
+  it('TIER 2: the blow lands ONCE on the second thwack, never the first; both are caught; everything is put back', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(host.querySelector('.hblast.hboomerang')).not.toBeNull();
     f.tick(h.plan.hits[0]! + 8, 4);

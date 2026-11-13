@@ -1,16 +1,16 @@
 /**
  * THE POISON DARTS RUNNER: plays one Poison Darts hero attack (the beats are in `heroPoisonConfig.ts`) and lands the
- * consequence on its impact beat (the last dart thunking in, or Tier IV's toxic burst). Presentation only: the total it
+ * consequence on its impact beat (the last dart thunking in, or Tier 4's toxic burst). Presentation only: the total it
  * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they
  * happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Poison's own: the
- * dart paths, the throw rhythm, the stick, the Tier IV implosion, its camera and its sound.
+ * dart paths, the throw rhythm, the stick, the Tier 4 implosion, its camera and its sound.
  *
- * THE VOLLEY CONTRACT: every dart that thunks in before the last is a tick (FX and sound only; at Tier IV every dart
- * is). The consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last dart (Tier IV: on the
+ * THE VOLLEY CONTRACT: every dart that thunks in before the last is a tick (FX and sound only; at Tier 4 every dart
+ * is). The consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last dart (Tier 4: on the
  * burst).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
@@ -168,7 +168,7 @@ export function playHeroPoison(o: HeroPoisonOptions): HeroPoisonHandle {
           sizzle(c.sfxSizzleGain * 1.3, 900);
           scene?.burst(o.defender.x, o.defender.y, radius, { burst: plan.burst, size: c.burstSize, drops: plan.drops, flashAlpha: c.flashAlpha });
         } else {
-          // THE LAST DART: the thunk, the meat, the splat (bigger per tier), a sizzle; a crack on III.
+          // THE LAST DART: the thunk, the meat, the splat (bigger per tier), a sizzle; a crack on Tier 3.
           cue(c.sfxThunkClip, c.sfxThunkGain, c.sfxThunkRate + 0.05 * hitStep, { tail: c.sfxTailMix, lenMs: 600, fadeMs: 200 });
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { lenMs: c.sfxImpactLenMs, fadeMs: 300 });
           cue(c.sfxMeatClip, c.sfxMeatGain, c.sfxMeatRate - 0.03 * (plan.tier - 1), { lenMs: 400, fadeMs: 150 });

@@ -1,6 +1,6 @@
 /**
  * THE BANANA BARRAGE RUNNER (Oona's Banana Cannon): plays one Banana Barrage hero attack (the beats are in
- * `heroBananaConfig.ts`) and lands the consequence on its impact beat (the last banana splatting, or at Tier IV the
+ * `heroBananaConfig.ts`) and lands the consequence on its impact beat (the last banana splatting, or at Tier 4 the
  * finisher: the fourth slam jamming the giant golden banana into the struck hero). Presentation only: the total it
  * shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they
  * happen.
@@ -9,10 +9,10 @@
  * pauses), the damage formation, the `#stage` camera (on the FX once:
  * stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the barrage's own:
- * King Oona's painted bananas and splats (her card FX's art and clips), the fling rhythm, the Tier IV jam (the STRIKING
+ * King Oona's painted bananas and splats (her card FX's art and clips), the fling rhythm, the Tier 4 jam (the STRIKING
  * PORTRAIT dashes across and pounds the stuck giant, Mortal Kombat style), its camera and its sound.
  *
- * THE BARRAGE CONTRACT: every splat before the last is a tick (FX and sound only; at Tier IV the warm-ups, the landing
+ * THE BARRAGE CONTRACT: every splat before the last is a tick (FX and sound only; at Tier 4 the warm-ups, the landing
  * and every slam before the finisher are). The consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE.
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
@@ -101,7 +101,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const jg = jamGeo(o.attacker, o.defender, aRadius, radius, giantLen, plan.slams.length, c);
   /** The extra juice burst from the `burstStart`-th slam on: 1 on it, 2 on the next, and so on (escalating). */
   const burstOf = (k: number): number => Math.max(0, k + 1 - Math.round(c.burstStart) + 1);
-  // The direction the blow ARRIVES from: the last banana's heading, or (Tier IV) the jam's line.
+  // The direction the blow ARRIVES from: the last banana's heading, or (Tier 4) the jam's line.
   const dir = plan.giant ? jg.u : arrivalDir(last, o.attacker, o.defender);
   const toFoe = jg.u;
 
@@ -237,7 +237,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
   const blowDeg = (Math.atan2(dir.y, dir.x) * 180) / Math.PI;
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    // The dim frames the two heroes at rest; the jam moves the striker across the board, so at Tier IV the dim lifts as
+    // The dim frames the two heroes at rest; the jam moves the striker across the board, so at Tier 4 the dim lifts as
     // the dash starts and both heroes stay bright through every slam (owner 2026-09-29: "make the hero less dimmed").
     nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.giant ? plan.dashAt - 260 : plan.impactAt + 200);
     const cm = bananaCameraAt(plan, c, t, dir);
@@ -252,7 +252,7 @@ export function playHeroBanana(o: HeroBananaOptions): HeroBananaHandle {
     const px = local ? 0.45 : 1;
     let strikerAt: { x: number; y: number; r: number } | null = null;
     if (t >= plan.chargeAt) {
-      // The hero coils back through the flourish and FLINGS toward the target on each banana; at Tier IV it then dashes
+      // The hero coils back through the flourish and FLINGS toward the target on each banana; at Tier 4 it then dashes
       // across and pounds the stuck giant (the jam), then flies home.
       const u = easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.fireAt - plan.chargeAt));
       const settle = plan.giant ? 1 - clamp01((t - plan.dashAt) / 120) : 1 - clamp01((t - plan.impactAt) / 260);

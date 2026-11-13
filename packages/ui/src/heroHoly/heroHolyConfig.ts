@@ -13,11 +13,11 @@
  *  3. THE SIGIL. A golden rune circle flashes onto the struck portrait and spins down onto it (a divine chime).
  *  4. THE SMITE. A pillar of light drops out of the sky onto the sigil: a radiant burst (god rays, a crisp ring, a
  *     short flash), rising motes, a bell strike.
- *     I: one smite (the owner's tier). II: a DOUBLE smite, the first a tick, the second bigger (the sigil gains a
- *     counter-turning outer ring). III: a RAIN OF LIGHT SPEARS thunks in round the target in rhythm, each one planting a
+ *     Tier 1: one smite (the owner's tier). Tier 2: a DOUBLE smite, the first a tick, the second bigger (the sigil gains a
+ *     counter-turning outer ring). Tier 3: a RAIN OF LIGHT SPEARS thunks in round the target in rhythm, each one planting a
  *     consecration SEED on the ground (the ground begins to glow), then the pillar comes down in the middle and every
  *     seed erupts with it.
- *  IV. THE JUDGEMENT, taken to the extreme (owner 2026-09-29: "i want this to be flat and not faux-3d. also, let's take
+ *  Tier 4. THE JUDGEMENT, taken to the extreme (owner 2026-09-29: "i want this to be flat and not faux-3d. also, let's take
  *     this animation to the extreme - have 6 swords fly in from different directions starting with 1, then they ramp up
  *     in speed and the center implodes into that blest towards the enemy"):
  *      1. ONE huge ornate holy sword flies in from off screen along its own heading (a light trail behind it) and strikes
@@ -31,10 +31,10 @@
  *      6. Holy flames and light erupt round the struck portrait: THE blow. The cracked path lingers and fades.
  *     EVERYTHING IS FLAT (the same owner ask): every sigil, ring, rune and crack is a full, top-down shape on the board.
  *
- * THE CONSEQUENCE lands ONCE: on the last smite (I-III) or on the eruption under the struck hero (IV). Every earlier
+ * THE CONSEQUENCE lands ONCE: on the last smite (Tiers 1-3) or on the eruption under the struck hero (Tier 4). Every earlier
  * smite and spear is a tick (FX and sound only). No hit-stop or freeze anywhere (owner 2026-09-28).
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Reduced motion: no pillars,
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Reduced motion: no pillars,
  * sword, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -71,12 +71,12 @@ interface GlobalConfig {
   pillarGlow: number;
   pillarHeight: number;
   raysSize: number;
-  // Spear rain (Tier III)
+  // Spear rain (Tier 3)
   spearSize: number;
   spearRing: number;
   spearSlant: number;
   seedGlow: number;
-  // The sword (Tier IV)
+  // The sword (Tier 4)
   swordSize: number;
   swordLastSize: number;
   swordAlong: number;
@@ -94,7 +94,7 @@ interface GlobalConfig {
   slamDust: number;
   slamDebris: number;
   shockwave: number;
-  // The explosion and the consecrated surge (Tier IV)
+  // The explosion and the consecrated surge (Tier 4)
   explodeSize: number;
   shards: number;
   spreadMs: number;
@@ -157,7 +157,7 @@ type ClipKey = (typeof HERO_HOLY_CLIP_KEYS)[number];
 export type HeroHolyStrKey = ColorKey | ClipKey;
 export type HeroHolyNumKey = Exclude<keyof HeroHolyConfig, HeroHolyStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<HolyTierSuffix, [number, number, number, number]> = {
   ChargeMs: [300, 340, 380, 380],
   SigilMs: [300, 300, 320, 300],
@@ -453,7 +453,7 @@ export function holySpreadMs(distance: number, tunedMs: number): number {
 
 export interface HolySmitePlan { dropAt: number; hitAt: number; size: number }
 export interface HolySpearPlan { launchAt: number; hitAt: number; size: number }
-/** One sword of the Tier IV barrage: when it leaves, when it bites, its size (the last is the biggest). */
+/** One sword of the Tier 4 barrage: when it leaves, when it bites, its size (the last is the biggest). */
 export interface HolySwordPlan { launchAt: number; arriveAt: number; size: number }
 
 export interface HolyPlanInput extends AttackTierContext {
@@ -469,7 +469,7 @@ export interface HolyPlanInput extends AttackTierContext {
 export interface HolyPlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The invoke starts: the total dives into the hero, the halo forms. */
@@ -477,33 +477,33 @@ export interface HolyPlan {
   absorbEnd: number;
   /** The beam of light rises off the hero. */
   prayAt: number;
-  /** The rune circle starts forming on the struck hero (I-III). */
+  /** The rune circle starts forming on the struck hero (Tiers 1-3). */
   sigilAt: number;
   sigilMs: number;
   smites: HolySmitePlan[];
   spears: HolySpearPlan[];
-  /** Tier IV: the six-sword barrage and the consecrated blast. */
+  /** Tier 4: the six-sword barrage and the consecrated blast. */
   sword: boolean;
-  /** Tier IV: every sword's flight, in arrival order (each faster than the last, the gaps shrinking). */
+  /** Tier 4: every sword's flight, in arrival order (each faster than the last, the gaps shrinking). */
   swords: HolySwordPlan[];
   /**
-   * THE KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02): the Huge judgement, remixed. After the barrage, one beat
+   * THE KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02): the Tier 4 judgement, remixed. After the barrage, one beat
    * later, a SEVENTH, giant prismatic sword (the last in `swords`) flies in through a gap in the star of blades and is
    * driven point first into its very middle; the eruption throws a wider prismatic consecration ring; a bigger shake, a slow-mo dip (`dip`) and a KO
    * sting. False / null otherwise.
    */
   ko: boolean;
   dip: KoDip | null;
-  /** Tier IV: the centre implodes (after the last sword bites and a short charge). */
+  /** Tier 4: the centre implodes (after the last sword bites and a short charge). */
   implodeAt: number;
-  /** Tier IV: the release: the flat blast is fired at the struck hero; it arrives under it. */
+  /** Tier 4: the release: the flat blast is fired at the struck hero; it arrives under it. */
   spreadAt: number;
   arriveAt: number;
-  /** Tier IV: the consecrated, cracked path starts fading. */
+  /** Tier 4: the consecrated, cracked path starts fading. */
   fadeAt: number;
   /** Beats that land BEFORE the impact (earlier smites, spears): the ticks. Sequence ms. */
   hits: number[];
-  /** THE consequence beat: the last smite (I-III) or the eruption under the struck hero (IV). */
+  /** THE consequence beat: the last smite (Tiers 1-3) or the eruption under the struck hero (Tier 4). */
   impactAt: number;
   endAt: number;
   pillarWidth: number;
@@ -518,7 +518,7 @@ export interface HolyPlan {
 /** The whole Holy attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = holyTierDials(tier, c);
   const k = (tier - 1) / 3;
   const empty = { smites: [] as HolySmitePlan[], spears: [] as HolySpearPlan[], hits: [] as number[] };
@@ -557,7 +557,7 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
       swords.push({ launchAt: arrive - flight, arriveAt: arrive, size });
     }
     if (isKnockoutVariant(input)) {
-      // TIER V: a beat after the frenzy, the knockout sword: bigger than the last, driven into the very middle.
+      // TIER 5: a beat after the frenzy, the knockout sword: bigger than the last, driven into the very middle.
       arrive += HOLY_KO.swordGapMs;
       swords.push({ launchAt: arrive - HOLY_KO.swordFlightMs, arriveAt: arrive, size: c.swordLastSize * HOLY_KO.swordSize });
     }
@@ -567,7 +567,7 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
     impactAt = arriveAt + c.gatherMs;
     fadeAt = impactAt + 180;
   } else {
-    // Spears first (III), each a tick; then the smites, every one but the last a tick.
+    // Spears first (Tier 3), each a tick; then the smites, every one but the last a tick.
     let t = sigilAt + sigilMs * (T.Spears > 0 ? 0.6 : 0.8);
     const nSpears = clamp(Math.round(T.Spears), 0, HOLY_CAPS.spears);
     for (let i = 0; i < nSpears; i++) {
@@ -603,14 +603,14 @@ export function holyPlan(input: HolyPlanInput, c: HeroHolyConfig = cfg): HolyPla
   };
 }
 
-/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Huge). */
+/** The Knockout variant's own numbers (fixed, not tuned: a small remix of the tuned Tier 4). */
 export const HOLY_KO = {
   /** The beat between the barrage's last bite and the knockout sword's. */
   swordGapMs: 300,
   swordFlightMs: 230,
   /** x the barrage's last sword. */
   swordSize: 1.35,
-  /** How much wider the eruption's prismatic consecration ring reaches than the Huge one's. */
+  /** How much wider the eruption's prismatic consecration ring reaches than the Tier 4 one's. */
   ringScale: 1.5,
 } as const;
 
@@ -628,7 +628,7 @@ export function holySwordAngles(p: HolyPlan, c: HeroHolyConfig): number[] {
   return heads;
 }
 
-/** Tier V's knockout sword heading (radians): half a barrage step round from the first sword. Pure. */
+/** Tier 5's knockout sword heading (radians): half a barrage step round from the first sword. Pure. */
 export function koSwordAngle(n: number, c: HeroHolyConfig): number {
   return ((c.swordAngle + 180 / Math.max(1, n)) * Math.PI) / 180;
 }
@@ -680,16 +680,16 @@ export interface HolyRune { at: Pt; u: number; kind: number; rot: number; pillar
 export interface HolyGeo {
   /** Where the blast strikes and the flames erupt: the struck portrait's centre (flat: no ground under it). */
   foot: Pt;
-  /** I-III: where each spear flies. */
+  /** Tiers 1-3: where each spear flies. */
   spears: SpearPath[];
-  /** IV: the centre of the board, where every sword converges and the blast is released. */
+  /** Tier 4: the centre of the board, where every sword converges and the blast is released. */
   centre: Pt;
-  /** IV: each sword's flight: from off screen (`from`), its point planted by the centre (`tip`), its length. */
+  /** Tier 4: each sword's flight: from off screen (`from`), its point planted by the centre (`tip`), its length. */
   swords: { from: Pt; tip: Pt; len: number; ang: number }[];
-  /** IV: the consecration's path, the sword to the struck hero's foot, with the runes along it. */
+  /** Tier 4: the consecration's path, the sword to the struck hero's foot, with the runes along it. */
   path: { a: Pt; b: Pt; len: number; ang: number };
   runes: HolyRune[];
-  /** IV: the radiant cracks the surge tears along the path: the main one (first) end to end, two thinner ones beside it. */
+  /** Tier 4: the radiant cracks the surge tears along the path: the main one (first) end to end, two thinner ones beside it. */
   cracks: Pt[][];
 }
 
@@ -745,7 +745,7 @@ export function holyGeo(p: HolyPlan, a: Pt, d: Pt, radius: number, c: HeroHolyCo
   const swords = p.swords.map((w, i) => {
     const ang = heads[i]!;
     const ux = Math.cos(ang), uy = Math.sin(ang);
-    // Tier V's knockout sword plants its point IN the centre (the middle of the star), not round it.
+    // Tier 5's knockout sword plants its point IN the centre (the middle of the star), not round it.
     const hub = p.ko && i === p.swords.length - 1 ? 0 : radius * c.swordPlant;
     const len = 300 * unit * c.swordSize * w.size;
     return { from: { x: centre.x + ux * far, y: centre.y + uy * far }, tip: { x: centre.x + ux * hub, y: centre.y + uy * hub }, len, ang };
@@ -790,7 +790,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero through the invoke; a
- * small kick down on each tick; on THE smite a punch in and a shake that follows the pillar DOWN. Tier IV pushes in
+ * small kick down on each tick; on THE smite a punch in and a shake that follows the pillar DOWN. Tier 4 pushes in
  * toward the sword through its hang, punches on the slam (hardest, straight down), rides the consecration, and punches
  * again on the eruption. Deterministic (sines and springs): a replay moves identically. Pure.
  */
@@ -848,7 +848,7 @@ export function holyCameraAt(p: HolyPlan, c: HeroHolyConfig, t: number): { zoom:
 }
 
 /**
- * Where the camera anchors: the ATTACKER through the invoke, the DEFENDER from the smite's drop on (I-III). Tier IV: the
+ * Where the camera anchors: the ATTACKER through the invoke, the DEFENDER from the smite's drop on (Tiers 1-3). Tier 4: the
  * attacker, then the SWORD through its hang and slam, then along the consecration to the defender. A zoom anchored on a
  * point keeps that point still. Pure.
  */

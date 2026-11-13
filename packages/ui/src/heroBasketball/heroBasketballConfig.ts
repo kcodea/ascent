@@ -6,21 +6,21 @@
  * Owner 2026-09-29: "branch off and make a basketball attack animation. tier 1 = basketball shot from place / tier 2 =
  * a fadeaway, the attacker hero slides to mid court, then slides to the left or right kind backwards and shoots a
  * basketball at the target / ... add a whistle and Ooo's sound effect as well as basketball sounds and sneaker sounds".
- * Owner review the same day (the first III and IV were a slam dunk and a bounce-off alley-oop): "the fadeaway is the
+ * Owner review the same day (the first Tiers 3 and 4 were a slam dunk and a bounce-off alley-oop): "the fadeaway is the
  * best, let's make the tier 3 another like it - let's have the attacker scoot straight upwards and get a pass thrown to
  * him from off-screen from the right side and he pump fakes, dribbles back and then pulls up for a 3. for the huge self
  * alley oop - have the attacker chuck the ball from its starting position, and then run up and leap from half court,
  * catching the ball and massively slamming on the target."
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I THE JUMPER: a dribble where it stands, a small jump, a high arcing shot with backspin that swishes through a net
+ * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays Tier 4):
+ *  - Tier 1 THE JUMPER: a dribble where it stands, a small jump, a high arcing shot with backspin that swishes through a net
  *    on the target (THE impact), and the ball drops away.
- *  - II THE FADEAWAY: the PORTRAIT dribbles out to mid court, pushes off BACKWARDS and to one side (the side with more
+ *  - Tier 2 THE FADEAWAY: the PORTRAIT dribbles out to mid court, pushes off BACKWARDS and to one side (the side with more
  *    room), releases a high arc at the top of the fade, the ball swishes (THE impact), and it slides home.
- *  - III THE PULL-UP THREE: the portrait SCOOTS straight up court from its slot, a PASS flies in from off the RIGHT edge
+ *  - Tier 3 THE PULL-UP THREE: the portrait SCOOTS straight up court from its slot, a PASS flies in from off the RIGHT edge
  *    of the screen and it catches it, PUMP FAKES, DRIBBLES BACK, and PULLS UP for a three: a long high arc that swishes
  *    (THE impact, a bigger swish and the crowd's "ooh"), then it slides home.
- *  - IV THE SELF ALLEY-OOP, as it is now (owner reviews: "he drills a 3 then rotates up and gets passed a ball and drills
+ *  - Tier 4 THE SELF ALLEY-OOP, as it is now (owner reviews: "he drills a 3 then rotates up and gets passed a ball and drills
  *    another, than rotates back to baseline and does the slam dunk sequence"; "the slam still has a 'first hit' thing that
  *    i dont want, add more epic emphasis to the leap, slow down that part where he catches it, then one fluid slam motion
  *    to deal the dmg and blast pixi"): two pull-up threes (from the slot, then from a spot up court off a pass; swishes
@@ -40,15 +40,15 @@
  * VARIETY (owner review of #1867: "add variety to the fadeaway and the catch dribble shot ... make like 3 variations that
  * randomly roll each time ... have it go "slow mo" as he pulls up and releases the shot ... add "slow mo" to the alley
  * oop when he catches it and then ease it back in for an aggressive and satisfying slam"):
- *  - II rolls one of three DRIBBLE MOVES on the way to mid court: a behind-the-back wrap (the ball circles round the
+ *  - Tier 2 rolls one of three DRIBBLE MOVES on the way to mid court: a behind-the-back wrap (the ball circles round the
  *    portrait and is hidden while it passes behind it), a crossover (quick low bounces side to side), a spin move (the
  *    portrait spins a full turn with the ball orbiting it).
- *  - III rolls one of three SPOTS: straight up court, up to the left wing (the pass from the left edge) or up to the right
+ *  - Tier 3 rolls one of three SPOTS: straight up court, up to the left wing (the pass from the left edge) or up to the right
  *    corner (the pass from the right edge).
  *  - The roll is `variantOf(rollSeed)`: a stable per-blow seed (the run seed and the round), so a replay rolls the same.
  *    The DEV tuner's "Variation" row forces one.
- *  - SLOW MO (`basketballTimeScale`): III eases the whole attack's clock down around the release and back up as the ball
- *    flies; IV eases it down around the catch at the top of the leap and back in, a little FASTER than normal through the
+ *  - SLOW MO (`basketballTimeScale`): Tier 3 eases the whole attack's clock down around the release and back up as the ball
+ *    flies; Tier 4 eases it down around the catch at the top of the leap and back in, a little FASTER than normal through the
  *    slam. A smooth ramp that never reaches 0 (never a freeze); everything reads the one clock, so it all slows together,
  *    and the blow still lands once, on its beat.
  *
@@ -173,7 +173,7 @@ export const HERO_BASKETBALL_CLIP_KEYS = [
 export type HeroBasketballStrKey = (typeof HERO_BASKETBALL_COLOR_KEYS)[number] | (typeof HERO_BASKETBALL_CLIP_KEYS)[number] | 'variation';
 export type HeroBasketballNumKey = Exclude<keyof HeroBasketballConfig, HeroBasketballStrKey>;
 
-/** Per tier: [I, II, III, IV]. A dial a tier's move does not use is ignored there (the tuner says which). */
+/** Per tier: [Tiers 1, 2, 3, 4]. A dial a tier's move does not use is ignored there (the tuner says which). */
 const TIER_DEFAULTS: Record<BasketballTierSuffix, [number, number, number, number]> = {
   ReadyMs: [120, 110, 100, 100],
   Dribbles: [1, 2, 2, 0],
@@ -396,7 +396,7 @@ export function basketballTierDials(tier: TierNum, c: HeroBasketballConfig = sto
 
 export type BasketballVariant = 1 | 2 | 3;
 export const BASKETBALL_VARIANTS: readonly BasketballVariant[] = [1, 2, 3];
-/** II's dribble moves and III's spots, by variant. */
+/** Tier 2's dribble moves and Tier 3's spots, by variant. */
 export const FADEAWAY_MOVES: Record<BasketballVariant, string> = { 1: 'behind-the-back wrap', 2: 'crossover', 3: 'spin move' };
 export const THREE_SPOTS: Record<BasketballVariant, string> = { 1: 'straight up court', 2: 'the left wing', 3: 'the right corner' };
 
@@ -417,7 +417,7 @@ export interface BasketballPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
-  /** Which variation (II's dribble move, III's spot). Default 1. */
+  /** Which variation (Tier 2's dribble move, Tier 3's spot). Default 1. */
   variant?: BasketballVariant;
 }
 
@@ -426,7 +426,7 @@ export interface BasketballPlan {
   tier: TierNum;
   kind: BasketballKind;
   variant: BasketballVariant;
-  /** II: the dribble move's window (the wrap, the crossover, the spin). */
+  /** Tier 2: the dribble move's window (the wrap, the crossover, the spin). */
   flairAt: number | null;
   flairEnd: number | null;
   k: number;
@@ -435,7 +435,7 @@ export interface BasketballPlan {
   absorbEnd: number;
   /** The move starts (after the ready beat). */
   startAt: number;
-  /** The run: II the slide to mid court, III the scoot up court, IV the quick run-up before the leap. (I stands still.) */
+  /** The run: Tier 2 the slide to mid court, Tier 3 the scoot up court, Tier 4 the quick run-up before the leap. (Tier 1 stands still.) */
   approachAt: number;
   approachEnd: number;
   /** When the ball hits the floor on each dribble. */
@@ -443,39 +443,39 @@ export interface BasketballPlan {
   dribbleMs: number;
   /** Sneaker squeaks (the push-offs, the stops, the step back, the take-off, the slide home). */
   squeaks: number[];
-  /** III: the pass enters from off the right edge; null elsewhere. */
+  /** Tier 3: the pass enters from off the right edge; null elsewhere. */
   passAt: number | null;
-  /** III: the pass is caught; IV: the bounced ball is caught at the top of the leap. Null for I / II. */
+  /** Tier 3: the pass is caught; Tier 4: the bounced ball is caught at the top of the leap. Null for Tiers 1 / 2. */
   catchAt: number | null;
-  /** III: the pump fake (up, and back down). */
+  /** Tier 3: the pump fake (up, and back down). */
   pumpAt: number | null;
   pumpEnd: number | null;
-  /** III: the dribble back (the step back from the defender). */
+  /** Tier 3: the dribble back (the step back from the defender). */
   backAt: number | null;
   backEnd: number | null;
   /** The crouch before the jump, and the jump itself. */
   gatherAt: number;
   takeoffAt: number;
-  /** I-III: the shot leaves the hands (at the top of the jump); IV: the throw at the target. */
+  /** Tiers 1-3: the shot leaves the hands (at the top of the jump); Tier 4: the throw at the target. */
   releaseAt: number;
-  /** The top of the jump (IV: the catch). */
+  /** The top of the jump (Tier 4: the catch). */
   apexAt: number;
-  /** I-III: back on the floor. IV: the slam. */
+  /** Tiers 1-3: back on the floor. Tier 4: the slam. */
   landAt: number;
-  /** IV: the chest pass BANGS the backboard (the board wobbles; the target does not react; no damage). */
+  /** Tier 4: the chest pass BANGS the backboard (the board wobbles; the target does not react; no damage). */
   bounceAt: number | null;
-  /** IV: the deep crouch before the launch (the charge-up). */
+  /** Tier 4: the deep crouch before the launch (the charge-up). */
   crouchAt: number | null;
   /**
-   * IV's OPENING (owner: "add to huge -> he drills a 3 then rotates up and gets passed a ball and drills another, than
+   * Tier 4's OPENING (owner: "add to huge -> he drills a 3 then rotates up and gets passed a ball and drills another, than
    * rotates back to baseline and does the slam dunk sequence"): a pull-up three from the slot, a rotation up court to the
    * rolled spot and a pass, a second three, the rotation back to the slot. The swishes are ticks (no damage). Null when
-   * `oopThrees` is 0 (and for I-III).
+   * `oopThrees` is 0 (and for Tiers 1-3).
    */
   pre: OopPre | null;
-  /** IV: the slam starts down. */
+  /** Tier 4: the slam starts down. */
   slamAt: number | null;
-  /** THE impact: the swish (I-III) or the slam (IV). The blow lands here, once. */
+  /** THE impact: the swish (Tiers 1-3) or the slam (Tier 4). The blow lands here, once. */
   impactAt: number;
   /** The portrait heads home, and is home. */
   homeAt: number;
@@ -498,7 +498,7 @@ export interface BasketballPlan {
 /** The whole attack, in base ms. Pure and deterministic. */
 export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConfig = store.get()): BasketballPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const kind = basketballKind(tier);
   const L = basketballTierDials(tier, c);
   const k = (tier - 1) / 3;
@@ -586,14 +586,14 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
       gatherAt, takeoffAt, releaseAt, apexAt, landAt, impactAt, homeAt, homeEnd, endAt: Math.max(homeEnd, impactAt + L.HoldMs),
     };
   }
-  // IV's OPENING: up to two pull-up threes (the first from the slot; the second after a rotation up court and a pass),
+  // Tier 4's OPENING: up to two pull-up threes (the first from the slot; the second after a rotation up court and a pass),
   // then the rotation back to the slot. Each swish is a tick.
   const nThrees = clamp(Math.round(c.oopThrees), 0, 2);
   const T3 = basketballTierDials(3, c);
   const shotAt = (from: number): OopShot => {
     const gatherAt = from;
     const takeoffAt = gatherAt + c.gatherMs;
-    const leap = T3.LeapMs * 0.8; // a quicker pull-up than III's own (they are the opening act)
+    const leap = T3.LeapMs * 0.8; // a quicker pull-up than Tier 3's own (they are the opening act)
     const apexAt = takeoffAt + leap * 0.45;
     return { gatherAt, takeoffAt, releaseAt: apexAt, apexAt, landAt: takeoffAt + leap * 0.85, swishAt: apexAt + c.oopShotMs };
   };
@@ -648,7 +648,7 @@ export function basketballPlan(input: BasketballPlanInput, c: HeroBasketballConf
   };
 }
 
-/** One pull-up three in IV's opening. */
+/** One pull-up three in Tier 4's opening. */
 export interface OopShot { gatherAt: number; takeoffAt: number; releaseAt: number; apexAt: number; landAt: number; swishAt: number }
 export interface OopPre {
   shots: OopShot[];
@@ -752,26 +752,26 @@ export interface BasketballGeo {
   dist: number;
   /** Every point below is SCREEN px. */
   mid: Pt;
-  /** II: the fadeaway's landing spot (backwards and to `side`). */
+  /** Tier 2: the fadeaway's landing spot (backwards and to `side`). */
   fade: Pt;
   side: 1 | -1;
-  /** III: where the scoot up court stops, where the pass enters (off the right edge), and the step back's spot. */
+  /** Tier 3: where the scoot up court stops, where the pass enters (off the right edge), and the step back's spot. */
   scoot: Pt;
   passFrom: Pt;
   back: Pt;
-  /** IV: where the quick run-up ends and it leaps from. */
+  /** Tier 4: where the quick run-up ends and it leaps from. */
   half: Pt;
   /** Unit from the target toward the catch ("up", swung round toward the middle when a frame edge is in the way). */
   up: Pt;
-  /** IV: the ball caught in the air at half court, and the portrait catching it there. */
+  /** Tier 4: the ball caught in the air at half court, and the portrait catching it there. */
   ballApex: Pt;
   catchAt: Pt;
-  /** IV: the portrait on the slam (overlapping the target; the BALL hits the target's centre), and the rebound. */
+  /** Tier 4: the portrait on the slam (overlapping the target; the BALL hits the target's centre), and the rebound. */
   contact: Pt;
   rebound: Pt;
   /** The hoop's RIM: always the struck portrait's centre (the backboard is mounted behind it: `hoopLayout(rimAt, ...)`). */
   rimAt: Pt;
-  /** IV: where the chest pass bangs the backboard (its upper area, toward the thrower's side). */
+  /** Tier 4: where the chest pass bangs the backboard (its upper area, toward the thrower's side). */
   bang: Pt;
 
   /** The target's centre: where every shot and slam lands. */
@@ -821,16 +821,16 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
   const clear = (aR + dR) * 1.2; // never closer than this to the target on a run
   const along = (s: number): Pt => ({ x: a.x + u.x * s, y: a.y + u.y * s });
   const mid = clampToFrame(along(clamp(dist * c.midCourt, 0, Math.max(0, dist - clear))), frame, m);
-  // II: backwards (away from the target) and to the side with more room.
+  // Tier 2: backwards (away from the target) and to the side with more room.
   const fadeAt = (sg: number): Pt => ({ x: mid.x - u.x * c.fadeBack * aR + n.x * sg * c.fadeSide * aR, y: mid.y - u.y * c.fadeBack * aR + n.y * sg * c.fadeSide * aR });
   const room = (p: Pt): number => (frame ? Math.min(p.x - frame.x0, frame.x1 - p.x, p.y - frame.y0, frame.y1 - p.y) : 0);
   const midX = frame ? (frame.x0 + frame.x1) / 2 : a.x;
   const r1 = room(fadeAt(1)), r2 = room(fadeAt(-1));
   const side: 1 | -1 = Math.abs(r1 - r2) > 1 ? (r1 >= r2 ? 1 : -1) : ((fadeAt(1).x - mid.x) * (midX - mid.x) >= 0 ? 1 : -1);
   const fade = clampToFrame(fadeAt(side), frame, m);
-  // III: STRAIGHT up court (screen up for you at the bottom; screen down for a foe striking from the top).
+  // Tier 3: STRAIGHT up court (screen up for you at the bottom; screen down for a foe striking from the top).
   const courtUp = dy <= 0 ? -1 : 1;
-  // III's spot (rolled): straight up court, up to the left wing, or up to the right corner.
+  // Tier 3's spot (rolled): straight up court, up to the left wing, or up to the right corner.
   const sd = variant === 2 ? { x: -0.72, y: 0.7 } : variant === 3 ? { x: 0.8, y: 0.6 } : { x: 0, y: 1 };
   const reachUp = aR * c.scootUp * (variant === 1 ? 1 : 1.15);
   const scoot = clampToFrame({ x: a.x + sd.x * reachUp, y: a.y + courtUp * sd.y * reachUp }, frame, aR * 1.05);
@@ -841,9 +841,9 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
     y: scoot.y + aR * c.passEntry,
   };
   const back = clampToFrame({ x: scoot.x - u.x * aR * c.dribbleBack, y: scoot.y - u.y * aR * c.dribbleBack }, frame, aR * 1.05);
-  // IV: the run-up spot, and the catch "above" the target (screen up, swung toward the middle when an edge is in the way).
+  // Tier 4: the run-up spot, and the catch "above" the target (screen up, swung toward the middle when an edge is in the way).
   const half = clampToFrame(along(clamp(dist * c.halfCourt, 0, Math.max(0, dist - clear))), frame, m);
-  // IV: the catch IN THE AIR AT HALF COURT (the portrait lifted a little above the floor there, the ball just above its
+  // Tier 4: the catch IN THE AIR AT HALF COURT (the portrait lifted a little above the floor there, the ball just above its
   // head); `up` points from the target back toward it (the ball is cocked back on that side, and the slam flies along it).
   const halfPt = clampToFrame(along(dist * 0.5), frame, m);
   const catchPt = clampToFrame({ x: halfPt.x, y: halfPt.y - aR * 0.35 }, frame, m * 0.85);
@@ -856,7 +856,7 @@ export function basketballGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame
   // THE HOOP, ONE ASSEMBLY, ALWAYS ON THE STRUCK PORTRAIT (owner: "the backboard on the slam is not behind the rim, it's
   // broken and offset", then "the hoop should be like in the second image, on the enemy player"): the rim on the target's
   // centre, the backboard behind it with the rim on its lower centre, the net hanging from the rim, at every tier and in
-  // both directions. IV's chest pass bangs its backboard (the board wobbles; the portrait does not react).
+  // both directions. Tier 4's chest pass bangs its backboard (the board wobbles; the portrait does not react).
   const rimAt = { ...d };
   const hoop = hoopLayout(rimAt, dR, c.hoopSize);
   const sideX = Math.abs(a.x - rimAt.x) > 2 ? Math.sign(a.x - rimAt.x) : 1;
@@ -1009,10 +1009,10 @@ export function basketballPose(p: BasketballPlan, segs: readonly Seg[], c: HeroB
     air,
     squash: 0,
   };
-  // The squash: on the landing (I-III) and on the slam (IV).
+  // The squash: on the landing (Tiers 1-3) and on the slam (Tier 4).
   const land = p.kind === 'alleyoop' ? p.impactAt : p.landAt;
   if (t >= land) pose.squash = c.squash * 0.8 * Math.max(0, spring(t - land, 4, 70));
-  // IV's crouch squashes the portrait down (the charge-up), and the launch springs it tall for a moment.
+  // Tier 4's crouch squashes the portrait down (the charge-up), and the launch springs it tall for a moment.
   if (p.crouchAt !== null && t >= p.crouchAt && t < p.takeoffAt) pose.squash += c.crouchSquash * easeOutCubic((t - p.crouchAt) / Math.max(1, p.takeoffAt - p.crouchAt));
   if (p.crouchAt !== null && t >= p.takeoffAt && t < p.catchAt!) pose.squash -= c.crouchSquash * 0.8 * Math.max(0, spring(t - p.takeoffAt, 3, 90));
   if (t >= p.homeEnd && p.homeEnd > p.homeAt) pose.squash += c.squash * 0.4 * Math.max(0, spring(t - p.homeEnd, 4, 60));
@@ -1073,7 +1073,7 @@ export function basketballBall(x: BallCtx, t: number): BallState {
     const upd = p.kind === 'alleyoop' && tt >= (p.catchAt ?? Infinity) ? g.up : { x: 0, y: -1 };
     const ob = overBlend(p, tt);
     const fx = g.u.x * aR * 0.8, fy = g.u.y * aR * 0.8;
-    // III's pump fake lifts the ball straight up from the hands; every real shot or slam cocks it over the head.
+    // Tier 3's pump fake lifts the ball straight up from the hands; every real shot or slam cocks it over the head.
     const pumping = p.kind === 'three' && tt < p.gatherAt;
     const ox = pumping ? fx : upd.x * aR * 0.8 * q.scale, oy = pumping ? fy - aR * c.pumpLift : upd.y * aR * 0.8 * q.scale;
     let bx = px + lerp(fx, ox, ob);
@@ -1081,7 +1081,7 @@ export function basketballBall(x: BallCtx, t: number): BallState {
     let squash = 0;
     let alpha = 1;
     let scaleK = 1;
-    // II's DRIBBLE MOVE (inside its window): the wrap, the crossover, or the spin.
+    // Tier 2's DRIBBLE MOVE (inside its window): the wrap, the crossover, or the spin.
     if (p.kind === 'fadeaway' && p.flairAt !== null && tt > p.flairAt && tt < p.flairEnd!) {
       const u = (tt - p.flairAt) / Math.max(1, p.flairEnd! - p.flairAt);
       const a0 = Math.atan2(g.u.y, g.u.x);
@@ -1218,7 +1218,7 @@ export function slowWindow(p: BasketballPlan, c: HeroBasketballConfig): { a: num
 }
 
 /**
- * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the release, IV around the catch and then
+ * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). Tier 3 slows around the release, Tier 4 around the catch and then
  * runs a touch FAST through the slam. A smooth ramp, always > 0: never a freeze. Pure.
  */
 export function basketballTimeScale(p: BasketballPlan, c: HeroBasketballConfig, t: number): number {
@@ -1242,7 +1242,7 @@ export function slowExtraMs(p: BasketballPlan, c: HeroBasketballConfig): number 
 
 // ─── the hoop (pure) ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** The hoop's opacity and the rim's rattle (a tilt, radians); IV's backboard is gone at the slam (it shatters). Where it
+/** The hoop's opacity and the rim's rattle (a tilt, radians); Tier 4's backboard is gone at the slam (it shatters). Where it
  * hangs is the geometry's (`rimAt` / `hit`) and its shape is `hoopLayout`. */
 export function hoopAt(p: BasketballPlan, t: number): { alpha: number; rattle: number; board: boolean; wobble: number } {
   if (p.reduced) return { alpha: 0, rattle: 0, board: false, wobble: 0 };
@@ -1254,7 +1254,7 @@ export function hoopAt(p: BasketballPlan, t: number): { alpha: number; rattle: n
   const shake = p.kind === 'alleyoop' ? 0.22 : 0.05;
   const rattle = (t >= p.impactAt ? shake * spring(t - p.impactAt, 9, 180) : 0)
 
-  // IV's chest pass bangs the backboard: the board (only) wobbles.
+  // Tier 4's chest pass bangs the backboard: the board (only) wobbles.
   const wobble = p.bounceAt !== null && t >= p.bounceAt && t < p.impactAt ? 0.09 * spring(t - p.bounceAt, 7, 160) : 0;
   return { alpha: fadeIn * (1 - out), rattle, board: p.kind !== 'alleyoop' || t < p.impactAt, wobble };
 }
@@ -1262,8 +1262,8 @@ export function hoopAt(p: BasketballPlan, t: number): { alpha: number; rattle: n
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The camera: it pushes in on the target while the shot flies (I-III) or through the leap (IV), punches and shakes on
- * the impact along the blow, and IV rumbles the whole board. Pure.
+ * The camera: it pushes in on the target while the shot flies (Tiers 1-3) or through the leap (Tier 4), punches and shakes on
+ * the impact along the blow, and Tier 4 rumbles the whole board. Pure.
  */
 export function basketballCameraAt(p: BasketballPlan, c: HeroBasketballConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };

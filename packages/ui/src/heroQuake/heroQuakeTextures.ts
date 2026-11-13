@@ -117,7 +117,7 @@ function paintScorch(D: number): HTMLCanvasElement | null {
 }
 
 /**
- * THE BOULDER (tiers I-III): one big faceted chunk, the hero element of the throw. Nine facets lit from the top left
+ * THE BOULDER (tiers 1-3): one big faceted chunk, the hero element of the throw. Nine facets lit from the top left
  * (a bright face, two mid faces, a shadowed underside), a few dark fracture lines, and a THICK dark outline so it reads
  * as a bold silhouette on any board. Grayscale, tinted at draw.
  */

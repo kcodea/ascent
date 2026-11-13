@@ -3,7 +3,7 @@
  * THE BACKSTAB HERO ATTACK (a Rare; owner 2026-09-29: "portrait fades and attacks from behind the target back towards
  * the player portrait and settles. the larger version can do a "normal" lunge attack then vanish into smoke and hit from
  * the side, then vanish and hit from behind again"): the shared tiers on TWO visual tiers; the tuner values; the pure
- * plan (small: fade, behind, stab; big: lunge tick, side tick, behind impact); the geometry (behind is PAST the target,
+ * plan (Tier 1: fade, behind, stab; Tier 2: lunge tick, side tick, behind impact); the geometry (behind is PAST the target,
  * the side is off its flank, both kept on screen, every stab drives at the target); the pure pose (hidden in the
  * shadows, visible at each strike, home at rest); the runner (the blow lands exactly ONCE; the portrait's transform,
  * opacity and z-order restored exactly on the end, finish and cancel; the camera applied once); the scene; the cosmetic.
@@ -32,7 +32,7 @@ const FRAME = { x0: 0, y0: 0, x1: 1920, y1: 1080 };
 const LUNGE: LungeGeo = { back: { x: 0, y: 60 }, strike: { x: 0, y: -560 }, tilt: 6, swell: 1.2, ease: (u) => u * u };
 
 describe('the tiers: the shared four onto a Rare\'s two', () => {
-  it('uses the shared thresholds; I-II small, III-IV big; a knockout big', () => {
+  it('uses the shared thresholds; shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2; a knockout plays Tier 2', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).level, `dmg ${d}`).toBe(tierOf(d) >= 3 ? 'big' : 'small');
     expect([1, 2, 3, 4].map((t) => backstabLevel(t as 1 | 2 | 3 | 4))).toEqual(['small', 'small', 'big', 'big']);
@@ -57,7 +57,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('SMALL: fade out of the slot, step out behind, ONE stab (THE impact), home and settle', () => {
+  it('TIER 1: fade out of the slot, step out behind, ONE stab (THE impact), home and settle', () => {
     const p = plan(3);
     expect(p.lunge).toBeNull();
     expect(p.blinks.map((b) => b.spot)).toEqual(['behind']);
@@ -68,7 +68,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(1800);
   });
 
-  it('BIG: a lunge (tick), a stab from the side (tick), a stab from BEHIND (THE impact), in that order', () => {
+  it('TIER 2: a lunge (tick), a stab from the side (tick), a stab from BEHIND (THE impact), in that order', () => {
     const p = plan(14);
     expect(p.lunge).not.toBeNull();
     expect(p.blinks.map((b) => b.spot)).toEqual(['side', 'behind']);
@@ -133,7 +133,7 @@ describe('the geometry', () => {
 });
 
 describe('the pose', () => {
-  it('SMALL: visible at rest, HIDDEN in the shadows, visible striking from behind, home at rest when it ends', () => {
+  it('TIER 1: visible at rest, HIDDEN in the shadows, visible striking from behind, home at rest when it ends', () => {
     const p = plan(3);
     const g = backstabGeo(A, D, R, R, FRAME, LUNGE, C);
     const at = (t: number) => backstabPose(p, g, C, A, t);
@@ -147,7 +147,7 @@ describe('the pose', () => {
     expect(at(p.endAt)).toMatchObject({ x: 0, y: 0, alpha: 1, scale: 1, rot: 0 });
   });
 
-  it('BIG: the lunge is Classic\'s swing (coils back, drives to its contact), then the side, then behind', () => {
+  it('TIER 2: the lunge is Classic\'s swing (coils back, drives to its contact), then the side, then behind', () => {
     const p = plan(14);
     const g = backstabGeo(A, D, R, R, FRAME, LUNGE, C);
     const at = (t: number) => backstabPose(p, g, C, A, t);
@@ -195,7 +195,7 @@ function run(over: Partial<HeroBackstabOptions> = {}) {
 describe('the runner (the shared clock, the portrait restored)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('BIG: the lunge and the side stab are ticks; the blow lands ONCE from behind; the portrait is put back EXACTLY', () => {
+  it('TIER 2: the lunge and the side stab are ticks; the blow lands ONCE from behind; the portrait is put back EXACTLY', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(host.querySelector('.hblast.hbackstab')).not.toBeNull();
     f.tick(h.plan.lunge!.hitAt + 8, 4);

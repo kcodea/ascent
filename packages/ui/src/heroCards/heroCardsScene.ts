@@ -53,7 +53,7 @@ export interface CardLook {
   gravity: number;
 }
 
-/** Hard cap on sprites alive at once (a Big burst peaks around 220). */
+/** Hard cap on sprites alive at once (a Tier 3 burst peaks around 220). */
 export const MAX_CARDS_SPRITES = 600;
 /** The spin ghosts per flying card, and how far back each is sampled (ms of flight). */
 export const CARD_GHOSTS = 2;
@@ -248,14 +248,14 @@ export class HeroCardsScene {
     this.charge = { ring, glint, x: hand.x, y: hand.y, age: 0, dur: Math.max(60, durMs), releasing: -1 };
   }
 
-  /** Small, Medium: card `idx` appears in the hand, face up, snapping in. */
+  /** Tier 1, Tier 2: card `idx` appears in the hand, face up, snapping in. */
   hold(idx: number, face: CardFace, pose: FanPose, sizeK: number): void {
     const k = (this.look.length * this.scale * sizeK) / CARD_H;
     const c = this.newCard(idx, face, true, k, pose);
     if (c) c.age = 0;
   }
 
-  /** Big: card `idx` is dealt face down from the hero into its place in the fanned hand. */
+  /** Tier 3: card `idx` is dealt face down from the hero into its place in the fanned hand. */
   deal(idx: number, face: CardFace, from: Pt, to: FanPose, sizeK: number, dealMs: number): void {
     const k = (this.look.length * this.scale * sizeK) / CARD_H;
     const c = this.newCard(idx, face, false, k, { x: from.x, y: from.y, rot: to.rot - 1.4 });
@@ -263,14 +263,14 @@ export class HeroCardsScene {
     c.phase = 'deal'; c.from = { x: from.x, y: from.y, rot: to.rot - 1.4 }; c.to = to; c.dealMs = Math.max(1, dealMs);
   }
 
-  /** Big: card `idx` turns face up. */
+  /** Tier 3: card `idx` turns face up. */
   flip(idx: number, flipMs: number): void {
     const c = this.card(idx);
     if (!c) return;
     c.flip = 0; c.flipMs = Math.max(1, flipMs);
   }
 
-  /** Big: every card in the hand turns GOLD, one after another, with a flash and a glint sweeping across it. */
+  /** Tier 3: every card in the hand turns GOLD, one after another, with a flash and a glint sweeping across it. */
   gild(goldMs: number): void {
     let i = 0;
     for (const c of this.cards) {
@@ -316,7 +316,7 @@ export class HeroCardsScene {
     c.flash.alpha = Math.max(c.flash.alpha, 0.6);
   }
 
-  /** THE impact of Small and Medium: the last card sticks with a bigger flash, a ring and a spray of sparks. */
+  /** THE impact of Tier 1 and Tier 2: the last card sticks with a bigger flash, a ring and a spray of sparks. */
   impact(idx: number, radius: number, o: { level: number; burst: number; sparks: number; flashAlpha: number }): void {
     const c = this.card(idx);
     if (!c?.m) return;
@@ -334,7 +334,7 @@ export class HeroCardsScene {
     c.flash.alpha = 1;
   }
 
-  /** Small, Medium: the stuck cards fall away (a small push off the face, a spin, gravity, fading). */
+  /** Tier 1, Tier 2: the stuck cards fall away (a small push off the face, a spin, gravity, fading). */
   dissolve(): void {
     const S = this.scale;
     for (const c of this.cards) {
@@ -348,7 +348,7 @@ export class HeroCardsScene {
   }
 
   /**
-   * THE impact of the Big flush: the five cards burst into card confetti on the struck hero (chips in ivory, gold, red
+   * THE impact of the Tier 3 flush: the five cards burst into card confetti on the struck hero (chips in ivory, gold, red
    * and ink and the four suit pips, fluttering as they fall), with a gold flash, two rings, a burst of sparks and glints.
    */
   burst(x: number, y: number, radius: number, o: { burst: number; sparks: number; flashAlpha: number }): void {

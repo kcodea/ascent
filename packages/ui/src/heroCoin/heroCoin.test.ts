@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * THE COIN FLICK HERO ATTACK (a Rare; owner 2026-09-29: "rare and epics should only have 2 or 3 tiers to them and
- * generally be less exciting, but still extremely clean and fun"): the shared tiers mapped onto TWO visual tiers (I-II
- * small, III-IV big, a knockout big); the tuner values; the pure plan (one ping small; a ricochet volley big, the ticks
+ * generally be less exciting, but still extremely clean and fun"): the shared tiers mapped onto TWO visual tiers (Tiers 1-2
+ * small, Tiers 3-4 big, a knockout big); the tuner values; the pure plan (one ping at Tier 1; a ricochet volley at Tier 2, the ticks
  * before THE impact); the pure path (released at the thrower, pings on the struck face clear of the big -N); the runner
  * on the shared clock (the blow lands exactly ONCE, on the last ping; both directions; replay; finish / cancel; cleanup;
  * the camera applied once); the headless scene (pooled, bounded, drains, destroy leaves nothing); the cosmetic.
@@ -29,7 +29,7 @@ const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const R = 80;
 
 describe('the tiers: the shared four onto a Rare\'s two', () => {
-  it('uses the shared thresholds, and maps I-II to small, III-IV to big', () => {
+  it('uses the shared thresholds, and maps shared Tiers 1-2 to Tier 1, Tiers 3-4 to Tier 2', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const p = plan(d);
@@ -39,7 +39,7 @@ describe('the tiers: the shared four onto a Rare\'s two', () => {
     expect([1, 2, 3, 4].map((t) => coinLevel(t as 1 | 2 | 3 | 4))).toEqual(['small', 'small', 'big', 'big']);
   });
 
-  it('a knockout plays big whatever the number', () => {
+  it('a knockout plays Tier 2 whatever the number', () => {
     const p = plan(3, { knockout: true });
     expect(p.tier).toBe(4);
     expect(p.level).toBe('big');
@@ -83,7 +83,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('SMALL: one ping, and it IS the impact (no ticks); short (a Rare)', () => {
+  it('TIER 1: one ping, and it IS the impact (no ticks); short (a Rare)', () => {
     const p = plan(3);
     expect(p.pings).toHaveLength(1);
     expect(p.hits).toEqual([]);
@@ -95,7 +95,7 @@ describe('the plan', () => {
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(0);
   });
 
-  it('BIG: a ricochet volley, the pings before the last are ticks, the last is THE impact and it showers', () => {
+  it('TIER 2: a ricochet volley, the pings before the last are ticks, the last is THE impact and it showers', () => {
     const p = plan(14);
     expect(p.pings).toHaveLength(3);
     expect(p.hits).toEqual(p.pings.slice(0, 2));
@@ -178,7 +178,7 @@ function run(over: Partial<HeroCoinOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('BIG: the blow lands EXACTLY ONCE, on the last ping, never on a ricochet; everything is put back', () => {
+  it('TIER 2: the blow lands EXACTLY ONCE, on the last ping, never on a ricochet; everything is put back', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(h.plan.level).toBe('big');
     expect(host.querySelector('.hblast.hcoin')).not.toBeNull();
@@ -206,7 +206,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('SMALL: one ping lands the blow and the coin caroms off', () => {
+  it('TIER 1: one ping lands the blow and the coin caroms off', () => {
     const { h, f, onImpact } = run({ total: 3, formation: formationOf([3], 3) });
     expect(h.plan.level).toBe('small');
     f.tick(h.plan.impactAt + 40, 4);

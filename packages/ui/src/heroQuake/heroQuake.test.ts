@@ -34,7 +34,7 @@ const TIMELINE = [[230, 690, 1346], [270, 860, 1616], [330, 990, 1910], [380, 66
 const COLORS = { core: 0xffffff, side: 0xff9a1f, chasm: 0x140904, lip: 0xe2c294, dust: 0xa58c70, rock: 0x9b8570 };
 
 describe('the damage tiers (shared with Blast)', () => {
-  it('Quake steps up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Quake steps up on exactly the blows Blast does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect(HERO_ATTACK_TIER_THRESHOLDS).toEqual({ tier2At: 6, tier3At: 12, tier4At: 20 });
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     expect({ tier2At: HERO_BLAST_DEFAULTS.tier2At, tier3At: HERO_BLAST_DEFAULTS.tier3At, tier4At: HERO_BLAST_DEFAULTS.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
@@ -88,24 +88,24 @@ describe('the tuner values', () => {
     const style = SPEC.controls.find((c) => c.key === 'attackStyle');
     expect(style?.options).toContain('quake');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
   });
 });
 
 describe('the plan', () => {
-  it('only the HUGE hit quakes (owner 2026-09-28: "maybe only the huge hit should quake"): I-III hurl boulders, no crack line', () => {
+  it('only the Tier 4 hit quakes (owner 2026-09-28: "maybe only the huge hit should quake"): Tiers 1-3 hurl boulders, no crack line', () => {
     const ps = [plan([2, 1], 3), plan([3, 3, 2], 8), plan([3, 3, 3, 3], 12), plan([6, 6, 6, 6, 6, 5, 5], 40)];
     expect(ps.map((p) => p.tier)).toEqual([1, 2, 3, 4]);
     expect(ps.map((p) => p.quake)).toEqual([false, false, false, true]);
     expect(ps.map((p) => p.throws.length)).toEqual([1, 2, 3, 0]);
-    // No crack line below IV: no path, no branches, no fissures, no path bursts, no board cracks.
+    // No crack line below Tier 4: no path, no branches, no fissures, no path bursts, no board cracks.
     for (const p of ps.slice(0, 3)) expect([p.branches, p.fissures, p.bursts.length, p.boardCracks]).toEqual([0, 0, 0, 0]);
     expect(ps[3]!.branches).toBeGreaterThan(0);
     expect(ps[3]!.boardCracks).toBeGreaterThan(0);
     expect(ps[3]!.bursts.length).toBeGreaterThan(0);
   });
 
-  it('every tier escalates: more boulders, spikes, spray, rocks, jolt, hit-stop; IV is the quake, the pillar and the booms', () => {
+  it('every tier escalates: more boulders, spikes, spray, rocks, jolt, hit-stop; Tier 4 is the quake, the pillar and the booms', () => {
     const ps = [plan([2, 1], 3), plan([3, 3, 2], 8), plan([3, 3, 3, 3], 12), plan([6, 6, 6, 6, 6, 5, 5], 40)];
     for (let i = 1; i < 4; i++) {
       const a = ps[i - 1]!, b = ps[i]!;
@@ -131,7 +131,7 @@ describe('the plan', () => {
     // Timed from the charge: the style's own attack, after the shared damage formation (pinned in its own suite).
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.slamAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(plan([2, 1], 3)), t(plan([3, 3, 2], 8)), t(plan([3, 3, 3, 3, 2], 14)), t(plan([6, 6, 6, 6, 6, 5, 5], 40))]).toEqual(TIMELINE);
-    // Brisk at Tier I (about 2 s); the quake is FASTER than before (owner: "maybe faster"): under 3.6 s at IV.
+    // Brisk at Tier 1 (about 2 s); the quake is FASTER than before (owner: "maybe faster"): under 3.6 s at Tier 4.
     expect(t(plan([2, 1], 3))[2]).toBeLessThan(2100);
     expect(t(plan([6, 6, 6, 6, 6, 5, 5], 40))[2]).toBeLessThan(3600);
     // The fracture itself is quick: under 350 ms from the slam to the eruption.
@@ -277,9 +277,9 @@ describe('the runner (the shared clock)', () => {
     expect(host.querySelector('.hblast.hquake')).not.toBeNull();
     f.tick(h.plan.slamAt + 8, 4);
     expect(h.elapsed()).toBeGreaterThanOrEqual(h.plan.slamAt); // the clock never pauses on it
-    expect(h.plan.quake).toBe(false); // 9 = Tier II: boulders
+    expect(h.plan.quake).toBe(false); // 9 = Tier 2: boulders
     expect(h.scene!.liveBoulders).toBeGreaterThan(0);
-    expect(h.scene!.liveCracks).toBe(0); // no crack line below Tier IV
+    expect(h.scene!.liveCracks).toBe(0); // no crack line below Tier 4
     // the boulders fly; the blow lands on the last one and not a frame before
     f.tick(h.plan.impactAt - h.elapsed() - 12, 4);
     expect(onImpact).not.toHaveBeenCalled();
@@ -388,7 +388,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the ground scene (headless Pixi)', () => {
-  it('a whole Tier IV quake (wind-up, slam, board cracks, travel, bursts, eruption, pillar, booms) stays inside the pool cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 quake (wind-up, slam, board cracks, travel, bursts, eruption, pillar, booms) stays inside the pool cap and drains; destroy leaves nothing', () => {
     const s = new HeroQuakeScene(TEX, COLORS, 1, 42);
     s.windup(100, 800, 70, 500, 4, 11);
     for (let i = 0; i < 20; i++) s.update(16);
@@ -420,7 +420,7 @@ describe('the ground scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('a Tier I quake is one thin crack: no branches, no magma glow sprites', () => {
+  it('a Tier 1 quake is one thin crack: no branches, no magma glow sprites', () => {
     const s = new HeroQuakeScene(TEX, COLORS, 1, 3);
     s.quake({ x: 0, y: 0 }, { x: 1200, y: 0 }, 60, 60, { travelMs: 380, width: 5, branches: 0, fissures: 0, magma: 0, segPx: 44, jag: 0.42, openPx: 170, branchLength: 0.13, grit: 0.7 });
     expect(s.liveCracks).toBe(1);

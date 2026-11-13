@@ -14,9 +14,13 @@
  *    screen).
  *  - A POP: a small star burst of ONE colour (even spokes of streaks that slow and droop, a ring, a flash, a few
  *    crackle twinkles).
- *  - THE BLOOM: a chrysanthemum. Two rings of stars thrown evenly outward that slow hard and droop under gravity, a
- *    smaller bloom inside a moment later, crackle glitter, a brief light across the sky, and sparks that fall on true
- *    ballistic paths onto the struck portrait and twinkle out where they land.
+ *  - THE BLOOM: a chrysanthemum that fills a large part of the sky. A white core flash and a light across the whole
+ *    view, two shock rings, four rings of stars thrown evenly outward that slow hard and droop under gravity, a slower
+ *    WILLOW ring a moment later that hangs and falls for a long time, crackle glitter that twinkles lower and lower as
+ *    it drifts down, a warm light on the struck portrait, and sparks that fall on true ballistic paths onto it and
+ *    twinkle out where they land.
+ *  - THE FINALE: smaller shells that crack open round the bloom (`afterBurst`): one colour each, a flash, a ring, a
+ *    ring of stars, a pulse of light on the portrait.
  *
  * THE BLOOM'S STARS are the only crowd here, so they are kept honest: one sprite each, in flat typed arrays (no object
  * per star, nothing allocated per frame), hard capped at `MAX_STARS`, additive, no filters. Their sprites are created
@@ -60,10 +64,10 @@ export interface FireworksLook {
   prefill: number;
 }
 
-/** Hard cap on sprites alive at once (a bloom peaks around 230). */
-export const MAX_FIREWORKS_SPRITES = 420;
+/** Hard cap on sprites alive at once (the bloom and its finale peak around 520). */
+export const MAX_FIREWORKS_SPRITES = 760;
 /** Hard cap on bloom stars (and falling sparks) alive at once. */
-export const MAX_STARS = 240;
+export const MAX_STARS = 400;
 
 const GLOW_PX = 128;
 const RING_PX = 160;
@@ -106,7 +110,7 @@ export class HeroFireworksScene extends FxPool {
   private rocket: Rocket | null = null;
   private balls: Ball[] = [];
   private cometFx: Comet | null = null;
-  private sky: { s: Sprite; age: number; a0: number } | null = null;
+  private sky: { s: Sprite; age: number; a0: number; dur: number } | null = null;
   private viewW = 1920;
   private viewH = 1080;
   private readonly pt: Pt = { x: 0, y: 0 };
@@ -130,7 +134,7 @@ export class HeroFireworksScene extends FxPool {
 
   constructor(private readonly tex: HeroFireworksTextures, private readonly colors: FireworksColors, private readonly look: FireworksLook, scale = 1, seed = 1) {
     super('heroFireworks', [tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.rocket, tex.candle, tex.mortar], scale, seed, MAX_FIREWORKS_SPRITES);
-    this.prefillLeft = Math.max(0, Math.min(MAX_STARS, Math.round(look.prefill)));
+    this.prefillLeft = Math.max(0, Math.min(MAX_FIREWORKS_SPRITES - 40, Math.round(look.prefill)));
   }
 
   get planted(): boolean { return !!this.prop && !this.prop.flown && this.prop.leaving < 0; }
@@ -477,40 +481,64 @@ export class HeroFireworksScene extends FxPool {
     this.sDelay[i] = delay; this.sSize[i] = size; this.sDrag[i] = drag; this.sGrav[i] = grav; this.sKind[i] = kind;
   }
 
+  /** A light across the whole view (the bloom; a fainter pulse for each finale shell). */
+  private skyLight(a0: number, dur: number, tint: number): void {
+    if (!(a0 > 0)) return;
+    if (this.sky) { this.sky.age = 0; this.sky.a0 = Math.max(a0, this.sky.a0 * 0.5); this.sky.dur = dur; this.sky.s.tint = tint; return; }
+    const s = this.take('glow', Texture.WHITE, tint);
+    if (s) { s.anchor.set(0); s.alpha = 0; this.sky = { s, age: 0, a0, dur }; }
+  }
+
+  /** The struck portrait is LIT: a warm glow and a white flash on it that ride its knockback. */
+  private lightPortrait(target: Pt, targetR: number, tint: number, strength: number, dur: number): void {
+    const S = this.scale;
+    this.spawn('glow', this.tex.glow, tint, target.x, target.y, { dur, from: (targetR * 2.6) / GLOW_PX / S, to: (targetR * 3.6) / GLOW_PX / S, a0: 0.8 * strength, mode: 'punch', peakAt: 0.08, ease: 'cubic', follow: true });
+    this.spawn('core', this.tex.glow, this.colors.core, target.x, target.y, { dur: dur * 0.35, from: (targetR * 1.6) / GLOW_PX / S, to: (targetR * 2.6) / GLOW_PX / S, a0: 0.6 * strength, mode: 'punch', peakAt: 0.12, follow: true });
+  }
+
+  /** One ring of stars thrown evenly from `at`: a star leaves at v0 and slows at `drag` per second, so it travels v0 / drag. */
+  private starRing(at: Pt, n: number, reach: number, tint: number, delay: number, size: number, life: number, drag: number, grav: number): void {
+    const S = this.scale;
+    const off = this.rnd() * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = off + (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.09;
+      const v = reach * drag * (0.94 + this.rnd() * 0.12);
+      this.addStar(STAR, at.x, at.y, Math.cos(a) * v, Math.sin(a) * v, life * (0.86 + this.rnd() * 0.28), delay, size * S, drag, grav, i % 5 === 4 ? whiten(tint, 0.55) : tint);
+    }
+  }
+
   /**
-   * THE BLOOM: a chrysanthemum opens at `at` with radius `R`. `outer` stars in the first ring (gold), a second ring
-   * inside it (magenta), a smaller bloom a moment later (cyan), green and white crackle, a light across the sky, and
-   * `look.rain` sparks that fall onto the disc of radius `targetR` round `target` and twinkle out there.
+   * THE BLOOM: a chrysanthemum opens at `at` with radius `R` and fills a large part of the sky. A white core flash, a
+   * light across the whole view, two shock rings; `outer` stars in the first ring (gold), a second ring inside it
+   * (magenta), a smaller bloom a moment later (cyan), a white pistil at the heart; then a slower WILLOW ring that hangs
+   * and falls; green, gold and white crackle that twinkles lower and lower for well over a second; the struck portrait
+   * lit; and `look.rain` sparks that fall onto the disc of radius `targetR` round `target` and twinkle out there.
    */
   bloom(at: Pt, R: number, target: Pt, targetR: number, outer: number, burst: number): void {
     const S = this.scale;
     const c = this.colors;
     const B = burst;
-    // The flash, a flare, a soft halo that lingers, and a shock ring.
-    this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 260, from: (R * 0.5) / GLOW_PX / S, to: (R * 2.4 * B) / GLOW_PX / S, a0: this.look.flashAlpha, mode: 'punch', peakAt: 0.1 });
-    this.spawn('core', this.tex.star, c.core, at.x, at.y, { dur: 300, from: (R * 0.3) / STAR_PX / S, to: (R * 1.1 * B) / STAR_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.14, rot: 0.35 });
-    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 1000, from: (R * 2) / GLOW_PX / S, to: (R * 3.4) / GLOW_PX / S, a0: 0.42, mode: 'punch', peakAt: 0.08, ease: 'cubic' });
-    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 520, from: (R * 0.3) / RING_PX / S, to: (R * 2.5) / RING_PX / S, a0: 0.26, ease: 'cubic' });
-    if (this.look.skyFlash > 0 && !this.sky) {
-      const s = this.take('glow', Texture.WHITE, mixColor(c.gold, 0xffffff, 0.5));
-      if (s) { s.anchor.set(0); s.alpha = 0; this.sky = { s, age: 0, a0: this.look.skyFlash }; }
-    }
-    // The rings. A star leaves at v0 and slows at `drag` per second, so it travels v0 / drag: R.
+    // The core flash, a flare, a halo that lingers, a second colour under it, and two shock rings.
+    this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 340, from: (R * 0.7) / GLOW_PX / S, to: (R * 3.4 * B) / GLOW_PX / S, a0: this.look.flashAlpha, mode: 'punch', peakAt: 0.08 });
+    this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 620, from: (R * 0.5) / GLOW_PX / S, to: (R * 1.3) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.06, ease: 'cubic' });
+    this.spawn('core', this.tex.star, c.core, at.x, at.y, { dur: 380, from: (R * 0.4) / STAR_PX / S, to: (R * 1.5 * B) / STAR_PX / S, a0: 0.95, mode: 'punch', peakAt: 0.12, rot: 0.35 });
+    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 1500, from: (R * 2.2) / GLOW_PX / S, to: (R * 3.8) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.06, ease: 'cubic' });
+    this.spawn('glow', this.tex.glow, c.magenta, at.x, at.y, { dur: 1100, from: (R * 1.4) / GLOW_PX / S, to: (R * 2.4) / GLOW_PX / S, a0: 0.3, mode: 'punch', peakAt: 0.1, ease: 'cubic', delay: 80 });
+    this.spawn('glow', this.tex.ring, c.core, at.x, at.y, { dur: 460, from: (R * 0.3) / RING_PX / S, to: (R * 2.9) / RING_PX / S, a0: 0.5, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 760, from: (R * 0.3) / RING_PX / S, to: (R * 3.4) / RING_PX / S, a0: 0.3, ease: 'cubic', delay: 60 });
+    this.skyLight(this.look.skyFlash, 700, mixColor(c.gold, 0xffffff, 0.6));
+    this.lightPortrait(target, targetR, c.gold, 1, 1100);
+    // The rings.
     const drag = 3.3;
     const grav = 300 * S;
     const life = this.look.bloomMs;
-    const ring = (n: number, reach: number, tint: number, delay: number, size: number, lifeK: number): void => {
-      const off = this.rnd() * Math.PI * 2;
-      for (let i = 0; i < n; i++) {
-        const a = off + (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.09;
-        const v = R * reach * drag * (0.94 + this.rnd() * 0.12);
-        this.addStar(STAR, at.x, at.y, Math.cos(a) * v, Math.sin(a) * v, life * lifeK * (0.86 + this.rnd() * 0.28), delay, size * S, drag, grav, i % 5 === 4 ? whiten(tint, 0.55) : tint);
-      }
-    };
     const n1 = Math.max(0, Math.round(outer));
-    ring(n1, 1, c.gold, 0, 0.95, 1);
-    ring(Math.round(n1 * 0.62), 0.68, c.magenta, 0, 0.85, 0.92);
-    ring(Math.round(n1 * 0.4), 0.36, c.cyan, 120, 0.75, 0.8);
+    this.starRing(at, n1, R, c.gold, 0, 1.15, life * 0.8, drag, grav);
+    this.starRing(at, Math.round(n1 * 0.62), R * 0.68, c.magenta, 0, 1, life * 0.74, drag, grav);
+    this.starRing(at, Math.round(n1 * 0.4), R * 0.36, c.cyan, 120, 0.9, life * 0.64, drag, grav);
+    this.starRing(at, Math.round(n1 * 0.2), R * 0.16, c.core, 0, 0.8, life * 0.4, drag, grav);
+    // THE WILLOW: slower, heavier stars that reach nearly as far, then hang and fall for a long time.
+    this.starRing(at, Math.round(n1 * 0.55), R * 0.86, whiten(c.gold, 0.35), 200, 1.05, life * 1.15, 2.1, 430 * S);
     this.spawn('core', this.tex.glow, c.cyan, at.x, at.y, { dur: 260, from: (R * 0.3) / GLOW_PX / S, to: (R * 1.1) / GLOW_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.15, delay: 120 });
     // Falling sparks: each leaves the lower half of the bloom and lands on the portrait after its own flight time.
     const g = 900 * S;
@@ -518,19 +546,48 @@ export class HeroFireworksScene extends FxPool {
     const face = Math.atan2(target.y - at.y, target.x - at.x);
     for (let i = 0; i < Math.round(this.look.rain); i++) {
       const a = face + Math.PI * 0.8 * (this.rnd() - 0.5);
-      const r0 = R * (0.25 + 0.5 * this.rnd());
+      const r0 = R * (0.2 + 0.4 * this.rnd());
       const x0 = at.x + Math.cos(a) * r0, y0 = at.y + Math.sin(a) * r0;
       const ta = this.rnd() * Math.PI * 2, tr = targetR * 0.8 * Math.sqrt(this.rnd());
       const tx = target.x + Math.cos(ta) * tr, ty = target.y + Math.sin(ta) * tr;
       const tau = this.look.rainMs * (0.5 + 0.45 * this.rnd()) / 1000;
       this.addStar(RAIN, x0, y0, (tx - x0) / tau, (ty - y0) / tau - (g * tau) / 2, tau * 1000, 180 + this.rnd() * 300, 0.8 * S, 0, g, i % 3 ? c.gold : c.core);
     }
-    // Crackle glitter all through the bloom as it hangs.
-    for (let i = 0; i < Math.round(this.look.glitter); i++) {
-      const a = this.rnd() * Math.PI * 2, rr = R * 0.98 * Math.sqrt(this.rnd());
-      const delay = 260 + this.rnd() * life * 0.62;
-      this.spawn('core', this.tex.star, i % 3 === 0 ? c.core : i % 3 === 1 ? c.green : c.gold, at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr + (delay / 1000) * 70 * S, {
-        dur: 130 + this.rnd() * 110, from: 0.14, to: 0.62, a0: 1, mode: 'punch', peakAt: 0.3, rot: this.rnd() * 3, delay,
+    // Crackle glitter all through the bloom as it hangs: each twinkle sits lower the later it fires (the cloud of
+    // glitter drifts down), and the last of them fire well over a second after the bloom.
+    const n = Math.round(this.look.glitter);
+    for (let i = 0; i < n; i++) {
+      const a = this.rnd() * Math.PI * 2, rr = R * 1.02 * Math.sqrt(this.rnd());
+      const delay = 240 + this.rnd() * this.rnd() * life * 0.3 + (i / Math.max(1, n)) * life * 0.62;
+      this.spawn('core', this.tex.star, i % 3 === 0 ? c.core : i % 3 === 1 ? c.green : c.gold, at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr * 0.9 + (delay / 1000) * 120 * S, {
+        dur: 150 + this.rnd() * 170, from: 0.16, to: 0.6 + this.rnd() * 0.45, a0: 1, mode: 'punch', peakAt: 0.3, rot: this.rnd() * 3, delay, vy: 90, grav: 200,
+      });
+    }
+  }
+
+  /**
+   * A FINALE SHELL: a smaller burst of ONE colour at `at` with radius `R` (a flash, a ring, a ring of stars with a
+   * white heart, a few twinkles), a faint light across the view and a pulse of light on the struck portrait.
+   */
+  afterBurst(at: Pt, R: number, tint: number, target: Pt, targetR: number, stars: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const hot = whiten(tint, 0.6);
+    this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 240, from: (R * 0.6) / GLOW_PX / S, to: (R * 2.8) / GLOW_PX / S, a0: this.look.flashAlpha * 0.9, mode: 'punch', peakAt: 0.1 });
+    this.spawn('core', this.tex.star, hot, at.x, at.y, { dur: 280, from: (R * 0.4) / STAR_PX / S, to: (R * 1.4) / STAR_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.14, rot: 0.8 });
+    this.spawn('glow', this.tex.glow, tint, at.x, at.y, { dur: 800, from: (R * 2) / GLOW_PX / S, to: (R * 3.2) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.08, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 420, from: (R * 0.3) / RING_PX / S, to: (R * 2.6) / RING_PX / S, a0: 0.45, ease: 'cubic' });
+    this.skyLight(this.look.skyFlash * 0.4, 380, mixColor(tint, 0xffffff, 0.5));
+    this.lightPortrait(target, targetR, tint, 0.55, 520);
+    const life = this.look.bloomMs * 0.5;
+    const n = Math.max(0, Math.round(stars));
+    this.starRing(at, n, R, tint, 0, 0.95, life, 3.6, 320 * S);
+    this.starRing(at, Math.round(n * 0.45), R * 0.45, c.core, 0, 0.75, life * 0.6, 3.6, 320 * S);
+    for (let i = 0; i < 7; i++) {
+      const a = this.rnd() * Math.PI * 2, rr = R * Math.sqrt(this.rnd());
+      const delay = 220 + this.rnd() * 520;
+      this.spawn('core', this.tex.star, i % 2 ? c.core : tint, at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr + (delay / 1000) * 110 * S, {
+        dur: 150 + this.rnd() * 130, from: 0.14, to: 0.6, a0: 1, mode: 'punch', peakAt: 0.3, rot: this.rnd() * 3, delay, vy: 80, grav: 200,
       });
     }
   }
@@ -594,7 +651,7 @@ export class HeroFireworksScene extends FxPool {
     const k = this.sky;
     if (!k) return;
     k.age += dt;
-    const u = clamp01(k.age / 520);
+    const u = clamp01(k.age / k.dur);
     // Undo the root's camera so the light always covers exactly the view.
     const z = this.root.scale.x || 1;
     k.s.position.set(-this.root.position.x / z, -this.root.position.y / z);

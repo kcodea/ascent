@@ -12,6 +12,14 @@
  * to move (the camera holds one zoom, both portraits are at rest, the scene has only the standing tube), no sound is
  * cued, and the dim finishes closing. The bloom, the boom and the blow then land together on the impact beat.
  *
+ * THE FINALE (the mortar): after the bloom, smaller shells crack open round it (`plan.afters`). They are FX and sound
+ * only: each rocks the struck portrait and nudges the view again, none lands anything.
+ *
+ * SOUND. Every visible beat has a cue and the blow has a low body under it: the plant (a thud), the fuse (a fizz for
+ * as long as it burns), the launch (the rocket's squeal; the candle's thumps; the mortar's hollow thump with the
+ * shell's whistle rising over it), the pops (a crack with body), and the bloom (the deep boom, then two overlapping
+ * takes of crackle that carry the aftermath, with each finale shell cracking over them).
+ *
  * THE CAMERA IS APPLIED ONCE (as Card Shark, see `../heroCards/heroCards.ts`): the Pixi root mirrors the DOM camera only
  * when its canvas is NOT already inside the camera element.
  *
@@ -34,7 +42,7 @@ import {
   LAUNCH_KICK_MS, getHeroFireworksConfig, fireworksArrivalDir, fireworksCameraAt, fireworksCameraFocus, fireworksCues, fireworksGeometry, fireworksPlan,
   type HeroFireworksConfig, type FireworksCue, type FireworksGeo, type FireworksPlan,
 } from './heroFireworksConfig';
-import { HeroFireworksScene, MAX_STARS, type HeroFireworksTextures } from './heroFireworksScene';
+import { HeroFireworksScene, MAX_FIREWORKS_SPRITES, type HeroFireworksTextures } from './heroFireworksScene';
 import { heroFireworksTextures } from './heroFireworksTextures';
 
 export interface HeroFireworksOptions extends HeroAttackOptions {
@@ -61,6 +69,10 @@ export function fireworksTints(seed: number, palette: readonly number[], n: numb
   const start = palette.length ? (seed >>> 0) % palette.length : 0;
   return Array.from({ length: n }, (_, i) => palette[(start + i) % Math.max(1, palette.length)] ?? 0xffffff);
 }
+
+/** Stars in each finale shell's ring, and the pitch of each one's crack. */
+const FINALE_STARS = 26;
+const FINALE_RATES = [0.92, 0.8, 1.04] as const;
 
 /** Play the Grand Finale. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle {
@@ -103,7 +115,8 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
       core: hexToNum(c.colorCore), gold: palette[0]!, magenta: palette[1]!, cyan: palette[2]!, green: palette[3]!, side: hexToNum(sideHex),
     }, {
       trailMs: c.trailMs, bloomMs: c.bloomMs, rain: c.rain, rainMs: c.rainMs, glitter: c.glitter, skyFlash: c.skyFlash, dismissMs: c.dismissMs, flashAlpha: c.flashAlpha,
-      prefill: mortar ? Math.min(MAX_STARS, Math.ceil(plan.sparks * 2.02) + Math.round(c.rain) + 4) : 0,
+      // Every sprite the bloom frame will ask for (its stars, its glitter, its flashes) and the finale's stars.
+      prefill: mortar ? Math.min(MAX_FIREWORKS_SPRITES - 80, Math.ceil(plan.sparks * 2.8) + Math.round(c.rain) + Math.round(c.glitter) + 24 + plan.afters.length * FINALE_STARS * 2) : 0,
     }, s, seed)
     : null;
   scene?.setView(view.w, view.h);
@@ -117,9 +130,11 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxPlantClip, c.sfxFuseClip, c.sfxSquealClip, c.sfxThumpClip, c.sfxPopClip, c.sfxBoomClip]);
+  voices.warm([c.sfxPlantClip, c.sfxFuseClip, c.sfxSquealClip, c.sfxThumpClip, c.sfxPopClip, c.sfxBoomClip, c.sfxWhistleClip, c.sfxCrackleClip]);
   const strikePt = geo.strikes[geo.strikes.length - 1] ?? o.defender;
   const firstLaunch = plan.launches[0] ?? plan.impactAt;
+  // The portrait is rocked away from the side the bloom opened on.
+  const rockSign = (geo.bloom ? geo.bloom.x <= o.defender.x : o.attacker.x <= o.defender.x) ? 1 : -1;
   const lastLaunch = plan.launches[plan.launches.length - 1] ?? plan.impactAt;
 
   const fire = (q: FireworksCue | FormationCue): void => {
@@ -129,6 +144,7 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
       case 'plant':
         // The firework is set down beside the hero.
         cue(c.sfxPlantClip, c.sfxPlantGain, c.sfxPlantRate, { lenMs: 300, fadeMs: 120 });
+        if (mortar) cue(c.sfxThumpClip, c.sfxThumpGain * 0.3, c.sfxThumpRate * 0.8, { lenMs: 220, fadeMs: 120 }); // the heavy tube set down
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.plant(geo, c.plantMs);
         cam.start();
@@ -143,16 +159,19 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
         const tint = tints[q.i] ?? tints[0]!;
         if (plan.level === 1) {
           // It SQUEALS off: the whistle runs the length of the flight.
+          cue(c.sfxThumpClip, c.sfxThumpGain * 0.3, c.sfxThumpRate * 1.7, { lenMs: 160, fadeMs: 90 });
           cue(c.sfxSquealClip, c.sfxSquealGain, c.sfxSquealRate, { lenMs: plan.flyMs + 140, fadeMs: 150 });
           if (path) scene?.launchRocket(path, plan.flyMs, tint, t - q.at);
         } else if (plan.level === 2) {
           // Thump, thump, thump: the same tube, a touch higher each time.
-          cue(c.sfxThumpClip, c.sfxThumpGain * 0.6, c.sfxThumpRate + 0.6 + 0.1 * q.i, { lenMs: 260, fadeMs: 100 });
+          cue(c.sfxThumpClip, c.sfxThumpGain * 0.6, c.sfxThumpRate * (1.3 + 0.1 * q.i), { lenMs: 260, fadeMs: 100 });
           scene?.thump(tint, 0.8);
           if (path) scene?.ball(path, plan.flyMs, tint, t - q.at);
         } else {
-          // The heavy thump, and the shell is away.
-          cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate, { tail: c.sfxTailMix * 0.5, lenMs: 380, fadeMs: 140 });
+          // The heavy hollow thump, and the shell is away: its whistle climbs for as long as the comet is in view and
+          // dies as it leaves the screen (nothing sounds in the held beat).
+          cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate, { fadeMs: 140 });
+          cue(c.sfxWhistleClip, c.sfxWhistleGain, c.sfxWhistleRate, { delayMs: 40, lenMs: Math.max(120, plan.flyMs - 20) * c.sfxWhistleRate, fadeMs: 160 });
           scene?.thump(palette[0]!, 1.5, true);
           if (path) scene?.comet(path, plan.flyMs, t - q.at);
         }
@@ -164,22 +183,38 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
       case 'pop': {
         // A candle ball pops on the portrait: a tick, FX and sound only.
         const p = geo.strikes[q.i] ?? o.defender;
-        cue(c.sfxPopClip, c.sfxPopGain * 0.7, c.sfxPopRate + 0.25 - 0.1 * q.i, { lenMs: 340, fadeMs: 170 });
+        cue(c.sfxPopClip, c.sfxPopGain * 0.75, c.sfxPopRate * (1.25 - 0.1 * q.i), { fadeMs: 170 });
         scene?.pop(p, tints[q.i] ?? tints[0]!, 0.8 * plan.burst, plan.sparks);
         break;
       }
       case 'impact':
         if (mortar) {
           // THE BLOOM: the boom and its crackle, the chrysanthemum, the blow.
+          // The deep boom lands with the light; its crackle starts as the stars reach full spread and a second, lower
+          // take carries the drifting glitter through the aftermath.
           cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate, { tail: c.sfxTailMix, fadeMs: 400 });
+          cue(c.sfxCrackleClip, c.sfxCrackleGain, c.sfxCrackleRate, { delayMs: 170, fadeMs: 300 });
+          cue(c.sfxCrackleClip, c.sfxCrackleGain * 1.1, c.sfxCrackleRate * 0.82, { delayMs: 850, fadeMs: 400 });
           if (geo.bloom) scene?.bloom(geo.bloom, geo.bloomR, o.defender, radius, plan.sparks, plan.burst);
         } else {
           const last = tints[tints.length - 1]!;
-          cue(c.sfxPopClip, c.sfxPopGain * (plan.level === 2 ? 1.15 : 1), c.sfxPopRate - (plan.level === 2 ? 0.2 : 0), { tail: c.sfxTailMix * 0.6, lenMs: plan.level === 2 ? 760 : 560, fadeMs: 260 });
+          // A crisp crack with a body under it (the boom, short and pitched up), and a breath of crackle after.
+          cue(c.sfxPopClip, c.sfxPopGain * (plan.level === 2 ? 1.15 : 1), c.sfxPopRate * (plan.level === 2 ? 0.88 : 1), { tail: c.sfxTailMix * 0.6, fadeMs: 260 });
+          cue(c.sfxBoomClip, c.sfxBoomGain * (plan.level === 2 ? 0.42 : 0.3), c.sfxBoomRate * 1.5, { lenMs: 520, fadeMs: 300 });
+          cue(c.sfxCrackleClip, c.sfxCrackleGain * 0.4, c.sfxCrackleRate * 1.2, { delayMs: 110, startMs: 300, lenMs: 620, fadeMs: 300 });
           scene?.pop(strikePt, last, (plan.level === 2 ? 1.15 : 1) * plan.burst, Math.round(plan.sparks * (plan.level === 2 ? 1.4 : 1)));
         }
         seq.land();
         break;
+      case 'after': {
+        // A FINALE SHELL: a crack with body and a smaller burst beside the bloom. FX and sound only.
+        const at = geo.afters[q.i];
+        const tint = palette[(q.i + 1) % palette.length]!;
+        cue(c.sfxPopClip, c.sfxPopGain * 0.85, c.sfxPopRate * FINALE_RATES[q.i % 3]!, { tail: c.sfxTailMix, fadeMs: 200 });
+        cue(c.sfxBoomClip, c.sfxBoomGain * 0.36, c.sfxBoomRate * (1.25 + 0.12 * (q.i % 3)), { lenMs: 620, fadeMs: 320 });
+        if (at) scene?.afterBurst(at, geo.afterR, tint, o.defender, radius, FINALE_STARS);
+        break;
+      }
       case 'dismiss':
         scene?.dismiss();
         break;
@@ -190,7 +225,7 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    if (mortar) nums.paintDim(t, firstLaunch, plan.holdAt + Math.min(180, plan.holdMs * 0.4), plan.impactAt + 760);
+    if (mortar) nums.paintDim(t, firstLaunch, plan.holdAt + Math.min(180, plan.holdMs * 0.4), plan.impactAt + Math.max(760, c.aftermathMs - 300));
     else nums.paintDim(t, plan.chargeAt, firstLaunch, plan.impactAt + 220);
     const cm = fireworksCameraAt(plan, c, t, dir);
     const unit = local ? 1 : s;
@@ -215,8 +250,19 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
     if (foe.el || scene) {
       let css: string | null = null;
       let sx = 1, sy = 1;
+      let rock = 0;
       if (t >= plan.impactAt) {
-        const k = spring(t - plan.impactAt, 4.5, 90);
+        // The bloom's blow rolls on (a slower, longer spring) and every finale shell rocks the portrait again.
+        let k = mortar ? spring(t - plan.impactAt, 3.2, 150) : spring(t - plan.impactAt, 4.5, 90);
+        if (mortar) {
+          rock = c.rockDeg * spring(t - plan.impactAt, 2.6, 190) * rockSign;
+          for (let i = 0; i < plan.afters.length; i++) {
+            const age = t - plan.afters[i]!;
+            if (age < 0) continue;
+            k += 0.4 * spring(age, 4.5, 80);
+            rock += c.rockDeg * 0.5 * spring(age, 3.6, 110) * (i % 2 ? rockSign : -rockSign);
+          }
+        }
         const knock = c.knockPx * (0.7 + 0.5 * plan.k) * k * px;
         const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
         fx = dir.x * knock; fy = dir.y * knock;
@@ -229,7 +275,8 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
         for (const at of plan.hits) k += at <= t ? Math.max(0, spring(t - at, 6, 45)) : 0;
         fx = dir.x * k * 6 * px; fy = dir.y * k * 6 * px;
       }
-      if (Math.abs(fx) + Math.abs(fy) >= 0.05 || sx !== 1) css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)${sx !== 1 ? ` scale(${sx.toFixed(4)}, ${sy.toFixed(4)})` : ''}`;
+      const turn = Math.abs(rock) >= 0.02;
+      if (Math.abs(fx) + Math.abs(fy) >= 0.05 || sx !== 1 || turn) css = `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)${turn ? ` rotate(${rock.toFixed(2)}deg)` : ''}${sx !== 1 ? ` scale(${sx.toFixed(4)}, ${sy.toFixed(4)})` : ''}`;
       foe.set(css);
     }
     scene?.setFoeOffset(fx * unit, fy * unit);

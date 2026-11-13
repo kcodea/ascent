@@ -45,6 +45,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   rainMs: ['Fall time', 'ms', 'How long the falling sparks take to land (the longest).', 'The mortar'],
   glitter: ['Crackle', undefined, 'Crackle twinkles inside the bloom as it hangs.', 'The mortar'],
   skyFlash: ['Sky light', 'opacity', 'The light the bloom throws across the whole screen (0 = none).', 'The mortar'],
+  finaleShots: ['Finale shells', undefined, 'Smaller shells that crack open round the bloom after it (0 = none).', 'The mortar'],
+  finaleGapMs: ['Finale gap', 'ms', 'The gap between the finale shells.', 'The mortar'],
+  aftermathMs: ['Aftermath', 'ms', 'How long the bloom hangs and crackles before the attack ends.', 'The mortar'],
+  rockDeg: ['Rock', '°', 'How far the bloom rocks the struck portrait.', 'Camera and portraits'],
   dismissMs: ['Take away', 'ms', 'The tube sinking away after the blow.', 'The mortar'],
   flashAlpha: ['Flash', 'opacity', 'How bright the white flash of a pop or the bloom is.', 'Camera and portraits'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back (down, under the bloom).', 'Camera and portraits'],
@@ -64,6 +68,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxPopRate: ['pop: pitch', '×', 'Pitch of the small bursts (higher = smaller).', 'Sound: pop'],
   sfxBoomGain: ['boom: gain', undefined, 'The shell bursting, with its crackle.', 'Sound: boom'],
   sfxBoomRate: ['boom: pitch', '×', 'Pitch of the big boom.', 'Sound: boom'],
+  sfxWhistleGain: ['whistle: gain', undefined, 'The shell whistling up out of the mortar.', 'Sound: whistle'],
+  sfxWhistleRate: ['whistle: pitch', '×', 'Pitch of the rising whistle.', 'Sound: whistle'],
+  sfxCrackleGain: ['crackle: gain', undefined, 'The long crackle after the boom (and a breath of it after a pop).', 'Sound: crackle'],
+  sfxCrackleRate: ['crackle: pitch', '×', 'Pitch of the crackle.', 'Sound: crackle'],
   sfxTailMix: ['burst tail', undefined, 'A short reverb tail on the bursts. 0 = dry.', 'Sound: mix'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the fireworks play (1 = no duck).', 'Sound: mix'],
 };
@@ -83,7 +91,7 @@ const LEVEL_SPECS: Record<FireworksLevelSuffix, [string, TunerUnit | undefined, 
 
 const CLIP_OF: Partial<Record<string, HeroFireworksStrKey>> = {
   'Sound: plant': 'sfxPlantClip', 'Sound: fuse': 'sfxFuseClip', 'Sound: squeal': 'sfxSquealClip', 'Sound: thump': 'sfxThumpClip',
-  'Sound: pop': 'sfxPopClip', 'Sound: boom': 'sfxBoomClip',
+  'Sound: pop': 'sfxPopClip', 'Sound: boom': 'sfxBoomClip', 'Sound: whistle': 'sfxWhistleClip', 'Sound: crackle': 'sfxCrackleClip',
 };
 
 const COLORS: [HeroFireworksStrKey, string, string][] = [

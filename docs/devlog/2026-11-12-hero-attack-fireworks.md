@@ -16,7 +16,9 @@ and any knockout play look 3.
 | --- | --- | --- | --- |
 | 1, the bottle rocket | A little rocket on a stick is planted beside the striking hero, leaning at the target. Its fuse fizzes (300 ms), it squeals off on a wiggly path dropping a thin spark trail, and pops on the struck portrait in a small star burst of ONE colour (rolled from the seed). | 790 | 1450 |
 | 2, the roman candle | A tube is planted and thumps out three glowing balls 180 ms apart, each a different colour on its own arc. The first two pops are ticks (FX and sound only, a small nudge); the third pop is the blow. | 1060 | 1780 |
-| 3, the mortar shell | A mortar is planted. A heavy thump (the tube squashes, the view kicks down, the hero flinches) and one faint comet rises and leaves the TOP of the screen. Then the held beat: 600 ms with the screen dimmed and nothing moving. Then a chrysanthemum opens over the struck portrait (a gold ring, a magenta ring inside it, a smaller cyan bloom 120 ms later, green and white crackle, a brief light across the screen) and sparks fall on true ballistic paths onto the portrait and twinkle out there. The bloom is the blow. | 1250 | 2450 |
+| 3, the mortar shell | A mortar is planted and its fuse fizzes (440 ms). A heavy thump (the tube squashes, the view kicks down, the hero flinches) and one comet whistles up and leaves the TOP of the screen (400 ms). Then the held beat: 620 ms with the screen dimmed and nothing moving. Then THE BLOOM (the blow): a white core flash and a light across the whole view, two shock rings, four rings of stars (gold, magenta, cyan, a white heart), a slower willow ring that hangs and falls, the view kicked hard, the struck portrait lit, knocked and rocked. Then THE FINALE: three smaller shells crack open round it 270 ms apart (FX and sound only), each rocking the portrait again, while glitter crackles lower and lower for a second and a half. | 1590 | 3390 |
+
+The table above is the SECOND pass (see the end of this file). The first pass's mortar ran 1250 / 2450.
 
 ## How
 
@@ -28,22 +30,24 @@ and any knockout play look 3.
   - A flight is a quadratic curve that leaves along the lean and bends onto the face. The rocket adds a sideways
     wiggle pinned to zero at both ends. The point that bends a curve is pulled back along the lean until it is inside
     the view, so no flight leaves the screen (a test found the candle's arc going 29 px off the top).
-  - The bloom's radius is 3 portrait radii. Its centre hangs above the struck portrait and is kept at least 0.65 of a
-    radius inside the view, so over the foe in the top right corner it opens beside and over the portrait rather than
-    off the screen.
+  - The bloom's radius is 4.4 portrait radii, never more than 0.44 of the view's shorter side. With room above the
+    struck portrait it hangs straight above it. With no room above (the foe in the top right corner) it opens in the
+    open sky on the side of the portrait that faces the middle of the view, so it blooms over the board with the
+    portrait on its rim (second pass; the first pass crushed it into the corner on top of the portrait).
   - The held beat is STAGED, not a pause: the clock runs straight through it. The camera returns the same zoom and no
     offset for the whole beat, the launch kick and the hero's flinch are cut off after 200 ms, the thump's puffs are
     short, and no cue fires inside it.
 - `heroFireworksScene.ts`: on the shared `FxPool`. The rocket is ONE sprite: planted, then the same sprite flies. The
   bloom's stars are the only crowd, so they live in flat typed arrays (one sprite each, nothing allocated per frame),
-  capped at 240, additive, no filters. Their sprites are created ahead of time, 14 per frame while the damage formation
-  plays, so the bloom frame creates none. The whole scene is capped at 420 sprites; a bloom peaks around 230.
+  capped at 400, additive, no filters. Every sprite the bloom frame asks for (stars, glitter, flashes, the finale's
+  stars) is created ahead of time, 14 per frame while the damage formation plays, so the bloom frame creates none.
+  The whole scene is capped at 760 sprites; the bloom and its finale peak around 520.
 - `heroFireworksTextures.ts`: three props painted once per session on 2D canvases at 2x (the rocket, the candle, the
   mortar), with cylinder shading, a dark outline, wood grain and fuses. Everything else reuses the shared glow, spark,
   streak, ring and star.
 - `heroFireworks.ts`: the runner, on the shared clock, formation, camera and portrait movers like every other style.
 
-## Sound
+## Sound (first pass; replaced, see "Second pass" below)
 
 Six ElevenLabs calls (the Epic budget), four clips kept, 3.94 s in all, in `packages/ui/src/audio/fx/`. Each was
 trimmed to its hit, faded, made mono 44.1 kHz 128 kb/s, and levelled toward -20 LUFS with a -1 dB peak ceiling.
@@ -100,11 +104,102 @@ the owner's machine before it is trusted either way.
 
 - No cosmetic, no patch note, no rules entry: the coordinator adds those.
 - The sounds are unheard (see above).
-- With the foe in the top right corner there is no room above it, so the bloom opens beside and over the portrait and
-  the falling sparks lob into it rather than rain down. Striking the player's own portrait (bottom left) shows the
-  bloom properly above it.
+- (Fixed in the second pass.) With the foe in the top right corner the bloom opened beside and over the portrait.
 - The shared hit number lands on top of the bloom's centre for a moment.
 - No frame-time number from a production build (see Perf).
 - The first headless capture runs (about ten page loads) did not block the live backend, so they may each have made
   an anonymous sign-up there; one logged a 429 from a remote host. Every later run aborts all non-local requests.
 - Not seen on a real display, at a phone size, or in the Collection preview box (a geometry test covers the small box).
+
+## Second pass (2026-11-12): sound, and the bloom as the payoff
+
+The owner played the batch: the attacks "need sound effects" and the big looks are "quick and not impactful". This
+pass re-did the sound from measurements and rebuilt the mortar's second half. The rocket and the candle look the same
+(a touch more burst and shake); they sound different.
+
+### Sound
+
+Measured first. The attack was played with sound in headless Chrome, the audio output was tapped and recorded, and the
+recording cut into 100 ms windows (RMS, dBFS). Every style shares the opening damage formation (its loudest window is
+about -14 dB); the numbers below are the attack's OWN sound, from its first beat to 400 ms after its end.
+
+| | own RMS | loudest own window |
+| --- | --- | --- |
+| mortar, first pass | -30.8 dB | -29.9 (the boom) |
+| mortar, now | -21.0 dB | -14.0 (the boom; five windows in a row between -14 and -16) |
+| candle, now | -25.5 dB | -19.3 (the third pop) |
+| rocket, now | -27.3 dB | -21.1 (the pop) |
+| Storm Call IV (the shipped Epic) | -22.6 dB | -17.9 |
+| Soccer IV | -28.3 dB | -22.8 |
+| Frost IV | -27.7 dB | -21.6 |
+
+The first pass's boom was a 100 ms click 15 dB under the formation: that is why it read as silent.
+
+Six more ElevenLabs calls (the pass's budget), no retries. Seven clips now, 7.2 s in all:
+
+| clip | length | what it is (measured) |
+| --- | --- | --- |
+| `fireworks-boom` | 2.40 s | REPLACED. Two takes mixed: a sub boom (40 Hz, a second long) under a mid crack-bang with a rolling echo (700 Hz, two seconds). The first 500 ms hold about -9 dB RMS with both low and mid energy. |
+| `fireworks-crackle` | 1.70 s | NEW. Dense crackle, 6 to 7 kHz, level for 1.3 s then fading. |
+| `fireworks-thump` | 0.35 s | REPLACED. A hollow launch thump with an 80 Hz body under it (the sub take at double speed). |
+| `fireworks-pop` | 0.55 s | NEW. A crisp crack (2 to 3 kHz) with the crack-bang at 1.5x under it for body. |
+| `fireworks-whistle` | 0.75 s | NEW. A whistle rising from 2.9 to 4.8 kHz over 300 ms, then fading. |
+| `fireworks-fuse`, `fireworks-squeal` | 0.60 s, 0.82 s | kept, played louder. |
+
+Clips are peak-normalised to -1.5 dB (not to -20 LUFS: the boom has to carry) and levelled with their gains.
+
+Cues, per beat:
+- plant: `placelow`, and under the mortar a soft low thump (the heavy tube set down).
+- fuse: the fizz for as long as it burns, at 1.8.
+- launch: the rocket's squeal with a small kick under it; the candle's thumps (1.3x, 1.4x, 1.5x); the mortar's hollow
+  thump at 1.3 with the whistle climbing for as long as the comet is in view.
+- THE HELD BEAT: nothing (measured: -50 to -63 dB for 600 ms).
+- pops: the pop, with the boom short and at 1.5x under THE blow, and a breath of crackle after it.
+- THE BLOOM: the boom at 1.6, the crackle from 170 ms, a second lower take of the crackle from 850 ms (so it runs for
+  about 2.2 s), and each finale shell a pop with the boom at 1.25x to 1.5x under it.
+
+Still quiet: the fuse (-29 dB) and the rocket's squeal (-30 dB) sit well under their pops on purpose (a hiss and a
+whistle are thin sounds; louder would be the "plinky" the owner dislikes). Nobody has HEARD any of this: every level
+is measured from the recorded output, not listened to.
+
+### Impact
+
+- The mortar ran 2450 ms; it now runs 3390 (Soccer IV 3308, Frost IV 3083). The extra time is anticipation (a longer
+  fuse and a longer whistling rise; the held beat is 620) and aftermath (1.8 s from the bloom to the end, was 1.2).
+  The blow still lands once, on the bloom, 1590 ms in (Soccer IV 1978, Frost IV 2283). No hit-stop.
+- The bloom is 4.4 portrait radii (was 3): about 950 px across on a 1080p screen. Four rings and a willow instead of
+  three rings; a core flash that lights the whole view (sky light 0.30, was 0.14); two shock rings; 90 crackle
+  twinkles spread over 1.3 s that sit lower the later they fire (was 26).
+- THE FINALE: three smaller shells (magenta, cyan, green) open round the bloom at +330, +600 and +870 ms, each with
+  its own flash, ring, stars, crack and a pulse of light across the view.
+- Camera: shake 28 px (was 15), slower and longer (12 Hz), a harder punch in, and a nudge on every finale shell.
+- The struck portrait is LIT (a warm additive glow and a white flash on it that ride its knockback, again in each
+  finale shell's colour), knocked 22 px on a slower spring, ROCKED 5 degrees, and rocked again by every finale shell.
+- Staging in the top right corner: see "How". The hit number now sits on the portrait, clear of the bloom's core.
+
+### Style
+
+No new drawn object. The three painted fireworks from the first pass are kept (they are small, and the look is the
+sparks, not the tube).
+
+### Verified (second pass)
+
+- `npx vitest run packages/ui/src/heroFireworks packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 903
+  tests, all passing (43 in `heroFireworks.test.ts`: the finale's plan and cue order, the new running time, the bloom's
+  size and both stagings, the finale's points, the portrait rocked, the star counts, the caps). `npm run typecheck`
+  clean. `npm run lint`: 0 errors (148 warnings repo-wide, none in these files).
+- Looked at in headless Chrome at 1920 x 1080 (real-time screencast, sound off): the mortar in both directions, the
+  rocket, the candle in both directions. After every run both portraits and the stage had no transform left.
+- Frame times, DEV build, headless Chrome, vsync off, no capture, while other builders used the machine. Mortar, four
+  runs: median 0.7 to 0.8 ms, 99th percentile 4.7 to 7.1 ms, worst 25 to 43 ms. The worst frames sit on the shared
+  opening (about 25 ms in) and the shared teardown (the end) in every run, as in the first pass; the attack's own
+  per-frame step costs 0.5 ms at the 99th percentile and 1.3 to 5.2 ms at worst, 1.3 to 2.7 ms on the bloom frame.
+  Not measured on a production build.
+
+### Still weak or unverified
+
+- Unheard (see Sound). The boom is as loud as the formation's loudest moment; if that is too much, `sfxBoomGain`.
+- The bloom frame is very bright for about 100 ms (the core flash plus the sky light). Dials: `skyFlash`, `flashAlpha`.
+- The last half second of the aftermath is thin: a few falling willow stars and twinkles.
+- With the foe in the top right corner the bloom's top edge leaves the screen for a moment and it covers the lobby rail.
+- Not seen on a real display, a phone, or in the Collection preview box.

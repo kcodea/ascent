@@ -1,43 +1,39 @@
-// SCAFFOLDED from heroBulletTime/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about BulletTime, not this style, until rewritten.
 /**
- * THE TIMEBREAK RUNNER ("Timebreak", the Ancient of Time; ANCIENT): plays one Timebreak hero attack (the beats are
- * in `heroWarhostConfig.ts`) and lands the consequence on its impact beat (the hit, or IV's collapse). Presentation
- * only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
+ * THE WARHOST RUNNER ("Warhost", the Ancient of War; ANCIENT): plays one Warhost hero attack (the beats and the
+ * staging are in `heroWarhostConfig.ts`) and lands the consequence on its impact beat. Presentation only: the total
+ * and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * CUTTING THROUGH TIME (owner review 2026-10-02: "prefer slow motion vs stopped/grey time. like more cutting through time
- * than stopping it and dont grey out"; "looks weird not being centered"): gold clock-hand blades slice in, each leaving a
- * tear through the air, and as they reach the target time drops into DRAMATIC SLOW MOTION: they keep CRAWLING forward,
- * the FX run at `slowFx` speed, afterimages peel off, the clock over the target sweeps its hand, the camera pushes in.
- * Then time SNAPS back to full speed and everything lands. Every shape centres on the struck hero (its point is the
- * portrait's at-rest centre: `portraitGeometry` measures with `restingRect`). Full colour, never grey.
+ * AN ARMY OF TINY SOLDIERS delivers the blow: I one spearman and his thrown spear; II a rank of archers and an arrow
+ * rain; III a wedge of cavalry riding through the struck portrait; IV three war drums, a horn, banners, and the whole
+ * host flooding over it, leaving one soldier to plant a banner on it. The host always comes from the striker's side
+ * (every path is built from the two portrait points), and its jitter is rolled from the blow's seed.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; IV's collapse gets a slow-mo DIP
- * through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the portraits
- * (transform only, restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; only the Knockout variant dips
+ * it, through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the
+ * portraits (transform only, restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
- * THE CONTRACT: every hit before the last (III's run) is a tick (FX and sound only). The consequence (`onImpact`) lands
- * exactly ONCE, on the last hit (IV: the collapse).
+ * THE CONTRACT: every arrow before the last (II) is a tick (FX and sound only); every row or rank after the first (III,
+ * IV) is a buffet (FX only). The consequence (`onImpact`) lands exactly ONCE: the spear, the last arrow, the point
+ * rider, the front rank.
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` from the clock; no layout reads after the opening
- * measure; pooled sprites under a hard cap plus the darts and the clock as own objects; textures painted once per
- * session and pre-warmed during the formation; the updater unhooks the moment the scene drains.
+ * measure; every soldier's sprite is taken up front (during the formation), placed from the clock with no allocation;
+ * one texture atlas, painted once per session and pre-warmed; the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
 import { stageScale } from '../stage';
 import { AttackVoices, type CueOpts } from '../heroAttack/attackSound';
-import { KO_CYAN, KO_MAGENTA, playKoSting } from '../heroAttack/knockout';
-import { playBellStrike } from '../sfx';
+import { playKoSting } from '../heroAttack/knockout';
 import { DamageFormation, planFormation } from '../heroAttack/damageFormation';
 import { withFormation, type FormationCue } from '../heroAttack/formationConfig';
-import { clamp01, easeInOutSine, hexToNum, prefersReducedMotion, spring, type Pt } from '../heroAttack/easing';
+import { easeInOutSine, hexToNum, prefersReducedMotion, spring } from '../heroAttack/easing';
 import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options';
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  bulletCameraAt, bulletCameraFocus, bulletCues, bulletPlan, bulletSlowExtraMs, warhostScale, clockCentre, dartAt, dartGeos, getHeroWarhostConfig,
-  stopTicks, inSlowMo, type BulletCue, type BulletPlan, type DartGeo, type HeroWarhostConfig,
+  getHeroWarhostConfig, warhostCameraAt, warhostCameraFocus, warhostCues, warhostPlan, warhostRumble, warhostScale, warhostSlowExtraMs, warhostStage,
+  type HeroWarhostConfig, type WarhostCue, type WarhostPlan, type WarhostStage,
 } from './heroWarhostConfig';
 import { HeroWarhostScene, type HeroWarhostTextures } from './heroWarhostScene';
 import { heroWarhostTextures } from './heroWarhostTextures';
@@ -48,17 +44,18 @@ export interface HeroWarhostOptions extends HeroAttackOptions {
 }
 
 export interface HeroWarhostHandle extends HeroAttackHandle {
-  readonly plan: BulletPlan;
-  readonly geos: readonly DartGeo[];
+  readonly plan: WarhostPlan;
+  readonly stage: WarhostStage;
   readonly scene: HeroWarhostScene | null;
   readonly mirrorsCamera: boolean;
 }
 
-export function bulletSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
-  return (Math.round(total) * 6977 + Math.round(distance) * 43 + (side === 'opp' ? 251 : 29)) >>> 0;
+/** The formation jitter's seed when the caller gives none: the same blow always fields the same host. */
+export function warhostSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
+  return (Math.round(total) * 7919 + Math.round(distance) * 31 + (side === 'opp' ? 613 : 17)) >>> 0;
 }
 
-/** Play Timebreak. Returns a handle; the blow lands via `onImpact` on the last hit. */
+/** Play the Warhost. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const c = o.cfg ?? getHeroWarhostConfig();
   const reduced = o.reduced ?? prefersReducedMotion();
@@ -68,8 +65,8 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const sideHex = o.side === 'opp' ? c.colorFoe : c.colorPlayer;
   const dist = Math.hypot(o.defender.x - o.attacker.x, o.defender.y - o.attacker.y);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  const plan = bulletPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
-  const cues = withFormation(fplan, bulletCues(plan));
+  const plan = warhostPlan({ total: o.total, knockout: o.knockout, knockoutVariant: o.knockoutVariant, distance: dist, reduced, leadIn: fplan.endAt }, c);
+  const cues = withFormation(fplan, warhostCues(plan));
   const s = o.pixiScale ?? (typeof window === 'undefined' ? 1 : stageScale());
   const doc = typeof document !== 'undefined' ? document : null;
   const radius = o.defenderRadius ?? 120 * s;
@@ -78,7 +75,7 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const voices = new AttackVoices(sound);
   const nums = new DamageFormation({
     data: o.formation, plan: fplan, beats: plan, cfg: fcfg, attacker: o.attacker, attackerRadius: o.attackerRadius,
-    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hbullet',
+    defender: o.defender, defenderRadius: o.defenderRadius, side: o.side, sideHex, local, host, scale: s, voices, className: 'hwarhost',
   });
 
   const vw = typeof window === 'undefined' ? 1920 : window.innerWidth;
@@ -86,25 +83,19 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const screen = local
     ? { x: Math.min(o.attacker.x, o.defender.x) - dist * 0.3, y: Math.min(o.attacker.y, o.defender.y) - dist * 0.3, w: Math.abs(o.attacker.x - o.defender.x) + dist * 0.6, h: Math.abs(o.attacker.y - o.defender.y) + dist * 0.6 }
     : { x: 0, y: 0, w: vw, h: vh };
-  const geos = dartGeos(plan, o.attacker, o.defender, radius, aRadius, c, screen);
-  // Each dart's position on the clock (made once: a closure per dart, never per frame).
-  const samplers = plan.darts.map((d, i) => (ms: number): Pt => dartAt(d, geos[i]!, ms).p);
-  const toFoe = (() => { const L = dist || 1; return { x: (o.defender.x - o.attacker.x) / L, y: (o.defender.y - o.attacker.y) / L }; })();
-  const flip = o.attacker.x > o.defender.x ? -1 : 1;
-  // The clock CENTRES ON THE TARGET (owner 2026-10-02): a dial ringing the struck portrait, bigger each tier (IV's
-  // ringing the whole dome).
-  const clockAt = clockCentre(plan, o.attacker, o.defender);
-  const clockR = c.clockSize * radius * (plan.kind === 'dome' ? 3.4 : plan.kind === 'spiral' ? 2.5 : 1.35);
-  const gold = hexToNum(c.colorGold), light = hexToNum(c.colorLight), violet = hexToNum(c.colorViolet);
-  // The dome's rings alternate gold and light gold; the Knockout's rings go prismatic (cyan, magenta) between them.
-  const tintOf = (i: number): number => (plan.kind !== 'dome' ? gold : (plan.ko ? [gold, KO_CYAN, light, KO_MAGENTA] : [gold, light, gold])[plan.darts[i]!.ring % (plan.ko ? 4 : 3)]!);
+  const seed = o.rollSeed ?? warhostSeed(o.total, dist, o.side);
+  const stage = warhostStage(plan, o.attacker, o.defender, radius, aRadius, c, s, seed, screen);
+  const u = stage.u, n = stage.n;
+  const feet = { x: o.attacker.x, y: o.attacker.y + aRadius * 0.2 };
 
   const textures = o.textures !== undefined ? o.textures : heroWarhostTextures();
   const scene = textures && !reduced
-    ? new HeroWarhostScene(textures, { gold, light, violet, side: hexToNum(sideHex) }, {
-      dartPx: c.dartPx, trailMs: c.trailMs, trailWidth: c.trailWidth, riftWidth: c.riftWidth, impactSize: c.impactSize,
-    }, s, bulletSeed(o.total, dist, o.side))
+    ? new HeroWarhostScene(textures, { red: hexToNum(c.colorRed), brass: hexToNum(c.colorBrass), dust: hexToNum(c.colorDust), side: hexToNum(sideHex) }, {
+      soldierPx: c.soldierPx, cavalryPx: c.cavalryPx, dust: c.dust, impactSize: c.impactSize,
+    }, s, seed)
     : null;
+  // Every soldier's sprite is taken now, while the damage formation still plays: nothing is made on a hot beat.
+  scene?.deploy(stage);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -113,102 +104,91 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const cue = (clip: string, gain: number, rate: number, opts?: CueOpts): void =>
-    voices.cue(clip, gain, rate * (0.85 + 0.15 * warhostScale(plan, c, seq ? seq.t : 0)), opts);
+    voices.cue(clip, gain, rate * (0.85 + 0.15 * warhostScale(plan, seq ? seq.t : 0)), opts);
   voices.warm([
-    c.sfxTickClip, c.sfxThrowClip, c.sfxFreezeClip, c.sfxStopClip, c.sfxSnapClip, c.sfxRestartClip, c.sfxHitClip, c.sfxThudClip,
-    c.sfxBoomClip, c.sfxBellClip, c.sfxRumbleClip,
+    c.sfxHornClip, c.sfxDrumClip, c.sfxChargeClip, c.sfxGallopClip, c.sfxLooseClip, c.sfxThunkClip, c.sfxWhooshClip, c.sfxThudClip, c.sfxBoomClip,
+    c.sfxCheerClip,
   ]);
-  const n = plan.darts.length;
-  // A big volley would be a wall of noise: one launch / freeze sound every few darts.
-  const every = n > 12 ? 4 : n > 3 ? 3 : 1;
-  let rippleNext = 0;
-  // When each crawling blade last shed an afterimage (IV sheds less often: dozens of blades).
-  const ghostEvery = c.ghostMs * (plan.kind === 'dome' ? 4 : 1);
-  const lastGhost = plan.darts.map((_, i) => -i * 13);
+  /** The thunk's knock sits 87 ms into its clip: skip most of the lead so it lands on the beat. */
+  const thunk = (gain: number, rate: number, lenMs = 360): void => cue(c.sfxThunkClip, c.sfxThunkGain * gain, c.sfxThunkRate * rate, { startMs: 55, lenMs, fadeMs: 120 });
 
-  const fire = (q: BulletCue | FormationCue): void => {
+  const fire = (q: WarhostCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     switch (q.kind) {
       case 'charge':
-        cue(c.sfxTickClip, c.sfxTickGain, c.sfxTickRate, { lenMs: 400, fadeMs: 160 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         break;
-      case 'launch':
-        if (q.i % every === 0) cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate + 0.03 * (q.i / every), { lenMs: 260, fadeMs: 100 });
+      case 'drum':
+        // Three heavy hits, each a little lower and louder than the last.
+        cue(c.sfxDrumClip, c.sfxDrumGain * (0.8 + 0.15 * q.i), c.sfxDrumRate * (1 - 0.035 * q.i), { tail: c.sfxTailMix });
+        scene?.drum(feet, aRadius, q.i);
         break;
-      case 'cut': {
-        // A blade drops into the slow motion: a glassy tink, and the TEAR it sliced through the air behind it.
-        if (q.i % every === 0) cue(c.sfxFreezeClip, c.sfxFreezeGain, c.sfxFreezeRate + 0.04 * (q.i / every), { lenMs: 220, fadeMs: 90 });
-        const d = plan.darts[q.i], g = geos[q.i];
-        if (d && g) {
-          // The tear runs back along its last stretch of flight, at most a few portrait radii long (a slash, not a laser).
-          const back = dartAt(d, g, d.hangAt - Math.min(140, (d.hangAt - d.launchAt) * 0.6)).p;
-          const bl = Math.hypot(back.x - g.hang.x, back.y - g.hang.y) || 1;
-          const keep = Math.min(1, (radius * (plan.kind === 'dome' ? 2.2 : 3.2)) / bl);
-          const from = { x: g.hang.x + (back.x - g.hang.x) * keep, y: g.hang.y + (back.y - g.hang.y) * keep };
-          // The tear lingers through the slow motion (in the FX's own, slowed, time).
-          const linger = Math.max(0, d.resumeAt - d.hangAt) * c.slowFx + 120;
-          scene?.cut(from, g.hang, linger, plan.kind === 'dome' ? 0.7 : 1);
+      case 'horn':
+        // III: a quick call over the charge. IV: the long deep one after the drums.
+        if (plan.kind === 'host') cue(c.sfxHornClip, c.sfxHornGain, c.sfxHornRate * 0.94, { tail: c.sfxTailMix });
+        else cue(c.sfxHornClip, c.sfxHornGain * 0.85, c.sfxHornRate * 1.1, { lenMs: 1150, fadeMs: 350 });
+        scene?.horn(o.attacker, u, aRadius);
+        break;
+      case 'march':
+        if (plan.kind === 'cavalry') {
+          cue(c.sfxGallopClip, c.sfxGallopGain, c.sfxGallopRate);
+          cue(c.sfxChargeClip, c.sfxChargeGain * 0.4, c.sfxChargeRate * 1.15, { lenMs: 1100, fadeMs: 400 });
+        } else if (plan.kind === 'host') {
+          cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate);
+          cue(c.sfxGallopClip, c.sfxGallopGain * 0.6, c.sfxGallopRate * 0.9);
         }
         break;
-      }
-      case 'slow':
-        // TIME SLOWS: a low reversed swell; a ripple sweeps the screen, motes drift; III's and IV's clock flashes in.
-        cue(c.sfxStopClip, c.sfxStopGain, c.sfxStopRate, { lenMs: 700, fadeMs: 260, reverse: true });
-        scene?.stop(o.defender, radius, screen, Math.round(c.motes), plan.kind === 'dome');
-        if (plan.kind === 'spiral' || plan.kind === 'dome') scene?.clockFlash(clockAt, clockR);
-        // The anticipation: a riser into the restart (III, IV).
-        if (plan.kind === 'spiral' || plan.kind === 'dome') voices.riser(c.sfxStopClip, c.sfxStopGain * 0.9, c.sfxStopRate * 1.5, (plan.resumeAt - plan.stopAt) / speed);
-        rippleNext = plan.stopAt + c.rippleMs;
+      case 'arrive':
+        if (plan.kind === 'spear') { const who = stage.troops[0]; if (who) for (let i = 0; i < 3; i++) scene?.puff(who.p1.x + (i - 1) * 8 * s, who.p1.y - 2 * s, 1.2); }
         break;
-      case 'count': {
-        // IV: 3 ... 2 ... 1, each a heavier tick.
-        const k = (3 - q.i) as 1 | 2 | 3;
-        cue(c.sfxTickClip, c.sfxTickGain * 1.3, c.sfxTickRate * (0.85 + 0.12 * q.i), { lenMs: 300, fadeMs: 120 });
-        cue(c.sfxFreezeClip, c.sfxFreezeGain * 0.8, c.sfxFreezeRate * (0.7 + 0.1 * q.i), { lenMs: 300, fadeMs: 120 });
-        scene?.count(clockAt, k, radius * 0.95, c.countMs);
-        break;
-      }
-      case 'tick':
-        // The clock ticks through the slow motion, faster, higher and LOUDER toward the snap.
-        cue(c.sfxTickClip, c.sfxTickGain * Math.min(1.6, 0.7 + 0.12 * q.i), c.sfxTickRate + 0.05 * q.i, { lenMs: 160, fadeMs: 70 });
-        break;
-      case 'snap':
-        // TIME SNAPS BACK TO FULL SPEED: the hero snaps its fingers, a rising whoosh, a flash, a chromatic burst.
-        cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate, { lenMs: 500, fadeMs: 200 });
-        cue(c.sfxRestartClip, c.sfxRestartGain, c.sfxRestartRate, { lenMs: 420, fadeMs: 160 });
-        // A bell tone for the time snap (a bright fifth; IV lower and fuller).
-        if (sound) {
-          const lo = plan.kind === 'dome' ? 0.75 : 1;
-          voices.keep(playBellStrike('attack', { gain: 0.45, hz: 1047 * lo, decayMs: 600 / speed }));
-          voices.keep(playBellStrike('attack', { gain: 0.35, hz: 1568 * lo, decayMs: 700 / speed, delayMs: 50 / speed }));
+      case 'loose':
+        if (plan.kind === 'spear') cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: 320, fadeMs: 140 });
+        else {
+          cue(c.sfxLooseClip, c.sfxLooseGain, c.sfxLooseRate);
+          cue(c.sfxLooseClip, c.sfxLooseGain * 0.7, c.sfxLooseRate * 1.12, { delayMs: 90 / speed });
+          cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.7, c.sfxWhooshRate * 0.8, { lenMs: 520, fadeMs: 240 });
         }
-        scene?.snap(o.defender, radius, screen, plan.kind === 'dome' ? 1.6 : 1);
         break;
-      case 'hit':
-        cue(c.sfxHitClip, c.sfxHitGain * 0.75, c.sfxHitRate + 0.03 * q.i, { lenMs: 300, fadeMs: 120 });
-        if (geos[0]) scene?.hit(o.defender, toFoe, 0.8, 6);
+      case 'volley':
+        cue(c.sfxLooseClip, c.sfxLooseGain * 0.75, c.sfxLooseRate * (0.95 + 0.08 * q.i));
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.6, c.sfxWhooshRate * 0.75, { lenMs: 560, fadeMs: 260 });
         break;
+      case 'hit': {
+        // One arrow of the rain: every other one knocks (a patter, not a wall of noise).
+        if (q.i % 2 === 0) thunk(0.42, 1.35 + 0.06 * ((q.i / 2) % 4), 180);
+        scene?.arrowTick(stage.shots[q.i]?.to ?? stage.strike);
+        break;
+      }
       case 'impact':
-        if (plan.tier >= 4) {
-          cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate - 0.08, { tail: c.sfxTailMix, lenMs: 1800, fadeMs: 600 });
-          cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate, { tail: c.sfxTailMix * 1.5, lenMs: 2200, fadeMs: 900 });
-          // The great time bell under the collapse.
-          if (sound) voices.keep(playBellStrike('attack', { gain: 0.6, hz: 196, decayMs: 2200 / speed }));
-          cue(c.sfxRumbleClip, c.sfxRumbleGain, c.sfxRumbleRate, { lenMs: 1400, fadeMs: 500 });
-          cue(c.sfxThudClip, c.sfxThudGain * 1.2, c.sfxThudRate - 0.25, { lenMs: 700, fadeMs: 250 });
-          cue(c.sfxFreezeClip, c.sfxFreezeGain * 1.4, c.sfxFreezeRate * 0.55, { lenMs: 900, fadeMs: 300 });
+        if (plan.tier === 1) thunk(1, 1);
+        else if (plan.tier === 2) { thunk(0.9, 1.1); cue(c.sfxThudClip, c.sfxThudGain * 0.5, c.sfxThudRate * 1.3, { lenMs: 500, fadeMs: 200 }); }
+        else if (plan.tier === 3) {
+          cue(c.sfxThudClip, c.sfxThudGain, c.sfxThudRate * 0.95, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 350 });
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.5, c.sfxBoomRate * 1.15, { lenMs: 900, fadeMs: 350 });
+          thunk(0.6, 0.8);
         } else {
-          cue(c.sfxHitClip, c.sfxHitGain * 1.15, c.sfxHitRate - 0.08 * plan.tier, { tail: c.sfxTailMix, lenMs: 600, fadeMs: 220 });
-          cue(c.sfxThudClip, c.sfxThudGain * (0.9 + 0.1 * plan.tier), c.sfxThudRate - 0.08 * plan.tier, { lenMs: 600, fadeMs: 220 });
-          if (plan.tier >= 2) cue(c.sfxBoomClip, c.sfxBoomGain * (0.4 + 0.2 * plan.tier), c.sfxBoomRate + 0.3 - 0.1 * plan.tier, { tail: c.sfxTailMix, lenMs: 1200, fadeMs: 400 });
-          if (plan.tier >= 3) cue(c.sfxBellClip, c.sfxBellGain * 0.5, c.sfxBellRate * 1.4, { tail: c.sfxTailMix, lenMs: 1200, fadeMs: 500 });
+          cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate, { tail: c.sfxTailMix, lenMs: 1600, fadeMs: 600 });
+          cue(c.sfxThudClip, c.sfxThudGain * 1.2, c.sfxThudRate * 0.8, { tail: c.sfxTailMix, lenMs: 1100, fadeMs: 400 });
+          thunk(0.5, 0.7);
         }
-        scene?.impact(o.defender, toFoe, radius, plan.tier, screen);
-        // THE KNOCKOUT: the prismatic collapse and the sting.
+        scene?.impact(o.defender, stage.strike, u, radius, plan.tier);
+        // THE KNOCKOUT: the prismatic shock and the sting.
         if (plan.ko) { scene?.koFlourish(o.defender, radius); playKoSting(voices, sound, (ms) => ms / speed); }
         seq.land();
+        break;
+      case 'buffet':
+        cue(c.sfxThudClip, c.sfxThudGain * 0.45, c.sfxThudRate * (1.15 + 0.04 * q.i), { lenMs: 420, fadeMs: 180 });
+        scene?.buffet(o.defender, radius, plan.kind === 'host' ? 1 : 0.7);
+        break;
+      case 'cheer':
+        // A tiny cheer (the crowd clip pitched up and trimmed to a second): one man on I, a few on the Knockout.
+        cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.5 : 1), c.sfxCheerRate, { startMs: 700, lenMs: plan.kind === 'spear' ? 650 : 900, fadeMs: 320 });
+        break;
+      case 'plant':
+        thunk(0.8, 0.8);
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.5, c.sfxWhooshRate * 0.7, { lenMs: 420, fadeMs: 200 });
+        scene?.plant({ x: o.defender.x, y: o.defender.y + radius * 0.35 }, radius);
         break;
       default:
         break;
@@ -216,88 +196,72 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
   };
 
   // ── the per-frame paint ──
-  const ticks = stopTicks(plan);
-  const tickStep = (Math.PI * 2) / 60 * 5; // each tick moves the minute hand five minutes, with a little kick
+  const flip = stage.face;
+  const dimOut = plan.kind === 'host' ? plan.plantAt + c.bannerMs * 0.5 : plan.kind === 'cavalry' ? plan.passAt + 160 : plan.impactAt + 200;
+  const knockK = c.knockPx * (0.7 + 0.4 * plan.k);
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.fireAt, plan.impactAt + (plan.tier >= 4 ? 420 : 200));
-    const cm = bulletCameraAt(plan, c, t, toFoe);
+    nums.paintDim(t, plan.chargeAt, plan.marchAt, dimOut);
+    const cm = warhostCameraAt(plan, c, t, u);
     const unit = local ? 1 : s;
-    cam.apply(bulletCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
-    const slow = inSlowMo(plan, t);
-    if (scene) {
-      // THE SLOW MOTION: every FX runs at `slowFx` speed (sparks, motes, ripples, glints, tears), easing in over 80 ms
-      // and snapping straight back to full speed on the snap.
-      scene.setTimeScale(slow ? 1 - (1 - c.slowFx) * clamp01((t - plan.stopAt) / 80) : 1);
-      // The last ~300 ms before the snap the crawling blades strain (the anticipation).
-      const tension = slow ? clamp01((t - (plan.resumeAt - 320)) / 320) : 0;
-      // Every blade, from its own pure path (crawling through the slow motion, never stopped).
-      for (let i = 0; i < n; i++) {
-        const d = plan.darts[i]!, g = geos[i]!;
-        const st = dartAt(d, g, t);
-        scene.setDart(i, samplers[i]!, t, st.phase, st.angle, plan.size * (plan.kind === 'dome' ? 1 + 0.12 * d.ring : 1), tintOf(i), tension);
-        // Afterimages peel off a crawling blade.
-        if (st.phase === 'crawl' && t - lastGhost[i]! >= ghostEvery) { lastGhost[i] = t; scene.ghost(i); }
-      }
-      // The clock over the target, ticking (each tick kicks the hand a notch, with a little overshoot).
-      let minute = 0;
-      for (const at of ticks) if (t >= at) minute += tickStep * (1 + 0.25 * Math.max(0, spring(t - at, 8, 40)));
-      const inU = clamp01((t - plan.stopAt) / 160), outA = t < plan.resumeAt ? 1 : 1 - clamp01((t - plan.resumeAt) / 90);
-      // It MATERIALISES: settling in from a little bigger as it fades up; the hand spins hard in the last beat.
-      if (tension > 0) minute += tension * tension * Math.PI * 4;
-      scene.setClock(clockAt, clockR * (1 + 0.25 * (1 - inU) * (1 - inU)), minute, t >= plan.stopAt && t < plan.resumeAt + 90 ? inU * outA : 0);
-      // The gold time ripple pulses off the target through the slow motion.
-      if (slow && rippleNext > 0 && t >= rippleNext) { scene.ripple(o.defender, radius); rippleNext += c.rippleMs; }
-    }
+    cam.apply(warhostCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, unit);
     const px = local ? 0.45 : 1;
     if (hero.el && t >= plan.chargeAt) {
-      // The draw (a lean back), the throw (a snap forward), and on the restart the hero's own SNAP (a pop).
-      let bx = 0, by = 0, rot = 0, sc = 1;
-      const lean = t < plan.fireAt ? easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.fireAt - plan.chargeAt)) : Math.max(0, spring(t - plan.fireAt, 3, 90));
-      bx -= toFoe.x * c.heroWindPx * px * lean; by -= toFoe.y * c.heroWindPx * px * lean;
-      rot -= 3 * flip * lean;
-      if (t >= plan.fireAt) { const f = c.heroThrowPx * px * Math.max(0, spring(t - plan.fireAt, 5, 60)); bx += toFoe.x * f; by += toFoe.y * f; }
-      if (t >= plan.resumeAt) sc += 0.08 * Math.max(0, spring(t - plan.resumeAt, 4, 70));
+      // The send-off: a lean back through the ready, a thrust as the troops go; each war drum thumps it.
+      let bx = 0, by = 0, sc = 1;
+      const lean = t < plan.marchAt ? easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.marchAt - plan.chargeAt)) : Math.max(0, spring(t - plan.marchAt, 3, 90));
+      bx -= u.x * c.heroWindPx * px * lean; by -= u.y * c.heroWindPx * px * lean;
+      const rot = -2.5 * flip * lean;
+      if (t >= plan.marchAt) { const f = c.heroThrowPx * px * Math.max(0, spring(t - plan.marchAt, 5, 60)); bx += u.x * f; by += u.y * f; }
+      for (const at of plan.drums) if (t >= at) sc += 0.06 * Math.max(0, spring(t - at, 4, 80));
       const still = Math.abs(bx) + Math.abs(by) < 0.05 && Math.abs(rot) < 0.01 && Math.abs(sc - 1) < 1e-4;
       hero.set(still ? null : `translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${sc.toFixed(4)})`);
     }
-    let fx = 0, fy = 0;
-    let css: string | null = null;
+    // The struck portrait: ticked by each arrow, knocked by the blow, knocked ABOUT by every row and rank after it, and
+    // shuddering under the trample.
+    let fx = 0, fy = 0, rot = 0, sq = 0;
+    for (const at of plan.hits) if (t >= at) { const k = Math.max(0, spring(t - at, 6, 40)) * 3 * px; fx += u.x * k; fy += u.y * k; }
     if (t >= plan.impactAt) {
       const k = spring(t - plan.impactAt, 4.5, 90);
-      const knock = c.knockPx * (0.7 + 0.4 * plan.k) * k * px;
-      const sq = c.squash * (0.8 + 0.4 * plan.k) * k;
-      fx = toFoe.x * knock; fy = toFoe.y * knock;
-      css = Math.abs(k) < 0.004 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
-    } else {
-      let k = 0;
-      for (const at of plan.hits) if (t >= at) k += Math.max(0, spring(t - at, 6, 40)) * 8 * px;
-      fx = toFoe.x * k; fy = toFoe.y * k;
-      css = Math.abs(fx) + Math.abs(fy) < 0.05 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
+      fx += u.x * knockK * k * px; fy += u.y * knockK * k * px;
+      sq = c.squash * (0.8 + 0.4 * plan.k) * k;
+      rot += 3 * flip * k * (0.5 + plan.k);
+      for (let i = 0; i < plan.buffets.length; i++) {
+        const at = plan.buffets[i]!;
+        if (t < at) break;
+        const b = spring(t - at, 5, 70) * knockK * 0.45 * px;
+        const side = i % 2 ? 1 : -1;
+        fx += (u.x * 0.5 + n.x * side * 0.7) * b; fy += (u.y * 0.5 + n.y * side * 0.7) * b;
+        rot += side * 2.4 * spring(t - at, 5, 70);
+      }
+      const r = plan.kind === 'host' ? warhostRumble(plan, t) : 0;
+      if (r > 0) { fx += Math.sin(t * 0.11) * 3 * r * px; fy += Math.sin(t * 0.17 + 1) * 2.4 * r * px; }
+      if (plan.plantAt >= 0 && t >= plan.plantAt) fy += 5 * px * spring(t - plan.plantAt, 4, 70);
     }
-    foe.set(css);
-    scene?.setFoeOffset(fx * unit, fy * unit);
+    const still = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(rot) < 0.02 && Math.abs(sq) < 4e-4;
+    foe.set(still ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) rotate(${rot.toFixed(3)}deg) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`);
+    if (scene) { scene.setFoeOffset(fx * unit, fy * unit); scene.paint(t); }
   };
 
-  const seq: Sequence<BulletCue | FormationCue> = new Sequence<BulletCue | FormationCue>({
+  const seq: Sequence<WarhostCue | FormationCue> = new Sequence<WarhostCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // IV's slow-mo dip on the collapse: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
-    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? warhostScale(plan, c, seq.t) : 1))),
-    safetyMs: o.safety !== false ? (plan.endAt + bulletSlowExtraMs(plan, c)) / speed + 2500 : null,
+    // The Knockout's slow-mo dip: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
+    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? warhostScale(plan, seq.t) : 1))),
+    safetyMs: o.safety !== false ? (plan.endAt + warhostSlowExtraMs(plan)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
-      scene?.setClock(o.defender, 0, 0, 0);
+      scene?.retire();
     },
     stopVoices: () => voices.stopAll(),
   });
 
   return {
     plan,
-    geos,
+    stage,
     scene,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,

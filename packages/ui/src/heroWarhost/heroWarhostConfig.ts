@@ -1,84 +1,87 @@
-// SCAFFOLDED from heroBulletTime/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about BulletTime, not this style, until rewritten.
 /**
- * THE TIMEBREAK HERO ATTACK ("Timebreak", the Ancient of Time; ANCIENT rarity): its tuned values, its pure timeline,
- * the pure dart paths, the slow-mo dip and the pure camera.
+ * THE WARHOST HERO ATTACK ("Warhost", the Ancient of War; ANCIENT rarity): its tuned values, its pure timeline, the
+ * pure staging (every soldier, every spear and arrow, every banner), and the pure camera.
  *
- * Owner 2026-10-02: "build a new ancient animation for this ancient, the ancient of time". After three rewind builds
- * the owner PICKED "BULLET TIME", then on review (2026-10-02): "looks weird not being centered and prefer slow motion vs
- * stopped/grey time. like more cutting through time than stopping it and dont grey out". So THE SIGNATURE is CUTTING
- * THROUGH TIME: gold clock-hand blades fly in, and as they reach the target time drops into DRAMATIC SLOW MOTION (they
- * keep crawling forward, never stopping), each one having sliced a bright gold TEAR through the air behind it, a
- * time-rift glow along the cut, afterimages trailing; then time SNAPS back to full speed and everything lands. Every
- * shape centres on the struck hero; the colours stay full (no grey).
+ * THE SIGNATURE: AN ARMY OF TINY SOLDIERS. The blow is delivered by a host of small painted soldier figures in the
+ * Ancient of War's colours (red and brass), pooled sprites with a two-frame run cycle and a little bob. No other attack
+ * has crowds of little people. Nothing here is a beam, a bolt or a glow: it is men, horses, spears, arrows, banners
+ * and dust.
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I: a gold clock-hand dart cuts in and slows to a crawl an inch from the target inside a clock dial; snap: the hit.
- *  - II: three darts cut in from round the target and crawl; snap: they all hit together.
- *  - III: a volley of twelve cuts in to a spiral round the target and crawls as a clock face appears; the hero SNAPS:
- *    they land in a machine-gun run (the last is the blow).
- *  - IV (Huge): dozens of blades slice in to a DOME of rings round the target before a big clock face counting 3-2-1,
- *    crawling; time snaps back and the whole dome collapses in one massive gold and violet impact, on a slow-mo dip.
- *  - KNOCKOUT ("Tier V", an Ancient knockout; owner rule 2026-10-02): IV remixed: one EXTRA ring of blades in the dome
- *    (cyan and magenta), a PRISMATIC collapse, a 1.3x shake, a deeper and longer slow-mo dip and the KO sting.
+ * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays IV):
+ *  - I, THE SPEARMAN: one little spearman patters out from the striking hero (a dust puff per step), plants his feet
+ *    and THROWS his spear; it arcs and sticks in the struck portrait with a twang (the blow). He gives a tiny cheer hop
+ *    and runs home.
+ *  - II, THE ARCHERS: a rank of archers jogs out and forms a line, draws together (a held beat) and looses: an ARROW
+ *    RAIN arcs high and comes down on the struck portrait in a patter, each arrow sticking at its own angle (every
+ *    arrow before the last is a tick; the last is the blow). They jog home.
+ *  - III, THE CAVALRY: a war horn. A wedge of tiny cavalry (lances, pennants, a gallop bob) charges across the board
+ *    from the striker's side kicking up a rolling dust line and rides THROUGH the struck portrait (the blow lands as
+ *    the point rider hits; every row after it buffets the portrait), then wheels off screen.
+ *  - IV, THE HOST: three war drums, a long horn, banners rise behind the striking hero, then the FULL HOST floods across
+ *    the screen: rank after rank of infantry, cavalry on the flanks, arrow volleys overhead, all funnelling onto the
+ *    struck portrait and trampling over it (the blow lands as the front rank hits; every rank after it buffets it and
+ *    buries it in dust). The host passes, the dust thins, and one soldier stays to PLANT A BANNER (red with a gold
+ *    emblem) on the struck portrait; it snaps in the wind for a beat, then everything clears.
+ *  - KNOCKOUT ("Tier V", an Ancient knockout): IV remixed: three more soldiers stay to cheer round the banner, a
+ *    prismatic shock on the front rank's hit, a 1.3x shake, a short slow-mo dip and the KO sting.
  *
- * NEVER A FROZEN FRAME (owner rule R-PROG-ATTACK-10: "it looks like lag"): in the slow motion EVERYTHING still moves, just
- * slowed (the blades crawl, the FX run at `slowFx` speed, the clock hand sweeps, the camera pushes in). The snap back is
- * hard: a flash, a chromatic burst, a shake.
+ * THE HOST ALWAYS COMES FROM THE STRIKER'S SIDE: every path is built from the two portrait points, so it plays the same
+ * in both directions. Formation jitter (each soldier's place in the rank, size and stride) is rolled from the seed.
  *
- * THE CONTRACT: every hit before the last (III's run) is a tick; the consequence lands exactly ONCE, on the last hit (or
- * the collapse). Reduced motion: fades only.
+ * NEVER A FROZEN FRAME (R-PROG-ATTACK-10): the one clock never stops. Only the Knockout variant dips it (a smooth ramp
+ * that never reaches 0).
+ *
+ * THE CONTRACT: the consequence lands exactly ONCE, on the impact beat. Everything before it is a tick (FX and sound
+ * only); everything after it (the ranks passing, the banner) is FX only. Reduced motion: fades only.
  */
 import { configStore } from '../heroAttack/configStore';
-import { clamp, type Pt } from '../heroAttack/easing';
+import { clamp, clamp01, seededRng, type Pt } from '../heroAttack/easing';
 import {
   HERO_ATTACK_TIER_THRESHOLDS, TIERS, reducedAttackTimeline, attackTier, isKnockoutVariant, type AttackTierContext, type TierNum,
 } from '../heroAttack/tiers';
-import { KO_SHAKE, koDipExtraMs, koTimeScale, type KoDip } from '../heroAttack/knockout';
+import { KO_DIP, KO_SHAKE, koDipExtraMs, koTimeScale, type KoDip } from '../heroAttack/knockout';
 
 export type { TierNum };
 
-export const BULLET_LEVELS = ['t1', 't2', 't3', 't4'] as const;
-export type BulletLevel = (typeof BULLET_LEVELS)[number];
+export const WARHOST_LEVELS = ['t1', 't2', 't3', 't4'] as const;
+export type WarhostLevel = (typeof WARHOST_LEVELS)[number];
 
-export const BULLET_TIER_SUFFIXES = [
-  'ReadyMs', 'Darts', 'StaggerMs', 'FlyMs', 'HangMs', 'ResumeMs', 'Size', 'Shake', 'Zoom', 'Push', 'Punch', 'SettleMs', 'Dim',
-] as const;
-export type BulletTierSuffix = (typeof BULLET_TIER_SUFFIXES)[number];
-type TierKey = `${BulletLevel}${BulletTierSuffix}`;
+export const WARHOST_TIER_SUFFIXES = ['ReadyMs', 'MarchMs', 'HoldMs', 'FlightMs', 'Troops', 'Shake', 'Zoom', 'Punch', 'SettleMs', 'Dim'] as const;
+export type WarhostTierSuffix = (typeof WARHOST_TIER_SUFFIXES)[number];
+type TierKey = `${WarhostLevel}${WarhostTierSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
   absorbMs: number;
-  /** III: the gap between each dart of the run after the snap (the last is the blow). */
-  runMs: number;
-  /** IV: each count of the 3-2-1. */
-  countMs: number;
-  /** IV: the dome's three rings (blades per ring) and its size. */
-  domeRings: number;
-  domeBlades: number;
-  domeSize: number;
-  /** IV: the slow-mo dip on the collapse (lowest clock speed, and how long it takes to ease back, attack ms). */
-  slowMo: number;
-  slowMoMs: number;
-  /** How far short of the target a dart hangs (struck radii). */
-  hangR: number;
-  dartPx: number;
-  trailMs: number;
-  trailWidth: number;
-  /** In the slow motion each blade crawls this fraction of the rest of the way to the target. */
-  crawl: number;
-  /** How fast the FX run in the slow motion (sparks, motes, ripples, glints, tears). */
-  slowFx: number;
-  /** The gold TEAR each blade slices through the air (px). */
-  riftWidth: number;
-  /** An afterimage peels off a crawling blade every this many ms (IV every three times this). */
-  ghostMs: number;
-  /** The gold time ripple pulsing off the target in the slow motion (ms between pulses). */
-  rippleMs: number;
-  /** Dust motes drifting in the slow motion. */
-  motes: number;
-  clockSize: number;
+  /** A foot soldier's height and a rider's height (horse and all), px at stage scale 1. */
+  soldierPx: number;
+  cavalryPx: number;
+  /** I, II: how far out from the striking portrait's edge the spearman plants / the archers form their line (px). */
+  standPx: number;
+  /** II: the gap between archers in the line (px), arrows loosed per archer, and the gap between arrows landing (ms). */
+  lineGapPx: number;
+  arrowsPer: number;
+  patterMs: number;
+  /** I: the cheer after the spear sticks (ms) before he runs home. */
+  cheerMs: number;
+  /** III: the gap between each row of the wedge reaching the target (ms). */
+  rowMs: number;
+  /** IV: the gap between the three drums (ms). */
+  drumMs: number;
+  /** IV: the gap between ranks reaching the target (ms), soldiers per rank, the host's width (px), riders per flank. */
+  rankMs: number;
+  hostFiles: number;
+  hostWidthPx: number;
+  hostCavalry: number;
+  /** IV: arrows per volley (two volleys fly over the host). */
+  hostArrows: number;
+  /** IV: how tight the host funnels as it crosses the target (1 = no funnel). */
+  funnel: number;
+  /** IV: after the last rank passes, the dust thins for this long before the banner goes in; then it flies this long. */
+  dustMs: number;
+  bannerMs: number;
+  /** How much dust (a multiplier on every puff and cloud). */
+  dust: number;
   impactSize: number;
   heroWindPx: number;
   heroThrowPx: number;
@@ -87,22 +90,21 @@ interface GlobalConfig {
   shakeMs: number;
   zoomOutMs: number;
   reducedFadeMs: number;
-  colorGold: string;
-  colorLight: string;
-  colorViolet: string;
+  colorRed: string;
+  colorBrass: string;
+  colorDust: string;
   colorPlayer: string;
   colorFoe: string;
-  sfxTickClip: string; sfxTickGain: number; sfxTickRate: number;
-  sfxThrowClip: string; sfxThrowGain: number; sfxThrowRate: number;
-  sfxFreezeClip: string; sfxFreezeGain: number; sfxFreezeRate: number;
-  sfxStopClip: string; sfxStopGain: number; sfxStopRate: number;
-  sfxSnapClip: string; sfxSnapGain: number; sfxSnapRate: number;
-  sfxRestartClip: string; sfxRestartGain: number; sfxRestartRate: number;
-  sfxHitClip: string; sfxHitGain: number; sfxHitRate: number;
+  sfxHornClip: string; sfxHornGain: number; sfxHornRate: number;
+  sfxDrumClip: string; sfxDrumGain: number; sfxDrumRate: number;
+  sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
+  sfxGallopClip: string; sfxGallopGain: number; sfxGallopRate: number;
+  sfxLooseClip: string; sfxLooseGain: number; sfxLooseRate: number;
+  sfxThunkClip: string; sfxThunkGain: number; sfxThunkRate: number;
+  sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
   sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
   sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
-  sfxBellClip: string; sfxBellGain: number; sfxBellRate: number;
-  sfxRumbleClip: string; sfxRumbleGain: number; sfxRumbleRate: number;
+  sfxCheerClip: string; sfxCheerGain: number; sfxCheerRate: number;
   sfxTailMix: number;
   sfxDuck: number;
   previewDamage: number;
@@ -110,122 +112,123 @@ interface GlobalConfig {
 }
 export type HeroWarhostConfig = GlobalConfig & Record<TierKey, number>;
 
-export const HERO_BULLET_COLOR_KEYS = ['colorGold', 'colorLight', 'colorViolet', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_BULLET_CLIP_KEYS = [
-  'sfxTickClip', 'sfxThrowClip', 'sfxFreezeClip', 'sfxStopClip', 'sfxSnapClip', 'sfxRestartClip', 'sfxHitClip', 'sfxThudClip',
-  'sfxBoomClip', 'sfxBellClip', 'sfxRumbleClip',
+export const HERO_WARHOST_COLOR_KEYS = ['colorRed', 'colorBrass', 'colorDust', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_WARHOST_CLIP_KEYS = [
+  'sfxHornClip', 'sfxDrumClip', 'sfxChargeClip', 'sfxGallopClip', 'sfxLooseClip', 'sfxThunkClip', 'sfxWhooshClip', 'sfxThudClip',
+  'sfxBoomClip', 'sfxCheerClip',
 ] as const;
-export type HeroBulletStrKey = (typeof HERO_BULLET_COLOR_KEYS)[number] | (typeof HERO_BULLET_CLIP_KEYS)[number];
-export type HeroBulletNumKey = Exclude<keyof HeroWarhostConfig, HeroBulletStrKey>;
+export type HeroWarhostStrKey = (typeof HERO_WARHOST_COLOR_KEYS)[number] | (typeof HERO_WARHOST_CLIP_KEYS)[number];
+export type HeroWarhostNumKey = Exclude<keyof HeroWarhostConfig, HeroWarhostStrKey>;
 
-/** Per tier, I / II / III / IV. (IV's darts come from the dome dials; its Darts dial is unused.) */
-const TIER_DEFAULTS: Record<BulletTierSuffix, [number, number, number, number]> = {
-  ReadyMs: [220, 220, 240, 300],
-  Darts: [1, 3, 12, 36],
-  StaggerMs: [0, 70, 28, 16],
-  FlyMs: [260, 250, 300, 220],
-  HangMs: [360, 420, 440, 0],
-  ResumeMs: [70, 80, 80, 150],
-  Size: [1.6, 1.25, 0.85, 0.72],
-  Shake: [10, 13, 16, 34],
-  Zoom: [0.02, 0.025, 0.03, 0.04],
-  Push: [0.03, 0.04, 0.05, 0.08],
-  Punch: [0.035, 0.045, 0.06, 0.12],
-  SettleMs: [360, 380, 440, 620],
-  Dim: [0.1, 0.14, 0.2, 0.3],
+/**
+ * Per tier, I / II / III / IV.
+ *  - Ready: the hero's send-off (III: the horn sounds over it; IV: the drums and the horn).
+ *  - March: I the run out; II the jog out; III and IV the charge from the striker to the target (at 1600 px).
+ *  - Hold: I the plant and the wind-up; II the draw (the held beat).
+ *  - Flight: I the spear's flight; II the arrows' flight (at 1600 px).
+ *  - Troops: II archers; III riders; IV ranks of infantry (I is always one spearman).
+ *  - Settle: after the blow (I, II: the cheer and the run home; III: the wedge wheeling off; IV: the clear after the banner).
+ */
+const TIER_DEFAULTS: Record<WarhostTierSuffix, [number, number, number, number]> = {
+  ReadyMs: [120, 140, 400, 760],
+  MarchMs: [280, 320, 600, 820],
+  HoldMs: [190, 280, 0, 0],
+  FlightMs: [290, 420, 0, 0],
+  Troops: [1, 7, 10, 16],
+  Shake: [6, 9, 16, 24],
+  Zoom: [0.02, 0.025, 0.035, 0.045],
+  Punch: [0.03, 0.04, 0.06, 0.08],
+  SettleMs: [700, 520, 760, 280],
+  Dim: [0.08, 0.12, 0.2, 0.3],
 };
 
-export const BULLET_TIER_RANGES: Record<BulletTierSuffix, [number, number, number]> = {
-  ReadyMs: [80, 1500, 10],
-  Darts: [1, 48, 1],
-  StaggerMs: [0, 300, 2],
-  FlyMs: [80, 1200, 10],
-  HangMs: [0, 2000, 10],
-  ResumeMs: [30, 600, 5],
-  Size: [0.3, 2.5, 0.05],
+export const WARHOST_TIER_RANGES: Record<WarhostTierSuffix, [number, number, number]> = {
+  ReadyMs: [60, 2000, 10],
+  MarchMs: [120, 2000, 10],
+  HoldMs: [0, 1200, 10],
+  FlightMs: [0, 1200, 10],
+  Troops: [1, 22, 1],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.1, 0.002],
-  Push: [0, 0.2, 0.002],
   Punch: [0, 0.15, 0.001],
-  SettleMs: [0, 2000, 10],
+  SettleMs: [100, 2000, 10],
   Dim: [0, 0.6, 0.01],
 };
 
-const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => BULLET_TIER_SUFFIXES.map((s) => [`t${t}${s}`, TIER_DEFAULTS[s][t - 1]]))) as Record<TierKey, number>;
+const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => WARHOST_TIER_SUFFIXES.map((s) => [`t${t}${s}`, TIER_DEFAULTS[s][t - 1]]))) as Record<TierKey, number>;
 
-export const HERO_BULLET_DEFAULTS: HeroWarhostConfig = {
+export const HERO_WARHOST_DEFAULTS: HeroWarhostConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
   absorbMs: 160,
-  runMs: 24,
-  countMs: 300,
-  domeRings: 3,
-  domeBlades: 12,
-  domeSize: 1,
-  slowMo: 0.22,
-  slowMoMs: 420,
-  hangR: 1.15,
-  dartPx: 170,
-  trailMs: 24,
-  trailWidth: 30,
-  crawl: 0.3,
-  slowFx: 0.25,
-  riftWidth: 9,
-  ghostMs: 80,
-  rippleMs: 260,
-  motes: 18,
-  clockSize: 1,
+  soldierPx: 46,
+  cavalryPx: 70,
+  standPx: 190,
+  lineGapPx: 62,
+  arrowsPer: 2,
+  patterMs: 20,
+  cheerMs: 360,
+  rowMs: 70,
+  drumMs: 290,
+  rankMs: 40,
+  hostFiles: 11,
+  hostWidthPx: 600,
+  hostCavalry: 6,
+  hostArrows: 14,
+  funnel: 0.5,
+  dustMs: 240,
+  bannerMs: 780,
+  dust: 1,
   impactSize: 1,
-  heroWindPx: 10,
-  heroThrowPx: 14,
-  knockPx: 22,
-  squash: 0.1,
+  heroWindPx: 9,
+  heroThrowPx: 12,
+  knockPx: 20,
+  squash: 0.09,
   shakeMs: 380,
   zoomOutMs: 420,
   reducedFadeMs: 260,
-  colorGold: '#d4a537',
-  colorLight: '#ffe9b0',
-  colorViolet: '#8b5cf6',
+  colorRed: '#ff5a4f',
+  colorBrass: '#e2b34a',
+  colorDust: '#b9966a',
   colorPlayer: '#ffe9b0',
   colorFoe: '#ff7a5c',
-  sfxTickClip: 'thymepiece', sfxTickGain: 0.55, sfxTickRate: 1.1,
-  sfxThrowClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxThrowGain: 0.32, sfxThrowRate: 1.6,
-  sfxFreezeClip: 'prismaticpick', sfxFreezeGain: 0.35, sfxFreezeRate: 1.25,
-  sfxStopClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxStopGain: 0.45, sfxStopRate: 0.8,
-  sfxSnapClip: 'equipmentsheen', sfxSnapGain: 0.6, sfxSnapRate: 1.2,
-  sfxRestartClip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', sfxRestartGain: 0.5, sfxRestartRate: 1.4,
-  sfxHitClip: 'fx/blue-impact-hit', sfxHitGain: 0.5, sfxHitRate: 1.15,
-  sfxThudClip: 'castspell', sfxThudGain: 0.5, sfxThudRate: 0.8,
-  sfxBoomClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBoomGain: 0.6, sfxBoomRate: 1,
-  sfxBellClip: 'equipmentsheen', sfxBellGain: 0.5, sfxBellRate: 0.55,
-  sfxRumbleClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxRumbleGain: 0.45, sfxRumbleRate: 0.6,
-  sfxTailMix: 0.2,
+  sfxHornClip: 'fx/warhost-horn', sfxHornGain: 0.55, sfxHornRate: 1,
+  sfxDrumClip: 'fx/warhost-drum', sfxDrumGain: 0.6, sfxDrumRate: 1,
+  sfxChargeClip: 'fx/warhost-charge', sfxChargeGain: 0.5, sfxChargeRate: 1,
+  sfxGallopClip: 'fx/warhost-gallop', sfxGallopGain: 0.55, sfxGallopRate: 1,
+  sfxLooseClip: 'fx/warhost-loose', sfxLooseGain: 0.4, sfxLooseRate: 1,
+  sfxThunkClip: 'fx/warhost-thunk', sfxThunkGain: 0.55, sfxThunkRate: 1,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.3, sfxWhooshRate: 1.3,
+  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.45, sfxThudRate: 1,
+  sfxBoomClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBoomGain: 0.45, sfxBoomRate: 0.9,
+  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.16, sfxCheerRate: 1.5,
+  sfxTailMix: 0.15,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
   ...tierDefaults,
 };
 
-const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBulletStrKey>, [number, number, number]> = {
+const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroWarhostStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
-  runMs: [0, 120, 2],
-  countMs: [100, 1000, 10],
-  domeRings: [1, 4, 1],
-  domeBlades: [4, 20, 1],
-  domeSize: [0.4, 2.5, 0.05],
-  slowMo: [0.1, 1, 0.01],
-  slowMoMs: [0, 1200, 10],
-  hangR: [0.6, 3, 0.05],
-  dartPx: [16, 200, 1],
-  trailMs: [0, 400, 5],
-  trailWidth: [1, 60, 0.5],
-  crawl: [0, 0.8, 0.01],
-  slowFx: [0.05, 1, 0.01],
-  riftWidth: [0, 40, 0.5],
-  ghostMs: [20, 400, 5],
-  rippleMs: [80, 2000, 10],
-  motes: [0, 60, 1],
-  clockSize: [0.3, 3, 0.05],
+  soldierPx: [20, 80, 1],
+  cavalryPx: [30, 120, 1],
+  standPx: [40, 400, 5],
+  lineGapPx: [16, 120, 1],
+  arrowsPer: [1, 3, 1],
+  patterMs: [0, 120, 2],
+  cheerMs: [0, 1200, 10],
+  rowMs: [20, 300, 5],
+  drumMs: [120, 800, 10],
+  rankMs: [15, 160, 1],
+  hostFiles: [3, 15, 1],
+  hostWidthPx: [200, 1400, 10],
+  hostCavalry: [0, 8, 1],
+  hostArrows: [0, 24, 1],
+  funnel: [0.2, 1, 0.01],
+  dustMs: [0, 1200, 10],
+  bannerMs: [200, 2500, 10],
+  dust: [0, 2, 0.05],
   impactSize: [0.3, 3, 0.05],
   heroWindPx: [0, 40, 1],
   heroThrowPx: [0, 50, 1],
@@ -234,34 +237,33 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroBulletStrKey>, [numb
   shakeMs: [0, 1500, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2.5, 0.01],
-  sfxThrowGain: [0, 2, 0.05], sfxThrowRate: [0.5, 2.5, 0.01],
-  sfxFreezeGain: [0, 2, 0.05], sfxFreezeRate: [0.5, 2.5, 0.01],
-  sfxStopGain: [0, 2, 0.05], sfxStopRate: [0.5, 2.5, 0.01],
-  sfxSnapGain: [0, 2, 0.05], sfxSnapRate: [0.5, 2.5, 0.01],
-  sfxRestartGain: [0, 2, 0.05], sfxRestartRate: [0.5, 2.5, 0.01],
-  sfxHitGain: [0, 2, 0.05], sfxHitRate: [0.5, 2.5, 0.01],
+  sfxHornGain: [0, 2, 0.05], sfxHornRate: [0.5, 2.5, 0.01],
+  sfxDrumGain: [0, 2, 0.05], sfxDrumRate: [0.5, 2.5, 0.01],
+  sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2.5, 0.01],
+  sfxGallopGain: [0, 2, 0.05], sfxGallopRate: [0.5, 2.5, 0.01],
+  sfxLooseGain: [0, 2, 0.05], sfxLooseRate: [0.5, 2.5, 0.01],
+  sfxThunkGain: [0, 2, 0.05], sfxThunkRate: [0.5, 2.5, 0.01],
+  sfxWhooshGain: [0, 2, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
   sfxThudGain: [0, 2, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
   sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
-  sfxBellGain: [0, 2, 0.05], sfxBellRate: [0.3, 2.5, 0.01],
-  sfxRumbleGain: [0, 2, 0.05], sfxRumbleRate: [0.5, 2.5, 0.01],
+  sfxCheerGain: [0, 2, 0.01], sfxCheerRate: [0.5, 2.5, 0.01],
   sfxTailMix: [0, 1, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
 };
 
-export const HERO_BULLET_RANGES: Record<HeroBulletNumKey, [number, number, number]> = {
+export const HERO_WARHOST_RANGES: Record<HeroWarhostNumKey, [number, number, number]> = {
   ...GLOBAL_RANGES,
-  ...(Object.fromEntries(TIERS.flatMap((t) => BULLET_TIER_SUFFIXES.map((s) => [`t${t}${s}`, BULLET_TIER_RANGES[s]]))) as Record<TierKey, [number, number, number]>),
+  ...(Object.fromEntries(TIERS.flatMap((t) => WARHOST_TIER_SUFFIXES.map((s) => [`t${t}${s}`, WARHOST_TIER_RANGES[s]]))) as Record<TierKey, [number, number, number]>),
 };
 
-/** Hard caps whatever the tuner says. */
-export const BULLET_CAPS = { darts: 64, shakePx: 40, zoom: 0.1 } as const;
+/** Hard caps whatever the tuner says (the host tops out at 22 x 15 foot + 16 horse: under the scene's sprite cap). */
+export const WARHOST_CAPS = { archers: 10, riders: 14, ranks: 22, files: 15, flank: 8, arrows: 24, shakePx: 40, zoom: 0.1 } as const;
 
 const store = configStore<HeroWarhostConfig>({
-  key: 'ascent.herowarhost.v1', defaults: HERO_BULLET_DEFAULTS, ranges: HERO_BULLET_RANGES,
-  colorKeys: HERO_BULLET_COLOR_KEYS, clipKeys: HERO_BULLET_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
+  key: 'ascent.herowarhost.v1', defaults: HERO_WARHOST_DEFAULTS, ranges: HERO_WARHOST_RANGES,
+  colorKeys: HERO_WARHOST_COLOR_KEYS, clipKeys: HERO_WARHOST_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
 });
 export const heroWarhostStore = store;
 export const getHeroWarhostConfig = store.get;
@@ -271,282 +273,498 @@ export const heroWarhostConfigJson = store.json;
 /** The preview speed hook (Recruit + the Collection read one per style). Always 1. */
 export function heroWarhostPreviewSpeed(): number { return 1; }
 
-export function bulletTierDials(tier: TierNum, c: HeroWarhostConfig = store.get()): Record<BulletTierSuffix, number> {
-  return Object.fromEntries(BULLET_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<BulletTierSuffix, number>;
+export function warhostTierDials(tier: TierNum, c: HeroWarhostConfig = store.get()): Record<WarhostTierSuffix, number> {
+  return Object.fromEntries(WARHOST_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<WarhostTierSuffix, number>;
 }
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
-export const BULLET_REF_DISTANCE = 1600;
+export const WARHOST_REF_DISTANCE = 1600;
 
-export function bulletLegMs(distance: number, ms: number): number {
-  const d = Number.isFinite(distance) && distance > 0 ? distance : BULLET_REF_DISTANCE;
-  return Math.round(ms * clamp(Math.sqrt(d / BULLET_REF_DISTANCE), 0.62, 1.15));
+/** The lone spearman (I) and the archers (II) are drawn bigger than a soldier of the host: one figure has to read alone. */
+export const WARHOST_SPEARMAN_SIZE = 2;
+export const WARHOST_ARCHER_SIZE = 1.45;
+
+/** II: an archer's second arrow leaves (and lands) this long after his first. */
+export const WARHOST_RELOAD_MS = 90;
+
+/** A leg's time for this distance (a short hop is quicker, a long one a little slower). */
+export function warhostLegMs(distance: number, ms: number): number {
+  const d = Number.isFinite(distance) && distance > 0 ? distance : WARHOST_REF_DISTANCE;
+  return Math.round(ms * clamp(Math.sqrt(d / WARHOST_REF_DISTANCE), 0.62, 1.15));
 }
 
-/**
- * One dart: it leaves the hand (`launchAt`), arrives at its hang point and STOPS (`hangAt`), hangs while time is stopped,
- * resumes (`resumeAt`) and hits (`hitAt`).
- */
-export interface BulletDart { launchAt: number; hangAt: number; resumeAt: number; hitAt: number; ring: number }
-
-export interface BulletPlanInput extends AttackTierContext {
-  /**
-   * Extra rings of blades on IV's dome (default 0). The bolt-on point for the Ancient "Knockout" remix of Huge (owner
-   * rule 2026-10-02; plumbing on its own branch): one more ring before the collapse.
-   */
-  extraRings?: number;
+export interface WarhostPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   distance: number;
   reduced?: boolean;
 }
 
-export type BulletKind = 'dart' | 'ring' | 'spiral' | 'dome';
+export type WarhostKind = 'spear' | 'archers' | 'cavalry' | 'host';
 
-export interface BulletPlan {
+export interface WarhostPlan {
   reduced: boolean;
   tier: TierNum;
-  kind: BulletKind;
+  kind: WarhostKind;
   k: number;
   total: number;
+  /** The Knockout variant ("Tier V"): IV remixed. */
+  ko: boolean;
   chargeAt: number;
   absorbEnd: number;
-  fireAt: number;
-  darts: BulletDart[];
-  /** SLOW MOTION: from `stopAt` to `resumeAt` the shots crawl (everything keeps moving, slowed); then the snap. */
-  stopAt: number;
-  resumeAt: number;
-  /** IV: the 3-2-1 count (each count's time). */
-  counts: number[];
-  /** Hits BEFORE the impact (ticks). */
+  /** IV: the three drums. */
+  drums: number[];
+  /** III, IV: the horn (-1 = none). */
+  hornAt: number;
+  /** The troops set out (I, II from the hero; III, IV the front of the charge passes the striker). */
+  marchAt: number;
+  /** I: the spearman plants. II: the line is formed and the bows come up. III, IV: the front reaches the target. */
+  arriveAt: number;
+  /** I: the throw. II: the first arrows leave. (III, IV: the same as `marchAt`.) */
+  looseAt: number;
+  /** II: archers. III: riders. IV: ranks. */
+  troops: number;
+  /** II: when each arrow lands (the last is the blow). */
+  lands: number[];
+  /** IV: when each overhead volley lands. */
+  volleys: number[];
+  /** Hits BEFORE the impact (ticks: II's arrows). */
   hits: number[];
   impactAt: number;
-  /** The Knockout variant ("Tier V"): IV remixed (an extra ring, the prism, a bigger shake, a deeper dip). */
-  ko: boolean;
-  /** IV's slow-mo dip on the collapse (null below IV): the one clock eases down and back, never 0. */
+  /** AFTER the impact: each later row (III) or rank (IV) reaching the target (FX only). */
+  buffets: number[];
+  /** III, IV: the last row or rank has crossed the target. */
+  passAt: number;
+  /** I: the cheer starts. IV: the banner goes in (-1 = none). */
+  cheerAt: number;
+  plantAt: number;
+  /** I, II: the troops turn for home (-1 = none). */
+  homeAt: number;
+  /** The Knockout's slow-mo dip (null otherwise): the one clock eases down and back, never 0. */
   dip: KoDip | null;
   endAt: number;
-  size: number;
   shakePx: number;
   zoom: number;
-  push: number;
   punch: number;
   dim: number;
 }
 
-export function bulletKind(tier: TierNum): BulletKind { return tier === 1 ? 'dart' : tier === 2 ? 'ring' : tier === 3 ? 'spiral' : 'dome'; }
+export function warhostKind(tier: TierNum): WarhostKind { return tier === 1 ? 'spear' : tier === 2 ? 'archers' : tier === 3 ? 'cavalry' : 'host'; }
 
-/** The whole Timebreak, in base ms. Pure and deterministic. */
-export function bulletPlan(input: BulletPlanInput, c: HeroWarhostConfig = store.get()): BulletPlan {
+/** Rows of a filled wedge holding `n` riders (1, 2, 3, ...; the last row takes what is left). */
+export function wedgeRows(n: number): number[] {
+  const rows: number[] = [];
+  let left = Math.max(1, Math.round(n));
+  for (let r = 1; left > 0; r++) { const k = Math.min(r, left); rows.push(k); left -= k; }
+  return rows;
+}
+
+/** The whole Warhost, in base ms. Pure and deterministic. */
+export function warhostPlan(input: WarhostPlanInput, c: HeroWarhostConfig = store.get()): WarhostPlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
-  const kind = bulletKind(tier);
+  const kind = warhostKind(tier);
   const ko = tier === 4 && isKnockoutVariant(input);
-  const L = bulletTierDials(tier, c);
+  const L = warhostTierDials(tier, c);
   const k = (tier - 1) / 3;
   const base = {
-    tier, kind, k, total, ko, size: L.Size, shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, BULLET_CAPS.shakePx), zoom: clamp(L.Zoom, 0, BULLET_CAPS.zoom),
-    push: L.Push, punch: L.Punch * (ko ? 1.2 : 1), dim: L.Dim,
+    tier, kind, k, total, ko, shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, WARHOST_CAPS.shakePx), zoom: clamp(L.Zoom, 0, WARHOST_CAPS.zoom),
+    punch: L.Punch * (ko ? 1.2 : 1), dim: L.Dim,
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      ...base, reduced: true, chargeAt: at, absorbEnd: at, fireAt: at, darts: [], stopAt: at, resumeAt: at, counts: [], hits: [], impactAt: at,
-      dip: null, endAt: r.endAt, size: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
+      ...base, reduced: true, chargeAt: at, absorbEnd: at, drums: [], hornAt: -1, marchAt: at, arriveAt: at, looseAt: at, troops: 0, lands: [], volleys: [],
+      hits: [], impactAt: at, buffets: [], passAt: at, cheerAt: -1, plantAt: -1, homeAt: -1, dip: null, endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const fireAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs);
-  const fly = bulletLegMs(input.distance, L.FlyMs);
-  const stagger = Math.max(0, L.StaggerMs);
-  const resumeMs = Math.max(30, L.ResumeMs);
-  const darts: BulletDart[] = [];
-  let stopAt: number, resumeAt: number;
-  const counts: number[] = [];
-  if (kind === 'dome') {
-    // The Knockout variant adds one ring (the bolt-on point `extraRings` takes more).
-    const rings = Math.round(clamp(c.domeRings + Math.max(0, input.extraRings ?? 0) + (ko ? 1 : 0), 1, 6));
-    const per = Math.round(clamp(c.domeBlades, 4, 20));
-    const n = Math.min(BULLET_CAPS.darts, rings * per);
-    // Time stops for the whole board the instant the first blade leaves; the blades keep streaming out and hang in the
-    // dome (they are the only thing that moves); the 3-2-1 runs over the last of them.
-    stopAt = fireAt;
-    const lastHang = fireAt + (n - 1) * stagger + fly;
-    const countFrom = Math.max(fireAt + fly, lastHang - c.countMs);
-    for (let i = 0; i < 3; i++) counts.push(countFrom + i * c.countMs);
-    resumeAt = countFrom + 3 * c.countMs;
-    for (let i = 0; i < n; i++) {
-      const launchAt = fireAt + i * stagger;
-      darts.push({ launchAt, hangAt: launchAt + fly, resumeAt, hitAt: resumeAt + resumeMs, ring: Math.floor(i / per) });
-    }
-  } else if (kind === 'spiral') {
-    // The volley: every dart arrives at its spiral point at the SAME instant (the volley freezes mid-flight).
-    const n = Math.round(clamp(L.Darts, 1, BULLET_CAPS.darts));
-    stopAt = fireAt + (n - 1) * stagger + Math.min(fly, 220);
-    resumeAt = stopAt + L.HangMs;
-    for (let i = 0; i < n; i++) {
-      const launchAt = fireAt + i * stagger;
-      const hitAt = resumeAt + resumeMs + i * c.runMs;
-      darts.push({ launchAt, hangAt: stopAt, resumeAt: hitAt - resumeMs, hitAt, ring: 0 });
-    }
+  const marchAt = chargeAt + Math.max(60, L.ReadyMs);
+  const out: WarhostPlan = {
+    ...base, reduced: false, chargeAt, absorbEnd, drums: [], hornAt: -1, marchAt, arriveAt: marchAt, looseAt: marchAt, troops: 1, lands: [], volleys: [],
+    hits: [], impactAt: marchAt, buffets: [], passAt: marchAt, cheerAt: -1, plantAt: -1, homeAt: -1, dip: null, endAt: marchAt,
+  };
+  if (kind === 'spear') {
+    out.arriveAt = marchAt + L.MarchMs;
+    out.looseAt = out.arriveAt + Math.max(60, L.HoldMs);
+    out.impactAt = out.looseAt + Math.max(80, warhostLegMs(input.distance, L.FlightMs));
+    out.passAt = out.impactAt;
+    out.cheerAt = out.impactAt + 110;
+    out.homeAt = out.cheerAt + Math.max(0, c.cheerMs);
+    out.endAt = Math.max(out.impactAt + L.SettleMs, out.homeAt + 200);
+  } else if (kind === 'archers') {
+    const n = Math.round(clamp(L.Troops, 2, WARHOST_CAPS.archers));
+    const per = Math.round(clamp(c.arrowsPer, 1, 3));
+    out.troops = n;
+    out.arriveAt = marchAt + L.MarchMs;
+    out.looseAt = out.arriveAt + Math.max(80, L.HoldMs);
+    const first = out.looseAt + Math.max(120, warhostLegMs(input.distance, L.FlightMs));
+    for (let i = 0; i < n * per; i++) out.lands.push(first + i * Math.max(0, c.patterMs) + (Math.floor(i / n) * WARHOST_RELOAD_MS));
+    out.impactAt = out.lands[out.lands.length - 1]!;
+    out.hits = [...new Set(out.lands.filter((t) => t < out.impactAt))];
+    out.passAt = out.impactAt;
+    out.homeAt = out.impactAt + 140;
+    out.endAt = Math.max(out.impactAt + L.SettleMs, out.homeAt + 240);
+  } else if (kind === 'cavalry') {
+    const n = Math.round(clamp(L.Troops, 3, WARHOST_CAPS.riders));
+    out.troops = n;
+    out.hornAt = chargeAt;
+    out.impactAt = marchAt + Math.max(160, warhostLegMs(input.distance, L.MarchMs));
+    out.arriveAt = out.impactAt;
+    const rows = wedgeRows(n).length;
+    for (let r = 1; r < rows; r++) out.buffets.push(out.impactAt + r * c.rowMs);
+    out.passAt = out.impactAt + (rows - 1) * c.rowMs;
+    out.endAt = Math.max(out.impactAt + L.SettleMs, out.passAt + 300);
   } else {
-    const n = kind === 'dart' ? 1 : Math.round(clamp(L.Darts, 1, 12));
-    for (let i = 0; i < n; i++) darts.push({ launchAt: fireAt + i * stagger, hangAt: fireAt + i * stagger + fly, resumeAt: 0, hitAt: 0, ring: 0 });
-    stopAt = darts[0]!.hangAt;
-    resumeAt = darts[n - 1]!.hangAt + L.HangMs;
-    for (const d of darts) { d.resumeAt = resumeAt; d.hitAt = resumeAt + resumeMs; }
+    const ranks = Math.round(clamp(L.Troops, 3, WARHOST_CAPS.ranks));
+    out.troops = ranks;
+    for (let i = 0; i < 3; i++) out.drums.push(chargeAt + i * c.drumMs);
+    out.hornAt = Math.min(marchAt, chargeAt + 2 * c.drumMs + 140);
+    out.impactAt = marchAt + Math.max(200, warhostLegMs(input.distance, L.MarchMs));
+    out.arriveAt = out.impactAt;
+    // Every third rank is a buffet beat (a thud and a knock); the dust and the shudder run the whole trample.
+    for (let r = 3; r < ranks; r += 3) out.buffets.push(out.impactAt + r * c.rankMs);
+    out.passAt = out.impactAt + (ranks - 1) * c.rankMs;
+    if (c.hostArrows > 0) out.volleys = [out.impactAt - 70, out.impactAt + Math.min(240, (out.passAt - out.impactAt) * 0.45)];
+    out.plantAt = out.passAt + Math.max(0, c.dustMs);
+    out.cheerAt = out.plantAt + 120;
+    out.endAt = out.plantAt + Math.max(200, c.bannerMs) + L.SettleMs;
+    if (ko) out.dip = { at: out.impactAt, lo: KO_DIP.lo, ms: KO_DIP.ms };
   }
-  const hitTimes = darts.map((d) => d.hitAt);
-  const impactAt = Math.max(...hitTimes);
-  const hits = [...new Set(hitTimes.filter((t) => t < impactAt))].sort((a, b) => a - b);
-  const endAt = impactAt + Math.max(c.zoomOutMs * 0.8, L.SettleMs);
-  // IV's dip on the collapse; the Knockout's is deeper and longer.
-  const dip: KoDip | null = tier === 4 && c.slowMoMs > 0
-    ? { at: impactAt, lo: ko ? Math.max(0.1, c.slowMo * 0.8) : c.slowMo, ms: c.slowMoMs + (ko ? 60 : 0) }
-    : null;
-  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, darts, stopAt, resumeAt, counts, hits, impactAt, dip, endAt };
-}
-
-export type BulletCueKind = 'charge' | 'launch' | 'cut' | 'slow' | 'count' | 'tick' | 'snap' | 'hit' | 'impact' | 'end';
-export interface BulletCue { at: number; kind: BulletCueKind; i: number }
-
-/** The clock ticks through the slow motion, ACCELERATING toward the snap. */
-export function stopTicks(p: BulletPlan): number[] {
-  if (p.reduced) return [];
-  const out: number[] = [];
-  let at = p.stopAt + 120, gap = 220;
-  while (at < p.resumeAt - 40) { out.push(at); gap = Math.max(60, gap * 0.82); at += gap; }
   return out;
 }
 
-export function bulletCues(p: BulletPlan): BulletCue[] {
-  const out: BulletCue[] = [];
+export type WarhostCueKind = 'charge' | 'drum' | 'horn' | 'march' | 'arrive' | 'loose' | 'volley' | 'hit' | 'impact' | 'buffet' | 'cheer' | 'pass' | 'plant' | 'home' | 'end';
+export interface WarhostCue { at: number; kind: WarhostCueKind; i: number }
+
+/** IV: a volley leaves this long before it lands. */
+export const WARHOST_VOLLEY_MS = 560;
+
+export function warhostCues(p: WarhostPlan): WarhostCue[] {
+  const out: WarhostCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    p.darts.forEach((d, i) => { out.push({ at: d.launchAt, kind: 'launch', i }); out.push({ at: d.hangAt, kind: 'cut', i }); });
-    out.push({ at: p.stopAt, kind: 'slow', i: 0 });
-    p.counts.forEach((at, i) => out.push({ at, kind: 'count', i }));
-    stopTicks(p).forEach((at, i) => out.push({ at, kind: 'tick', i }));
-    out.push({ at: p.resumeAt, kind: 'snap', i: 0 });
+    p.drums.forEach((at, i) => out.push({ at, kind: 'drum', i }));
+    if (p.hornAt >= 0) out.push({ at: p.hornAt, kind: 'horn', i: 0 });
+    out.push({ at: p.marchAt, kind: 'march', i: 0 });
+    if (p.kind === 'spear' || p.kind === 'archers') { out.push({ at: p.arriveAt, kind: 'arrive', i: 0 }); out.push({ at: p.looseAt, kind: 'loose', i: 0 }); }
+    p.volleys.forEach((at, i) => out.push({ at: at - WARHOST_VOLLEY_MS, kind: 'volley', i }));
     p.hits.forEach((at, i) => out.push({ at, kind: 'hit', i }));
+    p.buffets.forEach((at, i) => out.push({ at, kind: 'buffet', i }));
+    if (p.cheerAt >= 0) out.push({ at: p.cheerAt, kind: 'cheer', i: 0 });
+    if (p.kind === 'cavalry' || p.kind === 'host') out.push({ at: p.passAt, kind: 'pass', i: 0 });
+    if (p.plantAt >= 0) out.push({ at: p.plantAt, kind: 'plant', i: 0 });
+    if (p.homeAt >= 0) out.push({ at: p.homeAt, kind: 'home', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<BulletCueKind, number> = { charge: 0, launch: 1, cut: 2, slow: 3, count: 4, tick: 5, snap: 6, hit: 7, impact: 8, end: 9 };
+  const order: Record<WarhostCueKind, number> = { charge: 0, drum: 1, horn: 2, march: 3, arrive: 4, loose: 5, volley: 6, hit: 7, impact: 8, buffet: 9, cheer: 10, pass: 11, plant: 12, home: 13, end: 14 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
-/** Is the slow motion on at `t`? */
-export function inSlowMo(p: BulletPlan, t: number): boolean { return !p.reduced && t >= p.stopAt && t < p.resumeAt; }
+/** The Knockout's slow-mo dip (the shared one: a smooth ramp, never 0; R-PROG-ATTACK-10). 1 on every other look. */
+export function warhostScale(p: WarhostPlan, t: number): number { return p.reduced ? 1 : koTimeScale(p.dip, t); }
+export function warhostSlowExtraMs(p: WarhostPlan): number { return p.reduced ? 0 : koDipExtraMs(p.dip); }
+
+// ─── the staging (pure) ────────────────────────────────────────────────────────────────────────────────────────
+
+export type Box = { x: number; y: number; w: number; h: number };
+
+export type TroopUnit = 'spear' | 'archer' | 'cav' | 'inf' | 'bearer' | 'cheerer';
 
 /**
- * IV's SLOW-MO DIP on the collapse (the Basketball / Soul Stitch technique; a freeze is banned, R-PROG-ATTACK-10): the
- * one clock drops to `slowMo` the instant the dome hits and eases back over `slowMoMs`, a smooth ramp never reaching 0.
+ * One soldier's whole script: he appears at `p0` (`t0`), travels to `p1` (`t1`), holds there until `t2`, travels to
+ * `p2` (`t3`) and is gone. A `through` soldier never holds (`t1 === t2`) and keeps one steady pace over both legs.
  */
-export function warhostScale(p: BulletPlan, c: HeroWarhostConfig, t: number): number {
-  void c;
-  return p.reduced ? 1 : koTimeScale(p.dip, t);
+export interface Troop {
+  unit: TroopUnit;
+  p0: Pt; p1: Pt; p2: Pt;
+  t0: number; t1: number; t2: number; t3: number;
+  through: boolean;
+  /** Holding: the wind-up or the draw starts (`actAt`), the first and the last release, the cheer (-1 = none). */
+  actAt: number; looseAt: number; lastLooseAt: number; cheerAt: number;
+  /** His stride's offset (ms), his size (x), his shade (0 = full colour, toward 1 = darker: the rear ranks). */
+  phase: number; size: number; shade: number;
+  /** Which way he faces while holding (1 = right). */
+  face: 1 | -1;
+  /** A dust puff every this many ms while he moves (0 = none). */
+  dustMs: number;
+  /** Draw order (bigger = nearer the viewer). */
+  z: number;
 }
 
-export function bulletSlowExtraMs(p: BulletPlan, c: HeroWarhostConfig): number {
-  void c;
-  return p.reduced ? 0 : koDipExtraMs(p.dip);
+/** A spear or an arrow: it flies `from` to `to` over a lifted arc, lands at `t1`, sits there and fades from `fadeAt`. */
+export interface Shot {
+  kind: 'spear' | 'arrow';
+  from: Pt; ctrl: Pt; to: Pt;
+  t0: number; t1: number; fadeAt: number;
+  /** It sticks in the struck PORTRAIT (and rides its knockback); otherwise it sticks in the ground. */
+  stick: boolean;
+  /** How it sits once stuck: a turn off its landing angle (rad), and how hard it twangs. */
+  lean: number; twang: number;
+  size: number;
 }
-
-// ─── the geometry (pure) ───────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * A dart's whole path: from the hand bowing into the point where time slows (`hang`, arriving pointed at the target),
- * crawling on to `crawl` through the slow motion, then snapping into the hit.
+ * A banner: it rises at `at` from `t0`, flies until `t1` and is gone by `t2`. `follow`: it stands on the struck
+ * portrait and rides its knockback. `carrier`: until `t0` it is carried by that troop (an index into the troops).
  */
-export interface DartGeo { hand: Pt; ctrl: Pt; hang: Pt; crawl: Pt; hit: Pt; aim: number }
+export interface Banner { at: Pt; t0: number; t1: number; t2: number; size: number; follow: boolean; carrier: number; lean: number }
 
-type Box = { x: number; y: number; w: number; h: number };
-
-/**
- * Where each dart enters the slow motion, by tier, every shape CENTRED ON THE TARGET (owner review 2026-10-02: "looks
- * weird not being centered"): I an inch off it (on the striker's side); II three evenly round it; III a spiral round it;
- * IV a DOME of full rings round it. A target near an edge keeps its centre: the dome shrinks to fit (down to 60%), and
- * any point still off screen is clamped onto it.
- */
-export function hangPoints(p: BulletPlan, a: Pt, d: Pt, radius: number, c: HeroWarhostConfig, bounds?: Box): Pt[] {
-  const back = Math.atan2(a.y - d.y, a.x - d.x);
-  const R = radius;
-  const pts: Pt[] = [];
-  const n = p.darts.length;
-  if (p.kind === 'dart') pts.push(polar(d, back, R * (c.hangR + 0.3)));
-  else if (p.kind === 'ring') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, back + (i * Math.PI * 2) / n, R * (c.hangR + 0.6)));
-  } else if (p.kind === 'spiral') {
-    for (let i = 0; i < n; i++) pts.push(polar(d, back + i * 2.39996, R * (c.hangR + 0.25 + 0.13 * i)));
-  } else {
-    const rings = 1 + Math.max(0, ...p.darts.map((x) => x.ring));
-    const outer = R * c.domeSize * (1.6 + 0.7 * (rings - 1));
-    const room = bounds ? Math.min(d.x - bounds.x, bounds.x + bounds.w - d.x, d.y - bounds.y, bounds.y + bounds.h - d.y) - R * 0.3 : outer;
-    const k = clamp(room / outer, 0.6, 1);
-    p.darts.forEach((dt) => {
-      const inRing = p.darts.filter((x) => x.ring === dt.ring);
-      const j = inRing.indexOf(dt);
-      const a0 = back + ((j + (dt.ring % 2) * 0.5) / inRing.length) * Math.PI * 2;
-      pts.push(polar(d, a0, R * c.domeSize * k * (1.6 + 0.7 * dt.ring)));
-    });
-  }
-  if (!bounds) return pts;
-  const m = R * 0.3;
-  return pts.map((q) => ({ x: clamp(q.x, bounds.x + m, bounds.x + bounds.w - m), y: clamp(q.y, bounds.y + m, bounds.y + bounds.h - m) }));
+export interface WarhostStage {
+  /** Striker to struck, its left-hand normal, and which way the host faces (1 = right). */
+  u: Pt; n: Pt; face: 1 | -1;
+  troops: Troop[];
+  shots: Shot[];
+  banners: Banner[];
+  /** Where the blow lands on the struck portrait (the spear's point; the arrows scatter round it). */
+  strike: Pt;
 }
 
-/** The clock's centre: the target itself (every shape centres on it). */
-export function clockCentre(p: BulletPlan, a: Pt, d: Pt): Pt { void p; void a; return { x: d.x, y: d.y }; }
+/** How far from `p` along `dir` the box's edge is (0 when already outside). */
+export function rayExit(p: Pt, dir: Pt, b: Box): number {
+  let t = Infinity;
+  if (dir.x > 1e-6) t = Math.min(t, (b.x + b.w - p.x) / dir.x); else if (dir.x < -1e-6) t = Math.min(t, (b.x - p.x) / dir.x);
+  if (dir.y > 1e-6) t = Math.min(t, (b.y + b.h - p.y) / dir.y); else if (dir.y < -1e-6) t = Math.min(t, (b.y - p.y) / dir.y);
+  return Number.isFinite(t) ? Math.max(0, t) : 0;
+}
 
-function polar(o: Pt, a: number, r: number): Pt { return { x: o.x + Math.cos(a) * r, y: o.y + Math.sin(a) * r }; }
+const inBox = (p: Pt, b: Box | undefined, m: number): Pt => (b ? { x: clamp(p.x, b.x + m, b.x + b.w - m), y: clamp(p.y, b.y + m, b.y + b.h - m) } : p);
 
-export function dartGeos(p: BulletPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroWarhostConfig, bounds?: Box): DartGeo[] {
-  if (p.reduced) return [];
+/**
+ * The control point of a lifted arc (a throw goes UP the screen and comes down). The apex sits half the control's lift
+ * above the chord's middle: the lift is cut so the apex stays inside the box (but never flatter than a tenth of the chord).
+ */
+function arcCtrl(from: Pt, to: Pt, lift: number, b: Box | undefined, m: number): Pt {
+  const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+  const least = Math.min(lift, Math.hypot(to.x - from.x, to.y - from.y) * 0.1);
+  const room = b ? (my - b.y - m) * 2 : lift;
+  return { x: mx, y: my - Math.max(least, Math.min(lift, room)) };
+}
+
+const troop = (unit: TroopUnit, o: Partial<Troop> & Pick<Troop, 'p0' | 'p1' | 'p2' | 't0' | 't1' | 't2' | 't3'>): Troop => ({
+  unit, through: false, actAt: -1, looseAt: -1, lastLooseAt: -1, cheerAt: -1, phase: 0, size: 1, shade: 0, face: 1, dustMs: 0, z: o.p1.y, ...o,
+});
+
+/**
+ * Stage the whole look: every soldier, shot and banner, from the two portrait points. `s` is the stage scale (every px
+ * dial is multiplied by it), `bounds` the screen (or the sandbox box), `seed` rolls the formation jitter. Pure.
+ */
+export function warhostStage(p: WarhostPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: HeroWarhostConfig, s = 1, seed = 1, bounds?: Box): WarhostStage {
   const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
-  const hand = { x: a.x + u.x * aRadius * 0.85, y: a.y + u.y * aRadius * 0.85 };
-  return hangPoints(p, a, d, radius, c, bounds).map((hang) => {
-    const tx = d.x - hang.x, ty = d.y - hang.y;
-    const tl = Math.hypot(tx, ty) || 1;
-    const D = Math.hypot(hang.x - hand.x, hang.y - hand.y) || 1;
-    // The control sits back along the aim line, so the dart ARRIVES at its hang point already pointed at the target.
-    const ctrl = { x: hang.x - (tx / tl) * D * 0.55, y: hang.y - (ty / tl) * D * 0.55 };
-    const hit = { x: d.x - (tx / tl) * radius * 0.2, y: d.y - (ty / tl) * radius * 0.2 };
-    const k = clamp(c.crawl, 0, 0.8);
-    const crawl = { x: hang.x + (hit.x - hang.x) * k, y: hang.y + (hit.y - hang.y) * k };
-    return { hand, ctrl, hang, crawl, hit, aim: Math.atan2(ty, tx) };
-  });
+  const n = { x: -u.y, y: u.x };
+  const face: 1 | -1 = a.x > d.x ? -1 : 1;
+  // The blow lands on the struck portrait's rim, on the striker's side but swung a little toward the middle of the screen:
+  // the hit number is drawn straight down the line between the heroes, and the spear must not hide behind it.
+  const midY = bounds ? bounds.y + bounds.h / 2 : d.y + 1;
+  const swing = (ang: number): Pt => ({ x: d.x + (-u.x * Math.cos(ang) + u.y * Math.sin(ang)) * radius * 0.66, y: d.y + (-u.x * Math.sin(ang) - u.y * Math.cos(ang)) * radius * 0.66 });
+  const sA = swing(0.75), sB = swing(-0.75);
+  const strike = Math.abs(sA.y - midY) <= Math.abs(sB.y - midY) ? sA : sB;
+  const stage: WarhostStage = { u, n, face, troops: [], shots: [], banners: [], strike };
+  if (p.reduced) return stage;
+  const rnd = seededRng(seed);
+  const jit = (amp: number): number => (rnd() - 0.5) * 2 * amp;
+  const at = (o: Pt, along: number, lat: number): Pt => ({ x: o.x + u.x * along + n.x * lat, y: o.y + u.y * along + n.y * lat });
+  const m = 30 * s;
+  const door = at(a, aRadius * 0.55, 0); // where a soldier steps out from under the striking portrait
+  // Never further out than a third of the way: the spearman and the archers stay the striker's men.
+  const standAlong = Math.min(aRadius + c.standPx * s, L * 0.4);
+
+  if (p.kind === 'spear') {
+    const stand = inBox(at(a, standAlong, 0), bounds, m);
+    stage.troops.push(troop('spear', {
+      p0: door, p1: stand, p2: door, t0: p.marchAt, t1: p.arriveAt, t2: p.homeAt, t3: p.endAt - 40, actAt: p.arriveAt + 50, looseAt: p.looseAt,
+      lastLooseAt: p.looseAt, cheerAt: p.cheerAt, face, dustMs: 70, size: WARHOST_SPEARMAN_SIZE,
+    }));
+    const hand = { x: stand.x + face * 8 * s * WARHOST_SPEARMAN_SIZE, y: stand.y - c.soldierPx * s * WARHOST_SPEARMAN_SIZE };
+    stage.shots.push({
+      kind: 'spear', from: hand, ctrl: arcCtrl(hand, strike, L * 0.22, bounds, m), to: strike, t0: p.looseAt, t1: p.impactAt, fadeAt: p.impactAt + 520,
+      stick: true, lean: 0, twang: 1, size: WARHOST_SPEARMAN_SIZE * 0.92,
+    });
+  } else if (p.kind === 'archers') {
+    const N = p.troops;
+    const gap = c.lineGapPx * s;
+    const reload = WARHOST_RELOAD_MS;
+    const jog = Math.max(120, p.arriveAt - p.marchAt - (N - 1) * 18);
+    for (let i = 0; i < N; i++) {
+      // The line stands across the way to the target, each archer a touch out of true.
+      const lat = (i - (N - 1) / 2) * gap;
+      const stand = inBox(at(a, standAlong + jit(5 * s), lat + jit(3 * s)), bounds, m);
+      const t0 = p.marchAt + i * 18;
+      const per = Math.round(p.lands.length / N);
+      stage.troops.push(troop('archer', {
+        p0: door, p1: stand, p2: door, t0, t1: t0 + jog, t2: p.homeAt + (N - 1 - i) * 16, t3: p.endAt - 40, actAt: p.arriveAt + 30, looseAt: p.looseAt,
+        lastLooseAt: p.looseAt + (per - 1) * reload, cheerAt: -1, face, dustMs: 110, phase: rnd() * 400, size: WARHOST_ARCHER_SIZE * (0.95 + rnd() * 0.1),
+      }));
+    }
+    // The arrows: arrow k is archer (k mod N)'s; they land in the plan's patter, scattered over the portrait.
+    for (let k = 0; k < p.lands.length; k++) {
+      const who = stage.troops[k % N]!;
+      const round = Math.floor(k / N);
+      const bow = { x: who.p1.x + face * 9 * s * WARHOST_ARCHER_SIZE, y: who.p1.y - c.soldierPx * s * WARHOST_ARCHER_SIZE * 0.85 };
+      const ang = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * radius * 0.62;
+      const to = { x: d.x + Math.cos(ang) * rr, y: d.y + Math.sin(ang) * rr * 0.8 };
+      const land = p.lands[k]!;
+      stage.shots.push({
+        kind: 'arrow', from: bow, ctrl: arcCtrl(bow, to, L * (0.62 + rnd() * 0.16), bounds, m), to, t0: p.looseAt + round * reload + (k % N) * 6, t1: land,
+        fadeAt: p.impactAt + 420 + rnd() * 160, stick: true, lean: jit(0.22), twang: 0.6, size: 1.6,
+      });
+    }
+  } else {
+    // THE CHARGE (III, IV): the front crosses the striker at `marchAt` and the target at `impactAt`, at one steady pace.
+    const v = L / Math.max(1, p.impactAt - p.marchAt); // px per ms
+    const back = bounds ? Math.min(rayExit(a, { x: -u.x, y: -u.y }, bounds) + 80 * s, L * 0.5) : L * 0.3;
+    const fore = bounds ? rayExit(d, u, bounds) + 120 * s : L * 0.6;
+    /** A soldier who crosses the target at `cross`, `lat` off the centre line there (and `lat0` / `lat2` at the ends). */
+    const runner = (unit: TroopUnit, cross: number, lat0: number, lat1: number, lat2: number, over: Partial<Troop>): Troop => {
+      const p0 = at(a, -back, lat0), p1 = at(d, 0, lat1), p2 = at(d, fore, lat2);
+      return troop(unit, {
+        p0, p1, p2, t0: cross - (L + back) / v, t1: cross, t2: cross, t3: cross + fore / v, through: true, face, phase: rnd() * 400,
+        z: p1.y - u.y * (cross - p.impactAt) * v, ...over,
+      });
+    };
+    if (p.kind === 'cavalry') {
+      const rows = wedgeRows(p.troops);
+      const gapLat = c.cavalryPx * s * 0.78;
+      // They wheel off to one side past the target (the seed picks which).
+      const wheel = (rnd() < 0.5 ? -1 : 1) * fore * 0.55;
+      rows.forEach((count, r) => {
+        for (let j = 0; j < count; j++) {
+          const lat = (j - (count - 1) / 2) * gapLat + jit(4 * s);
+          stage.troops.push(runner('cav', p.impactAt + r * c.rowMs + jit(8), lat * 1.25, lat, lat * 1.6 + wheel, { dustMs: 55, size: 0.94 + rnd() * 0.14 }));
+        }
+      });
+    } else {
+      const files = Math.round(clamp(c.hostFiles, 3, WARHOST_CAPS.files));
+      const W = c.hostWidthPx * s;
+      const f = clamp(c.funnel, 0.2, 1);
+      for (let r = 0; r < p.troops; r++) {
+        for (let j = 0; j < files; j++) {
+          // Ranks are staggered half a file, each man a touch out of true: a host, not a grid.
+          const lat = ((j + (r % 2) * 0.5) / (files - 1 + 0.5) - 0.5) * W + jit(7 * s);
+          stage.troops.push(runner('inf', p.impactAt + r * c.rankMs + jit(c.rankMs * 0.3), lat, lat * f, lat * 1.05, {
+            dustMs: (r * files + j) % 5 === 0 ? 150 : 0, size: 0.9 + rnd() * 0.2, shade: Math.min(0.3, r * 0.012),
+          }));
+        }
+      }
+      // Cavalry on the flanks: a file a side, riding a little ahead of the foot.
+      const flank = Math.round(clamp(c.hostCavalry, 0, WARHOST_CAPS.flank));
+      for (const side of [-1, 1]) {
+        for (let j = 0; j < flank; j++) {
+          const lat = side * (W / 2 + c.cavalryPx * s * (0.7 + (j % 2) * 0.55)) + jit(6 * s);
+          const cross = p.impactAt - 60 + (j * (p.passAt - p.impactAt)) / Math.max(1, flank) + jit(14);
+          stage.troops.push(runner('cav', cross, lat, lat * (f + 0.12), lat * 1.1, { dustMs: 90, size: 0.92 + rnd() * 0.14 }));
+        }
+      }
+      // The volleys overhead: loosed from behind the striker, raining round the target.
+      const arrows = Math.round(clamp(c.hostArrows, 0, WARHOST_CAPS.arrows));
+      p.volleys.forEach((land, vi) => {
+        for (let i = 0; i < arrows; i++) {
+          const from = at(a, -aRadius * 0.6 + jit(60 * s), jit(W * 0.45));
+          const ang = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * radius * 2.3;
+          const to = inBox({ x: d.x + Math.cos(ang) * rr, y: d.y + Math.sin(ang) * rr * 0.7 }, bounds, 8 * s);
+          const t1 = land + i * 11 + vi * 4;
+          stage.shots.push({
+            kind: 'arrow', from, ctrl: arcCtrl(from, to, L * (0.5 + rnd() * 0.2), bounds, m), to, t0: t1 - WARHOST_VOLLEY_MS, t1,
+            fadeAt: p.passAt + 60 + rnd() * 200, stick: rr < radius * 0.8, lean: jit(0.25), twang: 0.5, size: 1.4,
+          });
+        }
+      });
+      // The banners rising behind the striking hero, one a drum.
+      const end = p.impactAt + 140;
+      p.drums.forEach((drum, i) => {
+        // Round the striking portrait's rim: one at its crown, then one at each shoulder (kept on screen).
+        const sx = i === 0 ? 0 : i === 1 ? -1 : 1;
+        const foot = { x: a.x + sx * aRadius * 0.92, y: a.y - aRadius * (i === 0 ? 0.78 : 0.18) };
+        stage.banners.push({
+          at: inBox(foot, bounds, 26 * s), t0: drum + 30, t1: end + i * 60, t2: end + 260 + i * 60, size: i === 0 ? 1.7 : 1.4,
+          follow: false, carrier: -1, lean: sx * 0.07,
+        });
+      });
+      // The one who stays: he comes in behind the last rank, stops beside the struck portrait and plants the banner on it.
+      const side = face;
+      const post = inBox({ x: d.x - side * radius * 0.78, y: d.y + radius * 0.72 }, bounds, m);
+      const from = at(d, -L * 0.42, 0);
+      const bearer = troop('bearer', {
+        p0: from, p1: post, p2: post, t0: p.plantAt - 60 - (L * 0.42) / v, t1: p.plantAt - 60, t2: p.endAt - 180, t3: p.endAt - 20, actAt: p.plantAt, looseAt: p.plantAt,
+        lastLooseAt: p.plantAt, cheerAt: p.cheerAt, face: side as 1 | -1, dustMs: 80, size: 1.6, z: 1e6,
+      });
+      stage.troops.push(bearer);
+      const bearerIdx = stage.troops.length - 1;
+      const flyEnd = p.endAt - 200;
+      stage.banners.push({ at: { x: d.x, y: d.y + radius * 0.35 }, t0: p.plantAt, t1: flyEnd, t2: p.endAt - 20, size: 1.6, follow: true, carrier: bearerIdx, lean: 0 });
+      if (p.ko) {
+        // THE KNOCKOUT's extra beat: three more stay and cheer round the banner.
+        [[1, 0.8, 0.8], [-1, 1.25, 0.5], [1, 1.3, 0.45]].forEach(([sd, kx, ky], i) => {
+          const spot = inBox({ x: d.x + sd! * side * radius * kx!, y: d.y + radius * ky! }, bounds, m);
+          stage.troops.push(troop('cheerer', {
+            p0: at(d, -L * 0.36, jit(40 * s)), p1: spot, p2: spot, t0: p.plantAt - 40 - (L * 0.36) / v + i * 50, t1: p.plantAt - 20 + i * 50, t2: p.endAt - 180, t3: p.endAt - 20,
+            cheerAt: p.cheerAt + 40 + i * 70, face: (sd! * side > 0 ? -1 : 1) as 1 | -1, dustMs: 90, phase: i * 130, size: 1.45, z: 1e6 + 1 + i,
+          }));
+        });
+      }
+    }
+  }
+  return stage;
 }
 
-const quad = (a: Pt, c: Pt, b: Pt, e: number): Pt => { const m = 1 - e; return { x: m * m * a.x + 2 * m * e * c.x + e * e * b.x, y: m * m * a.y + 2 * m * e * c.y + e * e * b.y }; };
+export type TroopState = 'wait' | 'out' | 'hold' | 'back' | 'gone';
+export interface TroopAt { x: number; y: number; state: TroopState; alpha: number; dir: number }
 
-/** A dart's flight ease: near-linear, so it is still FAST when time drops into slow motion (the cut reads as a brake). */
-export const dartEase = (u: number): number => { const t = Math.min(1, Math.max(0, Number.isFinite(u) ? u : 0)); return 0.8 * t + 0.2 * t * t; };
+/** Where a soldier is at `t` (written into `out`: no allocation on the frame path). `dir` is which way he travels (x). */
+export function troopAt(tr: Troop, t: number, out: TroopAt): TroopAt {
+  if (t < tr.t0) { out.state = 'wait'; out.x = tr.p0.x; out.y = tr.p0.y; out.alpha = 0; out.dir = tr.face; return out; }
+  if (t >= tr.t3) { out.state = 'gone'; out.x = tr.p2.x; out.y = tr.p2.y; out.alpha = 0; out.dir = tr.face; return out; }
+  const fadeIn = clamp01((t - tr.t0) / 120);
+  // A soldier who ends where he stands (the banner bearer) fades in place; one who leaves fades as he goes.
+  const fadeOut = clamp01((tr.t3 - t) / 150);
+  out.alpha = Math.min(fadeIn, fadeOut);
+  if (t < tr.t1) {
+    const k = (t - tr.t0) / Math.max(1, tr.t1 - tr.t0);
+    const e = tr.through ? k : k * (1.6 - 0.6 * k); // a runner brakes into his mark
+    out.x = tr.p0.x + (tr.p1.x - tr.p0.x) * e; out.y = tr.p0.y + (tr.p1.y - tr.p0.y) * e;
+    out.state = 'out'; out.dir = Math.abs(tr.p1.x - tr.p0.x) > 2 ? Math.sign(tr.p1.x - tr.p0.x) : tr.face;
+    return out;
+  }
+  if (t < tr.t2) { out.x = tr.p1.x; out.y = tr.p1.y; out.state = 'hold'; out.dir = tr.face; return out; }
+  const k = (t - tr.t2) / Math.max(1, tr.t3 - tr.t2);
+  const still = tr.p1.x === tr.p2.x && tr.p1.y === tr.p2.y;
+  out.x = tr.p1.x + (tr.p2.x - tr.p1.x) * k; out.y = tr.p1.y + (tr.p2.y - tr.p1.y) * k;
+  out.state = still ? 'hold' : tr.through ? 'out' : 'back';
+  out.dir = Math.abs(tr.p2.x - tr.p1.x) > 2 ? Math.sign(tr.p2.x - tr.p1.x) : tr.face;
+  return out;
+}
 
-/** Where dart `i` is at `t`, and in which part of its life. Pure. */
-export function dartAt(dt: BulletDart, g: DartGeo, t: number): { p: Pt; angle: number; phase: 'hand' | 'fly' | 'crawl' | 'strike' | 'done' } {
-  if (t < dt.launchAt) return { p: g.hand, angle: g.aim, phase: 'hand' };
-  if (t < dt.hangAt) {
-    const e = dartEase((t - dt.launchAt) / Math.max(1, dt.hangAt - dt.launchAt));
-    const p = quad(g.hand, g.ctrl, g.hang, e);
-    const q = quad(g.hand, g.ctrl, g.hang, Math.min(1, e + 0.02));
-    return { p, angle: Math.atan2(q.y - p.y, q.x - p.x), phase: 'fly' };
+export type ShotState = 'wait' | 'fly' | 'stuck' | 'gone';
+export interface ShotAt { x: number; y: number; rot: number; state: ShotState; alpha: number }
+
+export const SHOT_FADE_MS = 220;
+
+/** Where a spear or an arrow is at `t` (written into `out`). Its heading follows the arc; stuck, it twangs and settles. */
+export function shotAt(sh: Shot, t: number, out: ShotAt): ShotAt {
+  if (t < sh.t0) { out.state = 'wait'; out.x = sh.from.x; out.y = sh.from.y; out.rot = 0; out.alpha = 0; return out; }
+  if (t >= sh.fadeAt + SHOT_FADE_MS) { out.state = 'gone'; out.x = sh.to.x; out.y = sh.to.y; out.rot = 0; out.alpha = 0; return out; }
+  const e = Math.min(1, (t - sh.t0) / Math.max(1, sh.t1 - sh.t0));
+  const mt = 1 - e;
+  // The tangent of the quadratic (at the end: the line from the control to the target).
+  const tx = 2 * mt * (sh.ctrl.x - sh.from.x) + 2 * e * (sh.to.x - sh.ctrl.x);
+  const ty = 2 * mt * (sh.ctrl.y - sh.from.y) + 2 * e * (sh.to.y - sh.ctrl.y);
+  out.rot = Math.atan2(ty, tx);
+  if (t < sh.t1) {
+    out.x = mt * mt * sh.from.x + 2 * mt * e * sh.ctrl.x + e * e * sh.to.x;
+    out.y = mt * mt * sh.from.y + 2 * mt * e * sh.ctrl.y + e * e * sh.to.y;
+    out.state = 'fly'; out.alpha = Math.min(1, (t - sh.t0) / 60);
+    return out;
   }
-  if (t < dt.resumeAt) {
-    // SLOW MOTION: it never stops, it CRAWLS on toward the target.
-    const u = (t - dt.hangAt) / Math.max(1, dt.resumeAt - dt.hangAt);
-    return { p: { x: g.hang.x + (g.crawl.x - g.hang.x) * u, y: g.hang.y + (g.crawl.y - g.hang.y) * u }, angle: g.aim, phase: 'crawl' };
-  }
-  if (t < dt.hitAt) {
-    const u = (t - dt.resumeAt) / Math.max(1, dt.hitAt - dt.resumeAt);
-    const e = u * u; // time snaps back to full speed: it launches off the mark
-    return { p: { x: g.crawl.x + (g.hit.x - g.crawl.x) * e, y: g.crawl.y + (g.hit.y - g.crawl.y) * e }, angle: g.aim, phase: 'strike' };
-  }
-  return { p: g.hit, angle: g.aim, phase: 'done' };
+  const since = t - sh.t1;
+  out.x = sh.to.x; out.y = sh.to.y;
+  out.rot += sh.lean + 0.3 * sh.twang * Math.exp(-since / 110) * Math.sin(since * 0.075);
+  out.state = 'stuck'; out.alpha = t < sh.fadeAt ? 1 : 1 - (t - sh.fadeAt) / SHOT_FADE_MS;
+  return out;
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -554,32 +772,41 @@ export function dartAt(dt: BulletDart, g: DartGeo, t: number): { p: Pt; angle: n
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
+/** How hard the ground shakes under the charge at `t` (0..1): up as the front nears, down as the last rank leaves. */
+export function warhostRumble(p: WarhostPlan, t: number): number {
+  if (p.reduced || (p.kind !== 'host' && p.kind !== 'cavalry')) return 0;
+  const up = clamp01((t - (p.impactAt - 420)) / 420);
+  const down = 1 - clamp01((t - p.passAt) / 260);
+  return up * down;
+}
+
 /**
- * The camera: a push in through the ready; through the slow motion it keeps PUSHING IN (the screen never holds still);
- * the snap back to full speed KICKS it; the impact punches and shakes (IV the hardest in the roster). Pure.
+ * The camera: a push in through the ready (held to the blow); each drum kicks it; the blow punches and shakes; under
+ * the charge the ground rumbles (a small steady shake while the ranks pass). Pure.
  */
-export function bulletCameraAt(p: BulletPlan, c: HeroWarhostConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
+export function warhostCameraAt(p: WarhostPlan, c: HeroWarhostConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
-  if (t >= p.chargeAt && t < p.impactAt) {
-    z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.fireAt - p.chargeAt));
-    if (t >= p.stopAt) z += p.push * Math.min(1, (t - p.stopAt) / Math.max(1, p.resumeAt - p.stopAt)) * (t < p.resumeAt ? 1 : Math.exp(-(t - p.resumeAt) / 40));
-  } else if (t >= p.impactAt) {
-    z += (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
-  }
+  if (t >= p.chargeAt && t < p.impactAt) z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.marchAt - p.chargeAt));
+  else if (t >= p.impactAt) z += (p.zoom + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
-  kick(p.fireAt, -p.shakePx * 0.1, 40, 14);
-  kick(p.resumeAt, -p.shakePx * 0.4, 45, 16);
-  for (const at of p.hits) kick(at, p.shakePx * 0.25, 40, 18);
+  for (const at of p.drums) { kick(at, -p.shakePx * 0.16, 50, 12); z += p.zoom * 0.25 * Math.max(0, springAt(t - at, 5, 70)); }
+  for (const at of p.hits) kick(at, p.shakePx * 0.12, 30, 20);
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16);
+  for (const at of p.buffets) kick(at, p.shakePx * 0.3, 45, 17);
+  const r = warhostRumble(p, t);
+  if (r > 0) {
+    const amp = p.shakePx * (p.kind === 'host' ? 0.16 : 0.1) * r;
+    x += amp * Math.sin(t * 0.087); y += amp * Math.sin(t * 0.131 + 1.3);
+  }
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** The anchor: the attacker through the ready, gliding to the defender with the first dart, then the defender. */
-export function bulletCameraFocus(p: BulletPlan, t: number, a: Pt, d: Pt): Pt {
-  const first = p.darts[0]?.hangAt ?? p.impactAt;
-  if (t <= p.fireAt) return a;
-  if (t < first) { const e = sine((t - p.fireAt) / Math.max(1, first - p.fireAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
+/** The anchor: the striker through the ready, gliding to the struck hero as the troops go, then the struck hero. */
+export function warhostCameraFocus(p: WarhostPlan, t: number, a: Pt, d: Pt): Pt {
+  const to = p.kind === 'spear' || p.kind === 'archers' ? p.looseAt : p.marchAt + (p.impactAt - p.marchAt) * 0.7;
+  if (t <= p.marchAt) return a;
+  if (t < to) { const e = sine((t - p.marchAt) / Math.max(1, to - p.marchAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
   return d;
 }

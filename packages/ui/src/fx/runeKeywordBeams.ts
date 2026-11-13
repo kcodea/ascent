@@ -15,14 +15,20 @@ import { canPlayDefs } from './playDef';
  * tendrils"). A `questTrigger` is its own beat, so the first version, which looked for both inside one beat, never
  * matched. They share the engine's `step` instead:
  *  - Rising Graves fires, THEN grants: the grant's beat launches, matched to the fire by step.
- *  - Deathtouched Apple grants inside the death's beat, THEN fires: the FIRE's beat launches, so the beam leaves as
- *    the rune pulses and not while the body is still being struck.
+ *  - Deathtouched Apple grants inside the death's beat, THEN fires, and its receiver is a body that has not come back
+ *    yet. The grant WAITS for that body's return (`reborn`) and leaves a breath after it (owner 2026-11-13: "its
+ *    hitting a unit that isnt there, can it resummon and then get the tendril?").
  *  - Rising Graves' second Rise is a later step with no fire of its own: it continues the fire it directly follows.
  */
 export interface RuneKeywordGrant { kw: BeamKeyword; target: string; flag: string }
 
 /** The last rune fire, and where the run of beats that belong to it ends (the next beat may continue it). */
 export interface RuneCarry { flag: string; end: number }
+
+/** A grant held for its receiver to return to the board. */
+export type WaitingGrant = RuneKeywordGrant;
+/** Delay (ms at 1x) from a returning body's beat to its beam leaving, so the body is back on the board first. */
+export const RUNE_BEAM_AFTER_RETURN_MS = 320;
 
 /** How far (events) a grant and its rune fire may sit apart while sharing a step. */
 const STEP_WINDOW = 16;
@@ -50,8 +56,24 @@ function fireWithStep(events: CombatEvent[], at: number, step: number | undefine
  *  (a) a grant in this beat whose fire (same step) sits at or before this beat's end, or which continues the carry;
  *  (b) a fire in this beat whose grants (same step) sit BEFORE this beat: they waited for the fire.
  */
-export function runeKeywordGrantsIn(moment: Moment, events: CombatEvent[], carry: RuneCarry | null): { grants: RuneKeywordGrant[]; carry: RuneCarry | null } {
+export function runeKeywordGrantsIn(
+  moment: Moment, events: CombatEvent[], carry: RuneCarry | null, waiting: readonly WaitingGrant[] = [],
+): { grants: RuneKeywordGrant[]; returned: RuneKeywordGrant[]; carry: RuneCarry | null; waiting: WaitingGrant[] } {
   const grants: RuneKeywordGrant[] = [];
+  // A waiting grant leaves when its receiver's return is in THIS beat.
+  const back = new Set<string>();
+  for (let i = moment.start; i < moment.end; i++) { const e = events[i]; if (e?.type === 'reborn') back.add(e.target); }
+  const returned = waiting.filter((w) => back.has(w.target));
+  const stillWaiting: WaitingGrant[] = waiting.filter((w) => !back.has(w.target));
+  /** Is `target` a body that died to return and has not returned by `from`? */
+  const awaitsReturn = (target: string, grantAt: number, from: number): boolean => {
+    let died = false;
+    for (let j = Math.max(0, grantAt - STEP_WINDOW); j < grantAt; j++) { const d = events[j]; if (d?.type === 'death' && d.target === target && d.rise) died = true; }
+    if (!died) return false;
+    for (let j = grantAt; j < from; j++) if (events[j]?.type === 'reborn' && (events[j] as { target: string }).target === target) return false;
+    for (let j = from; j < Math.min(events.length, from + 4 * STEP_WINDOW); j++) if (events[j]?.type === 'reborn' && (events[j] as { target: string }).target === target) return true;
+    return false;
+  };
   let next: RuneCarry | null = null;
   let onlyGrants = true;
   for (let i = moment.start; i < moment.end; i++) {
@@ -62,7 +84,9 @@ export function runeKeywordGrantsIn(moment: Moment, events: CombatEvent[], carry
       // (b) grants logged before this beat that share the fire's step.
       for (let j = Math.max(0, moment.start - STEP_WINDOW); j < moment.start; j++) {
         const g = grantOf(events[j]);
-        if (g && events[j]!.step === e.step) grants.push({ ...g, flag: e.flag });
+        if (!g || events[j]!.step !== e.step) continue;
+        if (awaitsReturn(g.target, j, moment.end)) stillWaiting.push({ ...g, flag: e.flag });
+        else grants.push({ ...g, flag: e.flag });
       }
       continue;
     }
@@ -76,21 +100,25 @@ export function runeKeywordGrantsIn(moment: Moment, events: CombatEvent[], carry
   }
   // A beat of nothing but continued grants keeps the carry alive for the one after it.
   if (!next && carry && carry.end === moment.start && onlyGrants && grants.length > 0) next = { flag: carry.flag, end: moment.end };
-  return { grants, carry: next };
+  return { grants, returned, carry: next, waiting: stillWaiting };
 }
 
 let carry: RuneCarry | null = null;
+let waiting: WaitingGrant[] = [];
 
 /** Beat start in COMBAT: each rune-given Rise / Execute / Ward leaves the rune's own slot, a gap apart. */
 export function startRuneKeywordBeams(moment: Moment, events: CombatEvent[], speed: number, register: (id: number) => void): void {
-  const out = runeKeywordGrantsIn(moment, events, carry);
+  if (moment.start === 0) waiting = []; // a new fight: nothing waits across fights
+  const out = runeKeywordGrantsIn(moment, events, carry, waiting);
   carry = out.carry;
-  if (!canPlayDefs() || out.grants.length === 0) return;
+  waiting = out.waiting.slice(-8);
+  if (!canPlayDefs() || (out.grants.length === 0 && out.returned.length === 0)) return;
   let k = 0;
-  for (const g of out.grants) {
+  const ordered = [...out.returned.map((g) => ({ g, first: RUNE_BEAM_AFTER_RETURN_MS })), ...out.grants.map((g) => ({ g, first: 0 }))];
+  for (const { g, first } of ordered) {
     let at: { x: number; y: number } | null = null;
     for (const id of badgeIdsForCombatFlag(g.flag)) { at = runeSlotPoint(id); if (at) break; }
     if (!at) continue; // the flag belongs to something with no slot on screen (a quest): today's cue stands
-    if (launchKeywordBeam(g.kw, at, g.target, { launchAt: k * KEYWORD_BEAM_GAP_MS, speed, sound: k < KEYWORD_BEAM_SOUND_MAX, register })) k++;
+    if (launchKeywordBeam(g.kw, at, g.target, { launchAt: first + k * KEYWORD_BEAM_GAP_MS, speed, sound: k < KEYWORD_BEAM_SOUND_MAX, register })) k++;
   }
 }

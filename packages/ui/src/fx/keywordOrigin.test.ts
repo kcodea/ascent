@@ -6,7 +6,7 @@ import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { classifyKeywordOrigin } from './keywordOrigin';
 import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS, pointRect } from './keywordBeam';
 import { combatAnchorsFromRects } from './combatAnchors';
-import { runeKeywordGrantsIn, type RuneCarry } from './runeKeywordBeams';
+import { RUNE_BEAM_AFTER_RETURN_MS, runeKeywordGrantsIn, type RuneCarry, type WaitingGrant } from './runeKeywordBeams';
 import { getDef } from './fxDefs';
 
 /**
@@ -62,21 +62,26 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
       combatSide({ tier: 4, questMods: { [flag]: true } } as never), combatSide({ tier: 4 }));
     const events = replayOrder(raw);
     let carry: RuneCarry | null = null;
+    let waiting: WaitingGrant[] = [];
     const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> = [];
     for (const beat of replayBeats(raw)) {
-      const r = runeKeywordGrantsIn(beat, events, carry);
+      const r = runeKeywordGrantsIn(beat, events, carry, waiting);
       carry = r.carry;
-      if (r.grants.length) out.push({ kind: beat.kind, grants: r.grants });
+      waiting = r.waiting;
+      const all = [...r.returned, ...r.grants];
+      if (all.length) out.push({ kind: beat.kind, grants: all });
     }
     return out;
   }
 
-  it('Deathtouched Apple (owner 2026-11-13: "this did not show the tendrils"): the Rise leaves on the FIRE beat of the rune', () => {
+  it('Deathtouched Apple (owner 2026-11-13: "this did not show the tendrils"): the Rise leaves once the body is BACK', () => {
     const got = launches('runeDeathtouchedApple', [bm('mumi', 2, 1, { keywords: ['R', 'T'] }), bm('mumi', 1, 60)]);
     expect(got.length).toBeGreaterThanOrEqual(1);
-    // The grant is logged inside the death's beat; the launch waits for the fire, which is its own beat.
-    expect(got[0]).toEqual({ kind: 'questTrigger', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple' }] });
-    expect(got.every((g) => g.kind === 'questTrigger' && g.grants.every((x) => x.flag === 'runeDeathtouchedApple'))).toBe(true);
+    // The grant is logged inside the death's beat and the rune fires on the next, but the body is not back yet:
+    // the beam waits for the beat the body RETURNS on (owner 2026-11-13: "its hitting a unit that isnt there").
+    expect(got[0]).toEqual({ kind: 'reborn', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple' }] });
+    expect(got.every((g) => g.kind === 'reborn' && g.grants.every((x) => x.flag === 'runeDeathtouchedApple'))).toBe(true);
+    expect(RUNE_BEAM_AFTER_RETURN_MS).toBeGreaterThanOrEqual(200);
   });
 
   it('Rising Graves: the fire comes first, and each Rise leaves on its own beat', () => {

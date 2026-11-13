@@ -1,641 +1,648 @@
-// SCAFFOLDED from heroStorm/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Storm, not this style, until rewritten.
 /**
- * THE STORM CALL SCENE: everything Fireworks Call draws in Pixi, as a plain scene graph with no renderer, so it runs (and is
- * tested) headless. `heroFireworks.ts` mounts `root` on the above-portrait overlay and feeds `update(dt)`.
+ * THE GRAND FINALE SCENE: everything the fireworks attack draws in Pixi, on the shared pooled scene
+ * (`../heroAttack/fxPool.ts`), so it runs (and is tested) headless. `heroFireworks.ts` mounts `root` on the
+ * above-portrait overlay and feeds `update(dt)`.
  *
- * Design rule (an Epic is one strong idea; the owner's "clean" bar): the BOLT is the subject. A bolt is three strips
- * over one jagged centreline (a wide soft glow in the bolt colour, a narrower body, a white-hot core), all additive, and
- * its jag is REGENERATED every `regenMs` from the seeded generator (a live crackle, never a static zigzag), its endpoints
- * pinned. The leader races out first (the far end of the strip collapsed onto the moving head), then the whole bolt
- * flickers and fades. Short side FORKS crackle off it, re-picked with every regeneration. STATIC is the same trick in
- * miniature: little arcs that crawl over a portrait. The Big CLOUD is a handful of normal-blend billows (so it reads as a
- * dark cloud on any board) lit from inside by additive glows when it rumbles.
+ * WHAT IT DRAWS
+ *  - THE FIREWORK: one painted sprite (the bottle rocket, the roman candle or the mortar) planted on a soft contact
+ *    shadow. It pops up from its foot, trembles a little while its fuse burns, squashes on every thump and is taken
+ *    away at the end. The rocket IS its own projectile: on launch the same sprite flies the path, nose first.
+ *  - THE FUSE: a bright point that burns along the painted fuse toward the body, spitting tiny sparks. Sparks only,
+ *    no flame.
+ *  - FLIGHTS: the rocket (a thin trail of sparks dropped behind it), the candle's balls (a glow, a white core and a
+ *    few afterimages sampled back along the path), and the mortar's comet (a faint streak that leaves the top of the
+ *    screen).
+ *  - A POP: a small star burst of ONE colour (even spokes of streaks that slow and droop, a ring, a flash, a few
+ *    crackle twinkles).
+ *  - THE BLOOM: a chrysanthemum. Two rings of stars thrown evenly outward that slow hard and droop under gravity, a
+ *    smaller bloom inside a moment later, crackle glitter, a brief light across the sky, and sparks that fall on true
+ *    ballistic paths onto the struck portrait and twinkle out where they land.
  *
- * LAYERS, bottom to top: haze (normal: the cloud) | glow (additive: bolt glows, blooms, rings, the inner cloud light) |
- * core (additive: bolt bodies and cores, sparks, flashes), so the scene batches in three runs. Strips are pooled per
- * layer and per point count; every strip is at most `BOLT_POINTS` x 2 vertices, under Pixi's 100-vertex batch limit.
+ * THE BLOOM'S STARS are the only crowd here, so they are kept honest: one sprite each, in flat typed arrays (no object
+ * per star, nothing allocated per frame), hard capped at `MAX_STARS`, additive, no filters. Their sprites are created
+ * ahead of time, a few per frame while the damage formation still plays (`prefill`), so the bloom frame creates none.
  *
- * Contract: sprites and strips are POOLED and bounded by `MAX_STORM_SPRITES` / `MAX_STORM_MESHES`; textures are the
- * caller's (pre-warmed on the GPU during the damage formation); positions are the overlay's px; `setCamera` mirrors the
- * DOM camera when the runner asks it to; `update` returns whether anything still draws; `destroy()` leaves nothing
- * behind. Everything random is seeded (a replay crackles the same way).
+ * LAYERS (the pool's): under (normal: shadow, smoke) | glow (additive) | body (normal: the firework) | core (additive:
+ * sparks, stars, flashes). Contract: sprites are POOLED and bounded by `MAX_FIREWORKS_SPRITES`; textures are the
+ * caller's; positions are the overlay's px; `update` returns whether anything still draws; `destroy()` leaves nothing
+ * behind. Everything random is seeded (a replay throws the same sparks).
  */
-import { Container, MeshSimple, Sprite, Texture } from 'pixi.js';
+import { Texture, type Sprite } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
-import { clamp01, easeOutCubic, easeOutQuint, mixColor, seededRng, type Pt } from '../heroAttack/easing';
-import type { BoltGeo, BoltKind } from './heroFireworksConfig';
+import { clamp01, easeInBack, easeOutBack, mixColor, spring, whiten, type Pt } from '../heroAttack/easing';
+import { FxPool } from '../heroAttack/fxPool';
+import { PROP_METRICS, fireworksPathAt, propPoint, type FireworkProp, type FireworksGeo, type FireworksPath } from './heroFireworksConfig';
 
 export interface HeroFireworksTextures extends HeroArcanaTextures {
-  /** A bolt strip's glow (a soft bell across V). */
-  boltGlow: Texture;
-  /** A bolt strip's body and core (solid across the middle). */
-  boltCore: Texture;
-  /** Two storm-cloud billows. */
-  puff: Texture;
-  puff2: Texture;
+  /** The three painted fireworks (full colour, upright, fuse on the left). */
+  rocket: Texture;
+  candle: Texture;
+  mortar: Texture;
 }
 
-export interface StormColors { core: number; bolt: number; violet: number; cloud: number; side: number }
+export interface FireworksColors { core: number; gold: number; magenta: number; cyan: number; green: number; side: number }
 
-export interface StormLook {
-  /** A bolt's body width, px at stage scale 1 (the look's width multiplies it). */
-  width: number;
-  /** The glow's width as a multiple of the body. */
-  glow: number;
-  /** How often a bolt's jag is regenerated (ms). */
-  regenMs: number;
-  /** How long a bolt takes to fade out. */
-  fadeMs: number;
+export interface FireworksLook {
+  /** A spark is dropped behind the rocket this often (ms). */
+  trailMs: number;
+  /** How long a bloom star lives. */
+  bloomMs: number;
+  /** Sparks that fall from the bloom onto the struck portrait, and how long they take. */
+  rain: number;
+  rainMs: number;
+  /** Crackle twinkles inside the bloom. */
+  glitter: number;
+  /** The light the bloom throws across the whole view (peak opacity). */
+  skyFlash: number;
+  dismissMs: number;
+  flashAlpha: number;
+  /** Star sprites to create ahead of the bloom (0 = none: the rocket and the candle need none). */
+  prefill: number;
 }
 
-/** Hard cap on sprites alive at once (a Big strike peaks around 120). */
-export const MAX_STORM_SPRITES = 500;
-/** Hard cap on strips alive at once. */
-export const MAX_STORM_MESHES = 64;
-/** Points along a bolt (48 vertices) and along a small arc (fork, static; 20 vertices). */
-export const BOLT_POINTS = 24;
-export const ARC_POINTS = 10;
+/** Hard cap on sprites alive at once (a bloom peaks around 230). */
+export const MAX_FIREWORKS_SPRITES = 420;
+/** Hard cap on bloom stars (and falling sparks) alive at once. */
+export const MAX_STARS = 240;
 
-type LayerId = 'haze' | 'glow' | 'core';
-const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['haze', 'normal'], ['glow', 'add'], ['core', 'add']];
-const BLEND: Record<LayerId, 'normal' | 'add'> = Object.fromEntries(LAYERS) as Record<LayerId, 'normal' | 'add'>;
+const GLOW_PX = 128;
+const RING_PX = 160;
+const STAR_PX = 48;
+const STREAK_PX = 64;
+const SMOKE = 0xcfd3e6;
+const SHADOW = 0x070a1c;
+/** A thump's squash is over (exactly) after this long. */
+const RECOIL_MS = 240;
 
-interface Strip { mesh: MeshSimple; v: Float32Array; layer: LayerId; n: number }
-
-/** A small jagged arc (a fork, a crawl of static, the crackle round the hero, a flicker inside the cloud). */
-interface Arc {
-  glow: Strip | null; core: Strip | null;
-  ax: number; ay: number; bx: number; by: number;
-  on: boolean;
-  width: number;
-  alpha: number;
-  /** A fork: the bolt point it leaves from. */
-  j: number;
-  /** A crawl's flicker for this regeneration. */
-  flick: number;
+interface Prop {
+  kind: FireworkProp;
+  s: Sprite; shadow: Sprite | null;
+  g: FireworksGeo;
+  sx: number; sy: number;
+  age: number; plantMs: number;
+  /** Ms since the last thump (-1 = none yet). */
+  recoil: number; recoilAmp: number;
+  /** Ms into being taken away (-1 = standing). */
+  leaving: number;
+  /** The rocket has left the ground (the sprite is flying). */
+  flown: boolean;
 }
 
-interface Bolt {
-  kind: BoltKind;
-  age: number;
-  leaderMs: number; holdMs: number; fadeMs: number;
-  width: number; jag: number;
-  /** The base curve (x, y per point) and its unit normals. */
-  bx: Float32Array; by: Float32Array; nx: Float32Array; ny: Float32Array;
-  off: Float32Array;
-  len: number;
-  regen: number;
-  flick: number;
-  glow: Strip | null; body: Strip | null; core: Strip | null;
-  forks: Arc[];
-  tint: number;
-}
+interface Fuse { glow: Sprite; star: Sprite; age: number; dur: number; acc: number }
 
-interface Crawl { x: number; y: number; r: number; age: number; dur: number; arcs: Arc[]; regen: number; follow: boolean; tint: number }
+interface Rocket { path: FireworksPath; age: number; dur: number; tint: number; acc: number; px: number; py: number; glow: Sprite | null }
 
-type AlphaMode = 'out' | 'punch';
-interface Fx { s: Sprite; age: number; dur: number; from: number; to: number; a0: number; mode: AlphaMode; peakAt: number; follow: boolean; x: number; y: number }
+interface Ball { path: FireworksPath; age: number; dur: number; tint: number; glow: Sprite; core: Sprite; ghosts: Sprite[]; acc: number }
 
-interface Particle { s: Sprite; x: number; y: number; vx: number; vy: number; drag: number; grav: number; life: number; max: number; size: number }
+interface Comet { path: FireworksPath; age: number; dur: number; head: Sprite; tail: Sprite; acc: number; px: number; py: number }
 
-interface Puff { s: Sprite; hx: number; hy: number; ox: number; oy: number; size: number; delay: number; ph: number; dark: boolean }
-interface Cloud {
-  x: number; y: number; r: number; age: number; gatherMs: number;
-  puffs: Puff[]; lights: Sprite[];
-  flash: number;
-  /** Ms into the break-up after the strike (-1 = not yet). */
-  breaking: number;
-  arc: Arc | null; arcLife: number;
-}
+/** A star's kind: a bloom star (slows hard, droops) or a falling spark (ballistic, twinkles out where it lands). */
+const STAR = 0;
+const RAIN = 1;
 
-export class HeroFireworksScene {
-  readonly root = new Container();
-  private readonly layers: Record<LayerId, Container>;
-  private readonly freeSprites: Record<LayerId, Sprite[]>;
-  private readonly freeMeshes = new Map<string, MeshSimple[]>();
-  private readonly uvs = new Map<number, Float32Array>();
-  private readonly idx = new Map<number, Uint32Array>();
-  private used = 0;
-  private meshes = 0;
-  private bolts: Bolt[] = [];
-  private crawls: Crawl[] = [];
-  private fx: Fx[] = [];
-  private particles: Particle[] = [];
-  private cloud: Cloud | null = null;
-  private screen: { s: Sprite; age: number; a0: number } | null = null;
-  private heroGlow: { s: Sprite; age: number; dur: number } | null = null;
-  private warm: Sprite[] = [];
-  private warmLeft = 0;
-  private destroyed = false;
-  private fox = 0;
-  private foy = 0;
+export class HeroFireworksScene extends FxPool {
+  private prop: Prop | null = null;
+  private fuseFx: Fuse | null = null;
+  private rocket: Rocket | null = null;
+  private balls: Ball[] = [];
+  private cometFx: Comet | null = null;
+  private sky: { s: Sprite; age: number; a0: number } | null = null;
   private viewW = 1920;
   private viewH = 1080;
-  private readonly rnd: () => number;
+  private readonly pt: Pt = { x: 0, y: 0 };
+  // The bloom's stars, as flat arrays (index 0..nStars-1 alive).
+  private nStars = 0;
+  private readonly sS: (Sprite | null)[] = new Array<Sprite | null>(MAX_STARS).fill(null);
+  private readonly sX = new Float32Array(MAX_STARS);
+  private readonly sY = new Float32Array(MAX_STARS);
+  private readonly sVx = new Float32Array(MAX_STARS);
+  private readonly sVy = new Float32Array(MAX_STARS);
+  private readonly sLife = new Float32Array(MAX_STARS);
+  private readonly sMax = new Float32Array(MAX_STARS);
+  private readonly sDelay = new Float32Array(MAX_STARS);
+  private readonly sSize = new Float32Array(MAX_STARS);
+  private readonly sDrag = new Float32Array(MAX_STARS);
+  private readonly sGrav = new Float32Array(MAX_STARS);
+  private readonly sKind = new Uint8Array(MAX_STARS);
+  // Star sprites made ahead of the bloom.
+  private prefillLeft: number;
+  private held: Sprite[] = [];
 
-  constructor(private readonly tex: HeroFireworksTextures, private readonly colors: StormColors, private readonly look: StormLook, private readonly scale = 1, seed = 1) {
-    this.root.eventMode = 'none';
-    this.root.label = 'heroFireworks';
-    this.layers = {} as Record<LayerId, Container>;
-    this.freeSprites = {} as Record<LayerId, Sprite[]>;
-    for (const [id] of LAYERS) {
-      const c = new Container();
-      c.label = `storm-${id}`;
-      this.root.addChild(c);
-      this.layers[id] = c;
-      this.freeSprites[id] = [];
-    }
-    this.rnd = seededRng(seed);
-    for (const n of [BOLT_POINTS, ARC_POINTS]) {
-      const uv = new Float32Array(n * 4);
-      for (let j = 0; j < n; j++) { const u = j / (n - 1); uv.set([u, 0, u, 1], j * 4); }
-      this.uvs.set(n, uv);
-      const ix = new Uint32Array((n - 1) * 6);
-      for (let j = 0; j < n - 1; j++) { const a = j * 2; ix.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
-      this.idx.set(n, ix);
-    }
-    // PRE-WARM (the damage formation is still playing): every texture on the GPU before the first bolt needs it.
-    const t = tex;
-    for (const w of [t.glow, t.spark, t.streak, t.ring, t.star, t.boltGlow, t.boltCore, t.puff, t.puff2]) {
-      const s = this.take('core', w, 0xffffff);
-      if (s) { s.alpha = 0.004; s.position.set(-40, -40); s.scale.set(0.05); this.warm.push(s); }
-    }
-    this.warmLeft = 400;
+  constructor(private readonly tex: HeroFireworksTextures, private readonly colors: FireworksColors, private readonly look: FireworksLook, scale = 1, seed = 1) {
+    super('heroFireworks', [tex.glow, tex.spark, tex.streak, tex.ring, tex.star, tex.rocket, tex.candle, tex.mortar], scale, seed, MAX_FIREWORKS_SPRITES);
+    this.prefillLeft = Math.max(0, Math.min(MAX_STARS, Math.round(look.prefill)));
   }
 
-  get liveSprites(): number { return this.used; }
-  get liveMeshes(): number { return this.meshes; }
-  get liveBolts(): number { return this.bolts.length; }
-  get staticActive(): boolean { return this.crawls.some((c) => c.follow); }
-  get cloudUp(): boolean { return this.cloud !== null; }
-  get pooledSprites(): number { let n = 0; for (const [id] of LAYERS) for (const ch of this.layers[id].children) if (ch instanceof Sprite) n++; return n; }
+  get planted(): boolean { return !!this.prop && !this.prop.flown && this.prop.leaving < 0; }
+  get fuseLit(): boolean { return this.fuseFx !== null; }
+  get rocketFlying(): boolean { return this.rocket !== null; }
+  get liveBalls(): number { return this.balls.length; }
+  get cometUp(): boolean { return this.cometFx !== null; }
+  get liveStars(): number { return this.nStars; }
+  /** Whether anything at all is in motion (false through the mortar's held beat: only the standing tube is drawn). */
+  get moving(): boolean { return this.liveFx > 0 || this.nStars > 0 || !!this.fuseFx || !!this.rocket || this.balls.length > 0 || !!this.cometFx || !!this.sky || (!!this.prop && (this.prop.leaving >= 0 || this.prop.age < this.prop.plantMs || this.prop.recoil >= 0)); }
 
-  /** Mirror the DOM camera: zoom `z` about the origin with offset `(ax, ay)` already folded in. */
-  setCamera(ax: number, ay: number, z: number): void {
-    if (this.destroyed) return;
-    this.root.position.set(ax, ay);
-    this.root.scale.set(z);
-  }
-
-  /** The struck portrait's knockback and jitter this frame (overlay px): the static on it rides along. */
-  setFoeOffset(dx: number, dy: number): void { this.fox = Number.isFinite(dx) ? dx : 0; this.foy = Number.isFinite(dy) ? dy : 0; }
-
-  /** The view (overlay px), measured once by the runner: the screen flash covers it. */
+  /** The view (overlay px), measured once by the runner: the bloom's light covers it. */
   setView(w: number, h: number): void { if (w > 0 && h > 0) { this.viewW = w; this.viewH = h; } }
 
-  // ── pools ──────────────────────────────────────────────────────────────────────────────────────────────────
+  // ── the firework ──────────────────────────────────────────────────────────────────────────────────────────
 
-  private take(layer: LayerId, t: Texture, tint: number): Sprite | null {
-    if (this.destroyed || this.used >= MAX_STORM_SPRITES) return null;
-    let s = this.freeSprites[layer].pop();
-    if (!s) { s = new Sprite(t); s.blendMode = BLEND[layer]; this.layers[layer].addChild(s); } else s.texture = t;
-    s.anchor.set(0.5);
-    s.tint = tint; s.visible = true; s.alpha = 1; s.rotation = 0; s.scale.set(1);
-    this.used++;
-    return s;
-  }
-
-  private give(s: Sprite): void {
-    const layer = (s.parent?.label?.replace('storm-', '') ?? 'core') as LayerId;
-    s.visible = false; this.freeSprites[layer].push(s); this.used--;
-  }
-
-  private strip(layer: LayerId, t: Texture, tint: number, n: number): Strip | null {
-    if (this.destroyed || this.meshes >= MAX_STORM_MESHES) return null;
-    const key = `${layer}:${n}`;
-    let mesh = this.freeMeshes.get(key)?.pop();
-    if (!mesh) {
-      mesh = new MeshSimple({ texture: t, vertices: new Float32Array(n * 4), uvs: this.uvs.get(n)!, indices: this.idx.get(n)! });
-      mesh.blendMode = BLEND[layer];
-      mesh.label = key;
-      this.layers[layer].addChild(mesh);
-    } else mesh.texture = t;
-    mesh.tint = tint; mesh.alpha = 0; mesh.visible = true;
-    this.meshes++;
-    return { mesh, v: mesh.vertices as Float32Array, layer, n };
-  }
-
-  private giveStrip(st: Strip | null): void {
-    if (!st) return;
-    st.mesh.visible = false;
-    const key = `${st.layer}:${st.n}`;
-    const list = this.freeMeshes.get(key) ?? [];
-    list.push(st.mesh);
-    this.freeMeshes.set(key, list);
-    this.meshes--;
-  }
-
-  private fxs(layer: LayerId, t: Texture, tint: number, x: number, y: number, o: Partial<Omit<Fx, 's' | 'age' | 'x' | 'y'>> & { dur: number; from: number; to: number; a0: number }): Fx | null {
-    const s = this.take(layer, t, tint);
-    if (!s) return null;
-    const f: Fx = { s, age: 0, mode: 'out', peakAt: 0.2, follow: false, x, y, ...o };
-    s.position.set(x + (f.follow ? this.fox : 0), y + (f.follow ? this.foy : 0));
-    s.scale.set(f.from * this.scale);
-    s.alpha = f.mode === 'punch' ? 0 : f.a0;
-    this.fx.push(f);
-    return f;
-  }
-
-  private sparks(x: number, y: number, n: number, speed: number, o: { dir?: number; spread?: number; life?: number; size?: number; ring?: number } = {}): void {
+  /** Plant the firework: it pops up from its foot over `plantMs`, on a soft contact shadow. */
+  plant(g: FireworksGeo, plantMs: number): void {
+    if (this.prop || !g.prop) return;
+    const M = PROP_METRICS[g.prop];
+    const t = this.tex[g.prop];
+    const s = this.take('body', t, 0xffffff);
+    if (!s) return;
+    s.anchor.set(M.ax, M.ay);
+    const shadow = this.take('under', this.tex.glow, SHADOW);
+    if (shadow) { shadow.position.set(g.base.x, g.base.y); shadow.alpha = 0; }
+    this.prop = {
+      kind: g.prop, s, shadow, g, sx: ((M.w * g.k) / (t.width || 1)) * g.flip, sy: (M.h * g.k) / (t.height || 1),
+      age: 0, plantMs: Math.max(1, plantMs), recoil: -1, recoilAmp: 0, leaving: -1, flown: false,
+    };
+    // A little puff of dust where it lands.
     const S = this.scale;
-    for (let i = 0; i < n; i++) {
-      const s = this.take('core', this.tex.streak, i % 3 === 0 ? this.colors.core : i % 3 === 1 ? this.colors.bolt : this.colors.violet);
-      if (!s) return;
-      const a = o.ring !== undefined ? (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.2 : o.dir === undefined ? this.rnd() * Math.PI * 2 : o.dir + (this.rnd() - 0.5) * (o.spread ?? 1.4);
-      const sp = speed * (o.ring !== undefined ? 0.85 + this.rnd() * 0.3 : 0.45 + this.rnd() * 0.75) * S;
-      const life = (o.life ?? 260) * (0.7 + this.rnd() * 0.6);
-      const r0 = (o.ring ?? 0) * S;
-      const sx = x + Math.cos(a) * r0, sy = y + Math.sin(a) * r0;
-      s.position.set(sx, sy);
-      this.particles.push({ s, x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.03, grav: 260 * S, life, max: life, size: (o.size ?? 0.34) * S });
+    for (const sd of [-1, 1]) this.spawn('under', this.tex.glow, SMOKE, g.base.x + sd * 14 * S, g.base.y, { dur: 380, from: 0.1, to: 0.34, a0: 0.4, vx: sd * 70, vy: -18, drag: 0.05, delay: plantMs * 0.5 });
+    this.drawProp(0);
+  }
+
+  /** Light the fuse: a bright point burns along it toward the body for `durMs`, spitting tiny sparks. */
+  fuse(durMs: number): void {
+    if (!this.prop || this.fuseFx) return;
+    const glow = this.take('glow', this.tex.glow, this.colors.gold);
+    const star = this.take('core', this.tex.star, this.colors.core);
+    if (!glow || !star) { this.give(glow); this.give(star); return; }
+    glow.alpha = 0; star.alpha = 0;
+    this.fuseFx = { glow, star, age: 0, dur: Math.max(1, durMs), acc: 0 };
+  }
+
+  private endFuse(): void {
+    const f = this.fuseFx;
+    if (!f) return;
+    this.give(f.glow); this.give(f.star);
+    this.fuseFx = null;
+  }
+
+  /** The firework is taken away (it sinks a little and fades). */
+  dismiss(): void { if (this.prop && this.prop.leaving < 0 && !this.prop.flown) this.prop.leaving = 0; }
+
+  private dropProp(): void {
+    const p = this.prop;
+    if (!p) return;
+    this.give(p.s); this.give(p.shadow);
+    this.prop = null;
+  }
+
+  private drawProp(dt: number): void {
+    const p = this.prop;
+    if (!p) return;
+    p.age += dt;
+    if (p.recoil >= 0) p.recoil += dt;
+    if (p.flown) return; // the rocket's sprite is drawn by its flight
+    const g = p.g;
+    const M = PROP_METRICS[p.kind];
+    const S = this.scale;
+    const grow = easeOutBack(p.age / p.plantMs, 1.8);
+    let sx = grow, sy = grow, alpha = 1, rot = g.angle, sink = 0;
+    if (p.recoil >= RECOIL_MS) p.recoil = -1; // at rest again (exactly: nothing moves through the held beat)
+    if (p.recoil >= 0) {
+      const r = (1 - p.recoil / RECOIL_MS) * p.recoilAmp * Math.max(-0.4, spring(p.recoil, 7, 70));
+      sy *= 1 - r; sx *= 1 + r * 0.55;
+    }
+    // While its fuse burns the rocket and the candle tremble on the spot.
+    if (this.fuseFx && p.kind !== 'mortar') rot += 0.022 * Math.sin(p.age * 0.085) * clamp01(this.fuseFx.age / this.fuseFx.dur + 0.3);
+    if (p.leaving >= 0) {
+      p.leaving += dt;
+      const u = clamp01(p.leaving / this.look.dismissMs);
+      alpha = 1 - u; sink = 12 * S * u;
+      const k = 1 - 0.22 * easeInBack(u);
+      sx *= k; sy *= k;
+    }
+    // The rocket turns about its body, so it is carried up its stick as it grows.
+    const foot = M.foot * g.k * grow;
+    p.s.position.set(g.base.x + g.dir.x * foot, g.base.y + g.dir.y * foot + sink);
+    p.s.rotation = rot;
+    p.s.scale.set(p.sx * sx, p.sy * sy);
+    p.s.alpha = alpha;
+    if (p.shadow) {
+      const w = (M.w * g.k * (p.kind === 'rocket' ? 0.5 : 1.25)) / GLOW_PX;
+      p.shadow.scale.set(w * grow, w * 0.22 * grow);
+      p.shadow.alpha = 0.55 * Math.min(1, grow) * alpha;
+    }
+    if (p.leaving >= this.look.dismissMs) this.dropProp();
+  }
+
+  private drawFuse(dt: number): void {
+    const f = this.fuseFx, p = this.prop;
+    if (!f) return;
+    if (!p) { this.endFuse(); return; }
+    f.age += dt;
+    if (f.age >= f.dur) { this.endFuse(); return; }
+    const M = PROP_METRICS[p.kind];
+    const u = f.age / f.dur;
+    const at = propPoint(p.g, M.fuse0[0] + (M.fuse1[0] - M.fuse0[0]) * u, M.fuse0[1] + (M.fuse1[1] - M.fuse0[1]) * u, this.pt);
+    const S = this.scale;
+    const flick = 0.75 + 0.25 * Math.sin(f.age * 0.11) * Math.sin(f.age * 0.037 + 1);
+    f.glow.position.set(at.x, at.y); f.glow.scale.set((46 * S * flick) / GLOW_PX); f.glow.alpha = 0.85 * Math.min(1, f.age / 50);
+    f.star.position.set(at.x, at.y); f.star.scale.set((30 * S * flick) / STAR_PX); f.star.rotation = f.age * 0.012; f.star.alpha = Math.min(1, f.age / 50);
+    f.acc += dt;
+    while (f.acc >= 20) {
+      f.acc -= 20;
+      const a = -Math.PI / 2 + (this.rnd() - 0.5) * 2.6;
+      const sp = 90 + this.rnd() * 190;
+      this.spawn('core', this.tex.spark, this.rnd() < 0.4 ? this.colors.core : this.colors.gold, at.x, at.y, {
+        dur: 150 + this.rnd() * 130, from: 0.2 + this.rnd() * 0.12, to: 0.05, a0: 1, ease: 'linear', vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.15, grav: 620,
+      });
     }
   }
 
-  private newArc(width: number, tint: number): Arc {
-    return {
-      glow: this.strip('glow', this.tex.boltGlow, tint, ARC_POINTS), core: this.strip('core', this.tex.boltCore, this.colors.core, ARC_POINTS),
-      ax: 0, ay: 0, bx: 0, by: 0, on: false, width, alpha: 0, j: 0, flick: 1,
-    };
+  // ── flights ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The rocket leaves its stand: the planted sprite itself flies `path`, nose first, dropping a thin spark trail. */
+  launchRocket(path: FireworksPath, flyMs: number, tint: number, late = 0): void {
+    const p = this.prop;
+    this.endFuse();
+    if (!p || p.flown) return;
+    p.flown = true;
+    this.give(p.shadow); p.shadow = null;
+    const S = this.scale;
+    // The kick off the ground: a puff and a few sparks thrown back down the stick.
+    const b = p.g.base;
+    this.spawn('under', this.tex.glow, SMOKE, b.x, b.y, { dur: 420, from: 0.14, to: 0.5, a0: 0.5, vy: -30, drag: 0.1 });
+    this.burst('core', this.tex.spark, [this.colors.core, tint], path.from.x - p.g.dir.x * 30 * S, path.from.y - p.g.dir.y * 30 * S, 7, {
+      speed: 260, dir: Math.atan2(-p.g.dir.y, -p.g.dir.x), spread: 1.1, life: 240, size: 0.26, grav: 500, drag: 0.1,
+    });
+    const glow = this.take('glow', this.tex.glow, tint);
+    this.rocket = { path, age: Math.max(0, late), dur: Math.max(1, flyMs), tint, acc: 0, px: path.from.x - p.g.dir.x, py: path.from.y - p.g.dir.y, glow };
+    this.drawRocket(0);
   }
 
-  private dropArc(a: Arc): void { this.giveStrip(a.glow); this.giveStrip(a.core); a.glow = null; a.core = null; }
+  private endRocket(): void {
+    const r = this.rocket;
+    if (!r) return;
+    this.give(r.glow);
+    this.rocket = null;
+    this.dropProp();
+  }
 
-  /** Write a small arc from (ax, ay) to (bx, by), jagged by `jag` of its length, fresh from the generator. */
-  private writeArc(a: Arc, alpha: number, jag: number, ox = 0, oy = 0): void {
-    const n = ARC_POINTS;
-    const dx = a.bx - a.ax, dy = a.by - a.ay;
-    const L = Math.hypot(dx, dy) || 1;
-    const nx = -dy / L, ny = dx / L;
-    const w = a.width * this.scale;
-    const glowW = w * this.look.glow * 0.8;
-    for (let j = 0; j < n; j++) {
-      const f = j / (n - 1);
-      const env = Math.sin(Math.PI * f);
-      const o = (this.rnd() - 0.5) * 2 * jag * L * env;
-      const x = a.ax + dx * f + nx * o + ox, y = a.ay + dy * f + ny * o + oy;
-      const taper = 1 - 0.6 * f;
-      if (a.glow) { const v = a.glow.v; v[j * 4] = x + nx * glowW * taper; v[j * 4 + 1] = y + ny * glowW * taper; v[j * 4 + 2] = x - nx * glowW * taper; v[j * 4 + 3] = y - ny * glowW * taper; }
-      if (a.core) { const v = a.core.v; v[j * 4] = x + nx * w * 0.5 * taper; v[j * 4 + 1] = y + ny * w * 0.5 * taper; v[j * 4 + 2] = x - nx * w * 0.5 * taper; v[j * 4 + 3] = y - ny * w * 0.5 * taper; }
+  private drawRocket(dt: number): void {
+    const r = this.rocket, p = this.prop;
+    if (!r) return;
+    if (!p) { this.give(r.glow); this.rocket = null; return; }
+    r.age += dt;
+    const u = r.age / r.dur;
+    if (u >= 1) { this.endRocket(); return; }
+    // It gathers speed as it goes.
+    const e = 0.3 * u + 0.7 * u * u;
+    const at = fireworksPathAt(r.path, e, this.pt);
+    const dx = at.x - r.px, dy = at.y - r.py;
+    const L = Math.hypot(dx, dy);
+    const hx = L > 0.01 ? dx / L : p.g.dir.x, hy = L > 0.01 ? dy / L : p.g.dir.y;
+    if (L > 0.01) p.s.rotation = Math.atan2(hy, hx) + Math.PI / 2;
+    p.s.position.set(at.x, at.y);
+    p.s.scale.set(p.sx, p.sy);
+    p.s.alpha = 1;
+    r.px = at.x; r.py = at.y;
+    const S = this.scale;
+    const tail = 34 * p.g.k;
+    const tx = at.x - hx * tail, ty = at.y - hy * tail;
+    if (r.glow) { r.glow.position.set(tx, ty); r.glow.scale.set((84 * S * (0.85 + 0.15 * Math.sin(r.age * 0.09))) / GLOW_PX); r.glow.alpha = 0.9; }
+    r.acc += dt;
+    while (r.acc >= this.look.trailMs) {
+      r.acc -= this.look.trailMs;
+      const side = (this.rnd() - 0.5) * 70;
+      this.spawn('core', this.tex.spark, this.rnd() < 0.35 ? this.colors.core : r.tint, tx, ty, {
+        dur: 380 + this.rnd() * 260, from: 0.42 + this.rnd() * 0.26, to: 0.06, a0: 1, ease: 'linear',
+        vx: -hx * 60 - hy * side, vy: -hy * 60 + hx * side, drag: 0.2, grav: 160,
+      });
     }
-    this.setArcAlpha(a, alpha);
   }
 
-  private setArcAlpha(a: Arc, alpha: number): void {
-    a.alpha = alpha;
-    if (a.glow) a.glow.mesh.alpha = Math.max(0, alpha * 0.55);
-    if (a.core) a.core.mesh.alpha = Math.max(0, alpha);
-  }
-
-  // ── the beats ─────────────────────────────────────────────────────────────────────────────────────────────
-
-  /** The charge: a glow builds on the hero and static crackles round its rim. */
-  startCharge(x: number, y: number, r: number, durMs: number, arcs: number): void {
-    const s = this.take('glow', this.tex.glow, this.colors.side);
-    if (s) { s.position.set(x, y); s.alpha = 0; this.heroGlow = { s, age: 0, dur: Math.max(60, durMs) }; }
-    if (arcs > 0) this.crawl(x, y, r, durMs + 120, arcs, false, this.colors.side);
-  }
-
-  /** Static crawling over a portrait for `durMs` (`follow`: it rides the struck portrait's knockback and jitter). */
-  crawl(x: number, y: number, r: number, durMs: number, arcs: number, follow = true, tint = this.colors.bolt): void {
-    if (arcs <= 0 || durMs <= 0) return;
-    const list: Arc[] = [];
-    for (let i = 0; i < arcs; i++) list.push(this.newArc(2.2, tint));
-    this.crawls.push({ x, y, r, age: 0, dur: durMs, arcs: list, regen: 55, follow, tint });
-  }
-
-  /** A bolt leaves `g.from` for `g.to`: its leader races out over `leaderMs`, it flickers for `holdMs`, then fades. */
-  bolt(kind: BoltKind, g: BoltGeo, o: { leaderMs: number; holdMs: number; width: number; jag: number; forks: number; late?: number; tint?: number }): void {
-    const n = BOLT_POINTS;
-    const bx = new Float32Array(n), by = new Float32Array(n), nx = new Float32Array(n), ny = new Float32Array(n);
-    const dx = g.to.x - g.from.x, dy = g.to.y - g.from.y;
-    const L = Math.hypot(dx, dy) || 1;
-    // The base curve: a quadratic bowed sideways by `bow` of the length.
-    const cx = (g.from.x + g.to.x) / 2 + (-dy / L) * g.bow * L, cy = (g.from.y + g.to.y) / 2 + (dx / L) * g.bow * L;
-    for (let j = 0; j < n; j++) {
-      const e = j / (n - 1), m = 1 - e;
-      bx[j] = m * m * g.from.x + 2 * m * e * cx + e * e * g.to.x;
-      by[j] = m * m * g.from.y + 2 * m * e * cy + e * e * g.to.y;
+  /**
+   * A thump: the tube squashes, its mouth flashes in the ball's colour and coughs a puff and a few sparks. `quick`
+   * (the mortar): everything it throws is gone within 260 ms, so nothing of it lingers into the held beat.
+   */
+  thump(tint: number, strength: number, quick = false): void {
+    const p = this.prop;
+    this.endFuse();
+    if (!p) return;
+    p.recoil = 0; p.recoilAmp = 0.11 + 0.07 * strength;
+    const m = p.g.mouth, d = p.g.dir;
+    const S = this.scale;
+    const P = strength;
+    this.spawn('core', this.tex.glow, this.colors.core, m.x, m.y, { dur: 150, from: (60 * P) / GLOW_PX, to: (200 * P) / GLOW_PX, a0: 0.95, mode: 'punch', peakAt: 0.15 });
+    this.spawn('glow', this.tex.glow, tint, m.x, m.y, { dur: quick ? 240 : 300, from: (100 * P) / GLOW_PX, to: (300 * P) / GLOW_PX, a0: 0.7, mode: 'punch', peakAt: 0.12 });
+    this.spawn('glow', this.tex.ring, tint, m.x, m.y, { dur: 260, from: (20 * P) / RING_PX, to: (120 * P) / RING_PX, a0: 0.7, sy: 0.45, rot: p.g.angle, ease: 'cubic' });
+    this.burst('core', this.tex.spark, [this.colors.core, tint, this.colors.gold], m.x, m.y, Math.round(5 + 5 * P), {
+      speed: 300 * P, dir: Math.atan2(d.y, d.x), spread: 1.0, life: quick ? 190 : 260, size: 0.24, grav: 520, drag: 0.08,
+    });
+    for (let i = 0; i < 2 + Math.round(P); i++) {
+      this.spawn('under', this.tex.glow, SMOKE, m.x + (this.rnd() - 0.5) * 24 * S, m.y, {
+        dur: quick ? 200 : 520 + this.rnd() * 200, from: 0.22 * P, to: 0.62 * P, a0: 0.55, vx: d.x * 90 + (this.rnd() - 0.5) * 60, vy: d.y * 90 - 20, drag: 0.06, delay: quick ? i * 15 : i * 40,
+      });
     }
-    for (let j = 0; j < n; j++) {
-      const a = Math.max(0, j - 1), b = Math.min(n - 1, j + 1);
-      const tx = bx[b]! - bx[a]!, ty = by[b]! - by[a]!;
-      const l = Math.hypot(tx, ty) || 1;
-      nx[j] = -ty / l; ny[j] = tx / l;
+    if (p.kind === 'mortar') {
+      // The plank jumps: dust off both ends.
+      for (const sd of [-1, 1]) this.spawn('under', this.tex.glow, SMOKE, p.g.base.x + sd * 50 * S, p.g.base.y - 4 * S, { dur: quick ? 230 : 440, from: 0.14, to: 0.46, a0: 0.45, vx: sd * 130, vy: -30, drag: 0.04 });
     }
-    const tint = o.tint ?? (kind === 'call' ? this.colors.violet : this.colors.bolt);
-    const bolt: Bolt = {
-      kind, age: Math.max(0, o.late ?? 0), leaderMs: Math.max(1, o.leaderMs), holdMs: Math.max(0, o.holdMs), fadeMs: this.look.fadeMs,
-      width: o.width, jag: o.jag, bx, by, nx, ny, off: new Float32Array(n), len: L, regen: 0, flick: 1,
-      glow: this.strip('glow', this.tex.boltGlow, tint, n), body: this.strip('core', this.tex.boltCore, tint, n), core: this.strip('core', this.tex.boltCore, this.colors.core, n),
-      forks: [], tint,
-    };
-    for (let i = 0; i < Math.max(0, Math.round(o.forks)); i++) bolt.forks.push(this.newArc(o.width * 2.4, tint));
-    this.regenBolt(bolt);
-    this.bolts.push(bolt);
   }
 
-  /** A strike that is only a tick (Medium's first branch): a zap flash and a few sparks. FX only. */
-  zap(x: number, y: number, radius: number, sparks: number): void {
-    const d = (radius * 2) / 128 / this.scale;
-    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 170, from: d * 0.25, to: d * 0.55, a0: 0.85, follow: true });
-    this.fxs('glow', this.tex.ring, this.colors.bolt, x, y, { dur: 240, from: 0.12, to: 0.45, a0: 0.6, follow: true });
-    this.sparks(x, y, Math.round(sparks * 0.5), 560, { life: 220 });
+  /** A candle ball leaves the mouth along `path`: a glow, a white core and a few afterimages. */
+  ball(path: FireworksPath, flyMs: number, tint: number, late = 0): void {
+    const glow = this.take('glow', this.tex.glow, tint);
+    const core = this.take('core', this.tex.spark, whiten(tint, 0.75));
+    if (!glow || !core) { this.give(glow); this.give(core); return; }
+    const ghosts: Sprite[] = [];
+    for (let i = 0; i < 5; i++) { const s = this.take('core', this.tex.spark, tint); if (s) ghosts.push(s); }
+    this.balls.push({ path, age: Math.max(0, late), dur: Math.max(1, flyMs), tint, glow, core, ghosts, acc: 0 });
   }
 
-  /** THE impact: a hot flash, a ring and a burst of sparks; Big adds a ring of sparks, a shock ring and a screen flash. */
-  strike(x: number, y: number, radius: number, o: { level: number; burst: number; sparks: number; flashAlpha: number; screen: number }): void {
-    const d = (radius * 2) / 128 / this.scale;
-    this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 240, from: d * 0.35, to: d * 0.8 * o.burst, a0: o.flashAlpha, follow: true });
-    this.fxs('glow', this.tex.glow, this.colors.bolt, x, y, { dur: 380, from: d * 0.5, to: d * 1.1 * o.burst, a0: 0.5, mode: 'punch', peakAt: 0.12, follow: true });
-    this.fxs('glow', this.tex.ring, this.colors.bolt, x, y, { dur: 320, from: 0.15, to: 0.7 * o.burst, a0: 0.8, follow: true });
-    this.sparks(x, y, o.sparks, 700, { life: 300 });
-    if (o.level >= 2) this.fxs('glow', this.tex.ring, this.colors.violet, x, y, { dur: 440, from: 0.2, to: 1.0 * o.burst, a0: 0.5, follow: true });
-    if (o.level >= 3) {
-      this.sparks(x, y, Math.round(o.sparks * 0.75), 780, { ring: radius * 0.45 / this.scale, life: 340, size: 0.42 });
-      this.fxs('glow', this.tex.ring, this.colors.core, x, y, { dur: 520, from: 0.3, to: 1.9 * o.burst, a0: 0.6 });
-      for (let i = 0; i < 5; i++) {
-        const a = this.rnd() * Math.PI * 2, rr = radius * (0.4 + this.rnd() * 0.9);
-        const f = this.fxs('core', this.tex.star, this.colors.core, x + Math.cos(a) * rr, y + Math.sin(a) * rr, { dur: 260 + this.rnd() * 200, from: 0.05, to: 0.3, a0: 0.9, mode: 'punch', peakAt: 0.3 });
-        if (f) f.s.rotation = this.rnd() * Math.PI;
+  private endBall(b: Ball): void {
+    this.give(b.glow); this.give(b.core);
+    for (const s of b.ghosts) this.give(s);
+  }
+
+  private drawBalls(dt: number): void {
+    const S = this.scale;
+    for (let i = this.balls.length - 1; i >= 0; i--) {
+      const b = this.balls[i]!;
+      b.age += dt;
+      const u = b.age / b.dur;
+      if (u >= 1) { this.endBall(b); this.balls.splice(i, 1); continue; }
+      // Thumped out fast, easing a touch as it arrives.
+      const e = 1 - Math.pow(1 - u, 1.35);
+      const at = fireworksPathAt(b.path, e, this.pt);
+      const pulse = 1 + 0.08 * Math.sin(b.age * 0.07);
+      b.glow.position.set(at.x, at.y); b.glow.scale.set((190 * S * pulse) / GLOW_PX); b.glow.alpha = 0.95;
+      b.core.position.set(at.x, at.y); b.core.scale.set((58 * S) / 32); b.core.alpha = 1;
+      const x0 = at.x, y0 = at.y;
+      for (let j = 0; j < b.ghosts.length; j++) {
+        const g = b.ghosts[j]!;
+        const q = fireworksPathAt(b.path, e - (j + 1) * 0.045, this.pt);
+        const f = 1 - (j + 1) / (b.ghosts.length + 1);
+        g.position.set(q.x, q.y); g.scale.set((50 * S * f) / 32); g.alpha = e > (j + 1) * 0.045 ? 0.8 * f : 0;
       }
-      if (o.screen > 0) {
-        const s = this.take('core', Texture.WHITE, 0xdcecff);
-        if (s) {
-          // The flash covers the whole view in the overlay's own px (the root's camera is undone so it never slides).
-          s.anchor.set(0);
-          this.screen = { s, age: 0, a0: o.screen };
+      b.acc += dt;
+      while (b.acc >= 34) {
+        b.acc -= 34;
+        this.spawn('core', this.tex.star, this.rnd() < 0.3 ? this.colors.core : b.tint, x0 + (this.rnd() - 0.5) * 14 * S, y0 + (this.rnd() - 0.5) * 14 * S, {
+          dur: 260 + this.rnd() * 140, from: 0.3, to: 0.08, a0: 0.9, ease: 'linear', vy: 30, grav: 220, rot: this.rnd() * 3, spin: 0.006,
+        });
+      }
+    }
+  }
+
+  /** The mortar's shell: a FAINT comet that rises fast along `path` and is gone off the top of the view. */
+  comet(path: FireworksPath, riseMs: number, late = 0): void {
+    if (this.cometFx) return;
+    const head = this.take('core', this.tex.spark, this.colors.core);
+    const tail = this.take('core', this.tex.streak, this.colors.gold);
+    if (!head || !tail) { this.give(head); this.give(tail); return; }
+    tail.anchor.set(0.94, 0.5);
+    this.cometFx = { path, age: Math.max(0, late), dur: Math.max(1, riseMs), head, tail, acc: 0, px: path.from.x, py: path.from.y + 1 };
+    this.drawComet(0);
+  }
+
+  private drawComet(dt: number): void {
+    const c = this.cometFx;
+    if (!c) return;
+    c.age += dt;
+    const u = c.age / c.dur;
+    if (u >= 1) { this.give(c.head); this.give(c.tail); this.cometFx = null; return; }
+    const at = fireworksPathAt(c.path, u, this.pt);
+    const S = this.scale;
+    const dx = at.x - c.px, dy = at.y - c.py;
+    c.head.position.set(at.x, at.y); c.head.scale.set((22 * S) / 32); c.head.alpha = 0.7;
+    c.tail.position.set(at.x, at.y); c.tail.rotation = Math.atan2(dy, dx); c.tail.scale.set((150 * S) / STREAK_PX, (9 * S) / 18); c.tail.alpha = 0.5;
+    c.px = at.x; c.py = at.y;
+    c.acc += dt;
+    // Its trail thins out before it leaves, and the last of it winks out just after (then nothing moves).
+    while (c.acc >= 22) {
+      c.acc -= 22;
+      if (u > 0.85) continue;
+      this.spawn('core', this.tex.spark, this.colors.gold, at.x + (this.rnd() - 0.5) * 8 * S, at.y, { dur: 110 + this.rnd() * 80, from: 0.16, to: 0.03, a0: 0.55, ease: 'linear', vx: (this.rnd() - 0.5) * 40, vy: 60, grav: 200 });
+    }
+  }
+
+  // ── bursts ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * A POP on the struck portrait: a small star burst of ONE colour. Even spokes of streaks that slow and droop, a
+   * ring, a flash and a few crackle twinkles. It rides the portrait's knockback. Ends the rocket if it is the rocket's.
+   */
+  pop(at: Pt, tint: number, strength: number, spokes: number): void {
+    this.endRocket();
+    const P = strength;
+    const S = this.scale;
+    const hot = whiten(tint, 0.6);
+    this.spawn('core', this.tex.glow, this.colors.core, at.x, at.y, { dur: 170, from: (50 * P) / GLOW_PX, to: (190 * P) / GLOW_PX, a0: this.look.flashAlpha, mode: 'punch', peakAt: 0.12, follow: true });
+    this.spawn('glow', this.tex.glow, tint, at.x, at.y, { dur: 460, from: (110 * P) / GLOW_PX, to: (330 * P) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.1, follow: true });
+    this.spawn('glow', this.tex.ring, tint, at.x, at.y, { dur: 340, from: (30 * P) / RING_PX, to: (210 * P) / RING_PX, a0: 0.8, ease: 'cubic', follow: true });
+    this.spawn('core', this.tex.star, hot, at.x, at.y, { dur: 180, from: (50 * P) / STAR_PX, to: (130 * P) / STAR_PX, a0: 0.8, mode: 'punch', peakAt: 0.15, rot: 0.4, follow: true });
+    const n = Math.max(0, Math.round(spokes));
+    const off = this.rnd() * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = off + (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.14;
+      const sp = 620 * P * (0.88 + this.rnd() * 0.24);
+      this.spawn('core', this.tex.streak, i % 3 === 2 ? hot : tint, at.x, at.y, {
+        dur: 460 + this.rnd() * 180, from: 0.8 * P, to: 0.4 * P, a0: 1, mode: 'hold', ease: 'linear', sy: 0.6,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.02, grav: 380, align: true,
+      });
+    }
+    // A short inner spray, white hot.
+    for (let i = 0; i < Math.round(n * 0.5); i++) {
+      const a = off + ((i + 0.5) / Math.max(1, Math.round(n * 0.5))) * Math.PI * 2;
+      const sp = 300 * P * (0.8 + this.rnd() * 0.4);
+      this.spawn('core', this.tex.streak, this.colors.core, at.x, at.y, { dur: 280, from: 0.5 * P, to: 0.2 * P, a0: 0.95, ease: 'linear', sy: 0.55, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.01, grav: 300, align: true });
+    }
+    // Crackle: a few twinkles where the spokes die.
+    for (let i = 0; i < 5; i++) {
+      const a = this.rnd() * Math.PI * 2, rr = (60 + this.rnd() * 70) * P * S;
+      this.spawn('core', this.tex.star, i % 2 ? this.colors.core : tint, at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr + 18 * S, {
+        dur: 150 + this.rnd() * 90, from: 0.12, to: 0.5 * P, a0: 1, mode: 'punch', peakAt: 0.3, rot: this.rnd() * 3, delay: 200 + this.rnd() * 260,
+      });
+    }
+  }
+
+  private addStar(kind: number, x: number, y: number, vx: number, vy: number, life: number, delay: number, size: number, drag: number, grav: number, tint: number): void {
+    if (this.nStars >= MAX_STARS) return;
+    const s = this.take('core', this.tex.streak, tint);
+    if (!s) return;
+    s.anchor.set(0.9, 0.5);
+    s.position.set(x, y);
+    s.alpha = 0;
+    const i = this.nStars++;
+    this.sS[i] = s; this.sX[i] = x; this.sY[i] = y; this.sVx[i] = vx; this.sVy[i] = vy; this.sLife[i] = life; this.sMax[i] = life;
+    this.sDelay[i] = delay; this.sSize[i] = size; this.sDrag[i] = drag; this.sGrav[i] = grav; this.sKind[i] = kind;
+  }
+
+  /**
+   * THE BLOOM: a chrysanthemum opens at `at` with radius `R`. `outer` stars in the first ring (gold), a second ring
+   * inside it (magenta), a smaller bloom a moment later (cyan), green and white crackle, a light across the sky, and
+   * `look.rain` sparks that fall onto the disc of radius `targetR` round `target` and twinkle out there.
+   */
+  bloom(at: Pt, R: number, target: Pt, targetR: number, outer: number, burst: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const B = burst;
+    // The flash, a flare, a soft halo that lingers, and a shock ring.
+    this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 260, from: (R * 0.5) / GLOW_PX / S, to: (R * 2.4 * B) / GLOW_PX / S, a0: this.look.flashAlpha, mode: 'punch', peakAt: 0.1 });
+    this.spawn('core', this.tex.star, c.core, at.x, at.y, { dur: 300, from: (R * 0.3) / STAR_PX / S, to: (R * 1.1 * B) / STAR_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.14, rot: 0.35 });
+    this.spawn('glow', this.tex.glow, c.gold, at.x, at.y, { dur: 1000, from: (R * 2) / GLOW_PX / S, to: (R * 3.4) / GLOW_PX / S, a0: 0.42, mode: 'punch', peakAt: 0.08, ease: 'cubic' });
+    this.spawn('glow', this.tex.ring, c.gold, at.x, at.y, { dur: 520, from: (R * 0.3) / RING_PX / S, to: (R * 2.5) / RING_PX / S, a0: 0.26, ease: 'cubic' });
+    if (this.look.skyFlash > 0 && !this.sky) {
+      const s = this.take('glow', Texture.WHITE, mixColor(c.gold, 0xffffff, 0.5));
+      if (s) { s.anchor.set(0); s.alpha = 0; this.sky = { s, age: 0, a0: this.look.skyFlash }; }
+    }
+    // The rings. A star leaves at v0 and slows at `drag` per second, so it travels v0 / drag: R.
+    const drag = 3.3;
+    const grav = 300 * S;
+    const life = this.look.bloomMs;
+    const ring = (n: number, reach: number, tint: number, delay: number, size: number, lifeK: number): void => {
+      const off = this.rnd() * Math.PI * 2;
+      for (let i = 0; i < n; i++) {
+        const a = off + (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.09;
+        const v = R * reach * drag * (0.94 + this.rnd() * 0.12);
+        this.addStar(STAR, at.x, at.y, Math.cos(a) * v, Math.sin(a) * v, life * lifeK * (0.86 + this.rnd() * 0.28), delay, size * S, drag, grav, i % 5 === 4 ? whiten(tint, 0.55) : tint);
+      }
+    };
+    const n1 = Math.max(0, Math.round(outer));
+    ring(n1, 1, c.gold, 0, 0.95, 1);
+    ring(Math.round(n1 * 0.62), 0.68, c.magenta, 0, 0.85, 0.92);
+    ring(Math.round(n1 * 0.4), 0.36, c.cyan, 120, 0.75, 0.8);
+    this.spawn('core', this.tex.glow, c.cyan, at.x, at.y, { dur: 260, from: (R * 0.3) / GLOW_PX / S, to: (R * 1.1) / GLOW_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.15, delay: 120 });
+    // Falling sparks: each leaves the lower half of the bloom and lands on the portrait after its own flight time.
+    const g = 900 * S;
+    // They start in the half of the bloom that faces the portrait (the lower half when it hangs above it).
+    const face = Math.atan2(target.y - at.y, target.x - at.x);
+    for (let i = 0; i < Math.round(this.look.rain); i++) {
+      const a = face + Math.PI * 0.8 * (this.rnd() - 0.5);
+      const r0 = R * (0.25 + 0.5 * this.rnd());
+      const x0 = at.x + Math.cos(a) * r0, y0 = at.y + Math.sin(a) * r0;
+      const ta = this.rnd() * Math.PI * 2, tr = targetR * 0.8 * Math.sqrt(this.rnd());
+      const tx = target.x + Math.cos(ta) * tr, ty = target.y + Math.sin(ta) * tr;
+      const tau = this.look.rainMs * (0.5 + 0.45 * this.rnd()) / 1000;
+      this.addStar(RAIN, x0, y0, (tx - x0) / tau, (ty - y0) / tau - (g * tau) / 2, tau * 1000, 180 + this.rnd() * 300, 0.8 * S, 0, g, i % 3 ? c.gold : c.core);
+    }
+    // Crackle glitter all through the bloom as it hangs.
+    for (let i = 0; i < Math.round(this.look.glitter); i++) {
+      const a = this.rnd() * Math.PI * 2, rr = R * 0.98 * Math.sqrt(this.rnd());
+      const delay = 260 + this.rnd() * life * 0.62;
+      this.spawn('core', this.tex.star, i % 3 === 0 ? c.core : i % 3 === 1 ? c.green : c.gold, at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr + (delay / 1000) * 70 * S, {
+        dur: 130 + this.rnd() * 110, from: 0.14, to: 0.62, a0: 1, mode: 'punch', peakAt: 0.3, rot: this.rnd() * 3, delay,
+      });
+    }
+  }
+
+  private drawStars(dt: number): void {
+    const sec = dt / 1000;
+    const S = this.scale;
+    let n = this.nStars;
+    for (let i = 0; i < n; i++) {
+      const s = this.sS[i]!;
+      const wait = this.sDelay[i]!;
+      if (wait > 0) {
+        this.sDelay[i] = wait - dt;
+        if (wait - dt > 0) continue;
+      }
+      const life = this.sLife[i]! - dt;
+      if (life <= 0) {
+        if (this.sKind[i] === RAIN) {
+          // It lands on the portrait: a twinkle and a breath of light.
+          const x = this.sX[i]!, y = this.sY[i]!;
+          this.spawn('core', this.tex.star, this.colors.core, x, y, { dur: 200, from: 0.16, to: 0.62, a0: 1, mode: 'punch', peakAt: 0.25, rot: (i * 0.7) % 3, follow: true });
+          this.spawn('glow', this.tex.glow, this.colors.gold, x, y, { dur: 240, from: 0.2, to: 0.5, a0: 0.5, follow: true });
         }
+        this.give(s);
+        // Swap the last live star into this slot.
+        n--;
+        if (i < n) {
+          this.sS[i] = this.sS[n]!; this.sX[i] = this.sX[n]!; this.sY[i] = this.sY[n]!; this.sVx[i] = this.sVx[n]!; this.sVy[i] = this.sVy[n]!;
+          this.sLife[i] = this.sLife[n]!; this.sMax[i] = this.sMax[n]!; this.sDelay[i] = this.sDelay[n]!; this.sSize[i] = this.sSize[n]!;
+          this.sDrag[i] = this.sDrag[n]!; this.sGrav[i] = this.sGrav[n]!; this.sKind[i] = this.sKind[n]!;
+        }
+        this.sS[n] = null;
+        i--;
+        continue;
       }
-      const cl = this.cloud;
-      if (cl) { cl.flash = 1; cl.breaking = 0; }
+      this.sLife[i] = life;
+      let vx = this.sVx[i]!, vy = this.sVy[i]!;
+      const drag = this.sDrag[i]!;
+      if (drag > 0) { const damp = Math.exp(-drag * sec); vx *= damp; vy *= damp; }
+      vy += this.sGrav[i]! * sec;
+      const x = this.sX[i]! + vx * sec, y = this.sY[i]! + vy * sec;
+      this.sVx[i] = vx; this.sVy[i] = vy; this.sX[i] = x; this.sY[i] = y;
+      const v = Math.hypot(vx, vy);
+      const size = this.sSize[i]!;
+      const t = 1 - life / this.sMax[i]!;
+      s.position.set(x, y);
+      s.rotation = Math.atan2(vy, vx);
+      if (this.sKind[i] === RAIN) {
+        s.scale.set(size * (0.5 + Math.min(1.6, v / (700 * S))), size * 0.7);
+        s.alpha = t < 0.12 ? t / 0.12 : 1;
+      } else {
+        // A long streak while it flies out, a short falling ember once it hangs; it flickers as it dies.
+        s.scale.set(size * (0.34 + Math.min(2.6, v / (330 * S))), size * 0.8);
+        s.alpha = t < 0.6 ? 1 : (1 - (t - 0.6) / 0.4) * (0.6 + 0.4 * Math.sin(life * 0.045 + i * 1.7));
+      }
     }
+    this.nStars = n;
   }
 
-  /** Big: the storm cloud gathers over (x, y), its billows sliding in from the sides over `gatherMs`. */
-  gather(x: number, y: number, r: number, gatherMs: number): void {
-    if (this.cloud) return;
-    const puffs: Puff[] = [];
-    const n = 9;
+  private drawSky(dt: number): void {
+    const k = this.sky;
+    if (!k) return;
+    k.age += dt;
+    const u = clamp01(k.age / 520);
+    // Undo the root's camera so the light always covers exactly the view.
+    const z = this.root.scale.x || 1;
+    k.s.position.set(-this.root.position.x / z, -this.root.position.y / z);
+    k.s.scale.set(this.viewW / z / (k.s.texture.width || 1), this.viewH / z / (k.s.texture.height || 1));
+    k.s.alpha = k.a0 * (u < 0.1 ? u / 0.1 : (1 - (u - 0.1) / 0.9) ** 2);
+    if (u >= 1) { this.give(k.s); this.sky = null; }
+  }
+
+  /** Create a few star sprites per frame ahead of the bloom, hold them unseen, then hand them all back to the pool. */
+  private prefill(): void {
+    if (this.prefillLeft <= 0) return;
+    const n = Math.min(14, this.prefillLeft);
     for (let i = 0; i < n; i++) {
-      const f = i / (n - 1);
-      const dark = i % 3 === 1;
-      const hx = (f - 0.5) * 2 * r * 0.78 + (this.rnd() - 0.5) * r * 0.12;
-      const hy = (dark ? r * 0.16 : -r * 0.1 * Math.sin(Math.PI * f) * 1.4) + (this.rnd() - 0.5) * r * 0.08;
-      const s = this.take('haze', i % 2 ? this.tex.puff2 : this.tex.puff, dark ? mixColor(this.colors.cloud, 0x000000, 0.35) : this.colors.cloud);
-      if (!s) break;
-      s.alpha = 0;
-      puffs.push({ s, hx, hy, ox: hx * 1.9, oy: hy * 1.5 - r * 0.25, size: (0.8 + this.rnd() * 0.45) * (1 - 0.35 * Math.abs(f - 0.5)), delay: this.rnd() * gatherMs * 0.3, ph: this.rnd() * 6, dark });
+      const s = this.take('core', this.tex.streak, 0xffffff);
+      if (!s) { this.prefillLeft = 0; break; }
+      s.alpha = 0.004; s.position.set(-60, -60); s.scale.set(0.05);
+      this.held.push(s);
+      this.prefillLeft--;
     }
-    const lights: Sprite[] = [];
-    for (let i = 0; i < 3; i++) { const s = this.take('glow', this.tex.glow, this.colors.bolt); if (s) { s.alpha = 0; lights.push(s); } }
-    this.cloud = { x, y, r, age: 0, gatherMs: Math.max(1, gatherMs), puffs, lights, flash: 0, breaking: -1, arc: null, arcLife: 0 };
-  }
-
-  /** Big: the cloud rumbles: it lights up from inside and a small arc flickers across it. */
-  rumble(): void {
-    const cl = this.cloud;
-    if (!cl) return;
-    cl.flash = 0.85;
-    if (!cl.arc) cl.arc = this.newArc(2.4, this.colors.bolt);
-    const a = cl.arc;
-    a.ax = cl.x - cl.r * (0.2 + this.rnd() * 0.4); a.ay = cl.y + (this.rnd() - 0.2) * cl.r * 0.2;
-    a.bx = cl.x + cl.r * (0.2 + this.rnd() * 0.4); a.by = cl.y + (this.rnd() - 0.2) * cl.r * 0.2;
-    cl.arcLife = 150;
-    this.writeArc(a, 1, 0.3);
+    if (this.prefillLeft <= 0) { for (const s of this.held) this.give(s); this.held = []; }
   }
 
   // ── the frame ─────────────────────────────────────────────────────────────────────────────────────────────
 
-  private regenBolt(b: Bolt): void {
-    const n = BOLT_POINTS;
-    const amp = b.jag * b.len;
-    // Two octaves: a coarse wander (every 4th point, eased between) and a fine crackle, pinned at both ends.
-    const coarse: number[] = [];
-    for (let k = 0; k <= Math.ceil((n - 1) / 4); k++) coarse.push((this.rnd() - 0.5) * 2);
-    for (let j = 0; j < n; j++) {
-      const f = j / (n - 1);
-      const env = Math.pow(Math.sin(Math.PI * f), 0.6);
-      const kf = j / 4, k0 = Math.floor(kf), t = kf - k0;
-      const c = coarse[k0]! + (coarse[Math.min(coarse.length - 1, k0 + 1)]! - coarse[k0]!) * (t * t * (3 - 2 * t));
-      b.off[j] = (c * 0.75 + (this.rnd() - 0.5) * 0.5) * amp * env;
-    }
-    b.flick = 0.72 + 0.28 * this.rnd();
-    // Re-pick the side forks: off the middle of the bolt, angled forward and away from it (drawn once per regeneration).
-    for (const a of b.forks) {
-      const j = Math.floor((0.2 + this.rnd() * 0.6) * (n - 1));
-      const side = this.rnd() < 0.5 ? -1 : 1;
-      const nx = b.nx[j]!, ny = b.ny[j]!;
-      const ang = 0.45 + this.rnd() * 0.5;
-      const L = b.len * (0.08 + this.rnd() * 0.1);
-      a.ax = b.bx[j]! + nx * b.off[j]!; a.ay = b.by[j]! + ny * b.off[j]!;
-      // Along the bolt is (ny, -nx); the side is the normal.
-      a.bx = a.ax + (ny * Math.cos(ang) + nx * side * Math.sin(ang)) * L;
-      a.by = a.ay + (-nx * Math.cos(ang) + ny * side * Math.sin(ang)) * L;
-      a.on = this.rnd() < 0.8;
-      a.j = j;
-      this.writeArc(a, 0, 0.2);
-    }
+  protected override tick(dt: number): boolean {
+    this.prefill();
+    this.drawProp(dt);
+    this.drawFuse(dt);
+    this.drawRocket(dt);
+    this.drawBalls(dt);
+    this.drawComet(dt);
+    this.drawStars(dt);
+    this.drawSky(dt);
+    return !!this.prop || !!this.fuseFx || !!this.rocket || this.balls.length > 0 || !!this.cometFx || this.nStars > 0 || !!this.sky;
   }
 
-  private writeBolt(b: Bolt): void {
-    const n = BOLT_POINTS;
-    const lead = clamp01(b.age / b.leaderMs);
-    const head = lead * (n - 1);
-    const hi = Math.floor(head), hf = head - hi;
-    const since = b.age - b.leaderMs;
-    const fade = since <= b.holdMs ? 1 : 1 - clamp01((since - b.holdMs) / b.fadeMs);
-    // Just landed: a hot restrike (brighter, fuller), then the flicker.
-    const hot = since >= 0 && since < 70 ? 1.25 : 1;
-    const alpha = (lead < 1 ? 1 : since < 70 ? 1 : b.flick) * fade;
-    const w = b.width * this.look.width * this.scale;
-    const hx = (j: number): number => b.bx[j]! + b.nx[j]! * b.off[j]!;
-    const hy = (j: number): number => b.by[j]! + b.ny[j]! * b.off[j]!;
-    const headX = hi >= n - 1 ? hx(n - 1) : hx(hi) + (hx(hi + 1) - hx(hi)) * hf;
-    const headY = hi >= n - 1 ? hy(n - 1) : hy(hi) + (hy(hi + 1) - hy(hi)) * hf;
-    const strips: [Strip | null, number][] = [[b.glow, this.look.glow], [b.body, 1], [b.core, 0.38]];
-    for (const [st, mult] of strips) {
-      if (!st) continue;
-      const v = st.v;
-      for (let j = 0; j < n; j++) {
-        const f = j / (n - 1);
-        const past = j > head;
-        const x = past ? headX : hx(j), y = past ? headY : hy(j);
-        const taper = (0.65 + 0.35 * Math.sin(Math.PI * Math.min(1, f * 1.1 + 0.05))) * (past ? 0 : 1);
-        const h = w * 0.5 * mult * taper * (mult < 1 ? 1 : hot);
-        v[j * 4] = x + b.nx[j]! * h; v[j * 4 + 1] = y + b.ny[j]! * h;
-        v[j * 4 + 2] = x - b.nx[j]! * h; v[j * 4 + 3] = y - b.ny[j]! * h;
-      }
-    }
-    if (b.glow) b.glow.mesh.alpha = 0.8 * alpha;
-    if (b.body) b.body.mesh.alpha = 0.85 * alpha;
-    if (b.core) b.core.mesh.alpha = Math.min(1, alpha * hot);
-    for (const a of b.forks) this.setArcAlpha(a, a.on && a.j <= head ? alpha * 0.75 : 0);
-  }
-
-  /** Advance everything by `dt` ms. Returns whether anything still draws. */
-  update(dt: number): boolean {
-    if (this.destroyed) return false;
-    const S = this.scale;
-    const sec = dt / 1000;
-    if (this.warmLeft > 0) {
-      this.warmLeft -= dt;
-      if (this.warmLeft <= 0) { for (const s of this.warm) this.give(s); this.warm = []; }
-    }
-
-    const hg = this.heroGlow;
-    if (hg) {
-      hg.age += dt;
-      const u = clamp01(hg.age / hg.dur);
-      const out = clamp01((hg.age - hg.dur) / 200);
-      hg.s.scale.set((0.8 + 0.8 * u) * S * (1 + 0.06 * Math.sin(hg.age * 0.05)));
-      hg.s.alpha = 0.45 * u * (1 - out);
-      if (out >= 1) { this.give(hg.s); this.heroGlow = null; }
-    }
-
-    for (let i = this.bolts.length - 1; i >= 0; i--) {
-      const b = this.bolts[i]!;
-      b.age += dt;
-      b.regen += dt;
-      if (b.regen >= this.look.regenMs) { b.regen = 0; this.regenBolt(b); }
-      if (b.age >= b.leaderMs + b.holdMs + b.fadeMs) {
-        this.giveStrip(b.glow); this.giveStrip(b.body); this.giveStrip(b.core);
-        for (const a of b.forks) this.dropArc(a);
-        this.bolts.splice(i, 1);
-        continue;
-      }
-      this.writeBolt(b);
-    }
-
-    for (let i = this.crawls.length - 1; i >= 0; i--) {
-      const c = this.crawls[i]!;
-      c.age += dt;
-      c.regen += dt;
-      if (c.age >= c.dur) { for (const a of c.arcs) this.dropArc(a); this.crawls.splice(i, 1); continue; }
-      const env = Math.min(1, c.age / 60) * (1 - clamp01((c.age - c.dur * 0.6) / (c.dur * 0.4)));
-      const ox = c.follow ? this.fox : 0, oy = c.follow ? this.foy : 0;
-      if (c.regen >= 55) {
-        c.regen = 0;
-        for (const a of c.arcs) {
-          // A crawl across the face: from a point near the rim, inward and across.
-          const th = this.rnd() * Math.PI * 2;
-          const r0 = c.r * (0.55 + this.rnd() * 0.35);
-          a.ax = c.x + Math.cos(th) * r0; a.ay = c.y + Math.sin(th) * r0;
-          const th2 = th + Math.PI + (this.rnd() - 0.5) * 1.8;
-          const len = c.r * (0.3 + this.rnd() * 0.45);
-          a.bx = a.ax + Math.cos(th2) * len; a.by = a.ay + Math.sin(th2) * len;
-          a.on = this.rnd() < 0.8;
-          a.flick = 0.65 + 0.35 * this.rnd();
-          // The geometry is drawn once per regeneration (a crackle, not a per-frame shimmer), where the portrait is now.
-          this.writeArc(a, 0, 0.28, ox, oy);
-        }
-      }
-      for (const a of c.arcs) this.setArcAlpha(a, a.on ? env * a.flick : 0);
-    }
-
-    const cl = this.cloud;
-    if (cl) {
-      cl.age += dt;
-      cl.flash = Math.max(0, cl.flash - dt / 200);
-      const brk = cl.breaking >= 0 ? (cl.breaking += dt) : -1;
-      const bu = brk >= 0 ? clamp01(brk / 700) : 0;
-      const pscale = (cl.r * 0.95) / 128;
-      for (const p of cl.puffs) {
-        const u = easeOutCubic(clamp01((cl.age - p.delay) / (cl.gatherMs * 0.7)));
-        const bob = Math.sin(cl.age * 0.004 + p.ph) * cl.r * 0.02;
-        const x = cl.x + p.ox + (p.hx - p.ox) * u + p.hx * 0.5 * bu;
-        const y = cl.y + p.oy + (p.hy - p.oy) * u + bob - cl.r * 0.2 * bu;
-        p.s.position.set(x, y);
-        p.s.scale.set(pscale * p.size * (0.55 + 0.45 * u) * (1 + 0.25 * bu), pscale * p.size * 0.8 * (0.55 + 0.45 * u) * (1 + 0.25 * bu));
-        p.s.alpha = 0.95 * u * (1 - bu);
-        const base = p.dark ? mixColor(this.colors.cloud, 0x000000, 0.35) : this.colors.cloud;
-        p.s.tint = cl.flash > 0 ? mixColor(base, 0xcfe4ff, 0.55 * cl.flash) : base;
-      }
-      cl.lights.forEach((s, i) => {
-        const p = cl.puffs[(i * 3 + 1) % Math.max(1, cl.puffs.length)];
-        if (p) s.position.set(p.s.x, p.s.y);
-        s.scale.set((cl.r * 1.1) / 128 * (0.9 + 0.2 * i));
-        s.alpha = (0.1 * clamp01(cl.age / cl.gatherMs) + 0.75 * cl.flash) * (1 - bu);
-      });
-      if (cl.arc) {
-        cl.arcLife -= dt;
-        this.setArcAlpha(cl.arc, cl.arcLife > 0 ? clamp01(cl.arcLife / 80) : 0);
-      }
-      if (bu >= 1) {
-        for (const p of cl.puffs) this.give(p.s);
-        for (const s of cl.lights) this.give(s);
-        if (cl.arc) this.dropArc(cl.arc);
-        this.cloud = null;
-      }
-    }
-
-    const sc = this.screen;
-    if (sc) {
-      sc.age += dt;
-      const u = clamp01(sc.age / 220);
-      // Undo the root's camera so the flash always covers exactly the view.
-      const z = this.root.scale.x || 1;
-      sc.s.position.set(-this.root.position.x / z, -this.root.position.y / z);
-      sc.s.scale.set(this.viewW / z, this.viewH / z);
-      sc.s.alpha = sc.a0 * (1 - u) * (1 - u);
-      if (u >= 1) { this.give(sc.s); this.screen = null; }
-    }
-
-    for (let i = this.fx.length - 1; i >= 0; i--) {
-      const q = this.fx[i]!;
-      q.age += dt;
-      const u = clamp01(q.age / q.dur);
-      q.s.scale.set((q.from + (q.to - q.from) * easeOutQuint(u)) * S);
-      q.s.position.set(q.x + (q.follow ? this.fox : 0), q.y + (q.follow ? this.foy : 0));
-      q.s.alpha = q.mode === 'punch'
-        ? (u < q.peakAt ? q.a0 * (u / q.peakAt) : q.a0 * (1 - (u - q.peakAt) / (1 - q.peakAt)))
-        : q.a0 * (1 - u) * (1 - u * 0.3);
-      if (u >= 1) { this.give(q.s); this.fx.splice(i, 1); }
-    }
-
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i]!;
-      p.life -= dt;
-      if (p.life <= 0) { this.give(p.s); this.particles.splice(i, 1); continue; }
-      const damp = Math.pow(p.drag, sec);
-      p.vx *= damp; p.vy = p.vy * damp + p.grav * sec;
-      p.x += p.vx * sec; p.y += p.vy * sec;
-      const t = 1 - p.life / p.max;
-      const v = Math.hypot(p.vx, p.vy);
-      p.s.position.set(p.x, p.y);
-      p.s.rotation = Math.atan2(p.vy, p.vx);
-      p.s.scale.set(p.size * (0.6 + Math.min(1.8, v / (700 * S))), p.size * 0.45);
-      p.s.alpha = 1 - t;
-    }
-
-    return this.used > this.warm.length || this.meshes > 0;
-  }
-
-  /** Drop every in-flight effect at once (a cancel). The pools are kept for reuse. */
-  clear(): void {
-    for (const b of this.bolts) { this.giveStrip(b.glow); this.giveStrip(b.body); this.giveStrip(b.core); for (const a of b.forks) this.dropArc(a); }
-    for (const c of this.crawls) for (const a of c.arcs) this.dropArc(a);
-    for (const q of this.fx) this.give(q.s);
-    for (const p of this.particles) this.give(p.s);
-    for (const s of this.warm) this.give(s);
-    if (this.cloud) { for (const p of this.cloud.puffs) this.give(p.s); for (const s of this.cloud.lights) this.give(s); if (this.cloud.arc) this.dropArc(this.cloud.arc); }
-    if (this.screen) this.give(this.screen.s);
-    if (this.heroGlow) this.give(this.heroGlow.s);
-    this.bolts = []; this.crawls = []; this.fx = []; this.particles = []; this.warm = []; this.cloud = null; this.screen = null; this.heroGlow = null;
-  }
-
-  /** Tear down: every sprite and strip destroyed, the root emptied and destroyed. Textures are the caller's. */
-  destroy(): void {
-    if (this.destroyed) return;
-    this.clear();
-    this.destroyed = true;
-    for (const [id] of LAYERS) {
-      this.freeSprites[id].length = 0;
-      this.layers[id].removeChildren().forEach((c) => c.destroy());
-    }
-    this.freeMeshes.clear();
-    this.root.removeChildren().forEach((c) => c.destroy());
-    this.root.destroy();
+  protected override clearOwn(): void {
+    this.endFuse();
+    if (this.rocket) { this.give(this.rocket.glow); this.rocket = null; }
+    this.dropProp();
+    for (const b of this.balls) this.endBall(b);
+    this.balls = [];
+    if (this.cometFx) { this.give(this.cometFx.head); this.give(this.cometFx.tail); this.cometFx = null; }
+    for (let i = 0; i < this.nStars; i++) { this.give(this.sS[i]!); this.sS[i] = null; }
+    this.nStars = 0;
+    if (this.sky) { this.give(this.sky.s); this.sky = null; }
+    for (const s of this.held) this.give(s);
+    this.held = []; this.prefillLeft = 0;
   }
 }
 

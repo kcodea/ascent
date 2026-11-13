@@ -35,7 +35,7 @@ describe('the Taunt beam', () => {
     expect(kb).toContain("const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };");
     // ...100 ms ahead of the frame, and still rung at the landing if that timer never ran.
     expect(kb).toContain('register(window.setTimeout(ringTaunt, (landAt - TAUNT_SOUND_LEAD_MS) / s));');
-    expect(kb).toContain('export const TAUNT_SOUND_LEAD_MS = 100;');
+    expect(kb).toContain('export const TAUNT_SOUND_LEAD_MS = 170;');
     const store = read('../store.ts');
     expect(store).toContain("const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);");
     expect(store).toContain("if (!tauntBeamComing && next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();");

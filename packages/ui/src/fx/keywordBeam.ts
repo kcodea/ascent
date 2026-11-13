@@ -36,8 +36,8 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
  */
 export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 90 };
 
-/** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier"). */
-export const TAUNT_SOUND_LEAD_MS = 100;
+/** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier", then "earlier too, maybe 70 ms"). */
+export const TAUNT_SOUND_LEAD_MS = 170;
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;

@@ -25,3 +25,5 @@ Owner: "now im making a taunt beam".
 - **Shop offers (owner: "i can bulwark a minion in shop, it should get the same effect").** The mid-turn board read
   only watched the warband. It now reads `keywordBeamUnits(run.board, run.shop)`: an offer's keywords are its card's own
   plus `ShopCard.keywords`. Every keyword beam gains this, not only Taunt. Pinned on a real Bulwark cast on an offer.
+- The owner re-saved `taunt-beam` at a 140 ms flight. The 90 ms frame lead then put the frame 50 ms after launch
+  (owner: "the taunt frame is now switching too early"), so the lead is 30 ms: the frame appears at 110 ms.

@@ -34,7 +34,7 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
  * whole-card change, and landing it exactly on arrival read late (owner 2026-11-13: "it just needs to be JUST a bit
  * earlier").
  */
-export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 90 };
+export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 30 };
 
 /** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier", then "earlier too, maybe 70 ms"). */
 export const TAUNT_SOUND_LEAD_MS = 170;

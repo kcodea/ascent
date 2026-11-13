@@ -741,9 +741,8 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
     expect(ctx.onDamageFx).not.toHaveBeenCalled();  // e2 claimed; e1 is a ward pop with no stock burst
   });
 
-  // GASKET (owner FX 2026-10-10): its Rally pass plays the owner's `gasket` blast ON EVERY unit it struck, at the
-  // moment the pass lands (no `launchOnDeath`). A wide pass spreads one fan budget evenly over every play.
-  describe('Gasket: the owner blast plays once per struck unit, on the pass beat', () => {
+  // GASKET: each Rally pass plays the owner's board-wide burst once, at the moment the pass lands.
+  describe('Gasket: one board-wide burst per pass, on the pass beat', () => {
     const wave = (n: number, wardFirst = false): CombatEvent[] => Array.from({ length: n }, (_, i) =>
       (wardFirst && i === 0
         ? { type: 'shield', target: 'v0', step: 4, wave: 1 }
@@ -754,33 +753,34 @@ describe('fxDef channel — an authored effect replaces the stock damageFx burst
       return c;
     };
 
-    it('one play per struck unit, each anchored on that unit; the stock hit-burst is claimed', () => {
-      const c = run(wave(3));
-      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
-      expect(plays.map(([, , o]) => o?.uids?.target)).toEqual(['v0', 'v1', 'v2']);
-      expect(c.onDamageFx).not.toHaveBeenCalled();
-    });
+    // Owner 2026-11-12: the `gasket` def moved to Gasket himself (On Rally); the pass plays the board-wide
+    // `gasket-burst` ONCE, however many units it struck, and the victims keep their stock hit-burst.
+    const bursts = () => mockPlayDef.mock.calls.filter(([id]) => id === 'gasket-burst');
 
-    it('a single target plays exactly as authored (no intensity)', () => {
-      run(wave(1));
-      const [[, , o]] = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
-      expect(o?.intensity).toBeUndefined();
-    });
-
-    it('a full 13-wide pass thins EVERY play evenly to the fan budget', () => {
+    it('one board-wide burst per pass, on Gasket, however many units the pass struck', () => {
+      run(wave(3));
+      expect(bursts().map(([, , o]) => o?.uids)).toEqual([{ source: 'g', target: 'g' }]);
+      mockPlayDef.mockClear();
       run(wave(13));
-      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
-      expect(plays).toHaveLength(13);
-      const ks = plays.map(([, , o]) => o?.intensity);
-      expect(new Set(ks).size, 'the same density on every target').toBe(1);
-      expect(ks[0]).toBeGreaterThan(0.1); // 600 / (372 x 13) = 0.124
-      expect(ks[0]).toBeLessThan(0.15);
+      expect(bursts()).toHaveLength(1);
+      expect(bursts()[0]![2]?.intensity).toBeUndefined();
     });
 
-    it('a pass that LEADS with a Ward pop (a shieldPop moment) still plays on every struck unit, the Ward included', () => {
+    it('the per-victim def no longer plays on the pass, and the stock hit-burst is NOT claimed', () => {
+      const c = run(wave(3));
+      expect(mockPlayDef.mock.calls.filter(([id]) => id === 'gasket')).toHaveLength(0);
+      expect(c.onDamageFx).toHaveBeenCalled();
+    });
+
+    it('a pass that LEADS with a Ward pop (a shieldPop moment) still plays the burst once', () => {
       run(wave(3, true), 'shieldPop');
-      const plays = mockPlayDef.mock.calls.filter(([id]) => id === 'gasket');
-      expect(plays.map(([, , o]) => o?.uids?.target).sort()).toEqual(['v0', 'v1', 'v2']);
+      expect(bursts()).toHaveLength(1);
+    });
+
+    it('Gasket\'s own melee strike (a damage moment with no wave) plays no burst', () => {
+      const strike = [{ type: 'dmg', target: 'v0', amount: 7, remainingHp: 1, source: 'g', step: 5 }] as CombatEvent[];
+      run(strike);
+      expect(bursts()).toHaveLength(0);
     });
   });
 });

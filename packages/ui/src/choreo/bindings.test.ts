@@ -202,7 +202,7 @@ const BINDINGS: Record<string, { def: string }> = {
  * and the easier one to add without telling anyone, and it SHADOWS the kind beneath it — so an unnoticed
  * entry here silences a global effect for one card rather than merely adding to it.
  */
-const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean; gain?: number; also?: string[] }>> = {
+const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: string; sfx?: string; critDef?: string; launchOnDeath?: boolean; gain?: number; also?: string[]; holdMs?: number; settleMs?: number }>> = {
   b2_echohorn: { rally: { def: 'echohorn-target-sparkle' }, minionPlayed: { def: 'sfx-vo-b2-echohorn', gain: 0.3 }, death: { def: 'sfx-vo-b2-echohorn-death', gain: 0.3 } },
   // Florida growls when played from hand, at half level (owner, FX Library By-card save 2026-09-25).
   b2_florida: { minionBuffed: { def: 'beast-buff-bite' }, watcher: { def: 'beast-buff-bite-watcher' }, buffWave: { def: 'beast-buff-bite', fanOut: 'buffed' }, minionPlayed: { def: 'sfx-dragon-growl-2', gain: 0.5 }, death: { def: 'sfx-vo-b2-florida-death', gain: 0.3 } },
@@ -248,9 +248,14 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   sp_picnic: { spellCast: { def: 'shop-buff-shout' } },
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   w4_runebind: { spellCast: { def: 'runebind', fanOut: 'buffedOn' }, buffWave: { def: 'runebind', fanOut: 'buffedOn' } }, // owner FX export 2026-10-14: on the target of every Runebind cast
-  // Gasket (owner FX 2026-10-10): the blast plays ON every unit a Rally pass struck, on the pass's beat. `shieldPop`
-  // too, since a pass whose first victim has a Ward compiles to a shieldPop-led moment.
-  dm_gasket: { damage: { def: 'gasket', fanOut: 'struck' }, shieldPop: { def: 'gasket', fanOut: 'struck' } },
+  // Gasket (owner 2026-11-12): the `gasket` def is now the effect ON Gasket himself, played once at the Rally medallion
+  // pulse ("its the effect on gasket himself, bind it to on rally"), with its sound as a second def. The board-wide
+  // `gasket-burst` plays once per damage pass (`shieldPop` too: a pass led by a Ward pop compiles to that kind).
+  dm_gasket: {
+    rally: { def: 'gasket', also: ['sfx-gasket-rally'], holdMs: 210 }, // the damage waits for the clip's sizzle (650 ms in)
+    damage: { def: 'gasket-burst', fanOut: 'pass', settleMs: 200 }, // a breath after the damage, before reactions
+    shieldPop: { def: 'gasket-burst', fanOut: 'pass', settleMs: 200 },
+  },
   // Set 4 Beasts (owner Workbench exports 2026-10-13): Hawg's self-hit burst; Eatah's Echo ribbon on every Beast it hits.
   b4_hawg: { damage: { def: 'beast-self-damage' } },
   b4_eatah: { damage: { def: 'beast-damage-dealt', fanOut: 'struck', launchOnDeath: true } }, // the Fel Spikes delivery: the ribbon leaves the dying body
@@ -413,8 +418,8 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   b2_hawkus: { minionPlayed: { def: 'sfx-vo-b2-hawkus', gain: 0.3 }, death: { def: 'sfx-vo-b2-hawkus-death', gain: 0.3 } },
   b2_spots: { minionPlayed: { def: 'sfx-vo-b2-spots', gain: 0.3 }, death: { def: 'sfx-vo-b2-spots-death', gain: 0.3 } },
   b2_stonehorn: { minionPlayed: { def: 'sfx-vo-b2-stonehorn', gain: 0.3 }, death: { def: 'sfx-vo-b2-stonehorn-death', gain: 0.3 } },
-  b2_raven: { minionPlayed: { def: 'sfx-vo-b2-raven', gain: 0.3 }, death: { def: 'sfx-vo-b2-raven-death', gain: 0.3 } },
-  b2_tort: { minionPlayed: { def: 'sfx-vo-b2-tort', gain: 0.3 }, death: { def: 'sfx-vo-b2-tort-death', gain: 0.3 } },
+  b2_raven: { minionPlayed: { def: 'sfx-vo-b2-raven', gain: 0.3 }, death: { def: 'sfx-vo-b2-raven-death', gain: 0.3 }, executeGiven: { def: 'execute-beam' } },
+  b2_tort: { minionPlayed: { def: 'sfx-vo-b2-tort', gain: 0.3 }, death: { def: 'sfx-vo-b2-tort-death', gain: 0.3 }, executeGiven: { def: 'execute-beam' } },
   b2_beev: { minionPlayed: { def: 'sfx-vo-b2-beev', gain: 0.3 }, death: { def: 'sfx-vo-b2-beev-death', gain: 0.3 } },
   n2_muckslinger: { minionPlayed: { def: 'sfx-vo-n2-muckslinger', gain: 0.3 }, death: { def: 'sfx-vo-n2-muckslinger-death', gain: 0.3 } },
   dw_exgalloper: { minionPlayed: { def: 'sfx-vo-dw-exgalloper', gain: 0.3 }, death: { def: 'sfx-vo-dw-exgalloper-death', gain: 0.3 } },

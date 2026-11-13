@@ -1892,6 +1892,9 @@
       "death": {
         "def": "sfx-vo-b2-raven-death",
         "gain": 0.3
+      },
+      "executeGiven": {
+        "def": "execute-beam"
       }
     },
     "b2_tort": {
@@ -1902,6 +1905,9 @@
       "death": {
         "def": "sfx-vo-b2-tort-death",
         "gain": 0.3
+      },
+      "executeGiven": {
+        "def": "execute-beam"
       }
     },
     "b2_beev": {
@@ -1975,13 +1981,22 @@
       }
     },
     "dm_gasket": {
-      "damage": {
+      "rally": {
         "def": "gasket",
-        "fanOut": "struck"
+        "also": [
+          "sfx-gasket-rally"
+        ],
+        "holdMs": 210
+      },
+      "damage": {
+        "def": "gasket-burst",
+        "fanOut": "pass",
+        "settleMs": 200
       },
       "shieldPop": {
-        "def": "gasket",
-        "fanOut": "struck"
+        "def": "gasket-burst",
+        "fanOut": "pass",
+        "settleMs": 200
       }
     },
     "b4_hawg": {

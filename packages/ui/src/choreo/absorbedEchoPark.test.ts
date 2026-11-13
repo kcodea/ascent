@@ -124,6 +124,6 @@ describe('useCombatReplay wires the switch', () => {
   const REPLAY = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'useCombatReplay.ts'), 'utf8');
   it('turns the park off for an absorbed forced Echo and gives the wind-up the parked swing’s stillness instead', () => {
     expect(REPLAY.includes('if (heldWindup && strikeFollowsWindup(cur, events, atkUid)) { heldWindup = false; absorbedEcho = true; }')).toBe(true);
-    expect(REPLAY.includes('windupSettleMs: absorbedEcho ? PARKED_COMMIT_LEAD_MS : 0')).toBe(true);
+    expect(REPLAY.includes('windupSettleMs: (absorbedEcho ? PARKED_COMMIT_LEAD_MS : 0)')).toBe(true);
   });
 });

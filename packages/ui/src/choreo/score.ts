@@ -25,7 +25,7 @@ import { fanIntensityFor } from '../fx/fanBudget';
 import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
-import { bindingFor, sourceBuffDefFor } from './bindings';
+import { bindingDefIds, bindingFor, sourceBuffDefFor } from './bindings';
 import { extraWardGainsIn, wardsGivenIn } from './channels/wardGiven';
 import { isTravelledWard, playWardGained } from '../fx/wardGivenLaunch';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
@@ -1113,6 +1113,16 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             const fanAnchors = anchorsForUnits(c.target, c.target);
             if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i, gain: binding.gain });
           });
+        });
+      } else if (binding.fanOut === 'pass') {
+        // ONCE per wave pass, on the source (Gasket's board-wide burst). A melee strike is a `damage` moment too and
+        // carries no `wave`, so the card's own swing plays nothing here. No claim: each victim keeps its stock hit.
+        if (moment.primary.wave === undefined || !source) continue;
+        const src = source;
+        at(cue, () => {
+          const anchors = anchorsForUnits(src, src);
+          // `also` rides along: the pass's own sound (Gasket's sizzle) lands with the damage, at any combat speed.
+          if (anchors) for (const id of bindingDefIds(binding)) playDef(id, anchors, { uids: { source: src, target: src }, gain: binding.gain });
         });
       } else {
         // `primary` (the default, and what an absent `fanOut` means): once, at the moment's own pair.

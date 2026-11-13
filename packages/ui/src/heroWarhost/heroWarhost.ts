@@ -329,8 +329,8 @@ export function playHeroWarhost(o: HeroWarhostOptions): HeroWarhostHandle {
         break;
       case 'cheer':
         // Tier 1, Tier 2: one man's tiny cheer (the crowd clip pitched up, quiet, short). Tier 4: the ones who stayed.
-        if (plan.kind === 'spear' || plan.kind === 'archers') cue(c.sfxCheerClip, c.sfxCheerGain * 0.4, c.sfxCheerRate * 1.25, { startMs: 700, lenMs: 800, fadeMs: 360 });
-        else cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.2 : 1), c.sfxCheerRate, { startMs: 500, lenMs: Math.max(700, (plan.endAt - plan.cheerAt - 60) * c.sfxCheerRate), fadeMs: 260 });
+        if (plan.kind === 'spear' || plan.kind === 'archers') cue(c.sfxCheerClip, c.sfxCheerGain * 0.4, c.sfxCheerRate * 1.25, { startMs: 200, lenMs: 800, fadeMs: 360 });
+        else cue(c.sfxCheerClip, c.sfxCheerGain * (plan.ko ? 1.2 : 1), c.sfxCheerRate, { lenMs: Math.max(700, (plan.endAt - plan.cheerAt - 60) * c.sfxCheerRate), fadeMs: 260 });
         break;
       case 'plant':
         // THE BANNER GOES IN: the pole biting (a knock and a ground thud with a boom under it), then the flag

@@ -552,11 +552,11 @@ describe('the camera (pure)', () => {
     expect(warhostCameraAt(p, C, p.impactAt - 10).zoom).toBeGreaterThan(warhostCameraAt(p, C, (p.marchAt + p.impactAt) / 2).zoom + 0.04);
   });
 
-  it('the sound: fifteen clips of its own, every one cued by a default, and every fx clip a default names is in the style\'s list', () => {
+  it('the sound: seventeen clips of its own, every one cued by a default, and every fx clip a default names is in the style\'s list', () => {
     const listed = [...(ATTACK_FX_CLIPS.warhost ?? [])];
     expect(listed.filter((c) => c.startsWith('fx/warhost-')).sort()).toEqual([
-      'fx/warhost-bicker', 'fx/warhost-boulder', 'fx/warhost-charge', 'fx/warhost-charge-vo', 'fx/warhost-clash', 'fx/warhost-drum', 'fx/warhost-fireball',
-      'fx/warhost-flap', 'fx/warhost-gallop', 'fx/warhost-horn', 'fx/warhost-loose', 'fx/warhost-thunk', 'fx/warhost-trip', 'fx/warhost-volley', 'fx/warhost-wait-vo',
+      'fx/warhost-bicker', 'fx/warhost-boulder', 'fx/warhost-charge', 'fx/warhost-charge-vo', 'fx/warhost-cheer', 'fx/warhost-clash', 'fx/warhost-drum', 'fx/warhost-fireball',
+      'fx/warhost-flap', 'fx/warhost-gallop', 'fx/warhost-horn', 'fx/warhost-loose', 'fx/warhost-thunk', 'fx/warhost-trip', 'fx/warhost-volley', 'fx/warhost-wait-vo', 'fx/warhost-zap',
     ]);
     const used = new Set(HERO_WARHOST_CLIP_KEYS.map((k) => C[k]));
     for (const clip of listed) expect(used.has(clip), clip).toBe(true);

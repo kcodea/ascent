@@ -250,7 +250,8 @@ export const HERO_WARHOST_DEFAULTS: HeroWarhostConfig = {
   sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.6, sfxWhooshRate: 1.3,
   sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.9, sfxThudRate: 1,
   sfxBoomClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxBoomGain: 0.8, sfxBoomRate: 0.9,
-  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.9, sfxCheerRate: 1.2,
+  // Its own cut of the shared `cheering`: 0.50 s to 1.90 s, the windows its two cheer cues play (phone audio budget).
+  sfxCheerClip: 'fx/warhost-cheer', sfxCheerGain: 0.9, sfxCheerRate: 1.2,
   // A volley: the hiss of arrows in the air (400 ms), then their patter going in.
   sfxVolleyClip: 'fx/warhost-volley', sfxVolleyGain: 0.8, sfxVolleyRate: 1,
   // The charge striking: steel, shields and shouting.
@@ -269,7 +270,8 @@ export const HERO_WARHOST_DEFAULTS: HeroWarhostConfig = {
   sfxFrostClip: 'freezetavern', sfxFrostGain: 0.4, sfxFrostRate: 1.25,
   sfxShatterClip: 'rebornshatter', sfxShatterGain: 0.55, sfxShatterRate: 1.15,
   // Lightning: the crack as it leaves the staff, the zap as it strikes.
-  sfxZapClip: 'fx/blue-impact-hit', sfxZapGain: 0.6, sfxZapRate: 1.35,
+  // Its own cut of the shared `blue-impact-hit`: the first 2.1 s, faded over its inaudible tail (phone audio budget).
+  sfxZapClip: 'fx/warhost-zap', sfxZapGain: 0.6, sfxZapRate: 1.35,
   sfxCrackClip: 'crit', sfxCrackGain: 0.4, sfxCrackRate: 1.3,
   // The catapult boulder: a long cartoon whistle in, then the crash of rock and earth.
   sfxWhistleClip: 'fx/alexis_gaming_cam-woosh-long-cartoon-370386', sfxWhistleGain: 0.55, sfxWhistleRate: 0.9,

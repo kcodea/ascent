@@ -216,7 +216,7 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
    * The clip is loudest between about 1.0 and 1.8 s in, so it is entered late enough that its loudest part ends on the hit.
    */
   const swell = (k: number, ms: number): void => cue(c.sfxOohClip, c.sfxOohGain * k, c.sfxOohRate, { startMs: Math.min(1100, Math.max(200, 1750 - real(ms))), lenMs: real(ms) + 180, fadeMs: 180 });
-  const crowd = (k: number, delay: number, lenMs = 1700): void => cue(c.sfxCheerClip, c.sfxCheerGain * k, c.sfxCheerRate, { delayMs: real(delay), startMs: 420, lenMs, fadeMs: lenMs * 0.45 });
+  const crowd = (k: number, delay: number, lenMs = 1700): void => cue(c.sfxCheerClip, c.sfxCheerGain * k, c.sfxCheerRate, { delayMs: real(delay), lenMs, fadeMs: lenMs * 0.45 });
   const woo = (k: number, delay: number, rate = 1): void => cue(c.sfxWooClip, c.sfxWooGain * k, c.sfxWooRate * rate, { delayMs: real(delay) });
   const foeAt = (t: number): Pt => { const p = victim(t); return { x: o.defender.x + p.x, y: o.defender.y + p.y }; };
   const flashK = c.flash;

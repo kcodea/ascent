@@ -273,10 +273,12 @@ export const HERO_WRESTLE_DEFAULTS: HeroWrestleConfig = {
   sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.55, sfxWhooshRate: 1,
   sfxChopClip: 'fx/wrestle-chop', sfxChopGain: 0.85, sfxChopRate: 1,
   sfxSlamClip: 'fx/wrestle-slam', sfxSlamGain: 0.9, sfxSlamRate: 1,
-  sfxBoomClip: 'fx/heavy-rock-impact', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
+  // The boom and the crowd are their own cuts of the shared `heavy-rock-impact` (its first 1.02 s, every boom's window)
+  // and `cheering` (0.42 s to 3.04 s, every crowd's window), so a phone decodes only what is heard (phone audio budget).
+  sfxBoomClip: 'fx/wrestle-boom', sfxBoomGain: 0.35, sfxBoomRate: 1.1,
   sfxBellClip: 'fx/wrestle-bell', sfxBellGain: 1, sfxBellRate: 1,
   sfxWooClip: 'fx/wrestle-woo', sfxWooGain: 0.85, sfxWooRate: 1,
-  sfxCheerClip: 'fx/cheering', sfxCheerGain: 0.75, sfxCheerRate: 1,
+  sfxCheerClip: 'fx/wrestle-cheer', sfxCheerGain: 0.75, sfxCheerRate: 1,
   sfxThudClip: 'fx/wrestle-thud', sfxThudGain: 1.05, sfxThudRate: 1,
   sfxRopeClip: 'fx/wrestle-rope', sfxRopeGain: 1.25, sfxRopeRate: 1,
   sfxSlapClip: 'fx/wrestle-slap', sfxSlapGain: 0.9, sfxSlapRate: 1,

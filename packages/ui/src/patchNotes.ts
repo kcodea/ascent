@@ -71,6 +71,13 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Flurry now arrives on a beam of its own, with a gust of air and a flurry of blade swings. Runic Beetle sends it to the Beast he picks, and a spell, a hero power or a rune sends it the same way as Rise, Execute and Ward.',
       },
       {
+        category: 'Systems',
+        text: 'Card and rune text now names the Golden Monkey correctly. It used to read "Gilded Monkey", a card that does not exist.',
+        details: [
+          'Any card, rune or quest with "Golden" in its name keeps its name in text: Golden Monkey, Golden Ruby, Golden Touch, Golden Ale, Golden Splinter, Golden Handshake and The Golden Ledger.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Set 2 gets 43 new runes. Look for them in the Runeforge: 25 Basic and 18 Epic, for every tribe and for any board.',
         details: [

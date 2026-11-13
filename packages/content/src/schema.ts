@@ -848,7 +848,10 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeBloodscent', 'runeLastHowl', 'runeTrophyHunter', 'runePitchforks', 'runeImpLegion', 'runeCollections',
   'runeFlamekeeper', 'runeHatchlingRoost', 'runeRubyDust', 'runeRoughCut',
   // Set 2 rune batch, Epic neutral (owner 2026-11-12)
-  'runeTopShelf', 'runeDoubleBill', 'runeBulwarkLine', 'runeWholesale', 'runeGrudge', 'runeBastion', 'runeMirrorSheen']);
+  'runeTopShelf', 'runeDoubleBill', 'runeBulwarkLine', 'runeWholesale', 'runeGrudge', 'runeBastion', 'runeMirrorSheen',
+  // Set 2 rune batch, Epic tribal (owner 2026-11-12)
+  'runeBigSpender', 'runeRoyalTreasury', 'runeFeralReturn', 'runePackTactics', 'runeBloodFrenzy', 'runeHellfire',
+  'runeWildfire', 'runeEldersVoice', 'runeGemRain']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

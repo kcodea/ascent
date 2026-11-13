@@ -209,7 +209,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-13 (Set 2 Epic neutral runes): 189 -> 194, CONSCIOUSLY. Five new rune texts the grammar does not parse yet
 // (Top Shelf's per-Refresh offer, Wholesale's price, Grudge's lost-combat Discover, Bastion's Ward re-form, Mirror Sheen's
 // Ward-loss damage); pinned by packages/sim/src/set2RunesEpicNeutral.test.ts.
-const UNRESOLVED_CAP = 202; // COMBINED 2026-11-13: 189 + 8 (Basic neutral) + 5 (Epic neutral).
+// 2026-11-13 (Set 2 Epic tribal runes: Big Spender, Royal Treasury, Feral Return, Pack Tactics, Blood Frenzy, Hellfire, Wildfire,
+// Elder's Voice, Vein Finder, Gem Rain): 189 -> 196, CONSCIOUSLY. Seven rune texts the grammar cannot read ("count each Gold
+// twice", "Beasts that Rise", "when that Beast is attacked", "dies to damage that is not an attack", "also triggers at Start
+// of Combat" and kin); the behaviour is pinned by packages/sim/src/set2EpicTribalRunes1112.test.ts.
+const UNRESOLVED_CAP = 209; // COMBINED 2026-11-13: 189 + 8 (Basic neutral) + 5 (Epic neutral) + 7 (Epic tribal).
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

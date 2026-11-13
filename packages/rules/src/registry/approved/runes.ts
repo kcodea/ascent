@@ -2832,4 +2832,95 @@ export const RUNES_RULES: GameRule[] = [
     example: 'A Demon that eats the right-most Shop minion at End of Turn: one this turn, one next turn, and the second hands you a Shop spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/emptyPlateConsume.test.ts'], lastVerifiedAt: '2026-11-08' },
   },
+  {
+    id: 'R-SET2-RUNES-BN-01',
+    title: 'Piggy Bank: all unspent Gold carries over, uncapped; its End of Turn is the repeat form',
+    statement:
+      'Piggy Bank (Basic, 2, Set 2) banks every Gold left when the Shop turn ends into next turn\'s opening (no cap, owner ruling), '
+      + 'after the End of Turn effects run. Its End of Turn half is the REPEAT form (R-REPEAT-01): +1/+3 on a random friendly '
+      + 'minion, once as the base and once more per unspent Gold, each tick its own beat and a fresh seeded pick. A second copy '
+      + 'runs the End of Turn half again; the carry itself happens once.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Piggy Bank: all unspent Gold carries over, with no cap.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts piggyBankCarry / piggyBankTick; recruit.ts runRecurringEndOfTurn (runePiggyBank) + recurringTickCount; reducer.ts endRecruitTurn' },
+    ],
+    contentIds: ['rune_piggy_bank'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-02',
+    title: 'Hazard Pay and Late Bloomer: Shop economy runes, paid per copy',
+    statement:
+      'Hazard Pay (Basic, 0) pays after a LOST combat (not a draw), as the next Shop opens, on its own Start of Turn beat: '
+      + '3 Gold and a banked free Refresh per copy held. Late Bloomer (Basic, 2) pays on every Shop Tier step, a free one '
+      + 'included (Summit Passage, a Citadel commission): 2 Gold and +3/+3 to every board minion (permanent), per copy held.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'After you lose a combat, gain 3 Gold and a free Refresh. / When you upgrade your Shop, gain 2 Gold and give your minions +3/+3.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts hazardPayTurnStart / lateBloomerOnUpgrade; reducer.ts advanceCombat, upgrade, upgradeShopTier, payCommissionOnce' },
+    ],
+    contentIds: ['rune_hazard_pay', 'rune_late_bloomer'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-03',
+    title: 'Second Opinion: every Discover offers one more option; its own Discover opens once, at the Shop Tier',
+    statement:
+      'Second Opinion (Basic, 3) raises every Discover\'s option count by 1 per copy held (`discoverOptionCount`: minion, spell, '
+      + 'Gift / pool, and the hero-power Discovers). Its own Discover opens ONCE when the rune is taken, a minion of exactly the '
+      + 'Shop Tier, and already offers the extra option (owner ruling 2026-11-12).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Your Discovers offer 1 more option. Discover a minion.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts discoverOptionCount; recruit.ts openDiscover / offerSpellDiscover / offerDiscover' },
+    ],
+    contentIds: ['rune_second_opinion'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-04',
+    title: 'Shield Wall, Shatterproof, Warm-Up: combat runes, symmetric on both sides',
+    statement:
+      'Shield Wall (Basic, 2) is a Start of Combat rune (Twilight repeats it, Combat Prowess replays it in the Shop): every '
+      + 'living friendly Taunt minion +4/+6 for the fight. Shatterproof (Basic, 2) pays EVERY friendly Ward loss (no cap, owner '
+      + 'ruling): that minion +5/+5 permanently, so a Ward that re-forms and breaks again pays again. Warm-Up (Basic, 2) is a '
+      + 'side-wide Pummel (150) over every friendly minion\'s landed damage, a lifetime tally carried across fights (Heavy Hand '
+      + 'doubles it); the first crossing each fight banks 2 Gold next turn per copy held, later crossings that fight are spent. '
+      + 'All three run off the side\'s own mods, so a served opponent holding them gets the same behaviour.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'Shatterproof: every Ward loss gives +5/+5 permanently. No per-combat limit. Intended.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runRuneStartOfCombat (Shield Wall), registerShatterproof, noteWarmUp' },
+    ],
+    contentIds: ['rune_shield_wall', 'rune_shatterproof', 'rune_warm_up'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-RUNES-BN-05',
+    title: 'Golden Handshake and Loyal Customer',
+    statement:
+      'Golden Handshake (Basic, 1) hears every Gild through the one chokepoint (`noteGilded`: a triple, a Gild effect, a '
+      + 'Gilded grant or Discover pick): your board +2/+2, permanent in the Shop. In combat a Gild (Auric Runemaster, the '
+      + 'Ancient of Time) gives that side\'s living minions +2/+2 for the fight. Loyal Customer (Basic, 3) counts minions bought '
+      + '(the Starform included; a displaced re-buy is not counted); every 4th costs 0, shown on the coin. A buy already free '
+      + 'for another reason still counts and leaves the free one unused. A duplicate pays the sweetener.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'When you Gild a minion, give your minions +2/+2. / Every 4th minion you buy is free.' },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts goldenHandshakeOnGild / loyalCustomerArmed / noteLoyalCustomerBuy; reducer.ts offerBuyPrice; simulate.ts goldenHandshakeCombat' },
+    ],
+    contentIds: ['rune_golden_handshake', 'rune_loyal_customer'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

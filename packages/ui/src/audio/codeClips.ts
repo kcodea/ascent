@@ -77,10 +77,15 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
   wrestle: [
     'fx/cheering',
     'fx/heavy-rock-impact',
+    'fx/soccer-crowd-ooh',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/wrestle-bell',
     'fx/wrestle-chop',
+    'fx/wrestle-roar',
+    'fx/wrestle-rope',
     'fx/wrestle-slam',
+    'fx/wrestle-slap',
+    'fx/wrestle-thud',
     'fx/wrestle-woo',
   ],
   basketball: [

@@ -11,12 +11,17 @@
  *       STRIP of the portrait goes grey, and a few motes of its colour drift to the striker. Colour seeps back.
  *  II   CROSS. Two cuts cross. The second drains the two wedges between them: HALF the portrait is grey, and more
  *       motes stream away.
- *  III  SHADOW. A tall hooded shadow rises beside the struck portrait, a candle burning at its other side. The scythe
- *       comes down from above; the whole portrait goes grey, the candle gutters and goes out. A low bell.
- *  IV   THE REAPING. Everything slows. The whole screen drains to monochrome and the sound drops away. One bell tolls.
- *       The scythe crosses the full width of the screen as a single clean line of teal light, and the struck portrait's
- *       colour streams out of it into the striker. Colour floods back in a wave from the striker's side, to everything
- *       except the struck portrait, which stays grey a moment longer.
+ *  III  THE FALL. A HUGE crescent of teal light is drawn back beside the struck portrait and held, the light building
+ *       along its edge. It falls through the WHOLE portrait in one heavy stroke, edge first, trailing afterimages. The
+ *       entire portrait goes grey at once, a ring of light opens from the blow, and its colour is torn out as a thick
+ *       plume of motes that is pulled across to the striker. A low bell.
+ *  IV   THE REAPING. The whole screen drains to monochrome and the sound drops away. A long beat of silence. ONE bell
+ *       tolls (a ring of light and a jolt of the view), and on the toll a crescent as tall as half the screen ignites
+ *       over the striker and is held, brightening. It sweeps the full width of the screen along a great arc, edge
+ *       first, its afterimages fanned out behind it, and cuts through the struck portrait: a flash, a shock ring, the
+ *       view hit hard, a line of light left across the whole screen. The portrait's colour streams out of it, thick
+ *       and long, into the striker. Then colour floods back behind a bright front from the striker's side, to
+ *       everything except the struck portrait, which stays grey a moment longer.
  *
  * THE CONTRACT: II's first cut is a TICK (FX and sound only). The consequence (the damage, Armor, Resolve) lands ONCE,
  * as the blade crosses the middle of the struck portrait (`impactAt`).
@@ -39,7 +44,7 @@ import {
 export { TIERS };
 export type { TierNum };
 
-export const REAPING_KINDS = ['cut', 'cross', 'shadow', 'reaping'] as const;
+export const REAPING_KINDS = ['cut', 'cross', 'fall', 'reaping'] as const;
 export type ReapingKind = (typeof REAPING_KINDS)[number];
 
 /** Tier I..IV -> its look. */
@@ -73,7 +78,9 @@ interface GlobalConfig {
   riseMs: number;
   raiseMs: number;
   followMs: number;
-  shadowSize: number;
+  reapSize: number;
+  // IV
+  sweepSize: number;
   // IV
   drainMs: number;
   silenceMs: number;
@@ -100,6 +107,11 @@ interface GlobalConfig {
   sfxSweepClip: string; sfxSweepGain: number; sfxSweepRate: number;
   sfxBreathClip: string; sfxBreathGain: number; sfxBreathRate: number;
   sfxThumpClip: string; sfxThumpGain: number; sfxThumpRate: number;
+  sfxSlashClip: string; sfxSlashGain: number; sfxSlashRate: number;
+  sfxMetalClip: string; sfxMetalGain: number; sfxMetalRate: number;
+  sfxCleaveClip: string; sfxCleaveGain: number; sfxCleaveRate: number;
+  sfxDrainClip: string; sfxDrainGain: number; sfxDrainRate: number;
+  sfxBoomClip: string; sfxBoomGain: number; sfxBoomRate: number;
   sfxDuck: number;
   sfxHush: number;
   // Preview only (the tuner's Play buttons). Never read by a real fight, and left out of Copy JSON.
@@ -109,32 +121,32 @@ interface GlobalConfig {
 export type HeroReapingConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_REAPING_COLOR_KEYS = ['colorTeal', 'colorBone', 'colorShade', 'colorMoteA', 'colorMoteB', 'colorMoteC', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_REAPING_CLIP_KEYS = ['sfxBellClip', 'sfxSweepClip', 'sfxBreathClip', 'sfxThumpClip'] as const;
+export const HERO_REAPING_CLIP_KEYS = ['sfxBellClip', 'sfxSweepClip', 'sfxBreathClip', 'sfxThumpClip', 'sfxSlashClip', 'sfxMetalClip', 'sfxCleaveClip', 'sfxDrainClip', 'sfxBoomClip'] as const;
 export type HeroReapingStrKey = (typeof HERO_REAPING_COLOR_KEYS)[number] | (typeof HERO_REAPING_CLIP_KEYS)[number];
 export type HeroReapingNumKey = Exclude<keyof HeroReapingConfig, HeroReapingStrKey>;
 
 /**
- * Tier I .. IV per suffix: the escalation ladder. `SweepMs` is the blade's pass (III: the downswing to the portrait;
- * IV: the line's run across the whole screen). `HoldMs` is how long the portrait stays grey after the cut (IV: after
+ * Tier I .. IV per suffix: the escalation ladder. `SweepMs` is the blade's pass (III: the fall to the portrait; IV: the
+ * crescent's run from the striker to the struck portrait). I and II are the owner-approved first pass: leave them. `HoldMs` is how long the portrait stays grey after the cut (IV: after
  * the flood has passed), `ReturnMs` how long its colour takes to seep back.
  */
 const TIER_DEFAULTS: Record<ReapingTierSuffix, [number, number, number, number]> = {
   ReadyMs: [280, 300, 0, 0],
-  SweepMs: [340, 320, 300, 460],
-  Motes: [5, 10, 14, 30],
-  HoldMs: [420, 480, 620, 380],
-  ReturnMs: [420, 440, 480, 460],
-  Shake: [3, 5, 10, 14],
-  Zoom: [0.02, 0.028, 0.045, 0.06],
-  Punch: [0.012, 0.018, 0.03, 0.04],
-  SettleMs: [60, 60, 80, 80],
-  Dim: [0.05, 0.12, 0.3, 0.1],
+  SweepMs: [340, 320, 200, 380],
+  Motes: [5, 10, 34, 60],
+  HoldMs: [420, 480, 760, 460],
+  ReturnMs: [420, 440, 520, 520],
+  Shake: [3, 5, 16, 24],
+  Zoom: [0.02, 0.028, 0.05, 0.065],
+  Punch: [0.012, 0.018, 0.045, 0.07],
+  SettleMs: [60, 60, 100, 140],
+  Dim: [0.05, 0.12, 0.42, 0.34],
 };
 
 export const REAPING_TIER_RANGES: Record<ReapingTierSuffix, [number, number, number]> = {
   ReadyMs: [0, 1500, 10],
   SweepMs: [80, 1500, 10],
-  Motes: [0, 40, 1],
+  Motes: [0, 64, 1],
   HoldMs: [0, 2000, 10],
   ReturnMs: [80, 2000, 10],
   Shake: [0, 40, 0.5],
@@ -161,14 +173,15 @@ export const HERO_REAPING_DEFAULTS: HeroReapingConfig = {
   moteSize: 1.2,
   crossGapMs: 250,
   riseMs: 520,
-  raiseMs: 140,
-  followMs: 170,
-  shadowSize: 3.1,
-  drainMs: 520,
-  silenceMs: 260,
-  tollMs: 340,
-  streamMs: 620,
-  floodMs: 560,
+  raiseMs: 200,
+  followMs: 260,
+  reapSize: 3.6,
+  sweepSize: 5.6,
+  drainMs: 600,
+  silenceMs: 400,
+  tollMs: 520,
+  streamMs: 820,
+  floodMs: 600,
   lingerMs: 0,
   knockPx: 10,
   shakeMs: 300,
@@ -183,12 +196,20 @@ export const HERO_REAPING_DEFAULTS: HeroReapingConfig = {
   colorMoteC: '#ffe08a',
   colorPlayer: '#f0c75e',
   colorFoe: '#ff6a7a',
-  // Three clips made for it (ElevenLabs, 2026-11-12): a deep funeral bell, a cold airy scythe sweep, a soft exhale as
-  // the colour leaves. Quiet and cold. A soft low thump sits under the cut.
-  sfxBellClip: 'fx/reaping-bell', sfxBellGain: 0.7, sfxBellRate: 1,
-  sfxSweepClip: 'fx/reaping-sweep', sfxSweepGain: 0.6, sfxSweepRate: 1,
-  sfxBreathClip: 'fx/reaping-breath', sfxBreathGain: 0.5, sfxBreathRate: 1,
-  sfxThumpClip: 'smack2', sfxThumpGain: 0.2, sfxThumpRate: 0.7,
+  // Six clips made for it (ElevenLabs, 2026-11-12): a deep funeral bell, a cold airy scythe sweep and a soft exhale
+  // (first pass); the low body of a heavy blade through the air, a blade cleaving through with a dull thud, and a long
+  // hollow rush of air as the colour is drawn out (second pass, when the owner heard the first as silent). Still cold,
+  // no longer quiet: every blade is the airy sweep OVER the low slash and a ring of steel (the shared metal woosh), and
+  // every blow has a low body under it. The bell is layered an octave down over a shared low boom.
+  sfxBellClip: 'fx/reaping-bell', sfxBellGain: 1.05, sfxBellRate: 1,
+  sfxSweepClip: 'fx/reaping-sweep', sfxSweepGain: 1.05, sfxSweepRate: 1,
+  sfxBreathClip: 'fx/reaping-breath', sfxBreathGain: 1.4, sfxBreathRate: 1,
+  sfxThumpClip: 'smack2', sfxThumpGain: 0.55, sfxThumpRate: 0.7,
+  sfxSlashClip: 'fx/reaping-slash', sfxSlashGain: 0.7, sfxSlashRate: 1,
+  sfxMetalClip: 'fx/metal-woosh', sfxMetalGain: 0.35, sfxMetalRate: 1,
+  sfxCleaveClip: 'fx/reaping-cleave', sfxCleaveGain: 0.7, sfxCleaveRate: 1,
+  sfxDrainClip: 'fx/reaping-drain', sfxDrainGain: 0.85, sfxDrainRate: 1,
+  sfxBoomClip: 'fx/heavy-rock-impact', sfxBoomGain: 0.2, sfxBoomRate: 1,
   sfxDuck: 0.7,
   sfxHush: 0.25,
   previewDamage: 12,
@@ -212,7 +233,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroReapingStrKey>, [num
   riseMs: [120, 1600, 10],
   raiseMs: [0, 800, 10],
   followMs: [40, 600, 10],
-  shadowSize: [1.5, 5, 0.05],
+  reapSize: [1.5, 6, 0.05],
+  sweepSize: [2, 9, 0.1],
   drainMs: [120, 1600, 10],
   silenceMs: [0, 1200, 10],
   tollMs: [0, 1200, 10],
@@ -227,6 +249,11 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroReapingStrKey>, [num
   sfxSweepGain: [0, 2, 0.05], sfxSweepRate: [0.5, 2.5, 0.01],
   sfxBreathGain: [0, 2, 0.05], sfxBreathRate: [0.5, 2.5, 0.01],
   sfxThumpGain: [0, 2, 0.05], sfxThumpRate: [0.5, 2.5, 0.01],
+  sfxSlashGain: [0, 2, 0.05], sfxSlashRate: [0.5, 2.5, 0.01],
+  sfxMetalGain: [0, 2, 0.05], sfxMetalRate: [0.5, 2.5, 0.01],
+  sfxCleaveGain: [0, 2, 0.05], sfxCleaveRate: [0.5, 2.5, 0.01],
+  sfxDrainGain: [0, 2, 0.05], sfxDrainRate: [0.5, 2.5, 0.01],
+  sfxBoomGain: [0, 2, 0.05], sfxBoomRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   sfxHush: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -240,7 +267,7 @@ export const HERO_REAPING_RANGES: Record<HeroReapingNumKey, [number, number, num
 };
 
 /** The hard ceilings a plan never exceeds, whatever the sliders say. */
-export const REAPING_CAPS = { motes: 40, shakePx: 40, zoom: 0.14 } as const;
+export const REAPING_CAPS = { motes: 64, shakePx: 40, zoom: 0.14 } as const;
 
 const store = configStore<HeroReapingConfig>({
   key: 'ascent.heroreaping.v1', defaults: HERO_REAPING_DEFAULTS, ranges: HERO_REAPING_RANGES,
@@ -285,11 +312,11 @@ export interface ReapingPlan {
   absorbEnd: number;
   /** The first blade starts moving (the dim is fully in by here). */
   launchAt: number;
-  /** I one cut, II two, III the downswing, IV the line across the screen. */
+  /** I one cut, II two, III the fall, IV the crescent across the screen. */
   cuts: CutTiming[];
-  /** III: the shadow starts rising, and has risen with the scythe raised (null on other tiers). */
-  riseAt: number | null;
-  raisedAt: number | null;
+  /** III-IV: the great crescent ignites and is drawn back (III at the start, IV on the toll), and is held, fully lit (null on I-II). */
+  windAt: number | null;
+  heldAt: number | null;
   /** IV: the screen starts draining, is fully monochrome, and the bell tolls (null on other tiers). */
   drainAt: number | null;
   drainedAt: number | null;
@@ -310,6 +337,9 @@ export interface ReapingPlan {
   dim: number;
 }
 
+/** IV: how long the crescent runs on (off the screen, thinning) after it has cut the portrait. */
+export const SWEEP_FOLLOW_MS = 240;
+
 /** Where along its pass the blade is at the middle of the portrait (0..1 of the pass time). */
 export const CROSS_AT = 0.5;
 
@@ -324,7 +354,7 @@ export function reapingPlan(input: ReapingPlanInput, c: HeroReapingConfig = stor
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      reduced: true, tier, kind, k, total, chargeAt: at, absorbEnd: at, launchAt: at, cuts: [], riseAt: null, raisedAt: null,
+      reduced: true, tier, kind, k, total, chargeAt: at, absorbEnd: at, launchAt: at, cuts: [], windAt: null, heldAt: null,
       drainAt: null, drainedAt: null, tollAt: null, impactAt: at, floodAt: null, floodEnd: null, returnAt: at, returnEnd: at,
       endAt: r.endAt, motes: 0, shakePx: 0, zoom: 0, punch: 0, dim: 0,
     };
@@ -334,7 +364,7 @@ export function reapingPlan(input: ReapingPlanInput, c: HeroReapingConfig = stor
   const ready = chargeAt + Math.max(L.ReadyMs, kind === 'cut' || kind === 'cross' ? c.absorbMs : 0);
   const sweep = Math.max(80, L.SweepMs);
   const cuts: CutTiming[] = [];
-  let riseAt: number | null = null, raisedAt: number | null = null;
+  let windAt: number | null = null, heldAt: number | null = null;
   let drainAt: number | null = null, drainedAt: number | null = null, tollAt: number | null = null;
   let floodAt: number | null = null, floodEnd: number | null = null;
   let launchAt = ready;
@@ -342,21 +372,23 @@ export function reapingPlan(input: ReapingPlanInput, c: HeroReapingConfig = stor
     cuts.push({ startAt: ready, crossAt: ready + sweep * CROSS_AT, endAt: ready + sweep });
   } else if (kind === 'cross') {
     for (let i = 0; i < 2; i++) { const at = ready + i * c.crossGapMs; cuts.push({ startAt: at, crossAt: at + sweep * CROSS_AT, endAt: at + sweep }); }
-  } else if (kind === 'shadow') {
-    // The shadow rises with the scythe, holds it raised a beat, then the downswing: it reaches the portrait at the end
-    // of `SweepMs` and follows through.
-    riseAt = ready;
-    raisedAt = riseAt + c.riseMs;
-    launchAt = raisedAt + c.raiseMs;
+  } else if (kind === 'fall') {
+    // The crescent is drawn back (the wind-up), held a beat fully lit, then falls: it is through the middle of the
+    // portrait at the end of `SweepMs` and follows through.
+    windAt = ready;
+    heldAt = windAt + c.riseMs;
+    launchAt = heldAt + c.raiseMs;
     cuts.push({ startAt: launchAt, crossAt: launchAt + sweep, endAt: launchAt + sweep + c.followMs });
   } else {
-    // The drain, the silence, the toll, then the line: it reaches the struck portrait at the end of `SweepMs` and runs
-    // on off the screen.
+    // The drain, the silence, the toll (the crescent ignites on it and is held), then the sweep: it reaches the struck
+    // portrait at the end of `SweepMs` and runs on off the screen.
     drainAt = ready;
     drainedAt = drainAt + Math.max(c.drainMs, c.absorbMs);
     tollAt = drainedAt + c.silenceMs;
+    windAt = tollAt;
+    heldAt = tollAt + c.tollMs * 0.65;
     launchAt = tollAt + c.tollMs;
-    cuts.push({ startAt: launchAt, crossAt: launchAt + sweep, endAt: launchAt + sweep + 220 });
+    cuts.push({ startAt: launchAt, crossAt: launchAt + sweep, endAt: launchAt + sweep + SWEEP_FOLLOW_MS });
   }
   const impactAt = cuts[cuts.length - 1]!.crossAt;
   let returnAt: number;
@@ -368,24 +400,23 @@ export function reapingPlan(input: ReapingPlanInput, c: HeroReapingConfig = stor
   const returnEnd = returnAt + Math.max(80, L.ReturnMs);
   const endAt = returnEnd + L.SettleMs;
   return {
-    reduced: false, tier, kind, k, total, chargeAt, absorbEnd, launchAt, cuts, riseAt, raisedAt, drainAt, drainedAt, tollAt, impactAt,
+    reduced: false, tier, kind, k, total, chargeAt, absorbEnd, launchAt, cuts, windAt, heldAt, drainAt, drainedAt, tollAt, impactAt,
     floodAt, floodEnd, returnAt, returnEnd, endAt, motes: Math.round(clamp(L.Motes, 0, REAPING_CAPS.motes)),
     shakePx: clamp(L.Shake, 0, REAPING_CAPS.shakePx), zoom: clamp(L.Zoom, 0, REAPING_CAPS.zoom), punch: L.Punch, dim: L.Dim,
   };
 }
 
-export type ReapingCueKind = 'charge' | 'rise' | 'drain' | 'hush' | 'toll' | 'sweep' | 'cross' | 'impact' | 'snuff' | 'flood' | 'return' | 'end';
+export type ReapingCueKind = 'charge' | 'wind' | 'drain' | 'hush' | 'toll' | 'held' | 'sweep' | 'cross' | 'impact' | 'flood' | 'return' | 'end';
 export interface ReapingCue { at: number; kind: ReapingCueKind; i: number }
-
-/** III: the candle gutters from the impact and is out this long after it. */
-export const SNUFF_MS = 380;
 
 /** Every beat the runner fires, in time order (a tick precedes the impact on a tie). */
 export function reapingCues(p: ReapingPlan): ReapingCue[] {
   const out: ReapingCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    if (p.riseAt !== null) out.push({ at: p.riseAt, kind: 'rise', i: 0 });
+    // III: the crescent ignites (on IV it ignites on the toll, which is its own cue).
+    if (p.kind === 'fall' && p.windAt !== null) out.push({ at: p.windAt, kind: 'wind', i: 0 });
+    if (p.heldAt !== null) out.push({ at: p.heldAt, kind: 'held', i: 0 });
     if (p.drainAt !== null) out.push({ at: p.drainAt, kind: 'drain', i: 0 });
     if (p.drainedAt !== null) out.push({ at: p.drainedAt, kind: 'hush', i: 0 });
     if (p.tollAt !== null) out.push({ at: p.tollAt, kind: 'toll', i: 0 });
@@ -394,13 +425,12 @@ export function reapingCues(p: ReapingPlan): ReapingCue[] {
       // Every crossing but the last is a tick; the last IS the impact.
       if (i < p.cuts.length - 1) out.push({ at: q.crossAt, kind: 'cross', i });
     });
-    if (p.kind === 'shadow') out.push({ at: p.impactAt + SNUFF_MS, kind: 'snuff', i: 0 });
     if (p.floodAt !== null) out.push({ at: p.floodAt, kind: 'flood', i: 0 });
     out.push({ at: p.returnAt, kind: 'return', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<ReapingCueKind, number> = { charge: 0, rise: 1, drain: 2, hush: 3, toll: 4, sweep: 5, cross: 6, impact: 7, snuff: 8, flood: 9, return: 10, end: 11 };
+  const order: Record<ReapingCueKind, number> = { charge: 0, wind: 1, drain: 2, hush: 3, toll: 4, held: 5, sweep: 6, cross: 7, impact: 8, flood: 9, return: 10, end: 11 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
@@ -417,21 +447,28 @@ export interface CutGeo {
   bow: 1 | -1;
 }
 
-/** III: the hooded shadow, its scythe and the candle. */
-export interface ShadowGeo {
-  /** The shadow's feet (bottom centre) and height; `side` is which side of the portrait it stands on (-1 left, 1 right). */
-  x: number; baseY: number; h: number; side: 1 | -1;
-  /** The scythe turns about `pivot` (the shadow's hands): a snath `reach` px long, a blade `blade` px long at its end. */
-  pivot: Pt; reach: number; blade: number;
-  /** The snath's angle raised, as the MIDDLE of the blade crosses the portrait's middle, and after the follow-through. */
+/**
+ * III-IV: THE GREAT CRESCENT. It turns about `pivot` like the blade of a scythe on its arm: the blade lies ALONG the arm
+ * (from `arm - inner * blade` to `arm + (1 - inner) * blade` px out) and sweeps EDGE FIRST, so it passes through the
+ * whole portrait. The arm points at the middle of the struck portrait exactly at `aHit`.
+ */
+export interface SwingGeo {
+  pivot: Pt;
+  /** The pivot's distance to the middle of the struck portrait. */
+  arm: number;
+  /** The blade's length, and how much of it lies INSIDE the portrait's middle (0..1, toward the pivot). */
+  blade: number; inner: number;
+  /** The arm's angle held (drawn back), as it cuts the portrait's middle, and after the follow-through. */
   a0: number; aHit: number; a1: number;
-  /** The candle's foot (it stands at the portrait's other side). */
-  candle: Pt;
+  /** How far forward of `a0` it ignites before it is drawn back (radians). */
+  back: number;
+  /** Which way it turns (1 = the angle grows). */
+  sgn: 1 | -1;
 }
 
-/** IV: the line across the screen (through the struck portrait) and the way the colour floods back. */
+/** IV: the line of light the cut leaves across the whole screen, through the struck portrait (the tangent of the sweep). */
 export interface LineGeo {
-  /** The line runs `from` -> `to` (both off the screen); it passes the struck portrait's middle `hitK` of the way. */
+  /** The line runs `from` -> `to` (both off the screen); the struck portrait's middle is `hitK` of the way. */
   from: Pt; to: Pt; hitK: number;
   angle: number;
 }
@@ -441,7 +478,7 @@ export interface ReapingGeo {
   u: Pt;
   nrm: Pt;
   cuts: CutGeo[];
-  shadow: ShadowGeo | null;
+  swing: SwingGeo | null;
   line: LineGeo | null;
   /** The screen (or sandbox box) the attack plays in. */
   bounds: { w: number; h: number };
@@ -459,9 +496,11 @@ export const CUT_ANGLE = 0.6;
  * cuts goes first. Pure, so a replay reaps the same.
  *  I    one shallow arc through the middle of the portrait, `CUT_ANGLE` off the strike line.
  *  II   two arcs crossing at right angles on the portrait.
- *  III  the shadow stands at the portrait's side that faces the striker (kept on screen), its hands the scythe's pivot;
- *       the blade comes over the top and down through the portrait's middle. The candle stands at the other side.
- *  IV   a line across the whole screen through the portrait's middle, run from the striker's side.
+ *  III  the crescent turns about a point beside the portrait (the striker's side). With room above, it is drawn back
+ *       ABOVE the portrait and falls through it; on a portrait at the top of the screen the pivot sits under it and the
+ *       crescent is drawn back toward the striker and swept across. Either way the raised crescent stays on screen.
+ *  IV   the crescent turns about a point far off the screen, on a great arc from the striker through the struck
+ *       portrait and on off the screen; the line it leaves is the arc's tangent at the portrait, across the whole screen.
  */
 export function reapingGeo(p: ReapingPlan, a: Pt, d: Pt, aR: number, dR: number, c: HeroReapingConfig = store.get(), bounds: { w: number; h: number } = { w: 1920, h: 1080 }, flip = false): ReapingGeo {
   const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
@@ -469,7 +508,7 @@ export function reapingGeo(p: ReapingPlan, a: Pt, d: Pt, aR: number, dR: number,
   const nrm0 = { x: -u.y, y: u.x };
   const nrm = nrm0.y > 0 ? { x: -nrm0.x, y: -nrm0.y } : nrm0;
   void aR;
-  if (p.reduced) return { u, nrm, cuts: [], shadow: null, line: null, bounds };
+  if (p.reduced) return { u, nrm, cuts: [], swing: null, line: null, bounds };
   const cut = (dir: Pt, bowSide: 1 | -1): CutGeo => {
     const n = { x: -dir.y * bowSide, y: dir.x * bowSide };
     const reach = dR * c.bladeReach, bow = dR * c.bladeBow;
@@ -482,46 +521,53 @@ export function reapingGeo(p: ReapingPlan, a: Pt, d: Pt, aR: number, dR: number,
   };
   const s: 1 | -1 = flip ? -1 : 1;
   const cuts: CutGeo[] = [];
-  let shadow: ShadowGeo | null = null, line: LineGeo | null = null;
+  let swing: SwingGeo | null = null, line: LineGeo | null = null;
   if (p.kind === 'cut') cuts.push(cut(rot(u, s * CUT_ANGLE), s));
   else if (p.kind === 'cross') { cuts.push(cut(rot(u, s * CROSS_ANGLE), s)); cuts.push(cut(rot(u, -s * CROSS_ANGLE), (-s) as 1 | -1)); }
-  else if (p.kind === 'shadow') {
-    // The shadow stands on the striker's side of the portrait (toward the middle of the screen when they are level).
+  else if (p.kind === 'fall') {
+    // The pivot is on the striker's side of the portrait (toward the middle of the screen when they are level).
     const toward = Math.abs(a.x - d.x) > dR * 0.5 ? Math.sign(a.x - d.x) : (d.x > bounds.w / 2 ? -1 : 1);
     const side = (toward >= 0 ? 1 : -1) as 1 | -1;
-    const h = dR * c.shadowSize;
-    const half = h * 0.31; // the texture's half width
-    const x = clamp(d.x + side * dR * 1.35, half + 6, Math.max(half + 6, bounds.w - half - 6));
-    const baseY = clamp(d.y + dR * 1.25, h + 8, Math.max(h + 8, bounds.h + dR * 0.2));
-    const pivot = { x: x - side * h * 0.05, y: baseY - h * 0.56 };
-    // The blade sits across the end of the snath and travels point first, so its MIDDLE is what crosses the portrait.
-    const dist = Math.hypot(d.x - pivot.x, d.y - pivot.y) || 1;
-    const blade = Math.min(dR * 1.9, dist * 1.25);
-    const reach = Math.sqrt(Math.max(1, dist * dist - (blade / 2) * (blade / 2)));
-    const phi = Math.atan2(d.y - pivot.y, d.x - pivot.x);
-    const aHit = phi + side * Math.atan2(blade / 2, reach);
-    shadow = {
-      x, baseY, h, side, pivot, reach, blade, a0: aHit + side * 1.75, aHit, a1: aHit - side * 0.62,
-      candle: { x: clamp(d.x - side * dR * 1.2, dR * 0.45, Math.max(dR * 0.45, bounds.w - dR * 0.45)), y: clamp(d.y + dR * 1.02, dR, Math.max(dR, bounds.h - 6)) },
-    };
-    // The blade's path, as a cut: tangent to the swing where it crosses the portrait.
-    const dir = { x: Math.sin(phi) * side, y: -Math.cos(phi) * side };
-    cuts.push({ from: d, ctrl: d, to: d, dir, angle: Math.atan2(dir.y, dir.x), bow: 1 });
+    const blade = dR * c.reapSize, arm = blade / 2 + dR * 0.5;
+    const sgn = (-side) as 1 | -1;
+    // Room to raise it above the portrait? Otherwise the pivot goes under the portrait and it is drawn back sideways.
+    const above = d.y - (arm + blade / 2) * 0.97 > 8;
+    const pivot = above ? { x: d.x + side * arm, y: d.y } : { x: d.x, y: d.y + arm };
+    const aHit = above ? (side > 0 ? Math.PI : 0) : -Math.PI / 2;
+    swing = { pivot, arm, blade, inner: 0.5, a0: aHit - sgn * FALL_RAISE, aHit, a1: aHit + sgn * 0.75, back: 0.3, sgn };
   } else {
-    // A level line through the portrait, tipped a few degrees, run from the striker's side of the screen to the other.
-    const sx = Math.abs(u.x) > 0.15 ? Math.sign(u.x) : 1;
-    const tilt = -0.045 * sx * (u.y <= 0 ? 1 : -1);
-    const dir = { x: Math.cos(tilt) * sx, y: Math.sin(tilt) };
-    const pad = Math.max(120, dR);
-    const back = (sx > 0 ? d.x : bounds.w - d.x) + pad, fwd = (sx > 0 ? bounds.w - d.x : d.x) + pad;
-    line = {
-      from: { x: d.x - dir.x * back, y: d.y - dir.y * back }, to: { x: d.x + dir.x * fwd, y: d.y + dir.y * fwd },
-      hitK: back / (back + fwd), angle: Math.atan2(dir.y, dir.x),
-    };
-    cuts.push({ from: line.from, ctrl: d, to: line.to, dir, angle: line.angle, bow: 1 });
+    // A great arc from the striker through the struck portrait: the pivot is on the perpendicular bisector of the two,
+    // far off, on whichever side puts it nearer the struck portrait's column (so the sweep is level as it cuts).
+    const mid = { x: (a.x + d.x) / 2, y: (a.y + d.y) / 2 };
+    const n = nrm0.y > 0 || (nrm0.y === 0 && nrm0.x > 0) ? nrm0 : { x: -nrm0.x, y: -nrm0.y };
+    const off = L * 1.3;
+    const pa = { x: mid.x + n.x * off, y: mid.y + n.y * off }, pb = { x: mid.x - n.x * off, y: mid.y - n.y * off };
+    const pivot = Math.abs(pb.x - d.x) < Math.abs(pa.x - d.x) - 1 ? pb : pa;
+    const arm = Math.hypot(d.x - pivot.x, d.y - pivot.y) || 1;
+    const aHit = Math.atan2(d.y - pivot.y, d.x - pivot.x);
+    const aStart = Math.atan2(a.y - pivot.y, a.x - pivot.x);
+    let turn = aHit - aStart;
+    while (turn > Math.PI) turn -= Math.PI * 2;
+    while (turn < -Math.PI) turn += Math.PI * 2;
+    const sgn = (turn >= 0 ? 1 : -1) as 1 | -1;
+    const blade = Math.min(dR * c.sweepSize, arm * 1.1);
+    swing = { pivot, arm, blade, inner: 0.55, a0: aHit - turn, aHit, a1: aHit + sgn * 0.3, back: 0.05, sgn };
   }
-  return { u, nrm, cuts, shadow, line, bounds };
+  if (swing) {
+    // The crescent's path where it cuts the portrait: the tangent of the swing.
+    const dir = { x: -Math.sin(swing.aHit) * swing.sgn, y: Math.cos(swing.aHit) * swing.sgn };
+    const angle = Math.atan2(dir.y, dir.x);
+    cuts.push({ from: d, ctrl: d, to: d, dir, angle, bow: 1 });
+    if (p.kind === 'reaping') {
+      const span = Math.hypot(bounds.w, bounds.h);
+      line = { from: { x: d.x - dir.x * span, y: d.y - dir.y * span }, to: { x: d.x + dir.x * span, y: d.y + dir.y * span }, hitK: 0.5, angle };
+    }
+  }
+  return { u, nrm, cuts, swing, line, bounds };
 }
+
+/** III: how far back the crescent is raised from the cut (radians). */
+export const FALL_RAISE = 1.3;
 
 export interface BladeState {
   visible: boolean; x: number; y: number;
@@ -557,46 +603,58 @@ export function bladeAt(p: ReapingPlan, g: ReapingGeo, i: number, t: number, out
 }
 
 /**
- * III: the scythe's snath angle at `t` (pure): raised (`a0`) from the rise, swung down, accelerating, to cross the
- * portrait's middle exactly at `crossAt` (`aHit`), then following through to `a1`, slowing.
+ * III-IV: the crescent's arm angle at `t` (pure): it ignites a little forward of `a0` and is DRAWN BACK to it through
+ * the wind-up, is held, then swings, accelerating, to cut the portrait's middle exactly at `crossAt` (`aHit`), and
+ * follows through to `a1`, slowing.
  */
-export function swingAt(p: ReapingPlan, s: ShadowGeo, t: number): number {
+export function swingAt(p: ReapingPlan, s: SwingGeo, t: number): number {
   const q = p.cuts[0];
-  if (!q || t <= q.startAt) return s.a0;
+  if (!q || p.windAt === null || p.heldAt === null) return s.a0;
+  if (t <= p.windAt) return s.a0 + s.sgn * s.back;
+  if (t < p.heldAt) return s.a0 + s.sgn * s.back * (1 - easeOutCubic((t - p.windAt) / Math.max(1, p.heldAt - p.windAt)));
+  if (t <= q.startAt) return s.a0;
   if (t < q.crossAt) { const v = (t - q.startAt) / Math.max(1, q.crossAt - q.startAt); return s.a0 + (s.aHit - s.a0) * v * v * v; }
   return s.aHit + (s.a1 - s.aHit) * easeOutCubic((t - q.crossAt) / Math.max(1, q.endAt - q.crossAt));
 }
 
-/** III: the scythe at snath angle `ang` (pure): the end of the snath, the way the blade points, and the blade's middle. */
-export function scytheAt(s: ShadowGeo, ang: number): { tip: Pt; rot: number; mid: Pt } {
-  const tip = { x: s.pivot.x + Math.cos(ang) * s.reach, y: s.pivot.y + Math.sin(ang) * s.reach };
-  const r = ang - s.side * Math.PI / 2;
-  return { tip, rot: r, mid: { x: tip.x + Math.cos(r) * s.blade / 2, y: tip.y + Math.sin(r) * s.blade / 2 } };
+/** III-IV: the crescent on its arm at angle `ang` (pure): its heel, the point that cuts the portrait's middle, its tip. */
+export function swingPose(s: SwingGeo, ang: number): { heel: Pt; mid: Pt; tip: Pt } {
+  const cx = Math.cos(ang), sy = Math.sin(ang);
+  const r0 = s.arm - s.inner * s.blade, r1 = r0 + s.blade;
+  return {
+    heel: { x: s.pivot.x + cx * r0, y: s.pivot.y + sy * r0 },
+    mid: { x: s.pivot.x + cx * s.arm, y: s.pivot.y + sy * s.arm },
+    tip: { x: s.pivot.x + cx * r1, y: s.pivot.y + sy * r1 },
+  };
 }
 
-/** III: how far the shadow has risen (0 = not there, 1 = standing) at `t`: up through the rise, sinking after the cut. */
-export function shadowAt(p: ReapingPlan, t: number): number {
-  if (p.kind !== 'shadow' || p.riseAt === null || p.raisedAt === null || t < p.riseAt) return 0;
-  if (t < p.raisedAt) return easeOutCubic((t - p.riseAt) / Math.max(1, p.raisedAt - p.riseAt));
-  const leave = p.impactAt + 300;
-  if (t < leave) return 1;
-  return 1 - clamp01((t - leave) / 420);
+/**
+ * III-IV: the crescent's light at `t` (pure). `a` is its opacity (it ignites through the first part of the wind-up, is
+ * full from the hold to the cut, and thins away through the follow-through); `build` is the light gathering along its
+ * edge through the wind-up (0..1, full at the launch). Exactly 0 before the wind-up and from the end of the follow.
+ */
+export function swingLight(p: ReapingPlan, t: number, out: { a: number; build: number } = { a: 0, build: 0 }): { a: number; build: number } {
+  const q = p.cuts[0];
+  out.a = 0; out.build = 0;
+  if (!q || p.reduced || p.windAt === null || p.heldAt === null || t < p.windAt || t >= q.endAt) return out;
+  out.build = clamp01((t - p.windAt) / Math.max(1, q.startAt - p.windAt));
+  if (t < q.crossAt) out.a = clamp01((t - p.windAt) / Math.max(1, (p.heldAt - p.windAt) * 0.55));
+  else { const v = 1 - clamp01((t - q.crossAt) / Math.max(1, q.endAt - q.crossAt)); out.a = v * v; }
+  return out;
 }
 
-/** III: the candle's flame (1 = burning, 0 = out): steady, guttering from the impact, out `SNUFF_MS` after it. */
-export function flameAt(p: ReapingPlan, t: number): number {
-  if (p.kind !== 'shadow' || p.riseAt === null || t < p.riseAt) return 0;
-  if (t < p.impactAt) return clamp01((t - p.riseAt) / 220);
-  return 1 - clamp01((t - p.impactAt) / SNUFF_MS);
-}
+/** IV: how long the line of light lasts after the cut, thinning. */
+export const SCAR_MS = 700;
 
-/** IV: the line's head, 0..1 from `from` to `to`, at `t` (pure): it is exactly at the portrait (`hitK`) at `crossAt`. */
-export function lineAt(p: ReapingPlan, g: ReapingGeo, t: number): number {
-  const q = p.cuts[0], l = g.line;
-  if (!q || !l || t <= q.startAt) return 0;
-  if (t < q.crossAt) { const v = (t - q.startAt) / Math.max(1, q.crossAt - q.startAt); return l.hitK * (0.25 * v + 0.75 * v * v); }
-  if (t >= q.endAt) return 1;
-  return l.hitK + (1 - l.hitK) * ((t - q.crossAt) / Math.max(1, q.endAt - q.crossAt));
+/** IV: the line the cut leaves (pure): `len` 0..1 of its full length (it opens out from the portrait), `a` its light. */
+export function lineAt(p: ReapingPlan, t: number, out: { len: number; a: number } = { len: 0, a: 0 }): { len: number; a: number } {
+  out.len = 0; out.a = 0;
+  if (p.reduced || p.kind !== 'reaping') return out;
+  const since = t - p.impactAt;
+  if (since < 0 || since >= SCAR_MS) return out;
+  out.len = 0.1 + 0.9 * easeOutCubic(clamp01(since / 110));
+  out.a = 1 - clamp01((since - 140) / (SCAR_MS - 140));
+  return out;
 }
 
 // ─── the colour (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -619,8 +677,8 @@ export function emptyDrain(): DrainState { return { strip: [0, 0], stripA: 0, fu
 
 /**
  * THE DRAIN at sequence time `t` (pure). I-II: each strip is drained along its cut as the blade passes (the grey is
- * BEHIND the blade); II's wedges go as the second blade crosses. III: the whole portrait, in the last beat of the
- * downswing. IV: the screen drains through `drainAt..drainedAt` and the portrait with it; the flood runs
+ * BEHIND the blade); II's wedges go as the second blade crosses. III: the whole portrait AT ONCE as the crescent goes
+ * through it. IV: the screen drains through `drainAt..drainedAt` and the portrait with it; the flood runs
  * `floodAt..floodEnd`; the portrait stays grey. Every tier: the portrait's colour seeps back over
  * `returnAt..returnEnd`, and everything is EXACTLY 0 from `returnEnd` (and before the charge).
  */
@@ -636,8 +694,9 @@ export function drainAt(p: ReapingPlan, t: number, out: DrainState = emptyDrain(
     }
     out.stripA = back;
     if (p.kind === 'cross') out.full = clamp01((t - (p.impactAt - 30)) / 150) * back;
-  } else if (p.kind === 'shadow') {
-    out.full = clamp01((t - (p.impactAt - 50)) / 140) * back;
+  } else if (p.kind === 'fall') {
+    // The ENTIRE portrait, at once, as the edge goes through it.
+    out.full = clamp01((t - (p.impactAt - 20)) / 70) * back;
   } else if (p.drainAt !== null && p.drainedAt !== null && p.floodAt !== null && p.floodEnd !== null) {
     const v = easeInOutSine((t - p.drainAt) / Math.max(1, p.drainedAt - p.drainAt));
     out.veil = t < p.floodEnd ? v : 0;
@@ -669,8 +728,8 @@ const sine = (v: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, M
 
 /**
  * The camera at sequence time `t`: a slow push in up to the blow (IV creeps in all through the drain, the silence and
- * the toll: everything slows), a small kick along each cut, a punch with a short directional shake on the impact, then
- * it settles back. Deterministic. Pure.
+ * the toll), a jolt on IV's toll, a small kick along each cut, a punch with a directional shake on the impact, then it
+ * settles back. Deterministic. Pure.
  */
 export function reapingCameraAt(p: ReapingPlan, c: HeroReapingConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
@@ -683,6 +742,12 @@ export function reapingCameraAt(p: ReapingPlan, c: HeroReapingConfig, t: number,
     z += p.zoom * hold + p.punch * Math.exp(-since / Math.max(1, c.zoomOutMs / 4));
   }
   let x = 0, y = 0;
+  if (p.tollAt !== null && t >= p.tollAt) {
+    // IV: the toll jolts the view (a smaller hit than the cut, straight down: the weight of the bell).
+    const since = t - p.tollAt;
+    z += p.punch * 0.5 * Math.exp(-since / Math.max(1, c.zoomOutMs / 4));
+    y += p.shakePx * 0.3 * spring(since, 14, Math.max(1, c.shakeMs / 4));
+  }
   for (let i = 0; i < p.cuts.length; i++) {
     const at = p.cuts[i]!.crossAt;
     if (t < at) continue;
@@ -695,7 +760,7 @@ export function reapingCameraAt(p: ReapingPlan, c: HeroReapingConfig, t: number,
 
 /** Where the camera anchors: the striker through the ready, easing to the struck portrait as the first blade starts. */
 export function reapingCameraFocus(p: ReapingPlan, t: number, a: Pt, d: Pt): Pt {
-  if (p.kind === 'shadow' || p.kind === 'reaping') return d;
+  if (p.kind === 'fall' || p.kind === 'reaping') return d;
   const first = p.cuts[0]?.crossAt ?? p.impactAt;
   if (t <= p.chargeAt) return a;
   if (t >= first) return d;

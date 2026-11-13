@@ -1,16 +1,20 @@
 # 2026-11-12: The Reaping, the Ancient of Death's hero attack (style `reaping`, Ancient, dev only)
 
 One of sixteen attacks built in parallel on `feat/hero-attacks-16` (see `2026-11-11-attack-scaffold.md`). Scaffolded
-from `stitch`; nothing of Soul Stitch is left (no needles, thread or knots). The style is DEV ONLY and has no cosmetic
-yet: it plays through the "Attack style" override and its tuner (Dev menu, "Hero Attack: The Reaping").
+from `stitch`; nothing of Soul Stitch is left. The style is DEV ONLY and has no cosmetic yet: it plays through the
+"Attack style" override and its tuner (Dev menu, "Hero Attack: The Reaping").
+
+This file describes the attack as it stands after the SECOND PASS (same day). What the second pass changed, and why, is
+in its own section below.
 
 ## The signature
 
-WHAT THE SCYTHE CUTS IS COLOUR. Every cut drains the struck portrait to greyscale along the cut, and a few warm motes
-of its colour lift off and drift into the striker. The top look drains the WHOLE SCREEN to monochrome and silence before
+WHAT THE SCYTHE CUTS IS COLOUR. Every cut drains the struck portrait to greyscale along the cut, and warm motes of its
+colour lift off and are drawn into the striker. The top look drains the WHOLE SCREEN to monochrome and silence before
 colour floods back to everything except the loser. No other attack removes colour. The palette is the Ancient of
 Death's spectral teal (`#2fe0bc`) against black and bone white; the motes are the only warm things on screen. It uses
-none of Grave Call's skulls, hands or wisps and none of Hemorrhage's red slashes or blood.
+none of Grave Call's skulls, hands or wisps and none of Hemorrhage's red slashes or blood. Everything it draws is light
+(blades, afterimages, rings, sparks, motes): there are no drawn props.
 
 ## What it does
 
@@ -18,120 +22,164 @@ Four looks on the shared thresholds (I 1-5, II 6-11, III 12-19, IV 20+; a knocko
 separate knockout variant). Flat 2D, no hit-stop, the clock never slows. The blow lands once, as the blade crosses the
 middle of the struck portrait.
 
-- **I, the cut.** A long thin crescent blade of teal light sweeps once, point first, along a shallow arc through the
-  struck portrait. A STRIP of the portrait goes grey behind it, a hairline of bone light marks the cut, and five motes
-  of colour drift to the striker. The colour seeps back after a beat. Which way the cut leans is rolled from the seed.
-- **II, the cross.** Two cuts cross at right angles. The first is a tick (its strip, a few motes). On the second the
+- **I, the cut** (owner-approved, unchanged). A long thin crescent blade of teal light sweeps once, point first, along
+  a shallow arc through the struck portrait. A STRIP of the portrait goes grey behind it, a hairline of bone light marks
+  the cut, and five motes of colour drift to the striker. The colour seeps back after a beat.
+- **II, the cross** (owner-approved, unchanged). Two cuts cross at right angles. The first is a tick. On the second the
   two wedges between the cuts drain as well: HALF the portrait is grey, and more motes stream away.
-- **III, the shadow.** A tall hooded shadow (an empty cowl, no face, a rim of teal light) rises at the struck portrait's
-  side, a scythe raised in its hands, while a small candle burns at the portrait's other side. The scythe comes over
-  the top and down through the portrait; the whole portrait goes grey; the flame gutters, bends away and goes out
-  (two curls of smoke). A low bell.
-- **IV, the reaping.** The whole screen drains to monochrome while every other sound bus is hushed, then a beat of
-  silence. ONE bell tolls (a faint ring opens from the striker). A single clean line of teal light is drawn across the
-  full width of the screen, through the struck portrait. Its colour streams out of it as thirty motes, the only colour
-  on a grey screen, into the striker. Then colour FLOODS back in a wave from the striker's side, to everything except
-  the struck portrait, which stays grey a moment longer and gets its colour back last.
+- **III, the fall** (rebuilt). A HUGE crescent of teal light (3.6 portrait radii long, about 470 px) ignites beside the
+  struck portrait and is DRAWN BACK through a 520 ms wind-up while a glint runs up its edge and its halo builds; it is
+  held 200 ms, trembling; then it falls through the WHOLE portrait in 200 ms, edge first, five afterimages fanned out
+  behind it. On the cut: a white flash, two shock rings, a thick hairline along the cut, sparks thrown the way the edge
+  went, the view kicked (16 px), the entire portrait grey inside 70 ms and knocked about 20 px. Its colour is TORN OUT
+  along the cut as a plume (34 fat motes, every fourth a big soft one) and pulled across to the striker. A low bell.
+  With room above the portrait the crescent is raised above it and falls; on a portrait at the top of the screen the
+  pivot sits under it and the crescent is drawn back toward the striker and swept across (so the wind-up is always on
+  screen).
+- **IV, the reaping** (rebuilt around the same crescent). The whole screen drains to monochrome (600 ms) while every
+  other bus is hushed; 400 ms of stillness and silence; then ONE bell tolls: two rings open from the striker, the view
+  jolts, and a crescent 5.6 radii long (about 730 px, half the screen's height) ignites over the striker and is held
+  520 ms, brightening. It sweeps the full width of the screen on a great arc in 380 ms, accelerating, its five
+  afterimages fanned right across the screen behind it, and cuts the struck portrait: a flash over the whole screen,
+  three shock rings (the last crosses the screen), the view hit hard (24 px), a thick line of light left across the
+  whole screen that thins away over 700 ms, the portrait knocked about 30 px. Its colour streams out, thick and long
+  (60 motes over 620 ms), into the striker. Then colour FLOODS back behind a broad bright front that runs with the edge
+  of the returning colour (a warm ring and sparks off the striker as it starts), to everything except the struck
+  portrait, which stays grey a moment longer and gets its colour back last.
 
-The struck portrait takes a short knock along the cut and then SAGS (a touch smaller and lower) while it is grey. The
-striker swells a breath through the ready and pulses as the colour reaches it.
+## Second pass (owner verdict: "the 'huge' animations need some more umph ... especially reaper ... quick and not impactful. the t3 of reaper is also bad, the first 2 are great.")
 
-## How the colour is drained (and what was measured)
+- **I and II: looks and timing untouched** (a test pins their beats, mote counts, shake, dim and blade dials). Sound
+  only.
+- **III redesigned.** The hooded shadow, its snath and the candle are gone (three drawn props, and the scythe barely
+  read). III is now the same visual language as I and II, several times the weight: a great crescent with a real
+  wind-up, one heavy stroke, the whole portrait drained at once, the colour torn out as a plume.
+- **IV: the hair-thin line is now the same great crescent, bigger, swept across the whole screen**, with a real silent
+  beat (260 -> 400 ms), the toll made visible (rings, a jolt of the view, the blade igniting on it), a much harder cut
+  and a line left behind it, a stream of twice the motes, and a bright front on the returning colour.
+- **Running time of IV, after the formation: 3.68 s -> 4.44 s** (Soccer IV 3.31 s, Frost IV 3.08 s, measured in the
+  same page). The first pass was not shorter than those two; it was weightless because the cut was a thin line and the
+  sounds around it were missing (below). The extra 0.76 s is anticipation (the silence, the held crescent) and
+  aftermath (the stream, the flood, the linger). III: 2.14 s -> 2.30 s.
+- **Textures**: four canvases now (the thin blade, the wide crescent, the line, the mote). The shadow, snath, candle
+  and flame canvases are deleted.
+- **Pool**: III and IV make their pooled sprites at construction (during the formation), so the cut creates none.
 
-`heroReapingDrain.ts`. Each grey area is an empty `div` with `backdrop-filter: grayscale(1) brightness(0.9)`, appended
-to `#stage` at z 160: over the dim (150) and both portraits (40 to 100), under the above-portrait FX canvas (200). A
-pane greys whatever is painted under it and touches no other element, so there is no clone of the portrait, no filter
-on the game root and no Pixi filter, and the teal blade and warm motes drawn on the canvas keep their colour over a
-monochrome screen. After the build ONLY `opacity` and `transform` are written, from the one clock:
+## How the colour is drained
 
-- a **strip** is a thin bar across the portrait, turned to the cut and grown along it with `scaleX` as the blade passes,
-  inside a round `overflow: hidden` wrapper that clips it to the portrait;
-- the **full** pane covers the round portrait and fades with `opacity`: a half-opaque grey pane is a half-drained
-  portrait. On II it is two wedge panes instead (two squares with a corner on the portrait's middle, turned to lie
-  between the cuts): a `clip-path` polygon on one pane was tried first and drained the whole portrait in the captures;
-- the **veil** (IV) is a square big enough to cover the screen at any angle; it fades in with `opacity`, and colour
-  floods back by sliding it off along the strike line with `translateX`, its trailing edge feathered by a mask painted
-  once.
+`heroReapingDrain.ts`, unchanged from the first pass. Each grey area is an empty `div` with
+`backdrop-filter: grayscale(1) brightness(0.9)`, appended to `#stage` at z 160: over the dim (150) and both portraits,
+under the above-portrait FX canvas (200). A pane greys whatever is painted under it and touches no other element, so
+there is no clone of the portrait, no filter on the game root and no Pixi filter, and the teal blades and warm motes
+drawn on the canvas keep their colour over a monochrome screen. After the build ONLY `opacity` and `transform` are
+written, from the one clock: a strip per cut (I-II), two wedges (II), the round full pane (III-IV), and the screen veil
+(IV), which fades in and slides off along the strike line with a feathered trailing edge. `veilSpan()` is now exported
+so the scene can draw the bright front exactly on that edge.
 
-The wrapper is written the struck portrait's own transform each frame, so the grey rides the face. Every exit (the end,
-`finish()`, `cancel()`, the safety timer; an unmount cancels) removes every pane, restores both portraits' transforms,
-resets the camera and restores the hushed buses. Neither portrait's filter, opacity or z-order class is ever touched.
+Every exit (the end, `finish()`, `cancel()`, the safety timer; an unmount cancels) removes every pane, restores both
+portraits' transforms, resets the camera and restores the hushed buses. Neither portrait's filter, opacity or z-order
+class is ever touched.
 
-The brief's first suggestion (a one-shot `filter: grayscale()` on the game root) was not used: the FX canvas lives
-inside `#stage`, so a root filter would have greyed the scythe and the motes too.
+## Frame times (second pass)
 
-**Frame times (DEV build, headless Chrome 1920x1080 with the GPU, `requestAnimationFrame` deltas from the charge to
-the end).** The numbers below were taken while fifteen other builders were running dev servers, test suites and
-headless Chromes on the same machine (CPU at 100%, under 1 GB of 31 GB free), so they do NOT show whether the 6.25 ms
-bar is met; they only compare like with like in the same page and minute. The page idles at a 5.6 ms median, worst
-6.7 to 7.1 ms (about 180 Hz).
+DEV build, headless Chrome 1920x1080 with the GPU, `requestAnimationFrame` deltas from 30 ms after the charge to the
+end, no screencast running. The page idles at 4.2 ms (about 240 Hz) on this run.
 
-| run (warm) | median | p95 | p99 | worst | frames over 6.9 ms |
+| run | median | p95 | p99 | frames over 6.9 ms | where the long frames are (ms after the charge: ms) |
 | --- | --- | --- | --- | --- | --- |
-| The Reaping IV, you strike (3 runs) | 5.6 to 5.7 | 6.7 to 11.3 | 18.0 to 23.0 | 47 to 106 | 26 to 50 of about 580 |
-| The Reaping IV, the foe strikes | 5.8 | 12.1 | 28.2 | 65 | 58 of 534 |
-| The Reaping IV with every pane hidden (`display: none`) | 5.8 | 12.5 | 30.2 | 58 | 67 of 516 |
-| Soul Stitch IV, the shipped source attack, as a control (2 runs) | 5.8 to 5.9 | 12.7 to 17.4 | 30.5 to 43.7 | 54 to 67 | 76 to 77 of about 505 |
-| The Reaping III / II / I | 5.6 / 5.7 / 5.6 | 16.1 / 28.1 / 11.2 | 34.1 / 49.1 / 27.9 | 51 / 61 / 35 | 39 / 41 / 19 |
-| Soul Stitch I (control) | 6.1 | 24.0 | 42.2 | 44 | 53 of 199 |
+| The Reaping IV, you strike (3 runs) | 4.2 | 4.3 | 4.3 | 5 to 10 of about 1040 | 54-62: 37-46, then 1921-1946: 8-21 (the cut is at 1900) |
+| The Reaping IV, the foe strikes | 4.2 | 4.3 | 4.3 | 1 of 1056 | 45: 25 |
+| The Reaping IV, panes hidden | 4.2 | 4.3 | 8.3 | 18 of 1032 | 64: 46, 1926: 13, single 8 ms frames after the cut |
+| The Reaping III (2 runs) | 4.2 | 4.3 | 4.3 | 4 to 5 of about 540 | 49-50: 33-38, then 942-996: 8 (the cut is at 920) |
+| Soccer IV (control, 2 runs) | 4.2 | 4.3 | 4.3 | 3 to 5 of about 910 | 46-53: 33-38, 2042: 50 |
+| Frost IV (control) | 4.2 | 4.3 | 8.4 | 17 of 700 | 60: 42, 2314: 17, 2744: 38 |
 
-What that supports: with the panes hidden the top look is no faster, so the full-screen backdrop pane is not what
-drops frames here; the long frames do not cluster on the drain (0 to 520 ms) or the flood (2200 to 2760 ms); and the
-shipped control attack drops more frames than this one under the same load. What it does not support: any claim about
-the owner's idle machine or the production build. That needs one run in Chrome DevTools on a quiet machine. If the veil
-does cost there, the fallback is a grey pane with `mix-blend-mode: saturation` in the same place (not built).
+What that supports: the 25 to 46 ms frame about 50 ms after the charge is NOT this attack's (Soccer and Frost have the
+same frame at the same place: it is in the shared start). The Reaping's own cost is one to three frames of 8 to 21 ms
+in the 50 ms after the cut on IV (one skipped frame or two at 240 Hz) and single 8 ms frames after III's cut; hiding the
+backdrop panes does not remove them, so they are the cut's burst of effects, not the grey. That is NOT inside the
+6.25 ms bar on those frames. It is in line with the two shipped controls in the same page, and it is a dev build; the
+production build has not been measured.
 
 ## How (the rest)
 
 - `packages/ui/src/heroReaping/`: `heroReapingConfig.ts` (per-tier dials on the shared `configStore`; the pure plan,
-  cues, blade / scythe / line geometry, the pure drain envelope `drainAt`, the portrait's knock and sag, the camera),
-  `heroReapingDrain.ts` (the panes), `heroReapingScene.ts` (the shared `FxPool`, cap 220, plus its own sprites: the
-  blade and its shade, the shadow, the snath, the candle, the flame, the line; up to 44 pooled motes on bowed paths),
-  `heroReapingTextures.ts` (seven canvases painted once: the crescent blade, the line, the snath, the hooded shadow,
-  the candle, the flame, the mote; glows and rings come from the shared Blast set), `heroReaping.ts` (the runner on the
-  shared Sequence / StageCamera / PortraitMover), `heroReaping.test.ts` (49 tests).
-- `HeroReapingTuner.tsx` on the shared tuner builder with four tier groups (buttons on top).
-- Shared files: only this style's own entries (`audio/codeClips.ts`, its paragraph in `heroBlast/heroAttackStyle.ts`,
-  one typo in its `DevMenu.tsx` hint).
+  cues, blade geometry, the great crescent's swing `swingAt` / `swingPose` / `swingLight`, the line `lineAt`, the pure
+  drain envelope `drainAt`, the portrait's knock and sag, the camera with the toll jolt), `heroReapingDrain.ts` (the
+  panes), `heroReapingScene.ts` (the shared `FxPool`, cap 260; its own sprites: the thin blades, the crescent with its
+  shade, halo, glint and five afterimages, the line, the flood front; up to 72 pooled motes),
+  `heroReapingTextures.ts`, `heroReaping.ts` (the runner on the shared Sequence / StageCamera / PortraitMover),
+  `heroReaping.test.ts` (55 tests).
+- `HeroReapingTuner.tsx` on the shared tuner builder with four tier groups (buttons on top), now with a row per sound.
+- Shared files: only this style's own entries (`audio/codeClips.ts`, its paragraph in `heroBlast/heroAttackStyle.ts`).
 
-## Sound
+## Sound (second pass: the owner heard the first pass as having no sound effects)
 
-Three clips made with ElevenLabs (4 calls: the first exhale came back almost silent and was regenerated), processed
-like the other fx clips (trimmed, short fades, mono, 44.1 kHz, 128 kb/s):
+Measured first: the attack's output was recorded in the page (`snd.mjs` in the scratchpad: the tuner demo with sound,
+a tap on the audio destination, RMS per 100 ms window). After the shared formation the first pass sat at -33 to -41
+dBFS with no transient at any blow, against -25 to -33 for Soccer IV and Frost IV. It was thin as well as quiet: the
+sweep clip has nothing under 3 kHz and every gain was 0.5 to 0.7 on a category that already plays at 0.29.
 
-| clip | length | loudness | what |
+Three more clips were made with ElevenLabs (3 calls, of a budget of 6), processed like the first three (mono, 44.1 kHz,
+128 kb/s, peak -1.7 dB):
+
+| clip | length | what | used for |
 | --- | --- | --- | --- |
-| `fx/reaping-bell` | 3.30 s | -20.4 LUFS, peak -6.5 dB | one strike of a large deep bell, the strike at 0 ms, a 1.3 s fade on the tail |
-| `fx/reaping-sweep` | 0.80 s | -22.4 LUFS, peak -10.9 dB | a cold airy scythe sweep; its body runs 250 to 670 ms (cues place 420 ms on the cut) |
-| `fx/reaping-breath` | 0.90 s | -24.5 LUFS, peak -11.2 dB | a soft exhale, onset 20 ms, fading over 0.9 s |
+| `fx/reaping-slash` | 0.50 s | the low body of a heavy blade through the air, peak at 75 ms | under every blade |
+| `fx/reaping-cleave` | 0.70 s | a blade going through with a dull thud, peak at 0 ms | the body of every blow |
+| `fx/reaping-drain` | 1.60 s | a long hollow rush of cold air, swelling over 0.5 s | the colour leaving, III's wind-up, IV's screen drain and flood |
 
-5.0 s in all. Cues: the sweep is started early (or part way in) so its body lands on the crossing; the breath plays as
-colour leaves (lower and longer on III's rise and IV's drain, short and high as the candle goes out, BACKWARD as colour
-floods back on IV); the bell is the one toll on IV and a lower, shorter strike on III's cut; a soft low `smack2` sits
-under each cut. IV hushes every other bus (`sfxHush` 0.25, the shared `duckSfxBuses`) from the drain until the flood,
-with 260 ms where nothing plays before the toll. Nobody has LISTENED to these yet: levels and pitches were placed from
-ffmpeg measurements only.
+With the first three (bell 3.3 s, sweep 0.8 s, breath 0.9 s) that is six own clips, 7.8 s. Two shared clips were added
+to the style's list: `fx/metal-woosh` (a ring of steel on every blade) and `fx/heavy-rock-impact` (the low boom under
+the bell and under III and IV's cut).
+
+Cues now: every blade is three layers placed so their bodies land together on the crossing (sweep, slash, steel);
+every blow has the cleave and a thump under it; the colour leaving is the drain; the colour coming back is a breath.
+III: the drain swells through the wind-up and is cut off as the crescent falls; a short ring of steel as it is held;
+the cut is the cleave over the boom with a low bell and the same bell an octave down. IV: the drain and breath under
+the screen drain end as the silence starts; nothing plays for the silent beat; the toll is the bell, the bell an octave
+down and the boom; the cut is the cleave and boom pitched down with the low octave of the bell struck again; then the
+drain as the colour streams; the drain and a low sweep as it floods back.
+
+Levels after the formation (dBFS RMS, 100 ms windows; "top 5" is the mean of the five loudest windows; all styles
+share the formation's tail in the first 300 ms):
+
+| | first pass: mean / top 5 | second pass: mean / top 5 | reference |
+| --- | --- | --- | --- |
+| I | -34.4 / -33.3 | -30.3 / -26.1 | Coin (a Rare) -31.8 / -31.1 |
+| II | -33.9 / -32.5 | -28.3 / -23.9 | Coin -33.4 / -31.9 |
+| III | -31.0 / -28.4 | -27.3 / -22.9 | |
+| IV | -32.2 / -27.5 | -25.6 / -20.9 | Soccer IV -30.0 / -25.5, Frost IV -30.3 / -24.3 |
+
+IV in order: the screen drain -27; the silent beat -43 to -51 for 300 ms; the toll -23 to -24; the cut -20 to -23; the
+stream and the flood -24 to -26; the tail -29 to -33. So IV's blows are about 4 dB over the two references' loudest
+moments and about level with the shared formation's own peak (-18). That is deliberate (this attack has few sounds and
+they must carry), but it is a judgement made from numbers: NOBODY HAS HEARD ANY OF THIS. If it is too much, every gain
+is one slider in the tuner.
+
+One thing found on the way: clips added while a dev server is running do not play until it is restarted (the eager
+glob is stale), so the first three measurements of this pass were of the old clips only.
 
 ## Verified
 
 - `npx vitest run packages/ui/src/heroReaping packages/ui/src/heroAttack packages/ui/src/audio`, `npm run typecheck`
   and `npm run lint`: results in the commit's report.
-- Looked at, in headless Chrome through the tuner's own Play path (the real runner between the two real portraits):
-  every look with you striking, and III and IV with the foe striking. Contact sheets were read and three things fixed
-  from them: the motes were invisible on a pale board (now a solid fleck inside a halo, larger), II drained the whole
-  portrait (the wedge panes), and III's candle sat half off the screen edge (now kept inside it) while the scythe hung
-  under the portrait after the swing (it now thins away after the follow-through).
+- Looked at, in headless Chrome through the tuner's own Play path (the real runner between the two real portraits,
+  the live backend blocked): III and IV in both directions (contact sheets read), and I and II again to confirm they
+  look as before.
 - After each run: no pane left in the DOM, the striker's transform and class as before, `#stage`'s inline style
   restored, the body class unchanged.
 
 ## Not done / weak
 
-- Nobody has heard it. Gains, pitches and the sweep's placement come from measurements, not ears.
-- The 6.25 ms bar is unverified (see above).
-- II and I with the foe striking were not captured (III and IV were); the geometry tests cover both directions.
-- The Collection sandbox (local space) is covered by one unit test only; it was not looked at.
-- A scaled stage (a window that is not 1920 x 1080) and phones were not looked at. The panes use `toStage` like the
-  shared dim does. `backdrop-filter` on an old phone GPU is the first thing to check there.
-- The shared hit number sits over the struck portrait for most of I and II and hides part of the grey strip.
-- III's snath is a thin dark line and nearly disappears against the shadow; the blade carries the read.
+- Nobody has heard it (above).
+- The 6.25 ms bar is not met on one to three frames after the cut on IV in the dev build (above); production unmeasured.
+- III on a portrait at the TOP of the screen (you strike the foe) is a sideways sweep from a crescent held below and
+  beside the portrait, not a fall from above: there is no room above it. The fall from above is what plays when the
+  foe strikes you. Half of that sideways stroke is off the top of the screen at the moment of the cut.
+- IV's crescent is about half off the screen edge while it is held over a striker in a corner.
+- The shared hit number sits over the struck portrait at the moment of the cut and hides part of it on every look.
+- The Collection sandbox (local space) is covered by one unit test only; it was not looked at. A scaled stage (a
+  window that is not 1920 x 1080) and phones were not looked at; `backdrop-filter` on an old phone GPU is the first
+  thing to check there.
 - No knockout variant ("Tier V"): a knockout plays IV. No cosmetic, patch note or rules entry: dev only.

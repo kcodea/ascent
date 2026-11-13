@@ -145,8 +145,10 @@
  * `fireworks` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroFireworks/`.
  *
- * `chord` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
- * "Attack style" override. Scaffolded from `storm` (`npm run attack:new`), see `../heroChord/`.
+ * `chord` (Power Chord, an Epic: a musical staff strung between the heroes, a note or a three-note chord riding it,
+ * and on its Big look a speaker stack whose bass wave bends the staff and blows the struck portrait back) is IN PROGRESS
+ * and has NO cosmetic yet, so no player can equip it; it plays only through the dev "Attack style" override. See
+ * `../heroChord/`.
  *
  * `train` is IN PROGRESS and has NO cosmetic yet, so no player can equip it; it plays only through the dev
  * "Attack style" override. Scaffolded from `soccer` (`npm run attack:new`), see `../heroTrain/`.

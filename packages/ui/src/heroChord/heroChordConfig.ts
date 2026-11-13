@@ -1,27 +1,28 @@
-// SCAFFOLDED from heroStorm/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Storm, not this style, until rewritten.
 /**
- * THE STORM CALL HERO ATTACK: its tuned values, its pure timeline, the pure bolt geometry and the pure camera.
+ * THE POWER CHORD HERO ATTACK: its tuned values, its pure timeline, the pure geometry (the staff, the speaker stack) and
+ * the pure camera.
  *
- * Owner 2026-09-29: "build 5 animations that range from rare -> epic. all of the animations we have done so far are
- * legendary. rare and epics should only have 2 or 3 tiers to them and generally be less exciting, but still extremely
- * clean and fun. get creative". Chord Call is an EPIC: one idea (lightning), three visual tiers, short to medium.
+ * Power Chord is an EPIC (2026-11-12; scaffolded from Storm Call by `npm run attack:new`, then rebuilt): one idea,
+ * VISIBLE SOUND. A five-line musical STAFF is strung between the two heroes like plucked strings; music notes ride it to
+ * the struck hero; and on the top look a wall of speakers blows a bass wave down it. No other attack draws a staff, a
+ * note or a sound wave.
  *
  * THE THREE VISUAL TIERS. Every hero attack reads its tier from the shared `attackTier` (the owner-approved thresholds I
  * 1-5 / II 6-11 / III 12-19 / IV 20+, and a knockout always plays IV). An Epic maps those four onto three looks here
- * (`chordLevel`, local to this style): I -> SMALL, II and III -> MEDIUM, IV -> BIG.
- *  - SMALL. Static crackles round the hero, then a jagged bolt ARCS from the hero to the target: the leader races across
- *    in a blink, the bolt flickers (its shape regenerated every few frames, a live crackle) and a zap and a small spark
- *    burst land THE blow.
- *  - MEDIUM. A forked bolt: one trunk leaves the hero and SPLITS into two branches. The first branch strikes (a TICK:
- *    FX and sound only), the second strikes a beat later (THE impact), and static crawls over the struck portrait while
- *    it jitters.
- *  - BIG. The hero calls up a thin bolt; a small STORM CLOUD gathers over the target and rumbles (lit from inside), then
- *    drops one THICK strike: a flash across the screen, a ring of sparks, a shock ring, and static crawling over the
- *    portrait while the cloud breaks up. The strike is THE impact.
+ * (`chordLevel`, the way Storm Call maps them): I -> SMALL, II and III -> MEDIUM, IV -> BIG.
+ *  - SMALL ("the note"). The staff strings itself from the striker to the struck portrait (five lines drawn in fast, one
+ *    after another, each twanging as it pulls taut). The hero plucks, and ONE big glossy note rides the middle line to the
+ *    target, the line shivering behind it, and bursts on the portrait in a ring of small notes. THE blow.
+ *  - MEDIUM ("the chord"). The staff strings out and THREE notes, stacked on three different lines, travel together and
+ *    land at once: a brighter burst, and every line of the staff thrums (a damped vibration along its whole length).
+ *  - BIG ("the drop"). The staff strings out while a SPEAKER STACK drops in beside the striker with a thud. Its cones
+ *    pump twice (the count-in: each pump pops a note onto the staff), then on the third beat a BASS WAVE rolls out of the
+ *    speakers to the struck hero: wide arc bands that bend the staff as they cross it and sweep the waiting notes along.
+ *    The front reaching the portrait is THE blow: the portrait is blown back (a hard skew and a shove, like a hair
+ *    dryer) and springs upright again.
  *
  * The damage formation (shared) opens every attack; this style starts where it ends. The consequence lands exactly
- * ONCE, on the impact beat. No hit-stop. Reduced motion: no bolts, shake or zoom; the numbers fade and the blow lands.
+ * ONCE, on the impact beat. No hit-stop. Reduced motion: no staff, shake or zoom; the numbers fade and the blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always plays
  * DEFAULTS.
@@ -34,21 +35,24 @@ import {
 export { hexToNum, type TierNum };
 
 export const CHORD_LEVELS = [1, 2, 3] as const;
-export type StormLevel = (typeof CHORD_LEVELS)[number];
-export const CHORD_LEVEL_NAMES: Record<StormLevel, string> = { 1: 'Small', 2: 'Medium', 3: 'Big' };
+export type ChordLevel = (typeof CHORD_LEVELS)[number];
+export const CHORD_LEVEL_NAMES: Record<ChordLevel, string> = { 1: 'Small', 2: 'Medium', 3: 'Big' };
 
-/** The shared four damage tiers mapped onto Chord Call's three looks: I small, II and III medium, IV (and a knockout) big. */
-export function chordLevel(tier: TierNum): StormLevel {
+/** The shared four damage tiers mapped onto Power Chord's three looks: I small, II and III medium, IV (and a knockout) big. */
+export function chordLevel(tier: TierNum): ChordLevel {
   return tier <= 1 ? 1 : tier >= 4 ? 3 : 2;
 }
 
+/** A staff has five lines. */
+export const STAFF_LINES = 5;
+
 /** The per-look dials. A config key is `v1..v3` + one of these. */
 export const CHORD_LEVEL_SUFFIXES = [
-  'ChargeMs', 'LeaderMs', 'FlickerMs', 'Width', 'Jag', 'Forks',
-  'Shake', 'Zoom', 'Punch', 'Sparks', 'Burst', 'SettleMs', 'Dim',
+  'ChargeMs', 'FlyMs', 'NoteSize', 'Notes', 'Sparks', 'HoldMs',
+  'Shake', 'Zoom', 'Punch', 'Burst', 'SettleMs', 'Dim',
 ] as const;
-export type StormLevelSuffix = (typeof CHORD_LEVEL_SUFFIXES)[number];
-type LevelKey = `v${StormLevel}${StormLevelSuffix}`;
+export type ChordLevelSuffix = (typeof CHORD_LEVEL_SUFFIXES)[number];
+type LevelKey = `v${ChordLevel}${ChordLevelSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
@@ -56,29 +60,30 @@ interface GlobalConfig {
   absorbMs: number;
   heroCoilPx: number;
   heroThrustPx: number;
-  chargeArcs: number;
-  // Bolts
-  boltWidth: number;
-  glowWidth: number;
-  regenMs: number;
-  fadeMs: number;
-  bow: number;
-  // The fork (Medium)
-  forkAt: number;
-  forkGapMs: number;
-  forkSpread: number;
-  // Static
-  staticMs: number;
-  staticArcs: number;
-  jitterPx: number;
-  // The storm (Big)
-  callMs: number;
-  gatherMs: number;
-  rumbleMs: number;
-  cloudSize: number;
-  cloudLift: number;
-  lingerMs: number;
-  screenFlash: number;
+  // The staff
+  staffGap: number;
+  staffSag: number;
+  staffWidth: number;
+  staffGlow: number;
+  stringMs: number;
+  stringStaggerMs: number;
+  pluckPx: number;
+  thrumPx: number;
+  vibHz: number;
+  vibMs: number;
+  slackMs: number;
+  // The chord (Medium)
+  chordSpread: number;
+  // The speakers (Big)
+  stackSize: number;
+  dropMs: number;
+  beatMs: number;
+  pumpScale: number;
+  waveBands: number;
+  waveSize: number;
+  bendPx: number;
+  blowSkew: number;
+  blowPx: number;
   // Camera and portraits
   flashAlpha: number;
   knockPx: number;
@@ -87,21 +92,21 @@ interface GlobalConfig {
   zoomOutMs: number;
   reducedFadeMs: number;
   // Colours
-  colorCore: string;
-  colorBolt: string;
-  colorViolet: string;
-  colorCloud: string;
+  colorStaff: string;
+  colorNoteA: string;
+  colorNoteB: string;
+  colorNoteC: string;
+  colorWave: string;
   colorPlayer: string;
   colorFoe: string;
   // Sound
-  sfxChargeClip: string; sfxChargeGain: number; sfxChargeRate: number;
-  sfxZapClip: string; sfxZapGain: number; sfxZapRate: number;
-  sfxCrackClip: string; sfxCrackGain: number; sfxCrackRate: number;
+  sfxStringClip: string; sfxStringGain: number; sfxStringRate: number;
+  sfxPluckClip: string; sfxPluckGain: number; sfxPluckRate: number;
+  sfxStrumClip: string; sfxStrumGain: number; sfxStrumRate: number;
+  sfxBassClip: string; sfxBassGain: number; sfxBassRate: number;
+  sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
+  sfxPumpClip: string; sfxPumpGain: number; sfxPumpRate: number;
   sfxImpactClip: string; sfxImpactGain: number; sfxImpactRate: number;
-  sfxStaticClip: string; sfxStaticGain: number; sfxStaticRate: number;
-  sfxCallClip: string; sfxCallGain: number; sfxCallRate: number;
-  sfxRumbleClip: string; sfxRumbleGain: number; sfxRumbleRate: number;
-  sfxThunderClip: string; sfxThunderGain: number; sfxThunderRate: number;
   sfxImpactLenMs: number;
   sfxTailMix: number;
   sfxDuck: number;
@@ -111,43 +116,41 @@ interface GlobalConfig {
 }
 export type HeroChordConfig = GlobalConfig & Record<LevelKey, number>;
 
-export const HERO_CHORD_COLOR_KEYS = ['colorCore', 'colorBolt', 'colorViolet', 'colorCloud', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_CHORD_COLOR_KEYS = ['colorStaff', 'colorNoteA', 'colorNoteB', 'colorNoteC', 'colorWave', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_CHORD_CLIP_KEYS = [
-  'sfxChargeClip', 'sfxZapClip', 'sfxCrackClip', 'sfxImpactClip', 'sfxStaticClip', 'sfxCallClip', 'sfxRumbleClip', 'sfxThunderClip',
+  'sfxStringClip', 'sfxPluckClip', 'sfxStrumClip', 'sfxBassClip', 'sfxThudClip', 'sfxPumpClip', 'sfxImpactClip',
 ] as const;
 type ColorKey = (typeof HERO_CHORD_COLOR_KEYS)[number];
 type ClipKey = (typeof HERO_CHORD_CLIP_KEYS)[number];
 export type HeroChordStrKey = ColorKey | ClipKey;
 export type HeroChordNumKey = Exclude<keyof HeroChordConfig, HeroChordStrKey>;
 
-/** Small, Medium, Big per suffix: the escalation ladder. */
-const LEVEL_DEFAULTS: Record<StormLevelSuffix, [number, number, number]> = {
-  ChargeMs: [380, 380, 320],
-  LeaderMs: [70, 80, 60],
-  FlickerMs: [260, 280, 380],
-  Width: [1, 1.15, 2.6],
-  Jag: [0.075, 0.08, 0.06],
-  Forks: [2, 3, 4],
-  Shake: [5, 8, 16],
+/** Small, Medium, Big per suffix: the escalation ladder. (Big's ChargeMs is the beat before the speakers drop.) */
+const LEVEL_DEFAULTS: Record<ChordLevelSuffix, [number, number, number]> = {
+  ChargeMs: [400, 420, 120],
+  FlyMs: [300, 320, 330],
+  NoteSize: [1.7, 1.2, 0.62],
+  Notes: [8, 14, 18],
+  Sparks: [8, 14, 22],
+  HoldMs: [240, 480, 420],
+  Shake: [5, 9, 17],
   Zoom: [0.02, 0.035, 0.055],
   Punch: [0.015, 0.025, 0.05],
-  Sparks: [12, 18, 32],
-  Burst: [1, 1.15, 1.7],
-  SettleMs: [260, 300, 320],
-  Dim: [0, 0.2, 0.42],
+  Burst: [1, 1.2, 1.6],
+  SettleMs: [240, 280, 300],
+  Dim: [0.14, 0.26, 0.42],
 };
 
-export const CHORD_LEVEL_RANGES: Record<StormLevelSuffix, [number, number, number]> = {
-  ChargeMs: [80, 1500, 10],
-  LeaderMs: [20, 400, 5],
-  FlickerMs: [60, 1200, 10],
-  Width: [0.3, 5, 0.05],
-  Jag: [0, 0.3, 0.005],
-  Forks: [0, 6, 1],
+export const CHORD_LEVEL_RANGES: Record<ChordLevelSuffix, [number, number, number]> = {
+  ChargeMs: [60, 1500, 10],
+  FlyMs: [80, 1200, 10],
+  NoteSize: [0.3, 2.5, 0.01],
+  Notes: [0, 30, 1],
+  Sparks: [0, 50, 1],
+  HoldMs: [0, 1500, 10],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.12, 0.002],
   Punch: [0, 0.1, 0.001],
-  Sparks: [0, 60, 1],
   Burst: [0.3, 3, 0.05],
   SettleMs: [0, 1600, 10],
   Dim: [0, 0.8, 0.01],
@@ -160,47 +163,50 @@ export const HERO_CHORD_DEFAULTS: HeroChordConfig = {
   absorbMs: 190,
   heroCoilPx: 7,
   heroThrustPx: 12,
-  chargeArcs: 2,
-  boltWidth: 12,
-  glowWidth: 4.5,
-  regenMs: 45,
-  fadeMs: 160,
-  bow: 0.08,
-  forkAt: 0.62,
-  forkGapMs: 150,
-  forkSpread: 0.5,
-  staticMs: 520,
-  staticArcs: 3,
-  jitterPx: 4,
-  callMs: 220,
-  gatherMs: 520,
-  rumbleMs: 420,
-  cloudSize: 1,
-  cloudLift: 2.1,
-  lingerMs: 700,
-  screenFlash: 0.3,
+  staffGap: 18,
+  staffSag: 0.035,
+  staffWidth: 6.5,
+  staffGlow: 3,
+  stringMs: 170,
+  stringStaggerMs: 34,
+  pluckPx: 7,
+  thrumPx: 13,
+  vibHz: 15,
+  vibMs: 210,
+  slackMs: 260,
+  chordSpread: 0.045,
+  stackSize: 1.25,
+  dropMs: 250,
+  beatMs: 235,
+  pumpScale: 0.2,
+  waveBands: 3,
+  waveSize: 1,
+  bendPx: 26,
+  blowSkew: 18,
+  blowPx: 26,
   flashAlpha: 0.9,
   knockPx: 14,
   squash: 0.08,
   shakeMs: 300,
   zoomOutMs: 340,
   reducedFadeMs: 260,
-  colorCore: '#f4fbff',
-  colorBolt: '#58c2ff',
-  colorViolet: '#a377ff',
-  colorCloud: '#262a44',
-  colorPlayer: '#6fd4ff',
-  colorFoe: '#b77bff',
-  sfxChargeClip: 'turncharge', sfxChargeGain: 0.32, sfxChargeRate: 1.25,
-  sfxZapClip: 'fx/blue-impact-hit', sfxZapGain: 0.5, sfxZapRate: 1.5,
-  sfxCrackClip: 'crit', sfxCrackGain: 0.34, sfxCrackRate: 1.35,
-  sfxImpactClip: 'flurryhit', sfxImpactGain: 0.5, sfxImpactRate: 1.1,
-  sfxStaticClip: 'divineshieldbreak', sfxStaticGain: 0.16, sfxStaticRate: 1.8,
-  sfxCallClip: 'windup', sfxCallGain: 0.32, sfxCallRate: 1.3,
-  sfxRumbleClip: 'fx/heavy-rock-impact', sfxRumbleGain: 0.45, sfxRumbleRate: 0.55,
-  sfxThunderClip: 'turnexplosion', sfxThunderGain: 0.55, sfxThunderRate: 0.75,
-  sfxImpactLenMs: 900,
-  sfxTailMix: 0.14,
+  colorStaff: '#fff3d1',
+  colorNoteA: '#ffd24a',
+  colorNoteB: '#ff6fae',
+  colorNoteC: '#66dcff',
+  colorWave: '#cfeaff',
+  colorPlayer: '#ffc94a',
+  colorFoe: '#ff6a5c',
+  // The staff stringing itself: the pluck clip, quiet, once per line, walking up a scale (see the runner).
+  sfxStringClip: 'fx/chord-pluck', sfxStringGain: 0.16, sfxStringRate: 1.5,
+  sfxPluckClip: 'fx/chord-pluck', sfxPluckGain: 0.62, sfxPluckRate: 1,
+  sfxStrumClip: 'fx/chord-strum', sfxStrumGain: 0.6, sfxStrumRate: 1,
+  sfxBassClip: 'fx/chord-bass', sfxBassGain: 0.95, sfxBassRate: 1,
+  sfxThudClip: 'fx/heavy-rock-impact', sfxThudGain: 0.4, sfxThudRate: 0.8,
+  sfxPumpClip: 'fx/chord-bass', sfxPumpGain: 0.5, sfxPumpRate: 1.6,
+  sfxImpactClip: 'flurryhit', sfxImpactGain: 0.42, sfxImpactRate: 1.05,
+  sfxImpactLenMs: 700,
+  sfxTailMix: 0.12,
   sfxDuck: 0.5,
   previewDamage: 12,
   previewParts: 4,
@@ -212,39 +218,40 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroChordStrKey>, [numbe
   absorbMs: [60, 600, 10],
   heroCoilPx: [0, 40, 1],
   heroThrustPx: [0, 50, 1],
-  chargeArcs: [0, 5, 1],
-  boltWidth: [1, 30, 0.5],
-  glowWidth: [1, 10, 0.1],
-  regenMs: [16, 200, 1],
-  fadeMs: [40, 800, 10],
-  bow: [0, 0.4, 0.01],
-  forkAt: [0.2, 0.85, 0.01],
-  forkGapMs: [40, 600, 5],
-  forkSpread: [0.05, 0.9, 0.01],
-  staticMs: [0, 2000, 10],
-  staticArcs: [0, 6, 1],
-  jitterPx: [0, 20, 0.5],
-  callMs: [60, 800, 10],
-  gatherMs: [150, 1500, 10],
-  rumbleMs: [100, 1500, 10],
-  cloudSize: [0.4, 2.5, 0.05],
-  cloudLift: [1.2, 4, 0.05],
-  lingerMs: [0, 2000, 10],
-  screenFlash: [0, 0.8, 0.01],
+  staffGap: [6, 40, 0.5],
+  staffSag: [0, 0.15, 0.005],
+  staffWidth: [1, 10, 0.1],
+  staffGlow: [1, 10, 0.1],
+  stringMs: [40, 800, 10],
+  stringStaggerMs: [0, 150, 1],
+  pluckPx: [0, 30, 0.5],
+  thrumPx: [0, 40, 0.5],
+  vibHz: [4, 40, 0.5],
+  vibMs: [40, 900, 10],
+  slackMs: [60, 1200, 10],
+  chordSpread: [0, 0.15, 0.005],
+  stackSize: [0.5, 2, 0.05],
+  dropMs: [100, 800, 10],
+  beatMs: [120, 600, 5],
+  pumpScale: [0, 0.6, 0.01],
+  waveBands: [1, 4, 1],
+  waveSize: [0.4, 2, 0.05],
+  bendPx: [0, 80, 1],
+  blowSkew: [0, 30, 0.5],
+  blowPx: [0, 80, 1],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
   squash: [0, 0.3, 0.01],
   shakeMs: [0, 1200, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxChargeGain: [0, 2, 0.05], sfxChargeRate: [0.5, 2.5, 0.01],
-  sfxZapGain: [0, 2, 0.05], sfxZapRate: [0.5, 2.5, 0.01],
-  sfxCrackGain: [0, 2, 0.05], sfxCrackRate: [0.5, 2.5, 0.01],
-  sfxImpactGain: [0, 2, 0.05], sfxImpactRate: [0.5, 2.5, 0.01],
-  sfxStaticGain: [0, 2, 0.05], sfxStaticRate: [0.5, 2.5, 0.01],
-  sfxCallGain: [0, 2, 0.05], sfxCallRate: [0.5, 2.5, 0.01],
-  sfxRumbleGain: [0, 2, 0.05], sfxRumbleRate: [0.3, 2.5, 0.01],
-  sfxThunderGain: [0, 2, 0.05], sfxThunderRate: [0.3, 2.5, 0.01],
+  sfxStringGain: [0, 2, 0.01], sfxStringRate: [0.5, 2.5, 0.01],
+  sfxPluckGain: [0, 2, 0.01], sfxPluckRate: [0.5, 2.5, 0.01],
+  sfxStrumGain: [0, 2, 0.01], sfxStrumRate: [0.5, 2.5, 0.01],
+  sfxBassGain: [0, 2, 0.01], sfxBassRate: [0.3, 2.5, 0.01],
+  sfxThudGain: [0, 2, 0.01], sfxThudRate: [0.3, 2.5, 0.01],
+  sfxPumpGain: [0, 2, 0.01], sfxPumpRate: [0.3, 2.5, 0.01],
+  sfxImpactGain: [0, 2, 0.01], sfxImpactRate: [0.5, 2.5, 0.01],
   sfxImpactLenMs: [150, 3500, 10],
   sfxTailMix: [0, 0.6, 0.01],
   sfxDuck: [0, 1, 0.05],
@@ -258,7 +265,7 @@ export const HERO_CHORD_RANGES: Record<HeroChordNumKey, [number, number, number]
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say. */
-export const CHORD_CAPS = { forks: 6, sparks: 60, staticArcs: 6, shakePx: 40, zoom: 0.12 } as const;
+export const CHORD_CAPS = { notes: 30, sparks: 50, bands: 4, shakePx: 40, zoom: 0.12 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_CHORD_COLOR_KEYS as readonly string[]).includes(k);
@@ -289,7 +296,8 @@ export function sanitizeHeroChordConfig(saved: unknown): HeroChordConfig {
   return out;
 }
 
-const KEY = 'ascent.herochord.v1';
+// v2: the keys changed when the scaffold (a copy of Storm Call) became Power Chord.
+const KEY = 'ascent.herochord.v2';
 
 let cfg: HeroChordConfig = (() => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return { ...HERO_CHORD_DEFAULTS };
@@ -323,75 +331,73 @@ export function heroChordPreviewSpeed(): number { return 1; }
 
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
-export function chordLevelDials(level: StormLevel, c: HeroChordConfig = cfg): Record<StormLevelSuffix, number> {
-  return Object.fromEntries(CHORD_LEVEL_SUFFIXES.map((s) => [s, c[`v${level}${s}`]])) as Record<StormLevelSuffix, number>;
+export function chordLevelDials(level: ChordLevel, c: HeroChordConfig = cfg): Record<ChordLevelSuffix, number> {
+  return Object.fromEntries(CHORD_LEVEL_SUFFIXES.map((s) => [s, c[`v${level}${s}`]])) as Record<ChordLevelSuffix, number>;
 }
 
-/** What a bolt is: the Small arc, the Medium trunk and its two branches, the Big call (up to the cloud) and strike. */
-export type BoltKind = 'arc' | 'trunk' | 'branch' | 'call' | 'strike';
-
-export interface BoltPlan {
-  kind: BoltKind;
-  /** The leader leaves its start. */
+/** A note that rides the staff to the struck hero. */
+export interface RiderPlan {
+  /** Which staff line it rides (0 = the first, 4 = the last). */
+  line: number;
+  /** It leaves the striker's end of the staff. */
   at: number;
-  /** How long the leader takes to race to its end. */
-  leaderMs: number;
-  /** How long the whole bolt flickers once it has landed, before it fades. */
-  holdMs: number;
-  /** Width multiplier (on `boltWidth`). */
-  width: number;
-  /** Jaggedness (a fraction of the bolt's length). */
-  jag: number;
-  /** Side forks crackling off it. */
-  forks: number;
-  /** It lands on the struck hero (a strike: a tick or THE impact). */
-  strikes: boolean;
+  /** How long the ride takes. */
+  flyMs: number;
+  /** How far behind the lead note it sits along the staff (0..1 of the staff's length). */
+  lag: number;
+  /** Which of the three note colours it wears (0..2). */
+  hue: number;
 }
 
-export interface StormPlanInput extends AttackTierContext {
+export interface ChordPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   distance: number;
   reduced?: boolean;
 }
 
-export interface StormPlan {
+export interface ChordPlan {
   reduced: boolean;
   /** The SHARED damage tier (1..4; a knockout is 4). */
   tier: TierNum;
-  /** Chord Call's look: 1 small, 2 medium, 3 big. */
-  level: StormLevel;
+  /** Power Chord's look: 1 small (the note), 2 medium (the chord), 3 big (the drop). */
+  level: ChordLevel;
   k: number;
   total: number;
+  /** The staff starts stringing itself. */
   chargeAt: number;
   absorbEnd: number;
-  /** The first bolt leaves the hero (Big: the call). */
-  boltAt: number;
-  bolts: BoltPlan[];
-  /** Big: the cloud gathers from here, and rumbles from `rumbleAt`. */
-  storm: boolean;
-  gatherAt: number;
-  rumbleAt: number;
-  /** Big: the flashes inside the cloud as it rumbles. */
-  rumbles: number[];
-  /** Strikes that land BEFORE the impact (Medium's first branch). */
-  hits: number[];
-  /** THE consequence beat: the Small arc, the Medium second branch, or the Big strike lands. */
+  /** The last staff line is pulled taut. */
+  stringEnd: number;
+  /** The hero plays: the notes leave (Small, Medium) or the bass wave leaves the speakers (Big). */
+  releaseAt: number;
+  /** The notes riding the staff (Small one, Medium three, Big none: the wave carries its own). */
+  riders: RiderPlan[];
+  /** How long the ride (or the wave's crossing) takes. */
+  flyMs: number;
+  /** Big: the speaker stack. It starts falling at `dropAt`, lands at `thudAt`, and its cones pump on each of `pumps`. */
+  stack: boolean;
+  dropAt: number;
+  thudAt: number;
+  pumps: number[];
+  /** THE consequence beat: the note or the chord lands, or the bass wave reaches the struck portrait. */
   impactAt: number;
-  /** Static crawls over the struck portrait from here (it jitters) until `staticEnd`. */
-  staticAt: number;
-  staticEnd: number;
+  /** The staff goes slack and fades from here (the stack leaves with it). */
+  slackAt: number;
   endAt: number;
+  noteSize: number;
+  /** Small notes thrown by the burst. */
+  notes: number;
+  sparks: number;
   shakePx: number;
   zoom: number;
   punch: number;
-  sparks: number;
   burst: number;
   dim: number;
 }
 
-/** The whole Chord Call, in base ms. Pure and deterministic. */
-export function chordPlan(input: StormPlanInput, c: HeroChordConfig = cfg): StormPlan {
+/** The whole Power Chord, in base ms. Pure and deterministic. */
+export function chordPlan(input: ChordPlanInput, c: HeroChordConfig = cfg): ChordPlan {
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts), so Big
   const level = chordLevel(tier);
@@ -402,179 +408,165 @@ export function chordPlan(input: StormPlanInput, c: HeroChordConfig = cfg): Stor
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const { impactAt } = r;
     return {
-      reduced: true, tier, level, k, total, chargeAt: impactAt, absorbEnd: impactAt, boltAt: impactAt, bolts: [], storm: false,
-      gatherAt: impactAt, rumbleAt: impactAt, rumbles: [], hits: [], impactAt, staticAt: impactAt, staticEnd: impactAt, endAt: r.endAt,
-      shakePx: 0, zoom: 0, punch: 0, sparks: 0, burst: 0, dim: 0,
+      reduced: true, tier, level, k, total, chargeAt: impactAt, absorbEnd: impactAt, stringEnd: impactAt, releaseAt: impactAt, riders: [],
+      flyMs: 0, stack: false, dropAt: impactAt, thudAt: impactAt, pumps: [], impactAt, slackAt: impactAt, endAt: r.endAt,
+      noteSize: 0, notes: 0, sparks: 0, shakePx: 0, zoom: 0, punch: 0, burst: 0, dim: 0,
     };
   }
 
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
-  const boltAt = chargeAt + Math.max(V.ChargeMs, c.absorbMs);
-  const forks = Math.round(clamp(V.Forks, 0, CHORD_CAPS.forks));
-  const hold = V.FlickerMs;
-  const storm = level === 3;
-  let bolts: BoltPlan[];
-  let impactAt: number;
-  let hits: number[] = [];
-  let gatherAt = boltAt, rumbleAt = boltAt;
-  let rumbles: number[] = [];
-  let staticAt: number;
+  const stringEnd = chargeAt + c.stringMs + c.stringStaggerMs * (STAFF_LINES - 1);
+  const stack = level === 3;
+  const flyMs = V.FlyMs;
+  let releaseAt: number;
+  let dropAt = chargeAt, thudAt = chargeAt;
+  let pumps: number[] = [];
+  let riders: RiderPlan[] = [];
 
-  if (level === 1) {
-    bolts = [{ kind: 'arc', at: boltAt, leaderMs: V.LeaderMs, holdMs: hold, width: V.Width, jag: V.Jag, forks, strikes: true }];
-    impactAt = boltAt + V.LeaderMs;
-    staticAt = impactAt;
-  } else if (level === 2) {
-    // The trunk and the first branch race out together; the second branch splits off the fork a beat later.
-    const trunkMs = V.LeaderMs * c.forkAt;
-    const first = boltAt + V.LeaderMs;
-    impactAt = first + c.forkGapMs;
-    bolts = [
-      { kind: 'trunk', at: boltAt, leaderMs: trunkMs, holdMs: hold + c.forkGapMs + V.LeaderMs * (1 - c.forkAt), width: V.Width * 1.15, jag: V.Jag, forks, strikes: false },
-      { kind: 'branch', at: boltAt + trunkMs, leaderMs: V.LeaderMs - trunkMs, holdMs: hold, width: V.Width, jag: V.Jag, forks: Math.max(0, forks - 1), strikes: true },
-      { kind: 'branch', at: impactAt - (V.LeaderMs - trunkMs), leaderMs: V.LeaderMs - trunkMs, holdMs: hold, width: V.Width, jag: V.Jag, forks: Math.max(0, forks - 1), strikes: true },
-    ];
-    hits = [first];
-    staticAt = first;
+  if (!stack) {
+    // The staff is taut before the hero plays, whatever the sliders say.
+    releaseAt = Math.max(chargeAt + V.ChargeMs, stringEnd + 40, absorbEnd);
+    riders = level === 1
+      ? [{ line: 2, at: releaseAt, flyMs, lag: 0, hue: 0 }]
+      // A chord: three heads stacked on three lines, fanned a touch along the staff so each one reads.
+      : [0, 2, 4].map((line, i) => ({ line, at: releaseAt, flyMs, lag: c.chordSpread * (2 - i), hue: i }));
   } else {
-    // The hero calls up a thin bolt; the cloud gathers over the target, rumbles, and drops one thick strike.
-    const callLeader = Math.max(40, c.callMs * 0.4);
-    gatherAt = boltAt + callLeader * 0.6;
-    rumbleAt = gatherAt + c.gatherMs;
-    rumbles = [rumbleAt + c.rumbleMs * 0.2, rumbleAt + c.rumbleMs * 0.65];
-    const strikeAt = rumbleAt + c.rumbleMs;
-    impactAt = strikeAt + V.LeaderMs;
-    bolts = [
-      { kind: 'call', at: boltAt, leaderMs: callLeader, holdMs: c.callMs - callLeader, width: 0.55, jag: V.Jag * 1.2, forks: 1, strikes: false },
-      { kind: 'strike', at: strikeAt, leaderMs: V.LeaderMs, holdMs: hold, width: V.Width, jag: V.Jag, forks, strikes: true },
-    ];
-    staticAt = impactAt;
+    // The count-in: thud, pump, pump, DROP, each one beat apart.
+    dropAt = chargeAt + V.ChargeMs;
+    thudAt = dropAt + c.dropMs;
+    pumps = [thudAt + c.beatMs, thudAt + c.beatMs * 2];
+    releaseAt = thudAt + c.beatMs * 3;
   }
-
-  const staticEnd = staticAt + (storm ? c.lingerMs : level === 2 ? c.staticMs + c.forkGapMs : 0);
-  const lastBolt = Math.max(...bolts.map((b) => b.at + b.leaderMs + b.holdMs + c.fadeMs));
-  // Static and a thinning cloud keep draining after the end (the scene runs until it is empty).
-  const lastBeat = Math.max(impactAt + 160, impactAt + c.zoomOutMs * 0.8, lastBolt, storm ? impactAt + 480 : 0, level === 2 ? staticEnd - 120 : 0);
+  const impactAt = releaseAt + flyMs;
+  const slackAt = impactAt + V.HoldMs;
+  const lastBeat = Math.max(impactAt + 160, impactAt + c.zoomOutMs * 0.8, slackAt + c.slackMs * 0.7);
   const endAt = lastBeat + V.SettleMs;
 
   return {
-    reduced: false, tier, level, k, total, chargeAt, absorbEnd, boltAt, bolts, storm, gatherAt, rumbleAt, rumbles, hits, impactAt,
-    staticAt, staticEnd, endAt,
+    reduced: false, tier, level, k, total, chargeAt, absorbEnd, stringEnd, releaseAt, riders, flyMs, stack, dropAt, thudAt, pumps,
+    impactAt, slackAt, endAt,
+    noteSize: V.NoteSize,
+    notes: Math.round(clamp(V.Notes, 0, CHORD_CAPS.notes)),
+    sparks: Math.round(clamp(V.Sparks, 0, CHORD_CAPS.sparks)),
     shakePx: clamp(V.Shake, 0, CHORD_CAPS.shakePx),
     zoom: clamp(V.Zoom, 0, CHORD_CAPS.zoom),
     punch: V.Punch,
-    sparks: Math.round(clamp(V.Sparks, 0, CHORD_CAPS.sparks)),
     burst: V.Burst,
     dim: V.Dim,
   };
 }
 
-export type StormCueKind = 'charge' | 'bolt' | 'gather' | 'rumble' | 'hit' | 'impact' | 'end';
-export interface StormCue { at: number; kind: StormCueKind; i: number }
+export type ChordCueKind = 'charge' | 'drop' | 'thud' | 'pump' | 'release' | 'impact' | 'slack' | 'end';
+export interface ChordCue { at: number; kind: ChordCueKind; i: number }
 
-/** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
-export function chordCues(p: StormPlan): StormCue[] {
-  const out: StormCue[] = [];
+/** Every beat the runner fires, in time order (ties keep this declaration order). */
+export function chordCues(p: ChordPlan): ChordCue[] {
+  const out: ChordCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    p.bolts.forEach((b, i) => out.push({ at: b.at, kind: 'bolt', i }));
-    if (p.storm) {
-      out.push({ at: p.gatherAt, kind: 'gather', i: 0 });
-      p.rumbles.forEach((at, i) => out.push({ at, kind: 'rumble', i }));
+    if (p.stack) {
+      out.push({ at: p.dropAt, kind: 'drop', i: 0 });
+      out.push({ at: p.thudAt, kind: 'thud', i: 0 });
+      p.pumps.forEach((at, i) => out.push({ at, kind: 'pump', i }));
     }
-    p.hits.forEach((at, i) => out.push({ at, kind: 'hit', i }));
+    out.push({ at: p.releaseAt, kind: 'release', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
+  if (!p.reduced) out.push({ at: p.slackAt, kind: 'slack', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<StormCueKind, number> = { charge: 0, bolt: 1, gather: 2, rumble: 3, hit: 4, impact: 5, end: 6 };
+  const order: Record<ChordCueKind, number> = { charge: 0, drop: 1, thud: 2, pump: 3, release: 4, impact: 5, slack: 6, end: 7 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
-// ─── the bolt geometry (pure) ────────────────────────────────────────────────────────────────────────────────
+// ─── the geometry (pure) ─────────────────────────────────────────────────────────────────────────────────────
 
-/** One bolt's ends and bow (signed: which way its base curve swings). */
-export interface BoltGeo { from: Pt; to: Pt; bow: number }
-
-/** The view the cloud must stay inside. */
+/** The view the speaker stack must stay inside. */
 export interface ViewBox { w: number; h: number }
 
-export interface StormGeo {
-  bolts: BoltGeo[];
-  /** Big: the storm cloud's centre, and its half width in px. */
-  cloud: Pt | null;
-  cloudR: number;
-  /** Where each strike lands on the struck portrait (the hit flash, the sparks). */
-  strikes: Pt[];
+/** The speaker stack's box: its centre and its size (px). */
+export interface StackGeo { x: number; y: number; w: number; h: number }
+
+export interface ChordGeo {
+  /** The staff's two ends: the striker's rim and a point inside the struck face. Null under reduced motion. */
+  from: Pt | null;
+  to: Pt | null;
+  /** The unit vector across the staff (its lines are spaced along it), chosen to point DOWN the screen: the sag's way. */
+  across: Pt;
+  /** The gap between two staff lines (px). */
+  gap: number;
+  /** Where THE blow lands on the struck portrait (the burst, the hit flash). */
+  hit: Pt;
+  /** Big: the speaker stack, and the point its bass wave rolls out from. */
+  stack: StackGeo | null;
+  waveFrom: Pt | null;
+}
+
+/** The speaker stack's height over its width (two cabinets and the amp head, see `heroChordTextures.ts`). */
+export const STACK_ASPECT = 1.64;
+
+/** The compass the stack's spot is picked from: behind the striker first, then round both ways. */
+const STACK_TURNS = [0, 45, -45, 90, -90, 135, -135, 180] as const;
+
+/**
+ * Where the speaker stack lands: as near to BEHIND the striker (away from the struck hero) as the view allows. Both
+ * heroes sit in corners, so straight behind is usually off the screen; the spots round the portrait are scored by how
+ * far the view would have to push the stack back in (that would shove it over the portrait) plus how far round from
+ * "behind" they are. Pure: the same fight picks the same spot.
+ */
+export function chordStackSpot(a: Pt, d: Pt, aRadius: number, w: number, h: number, view: ViewBox | null, margin = 8): StackGeo {
+  const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
+  const bx = -(d.x - a.x) / L, by = -(d.y - a.y) / L;
+  let best: StackGeo | null = null;
+  let bestScore = Infinity;
+  for (const turn of STACK_TURNS) {
+    const r = (turn * Math.PI) / 180;
+    const ux = bx * Math.cos(r) - by * Math.sin(r), uy = bx * Math.sin(r) + by * Math.cos(r);
+    // Far enough out that the box clears the portrait along this direction (a little overlap reads as "behind it").
+    const reach = aRadius * 0.82 + Math.abs(ux) * w * 0.5 + Math.abs(uy) * h * 0.5;
+    let x = a.x + ux * reach, y = a.y + uy * reach;
+    let push = 0;
+    if (view && view.w > 0 && view.h > 0) {
+      const cx = clamp(x, w / 2 + margin, Math.max(w / 2 + margin, view.w - w / 2 - margin));
+      const cy = clamp(y, h / 2 + margin, Math.max(h / 2 + margin, view.h - h / 2 - margin));
+      push = Math.hypot(cx - x, cy - y);
+      x = cx; y = cy;
+    }
+    const score = push * 2 + Math.abs(turn) * 0.45 * (aRadius / 100);
+    if (score < bestScore - 1e-6) { bestScore = score; best = { x, y, w, h }; }
+  }
+  return best!;
 }
 
 /**
- * Where every bolt runs, from the plan and the two heroes. Small arcs from the striker's rim into the face; Medium's
- * trunk splits at `forkAt` and its two branches land either side of the middle of the face; Big's call runs from the
- * hero up to a cloud gathered over the target (with no room above a hero at the top of the screen, the cloud rolls in
- * over the top edge and hangs just over the portrait), and the strike drops from the cloud into the top of the face. Pure: a replay strikes the same places.
+ * The staff and the speakers, from the plan and the two heroes. The staff runs from the striker's rim to a point inside
+ * the struck face (so a note lands ON the portrait); its lines are spaced `staffGap` apart across it. Big adds the
+ * speaker stack beside the striker and the point the bass wave leaves from. Pure: a replay strings the same staff.
  */
-export function chordGeometry(p: StormPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: Pick<HeroChordConfig, 'bow' | 'forkAt' | 'forkSpread' | 'cloudLift' | 'cloudSize'>, scale = 1, view: ViewBox | null = null): StormGeo {
-  if (p.reduced) return { bolts: [], cloud: null, cloudR: 0, strikes: [] };
+export function chordGeometry(p: ChordPlan, a: Pt, d: Pt, radius: number, aRadius: number, c: Pick<HeroChordConfig, 'staffGap' | 'stackSize'>, scale = 1, view: ViewBox | null = null): ChordGeo {
   const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
-  const nrm = { x: -u.y, y: u.x };
-  const rim = { x: a.x + u.x * aRadius * 0.7, y: a.y + u.y * aRadius * 0.7 };
-  const bowSign = u.x >= 0 ? -1 : 1; // the arc bows up-screen on the usual diagonals
-  if (p.level === 1) {
-    const hit = { x: d.x - u.x * radius * 0.2, y: d.y - u.y * radius * 0.2 };
-    return { bolts: [{ from: rim, to: hit, bow: c.bow * bowSign }], cloud: null, cloudR: 0, strikes: [hit] };
+  let across = { x: -u.y, y: u.x };
+  if (across.y < 0 || (across.y === 0 && across.x < 0)) across = { x: -across.x, y: -across.y };
+  const hit = { x: d.x - u.x * radius * 0.3, y: d.y - u.y * radius * 0.3 };
+  if (p.reduced) return { from: null, to: null, across, gap: 0, hit: { x: d.x, y: d.y }, stack: null, waveFrom: null };
+  const from = { x: a.x + u.x * aRadius * 0.9, y: a.y + u.y * aRadius * 0.9 };
+  const gap = c.staffGap * scale;
+  let stack: StackGeo | null = null;
+  let waveFrom: Pt | null = null;
+  if (p.stack) {
+    const w = aRadius * 1.5 * c.stackSize, h = w * STACK_ASPECT;
+    stack = chordStackSpot(a, d, aRadius, w, h, view);
+    waveFrom = { x: stack.x, y: stack.y + h * 0.08 };
   }
-  if (p.level === 2) {
-    // The two branches land either side of the middle of the face, `forkSpread` (in radii) apart from the centre line.
-    const sep = radius * (0.1 + c.forkSpread);
-    const hitA = { x: d.x + nrm.x * sep - u.x * radius * 0.15, y: d.y + nrm.y * sep - u.y * radius * 0.15 };
-    const hitB = { x: d.x - nrm.x * sep - u.x * radius * 0.15, y: d.y - nrm.y * sep - u.y * radius * 0.15 };
-    const mid = { x: (hitA.x + hitB.x) / 2, y: (hitA.y + hitB.y) / 2 };
-    const f = { x: rim.x + (mid.x - rim.x) * c.forkAt, y: rim.y + (mid.y - rim.y) * c.forkAt };
-    return {
-      bolts: [
-        { from: rim, to: f, bow: c.bow * bowSign * 0.6 },
-        { from: f, to: hitA, bow: c.bow * 0.5 },
-        { from: f, to: hitB, bow: -c.bow * 0.5 },
-      ],
-      cloud: null, cloudR: 0, strikes: [hitA, hitB],
-    };
-  }
-  // BIG: the cloud over the target.
-  const cloudR = 190 * scale * c.cloudSize;
-  const margin = 14 * scale + cloudR * 0.6;
-  let cx = d.x;
-  let cy = d.y - radius * c.cloudLift;
-  if (cy < margin) {
-    // No room above (a hero at the top of the screen): the cloud rolls in over the top edge, hanging just over the
-    // portrait and a touch toward the striker, so the strike still DROPS onto the face (never a sideways beam).
-    cy = Math.max(d.y - radius * 1.1, 4 * scale);
-    cx += (a.x < d.x ? -1 : 1) * radius * 0.3;
-  }
-  if (view && view.w > 0) cx = clamp(cx, cloudR * 0.9, view.w - cloudR * 0.9);
-  const cloud = { x: cx, y: cy };
-  const base = { x: cx, y: cy + cloudR * 0.22 };
-  const hit = { x: d.x, y: d.y - radius * 0.1 };
-  // The call leaves the top of the striker's portrait (the hero raising the storm).
-  const call = { x: a.x + u.x * aRadius * 0.2, y: a.y - aRadius * 0.8 };
-  return {
-    bolts: [
-      { from: call, to: { x: cx - cloudR * 0.2, y: cy }, bow: c.bow * 1.4 * bowSign },
-      { from: base, to: hit, bow: c.bow * 0.3 },
-    ],
-    cloud, cloudR, strikes: [hit],
-  };
+  return { from, to: hit, across, gap, hit, stack, waveFrom };
 }
 
-/** The direction THE blow arrives along (the last striking bolt): the shake and the knockback follow it. Unit. */
-export function chordArrivalDir(p: StormPlan, g: StormGeo, a: Pt, d: Pt): Pt {
-  const last = [...p.bolts.keys()].reverse().find((i) => p.bolts[i]!.strikes);
-  const b = last !== undefined ? g.bolts[last] : undefined;
-  const from = b ? b.from : a;
-  const to = b ? b.to : d;
-  const L = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-  return { x: (to.x - from.x) / L, y: (to.y - from.y) / L };
+/** The direction THE blow arrives along (down the staff, or from the speakers on Big): the shake and the knockback follow it. Unit. */
+export function chordArrivalDir(g: ChordGeo, a: Pt, d: Pt): Pt {
+  const from = g.waveFrom ?? a;
+  const L = Math.hypot(d.x - from.x, d.y - from.y) || 1;
+  return { x: (d.x - from.x) / L, y: (d.y - from.y) / L };
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -583,18 +575,18 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
 
 /**
- * The camera at sequence time `t`: a small push in through the charge (Big: through the gathering storm, with a faint
- * tremor as it rumbles); a kick along the bolt on each strike; on THE impact a punch in and a directional shake
- * (Big: hardest, mostly downward). Deterministic. Pure.
+ * The camera at sequence time `t`: a small push in while the staff strings out (Big: through the count-in, with a bump
+ * straight down as the speakers land and a nudge on each pump); on THE impact a punch in and a shake along the blow.
+ * Deterministic. Pure.
  */
-export function chordCameraAt(p: StormPlan, c: HeroChordConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
+export function chordCameraAt(p: ChordPlan, c: HeroChordConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
   let z = 0;
   if (t >= p.chargeAt && t < p.impactAt) {
-    z += p.zoom * sine((t - p.chargeAt) / Math.max(1, (p.storm ? p.rumbleAt : p.boltAt) - p.chargeAt));
-    if (p.storm && t >= p.rumbleAt) z += p.zoom * 0.4 * sine((t - p.rumbleAt) / Math.max(1, p.impactAt - p.rumbleAt));
+    z += p.zoom * sine((t - p.chargeAt) / Math.max(1, p.releaseAt - p.chargeAt));
+    if (p.stack && t >= p.releaseAt) z += p.zoom * 0.4 * sine((t - p.releaseAt) / Math.max(1, p.impactAt - p.releaseAt));
   } else if (t >= p.impactAt) {
-    z += (p.zoom * (p.storm ? 1.5 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
+    z += (p.zoom * (p.stack ? 1.4 : 1) + p.punch) * Math.exp(-(t - p.impactAt) / Math.max(1, c.zoomOutMs / 4));
   }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number, v: Pt): void => {
@@ -605,22 +597,20 @@ export function chordCameraAt(p: StormPlan, c: HeroChordConfig, t: number, dir: 
     x += v.x * amp * s - v.y * across;
     y += v.y * amp * s + v.x * across;
   };
-  if (p.storm && t >= p.rumbleAt && t < p.impactAt) {
-    const u = (t - p.rumbleAt) / Math.max(1, p.impactAt - p.rumbleAt);
-    const a = p.shakePx * 0.08 * u;
-    x += a * Math.sin(t * 0.12); y += a * Math.sin(t * 0.15 + 1.1);
+  if (p.stack) {
+    kick(p.thudAt, p.shakePx * 0.45, 55, 14, { x: 0, y: 1 });
+    for (const at of p.pumps) kick(at, p.shakePx * 0.14, 40, 16, dir);
   }
-  p.hits.forEach((at) => kick(at, p.shakePx * 0.4, 40, 18, dir));
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir);
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** Where the camera anchors: the ATTACKER through the charge, the struck hero from the bolt (Big: from the gather) on. Pure. */
-export function chordCameraFocus(p: StormPlan, t: number, a: Pt, d: Pt): Pt {
-  const from = p.chargeAt;
-  const to = p.storm ? p.gatherAt + (p.rumbleAt - p.gatherAt) * 0.5 : p.boltAt;
-  if (t <= from + (to - from) * 0.4) return a;
+/** Where the camera anchors: the ATTACKER while the staff strings out (Big: through the count-in), the struck hero once the hero plays. Pure. */
+export function chordCameraFocus(p: ChordPlan, t: number, a: Pt, d: Pt): Pt {
+  const from = p.stack ? p.pumps[p.pumps.length - 1] ?? p.thudAt : p.chargeAt + (p.releaseAt - p.chargeAt) * 0.4;
+  const to = p.stack ? p.releaseAt + p.flyMs * 0.6 : p.releaseAt;
+  if (t <= from) return a;
   if (t >= to) return d;
-  const e = sine((t - (from + (to - from) * 0.4)) / Math.max(1, (to - from) * 0.6));
+  const e = sine((t - from) / Math.max(1, to - from));
   return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e };
 }

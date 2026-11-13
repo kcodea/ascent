@@ -80,8 +80,11 @@ export function launchRiseGiven(
     if (at) playDef('sfx-rise-applied', at, { uids: { source: g.target, target: g.target } });
   };
   const launch = (): void => {
-    const live = document.querySelector(unitSelector(g.source))?.getBoundingClientRect() ?? null;
-    const source: Rect | null = opts.from ?? live ?? lastSlot.get(g.source) ?? null;
+    // A giver still collapsing out of its row is measured where its skull fired, not at its shrinking box.
+    const sEl = document.querySelector(unitSelector(g.source));
+    const live = sEl?.getBoundingClientRect() ?? null;
+    const gone = !sEl || (sEl.classList.contains('dying') && !sEl.classList.contains('rising'));
+    const source: Rect | null = opts.from ?? (gone ? lastSlot.get(g.source) ?? live : live);
     const tEl = document.querySelector(unitSelector(g.target));
     const anchors = source && tEl
       ? combatAnchorsFromRects({ source, target: tEl.getBoundingClientRect(), row: null, viewport: { w: window.innerWidth, h: window.innerHeight } })

@@ -1,29 +1,27 @@
-// SCAFFOLDED from heroBaseball/ by `npm run attack:new` (2026-11-12). The code and the comments below were
-// copied with the names swapped: any design note, date or quote in them is about Baseball, not this style, until rewritten.
 /**
- * THE BASEBALL RUNNER ("Charge the Mound", a Legendary): plays one Wrestle attack (the beats are in
- * `heroWrestleConfig.ts`) and lands the consequence on its impact beat (the BONK, the crater, the haymaker).
- * Presentation only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
+ * THE WRESTLING RUNNER ("Top Rope", a Legendary): plays one Wrestle attack (the beats are in `heroWrestleConfig.ts`) and
+ * lands the consequence on its impact beat (the chop, the slam, the elbow, the clothesline). Presentation only: the
+ * total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses), the damage formation, the
- * `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish / cancel and the safety
- * timer.
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses and never changes speed), the
+ * damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim, reduced motion, finish /
+ * cancel and the safety timer.
  *
- * BOTH PORTRAITS MOVE: the struck hero is the PITCHER (it winds up, throws, reacts, is launched) and the striker is the
- * BATTER (it swings; at IV it staggers, charges the mound, brawls and lands the haymaker). Each pose is solved in screen
- * px and written as a transform in the portrait's own units (its ancestors' scale measured ONCE at the start). A portrait
- * outside the `#stage` camera (the foe's <body> portal) folds the camera's zoom and shake into its own transform. The
- * striker is raised over the target for the whole attack (Classic's `.duel-attacker-*` z-order). EVERY exit path (the
- * end, `finish()`, `cancel()`, the safety timer, and an unmount, which cancels) restores both transforms, the striker's
- * opacity and the z-order class exactly, and hides the ball, the bat and the shadows.
+ * BOTH PORTRAITS MOVE: the striker walks over and wrestles the struck one (it is lifted, slammed, shoved flat, whipped
+ * into the ropes, clotheslined and pinned). Each pose is solved in screen px and written as a transform in the
+ * portrait's own units (its ancestors' scale measured ONCE at the start); the squash is in SCREEN axes, so a portrait on
+ * its back still flattens against the mat. A portrait outside the `#stage` camera (the foe's <body> portal) folds the
+ * camera's zoom and shake into its own transform. The striker is raised over the target for the whole attack (Classic's
+ * `.duel-attacker-*` z-order). EVERY exit path (the end, `finish()`, `cancel()`, the safety timer, and an unmount, which
+ * cancels) restores both transforms, the striker's opacity and the z-order class exactly, and hides the ring, the
+ * spotlight, the elbow star and the shadow.
  *
- * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE, on the impact. The pitch, the CRACK, the hop, the bean on
- * the striker and every brawl hit are ticks; the target only reacts on the impact (its windup and IV's brawl shaking
- * are its own acting, not a hit reaction).
+ * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE, on the impact. The shove, the ropes, the landing on the
+ * mat, the count and the bell are ticks.
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
- * plus four own objects; textures painted once per session and pre-warmed during the formation; the updater unhooks the
- * moment the scene drains.
+ * plus the own objects (the ring's 16 sprites, the light, the star, the shadow); textures painted once per session and
+ * pre-warmed during the formation; the updater unhooks the moment the scene drains.
  */
 import type { Container } from 'pixi.js';
 import { pixiFx } from '../pixiFx';
@@ -36,9 +34,9 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  wrestleBall, wrestleBat, wrestleCameraAt, wrestleCues, wrestleGeo, wrestlePlan, wrestleTimeScale, batLength, batterPose,
-  getHeroWrestleConfig, moonShadow, pitcherPose, slowExtraMs, variantOf,
-  type BallState, type BaseballCue, type BaseballGeo, type BaseballPlan, type BaseballPose, type BatState, type HeroWrestleConfig,
+  getHeroWrestleConfig, ringLayout, strikerPose, victimPose, wrestleCameraAt, wrestleCues, wrestleElbow, wrestleGeo, wrestlePlan, wrestleRing,
+  wrestleShadow, wrestleSpot,
+  type HeroWrestleConfig, type WrestleCtx, type WrestleCue, type WrestleGeo, type WrestlePlan, type WrestlePose,
 } from './heroWrestleConfig';
 import { HeroWrestleScene, type HeroWrestleTextures } from './heroWrestleScene';
 import { heroWrestleTextures } from './heroWrestleTextures';
@@ -49,17 +47,13 @@ export interface HeroWrestleOptions extends HeroAttackOptions {
 }
 
 export interface HeroWrestleHandle extends HeroAttackHandle {
-  readonly plan: BaseballPlan;
-  readonly geo: BaseballGeo;
+  readonly plan: WrestlePlan;
+  readonly geo: WrestleGeo;
   readonly scene: HeroWrestleScene | null;
   readonly mirrorsCamera: boolean;
-  /** The rolled variation (II's hit). */
-  readonly variant: 1 | 2 | 3;
-  /** The batter's and the pitcher's poses, the ball and the bat, at a sequence time (pure). */
-  batter(t: number): BaseballPose;
-  pitcher(t: number): BaseballPose;
-  ball(t: number): BallState;
-  bat(t: number): BatState;
+  /** The striking and the struck portraits' poses at a sequence time (pure). */
+  striker(t: number): WrestlePose;
+  victim(t: number): WrestlePose;
 }
 
 export function wrestleSeed(total: number, distance: number, side: 'player' | 'opp' | undefined): number {
@@ -75,12 +69,15 @@ function rectOf(el: HTMLElement | null | undefined, r: number): { width: number;
   } catch { return { width: r * 2, height: r * 2, inv: 1 }; }
 }
 
-/** A portrait pose as a CSS transform in its own units (`unit` = screen px per own px), or null when at rest. */
-function poseCss(off: Pt, p: BaseballPose, sc: number, unit: number): string | null {
+/**
+ * A portrait pose as a CSS transform in its own units (`unit` = screen px per own px), or null when at rest. The squash
+ * is written OUTSIDE the rotation, so it is in screen axes (a portrait lying flat squashes against the floor).
+ */
+function poseCss(off: Pt, p: WrestlePose, sc: number, unit: number): string | null {
   const moved = Math.abs(off.x) > 0.05 || Math.abs(off.y) > 0.05 || Math.abs(sc - 1) > 1e-4 || Math.abs(p.rot) > 0.01;
   const sq = Math.abs(p.squash) > 0.002 ? ` scale(${(1 + p.squash * 0.6).toFixed(4)}, ${(1 - p.squash).toFixed(4)})` : '';
   if (!moved && !sq) return null;
-  return `translate(${(off.x / unit).toFixed(2)}px, ${(off.y / unit).toFixed(2)}px) rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})${sq}`;
+  return `translate(${(off.x / unit).toFixed(2)}px, ${(off.y / unit).toFixed(2)}px)${sq} rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
 }
 
 /** Play the Wrestle attack. Returns a handle; the blow lands via `onImpact` on the impact beat. */
@@ -99,21 +96,20 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  // THE VARIATION (II's hit), rolled from the stable per-blow seed (or forced by the DEV tuner).
-  const variant = variantOf(o.rollSeed ?? wrestleSeed(o.total, dist, o.side), c);
-  const plan = wrestlePlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
+  const plan = wrestlePlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt }, c);
   const cues = withFormation(fplan, wrestleCues(plan));
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const frame = { x0: 0, y0: 0, x1: vw, y1: vh };
-  const geo = wrestleGeo(o.attacker, o.defender, aRadius, radius, frame, c);
-  const batter = (t: number): BaseballPose => batterPose(plan, geo, c, aRadius, o.attacker, t);
-  const pitcher = (t: number): BaseballPose => pitcherPose(plan, geo, c, radius, t);
-  const ctx = { p: plan, g: geo, c, d: o.defender, dR: radius, aR: aRadius, a: o.attacker };
-  const ball = (t: number): BallState => wrestleBall(ctx, t);
-  const bat = (t: number): BatState => wrestleBat(ctx, t);
-  // The way the blow drives the pitcher (the foul tip comes from behind it).
-  const blowDir: Pt = plan.kind === 'hotshot' && plan.variant === 3 ? { x: -geo.u.x, y: -geo.u.y } : geo.u;
+  const geo = wrestleGeo(o.attacker, o.defender, aRadius, radius, frame, plan.kind, c);
+  const ctx: WrestleCtx = { p: plan, g: geo, c, a: o.attacker, d: o.defender, aR: aRadius, dR: radius };
+  const striker = (t: number): WrestlePose => strikerPose(ctx, t);
+  const victim = (t: number): WrestlePose => victimPose(ctx, t);
+  const sides = ringLayout(geo, aRadius, radius);
+  const sd = geo.s;
+  // The way the blow drives the view: the chop goes sideways (away from the striker), the clothesline back the way the
+  // struck portrait came, the slam and the elbow straight down into the mat.
+  const blowDir: Pt = plan.kind === 'chop' ? { x: -sd, y: 0 } : plan.kind === 'pin' ? { x: sd, y: 0 } : { x: 0, y: 1 };
 
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
   const voices = new AttackVoices(sound);
@@ -125,8 +121,8 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
   const textures = o.textures !== undefined ? o.textures : heroWrestleTextures();
   const scene = textures && !reduced
     ? new HeroWrestleScene(textures, {
-      ball: hexToNum(c.colorBall), bat: hexToNum(c.colorBat), dust: hexToNum(c.colorDust), flash: hexToNum(c.colorFlash), pow: hexToNum(c.colorPow), side: hexToNum(sideHex),
-    }, { ballSize: c.ballSize, batLen: batLength(aRadius, c), shadowDrop: c.shadowDrop, wordSize: c.wordSize, frameH: vh }, aRadius, radius, s, wrestleSeed(o.total, dist, o.side))
+      mat: hexToNum(c.colorMat), flash: hexToNum(c.colorFlash), pow: hexToNum(c.colorPow), hand: hexToNum(c.colorHand), spot: hexToNum(c.colorSpot), side: hexToNum(sideHex),
+    }, { ropeSize: c.ropeSize, wordSize: c.wordSize, frameW: vw, frameH: vh }, aRadius, radius, s, o.rollSeed ?? wrestleSeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -144,150 +140,142 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
   const lift = !reduced && !local && !!hero.el && !!doc;
   let lifted = false;
 
-  // During a slow-mo beat a cue is pitched down a touch (subtle), with the clock.
-  const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate * (0.88 + 0.12 * Math.min(1, wrestleTimeScale(plan, c, seq.t))), opts);
-  voices.warm([
-    c.sfxGloveClip, c.sfxPitchClip, c.sfxCrackClip, c.sfxBonkClip, c.sfxHopClip, c.sfxFallClip, c.sfxChargeClip, c.sfxThumpClip, c.sfxBrawlClip, c.sfxKoClip,
-    c.sfxUmpClip, c.sfxOohClip, c.sfxCheerClip,
-  ]);
+  const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate, opts);
+  voices.warm([c.sfxWhooshClip, c.sfxChopClip, c.sfxSlamClip, c.sfxBoomClip, c.sfxBellClip, c.sfxWooClip, c.sfxCheerClip]);
   const real = (ms: number): number => ms / speed;
-  const heroAt = (t: number): Pt => { const p = batter(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y }; };
-  const foeAt = (t: number): Pt => { const p = pitcher(t); return { x: o.defender.x + p.x, y: o.defender.y + p.y }; };
-  const brawl = plan.kind === 'brawl';
+  const whoosh = (gain: number, rate: number, lenMs = 420): void => cue(c.sfxWhooshClip, c.sfxWhooshGain * gain, c.sfxWhooshRate * rate, { lenMs, fadeMs: lenMs * 0.4 });
+  const foeAt = (t: number): Pt => { const p = victim(t); return { x: o.defender.x + p.x, y: o.defender.y + p.y }; };
 
-  const fire = (q: BaseballCue | FormationCue): void => {
+  const fire = (q: WrestleCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     const t = seq.t;
     switch (q.kind) {
       case 'charge':
-        // PLAY BALL: the pitcher pops the ball into its mitt.
-        cue(c.sfxGloveClip, c.sfxGloveGain, c.sfxGloveRate);
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
-        scene?.glovePop(foeAt(t));
         break;
-      case 'windup':
-        cue(c.sfxGloveClip, c.sfxGloveGain * 0.35, c.sfxGloveRate * 1.3, { lenMs: 160, fadeMs: 60 });
+      case 'walk':
+        whoosh(0.7, 0.8, 500);
         break;
-      case 'pitch':
-        cue(c.sfxPitchClip, c.sfxPitchGain * (brawl ? 1.3 : 1), c.sfxPitchRate * (brawl ? 1.1 : 1), { lenMs: 450, fadeMs: 180 });
-        scene?.kick(foeAt(t), { x: -geo.u.x, y: -geo.u.y });
+      case 'grip':
+        // They lock up (a soft thud of two bodies meeting). The chop has no lock-up: it winds up instead.
+        if (plan.kind !== 'chop') cue(c.sfxSlamClip, c.sfxSlamGain * 0.22, c.sfxSlamRate * 1.9, { lenMs: 140, fadeMs: 70 });
         break;
       case 'swing':
-        cue(c.sfxPitchClip, c.sfxPitchGain * 0.6, c.sfxPitchRate * 0.8, { lenMs: 300, fadeMs: 120 });
+        whoosh(1, 1.5, 260);
+        scene?.slapArc({ x: (geo.grab.x + o.defender.x) / 2 + sd * radius * 0.2, y: o.defender.y }, -sd, radius);
         break;
-      case 'crack': {
-        // THE BAT MEETS THE BALL (a tick). III's is huge (and in slow mo).
-        const k = plan.kind === 'moonshot' ? 1.6 : plan.kind === 'hotshot' ? 1.15 : 0.9;
-        cue(c.sfxCrackClip, c.sfxCrackGain * (0.8 + 0.25 * k), c.sfxCrackRate * (plan.kind === 'moonshot' ? 0.92 : 1), { tail: plan.kind === 'moonshot' ? 0.18 : 0 });
-        if (plan.kind === 'moonshot') cue(c.sfxOohClip, c.sfxOohGain * 0.7, c.sfxOohRate * 1.05, { delayMs: real(220), fadeMs: 400 });
-        const toward = plan.kind === 'moonshot' ? { x: geo.sky.x - geo.plate.x, y: geo.sky.y - geo.plate.y } : plan.kind === 'hotshot' && plan.variant === 3 ? { x: geo.foul1.x - geo.plate.x, y: geo.foul1.y - geo.plate.y } : geo.u;
-        const l = Math.hypot(toward.x, toward.y) || 1;
-        scene?.crack({ x: geo.plate.x, y: geo.plate.y - aRadius * 0.35 }, { x: toward.x / l, y: toward.y / l }, k);
+      case 'lift':
+        whoosh(0.9, 0.7, 520);
         break;
-      }
-      case 'hop': {
-        cue(c.sfxHopClip, c.sfxHopGain, c.sfxHopRate);
-        scene?.hopDust(geo.hop);
+      case 'top':
+        // The held beat: the crowd draws breath.
+        cue(c.sfxWooClip, c.sfxWooGain * 0.35, c.sfxWooRate * 0.8, { lenMs: 500, fadeMs: 300 });
         break;
-      }
-      case 'twinkle':
-        cue(c.sfxGloveClip, c.sfxGloveGain * 0.25, c.sfxGloveRate * 2.2, { lenMs: 140, fadeMs: 60 });
-        scene?.twinkle({ x: geo.sky.x, y: Math.max(frame.y0 + 30, 30) });
+      case 'drop':
+        whoosh(1.2, 1.25, 300);
         break;
-      case 'fall':
-        // The slide whistle as it comes down.
-        cue(c.sfxFallClip, c.sfxFallGain, c.sfxFallRate);
+      case 'bounce':
+        cue(c.sfxSlamClip, c.sfxSlamGain * 0.4, c.sfxSlamRate * 1.35, { lenMs: 300, fadeMs: 150 });
+        scene?.matRing(geo.mat, radius, 0.5, 1);
         break;
-      case 'batland':
-        cue(c.sfxCrackClip, c.sfxCrackGain * 0.35, c.sfxCrackRate * 0.6, { lenMs: 200, fadeMs: 80 });
-        cue(c.sfxCrackClip, c.sfxCrackGain * 0.25, c.sfxCrackRate * 0.7, { lenMs: 160, fadeMs: 60, delayMs: real(120) });
-        scene?.clatter(geo.batLand);
+      case 'down':
+        // III: shoved flat on its back (a tick), and the striker goes for the top.
+        cue(c.sfxSlamClip, c.sfxSlamGain * 0.5, c.sfxSlamRate * 1.25, { lenMs: 360, fadeMs: 160 });
+        scene?.matRing(geo.mat, radius, 0.6, 1);
+        whoosh(0.9, 0.75, 520);
         break;
-      case 'bean':
-        // THE PITCHER BEANS THE BATTER (a tick: the striker takes it, no damage). The crowd goes "ooh".
-        cue(c.sfxBonkClip, c.sfxBonkGain * 1.1, c.sfxBonkRate * 0.95);
-        cue(c.sfxOohClip, c.sfxOohGain, c.sfxOohRate * 0.95, { delayMs: real(160), fadeMs: 400 });
-        scene?.bean(heroAt(t), { x: -geo.u.x, y: -geo.u.y });
-        scene?.popAway(heroAt(t), { x: -geo.u.x, y: -geo.u.y }, aRadius * 0.35);
+      case 'perch':
+        // Out of the top of the screen: the spotlight comes on and the crowd goes "ooh".
+        cue(c.sfxWooClip, c.sfxWooGain * 0.6, c.sfxWooRate * 0.86, { fadeMs: 400 });
         break;
-      case 'batdrop':
-        cue(c.sfxPitchClip, c.sfxPitchGain * 0.5, c.sfxPitchRate * 0.75, { lenMs: 250, fadeMs: 100 });
+      case 'dive':
+        whoosh(1.4, 1.1, 420);
         break;
-      case 'clatter':
-        cue(c.sfxCrackClip, c.sfxCrackGain * 0.45, c.sfxCrackRate * 0.55, { lenMs: 220, fadeMs: 80 });
-        cue(c.sfxCrackClip, c.sfxCrackGain * 0.3, c.sfxCrackRate * 0.65, { lenMs: 160, fadeMs: 60, delayMs: real(110) });
-        scene?.clatter(geo.batSlam);
+      case 'whip':
+        whoosh(1.2, 1.2, 420);
+        scene?.rush(foeAt(t), sd, radius);
         break;
-      case 'fume':
-        scene?.fume(heroAt(t));
+      case 'rope':
+        // The far ropes take it (a tick): a dull twang as they stretch.
+        cue(c.sfxSlamClip, c.sfxSlamGain * 0.3, c.sfxSlamRate * 0.75, { lenMs: 300, fadeMs: 200 });
+        scene?.ropeTwang(geo.ropeHit, sd);
         break;
-      case 'run':
-        // CHARGE! The ballpark organ, and the batter is off.
-        cue(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate);
-        cue(c.sfxPitchClip, c.sfxPitchGain * 1.1, c.sfxPitchRate * 0.7, { lenMs: 500, fadeMs: 200, delayMs: real(60) });
+      case 'fling':
+        whoosh(1.3, 1.45, 320);
+        scene?.rush(geo.ropeHit, -sd, radius);
         break;
-      case 'collide': {
-        cue(c.sfxThumpClip, c.sfxThumpGain * 1.6, c.sfxThumpRate * 0.8);
-        // THE BRAWL: one fast cartoon fight flurry under the whole cloud (the hits below add their own small thumps).
-        cue(c.sfxBrawlClip, c.sfxBrawlGain, c.sfxBrawlRate, { fadeMs: 120 });
-        cue(c.sfxOohClip, c.sfxOohGain * 0.6, c.sfxOohRate * 1.1, { fadeMs: 300 });
-        cue(c.sfxCheerClip, c.sfxCheerGain * 0.8, c.sfxCheerRate, { lenMs: 1800, fadeMs: 600 });
-        scene?.cloudBurst(geo.cloud, c.brawlCloud);
+      case 'land':
+        // Flat on its back on the mat (a tick).
+        cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
+        scene?.matRing(geo.mat, radius, 1.1, 2);
+        scene?.dizzy(geo.mat, radius);
+        break;
+      case 'cover':
+        cue(c.sfxSlamClip, c.sfxSlamGain * 0.45, c.sfxSlamRate * 1.3, { lenMs: 300, fadeMs: 150 });
+        scene?.matRing(geo.mat, radius, 0.5, 1);
+        break;
+      case 'count': {
+        // ONE, TWO, THREE: the number slams down and the mat is slapped (the slam, pitched up and short).
+        cue(c.sfxSlamClip, c.sfxSlamGain * (0.5 + 0.08 * q.i), c.sfxSlamRate * (1.7 + 0.06 * q.i), { lenMs: 220, fadeMs: 110 });
+        scene?.count(geo.count, q.i);
+        scene?.matSlap({ x: geo.mat.x + sd * radius * 1.25, y: geo.mat.y + radius * 0.55 }, radius);
         break;
       }
-      case 'hit': {
-        // A comic hit in the brawl (a tick): round the cloud's edge, never the same spot twice in a row.
-        cue(c.sfxThumpClip, c.sfxThumpGain * (0.8 + 0.1 * (q.i % 3)), c.sfxThumpRate * (0.9 + 0.12 * ((q.i * 7) % 4)), { lenMs: 260, fadeMs: 90 });
-        const a = q.i * 2.39996 + 0.6;
-        const R = (aRadius + radius) * 0.55 * c.brawlCloud;
-        scene?.brawlHit({ x: geo.cloud.x + Math.cos(a) * R, y: geo.cloud.y + Math.sin(a) * R * 0.8 }, q.i, 1);
-        break;
-      }
-      case 'kowind':
-        cue(c.sfxPitchClip, c.sfxPitchGain * 0.9, c.sfxPitchRate * 0.65, { lenMs: 400, fadeMs: 160 });
+      case 'bell':
+        // DING DING DING: it is over.
+        cue(c.sfxBellClip, c.sfxBellGain, c.sfxBellRate);
+        cue(c.sfxCheerClip, c.sfxCheerGain, c.sfxCheerRate, { delayMs: real(120), lenMs: 2200, fadeMs: 800 });
+        scene?.bell({ x: geo.count.x, y: geo.count.y }, radius);
+        scene?.winner(geo.win, aRadius, plan.burst);
         break;
       case 'impact': {
-        if (brawl) {
-          // THE HAYMAKER: YER OUT!
-          cue(c.sfxKoClip, c.sfxKoGain * 1.2, c.sfxKoRate, { lenMs: 900, fadeMs: 300, tail: 0.12 });
-          cue(c.sfxBonkClip, c.sfxBonkGain, c.sfxBonkRate * 0.8);
-          cue(c.sfxUmpClip, c.sfxUmpGain, c.sfxUmpRate, { delayMs: real(140) });
-          cue(c.sfxCheerClip, c.sfxCheerGain * 1.2, c.sfxCheerRate, { delayMs: real(320), lenMs: 2200, fadeMs: 700 });
-          scene?.ko({ x: o.defender.x + geo.pitcherBrawl.x, y: o.defender.y + geo.pitcherBrawl.y }, geo.cloud, blowDir, plan.burst, plan.rings);
-        } else if (plan.kind === 'moonshot') {
-          // HOME RUN: the moonshot craters the pitcher.
-          cue(c.sfxKoClip, c.sfxKoGain, c.sfxKoRate * 1.05, { lenMs: 900, fadeMs: 300, tail: 0.1 });
-          cue(c.sfxBonkClip, c.sfxBonkGain * 0.9, c.sfxBonkRate * 0.85);
-          cue(c.sfxCheerClip, c.sfxCheerGain, c.sfxCheerRate, { delayMs: real(200), lenMs: 2000, fadeMs: 700 });
-          scene?.crater(geo.hit, blowDir, plan.burst, plan.rings);
-          scene?.popAway(geo.hit, blowDir);
+        if (plan.kind === 'chop') {
+          // THE CHOP: a flat smack, the hand print, and the crowd's "WOO".
+          cue(c.sfxChopClip, c.sfxChopGain, c.sfxChopRate);
+          cue(c.sfxWooClip, c.sfxWooGain, c.sfxWooRate, { delayMs: real(110) });
+          scene?.chop(o.defender, -sd, plan.burst, plan.rings);
+          scene?.word('woo', { x: geo.grab.x + sd * aRadius * 1.5, y: geo.grab.y - aRadius * 0.55 }, plan.burst, sd * 0.1, 760);
+        } else if (plan.kind === 'slam') {
+          // THE BODY SLAM.
+          cue(c.sfxSlamClip, c.sfxSlamGain, c.sfxSlamRate);
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.7, c.sfxBoomRate, { lenMs: 700, fadeMs: 300 });
+          cue(c.sfxWooClip, c.sfxWooGain * 0.8, c.sfxWooRate * 0.94, { delayMs: real(140) });
+          scene?.wallop({ x: geo.mat.x, y: geo.mat.y + radius * 0.45 }, radius, plan.burst);
+          scene?.matRing(geo.mat, radius, plan.burst, plan.rings);
+          scene?.word('slam', { x: geo.stand.x + sd * aRadius * 1.5, y: geo.stand.y - aRadius * 0.9 }, plan.burst, sd * 0.08);
+        } else if (plan.kind === 'elbow') {
+          // THE ELBOW DROP.
+          cue(c.sfxSlamClip, c.sfxSlamGain * 1.1, c.sfxSlamRate * 0.92);
+          cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate, { lenMs: 900, fadeMs: 300, tail: 0.1 });
+          cue(c.sfxChopClip, c.sfxChopGain * 0.5, c.sfxChopRate * 0.8);
+          cue(c.sfxCheerClip, c.sfxCheerGain * 0.9, c.sfxCheerRate, { delayMs: real(160), lenMs: 1800, fadeMs: 700 });
+          scene?.wallop({ x: geo.mat.x, y: geo.mat.y + radius * 0.45 }, radius, plan.burst);
+          scene?.matRing(geo.mat, radius, plan.burst, plan.rings);
         } else {
-          // BONK: right back at the pitcher.
-          cue(c.sfxBonkClip, c.sfxBonkGain * (plan.kind === 'hotshot' ? 1.1 : 0.9), c.sfxBonkRate * (plan.kind === 'hotshot' ? 0.95 : 1.05));
-          if (plan.kind === 'hotshot') cue(c.sfxOohClip, c.sfxOohGain * 0.5, c.sfxOohRate * 1.05, { delayMs: real(160), fadeMs: 350 });
-          scene?.bonk(geo.hit, blowDir, plan.burst, { rings: plan.rings, word: plan.kind === 'hotshot' && plan.variant === 1 ? 'smack' : 'bonk' });
-          scene?.popAway(geo.hit, blowDir, aRadius * 0.35);
+          // THE CLOTHESLINE.
+          cue(c.sfxChopClip, c.sfxChopGain * 1.1, c.sfxChopRate * 0.82);
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.9, c.sfxBoomRate * 1.1, { lenMs: 800, fadeMs: 300 });
+          cue(c.sfxWooClip, c.sfxWooGain * 0.9, c.sfxWooRate * 0.9, { delayMs: real(120) });
+          const at = { x: (geo.meet.x + geo.block.x) / 2 + sd * radius * 0.2, y: geo.meet.y - radius * 0.1 };
+          scene?.slapArc(at, sd, radius, 1.2);
+          scene?.wallop(at, radius, plan.burst);
+          whoosh(0.8, 0.9, 400);
         }
         seq.land();
         break;
       }
-      case 'home':
-        break;
       default:
         break;
     }
   };
 
-  let lastTrail = -Infinity;
-  let lastPuff = -Infinity;
-  let lastDust = -Infinity;
-  let lastRush = -Infinity;
+  let lastStep = -Infinity;
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.windAt, plan.impactAt + 300);
+    nums.paintDim(t, plan.chargeAt, plan.walkAt, plan.impactAt + 300);
     const cm = wrestleCameraAt(plan, c, t, blowDir);
     const unitS = local ? 1 : s;
     const focus = o.defender;
@@ -297,37 +285,28 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
     const place = (at: Pt, off: Pt, inCam: boolean): Pt => (inCam || !cam.active
       ? off
       : { x: off.x * cm.zoom + at.x * (cm.zoom - 1) + ax, y: off.y * cm.zoom + at.y * (cm.zoom - 1) + ay });
-    if (hero.el) {
-      const p = batter(t);
-      hero.set(poseCss(place(o.attacker, p, heroInCam), p, p.scale * (heroInCam || !cam.active ? 1 : cm.zoom), heroUnit));
-    }
-    if (foe.el) {
-      const p = pitcher(t);
-      foe.set(poseCss(place(o.defender, p, foeInCam), p, p.scale * (foeInCam || !cam.active ? 1 : cm.zoom), foeUnit));
-    }
+    const hp = striker(t), fp = victim(t);
+    if (hero.el) hero.set(poseCss(place(o.attacker, hp, heroInCam), hp, hp.scale * (heroInCam || !cam.active ? 1 : cm.zoom), heroUnit));
+    if (foe.el) foe.set(poseCss(place(o.defender, fp, foeInCam), fp, fp.scale * (foeInCam || !cam.active ? 1 : cm.zoom), foeUnit));
     if (scene) {
-      const b = ball(t);
-      scene.setBall(b);
-      if (b.flying && t - lastTrail >= c.trailMs) { scene.trail(b); lastTrail = t; }
-      scene.setBat(bat(t));
-      scene.setTargetShadow(o.defender, moonShadow(plan, t));
-      if (brawl) {
-        // The charge's dust and speed lines; the boiling cloud and the benches clearing through the brawl.
-        if (t >= plan.chargeRunAt! && t < plan.collideAt! && t - lastDust >= 40) { scene.chargeDust(heroAt(t), heroAt(t - 40), aRadius); lastDust = t; }
-        if (t >= plan.collideAt! && t < plan.brawlEnd! + 60 && t - lastPuff >= 28) { scene.cloudPuff(geo.cloud, c.brawlCloud); lastPuff = t; }
-        if (t >= plan.collideAt! + 60 && t < plan.brawlEnd! - 200 && t - lastRush >= 260) { scene.benchRush(geo.cloud, vw, c.benchRush); lastRush = t; }
+      scene.setFoeOffset(fp.x, fp.y);
+      if (plan.kind === 'pin') scene.setRing(sides, wrestleRing(ctx, t));
+      else if (plan.kind === 'elbow') { scene.setSpot(wrestleSpot(ctx, t, frame.y0)); scene.setElbow(wrestleElbow(ctx, t)); }
+      if (plan.kind === 'slam' || plan.kind === 'elbow') { const sh = wrestleShadow(ctx, t); scene.setShadow(sh.at, sh.k); }
+      // Footfalls on the walk in (three strides), and on the walk home.
+      if (t >= plan.walkAt && t < plan.gripAt && t - lastStep >= (plan.gripAt - plan.walkAt) / 3) {
+        scene.step({ x: o.attacker.x + hp.x, y: o.attacker.y + hp.y }, aRadius, geo.grab.x >= o.attacker.x ? -1 : 1);
+        lastStep = t;
       }
     }
   };
 
-  const seq: Sequence<BaseballCue | FormationCue> = new Sequence<BaseballCue | FormationCue>({
+  const seq: Sequence<WrestleCue | FormationCue> = new Sequence<WrestleCue | FormationCue>({
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // SLOW MO (and IV's fast brawl): the frame source hands the ONE clock a scaled step (a smooth ramp, never 0), so the
-    // portraits, the ball, the FX, the camera and the cue timing all slow and speed up together.
-    frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? wrestleTimeScale(plan, c, seq.t) : 1))),
-    safetyMs: o.safety !== false ? (plan.endAt + slowExtraMs(plan, c)) / speed + 2500 : null,
+    frames: o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)),
+    safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
     teardownDom: () => {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
@@ -341,12 +320,9 @@ export function playHeroWrestle(o: HeroWrestleOptions): HeroWrestleHandle {
   return {
     plan,
     geo,
-    variant: plan.variant,
     scene,
-    batter,
-    pitcher,
-    ball,
-    bat,
+    striker,
+    victim,
     get mirrorsCamera() { return cam.mirrorsCamera; },
     elapsed: () => seq.t,
     get impacted() { return seq.impacted; },

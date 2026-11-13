@@ -86,6 +86,8 @@ interface GlobalConfig {
   sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
   sfxThunkClip: string; sfxThunkGain: number; sfxThunkRate: number;
   sfxPadClip: string; sfxPadGain: number; sfxPadRate: number;
+  /** The low thump layered under every thunk (and, softly, under the pad tap). */
+  sfxBodyClip: string; sfxBodyGain: number; sfxBodyRate: number;
   sfxDuck: number;
   previewDamage: number;
   previewParts: number;
@@ -93,7 +95,7 @@ interface GlobalConfig {
 export type HeroStampConfig = GlobalConfig & Record<LevelKey, number>;
 
 export const HERO_STAMP_COLOR_KEYS = ['colorInk', 'colorInkDeep', 'colorShine', 'colorDust', 'colorPlayer', 'colorFoe'] as const;
-export const HERO_STAMP_CLIP_KEYS = ['sfxWhooshClip', 'sfxThunkClip', 'sfxPadClip'] as const;
+export const HERO_STAMP_CLIP_KEYS = ['sfxWhooshClip', 'sfxThunkClip', 'sfxPadClip', 'sfxBodyClip'] as const;
 export type HeroStampStrKey = (typeof HERO_STAMP_COLOR_KEYS)[number] | (typeof HERO_STAMP_CLIP_KEYS)[number];
 export type HeroStampNumKey = Exclude<keyof HeroStampConfig, HeroStampStrKey>;
 
@@ -104,13 +106,13 @@ const LEVEL_DEFAULTS: Record<StampLevelSuffix, [number, number]> = {
   Arc: [0.1, 0.1],
   Stamps: [1, 3],
   HopMs: [200, 190],
-  LastHoldMs: [0, 80],
-  StampSize: [1, 1.08],
-  Droplets: [5, 14],
-  Shake: [5, 9],
+  LastHoldMs: [0, 160],
+  StampSize: [1, 1.12],
+  Droplets: [6, 22],
+  Shake: [6, 15],
   Zoom: [0.02, 0.035],
-  Punch: [0.015, 0.03],
-  MarkHoldMs: [420, 480],
+  Punch: [0.015, 0.04],
+  MarkHoldMs: [420, 560],
   Dim: [0.08, 0.2],
 };
 
@@ -137,13 +139,13 @@ export const HERO_STAMP_DEFAULTS: HeroStampConfig = {
   absorbMs: 180,
   heroDipPx: 8,
   heroPushPx: 12,
-  stampSize: 1.08,
+  stampSize: 1.4,
   slamMs: 70,
   pressMs: 60,
   hoverLift: 0.7,
   lastLift: 1.5,
   awayMs: 320,
-  markSize: 1.12,
+  markSize: 0.88,
   markTilt: 0.36,
   markFadeMs: 380,
   padSize: 1.3,
@@ -158,9 +160,10 @@ export const HERO_STAMP_DEFAULTS: HeroStampConfig = {
   colorDust: '#efe6d6',
   colorPlayer: '#ffd76a',
   colorFoe: '#ff6a4d',
-  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.3, sfxWhooshRate: 1.5,
-  sfxThunkClip: 'fx/stamp-thunk', sfxThunkGain: 0.8, sfxThunkRate: 1,
-  sfxPadClip: 'fx/stamp-pad', sfxPadGain: 0.6, sfxPadRate: 1,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.9, sfxWhooshRate: 1.3,
+  sfxThunkClip: 'fx/stamp-thunk', sfxThunkGain: 1.3, sfxThunkRate: 1,
+  sfxPadClip: 'fx/stamp-pad', sfxPadGain: 1.2, sfxPadRate: 1,
+  sfxBodyClip: 'fx/stamp-body', sfxBodyGain: 1, sfxBodyRate: 1,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -190,6 +193,7 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroStampStrKey>, [numbe
   sfxWhooshGain: [0, 2, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
   sfxThunkGain: [0, 2, 0.05], sfxThunkRate: [0.5, 2.5, 0.01],
   sfxPadGain: [0, 2, 0.05], sfxPadRate: [0.5, 2.5, 0.01],
+  sfxBodyGain: [0, 2, 0.05], sfxBodyRate: [0.5, 2.5, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
   previewParts: [1, 8, 1],
@@ -348,7 +352,7 @@ export function stampCues(p: StampPlan): StampCue[] {
 /** The stamp texture's proportions: its height over its base width (the textures paint to it, the track fits to it). */
 export const STAMP_ASPECT = 1.5;
 /** The steepest the stamp ever leans to stay on screen (radians from upright). */
-export const STAMP_MAX_LEAN = 1.3;
+export const STAMP_MAX_LEAN = 1.5;
 
 /**
  * The stamp's axis at `base`: straight up when `reach` px of headroom fit under `ceilY`; else leaned toward `toward`
@@ -412,12 +416,12 @@ export function stampTrack(p: StampPlan, g: StampGeo, c: HeroStampConfig = store
   const upD = fitAxis(g.d, Math.max(lift, lastLift) + h + 0.2 * R, g.ceilY, -dirX);
   const upA = { x: 0, y: -1 };
   const rotOf = (u: Pt): number => Math.atan2(u.x, -u.y);
-  const hold = { x: g.a.x, y: Math.max(g.a.y - aR * 0.3, g.ceilY + h) };
+  const hold = { x: g.a.x, y: Math.max(g.a.y - aR * 0.3, g.ceilY + h * 1.1) };
   const origin = { x: g.a.x, y: Math.min(hold.y, g.a.y + aR * 0.2) };
   const padW = c.padSize * aR;
   const padLift = aR * 0.35;
   const pad = p.padAt !== null
-    ? { x: g.a.x + dirX * (aR * 0.95 + padW * 0.55), y: Math.max(g.a.y + aR * 0.3, g.ceilY + h + padLift) }
+    ? { x: g.a.x + dirX * (aR * 0.95 + padW * 0.55), y: Math.max(g.a.y + aR * 0.3, g.ceilY + h * 1.1 + padLift) }
     : null;
   const wind = aR * 0.14;
   const from = pad ? { x: pad.x, y: pad.y - padLift } : hold;
@@ -624,7 +628,7 @@ export function stampPress(p: StampPlan, t: number): number {
   for (let i = 0; i < n; i++) {
     const since = t - p.thunks[i]!;
     if (since < 0) break;
-    s += (i === n - 1 ? (p.level === 'big' ? 1.25 : 0.9) : 0.55) * springAt(since, 5, 75);
+    s += (i === n - 1 ? (p.level === 'big' ? 1.8 : 0.95) : 0.5) * springAt(since, 5, 75);
   }
   return s;
 }

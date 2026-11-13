@@ -105,3 +105,43 @@ gain, a touch of tail). `ATTACK_FX_CLIPS.stamp` lists the three clips; the Coin'
 - Three overlapping seals are busy on a detailed portrait. The earlier two are dimmed so the last reads, but it is
   still a lot of red for a moment.
 - The Collection sandbox preview was not looked at.
+
+## Second pass (2026-11-12, after the owner played the batch: "great, but they need sound effects")
+
+**Sound (measured, not heard).** The attack's output was recorded in headless Chrome (a tap on the audio destination)
+and read in 100 ms windows. Before: the three thunks reached -39 / -38 / -34 dB RMS (peaks -22 / -20 / -17 dBFS), the
+swish and the pad tap sat under -39 dB, and the shared swish was cued from the start of a clip whose loud part is
+440 ms in, so it was close to silent. The Coin Flick's own sound (the Rare reference) runs about -32 to -40 dB RMS
+with -20 dB peaks; the shared formation boom that opens every attack is -17 to -20 dB RMS, peak -10.
+
+- `fx/stamp-thunk` REPLACED: a wooden-handle thock on a desk, 0.6 s, hit 10 to 35 ms in, strong under 400 Hz.
+- `fx/stamp-pad` REPLACED: a short wet squelch, 0.3 s, hit 60 ms in.
+- `fx/stamp-body` NEW: a low thump (low-passed at 260 Hz), 0.5 s, layered under every thunk and softly under the pad.
+- 3 ElevenLabs calls this pass; the three own clips total 1.4 s.
+- Cues now: a light swish as the stamp pops out of the hero; the squelch plus a soft thump on the pad; the swing's
+  swish timed so its loud part lands late in the flight; thock plus thump on every stamp, the thock climbing in pitch
+  and force (0.93x, 1.0x, 1.07x; gain 0.68, 0.82, 1.3) while the thump under it gets deeper and fuller (the third at
+  0.8x and three times the second); a quiet pitched-up squelch as the die peels off the last mark.
+- After: Big thunks -28 / -26 / -21 dB RMS (peaks -14 / -15 / -10), the pad -31 (peak -13), the swing -25; Small swing
+  -26, thunk -24 (peak -11). The last thunk is now as loud as the formation boom. Still silent: the 100 ms wind-up
+  before the third stamp (on purpose) and the marks drying.
+
+**Impact (Big only).** The third stamp waits longer (the wind-up 80 to 160 ms), presses the portrait harder (the press
+1.25 to 1.8, against 0.5 for a tick), shakes more (9 to 15 px), flings more ink (14 to 22 drops), and adds a pale flash
+off the wet ink and a ring of eight dust puffs. Running time 2.12 s to 2.28 s after the formation (Small unchanged at
+1.38 s). No new drawn objects.
+
+**Size and the top of the screen.** The stamp is 30% bigger (base width 1.17 to 1.57 portrait radii on Big, about 200 px
+at 1080p) and the seal was kept inside the portrait (mark size 1.12 to 0.88 stamp widths). Against a foe in the top
+right corner an upright stamp needs about 3.4 radii of headroom and there is under one, so pulling the portrait down
+cannot buy it (it would have to move about 1.5 radii, out of its frame). The lean stays, now a deliberate sideways
+press (about 73 degrees, the cap raised from 1.3 to 1.5 rad so the bigger stamp still fits under the ceiling).
+
+**Perf.** The squash scales the struck portrait, and the browser re-rastered it at every new scale: a run of 8 ms
+frames after each thunk. The runner now holds `will-change: transform` on the struck portrait for the attack and puts
+the old value back on every exit. DEV build, headless, a loaded machine: median 4.2 ms (240 Hz), 99th percentile 4.3
+to 8.4 ms, worst 37 to 54 ms; the worst frames sit about 60 ms after the charge and on the last frame, where the
+shared camera starts and resets, and the Coin Flick shows the same two. Not measured on a production build.
+
+Sheets: `scratchpad/attacks/stamp/v2/`. Still weak: nobody has listened; the top-of-screen stamp is sideways; the big
+`-N` still covers the third mark for a moment.

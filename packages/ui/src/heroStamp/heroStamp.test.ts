@@ -17,7 +17,7 @@ import {
   type HeroStampConfig, type HeroStampNumKey, type StampGeo,
 } from './heroStampConfig';
 import { HeroStampScene, MAX_STAMP_SPRITES, type HeroStampTextures } from './heroStampScene';
-import { playHeroStamp, stampSeed, type HeroStampOptions } from './heroStamp';
+import { playHeroStamp, stampSeed, thunkVoice, type HeroStampOptions } from './heroStamp';
 import { SPEC } from '../HeroStampTuner';
 import { formationOf, leadInOf } from '../heroAttack/formationFixtures';
 
@@ -92,7 +92,27 @@ describe('the tuner values', () => {
   it('the sounds: its own thunk and ink pad clips, and a shared whoosh', () => {
     expect(C.sfxThunkClip).toBe('fx/stamp-thunk');
     expect(C.sfxPadClip).toBe('fx/stamp-pad');
+    expect(C.sfxBodyClip).toBe('fx/stamp-body');
     expect(C.sfxWhooshClip.startsWith('fx/')).toBe(true);
+  });
+
+  it('the three thunks climb: each thock harder and higher than the last, the thump under it deeper and fuller, the third clearly the heaviest', () => {
+    const v = [0, 1, 2].map((i) => thunkVoice(i, 3));
+    expect(v[1]!.gain).toBeGreaterThan(v[0]!.gain);
+    expect(v[2]!.gain).toBeGreaterThanOrEqual(v[1]!.gain * 1.4);
+    expect(v[1]!.rate).toBeGreaterThan(v[0]!.rate);
+    expect(v[2]!.rate).toBeGreaterThan(v[1]!.rate);
+    expect(v[2]!.body).toBeGreaterThanOrEqual(v[1]!.body * 2);
+    expect(v[2]!.bodyRate).toBeLessThan(v[1]!.bodyRate);
+    for (const q of v) { expect(q.gain).toBeGreaterThan(0); expect(q.body).toBeGreaterThan(0); }
+    // A single stamp is a last one: it carries the low thump too.
+    expect(thunkVoice(0, 1).body).toBeGreaterThan(v[1]!.body);
+    // The third stamp presses the portrait far harder than a tick, and harder than a single stamp.
+    const big = plan(40), small = plan(3);
+    const peak = (p: ReturnType<typeof plan>, at: number): number => stampPress(p, at + 4);
+    expect(peak(big, big.thunks[2]!)).toBeGreaterThan(peak(big, big.thunks[0]!) * 2.5);
+    expect(peak(big, big.thunks[2]!)).toBeGreaterThan(peak(small, small.thunks[0]!) * 1.5);
+    expect(big.shakePx).toBeGreaterThan(small.shakePx * 2);
   });
 });
 
@@ -121,7 +141,8 @@ describe('the plan', () => {
     expect(gap1).toBeLessThanOrEqual(260); // fast: thunk thunk
     expect(gap2).toBeGreaterThan(gap1); // THUNK
     expect(gap1).toBeGreaterThan(p.slamMs + p.pressMs); // room for a lift between them
-    expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(2200);
+    expect(gap2 - gap1).toBeGreaterThanOrEqual(120); // a real wind-up before the hard one
+    expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(2400); // still a Rare: short
     const kinds = stampCues(p).map((q) => q.kind);
     expect(kinds).toEqual(['charge', 'pad', 'launch', 'hit', 'hit', 'impact', 'end']);
   });
@@ -310,6 +331,7 @@ const rested = (r: ReturnType<typeof run>): void => {
   expect(r.defenderEl.style.transform).toBe('');
   expect(r.defenderEl.style.opacity).toBe('');
   expect(r.defenderEl.style.filter).toBe('');
+  expect(r.defenderEl.style.willChange).toBe(''); // the layer hint held for the squash is gone
   expect(r.defenderEl.className).toBe('combatopp-body');
   expect(r.f.hooked()).toBe(0);
   expect(r.root.children).toHaveLength(0);
@@ -331,6 +353,7 @@ describe('the runner (the shared clock)', () => {
     expect(h.scene!.liveMarks).toBe(1);
     expect(h.scene!.hasPad).toBe(false); // the pad dropped away as the stamp left
     expect(defenderEl.style.transform).toContain('scale('); // pressed by the tick
+    expect(defenderEl.style.willChange).toBe('transform'); // held on its own layer while it is squashed
     f.tick(h.plan.hits[1]! + 8 - h.elapsed(), 4);
     expect(h.scene!.liveMarks).toBe(2);
     expect(onImpact).not.toHaveBeenCalled();

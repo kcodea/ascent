@@ -38,10 +38,12 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
   sfxWhooshGain: ['whoosh: gain', undefined, 'The swish of the stamp swinging over.', 'Sound: whoosh'],
   sfxWhooshRate: ['whoosh: pitch', '×', 'Pitch of the swish.', 'Sound: whoosh'],
-  sfxThunkGain: ['thunk: gain', undefined, 'The THUNK of every stamp (the last one is the lowest and the fullest).', 'Sound: thunk'],
+  sfxThunkGain: ['thunk: gain', undefined, 'The wooden thock of every stamp (each one harder and a little higher than the last).', 'Sound: thunk'],
   sfxThunkRate: ['thunk: pitch', '×', 'Pitch of the thunk.', 'Sound: thunk'],
-  sfxPadGain: ['ink pad: gain', undefined, 'Big: the soft tap on the ink pad.', 'Sound: ink pad'],
+  sfxPadGain: ['ink pad: gain', undefined, 'Big: the wet squelch on the ink pad (and, pitched up and quiet, the peel as the stamp lifts off the last mark).', 'Sound: ink pad'],
   sfxPadRate: ['ink pad: pitch', '×', 'Pitch of the tap.', 'Sound: ink pad'],
+  sfxBodyGain: ['body: gain', undefined, 'The low thump under every stamp (deepest and fullest under the last).', 'Sound: body'],
+  sfxBodyRate: ['body: pitch', '×', 'Pitch of the low thump.', 'Sound: body'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the stamp plays (1 = no duck).', 'Sound: mix'],
 };
 
@@ -80,7 +82,7 @@ const built = rareTunerSpec({
     ['colorPlayer', 'Your side', 'Your total colour when YOU stamp.'],
     ['colorFoe', 'Foe side', 'Their total colour when THEY stamp.'],
   ],
-  clipOf: { 'Sound: whoosh': 'sfxWhooshClip', 'Sound: thunk': 'sfxThunkClip', 'Sound: ink pad': 'sfxPadClip' },
+  clipOf: { 'Sound: whoosh': 'sfxWhooshClip', 'Sound: thunk': 'sfxThunkClip', 'Sound: ink pad': 'sfxPadClip', 'Sound: body': 'sfxBodyClip' },
   note: () => {
     const c = getHeroStampConfig();
     const p = stampPlan({ leadIn: previewLeadIn(c.previewDamage, c.previewParts), total: c.previewDamage, distance: 1600 }, c);

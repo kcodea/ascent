@@ -149,6 +149,14 @@ export class HeroStampScene extends FxPool {
       }
     }
     if (o.final && o.big) {
+      // The hard one: a quick pale flash off the wet ink and a ring of dust thrown out all round the die.
+      this.spawn('glow', this.tex.glow, c.shine, at.x, at.y, { dur: 200, from: (tr.w * 0.9) / GLOW_PX, to: (tr.w * 2.6) / GLOW_PX, a0: 0.5, ease: 'cubic', follow: true });
+      for (let j = 0; j < 8; j++) {
+        const a = (j / 8) * Math.PI * 2 + this.rnd() * 0.5, sp = (260 + 140 * this.rnd()) * u;
+        this.spawn('under', this.tex.glow, c.dust, at.x + Math.cos(a) * tr.w * 0.45, at.y + Math.sin(a) * tr.w * 0.45, {
+          dur: 480 + 160 * this.rnd(), from: (50 * u) / GLOW_PX, to: (150 * u) / GLOW_PX, a0: 0.55, ease: 'cubic', vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.02, follow: true,
+        });
+      }
       // The hard one: a few blots land round the seal (never under it: the seal has to stay readable).
       for (let j = 0; j < 4; j++) {
         const a = this.rnd() * Math.PI * 2, r = tr.w * this.look.markSize * (0.56 + 0.16 * this.rnd());

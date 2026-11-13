@@ -2,8 +2,8 @@
 /**
  * THE FOURTH WALL HERO ATTACK (style `glass`, ANCIENT, dev-only): the shared four tiers; the tuner values; the SEVEN
  * CAUSES (rolled from the stable roll seed, forced by the tuner, each with its own beats and its own crack shape); the
- * pure plan (I the chip; II the web; III the pane that breaks out and repairs; IV the first crack, the tear, the held
- * beat and the shatter); the pure glass geometry (IV's cracks ARE the shard edges; its shards number forty to seventy
+ * pure plan (Tier 1 the chip; Tier 2 the web; Tier 3 the pane that breaks out and repairs; Tier 4 the first crack, the tear, the held
+ * beat and the shatter); the pure glass geometry (Tier 4's cracks ARE the shard edges; its shards number forty to seventy
  * and TILE the screen; everything from the seed; everything on the screen); the runner on the shared clock (the blow
  * lands exactly ONCE; both directions; replay; finish / cancel; every exit puts the portraits, the z-order class and the
  * camera back; the glass stays nailed to the screen while the camera moves; nothing of it is left); the headless scene.
@@ -29,7 +29,7 @@ Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true })
 Object.defineProperty(window, 'innerHeight', { value: 1080, configurable: true });
 
 const W = Texture.WHITE;
-const TEX: HeroGlassTextures = { glow: W, ring: W, star: W, spark: W, streak: W, crack: W, tear: W, chip: W, shard: W, sliver: W, glint: W, wash: W };
+const TEX: HeroGlassTextures = { glow: W, ring: W, star: W, spark: W, streak: W, crack: W, tear: W, chip: W, shard: W, sliver: W, glint: W, wash: W, line: W };
 const C = HERO_GLASS_DEFAULTS;
 type PlanOver = { knockout?: boolean; knockoutVariant?: boolean; reduced?: boolean; cause?: GlassCause };
 const plan = (total: number, o: PlanOver = {}) => glassPlan({ total, distance: 1600, leadIn: leadInOf([total], o.reduced), ...o }, C);
@@ -48,7 +48,7 @@ function inTri(t: ShardTri, x: number, y: number): boolean {
 }
 
 describe('the tiers', () => {
-  it('uses the shared thresholds; a knockout plays IV (the shatter)', () => {
+  it('uses the shared thresholds; a knockout plays Tier 4 (the shatter)', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).tier, `dmg ${d}`).toBe(tierOf(d));
     expect(plan(2, { knockout: true })).toMatchObject({ tier: 4, kind: 'shatter' });
@@ -78,7 +78,9 @@ describe('the tuner values', () => {
     expect(json.variation).toBeUndefined(); // a dev override is never shipped
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions!.map((a) => a.label);
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Knockout (40)', '▶ Foe knockout (40)']) expect(labels).toContain(l);
+    // The play buttons' labels are the shared tuner helper's (being renamed to Tier 1..4 elsewhere): match by damage.
+    for (const n of ['(3)', '(8)', '(12)', '(40)']) expect(labels.some((l) => l.startsWith('▶') && l.endsWith(n)), n).toBe(true);
+    for (const l of ['▶ Knockout (40)', '▶ Foe knockout (40)']) expect(labels).toContain(l);
   });
 
   it('the Variation row forces any of the seven causes (Random by default), right under the Attack style row', () => {
@@ -89,10 +91,10 @@ describe('the tuner values', () => {
     for (const id of GLASS_CAUSES) expect(GLASS_CAUSE_NAMES[id].length).toBeGreaterThan(10);
   });
 
-  it('never uses the overused rune explosion or turn explosion sounds; its own clips are the ten glass clips, all registered', () => {
+  it('never uses the overused rune explosion or turn explosion sounds; its own clips are the twelve glass clips, all registered', () => {
     for (const [k, v] of Object.entries(C)) if (k.endsWith('Clip')) expect(String(v), k).not.toMatch(/turnexplosion|rune/i);
     const own = Object.entries(C).filter(([k, v]) => k.endsWith('Clip') && String(v).startsWith('fx/glass-')).map(([, v]) => String(v)).sort();
-    expect(own).toEqual(['fx/glass-body', 'fx/glass-crash', 'fx/glass-creak', 'fx/glass-knock', 'fx/glass-pane', 'fx/glass-pop', 'fx/glass-race', 'fx/glass-shatter', 'fx/glass-sing', 'fx/glass-tick']);
+    expect(own).toEqual(['fx/glass-body', 'fx/glass-crash', 'fx/glass-creak', 'fx/glass-knock', 'fx/glass-pane', 'fx/glass-pop', 'fx/glass-race', 'fx/glass-shatter', 'fx/glass-sing', 'fx/glass-squeak', 'fx/glass-swell', 'fx/glass-tick']);
     for (const [k, v] of Object.entries(C)) if (k.endsWith('Clip') && String(v).startsWith('fx/')) expect(ATTACK_FX_CLIPS.glass, k).toContain(v);
   });
 });
@@ -122,7 +124,7 @@ describe('the causes (rolled per fight)', () => {
 });
 
 describe('the plan', () => {
-  it('I to III, every cause: its beats, then the glass cracks and THAT is the blow; never a mark before it', () => {
+  it('Tiers 1 to 3, every cause: its beats, then the glass cracks and THAT is the blow; never a mark before it', () => {
     for (const cause of GLASS_CAUSES) {
       for (const total of [3, 8, 14]) {
         const p = plan(total, { cause });
@@ -146,7 +148,7 @@ describe('the plan', () => {
     }
   });
 
-  it('I heals after a beat; II spreads in jumps then heals; III breaks the pane out, holds the hole, repairs', () => {
+  it('Tier 1 heals after a beat; Tier 2 spreads in jumps then heals; Tier 3 breaks the pane out, holds the hole, repairs', () => {
     const one = plan(3);
     expect(one.breakAt).toBe(-1);
     expect(one.healAt).toBeGreaterThan(one.impactAt + 300);
@@ -164,7 +166,7 @@ describe('the plan', () => {
     expect(glassCues(p).map((q) => q.kind).filter((k) => k === 'break' || k === 'repair')).toEqual(['break', 'repair']);
   });
 
-  it('IV, every cause: the cause cracks the glass (a mark), the tear runs, a long held beat creaks, and the SHATTER is the blow', () => {
+  it('Tier 4, every cause: the cause cracks the glass (a mark), the tear runs, a long held beat creaks, and the SHATTER is the blow', () => {
     for (const cause of GLASS_CAUSES) {
       const p = plan(40, { cause });
       expect(p.hits).toEqual([p.strikeAt]);
@@ -184,7 +186,35 @@ describe('the plan', () => {
     }
   });
 
-  it('pace: each look is longer than the one below it; IV runs about as long as the other top attacks (3.2 to 5.2 s after the formation)', () => {
+  it('THE STRUCK HERO REACTS (FX only): Tier 1 leans in; Tier 2 presses and knocks twice from inside; Tier 3 knocks then its shove breaks the pane; Tier 4 pounds through the hold, then the inhale', () => {
+    for (const cause of GLASS_CAUSES) {
+      const one = plan(3, { cause }), two = plan(8, { cause }), three = plan(14, { cause }), four = plan(40, { cause });
+      for (const p of [one, two, three]) {
+        expect(p.pressAt, cause).toBeGreaterThan(p.impactAt); // after the blow: a reaction, never a second blow
+        expect(p.pressEnd).toBeGreaterThan(p.pressAt);
+        expect(p.inhaleAt).toBe(-1);
+        for (const k of p.knocksIn) { expect(k).toBeGreaterThan(p.pressAt); expect(k).toBeLessThan(p.healAt); }
+      }
+      expect(one.knocksIn).toEqual([]);
+      expect(one.healAt).toBeGreaterThanOrEqual(one.pressAt + 300);
+      expect(two.knocksIn).toHaveLength(2);
+      expect(two.healAt).toBeGreaterThan(two.knocksIn[1]!);
+      expect(three.knocksIn).toHaveLength(1);
+      expect(three.breakAt).toBeGreaterThan(three.knocksIn[0]!); // the shove after the knock breaks it
+      expect(three.pressEnd).toBe(three.breakAt);
+      expect(four.knocksIn).toHaveLength(2);
+      for (const k of four.knocksIn) { expect(k).toBeGreaterThan(four.raceEnd); expect(k).toBeLessThan(four.inhaleAt); }
+      expect(four.impactAt - four.inhaleAt).toBe(C.inhaleMs);
+      expect(four.pressEnd).toBe(four.inhaleAt);
+      const kinds = glassCues(four).map((q) => q.kind);
+      expect(kinds.filter((k) => k === 'inknock')).toHaveLength(2);
+      expect(kinds.indexOf('inhale')).toBeLessThan(kinds.indexOf('impact'));
+      expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
+    }
+    expect(plan(3, { reduced: true })).toMatchObject({ pressAt: -1, knocksIn: [], inhaleAt: -1 });
+  });
+
+  it('pace: each look is longer than the one below it; Tier 4 runs about as long as the other top attacks (3.2 to 5.2 s after the formation)', () => {
     const len = (d: number, cause: GlassCause): number => { const p = plan(d, { cause }); return p.endAt - p.chargeAt + glassSlowExtraMs(p, C); };
     for (const cause of GLASS_CAUSES) {
       expect(len(3, cause), cause).toBeLessThan(2000);
@@ -200,7 +230,7 @@ describe('the plan', () => {
     }
   });
 
-  it('IV\'s shatter gets a slow-mo DIP that never freezes (R-PROG-ATTACK-10); no other look dips; the Knockout dips deeper', () => {
+  it('Tier 4\'s shatter gets a slow-mo DIP that never freezes (R-PROG-ATTACK-10); no other look dips; the Knockout dips deeper', () => {
     const p = plan(40);
     for (let t = p.impactAt - 50; t < p.impactAt + C.slowMoMs + 50; t += 5) expect(glassScale(p, C, t)).toBeGreaterThan(0.09);
     expect(glassScale(p, C, p.impactAt + 1)).toBeLessThan(0.5);
@@ -258,7 +288,7 @@ describe('the glass (pure geometry, from the seed)', () => {
     expect(tris).toHaveLength(10 * (1 + 2 * 2));
   });
 
-  it('IV: forty to seventy shards that TILE the whole screen, wherever the struck portrait is', () => {
+  it('Tier 4: forty to seventy shards that TILE the whole screen, wherever the struck portrait is', () => {
     const spots = [D, A, { x: 960, y: 540 }, { x: 1800, y: 80 }, { x: 60, y: 1040 }, { x: 960, y: 60 }, { x: 120, y: 500 }];
     for (const [i, d] of spots.entries()) {
       for (const seed of [1, 99, 123456]) {
@@ -275,7 +305,7 @@ describe('the glass (pure geometry, from the seed)', () => {
     }
   });
 
-  it('IV: ONE BOLD TEAR runs edge to edge through BOTH portraits, both ways from the struck one, forking; then the rest of the web', () => {
+  it('Tier 4: ONE BOLD TEAR runs edge to edge through BOTH portraits, both ways from the struck one, forking; then the rest of the web', () => {
     for (const cause of GLASS_CAUSES) {
       for (const [a, d] of [[A, D], [D, A]] as const) {
         const p = plan(40, { cause });
@@ -318,7 +348,7 @@ describe('the glass (pure geometry, from the seed)', () => {
     }
   });
 
-  it('every cause leaves its OWN crack shape (II, the spreading version)', () => {
+  it('every cause leaves its OWN crack shape (Tier 2, the spreading version)', () => {
     const reach = R * C.t2Web;
     /** How radial a piece is: 1 = it points straight out of the struck point, 0 = it runs round it. */
     const radial = (s: { ax: number; ay: number; bx: number; by: number }): number => {
@@ -501,7 +531,7 @@ function expectRestored(r: ReturnType<typeof run>): void {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('I, every cause: nothing lands before the glass cracks; it cracks once (the blow); the mark shows, heals; everything is put back', () => {
+  it('Tier 1, every cause: nothing lands before the glass cracks; it cracks once (the blow); the mark shows, heals; everything is put back', () => {
     for (const cause of GLASS_CAUSES) {
       const r = run({ cause, total: 3, formation: formationOf([3], 3) });
       const { h, f, onImpact, onDone } = r;
@@ -582,7 +612,7 @@ describe('the runner (the shared clock)', () => {
     c.h.cancel();
   });
 
-  it('II: the mark spreads outward in several creaking jumps', () => {
+  it('Tier 2: the mark spreads outward in several creaking jumps', () => {
     for (const cause of ['butt', 'hum', 'beam'] as const) {
       const { h, f, onImpact } = run({ cause, total: 8, formation: formationOf([8], 8) });
       f.tick(h.plan.impactAt + 8, 4);
@@ -595,7 +625,7 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
-  it('III, every cause: the crack is the blow; the pane breaks out (its shards fall, a hole stays), then repairs; nothing is left', () => {
+  it('Tier 3, every cause: the crack is the blow; the pane breaks out (its shards fall, a hole stays), then repairs; nothing is left', () => {
     for (const cause of GLASS_CAUSES) {
       const r = run({ cause, total: 14, formation: formationOf([14], 14) });
       const { h, f, onImpact } = r;
@@ -621,7 +651,7 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
-  it('IV, every cause: the first crack is NOT the blow; the tear runs (two bright heads), the web creaks out, then the WHOLE SCREEN SHATTERS: the one blow', () => {
+  it('Tier 4, every cause: the first crack is NOT the blow; the tear runs (two bright heads), the web creaks out, then the WHOLE SCREEN SHATTERS: the one blow', () => {
     for (const cause of GLASS_CAUSES) {
       const r = run({ cause, total: 40, formation: formationOf([40], 40) });
       const { h, f, onImpact, onDone } = r;
@@ -690,6 +720,41 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
+  it('THE GLASS IS ALIVE: the cracks glow and glints run on them after the crack; the ghost shows only during the cause; the struck hero presses; Tier 4 inhales; all of it is gone after', () => {
+    for (const cause of ['hum', 'knock'] as const) {
+      for (const total of [8, 40]) {
+        const r = run({ cause, total, formation: formationOf([total], total) });
+        const { h, f } = r;
+        f.tick(h.plan.strikeAt - 10, 4);
+        expect(h.scene!.glowAlpha, `${cause} ${total}`).toBe(0); // nothing glows before anything has cracked
+        expect(h.scene!.runnersOn).toBe(0);
+        f.tick(h.plan.strikeAt + 300 - h.elapsed(), 4);
+        expect(h.scene!.glowAlpha).toBeGreaterThan(0.2);
+        expect(h.scene!.runnersOn).toBeGreaterThan(0);
+        expect(h.scene!.ghostAlpha).toBe(0); // it split with the crack
+        f.tick(h.plan.pressAt + 200 - h.elapsed(), 4);
+        expect(r.defenderEl.style.transform, `${cause} ${total}`).toMatch(/scale\(1\.0[5-9]|scale\(1\.1/); // up against the glass
+        if (total === 40) {
+          f.tick(h.plan.impactAt - 40 - h.elapsed(), 4);
+          expect(h.scene!.darkAlpha).toBeGreaterThan(C.inhaleDark * 0.6); // the inhale
+          expect(h.scene!.glowAlpha).toBeGreaterThan(0.9); // the cracks blaze
+          f.tick(60, 4);
+          expect(h.scene!.darkAlpha).toBe(0);
+          expect(h.scene!.runnersOn).toBe(0);
+        } else {
+          f.tick(h.plan.healEnd + 20 - h.elapsed(), 4);
+          f.tick(32, 16);
+          expect(h.scene!.runnersOn).toBe(0);
+          expect(h.scene!.glowAlpha).toBe(0);
+        }
+        f.tick(h.plan.endAt + 3000, 16);
+        expect(r.onImpact).toHaveBeenCalledTimes(1);
+        expectRestored(r);
+        expect(f.hooked()).toBe(0);
+      }
+    }
+  });
+
   it('both directions at every tier and cause: one blow, under the caps', () => {
     for (const cause of GLASS_CAUSES) {
       for (const side of ['player', 'opp'] as const) {
@@ -710,7 +775,7 @@ describe('the runner (the shared clock)', () => {
     }
   });
 
-  it('the Knockout variant: IV with the prism; still exactly one blow', () => {
+  it('the Knockout variant: Tier 4 with the prism; still exactly one blow', () => {
     const r = run({ total: 6, knockout: true, knockoutVariant: true, formation: formationOf([6], 6), cause: 'hum' });
     expect(r.h.plan).toMatchObject({ tier: 4, ko: true });
     for (let t = 0; t < r.h.plan.endAt + 1200; t += 16) r.f.tick(16, 16);

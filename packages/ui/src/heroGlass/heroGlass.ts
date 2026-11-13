@@ -7,12 +7,12 @@
  * (`causeOf`): the striker's portrait headbutts it, an unseen fist knocks on it, a rising tone shakes it apart, a crack
  * creeps in from the screen edge, a stamped ring of force crazes it, a beam of light heats it until it pops, or a point
  * of light ricochets off the screen edges into it. Each cause leaves its own crack shape, scaled over the looks: a
- * small mark that heals (I), a spreading one (II), a big one whose pane breaks out and repairs (III); and on IV the
+ * small mark that heals (Tier 1), a spreading one (Tier 2), a big one whose pane breaks out and repairs (Tier 3); and on Tier 4 the
  * mark becomes one bold fracture that tears across the whole screen, the glass creaks and trembles through a long held
  * beat, and the WHOLE SCREEN SHATTERS at the viewer. Cracks and shards are made once per blow from its seed
  * (`glassGeo`), so the screen breaks exactly where it cracked.
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; IV's shatter gets a slow-mo DIP
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses; Tier 4's shatter gets a slow-mo DIP
  * through the frame source, never a freeze), the damage formation, the `#stage` camera (applied ONCE), the portraits
  * (transform only, restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer.
  *
@@ -21,8 +21,15 @@
  * each frame the scene's layers are handed the camera's inverse (`fixGlass`): the glass stays nailed to the screen
  * while the game zooms and shakes behind it.
  *
+ * EVERY TIER IS A LITTLE SCENE (third pass): a glare sweeps the glass as the attack starts; the striker's ghost shows in
+ * it over the target; Tier 2 and up, a stress point of light swells there before anything cracks; the cracks glow and
+ * pulse with energy while prismatic glints run along them; and the STRUCK HERO REACTS: it comes up to the glass and
+ * presses its face to it (a fog print, a squeak), knocks on it from the inside (Tier 2 twice; Tier 3 once, then its
+ * shove breaks the pane out; Tier 4 it pounds through the held beat), and on Tier 4 the screen INHALES (it darkens, the
+ * cracks blaze, a swelling groan cuts off) before it shatters.
+ *
  * THE CONTRACT: every beat before the blow is FX and sound only. The consequence (`onImpact`) lands exactly ONCE, on
- * the impact beat (I to III: the glass first cracks; IV: the shatter).
+ * the impact beat (Tiers 1 to 3: the glass first cracks; Tier 4: the shatter).
  *
  * Perf (docs/performance.md): DOM moves are `transform` only, from the clock; one layout read per portrait at the start
  * (its scale) and none after; every crack sprite and shard mesh is built during the damage formation, never on a hot
@@ -45,7 +52,7 @@ import {
   type GlassCause, type GlassCue, type GlassGeo, type GlassPlan, type HeroGlassConfig,
 } from './heroGlassConfig';
 import { HeroGlassScene, type HeroGlassTextures } from './heroGlassScene';
-import { heroGlassTextures } from './heroGlassTextures';
+import { ghostTexture, heroGlassTextures } from './heroGlassTextures';
 
 export interface HeroGlassOptions extends HeroAttackOptions {
   cfg?: HeroGlassConfig;
@@ -113,8 +120,10 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
   const scene = textures && !reduced
     ? new HeroGlassScene(textures, {
       glass: hexToNum(c.colorGlass), edge: hexToNum(c.colorEdge), shade: hexToNum(c.colorShade), flash: hexToNum(c.colorFlash), heat: hexToNum(c.colorHeat), side: hexToNum(sideHex),
+      energy: hexToNum(c.colorEnergy),
     }, {
       gravity: c.shardGravity, burst: c.shardBurst, spin: c.shardSpin, rim: c.shardRim, lunge: c.shardLunge, dust: c.dust, impactSize: c.impactSize, splitAlpha: c.splitAlpha,
+      prism: c.prism,
     }, s, seed ^ 0x51ed)
     : null;
   if (scene) {
@@ -123,6 +132,8 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
     scene.setCracks(geo.segs);
     if (geo.frost) scene.setFrost(geo.frost.at, geo.frost.r);
     if (geo.tris.length) scene.setShards(geo.tris, geo.origin, plan.kind === 'pane' ? 'pane' : 'shatter');
+    // The striker's reflection in the glass (its own portrait art, when it is loaded; the headbutt brings the real one).
+    if (cause !== 'butt' && c.ghost > 0) scene.setGhost(ghostTexture(o.attackerEl));
   }
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
@@ -141,7 +152,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
     voices.cue(clip, gain, rate * (0.88 + 0.12 * glassScale(plan, c, seq ? seq.t : 0)), opts);
   voices.warm([
     c.sfxWhooshClip, c.sfxTickClip, c.sfxCreakClip, c.sfxRaceClip, c.sfxPaneClip, c.sfxShatterClip, c.sfxCrashClip, c.sfxRepairClip, c.sfxThudClip,
-    c.sfxBodyClip, c.sfxKnockClip, c.sfxSingClip, c.sfxPopClip,
+    c.sfxBodyClip, c.sfxKnockClip, c.sfxSingClip, c.sfxPopClip, c.sfxSqueakClip, c.sfxSwellClip,
   ]);
   // The last crack finishes growing here; after it the per-frame grow call is skipped.
   const grownAt = geo.segs.reduce((m, g) => Math.max(m, g.t1), 0) + 40;
@@ -228,6 +239,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
       case 'ricochet': {
         const at = geo.path[i + 1] ?? geo.origin;
         scene?.tap(at, 0.7);
+        scene?.edgeFlare(at);
         cue(c.sfxTickClip, c.sfxTickGain * 0.75 * weight, c.sfxTickRate * (1.4 + 0.14 * i), { lenMs: 260, fadeMs: 110 });
         cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.5, c.sfxWhooshRate * (1.7 + 0.1 * i), { lenMs: 220, fadeMs: 100 });
         break;
@@ -237,17 +249,25 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
     }
   };
 
-  /** THE GLASS FIRST CRACKS over the struck portrait (I to III: this is the blow; IV: a mark, then the tear). */
+  /** THE GLASS FIRST CRACKS over the struck portrait (Tiers 1 to 3: this is the blow; Tier 4: a mark, then the tear). */
   const strike = (): void => {
     const at = geo.origin;
     const soft = cause === 'creep' || cause === 'shock' || cause === 'hum';
     scene?.tap(at, tapSize * (soft ? 0.7 : 1));
+    // The light splits where it cracks; the striker's reflection splits with it.
+    scene?.prism(at, aim, plan.kind === 'chip' ? 0.75 : plan.kind === 'web' ? 0.95 : 1.25);
+    scene?.ghostBreak(at, radius * 1.15);
+    scene?.setStress(at, 0, 0);
+    scene?.setCreepHead(at, false);
+    scene?.setTremble(0, 0);
     switch (cause) {
       case 'butt':
         scene?.smear(at, radius, aim);
         cue(c.sfxBodyClip, c.sfxBodyGain * weight, c.sfxBodyRate * (plan.kind === 'chip' ? 1.1 : plan.kind === 'web' ? 1 : 0.9), { fadeMs: 200 });
         cue(c.sfxThudClip, c.sfxThudGain * 0.6 * weight, c.sfxThudRate, { lenMs: 520, fadeMs: 220 });
         cue(c.sfxTickClip, c.sfxTickGain * 0.6 * weight, c.sfxTickRate * 0.9, { lenMs: 300, fadeMs: 120 });
+        // The face squeaks down the glass.
+        cue(c.sfxSqueakClip, c.sfxSqueakGain * weight, c.sfxSqueakRate * 0.9, { delayMs: 120 / speed, fadeMs: 120 });
         break;
       case 'knock':
         scene?.ripple(at, 1.6);
@@ -287,7 +307,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
       default:
         break;
     }
-    // III: the weight of a pane about to go.
+    // Tier 3: the weight of a pane about to go.
     if (plan.kind === 'pane') cue(c.sfxThudClip, c.sfxThudGain * 0.6, c.sfxThudRate * 0.9, { lenMs: 520, fadeMs: 220 });
   };
 
@@ -298,6 +318,26 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
         if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
+        // THE GLARE: light slides across the screen. There is a pane of glass here.
+        scene?.glare(0.8 + 0.5 * plan.k);
+        cue(c.sfxRepairClip, c.sfxRepairGain * 0.4, c.sfxRepairRate * 0.8, { lenMs: 520, fadeMs: 260 });
+        break;
+      case 'press':
+        // THE STRUCK HERO COMES UP TO THE GLASS and presses its face to it: a fog print, a squeak.
+        scene?.fog(geo.origin, radius, Math.max(300, plan.pressEnd - plan.pressAt) + 300, plan.kind === 'chip' ? 0.8 : 1);
+        cue(c.sfxSqueakClip, c.sfxSqueakGain * (plan.kind === 'chip' ? 0.6 : 0.85), c.sfxSqueakRate * (1.05 - 0.05 * plan.tier), { fadeMs: 120 });
+        break;
+      case 'inknock':
+        // A KNOCK FROM THE INSIDE: a ring bulging out, the cracks flaring, a creak (it only makes it worse).
+        scene?.knockFromInside(geo.origin, radius, 0.9 + 0.2 * q.i + 0.2 * plan.k);
+        scene?.creak(crackingAt(plan.impactAt + 40 * (q.i + 1)), 1.3);
+        cue(c.sfxKnockClip, c.sfxKnockGain * (0.85 + 0.15 * q.i) * weight, c.sfxKnockRate * (0.7 - 0.04 * q.i), { fadeMs: 140 });
+        cue(c.sfxThudClip, c.sfxThudGain * 0.45 * weight, c.sfxThudRate * 1.1, { lenMs: 420, fadeMs: 180 });
+        creakCue(q.i + 3, 1.3 * weight, 0.85);
+        break;
+      case 'inhale':
+        // Tier 4: THE INHALE. The swell is already climbing; a low groan under it.
+        creakCue(0, 1.1, 0.5, Math.max(120, plan.impactAt - plan.inhaleAt));
         break;
       case 'fire':
         begin();
@@ -306,21 +346,23 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
         beat(q.i);
         break;
       case 'strike':
-        // IV: the cause cracks the glass. Not the blow.
+        // Tier 4: the cause cracks the glass. Not the blow.
         strike();
         break;
       case 'race':
-        // IV: THE TEAR is off, both ways (the race clip swells to its peak about 300 ms in).
+        // Tier 4: THE TEAR is off, both ways (the race clip swells to its peak about 300 ms in).
         cue(c.sfxRaceClip, c.sfxRaceGain, c.sfxRaceRate * Math.min(1.4, Math.max(0.6, 560 / Math.max(1, plan.raceEnd - plan.raceAt))), { fadeMs: 140 });
         cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.9, c.sfxWhooshRate * 0.75, { lenMs: 620, fadeMs: 240 });
         creakCue(1, 1.2, 0.8, 320);
         break;
       case 'tense': {
-        // IV: THE HELD BEAT. A long low groan of the pane and a harmonic climbing into the shatter.
+        // Tier 4: THE HELD BEAT. A long low groan of the pane and a harmonic climbing into the shatter.
         const hold = Math.max(1, plan.impactAt - plan.raceEnd);
         cue(c.sfxCreakClip, c.sfxCreakGain * 1.2, c.sfxCreakRate * 0.55, { lenMs: hold / speed, fadeMs: 80 });
         voices.riser(c.sfxSingClip, c.sfxSingGain * 0.9, c.sfxSingRate * 0.6, hold / speed);
         voices.riser(c.sfxSingClip, c.sfxSingGain * 0.5, c.sfxSingRate * 0.9, hold / speed);
+        // The pane under enormous pressure: a groan and a singing whine swelling into the shatter, cut off by it.
+        voices.riser(c.sfxSwellClip, c.sfxSwellGain, c.sfxSwellRate, hold / speed);
         break;
       }
       case 'creak': {
@@ -340,6 +382,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
           scene?.setTension(0);
           scene?.setTremble(0, 0);
           scene?.setTearHead(0, geo.origin, false); scene?.setTearHead(1, geo.origin, false);
+          scene?.setDark(0); scene?.setGlow(0); scene?.setRunners(0, 1);
           scene?.breakOut();
           scene?.shatterFx(geo.origin, plan.ko);
           // A plate-glass crash, the first pass's shatter under it, a low boom and a body of weight; the long tinkle is
@@ -353,14 +396,15 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
         seq.land();
         break;
       case 'break':
-        // III: the pane lets go.
+        // Tier 3: the pane lets go under the shove.
         scene?.breakOut();
         scene?.paneBreak(geo.origin, radius * 1.2);
+        scene?.prism(geo.origin, aim + Math.PI / 2, 1.3);
         cue(c.sfxPaneClip, c.sfxPaneGain, c.sfxPaneRate, { tail: c.sfxTailMix, fadeMs: 250 });
         cue(c.sfxThudClip, c.sfxThudGain * 0.7, c.sfxThudRate * 0.8, { lenMs: 700, fadeMs: 280 });
         break;
       case 'heal':
-        // I and II: the glass heals with a faint shimmer (III's repair already rang).
+        // Tiers 1 and 2: the glass heals with a faint shimmer (Tier 3's repair already rang).
         if (plan.kind !== 'pane') cue(c.sfxRepairClip, c.sfxRepairGain, c.sfxRepairRate * 1.25, { lenMs: 420, fadeMs: 220 });
         break;
       case 'repair':
@@ -377,6 +421,26 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
   let forkIdx = 0;
   let moteAt = 0;
   let sparkAt = 0;
+  let trailAt = 0;
+  /** Where the headbutting portrait is on screen this frame (its trail is drawn from it). */
+  const buttPos = { x: o.attacker.x, y: o.attacker.y };
+  const energyNum = hexToNum(c.colorEnergy);
+  const pulseOf = (t: number, f: number): number => 0.72 + 0.28 * Math.sin(t * f);
+  /** A flare of the glow on each knock from the inside (and the first crack). */
+  const flareOf = (t: number): number => {
+    let f = t >= plan.strikeAt ? Math.exp(-(t - plan.strikeAt) / 160) * 0.6 : 0;
+    for (const at of plan.knocksIn) if (t >= at) f += Math.exp(-(t - at) / 130) * 0.7;
+    return f;
+  };
+  /** THE STRUCK HERO AT THE GLASS: how far it has come up to it (0..1), plus a pulse on each knock from the inside. */
+  const pressOf = (t: number): { k: number; knock: number } => {
+    if (plan.pressAt < 0 || t < plan.pressAt) return { k: 0, knock: 0 };
+    const rise = easeOutCubic(clamp01((t - plan.pressAt) / 170));
+    const fall = t > plan.pressEnd ? 1 - clamp01((t - plan.pressEnd) / 200) : 1;
+    let knock = 0;
+    for (const at of plan.knocksIn) knock += Math.max(0, spring(t - at, 6, 50));
+    return { k: rise * fall, knock: knock * fall };
+  };
 
   /** The striker's portrait: its cause's own move. */
   const paintHero = (t: number, px: number): void => {
@@ -395,10 +459,13 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
           if (t < K) e = Math.pow((t - F) / causeMs, 2.2);
           else {
             const after = t - K;
-            flat = after < 80 ? 1 : Math.exp(-(after - 80) / 55);
-            e = 1 - easeOutCubic(clamp01((after - 90) / 420));
+            // Flat on the glass for a beat, SLIDING DOWN it like a face on a window, then it peels off and bounces home.
+            flat = after < 170 ? 1 : Math.exp(-(after - 170) / 60);
+            by += 28 * px * clamp01(after / 190) * flat;
+            e = 1 - easeOutCubic(clamp01((after - 190) / 420));
           }
           bx += toFoe.x * lungeD * heroUnit * e; by += toFoe.y * lungeD * heroUnit * e;
+          buttPos.x = o.attacker.x + toFoe.x * lungeD * e; buttPos.y = o.attacker.y + toFoe.y * lungeD * e;
           sc = 1 + 0.22 * e;
           along = 1 - 0.46 * flat; across = 1 + 0.3 * flat;
           rot *= 1 - e;
@@ -446,7 +513,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
     hero.set(`translate(${bx.toFixed(2)}px, ${by.toFixed(2)}px)${flatCss} rotate(${rot.toFixed(3)}deg) scale(${(sc * sx).toFixed(4)}, ${(sc * sy).toFixed(4)})`);
   };
 
-  /** The struck portrait: nudged by the knocks, humming with the tone, knocked back (and on IV, reeling) by the blow. */
+  /** The struck portrait: nudged by the knocks, humming with the tone, knocked back (and on Tier 4, reeling) by the blow. */
   const paintFoe = (t: number, px: number, unit: number): void => {
     let fx = 0, fy = 0;
     let css: string | null = null;
@@ -455,10 +522,13 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
       const knock = c.knockPx * (0.6 + 0.5 * plan.k) * k * px;
       const sq = c.squash * (0.7 + 0.5 * plan.k) * k;
       fx = toFoe.x * knock; fy = toFoe.y * knock;
-      // IV: it reels (a slow rock that dies away over most of a second).
+      // Tier 4: it reels (a slow rock that dies away over most of a second).
       const reel = plan.kind === 'shatter' ? 7 * flip * spring(t - plan.impactAt, 2.4, 260) : 0;
-      css = Math.abs(k) < 0.004 && Math.abs(reel) < 0.02 ? null
-        : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) rotate(${reel.toFixed(3)}deg) scale(${(1 - sq).toFixed(4)}, ${(1 + sq * 0.6).toFixed(4)})`;
+      // It comes up to the glass (it swells toward the viewer) and knocks on it from the inside.
+      const pr = pressOf(t);
+      const P = 1 + c.pressScale * pr.k + 0.05 * pr.knock;
+      css = Math.abs(k) < 0.004 && Math.abs(reel) < 0.02 && Math.abs(P - 1) < 1e-4 ? null
+        : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px) rotate(${reel.toFixed(3)}deg) scale(${((1 - sq) * P).toFixed(4)}, ${((1 + sq * 0.6) * P).toFixed(4)})`;
     } else if (t >= plan.fireAt) {
       let k = 0;
       for (const at of plan.hits) k += Math.max(0, spring(t - at, 6, 40)) * 9 * px;
@@ -470,10 +540,41 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
         const v = (0.8 + 3.6 * u * u) * Math.sin(t * 0.24) * px;
         fx += -toFoe.y * v; fy += toFoe.x * v;
       }
-      css = Math.abs(fx) + Math.abs(fy) < 0.05 ? null : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)`;
+      // Tier 4: trapped behind the cracking glass, it presses against it and pounds on it.
+      const pr = pressOf(t);
+      const P = 1 + c.pressScale * pr.k + 0.06 * pr.knock;
+      css = Math.abs(fx) + Math.abs(fy) < 0.05 && Math.abs(P - 1) < 1e-4 ? null
+        : `translate(${fx.toFixed(2)}px, ${fy.toFixed(2)}px)${Math.abs(P - 1) < 1e-4 ? '' : ` scale(${P.toFixed(4)})`}`;
     }
     foe.set(css);
     scene?.setFoeOffset(fx * unit, fy * unit);
+  };
+
+  /** The cracks' energy glow (pulsing, flaring on each knock) and the glints that run along them. */
+  const paintEnergy = (t: number): void => {
+    if (!scene) return;
+    if (t < plan.strikeAt) { scene.setGlow(0); return; }
+    const G = c.crackGlow, N = c.glints;
+    let glow: number, runners: number, speed: number;
+    if (plan.kind === 'shatter') {
+      if (t >= plan.impactAt) { scene.setGlow(0); scene.setRunners(0, 1); return; }
+      // Through the tear and the held beat the glow climbs and its pulse quickens; on the inhale it blazes.
+      const u = clamp01((t - plan.raceAt) / Math.max(1, plan.impactAt - plan.raceAt));
+      const inhale = plan.inhaleAt >= 0 && t >= plan.inhaleAt;
+      glow = inhale ? 1 : (0.45 + 0.5 * u) * pulseOf(t, 0.008 + 0.03 * u) + flareOf(t);
+      runners = (6 + 8 * u + (inhale ? 2 : 0)) * N;
+      speed = 0.9 + 1.6 * u + (inhale ? 1 : 0);
+    } else {
+      if (t >= plan.healEnd) { scene.setGlow(0); scene.setRunners(0, 1); return; }
+      const base = plan.kind === 'chip' ? 0.5 : plan.kind === 'web' ? 0.65 : 0.8;
+      // Tier 3: the light leaks through harder and harder as the hero shoves at the pane.
+      const leak = plan.kind === 'pane' && t < plan.breakAt ? 0.3 * clamp01((t - plan.impactAt) / Math.max(1, plan.breakAt - plan.impactAt)) : 0;
+      glow = (base + leak) * pulseOf(t, 0.009) + flareOf(t);
+      runners = (plan.kind === 'chip' ? 3 : plan.kind === 'web' ? 5 : 7) * N;
+      speed = plan.kind === 'chip' ? 0.6 : plan.kind === 'web' ? 0.75 : 0.95;
+    }
+    scene.setGlow(Math.min(1, glow * G));
+    scene.setRunners(runners, speed);
   };
 
   const paintStage = (t: number): void => {
@@ -489,16 +590,40 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
       if (t <= grownAt) scene.growCracks(t);
       while (chipIdx < geo.chips.length && t >= geo.chips[chipIdx]!.t) { const ch = geo.chips[chipIdx++]!; scene.chip(ch.at, chipPx(ch.size)); }
       if (geo.frost && t >= plan.strikeAt && t < plan.strikeAt + 400) scene.showFrost(0.55 * clamp01((t - plan.strikeAt) / 180));
+      // THE GLASS IS ALIVE: the cracks glow and pulse with energy, glints run along them.
+      paintEnergy(t);
       // The causes' own lights, between the start of the cause and the crack.
       if (t >= plan.fireAt && t < plan.strikeAt) {
         const u = (t - plan.fireAt) / causeMs;
+        // The striker's reflection in the glass over the target, looming as the cause plays.
+        scene.showGhost(geo.origin, radius * (1.05 + 0.25 * u), c.ghost * 0.45 * easeInOutSine(clamp01(u * 1.6)));
+        // Tier 2 and up: a stress point of light leaks through the glass before anything has cracked.
+        if (plan.tier >= 2 && cause !== 'beam') scene.setStress(geo.origin, Math.pow(u, 1.5) * (0.6 + 0.2 * plan.tier), t * 0.004);
+        if (cause === 'hum') {
+          // The whole pane hums: it trembles faster and harder as the tone rises.
+          const amp = 2.4 * s * u * u;
+          scene.setTremble(amp * Math.sin(t * 0.9), amp * Math.cos(t * 1.13));
+        } else if (cause === 'creep' && geo.path.length >= 2) {
+          // The creeping crack's bright head, jerk by jerk, leaving frost behind it.
+          let i = 0;
+          while (i + 1 < plan.pre.length && t >= plan.pre[i + 1]!) i++;
+          const t0 = plan.pre[i] ?? plan.fireAt, next = plan.pre[i + 1] ?? plan.strikeAt;
+          const e = clamp01((t - t0) / Math.max(40, (next - t0) * 0.42));
+          const a = geo.path[Math.min(i, geo.path.length - 1)]!, b = geo.path[Math.min(i + 1, geo.path.length - 1)]!;
+          const hp = { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e };
+          scene.setCreepHead(hp, true, t * 0.01);
+          if (t >= moteAt) { scene.mote(hp, energyNum, 0.5); moteAt = t + 30; }
+        } else if (cause === 'butt' && t >= trailAt) {
+          scene.trail(scene.toGlass(buttPos), aim, aRadius);
+          trailAt = t + 22;
+        }
         if (cause === 'beam') scene.setBeam(scene.toGlass(geo.hand), geo.origin, Math.min(1, u * 8) * (0.85 + 0.15 * Math.sin(t * 0.11)), u);
         else if (cause === 'ricochet' && boltPath.length >= 2) {
           const hand = scene.toGlass(geo.hand);
           boltPath[0]!.x = hand.x; boltPath[0]!.y = hand.y;
           const b = legPoint(boltPath, boltTimes, t);
           scene.setBolt(b.p, b.ang, true);
-          if (t >= moteAt) { scene.boltMote(b.p); moteAt = t + 24; }
+          if (t >= moteAt) { scene.boltMote(b.p, t * 0.0016); moteAt = t + 20; }
         }
       }
       if (plan.kind === 'shatter') {
@@ -533,6 +658,8 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
           const amp = c.tremblePx * s * tense * tense;
           scene.setTremble(amp * Math.sin(t * 0.61) * Math.sin(t * 0.137 + 1), amp * Math.cos(t * 0.83));
           scene.setTension(0.11 * clamp01((t - plan.raceEnd) / Math.max(1, plan.impactAt - plan.raceEnd)) ** 2);
+          // THE INHALE: the screen darkens under the blazing cracks.
+          if (plan.inhaleAt >= 0) scene.setDark(t < plan.inhaleAt ? 0 : c.inhaleDark * easeInOutSine((t - plan.inhaleAt) / Math.max(1, plan.impactAt - plan.inhaleAt)));
         }
       } else {
         scene.setMarksAlpha(t < plan.healAt ? 1 : 1 - clamp01((t - plan.healAt) / Math.max(1, plan.healEnd - plan.healAt)));
@@ -550,7 +677,7 @@ export function playHeroGlass(o: HeroGlassOptions): HeroGlassHandle {
     cues, speed, fire,
     paint: (t) => { nums.paint(t); paintStage(t); },
     scene, unmount,
-    // IV's slow-mo dip on the shatter: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
+    // Tier 4's slow-mo dip on the shatter: the frame source hands the ONE clock a scaled step (a smooth ramp, never 0).
     frames: (fn: (dt: number) => void) => (o.frames ?? ((f: (dt: number) => void) => pixiFx.addUpdater(f)))((dt) => fn(dt * (seq && !seq.done ? glassScale(plan, c, seq.t) : 1))),
     safetyMs: o.safety !== false ? (plan.endAt + glassSlowExtraMs(plan, c)) / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,

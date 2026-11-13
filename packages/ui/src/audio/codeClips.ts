@@ -165,6 +165,8 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/glass-race',
     'fx/glass-shatter',
     'fx/glass-sing',
+    'fx/glass-squeak',
+    'fx/glass-swell',
     'fx/glass-tick',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
     'fx/universfield-ground-impact-352053',

@@ -225,12 +225,21 @@ describe('the plan (cue timing per tier and variant)', () => {
     expect(last.burstAt - last.sputterAt).toBe(C.sputterMs);
   });
 
-  it('Tier 3: wave after wave, a tick per wave, then the comet, THE HELD BEAT with no beat inside it, the enormous shell and the final flash', () => {
+  it('Tier 3: four waves with their ticks, the crescendo, then the comet, THE HELD BEAT with no beat inside it, the enormous shell and the final flash', () => {
     const p = T3;
-    const barrage = p.shells.filter((s) => s.wave >= 0);
+    expect(C.waves).toBe(4);
+    const barrage = p.shells.filter((s) => s.wave >= 0 && s.wave < C.waves);
     expect(new Set(barrage.map((s) => s.wave)).size).toBe(C.waves);
     expect(barrage.length).toBeGreaterThanOrEqual(C.waves * C.waveShells);
-    expect(p.hits.length).toBe(C.waves);
+    // Every wave ticks the struck portrait (beside it and ON it), and the crescendo drums on it after the last wave.
+    for (let w = 0; w < C.waves; w++) expect(barrage.filter((s) => s.wave === w && s.role === 'hit').length).toBe(C.waveHits);
+    const cres = p.shells.filter((s) => s.wave === C.waves);
+    expect(cres).toHaveLength(C.crescendo);
+    expect(cres.every((s) => s.role === 'hit' && s.aim === 'on' && s.from === 'hero')).toBe(true);
+    expect(p.crescendoAt).toBe(cres[0]!.launchAt);
+    expect(Math.min(...cres.map((s) => s.launchAt))).toBeGreaterThan(Math.max(...barrage.map((s) => s.takeoffAt)));
+    expect(cres[1]!.launchAt - cres[0]!.launchAt).toBe(C.crescendoGapMs);
+    expect(p.hits.length).toBe(C.waves * C.waveHits + C.crescendo);
     expect(p.shells.length).toBeLessThanOrEqual(FIREWORKS_CAPS.shells);
     expect(p.shells.some((s) => s.from === 'ground')).toBe(true);
     expect(p.shells.some((s) => s.from === 'hero')).toBe(true);
@@ -238,7 +247,7 @@ describe('the plan (cue timing per tier and variant)', () => {
     expect(giant.kind).toBe('giant');
     expect(p.holdAt).toBe(giant.launchAt + C.riseMs);
     expect(p.impactAt - p.holdAt).toBe(C.holdMs);
-    expect(Math.max(...barrage.map((s) => s.burstAt))).toBeLessThan(p.holdAt);
+    expect(Math.max(...barrage.map((s) => s.burstAt), ...cres.map((s) => s.burstAt))).toBeLessThan(p.holdAt - 250);
     const inside = fireworksCues(p).filter((q) => q.at > p.holdAt && q.at < p.impactAt);
     expect(inside).toEqual([]);
     expect(p.finalAt).toBe(p.impactAt + C.finalMs);
@@ -250,8 +259,15 @@ describe('the plan (cue timing per tier and variant)', () => {
     expect(T1.zoom).toBeLessThan(T3.zoom); expect(T1.punch).toBeLessThan(T3.punch);
     expect(T1.dim).toBeLessThan(T2.dim); expect(T2.dim).toBeLessThan(T3.dim);
     expect(T1.endAt - T1.chargeAt).toBeLessThan(T2.endAt - T2.chargeAt);
-    expect(T3.endAt - T3.chargeAt).toBeGreaterThan(4000);
-    expect(T3.endAt - T3.chargeAt).toBeLessThan(7000);
+    // The fourth pass made it longer and more over the top: about 7 to 8 s in every variant.
+    for (const v of FIREWORKS_VARIANTS) {
+      for (const seed of [1, 7, 99]) {
+        const p = plan([6, 6, 6, 6, 6, 5, 5], 40, { variant: v, seed });
+        expect(p.endAt - p.chargeAt, `${v}/${seed}`).toBeGreaterThan(6800);
+        expect(p.endAt - p.chargeAt, `${v}/${seed}`).toBeLessThan(8200);
+        expect(p.endAt - p.impactAt, `${v}/${seed}`).toBeGreaterThanOrEqual(C.aftermathMs);
+      }
+    }
   });
 
   it('reduced motion: no shell, shake, zoom or dim; the blow still lands once', () => {
@@ -302,14 +318,42 @@ describe('the geometry (both directions, on the real layout)', () => {
     }
   });
 
-  it('Tier 3: the comet leaves the TOP of the view; the enormous shell fills it, centred inside it', () => {
-    for (const [a, d] of [[YOU, FOE], [FOE, YOU]] as const) {
+  it('Tier 3: the comet leaves the TOP of the view; the enormous shell bursts ON the struck portrait, its core on screen', () => {
+    // Both directions on the real layout (the struck portrait in the top right corner, then the bottom left), and the
+    // two other corners, so a portrait anywhere keeps the core, the flash and its reaction on screen.
+    const cases: [typeof YOU, typeof YOU][] = [[YOU, FOE], [FOE, YOU], [{ x: 176, y: 160 }, { x: 1773, y: 920 }], [{ x: 1773, y: 920 }, { x: 176, y: 160 }]];
+    for (const [a, d] of cases) {
       const g = geo(T3, a, d);
       const comet = g.shells[T3.impactShell]!;
       expect(comet.path.to.y).toBeLessThan(0);
       expect(g.bloom).not.toBeNull();
-      expect(inView(g.bloom!)).toBe(true);
       expect(g.bloomR).toBeCloseTo(Math.min(VIEW.w, VIEW.h) * C.giantSize, 3);
+      // The portrait is inside the bloom's core: its heart is within half a portrait radius of the face.
+      expect(Math.hypot(g.bloom!.x - d.x, g.bloom!.y - d.y), `${d.x},${d.y}`).toBeLessThan(R * 0.5);
+      // And the core is on screen: at least a portrait radius inside every edge.
+      expect(g.bloom!.x).toBeGreaterThanOrEqual(R); expect(g.bloom!.x).toBeLessThanOrEqual(VIEW.w - R);
+      expect(g.bloom!.y).toBeGreaterThanOrEqual(R); expect(g.bloom!.y).toBeLessThanOrEqual(VIEW.h - R);
+    }
+  });
+
+  it('Tier 3: the target takes hits throughout: every tick and the whole crescendo burst on or right beside the struck portrait', () => {
+    for (const [a, d] of [[YOU, FOE], [FOE, YOU]] as const) {
+      for (const v of FIREWORKS_VARIANTS) {
+        const p = plan([6, 6, 6, 6, 6, 5, 5], 40, { variant: v });
+        const g = geo(p, a, d);
+        let on = 0;
+        p.shells.forEach((s, i) => {
+          if (s.role !== 'hit') return;
+          const dist = Math.hypot(g.shells[i]!.at.x - d.x, g.shells[i]!.at.y - d.y);
+          expect(dist, `${v} ${i} ${s.aim}`).toBeLessThan(R * (s.aim === 'on' ? 0.6 : 1.8));
+          if (s.aim === 'on') on++;
+        });
+        // Half of the barrage's ticks and every crescendo shell burst ON the face.
+        expect(on).toBe(C.waves * Math.floor(C.waveHits / 2) + C.crescendo);
+        // The ticks come in every wave, from the first second of the barrage to just before the held beat.
+        expect(p.hits[0]! - p.chargeAt).toBeLessThan(2000);
+        expect(p.holdAt - p.hits[p.hits.length - 1]!).toBeLessThan(500);
+      }
     }
   });
 
@@ -606,6 +650,18 @@ describe('the scene (headless Pixi)', () => {
     s.burstShell(0);
     expect(s.liveFlights).toBe(0);
     expect(s.peakParticles - before).toBeLessThan(12); // a puff and a few sad sparks, not a burst
+    s.destroy();
+  });
+
+  it('THE AFTERMATH: the struck portrait crackles, glitters and smokes after the enormous shell, then it all drains', () => {
+    const s = new HeroFireworksScene(TEX, COLORS, LOOK, 1, 5);
+    const before = s.peakParticles;
+    s.smoulder(FOE, R, 1500);
+    for (let t = 0; t < 600; t += 16) s.update(16);
+    expect(s.liveParticles).toBeGreaterThan(before + 15);
+    expect(s.moving).toBe(true);
+    for (let t = 0; t < 4000; t += 16) s.update(16);
+    expect(s.moving).toBe(false);
     s.destroy();
   });
 

@@ -16,9 +16,10 @@
  *    with real drag and gravity, some changing colour, some trailing glitter), RING (a tilted ring), HEART, SMILEY (a
  *    face that winks and slowly melts), SPIRAL (a spinning pinwheel of streaks), CRACKLE (stars that pop late, or all at
  *    once for the fake-out) and WILLOW (heavy gold stars that hang and fall on glitter trails).
- *  - THE ENORMOUS SHELL: a burst that fills the screen (a core flash, a light across the whole view, two shock rings,
- *    hundreds of stars that change colour, a ring, an inner shape, a willow, crackle), sparks that fall onto the struck
- *    portrait and a crackling GLITTER RAIN over everything.
+ *  - THE ENORMOUS SHELL: a burst ON the struck portrait that fills the screen (a core flash, a light across the whole
+ *    view, shock rings, hundreds of stars that change colour, a ring, an inner shape, a willow, crackle), a fountain of
+ *    sparks that fall back onto the portrait and a crackling GLITTER RAIN over everything; then THE AFTERMATH on the
+ *    portrait (`smoulder`): crackle popping on it, glitter drifting onto it, smoke curling off it.
  *  - THE STRUCK PORTRAIT: lit by every burst on it, SINGED by the ticks (soot, sparkles and wisps of smoke that ride
  *    its knockback) and a final flash.
  *
@@ -115,12 +116,20 @@ interface Flight {
 
 interface Spinner { x: number; y: number; age: number; dur: number; arms: number; ang: number; omega: number; acc: number; R: number; tint: number; tint2: number }
 
+/** The aftermath on the struck portrait: crackle popping on it, glitter falling onto it, smoke curling off it. */
+interface Smoulder { at: Pt; r: number; age: number; dur: number; acc: number; acc2: number; acc3: number; n: number }
+
+/** Soot smudges the ticks make in one show, at most (the barrage and the crescendo tick the portrait a dozen times); a blow always adds its own. */
+const MAX_SOOT = 10;
+
 interface Ember { glow: Sprite; core: Sprite; at: Pt; fuse: { c: Pt; r: number; a0: number; a1: number }; age: number; fuseMs: number; lit: number; acc: number }
 
 export class HeroFireworksScene extends FxPool {
   private ember: Ember | null = null;
   private flights: (Flight | null)[] = [];
   private spinners: Spinner[] = [];
+  private smoulders: Smoulder[] = [];
+  private sootMade = 0;
   private sky: { s: Sprite; age: number; a0: number; dur: number } | null = null;
   private viewW = 1920;
   private viewH = 1080;
@@ -160,7 +169,7 @@ export class HeroFireworksScene extends FxPool {
   get liveFlights(): number { let n = 0; for (const f of this.flights) if (f && f.state !== 4) n++; return n; }
   get emberLit(): boolean { return this.ember !== null; }
   /** Whether anything at all still draws. */
-  get moving(): boolean { return this.liveFx > 0 || this.nP > 0 || !!this.ember || this.liveFlights > 0 || this.spinners.length > 0 || !!this.sky; }
+  get moving(): boolean { return this.liveFx > 0 || this.nP > 0 || !!this.ember || this.liveFlights > 0 || this.spinners.length > 0 || this.smoulders.length > 0 || !!this.sky; }
 
   /** The view (overlay px), measured once by the runner: the sky light and the glitter rain cover it. */
   setView(w: number, h: number): void { if (w > 0 && h > 0) { this.viewW = w; this.viewH = h; } }
@@ -519,8 +528,8 @@ export class HeroFireworksScene extends FxPool {
 
   // ── bursts ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  /** Shell `i` bursts (or, the dud, fizzles out with a sad puff). `strength` scales its light. */
-  burstShell(i: number, strength = 1): void {
+  /** Shell `i` bursts (or, the dud, fizzles out with a sad puff). `strength` scales its light, `starK` its star count. */
+  burstShell(i: number, strength = 1, starK = 1): void {
     const fl = this.flights[i];
     if (!fl || fl.state === 4) return;
     const S = this.scale;
@@ -536,11 +545,11 @@ export class HeroFireworksScene extends FxPool {
     }
     const at = fl.state === 2 ? { x: fl.x, y: fl.y } : fl.at;
     this.endFlight(i);
-    this.shell(fl.kind, at, fl.R, fl.tint, fl.tint2, strength, fl.flight === 'sputter');
+    this.shell(fl.kind, at, fl.R, fl.tint, fl.tint2, strength, fl.flight === 'sputter', starK);
   }
 
   /** A shell of `kind` opens at `at` with radius `R`. `sync`: its crackle all pops at once (the fake-out). */
-  private shell(kind: ShellKind, at: Pt, R: number, tint: number, tint2: number, strength: number, sync = false): void {
+  private shell(kind: ShellKind, at: Pt, R: number, tint: number, tint2: number, strength: number, sync = false, starK = 1): void {
     const S = this.scale;
     const c = this.colors;
     const P = strength;
@@ -550,7 +559,7 @@ export class HeroFireworksScene extends FxPool {
     // Smoke that hangs where it burst and drifts off.
     const sm = this.look.smoke;
     for (let k = 0; k < 3; k++) this.puff(at.x + (this.rnd() - 0.5) * R * 0.6, at.y + (this.rnd() - 0.3) * R * 0.5, R * (0.55 + this.rnd() * 0.3), 0.17 * sm, 2400 + this.rnd() * 900, 120 + k * 60, (6 + this.rnd() * 18) * S * (this.rnd() < 0.5 ? -1 : 1), -4 * S);
-    const n = (base: number): number => Math.max(3, Math.round(base * this.look.stars));
+    const n = (base: number): number => Math.max(3, Math.round(base * this.look.stars * starK));
     switch (kind) {
       case 'ring': this.ringStars(at, R, n(40), tint, 0, 3.4, 130 * S, 1100, 1.05); this.sphere(at, R * 0.3, n(8), c.core, -1, 0, 3.2, 100 * S, 700, 0.8, 0); break;
       case 'heart': this.heart(at, R, n(34), tint); break;
@@ -567,12 +576,12 @@ export class HeroFireworksScene extends FxPool {
    * leaves at v0 and slows at `drag` per second, so it travels v0 / drag: `R`. Every 4th trails glitter; every 3rd
    * flickers as it dies; `tint2` >= 0 changes colour part way.
    */
-  private sphere(at: Pt, R: number, n: number, tint: number, tint2: number, delay: number, drag: number, grav: number, life: number, size: number, flags: number): void {
+  private sphere(at: Pt, R: number, n: number, tint: number, tint2: number, delay: number, drag: number, grav: number, life: number, size: number, flags: number, aim = 0, spread = 1): void {
     const S = this.scale;
     for (let i = 0; i < n; i++) {
       const z = this.rnd() * 2 - 1;
       const r2 = Math.sqrt(1 - z * z) * (0.94 + this.rnd() * 0.1);
-      const a = this.rnd() * Math.PI * 2;
+      const a = aim + (this.rnd() - 0.5) * Math.PI * 2 * spread;
       const v = R * drag * r2;
       let f = F_STREAK | flags;
       if (i % 6 === 1 && !(flags & F_TRAIL)) f |= F_TRAIL;
@@ -684,9 +693,11 @@ export class HeroFireworksScene extends FxPool {
     const S = this.scale;
     const amt = this.look.singe * k;
     if (!(amt > 0)) return;
-    for (let j = 0; j < 3; j++) {
+    const soot = k >= 1 ? 3 : Math.max(0, Math.min(3, MAX_SOOT - this.sootMade));
+    this.sootMade += soot;
+    for (let j = 0; j < soot; j++) {
       const a = this.rnd() * Math.PI * 2, r = targetR * 0.45 * Math.sqrt(this.rnd());
-      this.addP(this.tex.puff, F_SOOT | F_FOLLOW, target.x + Math.cos(a) * r, target.y + Math.sin(a) * r, 0, 0, Math.max(300, holdMs), 0, (targetR * (0.5 + 0.25 * this.rnd())) / PUFF_PX, (targetR * 0.8) / PUFF_PX, 0, 0, SOOT, -1, Math.min(0.5, 0.26 * amt), (this.rnd() - 0.5) * 0.3);
+      this.addP(this.tex.puff, F_SOOT | F_FOLLOW, target.x + Math.cos(a) * r, target.y + Math.sin(a) * r, 0, 0, Math.max(300, holdMs), 0, (targetR * (0.5 + 0.25 * this.rnd())) / PUFF_PX, (targetR * 0.8) / PUFF_PX, 0, 0, SOOT, -1, Math.min(0.6, 0.42 * amt), (this.rnd() - 0.5) * 0.3);
     }
     for (let j = 0; j < 7; j++) {
       const a = this.rnd() * Math.PI * 2, r = targetR * 0.85 * Math.sqrt(this.rnd());
@@ -732,35 +743,46 @@ export class HeroFireworksScene extends FxPool {
     const S = this.scale;
     const c = this.colors;
     const gold = this.tintOf(0), magenta = this.tintOf(1), cyan = this.tintOf(2), violet = this.tintOf(4);
+    // It bursts ON the struck portrait, which may sit in a corner of the view: the stars are thrown over the part of
+    // the circle that faces the middle of the view (a corner keeps about three quarters), so few are wasted off screen
+    // and the visible bloom is as dense as a full one.
+    const cx = this.viewW / 2 - at.x, cy = this.viewH / 2 - at.y;
+    const aim = Math.atan2(cy, cx);
+    const off = Math.hypot(cx, cy) / Math.max(1, 0.5 * Math.hypot(this.viewW, this.viewH));
+    const spread = 1 - 0.3 * clamp01((off - 0.3) / 0.55);
     this.spawn('core', this.tex.glow, c.core, at.x, at.y, { dur: 420, from: (R * 0.2) / GLOW_PX / S, to: (R * 1.6) / GLOW_PX / S, a0: this.look.flashAlpha, mode: 'punch', peakAt: 0.08 });
     this.spawn('core', this.tex.star, c.core, at.x, at.y, { dur: 460, from: (R * 0.15) / STAR_PX / S, to: (R * 0.95) / STAR_PX / S, a0: 0.95, mode: 'punch', peakAt: 0.12, rot: 0.35 });
     this.spawn('glow', this.tex.glow, magenta, at.x, at.y, { dur: 1200, from: (R * 0.7) / GLOW_PX / S, to: (R * 1.3) / GLOW_PX / S, a0: 0.18, mode: 'punch', peakAt: 0.1, ease: 'cubic', delay: 80 });
     this.spawn('glow', this.tex.ring, c.core, at.x, at.y, { dur: 480, from: (R * 0.1) / RING_PX / S, to: (R * 1.7) / RING_PX / S, a0: 0.14, ease: 'cubic' });
     this.spawn('glow', this.tex.ring, gold, at.x, at.y, { dur: 760, from: (R * 0.1) / RING_PX / S, to: (R * 2.1) / RING_PX / S, a0: 0.16, ease: 'cubic', delay: 70 });
     this.skyLight(this.look.skyFlash, 900, mixColor(gold, 0xffffff, 0.6));
-    this.light(target, targetR, gold, 1, 1200);
+    // The portrait at the heart of it: lit white-gold, a tight shock ring and a star of light that ride its knockback.
+    this.light(target, targetR, gold, 1.35, 1400);
+    this.spawn('core', this.tex.ring, c.core, target.x, target.y, { dur: 420, from: (targetR * 0.7) / RING_PX / S, to: (targetR * 4.2) / RING_PX / S, a0: 0.85, ease: 'cubic', follow: true });
+    this.spawn('core', this.tex.star, c.core, target.x, target.y, { dur: 300, from: (targetR * 0.8) / STAR_PX / S, to: (targetR * 3.4) / STAR_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.1, rot: -0.4, follow: true });
     const life = this.look.bloomMs;
     const n = Math.max(20, Math.round(stars * this.look.stars));
     // The peony: hundreds of stars, gold turning white, some trailing glitter.
-    this.bigSphere(at, R, n, gold, c.core, life, 2.6, 110 * S, 1.35);
+    this.bigSphere(at, R, n, gold, c.core, life, 2.6, 110 * S, 1.35, aim, spread);
     this.ringStars(at, R * 0.78, Math.round(n * 0.3), magenta, 40, 2.8, 100 * S, life * 0.8, 1.4);
-    this.sphere(at, R * 0.45, Math.round(n * 0.22), cyan, violet, 120, 3, 100 * S, life * 0.65, 1.2, 0);
-    // The inner shape (the variant's whimsy, now huge).
-    if (variant === 1) this.smiley(at, R * 0.3, gold, c.core);
+    this.sphere(at, R * 0.45, Math.round(n * 0.22), cyan, violet, 120, 3, 100 * S, life * 0.65, 1.2, 0, aim, spread);
+    // The inner shape (the variant's whimsy, now huge), opened a little toward the middle so it stays readable.
+    const sx = at.x + Math.cos(aim) * R * 0.22, sy = at.y + Math.sin(aim) * R * 0.22;
+    if (variant === 1) this.smiley({ x: sx, y: sy }, R * 0.26, gold, c.core);
     else if (variant === 2) this.spinners.push({ x: at.x, y: at.y, age: 0, dur: 520, arms: 7, ang: this.rnd() * 6, omega: 8, acc: 0, R: R * 0.36, tint: cyan, tint2: magenta });
-    else this.heart(at, R * 0.32, Math.round(30 * this.look.stars), magenta);
+    else this.heart({ x: sx, y: sy }, R * 0.26, Math.round(30 * this.look.stars), magenta);
     // The willow: heavy gold stars that reach nearly as far, then hang and fall on glitter trails.
-    this.sphere(at, R * 0.82, Math.round(n * 0.26), whiten(gold, 0.25), -1, 220, 2.1, 300 * S, life * 1.25, 1.2, F_TRAIL);
+    this.sphere(at, R * 0.82, Math.round(n * 0.26), whiten(gold, 0.25), -1, 220, 2.1, 300 * S, life * 1.25, 1.2, F_TRAIL, aim, spread);
     this.crackle(at, R * 0.75, Math.round(n * 0.3), gold, false);
-    // Sparks that fall onto the struck portrait and twinkle out where they land.
+    // A fountain: sparks thrown up out of the burst that arc over and fall back ONTO the struck portrait.
     const g = 900 * S;
-    for (let k = 0; k < 26; k++) {
-      const a = this.rnd() * Math.PI * 2, r0 = R * (0.15 + 0.35 * this.rnd());
+    for (let k = 0; k < 30; k++) {
+      const a = aim + (this.rnd() - 0.5) * Math.PI * 1.4, r0 = R * (0.12 + 0.3 * this.rnd());
       const x0 = at.x + Math.cos(a) * r0, y0 = at.y + Math.sin(a) * r0;
       const ta = this.rnd() * Math.PI * 2, tr = targetR * 0.8 * Math.sqrt(this.rnd());
       const tx = target.x + Math.cos(ta) * tr, ty = target.y + Math.sin(ta) * tr;
-      const tau = (900 + 700 * this.rnd()) / 1000;
-      this.addP(this.tex.spark, F_STREAK | F_RAIN, x0, y0, (tx - x0) / tau, (ty - y0) / tau - (g * tau) / 2, tau * 1000, 160 + this.rnd() * 300, 0.8 * S, 0.8 * S, 0, g, k % 3 ? gold : c.core, -1, 1);
+      const tau = (900 + 900 * this.rnd()) / 1000;
+      this.addP(this.tex.spark, F_STREAK | F_RAIN, x0, y0, (tx - x0) / tau, (ty - y0) / tau - (g * tau) / 2, tau * 1000, 160 + this.rnd() * 500, 0.8 * S, 0.8 * S, 0, g, k % 3 ? gold : c.core, -1, 1);
     }
     // THE GLITTER RAIN: crackling specks drifting down over the whole view.
     const z = this.root.scale.x || 1;
@@ -773,19 +795,77 @@ export class HeroFireworksScene extends FxPool {
       const tint = k % 3 === 0 ? c.core : k % 3 === 1 ? gold : this.tintOf(k % 5);
       this.addP(this.tex.star, F_FLICKER | (k % 4 === 0 ? F_CRACKLE : 0), x, y, (this.rnd() - 0.5) * 40 * S, (50 + this.rnd() * 90) * S, 900 + this.rnd() * 900, delay, (10 + this.rnd() * 10) * S / STAR_PX, (6 + this.rnd() * 6) * S / STAR_PX, 0.6, 50 * S, tint, -1, 1, (this.rnd() - 0.5) * 3);
     }
-    // Smoke: the sky fills with it.
+    // Smoke: the sky fills with it, thickest toward the middle of the view.
     for (let k = 0; k < 5; k++) {
-      const a = this.rnd() * Math.PI * 2, r = R * (0.2 + 0.5 * this.rnd());
+      const a = aim + (this.rnd() - 0.5) * Math.PI * 1.5, r = R * (0.15 + 0.45 * this.rnd());
       this.puff(at.x + Math.cos(a) * r, at.y + Math.sin(a) * r * 0.7, R * (0.28 + 0.16 * this.rnd()), 0.1 * this.look.smoke, 2800 + this.rnd() * 900, 200 + k * 50, Math.cos(a) * 30 * S, -6 * S);
     }
   }
 
-  private bigSphere(at: Pt, R: number, n: number, tint: number, tint2: number, life: number, drag: number, grav: number, size: number): void {
+  /**
+   * THE AFTERMATH on the struck portrait for `dur` ms: crackle popping on it, glitter falling onto it and smoke curling
+   * off it, thinning out as it goes. Everything rides the portrait's knockback.
+   */
+  smoulder(target: Pt, targetR: number, dur: number): void {
+    if (dur > 0) this.smoulders.push({ at: { x: target.x, y: target.y }, r: targetR, age: 0, dur, acc: 0, acc2: 0, acc3: 0, n: 0 });
+  }
+
+  private drawSmoulders(dt: number): void {
+    const S = this.scale;
+    for (let k = this.smoulders.length - 1; k >= 0; k--) {
+      const m = this.smoulders[k]!;
+      m.age += dt;
+      const u = clamp01(m.age / m.dur);
+      if (u >= 1) { this.smoulders.splice(k, 1); continue; }
+      const { at, r } = m;
+      // Crackle and glitter, every 30 ms at first, every 130 ms by the end.
+      m.acc += dt;
+      const every = 30 + 100 * u;
+      while (m.acc >= every) {
+        m.acc -= every;
+        m.n++;
+        const a = this.rnd() * Math.PI * 2, rr = r * 0.95 * Math.sqrt(this.rnd());
+        const x = at.x + Math.cos(a) * rr, y = at.y + Math.sin(a) * rr;
+        // A crackle snap on the face: white, then a spit of colour.
+        this.twinkle(x, y, (32 + this.rnd() * 22) * S, this.colors.core, 0, 160, true);
+        if (m.n % 2) this.twinkle(x + (this.rnd() - 0.5) * 18 * S, y + (this.rnd() - 0.5) * 18 * S, 24 * S, this.tintOf(m.n % 5), 35, 150, true);
+        // An ember glowing on the face, pulsing, then going dark.
+        if (m.n % 2 === 0) this.addP(this.tex.glow, F_FLICKER | F_FOLLOW, x, y, 0, 0, 600 + this.rnd() * 500, 0, (100 * S) / GLOW_PX, (50 * S) / GLOW_PX, 0, 0, mixColor(this.tintOf(0), 0xff6a2a, 0.5), -1, 0.95 * (1 - 0.5 * u));
+        // Glitter drifting down onto it from above.
+        {
+          const gx = at.x + (this.rnd() - 0.5) * r * 2.4, gy = at.y - r * (1.2 + this.rnd() * 1.2);
+          this.addP(this.tex.star, F_FLICKER | (m.n % 6 === 0 ? F_CRACKLE : 0), gx, gy, (this.rnd() - 0.5) * 30 * S, (40 + this.rnd() * 60) * S, 900 + this.rnd() * 500, 0, (18 + this.rnd() * 10) * S / STAR_PX, (7 + this.rnd() * 5) * S / STAR_PX, 0.5, 90 * S, m.n % 4 ? this.tintOf(0) : this.colors.core, -1, 1, (this.rnd() - 0.5) * 3);
+        }
+      }
+      // A crackle pop on the face now and then: a snap of light and a spit of short sparks (thinning out).
+      m.acc3 += dt;
+      const popEvery = 260 + 360 * u;
+      while (m.acc3 >= popEvery) {
+        m.acc3 -= popEvery;
+        const a0 = this.rnd() * Math.PI * 2, r0 = r * 0.7 * Math.sqrt(this.rnd());
+        const px = at.x + Math.cos(a0) * r0, py = at.y + Math.sin(a0) * r0;
+        this.twinkle(px, py, 64 * S, this.colors.core, 0, 170, true);
+        const tint = this.tintOf(1 + (m.n % 4));
+        for (let j = 0; j < 7; j++) {
+          const a = (j / 7) * Math.PI * 2 + this.rnd() * 0.5, v = (220 + this.rnd() * 160) * S;
+          this.addP(this.tex.spark, F_STREAK | (j % 2 ? F_FLICKER : F_CRACKLE), px, py, Math.cos(a) * v, Math.sin(a) * v, 260 + this.rnd() * 160, 0, 0.5 * S, 0.5 * S, 4, 200 * S, j % 3 ? tint : this.colors.core, -1, 1);
+        }
+      }
+      // Smoke curling up off the singed face.
+      m.acc2 += dt;
+      while (m.acc2 >= 140) {
+        m.acc2 -= 140;
+        this.puff(at.x + (this.rnd() - 0.5) * r * 0.9, at.y - r * (0.1 + 0.3 * this.rnd()), r * (0.4 + 0.2 * this.rnd()), 0.75 * this.look.singe * (1 - 0.5 * u), 1500 + this.rnd() * 500, 0, (this.rnd() - 0.5) * 36 * S, -(60 + this.rnd() * 40) * S, 0x4a4652, true);
+      }
+    }
+  }
+
+  private bigSphere(at: Pt, R: number, n: number, tint: number, tint2: number, life: number, drag: number, grav: number, size: number, aim = 0, spread = 1): void {
     const S = this.scale;
     for (let i = 0; i < n; i++) {
       const z = this.rnd() * 2 - 1;
       const r2 = Math.sqrt(1 - z * z) * (0.95 + this.rnd() * 0.08);
-      const a = this.rnd() * Math.PI * 2;
+      const a = aim + (this.rnd() - 0.5) * Math.PI * 2 * spread;
       const v = R * drag * r2;
       let f = F_STREAK | F_CHANGE;
       if (i % 8 === 3) f |= F_TRAIL;
@@ -829,9 +909,10 @@ export class HeroFireworksScene extends FxPool {
     this.drawEmber(dt);
     for (let i = 0; i < this.flights.length; i++) { const f = this.flights[i]; if (f) this.drawFlight(f, dt); }
     this.drawSpinners(dt);
+    this.drawSmoulders(dt);
     this.drawP(dt);
     this.drawSky(dt);
-    return !!this.ember || this.liveFlights > 0 || this.spinners.length > 0 || this.nP > 0 || !!this.sky || this.held.length > 0;
+    return !!this.ember || this.liveFlights > 0 || this.spinners.length > 0 || this.smoulders.length > 0 || this.nP > 0 || !!this.sky || this.held.length > 0;
   }
 
   protected override clearOwn(): void {
@@ -839,6 +920,8 @@ export class HeroFireworksScene extends FxPool {
     for (let i = 0; i < this.flights.length; i++) this.endFlight(i);
     this.flights = [];
     this.spinners = [];
+    this.smoulders = [];
+    this.sootMade = 0;
     for (let i = 0; i < this.nP; i++) { this.give(this.pS[i]!); this.pS[i] = null; }
     this.nP = 0;
     if (this.sky) { this.give(this.sky.s); this.sky = null; }

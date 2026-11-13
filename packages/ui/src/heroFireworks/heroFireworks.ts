@@ -187,11 +187,13 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
           break;
         }
         const hit = sh.role === 'hit';
-        scene?.burstShell(q.i, hit ? 1.1 : 1);
+        // Tier 3 throws thirty-odd shells: each one a little leaner keeps the crowd under the particle cap (the busiest
+        // moment is the last wave and the crescendo together, about a second before the enormous shell).
+        scene?.burstShell(q.i, hit ? 1.1 : 1, big ? (hit ? 0.75 : 0.62) : 1);
         if (big && sh.wave >= 0 && !wavesSounded.has(sh.wave)) {
           // A wave starts bursting: the volley rolls under it.
           wavesSounded.add(sh.wave);
-          cue(c.sfxVolleyClip, c.sfxVolleyGain * (0.8 + 0.15 * sh.wave), c.sfxVolleyRate * (1 - 0.04 * sh.wave), { fadeMs: 400 });
+          cue(c.sfxVolleyClip, c.sfxVolleyGain * Math.min(1.2, 0.8 + 0.12 * sh.wave), c.sfxVolleyRate * (1 - 0.04 * sh.wave), { fadeMs: 400 });
         }
         if (hit || !big || q.i % 2 === 0) {
           cue(c.sfxPopClip, c.sfxPopGain * (hit ? 0.95 : big ? 0.6 : 0.85), c.sfxPopRate * (big ? pitchOf(q.i) : 1.15 - 0.1 * q.i), { tail: hit ? c.sfxTailMix : 0, fadeMs: 170 });
@@ -219,6 +221,8 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
           cue(c.sfxVolleyClip, c.sfxVolleyGain * 0.5, c.sfxVolleyRate * 0.8, { delayMs: 450, fadeMs: 600 });
           if (geo.bloom) scene?.giant(q.i, geo.bloom, geo.bloomR, o.defender, radius, c.giantStars, plan.variant);
           scene?.singe(o.defender, radius, 1.3, Math.max(400, plan.endAt - t - 200));
+          // THE AFTERMATH: crackle popping on the struck face, glitter drifting onto it, smoke curling off it.
+          scene?.smoulder(o.defender, radius, Math.max(400, plan.endAt - t - 250));
         } else {
           const sh = plan.shells[q.i]!;
           // A crisp crack with a body under it (the boom, short and pitched up), and a breath of crackle after.
@@ -236,6 +240,8 @@ export function playHeroFireworks(o: HeroFireworksOptions): HeroFireworksHandle 
         cue(c.sfxPopClip, c.sfxPopGain, c.sfxPopRate * 0.8, { tail: c.sfxTailMix, fadeMs: 220 });
         cue(c.sfxBoomClip, c.sfxBoomGain * 0.4, c.sfxBoomRate * 1.3, { lenMs: 620, fadeMs: 320 });
         cue(c.sfxCrackleClip, c.sfxCrackleGain * 0.6, c.sfxCrackleRate * 1.25, { delayMs: 120, lenMs: 800, fadeMs: 300 });
+        // The portrait smouldering on: a last, thinning crackle under the aftermath.
+        cue(c.sfxCrackleClip, c.sfxCrackleGain * 0.4, c.sfxCrackleRate * 0.95, { delayMs: 900, lenMs: Math.max(300, plan.endAt - plan.finalAt - 1100), fadeMs: 500 });
         scene?.finalFlash(o.defender, radius);
         break;
       default:

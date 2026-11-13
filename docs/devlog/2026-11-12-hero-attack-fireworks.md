@@ -281,3 +281,61 @@ machine, and the dials to pull if it is too heavy are `giantStars`, `rain`, `smo
 - Tier 1 is small on screen, as the lightest look should be; the smiley's eyes sit under the shared hit number for a
   moment, and the dud's flop is subtle (the "pfft" puff reads better than the fall).
 - Not measured on a production build or a phone; not seen in the Collection preview box (a geometry test covers it).
+
+## Fourth pass (2026-11-13): the finale lands ON the struck portrait, and runs longer
+
+The owner's note: "the last major explosion should be on the enemy portrait, or at least some of the explosions should
+be. you can lengthen it a bit too to make it more over the top". Tier 3 mainly; Tier 1 and 2 got one light touch.
+
+### What changed
+
+- **The enormous shell bursts ON the struck portrait.** Its heart sits on the face, nudged a third of a portrait radius
+  toward the middle of the view and kept at least 1.1 portrait radii inside every edge, so in a corner the bloom runs off
+  the screen while its core flash, the portrait and its reaction stay on it. Its stars are thrown over the part of the
+  circle that faces the middle of the view (about three quarters of it in a corner), so few are wasted off screen. The
+  portrait at its heart gets its own white star, a tight shock ring and a stronger light, all riding its knockback;
+  the old "sparks fall onto the portrait" became a fountain thrown up out of the burst that falls back onto the face.
+  The variant's inner shape (smiley, spiral, heart) opens a little toward the middle so it stays readable.
+- **The target takes hits throughout.** Every barrage wave now has two ticks (`waveHits`): one beside the struck
+  portrait, one ON it (a little jitter). Then THE CRESCENDO: five shells off the hero's spark 115 ms apart, every one
+  bursting on the face, each a little bigger, the last a crackle, with the volley rolling under it. The comet goes up as
+  it ends; the held beat follows as before (560 ms, nothing cued inside it).
+- **Longer.** Four waves (6, 7, 8, 9 shells: one more per wave, was two), the crescendo, a held beat of 560 (was 520),
+  the final flash at +1450 (was +1350) and an aftermath of 3000 ms (was 2200). THE AFTERMATH (`smoulder`): crackle snaps
+  and glowing embers on the struck face, crackle pops spitting short sparks, glitter drifting down onto it and dark smoke
+  curling up off it, thinning out to the end; the glitter rain is thicker (240 specks over 2.6 s, was 170 over 2.3).
+- **Tier 3 length** (ms from the first beat): about 7250 (the dud variant about 7730), impact about 3950 (4430). Was
+  5560 to 6090.
+- Tier 1 and 2: the impact peony, spiral and crackle open 0.75 portrait radii off the face (was 1.15), so they sweep
+  it more.
+- Soot: the ticks may make at most 10 soot smudges in a show (there are now 13 ticks); the blow always adds its own,
+  a little darker.
+
+### Frame cost
+
+The busiest moment moved: it is the last wave and the crescendo together, about 1.2 s before the enormous shell, not the
+shell itself (which sits around 1000 to 1100 particles). Barrage shells in Tier 3 throw 62 % of a burst's stars (ticks
+and the crescendo 75 %). Peak particles in headless runs, both directions, all variants: 1365 to 1861 of the 2000 cap
+(the third pass hit the cap). No new clip: every new beat reuses existing ones (pops, booms, the volley, two more
+crackle cues in the aftermath).
+
+DEV build, vite dev server, headless Chrome, 1920 x 1080, vsync and frame cap off, sound off, five Tier 3 runs (shared
+machine, so ceilings): frame p99 4.7 to 7.0 ms across the attack, 4.5 to 7.1 in the 1.3 s after the enormous shell
+(third pass: 8 to 28); worst 16.7 to 25.3, on the shared opening, the shared teardown or a one-off. The attack's own JS
+step p99 0.5 to 0.6 ms, worst 1.6 to 8.1. The bar (no frame over 6.25 ms) is still NOT shown met here; it needs a
+production bench.
+
+### Verified
+
+- `npx vitest run packages/ui/src/heroFireworks packages/ui/src/heroAttack packages/ui/src/audio`: 22 files, 906 tests,
+  all passing (42 in this attack's file; new: four waves with their ticks and the crescendo, the 6.8 to 8.2 s length in
+  every variant and seed, the bloom within half a portrait radius of the face and its core on screen with the struck
+  portrait in all four corners, every tick and crescendo shell on or beside the face, the aftermath emitter running
+  and draining). `npm run typecheck` clean; `npm run lint` 0 errors.
+- Contact sheets of Tier 3 both directions and close crops of the bloom on the portrait in both corners.
+
+### Still weak
+
+- The aftermath's smoke is faint over a bright portrait; the embers and crackle carry it. Dials: `singe`, `smoke`.
+- The shared hit number sits on the bloom's core for its first moment (now it is also the portrait).
+- Unheard: no new sound, but the crescendo stacks five pops and booms in half a second.

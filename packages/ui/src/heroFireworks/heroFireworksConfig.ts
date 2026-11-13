@@ -16,11 +16,12 @@
  *    bursts on it (the blow).
  *  - TIER 2: a volley of three. A ring shell opens round the struck face, a heart shell over it (both ticks: FX, sound and
  *    a flinch), then the variant's shell lands THE blow.
- *  - TIER 3, THE GRAND FINALE: a long rising barrage, wave after wave of shells from the hero's spark and from the bottom
- *    of the screen, across the whole sky (one shell per wave bursts on the struck portrait, which flinches and is singed).
- *    Then one comet rises off the top of the screen and THE HELD BEAT: a hush, the smoke hanging. Then ONE ENORMOUS
- *    SHELL fills the screen (the blow) with a camera push and a big shake and a crackling glitter rain over everything,
- *    and last a final flash on the struck portrait.
+ *  - TIER 3, THE GRAND FINALE: a long rising barrage, four waves of shells from the hero's spark and from the bottom of
+ *    the screen, across the whole sky (two shells per wave burst beside and ON the struck portrait, which flinches and
+ *    is singed). Then THE CRESCENDO, a drumroll of shells bursting on the struck face, and one comet rises off the top
+ *    of the screen into THE HELD BEAT: a hush, the smoke hanging. Then ONE ENORMOUS SHELL bursts ON the struck portrait
+ *    and fills the screen (the blow) with a camera push and a big shake and a crackling glitter rain over everything,
+ *    a final flash on the portrait, and a long aftermath of crackle and glitter on it while it smokes.
  *
  * THE VARIANT (rolled from the stable `rollSeed`, forced by the DEV tuner's Variation row) gives every tier its own
  * whimsy: 1 THE SMILEY (a shell that bursts into a smiley face, which winks and melts), 2 THE PINWHEEL (a catherine
@@ -89,6 +90,11 @@ interface GlobalConfig {
   waveShells: number;
   waveGapMs: number;
   waveSpanMs: number;
+  /** Tier 3: barrage shells per wave that burst ON or right beside the struck portrait (the ticks). */
+  waveHits: number;
+  /** Tier 3: THE CRESCENDO, a quick drumroll of shells bursting on the struck portrait before the comet. */
+  crescendo: number;
+  crescendoGapMs: number;
   // Tier 3: the enormous shell
   riseMs: number;
   holdMs: number;
@@ -191,19 +197,22 @@ export const HERO_FIREWORKS_DEFAULTS: HeroFireworksConfig = {
   dudPauseMs: 200,
   sputterMs: 440,
   volleyGapMs: 250,
-  waves: 3,
+  waves: 4,
   waveShells: 6,
   waveGapMs: 470,
   waveSpanMs: 340,
+  waveHits: 2,
+  crescendo: 5,
+  crescendoGapMs: 115,
   riseMs: 520,
-  holdMs: 520,
+  holdMs: 560,
   giantSize: 1,
   giantStars: 180,
-  rain: 170,
-  rainMs: 1700,
+  rain: 240,
+  rainMs: 2600,
   skyFlash: 0.32,
-  finalMs: 1350,
-  aftermathMs: 2200,
+  finalMs: 1450,
+  aftermathMs: 3000,
   smoke: 1,
   singe: 1,
   rockDeg: 6,
@@ -257,6 +266,9 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroFireworksStrKey>, [n
   waveShells: [2, 10, 1],
   waveGapMs: [150, 1200, 10],
   waveSpanMs: [0, 900, 10],
+  waveHits: [0, 3, 1],
+  crescendo: [0, 8, 1],
+  crescendoGapMs: [50, 400, 5],
   riseMs: [200, 1500, 10],
   holdMs: [0, 1500, 10],
   giantSize: [0.3, 1.4, 0.01],
@@ -300,7 +312,7 @@ export const HERO_FIREWORKS_RANGES: Record<HeroFireworksNumKey, [number, number,
 };
 
 /** The hard ceilings a plan can never exceed, whatever the sliders say. */
-export const FIREWORKS_CAPS = { shells: 40, waves: 4, waveShells: 10, shakePx: 50, zoom: 0.12 } as const;
+export const FIREWORKS_CAPS = { shells: 48, crescendo: 8, waves: 4, waveShells: 10, shakePx: 50, zoom: 0.12 } as const;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isColorKey = (k: string): k is ColorKey => (HERO_FIREWORKS_COLOR_KEYS as readonly string[]).includes(k);
@@ -418,8 +430,13 @@ export interface ShellPlan {
   tint2: number;
   /** Its size, in struck-portrait radii (the giant: a share of the view, see the geometry). */
   size: number;
-  /** Tier 3: which wave (-1 = not a barrage shell). */
+  /** Tier 3: which wave (-1 = not a barrage shell; the crescendo is wave `waves`). */
   wave: number;
+  /**
+   * Where it opens: `sky` (anywhere across the view, the barrage), `near` (just beside the struck portrait), `on`
+   * (centred on the struck portrait, a little jitter). Tier 1 and 2 place their shells by kind (`near`).
+   */
+  aim: 'sky' | 'near' | 'on';
 }
 
 export interface FireworksPlanInput extends AttackTierContext {
@@ -457,6 +474,8 @@ export interface FireworksPlan {
   holdMs: number;
   /** THE consequence beat. */
   impactAt: number;
+  /** Tier 3: the crescendo's first launch (-1 otherwise). */
+  crescendoAt: number;
   /** Tier 3: the final flash on the struck portrait (-1 otherwise). */
   finalAt: number;
   endAt: number;
@@ -475,7 +494,7 @@ const BARRAGE_KINDS: readonly ShellKind[] = ['peony', 'ring', 'peony', 'heart', 
 const shell = (o: Partial<ShellPlan> & Pick<ShellPlan, 'kind' | 'flight' | 'role' | 'launchAt' | 'flyMs'>): ShellPlan => {
   const takeoffAt = o.takeoffAt ?? o.launchAt;
   return {
-    from: 'hero', sputterAt: -1, burstAt: takeoffAt + o.flyMs, tint: 0, tint2: -1, size: 1, wave: -1, ...o, takeoffAt,
+    from: 'hero', sputterAt: -1, burstAt: takeoffAt + o.flyMs, tint: 0, tint2: -1, size: 1, wave: -1, aim: 'near', ...o, takeoffAt,
   };
 };
 
@@ -496,7 +515,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
     const { impactAt } = r;
     return {
       ...base, reduced: true, chargeAt: impactAt, absorbEnd: impactAt, fuseMs: 0, shells: [], impactShell: -1, hits: [], holdAt: impactAt, holdMs: 0,
-      impactAt, finalAt: -1, endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, dim: 0,
+      impactAt, crescendoAt: -1, finalAt: -1, endAt: r.endAt, shakePx: 0, zoom: 0, punch: 0, dim: 0,
     };
   }
 
@@ -506,7 +525,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
   const first = chargeAt + V.FuseMs;
   const F = V.FlyMs;
   const shells: ShellPlan[] = [];
-  let holdAt = 0, holdMs = 0, finalAt = -1;
+  let holdAt = 0, holdMs = 0, finalAt = -1, crescendoAt = -1;
 
   if (level === 1) {
     if (variant === 1) shells.push(shell({ kind: 'smiley', flight: 'rise', role: 'impact', launchAt: first, flyMs: F, tint: 0, size: 1.75 }));
@@ -536,26 +555,47 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
       shells.push(shell({ kind: 'none', flight: 'dud', role: 'fx', launchAt: first, flyMs: c.dudMs, sputterAt: first + c.dudMs * 0.4, tint: 3 }));
       start = first + c.dudMs * 0.75;
     }
+    const crescendo = Math.round(clamp(c.crescendo, 0, FIREWORKS_CAPS.crescendo));
+    const room = FIREWORKS_CAPS.shells - 1 - crescendo;
+    const ticks = Math.round(clamp(c.waveHits, 0, 3));
     for (let w = 0; w < waves; w++) {
-      const n = Math.round(clamp(c.waveShells + w * 2, 2, FIREWORKS_CAPS.waveShells + 4));
-      const hitAt = 1 + Math.floor(rnd() * Math.max(1, n - 2));
-      for (let j = 0; j < n && shells.length < FIREWORKS_CAPS.shells - 1; j++) {
-        const launchAt = Math.max(first, start + w * c.waveGapMs + (n > 1 ? (j / (n - 1)) * c.waveSpanMs : 0) + (rnd() - 0.5) * 50);
+      const n = Math.round(clamp(c.waveShells + w, 2, FIREWORKS_CAPS.waveShells + 4));
+      // The ticks of this wave: spread through it (never its first or last shell), alternating beside and ON the portrait.
+      const hitJs = new Set<number>();
+      for (let h = 0; h < Math.min(ticks, n - 2); h++) hitJs.add(Math.min(n - 2, 1 + Math.floor(((h + rnd() * 0.8) / Math.max(1, ticks)) * (n - 2))));
+      let h = 0;
+      for (let j = 0; j < n && shells.length < room; j++) {
+        const jitter = (rnd() - 0.5) * 50;
+        const launchAt = Math.max(first, start + w * c.waveGapMs + (n > 1 ? (j / (n - 1)) * c.waveSpanMs : 0) + (w || j ? jitter : 0));
         const fly = F * (0.82 + rnd() * 0.36);
         const tint = Math.floor(rnd() * 5);
         const change = rnd() < 0.4;
         let kind = BARRAGE_KINDS[Math.floor(rnd() * BARRAGE_KINDS.length)]!;
         let flight: ShellFlight = 'rise';
         let size = 1 + rnd() * 0.8;
-        const role: ShellRole = j === hitAt ? 'hit' : 'fx';
-        if (role === 'hit') { kind = w % 2 ? 'ring' : 'peony'; size = 1.2; }
+        const role: ShellRole = hitJs.has(j) ? 'hit' : 'fx';
+        let aim: ShellPlan['aim'] = 'sky';
+        if (role === 'hit') { kind = (w + h) % 2 ? 'ring' : 'peony'; size = 1.2; aim = h % 2 ? 'on' : 'near'; h++; }
         const from: 'hero' | 'ground' = role === 'hit' || j % 3 === 0 ? 'hero' : 'ground';
         // The variant's whimsy rides the barrage: a smiley in the sky, a pinwheel off the hero's rim.
         let takeoffAt = launchAt;
-        if (variant === 1 && w === Math.min(1, waves - 1) && j === n - 1) { kind = 'smiley'; size = 1.7; }
+        if (variant === 1 && role === 'fx' && w === Math.min(1, waves - 1) && j === n - 1) { kind = 'smiley'; size = 1.7; }
         if (variant === 2 && w === 0 && j === 0) { kind = 'spiral'; flight = 'pinwheel'; takeoffAt = launchAt + c.spinMs; size = 1.6; }
         shells.push(shell({
-          kind, flight, role, from, launchAt, takeoffAt, flyMs: fly, tint, tint2: change ? (tint + 1 + Math.floor(rnd() * 4)) % 5 : -1, size, wave: w,
+          kind, flight, role, from, aim, launchAt, takeoffAt, flyMs: fly, tint, tint2: change ? (tint + 1 + Math.floor(rnd() * 4)) % 5 : -1, size, wave: w,
+        }));
+      }
+    }
+    // THE CRESCENDO: a quick drumroll of shells off the hero's spark, every one bursting ON the struck portrait, each a
+    // little bigger, the last a crackle. The comet goes up as it ends.
+    if (crescendo > 0) {
+      crescendoAt = Math.max(...shells.map((s) => s.takeoffAt)) + 70;
+      const kinds: readonly ShellKind[] = ['peony', 'ring', 'peony', 'ring', 'peony', 'ring', 'peony'];
+      for (let j = 0; j < crescendo; j++) {
+        const last = j === crescendo - 1;
+        shells.push(shell({
+          kind: last ? 'crackle' : kinds[j % kinds.length]!, flight: 'rise', role: 'hit', aim: 'on', launchAt: crescendoAt + j * c.crescendoGapMs,
+          flyMs: F * 0.72, tint: (j * 2 + 1) % 5, tint2: j % 2 ? -1 : (j + 3) % 5, size: 1 + 0.12 * j, wave: waves,
         }));
       }
     }
@@ -578,7 +618,7 @@ export function fireworksPlan(input: FireworksPlanInput, c: HeroFireworksConfig 
   if (level !== 3) holdAt = impactAt;
 
   return {
-    ...base, reduced: false, chargeAt, absorbEnd, fuseMs: V.FuseMs, shells, impactShell, hits, holdAt, holdMs, impactAt, finalAt, endAt,
+    ...base, reduced: false, chargeAt, absorbEnd, fuseMs: V.FuseMs, shells, impactShell, hits, holdAt, holdMs, impactAt, crescendoAt, finalAt, endAt,
     shakePx: clamp(V.Shake, 0, FIREWORKS_CAPS.shakePx),
     zoom: clamp(V.Zoom, 0, FIREWORKS_CAPS.zoom),
     punch: V.Punch,
@@ -652,8 +692,9 @@ export const SHELL_VIEW = 0.26;
 /**
  * Where everything is, from the plan and the two heroes. The spark sits on the striker's rim, turned between the target
  * and straight up. Tier 1 and 2 shells open ON the struck portrait (the heart just above it); the barrage spreads
- * across the whole sky (seeded), its tick shells beside the struck portrait; the enormous shell opens between the
- * middle of the view and the struck hero, sized to the view. Every point that must be seen is kept inside the view.
+ * across the whole sky (seeded), its tick shells beside and ON the struck portrait; the crescendo bursts on the face;
+ * the enormous shell opens ON the struck portrait, sized to the view (in a corner it runs off the edges, its core and
+ * the portrait stay on screen). Every point that must be seen is kept inside the view.
  * Pure.
  */
 export function fireworksGeometry(
@@ -690,15 +731,22 @@ export function fireworksGeometry(
     const R = s.kind === 'giant' ? 0 : shellR(s);
     let at: Pt;
     if (s.kind === 'giant') {
+      // THE ENORMOUS SHELL BURSTS ON THE STRUCK PORTRAIT (fourth pass, owner 2026-11-13): its heart sits on the face,
+      // nudged a third of a radius toward the middle of the view, and kept far enough inside the view that the core
+      // flash and the portrait's reaction are always on screen (the bloom itself runs off the edges in a corner).
       bloomR = Math.min(v.w, v.h) * c.giantSize;
-      bloom = { x: inX(v.w / 2 + (d.x - v.w / 2) * 0.3, bloomR * 0.35), y: inY(v.h * 0.42 + (d.y - v.h * 0.42) * 0.2, bloomR * 0.35) };
+      bloom = { x: inX(d.x + toCentre.x * radius * 0.35, radius * 1.1), y: inY(d.y + toCentre.y * radius * 0.35, radius * 1.1) };
       at = bloom;
-    } else if (p.level === 3 && s.wave >= 0 && s.role !== 'hit') {
+    } else if (p.level === 3 && s.aim === 'on') {
+      // On the struck portrait: centred on the face with a little jitter (the crescendo and half the ticks).
+      const a = rnd() * Math.PI * 2, r = radius * 0.4 * Math.sqrt(rnd());
+      at = { x: inX(d.x + Math.cos(a) * r, Math.min(R * 0.5, radius * 1.1)), y: inY(d.y + Math.sin(a) * r, Math.min(R * 0.5, radius * 1.1)) };
+    } else if (p.level === 3 && s.wave >= 0 && s.aim === 'sky') {
       // The barrage: spread evenly across the sky with a seeded wobble (a golden-ratio walk across the width).
       k++;
       const fx = (k * 0.618034 + rnd() * 0.18) % 1;
       at = { x: inX(v.w * (0.07 + 0.86 * fx), R * 0.6), y: inY(v.h * (0.1 + 0.42 * rnd()), R * 0.6) };
-    } else if (p.level === 3 && s.role === 'hit') {
+    } else if (p.level === 3 && s.wave >= 0) {
       // A tick: just beside the struck portrait, toward the middle of the view and a little above.
       const lean = rnd() < 0.5 ? -1 : 1;
       at = { x: inX(d.x + toCentre.x * radius * 1.0 + lean * radius * 0.5, R * 0.5), y: inY(d.y + toCentre.y * radius * 0.6 - radius * 0.7, R * 0.5) };
@@ -710,7 +758,7 @@ export function fireworksGeometry(
     } else {
       // Beside the struck portrait on the side facing the middle of the view (where the dim makes it glow), so its
       // stars sweep across the portrait: a ring just round it, the rest a little farther out.
-      const off = radius * (s.kind === 'ring' ? 0.45 : s.kind === 'smiley' ? 1.5 : 1.15);
+      const off = radius * (s.kind === 'ring' ? 0.45 : s.kind === 'smiley' ? 1.5 : 0.75);
       at = { x: inX(d.x + toCentre.x * off, R * 0.45), y: inY(d.y + toCentre.y * off, R * 0.45) };
     }
     // The flight: from the spark (or the bottom of the view), bending up and over onto the burst point.

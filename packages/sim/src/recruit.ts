@@ -10662,14 +10662,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *
    *  A `pool` Discover over the ids on your board that appear exactly once — a real "finish the pair" tool
    *  rather than a generic offer. Fired by `fireOnSell` AFTER the Salesman has left the board, so it can never
-   *  offer itself. Ids only (not uids): two copies of the same card is what "one copy" is counting, and a
-   *  Golden already IS three, so a gilded body is excluded (it can't be tripled again). Golden Discovers twice. */
+   *  offer itself. Ids only (not uids): two copies of the same card is what "one copy" is counting. A copy is
+   *  a MINION ON THE BOARD, Golden or not (R-SALESMAN-01, owner 2026-11-13): a lone Golden is one copy and is
+   *  offered, a Golden beside a plain one is two and is not. It used to weigh a Golden as three, which silently
+   *  dropped every lone Golden from the offer. Golden Salesman Discovers twice. */
   onSellDiscoverSingleton: (ctx, self) => {
     const counts = new Map<string, number>();
     for (const c of ctx.state.board) {
       const d = CARD_INDEX[c.cardId];
       if (!d || d.spell || d.ruby) continue;
-      counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + (c.golden ? 3 : 1));
+      counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const ids = [...counts.entries()].filter(([, n]) => n === 1).map(([id]) => id);
     if (ids.length === 0) return;

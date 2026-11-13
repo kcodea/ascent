@@ -187,12 +187,16 @@ describe('rune-only minions — recruit effects', () => {
         recruitBody('n2_salesman', 'sm'),
         recruitBody('k_chipwick', 'a1'),                     // one copy → offered
         recruitBody('dw_brunni', 'b1'), recruitBody('dw_brunni', 'b2'), // two copies → not offered
-        recruitBody('b2_spots', 'g1', true),                 // GOLDEN = three copies → not offered
+        recruitBody('b2_spots', 'g1', true),                 // a lone GOLDEN is still one minion → offered
+        recruitBody('dm_glutton', 'c1', true), recruitBody('dm_glutton', 'c2'), // Golden + plain = two → not offered
       ],
     });
     s = reduce(s, { type: 'sell', uid: 'sm' });
     expect(s.discover, 'the sale opened a Discover').toBeTruthy();
-    expect(new Set(s.discover!), 'only the singleton qualifies').toEqual(new Set(['k_chipwick']));
+    // R-SALESMAN-01 (owner 2026-11-13): "exactly one copy" counts the minions on the board, so a lone Golden
+    // qualifies. It used to count as three copies and was silently left out of the offer.
+    expect(new Set(s.discover!), 'every minion you control exactly one of, Golden or not')
+      .toEqual(new Set(['k_chipwick', 'b2_spots']));
   });
 
   it('Kegheart Dwarf: gaining a Dwarven Ale is +3/+3 — gaining anything else is not', () => {

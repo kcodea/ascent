@@ -238,8 +238,8 @@ export const SET2_NEUTRAL: CardDef[] = [
   },
   {
     // TRAVELING SALESMAN — a sell payoff aimed at the triple you are one copy short of. The Discover pool is
-    // built from the board at sell time, so it is a different offer every turn; a Golden body already counts
-    // as three copies and is therefore never "exactly one".
+    // built from the board at sell time, so it is a different offer every turn; a copy is a minion on the
+    // board, so a lone Golden counts as exactly one (R-SALESMAN-01).
     id: 'n2_salesman',
     name: 'Traveling Salesman',
     tribe: 'neutral',

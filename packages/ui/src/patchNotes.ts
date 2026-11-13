@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-13',
     changes: [
       {
+        category: 'Balance',
+        text: 'Traveling Salesman now offers a Golden minion when it is the only copy you control. It used to leave Golden minions out.',
+      },
+      {
         category: 'Systems',
         text: 'Critical Strike given by a spell, a hero power or a rune now arrives on a beam of its own, in the Shop and in combat.',
       },

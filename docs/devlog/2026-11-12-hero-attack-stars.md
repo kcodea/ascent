@@ -312,3 +312,38 @@ Reused for the new beats: the tick (the wheel's ratchet, the lock, the crouch, t
 crouch, the fist, the gather), the boom (the lock's clunk; the giant and the nova land a little heavier), the thrum (the
 wolf's spring, the giant's swing, the nova's drop), the slowed whoosh (the leap, the fist) and the falling whistle (the
 nova's drop, and the arrow from high above).
+
+Levels, measured not heard (each look played with sound in headless Chrome, the output tapped, "own" = after the damage
+formation): Tier 4 written -30.8 dB mean (impact window -24.2), wheel -31.1 (-25.3), giant -29.0 (-23.0), nova -30.5
+(-23.3); Tier 3 hunter -31.8, wolf -31.4, serpent -33.3 (the hiss and the beam were raised a little after this, not
+re-measured); Tier 1 from high above -33.2. The second pass matched written to Frost IV at -30.9.
+
+## Verified in this pass
+
+- `npx vitest run packages/ui/src/heroStars packages/ui/src/heroAttack packages/ui/src/audio`: `heroStars.test.ts` is
+  now 39 tests (new: the roll is stable and every option turns up and is forceable; each variation keeps its tier's
+  timeline; every variation's figure on every layout lights before it draws, fills its slots, stays on screen at rest,
+  at full draw and turned, and lands on the struck portrait; the five launch places are distinct and cover neither
+  portrait on the real layout; the riders land (the wolf whole, the serpent with its tail anchored, the giant's fist
+  coming down); the wheel locks with the marker in the pointer before it fires; the nova gathers; every variation in
+  both directions lands once, stays under the sprite cap and puts everything back). The tier-button assertion only
+  checks the "(3)" to "(40)" parts, so it holds whichever labels the shared builder uses.
+- One shared failure, NOT from this attack: `phoneAudioQuality.test.ts` "a busy game's working set fits the phone
+  LRU" fails on the merged batch branch. It counts the two largest attack styles; those are warhost (24.4 s) and
+  wrestle (18.1 s). Stars is third at 17.9 s, so its clips do not enter the sum (but it would if either shrank).
+- `npm run typecheck` clean; `npm run lint` 0 errors, no warnings in this attack's files.
+- Contact sheets read for every variation: the five launch places at Tier 1 (you striking) and Tier 2 (the foe
+  striking), the wolf and the serpent in both directions, and the wheel, the giant, the nova and written in the stars
+  in both directions. Nothing left on screen, no portrait left moved.
+- Perf, DEV build, headless Chrome with a screencast running: median 4.2 ms on every look, p99 12.5 to 16.7 ms on the
+  Tier 4 variants (worst frames 41 to 54 ms, at the shared start and teardown as in the earlier passes). Not measured on
+  a production build.
+
+## Still weak or not done
+
+- Nobody has heard the new sounds; placed and levelled by measurement only.
+- When you strike, the struck portrait sits on the top edge, so the giant's fist comes over the top of the sky at a
+  shallow angle (a reach more than a hammer blow); it comes straight down when the foe strikes you.
+- The nova's blow washes the whole sky white for a frame or two (the sky flash plus its bloom); deliberate, but heavy.
+- The wolf's tail tip can brush the screen edge under the camera's push when it is traced in a corner.
+- The variations are not in `KNOCKOUT_VARIANT_STYLES` either; a knockout plays whichever Tier 4 finisher rolls.

@@ -242,9 +242,9 @@ export const HERO_STARS_DEFAULTS: HeroStarsConfig = {
   sfxThrumClip: 'fx/stars-release', sfxThrumGain: 0.7, sfxThrumRate: 1,
   sfxBloomGain: 0.5,
   sfxHowlClip: 'fx/stars-howl', sfxHowlGain: 0.8, sfxHowlRate: 1,
-  sfxHissClip: 'fx/stars-hiss', sfxHissGain: 0.8, sfxHissRate: 1,
+  sfxHissClip: 'fx/stars-hiss', sfxHissGain: 1.1, sfxHissRate: 1,
   sfxGrindClip: 'fx/stars-grind', sfxGrindGain: 0.9, sfxGrindRate: 1,
-  sfxBeamClip: 'fx/stars-beam', sfxBeamGain: 0.9, sfxBeamRate: 1,
+  sfxBeamClip: 'fx/stars-beam', sfxBeamGain: 1.1, sfxBeamRate: 1,
   sfxRumbleClip: 'fx/stars-rumble', sfxRumbleGain: 0.9, sfxRumbleRate: 1,
   sfxImplodeClip: 'fx/stars-implode', sfxImplodeGain: 0.9, sfxImplodeRate: 1,
   sfxTailMix: 0.2,
@@ -885,7 +885,7 @@ function landing(ctrl: Pt, i: FigureInput, k: number): Pt {
 /** Tier 3, THE WOLF: a running wolf of seventeen stars facing the struck hero. It crouches, LEAPS along an arc, tipping with it, and pounces. */
 function wolfFigure(p: StarsPlan, i: FigureInput): StarFigure {
   const L = i.attackerRadius * 1.35 * p.size;
-  const c = placeFigure(i.attacker, i.attackerRadius, 1.6 * L, 1.05 * L, i.defender, i.bounds);
+  const c = placeFigure(i.attacker, i.attackerRadius, 1.6 * L, 1.2 * L, i.defender, i.bounds);
   const f: 1 | -1 = i.defender.x >= c.x ? 1 : -1;
   const P = (x: number, y: number): Pt => ({ x: c.x + f * x * L, y: c.y + y * L });
   const b = builder();

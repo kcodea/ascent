@@ -56,7 +56,7 @@ export const POWER_FAMILY: Record<HeroPowerKind, ActivationFamily> = {
   sellGold: 'count-threshold',
   displace: 'active',
   passaria: 'active-conditional', // needs a teammate: silent on a run with no Duos state
-  magicHat: 'count-threshold', // Magician: 5 Shop buys arm the hat; the next buy sends the teammate a copy
+  magicHat: 'count-threshold', // Magician: the 3rd Shop buy sends the teammate a copy of a random one of the three
   grantReborn: 'active',
   recurringGoldcrafter: 'retired',
   greatPresence: 'every-n-turns',

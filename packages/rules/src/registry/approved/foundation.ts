@@ -15303,4 +15303,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-19). Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-PROG-SKINS-28',
+    title: 'Skins batch 20: three Priestess hero skins join the crates (Hand Drawn Priestess Rare, Minecraft Priestess Epic, Priestess Sweeney Ancient)',
+    statement:
+      'Three crate hero skins target the Duos-only hero Priestess by stable id (priestess), each shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Hero Skins folder its master sits in (R-PROG-SKINS-11): Hand Drawn '
+      + 'Priestess (Rare, skin_priestess_1), Minecraft Priestess (Epic, skin_priestess_2) and Priestess Sweeney (Ancient, '
+      + 'skin_priestess_3, named like the other four Sweeney hero skins). A Duos-only hero\x27s skins are ordinary hero skins: '
+      + 'no filter hides them from the Collection or from crates. There are 44 hero skins and 307 skins in all. With them in, '
+      + 'a first crate holds 92 Common, 146 Rare, 147 Epic, 107 Legendary and 34 Ancient items (each Common 0.38%, Rare 0.212%, '
+      + 'Epic 0.15%, Legendary 0.084%, Ancient 0.088%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-12 (skins batch 20)', quote: 'added some priestess skins in our skins folder' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (skins batch 20); packages/ui/src/art/skins/skin_priestess_1.webp, skin_priestess_2.webp, skin_priestess_3.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-20). The name Minecraft Priestess comes from the master file name and carries another company\x27s trademark; a Claude call for the owner to confirm or rename. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
+  },
 ];

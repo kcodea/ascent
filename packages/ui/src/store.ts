@@ -1,3 +1,4 @@
+import { noteShopActionOrigin } from './fx/keywordOrigin';
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
@@ -2643,6 +2644,16 @@ export const useGame = create<GameStore>((rawSet, get) => {
           ?? s.run.shop.find((o) => o.uid === action.uid)?.cardId
         : undefined;
       const label = acted ? `reduce:${action.type}:${acted}` : `reduce:${action.type}`;
+      // Where a keyword this action gives should send its beam from (R-FX-KEYWORD-ORIGIN-01): a targeted spell =
+      // the pointer, an untargeted spell = the hero portrait, a hero power = its slot. A deferred pick (Choose One,
+      // an aimed Shout or spell) names its card on the run, not on the action.
+      {
+        const a = action as { type: string; targetUid?: string; uid?: string; slot?: number };
+        const pendingSpell = a.type === 'battlecryTarget' ? !!s.run.pendingTarget?.spell : a.type === 'chooseOne' ? !!s.run.chooseOne?.spell : false;
+        const spell = pendingSpell || (!!acted && !!CARD_INDEX[acted]?.spell);
+        const targeted = typeof a.targetUid === 'string' || (a.type === 'heroPower' && typeof a.uid === 'string');
+        noteShopActionOrigin(a.type, spell, targeted, a.slot ?? 0);
+      }
       const beat = perfMonitor.measure(label, () =>
         captureBeats ? reduceWithPresentation(s.run, action, true) : { state: reduce(s.run, action), batch: null },
       );

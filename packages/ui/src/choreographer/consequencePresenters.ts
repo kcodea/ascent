@@ -87,7 +87,7 @@ export interface PresenterContext {
   /** A keyword was gained or lost. */
   /** `from` is the MINION whose beat changed it (Raven's forced Rally giving Execute), with that beat's id, so a
    *  giver's bound "On Execute given" effect can travel from it (R-FX-EXECUTE-GIVEN-01). */
-  keywordChanged: (uid: string, keyword: string, gained: boolean, from?: { uid: string; cardId: string; beatId: string }, index?: number) => void;
+  keywordChanged: (uid: string, keyword: string, gained: boolean, from?: { uid: string; cardId: string; beatId: string }, index?: number, origin?: { kind: string; id: string }) => void;
 
   // ── PR 6: beat-level sequences. These were the last legacy-only visuals. Each is now derived from the
   // EVENT rather than from a hardcoded list of card/effect ids, which is why they cover more than legacy did.
@@ -215,7 +215,8 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
   keywordChanged: ({ consequence: c, beat, ctx, index = 0 }) => {
     if (c.type !== 'keywordChanged' || !c.target.uid) return;
     ctx.keywordChanged(c.target.uid, c.keyword, c.gained,
-      beat.source.kind === 'minion' && beat.source.uid ? { uid: beat.source.uid, cardId: beat.source.id, beatId: beat.id } : undefined, index);
+      beat.source.kind === 'minion' && beat.source.uid ? { uid: beat.source.uid, cardId: beat.source.id, beatId: beat.id } : undefined, index,
+      beat.source.kind === 'minion' ? undefined : { kind: beat.source.kind, id: beat.source.id });
   },
   shopChanged: ({ consequence: c, ctx }) => {
     if (c.type !== 'shopChanged' || !c.target.uid) return;

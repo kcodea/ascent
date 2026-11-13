@@ -1425,21 +1425,27 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   be picked up, so the aim never ends as a drag pass. A press with no legal target, no teammate or too little Gold spends nothing. If the room refuses the pass (the teammate
   is away or out, the clock, the cap), the minion, the 2 Gold and that turn's charge all come back. Wishbone never passes
   a second minion.
-  **Magician** (8 Armor; owner 2026-11-10, R-DUOS-MAGICIAN-01) wields the passive **Magic Hat**: "when you buy 5 cards,
-  your hat is activated. The next card you buy, your teammate gets a copy of it", at most twice per turn. Every card
-  bought from the Shop counts one (a minion, a spell from the slot or the row, a re-bought displaced minion, a Starform);
-  a Discover, a gift, a pass, a token or a conjured copy does not. The count carries across turns and stops at 5, where
-  the hat is active. The next card bought sends the teammate a copy of it as it was bought (its Shop stats and buffs,
-  Golden only if the bought card was) and puts the count back to 0; that buy does not count toward the next 5. A buy that
-  completes a triple copies the plain card that was bought. A Starform bought while the hat is active leaves it active
-  (there is no card to copy). After 2 copies in a turn, buys still count up to 5 but the hat is not active; a full hat is
-  active at the start of the next turn. The copy travels on the pass channel as an effect pass: free for both players,
+  **Magician** (8 Armor; owner 2026-11-10, R-DUOS-MAGICIAN-01; three buys since 2026-11-12) wields the passive **Magic
+  Hat**: "After you buy 3 cards, your teammate gets a copy of a random one. Twice per turn." Every card bought from the
+  Shop counts one and goes into the hat (a minion, a spell from the slot or the row, a re-bought displaced minion; a
+  Starform counts but puts no card in); a Discover, a gift, a pass, a token or a conjured copy does not. The count
+  carries across turns and stops at 3. The third buy fires the hat at once: the teammate gets a copy of ONE of the cards
+  in it, picked at random with equal chance (owner: "The hat can send spells too, it's whatever 3 cards were 'put in his
+  hat'"; a seeded pick, so a replay picks the same card), and the count goes back to 0. The copy is the card as it was
+  bought (its Shop stats and buffs, Golden only if the bought card was): the Magician keeps all three cards, and
+  playing, selling, buffing or tripling them afterwards does not change or cancel the copy. Three buys that make a
+  triple still send the plain card. After 2 copies in a turn, buys still go into the hat up to 3 and then stop; a hat
+  that is full this way fires on the first buy of the next turn, from the cards it already holds, and that buy starts
+  the next hat (an open owner call: it could instead fire as the turn opens). A hat full of Starforms holds no card and
+  waits for the next card bought. The copy travels on the pass channel as an effect pass: free for both players,
   never refused for a full hand (it waits for room), counted toward the 10 card passes per round, and dropped if the
-  room refuses it (the teammate is away or out, the clock): the Magician keeps the card they bought either way. It is
-  not a pass: no "when you pass" or "when your team passes" card hears it, on either board. It plays the pass stream
-  from the bought card into the teammate portrait, and arrives in the teammate's hand like a pass. The power shows its
-  count above it and wears the ready glow while active (Shop only). A reload counts the copies the server already
-  holds against the turn's two. Wishbone is never offered for it, and it is out of the Mimic / Void / Power Shifter
+  room refuses it (the teammate is away or out, the clock): the Magician keeps the cards they bought either way. It is
+  not a pass: no "when you pass" or "when your team passes" card hears it, on either board. The copy's face rises out
+  of the Magic Hat power, so both the player and anyone watching can see which card was picked, and the pass stream
+  flies from the hat into the teammate portrait; it arrives in the teammate's hand like a pass. The Magician says one
+  of five lines as the hat fires, and the teammate hears the same line. The power shows its count above it ("2/3") and
+  wears the ready glow while the next buy would send the copy (Shop only). A reload counts the copies the server
+  already holds against the turn's two and empties the hat. Wishbone is never offered for it, and it is out of the Mimic / Void / Power Shifter
   pools like every Duos-only hero. A recorded team that includes a Magician plays from its recorded boards, so no copy
   is sent or owed there.
   **Ancients are NOT on in Versus Duos or Ranked Duos** (owner 2026-11-10: "we arent turning ancients on just yet, but

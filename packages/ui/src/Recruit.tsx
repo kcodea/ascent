@@ -15,6 +15,10 @@ import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { legacyEotRepeatPlan, repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
+import { launchShopRiseGiven } from './fx/riseGivenLaunch';
+import { playedRiseGrants } from './choreo/channels/riseGiven';
+import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword } from './fx/keywordBeam';
+import { heroPowerPoint, keywordOriginPoint, runeSlotPoint, shopKeywordOrigin } from './fx/keywordOrigin';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
@@ -5837,6 +5841,7 @@ export function Recruit() {
     if (inCombat) { prevWardRef.current = null; return; }
     const prev = prevWardRef.current;
     if (prev && canPlayDefs()) {
+      let wardBeams = 0;
       for (const c of run.board) {
         if (!c.keywords.includes('DS')) continue;
         const had = prev.get(c.uid);
@@ -5845,13 +5850,54 @@ export function Recruit() {
         // (an on-play Shout/Battlecry added it), not a bought base-Ward minion. `false` = an existing minion
         // that just transitioned to Ward — always a gain.
         if (had === undefined && (CARD_INDEX[c.cardId]?.keywords.includes('DS') ?? false)) continue;
-        runRecruitMomentCues(shieldGainMoment(c.uid, c.cardId), {
+        const blast = (): void => { runRecruitMomentCues(shieldGainMoment(c.uid, c.cardId), {
           cardIdOf: (u) => runRef.current.board.find((b) => b.uid === u)?.cardId ?? null,
           measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
-        });
+        }); };
+        // GIVEN BY A SPELL OR A HERO POWER (R-FX-KEYWORD-ORIGIN-01): an EXISTING minion's Ward travels from the
+        // pointer, the hero portrait or the hero power slot, and its dome and blast wait for the landing.
+        const wardFrom = had === false ? keywordOriginPoint(shopKeywordOrigin()) : null;
+        if (wardFrom && launchKeywordBeam('DS', wardFrom, c.uid, { launchAt: wardBeams * KEYWORD_BEAM_GAP_MS, sound: wardBeams < KEYWORD_BEAM_SOUND_MAX, onLand: blast })) { wardBeams++; continue; }
+        blast();
       }
     }
     prevWardRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('DS')]));
+  }, [run.board, inCombat]);
+
+  // SHOP RISE GIVEN BY A PLAYED MINION (owner 2026-11-13, Runic Beetle's Rise option: "No beam played"). A mid-turn
+  // play resolves without a presentation batch, so the keyword cue above never sees it. Read it off the board: a
+  // minion that gains Rise in the action that lands a Rise-giving minion. A layout effect, so the dome is held
+  // before the first paint that would show it. End of Turn grants arrive with no fresh giver and are left alone.
+  //
+  // GIVEN BY A SPELL OR A HERO POWER (R-FX-KEYWORD-ORIGIN-01, owner 2026-11-13): a Rise or Execute gained in an
+  // action the store noted as a targeted spell leaves the POINTER; an untargeted spell, the HERO PORTRAIT; a hero
+  // power (Lord of the Risen), the HERO POWER SLOT. Ward is the effect below (it owns the Ward-gained blast).
+  const prevRiseRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
+  const prevExecuteRef = useSwapRef<Map<string, boolean> | null>(null, swapped);
+  const riseBeamOwnedRef = useSwapRef<{ seq: number; pairs: Set<string> }>({ seq: -1, pairs: new Set() }, swapped);
+  useLayoutEffect(() => {
+    if (inCombat) { prevRiseRef.current = null; prevExecuteRef.current = null; return; }
+    const prev = prevRiseRef.current;
+    const prevV = prevExecuteRef.current;
+    const claimed = new Set<string>();
+    if (prev) {
+      const played = playedRiseGrants(prev, run.board);
+      for (const g of played) if (launchShopRiseGiven(g, 'played')) claimed.add(g.target);
+      // The Rise beam replaces the giver's buff tendril on the same minion (owner 2026-11-13, Runic Beetle).
+      if (claimed.size > 0) riseBeamOwnedRef.current = { seq: run.recruitFxSeq, pairs: new Set(played.filter((g) => claimed.has(g.target)).map((g) => `${g.source}|${g.target}`)) };
+    }
+    const at = prev && prevV ? keywordOriginPoint(shopKeywordOrigin()) : null;
+    if (at) {
+      let k = 0;
+      for (const c of run.board) {
+        const gains: BeamKeyword[] = [];
+        if (prev!.get(c.uid) === false && c.keywords.includes('R') && !claimed.has(c.uid)) gains.push('R');
+        if (prevV!.get(c.uid) === false && c.keywords.includes('V')) gains.push('V');
+        for (const kw of gains) { launchKeywordBeam(kw, at, c.uid, { launchAt: k * KEYWORD_BEAM_GAP_MS, sound: k < KEYWORD_BEAM_SOUND_MAX }); k++; }
+      }
+    }
+    prevRiseRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
+    prevExecuteRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('V')]));
   }, [run.board, inCombat]);
 
   // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
@@ -6100,7 +6146,9 @@ export function Recruit() {
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
     // A HERO POWER's grant (`fromHeroPower`, Hunch × Bonds) is never the Ruby's or the cast's: it keeps its own tendril.
-    const owned0 = owned ? run.recruitBuffFx.filter((e) => e.fromHeroPower || !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
+    const riseOwned = riseBeamOwnedRef.current.seq === run.recruitFxSeq ? riseBeamOwnedRef.current.pairs : null;
+    const buffFx0 = riseOwned?.size ? run.recruitBuffFx.filter((e) => !(e.kind === 'minion' && riseOwned.has(`${e.sourceUid}|${e.targetUid}`))) : run.recruitBuffFx;
+    const owned0 = owned ? buffFx0.filter((e) => e.fromHeroPower || !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : buffFx0;
     // A record a START OF TURN beat captured is presented BY that beat, after the wipe (R-SOT-BEAT-01): the same
     // objects ride `sotBeatFx[i].buffFx`, so they are left out of this wave rather than played twice.
     const sotOwned = run.sotBeatFx?.length ? new Set(run.sotBeatFx.flatMap((b) => b.buffFx ?? [])) : null;
@@ -7767,13 +7815,21 @@ export function Recruit() {
           flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
         });
       },
-      keywordChanged: (uid, keyword, gained, from, index = 0) => {
+      keywordChanged: (uid, keyword, gained, from, index = 0, origin) => {
         // The pip itself renders from the projection; the GRANT gets a flash so it reads as its own beat before
         // whatever it enables (a Deathfibrillator's Rise, then the death) — owner 2026-09-09. Losses stay silent.
         if (!gained) return;
         // EXECUTE GIVEN by a minion with a bound effect (Raven's forced Rally): its beam travels from the giver and
         // the aura waits for it, exactly as in combat. The beam replaces the generic flash (R-FX-EXECUTE-GIVEN-01).
         if (keyword === 'V' && from && launchShopExecuteGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId, index)) return;
+        // RISE GIVEN by a minion with a bound effect: the same travel, one after another when a beat gives several.
+        if (keyword === 'R' && from && launchShopRiseGiven({ cardId: from.cardId, source: from.uid, target: uid }, from.beatId)) return;
+        // GIVEN BY A RUNE OR THE HERO (R-FX-KEYWORD-ORIGIN-01): the keyword's beam leaves the rune's own slot, or the
+        // hero power slot, a gap apart when one beat gives several.
+        if (origin && (keyword === 'R' || keyword === 'V' || keyword === 'DS')) {
+          const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;
+          if (at && launchKeywordBeam(keyword, at, uid, { launchAt: index * KEYWORD_BEAM_GAP_MS, sound: index < KEYWORD_BEAM_SOUND_MAX })) return;
+        }
         const el = findEl(uid);
         if (!el) return;
         const r = el.getBoundingClientRect();

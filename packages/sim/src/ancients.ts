@@ -2915,8 +2915,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'passBuffsLeftmosts', attack: 4, health: 4 }],
     },
   },
-  // MAGICIAN (Duos only; owner pairings 2026-11-10, quoted above each entry). Magic Hat (passive) = "After you buy 5
-  // cards, your hat activates. The next card you buy, your teammate gets a copy. Twice per turn." `{base}` is the hat's
+  // MAGICIAN (Duos only; owner pairings 2026-11-10, quoted above each entry). Magic Hat (passive) = "After you buy 3
+  // cards, your teammate gets a copy of a random one. Twice per turn." (three buys: owner 2026-11-12) `{base}` is the hat's
   // own live text, which already prints the pairing's SHAPE (Genesis' 8 buys, Bonds' no limit: `magicHatView`).
   magician: {
     death: {

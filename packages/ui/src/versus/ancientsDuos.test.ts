@@ -88,30 +88,30 @@ describe('the Duos Ancients seam is the build, not a setting', () => {
 });
 
 describe('the Magic Hat counter and ready glow follow the picked pairing', () => {
-  it('Genesis: the counter runs to 8 and the glow waits for the 8th buy', () => {
+  it('Genesis: the counter runs to 8 and the glow waits until the next buy is the 8th', () => {
     let s = buyN(ancientRun('magician', 'genesis'), 5);
     expect(magicHatBadge(s)).toMatchObject({ tally: '5/8', ready: false, active: false });
     expect(heroPowerArmed(s)).toBe(false);
-    s = buyN(s, 3);
-    expect(magicHatBadge(s)).toMatchObject({ tally: '8/8', ready: true, active: true, status: 'active' });
+    s = buyN(s, 2);
+    expect(magicHatBadge(s)).toMatchObject({ tally: '7/8', ready: true, active: true, status: '7/8 · ready' });
     expect(heroPowerArmed(s)).toBe(true);
     // Never in combat (nothing can be bought there).
     expect(magicHatBadge({ ...s, phase: 'combat' })!.ready).toBe(false);
   });
 
-  it('Bonds: a full hat is ready again after two copies in one turn (no cap)', () => {
+  it('Bonds: the hat is ready again after two copies in one turn (no cap)', () => {
     let s = ancientRun('magician', 'bonds');
-    for (let i = 0; i < 2; i++) s = buyN(s, 6);
-    s = buyN(s, 5);
+    for (let i = 0; i < 2; i++) s = buyN(s, 3);
+    s = buyN(s, 2);
     expect(s.duos!.outbox.filter((e) => e.hat)).toHaveLength(2);
-    expect(magicHatBadge(s)).toMatchObject({ tally: '5/5', ready: true, capped: false });
+    expect(magicHatBadge(s)).toMatchObject({ tally: '2/3', ready: true, capped: false });
   });
 
-  it('no pairing: the hat of before (5 buys, capped after two)', () => {
+  it('no pairing: the plain hat (3 buys, capped after two copies)', () => {
     let s = { ...createVersusRun(11, 'magician', 'set2', DUOS), phase: 'recruit', embers: 400, hand: [], board: [], shop: [], spell: null } as RunState;
-    for (let i = 0; i < 2; i++) s = buyN(s, 6);
-    s = buyN(s, 5);
-    expect(magicHatBadge(s)).toMatchObject({ tally: '5/5', ready: false, capped: true });
+    for (let i = 0; i < 2; i++) s = buyN(s, 3);
+    s = buyN(s, 3);
+    expect(magicHatBadge(s)).toMatchObject({ tally: '3/3', ready: false, capped: true });
   });
 });
 
@@ -159,7 +159,9 @@ describe('a reload mid-turn: the restore replay gives the sender back what the d
   it('Magician × Genesis: three spell copies are ONE pass, so the replay counts one copy against the turn', () => {
     const spell = Object.values(CARD_INDEX).find((c) => c && c.spell && !c.ruby && !c.token && !c.duos && (c.cost ?? 0) <= 3)!.id;
     const before = ancientRun('magician', 'genesis');
-    const played = reduce({ ...buyN(before, 8), spell: { uid: 'sp', cardId: spell } }, { type: 'buy', uid: 'sp' });
+    // A hat of eight of that spell (bought out of the Shop row), so the card the hat picks is the spell.
+    let played = before;
+    for (let i = 0; i < 8; i++) played = { ...reduce({ ...played, shop: [{ uid: `z${i}`, cardId: spell }] }, { type: 'buy', uid: `z${i}` }), hand: [] };
     const rows = rowsOf(played);
     expect(rows).toHaveLength(1);
     const back = replay(before, rows);

@@ -79,7 +79,7 @@ export type HeroPowerKind =
   | 'hoard' // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
   | 'rubyWealth' // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
   | 'passaria' // Priestess (Duos only): 2 Gold — pass a non-Gilded Shop or board minion to your teammate (active, targeted)
-  | 'magicHat'; // Magician (Duos only, passive): buy 5 cards → the hat is active; the next card bought sends the teammate a copy (twice per turn)
+  | 'magicHat'; // Magician (Duos only, passive): the 3rd card bought sends the teammate a copy of a random one of the three (twice per turn)
 
 export interface HeroPower {
   name: string;
@@ -1028,11 +1028,12 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    // DUOS ONLY (owner 2026-11-10, R-DUOS-MAGICIAN-01): "magician - 8 armor, magic hat - when you buy 5 cards, your hat
-    // is activated. The next card you buy, your teammate gets a copy of it." + "Add a twice per turn max". The whole
-    // rule lives in `magicHat.ts` (`magicHatBuy`, called from every `buy` branch); `heroPowerText` prints the live count
-    // and the active state from `magicHatView`, so this static string is the fallback shape only. Appended last, and out
-    // of every non-Duos list, so no solo offer order or seeded hero draw moves.
+    // DUOS ONLY (owner 2026-11-10, R-DUOS-MAGICIAN-01): "magician - 8 armor, magic hat" + "Add a twice per turn max".
+    // Owner 2026-11-12: "Change magician to be 3 buys, and it passes a random minion from those 3 buys", then "The hat
+    // can send spells too, it's whatever 3 cards were 'put in his hat'". The whole rule lives in `magicHat.ts`
+    // (`magicHatBuy`, called from every `buy` branch); `heroPowerText` prints the live count and the ready state from
+    // `magicHatView`, so this static string is the fallback shape only. Appended last, and out of every non-Duos list,
+    // so no solo offer order or seeded hero draw moves.
     id: 'magician',
     name: 'Magician',
     blurb: 'Whatever goes into the hat comes out twice.',
@@ -1043,7 +1044,7 @@ export const HEROES: HeroDef[] = [
       name: 'Magic Hat',
       kind: 'magicHat',
       passive: true,
-      text: 'After you buy **5** cards, your hat activates. The next card you buy, your teammate gets a copy. Twice per turn.',
+      text: 'After you buy **3** cards, your teammate gets a copy of a random one. Twice per turn.',
     },
   },
 ];

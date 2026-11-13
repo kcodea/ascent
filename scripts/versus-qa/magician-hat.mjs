@@ -1,11 +1,13 @@
 // MAGICIAN'S MAGIC HAT, live on the local stack (R-DUOS-MAGICIAN-01). Two real headless browsers in a Ranked Duos party
 // (the same pass channel as Versus Duos) against `wrangler dev`. Player A is made the Magician on the first Shop, then:
-//   round 1  buy 3 (counter 3/5) -> buy 2 (hat active, ready glow) -> B views A's board (sees the count and the glow)
-//            -> buy 1: the copy streams out on A, arrives in B's hand (a frame burst on both screens)
-//            -> 6 more buys (the turn's second copy) -> 5 more: the hat is full but capped (no glow) -> the fight (no glow)
-//   round 2  the full hat is active again at the start of the turn -> B is WATCHING A's board when A buys (B sees the
-//            send), B comes back (the copy lands) -> 5 more buys, B's hand is filled, A buys: the copy waits for room,
-//            then lands when B makes room -> A views B's board.
+//   (three buys and a random copy that leaves from the hat: owner 2026-11-12)
+//   round 1  buy 1 (counter 1/3) -> buy 1 (2/3: ready glow) -> B views A's board (sees the count and the glow)
+//            -> buy 1: a copy of one of the three rises out of the hat on A, streams out, arrives in B's hand (a frame
+//            burst on both screens) -> 3 more buys (the turn's second copy) -> 3 more: the hat is full but capped (no
+//            glow) -> the fight (no glow)
+//   round 2  the full hat is ready again at the start of the turn -> B is WATCHING A's board when A buys (the held hat
+//            fires; B sees the send), B comes back (the copy lands) -> 1 more buy (2/3), B's hand is filled, A buys: the
+//            copy waits for room, then lands when B makes room -> A views B's board.
 // Every non-local host is blocked at the resolver, so the bench bundle never reaches a live service.
 //   node scripts/versus-qa/magician-hat.mjs [--dist apps/web/dist-bench] [--cf http://127.0.0.1:8805] [--port 4521]
 // QA-ONLY SHORTCUTS, on the local run objects (never in the game): A's hero id is set on the first Shop, both players are
@@ -152,22 +154,21 @@ try {
   await install(A); await install(B);
   say('A hero', await qa(A, 'beMagician'));
   await sleep(400);
-  await shot(A, '00-0of5');
+  await shot(A, '00-0of3');
   const classes = (p) => p.page.evaluate(() => ({ panel: document.querySelector('.statusbar .heropanel')?.className, btn: document.querySelector('.statusbar .heropowerbtn')?.className, pill: document.querySelector('.statusbar .hpb-pill')?.textContent, bar: document.querySelector('.statusbar')?.className }));
   const buys = async (n, gap = 120) => { let ok = 0; for (let i = 0; i < n; i++) { if (await qa(A, 'buy')) ok++; await sleep(gap); } return ok; };
 
-  // ── ROUND 1 ── 3 buys: the counter reads 3/5 ──────────────────────────────────────────────────────────────────────
+  // ── ROUND 1 ── 1 buy: the counter reads 1/3 ───────────────────────────────────────────────────────────────────────
   // (The Shop refuses actions until its opening has played: the first buy is retried until it lands.)
   for (let i = 0; i < 60; i++) { if (await qa(A, 'buy')) break; await sleep(500); }
-  await buys(2, 300);
   await sleep(500);
-  say('after 3 buys', await qa(A, 'hat'));
-  await shot(A, '01-3of5');
+  say('after 1 buy', await qa(A, 'hat'));
+  await shot(A, '01-1of3');
 
-  // 2 more: the hat is active (the ready call).
-  await buys(2, 300);
+  // 1 more: 2/3, the next buy sends the copy (the ready call).
+  await buys(1, 300);
   await sleep(800);
-  say('after 5 buys', await qa(A, 'hat'));
+  say('after 2 buys', await qa(A, 'hat'));
   say('A power classes (active)', await classes(A));
   await shot(A, '02-active');
   await sleep(450);
@@ -181,24 +182,24 @@ try {
   await sleep(1500);
   await shot(B, '04-before-copy');
 
-  // The 6th buy: the copy. A frame burst on both screens at once.
-  say('6th buy + burst', await burstBoth('05-send', '05-arrive', () => qa(A, 'buy')));
+  // The 3rd buy: the copy rises out of the hat. A frame burst on both screens at once.
+  say('3rd buy + burst', await burstBoth('05-send', '05-arrive', () => qa(A, 'buy'), 2400));
   say('A after the copy', await qa(A, 'hat'));
   say('A power classes (fired)', await classes(A));
   say('B hand', await qa(B, 'hand'));
   say('B duos', await qa(B, 'duos'));
-  await shot(A, '06-after-fire-0of5');
+  await shot(A, '06-after-fire-0of3');
   await shot(B, '06-copy-in-hand');
 
-  // A second copy this turn (own screens), then five more buys: the hat is full but capped.
+  // A second copy this turn (own screens), then three more buys: the hat is full but capped.
   await qa(A, 'clearHand');
-  say('buys landed (second cycle)', await buys(6));
+  say('buys landed (second hat)', await buys(3));
   await qa(A, 'clearHand');
-  say('buys landed (third fill)', await buys(5));
+  say('buys landed (third fill)', await buys(3));
   await sleep(900);
   say('capped', await qa(A, 'hat'));
   say('A power classes (capped)', await classes(A));
-  await shot(A, '11-capped-5of5-no-glow');
+  await shot(A, '11-capped-3of3-no-glow');
   say('B duos after two copies', await qa(B, 'duos'));
   await qa(A, 'clearHand');
 
@@ -209,7 +210,7 @@ try {
   say('A power classes (combat)', await classes(A));
   await shot(A, '12-combat');
 
-  // ── ROUND 2 ── the full hat is active again at the start of the turn ──────────────────────────────────────────────
+  // ── ROUND 2 ── the full hat is ready again at the start of the turn (its first buy fires it) ──────────────────────
   if (!(await toShop(2))) throw new Error('never reached the second Shop');
   await sleep(2000);
   await install(A); await install(B);
@@ -223,7 +224,7 @@ try {
   // B is WATCHING A's board when the copy is sent: B sees the send, then comes back and the copy lands.
   await clickSel(B, '.duosdock-hold[role="button"]');
   await sleep(2000);
-  say('watched copy + burst', await burstBoth('07-send-watched-by-B', '07-watching-the-send', () => qa(A, 'buy'), 1700));
+  say('watched copy + burst', await burstBoth('07-send-watched-by-B', '07-watching-the-send', () => qa(A, 'buy'), 2600));
   await shot(B, '08-watching-after-send');
   {
     const stop = await cast(B, '09-back-arrival');
@@ -237,11 +238,11 @@ try {
 
   // B's hand is full: the copy waits for room, then lands.
   await qa(A, 'clearHand');
-  say('buys landed (refill)', await buys(5));
+  say('buys landed (refill to 2/3)', await buys(1));
   say('refilled', await qa(A, 'hat'));
   say('B hand filled to', await qa(B, 'fillHand'));
   await sleep(700);
-  say('copy to a full hand + burst', await burstBoth('14-send-full', '14-full-hand', () => qa(A, 'buy'), 1600));
+  say('copy to a full hand + burst', await burstBoth('14-send-full', '14-full-hand', () => qa(A, 'buy'), 2400));
   say('A after', await qa(A, 'hat'));
   say('B duos (waiting)', await qa(B, 'duos'));
   say('docks', { A: await A.page.evaluate(() => document.querySelector('.duosdock')?.textContent?.replace(/\s+/g, ' ').slice(0, 160)), B: await B.page.evaluate(() => document.querySelector('.duosdock')?.textContent?.replace(/\s+/g, ' ').slice(0, 160)) });

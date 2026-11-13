@@ -13,6 +13,7 @@
 import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTribes, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
 import { playArrival, playEntryFlight } from './passLob';
+import { resetHatLines, speakHatLine } from './hatLines';
 import { notePassRefused, passReturnedText } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
@@ -47,6 +48,7 @@ export const duosLastRefusal = (): { seq: number; reason: string } | null => las
 function session(matchId: string, me: VersusGroupSeat): DuosSession {
   if (!ses || ses.matchId !== matchId || ses.me !== me) {
     ses = { matchId, me, inFlight: new Set(), room: null, pulling: false, again: false, ready: false, reconciling: false, seqOf: new Map(), base: 0, firstNew: 0, shipped: new Set() };
+    resetHatLines(); // a new match: its Magic Hat copies are numbered from the start again
   }
   return ses;
 }
@@ -398,6 +400,11 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
         // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand. A pass that completed
         // a triple (R-DUOS-PASS-06) shows the Gild instead (Recruit's `triplesMade` watcher: the trails into the golden).
         const after = useGame.getState().run;
+        // MY TEAMMATE'S MAGIC HAT sent me this copy (R-DUOS-MAGICIAN-01, owner 2026-11-12: "The teammate should hear
+        // these lines too"): the Magician's line, the same one their screen played (it is a function of the copy's uid,
+        // which rides the row), as the row is taken. Once per copy: a copy held for hand room speaks now and not when it
+        // lands, a row delivered again was answered above, and a copy I already heard while watching their board is silent.
+        if ((r.card as { passHat?: unknown }).passHat === true && after.duos?.received.includes(key)) speakHatLine((r.card as { uid?: unknown }).uid);
         const got = after.hand.find((c) => !before.has(c.uid));
         if (got && (after.triplesMade ?? 0) === triples && !ownRunWhileWatching()) playArrival(got.uid);
       }

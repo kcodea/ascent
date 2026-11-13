@@ -187,17 +187,18 @@ describe('Priestess × Death through the room: the minion arrives with Rise', ()
 });
 
 describe('Magician × Genesis through the room: a Gilded copy, three spells', () => {
-  /** Eight buys fill the hat (Genesis), the ninth sends the copy. */
-  const hatFull = (): RunState => {
+  /** Seven buys of `cardId` (Genesis: the hat needs eight); the eighth buy fires it. Every card in the hat is `cardId`,
+   *  so whichever one the hat picks, the copy is that card. */
+  const hatFull = (cardId: string): RunState => {
     let s = ancientRun('magician', 11, 'genesis');
-    for (let i = 0; i < 8; i++) s = { ...reduce({ ...s, shop: [{ uid: `q${i}`, cardId: PLAIN[i % PLAIN.length]! }] }, { type: 'buy', uid: `q${i}` }), hand: [] };
+    for (let i = 0; i < 7; i++) s = { ...reduce({ ...s, shop: [{ uid: `q${i}`, cardId }] }, { type: 'buy', uid: `q${i}` }), hand: [] };
     expect(s.duos!.outbox).toHaveLength(0);
     return s;
   };
 
   it('BOTH TEAMMATES: the minion copy is accepted Gilded and lands Gilded; the Magician keeps the plain one', async () => {
     const h = await inShop();
-    const a = reduce({ ...hatFull(), shop: [{ uid: 'g', cardId: PLAIN[0]! }] }, { type: 'buy', uid: 'g' });
+    const a = reduce({ ...hatFull(PLAIN[0]!), shop: [{ uid: 'g', cardId: PLAIN[0]! }] }, { type: 'buy', uid: 'g' });
     expect(a.hand[0]).toMatchObject({ cardId: PLAIN[0], golden: false });
     await send(h, U[0], a);
     const rows = await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 });
@@ -211,7 +212,7 @@ describe('Magician × Genesis through the room: a Gilded copy, three spells', ()
 
   it('BOTH TEAMMATES: a spell is one pass that lands as three copies, once', async () => {
     const h = await inShop();
-    const a = reduce({ ...hatFull(), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
+    const a = reduce({ ...hatFull(SPELL), spell: { uid: 'sp', cardId: SPELL } }, { type: 'buy', uid: 'sp' });
     expect(a.duos!.outbox).toHaveLength(1);
     await send(h, U[0], a);
     expect((await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 }))[0].card.passCopies).toBe(3);

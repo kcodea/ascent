@@ -213,18 +213,18 @@ const drakkoAfterBuys = (n: number, doctor?: (s: RunState) => RunState): RunStat
 };
 
 describe('count-threshold stagers', () => {
-  it('Magician (magicHat): the 5th Shop buy arms the hat; the 6th sends the teammate a copy and restarts the count', () => {
+  it('Magician (magicHat): two Shop buys fill the hat to 2/3; the 3rd sends the teammate a copy of one of the three and restarts the count', () => {
     // Distinct plain minions, so no buy completes a triple on the way.
     const ids = Object.values(CARD_INDEX).filter((c) => c && !c.spell && !c.token && !c.ruby && !c.duos && c.tier <= 2 && c.effects.length === 0).map((c) => c.id);
-    let s = at('magician', { embers: 40, hand: [], board: [], shop: ids.slice(0, 6).map((cardId, i) => ({ uid: `q${i}`, cardId })), duos: { outbox: [], received: [], refused: [] } });
-    for (let i = 0; i < 5; i++) s = reduce(s, { type: 'buy', uid: `q${i}` } as Act);
-    expect(s.magicHatBuys, 'five buys counted').toBe(5);
+    let s = at('magician', { embers: 40, hand: [], board: [], shop: ids.slice(0, 3).map((cardId, i) => ({ uid: `q${i}`, cardId })), duos: { outbox: [], received: [], refused: [] } });
+    for (let i = 0; i < 2; i++) s = reduce(s, { type: 'buy', uid: `q${i}` } as Act);
+    expect(s.magicHatBuys, 'two buys counted').toBe(2);
     expect(s.duos!.outbox, 'nothing sent on the way').toEqual([]);
-    s = reduce(s, { type: 'buy', uid: 'q5' } as Act);
-    expect(s.duos!.outbox, 'the 6th buy sent exactly one copy').toHaveLength(1);
+    s = reduce(s, { type: 'buy', uid: 'q2' } as Act);
+    expect(s.duos!.outbox, 'the 3rd buy sent exactly one copy').toHaveLength(1);
     expect(s.duos!.outbox[0]).toMatchObject({ hat: true, via: 'sale', paid: 0 });
-    expect(s.duos!.outbox[0]!.card.cardId).toBe(ids[5]);
-    expect(s.hand.some((c) => c.cardId === ids[5]), 'the Magician keeps the card they bought').toBe(true);
+    expect(ids.slice(0, 3), 'the copy is one of the three bought').toContain(s.duos!.outbox[0]!.card.cardId);
+    expect(ids.slice(0, 3).every((id) => s.hand.some((c) => c.cardId === id)), 'the Magician keeps all three').toBe(true);
     expect(s.magicHatBuys, 'the count restarts').toBe(0);
   });
 

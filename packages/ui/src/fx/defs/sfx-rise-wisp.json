@@ -1,1 +1,1 @@
-{"version":1,"id":"sfx-rise-wisp","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-wisp"}}]}
+{"version":1,"id":"sfx-rise-wisp","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/rise-wisp","gain":0.8,"pitchVar":0.07}}]}

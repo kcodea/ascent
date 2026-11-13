@@ -75,6 +75,15 @@ portrait when it is not; Lord of the Risen sends it from the hero power slot; a 
   element, so every point-origin beam fell through to its landing. The point is now a 2 px box (`pointRect`), pinned.
 - **Not covered:** a rune that gives a keyword mid-turn in the Shop or at Start of Turn, and the foe's runes.
 
+## Wisp reverb and pitch jitter (2026-11-13)
+
+Owner: "add some reverb to the wisp sound at 35% mix and reduce its level by 20%", then "have the sound effect
+semitones randomized + and - 7% so each sound is slightly different", and earlier "lower the wraith sound by 20%".
+The wisp is re-rendered from its raw take: 65% dry plus 35% wet, the wet being ten delayed reflections (23 to 420 ms,
+low-passed at 5.2 kHz) with no dry in it, made back up to the old loudness (-16.3 LUFS) in the file. Its layer then
+plays at 0.8. Every Rise sound layer carries `pitchVar: 0.07` (the Sound primitive's per-fire pitch jitter), so each
+beam of a cascade sounds slightly different. The wraith layer plays at 0.8.
+
 ## Not covered
 
 A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. The scheduled play needs a live renderer and is not under test.

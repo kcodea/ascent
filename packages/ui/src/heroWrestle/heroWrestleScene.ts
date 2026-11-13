@@ -4,12 +4,15 @@
  * light and the hits. `heroWrestle.ts` mounts `root` on the above-portrait overlay.
  *
  * OWN OBJECTS (positioned by the runner every frame from the pure state, hidden the moment they are not needed and on
- * every exit): IV's RING (four posts and, at each side, three ropes drawn as two stretchable lengths meeting at a bend,
- * which is pushed out when someone runs into them), III's SPOTLIGHT (a cone from the top edge and its pool on the mat),
- * III's ELBOW STAR leading the dive, and the SHADOW of whatever is about to land.
+ * every exit): IV's RING OF LIGHT (a lit square of canvas, a pillar of light with a glowing cap at each of the four
+ * corners, and three ropes of light on EVERY side, each drawn as two stretchable lengths meeting at a bend: the side
+ * ropes are pushed out when someone runs into them, the back and front ropes sag as the ring shudders under a landing),
+ * III's SPOTLIGHT (a cone from the top edge and its pool on the mat), III's ELBOW STAR leading the dive, and the SHADOW
+ * of whatever is about to land. No painted props: the second pass dropped the steel posts and the brass bell.
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the walk's dust, the chop's slap arc and red hand print, the hits, the
- * canvas-mat dust rings, the ropes' twang, the clothesline, the count's numbers and mat slaps, the bell and WINNER.
+ * canvas-mat dust rings, the BIG mat shock (a wide ring, dust that hangs, grit, a whole-frame flash), the ropes' twang,
+ * the clothesline, the count's numbers and mat slaps, the bell's rings and WINNER.
  */
 import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
@@ -18,15 +21,14 @@ import { FxPool } from '../heroAttack/fxPool';
 import type { ElbowState, RingSide, RingState, SpotState } from './heroWrestleConfig';
 
 export interface HeroWrestleTextures extends HeroArcanaTextures {
-  rope: Texture;
-  post: Texture;
+  tube: Texture;
+  mat: Texture;
   cone: Texture;
   hand: Texture;
   arc: Texture;
   impact: Texture;
   puff: Texture;
   shadow: Texture;
-  bell: Texture;
   wordWoo: Texture;
   wordSlam: Texture;
   wordWinner: Texture;
@@ -46,33 +48,38 @@ export interface WrestleLook {
   frameH?: number;
 }
 
-/** Hard cap on pooled sprites alive at once (the finisher's count peaks near 120). The own objects are outside the pool. */
-export const MAX_WRESTLE_SPRITES = 260;
+/** Hard cap on pooled sprites alive at once (the finisher's landing peaks near 150). The own objects are outside the pool. */
+export const MAX_WRESTLE_SPRITES = 300;
 const RING_PX = 160;
 const GLOW_PX = 128;
 const SHADOW_PX = 64;
-const ROPE_W = 128;
-const ROPE_H = 24;
-const POST_H = 256;
+const TUBE_W = 64;
+const TUBE_H = 32;
+const MAT_W = 512;
+const MAT_H = 256;
 const CONE_W = 256;
 const CONE_H = 512;
 const HAND_PX = 128;
 const ARC_W = 256;
 const IMPACT_PX = 256;
 const PUFF_PX = 128;
-const BELL_PX = 128;
 const NUM_PX = 256;
 const WORD_W = 512;
 const WORD_H = 160;
-/** Where the ropes tie on to a post (fractions of its height), and each rope's colour and share of a stretch. */
+/** Where the ropes tie on to a corner (fractions of its height), and each rope's colour and share of a stretch. */
 const ROPE_AT = [0.4, 0.66, 0.92] as const;
-const ROPE_TINT = [0x4a7df0, 0xf6f6f6, 0xe8413c] as const;
+const ROPE_TINT = [0x3f7bff, 0xffffff, 0xff3b30] as const;
 const ROPE_GIVE = [0.82, 1, 0.9] as const;
+const PILLAR_TINT = 0xffe2a0;
 
 export type WrestleWord = 'woo' | 'slam' | 'winner';
 
 export class HeroWrestleScene extends FxPool {
-  private readonly posts: Sprite[] = [];
+  private readonly mat: Sprite;
+  /** The four corner pillars and their caps: near back, far back, near front, far front. */
+  private readonly pillars: Sprite[] = [];
+  private readonly caps: Sprite[] = [];
+  /** The ropes, two lengths each: [0..12) the near and far sides, [12..18) the back, [18..24) the front. */
   private readonly ropes: Sprite[] = [];
   private readonly cone: Sprite;
   private readonly pool: Sprite;
@@ -86,23 +93,31 @@ export class HeroWrestleScene extends FxPool {
     private readonly aR: number, private readonly dR: number, scale = 1, seed = 1,
   ) {
     super('heroWrestle', [
-      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.rope, tex.post, tex.cone, tex.hand, tex.arc, tex.impact, tex.puff, tex.shadow, tex.bell,
+      tex.glow, tex.ring, tex.star, tex.streak, tex.spark, tex.tube, tex.mat, tex.cone, tex.hand, tex.arc, tex.impact, tex.puff, tex.shadow,
       tex.wordWoo, tex.wordSlam, tex.wordWinner, tex.num1, tex.num2, tex.num3,
     ], scale, seed, MAX_WRESTLE_SPRITES);
-    const mk = (layer: 'under' | 'glow' | 'body', t: Texture, tint: number, ax = 0.5, ay = 0.5): Sprite => {
+    const mk = (layer: 'under' | 'glow' | 'body' | 'core', t: Texture, tint: number, ax = 0.5, ay = 0.5): Sprite => {
       const s = new Sprite(t);
       s.anchor.set(ax, ay); s.tint = tint; s.visible = false; s.eventMode = 'none';
-      if (layer === 'glow') s.blendMode = 'add';
+      if (layer === 'glow' || layer === 'core') s.blendMode = 'add';
       this.layers[layer].addChild(s);
       return s;
     };
     this.shadow = mk('under', tex.shadow, 0x000000);
+    this.mat = mk('glow', tex.mat, colors.spot, 0.5, 0);
     this.cone = mk('glow', tex.cone, colors.spot, 0.5, 0);
     this.pool = mk('glow', tex.glow, colors.spot);
-    // The ring, back to front: the two back posts, the ropes, the two front posts.
-    this.posts.push(mk('body', tex.post, 0xdfe4f2, 0.5, 1), mk('body', tex.post, 0xdfe4f2, 0.5, 1));
-    for (let side = 0; side < 2; side++) for (let i = 0; i < 3; i++) for (let half = 0; half < 2; half++) this.ropes.push(mk('body', tex.rope, ROPE_TINT[i]!, 0, 0.5));
-    this.posts.push(mk('body', tex.post, 0xffffff, 0.5, 1), mk('body', tex.post, 0xffffff, 0.5, 1));
+    // The ring, back to front: the back pillars, the back ropes, the side ropes, the front pillars, the front ropes.
+    const rope = (i: number): Sprite => mk('body', tex.tube, ROPE_TINT[i]!, 0, 0.5);
+    const backPillars = [mk('body', tex.tube, PILLAR_TINT, 0, 0.5), mk('body', tex.tube, PILLAR_TINT, 0, 0.5)];
+    const back: Sprite[] = [];
+    for (let i = 0; i < 3; i++) for (let half = 0; half < 2; half++) back.push(rope(i));
+    for (let side = 0; side < 2; side++) for (let i = 0; i < 3; i++) for (let half = 0; half < 2; half++) this.ropes.push(rope(i));
+    const frontPillars = [mk('body', tex.tube, PILLAR_TINT, 0, 0.5), mk('body', tex.tube, PILLAR_TINT, 0, 0.5)];
+    this.ropes.push(...back);
+    for (let i = 0; i < 3; i++) for (let half = 0; half < 2; half++) this.ropes.push(rope(i));
+    this.pillars.push(...backPillars, ...frontPillars);
+    for (let i = 0; i < 4; i++) this.caps.push(mk('core', tex.glow, PILLAR_TINT));
     this.elbow = mk('body', tex.impact, 0xffffff);
   }
 
@@ -116,46 +131,69 @@ export class HeroWrestleScene extends FxPool {
 
   // ── own objects (the runner writes them every frame) ──────────────────────────────────────────────────────────
 
-  /** IV: the ring. `sides` is where its posts stand (near, far); `st` how far it has risen and each side's stretch. */
+  /** One length of light from (x0, y0) to (x1, y1), `thick` px across (its soft halo included). */
+  private line(s: Sprite, x0: number, y0: number, x1: number, y1: number, thick: number, alpha: number): void {
+    s.visible = true; s.alpha = alpha;
+    s.position.set(x0, y0);
+    s.rotation = Math.atan2(y1 - y0, x1 - x0);
+    s.scale.set(Math.max(0.001, Math.hypot(x1 - x0, y1 - y0)) / TUBE_W, thick / TUBE_H);
+  }
+
+  /** A rope: two lengths from `p` to `q` meeting at a bend pushed (`bx`, `by`) off the straight line. Thinner when stretched. */
+  private rope(at: number, px: number, py: number, qx: number, qy: number, bx: number, by: number, thick: number, alpha: number): void {
+    const mx = (px + qx) / 2 + bx, my = (py + qy) / 2 + by;
+    const rest = Math.hypot(qx - px, qy - py) || 1;
+    const now = Math.hypot(mx - px, my - py) + Math.hypot(qx - mx, qy - my);
+    const th = thick * Math.max(0.62, rest / Math.max(rest, now));
+    this.line(this.ropes[at]!, px, py, mx, my, th, alpha);
+    this.line(this.ropes[at + 1]!, mx, my, qx, qy, th, alpha);
+  }
+
+  /** IV: the ring. `sides` is where its corners stand (near, far); `st` how far it has risen and how its ropes are pushed. */
   setRing(sides: readonly [RingSide, RingSide], st: RingState): void {
     if (this.destroyed) return;
     if (!st.visible) {
-      if (this.posts[0]!.visible) { for (const s of this.posts) s.visible = false; for (const s of this.ropes) s.visible = false; this.refresh(); }
+      if (this.mat.visible) { this.hideRing(); this.refresh(); }
       return;
     }
-    const thick = ((this.aR + this.dR) / 2) * 0.11 * this.look.ropeSize;
-    for (let k = 0; k < 2; k++) {
-      const sd = sides[k]!;
-      const push = k === 0 ? st.near : st.far;
-      const bH = sd.backH * st.rise, fH = sd.frontH * st.rise;
-      const back = this.posts[k]!, front = this.posts[2 + k]!;
-      back.visible = true; back.alpha = st.alpha;
-      back.position.set(sd.back.x, sd.back.y);
-      back.scale.set(sd.backH / POST_H, bH / POST_H);
-      front.visible = true; front.alpha = st.alpha;
-      front.position.set(sd.front.x, sd.front.y);
-      front.scale.set(sd.frontH / POST_H, fH / POST_H);
-      for (let i = 0; i < 3; i++) {
-        const f = ROPE_AT[i]!;
-        const px = sd.back.x, py = sd.back.y - bH * f;
-        const qx = sd.front.x, qy = sd.front.y - fH * f;
-        // The bend: the middle of the rope, pushed OUT of the ring by whoever ran into it.
-        const mx = (px + qx) / 2 + sd.out * push * ROPE_GIVE[i]!, my = (py + qy) / 2;
-        const rest = Math.hypot(qx - px, qy - py) / 2 || 1;
-        for (let half = 0; half < 2; half++) {
-          const s = this.ropes[k * 6 + i * 2 + half]!;
-          const x0 = half === 0 ? px : mx, y0 = half === 0 ? py : my;
-          const x1 = half === 0 ? mx : qx, y1 = half === 0 ? my : qy;
-          const len = Math.hypot(x1 - x0, y1 - y0);
-          s.visible = true; s.alpha = st.alpha;
-          s.position.set(x0, y0);
-          s.rotation = Math.atan2(y1 - y0, x1 - x0);
-          // A stretched rope is a thinner rope. The back end is further away, so a touch thinner too.
-          s.scale.set(len / ROPE_W, (thick * (half === 0 ? 0.88 : 1) * Math.max(0.6, rest / Math.max(rest, len))) / ROPE_H);
-        }
+    const Rm = (this.aR + this.dR) / 2;
+    const thick = Rm * 0.3 * this.look.ropeSize;
+    const [near, far] = sides;
+    // The lit canvas, corner to corner.
+    const m = this.mat;
+    m.visible = true; m.alpha = 0.9 * st.alpha;
+    m.position.set((near.back.x + far.back.x) / 2, near.back.y);
+    m.scale.set((Math.abs(far.front.x - near.front.x) * 1.04) / MAT_W, ((near.front.y - near.back.y) * 1.06) / MAT_H);
+    // The corner pillars of light and their caps.
+    const corner = (i: number, x: number, y: number, h: number): void => {
+      this.line(this.pillars[i]!, x, y, x, y - h * st.rise, Rm * 0.42, st.alpha);
+      const c = this.caps[i]!;
+      c.visible = true; c.alpha = 0.85 * st.alpha;
+      c.position.set(x, y - h * st.rise);
+      c.scale.set((Rm * 0.95) / GLOW_PX);
+    };
+    corner(0, near.back.x, near.back.y, near.backH); corner(1, far.back.x, far.back.y, far.backH);
+    corner(2, near.front.x, near.front.y, near.frontH); corner(3, far.front.x, far.front.y, far.frontH);
+    for (let i = 0; i < 3; i++) {
+      const f = ROPE_AT[i]!, give = ROPE_GIVE[i]!;
+      for (let k = 0; k < 2; k++) {
+        // A SIDE's rope, back corner to front corner: its bend is pushed OUT of the ring by whoever ran into it.
+        const sd = sides[k]!;
+        const push = (k === 0 ? st.near : st.far) * give;
+        this.rope(k * 6 + i * 2, sd.back.x, sd.back.y - sd.backH * st.rise * f, sd.front.x, sd.front.y - sd.frontH * st.rise * f, sd.out * push, 0, thick * 0.94, st.alpha);
       }
+      // The BACK and FRONT ropes, side to side: they sag when the ring shudders. The back ones are further away (thinner).
+      this.rope(12 + i * 2, near.back.x, near.back.y - near.backH * st.rise * f, far.back.x, far.back.y - far.backH * st.rise * f, 0, st.drop * give * 0.8, thick * 0.84, st.alpha);
+      this.rope(18 + i * 2, near.front.x, near.front.y - near.frontH * st.rise * f, far.front.x, far.front.y - far.frontH * st.rise * f, 0, st.drop * give, thick * 1.06, st.alpha);
     }
     this.own = true;
+  }
+
+  private hideRing(): void {
+    this.mat.visible = false;
+    for (const s of this.pillars) s.visible = false;
+    for (const s of this.caps) s.visible = false;
+    for (const s of this.ropes) s.visible = false;
   }
 
   /** III: the spotlight's cone from the top edge to where it points, and its pool there. */
@@ -204,14 +242,13 @@ export class HeroWrestleScene extends FxPool {
 
   /** Hide every own object (the end, a cancel). */
   hideOwn(): void {
-    for (const s of this.posts) s.visible = false;
-    for (const s of this.ropes) s.visible = false;
+    this.hideRing();
     this.cone.visible = false; this.pool.visible = false; this.elbow.visible = false; this.shadow.visible = false;
     this.own = false;
   }
 
   private refresh(): void {
-    this.own = this.posts[0]!.visible || this.cone.visible || this.elbow.visible || this.shadow.visible;
+    this.own = this.mat.visible || this.cone.visible || this.elbow.visible || this.shadow.visible;
   }
 
   protected override tick(): boolean { return this.own; }
@@ -237,13 +274,18 @@ export class HeroWrestleScene extends FxPool {
     this.spawn('glow', this.tex.arc, this.colors.side, at.x - dir * r * 0.15, at.y - r * 0.15, { dur: 260, from: w * 0.7 * m, to: w * 1.25 * m, sy: 0.8 * m, a0: 0.5, ease: 'cubic' });
   }
 
-  /** I: the red HAND PRINT left on the struck portrait (it rides the stagger), and the smack itself. */
-  chop(at: Pt, dir: number, k: number, rings: number): void {
+  /**
+   * I: the smack itself at `at`, and the red HAND PRINT left on the struck portrait at `print` (it rides the stagger).
+   * The print is placed by the runner on the side of the portrait AWAY from the shared hit number, and it stays a full
+   * second, so it is seen.
+   */
+  chop(at: Pt, print: Pt, dir: number, k: number, rings: number): void {
     const S = this.scale;
     const c = this.colors;
     const R = this.dR;
     const b = Math.max(0.3, k);
-    this.spawn('body', this.tex.hand, c.hand, at.x - dir * R * 0.3, at.y + R * 0.3, { dur: 760, from: (R * 1.25) / HAND_PX / S, to: (R * 1.1) / HAND_PX / S, a0: 0.9, mode: 'hold', follow: true, rot: dir * 0.25 });
+    this.spawn('glow', this.tex.glow, c.hand, print.x, print.y, { dur: 900, from: (R * 1.5) / GLOW_PX / S, to: (R * 1.9) / GLOW_PX / S, a0: 0.4, mode: 'hold', follow: true });
+    this.spawn('body', this.tex.hand, c.hand, print.x, print.y, { dur: 1150, from: (R * 1.55) / HAND_PX / S, to: (R * 1.3) / HAND_PX / S, a0: 0.95, mode: 'hold', follow: true, rot: dir * 0.25 });
     this.spawn('glow', this.tex.glow, c.hand, at.x, at.y, { dur: 300, from: (R * 1.2) / GLOW_PX / S, to: (R * 2.4) / GLOW_PX / S, a0: 0.55, mode: 'punch', peakAt: 0.1, follow: true });
     this.spawn('core', this.tex.star, c.flash, at.x, at.y, { dur: 220, from: 0.6 * b, to: 1.9 * b, a0: 1, mode: 'punch', peakAt: 0.12, rot: 0.4 });
     for (let i = 0; i < Math.min(6, rings); i++) {
@@ -273,15 +315,56 @@ export class HeroWrestleScene extends FxPool {
     this.burst('core', this.tex.spark, [c.flash, c.mat], at.x, y, Math.round(6 * k), { speed: 380 * k, dir: -Math.PI / 2, spread: 2.4, life: 320, size: 0.35, drag: 0.15, grav: 700, align: true });
   }
 
+  /**
+   * A HEAVY body hits the mat (the slam, the elbow, the finisher's landing): on top of `matRing`, a wide thick shock ring
+   * racing out along the floor, streaks of grit thrown flat to both sides, canvas dust that HANGS in the air for a
+   * second (the aftermath), and grit thrown up that falls back.
+   */
+  matShock(at: Pt, r: number, k: number, rings: number): void {
+    const S = this.scale;
+    const c = this.colors;
+    const y = at.y + r * 0.45;
+    const b = Math.max(0.4, k);
+    this.matRing(at, r, b, rings);
+    for (let i = 0; i < 2; i++) {
+      this.spawn('glow', this.tex.ring, i ? c.mat : c.flash, at.x, y, { dur: 560 + 120 * i, from: (r * 1.2) / RING_PX / S, to: (r * (6.5 + 1.6 * i) * b) / RING_PX / S, sy: 0.28, a0: 0.95 - 0.25 * i, ease: 'cubic', delay: 30 * i });
+    }
+    this.spawn('core', this.tex.glow, c.flash, at.x, y, { dur: 220, from: (r * 1.6) / GLOW_PX / S, to: (r * 4 * b) / GLOW_PX / S, sy: 0.3, a0: 0.45, mode: 'punch', peakAt: 0.12 });
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        this.spawn('glow', this.tex.streak, i % 2 ? c.mat : 0xffffff, at.x + side * r * 0.8, y + (i - 1) * r * 0.16, { dur: 260 + 40 * i, from: 1.5 * b, to: 0.6, a0: 0.7, sy: 0.16, rot: side > 0 ? 0 : Math.PI, vx: side * (900 + 260 * i) * b, drag: 0.05, ease: 'linear' });
+      }
+    }
+    // The dust that hangs: big slow puffs drifting out and up.
+    const n = Math.round(5 + 3 * b);
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? 1 : -1;
+      this.spawn('body', this.tex.puff, i % 3 ? c.mat : whiten(c.mat, 0.5), at.x + side * r * (0.3 + this.rnd() * 1.5), y + (this.rnd() - 0.6) * r * 0.3, {
+        dur: 1000 + this.rnd() * 600, from: (r * 0.7) / PUFF_PX / S, to: (r * (1.4 + this.rnd() * 0.7)) / PUFF_PX / S, a0: 0.42, mode: 'hold', ease: 'cubic',
+        vx: side * (70 + this.rnd() * 130) * b, vy: -22 - this.rnd() * 30, drag: 0.35, delay: this.rnd() * 60, spin: (this.rnd() - 0.5) * 0.0006,
+      });
+    }
+    this.burst('core', this.tex.spark, [c.flash, c.mat, 0xffffff], at.x, y, Math.round(12 * b), { speed: 620 * b, dir: -Math.PI / 2, spread: 2.6, life: 520, size: 0.4, drag: 0.2, grav: 1100, align: true });
+    this.burst('body', this.tex.puff, [c.mat], at.x, y, Math.round(5 * b), { speed: 420 * b, dir: -Math.PI / 2, spread: 2.2, life: 620, size: (r * 0.16) / PUFF_PX / S, drag: 0.25, grav: 900, mode: 'hold', to: 0.8 });
+  }
+
+  /** A whole-frame FLASH on a big hit, brightest at `at` (`k` 0..1; one short additive pulse, no filter). */
+  flash(at: Pt, k: number): void {
+    if (!(k > 0)) return;
+    const S = this.scale;
+    const span = Math.max(this.look.frameW ?? 1920, this.look.frameH ?? 1080);
+    this.spawn('core', this.tex.glow, this.colors.flash, at.x, at.y, { dur: 190, from: (span * 2.2) / GLOW_PX / S, to: (span * 2.6) / GLOW_PX / S, a0: Math.min(0.75, k), mode: 'punch', peakAt: 0.14 });
+  }
+
   /** A big hit on a portrait (the slam, the elbow, the clothesline): a flash, the comic impact star, stars thrown off. */
   wallop(at: Pt, r: number, k: number): void {
     const S = this.scale;
     const c = this.colors;
     const b = Math.max(0.3, k);
     this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 240, from: (r * 0.8 * b) / GLOW_PX / S, to: (r * 2.4 * b) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.1 });
-    this.spawn('body', this.tex.impact, whiten(c.pow, 0.35), at.x, at.y, { dur: 220, from: (r * 0.75 * Math.sqrt(b)) / IMPACT_PX / S, to: (r * 1.4 * Math.sqrt(b)) / IMPACT_PX / S, a0: 0.95, mode: 'out', rot: (this.rnd() - 0.5) * 0.8 });
+    this.spawn('body', this.tex.impact, whiten(c.pow, 0.35), at.x, at.y, { dur: 300, from: (r * 0.9 * Math.sqrt(b)) / IMPACT_PX / S, to: (r * 1.9 * Math.sqrt(b)) / IMPACT_PX / S, a0: 0.95, mode: 'hold', rot: (this.rnd() - 0.5) * 0.8 });
     this.spawn('glow', this.tex.glow, c.side, at.x, at.y, { dur: 340, from: (r * 1.2) / GLOW_PX / S, to: (r * 3 * b) / GLOW_PX / S, a0: 0.45, mode: 'punch', peakAt: 0.15 });
-    this.burst('core', this.tex.star, [c.pow, c.flash, 0xffffff], at.x, at.y, Math.round(6 * b), { speed: 400 * b, life: 480, size: 0.32, drag: 0.15, spin: 0.012, lift: 120, grav: 380 });
+    this.burst('core', this.tex.star, [c.pow, c.flash, 0xffffff], at.x, at.y, Math.round(8 * b), { speed: 520 * b, life: 620, size: 0.38, drag: 0.15, spin: 0.012, lift: 120, grav: 380 });
   }
 
   /** IV: the far ropes take the weight: a creak of sparks off the bend and speed lines thrown back. */
@@ -300,35 +383,53 @@ export class HeroWrestleScene extends FxPool {
     }
   }
 
-  /** IV: one number of the COUNT slams down (`i` 0..2), with a flash behind it. */
+  /** IV: one number of the COUNT slams down LARGE (`i` 0..2, each bigger than the last), with a flash and a ring as it lands. */
   count(at: Pt, i: number): void {
     const S = this.scale;
-    const t = [this.tex.num1, this.tex.num2, this.tex.num3][Math.max(0, Math.min(2, i))]!;
-    const px = this.dR * (1.5 + 0.22 * i) * Math.max(0.2, this.look.wordSize);
+    const n = Math.max(0, Math.min(2, i));
+    const t = [this.tex.num1, this.tex.num2, this.tex.num3][n]!;
+    const px = this.dR * (2.3 + 0.35 * n) * Math.max(0.2, this.look.wordSize);
     const k = px / NUM_PX / S;
-    this.spawn('glow', this.tex.glow, this.colors.pow, at.x, at.y, { dur: 260, from: (px * 0.9) / GLOW_PX / S, to: (px * 1.7) / GLOW_PX / S, a0: 0.6, mode: 'punch', peakAt: 0.2 });
-    this.spawn('body', t, 0xffffff, at.x, at.y, { dur: 400, from: k * 2.3, to: k, a0: 1, mode: 'hold', ease: 'quint', rot: (i - 1) * 0.1 });
-    this.spawn('glow', this.tex.ring, this.colors.pow, at.x, at.y, { dur: 300, from: (px * 0.5) / RING_PX / S, to: (px * 1.3) / RING_PX / S, a0: 0.6, ease: 'cubic', delay: 60 });
+    const rot = (n - 1) * 0.1;
+    this.spawn('glow', this.tex.glow, this.colors.pow, at.x, at.y, { dur: 320, from: (px * 0.9) / GLOW_PX / S, to: (px * 1.9) / GLOW_PX / S, a0: 0.7, mode: 'punch', peakAt: 0.25 });
+    // It arrives from three times the size in about 90 ms (the quint ease does the slam), then sits.
+    this.spawn('body', t, 0xffffff, at.x, at.y, { dur: 430, from: k * 3.2, to: k, a0: 1, mode: 'hold', ease: 'quint', rot });
+    this.spawn('core', t, 0xffffff, at.x, at.y, { dur: 200, from: k * 1.1, to: k * 1.22, a0: 0.7, mode: 'out', ease: 'cubic', rot, delay: 70 });
+    for (let j = 0; j < 2; j++) {
+      this.spawn('glow', this.tex.ring, j ? 0xffffff : this.colors.pow, at.x, at.y, { dur: 340 + 80 * j, from: (px * 0.5) / RING_PX / S, to: (px * (1.5 + 0.5 * j)) / RING_PX / S, a0: 0.75 - 0.2 * j, ease: 'cubic', delay: 70 + 40 * j });
+    }
+    this.burst('core', this.tex.spark, [this.colors.pow, 0xffffff], at.x, at.y, 8 + 2 * n, { speed: 520, life: 300, size: 0.42, drag: 0.12, align: true });
   }
 
-  /** IV: a SLAP OF THE MAT beside the pin (a small flat ring, a puff of dust, three little lines). */
-  matSlap(at: Pt, r: number): void {
+  /** IV: a SLAP OF THE MAT beside the pin (a flat ring racing out, dust to both sides, lines thrown up). */
+  matSlap(at: Pt, r: number, k = 1): void {
     const S = this.scale;
     const c = this.colors;
-    this.spawn('glow', this.tex.ring, c.flash, at.x, at.y, { dur: 260, from: (r * 0.3) / RING_PX / S, to: (r * 1.5) / RING_PX / S, sy: 0.32, a0: 0.8, ease: 'cubic' });
-    this.spawn('body', this.tex.puff, c.mat, at.x, at.y, { dur: 300, from: (r * 0.3) / PUFF_PX / S, to: (r * 0.6) / PUFF_PX / S, a0: 0.6, vy: -40, drag: 0.2 });
-    for (const a of [-2.2, -Math.PI / 2, -0.95]) {
-      this.spawn('glow', this.tex.streak, 0xffffff, at.x + Math.cos(a) * r * 0.45, at.y + Math.sin(a) * r * 0.45, { dur: 180, from: 0.4, to: 0.25, a0: 0.8, sy: 0.2, rot: a, vx: Math.cos(a) * 200, vy: Math.sin(a) * 200, drag: 0.1, ease: 'linear' });
+    for (let i = 0; i < 2; i++) {
+      this.spawn('glow', this.tex.ring, i ? c.mat : c.flash, at.x, at.y, { dur: 300 + 100 * i, from: (r * 0.4) / RING_PX / S, to: (r * (2.4 + 1.4 * i) * k) / RING_PX / S, sy: 0.3, a0: 0.9 - 0.3 * i, ease: 'cubic', delay: 40 * i });
+    }
+    this.spawn('core', this.tex.glow, c.flash, at.x, at.y, { dur: 200, from: (r * 0.6) / GLOW_PX / S, to: (r * 1.8 * k) / GLOW_PX / S, sy: 0.4, a0: 0.7, mode: 'punch', peakAt: 0.15 });
+    for (const side of [-1, 1]) {
+      this.spawn('body', this.tex.puff, c.mat, at.x + side * r * 0.3, at.y, { dur: 420, from: (r * 0.35) / PUFF_PX / S, to: (r * 0.8) / PUFF_PX / S, a0: 0.65, vx: side * 220 * k, vy: -40, drag: 0.1 });
+    }
+    for (const a of [-2.4, -1.95, -Math.PI / 2, -1.2, -0.75]) {
+      this.spawn('glow', this.tex.streak, 0xffffff, at.x + Math.cos(a) * r * 0.45, at.y + Math.sin(a) * r * 0.45, { dur: 200, from: 0.55 * k, to: 0.3, a0: 0.85, sy: 0.2, rot: a, vx: Math.cos(a) * 320, vy: Math.sin(a) * 320, drag: 0.1, ease: 'linear' });
     }
   }
 
-  /** IV: the BELL: it pops in, and three rings of sound go out, one per ding. */
+  /** IV: the BELL, as light: three rings of sound go out over the pin, one per ding, each with a star flash and rays. */
   bell(at: Pt, r: number): void {
     const S = this.scale;
-    const px = r * 1.3;
-    this.spawn('body', this.tex.bell, 0xffffff, at.x, at.y, { dur: 820, from: (px * 0.5) / BELL_PX / S, to: px / BELL_PX / S, a0: 1, mode: 'hold', ease: 'quint', rot: -0.12, spin: 0.0003 });
+    const px = r * 1.5;
     for (let i = 0; i < 3; i++) {
-      this.spawn('glow', this.tex.ring, this.colors.pow, at.x, at.y, { dur: 380, from: (px * 0.6) / RING_PX / S, to: (px * 2.2) / RING_PX / S, a0: 0.7, ease: 'cubic', delay: 170 * i });
+      const delay = 170 * i;
+      this.spawn('core', this.tex.star, this.colors.flash, at.x, at.y, { dur: 240, from: 0.9, to: 2.6, a0: 1, mode: 'punch', peakAt: 0.15, rot: 0.3 * i, delay });
+      this.spawn('glow', this.tex.ring, this.colors.pow, at.x, at.y, { dur: 460, from: (px * 0.5) / RING_PX / S, to: (px * 3) / RING_PX / S, a0: 0.85, ease: 'cubic', delay });
+      this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 380, from: (px * 0.4) / RING_PX / S, to: (px * 2.2) / RING_PX / S, a0: 0.5, ease: 'cubic', delay: delay + 50 });
+    }
+    for (let j = 0; j < 8; j++) {
+      const a = (j / 8) * Math.PI * 2 + 0.2;
+      this.spawn('glow', this.tex.streak, this.colors.pow, at.x + Math.cos(a) * px * 0.5, at.y + Math.sin(a) * px * 0.5, { dur: 300, from: 0.8, to: 0.4, a0: 0.8, sy: 0.18, rot: a, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, drag: 0.08, ease: 'linear' });
     }
   }
 
@@ -337,8 +438,8 @@ export class HeroWrestleScene extends FxPool {
     const S = this.scale;
     const c = this.colors;
     this.spawn('glow', this.tex.glow, c.side, at.x, at.y, { dur: 620, from: (r * 1.5) / GLOW_PX / S, to: (r * 3.4) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.2 });
-    this.burst('core', this.tex.star, [c.pow, c.side, 0xffffff], at.x, at.y - r * 0.3, Math.round(10 * k), { speed: 420, dir: -Math.PI / 2, spread: 2.6, life: 700, size: 0.34, drag: 0.2, spin: 0.012, grav: 520 });
-    this.word('winner', { x: at.x, y: at.y - r * 1.6 }, 2.5, -0.06, 640);
+    this.burst('core', this.tex.star, [c.pow, c.side, 0xffffff], at.x, at.y - r * 0.3, Math.round(16 * k), { speed: 560, dir: -Math.PI / 2, spread: 2.8, life: 900, size: 0.4, drag: 0.2, spin: 0.012, grav: 560 });
+    this.word('winner', { x: at.x, y: at.y - r * 1.75 }, 2.5, -0.06, 900, 1.5);
   }
 
   /** Dizzy stars turning over the one on the mat. */
@@ -347,16 +448,16 @@ export class HeroWrestleScene extends FxPool {
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
       this.spawn('core', this.tex.star, this.colors.pow, at.x + Math.cos(a) * r * 0.6, at.y - r * 0.75 + Math.sin(a) * r * 0.18, {
-        dur: 760, from: 0.32 / S, to: 0.2 / S, a0: 1, mode: 'hold', vx: -Math.sin(a) * 90, vy: Math.cos(a) * 26, drag: 0.6, spin: 0.01,
+        dur: 1000, from: 0.4 / S, to: 0.24 / S, a0: 1, mode: 'hold', vx: -Math.sin(a) * 90, vy: Math.cos(a) * 26, drag: 0.6, spin: 0.01,
       });
     }
   }
 
   /** A word popping in over a point, a little tilted, drifting up as it fades; kept inside the frame. */
-  word(w: WrestleWord, at: Pt, strength: number, rot = -0.08, dur = 700): void {
+  word(w: WrestleWord, at: Pt, strength: number, rot = -0.08, dur = 700, size = 1): void {
     if (this.look.wordSize <= 0) return;
     const S = this.scale;
-    const width = this.dR * 1.9 * this.look.wordSize * Math.min(1.5, 0.75 + 0.3 * strength);
+    const width = this.dR * 1.9 * size * this.look.wordSize * Math.min(1.5, 0.75 + 0.3 * strength);
     const k = width / WORD_W / S;
     const hh = width * (WORD_H / WORD_W);
     const fw = this.look.frameW ?? Infinity, fh = this.look.frameH ?? Infinity;

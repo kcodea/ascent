@@ -15436,4 +15436,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-12 (feat/skins-batch-20). The name Minecraft Priestess comes from the master file name and carries another company\x27s trademark; a Claude call for the owner to confirm or rename. Reaches the database through the catalog sync.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-RUNE-INSPECT-01',
+    title: 'An inspected rune and the cards it names are one centred group, side by side, never overlapping',
+    statement:
+      'When a rune is inspected (a press in the Compendium, a hold on a Runeforge offer), the rune card and every card its reward '
+      + 'names sit as ONE group centred on the dimmed backdrop: each named card beside the rune with a clear gap between what '
+      + 'each one paints (plate, frame spill and the label under it included), never over the rune or over another named card, '
+      + 'its plate top level with the rune card top, and the whole group fully on screen at any window size (on a tall narrow '
+      + 'window the cards may stack under the rune, centred). The rune keeps its Runeforge look (the same name wrap and text); '
+      + 'each named card keeps the size ratio of the rune hover preview. A rune that names no card is shown alone, centred.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (Compendium rune inspect)', quote: 'this is in the compendium, inspecting a rune. fix this view please' },
+      { kind: 'code', ref: 'packages/ui/src/RuneInspect.tsx (fitGroup); packages/ui/src/runeInspectLayout.ts (planRuneInspect); packages/ui/src/styles.css (.rune-inspect)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-13 (fix/compendium-rune-inspect). Before it the view used the card Inspect flex row and fixed scale: a plated card painted past its layout box, so it lapped over the rune, hung lower than it, and two named cards could land on one spot.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeInspectLayout.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

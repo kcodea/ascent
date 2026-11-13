@@ -15,10 +15,17 @@
  *  - THE BANNER: a pole with a brass point, a red swallow-tailed flag with a brass border and a gold sword. Two frames
  *    of the wave.
  *  - THE SPEAR and THE ARROW (pointing right, the point at the right edge), and a lumpy DUST puff (white: tinted).
+ *  - THE MAGE (third pass): a little wizard in a deep blue robe with brass stars, a tall floppy hat with a brass band,
+ *    a white beard and a staff with a pale gem (the scene lights it with his school's colour, live). Two frames:
+ *    standing on the staff, and casting (staff thrust out and up). The staff tip is where `WARHOST_MAGE_TIP` says.
+ *  - THE DRUMMER: a soldier with a red war drum on his belly, sticks up and sticks down.
+ *  - THE ARCHER'S CHEER (both arms up, hood on) and THE BOULDER (a cracked grey rock; the scene sets it on fire).
+ * The figures are deliberately plain: everything they DO (spells, trails, fire, rune circles, impacts) is live Pixi.
  * No hero or Ancient art is used.
  */
 import { CanvasSource, Rectangle, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
+import { WARHOST_FOOT_H, WARHOST_MAGE_TIP } from './heroWarhostConfig';
 import type { HeroWarhostTextures } from './heroWarhostScene';
 
 /** A foot soldier's cell: the feet at (`FOOT_AX`, `FOOT_AY`) of it; the figure stands `FOOT_H` px from sole to helmet. */
@@ -44,6 +51,7 @@ export const SPEAR_H = 16;
 export const ARROW_W = 60;
 export const ARROW_H = 14;
 export const DUST_PX = 64;
+export const ROCK_PX = 80;
 
 const INK = '#2a1410';
 const RED = '#d8372e';
@@ -61,6 +69,13 @@ const BOOT = '#3d2418';
 const HORSE = '#6b4329';
 const HORSE_LIGHT = '#8e5f3c';
 const HORSE_DARK = '#40261a';
+const ROBE = '#3646b8';
+const ROBE_LIGHT = '#5f72e6';
+const ROBE_DARK = '#1d2672';
+const BEARD = '#f4f1ea';
+const ROCK = '#8a8580';
+const ROCK_LIGHT = '#bdb8b0';
+const ROCK_DARK = '#4a4642';
 
 type G = CanvasRenderingContext2D;
 
@@ -104,11 +119,11 @@ function spearShaft(g: G, x1: number, y1: number, x2: number, y2: number): void 
 }
 
 type Legs = 'stride' | 'pass' | 'stand';
-type Arms = 'carry' | 'wind' | 'thrown' | 'cheer' | 'bare' | 'bow' | 'draw' | 'loosed';
+type Arms = 'carry' | 'wind' | 'thrown' | 'cheer' | 'bare' | 'bow' | 'draw' | 'loosed' | 'drum';
 
-/** One foot soldier or archer, feet at (ox, oy), facing right. */
-function paintFoot(g: G, ox: number, oy: number, legs: Legs, arms: Arms): void {
-  const archer = arms === 'bow' || arms === 'draw' || arms === 'loosed';
+/** One foot soldier or archer, feet at (ox, oy), facing right (`hooded`: an archer whatever his arms are doing). */
+function paintFoot(g: G, ox: number, oy: number, legs: Legs, arms: Arms, hooded = false): void {
+  const archer = hooded || arms === 'bow' || arms === 'draw' || arms === 'loosed';
   const up = legs === 'pass' ? -3 : 0; // the passing frame rides higher (the bob)
   const lean = legs === 'stand' ? 0 : 2; // a runner leans into it
   shadow(g, ox, oy + 1, 22, 6);
@@ -167,7 +182,7 @@ function paintFoot(g: G, ox: number, oy: number, legs: Legs, arms: Arms): void {
   } else if (arms === 'carry') {
     g.fillStyle = SKIN; g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.arc(bx + 11.5, top + 14, 3.2, 0, Math.PI * 2); g.fill(); g.stroke();
   }
-  if (!archer) {
+  if (!archer && arms !== 'drum') {
     // The round shield (the host's colour): red, a brass rim, a brass boss, a highlight.
     const sx = cheerA ? bx - 17 : bx - 3, sy = cheerA ? top - 18 : top + 13, sr = cheerA ? 10 : 12.5;
     shape(g, () => g.arc(sx, sy, sr, 0, Math.PI * 2), lit(g, sx - sr, sy - sr, sx + sr, sy + sr, RED_LIGHT, RED, RED_DARK));
@@ -175,6 +190,78 @@ function paintFoot(g: G, ox: number, oy: number, legs: Legs, arms: Arms): void {
     g.fillStyle = BRASS_LIGHT; g.beginPath(); g.arc(sx, sy, 3.4, 0, Math.PI * 2); g.fill();
     g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.6; g.beginPath(); g.arc(sx, sy, sr - 5.5, Math.PI * 1.05, Math.PI * 1.5); g.stroke();
   }
+}
+
+/** A drummer: the soldier (no shield), a red war drum on his belly, the sticks up (`hit` false) or down on the skin. */
+function paintDrummer(g: G, ox: number, oy: number, hit: boolean): void {
+  paintFoot(g, ox, oy, 'stand', 'drum');
+  const top = oy - 48;
+  const dx = ox + 6, dy = top + 24, w = 15, h = 13;
+  // The far stick and arm first, then the drum, then the near ones.
+  const stick = (sx: number, near: boolean): void => {
+    const hx = sx + (hit ? 4 : -2), hy = hit ? dy - 6 : top - 14;
+    limb(g, ox + (near ? 4 : -2), top + 8, hx, hy + (hit ? 4 : 8), 5, SKIN);
+    limb(g, hx, hy + (hit ? 3 : 6), hit ? hx + 9 : hx + 5, hit ? dy - 2 : hy - 8, 2.4, WOOD_DARK);
+    g.fillStyle = BRASS_LIGHT; g.beginPath(); g.arc(hit ? hx + 9 : hx + 5, hit ? dy - 2 : hy - 8, 2.6, 0, Math.PI * 2); g.fill();
+  };
+  stick(dx - 8, false);
+  shape(g, () => { g.moveTo(dx - w, dy); g.lineTo(dx - w, dy + h); g.ellipse(dx, dy + h, w, 5, 0, Math.PI, 0, true); g.lineTo(dx + w, dy); g.closePath(); }, lit(g, dx - w, dy, dx + w, dy, RED_LIGHT, RED, RED_DARK), 3.5);
+  // The brass hoops and the cords between them.
+  g.strokeStyle = BRASS; g.lineWidth = 2.4;
+  g.beginPath(); g.ellipse(dx, dy + h, w, 5, 0, 0, Math.PI); g.stroke();
+  g.strokeStyle = BRASS_LIGHT; g.lineWidth = 1.4;
+  for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(dx + i * 6, dy + 3); g.lineTo(dx + i * 6 + (i % 2 ? 3 : -3), dy + h + 3); g.stroke(); }
+  shape(g, () => g.ellipse(dx, dy, w, 5, 0, 0, Math.PI * 2), lit(g, dx, dy - 5, dx, dy + 5, '#fff7e2', '#f1dfbc', '#c9b48b'), 3);
+  stick(dx + 4, true);
+}
+
+/**
+ * A mage, feet at (ox, oy), facing right: a blue robe sprinkled with brass stars, a tall floppy hat with a brass band, a
+ * white beard and a staff with a pale gem at its tip (exactly at `WARHOST_MAGE_TIP`, scaled from the soldier's height).
+ */
+function paintMage(g: G, ox: number, oy: number, cast: boolean): void {
+  const k = FOOT_H / WARHOST_FOOT_H;
+  const tip = cast ? WARHOST_MAGE_TIP.cast : WARHOST_MAGE_TIP.stand;
+  const tx = ox + tip.x * k, ty = oy + tip.y * k;
+  shadow(g, ox, oy + 1, 22, 6);
+  const top = oy - 44;
+  const staffFoot = cast ? { x: ox + 4, y: top + 30 } : { x: ox + 15, y: oy - 1 };
+  // The staff (behind the near arm).
+  limb(g, staffFoot.x, staffFoot.y, tx, ty + 5, 3.4, WOOD);
+  // The robe: a bell from the shoulders to the hem, the far sleeve, a brass sash, brass stars.
+  if (cast) limb(g, ox - 3, top + 8, ox - 18, top + 14, 7, ROBE_DARK);
+  shape(g, () => { g.moveTo(ox - 9, top + 2); g.lineTo(ox + 9, top + 2); g.lineTo(ox + 17, oy - 3); g.quadraticCurveTo(ox, oy + 3, ox - 17, oy - 3); g.closePath(); }, lit(g, ox - 17, top, ox + 17, oy, ROBE_LIGHT, ROBE, ROBE_DARK));
+  g.fillStyle = BRASS; g.fillRect(ox - 11, top + 18, 22, 3.4);
+  g.fillStyle = BRASS_LIGHT;
+  for (const [sx, sy] of [[-7, 30], [6, 36], [-2, 40]] as const) { g.beginPath(); g.arc(ox + sx, top + sy, 1.8, 0, Math.PI * 2); g.fill(); }
+  // The head, the beard.
+  const hx = ox + 2, hy = top - 7;
+  shape(g, () => g.arc(hx, hy, 8.5, 0, Math.PI * 2), SKIN);
+  g.fillStyle = INK; g.beginPath(); g.arc(hx + 4.5, hy - 0.5, 1.5, 0, Math.PI * 2); g.fill();
+  shape(g, () => { g.moveTo(hx - 5, hy + 2); g.quadraticCurveTo(hx + 1, hy + 22, hx + 8, hy + 3); g.quadraticCurveTo(hx + 1, hy + 6, hx - 5, hy + 2); g.closePath(); }, BEARD, 3);
+  // The hat: a wide brim, a tall cone flopping backward, a brass band and a star.
+  shape(g, () => { g.moveTo(hx - 9, hy - 6); g.quadraticCurveTo(hx - 3, hy - 26, hx - 14, hy - 38); g.quadraticCurveTo(hx + 4, hy - 30, hx + 9, hy - 6); g.closePath(); }, lit(g, hx - 12, hy - 36, hx + 8, hy - 6, ROBE_LIGHT, ROBE, ROBE_DARK), 3.5);
+  shape(g, () => g.ellipse(hx, hy - 5, 15, 4.2, 0, 0, Math.PI * 2), lit(g, hx, hy - 9, hx, hy - 1, ROBE_LIGHT, ROBE, ROBE_DARK), 3.5);
+  g.strokeStyle = BRASS; g.lineWidth = 2.6; g.beginPath(); g.moveTo(hx - 8, hy - 9); g.quadraticCurveTo(hx, hy - 12, hx + 8, hy - 9); g.stroke();
+  g.fillStyle = BRASS_LIGHT; g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 1.6 : 3.8; g.lineTo(hx - 3 + Math.cos(a) * r, hy - 20 + Math.sin(a) * r); }
+  g.closePath(); g.fill();
+  // The near arm holding the staff, and the gem (pale: the scene lights it).
+  limb(g, ox + 3, top + 7, cast ? tx - 8 : ox + 14, cast ? ty + 14 : top + 18, 6, ROBE);
+  g.fillStyle = SKIN; g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.arc(cast ? tx - 7 : ox + 15, cast ? ty + 13 : top + 18, 3, 0, Math.PI * 2); g.fill(); g.stroke();
+  shape(g, () => { g.moveTo(tx, ty - 6); g.lineTo(tx + 4.5, ty); g.lineTo(tx, ty + 6); g.lineTo(tx - 4.5, ty); g.closePath(); }, lit(g, tx - 4, ty - 6, tx + 4, ty + 6, '#ffffff', '#e8f4ff', '#a9c6e8'), 2.6);
+}
+
+/** The catapult's boulder: a lumpy cracked grey rock, lit from the top left (the scene sets it on fire). */
+function paintRock(g: G, ox: number, oy: number): void {
+  const cx = ox + ROCK_PX / 2, cy = oy + ROCK_PX / 2, r = ROCK_PX * 0.4;
+  shape(g, () => {
+    for (let i = 0; i < 11; i++) { const a = (i / 11) * Math.PI * 2, rr = r * (0.84 + 0.16 * Math.abs(Math.sin(i * 2.3))); if (i === 0) g.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); else g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    g.closePath();
+  }, lit(g, cx - r, cy - r, cx + r, cy + r, ROCK_LIGHT, ROCK, ROCK_DARK), 4);
+  g.strokeStyle = ROCK_DARK; g.lineWidth = 2.2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(cx - 10, cy - 14); g.lineTo(cx - 2, cy - 3); g.lineTo(cx + 9, cy - 1); g.moveTo(cx - 2, cy - 3); g.lineTo(cx - 6, cy + 12); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.35)'; g.beginPath(); g.ellipse(cx - 11, cy - 13, 8, 4, -0.6, 0, Math.PI * 2); g.fill();
 }
 
 /** A bow gripped at (x, y), turned `rot`, its string pulled back `pull` px (an arrow nocked when `arrow`). */
@@ -316,14 +403,17 @@ function paintDust(g: G, ox: number, oy: number): void {
 
 type Cell = [name: string, w: number, h: number, paint: (g: G, x: number, y: number) => void];
 
-const footCell = (name: string, legs: Legs, arms: Arms): Cell => [name, FOOT_W, FOOT_CELL_H, (g, x, y) => paintFoot(g, x + FOOT_W * FOOT_AX, y + FOOT_CELL_H * FOOT_AY, legs, arms)];
+const footCell = (name: string, legs: Legs, arms: Arms, hooded = false): Cell => [name, FOOT_W, FOOT_CELL_H, (g, x, y) => paintFoot(g, x + FOOT_W * FOOT_AX, y + FOOT_CELL_H * FOOT_AY, legs, arms, hooded)];
+const figCell = (name: string, paint: (g: G, ox: number, oy: number) => void): Cell => [name, FOOT_W, FOOT_CELL_H, (g, x, y) => paint(g, x + FOOT_W * FOOT_AX, y + FOOT_CELL_H * FOOT_AY)];
 
 const CELLS: Cell[] = [
   footCell('infA', 'stride', 'carry'), footCell('infB', 'pass', 'carry'), footCell('infStand', 'stand', 'carry'),
   footCell('spearWind', 'stand', 'wind'), footCell('spearThrown', 'stride', 'thrown'), footCell('cheer', 'stand', 'cheer'),
   footCell('bareA', 'stride', 'bare'), footCell('bareB', 'pass', 'bare'),
   footCell('archA', 'stride', 'bow'), footCell('archB', 'pass', 'bow'), footCell('archStand', 'stand', 'bow'),
-  footCell('archDraw', 'stand', 'draw'), footCell('archLoose', 'stand', 'loosed'),
+  footCell('archDraw', 'stand', 'draw'), footCell('archLoose', 'stand', 'loosed'), footCell('archCheer', 'stand', 'cheer', true),
+  figCell('mage', (g, x, y) => paintMage(g, x, y, false)), figCell('mageCast', (g, x, y) => paintMage(g, x, y, true)),
+  figCell('drumA', (g, x, y) => paintDrummer(g, x, y, false)), figCell('drumB', (g, x, y) => paintDrummer(g, x, y, true)),
   ['cavA', CAV_W, CAV_CELL_H, (g, x, y) => paintRider(g, x + CAV_W * CAV_AX, y + CAV_CELL_H * CAV_AY, false)],
   ['cavB', CAV_W, CAV_CELL_H, (g, x, y) => paintRider(g, x + CAV_W * CAV_AX, y + CAV_CELL_H * CAV_AY, true)],
   ['bannerA', BANNER_W, BANNER_CELL_H, (g, x, y) => paintBanner(g, x + BANNER_W * BANNER_AX, y + BANNER_CELL_H * BANNER_AY, 0)],
@@ -331,6 +421,7 @@ const CELLS: Cell[] = [
   ['spear', SPEAR_W, SPEAR_H, paintSpear],
   ['arrow', ARROW_W, ARROW_H, paintArrow],
   ['dust', DUST_PX, DUST_PX, paintDust],
+  ['rock', ROCK_PX, ROCK_PX, paintRock],
 ];
 
 export const WARHOST_ATLAS_W = 1024;
@@ -375,7 +466,8 @@ export function heroWarhostTextures(): HeroWarhostTextures | null {
     infA: cut('infA'), infB: cut('infB'), infStand: cut('infStand'), spearWind: cut('spearWind'), spearThrown: cut('spearThrown'), cheer: cut('cheer'),
     bareA: cut('bareA'), bareB: cut('bareB'), archA: cut('archA'), archB: cut('archB'), archStand: cut('archStand'), archDraw: cut('archDraw'),
     archLoose: cut('archLoose'), cavA: cut('cavA'), cavB: cut('cavB'), bannerA: cut('bannerA'), bannerB: cut('bannerB'), spear: cut('spear'),
-    arrow: cut('arrow'), dust: cut('dust'),
+    arrow: cut('arrow'), dust: cut('dust'), archCheer: cut('archCheer'), mage: cut('mage'), mageCast: cut('mageCast'), drumA: cut('drumA'), drumB: cut('drumB'),
+    rock: cut('rock'),
   };
   return cached;
 }

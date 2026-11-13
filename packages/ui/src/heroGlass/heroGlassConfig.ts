@@ -4,29 +4,48 @@
  *
  * THE SIGNATURE: THE SCREEN ITSELF IS A PANE OF GLASS between the player and the game, and the blow breaks it. The
  * cracks are drawn ON the screen surface, over everything; in the top look the whole view shatters into shards that
- * fall away and the scene is simply there behind them, clean. No other attack treats the screen as an object.
+ * burst at the viewer and fall away, and the scene is simply there behind them, clean. No other attack treats the
+ * screen as an object.
  *
- * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I, THE CHIP: a pebble flicked from the striker taps the glass over the struck portrait: a star-shaped chip, three
- *    short cracks, a glint. It heals (fades) after a beat.
- *  - II, THE WEB: two pebbles in quick succession; the cracks from both spread in little jumps and join into a spider
- *    web about the size of the portrait.
- *  - III, THE PANE: one hard rock; the web grows large and the PANE round the struck portrait breaks out: its shards tip
- *    forward and fall off the bottom of the screen, a dark hole stays for a beat, then the pane repairs in a shimmer.
- *  - IV, THE SHATTER: the striker winds up and punches the glass; ONE CRACK RACES across the whole screen through both
- *    portraits, edge to edge, branching as it goes; a held beat of fine creaking (the web fills in, the picture sits a
- *    hair offset either side of the crack); then THE WHOLE SCREEN SHATTERS: forty to seventy shards that tile the view
- *    burst a little, tumble and fall away under gravity over a white-blue flash. The blow lands at the shatter.
+ * SEVEN CAUSES, ROLLED PER FIGHT (owner 2026-11-12: "add more ways of cracking the glass so it's not throwing a rock
+ * every time"). What cracks the glass is rolled from the stable per-blow seed (`causeOf(rollSeed)`, the way Soccer rolls
+ * its corner), so a replay rolls the same; the DEV tuner's "Variation" row forces one. Every cause is light, force or
+ * portrait motion (no drawn object), and each leaves its OWN CRACK SHAPE:
+ *  - `butt`, THE HEADBUTT: the striker's portrait launches itself at the glass over the target, flattens against it
+ *    for a beat and bounces home. A tight IMPACT STAR (dense spokes and rings, a crushed heart).
+ *  - `knock`, THE KNOCK: tap, tap, KNOCK, a ripple at each. A BULLSEYE of broken concentric rings.
+ *  - `hum`, RESONANCE: a rising tone, standing rings shimmering over the target, the portrait humming; then it gives
+ *    way all at once from the centre. A SUNBURST of fine straight needles, no rings.
+ *  - `creep`, PRESSURE: no impact at all. One crack is born on the EDGE of the screen and creeps toward the target in
+ *    jerks, forking, then blooms on the portrait. A long edge-born FRACTURE TREE.
+ *  - `shock`, THE SHOCKWAVE: the striker stamps and a ring of force rolls across the board; the glass over the target
+ *    crazes as it passes. A fine FROSTED CRAZE (a mosaic of short cracks) under a haze.
+ *  - `beam`, THE BEAM: a pinpoint of light from the striker heats a glowing spot until the glass pops. A few long
+ *    wandering THERMAL cracks from an ember.
+ *  - `ricochet`, THE RICOCHET: one fast point of light bounces off the inside of the screen edges, chipping each, and
+ *    hits home. A lopsided SKID STAR thrown forward along its last leg, plus the chips on the edges.
  *
- * ONE GEOMETRY: the cracks ARE the shard edges. A web is a fan of jittered spokes and rings round the impact point
- * (`buildWeb`); its spokes, rings and diagonals are the crack lines, and the same cells are the shards, so the screen
+ * FOUR LOOKS on the shared thresholds (`attackTier`: a knockout always plays IV), each cause scaled across them:
+ *  - I, THE CHIP: the cause's small mark. It heals (fades) after a beat.
+ *  - II, THE WEB: the cause's mark spreads in creaking jumps to about the size of the portrait and a half.
+ *  - III, THE PANE: it grows to about three portrait radii and the PANE round the struck portrait breaks out: its shards
+ *    tip forward and fall off the bottom of the screen, a dark hole stays for a beat, then the pane repairs in a shimmer.
+ *  - IV, THE SHATTER: the cause cracks the glass over the struck portrait, and from that mark ONE BOLD FRACTURE TEARS
+ *    across the whole screen, both ways through both portraits, forking with a flash at every fork; a long held beat
+ *    (fine cracks spreading everywhere, creaking, the glass trembling, a rising whine); then THE WHOLE SCREEN SHATTERS:
+ *    forty to seventy shards that tile the view burst TOWARD the viewer over a white-blue flash, hang for a breath,
+ *    tumble and fall, and glass dust sparkles after them. The blow lands at the shatter.
+ *
+ * ONE GEOMETRY for the break: IV's web is a fan of jittered spokes and rings round the struck portrait (`buildWeb`); its
+ * spokes, rings and diagonals are the crack lines of the held beat and the same cells are the shards, so the screen
  * breaks exactly where it cracked. Everything is generated from the blow's seed (never `Math.random`).
  *
- * NEVER A FROZEN FRAME (R-PROG-ATTACK-10): the held beat keeps creaking, and IV's shatter gets a slow-mo DIP through the
- * frame source (a smooth ramp that never reaches 0), never a hit-stop.
+ * NEVER A FROZEN FRAME (R-PROG-ATTACK-10): the held beat keeps creaking and trembling, and IV's shatter gets a slow-mo
+ * DIP through the frame source (a smooth ramp that never reaches 0), never a hit-stop.
  *
- * THE CONTRACT: II's first pebble is a tick (FX and sound only). The consequence lands exactly ONCE, on the impact beat
- * (the tap, the second tap, the rock, or IV's shatter). Reduced motion: fades only.
+ * THE CONTRACT: every beat before the blow (a tap, a jerk, a bounce, IV's first crack) is FX and sound only. The
+ * consequence lands exactly ONCE, on the impact beat (I to III: the glass first cracks; IV: the shatter). Reduced
+ * motion: fades only.
  */
 import { configStore } from '../heroAttack/configStore';
 import { clamp, seededRng, type Pt } from '../heroAttack/easing';
@@ -41,23 +60,28 @@ export const GLASS_LEVELS = ['t1', 't2', 't3', 't4'] as const;
 export type GlassLevel = (typeof GLASS_LEVELS)[number];
 
 export const GLASS_TIER_SUFFIXES = [
-  'ReadyMs', 'FlyMs', 'GrowMs', 'HoldMs', 'Web', 'Shake', 'Zoom', 'Push', 'Punch', 'SettleMs', 'Dim',
+  'ReadyMs', 'CauseMs', 'GrowMs', 'HoldMs', 'Web', 'Shake', 'Zoom', 'Push', 'Punch', 'SettleMs', 'Dim',
 ] as const;
 export type GlassTierSuffix = (typeof GLASS_TIER_SUFFIXES)[number];
 type TierKey = `${GlassLevel}${GlassTierSuffix}`;
 
 interface GlobalConfig {
   tier2At: number; tier3At: number; tier4At: number;
+  /** DEV: '' = the cause is rolled per blow; a cause id forces it (a string so the tuner shows it as a select). */
+  variation: string;
   absorbMs: number;
-  /** II: the gap between the two pebbles. */
-  secondMs: number;
-  /** III: the pane breaks out this long after the rock lands, and the hole stays this long before the repair. */
+  /** III: the pane breaks out this long after the glass cracks, and the hole stays this long before the repair. */
   breakMs: number;
   holeMs: number;
   /** I to III: the cracks fade (the glass heals) over this. */
   healMs: number;
   /** How many little jumps the cracks spread in (each one creaks). */
   creakJumps: number;
+  /** IV: how long the bold fracture takes to tear across the screen (at 1600 px between the portraits). */
+  raceMs: number;
+  /** IV: the tear's thickness, and how far the glass trembles through the held beat (px). */
+  tearWidth: number;
+  tremblePx: number;
   /** IV: the slow-mo dip on the shatter (lowest clock speed, and how long it takes to ease back, attack ms). */
   slowMo: number;
   slowMoMs: number;
@@ -66,9 +90,9 @@ interface GlobalConfig {
   shardBurst: number;
   shardSpin: number;
   shardRim: number;
-  /** The pebble's size (px) and how high its flight arcs (a fraction of the distance). */
-  stonePx: number;
-  stoneArc: number;
+  /** IV: how far the shards jump TOWARD the viewer as the screen breaks (extra scale), and how much dust sparkles after. */
+  shardLunge: number;
+  dust: number;
   /** A crack line's thickness multiplier. */
   crackWidth: number;
   /** IV: how strong the faint offset tint either side of the main crack is. */
@@ -85,17 +109,22 @@ interface GlobalConfig {
   colorEdge: string;
   colorShade: string;
   colorFlash: string;
-  colorStone: string;
+  colorHeat: string;
   colorPlayer: string;
   colorFoe: string;
-  sfxThrowClip: string; sfxThrowGain: number; sfxThrowRate: number;
+  sfxWhooshClip: string; sfxWhooshGain: number; sfxWhooshRate: number;
   sfxTickClip: string; sfxTickGain: number; sfxTickRate: number;
   sfxCreakClip: string; sfxCreakGain: number; sfxCreakRate: number;
   sfxRaceClip: string; sfxRaceGain: number; sfxRaceRate: number;
   sfxPaneClip: string; sfxPaneGain: number; sfxPaneRate: number;
   sfxShatterClip: string; sfxShatterGain: number; sfxShatterRate: number;
+  sfxCrashClip: string; sfxCrashGain: number; sfxCrashRate: number;
   sfxRepairClip: string; sfxRepairGain: number; sfxRepairRate: number;
   sfxThudClip: string; sfxThudGain: number; sfxThudRate: number;
+  sfxBodyClip: string; sfxBodyGain: number; sfxBodyRate: number;
+  sfxKnockClip: string; sfxKnockGain: number; sfxKnockRate: number;
+  sfxSingClip: string; sfxSingGain: number; sfxSingRate: number;
+  sfxPopClip: string; sfxPopGain: number; sfxPopRate: number;
   sfxTailMix: number;
   sfxDuck: number;
   previewDamage: number;
@@ -103,44 +132,46 @@ interface GlobalConfig {
 }
 export type HeroGlassConfig = GlobalConfig & Record<TierKey, number>;
 
-export const HERO_GLASS_COLOR_KEYS = ['colorGlass', 'colorEdge', 'colorShade', 'colorFlash', 'colorStone', 'colorPlayer', 'colorFoe'] as const;
+export const HERO_GLASS_COLOR_KEYS = ['colorGlass', 'colorEdge', 'colorShade', 'colorFlash', 'colorHeat', 'colorPlayer', 'colorFoe'] as const;
 export const HERO_GLASS_CLIP_KEYS = [
-  'sfxThrowClip', 'sfxTickClip', 'sfxCreakClip', 'sfxRaceClip', 'sfxPaneClip', 'sfxShatterClip', 'sfxRepairClip', 'sfxThudClip',
+  'sfxWhooshClip', 'sfxTickClip', 'sfxCreakClip', 'sfxRaceClip', 'sfxPaneClip', 'sfxShatterClip', 'sfxCrashClip', 'sfxRepairClip', 'sfxThudClip',
+  'sfxBodyClip', 'sfxKnockClip', 'sfxSingClip', 'sfxPopClip',
 ] as const;
-export type HeroGlassStrKey = (typeof HERO_GLASS_COLOR_KEYS)[number] | (typeof HERO_GLASS_CLIP_KEYS)[number];
+export type HeroGlassStrKey = (typeof HERO_GLASS_COLOR_KEYS)[number] | (typeof HERO_GLASS_CLIP_KEYS)[number] | 'variation';
 export type HeroGlassNumKey = Exclude<keyof HeroGlassConfig, HeroGlassStrKey>;
 
 /**
- * Per look, I / II / III / IV. `FlyMs`: the pebble's flight (IV: the crack's race across the screen). `GrowMs`: how long
- * the cracks keep spreading after the hit (IV: unused, the hold sets it). `HoldMs`: I and II how long the cracks stay
- * before they heal; IV the held beat before the shatter (III: unused, the pane's break and repair set it). `Web`: the
- * web's reach in struck-portrait radii (IV: unused, it covers the screen).
+ * Per look, I / II / III / IV. `CauseMs`: the base length of the cause, from its start to the glass first cracking
+ * (each cause scales it by its own pace: a headbutt is quick, a creeping crack slow). `GrowMs`: how long the cracks
+ * keep spreading after that (IV: unused, the hold sets it). `HoldMs`: I and II how long the cracks stay before they
+ * heal; IV the held beat before the shatter (III: unused, the pane's break and repair set it). `Web`: the mark's reach
+ * in struck-portrait radii (IV: unused, it covers the screen).
  */
 const TIER_DEFAULTS: Record<GlassTierSuffix, [number, number, number, number]> = {
-  ReadyMs: [200, 200, 240, 340],
-  FlyMs: [300, 280, 230, 400],
-  GrowMs: [70, 300, 280, 0],
-  HoldMs: [430, 420, 0, 460],
-  Web: [0.9, 1.2, 3.3, 0],
-  Shake: [4, 7, 14, 30],
+  ReadyMs: [200, 220, 260, 380],
+  CauseMs: [400, 430, 470, 430],
+  GrowMs: [70, 320, 300, 0],
+  HoldMs: [460, 440, 0, 900],
+  Web: [0.9, 1.5, 3, 0],
+  Shake: [4, 7, 14, 34],
   Zoom: [0.012, 0.018, 0.026, 0.035],
-  Push: [0, 0, 0.02, 0.05],
-  Punch: [0.02, 0.03, 0.05, 0.09],
-  SettleMs: [700, 860, 1300, 900],
-  Dim: [0.08, 0.12, 0.18, 0.26],
+  Push: [0, 0, 0.02, 0.055],
+  Punch: [0.02, 0.03, 0.05, 0.1],
+  SettleMs: [720, 880, 1320, 1500],
+  Dim: [0.08, 0.12, 0.18, 0.3],
 };
 
 export const GLASS_TIER_RANGES: Record<GlassTierSuffix, [number, number, number]> = {
   ReadyMs: [80, 1500, 10],
-  FlyMs: [80, 1200, 10],
+  CauseMs: [120, 1500, 10],
   GrowMs: [0, 1200, 10],
-  HoldMs: [0, 2000, 10],
+  HoldMs: [0, 2500, 10],
   Web: [0, 6, 0.05],
   Shake: [0, 40, 0.5],
   Zoom: [0, 0.1, 0.002],
   Push: [0, 0.2, 0.002],
   Punch: [0, 0.15, 0.001],
-  SettleMs: [0, 2500, 10],
+  SettleMs: [0, 3000, 10],
   Dim: [0, 0.6, 0.01],
 };
 
@@ -148,46 +179,54 @@ const tierDefaults = Object.fromEntries(TIERS.flatMap((t) => GLASS_TIER_SUFFIXES
 
 export const HERO_GLASS_DEFAULTS: HeroGlassConfig = {
   ...HERO_ATTACK_TIER_THRESHOLDS,
+  variation: '',
   absorbMs: 160,
-  secondMs: 170,
   breakMs: 330,
   holeMs: 560,
   healMs: 280,
   creakJumps: 5,
-  slowMo: 0.3,
-  slowMoMs: 380,
-  shardGravity: 3800,
-  shardBurst: 300,
+  raceMs: 560,
+  tearWidth: 1.2,
+  tremblePx: 3,
+  slowMo: 0.26,
+  slowMoMs: 460,
+  shardGravity: 3600,
+  shardBurst: 340,
   shardSpin: 2.2,
-  shardRim: 9,
-  stonePx: 46,
-  stoneArc: 0.12,
+  shardRim: 10,
+  shardLunge: 0.55,
+  dust: 70,
   crackWidth: 1,
   splitAlpha: 0.07,
   impactSize: 1,
   heroWindPx: 10,
   heroThrowPx: 14,
-  knockPx: 20,
+  knockPx: 22,
   squash: 0.09,
-  shakeMs: 360,
-  zoomOutMs: 420,
+  shakeMs: 520,
+  zoomOutMs: 460,
   reducedFadeMs: 260,
   colorGlass: '#bfe3ff',
   colorEdge: '#ffffff',
   colorShade: '#0a1626',
   colorFlash: '#e2f3ff',
-  colorStone: '#9a9186',
+  colorHeat: '#ff9a3c',
   colorPlayer: '#ffe9b0',
   colorFoe: '#ff7a5c',
-  sfxThrowClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxThrowGain: 0.3, sfxThrowRate: 1.5,
-  sfxTickClip: 'fx/glass-tick', sfxTickGain: 0.7, sfxTickRate: 1,
-  sfxCreakClip: 'fx/glass-creak', sfxCreakGain: 0.5, sfxCreakRate: 1,
-  sfxRaceClip: 'fx/glass-race', sfxRaceGain: 0.6, sfxRaceRate: 1,
-  sfxPaneClip: 'fx/glass-pane', sfxPaneGain: 0.6, sfxPaneRate: 1,
-  sfxShatterClip: 'fx/glass-shatter', sfxShatterGain: 0.7, sfxShatterRate: 1,
-  sfxRepairClip: 'equipmentsheen', sfxRepairGain: 0.28, sfxRepairRate: 1.5,
-  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.4, sfxThudRate: 1.1,
-  sfxTailMix: 0.15,
+  sfxWhooshClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3', sfxWhooshGain: 0.6, sfxWhooshRate: 1,
+  sfxTickClip: 'fx/glass-tick', sfxTickGain: 0.85, sfxTickRate: 1,
+  sfxCreakClip: 'fx/glass-creak', sfxCreakGain: 1.2, sfxCreakRate: 1,
+  sfxRaceClip: 'fx/glass-race', sfxRaceGain: 1.2, sfxRaceRate: 1,
+  sfxPaneClip: 'fx/glass-pane', sfxPaneGain: 1, sfxPaneRate: 1,
+  sfxShatterClip: 'fx/glass-shatter', sfxShatterGain: 0.75, sfxShatterRate: 0.92,
+  sfxCrashClip: 'fx/glass-crash', sfxCrashGain: 1.1, sfxCrashRate: 1,
+  sfxRepairClip: 'equipmentsheen', sfxRepairGain: 0.7, sfxRepairRate: 1.5,
+  sfxThudClip: 'fx/universfield-ground-impact-352053', sfxThudGain: 0.75, sfxThudRate: 1,
+  sfxBodyClip: 'fx/glass-body', sfxBodyGain: 1, sfxBodyRate: 1,
+  sfxKnockClip: 'fx/glass-knock', sfxKnockGain: 1, sfxKnockRate: 1,
+  sfxSingClip: 'fx/glass-sing', sfxSingGain: 0.7, sfxSingRate: 1,
+  sfxPopClip: 'fx/glass-pop', sfxPopGain: 1, sfxPopRate: 1,
+  sfxTailMix: 0.18,
   sfxDuck: 0.6,
   previewDamage: 12,
   previewParts: 4,
@@ -197,19 +236,21 @@ export const HERO_GLASS_DEFAULTS: HeroGlassConfig = {
 const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGlassStrKey>, [number, number, number]> = {
   tier2At: [2, 40, 1], tier3At: [2, 60, 1], tier4At: [2, 80, 1],
   absorbMs: [60, 600, 10],
-  secondMs: [60, 600, 10],
   breakMs: [80, 1200, 10],
   holeMs: [100, 2000, 10],
   healMs: [60, 1200, 10],
   creakJumps: [2, 10, 1],
+  raceMs: [160, 1600, 10],
+  tearWidth: [0.3, 3, 0.05],
+  tremblePx: [0, 12, 0.5],
   slowMo: [0.1, 1, 0.01],
   slowMoMs: [0, 1200, 10],
   shardGravity: [600, 8000, 50],
   shardBurst: [0, 1500, 10],
   shardSpin: [0, 10, 0.1],
   shardRim: [2, 30, 0.5],
-  stonePx: [10, 120, 1],
-  stoneArc: [0, 0.5, 0.01],
+  shardLunge: [0, 1.5, 0.05],
+  dust: [0, 120, 1],
   crackWidth: [0.3, 3, 0.05],
   splitAlpha: [0, 0.3, 0.005],
   impactSize: [0.3, 3, 0.05],
@@ -220,14 +261,19 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroGlassStrKey>, [numbe
   shakeMs: [0, 1500, 10],
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
-  sfxThrowGain: [0, 2, 0.05], sfxThrowRate: [0.5, 2.5, 0.01],
-  sfxTickGain: [0, 2, 0.05], sfxTickRate: [0.5, 2.5, 0.01],
-  sfxCreakGain: [0, 2, 0.05], sfxCreakRate: [0.5, 2.5, 0.01],
-  sfxRaceGain: [0, 2, 0.05], sfxRaceRate: [0.5, 2.5, 0.01],
-  sfxPaneGain: [0, 2, 0.05], sfxPaneRate: [0.5, 2.5, 0.01],
-  sfxShatterGain: [0, 2, 0.05], sfxShatterRate: [0.5, 2.5, 0.01],
-  sfxRepairGain: [0, 2, 0.05], sfxRepairRate: [0.5, 2.5, 0.01],
-  sfxThudGain: [0, 2, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
+  sfxWhooshGain: [0, 3, 0.05], sfxWhooshRate: [0.5, 2.5, 0.01],
+  sfxTickGain: [0, 3, 0.05], sfxTickRate: [0.5, 2.5, 0.01],
+  sfxCreakGain: [0, 3, 0.05], sfxCreakRate: [0.5, 2.5, 0.01],
+  sfxRaceGain: [0, 3, 0.05], sfxRaceRate: [0.5, 2.5, 0.01],
+  sfxPaneGain: [0, 3, 0.05], sfxPaneRate: [0.5, 2.5, 0.01],
+  sfxShatterGain: [0, 3, 0.05], sfxShatterRate: [0.5, 2.5, 0.01],
+  sfxCrashGain: [0, 3, 0.05], sfxCrashRate: [0.5, 2.5, 0.01],
+  sfxRepairGain: [0, 3, 0.05], sfxRepairRate: [0.5, 2.5, 0.01],
+  sfxThudGain: [0, 3, 0.05], sfxThudRate: [0.5, 2.5, 0.01],
+  sfxBodyGain: [0, 3, 0.05], sfxBodyRate: [0.5, 2.5, 0.01],
+  sfxKnockGain: [0, 3, 0.05], sfxKnockRate: [0.5, 2.5, 0.01],
+  sfxSingGain: [0, 3, 0.05], sfxSingRate: [0.5, 2.5, 0.01],
+  sfxPopGain: [0, 3, 0.05], sfxPopRate: [0.5, 2.5, 0.01],
   sfxTailMix: [0, 1, 0.01],
   sfxDuck: [0, 1, 0.05],
   previewDamage: [1, 60, 1],
@@ -240,11 +286,11 @@ export const HERO_GLASS_RANGES: Record<HeroGlassNumKey, [number, number, number]
 };
 
 /** Hard caps whatever the tuner says. */
-export const GLASS_CAPS = { shards: 70, minShards: 40, cracks: 420, shakePx: 40, zoom: 0.1 } as const;
+export const GLASS_CAPS = { shards: 70, minShards: 40, cracks: 560, shakePx: 40, zoom: 0.1, forks: 8 } as const;
 
 const store = configStore<HeroGlassConfig>({
-  key: 'ascent.heroglass.v2', defaults: HERO_GLASS_DEFAULTS, ranges: HERO_GLASS_RANGES,
-  colorKeys: HERO_GLASS_COLOR_KEYS, clipKeys: HERO_GLASS_CLIP_KEYS, previewKeys: ['previewDamage', 'previewParts'],
+  key: 'ascent.heroglass.v3', defaults: HERO_GLASS_DEFAULTS, ranges: HERO_GLASS_RANGES,
+  colorKeys: HERO_GLASS_COLOR_KEYS, clipKeys: [...HERO_GLASS_CLIP_KEYS, 'variation'], previewKeys: ['previewDamage', 'previewParts', 'variation'],
 });
 export const heroGlassStore = store;
 export const getHeroGlassConfig = store.get;
@@ -258,24 +304,73 @@ export function glassTierDials(tier: TierNum, c: HeroGlassConfig = store.get()):
   return Object.fromEntries(GLASS_TIER_SUFFIXES.map((s) => [s, c[`t${tier}${s}`]])) as Record<GlassTierSuffix, number>;
 }
 
+// ─── the causes (the per-blow roll; pure) ───────────────────────────────────────────────────────────────────────
+
+export const GLASS_CAUSES = ['butt', 'knock', 'hum', 'creep', 'shock', 'beam', 'ricochet'] as const;
+export type GlassCause = (typeof GLASS_CAUSES)[number];
+
+/** What each cause is, for the tuner. */
+export const GLASS_CAUSE_NAMES: Record<GlassCause, string> = {
+  butt: 'the headbutt (the portrait slams the glass): an impact star',
+  knock: 'the knock (tap, tap, KNOCK): a bullseye of rings',
+  hum: 'resonance (a rising tone breaks it): a sunburst of needles',
+  creep: 'pressure (a crack creeps in from the screen edge): a fracture tree',
+  shock: 'the shockwave (a stamp, a ring of force): a frosted craze',
+  beam: 'the beam (a hot spot pops): long thermal cracks',
+  ricochet: 'the ricochet (a point of light off the screen edges): a skid star',
+};
+
+/** How long each cause takes, as a multiple of the look's `CauseMs`. */
+export const GLASS_CAUSE_PACE: Record<GlassCause, number> = { butt: 0.72, knock: 1.25, hum: 1.5, creep: 1.55, shock: 0.85, beam: 1.4, ricochet: 1.15 };
+/** The causes that cross the board (their length follows the distance between the portraits). */
+const TRAVELS: ReadonlySet<GlassCause> = new Set(['butt', 'shock', 'ricochet']);
+
+const isCause = (v: string): v is GlassCause => (GLASS_CAUSES as readonly string[]).includes(v);
+
+/** The cause a blow plays: the DEV override when set, else rolled from the stable per-blow seed. Pure. */
+export function causeOf(rollSeed: number, c: HeroGlassConfig = store.get()): GlassCause {
+  if (isCause(c.variation)) return c.variation;
+  let h = ((Math.round(rollSeed) | 0) ^ 0x5bd1e995) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return GLASS_CAUSES[h % GLASS_CAUSES.length]!;
+}
+
+/**
+ * The cause's own beats BEFORE the glass first cracks, as fractions of its length: the knock's two taps, the hum's
+ * pulses (they quicken), the creeping crack's jerks, the stamp, the beam's spits, the ricochet's bounces. FX and sound
+ * only. A bigger look creeps and bounces once more.
+ */
+export function causeBeats(cause: GlassCause, tier: TierNum): number[] {
+  switch (cause) {
+    case 'knock': return [0.3, 0.62];
+    case 'hum': return [0.04, 0.24, 0.42, 0.57, 0.7, 0.8, 0.88, 0.95];
+    case 'creep': { const n = tier === 1 ? 3 : tier === 2 ? 4 : 5; return Array.from({ length: n }, (_, i) => i / n); }
+    case 'shock': return [0];
+    case 'beam': return [0.3, 0.55, 0.75, 0.9];
+    case 'ricochet': { const n = tier === 1 ? 2 : 3; return Array.from({ length: n }, (_, i) => (i + 1) / (n + 1)); }
+    default: return [];
+  }
+}
+
 // ─── the pure plan ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const GLASS_REF_DISTANCE = 1600;
 
-/** A flight (or IV's race) scaled gently by the distance between the two portraits. */
+/** A crossing (a lunge, a ring of force, IV's tear) scaled gently by the distance between the two portraits. */
 export function glassLegMs(distance: number, ms: number): number {
   const d = Number.isFinite(distance) && distance > 0 ? distance : GLASS_REF_DISTANCE;
   return Math.round(ms * clamp(Math.sqrt(d / GLASS_REF_DISTANCE), 0.62, 1.15));
 }
-
-/** One thrown pebble: it leaves the hand (`launchAt`) and taps the glass (`hitAt`). */
-export interface GlassStone { launchAt: number; hitAt: number }
 
 export interface GlassPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   distance: number;
   reduced?: boolean;
+  /** What cracks the glass (default: the headbutt). */
+  cause?: GlassCause;
 }
 
 export type GlassKind = 'chip' | 'web' | 'pane' | 'shatter';
@@ -284,23 +379,26 @@ export interface GlassPlan {
   reduced: boolean;
   tier: TierNum;
   kind: GlassKind;
+  cause: GlassCause;
   k: number;
   total: number;
   chargeAt: number;
   absorbEnd: number;
-  /** The flick (I to III) or the punch on the glass (IV). */
+  /** The cause begins (the lunge, the first tap's wind, the tone, the creep, the stamp, the beam, the bolt). */
   fireAt: number;
-  /** I and III one, II two, IV none. */
-  stones: GlassStone[];
-  /** IV: the one crack races across the screen from `raceAt` to `raceEnd` (other looks: both the impact). */
+  /** The cause's own beats before the glass cracks (`causeBeats`), ascending. FX and sound only. */
+  pre: number[];
+  /** The glass first cracks over the struck portrait. I to III: the blow. IV: where the tear starts. */
+  strikeAt: number;
+  /** IV: the bold fracture tears across the screen from `raceAt` to `raceEnd` (other looks: both the impact). */
   raceAt: number;
   raceEnd: number;
   /** The cracks spread in little jumps: each time is one jump (and one creak). Ascending. */
   jumps: number[];
-  /** Taps BEFORE the blow (II's first pebble). */
+  /** Marks on the glass over the struck portrait BEFORE the blow (IV: the first crack). */
   hits: number[];
   impactAt: number;
-  /** The glass breaks out: III's pane a beat after the rock, IV's whole screen on the impact (I, II: never, -1). */
+  /** The glass breaks out: III's pane a beat after the crack, IV's whole screen on the impact (I, II: never, -1). */
   breakAt: number;
   /** III: the pane repairs (-1 otherwise). */
   repairAt: number;
@@ -312,7 +410,7 @@ export interface GlassPlan {
   /** IV's slow-mo dip on the shatter (null below IV): the one clock eases down and back, never 0. */
   dip: KoDip | null;
   endAt: number;
-  /** The web's reach in struck radii (IV: 0, it covers the screen). */
+  /** The mark's reach in struck radii (IV: 0, it covers the screen). */
   web: number;
   shakePx: number;
   zoom: number;
@@ -336,44 +434,44 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
   const total = Math.max(0, Math.round(input.total));
   const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
   const kind = glassKind(tier);
+  const cause: GlassCause = input.cause ?? 'butt';
   const ko = tier === 4 && isKnockoutVariant(input);
   const L = glassTierDials(tier, c);
   const k = (tier - 1) / 3;
   const base = {
-    tier, kind, k, total, ko, web: L.Web, shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, GLASS_CAPS.shakePx), zoom: clamp(L.Zoom, 0, GLASS_CAPS.zoom),
+    tier, kind, cause, k, total, ko, web: L.Web, shakePx: clamp(L.Shake * (ko ? KO_SHAKE : 1), 0, GLASS_CAPS.shakePx), zoom: clamp(L.Zoom, 0, GLASS_CAPS.zoom),
     push: L.Push, punch: L.Punch * (ko ? 1.2 : 1), dim: L.Dim,
   };
   if (input.reduced) {
     const r = reducedAttackTimeline(input.leadIn ?? 0, c.reducedFadeMs);
     const at = r.impactAt;
     return {
-      ...base, reduced: true, chargeAt: at, absorbEnd: at, fireAt: at, stones: [], raceAt: at, raceEnd: at, jumps: [], hits: [], impactAt: at,
+      ...base, reduced: true, chargeAt: at, absorbEnd: at, fireAt: at, pre: [], strikeAt: at, raceAt: at, raceEnd: at, jumps: [], hits: [], impactAt: at,
       breakAt: -1, repairAt: -1, healAt: at, healEnd: at, dip: null, endAt: r.endAt, web: 0, shakePx: 0, zoom: 0, push: 0, punch: 0, dim: 0,
     };
   }
   const chargeAt = Math.max(0, input.leadIn ?? 0);
   const absorbEnd = chargeAt + c.absorbMs;
   const fireAt = chargeAt + Math.max(L.ReadyMs, c.absorbMs);
-  const fly = glassLegMs(input.distance, L.FlyMs);
+  const causeMs = Math.max(120, Math.round((TRAVELS.has(cause) ? glassLegMs(input.distance, L.CauseMs) : L.CauseMs) * GLASS_CAUSE_PACE[cause]));
+  const strikeAt = fireAt + causeMs;
+  const pre = causeBeats(cause, tier).map((f) => Math.round(fireAt + causeMs * f));
   const J = Math.round(clamp(c.creakJumps, 2, 10));
-  const stones: GlassStone[] = [];
   const hits: number[] = [];
   let raceAt: number, raceEnd: number, impactAt: number, jumps: number[], breakAt = -1, repairAt = -1, healAt: number, healEnd: number;
   if (kind === 'shatter') {
-    raceAt = fireAt; raceEnd = fireAt + fly;
-    impactAt = raceEnd + Math.max(120, L.HoldMs);
-    // The web round the struck portrait starts as the racing crack passes it, and keeps creaking to just before the shatter.
-    jumps = spread(raceAt + fly * 0.62, impactAt - 70, J + 2);
+    // The cause cracks the glass (a mark, not the blow); a breath later the tear is off; then the held beat; then the shatter.
+    hits.push(strikeAt);
+    raceAt = strikeAt + 90; raceEnd = raceAt + glassLegMs(input.distance, c.raceMs);
+    impactAt = raceEnd + Math.max(200, L.HoldMs);
+    // The rest of the web starts creaking out while the tear is still running, and quickens up to the shatter.
+    jumps = spread(raceAt + (raceEnd - raceAt) * 0.45, impactAt - 110, J + 3);
     breakAt = impactAt; healAt = impactAt; healEnd = impactAt;
   } else {
-    stones.push({ launchAt: fireAt, hitAt: fireAt + fly });
-    if (kind === 'web') { const gap = Math.max(60, c.secondMs); stones.push({ launchAt: fireAt + gap, hitAt: fireAt + fly + gap }); hits.push(fireAt + fly); }
-    impactAt = stones[stones.length - 1]!.hitAt;
+    impactAt = strikeAt;
     raceAt = impactAt; raceEnd = impactAt;
-    // The first jump is the tap itself (II: one per pebble); the rest creak outward over `GrowMs`.
-    jumps = kind === 'chip'
-      ? [impactAt, impactAt + Math.max(20, L.GrowMs)]
-      : [...(kind === 'web' ? [stones[0]!.hitAt] : []), impactAt, ...spread(impactAt + 60, impactAt + Math.max(80, L.GrowMs), J - 1)];
+    // The first jump is the crack itself; the rest creak outward over `GrowMs`.
+    jumps = kind === 'chip' ? [impactAt, impactAt + Math.max(20, L.GrowMs)] : [impactAt, ...spread(impactAt + 60, impactAt + Math.max(80, L.GrowMs), J - 1)];
     const grown = jumps[jumps.length - 1]!;
     if (kind === 'pane') {
       breakAt = Math.max(grown + 40, impactAt + c.breakMs);
@@ -387,33 +485,41 @@ export function glassPlan(input: GlassPlanInput, c: HeroGlassConfig = store.get(
   const dip: KoDip | null = tier === 4 && c.slowMoMs > 0
     ? { at: impactAt, lo: ko ? Math.max(0.1, c.slowMo * 0.8) : c.slowMo, ms: c.slowMoMs + (ko ? 60 : 0) }
     : null;
-  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, stones, raceAt, raceEnd, jumps, hits, impactAt, breakAt, repairAt, healAt, healEnd, dip, endAt };
+  return { ...base, reduced: false, chargeAt, absorbEnd, fireAt, pre, strikeAt, raceAt, raceEnd, jumps, hits, impactAt, breakAt, repairAt, healAt, healEnd, dip, endAt };
 }
 
-export type GlassCueKind = 'charge' | 'throw' | 'race' | 'tap' | 'creak' | 'impact' | 'break' | 'repair' | 'heal' | 'end';
+/**
+ * `fire`: the cause begins. `pre`: one of its beats. `strike`: IV's first crack (a mark, never the blow). `race`: IV's
+ * tear is off. `tense`: IV's held beat begins. `creak`: a jump of the web.
+ */
+export type GlassCueKind = 'charge' | 'fire' | 'pre' | 'strike' | 'race' | 'tense' | 'creak' | 'impact' | 'break' | 'repair' | 'heal' | 'end';
 export interface GlassCue { at: number; kind: GlassCueKind; i: number }
 
 export function glassCues(p: GlassPlan): GlassCue[] {
   const out: GlassCue[] = [];
   if (!p.reduced) {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
-    p.stones.forEach((s, i) => out.push({ at: s.launchAt, kind: 'throw', i }));
-    if (p.kind === 'shatter') out.push({ at: p.raceAt, kind: 'race', i: 0 });
-    p.hits.forEach((at, i) => out.push({ at, kind: 'tap', i }));
-    // A jump that IS a tap (or the blow) makes its own sound; the others creak.
-    p.jumps.forEach((at, i) => { if (at !== p.impactAt && !p.hits.includes(at)) out.push({ at, kind: 'creak', i }); });
+    out.push({ at: p.fireAt, kind: 'fire', i: 0 });
+    p.pre.forEach((at, i) => out.push({ at, kind: 'pre', i }));
+    if (p.kind === 'shatter') {
+      out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
+      out.push({ at: p.raceAt, kind: 'race', i: 0 });
+      out.push({ at: p.raceEnd, kind: 'tense', i: 0 });
+    }
+    // The jump that IS the blow makes its own sound; the others creak.
+    p.jumps.forEach((at, i) => { if (at !== p.impactAt) out.push({ at, kind: 'creak', i }); });
     if (p.kind === 'pane') { out.push({ at: p.breakAt, kind: 'break', i: 0 }); out.push({ at: p.repairAt, kind: 'repair', i: 0 }); }
     if (p.kind !== 'shatter') out.push({ at: p.healAt, kind: 'heal', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<GlassCueKind, number> = { charge: 0, throw: 1, race: 2, tap: 3, creak: 4, impact: 5, break: 6, repair: 7, heal: 8, end: 9 };
+  const order: Record<GlassCueKind, number> = { charge: 0, fire: 1, pre: 2, strike: 3, race: 4, tense: 5, creak: 6, impact: 7, break: 8, repair: 9, heal: 10, end: 11 };
   return out.sort((a, b) => a.at - b.at || order[a.kind] - order[b.kind]);
 }
 
 /**
  * IV's SLOW-MO DIP on the shatter (a freeze is banned, R-PROG-ATTACK-10): the one clock drops to `slowMo` the instant the
- * screen breaks and eases back over `slowMoMs`, a smooth ramp never reaching 0, so the shards hang for a breath.
+ * screen breaks and eases back over `slowMoMs`, a smooth ramp never reaching 0, so the shards hang at the viewer.
  */
 export function glassScale(p: GlassPlan, c: HeroGlassConfig, t: number): number {
   void c;
@@ -431,7 +537,7 @@ export type Box = { x: number; y: number; w: number; h: number };
 
 /**
  * One crack line: a straight piece from `a` to `b` that GROWS from `a` between `t0` and `t1` (sequence ms; a jump is a
- * few tens of ms, IV's race a real sweep). `w`: its thickness (the main crack heavier, a hairline branch lighter).
+ * few tens of ms, IV's tear a real sweep). `w`: its thickness (the tear heavy, a hairline light).
  */
 export interface CrackSeg { ax: number; ay: number; bx: number; by: number; len: number; ang: number; w: number; t0: number; t1: number }
 
@@ -516,18 +622,27 @@ export function rayExit(o: Pt, a: number, b: Box): number {
 
 /** Everything one blow draws on the glass, decided once (the runner and the scene only read it). */
 export interface GlassGeo {
-  /** Where each pebble leaves the striker and where it taps (I, III one; II two; IV none). */
+  cause: GlassCause;
+  /** Where the striker's light leaves it (the beam, the bolt): a point on its rim toward the target. */
   hand: Pt;
-  taps: Pt[];
-  /** The chips (the star-shaped pits): at each tap, or IV where the striker punches the glass. */
-  chips: { at: Pt; size: number; jump: number }[];
+  /** The struck point on the glass (over the struck portrait). */
+  origin: Pt;
+  /** The pits, each appearing at its own time `t` (ascending): at the crack, the knuckles, the bounces. */
+  chips: { at: Pt; size: number; t: number }[];
   /** Every crack line, in the order it starts growing. */
   segs: CrackSeg[];
-  /** The shards that fall (III: the pane's; IV: the whole screen's, tiling it), and the impact they burst from. */
+  /** The shards that fall (III: the pane's; IV: the whole screen's, tiling it). */
   tris: ShardTri[];
-  origin: Pt;
-  /** IV: the main crack's two ends on the screen edges (null otherwise). */
-  main: { a: Pt; b: Pt } | null;
+  /**
+   * The cause's own path on the glass: `creep` the crack from the screen edge to the portrait (one node per jerk);
+   * `ricochet` the bolt's legs (the hand, each bounce, the portrait). Empty otherwise.
+   */
+  path: Pt[];
+  /** IV: the tear's two ends on the screen edges, its speed (px per ms) and where and when it forks (null otherwise). */
+  main: { a: Pt; b: Pt; v: number; rear: number; fwd: number; back: number } | null;
+  forks: { at: Pt; ang: number; t: number }[];
+  /** `shock`: the haze over the craze (null otherwise). */
+  frost: { at: Pt; r: number } | null;
 }
 
 interface SegSink { segs: CrackSeg[]; rnd: () => number; bounds?: Box; unit: number; width: number }
@@ -557,13 +672,24 @@ function crack(k: SegSink, a: Pt, b: Pt, w: number, t0: number, t1: number, jag 
   }
 }
 
+const polar = (o: Pt, a: number, r: number): Pt => ({ x: o.x + Math.cos(a) * r, y: o.y + Math.sin(a) * r });
+
 /** A short dead-end hairline off `at`, heading roughly along `ang`. */
-function branch(k: SegSink, at: Pt, ang: number, len: number, t0: number): void {
+function branch(k: SegSink, at: Pt, ang: number, len: number, t0: number, w = 0.6): void {
   const a = ang + (k.rnd() < 0.5 ? -1 : 1) * (0.45 + k.rnd() * 0.5);
-  const mid = { x: at.x + Math.cos(a) * len * 0.55, y: at.y + Math.sin(a) * len * 0.55 };
+  const mid = polar(at, a, len * 0.55);
   const a2 = a + (k.rnd() - 0.5) * 0.7;
-  crack(k, at, mid, 0.6, t0, t0 + 30, 0.6);
-  crack(k, mid, { x: mid.x + Math.cos(a2) * len * 0.45, y: mid.y + Math.sin(a2) * len * 0.45 }, 0.45, t0 + 30, t0 + 60, 0.6);
+  crack(k, at, mid, w, t0, t0 + 30, 0.6);
+  crack(k, mid, polar(mid, a2, len * 0.45), w * 0.75, t0 + 30, t0 + 60, 0.6);
+}
+
+/** A BOLD fork off a tear: two heavy pieces that bend, and a hairline off the bend. */
+function fork(k: SegSink, at: Pt, ang: number, len: number, t0: number, w: number): void {
+  const a = ang + (k.rnd() < 0.5 ? -1 : 1) * (0.42 + k.rnd() * 0.45);
+  const mid = polar(at, a, len * 0.5);
+  crack(k, at, mid, w, t0, t0 + 70);
+  crack(k, mid, polar(mid, a + (k.rnd() - 0.5) * 0.7, len * 0.5), w * 0.65, t0 + 70, t0 + 150);
+  branch(k, mid, a, len * 0.4, t0 + 70, 0.8);
 }
 
 const JUMP_MS = 46;
@@ -607,7 +733,7 @@ export function glassSeed(total: number, distance: number, side: 'player' | 'opp
 }
 
 /**
- * IV's whole-screen web round the struck portrait: spoke 0 points at the striker (so the main crack runs through both
+ * IV's whole-screen web round the struck portrait: spoke 0 points at the striker (so the tear runs through both
  * portraits), the last ring reaches past the farthest corner, and the spoke and ring counts are picked so the shards on
  * screen number forty to seventy (aiming for the mid fifties). Pure: each candidate is rolled from the same seed.
  */
@@ -636,6 +762,275 @@ export function screenWeb(seed: number, origin: Pt, aim: number, radius: number,
   return best!;
 }
 
+// ─── the seven crack shapes (pure) ─────────────────────────────────────────────────────────────────────────────
+
+/** What a shape is drawn from: the sink, the struck point, its reach (px), how big a version (1 to 3) and its jumps. */
+interface Pat {
+  k: SegSink; rnd: () => number; geo: GlassGeo; p: GlassPlan; o: Pt; R: number; reach: number; lvl: 1 | 2 | 3; jumps: readonly number[];
+  /** The angle from the struck point back toward the striker. */
+  back: number; bounds: Box; unit: number;
+}
+
+/** The jump a piece lands on: `u` 0..1 of the way out (0 = the crack itself, 1 = the last creak). */
+const jumpAt = (q: Pat, u: number): number => q.jumps[Math.min(q.jumps.length - 1, Math.max(0, Math.round(u * (q.jumps.length - 1))))]!;
+
+/** `butt`: THE IMPACT STAR. A tight spider web (many spokes, close rings) with a crushed heart. */
+function patStar(q: Pat): void {
+  const N = q.lvl === 1 ? 7 : q.lvl === 2 ? 10 : 12;
+  const radii = (q.lvl === 1 ? [0.42, 1] : [0.2, 0.42, 0.7, 1]).map((f) => f * q.reach);
+  const web = buildWeb(q.rnd, q.o, q.back + q.rnd() * 0.5, N, radii);
+  webCracks(q.k, web, [], q.jumps, 0, { ringLines: q.lvl === 1 ? 1 : 2, diag: false, branches: 0.3 });
+  // The crushed heart: short chords across the middle.
+  for (let i = 0; i < 3 + q.lvl * 2; i++) {
+    const a = q.rnd() * Math.PI * 2, r = q.reach * 0.2 * (0.4 + q.rnd() * 0.6);
+    const b = a + 1.6 + q.rnd() * 1.6;
+    crack(q.k, polar(q.o, a, r), polar(q.o, b, r * (0.5 + q.rnd() * 0.5)), 0.6, q.jumps[0]!, q.jumps[0]! + 30, 0.3);
+  }
+  q.geo.chips.push({ at: q.o, size: 0.42 + 0.2 * q.lvl, t: q.jumps[0]! });
+}
+
+/** `knock`: THE BULLSEYE. Broken concentric rings with a few short ties between them; a knuckle pit per knock. */
+function patBullseye(q: Pat): void {
+  const rings = q.lvl + 1;
+  const t0 = q.jumps[0]!;
+  const tap = (i: number): number => q.p.pre[i] ?? t0;
+  const last = q.jumps.length - 1;
+  let prev = q.reach * 0.06;
+  for (let r = 0; r < rings; r++) {
+    const rad = q.reach * ((r + 1) / rings) * (0.92 + q.rnd() * 0.12);
+    const M = 8 + r * 3;
+    const turn = q.rnd() * Math.PI * 2;
+    const pts: Pt[] = [];
+    for (let i = 0; i < M; i++) pts.push(polar(q.o, turn + ((i + (q.rnd() - 0.5) * 0.4) / M) * Math.PI * 2, rad * (0.94 + q.rnd() * 0.12)));
+    const tr = r === 0 ? -1 : q.jumps[rings <= 2 ? 0 : Math.round(((r - 1) * last) / (rings - 2))]!;
+    for (let i = 0; i < M; i++) {
+      if (q.rnd() > (r === 0 ? 0.9 : 0.76)) continue; // the rings are broken
+      // The inner ring comes in halves, one per early tap; the rest burst on the knock and creak outward.
+      const t = r === 0 ? tap(i % 2) : tr + q.rnd() * 26;
+      crack(q.k, pts[i]!, pts[(i + 1) % M]!, r === 0 ? 0.95 : 0.8, t, t + JUMP_MS, 0.5);
+    }
+    for (let i = 0; i < 2 + r; i++) {
+      const a = q.rnd() * Math.PI * 2;
+      const t = (r === 0 ? t0 : tr) + 20 + q.rnd() * 20;
+      crack(q.k, polar(q.o, a, prev * 1.04), polar(q.o, a + (q.rnd() - 0.5) * 0.12, rad * 0.97), 0.7, t, t + JUMP_MS, 0.5);
+    }
+    prev = rad;
+  }
+  // Three knuckles in a short row across the line of the blow.
+  const px = -Math.sin(q.back), py = Math.cos(q.back);
+  [-1, 1, 0].forEach((side, i) => {
+    q.geo.chips.push({ at: { x: q.o.x + px * side * q.R * 0.17, y: q.o.y + py * side * q.R * 0.17 }, size: i === 2 ? 0.3 + 0.08 * q.lvl : 0.24, t: i === 2 ? t0 : tap(i) });
+  });
+}
+
+/** `hum`: THE SUNBURST. Fine straight needles from the centre, all at once, no rings; the longer ones split at the tip. */
+function patNeedles(q: Pat): void {
+  const N = q.lvl === 1 ? 12 : q.lvl === 2 ? 20 : 28;
+  const t0 = q.jumps[0]!;
+  const turn = q.rnd() * Math.PI;
+  for (let i = 0; i < N; i++) {
+    const a = turn + ((i + q.rnd() * 0.8) / N) * Math.PI * 2;
+    const len = q.reach * (0.34 + 0.66 * Math.pow(q.rnd(), 1.4));
+    const r0 = q.reach * 0.05 * (0.5 + q.rnd());
+    const l1 = Math.min(len, q.reach * 0.55);
+    const st = t0 + q.rnd() * 26;
+    const w = i % 4 === 0 ? 0.95 : 0.55;
+    crack(q.k, polar(q.o, a, r0), polar(q.o, a, l1), w, st, st + 70, 0.25);
+    let end = st + 70;
+    if (len > l1 + 4) {
+      const tj = jumpAt(q, 0.3 + q.rnd() * 0.7) + q.rnd() * 20;
+      crack(q.k, polar(q.o, a, l1), polar(q.o, a, len), w * 0.85, Math.max(tj, end), Math.max(tj, end) + JUMP_MS, 0.25);
+      end = Math.max(tj, end) + JUMP_MS;
+    }
+    if (i % 3 === 0) {
+      const tip = polar(q.o, a, len);
+      for (const s of [-1, 1]) crack(q.k, tip, polar(tip, a + s * (0.3 + q.rnd() * 0.25), q.reach * (0.08 + q.rnd() * 0.08)), 0.45, end, end + 30, 0.2);
+    }
+  }
+  q.geo.chips.push({ at: q.o, size: 0.22 + 0.06 * q.lvl, t: t0 });
+}
+
+/**
+ * Where the creeping crack is born: on the nearest screen edge that still leaves it a real run to `o` (a struck portrait
+ * sits in a corner, a few px from two edges: a crack from there would be over before it was seen), slid along that
+ * edge so it comes in on a slant.
+ */
+function edgeBirth(rnd: () => number, o: Pt, b: Box, unit: number): Pt {
+  if (!inBox(o.x, o.y, b)) return { x: o.x, y: b.y };
+  const d = [o.y - b.y, b.x + b.w - o.x, b.y + b.h - o.y, o.x - b.x]; // top, right, bottom, left
+  const run = Math.min(420 * unit, Math.max(...d));
+  let e = -1;
+  for (let i = 0; i < 4; i++) if (d[i]! >= run - 1e-6 && (e < 0 || d[i]! < d[e]!)) e = i;
+  if (e < 0) e = 0;
+  const slide = (rnd() < 0.5 ? -1 : 1) * Math.max(d[e]!, 220) * (0.3 + rnd() * 0.4);
+  if (e === 0 || e === 2) return { x: clamp(o.x + slide, b.x + 20, b.x + b.w - 20), y: e === 0 ? b.y : b.y + b.h };
+  return { x: e === 1 ? b.x + b.w : b.x, y: clamp(o.y + slide, b.y + 20, b.y + b.h - 20) };
+}
+
+/** `creep`: THE FRACTURE TREE. One crack from the screen edge to the portrait, a piece per jerk, forking; a bloom on arrival. */
+function patTree(q: Pat): void {
+  const E = edgeBirth(q.rnd, q.o, q.bounds, q.unit);
+  const n = Math.max(1, q.p.pre.length);
+  const L = Math.hypot(q.o.x - E.x, q.o.y - E.y) || 1;
+  const dir = Math.atan2(q.o.y - E.y, q.o.x - E.x);
+  const nx = -(q.o.y - E.y) / L, ny = (q.o.x - E.x) / L;
+  const nodes: Pt[] = [E];
+  for (let i = 1; i < n; i++) {
+    const u = i / n, off = (q.rnd() - 0.5) * 2 * Math.min(L * 0.09, 60 * q.unit);
+    nodes.push({ x: E.x + (q.o.x - E.x) * u + nx * off, y: E.y + (q.o.y - E.y) * u + ny * off });
+  }
+  nodes.push({ x: q.o.x, y: q.o.y });
+  const t0 = q.jumps[0]!;
+  const w = q.lvl === 1 ? 0.9 : q.lvl === 2 ? 1.25 : 1.5;
+  for (let i = 0; i < n; i++) {
+    const t = q.p.pre[i] ?? t0, next = q.p.pre[i + 1] ?? t0;
+    // A jerk: the piece runs in under half the gap, then the crack waits.
+    crack(q.k, nodes[i]!, nodes[i + 1]!, w, t, t + Math.max(40, (next - t) * 0.42), 0.9);
+    if (i < n - 1 && (q.lvl > 1 || i % 2 === 0)) {
+      const piece = Math.hypot(nodes[i + 1]!.x - nodes[i]!.x, nodes[i + 1]!.y - nodes[i]!.y);
+      const tf = t + Math.max(40, (next - t) * 0.42);
+      if (q.lvl === 1) branch(q.k, nodes[i + 1]!, dir, piece * 0.4, tf, 0.6);
+      else fork(q.k, nodes[i + 1]!, dir, piece * (0.45 + q.rnd() * 0.3), tf, w * 0.7);
+    }
+  }
+  q.geo.path = nodes;
+  // The bloom: curved petals fanned forward off the crack's last heading.
+  const petals = q.lvl === 1 ? 3 : q.lvl === 2 ? 5 : 7;
+  for (let i = 0; i < petals; i++) {
+    const a = dir + ((i + 0.5) / petals - 0.5) * 3.6 + (q.rnd() - 0.5) * 0.3;
+    const len = q.reach * (0.5 + 0.5 * q.rnd());
+    const mid = polar(q.o, a, len * 0.5);
+    const st = t0 + q.rnd() * 24;
+    crack(q.k, q.o, mid, 0.9, st, st + JUMP_MS, 0.8);
+    const tj = q.lvl === 1 ? st + JUMP_MS : jumpAt(q, 0.4 + q.rnd() * 0.6);
+    const tip = polar(mid, a + (q.rnd() - 0.5) * 0.8, len * 0.5);
+    crack(q.k, mid, tip, 0.7, tj, tj + JUMP_MS, 0.8);
+    if (q.lvl === 3 && i % 2 === 0) branch(q.k, tip, a, len * 0.4, tj + JUMP_MS);
+  }
+  q.geo.chips.push({ at: q.o, size: 0.26 + 0.1 * q.lvl, t: t0 });
+}
+
+/** `shock`: THE FROSTED CRAZE. A mosaic of short fine cracks filling a disc, swept in along the ring's heading. */
+function patCraze(q: Pat): void {
+  const M = q.lvl === 1 ? 20 : q.lvl === 2 ? 46 : 66;
+  const min = (q.reach * 1.45) / Math.sqrt(M);
+  const pts: Pt[] = [{ x: q.o.x, y: q.o.y }];
+  for (let tries = 0; pts.length < M && tries < M * 14; tries++) {
+    const a = q.rnd() * Math.PI * 2, r = q.reach * Math.sqrt(q.rnd());
+    const c = polar(q.o, a, r);
+    let ok = true;
+    for (const p of pts) if (Math.hypot(p.x - c.x, p.y - c.y) < min) { ok = false; break; }
+    if (ok) pts.push(c);
+  }
+  const t0 = q.jumps[0]!;
+  const wx = -Math.cos(q.back), wy = -Math.sin(q.back); // the way the ring is travelling
+  const seen = new Set<number>();
+  pts.forEach((p, i) => {
+    // Each point ties to its nearest two (three for every other one in the big version): a net, never a fan.
+    const near = pts.map((o2, j) => ({ j, d: j === i ? Infinity : Math.hypot(o2.x - p.x, o2.y - p.y) })).sort((x, y) => x.d - y.d);
+    const ties = q.lvl === 3 && i % 2 === 0 ? 3 : 2;
+    for (let n = 0; n < ties && n < near.length; n++) {
+      const j = near[n]!.j;
+      if (!Number.isFinite(near[n]!.d)) continue;
+      const key = Math.min(i, j) * 1000 + Math.max(i, j);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const o2 = pts[j]!;
+      const mx = (p.x + o2.x) / 2 - q.o.x, my = (p.y + o2.y) / 2 - q.o.y;
+      const s = clamp(((mx * wx + my * wy) / q.reach + 1) / 2, 0, 1); // 0 = the near side, struck first
+      const far = Math.hypot(mx, my) / q.reach;
+      // The heart crazes at once as the ring crosses it (near side first); the rim follows on the creaks.
+      const t = q.lvl === 1 || far < 0.5 ? t0 + clamp((s - 0.25) * 2, 0, 1) * 110 : jumpAt(q, 0.25 + 0.75 * s) + q.rnd() * 30;
+      crack(q.k, p, o2, 0.6 + q.rnd() * 0.35, t, t + 40, 0.5);
+    }
+  });
+  q.geo.frost = { at: { x: q.o.x, y: q.o.y }, r: q.reach };
+}
+
+/** `beam`: THE THERMAL CRACKS. A few long cracks wandering out from the hot spot, a step per creak. */
+function patHeat(q: Pat): void {
+  const K = q.lvl === 1 ? 4 : q.lvl === 2 ? 6 : 7;
+  const steps = q.lvl * 2;
+  const stepLen = (q.reach * 1.1) / steps;
+  const turn = q.rnd() * Math.PI;
+  for (let i = 0; i < K; i++) {
+    let a = turn + ((i + (q.rnd() - 0.5) * 0.6) / K) * Math.PI * 2;
+    let pt = polar(q.o, a, q.R * 0.05);
+    for (let j = 0; j < steps; j++) {
+      a += (q.rnd() - 0.5) * 0.8;
+      const nxt = polar(pt, a, stepLen * (0.75 + q.rnd() * 0.5));
+      const t = jumpAt(q, steps <= 1 ? 0 : j / (steps - 1)) + q.rnd() * 20;
+      crack(q.k, pt, nxt, Math.max(0.6, 1.2 - 0.12 * j), t, t + JUMP_MS, 1.3);
+      if (q.rnd() < 0.3) branch(q.k, nxt, a, stepLen * 0.5, t + JUMP_MS);
+      pt = nxt;
+    }
+  }
+  q.geo.chips.push({ at: q.o, size: 0.26 + 0.05 * q.lvl, t: q.jumps[0]! });
+}
+
+/** The bolt's legs: from the hand, off `n` different screen edges in turn (walking round the screen), to the portrait. */
+function ricochetPath(rnd: () => number, from: Pt, to: Pt, b: Box, n: number): Pt[] {
+  const start = Math.floor(rnd() * 4), step = rnd() < 0.5 ? 1 : 3;
+  const out: Pt[] = [{ x: from.x, y: from.y }];
+  const diag = Math.hypot(b.w, b.h);
+  for (let i = 0; i < n; i++) {
+    const e = (start + i * step) % 4;
+    let u = 0.18 + rnd() * 0.64;
+    const at = (v: number): Pt => (e === 0 ? { x: b.x + b.w * v, y: b.y } : e === 1 ? { x: b.x + b.w, y: b.y + b.h * v } : e === 2 ? { x: b.x + b.w * v, y: b.y + b.h } : { x: b.x, y: b.y + b.h * v });
+    // Keep every leg long enough to read (the first off the hand, the last onto the portrait).
+    const prev = out[out.length - 1]!;
+    const short = (p: Pt): boolean => Math.hypot(p.x - prev.x, p.y - prev.y) < diag * 0.16 || (i === n - 1 && Math.hypot(p.x - to.x, p.y - to.y) < diag * 0.16);
+    if (short(at(u))) u = 1 - u;
+    out.push(at(u));
+  }
+  out.push({ x: to.x, y: to.y });
+  return out;
+}
+
+/** `ricochet`: THE SKID STAR. A chip with three ticks at every bounce; on the portrait a star thrown forward along the last leg. */
+function patSkid(q: Pat): void {
+  const path = ricochetPath(q.rnd, q.geo.hand, q.o, q.bounds, Math.max(1, q.p.pre.length));
+  q.geo.path = path;
+  const cx = q.bounds.x + q.bounds.w / 2, cy = q.bounds.y + q.bounds.h / 2;
+  const t0 = q.jumps[0]!;
+  for (let i = 1; i < path.length - 1; i++) {
+    const b = path[i]!, t = q.p.pre[i - 1] ?? t0;
+    const inward = Math.atan2(cy - b.y, cx - b.x);
+    const at = polar(b, inward, 10 * q.unit);
+    q.geo.chips.push({ at, size: 0.26, t });
+    for (let j = -1; j <= 1; j++) {
+      const a = inward + j * 0.7 + (q.rnd() - 0.5) * 0.3;
+      crack(q.k, at, polar(at, a, (50 + q.rnd() * 60) * q.unit), 0.7, t, t + 36, 0.6);
+    }
+  }
+  const from = path[path.length - 2]!;
+  const v = Math.atan2(q.o.y - from.y, q.o.x - from.x);
+  const fwd = q.lvl === 1 ? 3 : q.lvl === 2 ? 5 : 6;
+  for (let i = 0; i < fwd; i++) {
+    const a = v + ((i + 0.5) / fwd - 0.5) * 1.7 + (q.rnd() - 0.5) * 0.2;
+    const len = q.reach * (0.7 + 0.5 * q.rnd());
+    const pieces = q.lvl === 1 ? 1 : q.lvl + 1;
+    let pt = { x: q.o.x, y: q.o.y }, ang = a;
+    for (let j = 0; j < pieces; j++) {
+      const nxt = polar(pt, ang, len / pieces);
+      const t = jumpAt(q, pieces <= 1 ? 0 : j / (pieces - 1)) + q.rnd() * 20;
+      crack(q.k, pt, nxt, Math.max(0.6, 1.1 - 0.15 * j), t, t + JUMP_MS, 0.8);
+      if (q.lvl > 1 && j === pieces - 2 && q.rnd() < 0.6) branch(q.k, nxt, ang, (len / pieces) * 0.6, t + JUMP_MS);
+      pt = nxt; ang += (q.rnd() - 0.5) * 0.3;
+    }
+  }
+  for (let i = 0; i < 3 + q.lvl; i++) {
+    const a = v + Math.PI + (q.rnd() - 0.5) * 2.4;
+    const st = t0 + q.rnd() * 20;
+    crack(q.k, q.o, polar(q.o, a, q.reach * (0.16 + q.rnd() * 0.16)), 0.7, st, st + 30, 0.5);
+  }
+  q.geo.chips.push({ at: q.o, size: 0.36 + 0.1 * q.lvl, t: t0 });
+}
+
+const PATTERNS: Record<GlassCause, (q: Pat) => void> = {
+  butt: patStar, knock: patBullseye, hum: patNeedles, creep: patTree, shock: patCraze, beam: patHeat, ricochet: patSkid,
+};
+
 /**
  * Everything the blow draws on the glass, from the two portraits and the seed. `unit` is the stage scale (px sizes),
  * `bounds` the screen. Reduced motion draws nothing.
@@ -644,103 +1039,88 @@ export function glassGeo(p: GlassPlan, a: Pt, d: Pt, radius: number, aRadius: nu
   const L = Math.hypot(d.x - a.x, d.y - a.y) || 1;
   const u = { x: (d.x - a.x) / L, y: (d.y - a.y) / L };
   const hand = { x: a.x + u.x * aRadius * 0.85, y: a.y + u.y * aRadius * 0.85 };
-  const geo: GlassGeo = { hand, taps: [], chips: [], segs: [], tris: [], origin: { x: d.x, y: d.y }, main: null };
+  const geo: GlassGeo = { cause: p.cause, hand, origin: { x: d.x, y: d.y }, chips: [], segs: [], tris: [], path: [], main: null, forks: [], frost: null };
   if (p.reduced) return geo;
   const rnd = seededRng(seed);
   const k: SegSink = { segs: geo.segs, rnd, bounds, unit, width: c.crackWidth };
   const back = Math.atan2(a.y - d.y, a.x - d.x);
   const R = radius;
-  if (p.kind === 'chip') {
-    // Three short cracks off a chip, a little off the portrait's centre.
-    const at = { x: d.x + (rnd() - 0.5) * R * 0.3, y: d.y + (rnd() - 0.5) * R * 0.3 };
-    geo.taps.push(at); geo.origin = at;
-    geo.chips.push({ at, size: 0.5, jump: 0 });
-    const web = buildWeb(rnd, at, back + 0.6 + rnd() * 0.8, 3, [R * p.web * 0.45, R * p.web]);
-    webCracks(k, web, [], p.jumps, 0, { ringLines: 0, diag: false, branches: 0.34 });
-  } else if (p.kind === 'web') {
-    // Two taps either side of the centre; each grows its own small web and they join.
-    const px = -u.y, py = u.x;
-    const o1 = { x: d.x + px * R * 0.36 - u.x * R * 0.08, y: d.y + py * R * 0.36 - u.y * R * 0.08 };
-    const o2 = { x: d.x - px * R * 0.34 + u.x * R * 0.1, y: d.y - py * R * 0.34 + u.y * R * 0.1 };
-    geo.taps.push(o1, o2);
-    geo.chips.push({ at: o1, size: 0.5, jump: 0 }, { at: o2, size: 0.58, jump: 1 });
-    const radii = [R * p.web * 0.28, R * p.web * 0.58, R * p.web * 0.92];
-    const w1 = buildWeb(rnd, o1, Math.atan2(o2.y - o1.y, o2.x - o1.x), 7, radii);
-    const w2 = buildWeb(rnd, o2, Math.atan2(o1.y - o2.y, o1.x - o2.x), 7, radii);
-    // The first pebble's web waits at its first ring until the second lands (jump 1), then both spread together.
-    const j1 = [p.jumps[0]!, ...p.jumps.slice(2)];
-    webCracks(k, w1, [], j1, 0, { ringLines: 2, diag: false, branches: 0.2 });
-    webCracks(k, w2, [], p.jumps, 1, { ringLines: 2, diag: false, branches: 0.2 });
-  } else if (p.kind === 'pane') {
-    geo.taps.push({ x: d.x, y: d.y });
-    geo.chips.push({ at: geo.origin, size: 0.9, jump: 0 });
-    const reach = Math.max(1.6, p.web);
-    const web = buildWeb(rnd, geo.origin, back, 8, [R * 1.18, R * (1.18 + (reach - 1.18) * 0.36), R * (1.18 + (reach - 1.18) * 0.68), R * reach]);
-    const flips = webFlips(rnd, web);
-    webCracks(k, web, flips, p.jumps, 0, { ringLines: 3, diag: false, branches: 0.3 });
-    // The pane that breaks out: the centre fan (eight shards round the portrait).
-    geo.tris = webTris(web, flips, 1);
-  } else {
-    const { web, flips, tris } = screenWeb(seed, geo.origin, back, R, bounds);
+  const o = geo.origin;
+  const pat = (reach: number, lvl: 1 | 2 | 3, jumps: readonly number[]): void => PATTERNS[p.cause]({ k, rnd, geo, p, o, R, reach, lvl, jumps, back, bounds, unit });
+  if (p.kind === 'shatter') {
+    // The screen's own web first (it must never lose a line to the cap), then the tear, then the cause's mark.
+    const { web, flips, tris } = screenWeb(seed, o, back, R, bounds);
     geo.tris = tris;
-    const N = web.spokes;
-    const opp = N / 2;
-    // THE RACE: the main crack starts where the striker punches the glass, runs back to the near edge and forward
-    // through the struck portrait to the far edge, at one speed, arriving at `raceEnd`.
-    const fwd = rayExit(geo.origin, back + Math.PI, bounds), rear = Math.max(0, rayExit(geo.origin, back, bounds) - L);
-    const v = (L + Math.max(fwd, rear - L, 1)) / Math.max(1, p.raceEnd - p.raceAt);
-    const end = (s: number, dist: number): Pt => ({ x: geo.origin.x + Math.cos(back + (s === 0 ? 0 : Math.PI)) * dist, y: geo.origin.y + Math.sin(back + (s === 0 ? 0 : Math.PI)) * dist });
-    geo.main = { a: end(0, L + rear), b: end(opp, fwd) };
-    geo.chips.push({ at: { x: a.x, y: a.y }, size: 0.8, jump: -1 });
-    geo.chips.push({ at: geo.origin, size: 0.7, jump: 0 });
-    // Spoke 0, cut at the striker: inward pieces grow toward the struck portrait, outward pieces toward the edge.
-    const stops = [0, ...web.nodes.map((row) => Math.hypot(row[0]!.x - geo.origin.x, row[0]!.y - geo.origin.y))];
-    const cuts = [...new Set([...stops.filter((s) => s < L + rear + 1), L, L + rear])].sort((x, y) => x - y);
-    for (let i = 1; i < cuts.length; i++) {
-      const lo = cuts[i - 1]!, hi = cuts[i]!;
-      if (hi - lo < 1) continue;
-      if (hi <= L + 0.5) { // between the two portraits: grows from the striker's side inward
-        crack(k, end(0, hi), end(0, lo), 1.5, p.raceAt + (L - hi) / v, p.raceAt + (L - lo) / v);
-        if (rnd() < 0.8) branch(k, end(0, lo + (hi - lo) * rnd()), back + Math.PI, 70 * unit + rnd() * 90 * unit, p.raceAt + (L - hi) / v + 20);
-      } else crack(k, end(0, lo), end(0, hi), 1.4, p.raceAt + (lo - L) / v, p.raceAt + (hi - L) / v);
-    }
-    const stopsB = [0, ...web.nodes.map((row) => Math.hypot(row[opp]!.x - geo.origin.x, row[opp]!.y - geo.origin.y))].filter((s) => s < fwd);
-    stopsB.push(fwd);
-    for (let i = 1; i < stopsB.length; i++) {
-      const lo = stopsB[i - 1]!, hi = stopsB[i]!;
-      crack(k, end(opp, lo), end(opp, hi), 1.4, p.raceAt + (L + lo) / v, p.raceAt + (L + hi) / v);
-      if (rnd() < 0.7) branch(k, end(opp, lo + (hi - lo) * rnd()), back + Math.PI, 60 * unit + rnd() * 80 * unit, p.raceAt + (L + lo) / v + 20);
-    }
-    // The held beat: the rest of the web creaks out from the struck portrait, its diagonals last.
+    const opp = web.spokes / 2;
     webCracks(k, web, flips, p.jumps, 0, { ringLines: web.rings - 1, diag: true, branches: 0.12, skip: new Set([0, opp]) });
+    // THE TEAR: one bold fracture from the struck point, both ways at one speed: back through the striker to the near
+    // edge and on to the far edge, the longer arm arriving at `raceEnd`. It forks as it goes.
+    const rear = rayExit(o, back, bounds), fwd = rayExit(o, back + Math.PI, bounds);
+    const v = Math.max(rear, fwd, 1) / Math.max(1, p.raceEnd - p.raceAt);
+    geo.main = { a: polar(o, back, rear), b: polar(o, back + Math.PI, fwd), v, rear, fwd, back };
+    const W = 2.7 * c.tearWidth;
+    [[0, back, rear], [opp, back + Math.PI, fwd]].forEach(([s, ang, len]) => {
+      const stops = [0, ...web.nodes.map((row) => Math.hypot(row[s!]!.x - o.x, row[s!]!.y - o.y)).filter((r) => r < len! - 1), len!];
+      for (let i = 1; i < stops.length; i++) {
+        const lo = stops[i - 1]!, hi = stops[i]!;
+        if (hi - lo < 1) continue;
+        crack(k, polar(o, ang!, lo), polar(o, ang!, hi), W * (1 - 0.25 * (lo / Math.max(1, len!))), p.raceAt + lo / v, p.raceAt + hi / v);
+      }
+      for (let i = 0; i < 4 && geo.forks.length < GLASS_CAPS.forks; i++) {
+        const at = len! * (0.14 + 0.21 * i + rnd() * 0.08);
+        if (at > len! - 60 * unit) break;
+        const pt = polar(o, ang!, at);
+        fork(k, pt, ang!, (190 + rnd() * 230) * unit, p.raceAt + at / v, W * 0.6);
+        geo.forks.push({ at: pt, ang: ang!, t: p.raceAt + at / v });
+      }
+    });
+    geo.forks.sort((x, y) => x.t - y.t);
+    pat(R * 1.5, 2, [p.strikeAt, p.strikeAt + 60, p.strikeAt + 130]);
+  } else {
+    const lvl = p.kind === 'chip' ? 1 : p.kind === 'web' ? 2 : 3;
+    if (lvl === 3) {
+      // THE PANE that breaks out: eight shards round the portrait. Its outline cracks through just before it lets go.
+      const pane = buildWeb(rnd, o, back, 8, [R * 1.18]);
+      geo.tris = webTris(pane, [], 1);
+      const tb = p.breakAt - 90;
+      for (let s = 0; s < 8; s++) {
+        const st = tb + rnd() * 30;
+        crack(k, o, pane.nodes[0]![s]!, 1, st, st + 50);
+        crack(k, pane.nodes[0]![s]!, pane.nodes[0]![(s + 1) % 8]!, 1.15, tb + 40, tb + 90, 0.7);
+      }
+    }
+    pat(R * Math.max(0.4, p.web), lvl, p.jumps);
   }
   geo.segs.sort((x, y) => x.t0 - y.t0);
+  geo.chips.sort((x, y) => x.t - y.t);
   return geo;
 }
 
-const quad = (a: Pt, c: Pt, b: Pt, e: number): Pt => { const m = 1 - e; return { x: m * m * a.x + 2 * m * e * c.x + e * e * b.x, y: m * m * a.y + 2 * m * e * c.y + e * e * b.y }; };
-
 /**
- * Where a pebble is at `t`: in the hand, then a shallow lob toward the viewer (it swells a little: it is flying AT the
- * glass), then gone the moment it taps (the scene throws the bounce). Pure.
+ * Where the bolt is at `t` on a polyline whose point `i` is reached at `times[i]` (each leg at its own speed, so every
+ * bounce lands exactly on its beat). Pure.
  */
-export function stoneAt(s: GlassStone, hand: Pt, tap: Pt, arc: number, t: number): { p: Pt; u: number; phase: 'hand' | 'fly' | 'done' } {
-  if (t < s.launchAt) return { p: hand, u: 0, phase: 'hand' };
-  if (t >= s.hitAt) return { p: tap, u: 1, phase: 'done' };
-  const e = (t - s.launchAt) / Math.max(1, s.hitAt - s.launchAt);
-  const D = Math.hypot(tap.x - hand.x, tap.y - hand.y);
-  const ctrl = { x: (hand.x + tap.x) / 2, y: (hand.y + tap.y) / 2 - D * arc * 2 };
-  return { p: quad(hand, ctrl, tap, e), u: e, phase: 'fly' };
+export function legPoint(path: readonly Pt[], times: readonly number[], t: number): { p: Pt; leg: number; ang: number } {
+  const n = Math.min(path.length, times.length);
+  if (n < 2) return { p: path[0] ?? { x: 0, y: 0 }, leg: 0, ang: 0 };
+  let i = 1;
+  while (i < n - 1 && t >= times[i]!) i++;
+  const a = path[i - 1]!, b = path[i]!;
+  const e = clamp((t - times[i - 1]!) / Math.max(1, times[i]! - times[i - 1]!), 0, 1);
+  return { p: { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e }, leg: i - 1, ang: Math.atan2(b.y - a.y, b.x - a.x) };
 }
 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : Math.exp(-ms / tau) * Math.cos(2 * Math.PI * hz * (ms / 1000)));
 const sine = (u: number): number => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, u)));
+/** The causes whose beats jolt the view (a knock, a jerk of the crack, a bounce, the stamp). */
+const JOLTS: ReadonlySet<GlassCause> = new Set(['knock', 'creep', 'ricochet', 'shock']);
 
 /**
- * The camera: a small push in through the ready; IV keeps pushing in through the race and the held beat (the screen
- * never holds still); every tap kicks it; the impact punches and shakes (IV the hardest). Pure.
+ * The camera: a small push in through the ready; IV keeps pushing in through the tear and the held beat (the screen
+ * never holds still); a knock, a jerk, a bounce and IV's first crack kick it; the impact punches and shakes (IV the
+ * hardest, and for longer). Pure.
  */
 export function glassCameraAt(p: GlassPlan, c: HeroGlassConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
@@ -753,17 +1133,18 @@ export function glassCameraAt(p: GlassPlan, c: HeroGlassConfig, t: number, dir: 
   }
   let x = 0, y = 0;
   const kick = (at: number, amp: number, tau: number, hz: number): void => { const s = springAt(t - at, hz, tau); x += dir.x * amp * s; y += dir.y * amp * s; };
-  if (p.kind === 'shatter') kick(p.fireAt, p.shakePx * 0.3, 60, 16);
-  for (const at of p.hits) kick(at, p.shakePx * 0.5, 40, 18);
+  if (JOLTS.has(p.cause)) for (const at of p.pre) kick(at, Math.max(2, p.shakePx * 0.2), 40, 18);
+  for (const at of p.hits) kick(at, p.shakePx * 0.4, 50, 18);
   if (p.breakAt > p.impactAt) kick(p.breakAt, p.shakePx * 0.45, 70, 14);
-  kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16);
+  kick(p.impactAt, p.shakePx, Math.max(1, (c.shakeMs * (p.kind === 'shatter' ? 1 : 0.7)) / 4), 16);
+  // IV: a second, slower heave under the shake (the whole pane letting go).
+  if (p.kind === 'shatter') { const s = springAt(t - p.impactAt, 5, c.shakeMs / 2.5); x -= dir.y * p.shakePx * 0.35 * s; y += dir.x * p.shakePx * 0.35 * s; }
   return { zoom: 1 + Math.max(0, z), x, y };
 }
 
-/** The anchor: the striker through the ready, gliding to the struck hero as the pebble (or the crack) travels. */
+/** The anchor: the striker through the ready, gliding to the struck hero while the cause plays. */
 export function glassCameraFocus(p: GlassPlan, t: number, a: Pt, d: Pt): Pt {
-  const arrive = p.kind === 'shatter' ? p.raceEnd : (p.stones[0]?.hitAt ?? p.impactAt);
   if (t <= p.fireAt) return a;
-  if (t < arrive) { const e = sine((t - p.fireAt) / Math.max(1, arrive - p.fireAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
+  if (t < p.strikeAt) { const e = sine((t - p.fireAt) / Math.max(1, p.strikeAt - p.fireAt)); return { x: a.x + (d.x - a.x) * e, y: a.y + (d.y - a.y) * e }; }
   return d;
 }

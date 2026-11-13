@@ -31,6 +31,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // ON EXECUTE GIVEN (2026-11-12): the slice as the giver's effect leaves, the blood + ding as it lands.
   'sfx-execute-slice': ['fx/executeGivenLaunch.ts'],
   'sfx-execute-applied': ['fx/executeGivenLaunch.ts'],
+  // ON RISE GIVEN (2026-11-12): a wisp as the giver's effect leaves, a wraith's breath, a low bell and a thrum as it lands.
+  'sfx-rise-wisp': ['fx/riseGivenLaunch.ts'],
+  'sfx-rise-applied': ['fx/riseGivenLaunch.ts'],
   // ('amplified-slot', the looping Amplified glow on the Equipment slot, left on 2026-11-01: the owner-approved
   // "Charged" look replaced it with a CSS state on the slot. The def stays in the library, unplayed.)
   // The Amplified RELEASE (owner ask 2026-11-01): two soft rings on the slot as an Amplified activation fires.
@@ -287,6 +290,12 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // ON EXECUTE GIVEN (2026-11-12). One call in `fx/executeGivenLaunch.ts`: the giver's bound `executeGiven` def
   // (Raven / Tort's `execute-beam`), via bindingFor.
   'fx/executeGivenLaunch.ts': 1,
+  // ON RISE GIVEN (2026-11-12). One call in `fx/riseGivenLaunch.ts`: the giver's bound `riseGiven` def (`rise-beam`),
+  // via bindingFor.
+  'fx/riseGivenLaunch.ts': 1,
+  // A KEYWORD'S BEAM FROM A POINT (2026-11-13). Two calls in `fx/keywordBeam.ts`, both from its own `KEYWORD_BEAMS`
+  // table: the keyword's beam, and that keyword's landing / launch sound.
+  'fx/keywordBeam.ts': 3,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

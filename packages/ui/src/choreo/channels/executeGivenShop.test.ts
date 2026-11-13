@@ -44,9 +44,9 @@ describe('a Rally forced in the Shop', () => {
     const keywordChanged = vi.fn();
     const ctx = { keywordChanged } as unknown as PresenterContext;
     presentConsequence({ consequence, beat: { id: 'beat:7', source: { kind: 'minion', id: 'b2_raven', uid: 'r' } } as CompiledBeat, ctx });
-    expect(keywordChanged).toHaveBeenLastCalledWith('a', 'V', true, { uid: 'r', cardId: 'b2_raven', beatId: 'beat:7' }, 0);
+    expect(keywordChanged).toHaveBeenLastCalledWith('a', 'V', true, { uid: 'r', cardId: 'b2_raven', beatId: 'beat:7' }, 0, undefined);
     presentConsequence({ consequence, beat: { id: 'beat:8', source: { kind: 'rune', id: 'rune_x' } } as CompiledBeat, ctx });
-    expect(keywordChanged).toHaveBeenLastCalledWith('a', 'V', true, undefined, 0);
+    expect(keywordChanged).toHaveBeenLastCalledWith('a', 'V', true, undefined, 0, { kind: 'rune', id: 'rune_x' });
   });
 
   it('Raven\'s grant is one its effect travels to, and the Shop cue launches it in place of the generic flash', () => {

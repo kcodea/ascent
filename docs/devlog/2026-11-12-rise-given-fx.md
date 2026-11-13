@@ -53,6 +53,25 @@ than the other effects". The chime is gone; the landing is now the wraith with a
 Both new clips are levelled to -18.4 LUFS and play at 0.6 (about -4.5 dB, near -23), below the wraith (-17.5) and the
 wisp (-16.3).
 
+## Beams from spells, the hero power and runes (2026-11-13)
+
+Owner: a spell that gives Rise, Execute or Ward sends the beam from the pointer when it is aimed and from the hero
+portrait when it is not; Lord of the Risen sends it from the hero power slot; a rune sends it from its own slot.
+
+- **Who gave it, mid-turn.** With no batch to ask, the store notes every action before it resolves
+  (`noteShopActionOrigin` in `dispatch`: a hero power, an aimed spell, an unaimed spell, or nothing). The Shop reads a
+  minion that gained the keyword off the board and pairs it with that note. Every action overwrites the note.
+- **One launcher for all three keywords** (`fx/keywordBeam.ts`): `rise-beam`, `execute-beam`, `lastlight-beam`, each
+  with its own hold and sounds, following its receiver. Ward's blast (`ward-gain-blast`) now waits for the landing.
+- **End of Turn.** The `keywordChanged` presenter hands the cue a non-minion beat's source; a rune beat launches from
+  `runeSlotPoint`, a hero beat from the hero power button.
+- **Combat runes** (`fx/runeKeywordBeams.ts`). The engine logs a rune's fire as a `questTrigger` and its grant with no
+  giving minion. A beat with one player rune fire gives its sourceless grants to that rune; Rising Graves gives one Rise
+  per beat and fires once, so the fire carries into a directly following beat that holds only such grants.
+- **Beetle's buff tendril is gone** on the minion its Rise beam travels to (`riseBeamOwnedRef`, the same per-action
+  claim the Ale trail uses).
+- **Not covered:** a rune that gives a keyword mid-turn in the Shop or at Start of Turn, and the foe's runes.
+
 ## Not covered
 
 A Rise from a spell, a rune or a hero power has no giver minion and is unchanged. The scheduled play needs a live renderer and is not under test.

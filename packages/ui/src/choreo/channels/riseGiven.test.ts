@@ -144,7 +144,7 @@ describe('a Rise given by a minion PLAYED mid-turn (owner 2026-11-13, Runic Beet
   });
   it('the Shop reads it off the board after every action', () => {
     const recruit = readFileSync(new URL('../../Recruit.tsx', import.meta.url), 'utf8');
-    expect(recruit).toContain("if (prev) for (const g of playedRiseGrants(prev, run.board)) launchShopRiseGiven(g, 'played');");
+    expect(recruit).toContain("for (const g of played) if (launchShopRiseGiven(g, 'played')) claimed.add(g.target);");
   });
 });
 

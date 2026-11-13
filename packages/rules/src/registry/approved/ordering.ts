@@ -545,4 +545,32 @@ export const ORDERING_RULES: GameRule[] = [
       + 'is not under test.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/riseGiven.test.ts'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-FX-KEYWORD-ORIGIN-01',
+    title: 'Rise, Execute or Ward given by something that is not a minion sends its beam from where that thing is',
+    statement:
+      'When Rise, Execute or Ward is given to a minion and no minion gave it, the beam of that keyword still travels to the '
+      + 'receiver and the keyword shows when it lands. It leaves from the cause: a targeted spell sends it from the mouse '
+      + 'pointer, an untargeted spell from the hero portrait, a hero power from the hero power slot, and a rune from the '
+      + 'slot of that rune. Several given at once leave one after another. When a minion both gives a keyword by its own '
+      + 'beam and buffs the same minion, the beam replaces the buff tendril.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, spells', quote: 'when playing any spell that applies execute, ward, or rise from a non-source (card or targetable spell) have the tendril go from the hero portrait to the card. when playing from a targetable spell, have it go from the mouse pointer to the target' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, hero power and runes', quote: 'one specific use case is The Risen Lord, who\'s hero power rises a target unit, in that case i also want the tendril to come from the hero power slot. this same logic should apply from any RUNE slot that applies these effects' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, runes', quote: 'in that case, it would tendril from the rune slot itself' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'we can remove the buff tendril effect from the rune beetle rise' },
+      { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/keywordOrigin.ts; packages/ui/src/fx/keywordBeam.ts; packages/ui/src/fx/runeKeywordBeams.ts; packages/ui/src/store.ts (noteShopActionOrigin in dispatch); packages/ui/src/Recruit.tsx (the mid-turn board read, the Ward read, the keywordChanged cue, the buff tendril filter); packages/ui/src/useCombatReplay.ts' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
+      + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
+      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of the player (its slot), found by the '
+      + 'rune fire beside a grant that names no giving minion. Not covered: a rune that gives a keyword mid-turn in the '
+      + 'Shop or at Start of Turn (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
+      + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
+      + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
+      + 'the author.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

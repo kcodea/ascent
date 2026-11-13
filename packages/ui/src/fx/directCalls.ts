@@ -293,6 +293,9 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // ON RISE GIVEN (2026-11-12). One call in `fx/riseGivenLaunch.ts`: the giver's bound `riseGiven` def (`rise-beam`),
   // via bindingFor.
   'fx/riseGivenLaunch.ts': 1,
+  // A KEYWORD'S BEAM FROM A POINT (2026-11-13). Two calls in `fx/keywordBeam.ts`, both from its own `KEYWORD_BEAMS`
+  // table: the keyword's beam, and that keyword's landing / launch sound.
+  'fx/keywordBeam.ts': 3,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

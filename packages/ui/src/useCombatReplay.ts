@@ -62,6 +62,7 @@ import { anchorsForUnits } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
 import { startExecutesGiven } from './fx/executeGivenLaunch';
 import { startRisesGiven, launchRisesGiven } from './fx/riseGivenLaunch';
+import { startRuneKeywordBeams } from './fx/runeKeywordBeams';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -3077,6 +3078,8 @@ export function useCombatReplay(
     // A living giver's leave now, one after another; an Echo's leave from its slot after its skull (below).
     startRisesGiven(beat, events, cardIds, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id),
       beat.primary.type === 'attack' ? beat.primary.attacker : null, getLungeConfig().windupDur * 1000);
+    // A RUNE that gives Rise, Execute or Ward sends that keyword's beam from its own slot (R-FX-KEYWORD-ORIGIN-01).
+    startRuneKeywordBeams(beat, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
     // EPIC multipliers (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve): each one the engine
     // marked as adding fires to a trigger in this beat plays its On Watcher effect on its own card, once per beat
     // (R-FX-EPIC-FIRE-01). Not bound / defs off: nothing plays.

@@ -7,18 +7,21 @@
  * every exit): IV's RING OF LIGHT (a lit square of canvas, a pillar of light with a glowing cap at each of the four
  * corners, and three ropes of light on EVERY side, each drawn as two stretchable lengths meeting at a bend: the side
  * ropes are pushed out when someone runs into them, the back and front ropes sag as the ring shudders under a landing),
- * III's SPOTLIGHT (a cone from the top edge and its pool on the mat), III's ELBOW STAR leading the dive, and the SHADOW
- * of whatever is about to land. No painted props: the second pass dropped the steel posts and the brass bell.
+ * Tier 3's TURNBUCKLE (a pillar of light the striker climbs), its SPOTLIGHT (a cone from the top edge and its pool), the
+ * ELBOW STAR leading the dive, Tier 1's CHAIR (a folding chair drawn in seven lengths of neon light, which bursts apart
+ * on the hit), the DIZZY STARS circling the struck portrait's head, and the SHADOW of whatever is about to land. No
+ * painted props: everything here is light.
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the walk's dust, the chop's slap arc and red hand print, the hits, the
  * canvas-mat dust rings, the BIG mat shock (a wide ring, dust that hangs, grit, a whole-frame flash), the ropes' twang,
- * the clothesline, the count's numbers and mat slaps, the bell's rings and WINNER.
+ * the clothesline, the count's numbers and mat slaps, the bell's rings and WINNER, the crowd's CAMERA FLASHES popping
+ * along the edges of the screen, the chair's burst, the cutter's streaks.
  */
 import { Sprite, type Texture } from 'pixi.js';
 import type { HeroArcanaTextures } from '../heroArcana/heroArcanaScene';
 import { whiten, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
-import type { ElbowState, RingSide, RingState, SpotState } from './heroWrestleConfig';
+import type { ChairState, DizzyState, ElbowState, PostState, RingSide, RingState, SpotState } from './heroWrestleConfig';
 
 export interface HeroWrestleTextures extends HeroArcanaTextures {
   tube: Texture;
@@ -32,6 +35,8 @@ export interface HeroWrestleTextures extends HeroArcanaTextures {
   wordWoo: Texture;
   wordSlam: Texture;
   wordWinner: Texture;
+  wordSplash: Texture;
+  wordBonk: Texture;
   num1: Texture;
   num2: Texture;
   num3: Texture;
@@ -71,8 +76,18 @@ const ROPE_AT = [0.4, 0.66, 0.92] as const;
 const ROPE_TINT = [0x3f7bff, 0xffffff, 0xff3b30] as const;
 const ROPE_GIVE = [0.82, 1, 0.9] as const;
 const PILLAR_TINT = 0xffe2a0;
+const CHAIR_TINT = 0x9fd8ff;
+/**
+ * The folding chair, front on, in its own units (its height is about 1.8): the backrest's top and bottom bars, the two
+ * uprights running down into the legs, the seat, and the crossed braces under it. [x0, y0, x1, y1] each.
+ */
+export const CHAIR_SEGS: readonly (readonly [number, number, number, number])[] = [
+  [-0.38, -0.95, 0.38, -0.95], [-0.38, -0.6, 0.38, -0.6], [-0.38, -0.95, -0.44, 0.85], [0.38, -0.95, 0.44, 0.85],
+  [-0.46, 0.02, 0.46, 0.02], [-0.4, 0.3, 0.4, 0.8], [0.4, 0.3, -0.4, 0.8],
+];
+const DIZZY_N = 5;
 
-export type WrestleWord = 'woo' | 'slam' | 'winner';
+export type WrestleWord = 'woo' | 'slam' | 'winner' | 'splash' | 'bonk';
 
 export class HeroWrestleScene extends FxPool {
   private readonly mat: Sprite;
@@ -85,6 +100,10 @@ export class HeroWrestleScene extends FxPool {
   private readonly pool: Sprite;
   private readonly elbow: Sprite;
   private readonly shadow: Sprite;
+  private readonly post: Sprite;
+  private readonly postCap: Sprite;
+  private readonly chair: Sprite[] = [];
+  private readonly dizzyStars: Sprite[] = [];
   private own = false;
 
   /** `aR` / `dR`: the striking and the struck portraits' radii (screen px). */
@@ -119,6 +138,10 @@ export class HeroWrestleScene extends FxPool {
     this.pillars.push(...backPillars, ...frontPillars);
     for (let i = 0; i < 4; i++) this.caps.push(mk('core', tex.glow, PILLAR_TINT));
     this.elbow = mk('body', tex.impact, 0xffffff);
+    this.post = mk('body', tex.tube, PILLAR_TINT, 0, 0.5);
+    this.postCap = mk('core', tex.glow, PILLAR_TINT);
+    for (let i = 0; i < CHAIR_SEGS.length; i++) this.chair.push(mk('body', tex.tube, CHAIR_TINT, 0, 0.5));
+    for (let i = 0; i < DIZZY_N; i++) this.dizzyStars.push(mk('core', tex.star, i % 2 ? 0xffffff : colors.pow));
   }
 
   /** Whether any own object still draws. */
@@ -126,7 +149,7 @@ export class HeroWrestleScene extends FxPool {
 
   private wordTex(w: WrestleWord): Texture {
     const t = this.tex;
-    return { woo: t.wordWoo, slam: t.wordSlam, winner: t.wordWinner }[w];
+    return { woo: t.wordWoo, slam: t.wordSlam, winner: t.wordWinner, splash: t.wordSplash, bonk: t.wordBonk }[w];
   }
 
   // ── own objects (the runner writes them every frame) ──────────────────────────────────────────────────────────
@@ -240,15 +263,80 @@ export class HeroWrestleScene extends FxPool {
     this.own = true;
   }
 
+  /** Tier 3: the turnbuckle, a pillar of light from the floor up to the perch, a glowing cap on top. */
+  setPost(st: PostState): void {
+    if (this.destroyed) return;
+    if (!st.visible) { if (this.post.visible) { this.post.visible = false; this.postCap.visible = false; this.refresh(); } return; }
+    const Rm = (this.aR + this.dR) / 2;
+    this.line(this.post, st.x, st.foot, st.x, Math.min(st.foot - 1, st.top), Rm * 0.42, st.alpha);
+    const c = this.postCap;
+    c.visible = true; c.alpha = 0.9 * st.alpha;
+    c.position.set(st.x, st.top);
+    c.scale.set((Rm * 1.1) / GLOW_PX);
+    this.own = true;
+  }
+
+  /** Tier 1: the neon folding chair, held, swung, and bursting apart into light (`burst` 0..1). */
+  setChair(st: ChairState): void {
+    if (this.destroyed) return;
+    if (!st.visible || st.alpha <= 0.004) {
+      if (this.chair[0]!.visible) { for (const s of this.chair) s.visible = false; this.refresh(); }
+      return;
+    }
+    const u = st.size / 1.8;
+    const cs = Math.cos(st.rot), sn = Math.sin(st.rot);
+    const thick = Math.max(5, st.size * 0.18);
+    for (let i = 0; i < CHAIR_SEGS.length; i++) {
+      const [x0, y0, x1, y1] = CHAIR_SEGS[i]!;
+      // Bursting: each length flies out from the middle and turns, getting shorter.
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      const ml = Math.hypot(mx, my) || 1;
+      const out = st.burst * 1.6;
+      const ox = (mx / ml) * out + (i % 2 ? 0.25 : -0.25) * st.burst, oy = (my / ml) * out - 0.5 * st.burst;
+      const shrink = 1 - 0.55 * st.burst;
+      const tw = (i % 2 ? 1 : -1) * st.burst * 1.4;
+      const hx = ((x1 - x0) / 2) * shrink, hy = ((y1 - y0) / 2) * shrink;
+      const rx = hx * Math.cos(tw) - hy * Math.sin(tw), ry = hx * Math.sin(tw) + hy * Math.cos(tw);
+      const ax = mx + ox - rx, ay = my + oy - ry, bx = mx + ox + rx, by = my + oy + ry;
+      const px = st.x + (ax * cs - ay * sn) * u, py = st.y + (ax * sn + ay * cs) * u;
+      const qx = st.x + (bx * cs - by * sn) * u, qy = st.y + (bx * sn + by * cs) * u;
+      this.line(this.chair[i]!, px, py, qx, qy, thick, st.alpha);
+    }
+    this.own = true;
+  }
+
+  /** Stars circling the struck portrait's head (it is seeing stars). */
+  setDizzy(st: DizzyState): void {
+    if (this.destroyed) return;
+    if (!st.visible || st.alpha <= 0.004) {
+      if (this.dizzyStars[0]!.visible) { for (const s of this.dizzyStars) s.visible = false; this.refresh(); }
+      return;
+    }
+    for (let i = 0; i < DIZZY_N; i++) {
+      const s = this.dizzyStars[i]!;
+      const a = st.phase + (i / DIZZY_N) * Math.PI * 2;
+      const front = Math.sin(a); // the near half of the ring is bigger and brighter
+      s.visible = true;
+      s.position.set(st.x + Math.cos(a) * st.r, st.y + front * st.r * 0.28);
+      s.rotation = st.phase * 2 + i;
+      s.scale.set((this.dR * (0.62 + 0.18 * front)) / 48);
+      s.alpha = st.alpha * (0.7 + 0.3 * front);
+    }
+    this.own = true;
+  }
+
   /** Hide every own object (the end, a cancel). */
   hideOwn(): void {
     this.hideRing();
     this.cone.visible = false; this.pool.visible = false; this.elbow.visible = false; this.shadow.visible = false;
+    this.post.visible = false; this.postCap.visible = false;
+    for (const s of this.chair) s.visible = false;
+    for (const s of this.dizzyStars) s.visible = false;
     this.own = false;
   }
 
   private refresh(): void {
-    this.own = this.mat.visible || this.cone.visible || this.elbow.visible || this.shadow.visible;
+    this.own = this.mat.visible || this.cone.visible || this.elbow.visible || this.shadow.visible || this.post.visible || this.chair[0]!.visible || this.dizzyStars[0]!.visible;
   }
 
   protected override tick(): boolean { return this.own; }
@@ -440,6 +528,42 @@ export class HeroWrestleScene extends FxPool {
     this.spawn('glow', this.tex.glow, c.side, at.x, at.y, { dur: 620, from: (r * 1.5) / GLOW_PX / S, to: (r * 3.4) / GLOW_PX / S, a0: 0.5, mode: 'punch', peakAt: 0.2 });
     this.burst('core', this.tex.star, [c.pow, c.side, 0xffffff], at.x, at.y - r * 0.3, Math.round(16 * k), { speed: 560, dir: -Math.PI / 2, spread: 2.8, life: 900, size: 0.4, drag: 0.2, spin: 0.012, grav: 560 });
     this.word('winner', { x: at.x, y: at.y - r * 1.75 }, 2.5, -0.06, 900, 1.5);
+  }
+
+  /**
+   * THE CROWD'S CAMERA FLASHES: `n` pops of white light along the bottom and top edges of the screen (where the crowd
+   * is), spread over `ms`, each a hard flash with a star glint and a soft bloom. Deterministic from the scene's seed.
+   */
+  crowdFlashes(n: number, ms: number): void {
+    const S = this.scale;
+    const fw = this.look.frameW ?? 1920, fh = this.look.frameH ?? 1080;
+    const R = (this.aR + this.dR) / 2;
+    for (let i = 0; i < Math.round(n); i++) {
+      const bottom = this.rnd() < 0.7;
+      const x = fw * (0.03 + this.rnd() * 0.94);
+      const y = bottom ? fh - R * (0.15 + this.rnd() * 0.5) : R * (0.1 + this.rnd() * 0.35);
+      const delay = this.rnd() * ms;
+      const k = 0.6 + this.rnd() * 0.6;
+      this.spawn('core', this.tex.glow, 0xffffff, x, y, { dur: 200, from: (R * 0.9 * k) / GLOW_PX / S, to: (R * 1.6 * k) / GLOW_PX / S, a0: 0.9, mode: 'punch', peakAt: 0.08, delay });
+      this.spawn('core', this.tex.star, 0xffffff, x, y, { dur: 160, from: 0.5 * k, to: 1.1 * k, a0: 1, mode: 'punch', peakAt: 0.1, rot: this.rnd() * 3, delay });
+    }
+  }
+
+  /** The cutter: a streak of light behind the striker flying in from off the screen (`dir` is the way it is going). */
+  flyBy(at: Pt, dir: number, r: number): void {
+    for (const off of [-0.55, -0.15, 0.25, 0.6]) {
+      this.spawn('glow', this.tex.streak, 0xffffff, at.x - dir * r * 1.2, at.y + r * off, { dur: 260, from: 2.2, to: 0.8, a0: 0.6, sy: 0.18, rot: dir >= 0 ? 0 : Math.PI, vx: dir * 300, ease: 'linear' });
+    }
+    this.spawn('glow', this.tex.glow, this.colors.side, at.x, at.y, { dur: 260, from: (r * 1.5) / GLOW_PX / this.scale, to: (r * 2.6) / GLOW_PX / this.scale, a0: 0.4, mode: 'punch', peakAt: 0.2 });
+  }
+
+  /** The chair bursting on the hit: sparks and shards of its light thrown out, and a ring. */
+  chairBurst(at: Pt, r: number, k: number): void {
+    const S = this.scale;
+    this.burst('core', this.tex.spark, [CHAIR_TINT, 0xffffff], at.x, at.y, Math.round(16 * k), { speed: 720 * k, life: 380, size: 0.45, drag: 0.12, align: true, grav: 500 });
+    this.burst('glow', this.tex.streak, [CHAIR_TINT], at.x, at.y, 8, { speed: 520 * k, life: 300, size: 0.5, drag: 0.1, align: true });
+    this.spawn('glow', this.tex.ring, CHAIR_TINT, at.x, at.y, { dur: 360, from: (r * 0.5) / RING_PX / S, to: (r * 3.4 * k) / RING_PX / S, a0: 0.85, ease: 'cubic' });
+    this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 240, from: 0.8 * k, to: 2.6 * k, a0: 1, mode: 'punch', peakAt: 0.12 });
   }
 
   /** Dizzy stars turning over the one on the mat. */

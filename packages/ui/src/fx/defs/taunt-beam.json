@@ -9,8 +9,8 @@
       "at": 0,
       "stagger": 120,
       "params": {
-        "travelMs": 380,
-        "dwellMs": 0,
+        "travelMs": 140,
+        "dwellMs": 180,
         "releaseMs": 140,
         "width": 13,
         "coreWidth": 7.8,
@@ -2246,7 +2246,7 @@
         "displaceX": 30,
         "displaceY": 30,
         "maskInvert": false,
-        "blur": 18.5,
+        "blur": 30,
         "blurCurve": [
           [
             0,
@@ -2559,7 +2559,7 @@
             1
           ]
         ],
-        "colorOverlay_color": 6445898,
+        "colorOverlay_color": 7894123,
         "colorReplaceOn": false,
         "colorReplaceAmt": 0.4,
         "colorReplaceCurve": [

@@ -563,7 +563,7 @@ export const ORDERING_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'we can remove the buff tendril effect from the rune beetle rise' },
       { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/keywordOrigin.ts; packages/ui/src/fx/keywordBeam.ts; packages/ui/src/fx/runeKeywordBeams.ts; packages/ui/src/store.ts (noteShopActionOrigin in dispatch); packages/ui/src/Recruit.tsx (the mid-turn board read, the Ward read, the keywordChanged cue, the buff tendril filter); packages/ui/src/useCombatReplay.ts' },
     ],
-    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
+    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, on a warband minion OR a Shop offer (owner 2026-11-13: "i can bulwark a minion in shop, it should get the same effect"), a targeted spell (pointer), an '
       + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
       + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of EITHER side (the player: its slot; the foe: its rune badge beside the foe portrait), found by the '
       + 'rune fire beside a grant that names no giving minion; at Start of Turn, any source (the recorder notes each '
@@ -572,7 +572,7 @@ export const ORDERING_RULES: GameRule[] = [
       + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
       + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
       + 'the author.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts', 'packages/sim/src/sotBeatKeywords.test.ts', 'packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts', 'packages/sim/src/sotBeatKeywords.test.ts', 'packages/ui/src/sotBeats.test.ts', 'packages/ui/src/fx/keywordBeamUnits.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
   {
     id: 'R-FX-FLURRY-GIVEN-01',

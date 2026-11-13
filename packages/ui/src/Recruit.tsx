@@ -18,6 +18,7 @@ import { launchShopExecuteGiven } from './fx/executeGivenLaunch';
 import { launchShopRiseGiven } from './fx/riseGivenLaunch';
 import { playedRiseGrants } from './choreo/channels/riseGiven';
 import { playedFlurryGrants } from './choreo/channels/flurryGiven';
+import { keywordBeamUnits } from './fx/keywordBeamUnits';
 import { unitSelector } from './fx/combatAnchors';
 import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword, holdKeywordLook, isBeamKeyword } from './fx/keywordBeam';
 import { heroPowerPoint, keywordOriginPoint, runeSlotPoint, shopKeywordOrigin } from './fx/keywordOrigin';
@@ -5903,6 +5904,9 @@ export function Recruit() {
     const prevW = prevFlurryRef.current;
     const prevCR = prevCritRef.current;
     const prevT = prevTauntRef.current;
+    // THE SHOP ROW TOO (owner 2026-11-13: "i can bulwark a minion in shop, it should get the same effect"): an offer's
+    // keywords are its card's own plus any it was given (`ShopCard.keywords`).
+    const beamUnits = keywordBeamUnits(run.board, run.shop);
     const claimed = new Set<string>();
     const claimedW = new Set<string>();
     if (prev) {
@@ -5931,7 +5935,7 @@ export function Recruit() {
     const at = prev && prevV && prevW && prevCR && prevT ? keywordOriginPoint(shopKeywordOrigin()) : null;
     if (at) {
       let k = 0;
-      for (const c of run.board) {
+      for (const c of beamUnits) {
         const gains: BeamKeyword[] = [];
         if (prev!.get(c.uid) === false && c.keywords.includes('R') && !claimed.has(c.uid)) gains.push('R');
         if (prevV!.get(c.uid) === false && c.keywords.includes('V')) gains.push('V');
@@ -5941,12 +5945,12 @@ export function Recruit() {
         for (const kw of gains) { launchKeywordBeam(kw, at, c.uid, { launchAt: k * KEYWORD_BEAM_GAP_MS, sound: k < KEYWORD_BEAM_SOUND_MAX }); k++; }
       }
     }
-    prevRiseRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('R')]));
-    prevExecuteRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('V')]));
-    prevFlurryRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('W')]));
-    prevCritRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('CR')]));
-    prevTauntRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('T')]));
-  }, [run.board, inCombat]);
+    prevRiseRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('R')]));
+    prevExecuteRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('V')]));
+    prevFlurryRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('W')]));
+    prevCritRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('CR')]));
+    prevTauntRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('T')]));
+  }, [run.board, run.shop, inCombat]);
 
   // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
   // a spell or minion is cast/played from any source"). The player's own play lands with the landing dust

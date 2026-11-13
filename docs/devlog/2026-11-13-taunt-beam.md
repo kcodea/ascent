@@ -22,3 +22,6 @@ Owner: "now im making a taunt beam".
   shorter (starts 1.22 s into the original, 0.78 s long).
 - The Taunt sound leads the frame by 170 ms (100, then a further 70 on the owner's ask) (`TAUNT_SOUND_LEAD_MS`; owner: "can we have the taunt deploy sound come in
   100 ms earlier"): at 1x it rings 120 ms after launch, the frame appears at 290 ms.
+- **Shop offers (owner: "i can bulwark a minion in shop, it should get the same effect").** The mid-turn board read
+  only watched the warband. It now reads `keywordBeamUnits(run.board, run.shop)`: an offer's keywords are its card's own
+  plus `ShopCard.keywords`. Every keyword beam gains this, not only Taunt. Pinned on a real Bulwark cast on an offer.

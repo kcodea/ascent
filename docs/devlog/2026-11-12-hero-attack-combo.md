@@ -127,3 +127,8 @@ the only frames over 12.5 ms were in the first 130 ms (first use of the textures
 
 **Still weak.** The `-N` still overlaps the K.O. word. The first frame of the flash is close to a white-out. Nobody
 has heard the mix. The config key moved to `ascent.herocombo.v3`, so tuner values saved for the first pass are dropped.
+
+Note on the three new clips: the raw clips decoded about 2 dB over full scale, so they were clipping when the numbers
+above were measured. They were then re-levelled to a true -1.2 dB peak and their gains raised by the same 2 dB
+(punch 1, charge 0.7, boom 0.95). The loudness numbers were NOT re-measured after that last step; they should be
+within a dB.

@@ -165,6 +165,7 @@ export function shopSpellGrowth(params: Record<string, unknown> | undefined, gol
  *  `rubyGain` ledger — which is exactly the bug the Gemstorm rune shipped with (owner report 2026-08-06). */
 export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number, permanent = false, extra?: { attack: number; health: number }): void {
   if (per <= 0) return;
+  const per0 = per; // the caller's Ruby count, before this landing's multipliers (Rough Cut's extra cast re-applies them)
   // RUNE OF BATTLE REFRACTION: living Prismcasters repeat Rubies played during combat, exactly as they repeat
   // hand-played Rubies in the shop (`rubyExtraCast`). Folded into `per` at this single chokepoint, so every
   // combat Ruby source (Candle Conduit, Geode Guardian, Distillation) refracts identically — and since the
@@ -192,6 +193,20 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
   applyRubyStats(ctx, self, target, a, h, engraved);
   // Set 3 design pass: the Keepsake Gem / the Gem Star hear the CAST (a hop below never reaches this).
   ctx.onRubyCast?.(self.side, self, target, per, a, h);
+  // SET 2 RUNE ROUGH CUT: a Ruby CAST on a Kobold also casts one on a random living friendly non-Kobold (per copy held). A
+  // real cast (its own `playRubyOn`, so its multipliers, permanence and cast watchers apply), with the caller's Ruby count
+  // before this landing's multipliers (`per0`). The extra landing is never on a Kobold (All-types bodies are Kobolds), so
+  // it can never re-trigger this: no chain.
+  const roughCut = ctx.roughCutCopiesFor?.(self.side) ?? 0;
+  if (roughCut > 0 && bodyIsTribe(target, 'kobold', ctx.getCard(target.cardId))) {
+    let fired = false;
+    for (let k = 0; k < roughCut; k++) {
+      const others = ctx.living(self.side).filter((x) => x !== target && !x.dead && !bodyIsTribe(x, 'kobold', ctx.getCard(x.cardId)));
+      if (others.length === 0) break;
+      if (!fired) { ctx.log({ type: 'questTrigger', flag: 'runeRoughCut', side: self.side }); fired = true; }
+      playRubyOn(ctx, self, ctx.rng.pick(others), per0, permanent, extra);
+    }
+  }
   // RUNE OF RUPTURED RUBIES (owner 2026-09-25): "Your Rubies cast in combat bounce twice." Every combat Ruby, from any
   // source, hops to a random OTHER living friendly minion twice (per copy held) after it lands, carrying its stats
   // only (the R-RUBY-02 hop: `applyRubyStats`, no watchers, so a hop never re-bounces) and inheriting the landing's
@@ -2415,6 +2430,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleDamageAll: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleDamageAll(combatArena(ctx, self), params);
+  },
+  /** Set 2 rune Imp Legion's graft (its OWN Echo only): the arena body, lowest-Health enemy. */
+  deathrattleDamageLowestEnemy: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ARENA_EFFECTS.deathrattleDamageLowestEnemy(combatArena(ctx, self), params);
   },
 
   /** Deathrattle (Jenkins & Fi): destroy the minion that dealt the killing blow (`killer` on the onDeath

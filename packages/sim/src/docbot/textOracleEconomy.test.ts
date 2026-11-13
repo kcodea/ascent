@@ -108,7 +108,8 @@ describe('Doc Bot — text as oracle tranche 3 (printed economy)', () => {
     // +3 → 11 on 2026-11-13 (Set 2 batch, Basic neutral): hazard_pay (after a LOST combat, paid as the next Shop opens),
     // warm_up (a side-wide Pummel in combat), late_bloomer (per Shop upgrade): event shapes outside the grammar, each
     // pinned by its own test in sim/src/set2RunesBasicNeutral.test.ts.
-    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(11);
+    // +1 → 12 on 2026-11-13 (combined with the Basic neutral +3): trophy_hunter (Set 2 rune batch) banks 1 Gold per Beast kill in combat, capped 3 per combat (per-each in combat, the ashen_payroll shape).
+    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(12);
     expect(skipped, 'Ornate Clock is IN the oracle (its Gold is paid on resolve)').not.toContain('rune_ornate_clock');
   });
 

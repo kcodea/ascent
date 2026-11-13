@@ -36,6 +36,7 @@ import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-ai
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
+import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES } from '../set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
@@ -262,6 +263,7 @@ export function simulate(
     if (ge && minion.golden && !card.spell && !card.ruby && !minion.effects.some((e) => e.params?.ancientMidasEcho)) {
       minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: ge.cardId, count: 1, fixed: true, ancientMidasEcho: true } }];
     }
+    set2TribalGraft(minion, card, side); // Set 2 runes: Imp Legion's Echo on a summoned Imp; Last Howl's carried Echoes
     if (m.runeAggressiveGolems && card.id === 'gemheart-shard' && !minion.effects.some((e) => e.do === 'rallyGiveAttackToRight')) {
       minion.effects = [...minion.effects, { on: 'onAttack', do: 'rallyGiveAttackToRight', params: {} }];
       if (!minion.keywords.includes('RL')) minion.keywords.push('RL');
@@ -2240,6 +2242,7 @@ export function simulate(
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
     spellResolved: (side, spellId) => {
+      flamekeeperCombat(side, spellId); // Set 2 rune Flamekeeper: a Dragonflame cast, any caster
       // RUNE OF THE STAR TAP (Set 3 design pass): a Dwarven Ale cast in combat banks +3/+3 for the Starform (per copy).
       if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
         fireTrigger('runeStarTap', side);
@@ -2317,6 +2320,7 @@ export function simulate(
     // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
     rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
     rubyConduitBouncesFor: (side) => Math.max(0, modsFor(side).runeConduit ?? 0), // Rune of the Conduit (copy count)
+    roughCutCopiesFor: (side) => (modsFor(side).runeRoughCut ? flagCopiesOf(side, 'runeRoughCut') : 0), // Set 2 rune Rough Cut
     battleRefractionRepsFor: (side) => {
       // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
       // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.
@@ -2915,6 +2919,7 @@ export function simulate(
       }
       if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
     }
+    pitchforksOnSummon(minion, side); // Set 2 rune Pitchforks: a summoned Imp deals 3 damage to 2 enemies
     // RUNE OF THE RETURNING PACK: every Nth BEAST you summon this combat hands over a random Beast next shop.
     // Counted at this single summon chokepoint, so a token, a Rise and a resummon each count exactly once —
     // the same contract the Remains / Reinvestment counters above rely on. Either side: `grantRandomMinion`
@@ -5285,6 +5290,7 @@ export function simulate(
               // Blood Trail (Beast → hand): the side's Start-of-Combat-marked body's kills conjure a random Beast.
               // Either side (R-SYMMETRY-01: the mark and the payout used to exist on the player board only).
               if (kmods.bloodTrail && killer === bloodTrailMinion[killer.side] && killerAlive) ctx.grantRandomMinion(1, 'beast', killer.side, undefined, killer.uid);
+              set2TribalOnKill(killer, killerAlive); // Set 2 runes Bloodscent + Trophy Hunter: a Beast's kill
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
@@ -5486,6 +5492,111 @@ export function simulate(
     }
     flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
   };
+  // ── SET 2 RUNES, BASIC TRIBAL (owner review 2026-11-12) — the combat halves ─────────────────────────────────────────
+  // Declared BEFORE the first Start of Combat pass (socReclaim below) so a Start-of-Combat summon, kill or death already
+  // hears them. Every handler reads the side's OWN mods (R-SYMMETRY-01) and scales by its copy count (`flagCopiesOf`).
+  // The Shop halves live in packages/sim/src/set2RunesBasicTribal.ts; the numbers in core/src/set2TribalRunes.ts.
+  const trophyHunterPaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const lastHowlUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** The Echoes a Last Howl resummon carries beyond its printed ones (a grafted Echo), set around its `summonMinion`. */
+  let lastHowlCarry: { cardId: string; effects: EffectDef[] } | null = null;
+  /** Imp Legion's graft on a summoned Imp (idempotent by factory), and Last Howl's carried Echoes on its resummon. */
+  function set2TribalGraft(minion: Minion, card: CardDef, side: Side): void {
+    if (modsFor(side).runeImpLegion && card.imp && !minion.effects.some((e) => e.do === 'deathrattleDamageLowestEnemy')) {
+      minion.effects = [...minion.effects, { on: 'onDeath', do: 'deathrattleDamageLowestEnemy', params: { amount: SET2_TRIBAL_RUNES.impLegionDamage, hits: flagCopiesOf(side, 'runeImpLegion'), fixed: true } }];
+    }
+    if (lastHowlCarry && lastHowlCarry.cardId === card.id) {
+      const extra = lastHowlCarry.effects.filter((e) => !minion.effects.some((x) => x.do === e.do));
+      if (extra.length > 0) minion.effects = [...minion.effects, ...extra];
+    }
+  }
+  /** PITCHFORKS: "Imps deal 3 damage to 2 enemies when summoned." Every friendly Imp arrival (a token, a Rise return, a
+   *  resummon: the summon-entry chokepoint), per copy held: 2 DIFFERENT random living enemies, picked up front, each hit
+   *  by the Imp (it is the source, so Demon-damage watchers hear it). No enemy: nothing. */
+  function pitchforksOnSummon(minion: Minion, side: Side): void {
+    if (!modsFor(side).runePitchforks || minion.side !== side || minion.dead || !cards[minion.cardId]?.imp) return;
+    const foe: Side = side === 'player' ? 'enemy' : 'player';
+    for (let k = 0; k < flagCopiesOf(side, 'runePitchforks'); k++) {
+      const pool = living(foe);
+      if (pool.length === 0) return;
+      const picks: Minion[] = [];
+      for (let i = 0; i < SET2_TRIBAL_RUNES.pitchforksTargets && pool.length > 0; i++) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+      nextStep();
+      fireTrigger('runePitchforks', side);
+      for (const t of picks) if (!t.dead && t.health > 0) ctx.damage(t, SET2_TRIBAL_RUNES.pitchforksDamage, false, false, minion);
+    }
+  }
+  /** BLOODSCENT + TROPHY HUNTER: `killer` (an attacker) just killed an opponent's minion (a Slaughter, the Rune of the
+   *  Trophy reading of "kills"). Bloodscent: a living killing Beast gains +4/+4 per copy, PERMANENTLY (`permaGain`).
+   *  Trophy Hunter: 1 Gold next turn per copy, the first 3 kills each combat (the side's own cap). */
+  function set2TribalOnKill(killer: Minion, killerAlive: boolean): void {
+    const side = killer.side;
+    const m = modsFor(side);
+    if (!(m.runeBloodscent || m.runeTrophyHunter) || !isTribeOf(killer, 'beast', cards)) return;
+    if (m.runeBloodscent && killerAlive) {
+      const n = flagCopiesOf(side, 'runeBloodscent');
+      const a = SET2_TRIBAL_RUNES.bloodscent.attack * n, h = SET2_TRIBAL_RUNES.bloodscent.health * n;
+      nextStep();
+      fireTrigger('runeBloodscent', side);
+      const kept = ctx.buff(killer, a, h, 'Bloodscent').kept; // an Engrave already kept it (R-ENGRAVE-05)
+      if (!kept) killer.permaGain = { attack: (killer.permaGain?.attack ?? 0) + a, health: (killer.permaGain?.health ?? 0) + h };
+    }
+    if (m.runeTrophyHunter && trophyHunterPaid[side] < SET2_TRIBAL_RUNES.trophyHunterPerCombat) {
+      trophyHunterPaid[side] += 1;
+      fireTrigger('runeTrophyHunter', side);
+      ctx.grantBonusGold(SET2_TRIBAL_RUNES.trophyHunterGold * flagCopiesOf(side, 'runeTrophyHunter'), side);
+    }
+  }
+  /** FLAMEKEEPER: one Dragonflame repetition resolved on `side` (`castInCombat`'s per-cast hook, any caster): the side's
+   *  living Dragons gain +2/+2 per copy, PERMANENTLY. No Dragon: nothing. */
+  function flamekeeperCombat(side: Side, spellId: string): void {
+    if (spellId !== DRAGONFLAME_ID || !modsFor(side).runeFlamekeeper) return;
+    const dragons = living(side).filter((d) => isTribeOf(d, 'dragon', cards));
+    if (dragons.length === 0) return;
+    const n = flagCopiesOf(side, 'runeFlamekeeper');
+    const a = SET2_TRIBAL_RUNES.flamekeeper.attack * n, h = SET2_TRIBAL_RUNES.flamekeeper.health * n;
+    fireTrigger('runeFlamekeeper', side);
+    for (const d of dragons) {
+      const kept = ctx.buff(d, a, h, 'Flamekeeper').kept;
+      if (!kept) d.permaGain = { attack: (d.permaGain?.attack ?? 0) + a, health: (d.permaGain?.health ?? 0) + h };
+    }
+  }
+  // LAST HOWL + RUBY DUST hear a friendly death on the `avenge` broadcast: it goes out once per friendly death (a Rise death
+  // included), AFTER the body's own Echo and its re-fires, so the Echo's summons take the room first (the 2026-09-18
+  // room ruling) and a Ruby the Echo cast is already on the board.
+  if (playerState.questMods.runeLastHowl || enemyState.questMods.runeLastHowl || playerState.questMods.runeRubyDust || enemyState.questMods.runeRubyDust
+      || reserveHas((m) => !!m.runeLastHowl || !!m.runeRubyDust)) {
+    bus.on('avenge', (payload) => {
+      const { side, victim } = payload as { side: Side; victim?: Minion };
+      if (!victim || victim.side !== side) return;
+      const m = modsFor(side);
+      // LAST HOWL: the FIRST friendly Beast with an Echo to die this combat returns as its base card (gilded = doubled
+      // base), its printed Echo plus any grafted one intact. One body per copy held (the Second Litter precedent).
+      if (m.runeLastHowl && !lastHowlUsed[side] && isTribeOf(victim, 'beast', cards) && victim.effects.some((e) => e.on === 'onDeath')) {
+        const def = cards[victim.cardId];
+        if (def) {
+          lastHowlUsed[side] = true;
+          nextStep();
+          fireTrigger('runeLastHowl', side);
+          lastHowlCarry = { cardId: def.id, effects: victim.effects.filter((e) => e.on === 'onDeath' && !def.effects.includes(e)) };
+          try {
+            for (let k = 0; k < flagCopiesOf(side, 'runeLastHowl'); k++) summonMinion(side, def, victim.uid, undefined, !!victim.golden);
+          } finally { lastHowlCarry = null; }
+        }
+      }
+      // RUBY DUST: a friendly minion carrying Rubies (its Shop Rubies or this fight's) died: a PERMANENT Ruby on a random
+      // living friendly Kobold, per copy (each a fresh pick). No Kobold left: nothing.
+      if (m.runeRubyDust) {
+        const shopRuby = victim.buffs?.find((b) => b.source === 'Ruby');
+        const hadRubies = (!!shopRuby && (shopRuby.attack > 0 || shopRuby.health > 0)) || (!!victim.rubyGain && (victim.rubyGain.attack > 0 || victim.rubyGain.health > 0));
+        if (hadRubies && living(side).some((k) => isTribeOf(k, 'kobold', cards))) {
+          nextStep();
+          fireTrigger('runeRubyDust', side);
+          for (let k = 0; k < flagCopiesOf(side, 'runeRubyDust'); k++) rubyOnRandomKobolds(side, 1, true);
+        }
+      }
+    });
+  }
   socReclaim(SIDES);
 
   // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).

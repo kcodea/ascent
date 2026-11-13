@@ -130,3 +130,4 @@ export {
   type ResolvedManifest, type EnvironmentIdentity,
 } from './balance/identity';
 export * from './set2RunesBasicNeutral'; // Set 2 rune batch, Basic neutral (owner 2026-11-12)
+export { hatchlingRoostPrice, shopSpellsCastThisTurn } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal (2026-11-13)

@@ -171,6 +171,8 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // `recruit` by `runeKey`, but its End-of-Turn Amplify opens its OWN beat under this key — list it so the
   // emitted identity is a live surface key (classified, and not a registry ghost).
   { key: 'rune:rune_amplification:endOfTurn', users: ['rune_amplification'] },
+  // Set 2 rune batch, Basic tribal (2026-11-13): Imp Legion's Echo graft on every friendly Imp.
+  { key: 'factory:deathrattleDamageLowestEnemy:onDeath', users: ['rune_imp_legion'] },
 ];
 
 /** Every presentation key the live content produces, with its producers. Deterministic order (sorted). */

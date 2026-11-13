@@ -2269,6 +2269,151 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeLoyalCustomer' },
     sets: ['set2'],
   },
+  // ── Set 2 rune batch, Basic tribal (owner review 2026-11-12, docs/devlog/2026-11-13-set2-runes-basic-tribal.md). ──
+  // Shop hooks: packages/sim/src/set2RunesBasicTribal.ts. Combat halves: simulate.ts "SET 2 RUNES, BASIC TRIBAL".
+  {
+    // The `gold` meter as a per-TURN window (`resetEachTurn`) that pays once a turn (`oncePerTurn`).
+    id: 'rune_deep_pockets',
+    tribes: ['dwarf'],
+    name: 'Deep Pockets',
+    cost: 3,
+    text: 'The first time you spend **8 Gold** each turn, get a random **Dwarf**.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 8, grantRandomTribe: 'dwarf', resetEachTurn: true, oncePerTurn: true },
+    sets: ['set2'],
+  },
+  {
+    // "Your Dwarves" = the board's Dwarves (`tribeBoard`, the Gator's Bite ruling), permanent (a Shop buff).
+    id: 'rune_rowdy_crowd',
+    tribes: ['dwarf'],
+    name: 'Rowdy Crowd',
+    cost: 2,
+    text: 'After you play **4** cards in a turn, give your **Dwarves +2/+2**.',
+    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 4, resetEachTurn: true, oncePerTurn: true, buff: { target: 'tribeBoard', tribe: 'dwarf', attack: 2, health: 2 } },
+    sets: ['set2'],
+  },
+  {
+    // A kill = a Slaughter (the attacking Beast felled an enemy), the Rune of the Trophy reading. Permanent: `permaGain`.
+    id: 'rune_bloodscent',
+    tribes: ['beast'],
+    name: 'Bloodscent',
+    cost: 1,
+    text: 'When a **Beast** kills a minion, it gains **+4/+4** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeBloodscent' },
+    sets: ['set2'],
+  },
+  {
+    // Once per combat per side: the base card body (gilded = doubled base) with its Echo, grafted Echoes included.
+    id: 'rune_last_howl',
+    tribes: ['beast'],
+    name: 'Last Howl',
+    cost: 3,
+    text: 'Resummon the first **Beast** with an **Echo** that dies each combat.',
+    reward: { kind: 'combatFlag', flag: 'runeLastHowl' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_trophy_hunter',
+    tribes: ['beast'],
+    name: 'Trophy Hunter',
+    cost: 2,
+    text: 'When a **Beast** kills a minion, gain **1 Gold** next turn. (3 per combat.)',
+    reward: { kind: 'combatFlag', flag: 'runeTrophyHunter' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_pitchforks',
+    tribes: ['demon'],
+    name: 'Pitchforks',
+    cost: 4,
+    text: '**Imps** deal **3** damage to **2** enemies when summoned.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runePitchforks' },
+    sets: ['set2'],
+  },
+  {
+    // An aura-style graft (the Echoing Kobolds shape): every friendly Imp carries the Echo, board, hand and combat summons.
+    id: 'rune_imp_legion',
+    tribes: ['demon'],
+    name: 'Imp Legion',
+    cost: 3,
+    text: 'Your **Imps** gain "**Echo:** deal **3** damage to the lowest-Health enemy."',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeImpLegion' },
+    sets: ['set2'],
+  },
+  {
+    // The recurring-grant shape (Dragon Breath): one now, then one every Start of Turn.
+    id: 'rune_guels_apprentice',
+    tribes: ['demon'],
+    name: "Guel's Apprentice",
+    cost: 2,
+    text: 'Get a **Staff of Guel**. Repeat every turn.',
+    previewCards: ['staffofguel'],
+    reward: { kind: 'recurringGrant', cards: ['staffofguel'] },
+    sets: ['set2'],
+  },
+  {
+    // "Permanently" = the permanent Shop buff channel Staff of Guel feeds (`applyRunShopBuff`).
+    id: 'rune_collections',
+    tribes: ['demon'],
+    name: 'Collections',
+    cost: 3,
+    text: 'When you **Sell** a **Demon**, give minions in the Shop **+2/+2** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeCollections' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_flamekeeper',
+    tribes: ['dragon'],
+    name: 'Flamekeeper',
+    cost: 1,
+    text: 'After you cast a **Dragonflame**, give your **Dragons +2/+2** permanently.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'combatFlag', flag: 'runeFlamekeeper' },
+    sets: ['set2'],
+  },
+  {
+    // A set price (never raises a cheaper one); discounts still stack on top. Any Tier.
+    id: 'rune_hatchling_roost',
+    tribes: ['dragon'],
+    name: 'Hatchling Roost',
+    cost: 2,
+    text: '**Dragons** with a **Shout** cost **1 Gold**.',
+    reward: { kind: 'combatFlag', flag: 'runeHatchlingRoost' },
+    sets: ['set2'],
+  },
+  {
+    id: 'rune_dragon_hoard',
+    tribes: ['dragon'],
+    name: 'Dragon Hoard',
+    cost: 1,
+    text: '**End of Turn:** if you cast **3** or more Shop spells this turn, get a **Dragonflame**.',
+    previewCards: ['sp_dragonflame'],
+    reward: { kind: 'recurringEndOfTurn', effect: 'runeDragonHoard' },
+    sets: ['set2'],
+  },
+  {
+    // "A minion with Rubies" = a FRIENDLY minion carrying Ruby stats (its Shop Rubies or this fight's).
+    id: 'rune_ruby_dust',
+    tribes: ['kobold'],
+    name: 'Ruby Dust',
+    cost: 2,
+    text: 'When a minion with **Rubies** dies, cast a permanent **Ruby** on a random friendly **Kobold**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRubyDust' },
+    sets: ['set2'],
+  },
+  {
+    // The extra Ruby lands on a random friendly non-Kobold (All-types bodies are Kobolds), so it never chains.
+    id: 'rune_rough_cut',
+    tribes: ['kobold'],
+    name: 'Rough Cut',
+    cost: 2,
+    text: 'When you cast a **Ruby** on a **Kobold**, also cast one on a non-**Kobold**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRoughCut' },
+    sets: ['set2'],
+  },
 ];
 
 /**

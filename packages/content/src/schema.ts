@@ -676,6 +676,7 @@ export const EffectFactoryIdSchema = z.enum([
   'whisperGrantSeedEcho',         // Seed (Gardener's Whisper, 2026-10-15): grant "Echo: summon a 3/3 Drake Pup with Taunt"
   'whisperGetTribeOfTier',        // Hatcher's Whisper (2026-10-15): get a random Dragon of the Whisper's tier
   'whisperGrantKeyword',          // Warding Call (Whispwarder's Whisper, 2026-10-15): Ward until your next turn (Gilded: Resilient Ward)
+  'deathrattleDamageLowestEnemy', // Set 2 rune Imp Legion's graft (2026-11-13): Echo, deal N to the lowest-Health enemy
 ]);
 
 export const EffectDefSchema = z.object({
@@ -842,7 +843,10 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 Dwarf rune, Epic (owner 2026-10-23)
   'runeReturnCustomers',
   // Set 2 rune batch, Basic neutral (owner 2026-11-12)
-  'runeHazardPay', 'runeShieldWall', 'runeShatterproof', 'runeWarmUp', 'runeGoldenHandshake', 'runeLateBloomer', 'runeLoyalCustomer']);
+  'runeHazardPay', 'runeShieldWall', 'runeShatterproof', 'runeWarmUp', 'runeGoldenHandshake', 'runeLateBloomer', 'runeLoyalCustomer',
+  // Set 2 rune batch, Basic tribal (owner review 2026-11-12)
+  'runeBloodscent', 'runeLastHowl', 'runeTrophyHunter', 'runePitchforks', 'runeImpLegion', 'runeCollections',
+  'runeFlamekeeper', 'runeHatchlingRoost', 'runeRubyDust', 'runeRoughCut']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -1025,7 +1029,7 @@ z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tr
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar', 'runePiggyBank']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar', 'runePiggyBank', 'runeDragonHoard']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

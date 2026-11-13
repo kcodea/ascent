@@ -58,6 +58,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
   // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
+  // The owner's Set 2 rune batch (review 2026-11-12) lists Guel's Apprentice under Demon; its Staff of Guel names no tribe word.
+  rune_guels_apprentice: 'demon', rune_dragon_hoard: 'dragon', // …and Dragon Hoard under Dragon (its Dragonflame is the Dragon spell)
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

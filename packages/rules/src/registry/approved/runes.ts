@@ -2923,4 +2923,98 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-01',
+    title: 'Deep Pockets and Rowdy Crowd are per-turn windows that pay once a turn',
+    statement:
+      'A threshold rune that counts "each turn" or "in a turn" (Deep Pockets: the first 8 Gold spent each turn gets a random '
+      + 'Dwarf; Rowdy Crowd: the 4th card played in a turn gives your board Dwarves +2/+2) starts every turn at 0, pays at most '
+      + 'once that turn, and carries no remainder across the rollover. Its badge reads x/N and stays full once it has paid.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md, Basic tribal)', quote: 'The first time you spend 8 Gold each turn, get a random Dwarf.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts the turn setup re-arm (resetEachTurn); packages/sim/src/recruit.ts advanceRuneThresholds' },
+    ],
+    contentIds: ['rune_deep_pockets', 'rune_rowdy_crowd'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The `resetEachTurn` field existed on the threshold engine but was never read until now.',
+    example: 'Spend 5 Gold this turn and 3 next turn: no Dwarf. Spend 16 Gold in one turn: one Dwarf.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-02',
+    title: 'Bloodscent and Trophy Hunter hear a Beast that kills by attacking',
+    statement:
+      '"When a Beast kills a minion" is a Slaughter: a friendly Beast attacks and its strike (or cleave) kills an enemy minion, '
+      + 'on either side. Bloodscent gives that Beast +4/+4 permanently per copy (kept after combat). Trophy Hunter banks 1 Gold '
+      + 'for next turn per copy, for the first 3 kills each combat.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (Set 2 rune batch)', quote: 'When a Beast kills a minion, gain 1 Gold next turn. (3 per combat.)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts set2TribalOnKill (the Slaughter block, the Rune of the Trophy reading)' },
+    ],
+    contentIds: ['rune_bloodscent', 'rune_trophy_hunter'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). A defending Beast that kills its attacker by retaliation does not count, as for every Slaughter.',
+    example: 'A Beast that kills five 1-Health minions: Trophy Hunter banks 3 Gold, Bloodscent gives it +20/+20 to keep.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-03',
+    title: 'Last Howl and Ruby Dust hear a friendly death after its Echo',
+    statement:
+      'Last Howl resummons the first friendly Beast with an Echo to die each combat, once, as its base card (a Gilded one at '
+      + 'its doubled base) with its Echo intact, after its own Echo has fired and taken the room it needs. Ruby Dust: a friendly '
+      + 'minion carrying Rubies (Shop Rubies or this fight\'s) dies, and a permanent Ruby is cast on a random living friendly '
+      + 'Kobold, per copy.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 plus the brief\'s ruling on the doc\'s open point 5', quote: 'Last Howl resummons once with base card stats and its Echo intact' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the avenge broadcast handler under SET 2 RUNES, BASIC TRIBAL' },
+    ],
+    contentIds: ['rune_last_howl', 'rune_ruby_dust'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Two T-Rexes die: the first comes back once at its base stats and can Echo again; the second stays dead.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-04',
+    title: 'Pitchforks and Imp Legion hit enemies, so they act in combat only',
+    statement:
+      'Pitchforks: every friendly Imp summoned (a token, a Rise return, a resummon) deals 3 damage to 2 different random '
+      + 'enemies, per copy, the Imp as the source. Imp Legion: every friendly Imp (board, hand and combat summons) carries '
+      + '"Echo: deal 3 damage to the lowest-Health enemy" (ties: the left-most; one hit per copy; a Gilded Imp is not '
+      + 'doubled). The Shop has no enemies, so both are inert there by membership.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 (Pitchforks cost 4 at 3 damage to 2 enemies)', quote: 'Imps deal 3 damage to 2 enemies when summoned.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts pitchforksOnSummon; packages/core/src/effects/arena.ts deathrattleDamageLowestEnemy' },
+    ],
+    contentIds: ['rune_pitchforks', 'rune_imp_legion'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes). The doc assumed Pitchforks also fires in the Shop; the arena rule that the Shop has no enemies makes it a no-op there.',
+    example: 'An Imp summoned by an Echo picks two different enemies and deals 3 to each.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-SET2-TRIBAL-RUNES-05',
+    title: 'The Shop-side tribal runes: Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Rough Cut',
+    statement:
+      'Collections: selling a Demon raises the permanent Shop buff +2/+2. Flamekeeper: every Dragonflame cast (Shop or combat, '
+      + 'any caster) gives your board Dragons +2/+2 permanently. Hatchling Roost: a Dragon with a Shout costs 1 Gold in the '
+      + 'Shop, any Tier, other discounts on top. Dragon Hoard: at End of Turn, 3 or more Shop spells cast this turn (never a '
+      + 'Ruby, Gift, Whisper or token spell) get a Dragonflame. Rough Cut: a Ruby cast on a Kobold (both phases) also casts '
+      + 'one on a random friendly non-Kobold, which never chains.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner review 2026-11-12 plus the brief\'s rulings on open points 6 and 7', quote: "Rough Cut's extra Ruby goes to a random friendly non-Kobold and does not chain" },
+      { kind: 'code', ref: 'packages/sim/src/set2RunesBasicTribal.ts; packages/core/src/effects/factories.ts playRubyOn (Rough Cut)' },
+    ],
+    contentIds: ['rune_collections', 'rune_flamekeeper', 'rune_hatchling_roost', 'rune_dragon_hoard', 'rune_rough_cut', 'rune_guels_apprentice'],
+    currentBehaviour: 'Conforms as of 2026-11-13 (new runes).',
+    example: 'Cast a Ruby on a Kobold beside a Dwarf: the Dwarf gets a Ruby too. Cast one on the Dwarf: nothing extra.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicTribal.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

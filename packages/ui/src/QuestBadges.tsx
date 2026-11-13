@@ -229,7 +229,7 @@ export function QuestBadges({ run: shownRun }: { run?: RunState } = {}) {
               // the live quest delta — the same feed the unit Avenge counters ride (audit 2026-08-06).
               // During a replay the COMBAT meter wins (Reinvestment's live "+N/+N this fight" over its banked total);
               // outside one, the shop meters answer.
-              const tally = (combatQuestDelta ? runeCombatTally(rune.id, combatQuestDelta.friendlyDeath, combatQuestDelta.summonCombat, run.questFlags?.runeReinvestment ?? 1) : null)
+              const tally = (combatQuestDelta ? runeCombatTally(rune.id, combatQuestDelta.friendlyDeath, combatQuestDelta.summonCombat, run.questFlags?.runeReinvestment ?? 1, triggered[rune.id] ?? 0) : null)
                 ?? runeTally(run, rune.id);
               return tally && (
               <span key={tally} className="qb-tally">{tally}</span>

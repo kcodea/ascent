@@ -4,7 +4,6 @@
  * no soft shading. Everything is painted in its own colours (the sprites draw them untinted):
  *  - HIT SPARKS: three chunky starbursts in flat layers (a dark outline, a colour, a paler colour, a white core): the
  *    LIGHT one (yellow), the SHARP one (a blue cross flash) and the HEAVY one (red and orange, more points).
- *  - FIST: a flat white cartoon fist (four knuckles, a thumb), one facing each way: the jab's and the heavy blow's spark.
  *  - ARROW and BUTTON: the input glyphs (a chunky yellow arrow, turned to point; a round red attack button).
  *  - BAND: the super cut-in's band (navy, a halftone fade, white and gold rails).
  *  - PUFF: a flat cel dust puff (the launch, the slam).
@@ -27,7 +26,6 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
 export const SPARK_PX = 256;
-export const FIST_PX = 160;
 export const GLYPH_PX = 112;
 export const BAND_W = 512;
 export const BAND_H = 128;
@@ -83,46 +81,6 @@ function paintSpark(D: number, n: number, inner: number, uneven: number, outer: 
   layer(R, outer, 0, 10);
   layer(R * 0.7, mid, cross ? 0 : 0.16);
   layer(R * 0.4, '#ffffff', cross ? 0 : 0.3);
-  return k.c;
-}
-
-/** A flat cartoon fist punching toward +x (`flip`: toward -x). */
-function paintFist(D: number, flip: boolean): HTMLCanvasElement | null {
-  const k = canvas(D, D); if (!k) return null;
-  const g = k.g;
-  if (flip) { g.translate(D, 0); g.scale(-1, 1); }
-  const s = D / 160;
-  g.lineJoin = 'round'; g.lineCap = 'round';
-  const body = (): void => {
-    // The cuff, the back of the hand, four knuckles down the front.
-    g.beginPath();
-    g.moveTo(22 * s, 52 * s);
-    g.lineTo(84 * s, 40 * s);
-    for (let i = 0; i < 4; i++) {
-      const y0 = (36 + i * 23) * s, y1 = (36 + (i + 1) * 23) * s;
-      g.bezierCurveTo((128 + (i === 1 || i === 2 ? 14 : 4)) * s, y0, (128 + (i === 1 || i === 2 ? 14 : 4)) * s, y1, 96 * s, y1);
-      if (i < 3) g.lineTo(100 * s, y1);
-    }
-    g.lineTo(60 * s, 132 * s);
-    g.quadraticCurveTo(26 * s, 128 * s, 22 * s, 104 * s);
-    g.closePath();
-  };
-  body();
-  g.strokeStyle = INK; g.lineWidth = 10 * s; g.stroke();
-  g.fillStyle = '#ffffff'; g.fill();
-  // A flat shade along the bottom, the finger lines and the thumb folded across.
-  g.save(); body(); g.clip();
-  g.fillStyle = '#c9d3ea'; g.fillRect(0, 108 * s, D, D);
-  g.restore();
-  g.strokeStyle = INK; g.lineWidth = 5 * s;
-  for (let i = 1; i < 4; i++) { const y = (36 + i * 23) * s; g.beginPath(); g.moveTo(74 * s, y); g.lineTo(104 * s, y); g.stroke(); }
-  g.beginPath();
-  g.moveTo(40 * s, 84 * s); g.quadraticCurveTo(62 * s, 70 * s, 82 * s, 82 * s); g.quadraticCurveTo(88 * s, 98 * s, 70 * s, 104 * s); g.quadraticCurveTo(52 * s, 104 * s, 40 * s, 84 * s);
-  g.closePath();
-  g.fillStyle = '#eef2fb'; g.fill(); g.stroke();
-  // The cuff's band.
-  g.lineWidth = 6 * s;
-  g.beginPath(); g.moveTo(34 * s, 54 * s); g.lineTo(32 * s, 122 * s); g.stroke();
   return k.c;
 }
 
@@ -230,8 +188,6 @@ export function heroComboTextures(): HeroComboTextures | null {
     hitLight: paintSpark(SPARK_PX, 9, 0.46, 0.3, '#ff8a1f', '#ffe14a'),
     hitSharp: paintSpark(SPARK_PX, 8, 0.3, 0, '#2f8fff', '#bfeaff', true),
     hitHeavy: paintSpark(SPARK_PX, 13, 0.52, 0.34, '#e8321e', '#ffb01f'),
-    fistR: paintFist(FIST_PX, false),
-    fistL: paintFist(FIST_PX, true),
     arrow: paintArrow(GLYPH_PX),
     button: paintButton(GLYPH_PX),
     band: paintBand(BAND_W, BAND_H),

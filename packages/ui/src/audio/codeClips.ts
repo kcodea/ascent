@@ -68,9 +68,12 @@ export const ATTACK_FX_CLIPS: Readonly<Record<string, readonly string[]>> = {
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],
   combo: [
+    'fx/combo-boom',
+    'fx/combo-charge',
     'fx/combo-heavy',
     'fx/combo-hit',
     'fx/combo-ko',
+    'fx/combo-punch',
     'fx/combo-super',
     'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
   ],

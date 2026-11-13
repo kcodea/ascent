@@ -3,8 +3,13 @@
  * the consequence on its impact beat (the jab, the low kick, the slam, the heavy blow). Presentation only: the total and
  * the blow are the engine's; this file only decides WHEN on screen they happen.
  *
- * THE COUNTER ENDS ON THE REAL DAMAGE: `o.total` (the blow the engine decided, the same number the shared damage
- * formation shows) is handed to the plan, which shares it out over the hits; the scene composes it from painted digits.
+ * THE COUNTER COUNTS REAL HITS (one hit, one count; the scene composes it from painted digits). The damage is the game's
+ * own number (the shared damage formation and the hit number), never the counter's.
+ *
+ * SOUND: every hit is two or three layers (a low body punch, a snap on top re-pitched by the kind of hit, and a heavy
+ * thump on the launcher, the spike and every finisher); the super freeze has a charge that climbs through the cut-in;
+ * the flurry is a rattle that rises; the heavy blow's wind-up is a riser that peaks ON the impact; K.O. is the sting
+ * over a deep boom.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses: the hit-freeze and the super
  * freeze are held poses), the damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim,
@@ -79,6 +84,8 @@ function poseCss(off: Pt, p: ComboPose, sc: number, unit: number): string | null
 
 /** How each kind of hit is pitched (one clip, varied across the string). */
 const HIT_RATE = { jab: 1.12, cross: 1, kick: 0.86, upper: 0.8, air: 1.04, spike: 0.74, flurry: 1.1, heavy: 0.7 } as const;
+/** The low body layer under each kind of hit: [gain, pitch]. The heavier the hit, the lower and louder. */
+const BODY = { jab: [0.7, 1.15], cross: [0.85, 1], kick: [1, 0.85], upper: [1.1, 0.78], air: [0.75, 1.05], spike: [1.15, 0.7], flurry: [0.5, 1.2], heavy: [1.25, 0.62] } as const;
 
 /** Play the Combo attack. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
@@ -97,13 +104,13 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
   const seed = o.rollSeed ?? comboSeed(o.total, dist, o.side);
-  // THE REAL DAMAGE (`o.total`) goes into the plan: the counter's last number is exactly it.
+  // `o.total` picks the tier (and, on the smallest blows, how many taps the jab is).
   const plan = comboPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, airHits: airHitsOf(seed, c) }, c);
   const cues = withFormation(fplan, comboCues(plan, c));
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
   const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
   const frame = { x0: 0, y0: 0, x1: vw, y1: vh };
-  const geo = comboGeo(o.attacker, o.defender, aRadius, radius, frame, c, { side: o.side, total: plan.total, kind: plan.kind });
+  const geo = comboGeo(o.attacker, o.defender, aRadius, radius, frame, c, { side: o.side, hits: plan.hits.length, kind: plan.kind });
   const striker = (t: number): ComboPose => strikerPose(plan, geo, c, aRadius, o.attacker, t);
   const target = (t: number): ComboPose => targetPose(plan, geo, c, radius, o.defender, t);
   const counter = (t: number): CounterState => comboCounter(plan, c, t);
@@ -118,7 +125,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   const textures = o.textures !== undefined ? o.textures : heroComboTextures();
   let scene: HeroComboScene | null = null;
   if (textures && !reduced) {
-    const cs = counterSize(plan.total, radius, c);
+    const cs = counterSize(plan.hits.length, radius, c);
     // IV only: the striking hero's own portrait art for the cut-in (painted once per image; null = the band alone).
     const img = plan.kind === 'super' ? (o.attackerEl?.querySelector?.('img') ?? null) : null;
     scene = new HeroComboScene(textures, {
@@ -143,7 +150,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   let lifted = false;
 
   const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate, opts);
-  voices.warm([c.sfxStepClip, c.sfxHitClip, c.sfxHeavyClip, c.sfxSuperClip, c.sfxKoClip]);
+  voices.warm([c.sfxStepClip, c.sfxHitClip, c.sfxHeavyClip, c.sfxSuperClip, c.sfxKoClip, c.sfxPunchClip, c.sfxChargeClip, c.sfxBoomClip]);
   const heroAt = (t: number): Pt => { const p = striker(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y }; };
   const last = plan.hits.length - 1;
 
@@ -162,26 +169,45 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
         scene?.stepDust(o.attacker, geo.stance.x >= o.attacker.x ? 1 : -1);
         break;
       case 'hit': {
-        // ONE HIT OF THE COMBO (a tick unless it is the impact): its spark at its own height, the one clip re-pitched.
+        // ONE HIT OF THE COMBO (a tick unless it is the impact): its spark at its own height; a low body punch and a
+        // snap on top, both re-pitched by the kind of hit.
         const h = plan.hits[q.i]!;
         const at = hitPoint(plan, geo, c, radius, o.defender, h);
+        const body = BODY[h.kind];
         if (h.kind === 'heavy') {
-          cue(c.sfxHeavyClip, c.sfxHeavyGain, c.sfxHeavyRate, { tail: 0.1 });
-          cue(c.sfxHitClip, c.sfxHitGain * 0.8, c.sfxHitRate * HIT_RATE.heavy);
-          break; // its look is the impact's
+          // THE HEAVY BLOW: everything at once, low. (Its look is the impact's.)
+          cue(c.sfxHeavyClip, c.sfxHeavyGain, c.sfxHeavyRate * 0.9, { tail: 0.15 });
+          cue(c.sfxPunchClip, c.sfxPunchGain * body[0], c.sfxPunchRate * body[1], { tail: 0.1 });
+          cue(c.sfxHitClip, c.sfxHitGain, c.sfxHitRate * HIT_RATE.heavy);
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.75, c.sfxBoomRate * 1.15, { lenMs: 900, fadeMs: 400 });
+          break;
         }
         const flurry = h.kind === 'flurry';
         const n = plan.hits.length;
-        cue(c.sfxHitClip, c.sfxHitGain * (flurry ? 0.62 : 0.75 + 0.3 * h.power), c.sfxHitRate * HIT_RATE[h.kind] * (flurry ? 0.9 + (0.32 * q.i) / n : h.kind === 'air' ? 1 + 0.05 * (q.i % 4) : 1),
-          flurry ? { lenMs: 170, fadeMs: 70 } : undefined);
+        const isLast = q.i === last;
+        if (flurry) {
+          // THE RATTLE: it climbs in pitch and in level all the way through, a body punch under every other hit.
+          const u = plan.flurryEnd !== null && plan.cutinEnd !== null ? (h.at - plan.cutinEnd) / Math.max(1, plan.flurryEnd - plan.cutinEnd) : q.i / n;
+          cue(c.sfxHitClip, c.sfxHitGain * (0.55 + 0.4 * u), c.sfxHitRate * (0.9 + 0.6 * u), { lenMs: 170, fadeMs: 70 });
+          if (q.i % 2 === 0) cue(c.sfxPunchClip, c.sfxPunchGain * body[0] * (0.7 + 0.5 * u), c.sfxPunchRate * (1 + 0.45 * u), { lenMs: 200, fadeMs: 90 });
+        } else {
+          const lift = h.kind === 'air' ? 1 + 0.05 * (q.i % 4) : 1;
+          cue(c.sfxPunchClip, c.sfxPunchGain * body[0] * (0.8 + 0.3 * h.power), c.sfxPunchRate * body[1] * lift);
+          cue(c.sfxHitClip, c.sfxHitGain * (0.7 + 0.3 * h.power), c.sfxHitRate * HIT_RATE[h.kind] * lift);
+        }
         scene?.hitSpark(at, h.kind, h.power);
-        if (h.kind === 'jab' && plan.kind === 'jab') scene?.fist(at);
+        if (isLast && plan.kind === 'jab') scene?.drive(at);
         if (h.kind === 'upper') {
+          // THE LAUNCHER: a heavy thump under it and the whoosh of the launch.
+          cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.75, c.sfxHeavyRate * 1.15, { lenMs: 420, fadeMs: 160 });
           cue(c.sfxStepClip, c.sfxStepGain * 1.1, c.sfxStepRate * 0.8, { lenMs: 420, fadeMs: 180 });
           { const f = target(t); scene?.launch({ x: o.defender.x + f.x, y: o.defender.y + f.y }); }
         }
-        if (h.kind === 'spike') cue(c.sfxStepClip, c.sfxStepGain, c.sfxStepRate * 1.1, { lenMs: 260, fadeMs: 100 });
-        if (q.i === last && plan.kind !== 'launcher') scene?.finisher(at, plan.burst, plan.rings);
+        if (h.kind === 'spike') {
+          cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.8, c.sfxHeavyRate * 1.05, { lenMs: 420, fadeMs: 160 });
+          cue(c.sfxStepClip, c.sfxStepGain, c.sfxStepRate * 1.1, { lenMs: 260, fadeMs: 100 });
+        }
+        if (isLast && plan.kind !== 'launcher') scene?.finisher(at, plan.burst, plan.rings);
         break;
       }
       case 'jump':
@@ -189,32 +215,56 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
         scene?.stepDust(geo.stance, geo.face);
         break;
       case 'super':
-        // THE SUPER FREEZE: the activation flash and whoosh; the cut-in slides across (the HUD paints it).
+        // THE SUPER FREEZE: the activation flash and whoosh, and a charge that climbs through the whole cut-in and
+        // peaks as the band leaves (the flurry's first hit). The cut-in slides across (the HUD paints it).
         cue(c.sfxSuperClip, c.sfxSuperGain, c.sfxSuperRate);
+        if (plan.cutinEnd !== null) voices.riser(c.sfxChargeClip, c.sfxChargeGain, c.sfxChargeRate, (plan.cutinEnd - t) / speed);
         scene?.superFlash(heroAt(t));
         break;
       case 'glyph':
-        // An input lights: a small tick, climbing.
-        cue(c.sfxHitClip, c.sfxHitGain * 0.3, c.sfxHitRate * (1.5 + 0.12 * q.i), { lenMs: 90, fadeMs: 40 });
+        // An input lights: a tick, climbing.
+        cue(c.sfxHitClip, c.sfxHitGain * 0.5, c.sfxHitRate * (1.5 + 0.14 * q.i), { lenMs: 90, fadeMs: 40 });
         break;
       case 'flurry':
         cue(c.sfxStepClip, c.sfxStepGain, c.sfxStepRate * 1.3, { lenMs: 300, fadeMs: 120 });
         break;
+      case 'wind':
+        // THE WIND-UP: the striker rears back and gathers; a low whoosh and a riser that peaks ON the impact.
+        cue(c.sfxStepClip, c.sfxStepGain * 1.2, c.sfxStepRate * 0.62, { lenMs: 620, fadeMs: 260 });
+        voices.riser(c.sfxChargeClip, c.sfxChargeGain * 1.1, c.sfxChargeRate * 0.8, (plan.impactAt - t) / speed);
+        scene?.gather(heroAt(plan.impactAt - 120), plan.impactAt - t);
+        break;
       case 'impact': {
         // THE BLOW LANDS (once).
         const d = { x: o.defender.x, y: o.defender.y };
-        if (plan.kind === 'super') scene?.heavy(hitPoint(plan, geo, c, radius, o.defender, plan.hits[last]!), plan.burst, plan.rings);
-        else if (plan.kind === 'launcher') {
-          cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.9, c.sfxHeavyRate * 1.08);
+        if (plan.kind === 'super') {
+          scene?.heavy(hitPoint(plan, geo, c, radius, o.defender, plan.hits[last]!), plan.burst, plan.rings);
+          scene?.screenFlash(c.flashAlpha);
+        } else if (plan.kind === 'launcher') {
+          // THE SLAM: the heavy thump, a low body punch and a short boom under them.
+          cue(c.sfxHeavyClip, c.sfxHeavyGain, c.sfxHeavyRate * 1.0, { tail: 0.1 });
+          cue(c.sfxPunchClip, c.sfxPunchGain * 1.1, c.sfxPunchRate * 0.7);
+          cue(c.sfxBoomClip, c.sfxBoomGain * 0.55, c.sfxBoomRate * 1.3, { lenMs: 700, fadeMs: 350 });
           scene?.slam(d, plan.burst, plan.rings);
-        } else if (plan.kind === 'string') cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.45, c.sfxHeavyRate * 1.25, { lenMs: 420, fadeMs: 160 });
+          scene?.screenFlash(c.flashAlpha * 0.6, 150);
+          scene?.aftermath(d, 0.7);
+        } else cue(c.sfxHeavyClip, c.sfxHeavyGain * (plan.kind === 'string' ? 0.7 : 0.5), c.sfxHeavyRate * (plan.kind === 'string' ? 1.2 : 1.35), { lenMs: 420, fadeMs: 160 });
         seq.land();
         break;
       }
+      case 'land': {
+        // IV: the blasted target comes down (and bounces once): a thud and dust each time, smaller the second.
+        const k = q.i === 0 ? 1 : 0.55;
+        cue(c.sfxPunchClip, c.sfxPunchGain * 0.8 * k, c.sfxPunchRate * (q.i === 0 ? 0.6 : 0.72));
+        scene?.aftermath({ x: o.defender.x + geo.launch.x, y: o.defender.y + geo.launch.y }, k);
+        break;
+      }
       case 'ko':
-        // "K.O." slams in: the sting (an impact and a gong, no voice).
-        cue(c.sfxKoClip, c.sfxKoGain, c.sfxKoRate);
-        scene?.ko(geo.ko, geo.koW);
+        // "K.O." slams in: the sting (an impact and a gong, no voice) over a deep boom.
+        cue(c.sfxKoClip, c.sfxKoGain, c.sfxKoRate, { tail: 0.2 });
+        cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate);
+        scene?.ko(geo.ko, geo.koW, c.koHoldMs);
+        scene?.screenFlash(c.flashAlpha * 0.4, 140);
         break;
       default:
         break;
@@ -225,7 +275,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
 
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
-    nums.paintDim(t, plan.chargeAt, plan.stepEnd, plan.impactAt + 300);
+    nums.paintDim(t, plan.chargeAt, plan.stepEnd, plan.impactAt + (plan.kind === 'super' ? 1100 : 300));
     const cm = comboCameraAt(plan, c, t, geo.face);
     const unitS = local ? 1 : s;
     const focus = o.defender;

@@ -77,6 +77,9 @@ export class HeroAnvilScene extends FxPool {
   private d: Pt = { x: 0, y: 0 };
   private r = 0;
   private sy = 1;
+  /** The screen's left and right edges (the object is kept inside them when the portrait sits in a corner). */
+  private minX = Number.NEGATIVE_INFINITY;
+  private maxX = Number.POSITIVE_INFINITY;
 
   constructor(private readonly tex: HeroAnvilTextures, private readonly colors: AnvilColors, private readonly look: AnvilLook, scale = 1, seed = 1) {
     super('heroAnvil', [tex.ring, tex.star, tex.spark, tex.shadow, tex.puff, tex.anvil, tex.piano, tex.keyWhite, tex.keyBlack], scale, seed, MAX_ANVIL_SPRITES);
@@ -96,7 +99,9 @@ export class HeroAnvilScene extends FxPool {
   get liveKeys(): number { return this.keys.length; }
 
   /** The struck portrait (measured once by the runner). */
-  setTarget(d: Pt, radius: number): void { this.d = { x: d.x, y: d.y }; this.r = radius; }
+  setTarget(d: Pt, radius: number, minX = Number.NEGATIVE_INFINITY, maxX = Number.POSITIVE_INFINITY): void {
+    this.d = { x: d.x, y: d.y }; this.r = radius; this.minX = minX; this.maxX = maxX;
+  }
 
   /** The struck portrait's squashed height this frame: the resting object rides its top edge. */
   setSquash(sy: number): void { this.sy = Number.isFinite(sy) ? sy : 1; }
@@ -104,10 +109,14 @@ export class HeroAnvilScene extends FxPool {
   /** The striking hero's cue: a small spark shoots straight up off the top of its portrait (it is calling something down). */
   cue(a: Pt, aRadius: number): void {
     const c = this.colors;
-    const y = a.y - aRadius * 0.9;
-    this.spawn('core', this.tex.star, c.spark, a.x, y, { dur: 240, from: 0.3, to: 1.1, a0: 0.95, mode: 'punch', peakAt: 0.2, rot: 0.3 });
-    this.spawn('core', this.tex.spark, c.spark, a.x, y, { dur: 340, from: 0.7, to: 0.3, a0: 1, vy: -1250, drag: 0.5, align: true, sy: 0.5 });
-    this.spawn('core', this.tex.star, c.side, a.x, y, { dur: 360, from: 0.5, to: 0.2, a0: 0.9, vy: -1150, drag: 0.5, spin: 0.012 });
+    const y = a.y - aRadius;
+    const R = aRadius / this.scale; // the pool multiplies sizes and speeds by the stage scale
+    const k = R / 110;
+    // A flash on the top of the rim, then a bright star with a short tail going straight up and fading.
+    this.spawn('core', this.tex.star, c.spark, a.x, y, { dur: 300, from: 0.7 * k, to: 2.2 * k, a0: 1, mode: 'punch', peakAt: 0.2, rot: 0.3 });
+    this.spawn('core', this.tex.spark, c.spark, a.x, y, { dur: 420, from: 1.6 * k, to: 0.7 * k, a0: 1, vy: -1000 * k, drag: 0.3, align: true, sy: 0.45 });
+    this.spawn('core', this.tex.star, 0xffffff, a.x, y, { dur: 440, from: 1.25 * k, to: 0.5 * k, a0: 1, mode: 'hold', vy: -1000 * k, drag: 0.3, spin: 0.014 });
+    this.spawn('core', this.tex.star, c.side, a.x, y, { dur: 440, from: 1.7 * k, to: 0.7 * k, a0: 0.7, mode: 'hold', vy: -1000 * k, drag: 0.3, spin: -0.01 });
   }
 
   /** The shadow appears on the struck portrait and grows over `fallMs` to `radii` portrait radii. */
@@ -117,7 +126,7 @@ export class HeroAnvilScene extends FxPool {
     if (!s) return;
     s.position.set(this.d.x, this.d.y);
     s.alpha = 0;
-    this.shadow = { s, age: Math.max(0, age0), dur: Math.max(1, fallMs), r0: this.r * radii * 0.22, r1: this.r * radii, fade: -1 };
+    this.shadow = { s, age: Math.max(0, age0), dur: Math.max(1, fallMs), r0: this.r * radii * 0.34, r1: this.r * radii, fade: -1 };
     this.drawShadow();
   }
 
@@ -132,8 +141,11 @@ export class HeroAnvilScene extends FxPool {
     if (!s) return;
     s.anchor.set(piano ? 0.5 : ANVIL_FOOT_X, piano ? PIANO_BASE : ANVIL_BASE);
     const k = (this.r * size) / (piano ? PIANO_W : ANVIL_W);
+    // Centred on the portrait, nudged in from a screen edge when the portrait sits in a corner (never past the portrait).
+    const half = (this.r * size) / 2 + 6 * this.scale;
+    const x = Math.min(this.d.x + this.r * 0.5, Math.max(this.d.x - this.r * 0.5, Math.min(this.maxX - half, Math.max(this.minX + half, this.d.x))));
     this.obj = {
-      s, kind, state: 'fall', k, age: Math.max(0, age0), dur: Math.max(1, dropMs), x: this.d.x, y0: startY, y1: this.d.y + this.r * anvilRestOffset(1),
+      s, kind, state: 'fall', k, age: Math.max(0, age0), dur: Math.max(1, dropMs), x, y0: startY, y1: this.d.y + this.r * anvilRestOffset(1),
       cx: 0, cy: 0, vx: 0, vy: 0, spin: 0,
     };
     this.drawObject();
@@ -148,7 +160,7 @@ export class HeroAnvilScene extends FxPool {
     const S = this.scale;
     const R = this.r / S; // the pool multiplies sizes and speeds by the stage scale
     const x = this.d.x, floor = this.d.y + this.r * 0.82, top = this.d.y - this.r * 0.2;
-    const big = o.big ? 1.35 : 1;
+    const big = o.big ? 1.2 : 1;
     // A flat shock ring along the ground line, and a smaller one where the weight met the portrait.
     this.spawn('glow', this.tex.ring, c.dust, x, floor, { dur: 420, from: (R * 0.8) / RING_PX, to: (R * 5.2 * big) / RING_PX, sy: 0.26, a0: 0.8, ease: 'cubic' });
     this.spawn('glow', this.tex.ring, c.spark, x, top, { dur: 260, from: (R * 0.6) / RING_PX, to: (R * 3 * big) / RING_PX, sy: 0.32, a0: 0.55, ease: 'cubic' });
@@ -158,7 +170,7 @@ export class HeroAnvilScene extends FxPool {
       const sp = (300 + this.rnd() * 520) * big * (R / 110);
       const sz = ((R * (0.34 + this.rnd() * 0.3) * big) / PUFF_PX);
       this.spawn('body', this.tex.puff, c.dust, x + dir * this.r * (0.35 + this.rnd() * 0.5), floor + (this.rnd() - 0.5) * this.r * 0.16, {
-        dur: 460 + this.rnd() * 260, from: sz, to: sz * 2.3, a0: 0.9, ease: 'cubic',
+        dur: 460 + this.rnd() * 260, from: sz, to: sz * 2.1, a0: 0.78, ease: 'cubic',
         vx: dir * sp, vy: -(30 + this.rnd() * 150) * (R / 110), drag: 0.02, rot: this.rnd() * Math.PI * 2, spin: (this.rnd() - 0.5) * 0.004,
       });
     }
@@ -254,7 +266,7 @@ export class HeroAnvilScene extends FxPool {
     const rad = sh.r0 + (sh.r1 - sh.r0) * e;
     sh.s.scale.set((rad * 2) / SHADOW_PX, (rad * 2 * 0.86) / SHADOW_PX);
     const out = sh.fade >= 0 ? 1 - clamp01(sh.fade / 90) : 1;
-    sh.s.alpha = this.look.shadowAlpha * (0.45 + 0.55 * u) * clamp01(sh.age / 90) * out;
+    sh.s.alpha = this.look.shadowAlpha * (0.62 + 0.38 * u) * clamp01(sh.age / 90) * out;
   }
 
   private drawObject(): void {

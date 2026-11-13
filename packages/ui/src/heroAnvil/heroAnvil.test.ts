@@ -343,7 +343,7 @@ describe('the runner (the shared clock)', () => {
           f.tick(8, 8);
           peak = Math.max(peak, h.scene!.liveSprites);
           const at = h.scene!.objectAt;
-          if (h.scene!.objectState === 'fall' && at) { sawFall = true; expect(at.x, tag).toBe(d.x); expect(at.y, tag).toBeLessThanOrEqual(h.landY + 0.5); }
+          if (h.scene!.objectState === 'fall' && at) { sawFall = true; expect(Math.abs(at.x - d.x), tag).toBeLessThanOrEqual(R * 0.5); expect(at.y, tag).toBeLessThanOrEqual(h.landY + 0.5); }
           if (h.scene!.shadowOn) expect(h.scene!.shadowRadius, tag).toBeLessThanOrEqual(R * h.plan.shadow + 0.5);
         }
         expect(sawFall, tag).toBe(true);

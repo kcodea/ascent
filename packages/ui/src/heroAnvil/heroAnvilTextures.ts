@@ -8,7 +8,7 @@
  *    white and black keys, a lower panel, feet and two brass pedals.
  *  - KEY (white, black): one loose piano key each.
  *  - PUFF: a lumpy soft cloud of dust (white, tinted by the sprite).
- *  - SHADOW: a soft dark disc (white alpha, tinted by the sprite).
+ *  - SHADOW: a dark disc with a short soft edge (white alpha, tinted by the sprite): firm enough to read on busy art.
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -192,7 +192,7 @@ function paintShadow(): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
   const g = k.g;
   const gr = g.createRadialGradient(D / 2, D / 2, 0, D / 2, D / 2, D / 2);
-  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.62, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.86, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.78, 'rgba(255,255,255,1)'); gr.addColorStop(0.92, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, D, D);
   return k.c;
 }

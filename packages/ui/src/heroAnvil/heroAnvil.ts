@@ -59,21 +59,24 @@ export function anvilSeed(total: number, distance: number, side: 'player' | 'opp
 }
 
 /**
- * From the struck wrapper's transform origin to the bottom of its round art, in screen px: the point the squash is
- * pinned on. ONE layout read, at the start, with the portrait at rest. Without a measurable box (a test, a sandbox in
- * its own px) the origin is taken as the art's centre.
+ * From the struck wrapper's transform origin to the bottom of its round art, in the WRAPPER'S OWN px (what a transform
+ * on it is written in): the point the squash is pinned on. The wrapper sits inside scaled ancestors (the stage, the
+ * portrait's own sizing), so its px are not screen px: the ratio is read off its box. ONE layout read, at the start,
+ * with the portrait at rest. Without a measurable box (a test, a sandbox in its own px) the origin is taken as the
+ * art's centre and `unit` as the ratio.
  */
-function squashPivot(el: HTMLElement | null, d: Pt, radius: number, measure: boolean): Pt {
-  const fallback = { x: 0, y: radius };
+function squashPivot(el: HTMLElement | null, d: Pt, radius: number, unit: number, measure: boolean): Pt {
+  const fallback = { x: 0, y: radius / unit };
   if (!el || !measure || typeof window === 'undefined') return fallback;
   try {
-    const r = restingRect(el);
-    if (!(r.width > 0 && r.height > 0)) return fallback;
-    let ox = 0.5, oy = 0.5;
+    const r = restingRect(el, el.closest('.combatopp'));
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (!(r.width > 0 && r.height > 0 && w > 0 && h > 0)) return fallback;
+    const kx = r.width / w, ky = r.height / h; // screen px per wrapper px
     const parts = window.getComputedStyle(el).transformOrigin.split(' ');
-    const px = parseFloat(parts[0] ?? ''), py = parseFloat(parts[1] ?? '');
-    if (el.offsetWidth > 0 && el.offsetHeight > 0 && Number.isFinite(px) && Number.isFinite(py)) { ox = px / el.offsetWidth; oy = py / el.offsetHeight; }
-    const out = { x: d.x - (r.left + r.width * ox), y: d.y + radius - (r.top + r.height * oy) };
+    let ox = parseFloat(parts[0] ?? ''), oy = parseFloat(parts[1] ?? '');
+    if (!Number.isFinite(ox) || !Number.isFinite(oy)) { ox = w / 2; oy = h / 2; }
+    const out = { x: (d.x - (r.left + ox * kx)) / kx, y: (d.y + radius - (r.top + oy * ky)) / ky };
     return Number.isFinite(out.x) && Number.isFinite(out.y) ? out : fallback;
   } catch { return fallback; }
 }
@@ -97,10 +100,15 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
   // (y = 0 in both spaces), however high the portrait sits.
   const first = anvilPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt }, c);
   const piano = first.object === 'piano';
-  const objH = radius * first.size * (piano ? PIANO_H / PIANO_W : ANVIL_H / ANVIL_W);
+  const aspect = piano ? PIANO_H / PIANO_W : ANVIL_H / ANVIL_W;
+  // A portrait near the top of the screen has little room above it: the object is sized down (never under 1.6 radii
+  // wide) so that, resting on the flattened portrait, the whole of it is still on screen.
+  const restFoot = o.defender.y + radius * anvilRestOffset(first.flat);
+  const size = Math.max(Math.min(first.size, 1.6), Math.min(first.size, (restFoot - 10 * s) / (radius * aspect)));
+  const objH = radius * size * aspect;
   const landY = o.defender.y + radius * anvilRestOffset(1);
   const startY = Math.min(0, landY - radius) - objH * 0.1 - 12 * s;
-  const plan = anvilPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, fallPx: (landY - startY) / Math.max(0.05, s) }, c);
+  const plan = { ...anvilPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, fallPx: (landY - startY) / Math.max(0.05, s) }, c), size };
   const cues = withFormation(fplan, anvilCues(plan));
 
   const host = o.host !== undefined ? o.host : (doc ? doc.body : null);
@@ -118,7 +126,9 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
       shadowAlpha: c.shadowAlpha, tipMs: c.tipMs, tipSpeed: c.tipSpeed, tipGravity: c.tipGravity, keySpeed: c.keySpeed, keyGravity: c.keyGravity,
     }, s, anvilSeed(o.total, dist, o.side, o.rollSeed))
     : null;
-  scene?.setTarget(o.defender, radius);
+  // The screen's width (not a layout read): a portrait in a corner keeps its piano on screen.
+  if (local || typeof window === 'undefined') scene?.setTarget(o.defender, radius);
+  else scene?.setTarget(o.defender, radius, 0, window.innerWidth);
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
   const unmount = scene ? (o.mount ?? ((ct: Container) => pixiFx.mountLayer(ct, 'above')))(scene.root) : null;
 
@@ -127,7 +137,7 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
   const unit = local ? 1 : s; // portrait px -> overlay px
-  const pivot = squashPivot(foe.el, o.defender, radius, !local);
+  const pivot = squashPivot(foe.el, o.defender, radius, unit, !local);
   // The object tips off toward the striking hero's side of the screen (the side with the room).
   const tipDir = o.attacker.x < o.defender.x - 1 ? -1 : 1;
 
@@ -189,7 +199,7 @@ export function playHeroAnvil(o: HeroAnvilOptions): HeroAnvilHandle {
     if (q.sx === 1 && q.sy === 1) foe.set(null);
     else {
       // Scaled about the bottom of the round art: the pivot stays put, whatever the wrapper's own origin is.
-      const tx = (pivot.x * (1 - q.sx)) / unit, ty = (pivot.y * (1 - q.sy)) / unit;
+      const tx = pivot.x * (1 - q.sx), ty = pivot.y * (1 - q.sy);
       foe.set(`translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${q.sx.toFixed(4)}, ${q.sy.toFixed(4)})`);
     }
     scene?.setSquash(q.sy);

@@ -4,8 +4,9 @@
  * above-portrait overlay, tells it the sequence time each frame (`drive`) and feeds `update(dt)`.
  *
  * Design rule (the owner's "clean" bar; an Epic is one strong idea): the PIECE and its MOVE are the subject. The board
- * is a faint patch of pooled square quads, turned to the line between the heroes, only there so the move reads as a
- * chess move; the squares the move crosses glow gold first. Everything else (a puff where a piece is set down, the
+ * is a patch of pooled square quads, turned to the line between the heroes, there so the move reads as a chess move;
+ * the squares the move crosses light up gold ONE AFTER ANOTHER (an additive tile and a bloom on each, with a flash
+ * as it comes on). Everything else (a puff where a piece is set down, the
  * capture flash, sparks, glints) is short seasoning.
  *
  * THE SCENE HOLDS NO ANIMATION STATE. Every pose is a pure function of the sequence time (`chessPieceAt`, `chessKingAt`,
@@ -25,7 +26,7 @@ import type { Sprite, Texture } from 'pixi.js';
 import { clamp01, mixColor, type Pt } from '../heroAttack/easing';
 import { FxPool } from '../heroAttack/fxPool';
 import {
-  chessBoardAlpha, chessGleamAt, chessHintAt, chessKingAt, chessPieceAt, chessStreakAt, chessWordAt, newPiecePose,
+  chessBoardAlpha, chessGleamAt, chessHintAt, chessHintFlashAt, chessKingAt, chessPieceAt, chessStreakAt, chessWordAt, newPiecePose,
   PIECE_BASE_HALF, PIECE_BASE_Y, PIECE_H, PIECE_MID, PIECE_TALL,
   type ChessGeo, type ChessPlan, type HeroChessConfig, type PieceKind, type PiecePose,
 } from './heroChessConfig';
@@ -67,6 +68,9 @@ export class HeroChessScene extends FxPool {
   private driven = false;
   private cleared = false;
   private readonly squares: Sprite[] = [];
+  /** One additive gold tile and one soft bloom per square of the move (null for the other squares). */
+  private readonly hintTiles: (Sprite | null)[] = [];
+  private readonly hintBlooms: (Sprite | null)[] = [];
   private piece: Sprite | null = null;
   private pieceShadow: Sprite | null = null;
   private king: Sprite | null = null;
@@ -102,6 +106,18 @@ export class HeroChessScene extends FxPool {
       if (!s) break;
       s.position.set(cell.x, cell.y); s.rotation = geo.ang; s.scale.set(tile); s.alpha = 0;
       this.squares.push(s);
+    }
+    // The move's squares get an additive gold tile and a bloom on top, so they GLOW (and flash as each lights).
+    for (let i = 0; i < this.squares.length; i++) {
+      const cell = geo.cells[i]!;
+      let ht: Sprite | null = null, hb: Sprite | null = null;
+      if (cell.hint) {
+        ht = this.take('glow', tex.square, colors.gold);
+        hb = this.take('glow', tex.glow, colors.gold);
+        if (ht) { ht.position.set(cell.x, cell.y); ht.rotation = geo.ang; ht.scale.set(tile); ht.alpha = 0; }
+        if (hb) { hb.position.set(cell.x, cell.y); hb.scale.set((geo.sq * 2.3) / tex.glow.width); hb.alpha = 0; }
+      }
+      this.hintTiles.push(ht); this.hintBlooms.push(hb);
     }
     // Back to front on the body layer: the ghosts, the king, the piece, the word.
     const pt = pieceTex(tex, plan.piece, wood);
@@ -182,12 +198,59 @@ export class HeroChessScene extends FxPool {
     this.burst('core', tex.streak, [colors.gold, 0xffffff, colors.side], x, y, o.sparks, {
       speed: 620 * o.burst, dir: o.level === 2 ? undefined : heading, spread: 2.4, life: 280, size: 0.34, grav: 320, drag: 0.05, align: true,
     });
+    if (o.level >= 2) {
+      // WEIGHT: a white-hot core, a glow that takes its time to go, and chips thrown up that fall back under gravity.
+      this.spawn('core', tex.glow, 0xffffff, x, y, { dur: 190, from: d * 0.6, to: d * 1.5 * o.burst, a0: Math.min(1, o.flashAlpha * 1.1), mode: 'punch', peakAt: 0.08, follow: true });
+      this.spawn('glow', tex.glow, colors.gold, x, y, { dur: o.level === 3 ? 1100 : 600, from: d * 0.9, to: d * 1.5 * o.burst, a0: 0.4, mode: 'hold', ease: 'cubic', follow: true });
+      this.burst('core', tex.spark, [colors.gold, colors.ivory, 0xffffff], x, y, Math.round(o.sparks * 0.6), { speed: 520 * o.burst, life: 720, size: 0.3, grav: 1300, drag: 0.25, lift: 240 });
+    }
+    if (o.level === 3) {
+      // The queen's capture: shock rings one after another, and a second cut across the first.
+      for (let i = 0; i < 3; i++) this.spawn('glow', tex.ring, i % 2 ? colors.gold : colors.side, x, y, { dur: 480 + 110 * i, from: rw * 0.3, to: rw * (1.4 + 0.6 * i) * o.burst * 0.6, a0: 0.7 - 0.15 * i, ease: 'cubic', delay: 70 * (i + 1), follow: true });
+      const len2 = (radius * 2.4) / tex.streak.width / S;
+      this.spawn('core', tex.streak, colors.gold, x, y, { dur: 240, from: len2 * 0.5, to: len2 * 1.2, a0: 0.8, sy: 0.12, rot: heading + Math.PI / 2, delay: 40, follow: true });
+      this.spawn('core', tex.star, 0xffffff, x, y, { dur: 420, from: 1.2, to: 4.6, a0: 1, mode: 'punch', peakAt: 0.1, rot: 0.3, spin: 0.0015, follow: true });
+    }
     const glints = 2 + o.level * 2;
     for (let i = 0; i < glints; i++) {
       const a = this.rnd() * Math.PI * 2, rr = radius * (0.35 + this.rnd() * 0.75);
       this.spawn('core', tex.star, colors.gold, x + Math.cos(a) * rr, y + Math.sin(a) * rr, {
         dur: 260 + this.rnd() * 220, from: 0.1, to: 0.6 + this.rnd() * 0.4, a0: 0.95, mode: 'punch', peakAt: 0.3, rot: this.rnd() * Math.PI, delay: this.rnd() * 90, follow: true,
       });
+    }
+  }
+
+  /** A whole-view flash (bright at once, gone in `ms`): the soft glow stretched far past the view. */
+  screenFlash(alpha: number, w: number, h: number, ms = 150): void {
+    if (alpha <= 0 || w <= 0 || h <= 0) return;
+    const k = (Math.max(w, h) * 4.8) / this.tex.glow.width / this.scale;
+    this.spawn('core', this.tex.glow, 0xffffff, w / 2, h / 2, { dur: ms, from: k, to: k, a0: alpha, ease: 'linear' });
+  }
+
+  /** The king HITS THE BOARD on its side: a flat shock ring, a thud of light, dust kicked out both ways. */
+  kingDown(x: number, y: number, side: number): void {
+    const { tex, colors } = this;
+    const sq = this.geo.sq;
+    const w = sq / tex.ring.width / this.scale;
+    this.spawn('glow', tex.ring, colors.ivory, x, y, { dur: 420, from: w * 0.4, to: w * 2.6, a0: 0.7, sy: 0.38, ease: 'cubic' });
+    this.spawn('glow', tex.ring, colors.gold, x, y, { dur: 520, from: w * 0.3, to: w * 1.8, a0: 0.5, sy: 0.38, ease: 'cubic', delay: 70 });
+    this.spawn('core', tex.glow, 0xffffff, x, y, { dur: 200, from: w * 0.5, to: w * 1.6, a0: 0.6, sy: 0.5, mode: 'punch', peakAt: 0.12 });
+    for (const sx of [-1, 1]) {
+      this.burst('core', tex.spark, [colors.ivory, colors.gold], x + sx * sq * 0.2, y, 6, { speed: 300, dir: sx > 0 ? -0.35 : Math.PI + 0.35, spread: 1.1, life: 520, size: 0.22, grav: 700, drag: 0.2 });
+    }
+    void side;
+  }
+
+  /** CHECKMATE slams in: a hot bar of light behind it, a ring off the landing, sparks off both ends. */
+  wordSlam(x: number, y: number, width: number): void {
+    if (width <= 0) return;
+    const { tex, colors } = this;
+    const S = this.scale;
+    this.spawn('core', tex.glow, 0xffffff, x, y, { dur: 260, from: (width * 0.8) / tex.glow.width / S, to: (width * 1.7) / tex.glow.width / S, a0: 0.7, sy: 0.3, mode: 'punch', peakAt: 0.1 });
+    this.spawn('glow', tex.glow, colors.gold, x, y, { dur: 1300, from: (width * 1.3) / tex.glow.width / S, to: (width * 1.5) / tex.glow.width / S, a0: 0.4, sy: 0.28, mode: 'hold', ease: 'cubic' });
+    this.spawn('glow', tex.ring, colors.gold, x, y, { dur: 460, from: (width * 0.4) / tex.ring.width / S, to: (width * 1.3) / tex.ring.width / S, a0: 0.6, sy: 0.3, ease: 'cubic' });
+    for (const sx of [-1, 1]) {
+      this.burst('core', tex.spark, [colors.gold, 0xffffff], x + sx * width * 0.46, y, 6, { speed: 420, dir: sx > 0 ? -0.4 : Math.PI + 0.4, spread: 1.5, life: 520, size: 0.28, grav: 900, drag: 0.25 });
     }
   }
 
@@ -234,6 +297,10 @@ export class HeroChessScene extends FxPool {
         const h = chessHintAt(plan, t, cell.hintOrder);
         s.tint = mixColor(cell.dark ? colors.ebony : colors.ivory, colors.gold, h);
         s.alpha = base + (cfg.hintAlpha - base) * h * (base > 0 ? 1 : 0);
+        const fl = chessHintFlashAt(plan, t, cell.hintOrder);
+        const ht = this.hintTiles[i], hb = this.hintBlooms[i];
+        if (ht) ht.alpha = base > 0 ? cfg.hintAlpha * (0.28 * h + 0.6 * fl) : 0;
+        if (hb) hb.alpha = base > 0 ? cfg.hintAlpha * (0.3 * h + 0.55 * fl) : 0;
       } else s.alpha = base;
     }
 
@@ -302,6 +369,9 @@ export class HeroChessScene extends FxPool {
     if (this.cleared) return;
     this.cleared = true;
     for (const s of this.squares) this.give(s);
+    for (const s of this.hintTiles) this.give(s);
+    for (const s of this.hintBlooms) this.give(s);
+    this.hintTiles.length = 0; this.hintBlooms.length = 0;
     for (const s of this.ghosts) this.give(s);
     for (const s of [this.piece, this.pieceShadow, this.king, this.kingShadow, this.word, this.gleam, this.streak]) this.give(s);
     this.squares.length = 0; this.ghosts = [];

@@ -10,7 +10,7 @@
  * knight's head is a drawn profile (facing right; the scene mirrors it) on a turned base.
  *
  * A SQUARE is a white tile with a faint bevel (the scene tints it ivory, ebony or gold and sets its opacity). The
- * SHADOW is a soft dark ellipse. CHECKMATE is the one word this attack draws: gold serif capitals with a dark outline.
+ * SHADOW is a soft dark ellipse. CHECKMATE is the one word this attack draws: the game's banner face (Outfit, heavy) in gold on a slim navy band.
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -299,24 +299,37 @@ function paintShadow(): HTMLCanvasElement | null {
 /** THE WORD (player-facing): CHECKMATE, in gold serif capitals with a dark outline. */
 export const CHESS_WORD = 'CHECKMATE';
 
+/**
+ * CHECKMATE, lettered like the game's own banner text (the title face: Outfit at its heaviest, wide-set capitals), on a
+ * slim dark band with gold rules, the way the game's banners sit: a gold face with a pale top, a dark navy outline and
+ * a hard drop. If the web font has not loaded, the canvas falls back to the system's heavy sans.
+ */
 function paintWord(): HTMLCanvasElement | null {
   const k = canvas(WORD_W, WORD_H); if (!k) return null;
   const g = k.g;
-  let size = 84;
-  const font = (): string => `700 ${size}px Georgia, 'Times New Roman', serif`;
-  g.font = font();
-  try { (g as unknown as { letterSpacing: string }).letterSpacing = '5px'; } catch { /* an older canvas: no tracking */ }
-  const w = g.measureText(CHESS_WORD).width;
-  if (w > WORD_W * 0.92) { size = Math.floor(size * ((WORD_W * 0.92) / w)); g.font = font(); }
-  g.textAlign = 'center'; g.textBaseline = 'middle';
   const x = WORD_W / 2, y = WORD_H / 2 + 2;
+  // The band: dark navy, fading out at both ends, a gold hairline above and below.
+  const bh = WORD_H * 0.62;
+  const band = g.createLinearGradient(0, 0, WORD_W, 0);
+  band.addColorStop(0, 'rgba(10,14,30,0)'); band.addColorStop(0.16, 'rgba(10,14,30,0.86)'); band.addColorStop(0.84, 'rgba(10,14,30,0.86)'); band.addColorStop(1, 'rgba(10,14,30,0)');
+  g.fillStyle = band; g.fillRect(0, y - bh / 2, WORD_W, bh);
+  const rule = g.createLinearGradient(0, 0, WORD_W, 0);
+  rule.addColorStop(0, 'rgba(255,200,58,0)'); rule.addColorStop(0.2, 'rgba(255,200,58,0.95)'); rule.addColorStop(0.8, 'rgba(255,200,58,0.95)'); rule.addColorStop(1, 'rgba(255,200,58,0)');
+  g.fillStyle = rule; g.fillRect(0, y - bh / 2 - 3, WORD_W, 3); g.fillRect(0, y + bh / 2, WORD_W, 3);
+  let size = 74;
+  const font = (): string => `900 ${size}px Outfit, 'Arial Black', 'Helvetica Neue', Arial, sans-serif`;
+  g.font = font();
+  try { (g as unknown as { letterSpacing: string }).letterSpacing = '7px'; } catch { /* an older canvas: no tracking */ }
+  const w = g.measureText(CHESS_WORD).width;
+  if (w > WORD_W * 0.86) { size = Math.floor(size * ((WORD_W * 0.86) / w)); g.font = font(); }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineJoin = 'round';
-  g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 10; g.shadowOffsetY = 4;
-  g.strokeStyle = '#1a0f05'; g.lineWidth = 12; g.strokeText(CHESS_WORD, x, y);
-  g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0;
-  g.strokeStyle = '#8a5a10'; g.lineWidth = 5; g.strokeText(CHESS_WORD, x, y);
-  const gr = g.createLinearGradient(0, y - size * 0.42, 0, y + size * 0.42);
-  gr.addColorStop(0, '#fffbe0'); gr.addColorStop(0.42, '#ffd95a'); gr.addColorStop(0.55, '#f0b020'); gr.addColorStop(1, '#b97a12');
+  // A hard drop, the dark outline, then the gold face with a pale top.
+  g.fillStyle = 'rgba(4,6,14,0.9)'; g.fillText(CHESS_WORD, x + 3, y + 6);
+  g.strokeStyle = '#0a0e1e'; g.lineWidth = 11; g.strokeText(CHESS_WORD, x, y);
+  g.strokeStyle = '#7a4d0a'; g.lineWidth = 4; g.strokeText(CHESS_WORD, x, y);
+  const gr = g.createLinearGradient(0, y - size * 0.4, 0, y + size * 0.4);
+  gr.addColorStop(0, '#fffdf0'); gr.addColorStop(0.45, '#ffe07a'); gr.addColorStop(0.56, '#ffc83a'); gr.addColorStop(1, '#d08a14');
   g.fillStyle = gr; g.fillText(CHESS_WORD, x, y);
   return k.c;
 }

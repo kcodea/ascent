@@ -33,7 +33,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   heroCoilPx: ['Lean back', 'px', 'How far the hero leans back from the target as it readies.', 'Ready'],
   heroNodPx: ['Nod', 'px', 'How far the hero nods toward the board as the piece is set down and as it moves.', 'Ready'],
   squareK: ['Square size', '×', 'A board square, in struck-portrait radii (the portrait sits on one square).', 'Board'],
-  boardAlpha: ['Board', 'opacity', 'How strong the dark squares are (the light ones are fainter). Keep it subtle.', 'Board'],
+  boardAlpha: ['Board', 'opacity', 'How strong the dark squares are (the light ones are fainter).', 'Board'],
   boardFadeMs: ['Board fade', 'ms', 'A square fading in, and the board fading out at the end.', 'Board'],
   hintAlpha: ['Move hint', 'opacity', 'How bright the squares the move crosses glow gold.', 'Board'],
   pieceK: ['Piece height', '×', 'The height of the piece box, in squares (the king fills it; the look size multiplies it).', 'Pieces'],
@@ -53,6 +53,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   slideMs: ['Slide time', 'ms', 'The queen sweeping her diagonal.', 'Queen'],
   diagMax: ['Diagonal', undefined, 'The longest diagonal the queen may sweep, in squares (it shortens to stay on screen).', 'Queen'],
   ghostAlpha: ['Afterimages', 'opacity', 'The faint copies trailing the sliding queen (0 = none).', 'Queen'],
+  coilMs: ['Queen coil', 'ms', 'The held breath after the gleam: the queen leans back before she slides.', 'Queen'],
   kingWobbleMs: ['King wobble', 'ms', 'The king wobbling after the capture before it tips.', 'Queen'],
   kingFallMs: ['King fall', 'ms', 'The king tipping over onto its side.', 'Queen'],
   wordAtMs: ['Word delay', 'ms', 'How long after the capture CHECKMATE sets.', 'Queen'],
@@ -84,6 +85,12 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
   sfxToppleGain: ['topple: gain', undefined, 'The king hitting the board on its side.', 'Sound: topple'],
   sfxToppleRate: ['topple: pitch', '×', 'Pitch of the topple.', 'Sound: topple'],
+  sfxKnockGain: ['knock: gain', undefined, 'A heavy piece slammed on wood: under every capture, each rock of the king and the word setting.', 'Sound: knock'],
+  sfxKnockRate: ['knock: pitch', '×', 'Pitch of the knock (lower up the looks).', 'Sound: knock'],
+  sfxRollGain: ['roll: gain', undefined, 'The king falling over and rocking to rest.', 'Sound: roll'],
+  sfxRollRate: ['roll: pitch', '×', 'Pitch of the roll.', 'Sound: roll'],
+  sfxBodyGain: ['body: gain', undefined, 'The low layer under every capture, the queen set down and the king hitting the board.', 'Sound: body'],
+  sfxBodyRate: ['body: pitch', '×', 'Pitch of the low layer.', 'Sound: body'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact clip is cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the attack plays (1 = no duck).', 'Sound: mix'],
@@ -104,7 +111,7 @@ const LEVEL_SPECS: Record<ChessLevelSuffix, [string, TunerUnit | undefined, stri
 const CLIP_OF: Partial<Record<string, HeroChessStrKey>> = {
   'Sound: set down': 'sfxSetClip', 'Sound: hop': 'sfxHopClip', 'Sound: whoosh': 'sfxWhooshClip', 'Sound: slide': 'sfxSlideClip',
   'Sound: gleam': 'sfxGleamClip', 'Sound: thud': 'sfxThudClip', 'Sound: punch': 'sfxPunchClip', 'Sound: impact': 'sfxImpactClip',
-  'Sound: big hit': 'sfxBigClip', 'Sound: topple': 'sfxToppleClip',
+  'Sound: big hit': 'sfxBigClip', 'Sound: topple': 'sfxToppleClip', 'Sound: knock': 'sfxKnockClip', 'Sound: roll': 'sfxRollClip', 'Sound: body': 'sfxBodyClip',
 };
 
 const COLORS: [HeroChessStrKey, string, string][] = [

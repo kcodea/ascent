@@ -4,6 +4,7 @@ import { boostsNextSell, hasSellMedallion } from '../../sellMedallion';
 import { hasOwnBuffFx } from '../../choreo/buffWatcher';
 import { WARD_GIVING_EFFECTS } from '../../choreo/channels/wardGiven';
 import { givesExecute } from '../../choreo/channels/executeGiven';
+import { givesRise } from '../../choreo/channels/riseGiven';
 import { CARD_INDEX } from '@game/content';
 import type { BindingKind } from '../../choreo/bindings';
 import type { FxCardRow } from './catalogView';
@@ -119,6 +120,14 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // `fx/executeGivenLaunch.ts` plays `bindingFor(cardId, 'executeGiven')` giver→minion per grant and holds that
     // minion’s aura until the travel lands.
     kindFor: (card) => (givesExecute(card.cardId) ? 'executeGiven' : null),
+  },
+  {
+    id: 'riseGiven',
+    label: 'On Rise given',
+    blurb: 'Plays from this minion to each minion it gives Rise (Mumi, Wolvie, Anubis, Gravewarden), in combat and in the Shop. The Rise appears when the effect arrives: when its travelling layer lands. Several at once leave one after another.',
+    // `fx/riseGivenLaunch.ts` plays `bindingFor(cardId, 'riseGiven')` giver→minion per grant and holds that
+    // minion’s dome until the travel lands.
+    kindFor: (card) => (givesRise(card.cardId) ? 'riseGiven' : null),
   },
   {
     id: 'chooseOne',

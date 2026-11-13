@@ -517,4 +517,60 @@ export const ORDERING_RULES: GameRule[] = [
       + 'the giver reaching the Shop cue); the scheduled play itself needs a live renderer and is not under test.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/executeGiven.test.ts', 'packages/ui/src/choreo/channels/executeGivenShop.test.ts', 'packages/ui/src/fx/settledSlot.test.ts'], lastVerifiedAt: '2026-11-12' },
   },
+  {
+    id: 'R-FX-RISE-GIVEN-01',
+    title: 'A Rise given by another minion travels from the giver, one after another, and the Rise appears when it lands',
+    statement:
+      'When a minion gives another minion Rise and has its own "On Rise given" effect (Mumi, Wolvie, Anubis, Gravewarden, the Rise option of Runic Beetle), '
+      + 'the effect flies from the giver to each minion that gains Rise, and that minion shows its Rise only when its own '
+      + 'effect lands. When more than one Rise is given at the same time, the effects leave one after another with a gap '
+      + 'between them, never all at once. An Echo sends them from the slot of the dead giver after its skull; a living giver '
+      + 'sends them as the grant happens. The same holds in every phase: a Rise given on the beat of a minion in the Shop '
+      + 'travels from that minion. The effect lands on the minion where it ends up when the row shifts.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-12, the Rise beam', quote: 'i made a rise beam as well. should be wired in all the exact same ways as the ward beam and execute beam were. make sure when rise is applied twice from and echo. they are staggered, really any instance of more than one rise being applied at the same time should be staggered. this effect should work in both shop and in combat.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'runic beetle should case the rise effect when selecting the rise option of his choose 1' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, the first Beetle wiring only reached End of Turn beats', quote: 'No beam played' },
+      { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/riseGivenLaunch.ts; packages/ui/src/choreo/channels/riseGiven.ts; packages/ui/src/fx/riseHold.ts; packages/ui/src/Card.tsx (the held dome); packages/ui/src/useCombatReplay.ts (beat start + both Echo skull sites); the Shop: packages/ui/src/Recruit.tsx (keywordChanged cue)' },
+    ],
+    contentIds: ['mumi', 'b2_wolvie', 'anubis', 'gravewarden', 'beetle'],
+    currentBehaviour: 'PARTIAL from 2026-11-12 (fx/rise-given): combat (an Echo, a forced Echo, a Start of Combat), and every Shop '
+      + 'grant that plays as an End of Turn beat of a minion, plus a Rise given by a minion played mid-turn (Runic Beetle, '
+      + 'read off the board because a mid-turn action carries no presentation batch). A Shop giver that never '
+      + 'reaches the screen shows the Rise with its landing sound and no travel. Not covered: a Rise from a spell, a rune or a hero power (no giver minion), '
+      + 'and a quiet repeat tick. A cascade rings its sounds on its first three effects only. The pure parts are pinned '
+      + '(which grants travel, the gap, the hold, every call site); the scheduled play itself needs a live renderer and '
+      + 'is not under test.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/riseGiven.test.ts'], lastVerifiedAt: '2026-11-12' },
+  },
+  {
+    id: 'R-FX-KEYWORD-ORIGIN-01',
+    title: 'Rise, Execute or Ward given by something that is not a minion sends its beam from where that thing is',
+    statement:
+      'When Rise, Execute or Ward is given to a minion and no minion gave it, the beam of that keyword still travels to the '
+      + 'receiver and the keyword shows when it lands. It leaves from the cause: a targeted spell sends it from the mouse '
+      + 'pointer, an untargeted spell from the hero portrait, a hero power from the hero power slot, and a rune from the '
+      + 'slot of that rune. Several given at once leave one after another. When a minion both gives a keyword by its own '
+      + 'beam and buffs the same minion, the beam replaces the buff tendril.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, spells', quote: 'when playing any spell that applies execute, ward, or rise from a non-source (card or targetable spell) have the tendril go from the hero portrait to the card. when playing from a targetable spell, have it go from the mouse pointer to the target' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, hero power and runes', quote: 'one specific use case is The Risen Lord, who\'s hero power rises a target unit, in that case i also want the tendril to come from the hero power slot. this same logic should apply from any RUNE slot that applies these effects' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, runes', quote: 'in that case, it would tendril from the rune slot itself' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, Runic Beetle', quote: 'we can remove the buff tendril effect from the rune beetle rise' },
+      { kind: 'code', ref: 'fx/rise-given: packages/ui/src/fx/keywordOrigin.ts; packages/ui/src/fx/keywordBeam.ts; packages/ui/src/fx/runeKeywordBeams.ts; packages/ui/src/store.ts (noteShopActionOrigin in dispatch); packages/ui/src/Recruit.tsx (the mid-turn board read, the Ward read, the keywordChanged cue, the buff tendril filter); packages/ui/src/useCombatReplay.ts' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
+      + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
+      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of the player (its slot), found by the '
+      + 'rune fire beside a grant that names no giving minion. Not covered: a rune that gives a keyword mid-turn in the '
+      + 'Shop or at Start of Turn (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
+      + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
+      + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
+      + 'the author.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

@@ -1,5 +1,6 @@
 import { isWardHeld, subscribeWardHolds } from './fx/wardHold';
 import { isExecuteHeld, subscribeExecuteHolds } from './fx/executeHold';
+import { isRiseHeld, subscribeRiseHolds } from './fx/riseHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -645,6 +646,8 @@ export const Card = memo(function Card({
   const wardHeld = useSyncExternalStore(subscribeWardHolds, () => (uid ? isWardHeld(uid) : false), () => false);
   // …and an Execute given by an "On Execute given" effect waits the same way (fx/executeHold).
   const executeHeld = useSyncExternalStore(subscribeExecuteHolds, () => (uid ? isExecuteHeld(uid) : false), () => false);
+  // …and a Rise given by an "On Rise given" effect (fx/riseHold).
+  const riseHeld = useSyncExternalStore(subscribeRiseHolds, () => (uid ? isRiseHeld(uid) : false), () => false);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
@@ -1206,7 +1209,7 @@ export const Card = memo(function Card({
           {/* REBIRTH (`RB`) — the VEIL: soft blue fire licking up over the portrait's lower edge (clipped to the window,
               z2 like Rise's dome), the over-the-card half of its look; the crown on the frame is RebirthCrown below. */}
           {card.keywords.includes('RB') && <div className="rebirth-veil" aria-hidden="true"><div className="rbv" /></div>}
-          {card.keywords.includes('R') && (
+          {card.keywords.includes('R') && !riseHeld && (
             <div className="reborn" aria-hidden="true">
               <div className="reborn-dome" />
               <div className="reborn-wisps">

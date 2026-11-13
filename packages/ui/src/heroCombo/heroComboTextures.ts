@@ -1,14 +1,17 @@
 /**
  * The Combo attack's textures, painted ONCE per session on 2D canvases and kept (on top of the shared Blast / Arcana
  * set it reuses for a few glows, rings and streaks). The look is a 2D ARCADE FIGHTER: flat fills, hard dark outlines,
- * no soft shading. Everything is painted in its own colours (the sprites draw them untinted):
- *  - HIT SPARKS: three chunky starbursts in flat layers (a dark outline, a colour, a paler colour, a white core): the
- *    LIGHT one (yellow), the SHARP one (a blue cross flash) and the HEAVY one (red and orange, more points).
+ * no soft shading for the HUD. The HIT EFFECTS are not painted pictures: they are built live from white light shapes
+ * (tinted per tier, additive):
+ *  - BLADE: a long thin spindle of light with a soft glow (crossing hit blades, radial speed lines, strike trails).
+ *  - PUFF: a soft three-lobed dust cloud (no outline), tinted the dust colour.
+ *  - DIZZY STAR: a plump five-point star of light with a soft glow (the birds round a dizzy head).
+ * And the HUD, painted in its own colours (the sprites draw them untinted):
  *  - ARROW and BUTTON: the input glyphs (a chunky yellow arrow, turned to point; a round red attack button).
  *  - BAND: the super cut-in's band (navy, a halftone fade, white and gold rails).
- *  - PUFF: a flat cel dust puff (the launch, the slam).
  *  - DIGITS 0-9, HIT, HITS: the combo counter's heavy italic numerals (white to gold, a dark outline, a flat shadow).
- *  - K.O.: the knockout word (yellow to red, a white inline, a dark outline, a flat shadow).
+ *  - K.O., COUNTER, PERFECT, BREAKER?: the call-outs (heavy italic lettering, a white inline, a dark outline, a flat
+ *    shadow), each in its tier's colours. They are brought to life by the scene (a slam, a shake, afterimages, a glint).
  *  - CUT-IN: the striking hero's own portrait art, cropped into a slanted panel with a white rail (per image, cached).
  */
 import { CanvasSource, Texture } from 'pixi.js';
@@ -25,7 +28,8 @@ function canvas(w: number, h: number): { c: HTMLCanvasElement; g: CanvasRenderin
 
 const tex = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 
-export const SPARK_PX = 256;
+export const BLADE_W = 256;
+export const BLADE_H = 32;
 export const GLYPH_PX = 112;
 export const BAND_W = 512;
 export const BAND_H = 128;
@@ -36,6 +40,8 @@ export const LABEL_W = 256;
 export const LABEL_H = 96;
 export const KO_W = 512;
 export const KO_H = 224;
+export const WORD_W = 640;
+export const WORD_H = 176;
 export const CUTIN_W = 448;
 export const CUTIN_H = 288;
 /** How far the cut-in panel's sides lean (px of the texture): the parallelogram's slant. */
@@ -44,43 +50,39 @@ export const CUTIN_SLANT = 64;
 const INK = '#1a0f1f';
 const FONT = 'Impact, "Arial Black", "Helvetica Neue", sans-serif';
 
-/** A starburst outline: `n` points, every other one at `inner`, the long ones a touch uneven (never random). */
-function star(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, n: number, inner: number, uneven: number, turn = 0): void {
-  g.beginPath();
-  for (let i = 0; i < n * 2; i++) {
-    const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2 + turn;
-    const long = 1 - uneven * (0.5 + 0.5 * Math.sin(i * 2.7 + 1.3));
-    const rr = r * (i % 2 ? inner : long);
-    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
-    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-  }
-  g.closePath();
+/** A spindle of light pointing +x: a hot white middle, tapering to points at both ends, a soft glow round it. */
+function paintBlade(W: number, H: number): HTMLCanvasElement | null {
+  const k = canvas(W, H); if (!k) return null;
+  const g = k.g;
+  const spindle = (half: number): void => {
+    g.beginPath();
+    g.moveTo(2, H / 2);
+    g.quadraticCurveTo(W * 0.4, H / 2 - half, W - 2, H / 2);
+    g.quadraticCurveTo(W * 0.4, H / 2 + half, 2, H / 2);
+    g.closePath();
+  };
+  g.fillStyle = 'rgba(255,255,255,0.28)'; spindle(H * 0.48); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.55)'; spindle(H * 0.3); g.fill();
+  g.fillStyle = '#ffffff'; spindle(H * 0.16); g.fill();
+  return k.c;
 }
 
-/** A flat, layered hit spark: outline, colour, paler colour, white core. */
-function paintSpark(D: number, n: number, inner: number, uneven: number, outer: string, mid: string, cross = false): HTMLCanvasElement | null {
+/** A dizzy star: a plump five-point star of white light with a soft glow round it (tinted by the sprite). */
+function paintDizzyStar(D: number): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
   const g = k.g;
-  const c = D / 2, R = D / 2 - 8;
-  g.lineJoin = 'miter'; g.miterLimit = 3;
-  const layer = (r: number, fill: string, turn: number, outline = 0): void => {
-    if (cross) {
-      // The sharp one: four long blades and four short, a cross flash.
-      g.beginPath();
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2 + turn;
-        const rr = r * (i % 2 ? 0.2 : i % 4 === 0 ? 1 : 0.52);
-        const x = c + Math.cos(a) * rr, y = c + Math.sin(a) * rr;
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      }
-      g.closePath();
-    } else star(g, c, c, r, n, inner, uneven, turn);
-    if (outline) { g.strokeStyle = INK; g.lineWidth = outline; g.stroke(); }
-    g.fillStyle = fill; g.fill();
-  };
-  layer(R, outer, 0, 10);
-  layer(R * 0.7, mid, cross ? 0 : 0.16);
-  layer(R * 0.4, '#ffffff', cross ? 0 : 0.3);
+  const c = D / 2;
+  const glow = g.createRadialGradient(c, c, 0, c, c, c);
+  glow.addColorStop(0, 'rgba(255,255,255,0.55)'); glow.addColorStop(0.5, 'rgba(255,255,255,0.18)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, D, D);
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? D * 0.17 : D * 0.36;
+    if (i === 0) g.moveTo(c + Math.cos(a) * r, c + Math.sin(a) * r); else g.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r);
+  }
+  g.closePath();
+  g.lineJoin = 'round'; g.lineWidth = D * 0.06; g.strokeStyle = '#ffffff'; g.stroke();
+  g.fillStyle = '#ffffff'; g.fill();
   return k.c;
 }
 
@@ -134,18 +136,16 @@ function paintBand(W: number, H: number): HTMLCanvasElement | null {
   return k.c;
 }
 
-/** A flat cel dust puff: three lobes, a pale top, a dark outline. */
+/** A soft dust cloud: three overlapping soft lobes, white (tinted by the sprite), no outline. */
 function paintPuff(D: number): HTMLCanvasElement | null {
   const k = canvas(D, D); if (!k) return null;
   const g = k.g;
-  const lobes: [number, number, number][] = [[0.36, 0.56, 0.26], [0.62, 0.58, 0.28], [0.5, 0.38, 0.27]];
-  const blob = (grow: number): void => { g.beginPath(); for (const [x, y, r] of lobes) { g.moveTo(x * D + r * D + grow, y * D); g.arc(x * D, y * D, r * D + grow, 0, Math.PI * 2); } };
-  blob(4); g.fillStyle = INK; g.fill();
-  blob(0); g.fillStyle = '#d9d2c4'; g.fill();
-  g.save(); blob(0); g.clip();
-  g.fillStyle = '#ffffff';
-  g.beginPath(); for (const [x, y, r] of lobes) { g.moveTo(x * D - 4 + r * D, y * D - 7); g.arc(x * D - 4, y * D - 7, r * D * 0.92, 0, Math.PI * 2); } g.fill();
-  g.restore();
+  const lobes: [number, number, number][] = [[0.38, 0.56, 0.24], [0.62, 0.58, 0.26], [0.5, 0.4, 0.26]];
+  for (const [x, y, r] of lobes) {
+    const gr = g.createRadialGradient(x * D, y * D, 0, x * D, y * D, r * D);
+    gr.addColorStop(0, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, D, D);
+  }
   return k.c;
 }
 
@@ -177,6 +177,9 @@ function paintText(text: string, W: number, H: number, stops: readonly string[],
 const DIGIT_STOPS = ['#ffffff', '#fff3a8', '#ffc21f', '#ff8a1f'] as const;
 const LABEL_STOPS = ['#ffffff', '#cfe6ff', '#7fb8ff'] as const;
 const KO_STOPS = ['#fff7a0', '#ffd21f', '#ff7a1f', '#e8321e'] as const;
+const COUNTER_STOPS = ['#ffffff', '#c9f6ff', '#5fe3ff', '#1f8fff'] as const;
+const PERFECT_STOPS = ['#ffffff', '#fff3a8', '#ffd21f', '#ff9a1f'] as const;
+const BREAKER_STOPS = ['#ffffff', '#ffe0f6', '#ff8ad8', '#c23fff'] as const;
 
 let cached: HeroComboTextures | null = null;
 
@@ -185,9 +188,8 @@ export function heroComboTextures(): HeroComboTextures | null {
   if (cached) return cached;
   const base = heroArcanaTextures();
   const parts = {
-    hitLight: paintSpark(SPARK_PX, 9, 0.46, 0.3, '#ff8a1f', '#ffe14a'),
-    hitSharp: paintSpark(SPARK_PX, 8, 0.3, 0, '#2f8fff', '#bfeaff', true),
-    hitHeavy: paintSpark(SPARK_PX, 13, 0.52, 0.34, '#e8321e', '#ffb01f'),
+    blade: paintBlade(BLADE_W, BLADE_H),
+    dizzyStar: paintDizzyStar(64),
     arrow: paintArrow(GLYPH_PX),
     button: paintButton(GLYPH_PX),
     band: paintBand(BAND_W, BAND_H),
@@ -195,6 +197,9 @@ export function heroComboTextures(): HeroComboTextures | null {
     labelHit: paintText('HIT', LABEL_W, LABEL_H, LABEL_STOPS, { align: 'left' }),
     labelHits: paintText('HITS', LABEL_W, LABEL_H, LABEL_STOPS, { align: 'left' }),
     wordKo: paintText('K.O.', KO_W, KO_H, KO_STOPS, { size: 0.8, inline: true }),
+    wordCounter: paintText('COUNTER', WORD_W, WORD_H, COUNTER_STOPS, { size: 0.74, inline: true }),
+    wordPerfect: paintText('PERFECT', WORD_W, WORD_H, PERFECT_STOPS, { size: 0.74, inline: true }),
+    wordBreaker: paintText('BREAKER?', WORD_W, WORD_H, BREAKER_STOPS, { size: 0.74, inline: true }),
   };
   const digits = Array.from({ length: 10 }, (_, i) => paintText(String(i), DIGIT_W, DIGIT_H, DIGIT_STOPS, { size: 0.84 }));
   if (!base || Object.values(parts).some((p) => !p) || digits.some((d) => !d)) return null;

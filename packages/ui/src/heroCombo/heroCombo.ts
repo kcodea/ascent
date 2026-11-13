@@ -1,27 +1,35 @@
 /**
  * THE COMBO RUNNER ("Flawless", a Legendary): plays one Combo attack (the beats are in `heroComboConfig.ts`) and lands
- * the consequence on its impact beat (the jab, the low kick, the slam, the heavy blow). Presentation only: the total and
- * the blow are the engine's; this file only decides WHEN on screen they happen.
+ * the consequence on its impact beat (Tier 1 the counter-hit, Tier 2 the roundhouse, Tier 3 the slam, Tier 4 the heavy
+ * blow). Presentation only: the total and the blow are the engine's; this file only decides WHEN on screen they happen.
  *
  * THE COUNTER COUNTS REAL HITS (one hit, one count; the scene composes it from painted digits). The damage is the game's
  * own number (the shared damage formation and the hit number), never the counter's.
  *
  * SOUND: every hit is two or three layers (a low body punch, a snap on top re-pitched by the kind of hit, and a heavy
- * thump on the launcher, the spike and every finisher); the super freeze has a charge that climbs through the cut-in;
- * the flurry is a rattle that rises; the heavy blow's wind-up is a riser that peaks ON the impact; K.O. is the sting
- * over a deep boom.
+ * thump on the launcher, the spike and every finisher). Tier 1: a parry clash, the counter-hit, an announcer's "Counter!".
+ * Tier 2: a whoosh under every trail, the roundhouse, dizzy birds. Tier 3: the launch, the juggle, a struggling rattle
+ * under "BREAKER?", the spike and slam, dizzy birds. Tier 4: a charge through the cut-in, the rattle of the flurry, a riser
+ * that peaks ON the heavy blow, the K.O. sting over a deep boom with the announcer's "K.O.!", then "Perfect!".
  *
- * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses: the hit-freeze and the super
- * freeze are held poses), the damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the voices, the dim,
- * reduced motion, finish / cancel and the safety timer.
+ * It runs on the SHARED hero-attack core (`../heroAttack/`): one clock (it never pauses: the hit-freeze, the parry and the
+ * super freeze are held poses), the damage formation, the `#stage` camera (applied ONCE: `stageCamera.ts`), the voices,
+ * the dim, reduced motion, finish / cancel and the safety timer.
  *
- * BOTH PORTRAITS MOVE: the striker steps in beside the target and throws the combo; the target flinches, is launched,
- * juggled, spiked or sent flying. Each pose is solved in screen px (kept on screen by the pure pose functions) and
- * written as a transform in the portrait's own units (its ancestors' scale measured ONCE at the start). A portrait
- * outside the `#stage` camera (the foe's <body> portal) folds the camera's zoom and shake into its own transform. The
- * striker is raised over the target for the whole attack (Classic's `.duel-attacker-*` z-order). EVERY exit path (the
- * end, `finish()`, `cancel()`, the safety timer, and an unmount, which cancels) restores both transforms, the striker's
- * opacity and the z-order class exactly, and hides the counter and the cut-in.
+ * BOTH PORTRAITS MOVE: the striker steps in beside the target and throws the combo; the target lunges (Tier 1), flinches,
+ * smears on contact, is launched, juggled, spiked, sent flying or left dizzy. Each pose is solved in screen px (kept on
+ * screen by the pure pose functions) and written as a transform in the portrait's own units (its ancestors' scale measured
+ * ONCE at the start). A portrait outside the `#stage` camera (the foe's <body> portal) folds the camera's zoom and shake
+ * into its own transform.
+ *
+ * BOTH PORTRAITS ARE ON TOP OF ALL THE UI while it plays (owner ask 2026-11-13: they fell behind the foe's health plate,
+ * the lobby rail and the like). A portrait sits several stacking contexts deep (`.herolunge` in `.f` in `.hero` in
+ * `.statusbar`; `.combatopp-body` under its own name and health pills in `.combatopp`), and every one of those traps its
+ * z-index, so the runner writes an inline `z-index` on EVERY element from the portrait up to the stage root (the target's
+ * chain first, the striker's one higher, so the striker passes over the target), and lifts the attack's own FX canvas
+ * and the damage numbers one higher still, so the hits draw over the faces. Every value is read once at the start and put
+ * back EXACTLY (an empty inline value stays empty) on every exit. Classic's `.duel-attacker-*` class still rides along (it
+ * fades the striker's own pills).
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
  * plus the HUD's own handful; textures painted once per session (the portrait panel once per image) and pre-warmed
@@ -39,7 +47,8 @@ import type { HeroAttackHandle, HeroAttackOptions } from '../heroAttack/options'
 import { Sequence } from '../heroAttack/sequence';
 import { heroFxCanvas, PortraitMover, StageCamera } from '../heroAttack/stageCamera';
 import {
-  airHitsOf, comboCameraAt, comboCounter, comboCues, comboCutin, comboGeo, comboPlan, counterSize, getHeroComboConfig, hitPoint, strikerPose, targetPose,
+  airHitsOf, airLift, calloutAt, comboBars, comboCameraAt, comboCounter, comboCues, comboCutin, comboDizzy, comboGeo, comboPlan, counterSize,
+  getHeroComboConfig, hitPoint, parryPoint, strikerPose, targetPose, tierColor,
   type ComboCue, type ComboGeo, type ComboPlan, type ComboPose, type CounterState, type HeroComboConfig,
 } from './heroComboConfig';
 import { HeroComboScene, type HeroComboTextures } from './heroComboScene';
@@ -65,6 +74,11 @@ export function comboSeed(total: number, distance: number, side: 'player' | 'opp
   return (Math.round(total) * 2711 + Math.round(distance) * 41 + (side === 'opp' ? 197 : 23)) >>> 0;
 }
 
+/** The z-order the portraits are lifted to while the attack plays: over every piece of UI (the round rail is 555, the
+ * lobby's damage floats 2000), under the screen wipe (3000). The target, the striker one higher, then the FX canvas and
+ * the numbers over both. */
+export const COMBO_Z = { target: 2500, striker: 2501, fx: 2502, numbers: 2503 } as const;
+
 /** One measure of a portrait: its screen size, and `inv` = its own transform px per screen px. */
 function rectOf(el: HTMLElement | null | undefined, r: number): { width: number; height: number; inv: number } {
   try {
@@ -78,14 +92,38 @@ function rectOf(el: HTMLElement | null | undefined, r: number): { width: number;
 function poseCss(off: Pt, p: ComboPose, sc: number, unit: number): string | null {
   const moved = Math.abs(off.x) > 0.05 || Math.abs(off.y) > 0.05 || Math.abs(sc - 1) > 1e-4 || Math.abs(p.rot) > 0.01;
   const sq = Math.abs(p.squash) > 0.002 ? ` scale(${(1 + p.squash * 0.6).toFixed(4)}, ${(1 - p.squash).toFixed(4)})` : '';
-  if (!moved && !sq) return null;
-  return `translate(${(off.x / unit).toFixed(2)}px, ${(off.y / unit).toFixed(2)}px) rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})${sq}`;
+  const sk = Math.abs(p.skew) > 0.05 ? ` skewX(${p.skew.toFixed(2)}deg)` : '';
+  if (!moved && !sq && !sk) return null;
+  return `translate(${(off.x / unit).toFixed(2)}px, ${(off.y / unit).toFixed(2)}px) rotate(${p.rot.toFixed(2)}deg) scale(${sc.toFixed(4)})${sq}${sk}`;
+}
+
+/**
+ * THE LIFT: an inline z-index on every element from `el` up to (not including) the stage root, so no stacking context
+ * on the way can trap the portrait under the UI. Records each element's own inline value once (the first lift wins, so a
+ * shared ancestor keeps the value it had before ANY lift) for an exact restore.
+ */
+export class ZLift {
+  private readonly saved: { el: HTMLElement; z: string }[] = [];
+  one(el: Element | null | undefined, z: number): void {
+    if (!el || !(el as HTMLElement).style || this.saved.some((s) => s.el === el)) return;
+    const h = el as HTMLElement;
+    this.saved.push({ el: h, z: h.style.zIndex });
+    h.style.zIndex = String(z);
+  }
+  chain(el: Element | null | undefined, z: number, stop: Element | null): void {
+    for (let e = el ?? null; e && e !== stop && e.tagName !== 'BODY' && e.tagName !== 'HTML' && e.id !== 'stage' && e.id !== 'root'; e = e.parentElement) this.one(e, z);
+  }
+  get count(): number { return this.saved.length; }
+  restore(): void {
+    for (let i = this.saved.length - 1; i >= 0; i--) { const s = this.saved[i]!; s.el.style.zIndex = s.z; }
+    this.saved.length = 0;
+  }
 }
 
 /** How each kind of hit is pitched (one clip, varied across the string). */
-const HIT_RATE = { jab: 1.12, cross: 1, kick: 0.86, upper: 0.8, air: 1.04, spike: 0.74, flurry: 1.1, heavy: 0.7 } as const;
+const HIT_RATE = { jab: 1.12, cross: 1, kick: 0.82, counter: 0.9, upper: 0.8, air: 1.04, spike: 0.74, flurry: 1.1, heavy: 0.7 } as const;
 /** The low body layer under each kind of hit: [gain, pitch]. The heavier the hit, the lower and louder. */
-const BODY = { jab: [0.7, 1.15], cross: [0.85, 1], kick: [1, 0.85], upper: [1.1, 0.78], air: [0.75, 1.05], spike: [1.15, 0.7], flurry: [0.5, 1.2], heavy: [1.25, 0.62] } as const;
+const BODY = { jab: [0.7, 1.15], cross: [0.85, 1], kick: [1.15, 0.8], counter: [1.2, 0.8], upper: [1.1, 0.78], air: [0.75, 1.05], spike: [1.15, 0.7], flurry: [0.5, 1.2], heavy: [1.25, 0.62] } as const;
 
 /** Play the Combo attack. Returns a handle; the blow lands via `onImpact` on the impact beat. */
 export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
@@ -104,7 +142,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
   const seed = o.rollSeed ?? comboSeed(o.total, dist, o.side);
-  // `o.total` picks the tier (and, on the smallest blows, how many taps the jab is).
+  // `o.total` picks the tier.
   const plan = comboPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, airHits: airHitsOf(seed, c) }, c);
   const cues = withFormation(fplan, comboCues(plan, c));
   const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
@@ -126,11 +164,11 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   let scene: HeroComboScene | null = null;
   if (textures && !reduced) {
     const cs = counterSize(plan.hits.length, radius, c);
-    // IV only: the striking hero's own portrait art for the cut-in (painted once per image; null = the band alone).
+    // Tier 4 only: the striking hero's own portrait art for the cut-in (painted once per image; null = the band alone).
     const img = plan.kind === 'super' ? (o.attackerEl?.querySelector?.('img') ?? null) : null;
     scene = new HeroComboScene(textures, {
-      spark: hexToNum(c.colorSpark), heavy: hexToNum(c.colorHeavy), flash: hexToNum(c.colorFlash), dust: hexToNum(c.colorDust), side: hexToNum(sideHex),
-    }, { sparkSize: c.sparkSize, face: geo.face, counter: geo.counter, digit: cs.digit, digits: cs.digits, band: geo.band, frameW: vw, frameH: vh },
+      tier: hexToNum(tierColor(plan.tier, c)), flash: hexToNum(c.colorFlash), dust: hexToNum(c.colorDust), side: hexToNum(sideHex),
+    }, { sparkSize: c.sparkSize, face: geo.face, counter: geo.counter, digit: cs.digit, digits: cs.digits, band: geo.band, frameW: vw, frameH: vh, barsH: c.barsH },
     aRadius, radius, s, seed, comboCutinTexture(img));
   }
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -147,12 +185,18 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   const foeInCam = !!(cameraEl && foe.el && cameraEl.contains(foe.el));
   const zClass = o.side === 'opp' ? 'duel-attacker-opp' : 'duel-attacker-player';
   const lift = !reduced && !local && !!hero.el && !!doc;
+  const zlift = new ZLift();
   let lifted = false;
 
   const cue: AttackVoices['cue'] = (clip, gain, rate, opts) => voices.cue(clip, gain, rate, opts);
-  voices.warm([c.sfxStepClip, c.sfxHitClip, c.sfxHeavyClip, c.sfxSuperClip, c.sfxKoClip, c.sfxPunchClip, c.sfxChargeClip, c.sfxBoomClip]);
+  voices.warm([
+    c.sfxStepClip, c.sfxHitClip, c.sfxHeavyClip, c.sfxSuperClip, c.sfxKoClip, c.sfxPunchClip, c.sfxChargeClip, c.sfxBoomClip,
+    c.sfxParryClip, c.sfxStruggleClip, c.sfxDizzyClip, c.sfxVoCounterClip, c.sfxVoKoClip, c.sfxVoPerfectClip,
+  ]);
   const heroAt = (t: number): Pt => { const p = striker(t); return { x: o.attacker.x + p.x, y: o.attacker.y + p.y }; };
+  const foeAt = (t: number): Pt => { const p = target(t); return { x: o.defender.x + p.x, y: o.defender.y + p.y }; };
   const last = plan.hits.length - 1;
+  const callW = Math.min(vw * 0.36, radius * 3.4) * c.calloutSize;
 
   const fire = (q: ComboCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
@@ -161,16 +205,35 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
       case 'charge':
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         cam.start();
-        if (lift && !lifted) { doc!.body.classList.add(zClass); lifted = true; }
+        if (lift && !lifted) {
+          doc!.body.classList.add(zClass);
+          // ON TOP OF ALL THE UI: the target's chain, the striker's one higher, then the FX canvas and the numbers.
+          zlift.chain(foe.el, COMBO_Z.target, null);
+          zlift.chain(hero.el, COMBO_Z.striker, null);
+          if (scene && !o.mount) zlift.one(doc!.querySelector('canvas.pixifx-above'), COMBO_Z.fx);
+          zlift.one(doc!.querySelector('.hblast.hcombo'), COMBO_Z.numbers);
+          lifted = true;
+        }
         break;
       case 'step':
         // The step in: a quick whoosh and dust kicked up behind it.
         cue(c.sfxStepClip, c.sfxStepGain, c.sfxStepRate, { lenMs: 380, fadeMs: 160 });
         scene?.stepDust(o.attacker, geo.stance.x >= o.attacker.x ? 1 : -1);
         break;
+      case 'feint':
+        // Tier 1: the struck portrait lunges first (a whoosh the other way).
+        cue(c.sfxStepClip, c.sfxStepGain * 0.9, c.sfxStepRate * 1.1, { lenMs: 260, fadeMs: 100 });
+        break;
+      case 'parry': {
+        // Tier 1: PARRIED. The clash, a body thud under it, the flash where the lunge met the guard.
+        cue(c.sfxParryClip, c.sfxParryGain, c.sfxParryRate);
+        cue(c.sfxPunchClip, c.sfxPunchGain * 0.55, c.sfxPunchRate * 1.2, { lenMs: 200, fadeMs: 90 });
+        scene?.parry(parryPoint(plan, geo, c, radius, o.defender));
+        break;
+      }
       case 'hit': {
-        // ONE HIT OF THE COMBO (a tick unless it is the impact): its spark at its own height; a low body punch and a
-        // snap on top, both re-pitched by the kind of hit.
+        // ONE HIT OF THE COMBO (a tick unless it is the impact): its live hit effect at its own height; a low body punch
+        // and a snap on top, both re-pitched by the kind of hit.
         const h = plan.hits[q.i]!;
         const at = hitPoint(plan, geo, c, radius, o.defender, h);
         const body = BODY[h.kind];
@@ -191,29 +254,47 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
           cue(c.sfxHitClip, c.sfxHitGain * (0.55 + 0.4 * u), c.sfxHitRate * (0.9 + 0.6 * u), { lenMs: 170, fadeMs: 70 });
           if (q.i % 2 === 0) cue(c.sfxPunchClip, c.sfxPunchGain * body[0] * (0.7 + 0.5 * u), c.sfxPunchRate * (1 + 0.45 * u), { lenMs: 200, fadeMs: 90 });
         } else {
-          const lift = h.kind === 'air' ? 1 + 0.05 * (q.i % 4) : 1;
-          cue(c.sfxPunchClip, c.sfxPunchGain * body[0] * (0.8 + 0.3 * h.power), c.sfxPunchRate * body[1] * lift);
-          cue(c.sfxHitClip, c.sfxHitGain * (0.7 + 0.3 * h.power), c.sfxHitRate * HIT_RATE[h.kind] * lift);
+          const up = h.kind === 'air' ? 1 + 0.05 * (q.i % 4) : 1;
+          cue(c.sfxPunchClip, c.sfxPunchGain * body[0] * (0.8 + 0.3 * h.power), c.sfxPunchRate * body[1] * up);
+          cue(c.sfxHitClip, c.sfxHitGain * (0.7 + 0.3 * h.power), c.sfxHitRate * HIT_RATE[h.kind] * up);
         }
-        scene?.hitSpark(at, h.kind, h.power);
-        if (isLast && plan.kind === 'jab') scene?.drive(at);
+        // The STRIKE TRAILS: Tier 2's every strike (the roundhouse sweeps a long arc), Tier 1's counter (one straight dash).
+        if (scene && (plan.kind === 'string' || h.kind === 'counter')) {
+          const from = heroAt(h.at - 60);
+          const kick = h.kind === 'kick';
+          const start = kick ? { x: from.x, y: from.y + aRadius * 0.7 } : { x: from.x + geo.face * aRadius * 0.4, y: from.y + (h.kind === 'counter' ? 0 : aRadius * 0.05 * (q.i % 2 ? 1 : -1)) };
+          scene.trail(start, at, kick ? -0.55 * geo.face : 0, radius * (kick ? 0.5 : h.kind === 'counter' ? 0.42 : 0.28));
+          cue(c.sfxStepClip, c.sfxStepGain * (kick ? 1 : 0.55), c.sfxStepRate * (kick ? 0.85 : 1.45), { lenMs: kick ? 360 : 200, fadeMs: 90 });
+        }
+        scene?.hitFx(at, h.kind, h.power);
+        if (isLast && plan.kind === 'counter') scene?.drive(at);
         if (h.kind === 'upper') {
           // THE LAUNCHER: a heavy thump under it and the whoosh of the launch.
           cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.75, c.sfxHeavyRate * 1.15, { lenMs: 420, fadeMs: 160 });
           cue(c.sfxStepClip, c.sfxStepGain * 1.1, c.sfxStepRate * 0.8, { lenMs: 420, fadeMs: 180 });
-          { const f = target(t); scene?.launch({ x: o.defender.x + f.x, y: o.defender.y + f.y }); }
+          scene?.launch(foeAt(t));
         }
         if (h.kind === 'spike') {
+          // THE SPIKE: it smashes the "BREAKER?" to bits on the way through.
           cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.8, c.sfxHeavyRate * 1.05, { lenMs: 420, fadeMs: 160 });
           cue(c.sfxStepClip, c.sfxStepGain, c.sfxStepRate * 1.1, { lenMs: 260, fadeMs: 100 });
+          scene?.smash('breaker');
         }
-        if (isLast && plan.kind !== 'launcher') scene?.finisher(at, plan.burst, plan.rings);
+        if (isLast && (plan.kind === 'counter' || plan.kind === 'string')) scene?.finisher(at, plan.burst, plan.rings);
         break;
       }
       case 'jump':
         cue(c.sfxStepClip, c.sfxStepGain * 0.8, c.sfxStepRate * 1.15, { lenMs: 300, fadeMs: 120 });
         scene?.stepDust(geo.stance, geo.face);
         break;
+      case 'struggle': {
+        // Tier 3: the struck portrait STRUGGLES in the air: a rattle, and "BREAKER?" pops over it (it will not get out).
+        cue(c.sfxStruggleClip, c.sfxStruggleGain, c.sfxStruggleRate, { lenMs: Math.max(200, (plan.spikeAt ?? t) - t) / speed, fadeMs: 120 });
+        const f = foeAt(t);
+        const w = callW * 0.9;
+        scene?.callout('breaker', calloutAt({ ...geo, ring: { x: f.x, y: f.y } }, radius, w), w, Math.max(200, (plan.spikeAt ?? t) - t + 400));
+        break;
+      }
       case 'super':
         // THE SUPER FREEZE: the activation flash and whoosh, and a charge that climbs through the whole cut-in and
         // peaks as the band leaves (the flurry's first hit). The cut-in slides across (the HUD paints it).
@@ -238,7 +319,9 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
         // THE BLOW LANDS (once).
         const d = { x: o.defender.x, y: o.defender.y };
         if (plan.kind === 'super') {
-          scene?.heavy(hitPoint(plan, geo, c, radius, o.defender, plan.hits[last]!), plan.burst, plan.rings);
+          const at = hitPoint(plan, geo, c, radius, o.defender, plan.hits[last]!);
+          scene?.impactFrame(at);
+          scene?.heavy(at, plan.burst, plan.rings);
           scene?.screenFlash(c.flashAlpha);
         } else if (plan.kind === 'launcher') {
           // THE SLAM: the heavy thump, a low body punch and a short boom under them.
@@ -248,23 +331,45 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
           scene?.slam(d, plan.burst, plan.rings);
           scene?.screenFlash(c.flashAlpha * 0.6, 150);
           scene?.aftermath(d, 0.7);
-        } else cue(c.sfxHeavyClip, c.sfxHeavyGain * (plan.kind === 'string' ? 0.7 : 0.5), c.sfxHeavyRate * (plan.kind === 'string' ? 1.2 : 1.35), { lenMs: 420, fadeMs: 160 });
+        } else if (plan.kind === 'counter') {
+          // THE COUNTER-HIT: a heavier thump under it, a white blink, and the call.
+          cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.85, c.sfxHeavyRate * 1.2, { lenMs: 420, fadeMs: 160 });
+          cue(c.sfxVoCounterClip, c.sfxVoCounterGain, c.sfxVoCounterRate, { delayMs: 90 / speed });
+          scene?.screenFlash(c.flashAlpha * 0.35, 110);
+          scene?.callout('counter', calloutAt(geo, radius, callW), callW, 650);
+        } else cue(c.sfxHeavyClip, c.sfxHeavyGain * 0.8, c.sfxHeavyRate * 1.2, { lenMs: 420, fadeMs: 160 });
         seq.land();
         break;
       }
       case 'land': {
-        // IV: the blasted target comes down (and bounces once): a thud and dust each time, smaller the second.
+        // Tier 4: the blasted target comes down (and bounces once): a thud and dust each time, smaller the second.
         const k = q.i === 0 ? 1 : 0.55;
         cue(c.sfxPunchClip, c.sfxPunchGain * 0.8 * k, c.sfxPunchRate * (q.i === 0 ? 0.6 : 0.72));
         scene?.aftermath({ x: o.defender.x + geo.launch.x, y: o.defender.y + geo.launch.y }, k);
         break;
       }
       case 'ko':
-        // "K.O." slams in: the sting (an impact and a gong, no voice) over a deep boom.
+        // "K.O." slams in: the sting (an impact and a gong) over a deep boom, and the announcer.
         cue(c.sfxKoClip, c.sfxKoGain, c.sfxKoRate, { tail: 0.2 });
         cue(c.sfxBoomClip, c.sfxBoomGain, c.sfxBoomRate);
+        cue(c.sfxVoKoClip, c.sfxVoKoGain, c.sfxVoKoRate, { delayMs: 120 / speed });
         scene?.ko(geo.ko, geo.koW, c.koHoldMs);
         scene?.screenFlash(c.flashAlpha * 0.4, 140);
+        break;
+      case 'perfect': {
+        // "PERFECT": under K.O., the announcer says it (the attack is called Flawless, after all).
+        // Under K.O., or over it when the counter is in the way.
+        const w = geo.koW * 0.62;
+        const below = geo.ko.y + geo.koW * 0.3;
+        const hitsCounter = Math.abs(geo.ko.x - geo.counter.x) < (w + geo.counterW) / 2 && Math.abs(below - geo.counter.y) < w * 0.14 + geo.counterH / 2;
+        const at = { x: geo.ko.x, y: hitsCounter || below + w * 0.15 > vh ? geo.ko.y - geo.koW * 0.32 : below };
+        cue(c.sfxVoPerfectClip, c.sfxVoPerfectGain, c.sfxVoPerfectRate);
+        cue(c.sfxHitClip, c.sfxHitGain * 0.5, c.sfxHitRate * 1.6, { lenMs: 120, fadeMs: 50 });
+        scene?.callout('perfect', at, w, Math.max(300, (plan.homeAt - t) + 120));
+        break;
+      }
+      case 'dizzy':
+        cue(c.sfxDizzyClip, c.sfxDizzyGain, c.sfxDizzyRate, { lenMs: Math.max(300, (plan.dizzyEnd ?? t) - t + 250) / speed, fadeMs: 300 });
         break;
       default:
         break;
@@ -276,7 +381,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
   const paintStage = (t: number): void => {
     if (plan.reduced) return;
     nums.paintDim(t, plan.chargeAt, plan.stepEnd, plan.impactAt + (plan.kind === 'super' ? 1100 : 300));
-    const cm = comboCameraAt(plan, c, t, geo.face);
+    const cm = comboCameraAt(plan, c, t, geo.face, plan.kind === 'launcher' ? airLift(plan, geo, c, t) / (local ? 1 : s || 1) : 0);
     const unitS = local ? 1 : s;
     const focus = o.defender;
     cam.apply(focus, cm.zoom, cm.x, cm.y, unitS);
@@ -289,14 +394,15 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
       const p = striker(t);
       hero.set(poseCss(place(o.attacker, p, heroInCam), p, p.scale * (heroInCam || !cam.active ? 1 : cm.zoom), heroUnit));
     }
-    if (foe.el) {
-      const p = target(t);
-      foe.set(poseCss(place(o.defender, p, foeInCam), p, p.scale * (foeInCam || !cam.active ? 1 : cm.zoom), foeUnit));
-    }
+    const fp = target(t);
+    if (foe.el) foe.set(poseCss(place(o.defender, fp, foeInCam), fp, fp.scale * (foeInCam || !cam.active ? 1 : cm.zoom), foeUnit));
     if (scene) {
       scene.setCounter(counter(t));
       const cut = comboCutin(plan, c, t);
       scene.setCutin(cut);
+      scene.setBars(comboBars(plan, t));
+      const dz = comboDizzy(plan, t);
+      if (dz.age >= 0) scene.setDizzy({ x: o.defender.x + fp.x, y: o.defender.y + fp.y }, dz.age, dz.alpha); else scene.setDizzy(o.defender, -1, 0);
       // The band's speed lines, while it is across the screen.
       if (cut && cut.slide === 0 && t - lastLine >= 26) { scene.bandLine(); scene.bandLine(); lastLine = t; }
     }
@@ -313,7 +419,7 @@ export function playHeroCombo(o: HeroComboOptions): HeroComboHandle {
       nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck();
       if (hero.el) hero.el.style.opacity = heroOpacity0;
       scene?.hideOwn();
-      if (lifted) { doc!.body.classList.remove(zClass); lifted = false; }
+      if (lifted) { doc!.body.classList.remove(zClass); zlift.restore(); lifted = false; }
     },
     stopVoices: () => voices.stopAll(),
   });

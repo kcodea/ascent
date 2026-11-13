@@ -44,6 +44,7 @@ import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTrigg
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
+import { discoverOptionCount, hazardPayTurnStart, lateBloomerOnUpgrade, loyalCustomerArmed, noteLoyalCustomerBuy, piggyBankCarry } from './set2RunesBasicNeutral';
 import { spellFizzles } from './spellFizzle';
 import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
@@ -319,6 +320,8 @@ export interface OfferBuyPrice {
   tradeInOff: number;
   spiritOff: number;
   giftMinionOff: number;
+  /** Loyal Customer made this buy free (the 4th, 8th, ... minion). */
+  loyalFree: boolean;
 }
 export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean }): OfferBuyPrice {
   // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
@@ -332,20 +335,24 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Foreman Flint: "Your first Dwarf each turn is free." The same override and shared marker.
   const flintFree = ancientTribeFirstFree(s, offer.cardId);
   const freeBuy = ((s.rift === 'freedom' || !!s.questFreeFirstBuy || gorrFree || flintFree) && !s.freeBuyUsedThisTurn) || (s.nextCardFree ?? 0) > 0;
+  // Loyal Customer (Set 2 batch, 2026-11-12): the 4th, 8th, ... minion bought is free. Its OWN override (it spends no
+  // other free-buy marker); a buy already free for another reason leaves it unused (the count still advances).
+  const loyalFree = !freeBuy && loyalCustomerArmed(s) && !CARD_INDEX[offer.cardId]?.spell;
+  const noDiscount = freeBuy || loyalFree;
   // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says (−1 per copy held).
-  const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0;
+  const cadenceOff = !noDiscount ? gateUses(s.cadenceMinionOff) : 0;
   // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
-  const giftMinionOff = freeBuy ? 0 : (s.minionCostOffTurn ?? 0);
+  const giftMinionOff = noDiscount ? 0 : (s.minionCostOffTurn ?? 0);
   // Set 3 Spirits — Festival Treasurer: the next SPIRIT this turn costs less (stacked per Reveler sold, capped).
-  const spiritOff = !freeBuy && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
+  const spiritOff = !noDiscount && defIsTribe(CARD_INDEX[offer.cardId], 'spirit', s) ? (s.spiritDiscount ?? 0) : 0;
   // Rune of Trade-In: an armed per-type discount (from this turn's first sale) knocks 1 off a matching minion
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
-  const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
+  const tradeInOff = !noDiscount && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
   // ANCIENT OF FORTUNE × Drakko: "Shout minions cost 1 Gold less." (floored at 0 with every other discount below).
   // ANCIENT OF FORTUNE × Keshi: "Minions of your Tier cost 1 less." (the same additive channel, floored at 0 below).
   // ANCIENT OF TIME × Gambler: "While Dice is locked, your first minion each turn costs 1 Gold less." (the same channel)
-  const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) + ancientLockedFirstDiscount(s, offer) : 0;
+  const shoutOff = !noDiscount ? ancientShoutDiscount(s, offer.cardId) + ancientTierDiscount(s, offer) + ancientLockedFirstDiscount(s, offer) : 0;
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
   // source above, the Starform's live price included, is capped; the discounts below still apply on top).
   const priced = offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s);
@@ -356,8 +363,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Emerald Warden: a minion of your Shop tier is set to 2 Gold (never raised above its own).
   const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer), ancientSetlistPrice(s, offer.cardId), ancientTierPrice(s, offer)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
-  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
+  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, loyalFree };
 }
 
 /** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
@@ -1928,7 +1935,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // block in `reduce`, keyed off the action), Juggler, Gorr, Keshi, Ayse's Enchanted count, Cadence's
       // spell-discount arming, Fried Circuits — all tick exactly as for a paid buy.
       if (offer.starform) {
-        const { cost: sfCost, freeBuy: sfFree, cadenceOff: sfCad, tradeInOff: sfTi, spiritOff: sfSpirit } = offerBuyPrice(s, offer);
+        const { cost: sfCost, freeBuy: sfFree, cadenceOff: sfCad, tradeInOff: sfTi, spiritOff: sfSpirit, loyalFree: sfLoyal } = offerBuyPrice(s, offer);
         if (s.embers < sfCost) return state;
         const standIn = starformStandIn(s, offer);
         spendGold(s, sfCost);
@@ -1936,6 +1943,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (sfCad) { procRuneId(s, 'rune_cadence'); s.cadenceMinionOff = undefined; }
         if (sfTi) { procRuneId(s, 'rune_trade_in'); s.tradeInTribe = undefined; }
         if (sfFree) s.freeBuyUsedThisTurn = true;
+        noteLoyalCustomerBuy(s, sfLoyal); // Loyal Customer: the Starform is a minion bought
         ancientSpendRobinBonds(s, offer.cardId); // ANCIENT OF BONDS × Robin: a matching buy spends its type's mark
         ancientNoteMinionBuy(s); // ANCIENT OF TIME × Frank: the Starform is a minion bought (one of the first 3)
         ancientTradesBuy(s); // ANCIENT OF FORTUNE × Tradesman: a minion bought gains a free Refresh
@@ -1986,7 +1994,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       // THE price — `offerBuyPrice` is the single source for every price source and discount, shared with the
       // UI's cost coin so the shown price IS the charged price (Doc Bot holds the pair equal).
-      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff } = offerBuyPrice(s, offer);
+      const { cost: buyCost, freeBuy, cadenceOff, tradeInOff, spiritOff, loyalFree } = offerBuyPrice(s, offer);
       if (s.embers < buyCost || s.hand.length >= handCap(s)) return state;
       s.shop.splice(i, 1);
       // ANCIENTS × Frantic Frank (no-ops unless the run has them): DEATH's free buy is spent (the rest of the set goes
@@ -2021,6 +2029,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       }
       if (s.runeCadence) s.cadenceSpellOff = runeStacksOf(s, 'rune_cadence'); // …and buying a minion arms the spell discount (−1 per copy)
       if (freeBuy) s.freeBuyUsedThisTurn = true;
+      noteLoyalCustomerBuy(s, loyalFree); // Loyal Customer (Set 2 batch): count the buy; the free one pulses the badge
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
       if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
@@ -3137,6 +3146,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, wishboneReps(s)); // Wishbone: two
       }
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s); // Late Bloomer (Set 2 batch): 2 Gold + your board +3/+3
       return s;
     }
 
@@ -4030,7 +4040,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const rng = makeRng(s.rngCursor);
         const pool = [...dead];
         const picks: string[] = [];
-        while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+        while (picks.length < discoverOptionCount(s) && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!); // Second Opinion
         s.rngCursor = rng.state();
         s.discover = picks;
         ancientMarkSoulkeeperDiscover(s); // ANCIENTS × Underdweller: this pick is a Soulkeeper minion
@@ -4056,7 +4066,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const rng = makeRng(s.rngCursor);
         const opts = [...pool];
         const picks: string[] = [];
-        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        while (picks.length < discoverOptionCount(s) && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id); // Second Opinion
         s.rngCursor = rng.state();
         // The pick REPLACES the targeted offer rather than landing in hand — see `discoverIntoShopUid`.
         s.discoverIntoShopUid = s.shop[shopIdx]!.uid;
@@ -4980,6 +4990,7 @@ function endRecruitTurn(s: RunState): void {
     });
   }
   advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
+  piggyBankCarry(s); // Piggy Bank (Set 2 batch): the Gold left now opens next turn (no cap)
 }
 
 /**
@@ -5905,6 +5916,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (s.questFlags?.runeBorrowedFlame && result.playerShoutCarry?.borrowedFlameGain) {
     s.runeBorrowedFlame = borrowedFlameValue(s) + result.playerShoutCarry.borrowedFlameGain;
   }
+  // Warm-Up (Set 2 batch, 2026-11-12): the side-wide Pummel tally comes home (its payout already banked live).
+  if (s.questFlags?.runeWarmUp && result.playerShoutCarry?.warmUpDealt !== undefined) s.runeWarmUpDealt = result.playerShoutCarry.warmUpDealt;
   if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
     s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
   }
@@ -6102,6 +6115,8 @@ function advanceCombat(s: RunState): void {
   // Hoarder's Battlecry banks bonus Gold for this turn (consumed now).
   s.embers = s.maxEmbers + (s.maxGoldBonus ?? 0) + boardManaBonus(s) + (s.bonusEmbersNextTurn ?? 0);
   s.bonusEmbersNextTurn = 0;
+  // Hazard Pay (Set 2 batch, 2026-11-12): after a LOST combat, 3 Gold + a free Refresh, as this Shop opens (its own beat).
+  if (s.questFlags?.runeHazardPay && s.lastCombat?.result === 'lose') recordSotBeat(s, runeSource('rune_hazard_pay'), () => hazardPayTurnStart(s, true));
   s.heroReady = true;
   s.heroReady2 = true; // Void's second power recharges on the same clock
   s.heroUsesThisTurn = 0; // Fibbsy's twice-per-turn budget refills
@@ -7873,8 +7888,10 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // tier exactly as a paid upgrade does (the `payCommission` citadel idiom). Reads `hasTier7Access`, so the
       // Tier-7 unlock sitting EARLIER in the same `multi` reward is already in effect and this step can use it.
       const ceiling = hasTier7Access(s) ? 7 : maxTierFor(s.rift);
+      const tierBefore = s.tier;
       for (let i = 0; i < r.by && s.tier < ceiling; i++) s.tier += 1;
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s, s.tier - tierBefore); // Late Bloomer (Set 2 batch): a free upgrade is an upgrade
       break;
     }
     case 'attachmentDeal':
@@ -8803,6 +8820,12 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       if (!held || !hd || hd.spell || hd.ruby) return undefined;
       return { attack: held.attack, health: held.health, copies: runeStacksOf(s, 'rune_held_strength') };
     })(),
+    // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
+    runeShieldWall: f?.runeShieldWall,               // SoC: Taunt minions +4/+6
+    runeShatterproof: f?.runeShatterproof,           // a Ward loss: that minion +5/+5 permanently
+    runeWarmUp: f?.runeWarmUp,                       // side-wide Pummel (150): 2 Gold next turn, once per combat
+    runeWarmUpDealt: f?.runeWarmUp ? s.runeWarmUpDealt ?? 0 : undefined, // ...its lifetime tally (the Pummel carry-over)
+    runeGoldenHandshake: f?.runeGoldenHandshake,     // a combat Gild: your minions +2/+2
   };
 }
 
@@ -8901,6 +8924,7 @@ function payCommissionOnce(s: RunState, c: Commission): void {
     if (s.tier < ceiling) {
       s.tier += 1;
       s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      lateBloomerOnUpgrade(s); // Late Bloomer (Set 2 batch): a free upgrade is an upgrade
     }
     return;
   }
@@ -8978,7 +9002,7 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
         const rng = makeRng(s.rngCursor);
         const opts = [...pool];
         const picks: string[] = [];
-        while (picks.length < 3 && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id);
+        while (picks.length < discoverOptionCount(s) && opts.length > 0) picks.push(opts.splice(rng.int(opts.length), 1)[0]!.id); // Second Opinion
         s.rngCursor = rng.state();
         s.discover = picks;
       }

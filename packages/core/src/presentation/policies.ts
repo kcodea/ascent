@@ -1321,6 +1321,16 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:grantEquipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:equip': { policy: 'ownBeat', family: 'grant' },
   'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
+  'rune:rune_piggy_bank:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // a random minion +1/+3, repeated per unspent Gold (one beat per tick)
+  'rune:rune_hazard_pay:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: 3 Gold + a free Refresh (a Start of Turn beat)
+  'rune:rune_second_opinion:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Discover a minion (with the extra option)
+  'rune:rune_shield_wall:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: Taunt minions +4/+6
+  'rune:rune_shatterproof:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: +5/+5 permanently
+  'rune:rune_warm_up:combat': { policy: 'foldedCue', family: 'combatModifier' }, // side-wide Pummel (150): 2 Gold next turn, once per combat
+  'rune:rune_golden_handshake:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Gild: your minions +2/+2 (both phases)
+  'rune:rune_late_bloomer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Shop upgrade: 2 Gold + your minions +3/+3 (Shop)
+  'rune:rune_loyal_customer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th minion bought is free (Shop)
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

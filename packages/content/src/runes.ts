@@ -2182,6 +2182,93 @@ export const RUNES: RuneDef[] = [
     text: "When you trigger a **Shout**, give your teammate's **left-most** minion **+2/+3**.",
     reward: { kind: 'duosRune', rune: 'pepTalk' },
   },
+  // ── SET 2 RUNE BATCH, BASIC NEUTRAL (owner review 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Set 2 only.
+  //    Shop halves: packages/sim/src/set2RunesBasicNeutral.ts; combat halves: simulate.ts ("SET 2 BASIC NEUTRAL RUNES").
+  //    Numbers: SET2_BASIC_NEUTRAL in @game/core. Rulings: docs/devlog/2026-11-13-set2-runes-basic-neutral.md. ──
+  {
+    // Carry-over (no cap, owner ruling): the Gold left when the turn ends is banked into next turn's opening. The End of
+    // Turn half is the REPEAT form (R-REPEAT-01): the base tick plus one per unspent Gold, a fresh random friendly per tick.
+    id: 'rune_piggy_bank',
+    name: 'Piggy Bank',
+    cost: 2,
+    text: 'All unspent Gold carries over to next turn. **End of Turn:** give a minion **+1/+3**. Repeat for every unspent Gold.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'runePiggyBank' },
+    sets: ['set2'],
+  },
+  {
+    // Paid as the next Shop opens (a Start of Turn beat): 3 Gold and a banked free Refresh, per copy held.
+    id: 'rune_hazard_pay',
+    name: 'Hazard Pay',
+    cost: 0,
+    text: 'After you lose a combat, gain **3 Gold** and a free Refresh.',
+    reward: { kind: 'combatFlag', flag: 'runeHazardPay' },
+    sets: ['set2'],
+  },
+  {
+    // The Discover happens ONCE, when the rune is taken, from the Shop's Tier (owner ruling 2026-11-12), and already offers
+    // the extra option. Every Discover after offers 1 more per copy held (`discoverOptionCount`).
+    id: 'rune_second_opinion',
+    name: 'Second Opinion',
+    cost: 3,
+    text: 'Your **Discovers** offer **1** more option. **Discover** a minion.',
+    reward: { kind: 'discover' },
+    sets: ['set2'],
+  },
+  {
+    // A Start of Combat rune (Twilight repeats it; Combat Prowess replays it in the Shop, permanently there).
+    id: 'rune_shield_wall',
+    name: 'Shield Wall',
+    cost: 2,
+    text: '**Start of Combat:** give your **Taunt** minions **+4/+6**.',
+    reward: { kind: 'combatFlag', flag: 'runeShieldWall' },
+    sets: ['set2'],
+  },
+  {
+    // Every Ward loss, no per-combat limit (owner ruling). Permanent: `permaGain`, carried back at settle.
+    id: 'rune_shatterproof',
+    name: 'Shatterproof',
+    cost: 2,
+    text: 'When a minion of yours loses **Ward**, give it **+5/+5** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeShatterproof' },
+    sets: ['set2'],
+  },
+  {
+    // A SIDE-WIDE Pummel meter over every friendly minion's landed damage, a lifetime tally carried across fights (the
+    // keyword's carry-over rule); the first crossing each fight banks 2 Gold for next turn. Heavy Hand doubles the tally.
+    id: 'rune_warm_up',
+    name: 'Warm-Up',
+    cost: 2,
+    text: '**Pummel (150):** gain **2 Gold** next turn. Counts all your minions. Once per combat.',
+    reward: { kind: 'combatFlag', flag: 'runeWarmUp' },
+    sets: ['set2'],
+  },
+  {
+    // Every Gild (a triple, a Gild effect; in combat Auric Runemaster / Ancient of Time). Shop: permanent; combat: this fight.
+    id: 'rune_golden_handshake',
+    name: 'Golden Handshake',
+    cost: 1,
+    text: 'When you **Gild** a minion, give your minions **+2/+2**.',
+    reward: { kind: 'combatFlag', flag: 'runeGoldenHandshake' },
+    sets: ['set2'],
+  },
+  {
+    // Every Shop Tier step (a paid upgrade and a free one: Summit Passage, a Citadel commission).
+    id: 'rune_late_bloomer',
+    name: 'Late Bloomer',
+    cost: 2,
+    text: 'When you upgrade your Shop, gain **2 Gold** and give your minions **+3/+3**.',
+    reward: { kind: 'combatFlag', flag: 'runeLateBloomer' },
+    sets: ['set2'],
+  },
+  {
+    // A running count of minions bought (the Starform included); the 4th, 8th, … costs 0.
+    id: 'rune_loyal_customer',
+    name: 'Loyal Customer',
+    cost: 3,
+    text: 'Every **4th** minion you buy is free.',
+    reward: { kind: 'combatFlag', flag: 'runeLoyalCustomer' },
+    sets: ['set2'],
+  },
 ];
 
 /**
@@ -5026,6 +5113,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_unity',
   // …and Lasting Words (Set 3 Dragon Epic B, 2026-10-21): a Whisper cast is either permanent or not.
   'rune_lasting_words',
+  // …and Loyal Customer (Set 2 batch, 2026-11-12): a buy is either free or not; a second copy has no second free buy.
+  'rune_loyal_customer',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

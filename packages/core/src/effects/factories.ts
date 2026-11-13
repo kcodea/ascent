@@ -2269,6 +2269,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     target.golden = true;
     ctx.log({ type: 'ascend', target: target.uid, into: target.cardId, gild: true });
     if (def && (def.attack > 0 || def.health > 0)) ctx.buff(target, def.attack, def.health, self.uid);
+    ctx.onGilded?.(target); // Golden Handshake (Set 2 batch): a combat Gild
   },
 
   /** Graverobber (Shout): destroy a random other friendly (its Echo fires as the death resolves), then get

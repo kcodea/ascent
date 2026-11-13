@@ -1640,7 +1640,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' | 'runePiggyBank' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -2085,7 +2085,13 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
-  | 'runeReturnCustomers';
+  | 'runeReturnCustomers'
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 3 Gold + a free Refresh;
+  // shieldWall = Start of Combat, Taunt minions +4/+6; shatterproof = a Ward loss gives that minion +5/+5 permanently;
+  // warmUp = a side-wide Pummel (150) banking 2 Gold next turn, once per combat; goldenHandshake = a Gild gives your
+  // minions +2/+2; lateBloomer = a Shop upgrade gives 2 Gold and your minions +3/+3; loyalCustomer = every 4th minion
+  // bought is free.
+  | 'runeHazardPay' | 'runeShieldWall' | 'runeShatterproof' | 'runeWarmUp' | 'runeGoldenHandshake' | 'runeLateBloomer' | 'runeLoyalCustomer';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2888,6 +2894,19 @@ export interface QuestCombatMods {
    *  minions gain `attack`/`health` — the stats of the left-most non-spell card the run held in hand when the
    *  combat was built. `copies` fires the grant once per rune copy held (default 1). */
   runeHeldStrength?: { attack: number; health: number; copies?: number };
+  // ── Set 2 rune batch, Basic neutral (owner 2026-11-12). Per copy held (`flagCopies`). ──
+  /** Shield Wall: Start of Combat, every living friendly Taunt minion +4/+6 (a combat buff). */
+  runeShieldWall?: boolean;
+  /** Shatterproof: every time a friendly minion loses Ward, it gains +5/+5 PERMANENTLY (`permaGain`). No cap. */
+  runeShatterproof?: boolean;
+  /** Warm-Up: a side-wide Pummel (150) over every friendly minion's landed damage; the first crossing each fight banks
+   *  2 Gold for next turn. */
+  runeWarmUp?: boolean;
+  /** Warm-Up's LIFETIME side-wide tally going into this fight (the Pummel carry-over rule); it comes home as
+   *  `ShoutCarry.warmUpDealt`. */
+  runeWarmUpDealt?: number;
+  /** Golden Handshake: every combat Gild (Auric Runemaster, Ancient of Time) gives this side's minions +2/+2. */
+  runeGoldenHandshake?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -4260,6 +4279,8 @@ export interface ShoutCarry {
   borrowedFlameGain?: number;
   /** Rune of Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
   whispersCast?: number;
+  /** Warm-Up (Set 2 batch, 2026-11-12): the side's lifetime Pummel tally after this fight (settle writes it back). */
+  warmUpDealt?: number;
 }
 
 export interface CombatContext {
@@ -4509,6 +4530,8 @@ export interface CombatContext {
   /** Gravetwin (R-TARGET-06): record a copied Echo on `minion`'s run card, carried back once at settle
    *  (`ShoutCarry.copiedEchoes`). A body with no run card (a token, an enemy snapshot) carries nothing. */
   grantCopiedEcho?(minion: Minion, effects: EffectDef[], name?: string): void;
+  /** Golden Handshake (Set 2 batch, 2026-11-12): a combat effect just Gilded `minion` (Auric Runemaster's Shout). */
+  onGilded?(minion: Minion): void;
   /** The side's shared Reveler value (max 1, run value) — Limelight's combat half. */
   revelerValueFor(side: Side): number;
   /** Gold spent in the Shop turn that just ended (Baby Gastrid). */

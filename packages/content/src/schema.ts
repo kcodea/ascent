@@ -840,7 +840,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 Kobold runes (owner 2026-10-22)
   'runeGoleming', 'runeRedStart', 'runeRoseysGarden',
   // Set 3 Dwarf rune, Epic (owner 2026-10-23)
-  'runeReturnCustomers']);
+  'runeReturnCustomers',
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12)
+  'runeHazardPay', 'runeShieldWall', 'runeShatterproof', 'runeWarmUp', 'runeGoldenHandshake', 'runeLateBloomer', 'runeLoyalCustomer']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -1023,7 +1025,7 @@ z.object({ kind: z.literal('motherlode'), count: z.number().int().positive(), tr
 z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), turns: z.number().int().positive().optional(), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs', 'undeadPlayedAtk', 'attachClingDrones', 'recastFirstSpell', 'grantAles', 'grantAles3', 'quickStudy', 'copyFirstSpell', 'grantRuby', 'grantRuby2', 'demonEatsRightmostShop', 'grantFacetwright', 'lassoing', 'runeAncestralRoar', 'runePiggyBank']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive(), immediate: z.boolean().optional() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

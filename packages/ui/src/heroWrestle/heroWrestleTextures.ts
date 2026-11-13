@@ -13,7 +13,8 @@
  *  - IMPACT: an uneven comic impact star with a dark outline (the elbow's leading star, the clothesline's hit).
  *  - PUFF: a lobed puff of canvas dust, lit from the top left.
  *  - SHADOW: a soft dark disc (what is about to land casts it on the mat).
- *  - NUMBERS and WORDS: the count's 1, 2, 3 and WOO!, SLAM!, WINNER! in heavy gold letters with a dark outline.
+ *  - NUMBERS and WORDS: the count's 1, 2, 3 and WOO!, SLAM!, WINNER!, SPLASH!, BONK! in heavy gold letters with a dark
+ *    outline (the scene dresses each with a glow, and they pop in and drift: painted words, live around them).
  */
 import { CanvasSource, Texture } from 'pixi.js';
 import { heroArcanaTextures } from '../heroArcana/heroArcanaTextures';
@@ -218,7 +219,7 @@ function paintText(text: string, W: number, H: number, fill = 0.66): HTMLCanvasE
 }
 
 /** Every word and number the attack draws (player-facing: short and plain). */
-export const WRESTLE_WORDS = ['WOO!', 'SLAM!', 'WINNER!'] as const;
+export const WRESTLE_WORDS = ['WOO!', 'SLAM!', 'WINNER!', 'SPLASH!', 'BONK!'] as const;
 export const WRESTLE_COUNTS = ['1', '2', '3'] as const;
 
 let cached: HeroWrestleTextures | null = null;
@@ -232,11 +233,11 @@ export function heroWrestleTextures(): HeroWrestleTextures | null {
   const words = WRESTLE_WORDS.map((w) => paintText(w, WORD_W, WORD_H));
   const nums = WRESTLE_COUNTS.map((n) => paintText(n, NUM_PX, NUM_PX, 0.8));
   if (!base || !tube || !mat || !cone || !hand || !arc || !impact || !puff || !shadow || words.some((w) => !w) || nums.some((n) => !n)) return null;
-  const [woo, slam, winner] = words.map((w) => tex(w!));
+  const [woo, slam, winner, splash, bonk] = words.map((w) => tex(w!));
   const [one, two, three] = nums.map((n) => tex(n!));
   cached = {
     ...base, tube: tex(tube), mat: tex(mat), cone: tex(cone), hand: tex(hand), arc: tex(arc), impact: tex(impact), puff: tex(puff), shadow: tex(shadow),
-    wordWoo: woo!, wordSlam: slam!, wordWinner: winner!, num1: one!, num2: two!, num3: three!,
+    wordWoo: woo!, wordSlam: slam!, wordWinner: winner!, wordSplash: splash!, wordBonk: bonk!, num1: one!, num2: two!, num3: three!,
   };
   return cached;
 }

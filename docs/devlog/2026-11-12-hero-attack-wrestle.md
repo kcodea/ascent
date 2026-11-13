@@ -179,3 +179,116 @@ its smack).
 - III and II still happen close to the screen edge when the struck portrait is in a corner.
 - The comic impact star and the red hand print are still painted shapes (kept: this attack is a joke).
 - Sound character is unheard (see above). The crowd bed is one cheering clip re-entered several times in IV.
+
+---
+
+# Third pass (2026-11-13): a comedy act, two moves a tier, the camera, "Watch out!"
+
+The owner's note: "Top Rope - this is a silly one and can be made much more over the top and silly because it's a comedy
+attack animation. go further in every tier to make it funnier and more aggressive. add some camera zooms and pans and
+shakes and more funny wrestling stuff to it like an RKO with someone yelling "watch out watch out watch out!"". Where
+this section and the two above disagree, this one is current. The looks are now called **Tier 1 to Tier 4** in the
+tuner, the hints, the tests and here.
+
+## Two variants a tier
+
+Each tier rolls one of two moves from the stable `rollSeed` (`variantOf`, the same hash shape as Soccer's; a replay
+rolls the same). The tuner's new **Variation** row (under Attack style) forces either: `1` = the chop, the airplane spin
+slam, the elbow drop, the clothesline; `2` = the chair shot, the suplex, the splash, the jumping cutter. A knockout
+plays Tier 4, either variant. Running times below are from the end of the shared formation.
+
+- **Tier 1, the chop:** a huge lean-back wind-up (stretched tall, trembling at the end) while the camera pushes in; the
+  chop; the struck portrait is knocked a step and SPINS like a top (two turns, faked by its width going through zero and
+  negative), then wobbles, with dizzy stars circling its head. The striker flexes. 2.27 s.
+- **Tier 1, the chair shot:** a folding chair drawn in seven lengths of neon light comes up from under the ring, goes
+  overhead (kept below the top of the screen), and comes down on the head: the chair bursts apart into light (its
+  lengths fly out and fade, sparks, a ring), the struck portrait concertinas flat with its feet on the floor, springs
+  up too tall, and wobbles seeing stars; BONK! 2.49 s.
+- **Tier 2, the airplane spin slam:** lifted overhead and spun round three times (both portraits turn; the held one
+  swings round in front and behind), a heave, the slam, two bounces. The striker staggers dizzy, then flexes. 3.46 s.
+- **Tier 2, the suplex:** lifted UPSIDE DOWN over the striker and held there (legs kicking, the striker shaking and
+  sinking), then over the top about the striker's feet onto the mat while the striker falls back into a bridge. 3.54 s.
+- **Tier 3:** a shove flat, then a hop to a TURNBUCKLE of light that rises beside the mat and three hops up it; a TAUNT
+  up there (rocking, flexing, the spotlight on it, the crowd's camera flashes popping along the screen edges); a crouch
+  and a leap with real air (capped below the top of the screen). Variant 1 drops an elbow (rolled flat, the elbow star
+  leading); variant 2 is a SPLASH (a belly flop spread wide and flat) that flattens both, SPLASH!. 4.30 s.
+- **Tier 4, the clothesline:** as before, with the bell rung as the ring stands up, the camera whip-panning after the
+  throw, pushing in on the ropes, whipping back into the clothesline, a higher flip, dizzy stars through the count, and
+  camera flashes on every count and a storm of them on the bell. 5.76 s.
+- **Tier 4, the jumping cutter:** a shove sends the struck portrait reeling into the ring while the striker dashes OFF
+  THE SCREEN through the far ropes; it staggers about dazed (a lolloping figure of eight, swaying, turning to look the
+  wrong way, stars circling) while a voice yells "Watch out! Watch out! Watch out!" over a rising crowd murmur and the
+  camera creeps in on it; on the third shout the camera whip-pans to the edge and the striker LEAPS in from beyond it,
+  stretched long and turning, catches its head and both drop: THE impact (face down on the mat, the striker on its back
+  beside it). Then the cover, 1, 2, 3, the bell, WINNER. 6.67 s. The move's trademark name is not used anywhere on
+  screen or in identifiers (the words test checks it).
+
+The blow still lands exactly once, on the impact of each move; no hit-stop, no slow motion.
+
+## Camera
+
+`wrestleShots` builds a list of framings once per attack (zoom, a look point, how far to pan it toward the middle);
+`wrestleView` eases between them each frame without allocating; `wrestleFrameTransform` turns that into the `#stage`
+translate and CLAMPS it so no edge of the board ever shows (a pan only moves within the zoomed-in margin). The punch and
+the shakes (`wrestleCameraAt`) ride on top; every jolt now also punches the zoom a little. The runner composes them
+through the shared StageCamera (focus at the origin) and folds the same transform into a portrait outside `#stage`,
+exactly as before; the shared camera restores everything on every exit. Tuner: Pan, and the per-tier Push in.
+
+## Squash and stretch, the struck one seeing stars
+
+Squash default 0.14 -> 0.2, and the poses squash and stretch harder (leaps stretch, landings flatten). A portrait pose
+has a new `flip` (its width as it turns on the spot) written outside the rotation with the squash; the CSS caps the
+squash (-0.4 to 0.72) and never lets a turn collapse to nothing. The dizzy stars are five own sprites circling the struck
+portrait's head (`wrestleDizzy`), after every hit and all through the cutter's stagger. The socket shade under the struck
+portrait now also goes off on the Tier 1 chop (it is knocked spinning out of its socket).
+
+## Sound
+
+Six ElevenLabs calls this pass (three text-to-speech takes, three effects), four clips kept:
+
+- `fx/wrestle-watchout` (1.70 s): "Watch out! Watch out! WATCH OUT!". Takes compared by measurement only: Charlie
+  (stability 0.3, style 0.7, speed 1.12: three bursts in 1.5 s, the noisiest spectrum, but each shout quieter than the
+  last), Callum with the same settings (three even bursts at 0, 0.6 and 1.2 s, 1.7 s, the loudest), and Callum at
+  stability 0.2 / style 0.9 (2.0 s, the bursts run together). Kept Callum's first take. Levelled to -20 LUFS.
+- `fx/wrestle-chair` (0.70 s): the steel chair crash (also pitched up and cut short as the clank when it comes up).
+- `fx/wrestle-bigslam` (0.75 s): a body slammed on the canvas with a sub-bass boom, layered under every heavy landing.
+- `fx/wrestle-flashes` (1.70 s): the crowd's camera flashes popping (played with every burst of flashes).
+
+New clips 4.85 s (12.85 s with the earlier eight); the
+phone audio budget test stays green. Louder crowd: cheer 0.5 -> 0.75, woo 0.7 -> 0.85, roar 1.4 -> 1.7, ooh 0.85 ->
+0.95; the roar also plays under the Tier 3 taunt and the cutter. The bell rings as the ring stands up.
+
+Measured from the recorded audio output of the tuner demo in 100 ms windows, after the shared formation (about 2.6 s
+into each recording): Tier 4 clothesline mean -25.2 dB, loudest -19.6, no silent window; the cutter -24.8 / -19.3, one
+near-silent window, the 100 ms just before the leap lands (a first take had three, in the gaps between the shouts, so
+the crowd murmur now runs under the whole stagger and the voice gain went 1.5 -> 1.9); Tier 3 splash -28.5 / -20.4;
+Tier 1 chair -29.8 / -23.6. Soccer Tier 4 in the same session: -32.3 / -25.4. In the cutter recording the three shouts
+show clearly at 0.6 s spacing, about -23 dB each, over a murmur near -30. NOBODY HAS LISTENED to any of it.
+
+## Verified
+
+- `heroWrestle.test.ts` (46 tests): the variant roll (stable, both come up, each forceable, from the runner's
+  `rollSeed`), plans and cue order for all eight moves, the cutter's voice lead, weight, geometry on screen in seven
+  layouts at two sizes for every variant, poses on screen and without jumps (the cutter's dash off and leap in are the
+  exceptions), each move's staging (the spin, the chair and its burst, the airplane spin, the upside-down suplex, the
+  climb and taunt, the leap's air, the cutter's stagger and catch), the turnbuckle / spotlight / elbow star / dizzy stars
+  / ring, the camera (rest at both ends, pushed in on the wind-up and the held beat, the cutter's whip-pan, no board edge
+  ever showing in any layout), the runner (the blow once, every exit restores, both directions, every tier and variant,
+  the sprite cap), the scene (the chair's seven lengths flying apart).
+- Contact sheets of all eight moves with the player striking and both Tier 4 moves with the foe striking, read frame by
+  frame; fixed from them: the chair going off the top of the screen, BONK! hidden in the corner, the climb happening
+  along the top edge (it now hops down to the turnbuckle's foot first), the count's numbers pushed off the top by the
+  zoom, the dizzy stars too small.
+- Frame times, DEV build, headless Chrome at 240 Hz, a machine shared with other builders: Tier 4 both variants both
+  directions, median 4.2 ms (the display interval), 99th percentile 12.5 to 25 ms, worst 37 to 163 ms (the worst in the
+  demo's first frames, before the charge); Baseball Tier 4 measured the same way: 99th 16.7 ms, worst 63 ms. The 6.25 ms
+  bar is NOT proven: measure the production build on a quiet machine.
+
+## Still weak / not done
+
+- Tier 1 happens where the struck portrait stands, usually tucked in a top corner against the HUD: the striker overlaps
+  it and the zoom cannot centre it.
+- The cutter's dash off and leap in are very fast on screen (a cartoon blur, covered by streaks): it may want a longer
+  `exitMs` / `leapMs` on a real screen.
+- The shared tuner's play buttons are still labelled Small / Medium / Huge (shared helper, being renamed elsewhere).
+- The flashes clip repeats a 0.5 s pattern; the voice and every clip are judged from envelopes only.

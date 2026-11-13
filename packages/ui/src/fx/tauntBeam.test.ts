@@ -26,7 +26,7 @@ describe('the Taunt beam', () => {
   it('the shield frame lands a touch BEFORE the tip arrives, and only Taunt leads', () => {
     const arrive = defArrivalMs(JSON.parse(read('./defs/taunt-beam.json')));
     expect(KEYWORD_LAND_LEAD_MS.T).toBeGreaterThan(0);
-    expect(KEYWORD_LAND_LEAD_MS.T!).toBeLessThan(arrive / 2);
+    expect(KEYWORD_LAND_LEAD_MS.T!).toBeLessThan(arrive); // never before the beam has left
     expect(Object.keys(KEYWORD_LAND_LEAD_MS)).toEqual(['T']);
     expect(read('./keywordBeam.ts')).toContain('const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));');
   });
@@ -34,7 +34,7 @@ describe('the Taunt beam', () => {
     const kb = read('./keywordBeam.ts');
     expect(kb).toContain("const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };");
     // ...100 ms ahead of the frame, and still rung at the landing if that timer never ran.
-    expect(kb).toContain('register(window.setTimeout(ringTaunt, (landAt - TAUNT_SOUND_LEAD_MS) / s));');
+    expect(kb).toContain('const ringAt = Math.max(0, landAt - TAUNT_SOUND_LEAD_MS);');
     expect(kb).toContain('export const TAUNT_SOUND_LEAD_MS = 170;');
     const store = read('../store.ts');
     expect(store).toContain("const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);");

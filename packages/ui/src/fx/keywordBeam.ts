@@ -111,7 +111,9 @@ export function launchKeywordBeam(
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
     const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));
-    if (kw === 'T' && landAt > TAUNT_SOUND_LEAD_MS) register(window.setTimeout(ringTaunt, (landAt - TAUNT_SOUND_LEAD_MS) / s));
+    // As far ahead of the frame as the flight allows: on a short beam that is the launch itself.
+    const ringAt = Math.max(0, landAt - TAUNT_SOUND_LEAD_MS);
+    if (kw === 'T' && ringAt < landAt) { if (ringAt <= 0) ringTaunt(); else register(window.setTimeout(ringTaunt, ringAt / s)); }
     if (landAt <= 0) land(); else register(window.setTimeout(land, landAt / s));
   };
   if (launchAt <= 0) launch(); else register(window.setTimeout(launch, launchAt / s));

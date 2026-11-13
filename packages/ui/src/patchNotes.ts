@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-13',
     changes: [
+      { category: 'Systems', text: 'Inspecting a rune in the Compendium now lines the rune and the cards it gives up side by side, centred, with no overlap.' },
       {
         category: 'Balance',
         text: 'Traveling Salesman now offers a Golden minion when it is the only copy you control. It used to leave Golden minions out.',

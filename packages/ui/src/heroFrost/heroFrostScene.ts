@@ -62,7 +62,7 @@ export interface FrostLook {
   encaseSize: number;
 }
 
-/** Hard cap on sprites alive at once (a Tier IV shatter peaks around 450). */
+/** Hard cap on sprites alive at once (a Tier 4 shatter peaks around 450). */
 export const MAX_FROST_SPRITES = 900;
 /** Hard cap on strips alive at once (two per icicle trail, four for the nova). */
 export const MAX_FROST_MESHES = 40;
@@ -528,7 +528,7 @@ export class HeroFrostScene {
   }
 
   /**
-   * THE SHATTER (Tier IV's impact): the encasement bursts outward. A short flash, the rune flaring, three rings (the last
+   * THE SHATTER (Tier 4's impact): the encasement bursts outward. A short flash, the rune flaring, three rings (the last
    * a wide slow cold shockwave), big faceted shards thrown off the whole shell, a crown of ice spikes, snow billows and
    * glitter; the frozen ground starts to thaw.
    */
@@ -561,7 +561,7 @@ export class HeroFrostScene {
     this.fxs('under', this.tex.glow, this.glowC, x, y, { dur: 1400, from: 2.4 * fs, to: 3 * fs, a0: 0.4 });
   }
 
-  /** A tinkling aftershock (IV): a small snowflake flash, a ring and a few shards. */
+  /** A tinkling aftershock (Tier 4): a small snowflake flash, a ring and a few shards. */
   boom(x: number, y: number, size: number): void {
     this.fxs('hot', this.tex.glow, this.colors.core, x, y, { dur: 160, from: 0.5 * size, to: 1.3 * size, a0: 0.8 });
     this.fxs('rim', this.tex.flake, this.colors.core, x, y, { dur: 380, from: 0.3 * size, to: 0.9 * size, a0: 0.9, spin: 0.006 }, this.rnd());

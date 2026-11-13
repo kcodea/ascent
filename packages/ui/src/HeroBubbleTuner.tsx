@@ -8,16 +8,16 @@ import { rareTunerSpec, type RareGlobalSpec, type RareLevelSpec } from './heroAt
 import { TunerPanel } from './TunerPanel';
 
 /**
- * DEV tuner for the BUBBLE POP hero attack (a Rare; owner ask 2026-09-29). Two groups of per-tier dials: Small (shared
- * tiers I-II: one bubble) and Big (III-IV and every knockout: a stream of little ones, then one big bubble with a splash
+ * DEV tuner for the BUBBLE POP hero attack (a Rare; owner ask 2026-09-29). Two groups of per-tier dials: Tier 1 (shared
+ * tiers 1-2: one bubble) and Tier 2 (Tiers 3-4 and every knockout: a stream of little ones, then one big bubble with a splash
  * ring). The Play buttons run the real runner between the two real portraits.
  */
 const GLOBALS: Record<string, RareGlobalSpec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the You / Foe buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Shared damage tier II (6). Small still plays here.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Shared damage tier III (12): from here the bubbles play Big.', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Shared damage tier IV (20). Big (a knockout always plays Big).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Shared damage tier 2 (6). The Tier 1 look still plays here.', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Shared damage tier 3 (12): from here the bubbles play their Tier 2 look.', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Shared damage tier 4 (20). The Tier 2 look (a knockout always plays it).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Blow'],
   heroPuff: ['Puff', '×', 'How much the hero swells as it blows the bubble.', 'Blow'],
   heroPushPx: ['Push', 'px', 'How far the hero nudges toward the target as the bubble leaves.', 'Blow'],
@@ -40,7 +40,7 @@ const GLOBALS: Record<string, RareGlobalSpec> = {
   sfxStretchRate: ['stretch: pitch', '×', 'Pitch of the strain.', 'Sound: stretch'],
   sfxPopGain: ['pop: gain', undefined, 'THE pop.', 'Sound: pop'],
   sfxPopRate: ['pop: pitch', '×', 'Pitch of the pop (higher = smaller, brighter).', 'Sound: pop'],
-  sfxSplashGain: ['splash: gain', undefined, 'Big: the splash under the pop.', 'Sound: splash'],
+  sfxSplashGain: ['splash: gain', undefined, 'Tier 2: the splash under the pop.', 'Sound: splash'],
   sfxSplashRate: ['splash: pitch', '×', 'Pitch of the splash.', 'Sound: splash'],
   sfxDuck: ['duck others', '×', 'Other sound buses dip to this while the bubbles play (1 = no duck).', 'Sound: mix'],
 };
@@ -74,7 +74,7 @@ const built = rareTunerSpec({
   ranges: HERO_BUBBLE_RANGES,
   globals: GLOBALS,
   levels: BUBBLE_LEVELS,
-  levelNames: { small: 'Small (tiers I-II)', big: 'Big (tiers III-IV, knockouts)' },
+  levelNames: { small: 'Tier 1 (shared tiers 1-2)', big: 'Tier 2 (shared tiers 3-4, knockouts)' },
   suffixes: BUBBLE_LEVEL_SUFFIXES,
   levelSpecs: LEVEL_SPECS,
   colors: [
@@ -96,8 +96,8 @@ const built = rareTunerSpec({
   },
   play: (o) => playHeroBubble(o),
   verb: 'blows a bubble at',
-  smallHint: 'Small, one bubble drifts over, engulfs the face and pops.',
-  bigHint: 'Big, a stream of little bubbles, then a big one that pops with a splash ring.',
+  smallHint: 'its Tier 1 look, one bubble drifts over, engulfs the face and pops.',
+  bigHint: 'its Tier 2 look, a stream of little bubbles, then a big one that pops with a splash ring.',
 });
 
 export const SPEC = built.spec;

@@ -13,14 +13,14 @@
  *     the portrait one by one (a roiling ball of live flame over a white-hot heart, casting its light), each hovering on
  *     the side facing the struck hero.
  *  3. HURL. Each fireball draws back a hair, then flies FAST on a slight arc, a comet tail of flame and smoke streaming
- *     behind it: I one; II two (from either side of the hero); III a volley of five, fanned, landing in rhythm.
+ *     behind it: Tier 1 one; Tier 2 two (from either side of the hero); Tier 3 a volley of five, fanned, landing in rhythm.
  *  4. BURST. Each fireball that lands before the last is a tick: it bursts into a billowing ball of fire, embers and
- *     smoke. The LAST one is THE impact (the big `-N`): a bigger explosion. II leaves the struck portrait's rim briefly
- *     alight; III (owner 2026-09-29: "make the 3rd fire tier a bit better") is a richer volley of bigger fireballs, and
+ *     smoke. The LAST one is THE impact (the big `-N`): a bigger explosion. Tier 2 leaves the struck portrait's rim briefly
+ *     alight; Tier 3 (owner 2026-09-29: "make the 3rd fire tier a bit better") is a richer volley of bigger fireballs, and
  *     the struck hero CATCHES: every tick sets more of its rim alight, and the last one FLARES it up (a gout of flame
  *     roaring off the portrait) and leaves it ABLAZE, burning for a beat and dying down to embers and smoke. The
  *     consequence (the damage, Armor, Resolve) lands ONCE, there.
- *  IV. THE METEOR. Three fireballs fly (every one a tick). Then the hero hurls a column of fire into the sky and the
+ *  Tier 4. THE METEOR. Three fireballs fly (every one a tick). Then the hero hurls a column of fire into the sky and the
  *     struck hero is MARKED (owner 2026-09-29: "the meteor slightly slower build up"): the ground under it glows hotter
  *     and hotter, heat rings close in on it and flames lick up round it while a METEOR of fire streaks down from above
  *     the screen onto it. It DETONATES (owner: "a cooler explosion"), in layers: a white-hot flash core, shockwaves, a
@@ -31,8 +31,8 @@
  * No hit-stop or freeze anywhere (owner 2026-09-28: "it looks like lag"): weight comes from the flash, the squash and
  * knockback, the shake, the fire and the sound.
  *
- * TIERS are the shared, owner-approved thresholds (I 1-5, II 6-11, III 12-19, IV 20+). Brisk at Tier I (about 1.3 s
- * after the formation), about 3 s at Tier IV. Reduced motion: no fire, meteor, shake or zoom; the numbers fade and the
+ * TIERS are the shared, owner-approved thresholds (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+). Brisk at Tier 1 (about 1.3 s
+ * after the formation), about 3 s at Tier 4. Reduced motion: no fire, meteor, shake or zoom; the numbers fade and the
  * blow lands.
  *
  * Tuner convention (the Blast's): localStorage in DEV only, values clamped on write and on load; production always
@@ -80,7 +80,7 @@ interface GlobalConfig {
   // Bursts and the blaze
   explodeSize: number;
   blazeSize: number;
-  // The meteor (Tier IV)
+  // The meteor (Tier 4)
   summonMs: number;
   meteorMs: number;
   meteorSize: number;
@@ -141,7 +141,7 @@ type ClipKey = (typeof HERO_FIRE_CLIP_KEYS)[number];
 export type HeroFireStrKey = ColorKey | ClipKey;
 export type HeroFireNumKey = Exclude<keyof HeroFireConfig, HeroFireStrKey>;
 
-/** Tier I .. IV per suffix: the escalation ladder. */
+/** Tier 1 .. 4 per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<FireTierSuffix, [number, number, number, number]> = {
   FormMs: [460, 520, 620, 560],
   Balls: [1, 2, 5, 3],
@@ -445,7 +445,7 @@ export interface FirePlanInput extends AttackTierContext {
 export interface FirePlan {
   reduced: boolean;
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1). */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1). */
   k: number;
   total: number;
   /** The total dives into the hero, fire catches round its rim, the first fireball ignites. */
@@ -454,17 +454,17 @@ export interface FirePlan {
   /** The first fireball leaves. */
   fireAt: number;
   balls: FireballPlan[];
-  /** Tier IV: the meteor follows the fireballs and carries the blow. */
+  /** Tier 4: the meteor follows the fireballs and carries the blow. */
   meteor: boolean;
-  /** Tier IV: the hero hurls a column of fire into the sky (else the impact). */
+  /** Tier 4: the hero hurls a column of fire into the sky (else the impact). */
   summonAt: number;
-  /** Tier IV: the meteor appears above the screen and falls (else the impact). */
+  /** Tier 4: the meteor appears above the screen and falls (else the impact). */
   meteorAt: number;
   /** Fireballs that land BEFORE the impact, sequence ms: the rhythm ticks. */
   hits: number[];
-  /** THE consequence beat: the last fireball bursts (I-III) or the meteor detonates (IV). */
+  /** THE consequence beat: the last fireball bursts (Tiers 1-3) or the meteor detonates (Tier 4). */
   impactAt: number;
-  /** Aftershock bursts round the target (IV). */
+  /** Aftershock bursts round the target (Tier 4). */
   booms: number[];
   endAt: number;
   shakePx: number;
@@ -482,7 +482,7 @@ export interface FirePlan {
 /** The whole Fire attack, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function firePlan(input: FirePlanInput, c: HeroFireConfig = cfg): FirePlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = fireTierDials(tier, c);
   const k = (tier - 1) / 3;
 
@@ -555,7 +555,7 @@ export function fireCues(p: FirePlan): FireCue[] {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.balls.forEach((r, i) => out.push({ at: r.formAt, kind: 'grow', i }));
     p.balls.forEach((r, i) => out.push({ at: r.launchAt, kind: 'fire', i }));
-    // Every fireball but the last lands as a tick (Tier IV: every one; the meteor carries the blow).
+    // Every fireball but the last lands as a tick (Tier 4: every one; the meteor carries the blow).
     p.balls.forEach((r, i) => { if (p.meteor || i < p.balls.length - 1) out.push({ at: r.arriveAt, kind: 'hit', i }); });
     if (p.meteor) {
       out.push({ at: p.summonAt, kind: 'summon', i: 0 });
@@ -680,7 +680,7 @@ export function fireArrivalDir(m: FireballMotion | undefined, a: Pt, d: Pt): Pt 
 
 // ─── the meteor (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
-/** Tier IV's meteor: it streaks from above the top of the screen (on the attacker's side) down onto the struck hero. */
+/** Tier 4's meteor: it streaks from above the top of the screen (on the attacker's side) down onto the struck hero. */
 export interface MeteorMotion {
   from: Pt; to: Pt;
   /** Unit direction of travel. */
@@ -720,7 +720,7 @@ const springAt = (ms: number, hz: number, tau: number): number => (ms < 0 ? 0 : 
 /**
  * The camera at sequence time `t` (px in the space the points are in). A push in on the hero while the fireballs
  * ignite; a small recoil kick on each launch; a kick ALONG the throw on each tick; on THE impact a punch in and a
- * directional shake. Tier IV: the push eases off for the summon (a kick back as the column goes up), a rumble grows as
+ * directional shake. Tier 4: the push eases off for the summon (a kick back as the column goes up), a rumble grows as
  * the meteor falls, and the detonation punches hardest with a shake that rings both ways. Deterministic. Pure.
  */
 export function fireCameraAt(p: FirePlan, c: HeroFireConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
@@ -775,7 +775,7 @@ export function fireCameraAt(p: FirePlan, c: HeroFireConfig, t: number, dir: Pt 
 
 /**
  * Where the camera anchors: the ATTACKER while the fireballs ignite, following the volley in flight, and the DEFENDER
- * from the impact on. Tier IV: back toward the attacker for the summon, then following the meteor down onto the
+ * from the impact on. Tier 4: back toward the attacker for the summon, then following the meteor down onto the
  * target. A zoom anchored on a point keeps that point still. Pure.
  */
 export function fireCameraFocus(p: FirePlan, t: number, a: Pt, d: Pt): Pt {

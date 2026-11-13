@@ -16,16 +16,16 @@ export interface HeroAttackOptions {
   /** THE blow, as the engine decided it. */
   total: number;
   /**
-   * The blow KNOCKS THE STRUCK PLAYER OUT (owner ask 2026-09-29): the attack always plays its Tier IV ("Huge")
+   * The blow KNOCKS THE STRUCK PLAYER OUT (owner ask 2026-09-29): the attack always plays its Tier 4
    * version, whatever `total` is. Read off the engine's state by `heroStrikeKnockout`; every style's plan takes its
    * tier from `attackTier` (`tiers.ts`), which applies it. The number shown and the consequence are unchanged.
    */
   knockout?: boolean;
   /**
-   * Play the attack's KNOCKOUT VARIANT ("Tier V", owner ask 2026-10-02) on this knockout: the Huge version remixed with
+   * Play the attack's KNOCKOUT VARIANT ("Tier 5", owner ask 2026-10-02) on this knockout: the Tier 4 version remixed with
    * one extra beat, the Ancient prismatic accent, a bigger shake, a slow-mo dip and a KO sting. The caller sets it from
    * the attack's RARITY (`knockoutVariantFor` in `knockoutVariant.ts`: Ancient attacks that have a variant). Ignored
-   * without `knockout`, and by any style that has no variant (it simply plays Huge).
+   * without `knockout`, and by any style that has no variant (it simply plays Tier 4).
    */
   knockoutVariant?: boolean;
   /**

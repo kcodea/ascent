@@ -34,13 +34,13 @@ export interface HeroQuakeTextures extends HeroBlastTextures {
   /** A soft bar (feathered across its width): the magma seam and its glow. */
   seamGlow: Texture;
   rocks: Texture[]; dust: Texture; dustRing: Texture; scorch: Texture;
-  /** The hurled boulder (tiers I-III) and the rock shard variants (every eruption's spikes). */
+  /** The hurled boulder (tiers 1-3) and the rock shard variants (every eruption's spikes). */
   boulder: Texture; shards: Texture[];
 }
 
 export interface QuakeColors { core: number; side: number; chasm: number; lip: number; dust: number; rock: number }
 
-/** Hard cap on sprites alive at once (a Tier IV quake peaks around 1100). */
+/** Hard cap on sprites alive at once (a Tier 4 quake peaks around 1100). */
 export const MAX_QUAKE_SPRITES = 1600;
 /** Hard cap on crack meshes (four per crack). */
 export const MAX_QUAKE_MESHES = 320;
@@ -102,7 +102,7 @@ interface Particle {
   streak?: boolean;
 }
 
-/** A hurled boulder (tiers I-III): flies a lob that rises toward screen-up and comes DOWN onto the target. */
+/** A hurled boulder (tiers 1-3): flies a lob that rises toward screen-up and comes DOWN onto the target. */
 interface Boulder {
   s: Sprite; sh: Sprite; glow: Sprite | null; from: Pt; to: Pt; ctrl: Pt; age: number; dur: number; size: number; rot: number; vr: number;
   hot: number; lastX: number; lastY: number; trail: number;
@@ -116,7 +116,7 @@ interface Spike {
 }
 
 /**
- * THE GEYSER (Tier IV; replaced the solid pillar column, owner 2026-09-28: "i dont like the cylinder/cones"): not a
+ * THE GEYSER (Tier 4; replaced the solid pillar column, owner 2026-09-28: "i dont like the cylinder/cones"): not a
  * shape but an EMITTER. While it runs it throws molten streaks up in a tight fan, billows dust, and spits tumbling rock,
  * over a flickering hot core at the ground. Irregular by construction.
  */
@@ -327,7 +327,7 @@ export class HeroQuakeScene {
   }
 
   /**
-   * THE QUAKE: the main crack from the attacker's rim to the defender's, its branches and (Tier III+) parallel
+   * THE QUAKE: the main crack from the attacker's rim to the defender's, its branches and (Tier 3+) parallel
    * fissures. The front runs on `quakeEase` over `travelMs`, starting `age0` ms ago.
    */
   quake(a: Pt, d: Pt, rA: number, rD: number, o: {
@@ -359,7 +359,7 @@ export class HeroQuakeScene {
       const bp = crackPath(root, end, seg * 0.7, o.jag * 1.5, this.rnd, bl * 0.14);
       this.buildCrack(bp, o.width * 0.38, o.magma * 0.8, { kind: 'child', parent: main, rootD, ratio: 0.85 }, (u) => 1 - 0.7 * u, o.openPx * 0.6, 0, 0, false);
     }
-    // FISSURES (Tier III+): long cracks peeling off the main one at a shallow angle, so the ground reads as a torn
+    // FISSURES (Tier 3+): long cracks peeling off the main one at a shallow angle, so the ground reads as a torn
     // NETWORK rather than one line (never parallel rails).
     for (let i = 0; i < o.fissures; i++) {
       const side = i % 2 ? 1 : -1;
@@ -373,7 +373,7 @@ export class HeroQuakeScene {
   }
   }
 
-  /** A starburst of short cracks around a point (the slam, the eruption, the board-splitting slam at Tier IV). */
+  /** A starburst of short cracks around a point (the slam, the eruption, the board-splitting slam at Tier 4). */
   private radial(x: number, y: number, n: number, r0: number, len: [number, number], width: number, magma: number, durMs: number, avoid?: number, linger = 0): void {
     const S = this.scale;
     const off = this.rnd() * Math.PI * 2;
@@ -471,7 +471,7 @@ export class HeroQuakeScene {
     if (o.tier >= 2) this.addFx('air', this.tex.ring, this.colors.side, x, y, { dur: 300, from: 0.5 * size, to: (1.8 + 0.8 * o.k) * size, a0: 0.8 });
     // A starburst of short cracks around the hero.
     if (o.cracks !== false) this.radial(x, y, [2, 3, 5, 6][o.tier - 1] ?? 3, r * 0.9, [r * 0.45, r * (0.9 + 0.5 * o.k)], Math.max(3, o.width * 0.7), o.magma, 130, o.heading);
-    // Tier IV: the slam cracks the WHOLE BOARD.
+    // Tier 4: the slam cracks the WHOLE BOARD.
     if (o.boardCracks > 0) this.radial(x, y, o.boardCracks, r * 1.05, [o.reach * 0.2, o.reach * 0.42], o.width * 0.7, o.magma * 0.85, 360, o.heading);
     // Dust puffs around the rim, staggered so they roll out as one wave.
     const puffs = Math.round((4 + 6 * o.k) * Math.max(0.3, o.dust));
@@ -486,7 +486,7 @@ export class HeroQuakeScene {
     }
   }
 
-  /** A secondary eruption along the crack (Tier III+): a magma flash, a spurt, a ring, dust and a few hot rocks. */
+  /** A secondary eruption along the crack (Tier 3+): a magma flash, a spurt, a ring, dust and a few hot rocks. */
   burst(frac: number, size: number, magma: number): Pt | null {
     const p = this.pointAlong(frac);
     if (!p) return null;
@@ -505,11 +505,11 @@ export class HeroQuakeScene {
   }
 
   /**
-   * HURL A BOULDER (tiers I-III; owner 2026-09-28: "the line animation is over used"): it leaves the attacker's rim and
+   * HURL A BOULDER (tiers 1-3; owner 2026-09-28: "the line animation is over used"): it leaves the attacker's rim and
    * lands on the target's in exactly `durMs` (the plan's beat). The lob lifts toward the TOP of the screen (so it comes
    * down onto the target), each boulder of a volley bowed a little to its own side so they arrive from different angles,
    * with a ceiling so the apex stays in frame. A shadow slides along the ground under it, dust streams behind, and a
-   * hot boulder (III) glows and sheds embers. `age0` = ms already elapsed.
+   * hot boulder (Tier 3) glows and sheds embers. `age0` = ms already elapsed.
    */
   boulder(a: Pt, d: Pt, rA: number, rD: number, o: { durMs: number; size: number; lift: number; side: number; hot: number; age0?: number }): void {
     const S = this.scale;
@@ -593,7 +593,7 @@ export class HeroQuakeScene {
     }
   }
 
-  /** TIER IV's GEYSER at the eruption: an emitter of molten streaks, billowing dust and tumbling rock for `holdMs`. */
+  /** TIER 4's GEYSER at the eruption: an emitter of molten streaks, billowing dust and tumbling rock for `holdMs`. */
   pillar(x: number, y: number, r: number, holdMs: number, eruption: number, rocks: number): void {
     const core = this.take('air', this.tex.glow, this.hot);
     if (!core) return;
@@ -645,7 +645,7 @@ export class HeroQuakeScene {
   erupt(x: number, y: number, r: number, o: {
     tier: number; k: number; flashAlpha: number; width: number; magma: number; rocks: number; dust: number; eruption: number;
     crater: number; craterMs: number; heading: number; rockSize: number;
-    /** A true quake (Tier IV): the ground cracks round the target. Otherwise the boulder bursts spikes out of it. */
+    /** A true quake (Tier 4): the ground cracks round the target. Otherwise the boulder bursts spikes out of it. */
     quake: boolean; spikes: number; spikeHeight: number; spray: number;
   }): void {
     const S = this.scale;
@@ -655,7 +655,7 @@ export class HeroQuakeScene {
     // Short and bright, then gone by the time the damage number has popped.
     this.addFx('air', this.tex.glow, c.core, x, y, { dur: 130, from: portrait * 1.05, to: portrait * 1.35, a0: 0.8 * o.flashAlpha });
     this.addFx('air', this.tex.glow, c.side, x, y, { dur: 340, from: portrait * 1.2, to: portrait * (1.8 + 0.5 * o.k) * E, a0: 0.42 * o.flashAlpha });
-    // Rings: the dust shockwave on the ground and (II+) a hot ring of light.
+    // Rings: the dust shockwave on the ground and (Tier 2+) a hot ring of light.
     this.addFx('dust', this.tex.dustRing, c.dust, x, y, { dur: 600 + 200 * o.k, from: (r * 1.3) / 96, to: (r * (2.8 + 1.4 * o.k) * E) / 96, a0: 0.7 });
     if (o.tier >= 2) this.addFx('air', this.tex.ring, c.side, x, y, { dur: 340, from: (r * 0.9) / 64, to: (r * (1.7 + 0.7 * o.k) * E) / 64, a0: 0.85 });
     // STONE SPIKES burst out round the portrait (every tier), then the magma SPRAY fountains up out of the ground.
@@ -685,7 +685,7 @@ export class HeroQuakeScene {
       const sz = (r / 38) * (0.85 + 0.5 * o.dust) * (0.8 + 0.4 * this.rnd());
       this.puff(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.85, sz, Math.cos(a) * (120 + 80 * o.k), Math.sin(a) * 90 - 30, 900 + 500 * o.k, 20 + i * 10, 0.7, i % 2 ? 0.25 : 0.08);
     }
-    // Embers rising off the eruption (III+).
+    // Embers rising off the eruption (Tier 3+).
     const embers = o.tier >= 4 ? 22 : o.tier >= 3 ? 12 : 0;
     for (let i = 0; i < embers; i++) {
       const a = -Math.PI / 2 + (this.rnd() - 0.5) * 2;
@@ -696,7 +696,7 @@ export class HeroQuakeScene {
         life: 900 + this.rnd() * 800, from: (0.7 + this.rnd() * 0.6) * S, to: 0.1 * S, alpha: 0.95,
       });
     }
-    // The crater (III+): a scorched ring around the portrait and a magma glow ring that lingers, then cools.
+    // The crater (Tier 3+): a scorched ring around the portrait and a magma glow ring that lingers, then cools.
     if (o.crater > 0) {
       const sc = (r * (2.4 + 0.6 * o.k)) / 192;
       this.addFx('scorch', this.tex.scorch, c.chasm, x, y, { dur: o.craterMs, from: sc * 0.8, to: sc, a0: 0.7 * o.crater, alpha: 'hold' });
@@ -707,7 +707,7 @@ export class HeroQuakeScene {
     this.coolAt = this.age;
   }
 
-  /** A follow-up explosion around the target (Tier III+). */
+  /** A follow-up explosion around the target (Tier 3+). */
   boom(x: number, y: number, size: number, magma: number): void {
     this.addFx('air', this.tex.glow, this.colors.core, x, y, { dur: 180, from: 0.7 * size, to: 1.6 * size, a0: 0.9 });
     this.addFx('air', this.tex.glow, this.colors.side, x, y, { dur: 440, from: 1 * size, to: 2.6 * size, a0: 0.65, alpha: 'punch', peakAt: 0.1 });

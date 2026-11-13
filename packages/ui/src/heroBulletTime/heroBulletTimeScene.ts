@@ -9,7 +9,7 @@
  * the slow motion it leaves a TEAR sliced through the air behind it (a white-hot gold slash over a violet rift glow
  * that lingers through the slow motion), and while it crawls, afterimages peel off it and glints run along its edge.
  * The clock over the target sweeps its hand, a spark trailing off its tip. The snap back is hard (a flash, a chromatic
- * burst); the impact is gold and violet, IV the biggest in the roster. Full colour throughout.
+ * burst); the impact is gold and violet, Tier 4 the biggest in the roster. Full colour throughout.
  *
  * Perf: pooled sprites under a hard cap; the darts (at most 64: a body, a glow and one ribbon strip each) and the clock
  * (a face and two hands) are own objects made once and reused; no allocation per frame beyond the pool's own.
@@ -48,7 +48,7 @@ export interface BulletLook {
 
 export type DartPhase = 'hand' | 'fly' | 'crawl' | 'strike' | 'done';
 
-/** Hard cap on sprites alive at once (IV's dome + collapse peak well under it). */
+/** Hard cap on sprites alive at once (Tier 4's dome + collapse peak well under it). */
 export const MAX_BULLET_SPRITES = 900;
 export const MAX_DARTS = 64;
 const GLOW_PX = 128;
@@ -245,14 +245,14 @@ export class HeroBulletTimeScene extends FxPool {
     k.short.position.set(at.x + Math.cos(sa) * sr, at.y + Math.sin(sa) * sr); k.short.scale.set((r * 0.16) / GLYPH_PX); k.short.rotation = -minute; k.short.alpha = 0.9 * a;
   }
 
-  /** A clock flash (III): the big face flares over the target and fades. */
+  /** A clock flash (Tier 3): the big face flares over the target and fades. */
   clockFlash(at: Pt, r: number): void {
     const c = this.colors;
     this.spawn('glow', this.tex.clockFace, c.gold, at.x, at.y, { dur: 480, from: (r * 1.6) / FACE_PX, to: (r * 2.2) / FACE_PX, a0: 0.9, mode: 'punch', peakAt: 0.12, ease: 'cubic' });
     this.spawn('glow', this.tex.glow, c.light, at.x, at.y, { dur: 260, from: (r * 1.2) / GLOW_PX, to: (r * 2.4) / GLOW_PX, a0: 0.6, mode: 'punch', peakAt: 0.1 });
   }
 
-  /** IV's countdown: a big digit slams in over the target and fades as the next comes. */
+  /** Tier 4's countdown: a big digit slams in over the target and fades as the next comes. */
   count(at: Pt, n: 1 | 2 | 3, r: number, ms: number): void {
     const c = this.colors;
     const t = n === 3 ? this.tex.digit3 : n === 2 ? this.tex.digit2 : this.tex.digit1;
@@ -307,7 +307,7 @@ export class HeroBulletTimeScene extends FxPool {
   }
 
   /**
-   * THE impact. I-III: a big gold hit with a violet ring. IV, the dome collapsing: the biggest in the roster: a white
+   * THE impact. Tiers 1-3: a big gold hit with a violet ring. Tier 4, the dome collapsing: the biggest in the roster: a white
    * core, a gold and violet fireball, four shock rings, the clock face blown outward, a storm of sparks and glints.
    */
   impact(at: Pt, dir: Pt, radius: number, tier: number, area: { x: number; y: number; w: number; h: number }): void {
@@ -338,7 +338,7 @@ export class HeroBulletTimeScene extends FxPool {
   }
 
   /**
-   * THE KNOCKOUT's PRISMATIC collapse (on top of IV's impact): cyan, lilac and magenta shockwaves, a prism clock face
+   * THE KNOCKOUT's PRISMATIC collapse (on top of Tier 4's impact): cyan, lilac and magenta shockwaves, a prism clock face
    * blown outward, prism streaks and glints.
    */
   koFlourish(at: Pt, radius: number): void {

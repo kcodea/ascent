@@ -16,14 +16,14 @@
  *     accelerate into the target: one, a volley of two, a barrage of five. The top tier fires ONE colossal beam
  *     instead, which lands (a tick), holds, then DRAINS into the struck hero: the light implodes into it and
  *     detonates in an arcane SUPERNOVA (rays, a triple shockwave, a screen-wide ring). Owner 2026-09-29.
- *  4. IMPACT [directional shake: Vlambeer, Hearthstone Strikes] (at IV, the supernova). The flash starts at its brightest (no hit-stop: the owner
+ *  4. IMPACT [directional shake: Vlambeer, Hearthstone Strikes] (at Tier 4, the supernova). The flash starts at its brightest (no hit-stop: the owner
  *     ruled it out 2026-09-28, "it looks like lag"),
  *     the portrait squashes and is knocked back, the camera punches in on the target and shakes ALONG the line of fire,
  *     chunky sparks fall. THIS is the beat the consequence lands on (the damage number, Armor, Resolve). The big tiers
  *     add secondary explosions, lingering embers and a scorch. Then everything settles.
  *
  * DAMAGE TIERS (Hearthstone's Strikes step up with the blow; our thresholds follow the engine's per-round loss caps of
- * 5 / 10 / 15 / 20): I 1-5, II 6-11, III 12-19, IV 20+. APPROVED by the owner 2026-09-28 ("those are good thresholds,
+ * 5 / 10 / 15 / 20): Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+. APPROVED by the owner 2026-09-28 ("those are good thresholds,
  * this blast animation looks good! make it a legendary reward"): 6 / 12 / 20 are the shipped defaults. Every tier escalates the numbers' flight, the slam, the charge,
  * the volley, the camera, the impact and the audio. Small hits stay brisk (~1.2 s after the formation); the top tier
  * earns a ~2.9 s show (the beam and the supernova). Reduced motion: no flight, bolts, shake or zoom; numbers fade.
@@ -109,9 +109,9 @@ export type HeroBlastStrKey = ColorKey | ClipKey;
 export type HeroBlastNumKey = Exclude<keyof HeroBlastConfig, HeroBlastStrKey>;
 
 /**
- * Tier I .. IV per suffix: the escalation ladder. FOUR distinct steps (owner 2026-09-29, "use the same 4 tier strategy
+ * Tier 1 .. 4 per suffix: the escalation ladder. FOUR distinct steps (owner 2026-09-29, "use the same 4 tier strategy
  * we have been. add a tier to the blast attack so they all have 4"), the way Arcana and Frost ladder:
- * I one bolt; II a two-bolt volley; III a BARRAGE of five fanned bolts; IV the colossal beam, which drains into the
+ * Tier 1 one bolt; Tier 2 a two-bolt volley; Tier 3 a BARRAGE of five fanned bolts; Tier 4 the colossal beam, which drains into the
  * struck hero, implodes and detonates in an arcane SUPERNOVA (the blow lands on the detonation).
  */
 const TIER_DEFAULTS: Record<TierSuffix, [number, number, number, number]> = {
@@ -344,7 +344,7 @@ export interface BlastPlan {
   reduced: boolean;
   /** The damage tier, 1..4. */
   tier: TierNum;
-  /** 0..1 across the tiers (I = 0, IV = 1), for the few things that scale smoothly. */
+  /** 0..1 across the tiers (Tier 1 = 0, Tier 4 = 1), for the few things that scale smoothly. */
   k: number;
   total: number;
   chargeAt: number;
@@ -391,7 +391,7 @@ export function boltTravelMs(distance: number, pxPerSec: number): number {
 /** The whole Blast, in base ms (divide by the playback speed for real time). Pure and deterministic. */
 export function blastPlan(input: BlastPlanInput, c: HeroBlastConfig = cfg): BlastPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays Tier 4 (heroAttack/tiers.ts)
   const T = tierDials(tier, c);
   const k = (tier - 1) / 3;
 

@@ -7,7 +7,7 @@
  * its jag is REGENERATED every `regenMs` from the seeded generator (a live crackle, never a static zigzag), its endpoints
  * pinned. The leader races out first (the far end of the strip collapsed onto the moving head), then the whole bolt
  * flickers and fades. Short side FORKS crackle off it, re-picked with every regeneration. STATIC is the same trick in
- * miniature: little arcs that crawl over a portrait. The Big CLOUD is a handful of normal-blend billows (so it reads as a
+ * miniature: little arcs that crawl over a portrait. The Tier 3 CLOUD is a handful of normal-blend billows (so it reads as a
  * dark cloud on any board) lit from inside by additive glows when it rumbles.
  *
  * LAYERS, bottom to top: haze (normal: the cloud) | glow (additive: bolt glows, blooms, rings, the inner cloud light) |
@@ -47,7 +47,7 @@ export interface StormLook {
   fadeMs: number;
 }
 
-/** Hard cap on sprites alive at once (a Big strike peaks around 120). */
+/** Hard cap on sprites alive at once (a Tier 3 strike peaks around 120). */
 export const MAX_STORM_SPRITES = 500;
 /** Hard cap on strips alive at once. */
 export const MAX_STORM_MESHES = 64;
@@ -333,7 +333,7 @@ export class HeroStormScene {
     this.bolts.push(bolt);
   }
 
-  /** A strike that is only a tick (Medium's first branch): a zap flash and a few sparks. FX only. */
+  /** A strike that is only a tick (Tier 2's first branch): a zap flash and a few sparks. FX only. */
   zap(x: number, y: number, radius: number, sparks: number): void {
     const d = (radius * 2) / 128 / this.scale;
     this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 170, from: d * 0.25, to: d * 0.55, a0: 0.85, follow: true });
@@ -341,7 +341,7 @@ export class HeroStormScene {
     this.sparks(x, y, Math.round(sparks * 0.5), 560, { life: 220 });
   }
 
-  /** THE impact: a hot flash, a ring and a burst of sparks; Big adds a ring of sparks, a shock ring and a screen flash. */
+  /** THE impact: a hot flash, a ring and a burst of sparks; Tier 3 adds a ring of sparks, a shock ring and a screen flash. */
   strike(x: number, y: number, radius: number, o: { level: number; burst: number; sparks: number; flashAlpha: number; screen: number }): void {
     const d = (radius * 2) / 128 / this.scale;
     this.fxs('core', this.tex.glow, this.colors.core, x, y, { dur: 240, from: d * 0.35, to: d * 0.8 * o.burst, a0: o.flashAlpha, follow: true });
@@ -370,7 +370,7 @@ export class HeroStormScene {
     }
   }
 
-  /** Big: the storm cloud gathers over (x, y), its billows sliding in from the sides over `gatherMs`. */
+  /** Tier 3: the storm cloud gathers over (x, y), its billows sliding in from the sides over `gatherMs`. */
   gather(x: number, y: number, r: number, gatherMs: number): void {
     if (this.cloud) return;
     const puffs: Puff[] = [];
@@ -390,7 +390,7 @@ export class HeroStormScene {
     this.cloud = { x, y, r, age: 0, gatherMs: Math.max(1, gatherMs), puffs, lights, flash: 0, breaking: -1, arc: null, arcLife: 0 };
   }
 
-  /** Big: the cloud rumbles: it lights up from inside and a small arc flickers across it. */
+  /** Tier 3: the cloud rumbles: it lights up from inside and a small arc flickers across it. */
   rumble(): void {
     const cl = this.cloud;
     if (!cl) return;

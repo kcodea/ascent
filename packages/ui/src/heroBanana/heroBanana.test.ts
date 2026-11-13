@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * THE BANANA BARRAGE HERO ATTACK (Oona's Banana Cannon; owner 2026-09-29: "i would love a king oona banana cannon
- * animation", then "use oona's animation as a guideline. improve this dramatically", then for Tier IV "it lands on the
+ * animation", then "use oona's animation as a guideline. improve this dramatically", then for Tier 4 "it lands on the
  * hero and then we slam our fist into it 4 times"): the tier mapping SHARED with every style; the ladder (1 / 2 / a
  * barrage of 8 / four warm-ups, the giant lands, four slams); Oona's painted art and clips; the tuner (defaults,
  * clamping, the jam's dials, the button row on top, no Speed / Reduced rows); the pure plan (the impact beat, the jam,
@@ -50,7 +50,7 @@ const regular = (p: ReturnType<typeof plan>) => p.shots.filter((s) => !s.giant);
 const isRed = (t: number): boolean => { const r = (t >> 16) & 0xff, g = (t >> 8) & 0xff, b = t & 0xff; return r > 120 && g < r * 0.3 && b < r * 0.3; };
 
 describe('the damage tiers (shared with every style)', () => {
-  it('the bananas step up on exactly the blows Blast does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('the bananas step up on exactly the blows Blast does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -59,7 +59,7 @@ describe('the damage tiers (shared with every style)', () => {
     }
   });
 
-  it('the ladder: I ONE banana, II a DOUBLE, III a BARRAGE of eight, IV four warm-ups, then the GIANT lands and is jammed in SIX times', () => {
+  it('the ladder: Tier 1 ONE banana, Tier 2 a DOUBLE, Tier 3 a BARRAGE of eight, Tier 4 four warm-ups, then the GIANT lands and is jammed in SIX times', () => {
     expect([P1, P2, P3, P4].map((p) => regular(p).length)).toEqual([1, 2, 8, 4]);
     expect([P1, P2, P3, P4].map((p) => p.giant)).toEqual([false, false, false, true]);
     expect(P4.shots[P4.shots.length - 1]!.giant).toBe(true);
@@ -137,7 +137,7 @@ describe('the tuner values', () => {
     expect(DEV_HERO_ATTACK_CHOICES).toContain('banana');
     expect(SPEC.buttonsOnTop).toBe(true);
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe huge (40)']) expect(labels).toContain(l);
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 4 (40)']) expect(labels).toContain(l);
     for (const l of labels) expect(l).not.toMatch(/speed|reduced/i);
     expect(SPEC.controls.map((c) => `${c.key} ${c.label}`).join(' ')).not.toMatch(/hit-?stop|freeze/i);
   });
@@ -157,7 +157,7 @@ describe('the plan', () => {
     for (const k of ['glint', 'hang', 'land', 'dash', 'slam']) expect(kinds).not.toContain(k);
   });
 
-  it('Tier II is a double (one tick, then the impact); Tier I one banana, straight to the impact', () => {
+  it('Tier 2 is a double (one tick, then the impact); Tier 1 one banana, straight to the impact', () => {
     expect(P2.shots[1]!.fireAt - P2.shots[0]!.fireAt).toBeLessThanOrEqual(300);
     expect(P2.hits).toHaveLength(1);
     expect(P2.impactAt).toBe(P2.shots[1]!.arriveAt);
@@ -166,7 +166,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.shots[0]!.arriveAt);
   });
 
-  it('Tier IV (the jam): warm-ups, the blaze, the giant flies, hangs, LANDS, the hero dashes, slams 1-5 are ticks and slam 6 IS the impact', () => {
+  it('Tier 4 (the jam): warm-ups, the blaze, the giant flies, hangs, LANDS, the hero dashes, slams 1-5 are ticks and slam 6 IS the impact', () => {
     const kinds = bananaCues(P4).map((q) => q.kind);
     const g = P4.shots[P4.shots.length - 1]!;
     expect(kinds.filter((k) => k === 'impact')).toHaveLength(1);
@@ -214,7 +214,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [340, 1000, 1596], [360, 1222, 1838], [400, 1687, 2343], TIMELINE_IV,
     ]);
-    // Chunky, not rushed: Tier I about 1.5 s; the Tier IV showpiece (six slow, building slams) under 7.5 s.
+    // Chunky, not rushed: Tier 1 about 1.5 s; the Tier 4 showpiece (six slow, building slams) under 7.5 s.
     expect(t(P1)[2]).toBeLessThanOrEqual(2000);
     expect(t(P4)[2]).toBeLessThanOrEqual(7500);
   });
@@ -302,7 +302,7 @@ describe('the banana paths', () => {
     for (const m of shots) expect(Math.hypot(m.b.x - D.x, m.b.y - D.y)).toBeLessThanOrEqual(R * 0.4);
   });
 
-  it('Tier IV: the giant HANGS in view (its apex held below the top of the screen), then LANDS as a stake on the rim toward the thrower', () => {
+  it('Tier 4: the giant HANGS in view (its apex held below the top of the screen), then LANDS as a stake on the rim toward the thrower', () => {
     const rig = bananaRig(P4, A, D, R, R, C, 36, null, C.giantHangY, 300);
     const g = rig.shots[rig.shots.length - 1]!;
     expect(g.giant).toBe(true);
@@ -429,7 +429,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.8);
   });
 
-  it('Tier IV eases OUT as the giant climbs, PUSHES IN over the finisher wind-up, and the finisher punches hardest', () => {
+  it('Tier 4 eases OUT as the giant climbs, PUSHES IN over the finisher wind-up, and the finisher punches hardest', () => {
     const g = P4.shots[P4.shots.length - 1]!;
     expect(bananaCameraAt(P4, C, P4.hangAt).zoom).toBeLessThan(bananaCameraAt(P4, C, g.fireAt - 5).zoom);
     const s4 = P4.slams[4]!;
@@ -515,7 +515,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, extra juice bursts from slam 4, no blood), and the blow lands ONCE on the FINISHER', () => {
+  it('Tier 4 THE JAM: the giant lands as a stake, the striking PORTRAIT dashes over and drives it in SIX times (on top of it, deeper and flatter each slam, extra juice bursts from slam 4, no blood), and the blow lands ONCE on the FINISHER', () => {
     // A painted-size sheet (1024 px, 4 x 4), so the stake's crop is the real one.
     const sheet = sliceSheet(new Texture({ source: new TextureSource({ width: 1024, height: 1024 }) }));
     const { h, f, onImpact, attackerEl, defenderEl } = run({ total: 40, formation: formationOf([40], 40), textures: { ...TEX, banana: sheet } });
@@ -719,7 +719,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV (warm-ups, blaze, giant, land, four slams, finale) stays in the cap and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 (warm-ups, blaze, giant, land, four slams, finale) stays in the cap and drains; destroy leaves nothing', () => {
     const s = new HeroBananaScene(TEX, COLORS, LOOK, 1, 42);
     const rig = bananaRig(P4, A, D, R, R, C);
     const jg = jamGeo(A, D, R, R, 330, 6, C);

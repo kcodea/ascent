@@ -5,7 +5,7 @@
  *
  * OWN OBJECTS (one each, positioned by the runner every frame from the pure paths, hidden the moment they are not needed
  * and on every exit): the BALL (spinning, lifted off its shadow), its SHADOW on the ground, the BAT (pivoting at the
- * handle), and III's growing TARGET SHADOW on the pitcher.
+ * handle), and Tier 3's growing TARGET SHADOW on the pitcher.
  *
  * FIRE-AND-FORGET (pooled, under a hard cap): the ball's trail, the glove pop, the pitch's dust kick, the CRACK, every
  * BONK, the hop's dirt, the moonshot's twinkle and its crater, the bean's stars, the fumes, the bat's clatter, the charge's
@@ -47,7 +47,7 @@ export interface BaseballLook {
   frameH?: number;
 }
 
-/** Hard cap on pooled sprites alive at once (a Tier IV brawl peaks near 200). The own objects are outside the pool. */
+/** Hard cap on pooled sprites alive at once (a Tier 4 brawl peaks near 200). The own objects are outside the pool. */
 export const MAX_BASEBALL_SPRITES = 320;
 const RING_PX = 160;
 const GLOW_PX = 128;
@@ -132,7 +132,7 @@ export class HeroBaseballScene extends FxPool {
     this.refresh();
   }
 
-  /** III: the falling ball's shadow growing on the pitcher (`k` 0..1; 0 hides it). */
+  /** Tier 3: the falling ball's shadow growing on the pitcher (`k` 0..1; 0 hides it). */
   setTargetShadow(at: Pt, k: number): void {
     if (this.destroyed) return;
     const s = this.targetShadow;
@@ -226,7 +226,7 @@ export class HeroBaseballScene extends FxPool {
     if (o.word) this.word(o.word, at, b, (this.rnd() - 0.5) * 0.3);
   }
 
-  /** II (the grounder): the one hop kicks up a spray of dirt. */
+  /** Tier 2 (the grounder): the one hop kicks up a spray of dirt. */
   hopDust(at: Pt): void {
     const S = this.scale;
     const r = this.aR * 0.5;
@@ -239,13 +239,13 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** III: the moonshot twinkles off the top of the screen. */
+  /** Tier 3: the moonshot twinkles off the top of the screen. */
   twinkle(at: Pt): void {
     this.spawn('core', this.tex.star, 0xffffff, at.x, at.y, { dur: 420, from: 0.3, to: 1.4, a0: 1, mode: 'punch', peakAt: 0.3, rot: 0.5, spin: 0.004 });
     this.spawn('core', this.tex.star, this.colors.pow, at.x, at.y, { dur: 520, from: 0.2, to: 0.9, a0: 0.7, mode: 'punch', peakAt: 0.4, rot: 0, spin: -0.003 });
   }
 
-  /** III: the moonshot CRATERS the pitcher. A huge hit, a ring of dirt thrown out, fireworks and HOME RUN. */
+  /** Tier 3: the moonshot CRATERS the pitcher. A huge hit, a ring of dirt thrown out, fireworks and HOME RUN. */
   crater(at: Pt, dir: Pt, k: number, rings: number): void {
     const S = this.scale;
     const c = this.colors;
@@ -271,7 +271,7 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** IV: the BEAN on the batter. A smaller BONK, a ring of dizzy stars. */
+  /** Tier 4: the BEAN on the batter. A smaller BONK, a ring of dizzy stars. */
   bean(at: Pt, dir: Pt): void {
     this.bonk(at, dir, 0.9, { rings: 1, word: 'bonk', r: this.aR });
     const S = this.scale;
@@ -283,7 +283,7 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** IV: the batter FUMES (steam puffs rising off the top of the portrait). */
+  /** Tier 4: the batter FUMES (steam puffs rising off the top of the portrait). */
   fume(at: Pt): void {
     const S = this.scale;
     const r = this.aR;
@@ -294,7 +294,7 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** IV: the bat SLAMMED down clatters (dust). */
+  /** Tier 4: the bat SLAMMED down clatters (dust). */
   clatter(at: Pt): void {
     const S = this.scale;
     const r = this.aR * 0.6;
@@ -302,7 +302,7 @@ export class HeroBaseballScene extends FxPool {
     this.burst('body', this.tex.puff, [this.colors.dust], at.x, at.y, 5, { speed: 160, life: 380, size: (r * 0.4) / PUFF_PX / S, drag: 0.12, to: 1.6 });
   }
 
-  /** IV: the charge's dust at the feet, and speed lines behind it. */
+  /** Tier 4: the charge's dust at the feet, and speed lines behind it. */
   chargeDust(at: Pt, from: Pt, r: number): void {
     const S = this.scale;
     const dx = at.x - from.x, dy = at.y - from.y;
@@ -316,7 +316,7 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** IV: one puff of the BRAWL CLOUD (the runner keeps it boiling while the brawl lasts). `k` scales it. */
+  /** Tier 4: one puff of the BRAWL CLOUD (the runner keeps it boiling while the brawl lasts). `k` scales it. */
   cloudPuff(at: Pt, k: number): void {
     if (k <= 0) return;
     const S = this.scale;
@@ -332,7 +332,7 @@ export class HeroBaseballScene extends FxPool {
     });
   }
 
-  /** IV: the brawl cloud BURSTS onto the scene at the collision (a ring of puffs at once). */
+  /** Tier 4: the brawl cloud BURSTS onto the scene at the collision (a ring of puffs at once). */
   cloudBurst(at: Pt, k: number): void {
     for (let i = 0; i < Math.round(14 * k); i++) this.cloudPuff(at, k);
     const S = this.scale;
@@ -340,7 +340,7 @@ export class HeroBaseballScene extends FxPool {
     this.spawn('glow', this.tex.ring, 0xffffff, at.x, at.y, { dur: 300, from: (R * 0.5) / RING_PX / S, to: (R * 2.6) / RING_PX / S, a0: 0.6, ease: 'cubic' });
   }
 
-  /** IV: THE BENCHES CLEAR: streaks of dust rushing in from both edges of the screen at the cloud. */
+  /** Tier 4: THE BENCHES CLEAR: streaks of dust rushing in from both edges of the screen at the cloud. */
   benchRush(at: Pt, width: number, k: number): void {
     if (k <= 0) return;
     const S = this.scale;
@@ -357,7 +357,7 @@ export class HeroBaseballScene extends FxPool {
     }
   }
 
-  /** IV: one comic HIT in the brawl, at a spot on the cloud's edge: a kapow burst, a word, stars and sparks. */
+  /** Tier 4: one comic HIT in the brawl, at a spot on the cloud's edge: a kapow burst, a word, stars and sparks. */
   brawlHit(at: Pt, i: number, k: number): void {
     const S = this.scale;
     const c = this.colors;
@@ -371,7 +371,7 @@ export class HeroBaseballScene extends FxPool {
     this.word(words[i % words.length]!, at, 0.55 * k, rot, 340);
   }
 
-  /** IV: THE KNOCKOUT. The cloud blown apart, a huge hit, rings, a storm of stars, YER OUT! */
+  /** Tier 4: THE KNOCKOUT. The cloud blown apart, a huge hit, rings, a storm of stars, YER OUT! */
   ko(at: Pt, cloud: Pt, dir: Pt, k: number, rings: number): void {
     const S = this.scale;
     const R = (this.aR + this.dR) * 0.5;

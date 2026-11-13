@@ -1,6 +1,6 @@
 /**
  * THE STAMPEDE RUNNER: plays one beast chomp rush hero attack (the beats are in `heroBeastConfig.ts`) and lands the
- * consequence on its impact beat (the last chomp, or Tier IV's colossal jaws slamming shut). Presentation only: the
+ * consequence on its impact beat (the last chomp, or Tier 4's colossal jaws slamming shut). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on
  * screen they happen.
  *
@@ -9,8 +9,8 @@
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is the Stampede's
  * own: the leaps, the pack rhythm, the chomp, the colossus, its camera and its sound.
  *
- * THE PACK CONTRACT: every chomp before the last is a tick (FX and sound only; at Tier IV every chomp is). The
- * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last chomp (Tier IV: on the slam).
+ * THE PACK CONTRACT: every chomp before the last is a tick (FX and sound only; at Tier 4 every chomp is). The
+ * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last chomp (Tier 4: on the slam).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
  * the opening measure; Pixi sprites and strips are pooled per layer, textures painted once per session and pre-warmed
@@ -82,7 +82,7 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
   const last = motions[motions.length - 1];
   // The direction the blow ARRIVES from (the last beast's heading): the knockback follows it.
   const dir = arrivalDir(last, o.attacker, o.defender);
-  // Tier IV's room round the target (the view is measured once, here, never per frame): the colossal jaw on a
+  // Tier 4's room round the target (the view is measured once, here, never per frame): the colossal jaw on a
   // side with little room comes in from just off that edge instead of far outside it, so a hero in a corner is still
   // framed by fangs.
   const room = (() => {
@@ -136,7 +136,7 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
         cue(c.sfxGrowlClip, c.sfxGrowlGain, c.sfxGrowlRate, { lenMs: 1100, fadeMs: 320 });
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.startCharge(o.attacker.x, o.attacker.y, aRadius, plan.launchAt - plan.chargeAt, n, 8 + 4 * plan.tier);
-        // The pack's hooves: a rumble under the stampede (III and IV), building to the last bite.
+        // The pack's hooves: a rumble under the stampede (Tiers 3 and 4), building to the last bite.
         if (plan.dust && n) {
           const lastIn = Math.max(...plan.beasts.map((b) => b.arriveAt));
           rumble(c.sfxRumbleGain, Math.max(60, lastIn - plan.chargeAt), 60, 380);
@@ -144,7 +144,7 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
         cam.start();
         break;
       case 'launch': {
-        // A beast bursts off: the rush of air (a little higher per beast); a snarl on the first (every one at I and II).
+        // A beast bursts off: the rush of air (a little higher per beast); a snarl on the first (every one at Tiers 1 and 2).
         const m = motions[q.i];
         const lastOne = q.i === n - 1;
         cue(c.sfxRushClip, c.sfxRushGain * (lastOne ? 1 : 0.8), c.sfxRushRate + 0.04 * q.i, { lenMs: c.sfxRushLenMs, fadeMs: 140 });
@@ -174,7 +174,7 @@ export function playHeroBeast(o: HeroBeastOptions): HeroBeastHandle {
           cue(c.sfxBigClip, c.sfxBigGain * 1.2, c.sfxBigRate - 0.1, { lenMs: 900, fadeMs: 300 });
           scene?.slam(o.defender.x, o.defender.y, radius, { burst: plan.burst, sparks: plan.sparks, flashAlpha: c.flashAlpha });
         } else {
-          // THE LAST CHOMP: the snap, the crunch, the impact (bigger per tier), and a heavy crack at III.
+          // THE LAST CHOMP: the snap, the crunch, the impact (bigger per tier), and a heavy crack at Tier 3.
           cue(c.sfxSnapClip, c.sfxSnapGain, c.sfxSnapRate + 0.05 * chompStep - 0.04 * (plan.tier - 1), { startMs: 440, lenMs: 240, fadeMs: 110 });
           cue(c.sfxCrunchClip, c.sfxCrunchGain, c.sfxCrunchRate - 0.03 * (plan.tier - 1), { lenMs: 450, fadeMs: 180 });
           cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 300 });

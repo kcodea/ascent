@@ -12,7 +12,7 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 
 /**
  * DEV tuner for the CARD SHARK hero attack (an Epic; owner ask 2026-09-29: "build 5 animations that range from rare ->
- * epic ... rare and epics should only have 2 or 3 tiers"). Three looks: Small (one card), Medium (three of a kind), Big
+ * epic ... rare and epics should only have 2 or 3 tiers"). Three looks: Tier 1 (one card), Tier 2 (three of a kind), Tier 3
  * (the royal flush). The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in
  * either direction. A preview never touches the run. The "Attack style" row is the same dev override as the other
  * attack tuners' (Auto = what a player would see). Production plays the baked defaults.
@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroCardsNumKey, `v${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Medium from', undefined, 'Damage at which the shared Tier II starts (Card Shark plays Medium from here). Shared with every style (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'The shared Tier III (still Medium for an Epic). Shared (12).', 'Damage tiers'],
-  tier4At: ['Big from', undefined, 'Damage at which the shared Tier IV starts: the royal flush. Shared (20). A knockout always plays it.', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which the shared Tier 2 starts (Card Shark plays its Tier 2 look from here). Shared with every style (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'The shared Tier 3 (still the Tier 2 look for an Epic). Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which the shared Tier 4 starts: the royal flush. Shared (20). A knockout always plays it.', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total sinking into the hero.', 'Ready'],
   heroCoilPx: ['Lean back', 'px', 'How far the hero leans back from the target as it readies.', 'Ready'],
   heroFlickPx: ['Throw flick', 'px', 'How far the hero flicks toward the target on each throw.', 'Ready'],
@@ -36,18 +36,18 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   ghostAlpha: ['Spin ghosts', 'opacity', 'The faint copies trailing a spinning card (0 = none).', 'Cards'],
   embed: ['Stick depth', '×', 'How much of the card sinks past the point it hits (edge first).', 'Cards'],
   quiver: ['Quiver', undefined, 'How hard a stuck card quivers (radians).', 'Cards'],
-  stickHoldMs: ['Stick hold', 'ms', 'Small and Medium: how long the cards stay stuck before they fall away.', 'Cards'],
-  dealMs: ['Deal time', 'ms', 'Big: one card flying from the hero into the fanned hand.', 'Royal flush (Big)'],
-  dealStaggerMs: ['Deal stagger', 'ms', 'Big: the gap between cards being dealt.', 'Royal flush (Big)'],
-  flipMs: ['Flip time', 'ms', 'Big: one card turning face up.', 'Royal flush (Big)'],
-  flipStaggerMs: ['Flip stagger', 'ms', 'Big: the gap between flips (the reveal rolls left to right).', 'Royal flush (Big)'],
-  goldMs: ['Gold reveal', 'ms', 'Big: the faces turning to gold, the shine sweeping across.', 'Royal flush (Big)'],
-  holdMs: ['Hold', 'ms', 'Big: the golden hand held up a beat before it fires.', 'Royal flush (Big)'],
-  fanSize: ['Hand size', '×', 'Big: how big the fanned hand is compared to a thrown card.', 'Royal flush (Big)'],
-  fanReach: ['Hand reach', '×', 'Big: how far in front of the hero the hand fans out (portrait radii).', 'Royal flush (Big)'],
-  fanSpread: ['Fan spread', '°', 'Big: the angle between neighbouring cards in the hand.', 'Royal flush (Big)'],
-  confetti: ['Confetti', undefined, 'Big: card confetti pieces per card in the burst.', 'Royal flush (Big)'],
-  confettiGravity: ['Confetti gravity', undefined, 'px/s². How fast the confetti falls.', 'Royal flush (Big)'],
+  stickHoldMs: ['Stick hold', 'ms', 'Tier 1 and Tier 2: how long the cards stay stuck before they fall away.', 'Cards'],
+  dealMs: ['Deal time', 'ms', 'Tier 3: one card flying from the hero into the fanned hand.', 'Royal flush (Tier 3)'],
+  dealStaggerMs: ['Deal stagger', 'ms', 'Tier 3: the gap between cards being dealt.', 'Royal flush (Tier 3)'],
+  flipMs: ['Flip time', 'ms', 'Tier 3: one card turning face up.', 'Royal flush (Tier 3)'],
+  flipStaggerMs: ['Flip stagger', 'ms', 'Tier 3: the gap between flips (the reveal rolls left to right).', 'Royal flush (Tier 3)'],
+  goldMs: ['Gold reveal', 'ms', 'Tier 3: the faces turning to gold, the shine sweeping across.', 'Royal flush (Tier 3)'],
+  holdMs: ['Hold', 'ms', 'Tier 3: the golden hand held up a beat before it fires.', 'Royal flush (Tier 3)'],
+  fanSize: ['Hand size', '×', 'Tier 3: how big the fanned hand is compared to a thrown card.', 'Royal flush (Tier 3)'],
+  fanReach: ['Hand reach', '×', 'Tier 3: how far in front of the hero the hand fans out (portrait radii).', 'Royal flush (Tier 3)'],
+  fanSpread: ['Fan spread', '°', 'Tier 3: the angle between neighbouring cards in the hand.', 'Royal flush (Tier 3)'],
+  confetti: ['Confetti', undefined, 'Tier 3: card confetti pieces per card in the burst.', 'Royal flush (Tier 3)'],
+  confettiGravity: ['Confetti gravity', undefined, 'px/s². How fast the confetti falls.', 'Royal flush (Tier 3)'],
   flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Camera and portraits'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
@@ -66,17 +66,17 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxPunchRate: ['punch: pitch', '×', 'Pitch of the punch.', 'Sound: punch'],
   sfxImpactGain: ['impact: gain', undefined, 'THE impact: the last card, or under the flush burst.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
-  sfxBigGain: ['big hit: gain', undefined, 'Medium and Big: an extra crack on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tier 2 and Tier 3: an extra crack on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxDealGain: ['deal: gain', undefined, 'Big: each card dealt into the hand.', 'Sound: deal'],
+  sfxDealGain: ['deal: gain', undefined, 'Tier 3: each card dealt into the hand.', 'Sound: deal'],
   sfxDealRate: ['deal: pitch', '×', 'Pitch of the first deal (climbs per card).', 'Sound: deal'],
-  sfxFlipGain: ['flip: gain', undefined, 'Big: each card turning face up.', 'Sound: flip'],
+  sfxFlipGain: ['flip: gain', undefined, 'Tier 3: each card turning face up.', 'Sound: flip'],
   sfxFlipRate: ['flip: pitch', '×', 'Pitch of the first flip (climbs per card).', 'Sound: flip'],
-  sfxRevealGain: ['reveal: gain', undefined, 'Big: the royal flush turning gold.', 'Sound: reveal'],
+  sfxRevealGain: ['reveal: gain', undefined, 'Tier 3: the royal flush turning gold.', 'Sound: reveal'],
   sfxRevealRate: ['reveal: pitch', '×', 'Pitch of the reveal.', 'Sound: reveal'],
-  sfxBurstGain: ['burst: gain', undefined, 'Big: the flush bursting into confetti.', 'Sound: burst'],
+  sfxBurstGain: ['burst: gain', undefined, 'Tier 3: the flush bursting into confetti.', 'Sound: burst'],
   sfxBurstRate: ['burst: pitch', '×', 'Pitch of the burst.', 'Sound: burst'],
-  sfxSparkleGain: ['sparkle: gain', undefined, 'Big: the glitter on the gold reveal and the burst.', 'Sound: sparkle'],
+  sfxSparkleGain: ['sparkle: gain', undefined, 'Tier 3: the glitter on the gold reveal and the burst.', 'Sound: sparkle'],
   sfxSparkleRate: ['sparkle: pitch', '×', 'Pitch of the sparkle.', 'Sound: sparkle'],
   sfxFlickLenMs: ['flick length', 'ms', 'Each flick swish is cut to this long (with a fade).', 'Sound: mix'],
   sfxImpactLenMs: ['impact length', 'ms', 'The impact and burst clips are cut to this long (with a fade).', 'Sound: mix'],
@@ -85,8 +85,8 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 };
 
 const LEVEL_SPECS: Record<CardsLevelSuffix, [string, TunerUnit | undefined, string]> = {
-  ChargeMs: ['Ready', 'ms', 'The hero readying before the first card leaves (Big: before the deal). The view pushes in over this.'],
-  Cards: ['Card count', undefined, 'How many cards (Small one, Medium three of a kind, Big the five of the flush).'],
+  ChargeMs: ['Ready', 'ms', 'The hero readying before the first card leaves (Tier 3: before the deal). The view pushes in over this.'],
+  Cards: ['Card count', undefined, 'How many cards (Tier 1 one, Tier 2 three of a kind, Tier 3 the five of the flush).'],
   StaggerMs: ['Throw stagger', 'ms', 'Gap between each throw (the thunk, thunk, thunk).'],
   FlightMs: ['Card speed', 'ms', 'A card crossing the board (at 1600 px; lower = faster).'],
   Arc: ['Arc', '×', 'How high a card arcs, as a fraction of the distance.'],
@@ -142,7 +142,7 @@ function buildControls(): Ctl[] {
       const [label, unit, hint] = LEVEL_SPECS[s];
       const key = `v${v}${s}` as HeroCardsNumKey;
       const [min, max, step] = HERO_CARDS_RANGES[key];
-      out.push({ key, label, unit, hint, group: CARD_LEVEL_NAMES[v as CardLevel], min, max, step });
+      out.push({ key, label, unit, hint, group: `${CARD_LEVEL_NAMES[v as CardLevel]} (${({ 1: 'shared tier 1', 2: 'shared tiers 2-3', 3: 'shared tier 4, knockouts' } as const)[v as CardLevel]})`, min, max, step });
     }
   }
   for (const [ck, cl, ch] of COLORS) out.push({ key: ck, label: cl, hint: ch, group: 'Colours', kind: 'color', min: 0, max: 0, step: 0 });
@@ -202,13 +202,13 @@ export const SPEC: TunerSpec<CardsTunerValues> = {
   actions: [
     { label: '▶ You deal', hint: 'Your hero deals cards at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe deals', hint: 'The foe deals cards at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero deals for 3: Small, one card.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Medium (8)', hint: 'Your hero deals for 8: Medium, three of a kind.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero deals for 12 from four numbers: still Medium (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Big (40)', hint: 'Your hero deals for 40 from seven numbers: Big, the royal flush.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe deals at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe medium (8)', hint: 'The foe deals at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe big (40)', hint: 'The foe deals at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero deals for 3 (shared Tier 1): its Tier 1 look, one card.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero deals for 8 (shared Tier 2): its Tier 2 look, three of a kind.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero deals for 12 from four numbers (shared Tier 3): still its Tier 2 look (an Epic has three looks).', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero deals for 40 from seven numbers (shared Tier 4): its Tier 3 look, the royal flush.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe deals at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe deals at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe deals at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

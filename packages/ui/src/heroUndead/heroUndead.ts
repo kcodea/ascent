@@ -1,15 +1,15 @@
 /**
  * THE UNDEAD RUNNER: plays one Undead (Grave Call) hero attack (the beats are in `heroUndeadConfig.ts`) and lands the
- * consequence on its impact beat (the last skull's bite, or Tier IV's chomp). Presentation only: the total it shows and
+ * consequence on its impact beat (the last skull's bite, or Tier 4's chomp). Presentation only: the total it shows and
  * the blow it lands are handed in, already decided by the engine; this file only decides WHEN on screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as Holy does: one clock (it never pauses), the damage
  * formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only, restored after), the voices,
  * the dim, reduced motion, finish / cancel and the safety timer. What is Undead's own: the raise, the skulls, the hands
- * and the wisp swarm, the Tier IV rift and maw, its camera and its sound.
+ * and the wisp swarm, the Tier 4 rift and maw, its camera and its sound.
  *
  * THE TICK CONTRACT: every skull before the last, every hand's grip and every wisp is a tick (FX and sound only). The
- * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last bite (Tier IV: the chomp).
+ * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last bite (Tier 4: the chomp).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after the
  * opening measure; Pixi sprites are pooled per layer, textures painted once per session and pre-warmed during the
@@ -266,7 +266,7 @@ export function playHeroUndead(o: HeroUndeadOptions): HeroUndeadHandle {
         const a = (0.8 + 2.6 * u) * px;
         css = `translate(${(a * Math.sin(t * 0.27)).toFixed(2)}px, ${(a * Math.sin(t * 0.35)).toFixed(2)}px)`;
       } else if (t >= firstGrip) {
-        // III: the hands DRAG it down into the grave: it sinks and shrinks a little, trembling.
+        // Tier 3: the hands DRAG it down into the grave: it sinks and shrinks a little, trembling.
         const u = clamp01((t - firstGrip) / Math.max(1, plan.impactAt - firstGrip));
         const sink = c.handDragPx * 0.8 * easeInOutSine(u) * px;
         const tr = (0.6 + 1.6 * u) * px;

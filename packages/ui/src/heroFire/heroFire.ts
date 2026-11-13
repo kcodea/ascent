@@ -1,16 +1,16 @@
 /**
  * THE FIRE RUNNER: plays one Fire ("Inferno") hero attack (the beats are in `heroFireConfig.ts`) and lands the
- * consequence on its impact beat (the last fireball bursting, or Tier IV's meteor detonating). Presentation only: the
+ * consequence on its impact beat (the last fireball bursting, or Tier 4's meteor detonating). Presentation only: the
  * total it shows and the blow it lands are handed in, already decided by the engine; this file only decides WHEN on
  * screen they happen.
  *
  * It runs on the SHARED hero-attack core (`../heroAttack/`), exactly as the other styles do: one clock (it never
  * pauses), the damage formation, the `#stage` camera (on the FX once: stageCamera.ts), the portraits (transform only,
  * restored after), the voices, the dim, reduced motion, finish / cancel and the safety timer. What is Fire's own: the
- * kindling, the fireballs, the blaze, the Tier IV summon, meteor and detonation, its camera and its sound.
+ * kindling, the fireballs, the blaze, the Tier 4 summon, meteor and detonation, its camera and its sound.
  *
  * THE VOLLEY CONTRACT: every fireball that lands before the last is a tick (FX and a crackling burst only). The
- * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last fireball (Tier IV: on the
+ * consequence (`onImpact`: the damage, Armor, Resolve) lands exactly ONCE, on the last fireball (Tier 4: on the
  * meteor's detonation).
  *
  * Perf (docs/performance.md): DOM moves are `transform` / `opacity` written from the clock; nothing reads layout after
@@ -44,7 +44,7 @@ export interface HeroFireHandle extends HeroAttackHandle {
   readonly plan: FirePlan;
   /** Every fireball's life (empty under reduced motion). Exposed for tests and the capture rig. */
   readonly motions: readonly FireballMotion[];
-  /** The Tier IV meteor's fall (null below Tier IV and under reduced motion). */
+  /** The Tier 4 meteor's fall (null below Tier 4 and under reduced motion). */
   readonly meteor: MeteorMotion | null;
   /** The Pixi scene (null under reduced motion or with no 2D canvas). Exposed for tests and the capture rig. */
   readonly scene: HeroFireScene | null;
@@ -156,7 +156,7 @@ export function playHeroFire(o: HeroFireOptions): HeroFireHandle {
         if (m && scene) {
           scene.land(m);
           scene.explode(m.to.x, m.to.y, radius, { size: 0.85 + 0.1 * plan.k, big: false, dir: fireArrivalDir(m, o.attacker, d), flashAlpha: c.flashAlpha, embers: Math.round(plan.embers * 0.3) });
-          // The struck hero CATCHES: every tick sets more of its rim alight (III builds toward the blaze).
+          // The struck hero CATCHES: every tick sets more of its rim alight (Tier 3 builds toward the blaze).
           if (plan.blaze > 0) scene.ablaze(d.x, d.y, radius, plan.blaze * (0.25 + 0.12 * hitStep), 260 + 60 * hitStep);
         }
         hitStep++;
@@ -201,7 +201,7 @@ export function playHeroFire(o: HeroFireOptions): HeroFireHandle {
             scene.land(last);
             scene.explode(last.to.x, last.to.y, radius, { size: 1.05 + 0.1 * plan.tier, big: true, dir, flashAlpha: c.flashAlpha, embers: plan.embers });
           }
-          // III: the struck hero FLARES UP (a gout of flame off the portrait).
+          // Tier 3: the struck hero FLARES UP (a gout of flame off the portrait).
           if (plan.tier >= 3) scene?.flareUp(d.x, d.y, radius, Math.min(1.4, plan.blaze));
           // The blaze burns at full until just before the sequence ends, then dies down (never long past it).
           scene?.ablaze(d.x, d.y, radius, plan.blaze, Math.min(plan.blazeMs, Math.max(0, plan.endAt - plan.impactAt - 100)));
@@ -227,7 +227,7 @@ export function playHeroFire(o: HeroFireOptions): HeroFireHandle {
     cam.apply(fireCameraFocus(plan, t, o.attacker, o.defender), cm.zoom, cm.x, cm.y, local ? 1 : s);
     const aim = fireArrivalDir(undefined, o.attacker, o.defender);
     if (hero.el && t >= plan.chargeAt) {
-      // Swell while the fire gathers; a small recoil along the line on each launch; Tier IV: rise and thrust up for the summon.
+      // Swell while the fire gathers; a small recoil along the line on each launch; Tier 4: rise and thrust up for the summon.
       let sc = 1, bx = 0, by = 0;
       if (t < plan.fireAt) sc = 1 + c.heroSwell * easeInOutSine((t - plan.chargeAt) / Math.max(1, plan.fireAt - plan.chargeAt));
       else sc = 1 + c.heroSwell * Math.max(0, spring(t - plan.fireAt, 4, 70));

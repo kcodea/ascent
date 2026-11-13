@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A KNOCKOUT ALWAYS PLAYS THE HUGE ATTACK (owner ask 2026-09-29: "add logic so that if a player knocks someone out, it
+ * A KNOCKOUT ALWAYS PLAYS THE TIER 4 ATTACK (owner ask 2026-09-29: "add logic so that if a player knocks someone out, it
  * always plays the "huge" animation"). Oracle R-PROG-ATTACK-20.
  *
  * The rule lives in ONE place (`attackTier` in `tiers.ts`); every style's plan takes its tier from it, and the
@@ -27,26 +27,34 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroChess } from '../heroChess/heroChess';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroCombo } from '../heroCombo/heroCombo';
+import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroReaping } from '../heroReaping/heroReaping';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { playHeroStars } from '../heroStars/heroStars';
+import { playHeroGlass } from '../heroGlass/heroGlass';
+import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 import { heroStrikeDamage, heroStrikeKnockout } from '../heroBlast/heroStrikeDamage';
 
 describe('attackTier: the one shared tier rule', () => {
-  it('a knockout is always Tier IV, whatever the number', () => {
+  it('a knockout is always Tier 4, whatever the number', () => {
     expect(KNOCKOUT_TIER).toBe(4);
     for (const total of [0, 1, 3, 5, 6, 11, 12, 19, 20, 40]) expect(attackTier(total, { knockout: true })).toBe(4);
   });
 
-  it('without a knockout it is exactly the damage tier (I 1-5, II 6-11, III 12-19, IV 20+)', () => {
+  it('without a knockout it is exactly the damage tier (Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+)', () => {
     for (const total of [0, 1, 3, 5, 6, 11, 12, 19, 20, 40]) {
       expect(attackTier(total, { knockout: false })).toBe(tierOf(total));
       expect(attackTier(total, {})).toBe(tierOf(total));
@@ -63,7 +71,7 @@ describe('attackTier: the one shared tier rule', () => {
   });
 });
 
-describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a non-lethal 3', () => {
+describe('every style plays its Tier 4 on a knockout blow of 3, and Tier 1 on a non-lethal 3', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const opts = (knockout: boolean): HeroAttackOptions => ({
     formation: formationOf([1, 2], 3), total: 3, knockout, side: 'player', attacker: { x: 100, y: 800 }, defender: { x: 1400, y: 150 },
@@ -84,17 +92,25 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     ['beast', (o) => playHeroBeast({ ...o, textures: null })],
     ['banana', (o) => playHeroBanana({ ...o, textures: null })],
     ['bleed', (o) => playHeroBleed({ ...o, textures: null })],
-    // The Epics map Tier IV to their Big look (plan.tier stays the shared tier).
+    // The Epics map Tier 4 to their Tier 3 look (plan.tier stays the shared tier).
     ['cards', (o) => playHeroCards({ ...o, textures: null })],
+    ['chess', (o) => playHeroChess({ ...o, textures: null })],
     ['storm', (o) => playHeroStorm({ ...o, textures: null })],
+    ['fireworks', (o) => playHeroFireworks({ ...o, textures: null })],
     ['coin', (o) => playHeroCoin({ ...o, textures: null })],
     ['boomerang', (o) => playHeroBoomerang({ ...o, textures: null })],
     ['bubble', (o) => playHeroBubble({ ...o, textures: null })],
     ['backstab', (o) => playHeroBackstab({ ...o, textures: null })],
     ['basketball', (o) => playHeroBasketball({ ...o, textures: null })],
     ['stitch', (o) => playHeroStitch({ ...o, textures: null })],
+    ['reaping', (o) => playHeroReaping({ ...o, textures: null })],
     ['bullettime', (o) => playHeroBulletTime({ ...o, textures: null })],
+    ['stars', (o) => playHeroStars({ ...o, textures: null })],
+    ['glass', (o) => playHeroGlass({ ...o, textures: null })],
+    ['warhost', (o) => playHeroWarhost({ ...o, textures: null })],
     ['baseball', (o) => playHeroBaseball({ ...o, textures: null })],
+    ['combo', (o) => playHeroCombo({ ...o, textures: null })],
+    ['wrestle', (o) => playHeroWrestle({ ...o, textures: null })],
     ['soccer', (o) => playHeroSoccer({ ...o, textures: null })],
     ['void', (o) => playHeroVoid({ ...o, textures: null })],
   ];
@@ -110,7 +126,7 @@ describe('every style plays its Tier IV on a knockout blow of 3, and Tier I on a
     }
   });
 
-  it('Classic (its plan carries the tier as k: I = 0, IV = 1)', () => {
+  it('Classic (its plan carries the tier as k: Tier 1 = 0, Tier 4 = 1)', () => {
     const ko = playHeroClassic({ ...opts(true), impactFx: false });
     expect(ko.plan.k).toBe(1);
     ko.cancel();

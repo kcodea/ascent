@@ -2,7 +2,7 @@
 /**
  * THE UNDEAD HERO ATTACK, Grave Call (owner 2026-09-29: "some sort of an undead animation", on the same four tiers): the
  * tier mapping SHARED with every attack; the ladder (one skull / two skulls / the grave hands, the wisp swarm and a
- * skull / the grave rift and the maw); the tuner defaults + clamping; the pure plan (the tick contract, the IV beats in
+ * skull / the grave rift and the maw); the tuner defaults + clamping; the pure plan (the tick contract, the Tier 4 beats in
  * order, reduced motion, determinism); the pure geometry (the skulls, the hands round the target, the swarm, the rift
  * across the heroes' line); the camera; the runner on the shared clock (the consequence lands exactly ONCE; both
  * directions; slow motion; replay; finish / cancel; cleanup; the safety timer); the headless scene (pooled, bounded,
@@ -41,7 +41,7 @@ const A = { x: 200, y: 850 }, D = { x: 1400, y: 300 };
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with every attack)', () => {
-  it('Undead steps up on exactly the blows every other attack does: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Undead steps up on exactly the blows every other attack does: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -50,7 +50,7 @@ describe('the damage tiers (shared with every attack)', () => {
     }
   });
 
-  it('the ladder: I ONE skull, II TWO skulls, III the grave HANDS and a wisp SWARM then one skull, IV the grave RIFT and the MAW', () => {
+  it('the ladder: Tier 1 ONE skull, Tier 2 TWO skulls, Tier 3 the grave HANDS and a wisp SWARM then one skull, Tier 4 the grave RIFT and the MAW', () => {
     expect([P1, P2, P3, P4].map((p) => p.skulls.length)).toEqual([1, 2, 1, 0]);
     expect([P1, P2, P3, P4].map((p) => p.hands.length)).toEqual([0, 0, 4, 0]);
     expect([P1, P2, P3, P4].map((p) => p.wisps.length)).toEqual([0, 0, 8, 0]);
@@ -110,7 +110,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('undead');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('undead');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
     // owner 2026-09-29: no Speed or Reduced motion buttons on a hero attack tuner, and the button row sits at the TOP
@@ -120,7 +120,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('THE TICK CONTRACT: II\'s first skull is a tick and the second the impact; III\'s grips and wisps are ticks, the skull after them the impact', () => {
+  it('THE TICK CONTRACT: Tier 2\'s first skull is a tick and the second the impact; Tier 3\'s grips and wisps are ticks, the skull after them the impact', () => {
     expect(P2.hits).toEqual([P2.skulls[0]!.hitAt]);
     expect(P2.impactAt).toBe(P2.skulls[1]!.hitAt);
     // the second skull pops out while the first is still in flight (they weave in close together)
@@ -145,7 +145,7 @@ describe('the plan', () => {
     expect(P1.hits).toEqual([]);
   });
 
-  it('Tier IV: the rift tears, the maw rises, shrieks, lunges and chomps IN THAT ORDER; the blow lands once, on the chomp (never on the rise, the shriek or the lunge)', () => {
+  it('Tier 4: the rift tears, the maw rises, shrieks, lunges and chomps IN THAT ORDER; the blow lands once, on the chomp (never on the rise, the shriek or the lunge)', () => {
     const kinds = undeadCues(P4).map((q) => q.kind);
     for (const k of ['emerge', 'launch', 'skullHit', 'hand', 'grip', 'wisp', 'wispHit', 'grave']) expect(kinds).not.toContain(k);
     const at = (k: string): number => kinds.indexOf(k as never);
@@ -171,7 +171,7 @@ describe('the plan', () => {
     expect(P1.dim).toBe(0);
   });
 
-  it('the shipped per-tier timeline (1300 px apart), ms from the raise: the raise, the impact and the end; chunky, not rushed, and IV the longest', () => {
+  it('the shipped per-tier timeline (1300 px apart), ms from the raise: the raise, the impact and the end; chunky, not rushed, and Tier 4 the longest', () => {
     const t = (p: ReturnType<typeof plan>): number[] => [Math.round(p.raiseAt - p.chargeAt), Math.round(p.impactAt - p.chargeAt), Math.round(p.endAt - p.chargeAt)];
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [320, 900, 1540], [360, 1108, 1788], [400, 1483, 2203], [440, 1878, 2878],
@@ -225,7 +225,7 @@ describe('the geometry', () => {
     expect(Math.sign(g.skulls[0]!.arc)).toBe(-Math.sign(g.skulls[1]!.arc));
   });
 
-  it('III: the hands come up round the target (spread all round it, at about the ring), each reaching IN; the swarm leaves the hero and lands on the target', () => {
+  it('Tier 3: the hands come up round the target (spread all round it, at about the ring), each reaching IN; the swarm leaves the hero and lands on the target', () => {
     const g = undeadGeo(P3, A, D, 80, C, 1, 70);
     expect(g.hands).toHaveLength(4);
     const angs = g.hands.map((h) => Math.atan2(h.at.y - D.y, h.at.x - D.x));
@@ -250,7 +250,7 @@ describe('the geometry', () => {
     expect(new Set(g.wisps.map((w) => Math.sign(w.bend))).size).toBe(2);
   });
 
-  it('IV: the rift opens between the heroes, ACROSS the line of the blow; the maw rises just above it and chomps the target', () => {
+  it('Tier 4: the rift opens between the heroes, ACROSS the line of the blow; the maw rises just above it and chomps the target', () => {
     const g = undeadGeo(P4, A, D, 80, C, 1);
     expect(g.rift.at).toEqual({ x: (A.x + D.x) / 2, y: (A.y + D.y) / 2 });
     const blow = Math.atan2(D.y - A.y, D.x - A.x);
@@ -305,7 +305,7 @@ describe('the sounds', () => {
 });
 
 describe('the camera', () => {
-  it('I-III: pushes in on the hero through the raise, punches on the bite and shakes; rests by the end', () => {
+  it('Tiers 1-3: pushes in on the hero through the raise, punches on the bite and shakes; rests by the end', () => {
     const hit = undeadCameraAt(P3, C, P3.impactAt);
     expect(hit.zoom).toBeGreaterThan(1 + P3.punch);
     expect(hit.y).toBeGreaterThan(P3.shakePx * 0.5);
@@ -317,7 +317,7 @@ describe('the camera', () => {
     expect(undeadCameraFocus(P1, P1.skulls[0]!.hitAt, A, D)).toEqual(D);
   });
 
-  it('IV: the focus rides to the rift, holds through the rise and the shriek, and follows the lunge to the target; the shriek trembles the view; the chomp punches hardest; it rests by the end', () => {
+  it('Tier 4: the focus rides to the rift, holds through the rise and the shriek, and follows the lunge to the target; the shriek trembles the view; the chomp punches hardest; it rests by the end', () => {
     const rift = { x: 800, y: 500 };
     expect(undeadCameraFocus(P4, P4.riseAt, A, D, rift)).toEqual(rift);
     expect(undeadCameraFocus(P4, P4.shriekAt + 50, A, D, rift)).toEqual(rift);
@@ -364,7 +364,7 @@ function run(over: Partial<HeroUndeadOptions> = {}) {
 describe('the runner (the shared clock)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('III: the hands claw up and drag, the swarm strikes, and the blow lands EXACTLY ONCE, on the skull after them: never on a grip or a wisp; everything is put back', () => {
+  it('Tier 3: the hands claw up and drag, the swarm strikes, and the blow lands EXACTLY ONCE, on the skull after them: never on a grip or a wisp; everything is put back', () => {
     const { h, f, root, onImpact, onDone, host, camera, attackerEl, defenderEl } = run({ total: 14, formation: formationOf([14], 14) });
     expect(h.plan.hands).toHaveLength(4);
     expect(host.querySelector('.hblast.hundead')).not.toBeNull();
@@ -397,7 +397,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('IV: the rift opens, the maw rises and shrieks (jaw wide), lunges and chomps (jaw shut); the blow lands ONCE, on the chomp', () => {
+  it('Tier 4: the rift opens, the maw rises and shrieks (jaw wide), lunges and chomps (jaw shut); the blow lands ONCE, on the chomp', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.maw).toBe(true);
     f.tick(h.plan.riftAt + 40, 4);
@@ -434,7 +434,7 @@ describe('the runner (the shared clock)', () => {
         expect(onImpact, `${side} ${total}`).toHaveBeenCalledTimes(1);
         expect(peak).toBeLessThanOrEqual(MAX_UNDEAD_SPRITES);
         expect(h.geo.foot).toEqual(d);
-        // IV: the maw chomps ON the struck hero's column, slid inside the window (jsdom's 768 px) so it stays whole
+        // Tier 4: the maw chomps ON the struck hero's column, slid inside the window (jsdom's 768 px) so it stays whole
         if (h.plan.maw) { expect(h.geo.maw.to.x).toBe(d.x); expect(h.geo.maw.to.y).toBeGreaterThan(0); expect(h.geo.maw.to.y).toBeLessThan(window.innerHeight); }
         h.cancel();
       }
@@ -515,7 +515,7 @@ describe('the scene (headless Pixi)', () => {
   const skewed = (s: HeroUndeadScene): number => s.root.children.flatMap((l) => (l as Container).children)
     .filter((ch) => ch.visible && (Math.abs(ch.skew.x) > 1e-9 || Math.abs(ch.skew.y) > 1e-9)).length;
 
-  it('a whole Tier IV (raise, rift, rise, shriek, lunge, chomp, mist) stays in the cap, is FLAT (never skewed), drains, and destroy leaves nothing', () => {
+  it('a whole Tier 4 (raise, rift, rise, shriek, lunge, chomp, mist) stays in the cap, is FLAT (never skewed), drains, and destroy leaves nothing', () => {
     const s = new HeroUndeadScene(TEX, COLORS, LOOK, 1, 42);
     const g = undeadGeo(P4, A, D, 80, C, 1);
     let peak = 0;
@@ -550,7 +550,7 @@ describe('the scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('I-III: skulls, hands, wisps and the grave all drain; clear() drops everything at once and the pool is reused, not regrown', () => {
+  it('Tiers 1-3: skulls, hands, wisps and the grave all drain; clear() drops everything at once and the pool is reused, not regrown', () => {
     const s = new HeroUndeadScene(TEX, COLORS, LOOK, 1, 9);
     const g = undeadGeo(P3, A, D, 80, C, 1);
     s.openGrave(D.x, D.y, 80, 260);

@@ -6,7 +6,7 @@
  * the meteor's order, reduced motion, determinism); the pure fireball paths (they ignite round the rim, clear of the
  * face, never above the frame, and land on the target) and the meteor's fall (from above the frame onto the target);
  * the camera; the runner on the shared clock (the consequence lands exactly ONCE, on the last fireball or the
- * detonation, never on a tick; the target set ablaze at III; both directions; slow motion; replay; finish / cancel;
+ * detonation, never on a tick; the target set ablaze at Tier 3; both directions; slow motion; replay; finish / cancel;
  * cleanup; the clock never pauses); the headless scene (every flame is live particle fire, pooled, bounded, drains,
  * destroy leaves nothing); and the cosmetic.
  */
@@ -44,7 +44,7 @@ const R = 80;
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with every hero attack)', () => {
-  it('Fire steps up on exactly the blows the other styles do: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Fire steps up on exactly the blows the other styles do: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -53,7 +53,7 @@ describe('the damage tiers (shared with every hero attack)', () => {
     }
   });
 
-  it('the ladder ESCALATES: I ONE fireball, II TWO, III a volley of FIVE that sets the target ablaze, IV three THEN the meteor', () => {
+  it('the ladder ESCALATES: Tier 1 ONE fireball, Tier 2 TWO, Tier 3 a volley of FIVE that sets the target ablaze, Tier 4 three THEN the meteor', () => {
     expect([P1, P2, P3, P4].map((p) => p.balls.length)).toEqual([1, 2, 5, 3]);
     expect([P1, P2, P3, P4].map((p) => p.meteor)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.meteor ? `${p.balls.length}+meteor` : p.balls.length; }))
@@ -114,8 +114,8 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('fire');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('fire');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ You cast', '▶ Foe casts', '▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe small (3)', '▶ Foe tier II (8)',
-      '▶ Foe medium (12)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ You cast', '▶ Foe casts', '▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 1 (3)', '▶ Foe tier 2 (8)',
+      '▶ Foe tier 3 (12)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
     // Owner 2026-09-29 (every attack tuner): the Play row on TOP, and no speed or reduced-motion buttons.
@@ -144,7 +144,7 @@ describe('the plan', () => {
     expect(P3.balls[4]!.size).toBeGreaterThan(P3.balls[0]!.size);
   });
 
-  it('Tier IV: every fireball is a tick, then the summon, the meteor falls, and it DETONATES (the one impact)', () => {
+  it('Tier 4: every fireball is a tick, then the summon, the meteor falls, and it DETONATES (the one impact)', () => {
     expect(P4.hits).toHaveLength(3);
     expect(P4.summonAt).toBeGreaterThan(P4.balls[2]!.launchAt);
     expect(P4.meteorAt).toBeGreaterThan(P4.summonAt);
@@ -158,7 +158,7 @@ describe('the plan', () => {
     expect(kinds[kinds.length - 1]).toBe('end');
   });
 
-  it('brisk: Tier I lands within about 0.9 s of the formation; Tier IV (the slower meteor build) within about 2.5 s', () => {
+  it('brisk: Tier 1 lands within about 0.9 s of the formation; Tier 4 (the slower meteor build) within about 2.5 s', () => {
     expect(P1.impactAt - P1.chargeAt).toBeLessThan(900);
     expect(P4.impactAt - P4.chargeAt).toBeLessThan(2500);
     // the owner's slower build: the summon and the fall together take well over a second
@@ -239,7 +239,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.6);
   });
 
-  it('Tier IV keeps both heroes in frame: it follows the volley, eases half way home for the summon, rides the meteor down; the detonation punches hardest', () => {
+  it('Tier 4 keeps both heroes in frame: it follows the volley, eases half way home for the summon, rides the meteor down; the detonation punches hardest', () => {
     expect(fireCameraFocus(P4, P4.fireAt, A, D)).toEqual(A);
     const home = fireCameraFocus(P4, P4.meteorAt, A, D);
     expect(home.x).toBeCloseTo((A.x + D.x) / 2, 4);
@@ -316,7 +316,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the fireballs tick, the summon and the meteor fall, and the blow lands ONCE, on the DETONATION', () => {
+  it('Tier 4: the fireballs tick, the summon and the meteor fall, and the blow lands ONCE, on the DETONATION', () => {
     const { h, f, onImpact, defenderEl } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.meteor).toBe(true);
     expect(h.meteor).not.toBeNull();
@@ -447,7 +447,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('a whole Tier IV stays in the caps and drains; destroy leaves nothing', () => {
+  it('a whole Tier 4 stays in the caps and drains; destroy leaves nothing', () => {
     const s = new HeroFireScene(TEX, COLORS, LOOK, 1, 42);
     const ms = fireballMotions(P4, A, D, R, R, C);
     const meteor = meteorMotion(P4, A, D, R, C, 0)!;

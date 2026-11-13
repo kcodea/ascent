@@ -38,7 +38,7 @@ const A = { x: 200, y: 850 }, D = { x: 1500, y: 180 };
 const P1 = plan([2, 1], 3), P2 = plan([3, 3, 2], 8), P3 = plan([3, 3, 3, 3, 2], 14), P4 = plan([6, 6, 6, 6, 6, 5, 5], 40);
 
 describe('the damage tiers (shared with Blast and Quake)', () => {
-  it('Arcana steps up on exactly the blows Blast and Quake do: I 1-5, II 6-11, III 12-19, IV 20+', () => {
+  it('Arcana steps up on exactly the blows Blast and Quake do: Tier 1: 1-5, Tier 2: 6-11, Tier 3: 12-19, Tier 4: 20+', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) {
       const t = plan([d], d).tier;
@@ -48,7 +48,7 @@ describe('the damage tiers (shared with Blast and Quake)', () => {
     }
   });
 
-  it('the owner\'s ladder: I ONE ribbon, II TWO, III a barrage of FIVE, IV the vortex', () => {
+  it('the owner\'s ladder: Tier 1 ONE ribbon, Tier 2 TWO, Tier 3 a barrage of FIVE, Tier 4 the vortex', () => {
     expect([P1, P2, P3, P4].map((p) => p.ribbons.length)).toEqual([1, 2, 5, 6]);
     expect([P1, P2, P3, P4].map((p) => p.swirl)).toEqual([false, false, false, true]);
     expect([1, 5, 6, 11, 12, 19, 20, 60].map((d) => { const p = plan([d], d); return p.swirl ? 'swirl' : p.ribbons.length; }))
@@ -99,7 +99,7 @@ describe('the tuner values', () => {
     expect(style?.options).toContain('arcana');
     expect(DEV_HERO_ATTACK_CHOICES).toContain('arcana');
     const labels = SPEC.actions?.map((a) => a.label) ?? [];
-    for (const l of ['▶ Small (3)', '▶ Tier II (8)', '▶ Medium (12)', '▶ Huge (40)', '▶ Foe huge (40)']) {
+    for (const l of ['▶ Tier 1 (3)', '▶ Tier 2 (8)', '▶ Tier 3 (12)', '▶ Tier 4 (40)', '▶ Foe tier 4 (40)']) {
       expect(labels).toContain(l);
     }
   });
@@ -122,7 +122,7 @@ describe('the plan', () => {
     expect(P3.ribbons[4]!.size).toBeGreaterThan(P3.ribbons[0]!.size);
   });
 
-  it('Tier II is a PAIR on different heights and opposite sides; Tier I one ribbon, straight to the impact', () => {
+  it('Tier 2 is a PAIR on different heights and opposite sides; Tier 1 one ribbon, straight to the impact', () => {
     const [a, b] = P2.ribbons;
     expect(Math.sign(a!.side)).not.toBe(Math.sign(b!.side));
     expect(a!.lift).toBeGreaterThan(b!.lift * 1.5);
@@ -132,7 +132,7 @@ describe('the plan', () => {
     expect(P1.impactAt).toBe(P1.ribbons[0]!.arriveAt);
   });
 
-  it('Tier IV: the ribbons ORBIT (no ticks), the vortex forms on the first arrival, collapses after the last, and the EXPLOSION is the impact', () => {
+  it('Tier 4: the ribbons ORBIT (no ticks), the vortex forms on the first arrival, collapses after the last, and the EXPLOSION is the impact', () => {
     const kinds = arcanaCues(P4).map((q) => q.kind);
     expect(kinds.filter((k) => k === 'hit')).toHaveLength(0);
     expect(kinds.filter((k) => k === 'orbit')).toHaveLength(6);
@@ -147,7 +147,7 @@ describe('the plan', () => {
     expect(P4.impactAt).toBe(P4.convergeAt + C.convergeMs);
   });
 
-  it('every tier escalates: more shake, zoom, hit-stop, glitter and burst; II+ dims', () => {
+  it('every tier escalates: more shake, zoom, hit-stop, glitter and burst; Tier 2+ dims', () => {
     const ps = [P1, P2, P3, P4];
     for (let i = 1; i < 4; i++) {
       for (const k of ['shakePx', 'zoom', 'motes', 'burst', 'dim'] as const) expect(ps[i]![k], `${k} ${i}`).toBeGreaterThan(ps[i - 1]![k]);
@@ -161,7 +161,7 @@ describe('the plan', () => {
     expect([t(P1), t(P2), t(P3), t(P4)]).toEqual([
       [260, 820, 1328], [340, 1085, 1673], [420, 1425, 2073], [420, 1854, 2574],
     ]);
-    // Brisk at Tier I (about 2 s), about 4 s at Tier IV (owner: "satisfying and chunky, not rushed").
+    // Brisk at Tier 1 (about 2 s), about 4 s at Tier 4 (owner: "satisfying and chunky, not rushed").
     expect(t(P1)[2]).toBeLessThanOrEqual(2100);
     expect(t(P4)[2]).toBeLessThanOrEqual(4200);
   });
@@ -237,7 +237,7 @@ describe('the ribbon paths', () => {
     expect(l.c1.y).toBeLessThan(D.y);
   });
 
-  it('Tier IV: each ribbon lands ON the vortex, circles the struck hero at the vortex radius, then collapses into it', () => {
+  it('Tier 4: each ribbon lands ON the vortex, circles the struck hero at the vortex radius, then collapses into it', () => {
     const r = 80;
     const ms = ribbonMotions(P4, A, D, r, C);
     for (const [i, m] of ms.entries()) {
@@ -287,7 +287,7 @@ describe('the camera', () => {
     expect(Math.abs(rest.x) + Math.abs(rest.y)).toBeLessThan(0.6);
   });
 
-  it('Tier IV builds on the vortex (zoom and tremor grow), then the explosion punches hardest', () => {
+  it('Tier 4 builds on the vortex (zoom and tremor grow), then the explosion punches hardest', () => {
     const early = arcanaCameraAt(P4, C, P4.swirlAt + 20);
     const late = arcanaCameraAt(P4, C, P4.impactAt - 10);
     expect(late.zoom).toBeGreaterThan(early.zoom);
@@ -363,7 +363,7 @@ describe('the runner (the shared clock)', () => {
     expect(root.children).toHaveLength(0);
   });
 
-  it('Tier IV: the vortex forms and the blow lands ONCE, on the explosion (not on any ribbon joining the ring)', () => {
+  it('Tier 4: the vortex forms and the blow lands ONCE, on the explosion (not on any ribbon joining the ring)', () => {
     const { h, f, onImpact } = run({ total: 40, formation: formationOf([40], 40) });
     expect(h.plan.swirl).toBe(true);
     f.tick(h.plan.swirlAt + 40, 4);
@@ -472,7 +472,7 @@ describe('the runner (the shared clock)', () => {
 });
 
 describe('the scene (headless Pixi)', () => {
-  it('ribbons are strips of RIBBON_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier IV stays in the caps and drains; destroy leaves nothing', () => {
+  it('ribbons are strips of RIBBON_POINTS x 2 vertices (under the 100-vertex batch limit); a whole Tier 4 stays in the caps and drains; destroy leaves nothing', () => {
     expect(RIBBON_POINTS * 2).toBeLessThanOrEqual(100);
     const s = new HeroArcanaScene(TEX, COLORS, LOOK, 1, 42);
     const ms = ribbonMotions(P4, A, D, 80, C);
@@ -502,7 +502,7 @@ describe('the scene (headless Pixi)', () => {
     expect(s.root.destroyed).toBe(true);
   });
 
-  it('a Tier I ribbon draws finite geometry every frame (no NaN at launch, in flight, or landing) and fades after it lands', () => {
+  it('a Tier 1 ribbon draws finite geometry every frame (no NaN at launch, in flight, or landing) and fades after it lands', () => {
     const s = new HeroArcanaScene(TEX, COLORS, LOOK, 1, 3);
     const [m] = ribbonMotions(P1, A, D, 80, C);
     s.fire(m!, 26, 1);

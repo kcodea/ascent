@@ -25,9 +25,9 @@ type GlobalNumKey = Exclude<HeroBlastNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which the blast steps up to Tier II.', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which the blast steps up to Tier III (a barrage of five, explosions, embers).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which the blast becomes the colossal beam and the supernova.', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which the blast steps up to Tier 2.', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which the blast steps up to Tier 3 (a barrage of five, explosions, embers).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which the blast becomes the colossal beam and the supernova.', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Charge and fire'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells while charging.', 'Charge and fire'],
   boltSpeed: ['Bolt speed', 'px/s', 'How fast the bolts fly (the flight stays between 180 and 420 ms).', 'Charge and fire'],
@@ -35,7 +35,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   boltCurve: ['Bolt fan', '×', 'How far the trailing bolts arc to the sides (the lead bolt flies straight).', 'Charge and fire'],
   trailLength: ['Trail', '×', 'Length of the comet tail (0 = none).', 'Charge and fire'],
   recoilPx: ['Hero recoil', 'px', 'How far the hero kicks back when it fires.', 'Charge and fire'],
-  beamHoldMs: ['Beam hold', 'ms', 'Tier IV: how long the beam holds on the target before it thins out (or pours in, with a nova).', 'Charge and fire'],
+  beamHoldMs: ['Beam hold', 'ms', 'Tier 4: how long the beam holds on the target before it thins out (or pours in, with a nova).', 'Charge and fire'],
   collapseMs: ['Implosion', 'ms', 'Nova: the beam pouring into the struck hero, which implodes, before the supernova.', 'Supernova'],
   collapseMotes: ['Implosion motes', undefined, 'Nova: light sucked into the struck hero during the implosion.', 'Supernova'],
   novaSize: ['Nova size', '×', 'Nova: the size of the detonation (bloom, shockwaves, rays).', 'Supernova'],
@@ -51,15 +51,15 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxChargeRate: ['charge: pitch', '×', 'Pitch of the riser.', 'Sound: charge'],
   sfxFireGain: ['fire: gain', undefined, 'The release as the volley leaves.', 'Sound: fire'],
   sfxFireRate: ['fire: pitch', '×', 'Pitch of the release.', 'Sound: fire'],
-  sfxBeamGain: ['beam: gain', undefined, 'Tier IV: the beam tearing across the board.', 'Sound: beam'],
+  sfxBeamGain: ['beam: gain', undefined, 'Tier 4: the beam tearing across the board.', 'Sound: beam'],
   sfxBeamRate: ['beam: pitch', '×', 'Pitch of the beam.', 'Sound: beam'],
   sfxImpactGain: ['impact: gain', undefined, 'The hit on the struck hero.', 'Sound: impact'],
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the hit.', 'Sound: impact'],
   sfxThumpGain: ['thump: gain', undefined, 'The low punch layered under the hit (keep it punchy, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: a crack layered on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: a crack layered on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big-hit layer.', 'Sound: big hit'],
-  sfxBoomGain: ['booms: gain', undefined, 'Tiers III and IV: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
+  sfxBoomGain: ['booms: gain', undefined, 'Tiers 3 and 4: each secondary explosion (pitch climbs per boom).', 'Sound: booms'],
   sfxBoomRate: ['booms: pitch', '×', 'Pitch of the first secondary explosion.', 'Sound: booms'],
   sfxCollapseGain: ['implosion: gain', undefined, 'Nova: the implosion as the beam pours into the struck hero.', 'Sound: implosion'],
   sfxCollapseRate: ['implosion: pitch', '×', 'Pitch of the implosion.', 'Sound: implosion'],
@@ -87,7 +87,7 @@ const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = 
   Nova: ['Supernova', undefined, 'With Beam on: the beam pours into the target, which implodes and detonates (the blow lands on the detonation).'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroBlastStrKey>> = {
   'Sound: charge': 'sfxChargeClip',
@@ -191,11 +191,11 @@ export const SPEC: TunerSpec<BlastTunerValues> = {
   actions: [
     { label: '▶ You blast', hint: 'Your hero blasts the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe blasts', hint: 'The foe blasts your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero blasts for 3: the smallest volley.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero blasts for 8: the two-bolt volley.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero blasts for 12 from four numbers: the barrage of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero blasts for 40 from seven numbers: the beam and the supernova.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero blasts for 3: the smallest volley.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero blasts for 8: the two-bolt volley.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero blasts for 12 from four numbers: the barrage of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero blasts for 40 from seven numbers: the beam and the supernova.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe blasts your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

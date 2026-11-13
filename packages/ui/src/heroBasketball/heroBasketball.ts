@@ -14,8 +14,8 @@
  * EVERY exit path (the end, `finish()`, `cancel()`, the safety timer, and an unmount, which cancels) restores its
  * transform, its opacity and the z-order class exactly, and hides the ball, the shadows and the hoop.
  *
- * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE: on the swish (I-III) or the slam (IV). Nothing before
- * it (the pass, the pump fake, IV's two opening threes and their swishes, the chest pass off the backboard, the catch)
+ * THE CONTRACT: the consequence (`onImpact`) lands exactly ONCE: on the swish (Tiers 1-3) or the slam (Tier 4). Nothing before
+ * it (the pass, the pump fake, Tier 4's two opening threes and their swishes, the chest pass off the backboard, the catch)
  * lands it or makes the target react (the pass bangs only the backboard, which wobbles).
  *
  * Perf: DOM writes are `transform` from the clock; layout is read once at the start; pooled sprites under a hard cap
@@ -50,7 +50,7 @@ export interface HeroBasketballHandle extends HeroAttackHandle {
   readonly geo: BasketballGeo;
   readonly scene: HeroBasketballScene | null;
   readonly mirrorsCamera: boolean;
-  /** The rolled variation (II's dribble move, III's spot). */
+  /** The rolled variation (Tier 2's dribble move, Tier 3's spot). */
   readonly variant: 1 | 2 | 3;
   /** The striking portrait's pose, and the ball, at a sequence time (pure). */
   pose(t: number): BasketballPose;
@@ -86,7 +86,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
   const aRect = local ? { inv: 1 } : rectOf(o.attackerEl, aRadius);
   const dRect = local ? { inv: 1 } : rectOf(o.defenderEl, radius);
   const { fcfg, fplan } = planFormation(o.formation, o.formationCfg, reduced);
-  // THE VARIATION (II's dribble move, III's spot), rolled from the stable per-blow seed (or forced by the DEV tuner).
+  // THE VARIATION (Tier 2's dribble move, Tier 3's spot), rolled from the stable per-blow seed (or forced by the DEV tuner).
   const variant = variantOf(o.rollSeed ?? basketballSeed(o.total, dist, o.side), c);
   const plan = basketballPlan({ total: o.total, knockout: o.knockout, reduced, leadIn: fplan.endAt, variant }, c);
   const cues = withFormation(fplan, basketballCues(plan));
@@ -173,7 +173,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
         scene?.squeak(heroAt(t), heading(t));
         break;
       case 'jump':
-        // The take-off (its squeak is its own cue). IV's LAUNCH (not its opening threes): a rush of air and a shock ring of
+        // The take-off (its squeak is its own cue). Tier 4's LAUNCH (not its opening threes): a rush of air and a shock ring of
         // dust at the take-off point.
         if (big && q.i === 0) {
           cue(c.sfxThrowClip, c.sfxThrowGain * 1.2, c.sfxThrowRate * 0.75, { lenMs: 600, fadeMs: 220 });
@@ -182,21 +182,21 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
         }
         break;
       case 'shot': {
-        // IV's opening threes leave the hands.
+        // Tier 4's opening threes leave the hands.
         cue(c.sfxThrowClip, c.sfxThrowGain, c.sfxThrowRate, { lenMs: 500, fadeMs: 200 });
         const b = ball(t);
         scene?.release({ x: b.x, y: b.y });
         break;
       }
       case 'swish':
-        // IV's opening threes: nothing but net, the crowd building each time. A TICK: no damage, the target does not react.
+        // Tier 4's opening threes: nothing but net, the crowd building each time. A TICK: no damage, the target does not react.
         cue(c.sfxSwishClip, c.sfxSwishGain * (0.9 + 0.1 * q.i), c.sfxSwishRate);
         cue(c.sfxOohClip, c.sfxOohGain * (0.4 + 0.3 * q.i), c.sfxOohRate * (1.04 - 0.02 * q.i), { delayMs: real(140), fadeMs: 350 });
         scene?.swish(geo.hit, plan.burst * 0.7);
         scene?.dropBall(geo.hit, geo.u.x >= 0 ? 1 : -1);
         break;
       case 'receive': {
-        // IV: the pass slapped into the hands at the spot up court.
+        // Tier 4: the pass slapped into the hands at the spot up court.
         cue(c.sfxCatchClip, c.sfxCatchGain, c.sfxCatchRate, { lenMs: 200, fadeMs: 80 });
         cue(c.sfxSqueakClip, c.sfxSqueakGain * 0.7, c.sfxSqueakRate * 1.05);
         const b = ball(t);
@@ -204,35 +204,35 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
         break;
       }
       case 'pass':
-        // III: the pass whips in from off the right edge.
+        // Tier 3: the pass whips in from off the right edge.
         cue(c.sfxThrowClip, c.sfxThrowGain * 0.8, c.sfxThrowRate * 1.15, { lenMs: 400, fadeMs: 160 });
         break;
       case 'pump':
-        // III: the pump fake (a quick shuffle of the sneakers and the ball snapped up and back).
+        // Tier 3: the pump fake (a quick shuffle of the sneakers and the ball snapped up and back).
         cue(c.sfxSqueakClip, c.sfxSqueakGain * 0.5, c.sfxSqueakRate * 1.2);
         break;
       case 'release': {
-        // The shot (I-III), or IV's hard chest pass at the backboard (a sharp whoosh).
+        // The shot (Tiers 1-3), or Tier 4's hard chest pass at the backboard (a sharp whoosh).
         cue(c.sfxThrowClip, c.sfxThrowGain * (big ? 1.3 : 1), c.sfxThrowRate * (big ? 1.25 : 1), { lenMs: big ? 400 : 500, fadeMs: 180 });
         const b = ball(t);
         scene?.release({ x: b.x, y: b.y });
         break;
       }
       case 'bounce':
-        // IV: the chest pass BANGS the backboard (a board bang: a low thud and a glassy knock). The board wobbles; the
+        // Tier 4: the chest pass BANGS the backboard (a board bang: a low thud and a glassy knock). The board wobbles; the
         // target itself does not react.
         cue(c.sfxDribbleClip, c.sfxDribbleGain * 1.2, c.sfxDribbleRate * 0.7);
         cue(c.sfxShatterClip, c.sfxShatterGain * 0.25, c.sfxShatterRate * 1.6, { lenMs: 220, fadeMs: 120 });
         scene?.bang(geo.bang);
         break;
       case 'crouch': {
-        // IV: the deep crouch, charging up: a low rising whoosh and the aura beginning to build; the crowd rises.
+        // Tier 4: the deep crouch, charging up: a low rising whoosh and the aura beginning to build; the crowd rises.
         cue(c.sfxThrowClip, c.sfxThrowGain * 0.9, c.sfxThrowRate * 0.6, { lenMs: 700, fadeMs: 250 });
         cue(c.sfxOohClip, c.sfxOohGain * 0.35, c.sfxOohRate * 0.95, { fadeMs: 400 });
         break;
       }
       case 'catch': {
-        // III: the pass slapped into the hands (and a squeak as it plants); IV: the catch at the top of the leap.
+        // Tier 3: the pass slapped into the hands (and a squeak as it plants); Tier 4: the catch at the top of the leap.
         cue(c.sfxCatchClip, c.sfxCatchGain, c.sfxCatchRate, { lenMs: 200, fadeMs: 80 });
         if (!big) cue(c.sfxSqueakClip, c.sfxSqueakGain * 0.7, c.sfxSqueakRate * 1.05);
         const b = ball(t);
@@ -249,7 +249,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
           cue(c.sfxCheerClip, c.sfxCheerGain, c.sfxCheerRate, { delayMs: real(380), lenMs: 2200, fadeMs: 700 });
           scene?.slam(geo.hit, blowDir, { burst: plan.burst, rings: plan.rings, shards: plan.shards, confetti: plan.confetti, blast: c.blastSize, boardAt: hoopLayout(geo.rimAt, radius, c.hoopSize).boardCenter });
         } else {
-          // SWISH: nothing but net. II's fade gets a small "ooh"; III's three a bigger swish and a full one.
+          // SWISH: nothing but net. Tier 2's fade gets a small "ooh"; Tier 3's three a bigger swish and a full one.
           cue(c.sfxSwishClip, c.sfxSwishGain * (plan.kind === 'three' ? 1.15 : 1), c.sfxSwishRate);
           if (plan.kind === 'fadeaway') cue(c.sfxOohClip, c.sfxOohGain * 0.45, c.sfxOohRate * 1.05, { delayMs: real(160), fadeMs: 350 });
           if (plan.kind === 'three') cue(c.sfxOohClip, c.sfxOohGain * 0.95, c.sfxOohRate, { delayMs: real(140), fadeMs: 400 });
@@ -295,7 +295,7 @@ export function playHeroBasketball(o: HeroBasketballOptions): HeroBasketballHand
       const b = ball(t);
       scene.setBall(b);
       if (b.flying && t - lastTrail >= c.trailMs) { scene.trail(b); lastTrail = t; }
-      // IV: the aura building from the crouch to the slam, and speed lines behind the launch.
+      // Tier 4: the aura building from the crouch to the slam, and speed lines behind the launch.
       if (plan.crouchAt !== null && t >= plan.crouchAt && t < plan.impactAt && t - lastAura >= 45) {
         const at = { x: o.attacker.x + p.x, y: o.attacker.y + p.y };
         const build = Math.min(1, (t - plan.crouchAt) / Math.max(1, plan.catchAt! - plan.crouchAt));

@@ -31,17 +31,25 @@ import { playHeroBeast } from '../heroBeast/heroBeast';
 import { playHeroBanana } from '../heroBanana/heroBanana';
 import { playHeroBleed } from '../heroBleed/heroBleed';
 import { playHeroCards } from '../heroCards/heroCards';
+import { playHeroChess } from '../heroChess/heroChess';
 import { playHeroStorm } from '../heroStorm/heroStorm';
+import { playHeroFireworks } from '../heroFireworks/heroFireworks';
 import { playHeroCoin } from '../heroCoin/heroCoin';
 import { playHeroBoomerang } from '../heroBoomerang/heroBoomerang';
 import { playHeroBubble } from '../heroBubble/heroBubble';
 import { playHeroBackstab } from '../heroBackstab/heroBackstab';
 import { playHeroBasketball } from '../heroBasketball/heroBasketball';
 import { playHeroBaseball } from '../heroBaseball/heroBaseball';
+import { playHeroCombo } from '../heroCombo/heroCombo';
+import { playHeroWrestle } from '../heroWrestle/heroWrestle';
 import { playHeroSoccer } from '../heroSoccer/heroSoccer';
 import { playHeroVoid } from '../heroVoid/heroVoid';
 import { playHeroStitch } from '../heroStitch/heroStitch';
+import { playHeroReaping } from '../heroReaping/heroReaping';
 import { playHeroBulletTime } from '../heroBulletTime/heroBulletTime';
+import { playHeroStars } from '../heroStars/heroStars';
+import { playHeroGlass } from '../heroGlass/heroGlass';
+import { playHeroWarhost } from '../heroWarhost/heroWarhost';
 
 afterEach(() => { document.body.innerHTML = ''; });
 
@@ -148,12 +156,20 @@ const STYLES: [string, Runner][] = [
   ['frost', playHeroFrost as Runner], ['holy', playHeroHoly as Runner], ['fire', playHeroFire as Runner],
   ['undead', playHeroUndead as Runner], ['beast', playHeroBeast as Runner], ['banana', playHeroBanana as Runner],
   ['bleed', playHeroBleed as Runner], ['cards', playHeroCards as Runner], ['storm', playHeroStorm as Runner],
+  ['fireworks', playHeroFireworks as Runner],
+  ['chess', playHeroChess as Runner],
   ['coin', playHeroCoin as Runner], ['boomerang', playHeroBoomerang as Runner],
   ['bubble', playHeroBubble as Runner], ['backstab', playHeroBackstab as Runner],
   ['basketball', playHeroBasketball as Runner],
   ['stitch', playHeroStitch as Runner],
+  ['reaping', playHeroReaping as Runner],
   ['bullettime', playHeroBulletTime as Runner],
+  ['stars', playHeroStars as Runner],
+  ['glass', playHeroGlass as Runner],
+  ['warhost', playHeroWarhost as Runner],
   ['baseball', playHeroBaseball as Runner],
+  ['combo', playHeroCombo as Runner],
+  ['wrestle', playHeroWrestle as Runner],
   ['soccer', playHeroSoccer as Runner],
   ['void', playHeroVoid as Runner],
 ];
@@ -192,7 +208,7 @@ function play(runner: Runner, canvasInCamera: boolean, total: number, side: 'pla
 describe('every style: the FX get the camera ONCE (the impact point stays on the struck portrait while zoomed)', () => {
   for (const [style, runner] of STYLES) {
     for (const inside of [true, false]) {
-      it(`${style}: canvas ${inside ? 'INSIDE' : 'outside'} the camera, Tier IV, both directions`, () => {
+      it(`${style}: canvas ${inside ? 'INSIDE' : 'outside'} the camera, Tier 4, both directions`, () => {
         for (const side of ['player', 'opp'] as const) {
           const r = play(runner, inside, 40, side);
           let zoomed = 0;

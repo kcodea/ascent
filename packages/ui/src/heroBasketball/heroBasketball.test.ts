@@ -46,7 +46,7 @@ const ctx = (total: number, a = A, d = D) => {
 const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
 
 describe('the tiers: the shared four onto the four moves', () => {
-  it('uses the shared thresholds; I jumper, II fadeaway, III pull-up three, IV alley-oop; a knockout plays the alley-oop', () => {
+  it('uses the shared thresholds; Tier 1 jumper, Tier 2 fadeaway, Tier 3 pull-up three, Tier 4 alley-oop; a knockout plays the alley-oop', () => {
     expect({ tier2At: C.tier2At, tier3At: C.tier3At, tier4At: C.tier4At }).toEqual(HERO_ATTACK_TIER_THRESHOLDS);
     for (let d = 0; d <= 60; d++) expect(plan(d).kind, `dmg ${d}`).toBe(basketballKind(tierOf(d)));
     expect([1, 2, 3, 4].map((t) => basketballKind(t as 1 | 2 | 3 | 4))).toEqual(['jumper', 'fadeaway', 'three', 'alleyoop']);
@@ -95,7 +95,7 @@ describe('the tuner values', () => {
 });
 
 describe('the plan', () => {
-  it('I THE JUMPER: dribbles where it stands, jumps, releases near the top, the swish is THE impact; nothing moves it along the floor', () => {
+  it('Tier 1 THE JUMPER: dribbles where it stands, jumps, releases near the top, the swish is THE impact; nothing moves it along the floor', () => {
     const p = plan(3);
     expect(p.kind).toBe('jumper');
     expect(p.approachEnd).toBe(p.startAt);
@@ -108,7 +108,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(2200);
   });
 
-  it('II THE FADEAWAY: a slide to mid court (squeaks), the fade, the release at the top of the fade, swish, then home', () => {
+  it('Tier 2 THE FADEAWAY: a slide to mid court (squeaks), the fade, the release at the top of the fade, swish, then home', () => {
     const p = plan(8);
     expect(p.kind).toBe('fadeaway');
     expect(p.approachEnd).toBeGreaterThan(p.startAt);
@@ -120,7 +120,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(3000);
   });
 
-  it('III THE THREE: the scoot, the pass caught after it stops, the pump fake, the dribble back, the pull-up; the swish = THE impact', () => {
+  it('Tier 3 THE THREE: the scoot, the pass caught after it stops, the pump fake, the dribble back, the pull-up; the swish = THE impact', () => {
     const p = plan(14);
     expect(p.kind).toBe('three');
     expect(p.passAt!).toBeLessThan(p.catchAt!);
@@ -139,7 +139,7 @@ describe('the plan', () => {
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(4200);
   });
 
-  it('IV THE ALLEY-OOP: two opening threes (ticks), back to the slot, the chest pass off the backboard (a tick), the crouch, the launch, the catch at half court, one slam = THE impact', () => {
+  it('Tier 4 THE ALLEY-OOP: two opening threes (ticks), back to the slot, the chest pass off the backboard (a tick), the crouch, the launch, the catch at half court, one slam = THE impact', () => {
     const p = plan(40);
     expect(p.kind).toBe('alleyoop');
     const P = p.pre!;
@@ -167,7 +167,7 @@ describe('the plan', () => {
     expect(kinds.indexOf('bounce')).toBeLessThan(kinds.indexOf('impact'));
     expect(kinds.lastIndexOf('swish')).toBeLessThan(kinds.indexOf('impact'));
     expect(kinds[0]).toBe('charge');
-    // snappy enough: the whole of IV after the formation, at 1x
+    // snappy enough: the whole of Tier 4 after the formation, at 1x
     expect(p.endAt - p.chargeAt).toBeLessThanOrEqual(5200);
     // without the opening, it goes straight to the slam sequence
     const bare = basketballPlan({ total: 40, leadIn: leadInOf([40]) }, { ...C, oopThrees: 0 });
@@ -210,7 +210,7 @@ describe('the geometry', () => {
     expect(g.back.y).toBeGreaterThan(g.scoot.y); // the step back is away from the target
     expect(dist(g.half, D)).toBeGreaterThanOrEqual(2 * R);
     expect(g.half.y).toBeLessThan(A.y);
-    // IV catches at half court: between the heroes, the ball just above the player's head
+    // Tier 4 catches at half court: between the heroes, the ball just above the player's head
     expect(g.ballApex.y).toBeLessThan(A.y);
     expect(g.ballApex.y).toBeGreaterThan(D.y);
     expect(g.ballApex.y).toBeLessThan(g.catchAt.y);
@@ -252,7 +252,7 @@ describe('the geometry', () => {
 });
 
 describe('the pose and the ball', () => {
-  it('I: in the air at the release, home on the floor after the landing; the ball in flight arcs ABOVE the straight line', () => {
+  it('Tier 1: in the air at the release, home on the floor after the landing; the ball in flight arcs ABOVE the straight line', () => {
     const x = ctx(3);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
     expect(at(x.p.chargeAt - 1)).toMatchObject({ x: 0, y: 0, air: 0 });
@@ -268,7 +268,7 @@ describe('the pose and the ball', () => {
     expect(basketballBall(x, mid + 100).rot).not.toBe(b.rot);
   });
 
-  it('II: at mid court, then fading back to its side at the release, home at the end', () => {
+  it('Tier 2: at mid court, then fading back to its side at the release, home at the end', () => {
     const x = ctx(8);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
     const m = at(x.p.approachEnd);
@@ -279,7 +279,7 @@ describe('the pose and the ball', () => {
     { const e = at(x.p.endAt - 1); expect(Math.hypot(e.x, e.y)).toBeLessThan(0.05); }
   });
 
-  it('III: scooted straight up, no ball until the pass flies in from the right into the hands; the pump fake lifts it; the step back; the pull-up swish', () => {
+  it('Tier 3: scooted straight up, no ball until the pass flies in from the right into the hands; the pump fake lifts it; the step back; the pull-up swish', () => {
     const x = ctx(14);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
     const s0 = at(x.p.approachEnd);
@@ -302,7 +302,7 @@ describe('the pose and the ball', () => {
     { const e = at(x.p.endAt - 1); expect(Math.hypot(e.x, e.y)).toBeLessThan(0.05); }
   });
 
-  it('IV: the opening threes swish on the target\'s hoop; the chest pass bangs the BACKBOARD, rebounds to half court and is there FIRST; the player leaps to it, catches it in the air and flies into one slam', () => {
+  it('Tier 4: the opening threes swish on the target\'s hoop; the chest pass bangs the BACKBOARD, rebounds to half court and is there FIRST; the player leaps to it, catches it in the air and flies into one slam', () => {
     const x = ctx(40);
     const at = (t: number) => basketballPose(x.p, x.segs, C, t);
     const P = x.p.pre!;
@@ -345,7 +345,7 @@ describe('the pose and the ball', () => {
       expect(step + 1e-6, `accelerating @${t}`).toBeGreaterThanOrEqual(prevStep);
       prev = b; prevStep = step;
     }
-    // no teleport anywhere in IV: the portrait moves at most a sane distance per 8 ms
+    // no teleport anywhere in Tier 4: the portrait moves at most a sane distance per 8 ms
     for (let t = x.p.chargeAt; t < x.p.endAt; t += 8) {
       const p0 = at(t), p1 = at(t + 8);
       expect(Math.hypot(p1.x - p0.x, p1.y - p0.y), `@${t}`).toBeLessThan(R * 1.2);
@@ -360,7 +360,7 @@ describe('the pose and the ball', () => {
     expect(dist(basketballBall(x, x.p.impactAt), D)).toBeLessThan(1);
   });
 
-  it('the hoop shows before the shot lands, rattles on the slam, and IV\'s backboard is gone after it; the camera pushes in at IV', () => {
+  it('the hoop shows before the shot lands, rattles on the slam, and Tier 4\'s backboard is gone after it; the camera pushes in at Tier 4', () => {
     const p = plan(40);
     expect(hoopAt(p, p.chargeAt).alpha).toBe(0);
     expect(hoopAt(p, p.impactAt - 1)).toMatchObject({ board: true });
@@ -422,7 +422,7 @@ function expectRestored(r: ReturnType<typeof run>, zClass = 'duel-attacker-playe
 describe('the runner (the shared clock, the portrait restored on every exit)', () => {
   afterEach(() => { document.body.innerHTML = ''; document.body.className = ''; });
 
-  it('IV: the smack, the bounce and the catch never land it; the blow lands ONCE on the slam; the portrait moved, raised, and is put back EXACTLY at the end', () => {
+  it('Tier 4: the smack, the bounce and the catch never land it; the blow lands ONCE on the slam; the portrait moved, raised, and is put back EXACTLY at the end', () => {
     const r = run({ total: 40, formation: formationOf([40], 40) });
     const { h, f, onImpact, onDone } = r;
     expect(r.host.querySelector('.hblast.hbasketball')).not.toBeNull();
@@ -530,7 +530,7 @@ describe('the runner (the shared clock, the portrait restored on every exit)', (
   });
 });
 
-describe('variety (owner review of #1867: three dribble moves on II, three spots on III, rolled per blow)', () => {
+describe('variety (owner review of #1867: three dribble moves on Tier 2, three spots on Tier 3, rolled per blow)', () => {
   const vctx = (total: number, v: BasketballVariant, a = A, d = D) => {
     const p = basketballPlan({ total, leadIn: leadInOf([total]), variant: v }, C);
     const g = basketballGeo(a, d, R, R, FRAME, C, v);
@@ -545,7 +545,7 @@ describe('variety (owner review of #1867: three dribble moves on II, three spots
     expect(clampHeroBasketballValue('variation', '2')).toBe('2');
   });
 
-  it('II: every dribble move keeps the fade and the shot; the wrap HIDES the ball behind the portrait; the spin turns it a full circle', () => {
+  it('Tier 2: every dribble move keeps the fade and the shot; the wrap HIDES the ball behind the portrait; the spin turns it a full circle', () => {
     for (const v of [1, 2, 3] as const) {
       const x = vctx(8, v);
       expect(x.p.flairAt!).toBeGreaterThan(x.p.startAt);
@@ -572,7 +572,7 @@ describe('variety (owner review of #1867: three dribble moves on II, three spots
     expect(cross.p.dribbles.length).toBe(4);
   });
 
-  it('III: three spots (straight up, the left wing, the right corner), the pass from the side the spot faces, on screen, the shot on target', () => {
+  it('Tier 3: three spots (straight up, the left wing, the right corner), the pass from the side the spot faces, on screen, the shot on target', () => {
     const spots = [1, 2, 3].map((v) => vctx(14, v as BasketballVariant));
     expect(spots[0]!.g.scoot.x).toBeCloseTo(A.x, 6);
     expect(spots[1]!.g.scoot.x).toBeLessThan(A.x - R);
@@ -595,8 +595,8 @@ describe('variety (owner review of #1867: three dribble moves on II, three spots
   });
 });
 
-describe('slow mo (III on the release, IV on the catch; a smooth ramp, never a freeze)', () => {
-  it('III slows around the release and IV around the catch, then IV runs a touch fast through the slam; never 0; I and II never slow', () => {
+describe('slow mo (Tier 3 on the release, Tier 4 on the catch; a smooth ramp, never a freeze)', () => {
+  it('Tier 3 slows around the release and Tier 4 around the catch, then Tier 4 runs a touch fast through the slam; never 0; Tiers 1 and 2 never slow', () => {
     const three = plan(14), oop = plan(40);
     expect(basketballTimeScale(three, C, three.releaseAt)).toBeCloseTo(C.threeSlow, 6);
     expect(basketballTimeScale(three, C, three.takeoffAt - 300)).toBe(1);
@@ -615,7 +615,7 @@ describe('slow mo (III on the release, IV on the catch; a smooth ramp, never a f
       expect(min).toBeGreaterThan(0.2);
       expect(slowWindow(p, C)).not.toBeNull();
     }
-    // the extra real time is about the slow-mo length (minus the fast slam on IV)
+    // the extra real time is about the slow-mo length (minus the fast slam on Tier 4)
     expect(slowExtraMs(three, C)).toBeGreaterThan(C.threeSlowMs * (1 - C.threeSlow) * 0.6);
     expect(slowExtraMs(three, C)).toBeLessThan(C.threeSlowMs * 1.2);
     expect(slowExtraMs(plan(8), C)).toBe(0);
@@ -698,7 +698,7 @@ describe('the hoop is ONE assembly (owner: "the backboard on the slam is not beh
     scene.destroy();
   });
 
-  it('the hoop is always on the STRUCK portrait (owner: "the hoop should be like in the second image, on the enemy player"): every tier, both directions, 1920 x 1080 and 1600 x 900; nothing touches it or the target before the IV slam', () => {
+  it('the hoop is always on the STRUCK portrait (owner: "the hoop should be like in the second image, on the enemy player"): every tier, both directions, 1920 x 1080 and 1600 x 900; nothing touches it or the target before the Tier 4 slam', () => {
     const frames = [{ x0: 0, y0: 0, x1: 1920, y1: 1080 }, { x0: 0, y0: 0, x1: 1600, y1: 900 }];
     for (const F of frames) {
       const layouts: [{ x: number; y: number }, { x: number; y: number }][] = [

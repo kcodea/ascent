@@ -2,10 +2,10 @@
  * THE RARE ATTACK TUNERS (added 2026-09-29 with Coin Flick, Boomerang, Bubble Pop and Backstab): one builder for the
  * four DEV panels, in the shared layout every attack tuner uses since #1843 (Copy JSON / Reset / Play row at the TOP;
  * no Speed or Reduced motion buttons; the "Attack style" dev override first). A Rare has TWO visual tiers, so its
- * per-tier dials are two groups (Small: shared tiers I-II; Big: III-IV and every knockout), not four.
+ * per-tier dials are two groups (Tier 1: shared tiers 1-2; Tier 2: shared tiers 3-4 and every knockout), not four.
  *
  * The Play buttons run the REAL runner between the two real hero portraits (works from the shop), in either direction,
- * at the same four blows every attack tuner offers (3 / 8 play Small; 12 / 40 play Big). A preview never touches the
+ * at the same four blows every attack tuner offers (3 / 8 play its Tier 1; 12 / 40 play its Tier 2). A preview never touches the
  * run. Production plays the baked defaults.
  */
 import { clipNames } from '../sfx';
@@ -39,16 +39,16 @@ export interface RareTunerDef<C extends object> {
   play: (o: HeroAttackOptions) => HeroAttackHandle;
   /** The verb for the Play buttons' hints ("flicks a coin at"). */
   verb: string;
-  /** What each preview blow plays, for the hints. */
+  /** What each preview blow plays, for the hints. A Rare's Tier 1 look (shared tiers 1-2) and Tier 2 look (shared tiers 3-4). */
   smallHint: string;
   bigHint: string;
   /**
    * A FOUR-tier attack (a Legendary on this builder, e.g. the Basketball): what each of the four preview blows plays,
-   * I / II / III / IV. Overrides the Small / Big hints on those buttons.
+   * Tiers 1 / 2 / 3 / 4. Overrides the two-look hints on those buttons.
    */
   tierHints?: readonly [string, string, string, string];
   /**
-   * An ANCIENT attack with a Knockout variant ("Tier V", owner ask 2026-10-02): what it plays, for the hint. Adds the
+   * An ANCIENT attack with a Knockout variant ("Tier 5", owner ask 2026-10-02): what it plays, for the hint. Adds the
    * "Knockout (40)" and "Foe knockout (40)" buttons, which play the blow as a knockout with the variant.
    */
   knockoutHint?: string;
@@ -125,16 +125,16 @@ export function rareTunerSpec<C extends object>(d: RareTunerDef<C>): { spec: Tun
     actions: [
       { label: '▶ You attack', hint: `Your hero ${d.verb} the foe for the preview damage.`, run: () => { void demo('player'); } },
       { label: '▶ Foe attacks', hint: `The foe ${d.verb} your hero for the preview damage.`, run: () => { void demo('opp'); } },
-      { label: '▶ Small (3)', hint: `Your hero attacks for 3 (shared Tier I): ${d.tierHints?.[0] ?? d.smallHint}`, run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-      { label: '▶ Tier II (8)', hint: `Your hero attacks for 8 (shared Tier II): ${d.tierHints?.[1] ?? `still ${d.smallHint}`}`, run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-      { label: '▶ Medium (12)', hint: `Your hero attacks for 12 (shared Tier III): ${d.tierHints?.[2] ?? d.bigHint}`, run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-      { label: '▶ Huge (40)', hint: `Your hero attacks for 40 (shared Tier IV, as a knockout plays): ${d.tierHints?.[3] ?? d.bigHint}`, run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-      { label: '▶ Foe small (3)', hint: 'The foe attacks your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-      { label: '▶ Foe tier II (8)', hint: 'The foe attacks your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-      { label: '▶ Foe medium (12)', hint: 'The foe attacks your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-      { label: '▶ Foe huge (40)', hint: 'The foe attacks your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+      { label: '▶ Tier 1 (3)', hint: `Your hero attacks for 3 (shared Tier 1): ${d.tierHints?.[0] ?? d.smallHint}`, run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+      { label: '▶ Tier 2 (8)', hint: `Your hero attacks for 8 (shared Tier 2): ${d.tierHints?.[1] ?? `still ${d.smallHint}`}`, run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+      { label: '▶ Tier 3 (12)', hint: `Your hero attacks for 12 (shared Tier 3): ${d.tierHints?.[2] ?? d.bigHint}`, run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+      { label: '▶ Tier 4 (40)', hint: `Your hero attacks for 40 (shared Tier 4, as a knockout plays): ${d.tierHints?.[3] ?? d.bigHint}`, run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+      { label: '▶ Foe tier 1 (3)', hint: 'The foe attacks your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+      { label: '▶ Foe tier 2 (8)', hint: 'The foe attacks your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+      { label: '▶ Foe tier 3 (12)', hint: 'The foe attacks your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+      { label: '▶ Foe tier 4 (40)', hint: 'The foe attacks your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
       ...(d.knockoutHint ? [
-        { label: '▶ Knockout (40)', hint: `Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier V"): ${d.knockoutHint}`, run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
+        { label: '▶ Knockout (40)', hint: `Your hero KNOCKS THE FOE OUT with 40 (the Ancient Knockout variant, "Tier 5"): ${d.knockoutHint}`, run: () => { void demo('player', { damage: 40, parts: 7, knockout: true }); } },
         { label: '▶ Foe knockout (40)', hint: 'The foe knocks YOU out with 40 (the Knockout variant).', run: () => { void demo('opp', { damage: 40, parts: 7, knockout: true }); } },
       ] : []),
     ],

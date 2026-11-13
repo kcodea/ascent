@@ -8,10 +8,10 @@
  * ONE CLEAR IDEA: the hero flicks a gleaming gold coin that spins (a flat in-plane turn plus an edge-on FLIP, read as its
  * width closing and opening) and PINGS off the struck hero with a bright "ding" sparkle.
  *
- * TWO VISUAL TIERS (a Rare has two, not four). The shared four map onto them here (`coinLevel`): I-II play SMALL,
- * III-IV play BIG, so a knockout (which always forces the shared Tier IV) plays BIG.
- *  - SMALL: one coin, one ping (THE impact), and it caroms off the face, tumbling away.
- *  - BIG: a ricochet volley. The coin pings the face (a tick), hops off it and back (a tick), and on the last ping (THE
+ * TWO VISUAL TIERS (a Rare has two, not four). The shared four map onto them here (`coinLevel`): Tiers 1-2 play TIER 1,
+ * Tiers 3-4 play TIER 2, so a knockout (which always forces the shared Tier 4) plays TIER 2.
+ *  - TIER 1: one coin, one ping (THE impact), and it caroms off the face, tumbling away.
+ *  - TIER 2: a ricochet volley. The coin pings the face (a tick), hops off it and back (a tick), and on the last ping (THE
  *    impact) it bursts into a small shower of coins that spill out and fall.
  *
  * THE BEATS (base ms before the playback speed): the shared damage formation (its end is this style's start); READY
@@ -35,7 +35,7 @@ export type { TierNum };
 export const COIN_LEVELS = ['small', 'big'] as const;
 export type CoinLevel = (typeof COIN_LEVELS)[number];
 
-/** The shared four tiers onto this Rare's two: I-II small, III-IV big (a knockout forces IV, so it plays big). */
+/** The shared four tiers onto this Rare's two: shared Tiers 1-2 play Tier 1, Tiers 3-4 play Tier 2 (a knockout forces Tier 4, so it plays Tier 2). */
 export function coinLevel(tier: TierNum): CoinLevel { return tier >= 3 ? 'big' : 'small'; }
 
 /** The per-level dials. A config key is `small` / `big` + one of these. */
@@ -87,7 +87,7 @@ export const HERO_COIN_CLIP_KEYS = ['sfxFlickClip', 'sfxSnapClip', 'sfxDingClip'
 export type HeroCoinStrKey = (typeof HERO_COIN_COLOR_KEYS)[number] | (typeof HERO_COIN_CLIP_KEYS)[number];
 export type HeroCoinNumKey = Exclude<keyof HeroCoinConfig, HeroCoinStrKey>;
 
-/** Small, big per suffix. */
+/** Tier 1, Tier 2 per suffix. */
 const LEVEL_DEFAULTS: Record<CoinLevelSuffix, [number, number]> = {
   ReadyMs: [260, 300],
   FlightMs: [440, 420],
@@ -259,7 +259,7 @@ export interface CoinPlan {
   /** The pings BEFORE the impact (ticks: FX and sound only). */
   hits: number[];
   impactAt: number;
-  /** Big: the coin bursts into a shower on the impact. */
+  /** Tier 2: the coin bursts into a shower on the impact. */
   shower: number;
   endAt: number;
   size: number;
@@ -274,7 +274,7 @@ export interface CoinPlan {
 /** The whole Coin Flick, in base ms. Pure and deterministic. */
 export function coinPlan(input: CoinPlanInput, c: HeroCoinConfig = store.get()): CoinPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV (heroAttack/tiers.ts)
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4 (heroAttack/tiers.ts)
   const level = coinLevel(tier);
   const L = coinLevelDials(level, c);
   const k = (tier - 1) / 3;
@@ -295,7 +295,7 @@ export function coinPlan(input: CoinPlanInput, c: HeroCoinConfig = store.get()):
   const pings = Array.from({ length: n }, (_, i) => flickAt + flightMs + i * hopMs);
   const impactAt = pings[n - 1]!;
   const shower = level === 'big' ? Math.round(clamp(L.Shower, 0, COIN_CAPS.shower)) : 0;
-  // The carom (small) and the shower (big) drain after the end: the fight never waits on a falling coin.
+  // The carom (Tier 1) and the shower (Tier 2) drain after the end: the fight never waits on a falling coin.
   const endAt = impactAt + Math.max(c.zoomOutMs * 0.8, 300) + L.SettleMs;
   return {
     reduced: false, tier, level, k, total, chargeAt, absorbEnd, flickAt, flightMs, hopMs, pings, hits: pings.slice(0, -1), impactAt,

@@ -13,8 +13,8 @@ import type { TunerControl, TunerSpec, TunerUnit } from './tunerSchema';
 /**
  * DEV tuner for the FROST hero attack (owner ask 2026-09-28: "branch off and create an ice/freeze blast one. icicles and
  * then a frost nova blast that blasts across the screen from the attacker to the target"). The Play buttons run the
- * REAL runner between the two real hero portraits (works from the shop), in either direction, at Small 3 / Tier II 8 /
- * Medium 12 / Huge 40. A preview never touches the run. The "Attack style"
+ * REAL runner between the two real hero portraits (works from the shop), in either direction, at Tier 1 (3) / Tier 2 (8) /
+ * Tier 3 (12) / Tier 4 (40). A preview never touches the run. The "Attack style"
  * row is the same dev override as the other attack tuners' (Auto = what a player would see). Production plays the
  * baked defaults.
  */
@@ -26,9 +26,9 @@ type GlobalNumKey = Exclude<HeroFrostNumKey, `t${number}${string}`>;
 const SPECS: Record<GlobalNumKey, Spec> = {
   previewDamage: ['Preview damage', undefined, 'The blow the Play buttons use (preview only, never shipped).', 'Preview'],
   previewParts: ['Preview numbers', undefined, 'How many numbers combine in the preview (the tier plus survivors).', 'Preview'],
-  tier2At: ['Tier II from', undefined, 'Damage at which Frost steps up to Tier II (two icicles). Shared with every hero attack (6).', 'Damage tiers'],
-  tier3At: ['Tier III from', undefined, 'Damage at which Frost becomes the volley of five. Shared (12).', 'Damage tiers'],
-  tier4At: ['Tier IV from', undefined, 'Damage at which Frost adds the frost nova. Shared (20).', 'Damage tiers'],
+  tier2At: ['Tier 2 from', undefined, 'Damage at which Frost steps up to Tier 2 (two icicles). Shared with every hero attack (6).', 'Damage tiers'],
+  tier3At: ['Tier 3 from', undefined, 'Damage at which Frost becomes the volley of five. Shared (12).', 'Damage tiers'],
+  tier4At: ['Tier 4 from', undefined, 'Damage at which Frost adds the frost nova. Shared (20).', 'Damage tiers'],
   absorbMs: ['Absorb', 'ms', 'The total diving into the hero.', 'Crystallise'],
   heroSwell: ['Hero swell', '×', 'How much the hero swells as the cold gathers.', 'Crystallise'],
   recoilPx: ['Recoil', 'px', 'How far the hero kicks back as each icicle leaves.', 'Crystallise'],
@@ -49,18 +49,18 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   creepMs: ['Frost creep', 'ms', 'How long the frost takes to creep over the struck portrait edge.', 'Shatter and frost'],
   creepFerns: ['Creep ferns', undefined, 'Frost ferns creeping in per full hit.', 'Shatter and frost'],
   creepReach: ['Creep reach', '×', 'How far the frost creeps in over the portrait (portrait radii).', 'Shatter and frost'],
-  novaWindupMs: ['Nova gather', 'ms', 'Tier IV: the hero gathering the cold before the nova is released.', 'Frost nova (Tier IV)'],
-  novaMs: ['Nova travel', 'ms', 'Tier IV: the wave crossing the board (at 1600 px; scales gently with distance).', 'Frost nova (Tier IV)'],
-  novaWidth: ['Wave width', '×', 'Tier IV: how wide the wave front is, in portrait radii (it widens as it rolls).', 'Frost nova (Tier IV)'],
-  novaDepth: ['Wave depth', '×', 'Tier IV: how deep the frost wall behind the leading edge is.', 'Frost nova (Tier IV)'],
-  novaBulge: ['Wave bulge', '×', 'Tier IV: how far the middle of the front leads its ends (a rolling crescent).', 'Frost nova (Tier IV)'],
-  snowDensity: ['Snow density', '×', 'Tier IV: snow and crystals swirling in the front and spiralling into the hero.', 'Frost nova (Tier IV)'],
-  groundWidth: ['Ice sheet width', '×', 'Tier IV: how wide the frozen ground left behind the wave is.', 'Frost nova (Tier IV)'],
-  groundFerns: ['Ground ferns', undefined, 'Tier IV: frost ferns growing off the frozen ground as the wave passes.', 'Frost nova (Tier IV)'],
-  groundFadeMs: ['Ground thaw', 'ms', 'Tier IV: how long the frozen ground takes to thaw after the shatter.', 'Frost nova (Tier IV)'],
-  encaseMs: ['Encase hold', 'ms', 'Tier IV: the ice holding the struck hero before it shatters (the ice holds; the clock never stops).', 'Encase and shatter'],
-  encaseSize: ['Encase size', '×', 'Tier IV: the ice shell over the portrait.', 'Encase and shatter'],
-  encaseShards: ['Shatter shards', undefined, 'Tier IV: shards thrown when the encasement shatters.', 'Encase and shatter'],
+  novaWindupMs: ['Nova gather', 'ms', 'Tier 4: the hero gathering the cold before the nova is released.', 'Frost nova (Tier 4)'],
+  novaMs: ['Nova travel', 'ms', 'Tier 4: the wave crossing the board (at 1600 px; scales gently with distance).', 'Frost nova (Tier 4)'],
+  novaWidth: ['Wave width', '×', 'Tier 4: how wide the wave front is, in portrait radii (it widens as it rolls).', 'Frost nova (Tier 4)'],
+  novaDepth: ['Wave depth', '×', 'Tier 4: how deep the frost wall behind the leading edge is.', 'Frost nova (Tier 4)'],
+  novaBulge: ['Wave bulge', '×', 'Tier 4: how far the middle of the front leads its ends (a rolling crescent).', 'Frost nova (Tier 4)'],
+  snowDensity: ['Snow density', '×', 'Tier 4: snow and crystals swirling in the front and spiralling into the hero.', 'Frost nova (Tier 4)'],
+  groundWidth: ['Ice sheet width', '×', 'Tier 4: how wide the frozen ground left behind the wave is.', 'Frost nova (Tier 4)'],
+  groundFerns: ['Ground ferns', undefined, 'Tier 4: frost ferns growing off the frozen ground as the wave passes.', 'Frost nova (Tier 4)'],
+  groundFadeMs: ['Ground thaw', 'ms', 'Tier 4: how long the frozen ground takes to thaw after the shatter.', 'Frost nova (Tier 4)'],
+  encaseMs: ['Encase hold', 'ms', 'Tier 4: the ice holding the struck hero before it shatters (the ice holds; the clock never stops).', 'Encase and shatter'],
+  encaseSize: ['Encase size', '×', 'Tier 4: the ice shell over the portrait.', 'Encase and shatter'],
+  encaseShards: ['Shatter shards', undefined, 'Tier 4: shards thrown when the encasement shatters.', 'Encase and shatter'],
   flashAlpha: ['Flash', 'opacity', 'How bright the impact and shatter flashes are.', 'Encase and shatter'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
   squash: ['Squash', '×', 'How much the struck portrait squashes.', 'Camera and portraits'],
@@ -85,20 +85,20 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   sfxImpactRate: ['impact: pitch', '×', 'Pitch of the impact.', 'Sound: impact'],
   sfxThumpGain: ['thump: gain', undefined, 'A low punch under the impact (punchy, not boomy).', 'Sound: thump'],
   sfxThumpRate: ['thump: pitch', '×', 'Pitch of the thump (lower = heavier).', 'Sound: thump'],
-  sfxBigGain: ['big hit: gain', undefined, 'Tiers III and IV: an extra crack layered on the impact.', 'Sound: big hit'],
+  sfxBigGain: ['big hit: gain', undefined, 'Tiers 3 and 4: an extra crack layered on the impact.', 'Sound: big hit'],
   sfxBigRate: ['big hit: pitch', '×', 'Pitch of the big hit.', 'Sound: big hit'],
-  sfxReleaseGain: ['nova release: gain', undefined, 'Tier IV: the whoosh-hit as the nova is released.', 'Sound: nova release'],
+  sfxReleaseGain: ['nova release: gain', undefined, 'Tier 4: the whoosh-hit as the nova is released.', 'Sound: nova release'],
   sfxReleaseRate: ['nova release: pitch', '×', 'Pitch of the release.', 'Sound: nova release'],
-  sfxEncaseGain: ['encase: gain', undefined, 'Tier IV: the freezing crunch as the ice snaps shut over the hero.', 'Sound: encase'],
+  sfxEncaseGain: ['encase: gain', undefined, 'Tier 4: the freezing crunch as the ice snaps shut over the hero.', 'Sound: encase'],
   sfxEncaseRate: ['encase: pitch', '×', 'Pitch of the encase.', 'Sound: encase'],
-  sfxBurstGain: ['burst: gain', undefined, 'Tier IV: the big glassy burst as the encasement shatters (pitched up to crack, not boom).', 'Sound: burst'],
+  sfxBurstGain: ['burst: gain', undefined, 'Tier 4: the big glassy burst as the encasement shatters (pitched up to crack, not boom).', 'Sound: burst'],
   sfxBurstRate: ['burst: pitch', '×', 'Pitch of the burst.', 'Sound: burst'],
-  sfxBoomGain: ['aftershock: gain', undefined, 'Tier IV: the tinkling pops after the shatter.', 'Sound: aftershock'],
+  sfxBoomGain: ['aftershock: gain', undefined, 'Tier 4: the tinkling pops after the shatter.', 'Sound: aftershock'],
   sfxBoomRate: ['aftershock: pitch', '×', 'Pitch of the first aftershock.', 'Sound: aftershock'],
-  sfxWindGain: ['howl: gain', undefined, 'Tier IV: the synth freezing wind rising to the release, trailing off as the wave rolls.', 'Sound: howl'],
+  sfxWindGain: ['howl: gain', undefined, 'Tier 4: the synth freezing wind rising to the release, trailing off as the wave rolls.', 'Sound: howl'],
   sfxWindLowHz: ['howl: from', undefined, 'Hz. Where the howl starts.', 'Sound: howl'],
   sfxWindHighHz: ['howl: to', undefined, 'Hz. Where it has risen to at the release.', 'Sound: howl'],
-  sfxCrackleGain: ['crackle: gain', undefined, 'Tier IV: the synth crackle of freezing ground and the ice straining (loudest while encased).', 'Sound: crackle'],
+  sfxCrackleGain: ['crackle: gain', undefined, 'Tier 4: the synth crackle of freezing ground and the ice straining (loudest while encased).', 'Sound: crackle'],
   sfxLaunchLenMs: ['launch length', 'ms', 'Each launch whoosh is cut to this long (with a fade).', 'Sound: mix'],
   sfxImpactLenMs: ['impact length', 'ms', 'The shatter and burst clips are cut to this long (with a fade).', 'Sound: mix'],
   sfxTailMix: ['impact tail', undefined, 'A short reverb tail on the impact. 0 = dry.', 'Sound: mix'],
@@ -107,7 +107,7 @@ const SPECS: Record<GlobalNumKey, Spec> = {
 
 const TIER_SPECS: Record<FrostTierSuffix, [string, TunerUnit | undefined, string]> = {
   FormMs: ['Form', 'ms', 'The icicles crystallising before the first one fires. The view pushes in over this.'],
-  Icicles: ['Icicles', undefined, 'How many icicles form and fire (I one, II two, III the volley of five, IV four before the nova).'],
+  Icicles: ['Icicles', undefined, 'How many icicles form and fire (Tier 1 one, Tier 2 two, Tier 3 the volley of five, Tier 4 four before the nova).'],
   LaunchStaggerMs: ['Launch stagger', 'ms', 'Gap between each icicle firing (the volley rhythm).'],
   FlightMs: ['Flight', 'ms', 'An icicle crossing the board (at 1600 px; scales gently with distance).'],
   IcicleSize: ['Icicle size', '×', 'Size of the icicles (the last of a volley is a little bigger).'],
@@ -123,7 +123,7 @@ const TIER_SPECS: Record<FrostTierSuffix, [string, TunerUnit | undefined, string
   Dim: ['Dim', 'opacity', 'How far everything but the two heroes dims.'],
 };
 
-const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
+const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier 1', 2: 'Tier 2', 3: 'Tier 3', 4: 'Tier 4' };
 
 const CLIP_OF: Partial<Record<string, HeroFrostStrKey>> = {
   'Sound: forming': 'sfxFormClip', 'Sound: chime': 'sfxChimeClip', 'Sound: shimmer': 'sfxSheenClip', 'Sound: launch': 'sfxLaunchClip',
@@ -229,14 +229,14 @@ export const SPEC: TunerSpec<FrostTunerValues> = {
   actions: [
     { label: '▶ You cast', hint: 'Your hero casts Frost at the foe for the preview damage.', run: () => { void demo('player'); } },
     { label: '▶ Foe casts', hint: 'The foe casts Frost at your hero for the preview damage.', run: () => { void demo('opp'); } },
-    { label: '▶ Small (3)', hint: 'Your hero casts for 3: Tier I, one icicle.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
-    { label: '▶ Tier II (8)', hint: 'Your hero casts for 8: Tier II, two icicles.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
-    { label: '▶ Medium (12)', hint: 'Your hero casts for 12 from four numbers: Tier III, the volley of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
-    { label: '▶ Huge (40)', hint: 'Your hero casts for 40 from seven numbers: Tier IV, icicles then the frost nova.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
-    { label: '▶ Foe small (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
-    { label: '▶ Foe tier II (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
-    { label: '▶ Foe medium (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
-    { label: '▶ Foe huge (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
+    { label: '▶ Tier 1 (3)', hint: 'Your hero casts for 3: Tier 1, one icicle.', run: () => { void demo('player', { damage: 3, parts: 2 }); } },
+    { label: '▶ Tier 2 (8)', hint: 'Your hero casts for 8: Tier 2, two icicles.', run: () => { void demo('player', { damage: 8, parts: 3 }); } },
+    { label: '▶ Tier 3 (12)', hint: 'Your hero casts for 12 from four numbers: Tier 3, the volley of five.', run: () => { void demo('player', { damage: 12, parts: 4 }); } },
+    { label: '▶ Tier 4 (40)', hint: 'Your hero casts for 40 from seven numbers: Tier 4, icicles then the frost nova.', run: () => { void demo('player', { damage: 40, parts: 7 }); } },
+    { label: '▶ Foe tier 1 (3)', hint: 'The foe casts at your hero for 3.', run: () => { void demo('opp', { damage: 3, parts: 2 }); } },
+    { label: '▶ Foe tier 2 (8)', hint: 'The foe casts at your hero for 8.', run: () => { void demo('opp', { damage: 8, parts: 3 }); } },
+    { label: '▶ Foe tier 3 (12)', hint: 'The foe casts at your hero for 12.', run: () => { void demo('opp', { damage: 12, parts: 4 }); } },
+    { label: '▶ Foe tier 4 (40)', hint: 'The foe casts at your hero for 40.', run: () => { void demo('opp', { damage: 40, parts: 7 }); } },
   ],
 };
 

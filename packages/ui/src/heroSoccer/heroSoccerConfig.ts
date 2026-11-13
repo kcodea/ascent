@@ -9,24 +9,24 @@
  * THE SIGNATURE: a GOAL (two posts, a crossbar and a net) stands on the struck hero, and every blow ends with the ball
  * BULGING THE NET. The striker is the PORTRAIT itself (it juggles, jogs, dribbles and flips), as the Basketball's does.
  *
- * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays IV):
- *  - I THE VOLLEY: keepy-uppies where it stands (the ball bobbing off its feet), one higher flick, a hop, and a crisp
+ * FOUR TIERS on the shared thresholds (`attackTier`: a knockout always plays Tier 4):
+ *  - Tier 1 THE VOLLEY: keepy-uppies where it stands (the ball bobbing off its feet), one higher flick, a hop, and a crisp
  *    volley on a low line into the goal: the net bulges (THE impact).
- *  - II THE CORNER KICK: the portrait jogs out to the CORNER FLAG at the target's end, sets the ball, steps back, raises
+ *  - Tier 2 THE CORNER KICK: the portrait jogs out to the CORNER FLAG at the target's end, sets the ball, steps back, raises
  *    an arm, and strikes. One of three corners, rolled per blow:
  *     1. the OLIMPICO: an inswinger that bends all the way into the goal, straight from the corner;
  *     2. the HEADER: an outswinger curled to the penalty spot; the portrait sprints in, leaps and heads it home;
  *     3. the SHORT CORNER: a short pass off the edge of the screen, the one-two back to it, and a first-time curler.
- *  - III THE BREAKAWAY: it dribbles up the pitch from its slot past DEFENDERS (dark foe tokens that lunge and are
+ *  - Tier 3 THE BREAKAWAY: it dribbles up the pitch from its slot past DEFENDERS (dark foe tokens that lunge and are
  *    beaten), one of three skills rolled per blow (STEPOVERS, a NUTMEG through the legs, a RAINBOW FLICK over the
  *    head), then a slow-mo last touch and a placed finish into the goal (THE impact).
- *  - IV THE BICYCLE KICK: two keepy-uppies, a huge flick SKY HIGH, a full sprint to the spot where the ball will come
+ *  - Tier 4 THE BICYCLE KICK: two keepy-uppies, a huge flick SKY HIGH, a full sprint to the spot where the ball will come
  *    down (its shadow marks the landing), a crouch, a leap and a backward FLIP; at the top, upside down, in deep slow
  *    mo, the bicycle kick; time snaps back and a THUNDERBOLT rockets into the goal: the net bursts out, the frame rings,
  *    an explosion, confetti and the crowd's roar (THE impact). Then a knee-slide celebration and home.
  *
  * The roll is `variantOf(rollSeed)`: a stable per-blow seed (the run seed and the round), so a replay rolls the same.
- * The DEV tuner's "Variation" row forces one. Slow mo (`soccerTimeScale`) is III's last touch and IV's contact: a smooth
+ * The DEV tuner's "Variation" row forces one. Slow mo (`soccerTimeScale`) is Tier 3's last touch and Tier 4's contact: a smooth
  * ramp that never reaches 0 (never a freeze); everything reads the one clock, and the blow still lands once, on its beat.
  *
  * Every point the portrait visits is kept on screen, and every shot lands on the target's centre (the hit point never
@@ -135,7 +135,7 @@ export const HERO_SOCCER_CLIP_KEYS = [
 export type HeroSoccerStrKey = (typeof HERO_SOCCER_COLOR_KEYS)[number] | (typeof HERO_SOCCER_CLIP_KEYS)[number] | 'variation';
 export type HeroSoccerNumKey = Exclude<keyof HeroSoccerConfig, HeroSoccerStrKey>;
 
-/** Per tier: [I, II, III, IV]. A dial a tier's move does not use is ignored there (the tuner says which). */
+/** Per tier: [Tiers 1, 2, 3, 4]. A dial a tier's move does not use is ignored there (the tuner says which). */
 const TIER_DEFAULTS: Record<SoccerTierSuffix, [number, number, number, number]> = {
   ReadyMs: [120, 110, 100, 100],
   Touches: [2, 0, 5, 2],
@@ -331,7 +331,7 @@ export function soccerTierDials(tier: TierNum, c: HeroSoccerConfig = store.get()
 
 export type SoccerVariant = 1 | 2 | 3;
 export const SOCCER_VARIANTS: readonly SoccerVariant[] = [1, 2, 3];
-/** II's corners and III's skills, by variant. */
+/** Tier 2's corners and Tier 3's skills, by variant. */
 export const CORNER_KINDS: Record<SoccerVariant, string> = { 1: 'the Olimpico (an inswinger straight in)', 2: 'an outswinger and a header', 3: 'a short corner one-two' };
 export const BREAKAWAY_SKILLS: Record<SoccerVariant, string> = { 1: 'stepovers', 2: 'a nutmeg', 3: 'a rainbow flick' };
 
@@ -352,7 +352,7 @@ export interface SoccerPlanInput extends AttackTierContext {
   leadIn?: number;
   total: number;
   reduced?: boolean;
-  /** Which variation (II's corner, III's skill). Default 1. */
+  /** Which variation (Tier 2's corner, Tier 3's skill). Default 1. */
   variant?: SoccerVariant;
 }
 
@@ -367,33 +367,33 @@ export interface SoccerPlan {
   absorbEnd: number;
   /** The move starts (after the ready beat). */
   startAt: number;
-  /** I / IV: the keepy-uppies (each a touch off the feet). III: the touches along the run. */
+  /** Tiers 1 / 4: the keepy-uppies (each a touch off the feet). Tier 3: the touches along the run. */
   touches: number[];
   touchMs: number;
-  /** I: the higher flick before the volley. IV: the flick SKY HIGH. Null elsewhere. */
+  /** Tier 1: the higher flick before the volley. Tier 4: the flick SKY HIGH. Null elsewhere. */
   flickAt: number | null;
-  /** The run: II the jog to the corner, III the dribble up the pitch, IV the sprint to the spot. */
+  /** The run: Tier 2 the jog to the corner, Tier 3 the dribble up the pitch, Tier 4 the sprint to the spot. */
   approachAt: number;
   approachEnd: number;
-  /** II: the ball set at the corner, the run-up begins. */
+  /** Tier 2: the ball set at the corner, the run-up begins. */
   setAt: number | null;
   runUpAt: number | null;
-  /** III: when the portrait passes each defender (the skill), and the skill's window either side. */
+  /** Tier 3: when the portrait passes each defender (the skill), and the skill's window either side. */
   beats: number[];
   skillMs: number;
-  /** II variant 2: the header (the ball meets the head); variant 3: the short pass out and the return. */
+  /** Tier 2 variant 2: the header (the ball meets the head); variant 3: the short pass out and the return. */
   headAt: number | null;
   passOutAt: number | null;
   returnAt: number | null;
-  /** The crouch and the leap (I the volley hop, II-2 the header leap, IV the bicycle leap). */
+  /** The crouch and the leap (Tier 1 the volley hop, Tier 2 the header leap, Tier 4 the bicycle leap). */
   gatherAt: number;
   takeoffAt: number;
   landAt: number;
-  /** THE STRIKE: the kick that sends the ball at the goal (I the volley, II the corner / the curler, III the finish, IV the bicycle kick). */
+  /** THE STRIKE: the kick that sends the ball at the goal (Tier 1 the volley, Tier 2 the corner / the curler, Tier 3 the finish, Tier 4 the bicycle kick). */
   strikeAt: number;
   /** THE impact: the ball in the net. The blow lands here, once. */
   impactAt: number;
-  /** IV: the knee slide after the landing. */
+  /** Tier 4: the knee slide after the landing. */
   slideAt: number | null;
   slideEnd: number | null;
   /** The portrait heads home, and is home. */
@@ -417,7 +417,7 @@ export interface SoccerPlan {
 /** The whole attack, in base ms. Pure and deterministic. */
 export function soccerPlan(input: SoccerPlanInput, c: HeroSoccerConfig = store.get()): SoccerPlan {
   const total = Math.max(0, Math.round(input.total));
-  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier IV
+  const tier = attackTier(total, input, c); // a knockout always plays the shared Tier 4
   const kind = soccerKind(tier);
   const L = soccerTierDials(tier, c);
   const k = (tier - 1) / 3;
@@ -563,7 +563,7 @@ export function soccerCues(p: SoccerPlan): SoccerCue[] {
     if (p.returnAt !== null) out.push({ at: p.returnAt, kind: 'return', i: 0 });
     if (p.takeoffAt > p.gatherAt && (p.kind === 'volley' || p.kind === 'bicycle' || p.headAt !== null)) out.push({ at: p.takeoffAt, kind: 'jump', i: 0 });
     if (p.headAt !== null) out.push({ at: p.headAt, kind: 'head', i: 0 });
-    // The strike: the kick that sends the ball goalward (II-2: the cross the header meets). Never the blow itself.
+    // The strike: the kick that sends the ball goalward (Tier 2-2: the cross the header meets). Never the blow itself.
     out.push({ at: p.strikeAt, kind: 'strike', i: 0 });
     if (p.landAt > p.strikeAt && (p.kind === 'volley' || p.kind === 'bicycle' || p.headAt !== null)) out.push({ at: p.landAt, kind: 'land', i: 0 });
     if (p.slideAt !== null) out.push({ at: p.slideAt, kind: 'slide', i: 0 });
@@ -600,7 +600,7 @@ export interface SoccerGeo {
   u: Pt;
   n: Pt;
   dist: number;
-  /** II: the corner spot (on the target's goal line, out at the side with more room), the flag beside it, the step
+  /** Tier 2: the corner spot (on the target's goal line, out at the side with more room), the flag beside it, the step
    * back for the run-up, the header point (the penalty spot), the short corner's wall pass (off the edge and back) and
    * where the one-two is met. */
   corner: Pt;
@@ -611,10 +611,10 @@ export interface SoccerGeo {
   passOff: Pt;
   passBack: Pt;
   meet: Pt;
-  /** III: the shot spot at the end of the run, and each defender's spot (with the side the portrait goes round it). */
+  /** Tier 3: the shot spot at the end of the run, and each defender's spot (with the side the portrait goes round it). */
   shot: Pt;
   defenders: { at: Pt; side: 1 | -1 }[];
-  /** IV: the spot it sprints to, where the ball is met overhead, how high it goes (its apex), and the knee slide's end. */
+  /** Tier 4: the spot it sprints to, where the ball is met overhead, how high it goes (its apex), and the knee slide's end. */
   spot: Pt;
   contact: Pt;
   apex: Pt;
@@ -646,7 +646,7 @@ export function soccerGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | n
   const along = (s: number): Pt => ({ x: a.x + u.x * s, y: a.y + u.y * s });
   const f: Frame = frame ?? { x0: Math.min(a.x, d.x) - 900, y0: Math.min(a.y, d.y) - 500, x1: Math.max(a.x, d.x) + 900, y1: Math.max(a.y, d.y) + 500 };
   const fmid = { x: (f.x0 + f.x1) / 2, y: (f.y0 + f.y1) / 2 };
-  // II: THE CORNER, on the target's goal line (the frame edge behind the target), out at the side with more room.
+  // Tier 2: THE CORNER, on the target's goal line (the frame edge behind the target), out at the side with more room.
   const roomL = d.x - f.x0, roomR = f.x1 - d.x;
   const cornerSide: 1 | -1 = Math.abs(roomL - roomR) > 2 ? (roomR > roomL ? 1 : -1) : (a.x > d.x + 2 ? 1 : a.x < d.x - 2 ? -1 : 1);
   const lineY = d.y <= a.y ? f.y0 : f.y1;
@@ -665,7 +665,7 @@ export function soccerGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | n
   const passOff = { x: (cornerSide > 0 ? f.x1 : f.x0) + cornerSide * aR * 1.5, y: corner.y - lineDir * aR * 0.2 };
   const meet = clampToFrame({ x: corner.x + toGoal.x * aR * 2.2, y: corner.y + toGoal.y * aR * 2.2 - lineDir * aR * 0.6 }, f, m);
   const passBack = { x: (cornerSide > 0 ? f.x1 : f.x0) + cornerSide * aR * 1.5, y: meet.y - lineDir * aR * 0.9 };
-  // III: the run straight up the pitch to the shot spot, defenders spread along it, each a little off the line.
+  // Tier 3: the run straight up the pitch to the shot spot, defenders spread along it, each a little off the line.
   const shot = clampToFrame(along(clamp(dist - clear, dist * 0.35, Math.max(0, dist - clear * 0.8))), f, m);
   const nd = clamp(Math.round(c.defenders), 1, SOCCER_CAPS.defenders);
   const defenders = Array.from({ length: nd }, (_, i) => {
@@ -674,7 +674,7 @@ export function soccerGeo(a: Pt, d: Pt, aR: number, dR: number, frame: Frame | n
     const base = { x: a.x + (shot.x - a.x) * fr, y: a.y + (shot.y - a.y) * fr };
     return { at: clampToFrame({ x: base.x - n.x * side * aR * 0.15, y: base.y - n.y * side * aR * 0.15 }, f, aR * 0.8), side };
   });
-  // IV: the spot in front of the goal, the contact overhead, the ball's apex (sky high, but on screen), the knee slide.
+  // Tier 4: the spot in front of the goal, the contact overhead, the ball's apex (sky high, but on screen), the knee slide.
   const spot = clampToFrame(along(clamp(dist - clear * 1.05, dist * 0.3, Math.max(0, dist - clear * 0.8))), f, m);
   const contact = clampToFrame({ x: spot.x - u.x * aR * 0.2, y: spot.y - aR * 0.95 }, f, aR * 0.45);
   const apexY = Math.max(f.y0 + aR * 0.7, Math.min(a.y, contact.y) - aR * c.skyHeight);
@@ -1052,7 +1052,7 @@ export function soccerBall(x: BallCtx, t: number): BallState {
   return inNet(p.impactAt, g.contact);
 }
 
-/** III's defenders at `t`: each fades in, LUNGES at the ball as the portrait reaches it, is beaten, and falls away. Pure. */
+/** Tier 3's defenders at `t`: each fades in, LUNGES at the ball as the portrait reaches it, is beaten, and falls away. Pure. */
 export interface DefenderState { visible: boolean; x: number; y: number; rot: number; scale: number; alpha: number }
 
 export function defenderAt(p: SoccerPlan, g: SoccerGeo, i: number, aR: number, t: number): DefenderState {
@@ -1098,7 +1098,7 @@ export function slowWindow(p: SoccerPlan, c: HeroSoccerConfig): { a: number; b: 
 }
 
 /**
- * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). III slows around the last touch; IV around the contact
+ * THE ATTACK'S TIME SCALE at sequence time `t` (1 = normal). Tier 3 slows around the last touch; Tier 4 around the contact
  * upside down, then runs a touch FAST as the thunderbolt flies. A smooth ramp, always > 0: never a freeze. Pure.
  */
 export function soccerTimeScale(p: SoccerPlan, c: HeroSoccerConfig, t: number): number {
@@ -1131,13 +1131,13 @@ export function goalAt(p: SoccerPlan, t: number): { alpha: number; bulge: number
   const outFrom = p.impactAt + (p.kind === 'bicycle' ? 520 : 320);
   const out = clamp01((t - outFrom) / 280);
   const age = t - p.impactAt;
-  // The net is punched out, overshoots and settles (a fast spring); IV's bursts out twice as far.
+  // The net is punched out, overshoots and settles (a fast spring); Tier 4's bursts out twice as far.
   const bulge = age >= 0 ? p.bulge * Math.max(0, Math.exp(-age / 260) * (0.5 + 0.5 * Math.cos(2 * Math.PI * 3.2 * (age / 1000)))) : 0;
   const shake = age >= 0 ? (p.kind === 'bicycle' ? 0.06 : 0.015) * spring(age, 11, 160) : 0;
   return { alpha: fadeIn * (1 - out), bulge, shake };
 }
 
-/** II's corner flag: up from the jog to the strike (it waves when the ball is struck), down as the portrait heads home. */
+/** Tier 2's corner flag: up from the jog to the strike (it waves when the ball is struck), down as the portrait heads home. */
 export function flagAt(p: SoccerPlan, t: number): { alpha: number; wave: number } {
   if (p.reduced || p.kind !== 'corner') return { alpha: 0, wave: 0 };
   const inAt = p.startAt + (p.approachEnd - p.startAt) * 0.4;
@@ -1151,8 +1151,8 @@ export function flagAt(p: SoccerPlan, t: number): { alpha: number; wave: number 
 // ─── the camera (pure) ─────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The camera: it pushes in on the target while the shot flies (IV from the leap), punches and shakes on the impact along
- * the blow, and IV rumbles the whole board. Pure.
+ * The camera: it pushes in on the target while the shot flies (Tier 4 from the leap), punches and shakes on the impact along
+ * the blow, and Tier 4 rumbles the whole board. Pure.
  */
 export function soccerCameraAt(p: SoccerPlan, c: HeroSoccerConfig, t: number, dir: Pt): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };

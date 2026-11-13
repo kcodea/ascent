@@ -8,7 +8,7 @@
  * board) with a thin hot rim, an accretion swirl of light spinning into it and a soft halo behind. Its trail is a black
  * streak edged in light (the additive glow strip sits UNDER the dark body strip, so only its edges show).
  *
- * TIER IV: the orbs orbit the struck hero, and a BLACK HOLE opens in the middle of the ring and grows as the ring
+ * TIER 4: the orbs orbit the struck hero, and a BLACK HOLE opens in the middle of the ring and grows as the ring
  * tightens, light streaking into it from far out. On the collapse it shrinks to a pinpoint that flares white, then the
  * blast goes outward: a dark shockwave under the light rings, and black streaks edged in light flung out.
  *
@@ -67,7 +67,7 @@ export interface RibbonLook {
 }
 
 /**
- * TIER V's SWIRL PALETTE (inherited from Arcana's scene, DORMANT: the Knockout variant only plays for an attack the
+ * TIER 5's SWIRL PALETTE (inherited from Arcana's scene, DORMANT: the Knockout variant only plays for an attack the
  * catalog lists with one, and the Void is not in the catalog yet). Left in place so the variant can be designed later.
  */
 export const VOID_KO_PINK = 0xff3d7f;
@@ -78,7 +78,7 @@ export const VOID_KO_SKY = 0x7ab8ff;
 export const VOID_KO_TURN_MS = 260;
 const KO_SWIRL: readonly number[] = [VOID_KO_PINK, VOID_KO_BLUE, VOID_KO_ROSE, VOID_KO_SKY];
 
-/** Hard cap on sprites alive at once (a Tier IV explosion peaks around 400). */
+/** Hard cap on sprites alive at once (a Tier 4 explosion peaks around 400). */
 export const MAX_VOID_SPRITES = 900;
 /** Hard cap on strip meshes alive at once (five per ribbon, three per blast streak). */
 export const MAX_VOID_MESHES = 140;
@@ -112,7 +112,7 @@ interface Ribbon {
   age: number;
   width: number;
   trailMs: number;
-  /** Tier IV: the vortex it rides (for the depth dim and the trail length); null = a lob or a blast streak. */
+  /** Tier 4: the vortex it rides (for the depth dim and the trail length); null = a lob or a blast streak. */
   ring: { cx: number; cy: number; r: number; tilt: number; start: number; end: number; w0: number; w1: number } | null;
   shade: Strip | null; glow: Strip; body: Strip; core: Strip; strand: Strip | null;
   /** The orb at the head: a halo and a swirl behind, the dark disc (`orb`), and its hot rim (`flare`). */
@@ -122,7 +122,7 @@ interface Ribbon {
   lastX: number; lastY: number; moteAcc: number;
   /** A blast streak's width thins to this fraction at its end. */
   thin: number;
-  /** Tier V: which swirl colour it turns in the vortex (0 pink, 1 blue; -1 = never), and how far it has turned. */
+  /** Tier 5: which swirl colour it turns in the vortex (0 pink, 1 blue; -1 = never), and how far it has turned. */
   ko: number; koK: number;
 }
 
@@ -144,7 +144,7 @@ interface VortexFx {
   sigil: Sprite; inner: Sprite; track: Sprite; core: Sprite; bloom: Sprite;
   /** The black hole and its hot rim. */
   hole: Sprite; rim: Sprite;
-  /** Tier V: a third, wider sigil counter-swirling against the first (null otherwise). */
+  /** Tier 5: a third, wider sigil counter-swirling against the first (null otherwise). */
   koSigil: Sprite | null;
   x: number; y: number; r0: number; r1: number; tilt: number; age: number; dur: number; conv: number; dir: number; converging: number; moteAcc: number;
 }
@@ -161,7 +161,7 @@ export class HeroVoidScene {
   private particles: Particle[] = [];
   private charge: Charge | null = null;
   private vortex: VortexFx | null = null;
-  /** Tier V: the swirl turns crimson-pink and electric blue (`setKoSwirl`); `koRibbons` alternates the two. */
+  /** Tier 5: the swirl turns crimson-pink and electric blue (`setKoSwirl`); `koRibbons` alternates the two. */
   private koSwirl = false;
   private koRibbons = 0;
   private destroyed = false;
@@ -204,7 +204,7 @@ export class HeroVoidScene {
     for (let j = 0; j < n - 1; j++) { const a = j * 2; this.idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], j * 6); }
   }
 
-  /** Tier V: the vortex, its pulse and the explosion turn crimson-pink and electric blue. */
+  /** Tier 5: the vortex, its pulse and the explosion turn crimson-pink and electric blue. */
   setKoSwirl(on: boolean): void { this.koSwirl = on; }
 
   get liveSprites(): number { return this.used; }
@@ -377,9 +377,9 @@ export class HeroVoidScene {
   }
 
   /**
-   * THE impact (I-III): the last ribbon lands. Everything starts AT its peak so the first frame is the brightest
+   * THE impact (Tiers 1-3): the last ribbon lands. Everything starts AT its peak so the first frame is the brightest
    * frame: a flash over the portrait, a white burst, a side bloom, a big sigil flaring out and a counter-spinning one,
-   * two rings, spikes along the ribbon's heading, glitter carried through, an afterglow (and rising motes on III).
+   * two rings, spikes along the ribbon's heading, glitter carried through, an afterglow (and rising motes on Tier 3).
    */
   impact(x: number, y: number, dir: Pt, radius: number, o: { tier: number; k: number; burst: number; flashAlpha: number; motes: number }): void {
     const c = this.colors;
@@ -427,13 +427,13 @@ export class HeroVoidScene {
   }
 
   /**
-   * TIER IV: the vortex forms over the struck hero: a big sigil under the portrait and a counter-spinning inner one,
+   * TIER 4: the vortex forms over the struck hero: a big sigil under the portrait and a counter-spinning inner one,
    * the orbit's own faint track, and a core of light that BUILDS (throbbing faster) until it collapses. `durMs` is the
    * swirl; `convMs` the collapse.
    */
   startVortex(x: number, y: number, r0: number, r1: number, tilt: number, durMs: number, convMs: number, dir: number): void {
     if (this.vortex) return;
-    // Tier V: the vortex swirls crimson-pink one way and electric blue the other.
+    // Tier 5: the vortex swirls crimson-pink one way and electric blue the other.
     const ko = this.koSwirl;
     const sigil = this.take('under', this.tex.swirl, ko ? VOID_KO_PINK : this.colors.side);
     const inner = this.take('under', this.tex.swirl, ko ? VOID_KO_SKY : whiten(this.colors.accent, 0.2));
@@ -452,7 +452,7 @@ export class HeroVoidScene {
   converge(): void { if (this.vortex && this.vortex.converging < 0) this.vortex.converging = 0; }
 
   /**
-   * TIER IV's EXPLOSION: the vortex bursts. A flash over the portrait, a huge white burst, side and accent blooms, three
+   * TIER 4's EXPLOSION: the vortex bursts. A flash over the portrait, a huge white burst, side and accent blooms, three
    * rings (the last a wide slow arcane shockwave), the sigil flaring out, RIBBONS flung outward on curling paths, spikes,
    * a storm of glitter and rising motes, and a lingering afterglow.
    */
@@ -467,7 +467,7 @@ export class HeroVoidScene {
     const c = this.colors;
     const S = this.scale;
     const fs = o.burst * o.size;
-    // Tier V: the explosion bursts OUTWARD much harder (wider, faster, straighter) in crimson-pink and electric blue.
+    // Tier 5: the explosion bursts OUTWARD much harder (wider, faster, straighter) in crimson-pink and electric blue.
     const ko = o.ko === true;
     const side = ko ? VOID_KO_PINK : c.side, accent = ko ? VOID_KO_BLUE : c.accent;
     const out = ko ? 1.35 : 1;
@@ -490,7 +490,7 @@ export class HeroVoidScene {
     const n = Math.max(0, Math.round(o.ribbons + (ko ? 4 : 0)));
     for (let i = 0; i < n; i++) {
       const a0 = (i / n) * Math.PI * 2 + (this.rnd() - 0.5) * 0.35;
-      // Tier V: flung much further and faster, barely curling (they read as thrown OUT, not spun round).
+      // Tier 5: flung much further and faster, barely curling (they read as thrown OUT, not spun round).
       const L = radius * (3 + this.rnd() * 1.8) * o.size * (ko ? 1.7 : 1);
       const D = (560 + this.rnd() * 220) * (ko ? 0.78 : 1);
       const curl = (0.7 + this.rnd() * 0.5) * o.dir * (ko ? 0.35 : 1);
@@ -521,7 +521,7 @@ export class HeroVoidScene {
   }
 
   /**
-   * TIER V (the Knockout variant): the vortex THROBS once more before it collapses. A pulse ring races out of the eye
+   * TIER 5 (the Knockout variant): the vortex THROBS once more before it collapses. A pulse ring races out of the eye
    * (electric blue, then crimson-pink a beat behind), a pink sigil and a blue one kick out
    * counter-spinning, and a ring of pink and blue glitter is flung off. Line work over a short flash, one-shot sprites.
    */
@@ -539,8 +539,8 @@ export class HeroVoidScene {
   }
 
   /**
-   * TIER V over the explosion (inherited from Arcana, dormant for the Void): the blast is
-   * thrown OUT. A big electric-blue shockwave races far past the Huge one's reach, a crimson-pink one and a wide flat
+   * TIER 5 over the explosion (inherited from Arcana, dormant for the Void): the blast is
+   * thrown OUT. A big electric-blue shockwave races far past the Tier 4 one's reach, a crimson-pink one and a wide flat
    * pale-blue one behind it, pink and blue sigils flaring out counter-spinning, a ring of pink and blue ribbons FLUNG
    * nearly straight out (fast, far, barely curling), a far ring of outward streaks, and a storm of pink and blue
    * glitter. Short fills, so the big -N still reads.
@@ -584,7 +584,7 @@ export class HeroVoidScene {
     this.prismGlitter(x, y, 36, 1600, { life: 820, size: 0.65, grav: 220 }, KO_SWIRL);
   }
 
-  /** Glitter in the Tier V swirl palette (crimson-pink and electric blue). */
+  /** Glitter in the Tier 5 swirl palette (crimson-pink and electric blue). */
   private prismGlitter(x: number, y: number, n: number, speed: number, o: { life: number; size: number; grav: number }, tints: readonly number[] = KO_SWIRL): void {
     const S = this.scale;
     for (let i = 0; i < n; i++) {
@@ -614,7 +614,7 @@ export class HeroVoidScene {
     });
   }
 
-  /** An aftershock around the target (IV): a small flash, a ring and glitter. */
+  /** An aftershock around the target (Tier 4): a small flash, a ring and glitter. */
   boom(x: number, y: number, size: number): void {
     this.fxs('air', this.tex.glow, this.colors.core, x, y, { dur: 200, from: 0.8 * size, to: 2 * size, a0: 0.9 });
     this.fxs('air', this.tex.glow, this.koSwirl ? VOID_KO_ROSE : this.colors.side, x, y, { dur: 420, from: 1.2 * size, to: 3 * size, a0: 0.6 });
@@ -690,7 +690,7 @@ export class HeroVoidScene {
       v.inner.scale.set(sig * 0.55, sig * 0.55 * (0.55 + 0.45 * v.tilt)); v.inner.alpha = Math.min(0.9, u * 1.8);
       v.inner.rotation -= dt * v.dir * (0.002 + 0.008 * u + 0.03 * c);
       if (v.koSigil) {
-        // Tier V: the wide blue sigil counter-swirls against the pink one.
+        // Tier 5: the wide blue sigil counter-swirls against the pink one.
         v.koSigil.scale.set(sig * 1.28, sig * 1.28 * (0.55 + 0.45 * v.tilt)); v.koSigil.alpha = Math.min(0.7, u * 1.8) * (1 - 0.4 * c);
         v.koSigil.rotation -= dt * v.dir * (0.0015 + 0.005 * u + 0.025 * c);
       }
@@ -774,7 +774,7 @@ export class HeroVoidScene {
   }
 
   /**
-   * Tier V: a ribbon that has joined the vortex TURNS crimson-pink or electric blue (alternating round the ring, its
+   * Tier 5: a ribbon that has joined the vortex TURNS crimson-pink or electric blue (alternating round the ring, its
    * strand the other colour, so the two counter-wind). A tint blend over `VOID_KO_TURN_MS`, no paint properties.
    */
   private turnKo(rb: Ribbon): void {

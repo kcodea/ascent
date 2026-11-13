@@ -36,6 +36,17 @@ export interface BeatConfigSnapshot {
 export const EMPTY_CONFIG: BeatConfigSnapshot = { version: 2, templates: {}, overrides: {} };
 
 /**
+ * Named delivery markers every full beat carries (offsets from the beat's start).
+ *
+ * `consume.refill` (R-SHOPMADNESS-REALTIME-01, owner report 2026-11-13): a Shop Madness refill lands in the eaten
+ * minion's slot once the eat has played. The meal is delivered at the beat's primary delivery (120) and its pull
+ * runs the consume FX's 530 ms; the eater's stats climb at 0.8 of it (~545). The fresh minion lands right after
+ * that, once the meal has left its slot, and well before the next beat's eater bites (830). A refill delivered at
+ * primary would sit under the shaking meal.
+ */
+const CONSUME_MARKERS: Readonly<Record<string, number>> = { 'consume.refill': 560 };
+
+/**
  * The floor every beat starts from, per mode. These reproduce the SHIPPED v1 per-policy pacing exactly
  * (ownBeat 120/420/170 → delivery 120, completion 540, recovery 170; foldedCue 0/160/60), so the migration is
  * a re-expression, not a re-tuning.
@@ -50,7 +61,7 @@ export const MODE_DEFAULTS: Record<PresentationMode, ResolvedBeatConfig> = {
     targetStaggerMs: 45,
     repeatMode: 'full',
     repeatGapMs: 0,
-    deliveryMarkers: {},
+    deliveryMarkers: CONSUME_MARKERS,
   },
   reactInsideParent: {
     mode: 'reactInsideParent',
@@ -74,7 +85,7 @@ export const MODE_DEFAULTS: Record<PresentationMode, ResolvedBeatConfig> = {
     targetStaggerMs: 45,
     repeatMode: 'simultaneous',
     repeatGapMs: 0,
-    deliveryMarkers: {},
+    deliveryMarkers: CONSUME_MARKERS,
   },
   silent: {
     mode: 'silent',

@@ -34,6 +34,16 @@ export interface ProjectedCardGrant {
   index?: number;
 }
 
+/** A fresh Shop offer an End-of-Turn trigger put in the row (Shop Madness's refill), in delivery order. */
+export interface ProjectedShopRefill {
+  uid: string;
+  cardId: string;
+  /** Its slot in the sim's row right after the trigger that made it. */
+  index: number;
+  /** The offer whose slot it took (the eaten minion), when it took one. */
+  replaces?: string;
+}
+
 export interface PresentationProjection {
   deliveredEventIds: ReadonlySet<string>;
   boardStats: ReadonlyMap<string, StatDelta>;
@@ -50,6 +60,8 @@ export interface PresentationProjection {
   counters: ReadonlyMap<string, number>;
   /** Rubies delivered per target uid, so the gem cascade fires with the right count. */
   rubies: ReadonlyMap<string, number>;
+  /** Shop offers that ENTERED the row (Shop Madness refills), so each appears on its own beat (R-SHOPMADNESS-REALTIME-01). */
+  shopRefills: readonly ProjectedShopRefill[];
 }
 
 export const EMPTY_PROJECTION: PresentationProjection = {
@@ -65,6 +77,7 @@ export const EMPTY_PROJECTION: PresentationProjection = {
   auras: new Map(),
   counters: new Map(),
   rubies: new Map(),
+  shopRefills: [],
 };
 
 const bumpStat = (map: ReadonlyMap<string, StatDelta>, uid: string, attack: number, health: number): Map<string, StatDelta> => {
@@ -135,6 +148,11 @@ function foldUndelivered(base: PresentationProjection, c: ConsequenceEvent): Pre
         const gone = new Set(base.destroyedUids);
         gone.add(uid);
         return { ...base, destroyedUids: gone };
+      }
+      // A NEW offer (Shop Madness's refill): it arrives, it is not a stat climb. Its `attack`/`health` are the
+      // card's full Shop stats, which the row already prints from the offer itself.
+      if (c.change === 'refilled') {
+        return { ...base, shopRefills: [...base.shopRefills, { uid, cardId: c.target.cardId ?? '', index: c.index ?? Number.MAX_SAFE_INTEGER, ...(c.replaces ? { replaces: c.replaces } : {}) }] };
       }
       return { ...base, shopStats: bumpStat(base.shopStats, uid, c.attack ?? 0, c.health ?? 0) };
     }

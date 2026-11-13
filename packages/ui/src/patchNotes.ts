@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Shop Madness now shows each eaten or bought Shop minion being replaced in its slot as it happens, and Demons that eat at End of Turn gain their stats one bite at a time.',
+      },
+      {
+        category: 'Systems',
         text: 'Critical Strike given by a spell, a hero power or a rune now arrives on a beam of its own, in the Shop and in combat.',
       },
       {

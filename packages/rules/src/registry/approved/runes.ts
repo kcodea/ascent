@@ -3192,6 +3192,20 @@ export const RUNES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopMadness.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
   {
+    id: 'R-SHOPMADNESS-REALTIME-01',
+    title: 'Shop Madness refills show in real time: each eat, its stat climb and its refill play one after another',
+    statement: 'With Shop Madness, every removal from the Shop is shown as it happens. At End of Turn (Hydraskus: every Demon eats) each bite is its own full beat, never sped up as a repeat chain: the meal is pulled from the slot it sat in into its eater, the stats of that eater climb on that beat, and the fresh minion (with the +3/+3) then appears in that same slot, before the next Demon bites. The slot stays held while its refill is on the way, so the row never closes and reopens, and the next Demon always eats a minion that is on screen. The End-of-Turn batch carries this as `fodderEaten` (with `offerUid`) and `shopChanged: refilled` (with `replaces`, on the `consume.refill` marker); the projection shows each refill in the slot of the minion it replaced. Mid-Shop eats (a Shout) hold the eaten slot until the meal has gone, then the refill appears there; a bought minion is replaced in its slot in the same commit. Presentation only: the resolved state is identical.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (Shop Madness x Hydraskus screenshot)', quote: 'minions should replace each other in real time' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts withRecruitTrigger (refilled diff + shopArrivals); packages/ui/src/choreographer/compileTimeline.ts repeatPaceKeyOf (an eating tick is never paced); packages/ui/src/choreographer/resolveTiming.ts consume.refill; packages/ui/src/choreographer/projection.ts shopRefills; packages/ui/src/choreographer/shopRefillRow.ts; packages/ui/src/Recruit.tsx (eotRefills / eotRefillPending / heldConsume hides)' },
+    ],
+    contentIds: ['rune_shop_madness', 'dm_hydraskus'],
+    currentBehaviour: 'Conforms, FIXED 2026-11-13. Before: the seven bites were paced like a Kringle repeat chain (about 2 s for seven 530 ms eats, the last ones overlapping at the end), and no refill was announced, so the row emptied on screen, later Demons ate cards nobody had seen, and the whole new row popped in at the commit.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopMadnessBeats.test.ts', 'packages/ui/src/choreographer/shopMadnessBeats.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
     id: 'R-SET2-RUNE-GOLDENMONKEY-01',
     title: 'Golden Monkey: every 5 Refreshes, a Shop minion becomes a Golden Monkey',
     statement: 'Golden Monkey (Basic, 2, Set 2) reads the Indy meter: the `refresh` threshold ticks only when the player presses Refresh (a free one included; the fresh row of the turn and rune / spell / hero-power refreshes do not), cumulative and repeating. Every 5th tick REPLACES a random Shop minion (seeded; never a spell, Ruby, the Starform, a held offer or another Golden Monkey) with the Golden Monkey token (n3_goldenmonkey): the replaced offer returns to the pool and the Monkey takes its slot. With no minion to replace it fills a free slot. One meter per copy held. The row never grows, so Shop Madness keeps 6, and the Monkey wears the run-wide Shop buff like any Shop minion. The badge prints the live x/5.',

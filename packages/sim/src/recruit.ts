@@ -16919,6 +16919,32 @@ function snapshotStats(state: RunState): StatSnap {
  * (the diff never mutates; the NOOP collector still gets a bare `run()`).
  */
 const recruitTriggerFrames: Array<{ flush: () => void; rebase: () => void }> = [];
+
+/**
+ * The offers that ENTERED the Shop row between two reads, each paired with the offer whose slot it took. Pure.
+ *
+ * Survivors keep their relative order, so the row splits into GAPS between consecutive survivors: what left a gap
+ * and what entered the same gap are paired in order. That is exactly Shop Madness's "a fresh minion takes the eaten
+ * one's slot" (`refillShopMadness` splices at the vacated index), and it needs no channel from the refill itself.
+ * An arrival with nothing to pair (the row grew) has no `replaces`.
+ */
+export function shopArrivals(before: readonly string[], after: readonly { uid: string }[]): { index: number; replaces?: string }[] {
+  const was = new Set(before);
+  const now = new Set(after.map((o) => o.uid));
+  const out: { index: number; replaces?: string }[] = [];
+  let bi = 0;
+  let added: number[] = [];
+  const closeGap = (until: string | undefined): void => {
+    const left: string[] = [];
+    while (bi < before.length && before[bi] !== until) { if (!now.has(before[bi]!)) left.push(before[bi]!); bi++; }
+    if (until !== undefined && bi < before.length) bi++; // step past the survivor itself
+    added.forEach((index, k) => out.push(left[k] !== undefined ? { index, replaces: left[k] } : { index }));
+    added = [];
+  };
+  after.forEach((o, i) => { if (was.has(o.uid)) closeGap(o.uid); else added.push(i); });
+  closeGap(undefined);
+  return out;
+}
 /** The spec of every open `withRecruitTrigger` scope, innermost last (read by `replayShoutsAsChain`, which must not
  *  open a second identical parent inside the caller's own). Pushed and popped with the collector scope. */
 const recruitTriggerSpecs: Array<{ policyKey?: string; source: TriggerSourceRef }> = [];
@@ -16972,6 +16998,7 @@ function withRecruitTrigger(
     const kwBefore = new Map(state.board.map((c) => [c.uid, new Set(c.keywords)]));
     const cardIdBefore = new Map(state.board.map((c) => [c.uid, c.cardId]));
     const shopBefore = new Map(state.shop.map((o) => [o.uid, offerBuyStats(state, o)]));
+    const shopRowBefore = state.shop.map((o) => o.uid); // the row ORDER, so a refill can name the slot it took
     const attachBefore = new Map(state.board.map((c) => [c.uid, c.attachments ?? 0]));
     const spBefore = { a: spellAttackBonus(state), h: spellHealthBonus(state) };
     const impBefore = { a: state.impBuff?.attack ?? 0, h: state.impBuff?.health ?? 0 };
@@ -17128,9 +17155,23 @@ function withRecruitTrigger(
         for (const e of (state.shopEaten ?? []).slice(shopEatenBefore)) {
           collector.emit({ type: 'shopChanged', change: 'consumed', target: { zone: 'shop', uid: e.uid, cardId: e.cardId, side: 'player' } });
           collector.emit({
-            type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.cardId,
+            type: 'fodderEaten', eaterUid: e.eaterUid, fodderId: e.cardId, offerUid: e.uid,
             attack: e.attack, health: e.health, gainAttack: e.gainA, gainHealth: e.gainH,
             deliveryKey: 'consume.depart',
+          });
+        }
+        // SHOP MADNESS (owner report 2026-11-13, R-SHOPMADNESS-REALTIME-01): offers that ENTERED the row in this
+        // trigger (`refillShopMadness` puts a fresh minion in the slot the eaten one left). Without this the refill
+        // was invisible until the End-of-Turn commit, so a Hydraskus feast emptied the row on screen and the later
+        // Demons ate cards nobody had seen. Each one names the slot it took (`replaces`, paired by the row diff
+        // below), and rides its own `consume.refill` marker so it lands after the eat has played.
+        for (const r of shopArrivals(shopRowBefore, state.shop)) {
+          const o = state.shop[r.index]!;
+          const st = offerBuyStats(state, o);
+          collector.emit({
+            type: 'shopChanged', change: 'refilled', target: { zone: 'shop', uid: o.uid, cardId: o.cardId, side: 'player' },
+            attack: st.attack, health: st.health, index: r.index, ...(r.replaces ? { replaces: r.replaces } : {}),
+            deliveryKey: 'consume.refill',
           });
         }
         if (econBefore) emitEconDiff(collector, econBefore, econSnapshot(state));

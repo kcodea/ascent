@@ -67,7 +67,7 @@ if (import.meta.env.DEV) {
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
-import { type Action, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -223,6 +223,8 @@ import { playPlateCoalesce } from './plateCoalesce';
    rune badge — to the offer it takes, and the card only leaves the Shop (and only reaches the hand) when the
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
+import { foldShopRefills, pendingRefillSlots } from './choreographer/shopRefillRow';
+import type { ProjectedShopRefill } from './choreographer/projection';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
 import { AncientOfferOverlay } from './ancients/AncientOffer';
 import { playGildTrail } from './gildTrail';
@@ -375,6 +377,8 @@ const DEATH_DISSOLVE_MS = 600;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
+const EMPTY_REFILLS: readonly ProjectedShopRefill[] = [];
+const EMPTY_UIDS: ReadonlySet<string> = new Set();
 /** A stable empty batch, so a run with no steals never hands `useLassoCascade` a fresh array each render. */
 const EMPTY_LASSO_EVENTS: readonly LassoSteal[] = [];
 
@@ -2502,13 +2506,19 @@ export function Recruit() {
   // eater's beat so they visibly leave in real time, instead of snapping out only at commit (owner report
   // 2026-08-14). Cleared when the animation completes; the committed state has already removed them by then.
   const [eotConsumedUids, setEotConsumedUids] = useSwapState<ReadonlySet<string>>(new Set(), swapped);
+  // SHOP MADNESS at End of Turn (R-SHOPMADNESS-REALTIME-01): the refills delivered so far (each shown in the slot of
+  // the minion it replaced), and the eaten offers whose refill is still on its way (their slot is held open).
+  const [eotRefills, setEotRefills] = useSwapState<readonly ProjectedShopRefill[]>(EMPTY_REFILLS, swapped);
+  const [eotRefillPending, setEotRefillPending] = useSwapState<ReadonlySet<string>>(EMPTY_UIDS, swapped);
   // A consumed SHOP minion's slot is HELD OPEN (an invisible placeholder) until its ghost has been pulled into
   // the eater, so the survivors reflow AFTER the card leaves rather than the instant the consume commits (owner
   // ask 2026-08-17). `heldConsume` is the eaten uids + their pre-removal slot index; `heldConsumeSeq` gates the
   // derive-during-render that seeds it from `run.shopEaten`. Declared here (not by the shop row below) because
   // `displayShop` reads it. The paired `shopRectsRef` snapshot (whose `cur` still holds the pre-removal layout
   // while the slot is held) supplies the index + the ghost's launch rect.
-  const [heldConsume, setHeldConsume] = useSwapState<{ uid: string; index: number }[]>([], swapped);
+  // `hides`: the Shop Madness refill that took this slot in the same commit (R-SHOPMADNESS-REALTIME-01). The slot shows
+  // the held placeholder in its place until the ghost has left, THEN the newcomer, instead of both side by side.
+  const [heldConsume, setHeldConsume] = useSwapState<{ uid: string; index: number; hides?: string }[]>([], swapped);
   const [heldConsumeSeq, setHeldConsumeSeq] = useSwapState(run.shopEatenSeq, swapped);
   // Double-buffered snapshot of each shop card's centre + size, keyed by uid. A consumed shop minion is spliced
   // from `run.shop` (and the DOM) in the SAME commit that fires its eat cue, so by the time `playFodderEat` runs
@@ -4390,7 +4400,10 @@ export function Recruit() {
 
      REVERSE order on re-insertion: each record's `index` was taken against the row as it stood when THAT steal
      spliced, so the later (smaller) row is rebuilt first and the earlier indices then land correctly. */
-  const shopWithHolds = useMemo(() => foldLassoHolds(run.shop, lassoHolds) as ShopCard[], [run.shop, lassoHolds]);
+  const shopWithHolds = useMemo(
+    () => foldShopRefills(foldLassoHolds(run.shop, lassoHolds) as ShopCard[], eotRefills),
+    [run.shop, lassoHolds, eotRefills],
+  );
   const shopViewCache = useSwapRef(new Map<string, ShopViewCacheEntry<CardView>>(), swapped); // per-offer signature memo — see shopViewCache.ts
   const spellViewCache = useSwapRef<CardView | null>(null, swapped);
   const refViewCache = useSwapRef(new Map<string, CardView[]>(), swapped);
@@ -7287,22 +7300,31 @@ export function Recruit() {
     // A Starform creation's meal is `silent` (2026-09-14): the token already sits in the victim's slot, so holding
     // the slot open would put SIX cards in a five-slot row and shove the survivors around — exactly the shift the
     // owner saw. No hold: the row is byte-identical before and after.
+    // SHOP MADNESS: the offer that took each eaten slot in this same commit (paired by the row diff the sim's beats use).
+    const tookSlot = new Map<string, string>();
+    for (const a of shopArrivals(order, run.shop)) if (a.replaces) tookSlot.set(a.replaces, run.shop[a.index]!.uid);
     const fresh = (run.shopEaten ?? [])
       .filter((e) => !e.silent)
-      .map((e) => ({ uid: e.uid, index: order.indexOf(e.uid) }))
+      .map((e) => ({ uid: e.uid, index: order.indexOf(e.uid), ...(tookSlot.has(e.uid) ? { hides: tookSlot.get(e.uid)! } : {}) }))
       .filter((h) => h.index >= 0);
     if (fresh.length) setHeldConsume((prev) => {
       const seen = new Set(prev.map((h) => h.uid));
       return [...prev, ...fresh.filter((h) => !seen.has(h.uid))];
     });
   }
-  let displayShop = eotConsumedUids.size ? shopWithHolds.filter((o) => !eotConsumedUids.has(o.uid)) : shopWithHolds;
+  // An eaten offer whose Shop Madness refill has not landed yet keeps its slot (a held placeholder, `heldUids`), so the
+  // row does not close the gap and reopen it a moment later (R-SHOPMADNESS-REALTIME-01).
+  let displayShop = eotConsumedUids.size ? shopWithHolds.filter((o) => !eotConsumedUids.has(o.uid) || eotRefillPending.has(o.uid)) : shopWithHolds;
   // An offer a Start-of-Turn beat creates (Rune of First Light's Starform) arrives on its beat (R-SOT-BEAT-01).
   if (sotHolds.shop?.size) { const off = sotHolds.shop; displayShop = displayShop.filter((o) => !off.has(o.uid)); }
   if (heldConsume.length) {
     const arr = [...displayShop];
     for (const h of [...heldConsume].sort((a, b) => a.index - b.index)) {
-      if (!arr.some((o) => o.uid === h.uid)) arr.splice(Math.min(h.index, arr.length), 0, { uid: h.uid } as (typeof run.shop)[number]);
+      if (arr.some((o) => o.uid === h.uid)) continue;
+      const placeholder = { uid: h.uid } as (typeof run.shop)[number];
+      const took = h.hides ? arr.findIndex((o) => o.uid === h.hides) : -1;
+      if (took >= 0) arr[took] = placeholder; // the refill waits under the held slot until the ghost has gone
+      else arr.splice(Math.min(h.index, arr.length), 0, placeholder);
     }
     displayShop = arr;
   }
@@ -7547,6 +7569,16 @@ export function Recruit() {
     // holding a lock for an empty animation.
     if (timeline.beats.length === 0) { finishEot(); return true; }
 
+    // SHOP MADNESS (R-SHOPMADNESS-REALTIME-01): every refill this End of Turn makes, known up front, so an eaten slot
+    // whose replacement is coming stays held open between the eat and the refill's own delivery.
+    const allRefills: ProjectedShopRefill[] = [];
+    for (const e of eotBatch.events) {
+      if (e.type === 'shopChanged' && e.change === 'refilled' && e.target.uid) {
+        allRefills.push({ uid: e.target.uid, cardId: e.target.cardId ?? '', index: e.index ?? Number.MAX_SAFE_INTEGER, ...(e.replaces ? { replaces: e.replaces } : {}) });
+      }
+    }
+    let refillKey = '';
+    if (allRefills.length) setEotRefillPending(pendingRefillSlots(allRefills, [])); // held from the first frame
     // Absolute stat floor the projection's deltas are applied to — the board as it looks right now.
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
@@ -7905,7 +7937,8 @@ export function Recruit() {
         // existed this was the last End-of-Turn visual stuck on the commit path, because a `cardDestroyed`
         // carries only a target and the choreography needs the whole meal (who ate what, and the gain).
         // `playFodderEat` already speaks exactly this shape, so the presenter just hands it the event.
-        const entry = { eaterUid: meal.eaterUid, fodderId: meal.fodderId, attack: meal.attack, health: meal.health, gainA: meal.gainAttack, gainH: meal.gainHealth };
+        // `uid` = the eaten SHOP offer (absent for Fodder), so the ghost launches from the slot it actually sat in.
+        const entry = { eaterUid: meal.eaterUid, fodderId: meal.fodderId, attack: meal.attack, health: meal.health, gainA: meal.gainAttack, gainH: meal.gainHealth, ...(meal.offerUid ? { uid: meal.offerUid } : {}) };
         // Withhold the eater's badge gain until the tendril lands, matching the legacy choreography.
         holdFodderGains(fodderGainHolds([entry]));
         eotFodderCleanupRef.current.push(playFodderEat([entry], ++eotFodderSeqRef.current));
@@ -7984,6 +8017,14 @@ export function Recruit() {
           stats[uid] = d ? { attack: floor.attack + d.attack, health: floor.health + d.health } : floor;
         }
         setEotAnimStats(stats);
+        if (allRefills.length) {
+          const key = p.shopRefills.map((r) => r.uid).join(',');
+          if (key !== refillKey) {
+            refillKey = key;
+            setEotRefills(p.shopRefills);
+            setEotRefillPending(pendingRefillSlots(allRefills, p.shopRefills));
+          }
+        }
         if (p.shopStats.size) {
           const shop: Record<string, { attack: number; health: number }> = {};
           for (const [uid, d] of p.shopStats) shop[uid] = { attack: d.attack, health: d.health };
@@ -8027,7 +8068,7 @@ export function Recruit() {
         setEotTransforms(EMPTY_TRANSFORMS); // the real (transformed) cards are on run.board after commit
         eotCancelRef.current = null;
         eotFodderCleanupRef.current = []; // the crumbles have played; their cleanups are spent
-        if (recorded && !recorded.hold) { setEotConsumedUids(new Set()); recorded.onDone(); return; }
+        if (recorded && !recorded.hold) { setEotConsumedUids(new Set()); setEotRefills(EMPTY_REFILLS); setEotRefillPending(EMPTY_UIDS); recorded.onDone(); return; }
         if (!recorded) commitPresentationAction();
         // The shop-consume crumble + eater-gain hold already played on their beats (the `fodderEaten` presenter);
         // advance both legacy commit-time watchers' refs past the now-committed seq so they don't replay them.
@@ -8060,6 +8101,8 @@ export function Recruit() {
         prevAleSeq.current = committed.aleGrantSeq;
         prevShoutLinkSeq.current = committed.shoutLinkFxSeq; // Dawnclaw / Mykel chains played on their beats (R-SHRIEKER-BEATS-01)
         setEotConsumedUids(new Set());
+        setEotRefills(EMPTY_REFILLS); // the committed row holds the same refills, by the same uids
+        setEotRefillPending(EMPTY_UIDS);
         };
         // THE WATCH SCREEN (owner 2026-10-15): the resolved state is the watched player's NEXT view, which can trail
         // these beats by a network beat. The lock and the projections hold until it lands (the effect on `run.phase`
@@ -8913,7 +8956,10 @@ export function Recruit() {
   const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
   const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);
   // The held-open consumed slots as a Set — memoized so an unchanged `heldConsume` keeps the row's prop stable.
-  const heldUids = useMemo(() => (heldConsume.length ? new Set(heldConsume.map((h) => h.uid)) : null), [heldConsume]);
+  const heldUids = useMemo(() => {
+    const eotHeld = eotRefillPending.size ? [...eotRefillPending].filter((u) => eotConsumedUids.has(u)) : [];
+    return heldConsume.length || eotHeld.length ? new Set([...heldConsume.map((h) => h.uid), ...eotHeld]) : null;
+  }, [heldConsume, eotRefillPending, eotConsumedUids]);
   // The grant previews' views, built once per (previews, run) instead of inside the hand row's map on every render.
   const handPreviewViews = useMemo(
     () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),

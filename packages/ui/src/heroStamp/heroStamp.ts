@@ -52,11 +52,15 @@ export function stampSeed(total: number, distance: number, side: 'player' | 'opp
   return (Math.round(total) * 6151 + Math.round(distance) * 37 + (side === 'opp' ? 211 : 13)) >>> 0;
 }
 
-/** Each thunk's pitch and loudness: the ticks light and climbing down, the last one the lowest and the fullest. */
-function thunkVoice(i: number, n: number): { rate: number; gain: number } {
-  if (n <= 1) return { rate: 1, gain: 0.9 };
-  if (i === n - 1) return { rate: 0.86, gain: 1 };
-  return { rate: 1.16 - 0.1 * i, gain: 0.6 + 0.08 * i };
+/**
+ * Each thunk's voice: the wooden thock climbs in pitch and force to the last, while the low thump under it gets deeper
+ * and fuller, so the last is both the sharpest and the heaviest. A single stamp plays as a last one, a touch lighter.
+ */
+export function thunkVoice(i: number, n: number): { rate: number; gain: number; body: number; bodyRate: number } {
+  if (n <= 1) return { rate: 1, gain: 1, body: 0.85, bodyRate: 0.95 };
+  if (i === n - 1) return { rate: 1.07, gain: 1.3, body: 1.3, bodyRate: 0.8 };
+  const u = i / Math.max(1, n - 2 || 1);
+  return { rate: 0.93 + 0.07 * Math.min(1, u), gain: 0.68 + 0.14 * Math.min(1, u), body: 0.4 + 0.15 * Math.min(1, u), bodyRate: 1.15 - 0.1 * Math.min(1, u) };
 }
 
 /** Play Paid in Full. Returns a handle; the blow lands via `onImpact` on the last thunk. */
@@ -103,14 +107,21 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
   const cam = new StageCamera(cameraEl, scene, heroFxCanvas(o)); // the FX get the camera ONCE (stageCamera.ts)
   const hero = new PortraitMover(reduced ? null : (o.attackerEl ?? null));
   const foe = new PortraitMover(reduced ? null : (o.defenderEl ?? null));
+  // The squash SCALES the struck portrait: without a layer hint the browser re-rasters it at every new scale (measured:
+  // a run of dropped frames after each thunk). The hint is held for the attack only and put back exactly on every exit.
+  const foeWill = foe.el ? foe.el.style.willChange : '';
+  if (foe.el) foe.el.style.willChange = 'transform';
 
   const cue = voices.cue.bind(voices);
-  voices.warm([c.sfxWhooshClip, c.sfxThunkClip, c.sfxPadClip]);
+  voices.warm([c.sfxWhooshClip, c.sfxThunkClip, c.sfxPadClip, c.sfxBodyClip]);
 
   const thunk = (i: number, final: boolean): void => {
     const v = thunkVoice(i, thunks);
-    // The clip's hit is about 20 ms in: start a touch inside it so the sound sits on the frame the die lands.
-    cue(c.sfxThunkClip, c.sfxThunkGain * v.gain, c.sfxThunkRate * v.rate, { startMs: 8, lenMs: 340, fadeMs: 140, tail: final ? 0.08 : 0 });
+    // The thock's hit is about 10 ms in and the thump under it starts at once: both sit on the frame the die lands.
+    cue(c.sfxThunkClip, c.sfxThunkGain * v.gain, c.sfxThunkRate * v.rate, { startMs: 6, lenMs: final ? 560 : 300, fadeMs: final ? 220 : 120, tail: final ? 0.1 : 0 });
+    cue(c.sfxBodyClip, c.sfxBodyGain * v.body, c.sfxBodyRate * v.bodyRate, { lenMs: final ? 480 : 220, fadeMs: final ? 220 : 100 });
+    // The peel: the die coming unstuck from the wet seal as it lifts away (the squelch, pitched up and quiet).
+    if (final) cue(c.sfxPadClip, c.sfxPadGain * 0.3, c.sfxPadRate * 1.7, { startMs: 40, lenMs: 200, fadeMs: 80, delayMs: (plan.pressMs + 50) / speed });
     scene?.thunk(i, {
       final, big: plan.level === 'big', skull: plan.knockout, droplets: plan.droplets,
       hold: plan.markFadeAt - plan.thunks[i]!, fade: plan.markFadeMs,
@@ -125,13 +136,20 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.start(plan, track, t - q.at);
         cam.start();
+        // The stamp popping up out of the hero: a short, light swish (the loud part of the shared clip, pitched up).
+        cue(c.sfxWhooshClip, c.sfxWhooshGain * 0.45, c.sfxWhooshRate * 1.5, { startMs: 330, lenMs: 260, fadeMs: 120 });
         break;
       case 'pad':
-        cue(c.sfxPadClip, c.sfxPadGain, c.sfxPadRate, { startMs: 10, lenMs: 280, fadeMs: 120 });
+        // The squelch's wet hit is about 60 ms into its clip; a soft thump under it gives the tap its weight.
+        cue(c.sfxPadClip, c.sfxPadGain, c.sfxPadRate, { startMs: 48, lenMs: 250, fadeMs: 100 });
+        cue(c.sfxBodyClip, c.sfxBodyGain * 0.45, c.sfxBodyRate * 1.35, { lenMs: 200, fadeMs: 100 });
         scene?.padTap();
         break;
       case 'launch':
-        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, { lenMs: Math.min(420, plan.flightMs + 60), fadeMs: 160 });
+        // The swing: the shared swish is loudest about 440 ms into its clip; start it so that lands late in the flight.
+        cue(c.sfxWhooshClip, c.sfxWhooshGain, c.sfxWhooshRate, {
+          startMs: Math.max(0, 440 - plan.flightMs * 0.7 * c.sfxWhooshRate), lenMs: (plan.flightMs + plan.slamMs + 60) * c.sfxWhooshRate, fadeMs: 140,
+        });
         break;
       case 'hit':
         thunk(q.i, false); // a tick: FX and sound only
@@ -189,7 +207,7 @@ export function playHeroStamp(o: HeroStampOptions): HeroStampHandle {
     frames: o.frames ?? ((fn: (dt: number) => void) => pixiFx.addUpdater(fn)),
     safetyMs: o.safety !== false ? plan.endAt / speed + 2500 : null,
     onImpact: o.onImpact, onDone: o.onDone,
-    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); voices.unduck(); },
+    teardownDom: () => { nums.remove(); cam.reset(); hero.reset(); foe.reset(); if (foe.el) foe.el.style.willChange = foeWill; voices.unduck(); },
     stopVoices: () => voices.stopAll(),
   });
 

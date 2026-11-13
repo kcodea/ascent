@@ -40,6 +40,8 @@ export function sotBeatsMayPlay(phase: string, wipe: WipeState): boolean {
   return phase === 'recruit' && wipe === 'idle';
 }
 
+/** Between two keyword beams inside one beat (the keyword cascade gap, `fx/keywordBeam.ts`). */
+export const SOT_KEYWORD_STAGGER_MS = 180;
 /** Between two new cards' arrivals inside one beat. */
 export const SOT_ARRIVE_STAGGER_MS = 120;
 /** A beat with NO consequence on screen (a re-equip, a Discover queued, a charge armed) is its pulse alone, so it gets
@@ -52,6 +54,7 @@ type Source = SotBeatFx['source'];
 export type SotCue =
   | { at: number; kind: 'pulse'; beat: number; source: Source; procs?: SotBeatFx['procs']; equipFx?: SotBeatFx['equipFx'] }
   | { at: number; kind: 'gain'; beat: number; source: Source; uid: string; attack: number; health: number }
+  | { at: number; kind: 'keyword'; beat: number; source: Source; uid: string; keyword: string; index: number }
   | { at: number; kind: 'arrive'; beat: number; source: Source; zone: SotArrivalZone; uid: string };
 
 /** A beat's new cards, in the order they land: board first (next to the gains), then the hand, then the shop. */
@@ -77,6 +80,12 @@ export function planSotBeats(beats: readonly SotBeatFx[]): { cues: SotCue[]; dur
     b.gains.forEach((g, j) => {
       last = first + j * SOT_GAIN_STAGGER_MS;
       cues.push({ at: last, kind: 'gain', beat: i, source: b.source, uid: g.uid, attack: g.attack, health: g.health });
+    });
+    // Each keyword the source gave: its beam leaves the source, one after another, after the stat gains.
+    const keywordFrom = last < 0 ? first : last + SOT_GAIN_STAGGER_MS;
+    (b.keywords ?? []).forEach((k, j) => {
+      last = keywordFrom + j * SOT_KEYWORD_STAGGER_MS;
+      cues.push({ at: last, kind: 'keyword', beat: i, source: b.source, uid: k.uid, keyword: k.keyword, index: j });
     });
     const arriveFrom = last < 0 ? first : last + SOT_GAIN_STAGGER_MS;
     sotArrivals(b).forEach((a, k) => {

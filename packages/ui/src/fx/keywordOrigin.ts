@@ -78,6 +78,12 @@ export function runeSlotPoint(runeId: string): Point | null {
   return centreOf(runeNodeEl(runeId) ?? heroSlotRuneEl(runeId));
 }
 
+/** The FOE's rune in combat: its badge beside the foe's portrait (`CombatOpponent.tsx`). */
+export function foeRuneSlotPoint(runeId: string): Point | null {
+  if (typeof document === 'undefined') return null;
+  return centreOf(document.querySelector(`.combatopp-runes .runebadge[data-source-id="${CSS.escape(runeId)}"]`));
+}
+
 /** The screen point for an origin, or null when its element is not on screen. */
 export function keywordOriginPoint(o: ShopKeywordOrigin): Point | null {
   if (!o) return null;

@@ -330,4 +330,24 @@ export const TARGETING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-11-03). Before, `pendingTarget` was one of the decisions that held the clock.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimClock.test.ts', 'packages/sim/src/aimCancel.test.ts'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: 'R-AIM-HOVER-01',
+    title: 'No card hover while a card effect waits for its target',
+    statement:
+      'While a card effect is aimed (a targeted Shout such as Runic Beetle, a spell that asks for a second target), the '
+      + 'minions it could land on show no hover effect: no hover glow and no reference tip. It looks the same as aiming '
+      + 'a targeted spell dragged from hand. The aimed minion still shows its target highlight, and the controls the aim '
+      + 'leaves usable (End Turn) stay usable.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'when targeting a unit with an action like selecting which unit to apply runic beetle\'s effect, i dont want the card hover effect to happen. it doesnt happen when targeting a unit with a targeted spell. it should be the same for card effect targeting' },
+      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/styles.css (body.aimpick); packages/ui/src/Recruit.tsx (the pending-target aim effect sets the flag)' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13: covers the warband and Shop minions under a card-effect aim (`pendingTarget`). '
+      + 'The hand still pops on hover under the aim, and the hero power and Equipment aims are unchanged (no owner '
+      + 'ruling on those). Pinned at the source (the rule, the flag, the rect-based pick); not seen in game by the '
+      + 'author when it was written.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimHover.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

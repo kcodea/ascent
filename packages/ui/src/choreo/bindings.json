@@ -1712,6 +1712,9 @@
       },
       "riseGiven": {
         "def": "rise-beam"
+      },
+      "flurryGiven": {
+        "def": "flurry-beam"
       }
     },
     "b2_elderhorn": {

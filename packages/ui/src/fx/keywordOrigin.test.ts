@@ -6,7 +6,7 @@ import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { classifyKeywordOrigin } from './keywordOrigin';
 import { KEYWORD_BEAMS, KEYWORD_BEAM_GAP_MS, pointRect } from './keywordBeam';
 import { combatAnchorsFromRects } from './combatAnchors';
-import { RUNE_BEAM_AFTER_RETURN_MS, runeKeywordGrantsIn, type RuneCarry, type WaitingGrant } from './runeKeywordBeams';
+import { RUNE_BEAM_AFTER_RETURN_MS, bankedKeywordGrantsIn, runeKeywordGrantsIn, type RuneCarry, type WaitingGrant } from './runeKeywordBeams';
 import { getDef } from './fxDefs';
 
 /**
@@ -49,7 +49,7 @@ describe('a beam from a point (owner 2026-11-13: Lord of the Risen played the so
   });
   it('the launcher builds its source from that rect, never a zero-size one', () => {
     const src = readFileSync(new URL('./keywordBeam.ts', import.meta.url), 'utf8');
-    expect(src).toContain('source: pointRect(from), target');
+    expect(src).toContain('source: pointRect(origin), target');
   });
 });
 
@@ -57,13 +57,13 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
   const bm = (cardId: string, attack: number, health: number, extra: Partial<BoardMinion> = {}): BoardMinion =>
     ({ cardId, attack, health, keywords: [...(CARD_INDEX[cardId]?.keywords ?? [])], ...extra });
   /** Every beat's launches, in order: [beat kind, grants]. */
-  function launches(flag: string, player: BoardMinion[]): Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> {
+  function launches(flag: string, player: BoardMinion[]): Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string; side: string }> }> {
     const { events: raw } = simulate(player, [bm('trainingdummy', 5, 60)], makeRng(7), CARD_INDEX,
       combatSide({ tier: 4, questMods: { [flag]: true } } as never), combatSide({ tier: 4 }));
     const events = replayOrder(raw);
     let carry: RuneCarry | null = null;
     let waiting: WaitingGrant[] = [];
-    const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string }> }> = [];
+    const out: Array<{ kind: string; grants: Array<{ kw: string; target: string; flag: string; side: string }> }> = [];
     for (const beat of replayBeats(raw)) {
       const r = runeKeywordGrantsIn(beat, events, carry, waiting);
       carry = r.carry;
@@ -79,7 +79,7 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
     expect(got.length).toBeGreaterThanOrEqual(1);
     // The grant is logged inside the death's beat and the rune fires on the next, but the body is not back yet:
     // the beam waits for the beat the body RETURNS on (owner 2026-11-13: "its hitting a unit that isnt there").
-    expect(got[0]).toEqual({ kind: 'reborn', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple' }] });
+    expect(got[0]).toEqual({ kind: 'reborn', grants: [{ kw: 'R', target: 'm0', flag: 'runeDeathtouchedApple', side: 'player' }] });
     expect(got.every((g) => g.kind === 'reborn' && g.grants.every((x) => x.flag === 'runeDeathtouchedApple'))).toBe(true);
     expect(RUNE_BEAM_AFTER_RETURN_MS).toBeGreaterThanOrEqual(200);
   });
@@ -90,6 +90,51 @@ describe('a rune giving a keyword in combat, on REAL simulated fights walked as 
     expect(rises.map((g) => g.target)).toEqual(['m0', 'm1']);
     expect(rises.every((g) => g.kw === 'R' && g.flag === 'runeRisingGraves')).toBe(true);
     expect(got.every((g) => g.kind !== 'questTrigger')).toBe(true);
+  });
+
+  it('Rune of the Vanguard (owner 2026-11-13): Critical Strike AND Ward leave the rune for each of the 3 leftmost', () => {
+    const got = launches('runeVanguard', [bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })]).flatMap((g) => g.grants);
+    expect(got.every((g) => g.flag === 'runeVanguard')).toBe(true);
+    expect(got.filter((g) => g.kw === 'CR').map((g) => g.target)).toEqual(['m0', 'm1', 'm2']);
+    expect(got.filter((g) => g.kw === 'DS').map((g) => g.target)).toEqual(['m0', 'm1', 'm2']);
+  });
+
+  it('Rune of Centerline: the middle minion of two different types gets both beams', () => {
+    const got = launches('runeCenterline', [bm('mumi', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] }), bm('b2_beev', 1, 60, { keywords: [] })]).flatMap((g) => g.grants);
+    expect(got.map((g) => g.kw).sort()).toEqual(['CR', 'DS']);
+    expect(got.every((g) => g.target === 'm1' && g.flag === 'runeCenterline')).toBe(true);
+  });
+
+  it('THE FOE (owner 2026-11-13: "also be reflected on the opponents runes"): its Vanguard sends beams to ITS minions, marked as the foe', () => {
+    const { events: raw } = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4, questMods: { runeVanguard: true } } as never));
+    const events = replayOrder(raw);
+    const foeUids = new Set(raw.flatMap((e) => (e.type === 'keyword' || e.type === 'shieldUp' ? [e.target] : [])));
+    let carry: RuneCarry | null = null;
+    let waiting: WaitingGrant[] = [];
+    const got = replayBeats(raw).flatMap((beat) => { const r = runeKeywordGrantsIn(beat, events, carry, waiting); carry = r.carry; waiting = r.waiting; return [...r.returned, ...r.grants]; });
+    expect(got.length).toBe(4); // Critical Strike and Ward for each of its two
+    expect(got.every((g) => g.side === 'enemy' && g.flag === 'runeVanguard' && foeUids.has(g.target))).toBe(true);
+    expect(got.map((g) => g.kw).sort()).toEqual(['CR', 'CR', 'DS', 'DS']);
+  });
+
+  it('a minion that already has Critical Strike gets no second one', () => {
+    const got = launches('runeVanguard', [bm('trainingdummy', 1, 60, { keywords: ['CR'] })]).flatMap((g) => g.grants);
+    expect(got.filter((g) => g.kw === 'CR')).toEqual([]);
+  });
+
+  it("Executioner's Edge, banked in the Shop: the Critical Strike leaves on the beat the fight opens with", () => {
+    const { events: raw } = simulate([bm('trainingdummy', 1, 60, { keywords: [] }), bm('trainingdummy', 1, 60, { keywords: [] })], [bm('trainingdummy', 5, 60)], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 1, keyword: 'CR', critChance: 0.5 }] } } as never), combatSide({ tier: 4 }));
+    const events = replayOrder(raw);
+    const got = replayBeats(raw).flatMap((beat) => bankedKeywordGrantsIn(beat, events));
+    expect(got).toEqual([{ kw: 'CR', target: 'm1', side: 'player' }]);
+    // The foe's banked spell shows too, marked as the foe's (its beam leaves the mirrored cast card).
+    const foe = simulate([bm('trainingdummy', 1, 60)], [bm('trainingdummy', 5, 60, { keywords: [] })], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4, questMods: { bankedKeywords: [{ index: 0, keyword: 'CR', critChance: 0.5 }] } } as never));
+    const foeGot = replayBeats(foe.events).flatMap((beat) => bankedKeywordGrantsIn(beat, replayOrder(foe.events)));
+    expect(foeGot.map((g) => [g.kw, g.side])).toEqual([['CR', 'enemy']]);
+    expect(foeGot[0]!.target).not.toBe('m0'); // a foe body, not the player's
   });
 
   it('a grant a minion made is never credited to a rune: the Echo of Mumi with no rune held launches nothing here', () => {
@@ -104,7 +149,7 @@ describe('the call sites', () => {
   });
   it('the Shop: Rise and Execute mid-turn, Ward with its blast on landing, and a rune or hero End of Turn beat', () => {
     const recruit = read('../Recruit.tsx');
-    expect(recruit).toContain('const at = prev && prevV ? keywordOriginPoint(shopKeywordOrigin()) : null;');
+    expect(recruit).toContain('const at = prev && prevV && prevW && prevCR ? keywordOriginPoint(shopKeywordOrigin()) : null;');
     expect(recruit).toContain("launchKeywordBeam('DS', wardFrom, c.uid, { launchAt: wardBeams * KEYWORD_BEAM_GAP_MS, sound: wardBeams < KEYWORD_BEAM_SOUND_MAX, onLand: blast })");
     expect(recruit).toContain("const at = origin.kind === 'rune' ? runeSlotPoint(origin.id) : origin.kind === 'hero' || origin.kind === 'heroPower' ? heroPowerPoint() : null;");
   });

@@ -1,0 +1,1 @@
+{"version":1,"id":"sfx-crit-sting","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/crit-sting","gain":1,"pitchVar":0.07}}]}

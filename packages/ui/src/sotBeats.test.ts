@@ -21,6 +21,32 @@ import { WIPE_STATES } from './wipeMachine';
 const hero = { kind: 'hero' as const, id: 'risen', label: 'Ancient of Time' };
 const beat = (gains: [string, number, number][]): SotBeatFx => ({ source: hero, gains: gains.map(([uid, attack, health]) => ({ uid, attack, health })) });
 
+describe('a Start of Turn source that gives keywords (R-FX-KEYWORD-ORIGIN-01)', () => {
+  const rune = { kind: 'rune' as const, id: 'rune_x', label: 'X' };
+  it('each keyword is its own cue after the stat gains, a beam gap apart, and the tail waits for the last', () => {
+    const b: SotBeatFx = { source: rune, gains: [{ uid: 'a', attack: 1, health: 0 }], keywords: [{ uid: 'a', keyword: 'CR' }, { uid: 'b', keyword: 'R' }] };
+    const { cues, durationMs } = planSotBeats([b]);
+    const gainAt = cues.find((c) => c.kind === 'gain')!.at;
+    const kw = cues.filter((c) => c.kind === 'keyword');
+    expect(kw.map((c) => (c.kind === 'keyword' ? [c.uid, c.keyword, c.index, c.source] : null))).toEqual([['a', 'CR', 0, rune], ['b', 'R', 1, rune]]);
+    expect(kw[0]!.at).toBe(gainAt + SOT_GAIN_STAGGER_MS);
+    expect(kw[1]!.at - kw[0]!.at).toBe(180);
+    expect(durationMs).toBe(kw[1]!.at + SOT_BEAT_TAIL_MS);
+  });
+  it('a keyword-only beat is not a quiet one, and its cue holds nothing back', () => {
+    const { cues, durationMs } = planSotBeats([{ source: rune, gains: [], keywords: [{ uid: 'a', keyword: 'DS' }] }]);
+    const k = cues.find((c) => c.kind === 'keyword')!;
+    expect(k.at).toBe(SOT_POST_WIPE_PAD_MS + SOT_PULSE_LEAD_MS);
+    expect(durationMs).toBe(k.at + SOT_BEAT_TAIL_MS);
+    expect(releaseSotCue(NO_SOT_HOLDS, k)).toBe(NO_SOT_HOLDS);
+  });
+  it('the Shop sends the beam from the source and hides the look until it lands', () => {
+    const recruit = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'Recruit.tsx'), 'utf8');
+    expect(recruit).toContain("if (from && isBeamKeyword(cue.keyword)) launchKeywordBeam(cue.keyword, from, cue.uid, { sound: cue.index < KEYWORD_BEAM_SOUND_MAX });");
+    expect(recruit).toContain("if (cue.kind === 'keyword' && isBeamKeyword(cue.keyword)) holdKeywordLook(cue.keyword, cue.uid, cue.at + 600);");
+  });
+});
+
 describe('a Start-of-Turn beat waits for the return wipe', () => {
   it('may play only on a revealed Shop: the recruit phase with the wipe fully at rest', () => {
     for (const w of WIPE_STATES) expect(sotBeatsMayPlay('recruit', w), w).toBe(w === 'idle');

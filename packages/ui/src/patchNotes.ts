@@ -59,6 +59,18 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-13',
     changes: [
       {
+        category: 'Systems',
+        text: 'Critical Strike given by a spell, a hero power or a rune now arrives on a beam of its own, in the Shop and in combat.',
+      },
+      {
+        category: 'Systems',
+        text: 'Minions no longer light up under the pointer while you pick a target for a card effect, the same as when you aim a spell.',
+      },
+      {
+        category: 'Systems',
+        text: 'Flurry now arrives on a beam of its own, with a gust of air and a flurry of blade swings. Runic Beetle sends it to the Beast he picks, and a spell, a hero power or a rune sends it the same way as Rise, Execute and Ward.',
+      },
+      {
         category: 'Balance',
         text: 'Set 2 gets 43 new runes. Look for them in the Runeforge: 25 Basic and 18 Epic, for every tribe and for any board.',
         details: [

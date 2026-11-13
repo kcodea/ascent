@@ -1,6 +1,7 @@
 import { isWardHeld, subscribeWardHolds } from './fx/wardHold';
 import { isExecuteHeld, subscribeExecuteHolds } from './fx/executeHold';
 import { isRiseHeld, subscribeRiseHolds } from './fx/riseHold';
+import { isFlurryHeld, subscribeFlurryHolds } from './fx/flurryHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -648,6 +649,8 @@ export const Card = memo(function Card({
   const executeHeld = useSyncExternalStore(subscribeExecuteHolds, () => (uid ? isExecuteHeld(uid) : false), () => false);
   // …and a Rise given by an "On Rise given" effect (fx/riseHold).
   const riseHeld = useSyncExternalStore(subscribeRiseHolds, () => (uid ? isRiseHeld(uid) : false), () => false);
+  // …and a Flurry whose beam is still travelling (fx/flurryHold).
+  const flurryHeld = useSyncExternalStore(subscribeFlurryHolds, () => (uid ? isFlurryHeld(uid) : false), () => false);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
@@ -1246,7 +1249,7 @@ export const Card = memo(function Card({
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
             transform (spin + wrapper squash) and opacity (breathe) animate. Rides drag + the lunge for free. */}
-        {card.keywords.includes('W') && (
+        {card.keywords.includes('W') && !flurryHeld && (
           <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
             <div className="fl-breathe">
               {FLURRY_RINGS.map((r, i) => (

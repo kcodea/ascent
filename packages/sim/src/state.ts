@@ -667,6 +667,8 @@ export interface SotBeatFx {
   shopAdds?: string[];
   /** Board bodies turned golden this beat (Rune of the Pendant). */
   gilds?: string[];
+  /** Keywords board bodies GAINED this beat (R-FX-KEYWORD-ORIGIN-01): the UI sends each one's beam from the source. */
+  keywords?: { uid: string; keyword: Keyword }[];
   /** Gold gained this beat (Rune of the Treasure Map, a Commission). */
   gold?: number;
   /** Discovers (open or queued) this beat raised — the overlay opens after the last beat. */

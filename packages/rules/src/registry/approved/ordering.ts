@@ -565,12 +565,62 @@ export const ORDERING_RULES: GameRule[] = [
     ],
     currentBehaviour: 'PARTIAL from 2026-11-13 (fx/rise-given). Covered: in the Shop mid-turn, a targeted spell (pointer), an '
       + 'untargeted spell (hero portrait) and a hero power (its slot), read off the board against the action the store '
-      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of the player (its slot), found by the '
-      + 'rune fire beside a grant that names no giving minion. Not covered: a rune that gives a keyword mid-turn in the '
-      + 'Shop or at Start of Turn (a mid-turn action carries no record of which rune acted), the runes of the foe, and '
+      + 'noted; at End of Turn, a rune or hero beat (its slot); in combat, a rune of EITHER side (the player: its slot; the foe: its rune badge beside the foe portrait), found by the '
+      + 'rune fire beside a grant that names no giving minion; at Start of Turn, any source (the recorder notes each '
+      + 'keyword gain on the beat of its source, and the beam leaves that source). Not covered: a rune that gives a '
+      + 'keyword mid-turn in the Shop (a mid-turn action carries no record of which rune acted), and '
       + 'a Ward a minion already had refreshed. The pure parts are pinned (the origin of each action, the rune grants in '
       + 'a beat, every call site); the scheduled play needs a live renderer and none of it has been seen in game by '
       + 'the author.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/keywordOrigin.test.ts', 'packages/sim/src/sotBeatKeywords.test.ts', 'packages/ui/src/sotBeats.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-FX-FLURRY-GIVEN-01',
+    title: 'A Flurry given to a minion travels on the Flurry beam, and the Flurry shows when it lands',
+    statement:
+      'When a minion is given Flurry, the Flurry beam travels to it and its Flurry look appears only when the beam lands. '
+      + 'A minion with its own "On Flurry given" effect (the Flurry option of Runic Beetle) sends it from itself, and that '
+      + 'beam replaces its buff tendril on the same minion. With no giving minion the beam leaves from the cause, by the '
+      + 'same rule as Rise, Execute and Ward (R-FX-KEYWORD-ORIGIN-01): the pointer, the hero portrait, the hero power '
+      + 'slot or the slot of the rune.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, after the Rise beam merged', quote: 'we should probably make a flurry beam huh' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, the effect', quote: 'ok saved flurry-beam' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, the sounds', quote: 'i want it to be a woosh of air and multiple airy swings of a sword or dagger' },
+      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/choreo/channels/flurryGiven.ts; packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.W, the per-card def); packages/ui/src/fx/flurryHold.ts; packages/ui/src/Card.tsx (the held swirl); packages/ui/src/Recruit.tsx (the mid-turn board read); packages/ui/src/fx/runeKeywordBeams.ts' },
+    ],
+    contentIds: ['beetle'],
+    currentBehaviour: 'PARTIAL from 2026-11-13 (fx/flurry-given): Runic Beetle in the Shop, and the non-minion origins wherever '
+      + 'R-FX-KEYWORD-ORIGIN-01 covers them. No card gives another minion Flurry in combat today, so there is no combat '
+      + 'minion path. In combat a rune-given Flurry is matched only when the grant names no source. The pure parts are '
+      + 'pinned (the giver, a real play through the reducer, the call sites); none of it had been seen in game by the '
+      + 'author when it was written.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/flurryGiven.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-FX-CRIT-GIVEN-01',
+    title: 'Critical Strike given to a minion travels on the Crit beam',
+    statement:
+      'When a minion is given Critical Strike by something that is not a minion, the Crit beam travels to it from the '
+      + 'cause, by the same rule as Rise, Execute, Ward and Flurry (R-FX-KEYWORD-ORIGIN-01): the pointer for a targeted '
+      + 'spell, the hero portrait for an untargeted one, the hero power slot, or the slot of the rune. Several at once '
+      + 'leave one after another.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'now im making a crit beam. fx is crit-beam' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the foe', quote: 'all of these effects should also be reflected  on the opponents runes, units and spells' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13, on the combat runes', quote: 'i thought i was very clear that these effects should come from runes that apply these effects to minions' },
+      { kind: 'code', ref: 'fx/flurry-given: packages/ui/src/fx/keywordBeam.ts (KEYWORD_BEAMS.CR); packages/ui/src/Recruit.tsx (the mid-turn board read, the End of Turn keyword cue); packages/core/src/combat/simulate.ts (runeVanguard, runeCenterline log the grant); packages/ui/src/fx/runeKeywordBeams.ts (bankedKeywordGrantsIn)' },
+    ],
+    currentBehaviour: 'PARTIAL from 2026-11-13: the Shop (a mid-turn grant read off the board, and a rune or hero '
+      + 'grant at End of Turn) and combat. In combat the engine now logs a `keyword` event when a rune (Vanguard, '
+      + 'Centerline) gives Critical Strike, and the beam leaves the slot of the rune; a keyword banked by a spell for '
+      + 'the next combat (the Edge of the Executioner) leaves where its cast card shows. The foe is covered the same way: its runes leave its rune badge, '
+      + 'its banked spell leaves its mirrored cast card. A rising sting as it leaves and a blade shing as it lands (owner pick). Critical Strike has no look on the card, so nothing is held '
+      + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts', 'packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
 ];

@@ -1,0 +1,1 @@
+{"version":1,"id":"sfx-crit-shing","duration":1000,"layers":[{"primitive":"sound","anchor":"travel","at":0,"params":{"clip":"fx/crit-shing","gain":1,"pitchVar":0.07}}]}

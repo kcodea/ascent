@@ -2010,6 +2010,13 @@ body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0
 body.dragging .row.hand .card:hover,
 body.dragging .zone[data-zone='warband'] .card:hover,
 body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
+/* AIMING A CARD EFFECT (R-AIM-HOVER-01, owner 2026-11-13): while a Shout waits for its target, the minions take no
+   pointer at all, so nothing of the hover shows (the glow, the reference tip), the same as under the veil of a
+   targeted spell drag. The aim itself needs nothing from them: it hit-tests cached rects from window listeners
+   (Recruit.tsx), and the target's own look is the `targeted` class. Not a veil, because End Turn stays clickable
+   under an aim (aimCursorHide.ts), and not `body.aiming`, which no rule may key on (R-PERF-AIM-CURSOR-01). */
+body.aimpick .zone[data-zone='warband'] .card,
+body.aimpick .zone[data-zone='tavern'] .card { pointer-events: none; }
 
 /* STANDARD CARD */
 /* Legacy tribe-coloured arch glow SCRUBBED (owner 2026-08-06): the base card box no longer carries a tribe

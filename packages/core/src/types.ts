@@ -2129,7 +2129,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 rune, owner design 2026-11-13: endOfQuarter = every card entering the Shop rolls 30% (per copy) for 1 Gold off
   // (Shop-only; packages/sim/src/shop.ts rollEndOfQuarter).
   | 'runeEndOfQuarter'
-  // drunkShopkeeper = every Ale cast gives the minions in the Shop +1/+1 permanently (Shop-only; set2RunesBasicTribal.ts).
+  // drunkShopkeeper = every Ale cast adds +1/+1 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
   | 'runeDrunkShopkeeper';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */

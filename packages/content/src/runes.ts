@@ -2469,14 +2469,15 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Owner design 2026-11-13. Shop-only (an Ale is only cast in the Shop). Every Ale CAST (each repetition of a multiplied
-    // cast: Edward, Bottomless Cask, Shared Pour, Last Call) gives the minions standing in the Shop right now +1/+1 per copy,
-    // baked onto each offer (`buffThisShopOffers`), so a frozen card keeps it and a card that arrives later does not have it.
+    // Owner design 2026-11-13; rework 2026-11-14 ("buffs the Shop"). Shop-only (an Ale is only cast in the Shop). Every Ale
+    // CAST (each repetition of a multiplied cast: Edward, Bottomless Cask, Shared Pour, Last Call) adds +1/+1 per copy to the
+    // run-wide permanent Shop buff (`applyRunShopBuff`), so the Shop minions now AND every minion that enters the Shop later
+    // carry the running total. The text prints that total live ("(Now +X/+X.)", `liveRuneText`).
     id: 'rune_drunk_shopkeeper',
     tribes: ['dwarf'],
     name: 'Drunk Shopkeeper',
     cost: 2,
-    text: 'When you cast an **Ale**, give minions in your Shop **+1/+1** permanently.',
+    text: 'When you cast an **Ale**, Shop minions get **+1/+1** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeDrunkShopkeeper' },
     sets: ['set2'],
   },
@@ -4938,6 +4939,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get an **Immune Iggy** with **Ward**.',
     previewCards: ['d3_iggy'],
     reward: { kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] },
+    sets: ['set2'],
+  },
+  {
+    // Owner design 2026-11-14 (an EPIC rune, owner change the same day). Gold for Grub's bite on the `anySpell` meter at `per: 1`: every spell cast (a Shop spell, a
+    // Gift, a Ruby, the same "spells" the Bubble Crown counts) trips it once, and the payout is the shared
+    // `demonConsumeShop` bite (a seeded-random friendly Demon eats a seeded-random Shop minion through `consumeShopMinion`).
+    // No Demon or no Shop minion: nothing is eaten and the rune does not fire. One meter per copy held.
+    id: 'rune_spell_appetite',
+    tribes: ['demon'],
+    name: 'Spell Appetite',
+    cost: 3,
+    epic: true,
+    text: 'When you cast a spell, a random friendly **Demon** consumes a minion in the Shop.',
+    reward: { kind: 'runeThreshold', meter: 'anySpell', per: 1, demonConsumeShop: 1 },
     sets: ['set2'],
   },
   {

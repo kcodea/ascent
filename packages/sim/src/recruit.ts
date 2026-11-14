@@ -2267,11 +2267,12 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // The rune fired — one stamp here covers all eight threshold runes, each credited by its own `sourceId`
   // rather than by the shared `runeThreshold` reward kind (see `procRuneId`). Called only from the
   // `t.tick >= t.per` branch, so banking below the line is correctly not a fire.
-  // GOLD FOR GRUB (Set 2 rune, owner 2026-11-13): a bite-only trip with no Demon on the board or no minion in the Shop is not
-  // a fire. The Gold still counted (the meter has already reset): nothing is eaten and no rune beat plays.
+  // GOLD FOR GRUB / SPELL APPETITE (Set 2 runes, owner 2026-11-13 / 2026-11-14): a bite-only trip with no Demon on the board
+  // or no minion in the Shop is not a fire. The Gold still counted (the meter has already reset): nothing is eaten and no rune beat plays.
   // A Refresh's own Gold defers the bite until the NEW row has landed (`grubBitesDeferred` / `flushGrubBites`), the
   // Hellrider rule: an eat on a Refresh sees the row you paid for, not the one rolling away.
-  if (t.demonConsumeShop && state.grubBitesDeferred !== undefined) { state.grubBitesDeferred += t.demonConsumeShop; return; }
+  // Only the GOLD meter defers (that Gold paid for the new row); Spell Appetite's `anySpell` bite eats from the row in front of it.
+  if (t.demonConsumeShop && t.meter === 'gold' && state.grubBitesDeferred !== undefined) { state.grubBitesDeferred += t.demonConsumeShop; return; }
   if (t.demonConsumeShop && !grubCanBite(state) && !t.grantCards?.length && !t.buff) return;
   procRuneId(state, t.sourceId);
   const pool = poolOf(state);
@@ -14546,7 +14547,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
-  drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast gives the Shop minions +1/+1
+  drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast adds +1/+1 to the permanent Shop buff
   flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
 

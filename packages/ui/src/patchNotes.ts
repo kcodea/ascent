@@ -69,6 +69,24 @@ export const PATCH_NOTES: PatchNote[] = [
           'Gifts never count. Two copies of the rune give two copies.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Drunk Shopkeeper now buffs your Shop for the rest of the game. Each Ale you cast adds +1/+1.',
+        details: [
+          'Minions that arrive in your Shop later, after a Refresh or on a new turn, have the bonus too.',
+          'It used to buff only the minions in your Shop at the time.',
+          'The rune shows the total it has added so far.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'New Set 2 Epic rune: Spell Appetite.',
+        details: [
+          'Spell Appetite (Epic, Demon, 3 Gold): when you cast a spell, a random Demon on your board consumes a random minion in your Shop.',
+          'Rubies are spells, so they count too.',
+          'With no Demon or no Shop minion, nothing happens.',
+        ],
+      },
     ],
   },
   {

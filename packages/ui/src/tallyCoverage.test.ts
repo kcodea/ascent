@@ -33,6 +33,8 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
  * effect that fires every time — there is no "progress toward" anything to show.
  */
 const NOT_A_METER: Record<string, string> = {
+  rune_drunk_shopkeeper: 'pays on EVERY Ale cast; the 1/1 is the step, and the running total is printed in its live text ("(Now +X/+X.)")',
+  rune_spell_appetite: 'bites on EVERY spell cast (a per: 1 meter); nothing to count toward, so runeTally returns null',
   rune_end_of_quarter: 'the 30% is a per-card chance and the 1 a price cut; nothing counts up (each card shows its own green price)',
   rune_rubywire: 'the 2 is how many Kobolds each Shop spell gives a Ruby to; it pays on EVERY cast, nothing to count toward',
   rune_roseys_garden: 'fires on EVERY Ruby cast; the digits are the +4/+5 grant, not a count-up (Set 3 Kobold runes, 2026-10-22)',

@@ -56,6 +56,9 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // "Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this." (Set 3 Dragon runes, 2026-10-21)
     case 'rune_borrowed_flame':
       return st.borrowedFlame != null ? pair(text, st.borrowedFlame, st.borrowedFlame) : text;
+    // "When you cast an Ale, Shop minions get +1/+1 permanently." The step stays printed; the running total is appended.
+    case 'rune_drunk_shopkeeper':
+      return st.drunkShopkeeper ? `${text} (Now +${st.drunkShopkeeper.attack}/+${st.drunkShopkeeper.health}.)` : text;
     // "When you cast 3 different spells, get a copy of the first one." (Set 2 Epic, 2026-11-14): the sequence so far.
     case 'rune_sequencing':
       return st.sequence ? `${text} ${sequencingReadout(st.sequence)}` : text;

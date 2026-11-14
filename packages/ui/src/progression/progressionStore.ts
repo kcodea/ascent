@@ -41,7 +41,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
+  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchProgressionConfig, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, fetchUnseenGiftIds, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -83,6 +83,9 @@ interface ProgressionStore {
    *  the server), or, on a server from before the seen migration, the baseline this device just took. Null until
    *  one of those lands. The Collection lays it over its own snapshot, so the answer shows the moment it arrives. */
   seenKnown: { userId: string; ids: ReadonlySet<string> } | null;
+  /** GIFTS waiting to be announced (owner 2026-11-13): items handed to this account directly that it has not looked
+   *  at yet. Read with the probe; `GiftNotice` shows them once and `dismissGifts` marks them seen on the account. */
+  gifts: { userId: string; ids: readonly string[] } | null;
 }
 
 const MIRROR_KEY = 'ascent.progression';
@@ -131,6 +134,7 @@ export const useProgression = create<ProgressionStore>(() => ({
   aetherCapability: 'unknown',
   economy: DEFAULT_AETHER_ECONOMY,
   seenKnown: null,
+  gifts: null,
 }));
 
 // The last server kill-switch answer we saw, applied before anything renders (never un-retires on its own).
@@ -228,6 +232,24 @@ export function markCosmeticsSeen(userId: string | null | undefined, ids: readon
   });
 }
 
+/**
+ * Read the gifts this account has not looked at yet (run with the probe, after the seen list, so dismissing one can
+ * reach the server). No answer changes nothing; an empty answer clears what was waiting.
+ */
+export async function refreshGifts(userId: string): Promise<void> {
+  const ids = await fetchUnseenGiftIds(userId);
+  if (ids === undefined || currentUserId() !== userId) return;
+  useProgression.setState({ gifts: ids.length ? { userId, ids } : null });
+}
+
+/** The gift notice was closed: the gifts are seen (this device at once, the account when the server holds the list). */
+export function dismissGifts(): void {
+  const g = useProgression.getState().gifts;
+  if (!g) return;
+  useProgression.setState({ gifts: null });
+  markCosmeticsSeen(g.userId, g.ids);
+}
+
 let probing: Promise<void> | null = null;
 
 /**
@@ -264,6 +286,8 @@ export function probeProgression(): Promise<void> {
     if (aether !== undefined) useProgression.setState({ aetherCapability: aether ? 'on' : 'off' });
     if (aether) await refreshEconomy();
     await seenRead;
+    // Gifts last: their dismissal writes through the seen list just read.
+    await refreshGifts(userId);
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
   probing = p;
@@ -633,7 +657,7 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); localStorage.removeItem(SERVER_CATALOG_HASH_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null, gifts: null });
   seenAccount = null;
   seenOnServer.clear();
 }

@@ -702,6 +702,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   skin('skin_sylus_4', 'minion_skin', '8 Bit Sylus', 'legendary', 'sylus', '8 Bit Sylus.png'),
   // Skins batch 19 (owner 2026-11-12: "added a few more"): one more 8 Bit skin. Rarity = the folder.
   skin('skin_ropewrangler_3', 'minion_skin', '8 Bit Wrangler', 'legendary', 'ropewrangler', '8 Bit Wrangler.png'),
+  // Skins batch 21 (owner 2026-11-13: "i just added Dad Kobebe to the ancient minion skin folder. add this to the game").
+  skin('skin_kobabyboldies_3', 'minion_skin', 'Dad Kobebe', 'ancient', 'k_kobabyboldies', 'Dad Kobebe.png'),
   // Skins batch 20 (owner 2026-11-12: "added some priestess skins in our skins folder"): the first three skins for
   // Priestess, the Duos-only hero. Rarity = the Hero Skins folder. Named like the other four Sweeney hero skins.
   skin('skin_priestess_1', 'hero_skin', 'Hand Drawn Priestess', 'rare', 'priestess', 'HandDrawnPriestess.png'),

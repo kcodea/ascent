@@ -414,6 +414,14 @@ img.colls-caticon { object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0
 /* CROSS-DEVICE SAVES: the "your game moved" prompt blocks the stale run, above the game HUD and menus. */
 .nrw-scrim.cloudmoved-scrim { z-index: 8000; }
 
+/* GIFTS (owner 2026-11-13): "you were given an item", once, on the menus. The New rewards shell with an art row. */
+.gift-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.gift-item { display: flex; align-items: center; gap: 14px; }
+.gift-art { width: 112px; height: 112px; flex: none; border-radius: 12px; object-fit: cover; box-shadow: 0 0 0 2px var(--rc, rgba(196, 160, 92, 0.6)); }
+.gift-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gift-name { font-family: var(--font-ui); font-weight: 800; font-size: 20px; line-height: 1.2; color: var(--rc, #fff); }
+.gift-note { margin: 0; }
+
 /* WS-6 (2026-10-16): PROGRESS AT THREE LEVELS — the overall total (header), a bar on every category tab, and the
    way to get each missing item printed on its tile. RARITY BY SHAPE AS WELL AS COLOUR (Valorant's tiers): common a
    round gem, rare the cut diamond, epic a triangle, legendary a four-point star, ancient a hexagon. Static. */

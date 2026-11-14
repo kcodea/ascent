@@ -549,6 +549,9 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   (enrollment) also grants the Level 1 **Welcome Chest**. So an account at Level L has earned L chests. Earn only:
   no keys, currency, purchases or rerolls. Accounts enrolled before chests shipped received their Welcome Chest
   plus one chest per level already reached (a one-time backfill).
+- **Gifts (owner 2026-11-13, R-PROG-GIFT-01).** An item the owner hands an account directly is announced once, on the
+  menus, the next time that account loads the game: a pop-up naming the item, its rarity and what it is for, with View in
+  Collection and Got it. Closing it any way marks the item seen on the account, so it never returns on any device.
 - **New rewards wait in the Collection (owner 2026-09-28, R-PROG-NEWREWARDS-01).** The end screen shows only the
   placement, the XP gained, the level bar and the level-up moment, plus one line when anything new was earned. The
   achievements, first-time titles and chests a game awarded are queued per account (localStorage, survives a reload,

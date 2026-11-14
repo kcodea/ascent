@@ -15455,4 +15455,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-11-13 (fix/compendium-rune-inspect, PR #2692). Before it the view used the card Inspect flex row alone: a plated card painted past its layout box, so it lapped over the rune, hung lower than it, and two named cards could land on one spot.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeInspectLayout.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-PROG-SKINS-29',
+    title: 'Skins batch 21: Dad Kobebe joins the crates as an Ancient Kobebes skin',
+    statement:
+      'Dad Kobebe is a crate minion skin targeting Kobebes by stable id, shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, Ancient by the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'With it in, a first crate holds 92 Common, 146 Rare, 150 Epic, 109 Legendary and 38 Ancient items (each Ancient 0.079%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (skins batch 21)', quote: 'i just added Dad Kobebe to the ancient mi nion skin folder. add this to the game' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (skins batch 21); packages/ui/src/art/skins/skin_kobabyboldies_3.webp' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-13 (feat/dad-kobebe). A crate item like every other file in the rarity folders; the owner also asked for one account (IonLime) to be given it directly (R-PROG-GIFT-01). Whether it should be gift-only instead of a crate drop is for the owner to confirm. Reaches the database through the catalog sync.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PROG-GIFT-01',
+    title: 'A cosmetic handed to an account directly is announced once, on the menus, the next time that account loads the game',
+    statement:
+      'An item the owner gives an account directly is an ownership row with source gift. While that row is unseen on the '
+      + 'account, the game shows one pop-up on the menus (never during a game) naming each such item, its rarity and what '
+      + 'it is for, with View in Collection and Got it. Closing it any way marks those items seen on the account, so the '
+      + 'pop-up never returns on this or any other device. An item this build does not know, another account, or an '
+      + 'unanswerable read shows nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (gift notice)', quote: 'give Ionlime the cosmetic. have an alert next time he loads up the game' },
+      { kind: 'code', ref: 'packages/ui/src/progression/GiftNotice.tsx; progressionStore.ts (refreshGifts, dismissGifts); progressionRemote.ts (fetchUnseenGiftIds); mounted in Game.tsx on the menus' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-11-13 (feat/dad-kobebe). Read with the progression probe when identity lands. It needs the account seen list (player_cosmetics.seen_at, live since 2026-10-11) and a client build that has the notice; an older client shows only the Collection NEW badge. The grant itself is a manual SQL insert by the owner (docs/devlog/2026-11-13-dad-kobebe-and-gifts.md); there is no grant tool yet. Not yet seen in the running game by the owner.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/GiftNotice.test.tsx'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

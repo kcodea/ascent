@@ -2,6 +2,7 @@ import { isWardHeld, subscribeWardHolds } from './fx/wardHold';
 import { isExecuteHeld, subscribeExecuteHolds } from './fx/executeHold';
 import { isRiseHeld, subscribeRiseHolds } from './fx/riseHold';
 import { isFlurryHeld, subscribeFlurryHolds } from './fx/flurryHold';
+import { isTauntHeld, subscribeTauntHolds } from './fx/tauntHold';
 import { openCardPingMenu } from './pings/PingLayer';
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
@@ -114,7 +115,7 @@ function useBadgePop(value: number, screen: string): RefObject<HTMLSpanElement> 
 import './cardPillsConfig';
 import { GIFT_MEDALLION_SRC, POWER_MEDALLION_SRC, RUBY_MEDALLION_SRC, SPELL_MEDALLION_SRC, WHISPER_MEDALLION_SRC } from './spellMedallion';
 import { artFor, artVariantKey } from './art';
-import { useArtFade } from './artPreload';
+import { requestArt, useArtFade } from './artPreload';
 import { FadeImg } from './FadeImg';
 import { useMinionSkinMap } from './skins/skinArt';
 import { useCardPlateLook } from './cardPlate/cardPlateLook';
@@ -651,6 +652,13 @@ export const Card = memo(function Card({
   const riseHeld = useSyncExternalStore(subscribeRiseHolds, () => (uid ? isRiseHeld(uid) : false), () => false);
   // …and a Flurry whose beam is still travelling (fx/flurryHold).
   const flurryHeld = useSyncExternalStore(subscribeFlurryHolds, () => (uid ? isFlurryHeld(uid) : false), () => false);
+  // ...and a Taunt whose beam is still travelling keeps the ordinary frame until it lands (fx/tauntHold).
+  const tauntHeld = useSyncExternalStore(subscribeTauntHolds, () => (uid ? isTauntHeld(uid) : false), () => false);
+  const tauntShown = card.keywords.includes('T') && !tauntHeld;
+  // WARM THE SHIELD FRAME WHILE THE BEAM FLIES (owner 2026-11-13: "the card is switching over to the taunt frame a
+  // bit late"). The frame image is only mounted once the hold lifts, so without this its fetch and decode START at
+  // the landing and the frame shows a beat after it.
+  useEffect(() => { if (tauntHeld) requestArt(tauntFrameSrcFor(card.tribe, !!card.golden), 'now'); }, [tauntHeld, card.tribe, card.golden]);
   const statHoldSeq = useSyncExternalStore(subscribeStatHolds, () => (uid ? statHoldKey(uid) : 0), () => 0);
   // `statHoldSeq` IS the dependency here: it encodes the held delta, and re-reading `heldFor` is what turns
   // that primitive back into the pair of numbers. `uid` alone would never invalidate.
@@ -934,7 +942,7 @@ export const Card = memo(function Card({
   const usePlate = !!plated && plateOk;
   // Size the rules text from the LIVE text string (values already folded in), never by measuring the DOM.
   const txtBucket = plateTextBucket(shownText);
-  const isTaunt = card.keywords.includes('T');
+  const isTaunt = tauntShown;
   // A Ruby (set 2) is a spell-LIKE card: it wears the SPELL treatment (purple square frame, spell pill, no
   // stat footer / tribe line) even though it's its own class mechanically. `spellLike` gates the visual only.
   const spellLike = !!card.spell || !!card.ruby;
@@ -973,7 +981,7 @@ export const Card = memo(function Card({
   // The FRAME and the hand PLATE obey the same rule as the art (art pop-in fix 2026-09-29): until decoded they are
   // invisible (the dark art-window stand-in shows) and fade in once, instead of the card flashing a bare white
   // window. Already-decoded frames — every one after the first seconds of a session — render exactly as before.
-  const frameSrc = card.keywords.includes('T')
+  const frameSrc = tauntShown
     ? (frameOk ? tauntFrameSrcFor(card.tribe, !!card.golden) : undefined)
     : useStdFrame ? stdFrameSrcFor(card.tribe, !!card.golden) : useSpellFrame ? spellFrameSrc : undefined;
   const frameFade = useArtFade(frameSrc);
@@ -997,7 +1005,7 @@ export const Card = memo(function Card({
   const bothFrameGlow = bothGlow ? <div className="cglow bothglow" aria-hidden="true"><span className="cglow-rim" /></div> : null;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') && !wardHeld ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${mateTriple && !tripleReady ? ' matetrip' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${tauntShown ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') && !wardHeld ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${mateTriple && !tripleReady ? ' matetrip' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
       data-uid={uid}
       data-tribe={card.tribe}
       /* Marks the Triple Reward for its gold ARRIVAL coalesce only (plateCoalesce.ts) — no styling keys on it;
@@ -1268,7 +1276,7 @@ export const Card = memo(function Card({
         {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
             to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}
-        {card.keywords.includes('T') && frameOk && (
+        {tauntShown && frameOk && (
           <>
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
@@ -1292,7 +1300,7 @@ export const Card = memo(function Card({
             />
           </>
         )}
-        {card.keywords.includes('T') && !frameOk && (
+        {tauntShown && !frameOk && (
           <svg className="tframe" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="tf-gold" x1="0" y1="0" x2="0" y2="1">
@@ -1377,7 +1385,7 @@ export const Card = memo(function Card({
         {/* REBIRTH (`RB`) — soft blue-white fire burning ON the frame (z4, over the art and the gold like Ward's
             shell, under the badges), a faint glow and rising embers. Pre-rendered, pre-blurred SVG frames
             cross-faded by opacity; the shield variant follows Taunt's heater. See `RebirthCrown` + styles.css. */}
-        {card.keywords.includes('RB') && <RebirthCrown shield={card.keywords.includes('T')} />}
+        {card.keywords.includes('RB') && <RebirthCrown shield={tauntShown} />}
         {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
             the gold arch frame so a tripled minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><FadeImg className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}

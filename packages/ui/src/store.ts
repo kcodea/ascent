@@ -1,4 +1,7 @@
-import { noteShopActionOrigin } from './fx/keywordOrigin';
+import { noteShopActionOrigin, shopKeywordOrigin } from './fx/keywordOrigin';
+import { KEYWORD_BEAMS } from './fx/keywordBeam';
+import { canPlayDefs } from './fx/playDef';
+import { getDef } from './fx/fxDefs';
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
@@ -324,7 +327,10 @@ export function actionSfx(action: Action, prev: RunState, next: RunState): void 
   // A friendly minion was just GIVEN Taunt — it existed on the board WITHOUT Taunt and now has it (so this
   // skips minions bought/played already-Taunt; only granted Taunt, e.g. Bulwark/a hero power, fires it).
   const wasTaunt = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('T')]));
-  if (next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();
+  // ...unless its Taunt beam is on the way (a spell or a hero power: `fx/keywordBeam.ts`), which rings it as it LANDS
+  // (R-FX-TAUNT-GIVEN-01, owner 2026-11-13: "i already have the taunt sound for when the taunt is applied").
+  const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);
+  if (!tauntBeamComing && next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();
   // A friendly minion was just GIVEN Ward ('DS') in the shop — it was on the board WITHOUT Ward and now has it
   // (skips minions bought/played already-warded, handled on-play above). Plays the same shield cue as combat.
   const wasWard = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('DS')]));

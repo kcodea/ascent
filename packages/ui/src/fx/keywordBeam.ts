@@ -7,6 +7,7 @@ import { holdRise } from './riseHold';
 import { holdExecute } from './executeHold';
 import { holdWard } from './wardHold';
 import { holdFlurry } from './flurryHold';
+import { holdTaunt } from './tauntHold';
 import { sfx } from '../sfx';
 import type { Point } from './keywordOrigin';
 
@@ -16,7 +17,7 @@ import type { Point } from './keywordOrigin';
  * and the keyword's look appears when it lands. The same hold, sounds and follow-the-receiver behaviour as the
  * minion-given paths (`riseGivenLaunch.ts`, `executeGivenLaunch.ts`, `wardGivenLaunch.ts`).
  */
-export type BeamKeyword = 'R' | 'V' | 'DS' | 'W' | 'CR';
+export type BeamKeyword = 'R' | 'V' | 'DS' | 'W' | 'CR' | 'T';
 
 /** Each keyword's beam, launch sound and landing sound (null = none / played another way). */
 export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSfx: string | null; landSfx: string | null }>> = {
@@ -25,7 +26,24 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
   DS: { def: 'lastlight-beam', launchSfx: null, landSfx: null }, // the Ward sound is `sfx.shield()` at the landing
   W: { def: 'flurry-beam', launchSfx: 'sfx-flurry-whoosh', landSfx: 'sfx-flurry-swings' },
   CR: { def: 'crit-beam', launchSfx: 'sfx-crit-sting', landSfx: 'sfx-crit-shing' },
+  T: { def: 'taunt-beam', launchSfx: 'sfx-taunt-whoosh', landSfx: null }, // the Taunt sound is `sfx.taunt()` at the landing
 };
+
+/**
+ * WHEN a keyword's look appears, in ms after its beam LEAVES (at 1x), for a keyword whose moment the owner set by hand.
+ * Absent = the moment the beam's tip arrives. Taunt's shield frame is a whole-card change the owner tuned by eye
+ * (2026-11-13: "have the frame switch (appear) at 160 ms", then "delay the frame another 30ms"); a fixed moment, so re-saving the beam does not move it.
+ */
+export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 240 };
+
+/** When `kw`'s look lands, in ms after launch (at 1x), for a beam whose tip arrives at `arrive`. */
+export const keywordLandAtMs = (kw: BeamKeyword, arrive: number): number => Math.max(0, KEYWORD_LAND_AT_MS[kw] ?? arrive);
+
+/**
+ * When the Taunt sound rings, in ms after the beam leaves (at 1x). A fixed moment the owner tuned by ear (2026-11-13),
+ * so moving the frame does not move the sound; never later than the frame itself.
+ */
+export const TAUNT_SOUND_AT_MS = 55;
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;
@@ -46,7 +64,7 @@ export const isBeamKeyword = (k: string): k is BeamKeyword => k in KEYWORD_BEAMS
 export const holdKeywordLook = (kw: BeamKeyword, uid: string, ms: number): void => hold(kw, uid, ms);
 
 const hold = (kw: BeamKeyword, uid: string, ms: number): void => {
-  if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else if (kw === 'W') holdFlurry(uid, ms); else if (kw === 'DS') holdWard(uid, ms);
+  if (kw === 'R') holdRise(uid, ms); else if (kw === 'V') holdExecute(uid, ms); else if (kw === 'W') holdFlurry(uid, ms); else if (kw === 'DS') holdWard(uid, ms); else if (kw === 'T') holdTaunt(uid, ms);
   // Critical Strike has no look on the card to hold back: it is a line in the card's keywords.
 };
 
@@ -72,9 +90,14 @@ export function launchKeywordBeam(
   const sound = opts.sound !== false;
   const register = opts.register ?? (() => {});
   const arrive = defArrivalMs(def);
-  hold(kw, targetUid, (launchAt + arrive) / s + 50); // safety net; `land` releases it on time
+  const landAt = keywordLandAtMs(kw, arrive);
+  hold(kw, targetUid, (launchAt + landAt) / s + 50); // safety net; `land` releases it on time
+  // The game's own Taunt sound (owner 2026-11-13): it leads the shield frame, and rings once whichever path gets there.
+  let tauntRang = false;
+  const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };
   const land = (): void => {
     hold(kw, targetUid, 0);
+    ringTaunt();
     if (sound) {
       if (kw === 'DS') sfx.shield();
       const at = beam.landSfx ? anchorsForUnits(targetUid, targetUid) : null;
@@ -94,7 +117,9 @@ export function launchKeywordBeam(
       { uids: { source: null, target: targetUid }, index: 0, gain: opts.gain, target: settle?.get, onDone: settle?.stop });
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
-    if (arrive <= 0) land(); else register(window.setTimeout(land, arrive / s));
+    const ringAt = Math.min(TAUNT_SOUND_AT_MS, landAt);
+    if (kw === 'T' && ringAt < landAt) { if (ringAt <= 0) ringTaunt(); else register(window.setTimeout(ringTaunt, ringAt / s)); }
+    if (landAt <= 0) land(); else register(window.setTimeout(land, landAt / s));
   };
   if (launchAt <= 0) launch(); else register(window.setTimeout(launch, launchAt / s));
   return true;

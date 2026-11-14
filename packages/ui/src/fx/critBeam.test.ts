@@ -23,8 +23,8 @@ describe('the Critical Strike beam', () => {
   it('the Shop sends it mid-turn (a board read) and at End of Turn (a rune or the hero)', () => {
     const recruit = read('../Recruit.tsx');
     expect(recruit).toContain("if (prevCR!.get(c.uid) === false && c.keywords.includes('CR')) gains.push('CR');");
-    expect(recruit).toContain("prevCritRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('CR')]));");
-    expect(recruit).toContain("keyword === 'DS' || keyword === 'W' || keyword === 'CR')) {");
+    expect(recruit).toContain("prevCritRef.current = new Map(beamUnits.map((c) => [c.uid, c.keywords.includes('CR')]));");
+    expect(recruit).toContain("keyword === 'DS' || keyword === 'W' || keyword === 'CR' ||");
   });
   it('it holds no look back, and never the Ward dome by mistake', () => {
     expect(read('./keywordBeam.ts')).toContain("else if (kw === 'DS') holdWard(uid, ms);");

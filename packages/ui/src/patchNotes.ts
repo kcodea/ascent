@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-14',
     changes: [
+      { category: 'Systems', text: 'New art for 63 runes, including Ornate Clock, Epic Forge, Fury and Top Shelf.' },
       {
         category: 'Balance',
         text: 'Underdweller: Soulkeeper now counts every death from last combat.',

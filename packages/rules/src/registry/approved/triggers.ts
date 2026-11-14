@@ -1769,4 +1769,26 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-24. Before: Rik 2 random Rubies; Cave Cutter +2/+1; Scrapper T3 5/1 +1/+1; Gem Carver T3; Beev +2/+2; Big Huggies 2 Picnics; Billy +1/+1.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Balance1024.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-SPELLCAST-WATCHER-BEAT-01',
+    title: 'A minion that reacts to a spell cast gets its OWN beat, after the cast, and the beat shows exactly what it gained',
+    statement:
+      'When a spell is cast in the Shop (from hand, by a minion, by a rune, or a Ruby that counts as a spell), every '
+      + 'minion that reacts to it ("When you cast a Shop spell ...": Big Brain Billy, Spellkeeper, Goldilox in hand, the '
+      + 'Rubies-count watchers) resolves on its own beat after the beat of the cast, with itself as the source. The stats that '
+      + 'beat shows are exactly what the reaction did, and the beat of the cast shows exactly what the spell did, even when both '
+      + 'touch the same minion (Ruby Transfer stealing the Rubies on Billy while Billy gains +2/+2). A reaction that does nothing '
+      + 'shows no beat. Inside a larger beat (an End of Turn cast) the reaction is its own nested beat and nothing is shown '
+      + 'twice. Gameplay is unchanged: this is presentation only.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-14 (Big Brain Billy x Ruby Transfer beat over-claim)', quote: 'fix the emission at its source (no card-id special case), add a focused regression test, append an oracle rule' },
+      { kind: 'docbot-scan', ref: 'packages/sim/src/docbot/beatConservation.test.ts builder policy, seed 22 step 80 with Cindy in the hero roster', quote: 'dw_bigbrainbilly (b45): beats claim -2/-2 but the action changed it by +0/+0 — OVER-claimed' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireSpellCastWatcher (used by noteSpellCast, countRubyAsShopSpell, fireSpellCastWatchersForRuby); identity factory:<do>:spellCast from packages/core/src/presentation/policies.ts' },
+    ],
+    contentIds: ['dw_bigbrainbilly', 'rubytransfer'],
+    currentBehaviour: 'Conforms from 2026-11-14. Before it every spellCast watcher dispatched bare after the cast scope closed: its gain had no beat (it snapped in at commit), and when the cast also moved the same body the batch claimed only the half the cast did.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellCastWatcherBeat.test.ts', 'packages/sim/src/docbot/beatConservation.test.ts'], lastVerifiedAt: '2026-11-14' },
+  },
 ];

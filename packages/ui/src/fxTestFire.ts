@@ -11,7 +11,6 @@ import { useGame } from './store';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { floatRubyPowerNumber, playRubyBuffFx } from './rubyPowerFxConfig';
 import { getStepProcFxConfig } from './stepProcFxConfig';
-import { tendrilCfgFor } from './questTendrilConfig';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
@@ -106,27 +105,6 @@ export function testStepProcFx(): void {
   const x = (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2;
   const y = (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2;
   pixiFx.spellPower(x, y, getStepProcFxConfig());
-}
-
-/** 🏆 Quest Tendril: fire one gold ribbon from the first quest node to the first board minion, so the look
- *  can be judged without staging an Echoing Roar proc. No-op if either end isn't on screen. */
-export function testQuestTendril(): void {
-  // Pick a node that's actually ON SCREEN. The row is stage-pinned with a large negative offset, so the
-  // first `.questbadge` can be outside the viewport on a tall layout — testing from it drew a ribbon flying
-  // in from off-screen, which read as a bug in the FX rather than in the pick (owner report 2026-07-21).
-  const onScreen = (r: DOMRect): boolean =>
-    r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
-  // `.questbadges` scopes this to the PLAYER's row — OpponentFrame renders `.questbadge` too.
-  const node = [...document.querySelectorAll('.questbadges .questbadge')].find((n) => onScreen(n.getBoundingClientRect()));
-  const unit = [...document.querySelectorAll('[data-zone="warband"] .card')].find((n) => onScreen(n.getBoundingClientRect()));
-  if (!node || !unit) return;
-  const nr = node.getBoundingClientRect();
-  const ur = unit.getBoundingClientRect();
-  pixiFx.buffTendril(
-    { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
-    { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
-    tendrilCfgFor(1),
-  );
 }
 
 export type AuraTestTribe = 'beast' | 'demon' | 'mech' | 'undead';

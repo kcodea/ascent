@@ -23,7 +23,7 @@ import { unitSelector } from './fx/combatAnchors';
 import { KEYWORD_BEAM_GAP_MS, KEYWORD_BEAM_SOUND_MAX, launchKeywordBeam, type BeamKeyword, holdKeywordLook, isBeamKeyword } from './fx/keywordBeam';
 import { heroPowerPoint, keywordOriginPoint, runeSlotPoint, shopKeywordOrigin } from './fx/keywordOrigin';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
-import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx, runeNodeCentre } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -206,7 +206,6 @@ import { createAimRectCache } from './aimRectCache';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { floatRubyPowerNumber, playRubyBuffFx } from './rubyPowerFxConfig';
-import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
 import { reformRebirth, reformReborn } from './choreo/channels/aura';
@@ -233,7 +232,8 @@ import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, playerGrantUidsOf, setPlayerGrantUids, shopHandSummonFlights } from './handSummonFx';
-import { fireBuffFx } from './buffFxRender';
+import { fireBuffFx, playRuneBuffTrail } from './buffFxRender';
+import { buffTotalsByLabel, runesThatBuffed } from './fx/runeBuffLabel';
 import { planShoutChain } from './choreo/shoutChain';
 import { HELD_GILD_PAD_MS, gildMustWait, heldGildMayPlay, shopOfferCovering, type HeldGild } from './turnStartGild';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
@@ -2055,6 +2055,7 @@ export function Recruit() {
     const g = { x: gr.left + gr.width / 2, y: gr.top + gr.height / 2 };
     playDef('coin', { source: g, target: g, cursor: g });
   }, [run.ancients?.bookGoldFxSeq]);
+  const runeLedgerRef = useRef(new Map<string, Map<string, number>>());
   // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
   // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
   // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
@@ -2062,6 +2063,11 @@ export function Recruit() {
   useEffect(() => {
     const uids = run.runeBuffFxUnits;
     if (!uids || uids.length === 0 || !canPlayDefs()) return;
+    // Resolved NOW, against the ledger from before this action; the positions are measured on the next frame.
+    const trailRunes = new Map<string, string[]>();
+    for (const card of [...run.board, ...run.hand]) {
+      if (uids.includes(card.uid)) trailRunes.set(card.uid, runesThatBuffed(runeLedgerRef.current.get(card.uid), card));
+    }
     const raf = requestAnimationFrame(() => {
       const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       for (const uid of uids) {
@@ -2069,11 +2075,24 @@ export function Recruit() {
         const at = el ? restingCenterOf(el) : null;
         if (!at) continue; // minion left the DOM (sold/tripled) before paint
         playDef('rune-buff-unit', { target: at, camera }, { uids: { target: uid } });
+        // THE TRAIL (owner 2026-11-13, R-RUNE-TRAIL-01): the gold `rune-buff-trail` from each rune that buffed this
+        // unit, out of the rune's own node. Which rune is read off the card's buff ledger (`trailRunes`, below).
+        for (const runeId of trailRunes.get(uid) ?? []) {
+          const node = runeNodeCentre(runeId);
+          if (node) playRuneBuffTrail(node, at, { uids: { source: null, target: uid } });
+        }
       }
     });
     return () => cancelAnimationFrame(raf);
     // Only the seq — depending on the uid array would re-run on unrelated renders.
   }, [run.runeBuffFxSeq]);
+  // The buff ledger as it stood BEFORE the latest action, so the effect above can tell which rune's row grew. Declared
+  // after it on purpose: effects run in order, so the trail effect reads the old ledger and this one then replaces it.
+  useEffect(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const c of [...run.board, ...run.hand]) m.set(c.uid, buffTotalsByLabel(c));
+    runeLedgerRef.current = m;
+  }, [run.board, run.hand]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -7916,8 +7935,7 @@ export function Recruit() {
         pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, KEYWORD_FLASH);
       },
       // ── PR 6: the beat-level sequences, now event-derived rather than hardcoded per effect ──
-      questTendril: (kind, sourceId, targetUid, index) => {
-        if (!getQuestTendrilConfig().enabled) return;
+      questTendril: (_kind, sourceId, targetUid) => {
         // Anchored by the rune/quest ID (`data-source-id`, added alongside this) rather than by the effect
         // name legacy matched on — so EVERY rune/quest reward that lands on a unit draws its ribbon, not the
         // two effects that were spelled out in the UI.
@@ -7927,10 +7945,10 @@ export function Recruit() {
         if (!nodeEl || !unitEl) return;
         const nr = nodeEl.getBoundingClientRect();
         const ur = unitEl.getBoundingClientRect();
-        pixiFx.buffTendril(
+        playRuneBuffTrail(
           { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
           { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
-          tendrilCfgFor(index % 2 === 0 ? 1 : -1), // alternate the arc so a wave of ribbons stays readable
+          { uids: { source: null, target: targetUid } },
         );
       },
       // The buff-gust EFFECT was removed 2026-08-17 (owner: old, and ~half of all jank). The CUE stays on the
@@ -8325,7 +8343,7 @@ export function Recruit() {
       // lands only after every beat has played and the phase has flipped, so a reducer-driven signal arrives
       // when the board is already gone — which is why this never showed at End of Turn while ▶ Test worked
       // (owner report 2026-07-21). Driving it here also gives the per-proc timing: one ribbon per beat.
-      if (b.eotEffect && getQuestTendrilConfig().enabled) {
+      if (b.eotEffect) {
         // Resolve the unit this reward hits, mirroring `runRecurringEndOfTurn`'s pick.
         const targetUid = b.eotEffect === 'triggerLeftmostShout'
           ? run.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && d.effects.some((e) => e.on === 'onPlay'); })?.uid
@@ -8338,10 +8356,10 @@ export function Recruit() {
         if (nodeEl && unitEl) {
           const nr = nodeEl.getBoundingClientRect();
           const ur = unitEl.getBoundingClientRect();
-          pixiFx.buffTendril(
+          playRuneBuffTrail(
             { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
             { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
-            tendrilCfgFor(i % 2 === 0 ? 1 : -1),
+            { uids: { source: null, target: targetUid } },
           );
         }
       }

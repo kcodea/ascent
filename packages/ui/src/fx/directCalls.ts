@@ -59,7 +59,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The generic buff-other ribbon (owner-authored 2026-09-02, replacing the stripped procedural tendril). Fired
   // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own
   // authored def still takes precedence upstream of it (see `fireBuffFx`).
-  'tendril-trail': ['buffFxRender.ts'],
+  // Since 2026-11-13 that ribbon is the gold `rune-buff-trail`, which also replaced the procedural quest tendril;
+  // every play goes through `playRuneBuffTrail`.
+  'rune-buff-trail': ['buffFxRender.ts'],
   // The Spirit ribbon is fired by its LITERAL id (2026-09-17): its hits are staggered, so the call sits in its own
   // branch beside the per-tribe dynamic one.
   'tendril-trail-spirit': ['buffFxRender.ts'],
@@ -269,7 +271,7 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic
-  // `tendril-trail` fallback in the sibling branch stays a literal and remains in `DIRECT_CALL_SITES`.
+  // `rune-buff-trail` fallback in the sibling branch stays a literal and remains in `DIRECT_CALL_SITES`.
   'buffFxRender.ts': 1,
   // STAT MILESTONE (2026-09-14). One `playDef(binding.def, …)` in `fireStatMilestone`: which def plays for a
   // badge crossing a tier is resolved via `bindingFor(cardId, statMilestoneKind(tier))`, the same binding path

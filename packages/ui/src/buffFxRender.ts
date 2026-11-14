@@ -1,19 +1,50 @@
 import type { Tribe } from '@game/core';
 import { playDef } from './fx/playDef';
-import tendrilTrail from './fx/defs/tendril-trail.json';
+import runeBuffTrail from './fx/defs/rune-buff-trail.json';
 import tendrilTrailSpirit from './fx/defs/tendril-trail-spirit.json';
 import { DESCEND_PRESETS, descendPreset } from './descendPresets';
 import { getBuffFxConfig, tunedDescend } from './buffFxConfig';
 import { sfx } from './sfx';
 
 /**
- * The flight time of `tendril-trail`'s ribbon, read from the def itself rather than pinned here — the stat-badge
+ * The flight time of `rune-buff-trail`'s ribbon, read from the def itself rather than pinned here — the stat-badge
  * roll is scheduled to land when the ribbon ARRIVES, so retuning the ribbon's `travelMs` in the workbench moves
  * the roll with it and nothing has to be kept in sync by hand. The burst layer has its own (tiny) `travelMs`,
- * hence the primitive check. 384 is the authored value at the time of writing, kept only as a safety net.
+ * hence the primitive check. 210 is the authored value at the time of writing, kept only as a safety net.
  */
 export const TENDRIL_TRAIL_TRAVEL_MS: number =
-  tendrilTrail.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? 384;
+  runeBuffTrail.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? 210;
+
+/**
+ * THE one generic buff trail (owner 2026-11-13: *"i want to replace both with a single workbench effect"*). The gold
+ * `rune-buff-trail` def replaced both the green generic `tendril-trail` and the procedural gold quest tendril
+ * (`pixiFx.buffTendril` + its tuner), so a rune or quest reward, a rune's cast and a tribeless buffer all draw this.
+ * Every play of it goes through here, so there is one literal call site.
+ */
+export function playRuneBuffTrail(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  opts: { uids?: { source?: string | null; target?: string | null }; intensity?: number } = {},
+): void {
+  // THE SOUND DOES NOT STACK (owner 2026-11-13: "the sound shouldnt stack"): a board-wide buff fires one trail per
+  // unit in the same moment, and only the first of that burst carries the def's Sound layers. Same rule and same
+  // dial as a spell's cast sound (`spellCastSfxGapMs`): a muted play does not move the clock, so trails slower than
+  // the gap each ring.
+  const sound = runeBuffTrailSoundAllowed();
+  playDef('rune-buff-trail', { source, target }, {
+    uids: opts.uids,
+    ...(opts.intensity !== undefined && opts.intensity < 1 ? { intensity: opts.intensity } : {}),
+    ...(sound ? {} : { muteSound: true }),
+  });
+}
+
+let runeBuffTrailSoundAt = -Infinity;
+/** May this trail sound? False inside `spellCastSfxGapMs` of the last trail that did. `now` is injectable for tests. */
+export function runeBuffTrailSoundAllowed(now: number = performance.now()): boolean {
+  if (now - runeBuffTrailSoundAt < getBuffFxConfig().spellCastSfxGapMs) return false;
+  runeBuffTrailSoundAt = now;
+  return true;
+}
 
 /** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` alone keeps
  *  the generic ribbon. `celestial` joined 2026-09-14 (owner report: Wishing Star drew the default) with a
@@ -41,7 +72,7 @@ const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 
  * target's stat-badge roll. The single path shared by the combat replay (`useCombatReplay.fireBuffCasts`) and
  * the shop (`Recruit`'s recruitFxSeq effect / End-of-Turn beats).
  *
- * A LIVING source plays the owner-authored `tendril-trail` def (2026-09-02) — a ribbon streaming source→target
+ * A LIVING source plays the owner-authored `rune-buff-trail` def (2026-11-13) — a ribbon streaming source→target
  * with a flick of shards at the source — and returns the ribbon's flight time. It replaced the stripped
  * procedural tendril on the same moment, and it is GENERIC by design: a card's own authored def (Dragonflame,
  * Karwind, Broodfire, a label-sourced hero power) is resolved UPSTREAM of this function and never reaches it,
@@ -88,7 +119,7 @@ export function fireBuffFx(o: {
   if (TENDRIL_TRIBES.has(o.tribe)) {
     playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids, ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}) });
   } else {
-    playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids, ...(o.intensity !== undefined && o.intensity < 1 ? { intensity: o.intensity } : {}) });
+    playRuneBuffTrail(o.source, o.target, { uids: o.uids, intensity: o.intensity });
   }
   return TENDRIL_TRAIL_TRAVEL_MS;
 }

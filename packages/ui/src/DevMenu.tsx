@@ -76,7 +76,6 @@ import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
 import { CombatRampTuner } from './CombatRampTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
-import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { ShopDeathFxTuner } from './ShopDeathFxTuner';
@@ -346,7 +345,6 @@ const GROUPS: Group[] = [
       { key: 'titletext', icon: '🔤', label: 'Title Text', C: TitleTextTuner, hint: 'Reword the front page — wordmark and every menu plaque' },
       { key: 'uitheme', icon: '🎨', label: 'UI Theme', C: UiThemeTuner, hint: 'Ninety colour themes (Basic on top, a shortlist star), grouped by colour scheme, for every tooltip and HUD pill at once' },
       { key: 'tribecolors', icon: '🎭', label: 'Tribe Colours', C: TribeColorTuner, hint: 'The hue behind every tribe — Celestial + Spirit first (they had none), then the eight established tribes', alt: 'celestial spirit tribe colour color hue accent plate gem name label' },
-      { key: 'questtendril', icon: '🏆', label: 'Quest Tendril', C: QuestTendrilTuner, hint: 'The gold ribbon a quest or rune reward throws' },
       { key: 'crystalfuse', icon: '🔷', label: 'Crystal Fuse', C: CrystalFuseTuner, hint: 'The end-of-turn crystal fuse' },
     ],
   },

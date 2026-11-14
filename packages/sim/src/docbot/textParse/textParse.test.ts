@@ -221,7 +221,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-11-13 (Hellfire / Wildfire rework, owner rulings): 219 -> 220, CONSCIOUSLY. Hellfire's "This counts as Demon damage."
 // and Wildfire's "deal that enemy's Attack as damage to a random enemy minion" are not read by the grammar; pinned by
 // packages/sim/src/set2EpicTribalRunes1112.test.ts.
-const UNRESOLVED_CAP = 220;
+// 2026-11-13 (owner designs Gold for Grub, End of Quarter, Drunk Shopkeeper): 220 -> 222, CONSCIOUSLY. Two of the three
+// texts are not read by the grammar (a random Demon eating a Shop minion on a Gold meter; a per-card price chance);
+// pinned by packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts.
+const UNRESOLVED_CAP = 222;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

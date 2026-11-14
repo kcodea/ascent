@@ -1369,6 +1369,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_golden_monkey:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every 5 Refreshes: a Shop minion becomes a Golden Monkey (owner 2026-11-13)
   'rune:rune_shop_madness:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: Shop +3/+3, the row refills to 6 minions (a price/row rule, no beat)
   'rune:rune_iggy_iggy:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get an Immune Iggy with Ward (owner 2026-11-13)
+  'rune:rune_gold_for_grub:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every 7 Gold spent: a random Demon consumes a Shop minion (owner 2026-11-13)
+  'rune:rune_drunk_shopkeeper:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: an Ale cast gives the Shop minions +1/+1 permanently (rides the cast, like Collections)
+  'rune:rune_end_of_quarter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: each card entering the Shop may cost 1 less (a price, no beat)
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

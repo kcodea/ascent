@@ -31,7 +31,7 @@ import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered
 import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
-import { collectionsOnSale, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
+import { collectionsOnSale, drunkShopkeeperOnCast, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -2266,6 +2266,12 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // The rune fired — one stamp here covers all eight threshold runes, each credited by its own `sourceId`
   // rather than by the shared `runeThreshold` reward kind (see `procRuneId`). Called only from the
   // `t.tick >= t.per` branch, so banking below the line is correctly not a fire.
+  // GOLD FOR GRUB (Set 2 rune, owner 2026-11-13): a bite-only trip with no Demon on the board or no minion in the Shop is not
+  // a fire. The Gold still counted (the meter has already reset): nothing is eaten and no rune beat plays.
+  // A Refresh's own Gold defers the bite until the NEW row has landed (`grubBitesDeferred` / `flushGrubBites`), the
+  // Hellrider rule: an eat on a Refresh sees the row you paid for, not the one rolling away.
+  if (t.demonConsumeShop && state.grubBitesDeferred !== undefined) { state.grubBitesDeferred += t.demonConsumeShop; return; }
+  if (t.demonConsumeShop && !grubCanBite(state) && !t.grantCards?.length && !t.buff) return;
   procRuneId(state, t.sourceId);
   const pool = poolOf(state);
   if (t.grantSpell) conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, runeGrantOverflow());
@@ -2336,6 +2342,10 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // never a spell, Ruby, the Starform, a held offer or another copy of the card) leaves for the pool and the card
   // takes its slot (`replaceShopOfferWith`). With no minion to replace, it fills a free slot instead (`addCardToShop`).
   if (t.replaceShopWith && CARD_INDEX[t.replaceShopWith]) replaceShopOfferWith(state, t.replaceShopWith);
+  // GOLD FOR GRUB (Set 2 rune, owner 2026-11-13): per bite, a seeded-random friendly Demon eats a seeded-random Shop minion
+  // through the shared `consumeShopMinion` (stats exactly as a Demon consume, every consume watcher, Bottomless Banquet,
+  // Open Market, Empty Plate, the `shopEaten` FX, and Shop Madness's refill of the eaten slot).
+  for (let i = 0; i < (t.demonConsumeShop ?? 0); i++) grubBite(state);
   if (t.rubyAll) {
     const rb = rubyStatBonus(state);
     for (const c of [...state.board]) {
@@ -13967,6 +13977,36 @@ export function alternateModeOf(card: { eotTick?: number }): 'attack' | 'health'
   return ((card.eotTick ?? 0) % 2) === 0 ? 'attack' : 'health';
 }
 
+/** Gold for Grub's precondition: a friendly Demon on the board AND an edible minion in the Shop. */
+export function grubCanBite(state: RunState): boolean {
+  return state.board.some((c) => isTribe(c, 'demon')) && rightmostShopMinion(state) >= 0;
+}
+
+/** GOLD FOR GRUB's bite: a seeded-random friendly Demon (board order is the pool order) consumes a seeded-random edible Shop
+ *  minion (never a spell or a Ruby; the Starform is a Shop minion for Demon consumes). The eater is drawn first, then the
+ *  meal, both off the run cursor. Returns false (and moves no cursor) when there is no Demon or no meal. */
+export function grubBite(state: RunState): boolean {
+  if (!grubCanBite(state)) return false;
+  const demons = state.board.filter((c) => isTribe(c, 'demon'));
+  const edible = state.shop.map((_, i) => i).filter((i) => { const d = CARD_INDEX[state.shop[i]!.cardId]; return !!d && !d.spell && !d.ruby; });
+  const rng = makeRng(state.rngCursor);
+  const eater = demons[rng.int(demons.length)]!;
+  const pick = edible[rng.int(edible.length)]!;
+  state.rngCursor = rng.state();
+  return consumeShopMinion(state, eater, pick, 1);
+}
+
+/** GOLD FOR GRUB on a Refresh: run the bites the Refresh's own Gold earned, now that the new row is in (each its own rune
+ *  fire; none when there is no Demon or no Shop minion). Clears the deferral. */
+export function flushGrubBites(state: RunState): void {
+  const n = state.grubBitesDeferred ?? 0;
+  delete state.grubBitesDeferred;
+  for (let i = 0; i < n; i++) {
+    if (!grubCanBite(state)) break;
+    withCastActor({ kind: 'rune', id: 'rune_gold_for_grub' }, () => { procRuneId(state, 'rune_gold_for_grub'); grubBite(state); });
+  }
+}
+
 /** Grevlin & Co.'s eater (owner 2026-10-22): a random friendly Demon, Grevlin himself included. Board order is the
  *  pool order (deterministic); a pool of one draws nothing, so the run cursor only moves when there is a choice. */
 export function grevlinEater(state: RunState, self: BoardCard): BoardCard {
@@ -14505,6 +14545,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
+  drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast gives the Shop minions +1/+1
   flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
 

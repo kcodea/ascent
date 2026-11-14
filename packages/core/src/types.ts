@@ -1579,6 +1579,9 @@ export type QuestReward =
       /** Golden Monkey (Set 2 rune, owner 2026-11-13): REPLACE a random Shop minion with this card when the meter trips
        *  (Indy's Golden Monkey, swapped in rather than added). */
       replaceShopWith?: string;
+      /** Gold for Grub (Set 2 rune, owner 2026-11-13): this many bites per trip, each a seeded-random friendly Demon eating a
+       *  seeded-random Shop minion (the shared `consumeShopMinion`). No Demon or no Shop minion: nothing is eaten. */
+      demonConsumeShop?: number;
       /** Rune of the Gem Dividend: pay Gold into NEXT turn's bank when the meter fills. */
       grantGoldNextTurn?: number;
       /** The meter is a per-TURN window (no remainder carries across the rollover). */
@@ -2120,7 +2123,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain'
   // Set 2 rune batch, owner addition 2026-11-13: shopMadness = Shop minions +3/+3 (the run-wide Shop buff) and the Shop
   // always holds 6 minions (Shop-only; packages/sim/src/shop.ts refillShopMadness).
-  | 'runeShopMadness';
+  | 'runeShopMadness'
+  // Set 2 rune, owner design 2026-11-13: endOfQuarter = every card entering the Shop rolls 30% (per copy) for 1 Gold off
+  // (Shop-only; packages/sim/src/shop.ts rollEndOfQuarter).
+  | 'runeEndOfQuarter'
+  // drunkShopkeeper = every Ale cast gives the minions in the Shop +1/+1 permanently (Shop-only; set2RunesBasicTribal.ts).
+  | 'runeDrunkShopkeeper';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {

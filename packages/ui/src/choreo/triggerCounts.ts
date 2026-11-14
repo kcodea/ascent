@@ -71,10 +71,15 @@ export function runeProgress(
   }
   let deaths = 0;
   for (const q of questEvents ?? []) if (q.kind === 'friendlyDeath' && q.step <= curStep) deaths += 1;
-  return { triggers, deaths };
+  // Rune of Sequencing: the last replayed sequence tick for this side (each carries the whole list).
+  let sequence: string[] | undefined;
+  for (const e of events) {
+    if (e.type === 'runeSequence' && e.side === side && (e.step ?? 0) <= curStep) sequence = e.seq;
+  }
+  return sequence ? { triggers, deaths, sequence } : { triggers, deaths };
 }
 
 /** A stable signature of a progress fold, so a per-beat memo only changes identity when a rune actually moved. */
 export function runeProgressKey(p: RuneCombatProgress | null): string {
-  return p ? `${p.deaths}|${Object.entries(p.triggers).sort().map(([k, v]) => `${k}:${v}`).join(',')}` : '';
+  return p ? `${p.deaths}|${Object.entries(p.triggers).sort().map(([k, v]) => `${k}:${v}`).join(',')}${p.sequence ? `|seq:${p.sequence.join(',')}` : ''}` : '';
 }

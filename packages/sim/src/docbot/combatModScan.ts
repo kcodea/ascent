@@ -82,6 +82,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   shoutEdgeTribeBuff: { tribe: 'beast', attack: 2, health: 2 }, // Drake Skull on a combat Shout (the fixture's Pennycat is a Beast)
   runeHeldStrength: { attack: 3, health: 3, copies: 1 }, // the captured left-most-hand-card stats (owner rework 2026-08-27)
   duosMeters: [{ sourceId: 'rune_shoutful_bounty', meter: 'shout', per: 1, tick: 0, cap: 3, paid: 0, gift: { kind: 'gift', randomSpell: true } }], // Duos runes (R-DUOS-RUNES-01): a combat Shout trips it, a team gift through sendTeam
+  runeSequence: ['emberpouch'], // Rune of Sequencing's carried sequence (2026-11-14): a list of spell ids, not a flag
   shoutMeters: [{ sourceId: 'rune_chorus', per: 1, tick: 0, grantSpell: 1 }], // balance 9/23: the cross-phase Shout tally — pays a hand grant on a combat Shout
   ancientUndying: { uids: ['pS1'], war: true, regainRise: true, label: 'Ancient of War' }, // Risen x Death / War: the Undying body by sourceUid
   ancientSummonExtra: 1, // Risen x Genesis: extra copies per combat summon (a count, not a flag)

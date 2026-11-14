@@ -41,8 +41,13 @@ export interface RuneLiveState {
   baller?: { amount: number; stat: 'Attack' | 'Health' };
   /** Rune of Borrowed Flame (Set 3 Dragon runes, 2026-10-21): what the NEXT Whisper cast on a Dragon gives, per copy. */
   borrowedFlame?: number;
+  /** Rune of Sequencing (Set 2 Epic, 2026-11-14): the different spells in the current sequence, in cast order. */
+  sequence?: string[];
 }
 
+/** A stored sequence of spell ids (untrusted): strings only, at most the 2 a live sequence can hold before it pays. */
+const idsIn = (v: unknown): string[] | undefined =>
+  Array.isArray(v) && v.length <= 8 && v.every((x) => typeof x === 'string' && x.length <= 64) ? [...(v as string[])] : undefined;
 const intIn = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100_000 ? Math.round(v) : undefined;
 const pairIn = (v: unknown): { attack: number; health: number } | undefined => {
@@ -94,6 +99,7 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
     out.baller = { amount: run.runeBaller.step * Math.ceil(next / 3), stat: next % 2 === 1 ? 'Attack' : 'Health' };
   }
   if (f?.runeBorrowedFlame) out.borrowedFlame = run.runeBorrowedFlame ?? 1;
+  if (f?.runeSequencing) out.sequence = [...(run.runeSequence ?? [])];
   return out;
 }
 
@@ -118,6 +124,7 @@ export function runeLiveStateOfSnapshot(snap: object | null | undefined): RuneLi
   if (m?.runeBeastialSwarm || bs) out.beastialSwarm = bs || BEASTIAL_SWARM_BASE;
   const bf = intIn(m?.runeBorrowedFlame); // the captured per-copy value (the mod IS the value)
   if (bf) out.borrowedFlame = bf;
+  if (m?.runeSequencing) out.sequence = idsIn(m.runeSequence) ?? [];
   return out;
 }
 
@@ -126,6 +133,9 @@ export function runeLiveStateOfSnapshot(snap: object | null | undefined): RuneLi
 export interface RuneCombatProgress {
   triggers: Record<string, number>;
   deaths: number;
+  /** Rune of Sequencing: the side's sequence as the last replayed `runeSequence` event left it (absent = no combat cast
+   *  moved it yet, so the pre-fight sequence stands). */
+  sequence?: string[];
 }
 
 /**
@@ -153,6 +163,8 @@ export function runeLiveStateInCombat(base: RuneLiveState, prog: RuneCombatProgr
   // here, so a Mastery run under-reads mid-fight until settle banks the true value).
   const bf = prog.triggers['runeBorrowedFlame'] ?? 0;
   if (bf > 0 && base.borrowedFlame != null) out.borrowedFlame = base.borrowedFlame + bf;
+  // Rune of Sequencing: the replay's latest sequence REPLACES the pre-fight one (each event carries the whole list).
+  if (prog.sequence) out.sequence = [...prog.sequence];
   return out;
 }
 
@@ -173,6 +185,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const ba = b && typeof b === 'object' ? intIn(b.amount) : undefined;
   if (ba !== undefined && (b!.stat === 'Attack' || b!.stat === 'Health')) out.baller = { amount: ba, stat: b!.stat };
   const bfl = intIn(o.borrowedFlame); if (bfl) out.borrowedFlame = bfl;
+  const sq = idsIn(o.sequence); if (sq) out.sequence = sq;
   return Object.keys(out).length ? out : undefined;
 }
 

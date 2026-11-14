@@ -58,6 +58,7 @@ export const DEFAULT_RULES: GroupingRules = {
     'buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura', 'spellcast', 'questTrigger',
     'toHand', 'handBuff', 'keyword', 'keywordLost',
     'teamSend', // DUOS (R-DUOS-RUNES-02): a Rally's team gift (Toot Toot) rides the swing like a `toHand`
+    'runeSequence', // Rune of Sequencing's meter tick rides the cast that moved it
   ]),
 };
 

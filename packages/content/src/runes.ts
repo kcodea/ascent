@@ -4940,6 +4940,20 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['d3_iggy'], grantKeywords: ['DS'] },
     sets: ['set2'],
   },
+  {
+    // Owner design 2026-11-14 (Set 2 Epic Dragon rune). ONE sequence of DIFFERENT spells on the run, shared by the Shop,
+    // End of Turn and combat (core `advanceSequence`; the Shop hook `sequencingOnCast`, combat's `spellResolved`). A repeat
+    // neither counts nor resets; the 3rd different spell hands over a copy of the FIRST (one per copy held, normal hand
+    // cap) and the sequence starts over. Gifts, tokens and Second Draft never join (never copy food).
+    id: 'rune_sequencing',
+    tribes: ['dragon'],
+    name: 'Sequencing',
+    cost: 3,
+    epic: true,
+    text: 'When you cast **3** different spells, get a **copy** of the first one.',
+    reward: { kind: 'combatFlag', flag: 'runeSequencing' },
+    sets: ['set2'],
+  },
 ];
 
 /**

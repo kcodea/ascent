@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-14',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Set 2 Dragon Epic rune: Sequencing. When you cast 3 different spells, get a copy of the first one.',
+        details: [
+          'Sequencing (Dragon, Epic, 3 Gold): every different spell you cast joins the sequence. Casting one that is already in it does nothing.',
+          'The third different spell gives you a copy of the first one, then the sequence starts over. It repeats all game.',
+          'It counts spells cast in the Shop, at End of Turn and in combat, and one sequence carries between them. A copy earned in combat goes to your hand right away.',
+          'The rune shows the spells in your sequence so far and how many more you need.',
+          'Gifts never count. Two copies of the rune give two copies.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-13',
     changes: [
       { category: 'Balance', text: 'Seasoned Ledger now improves by +1/+1 after every minion you play (was every 5).' },

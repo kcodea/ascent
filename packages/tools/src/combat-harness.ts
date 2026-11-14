@@ -74,6 +74,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✖ ${ev.side}'s board ${ev.member + 1} has fallen`;
     case 'teamSend':
       return `   ⇢ ${ev.side}'s board ${ev.member + 1} sends its teammate a gift`;
+    case 'runeSequence':
+      return `   ⋯ ${ev.side}'s Sequencing: ${ev.seq.length > 0 ? ev.seq.join(', ') : 'paid, starts over'}`;
     case 'tagIn':
       return `   ⇄ ${ev.side}'s board ${ev.member + 1} steps in (${ev.minions.map((m) => m.name).join(', ')})`;
     case 'flyIn':

@@ -31,7 +31,10 @@
  * twice or pay twice.
  */
 import { CARD_INDEX } from '@game/content';
-import { gildMinion } from './recruit';
+import type { TeamEffect } from '@game/core';
+import { captureBuffFx, gildMinion } from './recruit';
+import { ancientGratitudeRiders, ancientOnGratitudePaid } from './ancients';
+import { linkBaseline } from './duosLinks';
 import { queueTeamEffect, recordSpellPass, duosTeamCard } from './duosPass';
 import { hasPower } from './heroes';
 import type { BoardCard, RunState } from './state';
@@ -49,13 +52,19 @@ export function gratitudeView(run: Pick<RunState, 'cindyGratitude' | 'cindyGrati
 export function armGratitude(s: RunState): boolean {
   if (!s.duos || s.cindyGratitude) return false;
   s.cindyGratitude = 'armed';
-  queueTeamEffect(s, { kind: 'gratitude' });
+  // ANCIENTS (R-ANCCINDY-04 / 06, dev only): Genesis' gild and Bonds' link ride the arm to the teammate's run.
+  queueTeamEffect(s, { kind: 'gratitude', ...ancientGratitudeRiders(s) });
   return true;
 }
 
-/** THE TEAMMATE'S RUN hears the arm (its `gratitude` team effect). */
-export function gratitudeMateArmed(s: RunState): void {
-  if (s.duos) s.duos.gratitude = true;
+/** THE TEAMMATE'S RUN hears the arm (its `gratitude` team effect). An `update` (the Ancient was picked after the
+ *  press) only adds its riders to an arm this run already holds: it never arms a power that paid already. */
+export function gratitudeMateArmed(s: RunState, effect: Extract<TeamEffect, { kind: 'gratitude' }> = { kind: 'gratitude' }): void {
+  const d = s.duos;
+  if (!d) return;
+  if (effect.update) { if (!d.gratitude) return; } else d.gratitude = true;
+  if (effect.gild === true) d.gratitudeGild = true;
+  if (effect.link === true) d.gratitudeLink = true;
 }
 
 /** Is this card a minion Golden Gratitude copies? (A spell, a Ruby, an unknown id: no.) */
@@ -81,15 +90,28 @@ export function gratitudeBuy(s: RunState, bought: BoardCard | null): void {
   if (!s.duos?.gratitude || !bought || !isMinionCard(bought.cardId)) return;
   const copy = gratitudeCopyOf(s, bought.cardId);
   if (!copy) return;
+  const gild = s.duos.gratitudeGild === true;
+  const link = s.duos.gratitudeLink === true;
   s.duos.gratitude = undefined;
+  s.duos.gratitudeGild = undefined;
+  s.duos.gratitudeLink = undefined;
+  // CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): the copy travels Linked; its uid on this run names the link on both.
+  if (link) copy.duosLink = linkBaseline(copy.uid, copy);
   // The stream leaves the minion that was bought (it stays: a copy of its face rises off it).
   if (recordSpellPass(s, copy, 'hand', -1, 'sale', { uid: bought.uid })) s.duos.outbox[s.duos.outbox.length - 1]!.gratitude = true;
+  // CINDY × ANCIENT OF GENESIS (R-ANCCINDY-04): "Your teammate's copy is Gilded, too." A Gild on THIS run (its own
+  // count), with its buff FX on the card. A minion bought already Gilded stays as it is.
+  if (gild && !bought.golden) captureBuffFx(s, undefined, 'spell', () => gildMinion(bought, s));
+  // …and the bought minion is Linked too, its baseline taken AFTER the gild, so the gild itself is never mirrored.
+  if (link) bought.duosLink = linkBaseline(copy.uid, bought);
 }
 
-/** CINDY'S RUN: the Gilded copy landed (or waits for hand room). The power is spent for good. */
+/** CINDY'S RUN: the Gilded copy landed (or waits for hand room). The power is spent, until something refreshes it
+ *  (Cindy × Ancient of Fortune, R-ANCCINDY-02: a refresh earned while it waited pays now). */
 export function gratitudeLanded(s: RunState, card: { cardId?: unknown }): void {
   s.cindyGratitude = 'paid';
   if (typeof card.cardId === 'string') s.cindyGratitudeCard = card.cardId;
+  ancientOnGratitudePaid(s);
 }
 
 /** A RELOAD's replay of Cindy's own arm row (the press was dropped with the turn's unlocked actions): armed again, the

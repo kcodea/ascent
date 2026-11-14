@@ -2140,6 +2140,21 @@ export interface QuestCombatMods {
   /** ANCIENT OF TIME (proof of concept): Start of Combat, this side's right-most minion becomes Gilded for the
    *  fight only (the run card is never touched, so it reverts after). Player-only; never snapshotted. */
   ancientTimeGild?: { label: string };
+  /** CINDY × ANCIENT OF WAR (Duos only, owner 2026-11-14, R-ANCCINDY-03): Start of Combat, this side's LEFT-MOST living
+   *  minion becomes Gilded for the fight (the Time gild's shape). An ENGRAVED one keeps the Gilded status after the fight
+   *  (`CombatCarryBacks.ancientGildKept`, its run uid; the doubled stats come home through the Engraved rule). */
+  ancientSocGildLeftmost?: { label: string };
+  /** CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01): "Avenge (15): give your teammate a
+   *  Goldcrafter." A hero Avenge on ONE running count of friendly deaths across the Shop and combat (`tick` carried in,
+   *  the Xerox Death shape). Each fire sends `gift` to the TEAMMATE through `sendTeam` (real time, a `teamSend` event on
+   *  the death that paid it). Rune of Fury fires it again, like every hero Avenge. */
+  ancientMateGiftAvenge?: { every: number; tick: number; gift: TeamEffect; label: string };
+  /** CINDY × ANCIENT OF BONDS (Duos only, owner 2026-11-14, R-ANCCINDY-06): this side's LINKED cards (`BoardCard.duosLink`),
+   *  as link id + run uid. Every run that holds one carries it, with or without an Ancient (the link lives on both
+   *  teammates' cards). In a tag-team fight, while this board fights and its teammate's board is the waiting reserve, a
+   *  stat GAIN on a linked body is mirrored onto its twin in the reserve, combat-only (Pep Talk's per-fight copy); one
+   *  hop. Each body also shows "Linked" (`MinionSnapshot.linked`). The permanent half travels between the runs. */
+  duosLinks?: { id: string; uid: string }[];
   /** ANCIENT OF BONDS × Warden (proof of concept, owner 2026-09-26): whenever one of this side's WARDED minions gains
    *  stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded).
    *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
@@ -3457,6 +3472,9 @@ export interface MinionSnapshot {
   /** ANCIENTS × Lord of the Risen: this body's Rise wears a tinted look (War's RED Rise on the Undying target).
    *  Display-only. */
   riseTint?: RiseTint;
+  /** CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): this body is one of a Linked pair (its side's `duosLinks`), so the combat
+   *  card prints "Linked". Display-only. */
+  linked?: true;
   /** Mage-Pup: the spell it was taught — display-only, so the combat card names the spell its Shout cast
    *  instead of the "the spell this was taught" placeholder. */
   taughtSpellId?: string;
@@ -3943,6 +3961,8 @@ export interface CombatCarryBacks {
   ancientGraves?: AncientGrave[];
   /** ANCIENTS (Gorun's Fortune): the running attack count after this fight (only when `ancientAttackGold`). */
   ancientAttackGoldTick?: number;
+  /** ANCIENTS (Cindy's War): the run uids of the Engraved bodies the Start-of-Combat gild made Gilded. They stay Gilded. */
+  ancientGildKept?: string[];
 }
 
 /** ANCIENTS (Underdweller's War): a minion as it died. `own` = it fought on the side that carries this record home (so the
@@ -4266,6 +4286,8 @@ export interface CombatResult {
   playerAncientGraves?: AncientGrave[];
   /** ANCIENTS (Gorun's Fortune): the player's `CombatCarryBacks.ancientAttackGoldTick`. */
   playerAncientAttackGoldTick?: number;
+  /** ANCIENTS (Cindy's War): the player's `CombatCarryBacks.ancientGildKept`. */
+  playerAncientGildKept?: string[];
   /** Outcome odds (fractions summing to 1) — estimated by the run loop re-simulating these boards
    *  on many independent seeds. Not produced by `simulate` itself (a single fight); the run loop fills it.
    *  `avgLossDamage` is the mean Resolve lost across the losing sims (round-capped), i.e. how much damage
@@ -4328,8 +4350,15 @@ export type TeamEffect =
   /** The teammate Gilded a minion (sent only while this run listens for it). */
   | { kind: 'mateGild' }
   /** CINDY'S GOLDEN GRATITUDE (owner 2026-11-14, R-DUOS-CINDY-01): the sender (Cindy) armed it. The receiver's NEXT
-   *  minion buy sends the sender a Gilded copy of that minion, once. Carries nothing else. */
-  | { kind: 'gratitude' };
+   *  minion buy sends the sender a Gilded copy of that minion, once. ANCIENTS (R-ANCCINDY-04 / 06, dev only): `gild`
+   *  = the bought minion is Gilded too (Genesis); `link` = the two become Linked (Bonds). `update` = only those riders,
+   *  for an arm already heard (the Ancient was picked after the press): it never arms a spent or unheard power. */
+  | { kind: 'gratitude'; gild?: true; link?: true; update?: true }
+  /** CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): the sender's twin of link `id` GAINED these stats, permanently (a Shop
+   *  gain, or a combat gain its run kept). The receiver's twin gains them as well, and never sends them back. */
+  | { kind: 'linkGain'; id: string; attack: number; health: number }
+  /** The sender's twin of link `id` left its run (sold, destroyed, passed, swapped away): the link is over. */
+  | { kind: 'linkEnd'; id: string };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is

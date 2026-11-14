@@ -866,6 +866,9 @@ export function simulate(
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
    *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
   const wardBreakLog: Record<Side, string[]> = sideReset(() => ({ player: [], enemy: [] }));
+  /** CINDY × ANCIENT OF WAR (R-ANCCINDY-03): the run uids of the Engraved bodies the Start-of-Combat gild Gilded. Per
+   *  member (a reserve that steps in starts its own), carried home as `ancientGildKept`. */
+  const gildKeptLog: Record<Side, string[]> = sideReset(() => ({ player: [], enemy: [] }));
   /** ANCIENT OF GENESIS × Warden: the run's break window, copied in so the ONE counter continues here and pays the
    *  copy the moment the Nth Ward breaks (real-time, not at settle). */
   const wardWindow: Record<Side, string[]> = sideReset(() => ({
@@ -1421,6 +1424,7 @@ export function simulate(
     ...(seedEchoCount(m.effects) > 0 ? { seedEchoes: seedEchoCount(m.effects) } : {}), // Seed (Set 3): the granted Drake Pup Echo stacks
     ...grantedTriggersOf(m), // granted triggers beyond the print, for the portrait medallion (R-MEDAL-GRANTED-01)
     ...(riseTint.has(m.uid) && m.keywords.includes('R') ? { riseTint: riseTint.get(m.uid) } : {}), // Risen × War / Death: the tinted Rise look
+    ...(m.sourceUid && modsFor(m.side).duosLinks?.some((l) => l.uid === m.sourceUid) ? { linked: true as const } : {}), // Cindy × Bonds: "Linked"
     taughtSpellId: m.taughtSpellId, // Mage-Pup: display-only, so the combat card names the spell it cast
     sellBonus: m.sellBonus,
     eotTick: m.eotTick,
@@ -1490,6 +1494,7 @@ export function simulate(
   // calling itself. See the mirror block inside `buff`.
   let soulbindMirroring = false;
   let xeroxBondMirroring = false; // Xerox × Ancient of Bonds: the one-hop guard (see ctx.buff)
+  let duosLinkMirroring = false; // Cindy × Ancient of Bonds: the one-hop guard (see ctx.buff)
   /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
   let ancientBondsFiring = false;
   let ancientGildedBondsFiring = false; // Midas × Ancient of Bonds: its own grant never re-triggers it
@@ -1738,6 +1743,28 @@ export function simulate(
         if (partner) {
           xeroxBondMirroring = true;
           try { ctx.buff(partner, Math.max(0, attack), Math.max(0, health), xb.label); } finally { xeroxBondMirroring = false; }
+        }
+      }
+      // CINDY × ANCIENT OF BONDS (Duos only, owner 2026-11-14, R-ANCCINDY-06): "The copies of your cards are Linked. When
+      // one gains stats, the other does too." The twin lives on the TEAMMATE's board, so inside a fight it can only be
+      // reached while that board is this side's waiting reserve (the first board is fighting): the gain is added to the
+      // reserve's per-fight locked copy, combat-only (Pep Talk's rule), so the twin steps in that much bigger. Gains only,
+      // one hop. A gain this body KEEPS (Engraved) also reaches the twin's run for good: its own run mirrors it at settle.
+      const dl = hasReserve && !duosLinkMirroring && activeMember[target.side] === 0 && (attack > 0 || health > 0) ? modsFor(target.side).duosLinks : undefined;
+      const dlRes = dl ? reserveOf[target.side] : undefined;
+      if (dl && dlRes) {
+        const tid = target.sourceUid ?? target.uid;
+        const id = dl.find((l) => l.uid === tid)?.id;
+        const twinUid = id !== undefined ? dlRes.state.questMods?.duosLinks?.find((l) => l.id === id)?.uid : undefined;
+        const at = twinUid !== undefined ? dlRes.board.findIndex((b) => b.sourceUid === twinUid) : -1;
+        if (at >= 0) {
+          duosLinkMirroring = true;
+          try {
+            const board = [...dlRes.board];
+            const b = board[at]!;
+            board[at] = { ...b, attack: b.attack + Math.max(0, attack), health: b.health + Math.max(0, health) };
+            reserveOf[target.side] = { ...dlRes, board };
+          } finally { duosLinkMirroring = false; }
         }
       }
       const bond = modsFor(target.side).soulbind; // either side's bond (R-SYMMETRY-01)
@@ -5782,6 +5809,22 @@ export function simulate(
           goldenHandshakeCombat(tail); // Golden Handshake (Set 2 batch): a combat Gild
         }
       }
+      // CINDY × ANCIENT OF WAR (Duos only, owner 2026-11-14, R-ANCCINDY-03): "Start of Combat: your left-most minion is
+      // Gilded." The Time gild's shape on the LEFT-most living minion, for the fight only, "unless that minion is
+      // Engraved, in which case it keeps the Gilded status after combat": an Engraved body keeps the doubled stats
+      // through the Engraved rule (`kept`) and its run uid comes home in `ancientGildKept`, so settle keeps it Gilded.
+      if (smods.ancientSocGildLeftmost) {
+        const head = boards[scSide].find((m) => !m.dead && m.health > 0);
+        if (head && !head.golden) {
+          const def = cards[head.cardId];
+          nextStep();
+          head.golden = true;
+          emit({ type: 'ascend', target: head.uid, into: head.cardId, gild: true });
+          const kept = def && (def.attack > 0 || def.health > 0) ? ctx.buff(head, def.attack, def.health, smods.ancientSocGildLeftmost.label).kept : false;
+          if ((kept || head.keywords.includes('EG') || !!head.auraEngraved) && head.sourceUid) gildKeptLog[scSide].push(head.sourceUid);
+          goldenHandshakeCombat(head); // Golden Handshake (Set 2 batch): a combat Gild
+        }
+      }
       // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
       // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
       // beside it. No room: nothing.
@@ -7122,6 +7165,19 @@ export function simulate(
     const draw = grantRngFor(side);
     for (let k = 0; k < fires; k++) ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
   });
+  // CINDY × ANCIENT OF DEATH (Duos only, owner 2026-11-14, R-ANCCINDY-01): "Avenge (15): give your teammate a
+  // Goldcrafter." The Xerox Death running count; each fire sends the gift to the TEAMMATE at once (`sendTeam`: a
+  // `teamSend` event on the death that paid it, so the stream leaves that body in real time). Rune of Fury repeats.
+  bus.on('avenge', (payload) => {
+    const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
+    const mg = modsFor(side).ancientMateGiftAvenge;
+    if (!mg || (mg.tick + count) % Math.max(1, mg.every) !== 0) return;
+    const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
+    for (let k = 0; k < fires; k++) {
+      if (victim) emit({ type: 'sc', source: victim.uid, text: `${mg.label}: ${(mg.gift.kind === 'gift' && mg.gift.cardId ? cards[mg.gift.cardId]?.name : undefined) ?? 'a gift'} for your teammate`, side, heroPower: true });
+      ctx.sendTeam?.({ ...mg.gift }, false, true, side, victim?.uid);
+    }
+  });
   // ANCIENT OF DEATH × Braum (owner 2026-10-06): "When 16 friendly minions die, get a random Gilded minion." The Rune of
   // Body Counting shape (a running count carried in, NOT an Avenge, so Rune of Fury does not repeat it): every Nth death
   // sends a random minion at or below the side's tier to hand, live; settle gilds it (`handGilds`).
@@ -7865,6 +7921,7 @@ export function simulate(
         ? ancientGraveLog.map((g): AncientGrave => ({ cardId: g.cardId, own: g.side === side, attack: g.attack, health: g.health, keywords: [...g.keywords] }))
         : undefined,
       ancientAttackGoldTick: modsFor(side).ancientAttackGold ? (modsFor(side).ancientAttackGold!.tick + ancientAttackCount[side]) % Math.max(1, modsFor(side).ancientAttackGold!.every) : undefined,
+      ancientGildKept: gildKeptLog[side].length > 0 ? [...gildKeptLog[side]] : undefined,
     };
   };
   // ── THE END-OF-FIGHT PER-SIDE CLAIMS, as functions: the fight's end runs them for both sides (in the order they always
@@ -8258,6 +8315,7 @@ export function simulate(
     ...(pc.ancientMaxGoldFires !== undefined ? { playerAncientMaxGoldFires: pc.ancientMaxGoldFires } : {}),
     ...(pc.ancientGraves !== undefined ? { playerAncientGraves: pc.ancientGraves } : {}),
     ...(pc.ancientAttackGoldTick !== undefined ? { playerAncientAttackGoldTick: pc.ancientAttackGoldTick } : {}),
+    ...(pc.ancientGildKept ? { playerAncientGildKept: pc.ancientGildKept } : {}),
     // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
     // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
     // is already accurate → the UI's player-side fallback is fine).

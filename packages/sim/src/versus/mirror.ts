@@ -200,6 +200,7 @@ export function carryAsPlayerFields(c: CombatCarryBacks): Partial<CombatResult> 
     playerAncientMaxGoldFires: c.ancientMaxGoldFires,
     playerAncientGraves: c.ancientGraves,
     playerAncientAttackGoldTick: c.ancientAttackGoldTick,
+    playerAncientGildKept: c.ancientGildKept,
   });
 }
 

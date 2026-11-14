@@ -40,6 +40,7 @@ import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { magicHatBuy, restoreMagicHatSend } from './magicHat';
 import { armGratitude, gratitudeBuy, gratitudeLanded, restoreGratitudeArm, restoreGratitudePay } from './goldenGratitude';
+import { carryDuosLinkIntoTriple, duosLinkMods, duosLinkSync } from './duosLinks'; // Cindy × Ancient of Bonds
 import { ancientOnPassMade, ancientReceivePassBonds } from './ancients'; // Priestess (Duos)
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
@@ -1235,6 +1236,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
     ancientSyncVanguard(next); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard is a button from Shop tier 6, whatever raised the tier
     ancientOnCardsGained(next, state); // UNDERDWELLER × ANCIENT OF BONDS: a copy of a minion you control arrived in hand
+    duosLinkSync(next); // CINDY × ANCIENT OF BONDS: a Linked card's gain goes to its twin's run; a twin that left ends it
     // CASSEN × ANCIENT OF DEATH: a Shop Avenge that brought the running commission due pays it now, in real time.
     if (ancientCommissionDueNow(next)) { const due = next.commission!; captureBuffFx(next, undefined, 'spell', () => payCommission(next, due)); }
     // KESHI × ANCIENT OF DEATH: an Avenge that filled Keshi's Crown (Shop now, or a fight's at settle) pays it here.
@@ -4947,6 +4949,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   if (s.hand.length < handCap(s)) s.hand.push(goldenCard);
   else s.board.push(goldenCard);
   carrySableBond(s, combined, goldenCard.uid);
+  carryDuosLinkIntoTriple(combined, goldenCard); // Cindy × Bonds: a Golden never breaks the link (R-ANCCINDY-06)
   ancientXeroxBondTripled(s, combined); // Xerox × Bonds: "if this triples, the effect breaks"
   stampXeroxBond(s);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
@@ -8673,6 +8676,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     shoutMeters: shoutMetersFor(s),
     duosMeters: duosMetersMods(s), // Shoutful Bounty / Echoing Results (Duos runes): the one counter, carried in
     duosPepTalk: duosPepTalkMods(s), // Pep Talk (Duos rune): my combat Shouts buff my waiting teammate's left-most
+    duosLinks: duosLinkMods(s), // Cindy × Ancient of Bonds: my Linked cards, mirrored onto a waiting reserve twin (R-ANCCINDY-06)
     // Sable: the bond only carries into the fight it was forged for (it "lasts 1 turn", combat included).
     soulbind: s.sableBond && s.sableBond.wave === s.wave ? { a: s.sableBond.a, b: s.sableBond.b } : undefined,
     flashPick: hasPower(s, 'firstOrLast') ? s.flashPick : undefined,

@@ -254,6 +254,8 @@ export interface UnitFrame {
   grantedRallyShout?: boolean;
   /** Ancients × Lord of the Risen: the body's Rise wears a tinted look (War red, Death's regained blue). Display-only. */
   riseTint?: RiseTint;
+  /** Cindy × Ancient of Bonds: one of a Linked pair, so the combat card prints "Linked" (R-ANCCINDY-06). Display-only. */
+  linked?: true;
 }
 
 // Stable empty list for the hand-grant memo — a fresh [] each render would churn every downstream memo.
@@ -284,6 +286,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   grantedTriggers: s.grantedTriggers, // granted triggers beyond the print: the medallion shows them (R-MEDAL-GRANTED-01)
   whisperTick: s.whisperTick, // Hatcher: its Whisper's tier prints in combat too
   riseTint: s.riseTint, // Risen × War: the Undying target's Rise is red from the first frame
+  ...(s.linked ? { linked: true as const } : {}), // Cindy × Bonds: the combat card prints "Linked"
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });

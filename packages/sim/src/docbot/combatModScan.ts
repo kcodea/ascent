@@ -119,6 +119,9 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientAutoReclaim: { label: 'Ancient of Death' }, // Mimic x Death: the staged Echo body is Reclaimed
   ancientUnitedFront: 4, // Mimic x War: the spells cast this game (a count, not a flag)
   ancientMateSwap: { label: 'Ancient of War' }, // Magician x War (Duos): acts only in a tag-team fight with a waiting reserve (none staged: inert)
+  ancientSocGildLeftmost: { label: 'Ancient of War' }, // Cindy x War (Duos): the left-most staged body is Gilded for the fight
+  ancientMateGiftAvenge: { every: 1, tick: 0, gift: { kind: 'gift', cardId: 'goldcrafter' }, label: 'Ancient of Death' }, // Cindy x Death (Duos): every (1) staged friendly death sends the teammate a Goldcrafter
+  duosLinks: [{ id: 'L1', uid: 'pS1' }], // Cindy x Bonds (Duos): the staged body is Linked (its reserve mirror needs a tag-team fight)
   // The next-combat banks that became per-side mods on 2026-10-07 (Fleeting Vigor, the banked keywords, Open the Gates):
   fleetingVigor: { attack: 2, health: 2 },
   bankedKeywords: [{ index: 0, keyword: 'DS' }],

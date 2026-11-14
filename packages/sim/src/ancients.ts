@@ -18,7 +18,7 @@
  *     does nothing.
  *
  * ── The Duos heroes (R-ANCDUOS-01) ────────────────────────────────────────────────────────────────────────────
- * Priestess and Magician only exist in a Duos game, and Ancients are not on in any Duos game players can reach: a Duos
+ * Priestess, Magician and Cindy only exist in a Duos game, and Ancients are not on in any Duos game players can reach: a Duos
  * run carries `ancients` only through `createVersusRun`'s `ancients` option, which the UI passes on a DEV or bench
  * build alone. Their pairings are written, tested and live-checked behind that seam (see the "DUOS HEROES" block at
  * the foot of this file). Nothing crosses to the teammate outside the pass channel: what a pairing gives the teammate
@@ -599,7 +599,8 @@ import { CARD_INDEX } from '@game/content';
 import { handCap, mixSeed, type DiscoverAncientTag, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
-import { getHero, hasPower, wieldedPowerId, type HeroPower } from './heroes';
+import { activePowers, getHero, hasPower, wieldedPowerId, type HeroPower } from './heroes';
+import { queueTeamEffect } from './duosPass'; // Cindy: what a pairing gives the teammate rides the pass channel
 import type { CombatResult } from '@game/core';
 import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegisGrantOf, captureBuffFx, destroyMinionInShop, fireShopEchoOf, grantMinionToHandOrBoard, improveReps, instanceEffects, makeContext, queueDiscover, dominantBoardTribe, fireSummonBuffs, fireSummonOverflow, gainGold, hasDeathrattle } from './recruit';
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
@@ -1160,7 +1161,20 @@ export type AncientEffect =
   /** Start of Turn: a plain copy of a random card you have passed this game. */
   | { do: 'sotCopyPassedCard' }
   /** Magic Hat has no per-turn cap. */
-  | { do: 'hatNoCap' };
+  | { do: 'hatNoCap' }
+  // ── CINDY (Golden Gratitude, Duos only; owner pairings 2026-11-14) ──
+  /** A hero Avenge (N), one running count across the Shop and combat: each fire gives the TEAMMATE `cardId`. */
+  | { do: 'avengeTeammateGetsCard'; every: number; cardId: string }
+  /** Every `every` Gold spent (a running count since the pick) refreshes the hero power's once-per-game use. */
+  | { do: 'goldSpentRefreshesPower'; every: number }
+  /** Start of Combat: the left-most minion is Gilded for the fight; an Engraved one stays Gilded. */
+  | { do: 'socGildLeftmost' }
+  /** Golden Gratitude also Gilds the minion the teammate bought. */
+  | { do: 'gratitudeGildsMateBuy' }
+  /** Once, at the Start of the Turn after the pick: you and your teammate each get `cardId`. */
+  | { do: 'nextTurnTeamCard'; cardId: string }
+  /** Golden Gratitude's two copies are Linked: a stat gain on either is gained by the other (`duosLinks.ts`). */
+  | { do: 'gratitudeLinksCopies' };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -2956,6 +2970,48 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'hatNoCap' }],
     },
   },
+  // CINDY (Duos only; owner pairings 2026-11-14, quoted above each entry). Golden Gratitude (0 Gold, once per game) =
+  // "The next minion your teammate buys gives you a Gilded copy of it." "Gildcrafter" in the owner's words is the
+  // Goldcrafter spell. `{base}` is the power's own live text (ready / waiting / spent: `gratitudeView`).
+  cindy: {
+    death: {
+      // "Avenge (15): give your teammate a Goldcrafter." Repeats; every friendly death in every phase counts (combat
+      // deaths and Shop destroys), never a consume.
+      offerText: '**Avenge (15):** give your teammate a **Goldcrafter**.',
+      powerText: '{base} **Avenge (15):** give your teammate a **Goldcrafter** (**{cdNow}/15**).',
+      effects: [{ do: 'avengeTeammateGetsCard', every: 15, cardId: 'goldcrafter' }],
+    },
+    fortune: {
+      // "Spending 40 Gold refreshes your hero power." Repeats; the refresh gives the once-per-game use back.
+      offerText: 'Spending **40** Gold refreshes your hero power.',
+      powerText: '{base} Spending **40** Gold refreshes it (**{cfGold}/40**).{cfBanked}',
+      effects: [{ do: 'goldSpentRefreshesPower', every: 40 }],
+    },
+    war: {
+      // "Start of Combat: your left-most minion is Gilded." Fight only, "unless engraved, then it keeps the gilded status".
+      offerText: '**Start of Combat:** your left-most minion is **Gilded**.',
+      powerText: '{base} **Start of Combat:** your left-most minion is **Gilded**{cwLeft}. If it is **Engraved**, it stays **Gilded**.',
+      effects: [{ do: 'socGildLeftmost' }],
+    },
+    genesis: {
+      // "Your teammate's copy is Gilded, too."
+      offerText: "Your teammate's copy is **Gilded**, too.",
+      powerText: "{base} Your teammate's minion is **Gilded**, too.",
+      effects: [{ do: 'gratitudeGildsMateBuy' }],
+    },
+    time: {
+      // "You and your teammate get a Goldcrafter next turn." Once, at the Start of the turn after the pick.
+      offerText: 'You and your teammate get a **Goldcrafter** next turn.',
+      powerText: '{base} {ctTime}',
+      effects: [{ do: 'nextTurnTeamCard', cardId: 'goldcrafter' }],
+    },
+    bonds: {
+      // "The copies of your cards are Linked. When one gains stats, the other does too." The pair is Golden Gratitude's.
+      offerText: 'The copies of your cards are **Linked**. When one gains stats, the other does too.',
+      powerText: '{base} The two copies are **Linked**. When one gains stats, the other does too.{cbLinked}',
+      effects: [{ do: 'gratitudeLinksCopies' }],
+    },
+  },
 };
 
 export function ancientPairingFor(heroId: string, id: AncientId): AncientPairing | undefined {
@@ -3203,6 +3259,15 @@ export interface AncientsState {
   gorunAttacks?: number;
   /** MIMIC × FORTUNE: Gold its passive Spoils banked on `wave` (printed live). */
   mimicSpoilGold?: { wave: number; gold: number };
+  /** CINDY × DEATH: friendly deaths toward the next teammate Goldcrafter (the running count, Shop and combat). */
+  cindyDeaths?: number;
+  /** CINDY × FORTUNE: Gold spent toward the next refresh (the running count since the pick); `cindyRefreshBanked` = a
+   *  refresh earned while Golden Gratitude was still waiting on the teammate's buy (it pays the moment the copy lands). */
+  cindyGold?: number;
+  cindyRefreshBanked?: number;
+  /** CINDY × TIME: the wave whose Start of Turn pays the two Goldcrafters (set at the pick), and whether it has. */
+  cindyTimeWave?: number;
+  cindyTimeDone?: true;
 }
 
 /** Where an open Discover came from, for the Ancients that treat its pick specially. */
@@ -3292,6 +3357,7 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
   batchBOnPick(state); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard's button, when the Shop is already Tier 6
   batchCOnPick(state, a); // UNDERDWELLER × BONDS: starts at the printed amount
+  cindyOnPick(state, a); // CINDY × TIME / GENESIS / BONDS: the turn, and the riders for an arm already sent
   return true;
 }
 
@@ -3441,6 +3507,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = batchAPowerText(state, text, combat); // RASCAL / GAMBLER / PETE / FLINT / JUGGLER
   text = batchCPowerText(state, text, base);
   text = duosPowerText(state, text); // PRIESTESS / MAGICIAN
+  text = cindyPowerText(state, text, combat); // CINDY
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
     .replace('{bookGold}', String(a?.bookMaxGold ?? 0)).replace('{genesisLeft}', String(hunch.genesisLeft)).replace('{timeTier}', String(albusTimeTier(state)))
     .replace('{stacks}', String(stacks)).replace('{deathFree}', deathFree).replace('{genesisTribe}', genesisTribe).replace('{timeLeft}', String(ancientTimeBuysLeft(state)))
@@ -3664,6 +3731,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   Object.assign(out, batchACombatMods(state)); // RASCAL / GAMBLER / FLINT
   Object.assign(out, batchCCombatMods(state));
   Object.assign(out, duosCombatMods(state)); // PRIESTESS × WAR, MAGICIAN × WAR
+  Object.assign(out, cindyCombatMods(state)); // CINDY × DEATH / WAR
   return out;
 }
 
@@ -3779,6 +3847,7 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   batchBAfterCombat(state, a, result); // MERRIN / EMISSARY / EMERALD WARDEN: the running Avenge + spell counts
   batchAAfterCombat(state, a, result); // RASCAL / GAMBLER / FLINT × DEATH: the running Avenge counts + the fight's pulses
   batchCAfterCombat(state, a, result); // GORUN × FORTUNE: the running attack count
+  cindyAfterCombat(state, a, result); // CINDY × DEATH: the running Avenge count; WAR: an Engraved gild stays
   // DARAH × WAR: the Swap charge the fight's Pummel paid (one flag per payout, already shown live) joins the bank.
   if (effectOf(state, 'pummelSwapCharge')) {
     const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG).length;
@@ -3916,6 +3985,7 @@ export function ancientStartOfTurn(state: RunState): void {
   batchAStartOfTurn(state); // RASCAL × TIME
   batchCStartOfTurn(state); // MEMBRANCE × TIME, MIMIC × TIME
   duosStartOfTurn(state); // MAGICIAN × TIME
+  cindyStartOfTurn(state); // CINDY × TIME
   const a = live(state);
   const e = effectOf(state, 'sotBuffPerCombatSummon');
   const n = a?.lastSummons ?? 0;
@@ -5393,6 +5463,7 @@ function brackusGoldLeft(state: RunState): number {
 export function ancientOnGoldSpent(state: RunState, amount: number): void {
   const a = live(state);
   if (!a || amount <= 0) return;
+  cindyOnGoldSpent(state, a, amount); // CINDY × FORTUNE: every 40 Gold refreshes Golden Gratitude
   const f = effectOf(state, 'goldSpentDiscoverTier7');
   if (f) {
     const every = Math.max(1, f.every);
@@ -5558,6 +5629,7 @@ export function ancientHeroAvengeShopDeath(state: RunState, dead: BoardCard): vo
   }
   batchBShopDeath(state, a); // MERRIN / EMISSARY / EMERALD WARDEN × DEATH: the Shop half of their running Avenge
   batchAShopDeath(state, a); // RASCAL / GAMBLER / FLINT × DEATH
+  cindyShopDeath(state, a); // CINDY × DEATH: the Shop half of the running Avenge (15), the teammate's Goldcrafter
 }
 
 /** RAYSE × DEATH, Shop half: summon a Sprout at the current size onto the board (a Shop summon: `fireSummonBuffs`), then
@@ -7226,4 +7298,156 @@ function duosPowerText(state: RunState, text: string): string {
   return text.replace('{prPassed}', String(n)).replace('{prWarA}', String((w?.attack ?? 0) * n)).replace('{prWarH}', String((w?.health ?? 0) * n))
     .replace('{prUsesLeft}', String(Math.max(0, (a.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
     .replace('{mgPassed}', String(passedCardIds(state).length));
+}
+
+// ══ DUOS HERO: Cindy (owner pairings 2026-11-14, R-ANCCINDY-01..06) ═══════════════════════════════════════════════════
+//
+// Cindy is Duos only. Everything here is a no-op unless the run has Ancients on AND one of her pairings is picked;
+// Ancients are not on in any Duos game players can reach (the header's "Duos heroes" note, R-ANCDUOS-01).
+//
+//  CINDY (Golden Gratitude, `gratitude`, 0 Gold, once per game: "The next minion your teammate buys gives you a Gilded
+//  copy of it."; `goldenGratitude.ts`). What a pairing gives the TEAMMATE rides the pass channel: a `gift` team effect
+//  (Death, Time), or a rider on the arm (`gratitude` with `gild` / `link`: Genesis, Bonds), so it lands once, in order.
+//  · `avengeTeammateGetsCard`     a hero Avenge (15) on ONE running count of friendly deaths across BOTH phases
+//                                 (`cindyDeaths`, the 2026-10-09 shape): SHOP at `fireOnFriendDeath` (every Shop death
+//                                 path: a destroy, a pending destroy, a devour; never a sale or a consume), the gift
+//                                 queued right then; COMBAT through `QuestCombatMods.ancientMateGiftAvenge` (`sendTeam`,
+//                                 real time), settle adding the fight's deaths. Rune of Fury repeats the combat half. (Death)
+//  · `goldSpentRefreshesPower`    `ancientOnGoldSpent` (the reducer's `spendGold`): every 40 Gold (one running count)
+//                                 gives Golden Gratitude its use back. While the power WAITS on the teammate's buy, the
+//                                 refresh is banked and pays the moment the copy lands; one earned while it is unused
+//                                 has nothing to refresh. (Fortune)
+//  · `socGildLeftmost`            COMBAT: `QuestCombatMods.ancientSocGildLeftmost`, Start of Combat (Time's gild, left-most).
+//                                 An Engraved body keeps the stats (the Engraved rule) and `ancientGildKept` keeps the
+//                                 Gilded flag at settle (`cindyAfterCombat`). (War)
+//  · `gratitudeGildsMateBuy`      the arm carries `gild`; the teammate's `gratitudeBuy` Gilds the minion bought. (Genesis)
+//  · `nextTurnTeamCard`           the pick stamps `cindyTimeWave = wave + 1`; that Start of Turn (its own beat) gives
+//                                 Cindy a Goldcrafter (hand room permitting) and her teammate one (a `gift`). Once. (Time)
+//  · `gratitudeLinksCopies`       the arm carries `link`; the teammate's `gratitudeBuy` stamps both copies with one link
+//                                 id (`BoardCard.duosLink`). The mirroring itself is `duosLinks.ts`. (Bonds)
+//  An Ancient picked AFTER the press (the power already waiting) sends its rider as an `update` arm (`cindyOnPick`).
+
+/** CINDY × GENESIS / BONDS: the riders Golden Gratitude's arm carries to the teammate's run (none without them). */
+export function ancientGratitudeRiders(state: RunState): { gild?: true; link?: true } {
+  if (!live(state)?.picked) return {};
+  return {
+    ...(effectOf(state, 'gratitudeGildsMateBuy') ? { gild: true as const } : {}),
+    ...(effectOf(state, 'gratitudeLinksCopies') ? { link: true as const } : {}),
+  };
+}
+
+/** THE PICK. TIME: the next turn pays. GENESIS / BONDS with Golden Gratitude already waiting: its rider follows the arm. */
+function cindyOnPick(state: RunState, a: AncientsState): void {
+  const t = effectOf(state, 'nextTurnTeamCard');
+  if (t) { a.cindyTimeWave = state.wave + 1; a.cindyTimeDone = undefined; }
+  const riders = ancientGratitudeRiders(state);
+  if (state.cindyGratitude === 'armed' && (riders.gild || riders.link)) queueTeamEffect(state, { kind: 'gratitude', update: true, ...riders });
+}
+
+/** Give the teammate one `cardId` (a `gift` team effect: their hand, or it waits for room). No teammate: nothing. */
+function giftMate(state: RunState, cardId: string): void {
+  if (state.duos && CARD_INDEX[cardId]) queueTeamEffect(state, { kind: 'gift', cardId });
+}
+
+/** DEATH, Shop half: a friendly minion died in the Shop. Every 15th, the teammate gets a Goldcrafter right then. */
+function cindyShopDeath(state: RunState, a: AncientsState): void {
+  const e = effectOf(state, 'avengeTeammateGetsCard');
+  if (!e) return;
+  a.cindyDeaths = ((a.cindyDeaths ?? 0) + 1) % Math.max(1, e.every);
+  if (a.cindyDeaths === 0) giftMate(state, e.cardId);
+}
+
+/** The combat halves (DEATH: the running Avenge, carried in; WAR: the left-most gild). */
+function cindyCombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const d = effectOf(state, 'avengeTeammateGetsCard');
+  if (d) out.ancientMateGiftAvenge = { every: d.every, tick: a.cindyDeaths ?? 0, gift: { kind: 'gift', cardId: d.cardId }, label: ANCIENTS.death.name };
+  if (effectOf(state, 'socGildLeftmost')) out.ancientSocGildLeftmost = { label: ANCIENTS.war.name };
+  return out;
+}
+
+/** Settle. DEATH: the fight's friendly deaths join the running count (its gifts already went, live). WAR: an Engraved
+ *  body the gild reached stays Gilded (its doubled stats came home through the Engraved rule; this keeps the flag). */
+function cindyAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
+  const d = effectOf(state, 'avengeTeammateGetsCard');
+  if (d) a.cindyDeaths = ((a.cindyDeaths ?? 0) + Math.max(0, result.playerDeaths ?? 0)) % Math.max(1, d.every);
+  if (effectOf(state, 'socGildLeftmost')) {
+    for (const uid of result.playerAncientGildKept ?? []) {
+      const c = state.board.find((x) => x.uid === uid);
+      if (c && !c.golden) { c.golden = true; a.gilds = (a.gilds ?? 0) + 1; }
+    }
+  }
+}
+
+/** FORTUNE: Gold was spent. Every 40 (one running count) refreshes Golden Gratitude. */
+function cindyOnGoldSpent(state: RunState, a: AncientsState, amount: number): void {
+  const e = effectOf(state, 'goldSpentRefreshesPower');
+  if (!e) return;
+  const every = Math.max(1, e.every);
+  let n = (a.cindyGold ?? 0) + amount;
+  while (n >= every) { n -= every; refreshGratitude(state, a); }
+  a.cindyGold = n;
+}
+
+/** Give Golden Gratitude its once-per-game use back. Waiting on the teammate's buy: banked until the copy lands.
+ *  Unused: nothing to refresh. */
+function refreshGratitude(state: RunState, a: AncientsState): void {
+  if (state.cindyGratitude === 'armed') { a.cindyRefreshBanked = (a.cindyRefreshBanked ?? 0) + 1; return; }
+  const slot = activePowers(state).findIndex((p) => p.kind === 'gratitude');
+  const spent = slot === 1 ? state.heroPowerSpent2 : state.heroPowerSpent;
+  if (slot < 0 || (!spent && state.cindyGratitude !== 'paid')) return;
+  if (slot === 1) state.heroPowerSpent2 = false; else state.heroPowerSpent = false;
+  state.cindyGratitude = undefined;
+  state.cindyGratitudeCard = undefined;
+  a.rechargeFxSeq = (a.rechargeFxSeq ?? 0) + 1; // the hero-power pulse (presentation only)
+}
+
+/** CINDY'S RUN: the Gratitude copy landed. FORTUNE: a refresh banked while it waited pays now. */
+export function ancientOnGratitudePaid(state: RunState): void {
+  const a = live(state);
+  if (!a || !effectOf(state, 'goldSpentRefreshesPower') || (a.cindyRefreshBanked ?? 0) <= 0) return;
+  const left = a.cindyRefreshBanked! - 1;
+  a.cindyRefreshBanked = left > 0 ? left : undefined;
+  refreshGratitude(state, a);
+}
+
+/** TIME: the Start of the turn after the pick, once, on its own beat (R-SOT-BEAT-01): a Goldcrafter for Cindy (hand
+ *  room permitting) and one for her teammate. */
+function cindyStartOfTurn(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'nextTurnTeamCard') : undefined;
+  if (!a || !e || a.cindyTimeDone || a.cindyTimeWave === undefined || state.wave < a.cindyTimeWave) return;
+  a.cindyTimeDone = true;
+  a.cindyTimeWave = undefined;
+  const def = CARD_INDEX[e.cardId];
+  if (!def) return;
+  recordSotBeat(state, { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, () => {
+    if (state.hand.length < handCap(state)) conjureToHand(state, [def], 1);
+    giftMate(state, def.id);
+  });
+}
+
+/** Cindy's live power-text values. `{cdNow}` = friendly deaths toward the next Goldcrafter (live through a fight);
+ *  `{cfGold}` = Gold spent toward the next refresh, `{cfBanked}` = a refresh waiting on the copy; `{cwLeft}` = who the
+ *  gild will reach now; `{ctTime}` = Time's sentence (still to come, or done); `{cbLinked}` = the Linked pair now. */
+function cindyPowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a || !text.includes('{c')) return text;
+  const d = effectOf(state, 'avengeTeammateGetsCard');
+  const cdNow = d ? ((a.cindyDeaths ?? 0) + Math.max(0, combat.friendlyDeaths ?? 0)) % Math.max(1, d.every) : 0;
+  const head = state.board[0];
+  const cwLeft = head ? ` (now **${CARD_INDEX[head.cardId]?.name ?? head.cardId}**)` : '';
+  const t = effectOf(state, 'nextTurnTeamCard');
+  const tName = t ? CARD_INDEX[t.cardId]?.name ?? t.cardId : '';
+  const ctTime = a.cindyTimeDone
+    ? `You and your teammate each got a **${tName}**.`
+    : `You and your teammate get a **${tName}** next turn.`;
+  const linked = [...state.board, ...state.hand].find((c) => c.duosLink);
+  const cbLinked = linked ? ` Linked now: **${CARD_INDEX[linked.cardId]?.name ?? linked.cardId}**.` : '';
+  const banked = a.cindyRefreshBanked ?? 0;
+  return text.replace('{cdNow}', String(cdNow)).replace('{cfGold}', String(a.cindyGold ?? 0))
+    .replace('{cfBanked}', banked > 0 ? ' A refresh is waiting for your copy.' : '')
+    .replace('{cwLeft}', cwLeft).replace('{ctTime}', ctTime).replace('{cbLinked}', cbLinked);
 }

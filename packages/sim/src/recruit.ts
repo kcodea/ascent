@@ -15,7 +15,8 @@ import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive,
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
-import { gratitudeView } from './goldenGratitude';
+import { gratitudeMateArmed, gratitudeView } from './goldenGratitude';
+import { receiveLinkEnd, receiveLinkGain } from './duosLinks';
 import { duosCatchFromMate, duosListen, duosOnGild, duosOnPassed, duosOnSoldHandMeDowns, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -18199,7 +18200,11 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
   } else if (effect.kind === 'mateGild') {
     duosOnMateGild(s, key);
   } else if (effect.kind === 'gratitude') {
-    d.gratitude = true; // Cindy armed Golden Gratitude: my next minion buy sends her a Gilded copy (R-DUOS-CINDY-01)
+    gratitudeMateArmed(s, effect); // Cindy armed Golden Gratitude: my next minion buy sends her a Gilded copy (R-DUOS-CINDY-01)
+  } else if (effect.kind === 'linkGain') {
+    receiveLinkGain(s, String(effect.id), effect.attack, effect.health); // Cindy × Bonds: my twin gains it too (R-ANCCINDY-06)
+  } else if (effect.kind === 'linkEnd') {
+    receiveLinkEnd(s, String(effect.id)); // Cindy × Bonds: the other twin left its run (R-ANCCINDY-06)
   }
   d.received.push(key);
   return s;

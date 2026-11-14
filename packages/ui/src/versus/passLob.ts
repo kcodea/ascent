@@ -465,6 +465,25 @@ export function playPassFlight(f: PassFlight | null, hat?: { card: unknown; run:
   return streamFrom(el, f.at === 'discover' || (f.at === 'card' && f.face));
 }
 
+/** How long a Golden Gratitude send waits for its bought minion to be on screen (frames, about half a second). */
+export const GRATITUDE_WAIT_FRAMES = 30;
+
+/**
+ * A send whose source card is not on screen yet (Golden Gratitude: the minion the buy made, R-DUOS-CINDY-01). Retried
+ * once a frame (one query, one rect read) until the card has a box, then streamed as usual. A card that never shows
+ * (a buy that completed a triple folds it away) streams from my hero portrait instead, so the send is always seen.
+ */
+function playWhenOnScreen(f: Extract<PassFlight, { at: 'card' }>, left = GRATITUDE_WAIT_FRAMES): void {
+  if (typeof document === 'undefined' || typeof requestAnimationFrame === 'undefined') return;
+  requestAnimationFrame(() => {
+    const el = passFlightEl(f);
+    if (el && el.getBoundingClientRect().width > 0) { playPassFlight(f); return; }
+    if (left > 0) { playWhenOnScreen(f, left - 1); return; }
+    const hero = q('.statusbar .hero .f');
+    if (hero) streamFrom(hero, false);
+  });
+}
+
 /** IN COMBAT: the body each of my fight's `teamSend` beats named (carry index -> uid), noted by the combat sync as the
  *  replay reaches them, read when the held entry ships on that beat. */
 const combatSenders = { wave: -1, uid: new Map<number, string | null>() };
@@ -493,6 +512,9 @@ export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number
   const f = passFlightOf(e, combatUid, cardIdOf);
   if (!f) return false;
   flown.add(key);
+  // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): the stream leaves the minion the buy just made. This runs inside the
+  // store commit, before React mounts that card (a fresh uid; a drag-buy is still landing), so it waits for it.
+  if (e.gratitude && f.at === 'card') { playWhenOnScreen(f); return true; }
   // THE MAGICIAN SPEAKS as the copy leaves the hat (once per copy on this screen, the line the teammate hears too).
   if (f.at === 'hat') speakHatLine(e.card.uid);
   return playPassFlight(f, f.at === 'hat' ? { card: e.card, run } : undefined);

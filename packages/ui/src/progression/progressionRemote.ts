@@ -292,6 +292,27 @@ export async function fetchSeenCosmeticIds(userId: string): Promise<string[] | '
   }
 }
 
+/**
+ * GIFTS (owner 2026-11-13: "give Ionlime the cosmetic. have an alert next time he loads up the game"): the items the
+ * owner handed THIS account directly (`player_cosmetics.source = 'gift'`) that it has not looked at yet (`seen_at`
+ * null). `undefined` = could not ask (offline, a server from before the seen list): nothing is shown.
+ */
+export async function fetchUnseenGiftIds(userId: string): Promise<string[] | undefined> {
+  try {
+    const c = supabaseClient();
+    if (!c) return undefined;
+    const res = await Promise.race([
+      fetchAllRows<{ cosmetic_id?: unknown }>((from, to) => c.from('player_cosmetics').select('cosmetic_id').eq('user_id', userId)
+        .eq('source', 'gift').is('seen_at', null).order('cosmetic_id', { ascending: true }).range(from, to)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    return (res.data ?? []).map((row) => row.cosmetic_id).filter((t): t is string => typeof t === 'string');
+  } catch {
+    return undefined;
+  }
+}
+
 /** Mark THIS account's `ids` as seen (`mark_cosmetics_seen`: it only ever touches the caller's own unseen items).
  *  False = it did not get through; the caller sends them again the next time they are looked at. */
 export async function markCosmeticsSeenRemote(ids: readonly string[]): Promise<boolean> {

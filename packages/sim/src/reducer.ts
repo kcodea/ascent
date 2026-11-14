@@ -545,19 +545,17 @@ function offerTopShelf(s: RunState): void {
 }
 
 /**
- * Underdweller (Soulkeeper): every DISTINCT minion that died in the last combat, either side.
+ * Underdweller (Soulkeeper): EVERY death in the last combat, either side, ONE ENTRY PER DEATH (owner 2026-11-14,
+ * R-SOULKEEPER-POOL-01). A minion that died twice is in the pool twice (twice as likely to be offered), and a Rise /
+ * Rebirth death counts: the minion still died before it came back.
  *
  * Derived from `lastCombat` rather than carried back on `CombatResult` — a death is already fully described by
- * the event log, so a new `player*` field would be a redundant carry-back (and would owe the live-tracking
- * audit a classification for nothing). uid→cardId comes from the two initial boards PLUS every `summon` event,
- * so a token that was summoned mid-fight and died is reachable too — the owner's ruling is "ANY minion that
- * died last combat on both sides of the board", and mid-combat summons are exactly that.
- *
- * A `rise` death is skipped: that body came back, so it did not stay dead.
+ * the event log. uid→cardId comes from the two initial boards PLUS every `summon` event, so a token that was
+ * summoned mid-fight and died is reachable too.
  */
 function diedLastCombat(s: RunState): string[] {
   // The log walk lives in `lastCombatDeaths` (ancients.ts), shared with the Ancients that read the same deaths.
-  return [...new Set(lastCombatDeaths(s).map((d) => d.cardId))];
+  return lastCombatDeaths(s, { includeRise: true }).map((d) => d.cardId);
 }
 
 /** Rune of the Bargain Bin's draw pool (owner 2026-09-25: "the refresh should only include SHOUT minions"): the
@@ -4109,14 +4107,20 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!s.powerOffer) return state; // an empty pool opens nothing, and spends nothing
       } else if (power.kind === 'soulkeeper') {
         // Underdweller: Discover among the minions that died last combat — BOTH sides (owner ruling
-        // 2026-08-16). Untargeted; the 3-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
+        // 2026-08-16). Untargeted; the 2-Gold cost is spent by the shared block. No-op (no charge, no Gold) when
         // nothing died or the hand is full, so a dead turn never eats the once-per-turn charge.
         const dead = diedLastCombat(s);
         if (dead.length === 0 || s.hand.length >= handCap(s)) return state;
         const rng = makeRng(s.rngCursor);
-        const pool = [...dead];
+        // One entry per death, so a minion that died twice is twice as likely. The options stay DISTINCT: once a
+        // minion is drawn, every other entry of it leaves the pool.
+        let pool = [...dead];
         const picks: string[] = [];
-        while (picks.length < discoverOptionCount(s) && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!); // Second Opinion
+        while (picks.length < discoverOptionCount(s) && pool.length > 0) { // Second Opinion
+          const id = pool[rng.int(pool.length)]!;
+          picks.push(id);
+          pool = pool.filter((x) => x !== id);
+        }
         s.rngCursor = rng.state();
         s.discover = picks;
         ancientMarkSoulkeeperDiscover(s); // ANCIENTS × Underdweller: this pick is a Soulkeeper minion

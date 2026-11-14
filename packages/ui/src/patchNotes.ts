@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Underdweller: Soulkeeper now counts every death from last combat.',
+        details: [
+          'A minion that died and then Rose still counts.',
+          'A minion that died twice is twice as likely to be offered.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'New Set 2 Dragon Epic rune: Sequencing. When you cast 3 different spells, get a copy of the first one.',
         details: [
           'Sequencing (Dragon, Epic, 3 Gold): every different spell you cast joins the sequence. Casting one that is already in it does nothing.',

@@ -6803,9 +6803,10 @@ export interface LastCombatDeath { cardId: string; side: 'player' | 'enemy' }
 /**
  * Every minion that TRULY died in the last combat, both sides, in death order (a Rise / Rebirth first death is skipped:
  * that body came back). Read off `lastCombat`'s event log: uid -> card from the two opening boards plus every mid-fight
- * `summon`. Soulkeeper's own pool (`diedLastCombat` in the reducer) is this list's distinct cards.
+ * `summon`. `includeRise` keeps the Rise / Rebirth deaths too: Soulkeeper's pool (`diedLastCombat` in the reducer)
+ * counts EVERY death, one entry per death (owner 2026-11-14, R-SOULKEEPER-POOL-01).
  */
-export function lastCombatDeaths(state: Pick<RunState, 'lastCombat'>): LastCombatDeath[] {
+export function lastCombatDeaths(state: Pick<RunState, 'lastCombat'>, opts: { includeRise?: boolean } = {}): LastCombatDeath[] {
   const lc = state.lastCombat;
   if (!lc) return [];
   const byUid = new Map<string, string>();
@@ -6813,7 +6814,7 @@ export function lastCombatDeaths(state: Pick<RunState, 'lastCombat'>): LastComba
   for (const e of lc.events) if (e.type === 'summon') byUid.set(e.minion.uid, e.minion.cardId);
   const out: LastCombatDeath[] = [];
   for (const e of lc.events) {
-    if (e.type !== 'death' || e.rise) continue;
+    if (e.type !== 'death' || (e.rise && !opts.includeRise)) continue;
     const id = byUid.get(e.target);
     if (id && CARD_INDEX[id]) out.push({ cardId: id, side: e.side });
   }

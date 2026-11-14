@@ -81,7 +81,7 @@ describe('Underdweller — Soulkeeper', () => {
     expect(new Set(after.discover)).toEqual(new Set(['stray', 'alley']));
   });
 
-  it('skips a Rise death — that body came back, so it did not stay dead', () => {
+  it('counts a Rise death: the minion still died before it came back (R-SOULKEEPER-POOL-01)', () => {
     const s = at({
       heroId: 'underdweller', embers: 10, heroReady: true, hand: [],
       lastCombat: combat([], {
@@ -90,8 +90,31 @@ describe('Underdweller — Soulkeeper', () => {
       }) as never,
     });
     const after = reduce(s, { type: 'heroPower' } as never);
-    expect(after.discover, 'nothing to reclaim').toBeFalsy();
-    expect(after.embers, 'and no Gold charged for the no-op').toBe(10);
+    expect(after.discover, 'the risen minion is offered').toEqual(['stray']);
+    expect(after.embers, '2 Gold charged').toBe(8);
+  });
+
+  it('a minion that died twice is in the pool twice, but the options stay distinct (R-SOULKEEPER-POOL-01)', () => {
+    // 'stray' dies 4 times, four other minions die once: 8 entries, 5 distinct cards.
+    const others = Object.values(CARD_INDEX)
+      .filter((c) => !c.spell && !c.ruby && c.id !== 'stray' && c.id !== 'alley')
+      .slice(0, 3).map((c) => c.id);
+    const deaths = [
+      { uid: 'p1', cardId: 'stray' }, { uid: 'p2', cardId: 'stray' }, { uid: 'p3', cardId: 'stray' }, { uid: 'p4', cardId: 'stray' },
+      { uid: 'p5', cardId: 'alley' }, ...others.map((cardId, i) => ({ uid: `q${i}`, cardId })),
+    ];
+    expect(deaths.length, 'fixture').toBe(8);
+    let strayOffered = 0;
+    let alleyOffered = 0;
+    const N = 300;
+    for (let seed = 1; seed <= N; seed++) {
+      const s = { ...createRun(seed), phase: 'recruit', heroId: 'underdweller', embers: 10, heroReady: true, hand: [], lastCombat: combat(deaths) } as unknown as RunState;
+      const offer = reduce(s, { type: 'heroPower' } as never).discover ?? [];
+      expect(new Set(offer).size, 'no card offered twice').toBe(offer.length);
+      if (offer.includes('stray')) strayOffered++;
+      if (offer.includes('alley')) alleyOffered++;
+    }
+    expect(strayOffered, 'the four-time death is offered far more often than a one-time death').toBeGreaterThan(alleyOffered * 1.3);
   });
 
   it('is a full no-op when nothing died — the charge is not spent', () => {

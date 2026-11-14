@@ -2893,6 +2893,20 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsJuggler.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
+    id: "R-SOULKEEPER-POOL-01",
+    title: "Underdweller's Soulkeeper pool has one entry per death, and Rise deaths count",
+    statement:
+      "Soulkeeper Discovers from every death in the last combat, either side, one entry per death: a minion that died twice is in the pool twice (twice as likely to be offered). A death that was followed by Rise or Rebirth still counts. The offered options stay distinct cards.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-14 (Underdweller pool fix)", quote: "minions that rise still count, because the minion still dies and then rises. Also duplicate deaths should count" },
+      { kind: 'code', ref: "packages/sim/src/reducer.ts diedLastCombat / soulkeeper branch; packages/sim/src/ancients.ts lastCombatDeaths (includeRise)" },
+    ],
+    currentBehaviour: "Conforms (fixed 2026-11-14). It used to skip Rise deaths and merge repeat deaths into one entry.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroesBatchAug16.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
     id: "R-ANCUNDER-01",
     title: "Underdweller × Ancient of Death: a Soulkeeper minion with an Echo gains Rise",
     statement:

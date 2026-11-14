@@ -39470,7 +39470,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "plain": {
             "attack": 1,
             "health": 1,
-            "per": 5
+            "per": 1
           }
         }
       }

@@ -88,7 +88,7 @@ const armedRun = (): RunState => ({
   questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 3 },
   questScalingAuras: [{ tribe: 'beast', per: 5, event: 'summon', stepAttack: 4, stepHealth: 4, progress: 2 }],
   runeSlayingKills: 4,
-  questFlags: { runeSlaying: true, runePackcraft: true, runeClearVoices: true, runeSpellTempering: true, runeLoyalCustomer: true, runeRoyalTreasury: true }, // + Loyal Customer's N/4 (Set 2 batch 2026-11-12) // Packcraft prints its live per-summon grant (owner rework 2026-09-23); the two Set 3 Dragon meters (2026-10-21)
+  questFlags: { runeSlaying: true, runePackcraft: true, runeClearVoices: true, runeSpellTempering: true, runeLoyalCustomer: true, runeRoyalTreasury: true, runeSequencing: true }, // + Sequencing's n/3 (Set 2 Epic, 2026-11-14) // + Loyal Customer's N/4 (Set 2 batch 2026-11-12) // Packcraft prints its live per-summon grant (owner rework 2026-09-23); the two Set 3 Dragon meters (2026-10-21)
   clearVoicesIds: ['w4_tome'],
   runeSpellTemperingTick: 2,
   runeScale: { count: 3, attack: 3, health: 3, per: 5, tick: 2 },

@@ -2108,6 +2108,8 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // random friendly non-Kobold.
   | 'runeBloodscent' | 'runeLastHowl' | 'runeTrophyHunter' | 'runePitchforks' | 'runeImpLegion' | 'runeCollections'
   | 'runeFlamekeeper' | 'runeHatchlingRoost' | 'runeRubyDust' | 'runeRoughCut'
+  // Set 2 Epic Dragon rune Sequencing (owner 2026-11-14): 3 different spells cast (any phase) = a copy of the first one.
+  | 'runeSequencing'
   // Set 2 rune batch, Epic neutral (owner 2026-11-12): topShelf = every Refresh offers 1 minion from the Tier above;
   // doubleBill = Start of Combat, trigger the left-most and right-most Shouts; bulwarkLine = Start of Combat, Taunt
   // minions gain Ward; wholesale = Shop minions cost 1 less; grudge = after a lost combat, Discover from the Tier above;
@@ -2957,6 +2959,12 @@ export interface QuestCombatMods {
   runeImpLegion?: boolean;
   /** Flamekeeper: every Dragonflame cast gives the side's living Dragons +2/+2 permanently (per copy). */
   runeFlamekeeper?: boolean;
+  /** Sequencing (Set 2 Epic Dragon rune, 2026-11-14): "When you cast 3 different spells, get a copy of the first one."
+   *  Every combat cast (`spellResolved`) advances `runeSequence` through core's `advanceSequence`; a completed sequence
+   *  sends a copy of its first spell to the hand at once (`toHand`, one per copy held). */
+  runeSequencing?: boolean;
+  /** Sequencing: the side's sequence going INTO the fight (the run's `runeSequence`, carried across phases). */
+  runeSequence?: string[];
   /** Ruby Dust: a friendly minion with Rubies dying casts a permanent Ruby on a random friendly Kobold (per copy). */
   runeRubyDust?: boolean;
   /** Rough Cut: a Ruby cast on a Kobold also casts one on a random friendly non-Kobold (per copy). */
@@ -3521,6 +3529,7 @@ export type CombatEvent = (
   // `uid`: the body that sent it (Toot Toot's Rally, Antsy's Echo), where the sender's screen starts the pass's stream
   // (R-DUOS-PASS-FLIGHT-01). Absent for a rune meter's gift (no body).
   | { type: 'teamSend'; side: Side; member: number; idx: number; uid?: string }
+  | { type: 'runeSequence'; side: Side; seq: string[] } // Rune of Sequencing (2026-11-14): `side`'s spell sequence after a combat cast moved it (the ids so far, empty once it paid). Presentation only, silent and zero hold: the rune's live text and its x/3 meter read it in real time (R-REALTIME-01); the copy itself rides a `toHand`.
   // ...and `side`'s RESERVE board (team member `member`, its own run) steps in: `minions` is the board as it enters
   // (instantiated, run-wide auras folded, before its Start of Combat, which follows as ordinary events). The replay
   // replaces that side's board with these bodies (the fallen board's dead are gone).
@@ -4362,6 +4371,9 @@ export interface ShoutCarry {
   borrowedFlameGain?: number;
   /** Rune of Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
   whispersCast?: number;
+  /** Rune of Sequencing: the side's sequence after this fight, set only when a combat cast moved it. Settle writes it
+   *  back to `RunState.runeSequence` so the ONE sequence continues into the next Shop. */
+  runeSequence?: string[];
   /** Warm-Up (Set 2 batch, 2026-11-12): the side's lifetime Pummel tally after this fight (settle writes it back). */
   warmUpDealt?: number;
 }

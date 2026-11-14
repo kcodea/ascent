@@ -1373,6 +1373,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_drunk_shopkeeper:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: an Ale cast adds +1/+1 to the permanent Shop buff (rides the cast, like Collections)
   'rune:rune_spell_appetite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every spell cast: a random Demon consumes a Shop minion (Gold for Grub's bite, owner 2026-11-14)
   'rune:rune_end_of_quarter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: each card entering the Shop may cost 1 less (a price, no beat)
+  'rune:rune_sequencing:combat': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 different spells cast (any phase): the rune pulses and a copy of the first flies to hand (owner 2026-11-14)
 };
 
 /** Look up a key; undefined = unclassified (the tripwire's failure condition). */

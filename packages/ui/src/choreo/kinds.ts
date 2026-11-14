@@ -68,6 +68,7 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'hpGrant': return 'hpGrant';
     case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
     case 'teamSend': return 'spellProgress'; // DUOS real-time gift marker (R-DUOS-RUNES-02): silent, zero hold
+    case 'runeSequence': return 'spellProgress'; // Rune of Sequencing's live meter (2026-11-14): silent, zero hold
     case 'reveal': return 'reveal';
     case 'tribeAura': return 'tribeAura'; // a run-wide combat aura → the board aura-wash
     // Quest/rune beats had NO case of their own, so they fell through to the `damage` default below and were

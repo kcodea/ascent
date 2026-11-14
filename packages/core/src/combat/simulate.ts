@@ -38,6 +38,7 @@ import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, see
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { DRAGONFLAME_ID, SET2_TRIBAL_RUNES } from '../set2TribalRunes'; // Set 2 rune batch, Basic tribal (2026-11-13)
+import { advanceSequence } from '../runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
 
 /** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
@@ -964,6 +965,9 @@ export function simulate(
   const deferredBattlecries = sideReset(() => (perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => [])));
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
   const shoutCarry = sideReset(() => (perSide<ShoutCarry>(() => ({}))));
+  // RUNE OF SEQUENCING (2026-11-14): each side's sequence, seeded from the run's (`QuestCombatMods.runeSequence`) so a
+  // sequence started in the Shop continues here; advanced by `sequencingCombat`, written home through `shoutCarry`.
+  const runeSeq = sideReset(() => ({ player: [...(modsFor('player').runeSequence ?? [])], enemy: [...(modsFor('enemy').runeSequence ?? [])] }));
   /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
   const deepBreathsUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   const emberInheritanceUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
@@ -2271,6 +2275,7 @@ export function simulate(
     },
     spellResolved: (side, spellId) => {
       flamekeeperCombat(side, spellId); // Set 2 rune Flamekeeper: a Dragonflame cast, any caster
+      sequencingCombat(side, spellId); // Set 2 rune Sequencing: every combat cast, any caster, before the Shop-spell gate
       // RUNE OF THE STAR TAP (Set 3 design pass): a Dwarven Ale cast in combat banks +3/+3 for the Starform (per copy).
       if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
         fireTrigger('runeStarTap', side);
@@ -5675,6 +5680,26 @@ export function simulate(
       const kept = ctx.buff(d, a, h, 'Flamekeeper').kept;
       if (!kept) d.permaGain = { attack: (d.permaGain?.attack ?? 0) + a, health: (d.permaGain?.health ?? 0) + h };
     }
+  }
+  /** RUNE OF SEQUENCING: one combat cast resolved on `side` (`castInCombat`'s per-cast hook, any caster, every spell kind
+   *  it names). The run's ONE sequence advances through core's `advanceSequence` (the Shop calls the same rule); the
+   *  third different spell sends a copy of the FIRST to the hand right now (one per copy held, a live `toHand`; settle
+   *  lands it under the normal hand cap). Every change is announced (`runeSequence`) so the rune's text and meter tick
+   *  on this beat, and rides `shoutCarry` home. */
+  function sequencingCombat(side: Side, spellId: string): void {
+    if (!modsFor(side).runeSequencing) return;
+    const step = advanceSequence(runeSeq[side], cards[spellId]);
+    if (!step) return;
+    runeSeq[side] = step.seq;
+    if (step.pay && cards[step.pay]) {
+      fireTrigger('runeSequencing', side);
+      for (let k = 0; k < flagCopiesOf(side, 'runeSequencing'); k++) {
+        const uid = recordHandGrant(side, step.pay);
+        emit({ type: 'toHand', cardId: step.pay, side, ...(uid ? { uid } : {}) });
+      }
+    }
+    shoutCarry[side].runeSequence = [...step.seq];
+    emit({ type: 'runeSequence', side, seq: [...step.seq] });
   }
   // LAST HOWL + RUBY DUST hear a friendly death on the `avenge` broadcast: it goes out once per friendly death (a Rise death
   // included), AFTER the body's own Echo and its re-fires, so the Echo's summons take the room first (the 2026-09-18

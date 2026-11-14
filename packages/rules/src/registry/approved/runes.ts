@@ -3300,4 +3300,18 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-13. Before: a rune buff on a Shop action and in combat drew only the rune-buff-unit sparkle (Seasoned Ledger and Kindling showed no trail), and End of Turn drew a procedural gold tendril tuned outside the workbench. PARTIAL pin: the tests pin the rune lookup, the sound gate and the call sites by source text; nothing renders the trail in a browser.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/runeBuffLabel.test.ts', 'packages/ui/src/buffFxRender.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-SET2-RUNE-SEQUENCING-01',
+    title: 'Sequencing: three different spells cast, in any phase, give a copy of the first one; one sequence across phases',
+    statement: 'Sequencing (Epic, Dragon, 3, Set 2). The run keeps ONE sequence of different spells. Every spell cast joins it unless its id is already there: a repeat neither counts nor resets. When the sequence reaches 3 different spells, a copy of its FIRST spell goes to the hand (one per copy of the rune held, under the normal hand cap; a full hand refuses it) and the sequence starts over, forever; the copy counts normally when cast. It counts every cast in the Shop (from hand, a Discover spell, a Ruby from hand, a rune or minion cast, End of Turn casts) and in combat (every caster that resolves through castInCombat, both sides), and the sequence carries between phases: the fight receives the run sequence, advances it per combat cast, pays a combat copy to the hand at that moment (a live toHand), and settle writes the final sequence back. A Gift, a reward token and Second Draft never join. The rune text and its n/3 meter show the sequence live on every surface, mid-fight included.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'owner design 2026-11-14 (Sequencing)', quote: 'When you cast 3 different spells, get a copy of the first one.' },
+      { kind: 'code', ref: 'packages/core/src/runeSequencing.ts advanceSequence (the one rule); packages/sim/src/runeSequencing.ts sequencingOnCast (called from noteSpellForCountRunes); packages/core/src/combat/simulate.ts sequencingCombat (spellResolved, the runeSequence event, ShoutCarry.runeSequence); packages/sim/src/reducer.ts questCombatMods + settleCombat' },
+    ],
+    contentIds: ['rune_sequencing'],
+    currentBehaviour: 'Conforms as of 2026-11-14 (new content). Judgement calls pending owner confirmation: Gifts never join the sequence; Rubies cast by an effect in combat (not a castInCombat cast) do not count, as in the Shop, where only a Ruby cast from hand counts.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeSequencing.test.ts'], lastVerifiedAt: '2026-11-14' },
+  },
 ];

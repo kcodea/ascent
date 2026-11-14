@@ -5998,6 +5998,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // Warm-Up (Set 2 batch, 2026-11-12): the side-wide Pummel tally comes home (its payout already banked live).
   if (s.questFlags?.runeWarmUp && result.playerShoutCarry?.warmUpDealt !== undefined) s.runeWarmUpDealt = result.playerShoutCarry.warmUpDealt;
+  // RUNE OF SEQUENCING: the fight advanced the run's ONE sequence (and already paid its copies through
+  // `playerHandGrants`); only the final sequence comes home, so the next Shop continues it with no double count.
+  if (s.questFlags?.runeSequencing && result.playerShoutCarry?.runeSequence) s.runeSequence = [...result.playerShoutCarry.runeSequence];
   if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
     s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
   }
@@ -8932,6 +8935,8 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runePitchforks: f?.runePitchforks,               // a summoned Imp deals 3 damage to 2 enemies
     runeImpLegion: f?.runeImpLegion,                 // combat-summoned Imps carry the Echo graft too
     runeFlamekeeper: f?.runeFlamekeeper,             // a Dragonflame cast: your Dragons +2/+2 permanently
+    runeSequencing: f?.runeSequencing,               // Set 2 Epic: 3 different spells cast = a copy of the first one
+    runeSequence: f?.runeSequencing && s.runeSequence?.length ? [...s.runeSequence] : undefined, // ...the carried sequence
     runeRubyDust: f?.runeRubyDust,                   // a friendly minion with Rubies dies: a permanent Ruby on a Kobold
     runeRoughCut: f?.runeRoughCut,                   // a Ruby cast on a Kobold also casts on a non-Kobold
     // ── Set 2 rune batch, Epic neutral (owner 2026-11-12) ──

@@ -60,10 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: "Ales buff a little less: Champion's Ale gives +5/+5, Defensive Ale +3 Health and Bloody Ale +3 Attack.",
+        details: ['Each was 1 higher. This balances the stronger Edward Keg-hands.'],
+      },
+      {
+        category: 'Balance',
         text: 'Edward Keg-hands reworked: Dwarven Ales you cast from hand now have double effect, instead of casting twice.',
         details: [
           'The Ale is cast once, with its numbers doubled (tripled with a Gilded Edward).',
-          "Golden Ale gives 4 Gold. Champion's Ale gives +12/+12. Defensive and Bloody Ale give 3 random minions +8. Reinforcing Ale gets 2 minions.",
+          "With Edward: Golden Ale gives 4 Gold. Champion's Ale gives +10/+10. Defensive and Bloody Ale give 3 random minions +6. Reinforcing Ale gets 2 minions.",
           'Only the best Edward counts. More copies add nothing.',
           'Ales cast by runes, minions or other effects are not doubled.',
           'An Ale in your hand shows its doubled numbers while Edward is on your board.',

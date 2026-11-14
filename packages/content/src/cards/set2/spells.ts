@@ -142,8 +142,8 @@ export const SET2_SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffLeftmost', params: { attack: 6, health: 6 } }],
-    text: 'Give your **left-most** minion **+6/+6**.',
+    effects: [{ on: 'cast', do: 'spellBuffLeftmost', params: { attack: 5, health: 5 } }],
+    text: 'Give your **left-most** minion **+5/+5**.',
   },
   {
     id: 'wo_health',
@@ -155,8 +155,8 @@ export const SET2_SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 0, health: 4 } }],
-    text: 'Give **3 random** friendly minions **+4 Health**.',
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 0, health: 3 } }],
+    text: 'Give **3 random** friendly minions **+3 Health**.',
   },
   {
     id: 'wo_attack',
@@ -168,8 +168,8 @@ export const SET2_SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 4, health: 0 } }],
-    text: 'Give **3 random** friendly minions **+4 Attack**.',
+    effects: [{ on: 'cast', do: 'spellBuffRandomFriendlies', params: { count: 3, attack: 3, health: 0 } }],
+    text: 'Give **3 random** friendly minions **+3 Attack**.',
   },
   {
     // SET 2 ONLY (owner correction 2026-07-31): Ales are a set-2 currency, so this lives here rather than in

@@ -27,23 +27,23 @@ describe('Edward Keg-hands: an Ale in hand prints its multiplied numbers', () =>
   it('with Edward: x2 on every Ale', () => {
     const r = withEdward();
     expect(handText(r, 'wo_mine')).toBe('Gain **{{4 Gold}}**.');
-    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+12/+12}}**.');
-    expect(handText(r, 'wo_health')).toBe('Give **3 random** friendly minions **{{+8 Health}}**.');
-    expect(handText(r, 'wo_attack')).toBe('Give **3 random** friendly minions **{{+8 Attack}}**.');
+    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+10/+10}}**.');
+    expect(handText(r, 'wo_health')).toBe('Give **3 random** friendly minions **{{+6 Health}}**.');
+    expect(handText(r, 'wo_attack')).toBe('Give **3 random** friendly minions **{{+6 Attack}}**.');
     expect(handText(r, 'wo_reinforcement')).toBe('Get {{2 minions}} of your **most common type** ({{Dwarf}}).');
   });
 
   it('with a Gilded Edward: x3', () => {
     const r = withEdward(true);
     expect(handText(r, 'wo_mine')).toBe('Gain **{{6 Gold}}**.');
-    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+18/+18}}**.');
+    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+15/+15}}**.');
     expect(handText(r, 'wo_reinforcement')).toContain('{{3 minions}}');
   });
 
   it('spell power is folded in, then multiplied, exactly as the cast does', () => {
     const r = withEdward(false, { spellBonus: { attack: 1, health: 1 } } as Partial<RunState>);
-    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+14/+14}}**.');
-    expect(handText(r, 'wo_health')).toBe('Give **3 random** friendly minions **{{+2/+10}}**.');
+    expect(handText(r, 'wo_champion')).toBe('Give your **left-most** minion **{{+12/+12}}**.');
+    expect(handText(r, 'wo_health')).toBe('Give **3 random** friendly minions **{{+2/+8}}**.');
   });
 
   it('a Shop offer and a Discover option print the base numbers', () => {

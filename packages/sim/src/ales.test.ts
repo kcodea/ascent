@@ -57,7 +57,7 @@ describe("Champion's Ale", () => {
     };
     s = reduce(s, { type: 'play', uid: 'w' });
     const at = (uid: string) => { const m = s.board.find((c) => c.uid === uid)!; return [m.attack, m.health]; };
-    expect(at('u0')).toEqual([7, 7]); // 1/1 + 6/6
+    expect(at('u0')).toEqual([6, 6]); // 1/1 + 5/5
     expect(at('u1')).toEqual([1, 1]);
     expect(at('u2')).toEqual([1, 1]);
   });
@@ -73,7 +73,7 @@ describe("Champion's Ale", () => {
 });
 
 describe('Defensive / Bloody Ale', () => {
-  it('Health buffs exactly 3 DISTINCT minions by +4 Health', () => {
+  it('Health buffs exactly 3 DISTINCT minions by +3 Health', () => {
     // Distinct matters: "3 random friendly minions" means three bodies, not three rolls that can double up.
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
@@ -83,10 +83,10 @@ describe('Defensive / Bloody Ale', () => {
     s = reduce(s, { type: 'play', uid: 'w' });
     const buffed = s.board.filter((c) => c.health > 1);
     expect(buffed.length).toBe(3);
-    for (const c of buffed) expect([c.attack, c.health]).toEqual([1, 5]); // health only
+    for (const c of buffed) expect([c.attack, c.health]).toEqual([1, 4]); // health only
   });
 
-  it('Attack buffs exactly 3 DISTINCT minions by +4 Attack', () => {
+  it('Attack buffs exactly 3 DISTINCT minions by +3 Attack', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
       board: board(5),
@@ -95,7 +95,7 @@ describe('Defensive / Bloody Ale', () => {
     s = reduce(s, { type: 'play', uid: 'w' });
     const buffed = s.board.filter((c) => c.attack > 1);
     expect(buffed.length).toBe(3);
-    for (const c of buffed) expect([c.attack, c.health]).toEqual([5, 1]); // attack only
+    for (const c of buffed) expect([c.attack, c.health]).toEqual([4, 1]); // attack only
   });
 
   it('a board SMALLER than 3 just buffs everyone (no double-dipping)', () => {
@@ -105,8 +105,8 @@ describe('Defensive / Bloody Ale', () => {
       hand: [spell('w', 'wo_attack')],
     };
     s = reduce(s, { type: 'play', uid: 'w' });
-    // Each gains +4 exactly once — a with-replacement pick could have put +8 on one and +0 on the other.
-    for (const c of s.board) expect([c.attack, c.health]).toEqual([5, 1]);
+    // Each gains +3 exactly once — a with-replacement pick could have put +6 on one and +0 on the other.
+    for (const c of s.board) expect([c.attack, c.health]).toEqual([4, 1]);
   });
 
   it('is deterministic for a given RNG cursor', () => {

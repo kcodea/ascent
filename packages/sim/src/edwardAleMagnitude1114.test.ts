@@ -55,15 +55,15 @@ describe('Edward Keg-hands (2026-11-14): hand-cast Dwarven Ales have double effe
     }
   });
 
-  it("Champion's Ale: +12/+12 on the left-most (+18/+18 Gilded)", () => {
-    for (const [golden, n] of [[false, 12], [true, 18]] as const) {
+  it("Champion's Ale: +10/+10 on the left-most (+15/+15 Gilded)", () => {
+    for (const [golden, n] of [[false, 10], [true, 15]] as const) {
       const s = play(run({ board: [body('l', 'dw_brakka'), EDWARD('e', golden)], hand: [ale('x', 'wo_champion')] }), 'x');
       expect(aleBuff(s.board.find((c) => c.uid === 'l')), `golden=${golden}`).toEqual([n, n]);
     }
   });
 
-  it('Defensive / Bloody Ale: still 3 minions, +8 each (the targets never double)', () => {
-    for (const [id, want] of [['wo_health', [0, 8]], ['wo_attack', [8, 0]]] as const) {
+  it('Defensive / Bloody Ale: still 3 minions, +6 each (the targets never double)', () => {
+    for (const [id, want] of [['wo_health', [0, 6]], ['wo_attack', [6, 0]]] as const) {
       const s = play(run({ board: [...FILLERS(), EDWARD()], hand: [ale('x', id)] }), 'x');
       const hit = s.board.filter((c) => aleBuff(c)[0] + aleBuff(c)[1] > 0);
       expect(hit.length, `${id} hit count`).toBe(3);
@@ -80,7 +80,7 @@ describe('Edward Keg-hands (2026-11-14): hand-cast Dwarven Ales have double effe
 
   it('spell power is part of the number and doubles with it', () => {
     const s = play(run({ spellBonus: { attack: 1, health: 1 }, board: [body('l', 'dw_brakka'), EDWARD()], hand: [ale('x', 'wo_champion')] }), 'x');
-    expect(aleBuff(s.board.find((c) => c.uid === 'l'))).toEqual([14, 14]);
+    expect(aleBuff(s.board.find((c) => c.uid === 'l'))).toEqual([12, 12]);
   });
 
   it('the cast counts ONCE: spellsCast and the Ale tally rise by 1', () => {
@@ -108,7 +108,7 @@ describe('Edward Keg-hands (2026-11-14): hand-cast Dwarven Ales have double effe
     castSpell(s, CARD_INDEX['wo_mine']!);
     castSpell(s, CARD_INDEX['wo_champion']!);
     expect(s.embers - before).toBe(2);
-    expect(aleBuff(s.board.find((c) => c.uid === 'l'))).toEqual([6, 6]);
+    expect(aleBuff(s.board.find((c) => c.uid === 'l'))).toEqual([5, 5]);
   });
 
   it('a non-Ale spell is unaffected', () => {

@@ -242,7 +242,7 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       'Edward Keg-hands: "Your Dwarven Ales cast from hand have double effect." (Gilded: triple.) A Dwarven Ale (the Ale '
       + 'list: Golden, Reinforcing, Champion\'s, Defensive, Bloody) cast from hand while an Edward is on the board is cast '
       + 'ONCE, and its NUMBERS are multiplied, never its targets: Golden Ale gains 4 Gold (6 Gilded), Champion\'s Ale gives '
-      + 'the left-most minion +12/+12, Defensive and Bloody Ale give 3 random minions +8 Health / +8 Attack (still 3 '
+      + 'the left-most minion +10/+10, Defensive and Bloody Ale give 3 random minions +6 Health / +6 Attack (still 3 '
       + 'minions), Reinforcing Ale gets 2 minions (3 Gilded). Spell power is part of the number and is multiplied with it. '
       + 'STACKING: highest Edward only; any Edward is x2, any Gilded Edward x3, extra copies add nothing. SCOPE: only an '
       + 'Ale cast from hand (a re-cast of that same hand cast included, R-MULT-06); an Ale cast by a rune, a minion, an '

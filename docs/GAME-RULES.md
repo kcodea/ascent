@@ -3077,8 +3077,9 @@ already multiplied only from hand (Resonance, Prismcaster); that is unchanged.
 ### Edward Keg-hands multiplies an Ale's numbers, not its casts (owner rework 2026-11-14, R-EDWARD-01)
 
 Edward Keg-hands: *"Your Dwarven Ales cast from hand have double effect."* (Gilded: triple.) A Dwarven Ale you cast
-from hand is cast **once**, with its numbers doubled: Golden Ale gives 4 Gold, Champion's Ale +12/+12, Defensive and
-Bloody Ale give 3 random minions +8 Health / +8 Attack (still 3 minions), Reinforcing Ale gets 2 minions. Spell power
+from hand is cast **once**, with its numbers doubled: Golden Ale gives 4 Gold, Champion's Ale +10/+10, Defensive and
+Bloody Ale give 3 random minions +6 Health / +6 Attack (still 3 minions; base Ales lowered by 1 on 2026-11-14 to
+compensate: Champion's +5/+5, Defensive +3 Health, Bloody +3 Attack), Reinforcing Ale gets 2 minions. Spell power
 is part of the number, so it doubles too. Only the best Edward counts: any Edward on board is x2, any Gilded Edward
 x3, and more copies add nothing. Because the Ale is cast once, every Ale-cast and spell-cast watcher (Drunk
 Shopkeeper, Sequencing, Spell Appetite, spell counters) sees one cast. Edward is not a cast multiplier, but each cast

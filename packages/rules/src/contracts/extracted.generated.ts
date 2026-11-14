@@ -48395,7 +48395,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
+            "attack": 3,
             "count": 3,
             "health": 0
           }
@@ -48445,8 +48445,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 6,
-            "health": 6
+            "attack": 5,
+            "health": 5
           }
         }
       }
@@ -48496,7 +48496,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "plain": {
             "attack": 0,
             "count": 3,
-            "health": 4
+            "health": 3
           }
         }
       }

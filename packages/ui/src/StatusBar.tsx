@@ -10,7 +10,7 @@ import { activePowerPayout, passivePowerReady } from './powerArmedUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
+import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
 import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
@@ -728,7 +728,11 @@ export function StatusBar() {
     (!liveCost || run.embers >= liveCost) &&
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
     !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
-    !(power.kind === 'passaria' && !passariaHasTarget(run)); // Priestess: no teammate, or nothing she may pass
+    !(power.kind === 'passaria' && !passariaHasTarget(run)) && // Priestess: no teammate, or nothing she may pass
+    !(power.kind === 'gratitude' && !run.duos); // Cindy: no teammate to thank
+  // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): pressed and waiting on the teammate's next minion buy. The button wears a
+  // modest gold glow while it waits (a static shadow breathing by opacity, the kwglow rule), and the line says so.
+  const gratitude = power.kind === 'gratitude' ? gratitudeView(run).state : null;
   // MAGICIAN'S MAGIC HAT (owner 2026-11-10, R-DUOS-MAGICIAN-01): a PASSIVE power that still calls out. While the next
   // buy would send the copy (the hat is one buy short of full, 2/3, with a copy left this turn) the panel and the button
   // wear the existing `ready` classes (the READY CALL, as authored) on top of `passive`, and keep them until that buy. Never in combat (`hat.ready` is Shop only), and never
@@ -806,6 +810,8 @@ export function StatusBar() {
                         : diceLock > 0
                           ? `${power.name} · locked ${diceLock}t`
                           // A once-per-GAME power must never read "once per turn" (owner report 2026-08-14 — Xerox).
+                          : gratitude
+                            ? `${power.name} · ${gratitude === 'armed' ? 'waiting for your teammate' : gratitude === 'paid' ? 'spent' : run.duos ? 'once per game' : 'needs a teammate'}`
                           : power.oncePerGame
                             // ANCIENT OF GENESIS × Xerox: banked Copy Machine charges read as uses left.
                             ? power.kind === 'copyMachine' && ancientCopyCharges(run) > 0
@@ -1011,7 +1017,7 @@ export function StatusBar() {
             (dimmed, no glow, not clickable). The button keeps the `.heropowerbtn` class so Recruit's aim line
             still anchors to it. Clicking the frame does nothing — this button is the ONLY trigger. */}
         <div
-          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${passiveReady ? ' ready' : ''}`}
+          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${passiveReady ? ' ready' : ''}${gratitude === 'armed' ? ' gratitude-waiting' : ''}`}
           data-hat={hat ? (hat.active ? 'active' : hat.capped ? 'capped' : 'counting') : undefined}
         >
           <div className="hpwrap">
@@ -1060,6 +1066,7 @@ export function StatusBar() {
                   are now pure-CSS circular glows behind/over the art (no frame pngs), so nothing but the power
                   image shows. The 💠 tuner still moves/scales the art inside the circle via --hpb-art-*. */}
               <span className="hpb-glow" aria-hidden="true" />
+              {gratitude === 'armed' && <span className="hpb-gratitude" aria-hidden="true" />}
               {/* Art sits in a CIRCULAR clipping wrapper so the 💠 tuner's art offset/scale dials move the art
                   INSIDE the circle without moving the clip. */}
               {powerArt

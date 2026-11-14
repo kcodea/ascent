@@ -1677,12 +1677,12 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-power-active-conditional",
-    "title": "'active-conditional' powers · 6 heroes",
-    "statement": "These 6 powers all active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'active-conditional' powers · 7 heroes",
+    "statement": "These 7 powers all active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast). — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
-    "currentBehaviour": "heroPowerFamilies.ts classifies these 6 powers as 'active-conditional'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Gildmaster, Gildcrafter: \"When you have 2 copies of a minion, this grants a third.\" · Members: Gildmaster — Gildcrafter [gildcrafter] · Hunch — Rounded Spellbook [roundedSpellbook] · Membrance — Memory [memory] · Priestess — Passaria [passaria] · Quillen — Archive [archive] · Underdweller — Soulkeeper [soulkeeper]",
-    "example": "Gildmaster's Gildcrafter active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast)."
+    "currentBehaviour": "heroPowerFamilies.ts classifies these 7 powers as 'active-conditional'; the heroPowerLane + stager suites verify each against that reading.",
+    "cardText": "Exemplar — Cindy, Golden Gratitude: \"The next minion your teammate buys gives you a Gilded copy of it. Once per game.\" · Members: Cindy — Golden Gratitude [gratitude] · Gildmaster — Gildcrafter [gildcrafter] · Hunch — Rounded Spellbook [roundedSpellbook] · Membrance — Memory [memory] · Priestess — Passaria [passaria] · Quillen — Archive [archive] · Underdweller — Soulkeeper [soulkeeper]",
+    "example": "Cindy's Golden Gratitude active, but only against a staged precondition (a pair to complete, a fight behind you, a spell cast)."
   },
   {
     "status": "needs-ruling",

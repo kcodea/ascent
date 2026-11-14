@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-14',
     changes: [
+      {
+        category: 'Balance',
+        text: 'New Duos hero: Cindy. Golden Gratitude: the next minion your teammate buys gives you a Gilded copy of it. Once per game.',
+        details: [
+          'Cindy has 30 Health and 10 Armor. Her power costs 0 and can be used once per game.',
+          'After you use it, it waits, across turns if needed, for your teammate to buy a minion. Spells do not count.',
+          'You get a plain Gilded copy of that minion. Your teammate keeps the one they bought.',
+          'While it waits, your teammate sees a golden glow on your portrait.',
+          'Only in Versus Duos and Ranked Duos.',
+        ],
+      },
       { category: 'Systems', text: 'New art for 63 runes, including Ornate Clock, Epic Forge, Fury and Top Shelf.' },
       {
         category: 'Balance',

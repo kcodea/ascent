@@ -1752,6 +1752,16 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow, .heropowerbtn:not(:disabled).tt-o
   animation: hpbbreathe var(--hpb-glow-pulse, 3s) ease-in-out infinite;
 }
 .statusbar .heropanel.armed .hpb-glow { animation-duration: 0.4s; } /* aiming — the breath quickens */
+/* CINDY'S GOLDEN GRATITUDE, WAITING (R-DUOS-CINDY-01): pressed, waiting on the teammate's next minion buy. A modest gold
+   halo behind the art: the shadow is STATIC and only its opacity breathes (the kwglow rule, no animated paint). The art
+   keeps full colour while it waits (it is not "used up" yet). Reduced motion keeps a still halo. */
+.heropowerbtn .hpb-gratitude {
+  position: absolute; inset: 0; z-index: 1; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 calc(18 * var(--u)) calc(8 * var(--u)) rgba(255, 200, 82, 0.85), 0 0 0 calc(3 * var(--u)) rgba(255, 222, 130, 0.9);
+  will-change: opacity; animation: kwglow 2.2s ease-in-out infinite;
+}
+.heropanel.gratitude-waiting .heropowerbtn .hpb-art { opacity: 1; filter: none; }
+@media (prefers-reduced-motion: reduce) { .heropowerbtn .hpb-gratitude { animation: none; opacity: 0.75; } }
 @keyframes hpbbreathe {
   0%, 100% { opacity: var(--hpb-glow-alpha, 1); }
   50% { opacity: var(--hpb-glow-dim, 0); }

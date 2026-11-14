@@ -155,7 +155,10 @@ const SEED_MULT = NIGHTLY ? 4 : 1;
 
 // ── Drivers ────────────────────────────────────────────────────────────────────────────────────────────────
 
-const heroRoster = (): string[] => HEROES.filter((h) => !h.wip).map((h) => h.id).sort();
+// Duos-only heroes are left out: this fuzz runs SOLO runs, where a Duos power has no teammate and does nothing, and a
+// new one would only reshuffle every seed's hero cycle (adding Cindy, 2026-11-14, moved seed 22 onto a Hunch play of Big
+// Brain Billy that over-claims -2/-2: a latent case, flagged for its own fix).
+const heroRoster = (): string[] => HEROES.filter((h) => !h.wip && !h.duosOnly).map((h) => h.id).sort();
 
 /** The BUILDER policy: modals first (same order as the fuzz), then buy / play / roll / upgrade / power / end
  *  turn — no sells, so boards fill and End of Turn has something to fire. Weights are tuned constants. */

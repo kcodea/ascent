@@ -4000,4 +4000,35 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsMagician.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
+  {
+    id: "R-DUOS-CINDY-01",
+    title: "Cindy is Duos only; Golden Gratitude (0 Gold, once per game) gives her a Gilded copy of the teammate's next minion buy",
+    statement:
+      "Cindy is a `duosOnly` hero with 30 Health and 10 Armor, appended last to HEROES and out of every solo list and the "
+      + "Mimic / Void / Power Shifter pools. Golden Gratitude costs 0 and is pressed once per GAME (`oncePerGame`). The press "
+      + "ARMS it: her run reads `armed` and a `gratitude` team effect tells the teammate's run (`duos.gratitude`). With no "
+      + "Duos state the press is refused and nothing is spent. The teammate's NEXT MINION BUY pays it once, from either "
+      + "minion branch of the `buy` action (a normal offer, whatever put it in the Shop: a rune reward, a Discover into the "
+      + "Shop, Contraband, a Golden Monkey; and a held Swap re-buy). A spell from the slot or the row, and a Starform, do not "
+      + "count and do not spend it. Cindy gets a plain GILDED copy of the minion's card (`gildMinion` on its base def, no "
+      + "buffs; a Gilded minion bought gives the same Gilded card), sent as an effect pass (`via: 'sale'`, `passGratitude`): "
+      + "free, never refused for a full hand, dropped on a room refusal, and not a pass for any pass watcher on either run. "
+      + "When it lands (or is held for room) her run reads `paid` and names the card. The teammate keeps the minion they "
+      + "bought; the copy is taken before the triple check, so a triple-completing buy still pays. The power text reads the "
+      + "live state (ready / waiting / spent) from `gratitudeView`. While armed the teammate's portrait of Cindy glows gold "
+      + "(opacity / transform only) and her button wears a gold halo; her line plays on her screen as the arm is sent and on "
+      + "the teammate's as it lands, once each. A reload replays her arm row (`restoreEffectPass` gratitude 'arm') and the "
+      + "teammate's copy row ('pay'), so it never arms or pays twice.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14", quote: "Cindy, Duos only, 30 resolve, 10 Armor. Golden Gratitude: cost 0, once per game. The next minion your teammate buys gives you a Gilded copy of it." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14", quote: "While armed, the teammate's view shows a golden glow emanating from Cindy's portrait." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14", quote: "A voice line when she uses it, heard by Cindy AND the teammate." },
+      { kind: 'code', ref: "packages/sim/src/goldenGratitude.ts armGratitude / gratitudeBuy / gratitudeLanded / restoreGratitudeArm / restoreGratitudePay; packages/sim/src/reducer.ts the heroPower gratitude branch, the buy branches, receivePass, restoreEffectPass; packages/sim/src/recruit.ts receiveTeamEffect; packages/ui/src/versus/duosPasses.ts replayRestore; packages/ui/src/versus/passLob.ts passFlightOf; packages/ui/src/versus/gratitudeVoice.ts; packages/ui/src/versus/DuosMateDock.tsx" },
+    ],
+    currentBehaviour: "Built 2026-11-14. Judgement calls for the owner: a Starform buy does not pay it (no minion leaves the Shop); the copy is the plain base card Gilded (no buffs).",
+    example: "Ann, as Cindy, presses Golden Gratitude on turn 3. Her teammate Amy buys a spell (nothing happens), then a Tabbycat on turn 4: Amy keeps her Tabbycat and a Gilded Tabbycat lands in Ann's hand. Ann's power reads spent.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroCindy.test.ts", "packages/ui/src/versus/gratitude.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
 ];

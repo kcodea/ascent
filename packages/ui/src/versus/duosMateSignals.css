@@ -21,3 +21,21 @@
   :is(.duosdock, .duostagin).working .duosdock-work::after { animation: none; }
   :is(.duosdock, .duostagin).working .duosdock-work::before { animation: none; opacity: 0.8; }
 }
+
+/* CINDY'S GOLDEN GRATITUDE (owner 2026-11-14, R-DUOS-CINDY-01: "a golden glow emanating from Cindy's portrait"):
+   `.duosdock.gratitude` while my run owes my teammate (Cindy) a Gilded copy of my next minion buy. A wide warm-gold halo
+   whose STATIC shadow breathes by opacity, and a soft ring that swells out of the disc by transform: compositor only. */
+.duosdock-gratitude { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1; visibility: hidden; }
+.duosdock-gratitude::before, .duosdock-gratitude::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+.duosdock-gratitude::before {
+  box-shadow: 0 0 calc(34 * var(--u)) calc(14 * var(--u)) rgba(255, 200, 70, 0.9), 0 0 calc(70 * var(--u)) calc(22 * var(--u)) rgba(255, 170, 40, 0.45);
+  will-change: opacity; }
+.duosdock-gratitude::after { border: calc(4 * var(--u)) solid rgba(255, 226, 140, 0.9); opacity: 0; will-change: transform, opacity; }
+.duosdock.gratitude .duosdock-gratitude { visibility: visible; }
+.duosdock.gratitude .duosdock-gratitude::before { animation: kwglow 1.8s ease-in-out infinite; }
+.duosdock.gratitude .duosdock-gratitude::after { animation: duosgratring 1.8s cubic-bezier(.2, .6, .35, 1) infinite; }
+@keyframes duosgratring { 0% { transform: scale(1); opacity: 0.85; } 100% { transform: scale(1.45); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .duosdock.gratitude .duosdock-gratitude::before { animation: none; opacity: 0.8; }
+  .duosdock.gratitude .duosdock-gratitude::after { animation: none; }
+}

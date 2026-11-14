@@ -32,6 +32,7 @@ import { useSpectate } from './versus/spectate';
 import { exitTeammateView } from './versus/teammateView';
 import { playArrival, playEntryFlight } from './versus/passLob';
 import { resetHatLines } from './versus/hatLines';
+import { resetGratitudeVoice } from './versus/gratitudeVoice';
 import { notePassRefused, passReturnedText } from './versus/duosPassUi';
 import { devCard } from './versus/duosDevTuner';
 import { sfx } from './sfx';
@@ -166,6 +167,7 @@ function syncTeam(run: RunState): void {
   const mate = makeSbMateRun(run, useGame.getState().sbRules === 'god');
   ledger = newSbLedger();
   resetHatLines(); // a new rig: its Magic Hat copies are numbered from the start again
+  resetGratitudeVoice();
   seenOutbox = run.duos.outbox.length;
   preparedFight = null;
   useSbDuos.setState({ other: mate, forSeed: run.seed, mateSeed: mate.seed, viewing: false, note: null });

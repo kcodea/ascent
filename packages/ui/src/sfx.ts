@@ -1961,6 +1961,10 @@ export const sfx = {
   // line (the clips are levelled to the same target). Which line, and that it plays once per copy on every screen that
   // sees the send, is `versus/hatLines.ts`. Silent if the clip is missing.
   magicianPass: (line: number) => { playSample(`heroes/magician.pass${line}`, 'heroSelect'); },
+  // CINDY'S GOLDEN GRATITUDE is armed (owner 2026-11-14, R-DUOS-CINDY-01): her spoken line, `audio/heroes/cindy.gratitude.mp3`,
+  // heard by Cindy and her teammate (once per arm on each screen: `versus/gratitudeVoice.ts`). A VOICE line, so it rides
+  // the Hero Select fader. Silent if the clip is missing.
+  cindyGratitude: () => { playSample('heroes/cindy.gratitude', 'heroSelect'); },
   // A token is summoned — a general "summon" pop (sourced `summon` clip; synth rising blip fallback) LAYERED
   // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
   // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).

@@ -31,6 +31,7 @@ import { playPlateDissolve } from '../plateDissolve';
 import { stageHost, toStage } from '../stage';
 import { getDuosPassConfig, streamPalette } from './duosPassConfig';
 import { speakHatLine } from './hatLines';
+import { speakGratitude } from './gratitudeVoice';
 
 interface Box { left: number; top: number; width: number; height: number }
 interface Pt { x: number; y: number }
@@ -278,6 +279,10 @@ export interface PassFlightEntry {
   via?: 'spell' | 'sale';
   /** A Magic Hat copy (R-DUOS-MAGICIAN-01): `card` is the copy (a random card out of the hat, as it was bought). */
   hat?: true;
+  /** Cindy's Golden Gratitude copy (R-DUOS-CINDY-01): `card` is the Gilded copy of the minion `src` names (it stays). */
+  gratitude?: true;
+  /** Put back by a reload's restore replay: already delivered. */
+  restored?: true;
   team?: { kind: string; cardId?: string; randomSpell?: boolean; randomMinion?: boolean };
   combatIdx?: number;
   src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
@@ -309,6 +314,9 @@ export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, card
   if (e.hat) return { at: 'hat', uid: e.card.uid };
   if (src && 'uid' in src) {
     if (!e.team && src.uid === e.card.uid) return { at: 'card', uid: src.uid, leaves: true, face: true };
+    // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): the minion my teammate's arm paid for stays; a copy of its face rises off
+    // it and streams into Cindy's portrait (the Monstrocity-copy look).
+    if (e.gratitude) return { at: 'card', uid: src.uid, leaves: false, face: true };
     const gift = e.team?.kind === 'gift' ? e.team.cardId : undefined;
     return { at: 'card', uid: src.uid, leaves: false, face: !!gift && cardIdOf?.(src.uid) === gift };
   }
@@ -476,6 +484,8 @@ const flown = new Set<string>();
  *  identity for that once (default its seed; a spectator's watched runs all carry seed 0, so they pass their run id). */
 export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number }, run: { seed: number; hand: readonly { uid: string; cardId: string }[]; board: readonly { uid: string; cardId: string }[]; shop: readonly { uid: string; cardId: string }[] }, id?: string): boolean {
   const key = `${id ?? run.seed}:${e.seq}`;
+  // CINDY ARMED GOLDEN GRATITUDE (R-DUOS-CINDY-01): her line as the arm leaves (the arm itself streams nothing).
+  if (e.team?.kind === 'gratitude' && !e.restored) speakGratitude(`send:${key}`);
   if (flown.has(key)) return false;
   const combatUid = e.combatIdx != null && combatSenders.wave === e.wave ? combatSenders.uid.get(e.combatIdx) ?? null : null;
   const cardIdOf = (uid: string): string | undefined =>

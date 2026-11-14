@@ -1465,6 +1465,21 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   already holds against the turn's two and empties the hat. Wishbone is never offered for it, and it is out of the Mimic / Void / Power Shifter
   pools like every Duos-only hero. A recorded team that includes a Magician plays from its recorded boards, so no copy
   is sent or owed there.
+  **Cindy** (10 Armor; owner 2026-11-14, R-DUOS-CINDY-01) wields **Golden Gratitude**: "The next minion your teammate
+  buys gives you a Gilded copy of it. Once per game." It costs 0 and is pressed once per GAME. The press ARMS it on her
+  teammate's run (a team effect on the pass channel); with no teammate the press is refused and nothing is spent. It
+  waits, across turns, for the teammate's next MINION buy: any minion bought out of their Shop counts, whatever put it
+  there (a normal roll, a rune reward such as the Golden Monkey, a Discover into the Shop, Contraband, a re-bought
+  Swapped minion). A spell (slot or row) does not count and does not spend it, and neither does a Starform (no minion
+  leaves the Shop). That buy sends Cindy a GILDED copy of the minion's plain card (double base stats; the bought card's
+  buffs and Shop stats do not ride along; a Gilded minion bought gives the same Gilded card), once. The teammate keeps
+  their minion. The copy travels as an effect pass like a Magic Hat copy: free, never refused for a full hand (it waits
+  for room), dropped if the room refuses it, and not a pass for any pass watcher. Cindy's power reads "waiting" until it
+  lands, then "spent" and names the card. A buy that completes the teammate's triple still sends the copy. While it is
+  armed the teammate's screen shows a gold glow on Cindy's portrait, and Cindy says her line on both screens as she
+  arms it. A reload replays her arm and the teammate's copy from the server's rows, so it never arms or pays twice. Out
+  of the Mimic / Void / Power Shifter pools (every Duos-only hero is). A recorded team that includes a Cindy plays from
+  its recorded boards, so nothing is armed or owed there.
   **Ancients are NOT on in Versus Duos or Ranked Duos** (owner 2026-11-10: "we arent turning ancients on just yet, but
   build it out"; R-ANCDUOS-01). Both heroes have all six Ancient pairings written and tested (R-ANCPRIESTESS-01..06,
   R-ANCMAGICIAN-01..06), reachable only on a DEV server or a bench bundle. No player build, room option or setting turns

@@ -472,6 +472,17 @@ describe('active-conditional stagers', () => {
     expect(reduce(solo, { type: 'heroPower', uid: 'p1' } as Act)).toBe(solo);
   });
 
+  it('Cindy (gratitude): on a Duos seat the press arms it for 0 Gold, once per game; with no teammate a full no-op', () => {
+    const s = at('cindy', { embers: 10, duos: { outbox: [], received: [], refused: [] } });
+    const after = reduce(s, { type: 'heroPower' } as Act);
+    expect(after.cindyGratitude).toBe('armed');
+    expect(after.embers, 'free').toBe(10);
+    expect(after.duos!.outbox[0]!.team).toEqual({ kind: 'gratitude' });
+    expect(reduce(after, { type: 'heroPower' } as Act), 'once per game').toBe(after);
+    const solo = at('cindy', { embers: 10 });
+    expect(reduce(solo, { type: 'heroPower' } as Act)).toBe(solo);
+  });
+
   it('Gildmaster (gildcrafter): with exactly 2 copies held, the power completes the Gild — and refuses without a pair', () => {
     const s = at('gildmaster', { embers: 10, hand: [], board: [m('p1', 'pup'), m('p2', 'pup')] });
     const after = reduce(s, { type: 'heroPower' } as Act);

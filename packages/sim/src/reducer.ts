@@ -39,6 +39,7 @@ import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounc
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { magicHatBuy, restoreMagicHatSend } from './magicHat';
+import { armGratitude, gratitudeBuy, gratitudeLanded, restoreGratitudeArm, restoreGratitudePay } from './goldenGratitude';
 import { ancientOnPassMade, ancientReceivePassBonds } from './ancients'; // Priestess (Duos)
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
@@ -716,6 +717,10 @@ function restoreEffectPass(state: RunState, a: Extract<Action, { type: 'restoreE
   const s = duosDraft(state);
   // A MAGIC HAT COPY (R-DUOS-MAGICIAN-01): the Magician kept the card they bought, so nothing leaves. The copy the
   // teammate holds counts against this turn's cap again and the hat starts over; the entry is put back as delivered.
+  // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): `arm` = my own arm row (Cindy's run is armed again, the charge spent);
+  // `pay` = the copy my buy sent (my teammate's arm is spent; nothing leaves my run, I keep the minion).
+  if (a.gratitude === 'arm') return restoreGratitudeArm(s) ? s : state;
+  if (a.gratitude === 'pay') return restoreGratitudePay(s, a.cardId, a.uid) ? s : state;
   if (a.hat) {
     const def = CARD_INDEX[a.cardId];
     if (!def || !restoreMagicHatSend(s)) return state;
@@ -1775,9 +1780,15 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
     }
     const next = receiveDuosPass(state, action.from, action.seq, action.card);
     // A card the teammate passed LANDED: your team passed a card (Hitchhiker, `teamPassedCard`, R-DUOS-CARDS-01).
-    // (A Magic Hat copy, `passHat`, is a copy, not a pass: no pass watcher hears it. R-DUOS-MAGICIAN-01.)
-    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`) && (action.card as { passHat?: unknown }).passHat !== true) {
+    // (A Magic Hat copy, `passHat`, is a copy, not a pass: no pass watcher hears it. R-DUOS-MAGICIAN-01. Nor is Cindy's
+    // Golden Gratitude copy, `passGratitude`. R-DUOS-CINDY-01.)
+    const copyPass = (action.card as { passHat?: unknown }).passHat === true || (action.card as { passGratitude?: unknown }).passGratitude === true;
+    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`) && !copyPass) {
       fireTeamPassTriggers(next, { mine: false, cardId: action.card.cardId });
+    }
+    // CINDY (R-DUOS-CINDY-01): the Gilded copy my teammate's buy owed me landed (or waits for room): the power is paid.
+    if (next !== state && next.duos?.received.includes(`${action.from}:${action.seq}`) && (action.card as { passGratitude?: unknown }).passGratitude === true) {
+      gratitudeLanded(next, action.card);
     }
     // ANCIENT OF BONDS x Priestess (R-ANCDUOS-01): the teammate's pass carries my left-most minion's gain (`passBonds`).
     // It lands with the card, on the one action that records its pass key, so never twice and never without the card.
@@ -2055,6 +2066,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
         jugglerBuy(s, offer.cardId);
         magicHatBuy(s, restored); // Magician: a re-bought displaced minion is a card bought (before the triple check folds it)
+        gratitudeBuy(s, restored); // Cindy's teammate: a re-bought displaced minion is a minion bought (R-DUOS-CINDY-01)
         checkTriples(s); // a restored copy can still complete a triple
         keshiCrownBuy(s, card); // …and a re-bought displaced minion is still a paid purchase — AFTER checkTriples,
         // so a buy that completes a triple (3→1) frees hand space before the guard checks it (owner report: a
@@ -2201,6 +2213,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // sends the teammate a copy of a random card in it. BEFORE checkTriples, so a buy that completes a triple still
       // puts the plain card that was bought in the hat.
       magicHatBuy(s, bought);
+      // Cindy's Golden Gratitude (R-DUOS-CINDY-01), on her TEAMMATE's run: this minion buy pays it (a Gilded copy). Every
+      // minion that leaves the Shop by a buy comes through here or the held branch above, whatever put it in the Shop.
+      gratitudeBuy(s, bought);
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       keshiCrownBuy(s, card); // Keshi: bank this minion's tier toward the Crown — AFTER checkTriples, so a
       // buy that completes a triple (3→1) frees hand space before the full-hand guard checks it
@@ -3825,6 +3840,10 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // application: `reps` (Wishbone) never passes a second minion.
         const target = passariaTarget(s, action.uid);
         if (!target || !passMinionToTeammate(s, target, { slot, paid: power.cost ?? 0 })) return state;
+      } else if (power.kind === 'gratitude') {
+        // Cindy (Duos only, R-DUOS-CINDY-01): ARM it on the teammate's run (a team effect). No-op (no charge) outside a
+        // Duos run or once used. One arm: `reps` (Wishbone) never doubles it. The once-per-game spend is the shared block's.
+        if (!armGratitude(s)) return state;
       } else if (power.kind === 'pocketMagic') {
         // Merrin: a random Shop spell (up to the current tier) to hand. No-op (no charge) if none exist or the
         // hand is full. Untargeted; the 1-Gold cost is spent by the shared block.

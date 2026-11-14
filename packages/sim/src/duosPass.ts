@@ -61,6 +61,10 @@ export interface DuosOutboxEntry {
    *  pass watchers on either run. `card` is the copy itself (the as-bought card the hat picked, under its own uid `hat<n>`):
    *  the screen shows that face rising out of the hat (the hero power), where the stream leaves from. */
   hat?: true;
+  /** CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): this entry is the GILDED COPY of a minion I bought, owed to my teammate
+   *  (Cindy) because they armed Golden Gratitude. Like a hat copy it travels as `via: 'sale'` (free, Golden, a refusal
+   *  returns nothing) with `passGratitude: true`, and is not a pass for the pass watchers on either run. */
+  gratitude?: true;
   /** ANCIENTS x the Duos heroes (R-ANCDUOS-01; set only on a run with Ancients on, by `ancientOnPassMade` / `magicHatBuy`):
    *  - `ancRise`: Priestess x Death gave this passed minion Rise (a refund takes it off again);
    *  - `bonds`: Priestess x Bonds: the teammate's left-most minion gains this when the card lands (`passBonds` on the wire);
@@ -121,6 +125,9 @@ export interface DuosRunState {
    *  a full hand is LANDED (answered, the sender keeps nothing back) and waits here, in arrival order; `landWaitingPasses`
    *  moves each into the hand the moment there is room (after any action). Persisted with the run, so a reload keeps it. */
   waiting?: { key: string; card: BoardCard; gift?: true }[];
+  /** CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): my teammate (Cindy) armed it, so my NEXT minion buy sends them a Gilded
+   *  copy of that minion (`gratitudeBuy`) and clears this. Set by their `gratitude` team effect. */
+  gratitude?: true;
 }
 
 /** A team-effect entry's placeholder card (it never lands anywhere). */
@@ -240,7 +247,7 @@ export function duosWireCard(card: BoardCard): BoardCard & { passFrom: 'hand' } 
 
 /** An outbox ENTRY as it travels: a drag pass as `duosWireCard` (`passFrom: 'hand'`), a spell's pass as
  *  `passFrom: 'spell'`, a team effect as `passFrom: 'team'` with its `team` payload (R-DUOS-CARDS-01). */
-export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true; passBonds?: { attack: number; health: number }; passCopies?: number } {
+export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true; passGratitude?: true; passBonds?: { attack: number; health: number }; passCopies?: number } {
   if (e.team) return { ...e.card, passFrom: 'team', team: structuredClone(e.team) };
   // ANCIENTS x the Duos heroes (R-ANCDUOS-01): what rides WITH the card, so it lands exactly when (and only if) the card
   // does: Priestess x Bonds' gain for the teammate's left-most minion, Magician x Genesis' copy count. Absent on every
@@ -248,6 +255,8 @@ export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' |
   const wire = { ...duosWireCard(e.card), ...(e.bonds ? { passBonds: { attack: e.bonds.attack, health: e.bonds.health } } : {}), ...(e.copies && e.copies > 1 ? { passCopies: e.copies } : {}) };
   // A Magic Hat copy (R-DUOS-MAGICIAN-01) says so: the receiver's run lands it without the pass watchers.
   if (e.hat) return { ...wire, passFrom: 'sale', passHat: true };
+  // Cindy's Golden Gratitude copy (R-DUOS-CINDY-01): the same, and the receiver's run marks the power paid.
+  if (e.gratitude) return { ...wire, passFrom: 'sale', passGratitude: true };
   // A hero power's pass names its slot and price, so a reload's replay can pay them again (R-DUOS-PASS-RESTORE-EFFECT-01).
   if (e.via) return { ...wire, passFrom: e.via, ...(e.power != null ? { passPower: e.power, passPaid: e.paid ?? 0 } : {}) };
   // A Playing Catch pass tells the teammate's run, so the team's shared count moves on both runs (R-DUOS-RUNES-01).
@@ -291,8 +300,9 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
   }
   duos.received.push(key);
   // The transport's markers (`passFrom`, the server's hand-only check; `teamCatch`) never ride into the hand.
-  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passBonds?: unknown; passCopies?: unknown };
+  const { passFrom: _f, team: _t, teamCatch, passPower: _p, passPaid: _q, passHat: _h, passGratitude: _g, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passGratitude?: unknown; passBonds?: unknown; passCopies?: unknown };
   void _h;
+  void _g;
   void _b;
   void _c;
   void _t;
@@ -311,8 +321,8 @@ export function receiveDuosPass(state: RunState, from: string, seq: number, card
 
 /** A wire card as it waits / lands: the transport's markers (`passFrom`, `team`, `teamCatch`) never ride into the hand. */
 function landedCard(card: BoardCard): BoardCard {
-  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, passHat: _h, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passBonds?: unknown; passCopies?: unknown };
-  void _f; void _t; void _g; void _p; void _q; void _h; void _b; void _c;
+  const { passFrom: _f, team: _t, teamCatch: _g, passPower: _p, passPaid: _q, passHat: _h, passGratitude: _r, passBonds: _b, passCopies: _c, ...landed } = structuredClone(card) as BoardCard & { passFrom?: unknown; team?: unknown; teamCatch?: unknown; passPower?: unknown; passPaid?: unknown; passHat?: unknown; passGratitude?: unknown; passBonds?: unknown; passCopies?: unknown };
+  void _f; void _t; void _g; void _p; void _q; void _h; void _r; void _b; void _c;
   return landed;
 }
 

@@ -324,6 +324,10 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   // EFFECT PASSES WAITING FOR MY HAND ROOM (owner 2026-10-30, R-DUOS-EFFECT-PASS-QUEUE-01): a count pill by the portrait,
   // so a card on its way is never a surprise. A number selector (stable), never while I watch my teammate.
   const waiting = useGame((s) => (watching || heroSelect ? 0 : s.run.duos?.waiting?.length ?? 0));
+  // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): the run on screen owes Cindy a Gilded copy of its next minion buy, so
+  // Cindy's portrait glows gold. On my board that is my teammate Cindy (this dock); while Cindy watches her teammate the
+  // run on screen is theirs and this dock is Cindy herself, so it glows there too. Never in Hero Select.
+  const gratitude = useGame((s) => !heroSelect && !!s.run.duos?.gratitude);
   const myPhase = useGame((s) => s.run.phase);
   const working = useMemo(() => {
     if (!roundKey) return false;
@@ -449,7 +453,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   return (
     <>
     <div
-      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${fallen ? ' fallen' : ''}${slide ? ' duosslide' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}`}
+      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${fallen ? ' fallen' : ''}${slide ? ' duosslide' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}${working ? ' working' : ''}${gratitude ? ' gratitude' : ''}`}
       style={style}
       // LIVE PINGS (R-PING-08): the teammate portrait (the pass slot) takes a ping. It is the TEAMMATE on your screen and
       // your own portrait while you watch theirs: the same person, on both screens.
@@ -469,10 +473,12 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       {inCombat || stands ? (
         <div ref={holdRef} className="duosdock-hold" data-duos-mate="" aria-label={mateLive ? `${face.name}. Your teammate's board is fighting.` : stands ? `${face.name}, the teammate of the player you watch.` : `${face.name}, your teammate.`}>
           <span className="duosdock-work" aria-hidden="true" />
+          {gratitude && <span className="duosdock-gratitude" aria-hidden="true" />}
           {disc}
         </div>
       ) : back ? (
         <div className="duosdock-hold" data-duos-mate="">
+          {gratitude && <span className="duosdock-gratitude" aria-hidden="true" />}
           <span className="duosdock-glow" aria-hidden="true" />
           <span className="duosdock-no" aria-hidden="true" />
           {disc}
@@ -487,6 +493,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           onClick={() => { if (!tapsOwnClick()) enterTeammateView(); }}
         >
           <span className="duosdock-work" aria-hidden="true" />
+          {gratitude && <span className="duosdock-gratitude" aria-hidden="true" />}
           <span className="duosdock-glow" aria-hidden="true" />
           <span className="duosdock-no" aria-hidden="true" />
           {disc}

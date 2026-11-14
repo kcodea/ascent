@@ -31,6 +31,7 @@ import { playPlateDissolve } from '../plateDissolve';
 import { stageHost, toStage } from '../stage';
 import { getDuosPassConfig, streamPalette } from './duosPassConfig';
 import { speakHatLine } from './hatLines';
+import { speakGratitude } from './gratitudeVoice';
 
 interface Box { left: number; top: number; width: number; height: number }
 interface Pt { x: number; y: number }
@@ -278,6 +279,10 @@ export interface PassFlightEntry {
   via?: 'spell' | 'sale';
   /** A Magic Hat copy (R-DUOS-MAGICIAN-01): `card` is the copy (a random card out of the hat, as it was bought). */
   hat?: true;
+  /** Cindy's Golden Gratitude copy (R-DUOS-CINDY-01): `card` is the Gilded copy of the minion `src` names (it stays). */
+  gratitude?: true;
+  /** Put back by a reload's restore replay: already delivered. */
+  restored?: true;
   team?: { kind: string; cardId?: string; randomSpell?: boolean; randomMinion?: boolean };
   combatIdx?: number;
   src?: { uid: string } | { discover: number } | { rune: string } | { equip: string };
@@ -309,6 +314,9 @@ export function passFlightOf(e: PassFlightEntry, combatUid?: string | null, card
   if (e.hat) return { at: 'hat', uid: e.card.uid };
   if (src && 'uid' in src) {
     if (!e.team && src.uid === e.card.uid) return { at: 'card', uid: src.uid, leaves: true, face: true };
+    // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): the minion my teammate's arm paid for stays; a copy of its face rises off
+    // it and streams into Cindy's portrait (the Monstrocity-copy look).
+    if (e.gratitude) return { at: 'card', uid: src.uid, leaves: false, face: true };
     const gift = e.team?.kind === 'gift' ? e.team.cardId : undefined;
     return { at: 'card', uid: src.uid, leaves: false, face: !!gift && cardIdOf?.(src.uid) === gift };
   }
@@ -457,6 +465,25 @@ export function playPassFlight(f: PassFlight | null, hat?: { card: unknown; run:
   return streamFrom(el, f.at === 'discover' || (f.at === 'card' && f.face));
 }
 
+/** How long a Golden Gratitude send waits for its bought minion to be on screen (frames, about half a second). */
+export const GRATITUDE_WAIT_FRAMES = 30;
+
+/**
+ * A send whose source card is not on screen yet (Golden Gratitude: the minion the buy made, R-DUOS-CINDY-01). Retried
+ * once a frame (one query, one rect read) until the card has a box, then streamed as usual. A card that never shows
+ * (a buy that completed a triple folds it away) streams from my hero portrait instead, so the send is always seen.
+ */
+function playWhenOnScreen(f: Extract<PassFlight, { at: 'card' }>, left = GRATITUDE_WAIT_FRAMES): void {
+  if (typeof document === 'undefined' || typeof requestAnimationFrame === 'undefined') return;
+  requestAnimationFrame(() => {
+    const el = passFlightEl(f);
+    if (el && el.getBoundingClientRect().width > 0) { playPassFlight(f); return; }
+    if (left > 0) { playWhenOnScreen(f, left - 1); return; }
+    const hero = q('.statusbar .hero .f');
+    if (hero) streamFrom(hero, false);
+  });
+}
+
 /** IN COMBAT: the body each of my fight's `teamSend` beats named (carry index -> uid), noted by the combat sync as the
  *  replay reaches them, read when the held entry ships on that beat. */
 const combatSenders = { wave: -1, uid: new Map<number, string | null>() };
@@ -476,6 +503,8 @@ const flown = new Set<string>();
  *  identity for that once (default its seed; a spectator's watched runs all carry seed 0, so they pass their run id). */
 export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number }, run: { seed: number; hand: readonly { uid: string; cardId: string }[]; board: readonly { uid: string; cardId: string }[]; shop: readonly { uid: string; cardId: string }[] }, id?: string): boolean {
   const key = `${id ?? run.seed}:${e.seq}`;
+  // CINDY ARMED GOLDEN GRATITUDE (R-DUOS-CINDY-01): her line as the arm leaves (the arm itself streams nothing).
+  if (e.team?.kind === 'gratitude' && !e.restored) speakGratitude(`send:${key}`);
   if (flown.has(key)) return false;
   const combatUid = e.combatIdx != null && combatSenders.wave === e.wave ? combatSenders.uid.get(e.combatIdx) ?? null : null;
   const cardIdOf = (uid: string): string | undefined =>
@@ -483,6 +512,9 @@ export function playEntryFlight(e: PassFlightEntry & { seq: number; wave: number
   const f = passFlightOf(e, combatUid, cardIdOf);
   if (!f) return false;
   flown.add(key);
+  // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): the stream leaves the minion the buy just made. This runs inside the
+  // store commit, before React mounts that card (a fresh uid; a drag-buy is still landing), so it waits for it.
+  if (e.gratitude && f.at === 'card') { playWhenOnScreen(f); return true; }
   // THE MAGICIAN SPEAKS as the copy leaves the hat (once per copy on this screen, the line the teammate hears too).
   if (f.at === 'hat') speakHatLine(e.card.uid);
   return playPassFlight(f, f.at === 'hat' ? { card: e.card, run } : undefined);

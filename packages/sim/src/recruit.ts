@@ -15,6 +15,7 @@ import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive,
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
+import { gratitudeView } from './goldenGratitude';
 import { duosCatchFromMate, duosListen, duosOnGild, duosOnPassed, duosOnSoldHandMeDowns, duosSaleShouldPass } from './duosRunes';
 import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
@@ -1392,6 +1393,16 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
     if (hat.active) return `Your hat is **ready** (**${hat.count}/${hat.need}**). The next card you buy sends your teammate a copy of a random card in it. ${cap}`;
     const progress = hat.capped ? `**${hat.count}/${hat.need}**, sends on your first buy next turn` : `**${hat.count}/${hat.need}**`;
     return `After you buy **${hat.need}** cards (${progress}), your teammate gets a copy of a random one. ${cap}`;
+  }
+  if (power.kind === 'gratitude') {
+    // Cindy (R-DUOS-CINDY-01): the live state from `gratitudeView`, the read the press and the payout share.
+    const g = gratitudeView(state);
+    if (g.state === 'armed') return "**Waiting** for your teammate's next minion buy. You get a **Gilded** copy of it.";
+    if (g.state === 'paid') {
+      const name = g.cardId ? CARD_INDEX[g.cardId]?.name : undefined;
+      return name ? `Spent. Your teammate bought **${name}**, and you got a **Gilded** copy.` : "Spent. You got a **Gilded** copy of your teammate's buy.";
+    }
+    return power.text;
   }
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
@@ -18187,6 +18198,8 @@ export function receiveTeamEffect(state: RunState, from: string, seq: number, ef
     duosListen(s, effect.what); // Gild Pact on the teammate's run: tell it my Gilds
   } else if (effect.kind === 'mateGild') {
     duosOnMateGild(s, key);
+  } else if (effect.kind === 'gratitude') {
+    d.gratitude = true; // Cindy armed Golden Gratitude: my next minion buy sends her a Gilded copy (R-DUOS-CINDY-01)
   }
   d.received.push(key);
   return s;

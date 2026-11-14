@@ -4326,7 +4326,10 @@ export type TeamEffect =
    *  gift. */
   | { kind: 'listen'; what: 'gild' }
   /** The teammate Gilded a minion (sent only while this run listens for it). */
-  | { kind: 'mateGild' };
+  | { kind: 'mateGild' }
+  /** CINDY'S GOLDEN GRATITUDE (owner 2026-11-14, R-DUOS-CINDY-01): the sender (Cindy) armed it. The receiver's NEXT
+   *  minion buy sends the sender a Gilded copy of that minion, once. Carries nothing else. */
+  | { kind: 'gratitude' };
 
 export interface ShoutCarry {
   /** DUOS: team effects a combat body produced (`sendTeam`): `self` lands on this side's run at settle, `mate` is

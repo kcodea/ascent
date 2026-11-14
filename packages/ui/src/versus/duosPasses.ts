@@ -14,6 +14,7 @@ import { duosWaitingCount, duosWireOf, handCap, mateTribeCounts, runReadsMateTri
 import { useGame } from '../store';
 import { playArrival, playEntryFlight } from './passLob';
 import { resetHatLines, speakHatLine } from './hatLines';
+import { resetGratitudeVoice, speakGratitude } from './gratitudeVoice';
 import { notePassRefused, passReturnedText } from './duosPassUi';
 import { sfx } from '../sfx';
 import { ownRunWhileWatching, setMateFrameHook, teammateViewOf } from './spectate';
@@ -49,6 +50,7 @@ function session(matchId: string, me: VersusGroupSeat): DuosSession {
   if (!ses || ses.matchId !== matchId || ses.me !== me) {
     ses = { matchId, me, inFlight: new Set(), room: null, pulling: false, again: false, ready: false, reconciling: false, seqOf: new Map(), base: 0, firstNew: 0, shipped: new Set() };
     resetHatLines(); // a new match: its Magic Hat copies are numbered from the start again
+    resetGratitudeVoice();
   }
   return ses;
 }
@@ -232,7 +234,7 @@ export function atMicros(at: unknown): number | null {
 type ReplayAction =
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   | { type: 'passCard'; uid: string }
-  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; hat?: true }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; hat?: true; gratitude?: 'arm' | 'pay' }
   | { type: 'passRefunded'; seq: number };
 
 /**
@@ -291,12 +293,22 @@ export function replayRestore(
     const key = keyOf(r.card);
     const uid = typeof r.card.uid === 'string' ? r.card.uid : null;
     const via = r.card.passFrom;
+    // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): my own arm row (a team effect) is put back, so a reload can never arm
+    // it twice; the room holds it, and my teammate's run already heard it.
+    if (via === 'team' && (r.card as { team?: { kind?: unknown } }).team?.kind === 'gratitude') {
+      if (r.status === 'refused') continue;
+      const sent = live.duos?.outbox.length ?? 0;
+      act({ type: 'restoreEffectPass', uid: typeof r.card.uid === 'string' ? r.card.uid : '', cardId: String(r.card.cardId), via: 'sale', gratitude: 'arm' });
+      if ((getRun().duos?.outbox.length ?? 0) > sent) { seqOf.set(sent, r.seq); shipped.add(sent); }
+      continue;
+    }
     if (via === 'spell' || via === 'sale') {
       if (r.status === 'refused' || !uid || typeof r.card.cardId !== 'string') continue;
       const sent = live.duos?.outbox.length ?? 0;
       const power = r.card.passPower === 0 || r.card.passPower === 1 ? r.card.passPower : undefined;
       // (A Magic Hat copy, `passHat`: nothing leaves my run; it counts against the turn's two copies again. R-DUOS-MAGICIAN-01.)
-      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}), ...(r.card.passHat === true ? { hat: true as const } : {}) });
+      // (A Golden Gratitude copy, `passGratitude`: nothing leaves my run; my teammate's arm is spent. R-DUOS-CINDY-01.)
+      act({ type: 'restoreEffectPass', uid, cardId: r.card.cardId, via, ...(power != null ? { power, paid: Number(r.card.passPaid) || 0 } : {}), ...(r.card.passHat === true ? { hat: true as const } : {}), ...((r.card as { passGratitude?: unknown }).passGratitude === true ? { gratitude: 'pay' as const } : {}) });
       if ((getRun().duos?.outbox.length ?? 0) > sent) { seqOf.set(sent, r.seq); shipped.add(sent); }
       continue;
     }
@@ -405,6 +417,8 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
         // which rides the row), as the row is taken. Once per copy: a copy held for hand room speaks now and not when it
         // lands, a row delivered again was answered above, and a copy I already heard while watching their board is silent.
         if ((r.card as { passHat?: unknown }).passHat === true && after.duos?.received.includes(key)) speakHatLine((r.card as { uid?: unknown }).uid);
+        // MY TEAMMATE (Cindy) ARMED GOLDEN GRATITUDE (R-DUOS-CINDY-01: "heard by Cindy AND the teammate"): her line, once.
+        if ((r.card as { team?: { kind?: unknown } }).team?.kind === 'gratitude' && after.duos?.received.includes(key)) speakGratitude(`mate:${s.matchId}:${key}`);
         const got = after.hand.find((c) => !before.has(c.uid));
         if (got && (after.triplesMade ?? 0) === triples && !ownRunWhileWatching()) playArrival(got.uid);
       }

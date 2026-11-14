@@ -40,7 +40,7 @@ export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> 
 export const keywordLandAtMs = (kw: BeamKeyword, arrive: number): number => Math.max(0, KEYWORD_LAND_AT_MS[kw] ?? arrive);
 
 /** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier", then "earlier too, maybe 70 ms"). */
-export const TAUNT_SOUND_LEAD_MS = 170;
+export const TAUNT_SOUND_LEAD_MS = 155;
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;

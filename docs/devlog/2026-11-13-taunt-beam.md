@@ -31,3 +31,4 @@ Owner: "now im making a taunt beam".
   (appear) at 160 ms"), replacing the lead-before-arrival number, so re-saving the beam no longer moves it.
 - Then 190 ms (owner: "delay the frame another 30ms").
 - Then 210 ms (owner: "have shield frame delayed another 20ms").
+- The Taunt sound leads the frame by 155 ms, so it rings 55 ms after launch (owner: "delay the taunt deploy sound effect by 15ms").

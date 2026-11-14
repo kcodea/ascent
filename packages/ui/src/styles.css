@@ -3884,6 +3884,11 @@ body.modalup .app { z-index: auto; }
 /* TOUCH ACTION (owner 2026-10-18, R-TOUCH-INSPECTACT-01): the Discover's gold Peek pill, reused as Inspect's Buy / Pick.
    Low on the screen, under the enlarged card, above the home indicator. Only rendered for a finger (Inspect.tsx). */
 .disc-toggle.disc-peek.inspect-act { --pk: 2.4; top: auto; bottom: calc(1.5% + var(--safe-b, 0px)); z-index: 501; }
+/* THE RUNE INSPECT's row (RuneInspect.tsx, R-RUNE-INSPECT-01): the rune and the cards it names, at the Inspect's own sizes.
+   `lineUp` measures what each card paints and writes `translate`s that put them side by side with a clear gap, plate
+   tops level with the rune top, the row centred (a plated card paints far past its box, so flex alone overlapped). */
+.rune-inspect-row { position: relative; display: flex; align-items: center; gap: inherit; }
+.rune-inspect-origin { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; } /* lineUp's probe of the layout-to-screen map */
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
 /* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).

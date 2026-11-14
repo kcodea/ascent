@@ -2112,8 +2112,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeTopShelf' | 'runeDoubleBill' | 'runeBulwarkLine' | 'runeWholesale' | 'runeGrudge' | 'runeBastion' | 'runeMirrorSheen'
   // Set 2 rune batch, Epic tribal (owner 2026-11-12): bigSpender / royalTreasury / eldersVoice (its Shop half) are Shop
   // hooks; feralReturn = SoC Rise on the left-most Beast + a Rising Beast gains +5/+5; packTactics = an attacked Beast
-  // fires its Rally; bloodFrenzy = a Beast's kill fires the left-most Rally; hellfire = a Demon attack/death deals 1 to
-  // all enemies; wildfire = an enemy's non-attack damage death deals 3 to all enemies (3 per combat); gemRain = SoC
+  // fires its Rally; bloodFrenzy = a Beast's kill fires the left-most Rally; hellfire = a Demon attack/death: that Demon deals 1
+  // to all enemies (Demon damage); wildfire = a friendly minion's kill deals the dead enemy's Attack to a random enemy
+  // minion (3 per combat); gemRain = SoC
   // 2 permanent Rubies on every friendly minion.
   | 'runeBigSpender' | 'runeRoyalTreasury' | 'runeFeralReturn' | 'runePackTactics' | 'runeBloodFrenzy' | 'runeHellfire'
   | 'runeWildfire' | 'runeEldersVoice' | 'runeGemRain'
@@ -2968,9 +2969,11 @@ export interface QuestCombatMods {
   runePackTactics?: boolean;
   /** Blood Frenzy: a Beast that kills an enemy minion by attacking fires the left-most Rally (per copy). */
   runeBloodFrenzy?: boolean;
-  /** Hellfire: a friendly Demon's attack or death deals 1 damage to every enemy minion (per copy). */
+  /** Hellfire: a friendly Demon's attack or death has THAT Demon deal 1 damage to every enemy minion (per copy); it is
+   *  Demon damage (owner 2026-11-13). */
   runeHellfire?: boolean;
-  /** Wildfire: an enemy minion dying to non-attack damage deals 3 damage to every enemy minion (3 per combat per copy). */
+  /** Wildfire: an enemy minion killed by a friendly minion's hit deals its Attack to one random enemy minion (3 per
+   *  combat per copy; owner rework 2026-11-13). Sourceless, so it cannot chain. */
   runeWildfire?: boolean;
   /** Elder's Voice: the run-board uid (matched on `sourceUid`) of the body whose Shout fired first this turn; its Shout
    *  fires again at Start of Combat (per copy). Absent = no Shout this turn, or the rune is not held. */
@@ -3547,7 +3550,7 @@ export type CombatEvent = (
   | { type: 'handBuff'; uid: string; cardId: string; side: Side; attack: number; health: number; source?: string } // a combat effect buffs a card IN YOUR HAND — permanent (R-HAND-02, owner 2026-09-09), carried back via `playerHandBuffs`; the replay grows the hand card live
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
-  | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
+  | { type: 'questTrigger'; flag: string; side: Side; from?: string } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node. `from` (presentation only, R-RUNE-SPIKE-FX-01): the board body the rune's effect visibly comes FROM (Hellfire's Demon, Wildfire's dying enemy, the Pitchforks Imp), where its authored hit effect launches
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
   | { type: 'pummelTrigger'; source: string; side: Side; marker: string } // PUMMEL (X) fired (2026-09-21, `DAMAGE_METER_MARKERS`): the body's lifetime damage meter crossed a multiple of X and PAID OUT. `source` = the body whose meter fired, `marker` = the meter's `do` (`dealtDamageAleMeter` / `dealtDamageGoldNextTurn` / `dealtDamageGrantRandomTribe`). ONE event per PAYOUT, at most the marker's `maxPerCombat` per body per combat (default 1 — Goldvein, Maestro Lux; Han Gover 5, owner 2026-09-24): a hit crossing several multiples emits one per multiple paid, up to the cap; a meter that pays nothing (a set with no Ales) emits nothing. Emitted AFTER the `dmg` that reached X (and after the victim's `onDamaged` reactors, which `applyDamage` runs before the meter — a Target Dummy's `buff` or a Hearth Whisperer's `handBuff` can sit between) and BEFORE the payout's own events (`toHand`), so the replay plays the trigger flash on the hit and the Ale's flight follows. Presentation only — the payout is already carried by `toHand` / `playerBonusGold`.
 ) & { step?: number; avenge?: true; key?: string; srcCard?: string; wave?: number };
@@ -4799,11 +4802,10 @@ export interface CombatContext {
 
 /** SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12): the printed numbers both phases, the badge and the tests read.
  *  Royal Treasury: "When you buy 5 Dwarves, gain +1 maximum Gold." Feral Return: "Beasts that Rise gain +5/+5."
- *  Hellfire: "deal 1 damage to all enemies". Wildfire: "deal 3 damage to all enemies. (3 per combat.)" Gem Rain:
+ *  Hellfire: "deal 1 damage to all enemies". Wildfire: "(3 times per combat.)" Gem Rain:
  *  "cast 2 permanent Rubies on all your minions". Vein Finder rides the generic `refresh` threshold (per 3). */
 export const ROYAL_TREASURY_PER = 5;
 export const FERAL_RETURN_GAIN = 5;
 export const HELLFIRE_DAMAGE = 1;
-export const WILDFIRE_DAMAGE = 3;
 export const WILDFIRE_PER_COMBAT = 3;
 export const GEM_RAIN_RUBIES = 2;

@@ -262,7 +262,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // SEVEN since 2026-11-04: the ON RALLY cue for an ORDINARY Rally (no ally proc, e.g. Chorus Drake) — one
   // `playDef(ownRally.def, …)` at the attacker's wind-up pulse, resolved by `ownRallyBindingFor`. Ally procs
   // (Echohorn) still play through the score's `rallyFx` row; this covers the Rally that logs no `rally` event.
-  'useCombatReplay.ts': 8, // + Drakko's combat Shout watcher (2026-11-04, its bound `watcher` def)
+  // NINE since 2026-11-13: `scheduleRuneSpikes` — one `playDef(v.def, …)` throwing a RUNE's own hits (Pitchforks, Imp
+  // Legion, Hellfire, Wildfire, Mirror Sheen → `fel-spike`), resolved through `bindingFor(runeId, 'damage')` and launched
+  // a beat before the hits like the death-launch line above (R-RUNE-SPIKE-FX-01). Data-resolved, not a literal.
+  'useCombatReplay.ts': 9, // + Drakko's combat Shout watcher (2026-11-04, its bound `watcher` def)
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic

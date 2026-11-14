@@ -6,8 +6,9 @@
  *   Feral Return    Beast  4  Start of Combat: give your left-most Beast Rise. Beasts that Rise gain +5/+5.
  *   Pack Tactics    Beast  4  Your Beasts' Rallies also trigger when that Beast is attacked.
  *   Blood Frenzy    Beast  4  When a Beast kills a minion, trigger your left-most Rally.
- *   Hellfire        Demon  3  When a Demon attacks or dies, deal 1 damage to all enemies.
- *   Wildfire        Demon  4  When an enemy dies to damage that is not an attack, deal 3 damage to all enemies. (3 per combat.)
+ *   Hellfire        Demon  3  When a Demon attacks or dies, deal 1 damage to all enemies. This counts as Demon damage.
+ *   Wildfire        Demon  4  When one of your minions kills an enemy, deal that enemy's Attack as damage to a random enemy
+ *                             minion. (3 times per combat.)  (owner rework 2026-11-13; Hellfire became Demon damage the same day)
  *   Elder's Voice   Dragon 3  Your first Shout each turn also triggers at Start of Combat.
  *   Vein Finder     Kobold 3  After every 3rd Refresh, cast a Ruby on all your minions.
  *   Gem Rain        Kobold 4  Start of Combat: cast 2 permanent Rubies on all your minions.
@@ -74,8 +75,8 @@ describe('the ten runes as content', () => {
       ['rune_feral_return', 'Feral Return', 4, 'beast', '**Start of Combat:** give your left-most **Beast** **Rise**. **Beasts** that **Rise** gain **+5/+5**.'],
       ['rune_pack_tactics', 'Pack Tactics', 4, 'beast', "Your **Beasts'** **Rallies** also trigger when that Beast is attacked."],
       ['rune_blood_frenzy', 'Blood Frenzy', 4, 'beast', 'When a **Beast** kills a minion, trigger your left-most **Rally**.'],
-      ['rune_hellfire', 'Hellfire', 3, 'demon', 'When a **Demon** attacks or dies, deal **1** damage to all enemies.'],
-      ['rune_wildfire', 'Wildfire', 4, 'demon', 'When an enemy dies to damage that is not an attack, deal **3** damage to all enemies. (3 per combat.)'],
+      ['rune_hellfire', 'Hellfire', 3, 'demon', 'When a **Demon** attacks or dies, deal **1** damage to all enemies. This counts as **Demon** damage.'],
+      ['rune_wildfire', 'Wildfire', 4, 'demon', "When one of your minions kills an enemy, deal that enemy's **Attack** as damage to a random enemy minion. (**3** times per combat.)"],
       ['rune_elders_voice', "Elder's Voice", 3, 'dragon', 'Your first **Shout** each turn also triggers at **Start of Combat**.'],
       ['rune_vein_finder', 'Vein Finder', 3, 'kobold', 'After every **3rd** Refresh, cast a **Ruby** on all your minions.'],
       ['rune_gem_rain', 'Gem Rain', 4, 'kobold', '**Start of Combat:** cast **2** permanent **Rubies** on all your minions.'],
@@ -233,34 +234,95 @@ describe('BLOOD FRENZY: When a Beast kills a minion, trigger your left-most Rall
   });
 });
 
-describe('HELLFIRE: When a Demon attacks or dies, deal 1 damage to all enemies', () => {
-  const sourcelessOnes = (r: Fight, uids: string[]) => r.events.filter((e): e is Dmg => e.type === 'dmg' && e.amount === 1 && !('source' in e) && uids.includes(e.target)).length;
-  it('every Demon swing sends 1 damage to every enemy', () => {
+describe('HELLFIRE: When a Demon attacks or dies, deal 1 damage to all enemies (Demon damage, owner 2026-11-13)', () => {
+  // The volley is dealt BY the Demon that attacked or died (owner 2026-11-13: "Hellfire only counts as Demon damage"),
+  // the Fel Spikes spray shape: every hit that LANDS is one "a Demon deals damage" (Rachel, Todd, Ruinous Lord, Ruins),
+  // counts toward that Demon's Pummel, and an Execute Demon executes what it lands on.
+  const hellOnes = (r: Fight, dealer: string, uids: string[]) => r.events.filter((e): e is Dmg => e.type === 'dmg' && e.amount === 1 && e.source === dealer && uids.includes(e.target)).length;
+  const swingsOf = (r: Fight, uid: string) => r.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uid).length;
+  const demonHits = (r: Fight, s: 'player' | 'enemy' = 'player') => {
+    const demons = new Set(r.initial[s].filter((m) => CARD_INDEX[m.cardId]?.tribe === 'demon').map((m) => m.uid));
+    return r.events.filter((e): e is Dmg => e.type === 'dmg' && !!e.source && demons.has(e.source)).length;
+  };
+  const rachelFires = (r: Fight, s: 'player' | 'enemy' = 'player') => {
+    const rach = r.initial[s].find((m) => m.cardId === 'dm_radrachel')!.uid;
+    return r.events.filter((e) => e.type === 'buff' && e.target === rach && (e as Buff).source === rach).length;
+  };
+  it('every Demon swing sends 1 damage to every enemy, dealt by that Demon', () => {
     const r = fight([bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] })], [wall(0), dummy('e1', 5000), dummy('e2', 5000)], { runeHellfire: true });
-    const swings = r.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uidOf(r, 'd')).length;
+    const swings = swingsOf(r, uidOf(r, 'd'));
     expect(swings).toBeGreaterThan(0);
     expect(triggers(r.events, 'runeHellfire')).toHaveLength(swings);
-    const enemies = r.initial.enemy.map((m) => m.uid);
-    expect(sourcelessOnes(r, enemies)).toBe(swings * 3);
+    expect(hellOnes(r, uidOf(r, 'd'), r.initial.enemy.map((m) => m.uid))).toBeGreaterThanOrEqual(swings * 3);
     const off = fight([bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] })], [wall(0), dummy('e1', 5000), dummy('e2', 5000)], {});
-    expect(sourcelessOnes(off, off.initial.enemy.map((m) => m.uid))).toBe(0);
+    expect(triggers(off.events, 'runeHellfire')).toHaveLength(0);
   });
-  it('a Demon that dies sends 1 damage to every enemy; a non-Demon does not', () => {
+  it('a Demon that dies sends 1 damage to every enemy, dealt by the dying Demon; a non-Demon does not', () => {
     const r = fight([bm('d', 'dm_hank', { attack: 0, health: 1 })], [wall(5), dummy('e1', 50)], { runeHellfire: true });
     expect(triggers(r.events, 'runeHellfire')).toHaveLength(1);
     const death = r.events.findIndex((e) => e.type === 'death' && e.target === uidOf(r, 'd'));
-    const after = r.events.slice(death).filter((e): e is Dmg => e.type === 'dmg' && e.amount === 1 && !('source' in e));
+    const after = r.events.slice(death).filter((e): e is Dmg => e.type === 'dmg' && e.amount === 1 && e.source === uidOf(r, 'd'));
     expect(after.length).toBe(2);
     const n = fight([bm('d', NEUTRAL, { attack: 0, health: 1 })], [wall(5), dummy('e1', 50)], { runeHellfire: true });
     expect(triggers(n.events, 'runeHellfire')).toHaveLength(0);
   });
-  it('with Ruins: the rune deals the volley, so Ruins hears only the Demon\'s own hits', () => {
-    const board = () => [bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] })];
-    const foes = () => [wall(0), dummy('e1', 5000), dummy('e2', 5000)];
-    const both = fight(board(), foes(), { runeHellfire: true, runeRuins: true });
-    const swings = both.events.filter((e) => e.type === 'attack' && (e as { attacker: string }).attacker === uidOf(both, 'd')).length;
-    expect(triggers(both.events, 'runeHellfire').length).toBe(swings);
-    expect(triggers(both.events, 'runeRuins').length, 'one Ruins pump per Demon swing, none per Hellfire hit').toBe(swings);
+  it('attack half + Rad Rachel: Rachel fires once per Hellfire hit that lands (plus the swing itself)', () => {
+    const mine = () => [bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] }), bm('r', 'dm_radrachel', { attack: 0, health: 5000 })];
+    const theirs = () => [dummy('e1', 5000), dummy('e2', 5000), dummy('e3', 5000)];
+    const r = fight(mine(), theirs(), { runeHellfire: true });
+    const volleys = triggers(r.events, 'runeHellfire').length;
+    expect(volleys).toBeGreaterThan(0);
+    const hits = demonHits(r);
+    expect(hits).toBeGreaterThanOrEqual(volleys * 3); // three enemies, all survive: three landed hits per volley
+    expect(rachelFires(r)).toBe(hits);
+    const off = fight(mine(), theirs(), {});
+    expect(triggers(off.events, 'runeHellfire')).toHaveLength(0);
+    expect(rachelFires(off)).toBe(demonHits(off)); // without the rune: the Demons' own landed swings alone
+  });
+  it('death half + Rad Rachel: the dying Demon\'s volley fires Rachel once per landed hit', () => {
+    const r = fight([bm('d', 'dm_hank', { attack: 0, health: 1 }), bm('r', 'dm_radrachel', { attack: 0, health: 5000 })],
+      [wall(5), dummy('e1', 5000)], { runeHellfire: true });
+    const hank = uidOf(r, 'd');
+    const death = r.events.findIndex((e) => e.type === 'death' && e.target === hank);
+    expect(death).toBeGreaterThan(-1);
+    const deathHits = r.events.slice(death).filter((e): e is Dmg => e.type === 'dmg' && e.source === hank).length;
+    expect(deathHits).toBe(2);
+    expect(rachelFires(r)).toBe(demonHits(r));
+  });
+  it('with Ruins: one Hellfire volley pumps Ruins exactly as one Fel Spikes spray does (once per landed hit)', () => {
+    const foes = () => [wall(5, 'w', 5000), dummy('e1', 5000), dummy('e2', 5000)];
+    const ruinsAfterDeath = (r: Fight) => {
+      const d = r.events.findIndex((e) => e.type === 'death' && e.target === uidOf(r, 'd'));
+      return d < 0 ? -1 : triggers(r.events.slice(d), 'runeRuins').length;
+    };
+    const spikes = fight([bm('d', 'dm_felspikes', { attack: 0, health: 1, keywords: [] })], foes(), { runeRuins: true });
+    const hell = fight([bm('d', 'dm_hank', { attack: 0, health: 1 })], foes(), { runeRuins: true, runeHellfire: true });
+    expect(ruinsAfterDeath(spikes)).toBe(3);
+    expect(ruinsAfterDeath(hell)).toBe(ruinsAfterDeath(spikes));
+  });
+  it('the volley counts toward the Demon\'s Pummel (Impossible Todd summons his Imp on the third swing)', () => {
+    const foes = () => [wall(0), ...Array.from({ length: 6 }, (_, i) => dummy(`e${i}`, 5000))];
+    const r = fight([bm('t', 'dm_todd', { attack: 1, health: 5000, keywords: [] })], foes(), { runeHellfire: true });
+    const imp = r.events.findIndex((e) => e.type === 'summon' && e.side === 'player');
+    expect(imp).toBeGreaterThan(-1);
+    // 1 (the swing) + 7 (the volley) per swing: the 20 is crossed on the third swing.
+    expect(swingsOf({ ...r, events: r.events.slice(0, imp) }, uidOf(r, 't'))).toBe(3);
+  });
+  it('an Execute Demon executes what its volley lands on (the venom spends on the first landed hit, as a spray)', () => {
+    const r = fight([bm('d', 'dm_hank', { attack: 0, health: 1, keywords: ['V'] })], [wall(5, 'w', 5000), dummy('e1', 5000)], { runeHellfire: true });
+    const enemies = r.initial.enemy.map((m) => m.uid);
+    expect(r.events.filter((e) => e.type === 'poison' && enemies.includes(e.target)).length).toBe(1);
+    const off = fight([bm('d', 'dm_hank', { attack: 0, health: 1, keywords: ['V'] })], [wall(5, 'w', 5000), dummy('e1', 5000)], {});
+    expect(off.events.filter((e) => e.type === 'poison' && off.initial.enemy.some((m) => m.uid === e.target)).length).toBe(0);
+  });
+  it('symmetric: a served enemy side\'s Hellfire fires ITS Rachel the same way', () => {
+    const mine = () => [bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] }), bm('r', 'dm_radrachel', { attack: 0, health: 5000 })];
+    const theirs = () => [dummy('e1', 5000), dummy('e2', 5000), dummy('e3', 5000)];
+    const e = fight(theirs(), mine(), {}, 4, { runeHellfire: true });
+    const volleys = triggers(e.events, 'runeHellfire', 'enemy').length;
+    expect(volleys).toBeGreaterThan(0);
+    expect(demonHits(e, 'enemy')).toBeGreaterThanOrEqual(3 * volleys);
+    expect(rachelFires(e, 'enemy')).toBe(demonHits(e, 'enemy'));
   });
   it('two sides with Hellfire: Demon deaths chain across but the fight ends (bounded)', () => {
     const p = () => Array.from({ length: 4 }, (_, i) => bm(`p${i}`, 'dm_hank', { attack: 1, health: 2 }));
@@ -272,35 +334,79 @@ describe('HELLFIRE: When a Demon attacks or dies, deal 1 damage to all enemies',
   });
 });
 
-describe('WILDFIRE: When an enemy dies to damage that is not an attack, deal 3 damage to all enemies. (3 per combat.)', () => {
-  // Gasket's Rally deals damage to every non-Demon: effect damage, not an attack.
-  const gasket = () => [bm('g', 'dm_gasket', { health: 5000 })];
-  it('an enemy killed by effect damage sends 3 damage to all enemies; at most 3 times per combat, 3 more per copy', () => {
-    const foes = () => [wall(0, 'w', 5000), ...Array.from({ length: 6 }, (_, i) => dummy(`e${i}`))];
-    const one = fight(gasket(), foes(), { runeWildfire: true });
-    const two = fight(gasket(), foes(), { runeWildfire: true, flagCopies: { runeWildfire: 2 } });
-    const off = fight(gasket(), foes(), {});
+describe('WILDFIRE: When one of your minions kills an enemy, deal that enemy\'s Attack as damage to a random enemy minion. (3 times per combat.)', () => {
+  // The damage event right after each Wildfire trigger (a Ward pop counts as the hit, so it is skipped here).
+  const wildHits = (r: Fight, s: 'player' | 'enemy' = 'player') => {
+    const out: Dmg[] = [];
+    r.events.forEach((e, i) => {
+      if (e.type === 'questTrigger' && e.flag === 'runeWildfire' && (e as { side?: string }).side === s) {
+        const d = r.events.slice(i + 1).find((x) => x.type === 'dmg' || x.type === 'shield');
+        if (d && d.type === 'dmg') out.push(d as Dmg);
+      }
+    });
+    return out;
+  };
+  const killer = () => [bm('k', NEUTRAL, { attack: 10, health: 5000, keywords: [] })];
+  // Six 4-Attack, 1-Health enemies beside a 0/5000 wall: every attack kill is a 4-damage Wildfire hit.
+  const foes = () => [wall(0, 'w', 5000), ...Array.from({ length: 6 }, (_, i) => bm(`e${i}`, PLAIN[2]!, { attack: 4, health: 1, keywords: [] }))];
+  it('an ATTACK kill fires it: the dead enemy\'s Attack, to one random enemy minion, 3 times per combat (more per copy)', () => {
+    const one = fight(killer(), foes(), { runeWildfire: true });
+    const two = fight(killer(), foes(), { runeWildfire: true, flagCopies: { runeWildfire: 2 } });
+    const off = fight(killer(), foes(), {});
     expect(triggers(off.events, 'runeWildfire')).toHaveLength(0);
     expect(triggers(one.events, 'runeWildfire')).toHaveLength(3);
-    expect(triggers(two.events, 'runeWildfire')).toHaveLength(6);
-    const w = uidOf(one, 'w', 'enemy');
-    expect(one.events.filter((e) => e.type === 'dmg' && e.target === w && (e as Dmg).amount === 3 && !('source' in e)).length).toBe(3);
+    expect(triggers(two.events, 'runeWildfire').length).toBeGreaterThan(3);
+    expect(triggers(two.events, 'runeWildfire').length).toBeLessThanOrEqual(6);
+    const enemies = new Set(one.initial.enemy.map((m) => m.uid));
+    const hits = wildHits(one);
+    expect(hits.length).toBe(3);
+    for (const h of hits) {
+      expect(h.amount).toBe(4);
+      expect(enemies.has(h.target)).toBe(true);
+      expect('source' in h).toBe(false); // sourceless: the rune deals it
+    }
+    // ONE target per trigger: exactly one dmg event between a trigger and the next attack / trigger.
+    const i0 = one.events.findIndex((e) => e.type === 'questTrigger' && e.flag === 'runeWildfire');
+    const rest = one.events.slice(i0 + 1);
+    const next = rest.findIndex((e) => e.type === 'attack' || (e.type === 'questTrigger' && e.flag === 'runeWildfire'));
+    expect(rest.slice(0, next < 0 ? undefined : next).filter((e) => e.type === 'dmg').length).toBe(1);
+    // Deterministic: the same seed picks the same targets.
+    expect(wildHits(fight(killer(), foes(), { runeWildfire: true })).map((h) => h.target)).toEqual(hits.map((h) => h.target));
   });
-  it('an enemy killed by an ATTACK does not trigger it', () => {
-    const r = fight([bm('k', NEUTRAL, { attack: 10, health: 5000 })], [dummy('e1'), dummy('e2')], { runeWildfire: true });
-    expect(r.events.filter((e) => e.type === 'death').length).toBeGreaterThan(0);
+  it('cannot chain: a kill made by Wildfire\'s own damage never triggers it (a big budget proves it is not the cap)', () => {
+    // The Stealthed B cannot be attacked, so the only minion kill is A; Wildfire's 5 then kills B, and that is all.
+    const r = fight([bm('k', NEUTRAL, { attack: 1, health: 5000, keywords: [] })],
+      [bm('a', PLAIN[2]!, { attack: 5, health: 1, keywords: [] }), bm('b', PLAIN[2]!, { attack: 0, health: 5, keywords: ['ST'] })],
+      { runeWildfire: true, flagCopies: { runeWildfire: 3 } });
+    const b = uidOf(r, 'b', 'enemy');
+    expect(r.events.some((e) => e.type === 'death' && e.target === b)).toBe(true);
+    expect(triggers(r.events, 'runeWildfire')).toHaveLength(1);
+    expect(wildHits(r).map((h) => [h.target, h.amount])).toEqual([[b, 5]]);
+  });
+  it('a 0-Attack enemy\'s death spends nothing', () => {
+    const r = fight(killer(), [wall(0, 'w', 5000), ...Array.from({ length: 4 }, (_, i) => dummy(`z${i}`))], { runeWildfire: true });
+    expect(r.events.filter((e) => e.type === 'death' && (e as { side: string }).side === 'enemy').length).toBeGreaterThan(0);
     expect(triggers(r.events, 'runeWildfire')).toHaveLength(0);
   });
-  it('its own volleys and Hellfire count as non-attack damage, so they chain it (within the budget)', () => {
-    const r = fight([bm('d', 'dm_knocked', { attack: 0, health: 5000, keywords: [] }), bm('a', 'dm_knocked', { attack: 1, health: 5000, keywords: [] })],
-      [wall(0, 'w', 5000), dummy('e1', 1), dummy('e2', 4), dummy('e3', 7)], { runeHellfire: true, runeWildfire: true });
-    expect(triggers(r.events, 'runeWildfire').length).toBeGreaterThanOrEqual(2);
-    expect(triggers(r.events, 'runeWildfire').length).toBeLessThanOrEqual(3);
+  it('a Hellfire volley kill IS a minion kill (the Demon deals it), so it fires Wildfire', () => {
+    // A Taunt wall soaks every swing, so A (3/1) can only die to the Demon's Hellfire volley.
+    const r = fight([bm('d', 'dm_knocked', { attack: 1, health: 5000, keywords: [] })],
+      [bm('w', PLAIN[1]!, { attack: 0, health: 5000, keywords: ['T'] }), bm('a', PLAIN[2]!, { attack: 3, health: 1, keywords: [] })], { runeHellfire: true, runeWildfire: true });
+    expect(triggers(r.events, 'runeWildfire')).toHaveLength(1);
+    expect(wildHits(r)[0]!.amount).toBe(3);
+  });
+  it('is not Demon damage: Rad Rachel never hears a Wildfire hit', () => {
+    const r = fight([...killer(), bm('r', 'dm_radrachel', { attack: 0, health: 5000 })], foes(), { runeWildfire: true });
+    expect(triggers(r.events, 'runeWildfire').length).toBeGreaterThan(0);
+    const rach = uidOf(r, 'r');
+    expect(r.events.filter((e) => e.type === 'buff' && (e as Buff).source === rach).length).toBe(0);
   });
   it('works for a served enemy side the same way (symmetric)', () => {
-    const foes = () => [wall(0, 'w', 5000), ...Array.from({ length: 4 }, (_, i) => dummy(`e${i}`))];
-    const r = fight(foes(), [bm('g', 'dm_gasket', { health: 5000 })], {}, 4, { runeWildfire: true });
-    expect(triggers(r.events, 'runeWildfire', 'enemy')).toHaveLength(3);
+    const e = fight(foes(), killer(), {}, 4, { runeWildfire: true });
+    expect(triggers(e.events, 'runeWildfire', 'enemy')).toHaveLength(3);
+    const hits = wildHits(e, 'enemy');
+    expect(hits.length).toBe(3);
+    expect(hits.every((h) => h.amount === 4)).toBe(true);
   });
 });
 

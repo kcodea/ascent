@@ -2432,9 +2432,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleDamageAll(combatArena(ctx, self), params);
   },
   /** Set 2 rune Imp Legion's graft (its OWN Echo only): the arena body, lowest-Health enemy. */
+  /** Imp Legion's grafted Echo. DEMON DAMAGE (owner 2026-11-13: "pitchforks and imp legion ... should also count as
+   *  demon damage"): the DYING Imp deals each hit (Fel Spikes' Echo credits its dying Demon the same way), so a landed
+   *  hit fires the friendly-Demon-damage reactions, the Imp's Pummel and Execute, and its kill is a minion kill
+   *  (Wildfire). The one body stays in arena.ts; only the combat `damage` verb gains the source. */
   deathrattleDamageLowestEnemy: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ARENA_EFFECTS.deathrattleDamageLowestEnemy(combatArena(ctx, self), params);
+    // The rune's pulse (its badge) and its own beat (R-RUNE-SPIKE-FX-01): the trigger splits the Echo's hits off the
+    // death that fired them, so the spike the Imp throws has a beat to fly in before the damage lands. Only when an
+    // enemy is there to hit (the arena body is inert otherwise). `from` = the Imp.
+    if (ctx.onBoard(self.side === 'player' ? 'enemy' : 'player').some((t) => !t.dead && t.health > 0)) {
+      ctx.log({ type: 'questTrigger', flag: 'runeImpLegion', side: self.side, from: self.uid });
+    }
+    const arena = combatArena(ctx, self);
+    ARENA_EFFECTS.deathrattleDamageLowestEnemy({ ...arena, damage: (t, amount) => ctx.damage(t as Minion, amount, false, false, self) }, params);
   },
 
   /** Deathrattle (Jenkins & Fi): destroy the minion that dealt the killing blow (`killer` on the onDeath

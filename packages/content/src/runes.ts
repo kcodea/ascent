@@ -2332,6 +2332,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     // An aura-style graft (the Echoing Kobolds shape): every friendly Imp carries the Echo, board, hand and combat summons.
+    // The dying Imp deals the hit, so it is Demon damage (owner 2026-11-13), and Pitchforks' hits are the Imp's too.
     id: 'rune_imp_legion',
     tribes: ['demon'],
     name: 'Imp Legion',
@@ -4823,26 +4824,29 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Combat: a friendly Demon's attack (as it winds up) or death sends 1 damage to every enemy minion. The RUNE deals
-    // it (no minion source), so it is not Demon damage: Ruins, Pummel and Execute do not hear it.
+    // Combat: a friendly Demon's attack (as it winds up) or death sends 1 damage to every enemy minion, DEALT BY THAT
+    // DEMON (owner 2026-11-13: "Hellfire only counts as Demon damage"): one Demon-damage reaction per landed hit (Rad
+    // Rachel, Impossible Todd, Ruinous Lord, Rune of Ruins), the Demon's Pummel, its Execute. The Fel Spikes spray rule.
     id: 'rune_hellfire',
     tribes: ['demon'],
     name: 'Hellfire',
     cost: 3,
     epic: true,
-    text: 'When a **Demon** attacks or dies, deal **1** damage to all enemies.',
+    text: 'When a **Demon** attacks or dies, deal **1** damage to all enemies. This counts as **Demon** damage.',
     reward: { kind: 'combatFlag', flag: 'runeHellfire' },
     sets: ['set2'],
   },
   {
-    // Combat: an enemy minion whose killing hit was NOT an attack exchange (an Echo, a rune, a spell, a Bleed) sends
-    // 3 damage to every enemy minion. 3 times per combat per copy; its own damage can chain it.
+    // Combat (owner rework 2026-11-13): an enemy minion killed by one of YOUR minions (the minion credited with the
+    // lethal hit: an attack, Cleave, an Echo / Rally / Bleed it deals, a Hellfire volley) sends its Attack as damage to
+    // ONE random enemy minion. 3 times per combat per copy. Its own hit has no minion source, so it cannot chain; a
+    // 0-Attack death spends nothing. Not Demon damage.
     id: 'rune_wildfire',
     tribes: ['demon'],
     name: 'Wildfire',
     cost: 4,
     epic: true,
-    text: 'When an enemy dies to damage that is not an attack, deal **3** damage to all enemies. (3 per combat.)',
+    text: "When one of your minions kills an enemy, deal that enemy's **Attack** as damage to a random enemy minion. (**3** times per combat.)",
     reward: { kind: 'combatFlag', flag: 'runeWildfire' },
     sets: ['set2'],
   },

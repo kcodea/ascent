@@ -37,6 +37,7 @@ import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { RALLY_PROC_STRIDE_MS, attackSummonUids, isOwnNarration, ownRallyBindingFor, ownRallyFloatDelayMs, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { getLungeConfig } from './lungeConfig';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
+import { hasRuneHit, runeHitsIn, type RuneHitGroup } from './choreo/channels/runeHits';
 import { passSettleMs, wavesAheadOf } from './choreo/channels/windupWaves';
 import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, hitReactionStart, reactionChainMs, reactionTickStrideMs, reactionTicks, type ReactionTick } from './choreo/hitReactions';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
@@ -58,7 +59,7 @@ import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingDefIds, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
-import { anchorsForUnits } from './fx/combatAnchors';
+import { anchorsForUnits, anchorsFromRectToUnit } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
 import { startExecutesGiven } from './fx/executeGivenLaunch';
 import { startRisesGiven, launchRisesGiven } from './fx/riseGivenLaunch';
@@ -1434,6 +1435,86 @@ function scheduleEchoVolleys(defId: string, dyingUid: string, startIdx: number, 
   });
 }
 
+// ── RUNE SPIKES (R-RUNE-SPIKE-FX-01, owner 2026-11-13: "for pitchforks and other similar runes/effects, use the fel
+// spikes animation") ──────────────────────────────────────────────────────────────────────────────────────────────
+// A rune's own hits (Pitchforks, Imp Legion, Hellfire, Wildfire, Mirror Sheen; `choreo/channels/runeHits.ts`) play
+// their `launchOnDeath` binding the way Fel Spikes' forced Echo does: the volley LAUNCHES as the beat before the
+// hits plays (the rune's trigger beat, or the swing that carries it) from the body the rune names, and the hit beat
+// is held for the spike's travel (`runeSpikeLead`, which REPLACES the base hold the way `echoDeliveryLead` does), so
+// each number lands as its spike connects. A whole volley (Hellfire / Wildfire hit every enemy) is ONE spray: one
+// launch cue, one spike per target thrown together, one landing cue. Nothing stacks: each volley is its own beat.
+
+/** Delay (ms, 1x speed) from the rune's trigger beat to its spikes launching: Fel Spikes' forced-Echo timing. */
+const RUNE_SPIKE_LAUNCH_DELAY_MS = ECHO_RALLY_LAUNCH_DELAY_MS;
+
+/** The rune hits in `next` whose binding launches early (`launchOnDeath`), each with its def. Empty for almost every
+ *  moment (the cheap `hasRuneHit` scan first). */
+export function boundRuneVolleys(next: Moment, events: CombatEvent[]): Array<RuneHitGroup & { def: string }> {
+  if (!hasRuneHit(next, events)) return [];
+  const out: Array<RuneHitGroup & { def: string }> = [];
+  for (const g of runeHitsIn(next, events)) {
+    const b = bindingFor(g.runeId, 'damage');
+    if (b?.launchOnDeath && g.targets.length > 0) out.push({ ...g, def: b.def });
+  }
+  return out;
+}
+
+/** The hold (ms, 1x speed) before `next` when it carries rune spikes launched a beat early: launch + travel + the
+ *  same read buffer Fel Spikes uses. 0 when it carries none. */
+export function runeSpikeLead(next: Moment, events: CombatEvent[]): number {
+  let impact = -1;
+  for (const v of boundRuneVolleys(next, events)) impact = Math.max(impact, projectileImpactMs(v.def));
+  return impact < 0 ? 0 : RUNE_SPIKE_LAUNCH_DELAY_MS + impact + ECHO_IMPACT_BUFFER_MS;
+}
+
+/** Where each rune-effect SOURCE stood as it died (a viewport rect), for a volley that launches after its body has
+ *  left the board. Written only for a dying body a later rune trigger names (`from`), dropped once its volley fires
+ *  or the combat resets, so it stays a handful of entries. */
+const runeSourceRects = new Map<string, { left: number; top: number; width: number; height: number }>();
+
+/** At a beat with deaths: remember the rect of every dying body that a rune trigger shortly after names as its
+ *  source (one rect read per such death, none otherwise). */
+function rememberRuneSourceRects(beat: Moment, events: CombatEvent[], findEl: (uid: string) => Element | null): void {
+  if (runeSourceRects.size > 32) runeSourceRects.clear(); // a bound, never a leak across fights
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (e?.type !== 'death') continue;
+    for (let j = i + 1; j < Math.min(events.length, i + 80); j++) {
+      const t = events[j];
+      if (t?.type !== 'questTrigger' || t.from !== e.target) continue;
+      // Its SLOT (`layoutRectOf`), not where a lunge left it: a body that died mid-swing still throws from its own place.
+      const el = findEl(e.target);
+      const r = el ? layoutRectOf(el) : null;
+      if (r && r.w > 0) runeSourceRects.set(e.target, { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h });
+      break;
+    }
+  }
+}
+
+/** Throw each rune volley: one launch cue per volley, one spike per struck unit from the volley's source body (on the
+ *  struck unit itself when the source has already left the screen: the spike still bursts where it lands), and one
+ *  landing cue timed to the connect when the volley dealt damage. Anchors resolve at FIRE time. */
+function scheduleRuneSpikes(volleys: Array<RuneHitGroup & { def: string }>, speed: number, register: (id: number) => void): void {
+  if (!canPlayDefs() || volleys.length === 0) return;
+  const s = speed > 0 ? speed : 1;
+  const delay = RUNE_SPIKE_LAUNCH_DELAY_MS / s;
+  for (const v of volleys) {
+    const fire = (): void => {
+      sfx.felSpikeEcho();
+      // A source that already left the board (Wildfire's dead enemy, a dead Demon's Hellfire) throws from where it
+      // stood: its rect was remembered as it died (`rememberRuneSourceRects`).
+      const gone = v.from ? runeSourceRects.get(v.from) : undefined;
+      v.targets.forEach((uid, k) => {
+        const live = v.from ? anchorsForUnits(v.from, uid) : null;
+        const a = live ?? (gone ? anchorsFromRectToUnit(gone, uid) : null) ?? anchorsForUnits(uid, uid);
+        if (a) playDef(v.def, a, { uids: { source: v.from ?? uid, target: uid }, index: k });
+      });
+    };
+    register(window.setTimeout(fire, delay));
+    if (v.damaged > 0) register(window.setTimeout(() => sfx.felSpikeEchoLand(), delay + projectileImpactMs(v.def) / s));
+  }
+}
+
 /** The player's hero-power button as a flourish anchor (one rect read per narration, never per frame). */
 function heroPowerAnchor(): { cx: number; cy: number; w: number; h: number } | null {
   const el = document.querySelector<HTMLElement>('.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn')
@@ -2477,7 +2558,8 @@ export function useCombatReplay(
     // A Fel-Spikes-style Echo: the death holds for EXACTLY the volley's launch + travel — REPLACING the base
     // hold, not adding to it — so the damage numbers land ON the spike's strike, not a base-hold later (owner:
     // the damage felt late). The launch+travel is already ample death-read time, so nothing is lost.
-    const echoHold = echoDeliveryLead(shown, next, events, cardIds);
+    // …and a RUNE's spikes (R-RUNE-SPIKE-FX-01) the same way: they launched as `shown` played, so the hits wait for them.
+    const echoHold = Math.max(echoDeliveryLead(shown, next, events, cardIds), shown ? runeSpikeLead(next, events) : 0);
     if (echoHold > 0) {
       d = echoHold / combatSpeedRef.current;
     } else {
@@ -3095,6 +3177,9 @@ export function useCombatReplay(
         }
       }
     }
+    // A dying body a rune trigger names as its source (Wildfire's enemy, a dead Demon's Hellfire): remember where it
+    // stood, so its volley can still launch from there after the slot collapses (R-RUNE-SPIKE-FX-01).
+    rememberRuneSourceRects(beat, events, findEl);
     const goldenAt = (uid: string): boolean =>
       !!(combat?.initial.player.find((m) => m.uid === uid)?.golden ?? combat?.initial.enemy.find((m) => m.uid === uid)?.golden);
     // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) fires the
@@ -3169,6 +3254,9 @@ export function useCombatReplay(
       if (forced && rectOf(forced.src)) {
         scheduleEchoVolleys(forced.def, forced.src, upcoming!.start - 1, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), forced.endIdx, ECHO_RALLY_LAUNCH_DELAY_MS);
       }
+      // A RUNE's hits in the upcoming beat (R-RUNE-SPIKE-FX-01): launch their spikes now, from the body the rune
+      // names; `runeSpikeLead` holds that beat until they connect.
+      if (upcoming) scheduleRuneSpikes(boundRuneVolleys(upcoming, events), combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id));
     }
     // HELD WINDUP resolve: a parked Echohorn lunge resumes its strike the beat its OWN attack lands (a non-wave
     // `dmg` it deals), or is released into its death animation if the deferred spray killed it first. A death in

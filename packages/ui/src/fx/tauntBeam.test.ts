@@ -23,10 +23,10 @@ describe('the Taunt beam', () => {
     expect(KEYWORD_BEAMS.T.launchSfx).toBe('sfx-taunt-whoosh');
     expect(getDef('sfx-taunt-whoosh')).toBeDefined();
   });
-  it('the shield frame appears 160 ms after the beam leaves (owner 2026-11-13), whatever the beam travel says', () => {
-    expect(KEYWORD_LAND_AT_MS).toEqual({ T: 160 });
-    expect(keywordLandAtMs('T', 140)).toBe(160);
-    expect(keywordLandAtMs('T', 380)).toBe(160);
+  it('the shield frame appears 190 ms after the beam leaves (owner 2026-11-13), whatever the beam travel says', () => {
+    expect(KEYWORD_LAND_AT_MS).toEqual({ T: 190 });
+    expect(keywordLandAtMs('T', 140)).toBe(190);
+    expect(keywordLandAtMs('T', 380)).toBe(190);
     // Every other keyword still lands when its tip arrives.
     for (const kw of ['R', 'V', 'DS', 'W', 'CR'] as const) expect(keywordLandAtMs(kw, 380)).toBe(380);
     const kb = read('./keywordBeam.ts');

@@ -27,3 +27,5 @@ Owner: "now im making a taunt beam".
   plus `ShopCard.keywords`. Every keyword beam gains this, not only Taunt. Pinned on a real Bulwark cast on an offer.
 - The owner re-saved `taunt-beam` at a 140 ms flight. The 90 ms frame lead then put the frame 50 ms after launch
   (owner: "the taunt frame is now switching too early"), so the lead is 30 ms: the frame appears at 110 ms.
+- Final: the frame appears at a FIXED 160 ms after launch (`KEYWORD_LAND_AT_MS.T`; owner: "have the frame switch
+  (appear) at 160 ms"), replacing the lead-before-arrival number, so re-saving the beam no longer moves it.

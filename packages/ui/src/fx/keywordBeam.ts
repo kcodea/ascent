@@ -30,11 +30,14 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
 };
 
 /**
- * How long BEFORE its beam's tip arrives a keyword's look and landing sound play (ms at 1x). Taunt's shield frame is a
- * whole-card change, and landing it exactly on arrival read late (owner 2026-11-13: "it just needs to be JUST a bit
- * earlier").
+ * WHEN a keyword's look appears, in ms after its beam LEAVES (at 1x), for a keyword whose moment the owner set by hand.
+ * Absent = the moment the beam's tip arrives. Taunt's shield frame is a whole-card change the owner tuned by eye
+ * (2026-11-13: "have the frame switch (appear) at 160 ms"); a fixed moment, so re-saving the beam does not move it.
  */
-export const KEYWORD_LAND_LEAD_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 30 };
+export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 160 };
+
+/** When `kw`'s look lands, in ms after launch (at 1x), for a beam whose tip arrives at `arrive`. */
+export const keywordLandAtMs = (kw: BeamKeyword, arrive: number): number => Math.max(0, KEYWORD_LAND_AT_MS[kw] ?? arrive);
 
 /** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier", then "earlier too, maybe 70 ms"). */
 export const TAUNT_SOUND_LEAD_MS = 170;
@@ -84,7 +87,8 @@ export function launchKeywordBeam(
   const sound = opts.sound !== false;
   const register = opts.register ?? (() => {});
   const arrive = defArrivalMs(def);
-  hold(kw, targetUid, (launchAt + arrive) / s + 50); // safety net; `land` releases it on time
+  const landAt = keywordLandAtMs(kw, arrive);
+  hold(kw, targetUid, (launchAt + landAt) / s + 50); // safety net; `land` releases it on time
   // The game's own Taunt sound (owner 2026-11-13): it leads the shield frame, and rings once whichever path gets there.
   let tauntRang = false;
   const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };
@@ -110,7 +114,6 @@ export function launchKeywordBeam(
       { uids: { source: null, target: targetUid }, index: 0, gain: opts.gain, target: settle?.get, onDone: settle?.stop });
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
-    const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));
     // As far ahead of the frame as the flight allows: on a short beam that is the launch itself.
     const ringAt = Math.max(0, landAt - TAUNT_SOUND_LEAD_MS);
     if (kw === 'T' && ringAt < landAt) { if (ringAt <= 0) ringTaunt(); else register(window.setTimeout(ringTaunt, ringAt / s)); }

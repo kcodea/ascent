@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
-import { KEYWORD_BEAMS, KEYWORD_LAND_LEAD_MS, holdKeywordLook, isBeamKeyword } from './keywordBeam';
+import { KEYWORD_BEAMS, KEYWORD_LAND_AT_MS, holdKeywordLook, isBeamKeyword, keywordLandAtMs } from './keywordBeam';
 import { bankedKeywordGrantsIn } from './runeKeywordBeams';
 import { isTauntHeld } from './tauntHold';
 import { getDef } from './fxDefs';
@@ -23,12 +23,15 @@ describe('the Taunt beam', () => {
     expect(KEYWORD_BEAMS.T.launchSfx).toBe('sfx-taunt-whoosh');
     expect(getDef('sfx-taunt-whoosh')).toBeDefined();
   });
-  it('the shield frame lands a touch BEFORE the tip arrives, and only Taunt leads', () => {
-    const arrive = defArrivalMs(JSON.parse(read('./defs/taunt-beam.json')));
-    expect(KEYWORD_LAND_LEAD_MS.T).toBeGreaterThan(0);
-    expect(KEYWORD_LAND_LEAD_MS.T!).toBeLessThan(arrive); // never before the beam has left
-    expect(Object.keys(KEYWORD_LAND_LEAD_MS)).toEqual(['T']);
-    expect(read('./keywordBeam.ts')).toContain('const landAt = Math.max(0, arrive - (KEYWORD_LAND_LEAD_MS[kw] ?? 0));');
+  it('the shield frame appears 160 ms after the beam leaves (owner 2026-11-13), whatever the beam travel says', () => {
+    expect(KEYWORD_LAND_AT_MS).toEqual({ T: 160 });
+    expect(keywordLandAtMs('T', 140)).toBe(160);
+    expect(keywordLandAtMs('T', 380)).toBe(160);
+    // Every other keyword still lands when its tip arrives.
+    for (const kw of ['R', 'V', 'DS', 'W', 'CR'] as const) expect(keywordLandAtMs(kw, 380)).toBe(380);
+    const kb = read('./keywordBeam.ts');
+    expect(kb).toContain('const landAt = keywordLandAtMs(kw, arrive);');
+    expect(kb).toContain('hold(kw, targetUid, (launchAt + landAt) / s + 50);'); // the hold outlasts a late landing
   });
   it('the Taunt sound rings as the beam LANDS, and the Shop does not also ring it at the grant', () => {
     const kb = read('./keywordBeam.ts');

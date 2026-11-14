@@ -38,7 +38,7 @@ const R = (want: Want, note: string, extra: Partial<CardRole> = {}): CardRole =>
 
 const ROLES: Record<string, CardRole> = {
   dw_brunni: R(3, 'an Ale at End of Turn, every turn — the brewery', { core: true }),
-  dw_edward: R(3, 'every Ale triggers twice', { fromWave: 7 }),
+  dw_edward: R(3, 'every hand-cast Ale has double effect', { fromWave: 7 }),
   dw_tapkeeper: R(3, 'an Ale per 10 Gold spent', { fromWave: 9 }),
   dw_coinfire: R(3, '+2 Attack to every Dwarf per 5 Gold spent', { core: true }),
   dw_gangplank: R(3, '+1/+2 to a Dwarf per card gained (every Ale, every buy)', { core: true }),

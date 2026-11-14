@@ -160,7 +160,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "No. Anything that makes a spell **cast more times** only works on spells **you cast from your hand**. A spell a minion, rune or Equipment casts goes off once, and it doesn't use up your one-shot \"next spell\" bonuses either; those wait for your next spell from hand.",
     aliases: ['spell twice', 'cast twice', 'extra cast', 'spell multiplier', 'next spell casts again'],
     seeAlso: ['what-cast-means'],
-    covers: [{ rule: 'R-MULT-06', fp: 'e85f5e38' }],
+    covers: [{ rule: 'R-MULT-06', fp: '49316435' }],
   },
   {
     id: 'shop-spell-meaning',

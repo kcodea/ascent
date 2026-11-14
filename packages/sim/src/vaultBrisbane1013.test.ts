@@ -7,7 +7,7 @@ import { applyEndOfTurn, applyGoldSpent, fireRecruitDeathrattlesForTest } from '
 /**
  * THE OWNER'S 2026-10-13 REWORKS, through the real reducer / Gold meter / `simulate` paths:
  *
- *  - Vaultkeeper: see vaultkeeperRunTally1020.test.ts (reworked again 2026-10-20).
+ *  - Vaultkeeper: see vaultkeeperRevert1114.test.ts (reverted to its 2026-08-15 card 2026-11-14, R-VAULT-02).
  *  - Rune of the Vaultkeeper: back to "also give their stats to an adjacent Dragon".
  *  - Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this." (+2/+2 per
  *    step; the End of Turn Ruby cast is gone).
@@ -30,17 +30,17 @@ const VAULT = CARD_INDEX['d2_herzog']!;
 const base: [number, number] = [VAULT.attack, VAULT.health];
 const plus = (n: number): [number, number] => [base[0] + n, base[1] + n];
 
-// Vaultkeeper's own behaviour moved to `vaultkeeperRunTally1020.test.ts` (owner change 2026-10-20: Dwarf/Dragon, and the
-// improve is a run-wide "4 Dragons or Dwarves played this game" tally). The rune below rides the same gain.
-const tally = (n: number): Partial<RunState> => ({ tribeUnionPlays: { 'dragon+dwarf': n } });
+// Vaultkeeper's own behaviour lives in `vaultkeeperRevert1114.test.ts` (owner revert 2026-11-14: +2/+2 per Dragon played,
+// improving +2/+2 every 4 spells cast this game). The rune below rides the same grant: 4 spells cast = +4/+4.
+const spells = (n: number): Partial<RunState> => ({ spellsCast: n });
 
 describe('Rune of the Vaultkeeper: "Your Vaultkeepers also give their stats to an adjacent Dragon"', () => {
   it('each gain also lands on an adjacent Dragon, at the same size', () => {
-    const s0 = run({ runeVaultkeeper: true, board: [body('n', DRAGON), body('v', 'd2_herzog')], hand: [body('d1', DRAGON2)], ...tally(4) } as Partial<RunState>);
+    const s0 = run({ runeVaultkeeper: true, board: [body('n', DRAGON), body('v', 'd2_herzog')], hand: [body('d1', DRAGON2)], ...spells(4) } as Partial<RunState>);
     const before = stats(at(s0, 'n'));
     const s = act(s0, { type: 'play', uid: 'd1', index: 2 } as Action);
-    expect(stats(at(s, 'v'))).toEqual(plus(6));
-    expect(stats(at(s, 'n')), 'the neighbour gets the same +6/+6').toEqual([before[0] + 6, before[1] + 6]);
+    expect(stats(at(s, 'v'))).toEqual(plus(4));
+    expect(stats(at(s, 'n')), 'the neighbour gets the same +4/+4').toEqual([before[0] + 4, before[1] + 4]);
   });
   it('a non-Dragon neighbour gets nothing, and without the rune nobody else does', () => {
     const withRune = run({ runeVaultkeeper: true, board: [body('n', BEAST), body('v', 'd2_herzog')], hand: [body('d1', DRAGON)] } as Partial<RunState>);

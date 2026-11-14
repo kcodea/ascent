@@ -5704,8 +5704,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "tribePlayedGainSelfImproving.gainTribe",
-        "tribePlayedGainSelfImproving.tribes"
+        "onTribePlayedBuffSelfPerSpell.tribe"
       ]
     },
     "setIds": [
@@ -5713,7 +5712,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tier": 6,
     "tribes": [
-      "dwarf",
       "dragon"
     ],
     "tags": [
@@ -5721,20 +5719,20 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onTribePlayed",
+        "event": "onSummon",
         "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry"
+        "phaseBasis": "derived:phaseRegistry",
+        "note": "combat side excused: no-surface"
       }
     ],
     "effects": [
       {
-        "kind": "tribePlayedGainSelfImproving",
+        "kind": "onTribePlayedBuffSelfPerSpell",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3,
-            "every": 4,
-            "health": 3
+            "base": 2,
+            "per": 4
           }
         }
       }

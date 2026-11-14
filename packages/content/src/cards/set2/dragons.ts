@@ -210,37 +210,23 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: 'Your **Shouts** trigger **4** additional times.',
   },
   {
-    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids).
-    // OWNER BALANCE BATCH 2026-10-10 REPLACED the effect entirely (was "gain +2/+2 whenever you play a Dragon,
-    // improving per 4 spells"): "When this gains Attack, give adjacent Dragons +3/+4." Cross-phase on the shared
-    // `onGainAttack` trigger: combat's `ctx.buff` emits it per positive Attack gain, and the Shop fires it from the
-    // `addBuff` chokepoint per gain INSTANCE (a gilded Karwind's two pulses are two gains). ONE pulse per gain, and
-    // no Vaultkeeper reacts to a gain made while a Vaultkeeper pulse is resolving, so two adjacent Vaultkeepers
-    // settle instead of feeding each other forever (R-VAULT-01). Rune of the Vaultkeeper widens "adjacent" to every
-    // other friendly Dragon. Golden doubles the grant.
-    // OWNER REWORK 2026-10-13 ("lets change vaultkeeper again, he just isn't fun"): "When you play a Dragon, gain
-    // +3/+3. Play 3 Dragons or Dwarves to improve this." Back to a self-scaling Dragon-tempo body, on the
-    // played-from-hand trigger this time (`onTribePlayed`; a summoned token is not a play). `tribes` is what COUNTS
-    // toward the improve, `gainTribe` is what pays. Each 3 counted plays add +3/+3 to the gain (owner: "+3/+3 per
-    // step"), per copy, permanently; the N/3 step counter is the tribe-played tally. Golden doubles the gain. The
-    // 10-10 pulse factory (`onGainAttackBuffAdjacentTribe`) has no card now and stays dormant, pinned by a probe.
-    // OWNER CHANGE 2026-10-20 ("lets change vaultkeeper to a Dwarf / Dragon tribe type, and let's change its mechanic
-    // to 4 dragons or dwarves played improves it. i want this mechanic to be active even when the card is not on
-    // board or in hand or in shop"): now a Dwarf/Dragon, and the improve is a RUN-WIDE tally (`tribeUnionPlays`)
-    // counted from the start of the game, every 4 Dragons or Dwarves played (a dual-type play once, a Vaultkeeper's
-    // own play included). The +3/+3 still pays on Dragons only. Worded with the existing "this game" tail (Tome's),
-    // no keyword (owner pick 2026-10-20). R-VAULT-02.
+    // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A
+    // Dragon-tempo payoff whose per-play grant SCALES RETROACTIVELY with your lifetime spell count: +2/+2 per Dragon
+    // at base, climbing +2/+2 every 4 SPELLS cast this game (Shop Spells + Rubies, owner 2026-08-15). Live text folds
+    // in the current grant and the countdown (`herzogText`).
+    // OWNER REVERT 2026-11-14 (R-VAULT-02): back EXACTLY to this 2026-08-15..2026-10-10 form, after three reworks
+    // (10-10 the Attack-gain pulse, 10-13 the self-improving gain, 10-20 the Dwarf/Dragon run-wide play tally). The
+    // 10-20 factory (`tribePlayedGainSelfImproving`) and its `tribeUnionPlays` tally have no card now and stay dormant.
     id: 'd2_herzog',
     name: 'Vaultkeeper',
-    tribe: 'dwarf',
-    tribe2: 'dragon',
+    tribe: 'dragon',
     tier: 6,
     attack: 6,
     health: 10,
     keywords: [],
-    effects: [{ on: 'onTribePlayed', do: 'tribePlayedGainSelfImproving', params: { tribes: ['dragon', 'dwarf'], gainTribe: 'dragon', attack: 3, health: 3, every: 4 } }],
-    text: 'When you play a **Dragon**, gain **+3/+3**. Improves every **4 Dragons or Dwarves** played this game.',
-    goldenText: 'When you play a **Dragon**, gain **+6/+6**. Improves every **4 Dragons or Dwarves** played this game.',
+    effects: [{ on: 'onSummon', do: 'onTribePlayedBuffSelfPerSpell', params: { tribe: 'dragon', base: 2, per: 4 } }],
+    text: 'Gain **+2/+2** whenever you play a **Dragon**. Improves **+2/+2** for every **4 spells** cast this game.',
+    goldenText: 'Gain **+4/+4** whenever you play a **Dragon**. Improves **+4/+4** for every **4 spells** cast this game.',
   },
   {
     // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of

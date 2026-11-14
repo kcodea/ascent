@@ -20,7 +20,7 @@ export const EPIC_UNITS: ReadonlySet<string> = new Set([
   'attachmentconductor',     // Attachment Conductor — Magnetics magnetize twice
   'b2_elderhorn',            // Elderhorn — Beast Rallies + Echoes +1 (board aura since 2026-10-07)
   'd2_orivax',               // Orivax — Shouts +2 (board aura since 2026-10-07)
-  'dw_edward',               // Edward Keg-hands — Dwarven Ales trigger twice
+  'dw_edward',               // Edward Keg-hands — hand-cast Dwarven Ales have double effect
   'ce3_constellationprime',  // Constellation Prime — Star Crashes cast an additional time
   'k_deepdelve',             // Deepdelve Paragon — Rubies in combat give 2× stats (owner ask 2026-09-23)
 ]);

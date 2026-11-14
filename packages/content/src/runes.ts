@@ -2442,6 +2442,43 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'refresh', per: 5, replaceShopWith: 'n3_goldenmonkey' },
     sets: ['set2'],
   },
+  {
+    // Owner design 2026-11-13 (named Infernal at 6 Gold in the first draft; owner renamed it and moved it to 7). Dragon Hoard's REPEATING `gold` meter (remainder carried, Big Spender's doubled count
+    // heard) with a Hydraskus-style bite as the payout: a seeded-random friendly Demon eats a seeded-random Shop minion
+    // through `consumeShopMinion`, so every consume watcher hears it and Shop Madness refills the slot. No Demon or no
+    // Shop minion: the 7 Gold still counts (the meter resets) and nothing is eaten. The badge prints x/7.
+    id: 'rune_gold_for_grub',
+    tribes: ['demon'],
+    name: 'Gold for Grub',
+    cost: 4,
+    text: 'When you spend **7** Gold, a random **Demon** consumes a minion in the Shop.',
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 7, demonConsumeShop: 1 },
+    sets: ['set2'],
+  },
+  {
+    // Owner design 2026-11-13. Shop-only. Every card that ENTERS the Shop (any roll, refill, top-up, swap-in, the spell
+    // slot) rolls once per copy held, 30% each, for 1 Gold off (`ShopCard.quarterCut`, stamped in `stampNewShopOffers`);
+    // the cards already in the Shop roll when the rune is taken. A card never re-rolls while it stays (a frozen card keeps
+    // its cut). Stacks with every other discount, floored at 0. Opponent snapshots are unaffected.
+    id: 'rune_end_of_quarter',
+    name: 'End of Quarter',
+    cost: 3,
+    text: 'Every card in your Shop has a **30%** chance to cost **1** less.',
+    reward: { kind: 'combatFlag', flag: 'runeEndOfQuarter' },
+    sets: ['set2'],
+  },
+  {
+    // Owner design 2026-11-13. Shop-only (an Ale is only cast in the Shop). Every Ale CAST (each repetition of a multiplied
+    // cast: Edward, Bottomless Cask, Shared Pour, Last Call) gives the minions standing in the Shop right now +1/+1 per copy,
+    // baked onto each offer (`buffThisShopOffers`), so a frozen card keeps it and a card that arrives later does not have it.
+    id: 'rune_drunk_shopkeeper',
+    tribes: ['dwarf'],
+    name: 'Drunk Shopkeeper',
+    cost: 2,
+    text: 'When you cast an **Ale**, give minions in your Shop **+1/+1** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeDrunkShopkeeper' },
+    sets: ['set2'],
+  },
 ];
 
 /**

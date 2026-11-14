@@ -397,6 +397,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.grantOneOf?.length) parts.push(`get a ${r.grantOneOf.map((id) => CARD_INDEX[id]?.name ?? id).join(' or ')}`);
       if (r.grantRandomTribe) parts.push(`get a random ${TRIBE_SINGULAR[r.grantRandomTribe] ?? r.grantRandomTribe}`);
       for (const id of r.castCards ?? []) parts.push(`cast ${CARD_INDEX[id]?.name ?? id}`);
+      if (r.demonConsumeShop) parts.push('a random Demon consumes a minion in the Shop'); // Gold for Grub
       if (r.buff) {
         const b = r.buff;
         const who = b.target === 'imps' ? 'your Imps'

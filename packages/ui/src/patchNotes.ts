@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-13',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Three new Set 2 runes: Gold for Grub, End of Quarter and Drunk Shopkeeper.',
+        details: [
+          'Gold for Grub (Demon, 4 Gold): every 7 Gold you spend, a random Demon on your board consumes a random minion in your Shop. Leftover Gold carries over, and Big Spender counts it twice.',
+          'Gold for Grub with no Demon or no Shop minion: the Gold still counts, but nothing is eaten.',
+          'End of Quarter (3 Gold): every card that enters your Shop, spells included, has a 30% chance to cost 1 less. It stacks with other discounts, and a frozen card keeps its discount.',
+          'Two copies of End of Quarter roll separately, so a card can cost up to 2 less.',
+          'Drunk Shopkeeper (Dwarf, 2 Gold): each Ale you cast gives the minions in your Shop +1/+1 permanently. Cards that arrive later do not get it, and a frozen card keeps it.',
+        ],
+      },
       { category: 'Systems', text: 'A new Ancient minion skin in chests: Dad Kobebe, for Kobebes.' },
       { category: 'Systems', text: 'When you are given an item directly, a pop-up now tells you the next time the game loads.' },
       { category: 'Systems', text: 'Inspecting a rune in the Compendium now lines the rune and the cards it gives up side by side, centred, with no overlap.' },

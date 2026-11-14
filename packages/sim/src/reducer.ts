@@ -21,7 +21,7 @@ import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlay
 import { botDamageMultFor } from './lobby/practiceBots';
 import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
-import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers, refillShopMadness, shopMadness, SHOP_MADNESS_BUFF } from './shop';
+import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers, refillShopMadness, shopMadness, SHOP_MADNESS_BUFF, rollEndOfQuarter, quarterCutOf } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { DEFAULT_HERO_ID, activePowers, getHero, type HeroPowerKind, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId, powerHolderId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
@@ -34,7 +34,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -330,7 +330,7 @@ export interface OfferBuyPrice {
   /** Loyal Customer made this buy free (the 4th, 8th, ... minion). */
   loyalFree: boolean;
 }
-export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean }): OfferBuyPrice {
+export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean; quarterCut?: number }): OfferBuyPrice {
   // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
   // takes every regular discount below exactly like any minion — there is deliberately no special case here.
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
@@ -374,7 +374,9 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // A Loyal Customer free buy (`noDiscount`) is already 0, so Wholesale has nothing to take off it.
   const wsDef = CARD_INDEX[offer.cardId];
   const wholesaleOff = !noDiscount && s.questFlags?.runeWholesale && !wsDef?.spell && !wsDef?.ruby ? Math.max(1, s.flagCopies?.runeWholesale ?? 1) : 0;
-  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff);
+  // END OF QUARTER (Set 2 Basic, owner 2026-11-13): this card's own rolled cut (1 per copy that hit), stacked, floored at 0.
+  const quarterOff = noDiscount ? 0 : quarterCutOf(offer);
+  const cost = noDiscount ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff - wholesaleOff - quarterOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, loyalFree };
 }
 
@@ -1940,7 +1942,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!spellDef) return state;
         const spellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages: "your next card costs 0" — spells included
         // ANCIENT OF FORTUNE × Ayse: an Enchanted spell's printed cost is capped first (`ancientEnchantedSpellCut`).
-        const cost = spellFree ? 0 : Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef) - ancientEnchantedSpellCut(s, s.spell)); // `spellDef` is load-bearing: Rune of Thrift keys on it
+        const cost = spellFree ? 0 : Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef) - ancientEnchantedSpellCut(s, s.spell) - quarterCutOf(s.spell)); // `spellDef` is load-bearing: Rune of Thrift keys on it
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
         spendFreeCard(s, spellFree);
@@ -1975,7 +1977,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
         const rowSpellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages (see the spell-slot buy above)
-        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card) - ancientEnchantedSpellCut(s, offer) - (offer.cartCut ? 1 : 0)); // pass the def — see the spell-slot buy above
+        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card) - ancientEnchantedSpellCut(s, offer) - (offer.cartCut ? 1 : 0) - quarterCutOf(offer)); // pass the def — see the spell-slot buy above
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
         spendFreeCard(s, rowSpellFree);
@@ -3154,6 +3156,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       } else {
         const rc = refreshCostOf(s); // Tradesman pays 2
         if (s.embers < rc) return state;
+        s.grubBitesDeferred = 0; // Gold for Grub: a bite this Refresh pays for eats from the NEW row (flushed below)
         spendGold(s, rc); // gold spent → Acid / Banksly meter
       }
       s.frozen = false;
@@ -3169,6 +3172,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away. `playerRoll`:
       // this is the player pressing Refresh (Indy counts only these, owner 2026-10-13).
       applyShopRefreshed(s, { playerRoll: true });
+      flushGrubBites(s); // Gold for Grub: the bites this Refresh's Gold earned land on the new row
       // Refreshing Rubies (Set 3 Kobold rune, owner 2026-10-22): the `refresh` threshold ticks on the player's press only
       // (a free one included), the same meter Indy and Rosey read.
       advanceRuneThresholds(s, 'refresh', 1);
@@ -7729,6 +7733,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
         applyRunShopBuff(s, SHOP_MADNESS_BUFF.attack, SHOP_MADNESS_BUFF.health, 'Shop Madness');
         refillShopMadness(s);
       }
+      // END OF QUARTER (Set 2 Basic, owner 2026-11-13): the cards already in the Shop roll now (this copy's roll only);
+      // every card that enters later rolls as it arrives (`stampNewShopOffers` / the spell slot).
+      if (r.flag === 'runeEndOfQuarter') rollEndOfQuarter(s, [...s.shop, s.spell]);
       break;
     }
     case 'questGoldTribeBuff':
@@ -7808,7 +7815,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, replaceShopWith: r.replaceShopWith, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, replaceShopWith: r.replaceShopWith, demonConsumeShop: r.demonConsumeShop, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).

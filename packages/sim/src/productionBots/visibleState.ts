@@ -59,7 +59,7 @@ const offerView = (s: RunState, o: ShopCard): BotOfferView => {
   // The price actually payable now, not the printed one — Lazarus, Tradesman, Layaway, Cadence, Trade-In, the
   // Starform's ticking price and a free first buy all move it. `offerBuyPrice` is the reducer's own source.
   const cost = spell
-    ? Math.max(0, (def?.cost ?? 0) - spellCostReduction(s, def) - ancientEnchantedSpellCut(s, o) - (o.cartCut ? 1 : 0))
+    ? Math.max(0, (def?.cost ?? 0) - spellCostReduction(s, def) - ancientEnchantedSpellCut(s, o) - (o.cartCut ? 1 : 0) - (o.quarterCut ?? 0))
     : offerBuyPrice(s, o).cost;
   return {
     uid: o.uid,

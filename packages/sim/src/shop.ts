@@ -7,6 +7,42 @@ import { getHero, hasPower } from './heroes';
 import type { RunState, ShopCard } from './state';
 import { addOfferBuff, defIsTribe, rightmostShopMinion, stampVeinstormRubies } from './recruit';
 import { buffStarform, starformOf, starformRefreshLand, withStarformPinned } from './starform';
+import { mixSeed } from './runTribes';
+
+/** END OF QUARTER (Set 2 Basic rune, owner design 2026-11-13): every card in the Shop has a 30% chance to cost 1 less. */
+export const END_OF_QUARTER_CHANCE = 0.3;
+
+/** A stable number for an offer uid (`s123`), for the per-card roll seed. */
+function uidKey(uid: string): number {
+  let h = 0;
+  for (let i = 0; i < uid.length; i++) h = mixSeed(h, uid.charCodeAt(i));
+  return h;
+}
+
+/**
+ * END OF QUARTER: roll each card ENTERING the Shop (owner ruling 2026-11-13): minions, row spells and the spell slot,
+ * whatever path served them. One independent roll PER COPY held (`quarterRolls` records how many copies have rolled for
+ * this card), each a 30% chance at 1 Gold off (`quarterCut`), so two copies can take 2 off. A card never re-rolls while
+ * it stays in the Shop (a frozen card keeps its cut); a second copy taken later rolls only its own roll for the cards
+ * already there. Seeded from the RUN SEED and the card's uid, not the shared cursor, so holding the rune never shifts
+ * any other draw (the Shop rows are byte-identical with and without it) and replays stay exact. Held (Displacement)
+ * offers and the Starform keep their own prices and never roll. A no-op without the rune.
+ */
+export function rollEndOfQuarter(state: RunState, offers: readonly (ShopCard | null | undefined)[]): void {
+  if (!state.questFlags?.runeEndOfQuarter) return;
+  const copies = Math.max(1, state.flagCopies?.runeEndOfQuarter ?? 1);
+  for (const o of offers) {
+    if (!o || o.held || o.starform || !CARD_INDEX[o.cardId]) continue;
+    const done = o.quarterRolls ?? 0;
+    for (let k = done; k < copies; k++) {
+      if (makeRng(mixSeed(state.seed, uidKey(o.uid), k, 0x0e0f)).next() < END_OF_QUARTER_CHANCE) o.quarterCut = (o.quarterCut ?? 0) + 1;
+    }
+    if (copies > done) o.quarterRolls = copies;
+  }
+}
+
+/** The Gold End of Quarter takes off this card (0 without a hit). Read by every Shop price. */
+export const quarterCutOf = (o: Pick<ShopCard, 'quarterCut'> | null | undefined): number => o?.quarterCut ?? 0;
 
 /**
  * Croupier Ayse (Lucky Seat): roll every freshly-served offer for the Enchanted mark.
@@ -246,6 +282,7 @@ export function stampNewShopOffers(state: RunState, offers: readonly ShopCard[],
     landLeftmostSlotBuff(state, uids);
   }
   if (opts.cia) rollCiaEnchants(state, fresh);
+  rollEndOfQuarter(state, fresh); // End of Quarter: every card entering the Shop rolls its discount once
 }
 
 /** Attachment Issues: price a Magnetic offer at the deal (an offer that already has its own price keeps it). */
@@ -379,6 +416,7 @@ function rollShopRow(state: RunState, slots: number): void {
   // still gated by tavern tier (a T5 spell can't appear at T2).
   const spellId = drawSpellId(rng, state.tier, state);
   state.spell = spellId ? { uid: `s${state.uidSeq++}`, cardId: spellId } : null;
+  rollEndOfQuarter(state, [state.spell]); // the spell slot is a card entering the Shop too
   // SCROLL DRAKE: the row's extra spell, drawn AFTER the slot spell so a run without the Drake keeps its exact
   // rng stream. Same tier gate as the slot spell; a different spell when one exists.
   if (spellsOwed > 0) {
@@ -405,6 +443,7 @@ function rollTutorialShop(state: RunState): void {
     ...roll.minions.map((cardId) => ({ uid: `s${state.uidSeq++}`, cardId })),
   ];
   state.spell = roll.spell ? { uid: `s${state.uidSeq++}`, cardId: roll.spell } : null;
+  rollEndOfQuarter(state, [state.spell]);
   stampNewShopOffers(state, state.shop.filter((o) => !o.kept), { onRefresh: true }); // the one new-offer stamp
   state.tutorialShopRoll = rollIdx + 1;
 }
@@ -529,7 +568,7 @@ export function topUpTavern(state: RunState): void {
   }
   if (!state.spell) {
     const spellId = drawSpellId(rng, state.tier, state);
-    if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
+    if (spellId) { state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId }; rollEndOfQuarter(state, [state.spell]); }
   }
   if (spellsOwed > 0) {
     const extra = pushRowSpell(state, rng, madness ? state.shop.length + 1 : slots);

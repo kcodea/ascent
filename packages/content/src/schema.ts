@@ -853,7 +853,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeBigSpender', 'runeRoyalTreasury', 'runeFeralReturn', 'runePackTactics', 'runeBloodFrenzy', 'runeHellfire',
   'runeWildfire', 'runeEldersVoice', 'runeGemRain',
   // Set 2 rune batch, owner addition 2026-11-13 (Shop-only)
-  'runeShopMadness']);
+  'runeShopMadness',
+  // Set 2 rune, owner design 2026-11-13 (Shop-only)
+  'runeEndOfQuarter', 'runeDrunkShopkeeper']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -1012,6 +1014,7 @@ z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast',
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
   rubyAll: z.boolean().optional(),
   replaceShopWith: z.string().min(1).optional(), // Golden Monkey (Set 2 rune, 2026-11-13): swap a random Shop minion for this card
+  demonConsumeShop: z.number().int().positive().optional(), // Gold for Grub (Set 2 rune, 2026-11-13): a random friendly Demon eats a random Shop minion
   grantGoldNextTurn: z.number().int().positive().optional(),
   resetEachTurn: z.boolean().optional(),
   grantGold: z.number().int().positive().optional(),

@@ -30,6 +30,7 @@ import { extraWardGainsIn, wardsGivenIn } from './channels/wardGiven';
 import { isTravelledWard, playWardGained } from '../fx/wardGivenLaunch';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
 import { bankedCastsIn, type BankedCast } from './channels/bankedCast';
+import { hasRuneHit, runeHitsIn } from './channels/runeHits';
 import { playCombatSpellCastFx } from '../fx/spellCastFx';
 
 /**
@@ -960,6 +961,17 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     // first) and this allocates no closure and schedules no timer.
     else if (cue.ch === 'fxDef') {
       if (!canPlayDefs()) continue;
+      // A RUNE's own hits (R-RUNE-SPIKE-FX-01: Pitchforks, Imp Legion, Hellfire, Wildfire, Mirror Sheen → `fel-spike`).
+      // Their projectile launched a beat early, from the body the rune's trigger names (`useCombatReplay`'s rune-spike
+      // launch, held by `runeSpikeLead`), exactly like Fel Spikes' own `launchOnDeath` volley, so all this row does is
+      // CLAIM the stock hit burst on the struck units (synchronously, before the `damageFx` cue is scheduled): the
+      // spike's own impact is their hit. Only the rune-stamped hits are claimed, never the rest of the moment.
+      if (hasRuneHit(moment, ctx.events)) {
+        const runeStruck = runeHitsIn(moment, ctx.events)
+          .filter((g) => bindingFor(g.runeId, 'damage')?.launchOnDeath)
+          .flatMap((g) => g.targets);
+        if (runeStruck.length > 0) claimDamageFx(moment.primary.step, runeStruck);
+      }
       // The ONE-CHANNEL RULE (the same one the Ruby cue applies to the generic buff channels): a Rally is told
       // by `rallyFx`, which scans every rally event in the moment and plays one per PROC at that proc's own
       // pair. This row would play the `rally` binding a second time — once, at the primary event's pair — for

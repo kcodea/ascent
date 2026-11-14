@@ -147,7 +147,9 @@ function swingOpeners(events: CombatEvent[]): boolean[] {
   for (let i = 0; i < events.length; i++) {
     const e = events[i]!;
     if (e.type === 'attack') pending.add(e.attacker);
-    else if (e.type === 'dmg' && typeof e.source === 'string' && pending.has(e.source)) {
+    // A WAVE hit is never the swing's own strike (`ownStrikeAt` reads it the same way): a volley the attacker deals as it
+    // winds up (Hellfire, Gasket's Rally pass) must not spend the opener, or the strike merges into the volley's deaths.
+    else if (e.type === 'dmg' && e.wave === undefined && typeof e.source === 'string' && pending.has(e.source)) {
       flags[i] = true;
       pending.delete(e.source); // its swing has landed; later damage from it belongs to whatever caused that
     }

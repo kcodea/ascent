@@ -19,7 +19,7 @@ import {
   SHOP_ACTION_BINDING_KINDS,
   COMBAT_MECHANIC_BINDING_KINDS,
 } from './bindings';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
 import { RECRUIT_MOMENT_KINDS } from './recruitMoments';
 
@@ -417,6 +417,13 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   mumi: { riseGiven: { def: 'rise-beam' } },
   anubis: { riseGiven: { def: 'rise-beam' } },
   gravewarden: { riseGiven: { def: 'rise-beam' } },
+  // RUNE HITS (R-RUNE-SPIKE-FX-01, owner 2026-11-13: "for pitchforks and other similar runes/effects, use the fel spikes
+  // animation"): keyed by RUNE id, launched a beat early like Fel Spikes' own Echo.
+  rune_pitchforks: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
+  rune_imp_legion: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
+  rune_hellfire: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
+  rune_wildfire: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
+  rune_mirror_sheen: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   b2_armadiyo: { minionPlayed: { def: 'sfx-vo-b2-armadiyo', gain: 0.3 }, death: { def: 'sfx-vo-b2-armadiyo-death', gain: 0.3 } },
   b2_voidmother: { minionPlayed: { def: 'sfx-vo-b2-voidmother', gain: 0.3 }, death: { def: 'sfx-vo-b2-voidmother-death', gain: 0.3 } },
   b2_hawkus: { minionPlayed: { def: 'sfx-vo-b2-hawkus', gain: 0.3 }, death: { def: 'sfx-vo-b2-hawkus-death', gain: 0.3 } },
@@ -553,7 +560,8 @@ describe('binding integrity', () => {
     const bad: string[] = [];
     for (const kind of Object.keys(t.kinds)) if (!kinds.has(kind)) bad.push(`kinds.${kind}`);
     for (const [cardId, byKind] of Object.entries(t.cards)) {
-      if (!(cardId in CARD_INDEX)) bad.push(`cards.${cardId}`);
+      // A RUNE id is a real key too (R-RUNE-SPIKE-FX-01): a rune's own hits resolve `bindingFor(runeId, 'damage')`.
+      if (!(cardId in CARD_INDEX) && !(cardId in RUNE_INDEX)) bad.push(`cards.${cardId}`);
       for (const kind of Object.keys(byKind)) if (!kinds.has(kind)) bad.push(`cards.${cardId}.${kind}`);
     }
     expect(bad, `keys that name nothing real: ${bad.join(', ')}`).toEqual([]);

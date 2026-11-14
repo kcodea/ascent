@@ -623,4 +623,25 @@ export const ORDERING_RULES: GameRule[] = [
       + 'until the beam lands. Pinned at the source only; not seen in game by the author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/critBeam.test.ts', 'packages/ui/src/fx/keywordOrigin.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-RUNE-SPIKE-FX-01',
+    title: 'Pitchforks, Imp Legion, Hellfire, Wildfire and Mirror Sheen throw fel spikes, and each hit lands as its spike connects',
+    statement:
+      'The hits of these runes play the Fel Spikes effect. Each spike leaves the body the rune names: the summoned Imp '
+      + '(Pitchforks), the dying Imp (Imp Legion), the Demon that attacked or died (Hellfire), the enemy that died '
+      + '(Wildfire: the enemy your minion killed, its Attack flung at one random enemy) and the minion that lost its Ward (Mirror Sheen). A body that already left '
+      + 'the board throws from where it stood. The spikes launch as the rune fires and the damage numbers land as they '
+      + 'connect. A Hellfire volley that hits every enemy is one spray on one beat; a Hellfire attack waits '
+      + 'with the Demon reared back until its volley lands, then the Demon strikes.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-13', quote: 'for pitchforks and other similar runes/effects, use the fel spikes animation' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (tagRuneHit, runeVolley wave tag, trigger `from`); packages/core/src/effects/factories.ts (Imp Legion trigger); packages/ui/src/choreo/channels/runeHits.ts; packages/ui/src/useCombatReplay.ts (scheduleRuneSpikes, runeSpikeLead); packages/ui/src/choreo/score.ts (stock burst claim); packages/ui/src/choreo/bindings.json (rune_* damage)' },
+    ],
+    contentIds: ['rune_pitchforks', 'rune_imp_legion', 'rune_hellfire', 'rune_wildfire', 'rune_mirror_sheen'],
+    currentBehaviour: 'From 2026-11-13 (feat/rune-fel-spike-fx), combat only (none of the five deals damage in the Shop). '
+      + 'Pitchforks hits split apart by a reaction each get their own spike and beat. Seen in game headless for all five.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/channels/runeHits.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

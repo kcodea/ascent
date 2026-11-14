@@ -2438,6 +2438,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (Wildfire). The one body stays in arena.ts; only the combat `damage` verb gains the source. */
   deathrattleDamageLowestEnemy: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
+    // The rune's pulse (its badge) and its own beat (R-RUNE-SPIKE-FX-01): the trigger splits the Echo's hits off the
+    // death that fired them, so the spike the Imp throws has a beat to fly in before the damage lands. Only when an
+    // enemy is there to hit (the arena body is inert otherwise). `from` = the Imp.
+    if (ctx.onBoard(self.side === 'player' ? 'enemy' : 'player').some((t) => !t.dead && t.health > 0)) {
+      ctx.log({ type: 'questTrigger', flag: 'runeImpLegion', side: self.side, from: self.uid });
+    }
     const arena = combatArena(ctx, self);
     ARENA_EFFECTS.deathrattleDamageLowestEnemy({ ...arena, damage: (t, amount) => ctx.damage(t as Minion, amount, false, false, self) }, params);
   },

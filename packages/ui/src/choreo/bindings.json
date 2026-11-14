@@ -2094,6 +2094,41 @@
       "riseGiven": {
         "def": "rise-beam"
       }
+    },
+    "rune_pitchforks": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
+    },
+    "rune_imp_legion": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
+    },
+    "rune_hellfire": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
+    },
+    "rune_wildfire": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
+    },
+    "rune_mirror_sheen": {
+      "damage": {
+        "def": "fel-spike",
+        "fanOut": "struck",
+        "launchOnDeath": true
+      }
     }
   }
 }

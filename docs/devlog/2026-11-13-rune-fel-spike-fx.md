@@ -12,21 +12,21 @@ spike connects and a fight is not longer for it.
 
 | Rune | Spike leaves | Notes |
 |---|---|---|
-| Pitchforks | the summoned Imp | 2 targets; a reaction that splits the two hits gives each its own spike + beat |
-| Imp Legion | the dying Imp | a new `questTrigger` (the badge pulse) splits its Echo hit off the death beat |
+| Pitchforks | the summoned Imp (its own Demon damage since #2693) | both hits are one wave: one spray, one beat |
+| Imp Legion | the dying Imp (the dealer since #2693) | a new `questTrigger` (the badge pulse) splits its Echo hit off the death beat |
 | Hellfire | the Demon that attacked or died (its own damage since #2693) | one wave per volley: ONE spray at every enemy; the attacker parks reared back (`wavesAheadOf`) and strikes after |
 | Wildfire | the enemy your minion killed | #2693's single hit (its Attack at one random enemy) flies out of that enemy's slot, remembered after the row collapses |
 | Mirror Sheen | the minion that lost its Ward | |
 
 ## Plumbing
 
-- **Depends on #2693** (`feat/hellfire-wildfire`, merged into this branch): Hellfire's volley is Demon damage
-  (`hellfireVolley`, the Demon as dealer) and Wildfire is a sourceless single hit. The merge kept #2693's resolution
+- **Depends on #2693** (`feat/hellfire-wildfire`, merged into this branch): Hellfire, Pitchforks and Imp Legion are Demon
+  damage (`sourcedVolley` / the dying Imp as dealer) and Wildfire is a sourceless single hit. The merge kept #2693's resolution
   verbatim and added only the presentation stamps on top.
 - **Engine (presentation only, no outcome change):** `tagRuneHit` stamps a rune hit's OWN event (`dmg`, or the Ward pop
   that absorbed it) with `key: 'rune:<runeId>:hit'` + `srcCard`; the rune's `questTrigger` gains `from` (the body the
-  effect comes from; a new optional field, not `source`, so the stock quest-trigger def stays dormant). Hellfire's hits
-  and their flushed reactions carry a bare `waveN` tag (not `withWave`: #2693's own queueing is untouched); its deaths
+  effect comes from; a new optional field, not `source`, so the stock quest-trigger def stays dormant). Each `sourcedVolley`
+  (Hellfire, Pitchforks) stamps its hits and gives them + their flushed reactions a bare `waveN` tag (not `withWave`: #2693's own queueing is untouched); its deaths
   stay outside the wave. A wave hit no longer spends the swing's "opener" in `compileMoments` / `buildBeats` (the same
   rule `ownStrikeAt` already used), so a Hellfire Demon's strike keeps its own beat instead of merging into the
   volley's deaths. Imp Legion's grafted Echo logs a `questTrigger` (`from` = the Imp) when there is an enemy.

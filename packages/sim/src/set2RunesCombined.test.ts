@@ -118,13 +118,60 @@ describe('Hellfire / Wildfire x Pitchforks / Imp Legion', () => {
     expect(triggers(fight([knocked()], [wall('w', 5), ...armed(2, 3)], { runePitchforks: true }).events, 'runeWildfire')).toHaveLength(0);
   });
 
-  it('Wildfire + Imp Legion: the grafted Echo deals SOURCELESS damage (the shared arena body), so its kill does not fire Wildfire', () => {
-    // The Imp Scrap dies to the wall; its Imp Legion Echo hits the lowest-Health enemy (a 3-Health dummy) for 3. That
-    // Echo routes through the shared arena body, which credits no minion, so the engine has no killer to read.
+  it('Wildfire + Imp Legion: the dying Imp deals the grafted Echo, so its kill is a minion kill and fires Wildfire', () => {
+    // The Imp Scrap dies to the wall; its Imp Legion Echo hits the lowest-Health enemy (a 3-Health dummy) for 3, dealt by
+    // the dying Imp (owner 2026-11-13: Pitchforks and Imp Legion are Demon damage), so Wildfire hears the kill.
     const r = fight([knocked()], [wall('w', 5, 5000), bm('d', PLAIN[1]!, { attack: 2, health: 3, keywords: [] })], { runeWildfire: true, runeImpLegion: true });
     const low = r.initial.enemy[1]!.uid;
     expect(of(r.events, 'death').some((e) => e.target === low)).toBe(true);
-    expect(triggers(r.events, 'runeWildfire')).toHaveLength(0);
+    expect(triggers(r.events, 'runeWildfire').length).toBeGreaterThanOrEqual(1);
+  });
+
+  // ── Pitchforks + Imp Legion are DEMON damage, dealt by the Imp (owner 2026-11-13) ──
+  /** uid -> cardId for every body a side ever had (the starting board plus every summon). */
+  const bodiesOf = (r: Fight, s: 'player' | 'enemy') => new Map<string, string>([
+    ...r.initial[s].map((m) => [m.uid, m.cardId] as [string, string]),
+    ...of(r.events, 'summon').filter((e) => e.side === s).map((e) => [e.minion.uid, e.minion.cardId] as [string, string]),
+  ]);
+  /** Every landed hit a Demon of side `s` dealt (each one is a "Demon deals damage"). */
+  const demonHits = (r: Fight, s: 'player' | 'enemy' = 'player') => {
+    const bodies = bodiesOf(r, s);
+    return of(r.events, 'dmg').filter((e) => !!e.source && bodies.has(e.source) && CARD_INDEX[bodies.get(e.source)!]?.tribe === 'demon');
+  };
+  const rachelFires = (r: Fight, s: 'player' | 'enemy' = 'player') => {
+    const rach = r.initial[s].find((m) => m.cardId === 'dm_radrachel')!.uid;
+    return of(r.events, 'buff').filter((e) => e.target === rach && e.source === rach).length;
+  };
+  const impsOf = (r: Fight, s: 'player' | 'enemy' = 'player') => new Set(of(r.events, 'summon').filter((e) => e.side === s && e.minion.cardId === 'impscrap').map((e) => e.minion.uid));
+  const rachel = () => bm('r', 'dm_radrachel', { attack: 0, health: 5000 });
+
+  it('Pitchforks + Rad Rachel / Ruins: each Pitchforks hit that lands is the Imp dealing Demon damage', () => {
+    const r = fight([knocked(), rachel()], [wall('w', 5), ...dummies(2, 50)], { runePitchforks: true, runeRuins: true });
+    const imps = impsOf(r);
+    const forks = demonHits(r).filter((e) => imps.has(e.source!) && e.amount === 3);
+    expect(forks.length).toBe(2);
+    expect(rachelFires(r)).toBe(demonHits(r).length);
+    expect(triggers(r.events, 'runeRuins').length).toBe(demonHits(r).length);
+  });
+
+  it('Imp Legion + Rad Rachel / Ruins: the grafted Echo is dealt by the dying Imp (Demon damage)', () => {
+    const r = fight([knocked(), rachel()], [wall('w', 5), ...dummies(1, 50)], { runeImpLegion: true, runeRuins: true });
+    const imps = impsOf(r);
+    const echo = of(r.events, 'dmg').find((e) => e.key === 'factory:deathrattleDamageLowestEnemy:onDeath');
+    expect(echo).toBeTruthy();
+    expect(imps.has(echo!.source ?? '')).toBe(true);
+    expect(rachelFires(r)).toBe(demonHits(r).length);
+    expect(triggers(r.events, 'runeRuins').length).toBe(demonHits(r).length);
+    // The Echo hit is one of them: Rachel's buff lands right after it.
+    const at = r.events.indexOf(echo!);
+    expect(of(r.events.slice(at + 1, at + 4), 'buff').some((e) => e.source === r.initial.player[1]!.uid)).toBe(true);
+  });
+
+  it('symmetric: a served enemy side\'s Pitchforks and Imp Legion fire ITS Rachel the same way', () => {
+    const e = fight([wall('w', 5), ...dummies(2, 50)], [knocked(), rachel()], {}, 4, { runePitchforks: true, runeImpLegion: true });
+    const imps = impsOf(e, 'enemy');
+    expect(demonHits(e, 'enemy').filter((x) => imps.has(x.source!)).length).toBeGreaterThanOrEqual(3); // 2 forks + 1 Echo
+    expect(rachelFires(e, 'enemy')).toBe(demonHits(e, 'enemy').length);
   });
 
   it('Hellfire + Imp Legion: the Imp is a Demon, so its death fires Hellfire AND its Echo', () => {
@@ -133,7 +180,7 @@ describe('Hellfire / Wildfire x Pitchforks / Imp Legion', () => {
     expect(imp).toBeTruthy();
     // The Knocked Imp's death and the Imp Scrap's death each volley (2+), plus every Demon swing.
     expect(triggers(r.events, 'runeHellfire')).toHaveLength(3);
-    // The Imp Legion Echo: a sourceless 3 to the lowest-Health enemy, keyed to the grafted factory, before that death's volley.
+    // The Imp Legion Echo: a 3 to the lowest-Health enemy (dealt by the dying Imp), keyed to the grafted factory, before that death's volley.
     const echo = of(r.events, 'dmg').find((e) => e.amount === 3 && e.key === 'factory:deathrattleDamageLowestEnemy:onDeath');
     expect(echo).toBeTruthy();
     const impDeath = r.events.findIndex((e) => e.type === 'death' && e.target === imp.minion.uid);

@@ -96,7 +96,7 @@ describe('rune hits resolve to the fel spike', () => {
     expect(r.events.slice(first.start, first.end).filter((e) => runeOfHit(e) === 'rune_hellfire').every((e) => e.type !== 'dmg' || e.source === attacker)).toBe(true);
   });
 
-  it('Pitchforks: a hit a reaction splits off still gets its own launch + hold, each number on its own spike', () => {
+  it('Pitchforks: with reacting victims both hits still get a launch + hold (one wave since #2693)', () => {
     const r = fight([bm('k', 'dm_knocked', { attack: 0, health: 1 })], [bag('w1', 5), bag('w2'), bag('w3')], { runePitchforks: true });
     const moments = compileMoments(r.events);
     const v = volleys(r.events).filter((g) => g.runeId === 'rune_pitchforks');

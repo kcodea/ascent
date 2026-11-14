@@ -43,12 +43,29 @@ dealt by `dealDamage` with no source to one `rng.pick` of the living enemies. Th
 - **What counts as a kill by one of your minions:** whatever the engine credits to a friendly dealer. That includes
   attacks, retaliation, Cleave, Fel Spikes and Gasket sprays, Bleed, Pitchforks (the Imp is the source) and Hellfire
   (the Demon).
-- **What does not count:** effects routed through the shared arena body, which credits no minion. Imp Legion's
-  grafted Echo is one example. Spells, sourceless rune volleys and destroys do not count either.
-  **Open question for the owner:** should an arena-routed Echo be credited to its minion? Doing that would change
-  every card that uses that path.
+- **What does not count:** spells, rune volleys with no dealer, Wildfire's own hit, destroys, and any effect routed
+  through the shared arena `damage` verb, which credits no minion. Imp Legion's Echo is no longer one of these (see
+  below).
+
+## Pitchforks and Imp Legion are Demon damage too (owner, same day)
+
+The owner ruled: "What about pitchforks and imp legion? Those should also count as demon damage".
+
+- **Pitchforks** already passed the Imp as the source, so its hits already fired the Demon-damage reactions one by one.
+  One copy's throw now uses the shared `sourcedVolley`, the same helper Hellfire uses: both hits land, the reactions
+  fire per landed hit, then the deaths, with the Imp credited.
+- **Imp Legion**: the combat factory now hands the shared arena body a `damage` verb sourced by the dying Imp. This is
+  how Fel Spikes' Echo credits its dying Demon. The body itself stays in `arena.ts`, and Imp Legion is its only user.
+  Its kill now fires Wildfire.
+- **Texts are unchanged.** Pitchforks says "**Imps** deal **3** damage...", and Imp Legion gives the Imp the Echo, so
+  both already name the Imp as the dealer.
+- **The other Demon-sourced effect damage in this batch was already sourced:**
+  - Fel Spikes' Echo and Gasket's Rally (the spray).
+  - Mirror Sheen's reflected hit, dealt by the Warded minion, so it is Demon damage when that minion is a Demon.
+  - Wildfire stays sourceless by ruling.
 
 ## Tests
 
 `set2EpicTribalRunes1112.test.ts` (the Hellfire and Wildfire blocks were rewritten) and `set2RunesCombined.test.ts`
-(the Pitchforks and Imp Legion pins). Oracle rule `R-SET2-EPIC-TRIBAL-1112-04` was rewritten.
+(the Pitchforks and Imp Legion pins, plus Rachel, Ruins and mirrored-side checks for both). Oracle rules
+`R-SET2-EPIC-TRIBAL-1112-04` (rewritten) and `R-SET2-TRIBAL-RUNES-04` (extended).

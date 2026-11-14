@@ -6,6 +6,7 @@ import { foeRuneSlotPoint, runeSlotPoint } from './keywordOrigin';
 import { bankedCastPlayerAnchor } from '../castPreview';
 import { bankedCastAnchor } from '../choreo/channels/bankedCast';
 import { canPlayDefs } from './playDef';
+import { unitSelector } from './combatAnchors';
 
 /**
  * A RUNE GIVES RISE, EXECUTE OR WARD IN COMBAT (R-FX-KEYWORD-ORIGIN-01, owner 2026-11-13: "this same logic should
@@ -127,6 +128,20 @@ export function bankedKeywordGrantsIn(moment: Pick<Moment, 'start' | 'end'>, eve
   return out;
 }
 
+/**
+ * A MINION GIVES ANOTHER MINION TAUNT IN COMBAT (Arena Heckler: "give the minion opposite this Taunt"; owner
+ * 2026-11-13). The engine logs the grant with the giver as its source. Those grants in this beat, giver to receiver.
+ * Taunt only: a minion-given Rise, Execute or Ward has its own bound path (`riseGivenLaunch.ts` and its twins).
+ */
+export function minionTauntGrantsIn(moment: Pick<Moment, 'start' | 'end'>, events: readonly CombatEvent[]): Array<{ source: string; target: string }> {
+  const out: Array<{ source: string; target: string }> = [];
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (e?.type === 'keyword' && e.keyword === 'T' && e.source !== undefined && e.source !== e.target) out.push({ source: e.source, target: e.target });
+  }
+  return out;
+}
+
 let carry: RuneCarry | null = null;
 let waiting: WaitingGrant[] = [];
 
@@ -142,6 +157,16 @@ export function startRuneKeywordBeams(moment: Moment, events: CombatEvent[], spe
     // The foe's cast card shows mirrored across the screen (`bankedCastAnchor`), so its beam leaves from there.
     const p = bankedCastPlayerAnchor();
     if (p) banked.forEach((g, i) => { const a = bankedCastAnchor(g.side, p, window.innerWidth); launchKeywordBeam(g.kw, { x: a.left + a.width / 2, y: a.top + a.height / 2 }, g.target, { launchAt: i * KEYWORD_BEAM_GAP_MS, speed, sound: i < KEYWORD_BEAM_SOUND_MAX, register }); });
+  }
+  // A minion's own Taunt grant leaves that minion (read as the beam leaves: it may still be settling into its slot).
+  if (canPlayDefs()) {
+    minionTauntGrantsIn(moment, events).forEach((g, i) => {
+      const giver = (): { x: number; y: number } | null => {
+        const r = document.querySelector(unitSelector(g.source))?.getBoundingClientRect();
+        return r && (r.width > 0 || r.height > 0) ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+      };
+      launchKeywordBeam('T', giver, g.target, { launchAt: i * KEYWORD_BEAM_GAP_MS, speed, sound: i < KEYWORD_BEAM_SOUND_MAX, register });
+    });
   }
   if (!canPlayDefs() || (out.grants.length === 0 && out.returned.length === 0)) return;
   let k = 0;

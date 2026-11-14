@@ -4,7 +4,7 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { replayBeats, replayOrder } from '../choreo/replayOrder';
 import { KEYWORD_BEAMS, KEYWORD_LAND_AT_MS, holdKeywordLook, isBeamKeyword, keywordLandAtMs } from './keywordBeam';
-import { bankedKeywordGrantsIn } from './runeKeywordBeams';
+import { bankedKeywordGrantsIn, minionTauntGrantsIn, runeKeywordGrantsIn } from './runeKeywordBeams';
 import { isTauntHeld } from './tauntHold';
 import { getDef } from './fxDefs';
 import { defArrivalMs } from './defArrival';
@@ -23,10 +23,10 @@ describe('the Taunt beam', () => {
     expect(KEYWORD_BEAMS.T.launchSfx).toBe('sfx-taunt-whoosh');
     expect(getDef('sfx-taunt-whoosh')).toBeDefined();
   });
-  it('the shield frame appears 210 ms after the beam leaves (owner 2026-11-13), whatever the beam travel says', () => {
-    expect(KEYWORD_LAND_AT_MS).toEqual({ T: 210 });
-    expect(keywordLandAtMs('T', 140)).toBe(210);
-    expect(keywordLandAtMs('T', 380)).toBe(210);
+  it('the shield frame appears 240 ms after the beam leaves (owner 2026-11-13), whatever the beam travel says', () => {
+    expect(KEYWORD_LAND_AT_MS).toEqual({ T: 240 });
+    expect(keywordLandAtMs('T', 140)).toBe(240);
+    expect(keywordLandAtMs('T', 380)).toBe(240);
     // Every other keyword still lands when its tip arrives.
     for (const kw of ['R', 'V', 'DS', 'W', 'CR'] as const) expect(keywordLandAtMs(kw, 380)).toBe(380);
     const kb = read('./keywordBeam.ts');
@@ -37,8 +37,8 @@ describe('the Taunt beam', () => {
     const kb = read('./keywordBeam.ts');
     expect(kb).toContain("const ringTaunt = (): void => { if (sound && kw === 'T' && !tauntRang) { tauntRang = true; sfx.taunt(); } };");
     // ...100 ms ahead of the frame, and still rung at the landing if that timer never ran.
-    expect(kb).toContain('const ringAt = Math.max(0, landAt - TAUNT_SOUND_LEAD_MS);');
-    expect(kb).toContain('export const TAUNT_SOUND_LEAD_MS = 155;');
+    expect(kb).toContain('const ringAt = Math.min(TAUNT_SOUND_AT_MS, landAt);');
+    expect(kb).toContain('export const TAUNT_SOUND_AT_MS = 55;');
     const store = read('../store.ts');
     expect(store).toContain("const tauntBeamComing = !!shopKeywordOrigin() && canPlayDefs() && !!getDef(KEYWORD_BEAMS.T.def);");
     expect(store).toContain("if (!tauntBeamComing && next.board.some((m) => m.keywords.includes('T') && wasTaunt.get(m.uid) === false)) sfx.taunt();");
@@ -58,6 +58,27 @@ describe('the Taunt beam', () => {
     const recruit = read('../Recruit.tsx');
     expect(recruit).toContain("if (prevT!.get(c.uid) === false && c.keywords.includes('T')) gains.push('T');");
     expect(recruit).toContain("keyword === 'CR' || keyword === 'T')) {");
+  });
+  it('Arena Heckler on a REAL fight (owner 2026-11-13): the Taunt leaves Heckler for the enemy minion opposite it', () => {
+    const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ cardId, attack, health, keywords: [] });
+    const { events: raw } = simulate([bm('arenaheckler', 1, 60), bm('trainingdummy', 1, 60)], [bm('trainingdummy', 1, 60), bm('trainingdummy', 1, 60)], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4 }));
+    const events = replayOrder(raw);
+    const beats = replayBeats(raw);
+    const got = beats.flatMap((beat) => minionTauntGrantsIn(beat, events));
+    expect(got).toHaveLength(1);
+    const logged = raw.find((e) => e.type === 'keyword' && e.keyword === 'T') as { target: string; source: string };
+    expect(got[0]).toEqual({ source: logged.source, target: logged.target });
+    expect(got[0]!.source).toBe('m0'); // Heckler himself, the left-most player body
+    expect(got[0]!.target).not.toBe('m1'); // an enemy body, not his neighbour
+    // The rune and banked-spell readers leave a minion's grant alone, so it never plays twice.
+    expect(beats.flatMap((beat) => bankedKeywordGrantsIn(beat, events))).toEqual([]);
+    expect(beats.flatMap((beat) => runeKeywordGrantsIn(beat, events, null, []).grants)).toEqual([]);
+  });
+  it('a minion that already has Taunt gets no second one from Heckler', () => {
+    const { events: raw } = simulate([{ cardId: 'arenaheckler', attack: 1, health: 60, keywords: [] }], [{ cardId: 'trainingdummy', attack: 1, health: 60, keywords: ['T'] }], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 4 }), combatSide({ tier: 4 }));
+    expect(replayBeats(raw).flatMap((beat) => minionTauntGrantsIn(beat, replayOrder(raw)))).toEqual([]);
   });
   it('Marked Target, banked in the Shop, on a REAL fight: the Taunt leaves the caster for the FOE minion it marks', () => {
     const bm = (cardId: string, attack: number, health: number): BoardMinion => ({ cardId, attack, health, keywords: [] });

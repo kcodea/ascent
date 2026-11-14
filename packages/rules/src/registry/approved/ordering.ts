@@ -641,8 +641,8 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'PARTIAL from 2026-11-13 (fx/taunt-given). Covered: the Shop (a targeted spell or gift mid-turn, a rune or '
       + 'hero grant at End of Turn or Start of Turn) and, in combat, Marked Target (the Taunt leaves the cast card of the '
       + 'caster for the foe minion it marks) and any rune grant the engine logs. NOT covered: a body that ARRIVES with '
-      + 'Taunt (a summon, a Discover that grants it, Summoning Bulwark on a new body) is not a travel. No minion gives '
-      + 'another minion Taunt, so there is no minion path. A whoosh as it leaves; the existing Taunt sound rings as it lands, and the Shop no longer also rings it at the grant when a beam is coming. Pinned on a real simulated fight (Marked '
+      + 'Taunt (a summon, a Discover that grants it, Summoning Bulwark on a new body) is not a travel. A MINION that gives '
+      + 'Taunt in combat (Arena Heckler, to the enemy opposite it) sends the beam from itself, either side. A whoosh as it leaves; the existing Taunt sound rings as it lands, and the Shop no longer also rings it at the grant when a beam is coming. Pinned on a real simulated fight (Marked '
       + 'Target) and at the source; not seen in game by the author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/tauntBeam.test.ts'], lastVerifiedAt: '2026-11-13' },
   },

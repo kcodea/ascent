@@ -32,3 +32,8 @@ Owner: "now im making a taunt beam".
 - Then 190 ms (owner: "delay the frame another 30ms").
 - Then 210 ms (owner: "have shield frame delayed another 20ms").
 - The Taunt sound leads the frame by 155 ms, so it rings 55 ms after launch (owner: "delay the taunt deploy sound effect by 15ms").
+- **Arena Heckler.** The earlier note that no minion gives Taunt was wrong: Heckler gives it to the enemy opposite at
+  Start of Combat, logged as a `keyword` event with Heckler as the source. `minionTauntGrantsIn` reads those and the
+  beam leaves Heckler (either side's). Pinned on a real simulated fight.
+- Frame at 240 ms (owner: "delay the Shield frame appears by another 30ms"). The sound is now its own fixed moment
+  (`TAUNT_SOUND_AT_MS = 55`) instead of a lead off the frame, so it stays where the owner set it.

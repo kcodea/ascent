@@ -34,13 +34,16 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
  * Absent = the moment the beam's tip arrives. Taunt's shield frame is a whole-card change the owner tuned by eye
  * (2026-11-13: "have the frame switch (appear) at 160 ms", then "delay the frame another 30ms"); a fixed moment, so re-saving the beam does not move it.
  */
-export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 210 };
+export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 240 };
 
 /** When `kw`'s look lands, in ms after launch (at 1x), for a beam whose tip arrives at `arrive`. */
 export const keywordLandAtMs = (kw: BeamKeyword, arrive: number): number => Math.max(0, KEYWORD_LAND_AT_MS[kw] ?? arrive);
 
-/** How long before the shield frame appears the Taunt sound starts (ms at 1x; owner 2026-11-13: "come in 100 ms earlier", then "earlier too, maybe 70 ms"). */
-export const TAUNT_SOUND_LEAD_MS = 155;
+/**
+ * When the Taunt sound rings, in ms after the beam leaves (at 1x). A fixed moment the owner tuned by ear (2026-11-13),
+ * so moving the frame does not move the sound; never later than the frame itself.
+ */
+export const TAUNT_SOUND_AT_MS = 55;
 
 /** The gap (ms at 1x) between beams when one cause gives several keywords at once. */
 export const KEYWORD_BEAM_GAP_MS = 180;
@@ -114,8 +117,7 @@ export function launchKeywordBeam(
       { uids: { source: null, target: targetUid }, index: 0, gain: opts.gain, target: settle?.get, onDone: settle?.stop });
     if (!stop) settle?.stop();
     if (sound && beam.launchSfx) playDef(beam.launchSfx, anchors, { uids: { source: null, target: targetUid } });
-    // As far ahead of the frame as the flight allows: on a short beam that is the launch itself.
-    const ringAt = Math.max(0, landAt - TAUNT_SOUND_LEAD_MS);
+    const ringAt = Math.min(TAUNT_SOUND_AT_MS, landAt);
     if (kw === 'T' && ringAt < landAt) { if (ringAt <= 0) ringTaunt(); else register(window.setTimeout(ringTaunt, ringAt / s)); }
     if (landAt <= 0) land(); else register(window.setTimeout(land, landAt / s));
   };

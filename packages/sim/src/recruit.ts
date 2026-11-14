@@ -32,6 +32,7 @@ import { runeStacksOf } from './runeDup';
 import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 import { discoverOptionCount, goldenHandshakeOnGild, piggyBankTick, shieldWallShop } from './set2RunesBasicNeutral';
 import { collectionsOnSale, drunkShopkeeperOnCast, flamekeeperOnCast, impLegionGraft, roughCutShop } from './set2RunesBasicTribal'; // Set 2 rune batch, Basic tribal
+import { sequencingOnCast } from './runeSequencing'; // Set 2 Epic Dragon rune Sequencing (2026-11-14)
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -14631,6 +14632,8 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
       grantCountRuneCopy(state, second, 2 * runeStacksOf(state, 'rune_astral_refrain'));
     }
   }
+  // RUNE OF SEQUENCING (Set 2 Epic, 2026-11-14): the run's ONE sequence of different spells, shared with combat.
+  sequencingOnCast(state, spellId);
 }
 
 /**

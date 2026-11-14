@@ -58,6 +58,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
   // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
+  // Sequencing (owner design 2026-11-14): handed over as an Epic DRAGON rune; spell casts are the Dragon line.
+  rune_sequencing: 'dragon',
   // The owner's Set 2 rune batch (review 2026-11-12) lists Guel's Apprentice under Demon; its Staff of Guel names no tribe word.
   rune_guels_apprentice: 'demon', rune_dragon_hoard: 'dragon', // …and Dragon Hoard under Dragon (its Dragonflame is the Dragon spell)
   // Set 2 rune batch (owner 2026-11-12) lists Big Spender under Dwarf: "spend Gold" triggers are the Dwarf line.

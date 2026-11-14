@@ -847,6 +847,7 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 2 rune batch, Basic tribal (owner review 2026-11-12)
   'runeBloodscent', 'runeLastHowl', 'runeTrophyHunter', 'runePitchforks', 'runeImpLegion', 'runeCollections',
   'runeFlamekeeper', 'runeHatchlingRoost', 'runeRubyDust', 'runeRoughCut',
+  'runeSequencing', // Set 2 Epic Dragon rune (2026-11-14)
   // Set 2 rune batch, Epic neutral (owner 2026-11-12)
   'runeTopShelf', 'runeDoubleBill', 'runeBulwarkLine', 'runeWholesale', 'runeGrudge', 'runeBastion', 'runeMirrorSheen',
   // Set 2 rune batch, Epic tribal (owner 2026-11-12)

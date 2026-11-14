@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'New Set 2 Dragon Epic rune: Sequencing. When you cast 3 different spells, get a copy of the first one.',
+        details: [
+          'Sequencing (Dragon, Epic, 3 Gold): every different spell you cast joins the sequence. Casting one that is already in it does nothing.',
+          'The third different spell gives you a copy of the first one, then the sequence starts over. It repeats all game.',
+          'It counts spells cast in the Shop, at End of Turn and in combat, and one sequence carries between them. A copy earned in combat goes to your hand right away.',
+          'The rune shows the spells in your sequence so far and how many more you need.',
+          'Gifts never count. Two copies of the rune give two copies.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Drunk Shopkeeper now buffs your Shop for the rest of the game. Each Ale you cast adds +1/+1.',
         details: [
           'Minions that arrive in your Shop later, after a Refresh or on a new turn, have the bonus too.',

@@ -6,7 +6,7 @@ import { heroGrantOf, type RunState } from '@game/sim';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
 import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
-import { questTally, runeCombatTally, runeTally } from './runeTally';
+import { questTally, runeCombatTally, runeLiveTally, runeTally } from './runeTally';
 import { useRuneTriggerFx, type RuneSlotPulse } from './runeTriggerFx';
 import { useRuneArrivalFx } from './useRuneArrivalFx';
 import { heroSlotRuneId, rackRunes } from './heroSlotRune';
@@ -230,7 +230,7 @@ export function QuestBadges({ run: shownRun }: { run?: RunState } = {}) {
               // During a replay the COMBAT meter wins (Reinvestment's live "+N/+N this fight" over its banked total);
               // outside one, the shop meters answer.
               const tally = (combatQuestDelta ? runeCombatTally(rune.id, combatQuestDelta.friendlyDeath, combatQuestDelta.summonCombat, run.questFlags?.runeReinvestment ?? 1, triggered[rune.id] ?? 0) : null)
-                ?? runeTally(run, rune.id);
+                ?? runeLiveTally(rune.id, runeLive) ?? runeTally(run, rune.id);
               return tally && (
               <span key={tally} className="qb-tally">{tally}</span>
             ); })()}

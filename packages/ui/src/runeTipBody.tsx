@@ -2,7 +2,7 @@ import { RUNE_INDEX } from '@game/content';
 import { runeLiveStateOfRun, type RunState, type RuneLiveState } from '@game/sim';
 import { mdBold } from './Card';
 import { questRewardLiveText } from './questText';
-import { runeTally } from './runeTally';
+import { runeLiveTally, runeTally } from './runeTally';
 import { liveRuneText } from './runeText';
 
 /**
@@ -48,7 +48,7 @@ export function runeTipLines(runeId: string, src: RuneTipSource): RuneTipLines |
   if (!rune) return null;
   const { run } = src;
   const live = src.live !== undefined ? src.live : run ? runeLiveStateOfRun(run) : null;
-  const tally = src.tally !== undefined ? src.tally : run ? runeTally(run, runeId) : null;
+  const tally = src.tally !== undefined ? src.tally : runeLiveTally(runeId, live) ?? (run ? runeTally(run, runeId) : null);
   // A whole run always knows its first spell (none cast yet is an answer); a captured board only when it recorded it.
   const liveLine = run
     ? questRewardLiveText(rune.reward, { firstSpellId: run.firstSpellThisTurnId })

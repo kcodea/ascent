@@ -1,4 +1,14 @@
 import type { RuneLiveState } from '@game/sim';
+import { CARD_INDEX } from '@game/content';
+import { SEQUENCING_DISTINCT } from '@game/core';
+
+/** Rune of Sequencing's live readout (owner design 2026-11-14): the spells in the current sequence, by name, and how
+ *  many more different ones complete it. Plain words, no dashes (R-TEXT-STYLE). */
+export function sequencingReadout(seq: readonly string[]): string {
+  if (seq.length === 0) return '(Sequence: none yet.)';
+  const names = seq.map((id) => CARD_INDEX[id]?.name ?? id).join(', ');
+  return `(Sequence: ${names}. ${Math.max(0, SEQUENCING_DISTINCT - seq.length)} more.)`;
+}
 
 /**
  * LIVE RUNE TEXT (owner report 2026-10-16, R-RUNE-LIVE-TEXT-01): "this rune should show the current value in real
@@ -49,6 +59,9 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // "When you cast an Ale, Shop minions get +1/+1 permanently." The step stays printed; the running total is appended.
     case 'rune_drunk_shopkeeper':
       return st.drunkShopkeeper ? `${text} (Now +${st.drunkShopkeeper.attack}/+${st.drunkShopkeeper.health}.)` : text;
+    // "When you cast 3 different spells, get a copy of the first one." (Set 2 Epic, 2026-11-14): the sequence so far.
+    case 'rune_sequencing':
+      return st.sequence ? `${text} ${sequencingReadout(st.sequence)}` : text;
     default:
       return text;
   }

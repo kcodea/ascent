@@ -1,6 +1,6 @@
-import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState } from '@game/sim';
+import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState, type RuneLiveState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -79,6 +79,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_clear_voices' && run.questFlags?.runeClearVoices) {
     return run.clearVoicesPaid ? `${CLEAR_VOICES_DISTINCT}/${CLEAR_VOICES_DISTINCT}` : `${Math.min(CLEAR_VOICES_DISTINCT, run.clearVoicesIds?.length ?? 0)}/${CLEAR_VOICES_DISTINCT}`;
   }
+  // Rune of Sequencing (Set 2 Epic, 2026-11-14): different spells in the current sequence, toward the 3 that pay.
+  if (runeId === 'rune_sequencing' && run.questFlags?.runeSequencing) return `${Math.min(SEQUENCING_DISTINCT, run.runeSequence?.length ?? 0)}/${SEQUENCING_DISTINCT}`;
   // Rune of Spell Tempering: Whispers cast toward the next improve (a running meter across turns and fights).
   if (runeId === 'rune_spell_tempering' && run.questFlags?.runeSpellTempering) return `${Math.min(SPELL_TEMPERING_PER, run.runeSpellTemperingTick ?? 0)}/${SPELL_TEMPERING_PER}`;
   // Rune of the Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
@@ -348,6 +350,16 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
 /** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
  *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
+/**
+ * A meter read off a rune's LIVE state (`RuneLiveState`: the run, a captured board, either advanced by the replay), so
+ * it ticks mid-fight on every surface and on an opponent's rail too. Null when the rune keeps no such meter.
+ */
+export function runeLiveTally(runeId: string, live: RuneLiveState | null | undefined): string | null {
+  // Rune of Sequencing: the sequence's length out of 3, the moment each combat cast moves it (R-REALTIME-01).
+  if (runeId === 'rune_sequencing' && live?.sequence) return `${Math.min(SEQUENCING_DISTINCT, live.sequence.length)}/${SEQUENCING_DISTINCT}`;
+  return null;
+}
+
 export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1, fires = 0): string | null {
   // TROPHY HUNTER (Set 2 rune batch, 2026-11-13): "(3 per combat.)" Its paid kills this fight out of the 3 (the replay's
   // own trigger count for the badge, `fires`), so the cap is visible as it fills.

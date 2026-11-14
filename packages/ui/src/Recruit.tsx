@@ -68,7 +68,7 @@ if (import.meta.env.DEV) {
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
-import { type Action, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -443,8 +443,6 @@ const SHOP_RUBY_DELIVER_MS = 200;
 // The beam-contact hold (`EQUIP_BUFF_LAND_MS`) and the one-beam-per-fire cascade an Equipment flagged
 // `useFxTargetsBuffed` plays live in `equipBeamCascade.ts` (owner ruling 2026-09-22).
 
-/** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
-const SPELLCAST_EDWARD_ECHO_MS = 80;
 
 /** A measured (screen) rect as a stage-px DOMRect, for a consumer that only writes it as CSS (the sandbox
  *  UnitEditor's anchor). The same object when the stage is unscaled (stage.ts). */
@@ -1176,7 +1174,7 @@ export function handLiveOf(run: RunState, cardBuffsLive: Record<string, { attack
 /** One HAND card's view, exactly as the hand row builds it (spells carry their cast count, minions the in-hand flag). */
 export function handCardView(run: RunState, m: BoardCard, live: ReturnType<typeof handLiveOf>, override?: { attack: number; health: number }): CardView {
   const def = CARD_INDEX[m.cardId];
-  return instView(m, run.tier, override, spellAttackBonusLive(run), spellHealthBonusLive(run), run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, spellEscalationLive(run).attack, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, def?.spell || def?.ruby ? { ...live, castMult: spellCastCount(run, def!, m) } : { ...live, inHand: true });
+  return instView(m, run.tier, override, spellAttackBonusLive(run), spellHealthBonusLive(run), run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, spellEscalationLive(run).attack, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, def?.spell || def?.ruby ? { ...live, castMult: spellCastCount(run, def!, m), aleMag: aleHandMagnitude(run, def!.id) } : { ...live, inHand: true });
 }
 
 /** ShopViewOpts assembled from a raw RunState — the live-text inputs for surfaces that preview a card the
@@ -8669,23 +8667,9 @@ export function Recruit() {
     // freebies would be wrong — this runs after the dispatch, and `spellCastCount` is the same read the
     // spark path makes at the same moment, so the two agree by construction.
     runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def, card) : 1), ctx);
-    // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
-    // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
-    // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
-    // (only buff ales have minion targets) — and Edward only multiplies Ales, and only Ales carry a spellCast
-    // binding, so recipients + Edward ⟺ an Ale Edward doubled. Edward's position is measured at echo time (inside
-    // the timeout), so it survives Edward himself being re-rendered by the buff.
-    const edwards = targets.length > 0 ? st.board.filter((c) => c.cardId === 'dw_edward') : [];
-    const echoes = edwards.length > 0 ? (edwards.some((e) => e.golden) ? 2 : 1) : 0;
-    const edwardUid = edwards[0]?.uid;
-    for (let i = 1; i <= echoes; i++) {
-      window.setTimeout(() => {
-        const el = edwardUid ? document.querySelector<HTMLElement>(`[data-uid="${edwardUid}"]`) : null;
-        const center = el ? restingCenterOf(el) : null;
-        if (!center) return; // Edward left the board (sold/tripled), or isn't laid out, before the echo — skip cleanly
-        runRecruitMomentCues(spellCastMoment(cardId, center, recipients), ctx);
-      }, i * SPELLCAST_EDWARD_ECHO_MS);
-    }
+    // (Edward Keg-hands' echo volley lived here until 2026-11-14: he made Ales cast extra times, so the deduped fan-out
+    // was re-fired from his card per extra cast. He now multiplies an Ale's numbers on ONE cast (R-EDWARD-01), so there
+    // is no repeat to show; his own On Watcher pulse still plays, `fireAleWatchers`.)
   };
 
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the

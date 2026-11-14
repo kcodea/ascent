@@ -663,11 +663,11 @@ describe('the run-wide Ale multiplier (Bottomless Cellar / Rune of the Bottomles
     expect(goldFromAle((s) => ({ ...s, aleExtraCasts: 1 })), 'the run flag did nothing').toBe(plain * 2);
   });
 
-  it('stacks ADDITIVELY with Edward Keg-hands, not multiplicatively', () => {
-    // Both read "trigger an additional time", so Edward (×2) plus one run-wide extra is ×3, not ×4.
+  it('under Edward Keg-hands each extra cast is doubled too (R-EDWARD-01, owner 2026-11-14)', () => {
+    // Edward adds no cast now; he doubles the numbers of EVERY hand cast: 2 casts x 2 Gold x 2 = 4 x plain.
     const plain = goldFromAle((s) => s);
     const both = goldFromAle((s) => ({ ...s, aleExtraCasts: 1, board: [body('dw_edward', 'e')] }));
-    expect(both).toBe(plain * 3);
+    expect(both).toBe(plain * 4);
   });
 
   it('does not touch NON-Ale spells', () => {

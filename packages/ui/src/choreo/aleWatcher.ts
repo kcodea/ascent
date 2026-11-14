@@ -1,7 +1,7 @@
 import { ALE_IDS } from '@game/core';
 
-/** Edward Keg-hands: "Dwarven Ales you cast from hand trigger twice". He has no effect of his own (the rule lives in
- *  `spellCasts`), so the shop fires his On Watcher binding on his card whenever he multiplies an Ale. */
+/** Edward Keg-hands: "Your Dwarven Ales cast from hand have double effect". He has no effect of his own (the rule lives
+ *  at the cast, `aleCastMagnitude`), so the shop fires his On Watcher binding on his card whenever he multiplies an Ale. */
 export const ALE_WATCHER_ID = 'dw_edward';
 
 /** The board uids whose On Watcher binding plays for casting `cardId` from hand: every Keg-hands on board when

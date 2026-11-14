@@ -226,8 +226,9 @@ export const SET2_DWARVES: CardDef[] = [
     goldenText: '**Shout:** gain **2 Gold** next turn.',
   },
   {
-    // "Your Ales trigger twice" is scoped to the Ale ids inside `spellCasts`, the one place cast counts are
-    // computed — so it composes with Yazzus/Grimoire instead of competing with them.
+    // Owner rework 2026-11-14 (R-EDWARD-01): no longer adds CASTS (extra casts broke the "Shop spell cast" payoffs).
+    // A Dwarven Ale cast from hand is cast once with its NUMBERS x2 (any Gilded Edward: x3; extra copies add nothing),
+    // read by `aleHandMagnitude` / `aleCastMagnitude` in recruit.ts. No effect of his own: the rule lives at the cast.
     id: 'dw_edward',
     name: 'Edward Keg-hands',
     tribe: 'dwarf',
@@ -236,8 +237,8 @@ export const SET2_DWARVES: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
-    text: '**Dwarven Ales** you cast from hand trigger **twice**.',
-    goldenText: '**Dwarven Ales** you cast from hand trigger **three times**.',
+    text: 'Your **Dwarven Ales** cast from hand have **double** effect.',
+    goldenText: 'Your **Dwarven Ales** cast from hand have **triple** effect.',
   },
   {
     // A flat per-Dwarf-played tribe pump. Owner balance 2026-08-28: +3/+3 → +4/+4 (golden +8/+8); 2026-10-07: +5/+5 (golden +10/+10);

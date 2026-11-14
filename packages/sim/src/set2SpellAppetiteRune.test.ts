@@ -77,10 +77,10 @@ describe('Spell Appetite: every spell cast is a bite', () => {
     expect(s.runeProcs?.rune_spell_appetite).toBe(1);
   });
 
-  it('a multiplied cast (Edward Keg-hands doubles an Ale) bites once per cast', () => {
+  it('an Ale under Edward Keg-hands is ONE cast, so it bites once (R-EDWARD-01, owner 2026-11-14)', () => {
     let s = withRunes(['rune_spell_appetite'], { board: [...DEMONS(), body('e', 'dw_edward')], hand: [spell('a1')] });
     s = play(s, 'a1');
-    expect(s.shopEaten).toHaveLength(2);
+    expect(s.shopEaten).toHaveLength(1);
   });
 
   it('no badge: an every-cast rune has no meter to show', () => {

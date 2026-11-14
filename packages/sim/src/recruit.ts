@@ -73,7 +73,7 @@ export function withCastActor<T>(actor: CastFxSource, fn: () => T): T {
 /**
  * THE FROM-HAND GATE (owner ruling 2026-09-24: "let's make the effect of living grimoire and yazzus/orivax etc specify
  * spell cast from hand so that it only doubles from spells cast from hand"). Every cast MULTIPLIER (Yazzus, Living
- * Grimoire, Orivax, Spell Thesis, Ancient Runes, Nimbus / Comet, Edward Keg-hands, the Bottomless Cask / Cellar,
+ * Grimoire, Orivax, Spell Thesis, Ancient Runes, Nimbus / Comet, the Bottomless Cask / Cellar,
  * Shared Pour, Hoardflame / Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand,
  * and ONLY such a cast spends a one-shot multiplier (the Grimoire charge, Orivax's window, Spell Thesis's freebie,
  * the Nimbus / Comet charge, Shared Pour's freebie). A minion's, a rune's or an Equipment's cast resolves once and
@@ -1966,6 +1966,36 @@ export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard,
   return spellCastsWithout(state, def, card, NO_RUNES_OFF);
 }
 
+/** Edward Keg-hands' card id. */
+export const EDWARD_ID = 'dw_edward';
+
+/**
+ * EDWARD KEG-HANDS (owner rework 2026-11-14, R-EDWARD-01): "Your Dwarven Ales cast from hand have double effect"
+ * (Gilded: triple). A Dwarven Ale (`ALE_IDS`) is cast ONCE and its NUMBERS are multiplied: Golden Ale's Gold, Champion's
+ * Ale's +A/+H, Defensive / Bloody Ale's per-minion stat, Reinforcing Ale's minion count. Never the targets (Defensive
+ * Ale still picks 3 minions). Highest Edward only: any Edward on board = x2, any GILDED Edward = x3, more copies add
+ * nothing. Read from the board, side-effect free: this is what the live text of an Ale in hand prints. 1 for a non-Ale
+ * or with no Edward. Whether the cast is FROM HAND is the caller's question (`aleCastMagnitude`).
+ */
+export function aleHandMagnitude(state: Pick<RunState, 'board'>, spellId: string): number {
+  if (!ALE_IDS.includes(spellId)) return 1;
+  let mag = 1;
+  for (const c of state.board) if (c.cardId === EDWARD_ID) mag = Math.max(mag, c.golden ? 3 : 2);
+  return mag;
+}
+
+/**
+ * The magnitude multiplier for the Ale cast RESOLVING NOW: `aleHandMagnitude` while that Ale is being cast from hand
+ * (`isHandCast`: the reducer's hand-play scope, a re-cast of that same hand cast included), else 1. An Ale cast by a
+ * rune, a minion, an Equipment, End of Turn or combat resolves at its printed strength. THE ONE BOUNDARY: read only
+ * where a cast's effects resolve (`applyCastEffects`, which hands it to the Ale factories as `_mag`, and the Gold half
+ * of `castSpell`). Each cast of a hand Ale is multiplied, so a cast multiplier (Ancient Runes, Spell Thesis, the
+ * Bottomless Cask, Shared Pour, Last Call) still adds CASTS, and every one of them carries Edward's x2 / x3.
+ */
+export function aleCastMagnitude(state: Pick<RunState, 'board'>, spellId: string): number {
+  return isHandCast(spellId) ? aleHandMagnitude(state, spellId) : 1;
+}
+
 const NO_RUNES_OFF: ReadonlySet<string> = new Set();
 
 /** The rune that granted a `runeSpellDouble` for `spellId` (Rune of Hoardflame -> Hoardflame, Rune of Dragon Breath
@@ -2060,12 +2090,9 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
   }
   // Living Grimoire: the first spell cast while it's on board multiplies (see `grimoireMultActive`).
   mult *= grimoireMultActive(state);
-  // Edward Keg-hands: your ALES specifically cast extra times. Scoped to the Ale ids rather than to all spells,
-  // and read from the board here (like Yazzus and the Grimoire) so the UI can preview the count without any
-  // side effect. Golden reads "three times" → one more than base.
+  // (Edward Keg-hands used to multiply the Ale CAST COUNT here. Owner rework 2026-11-14: he multiplies the Ale's
+  // NUMBERS instead, one cast — `aleHandMagnitude` below — so he is no longer a cast multiplier.)
   if (ALE_IDS.includes(def.id)) {
-    const edwards = state.board.filter((c) => c.cardId === 'dw_edward');
-    if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
     // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
     // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
     // (The Bottomless Cask's share, when `runeExtraCasts` is splitting it out: one per applied copy; the rest is
@@ -6116,8 +6143,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
-   *  Shop-spell pipeline — so each pour counts as an Ale cast (Edward's extra trigger, the Ale runes, every
-   *  cast-watcher) exactly as a hand-cast one does, while never entering the hand or counting as a card PLAYED.
+   *  Shop-spell pipeline — so each pour counts as an Ale cast (the Ale runes, every cast-watcher) exactly as a
+   *  hand-cast one does (Edward Keg-hands' x2 is hand-only, R-EDWARD-01), while never entering the hand or counting as a card PLAYED.
    *  Every Ale is untargeted, so no target is threaded. Seeded off the run cursor: replay-faithful. */
   equipmentCastRandomAle: (ctx, _self, params) => {
     const ales = runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id));
@@ -6126,12 +6153,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const picks: CardDef[] = [];
     for (let i = 0; i < Math.max(1, num(params.count, 1)); i++) picks.push(ales[rng.int(ales.length)]!);
     ctx.state.rngCursor = rng.state();
-    // `castSpell` is ONE cast; the Ale multiplier (Edward Keg-hands, the Bottomless Cask, Shared Pour) is applied
-    // by the caller looping it — the same shape the reducer's play path and Mirrorwing's re-cast use — so a
-    // Keg pour under Edward pours twice exactly as a hand-cast Ale does.
+    // `castSpell` is ONE cast; a cast multiplier would be applied by the caller looping it, but an Equipment's cast is
+    // never multiplied (the from-hand gate), and Edward Keg-hands' x2 is hand-only too (R-EDWARD-01).
     for (const spell of picks) {
-      // Recorded ONCE per pick (not per multiplied cast): the UI's cast presentation already replays Edward's
-      // echo itself, exactly as it does for a hand-cast Ale.
+      // Recorded ONCE per pick (not per cast).
       (ctx.state.equipmentSpellCasts ??= []).push(spell.id);
       for (let i = 0; i < castsOutsideHand(ctx.state, spell); i++) castSpell(ctx.state, spell, undefined); // an Equipment's cast: never multiplied (from-hand gate)
     }
@@ -10282,7 +10307,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
     }
-    addBuff(target, 'Ale', attack, health);
+    // Edward Keg-hands (R-EDWARD-01): the whole grant, spell power included, x2 / x3 on a hand-cast Ale.
+    const mag = num(params._mag, 1);
+    addBuff(target, 'Ale', attack * mag, health * mag);
   },
 
   /** Set 2 — Defensive / Bloody Ale. Buff `count` DISTINCT random friendly minions by +atk/+hp.
@@ -10307,7 +10334,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
     // Named for the CASTER (2026-09-14: Aspect's Blessing's board branch shares this factory with the Ales); an Ale
     // still itemises as "Ale" through `_source`, which the cast path injects as the spell's name.
-    for (const t of picks) addBuff(t, str(params._source) || 'Ale', attack, health);
+    // Edward Keg-hands (R-EDWARD-01): the per-minion grant, spell power included, x2 / x3 on a hand-cast Ale. The
+    // number of minions (`count`) never changes.
+    const mag = num(params._mag, 1);
+    for (const t of picks) addBuff(t, str(params._source) || 'Ale', attack * mag, health * mag);
   },
 
   /** Set 2 — Dragonflame (shop cast): buff `base` + (# friendly `tribe`, Dragons) random friendlies by +atk/+hp,
@@ -10350,8 +10380,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Reinforcing Ale. Get a minion of your most common tribe, into hand. Reuses the same
    *  `grantTopTypeMinion` the hero power path uses, so "most common type" is resolved one way everywhere
    *  (dominant tribe, capped at your tavern tier, respecting the shared pool). No-op with no dominant tribe. */
-  spellGrantTopTypeMinion: (ctx) => {
-    grantTopTypeMinion(ctx.state);
+  spellGrantTopTypeMinion: (ctx, _self, params) => {
+    // Edward Keg-hands (R-EDWARD-01): a hand-cast Reinforcing Ale gets 2 (Gilded Edward: 3) minions, one at a time
+    // (each re-reads your most common type; a full hand stops the rest).
+    const n = Math.max(1, num(params._mag, 1));
+    for (let i = 0; i < n; i++) if (!grantTopTypeMinion(ctx.state)) break;
   },
 
   spellGildRandomTavern: (ctx) => {
@@ -11542,9 +11575,44 @@ export function whisperLiveText(def: CardDef, extra?: { spellsCast?: number; rub
   return text;
 }
 
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; /** ANCIENTS × Juggler: `carnivalCoinLive(run)`. */ carnivalCoin?: { gold: number; attack: number; health: number }; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number }): string {
+/**
+ * A Dwarven Ale's printed text with Edward Keg-hands' x`mag` folded in (R-EDWARD-01), spell power included, exactly as
+ * the cast resolves it: Golden Ale's Gold, Champion's Ale's "+A/+H", Defensive / Bloody Ale's per-minion stat (a single-
+ * stat token becomes the full "+A/+H" pair once spell power adds the other stat, like the base text does), Reinforcing
+ * Ale's minion count (and the type it would give right now). Null for anything it does not recognise.
+ */
+function aleMagnitudeText(def: CardDef, mag: number, bonusA: number, bonusH: number, topTribe?: Tribe | null): string | null {
+  const gold = def.effects.find((e) => e.on === 'cast' && e.do === 'gainEmbers');
+  if (gold) {
+    const n = num(gold.params?.amount, 0);
+    return def.text.replace(`**${n} Gold**`, `**{{${n * mag} Gold}}**`);
+  }
+  if (def.effects.some((e) => e.do === 'spellGrantTopTypeMinion')) {
+    let t = def.text.replace('Get a minion', `Get {{${mag} minions}}`);
+    if (topTribe) {
+      const label = topTribe.charAt(0).toUpperCase() + topTribe.slice(1);
+      t = t.replace(/(?:\*\*)?most common (?:board )?type(?:\*\*)?/, (m0) => `${m0} ({{${label}}})`);
+    }
+    return t;
+  }
+  const ale = def.effects.find((e) => e.do === 'spellBuffLeftmost' || e.do === 'spellBuffRandomFriendlies');
+  if (!ale) return null;
+  const pa = num(ale.params?.attack, 0), ph = num(ale.params?.health, 0);
+  const a = (pa + bonusA) * mag, h = (ph + bonusH) * mag;
+  if (pa > 0 && ph > 0) return def.text.replace(`+${pa}/+${ph}`, `{{+${a}/+${h}}}`);
+  if (pa > 0) return def.text.replace(`+${pa} Attack`, h > 0 ? `{{+${a}/+${h}}}` : `{{+${a} Attack}}`);
+  if (ph > 0) return def.text.replace(`+${ph} Health`, a > 0 ? `{{+${a}/+${h}}}` : `{{+${h} Health}}`);
+  return null;
+}
+
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean; /** ANCIENTS × Juggler: `carnivalCoinLive(run)`. */ carnivalCoin?: { gold: number; attack: number; health: number }; cardTribes?: Record<string, Tribe[]>; /** Set 4 Whispers: the run tallies a Whisper's value reads, and the held copy's multiplier. */ spellsCast?: number; rubyCasts?: number; whisperImprove?: Record<string, number>; whisperMult?: number; whisperTier?: number; /** Edward Keg-hands: this Ale's hand-cast magnitude (`aleHandMagnitude`); only a hand copy passes it. */ aleMag?: number }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // EDWARD KEG-HANDS (R-EDWARD-01): an Ale in HAND with an Edward on board prints its multiplied numbers.
+  if ((extra?.aleMag ?? 1) > 1 && ALE_IDS.includes(def.id)) {
+    const t = aleMagnitudeText(def, extra!.aleMag!, bonusA, bonusH, extra?.topTribe);
+    if (t) return t;
+  }
   // Set 4 — a WHISPER reads live (R-TEXT live rule): its CURRENT value per cast, x the held copy's multiplier, with the
   // countdown to its next step when it steps (Tome). Checked before the flat-Gift early return below.
   if (def.whisper) return whisperLiveText(def, extra);
@@ -11972,6 +12040,9 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   if (!origin && castRuneId) origin = `rune:${castRuneId}`;
   else if (!origin && castByUid) origin = `board:${castByUid}`;
   if (cardCastSpellId) castTagStack.push({ spellId: cardCastSpellId, runeId: castRuneId, casterUid: castByUid });
+  // Edward Keg-hands' x2 / x3 on a Dwarven Ale cast from hand (R-EDWARD-01): the private `_mag` param the Ale factories
+  // multiply their numbers by. Absent (1) on every other cast.
+  const aleMag = aleCastMagnitude(ctx.state, spellDef.id);
   try {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
@@ -11981,7 +12052,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
     // (Eyes of Aresmar) down to the factory.
     // `_origin` (2026-09-22) rides the same private-param channel as `_source`: it tells `stealTavernMinion`
     // where the lasso beam should launch from. Presentation only — no factory branches on it.
-    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier, ...(origin ? { _origin: origin } : {}) };
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier, ...(origin ? { _origin: origin } : {}), ...(aleMag > 1 ? { _mag: aleMag } : {}) };
     if (!fn) continue;
     // CHOREOGRAPHER PR 15 — a cast is a SOURCE moment. Every `cast` effect in the game flows through here,
     // so instrumenting this one site gives the whole spell surface a beat rather than touching 66 factories.
@@ -14534,7 +14605,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       // Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth `goldPouchValue` Gold instead of 1.
       const gain = spellDef.id === 'emberpouch' && state.goldPouchValue ? state.goldPouchValue : num(effect.params?.amount);
       // ANCIENT OF FORTUNE × Juggler: "Carnival Coins give 3 Gold."
-      gainGold(state, spellDef.id === 'carnivalcoin' ? ancientCoinGold(state) ?? gain : gain);
+      // Edward Keg-hands (R-EDWARD-01): a Golden Ale cast from hand pays x2 / x3 (1 on every other Gold spell).
+      gainGold(state, (spellDef.id === 'carnivalcoin' ? ancientCoinGold(state) ?? gain : gain) * aleCastMagnitude(state, spellDef.id));
     }
   }
   ancientOnCoinCast(state, spellDef.id); // ANCIENT OF WAR × Juggler: this Coin improves the later ones (a no-op otherwise)

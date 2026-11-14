@@ -79,7 +79,7 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // its OWN attack). The combat `watcher-pulse` detection (`useCombatReplay`) fires `bindingFor(cardId,
     // 'watcher')` on each reacting unit, so the row is keyed to that.
     // Edward Keg-hands (`dw_edward`) watches ALES instead: his row plays on his card each time an Ale he
-    // multiplies is cast from hand (`fireAleWatchers` in Recruit.tsx). His rule lives in `spellCasts`, not an effect.
+    // multiplies is cast from hand (`fireAleWatchers` in Recruit.tsx). His rule lives at the cast (`aleCastMagnitude`), not an effect.
     kindFor: (card) => (!card.spell && ((hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL')) || card.cardId === ALE_WATCHER_ID || isEpicUnit(card.cardId) || hasOwnBuffFx(card.cardId)) ? 'watcher' : null),
   },
   {

@@ -3064,7 +3064,7 @@ is not doubled: the rune doubles at the refresh, it is not a standing multiplier
 ### Cast multipliers work only on spells cast from hand (owner rule 2026-09-24, R-MULT-06)
 
 Every effect that makes a spell cast more times applies only to a spell **you cast from hand**: Yazzus, Living
-Grimoire, Orivax, Nimbus, Comet (Cometius), Edward Keg-hands, Constellation Prime, Spell Thesis, Ancient Runes, the
+Grimoire, Orivax, Nimbus, Comet (Cometius), Constellation Prime, Spell Thesis, Ancient Runes, the
 Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes. A
 spell cast by a minion (a Mage-Pup, an End-of-Turn caster), a rune (Recurrence, a rune threshold) or an
 Equipment (Pourman's Keg) casts once, and it never uses up a one-shot multiplier: the Grimoire charge,
@@ -3073,6 +3073,20 @@ next spell from hand. A re-cast of the spell you are casting from hand (Mirrorwi
 Crash Course, Shared Reflection) is that same cast happening again and keeps its multiplier. A minion's or
 rune's cast is still a spell cast for every tally and for first/last-spell memory (R-MINIONCAST-01). Rubies were
 already multiplied only from hand (Resonance, Prismcaster); that is unchanged.
+
+### Edward Keg-hands multiplies an Ale's numbers, not its casts (owner rework 2026-11-14, R-EDWARD-01)
+
+Edward Keg-hands: *"Your Dwarven Ales cast from hand have double effect."* (Gilded: triple.) A Dwarven Ale you cast
+from hand is cast **once**, with its numbers doubled: Golden Ale gives 4 Gold, Champion's Ale +10/+10, Defensive and
+Bloody Ale give 3 random minions +6 Health / +6 Attack (still 3 minions; base Ales lowered by 1 on 2026-11-14 to
+compensate: Champion's +5/+5, Defensive +3 Health, Bloody +3 Attack), Reinforcing Ale gets 2 minions. Spell power
+is part of the number, so it doubles too. Only the best Edward counts: any Edward on board is x2, any Gilded Edward
+x3, and more copies add nothing. Because the Ale is cast once, every Ale-cast and spell-cast watcher (Drunk
+Shopkeeper, Sequencing, Spell Appetite, spell counters) sees one cast. Edward is not a cast multiplier, but each cast
+another multiplier adds to a hand Ale (Ancient Runes, Spell Thesis, the Bottomless Cask, Shared Pour, Last Call) is
+multiplied by Edward. An Ale cast by a rune, a minion, an Equipment, End of Turn or in combat resolves at its printed
+strength. An Ale in hand prints its multiplied numbers while an Edward is on the board; one in the Shop or a Discover
+prints its base numbers.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 

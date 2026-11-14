@@ -334,10 +334,10 @@ describe('Drunk Shopkeeper: an Ale cast buffs the Shop, for the rest of the run'
     for (const o of minions(next)) expect(lift(next, o), 'a new turn keeps it').toEqual([2, 2]);
   });
 
-  it('a multiplied Ale (Edward Keg-hands: twice) gives +1/+1 per cast, like every Ale trigger', () => {
+  it('an Ale under Edward Keg-hands is ONE cast, so it gives +1/+1 once (R-EDWARD-01, owner 2026-11-14)', () => {
     let s = withRunes(['rune_drunk_shopkeeper'], { hand: [ale('a1')], board: [body('e', 'dw_edward')] });
     s = play(s, 'a1');
-    expect(fromShopkeeper(s)).toEqual([2, 2]);
+    expect(fromShopkeeper(s)).toEqual([1, 1]);
   });
 
   it('two copies: +2/+2 per Ale', () => {

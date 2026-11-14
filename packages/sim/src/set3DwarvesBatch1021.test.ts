@@ -124,10 +124,10 @@ describe('CHAMPION INU — after you cast a Dwarven Ale, give your Dwarves +2/+2
     expect(stats(at(s.board, 'inu'))).toEqual([16, 20]);
   });
 
-  it('SHOP: Edward Keg-hands makes a hand-cast Ale trigger twice, so Champion Inu pays twice', () => {
+  it('SHOP: an Ale under Edward Keg-hands is ONE cast, so Champion Inu pays once (R-EDWARD-01, owner 2026-11-14)', () => {
     let s = run({ board: [body('inu', 'dw3_championinu'), body('ed', 'dw_edward')], hand: [body('ale', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 })] });
     s = act(s, { type: 'play', uid: 'ale' });
-    expect(stats(at(s.board, 'inu'))).toEqual([6 + 4, 8 + 4]);
+    expect(stats(at(s.board, 'inu'))).toEqual([6 + 2, 8 + 2]);
   });
 
   // COMBAT: a probe Rally caster casts a Dwarven Ale for real through `castInCombat`.

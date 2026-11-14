@@ -91,8 +91,9 @@ New file `packages/sim/src/set2RunesCombined.test.ts`, seeded:
   A 7-Attack Warded minion with Bastion reflects 12, then 17 (7 and 7 without Shatterproof).
 - **Hellfire x Pitchforks:** a dying Demon's Echo resolves first (its Imp arrives and Pitchforks throws 3 at 2
   enemies), then Hellfire's death volley. Knocked Imp's death, the Imp's swing and the Imp's death make 3 volleys.
-- **Wildfire x Pitchforks:** an enemy killed by Pitchforks died to non-attack damage, so Wildfire fires.
-- **Wildfire x Imp Legion:** the grafted Echo's kill also counts as non-attack damage and fires Wildfire.
+- **Wildfire x Pitchforks:** the Imp deals the Pitchforks hit, so a Pitchforks kill fires Wildfire. (This was
+  reworked on 2026-11-13; see `2026-11-13-hellfire-wildfire-rework.md`.)
+- **Wildfire x Imp Legion:** the grafted Echo deals sourceless damage, so its kill does NOT fire the reworked Wildfire.
 - **Hellfire x Imp Legion:** the Imp is a Demon, so its death fires both its Echo (a 3 to the lowest-Health enemy,
   first) and Hellfire's volley.
 - **Big Spender x Deep Pockets:** the per-turn 8-Gold window hears each Gold twice, so 4 Gold of Refreshes pays the
@@ -115,6 +116,9 @@ New file `packages/sim/src/set2RunesCombined.test.ts`, seeded:
 - Hellfire's attack half fires at wind-up.
 - Elder's Voice is not repeated by Twilight.
 - Wildfire has no live "x/3" counter yet.
+- **Update (2026-11-13), owner rulings:** Hellfire is now Demon damage, dealt by the Demon. Wildfire now fires when one of
+  your minions kills an enemy, deals that enemy's Attack to one random enemy minion, works 3 times per combat and
+  cannot chain. See `2026-11-13-hellfire-wildfire-rework.md`.
 - Shop Madness: the Starform takes a +3/+3 like every Shop minion (it follows the run-wide Shop buff), and a refill made
   inside a frozen Shop is part of that frozen Shop.
 - Shop Madness: a second copy adds another +3/+3; the row size stays 6.

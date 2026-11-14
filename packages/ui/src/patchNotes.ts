@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Underdweller: Soulkeeper now counts every death from last combat.',
+        details: [
+          'A minion that died and then Rose still counts.',
+          'A minion that died twice is twice as likely to be offered.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Drunk Shopkeeper now buffs your Shop for the rest of the game. Each Ale you cast adds +1/+1.',
         details: [
           'Minions that arrive in your Shop later, after a Refresh or on a new turn, have the bonus too.',

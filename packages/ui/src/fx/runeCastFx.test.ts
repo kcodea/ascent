@@ -92,7 +92,7 @@ describe('a rune cast plays the spell\'s own effect, stemming from the rune\'s n
     const target = { x: 300, y: 400 };
     expect(castFxReplacesTendril('spiritfire')).toBe(false);
     expect(playRuneCastBuffFx({ runeId: 'rune_gilded_ledger', spellId: 'spiritfire', target, targetUid: 'a' })).toBe(true);
-    const trail = mockPlayDef.mock.calls.filter((c) => String(c[0]).startsWith('tendril-trail'));
+    const trail = mockPlayDef.mock.calls.filter((c) => String(c[0]) === 'rune-buff-trail');
     expect(trail).toHaveLength(1);
     expect(anchorsOf(trail[0]!)).toMatchObject({ source: NODE, target });
   });

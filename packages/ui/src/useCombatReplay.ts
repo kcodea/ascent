@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { playCastFanOutBuffFx, playGenericCastSound } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playGenericCastSound, runeNodeCentre } from './fx/spellCastFx';
+import { runeIdForBuffLabel } from './fx/runeBuffLabel';
 import { perfMonitor } from './perfMonitor';
 import { toScreen } from './stage';
 import gsap from 'gsap';
@@ -50,7 +51,7 @@ import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPr
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
-import { fireBuffFx, TENDRIL_TRAIL_TRAVEL_MS as TENDRIL_LAND_MS } from './buffFxRender';
+import { fireBuffFx, playRuneBuffTrail, TENDRIL_TRAIL_TRAVEL_MS as TENDRIL_LAND_MS } from './buffFxRender';
 import { isShoutChainTrigger } from './choreo/shoutChain';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
@@ -2825,6 +2826,13 @@ export function useCombatReplay(
         const a = anchorOf(e.target);
         if (!a) continue;
         playDef('rune-buff-unit', { target: { x: a.cx, y: a.cy }, camera: rbCamera }, { uids: { target: e.target } });
+        // THE TRAIL (owner 2026-11-13: "yes add the trail in combat too"): the gold `rune-buff-trail` from the rune's
+        // own node to the unit, as in the Shop. Only the PLAYER's runes have a node on screen (the rack, or the
+        // hero-power slot), so an enemy's rune buff and a label that names no rune keep the sparkle alone.
+        if (unitSides.get(e.target) === 'player') {
+          const node = runeNodeCentre(runeIdForBuffLabel(e.source));
+          if (node) playRuneBuffTrail(node, { x: a.cx, y: a.cy }, { uids: { source: null, target: e.target } });
+        }
       }
     }
     // SHOP BUFF earned mid-combat (Demon Horse and friends). Unlike the Imp buff — which already blooms the

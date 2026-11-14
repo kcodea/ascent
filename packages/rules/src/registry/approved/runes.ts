@@ -3267,4 +3267,21 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-RUNE-TRAIL-01',
+    title: 'A rune that buffs one of your units draws the gold trail from the rune to that unit, in every phase',
+    statement: 'When a rune the player owns buffs a unit, the gold rune-buff-trail effect travels from the node of that rune (its rack badge, or the hero-power slot when the rune lives there) to the unit: on a Shop action, at End of Turn and in combat. The same effect is the generic buff trail for a tribeless buffer. A spell with its own cast effect still replaces the trail, and an enemy rune, whose node is not on screen, keeps the sparkle alone. Trails that fire in the same moment sound once.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (rune buff trail)', quote: 'i want to replace both with a single workbench effect' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (rune buff trail)', quote: 'yes add the trail in combat too' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (rune buff trail)', quote: 'its not playing the trail on seasoned ledger or kindlig' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-13 (rune buff trail)', quote: 'the sound shouldnt stack' },
+      { kind: 'code', ref: 'packages/ui/src/buffFxRender.ts playRuneBuffTrail (the one call site + the sound gate); packages/ui/src/fx/runeBuffLabel.ts (which rune a buff label or a grown buff row names); packages/ui/src/Recruit.tsx (Shop action: runeBuffFxSeq effect; End of Turn: questTendril); packages/ui/src/useCombatReplay.ts (combat, beside rune-buff-unit)' },
+    ],
+    contentIds: ['rune_seasoned_ledger', 'rune_kindling'],
+    currentBehaviour: 'Conforms as of 2026-11-13. Before: a rune buff on a Shop action and in combat drew only the rune-buff-unit sparkle (Seasoned Ledger and Kindling showed no trail), and End of Turn drew a procedural gold tendril tuned outside the workbench. PARTIAL pin: the tests pin the rune lookup, the sound gate and the call sites by source text; nothing renders the trail in a browser.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/runeBuffLabel.test.ts', 'packages/ui/src/buffFxRender.test.ts'], lastVerifiedAt: '2026-11-13' },
+  },
 ];

@@ -107,7 +107,6 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   weldfx: '🔩',
   stepprocfx: '🧮',
   stepcounter: '📈',
-  questtendril: '🏆',
   crystalfuse: '🔷',
   runeforgelook: '🔨',
   runeforgeentrance: '🔥',

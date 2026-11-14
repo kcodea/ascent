@@ -12,7 +12,7 @@
  *   · `offsetX` / `offsetY` / `sizeScale` — where the animation lands relative to the card's centre, for the
  *                    case the owner named: the Echo must play WHERE THE CARD WAS.
  *
- * Same trio pattern as `questTendrilConfig.ts` / `infuseFxConfig.ts`: DEV-persisted to localStorage, read at
+ * Same trio pattern as `infuseFxConfig.ts`: DEV-persisted to localStorage, read at
  * FIRE TIME so an edit applies to the next death without a reload, and inert in production (which always
  * renders DEFAULTS — a tuned value has to be published deliberately).
  */

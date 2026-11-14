@@ -134,7 +134,7 @@ export function chainTickCount(events: readonly CombatEvent[], start: number, en
   return chainEligible(events, start, end) ? reactionTicks(events, start, end).length : 1;
 }
 
-/** Particles one stock buff tendril spawns (`tendril-trail*.json`: a 72-shard and a 136-shard burst) and how long it
+/** Particles one stock buff tendril spawns (`tendril-trail-<tribe>.json`: a 72-shard and a 136-shard burst; the gold `rune-buff-trail` lands 190) and how long it
  *  stays on screen (the def's `duration`, ~0.9-1.07 s). Pinned rather than read from the def so this stays pure. */
 const TENDRIL_PARTICLES = 208;
 const TENDRIL_LIFE_MS = 1070;

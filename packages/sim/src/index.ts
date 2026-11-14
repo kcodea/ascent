@@ -67,6 +67,7 @@ export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
 export { RECRUIT_FACTORY_IDS } from './recruit';
 export { battlecryTargetAllowed, hasEndOfTurnEffect } from './recruit'; // Roomworks (2026-10-10): the aimed-Shout target filter the aim UI mirrors // Doc Bot: the recruit dispatch surface, keys only
+export { aleHandMagnitude, EDWARD_ID } from './recruit'; // Edward Keg-hands (R-EDWARD-01, owner 2026-11-14): a hand Ale's x2 / x3 numbers, for its live text
 export { taughtAimSpell } from './recruit'; // the targeting prompt (packages/ui targetPrompt.ts) phrases a Mage-Pup's taught aimed spell
 export { shopArrivals } from './recruit'; // Shop Madness: which new offer took which eaten slot (R-SHOPMADNESS-REALTIME-01)
 export { INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, LOREKEEPING_STEP, applyLorekeeping, fireRunicHoard, distillationEdges, improveRubies } from './recruit'; // balance 9/23 rune reworks A: the badge reads the same constants the reducer pays

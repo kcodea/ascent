@@ -69,6 +69,31 @@ export const PATCH_NOTES: PatchNote[] = [
           'Only in Versus Duos and Ranked Duos.',
         ],
       },
+      {
+        category: 'Balance',
+        text: "Ales buff a little less: Champion's Ale gives +5/+5, Defensive Ale +3 Health and Bloody Ale +3 Attack.",
+        details: ['Each was 1 higher. This balances the stronger Edward Keg-hands.'],
+      },
+      {
+        category: 'Balance',
+        text: 'Edward Keg-hands reworked: Dwarven Ales you cast from hand now have double effect, instead of casting twice.',
+        details: [
+          'The Ale is cast once, with its numbers doubled (tripled with a Gilded Edward).',
+          "With Edward: Golden Ale gives 4 Gold. Champion's Ale gives +10/+10. Defensive and Bloody Ale give 3 random minions +6. Reinforcing Ale gets 2 minions.",
+          'Only the best Edward counts. More copies add nothing.',
+          'Ales cast by runes, minions or other effects are not doubled.',
+          'An Ale in your hand shows its doubled numbers while Edward is on your board.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Vaultkeeper is back to its old form: gain +2/+2 whenever you play a Dragon, improving +2/+2 for every 4 spells cast this game.',
+        details: [
+          'Vaultkeeper is a Dragon again (no longer a Dwarf). Tier 6, 6/10.',
+          'Gilded: +4/+4, improving +4/+4.',
+          'The card shows its current gain and how many spells until the next step.',
+        ],
+      },
       { category: 'Systems', text: 'New art for 63 runes, including Ornate Clock, Epic Forge, Fury and Top Shelf.' },
       {
         category: 'Balance',

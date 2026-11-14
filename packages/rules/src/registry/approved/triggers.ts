@@ -1279,31 +1279,26 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-VAULT-02',
-    title: 'Vaultkeeper gains when you play a Dragon, and improves every 4 Dragons or Dwarves played this game',
+    title: 'Vaultkeeper gains +2/+2 whenever you play a Dragon, improving +2/+2 for every 4 spells cast this game',
     statement:
-      'Vaultkeeper is a Dwarf/Dragon: "When you play a Dragon, gain +3/+3. Improves every 4 Dragons or Dwarves played '
-      + 'this game." Each Dragon played from hand while a Vaultkeeper is on your board gives that Vaultkeeper its '
-      + 'current gain; a Dwarf pays nothing. The improve is a RUN-WIDE tally, not a per-copy one: every Dragon OR Dwarf '
-      + 'played from hand since the start of the game counts, whether or not a Vaultkeeper is on the board, in hand or '
-      + 'in the Shop, and each 4 counted raise the gain of EVERY Vaultkeeper by +3/+3 (+3/+3, then +6/+6, then +9/+9), so '
-      + "a copy bought late arrives already improved. A body that is both types is one play, and a Vaultkeeper's own "
-      + 'play counts (it never pays itself for its own arrival). A summoned token is not a play, and a Vaultkeeper in '
-      + 'hand never gains. Gilded doubles the gain. With Vaultkeeper, each gain is also given to an adjacent '
-      + 'Dragon. Every surface (Shop, Discover, hand, board, combat, a served opponent) prints the current gain and the '
-      + 'N/4 counter from the run-wide count.',
+      'Vaultkeeper is a Dragon (Tier 6, 6/10): "Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells '
+      + 'cast this game." Each Dragon that enters play in the Shop while a Vaultkeeper is on your board (any other '
+      + 'Dragon: its own arrival never pays itself) gives that Vaultkeeper +N/+N, where N = 2 x (1 + floor(spells / 4)) '
+      + 'and "spells" is the run\'s LIFETIME spell count, Shop Spells plus Rubies, read live, so the grant improves '
+      + 'retroactively for every copy (+2/+2, then +4/+4, then +6/+6). Gilded doubles the grant (+4/+4, +8/+8, ...). '
+      + 'With Rune of the Vaultkeeper, each grant is also given to an adjacent Dragon (a seeded pick when both '
+      + 'neighbours are Dragons). Every surface (Shop, Discover, hand, board, combat, a served opponent) prints the '
+      + 'current grant and the spells left to the next step.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner rework 2026-10-13 (Vaultkeeper)', quote: 'When you play a dragon, gain 3/3. Play 3 Dragons or Dwarves to improve this.' },
-      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (how much the gain grows per 3 played)', quote: '+3/+3 per step' },
-      { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (what Rune of the Vaultkeeper does now)', quote: 'Old rune effect' },
-      { kind: 'owner-chat', ref: 'Owner change 2026-10-20 (Vaultkeeper retype + run-wide improve)', quote: "lets change vaultkeeper to a Dwarf / Dragon tribe type, and let's change its mechanic to 4 dragons or dwarves played improves it. i want this mechanic to be active even when the card is not on board or in hand or in shop." },
-      { kind: 'owner-chat', ref: 'Owner answers 2026-10-20 (relayed): wording, payout, start, self count', quote: 'reuse the existing tail ... the +3/+3 still pays on Dragons ONLY ... counts from the START OF THE GAME ... playing a Vaultkeeper adds 1 to the tally' },
-      { kind: 'code', ref: 'packages/sim/src/runTally.ts + recruit.ts countTribeUnionPlay / tribePlayedGainSelfImproving; packages/sim/src/snapshot.ts cleanBoard (served tally); packages/content/src/cards/set2/dragons.ts d2_herzog; packages/ui/src/instView.ts + Recruit.tsx + Unit.tsx (runTallyFor)' },
+      { kind: 'owner-chat', ref: 'Owner revert 2026-11-14 (relayed)', quote: 'Revert EXACTLY to the 2026-08-15..2026-10-10 form' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-08-15 (the spell umbrella)', quote: 'the card reads "spells", so a Ruby counts' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/dragons.ts d2_herzog; packages/sim/src/recruit.ts onTribePlayedBuffSelfPerSpell; packages/ui/src/cardText.ts herzogText (liveCardText chain, shared by Unit.tsx in combat)' },
     ],
     contentIds: ['d2_herzog', 'rune_herzog'],
-    currentBehaviour: 'Conforms as of 2026-10-20 (the run-wide tally `RunState.tribeUnionPlays`, keyed `dragon+dwarf`, bumped in `playCard` after the play watchers fire). Was per copy and every 3 from 2026-10-13. ORDER is a lead assumption, not an owner ruling: the gain is paid first and the play counted second, so the play that completes a set of 4 still pays the old value. A run saved before 2026-10-20 starts its count at 0 from then. The rune picks one adjacent Dragon, seeded when both neighbours are Dragons. Mastery does not speed the count. Shop only: nothing is played from hand in combat.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultkeeperRunTally1020.test.ts', 'packages/sim/src/vaultBrisbane1013.test.ts', 'packages/ui/src/vaultBrisbaneText.test.ts'], lastVerifiedAt: '2026-10-20' },
+    currentBehaviour: 'Conforms from 2026-11-14 (balance/edward-vaultkeeper): the 2026-08-15 card, factory and live text restored. Between 2026-10-10 and 2026-11-14 the card was reworked three times (the Attack-gain pulse, R-VAULT-01; a self-improving Dragon-play gain; a Dwarf/Dragon run-wide play tally). The 2026-10-20 factory (`tribePlayedGainSelfImproving`) and its `RunState.tribeUnionPlays` tally have no card now and are dormant engine code (a cleanup candidate). Shop only by nature: the trigger is the Shop\'s onSummon (a minion entering play there), and combat has no copy of this factory.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultkeeperRevert1114.test.ts', 'packages/ui/src/vaultkeeperRevertText1114.test.ts'], lastVerifiedAt: '2026-11-14' },
   },
   {
     id: 'R-BRISBANE-01',
@@ -1768,5 +1763,27 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['k_tunnelcharger', 'k_veinbreaker', 'k_faultline', 'k_gemheart', 'b2_beev', 'dm_velvet', 'dw_bigbrainbilly'],
     currentBehaviour: 'Conforms from 2026-10-24. Before: Rik 2 random Rubies; Cave Cutter +2/+1; Scrapper T3 5/1 +1/+1; Gem Carver T3; Beev +2/+2; Big Huggies 2 Picnics; Billy +1/+1.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Balance1024.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-SPELLCAST-WATCHER-BEAT-01',
+    title: 'A minion that reacts to a spell cast gets its OWN beat, after the cast, and the beat shows exactly what it gained',
+    statement:
+      'When a spell is cast in the Shop (from hand, by a minion, by a rune, or a Ruby that counts as a spell), every '
+      + 'minion that reacts to it ("When you cast a Shop spell ...": Big Brain Billy, Spellkeeper, Goldilox in hand, the '
+      + 'Rubies-count watchers) resolves on its own beat after the beat of the cast, with itself as the source. The stats that '
+      + 'beat shows are exactly what the reaction did, and the beat of the cast shows exactly what the spell did, even when both '
+      + 'touch the same minion (Ruby Transfer stealing the Rubies on Billy while Billy gains +2/+2). A reaction that does nothing '
+      + 'shows no beat. Inside a larger beat (an End of Turn cast) the reaction is its own nested beat and nothing is shown '
+      + 'twice. Gameplay is unchanged: this is presentation only.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-14 (Big Brain Billy x Ruby Transfer beat over-claim)', quote: 'fix the emission at its source (no card-id special case), add a focused regression test, append an oracle rule' },
+      { kind: 'docbot-scan', ref: 'packages/sim/src/docbot/beatConservation.test.ts builder policy, seed 22 step 80 with Cindy in the hero roster', quote: 'dw_bigbrainbilly (b45): beats claim -2/-2 but the action changed it by +0/+0 — OVER-claimed' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireSpellCastWatcher (used by noteSpellCast, countRubyAsShopSpell, fireSpellCastWatchersForRuby); identity factory:<do>:spellCast from packages/core/src/presentation/policies.ts' },
+    ],
+    contentIds: ['dw_bigbrainbilly', 'rubytransfer'],
+    currentBehaviour: 'Conforms from 2026-11-14. Before it every spellCast watcher dispatched bare after the cast scope closed: its gain had no beat (it snapped in at commit), and when the cast also moved the same body the batch claimed only the half the cast did.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellCastWatcherBeat.test.ts', 'packages/sim/src/docbot/beatConservation.test.ts'], lastVerifiedAt: '2026-11-14' },
   },
 ];

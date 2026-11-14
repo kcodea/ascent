@@ -17,24 +17,24 @@ const powered = (hand: BoardCard[]): RunState => ({
 });
 
 describe('Ales fold the run spell power into the cast', () => {
-  it("Defensive Ale with +1/+1 power grants +1/+5 (the owner's board landed +0/+4)", () => {
+  it("Defensive Ale with +1/+1 power grants +1/+4 (base +0/+3 since 2026-11-14)", () => {
     let s = powered([spell('sp', 'wo_health')]);
     s = reduce(s, { type: 'play', uid: 'sp' });
     const a = s.board.find((c) => c.uid === 'a')!;
-    expect([a.attack, a.health], 'base +0/+4 plus the +1/+1 power').toEqual([2 + 1, 2 + 5]);
+    expect([a.attack, a.health], 'base +0/+3 plus the +1/+1 power').toEqual([2 + 1, 2 + 4]);
   });
 
-  it("Champion's Ale with +1/+1 power grants the left-most +7/+7", () => {
+  it("Champion's Ale with +1/+1 power grants the left-most +6/+6", () => {
     let s = powered([spell('sp', 'wo_champion')]);
     s = reduce(s, { type: 'play', uid: 'sp' });
     const a = s.board.find((c) => c.uid === 'a')!;
-    expect([a.attack, a.health]).toEqual([2 + 7, 2 + 7]);
+    expect([a.attack, a.health]).toEqual([2 + 6, 2 + 6]);
   });
 
   it('the printed text goes live on both surfaces (hard live-text rule)', () => {
-    expect(spellDisplayText('wo_health', 1, 0, 1)).toContain('{{+1/+5}}');
-    expect(spellDisplayText('wo_attack', 1, 0, 1)).toContain('{{+5/+1}}');
-    expect(spellDisplayText('wo_champion', 1, 0, 1)).toContain('{{+7/+7}}');
+    expect(spellDisplayText('wo_health', 1, 0, 1)).toContain('{{+1/+4}}');
+    expect(spellDisplayText('wo_attack', 1, 0, 1)).toContain('{{+4/+1}}');
+    expect(spellDisplayText('wo_champion', 1, 0, 1)).toContain('{{+6/+6}}');
     // No power → the printed base stands, un-greened.
     expect(spellDisplayText('wo_health', 0, 0, 0)).not.toContain('{{');
   });

@@ -182,7 +182,7 @@ export const MULTIPLIERS_RULES: GameRule[] = [
     title: 'Cast multipliers apply only to spells cast from hand, and only a hand cast spends them',
     statement:
       'Every effect that makes a spell cast more times (Yazzus, Living Grimoire, Orivax, Spell Thesis, Ancient Runes, '
-      + 'Nimbus, Comet, Edward Keg-hands, the Bottomless Cask and Bottomless Cellar, Shared Pour, '
+      + 'Nimbus, Comet, the Bottomless Cask and Bottomless Cellar, Shared Pour, '
       + 'Hoardflame, Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand. A '
       + 'spell cast by a minion (a Mage-Pup, an End-of-Turn caster), by a rune (Recurrence, a rune threshold) or '
       + 'by an Equipment (Pourman\'s Keg) resolves exactly once, and it never spends a one-shot multiplier: the Living '
@@ -199,12 +199,13 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-09-24 (after PR #1699 routed minion casts through castSpell)', quote: 'let\'s make the effect of living grimoire and yazzus/orivax etc specify spell cast from hand so that it only doubles from spells cast from hand.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts withHandCast / isHandCast / castsOutsideHand (the one gate), noteSpellCast (Grimoire spend + Orivax window), battlecryCastTaughtSpell, equipmentCastRandomAle, the spellCastOnThis re-casts, spellBuffTargetAndRandomFriendly (Constellation Prime); packages/sim/src/reducer.ts the hand-play paths (the only withHandCast callers)' },
     ],
-    contentIds: ['yazzus', 'd2_grimoire', 'd2_orivax', 'nimbus', 'ce3_artificer', 'dw_edward', 'ce3_constellationprime', 'rune_shared_pour', 'rune_hoardflame', 'rune_bottomless_cask', 'rune_dragon_breath', 'q_spell_thesis', 'q_ancient_runes', 'q_bottomless_cellar', 'q_endless_verse'],
+    contentIds: ['yazzus', 'd2_grimoire', 'd2_orivax', 'nimbus', 'ce3_artificer', 'ce3_constellationprime', 'rune_shared_pour', 'rune_hoardflame', 'rune_bottomless_cask', 'rune_dragon_breath', 'q_spell_thesis', 'q_ancient_runes', 'q_bottomless_cellar', 'q_endless_verse'],
     currentBehaviour:
       'Conforms (fix/cast-multipliers-from-hand, 2026-09-24). Before, a minion\'s or rune\'s cast went through '
       + '`castSpell` without being multiplied but still spent the Living Grimoire charge and closed Orivax\'s window, '
       + 'while a Mage-Pup\'s taught spell and a Pourman\'s Keg pour were fully multiplied (and the Pup spent Spell Thesis '
-      + 'and the Nimbus charge). Card, rune and quest texts now say "from hand".',
+      + 'and the Nimbus charge). Card, rune and quest texts now say "from hand". Edward Keg-hands left this list on '
+      + '2026-11-14: he multiplies a hand Ale\'s numbers on one cast instead (R-EDWARD-01), with the same from-hand gate.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/castMultipliersFromHand.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/sim/src/docbot/recastMultiplier.test.ts', 'packages/sim/src/runeDragonBreathCombat.test.ts'],
@@ -233,5 +234,34 @@ export const MULTIPLIERS_RULES: GameRule[] = [
     contentIds: ['d3_vellum'],
     currentBehaviour: 'Conforms as of 2026-10-23 (all readings owner-confirmed 2026-10-23: from-hand scope, turn expiry, Gilded, Amplified stacking).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3T7VellumEnding.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-EDWARD-01',
+    title: 'Edward Keg-hands doubles a hand-cast Dwarven Ale\'s numbers on ONE cast; he adds no casts',
+    statement:
+      'Edward Keg-hands: "Your Dwarven Ales cast from hand have double effect." (Gilded: triple.) A Dwarven Ale (the Ale '
+      + 'list: Golden, Reinforcing, Champion\'s, Defensive, Bloody) cast from hand while an Edward is on the board is cast '
+      + 'ONCE, and its NUMBERS are multiplied, never its targets: Golden Ale gains 4 Gold (6 Gilded), Champion\'s Ale gives '
+      + 'the left-most minion +10/+10, Defensive and Bloody Ale give 3 random minions +6 Health / +6 Attack (still 3 '
+      + 'minions), Reinforcing Ale gets 2 minions (3 Gilded). Spell power is part of the number and is multiplied with it. '
+      + 'STACKING: highest Edward only; any Edward is x2, any Gilded Edward x3, extra copies add nothing. SCOPE: only an '
+      + 'Ale cast from hand (a re-cast of that same hand cast included, R-MULT-06); an Ale cast by a rune, a minion, an '
+      + 'Equipment, End of Turn or in combat resolves at its printed strength. Because the Ale is cast once, every cast '
+      + 'watcher (Drunk Shopkeeper, Sequencing, Spell Appetite, the spell counters) sees ONE cast. A cast multiplier that '
+      + 'adds casts (Ancient Runes, Spell Thesis, Living Grimoire, the Bottomless Cask and Cellar, Shared Pour, Last Call) '
+      + 'still adds casts, and each of those casts of a hand Ale carries Edward\'s multiplier: one boundary, the cast. '
+      + 'An Ale in hand prints its multiplied numbers while an Edward is on the board; a Shop or Discover copy prints '
+      + 'its base numbers.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rework 2026-11-14 (relayed): Edward Keg-hands', quote: 'the NUMBERS double, not the targets' },
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-11-14 (relayed): stacking and scope', quote: 'highest Edward only ... only Ales cast FROM HAND, same as today' },
+      { kind: 'owner-chat', ref: 'Owner 2026-11-14 (relayed): live text', quote: 'this needs to reflect on the ales themselves when in play' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts aleHandMagnitude / aleCastMagnitude (read in applyCastEffects as the `_mag` param and in castSpell\'s Gold half), spellBuffLeftmost / spellBuffRandomFriendlies / spellGrantTopTypeMinion, spellDisplayText (aleMagnitudeText); packages/ui/src/Recruit.tsx handCardView (aleMag)' },
+    ],
+    contentIds: ['dw_edward', 'wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'],
+    currentBehaviour: 'Conforms from 2026-11-14 (balance/edward-vaultkeeper). Before, Edward was a cast multiplier inside `spellCasts` (x2 / x3 casts of a hand Ale), so every Ale-cast and spell-cast payoff fired two or three times.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/edwardAleMagnitude1114.test.ts', 'packages/ui/src/edwardAleText1114.test.ts'], lastVerifiedAt: '2026-11-14' },
   },
 ];

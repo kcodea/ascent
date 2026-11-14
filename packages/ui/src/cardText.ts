@@ -788,9 +788,28 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
   return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}}. Improves by **+${per}/+${per}** per 4 spells with this on board, {{${toNext} to go}}.`;
 }
 
-// (herzogText, Vaultkeeper's spell-scaled per-Dragon grant, was removed 2026-10-10: the owner replaced the effect with
-// "When this gains Attack, give adjacent Dragons +3/+4", whose printed numbers are exact; the rune's widening is a
-// rune note, `runeModifiedNote`.)
+/**
+ * VAULTKEEPER (`onTribePlayedBuffSelfPerSpell`; removed 2026-10-10, RESTORED 2026-11-14 with the owner's revert,
+ * R-VAULT-02): "Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells cast this game." The per-Dragon
+ * grant SCALES with the run's lifetime spell count: base x (1 + floor(spells / per)) x golden, read live (retroactive).
+ * Injects the current grant into the FIRST printed "+A/+H" (the "Improves" step stays the base rate) and appends the
+ * countdown to the next step. `spells` is the UMBRELLA the factory reads (Shop Spells + Rubies). `{{…}}` renders green
+ * and is excluded from the golden doubling, so golden is folded in here.
+ */
+export function herzogText(cardId: string, golden: boolean, spells: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onTribePlayedBuffSelfPerSpell');
+  if (!def || !eff) return null;
+  const per = Math.max(1, Number((eff.params as { per?: number } | undefined)?.per ?? 4));
+  const base = Number((eff.params as { base?: number } | undefined)?.base ?? 1);
+  // Match the FACTORY exactly: grant = base x (1 + step), so a base-2 Vaultkeeper improves +2/+2 per step
+  // (2 -> 4 -> 6), gilded 4 -> 8 -> 12.
+  const n = Math.max(0, spells);
+  const cur = base * (1 + Math.floor(n / per)) * (golden ? 2 : 1);
+  const toNext = per - (n % per);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`) + ` {{${toNext} ${toNext === 1 ? 'spell' : 'spells'} to next step}}`;
+}
 
 /**
  * HUMPHRY (R-HUMPHRY-01): "+2/+2, plus +2/+2 for every other Dragon played this turn (+X/+Y)". Generic over a

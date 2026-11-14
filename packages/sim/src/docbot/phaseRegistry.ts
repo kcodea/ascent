@@ -165,6 +165,7 @@ export const PHASE_EXCUSED: Readonly<Record<string, PhaseExcuse>> = {
 
   // ── more onSummon-family gaps surfaced by this test's own first run (2026-08-26) ──
   onTribePlayedConsumeShop: { phase: 'combat', kind: 'no-surface', why: 'Consumes from the SHOP on a tribe play; no shop mid-fight' },
+  onTribePlayedBuffSelfPerSpell: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Vaultkeeper does not gain stats from combat summons. (Restored with the owner revert 2026-11-14, R-VAULT-02.)' },
   summonBuffTribeImprove: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — Den Mother does not feed from combat summons.' },
   countTribeSummon: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "played" means from hand in the shop; combat summons do not feed the counter (Pack Leader text clarified to say "in the Shop").' },
   onTribeSummonedBuffTribe: { phase: 'combat', kind: 'no-surface', why: 'OWNER RULED 2026-08-26: correct — "when you play a Dwarf" is a shop event.' },

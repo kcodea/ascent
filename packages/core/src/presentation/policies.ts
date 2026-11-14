@@ -145,7 +145,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // 'economy' family — NOT 'shout' / 'spellCast', which would drag those decided family questions across two events.
   'factory:tribePlayedEveryNGrantRandomSpell:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
-  'factory:tribePlayedGainSelfImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' }, // Vaultkeeper (2026-10-13)
+  // factory:tribePlayedGainSelfImproving:onTribePlayed — its one user (Vaultkeeper) was reverted to its 2026-08-15 form 2026-11-14; entry removed so the registry carries no ghost.
   'factory:goldSpentImproveSelf:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Alchemist Brisbane (2026-10-13)
   'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
   // factory:spellCastBuffRandomHand:spellCast — its one user (Lullaby Lou) moved to onSpellCastBuffRandomTribe 2026-10-07; entry removed (no ghost).
@@ -368,7 +368,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:rallyGrantKeywordRandomTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Raven (2026-09-24)
   'factory:avengeGrantKeywordRandomTribe:avenge': { policy: 'ownBeat', family: 'avenge' }, // Tort (2026-09-24)
   // factory:onSummonBuffTribeAll:onSummon — its one user (Flo Rida) moved to onSummonTribeBuffFlat 2026-10-07; entry removed (no ghost).
-  // factory:onTribePlayedBuffSelfPerSpell:onSummon — its one user (Vaultkeeper) was reworked 2026-10-10; entry removed so the registry carries no ghost.
+  'factory:onTribePlayedBuffSelfPerSpell:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Vaultkeeper (restored 2026-11-14, R-VAULT-02)
   // Vaultkeeper (owner 2026-10-10): its own beat per pulse (a gain can come from anywhere; the pulse must read as Vaultkeeper's).
   // factory:onGainAttackBuffAdjacentTribe:onGainAttack — its one user (Vaultkeeper) was reworked again 2026-10-13; entry removed so the registry carries no ghost.
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },

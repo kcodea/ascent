@@ -90,7 +90,7 @@ export const ENGINE_COMBOS: readonly EngineCombo[] = [
   {
     id: 'dwarf-brunni-edward', line: 'dwarf', packages: ['ale'], tribe: 'dwarf', fromWave: 7,
     pieces: [P('dw_brunni', 'payoff'), P('dw_edward', 'enabler', { fromWave: 7 })],
-    note: 'Edward makes every Ale trigger twice',
+    note: 'Edward doubles every hand-cast Ale',
   },
   // ── Dragon spell: Chorus Drake grows the spell power every fight; a spell body cashes every cast ──
   {

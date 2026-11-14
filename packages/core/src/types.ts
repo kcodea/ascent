@@ -1517,7 +1517,7 @@ export type QuestReward =
   /** "Your <tribe> Rallies and Slaughters trigger an additional time" — the tribe-scoped twin of the Beast-only
    *  `lawOfTeeth` flag, so any tribe's version is data rather than a new hard-coded flag. */
   | { kind: 'tribeRallySlaughterExtra'; tribe: Tribe }
-  /** "Your Dwarven Ales trigger an additional time" — run-wide, additive with Edward Keg-hands. */
+  /** "Your Dwarven Ales trigger an additional time" — run-wide extra CASTS (Edward Keg-hands multiplies each one's numbers). */
   | { kind: 'aleExtraCasts'; amount?: number }
   /** "Every N Gold spent, give your <tribe> +X/+X" — threshold-based and tribe-scoped. */
   | { kind: 'questGoldTribeBuff'; tribe: Tribe; per: number; attack: number; health: number }

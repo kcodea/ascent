@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import { ALE_IDS, DRAGONFLAME_ID, SET2_TRIBAL_RUNES, makeRng, type CardDef, type EffectDef, type Keyword } from '@game/core';
-import { addBuff, applyRunShopBuff, buffThisShopOffers, captureBuffFx, defIsTribe, fireOnRubyPlayed, hasBattlecry, isTribe } from './recruit';
+import { addBuff, applyRunShopBuff, captureBuffFx, defIsTribe, fireOnRubyPlayed, hasBattlecry, isTribe } from './recruit';
 import { runeStacksOf } from './runeDup';
 import { procRuneId, recordBounceFx, type BoardCard, type RunState } from './state';
 
@@ -31,20 +31,23 @@ export function collectionsOnSale(state: RunState, sold: BoardCard): void {
   applyRunShopBuff(state, SET2_TRIBAL_RUNES.collections.attack * n, SET2_TRIBAL_RUNES.collections.health * n, 'Collections');
 }
 
-/** DRUNK SHOPKEEPER (Set 2 Basic Dwarf rune, owner 2026-11-13): When you cast an Ale, give minions in your Shop +1/+1
- *  permanently. */
+/** DRUNK SHOPKEEPER (Set 2 Basic Dwarf rune, owner 2026-11-13; reworked 2026-11-14): When you cast an Ale, Shop minions get
+ *  +1/+1 permanently. */
 export const DRUNK_SHOPKEEPER_GRANT = { attack: 1, health: 1 } as const;
 
+/** The Shop buff-ledger source Drunk Shopkeeper credits (`tavernBuyBonusSources`), which its live text reads back. */
+export const DRUNK_SHOPKEEPER_SOURCE = 'Drunk Shopkeeper';
+
 /** DRUNK SHOPKEEPER: one Ale cast resolved in the Shop (each repetition of a multiplied cast reaches here, as for every
- *  other Ale trigger). Bakes +1/+1 per copy onto every minion offer standing in the Shop now (the Starform included), so a
- *  frozen card keeps it and later arrivals do not get it. An empty Shop: no fire. */
+ *  other Ale trigger). Owner rework 2026-11-14 ("buffs the Shop"): +1/+1 per copy onto the run-wide permanent Shop buff
+ *  (`applyRunShopBuff`, the Collections / Infernal Ink channel), so the minions in the Shop now AND every minion that enters
+ *  it later (Refreshes, new turns, refills) carry the running total for the rest of the run. It fires on an empty Shop too:
+ *  the buff waits for the next row. */
 export function drunkShopkeeperOnCast(state: RunState, spellDef: CardDef): void {
   if (!state.questFlags?.runeDrunkShopkeeper || !ALE_IDS.includes(spellDef.id)) return;
-  const any = state.shop.some((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-  if (!any) return;
   const n = runeStacksOf(state, 'rune_drunk_shopkeeper');
   procRuneId(state, 'rune_drunk_shopkeeper');
-  buffThisShopOffers(state, 'Drunk Shopkeeper', DRUNK_SHOPKEEPER_GRANT.attack * n, DRUNK_SHOPKEEPER_GRANT.health * n);
+  applyRunShopBuff(state, DRUNK_SHOPKEEPER_GRANT.attack * n, DRUNK_SHOPKEEPER_GRANT.health * n, DRUNK_SHOPKEEPER_SOURCE);
 }
 
 /** FLAMEKEEPER: one Dragonflame cast resolved in the Shop (each repetition reaches here). */

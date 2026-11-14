@@ -44,6 +44,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
     const v = run.tavernBuyBonusSources?.['Reinvestment'];
     return v && (v.atk > 0 || v.hp > 0) ? `+${v.atk}/+${v.hp}` : null;
   }
+  // SPELL APPETITE (Set 2, 2026-11-14) bites on EVERY spell (`per: 1`): an x/1 meter would always read 0/1, so no badge.
+  if (runeId === 'rune_spell_appetite') return null;
   // Threshold runes (Gemspam, Spending, Action, …) — `sourceId` is stamped when the meter is armed.
   const t = run.runeThresholds?.find((x) => x.sourceId === runeId);
   // RUNE OF COMPOUNDING WAGES (2026-08-20) escalates, so the countdown alone under-sells it: the badge names

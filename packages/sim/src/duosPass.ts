@@ -128,6 +128,10 @@ export interface DuosRunState {
   /** CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): my teammate (Cindy) armed it, so my NEXT minion buy sends them a Gilded
    *  copy of that minion (`gratitudeBuy`) and clears this. Set by their `gratitude` team effect. */
   gratitude?: true;
+  /** CINDY × ANCIENTS (R-ANCCINDY-04 / 06, dev only): the riders Cindy's arm carried. `gratitudeGild`: the minion I buy
+   *  is Gilded too (Genesis). `gratitudeLink`: it and Cindy's copy become Linked (Bonds). Spent with the arm. */
+  gratitudeGild?: true;
+  gratitudeLink?: true;
 }
 
 /** A team-effect entry's placeholder card (it never lands anywhere). */
@@ -249,6 +253,13 @@ export function duosWireCard(card: BoardCard): BoardCard & { passFrom: 'hand' } 
  *  `passFrom: 'spell'`, a team effect as `passFrom: 'team'` with its `team` payload (R-DUOS-CARDS-01). */
 export function duosWireOf(e: DuosOutboxEntry): BoardCard & { passFrom: 'hand' | 'spell' | 'sale' | 'team'; team?: TeamEffect; teamCatch?: number; passPower?: 0 | 1; passPaid?: number; passHat?: true; passGratitude?: true; passBonds?: { attack: number; health: number }; passCopies?: number } {
   if (e.team) return { ...e.card, passFrom: 'team', team: structuredClone(e.team) };
+  // CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): only a Golden Gratitude copy travels Linked. Any other card that leaves
+  // this run leaves its link behind (the link ends: `duosLinkSync`), so a passed twin never arrives still Linked.
+  if (e.card.duosLink && !e.gratitude) {
+    const { duosLink: _l, ...rest } = e.card;
+    void _l;
+    return duosWireOf({ ...e, card: rest });
+  }
   // ANCIENTS x the Duos heroes (R-ANCDUOS-01): what rides WITH the card, so it lands exactly when (and only if) the card
   // does: Priestess x Bonds' gain for the teammate's left-most minion, Magician x Genesis' copy count. Absent on every
   // run without Ancients, so an ordinary pass travels byte for byte as before.

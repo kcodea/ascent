@@ -94,6 +94,7 @@ function boardCardExemplar(): Required<BoardCard> {
     duosOnce: { teamPassBuffSelf: 3 }, // Duos-only cards: a once-per-turn team trigger latch — shop-only, see the registry
     duosUses: { aleCastGiftTeammate: 1 }, // Duos-only cards (batch A): a per-turn team trigger count — shop-only, see the registry
     passKey: 'p2:3', // Versus Duos: the pass key it arrived through (restore identity only) — shop-only, see the registry
+    duosLink: { id: 'grat7', a: 2, h: 3, g: true }, // Cindy × Bonds: a Linked card (its link id + mirror baseline) — shop-only, see the registry
     keywords: ['DS'] as Keyword[],
     golden: true,
     addedTribes: ['mech'],

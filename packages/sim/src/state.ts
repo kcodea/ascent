@@ -141,6 +141,11 @@ export interface BoardCard {
    *  reload re-finds the card by it when the server says it was passed on again (the restored run gives it a fresh uid).
    *  Absent on every card that was never passed. */
   passKey?: string;
+  /** CINDY × ANCIENT OF BONDS (Duos only, owner 2026-11-14, R-ANCCINDY-06): this card is one of a LINKED pair, the
+   *  minion Cindy's teammate bought and the Gilded copy Golden Gratitude sent her. `id` names the link on BOTH runs
+   *  (the copy's uid on the teammate's run); `a` / `h` / `g` are the stats and Gilded flag last mirrored (the baseline
+   *  `duosLinkSync` measures a gain against, so a mirrored gain is never sent back). See `duosLinks.ts`. */
+  duosLink?: { id: string; a: number; h: number; g?: true };
   tribe: Tribe;
   attack: number;
   health: number;
@@ -1465,6 +1470,12 @@ export interface RunState {
    *  is the card id that came (the spent text names it). Read through `gratitudeView` (goldenGratitude.ts). */
   cindyGratitude?: 'armed' | 'paid';
   cindyGratitudeCard?: string;
+  /** CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): the link ids this run's cards held at the last action boundary
+   *  (`duosLinkSync`), so a twin that LEFT the run (sold, destroyed, passed away) is noticed and the link ended on both
+   *  runs (`linkEnd`). Absent when the run holds no link. */
+  duosLinkIds?: string[];
+  /** …and the ids whose link ENDED (either twin left its run): a card still carrying one drops it, so it never re-links. */
+  duosLinkEnded?: string[];
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when
    *  nothing is armed. Cleared on payout, so it never carries into a second fight. */
   flashPick?: 'first' | 'last';

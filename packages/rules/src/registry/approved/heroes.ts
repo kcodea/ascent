@@ -4031,4 +4031,91 @@ export const HEROES_RULES: GameRule[] = [
     example: "Ann, as Cindy, presses Golden Gratitude on turn 3. Her teammate Amy buys a spell (nothing happens), then a Tabbycat on turn 4: Amy keeps her Tabbycat and a Gilded Tabbycat lands in Ann's hand. Ann's power reads spent.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroCindy.test.ts", "packages/ui/src/versus/gratitude.test.ts"], lastVerifiedAt: '2026-11-14' },
   },
+  {
+    id: "R-ANCCINDY-01",
+    title: "Cindy × Ancient of Death: Avenge (15), give your teammate a Goldcrafter",
+    statement:
+      "With the Ancient of Death, every 15th friendly death gives Cindy's TEAMMATE a Goldcrafter, and it repeats. It is ONE running count across every phase (`AncientsState.cindyDeaths`): a Shop death (every destroy path that walks `fireOnFriendDeath`: a destroy, a pending destroy, a devour) ticks it and pays the gift right then as a `gift` team effect; combat carries the count in (`QuestCombatMods.ancientMateGiftAvenge`) and each fire sends the gift to the teammate at once (`sendTeam`, a real-time `teamSend` on the death that paid it), and settle adds the fight's friendly deaths. A sale or a consume is not a death and never counts. Rune of Fury fires the combat half again, like every hero Avenge. The power prints the live count (N/15), ticking through a fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Death: Avenge (15): give your teammate a Gildcrafter." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "counts ALL friendly deaths in EVERY phase ... Consumes do NOT count." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts cindyShopDeath / cindyCombatMods / cindyAfterCombat; packages/core/src/combat/simulate.ts the ancientMateGiftAvenge listener" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01). \"Gildcrafter\" is the Goldcrafter spell.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts", "packages/core/src/combat/cindyAncients.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCCINDY-02",
+    title: "Cindy × Ancient of Fortune: spending 40 Gold refreshes Golden Gratitude",
+    statement:
+      "With the Ancient of Fortune, every 40 Gold Cindy spends (one running count since the pick, `cindyGold`, read at the reducer's `spendGold`) gives Golden Gratitude its once-per-game use back: the spent charge is cleared and the power reads ready again, so it can be armed again. A refresh earned while the power is still WAITING on the teammate's buy is banked (`cindyRefreshBanked`) and pays the moment the Gilded copy lands. One earned while the power is unused has nothing to refresh and is not kept. The power prints the Gold toward the next refresh (N/40) and a banked refresh.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Fortune: Spending 40 Gold refreshes your hero power." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts cindyOnGoldSpent / refreshGratitude / ancientOnGratitudePaid; packages/sim/src/goldenGratitude.ts gratitudeLanded" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01). Judgement call for the owner: a refresh earned while waiting is banked; one earned while unused is wasted.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCCINDY-03",
+    title: "Cindy × Ancient of War: Start of Combat, your left-most minion is Gilded (an Engraved one stays Gilded)",
+    statement:
+      "With the Ancient of War, at every Start of Combat Cindy's left-most living minion becomes Gilded for that fight: the Gilded flag (its effects double) and its printed stats again, a labelled combat buff (`QuestCombatMods.ancientSocGildLeftmost`, the Time gild's shape). An already Gilded minion is left alone. The gild is for the fight only, UNLESS that minion is Engraved: then the doubled stats come home through the Engraved rule and the minion keeps the Gilded status after the fight (`CombatCarryBacks.ancientGildKept`, applied at settle). Symmetric: either side carrying it gilds its own left-most.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "War: Start of Combat: your left-most minion is Gilded." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "fight only unless engraved, then it keeps the gilded status" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts socRunLevel (ancientSocGildLeftmost); packages/sim/src/ancients.ts cindyCombatMods / cindyAfterCombat; packages/sim/src/versus/mirror.ts carryAsPlayerFields" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/core/src/combat/cindyAncients.test.ts", "packages/sim/src/ancientsCindy.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCCINDY-04",
+    title: "Cindy × Ancient of Genesis: the minion the teammate bought is Gilded too",
+    statement:
+      "With the Ancient of Genesis, when Golden Gratitude pays out, the minion Cindy's teammate bought becomes Gilded as well (a Gild on the teammate's run, with its buff FX); Cindy still gets her Gilded copy, and a minion bought already Gilded stays as it is. The rule travels to the teammate's run as a rider on the arm (`gratitude` with `gild`). Picked AFTER the press, while the power waits, the rider follows as an `update` arm, which only adds riders to an arm the teammate's run already holds: it never arms a power that has paid or was never pressed.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Genesis: Your teammate's copy is Gilded, too." },
+      { kind: 'code', ref: "packages/sim/src/goldenGratitude.ts armGratitude / gratitudeMateArmed / gratitudeBuy; packages/sim/src/ancients.ts ancientGratitudeRiders / cindyOnPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCCINDY-05",
+    title: "Cindy × Ancient of Time: you and your teammate get a Goldcrafter next turn",
+    statement:
+      "With the Ancient of Time, ONCE, at the Start of the turn after the pick, Cindy gets a Goldcrafter in hand (a full hand gets none) and her teammate gets one (a `gift` team effect: it waits for hand room on their run). It is its own Start-of-Turn beat. The power prints whether it is still to come or done.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Time: You and your teammate get a Gildcrafter next turn." },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts cindyOnPick / cindyStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCCINDY-06",
+    title: "Cindy × Ancient of Bonds: Golden Gratitude's two copies are Linked; a gain on one is gained by the other, with the same permanence",
+    statement:
+      "With the Ancient of Bonds, the minion the teammate bought and the Gilded copy Cindy gets are LINKED (`BoardCard.duosLink`, one id on both runs, riding the arm as `link` and the copy as itself), and both cards print \"Linked\" in the gold status tag, in the Shop and in combat. In the SHOP (either run, board, hand or a card waiting for room) a stat GAIN on one is measured at the reducer's action boundary (`duosLinkSync`) and sent to the twin's run as one `linkGain` per action, where the twin gains it permanently; the twin's baseline moves by that much, so a mirrored gain is never sent back (no ping-pong). In COMBAT the mirrored gain has the SAME permanence as the original: a combat-only gain reaches the twin only while the twin's board is the waiting tag-team reserve (added to its per-fight locked copy, combat-only, one hop), and a gain the body keeps (Engraved, a permanent combat gain) lands on the run card at settle and is sent to the twin's run then, permanently. Gilding either copy (a Gild, a triple, Genesis, War's kept gild) never breaks the link and is not a gain; a triple hands the link to its Golden. The link ENDS when either copy leaves its run (sold, destroyed, consumed, passed, swapped into the Shop): that run sends `linkEnd` and both cards drop it for good. A passed card never travels Linked. Ranked Duos works the same (both teammates are live runs); a served recorded team fights with the stats its runs had.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "Bonds: The copies of your cards are Linked. When one gains stats, the other does too." },
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-14 (Cindy's Ancient pairings)", quote: "if one player's minion is engraved, it would keep those stats as well" },
+      { kind: 'code', ref: "packages/sim/src/duosLinks.ts; packages/sim/src/goldenGratitude.ts gratitudeBuy; packages/sim/src/reducer.ts settleAction / checkTriples / questCombatMods; packages/core/src/combat/simulate.ts ctx.buff (duosLinks) and the snapshot's `linked`; packages/ui/src/instView.ts / Unit.tsx LINKED_TAG" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01). Known gap: a reload mid-turn drops that turn's actions on the reloading run, while a `linkGain` it already sent stays on the twin.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts", "packages/core/src/combat/cindyAncients.test.ts", "packages/ui/src/cindyLinkedText.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
 ];

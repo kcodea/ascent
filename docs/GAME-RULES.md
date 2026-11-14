@@ -1481,10 +1481,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   of the Mimic / Void / Power Shifter pools (every Duos-only hero is). A recorded team that includes a Cindy plays from
   its recorded boards, so nothing is armed or owed there.
   **Ancients are NOT on in Versus Duos or Ranked Duos** (owner 2026-11-10: "we arent turning ancients on just yet, but
-  build it out"; R-ANCDUOS-01). Both heroes have all six Ancient pairings written and tested (R-ANCPRIESTESS-01..06,
-  R-ANCMAGICIAN-01..06), reachable only on a DEV server or a bench bundle. No player build, room option or setting turns
-  them on. What each does, and what is still needed to switch them on, is in
-  `docs/devlog/2026-11-10-ancients-duos-heroes.md`.
+  build it out"; R-ANCDUOS-01). Priestess and Magician have all six Ancient pairings written and tested (R-ANCPRIESTESS-01..06,
+  R-ANCMAGICIAN-01..06), and so does Cindy (R-ANCCINDY-01..06), reachable only on a DEV server or a bench bundle. No
+  player build, room option or setting turns them on. What each does, and what is still needed to switch them on, is in
+  `docs/devlog/2026-11-10-ancients-duos-heroes.md` and `docs/devlog/2026-11-14-ancients-cindy.md`. Cindy's: Death,
+  Avenge (15) gives the teammate a Goldcrafter (every friendly death in every phase, never a consume or a sale); Fortune,
+  every 40 Gold spent gives Golden Gratitude its use back (banked while it waits on the buy); War, Start of Combat the
+  left-most minion is Gilded for the fight (an Engraved one stays Gilded); Genesis, the teammate's bought minion is
+  Gilded too; Time, once, next turn, a Goldcrafter for her and one for her teammate; Bonds, the two copies are
+  **Linked**: a stat gain on either is gained by the other with the same permanence (a Shop or kept gain crosses
+  between the runs at the next action boundary; a combat-only gain reaches the twin only while it is the waiting
+  tag-team reserve), and the link ends when either copy leaves its run.
 - **Duos-only runes** (owner 2026-10-30; R-DUOS-RUNES-01..03). `RuneDef.duos`: only a Duos run's Runeforge (and a granted
   random rune) offers them. Basic: **Spell Theory** (2: passing a spell gets you a copy, once per turn), **Gold Gifts** (1:
   Equip Gold Gifter (1), the (1) is its Gold cost: your teammate gets 3 Gold), **Teammate Synergy** (2: each Gild gives your

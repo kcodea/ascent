@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Ancients test mode: Cindy now has all six Ancient powers written.',
+        details: [
+          'Ancients are not in Versus Duos or Ranked Duos yet. These are built and waiting.',
+          'Death: Avenge (15) gives your teammate a Goldcrafter. Fortune: spending 40 Gold refreshes Golden Gratitude. War: Start of Combat, your left-most minion is Gilded.',
+          "Genesis: your teammate's minion is Gilded too. Time: you and your teammate each get a Goldcrafter next turn. Bonds: the two copies are Linked, and when one gains stats, the other does too.",
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'New Duos hero: Cindy. Golden Gratitude: the next minion your teammate buys gives you a Gilded copy of it. Once per game.',
         details: [
           'Cindy has 30 Health and 10 Armor. Her power costs 0 and can be used once per game.',

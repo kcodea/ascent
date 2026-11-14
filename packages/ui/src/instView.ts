@@ -180,6 +180,9 @@ export function rubyLiveText(printed: string, grant: string): string {
 export const GRANTED_RALLY_SHOUT_NOTE = "[[Rally: trigger this minion's Shout.]]";
 /** Frank × Ancient of Fortune: the Clearance minion's sale line, at the value it sells for right now. */
 export const clearanceSellNote = (gold: number): string => `[[Sells for ${gold} Gold.]]`;
+/** CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): the gold status tag a Linked card wears (the `desctemp` gold marker, the one
+ *  a next-combat grant's tag uses), on the shop / board / hand card and on the combat card alike. */
+export const LINKED_TAG = '((Linked))';
 
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const r = liveCardTextCore(cardId, p);
@@ -440,6 +443,8 @@ export function instView(
   // parenthesized tag — ((label)) renders via the Card's `desctemp` marker — and the promised keyword badge
   // previews on the minion until combat spends it.
   const tempTags = (inst.tempGrants ?? []).map((g) => ` ((${g.label}))`).join('');
+  // CINDY × ANCIENT OF BONDS (R-ANCCINDY-06): a Linked card says so, in the same gold status tag, on both copies.
+  const linkTag = inst.duosLink ? ` ${LINKED_TAG}` : '';
   // Every Ruby type prints its own authored sentence (the Kobold rider — Ward, Gold, bounce, ripple, devour —
   // owner Ruby batch 2026-09-24) with its printed "+A/+H" swapped for the live grant.
   const shownText = c.ruby ? rubyLiveText(c.text, shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal) : text;
@@ -459,8 +464,8 @@ export function instView(
     whisperGilded: c.whisper && (inst.whisperMult ?? 1) > 1 ? true : undefined,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes || !!(inst as { unityTribes?: boolean }).unityTribes, // + Rune of Unity's full house (Set 3 design pass)
     attack: shownAtk, health: shownHp,
-    keywords: shownKeywords, text: shownText + tempTags,
-    goldenText,
+    keywords: shownKeywords, text: shownText + tempTags + linkTag,
+    goldenText: goldenText !== undefined && linkTag ? goldenText + linkTag : goldenText,
     golden: inst.golden,
     tier: c.tier, spell, ruby: c.ruby, target: c.target,
     // Rubies show the ×N badge too (owner 2026-07-24) — this gate dropped it for anything not flagged `spell`,

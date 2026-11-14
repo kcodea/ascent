@@ -5,7 +5,7 @@ import { grantedTriggersOfSnapshot } from './grantedTriggers';
 import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn, runTallyFor } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
-import { liveCardText } from './instView';
+import { LINKED_TAG, liveCardText } from './instView';
 import { useGame } from './store';
 import { perfMonitor } from './perfMonitor';
 import { isSpeedTimedAnim, liveCombatSpeed } from './floatConfig';
@@ -204,10 +204,11 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     // Granted triggers (Seed's Echo, a copied Echo, a graft) join the medallion (R-MEDAL-GRANTED-01). One shared
     // array per shape, so the per-beat frame copy never churns it.
     grantedTriggers: grantedTriggersOfSnapshot(u),
-    text: liveText,
+    // Cindy × Ancient of Bonds (R-ANCCINDY-06): a Linked body wears the same gold tag as its shop card.
+    text: u.linked ? `${liveText} ${LINKED_TAG}` : liveText,
     // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
     // that for goldens), so pass it straight through — same source of truth as the shop.
-    goldenText: liveGoldenText ?? def?.goldenText,
+    goldenText: u.linked && (liveGoldenText ?? def?.goldenText) !== undefined ? `${liveGoldenText ?? def?.goldenText} ${LINKED_TAG}` : liveGoldenText ?? def?.goldenText,
     tier: def?.tier,
     // Two thresholds in combat: green above the *printed* base (it's buffed), red below the *floor* it
     // entered the fight with (it's been damaged/debuffed). So a recruit-buffed 5/5 stays green until

@@ -2,6 +2,7 @@ import type { QuestCombatMods } from '@game/core';
 import { RUNE_INDEX } from '@game/content';
 import { PACKCRAFT_STEP, type RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
+import { DRUNK_SHOPKEEPER_SOURCE } from './set2RunesBasicTribal';
 
 /**
  * THE LIVE VALUE OF A SELF-IMPROVING RUNE (owner report 2026-10-16, R-RUNE-LIVE-TEXT-01).
@@ -41,6 +42,8 @@ export interface RuneLiveState {
   baller?: { amount: number; stat: 'Attack' | 'Health' };
   /** Rune of Borrowed Flame (Set 3 Dragon runes, 2026-10-21): what the NEXT Whisper cast on a Dragon gives, per copy. */
   borrowedFlame?: number;
+  /** Drunk Shopkeeper (Set 2, rework 2026-11-14): the total it has added to the permanent Shop buff so far (all copies). */
+  drunkShopkeeper?: { attack: number; health: number };
 }
 
 const intIn = (v: unknown): number | undefined =>
@@ -94,6 +97,10 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
     out.baller = { amount: run.runeBaller.step * Math.ceil(next / 3), stat: next % 2 === 1 ? 'Attack' : 'Health' };
   }
   if (f?.runeBorrowedFlame) out.borrowedFlame = run.runeBorrowedFlame ?? 1;
+  if (f?.runeDrunkShopkeeper) {
+    const v = run.tavernBuyBonusSources?.[DRUNK_SHOPKEEPER_SOURCE];
+    out.drunkShopkeeper = { attack: v?.atk ?? 0, health: v?.hp ?? 0 };
+  }
   return out;
 }
 
@@ -173,6 +180,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const ba = b && typeof b === 'object' ? intIn(b.amount) : undefined;
   if (ba !== undefined && (b!.stat === 'Attack' || b!.stat === 'Health')) out.baller = { amount: ba, stat: b!.stat };
   const bfl = intIn(o.borrowedFlame); if (bfl) out.borrowedFlame = bfl;
+  const ds = pairIn(o.drunkShopkeeper); if (ds) out.drunkShopkeeper = ds;
   return Object.keys(out).length ? out : undefined;
 }
 

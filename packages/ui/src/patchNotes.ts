@@ -56,6 +56,29 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-14',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Drunk Shopkeeper now buffs your Shop for the rest of the game. Each Ale you cast adds +1/+1.',
+        details: [
+          'Minions that arrive in your Shop later, after a Refresh or on a new turn, have the bonus too.',
+          'It used to buff only the minions in your Shop at the time.',
+          'The rune shows the total it has added so far.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'New Set 2 Epic rune: Spell Appetite.',
+        details: [
+          'Spell Appetite (Epic, Demon, 3 Gold): when you cast a spell, a random Demon on your board consumes a random minion in your Shop.',
+          'Rubies are spells, so they count too.',
+          'With no Demon or no Shop minion, nothing happens.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-13',
     changes: [
       { category: 'Balance', text: 'Seasoned Ledger now improves by +1/+1 after every minion you play (was every 5).' },

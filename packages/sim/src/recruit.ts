@@ -6446,15 +6446,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
   },
 
-  /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. The magnitude is
-   *  the base buff + `self.summonBonus` (Avenge / triple-combined). No golden doubling — a
-   *  golden's bonus already encodes the combined magnitude (see checkTriples). */
-  buffOnSummon: (_ctx, self, params, { minion }) => {
-    if (minion === self) return;
-    const tribe = str(params.tribe);
-    if (tribe && tribe !== 'any' && !isTribe(minion, tribe as Tribe)) return;
-    const bonus = self.summonBonus ?? 0;
-    addBuff(minion, nameOf(self), num(params.attack) + bonus, num(params.health) + bonus);
+  /** Kennelmaster (shop half): a `tribe` minion played or summoned in the Shop gets the summon buff, permanently.
+   *  ARENA-MIGRATED (2026-11-14): one body in arena.ts (`(base + summonBonus x step) x golden`) serves both phases. */
+  buffOnSummon: (ctx, self, params, { minion }) => {
+    if (!minion || minion === self) return;
+    ARENA_EFFECTS.buffOnSummon(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   /** Mama Bear (recruit half) — when a beast is summoned (played / token), buff it +M/+M where M = (base +

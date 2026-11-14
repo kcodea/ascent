@@ -83,10 +83,10 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
   });
 
   it('the pulse lands on the MINION re-fire when the board has one (it comes before the rune pass)', () => {
-    const r = sim([v(1, 4, 'kennel'), v(5, 8), v(9, 9)], wall, 1, { runeTwilight: true, runeUnderdog: true });
+    const r = sim([v(1, 4, 'd2_sovereign'), v(5, 8), v(9, 9)], wall, 1, { runeTwilight: true, runeUnderdog: true });
     const tw = triggers(r, 'runeTwilight');
     expect(tw).toHaveLength(1);
-    const kennelRefire = r.events.filter((ev) => ev.type === 'tribeAura')[1]!; // Kennelmaster's second aura = the Twilight minion pass
+    const kennelRefire = r.events.filter((ev) => ev.type === 'tribeAura')[1]!; // Thunderous's second aura = the Twilight minion pass
     expect(stepOf(tw[0])).toBe(stepOf(kennelRefire));
     expect(r.events.indexOf(tw[0]!)).toBeLessThan(r.events.indexOf(triggers(r, 'runeUnderdog')[0]!));
     expect(triggers(r, 'runeUnderdog')).toHaveLength(2);
@@ -264,16 +264,17 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
   });
 
   it('is deterministic: the same seed twice gives the same log', () => {
-    const a = sim([v(1, 4, 'kennel'), v(5, 8), v(9, 9)], wall, 7, { runeTwilight: true, runeUnderdog: true, runeRebirth: true });
-    const b = sim([v(1, 4, 'kennel'), v(5, 8), v(9, 9)], wall, 7, { runeTwilight: true, runeUnderdog: true, runeRebirth: true });
+    const a = sim([v(1, 4, 'd2_sovereign'), v(5, 8), v(9, 9)], wall, 7, { runeTwilight: true, runeUnderdog: true, runeRebirth: true });
+    const b = sim([v(1, 4, 'd2_sovereign'), v(5, 8), v(9, 9)], wall, 7, { runeTwilight: true, runeUnderdog: true, runeRebirth: true });
     expect(a.events).toEqual(b.events);
   });
 
   it('Twilight with only MINION Start-of-Combat effects is unchanged (the pre-ruling log, pinned)', () => {
     // Captured from main before the rune passes existed: Kennelmaster + Gnasher + Twilight vs a 0/30 Target Dummy,
-    // seed 1. RE-PINNED 2026-10-10: Kennelmaster's aura is +2 Attack now (owner balance batch), so its numbers
+    // seed 1. RE-PINNED 2026-11-14 on Thunderous (archived, the same scBeastAura factory, a Dragon aura +1/+1) when
+    // Kennelmaster stopped being a Start of Combat card (R-KENNEL-01). Earlier re-pin 2026-10-10: its numbers
     // moved; the shape (one minion SoC pass, one Twilight repeat of it, no rune pass) is unchanged. Compact form: type, the who/what fields, and the beat step.
-    const r = sim([v(1, 4, 'kennel'), v(5, 8, 'gnash')], [{ cardId: 'sandbag', attack: 0, health: 30 }], 1, { runeTwilight: true });
+    const r = sim([v(1, 4, 'd2_sovereign'), v(5, 8, 'gnash')], [{ cardId: 'sandbag', attack: 0, health: 30 }], 1, { runeTwilight: true });
     const compact = r.events.map((ev) => {
       const e = ev as Record<string, unknown>;
       const bits: string[] = [ev.type];
@@ -285,35 +286,41 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     });
     expect(compact).toEqual([
       'sc s1',
-      'tribeAura attack=2 health=0 side=player s1',
-      'buff target=m0 attack=2 health=0 s1',
-      'buff target=m1 attack=2 health=0 s1',
+      'tribeAura attack=1 health=1 side=player s1',
+      'buff target=m0 attack=1 health=1 s1',
       'questTrigger flag=runeTwilight side=player s2',
       'sc s2',
-      'tribeAura attack=2 health=0 side=player s2',
-      'buff target=m0 attack=2 health=0 s2',
-      'buff target=m1 attack=2 health=0 s2',
+      'tribeAura attack=1 health=1 side=player s2',
+      'buff target=m0 attack=1 health=1 s2',
       'attack attacker=m0 defender=m2 s3',
-      'dmg target=m2 amount=5 remainingHp=25 s3',
+      'dmg target=m2 amount=3 remainingHp=27 s3',
       'buff target=m2 attack=1 health=0 s3',
       'attack attacker=m2 defender=m0 s5',
-      'dmg target=m0 amount=1 remainingHp=3 s5',
-      'dmg target=m2 amount=5 remainingHp=20 s5',
+      'dmg target=m0 amount=1 remainingHp=5 s5',
+      'dmg target=m2 amount=3 remainingHp=24 s5',
       'buff target=m2 attack=1 health=0 s5',
       'attack attacker=m1 defender=m2 s7',
-      'dmg target=m2 amount=9 remainingHp=11 s7',
+      'dmg target=m2 amount=5 remainingHp=19 s7',
       'buff target=m2 attack=1 health=0 s7',
       'dmg target=m1 amount=2 remainingHp=6 s7',
       'attack attacker=m2 defender=m1 s9',
       'dmg target=m1 amount=3 remainingHp=3 s9',
-      'dmg target=m2 amount=9 remainingHp=2 s9',
+      'dmg target=m2 amount=5 remainingHp=14 s9',
       'buff target=m2 attack=1 health=0 s9',
       'attack attacker=m0 defender=m2 s11',
-      'dmg target=m2 amount=5 remainingHp=0 s11',
+      'dmg target=m2 amount=3 remainingHp=11 s11',
       'buff target=m2 attack=1 health=0 s11',
-      'dmg target=m0 amount=4 remainingHp=0 s11',
-      'death target=m2 side=enemy s12',
+      'dmg target=m0 amount=4 remainingHp=1 s11',
+      'attack attacker=m2 defender=m0 s13',
+      'dmg target=m0 amount=5 remainingHp=0 s13',
+      'dmg target=m2 amount=3 remainingHp=8 s13',
+      'buff target=m2 attack=1 health=0 s13',
       'death target=m0 side=player s14',
+      'attack attacker=m1 defender=m2 s17',
+      'dmg target=m2 amount=5 remainingHp=3 s17',
+      'buff target=m2 attack=1 health=0 s17',
+      'dmg target=m1 amount=6 remainingHp=0 s17',
+      'death target=m1 side=player s18',
     ]);
   });
 });

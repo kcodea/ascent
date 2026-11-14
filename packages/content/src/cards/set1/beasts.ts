@@ -39,23 +39,22 @@ export const BEASTS: CardDef[] = [
     name: 'Kennelmaster',
     tribe: 'beast',
     tier: 2,
-    attack: 2, // owner balance 2026-09-23: 1/3 → 2/4
-    health: 4,
-    keywords: ['SC'],
+    // Owner rework 2026-11-14: 1/3, no longer Start of Combat. "When you summon a Beast, give it +1 Attack.
+    // Avenge (4): Improve this by +1 Attack." (was 2/4 SC "give all Friendly and summoned Beasts +2 Attack").
+    attack: 1,
+    health: 3,
+    keywords: [],
     effects: [
-      // Owner rebalance 2026-08-02: back to base +1 Attack improving +1 per Avenge (golden doubles both,
-      // reading +2 improving +2 — the 07-25 "+2 improving +2" plain values were too much).
-      // Owner balance 2026-10-10: +2 Attack improving +2 per Avenge, Avenge (4) -> (3). Gilded doubles both (+4, +4).
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 2, health: 0, stepAttack: 2, stepHealth: 0 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } }, // owner 2026-08-12: Avenge 3 → 4; 2026-10-10: back to 3; 2026-11-06: 4 again
+      // ONE body for both phases (ARENA_EFFECTS.buffOnSummon): `(attack + summonBonus x stepAttack) x golden`. Shop: a
+      // Beast played / summoned gets it permanently; combat: a Beast summoned mid-fight gets it for the fight. Never
+      // itself. Gilded doubles base and step (+2 improving +2); `kennel` is in GOLD_SCALED_ACCRUAL_CARDS (R-GILD-SUM-01).
+      { on: 'onSummon', do: 'buffOnSummon', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
+      // Avenge (4): +1 summonBonus (x Rune of Mastery), permanent per instance (rides summonBonus, carried back).
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
     ],
-    // Start of Combat: give all Friendly and summoned Beasts +N Attack (owner rulings 2026-09-28, R-AURA-03 — no run-wide Beast Aura):
-    // in combat the living Beasts now + any Beast summoned later that fight, nothing carried back (Engrave
-    // excepted); an End-of-Turn replay (Combat Prowess) buffs the warband Beasts permanently, like any Shop buff. N = 1 + its Avenge-grown summonBonus, which IS permanent per instance
-    // (the established "Improve this" convention: it rides summonBonus and carries across combats). Attack only:
-    // `stepHealth: 0`. The live value surfaces via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (4):** Improve this (twice as much).',
+    // The live value surfaces via cardText's summonBuffText helper on every surface (slot 0 = the grant, slot 1 = the step).
+    text: 'When you summon a **Beast**, give it **+1 Attack**. **Avenge (4):** Improve this by **+1 Attack**.',
+    goldenText: 'When you summon a **Beast**, give it **+2 Attack**. **Avenge (4):** Improve this by **+2 Attack**.',
   },
   {
     id: 'gnash',

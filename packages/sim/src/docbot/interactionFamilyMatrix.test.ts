@@ -327,20 +327,22 @@ describe('Doc Bot — trigger-family interaction matrix', () => {
   });
 
   // P13 — startOfCombat × the same multiplier, in the OTHER phase: the family-agnostic law holds in combat
-  // too (R-MULT-02). Kennelmaster's Start of Combat gives Beasts +1 Attack; Uron makes the pass run twice.
+  // too (R-MULT-02). Thunderous's Start of Combat gives Dragons +1/+1 (archived; Kennelmaster's until its 2026-11-14
+  // rework); Uron makes the pass run twice.
   it('P13: Start of Combat fires 1 + Uron times — the same fold, in combat (R-MULT-02)', () => {
     const scBuffs = (withUron: boolean): number => {
-      const board = [bm('kennel', 'p0', 1, 99), bm('cryptwolf', 'p1', 1, 99),
+      const board = [bm('d2_sovereign', 'p0', 1, 99), bm('cleric', 'p1', 1, 99),
         ...(withUron ? [bm('uron', 'p2', 7, 99)] : [])];
       const r = simulate(board, [bm('cryptwolf', 'e0', 0, 40)], makeRng(5), CARD_INDEX,
         combatSide({ tier: 6 }), combatSide({ tier: 6 }));
-      // One +1/+0 buff per Beast per Start-of-Combat pass — count the grants landing on the Crypt Wolf.
+      // One +1/+1 buff per Dragon per Start-of-Combat pass — count the grants landing on the Dragon.
       return r.events.filter((e) => e.type === 'buff'
         && (e as { target?: string }).target === r.initial.player[1]!.uid
-        && (e as { attack?: number }).attack === 2 && (e as { health?: number }).health === 0).length; // +2 since 2026-10-10
+        && (e as { source?: string }).source === r.initial.player[0]!.uid
+        && (e as { attack?: number }).attack === 1 && (e as { health?: number }).health === 1).length;
     };
     const plain = scBuffs(false);
-    expect(plain, 'control: the Start-of-Combat aura grants once per Beast').toBe(1);
+    expect(plain, 'control: the Start-of-Combat aura grants once per Dragon').toBe(1);
     expect(scBuffs(true),
       'with Uron the whole Start-of-Combat pass runs twice (simulate.ts scReps = 1 + extraTriggerFires)').toBe(2);
   });

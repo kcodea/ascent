@@ -3,7 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type Com
 import { CARD_INDEX, EffectFactoryIdSchema, QUEST_DEFS, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, type BoardCard, type RunState } from './state';
 import { questCombatMods, reduce } from './reducer';
-import { applyEndOfTurn, fireOnFriendDeath, fireRecruitDeathrattlesForTest } from './recruit';
+import { fireOnFriendDeath, fireRecruitDeathrattlesForTest } from './recruit';
 
 /**
  * OWNER RULINGS 2026-09-28 (R-AURA-03). First: "pack mentality - aka beastial swarm buff: this is a combat buff only,
@@ -44,9 +44,7 @@ const settleOnto = (board: BoardCard[], r: CombatResult, over: Partial<RunState>
 // ── the new texts ────────────────────────────────────────────────────────────────────────────────────────
 describe('R-AURA-03 texts: "Give all Friendly and summoned Beasts +X/+Y" replaces the Beast Aura', () => {
   const TEXT: Record<string, [string, string | undefined]> = {
-    // Owner balance 2026-10-10: +2 Attack, Avenge (3) (was +1, Avenge (4)). Owner balance 2026-11-06: Avenge (4) again.
-    kennel: ['**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this.',
-      '**Start of Combat:** Give all Friendly and summoned Beasts **+4 Attack**. **Avenge (4):** Improve this (twice as much).'],
+    // Kennelmaster left this family on 2026-11-14 (owner rework, R-KENNEL-01): pinned in kennelmasterSummon1114.test.ts.
     grim: ['**Echo:** Give all Friendly and summoned Beasts **+8/+8**.', '**Echo:** Give all Friendly and summoned Beasts **+16/+16**.'],
     b2_armadiyo: ['**Taunt. Echo:** Give all Friendly and summoned Beasts **+2/+4**.', '**Taunt. Echo:** Give all Friendly and summoned Beasts **+4/+8**.'],
     trophystalker: ['**Rally:** Give all Friendly and summoned Beasts **+5/+5**. Improve this by **+5/+5** whenever Trophy Stalker attacks.', undefined],
@@ -68,7 +66,7 @@ describe('R-AURA-03 texts: "Give all Friendly and summoned Beasts +X/+Y" replace
   });
 
   it('none of the reworked Beast grants says "this combat" (owner: drop it everywhere)', () => {
-    for (const id of ['kennel', 'grim', 'b2_armadiyo', 'trophystalker']) {
+    for (const id of ['grim', 'b2_armadiyo', 'trophystalker']) {
       expect(`${CARD_INDEX[id]!.text} ${CARD_INDEX[id]!.goldenText ?? ''}`, id).not.toMatch(/this combat/);
     }
     expect(RUNE_INDEX['rune_beastial_swarm']!.text).not.toMatch(/this combat/);
@@ -167,45 +165,8 @@ describe('Grim in the SHOP: every warband Beast gains it permanently (owner: "an
   });
 });
 
-// ── Kennelmaster ─────────────────────────────────────────────────────────────────────────────────────────
-describe('Kennelmaster: Start of Combat all your Beasts +N Attack; Avenge (3) improves N permanently (+2 per step, owner 2026-10-10)', () => {
-  it('buffs the living Beasts at Start of Combat and a Beast summoned later that fight', () => {
-    const r = sim([bm('kennel', 'K', 0, 900), bm('pack', 'P', 1, 1), bm('sandbag', 'N', 0, 900)], [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
-    const k = uidAt(r, 0);
-    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.source === k && b.attack === 2 && b.health === 0)).toBe(true);
-    expect(buffs(r).some((b) => b.target === uidAt(r, 2) && b.source === k), 'non-Beast untouched').toBe(false);
-    const pup = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'pup');
-    expect(pup).toBeDefined();
-    const pupUid = pup!.type === 'summon' ? pup!.minion.uid : '';
-    expect(buffs(r).some((b) => b.target === pupUid && b.attack === 2)).toBe(true);
-  });
-
-  it('the grant uses the CURRENT improved value (summonBonus) and golden doubles it', () => {
-    const r = sim([bm('kennel', 'K', 0, 900, { summonBonus: 3 }), bm('alley', 'A', 1, 900)], wall);
-    expect(buffs(r).some((b) => b.target === uidAt(r, 1) && b.attack === 8)).toBe(true); // 2 + 3 x 2
-    const g = sim([bm('kennel', 'K', 0, 900, { summonBonus: 3, golden: true }), bm('alley', 'A', 1, 900)], wall);
-    expect(buffs(g).some((b) => b.target === uidAt(g, 1) && b.attack === 16)).toBe(true); // (2 + 3 x 2) x 2
-  });
-
-  it('Avenge (3) improves it PERMANENTLY per instance (summonBonus carries back); the stats do not', () => {
-    // Four friendly non-Beast deaths → one Avenge (3) fire (at the 3rd) → summonBonus +1, carried back to the run card.
-    const fodder = (i: number) => bm('sandbag', `F${i}`, 0, 1);
-    const r = sim([bm('kennel', 'K', 0, 900), fodder(1), fodder(2), fodder(3), fodder(4)], [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
-    const sb = (r.playerSummonBonus ?? []).find((x) => x.sourceUid === 'K');
-    expect(sb?.bonus, 'the improvement carries back').toBe(1);
-    const s = settleOnto([bc('K', 'kennel'), bc('F1', 'sandbag'), bc('F2', 'sandbag'), bc('F3', 'sandbag'), bc('F4', 'sandbag')], r);
-    const k = s.board.find((c) => c.uid === 'K')!;
-    expect(k.summonBonus).toBe(1);
-    expect([k.attack, k.health], 'its own stats are untouched').toEqual([CARD_INDEX['kennel']!.attack, CARD_INDEX['kennel']!.health]);
-  });
-
-  it('an End-of-Turn replay (Rune of Combat Prowess) is a permanent Shop buff on the warband Beasts', () => {
-    const s = shopRun([bc('k', 'kennel'), bc('a', 'alley'), bc('n', 'sandbag')], { runeCombatProwess: true } as Partial<RunState>);
-    applyEndOfTurn(s);
-    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(CARD_INDEX['alley']!.attack + 2);
-    expect(s.board.find((c) => c.uid === 'n')!.attack, 'non-Beast untouched').toBe(CARD_INDEX['sandbag']!.attack);
-  });
-});
+// ── Kennelmaster ── left R-AURA-03 on 2026-11-14 (owner rework, R-KENNEL-01: "When you summon a Beast, give it +1 Attack.
+// Avenge (4): Improve this by +1 Attack."). Its tests live in kennelmasterSummon1114.test.ts.
 
 // ── Pack Mentality (quest) ───────────────────────────────────────────────────────────────────────────────
 describe('Pack Mentality: a Start of Combat grant (for the fight) whose LEVEL improves', () => {

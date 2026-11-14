@@ -29,7 +29,7 @@ export const TRIBE_RATCHET: Readonly<Record<string, number>> = {
   'packages/sim/src/snapshot.ts': 3, // was 4; beastsPlayed converted to defIsTribe in the Doc Bot PR (see derivations.test.ts)
   'packages/sim/src/quests.ts': 1,
   'packages/core/src/combat/simulate.ts': 24, // 2026-10-21: the unguarded Dragon / Kobold / Mech sites became isTribeOf / defIsTribe (R-ALL-TYPES-EVERYWHERE-01). 2026-09-27: the random-minion run-tribe gate became `inRunTribes`; has isTribeOf. The 2 sites with no guard on the line are a guard continued on the next line and the Centerline type read
-  'packages/core/src/effects/factories.ts': 32, // 2026-10-21: the Ruby-play tribe filters and the random-tribe summon pools became bodyIsTribe / defIsTribe (R-ALL-TYPES-EVERYWHERE-01)
+  'packages/core/src/effects/factories.ts': 31, // 2026-11-14: buffOnSummon moved into ARENA_EFFECTS (arena.isTribe). 2026-10-21: the Ruby-play tribe filters and the random-tribe summon pools became bodyIsTribe / defIsTribe (R-ALL-TYPES-EVERYWHERE-01)
   'packages/core/src/effects/arena.ts': 11, // 2026-10-21: the Magnetic Mech grant pool became defIsTribe; the other 11 compare a param, not a card (2026-09-27: the Summit grant gate became `inRunTribes`)
 };
 

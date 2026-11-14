@@ -257,12 +257,11 @@ describe('cardText helpers', () => {
     expect(summonFlatZooText('sandbag', false, 2)).toBeNull(); // not a flat summon-buff card
   });
 
-  it('summonBuffText shows Kennelmaster’s live Start-of-Combat Attack aura (base + Avenge bonus)', () => {
-    // Kennelmaster's aura is +(1 + summonBonus×1) ATTACK ONLY (owner rebalance 2026-08-02); the printed
-    // "+1 Attack" becomes live via the effect's own base + stepAttack params.
-    // Owner balance 2026-10-10: base +2, step +2.
-    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +2 Attack
-    expect(summonBuffText('kennel', 2)).toContain('{{+6 Attack}}'); // base 2 + summonBonus 2 × step 2
+  it('summonBuffText shows Kennelmaster’s live summon Attack buff (base + Avenge bonus)', () => {
+    // Kennelmaster's summon buff is +(1 + summonBonus×1) ATTACK ONLY (owner rework 2026-11-14, R-KENNEL-01); the
+    // printed "+1 Attack" becomes live via the effect's own base + stepAttack params.
+    expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1 Attack
+    expect(summonBuffText('kennel', 2)).toContain('{{+3 Attack}}'); // base 1 + summonBonus 2 × step 1
     expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
     // Trophy Stalker's growing Rally (base 5): golden doubles the live grant so the printed number matches the
     // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.
@@ -274,8 +273,9 @@ describe('cardText helpers', () => {
     // Kennelmaster / Trophy Stalker dropped the "Beast Aura" noun for "all your Beasts", leaving the
     // bold "**+N Attack**" / "**+N/+N**" tokens the helpers regex into. Assert the injected text keeps the live
     // number AND the new wording, so a future re-word that drops the token can't silently strand the value.
-    expect(summonBuffText('kennel', 2)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+6 Attack}}. **Avenge (4):** Improve this.');
-    expect(summonBuffText('kennel', 2, true)).toBe('**Start of Combat:** Give all Friendly and summoned Beasts {{+12 Attack}}. **Avenge (4):** Improve this (twice as much).');
+    // Kennelmaster since its 2026-11-14 rework: only the GRANT is live; the "Improve this by +N Attack" step stays printed.
+    expect(summonBuffText('kennel', 2)).toBe('When you summon a **Beast**, give it {{+3 Attack}}. **Avenge (4):** Improve this by **+1 Attack**.');
+    expect(summonBuffText('kennel', 2, true)).toBe('When you summon a **Beast**, give it {{+6 Attack}}. **Avenge (4):** Improve this by **+2 Attack**.');
     expect(summonBuffText('trophystalker', 5)).toBe('**Rally:** Give all Friendly and summoned Beasts {{+10/+10}}. Improve this by **+5/+5** whenever Trophy Stalker attacks.');
     for (const s of [summonBuffText('kennel', 2)!, summonBuffText('trophystalker', 5)!]) {
       expect(s).not.toMatch(/Beast Aura|this combat|wherever they are|everywhere/);

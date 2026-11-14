@@ -810,6 +810,25 @@ export const ARENA_EFFECTS = {
   /** The asym on-summon buffer: when a friend of `tribe` is played/summoned beside this, buff THE ARRIVER by
    *  (base + this instance's `summonBonus`) × golden. The arriver rides `params.arriver` (merged by the
    *  wrappers from the dispatch payload). */
+  /** Kennelmaster (owner rework 2026-11-14) — "When you summon a Beast, give it +N Attack. Avenge (4): Improve this
+   *  by +1 Attack." ONE formula for both phases: `(base + summonBonus x step) x golden` per stat, where `summonBonus`
+   *  counts the Avenge improves (`avengeImproveSummon`, x Rune of Mastery) and is permanent per instance. Golden
+   *  doubles the base AND the step, never the earned accrual (GOLD_SCALED_ACCRUAL_CARDS halves the count at gild /
+   *  triple, R-GILD-SUM-01), so a card using this body must be listed there. Shop: a permanent buff (the shop
+   *  arena's `buff`); combat: a combat-only buff. Never buffs itself. The arriver rides `params.arriver`. */
+  buffOnSummon(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    if (!arriver || arriver.uid === arena.self.uid) return;
+    const tribe = str(params.tribe);
+    if (tribe && tribe !== 'any' && !arena.isTribe(arriver, tribe)) return;
+    const g = gold(arena);
+    const bonus = arena.self.summonBonus ?? 0;
+    const a = (num(params.attack) + bonus * num(params.stepAttack, 1)) * g;
+    const h = (num(params.health) + bonus * num(params.stepHealth, 1)) * g;
+    if (a <= 0 && h <= 0) return;
+    arena.buff(arriver, a, h);
+  },
+
   summonBuffTribeAsym(arena: EffectArena, params: Record<string, unknown>): void {
     const arriver = params.arriver as ArenaBody | undefined;
     if (!arriver || arriver.uid === arena.self.uid) return;
@@ -2417,7 +2436,7 @@ export const ARENA_EFFECTS = {
     }
   },
 
-  /** Kennelmaster / Thunderous Sovereign — "Give all your <tribe> +N": `buffAllOfTribe` (R-AURA-03) — in combat the
+  /** Thunderous Sovereign (Kennelmaster's until its 2026-11-14 rework) — "Give all your <tribe> +N": `buffAllOfTribe` (R-AURA-03) — in combat the
    *  living `tribe` now plus later arrivals that fight; at an End-of-Turn replay a permanent Shop buff. The Avenge accrual
    *  (`summonBonus`) applies per stat via `stepAttack`/`stepHealth`; golden doubles the whole grant. */
   scBeastAura(arena: EffectArena, params: Record<string, unknown>): void {

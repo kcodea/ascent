@@ -16,16 +16,17 @@ const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBack
 
 describe('Kennelmaster prints its CURRENT grant (base + Avenge improvements), plain and gilded', () => {
   it.each([
-    // Owner balance 2026-10-10: +2 Attack improving +2 (gilded doubles).
-    [0, false, '**+2 Attack**'],
-    [3, false, '{{+8 Attack}}'],
-    [3, true, '{{+16 Attack}}'],
+    // Owner rework 2026-11-14 (R-KENNEL-01): +1 Attack improving +1 (gilded doubles both).
+    [0, false, '**+1 Attack**'],
+    [3, false, '{{+4 Attack}}'],
+    [3, true, '{{+8 Attack}}'],
   ])('summonBonus %i, golden %s → %s', (summonBonus, golden, want) => {
     const t = liveCardText('kennel', { ...bag, golden, summonBonus } as never);
     const shown = golden ? t.goldenText! : t.text;
     expect(shown).toContain(want);
-    expect(shown).toContain('Give all Friendly and summoned Beasts');
-    expect(shown).not.toMatch(/Beast Aura|this combat/);
+    expect(shown).toContain('When you summon a **Beast**, give it');
+    expect(shown).toContain(golden ? 'Improve this by **+2 Attack**' : 'Improve this by **+1 Attack**'); // the step stays printed
+    expect(shown).not.toMatch(/Beast Aura|this combat|Start of Combat/);
   });
 });
 

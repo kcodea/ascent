@@ -362,6 +362,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSummonOverflowBuffTribe:summonOverflow': { policy: 'foldedCue', family: 'react' },
   'factory:onSummonSelfBuff:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onSummonTribeBuffFlat:onSummon': { policy: 'foldedCue', family: 'summonReact' },
+  'factory:buffOnSummon:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Kennelmaster (rework 2026-11-14)
   'factory:onSummonTribeBuffThenDouble:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeAttackBuffAttacker:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onTribeAttackBuffAttackerAndSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Beev (2026-09-24)

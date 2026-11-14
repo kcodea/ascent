@@ -148,7 +148,7 @@ describe('enemy-facing bodies no-op GRACEFULLY in the shop', () => {
 });
 
 describe('BEATS — every Start-of-Combat effect gets its own animation window', () => {
-  const wide = () => [bc('sd', 'runmaw'), bc('k', 'kennel'), bc('w', 'dm_wrangler'), bc('z', 'stray')];
+  const wide = () => [bc('sd', 'runmaw'), bc('k', 'd2_sovereign'), bc('w', 'dm_wrangler'), bc('z', 'stray')];
 
   it('N effects → N beats in the UI beat list, each sourced on the acting minion', () => {
     const s = run(wide(), { runeCombatProwess: true });
@@ -184,7 +184,7 @@ describe('the AUTHORITATIVE batch — the path the shipped game actually paces o
   it('each effect emits its OWN source-attributed ownBeat trigger', async () => {
     const { reduceWithPresentation } = await import('./index');
     type Trig = { type: string; source: { kind: string; id: string; uid?: string }; policy: string; policyKey?: string };
-    const s = run([bc('sd', 'runmaw'), bc('k', 'kennel'), bc('z', 'stray')], { runeCombatProwess: true });
+    const s = run([bc('sd', 'runmaw'), bc('k', 'd2_sovereign'), bc('z', 'stray')], { runeCombatProwess: true });
     const { batch } = reduceWithPresentation(s, { type: 'faceOmen' }, true);
     const beats = (batch!.events as unknown[])
       .filter((e): e is Trig => (e as Trig).type === 'sourceTrigger')
@@ -244,20 +244,20 @@ describe('the AUTHORITATIVE batch — the path the shipped game actually paces o
 
   it('capture on or off, the committed state is identical', async () => {
     const { reduce: r, reduceWithPresentation } = await import('./index');
-    const s = run([bc('sd', 'runmaw'), bc('k', 'kennel'), bc('w', 'dm_wrangler')], { runeCombatProwess: true });
+    const s = run([bc('sd', 'runmaw'), bc('k', 'd2_sovereign'), bc('w', 'dm_wrangler')], { runeCombatProwess: true });
     const plain = r(s, { type: 'faceOmen' });
     expect(JSON.stringify(reduceWithPresentation(s, { type: 'faceOmen' }, true).state)).toBe(JSON.stringify(plain));
   });
 });
 
 describe('shop-phase permanence — the run board keeps what the replay granted', () => {
-  it('Pack-Leader-class accruals advance exactly once per fire (kennel’s summonBonus is a run channel)', () => {
-    const s = run([bc('k', 'kennel'), bc('z', 'stray')], { runeCombatProwess: true });
+  it('Pack-Leader-class accruals advance exactly once per fire (Thunderous’s summonBonus is a run channel)', () => {
+    const s = run([bc('k', 'd2_sovereign'), bc('z', 'stray')], { runeCombatProwess: true });
     applyEndOfTurn(s);
     // scBeastAura does not tick summonBonus (that is Avenge's job) — but the buff it granted stays (R-AURA-03: an
-    // End-of-Turn replay is a normal permanent Shop buff on the warband Beasts).
+    // End-of-Turn replay is a normal permanent Shop buff on the warband; Thunderous, the archived scBeastAura user since Kennelmaster's 2026-11-14 rework, buffs itself as a Dragon).
     const k = s.board.find((c) => c.uid === 'k')!;
-    expect(k.buffs?.some((b) => b.source === CARD_INDEX['kennel']!.name), 'the grant is a permanent shop buff').toBe(true);
+    expect(k.buffs?.some((b) => b.source === CARD_INDEX['d2_sovereign']!.name), 'the grant is a permanent shop buff').toBe(true);
     expect(k.summonBonus ?? 0, 'no accrual').toBe(0);
   });
 

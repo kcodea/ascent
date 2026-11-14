@@ -48,17 +48,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-gild-01",
-    "title": "Wording: Gilded vs Golden · 12 vs 9",
+    "title": "Wording: Gilded vs Golden · 13 vs 9",
     "statement": "Upgraded cards are called \"Gilded\" in text; every \"Golden\"/\"golden\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Gilded\" in 12 printed texts, \"Golden\" in 9. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Gilded\" in 13 printed texts, \"Golden\" in 9. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
     "cardText": "\"Gilded\" — T-Rex: \"Echo: summon a Gilded T-Rex Baby with Taunt.\" · \"Golden\" — Eyes of Aresmar: \"Make a Tier 4 or lower minion Golden.\"",
     "example": "Eyes of Aresmar would be re-worded to the \"Gilded\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 12 vs 9)"
+        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 13 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

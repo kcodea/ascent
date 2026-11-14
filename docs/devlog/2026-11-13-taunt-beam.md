@@ -30,3 +30,4 @@ Owner: "now im making a taunt beam".
 - Final: the frame appears at a FIXED 160 ms after launch (`KEYWORD_LAND_AT_MS.T`; owner: "have the frame switch
   (appear) at 160 ms"), replacing the lead-before-arrival number, so re-saving the beam no longer moves it.
 - Then 190 ms (owner: "delay the frame another 30ms").
+- Then 210 ms (owner: "have shield frame delayed another 20ms").

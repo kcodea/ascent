@@ -34,7 +34,7 @@ export const KEYWORD_BEAMS: Readonly<Record<BeamKeyword, { def: string; launchSf
  * Absent = the moment the beam's tip arrives. Taunt's shield frame is a whole-card change the owner tuned by eye
  * (2026-11-13: "have the frame switch (appear) at 160 ms", then "delay the frame another 30ms"); a fixed moment, so re-saving the beam does not move it.
  */
-export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 190 };
+export const KEYWORD_LAND_AT_MS: Readonly<Partial<Record<BeamKeyword, number>>> = { T: 210 };
 
 /** When `kw`'s look lands, in ms after launch (at 1x), for a beam whose tip arrives at `arrive`. */
 export const keywordLandAtMs = (kw: BeamKeyword, arrive: number): number => Math.max(0, KEYWORD_LAND_AT_MS[kw] ?? arrive);

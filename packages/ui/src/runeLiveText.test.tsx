@@ -37,7 +37,7 @@ describe('liveRuneText: the printed number is the current one', () => {
     expect(liveRuneText('rune_packcraft', t('rune_packcraft'), { packcraft: { attack: 8, health: 4 } })).toContain('give it **+8/+4** and improve this');
     expect(liveRuneText('rune_beastial_swarm', t('rune_beastial_swarm'), { beastialSwarm: 6 })).toContain('Beasts **+6/+6**');
     expect(liveRuneText('rune_seasoned_ledger', t('rune_seasoned_ledger'), { seasonedLedger: { attack: 3, health: 3 } }))
-      .toBe('Whenever you play a minion, give it **+3/+3**. Improves by **+1/+1** after every **5** minions played.');
+      .toBe('Whenever you play a minion, give it **+3/+3**. Improves by **+1/+1** after every minion played.');
     expect(liveRuneText('rune_compounding_wages', t('rune_compounding_wages'), { compoundingWages: { attack: 6, health: 6 } }))
       .toBe('Every **10 Gold** spent, give your **Dwarves +6/+6** and improve this by **+2/+2**.');
     expect(liveRuneText('rune_wheel', t('rune_wheel'), { wheel: { attack: 6, health: 6 } })).toContain('have **+6/+6**');

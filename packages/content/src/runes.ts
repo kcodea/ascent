@@ -1244,8 +1244,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_seasoned_ledger',
     name: 'Seasoned Ledger',
     cost: 3, // owner 2026-10-23 -1 (was 4); balance 9/23 (was 5)
-    text: 'Whenever you play a minion, give it **+1/+1**. Improves by **+1/+1** after every **5** minions played.',
-    reward: { kind: 'runeSeasonedLedger', attack: 1, health: 1, per: 5 },
+    // Owner 2026-11-13: improves after EVERY minion played (was every 5).
+    text: 'Whenever you play a minion, give it **+1/+1**. Improves by **+1/+1** after every minion played.',
+    reward: { kind: 'runeSeasonedLedger', attack: 1, health: 1, per: 1 },
   },
   {
     id: 'rune_echoed_arrival',

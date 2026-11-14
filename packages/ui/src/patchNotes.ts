@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-13',
     changes: [
+      { category: 'Balance', text: 'Seasoned Ledger now improves by +1/+1 after every minion you play (was every 5).' },
       {
         category: 'Balance',
         text: 'Three new Set 2 runes: Gold for Grub, End of Quarter and Drunk Shopkeeper.',

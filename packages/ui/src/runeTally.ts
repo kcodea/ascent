@@ -295,6 +295,8 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // THE SEASONED LEDGER escalates: the live grant AND the countdown to the next step, per the live-text rule.
   const ledger = run.runeSeasonedLedger;
   if (runeId === 'rune_seasoned_ledger' && ledger) {
+    // It improves on every play (owner 2026-11-13), so there is no countdown to print: a "0/1" would say nothing.
+    if (ledger.per <= 1) return `+${ledger.attack}/+${ledger.health}`;
     return `+${ledger.attack}/+${ledger.health} · ${ledger.played % ledger.per}/${ledger.per}`;
   }
   // ECHOED ARRIVAL: Echo minions played toward the next free Echo.

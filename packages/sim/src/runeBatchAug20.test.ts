@@ -351,7 +351,7 @@ describe('Rune of Draconic Curiosity', () => {
 });
 
 describe('Rune of the Seasoned Ledger', () => {
-  it('buffs the body you play, and IMPROVES every 5 plays', () => {
+  it('buffs the body you play, and IMPROVES after every play (owner 2026-11-13: was every 5)', () => {
     const s = armed('rune_seasoned_ledger', { hand: [], board: [] });
     const play = (i: number): BoardCard => {
       const c = minion(`m${i}`, 'sandbag', 1, 1);
@@ -359,19 +359,17 @@ describe('Rune of the Seasoned Ledger', () => {
       playCard(s, c);
       return c;
     };
-    for (let i = 0; i < 4; i++) {
+    const first = play(0);
+    expect([first.attack, first.health], 'the 1st gets the base +1/+1 (the improve lands AFTER it)').toEqual([2, 2]);
+    for (let i = 1; i < 6; i++) {
       const c = play(i);
-      expect([c.attack, c.health], `play ${i + 1} is still the base +1/+1`).toEqual([2, 2]);
+      expect([c.attack, c.health], `play ${i + 1} gets +${i + 1}/+${i + 1}`).toEqual([2 + i, 2 + i]);
     }
-    const fifth = play(4);
-    expect([fifth.attack, fifth.health], 'the 5th still gets +1/+1 — the improve lands AFTER it').toEqual([2, 2]);
-    const sixth = play(5);
-    expect([sixth.attack, sixth.health], 'the 6th gets the improved +2/+2').toEqual([3, 3]);
   });
 
-  it('the badge prints the live grant AND the countdown to the next step', () => {
+  it('the badge prints the live grant (and a countdown only when a step takes more than one play)', () => {
     const s = armed('rune_seasoned_ledger', { hand: [], board: [] });
-    expect(runeTally(s, 'rune_seasoned_ledger')).toBe('+1/+1 · 0/5');
+    expect(runeTally(s, 'rune_seasoned_ledger')).toBe('+1/+1');
     s.runeSeasonedLedger = { attack: 2, health: 2, per: 5, played: 7 };
     expect(runeTally(s, 'rune_seasoned_ledger')).toBe('+2/+2 · 2/5');
   });

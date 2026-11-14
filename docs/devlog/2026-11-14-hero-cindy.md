@@ -25,7 +25,7 @@ your teammate buys gives you a **Gilded** copy of it." Rule R-DUOS-CINDY-01.
 - While armed, the button wears `.hpb-gratitude` (a static gold shadow with breathing opacity). The teammate portrait
   (`DuosMateDock`) wears `.duosdock.gratitude` whenever the run on screen holds `duos.gratitude`. That run is the
   teammate's own board, or Cindy watching her teammate. Only opacity and transform animate in either glow.
-- Voice: `audio/heroes/cindy.gratitude.mp3` ("A great big golden thank you in advance!", Jessica) through
+- Voice: `audio/heroes/cindy.gratitude.mp3` ("Thanks in advance!", Jessica; was "A great big golden thank you in advance!" until the owner swapped it the same day) through
   `sfx.cindyGratitude` on the Hero Select fader. It plays on Cindy's screen as the arm is sent (`playEntryFlight`) and
   on the teammate's screen as the arm row lands (`duosPasses.applyRows`), once each (`versus/gratitudeVoice.ts`). The
   hero-select line is `audio/heroes/cindy.mp3` ("Let's grab some gold."). Both clips are 44.1 kHz mono 128 kbps, about

@@ -1,7 +1,7 @@
 /**
  * CINDY'S GOLDEN GRATITUDE LINE (owner 2026-11-14, R-DUOS-CINDY-01): "A voice line when she uses it, heard by Cindy AND
- * the teammate." One line, `audio/heroes/cindy.gratitude.mp3` (ElevenLabs Jessica: "A great big golden thank you in
- * advance!"), on the Hero Select fader like every hero's spoken line.
+ * the teammate." One line, `audio/heroes/cindy.gratitude.mp3` (ElevenLabs Jessica: "Thanks in advance!",
+ * owner swap 2026-11-14), on the Hero Select fader like every hero's spoken line.
  *
  * WHERE IT PLAYS: on Cindy's screen as her arm leaves (`playEntryFlight`, the one place every send of her run passes),
  * and on her teammate's screen as the arm row lands on their run (`duosPasses.applyRows`). A reload's restore replays

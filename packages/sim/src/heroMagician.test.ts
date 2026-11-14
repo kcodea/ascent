@@ -82,7 +82,7 @@ describe('the hero: Duos only, 8 Armor, a passive power', () => {
   });
 
   it('joins the deal, and the re-roll list, of a team mode only', () => {
-    expect(playableHeroes(undefined, { duos: true }).map((h) => h.id)).toEqual([...playableHeroes().map((h) => h.id), 'priestess', 'magician']);
+    expect(playableHeroes(undefined, { duos: true }).map((h) => h.id)).toEqual([...playableHeroes().map((h) => h.id), 'priestess', 'magician', 'cindy']);
     expect(versusHeroShuffle(5, 6, 'set2', { duos: true })).toContain('magician');
     expect(versusHeroRerollCandidates(6, 'set2', [], { duos: true })).toContain('magician');
     const seats = (n: number): { heroSeed: number; runSeed: number }[] => Array.from({ length: 4 }, (_, i) => ({ heroSeed: n + i, runSeed: 100 + i }));

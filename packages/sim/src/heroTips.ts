@@ -86,6 +86,7 @@ export const HERO_TIPS: Readonly<Record<string, HeroTip>> = {
   sable: { difficulty: 'Hard', tip: 'Put your two intended carries at the edges, activate Soulbind, then funnel repeated buffs into whichever is easier to target.' },
   priestess: { difficulty: 'Medium', tip: 'Passaria sends a Shop minion for less than buying and passing it. Plan each turn with your teammate.' },
   magician: { difficulty: 'Medium', tip: 'Fill the hat with cheap buys, then buy the card your teammate needs most while it is active.' },
+  cindy: { difficulty: 'Easy', tip: 'Use it early, then ask your teammate to buy the best minion they can find. You get it Gilded.' },
   keshi: { difficulty: 'Easy', tip: 'Higher-tier purchases advance Keshi’s Crown faster, so combine natural buying with timely Shop upgrades.' },
 };
 

@@ -1460,6 +1460,11 @@ export interface RunState {
    *  0, so nothing has to reset at the turn flip. */
   magicHatSent?: number;
   magicHatSentWave?: number;
+  /** Cindy (Golden Gratitude, Duos only; R-DUOS-CINDY-01): absent = not used yet; `armed` = pressed, waiting for the
+   *  teammate's next minion buy (their run holds `duos.gratitude`); `paid` = the Gilded copy came. `cindyGratitudeCard`
+   *  is the card id that came (the spent text names it). Read through `gratitudeView` (goldenGratitude.ts). */
+  cindyGratitude?: 'armed' | 'paid';
+  cindyGratitudeCard?: string;
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when
    *  nothing is armed. Cleared on payout, so it never carries into a second fight. */
   flashPick?: 'first' | 'last';
@@ -3011,7 +3016,7 @@ export type Action =
   /** VERSUS DUOS (R-DUOS-PASS-RESTORE-EFFECT-01): a reload's replay of MY effect pass. The teammate already holds the
    *  minion, so it leaves my board or Shop again; a hero power's pass pays its `paid` and spends the `power` slot. A
    *  minion that is not here (it only existed in the dropped actions) changes nothing. Accepted in any phase. */
-  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; /** A Magic Hat copy (R-DUOS-MAGICIAN-01): nothing leaves; the copy counts against the turn's cap again. */ hat?: true }
+  | { type: 'restoreEffectPass'; uid: string; cardId: string; via: 'spell' | 'sale'; power?: 0 | 1; paid?: number; /** A Magic Hat copy (R-DUOS-MAGICIAN-01): nothing leaves; the copy counts against the turn's cap again. */ hat?: true; /** Cindy's Golden Gratitude (R-DUOS-CINDY-01): `arm` = Cindy's own arm row, `pay` = the copy a teammate's buy sent. */ gratitude?: 'arm' | 'pay' }
   /** DUOS-ONLY CARDS (R-DUOS-CARDS-05): what this run last saw of the teammate's board, as minions per tribe of THEIR
    *  run (`mateTribeCounts`). Fed by the client from the teammate's live frame whenever it changes while a card that
    *  reads it is held (Matchmaker); recorded, so a replay reproduces the Shout's pick. Accepted in any phase. */

@@ -79,7 +79,8 @@ export type HeroPowerKind =
   | 'hoard' // Cindara (passive): Avenge (4) summons a Whelp that strikes now, then improves every Whelp you own by +2/+2
   | 'rubyWealth' // Fibbsy: 1 Gold — get 2 Rubies; usable TWICE per turn
   | 'passaria' // Priestess (Duos only): 2 Gold — pass a non-Gilded Shop or board minion to your teammate (active, targeted)
-  | 'magicHat'; // Magician (Duos only, passive): the 3rd card bought sends the teammate a copy of a random one of the three (twice per turn)
+  | 'magicHat' // Magician (Duos only, passive): the 3rd card bought sends the teammate a copy of a random one of the three (twice per turn)
+  | 'gratitude'; // Cindy (Duos only): 0 Gold, once per game — the teammate's next minion buy gives her a Gilded copy (active, untargeted)
 
 export interface HeroPower {
   name: string;
@@ -1045,6 +1046,27 @@ export const HEROES: HeroDef[] = [
       kind: 'magicHat',
       passive: true,
       text: 'After you buy **3** cards, your teammate gets a copy of a random one. Twice per turn.',
+    },
+  },
+  {
+    // DUOS ONLY (owner 2026-11-14, R-DUOS-CINDY-01): "Cindy, 10 Armor, Golden Gratitude: 0 cost, once per game. The next
+    // minion your teammate buys gives you a Gilded copy of it." The press ARMS it on the teammate's run (a `gratitude`
+    // team effect); their next MINION buy pays it once, through the effect-pass channel (`goldenGratitude.ts`).
+    // `heroPowerText` prints the live ready / waiting / spent state from `gratitudeView`, so this string is the ready
+    // shape only. Appended last, and out of every non-Duos list, so no solo offer order or seeded hero draw moves.
+    id: 'cindy',
+    name: 'Cindy',
+    blurb: 'She says thank you before you even give.',
+    resolve: 30,
+    armor: 10,
+    duosOnly: true,
+    power: {
+      name: 'Golden Gratitude',
+      kind: 'gratitude',
+      cost: 0,
+      untargeted: true,
+      oncePerGame: true,
+      text: 'The next minion your teammate buys gives you a **Gilded** copy of it. Once per game.',
     },
   },
 ];

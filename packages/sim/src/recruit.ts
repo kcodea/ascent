@@ -2483,8 +2483,7 @@ export function fireSpellCastWatchersForRuby(state: RunState, rubyDef: CardDef, 
       if (!def) continue;
       for (const effect of def.effects) {
         if (effect.on !== 'spellCast' || effect.params?.includeRubies !== true) continue;
-        const fn = RECRUIT_FACTORIES[effect.do];
-        if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+        fireSpellCastWatcher(ctx, card, effect, rubyDef);
       }
     }
   }
@@ -2512,8 +2511,7 @@ export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: n
       const reps = state.runeMatriarch && card.cardId === 'b2_runebloom' ? 2 : 1; // Rune of the Matriarch
       for (const effect of def.effects) {
         if (effect.on !== 'spellCast') continue;
-        const fn = RECRUIT_FACTORIES[effect.do];
-        if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef: rubyDef }));
+        for (let rep = 0; rep < reps; rep++) fireSpellCastWatcher(ctx, card, effect, rubyDef, rep, reps);
       }
     }
   }
@@ -14771,10 +14769,9 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const reps = state.runeMatriarch && card.cardId === 'b2_runebloom' ? 2 : 1;
     for (const effect of def.effects) {
       if (effect.on !== 'spellCast') continue;
-      const fn = RECRUIT_FACTORIES[effect.do];
       // `spellDef` lets a watcher record WHICH spell was cast (Spellkeeper's "the first one"), not just that
       // one was. Fires only for SHOP SPELLS — Rubies don't route through `castSpell`, so they never count here.
-      if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+      for (let rep = 0; rep < reps; rep++) fireSpellCastWatcher(ctx, card, effect, spellDef, rep, reps);
     }
   }
   // HAND watchers of the cast (`alsoInHand` — Goldilox, owner 2026-09-24: "Gains 2x while in hand"): a card in
@@ -14785,10 +14782,36 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     if (!def || def.spell) continue;
     for (const effect of def.effects) {
       if (effect.on !== 'spellCast' || effect.params?.alsoInHand !== true) continue;
-      const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+      fireSpellCastWatcher(ctx, card, effect, spellDef);
     }
   }
+}
+
+/**
+ * ONE `spellCast` watcher reacting to a cast, on its OWN nested beat (R-SPELLCAST-WATCHER-BEAT-01). These used to
+ * dispatch bare after the cast's own scope had closed, so a watcher's gain (Big Brain Billy's +2/+2, Spellkeeper,
+ * Goldilox in hand) had NO beat at all: the number snapped in at commit, and when the cast itself moved the same
+ * body (Ruby Transfer stealing Billy's Rubies) the batch claimed only the cast's half and read as an OVER-claim
+ * (Doc Bot beat conservation, 2026-11-14). Same shape as `fireShopDamaged`: the registry identity
+ * `factory:<do>:spellCast`, the phase the cast runs in, `discardIfEmpty` so a watcher whose own guard declines
+ * leaves no empty beat. Inside an outer scope (an End-of-Turn cast) the parent flushes before and rebases after,
+ * so nothing is claimed twice. With no active collector this is the bare call it replaced (gameplay-neutral).
+ */
+function fireSpellCastWatcher(ctx: RecruitContext, card: BoardCard, effect: EffectDef, spellDef: CardDef, rep = 0, reps = 1): void {
+  const fn = RECRUIT_FACTORIES[effect.do];
+  if (!fn) return;
+  withRecruitTrigger(
+    ctx,
+    {
+      phase: endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit',
+      source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+      trigger: 'spellCast',
+      ...beatIdentity(`factory:${effect.do}:spellCast`),
+      ...(reps > 1 ? { repeatIndex: rep, repeatCount: reps } : {}),
+    },
+    () => captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef })),
+    { discardIfEmpty: true },
+  );
 }
 
 /** Cast a stat/keyword spell onto a TAVERN OFFER (`target: 'any'` spells like Shatter, Front to Back).

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-13',
     changes: [
+      { category: 'Systems', text: 'New art for 57 spells, including Dragonflame, Golden Touch, Clue and four of the Ales.' },
       { category: 'Systems', text: 'A new Ancient minion skin in chests: Dad Kobebe, for Kobebes.' },
       { category: 'Systems', text: 'When you are given an item directly, a pop-up now tells you the next time the game loads.' },
       { category: 'Systems', text: 'Inspecting a rune in the Compendium now lines the rune and the cards it gives up side by side, centred, with no overlap.' },

@@ -89,6 +89,7 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
   const out: EnemyScalers = {
     spellPower: { attack: e.spellPowerAtk, health: e.spellPowerHp },
     spellsThisTurn: e.spellsThisTurn,
+    ...(e.shopSpellsThisTurn ? { shopSpellsThisTurn: e.shopSpellsThisTurn } : {}),
     beastsPlayed: e.beastsPlayed,
     deathrattles: e.deathrattles,
     conductorBuff: e.conductorBuff ?? 0,
@@ -110,7 +111,7 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
     ...(e.whisperImprove && Object.keys(e.whisperImprove).length > 0 ? { whisperImprove: { ...e.whisperImprove } } : {}),
   };
   const pair = (p: { attack: number; health: number }): boolean => !!(p.attack || p.health);
-  const any = pair(out.spellPower) || out.spellsThisTurn > 0 || out.beastsPlayed > 0 || out.deathrattles > 0 || out.conductorBuff > 0
+  const any = pair(out.spellPower) || out.spellsThisTurn > 0 || (out.shopSpellsThisTurn ?? 0) > 0 || out.beastsPlayed > 0 || out.deathrattles > 0 || out.conductorBuff > 0
     || out.spellsCast > 0 || out.rubyCasts > 0 || out.spiritsPlayed > 0 || out.revelerX > 0 || Object.values(out.tribesPlayed).some((n) => (n ?? 0) > 0)
     || pair(out.impAura) || pair(out.fodderConsumed) || out.undeadBuyAtk > 0 || Object.keys(out.cardBuffs).length > 0
     || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
@@ -733,6 +734,9 @@ export function simulate(
   // read the wrong tally).
   const spellTotals: Record<Side, number> = sideReset(() => ({ player: playerState.spellsCast, enemy: enemyState.spellsCast ?? 0 }));
   const combatSpells: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // spells a side cast THIS combat → added to the run's spellsCast at settle
+  // SHOP spells this turn, LIVE (Cinderchef, R-CINDERCHEF-01): seeded from each side's recruit-turn count, bumped by
+  // every Shop-pool spell (R-SHOPSPELL-01) that resolves mid-fight, so "cast this turn" includes the fight so far.
+  const shopSpellsLive: Record<Side, number> = sideReset(() => ({ player: playerState.shopSpellsThisTurn ?? 0, enemy: enemyState.shopSpellsThisTurn ?? 0 }));
   /** Escalating-spell improvement earned this fight (Quil casting Front to Back). Live for the REST of the
    *  fight — a second cast grants the improved value — and the player's half carries back at settle. */
   const spellEscalationGain: Record<Side, { attack: number; health: number }> =sideReset(() => (
@@ -1562,6 +1566,7 @@ export function simulate(
     rubiesPermanentFor: (side) => !!modsFor(side).runeEngravingGems, // Rune of Engraving Gems
 
     spellsThisTurnFor: (side) => stateOf(side).spellsThisTurn,
+    shopSpellsThisTurnFor: (side) => shopSpellsLive[side],
     firstSpellThisTurnIdFor: (side) => (side === 'player' ? playerState : enemyState).firstSpellThisTurnId,
     // Rune of Mastery: +1 extra Improve step per copy held (owner 2026-08-27) — the mods field carries the
     // copy count; a legacy snapshot's bare `true` reads as 1 (the classic double).
@@ -2332,6 +2337,10 @@ export function simulate(
       // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL
       // spell of this side's set (Ales included) wakes the spell-identity watchers.
       if (!isShopPoolSpell(cards[spellId], ctx.poolCards(side))) return;
+      // CINDERCHEF (owner 2026-11-15, real time by default): the cast counts toward "Shop spells cast this turn" the
+      // moment it resolves, and the replay's live text ticks on the marker.
+      shopSpellsLive[side] += 1;
+      emit({ type: 'shopSpellTally', side, count: shopSpellsLive[side] });
       // RUNE OF SHARED SCRIPTURE (owner bug 2026-10-07: "this rune is not working at all"): the warband's FIRST
       // Shop-spell cast in a fight fires the left-most Shout and the left-most Rally. It listens HERE, the per-cast
       // chokepoint EVERY combat caster reports through (`castInCombat`), not inside `resolveCombatSpellCast`, which

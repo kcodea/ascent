@@ -56,6 +56,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   hoardflame: { kind: 'conforms', why: 'instant: reads the Dragons-played tally at cast time' },
   crescendo: { kind: 'conforms', why: 'instant: reads the Spirits-played tally (playedThisTurn) at cast time — set 3, 2026-09-10' },
   stellarchorus: { kind: 'conforms', why: 'instant: reads the any-spell tally (spellsThisTurn + rubyCastsThisTurn) at cast time — set 3 tranche II, 2026-09-10' },
+  d2_cinderchef: { kind: 'conforms', why: 'Rally reads shopSpellsThisTurn (Shop-pool casts, reset in the rollover); combat seeds it from the recruit turn and raises it LIVE on every mid-fight Shop cast (spellResolved), R-CINDERCHEF-01 — 2026-11-15' },
   ce3_conductor: { kind: 'conforms', why: 'combat Rally reads the first spell id of the recruit turn, frozen on the combat side state at combat start (firstSpellThisTurnId) — set 3 Celestials, 2026-09-11' },
   ce3_shootingstar: { kind: 'conforms', why: 'Shout reads spellsThisTurn at play time (the Spirit Worgen read), instant; a combat-triggered fire defers to settle (replayEconomyBattlecry), before the rollover clears the tally — set 3 Celestials Starform roster, 2026-09-12' },
 

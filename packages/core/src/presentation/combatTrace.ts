@@ -96,6 +96,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   summon: { source: 'sometimes', target: 'always', amount: 'never', note: 'summoner uid when stamped; target = the summoned minion (uid + cardId); board index in detail' },
   boardFallen: { source: 'never', target: 'never', amount: 'never', note: 'tag-team (Versus Duos): a side board is wiped and its reserve steps in next; side + member in detail' },
   teamSend: { source: 'never', target: 'never', amount: 'never', note: 'Duos real-time team effect: the side member sent its teammate carry entry idx (side + member + idx in detail)' },
+  shopSpellTally: { source: 'never', target: 'never', amount: 'always', note: 'Cinderchef: a side Shop spells cast this turn after a combat Shop cast; amount = the running total, side in detail' },
   runeSequence: { source: 'never', target: 'never', amount: 'always', note: 'Rune of Sequencing: the side spell sequence after a combat cast moved it; amount = its length (0 once it paid), the ids in detail' },
   tagIn: { source: 'never', target: 'never', amount: 'sometimes', note: 'tag-team (Versus Duos): the reserve board steps in; amount = how many bodies, side + member in detail' },
   flyIn: { source: 'never', target: 'never', amount: 'always', note: 'tag-team fly-in (Duos, R-DUOS-FLYIN-01): the unfought teammate board of the winner fills the empty slots after the fight; amount = how many bodies, side + member + index in detail' },
@@ -159,6 +160,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return defined({ detail: det({ side: e.side, member: e.member }) });
     case 'teamSend':
       return defined({ detail: det({ side: e.side, member: e.member, idx: e.idx }) });
+    case 'shopSpellTally':
+      return defined({ amount: e.count, detail: det({ side: e.side }) });
     case 'runeSequence':
       return defined({ amount: e.seq.length, detail: det({ side: e.side, seq: e.seq.join(',') }) });
     case 'tagIn':

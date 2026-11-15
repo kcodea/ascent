@@ -365,8 +365,9 @@ export function runCombatLane(def: CardDef, printed: PrintedBuff, golden: boolea
     ...(['beast', 'dragon'].map(friendOf).filter((x): x is BoardMinion => !!x)),
   ];
   const enemy: BoardMinion[] = [bm('pup', 'en0', 1, 1), bm('pup', 'en1', 1, 1), bm('sandbag', 'wall', 9, 400)];
-  // `alesLastTurn: 1` arms the Dwarven-Ale scalers at exactly one Ale — the rate their base text prints.
-  const r = simulate(player, enemy, makeRng(11), CARD_INDEX, combatSide({ tier: 5, alesLastTurn: 1 }), combatSide({ tier: 5 }));
+  // `alesLastTurn: 1` arms the Dwarven-Ale scalers at exactly one Ale — the rate their base text prints;
+  // `shopSpellsThisTurn: 1` arms Cinderchef ("+1/+1 for each Shop spell cast this turn") at exactly one Shop spell.
+  const r = simulate(player, enemy, makeRng(11), CARD_INDEX, combatSide({ tier: 5, alesLastTurn: 1, shopSpellsThisTurn: 1 }), combatSide({ tier: 5 }));
   const subjUid = r.initial.player.find((m) => m.cardId === def.id)?.uid;
   const events = (r.events.filter((e) => (e as { type?: string }).type === 'buff') as unknown as
     { target: string; attack: number; health: number; source: string }[])

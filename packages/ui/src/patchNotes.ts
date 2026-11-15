@@ -56,6 +56,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-15',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Cinderchef now feeds on Shop spells, and Earthbreaker gives your Dragons more Health.',
+        details: [
+          'Cinderchef: Rally now gains +1/+1 for each Shop spell cast this turn (Gilded: +2/+2 for each). With no Shop spell cast, it gains nothing.',
+          'Cinderchef counts Shop spells cast during combat the moment they land, and its text shows its current gain.',
+          'Rubies, Clues and other Gifts are not Shop spells, so they do not count.',
+          'Earthbreaker: now gives your Dragons +2/+2 per Shop spell (was +2/+1). Gilded: +4/+4.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-14',
     changes: [
       {

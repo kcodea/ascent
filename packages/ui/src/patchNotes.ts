@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Kennelmaster reworked: When you summon a Beast, give it +1 Attack. Avenge (4): Improve this by +1 Attack.',
+        details: [
+          'Kennelmaster is now a 1/3. It is no longer a Start of Combat card.',
+          'In the Shop, a Beast you play or summon keeps the buff. In combat, a Beast summoned mid-fight gets it for that fight.',
+          'Each Avenge improvement is permanent and works right away, even mid-fight. Gilded gives +2 and improves by +2.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Ancients test mode: Cindy now has all six Ancient powers written.',
         details: [
           'Ancients are not in Versus Duos or Ranked Duos yet. These are built and waiting.',

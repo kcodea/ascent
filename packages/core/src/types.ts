@@ -444,7 +444,7 @@ export type EffectFactoryId =
   | 'giftPartingGifts'
   | 'deathrattleSummon'
   | 'deathrattleSummonOverflowBuff' // Nanon: Deathrattle — summon tokens; overflow buffs a tribe (Mech)
-  | 'buffOnSummon'
+  | 'buffOnSummon' // Kennelmaster: when you summon a <tribe>, give it (base + Avenge accrual x step) x golden
   | 'deathrattleBuffTribe'
   | 'reAttackOnKill'
   | 'onKillBuffSelf' // on kill: buff self — permanent via Engraved
@@ -907,7 +907,7 @@ export type EffectFactoryId =
   | 'avengeSummonAttack' // Steadfast Champion: Avenge (X) — summon a `cardId` minion that attacks immediately
   | 'spellAttackFirst' // Pre-emptive Assault: cast — your board attacks first in the next combat (recruit)
   // --- 2026-07-06 content batch ---
-  | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
+  | 'scBeastAura' // Thunderous (archive; Kennelmaster until 2026-11-14): Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
   | 'rallyTribeAuraGrowing' // Trophy Stalker: Rally — Beast aura +N/+N (grows +step each attack via summonBonus)
   | 'rallyGiveDemonAttack' // (retired from Bloodbinder) Rally — give another friendly Demon +Attack = this minion's Attack

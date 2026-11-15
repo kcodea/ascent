@@ -5,7 +5,8 @@ import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { improvingRubyGrantText, summonBuffText, summonEscalatingText } from '../../ui/src/cardText';
 
 /**
- * R-GILD-SUM-01 — OWNER RULING 2026-10-25. Asked: "Kennelmaster has improved twice (now +6 Attack: base +2, plus +2 per
+ * R-GILD-SUM-01 — OWNER RULING 2026-10-25. (Kennelmaster's numbers below follow its 2026-11-14 rework, R-KENNEL-01:
+ * +1 Attack improving +1, golden +2 improving +2; the ruling's +16 / +10 -> +26 example is unchanged.) Asked: "Kennelmaster has improved twice (now +6 Attack: base +2, plus +2 per
  * Avenge) and you make it Gilded. What should the Gilded one give?" Answer: "it should be at the sum of the 2 highest
  * buff values. so if you had a +16 and a +10 and gilded it, it should be at +26."
  *
@@ -29,8 +30,9 @@ const tripleOf = (cardId: string, bonuses: (number | undefined)[], setId = 'set1
   expect(g, 'the triple produced a golden').toBeDefined();
   return g!;
 };
-/** Kennelmaster's printed grant for an accrual (the copy's current value, as the card prints it). */
-const kennelGrant = (sb: number, golden: boolean): number => (2 + 2 * sb) * (golden ? 2 : 1);
+/** Kennelmaster's printed grant for an accrual (the copy's current value, as the card prints it). Since the owner rework
+ *  2026-11-14 (R-KENNEL-01) it is "+1 Attack, Avenge (4): Improve this by +1 Attack" (golden x2). */
+const kennelGrant = (sb: number, golden: boolean): number => (1 + sb) * (golden ? 2 : 1);
 const liveKennel = (c: BoardCard): string =>
   summonBuffText('kennel', c.summonBonus ?? 0, c.golden) ?? (c.golden ? CARD_INDEX['kennel']!.goldenText! : CARD_INDEX['kennel']!.text);
 
@@ -39,58 +41,63 @@ const bm = (cardId: string, uid: string, attack = 2, health = 900, extra: Partia
 const sim = (p: BoardMinion[], e: BoardMinion[], seed = 3) =>
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 6, tribes: ALL_TRIBES }));
 const buffs = (r: CombatResult) => r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff');
-const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 90000 }];
 
 describe('R-GILD-SUM-01: a Gilded Kennelmaster is the sum of its two best copies', () => {
+  /** The Kennelmaster grants on summoned Pups (Mama Pup dies -> two Pups), in log order. */
+  const pupGrants = (r: CombatResult, side: 'player' | 'enemy' = 'player'): number[] => {
+    const k = r.initial[side][0]!.uid;
+    return buffs(r).filter((b) => b.source === k).map((b) => b.attack);
+  };
+
   it('+16 and +10 copies gild to +26 (the owner example)', () => {
-    expect(kennelGrant(7, false)).toBe(16);
-    expect(kennelGrant(4, false)).toBe(10);
-    const g = tripleOf('kennel', [7, 4, undefined]);
+    expect(kennelGrant(15, false)).toBe(16);
+    expect(kennelGrant(9, false)).toBe(10);
+    const g = tripleOf('kennel', [15, 9, undefined]);
     expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(26);
     expect(liveKennel(g)).toContain('{{+26 Attack}}');
   });
 
-  it('two fresh copies gild to the printed Gilded +4', () => {
+  it('two fresh copies gild to the printed Gilded +2', () => {
     const g = tripleOf('kennel', [undefined, undefined, undefined]);
     expect(g.summonBonus ?? 0).toBe(0);
-    expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(4);
-    expect(liveKennel(g)).toContain('**+4 Attack**');
+    expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(2);
+    expect(liveKennel(g)).toContain('**+2 Attack**');
   });
 
   it('three copies of different values: only the top two count', () => {
-    const g = tripleOf('kennel', [1, 3, 2]); // +4, +8, +6 -> +8 + +6
-    expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(14);
-    expect(liveKennel(g)).toContain('{{+14 Attack}}');
+    const g = tripleOf('kennel', [1, 3, 2]); // +2, +4, +3 -> +4 + +3
+    expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(7);
+    expect(liveKennel(g)).toContain('{{+7 Attack}}');
   });
 
   it('the Set 2 Kennelmaster follows the same rule', () => {
-    const g = tripleOf('kennel', [7, 4, 0], 'set2');
+    const g = tripleOf('kennel', [15, 9, 0], 'set2');
     expect(kennelGrant(g.summonBonus ?? 0, true)).toBe(26);
   });
 
-  it('combat applies exactly the printed +26, and one Avenge then makes it +30 (the golden step, not a doubling)', () => {
-    const g = tripleOf('kennel', [7, 4, undefined]);
-    const r = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), bm('alley', 'A', 1, 900)], wall);
-    const ally = r.initial.player[1]!.uid;
-    expect(buffs(r).some((b) => b.target === ally && b.attack === 26)).toBe(true);
-    expect(buffs(r).some((b) => b.target === ally && b.attack === 52), 'never doubled again').toBe(false);
+  it('combat applies exactly the printed +26, and one Avenge then makes it +28 (the golden step, not a doubling)', () => {
+    const g = tripleOf('kennel', [15, 9, undefined]);
+    const r = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), bm('pack', 'P', 1, 1)],
+      [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
+    expect(pupGrants(r)).toEqual([26, 26]);
 
-    // Four friendly deaths -> Avenge (4) fires once -> the carry-back is one golden step (+4).
+    // Four friendly deaths -> Avenge (4) fires once -> the carry-back is one golden step (+2).
     const fodder = (i: number) => bm('sandbag', `F${i}`, 0, 1);
     const r2 = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), fodder(1), fodder(2), fodder(3), fodder(4)],
       [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
     const carried = (r2.playerSummonBonus ?? []).find((x) => x.sourceUid === 'K')?.bonus ?? 0;
-    expect(kennelGrant(carried, true)).toBe(30);
-    expect(summonBuffText('kennel', carried, true)).toContain('{{+30 Attack}}');
-    const r3 = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: carried }), bm('alley', 'A', 1, 900)], wall);
-    expect(buffs(r3).some((b) => b.target === r3.initial.player[1]!.uid && b.attack === 30)).toBe(true);
+    expect(kennelGrant(carried, true)).toBe(28);
+    expect(summonBuffText('kennel', carried, true)).toContain('{{+28 Attack}}');
+    const r3 = sim([bm('kennel', 'K', 0, 900, { golden: true, summonBonus: carried }), bm('pack', 'P', 1, 1)],
+      [{ cardId: 'sandbag', attack: 5, health: 90000 }]);
+    expect(pupGrants(r3)).toEqual([28, 28]);
   });
 
   it('both combat sides pay the same grant (symmetry)', () => {
-    const g = tripleOf('kennel', [7, 4, undefined]);
-    const r = sim(wall, [bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), bm('alley', 'A', 1, 900)]);
-    const ally = r.initial.enemy[1]!.uid;
-    expect(buffs(r).some((b) => b.target === ally && b.attack === 26)).toBe(true);
+    const g = tripleOf('kennel', [15, 9, undefined]);
+    const r = sim([{ cardId: 'sandbag', attack: 5, health: 90000 }],
+      [bm('kennel', 'K', 0, 900, { golden: true, summonBonus: g.summonBonus }), bm('pack', 'P', 1, 1)]);
+    expect(pupGrants(r, 'enemy')).toEqual([26, 26]);
   });
 });
 

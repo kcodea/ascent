@@ -1631,16 +1631,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // as you PLAY them in the shop, but does NOT fire on combat summons — so there's no combat factory here (the
   // recruit half lives in recruit.ts). An effect with no combat factory is inert in combat (registerEffects).
 
-  /** When a friendly minion of `tribe` is summoned, buff it. The per-stat magnitude is the
-   *  base buff + `self.summonBonus` (Kennelmaster's Avenge / triple-combined bonus). No golden
-   *  doubling here — a golden's bonus already encodes the combined magnitude (see checkTriples). */
+  /** Kennelmaster (combat half): a friendly `tribe` minion summoned mid-fight gets the summon buff, combat-only.
+   *  ARENA-MIGRATED (2026-11-14): one body in arena.ts (`(base + summonBonus x step) x golden`) serves both phases. */
   buffOnSummon: (ctx, self, params, payload) => {
-    const { minion, side } = payload as MinionPayload;
-    if (self.dead || side !== self.side || minion === self) return;
-    const tribe = str(params.tribe) as Tribe | 'any';
-    if (tribe !== 'any' && minion.tribe !== tribe && minion.tribe2 !== tribe && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe)) return;
-    const bonus = self.summonBonus;
-    ctx.buff(minion, num(params.attack) + bonus, num(params.health) + bonus, self.uid);
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    ARENA_EFFECTS.buffOnSummon(combatArena(ctx, self), { ...params, arriver: minion });
   },
 
   /** Spirit Worgen (combat half): when a friendly minion of one of `tribes` is summoned mid-fight,
@@ -4695,7 +4691,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   // ─── 2026-07-06 content batch: Beast "wherever they are" combat auras ──────────
 
-  /** Kennelmaster — Start of Combat: give your Beasts +N/+N (N = base + its Avenge-grown `summonBonus`) as a
+  /** Thunderous (archive; Kennelmaster's until its 2026-11-14 rework) — Start of Combat: give your Beasts +N/+N (N = base + its Avenge-grown `summonBonus`) as a
    *  rest-of-combat aura. The current Beasts are buffed now; any Beast summoned LATER this fight inherits it too
    *  (`addTribeAura`, applied in summonMinion). Self is a Beast, so it's included. Golden falls out of the triple
    *  combine (checkTriples folds the doubled magnitude into `summonBonus`), so — like buffOnSummon — no `mul`. */

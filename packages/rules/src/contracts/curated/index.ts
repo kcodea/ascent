@@ -154,20 +154,18 @@ export const CURATED_CONTRACTS: readonly ContentContract[] = [
   {
     contentId: 'kennel',
     contentType: 'minion',
-    revision: 2,
+    revision: 3,
     reviewStatus: 'extracted',
     setIds: ['set1'],
     tribes: ['beast'],
-    keywords: ['SC'],
-    tags: ['trigger:avenge', 'trigger:startOfCombat', 'counter:improving', 'copy-subject'],
-    // Both legs the text prints (2026-09-10: the Start of Combat leg was missing, so textParse flagged the card
-    // as wrong-trigger — the contract was incomplete, not the text). The Avenge leg stays first: the slice's
-    // observations are path-addressed.
-    // Owner balance 2026-10-10: Avenge (4) -> (3), and the aura is +2 Attack improving +2. 2026-11-06: Avenge (3) -> (4).
-    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'startOfCombat', phase: 'combat', phaseBasis: 'authored' }],
+    keywords: [],
+    tags: ['trigger:avenge', 'trigger:onSummon', 'counter:improving', 'copy-subject'],
+    // Owner rework 2026-11-14 (R-KENNEL-01): 1/3, no Start of Combat. "When you summon a Beast, give it +1 Attack.
+    // Avenge (4): Improve this by +1 Attack." The Avenge leg stays first: the slice's observations are path-addressed.
+    triggers: [{ event: 'avenge', phase: 'combat', phaseBasis: 'authored', threshold: 4 }, { event: 'onSummon', phase: 'both', phaseBasis: 'authored' }],
     effects: [
-      { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel)' },
-      { kind: 'stat-buff', note: 'Start of Combat: all Beasts +2 Attack (gilded +4) THIS COMBAT, later summons included, no carry-back (scBeastAura, R-AURA-03)' },
+      { kind: 'improve-own-aura', note: 'permanent per-instance accrual (summonBonus channel), +1 Attack per Avenge (gilded +2)' },
+      { kind: 'stat-buff', note: 'When you summon a Beast: +1 Attack + accrual (gilded x2). Shop: permanent; combat: combat-only (buffOnSummon, R-KENNEL-01)' },
     ],
     persistence: ['permanent'],
     copySubject: {

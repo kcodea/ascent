@@ -310,4 +310,27 @@ export const SUMMONING_RULES: GameRule[] = [
       + 'ignored cards gained mid-fight.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/midfightHandGrants.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-KENNEL-01',
+    title: 'Kennelmaster buffs each Beast you summon, in both phases, and its Avenge improvement is permanent',
+    statement:
+      'Kennelmaster (1/3, tier 2) reads "When you summon a Beast, give it +1 Attack. Avenge (4): Improve this by +1 Attack." '
+      + 'It is not a Start of Combat card. In the Shop, a Beast you play or summon gets the buff permanently; in combat, a Beast '
+      + 'summoned mid-fight gets it for that fight only (Engrave keeps it as usual); a Beast that Rises or Rebirths is summoned again '
+      + 'and gets it on the return (R-SUMMON-RETURN-01). It never buffs itself. Each Avenge (4) '
+      + 'adds +1 to the grant at once (twice under Rune of Mastery), and that improvement is permanent on that copy and carries '
+      + 'back after the fight. Gilded gives +2 improving +2. A triple is the sum of its two best copies (R-GILD-SUM-01). Every '
+      + 'surface prints the current grant, plus the step.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner design 2026-11-14 (Kennelmaster rework)', quote: 'When you summon a Beast, give it +1 Attack. Avenge (4): Improve this by +1 Attack.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts buffOnSummon (one body: (base + summonBonus x step) x golden); packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts buffOnSummon wrappers; factories.ts avengeImproveSummon; packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS; packages/ui/src/cardText.ts summonBuffText' },
+    ],
+    contentIds: ['kennel'],
+    currentBehaviour:
+      'Conforms as of 2026-11-14. Before: a 2/4 Start of Combat card, "Give all Friendly and summoned Beasts +2 Attack. '
+      + 'Avenge (4): Improve this." (R-AURA-03).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/kennelmasterSummon1114.test.ts'], lastVerifiedAt: '2026-11-14' },
+  },
 ];

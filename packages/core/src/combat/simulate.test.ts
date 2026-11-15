@@ -237,9 +237,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your Beasts +2 Attack, and a Beast summoned later inherits the aura', () => {
-    // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
-    // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
+  it('Kennelmaster: a Beast summoned mid-fight gets +1 Attack (owner rework 2026-11-14, R-KENNEL-01)', () => {
+    // No Start of Combat any more: Mama Pup dies and its Pups, summoned mid-fight, each get +1 Attack.
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 30 }, // aura source; tanky so it survives
       { cardId: 'pack', attack: 2, health: 1 },    // Mama Pup — a Beast; dies → summons two Pups (Beasts)
@@ -249,31 +248,34 @@ describe('simulate (handoff A.3)', () => {
     const summonEvents = r.events.filter((ev) => ev.type === 'summon');
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
-    // A Beast summoned after Kennelmaster's SoC still receives the +2/+0 aura (owner balance 2026-10-10: +1 -> +2).
-    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
+    // ...and the Beast already on the board at the start (Mama Pup) gets nothing from Kennelmaster.
+    const kUid = r.initial.player[0]!.uid;
+    const mama = r.initial.player[1]!.uid;
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kUid && ev.target === mama)).toBe(false);
   });
 
-  it('Kennelmaster aura is BEAST-only Attack — a non-Beast does not get it, and Health is untouched', () => {
-    // Re-spec (owner 2026-07-24): back to a Beast aura, now +1 Attack ("give your Beasts wherever they are").
-    // The load-bearing scope check: a Dragon on the board must NOT receive it, and nothing gains Health.
+  it('Kennelmaster summon buff is BEAST-only Attack — a non-Beast summon does not get it, and Health is untouched', () => {
+    // The load-bearing scope check (R-KENNEL-01): a summoned Beast (a Pup) gets it, a Dragon never does, and
+    // nothing gains Health.
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 40 },
-      { cardId: 'alley', attack: 3, health: 30 },  // a Beast — DOES get the aura
+      { cardId: 'pack', attack: 2, health: 1 },    // Mama Pup -> two Pups (Beasts) — DO get it
       { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — must NOT
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 60 }];
     const r = run(p, e, 1);
-    const beastUid = r.initial.player[1]!.uid;
     const dragonUid = r.initial.player[2]!.uid;
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === beastUid && ev.attack === 2 && ev.health === 0)).toBe(true);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0)).toBe(false);
+    const pupUids = new Set(r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : [])));
+    expect(r.events.some((ev) => ev.type === 'buff' && pupUids.has(ev.target) && ev.attack === 1 && ev.health === 0)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.source === r.initial.player[0]!.uid)).toBe(false);
     // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
     const kennelUid = r.initial.player[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0)).toBe(false);
   });
 
-  it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
+  it('Kennelmaster buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 40 },
       { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup → two 1/1 Pups on death
@@ -282,8 +284,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
-    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
-    expect(buffed.length).toBe(2); // BOTH inherit the +2/+0 aura (owner balance 2026-10-10: +1 -> +2), not only the first
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 0));
+    expect(buffed.length).toBe(2); // BOTH get the +1/+0 summon buff (R-KENNEL-01), not only the first
   });
 
   it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
@@ -799,9 +801,9 @@ describe('simulate (handoff A.3)', () => {
     expect(wardenSummon && wardenSummon.type === 'summon' ? wardenSummon.minion.attack : 0).toBeGreaterThan(3);
   });
 
-  it('Kennelmaster aura re-applies to a Reborn minion (summoned in any way)', () => {
-    // A Beast that RISES mid-fight must re-inherit Kennelmaster's Start-of-Combat aura, not just fresh summons.
-    // The Gryphon (granted Rise + Taunt so it's the forced target) dies, returns at base, and comes back aura'd.
+  it('Kennelmaster buffs a Risen Beast (a Rise is a summon)', () => {
+    // A Beast that RISES mid-fight is summoned again, so Kennelmaster's summon buff lands on it (R-KENNEL-01).
+    // The Gryphon (granted Rise + Taunt so it's the forced target) dies, returns at base, and comes back buffed.
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 1, health: 40 },
       { cardId: 'gryphon', attack: 2, health: 1, keywords: ['R', 'T'] }, // granted Rise; the forced target
@@ -811,9 +813,9 @@ describe('simulate (handoff A.3)', () => {
     const rebornIdx = r.events.findIndex((ev) => ev.type === 'reborn');
     expect(rebornIdx).toBeGreaterThanOrEqual(0); // the Gryphon Rose
     const gUid = (r.events[rebornIdx] as { target: string }).target;
-    // A +2/+0 (owner balance 2026-10-10) aura buff lands on the Gryphon (a Beast) AFTER it Rises (the bug: reborn bodies were skipped).
+    // A +1/+0 summon buff lands on the Gryphon (a Beast) AFTER it Rises.
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
-      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 0,
     );
     expect(auraAfterRise).toBe(true);
   });
@@ -4071,8 +4073,8 @@ describe('Rune of Twilight (Start-of-Combat effects trigger an extra time)', () 
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
-  it("re-fires your minions' Start-of-Combat effects (Kennelmaster's Beast aura lands twice)", () => {
-    const p: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 4 }, { cardId: 'gnash', attack: 5, health: 8 }];
+  it("re-fires your minions' Start-of-Combat effects (Runmaw's ally buff lands twice)", () => {
+    const p: BoardMinion[] = [{ cardId: 'runmaw', attack: 10, health: 8 }, { cardId: 'gnash', attack: 5, health: 8 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 30 }];
     const buffs = (r: ReturnType<typeof simMods>) => r.events.filter((ev) => ev.type === 'buff').length;
     expect(buffs(simMods(p, e, 1, { runeTwilight: true }))).toBeGreaterThan(buffs(simMods(p, e, 1, {})));
@@ -4543,11 +4545,11 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
 
 describe('Uron / Zyff — the split trigger multipliers', () => {
   it('doubles Start of Combat effects (a family with no prior multiplier)', () => {
-    // Kennelmaster carries a real Start-of-Combat Beast aura; count the sc narrations it emits.
+    // Thunderous (archived, still resolvable) carries a real Start-of-Combat Dragon aura; count the sc narrations it emits.
     const withUron = (uron: boolean) => run(
       [
-        { cardId: 'kennel', attack: 5, health: 60 },
-        { cardId: 'alley', attack: 2, health: 60 },
+        { cardId: 'd2_sovereign', attack: 5, health: 60 },
+        { cardId: 'cleric', attack: 2, health: 60 },
         ...(uron ? [{ cardId: 'uron', attack: 7, health: 60 }] : []),
       ],
       [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],

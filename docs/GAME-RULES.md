@@ -2712,8 +2712,8 @@ Code: one rule for both phases, `combatTierCeiling(shopTier)` in `packages/core/
 
 - A card that improves itself (Kennelmaster, Trophy Stalker, Beardsley, Vicious, Alchemist Brisbane) gilds into the
   **sum of its two highest copies' current values**: a +16 and a +10 Kennelmaster make a +26 Gilded one; two fresh
-  copies make the printed Gilded +4. The third copy's value is ignored. Each later improvement adds the **Gilded step**
-  (+4 per Avenge on Kennelmaster); what the copies earned is never doubled.
+  copies make the printed Gilded +2. The third copy's value is ignored. Each later improvement adds the **Gilded step**
+  (+2 per Avenge on Kennelmaster); what the copies earned is never doubled.
 - Code: these cards pay `(base + step x accrual) x golden` (`GOLD_SCALED_ACCRUAL_CARDS`, `packages/sim/src/recruit.ts`),
   so `combineIntoGolden` stores HALF the two best accruals and the x2 read lands on the sum. An in-place gild already
   halves the accrual the same way. Saved runs and replays keep whatever accrual was stored when they gilded.
@@ -3153,8 +3153,10 @@ normal "your Beasts" meaning, in both phases:
 
 The cards:
 
-- **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +2 Attack. Avenge (4): Improve this.* Each improvement adds +2 (gilded +4 improving +4). The improvement is
-  permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
+- **Kennelmaster** left this family on 2026-11-14 (R-KENNEL-01): it is now a 1/3 that reads *When you summon a Beast, give it
+  +1 Attack. Avenge (4): Improve this by +1 Attack.* A Beast played or summoned in the Shop keeps the buff; a Beast summoned
+  mid-fight (a Rise or Rebirth return included) gets it for that fight only. Each Avenge raises the grant at once, and that improvement is permanent on that
+  Kennelmaster (its `summonBonus`, carried back). Gilded is +2 improving +2. It never buffs itself.
 - **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
 - **Armadiyo**, **Trophy Stalker**, **Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
   persists), **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt**

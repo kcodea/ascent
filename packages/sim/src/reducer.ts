@@ -4787,10 +4787,11 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   const keywords = [...new Set(combined.flatMap((c) => c.keywords))]
     .filter((k) => k !== 'M' || def.keywords.includes('M'))
     .filter((k) => !((k === 'DS' || k === 'R') && tempOnly(k)));
-  // A RAW-read summon-buff card (`buffOnSummon`, no golden multiplier at read) carries its accrued buff through
-  // the triple: the golden's summonBonus = its base buff + the two highest bonuses combined, so the granted
-  // magnitude (base + summonBonus) is the SUM of the top-two copies' magnitudes. Kennelmaster's `scBeastAura`
-  // reads x golden, so it takes the GOLD_SCALED_ACCRUAL_CARDS half-sum branch first (R-GILD-SUM-01).
+  // A RAW-read summon-buff card (no golden multiplier at read) carries its accrued buff through the triple: the
+  // golden's summonBonus = its base buff + the two highest bonuses combined, so the granted magnitude (base +
+  // summonBonus) is the SUM of the top-two copies' magnitudes. Kennelmaster's `buffOnSummon` (since the 2026-11-14
+  // rework) and Thunderous's `scBeastAura` read x golden, so they take the GOLD_SCALED_ACCRUAL_CARDS half-sum branch
+  // first (R-GILD-SUM-01); a new user of either factory must join that set.
   // Effects whose accrual has its OWN merge below — the universal fallback must not ALSO write `summonBonus`
   // for them, or the accrual double-counts (measured 2026-07-31: it broke Flowing Monk's "countdown starts
   // fresh" rule). Runescale merges via `spellProgress`, the Monk via `overflowBonus`.
@@ -4802,10 +4803,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     // OWNER RULING 2026-10-25 (R-GILD-SUM-01): "it should be at the sum of the 2 highest buff values. so if you had a
     // +16 and a +10 and gilded it, it should be at +26." These cards pay `(base + step x accrual) x golden`, so the
     // golden doubles the base AND the step, never the earned accrual: storing HALF the two highest copies' accruals
-    // makes the x2 read land on copy A's grant + copy B's grant exactly (Kennelmaster +16 [sb 7] and +10 [sb 4]:
-    // sb 5.5, (2 + 2 x 5.5) x 2 = +26; two fresh copies: sb 0, the printed Gilded +4). The half can be fractional,
+    // makes the x2 read land on copy A's grant + copy B's grant exactly (Kennelmaster +16 [sb 15] and +10 [sb 9]:
+    // sb 12, (1 + 1 x 12) x 2 = +26; two fresh copies: sb 0, the printed Gilded +2). The half can be fractional,
     // the same legal half-count an in-place gild leaves (`gildMinion`); every read multiplies it back to an integer.
-    // Each later improve then adds the golden step (+4 per Avenge on Kennelmaster).
+    // Each later improve then adds the golden step (+2 per Avenge on Kennelmaster).
     const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
     const half = ((sbs[0] ?? 0) + (sbs[1] ?? 0)) / 2;
     summonBonus = half > 0 ? half : undefined;

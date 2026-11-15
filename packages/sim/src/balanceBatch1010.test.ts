@@ -172,12 +172,12 @@ describe('Impossible Todd: "When a friendly Demon deals damage, give your Imps +
   });
 });
 
-describe('Kennelmaster: "+2 Attack. Avenge (4): Improve this." (+2 per improve; gilded +4 improving +4; Avenge 3 -> 4 owner 2026-11-06)', () => {
+describe('Kennelmaster: "When you summon a Beast, give it +1 Attack. Avenge (4): Improve this by +1 Attack." (owner rework 2026-11-14)', () => {
   it('params and text', () => {
     const c = CARD_INDEX['kennel']!;
-    expect(c.effects[0]!.params).toMatchObject({ attack: 2, stepAttack: 2 });
+    expect(c.effects[0]!.params).toMatchObject({ attack: 1, stepAttack: 1, health: 0, stepHealth: 0 });
     expect(c.effects[1]!.params).toEqual({ count: 4 });
-    expect(c.text).toBe('**Start of Combat:** Give all Friendly and summoned Beasts **+2 Attack**. **Avenge (4):** Improve this.');
+    expect(c.text).toBe('When you summon a **Beast**, give it **+1 Attack**. **Avenge (4):** Improve this by **+1 Attack**.');
   });
 });
 

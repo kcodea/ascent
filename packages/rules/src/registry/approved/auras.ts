@@ -56,7 +56,7 @@ export const AURAS_RULES: GameRule[] = [
       + '(recruit, End of Turn) every Beast in the warband (the board, the convention every Shop tribe grant uses; not '
       + 'the hand) gains it permanently, like any Shop buff: a Grim destroyed or proc\'d in the Shop buffs the warband. '
       + 'In COMBAT every friendly Beast in the fight gains it, including Beasts summoned later that fight, and it does '
-      + 'NOT carry back to the run board, unless a mechanic keeps combat stats (Engrave). Kennelmaster: "Start of Combat: '
+      + 'NOT carry back to the run board, unless a mechanic keeps combat stats (Engrave). Kennelmaster (until its 2026-11-14 rework, now R-KENNEL-01): "Start of Combat: '
       + 'Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this." (the improvement is permanent per instance, on its '
       + 'summonBonus; one earned mid-fight is used from the NEXT Start of Combat; since the owner balance of 2026-10-10 it reads '
       + '"+2 Attack. Avenge (3): Improve this." and each improvement adds +2, gilded +4 improving +4). Grim: "Echo: Give all Friendly and summoned '
@@ -74,7 +74,7 @@ export const AURAS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner answer 3 on PR #1813, 2026-09-28 (Pack Mentality on a served seat: Start of Combat grant from its snapshot level, growth player-only; the player-only growth is SUPERSEDED by R-SYMMETRY-01, owner 2026-10-13)', quote: 'okay' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts buffAllOfTribe (combat: addTribeAura + plain combat buffs; shop: permanent warband buff) via scBeastAura / deathrattleBuffTribe / rallyTribeAuraGrowing; packages/core/src/combat/simulate.ts Pack Mentality Start of Combat grant, Beastial Swarm + The Old Hunt (no beastBuy*Gain); packages/sim/src/recruit.ts fireOnFriendDeath (Beastial Swarm Shop half); packages/sim/src/reducer.ts scalingTribeAura (beast) + settle (level only)' },
     ],
-    contentIds: ['kennel', 'grim', 'b2_armadiyo', 'trophystalker', 'rune_beastial_swarm', 'q_pack_mentality', 'q_the_old_hunt'],
+    contentIds: ['grim', 'b2_armadiyo', 'trophystalker', 'rune_beastial_swarm', 'q_pack_mentality', 'q_the_old_hunt'], // Kennelmaster left 2026-11-14 (R-KENNEL-01)
     currentBehaviour:
       'Conforms as of 2026-09-28. Until then the Beast Aura was a run-wide channel (`beastBuyAtk` / `beastBuyHp`) fed by '
       + 'Pack Mentality, The Old Hunt and Beastial Swarm and baked into every Beast everywhere. The legacy channel '

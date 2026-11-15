@@ -469,7 +469,7 @@ export const ORDERING_RULES: GameRule[] = [
       + 'plays its own On Watcher effect from itself to each minion it buffs, so a beam or particles authored to travel '
       + 'cross from the buffer to that minion. This holds in the Shop, at End of Turn and in combat. An effect set to '
       + 'follow its card stays on its cards while they move: each end of a travelling effect rides its own card. '
-      + 'When one buffer hits several minions at once (Kennelmaster at Start of Combat), its effects play on each but their '
+      + 'When one buffer hits several minions at once (a whole-board Beast buff), its effects play on each but their '
       + 'sound plays once. Several buffers buffing at once take turns, left-most first and 90 ms apart, in the Shop as in '
       + 'combat (two Beardsleys on one summoned Beast: one watcher, then the other). In the Shop and in combat a minion '
       + 'takes ONE bite however many buffers with an On Watcher effect hit it at once (the first one), while every buffer '

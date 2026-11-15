@@ -143,8 +143,8 @@ export const GILDING_RULES: GameRule[] = [
     statement:
       'When copies of a card that improves itself (Kennelmaster, Trophy Stalker, Beardsley, Vicious, Alchemist Brisbane) '
       + 'triple into a Gilded copy, the Gilded copy starts at the SUM of the current values of its two highest copies: a +16 and '
-      + 'a +10 Kennelmaster gild into +26, two fresh copies into the printed Gilded +4. From then on each improvement adds the '
-      + 'Gilded step (+4 per Avenge on Kennelmaster). The earned value is never doubled. Combat pays exactly the printed '
+      + 'a +10 Kennelmaster gild into +26, two fresh copies into the printed Gilded +2. From then on each improvement adds the '
+      + 'Gilded step (+2 per Avenge on Kennelmaster since its 2026-11-14 rework). The earned value is never doubled. Combat pays exactly the printed '
       + 'number, on both sides.',
     domain: 'gilding',
     status: 'approved',
@@ -153,7 +153,7 @@ export const GILDING_RULES: GameRule[] = [
         kind: 'owner-chat', ref: 'Owner ruling 2026-10-25 (Gilded Kennelmaster after two Avenge improvements)',
         quote: 'it should be at the sum of the 2 highest buff values. so if you had a +16 and a +10 and gilded it, it should be at +26.',
       },
-      { kind: 'code', ref: 'packages/sim/src/reducer.ts combineIntoGolden (GOLD_SCALED_ACCRUAL_CARDS half-sum branch); packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS; packages/core/src/effects/arena.ts scBeastAura' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts combineIntoGolden (GOLD_SCALED_ACCRUAL_CARDS half-sum branch); packages/sim/src/recruit.ts GOLD_SCALED_ACCRUAL_CARDS; packages/core/src/effects/arena.ts scBeastAura + buffOnSummon (Kennelmaster since 2026-11-14)' },
     ],
     currentBehaviour:
       'Conforms from 2026-10-25. Was: the triple stored base + both accruals and the x2 golden read doubled all of it '

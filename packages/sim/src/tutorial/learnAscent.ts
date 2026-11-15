@@ -6,7 +6,7 @@
  * outcome: combat still runs in `simulate`, damage still flows through the lobby (see `lobby/tutorialSeats.ts`).
  *
  * The full 12-round course: R1 is the fully-coached keystone; R2–7 teach the fundamentals one card mechanic at a
- * time (wider board + tavern-up, Echo, Freeze, Shout, Start of Combat, position-dependent synergy + board space);
+ * time (wider board + tavern-up, Echo, Freeze, Shout, summon buffs (Start of Combat until 2026-11-14), position-dependent synergy + board space);
  * R8–9 add the two build-defining systems (gilding/triples + the Triple Reward Discover, then spells); and R10–12
  * hand the wheel to the player (supervised independence) before graduating into the real game. Every card id
  * below is a real Set 2 (or carried-over) card — an unknown id renders an empty shop offer, so the ids are the
@@ -128,7 +128,7 @@ const CARD_IDS = {
   // Pennycat's Shout also lands ON THE BOARD (a summoned Stray) instead of up in a Discover overlay, so the
   // trigger is visible where the player is already looking — and Discover still gets its own lesson in Round 8.
   pennycat: 'alley', // T1 Beast 1/1 — "Shout: summon a 1/1 Stray next to it" (teaches Shout, untargeted)
-  kennel: 'kennel', // T2 Beast — "Start of Combat: Give all Beasts +1 Attack this combat"
+  kennel: 'kennel', // T2 Beast — "When you summon a Beast, give it +1 Attack" (a Start of Combat card until the 2026-11-14 rework)
   echohorn: 'b2_echohorn', // T3 Beast — "Rally: trigger your left-most Echo" (position-dependent synergy)
   blessing: 'sp_blessing', // T4 spell, cost 2, target any — "Give a minion +3/+4 twice" (teaches buy + cast a spell)
   tripleReward: 'discoverspell', // the "Triple Reward" token a golden minion grants on play — a Discover (teaches Discover)
@@ -391,8 +391,10 @@ const round6Steps: TutorialStep[] = [
   },
   {
     id: 'r6-buy',
-    phase: 'shop', focusMode: 'action', title: 'Start of Combat',
-    body: 'Buy Kennelmaster. Its Start-of-Combat effect fires once the fight begins and every Beast you own gets stronger.',
+    phase: 'shop', focusMode: 'action', title: 'Summon Buffs',
+    // Kennelmaster stopped being a Start of Combat card on 2026-11-14 (R-KENNEL-01), so this lesson now teaches its
+    // summon buff. OPEN OWNER CALL: the course has no other low-tier Start of Combat Beast to teach that keyword.
+    body: 'Buy Kennelmaster. Whenever you summon a Beast, it gives that Beast +1 Attack.',
     anchors: [{ kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }],
     // The drag the step is asking for, drawn: shop offer → your hand (owner ask 2026-08-20).
     connector: { from: { kind: 'card', zone: 'shop', alias: CARD_IDS.kennel }, to: { kind: 'ui', id: 'hand' }, style: 'drag' },
@@ -402,7 +404,7 @@ const round6Steps: TutorialStep[] = [
   {
     id: 'r6-play',
     phase: 'shop', focusMode: 'action', title: 'Place It',
-    body: 'Play Kennelmaster onto your board. Watch your Beasts gain Attack as the fight begins.',
+    body: 'Play Kennelmaster onto your board. Every Beast you summon after it gets +1 Attack, in the Shop and in combat.',
     // Spotlight the CARD being asked for as well as the destination, with the drag drawn between
     // them — the bare `warband` anchor left the player hunting for which card to move.
     anchors: [{ kind: 'card', zone: 'hand', alias: CARD_IDS.kennel }, { kind: 'ui', id: 'warband' }],
@@ -411,8 +413,8 @@ const round6Steps: TutorialStep[] = [
     completion: { kind: 'played', cardId: CARD_IDS.kennel },
   },
   heroPowerReminderStep('r6-power', 'Use Your Power', 'Preparation is free! Use it!'),
-  endTurnStep('r6-end', 'End Your Turn', 'End the turn and watch your Beasts gain Attack at the Start of Combat.'),
-  combatDebriefStep('r6-debrief', 'Start of Combat', 'Start-of-Combat effects fire before any attacks. These can be pivotal in turning the tides of a battle. Click here to return to the shop.'),
+  endTurnStep('r6-end', 'End Your Turn', 'End the turn. Any Beast summoned in the fight gets the buff too.'),
+  combatDebriefStep('r6-debrief', 'Summon Buffs', 'Kennelmaster buffs every Beast you summon after it. Its Avenge makes that buff bigger for good. Click here to return to the shop.'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -747,7 +749,7 @@ const turns: TutorialTurn[] = [
     // set-agnostic and all meaningful to the all-Beast board the course has built: bigger summoned bodies,
     // flat Gold, and a free Rally trigger — the keyword Round 1 opened with.
     runeOffer: { runes: ['rune_packcraft', 'rune_small_fortune', 'rune_rallying'] },
-    // Tier 3. Offers Kennelmaster (Start of Combat) alongside the Runeforge.
+    // Tier 3. Offers Kennelmaster (a summon buff since 2026-11-14; it taught Start of Combat before) alongside the Runeforge.
     shopRolls: [
       { minions: [CARD_IDS.kennel, 'b2_bullseye', 'manasaber'] },
     ],

@@ -6,7 +6,7 @@ import type { Keyword } from '@game/core';
 import { useGame } from './store';
 import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
 import { turnClock } from './turnClock';
-import { addEnemy, stagedBoard, foeSnapshotOf, MAX_BOARD } from './sandboxEdit';
+import { addEnemy, stagedBoard, foeSnapshotOf, nextForgePage, MAX_BOARD } from './sandboxEdit';
 import { StatBadgeField, CountStepper } from './StatBadgeField';
 import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview';
 import { toStage } from './stage';
@@ -303,6 +303,16 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
   // reducer, so the forge look can be iterated on without playing to turn 6 / 8. Refused while a modal is up.
   const openForge = (epic: boolean): void => dispatch({ type: 'devOpenRuneforge', epic });
   const forgeBlocked = !run || run.phase !== 'recruit' || !!run.runeforgeOffer;
+  // NEXT RUNES (owner ask 2026-11-15, for the rune art pass): swap the OPEN forge's offer for the next four runes of
+  // this set, Basic at a Basic forge and Epic at an Epic one, walking the Library's rune list in order and wrapping.
+  // Free and unlimited, and it never touches the real once-a-game reroll. Discounts are dropped: they were rolled
+  // for the runes that just left. A plain state edit like the rest of the rig's table tools, so the sim is untouched.
+  const forgeOpen = !!run?.runeforgeOffer;
+  const nextForgeRunes = (): void => mutate((r) => {
+    if (!r.runeforgeOffer) return r;
+    const forgePool = allRunes.filter((rn) => rn.epic === !!r.runeforgeEpic).map((rn) => rn.id);
+    return { ...r, runeforgeOffer: nextForgePage(forgePool, r.runeforgeOffer), runeforgeDiscounts: undefined };
+  });
   const setTier = (tier: number): void => mutate((r) => ({ ...r, tier }));
   const giveGold = (): void => mutate((r) => ({ ...r, embers: (r.embers ?? 0) + 1000 }));
   const freezeTime = (): void => turnClock.set(9999);
@@ -539,6 +549,7 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(false)} aria-description="Open a Basic Runeforge on this turn">Runeforge</button>
               <button className="sb-btn" disabled={forgeBlocked} onClick={() => openForge(true)} aria-description="Open an Epic Runeforge on this turn (the turn-8 rules)">Epic Runeforge</button>
             </div>
+            <button className="sb-btn" disabled={!forgeOpen} onClick={nextForgeRunes} aria-description="With a Runeforge open: show the next four runes of this set, free, as many times as you like">Next 4 runes</button>
           </Sec>
 
           {/* SETUP — hero, set, rules, bots, Duos, Ancients. Folded by default (2026-11-01); its heading names the

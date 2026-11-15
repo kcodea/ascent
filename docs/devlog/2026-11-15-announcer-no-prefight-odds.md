@@ -47,3 +47,15 @@ Cut, from the default voice and all three packs (44 files), and listed in `ANNOU
 
 The takes that stay keep their numbers (a saved game's heard-takes list names them), so the three tables are now
 explicit lists with gaps. The "very odd language" takes are the owner's pick, line by line, and are not part of this.
+
+## Same day: the owner's pick of the odd lines
+
+Shown the 14 out-of-place lines, the owner kept eight ("bollocks can stay. choose violence can stay. thank aeon can
+stay. the beast and dwarf can stay the drinking ones can stay. game start 7 can stay"). So:
+
+- `time-running-out-20` ("Bollocks. Look at the time, champ") is RESTORED in all four voices.
+- Six more takes are cut and added to `ANNOUNCER_CUT_TAKES`: `game-start-5`, `game-start-18`,
+  `entering-combat-4`, `knockout-4`, `time-running-out-14`, `time-running-out-15`.
+
+Total cut for language: 16 takes (64 files). `big-spender` ("To infinity and beyond") is NOT cut: it is that moment's
+only line, so cutting it means removing or re-recording the moment, which is the owner's call.

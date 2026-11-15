@@ -306,12 +306,12 @@ const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
  *  END (the rare-line rolls still hash an event's index in this table). Which take plays is a fresh random pick. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Which take plays is picked at random each time.
-  // Takes 10, 11, 20, 21 and 24 CUT 2026-11-15 (they curse: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
+  // Takes 5, 10, 11, 18, 20, 21 and 24 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
   // of the takes that stay never change (a saved game's heard-takes list names them).
   gameStart: [
-    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-5', 'game-start-6', 'game-start-7',
+    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-6', 'game-start-7',
     'game-start-8', 'game-start-9', 'game-start-12', 'game-start-13', 'game-start-14', 'game-start-15', 'game-start-16',
-    'game-start-17', 'game-start-18', 'game-start-19', 'game-start-22', 'game-start-23', 'game-start-25',
+    'game-start-17', 'game-start-19', 'game-start-22', 'game-start-23', 'game-start-25',
   ],
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3', 'back-to-shop-4', 'back-to-shop-5', 'back-to-shop-6'],
   equipment: ['equipment-1', 'equipment-2', 'equipment-3', 'equipment-4'],
@@ -320,7 +320,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   runeforge: ['runeforge-1', 'runeforge-2', 'runeforge-3', 'runeforge-4'],
   epicRuneforge: ['epic-runeforge-1', 'epic-runeforge-2', 'epic-runeforge-3', 'epic-runeforge-4'],
   // 7 takes (owner 2026-09-25: five ElevenLabs takes from the Entering Combat folder joined the first two).
-  enteringCombat: Array.from({ length: 7 }, (_, i) => `entering-combat-${i + 1}`),
+  // Take 4 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03).
+  enteringCombat: ['entering-combat-1', 'entering-combat-2', 'entering-combat-3', 'entering-combat-5', 'entering-combat-6', 'entering-combat-7'],
   enteringCombatAfterLoss: ['entering-combat-after-loss', 'entering-combat-after-loss-2', 'entering-combat-after-loss-3'],
   startCombatUnder10hp: ['start-combat-under-10hp', 'start-combat-under-10hp-2', 'start-combat-under-10hp-3'],
   surviveUnder10hp: ['survive-under-10hp', 'survive-under-10hp-2', 'survive-under-10hp-3'],
@@ -333,7 +334,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   gameWon: ['game-won', 'game-won-2', 'game-won-3', 'game-won-4'],
   gameLoss: ['game-loss-1', 'game-loss-2', 'game-loss-3', 'game-loss-4', 'game-loss-5'],
   // The second batch (owner 2026-09-24).
-  knockout: ['knockout-1', 'knockout-2', 'knockout-3', 'knockout-4', 'knockout-5', 'knockout-6'],
+  // knockout-4 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03).
+  knockout: ['knockout-1', 'knockout-2', 'knockout-3', 'knockout-5', 'knockout-6'],
   bigHit: ['big-hit'],
   comebackWin: ['comeback-win'],
   flawlessVictory: ['flawless-victory'],
@@ -350,11 +352,11 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   randomDwarfBuy: ['random-dwarf-buy', 'random-dwarf-buy-2', 'random-dwarf-buy-3', 'random-dwarf-buy-4'],
   round7: ['round-7'],
   // The shop-clock warning (owner 2026-09-25): 21 takes from the Low on time folder, in folder timestamp order.
-  // Takes 4, 5, 19, 20 and 21 CUT 2026-11-15 (they curse: R-TEXT-ANNOUNCER-03).
+  // Takes 4, 5, 14, 15, 19 and 21 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03). Take 20 ("Bollocks") stays: owner.
   timeRunningOut: [
     'time-running-out-1', 'time-running-out-2', 'time-running-out-3', 'time-running-out-6', 'time-running-out-7', 'time-running-out-8',
-    'time-running-out-9', 'time-running-out-10', 'time-running-out-11', 'time-running-out-12', 'time-running-out-13', 'time-running-out-14',
-    'time-running-out-15', 'time-running-out-16', 'time-running-out-17', 'time-running-out-18',
+    'time-running-out-9', 'time-running-out-10', 'time-running-out-11', 'time-running-out-12', 'time-running-out-13', 'time-running-out-16',
+    'time-running-out-17', 'time-running-out-18', 'time-running-out-20',
   ],
   // The specialty lines (owner 2026-09-25): the Special folder. BuyingDrakko / BuyingDrakko2 first, then the
   // ElevenLabs takes in folder timestamp order.
@@ -502,8 +504,9 @@ export const CATALOG_BATCH_4_EVENTS: readonly AnnouncerEvent[] = ['heroPick', 'o
  *  R-TEXT-ANNOUNCER-03). A cut take is never listed in `ANNOUNCER_LINES` again and its clip is deleted from the default
  *  voice and every pack; `announcer.test.ts` fails if one comes back. Add a take here when it is cut for this reason. */
 export const ANNOUNCER_CUT_TAKES: readonly string[] = [
+    'game-start-5', 'game-start-18', 'entering-combat-4', 'knockout-4', 'time-running-out-14', 'time-running-out-15',
     'cast-ale-2', 'game-start-10', 'game-start-11', 'game-start-20', 'game-start-21',
-    'game-start-24', 'time-running-out-4', 'time-running-out-5', 'time-running-out-19', 'time-running-out-20',
+    'game-start-24', 'time-running-out-4', 'time-running-out-5', 'time-running-out-19',
     'time-running-out-21',
 ];
 

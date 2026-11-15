@@ -215,7 +215,7 @@ describe('GameStart', () => {
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.gameStart).toHaveLength(20); // 25 recorded, 5 cut for cursing (2026-11-15)
+    expect(ANNOUNCER_LINES.gameStart).toHaveLength(18); // 25 recorded, 7 cut for their language (2026-11-15)
     // The audio stream only (ID3 tags stripped), so a re-tagged copy of the same take still counts as a duplicate.
     const audio = (b: Buffer): Buffer => {
       let a = b;
@@ -229,7 +229,7 @@ describe('GameStart', () => {
       expect(existsSync(file), name).toBe(true);
       hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
     }
-    expect(hashes.size).toBe(20);
+    expect(hashes.size).toBe(18);
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);
@@ -750,7 +750,7 @@ describe('the second batch (owner 2026-09-24)', () => {
     expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3']);
     expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4']);
     expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
-    expect(ANNOUNCER_LINES.knockout).toHaveLength(6);
+    expect(ANNOUNCER_LINES.knockout).toHaveLength(5); // knockout-4 cut for its language (2026-11-15)
     expect(ANNOUNCER_LINES.pair).toHaveLength(4);
     expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(4);
     // The table stays append-only: the rare-line rolls still hash an event's index in it.
@@ -1073,8 +1073,8 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(7);
-    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(16); // 21 recorded, 5 cut for cursing (2026-11-15)
+    expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(6); // 7 recorded, 1 cut for its language (2026-11-15)
+    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(15); // 21 recorded, 6 cut for their language (2026-11-15)
     expect(ANNOUNCER_LINES.randomCardBuy).toHaveLength(8);
     expect(ANNOUNCER_LINES.buyDrakko).toHaveLength(5);
     expect(ANNOUNCER_LINES.buySylus).toHaveLength(4);
@@ -1666,13 +1666,14 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
       }
     });
     // R-TEXT-ANNOUNCER-03 (owner 2026-11-15): a take cut for its language stays cut, in every voice.
-    it('no take cut for cursing is listed or shipped, in the default voice or any pack', async () => {
+    it('no take cut for its language is listed or shipped, in the default voice or any pack', async () => {
       const { existsSync, readdirSync } = await import('node:fs');
       const { resolve } = await import('node:path');
       const dir = resolve(process.cwd(), 'apps/web/public/announcer');
       const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
       const listed = new Set(Object.values(ANNOUNCER_LINES).flat());
-      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(11);
+      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(16);
+      expect(ANNOUNCER_LINES.timeRunningOut).toContain('time-running-out-20'); // "bollocks can stay" (owner 2026-11-15)
       for (const take of ANNOUNCER_CUT_TAKES) {
         expect(listed.has(take), take).toBe(false);
         for (const folder of ['', ...packs]) expect(existsSync(resolve(dir, folder, `${take}.mp3`)), `${folder}/${take}`).toBe(false);

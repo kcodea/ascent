@@ -97,6 +97,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The announcer has eight new lines for the final two.',
+        details: ['Four for when only you and one other player are left, and four for the start of the last fight.'],
+      },
+      {
+        category: 'Systems',
         text: 'The announcer now counts the players left correctly.',
         details: [
           'It used to say "Only three remain" when five players were left, and then nothing at three. Five and three now each have their own lines.',

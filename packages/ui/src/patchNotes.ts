@@ -66,6 +66,11 @@ export const PATCH_NOTES: PatchNote[] = [
           'The lines for winning or losing against the odds still play, after the fight is over.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The announcer no longer swears.',
+        details: ['Removed 11 lines with strong language, in every announcer voice: 5 game start lines, 5 low on time warnings and 1 Ale line.'],
+      },
     ],
   },
   {

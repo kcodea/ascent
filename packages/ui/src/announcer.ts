@@ -306,7 +306,13 @@ const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
  *  END (the rare-line rolls still hash an event's index in this table). Which take plays is a fresh random pick. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Which take plays is picked at random each time.
-  gameStart: Array.from({ length: 25 }, (_, i) => `game-start-${i + 1}`),
+  // Takes 10, 11, 20, 21 and 24 CUT 2026-11-15 (they curse: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
+  // of the takes that stay never change (a saved game's heard-takes list names them).
+  gameStart: [
+    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-5', 'game-start-6', 'game-start-7',
+    'game-start-8', 'game-start-9', 'game-start-12', 'game-start-13', 'game-start-14', 'game-start-15', 'game-start-16',
+    'game-start-17', 'game-start-18', 'game-start-19', 'game-start-22', 'game-start-23', 'game-start-25',
+  ],
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3', 'back-to-shop-4', 'back-to-shop-5', 'back-to-shop-6'],
   equipment: ['equipment-1', 'equipment-2', 'equipment-3', 'equipment-4'],
   triple: ['triple-1', 'triple-2', 'triple-3', 'triple-4', 'triple-5'],
@@ -344,12 +350,18 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   randomDwarfBuy: ['random-dwarf-buy', 'random-dwarf-buy-2', 'random-dwarf-buy-3', 'random-dwarf-buy-4'],
   round7: ['round-7'],
   // The shop-clock warning (owner 2026-09-25): 21 takes from the Low on time folder, in folder timestamp order.
-  timeRunningOut: Array.from({ length: 21 }, (_, i) => `time-running-out-${i + 1}`),
+  // Takes 4, 5, 19, 20 and 21 CUT 2026-11-15 (they curse: R-TEXT-ANNOUNCER-03).
+  timeRunningOut: [
+    'time-running-out-1', 'time-running-out-2', 'time-running-out-3', 'time-running-out-6', 'time-running-out-7', 'time-running-out-8',
+    'time-running-out-9', 'time-running-out-10', 'time-running-out-11', 'time-running-out-12', 'time-running-out-13', 'time-running-out-14',
+    'time-running-out-15', 'time-running-out-16', 'time-running-out-17', 'time-running-out-18',
+  ],
   // The specialty lines (owner 2026-09-25): the Special folder. BuyingDrakko / BuyingDrakko2 first, then the
   // ElevenLabs takes in folder timestamp order.
   buyDrakko: Array.from({ length: 5 }, (_, i) => `buy-drakko-${i + 1}`),
   buySylus: Array.from({ length: 4 }, (_, i) => `buy-sylus-${i + 1}`),
-  castAle: Array.from({ length: 6 }, (_, i) => `cast-ale-${i + 1}`),
+  // Take 2 CUT 2026-11-15 (it curses: R-TEXT-ANNOUNCER-03).
+  castAle: ['cast-ale-1', 'cast-ale-3', 'cast-ale-4', 'cast-ale-5', 'cast-ale-6'],
   // The moment catalog's first batch (owner 2026-09-25): one ElevenLabs take each (the catalog's example line,
   // generated with the owner's cloned announcer voice). A moment the catalog lets recur (TierUp, RoundMilestone,
   // BoardTotal) speaks once until it gets more takes: the no-repeat bag goes silent when its takes run out.
@@ -485,6 +497,15 @@ export const CATALOG_BATCH_3_EVENTS: readonly AnnouncerEvent[] = [
 ];
 /** The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments, in ANNOUNCER_LINES order. */
 export const CATALOG_BATCH_4_EVENTS: readonly AnnouncerEvent[] = ['heroPick', 'opponentHero', 'tribeTakeover', 'tribeSurge', 'rankUp'];
+
+/** TAKES CUT FOR THEIR LANGUAGE (owner 2026-11-15: "there are ones that curse or use very odd language",
+ *  R-TEXT-ANNOUNCER-03). A cut take is never listed in `ANNOUNCER_LINES` again and its clip is deleted from the default
+ *  voice and every pack; `announcer.test.ts` fails if one comes back. Add a take here when it is cut for this reason. */
+export const ANNOUNCER_CUT_TAKES: readonly string[] = [
+    'cast-ale-2', 'game-start-10', 'game-start-11', 'game-start-20', 'game-start-21',
+    'game-start-24', 'time-running-out-4', 'time-running-out-5', 'time-running-out-19', 'time-running-out-20',
+    'time-running-out-21',
+];
 
 /** Higher speaks first when several are pending at once. */
 export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {

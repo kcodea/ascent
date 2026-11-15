@@ -32,3 +32,18 @@ streak, the foe's hero / tier / ghost, the round, two players left).
   the seeded "does this rare line speak" rolls move (random buys, Round 7, Discover); nothing is stored by index.
 - A saved game's `announced` slice may still carry the two event names. They are plain record keys and are never read.
 - The tracker rows (`underdogOdds`, `heavyFavourite` and their lines) are marked `cut`.
+
+## Same day: the takes that curse are cut (R-TEXT-ANNOUNCER-03)
+
+Owner: "we need to remove all of the questionable voicelines", then "there are ones that curse or use very odd
+language". 125 of the 295 default clips (the original recordings) had no written text anywhere, so they were
+transcribed with ElevenLabs speech-to-text (owner approved) and the texts written into the tracker.
+
+Cut, from the default voice and all three packs (44 files), and listed in `ANNOUNCER_CUT_TAKES`:
+
+- `game-start-10`, `-11`, `-20`, `-21`, `-24`
+- `time-running-out-4`, `-5`, `-19`, `-20`, `-21`
+- `cast-ale-2`
+
+The takes that stay keep their numbers (a saved game's heard-takes list names them), so the three tables are now
+explicit lists with gaps. The "very odd language" takes are the owner's pick, line by line, and are not part of this.

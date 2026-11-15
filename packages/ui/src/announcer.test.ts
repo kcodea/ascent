@@ -21,7 +21,7 @@ import {
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent, announcerClipUrl, ANNOUNCER_SAMPLE_LINES, previewAnnouncerPack, setAnnouncerPackProvider, stopAnnouncerPreview,
-  CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  ANNOUNCER_CUT_TAKES, CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
   CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
   ANNOUNCER_TRIBE_SURGE_WAVE, ANNOUNCER_TRIBE_TAKEOVER, boardTribeCounts, foeHeroId, keyedTakes, type KeyedTakes,
@@ -215,7 +215,7 @@ describe('GameStart', () => {
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.gameStart).toHaveLength(25);
+    expect(ANNOUNCER_LINES.gameStart).toHaveLength(20); // 25 recorded, 5 cut for cursing (2026-11-15)
     // The audio stream only (ID3 tags stripped), so a re-tagged copy of the same take still counts as a duplicate.
     const audio = (b: Buffer): Buffer => {
       let a = b;
@@ -229,7 +229,7 @@ describe('GameStart', () => {
       expect(existsSync(file), name).toBe(true);
       hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
     }
-    expect(hashes.size).toBe(25);
+    expect(hashes.size).toBe(20);
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);
@@ -1074,11 +1074,11 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
     expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(7);
-    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(21);
+    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(16); // 21 recorded, 5 cut for cursing (2026-11-15)
     expect(ANNOUNCER_LINES.randomCardBuy).toHaveLength(8);
     expect(ANNOUNCER_LINES.buyDrakko).toHaveLength(5);
     expect(ANNOUNCER_LINES.buySylus).toHaveLength(4);
-    expect(ANNOUNCER_LINES.castAle).toHaveLength(6);
+    expect(ANNOUNCER_LINES.castAle).toHaveLength(5); // 6 recorded, 1 cut for cursing (2026-11-15)
     const audio = (b: Buffer): Buffer => {
       let a = b;
       if (a.subarray(0, 3).toString() === 'ID3') a = a.subarray(10 + ((a[6]! & 0x7f) << 21 | (a[7]! & 0x7f) << 14 | (a[8]! & 0x7f) << 7 | (a[9]! & 0x7f)));
@@ -1244,7 +1244,7 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
       expect(new Set(warnings).size).toBe(4); // four turns, four different takes
       expect(announced.fired.timeRunningOut).toHaveLength(4);
     });
-    it('reshuffles when all 21 takes are heard (it is a timer warning, never goes silent)', async () => {
+    it('reshuffles when every take is heard (it is a timer warning, never goes silent)', async () => {
       let a = emptyAnnounced(SEED);
       for (const t of ANNOUNCER_LINES.timeRunningOut) a = withAnnounced(a, 'timeRunningOut', 1, t);
       announced = a;
@@ -1663,6 +1663,19 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
         go(fighting, { combatOdds: { wave: r.wave, odds: { win, draw: 0, lose: 1 - win } } });
         await tick(FIGHT_MS);
         expect(events(), `win odds ${win}`).toEqual([]);
+      }
+    });
+    // R-TEXT-ANNOUNCER-03 (owner 2026-11-15): a take cut for its language stays cut, in every voice.
+    it('no take cut for cursing is listed or shipped, in the default voice or any pack', async () => {
+      const { existsSync, readdirSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const dir = resolve(process.cwd(), 'apps/web/public/announcer');
+      const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+      const listed = new Set(Object.values(ANNOUNCER_LINES).flat());
+      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(11);
+      for (const take of ANNOUNCER_CUT_TAKES) {
+        expect(listed.has(take), take).toBe(false);
+        for (const folder of ['', ...packs]) expect(existsSync(resolve(dir, folder, `${take}.mp3`)), `${folder}/${take}`).toBe(false);
       }
     });
     it('the odds are read in ONE place, the verdict, and the spoiler moments and clips are gone', async () => {

@@ -825,4 +825,26 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Entering a fight you are 5% to win, the announcer says nothing about your chances; if you win it, the verdict line may.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
+  {
+    id: 'R-TEXT-ANNOUNCER-03',
+    title: 'The announcer never curses',
+    statement:
+      'No announcer line, in the default voice or any announcer pack, contains profanity. A take cut for its language '
+      + 'is deleted from every voice and never listed again.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'we need to remove all of the questionable voicelines' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are ones that curse or use very odd language' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (ANNOUNCER_CUT_TAKES; 11 takes removed from gameStart, timeRunningOut and castAle), their clips removed from apps/web/public/announcer and every pack' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-15 for the 11 takes found by transcribing the 125 clips that had no written text (5 '
+      + 'game-start, 5 time-running-out, 1 cast-ale). PARTIAL as a general check: clips are audio, so the test pins '
+      + 'that a cut take stays cut in every voice; it cannot hear a new clip. New lines are read in the tracker before '
+      + 'they are generated. The "very odd language" half of the ruling is not covered here: those takes are an '
+      + 'owner pick, line by line.',
+    example: 'The shop-clock warning never says a swear word; the five takes that did are gone from all four voices.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

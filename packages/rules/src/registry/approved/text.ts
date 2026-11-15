@@ -804,4 +804,25 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Golden Monkey rune: "Every 5 Refreshes, replace a minion in your Shop with a Golden Monkey."',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/terms.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-TEXT-ANNOUNCER-02',
+    title: 'The announcer never gives away a fight before it has played',
+    statement:
+      'Nothing the announcer says before or during a fight may be chosen from that fight\'s win odds or its result. '
+      + 'A line at the start of combat may only speak to what the player already knows (their Resolve, their streak, '
+      + 'who they face, the round). The odds and the result are only spoken to once the verdict has landed.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are certain voicelines that occur at the start of combat that essentially tell you the outcome before the fight happens. we cant have that. its not good design.' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (the UnderdogOdds / HeavyFavourite moments removed), their clips removed from apps/web/public/announcer and every pack' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-15: the UnderdogOdds ("The odds are against you.", under 20% to win) and HeavyFavourite '
+      + '("This should be comfortable.", over 90%) moments spoke 1.6 s into a fight from the pre-fight odds probe and '
+      + 'are removed. The odds are now read in one place, the verdict (the won / lost against the odds lines). PARTIAL '
+      + 'as a wording check: clips are audio, so the test pins which data a line may read, not what a clip says.',
+    example: 'Entering a fight you are 5% to win, the announcer says nothing about your chances; if you win it, the verdict line may.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

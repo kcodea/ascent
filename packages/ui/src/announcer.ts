@@ -207,9 +207,6 @@ export const ANNOUNCER_BOARD_SLOTS = 7;
 export const ANNOUNCER_HUGE_STAT = 250;
 /** ArmorUp: Armor at or above this. */
 export const ANNOUNCER_ARMOR_UP = 20;
-/** UnderdogOdds / HeavyFavourite: entering a fight under / over these win odds. */
-export const ANNOUNCER_UNDERDOG_ODDS = 0.2;
-export const ANNOUNCER_FAVOURITE_ODDS = 0.9;
 /** LobbyLast / LeaderboardTop: only after this round. */
 export const ANNOUNCER_STANDINGS_AFTER_WAVE = 8;
 /** PlayersRemain: someone else is knocked out and exactly one of these many remain. */
@@ -374,8 +371,6 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   minionHits250: ['minion-hits-250-1'],
   armorUp: ['armor-up-1'],
   finalShowdown: ['final-showdown-1'],
-  underdogOdds: ['underdog-odds-1'],
-  heavyFavourite: ['heavy-favourite-1'],
   armorGone: ['armor-gone-1'],
   blowoutLoss: ['blowout-loss-1'],
   oneResolve: ['one-resolve-1'],
@@ -467,8 +462,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
 export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
   'lateGame', 'roundMilestone', 'secondPlace', 'brokeTurn', 'fastTier', 'sellSpree', 'sellGilded', 'spellChain', 'tierUp',
-  'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown', 'underdogOdds',
-  'heavyFavourite', 'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
+  'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown',
+  'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
   'playersRemain', 'fiveWinStreak', 'losingStreak', 'streakBroken', 'tribeFullBoard', 'mixedBoard',
 ];
 /** The moment catalog's second batch (owner 2026-09-25): the in-fight moments (`announcerCombat.ts`) plus the two
@@ -544,7 +539,6 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   stalemate: 62,
   allGolden: 56,
   minionHits250: 53,
-  underdogOdds: 52,
   boardTotal: 49,
   fastTier: 44, // below TierSix (45): tier 6 by round 9 says "Tier six", which cannot recur
   armorGone: 41,
@@ -553,7 +547,6 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   losingStreak: 40,
   tribeFullBoard: 38,
   mixedBoard: 34,
-  heavyFavourite: 32,
   armorUp: 31,
   spellChain: 29,
   sellGilded: 27,
@@ -589,7 +582,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   questComplete: 47, // beside GoldenArmy / ShopBigBuff: a rare, big Shop payoff
   bigBuffMoment: 47,
   streakStopper: 64, // a verdict win line, beside BlowoutLoss / StreakBroken
-  outgunned: 50, // beside UnderdogOdds (52): the same "you are behind" read, just under it
+  outgunned: 50, // a Face Omen "you are behind" read (tiers only: never the fight's odds, R-TEXT-ANNOUNCER-02)
   runeSlotsFull: 38,
   seasonalRune: 39, // the specialty rune pick outranks the generic socket line
   darkRuby: 36, // the card specials sit with the specialty buy lines (Drakko / Sylus 36)
@@ -601,7 +594,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   starformCollapse: 36,
   yazzusDouble: 36,
   questOffered: 34, // below Runeforge (35): a forge opening with it wins
-  rematch: 33, // Face Omen, beside HeavyFavourite (32)
+  rematch: 33, // Face Omen
   runePick: 33,
   bothEffects: 31, // outranks ChooseOnePlay, so a both-effects first play says the special line
   heroPowerBig: 29,
@@ -996,8 +989,6 @@ let combatStartedAt: number | null = null;
 let bigStatSeenThisCombat = false;
 /** MinionHits250 in combat, the same way. */
 let hugeStatSeenThisCombat = false;
-/** UnderdogOdds / HeavyFavourite: the wave whose pre-fight odds were already weighed (the probe lands once). */
-let oddsCheckedWave = -1;
 /** The in-fight fold (`announcerCombat.ts`) for the fight on screen, keyed by that fight's identity. */
 let combatScan: { key: object; scan: CombatScan } | null = null;
 /** A Skip mid-fight silences the rest of that fight's in-fight lines (the skipped replay jumps to the end, and
@@ -1488,7 +1479,6 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
-  oddsCheckedWave = -1;
   combatScan = null;
   combatSilenced = false;
   finalChecked = null;
@@ -1622,20 +1612,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     syncGauntlet(run, prev?.run);
     return;
   }
-  // UNDERDOG / FAVOURITE: the rail's pre-fight odds arrive on their own update (the deferred probe), before or
-  // after the Face Omen flip, so this is weighed on any update once the fight is on and its odds are known.
-  if (run.phase === 'combat' && !run.combatSettled && combatStartedAt !== null && oddsCheckedWave !== run.wave
-    && s.combatOdds && s.combatOdds.wave === run.wave) {
-    oddsCheckedWave = run.wave;
-    const win = s.combatOdds.odds.win;
-    const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_FACE_OMEN_DELAY_MS);
-    if (win < ANNOUNCER_UNDERDOG_ODDS && !hasFired(slice, 'underdogOdds')) {
-      enqueue({ event: 'underdogOdds', shelf: 'combat', notBefore: at, wave: run.wave });
-    }
-    if (win > ANNOUNCER_FAVOURITE_ODDS && !hasFired(slice, 'heavyFavourite')) {
-      enqueue({ event: 'heavyFavourite', shelf: 'combat', notBefore: at, wave: run.wave });
-    }
-  }
+  // NO PRE-FIGHT ODDS LINE (owner 2026-11-15, R-TEXT-ANNOUNCER-02): nothing spoken before or during a fight may
+  // read `combatOdds` or the fight's result. The odds are only weighed at the verdict (the low-odds lines below).
   // RANK UP (group D): the rank screen sits inside the run's gate (the run is over, still on screen), and the server's
   // confirmed result lands on its own store update, after the end line was queued. A promotion speaks after that
   // line (never before it: `endLineAt`), bypassing the cooldown so it follows straight on; it never expires but a
@@ -2417,7 +2395,6 @@ export function resetAnnouncerForTests(): void {
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
-  oddsCheckedWave = -1;
   combatScan = null;
   combatSilenced = false;
   finalChecked = null;

@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-15',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The announcer no longer hints at who will win a fight before it plays.',
+        details: [
+          'Removed the two start-of-combat lines that spoke about your chances ("The odds are against you." and "This should be comfortable.").',
+          'The lines for winning or losing against the odds still play, after the fight is over.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-14',
     changes: [
       {

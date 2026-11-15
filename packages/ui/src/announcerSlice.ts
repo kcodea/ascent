@@ -68,8 +68,6 @@ export type AnnouncerEvent =
   | 'minionHits250'
   | 'armorUp'
   | 'finalShowdown'
-  | 'underdogOdds'
-  | 'heavyFavourite'
   | 'armorGone'
   | 'blowoutLoss'
   | 'oneResolve'

@@ -1653,14 +1653,31 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
         expect(events()).not.toContain('broke-turn');
       }
     });
-    it('UnderdogOdds under 20%, HeavyFavourite over 90%, once the fight\'s odds land; even odds say nothing', async () => {
-      const cases: [number, string | undefined][] = [[0.1, 'underdog-odds'], [0.95, 'heavy-favourite'], [0.5, undefined]];
-      for (const [win, line] of cases) {
+    // R-TEXT-ANNOUNCER-02 (owner 2026-11-15): the retired UnderdogOdds ("The odds are against you.") and HeavyFavourite
+    // ("This should be comfortable.") lines told the player the result before the fight played.
+    it('the fight\'s odds landing says NOTHING before the verdict, however lopsided (no pre-fight spoiler)', async () => {
+      for (const win of [0, 0.02, 0.1, 0.5, 0.95, 1]) {
         fresh();
         const r = openShop();
         const fighting = go({ ...r, phase: 'combat' });
         go(fighting, { combatOdds: { wave: r.wave, odds: { win, draw: 0, lose: 1 - win } } });
-        expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe(line);
+        await tick(FIGHT_MS);
+        expect(events(), `win odds ${win}`).toEqual([]);
+      }
+    });
+    it('the odds are read in ONE place, the verdict, and the spoiler moments and clips are gone', async () => {
+      const { readFileSync, existsSync, readdirSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const src = readFileSync(resolve(process.cwd(), 'packages/ui/src/announcer.ts'), 'utf8');
+      const reads = src.split('\n').filter((l) => /\bs\.combatOdds\b/.test(l));
+      expect(reads).toHaveLength(1);
+      expect(src.slice(src.indexOf('THE VERDICT landed'), src.indexOf('BACK TO THE SHOP'))).toContain(reads[0]!.trim());
+      expect(Object.keys(ANNOUNCER_LINES)).not.toContain('underdogOdds');
+      expect(Object.keys(ANNOUNCER_LINES)).not.toContain('heavyFavourite');
+      const dir = resolve(process.cwd(), 'apps/web/public/announcer');
+      const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+      for (const folder of ['', ...packs]) {
+        for (const clip of ['underdog-odds-1', 'heavy-favourite-1']) expect(existsSync(resolve(dir, folder, `${clip}.mp3`))).toBe(false);
       }
     });
   });

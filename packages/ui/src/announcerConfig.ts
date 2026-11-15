@@ -32,7 +32,7 @@ export const ANNOUNCER_TUNER_EVENTS = [
   // The moment catalog's first batch (owner 2026-09-25), in the same rough game order.
   'tierUp', 'fastTier', 'sellSpree', 'sellGilded', 'spellChain', 'bigTurn', 'fullBoard', 'allGolden', 'boardTotal',
   'minionHits250', 'armorUp', 'tribeFullBoard', 'mixedBoard',
-  'brokeTurn', 'finalShowdown', 'underdogOdds', 'heavyFavourite',
+  'brokeTurn', 'finalShowdown',
   'stalemate', 'oneResolve', 'armorGone', 'blowoutLoss', 'fiveWinStreak', 'losingStreak', 'streakBroken',
   'firstOut', 'playersRemain', 'lobbyLast', 'leaderboardTop', 'lateGame', 'roundMilestone', 'secondPlace',
   // The second batch (owner 2026-09-25): in-fight moments, then the final-frame verdicts.
@@ -114,8 +114,6 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   mixedBoard: 'Seven minions, 5+ tribes (0 ms)',
   brokeTurn: 'Broke turn: 0 Gold, nothing bought, after round 5 (1600 ms)',
   finalShowdown: 'Final showdown, 2 left (1600 ms)',
-  underdogOdds: 'Underdog, under 20% (1600 ms, once the odds land)',
-  heavyFavourite: 'Heavy favourite, over 90% (1600 ms, once the odds land)',
   stalemate: 'First draw (verdict)',
   oneResolve: 'Survived on 1 Resolve (verdict)',
   armorGone: 'Armor hits 0 (verdict)',

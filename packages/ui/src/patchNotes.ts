@@ -68,6 +68,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The announcer repeats itself less and talks a little less often.',
+        details: [
+          'Lines are now dealt like a shuffled deck that carries over between games: you hear every line for a moment before any of them comes back.',
+          'The quiet gap between two announcer lines is now 25 seconds (was 12).',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The announcer cleaned up its language.',
         details: ['Removed 16 lines with strong or out-of-place language, in every announcer voice: 7 game start lines, 6 low on time warnings, and one each from Ale casts, entering combat and knockouts.'],
       },

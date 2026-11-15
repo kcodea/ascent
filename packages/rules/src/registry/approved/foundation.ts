@@ -1092,7 +1092,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRESENT-07',
-    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 12 s cooldown and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
+    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 25 s cooldown and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
     statement:
       'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
       + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
@@ -1110,7 +1110,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'dropped, try again next time, at most as many tries as they have takes. Which take plays is a fresh RANDOM pick every time (`announcerPick`, owner 2026-09-25: no seeds; '
       + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
       + 'buy lines, Round7) roll a seeded chance (6% / 10%, the chance table) per qualifying moment from the run seed, the wave and '
-      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
+      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (25 s since 2026-11-15, owner: "lengthen the gap"; 12 s before; from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
       + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines, this round\x27s '
       + 'SurviveUnder10hp and TimeRunningOut BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
@@ -15488,5 +15488,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms, built 2026-11-13 (feat/dad-kobebe). Read with the progression probe when identity lands. It needs the account seen list (player_cosmetics.seen_at, live since 2026-10-11) and a client build that has the notice; an older client shows only the Collection NEW badge. The grant itself is a manual SQL insert by the owner (docs/devlog/2026-11-13-dad-kobebe-and-gifts.md); there is no grant tool yet. Not yet seen in the running game by the owner.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/GiftNotice.test.tsx'], lastVerifiedAt: '2026-11-13' },
+  },
+  {
+    id: 'R-PRESENT-ANNOUNCER-DECK-01',
+    title: 'Across games the announcer deals each moment\x27s lines like a shuffled deck: every line before any repeat',
+    statement:
+      'Which line of a moment plays is dealt from a deck that carries over between games on the device. A line that '
+      + 'has played does not play again, in this game or a later one, until every line of that moment has played. '
+      + 'After that, only the half heard longest ago goes back in, so a line never returns right after it was heard. '
+      + 'The deck only chooses among lines the game already allows (never one heard earlier in the same game). It is '
+      + 'presentation only: it never touches a run, a replay or a save, and a moment with one line is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'it feels like i hear a lot of the same lines pretty constantly, i need your help in designing a system that feels more randomized' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'lets add more lines, lengthen the gap, and yes how can we have lines like a shuffled deck?' },
+      { kind: 'code', ref: 'packages/ui/src/announcerDeck.ts (dealTake); packages/ui/src/announcer.ts (speak deals from the deck; AnnouncerDeps.deck; localStorage key ascent.announcerdeck.v1)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-11-15 (feat/announcer-deck). Before it, the no-repeat bag (R-PRESENT-07) remembered one game '
+      + 'only, so each new game drew from the full list again and the same few lines kept opening games. The same PR '
+      + 'raises the gap between lines from 12 s to 25 s (R-PRESENT-07).',
+    example: 'GameStart has 18 lines: 18 games in a row each open on a different one, and game 19 opens on one of the nine heard longest ago.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcerDeck.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
 ];

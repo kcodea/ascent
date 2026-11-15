@@ -35,7 +35,7 @@ import {
 const SEED = 4242;
 const LINE_MS = 1000;
 /** A fight long enough that a Face Omen line's cooldown has passed by the verdict. */
-const FIGHT_MS = 1000 + 12_000 + 2000;
+const FIGHT_MS = 1000 + ANNOUNCER_COOLDOWN_MS + 2000;
 
 class StubHandle {
   stopped: number | null = null;
@@ -131,6 +131,7 @@ beforeEach(() => {
 function stubDeps(): Partial<AnnouncerDeps> {
   return {
     foe: () => null, // no lobby pairing unless a test hands one in (the third batch reads it at the Face Omen)
+    deck: { load: () => ({}), save: () => {} }, // no memory of earlier games unless a test hands a deck in (the deck suite)
     random: () => 0, // the take is random in the game; pinned to the first unheard take here so tests can name the file
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,

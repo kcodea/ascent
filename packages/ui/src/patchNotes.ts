@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-15',
     changes: [
       {
+        category: 'Systems',
+        text: '112 runes have new art.',
+        details: [
+          'Each rune is now a polished gem in a carved setting made to match it.',
+          'What the runes do has not changed.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Cinderchef now feeds on Shop spells, and Earthbreaker gives your Dragons more Health.',
         details: [

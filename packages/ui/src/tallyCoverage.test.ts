@@ -33,7 +33,7 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
  * effect that fires every time — there is no "progress toward" anything to show.
  */
 const NOT_A_METER: Record<string, string> = {
-  rune_drunk_shopkeeper: 'pays on EVERY Ale cast; the 1/1 is the step, and the running total is printed in its live text ("(Now +X/+X.)")',
+  rune_drunk_shopkeeper: 'pays on EVERY Ale cast; the 2/2 is the step, and the running total is printed in its live text ("(Now +X/+X.)")',
   rune_spell_appetite: 'bites on EVERY spell cast (a per: 1 meter); nothing to count toward, so runeTally returns null',
   rune_end_of_quarter: 'the 30% is a per-card chance and the 1 a price cut; nothing counts up (each card shows its own green price)',
   rune_rubywire: 'the 2 is how many Kobolds each Shop spell gives a Ruby to; it pays on EVERY cast, nothing to count toward',
@@ -68,7 +68,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_deep_currents: 'fires on EVERY Spirit played; the digits are the 2-target +2/+2 grant, not a count-up',
   rune_spell_fed_scales: 'fires on EVERY Shop Spell cast; the digits are the +6/+7 grant, not a count-up (2026-10-21)',
   // ── Set 2 batch, Basic neutral (2026-11-12) ──
-  rune_hazard_pay: 'fires on EVERY lost combat; the digits are the 3 Gold grant, not a count-up',
+  rune_hazard_pay: 'fires on EVERY lost combat; the digits are the 4 Gold grant, not a count-up',
   rune_golden_handshake: 'fires on EVERY Gild; the digits are the +2/+2 grant, not a count-up',
   rune_late_bloomer: 'fires on EVERY Shop upgrade; the digits are the 2 Gold and +3/+3 grant, not a count-up',
   rune_top_shelf: 'the 1 is how many offers each Refresh gets from the Tier above; it pays on EVERY Refresh, nothing to count toward (Set 2 Epic, 2026-11-13)',

@@ -33,13 +33,13 @@ export function collectionsOnSale(state: RunState, sold: BoardCard): void {
 
 /** DRUNK SHOPKEEPER (Set 2 Basic Dwarf rune, owner 2026-11-13; reworked 2026-11-14): When you cast an Ale, Shop minions get
  *  +1/+1 permanently. */
-export const DRUNK_SHOPKEEPER_GRANT = { attack: 1, health: 1 } as const;
+export const DRUNK_SHOPKEEPER_GRANT = { attack: 2, health: 2 } as const;
 
 /** The Shop buff-ledger source Drunk Shopkeeper credits (`tavernBuyBonusSources`), which its live text reads back. */
 export const DRUNK_SHOPKEEPER_SOURCE = 'Drunk Shopkeeper';
 
 /** DRUNK SHOPKEEPER: one Ale cast resolved in the Shop (each repetition of a multiplied cast reaches here, as for every
- *  other Ale trigger). Owner rework 2026-11-14 ("buffs the Shop"): +1/+1 per copy onto the run-wide permanent Shop buff
+ *  other Ale trigger). Owner rework 2026-11-14 ("buffs the Shop"): +2/+2 per copy (owner 2026-11-15; was +1/+1) onto the run-wide permanent Shop buff
  *  (`applyRunShopBuff`, the Collections / Infernal Ink channel), so the minions in the Shop now AND every minion that enters
  *  it later (Refreshes, new turns, refills) carry the running total for the rest of the run. It fires on an empty Shop too:
  *  the buff waits for the next row. */

@@ -472,6 +472,24 @@ export function summonScalingText(cardId: string, spellsThisTurn: number, golden
 }
 
 /**
+ * CINDERCHEF (`rallyBuffSelf` with `perShopSpell`, owner 2026-11-15): "Rally: gain +1/+1 for each Shop spell cast this turn".
+ * The "for each" LUMP form (R-REPEAT-01), so the printed rate stays and the ONE grant its next Rally lands right now is
+ * appended green, Humphry's house style: `(+N/+N)` with N = rate × Shop spells this turn (golden doubles the rate).
+ * Printed at zero too ("(+0/+0)"): the card does nothing until a Shop spell is cast, and the text says so. In combat
+ * the count is live (the fight's Shop casts included). Null for every other card.
+ */
+export function shopSpellRallyText(cardId: string, golden: boolean, shopSpellsThisTurn: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'rallyBuffSelf' && (e.params as { perShopSpell?: unknown } | undefined)?.perShopSpell === true);
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const g = golden ? 2 : 1;
+  const n = Math.max(0, shopSpellsThisTurn);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return `${src} {{(+${Number(p?.attack ?? 1) * g * n}/+${Number(p?.health ?? 1) * g * n})}}`;
+}
+
+/**
  * Rocket Power (`battlecryBuffThisShopPerSpellsThisTurn`, set 3 Celestials; was Shooting Star) — "give this shop
  * +3/+3. Repeat for every Shop spell you cast this turn": the REPEAT form (R-REPEAT-01, owner 2026-09-22), so the
  * live text keeps the per-tick rate as printed and appends how many times it lands right now, `(×N)` with

@@ -1049,6 +1049,9 @@ export interface RunState {
   spellsCast: number;
   /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
   spellsThisTurn: number;
+  /** SHOP spells cast this turn (R-SHOPSPELL-01: the set's Shop-spell pool, Ales included; never a Ruby, a Clue or
+   *  other Gift, or a token spell), reset each wave. Cinderchef's Rally reads it (owner 2026-11-15). Absent = 0. */
+  shopSpellsThisTurn?: number;
   /** Shop spells BOUGHT on `wave` (both buy paths, ticked by `applySpellBought`; a Ruby never counts). Read through
    *  `shopSpellsBoughtThisTurn`: a new wave reads 0 with no reset, and an old save (absent) reads 0. THE one "first Shop
    *  spell you buy each turn" count: Scrollz's discount and Emissary x Fortune's free spell both read it. */

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type QuestCombatMods } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER } from '@game/content';
-import { createRun, reduce, type Action, type BoardCard, type BoardSnapshot, type RunState } from './index';
+import { createLobbyRun, createRun, reduce, type Action, type BoardCard, type BoardSnapshot, type RunState } from './index';
 import { offerBuyPrice, questCombatMods } from './reducer';
 import { queueDiscover, socRuneReplaysOf } from './recruit';
 
@@ -12,7 +12,7 @@ import { queueDiscover, socRuneReplaysOf } from './recruit';
  *  - Double Bill:  "Start of Combat: trigger your left-most and right-most Shouts." (was "Opening Act") (R-SET2RUNE-EN-02)
  *  - Bulwark Line: "Start of Combat: give your Taunt minions Ward."                                    (R-SET2RUNE-EN-02)
  *  - Wholesale:    "Minions in the Shop cost 1 less."                                                  (R-SET2RUNE-EN-01)
- *  - Grudge:       "After you lose a combat, Discover a minion from the Tier above your Shop. (Up to Tier 7.)" (R-SET2RUNE-EN-01)
+ *  - Grudge:       "Gain 10 Armor. After you lose a combat, Discover a minion from the Tier above your Shop. (Up to Tier 7.)" (R-SET2RUNE-EN-01)
  *  - Bastion:      "The first minion of yours to lose Ward each combat gains Ward."                    (R-SET2RUNE-EN-03)
  *  - Mirror Sheen: "When a minion of yours loses Ward, it deals damage equal to its Attack to a random enemy." (R-SET2RUNE-EN-03)
  */
@@ -55,7 +55,7 @@ describe('the roster', () => {
   it('seven Epic neutral runes, Set 2 only, the doc costs and texts, Opening Act renamed Double Bill', () => {
     const want: Record<string, [string, number]> = {
       rune_top_shelf: ['Top Shelf', 3], rune_double_bill: ['Double Bill', 4], rune_bulwark_line: ['Bulwark Line', 3],
-      rune_wholesale: ['Wholesale', 4], rune_grudge: ['Grudge', 3], rune_bastion: ['Bastion', 4], rune_mirror_sheen: ['Mirror Sheen', 3],
+      rune_wholesale: ['Wholesale', 4], rune_grudge: ['Grudge', 0], rune_bastion: ['Bastion', 4], rune_mirror_sheen: ['Mirror Sheen', 3],
     };
     for (const id of IDS) {
       const r = RUNE_INDEX[id]!;
@@ -169,6 +169,34 @@ describe('R-SET2RUNE-EN-01: Grudge', () => {
     for (const t of tiers) expect(t).toBe(s.tier + 1);
     expect((s.sotBeatFx ?? []).some((b) => b.source.kind === 'rune' && 'id' in b.source && b.source.id === 'rune_grudge')).toBe(true);
     expect(s.runeProcs?.['rune_grudge'] ?? s.sotRuneProcs?.['rune_grudge']).toBe(1);
+  });
+
+  it('free, and taking it gains 10 Armor at once (and lifts maxArmor), per copy taken (R-RUNE-PICK-ARMOR-01, owner 2026-11-15)', () => {
+    const base = withRune(null);
+    const one = withRune('rune_grudge');
+    expect(RUNE_INDEX['rune_grudge']!.text).toBe('Gain **10 Armor**. After you lose a combat, **Discover** a minion from the Tier above your Shop. (Up to Tier 7.)');
+    expect(one.armor).toBe(base.armor + 10);
+    expect(one.maxArmor).toBeGreaterThanOrEqual(one.armor);
+    expect(withRune('rune_grudge', {}, 2).armor).toBe(base.armor + 20);
+  });
+
+  it('LOBBY: the on-pick Armor reaches the seat and absorbs a lost round before Resolve', () => {
+    let s = createLobbyRun(11, 'aster', {}, 'lobby');
+    s = { ...s, embers: 0, hand: [], board: [] as never } as RunState;
+    const armor0 = s.armor;
+    s = act({ ...s, runeforgeOffer: ['rune_grudge'], runeforgeEpic: true } as RunState, { type: 'buyRune', index: 0 });
+    expect(s.armor).toBe(armor0 + 10);
+    s = { ...s, discover: undefined, discoverQueue: undefined, board: [] as never } as RunState;
+    const resolve0 = s.resolve;
+    s = act(s, { type: 'faceOmen' });
+    expect(s.lastCombat?.result, 'an empty board loses').toBe('lose');
+    s = act(s, { type: 'settleCombat' } as Action);
+    s = act(s, { type: 'resolveCombat' } as Action);
+    const dealt = (armor0 + 10 + resolve0) - (s.armor + s.resolve);
+    expect(dealt).toBeGreaterThan(0);
+    expect(s.armor, 'Armor absorbs first').toBe(Math.max(0, armor0 + 10 - dealt));
+    expect(s.resolve).toBe(resolve0 - Math.max(0, dealt - (armor0 + 10)));
+    expect(s.lobby!.seats[0]!.armor, 'the seat agrees with the run').toBe(s.armor);
   });
 
   it('a win opens nothing; no rune opens nothing', () => {

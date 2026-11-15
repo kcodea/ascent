@@ -14,8 +14,8 @@ export const SET2_TRIBAL_RUNES = {
   pitchforksTargets: 2,
   /** Imp Legion: "Echo: deal 3 damage to the lowest-Health enemy." */
   impLegionDamage: 3,
-  /** Collections: "give minions in the Shop +2/+2 permanently." */
-  collections: { attack: 2, health: 2 },
+  /** Collections: "give minions in the Shop +3/+2 permanently." */
+  collections: { attack: 3, health: 2 },
   /** Flamekeeper: "give your Dragons +2/+2 permanently." */
   flamekeeper: { attack: 2, health: 2 },
   /** Hatchling Roost: "Dragons with a Shout cost 1 Gold." */

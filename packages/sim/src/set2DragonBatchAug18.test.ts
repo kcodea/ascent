@@ -134,11 +134,11 @@ describe('set 2 — Flutter gives +10 Health, and Flurry only to a Dragon', () =
 
 // ── A few of the new minions ─────────────────────────────────────────────────────────────────────────────────
 describe('set 2 — new Dragon minions', () => {
-  it('Cinderchef (Rally) grows itself +1/+1 on each swing', () => {
+  it('Cinderchef (Rally) grows itself +1/+1 on each swing with one Shop spell cast this turn (owner 2026-11-15)', () => {
     const r = simulate(
       [bm('d2_cinderchef', 'CC', 3, 9999, ['RL'])],
       [enemyWall],
-      makeRng(5), CARD_INDEX, combatSide({ tier: 1, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+      makeRng(5), CARD_INDEX, combatSide({ tier: 1, tribes: ['dragon'], shopSpellsThisTurn: 1 }), combatSide({ tier: 1 }));
     const cc = buffsFrom(r.events, 'm0');
     expect(cc.length, 'it swung repeatedly and self-buffed each time').toBeGreaterThan(1);
     expect(cc.every((b) => b.attack === 1 && b.health === 1), 'each Rally grant is +1/+1').toBe(true);

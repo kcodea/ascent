@@ -230,6 +230,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   rubyCastsThisTurn: { kind: 'no-combat-meaning', why: 'per-turn shop Ruby-cast tally for threshold runes; combat Ruby casts ride the arena lane' },
 
   // ── threaded into the side, but only a specific consumer reads it and the fixture stages none ──
+  shopSpellsThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.shopSpellsThisTurn) for Cinderchef, live in combat via spellResolved; the fixture stages none' },
   spellsThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.spellsThisTurn) for Runescale Drake-class readers; the fixture stages none' },
   playedThisTurn: { kind: 'needs-staging', why: 'threaded as beastsPlayed (Pack Leader) at the faceOmen build; the fixture stages no Pack Leader' },
   soldThisTurn: { kind: 'no-combat-meaning', why: 'Voicekeeper reads it during the SHOP phase; not threaded into the combat side' },

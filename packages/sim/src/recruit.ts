@@ -370,6 +370,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
     spellsThisTurn: () => state.spellsThisTurn,
+    shopSpellsThisTurn: () => state.shopSpellsThisTurn ?? 0,
     playedThisTurn: (tribe) => playedThisTurnFor(state, tribe as Tribe),
     grantNamedCard: (cardId, count) => {
       const def = CARD_INDEX[cardId];
@@ -14625,7 +14626,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (spellDef.id === 'starcrash' && state.questFlags?.runeMeteorStorm && !METEOR_ECHOING) runeMeteorStormShop(state, spellDef, target);
   // RUNE OF THE STAR TAP (Set 3 design pass): every Dwarven Ale cast feeds the Starform +3/+3 per copy.
   if (ALE_IDS.includes(spellDef.id) && state.questFlags?.runeStarTap) runeStarTapShop(state);
-  drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast adds +1/+1 to the permanent Shop buff
+  drunkShopkeeperOnCast(state, spellDef); // Set 2 rune Drunk Shopkeeper: an Ale cast adds +2/+2 to the permanent Shop buff
   flamekeeperOnCast(state, spellDef); // Set 2 rune Flamekeeper: a Dragonflame cast gives your Dragons +2/+2
 }
 
@@ -14827,6 +14828,10 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     (state.rememberedSpellIds ??= []).push(spellDef.id);
   }
   state.lastSpellThisTurnId = spellDef.id; // Recaller copies the last Shop spell cast THIS TURN
+  // CINDERCHEF's tally (owner 2026-11-15): SHOP spells cast this turn, by the R-SHOPSPELL-01 test (a Gift / Clue
+  // reaches `castSpell` and counts in `spellsThisTurn`, but is not a Shop spell). Counted before the watchers below
+  // fire, so a cast that wakes a Shop Rally already sees itself.
+  if (isShopPoolSpell(spellDef, poolOf(state).all)) state.shopSpellsThisTurn = (state.shopSpellsThisTurn ?? 0) + 1;
   // The per-cast SHOP-SPELL RUNES (Summoning / Might / Kindling / Flagship / Scales) — ONE shared function, so a
   // Spellstone Ruby ("counts as a Shop spell") fires exactly the same set (audit 2026-09-23: it used to reach
   // the counters and the board watchers but none of these). The Runic Hoard is fired beside it, not inside:

@@ -27,7 +27,7 @@ type Excluded = { excluded: string };
 
 const SIDE_FIELDS: { [K in keyof Required<CombatSideState>]: Carried | Excluded } = {
   poolIds: { excluded: "both sides draw from the LIVE run's pinned pool by design (see sideFromSnapshot's doc)" },
-  wildHuntGrown: 'carried', whisperImprove: 'carried', spellsThisTurn: 'carried', firstSpellThisTurnId: 'carried',
+  wildHuntGrown: 'carried', whisperImprove: 'carried', spellsThisTurn: 'carried', shopSpellsThisTurn: 'carried', firstSpellThisTurnId: 'carried',
   spellsCast: 'carried', deathrattles: 'carried', spellPowerAtk: 'carried', spellPowerHp: 'carried',
   undeadAtk: 'carried', undeadHp: 'carried', undeadBuyAtk: 'carried', impAtk: 'carried', impHp: 'carried',
   conductorBuff: 'carried', fodderConsumedAtk: 'carried', fodderConsumedHp: 'carried', beastBuyAtk: 'carried',
@@ -84,7 +84,7 @@ const staged = (): RunState => ({
     { uid: 'h1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false },
     { uid: 'h2', cardId: 'stray', tribe: 'beast', attack: 4, health: 5, keywords: ['T'], golden: true },
   ],
-  spellsThisTurn: 3, spellsCast: 17, deathrattlesTriggered: 5, spellBonus: { attack: 2, health: 3 },
+  spellsThisTurn: 3, shopSpellsThisTurn: 2, spellsCast: 17, deathrattlesTriggered: 5, spellBonus: { attack: 2, health: 3 },
   undeadAttackBonus: 4, undeadHealthBonus: 2, undeadBuyAtk: 1, impBuff: { attack: 2, health: 1 },
   fodderConsumedThisTurn: { attack: 3, health: 3 }, beastBuyAtk: 2, playedThisTurn: ['gnash', 'stray', 'sp3_tidebud'],
   rubyCasts: 6, revelerX: 3, cardsBoughtThisTurn: 4, magneticBuyAtk: 1, magneticBuyHp: 2,

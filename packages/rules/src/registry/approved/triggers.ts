@@ -1786,4 +1786,27 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-14. Before it every spellCast watcher dispatched bare after the cast scope closed: its gain had no beat (it snapped in at commit), and when the cast also moved the same body the batch claimed only the half the cast did.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/spellCastWatcherBeat.test.ts', 'packages/sim/src/docbot/beatConservation.test.ts'], lastVerifiedAt: '2026-11-14' },
   },
+  {
+    id: 'R-CINDERCHEF-01',
+    title: 'Cinderchef gains +1/+1 per Shop spell cast this turn on each Rally; combat Shop casts count the moment they resolve',
+    statement:
+      'Cinderchef: "Rally: gain +1/+1 for each Shop spell cast this turn." Gilded: +2/+2 for each. "Shop spell" is '
+      + 'R-SHOPSPELL-01 (the Shop-spell pool of the set, Ales included; a Ruby, a Clue or other Gift, and a token spell never '
+      + 'count, a Spellstone Ruby included). With no Shop spell cast this turn a Rally gains nothing. Each side counts its '
+      + 'own: the Shop tally (`shopSpellsThisTurn`, reset each turn) seeds combat, and every Shop spell that '
+      + 'resolves mid-fight raises it at once (real time by default), so the next Rally is bigger. A Shop Rally (a re-fire '
+      + 'path) is permanent; a combat Rally gain is combat-only. Snapshot-captured, so a served Cinderchef reads the count '
+      + 'of its owner. Its live text prints the gain of the next Rally, (+N/+N), on every surface, ticking mid-fight on the '
+      + '`shopSpellTally` marker.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner card change 2026-11-15 (Cinderchef)', quote: 'Rally: Gain +1/+1 for each Shop spell cast this turn.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallyBuffSelf (perShopSpell); packages/core/src/combat/simulate.ts spellResolved (shopSpellsLive + shopSpellTally); packages/sim/src/recruit.ts noteSpellCast (shopSpellsThisTurn); packages/ui/src/cardText.ts shopSpellRallyText' },
+    ],
+    cardText: '**Rally:** gain **+1/+1** for each **Shop spell** cast this turn.',
+    contentIds: ['d2_cinderchef'],
+    currentBehaviour: 'Conforms as of 2026-11-15 (balance/cinderchef-earthbreaker). Before, Cinderchef gained a flat +1/+1 per Rally.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/cinderchefEarthbreaker1115.test.ts', 'packages/ui/src/cinderchefText.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

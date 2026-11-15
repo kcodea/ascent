@@ -6,7 +6,7 @@ import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, firstShopSpellDiscountText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
@@ -43,6 +43,9 @@ export interface LiveTextParams {
   rubyCasts?: number;
   /** Set 3 — spells of ANY kind cast this turn (Shop spells + Gifts + Rubies): Stellar Chorus prints its live total. */
   anySpellsThisTurn?: number;
+  /** SHOP spells cast this turn (R-SHOPSPELL-01): Cinderchef prints its live per-Rally gain. In COMBAT it is the
+   *  side's recruit-turn count plus the fight's Shop casts so far (the `shopSpellTally` marker). */
+  shopSpellsThisTurn?: number;
   /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
    *  per-spell scaling folds it so the printed per-play grant matches what the sim actually adds. */
   improveReps?: number;
@@ -248,7 +251,8 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
             spiritText(c.id, p.golden, { revelerX: p.revelerX, revelerExtra: p.revelerExtra, spiritDiscount: p.spiritDiscount, spiritTally: p.spiritTally, spiritsPlayed: p.spiritsPlayed, onBoard: p.onBoard }) ?? // set 3 Spirits: the Reveler value, tallies, Spirits played
             summonScalingText(c.id, p.spellsThisTurn * (p.improveReps ?? 1), p.golden) ?? // Spirit Worgen: recruit-only per-play scaling (per-spell part ×2 under Rune of Mastery)
-            shootingStarText(c.id, p.spellsThisTurn, p.golden) ?? // Shooting Star (set 3 Celestials): this shop +3/+3 × spells cast this turn
+            shootingStarText(c.id, p.spellsThisTurn, p.golden) ??
+            shopSpellRallyText(c.id, p.golden, p.shopSpellsThisTurn ?? 0) ?? // Cinderchef: the live per-Rally gain (Shop spells this turn) // Shooting Star (set 3 Celestials): this shop +3/+3 × spells cast this turn
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
@@ -371,7 +375,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; aleMag?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; revelerExtra?: { attack: number; health: number }; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; shopSpellsBought?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number>; /** Rune of Living Growth's accrual: a Growth in hand prints it, as everywhere else (R-TEXT-SURFACES-01). */ growthBonus?: number; /** Vaultkeeper: the run-wide "Dragons or Dwarves played this game" tallies; replaces the copy's own tally for a run-tally card. */ tribeUnionPlays?: Record<string, number> },
+  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; aleMag?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; revelerExtra?: { attack: number; health: number }; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; shopSpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; shopSpellsBought?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number>; /** Rune of Living Growth's accrual: a Growth in hand prints it, as everywhere else (R-TEXT-SURFACES-01). */ growthBonus?: number; /** Vaultkeeper: the run-wide "Dragons or Dwarves played this game" tallies; replaces the copy's own tally for a run-tally card. */ tribeUnionPlays?: Record<string, number> },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = playsAsSpell(c);
@@ -406,7 +410,7 @@ export function instView(
     topTribe: live?.topTribe,
     runeMammoth: live?.runeMammoth,
     runeFlags: live?.runeFlags,
-    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, starCrashBonus: live?.starCrashBonus, revelerX: live?.revelerX, revelerExtra: live?.revelerExtra, spiritDiscount: live?.spiritDiscount, spiritsPlayed: live?.spiritsPlayed, anySpellsThisTurn: live?.anySpellsThisTurn,
+    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, starCrashBonus: live?.starCrashBonus, revelerX: live?.revelerX, revelerExtra: live?.revelerExtra, spiritDiscount: live?.spiritDiscount, spiritsPlayed: live?.spiritsPlayed, anySpellsThisTurn: live?.anySpellsThisTurn, shopSpellsThisTurn: live?.shopSpellsThisTurn,
     tier7Access: live?.tier7Access,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     chooseBoth, // (Both) — no choice to print
@@ -529,7 +533,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), shopSpellsThisTurn: run.shopSpellsThisTurn ?? 0, tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },

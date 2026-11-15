@@ -506,6 +506,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
+    shopSpellsThisTurn: () => ctx.shopSpellsThisTurnFor?.(self.side) ?? 0,
     playedThisTurn: (tribe) => ctx.playedThisTurnFor(self.side, tribe as Tribe),
     grantRandomFromPool: (pred, count) => {
       // Minions must be LEGAL random minions (R-RANDOM-POOL-01: no Tier 7 below a Tier-7 Shop); spells keep their pool.
@@ -1786,7 +1787,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.rallyCastSpell(combatArena(ctx, self), params);
   },
 
-  /** Set 2 — Cinderchef (Rally): on its OWN attack, gain +atk/+hp. Golden doubles. */
+  /** Set 2 — Cinderchef (Rally): on its OWN attack, gain +atk/+hp (× Shop spells this turn with `perShopSpell`). Golden doubles. */
   // ARENA-MIGRATED (Rally family): one body in arena.ts; the payload guard stays with dispatch.
   rallyBuffSelf: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

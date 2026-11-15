@@ -2093,7 +2093,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
   | 'runeReturnCustomers'
-  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 3 Gold + a free Refresh;
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 4 Gold + 2 free Refreshes;
   // shieldWall = Start of Combat, Taunt minions +4/+6; shatterproof = a Ward loss gives that minion +5/+5 permanently;
   // warmUp = a side-wide Pummel (150) banking 2 Gold next turn, once per combat; goldenHandshake = a Gild gives your
   // minions +2/+2; lateBloomer = a Shop upgrade gives 2 Gold and your minions +3/+3; loyalCustomer = every 4th minion
@@ -2102,7 +2102,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 rune batch, Basic tribal (owner review 2026-11-12): bloodscent = a Beast's kill gives it +4/+4 permanently;
   // lastHowl = the first Echo Beast to die each combat is resummoned; trophyHunter = a Beast's kill banks 1 Gold (3 per
   // combat); pitchforks = a summoned Imp deals 3 to 2 enemies; impLegion = Imps carry "Echo: deal 3 to the lowest-Health
-  // enemy"; collections = selling a Demon gives the Shop +2/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
+  // enemy"; collections = selling a Demon gives the Shop +3/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
   // your Dragons +2/+2 permanently; hatchlingRoost = Shout Dragons cost 1 Gold (Shop); rubyDust = a friendly minion with
   // Rubies dying casts a permanent Ruby on a random friendly Kobold; roughCut = a Ruby cast on a Kobold also casts on a
   // random friendly non-Kobold.
@@ -2129,7 +2129,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 rune, owner design 2026-11-13: endOfQuarter = every card entering the Shop rolls 30% (per copy) for 1 Gold off
   // (Shop-only; packages/sim/src/shop.ts rollEndOfQuarter).
   | 'runeEndOfQuarter'
-  // drunkShopkeeper = every Ale cast adds +1/+1 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
+  // drunkShopkeeper = every Ale cast adds +2/+2 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
   | 'runeDrunkShopkeeper';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
@@ -3100,6 +3100,10 @@ export interface RuneDef {
   /** DUOS-ONLY RUNE (owner design 2026-10-30, R-DUOS-RUNES-01): offered only by a Duos run's forge (Versus Duos, Ranked
    *  Duos), the rune twin of `CardDef.duos`. Every other run's forge, grant and listing filters it out. */
   duos?: boolean;
+  /** ON-PICK ARMOR (owner 2026-11-15, R-RUNE-PICK-ARMOR-01): Armor gained once, the moment a copy of this rune is taken
+   *  (bought, Duplication's copy, a granted rune). Raises `armor` and `maxArmor` on the run; seat 0 re-seeds from the
+   *  run before every lobby hit, so it absorbs before Resolve. Grudge (10) and Hazard Pay (5). */
+  armorOnPick?: number;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

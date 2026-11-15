@@ -15,7 +15,7 @@ import { runeLiveStateOfRun } from './runeLiveState';
  *    minion in the Shop." Dragon Hoard's repeating `gold` meter with a Hydraskus-style bite as the payout.
  *  - END OF QUARTER (neutral, 3): "Every card in your Shop has a 30% chance to cost 1 less." Each card entering the Shop
  *    rolls once per copy held.
- *  - DRUNK SHOPKEEPER (Dwarf, 2): "When you cast an Ale, Shop minions get +1/+1 permanently." (rework 2026-11-14: a
+ *  - DRUNK SHOPKEEPER (Dwarf, 2): "When you cast an Ale, Shop minions get +2/+2 permanently." (+1/+1 until 2026-11-15) (rework 2026-11-14: a
  *    lasting Shop buff, so later arrivals carry the running total too.)
  */
 
@@ -66,7 +66,7 @@ describe('the three runes as content', () => {
     const r = RUNE_INDEX['rune_drunk_shopkeeper']!;
     expect(RUNES.includes(r)).toBe(true);
     expect([r.name, r.cost, !!r.epic, r.tribes, r.sets]).toEqual(['Drunk Shopkeeper', 2, false, ['dwarf'], ['set2']]);
-    expect(r.text).toBe('When you cast an **Ale**, Shop minions get **+1/+1** permanently.');
+    expect(r.text).toBe('When you cast an **Ale**, Shop minions get **+2/+2** permanently.');
     expect(r.reward).toEqual({ kind: 'combatFlag', flag: 'runeDrunkShopkeeper' });
   });
 });
@@ -296,17 +296,17 @@ describe('Drunk Shopkeeper: an Ale cast buffs the Shop, for the rest of the run'
   };
   const play = (s: RunState, uid: string): RunState => act(s, { type: 'play', uid });
 
-  it('one Ale = +1/+1 on every Shop minion; two Ales = +2/+2; the stats are what the offer buys at', () => {
+  it('one Ale = +2/+2 on every Shop minion (owner 2026-11-15); two Ales = +4/+4; the stats are what the offer buys at', () => {
     let s = withRunes(['rune_drunk_shopkeeper'], { hand: [ale('a1'), ale('a2')] });
     const before = new Map(minions(s).map((o) => [o.uid, offerBuyStats(s, o)]));
     s = play(s, 'a1');
-    expect(fromShopkeeper(s)).toEqual([1, 1]);
+    expect(fromShopkeeper(s)).toEqual([2, 2]);
     expect(s.runeProcs?.rune_drunk_shopkeeper).toBe(1);
     s = play(s, 'a2');
-    expect(fromShopkeeper(s)).toEqual([2, 2]);
+    expect(fromShopkeeper(s)).toEqual([4, 4]);
     for (const o of minions(s)) {
       const b = before.get(o.uid)!;
-      expect(offerBuyStats(s, o)).toMatchObject({ attack: b.attack + 2, health: b.health + 2 });
+      expect(offerBuyStats(s, o)).toMatchObject({ attack: b.attack + 4, health: b.health + 4 });
     }
   });
 
@@ -328,29 +328,29 @@ describe('Drunk Shopkeeper: an Ale cast buffs the Shop, for the rest of the run'
     const rolled = act({ ...s, embers: 60 }, { type: 'roll' });
     const fresh = minions(rolled).filter((o) => !first.has(o.uid));
     expect(fresh.length).toBeGreaterThan(0);
-    for (const o of fresh) expect(lift(rolled, o)).toEqual([2, 2]);
+    for (const o of fresh) expect(lift(rolled, o)).toEqual([4, 4]);
     const next = nextTurn({ ...rolled, frozen: false });
     expect(minions(next).length).toBeGreaterThan(0);
-    for (const o of minions(next)) expect(lift(next, o), 'a new turn keeps it').toEqual([2, 2]);
+    for (const o of minions(next)) expect(lift(next, o), 'a new turn keeps it').toEqual([4, 4]);
   });
 
-  it('an Ale under Edward Keg-hands is ONE cast, so it gives +1/+1 once (R-EDWARD-01, owner 2026-11-14)', () => {
+  it('an Ale under Edward Keg-hands is ONE cast, so it gives +2/+2 once (R-EDWARD-01, owner 2026-11-14)', () => {
     let s = withRunes(['rune_drunk_shopkeeper'], { hand: [ale('a1')], board: [body('e', 'dw_edward')] });
-    s = play(s, 'a1');
-    expect(fromShopkeeper(s)).toEqual([1, 1]);
-  });
-
-  it('two copies: +2/+2 per Ale', () => {
-    let s = withRunes(['rune_drunk_shopkeeper', 'rune_drunk_shopkeeper'], { hand: [ale('a1')] });
     s = play(s, 'a1');
     expect(fromShopkeeper(s)).toEqual([2, 2]);
   });
 
-  it('with Shop Madness: the +3/+3 Shop buff plus the +1/+1 of the Ale, on all 6 minions', () => {
+  it('two copies: +4/+4 per Ale', () => {
+    let s = withRunes(['rune_drunk_shopkeeper', 'rune_drunk_shopkeeper'], { hand: [ale('a1')] });
+    s = play(s, 'a1');
+    expect(fromShopkeeper(s)).toEqual([4, 4]);
+  });
+
+  it('with Shop Madness: the +3/+3 Shop buff plus the +2/+2 of the Ale, on all 6 minions', () => {
     let s = withRunes(['rune_shop_madness', 'rune_drunk_shopkeeper'], { hand: [ale('a1')] });
     s = play(s, 'a1');
     expect(minions(s)).toHaveLength(6);
-    for (const o of minions(s)) expect(lift(s, o)).toEqual([4, 4]);
+    for (const o of minions(s)) expect(lift(s, o)).toEqual([5, 5]);
   });
 
   it('with End of Quarter: the buff leaves the price alone', () => {
@@ -360,14 +360,14 @@ describe('Drunk Shopkeeper: an Ale cast buffs the Shop, for the rest of the run'
     for (const o of minions(s)) expect(offerBuyPrice(s, o).cost).toBe(price.get(o.uid));
   });
 
-  it('an empty Shop still banks it: the next row carries the +1/+1', () => {
+  it('an empty Shop still banks it: the next row carries the +2/+2', () => {
     let s = withRunes(['rune_drunk_shopkeeper'], { hand: [ale('a1')] });
     s = { ...s, shop: s.shop.filter((o) => !isMinion(o)) };
     s = play(s, 'a1');
     expect(s.runeProcs?.rune_drunk_shopkeeper).toBe(1);
     const rolled = act({ ...s, embers: 60 }, { type: 'roll' });
     expect(minions(rolled).length).toBeGreaterThan(0);
-    for (const o of minions(rolled)) expect(lift(rolled, o)).toEqual([1, 1]);
+    for (const o of minions(rolled)) expect(lift(rolled, o)).toEqual([2, 2]);
   });
 
   it('the live text prints the running total (all copies)', () => {
@@ -375,7 +375,7 @@ describe('Drunk Shopkeeper: an Ale cast buffs the Shop, for the rest of the run'
     const text = RUNE_INDEX['rune_drunk_shopkeeper']!.text;
     expect(liveRuneText('rune_drunk_shopkeeper', text, runeLiveStateOfRun(s))).toBe(`${text} (Now +0/+0.)`);
     for (const uid of ['a1', 'a2', 'a3']) s = play(s, uid);
-    expect(liveRuneText('rune_drunk_shopkeeper', text, runeLiveStateOfRun(s))).toBe('When you cast an **Ale**, Shop minions get **+1/+1** permanently. (Now +3/+3.)');
+    expect(liveRuneText('rune_drunk_shopkeeper', text, runeLiveStateOfRun(s))).toBe('When you cast an **Ale**, Shop minions get **+2/+2** permanently. (Now +6/+6.)');
     expect(liveRuneText('rune_drunk_shopkeeper', text, runeLiveStateOfRun(withRunes([]))), 'unowned: the printed text').toBe(text);
   });
 });

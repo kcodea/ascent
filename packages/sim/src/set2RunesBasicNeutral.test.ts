@@ -79,7 +79,7 @@ describe('the nine runes as content', () => {
   it('names, costs, Basic pool, Set 2 only, no tribe gate, text verbatim', () => {
     const rows: [string, string, number, string][] = [
       ['rune_piggy_bank', 'Piggy Bank', 2, 'All unspent Gold carries over to next turn. **End of Turn:** give a minion **+1/+3**. Repeat for every unspent Gold.'],
-      ['rune_hazard_pay', 'Hazard Pay', 0, 'After you lose a combat, gain **3 Gold** and a free Refresh.'],
+      ['rune_hazard_pay', 'Hazard Pay', 0, 'Gain **5 Armor**. After you lose a combat, gain **4 Gold** and **2** free Refreshes.'],
       ['rune_second_opinion', 'Second Opinion', 3, 'Your **Discovers** offer **1** more option. **Discover** a minion.'],
       ['rune_shield_wall', 'Shield Wall', 2, '**Start of Combat:** give your **Taunt** minions **+4/+6**.'],
       ['rune_shatterproof', 'Shatterproof', 2, 'When a minion of yours loses **Ward**, give it **+5/+5** permanently.'],
@@ -135,13 +135,20 @@ describe('PIGGY BANK: unspent Gold carries over; End of Turn +1/+3, repeated per
   });
 });
 
-describe('HAZARD PAY: after a lost combat, 3 Gold and a free Refresh', () => {
+describe('HAZARD PAY: 5 Armor on pick; after a lost combat, 4 Gold and 2 free Refreshes (owner 2026-11-15)', () => {
   const settle = (s: RunState, result: CombatResult): RunState => act({ ...s, phase: 'combat', lastCombat: result, combatSettled: false }, { type: 'resolveCombat' });
-  it('a loss opens the next Shop with +3 Gold and a free Refresh, on its own Start of Turn beat', () => {
+  it('taking it gains 5 Armor at once (and lifts maxArmor), per copy taken (R-RUNE-PICK-ARMOR-01)', () => {
+    const base = withRune([]);
+    const one = withRune(['rune_hazard_pay']);
+    expect(one.armor).toBe(base.armor + 5);
+    expect(one.maxArmor).toBeGreaterThanOrEqual(one.armor);
+    expect(withRune(['rune_hazard_pay', 'rune_hazard_pay']).armor).toBe(base.armor + 10);
+  });
+  it('a loss opens the next Shop with +4 Gold and 2 free Refreshes, on its own Start of Turn beat', () => {
     const s = withRune(['rune_hazard_pay'], { freeRolls: 0, resolve: 40 });
     const after = settle(s, lostFight());
-    expect(after.embers).toBe(after.maxEmbers + 3);
-    expect(after.freeRolls).toBe(1);
+    expect(after.embers).toBe(after.maxEmbers + 4);
+    expect(after.freeRolls).toBe(2);
     expect((after.sotBeatFx ?? []).some((b) => b.source.kind === 'rune' && b.source.id === 'rune_hazard_pay')).toBe(true);
   });
   it('a win or a draw pays nothing', () => {
@@ -153,8 +160,8 @@ describe('HAZARD PAY: after a lost combat, 3 Gold and a free Refresh', () => {
   });
   it('two copies pay twice', () => {
     const after = settle(withRune(['rune_hazard_pay', 'rune_hazard_pay'], { freeRolls: 0, resolve: 40 }), lostFight());
-    expect(after.embers).toBe(after.maxEmbers + 6);
-    expect(after.freeRolls).toBe(2);
+    expect(after.embers).toBe(after.maxEmbers + 8);
+    expect(after.freeRolls).toBe(4);
   });
 });
 

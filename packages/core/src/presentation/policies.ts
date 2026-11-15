@@ -1327,7 +1327,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'system:equipment:trigger': { policy: 'ownBeat', family: 'heroPayout' },
   // ── Set 2 rune batch, Basic neutral (owner 2026-11-12) ──
   'rune:rune_piggy_bank:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // a random minion +1/+3, repeated per unspent Gold (one beat per tick)
-  'rune:rune_hazard_pay:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: 3 Gold + a free Refresh (a Start of Turn beat)
+  'rune:rune_hazard_pay:combat': { policy: 'foldedCue', family: 'combatModifier' }, // after a lost combat: 4 Gold + 2 free Refreshes (a Start of Turn beat)
   'rune:rune_second_opinion:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // Discover a minion (with the extra option)
   'rune:rune_shield_wall:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: Taunt minions +4/+6
   'rune:rune_shatterproof:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Ward loss: +5/+5 permanently
@@ -1344,7 +1344,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_pitchforks:combat': { policy: 'foldedCue', family: 'combatModifier' },   // a summoned Imp deals 3 damage to 2 enemies
   'rune:rune_imp_legion:combat': { policy: 'foldedCue', family: 'combatModifier' },   // Imps carry "Echo: deal 3 to the lowest-Health enemy"
   'rune:rune_guels_apprentice:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // a Staff of Guel now + every Start of Turn
-  'rune:rune_collections:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Demon sold: the Shop +2/+2 permanently (Shop)
+  'rune:rune_collections:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Demon sold: the Shop +3/+2 permanently (Shop)
   'rune:rune_flamekeeper:combat': { policy: 'foldedCue', family: 'combatModifier' },  // a Dragonflame cast: your Dragons +2/+2 permanently
   'rune:rune_hatchling_roost:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shout Dragons cost 1 Gold (Shop price)
   'rune:rune_dragon_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' },     // every 3 Gold spent: a Dragonflame (owner rework 2026-11-13)
@@ -1374,7 +1374,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_shop_madness:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: Shop +3/+3, the row refills to 6 minions (a price/row rule, no beat)
   'rune:rune_iggy_iggy:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // get an Immune Iggy with Ward (owner 2026-11-13)
   'rune:rune_gold_for_grub:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every 7 Gold spent: a random Demon consumes a Shop minion (owner 2026-11-13)
-  'rune:rune_drunk_shopkeeper:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: an Ale cast adds +1/+1 to the permanent Shop buff (rides the cast, like Collections)
+  'rune:rune_drunk_shopkeeper:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: an Ale cast adds +2/+2 to the permanent Shop buff (rides the cast, like Collections)
   'rune:rune_spell_appetite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every spell cast: a random Demon consumes a Shop minion (Gold for Grub's bite, owner 2026-11-14)
   'rune:rune_end_of_quarter:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Shop-only flag: each card entering the Shop may cost 1 less (a price, no beat)
   'rune:rune_sequencing:combat': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 different spells cast (any phase): the rune pulses and a copy of the first flies to hand (owner 2026-11-14)

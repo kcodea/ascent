@@ -97,6 +97,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The announcer has 50 new lines, in every announcer voice.',
+        details: ['41 moments that only ever had one line now have two or three: close wins and losses, streaks ending, big hits, selling sprees, rune re-rolls and more.'],
+      },
+      {
+        category: 'Systems',
         text: 'The announcer repeats itself less and talks a little less often.',
         details: [
           'Lines are now dealt like a shuffled deck that carries over between games: you hear every line for a moment before any of them comes back.',

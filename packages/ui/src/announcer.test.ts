@@ -23,7 +23,7 @@ import {
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent, announcerClipUrl, ANNOUNCER_SAMPLE_LINES, previewAnnouncerPack, setAnnouncerPackProvider, stopAnnouncerPreview,
   ANNOUNCER_CUT_TAKES, CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
-  CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
+  CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, PLAYERS_REMAIN_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
   ANNOUNCER_TRIBE_SURGE_WAVE, ANNOUNCER_TRIBE_TAKEOVER, boardTribeCounts, foeHeroId, keyedTakes, type KeyedTakes,
   type AnnouncerStateLike, ANNOUNCER_GAUNTLET_ROUNDS, GAUNTLET_ANNOUNCER_EVENTS, gauntletRoundTakes,
 } from './announcer';
@@ -1741,7 +1741,34 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
       fresh();
       r = await settle(openShop({ lobby: { seats: seats(6) } }), 'win');
       backToShop(r, { lobby: { seats: seats(5) } });
-      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('players-remain');
+      expect(await first(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20)).toBe('players-remain-five');
+    });
+    // R-TEXT-ANNOUNCER-01, amended 2026-11-15 (owner: "lets do one line per count"): the one PlayersRemain line was
+    // "Only three remain." and it played when FIVE were left, then had nothing to say at three.
+    it('PlayersRemain says the count on the table: five at 5, three at 3, both in one game, never the other', async () => {
+      const five = PLAYERS_REMAIN_TAKES.byKey[5]!;
+      const three = PLAYERS_REMAIN_TAKES.byKey[3]!;
+      expect(five.length).toBeGreaterThan(0);
+      expect(three).toContain('players-remain-1'); // "Only three remain."
+      expect(five.some((t) => three.includes(t))).toBe(false);
+      expect([...ANNOUNCER_LINES.playersRemain].sort()).toEqual([...five, ...three].sort());
+      for (const roll of [0, 0.99]) {
+        fresh();
+        __setAnnouncerDepsForTests({ ...stubDeps(), random: () => roll });
+        let r = await settle(openShop({ wave: 9, lobby: { seats: seats(6) } }), 'win');
+        r = backToShop(r, { lobby: { seats: seats(5) } });
+        await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+        // Two go out in one round: 5 -> 3 skips "four", so TopFour ("Only four left") must stay silent too.
+        r = await settle(r, 'win');
+        backToShop(r, { lobby: { seats: seats(3) } });
+        await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 20);
+        const spoken = announcerDebug().log.filter((e) => e.kind === 'play').map((e) => e.file ?? '');
+        const said = spoken.filter((f) => f.startsWith('players-remain'));
+        expect(said, `roll ${roll}`).toHaveLength(2);
+        expect(five).toContain(said[0]);
+        expect(three).toContain(said[1]);
+        expect(spoken.some((f) => f.startsWith('top-four'))).toBe(false);
+      }
     });
     it('LeaderboardTop / LobbyLast: the most / least Resolve at the table, only after round 8', async () => {
       const cases: [number, number, string | undefined][] = [[10, 30, 'leaderboard-top'], [10, 5, 'lobby-last'], [6, 30, undefined]];

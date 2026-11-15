@@ -122,7 +122,7 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   losingStreak: 'Second loss in a row (verdict)',
   streakBroken: 'Win streak of 3+ broken (verdict)',
   firstOut: 'First player knocked out (1000 ms after the return)',
-  playersRemain: '5 or 3 players remain (1000 ms after the return)',
+  playersRemain: '5 or 3 players remain, a line per count (1000 ms after the return)',
   lobbyLast: 'Lowest Resolve after round 8 (1000 ms after the return)',
   leaderboardTop: 'Highest Resolve after round 8 (1000 ms after the return)',
   lateGame: 'Past round 18 (1000 ms after the return)',

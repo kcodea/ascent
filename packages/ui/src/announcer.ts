@@ -286,6 +286,15 @@ export const TRIBE_TAKEOVER_TAKES: KeyedTakes<Tribe> = { byKey: { kobold: ['trib
 /** TribeSurge: a Practice game played with picked tribes (`practiceConfig.tribes`), keyed by a picked tribe. */
 export const TRIBE_SURGE_TAKES: KeyedTakes<Tribe> = { byKey: { dragon: ['tribe-surge-1'] }, generic: [] }; // "Dragons are surging this game."
 /** The takes a keyed moment may speak for `key`: its own, else the generic ones (none = the moment stays silent). */
+/** PlayersRemain (owner 2026-11-15: "lets do one line per count"): each count has its OWN takes, so a line never names
+ *  a count that is not on the table (R-TEXT-ANNOUNCER-01). Keyed by the players left; four left is TopFour's moment. */
+export const PLAYERS_REMAIN_TAKES: KeyedTakes<string> = {
+  byKey: {
+    5: ['players-remain-five-1', 'players-remain-five-2'], // "Only five remain." / "Five left standing."
+    3: ['players-remain-1', 'players-remain-three-2'], // "Only three remain." / "Down to three."
+  },
+  generic: [],
+};
 export function keyedTakes<K extends string>(t: KeyedTakes<K>, key: K | null | undefined): readonly string[] {
   const own = key ? t.byKey[key] : undefined;
   return own && own.length ? own : t.generic;
@@ -394,7 +403,7 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   lobbyLast: ['lobby-last-1', 'lobby-last-2'],
   firstOut: ['first-out-1', 'first-out-2', 'first-out-3'],
   leaderboardTop: ['leaderboard-top-1', 'leaderboard-top-2'],
-  playersRemain: ['players-remain-1'],
+  playersRemain: allKeyedTakes(PLAYERS_REMAIN_TAKES),
   fiveWinStreak: ['five-win-streak-1', 'five-win-streak-2'],
   losingStreak: ['losing-streak-1', 'losing-streak-2', 'losing-streak-3'],
   streakBroken: ['streak-broken-1', 'streak-broken-2', 'streak-broken-3'],
@@ -1757,7 +1766,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     const alive = aliveSeats(run);
     if (run.lobby && playerAlive(run)) {
       if (alive <= 2 && !hasFired(slice, 'topTwo')) enqueue({ event: 'topTwo', shelf: 'shop', notBefore: at, wave: run.wave });
-      else if (alive <= 4 && !hasFired(slice, 'topFour')) enqueue({ event: 'topFour', shelf: 'shop', notBefore: at, wave: run.wave });
+      // Exactly four: its lines say "four" ("Only four left"), so a round that drops the table from 5 to 3 skips it.
+      else if (alive === 4 && !hasFired(slice, 'topFour')) enqueue({ event: 'topFour', shelf: 'shop', notBefore: at, wave: run.wave });
       // KNOCKOUT: the round the player just fought knocked their foe out. The table settles HERE (resolveCombat), not
       // at the verdict, so the line lands with the rail's elimination instead of announcing it mid-fight.
       if (knockedOutFoe(p, run) && repeatAllowed(slice, 'knockout', run.wave, ANNOUNCER_KNOCKOUT_MAX, ANNOUNCER_KNOCKOUT_GAP_WAVES)) {
@@ -1898,10 +1908,10 @@ function detectReturn(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunL
     const outNow = knockedOutCount(run);
     // FirstOut: the lobby's first knockout (someone else: the player is still standing).
     if (knockedOutCount(p) === 0 && outNow > 0 && !hasFired(s, 'firstOut')) enqueue({ event: 'firstOut', shelf: 'shop', notBefore: at, wave: w });
-    // PlayersRemain: someone else went out and 5 or 3 are left.
+    // PlayersRemain: someone else went out and 5 or 3 are left. Only THAT count's takes may play.
     if (outNow > knockedOutCount(p) && ANNOUNCER_PLAYERS_REMAIN.includes(aliveSeats(run))
       && repeatAllowed(s, 'playersRemain', w, ANNOUNCER_PLAYERS_REMAIN.length, 1)) {
-      enqueue({ event: 'playersRemain', shelf: 'shop', notBefore: at, wave: w });
+      enqueue({ event: 'playersRemain', shelf: 'shop', notBefore: at, wave: w, takes: keyedTakes(PLAYERS_REMAIN_TAKES, String(aliveSeats(run))) });
     }
     // LobbyLast / LeaderboardTop: the lowest / highest Resolve at the table, past the opening rounds.
     if (w > ANNOUNCER_STANDINGS_AFTER_WAVE) {

@@ -446,13 +446,18 @@ export const TEXT_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (Tier up line)', quote: 'it shouldnt say "tier four" it should say  "Ooh, another tier unlocked. Better units ahead!"' },
       { kind: 'fix-pr', ref: 'fix/tier-up-line: packages/ui/src/announcer.ts (tierUp now plays tier-up-2), apps/web/public/announcer/tier-up-2.mp3 (new), tier-up-1.mp3 removed' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (players remain)', quote: 'lets do one line per count. 5/4/3 and then we can have some fun ones for the final 2 showdown' },
+      { kind: 'fix-pr', ref: 'fix/players-remain-counts: packages/ui/src/announcer.ts (PLAYERS_REMAIN_TAKES keyed by the players left; TopFour only at exactly four)' },
     ],
     currentBehaviour:
       'Conforms for Tier up as of 2026-09-28: tier-up-1 ("Tier four. Better stock ahead.") played on every upgrade to '
       + 'tiers 2-5 and is retired for tier-up-2. PARTIAL as a general check: clips are audio, so the test pins the '
-      + 'Tier up takes only. New lines are checked by hand in the tracker before they are generated.',
+      + 'Tier up takes only. New lines are checked by hand in the tracker before they are generated. PlayersRemain '
+      + 'FIXED 2026-11-15: its one line ("Only three remain.") played when five were left and then had nothing to '
+      + 'say at three; each count now has its own takes, and TopFour ("Only four left") speaks only at exactly four, '
+      + 'so a round that drops the table from five to three no longer says "four".',
     example: 'Upgrading to tier 3 plays "Ooh, another tier unlocked. Better units ahead!", never "Tier four".',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-09-28' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
   {
     id: 'R-TEXT-PATCHNOTES-01',

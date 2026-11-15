@@ -97,6 +97,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The announcer now counts the players left correctly.',
+        details: [
+          'It used to say "Only three remain" when five players were left, and then nothing at three. Five and three now each have their own lines.',
+          'The final four lines only play when exactly four players are left.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The announcer has 50 new lines, in every announcer voice.',
         details: ['41 moments that only ever had one line now have two or three: close wins and losses, streaks ending, big hits, selling sprees, rune re-rolls and more.'],
       },

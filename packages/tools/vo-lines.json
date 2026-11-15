@@ -1055,6 +1055,256 @@
       "id": "triple-5",
       "voice": "announcer",
       "text": "A triple! A triple! A triple!!!!"
+    },
+    {
+      "id": "armor-gone-2",
+      "voice": "announcer",
+      "text": "No more armor. It's all you now."
+    },
+    {
+      "id": "armor-up-2",
+      "voice": "announcer",
+      "text": "Thick skin, that."
+    },
+    {
+      "id": "big-buff-moment-2",
+      "voice": "announcer",
+      "text": "Now that's a glow-up."
+    },
+    {
+      "id": "big-hit-2",
+      "voice": "announcer",
+      "text": "Right in the face!"
+    },
+    {
+      "id": "big-turn-2",
+      "voice": "announcer",
+      "text": "Busy turn, champ."
+    },
+    {
+      "id": "big-turn-3",
+      "voice": "announcer",
+      "text": "Cards flying everywhere!"
+    },
+    {
+      "id": "blowout-loss-2",
+      "voice": "announcer",
+      "text": "Ouch. That one stung."
+    },
+    {
+      "id": "blowout-loss-3",
+      "voice": "announcer",
+      "text": "Let's not talk about that one."
+    },
+    {
+      "id": "board-total-2",
+      "voice": "announcer",
+      "text": "Look at the size of that lot."
+    },
+    {
+      "id": "broke-turn-2",
+      "voice": "announcer",
+      "text": "Not a coin left."
+    },
+    {
+      "id": "choose-one-play-2",
+      "voice": "announcer",
+      "text": "This or that?"
+    },
+    {
+      "id": "clutch-win-2",
+      "voice": "announcer",
+      "text": "Too close for comfort!"
+    },
+    {
+      "id": "clutch-win-3",
+      "voice": "announcer",
+      "text": "Hanging on by a fingernail!"
+    },
+    {
+      "id": "comeback-win-2",
+      "voice": "announcer",
+      "text": "Back in business!"
+    },
+    {
+      "id": "fast-tier-2",
+      "voice": "announcer",
+      "text": "In a hurry, are we?"
+    },
+    {
+      "id": "fast-turn-2",
+      "voice": "announcer",
+      "text": "Quick hands!"
+    },
+    {
+      "id": "first-freeze-2",
+      "voice": "announcer",
+      "text": "Saving that for later."
+    },
+    {
+      "id": "first-freeze-3",
+      "voice": "announcer",
+      "text": "On ice it goes."
+    },
+    {
+      "id": "five-win-streak-2",
+      "voice": "announcer",
+      "text": "Five in a row! Who's stopping you?"
+    },
+    {
+      "id": "flawless-victory-2",
+      "voice": "announcer",
+      "text": "Not a single one lost!"
+    },
+    {
+      "id": "gold-rush-2",
+      "voice": "announcer",
+      "text": "Raining gold in here!"
+    },
+    {
+      "id": "golden-army-2",
+      "voice": "announcer",
+      "text": "All that glitters, eh?"
+    },
+    {
+      "id": "idle-2",
+      "voice": "announcer",
+      "text": "Take your time. Not too much, mind."
+    },
+    {
+      "id": "last-stand-2",
+      "voice": "announcer",
+      "text": "One against the world!"
+    },
+    {
+      "id": "late-game-2",
+      "voice": "announcer",
+      "text": "Still going! What a game."
+    },
+    {
+      "id": "leaderboard-top-2",
+      "voice": "announcer",
+      "text": "Top of the table. Lovely view."
+    },
+    {
+      "id": "lobby-last-2",
+      "voice": "announcer",
+      "text": "Bottom of the table. Only way is up."
+    },
+    {
+      "id": "minion-hits-100-stats-2",
+      "voice": "announcer",
+      "text": "Triple digits!"
+    },
+    {
+      "id": "minion-hits-250-2",
+      "voice": "announcer",
+      "text": "That thing is enormous."
+    },
+    {
+      "id": "narrow-loss-2",
+      "voice": "announcer",
+      "text": "Agh, by a whisker!"
+    },
+    {
+      "id": "narrow-loss-3",
+      "voice": "announcer",
+      "text": "One more hit would have done it."
+    },
+    {
+      "id": "one-resolve-2",
+      "voice": "announcer",
+      "text": "One left. Don't blink."
+    },
+    {
+      "id": "overkill-2",
+      "voice": "announcer",
+      "text": "A bit much, don't you think?"
+    },
+    {
+      "id": "overkill-3",
+      "voice": "announcer",
+      "text": "Flattened!"
+    },
+    {
+      "id": "rebirth-2",
+      "voice": "announcer",
+      "text": "Back for more!"
+    },
+    {
+      "id": "refresh-streak-2",
+      "voice": "announcer",
+      "text": "Nothing you fancy?"
+    },
+    {
+      "id": "rich-turn-2",
+      "voice": "announcer",
+      "text": "Deep pockets this turn."
+    },
+    {
+      "id": "rise-back-2",
+      "voice": "announcer",
+      "text": "Up it gets!"
+    },
+    {
+      "id": "rune-reroll-2",
+      "voice": "announcer",
+      "text": "Let's see another set."
+    },
+    {
+      "id": "rune-reroll-3",
+      "voice": "announcer",
+      "text": "Fussy, are we?"
+    },
+    {
+      "id": "rune-skip-2",
+      "voice": "announcer",
+      "text": "Passing on all of them? Bold."
+    },
+    {
+      "id": "sell-spree-2",
+      "voice": "announcer",
+      "text": "Out with the old."
+    },
+    {
+      "id": "sell-spree-3",
+      "voice": "announcer",
+      "text": "Everything must go, eh?"
+    },
+    {
+      "id": "shop-big-buff-2",
+      "voice": "announcer",
+      "text": "Big one in the shop."
+    },
+    {
+      "id": "spell-chain-2",
+      "voice": "announcer",
+      "text": "Spell after spell after spell!"
+    },
+    {
+      "id": "stalemate-2",
+      "voice": "announcer",
+      "text": "A draw. Nobody's happy."
+    },
+    {
+      "id": "streak-broken-2",
+      "voice": "announcer",
+      "text": "All good things end, mate."
+    },
+    {
+      "id": "streak-broken-3",
+      "voice": "announcer",
+      "text": "Well, it was a lovely run."
+    },
+    {
+      "id": "tribe-four-2",
+      "voice": "announcer",
+      "text": "Sticking to a theme, I see."
+    },
+    {
+      "id": "ward-break-2",
+      "voice": "announcer",
+      "text": "Not today!"
     }
   ],
   "sfx": [

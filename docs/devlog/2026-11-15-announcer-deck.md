@@ -11,7 +11,7 @@ we have lines like a shuffled deck?"
 ## Why it repeated
 
 The no-repeat bag lives in the run's `announced` slice, so it remembers one game. Every new game picked uniformly from
-the full list again: with 18 game-start lines, two games in a row open on the same line about 1 time in 18, and hearing
+the full list again: with 19 game-start lines, two games in a row open on the same line about 1 time in 19, and hearing
 a line you heard within the last three games is near 1 in 6.
 
 ## The deck (`announcerDeck.ts`)

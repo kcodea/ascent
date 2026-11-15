@@ -1125,7 +1125,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
       + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. No per-game '
       + 'line cap (removed 2026-09-25; it was 8, then 15): the cooldown, once-per-event rule, priority and shelf life pace it. Timing: the Face Omen lines play '
-      + 'ANNOUNCER_FACE_OMEN_DELAY_MS (1.6 s) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
+      + 'ANNOUNCER_FACE_OMEN_DELAY_MS (3 s since 2026-11-15, 1.6 s before) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
       + 'opening with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS (1 s) after resolveCombat. Triggers: GameStart (wave 1\x27s '
       + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
       + 'Equipment (an Equipment acquired, 400 ms after its SFX), Triple (a gilded minion formed), TierSix (tier 6), '
@@ -15509,7 +15509,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms, built 2026-11-15 (feat/announcer-deck). Before it, the no-repeat bag (R-PRESENT-07) remembered one game '
       + 'only, so each new game drew from the full list again and the same few lines kept opening games. The same PR '
       + 'raises the gap between lines from 12 s to 25 s (R-PRESENT-07).',
-    example: 'GameStart has 18 lines: 18 games in a row each open on a different one, and game 19 opens on one of the nine heard longest ago.',
+    example: 'GameStart has 19 lines: 19 games in a row each open on a different one, and game 20 opens on one of the ten heard longest ago.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcerDeck.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
 ];

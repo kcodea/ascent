@@ -17,7 +17,8 @@
  *    never repeat lines except maybe the generic random buys sometimes?"). The bag is the slice's `heard`, persisted
  *    like `fired`, so a Save & Continue keeps it. An event whose every take has been heard goes SILENT for the rest
  *    of the game, except the REUSABLE_BAG events (the four generic random buys and TimeRunningOut), which
- *    reshuffle and start over.
+ *    reshuffle and start over. ACROSS games the pick is dealt from THE DECK (announcerDeck.ts, owner 2026-11-15): a
+ *    take dealt in one game stays out of the next games until every take of that moment has been dealt.
  *  · THE CHANCE TABLE (`ANNOUNCER_CHANCE` in announcerConfig.ts, a Chance dial per event in the Announcer tuner):
  *    below 1, an event's moment rolls a SEEDED chance from the run seed + event + wave + index (`announcerRoll`),
  *    so a replay rolls the same way. The generic buy lines 6% per qualifying buy, Round 7 10%, everything else 1.
@@ -53,6 +54,7 @@ import {
   type RunState, type ShopCard,
 } from '@game/sim';
 import { runeTally } from './runeTally';
+import { ANNOUNCER_DECK_KEY, dealTake, parseDeck, type AnnouncerDeck } from './announcerDeck';
 import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 import { masterLevel, masterOutput, onMasterChange } from './audio/master';
 import { createLineCache } from './audio/lineCache';
@@ -70,7 +72,7 @@ export { ANNOUNCER_CHANCE } from './announcerConfig';
 
 // ── The constants (one name each; the tests and the devlog read these) ──────────────────────────────────────
 /** No line within this of the previous one ending. THE cooldown. */
-export const ANNOUNCER_COOLDOWN_MS = 12_000;
+export const ANNOUNCER_COOLDOWN_MS = 25_000; // 12 s until 2026-11-15 (owner: "lengthen the gap")
 /** Lines per game, GameWon / GameLoss excepted. 8 at first; the owner raised it to 15 with the second batch of
  *  lines (2026-09-24). */
 /** GameStart: after the first shop lands, past the music's 3 s start + its fade-in. */
@@ -784,6 +786,8 @@ export interface AnnouncerDeps {
   /** A uniform roll in [0, 1) for picking which take of a line plays (owner 2026-09-25: "random pick every time, no
    *  seeds"). Tests replace it to pin a take. */
   random: () => number;
+  /** THE DECK's storage (announcerDeck.ts): which takes were dealt in earlier games, kept on the device. */
+  deck: { load: () => AnnouncerDeck; save: (deck: AnnouncerDeck) => void };
   /** Who the player faces this fight, read once at the Face Omen (null = no lobby / unknown). The default asks the
    *  lobby (`playerOpponent`, the same read the combat HUD makes); tests hand one in. */
   foe: (run: AnnouncerRunLike) => AnnouncerFoe | null;
@@ -949,8 +953,14 @@ const defaultDeps: AnnouncerDeps = {
   play: playDefault,
   random: () => Math.random(), // presentation only: the announcer never feeds the sim, so the seeded-RNG ban doesn't apply
   foe: lobbyFoe,
+  deck: {
+    load: () => { try { return parseDeck(localStorage.getItem(ANNOUNCER_DECK_KEY)); } catch { return {}; } },
+    save: (deck) => { try { localStorage.setItem(ANNOUNCER_DECK_KEY, JSON.stringify(deck)); } catch { /* ignore */ } },
+  },
 };
 let deps: AnnouncerDeps = defaultDeps;
+/** The deck in memory (read from storage once, written through on every deal). */
+let deckCache: AnnouncerDeck | null = null;
 /** Tests only: swap the seams. Resets the machine. */
 export function __setAnnouncerDepsForTests(patch: Partial<AnnouncerDeps> | null): void {
   resetAnnouncerForTests();
@@ -1218,7 +1228,11 @@ function speak(line: PendingLine): void {
   const reshuffle = fresh.length === 0;
   if (reshuffle && !REUSABLE_BAG_EVENTS.includes(line.event)) { note('drop', line.event, { why: 'every take heard' }); return; }
   const bag = reshuffle ? line.takes ?? ANNOUNCER_LINES[line.event] : fresh;
-  const file = bag[announcerPick(bag.length)]!;
+  // THE DECK: of those, a take not dealt in earlier games either, until the moment's whole deck has been dealt.
+  const dealt = dealTake(deckCache ??= deps.deck.load(), line.event, bag, ANNOUNCER_LINES[line.event], deps.random());
+  deckCache = dealt.deck;
+  deps.deck.save(dealt.deck);
+  const file = dealt.take;
   const token = ++playToken;
   playing = { event: line.event, token, handle: null };
   lastLine = { event: line.event, wave: line.wave };
@@ -2427,6 +2441,7 @@ export function resetAnnouncerForTests(): void {
   tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   freshBatch3Tallies();
   endLineAt = null;
+  deckCache = null;
   log.length = 0;
 }
 

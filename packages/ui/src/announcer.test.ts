@@ -131,6 +131,7 @@ beforeEach(() => {
 function stubDeps(): Partial<AnnouncerDeps> {
   return {
     foe: () => null, // no lobby pairing unless a test hands one in (the third batch reads it at the Face Omen)
+    deck: { load: () => ({}), save: () => {} }, // no memory of earlier games unless a test hands a deck in (the deck suite)
     random: () => 0, // the take is random in the game; pinned to the first unheard take here so tests can name the file
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,

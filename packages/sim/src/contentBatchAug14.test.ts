@@ -76,7 +76,7 @@ describe('Transcendant — adjacent Dragons are Engraved (aura only, no self-buf
       bm('d2_cinderchef', 'CF', 3, 40000, { keywords: ['RL'] }),                        // far from Transcendant
     ],
     [{ cardId: 'sandbag', attack: 0, health: 40000 }],
-    makeRng(5), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'] }), combatSide({ tier: 1 }),
+    makeRng(5), CARD_INDEX, combatSide({ tier: 4, tribes: ['dragon', 'beast'], shopSpellsThisTurn: 1 /* Cinderchef gains per Shop spell cast this turn (owner 2026-11-15): one staged Shop spell keeps it the +1/+1 probe */ }), combatSide({ tier: 1 }),
   );
 
   it('the card is a T4 3/4 Dragon with Ward only — no buff of its own', () => {

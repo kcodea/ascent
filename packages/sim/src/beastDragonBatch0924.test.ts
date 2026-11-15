@@ -116,13 +116,13 @@ describe('Dragon balance (owner 2026-09-24)', () => {
     expect(CARD_INDEX['d2_scalechanter']!.tier).toBe(3);
   });
 
-  it('Earthbreaker: each Shop spell gives your Dragons +2/+1 (gilded +4/+2)', () => {
+  it('Earthbreaker: each Shop spell gives your Dragons +2/+2 (gilded +4/+4; owner 2026-11-15, was +2/+1)', () => {
     for (const golden of [false, true]) {
       let s = shop([bc('e', 'd2_scalechanter', { golden })], { hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false } as BoardCard] });
       const before = [on(s, 'e').attack, on(s, 'e').health];
       s = reduce(s, { type: 'play', uid: 'sp' });
       const g = golden ? 2 : 1;
-      expect([on(s, 'e').attack - before[0]!, on(s, 'e').health - before[1]!]).toEqual([2 * g, 1 * g]);
+      expect([on(s, 'e').attack - before[0]!, on(s, 'e').health - before[1]!]).toEqual([2 * g, 2 * g]);
     }
   });
 });

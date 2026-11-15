@@ -5279,6 +5279,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
     poolIds: poolOf(s).all.map((c) => c.id),
     spellsThisTurn: s.spellsThisTurn,
+    shopSpellsThisTurn: s.shopSpellsThisTurn ?? 0, // Cinderchef's Rally (live in combat from here)
     firstSpellThisTurnId: s.firstSpellThisTurnId, // Comet Conductor's Rally copies it (player-only)
     spellsCast: s.spellsCast,
     rubyCasts: s.rubyCasts ?? 0, // Vaultkeeper's umbrella (text); rides to the enemy side via the snapshot
@@ -6243,6 +6244,7 @@ function advanceCombat(s: RunState): void {
   // owner ruling 2026-08-26). Keep per-turn field clears INSIDE the markers; move a clear out only with a
   // scan-registry update.
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  s.shopSpellsThisTurn = 0; // Cinderchef's Shop-spell tally resets each wave
   s.echoFirstUsedThisTurn = false; // Grave Contract's first-SHOP-Echo bonus re-arms each turn (see state.ts)
   // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
   // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back

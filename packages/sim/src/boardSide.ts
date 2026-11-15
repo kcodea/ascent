@@ -62,6 +62,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     spellPowerAtk: snap.spellPower?.attack ?? 0,
     spellPowerHp: snap.spellPower?.health ?? 0,
     spellsThisTurn: snap.spellsThisTurn ?? 0,
+    shopSpellsThisTurn: snap.shopSpellsThisTurn ?? 0, // a served Cinderchef reads its OWNER's Shop spells
     beastsPlayed: snap.beastsPlayed ?? 0,
     deathrattles: snap.deathrattles ?? 0,
     spellsCast: snap.spellsCast ?? 0, // enemy Umbral Energy

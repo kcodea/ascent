@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Cinderchef now feeds on Shop spells, and Earthbreaker gives your Dragons more Health.',
+        details: [
+          'Cinderchef: Rally now gains +1/+1 for each Shop spell cast this turn (Gilded: +2/+2 for each). With no Shop spell cast, it gains nothing.',
+          'Cinderchef counts Shop spells cast during combat the moment they land, and its text shows its current gain.',
+          'Rubies, Clues and other Gifts are not Shop spells, so they do not count.',
+          'Earthbreaker: now gives your Dragons +2/+2 per Shop spell (was +2/+1). Gilded: +4/+4.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Rune changes: Grudge, Hazard Pay, Collections and Drunk Shopkeeper are stronger.',
         details: [
           'Grudge now costs 0 and gives you 10 Armor when you take it. After you lose a combat, it still lets you Discover a minion from the Tier above your Shop.',

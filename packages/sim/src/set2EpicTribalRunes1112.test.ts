@@ -56,7 +56,8 @@ const bm = (uid: string, cardId: string, over: Omit<Partial<BoardMinion>, 'keywo
 // into a brawl.
 const wall = (attack: number, uid = 'w', health = 5000): BoardMinion => bm(uid, PLAIN[1]!, { attack, health, keywords: [] });
 const dummy = (uid: string, health = 1): BoardMinion => bm(uid, PLAIN[2]!, { attack: 0, health, keywords: [] });
-const side = (mods: object) => combatSide({ tier: 6, tribes: [...SETS.set2.tribes], questMods: mods });
+// Cinderchef gains per Shop spell cast this turn (owner 2026-11-15): one staged Shop spell keeps it the +1/+1 probe.
+const side = (mods: object) => combatSide({ tier: 6, tribes: [...SETS.set2.tribes], questMods: mods, shopSpellsThisTurn: 1 });
 const fight = (p: BoardMinion[], e: BoardMinion[], mods: object, seed = 4, enemyMods: object = {}) =>
   ({ ...simulate(p, e, makeRng(seed), CARD_INDEX, side(mods), side(enemyMods)), src: { player: p.map((m) => m.sourceUid!), enemy: e.map((m) => m.sourceUid!) } });
 type Fight = ReturnType<typeof fight>;

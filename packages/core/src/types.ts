@@ -578,7 +578,7 @@ export type EffectFactoryId =
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'deathrattleBuffShopPermanent' // Set 2 — Malphas Echo: death buffs Shop minions permanently
-  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp
+  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp (`perShopSpell`: for each Shop spell cast this turn)
   | 'rallyCastNamedSpell' // Set 2 — Flamebeat Drake: Rally casts a named spell (Dragonflame)
   | 'rallyCastNamedSpellOnRight' // Set 3 Choosey Dragon (owner 2026-10-27): Rally casts a named TARGETED spell (Tribes Choice) on the minion to its right (both phases; golden twice)
   | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
@@ -3529,6 +3529,7 @@ export type CombatEvent = (
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean; immune?: true }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
+  | { type: 'shopSpellTally'; side: Side; count: number } // a SHOP spell (R-SHOPSPELL-01) resolved mid-fight: `count` = that side's Shop spells THIS TURN so far (recruit turn + this fight). Presentation only, silent and zero hold: Cinderchef's live text reads it in real time (R-CINDERCHEF-01)
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
   | { type: 'wardDowngrade'; target: string } // a RESILIENT Ward took its first hit: the hit is absorbed and it drops to a plain Ward ('RW' stripped, 'DS' kept). Not a break — `onLoseDivineShield` does not fire. The UI plays it on the Ward-break beat (the orange layer cracks away)
@@ -3643,6 +3644,10 @@ export interface CombatSideState {
   whisperImprove?: Record<string, number>;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
+  /** SHOP spells (R-SHOPSPELL-01: the set's Shop-spell pool, Ales included; never a Ruby, Clue/Gift or token) cast
+   *  this recruit turn — Cinderchef's Rally reads it. Combat keeps it LIVE: a Shop spell cast mid-fight counts the
+   *  moment it resolves (`spellResolved`). Snapshot-captured, so a served Cinderchef reads its OWNER's count. */
+  shopSpellsThisTurn?: number;
   /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands its side a copy. Snapshot-
    *  captured since R-SYMMETRY-01 (2026-10-13), so a served Comet Conductor copies its OWNER's first spell. */
   firstSpellThisTurnId?: string;
@@ -3831,6 +3836,8 @@ export interface CombatConfig {
 export interface EnemyScalers {
   spellPower: { attack: number; health: number };
   spellsThisTurn: number;
+  /** Shop spells the served run cast on its capture turn (Cinderchef's live text on a served board). */
+  shopSpellsThisTurn?: number;
   beastsPlayed: number;
   deathrattles: number;
   conductorBuff: number;
@@ -4469,6 +4476,9 @@ export interface CombatContext {
   /** This side's live tavern tier — used to cap random-minion generation (e.g. Bullseye / Menagerie Mammoth). */
   tierFor(side: Side): number;
   spellsThisTurnFor(side: Side): number;
+  /** Per-side SHOP spells cast this turn (R-SHOPSPELL-01), LIVE: the side's recruit-turn count plus every Shop spell
+   *  it has cast so far this fight (Cinderchef). Optional so a hand-built test context reads 0. */
+  shopSpellsThisTurnFor?(side: Side): number;
   /** The first spell that side cast this recruit turn (Comet Conductor); undefined when none was. */
   firstSpellThisTurnIdFor(side: Side): string | undefined;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat

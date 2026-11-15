@@ -154,7 +154,7 @@ describe('Midas × BONDS: "When a Gilded minion gains stats, your other Gilded m
     expect(at(s, 'a').attack).toBe(a);
   });
   it('combat: a Gilded Rally self-gain gives the other Gilded bodies +2/+2 per gain, one hop', () => {
-    let s = picked('bonds', { board: [gilded('r', 'd2_cinderchef', { health: 900 }), gilded('o', N(0), { health: 900 })] });
+    let s = picked('bonds', { shopSpellsThisTurn: 1 /* Cinderchef gains per Shop spell cast this turn (owner 2026-11-15): one staged Shop spell keeps it the +1/+1 probe */, board: [gilded('r', 'd2_cinderchef', { health: 900 }), gilded('o', N(0), { health: 900 })] });
     expect(ancientCombatMods(s).ancientGildedBonds).toEqual({ attack: 2, health: 2, label: 'Ancient of Bonds' });
     s = fightNow(s, 0, 30);
     const bondBuffs = events(s).filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Ancient of Bonds');

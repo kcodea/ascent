@@ -92,6 +92,7 @@ function friendlySideOf(s: RunState): Omit<CombatSideState, 'poolIds'> {
   const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit', s)).length;
   const { poolIds: _drop, ...side } = combatSide({
     spellsThisTurn: s.spellsThisTurn,
+    shopSpellsThisTurn: s.shopSpellsThisTurn ?? 0,
     firstSpellThisTurnId: s.firstSpellThisTurnId,
     spellsCast: s.spellsCast,
     rubyCasts: s.rubyCasts ?? 0,
@@ -160,7 +161,7 @@ export function poolIdsOf(run: Pick<RunState, 'setId'>): string[] {
 /** Every `combatSide` key the reducer's `faceOmen` sets today — pinned by `combatContext.test.ts` against the
  *  reducer source so a scaler added there without being mirrored here fails the suite. */
 export const MIRRORED_SIDE_KEYS: readonly string[] = [
-  'poolIds', 'spellsThisTurn', 'firstSpellThisTurnId', 'spellsCast', 'rubyCasts', 'revelerX', 'deathrattles',
+  'poolIds', 'spellsThisTurn', 'shopSpellsThisTurn', 'firstSpellThisTurnId', 'spellsCast', 'rubyCasts', 'revelerX', 'deathrattles',
   'spellPowerAtk', 'wildHuntGrown', 'spellPowerHp', 'undeadAtk', 'undeadHp', 'undeadBuyAtk', 'impAtk',
   'conductorBuff', 'impHp', 'fodderConsumedAtk', 'fodderConsumedHp', 'beastBuyAtk', 'beastsPlayed',
   'spiritsPlayed', 'cardsBoughtThisTurn', 'magneticAtk', 'magneticHp', 'rubyBonus', 'tier', 'tribes',

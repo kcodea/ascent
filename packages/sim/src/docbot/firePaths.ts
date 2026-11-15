@@ -282,7 +282,7 @@ function fight(st: Staging): CombatEvent[] {
   const player = [...st.player, ...fillers(subject), ...(st.multiplier ? [bm('uron', 'mult', 0, 40)] : [])];
   const r = simulate(player, [bm(DUMMY_ENEMY, 'e0', 0, st.enemyHealth ?? 400)], makeRng(0x5a11), CARD_INDEX,
     combatSide({ tier: 6, tribes: ['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'undead', 'mech', 'celestial', 'spirit'] as never,
-      lastSpellCastId: 'growth', questMods: st.rune ? { runeRallying: true } : {} } as never),
+      lastSpellCastId: 'growth', shopSpellsThisTurn: 1 /* arms Cinderchef at one Shop spell */, questMods: st.rune ? { runeRallying: true } : {} } as never),
     combatSide({ tier: 1 }));
   return r.events;
 }

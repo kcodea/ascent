@@ -7,7 +7,7 @@ export const SET2_BASIC_NEUTRAL = {
   /** Piggy Bank: End of Turn, a random friendly minion +1/+3, repeated for every unspent Gold. */
   piggyBank: { attack: 1, health: 3 },
   /** Hazard Pay: after a lost combat, Gold and free Refreshes (per copy). */
-  hazardPay: { gold: 3, refreshes: 1 },
+  hazardPay: { gold: 4, refreshes: 2 },
   /** Second Opinion: extra Discover options per copy. */
   secondOpinionExtra: 1,
   /** Shield Wall: Start of Combat, your Taunt minions gain this. */

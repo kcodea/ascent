@@ -34817,7 +34817,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:3"
+      "cost:0"
     ],
     "effects": [
       {

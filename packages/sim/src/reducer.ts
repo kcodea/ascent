@@ -7479,12 +7479,23 @@ function applyRuneCopyTo(s: RunState, rune: RuneDef, isDuplicate: boolean): void
   applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
 }
 
+/** A rune's on-pick Armor (`RuneDef.armorOnPick`): adds to the run's Armor and lifts `maxArmor` to fit. */
+function gainRunePickArmor(s: RunState, amount: number): void {
+  if (amount <= 0) return;
+  s.armor += amount;
+  s.maxArmor = Math.max(s.maxArmor ?? 0, s.armor);
+}
+
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {
   // RUNE DUPLICATE STACKING (owner rulings 2026-08-27): count every rune-reward application — buy, Rune of
   // Duplication's copy, a granted rune — so consumers can scale by the copy count (`runeStacksOf`). Ticked
   // here, the one chokepoint every rune application flows through. Banked re-fires (pendingQuestRewards)
   // arrive with sourceKind 'quest', so they never inflate the count.
   if (sourceKind === 'rune') s.runeStacks = { ...(s.runeStacks ?? {}), [def.id]: (s.runeStacks?.[def.id] ?? 0) + 1 };
+  // ON-PICK ARMOR (owner 2026-11-15, R-RUNE-PICK-ARMOR-01): Grudge / Hazard Pay "Gain N Armor" — once per copy taken, at
+  // this same chokepoint so a bought, duplicated or granted copy all pay it. A banked re-fire arrives as 'quest' and
+  // never re-pays. `maxArmor` rises with it so the bar shows the gain; seat 0 re-seeds from the run before every hit.
+  if (sourceKind === 'rune') gainRunePickArmor(s, RUNE_INDEX[def.id]?.armorOnPick ?? 0);
   const collector = currentCollector();
   if (collector.enabled) {
     // Resolve the key the SURFACE files this content under, rather than guessing a phase segment — a guessed

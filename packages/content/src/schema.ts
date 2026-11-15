@@ -1154,6 +1154,7 @@ export const RuneDefSchema = z.object({
   tribes: z.array(TribeSchema).readonly().optional(),
   synergy: z.array(z.string().min(1)).readonly().optional(), // explicit forge-synergy tags (Rune of Drakko, 2026-10-03)
   duos: z.boolean().optional(), // DUOS-ONLY rune: offered only by a Duos run's forge (R-DUOS-RUNES-01)
+  armorOnPick: z.number().int().positive().optional(), // Armor gained once per copy taken (R-RUNE-PICK-ARMOR-01)
 }).strict();
 
 export const QuestDefSchema = z.object({

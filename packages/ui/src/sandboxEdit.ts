@@ -237,3 +237,19 @@ export function foeSnapshotOf(run: Pick<RunState, 'wave' | 'lobby' | 'servedBoar
   if (!foe) return null;
   return foe.board.snapshot ?? stagedBoard(run.wave, foe.board.minions, foe.board.tier);
 }
+
+/** How many runes one Runeforge visit offers. Mirrors the reducer's own offer size. */
+export const FORGE_PAGE = 4;
+
+/**
+ * The Scene Builder's "Next runes" page (owner ask 2026-11-15): the next `size` rune ids after the ones the open
+ * forge is showing, walking `pool` in its own order and wrapping at the end. Paging, not rolling, so every rune
+ * of the list is seen once per lap with no repeats; that is what an art pass needs. A forge showing nothing from
+ * the pool (or nothing at all) starts at the top. A pool shorter than a page returns the whole pool once.
+ */
+export function nextForgePage(pool: readonly string[], current: readonly string[] | undefined, size: number = FORGE_PAGE): string[] {
+  if (pool.length === 0) return [...(current ?? [])];
+  const last = Math.max(-1, ...(current ?? []).map((id) => pool.indexOf(id)));
+  const count = Math.min(Math.max(1, size), pool.length);
+  return Array.from({ length: count }, (_, i) => pool[(last + 1 + i) % pool.length]!);
+}

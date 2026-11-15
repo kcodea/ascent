@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { BoardCard, BoardSnapshot } from '@game/sim';
 import type { CardDef } from '@game/core';
 import {
+  FORGE_PAGE,
   MAX_BOARD,
   addEnemy,
   removeEnemy,
   setCardId,
   setCardStats,
   setEnemyCardId,
+  nextForgePage,
   setEnemyStats,
   stagedBoard,
   toggleCardKeyword,
@@ -214,5 +216,34 @@ describe('foeSnapshotOf — what the row shows and the fight serves', () => {
     expect(foeSnapshotOf(none)).toBeNull();
     const pin = { ...stagedBoard(1, [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }]) };
     expect(foeSnapshotOf({ wave: 1, servedBoards: { 1: pin } })).toBe(pin);
+  });
+});
+
+describe('nextForgePage (Scene Builder: Next runes)', () => {
+  const pool = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+
+  it('starts at the top when the forge shows nothing from the pool', () => {
+    expect(nextForgePage(pool, undefined)).toEqual(['a', 'b', 'c', 'd']);
+    expect(nextForgePage(pool, ['zz', 'yy'])).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('continues after the furthest rune on show, whatever order the forge dealt them in', () => {
+    expect(nextForgePage(pool, ['d', 'a', 'c', 'b'])).toEqual(['e', 'f', 'g', 'h']);
+  });
+
+  it('wraps at the end, and a full lap shows every rune', () => {
+    expect(nextForgePage(pool, ['e', 'f', 'g', 'h'])).toEqual(['i', 'j', 'a', 'b']);
+    const seen = new Set<string>();
+    let page: string[] | undefined;
+    for (let i = 0; i < Math.ceil(pool.length / FORGE_PAGE); i++) {
+      page = nextForgePage(pool, page);
+      page.forEach((id) => seen.add(id));
+    }
+    expect(seen.size).toBe(pool.length);
+  });
+
+  it('never repeats a rune inside one page, even for a pool shorter than a page', () => {
+    expect(nextForgePage(['a', 'b'], ['a'])).toEqual(['b', 'a']);
+    expect(nextForgePage([], ['a'])).toEqual(['a']);
   });
 });

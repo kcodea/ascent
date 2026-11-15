@@ -578,7 +578,7 @@ export type EffectFactoryId =
   | 'endOfTurnSelfAndNeighboursConsume' // Set 2 — Feastmaster Vhal: this minion + adjacent Demons each eat
   | 'rallyBuffShopPermanent' // Set 2 — Demon Horse: Rally buffs Shop minions permanently
   | 'deathrattleBuffShopPermanent' // Set 2 — Malphas Echo: death buffs Shop minions permanently
-  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp
+  | 'rallyBuffSelf' // Set 2 — Cinderchef: Rally gains +atk/+hp (`perShopSpell`: for each Shop spell cast this turn)
   | 'rallyCastNamedSpell' // Set 2 — Flamebeat Drake: Rally casts a named spell (Dragonflame)
   | 'rallyCastNamedSpellOnRight' // Set 3 Choosey Dragon (owner 2026-10-27): Rally casts a named TARGETED spell (Tribes Choice) on the minion to its right (both phases; golden twice)
   | 'onTribeAttackCastNamedSpell' // Set 2 — Warflame: a friendly Dragon attacks → cast a named spell (Dragonflame)
@@ -2093,7 +2093,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
   // Dwarves you Sell each turn return a plain copy to your hand.
   | 'runeReturnCustomers'
-  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 3 Gold + a free Refresh;
+  // Set 2 rune batch, Basic neutral (owner 2026-11-12): hazardPay = after a lost combat, 4 Gold + 2 free Refreshes;
   // shieldWall = Start of Combat, Taunt minions +4/+6; shatterproof = a Ward loss gives that minion +5/+5 permanently;
   // warmUp = a side-wide Pummel (150) banking 2 Gold next turn, once per combat; goldenHandshake = a Gild gives your
   // minions +2/+2; lateBloomer = a Shop upgrade gives 2 Gold and your minions +3/+3; loyalCustomer = every 4th minion
@@ -2102,7 +2102,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 rune batch, Basic tribal (owner review 2026-11-12): bloodscent = a Beast's kill gives it +4/+4 permanently;
   // lastHowl = the first Echo Beast to die each combat is resummoned; trophyHunter = a Beast's kill banks 1 Gold (3 per
   // combat); pitchforks = a summoned Imp deals 3 to 2 enemies; impLegion = Imps carry "Echo: deal 3 to the lowest-Health
-  // enemy"; collections = selling a Demon gives the Shop +2/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
+  // enemy"; collections = selling a Demon gives the Shop +3/+2 permanently (Shop); flamekeeper = a Dragonflame cast gives
   // your Dragons +2/+2 permanently; hatchlingRoost = Shout Dragons cost 1 Gold (Shop); rubyDust = a friendly minion with
   // Rubies dying casts a permanent Ruby on a random friendly Kobold; roughCut = a Ruby cast on a Kobold also casts on a
   // random friendly non-Kobold.
@@ -2129,7 +2129,7 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 2 rune, owner design 2026-11-13: endOfQuarter = every card entering the Shop rolls 30% (per copy) for 1 Gold off
   // (Shop-only; packages/sim/src/shop.ts rollEndOfQuarter).
   | 'runeEndOfQuarter'
-  // drunkShopkeeper = every Ale cast adds +1/+1 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
+  // drunkShopkeeper = every Ale cast adds +2/+2 to the permanent run-wide Shop buff (Shop-only; set2RunesBasicTribal.ts).
   | 'runeDrunkShopkeeper';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
@@ -3100,6 +3100,10 @@ export interface RuneDef {
   /** DUOS-ONLY RUNE (owner design 2026-10-30, R-DUOS-RUNES-01): offered only by a Duos run's forge (Versus Duos, Ranked
    *  Duos), the rune twin of `CardDef.duos`. Every other run's forge, grant and listing filters it out. */
   duos?: boolean;
+  /** ON-PICK ARMOR (owner 2026-11-15, R-RUNE-PICK-ARMOR-01): Armor gained once, the moment a copy of this rune is taken
+   *  (bought, Duplication's copy, a granted rune). Raises `armor` and `maxArmor` on the run; seat 0 re-seeds from the
+   *  run before every lobby hit, so it absorbs before Resolve. Grudge (10) and Hazard Pay (5). */
+  armorOnPick?: number;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown
@@ -3525,6 +3529,7 @@ export type CombatEvent = (
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean; immune?: true }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
+  | { type: 'shopSpellTally'; side: Side; count: number } // a SHOP spell (R-SHOPSPELL-01) resolved mid-fight: `count` = that side's Shop spells THIS TURN so far (recruit turn + this fight). Presentation only, silent and zero hold: Cinderchef's live text reads it in real time (R-CINDERCHEF-01)
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.
   | { type: 'shield'; target: string }
   | { type: 'wardDowngrade'; target: string } // a RESILIENT Ward took its first hit: the hit is absorbed and it drops to a plain Ward ('RW' stripped, 'DS' kept). Not a break — `onLoseDivineShield` does not fire. The UI plays it on the Ward-break beat (the orange layer cracks away)
@@ -3639,6 +3644,10 @@ export interface CombatSideState {
   whisperImprove?: Record<string, number>;
   /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
   spellsThisTurn: number;
+  /** SHOP spells (R-SHOPSPELL-01: the set's Shop-spell pool, Ales included; never a Ruby, Clue/Gift or token) cast
+   *  this recruit turn — Cinderchef's Rally reads it. Combat keeps it LIVE: a Shop spell cast mid-fight counts the
+   *  moment it resolves (`spellResolved`). Snapshot-captured, so a served Cinderchef reads its OWNER's count. */
+  shopSpellsThisTurn?: number;
   /** The FIRST spell cast this recruit turn, by id — Comet Conductor's Rally hands its side a copy. Snapshot-
    *  captured since R-SYMMETRY-01 (2026-10-13), so a served Comet Conductor copies its OWNER's first spell. */
   firstSpellThisTurnId?: string;
@@ -3827,6 +3836,8 @@ export interface CombatConfig {
 export interface EnemyScalers {
   spellPower: { attack: number; health: number };
   spellsThisTurn: number;
+  /** Shop spells the served run cast on its capture turn (Cinderchef's live text on a served board). */
+  shopSpellsThisTurn?: number;
   beastsPlayed: number;
   deathrattles: number;
   conductorBuff: number;
@@ -4465,6 +4476,9 @@ export interface CombatContext {
   /** This side's live tavern tier — used to cap random-minion generation (e.g. Bullseye / Menagerie Mammoth). */
   tierFor(side: Side): number;
   spellsThisTurnFor(side: Side): number;
+  /** Per-side SHOP spells cast this turn (R-SHOPSPELL-01), LIVE: the side's recruit-turn count plus every Shop spell
+   *  it has cast so far this fight (Cinderchef). Optional so a hand-built test context reads 0. */
+  shopSpellsThisTurnFor?(side: Side): number;
   /** The first spell that side cast this recruit turn (Comet Conductor); undefined when none was. */
   firstSpellThisTurnIdFor(side: Side): string | undefined;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat

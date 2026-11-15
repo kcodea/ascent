@@ -2855,17 +2855,19 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Hazard Pay and Late Bloomer: Shop economy runes, paid per copy',
     statement:
       'Hazard Pay (Basic, 0) pays after a LOST combat (not a draw), as the next Shop opens, on its own Start of Turn beat: '
-      + '3 Gold and a banked free Refresh per copy held. Late Bloomer (Basic, 2) pays on every Shop Tier step, a free one '
+      + '4 Gold and 2 banked free Refreshes per copy held (owner balance 2026-11-15; was 3 Gold and 1), plus 5 Armor when '
+      + 'taken (R-RUNE-PICK-ARMOR-01). Late Bloomer (Basic, 2) pays on every Shop Tier step, a free one '
       + 'included (Summit Passage, a Citadel commission): 2 Gold and +3/+3 to every board minion (permanent), per copy held.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Set 2 rune batch review 2026-11-12 (docs/design/2026-11-12-set2-rune-batch.md)', quote: 'After you lose a combat, gain 3 Gold and a free Refresh. / When you upgrade your Shop, gain 2 Gold and give your minions +3/+3.' },
+      { kind: 'owner-chat', ref: 'owner rune balance pass 2026-11-15', quote: 'Gain 5 Armor, and after you lose a combat gain 4 Gold and 2 free Refreshes' },
       { kind: 'code', ref: 'packages/sim/src/set2RunesBasicNeutral.ts hazardPayTurnStart / lateBloomerOnUpgrade; reducer.ts advanceCombat, upgrade, upgradeShopTier, payCommissionOnce' },
     ],
     contentIds: ['rune_hazard_pay', 'rune_late_bloomer'],
-    currentBehaviour: 'Conforms as of 2026-11-13 (new content).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-13' },
+    currentBehaviour: 'Conforms as of 2026-11-15 (Hazard Pay balance pass).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
   {
     id: 'R-SET2-RUNES-BN-03',
@@ -3005,7 +3007,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-SET2-TRIBAL-RUNES-05',
     title: 'The Shop-side tribal runes: Collections, Flamekeeper, Hatchling Roost, Dragon Hoard, Rough Cut',
     statement:
-      'Collections: selling a Demon raises the permanent Shop buff +2/+2. Flamekeeper: every Dragonflame cast (Shop or combat, '
+      'Collections: selling a Demon raises the permanent Shop buff +3/+2 (owner balance 2026-11-15; was +2/+2). Flamekeeper: every Dragonflame cast (Shop or combat, '
       + 'any caster) gives your board Dragons +2/+2 permanently. Hatchling Roost: a Dragon with a Shout costs 1 Gold in the '
       + 'Shop, any Tier, other discounts on top. Dragon Hoard (owner rework 2026-11-13): every 3 Gold spent gets a '
       + 'Dragonflame, REPEATING (10 Gold = 3), on the shared `gold` threshold meter, the remainder carried across turns, '
@@ -3031,7 +3033,8 @@ export const RUNES_RULES: GameRule[] = [
       + 'never grows: a short row fills a free slot, a full row replaces the right-most minion offer that is not already '
       + 'above your Tier. At the top Tier it does nothing. Wholesale: every Shop minion offer costs 1 less per copy held, '
       + 'floored at 0; spells and Rubies are untouched. Grudge: after a lost combat (a draw is not a loss) the next Shop '
-      + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held.',
+      + 'opens a minion Discover from your Shop Tier + 1, capped at Tier 7, on its own Start of Turn beat, one per copy held. '
+      + 'Grudge costs 0 and gives 10 Armor when taken (owner balance 2026-11-15, R-RUNE-PICK-ARMOR-01).',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -3255,18 +3258,19 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET2-RUNE-DRUNKSHOPKEEPER-01',
-    title: 'Drunk Shopkeeper: every Ale cast adds +1/+1 to the permanent Shop buff, for the rest of the run',
-    statement: 'Drunk Shopkeeper (Basic, Dwarf, 2, Set 2, Shop-only). Each Dwarven Ale cast in the Shop (any cast path: from hand, a rune or minion cast) adds +1/+1 per copy held to the run-wide permanent Shop buff (the Collections / Infernal Ink channel), so every minion in the Shop now AND every minion that enters the Shop afterwards (a Refresh, a new turn, a refill) has the running total, for the rest of the run (the Starform banks it too). It fires on an empty Shop as well: the next row carries it. A multiplied Ale (Bottomless Cask, Shared Pour, Last Call) pays once per cast, like every Ale trigger; Edward Keg-hands adds no cast since 2026-11-14 (R-EDWARD-01), so an Ale under Edward pays once. It stacks with every other Shop buff (Shop Madness: +3/+3 plus this) and never touches a price. An Ale cast in combat does nothing for it (a fight has no Shop). The text prints the live total it has given the Shop: "(Now +X/+X.)".',
+    title: 'Drunk Shopkeeper: every Ale cast adds +2/+2 to the permanent Shop buff, for the rest of the run',
+    statement: 'Drunk Shopkeeper (Basic, Dwarf, 2, Set 2, Shop-only). Each Dwarven Ale cast in the Shop (any cast path: from hand, a rune or minion cast) adds +2/+2 per copy held (owner balance 2026-11-15; was +1/+1) to the run-wide permanent Shop buff (the Collections / Infernal Ink channel), so every minion in the Shop now AND every minion that enters the Shop afterwards (a Refresh, a new turn, a refill) has the running total, for the rest of the run (the Starform banks it too). It fires on an empty Shop as well: the next row carries it. A multiplied Ale (Bottomless Cask, Shared Pour, Last Call) pays once per cast, like every Ale trigger; Edward Keg-hands adds no cast since 2026-11-14 (R-EDWARD-01), so an Ale under Edward pays once. It stacks with every other Shop buff (Shop Madness: +3/+3 plus this) and never touches a price. An Ale cast in combat does nothing for it (a fight has no Shop). The text prints the live total it has given the Shop: "(Now +X/+X.)".',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'owner design 2026-11-13 (Drunk Shopkeeper)', quote: 'casting ales buffs your shop +1/+1 permanently' },
       { kind: 'owner-handoff', ref: 'owner rework 2026-11-14 (a lasting Shop buff)', quote: 'each Ale cast buffs the Shop, every minion that appears in the Shop afterwards has it too' },
+      { kind: 'owner-chat', ref: 'owner rune balance pass 2026-11-15', quote: 'when you cast an Ale, Shop minions get +2/+2 permanently' },
       { kind: 'code', ref: 'packages/sim/src/set2RunesBasicTribal.ts drunkShopkeeperOnCast (applyRunShopBuff); packages/sim/src/recruit.ts castSpell; packages/sim/src/runeLiveState.ts + packages/ui/src/runeText.ts (live total)' },
     ],
     contentIds: ['rune_drunk_shopkeeper'],
-    currentBehaviour: 'Conforms as of 2026-11-14 (rework).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts'], lastVerifiedAt: '2026-11-14' },
+    currentBehaviour: 'Conforms as of 2026-11-15 (balance pass: +2/+2).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2ShopRunesGrubQuarterDrunk.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
   {
     id: 'R-SET2-RUNE-SPELLAPPETITE-01',
@@ -3313,5 +3317,20 @@ export const RUNES_RULES: GameRule[] = [
     contentIds: ['rune_sequencing'],
     currentBehaviour: 'Conforms as of 2026-11-14 (new content). Judgement calls pending owner confirmation: Gifts never join the sequence; Rubies cast by an effect in combat (not a castInCombat cast) do not count, as in the Shop, where only a Ruby cast from hand counts.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeSequencing.test.ts'], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: 'R-RUNE-PICK-ARMOR-01',
+    title: 'A rune that says "Gain N Armor" gives that Armor once, the moment each copy is taken',
+    statement: 'A rune with on-pick Armor (`RuneDef.armorOnPick`: Grudge 10, Hazard Pay 5) adds that Armor to the run the moment a copy is taken, whichever way it arrives (bought at a Runeforge, the copy from Rune of Duplication, a granted rune, God Mode), once per copy. It raises max Armor to fit so the bar shows it. It is the same Armor every other source gives: in a lobby the seat re-seeds from the run before the hit of each round, so it absorbs a lost round before Resolve. A banked re-fire of a reward never pays it again.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'owner rune balance pass 2026-11-15', quote: 'Grudge: cost 0, and Gain 10 Armor. Hazard Pay: Gain 5 Armor' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts applyQuestReward (gainRunePickArmor); packages/content/src/runes.ts armorOnPick; packages/content/src/schema.ts RuneDefSchema' },
+    ],
+    contentIds: ['rune_grudge', 'rune_hazard_pay'],
+    currentBehaviour: 'Conforms as of 2026-11-15 (new behaviour).',
+    example: 'Take Grudge with 5 Armor: you have 15 Armor. Lose the next round for 12: Armor drops to 3, Resolve is untouched.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts', 'packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
 ];

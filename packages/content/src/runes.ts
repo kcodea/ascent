@@ -2197,11 +2197,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set2'],
   },
   {
-    // Paid as the next Shop opens (a Start of Turn beat): 3 Gold and a banked free Refresh, per copy held.
+    // Paid as the next Shop opens (a Start of Turn beat): 4 Gold and 2 banked free Refreshes, per copy held. Owner
+    // 2026-11-15: also 5 Armor the moment it is taken (`armorOnPick`).
     id: 'rune_hazard_pay',
     name: 'Hazard Pay',
     cost: 0,
-    text: 'After you lose a combat, gain **3 Gold** and a free Refresh.',
+    armorOnPick: 5,
+    text: 'Gain **5 Armor**. After you lose a combat, gain **4 Gold** and **2** free Refreshes.',
     reward: { kind: 'combatFlag', flag: 'runeHazardPay' },
     sets: ['set2'],
   },
@@ -2360,7 +2362,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['demon'],
     name: 'Collections',
     cost: 3,
-    text: 'When you **Sell** a **Demon**, give minions in the Shop **+2/+2** permanently.',
+    text: 'When you **Sell** a **Demon**, give minions in the Shop **+3/+2** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeCollections' },
     sets: ['set2'],
   },
@@ -2470,14 +2472,15 @@ export const RUNES: RuneDef[] = [
   },
   {
     // Owner design 2026-11-13; rework 2026-11-14 ("buffs the Shop"). Shop-only (an Ale is only cast in the Shop). Every Ale
-    // CAST (each repetition of a multiplied cast: Edward, Bottomless Cask, Shared Pour, Last Call) adds +1/+1 per copy to the
+    // CAST (each repetition of a multiplied cast: Edward, Bottomless Cask, Shared Pour, Last Call) adds +2/+2 per copy to the
+    // (+1/+1 until the owner's 2026-11-15 balance pass)
     // run-wide permanent Shop buff (`applyRunShopBuff`), so the Shop minions now AND every minion that enters the Shop later
     // carry the running total. The text prints that total live ("(Now +X/+X.)", `liveRuneText`).
     id: 'rune_drunk_shopkeeper',
     tribes: ['dwarf'],
     name: 'Drunk Shopkeeper',
     cost: 2,
-    text: 'When you cast an **Ale**, Shop minions get **+1/+1** permanently.',
+    text: 'When you cast an **Ale**, Shop minions get **+2/+2** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeDrunkShopkeeper' },
     sets: ['set2'],
   },
@@ -4773,11 +4776,13 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // Start of Turn after a LOST combat (a draw is not a loss): a minion Discover from your Shop Tier + 1, capped at 7.
+    // Owner 2026-11-15: free (was 3 Gold) and 10 Armor the moment it is taken (`armorOnPick`).
     id: 'rune_grudge',
     name: 'Grudge',
-    cost: 3,
+    cost: 0,
     epic: true,
-    text: 'After you lose a combat, **Discover** a minion from the Tier above your Shop. (Up to Tier 7.)',
+    armorOnPick: 10,
+    text: 'Gain **10 Armor**. After you lose a combat, **Discover** a minion from the Tier above your Shop. (Up to Tier 7.)',
     reward: { kind: 'combatFlag', flag: 'runeGrudge' },
     sets: ['set2'],
   },

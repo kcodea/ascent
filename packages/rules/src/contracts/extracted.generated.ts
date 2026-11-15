@@ -5404,7 +5404,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "rallyBuffSelf.perShopSpell"
+      ]
     },
     "setIds": [
       "set2"
@@ -6048,7 +6051,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "health": 1
+            "health": 2
           }
         }
       }
@@ -34817,7 +34820,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:3"
+      "cost:0"
     ],
     "effects": [
       {

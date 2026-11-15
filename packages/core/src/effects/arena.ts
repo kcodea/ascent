@@ -174,6 +174,9 @@ export interface EffectArena {
   buffPermanent(t: ArenaBody, attack: number, health: number): void;
   /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
   spellsThisTurn(): number;
+  /** SHOP spells (R-SHOPSPELL-01: Shop-pool spells, Ales included; never a Ruby, Clue/Gift or token) cast this turn,
+   *  for THIS side. The shop reads the run's tally; combat reads it LIVE (recruit turn + this fight's Shop casts). */
+  shopSpellsThisTurn(): number;
   /** Cards of `tribe` PLAYED this recruit turn, for THIS side (combat reads the side's frozen per-tribe map; the
    *  shop counts the live `playedThisTurn` through the shared tribe predicate — an all-types card counts). */
   playedThisTurn(tribe: string): number;
@@ -1978,10 +1981,14 @@ export const ARENA_EFFECTS = {
     arena.buff(arena.self, num(params.attack, 1) * g * count, num(params.health, 1) * g * count);
   },
 
-  /** Cinderchef — Rally: gain +atk/+hp (golden doubles). */
+  /** Rally: gain +atk/+hp (golden doubles). `perShopSpell` (Cinderchef, owner 2026-11-15): the gain is for EACH Shop
+   *  spell cast this turn, so with none cast it gains nothing. The count is `shopSpellsThisTurn()`, live in combat, so a
+   *  Shop spell cast mid-fight raises the very next Rally (R-CINDERCHEF-01). */
   rallyBuffSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const n = params.perShopSpell === true ? arena.shopSpellsThisTurn() : 1;
+    if (n <= 0) return;
     const g = gold(arena);
-    arena.buff(arena.self, num(params.attack, 1) * g, num(params.health, 1) * g);
+    arena.buff(arena.self, num(params.attack, 1) * g * n, num(params.health, 1) * g * n);
   },
 
   /** Equinox Duelist (Dawn Rally) — buff every friendly CELESTIAL (a flagged card, not a tribe). Includes

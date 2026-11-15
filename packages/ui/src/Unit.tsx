@@ -112,6 +112,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Vaultkeeper's umbrella ticks LIVE: the run's lifetime count + this side's casts so far THIS fight (the
         // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
         spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally, echoIncludesSelf: !foe,
+        // Cinderchef: Shop spells this turn, LIVE — the side's latest replayed `shopSpellTally` (recruit turn + this
+        // fight's Shop casts), else its frozen recruit-turn count (the foe's from its snapshot). Symmetric.
+        shopSpellsThisTurn: u.shopSpellsLive ?? (foe ? (enemyScalers?.shopSpellsThisTurn ?? 0) : (run.shopSpellsThisTurn ?? 0)),
         rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
         // Set 3 Whispers: Tolan's / Whaloo's live Runebind value, per side (the foe's from its snapshot), raised LIVE by
         // every combat Runebind landed so far (`whisperImproveLive`, the side's running totals).
@@ -284,6 +287,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&
+  a.u.shopSpellsLive === b.u.shopSpellsLive && // ticks only on a Shop-spell cast mid-fight (rare) — Cinderchef's live gain
   a.u.spellsCastCombat === b.u.spellsCastCombat && // ticks only on a spellcast beat (rare) — Vaultkeeper's live umbrella
   a.u.whisperCastsUsed === b.u.whisperCastsUsed && // Whaloo's live cap (only its own casts move it)
   a.u.attacksMade === b.u.attacksMade && // Immune Iggy's live immune countdown (only its own swings move it)

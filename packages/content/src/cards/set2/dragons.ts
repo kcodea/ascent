@@ -154,12 +154,12 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 3,
     keywords: [],
     // Owner rework 2026-08-18: the buff is now Dragon-scoped and grants Health too (+2/+3), via the `tribe`
-    // filter on `spellCastBuffAll`. Owner batch 2026-09-24: +2/+3 → +2/+1.
+    // filter on `spellCastBuffAll`. Owner batch 2026-09-24: +2/+3 → +2/+1. Owner 2026-11-15: +2/+1 → +2/+2.
     effects: [
-      { on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dragon', attack: 2, health: 1 } },
+      { on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dragon', attack: 2, health: 2 } },
     ],
-    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+1**.',
-    goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+2**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+2**.',
+    goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+4**.',
   },
   {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the
@@ -267,7 +267,8 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** give your **Dragons +6/+4**.',
   },
   {
-    // Tier-1 Rally tempo: grows itself every swing. Golden doubles the step.
+    // Tier-1 Rally that feeds on Shop spells (owner 2026-11-15): each swing grows it by +1/+1 for every Shop spell
+    // (R-SHOPSPELL-01) cast this turn, live in combat. None cast, no gain. Golden doubles the step.
     id: 'd2_cinderchef',
     name: 'Cinderchef',
     tribe: 'dragon',
@@ -275,9 +276,9 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 1,
     health: 3,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyBuffSelf', params: { attack: 1, health: 1 } }],
-    text: '**Rally:** gain **+1/+1**.',
-    goldenText: '**Rally:** gain **+2/+2**.',
+    effects: [{ on: 'onAttack', do: 'rallyBuffSelf', params: { attack: 1, health: 1, perShopSpell: true } }],
+    text: '**Rally:** gain **+1/+1** for each **Shop spell** cast this turn.',
+    goldenText: '**Rally:** gain **+2/+2** for each **Shop spell** cast this turn.',
   },
   {
     // A Shout-fetcher on a Rally: each swing hands you a random SHOUT minion (a minion with a real Shout),

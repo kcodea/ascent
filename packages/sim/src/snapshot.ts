@@ -131,6 +131,7 @@ export interface BoardSnapshot {
   spellPower?: { attack: number; health: number }; // hero amplify + card spell bonus (Taragosa/Watcher/Hoardbreaker)
   deathrattles?: number; // Deathrattles triggered this game so far (Grim)
   spellsThisTurn?: number; // spells cast this recruit turn (Runescale Drake)
+  shopSpellsThisTurn?: number; // SHOP spells cast this recruit turn (Cinderchef, R-SHOPSPELL-01)
   beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
   spellsCast?: number; // lifetime spells cast this run (enemy Umbral Energy)
   beastBuyAtk?: number; // run-wide Beast Attack aura (enemy Beast aura)
@@ -478,6 +479,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(spellPowerAtk || spellPowerHp ? { spellPower: { attack: spellPowerAtk, health: spellPowerHp } } : {}),
     ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),
     ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
+    ...(s.shopSpellsThisTurn ? { shopSpellsThisTurn: s.shopSpellsThisTurn } : {}),
     ...(beastsPlayed ? { beastsPlayed } : {}),
     ...(s.spellsCast ? { spellsCast: s.spellsCast } : {}),
     ...(s.conductorBuff ? { conductorBuff: s.conductorBuff } : {}),

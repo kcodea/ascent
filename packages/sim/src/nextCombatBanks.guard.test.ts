@@ -82,6 +82,7 @@ const NOT_A_NEXT_COMBAT_BANK: Record<string, string> = {
 
 const base = (over: Partial<RunState>): RunState => ({
   ...createRun(5), phase: 'recruit',
+  shopSpellsThisTurn: 1, // Cinderchef gains per Shop spell cast this turn (owner 2026-11-15): one staged Shop spell keeps it the +1/+1 probe (rides the snapshot to the served side)
   board: [
     { uid: 'a', cardId: 'd2_cinderchef', tribe: 'dwarf', attack: 3, health: 8, keywords: ['RL'], golden: false },
     { uid: 'b', cardId: 'stray', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },

@@ -200,6 +200,9 @@ export interface UnitFrame {
    *  "N spells to next step" tick AS the casts land (owner report 2026-09-18: "Vaultkeeper's text doesn't update
    *  in real time in combat") — the run's counter only takes the carry-back at settle. */
   spellsCastCombat?: number;
+  /** Cinderchef: this unit's SIDE's Shop spells cast THIS TURN so far, from the latest `shopSpellTally` marker (the
+   *  recruit-turn count plus the fight's Shop casts). Undefined until a Shop spell resolves in this fight. */
+  shopSpellsLive?: number;
   /** Whaloo (Set 3): Whispers it has cast so far THIS fight (its "3 times per combat" cap, printed live). */
   whisperCastsUsed?: number;
   /** Immune Iggy (Set 3, 2026-10-15): this body's swings so far this fight, for its live immune countdown. */
@@ -423,6 +426,8 @@ export function computeFrame(
   // `count`, which the sim seeds with the player's run-lifetime total (and 0 for the enemy) — the run already
   // supplies that half, so the frame carries only the in-fight delta.
   const spellCasts: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
+  // Cinderchef: each side's live "Shop spells cast this turn" (the sim's own running total, last marker wins).
+  const shopTally: Record<'player' | 'enemy', number | undefined> = { player: undefined, enemy: undefined };
   // Set 3 Whispers: each side's live per-Whisper improvement (the `sc.whisperImprove` totals) and each caster's Whisper
   // cast count (Whaloo's cap), folded from the combat Whisper casts so far.
   const whisperImp: Record<'player' | 'enemy', Record<string, number> | undefined> = { player: undefined, enemy: undefined };
@@ -444,6 +449,7 @@ export function computeFrame(
       if (arr) for (const u of arr) if (u.alive && u.health > 0 && countsFriendlyAttacks(u.cardId)) u.attackSeen = (u.attackSeen ?? 0) + 1;
     }
     if (e.type === 'spellcast') spellCasts[e.side]++;
+    if (e.type === 'shopSpellTally') shopTally[e.side] = e.count;
     if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
       // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
       // "3 times per combat" counts its triggers, never the extra casts.
@@ -655,6 +661,7 @@ export function computeFrame(
       for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, 0); }
       deaths[e.side] = 0;
       spellCasts[e.side] = 0;
+      shopTally[e.side] = undefined; // the teammate's own count takes over (its snapshot value)
     } else if (e.type === 'flyIn') {
       // DUOS (R-DUOS-FLYIN-01): the fight is won and the unfought teammate board flies into the empty slots, after the
       // survivors, left to right. They trigger nothing; they stand there so the damage formation counts them.
@@ -695,8 +702,8 @@ export function computeFrame(
   }
   // Stamp the live step-counter tallies onto every frame: each unit sees its OWN side's death count (Avenge) and
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
-  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; }
-  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; }
+  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; u.shopSpellsLive = shopTally.player; }
+  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; u.shopSpellsLive = shopTally.enemy; }
   if (whisperCasts.size > 0) for (const u of [...player, ...enemy]) { const n = whisperCasts.get(u.uid); if (n) u.whisperCastsUsed = n; }
   // Only the bodies whose text reads it (Immune Iggy), so no other unit's memo churns on every swing.
   for (const u of [...player, ...enemy]) { if (CARD_INDEX[u.cardId]?.attackImmuneTurns) { const n = attacksBy.get(u.uid); if (n) u.attacksMade = n; } }

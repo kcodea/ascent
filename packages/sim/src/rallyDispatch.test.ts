@@ -26,8 +26,9 @@ const bc = (uid: string, cardId: string, over: Partial<RunState['board'][number]
   } as RunState['board'][number];
 };
 
+// Cinderchef gains per Shop spell cast this turn (owner 2026-11-15): one staged Shop spell keeps it the +1/+1 probe.
 const run = (board: RunState['board'], over: Partial<RunState> = {}): RunState =>
-  ({ ...createRun(3, 'warden'), phase: 'recruit', board, ...over } as RunState);
+  ({ ...createRun(3, 'warden'), phase: 'recruit', board, shopSpellsThisTurn: 1, ...over } as RunState);
 
 const statsOf = (s: RunState, uid: string): string => {
   const c = s.board.find((b) => b.uid === uid)!;

@@ -57,7 +57,7 @@ describe('the fourteen runes as content', () => {
       ['rune_pitchforks', 'Pitchforks', 4, 'demon', '**Imps** deal **3** damage to **2** enemies when summoned.'],
       ['rune_imp_legion', 'Imp Legion', 3, 'demon', 'Your **Imps** gain "**Echo:** deal **3** damage to the lowest-Health enemy."'],
       ['rune_guels_apprentice', "Guel's Apprentice", 2, 'demon', 'Get a **Staff of Guel**. Repeat every turn.'],
-      ['rune_collections', 'Collections', 3, 'demon', 'When you **Sell** a **Demon**, give minions in the Shop **+2/+2** permanently.'],
+      ['rune_collections', 'Collections', 3, 'demon', 'When you **Sell** a **Demon**, give minions in the Shop **+3/+2** permanently.'],
       ['rune_flamekeeper', 'Flamekeeper', 1, 'dragon', 'After you cast a **Dragonflame**, give your **Dragons +2/+2** permanently.'],
       ['rune_hatchling_roost', 'Hatchling Roost', 2, 'dragon', '**Dragons** with a **Shout** cost **1 Gold**.'],
       ['rune_dragon_hoard', 'Dragon Hoard', 1, 'dragon', 'When you spend **3** Gold, get a **Dragonflame**.'],
@@ -117,16 +117,16 @@ describe("Guel's Apprentice", () => {
 });
 
 describe('Collections', () => {
-  it('selling a Demon raises the permanent Shop buff +2/+2 (per copy); a non-Demon sale does nothing', () => {
+  it('selling a Demon raises the permanent Shop buff +3/+2 (per copy, owner 2026-11-15); a non-Demon sale does nothing', () => {
     const s0 = withRunes(['rune_collections'], { board: [body('d', 'dm_knocked'), body('b', 'b2_trex')] });
     const before = { ...s0.tavernBuyBonus };
     const s1 = act(s0, { type: 'sell', uid: 'b' } as Action);
     expect(s1.tavernBuyBonus).toEqual(before);
     const s2 = act(s1, { type: 'sell', uid: 'd' } as Action);
-    expect(s2.tavernBuyBonus).toEqual({ atk: before.atk + 2, hp: before.hp + 2 });
+    expect(s2.tavernBuyBonus).toEqual({ atk: before.atk + 3, hp: before.hp + 2 });
     const two = withRunes(['rune_collections', 'rune_collections'], { board: [body('d', 'dm_knocked')] });
     const b2 = { ...two.tavernBuyBonus };
-    expect(act(two, { type: 'sell', uid: 'd' } as Action).tavernBuyBonus).toEqual({ atk: b2.atk + 4, hp: b2.hp + 4 });
+    expect(act(two, { type: 'sell', uid: 'd' } as Action).tavernBuyBonus).toEqual({ atk: b2.atk + 6, hp: b2.hp + 4 });
   });
 });
 

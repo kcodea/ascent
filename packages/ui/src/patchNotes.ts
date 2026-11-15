@@ -59,6 +59,26 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-15',
     changes: [
       {
+        category: 'Balance',
+        text: 'Cinderchef now feeds on Shop spells, and Earthbreaker gives your Dragons more Health.',
+        details: [
+          'Cinderchef: Rally now gains +1/+1 for each Shop spell cast this turn (Gilded: +2/+2 for each). With no Shop spell cast, it gains nothing.',
+          'Cinderchef counts Shop spells cast during combat the moment they land, and its text shows its current gain.',
+          'Rubies, Clues and other Gifts are not Shop spells, so they do not count.',
+          'Earthbreaker: now gives your Dragons +2/+2 per Shop spell (was +2/+1). Gilded: +4/+4.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Rune changes: Grudge, Hazard Pay, Collections and Drunk Shopkeeper are stronger.',
+        details: [
+          'Grudge now costs 0 and gives you 10 Armor when you take it. After you lose a combat, it still lets you Discover a minion from the Tier above your Shop.',
+          'Hazard Pay gives you 5 Armor when you take it. After you lose a combat, you now gain 4 Gold and 2 free Refreshes.',
+          'Collections: selling a Demon now gives Shop minions +3/+2 permanently, up from +2/+2.',
+          'Drunk Shopkeeper: each Ale you cast now gives Shop minions +2/+2 permanently, up from +1/+1. Minions that show up in the Shop later get it too.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The announcer no longer hints at who will win a fight before it plays.',
         details: [

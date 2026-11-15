@@ -21,7 +21,7 @@ import {
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
   announcerExhausted, ANNOUNCER_CHANCE, ANNOUNCER_NAMED_BUYS, ANNOUNCER_RANDOM_BUY_GAP_WAVES, ANNOUNCER_RANDOM_BUY_MAX, observeTurnClock, previewAnnouncerEvent, announcerClipUrl, ANNOUNCER_SAMPLE_LINES, previewAnnouncerPack, setAnnouncerPackProvider, stopAnnouncerPreview,
-  CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  ANNOUNCER_CUT_TAKES, CATALOG_BATCH_1_EVENTS, CATALOG_BATCH_2_EVENTS, CATALOG_BATCH_3_EVENTS, FIGHT_SPECIAL_EVENTS, observeCombatMoments, type CombatReplayView, isMixedBoard, isTribeFullBoard, RANDOM_BUY_EVENTS, SPECIALTY_EVENTS, type AnnouncerDeps, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   ANNOUNCER_BATCH_3_CARDS, ANNOUNCER_BATCH_3_RUNES, type AnnouncerActionLike, type AnnouncerFoe,
   CATALOG_BATCH_4_EVENTS, HERO_PICK_TAKES, OPPONENT_HERO_TAKES, TRIBE_SURGE_TAKES, TRIBE_TAKEOVER_TAKES,
   ANNOUNCER_TRIBE_SURGE_WAVE, ANNOUNCER_TRIBE_TAKEOVER, boardTribeCounts, foeHeroId, keyedTakes, type KeyedTakes,
@@ -35,7 +35,7 @@ import {
 const SEED = 4242;
 const LINE_MS = 1000;
 /** A fight long enough that a Face Omen line's cooldown has passed by the verdict. */
-const FIGHT_MS = 1000 + 12_000 + 2000;
+const FIGHT_MS = ANNOUNCER_FACE_OMEN_DELAY_MS + 1000 + ANNOUNCER_COOLDOWN_MS + 400;
 
 class StubHandle {
   stopped: number | null = null;
@@ -215,7 +215,7 @@ describe('GameStart', () => {
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.gameStart).toHaveLength(25);
+    expect(ANNOUNCER_LINES.gameStart).toHaveLength(19); // 25 recorded, 6 cut for their language (2026-11-15)
     // The audio stream only (ID3 tags stripped), so a re-tagged copy of the same take still counts as a duplicate.
     const audio = (b: Buffer): Buffer => {
       let a = b;
@@ -229,7 +229,7 @@ describe('GameStart', () => {
       expect(existsSync(file), name).toBe(true);
       hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
     }
-    expect(hashes.size).toBe(25);
+    expect(hashes.size).toBe(19);
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);
@@ -750,7 +750,7 @@ describe('the second batch (owner 2026-09-24)', () => {
     expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3']);
     expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4']);
     expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
-    expect(ANNOUNCER_LINES.knockout).toHaveLength(6);
+    expect(ANNOUNCER_LINES.knockout).toHaveLength(5); // knockout-4 cut for its language (2026-11-15)
     expect(ANNOUNCER_LINES.pair).toHaveLength(4);
     expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(4);
     // The table stays append-only: the rare-line rolls still hash an event's index in it.
@@ -1073,12 +1073,12 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(7);
-    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(21);
+    expect(ANNOUNCER_LINES.enteringCombat).toHaveLength(6); // 7 recorded, 1 cut for its language (2026-11-15)
+    expect(ANNOUNCER_LINES.timeRunningOut).toHaveLength(15); // 21 recorded, 6 cut for their language (2026-11-15)
     expect(ANNOUNCER_LINES.randomCardBuy).toHaveLength(8);
     expect(ANNOUNCER_LINES.buyDrakko).toHaveLength(5);
     expect(ANNOUNCER_LINES.buySylus).toHaveLength(4);
-    expect(ANNOUNCER_LINES.castAle).toHaveLength(6);
+    expect(ANNOUNCER_LINES.castAle).toHaveLength(5); // 6 recorded, 1 cut for cursing (2026-11-15)
     const audio = (b: Buffer): Buffer => {
       let a = b;
       if (a.subarray(0, 3).toString() === 'ID3') a = a.subarray(10 + ((a[6]! & 0x7f) << 21 | (a[7]! & 0x7f) << 14 | (a[8]! & 0x7f) << 7 | (a[9]! & 0x7f)));
@@ -1244,7 +1244,7 @@ describe('the third batch (owner 2026-09-25): new takes, TimeRunningOut, the no-
       expect(new Set(warnings).size).toBe(4); // four turns, four different takes
       expect(announced.fired.timeRunningOut).toHaveLength(4);
     });
-    it('reshuffles when all 21 takes are heard (it is a timer warning, never goes silent)', async () => {
+    it('reshuffles when every take is heard (it is a timer warning, never goes silent)', async () => {
       let a = emptyAnnounced(SEED);
       for (const t of ANNOUNCER_LINES.timeRunningOut) a = withAnnounced(a, 'timeRunningOut', 1, t);
       announced = a;
@@ -1653,14 +1653,46 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
         expect(events()).not.toContain('broke-turn');
       }
     });
-    it('UnderdogOdds under 20%, HeavyFavourite over 90%, once the fight\'s odds land; even odds say nothing', async () => {
-      const cases: [number, string | undefined][] = [[0.1, 'underdog-odds'], [0.95, 'heavy-favourite'], [0.5, undefined]];
-      for (const [win, line] of cases) {
+    // R-TEXT-ANNOUNCER-02 (owner 2026-11-15): the retired UnderdogOdds ("The odds are against you.") and HeavyFavourite
+    // ("This should be comfortable.") lines told the player the result before the fight played.
+    it('the fight\'s odds landing says NOTHING before the verdict, however lopsided (no pre-fight spoiler)', async () => {
+      for (const win of [0, 0.02, 0.1, 0.5, 0.95, 1]) {
         fresh();
         const r = openShop();
         const fighting = go({ ...r, phase: 'combat' });
         go(fighting, { combatOdds: { wave: r.wave, odds: { win, draw: 0, lose: 1 - win } } });
-        expect(await first(ANNOUNCER_FACE_OMEN_DELAY_MS + 20)).toBe(line);
+        await tick(FIGHT_MS);
+        expect(events(), `win odds ${win}`).toEqual([]);
+      }
+    });
+    // R-TEXT-ANNOUNCER-03 (owner 2026-11-15): a take cut for its language stays cut, in every voice.
+    it('no take cut for its language is listed or shipped, in the default voice or any pack', async () => {
+      const { existsSync, readdirSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const dir = resolve(process.cwd(), 'apps/web/public/announcer');
+      const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+      const listed = new Set(Object.values(ANNOUNCER_LINES).flat());
+      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(15);
+      expect(ANNOUNCER_LINES.gameStart).toContain('game-start-5'); // "restore the RNGesus line" (owner 2026-11-15)
+      expect(ANNOUNCER_LINES.timeRunningOut).toContain('time-running-out-20'); // "bollocks can stay" (owner 2026-11-15)
+      for (const take of ANNOUNCER_CUT_TAKES) {
+        expect(listed.has(take), take).toBe(false);
+        for (const folder of ['', ...packs]) expect(existsSync(resolve(dir, folder, `${take}.mp3`)), `${folder}/${take}`).toBe(false);
+      }
+    });
+    it('the odds are read in ONE place, the verdict, and the spoiler moments and clips are gone', async () => {
+      const { readFileSync, existsSync, readdirSync } = await import('node:fs');
+      const { resolve } = await import('node:path');
+      const src = readFileSync(resolve(process.cwd(), 'packages/ui/src/announcer.ts'), 'utf8');
+      const reads = src.split('\n').filter((l) => /\bs\.combatOdds\b/.test(l));
+      expect(reads).toHaveLength(1);
+      expect(src.slice(src.indexOf('THE VERDICT landed'), src.indexOf('BACK TO THE SHOP'))).toContain(reads[0]!.trim());
+      expect(Object.keys(ANNOUNCER_LINES)).not.toContain('underdogOdds');
+      expect(Object.keys(ANNOUNCER_LINES)).not.toContain('heavyFavourite');
+      const dir = resolve(process.cwd(), 'apps/web/public/announcer');
+      const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+      for (const folder of ['', ...packs]) {
+        for (const clip of ['underdog-odds-1', 'heavy-favourite-1']) expect(existsSync(resolve(dir, folder, `${clip}.mp3`))).toBe(false);
       }
     });
   });

@@ -82,7 +82,7 @@ export const ANNOUNCER_TURN_ONE_QUIET_MS = MUSIC_START_DELAY_MS + MUSIC_FADE_MS;
 export const ANNOUNCER_COMBAT_SILENCE_MS = 3000;
 /** The Face Omen lines (EnteringCombat / AfterLoss / StartCombatUnder10hp) wait out the combat-start stinger +
  *  wipe. 600 ms at first; the owner heard them "too quickly" and asked for about a second more (2026-09-23). */
-export const ANNOUNCER_FACE_OMEN_DELAY_MS = 1600;
+export const ANNOUNCER_FACE_OMEN_DELAY_MS = 3000; // 1600 until 2026-11-15 (owner: "start of combat should go from 1.6 to 3 seconds")
 /** The return-to-shop lines (BackToShop, TopFour / TopTwo, a forge opening WITH the return) wait out the return
  *  wipe. They used to fire the instant `resolveCombat` landed (~30 ms); same owner ask, about a second later. */
 export const ANNOUNCER_BACK_TO_SHOP_DELAY_MS = 1000;
@@ -207,9 +207,6 @@ export const ANNOUNCER_BOARD_SLOTS = 7;
 export const ANNOUNCER_HUGE_STAT = 250;
 /** ArmorUp: Armor at or above this. */
 export const ANNOUNCER_ARMOR_UP = 20;
-/** UnderdogOdds / HeavyFavourite: entering a fight under / over these win odds. */
-export const ANNOUNCER_UNDERDOG_ODDS = 0.2;
-export const ANNOUNCER_FAVOURITE_ODDS = 0.9;
 /** LobbyLast / LeaderboardTop: only after this round. */
 export const ANNOUNCER_STANDINGS_AFTER_WAVE = 8;
 /** PlayersRemain: someone else is knocked out and exactly one of these many remain. */
@@ -309,7 +306,13 @@ const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
  *  END (the rare-line rolls still hash an event's index in this table). Which take plays is a fresh random pick. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Which take plays is picked at random each time.
-  gameStart: Array.from({ length: 25 }, (_, i) => `game-start-${i + 1}`),
+  // Takes 10, 11, 18, 20, 21 and 24 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
+  // of the takes that stay never change (a saved game's heard-takes list names them).
+  gameStart: [
+    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-5', 'game-start-6', 'game-start-7',
+    'game-start-8', 'game-start-9', 'game-start-12', 'game-start-13', 'game-start-14', 'game-start-15', 'game-start-16',
+    'game-start-17', 'game-start-19', 'game-start-22', 'game-start-23', 'game-start-25',
+  ],
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3', 'back-to-shop-4', 'back-to-shop-5', 'back-to-shop-6'],
   equipment: ['equipment-1', 'equipment-2', 'equipment-3', 'equipment-4'],
   triple: ['triple-1', 'triple-2', 'triple-3', 'triple-4', 'triple-5'],
@@ -317,7 +320,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   runeforge: ['runeforge-1', 'runeforge-2', 'runeforge-3', 'runeforge-4'],
   epicRuneforge: ['epic-runeforge-1', 'epic-runeforge-2', 'epic-runeforge-3', 'epic-runeforge-4'],
   // 7 takes (owner 2026-09-25: five ElevenLabs takes from the Entering Combat folder joined the first two).
-  enteringCombat: Array.from({ length: 7 }, (_, i) => `entering-combat-${i + 1}`),
+  // Take 4 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03).
+  enteringCombat: ['entering-combat-1', 'entering-combat-2', 'entering-combat-3', 'entering-combat-5', 'entering-combat-6', 'entering-combat-7'],
   enteringCombatAfterLoss: ['entering-combat-after-loss', 'entering-combat-after-loss-2', 'entering-combat-after-loss-3'],
   startCombatUnder10hp: ['start-combat-under-10hp', 'start-combat-under-10hp-2', 'start-combat-under-10hp-3'],
   surviveUnder10hp: ['survive-under-10hp', 'survive-under-10hp-2', 'survive-under-10hp-3'],
@@ -330,7 +334,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   gameWon: ['game-won', 'game-won-2', 'game-won-3', 'game-won-4'],
   gameLoss: ['game-loss-1', 'game-loss-2', 'game-loss-3', 'game-loss-4', 'game-loss-5'],
   // The second batch (owner 2026-09-24).
-  knockout: ['knockout-1', 'knockout-2', 'knockout-3', 'knockout-4', 'knockout-5', 'knockout-6'],
+  // knockout-4 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03).
+  knockout: ['knockout-1', 'knockout-2', 'knockout-3', 'knockout-5', 'knockout-6'],
   bigHit: ['big-hit'],
   comebackWin: ['comeback-win'],
   flawlessVictory: ['flawless-victory'],
@@ -347,12 +352,18 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   randomDwarfBuy: ['random-dwarf-buy', 'random-dwarf-buy-2', 'random-dwarf-buy-3', 'random-dwarf-buy-4'],
   round7: ['round-7'],
   // The shop-clock warning (owner 2026-09-25): 21 takes from the Low on time folder, in folder timestamp order.
-  timeRunningOut: Array.from({ length: 21 }, (_, i) => `time-running-out-${i + 1}`),
+  // Takes 4, 5, 14, 15, 19 and 21 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03). Take 20 ("Bollocks") stays: owner.
+  timeRunningOut: [
+    'time-running-out-1', 'time-running-out-2', 'time-running-out-3', 'time-running-out-6', 'time-running-out-7', 'time-running-out-8',
+    'time-running-out-9', 'time-running-out-10', 'time-running-out-11', 'time-running-out-12', 'time-running-out-13', 'time-running-out-16',
+    'time-running-out-17', 'time-running-out-18', 'time-running-out-20',
+  ],
   // The specialty lines (owner 2026-09-25): the Special folder. BuyingDrakko / BuyingDrakko2 first, then the
   // ElevenLabs takes in folder timestamp order.
   buyDrakko: Array.from({ length: 5 }, (_, i) => `buy-drakko-${i + 1}`),
   buySylus: Array.from({ length: 4 }, (_, i) => `buy-sylus-${i + 1}`),
-  castAle: Array.from({ length: 6 }, (_, i) => `cast-ale-${i + 1}`),
+  // Take 2 CUT 2026-11-15 (it curses: R-TEXT-ANNOUNCER-03).
+  castAle: ['cast-ale-1', 'cast-ale-3', 'cast-ale-4', 'cast-ale-5', 'cast-ale-6'],
   // The moment catalog's first batch (owner 2026-09-25): one ElevenLabs take each (the catalog's example line,
   // generated with the owner's cloned announcer voice). A moment the catalog lets recur (TierUp, RoundMilestone,
   // BoardTotal) speaks once until it gets more takes: the no-repeat bag goes silent when its takes run out.
@@ -374,8 +385,6 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   minionHits250: ['minion-hits-250-1'],
   armorUp: ['armor-up-1'],
   finalShowdown: ['final-showdown-1'],
-  underdogOdds: ['underdog-odds-1'],
-  heavyFavourite: ['heavy-favourite-1'],
   armorGone: ['armor-gone-1'],
   blowoutLoss: ['blowout-loss-1'],
   oneResolve: ['one-resolve-1'],
@@ -467,8 +476,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
 /** The moment catalog's first batch (owner 2026-09-25), in ANNOUNCER_LINES order. */
 export const CATALOG_BATCH_1_EVENTS: readonly AnnouncerEvent[] = [
   'lateGame', 'roundMilestone', 'secondPlace', 'brokeTurn', 'fastTier', 'sellSpree', 'sellGilded', 'spellChain', 'tierUp',
-  'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown', 'underdogOdds',
-  'heavyFavourite', 'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
+  'allGolden', 'bigTurn', 'boardTotal', 'fullBoard', 'minionHits250', 'armorUp', 'finalShowdown',
+  'armorGone', 'blowoutLoss', 'oneResolve', 'stalemate', 'lobbyLast', 'firstOut', 'leaderboardTop',
   'playersRemain', 'fiveWinStreak', 'losingStreak', 'streakBroken', 'tribeFullBoard', 'mixedBoard',
 ];
 /** The moment catalog's second batch (owner 2026-09-25): the in-fight moments (`announcerCombat.ts`) plus the two
@@ -490,6 +499,16 @@ export const CATALOG_BATCH_3_EVENTS: readonly AnnouncerEvent[] = [
 ];
 /** The moment catalog's group D (owner 2026-09-25): the per-hero / per-tribe moments, in ANNOUNCER_LINES order. */
 export const CATALOG_BATCH_4_EVENTS: readonly AnnouncerEvent[] = ['heroPick', 'opponentHero', 'tribeTakeover', 'tribeSurge', 'rankUp'];
+
+/** TAKES CUT FOR THEIR LANGUAGE (owner 2026-11-15: "there are ones that curse or use very odd language",
+ *  R-TEXT-ANNOUNCER-03). A cut take is never listed in `ANNOUNCER_LINES` again and its clip is deleted from the default
+ *  voice and every pack; `announcer.test.ts` fails if one comes back. Add a take here when it is cut for this reason. */
+export const ANNOUNCER_CUT_TAKES: readonly string[] = [
+    'game-start-18', 'entering-combat-4', 'knockout-4', 'time-running-out-14', 'time-running-out-15',
+    'cast-ale-2', 'game-start-10', 'game-start-11', 'game-start-20', 'game-start-21',
+    'game-start-24', 'time-running-out-4', 'time-running-out-5', 'time-running-out-19',
+    'time-running-out-21',
+];
 
 /** Higher speaks first when several are pending at once. */
 export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
@@ -544,7 +563,6 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   stalemate: 62,
   allGolden: 56,
   minionHits250: 53,
-  underdogOdds: 52,
   boardTotal: 49,
   fastTier: 44, // below TierSix (45): tier 6 by round 9 says "Tier six", which cannot recur
   armorGone: 41,
@@ -553,7 +571,6 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   losingStreak: 40,
   tribeFullBoard: 38,
   mixedBoard: 34,
-  heavyFavourite: 32,
   armorUp: 31,
   spellChain: 29,
   sellGilded: 27,
@@ -589,7 +606,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   questComplete: 47, // beside GoldenArmy / ShopBigBuff: a rare, big Shop payoff
   bigBuffMoment: 47,
   streakStopper: 64, // a verdict win line, beside BlowoutLoss / StreakBroken
-  outgunned: 50, // beside UnderdogOdds (52): the same "you are behind" read, just under it
+  outgunned: 50, // a Face Omen "you are behind" read (tiers only: never the fight's odds, R-TEXT-ANNOUNCER-02)
   runeSlotsFull: 38,
   seasonalRune: 39, // the specialty rune pick outranks the generic socket line
   darkRuby: 36, // the card specials sit with the specialty buy lines (Drakko / Sylus 36)
@@ -601,7 +618,7 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   starformCollapse: 36,
   yazzusDouble: 36,
   questOffered: 34, // below Runeforge (35): a forge opening with it wins
-  rematch: 33, // Face Omen, beside HeavyFavourite (32)
+  rematch: 33, // Face Omen
   runePick: 33,
   bothEffects: 31, // outranks ChooseOnePlay, so a both-effects first play says the special line
   heroPowerBig: 29,
@@ -996,8 +1013,6 @@ let combatStartedAt: number | null = null;
 let bigStatSeenThisCombat = false;
 /** MinionHits250 in combat, the same way. */
 let hugeStatSeenThisCombat = false;
-/** UnderdogOdds / HeavyFavourite: the wave whose pre-fight odds were already weighed (the probe lands once). */
-let oddsCheckedWave = -1;
 /** The in-fight fold (`announcerCombat.ts`) for the fight on screen, keyed by that fight's identity. */
 let combatScan: { key: object; scan: CombatScan } | null = null;
 /** A Skip mid-fight silences the rest of that fight's in-fight lines (the skipped replay jumps to the end, and
@@ -1488,7 +1503,6 @@ function enterRun(s: AnnouncerStateLike, prev: AnnouncerStateLike | null): void 
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
-  oddsCheckedWave = -1;
   combatScan = null;
   combatSilenced = false;
   finalChecked = null;
@@ -1622,20 +1636,8 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     syncGauntlet(run, prev?.run);
     return;
   }
-  // UNDERDOG / FAVOURITE: the rail's pre-fight odds arrive on their own update (the deferred probe), before or
-  // after the Face Omen flip, so this is weighed on any update once the fight is on and its odds are known.
-  if (run.phase === 'combat' && !run.combatSettled && combatStartedAt !== null && oddsCheckedWave !== run.wave
-    && s.combatOdds && s.combatOdds.wave === run.wave) {
-    oddsCheckedWave = run.wave;
-    const win = s.combatOdds.odds.win;
-    const at = Math.max(deps.now(), combatStartedAt + ANNOUNCER_FACE_OMEN_DELAY_MS);
-    if (win < ANNOUNCER_UNDERDOG_ODDS && !hasFired(slice, 'underdogOdds')) {
-      enqueue({ event: 'underdogOdds', shelf: 'combat', notBefore: at, wave: run.wave });
-    }
-    if (win > ANNOUNCER_FAVOURITE_ODDS && !hasFired(slice, 'heavyFavourite')) {
-      enqueue({ event: 'heavyFavourite', shelf: 'combat', notBefore: at, wave: run.wave });
-    }
-  }
+  // NO PRE-FIGHT ODDS LINE (owner 2026-11-15, R-TEXT-ANNOUNCER-02): nothing spoken before or during a fight may
+  // read `combatOdds` or the fight's result. The odds are only weighed at the verdict (the low-odds lines below).
   // RANK UP (group D): the rank screen sits inside the run's gate (the run is over, still on screen), and the server's
   // confirmed result lands on its own store update, after the end line was queued. A promotion speaks after that
   // line (never before it: `endLineAt`), bypassing the cooldown so it follows straight on; it never expires but a
@@ -2417,7 +2419,6 @@ export function resetAnnouncerForTests(): void {
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
   hugeStatSeenThisCombat = false;
-  oddsCheckedWave = -1;
   combatScan = null;
   combatSilenced = false;
   finalChecked = null;

@@ -804,4 +804,52 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Golden Monkey rune: "Every 5 Refreshes, replace a minion in your Shop with a Golden Monkey."',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/terms.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-TEXT-ANNOUNCER-02',
+    title: 'The announcer never gives away a fight before it has played',
+    statement:
+      'Nothing the announcer says before or during a fight may be chosen from that fight\'s win odds or its result. '
+      + 'A start-of-combat line is never outcome focused: it '
+      + 'may only speak to what the player already knows (their Resolve, their streak, '
+      + 'who they face, the round). The odds and the result are only spoken to once the verdict has landed.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are certain voicelines that occur at the start of combat that essentially tell you the outcome before the fight happens. we cant have that. its not good design.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments, timing)', quote: 'if these are removed then i think we are good. start of combat should go from 1.6 to 3 seconds and should never be outcome focused' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (the UnderdogOdds / HeavyFavourite moments removed; ANNOUNCER_FACE_OMEN_DELAY_MS 1600 -> 3000), their clips removed from apps/web/public/announcer and every pack' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-15: the UnderdogOdds ("The odds are against you.", under 20% to win) and HeavyFavourite '
+      + '("This should be comfortable.", over 90%) moments spoke 1.6 s into a fight from the pre-fight odds probe and '
+      + 'are removed. The odds are now read in one place, the verdict (the won / lost against the odds lines). PARTIAL '
+      + 'as a wording check: clips are audio, so the test pins which data a line may read, not what a clip says.',
+    example: 'Entering a fight you are 5% to win, the announcer says nothing about your chances; if you win it, the verdict line may.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
+  {
+    id: 'R-TEXT-ANNOUNCER-03',
+    title: 'The announcer never uses strong profanity, and a take cut for its language stays cut',
+    statement:
+      'No announcer line, in the default voice or any announcer pack, contains strong profanity. Which milder or '
+      + 'out-of-place lines go is picked by the owner, line by line. A take cut for its language is deleted from every '
+      + 'voice and never listed again.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'we need to remove all of the questionable voicelines' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are ones that curse or use very odd language' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments, the pick)', quote: 'bollocks can stay. choose violence can stay. thank aeon can stay. the beast and dwarf can stay the drinking ones can stay. game start 7 can stay' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (ANNOUNCER_CUT_TAKES; 15 takes removed from gameStart, timeRunningOut, castAle, enteringCombat and knockout), their clips removed from apps/web/public/announcer and every pack' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-15: 15 takes cut after transcribing the 125 clips that had no written text. 10 swear '
+      + '(5 game-start, 4 time-running-out, 1 cast-ale); 5 are out-of-place ones the owner picked (1 game-start, '
+      + '2 time-running-out, entering-combat-4, knockout-4). The owner kept time-running-out-20 ("Bollocks") and the '
+      + 'drinking, Choose violence and beard-hair lines. PARTIAL as a general check: clips are audio, so the test pins '
+      + 'that a cut take stays cut in every voice; it cannot hear a new clip. New lines are read in the tracker before '
+      + 'they are generated.',
+    example: 'The shop-clock warning never says a swear word; the four takes that did are gone from all four voices.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

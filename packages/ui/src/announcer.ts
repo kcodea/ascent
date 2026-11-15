@@ -84,7 +84,7 @@ export const ANNOUNCER_TURN_ONE_QUIET_MS = MUSIC_START_DELAY_MS + MUSIC_FADE_MS;
 export const ANNOUNCER_COMBAT_SILENCE_MS = 3000;
 /** The Face Omen lines (EnteringCombat / AfterLoss / StartCombatUnder10hp) wait out the combat-start stinger +
  *  wipe. 600 ms at first; the owner heard them "too quickly" and asked for about a second more (2026-09-23). */
-export const ANNOUNCER_FACE_OMEN_DELAY_MS = 1600;
+export const ANNOUNCER_FACE_OMEN_DELAY_MS = 3000; // 1600 until 2026-11-15 (owner: "start of combat should go from 1.6 to 3 seconds")
 /** The return-to-shop lines (BackToShop, TopFour / TopTwo, a forge opening WITH the return) wait out the return
  *  wipe. They used to fire the instant `resolveCombat` landed (~30 ms); same owner ask, about a second later. */
 export const ANNOUNCER_BACK_TO_SHOP_DELAY_MS = 1000;
@@ -308,10 +308,10 @@ const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
  *  END (the rare-line rolls still hash an event's index in this table). Which take plays is a fresh random pick. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   // 25 takes (owner 2026-09-25: the StartGame folder, byte/audio duplicates dropped). Which take plays is picked at random each time.
-  // Takes 5, 10, 11, 18, 20, 21 and 24 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
+  // Takes 10, 11, 18, 20, 21 and 24 CUT 2026-11-15 (language: R-TEXT-ANNOUNCER-03, `ANNOUNCER_CUT_TAKES`). The numbers
   // of the takes that stay never change (a saved game's heard-takes list names them).
   gameStart: [
-    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-6', 'game-start-7',
+    'game-start-1', 'game-start-2', 'game-start-3', 'game-start-4', 'game-start-5', 'game-start-6', 'game-start-7',
     'game-start-8', 'game-start-9', 'game-start-12', 'game-start-13', 'game-start-14', 'game-start-15', 'game-start-16',
     'game-start-17', 'game-start-19', 'game-start-22', 'game-start-23', 'game-start-25',
   ],
@@ -506,7 +506,7 @@ export const CATALOG_BATCH_4_EVENTS: readonly AnnouncerEvent[] = ['heroPick', 'o
  *  R-TEXT-ANNOUNCER-03). A cut take is never listed in `ANNOUNCER_LINES` again and its clip is deleted from the default
  *  voice and every pack; `announcer.test.ts` fails if one comes back. Add a take here when it is cut for this reason. */
 export const ANNOUNCER_CUT_TAKES: readonly string[] = [
-    'game-start-5', 'game-start-18', 'entering-combat-4', 'knockout-4', 'time-running-out-14', 'time-running-out-15',
+    'game-start-18', 'entering-combat-4', 'knockout-4', 'time-running-out-14', 'time-running-out-15',
     'cast-ale-2', 'game-start-10', 'game-start-11', 'game-start-20', 'game-start-21',
     'game-start-24', 'time-running-out-4', 'time-running-out-5', 'time-running-out-19',
     'time-running-out-21',

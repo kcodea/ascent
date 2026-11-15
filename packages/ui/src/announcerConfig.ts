@@ -10,7 +10,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  * line speaks when its moment happens, was added 2026-09-25 and defaults to `ANNOUNCER_CHANCE` below):
  *  · `<event>Vol`: a percentage (0 to 200, 100 = as recorded) multiplied into that line's gain, on top of the Announcer channel's
  *    level. The final gain is clamped at 1 (`announcerLineGain`), so a boost can never clip past full scale.
- *  · `<event>Offset`: milliseconds added to the event's built-in delay (Face Omen 1600, back to shop 1000,
+ *  · `<event>Offset`: milliseconds added to the event's built-in delay (Face Omen 3000, back to shop 1000,
  *    Equipment 400, the end lines 1000, Game Start 4000 from the run landing, 0 for the in-shop moments). Negative
  *    fires earlier, but never before the moment is detected (the queue clamps it to "now"). The cooldown, the cap
  *    and the shelf life are untouched: the cooldown still counts from when the previous line ACTUALLY ended.
@@ -68,9 +68,9 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   runeforge: 'Runeforge (1000 ms on the return, else 0)',
   epicRuneforge: 'Epic Runeforge (1000 ms on the return, else 0)',
   minionHits100Stats: 'Minion hits 100 stats (0 ms, 3 s into a fight)',
-  enteringCombat: 'Entering combat (1600 ms)',
-  enteringCombatAfterLoss: 'Entering combat after losses (1600 ms)',
-  startCombatUnder10hp: 'Start combat under 10 (1600 ms)',
+  enteringCombat: 'Entering combat (3000 ms)',
+  enteringCombatAfterLoss: 'Entering combat after losses (3000 ms)',
+  startCombatUnder10hp: 'Start combat under 10 (3000 ms)',
   surviveUnder10hp: 'Survive under 10 (verdict, 3 s into a fight)',
   losingLowOddsFight: 'Lost a favoured fight (verdict)',
   winningLowOddsFight: 'Won an underdog fight (verdict)',
@@ -112,8 +112,8 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   armorUp: 'Armor 20+ (0 ms, 1000 ms on the return)',
   tribeFullBoard: 'Seven of one tribe (0 ms)',
   mixedBoard: 'Seven minions, 5+ tribes (0 ms)',
-  brokeTurn: 'Broke turn: 0 Gold, nothing bought, after round 5 (1600 ms)',
-  finalShowdown: 'Final showdown, 2 left (1600 ms)',
+  brokeTurn: 'Broke turn: 0 Gold, nothing bought, after round 5 (3000 ms)',
+  finalShowdown: 'Final showdown, 2 left (3000 ms)',
   stalemate: 'First draw (verdict)',
   oneResolve: 'Survived on 1 Resolve (verdict)',
   armorGone: 'Armor hits 0 (verdict)',
@@ -177,16 +177,16 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   gemheartGolem: '3+ Gemheart Golems on board (0 ms, 3 s into a fight)',
   idle: 'No action for 20 s of Shop clock (0 ms)',
   timeUp: 'The Shop clock hits 0 (0 ms)',
-  fastTurn: 'Turn ended with 40+ s left after 3+ buys (1600 ms)',
-  ghostFight: 'Facing a ghost (1600 ms)',
-  mirrorMatch: 'Kobold board against a Kobold board (1600 ms)',
-  outgunned: 'Foe\'s tier 2+ above yours (1600 ms)',
-  rematch: 'Facing whoever hit you hardest (1600 ms)',
+  fastTurn: 'Turn ended with 40+ s left after 3+ buys (3000 ms)',
+  ghostFight: 'Facing a ghost (3000 ms)',
+  mirrorMatch: 'Kobold board against a Kobold board (3000 ms)',
+  outgunned: 'Foe\'s tier 2+ above yours (3000 ms)',
+  rematch: 'Facing whoever hit you hardest (3000 ms)',
   streakStopper: 'Beat a foe on a 3+ win streak (verdict)',
   // The moment catalog's group D (owner 2026-09-25): only heroes / tribes with a recorded take speak.
   heroPick: 'Hero picked, per hero (with Game start, replaces it)',
   tribeTakeover: '5+ of one tribe on the board, per tribe (0 ms)',
-  opponentHero: 'Facing a hero, per hero (1600 ms)',
+  opponentHero: 'Facing a hero, per hero (3000 ms)',
   tribeSurge: 'Practice picked tribes, per tribe (1000 ms after the round-2 return)',
   rankUp: 'Rank up on the rank screen (after the end line)',
   grimPayout: "Grim's Echo pays out (as shown, 3 s in)",

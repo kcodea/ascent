@@ -1305,6 +1305,21 @@
       "id": "ward-break-2",
       "voice": "announcer",
       "text": "Not today!"
+    },
+    {
+      "id": "players-remain-five-1",
+      "voice": "announcer",
+      "text": "Only five remain."
+    },
+    {
+      "id": "players-remain-five-2",
+      "voice": "announcer",
+      "text": "Five left standing."
+    },
+    {
+      "id": "players-remain-three-2",
+      "voice": "announcer",
+      "text": "Down to three."
     }
   ],
   "sfx": [

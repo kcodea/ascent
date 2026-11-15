@@ -809,13 +809,15 @@ export const TEXT_RULES: GameRule[] = [
     title: 'The announcer never gives away a fight before it has played',
     statement:
       'Nothing the announcer says before or during a fight may be chosen from that fight\'s win odds or its result. '
-      + 'A line at the start of combat may only speak to what the player already knows (their Resolve, their streak, '
+      + 'A start-of-combat line is never outcome focused: it '
+      + 'may only speak to what the player already knows (their Resolve, their streak, '
       + 'who they face, the round). The odds and the result are only spoken to once the verdict has landed.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are certain voicelines that occur at the start of combat that essentially tell you the outcome before the fight happens. we cant have that. its not good design.' },
-      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (the UnderdogOdds / HeavyFavourite moments removed), their clips removed from apps/web/public/announcer and every pack' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments, timing)', quote: 'if these are removed then i think we are good. start of combat should go from 1.6 to 3 seconds and should never be outcome focused' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (the UnderdogOdds / HeavyFavourite moments removed; ANNOUNCER_FACE_OMEN_DELAY_MS 1600 -> 3000), their clips removed from apps/web/public/announcer and every pack' },
     ],
     currentBehaviour:
       'Conforms as of 2026-11-15: the UnderdogOdds ("The odds are against you.", under 20% to win) and HeavyFavourite '
@@ -838,11 +840,11 @@ export const TEXT_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'we need to remove all of the questionable voicelines' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments)', quote: 'there are ones that curse or use very odd language' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (announcer adjustments, the pick)', quote: 'bollocks can stay. choose violence can stay. thank aeon can stay. the beast and dwarf can stay the drinking ones can stay. game start 7 can stay' },
-      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (ANNOUNCER_CUT_TAKES; 16 takes removed from gameStart, timeRunningOut, castAle, enteringCombat and knockout), their clips removed from apps/web/public/announcer and every pack' },
+      { kind: 'fix-pr', ref: 'fix/announcer-no-prefight-odds: packages/ui/src/announcer.ts (ANNOUNCER_CUT_TAKES; 15 takes removed from gameStart, timeRunningOut, castAle, enteringCombat and knockout), their clips removed from apps/web/public/announcer and every pack' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-11-15: 16 takes cut after transcribing the 125 clips that had no written text. 10 swear '
-      + '(5 game-start, 4 time-running-out, 1 cast-ale); 6 are out-of-place ones the owner picked (2 game-start, '
+      'Conforms as of 2026-11-15: 15 takes cut after transcribing the 125 clips that had no written text. 10 swear '
+      + '(5 game-start, 4 time-running-out, 1 cast-ale); 5 are out-of-place ones the owner picked (1 game-start, '
       + '2 time-running-out, entering-combat-4, knockout-4). The owner kept time-running-out-20 ("Bollocks") and the '
       + 'drinking, Choose violence and beard-hair lines. PARTIAL as a general check: clips are audio, so the test pins '
       + 'that a cut take stays cut in every voice; it cannot hear a new clip. New lines are read in the tracker before '

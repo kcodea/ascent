@@ -35,7 +35,7 @@ import {
 const SEED = 4242;
 const LINE_MS = 1000;
 /** A fight long enough that a Face Omen line's cooldown has passed by the verdict. */
-const FIGHT_MS = 1000 + 12_000 + 2000;
+const FIGHT_MS = ANNOUNCER_FACE_OMEN_DELAY_MS + 1000 + ANNOUNCER_COOLDOWN_MS + 400;
 
 class StubHandle {
   stopped: number | null = null;
@@ -215,7 +215,7 @@ describe('GameStart', () => {
     const { createHash } = await import('node:crypto');
     const { resolve } = await import('node:path');
     const dir = `${resolve(process.cwd(), 'apps/web/public/announcer')}/`;
-    expect(ANNOUNCER_LINES.gameStart).toHaveLength(18); // 25 recorded, 7 cut for their language (2026-11-15)
+    expect(ANNOUNCER_LINES.gameStart).toHaveLength(19); // 25 recorded, 6 cut for their language (2026-11-15)
     // The audio stream only (ID3 tags stripped), so a re-tagged copy of the same take still counts as a duplicate.
     const audio = (b: Buffer): Buffer => {
       let a = b;
@@ -229,7 +229,7 @@ describe('GameStart', () => {
       expect(existsSync(file), name).toBe(true);
       hashes.add(createHash('md5').update(audio(readFileSync(file))).digest('hex'));
     }
-    expect(hashes.size).toBe(18);
+    expect(hashes.size).toBe(19);
   });
   it('a Continue never replays it: a restored slice that has it fired stays silent', async () => {
     announced = withAnnounced(announced, 'gameStart', 1);
@@ -1672,7 +1672,8 @@ describe('the moment catalog\'s first batch (owner 2026-09-25): ElevenLabs lines
       const dir = resolve(process.cwd(), 'apps/web/public/announcer');
       const packs = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
       const listed = new Set(Object.values(ANNOUNCER_LINES).flat());
-      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(16);
+      expect(ANNOUNCER_CUT_TAKES.length).toBeGreaterThanOrEqual(15);
+      expect(ANNOUNCER_LINES.gameStart).toContain('game-start-5'); // "restore the RNGesus line" (owner 2026-11-15)
       expect(ANNOUNCER_LINES.timeRunningOut).toContain('time-running-out-20'); // "bollocks can stay" (owner 2026-11-15)
       for (const take of ANNOUNCER_CUT_TAKES) {
         expect(listed.has(take), take).toBe(false);

@@ -59,3 +59,13 @@ stay. the beast and dwarf can stay the drinking ones can stay. game start 7 can 
 
 Total cut for language: 16 takes (64 files). `big-spender` ("To infinity and beyond") is NOT cut: it is that moment's
 only line, so cutting it means removing or re-recording the moment, which is the owner's call.
+
+## Same day: RNGesus restored, start-of-combat lines at 3 s
+
+- `game-start-5` was cut on a MIS-HEARD transcript ("May our Lord Jesus bless you"). The line is "May RNGesus bless
+  you" (the Lemon devlog, 2026-10-11, had already corrected it). Owner: "restore the RNGesus line". Restored in all
+  four voices; 15 takes are cut for language. Lesson: check a machine transcript against the earlier corrected ones
+  before showing it for a ruling.
+- Asked whether the fix was meant to be timing, the owner ruled: "if these are removed then i think we are good.
+  start of combat should go from 1.6 to 3 seconds and should never be outcome focused". So the two odds lines stay
+  removed and `ANNOUNCER_FACE_OMEN_DELAY_MS` goes 1600 to 3000.

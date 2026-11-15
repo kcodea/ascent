@@ -1125,7 +1125,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
       + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. No per-game '
       + 'line cap (removed 2026-09-25; it was 8, then 15): the cooldown, once-per-event rule, priority and shelf life pace it. Timing: the Face Omen lines play '
-      + 'ANNOUNCER_FACE_OMEN_DELAY_MS (1.6 s) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
+      + 'ANNOUNCER_FACE_OMEN_DELAY_MS (3 s since 2026-11-15, 1.6 s before) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
       + 'opening with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS (1 s) after resolveCombat. Triggers: GameStart (wave 1\x27s '
       + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
       + 'Equipment (an Equipment acquired, 400 ms after its SFX), Triple (a gilded minion formed), TierSix (tier 6), '

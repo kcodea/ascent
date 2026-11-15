@@ -84,12 +84,13 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Removed the two start-of-combat lines that spoke about your chances ("The odds are against you." and "This should be comfortable.").',
           'The lines for winning or losing against the odds still play, after the fight is over.',
+          'Start-of-combat lines now come in 3 seconds after the fight begins (was 1.6).',
         ],
       },
       {
         category: 'Systems',
         text: 'The announcer cleaned up its language.',
-        details: ['Removed 16 lines with strong or out-of-place language, in every announcer voice: 7 game start lines, 6 low on time warnings, and one each from Ale casts, entering combat and knockouts.'],
+        details: ['Removed 15 lines with strong or out-of-place language, in every announcer voice: 6 game start lines, 6 low on time warnings, and one each from Ale casts, entering combat and knockouts.'],
       },
     ],
   },

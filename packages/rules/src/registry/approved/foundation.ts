@@ -15536,4 +15536,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'With 551 eligible runs in the set, the 301 oldest are never drawn. When run 552 is uploaded, the oldest of the 250 drops out.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/poolRollingWindow.db.test.ts', 'workers/versus/test/poolMirrorDrop.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
+  {
+    id: 'R-MINION-ART-FILL-01',
+    title: 'Minion art fills its oval frame: no straight edge of the picture shows inside the frame',
+    statement:
+      'The art of a minion in the oval frame is drawn large enough that the straight edges of the picture sit under the frame, '
+      + 'on every surface a minion card appears (Shop, board, hand, combat, Discover, Collection, end screen). The art is '
+      + 'scaled whole, never cropped to fill, and growing it moves nothing else on the card: the frame, the Attack / Health / '
+      + 'tribe badges, the tier plaque and the description box stay where they are.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15', quote: 'the card art in the game is slightly too small. i can see the flat bottom edge of every card in its minion frame. can we expand the art size itself by 5% across the board for minions?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (after an annotated picture of the straight edge on Shop, board and hand minions)', quote: "Yes, that's it" },
+      { kind: 'fix-pr', ref: 'feat/minion-art-5pct: packages/ui/src/styles.css (.card.compact.stdframe --artBoost: 1.05, multiplied into the oval art scale)' },
+    ],
+    currentBehaviour:
+      'Conforms on the cards rendered, since 2026-11-15. Oval minion art is drawn at --artZoom x --artBoost (1.05); a multiplier, so a '
+      + 'card with its own Card Art tuner zoom grows by the same 5%. Spells and Taunt shields have their own art rules and are '
+      + 'unchanged. PARTIAL pin: the test pins the CSS tokens (the 1.05 multiplier, contain, spell and Taunt untouched), not a rendered '
+      + 'pixel check, because jsdom does not lay out; the before and after renders are in the PR.',
+    example: 'A minion in the Shop shows its art meeting the bottom rim of the frame in a curve, with no straight line beside the bottom medallion.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/minionArtFill.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

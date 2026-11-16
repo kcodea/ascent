@@ -836,7 +836,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   spearman to the whole host; its Knockout variant keeps soldiers cheering round the banner with a prismatic shock and
   a short dip), `attack_reaping` ("The Reaping", the Ancient of Death: the scythe cuts colour, the struck portrait and
   then the whole screen drain to grey) and `attack_stars` ("Written in the Stars": constellations drawn star by star
-  that come alive and strike). Each lands the blow once and puts every portrait back exactly. **Card Shark** and
+  that come alive and strike). Each lands the blow once and puts every portrait back exactly. **Void** (2026-11-11;
+  `attack_void`; Legendary, from chests; R-PROG-ATTACK-46): dark orbs, each a near-black disc with a bright rim, a swirl of
+  light spinning into it and sparks that circle and fall in, are thrown nearly flat from the striking hero: I one, II
+  two, III five. IV the black hole: the orbs orbit the struck hero, a black hole opens there and grows, light is dragged
+  in from far out, the striking portrait leans toward it and the struck portrait is crushed toward its centre; it
+  collapses to a point that flares white and blasts outward. The blow lands once (on I to III when the last orb hits, on
+  IV at the collapse), and both portraits are restored exactly after. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
   medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from chests): the hero

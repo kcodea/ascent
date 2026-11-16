@@ -13,7 +13,8 @@ import { Container, Texture } from 'pixi.js';
 import { HERO_ATTACK_TIER_THRESHOLDS, tierOf as sharedTierOf } from '../heroAttack/tiers';
 import { HERO_BLAST_DEFAULTS, blastPlan } from '../heroBlast/heroBlastConfig';
 import { HERO_QUAKE_DEFAULTS, quakePlan } from '../heroQuake/heroQuakeConfig';
-import { DEV_HERO_ATTACK_CHOICES } from '../heroBlast/heroAttackStyle';
+import { COSMETIC_INDEX } from '@game/progression';
+import { DEV_HERO_ATTACK_CHOICES, HERO_ATTACK_STYLES, styleOfCosmetic } from '../heroBlast/heroAttackStyle';
 import {
   VOID_CAPS, HERO_VOID_DEFAULTS, HERO_VOID_RANGES, voidCameraAt, voidCameraFocus, voidCues, voidFlightMs, voidPlan,
   clampHeroVoidValue, fanSlots, heroVoidConfigJson, lobEase, lobPath, ribbonMotions, ribbonPos, sanitizeHeroVoidConfig, sideNormal,
@@ -530,5 +531,13 @@ describe('the scene (headless Pixi)', () => {
     s.update(16);
     expect(s.pooledSprites).toBeLessThanOrEqual(pooled + 10);
     s.destroy();
+  });
+});
+
+describe('the cosmetic', () => {
+  it('Void (attack_void) is a LEGENDARY crate hero attack that plays the void', () => {
+    expect(COSMETIC_INDEX.attack_void).toMatchObject({ category: 'hero_attack', rarity: 'legendary', name: 'Void', assets: { style: 'void' }, active: true });
+    expect(HERO_ATTACK_STYLES).toContain('void');
+    expect(styleOfCosmetic('attack_void')).toBe('void');
   });
 });

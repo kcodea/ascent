@@ -849,6 +849,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze(withCollections([
   heroAttack('attack_warhost', 'Warhost', 'ancient', 'warhost'),
   heroAttack('attack_reaping', 'The Reaping', 'ancient', 'reaping'),
   heroAttack('attack_stars', 'Written in the Stars', 'ancient', 'stars'),
+  // Mike 2026-11-11: "lets do void!" Dark orbs with a hot rim, circled by sparks they drag in, are thrown nearly flat
+  // (one, two, five); the top tier pulls them into a black hole over the target that drags both portraits in, collapses
+  // to a point and blasts outward. Four tiers, so Legendary (Mike's pick 2026-11-12, with the name "Void").
+  heroAttack('attack_void', 'Void', 'legendary', 'void'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

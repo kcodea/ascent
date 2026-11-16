@@ -28,6 +28,8 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 import { lastTouchWasTap } from './touchInput';
 import { openRuneInspect } from './runeInspectStore';
 import { usePhLayer } from './partyHome/shell/usePhLayer';
+import { HeroAncients, lastPickedAncient, rememberAncient, stepAncient } from './HeroAncients';
+import type { AncientId } from '@game/sim';
 import './compendium.css';
 
 /** The app shell's Compendium page (party home prototype, DEV only; lazy and null in production, like the top nav). Loading
@@ -301,12 +303,16 @@ function readBookCats(): Set<Category> {
 const PhHeroTile = memo(function PhHeroTile({ h, onOpen }: { h: (typeof HEROES)[number]; onOpen?: (h: (typeof HEROES)[number]) => void }) {
   const art = heroThumb(heroArt(h.id));
   const pw = heroThumb(heroPowerArt(h.id));
+  // This tile's own Ancient (a pick re-renders this tile alone); it starts on the last one picked anywhere this session.
+  const [anc, setAnc] = useState<AncientId>(lastPickedAncient);
+  // The large view opens on the Ancient this tile is showing.
+  const open = onOpen ? (): void => { rememberAncient(anc); onOpen(h); } : undefined;
   return (
-    <article className="phh" {...(onOpen ? {
+    <article className="phh" {...(open ? {
       role: 'button', tabIndex: 0, 'aria-label': `${h.name}. Open`,
-      onClick: () => onOpen(h),
-      onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); onOpen(h); },
-      onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(h); } },
+      onClick: open,
+      onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); open(); },
+      onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } },
     } : {})}>
       <div className="phh-top">
         {art && <img className="phh-art" decoding="sync" src={art} alt="" draggable={false} />}
@@ -326,9 +332,16 @@ const PhHeroTile = memo(function PhHeroTile({ h, onOpen }: { h: (typeof HEROES)[
         <p className="phh-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
         {h.power.unlockWave && h.power.unlockWave > 1 && <span className="phh-lock">Unlocks turn {h.power.unlockWave}</span>}
       </div>
+      <HeroAncients heroId={h.id} picked={anc} onPick={setAnc} />
     </article>
   );
 });
+
+/** The older (non-shell) hero grid's Ancients row: the same row, each cell keeping its own pick. */
+function BookHeroAncients({ heroId }: { heroId: string }) {
+  const [anc, setAnc] = useState<AncientId>(lastPickedAncient);
+  return <HeroAncients heroId={heroId} picked={anc} onPick={setAnc} />;
+}
 
 type HeroRow = (typeof HEROES)[number];
 /** The short facts under a power's name: how it is used, what it costs, and any limit. Read from the power's own fields. */
@@ -354,9 +367,16 @@ function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonl
     const next = heroes[(at + d + heroes.length) % heroes.length];
     if (next) onPick(next);
   }, [many, heroes, at, onPick]);
+  // The Ancient on show. It stays put as the arrows step to the next hero, so one Ancient reads across every hero.
+  const [anc, setAnc] = useState<AncientId>(lastPickedAncient);
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); } else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+      // Up and Down step the Ancients (Left and Right stay on the heroes).
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAnc((a) => { const next = stepAncient(a, e.key === 'ArrowUp' ? -1 : 1); rememberAncient(next); return next; });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -391,7 +411,10 @@ function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonl
             </div>
             <p className="phi-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
           </div>
-          {many && <span className="phi-count" aria-hidden="true">{at + 1} / {heroes.length}</span>}
+          <div className="phi-anc">
+            <HeroAncients heroId={h.id} picked={anc} onPick={setAnc} big />
+          </div>
+          <span className="phi-count" aria-hidden="true"><span className="phi-anckeys">Up / Down: Ancients</span>{many && <span>{at + 1} / {heroes.length}</span>}</span>
         </div>
       </article>
       {many && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={(e) => { e.stopPropagation(); step(1); }}><Icon name="chevron" /></button>}
@@ -1149,6 +1172,7 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
                         {h.power.unlockWave && h.power.unlockWave > 1 && (
                           <div className="bookhero-lock">Unlocks turn {h.power.unlockWave}</div>
                         )}
+                        <BookHeroAncients heroId={h.id} />
                       </div>
                     </div>
                   );

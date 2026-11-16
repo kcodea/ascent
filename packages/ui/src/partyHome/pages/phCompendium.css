@@ -255,12 +255,12 @@ html[data-ph-book] .cardref { z-index: 490; }
 
 /* ── HEROES (owner 2026-11-04: "improve the hero look ... extremely clean"): one plate per hero. The portrait fills the top and
    melts into the navy with no frame; the name and Health sit on the melt; the power below. A row's tiles share one height. ── */
-.phb .phh-grid { --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(240 * var(--phu)), 1fr)); gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)); align-items: stretch; justify-items: stretch; row-gap: calc(16 * var(--phu)); }
+.phb .phh-grid { --ch: calc(520 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(300 * var(--phu)), 1fr)); gap: calc(16 * var(--phu)); padding: calc(16 * var(--phu)); align-items: stretch; justify-items: stretch; row-gap: calc(16 * var(--phu)); }
 .phb .phh-grid .book-cell { width: 100%; min-width: 0; }
-.phb .phh-grid .book-cell.is-pending { min-height: calc(320 * var(--phu)); }
+.phb .phh-grid .book-cell.is-pending { min-height: calc(520 * var(--phu)); }
 .phb .phh-grid .book-cell:hover { transform: none; } /* a tile opens nothing, so it does not lift */
 .phh { position: relative; box-sizing: border-box; height: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--ph-r); background: var(--ph-plate); box-shadow: var(--ph-gild-s); }
-.phh-top { position: relative; flex: none; height: calc(168 * var(--phu)); }
+.phh-top { position: relative; flex: none; height: calc(200 * var(--phu)); }
 .phh-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%;
   -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
 .phh-who { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: calc(8 * var(--phu)); padding: 0 calc(12 * var(--phu)); }
@@ -276,7 +276,15 @@ html[data-ph-book] .cardref { z-index: 490; }
 .phh-pwname { min-width: 0; font-family: var(--ph-font); font-weight: 800; font-size: var(--ph-t2); color: #fbe6a6; text-shadow: var(--ph-shadow); }
 .phh-pwtext { margin: 0; font-family: var(--ph-body); font-weight: 500; font-size: var(--ph-t2); line-height: 1.4; color: var(--ph-text); }
 .phh-lock { margin-top: auto; padding-top: calc(4 * var(--phu)); font-size: var(--ph-t1); color: var(--ph-muted); }
-html[data-ph-compact] .phb .phh-grid { zoom: 1; --ch: calc(320 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(300 * var(--phu)), 1fr)); }
+/* The Ancients row (HeroAncients.tsx) closes the tile under a thin gold rule, like the large view's power. */
+.phh > .hanc { position: relative; flex: none; padding: calc(10 * var(--phu)) calc(12 * var(--phu)) calc(12 * var(--phu)); }
+.phh > .hanc::before { content: ''; position: absolute; left: calc(12 * var(--phu)); right: calc(12 * var(--phu)); top: 0; height: calc(1 * var(--phu)); background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 60%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
+/* Room for a name and four lines (the longest Ancient text), so the medallions line up across a row. */
+.phh .hanc-texts { min-height: calc(14 * 1.2 * var(--phu) + 4 * 14 * 1.4 * var(--phu) + 2 * var(--phu)); }
+html[data-ph-compact] .phh > .hanc { --hm: calc(40 * var(--phu)); }
+html[data-ph-compact] .phh .hanc-texts { min-height: calc(17 * 1.2 * var(--phu) + 4 * 17 * 1.4 * var(--phu) + 2 * var(--phu)); }
+html[data-ph-compact] .phh .hanc-name, html[data-ph-compact] .phh .hanc-body { font-size: calc(17 * var(--phu)); }
+html[data-ph-compact] .phb .phh-grid { zoom: 1; --ch: calc(560 * var(--phu)); grid-template-columns: repeat(auto-fill, minmax(calc(300 * var(--phu)), 1fr)); }
 html[data-ph-compact] .phh-pwtext, html[data-ph-compact] .phh-pwname { font-size: calc(18 * var(--phu)); }
 html[data-ph-compact] .phh-name { font-size: calc(24 * var(--phu)); }
 
@@ -346,7 +354,7 @@ html[data-ph-shell]:not([data-ph-compact]) .phb .book-tiers { box-sizing: border
 html[data-ph-compact] .phb .book-tiers { box-sizing: border-box; height: calc(76 * var(--phu)); }
 .phb .phb-all { padding-left: calc(12 * var(--phu)); }
 /* Six across on the narrower gallery: tiles and runes tighten, and a laptop's card a little. */
-.phb .phh-grid { grid-template-columns: repeat(auto-fill, minmax(calc(224 * var(--phu)), 1fr)); }
+.phb .phh-grid { grid-template-columns: repeat(auto-fill, minmax(calc(300 * var(--phu)), 1fr)); }
 html[data-ph-shell]:not([data-ph-compact]) .phb .book-grid.is-runes { padding-left: calc(12 * var(--phu)); padding-right: calc(12 * var(--phu)); }
 html[data-ph-laptop]:not([data-ph-compact]) .phb .book-grid:not(.is-runes):not(.phh-grid) { --ch: calc(216px * var(--book-zoom, 1)); column-gap: 8px; row-gap: 48px; }
 
@@ -429,6 +437,31 @@ html[data-ph-compact] .phb-ov .phb .book-search { width: calc(120 * var(--phu));
 .phi-fact { display: inline-flex; align-items: center; height: calc(24 * var(--phu)); padding: 0 calc(10 * var(--phu)); border-radius: calc(12 * var(--phu)); background: rgba(174, 189, 219, 0.14); font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t1); color: var(--ph-muted); white-space: nowrap; }
 .phi-pwtext { margin: 0; max-width: 34em; font-family: var(--ph-body); font-weight: 500; font-size: calc(20 * var(--phu)); line-height: 1.45; color: var(--ph-text); }
 .phi-pwtext b { color: var(--ph-ink); font-weight: 800; }
+/* The large view's Ancients row: under the power, the same medallions bigger, Up and Down step them. */
+.phi-info > .phi-anc { animation-delay: 0.12s; display: flex; flex-direction: column; padding-top: calc(14 * var(--phu)); }
+.phi-anc::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: calc(1.5 * var(--phu)); background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
+/* It joins the power, so the column tightens to keep everything on the plate. */
+.phi-info:has(.phi-anc) { gap: calc(14 * var(--phu)); padding-top: calc(28 * var(--phu)); padding-bottom: calc(36 * var(--phu)); }
+.phi-info:has(.phi-anc) .phi-name { font-size: calc(48 * var(--phu)); }
+.phi-info:has(.phi-anc) .phi-head { gap: calc(10 * var(--phu)); }
+.phi-info:has(.phi-anc) .phi-power { padding-top: calc(14 * var(--phu)); }
+.phi-anc .hanc { --hm: calc(44 * var(--phu)); }
+.phi-anc .hanc-row { flex-wrap: nowrap; }
+.phi-info > .phi-count { display: flex; gap: calc(16 * var(--phu)); }
+/* The plate may grow past its square to fit the longest Ancient (the portrait covers the taller column). */
+.phi:has(.phi-anc) { height: auto; min-height: var(--phi-h); max-height: 94cqh; }
+/* A phone has no room to grow: the column tightens instead. */
+html[data-ph-compact] .phi-info:has(.phi-anc) { gap: calc(10 * var(--phu)); padding-top: calc(18 * var(--phu)); padding-bottom: calc(30 * var(--phu)); }
+html[data-ph-compact] .phi-info:has(.phi-anc) .phi-name { font-size: calc(36 * var(--phu)); }
+html[data-ph-compact] .phi-info:has(.phi-anc) .phi-stat { height: calc(36 * var(--phu)); }
+html[data-ph-compact] .phi-info:has(.phi-anc) .phi-pwname { font-size: calc(26 * var(--phu)); }
+html[data-ph-compact] .phi-info:has(.phi-anc) .phi-pwtext { font-size: calc(17 * var(--phu)); line-height: 1.35; }
+html[data-ph-compact] .phi-info:has(.phi-anc) .phi-power { gap: calc(8 * var(--phu)); padding-top: calc(10 * var(--phu)); }
+html[data-ph-compact] .phi-anc { padding-top: calc(10 * var(--phu)); }
+html[data-ph-compact] .phi-anc .hanc { --hm: calc(38 * var(--phu)); gap: calc(8 * var(--phu)); }
+html[data-ph-compact] .phi-anc .hanc-name { font-size: calc(17 * var(--phu)); }
+html[data-ph-compact] .phi-anc .hanc-body { font-size: calc(16 * var(--phu)); line-height: 1.35; }
+@media (hover: none) { .phi-anckeys { display: none; } }
 .phi-info > .phi-count { position: absolute; right: calc(20 * var(--phu)); bottom: calc(14 * var(--phu)); font-family: var(--ph-font); font-weight: 700; font-size: var(--ph-t1); font-variant-numeric: tabular-nums; color: var(--ph-muted); }
 .phi-nav { position: absolute; top: 50%; z-index: 1; display: grid; place-items: center; width: calc(56 * var(--phu)); height: calc(56 * var(--phu)); margin-top: calc(-28 * var(--phu)); padding: 0; border: 0; border-radius: 50%; background: var(--ph-navy); color: var(--ph-gold-hi); box-shadow: var(--ph-gild-s), 0 calc(6 * var(--phu)) calc(18 * var(--phu)) rgba(0, 0, 0, 0.5); transition: transform 0.12s ease; }
 .phi-nav.is-prev { left: max(calc(12 * var(--phu)), calc(50% - min(calc(560 * var(--phu)), 43cqw) - calc(76 * var(--phu)))); }

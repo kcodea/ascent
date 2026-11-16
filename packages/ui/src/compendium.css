@@ -462,3 +462,35 @@ body:has(.book-ov) .cardref { z-index: 490; }
 @media (prefers-reduced-motion: reduce) {
   :is(.book-close, .book-tier, .book-gilded, .book-setpick-btn, .book-runetribe, .book-kwchip, .wiki-chip, .book-gloss, .book-zoom-btn, .book-cat, .book-bar, .book-cell):is(:hover, :active) { transform: none; }
 }
+
+/* ── THE ANCIENTS ROW on a hero (owner ask 2026-11-16): six medallions (each Ancient's own hero-power art in a ring of its
+   colour), then the chosen Ancient's text for this hero. All six texts share one stacked cell so the box is always the
+   tallest text's height: a switch never moves the tile. Only transform and opacity move, as one-shot transitions. ── */
+.hanc { --hu: var(--phu, 1px); --hm: calc(34 * var(--hu)); display: flex; flex-direction: column; gap: calc(8 * var(--hu)); min-width: 0; }
+.hanc.is-big { --hm: calc(52 * var(--hu)); gap: calc(12 * var(--hu)); }
+.hanc-row { display: flex; flex-wrap: wrap; gap: calc(6 * var(--hu)); }
+.hanc.is-big .hanc-row { gap: calc(10 * var(--hu)); }
+.hanc-med { position: relative; flex: none; width: var(--hm); height: var(--hm); padding: 0; border: 0; border-radius: 50%; overflow: hidden; background: var(--anc-c, #c8922e);
+  box-shadow: 0 0 0 calc(2 * var(--hu)) var(--anc-c, #c8922e), 0 calc(2 * var(--hu)) calc(6 * var(--hu)) rgba(0, 0, 0, 0.55);
+  opacity: 0.55; transition: transform 0.14s ease, opacity 0.14s ease; }
+.hanc-med .hanc-face { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hanc-med.is-on { opacity: 1; transform: scale(1.12); }
+/* The chosen medallion's gold band: a static ring that fades in (opacity only). */
+.hanc-med::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 calc(2 * var(--hu)) #fff3c4; opacity: 0; transition: opacity 0.14s ease; pointer-events: none; }
+.hanc-med[aria-pressed='true']::after { opacity: 1; }
+@media (hover: hover) { .hanc-med:hover { opacity: 1; } }
+.hanc-med:active { transform: scale(0.94); }
+.hanc-med:focus-visible { outline: calc(2 * var(--hu)) solid #fff3c4; outline-offset: calc(3 * var(--hu)); }
+.hanc-texts { display: grid; min-width: 0; }
+.hanc-text { grid-area: 1 / 1; min-width: 0; visibility: hidden; }
+.hanc-text.is-on { visibility: visible; }
+.hanc-name { display: block; font-family: var(--ph-font, var(--font-ui)); font-weight: 900; font-size: calc(14 * var(--hu)); line-height: 1.2;
+  color: color-mix(in srgb, var(--anc-c, #c8922e) 55%, #ffffff); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+.hanc-body { margin: calc(2 * var(--hu)) 0 0; font-family: var(--ph-body, var(--font-ui)); font-weight: 500; font-size: calc(14 * var(--hu)); line-height: 1.4; color: var(--ph-text, var(--ui-text)); }
+.hanc-body b { color: var(--ph-ink, var(--ui-title)); font-weight: 800; }
+.hanc-text.is-unwritten .hanc-body { font-style: italic; color: var(--ph-muted, var(--ui-muted)); }
+.hanc.is-big .hanc-name { font-size: calc(20 * var(--hu)); }
+.hanc.is-big .hanc-body { font-size: calc(18 * var(--hu)); line-height: 1.45; max-width: 34em; }
+@media (prefers-reduced-motion: reduce) { .hanc-med, .hanc-med::after { transition: none; } }
+/* The older hero grid. */
+.bookhero .hanc { width: 100%; text-align: left; padding: 4px 2px 0; }

@@ -20,7 +20,7 @@ import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { lobbyRulesOf, seatStartingArmor } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
-import { STRENGTH_TIER_LIMITS, bandSteps, practiceStrengthBand, runInStrengthBand, strengthTierOf, type StrengthBand } from './strengthBands';
+import { STRENGTH_TIER_LIMITS, bandSteps, practiceStrengthBand, runInStrengthBand, strengthSeatTierOf, type StrengthBand } from './strengthBands';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -575,7 +575,7 @@ function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<
       // Over the cap of THIS walk: at two, leave it for the three-seat walk; at three, it is out for good.
       if (owner && (seatsByOwner.get(owner) ?? 0) >= ownerCap) { if (ownerCap >= MAX_SEATS_PER_PLAYER_SHORT) considered.add(run.key); continue; }
       considered.add(run.key);
-      const tier = strengthTierOf(run.strength);
+      const tier = strengthSeatTierOf(run.strength);
       if (tier >= 0 && seatsByTier[tier]! >= STRENGTH_TIER_LIMITS[tier]!.seats) continue; // a third strong run of its tier
       if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
       // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different

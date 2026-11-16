@@ -244,7 +244,7 @@ export const STRENGTH_TIER_LIMITS: readonly StrengthTierLimit[] = Object.freeze(
 ]);
 
 /** The index into `STRENGTH_TIER_LIMITS` of a run's weighted strength, or -1 (below 80, or unscored). */
-export function strengthTierOf(strength: number | null | undefined): number {
+export function strengthSeatTierOf(strength: number | null | undefined): number {
   if (typeof strength !== 'number' || !Number.isFinite(strength)) return -1;
   return STRENGTH_TIER_LIMITS.findIndex((t) => strength >= t.min && strength <= t.max);
 }

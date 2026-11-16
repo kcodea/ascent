@@ -4,7 +4,7 @@ import { OPPONENT_POOL, registerOpponentRuns } from '../opponents';
 import { playableHeroes } from '../heroes';
 import { createRunLobby, resetLobbyDrivers } from './runLobby';
 import { playerRunsFrom } from './snapshotSeats';
-import { STRENGTH_BANDS, STRENGTH_TIER_LIMITS, strengthTierOf } from './strengthBands';
+import { STRENGTH_BANDS, STRENGTH_TIER_LIMITS, strengthSeatTierOf } from './strengthBands';
 
 /**
  * STRONG RUNS PER TABLE (owner 2026-11-16): "there should only be able to be 2 90+ strength boards and 2 80+ strength
@@ -32,12 +32,12 @@ const seatedStrengths = (seed: number): number[] => {
 describe('strong runs per table', () => {
   it('the tiers are 90-100 and 80-89, two seats each', () => {
     expect(STRENGTH_TIER_LIMITS).toEqual([{ min: 90, max: 100, seats: 2 }, { min: 80, max: 89, seats: 2 }]);
-    expect(strengthTierOf(100)).toBe(0);
-    expect(strengthTierOf(90)).toBe(0);
-    expect(strengthTierOf(89)).toBe(1);
-    expect(strengthTierOf(80)).toBe(1);
-    expect(strengthTierOf(79)).toBe(-1);
-    expect(strengthTierOf(undefined)).toBe(-1); // an unscored run is in no tier
+    expect(strengthSeatTierOf(100)).toBe(0);
+    expect(strengthSeatTierOf(90)).toBe(0);
+    expect(strengthSeatTierOf(89)).toBe(1);
+    expect(strengthSeatTierOf(80)).toBe(1);
+    expect(strengthSeatTierOf(79)).toBe(-1);
+    expect(strengthSeatTierOf(undefined)).toBe(-1); // an unscored run is in no tier
   });
 
   it('an open table never seats more than two 90+ runs or more than two runs in the 80s', () => {

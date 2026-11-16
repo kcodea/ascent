@@ -15666,7 +15666,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'there should only be able to be 2 90+ strength boards and 2 80+ strength boards in any given game in the plat/diamond/ascendant rank. in ascendant there should NOT be a skew to have more higher strength boards in the game. it should remain entirely unbiased' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (asked: two in the 80s on top of two 90+, or two at 80+ in total?)', quote: 'Two 80s plus two 90s' },
-      { kind: 'fix-pr', ref: 'feat/lobby-seat-tiers (2026-11-16): packages/sim/src/lobby/strengthBands.ts (STRENGTH_TIER_LIMITS, strengthTierOf); packages/sim/src/lobby/runLobby.ts seatRunLobby (seatsByTier)' },
+      { kind: 'fix-pr', ref: 'feat/lobby-seat-tiers (2026-11-16): packages/sim/src/lobby/strengthBands.ts (STRENGTH_TIER_LIMITS, strengthSeatTierOf); packages/sim/src/lobby/runLobby.ts seatRunLobby (seatsByTier)' },
     ],
     example: 'A Diamond table: the shuffle offers runs of strength 96, 93, 91, 88, 85, 84, 60, 55, 40. It seats 96 and 93, passes over 91, seats 88 and 85, passes over 84, then seats 60, 55 and 40.',
     currentBehaviour:

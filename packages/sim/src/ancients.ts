@@ -24,6 +24,25 @@
  * the foot of this file). Nothing crosses to the teammate outside the pass channel: what a pairing gives the teammate
  * rides ON the passed card (`passBonds`, `passCopies`), so it lands exactly once, with the card, under the pass key.
  *
+ * ── Ancient pass 1 (owner picks 2026-11-16, R-ANCPASS1-01..19) ─────────────────────────────────────────────────
+ * Some pairings below were re-pointed by the owner's review; where a per-hero list further down still names the old
+ * primitive, the data block is the truth. New / extended primitives and where they fire:
+ *  · `eotTriggerLeftmostShout` `count` (Auctioneer × Bonds: 2) / `alsoSoc` (Drakko × Time: `ancientEdgeShouts.leftOnly`).
+ *  · `luckySeatNeed`           Ayse × Bonds: `ancientLuckySeatNeed` is read by every Lucky Seat counter (2 instead of 3).
+ *  · `avengeBuffTier7` `tiers`  Brackus × Death: Tiers 5 and 6 (`brackusBuffTier7` + `ancientBrackusAvenge.tiers`).
+ *  · `socCopyTier7` `toHand`    Brackus × War: the Start-of-Combat copy also sends a plain copy to hand (live).
+ *  · `tier7AllTypesRally`      Brackus × Bonds: `ancientSyncPass1` stamps `allTribes`, `RL` and Paragon's self Rally graft.
+ *  · `socBuffPerGildedPlayed` `permanent`  Braum × War: `ancientSocBuffAll.permanent` (`permaGain`).
+ *  · `socTripleNeutrals`       Braum × Bonds: `QuestCombatMods.ancientTripleNeutrals`, Start of Combat.
+ *  · `twoCommissions`          Cassen × Time: a second slot (`AncientsState.cassenSecond`), Commission twice a turn.
+ *  · `pummelSwapCharge` `perCombat`  Darah × War: Pummel (200), twice per fight.
+ *  · `eotCastSpell`            Darah × Time: the `ancientDarahEotCopy` entry casts Lasso.
+ *  · `pickSetlistStats`        Disco Dan × War: +20/+20 at the pick. `pickDiscoverTier7Locked` `nextTurn`: Genesis' lock
+ *                              turns into a next-turn lock when Tier 6 is reached (`ancientSyncPass1`).
+ *  · `drakkoAllTypes`          Drakko × Death (`ancientSyncPass1`). `shoutBuffsDrakkos` `improveEvery`: Bonds, everywhere.
+ *  · `avengeTierMinion` `oncePerTurn`  Emerald Warden × Death (`ewAvengeWave`, `ancientGorrAvenge.limit`).
+ *  · `spellsGrantShopSpell` `minTier`  Emissary × Genesis: Tier 3+ (`vgSpellPool`, `ancientSpellCountGrant.ids`).
+ *
  * ── Where each primitive fires ────────────────────────────────────────────────────────────────────────────────
  *  · `powerTargetGainsKeywords`   the reducer's `gild` hero-power branch, after the gild (Death: Rebirth + Taunt).
  *  · `powerGivesCopiesInstead`    the same branch, INSTEAD of the gild (Genesis); the branch's `checkTriples`.
@@ -603,7 +622,7 @@
  */
 import { inRunTribes, makeRng, type CardDef, type EffectDef, type Keyword, type QuestCombatMods, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { handCap, mixSeed, type DiscoverAncientTag, type BoardCard, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
+import { handCap, mixSeed, type DiscoverAncientTag, type BoardCard, type Commission, type CommissionKind, type RunState, type ShopCard, type SotBeatFx } from './state';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { STARFORM_ID } from './starform';
 import { activePowers, getHero, hasPower, wieldedPowerId, type HeroPower } from './heroes';
@@ -832,13 +851,15 @@ export type AncientEffect =
   /** Every Triple Reward you get also gains `gold` Gold (the cost-0 Investment rides the pairing's `power`). */
   | { do: 'tripleRewardGold'; gold: number }
   /** Start of Combat: your minions gain +a/+h for every Gilded minion you have played this game. */
-  | { do: 'socBuffPerGildedPlayed'; attack: number; health: number }
+  | { do: 'socBuffPerGildedPlayed'; attack: number; health: number; /** The grant is kept after the fight. */ permanent?: boolean }
   /** Investment's payout is a Discover of a Gilded minion of your current tier. */
   | { do: 'investmentDiscoverCurrentTier' }
   /** Investment becomes: Discover a Tier `tier` minion (once per game, via `power`); Start of Turn: a plain copy of it. */
   | { do: 'investmentDiscoverTierCopies'; tier: number }
   /** Playing a Gilded minion gives your minions +a/+h, permanently. */
   | { do: 'gildedPlayBuffsAll'; attack: number; health: number }
+  /** Start of Combat: your Neutral minions (no type) triple their stats for that combat. Ancient pass 1. */
+  | { do: 'socTripleNeutrals' }
   // ── Ayse (Lucky Seat) ──
   /** Every Shop offer with an Echo is Enchanted. */
   | { do: 'echoAlwaysEnchanted' }
@@ -852,17 +873,21 @@ export type AncientEffect =
   | { do: 'eotBuffPerEnchantedBuy'; attack: number; health: number }
   /** Each Lucky Seat trigger gives your left-most and right-most minions +a/+h. */
   | { do: 'luckySeatBuffsEdges'; attack: number; health: number }
+  /** Lucky Seat needs only `buys` Enchanted cards per reward (instead of 3). Ancient pass 1 (owner 2026-11-16). */
+  | { do: 'luckySeatNeed'; buys: number }
   // ── Darah (Swap) ──
   /** Swapping a friendly minion with an Echo fires its Echo first (the Shop Echo ritual). */
   | { do: 'swapEchoFirst' }
   /** The friendly minion Swap sends to the Shop costs 0 Gold to buy back. */
   | { do: 'swapFree' }
   /** Hero-level Pummel (`every`), once per combat: bank a charge of Swap (one more use, kept until used). */
-  | { do: 'pummelSwapCharge'; every: number }
+  | { do: 'pummelSwapCharge'; every: number; perCombat?: number }
   /** Swap also gives a plain copy of the minion it brings in from the Shop. */
   | { do: 'swapCopyIncoming' }
   /** End of Turn: a plain copy of the last minion Swap sent to the Shop this turn. */
   | { do: 'eotCopySwapped' }
+  /** End of Turn: cast `spellId` (the real Shop cast pipeline, from the hero power). Ancient pass 1 (owner 2026-11-16). */
+  | { do: 'eotCastSpell'; spellId: string }
   /** The two minions Swap exchanges gain each other's stats. */
   | { do: 'swapExchangeStats' }
   // ── Nadja (Goldspring) ──
@@ -876,11 +901,11 @@ export type AncientEffect =
   | { do: 'spendGoldBuffsRandom'; count: number; attack: number; health: number }
   // ── Brackus (Summit) ──
   /** Avenge (`every`), across the Shop and combat: every Tier 7 minion (board, hand, Shop) gains +a/+h. */
-  | { do: 'avengeBuffTier7'; every: number; attack: number; health: number }
+  | { do: 'avengeBuffTier7'; every: number; attack: number; health: number; /** The tiers it buffs (default [7]). */ tiers?: number[] }
   /** Every `every` Gold spent (a running count): Discover a Tier 7 minion. */
   | { do: 'goldSpentDiscoverTier7'; every: number }
   /** Start of Combat: summon a copy of your left-most Tier 7 minion as soon as there is room. */
-  | { do: 'socCopyTier7' }
+  | { do: 'socCopyTier7'; /** Also a plain copy of it to hand (hand room permitting). */ toHand?: boolean }
   /** Summit's lock gains `addLock` Gold and the Tier 7 becomes Gilded when it unlocks (already unlocked: after `after`
    *  more Gold spent). Once. */
   | { do: 'summitGildTier7'; addLock: number; after: number }
@@ -888,6 +913,8 @@ export type AncientEffect =
   | { do: 'discoverTier7InTurns'; turns: number }
   /** Whenever you play a card, your other Tier 7 minions gain +a/+h per tier of the played card. */
   | { do: 'playBuffsTier7PerTier'; attack: number; health: number }
+  /** Your Tier 7 minions are all types and gain "Rally: give a minion of each type +a/+h permanently." Ancient pass 1. */
+  | { do: 'tier7AllTypesRally'; attack: number; health: number }
   // ── Rayse (Empowering Vines) ──
   /** Avenge (`every`), Shop AND combat (one running count): summon a Sprout at its current size, then grow it +1/+1. */
   | { do: 'avengeSummonSprout'; every: number }
@@ -910,11 +937,15 @@ export type AncientEffect =
   | { do: 'commissionGrantsTierMinion' }
   /** Every commission is due in `turns` turns. */
   | { do: 'commissionDelay'; turns: number }
+  /** Two commissions can run at once (a second slot, `AncientsState.cassenSecond`). Ancient pass 1. */
+  | { do: 'twoCommissions' }
   /** A commission pays out twice. */
   | { do: 'commissionPaysTwice' }
   // ── Drakko (Drumline) ──
   /** Your Drakkos' types become `tribes` (a run-level override; Drakko has no printed type to keep). */
   | { do: 'drakkoRetype'; tribes: Tribe[] }
+  /** Your Drakkos are all types (the `allTribes` instance mark, stamped at every action boundary). Ancient pass 1. */
+  | { do: 'drakkoAllTypes' }
   /** Shout minions cost `gold` less (floor 0). */
   | { do: 'shoutMinionsDiscount'; gold: number }
   /** Start of Combat: a random minion gains +a/+h; repeat for every Shout triggered this turn. */
@@ -922,9 +953,10 @@ export type AncientEffect =
   /** Drumline completes up to `times` times, each needing one Shout buy fewer. */
   | { do: 'drumlineRepeats'; times: number }
   /** End of Turn: trigger your left-most Shout minion. */
-  | { do: 'eotTriggerLeftmostShout' }
-  /** Whenever you trigger a Shout (Shop AND combat), your Drakkos gain +a/+h, permanently. */
-  | { do: 'shoutBuffsDrakkos'; attack: number; health: number }
+  | { do: 'eotTriggerLeftmostShout'; /** How many left-most Shout minions (default 1). */ count?: number; /** Also at Start of Combat. */ alsoSoc?: boolean }
+  /** Whenever you trigger a Shout (Shop AND combat), your Drakkos gain +a/+h, permanently. With `improveEvery`, the gain
+   *  reaches board, hand and Shop Drakkos and grows by +a/+h every `improveEvery` Shouts (ancient pass 1). */
+  | { do: 'shoutBuffsDrakkos'; attack: number; health: number; improveEvery?: number }
   // ── Flash (First or Last) ──
   /** With First or Last armed, the 2nd enemy minion killed is also copied. */
   | { do: 'flashSecondKill' }
@@ -993,8 +1025,10 @@ export type AncientEffect =
   | { do: 'setlistPrice'; price: number }
   /** At the pick: the Setlist cards you hold gain `keywords`, permanently. */
   | { do: 'pickSetlistKeywords'; keywords: Keyword[] }
+  /** At the pick: the Setlist cards you hold gain +a/+h, permanently. Ancient pass 1. */
+  | { do: 'pickSetlistStats'; attack: number; health: number }
   /** At the pick: Discover a Tier 7 minion, locked until Shop tier `lockTier`. */
-  | { do: 'pickDiscoverTier7Locked'; lockTier: number }
+  | { do: 'pickDiscoverTier7Locked'; lockTier: number; /** It unlocks the TURN AFTER you reach `lockTier`. */ nextTurn?: boolean }
   /** Setlist cards Gild at `copies` copies. */
   | { do: 'setlistGildAt'; copies: number }
   // ── Kindness (Great Presence) ──
@@ -1025,14 +1059,14 @@ export type AncientEffect =
   /** United Front fires `times` times. */
   | { do: 'unitedFrontReps'; times: number }
   /** Every `every` spells cast (a running count, Shop AND combat): get a random Shop spell. */
-  | { do: 'spellsGrantShopSpell'; every: number }
+  | { do: 'spellsGrantShopSpell'; every: number; /** The spell is of this tier or higher. */ minTier?: number }
   /** United Front fires at End of Turn (a permanent Shop buff) instead of at Start of Combat. */
   | { do: 'unitedFrontAtEndOfTurn' }
   /** United Front buffs every friendly minion instead of one of each type. */
   | { do: 'unitedFrontHitsAll' }
   // ── Emerald Warden (Vanguard) ──
   /** Avenge (`every`), Shop AND combat (one running count): get a random minion of your Shop tier. */
-  | { do: 'avengeTierMinion'; every: number }
+  | { do: 'avengeTierMinion'; every: number; /** At most one payout per turn (the Shop and its combat). */ oncePerTurn?: boolean }
   /** Minions of your current Shop tier cost at most `price` Gold. */
   | { do: 'tierMinionsCost'; price: number }
   /** At Shop tier `tier`+, Vanguard can also be pressed (untargeted, `cost` Gold, once per turn) to `act`. */
@@ -1366,9 +1400,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'shopShoutGold', gold: 1 }],
     },
     war: {
-      // "The minion you Pulse gains 'Rally: trigger this minion's Shout'".
-      offerText: 'The minion you Pulse also gains "**Rally:** trigger this minion\'s **Shout**."',
-      powerText: '{base} It also gains "**Rally:** trigger this minion\'s **Shout**."',
+      // "The minion you Pulse gains 'Rally: trigger this minion's Shout'". Ancient pass 1 (owner 2026-11-16): "No
+      // stacking, but permanent" (the shipped behaviour, now printed).
+      offerText: 'The minion you Pulse also gains "**Rally:** trigger this minion\'s **Shout**." It is permanent and does not stack.',
+      powerText: '{base} It also gains "**Rally:** trigger this minion\'s **Shout**." It is permanent and does not stack.',
       effects: [{ do: 'pulseGrantsRallyShout' }],
     },
     genesis: {
@@ -1387,10 +1422,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'socTriggerEdgeShouts' }],
     },
     bonds: {
-      // "Shout triggers buff adjacent minions +4/+3."
-      offerText: 'Whenever you trigger a **Shout**, the minions next to it gain **+4/+3**.',
-      powerText: '{base} Whenever you trigger a **Shout**, the minions next to it gain **+4/+3**.',
-      effects: [{ do: 'shoutBuffsAdjacent', attack: 4, health: 3 }],
+      // "Shout triggers buff adjacent minions +4/+3." Ancient pass 1 (owner 2026-11-16): "End of Turn: trigger your two
+      // left-most Shouts." (Drakko × Time's End-of-Turn entry, two minions.)
+      offerText: '**End of Turn:** trigger your **2** left-most **Shouts**.',
+      powerText: '{base} **End of Turn:** trigger your **2** left-most **Shouts**.',
+      effects: [{ do: 'eotTriggerLeftmostShout', count: 2 }],
     },
   },
   // LORD OF THE RISEN (hero id `risen`; owner pairings 2026-09-26, quoted above each entry). Undying = "Give a friendly
@@ -1839,9 +1875,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "Start of Combat: Give your minions +8/+8 for every Gilded minion you've played this game."
-      offerText: '**Start of Combat:** give your minions **+8/+8** for every **Gilded** minion you have played this game.',
-      powerText: '{base} **Start of Combat:** give your minions **+8/+8** for every **Gilded** minion you have played this game (**{bGildPlays}** played: **+{bWarA}/+{bWarH}**).',
-      effects: [{ do: 'socBuffPerGildedPlayed', attack: 8, health: 8 }],
+      // Ancient pass 1 (owner 2026-11-16, Mike's suggestion): the buff is permanent.
+      offerText: '**Start of Combat:** give your minions **+8/+8** permanently for every **Gilded** minion you have played this game.',
+      powerText: '{base} **Start of Combat:** give your minions **+8/+8** permanently for every **Gilded** minion you have played this game (**{bGildPlays}** played: **+{bWarA}/+{bWarH}**).',
+      effects: [{ do: 'socBuffPerGildedPlayed', attack: 8, health: 8, permanent: true }],
     },
     genesis: {
       // "Discover the minion from Investment. It is always of your current tier."
@@ -1859,9 +1896,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "When you play a Gilded minion, give your minions +8/+8."
-      offerText: 'Whenever you play a **Gilded** minion, give your minions **+8/+8**.',
-      powerText: '{base} Whenever you play a **Gilded** minion, give your minions **+8/+8**.',
-      effects: [{ do: 'gildedPlayBuffsAll', attack: 8, health: 8 }],
+      // Ancient pass 1 (owner 2026-11-16, Mike's idea A): "Start of Combat, triple your Neutral minions' stats."
+      offerText: '**Start of Combat:** triple the stats of your Neutral minions.',
+      powerText: '{base} **Start of Combat:** triple the stats of your Neutral minions for that combat.',
+      effects: [{ do: 'socTripleNeutrals' }],
     },
   },
   // AYSE (hero id `cia`; owner pairings 2026-10-06, quoted above each entry). Lucky Seat (passive) = "Buy 3 Enchanted
@@ -1899,9 +1937,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "Triggering Lucky Seat grants your left and right-most minions +5/+6."
-      offerText: 'Whenever Lucky Seat triggers, give your left and right-most minions **+5/+6**.',
-      powerText: '{base} Whenever it triggers, give your left and right-most minions **+5/+6**.',
-      effects: [{ do: 'luckySeatBuffsEdges', attack: 5, health: 6 }],
+      // Ancient pass 1 (owner 2026-11-16): "Lucky Seat only needs two Enchanted minions". The base text prints the 2.
+      offerText: 'Lucky Seat needs only **2** Enchanted cards.',
+      powerText: '{base}',
+      effects: [{ do: 'luckySeatNeed', buys: 2 }],
     },
   },
   // DARAH (owner pairings 2026-10-06, quoted above each entry). Swap = "Swap a friendly minion with a random minion in the
@@ -1921,10 +1960,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'swapFree' }],
     },
     war: {
-      // "Pummel (140): Get a charge of Swap. (Once per combat.)"
-      offerText: '**Pummel (140):** get a charge of Swap. Once per combat. Counts damage dealt by all your minions. Each charge is one more Swap, kept until used.',
-      powerText: '{base} **Pummel (140):** get a charge of Swap. Once per combat. Counts damage dealt by all your minions (**{dPummelNow}/{dPummelEvery}**). Each charge is one more Swap (**{dCharges}** banked).',
-      effects: [{ do: 'pummelSwapCharge', every: 140 }],
+      // "Pummel (140): Get a charge of Swap. (Once per combat.)" Ancient pass 1 (owner 2026-11-16, Mike's suggestion):
+      // Pummel (200), and it can pay TWICE per combat instead of once.
+      offerText: '**Pummel (200):** get a charge of Swap. Twice per combat. Counts damage dealt by all your minions. Each charge is one more Swap, kept until used.',
+      powerText: '{base} **Pummel (200):** get a charge of Swap. Twice per combat. Counts damage dealt by all your minions (**{dPummelNow}/{dPummelEvery}**). Each charge is one more Swap (**{dCharges}** banked).',
+      effects: [{ do: 'pummelSwapCharge', every: 200, perCombat: 2 }],
     },
     genesis: {
       // "Swap grants a copy of the minion swapped with."
@@ -1933,10 +1973,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'swapCopyIncoming' }],
     },
     time: {
-      // "End of Turn: Get a copy of the minion you swapped."
-      offerText: '**End of Turn:** get a plain copy of the minion you sent to the Shop with Swap this turn.',
-      powerText: '{base} **End of Turn:** get a plain copy of the minion you sent to the Shop this turn.{dSwapped}',
-      effects: [{ do: 'eotCopySwapped' }],
+      // "End of Turn: Get a copy of the minion you swapped." Ancient pass 1 (owner 2026-11-16): "Gain the Lasso card
+      // effect." Read as End of Turn: cast Lasso (steal a random minion from the Shop).
+      offerText: '**End of Turn:** cast **Lasso**.',
+      powerText: '{base} **End of Turn:** cast **Lasso**.',
+      effects: [{ do: 'eotCastSpell', spellId: 'lasso' }],
     },
     bonds: {
       // "Swapped minions gain each others stats."
@@ -1994,9 +2035,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   brackus: {
     death: {
       // "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in hand/shop")
-      offerText: '**Avenge (3):** give all Tier 7 minions **+6/+6**, in your warband, your hand and the Shop.',
-      powerText: '{base} **Avenge (3):** give all Tier 7 minions **+6/+6**, in your warband, your hand and the Shop (**{smDeathLeft}** more to go).',
-      effects: [{ do: 'avengeBuffTier7', every: 3, attack: 6, health: 6 }],
+      // Ancient pass 1 (owner 2026-11-16): "Tiers 5 and 6 instead of Tier 7".
+      offerText: '**Avenge (3):** give all Tier 5 and Tier 6 minions **+6/+6**, in your warband, your hand and the Shop.',
+      powerText: '{base} **Avenge (3):** give all Tier 5 and Tier 6 minions **+6/+6**, in your warband, your hand and the Shop (**{smDeathLeft}** more to go).',
+      effects: [{ do: 'avengeBuffTier7', every: 3, attack: 6, health: 6, tiers: [5, 6] }],
     },
     fortune: {
       // "When you spend 50g, Discover a Tier 7 minion."
@@ -2006,9 +2048,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "Start of Combat: When you have space, summon a copy of your Tier 7 minion."
-      offerText: '**Start of Combat:** summon a copy of your Tier 7 minion as soon as you have room.',
-      powerText: '{base} **Start of Combat:** summon a copy of your left-most Tier 7 minion as soon as you have room.{smWarCopy}',
-      effects: [{ do: 'socCopyTier7' }],
+      // Ancient pass 1 (owner 2026-11-16): "summon a copy, and get one too if you have room".
+      offerText: '**Start of Combat:** summon a copy of your Tier 7 minion as soon as you have room. Also get a plain copy of it if your hand has room.',
+      powerText: '{base} **Start of Combat:** summon a copy of your left-most Tier 7 minion as soon as you have room. Also get a plain copy of it if your hand has room.{smWarCopy}',
+      effects: [{ do: 'socCopyTier7', toHand: true }],
     },
     genesis: {
       // "Add 40 gold to Summit. When it triggers, it grants or makes your Tier 7 Gilded." (owner: "if it has triggered
@@ -2019,15 +2062,18 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "Discover a Tier 7 minion in 3 turns."
-      offerText: '**Discover** a **Tier 7** minion in **3** turns.',
-      powerText: '{base} **Discover** a **Tier 7** minion in **3** turns ({smTimeLeft}).',
-      effects: [{ do: 'discoverTier7InTurns', turns: 3 }],
+      // Ancient pass 1 (owner 2026-11-16): 2 turns instead of 3.
+      offerText: '**Discover** a **Tier 7** minion in **2** turns.',
+      powerText: '{base} **Discover** a **Tier 7** minion in **2** turns ({smTimeLeft}).',
+      effects: [{ do: 'discoverTier7InTurns', turns: 2 }],
     },
     bonds: {
       // "Your Tier 7 cards gain +1/+1 per card tier when a card is played."
-      offerText: 'Whenever you play a card, your Tier 7 minions gain **+1/+1** for each tier of that card.',
-      powerText: '{base} Whenever you play a card, your Tier 7 minions gain **+1/+1** for each tier of that card (**+{smBondsTotal}/+{smBondsTotal}** so far).',
-      effects: [{ do: 'playBuffsTier7PerTier', attack: 1, health: 1 }],
+      // Ancient pass 1 (owner 2026-11-16): "Your Tier 7 becomes all types and gains 'Rally: give a minion of each type
+      // +10/+10 permanently.'" Every Tier 7 minion you have (warband and hand).
+      offerText: 'Your Tier 7 minions are all types and gain "**Rally:** give a minion of each type **+10/+10** permanently."',
+      powerText: '{base} Your Tier 7 minions are all types and have "**Rally:** give a minion of each type **+10/+10** permanently."',
+      effects: [{ do: 'tier7AllTypesRally', attack: 10, health: 10 }],
     },
   },
   // RAYSE (owner pairings 2026-10-09, quoted above each entry). Empowering Vines (passive) = "Minions summoned in combat
@@ -2101,10 +2147,12 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'commissionGrantsTierMinion' }],
     },
     time: {
-      // "Commissions all trigger next turn." (the delay becomes 1)
-      offerText: 'Every commission pays out next turn.',
-      powerText: '{base} Every commission pays out next turn.',
-      effects: [{ do: 'commissionDelay', turns: 1 }],
+      // "Commissions all trigger next turn." Ancient pass 1 (owner 2026-11-16): "Choose two commissions to be live at
+      // once." A second slot; Commission can be used twice a turn so both can start together.
+      offerText: 'You can have **2** commissions working at once.',
+      powerText: '{base} You can have **2** working at once.',
+      power: { usesPerTurn: 2 },
+      effects: [{ do: 'twoCommissions' }],
     },
     bonds: {
       // "Commission pays out twice."
@@ -2117,10 +2165,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   // Drakko." Drakko (the `drummer` card) makes your Shouts trigger twice.
   drakko: {
     death: {
-      // "Your Drakkos become Undead/Beast." (owner: REPLACE their types; Rune of Drakko still adds Dragon/Spirit on top)
-      offerText: 'Your Drakkos become **Undead** and **Beast**.',
-      powerText: '{base} Your Drakkos are **Undead** and **Beast**.',
-      effects: [{ do: 'drakkoRetype', tribes: ['undead', 'beast'] }],
+      // "Your Drakkos become Undead/Beast." Ancient pass 1 (owner 2026-11-16): all types instead.
+      offerText: 'Your Drakkos become all types.',
+      powerText: '{base} Your Drakkos are all types.',
+      effects: [{ do: 'drakkoAllTypes' }],
     },
     fortune: {
       // "Shout minions cost 1 Gold less." (floor 0)
@@ -2142,15 +2190,18 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "End of turn: trigger your left-most Shout minion."
-      offerText: '**End of Turn:** trigger your left-most **Shout** minion.',
-      powerText: '{base} **End of Turn:** trigger your left-most **Shout** minion.',
-      effects: [{ do: 'eotTriggerLeftmostShout' }],
+      // Ancient pass 1 (owner 2026-11-16, Mike's suggestion): also at Start of Combat.
+      offerText: '**End of Turn** and **Start of Combat:** trigger your left-most **Shout** minion.',
+      powerText: '{base} **End of Turn** and **Start of Combat:** trigger your left-most **Shout** minion.',
+      effects: [{ do: 'eotTriggerLeftmostShout', alsoSoc: true }],
     },
     bonds: {
-      // "Your Drakkos gain +2/+2 when you trigger a Shout." (board Drakkos, permanent, cross-phase)
-      offerText: 'Whenever you trigger a **Shout**, your Drakkos gain **+2/+2**.',
-      powerText: '{base} Whenever you trigger a **Shout**, your Drakkos gain **+2/+2**.',
-      effects: [{ do: 'shoutBuffsDrakkos', attack: 2, health: 2 }],
+      // "Your Drakkos gain +2/+2 when you trigger a Shout." Ancient pass 1 (owner 2026-11-16): "they should buff drakkos
+      // in hand/shop as well, and add an 'improve this every 3 shouts triggered.' start the buff at +1/+1 and it improves
+      // +1/+1."
+      offerText: 'Whenever you trigger a **Shout**, your Drakkos gain **+1/+1**, in your warband, your hand and the Shop. Improve this by **+1/+1** every **3** **Shouts**.',
+      powerText: '{base} Whenever you trigger a **Shout**, your Drakkos gain **+{dkBondsX}/+{dkBondsX}**, in your warband, your hand and the Shop. Improves by **+1/+1** every **3** **Shouts** (**{dkBondsLeft}** more to go).',
+      effects: [{ do: 'shoutBuffsDrakkos', attack: 1, health: 1, improveEvery: 3 }],
     },
   },
   // FLASH (owner pairings 2026-10-09, quoted above each entry). First or Last (1 Gold) = "Claim a copy of the first or
@@ -2385,16 +2436,18 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'setlistPrice', price: 1 }],
     },
     war: {
-      // "Give your Setlist cards Ward and Flurry" (once, the moment it awakens: the Setlist cards you hold)
-      offerText: 'Your Setlist cards gain **Ward** and **Flurry**.',
-      powerText: '{base} Your Setlist cards gained **Ward** and **Flurry** when this awakened.',
-      effects: [{ do: 'pickSetlistKeywords', keywords: ['DS', 'W'] }],
+      // "Give your Setlist cards Ward and Flurry". Ancient pass 1 (owner 2026-11-16): "Setlist cards gain +20/+20" (once,
+      // the moment it awakens: the Setlist cards you hold, the shape the keywords had).
+      offerText: 'Your Setlist cards gain **+20/+20**.',
+      powerText: '{base} Your Setlist cards gained **+20/+20** when this awakened.',
+      effects: [{ do: 'pickSetlistStats', attack: 20, health: 20 }],
     },
     genesis: {
       // "Discover a T7 that unlocks at shop tier 6." (once, the moment it awakens)
-      offerText: '**Discover** a **Tier 7** minion. It unlocks at Shop Tier **6**.',
-      powerText: '{base} You **Discovered** a **Tier 7** minion that unlocks at Shop Tier **6**.',
-      effects: [{ do: 'pickDiscoverTier7Locked', lockTier: 6 }],
+      // Ancient pass 1 (owner 2026-11-16): it unlocks the turn AFTER you reach Tier 6.
+      offerText: '**Discover** a **Tier 7** minion. It unlocks the turn after you reach Shop Tier **6**.',
+      powerText: '{base} You **Discovered** a **Tier 7** minion that unlocks the turn after you reach Shop Tier **6**.',
+      effects: [{ do: 'pickDiscoverTier7Locked', lockTier: 6, nextTurn: true }],
     },
     time: {
       // "End of Turn: Reduce the cost of upgrading your Shop by 3." (Tradesman's Time primitive)
@@ -2516,9 +2569,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     genesis: {
       // "Every 5 spells you cast, get a random Shop spell." (a running count since the pick, Shop and combat)
-      offerText: 'Every **5** spells you cast, get a random Shop spell.',
-      powerText: '{base} Every **5** spells you cast, get a random Shop spell (**{vGenesisLeft}** more to go).',
-      effects: [{ do: 'spellsGrantShopSpell', every: 5 }],
+      // Ancient pass 1 (owner 2026-11-16, Mike's suggestion): the spell is Tier 3 or higher.
+      offerText: 'Every **5** spells you cast, get a random Shop spell of Tier **3** or higher.',
+      powerText: '{base} Every **5** spells you cast, get a random Shop spell of Tier **3** or higher (**{vGenesisLeft}** more to go).',
+      effects: [{ do: 'spellsGrantShopSpell', every: 5, minTier: 3 }],
     },
     time: {
       // "United Front triggers at End of Turn instead." (a Shop buff now, so it is PERMANENT; no Start of Combat fire)
@@ -2538,9 +2592,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   emeraldwarden: {
     death: {
       // "Avenge (6): get a random minion of your Tier." (one running count across Shop and combat)
-      offerText: '**Avenge (6):** get a random minion of your Tier.',
-      powerText: '{base} **Avenge (6):** get a random minion of your Tier (**{ewDeathLeft}** more to go).',
-      effects: [{ do: 'avengeTierMinion', every: 6 }],
+      // Ancient pass 1 (owner 2026-11-16, Mike's suggestion): once per turn.
+      offerText: '**Avenge (6):** get a random minion of your Tier. Once per turn.',
+      powerText: '{base} **Avenge (6):** get a random minion of your Tier. Once per turn (**{ewDeathLeft}** more to go).{ewDeathUsed}',
+      effects: [{ do: 'avengeTierMinion', every: 6, oncePerTurn: true }],
     },
     fortune: {
       // "Minions of your tier cost 2g." (your current Shop tier; never raises a lower price)
@@ -2556,9 +2611,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     genesis: {
       // "At tier 6, Vanguard can be activated for 4g to discover a Tier 7 minion." (a button from Shop tier 6, once per turn)
-      offerText: 'At Tier **6**, you can use Vanguard for **4 Gold** to **Discover** a **Tier 7** minion. Once each turn.',
-      powerText: '{base} At Tier **6**, use it for **4 Gold** to **Discover** a **Tier 7** minion. Once each turn.{ewNow}',
-      effects: [{ do: 'vanguardActive', tier: 6, cost: 4, act: 'discoverTier7' }],
+      // Ancient pass 1 (owner 2026-11-16): 5 Gold instead of 4.
+      offerText: 'At Tier **6**, you can use Vanguard for **5 Gold** to **Discover** a **Tier 7** minion. Once each turn.',
+      powerText: '{base} At Tier **6**, use it for **5 Gold** to **Discover** a **Tier 7** minion. Once each turn.{ewNow}',
+      effects: [{ do: 'vanguardActive', tier: 6, cost: 5, act: 'discoverTier7' }],
     },
     time: {
       // "Vanguard gains End of Turn: Get a random minion of your tier."
@@ -3312,6 +3368,15 @@ export interface AncientsState {
   /** MERRIN / EMISSARY / EMERALD WARDEN × DEATH: friendly deaths since the last fire (Shop + combat), the running hero
    *  Avenge count (3 / 4 / 6). One field: only one of the three can be the held power's pairing. */
   batchBDeaths?: number;
+  /** EMERALD WARDEN × DEATH (ancient pass 1): the wave whose one Avenge payout has been spent (Shop or its combat). */
+  ewAvengeWave?: number;
+  /** CASSEN × TIME (ancient pass 1): the SECOND commission slot (the first is `RunState.commission`). */
+  cassenSecond?: Commission;
+  /** DRAKKO × BONDS (ancient pass 1): the live +X/+X (starts at the effect's +a) and the Shouts fired since the pick. */
+  drakkoBondsX?: number;
+  drakkoBondsShouts?: number;
+  /** DISCO DAN × GENESIS (ancient pass 1): the uid of the locked Tier 7 pick, whose Tier lock turns into a next-turn lock. */
+  discoGenesisUid?: string;
   /** MERRIN × TIME, EMISSARY × GENESIS: spells cast since the pick (every phase), the running count toward the next
    *  recharge / Shop spell. */
   batchBSpells?: number;
@@ -3806,7 +3871,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   // DARAH × WAR: a once-per-combat hero Pummel on the same lifetime tally; each payout is a Swap charge (a flagged
   // `questTrigger`, banked at settle).
   const dw = effectOf(state, 'pummelSwapCharge');
-  if (dw) out.ancientPummelCharge = { every: dw.every, dealt: live(state)?.pummelDealt ?? 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: ANCIENTS.war.name };
+  if (dw) out.ancientPummelCharge = { every: dw.every, dealt: live(state)?.pummelDealt ?? 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: ANCIENTS.war.name, ...(dw.perCombat && dw.perCombat > 1 ? { perCombat: dw.perCombat } : {}) };
   // NADJA: Death's running Avenge (carried in; each fire +max Gold, paid at settle); War's Start-of-Combat Rally, its
   // Attack fixed for the fight (the Shop turn that just ended is over: nothing more is spent mid-combat).
   const nd = effectOf(state, 'avengeMaxGold');
@@ -3816,8 +3881,10 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   // BRACKUS: Death's running Avenge (carried in; each fire buffs the living Tier 7 bodies and pulses the settle flag);
   // War's Start-of-Combat copy of the left-most Tier 7.
   const bd = effectOf(state, 'avengeBuffTier7');
-  if (bd) out.ancientBrackusAvenge = { every: bd.every, tick: live(state)?.brackusDeaths ?? 0, attack: bd.attack, health: bd.health, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: ANCIENTS.death.name };
-  if (effectOf(state, 'socCopyTier7')) out.ancientSummitCopy = { label: ANCIENTS.war.name };
+  if (bd) out.ancientBrackusAvenge = { every: bd.every, tick: live(state)?.brackusDeaths ?? 0, attack: bd.attack, health: bd.health, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: ANCIENTS.death.name, ...(bd.tiers ? { tiers: [...bd.tiers] } : {}) };
+  // BRACKUS × WAR (ancient pass 1): the copy also comes to hand.
+  const bw = effectOf(state, 'socCopyTier7');
+  if (bw) out.ancientSummitCopy = { label: ANCIENTS.war.name, ...(bw.toHand ? { toHand: true } : {}) };
   Object.assign(out, batch5CombatMods(state));
   Object.assign(out, batch6CombatMods(state));
   Object.assign(out, batchBCombatMods(state));
@@ -4037,7 +4104,15 @@ export function ancientOnShopShout(state: RunState, source: BoardCard | undefine
   if (!a) return;
   // DRAKKO × BONDS: every Shout fire gives your board Drakkos +a/+h, permanently, in real time.
   const dk = effectOf(state, 'shoutBuffsDrakkos');
-  if (dk) {
+  if (dk?.improveEvery) {
+    // Ancient pass 1 (owner 2026-11-16): board, hand AND Shop Drakkos gain the live +X/+X, then every `improveEvery`th
+    // Shout improves X by the effect's +a.
+    const x = drakkoBondsX(state, a);
+    const drakkos = [...state.board, ...state.hand].filter((c) => c.cardId === DRAKKO_CARD_ID);
+    if (drakkos.length > 0) captureBuffFx(state, source, source ? 'minion' : 'spell', () => { for (const c of drakkos) addBuff(c, ANCIENTS.bonds.name, x, x); });
+    for (const o of state.shop) if (!o.held && o.cardId === DRAKKO_CARD_ID) addOfferBuff(o, ANCIENTS.bonds.name, x, x);
+    drakkoBondsTick(a, dk, 1);
+  } else if (dk) {
     const drakkos = state.board.filter((c) => c.cardId === DRAKKO_CARD_ID);
     if (drakkos.length > 0) captureBuffFx(state, source, source ? 'minion' : 'spell', () => { for (const c of drakkos) addBuff(c, ANCIENTS.bonds.name, dk.attack, dk.health); });
   }
@@ -5173,7 +5248,9 @@ function bramCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (d) out.ancientBramDeaths = { every: d.every, tick: a?.bramDeaths ?? 0, label: ANCIENTS.death.name };
   const w = effectOf(state, 'socBuffPerGildedPlayed');
   const n = a?.bramGildedPlays ?? 0;
-  if (w && n > 0) out.ancientSocBuffAll = { attack: w.attack * n, health: w.health * n, label: ANCIENTS.war.name };
+  if (w && n > 0) out.ancientSocBuffAll = { attack: w.attack * n, health: w.health * n, label: ANCIENTS.war.name, ...(w.permanent ? { permanent: true } : {}) };
+  // BRAUM × BONDS (ancient pass 1): Start of Combat, the Neutral minions triple their stats for that combat.
+  if (effectOf(state, 'socTripleNeutrals')) out.ancientTripleNeutrals = { label: ANCIENTS.bonds.name };
   return out;
 }
 
@@ -5292,6 +5369,13 @@ export function ancientOnEnchantedBuy(state: RunState, cardId: string, body: Boa
   }
 }
 
+/** AYSE (Lucky Seat): Enchanted buys per reward. BONDS (ancient pass 1, owner 2026-11-16): 2; else 3. Read by every
+ *  Lucky Seat counter (`ciaBuyEnchanted`, the post-buy completion check, the armed glow, the panel tally, the text). */
+export function ancientLuckySeatNeed(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
+  const e = live(state as RunState) ? effectOf(state as RunState, 'luckySeatNeed') : undefined;
+  return e ? Math.max(1, e.buys) : 3;
+}
+
 /** AYSE × TIME: is the End-of-Turn grant live (the `ancientAyseTime` recurring entry)? */
 export function ancientAyseTimeLive(state: RunState): boolean {
   // FLINT × TIME rides the same virtual End-of-Turn entry (one itemized grant per counted buy, the same beat).
@@ -5391,14 +5475,22 @@ function darahSwappedText(state: RunState): string {
   return id ? ` This turn: **${CARD_INDEX[id]?.name ?? id}**.` : ' Nothing swapped this turn.';
 }
 
-/** DARAH × TIME: is the End-of-Turn copy live (the `ancientDarahEotCopy` recurring entry)? */
+/** DARAH × TIME: is the End-of-Turn entry live (the `ancientDarahEotCopy` recurring entry)? Since ancient pass 1 (owner
+ *  2026-11-16) it casts Lasso (`eotCastSpell`); the older copy primitive (`eotCopySwapped`) still runs the same entry. */
 export function ancientDarahEotCopyLive(state: RunState): boolean {
-  return !!live(state) && !!effectOf(state, 'eotCopySwapped');
+  return !!live(state) && (!!effectOf(state, 'eotCopySwapped') || !!effectOf(state, 'eotCastSpell'));
 }
 
-/** DARAH × TIME: End of Turn, a plain copy of the minion Swap sent away this turn, to hand (hand full / no Swap: none). */
+/** DARAH × TIME: End of Turn. `eotCastSpell`: cast the spell (Lasso) through the real Shop cast pipeline, from the hero
+ *  power (an empty Shop: Lasso steals nothing). `eotCopySwapped`: a plain copy of the minion Swap sent away this turn. */
 export function ancientRunDarahEotCopy(state: RunState): void {
   if (!ancientDarahEotCopyLive(state)) return;
+  const cast = effectOf(state, 'eotCastSpell');
+  if (cast) {
+    const spell = CARD_INDEX[cast.spellId];
+    if (spell?.spell) castSpell(state, spell, undefined, 'hero');
+    return;
+  }
   const id = darahSwappedThisTurn(state);
   if (id) gorrCopyToHand(state, id);
 }
@@ -5523,15 +5615,18 @@ function brackusOnPick(state: RunState, a: AncientsState): void {
   if (time) a.brackusTimeWave = state.wave + Math.max(1, time.turns);
 }
 
-/** BRACKUS × DEATH: every Tier 7 minion (board, hand and Shop offers) gains +a/+h, permanently. `skip` = board uids
- *  that are leaving (the dying body, the vacating slot); `board: false` leaves the board out (combat already paid it). */
+/** BRACKUS × DEATH: every minion of the effect's tiers (Tier 7 by default; Tiers 5 and 6 since ancient pass 1) on the
+ *  board, in hand and in the Shop gains +a/+h, permanently. `skip` = board uids that are leaving (the dying body, the
+ *  vacating slot); `board: false` leaves the board out (combat already paid it). */
 function brackusBuffTier7(state: RunState, attack: number, health: number, opts: { board?: boolean; skip?: readonly (string | undefined)[] } = {}): void {
   const label = ANCIENTS.death.name;
+  const tiers = effectOf(state, 'avengeBuffTier7')?.tiers ?? [7];
+  const inTiers = (cardId: string): boolean => { const d = CARD_INDEX[cardId]; return !!d && !d.spell && !d.ruby && tiers.includes(d.tier); };
   const skip = new Set(opts.skip ?? []);
   const board = opts.board === false ? [] : state.board.filter((c) => !skip.has(c.uid));
-  const bodies = [...board, ...state.hand].filter((c) => isTier7(c.cardId));
+  const bodies = [...board, ...state.hand].filter((c) => inTiers(c.cardId));
   if (bodies.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of bodies) addBuff(c, label, attack, health); });
-  for (const o of state.shop) if (!o.held && isTier7(o.cardId)) addOfferBuff(o, label, attack, health);
+  for (const o of state.shop) if (!o.held && inTiers(o.cardId)) addOfferBuff(o, label, attack, health);
 }
 
 /** BRACKUS × DEATH: friendly deaths still needed for the next fire (the carried count plus `deaths` so far in the fight
@@ -5788,6 +5883,34 @@ export function commissionLineOf(state: RunState, kind: CommissionKind): string 
   return COMMISSION_TEXT[kind].replace(/In \*\*\d+ turns?\*\*/, `In **${d} turn${d === 1 ? '' : 's'}**`);
 }
 
+/** CASSEN × TIME (ancient pass 1, owner 2026-11-16): "Choose two commissions to be live at once." `open` = a first one
+ *  is running and the second slot is free (Commission can be used again); `running` = the second slot's commission. */
+export function ancientCommissionSecond(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'commission'>): { open: boolean; running?: Commission } {
+  const a = live(state as RunState);
+  if (!a || !effectOf(state as RunState, 'twoCommissions')) return { open: false };
+  return { open: !!state.commission && !a.cassenSecond, ...(a.cassenSecond ? { running: a.cassenSecond } : {}) };
+}
+
+/** CASSEN × TIME: start `c` in the second slot (the reducer's Commission branch, when the first is running). */
+export function ancientStartSecondCommission(state: RunState, c: Commission): boolean {
+  const a = live(state);
+  if (!a || !ancientCommissionSecond(state).open) return false;
+  a.cassenSecond = c;
+  return true;
+}
+
+/** CASSEN × TIME: the turn opens (after the first slot's own payout). A due second commission is handed back (cleared)
+ *  for the caller to pay; one not yet due moves into the first slot when that one is free, so the slots never sit
+ *  out of order. */
+export function ancientTakeDueSecondCommission(state: RunState): Commission | undefined {
+  const a = live(state);
+  const c = a?.cassenSecond;
+  if (!a || !c) return undefined;
+  if (state.wave >= c.dueWave) { a.cassenSecond = undefined; return c; }
+  if (!state.commission) { state.commission = c; a.cassenSecond = undefined; }
+  return undefined;
+}
+
 /** CASSEN × BONDS: how many times a commission pays out. */
 export function ancientCommissionReps(state: RunState): number {
   return live(state) && effectOf(state, 'commissionPaysTwice') ? 2 : 1;
@@ -5831,6 +5954,53 @@ export function ancientShoutDiscount(state: RunState, cardId: string): number {
   const e = live(state) ? effectOf(state, 'shoutMinionsDiscount') : undefined;
   const def = e ? CARD_INDEX[cardId] : undefined;
   return e && def && !def.spell && !def.ruby && hasBattlecry(def) ? Math.max(0, e.gold) : 0;
+}
+
+/** The grafted Rally Brackus × Bonds gives every Tier 7 (ancient pass 1): "Rally: give a minion of each type +a/+h
+ *  permanently." Paragon's own factory, self-only, `fixed` (a hero grant: never doubled by a Gilded body). */
+const BRACKUS_BONDS_MARK = 'ancientBrackusBonds';
+function brackusBondsGraft(attack: number, health: number): EffectDef {
+  return { on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack, health, selfOnly: true, fixed: true, [BRACKUS_BONDS_MARK]: true } };
+}
+
+/**
+ * ANCIENT PASS 1 (owner 2026-11-16): the per-instance stamps, re-run at every action boundary (the reducer, beside
+ * `syncRunTribes`) so every copy that arrives (a buy, a Discover, a triple's Golden, a summon) carries them before the
+ * next action reads it. Idempotent; a cheap no-op unless one of these pairings is picked.
+ *  · DRAKKO × DEATH: every Drakko on the board and in hand is all types (`allTribes`; combat seeds `universalTribe`).
+ *  · BRACKUS × BONDS: every Tier 7 minion on the board and in hand is all types and carries the Rally graft + `RL`.
+ *  · DISCO DAN × GENESIS: once the locked Tier 7 pick's Tier is reached, it stays locked until the NEXT turn.
+ */
+export function ancientSyncPass1(state: RunState): void {
+  const a = live(state);
+  if (!a?.picked) return;
+  if (effectOf(state, 'drakkoAllTypes')) {
+    for (const c of [...state.board, ...state.hand]) if (c.cardId === DRAKKO_CARD_ID && !c.allTribes) c.allTribes = true;
+  }
+  const bb = effectOf(state, 'tier7AllTypesRally');
+  if (bb) {
+    for (const c of [...state.board, ...state.hand]) {
+      if (!isTier7(c.cardId)) continue;
+      if (!c.allTribes) c.allTribes = true;
+      if (!c.keywords.includes('RL')) c.keywords.push('RL');
+      if (!c.grantedEffects?.some((e) => e.params?.[BRACKUS_BONDS_MARK])) (c.grantedEffects ??= []).push(brackusBondsGraft(bb.attack, bb.health));
+    }
+  }
+  if (a.discoGenesisUid) {
+    const card = state.hand.find((c) => c.uid === a.discoGenesisUid);
+    if (!card) a.discoGenesisUid = undefined;
+    else if (card.lockedUntilTier && state.tier >= card.lockedUntilTier) {
+      card.lockedUntilTier = undefined;
+      card.lockedUntilWave = state.wave + 1;
+      a.discoGenesisUid = undefined;
+    }
+  }
+}
+
+/** DRAKKO × TIME / AUCTIONEER × BONDS: how many left-most Shout minions the End-of-Turn entry triggers (0 = not live). */
+export function ancientEotShoutCount(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'eotTriggerLeftmostShout') : undefined;
+  return e ? Math.max(1, e.count ?? 1) : 0;
 }
 
 /** DRAKKO × TIME: is the End-of-Turn Shout trigger live (the `ancientDrakkoEotShout` recurring entry)? */
@@ -5945,7 +6115,12 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const dw = effectOf(state, 'socBuffPerShout');
   if (dw) out.ancientSocRandomBuffs = { reps: 1 + Math.max(0, state.shoutFiresThisTurn ?? 0), attack: dw.attack, health: dw.health, label: ANCIENTS.war.name };
   const db = effectOf(state, 'shoutBuffsDrakkos');
-  if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name };
+  if (db?.improveEvery) {
+    const x = drakkoBondsX(state, a);
+    out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: x, health: x, label: ANCIENTS.bonds.name, improveEvery: db.improveEvery, step: db.attack, shouts: a.drakkoBondsShouts ?? 0 };
+  } else if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name };
+  // DRAKKO × TIME (ancient pass 1): Start of Combat also triggers the left-most Shout minion.
+  if (effectOf(state, 'eotTriggerLeftmostShout')?.alsoSoc) out.ancientEdgeShouts = { label: ANCIENTS.time.name, leftOnly: true };
   const fs = effectOf(state, 'flashSecondKill');
   const fp = effectOf(state, 'pummelEnemyCopy');
   const ft = effectOf(state, 'socEnemyCopy');
@@ -5993,6 +6168,38 @@ function batch5AfterCombat(state: RunState, a: AncientsState, result: CombatResu
     const got = pulses(ANCIENT_GILD_CHARGE_FLAG);
     if (got > 0) a.powerOverride = { ...(a.powerOverride ?? {}), maxUses: powerMaxUses(state, a) + got };
   }
+  // DRAKKO × BONDS (ancient pass 1): the fight's Shouts already buffed the board Drakkos (`permaGain`); the hand and Shop
+  // Drakkos gain the same sequence now, and the live X and count move on.
+  const db = effectOf(state, 'shoutBuffsDrakkos');
+  const fires = result.playerShoutFires ?? 0;
+  if (db?.improveEvery && fires > 0) {
+    let total = 0;
+    for (let i = 0; i < fires; i++) { total += drakkoBondsX(state, a); drakkoBondsTick(a, db, 1); }
+    const held = state.hand.filter((c) => c.cardId === DRAKKO_CARD_ID);
+    if (held.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of held) addBuff(c, ANCIENTS.bonds.name, total, total); });
+    for (const o of state.shop) if (!o.held && o.cardId === DRAKKO_CARD_ID) addOfferBuff(o, ANCIENTS.bonds.name, total, total);
+  }
+}
+
+/** DRAKKO × BONDS: Shouts still to fire before the next improve. */
+function drakkoBondsLeft(state: RunState, a: AncientsState): number {
+  const every = Math.max(1, effectOf(state, 'shoutBuffsDrakkos')?.improveEvery ?? 1);
+  return every - ((a.drakkoBondsShouts ?? 0) % every);
+}
+
+/** DRAKKO × BONDS (ancient pass 1): the live +X/+X each Shout gives your Drakkos right now. */
+function drakkoBondsX(state: RunState, a: AncientsState): number {
+  const e = effectOf(state, 'shoutBuffsDrakkos');
+  return a.drakkoBondsX ?? e?.attack ?? 0;
+}
+
+/** DRAKKO × BONDS: `n` Shouts fired; every `improveEvery`th improves X by the effect's +a. */
+function drakkoBondsTick(a: AncientsState, e: Extract<AncientEffect, { do: 'shoutBuffsDrakkos' }>, n: number): void {
+  const every = Math.max(1, e.improveEvery ?? 1);
+  for (let i = 0; i < n; i++) {
+    a.drakkoBondsShouts = (a.drakkoBondsShouts ?? 0) + 1;
+    if (a.drakkoBondsShouts % every === 0) a.drakkoBondsX = (a.drakkoBondsX ?? e.attack) + e.attack;
+  }
 }
 
 /** This batch's live power-text values (see `AncientPairing.powerText`). Live through a fight off the replay's friendly
@@ -6020,6 +6227,8 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
     .replace('{rSpent}', String(spent)).replace('{rGain}', String((rf?.attack ?? 0) * spent))
     .replace('{cTier}', String(state.tier))
     .replace('{dkShouts}', String(shouts)).replace('{dkReps}', String(1 + shouts))
+    .split('{dkBondsX}').join(String(drakkoBondsX(state, a)))
+    .replace('{dkBondsLeft}', String(drakkoBondsLeft(state, a)))
     .replace('{dkNeed}', String(ancientDrumlineNeed(state))).replace('{dkLeft}', String(dg ? Math.max(0, dg.times - (a.drakkoCompletions ?? 0)) : 0))
     .replace('{fPummelNow}', String(fp ? dealt % Math.max(1, fp.every) : 0)).replace('{fPummelEvery}', String(fp?.every ?? 0))
     .replace('{gmPummelNow}', String(gw ? dealt % Math.max(1, gw.every) : 0)).replace('{gmPummelEvery}', String(gw?.every ?? 0))
@@ -6158,6 +6367,10 @@ export function ancientOnDiscoverTaken(state: RunState, tag: AncientDiscoverTag 
   // it gives its Triple Reward like every Gilded play.
   if (tag === 'archive' && effectOf(state, 'archiveEchoGilded') && def && hasDeathrattle(def) && !taken.golden) gildMinion(taken, state);
   if (tag === 'discoDeath' && effectOf(state, 'pickDiscoverEchoLocked')) kw('R');
+  // DISCO DAN × GENESIS (ancient pass 1): remember the locked pick; `ancientSyncPass1` turns its Tier lock into a
+  // next-turn lock the moment the Tier is reached.
+  const a = live(state);
+  if (a && tag === 'discoGenesis' && effectOf(state, 'pickDiscoverTier7Locked')?.nextTurn && taken.lockedUntilTier) a.discoGenesisUid = taken.uid;
   if (tag === 'soulkeeper') soulkeeperOnTaken(state, taken); // UNDERDWELLER × DEATH / WAR
 }
 
@@ -6228,6 +6441,13 @@ function batch6OnPick(state: RunState, a: AncientsState): void {
   }
   const dg = effectOf(state, 'pickDiscoverTier7Locked');
   if (dg) queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7, ...(state.tier < dg.lockTier ? { lockTier: dg.lockTier } : {}), ancientTag: 'discoGenesis' });
+  const ds = effectOf(state, 'pickSetlistStats');
+  if (ds) {
+    // DISCO DAN × WAR (ancient pass 1): the Setlist cards you hold gain +a/+h, permanently, once.
+    const ids = discoSetlist(state);
+    const held = [...state.board, ...state.hand].filter((c) => ids.includes(c.cardId));
+    if (held.length > 0) captureBuffFx(state, undefined, 'spell', () => { for (const c of held) addBuff(c, ANCIENTS.war.name, ds.attack, ds.health); });
+  }
   const dw = effectOf(state, 'pickSetlistKeywords');
   if (dw) {
     const ids = discoSetlist(state);
@@ -6310,6 +6530,16 @@ function isShopSpell(def: CardDef | undefined): boolean {
 /** "A random Shop spell": Pocket Magic's own pool (the run's Shop spells, your Shop tier or lower). */
 function shopSpellPool(state: RunState): CardDef[] {
   return runSpells(state).filter((c) => c.tier <= state.tier);
+}
+
+/** EMISSARY × GENESIS (ancient pass 1, owner 2026-11-16): "the spell comes from Tier 3 or higher". The run's Shop spells
+ *  of Tier `minTier` up to your Shop tier; below Tier `minTier` the ceiling is `minTier` itself, so the grant is never
+ *  empty early (judgement call). Without `minTier`: the plain Shop spell pool. */
+function vgSpellPool(state: RunState): CardDef[] {
+  const min = effectOf(state, 'spellsGrantShopSpell')?.minTier;
+  if (!min) return shopSpellPool(state);
+  const cap = Math.max(min, state.tier);
+  return runSpells(state).filter((c) => c.tier >= min && c.tier <= cap);
 }
 
 /** "A random minion of your Tier": Vanguard's own pool (the run's buyable minions of EXACTLY your Shop tier). */
@@ -6413,7 +6643,7 @@ function batchBSpellTick(state: RunState, waveAhead: 0 | 1): boolean {
  *  EMISSARY × GENESIS: every `every`th gets a random Shop spell. MERRIN × BONDS: one minion of each type +a/+h, permanent. */
 function batchBOnSpellCast(state: RunState): void {
   const hit = batchBSpellTick(state, 0);
-  if (hit && effectOf(state, 'spellsGrantShopSpell')) conjureToHand(state, shopSpellPool(state), 1);
+  if (hit && effectOf(state, 'spellsGrantShopSpell')) conjureToHand(state, vgSpellPool(state), 1);
   const bonds = effectOf(state, 'spellCastBuffsEachType');
   if (!bonds) return;
   const each = bannerRecipientsOf(state);
@@ -6506,6 +6736,17 @@ export function ancientRunBatchBEot(state: RunState, apply: (run: () => void) =>
   if (effectOf(state, 'eotTierMinion')) conjureToHand(state, tierMinionPool(state), 1);
 }
 
+/** The `questTrigger` flag Emerald Warden × Death's combat payout pulses (settle marks the turn's one spent). */
+export const ANCIENT_EW_AVENGE_FLAG = 'ancientEwAvenge';
+
+/** EMERALD WARDEN × DEATH: " Used this turn." once the turn's one payout has happened (a combat payout shows from
+ *  settle), else nothing. */
+function ewAvengeUsedText(state: RunState): string {
+  const e = effectOf(state, 'avengeTierMinion');
+  if (!e?.oncePerTurn) return '';
+  return live(state)?.ewAvengeWave === state.wave ? ' Used this turn.' : '';
+}
+
 /** This batch's hero Avenge N (Merrin 3, Emissary 4, Emerald Warden 6), or undefined when none is picked. */
 function batchBAvenge(state: RunState): number | undefined {
   const e = effectOf(state, 'avengeRandomShopSpell') ?? effectOf(state, 'avengeUnitedFront') ?? effectOf(state, 'avengeTierMinion');
@@ -6520,7 +6761,12 @@ function batchBShopDeath(state: RunState, a: AncientsState): void {
   a.batchBDeaths = ((a.batchBDeaths ?? 0) + 1) % every;
   if (a.batchBDeaths !== 0) return;
   if (effectOf(state, 'avengeRandomShopSpell')) conjureToHand(state, shopSpellPool(state), 1);
-  if (effectOf(state, 'avengeTierMinion')) conjureToHand(state, tierMinionPool(state), 1);
+  const ew = effectOf(state, 'avengeTierMinion');
+  // EMERALD WARDEN × DEATH (ancient pass 1): once per turn. A fire past the turn's one is spent (the count still moves).
+  if (ew && !(ew.oncePerTurn && a.ewAvengeWave === state.wave)) {
+    if (ew.oncePerTurn) a.ewAvengeWave = state.wave;
+    conjureToHand(state, tierMinionPool(state), 1);
+  }
   if (effectOf(state, 'avengeUnitedFront')) fromHeroPower(state, () => { fireShopUnitedFront(state); });
 }
 
@@ -6539,7 +6785,12 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
   const md = effectOf(state, 'avengeRandomShopSpell');
   if (md) out.ancientGorrAvenge = { every: md.every, tick, ids: shopSpellPool(state).map((c) => c.id), label: ANCIENTS.death.name };
   const ed = effectOf(state, 'avengeTierMinion');
-  if (ed) out.ancientGorrAvenge = { every: ed.every, tick, ids: tierMinionPool(state).map((c) => c.id), label: ANCIENTS.death.name };
+  if (ed) {
+    // Once per turn (ancient pass 1): the fight may pay only when the Shop has not already, and flags its payout so
+    // settle marks the turn spent.
+    const limit = ed.oncePerTurn ? { limit: a.ewAvengeWave === state.wave ? 0 : 1, flag: ANCIENT_EW_AVENGE_FLAG } : {};
+    out.ancientGorrAvenge = { every: ed.every, tick, ids: tierMinionPool(state).map((c) => c.id), label: ANCIENTS.death.name, ...limit };
+  }
   const mb = effectOf(state, 'spellCastBuffsEachType');
   if (mb) out.ancientSpellBanners = { attack: mb.attack, health: mb.health, label: MERRIN_BONDS_COMBAT_LABEL };
   // EMISSARY: Death's Avenge, War's repeat, Bonds' reach, one field. Time has no combat half at all.
@@ -6555,7 +6806,7 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
     };
   }
   const vg = effectOf(state, 'spellsGrantShopSpell');
-  if (vg) out.ancientSpellCountGrant = { every: vg.every, tick: (a.batchBSpells ?? 0) % Math.max(1, vg.every), label: ANCIENTS.genesis.name };
+  if (vg) out.ancientSpellCountGrant = { every: vg.every, tick: (a.batchBSpells ?? 0) % Math.max(1, vg.every), label: ANCIENTS.genesis.name, ...(vg.minTier ? { ids: vgSpellPool(state).map((c) => c.id) } : {}) };
   return out;
 }
 
@@ -6564,6 +6815,8 @@ function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
 function batchBAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
   const every = batchBAvenge(state);
   if (every) a.batchBDeaths = ((a.batchBDeaths ?? 0) + (result.playerDeaths ?? 0)) % every;
+  // EMERALD WARDEN × DEATH: the fight's payout spends this turn's one.
+  if (effectOf(state, 'avengeTierMinion')?.oncePerTurn && (result.events ?? []).some((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG)) a.ewAvengeWave = state.wave;
   for (let i = 0; i < (result.playerSpellsCast ?? 0); i++) batchBSpellTick(state, 1);
 }
 
@@ -6586,6 +6839,7 @@ function batchBPowerText(state: RunState, text: string, combat: AncientPowerLive
     .split('{vN}').join(String(state.spellsCast * unitedFrontMult(state)))
     .split('{ewTier}').join(String(state.tier))
     .replace('{ewNow}', va ? (state.tier >= va.tier ? ' **Active now.**' : ` You are Tier **${state.tier}**.`) : '')
+    .replace('{ewDeathUsed}', ewAvengeUsedText(state))
     .replace('{ewTribe}', top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '');
 }
 

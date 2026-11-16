@@ -11,6 +11,7 @@ import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAft
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
+import { ancientCommissionSecond, ancientStartSecondCommission, ancientTakeDueSecondCommission, ancientSyncPass1, ancientLuckySeatNeed } from './ancients'; // ancient pass 1
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
@@ -1243,6 +1244,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     // action boundary, whichever writer raised it (a Lantern, a Deathswarmer, a combat carry-back at settle).
     syncSoulFurnace(next);
     syncRunTribes(next); // RUNE OF DRAKKO: every board / hand copy carries the run's type overrides (a Discover, a buy, a triple …)
+    ancientSyncPass1(next); // ANCIENT PASS 1: Drakko / Brackus all types (+ Brackus' Rally graft), Disco Dan's next-turn lock
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
     ancientSyncVanguard(next); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard is a button from Shop tier 6, whatever raised the tier
@@ -1485,7 +1487,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
           // Rune of Wishbone makes the power trigger twice.
           const bought = offer ?? (state.spell?.uid === action.uid ? state.spell : undefined);
           if (bought?.enchanted && hasPower(state, 'luckySeat')) {
-            ancientOnEnchantedBuy(next, adef.id, body, (state.ciaEnchantedBought ?? 0) + 1 >= 3, wishboneReps(next));
+            ancientOnEnchantedBuy(next, adef.id, body, (state.ciaEnchantedBought ?? 0) + 1 >= ancientLuckySeatNeed(state), wishboneReps(next));
           }
         }
       }
@@ -4094,10 +4096,13 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // Cassen: pick one of the offered commissions; it matures `delay` turns later. Free and untargeted.
         // Only one runs at a time — a second click while one is in flight is a no-op (no charge spent), and
         // the UI hides the arm state for the same reason.
-        if (s.commission) return state;
+        // Cassen × Ancient of Time (ancient pass 1): a second slot opens while the first is running.
+        if (s.commission && !ancientCommissionSecond(s).open) return state;
         const pick = action.commission as CommissionKind | undefined;
         if (!pick || !commissionOffer(s).includes(pick)) return state; // must be one of the OFFERED three
-        s.commission = { kind: pick, dueWave: s.wave + commissionDelayOf(s, pick) }; // Cassen × Ancient of Time: next turn
+        const started = { kind: pick, dueWave: s.wave + commissionDelayOf(s, pick) };
+        if (s.commission) ancientStartSecondCommission(s, started);
+        else s.commission = started;
         s.lastCommission = pick; // …so the next offer can exclude it
       } else if (power.kind === 'firstOrLast') {
         // Flash: arm which end of next combat's kills to claim. The 1-Gold cost is spent by the shared block.
@@ -6254,6 +6259,8 @@ function advanceCombat(s: RunState): void {
   // Cassen: a commission that has come due pays out as this shop opens. Checked AFTER the wave bump, so
   // `dueWave` names the turn the reward actually lands on.
   if (s.commission && s.wave >= s.commission.dueWave) { const due = s.commission; recordSotBeat(s, heroSource('commission'), () => payCommission(s, due)); }
+  // Cassen × Ancient of Time (ancient pass 1): the second slot pays on its own beat (or moves up into the first slot).
+  { const due2 = ancientTakeDueSecondCommission(s); if (due2) recordSotBeat(s, heroSource('commission'), () => payCommission(s, due2, false)); }
   // SET 4 WHISPERS (owner 2026-10-13, R-WHISPER-02): last turn's Whisper grants come off now — kept through the fight
   // that just resolved, gone before anything this turn reads the board. Engraved never kept them (combat gains only).
   expireWhisperBuffs(s);
@@ -9092,8 +9099,8 @@ function rollTavern(s: RunState, hold: boolean): void {
 /** Pay a matured commission and clear it. Called from the turn advance, so the reward lands as the shop opens (and,
  *  under Cassen × Ancient of Death, from the action boundary the moment a Shop Avenge brings it due). Cassen × Ancient of
  *  Bonds pays it twice; each payout then runs the picked Ancient's extras (`ancientAfterCommission`). */
-function payCommission(s: RunState, c: Commission): void {
-  s.commission = undefined;
+function payCommission(s: RunState, c: Commission, firstSlot = true): void {
+  if (firstSlot) s.commission = undefined; // the second slot (Cassen × Time) clears itself in `ancientTakeDueSecondCommission`
   for (let r = 0; r < ancientCommissionReps(s); r++) {
     payCommissionOnce(s, c);
     ancientAfterCommission(s);
@@ -9175,7 +9182,7 @@ function jugglerBuy(s: RunState, cardId?: string): void {
 function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
   if (!offer.enchanted || !hasPower(s, 'luckySeat')) return;
   const n = (s.ciaEnchantedBought ?? 0) + 1;
-  if (n < 3) { s.ciaEnchantedBought = n; return; }
+  if (n < ancientLuckySeatNeed(s)) { s.ciaEnchantedBought = n; return; } // Ayse × Ancient of Bonds: 2
   s.ciaEnchantedBought = 0;
   const suit = s.ciaSuit ?? 'hearts';
   const cap = randomTierCeiling(s); // R-RANDOM-TIER7-01: a random prize reaches Tier 7 only from a Tier 7 Shop

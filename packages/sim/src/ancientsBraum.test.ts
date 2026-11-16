@@ -131,22 +131,25 @@ describe('Braum × FORTUNE: "Investment is free. Triple rewards also grant 3 gol
   });
 });
 
-describe('Braum × WAR: "Start of Combat: Give your minions +8/+8 for every Gilded minion you\'ve played this game."', () => {
-  it('Gilded plays count from the run start (before the pick too); the fight grants +8/+8 per play to every minion, combat only', () => {
+describe('Braum × WAR (ancient pass 1, owner 2026-11-16, Mike: "make the buff permanent")', () => {
+  it('Gilded plays count from the run start (before the pick too); the fight grants +8/+8 per play to every minion, PERMANENTLY', () => {
     let s = withAncients({ hand: [gilded('g1', N(0)), gilded('g2', N(1)), card('p', N(2))] });
     s = reduce(s, { type: 'play', uid: 'g1' });
     s = pick(s, 'war');
     s = reduce(s, { type: 'play', uid: 'g2' });
     s = reduce(s, { type: 'play', uid: 'p' }); // a plain play does not count
     expect(s.ancients!.bramGildedPlays).toBe(2);
-    expect(heroPowerText(s)).toContain('(**2** played: **+16/+16**)');
-    expect(ancientCombatMods(s).ancientSocBuffAll).toEqual({ attack: 16, health: 16, label: 'Ancient of War' });
-    const before = s.board.map((c) => [c.uid, c.attack, c.health]);
+    expect(heroPowerText(s)).toContain('give your minions **+8/+8** permanently for every **Gilded** minion you have played this game (**2** played: **+16/+16**)');
+    expect(ancientCombatMods(s).ancientSocBuffAll).toEqual({ attack: 16, health: 16, label: 'Ancient of War', permanent: true });
+    const before = s.board.map((c) => [c.uid, c.attack, c.health] as const);
     s = fightNow(s, 0, 400);
     const buffs = events(s).filter((e) => e.type === 'buff' && e.source === 'Ancient of War');
     expect(buffs.length).toBe(3);
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.map((c) => [c.uid, c.attack, c.health]), 'a combat buff: the run cards are untouched').toEqual(before);
+    expect(s.board.map((c) => [c.uid, c.attack, c.health]), 'kept after the fight').toEqual(before.map(([u, a, h]) => [u, a + 16, h + 16]));
+    // …and the next fight grants it again on top.
+    s = reduce(fightNow({ ...s, phase: 'recruit' }, 0, 400), { type: 'resolveCombat' });
+    expect(s.board.map((c) => [c.uid, c.attack, c.health])).toEqual(before.map(([u, a, h]) => [u, a + 32, h + 32]));
   });
   it('no Gilded minion played: no grant', () => {
     expect(ancientCombatMods(picked('war')).ancientSocBuffAll).toBeUndefined();
@@ -201,16 +204,31 @@ describe('Braum × TIME: "Investment becomes: Discover a Tier 5 minion. Start of
   });
 });
 
-describe('Braum × BONDS: "When you play a Gilded minion, give your minions +8/+8."', () => {
-  it('a Gilded play gives every board minion (the played one included) +8/+8, permanently; a plain play gives nothing', () => {
-    let s = picked('bonds', { board: [card('a', N(0)), card('b', N(1))], hand: [gilded('g', N(2)), card('p', N(3))] });
+describe('Braum × BONDS (ancient pass 1, owner 2026-11-16, Mike\'s idea A): "Start of Combat, triple your Neutral minions\' stats."', () => {
+  const ALL = Object.values(CARD_INDEX).find((c) => !!c && c.universalTribe && !c.spell && !c.token && c.effects.length === 0)?.id;
+  it('Start of Combat: every Neutral (no type) minion gains twice its stats, so it fights at triple; a typed minion gets nothing; combat only', () => {
+    let s = picked('bonds', { board: [card('n', 'n2_spellsword', { attack: 3, health: 40 }), card('w', 'whelpling', { attack: 2, health: 40 })] });
+    expect(heroPowerText(s)).toContain('**Start of Combat:** triple the stats of your Neutral minions for that combat.');
+    expect(ancientCombatMods(s).ancientTripleNeutrals).toEqual({ label: 'Ancient of Bonds' });
+    const before = s.board.map((c) => [c.uid, c.attack, c.health]);
+    s = fightNow(s, 0, 400);
+    const [nUid, wUid] = [s.lastCombat!.initial.player[0]!.uid, s.lastCombat!.initial.player[1]!.uid];
+    const buffs = events(s).filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Ancient of Bonds');
+    expect(buffs.map((e) => [e.target, e.attack, e.health])).toEqual([[nUid, 6, 80]]);
+    expect(buffs.some((e) => e.target === wUid)).toBe(false);
+    const firstAttack = events(s).findIndex((e) => e.type === 'attack');
+    expect(events(s).indexOf(buffs[0]!)).toBeLessThan(firstAttack);
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.board.map((c) => [c.uid, c.attack, c.health]), 'a combat buff: the run cards are untouched').toEqual(before);
+  });
+  it('an All-types minion is not Neutral', () => {
+    if (!ALL) return;
+    const s = fightNow(picked('bonds', { board: [card('u', ALL, { health: 40 })] }), 0, 400);
+    expect(events(s).some((e) => e.type === 'buff' && e.source === 'Ancient of Bonds')).toBe(false);
+  });
+  it('playing a Gilded minion no longer buffs the board', () => {
+    let s = picked('bonds', { board: [card('a', N(0))], hand: [gilded('g', N(2))] });
     s = reduce(s, { type: 'play', uid: 'g' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack + 8);
-    expect(at(s, 'b').health).toBe(CARD_INDEX[N(1)]!.health + 8);
-    expect(at(s, 'g').attack).toBe(CARD_INDEX[N(2)]!.attack * 2 + 8);
-    s = reduce(s, { type: 'play', uid: 'p' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack + 8);
-    s = reduce(fightNow(s, 0, 1), { type: 'resolveCombat' });
-    expect(at(s, 'a').attack, 'permanent').toBe(CARD_INDEX[N(0)]!.attack + 8);
+    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack);
   });
 });

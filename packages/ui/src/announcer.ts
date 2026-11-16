@@ -24,7 +24,10 @@
  *    so a replay rolls the same way. The generic buy lines 6% per qualifying buy, Round 7 10%, everything else 1.
  *  · SPECIALTY lines (SPECIALTY_EVENTS: a named card bought, an Ale cast) speak the first time the thing happens
  *    in a game; a dropped one tries again the next time, at most as many tries as it has takes.
- *  · A GLOBAL COOLDOWN: no line within ANNOUNCER_COOLDOWN_MS of the previous one, and never while a line is
+ *  · A GLOBAL COOLDOWN, in TWO GAPS (owner 2026-11-16: "lets do the two gaps"): a BIG moment (priority
+ *    ANNOUNCER_BIG_MOMENT_PRIORITY and up: results, standings, knockouts, triples) may speak
+ *    ANNOUNCER_BIG_COOLDOWN_MS after the previous line; every other line waits the full ANNOUNCER_COOLDOWN_MS.
+ *    No line within its own gap of the previous one, and never while a line is
  *    playing. An event that lands inside the cooldown is DROPPED, not queued (that is what stops the Equipment →
  *    Triple → TierSix chatter on one turn). A dropped event stays unfired: it may speak later if its moment
  *    recurs (BackToShop, a later Equipment) and is still valid (TierSix cannot recur).
@@ -73,6 +76,11 @@ export { ANNOUNCER_CHANCE } from './announcerConfig';
 // ── The constants (one name each; the tests and the devlog read these) ──────────────────────────────────────
 /** No line within this of the previous one ending. THE cooldown. */
 export const ANNOUNCER_COOLDOWN_MS = 25_000; // 12 s until 2026-11-15 (owner: "lengthen the gap")
+/** The SHORT gap, for the big moments (owner 2026-11-16: "lets do the two gaps"). One 25 s gap dropped most fight
+ *  results and standings lines, because they land seconds after the start-of-combat line: the game went quiet. */
+export const ANNOUNCER_BIG_COOLDOWN_MS = 10_000;
+/** A moment at this priority or above is BIG and waits only the short gap (Triple, 30, is the lowest one). */
+export const ANNOUNCER_BIG_MOMENT_PRIORITY = 30;
 /** Lines per game, GameWon / GameLoss excepted. 8 at first; the owner raised it to 15 with the second batch of
  *  lines (2026-09-24). */
 /** GameStart: after the first shop lands, past the music's 3 s start + its fade-in. */
@@ -1194,6 +1202,11 @@ function expire(shelf: AnnouncerShelf): void {
   pending = keep;
 }
 
+/** The gap this moment must leave after the previous line ended: short for a big moment, the full one for the rest. */
+export function announcerCooldownFor(event: AnnouncerEvent): number {
+  return ANNOUNCER_PRIORITY[event] >= ANNOUNCER_BIG_MOMENT_PRIORITY ? ANNOUNCER_BIG_COOLDOWN_MS : ANNOUNCER_COOLDOWN_MS;
+}
+
 function pump(): void {
   clearPump();
   if (!active || playing || !pending.length) return;
@@ -1204,26 +1217,26 @@ function pump(): void {
     return;
   }
   ready.sort((a, b) => ANNOUNCER_PRIORITY[b.event] - ANNOUNCER_PRIORITY[a.event]);
-  const cooldownUntil = lastLineEndedAt + ANNOUNCER_COOLDOWN_MS;
-  const cooling = now < cooldownUntil;
-  // Inside the cooldown only a line that BYPASSES it may speak (the highest such one); every other ready capped
-  // line is DROPPED (not delayed into the wrong moment). A terminal line (GameWon / GameLoss) waits it out
-  // instead: it never expires.
-  const top = cooling ? ready.find((p) => p.bypassCooldown) : ready[0];
+  // Each line is held to ITS OWN gap (short for a big moment). The highest ready line that is past its gap, or that
+  // BYPASSES it, speaks; every other ready line is DROPPED (not delayed into the wrong moment). A terminal line
+  // (GameWon / GameLoss) waits its gap out instead: it never expires.
+  const gapEnds = (p: PendingLine): number => lastLineEndedAt + announcerCooldownFor(p.event);
+  const clear = (p: PendingLine): boolean => !!p.bypassCooldown || now >= gapEnds(p);
+  const top = ready.find(clear);
   if (!top) {
     for (const p of ready) {
       if (isTerminal(p.event)) continue;
       note('drop', p.event, { why: 'cooldown' });
     }
     pending = pending.filter((p) => !ready.includes(p) || isTerminal(p.event));
-    if (pending.length) schedulePump(Math.min(cooldownUntil, ...pending.filter((p) => p.notBefore > now).map((p) => p.notBefore)) - now);
+    if (pending.length) schedulePump(Math.min(...pending.map((p) => (p.notBefore > now ? p.notBefore : gapEnds(p)))) - now);
     return;
   }
   // The top line speaks; the other READY lines are dropped (outranked, or still inside the cooldown); a terminal
   // line keeps waiting. Lines whose time has not come stay pending and meet the cooldown when it does.
   for (const p of ready) {
     if (p === top || isTerminal(p.event)) continue;
-    note('drop', p.event, { why: cooling && !p.bypassCooldown ? 'cooldown' : `outranked by ${top.event}` });
+    note('drop', p.event, { why: clear(p) ? `outranked by ${top.event}` : 'cooldown' });
   }
   pending = pending.filter((p) => !ready.includes(p) || (isTerminal(p.event) && p !== top));
   speak(top);

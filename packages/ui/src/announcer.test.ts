@@ -16,7 +16,7 @@ import { ALE_IDS, TRIBES, type CardDef, type CombatEvent, type MinionSnapshot, t
 import { HEROES, type PracticeTribe } from '@game/sim';
 import { COSMETICS } from '@game/progression';
 import {
-  __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
+  __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS, ANNOUNCER_BIG_COOLDOWN_MS, ANNOUNCER_BIG_MOMENT_PRIORITY, announcerCooldownFor,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TIME_WARNING_SECONDS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerPick, announcerRoll, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
@@ -296,6 +296,39 @@ describe('the queue', () => {
     await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
     expect(events()).toEqual(['tier-six', 'equipment']);
     expect(plays[1]!.t - (plays[0]!.t + LINE_MS)).toBe(ANNOUNCER_COOLDOWN_MS + ANNOUNCER_EQUIPMENT_DELAY_MS);
+  });
+  // The two gaps (owner 2026-11-16: "lets do the two gaps", R-PRESENT-ANNOUNCER-GAPS-01).
+  it('two gaps: a BIG moment speaks once the short gap has passed, well inside the long one', async () => {
+    const r = openShop();
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['equipment']);
+    await tick(LINE_MS + ANNOUNCER_BIG_COOLDOWN_MS);
+    go({ ...r, equipment: { available: [1] }, board: [{ attack: 4, health: 4, golden: true }] });
+    await tick(0);
+    expect(events()).toEqual(['equipment', 'triple']);
+    expect(plays[1]!.t - (plays[0]!.t + LINE_MS)).toBeLessThan(ANNOUNCER_COOLDOWN_MS);
+  });
+  it('two gaps: a filler line at that same point is still dropped (it waits the full gap)', async () => {
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    expect(events()).toEqual(['tier-six']);
+    await tick(LINE_MS + ANNOUNCER_BIG_COOLDOWN_MS);
+    go({ ...r, tier: 6, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['tier-six']);
+    expect(dropped('equipment')).toBe(true);
+  });
+  it('two gaps: which moments are big is the priority line, and the short gap is the shorter one', () => {
+    expect(ANNOUNCER_BIG_COOLDOWN_MS).toBeLessThan(ANNOUNCER_COOLDOWN_MS);
+    for (const big of ['triple', 'knockout', 'playersRemain', 'topFour', 'topTwo', 'flawlessVictory', 'narrowLoss', 'finalShowdown'] as const) {
+      expect(ANNOUNCER_PRIORITY[big]).toBeGreaterThanOrEqual(ANNOUNCER_BIG_MOMENT_PRIORITY);
+      expect(announcerCooldownFor(big)).toBe(ANNOUNCER_BIG_COOLDOWN_MS);
+    }
+    for (const filler of ['backToShop', 'randomCardBuy', 'randomSpellBuy', 'enteringCombat', 'equipment', 'pair', 'tierUp'] as const) {
+      expect(announcerCooldownFor(filler)).toBe(ANNOUNCER_COOLDOWN_MS);
+    }
   });
   it('the forge lines bypass the cooldown (a once-per-run scheduled moment) but never talk over a playing line', async () => {
     const r = openShop();

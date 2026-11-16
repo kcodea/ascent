@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-16',
     changes: [
       {
+        category: 'Balance',
+        text: 'Ancients test mode: a big review pass. 59 Ancient powers across 34 heroes are reworked or retuned.',
+        details: [
+          'New effects for Auctioneer, Brackus, Braum, Cassen, Darah, Flash, Gambler, Hunch, Juggler, Membrance, Nadja, Pete, Priestess, Quillen, Rascal, Re-Pete and Warden, among others.',
+          'Number changes, for example: Gildmaster Death is now Avenge (17), Frantic Frank War is Pummel (300), Juggler Coins give 2 Gold, Xerox pairs give 3 Gold.',
+          'New limits: Gorun Death works twice per turn, Emerald Warden Death once per turn, Lord of the Risen Genesis makes at most 3 extra copies per combat.',
+          'Each Ancient power card shows its new text in game.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Match History: the Shop buffs button is now a Show Buffs button. It shows every buff you had when the game ended.',
         details: [

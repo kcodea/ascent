@@ -1600,7 +1600,8 @@ export const ARENA_EFFECTS = {
     // second factory, for the same reason `permanent` is one — the two cards disagree about only this. (owner
     // report 2026-09-03: Standard Bearer was buffing whenever ANY Rally minion attacked.)
     if (params.selfOnly === true && attacker.uid !== arena.self.uid) return;
-    const g = gold(arena);
+    // `fixed` (a hero grant, Brackus × Ancient of Bonds, ancient pass 1): the printed +a/+h, never doubled by a Gilded body.
+    const g = params.fixed === true ? 1 : gold(arena);
     const a = num(params.attack, 3) * g;
     const h = num(params.health, 3) * g;
     // NOT `others(arena)`: Paragon is itself "a minion of every type" and the owner's worked example (2 Dragons + a

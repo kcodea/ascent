@@ -12,6 +12,7 @@ import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
+import { ancientLuckySeatNeed, ancientCommissionSecond } from '@game/sim'; // Ayse × Bonds (needs 2), Cassen × Time (two slots)
 import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
@@ -145,7 +146,7 @@ function heroPowerTallyOf(
       const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
       return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/4`;
     }
-    case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/3`; // Cia
+    case 'luckySeat': return `${run.ciaEnchantedBought ?? 0}/${ancientLuckySeatNeed(run)}`; // Cia (Ancient of Bonds: 2)
     case 'exhibition': return `${(run.cardsPlayedTotal ?? 0) % 4}/4`; // Odelle
     case 'allIn': return withinUses ? `${allInPayoutOf(run)}g` : null; // Rascal
     case 'soulbind': return `${Math.max(0, 3 - uses)} left`; // Sable
@@ -502,7 +503,9 @@ export function StatusBar() {
   // Cassen while a commission is in flight: the button is LOCKED but its art must stay bright, because that
   // art is how the player sees which commission is running. Without this the shared "unusable active power"
   // rule dims the art to 10% and the button reads as empty (owner report 2026-08-17).
-  const committed = power.kind === 'commission' && !!run.commission;
+  // Cassen × Ancient of Time: a second slot keeps the button usable while the first runs.
+  const commissionLocked = !!run.commission && !ancientCommissionSecond(run).open;
+  const committed = power.kind === 'commission' && commissionLocked;
   // Once a quest/rune has been granted, the slot IS that grant: its own rule replaces the hero's ("get a quest
   // on turn 3" is no longer true or useful), and a quest also shows its objective progress.
   // `heroGrantOf`, never `run.heroGrantArt`: the grant only counts while the hero's OWN power holds the slot, so a
@@ -727,7 +730,7 @@ export function StatusBar() {
     // 2026-08-17). `liveCost` is the same fallback chain the coin renders, so shown price == checked price.
     (!liveCost || run.embers >= liveCost) &&
     diceLock === 0 && // Gambler: the roll is unusable while its lock runs
-    !(power.kind === 'commission' && run.commission) && // Cassen: locked until the running commission pays out
+    !(power.kind === 'commission' && commissionLocked) && // Cassen: locked until the running commission pays out (Ancient of Time: two slots)
     !(power.kind === 'passaria' && !passariaHasTarget(run)) && // Priestess: no teammate, or nothing she may pass
     !(power.kind === 'gratitude' && !run.duos); // Cindy: no teammate to thank
   // CINDY'S GOLDEN GRATITUDE (R-DUOS-CINDY-01): pressed and waiting on the teammate's next minion buy. The button wears a
@@ -1055,7 +1058,7 @@ export function StatusBar() {
                 // when an option is chosen (below). Untargeted, but not immediate.
                 // …and it is INERT while one is already running (owner ask 2026-08-16) — the reducer refuses
                 // it too, so this just stops the panel opening on a click that could not do anything.
-                if (power.kind === 'commission') { if (!run.commission) { setPickerSlot(0); setPickingCommission(true); } }
+                if (power.kind === 'commission') { if (!commissionLocked) { setPickerSlot(0); setPickingCommission(true); } }
                 else if (power.kind === 'firstOrLast') { setPickerSlot(0); setPickingFlash(true); }
                 else if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
@@ -1266,7 +1269,7 @@ export function StatusBar() {
           const center2 = heroPowerCenterOf(p2, run, combatEnemyDeaths);
           const ready2 = !passive2 && !spent2 && !clockLocked && (run.heroReady2 ?? true) && run.wave >= (p2.unlockWave ?? 1)
             && (!liveCost2 || run.embers >= liveCost2) && diceLock2 === 0
-            && !(p2.kind === 'commission' && !!run.commission);
+            && !(p2.kind === 'commission' && commissionLocked);
           const armed2 = heroArmed && heroArmedSlot === 1;
           // A PASSIVE second power (Void) wears the same armed call as the main one (`passivePowerReady`, slot 1).
           const passiveReady2 = passive2 && passivePowerReady(run, 1) && !eotAnimating;
@@ -1289,7 +1292,7 @@ export function StatusBar() {
                   sfx.pulse();
                   // The choice-powers open their pickers exactly as the main button does — a slot-1 Commission
                   // fired bare would reach the reducer with no `commission` chosen and no-op.
-                  if (p2.kind === 'commission') { if (!run.commission) { setPickerSlot(1); setPickingCommission(true); } }
+                  if (p2.kind === 'commission') { if (!commissionLocked) { setPickerSlot(1); setPickingCommission(true); } }
                   else if (p2.kind === 'firstOrLast') { setPickerSlot(1); setPickingFlash(true); }
                   else if (p2.untargeted) dispatch({ type: 'heroPower', slot: 1 });
                   else armHero(1); // targeted: arm slot 1 — Recruit fires { slot: heroArmedSlot } on the pick

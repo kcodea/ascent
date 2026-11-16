@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
-  ANCIENT_IDS, activePowers, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
+  ANCIENT_EW_AVENGE_FLAG, ANCIENT_IDS, activePowers, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -46,33 +46,55 @@ describe('Emerald Warden × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Emerald Warden × DEATH: "Avenge (6): get a random minion of your Tier."', () => {
+describe('Emerald Warden × DEATH (ancient pass 1, owner 2026-11-16, Mike: once per turn): "Avenge (6): get a random minion of your Tier."', () => {
+  const handMinions = (s: RunState) => s.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell).length;
   it('Shop: the 6th friendly Shop death gets a random minion of your Shop tier', () => {
     let s = picked('death', { board: [card('d', 'sandbag')] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (6):** get a random minion of your Tier (**6** more to go).`);
+    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (6):** get a random minion of your Tier. Once per turn (**6** more to go).`);
     s = structuredClone({ ...s, ancients: { ...s.ancients!, batchBDeaths: 5 } });
     expect(ancientAvengeCountdown(s)).toBe(1);
     destroyMinionInShop(makeContext(s), at(s, 'd'));
     expect(s.ancients!.batchBDeaths).toBe(0);
     expect(s.hand.length).toBe(1);
     expect(CARD_INDEX[s.hand[0]!.cardId]!.tier).toBe(3);
+    expect(heroPowerText(s)).toContain(' Used this turn.');
+  });
+  it('Shop: a second fire in the same turn pays nothing (the count still moves); the next turn pays again', () => {
+    const six = Array.from({ length: 12 }, (_, i) => card(`d${i}`, 'sandbag'));
+    const s = structuredClone(picked('death', { board: six }));
+    for (let i = 0; i < 12; i++) destroyMinionInShop(makeContext(s), at(s, `d${i}`));
+    expect(s.ancients!.batchBDeaths).toBe(0);
+    expect(handMinions(s), 'two fires, one payout').toBe(1);
+    const t = structuredClone({ ...s, wave: s.wave + 1, board: [card('e', 'sandbag')], ancients: { ...s.ancients!, batchBDeaths: 5 } });
+    destroyMinionInShop(makeContext(t), at(t, 'e'));
+    expect(handMinions(t), 'a new turn pays again').toBe(2);
   });
   it('Shop: a death short of the 6th gets nothing', () => {
     const s = structuredClone(picked('death', { board: [card('d', 'sandbag')] }));
     destroyMinionInShop(makeContext(s), at(s, 'd'));
     expect(s.hand.length).toBe(0);
   });
-  it('combat: the carried count fires mid-fight (a live card to hand); without the pairing nothing flies', () => {
-    let s = picked('death', { board: [card('a', 'sandbag', { attack: 1, health: 1 })] });
+  it('combat: the carried count fires mid-fight (a live card to hand) once, and that spends the turn; without the pairing nothing flies', () => {
+    let s = picked('death', { board: Array.from({ length: 7 }, (_, i) => card(`a${i}`, 'sandbag', { attack: 1, health: 1 })) });
     s = { ...s, ancients: { ...s.ancients!, batchBDeaths: 5 } };
-    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 6, tick: 5, ids: tierIds(s), label: 'Ancient of Death' });
+    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 6, tick: 5, ids: tierIds(s), label: 'Ancient of Death', limit: 1, flag: ANCIENT_EW_AVENGE_FLAG });
     s = fightNow(s, 100, 1000);
-    expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(1);
+    expect(s.lastCombat!.playerDeaths, 'two Avenge fires in the fight').toBe(7);
+    expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'toHand' && e.side === 'player').length, 'one payout').toBe(1);
+    const wave = s.wave;
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]!.tier === 3 && !CARD_INDEX[c.cardId]!.spell).length).toBe(1);
-    expect(s.ancients!.batchBDeaths).toBe(0);
+    expect(s.ancients!.batchBDeaths).toBe((5 + 7) % 6);
+    expect(s.ancients!.ewAvengeWave).toBe(wave);
     const plain = fightNow(picked('fortune', { board: [card('a', 'sandbag', { attack: 1, health: 1 })] }), 100, 1000);
     expect((plain.lastCombat!.events ?? []).filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(0);
+  });
+  it('combat after a Shop payout this turn pays nothing', () => {
+    let s = picked('death', { board: [card('a', 'sandbag', { attack: 1, health: 1 })] });
+    s = { ...s, ancients: { ...s.ancients!, batchBDeaths: 5, ewAvengeWave: s.wave } };
+    expect(ancientCombatMods(s).ancientGorrAvenge!.limit).toBe(0);
+    s = fightNow(s, 100, 1000);
+    expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(0);
   });
 });
 
@@ -124,22 +146,22 @@ describe('Emerald Warden × WAR: "At tier 6, Vanguard can be activated for 1g to
   });
 });
 
-describe('Emerald Warden × GENESIS: "At tier 6, Vanguard can be activated for 4g to discover a Tier 7 minion."', () => {
-  it('at Tier 6 it costs 4 Gold and opens a Discover of Tier 7 minions', () => {
+describe('Emerald Warden × GENESIS (ancient pass 1, owner 2026-11-16: 5 Gold): "At tier 6, Vanguard can be activated to discover a Tier 7 minion."', () => {
+  it('at Tier 6 it costs 5 Gold and opens a Discover of Tier 7 minions', () => {
     let s = picked('genesis', { tier: 6 });
-    expect(heroPowerText(s)).toBe(`${BASE} At Tier **6**, use it for **4 Gold** to **Discover** a **Tier 7** minion. Once each turn. **Active now.**`);
-    expect(activePowers(s)[0]).toMatchObject({ passive: false, untargeted: true, cost: 4 });
+    expect(heroPowerText(s)).toBe(`${BASE} At Tier **6**, use it for **5 Gold** to **Discover** a **Tier 7** minion. Once each turn. **Active now.**`);
+    expect(activePowers(s)[0]).toMatchObject({ passive: false, untargeted: true, cost: 5 });
     const gold = s.embers;
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(gold - 4);
+    expect(s.embers).toBe(gold - 5);
     expect(s.discover!.length).toBeGreaterThan(0);
     expect(s.discover!.every((id) => CARD_INDEX[id]!.tier === 7)).toBe(true);
     const id = s.discover![0]!;
     s = reduce(s, { type: 'discover', index: 0 });
     expect(s.hand.map((c) => c.cardId)).toEqual([id]);
   });
-  it('with 3 Gold, or below Tier 6, the press is refused', () => {
-    const poor = picked('genesis', { tier: 6, embers: 3 });
+  it('with 4 Gold, or below Tier 6, the press is refused', () => {
+    const poor = picked('genesis', { tier: 6, embers: 4 });
     expect(reduce(poor, { type: 'heroPower' })).toBe(poor);
     const low = picked('genesis', { tier: 5 });
     expect(activePowers(low)[0]!.passive).toBe(true);

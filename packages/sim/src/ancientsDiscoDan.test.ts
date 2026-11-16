@@ -9,7 +9,7 @@ import {
   ANCIENT_IDS, ancientOfferText, createRun, enableAncients, gildCopiesNeeded, heroPowerText, offerBuyPrice, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
-import { hasDeathrattle } from './recruit';
+import { handCardLocked, hasDeathrattle } from './recruit';
 
 const BASE = 'On turn 1, Discover Tier 6, Tier 4, and Tier 2 minions. Each unlocks when you reach its Shop tier.';
 const N = (i: number) => ['beatboxer', 'dw_edward', 'attachmentconductor', 'sandbag'][i % 4]!;
@@ -86,23 +86,47 @@ describe('Disco Dan × FORTUNE: "All copies of your setlist cards cost 1 gold."'
   });
 });
 
-describe('Disco Dan × WAR: "Give your Setlist cards Ward and Flurry"', () => {
-  it('the Setlist cards held gain Ward and Flurry; other cards do not', () => {
+describe('Disco Dan × WAR (ancient pass 1, owner 2026-11-16): "Setlist cards gain +20/+20"', () => {
+  it('the Setlist cards held gain +20/+20, permanently, once at the pick; other cards do not, and no keywords are given', () => {
     const s = picked('war', { hand: [card('s6', S6, { lockedUntilTier: 6 }), card('o', N(2))] });
-    expect(inHand(s, 's6').keywords).toEqual(expect.arrayContaining(['DS', 'W']));
-    expect(inHand(s, 'o').keywords).not.toContain('DS');
+    expect(inHand(s, 's6')).toMatchObject({ attack: CARD_INDEX[S6]!.attack + 20, health: CARD_INDEX[S6]!.health + 20 });
+    expect(inHand(s, 's6').keywords).not.toContain('DS');
+    expect(inHand(s, 'o')).toMatchObject({ attack: CARD_INDEX[N(2)]!.attack, health: CARD_INDEX[N(2)]!.health });
+    expect(heroPowerText(s)).toBe(`${BASE} Your Setlist cards gained **+20/+20** when this awakened.`);
+    // Once: a later action does not pay it again.
+    const t = fightNow(s);
+    expect(inHand(t, 's6').attack).toBe(CARD_INDEX[S6]!.attack + 20);
   });
 });
 
-describe('Disco Dan × GENESIS: "Discover a T7 that unlocks at shop tier 6."', () => {
-  it('the pick opens a Tier 7 Discover; the card is locked until Tier 6 and is not a Setlist card', () => {
-    let s = picked('genesis', { tier: 3 });
-    expect(s.discover?.length).toBeGreaterThan(0);
+describe('Disco Dan × GENESIS (ancient pass 1, owner 2026-11-16): "it unlocks the turn after you reach Tier 6"', () => {
+  it('the pick opens a Tier 7 Discover; reaching Tier 6 does not unlock it that turn, the next turn does', () => {
+    let s = picked('genesis', { tier: 5, embers: 60, upgradeCost: 1 });
+    expect(heroPowerText(s)).toBe(`${BASE} You **Discovered** a **Tier 7** minion that unlocks the turn after you reach Shop Tier **6**.`);
     for (const id of s.discover!) expect(CARD_INDEX[id]!.tier).toBe(7);
     const id = s.discover![0]!;
     s = reduce(s, { type: 'discover', index: 0 });
-    expect(s.hand.find((c) => c.cardId === id)!.lockedUntilTier).toBe(6);
+    const uid = s.hand.find((c) => c.cardId === id)!.uid;
+    expect(inHand(s, uid).lockedUntilTier).toBe(6);
+    const wave = s.wave;
+    s = reduce(s, { type: 'upgrade' });
+    expect(s.tier).toBe(6);
+    expect(inHand(s, uid).lockedUntilTier).toBeUndefined();
+    expect(inHand(s, uid).lockedUntilWave).toBe(wave + 1);
+    expect(handCardLocked(s, inHand(s, uid)), 'still locked the turn Tier 6 is reached').toBe(true);
+    expect(reduce(s, { type: 'play', uid }).board.some((c) => c.uid === uid)).toBe(false);
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    expect(s.wave).toBe(wave + 1);
+    expect(handCardLocked(s, inHand(s, uid)), 'the next turn it is free').toBe(false);
     expect(s.ancients!.discoSetlist ?? []).not.toContain(id);
+  });
+  it('picked at Tier 6 already: no lock', () => {
+    let s = picked('genesis', { tier: 6 });
+    const id = s.discover![0]!;
+    s = reduce(s, { type: 'discover', index: 0 });
+    const c = s.hand.find((h) => h.cardId === id)!;
+    expect(c.lockedUntilTier).toBeUndefined();
+    expect(handCardLocked(s, c)).toBe(false);
   });
 });
 

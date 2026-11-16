@@ -38,7 +38,7 @@
  *
  * Phase-agnostic on purpose, like `magicHatView`: the caller decides where a glow may show (the Shop only).
  */
-import { ancientArchiveNeed, ancientArchivePassive, ancientCoinNeed, ancientContrabandEvery, ancientDrumlineNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
+import { ancientArchiveNeed, ancientArchivePassive, ancientCoinNeed, ancientContrabandEvery, ancientDrumlineNeed, ancientLuckySeatNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
 import { activePowers, powerLatchSpent, wieldedPowerId } from './heroes';
 import { magicHatView } from './magicHat';
 import { runeStacksOf } from './runeDup';
@@ -46,8 +46,6 @@ import type { RunState } from './state';
 
 /** Minion buys in one turn that fire Gorr's Four Peat. */
 const FOUR_PEAT_BUYS = 3;
-/** The cycle Ayse's prize counts to (Juggler's coin and Pete's refresh read theirs live: an Ancient can shorten them). */
-const CYCLE = 3;
 
 /** Types one Archive press banks: the reducer's hero power `reps` (1 + Rune of Empowerment + a Wishbone per copy). */
 function archiveReps(run: RunState): number {
@@ -69,7 +67,7 @@ export function heroPowerArmed(run: RunState, slot: 0 | 1 = 0): boolean {
     case 'fourPeat': return (run.gorrBuys?.length ?? 0) === FOUR_PEAT_BUYS - 1;
     case 'baldgecoin': return (run.jugglerBuys ?? 0) === ancientCoinNeed(run) - 1;
     case 'contraband': { const every = ancientContrabandEvery(run); return (run.refreshCount ?? 0) % every === every - 1; }
-    case 'luckySeat': return (run.ciaEnchantedBought ?? 0) === CYCLE - 1;
+    case 'luckySeat': return (run.ciaEnchantedBought ?? 0) === ancientLuckySeatNeed(run) - 1; // 3; 2 with the Ancient of Bonds
     case 'quest': {
       const holder = wieldedPowerId(run, slot);
       return !!holder && !powerLatchSpent(run, holder) && (run.drakkoBuys ?? 0) === ancientDrumlineNeed(run) - 1;

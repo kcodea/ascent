@@ -10,6 +10,7 @@ import {
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 import { isTribe } from './recruit';
+import { playerBoardMinions } from './reducer';
 
 const BASE = 'After you buy 5 **Shout** minions, get **Drakko**.';
 const plain = (c: (typeof CARD_INDEX)[string]) => !!c && !c.spell && !c.ruby && !c.token && c.effects.length === 0 && c.keywords.length === 0 && !c.universalTribe;
@@ -58,22 +59,25 @@ describe('Drakko × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Drakko × DEATH: "Your Drakkos become Undead/Beast."', () => {
-  it('every Drakko (held, new, in combat) is Undead and Beast; its printed no-type is replaced', () => {
-    let s = picked('death', { board: [card('d', DRAKKO_CARD_ID)] });
-    expect(s.cardTribes?.[DRAKKO_CARD_ID]).toEqual(['undead', 'beast']);
-    const d = s.board[0]!;
-    expect(isTribe(d, 'undead') && isTribe(d, 'beast')).toBe(true);
-    expect(heroPowerText(s)).toBe(`${BASE} Your Drakkos are **Undead** and **Beast**.`);
-    s = fightNow(s);
-    const body = s.lastCombat!.initial.player.find((m) => m.cardId === DRAKKO_CARD_ID)!;
-    expect(body).toBeTruthy();
+describe('Drakko × DEATH (ancient pass 1, owner 2026-11-16): "Your Drakkos become all types."', () => {
+  it('every Drakko (board, hand, a new one, in combat) is all types', () => {
+    let s = picked('death', { board: [card('d', DRAKKO_CARD_ID)], hand: [card('h', DRAKKO_CARD_ID)] });
+    expect(heroPowerText(s)).toBe(`${BASE} Your Drakkos are all types.`);
+    for (const c of drakkos(s)) {
+      expect(c.allTribes).toBe(true);
+      for (const t of ['undead', 'beast', 'dragon', 'spirit', 'mech'] as const) expect(isTribe(c, t), t).toBe(true);
+    }
+    expect(s.cardTribes?.[DRAKKO_CARD_ID], 'no longer the Undead / Beast retype').toBeUndefined();
+    s = buy({ ...s, hand: [] }, DRAKKO_CARD_ID, 'n');
+    expect(drakkos(s).length).toBe(2);
+    expect(drakkos(s).every((c) => c.allTribes), 'a new one is stamped too').toBe(true);
+    // The fight's board carries it as `universalTribe` (every combat tribe check ORs it in).
+    expect(playerBoardMinions(s.board).find((m) => m.cardId === DRAKKO_CARD_ID)!.universalTribe, 'all types in combat').toBe(true);
   });
-  it('Rune of Drakko still adds Dragon / Spirit on top', () => {
-    let s = picked('death', { board: [card('d', DRAKKO_CARD_ID)] });
-    s = reduce(s, { type: 'devGrant', kind: 'rune', id: 'rune_drakko' });
-    expect([...(s.cardTribes?.[DRAKKO_CARD_ID] ?? [])].sort()).toEqual(['beast', 'dragon', 'spirit', 'undead']);
-    for (const c of drakkos(s)) for (const t of ['undead', 'beast', 'dragon', 'spirit'] as const) expect(isTribe(c, t), t).toBe(true);
+  it('another pairing leaves Drakko typeless', () => {
+    const s = picked('fortune', { board: [card('d', DRAKKO_CARD_ID)] });
+    expect(s.board[0]!.allTribes).toBeUndefined();
+    expect(isTribe(s.board[0]!, 'beast')).toBe(false);
   });
 });
 
@@ -155,37 +159,64 @@ describe('Drakko × GENESIS: "Drumline can be completed 3 times and costs 1 Shou
   });
 });
 
-describe('Drakko × TIME: "End of turn: trigger your left-most Shout minion."', () => {
+describe('Drakko × TIME (ancient pass 1, owner 2026-11-16): End of Turn AND Start of Combat: trigger your left-most Shout minion', () => {
   it('End of Turn re-fires the left-most Shout (Hoarder: +1 Gold next turn); no Shout, nothing', () => {
     const board = () => [card('x', N(0)), card('h', 'hoarder'), card('c', 'ce3_wishingstar')];
     let s = picked('time', { board: board() });
-    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** trigger your left-most **Shout** minion.`);
+    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn** and **Start of Combat:** trigger your left-most **Shout** minion.`);
     s = fightNow(s);
     const off = fightNow(picked('death', { board: board() }));
     expect((s.bonusEmbersNextTurn ?? 0) - (off.bonusEmbersNextTurn ?? 0), 'Hoarder (the left-most Shout) re-fired').toBeGreaterThan(0);
-    expect(s.board.find((c) => c.uid === 'h')!.attack, 'Wishing Star (not the left-most) did not fire').toBe(off.board.find((c) => c.uid === 'h')!.attack);
     const none = fightNow(picked('time', { board: [card('x', N(0))] }));
     expect(none.bonusEmbersNextTurn ?? 0).toBe(0);
   });
+  it('Start of Combat re-fires the left-most Shout minion only, before the first attack', () => {
+    let s = picked('time', { board: [card('x', N(0)), card('a', 'alley', { health: 90 }), card('h', 'hoarder', { health: 90 })] });
+    expect(ancientCombatMods(s).ancientEdgeShouts).toEqual({ label: 'Ancient of Time', leftOnly: true });
+    s = fightNow(s, 0, 400);
+    const aUid = s.lastCombat!.initial.player[1]!.uid;
+    const hUid = s.lastCombat!.initial.player[2]!.uid;
+    const ev = events(s);
+    const firstAttack = ev.findIndex((e) => e.type === 'attack');
+    const socShouts = ev.slice(0, firstAttack).filter((e): e is Extract<CombatEvent, { type: 'shout' }> => e.type === 'shout');
+    expect(socShouts.some((e) => e.target === aUid)).toBe(true);
+    expect(socShouts.some((e) => e.target === hUid), 'not the second Shout minion').toBe(false);
+    expect(ancientCombatMods(picked('fortune', { board: [card('a', 'alley')] })).ancientEdgeShouts).toBeUndefined();
+  });
 });
 
-describe('Drakko × BONDS: "Your Drakkos gain +2/+2 when you trigger a Shout."', () => {
-  it('Shop: every Shout FIRE gives your board Drakkos +2/+2, permanently (Drakko doubles: +4/+4)', () => {
-    let s = picked('bonds', { board: [card('d', DRAKKO_CARD_ID)], hand: [card('h', 'hoarder')] });
-    s = reduce(s, { type: 'play', uid: 'h' });
-    expect(s.board.find((c) => c.uid === 'd')).toMatchObject({ attack: CARD_INDEX[DRAKKO_CARD_ID]!.attack + 4, health: CARD_INDEX[DRAKKO_CARD_ID]!.health + 4 });
+describe('Drakko × BONDS (ancient pass 1, owner 2026-11-16): +1/+1 to Drakkos everywhere per Shout, improving +1/+1 every 3 Shouts', () => {
+  const D = CARD_INDEX[DRAKKO_CARD_ID]!;
+  it('Shop: every Shout FIRE gives board, hand AND Shop Drakkos the live +X/+X; every 3rd fire improves X', () => {
+    let s = picked('bonds', { board: [card('d', DRAKKO_CARD_ID)], hand: [card('dh', DRAKKO_CARD_ID), card('h', 'hoarder'), card('b', 'buddy')], shop: [offer('od', DRAKKO_CARD_ID)] });
+    expect(heroPowerText(s)).toBe(`${BASE} Whenever you trigger a **Shout**, your Drakkos gain **+1/+1**, in your warband, your hand and the Shop. Improves by **+1/+1** every **3** **Shouts** (**3** more to go).`);
+    s = reduce(s, { type: 'play', uid: 'h' }); // Drakko doubles it: 2 fires at +1
+    expect(s.board.find((c) => c.uid === 'd')).toMatchObject({ attack: D.attack + 2, health: D.health + 2 });
+    expect(s.hand.find((c) => c.uid === 'dh')).toMatchObject({ attack: D.attack + 2, health: D.health + 2 });
+    expect(s.shop.find((o) => o.uid === 'od')).toMatchObject({ atk: 2, hp: 2 });
+    expect(heroPowerText(s)).toContain('(**1** more to go)');
+    s = reduce(s, { type: 'play', uid: 'b' }); // fire 3 at +1 (then X = 2), fire 4 at +2
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBe(D.attack + 2 + 1 + 2);
+    expect(s.ancients!.drakkoBondsX).toBe(2);
+    expect(heroPowerText(s)).toContain('your Drakkos gain **+2/+2**');
+    expect(heroPowerText(s)).toContain('(**2** more to go)');
   });
-  it('combat: a combat Shout fire gives the Drakko body +2/+2 and it carries home', () => {
-    let s = picked('bonds', { board: [card('d', DRAKKO_CARD_ID, { health: 90 }), card('a', 'alley', { health: 90 }), card('r', 'ryme', { attack: 1, health: 1, keywords: ['T'] })] });
-    expect(ancientCombatMods(s).ancientShoutBuffsCard).toEqual({ cardId: DRAKKO_CARD_ID, attack: 2, health: 2, label: 'Ancient of Bonds' });
+  it('combat: each Shout fire gives the Drakko body the live X (carried home); settle pays the hand the same sequence', () => {
+    let s = picked('bonds', { board: [card('d', DRAKKO_CARD_ID, { health: 90 }), card('a', 'alley', { health: 90 }), card('r', 'ryme', { attack: 1, health: 1, keywords: ['T'] })], hand: [card('dh', DRAKKO_CARD_ID)] });
+    expect(ancientCombatMods(s).ancientShoutBuffsCard).toEqual({ cardId: DRAKKO_CARD_ID, attack: 1, health: 1, label: 'Ancient of Bonds', improveEvery: 3, step: 1, shouts: 0 });
     s = fightNow(s, 3, 200);
-    const shouts = events(s).filter((e) => e.type === 'shout' && (e as { side?: string }).side !== 'enemy').length;
-    const grants = events(s).filter((e) => e.type === 'buff' && e.source === 'Ancient of Bonds');
-    expect(shouts).toBeGreaterThan(0);
-    expect(grants.length).toBeGreaterThan(0);
+    const dUid = s.lastCombat!.initial.player[0]!.uid;
+    const grants = events(s).filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Ancient of Bonds' && e.target === dUid);
+    const fires = s.lastCombat!.playerShoutFires ?? 0;
+    expect(fires).toBeGreaterThan(0);
+    expect(grants.length).toBe(fires);
+    const total = grants.reduce((n, e) => n + e.attack, 0);
     const atk = s.board.find((c) => c.uid === 'd')!.attack;
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'd')!.attack).toBe(atk + 2 * grants.length);
+    expect(s.board.find((c) => c.uid === 'd')!.attack).toBe(atk + total);
+    expect(s.hand.find((c) => c.uid === 'dh')).toMatchObject({ attack: D.attack + total, health: D.health + total });
+    expect(s.ancients!.drakkoBondsShouts).toBe(fires);
+    expect(s.ancients!.drakkoBondsX ?? 1).toBe(1 + Math.floor(fires / 3));
   });
 });
 

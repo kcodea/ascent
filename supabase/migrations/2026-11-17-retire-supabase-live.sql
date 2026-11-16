@@ -52,7 +52,7 @@ begin
   end if;
   if to_regprocedure('public.lobby_live_heartbeat(text, text, text, jsonb, integer, text, text, jsonb)') is not null then
     execute $f$
-      create or replace function public.lobby_live_heartbeat(p_game text, p_name text, p_hero text, p_cosmetics jsonb, p_round int, p_phase text, p_mode text, p_status jsonb) returns int language plpgsql security definer set search_path = public as $b$
+      create or replace function public.lobby_live_heartbeat(p_game text, p_name text, p_hero text, p_cosmetics jsonb, p_round int, p_phase text, p_mode text default null, p_status jsonb default null) returns int language plpgsql security definer set search_path = public as $b$
       begin
         raise exception 'live_moved';
       end;

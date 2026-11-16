@@ -12925,9 +12925,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms from 2026-10-30 (chore/cf-only-live-spectate). Before, a player whose Worker did not answer within 6 s '
       + 'published that game on Supabase for its whole life (heartbeat every 15 s, a Realtime broadcast channel, keyframes in '
       + '`lobby_live_frames`), and a watcher of such a game polled `lobby_live_watch_as` every 5 s and beat `spectate_beat` '
-      + 'every 10 s; a friend\x27s Watch always tried the Supabase join first and was sent on by `other_host`.',
+      + 'every 10 s; a friend\x27s Watch always tried the Supabase join first and was sent on by `other_host`. '
+      + 'The two retirement files (2026-11-17, 2026-11-19) were applied to production on 2026-11-16, after their own pre-run checks read 0 '
+      + '(owner: "Yes, apply both"). The 2026-11-17 file first failed whole and changed nothing: it replaced the 8-argument '
+      + '`lobby_live_heartbeat` without its two parameter defaults, which Postgres refuses; fixed in fix/retire-live-heartbeat-defaults, '
+      + 'and the test now retires that exact signature.',
     example: 'The Worker is briefly down when Ann starts a Practice game. Her game plays normally but is not on Live Games. Twenty seconds later the Worker is back; her next retry opens the socket and the game is listed. Bob presses Watch on her from his friends list: his client reads her row and joins her on the Worker.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveCf.test.ts', 'packages/ui/src/live/liveGames.test.ts', 'packages/sim/src/lobby/lobbyLiveRetire.db.test.ts'], lastVerifiedAt: '2026-10-30' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/liveCf.test.ts', 'packages/ui/src/live/liveGames.test.ts', 'packages/sim/src/lobby/lobbyLiveRetire.db.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
   {
     id: 'R-LIVE-DIR-01',

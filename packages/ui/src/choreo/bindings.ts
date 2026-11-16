@@ -652,6 +652,9 @@ const HERO_POWER_BUFF_LABELS: Record<string, { heroId: string }> = {
   // MERRIN × ANCIENT OF BONDS (2026-11-10): every combat spell cast gives one minion of each type +3/+4, labelled with
   // the power's name (`MERRIN_BONDS_COMBAT_LABEL` in sim/ancients.ts).
   'Pocket Magic': { heroId: 'merrin' },
+  // WARDEN × ANCIENT OF TIME (2026-11-16): every combat spell cast gives the Warded minions Attack, labelled with the
+  // power's name (`WARDEN_TIME_COMBAT_LABEL` in sim/ancients.ts).
+  'Aegis': { heroId: 'warden' },
 };
 
 /** The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null. */

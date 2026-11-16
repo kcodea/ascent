@@ -139,12 +139,13 @@ describe('Rayse × WAR: "Your first 3 summoned minions attack immediately."', ()
   });
 });
 
-describe('Rayse × GENESIS: "The first 2 minions you summon in combat summon twice."', () => {
+describe('Rayse × GENESIS: "The first 2 minions you summon in combat summon twice, when you have room." (owner 2026-11-16)', () => {
   it('only the first two friendly summons make an extra copy; the copies never spend the budget', () => {
     const s = picked('genesis', { board: ['a', 'b', 'c'].map((u) => card(u, ECHO.id, { attack: 1, health: 1 })) });
     expect(ancientCombatMods(s).ancientSummonExtra).toBe(1);
     expect(ancientCombatMods(s).ancientSummonExtraLimit).toBe(2);
-    expect(heroPowerText(s)).toBe(`${BASE} The first **2** minions you summon each combat summon twice.`);
+    expect(ancientCombatMods(s).ancientSummonExtraNeedsRoom).toBe(true);
+    expect(heroPowerText(s)).toBe(`${BASE} The first **2** minions you summon each combat summon twice, when you have room.`);
     // An extra copy is summoned beside the body it copies (its `source` is that summoned body's uid); an ordinary Echo
     // summon's source is the dying Echo body.
     const made = summons(events(fightNow(s, 100, 5000)));
@@ -154,16 +155,42 @@ describe('Rayse × GENESIS: "The first 2 minions you summon in combat summon twi
     expect(copies.length).toBe(2);
     expect(copies.map((e) => e.source)).toEqual(made.filter((e) => !copies.includes(e)).slice(0, 2).map((e) => e.minion.uid));
   });
+  it('a full board: summons with no room make no copy and keep the budget, so the 2 copies land once there is room', () => {
+    const s = picked('genesis', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => card(u, ECHO.id, { attack: 1, health: 1 })) });
+    const made = summons(events(fightNow(s, 100, 5000)));
+    const summoned = new Set(made.map((e) => e.minion.uid));
+    const copies = made.filter((e) => e.source && summoned.has(e.source));
+    // Before the change, the first summons on a full board spent the budget on copies that overflowed: none landed.
+    expect(copies.length).toBe(2);
+    expect(made.indexOf(copies[0]!), 'not the first summon (that one filled the open slot)').toBeGreaterThan(0);
+  });
 });
 
-describe('Rayse × TIME: "End of turn give a minion Rise."', () => {
-  it('End of Turn: a random friendly minion WITHOUT Rise gains Rise permanently; all with Rise: nothing', () => {
-    let s = picked('time', { board: [card('a', N(0), { keywords: ['R'] }), card('b', N(1), { health: 50 })] });
-    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** give a random friendly minion without **Rise** **Rise**.`);
+describe('Rayse × TIME: "End of Turn, your Empowering Vines buff improves by +2/+2." (owner 2026-11-16)', () => {
+  it('each End of Turn adds +2/+2 to Vines, permanently; the text prints the live grant; combat summons get it', () => {
+    let s = picked('time', { board: [card('a', ECHO.id, { attack: 1, health: 1 })] });
+    expect(ancientOfferText('rayse', 'time')).toBe('**End of Turn:** your Empowering Vines buff improves by **+2/+2**.');
+    expect(heroPowerText(s)).toBe('Minions summoned in combat gain **+2/+3** and **Taunt**. **End of Turn:** this improves by **+2/+2**.');
+    expect(ancientCombatMods(s).runeHatchery ?? null).toBeNull(); // the Vines channel is the reducer's, not the Ancient's
+    s = fightNow(s, 100, 5000);
+    expect(s.ancients!.rayseVinesBonus).toEqual({ attack: 2, health: 2 });
+    // The fight that follows this End of Turn already has the improved Vines: +4/+5 on the summoned pups.
+    const pup = summons(events(s))[0]!;
+    const d = CARD_INDEX[pup.minion.cardId]!;
+    expect(pup.minion).toMatchObject({ attack: d.attack + 4, health: d.health + 5 });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(heroPowerText(s)).toContain('gain **+4/+5** and **Taunt**');
+    s = fightNow({ ...s, board: [card('a', ECHO.id, { attack: 1, health: 1 })] }, 100, 5000);
+    expect(s.ancients!.rayseVinesBonus).toEqual({ attack: 4, health: 4 });
+  });
+  it('no Rise is handed out any more, and another Ancient leaves Vines at +2/+3', () => {
+    let s = picked('time', { board: [card('b', N(1), { health: 50 })] });
     s = reduce(fightNow(s), { type: 'resolveCombat' });
-    expect(s.board.find((c) => c.uid === 'b')!.keywords).toContain('R');
-    const allRise = fightNow(picked('time', { board: [card('a', N(0), { keywords: ['R'] })] }));
-    expect(allRise.board.find((c) => c.uid === 'a')!.keywords.filter((k) => k === 'R').length).toBe(1);
+    expect(at(s, 'b').keywords).not.toContain('R');
+    const other = fightNow(picked('fortune', { board: [card('a', ECHO.id, { attack: 1, health: 1 })] }), 100, 5000);
+    const pup = summons(events(other))[0]!;
+    const d = CARD_INDEX[pup.minion.cardId]!;
+    expect(pup.minion.health).toBe(d.health + 3);
   });
 });
 

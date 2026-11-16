@@ -10,9 +10,9 @@ import { activePowerPayout, passivePowerReady } from './powerArmedUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { ancientArchiveNeed, ancientArchivePassive, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2; Time: passive)
+import { ancientArchiveNeed, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
-import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
+import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientCopyChargeReady, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -139,8 +139,8 @@ function heroPowerTallyOf(
     case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete
     case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr
     case 'dice': case 'preparation': return diceLock > 0 ? `${diceLock}t` : null; // Gambler / Aster
-    case 'contraband': { const every = ancientContrabandEvery(run); return `${(run.refreshCount ?? 0) % every}/${every}`; } // Pete (Ancient of Time: every 2)
-    case 'archive': return ancientArchivePassive(run) ? null : `${(run.archivedTribes?.length ?? 0)}/${ancientArchiveNeed(run)}`; // Quillen
+    case 'contraband': { const every = ancientContrabandEvery(run); return every <= 1 ? null : `${(run.refreshCount ?? 0) % every}/${every}`; } // Pete (Ancient of Time: every Shop, no count)
+    case 'archive': return `${(run.archivedTribes?.length ?? 0)}/${ancientArchiveNeed(run)}`; // Quillen
     case 'investment': { // Bram — an Ancient pairing may reshape it (Death: deaths toward 16, live; Time: no bank)
       const ancient = run.ancientsEnabled ? ancientInvestmentTally(run, run.fxFriendlyDeathPreview ?? 0) : undefined;
       return ancient !== undefined ? ancient : `${run.bramInvested ?? 0}/4`;
@@ -719,7 +719,7 @@ export function StatusBar() {
     withinUses &&
     // ANCIENT OF WAR × Frantic Frank: a banked Clearance stack re-arms a spent Clearance (the reducer's `stackUse`).
     // ANCIENT OF GENESIS × Xerox: a banked Copy Machine charge re-arms the spent once-per-game use (the reducer's `chargeUse`).
-    (power.oncePerGame ? !run.heroPowerSpent || (power.kind === 'copyMachine' && ancientCopyCharges(run) > 0) : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0) || (power.kind === 'displace' && ancientSwapCharges(run) > 0)) &&
+    (power.oncePerGame ? !run.heroPowerSpent || (power.kind === 'copyMachine' && ancientCopyChargeReady(run)) : run.heroReady || (power.kind === 'clearance' && ancientClearanceStacks(run) > 0) || (power.kind === 'displace' && ancientSwapCharges(run) > 0)) &&
     // ONE price, checked once. A shrinking power (Dragon Tamer / Dynamite Dig / Hunch / Buyout) used to be
     // gated by its DISCOUNTED cost *and* its printed base cost, so between the two you could see the real,
     // payable price on the coin while the button read as unaffordable — and the art dimmed to 10% (the
@@ -768,7 +768,7 @@ export function StatusBar() {
   // THE HERO AVENGE COUNTDOWN (owner 2026-09-30): Frank × War's Avenge (3) or Hunch × Death's Avenge (4) owns the
   // centre readout, live through the fight on screen (its friendly deaths so far), back to full after each trigger. One
   // helper, one disc (`.hpb-avenge`) for both.
-  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock' || power.kind === 'empoweringVines' || power.kind === 'commission' || power.kind === 'gildcrafter' || power.kind === 'allIn' || power.kind === 'dice' || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'baldgecoin') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
+  const avengeLeft = run.ancientsEnabled && (power.kind === 'clearance' || power.kind === 'roundedSpellbook' || power.kind === 'copyMachine' || power.kind === 'cheapMinions' || power.kind === 'summitLock' || power.kind === 'empoweringVines' || power.kind === 'commission' || power.kind === 'gildcrafter' || power.kind === 'allIn' || power.kind === 'dice' || power.kind === 'contraband' || power.kind === 'companyRate' || power.kind === 'baldgecoin' || power.kind === 'sellGold') ? ancientAvengeCountdown(run, combatFriendlyDeaths ?? 0) : null;
   const powerCenter = avengeLeft != null ? String(avengeLeft) : heroPowerCenterOf(power, run, combatEnemyDeaths);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
@@ -1225,7 +1225,7 @@ export function StatusBar() {
             {/* QUILLEN: the archived TYPES, each in its own tribe colour, with unused slots as "Empty". A
                 plain rule string cannot carry per-word colour, so the live state is rendered here instead of
                 being folded into the text (owner ask 2026-08-17). */}
-            {power.kind === 'archive' && !ancientArchivePassive(run) && (
+            {power.kind === 'archive' && (
               <span className="herotip-types">
                 {Array.from({ length: ancientArchiveNeed(run) }, (_, i) => {
                   const t = run.archivedTribes?.[i];

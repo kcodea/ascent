@@ -30,7 +30,7 @@ const picked = (id: AncientId, over: Partial<RunState> = {}): RunState => {
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const bananas = (s: RunState): ShopCard[] => s.shop.filter((o) => o.banana);
 const minionOffers = (s: RunState): ShopCard[] => s.shop.filter((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; });
-/** One Refresh away from a Contrabanana (the 3rd refresh, or the 2nd under Time). */
+/** One Refresh away from a Contrabanana (the 3rd refresh; under Time, every Refresh). */
 const primed = (s: RunState): RunState => ({ ...s, refreshCount: ancientContrabandEvery(s) - 1 });
 
 describe('Pete × every Ancient has a written pairing', () => {
@@ -124,21 +124,28 @@ describe('Pete × GENESIS: "Contrabanana upgrades your 2 right-most Shop minions
   });
 });
 
-describe('Pete × TIME: "Contrabanana triggers every 2 Refreshes."', () => {
-  it('every second Refresh upgrades the right-most minion', () => {
+describe('Pete × TIME: "The two right-most Shop minions are from above your Shop Tier." (owner 2026-11-16)', () => {
+  const fight = (s: RunState): RunState => reduce(reduce({ ...s, board: [card('b', 'sandbag', { health: 999 })], servedBoards: { [s.wave]: { v: 1, wave: s.wave, heroId: 'indy', resolve: 30, tier: 7, triples: 0, tribes: [], threat: 'glass', power: 1, minions: [{ cardId: 'sandbag', attack: 0, health: 1, keywords: [] }], seed: 1, origin: 'self' } } }, { type: 'faceOmen' }), { type: 'resolveCombat' });
+  it('EVERY Refresh upgrades the 2 right-most minion offers (no countdown)', () => {
     let s: RunState = { ...picked('time'), refreshCount: 0 };
-    expect(heroPowerText(s)).toBe('Every second refresh, the right-most Shop minion is from the tier above your Shop tier (**2** more to go).');
-    expect(heroPowerArmed(s), 'the armed glow follows the live cadence').toBe(false);
-    s = reduce(s, { type: 'roll' });
-    expect(bananas(s).length).toBe(0);
-    expect(heroPowerText(s)).toContain('(**1** more to go)');
-    expect(heroPowerArmed(s), 'the next Refresh is the second one').toBe(true);
-    s = reduce(s, { type: 'roll' });
-    expect(bananas(s).length).toBe(1);
-    s = reduce(s, { type: 'roll' });
-    expect(bananas(s).length).toBe(0);
-    s = reduce(s, { type: 'roll' });
-    expect(bananas(s).length).toBe(1);
+    expect(ancientOfferText('pete', 'time')).toBe('Your **2** right-most Shop minions are from the tier above your Shop tier.');
+    expect(heroPowerText(s)).toBe('Your **2** right-most Shop minions are from the tier above your Shop tier, every Refresh and every new Shop.');
+    expect(heroPowerArmed(s), 'every Refresh is a Contrabanana').toBe(true);
+    for (let r = 0; r < 3; r++) {
+      s = reduce(s, { type: 'roll' });
+      const row = minionOffers(s);
+      expect(bananas(s).length).toBe(2);
+      expect(row.slice(-2).every((o) => o.banana && CARD_INDEX[o.cardId]!.tier === s.tier + 1)).toBe(true);
+      expect(row.slice(0, -2).every((o) => !o.banana)).toBe(true);
+    }
+  });
+  it('the turn-start Shop is upgraded too (a fresh roll), but not on a plain Pete', () => {
+    const next = fight(picked('time'));
+    expect(next.phase).toBe('recruit');
+    expect(bananas(next).length).toBe(2);
+    expect(minionOffers(next).slice(-2).every((o) => CARD_INDEX[o.cardId]!.tier === next.tier + 1)).toBe(true);
+    const plain = fight(picked('fortune'));
+    expect(bananas(plain).length).toBe(0);
   });
   it('a plain Pete still needs three', () => {
     let s: RunState = { ...picked('fortune'), refreshCount: 0 };

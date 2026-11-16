@@ -4,9 +4,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import type { CombatEvent, CombatResult } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type CombatResult, type QuestCombatMods } from '@game/core';
 import {
-  ANCIENT_IDS, ancientAfterCombat, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, reduce,
+  ANCIENT_IDS, WARDEN_TIME_COMBAT_LABEL, ancientAfterCombat, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 
@@ -195,21 +195,43 @@ describe('Warden × GENESIS — every 3 friendly Ward breaks, a copy of one of t
   });
 });
 
-describe('Warden × TIME — End of Turn: minions with Ward gain +5/+5', () => {
-  it('permanent, only Warded minions (a Resilient Ward counts), and it lands before the fight', () => {
-    let s = picked('time', { board: [pup('a', 1, 10, ['DS']), pup('b', 1, 10), pup('c', 1, 10, ['DS', 'RW'])] });
-    s = fightNow(s, 0, 50);
-    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([6, 15]);
+describe('Warden × TIME — your spells give your Ward minions +3 Attack (owner 2026-11-16)', () => {
+  /** Gold Pouch: an untargeted Shop spell whose only effect is +1 Gold. */
+  const pouch = (uid: string): BoardCard => card(uid, 'emberpouch', { tribe: 'neutral', attack: 0, health: 1 });
+  it('SHOP: each spell cast gives every minion with Ward +3 Attack, permanently; the text is live and plain', () => {
+    let s = picked('time', { board: [pup('a', 1, 10, ['DS']), pup('b', 1, 10), pup('c', 1, 10, ['DS', 'RW'])], hand: [pouch('p1'), pouch('p2')] });
+    expect(ancientOfferText('warden', 'time')).toBe('When you cast a spell, give your minions with **Ward** **+3 Attack**.');
+    expect(heroPowerText(s)).toContain('When you cast a spell, give your minions with **Ward** **+3 Attack**.');
+    s = reduce(s, { type: 'play', uid: 'p1' });
+    s = reduce(s, { type: 'play', uid: 'p2' });
+    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([7, 10]);
     expect([at(s, 'b').attack, at(s, 'b').health]).toEqual([1, 10]);
-    expect([at(s, 'c').attack, at(s, 'c').health]).toEqual([6, 15]);
-    expect(s.lastCombat!.initial.player[0]!.attack).toBe(6); // it fought with the gain
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(at(s, 'a').attack).toBe(6); // kept
+    expect(at(s, 'c').attack).toBe(7);
+    expect(s.recruitBuffFx.some((e) => e.fromHeroPower && e.targetUid === 'a')).toBe(true);
   });
-
-  it('fires in the shop only at End of Turn (a refresh does nothing)', () => {
-    let s = picked('time', { board: [pup('a', 1, 10, ['DS'])] });
-    s = reduce(s, { type: 'roll' });
+  it('End of Turn no longer gives +5/+5', () => {
+    const s = fightNow(picked('time', { board: [pup('a', 1, 10, ['DS'])] }), 0, 50);
+    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([1, 10]);
+  });
+  it('COMBAT: each combat cast gives the living minions whose Ward is up +3 Attack (a combat buff)', () => {
+    const mod = ancientCombatMods(picked('time')).ancientSpellWardAttack!;
+    expect(mod).toEqual({ attack: 3, label: WARDEN_TIME_COMBAT_LABEL });
+    // Taragosa casts Growth when an ally attacks: a reliable combat caster.
+    const board: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 900, sourceUid: 'W', keywords: ['DS'] },
+      { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'FC' },
+      { cardId: 'sandbag', attack: 1, health: 900, sourceUid: 'P' },
+    ];
+    const r: CombatResult = simulate(board, [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast', 'dragon'], questMods: { ancientSpellWardAttack: mod } as QuestCombatMods }), combatSide({ tier: 1 }));
+    const w = r.initial.player[0]!.uid;
+    const grants = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === WARDEN_TIME_COMBAT_LABEL);
+    expect(r.events.some((e) => e.type === 'spellcast' && e.side === 'player')).toBe(true);
+    expect(grants.length).toBeGreaterThan(0);
+    for (const g of grants) expect([g.target, g.attack, g.health]).toEqual([w, 3, 0]);
+  });
+  it('another Ancient: a spell gives nothing', () => {
+    const s = reduce(picked('death', { board: [pup('a', 1, 10, ['DS'])], hand: [pouch('p1')] }), { type: 'play', uid: 'p1' });
     expect(at(s, 'a').attack).toBe(1);
   });
 });

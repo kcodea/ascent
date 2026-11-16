@@ -7,7 +7,7 @@
  * `duos_passes` hands back. Everything that crosses players does so ON a pass row, so the room's own guarantees are
  * the pairing's: once per seq, to the teammate only, refused when they are away, answered once.
  *
- *  - Priestess × Bonds: the teammate's +4/+4 arrives with the card, exactly once, across a retry, a second pull and a
+ *  - Priestess × Bonds: the teammate's +10/+10 arrives with the card, exactly once, across a retry, a second pull and a
  *    reconnect; an away teammate gets nothing and the card comes back.
  *  - Magician × Genesis: the Gilded copy and the three-spell copy are accepted and land.
  *  - Magician × War: a committed tag-team round carries the exchange, and equals the resolver's digest.
@@ -89,21 +89,21 @@ async function pull(h: H, user: string, seat: GSeat, b: RunState): Promise<RunSt
 }
 const mateBoard = (): BoardCard[] => [card('x', PLAIN[0]!, { attack: 2, health: 2 }), card('y', PLAIN[1]!, { attack: 2, health: 2 })];
 
-describe('Priestess × Bonds through the room: the teammate\'s +4/+4 rides the pass', () => {
+describe('Priestess × Bonds through the room: the teammate\'s +10/+10 rides the pass', () => {
   const priestess = (): RunState => ancientRun('priestess', 11, 'bonds', { board: [card('a', PLAIN[0]!, { attack: 1, health: 1 })], hand: [card('h', PLAIN[2]!)] });
 
-  it('BOTH TEAMMATES: one pass, both left-most minions +4/+4; a retry, a second pull and the opponents change nothing', async () => {
+  it('BOTH TEAMMATES: one pass, both left-most minions +10/+10; a retry, a second pull and the opponents change nothing', async () => {
     const h = await inShop();
     const a = reduce(priestess(), { type: 'passCard', uid: 'h' });
-    expect(a.board[0]).toMatchObject({ attack: 5, health: 5 });
+    expect(a.board[0]).toMatchObject({ attack: 11, health: 11 });
     await send(h, U[0], a);
     await send(h, U[0], a); // the client retries the same seq: the same row, not a second pass
     const rows = await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ from_seat: 'p1', to_seat: 'p2', status: 'sent' });
-    expect(rows[0].card.passBonds).toEqual({ attack: 4, health: 4 });
+    expect(rows[0].card.passBonds).toEqual({ attack: 10, health: 10 });
     let b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard() }));
-    expect(b.board.map((c) => [c.attack, c.health])).toEqual([[6, 6], [2, 2]]);
+    expect(b.board.map((c) => [c.attack, c.health])).toEqual([[12, 12], [2, 2]]);
     expect(b.hand.map((c) => c.cardId)).toEqual([PLAIN[2]]);
     expect((await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 }))[0].status).toBe('landed');
     // The pull runs again (the push's backstop, a reload): the pass key is answered, so nothing is given twice.
@@ -124,7 +124,7 @@ describe('Priestess × Bonds through the room: the teammate\'s +4/+4 rides the p
     h.core.connect(U[1], h.now);
     // Their run comes back from before the pass (a reload) and reads the room's rows.
     const b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard() }));
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
     expect(b.hand).toHaveLength(1);
     expect(await pull(h, U[1], 'p2', b)).toBe(b);
   });
@@ -140,7 +140,7 @@ describe('Priestess × Bonds through the room: the teammate\'s +4/+4 rides the p
     expect(a.hand.map((c) => c.uid)).toEqual(['h']);
     expect(a.embers).toBe(gold + 1);
     // My own minion keeps what it gained when I passed; no row exists for the teammate to land.
-    expect(a.board[0]).toMatchObject({ attack: 5, health: 5 });
+    expect(a.board[0]).toMatchObject({ attack: 11, health: 11 });
     h.core.connect(U[1], h.now);
     const b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard() }));
     expect(b.board[0]).toMatchObject({ attack: 2, health: 2 });
@@ -155,12 +155,12 @@ describe('Priestess × Bonds through the room: the teammate\'s +4/+4 rides the p
     expect((await h.op(U[0], 'duos_passes', { matchId: h.id, from: 1 }))[0].status).toBe('sent');
     h.core.connect(U[1], h.now);
     const b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard() }));
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
     expect(b.hand).toHaveLength(1);
     expect(await pull(h, U[1], 'p2', b)).toBe(b);
   });
 
-  it('Passaria to a teammate whose hand is full: accepted, the minion waits, and the +4/+4 lands with it', async () => {
+  it('Passaria to a teammate whose hand is full: accepted, the minion waits, and the +10/+10 lands with it', async () => {
     const h = await inShop();
     await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
     const a = reduce(ancientRun('priestess', 11, 'bonds', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!)], heroReady: true }), { type: 'heroPower', uid: 'b' });
@@ -169,7 +169,7 @@ describe('Priestess × Bonds through the room: the teammate\'s +4/+4 rides the p
     const full = minions.filter((c) => c.tier <= 2 && c.effects.length > 0).slice(0, 10).map((c, i) => card(`h${i}`, c.id));
     const b = await pull(h, U[1], 'p2', mateRun({ board: mateBoard(), hand: full }));
     expect(b.duos!.waiting).toHaveLength(1);
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
     expect((await h.op(U[1], 'duos_passes', { matchId: h.id, from: 1 }))[0].status).toBe('landed');
   });
 });

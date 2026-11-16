@@ -69,8 +69,10 @@ export interface DuosOutboxEntry {
    *  - `ancRise`: Priestess x Death gave this passed minion Rise (a refund takes it off again);
    *  - `bonds`: Priestess x Bonds: the teammate's left-most minion gains this when the card lands (`passBonds` on the wire);
    *  - `copyUid`: Priestess x Genesis: the plain copy this Passaria pass put in my hand (a refund takes it back);
-   *  - `copies`: Magician x Genesis: a spell copy that arrives as this many copies (`passCopies` on the wire). */
+   *  - `copies`: Magician x Genesis: a spell copy that arrives as this many copies (`passCopies` on the wire);
+   *  - `ancReset`: Priestess x Time: this Shop spell pass reset a spent Passaria (a refund spends it again). */
   ancRise?: true;
+  ancReset?: true;
   bonds?: { attack: number; health: number };
   copyUid?: string;
   copies?: number;
@@ -377,6 +379,11 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
   // ANCIENTS x Priestess (R-ANCDUOS-01): the pass never happened, so what it gave comes off again. Death's Rise leaves
   // the returned minion; Genesis' plain copy leaves my hand when it is still there (played or sold already: it stays).
   if (e.ancRise) back.keywords = back.keywords.filter((k) => k !== 'R');
+  // Time's reset of a spent Passaria never happened either (this turn only: a new turn recharged it anyway).
+  if (e.ancReset && e.wave === s.wave) {
+    if (activePowers(s)[0]?.kind !== 'passaria' && activePowers(s)[1]?.kind === 'passaria') s.heroReady2 = false;
+    else s.heroReady = false;
+  }
   if (e.copyUid) {
     const ci = s.hand.findIndex((c) => c.uid === e.copyUid);
     if (ci >= 0) returnToPool(s, s.hand.splice(ci, 1)[0]!.cardId);

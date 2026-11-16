@@ -71,6 +71,8 @@ Non-goals
   unscored and inside every band, and get no peak. Solo runs that fill Ranked Duos seats come through the solo
   sample and follow every rule here.
 - No change to the rolling window or its size.
+- No deletion of existing board rows (Mike 2026-11-16: "exclude them"): Career, Match details, replays and saved
+  games keep reading them.
 - No change to Platinum and up being open.
 
 Anti-goals (a failure even if it "works")
@@ -135,14 +137,39 @@ Mike picked approach 1 with all five bundles on 2026-11-16.
   board percentiles do come from the new population, so late-round percentiles in Match details will read
   higher than before for boards that survived (they now beat the runs that had already fallen).
 - The overall cap keeps reading Game strength.
-- Where the carried scores are computed: on the client, in idle slices, AFTER the run-end upload (a run ending
-  at round 3 needs about 2,000 extra fights, too many for the 1,500 ms run-end wait), sent as a follow-up update
-  to the run's final board; and by the backfill tool for every run already in the pool.
+- **Where the carried scores are computed** (Mike 2026-11-16: "can we have the continue button greyed out and
+  unavailable to click while the games are being scored?"): on the client at run end, BEFORE the upload. On the
+  end screen of a rated game, Continue is disabled, with a short "Scoring your game" label, until the run's board
+  scores and carried scores are done; the run then goes up once, complete. The backfill tool covers every run
+  already in the pool.
+  - Safety limit: after 5 seconds Continue unlocks regardless and the run goes up with what is ready (an
+    incomplete run is unscored). The button must never stay locked.
+  - Measured 2026-11-16 (node, v1 reference): a carried fight costs 0.8 ms at the median, 1.1 ms at the 90th
+    percentile, 2.2 ms worst. The worst case under the 7-round floor is a run ending on round 7 (9 rounds x 160
+    fights = 1,440 fights): about 1.1 s typical, 1.6 s at the 90th percentile, 3.2 s worst. A typical run ends
+    around round 12 (640 fights): about 0.5 s.
+  - The work must not hitch the end screen (performance is the north star): the builder chooses between a Web
+    Worker and frame-budgeted slices on the main thread; slices roughly double the wall time.
+  - Practice, the tutorial and every unscored mode never lock Continue.
 - **A run is scored only when it is complete**: every real board with minions has a current-version score and
   the final board has every carried score. Anything less is an unscored run (see Transition). This closes the
   gap where a run missing its strongest board's score would slip under a cap. `measure` prints the number of
   live unscored runs and the ops digest reports it, so a growing backlog is visible; re-scoring stays a tool an
   owner runs.
+
+### B2. No run under 7 rounds (Mike 2026-11-16)
+
+"we should never have any snapshots of boards that are below 7 rounds. those should be wiped and never included";
+on what wiped means: "exclude them".
+
+- A run whose recording ends on round 6 or earlier is never seated, never counted in any ranking population,
+  never a reference board, and is not uploaded to the pool by a v2 client. A run that ends on round 7 is in.
+- This replaces the 4-board minimum (`MIN_RUN_WAVES`) in the client eligibility, the SQL `pool_runs`
+  eligibility and the Worker mirror, which must stay in parity.
+- Short runs already in the database are marked ineligible, not deleted.
+- Today no eligible run ends before round 7 (11 of the 250 live runs end on rounds 7 or 8), so nothing leaves
+  the pool now; this is a guard, mostly against abandoned games.
+- The player's own short game still shows in their Career and Match details; it just never becomes an opponent.
 
 ### C. Peak cap (weak spot 3)
 
@@ -229,7 +256,8 @@ one player contributes to the ranking population**:
 - How "most recent 30" is ordered (upload order or capture time).
 - Exact SQL structure of the refresh job and histograms, within the once-a-minute job that exists.
 - Whether scoring a board against a later round needs anything beyond overriding its round in the probe.
-- Idle-slice sizing for the larger fight count.
+- Idle-slice sizing for the larger fight count, and Web Worker versus main-thread slices for the run-end scoring.
+- The wording and look of the locked Continue button (presentation, Mike reviews it).
 
 ## 9. Open for Mike
 

@@ -99,23 +99,29 @@ describe('Darah × FORTUNE: "Swapped minions are free."', () => {
   });
 });
 
-describe('Darah × WAR: "Pummel (140): Get a charge of Swap. (Once per combat.)"', () => {
-  it('the first 140 crossed in a fight pays ONE charge (live flag), later crossings are spent; the tally carries', () => {
+describe('Darah × WAR: "Pummel (200): Get a charge of Swap. Twice per combat." (ancient pass 1, owner 2026-11-16)', () => {
+  it('the first TWO 200s crossed in a fight each pay a charge (live flags), later crossings are spent; the tally carries', () => {
     let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 100, health: 900 }), card('b', N(1), { attack: 100, health: 900 })] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (140):** get a charge of Swap. Once per combat. Counts damage dealt by all your minions (**0/140**). Each charge is one more Swap (**0** banked).`);
-    expect(ancientCombatMods(s).ancientPummelCharge).toEqual({ every: 140, dealt: 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: 'Ancient of War' });
+    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (200):** get a charge of Swap. Twice per combat. Counts damage dealt by all your minions (**0/200**). Each charge is one more Swap (**0** banked).`);
+    expect(ancientCombatMods(s).ancientPummelCharge).toEqual({ every: 200, dealt: 0, flag: ANCIENT_SWAP_CHARGE_FLAG, label: 'Ancient of War', perCombat: 2 });
     s = fightNow(s, 1, 3000);
     const dealt = s.lastCombat!.playerAncientPummelDealt!;
-    expect(dealt).toBeGreaterThanOrEqual(280); // crossed at least twice
-    expect(chargeFlags(s).length).toBe(1);
-    expect(heroPowerText(s, 0, { swapCharges: 1 })).toContain('(**1** banked)');
+    expect(dealt).toBeGreaterThanOrEqual(600); // crossed at least three times
+    expect(chargeFlags(s).length).toBe(2);
+    expect(heroPowerText(s, 0, { swapCharges: 2 })).toContain('(**2** banked)');
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.pummelDealt).toBe(dealt);
-    expect(s.ancients!.darahCharges).toBe(1);
-    expect(heroPowerText(s)).toContain(`(**${dealt % 140}/140**)`);
-    expect(heroPowerText(s, 0, { friendlyDamage: 1 })).toContain(`(**${(dealt + 1) % 140}/140**)`);
+    expect(s.ancients!.darahCharges).toBe(2);
+    expect(heroPowerText(s)).toContain(`(**${dealt % 200}/200**)`);
+    expect(heroPowerText(s, 0, { friendlyDamage: 1 })).toContain(`(**${(dealt + 1) % 200}/200**)`);
   });
-  it('a banked charge is one more Swap once the turn\'s own is spent; with none left the power is refused', () => {
+  it('a fight that crosses 200 only once pays ONE charge', () => {
+    let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 10, health: 500 })] });
+    s = { ...s, ancients: { ...s.ancients!, pummelDealt: 195 } };
+    s = fightNow(s, 1, 10);
+    expect(chargeFlags(s).length).toBe(1);
+  });
+  it("a banked charge is one more Swap once the turn's own is spent; with none left the power is refused", () => {
     let s = picked('war', { wave: 3, board: [card('a', N(0)), card('b', N(2))], shop: [offer('o', N(1)), offer('p', N(3)), offer('q', N(4))] });
     s = { ...s, ancients: { ...s.ancients!, darahCharges: 1 } };
     expect(ancientSwapUsesBadge(s)).toBe(2);
@@ -126,12 +132,6 @@ describe('Darah × WAR: "Pummel (140): Get a charge of Swap. (Once per combat.)"
     expect(s.ancients!.darahCharges).toBe(0);
     expect(s.board.map((c) => c.cardId)).not.toContain(N(2));
     expect(swap(s, s.board[0]!.uid)).toBe(s);
-  });
-  it('the tally carried in counts toward the crossing', () => {
-    let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 10, health: 500 })] });
-    s = { ...s, ancients: { ...s.ancients!, pummelDealt: 135 } };
-    s = fightNow(s, 1, 10);
-    expect(chargeFlags(s).length).toBe(1);
   });
 });
 
@@ -145,23 +145,17 @@ describe('Darah × GENESIS: "Swap grants a copy of the minion swapped with."', (
   });
 });
 
-describe('Darah × TIME: "End of Turn: Get a copy of the minion you swapped."', () => {
-  it('End of Turn: a plain copy of the minion Swap sent to the Shop this turn; no Swap, nothing', () => {
-    let s = scene('time', card('a', N(0), { attack: 20, health: 20 }));
-    expect(heroPowerText(s)).toContain('Nothing swapped this turn.');
-    s = swap(s, 'a');
-    expect(heroPowerText(s)).toContain(`This turn: **${CARD_INDEX[N(0)]!.name}**.`);
-    s = fightNow(s);
-    expect(s.hand.map((c) => c.cardId)).toEqual([N(0)]);
-    expect(s.hand[0]!.attack, 'plain').toBe(CARD_INDEX[N(0)]!.attack);
-    expect(fightNow(scene('time', card('a', N(0)))).hand.length).toBe(0);
+describe('Darah × TIME (ancient pass 1, owner 2026-11-16): "Gain the Lasso card effect." (End of Turn: cast Lasso)', () => {
+  it('End of Turn casts Lasso: a random Shop minion is stolen into the hand (no Swap needed)', () => {
+    const s0 = scene('time', card('a', N(0)), N(1));
+    expect(heroPowerText(s0)).toBe(`${BASE} **End of Turn:** cast **Lasso**.`);
+    const s = fightNow(s0);
+    expect(s.hand.map((c) => c.cardId)).toEqual([N(1)]);
+    expect(s.shop.some((o) => o.uid === 'o')).toBe(false);
   });
-  it('two Swaps in a turn copy the LAST minion sent away', () => {
-    let s = picked('time', { wave: 3, board: [card('a', N(0)), card('b', N(2))], shop: [offer('o', N(1))] });
-    s = swap(s, 'a');
-    s = { ...s, heroReady: true }; // a second Swap this turn (as War's charge would allow)
-    s = swap(s, 'b');
-    expect(s.ancients!.darahSwapped).toEqual({ wave: 3, cardId: N(2) });
+  it('an empty Shop: Lasso steals nothing; another pairing casts nothing', () => {
+    expect(fightNow(scene('time', card('a', N(0)), N(1), { shop: [] })).hand.length).toBe(0);
+    expect(fightNow(scene('fortune', card('a', N(0)), N(1))).hand.length).toBe(0);
   });
 });
 
@@ -178,9 +172,6 @@ describe('Darah × BONDS: "Swapped minions gain each others stats."', () => {
 
 describe('Darah × save / restore and determinism', () => {
   it('the counters survive a JSON round trip', () => {
-    let s = swap(scene('time', card('a', N(0))), 'a');
-    s = JSON.parse(JSON.stringify(s)) as RunState;
-    expect(heroPowerText(s)).toContain(`This turn: **${CARD_INDEX[N(0)]!.name}**.`);
     let w = picked('war', { wave: 3 });
     w = JSON.parse(JSON.stringify({ ...w, ancients: { ...w.ancients!, darahCharges: 2 } })) as RunState;
     expect(heroPowerText(w)).toContain('(**2** banked)');

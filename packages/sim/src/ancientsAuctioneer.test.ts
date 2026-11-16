@@ -127,6 +127,19 @@ describe('Auctioneer × WAR — the Pulsed minion gains "Rally: trigger this min
     s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'c' });
     expect(at(s, 'c').grantedEffects?.filter((e) => e.do === 'rallyTriggerOwnShout')).toHaveLength(1);
     expect(heroPowerText(s)).toContain('**Rally:** trigger this minion');
+    expect(heroPowerText(s)).toContain('It is permanent and does not stack.');
+  });
+
+  it('the grant is permanent: it survives fights and new turns, and a later Pulse on another minion leaves it on the first', () => {
+    let s = picked('war', { board: [drake('w'), cleric('c'), cleric('d')] });
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    s = reduce(fightNow({ ...s, phase: 'recruit' }), { type: 'resolveCombat' });
+    expect(at(s, 'c').grantedEffects?.filter((e) => e.do === 'rallyTriggerOwnShout')).toHaveLength(1);
+    expect(at(s, 'c').keywords).toContain('RL');
+    s = reduce({ ...s, heroReady: true }, { type: 'heroPower', uid: 'd' });
+    expect(at(s, 'c').grantedEffects?.filter((e) => e.do === 'rallyTriggerOwnShout')).toHaveLength(1);
+    expect(at(s, 'd').grantedEffects?.filter((e) => e.do === 'rallyTriggerOwnShout')).toHaveLength(1);
   });
 
   it('COMBAT: every time it attacks, its Shout fires right then (a counted shout event, then the buff)', () => {
@@ -235,39 +248,25 @@ describe('Auctioneer × TIME in REAL TIME — a Start-of-Combat Tidebud Shout pa
   });
 });
 
-describe('Auctioneer × BONDS — a Shout gives the minions next to it +4/+3', () => {
-  it('SHOP: Pulse buffs both neighbours +4/+3, permanently, per fire', () => {
-    let s = picked('bonds', { board: [pup('a', 1, 1), cleric(), pup('b', 1, 1), pup('v', 1, 1)] });
-    s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([5, 4]);
-    expect([at(s, 'b').attack, at(s, 'b').health]).toEqual([5, 4]);
-    expect([at(s, 'v').attack, at(s, 'v').health], 'not adjacent').toEqual([1, 1]);
-    expect([at(s, 'c').attack, at(s, 'c').health], 'not itself').toEqual([1, 50]);
-    s = reduce(fightNow(s), { type: 'resolveCombat' });
-    expect(at(s, 'a').attack, 'permanent').toBe(5);
-  });
-
-  it('SHOP: a Shout played from hand buffs its new neighbours', () => {
-    let s = picked('bonds', { board: [pup('a', 1, 1), pup('b', 1, 1)], hand: [cleric('h')] });
-    s = reduce(s, { type: 'play', uid: 'h', toIndex: 1 });
-    expect(s.board.map((c) => c.uid)).toEqual(['a', 'h', 'b']);
-    expect([at(s, 'a').attack, at(s, 'b').attack]).toEqual([5, 5]);
-  });
-
-  it('COMBAT: the buff lands right after the Shout, on its living neighbours', () => {
-    let s = picked('bonds', { board: [pup('a', 0, 200), cleric('c', { keywords: ['RL'], grantedEffects: [{ on: 'onAttack', do: 'rallyTriggerOwnShout', params: {} }] }), pup('b', 0, 200)] });
+describe('Auctioneer × BONDS — End of Turn: trigger your two left-most Shouts (ancient pass 1, owner 2026-11-16)', () => {
+  it('End of Turn re-fires the TWO left-most Shout minions, left to right; a third Shout minion is not fired', () => {
+    // Each Cleric fire gives the plain Dragon +3/+3: two fires = +6/+6 by the time the fight starts.
+    let s = picked('bonds', { board: [drake('w'), cleric('c'), pup('a', 1, 1), cleric('d'), cleric('e')] });
+    expect(heroPowerText(s)).toContain('**End of Turn:** trigger your **2** left-most **Shouts**.');
     s = fightNow(s);
-    const ev = events(s);
-    const c = cuid(s, 1);
-    const shout = ev.findIndex((e) => e.type === 'shout' && e.target === c);
-    expect(shout).toBeGreaterThanOrEqual(0);
-    const after = ev.slice(shout + 1, shout + 4).filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff');
-    expect(after.map((e) => [e.target, e.attack, e.health, e.source]).sort()).toEqual(
-      [[cuid(s, 0), 4, 3, 'Ancient of Bonds'], [cuid(s, 2), 4, 3, 'Ancient of Bonds']].sort(),
-    );
+    expect(s.lastCombat!.initial.player[0]!.attack, 'two Cleric fires, not three').toBe(1 + 6);
   });
 
-  it('threads its mod into the fight', () => {
-    expect(ancientCombatMods(picked('bonds')).ancientShoutAdjacent).toEqual({ attack: 4, health: 3, label: 'Ancient of Bonds' });
+  it('one Shout minion fires once; no Shout minion, nothing; without the pairing End of Turn fires none', () => {
+    expect(fightNow(picked('bonds', { board: [drake('w'), cleric('c')] })).lastCombat!.initial.player[0]!.attack).toBe(1 + 3);
+    expect(fightNow(picked('bonds', { board: [drake('w')] })).lastCombat!.initial.player[0]!.attack).toBe(1);
+    expect(fightNow(picked('fortune', { board: [drake('w'), cleric('c'), cleric('d')] })).lastCombat!.initial.player[0]!.attack).toBe(1);
+  });
+
+  it('Pulse is unchanged (still fires a chosen Shout) and the old adjacency buff is gone', () => {
+    let s = picked('bonds', { board: [pup('a', 1, 1), cleric(), pup('b', 1, 1)] });
+    s = reduce(s, { type: 'heroPower', uid: 'c' });
+    expect([at(s, 'a').attack, at(s, 'b').attack]).toEqual([1, 1]);
+    expect(ancientCombatMods(s).ancientShoutAdjacent).toBeUndefined();
   });
 });

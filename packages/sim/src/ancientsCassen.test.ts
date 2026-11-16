@@ -154,23 +154,44 @@ describe('Cassen × GENESIS: "Commission also grants a minion of your tier."', (
   });
 });
 
-describe('Cassen × TIME: "Commissions all trigger next turn."', () => {
-  it('every commission is due next turn; the picker and the rule print 1 turn', () => {
-    const s = picked('time');
-    expect(heroPowerText(s)).toBe('Choose one: In **1 turn**, Discover a minion of your Tavern Tier. · In **1 turn**, gain **2 Gold**. · In **1 turn**, get a random Shop spell. Every commission pays out next turn.');
-    const t = commission(s, 'discover');
-    expect(t.commission!.dueWave).toBe(s.wave + 1);
-    const u = nextTurn(t);
-    expect(u.commission).toBeUndefined();
-    expect(u.discover, 'the Discover opened').toBeTruthy();
+describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commissions to be live at once."', () => {
+  it('two commissions can run at once (both can start the same turn); a third is refused; the rule prints both', () => {
+    let s = picked('time');
+    expect(heroPowerText(s)).toContain('You can have **2** working at once.');
+    expect(heroPowerText(s)).toContain('In **3 turns**, Discover'); // the delays are the normal ones again
+    s = commission(s, 'discover');
+    expect(heroPowerText(s)).toContain('Choose another:');
+    s = commission(s, 'spell');
+    expect(s.commission).toEqual({ kind: 'discover', dueWave: s.wave + 3 });
+    expect(s.ancients!.cassenSecond).toEqual({ kind: 'spell', dueWave: s.wave + 1 });
+    expect(heroPowerText(s)).toMatch(/^Working: .+ \(due turn \d+\) and .+ \(due turn \d+\)\. You can have \*\*2\*\* working at once\.$/);
+    expect(reduce({ ...s, heroReady: true }, { type: 'heroPower', commission: 'gold' }).ancients!.cassenSecond!.kind, 'a third is refused').toBe('spell');
+    // Next turn the second (Spell) pays on its own beat; the first keeps running; the second slot is open again.
+    let u = nextTurn(s);
+    expect(spells(u).length).toBe(1);
+    expect(u.ancients!.cassenSecond).toBeUndefined();
+    expect(u.commission!.kind).toBe('discover');
+    u = commission(u, 'gold');
+    expect(u.ancients!.cassenSecond!.kind).toBe('gold');
   });
-  it('a commission already running at the pick is due next turn', () => {
-    let s = commission(base(), 'discover');
-    expect(s.commission!.dueWave).toBe(s.wave + 3);
-    s = enableAncients(s);
-    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['time', 'death', 'war'] } };
-    s = reduce(s, { type: 'pickAncient', id: 'time' });
-    expect(s.commission!.dueWave).toBe(s.wave + 1);
+  it('when the first pays out and the second is still working, the second moves up into the first slot', () => {
+    let s = commission(commission(picked('time'), 'spell'), 'discover');
+    const due = s.ancients!.cassenSecond!.dueWave;
+    s = nextTurn(s);
+    expect(spells(s).length).toBe(1);
+    expect(s.commission).toEqual({ kind: 'discover', dueWave: due });
+    expect(s.ancients!.cassenSecond).toBeUndefined();
+  });
+  it('both due the same turn: both pay', () => {
+    let s = commission(commission(picked('time'), 'spell'), 'spell');
+    s = nextTurn(s);
+    expect(spells(s).length).toBe(2);
+    expect(s.commission).toBeUndefined();
+    expect(s.ancients!.cassenSecond).toBeUndefined();
+  });
+  it('without the pairing a second commission is refused (one at a time)', () => {
+    const s = commission(picked('fortune'), 'spell');
+    expect(reduce({ ...s, heroReady: true }, { type: 'heroPower', commission: 'gold' }).commission!.kind).toBe('spell');
   });
 });
 

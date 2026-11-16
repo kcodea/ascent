@@ -188,10 +188,11 @@ export const HEROES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'The minion you Pulse gains \'Rally: trigger this minion\'s Shout\'' },
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: 'Does the granted Rally stack on one minion? Owner picked: No stacking, but permanent' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts pulseGrantsRallyShout / ancientAfterPulse; packages/core/src/effects/arena.ts rallyTriggerOwnShout; packages/ui/src/instView.ts GRANTED_RALLY_SHOUT_NOTE' },
     ],
-    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
+    currentBehaviour: 'Conforms (built 2026-09-26; owner confirmed permanent and non-stacking 2026-11-16, now printed: "It is permanent and does not stack."). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: 'R-ANCAUCT-04',
@@ -217,20 +218,6 @@ export const HEROES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Pulse becomes passive. Start of Combat: trigger your left-most and right-most Shouts. If you have only one Shout, trigger it once.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts socTriggerEdgeShouts + power override; packages/core/src/combat/simulate.ts ancientEdgeShouts' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
-  },
-  {
-    id: 'R-ANCAUCT-06',
-    title: 'Auctioneer × Ancient of Bonds: whenever a Shout triggers, the minions next to it gain +4/+3',
-    statement:
-      'Whenever a friendly Shout fires (any source), the minions next to the Shouting minion gain +4/+3 right then. Shop: permanent, per fire. Combat: per fire, on its living neighbours, right after the Shout\'s own effect; like every combat gain it lasts the fight unless the minion is Engraved.',
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Auctioneer Ancients)', quote: 'Shout triggers buff adjacent minions +4/+3.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts shoutBuffsAdjacent / ancientOnShopShout; packages/core/src/combat/simulate.ts ancientShoutAdjacent' },
     ],
     currentBehaviour: 'Conforms (built 2026-09-26). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAuctioneer.test.ts'], lastVerifiedAt: '2026-09-26' },
@@ -1409,20 +1396,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCBRAUM-03',
-    title: 'Braum × Ancient of War: Start of Combat, your minions gain +8/+8 for every Gilded minion played this game',
-    statement:
-      'With the Ancient of War, at Start of Combat every friendly minion gains +8/+8 for each Gilded minion you have played from hand this game, a combat buff. Plays made before the pick count. The power prints the count and the grant.',
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: "War: Start of Combat: Give your minions +8/+8 for every Gilded minion you've played this game." },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts socBuffPerGildedPlayed / bramOnPlay / bramGildedPlays; packages/core/src/combat/simulate.ts ancientSocBuffAll' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
     id: 'R-ANCBRAUM-04',
     title: "Braum × Ancient of Genesis: Investment's payout is a Discover of a Gilded minion from exactly your current tier",
     statement:
@@ -1448,20 +1421,6 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/ancients.ts investmentDiscoverTierCopies / ancientRunInvestmentTime / ancientOnDiscoverPick / bramStartOfTurn' },
     ],
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Once per game, still 1 Gold, and a copy every Start of Turn forever are judgement calls flagged for the owner in the PR.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
-    id: 'R-ANCBRAUM-06',
-    title: 'Braum × Ancient of Bonds: playing a Gilded minion gives your minions +8/+8, permanently',
-    statement:
-      'With the Ancient of Bonds, playing a Gilded minion from hand gives every board minion, the played one included, +8/+8 permanently, right then. A plain play gives nothing. Combat has no play.',
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Braum Ancients)', quote: 'Bonds: When you play a Gilded minion, give your minions +8/+8.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts gildedPlayBuffsAll / bramOnPlay; packages/sim/src/recruit.ts playCard ancientOnPlay' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). Including the played minion is a judgement call flagged for the owner in the PR.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBraum.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
@@ -1553,20 +1512,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCAYSE-06',
-    title: 'Ayse × Ancient of Bonds: each Lucky Seat trigger gives your left-most and right-most minions +5/+6',
-    statement:
-      'With the Ancient of Bonds, each time Lucky Seat triggers (its 3rd Enchanted buy) the left-most and right-most board minions gain +5/+6 permanently, once when they are the same minion; an empty board gets nothing. Each extra Lucky Seat trigger (Wishbone) fires it again.',
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Ayse Ancients)', quote: 'Bonds: Triggering Lucky Seat grants your left and right-most minions +5/+6.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts luckySeatBuffsEdges / ancientOnEnchantedBuy' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsAyse.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
     id: 'R-ANCDARAH-01',
     title: 'Darah × Ancient of Death: Swapping a minion with an Echo fires its Echo first',
     statement:
@@ -1595,20 +1540,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCDARAH-03',
-    title: 'Darah × Ancient of War: a once-per-combat hero Pummel (140) banks a charge of Swap',
-    statement:
-      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Heavy Hand's share). The first multiple of 140 crossed in a fight banks ONE charge of Swap, shown live mid-fight; later crossings that fight are spent. A charge is one more Swap once the turn's own is used, kept across turns until used. The power prints the Pummel progress and the banked charges, live through a fight.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'War: Pummel (140): Get a charge of Swap. (Once per combat.)' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts pummelSwapCharge / ancientSwapCharges; packages/core/src/combat/simulate.ts noteAncientPummel ancientPummelCharge; packages/sim/src/reducer.ts swapChargeUse' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Charges carrying across turns: pending owner confirmation.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
     id: 'R-ANCDARAH-04',
     title: 'Darah × Ancient of Genesis: Swap also gives a plain copy of the minion it brings in',
     statement:
@@ -1620,20 +1551,6 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/ancients.ts swapCopyIncoming / ancientAfterSwap' },
     ],
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. "The minion swapped with" read as the Shop minion brought in, copy PLAIN: pending owner confirmation.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
-    id: 'R-ANCDARAH-05',
-    title: 'Darah × Ancient of Time: End of Turn gives a plain copy of the minion Swap sent away this turn',
-    statement:
-      'With the Ancient of Time, End of Turn (its own beat) gives a plain copy of the friendly minion Swap sent to the Shop this turn (the last one, when there were two), to hand. No Swap this turn, or a full hand: nothing. The power prints which minion it will copy.',
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Darah Ancients)', quote: 'Time: End of Turn: Get a copy of the minion you swapped.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts eotCopySwapped / ancientRunDarahEotCopy; packages/sim/src/recruit.ts recurringEotEffects' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only. Plain copy, hand only, this turn only: pending owner confirmation.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsDarah.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
@@ -1735,20 +1652,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsNadja.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCBRACKUS-01',
-    title: 'Brackus × Ancient of Death: Avenge (3) on one running count across Shop and combat gives every Tier 7 minion +6/+6, in the warband, the hand and the Shop',
-    statement:
-      "With the Ancient of Death, Brackus has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gives EVERY Tier 7 minion +6/+6 permanently: the warband, the hand and the Shop offers. In combat the living Tier 7 bodies gain it the moment it fires (a permanent gain carried home), and each fire is counted so the hand and the Shop are paid at settle. Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Death: Avenge (3) Give all Tier 7 minions +6/+6. (this works in hand/shop)' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts avengeBuffTier7 / ancientBrackusShopDeath / brackusAfterCombat; packages/core/src/combat/simulate.ts ancientBrackusAvenge' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag). A combat fire reaches the Shop at settle, which is before the next turn rolls its Shop, so only a frozen Shop keeps that share.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
     id: 'R-ANCBRACKUS-02',
     title: 'Brackus × Ancient of Fortune: every 50 Gold spent opens a Tier 7 Discover',
     statement:
@@ -1763,20 +1666,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
-    id: 'R-ANCBRACKUS-03',
-    title: 'Brackus × Ancient of War: Start of Combat, a copy of the left-most Tier 7, summoned as soon as there is room',
-    statement:
-      "With the Ancient of War, at Start of Combat Brackus summons an exact copy (its current combat stats and keywords) of his left-most living Tier 7 minion. With room it lands right away; on a full board it waits and lands the moment a slot opens, copied from the source as it stands then (or from its Start-of-Combat body if it has died). One copy per combat. No Tier 7 on the board: nothing. The power names the minion it would copy.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'War: Start of Combat: When you have space, summon a copy of your Tier 7 minion.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts socCopyTier7; packages/core/src/combat/simulate.ts ancientSummitCopy / pendingSummitCopies' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
     id: 'R-ANCBRACKUS-04',
     title: 'Brackus × Ancient of Genesis: Summit needs 40 more Gold and the Tier 7 becomes Gilded when it unlocks (already unlocked: after 30 more Gold)',
     statement:
@@ -1786,34 +1675,6 @@ export const HEROES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Genesis: Add 40 gold to Summit. When it triggers, it grants or makes your Tier 7 Gilded. (if it has triggered already, after 30 more gold, the Tier 7 becomes Gilded.)' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts summitGildTier7 / brackusOnPick / brackusGild / ancientOnGoldSpent' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
-    id: 'R-ANCBRACKUS-05',
-    title: 'Brackus × Ancient of Time: three turns after the pick, Start of Turn Discovers a Tier 7 minion, once',
-    statement:
-      "With the Ancient of Time, the Start of Turn three turns after the turn of the pick opens one Discover of a Tier 7 minion, on its own Start-of-Turn beat. It happens once. The power counts the turns down, then reads done.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Time: Discover a Tier 7 minion in 3 turns.' },
-      { kind: 'code', ref: 'packages/sim/src/ancients.ts discoverTier7InTurns / brackusStartOfTurn' },
-    ],
-    currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
-  },
-  {
-    id: 'R-ANCBRACKUS-06',
-    title: 'Brackus × Ancient of Bonds: playing a card gives your other Tier 7 minions +1/+1 per tier of the played card',
-    statement:
-      "With the Ancient of Bonds, every card played from hand (a minion, a spell or a Ruby: one per real play, after the choice of a Choose One) gives Brackus's OTHER Tier 7 minions, on the board and in hand, +1/+1 for each tier of the played card, permanently. A Tier 7 played does not buff itself. Combat has no plays. The power prints the total so far.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-06 (Brackus Ancients)', quote: 'Bonds: Your Tier 7 cards gain +1/+1 per card tier when a card is played.' },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts playBuffsTier7PerTier / ancientOnCardPlayed; packages/sim/src/reducer.ts the play case's applyCardsPlayed" },
     ],
     currentBehaviour: 'Conforms (built 2026-10-06). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsBrackus.test.ts'], lastVerifiedAt: '2026-10-06' },
@@ -2004,20 +1865,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
-    id: "R-ANCCASSEN-05",
-    title: "Cassen × Ancient of Time: every commission pays out next turn",
-    statement:
-      "With the Ancient of Time, every commission's delay is 1 turn, whatever the job; a commission already running at the pick becomes due next turn. The picker and the printed rule show the live delay.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"Commissions all trigger next turn.\" The delay becomes 1." },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts commissionDelay / commissionDelayOf / commissionLineOf; packages/ui/src/StatusBar.tsx commission picker" },
-    ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
-  },
-  {
     id: "R-ANCCASSEN-06",
     title: "Cassen × Ancient of Bonds: a commission pays out twice",
     statement:
@@ -2030,21 +1877,6 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
-  },
-  {
-    id: "R-ANCDRAKKO-01",
-    title: "Drakko × Ancient of Death: your Drakkos become Undead and Beast (Drakko still adds Dragon / Spirit)",
-    statement:
-      "With the Ancient of Death, every Drakko (the `drummer` card) in the run is Undead and Beast, everywhere (Shop, hand, board, combat, snapshots), through the run-level type override. Drakko has no printed type, so these replace it rather than sit beside one. A Drakko still adds Dragon and Spirit on top.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Death: \"Your Drakkos become Undead/Beast.\" OWNER: REPLACE their types with Undead + Beast. Rune of Drakko, if bought, still adds Dragon/Spirit on top." },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts drakkoRetype / batch5OnPick; RunState.cardTribes" },
-    ],
-    contentIds: ["drummer"],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
     id: "R-ANCDRAKKO-02",
@@ -2084,34 +1916,6 @@ export const HEROES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"Drumline can be completed 3 times and costs 1 Shout less per reset.\" 5, then 4, then 3 Shout buys." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts drumlineRepeats / ancientDrumlineNeed / ancientDrumlineComplete; packages/sim/src/reducer.ts drakkoQuestBuy" },
-    ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
-  },
-  {
-    id: "R-ANCDRAKKO-05",
-    title: "Drakko × Ancient of Time: End of Turn triggers your left-most Shout minion",
-    statement:
-      "With the Ancient of Time, a recurring End-of-Turn entry (its own beat) re-fires the Shout of your left-most Shout minion through the shared Shout replay, so every Shout multiplier and tally hears it and a targeted Shout follows the replay's normal target rule (Echoing Roar's rule).",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn: trigger your left-most Shout minion.\"" },
-      { kind: 'code', ref: "packages/sim/src/recruit.ts runRecurringEndOfTurn (ancientDrakkoEotShout) / replayBattlecry" },
-    ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
-  },
-  {
-    id: "R-ANCDRAKKO-06",
-    title: "Drakko × Ancient of Bonds: every Shout fire gives your Drakkos +2/+2 permanently, Shop and combat",
-    statement:
-      "With the Ancient of Bonds, every Shout FIRE gives each of your board Drakkos +2/+2, permanently and in real time: in the Shop at the shared Shout-fire hook, in combat on the Shout-triggered bus (the gain carries home).",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Bonds: \"Your Drakkos gain +2/+2 when you trigger a Shout.\" Board Drakkos, permanent, cross-phase." },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnShopShout; packages/core/src/combat/simulate.ts ancientShoutBuffsCard" },
     ],
     currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-10-09' },
@@ -2650,34 +2454,6 @@ export const HEROES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Fortune: \"All copies of your setlist cards cost 1 gold.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts setlistPrice / ancientSetlistPrice / discoSetlist; reducer.ts offerBuyPrice" },
-    ],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
-  },
-  {
-    id: "R-ANCDISCO-03",
-    title: "Disco Dan × Ancient of War: your Setlist cards gain Ward and Flurry",
-    statement:
-      "With the Ancient of War, the moment it awakens every Setlist card you hold (hand and board) gains Ward and Flurry, permanently. Once.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "War: \"Give your Setlist cards Ward and Flurry\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts pickSetlistKeywords / batch6OnPick" },
-    ],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
-  },
-  {
-    id: "R-ANCDISCO-04",
-    title: "Disco Dan × Ancient of Genesis: Discover a Tier 7 minion locked until Shop tier 6",
-    statement:
-      "With the Ancient of Genesis, the moment it awakens you Discover a Tier 7 minion, locked in hand until Shop tier 6 (no lock if already there). It is not a Setlist card.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Genesis: \"Discover a T7 that unlocks at shop tier 6.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts pickDiscoverTier7Locked / batch6OnPick" },
     ],
     currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-10-27' },
@@ -3931,20 +3707,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
-    id: "R-ANCVALE-04",
-    title: "Emissary × Ancient of Genesis: every 5 spells cast gets a random Shop spell",
-    statement:
-      "With the Ancient of Genesis, every 5th spell cast (one running count since the pick, Shop and combat; every spell counts) gets a random Shop spell (your Shop tier or lower). In combat the spell flies to hand the moment the cast lands. A full hand gets none.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"Every 5 spells you cast, get a random Shop spell.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts spellsGrantShopSpell / batchBOnSpellCast; core simulate.ts (QuestCombatMods.ancientSpellCountGrant)" },
-    ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
-  },
-  {
     id: "R-ANCVALE-05",
     title: "Emissary × Ancient of Time: United Front fires at End of Turn, permanently",
     statement:
@@ -3973,20 +3735,6 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
-    id: "R-ANCEMERALD-01",
-    title: "Emerald Warden × Ancient of Death: Avenge (6) gets a random minion of your Tier",
-    statement:
-      "With the Ancient of Death, a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat gets a random minion of EXACTLY your Shop tier (Vanguard's pool). Shop deaths pay right then; in combat it flies to hand the moment the death lands. Rune of Fury fires the combat half again. A full hand gets none.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Death: \"Avenge (6): get a random minion of your Tier.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeTierMinion / batchBShopDeath / batchBCombatMods (ancientGorrAvenge)" },
-    ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
-  },
-  {
     id: "R-ANCEMERALD-02",
     title: "Emerald Warden × Ancient of Fortune: minions of your Tier cost 2 Gold",
     statement:
@@ -4010,20 +3758,6 @@ export const HEROES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "War: \"At tier 6, Vanguard can be activated for 1g to cast Waking Rift.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive / ancientSyncVanguard / ancientVanguardActivate; reducer.ts (the vanguard branch, the action boundary)" },
-    ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
-  },
-  {
-    id: "R-ANCEMERALD-04",
-    title: "Emerald Warden × Ancient of Genesis: at Tier 6 Vanguard Discovers a Tier 7 minion for 4 Gold",
-    statement:
-      "With the Ancient of Genesis, from Shop tier 6 Vanguard is also a button: untargeted, 4 Gold, once per turn, opening a Discover of Tier 7 minions. Below tier 6 it stays passive. A full hand refuses the press.",
-    domain: 'heroes',
-    status: 'approved',
-    evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch B: Kindness, Merrin, Emissary, Emerald Warden)", quote: "Genesis: \"At tier 6, Vanguard can be activated for 4g to discover a Tier 7 minion.\"" },
-      { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive (discoverTier7) / ancientVanguardActivate" },
     ],
     currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-10' },
@@ -4355,5 +4089,271 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "Conforms (built 2026-11-14). Dev-only (R-ANCDUOS-01). Known gap: a reload mid-turn drops that turn's actions on the reloading run, while a `linkGain` it already sent stays on the twin.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCindy.test.ts", "packages/core/src/combat/cindyAncients.test.ts", "packages/ui/src/cindyLinkedText.test.ts"], lastVerifiedAt: '2026-11-14' },
+  },
+  {
+    id: "R-ANCPASS1-01",
+    title: "Auctioneer × Ancient of Bonds: End of Turn triggers your two left-most Shout minions",
+    statement:
+      "With the Ancient of Bonds, Pulse is unchanged, and End of Turn (its own beat, named after the picked Ancient) re-fires the Shouts of your two left-most Shout minions, left to right, through `replayBattlecry` (every Shout multiplier and tally hears each). One Shout minion fires once; none, nothing. It replaces the old \"Shouts buff the minions next to them +4/+3\".",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Proposal: \"End of Turn: trigger your two left-most Shouts.\" Owner picked: Use this" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotTriggerLeftmostShout (count) / ancientEotShoutCount; packages/sim/src/recruit.ts the ancientDrakkoEotShout entry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCAUCT-06. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsAuctioneer.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-02",
+    title: "Ayse × Ancient of Bonds: Lucky Seat needs only 2 Enchanted cards",
+    statement:
+      "With the Ancient of Bonds, Lucky Seat pays its reward on the 2nd Enchanted card bought (any buy path, the spell slot included), then the cycle restarts. Every counter reads the one helper (`ancientLuckySeatNeed`): the payout, the completion check the other pairings hear, the armed glow (1 of 2), the panel tally (n/2) and the printed text (\"Buy 2 Enchanted cards\"). It replaces the old edge buff (+5/+6).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike voted Change, Kevin voted Neutral. Owner picked: \"Change: Lucky Seat only needs two Enchanted minions\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts luckySeatNeed / ancientLuckySeatNeed; packages/sim/src/reducer.ts ciaBuyEnchanted; packages/sim/src/powerArmed.ts; packages/ui/src/StatusBar.tsx" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCAYSE-06. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsAyse.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-03",
+    title: "Brackus × Ancient of Death: Avenge (3) gives every Tier 5 and Tier 6 minion +6/+6, in the warband, hand and Shop",
+    statement:
+      "With the Ancient of Death, a hero Avenge (3) on one running count of friendly deaths across the Shop and combat gives every Tier 5 and Tier 6 minion +6/+6, permanently: board, hand and Shop offers in the Shop; in combat the living Tier 5 / 6 bodies right then (carried home), and the hand and Shop at settle. Tier 7 minions no longer gain it.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Owner picked: \"Change: Tiers 5 and 6 instead of Tier 7\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeBuffTier7 (tiers) / brackusBuffTier7; packages/core/src/combat/simulate.ts ancientBrackusAvenge.tiers" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBrackus.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-04",
+    title: "Brackus × Ancient of War: Start of Combat summons a copy of your Tier 7 and also gives you a plain copy",
+    statement:
+      "With the Ancient of War, Start of Combat summons an exact copy of your left-most Tier 7 minion (as soon as there is room, as before) and also sends a plain copy of it to your hand right then (a live `toHand`; a full hand gets none).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Owner picked: \"Change: summon a copy, and get one too if you have room\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socCopyTier7 (toHand); packages/core/src/combat/simulate.ts ancientSummitCopy.toHand" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-03. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBrackus.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-05",
+    title: "Brackus × Ancient of Time: two turns after the pick, Start of Turn Discovers a Tier 7 minion, once",
+    statement:
+      "With the Ancient of Time, two turns after the pick (was three) the Start of Turn opens a Tier 7 Discover on its own beat, once. The power prints the countdown.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: fewer than 3 turns. Owner picked: Use the suggestion. Note: \"2 turns\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts discoverTier7InTurns / brackusStartOfTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-05. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBrackus.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-06",
+    title: "Brackus × Ancient of Bonds: your Tier 7 minions are all types and gain \"Rally: give a minion of each type +10/+10 permanently\"",
+    statement:
+      "With the Ancient of Bonds, every Tier 7 minion on your board and in your hand is all types (the `allTribes` instance mark; combat seeds `universalTribe`) and carries the Rally keyword plus a grafted Rally (Paragon's `onRallyBuffOnePerTribe`, self-only, `fixed`): each time it attacks, one minion of each type gains +10/+10 PERMANENTLY (combat `permaGain`; the Tier 7 itself collects as all types). A Gilded Tier 7 still gives +10/+10. Stamped at every action boundary (`ancientSyncPass1`), never stacked. It replaces the old play-a-card per-tier buff.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Proposal: \"Your Tier 7 becomes all types and gains 'Rally: give a minion of each type +10/+10 permanently.'\" Owner picked: Use this" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts tier7AllTypesRally / ancientSyncPass1; packages/core/src/effects/arena.ts onRallyBuffOnePerTribe (fixed)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRACKUS-06. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBrackus.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-07",
+    title: "Braum × Ancient of War: Start of Combat, your minions gain +8/+8 permanently for every Gilded minion played this game",
+    statement:
+      "With the Ancient of War, Start of Combat gives every friendly minion +8/+8 for every Gilded minion played this game (the count runs from the run start), and the grant is now PERMANENT: it rides home through `permaGain` (an Engraved body already keeps it), so it stacks fight after fight.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: make the buff permanent. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socBuffPerGildedPlayed (permanent); packages/core/src/combat/simulate.ts ancientSocBuffAll.permanent" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRAUM-03. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBraum.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-08",
+    title: "Braum × Ancient of Bonds: Start of Combat, your Neutral minions triple their stats",
+    statement:
+      "With the Ancient of Bonds, Start of Combat gives every living friendly minion with no type (Neutral; an All-types minion is not Neutral) twice its current Attack and Health, so it fights at triple, a combat buff (Engraved keeps it). It replaces the old \"play a Gilded minion: +8/+8\".",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Two ideas from Mike. Owner picked: \"A: Start of Combat, triple your Neutral minions' stats\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts socTripleNeutrals; packages/core/src/combat/simulate.ts ancientTripleNeutrals" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCBRAUM-06. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsBraum.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-09",
+    title: "Cassen × Ancient of Time: two commissions can be working at once",
+    statement:
+      "With the Ancient of Time, Commission can be used twice each turn and a second commission can run beside the first (`AncientsState.cassenSecond`), with the normal delays (it no longer makes every commission due next turn). Each pays on its own Start-of-Turn beat; when the first pays and the second is still working, the second moves into the first slot. A third is refused. The power prints both running commissions, or the open slot and the options.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Proposal: \"Choose two commissions to be live at once.\" Owner picked: Use this" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts twoCommissions / ancientCommissionSecond / ancientTakeDueSecondCommission; packages/sim/src/reducer.ts commission branch + turn open; packages/ui/src/StatusBar.tsx" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCCASSEN-05. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-10",
+    title: "Darah × Ancient of War: a hero Pummel (200) banks a charge of Swap, up to twice per combat",
+    statement:
+      "With the Ancient of War, the hero-level Pummel on the lifetime landed-hit tally pays a Swap charge at each multiple of 200 crossed, at most twice per fight (was 140, once). Each payout is a live flagged `questTrigger`, banked at settle.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: Pummel 200 and twice, instead of 140 and once. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pummelSwapCharge (perCombat); packages/core/src/combat/simulate.ts noteAncientPummel ancientPummelChargePaid" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDARAH-03. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-11",
+    title: "Darah × Ancient of Time: End of Turn casts Lasso",
+    statement:
+      "With the Ancient of Time, End of Turn (its own beat) casts Lasso through the real Shop cast pipeline, from the hero power: a random minion is stolen from the Shop into your hand (an empty Shop: nothing). It replaces the old plain copy of the swapped minion.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Proposal: \"Gain the Lasso card effect.\" Owner picked: Use this" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotCastSpell / ancientRunDarahEotCopy; packages/sim/src/recruit.ts the ancientDarahEotCopy entry" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDARAH-05. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDarah.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-12",
+    title: "Disco Dan × Ancient of War: your Setlist cards gain +20/+20",
+    statement:
+      "With the Ancient of War, the moment it awakens, the Setlist cards you hold (board and hand) gain +20/+20, permanently, once. It replaces Ward and Flurry.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike voted Change, Kevin voted Neutral. Owner picked: \"Change: Setlist cards gain +20/+20\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickSetlistStats / batch6OnPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDISCO-03. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-13",
+    title: "Disco Dan × Ancient of Genesis: Discover a Tier 7 minion that unlocks the turn after you reach Shop tier 6",
+    statement:
+      "With the Ancient of Genesis, the moment it awakens you Discover a Tier 7 minion. Below Shop tier 6 it is locked until Tier 6, and reaching Tier 6 turns that into a lock until the NEXT turn (`ancientSyncPass1` at the action boundary), so it is playable the turn after you reach Tier 6. Picked at Tier 6 already: no lock.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Kevin: it unlocks the turn after you reach Tier 6. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pickDiscoverTier7Locked (nextTurn) / ancientOnDiscoverTaken / ancientSyncPass1" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDISCO-04. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDiscoDan.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-14",
+    title: "Drakko × Ancient of Death: your Drakkos are all types",
+    statement:
+      "With the Ancient of Death, every Drakko on your board and in your hand is all types (the `allTribes` instance mark, stamped at every action boundary; combat seeds `universalTribe`). It replaces the old Undead / Beast retype.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike asked: should Drakkos become all types instead? Owner picked: All types" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts drakkoAllTypes / ancientSyncPass1" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDRAKKO-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-15",
+    title: "Drakko × Ancient of Time: End of Turn and Start of Combat trigger your left-most Shout minion",
+    statement:
+      "With the Ancient of Time, End of Turn re-fires the left-most Shout minion (Echoing Roar's rule), and now Start of Combat does too: the left-most living Shout minion fires through the shared combat Shout path (`ancientEdgeShouts` with `leftOnly`), before the first attack.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: also trigger at Start of Combat. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotTriggerLeftmostShout (alsoSoc); packages/core/src/combat/simulate.ts ancientEdgeShouts.leftOnly" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDRAKKO-05. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-16",
+    title: "Drakko × Ancient of Bonds: each Shout gives your Drakkos everywhere +X/+X; X starts at +1/+1 and improves +1/+1 every 3 Shouts",
+    statement:
+      "With the Ancient of Bonds, every Shout fire (a Drakko repeat is its own fire) gives your Drakkos on the board, in hand and in the Shop the live +X/+X, permanently, then counts it; every 3rd fire improves X by +1/+1 (one running count across phases). In combat the living Drakko bodies gain it right then (carried home) and settle pays the hand and Shop the same sequence from the fight's Shout fires. The power prints X and the Shouts to the next improve.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: \"and improve this\", starting at +1/+1. Owner note: \"they should buff drakkos in hand/shop as well, and add an 'improve this ever 3 shouts triggered.' start the buff at +1/+1 and it improves +1/+1.\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts shoutBuffsDrakkos (improveEvery) / drakkoBondsTick; packages/core/src/combat/simulate.ts ancientShoutBuffsCard" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCDRAKKO-06. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsDrakko.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-17",
+    title: "Emerald Warden × Ancient of Death: Avenge (6) gets a random minion of your Tier, once per turn",
+    statement:
+      "With the Ancient of Death, the hero Avenge (6) on one running count across the Shop and combat gets a random minion of your Shop tier, at most once per turn (the Shop and its combat): a later fire that turn pays nothing (the count still moves). A combat payout pulses a flagged `questTrigger` that settle reads to spend the turn. The power prints \"Used this turn.\"",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: once per turn. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeTierMinion (oncePerTurn) / batchBShopDeath / ewAvengeWave; packages/core/src/combat/simulate.ts ancientGorrAvenge.limit" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCEMERALD-01. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-18",
+    title: "Emerald Warden × Ancient of Genesis: at Tier 6 Vanguard Discovers a Tier 7 minion for 5 Gold",
+    statement:
+      "With the Ancient of Genesis, from Shop tier 6 Vanguard is also a button: 5 Gold (was 4), once per turn, opens a Tier 7 Discover.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Kevin: 5 Gold instead of 4. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts vanguardActive (discoverTier7, cost 5)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCEMERALD-04. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmeraldWarden.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS1-19",
+    title: "Emissary × Ancient of Genesis: every 5 spells cast gets a random Shop spell of Tier 3 or higher",
+    statement:
+      "With the Ancient of Genesis, every 5th spell cast (one running count since the pick, Shop and combat) gets a random Shop spell of Tier 3 or higher, up to your Shop tier; below Tier 3 it is a Tier 3 spell, so the grant is never empty. Combat pays it mid-fight from the same pool (`ancientSpellCountGrant.ids`).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Ancient pairing review, owner picks via the lead, 2026-11-16 (part 1)", quote: "Mike: the spell comes from Tier 3 or higher. Owner picked: Use the suggestion" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spellsGrantShopSpell (minTier) / vgSpellPool; packages/core/src/combat/simulate.ts ancientSpellCountGrant.ids" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-ANCVALE-04. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
 ];

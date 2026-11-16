@@ -2177,7 +2177,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): Start of Combat, trigger this side's left-most and right-most
    *  living minions with a Shout (once when they are the same minion), through the shared combat Shout path
    *  (`fireShout`), so every Shout watcher and tally hears them. Player-only; never snapshotted. */
-  ancientEdgeShouts?: { label: string };
+  ancientEdgeShouts?: { label: string; /** ANCIENT PASS 1 (owner 2026-11-16): only the LEFT-MOST Shout minion (Drakko × Time). */ leftOnly?: boolean };
   /** ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26): whenever one of this side's Shouts triggers
    *  (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then.
    *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
@@ -2228,7 +2228,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly
    *  Shout fire in combat gives every living `cardId` body +a/+h, PERMANENTLY (`permaGain` carries it home).
    *  Player-only; never snapshotted. */
-  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string };
+  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Drakko × Bonds improves: every `improveEvery`th fire (counting from `shouts` carried in) the gain grows by `step`. */ improveEvery?: number; step?: number; shouts?: number };
   /** ANCIENTS × Flash (owner 2026-10-09). `second` (Death): with First or Last armed, the 2nd enemy minion killed is also
    *  copied to hand, live. `pummel` (War): a hero Pummel (X) on the shared lifetime tally, once per combat, a copy of a
    *  random living enemy minion to hand. `soc` (Time): Start of Combat, a copy of a random enemy minion to hand.
@@ -2313,7 +2313,7 @@ export interface QuestCombatMods {
    *  on ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each
    *  fire sends a plain copy of a random one of `ids` (the minions bought LAST turn) to hand through `grantToHand`; none
    *  bought: nothing (the count still moves). Rune of Fury fires it again. Player-only; never snapshotted. */
-  ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string };
+  ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Emerald Warden × Death pays at most `limit` fires this fight, each pulsing a `questTrigger` of `flag`. */ limit?: number; flag?: string };
   /** ANCIENT OF WAR × Gorr (owner 2026-10-02): "pummel (200): get a copy of a minion in your warband." A HERO-level Pummel
    *  on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's share),
    *  but REPEATING: every multiple of `every` crossed sends a plain copy of a random LIVING friendly minion to hand
@@ -2328,7 +2328,11 @@ export interface QuestCombatMods {
   /** ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
    *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
    *  played mid-combat). Start of Combat: every living friendly minion gains it, a combat buff. Player-only. */
-  ancientSocBuffAll?: { attack: number; health: number; label: string; /** FLINT × WAR: only living minions of this type gain it (absent = every minion). */ tribe?: Tribe };
+  ancientSocBuffAll?: { attack: number; health: number; label: string; /** FLINT × WAR: only living minions of this type gain it (absent = every minion). */ tribe?: Tribe; /** ANCIENT PASS 1 (owner 2026-11-16): Braum × War keeps it (`permaGain`). */ permanent?: boolean };
+  /** ANCIENT OF BONDS × Braum (ancient pass 1, owner 2026-11-16): "Start of Combat, triple your Neutral minions' stats."
+   *  Every living friendly minion with no type (Neutral; an All-types body is not Neutral) gains twice its current Attack
+   *  and Health, a combat buff. Player-only; never snapshotted. */
+  ancientTripleNeutrals?: { label: string };
   /** ANCIENT OF WAR × Magician (Duos only, owner 2026-11-10): "Start of Combat: A minion that both you and your teammate
    *  control copies of gain each others stats." TAG-TEAM fights only (`CombatConfig.reserve`): at the opening Start of
    *  Combat of a side whose first board OR waiting reserve carries this, for every card both boards hold, the left-most
@@ -2340,8 +2344,9 @@ export interface QuestCombatMods {
    *  Pummel on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's
    *  share), with Albus' once-per-combat latch: the first crossing of a multiple of `every` in the fight emits ONE
    *  `questTrigger` with `flag` (the replay counts it live; settle banks it as a Swap charge). The tally comes home as
-   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
-  ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string };
+   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. `perCombat` (default 1) = how many crossings
+   *  may pay in one fight (Darah × War pays twice since ancient pass 1, owner 2026-11-16). */
+  ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string; perCombat?: number };
   /** ANCIENT OF DEATH × Nadja (owner 2026-10-06): "Goldspring becomes: Avenge (6): Gain 1 max gold." A hero Avenge on ONE
    *  running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire
    *  logs a `maxGold` event (+`gold`, the float) and a `questTrigger` with `flag`; the fires come home as
@@ -2359,12 +2364,12 @@ export interface QuestCombatMods {
    *  shape). Each fire gives the side's living Tier 7 bodies +a/+h as a PERMANENT gain (`permaGain`, the Indy War
    *  carry-back) and pulses a `questTrigger` of `flag`, which settle counts to pay the Tier 7 cards in hand and in the
    *  Shop. It pulses even with no Tier 7 on the board. Rune of Fury fires it again. Player-only; never snapshotted. */
-  ancientBrackusAvenge?: { every: number; tick: number; attack: number; health: number; flag: string; label: string };
+  ancientBrackusAvenge?: { every: number; tick: number; attack: number; health: number; flag: string; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): the tiers it buffs (default [7]). */ tiers?: number[] };
   /** ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
    *  minion." An exact copy of the left-most living Tier 7 (Xerox's `xeroxCopy`), right away when there is room, else
    *  queued and summoned the moment a slot opens (from its body then, or its Start-of-Combat body if it has died). No
    *  Tier 7: nothing. Player-only; never snapshotted. */
-  ancientSummitCopy?: { label: string };
+  ancientSummitCopy?: { label: string; /** ANCIENT PASS 1 (owner 2026-11-16): a plain copy also goes to hand (`grantToHand`). */ toHand?: boolean };
   /** EMISSARY × ANCIENTS (owner 2026-11-10), United Front reshaped. `reps` (War: "United Front triggers twice"): the Start
    *  of Combat grant fires that many times, each its own trigger. `all` (Bonds: "United Front hits all your minions"):
    *  every living friendly minion collects instead of one of each type. `avenge` (Death: "Avenge (4): Trigger United
@@ -2379,7 +2384,7 @@ export interface QuestCombatMods {
   /** EMISSARY × ANCIENT OF GENESIS (owner 2026-11-10): "Every 5 spells you cast, get a random Shop spell." The running
    *  count since the pick rides in as `tick`; each combat cast that lands on a multiple of `every` sends a random Shop
    *  spell to hand right then (`grantRandomSpell`). Settle adds the fight's casts to the run's count. Player-only. */
-  ancientSpellCountGrant?: { every: number; tick: number; label: string };
+  ancientSpellCountGrant?: { every: number; tick: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): the grant is drawn from these ids (Emissary: Tier 3+). */ ids?: string[] };
   // ── THE 2026-11-10 BATCH C (Underdweller, Gorun, Mimic; owner pairings 2026-11-10). Read per side off `modsFor`. ──
   /** ANCIENT OF WAR × Underdweller: record every minion that dies in this fight, BOTH sides, with the Attack, max Health
    *  and keywords it died with (a Rise / Rebirth first death is skipped: that body came back). Comes home as

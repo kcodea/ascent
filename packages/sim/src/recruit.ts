@@ -12,6 +12,7 @@ import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; //
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
+import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } from './ancients'; // ancient pass 1
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
@@ -1409,7 +1410,8 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
   }
   if (power.kind === 'luckySeat') {
     const suit = state.ciaSuit ?? 'hearts';
-    return `Buy **3** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;
+    // Ayse × Ancient of Bonds (ancient pass 1): 2 instead of 3.
+    return `Buy **${ancientLuckySeatNeed(state)}** Enchanted cards for a reward. ${CIA_SUIT_TEXT[suit]}`;
   }
   if (power.kind === 'grantWard') {
     const g = aegisGrantOf(state);
@@ -1468,8 +1470,14 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
     // options actually on offer (never the one taken last).
     // Each line prints its LIVE delay (Cassen × Ancient of Time: next turn).
     const live = state.commission;
+    // Cassen × Ancient of Time (ancient pass 1): a second slot. Both running print both; one running with the second
+    // slot open prints it and the options.
+    const second = ancientCommissionSecond(state);
+    const working = (c: { kind: CommissionKind; dueWave: number }) => `${COMMISSION_REWARD[c.kind]} (due turn ${c.dueWave})`;
+    if (live && second.open) return `Working: ${working(live)}. Choose another: ${commissionOffer(state).map((k) => commissionLineOf(state, k)).join(' · ')}`;
+    if (live && second.running) return `Working: ${working(live)} and ${working(second.running)}.`;
     // The running one prints its reward and its live due turn (Cassen × Ancient of Death moves it), never a stale delay.
-    if (live) return `Working: ${COMMISSION_REWARD[live.kind]} (due turn ${live.dueWave}).`;
+    if (live) return `Working: ${working(live)}.`;
     return `Choose one: ${commissionOffer(state).map((k) => commissionLineOf(state, k)).join(' · ')}`;
   }
   return power.text;
@@ -15614,7 +15622,8 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientGorrEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientAyseTime') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientDarahEotCopy') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
-    if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    // Drakko × Time, and (ancient pass 1) the Auctioneer × Bonds: the beat names the Ancient actually picked.
+    if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS[state.ancients?.picked ?? 'time']?.name ?? ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRayseEotRise') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientBatchBEot') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
@@ -16275,9 +16284,10 @@ function runRecurringEndOfTurn(
     ancientRunDarahEotCopy(state);
   } else if (effect === 'ancientDrakkoEotShout') {
     // DRAKKO × TIME: Echoing Roar's rule exactly: the left-most Shout minion's Shout re-fires (`replayBattlecry`, so every
-    // Shout multiplier and tally hears it; a targeted Shout follows the replay's normal target rule).
-    const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (leftmost) replayBattlecry(state, leftmost);
+    // Shout multiplier and tally hears it; a targeted Shout follows the replay's normal target rule). AUCTIONEER × BONDS
+    // (ancient pass 1): the TWO left-most Shout minions, left to right, read once up front.
+    const shouters = state.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); }).slice(0, ancientEotShoutCount(state));
+    for (const c of shouters) if (state.board.includes(c)) replayBattlecry(state, c);
   } else if (effect === 'ancientRayseEotRise') {
     ancientRunRayseEotRise(state, step);
   } else if (effect === 'ancientBatchBEot') {

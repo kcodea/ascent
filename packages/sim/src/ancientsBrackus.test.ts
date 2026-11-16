@@ -9,7 +9,7 @@ import {
   ANCIENT_IDS, ANCIENT_SUMMIT_AVENGE_FLAG, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
-import { destroyMinionInShop, handCardLocked, makeContext } from './recruit';
+import { destroyMinionInShop, handCardLocked, isTribe, makeContext } from './recruit';
 
 const BASE = 'At the start of the game, **Discover** a **Tier 7** minion. It is locked until you spend **70 Gold**.';
 const plain = (c: (typeof CARD_INDEX)[string]) => !!c && !c.spell && !c.ruby && !c.token && c.effects.length === 0 && c.keywords.length === 0 && !c.universalTribe;
@@ -17,6 +17,9 @@ const NEUTRALS = Object.values(CARD_INDEX).filter((c) => plain(c) && c.tribe ===
 const N = (i: number) => NEUTRALS[i % NEUTRALS.length]!;
 const T7 = 'uron'; // a plain 7/7 Tier 7
 const T7B = 'zyff'; // a plain 6/6 Tier 7
+const T5 = 'drummer'; // a plain Tier 5 (Drakko: a text-only rule card, inert here)
+/** A Tier 6 minion with no effects (its keywords do not matter to these tests). */
+const T6 = Object.values(CARD_INDEX).find((c) => !!c && c.tier === 6 && !c.spell && !c.ruby && !c.token && c.effects.length === 0 && !c.universalTribe)!.id;
 
 const card = (uid: string, cardId: string, extra: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -65,50 +68,46 @@ describe('Brackus × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Brackus × DEATH: "Avenge (3) Give all Tier 7 minions +6/+6." (works in hand / Shop)', () => {
-  it('Shop: the 3rd friendly death gives every Tier 7 on the board, in hand AND in the Shop +6/+6; others get nothing', () => {
+describe('Brackus × DEATH (ancient pass 1, owner 2026-11-16): "Avenge (3): give all Tier 5 and Tier 6 minions +6/+6" (hand / Shop too)', () => {
+  it('Shop: the 3rd friendly death gives every Tier 5 and Tier 6 on the board, in hand AND in the Shop +6/+6; Tier 7 and others get nothing', () => {
     let s = picked('death', {
-      board: [card('a', T7), card('p', N(1)), card('d1', N(2)), card('d2', N(2)), card('d3', N(2))],
-      hand: [card('h', T7B)],
-      shop: [offer('o7', T7), offer('o1', N(3))],
+      board: [card('a', T5, { attack: 1, health: 7 }), card('z', T7B), card('p', 'n2_spellsword'), card('d1', N(2)), card('d2', N(2)), card('d3', N(2))],
+      hand: [card('h', T6)],
+      shop: [offer('o6', T6), offer('o7', T7), offer('o1', N(3))],
     });
     s = structuredClone(s);
     destroyMinionInShop(makeContext(s), at(s, 'd1'));
     destroyMinionInShop(makeContext(s), at(s, 'd2'));
     expect(s.ancients!.brackusDeaths).toBe(2);
-    expect(at(s, 'a').attack).toBe(7);
-    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (3):** give all Tier 7 minions **+6/+6**, in your warband, your hand and the Shop (**1** more to go).`);
+    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (3):** give all Tier 5 and Tier 6 minions **+6/+6**, in your warband, your hand and the Shop (**1** more to go).`);
     expect(ancientAvengeCountdown(s)).toBe(1);
     destroyMinionInShop(makeContext(s), at(s, 'd3'));
     expect(s.ancients!.brackusDeaths).toBe(0);
-    expect(at(s, 'a')).toMatchObject({ attack: 13, health: 13 });
-    expect(inHand(s, 'h')).toMatchObject({ attack: 12, health: 12 });
-    expect(s.shop.find((o) => o.uid === 'o7')).toMatchObject({ atk: 6, hp: 6 });
+    expect(at(s, 'a')).toMatchObject({ attack: 7, health: 13 });
+    expect(inHand(s, 'h')).toMatchObject({ attack: CARD_INDEX[T6]!.attack + 6, health: CARD_INDEX[T6]!.health + 6 });
+    expect(s.shop.find((o) => o.uid === 'o6')).toMatchObject({ atk: 6, hp: 6 });
+    expect(s.shop.find((o) => o.uid === 'o7')!.atk ?? 0, 'Tier 7 no longer').toBe(0);
+    expect(at(s, 'z').attack, 'Tier 7 no longer').toBe(6);
     expect(s.shop.find((o) => o.uid === 'o1')!.atk ?? 0).toBe(0);
-    expect(at(s, 'p').attack).toBe(CARD_INDEX[N(1)]!.attack);
+    expect(at(s, 'p').attack, 'a Tier 2 gets nothing').toBe(CARD_INDEX['n2_spellsword']!.attack);
   });
-  it('combat: the carried count fires MID-FIGHT (a live buff on the Tier 7 body that carries home) and settle pays the hand', () => {
+  it('combat: the carried count fires MID-FIGHT on the living Tier 5 / 6 bodies (carried home), Tier 7 untouched; settle pays the hand', () => {
     let s = picked('death', {
       wave: 3,
-      board: [card('a', T7, { health: 500 }), card('f1', N(2), { attack: 1, health: 1 }), card('f2', N(2), { attack: 1, health: 1 })],
-      hand: [card('h', T7B)],
+      board: [card('a', T5, { attack: 1, health: 500 }), card('z', T7B, { health: 500 }), card('f1', N(2), { attack: 1, health: 1 }), card('f2', N(2), { attack: 1, health: 1 })],
+      hand: [card('h', T6)],
     });
     s = { ...s, ancients: { ...s.ancients!, brackusDeaths: 2 } };
-    expect(ancientCombatMods(s).ancientBrackusAvenge).toEqual({ every: 3, tick: 2, attack: 6, health: 6, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: 'Ancient of Death' });
-    expect(heroPowerText(s, 0, { friendlyDeaths: 0 })).toContain('(**1** more to go)');
-    expect(heroPowerText(s, 0, { friendlyDeaths: 1 })).toContain('(**3** more to go)');
+    expect(ancientCombatMods(s).ancientBrackusAvenge).toEqual({ every: 3, tick: 2, attack: 6, health: 6, flag: ANCIENT_SUMMIT_AVENGE_FLAG, label: 'Ancient of Death', tiers: [5, 6] });
     s = fightNow(s, 2, 60);
     const ev = events(s);
     const pulses = ev.filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SUMMIT_AVENGE_FLAG);
     expect(pulses.length).toBeGreaterThanOrEqual(1);
-    const firstDeath = ev.findIndex((e) => e.type === 'death' && e.side === 'player');
-    expect(ev.indexOf(pulses[0]!)).toBeGreaterThan(firstDeath);
     const fires = pulses.length;
-    const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.ancients!.brackusDeaths).toBe((2 + deaths) % 3);
-    expect(at(s, 'a').attack).toBe(7 + 6 * fires);
-    expect(inHand(s, 'h')).toMatchObject({ attack: 6 + 6 * fires, health: 6 + 6 * fires });
+    expect(at(s, 'a').attack).toBe(1 + 6 * fires);
+    expect(at(s, 'z').attack).toBe(6);
+    expect(inHand(s, 'h')).toMatchObject({ attack: CARD_INDEX[T6]!.attack + 6 * fires, health: CARD_INDEX[T6]!.health + 6 * fires });
   });
 });
 
@@ -133,12 +132,12 @@ describe('Brackus × FORTUNE: "When you spend 50g, Discover a Tier 7 minion."', 
   });
 });
 
-describe('Brackus × WAR: "Start of Combat: When you have space, summon a copy of your Tier 7 minion."', () => {
+describe('Brackus × WAR (ancient pass 1, owner 2026-11-16): "summon a copy, and get one too if you have room"', () => {
   const summons = (s: RunState) => events(s).filter((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player' && e.minion.cardId === T7);
   it('room: an exact copy of the left-most Tier 7 lands at Start of Combat', () => {
     const s = picked('war', { wave: 3, board: [card('p', N(1)), card('a', T7, { attack: 20, health: 30 }), card('b', T7B)] });
-    expect(ancientCombatMods(s).ancientSummitCopy).toEqual({ label: 'Ancient of War' });
-    expect(heroPowerText(s)).toBe(`${BASE} **Start of Combat:** summon a copy of your left-most Tier 7 minion as soon as you have room. Copies **${CARD_INDEX[T7]!.name}**.`);
+    expect(ancientCombatMods(s).ancientSummitCopy).toEqual({ label: 'Ancient of War', toHand: true });
+    expect(heroPowerText(s)).toBe(`${BASE} **Start of Combat:** summon a copy of your left-most Tier 7 minion as soon as you have room. Also get a plain copy of it if your hand has room. Copies **${CARD_INDEX[T7]!.name}**.`);
     const t = fightNow(s, 1, 1000);
     const sm = summons(t);
     expect(sm.length).toBe(1);
@@ -146,6 +145,17 @@ describe('Brackus × WAR: "Start of Combat: When you have space, summon a copy o
     expect(events(t).filter((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === T7B).length).toBe(0);
     const firstAttack = events(t).findIndex((e) => e.type === 'attack');
     expect(events(t).indexOf(sm[0]!)).toBeLessThan(firstAttack);
+    // …and a plain copy flies to hand at Start of Combat, live, landing at settle.
+    const toHand = events(t).findIndex((e) => e.type === 'toHand' && e.side === 'player' && e.cardId === T7);
+    expect(toHand).toBeGreaterThanOrEqual(0);
+    expect(toHand).toBeLessThan(firstAttack);
+    const after = reduce(t, { type: 'resolveCombat' });
+    expect(after.hand.filter((c) => c.cardId === T7).map((c) => [c.attack, c.health]), 'plain').toEqual([[7, 7]]);
+  });
+  it('a full hand gets no copy (the summon still happens)', () => {
+    const full = Array.from({ length: 10 }, (_, i) => card(`h${i}`, N(i)));
+    const t = reduce(fightNow(picked('war', { wave: 3, board: [card('a', T7)], hand: full }), 1, 1000), { type: 'resolveCombat' });
+    expect(t.hand.filter((c) => c.cardId === T7).length).toBe(0);
   });
   it('full board: the copy waits and lands the moment a slot opens', () => {
     const fodder = [1, 2, 3, 4, 5, 6].map((i) => card(`f${i}`, N(2), { attack: 1, health: 1 }));
@@ -200,25 +210,22 @@ describe('Brackus × GENESIS: "Add 40 gold to Summit. When it triggers, it grant
   });
 });
 
-describe('Brackus × TIME: "Discover a Tier 7 minion in 3 turns."', () => {
+describe('Brackus × TIME (ancient pass 1, owner 2026-11-16): "Discover a Tier 7 minion in 2 turns."', () => {
   /** Tier 7 Discovers open or queued right now. */
   const t7Queued = (s: RunState): number =>
     (tier7Ids(s).length > 0 && tier7Ids(s).every((t) => t === 7) ? 1 : 0)
     + (s.discoverQueue ?? []).filter((q) => q.kind === 'minion' && q.exactTier === 7).length;
   const nextTurn = (s: RunState): RunState => reduce(fightNow({ ...s, discover: undefined, discoverQueue: undefined }, 0, 1), { type: 'resolveCombat' });
-  it('three turns after the pick, Start of Turn opens a Tier 7 Discover, once; the countdown is printed live', () => {
+  it('two turns after the pick, Start of Turn opens a Tier 7 Discover, once; the countdown is printed live', () => {
     let s = picked('time', { wave: 3 });
-    expect(s.ancients!.brackusTimeWave).toBe(6);
-    expect(heroPowerText(s)).toBe(`${BASE} **Discover** a **Tier 7** minion in **3** turns (**3** turns to go).`);
+    expect(s.ancients!.brackusTimeWave).toBe(5);
+    expect(heroPowerText(s)).toBe(`${BASE} **Discover** a **Tier 7** minion in **2** turns (**2** turns to go).`);
     s = nextTurn(s);
     expect(s.wave).toBe(4);
-    expect(heroPowerText(s)).toContain('(**2** turns to go)');
-    s = nextTurn(s);
     expect(heroPowerText(s)).toContain('(**next turn**)');
     expect(t7Queued(s)).toBe(0);
     s = nextTurn(s);
-    expect(s.wave).toBe(6);
-    // The Start-of-Turn beat queues it (the Shop opens it once the beats have played, like Albus × Time).
+    expect(s.wave).toBe(5);
     expect(t7Queued(s)).toBe(1);
     expect(heroPowerText(s)).toContain('(done)');
     s = nextTurn(s);
@@ -227,28 +234,53 @@ describe('Brackus × TIME: "Discover a Tier 7 minion in 3 turns."', () => {
   });
 });
 
-describe('Brackus × BONDS: "Your Tier 7 cards gain +1/+1 per card tier when a card is played."', () => {
-  it('playing a card gives your OTHER Tier 7 minions (board and hand) +1/+1 per tier of the played card', () => {
-    const low = N(0);
-    const t = CARD_INDEX[low]!.tier;
-    let s = picked('bonds', { wave: 3, board: [card('a', T7)], hand: [card('p', low), card('h', T7B), card('q', N(1))] });
-    expect(heroPowerText(s)).toBe(`${BASE} Whenever you play a card, your Tier 7 minions gain **+1/+1** for each tier of that card (**+0/+0** so far).`);
-    s = reduce(s, { type: 'play', uid: 'p' });
-    expect(at(s, 'a')).toMatchObject({ attack: 7 + t, health: 7 + t });
-    expect(inHand(s, 'h')).toMatchObject({ attack: 6 + t, health: 6 + t });
-    expect(at(s, 'p').attack).toBe(CARD_INDEX[low]!.attack);
-    expect(heroPowerText(s)).toContain(`(**+${t}/+${t}** so far)`);
-    // Playing the Tier 7 itself: the other Tier 7 gains +7/+7, the played one does not buff itself.
+describe('Brackus × BONDS (ancient pass 1, owner 2026-11-16): "Your Tier 7 becomes all types and gains Rally: give a minion of each type +10/+10 permanently."', () => {
+  const RALLY = 'onRallyBuffOnePerTribe';
+  it('every Tier 7 on the board and in hand is all types and carries the Rally (once, never stacked); other tiers do not', () => {
+    let s = picked('bonds', { wave: 3, board: [card('a', T7), card('p', N(1))], hand: [card('h', T7B)] });
+    expect(heroPowerText(s)).toBe(`${BASE} Your Tier 7 minions are all types and have "**Rally:** give a minion of each type **+10/+10** permanently."`);
+    for (const c of [at(s, 'a'), inHand(s, 'h')]) {
+      expect(c.allTribes).toBe(true);
+      expect(isTribe(c, 'beast') && isTribe(c, 'dragon')).toBe(true);
+      expect(c.keywords).toContain('RL');
+      expect(c.grantedEffects?.filter((e) => e.do === RALLY)).toHaveLength(1);
+    }
+    expect(at(s, 'p').allTribes).toBeUndefined();
+    expect(at(s, 'p').grantedEffects).toBeUndefined();
+    // A new Tier 7 arriving later is stamped at the next action boundary; a second action never stacks it.
+    s = reduce({ ...s, shop: [offer('o', T7B, 1)] }, { type: 'buy', uid: 'o' });
     s = reduce(s, { type: 'play', uid: 'h' });
-    expect(at(s, 'a')).toMatchObject({ attack: 14 + t, health: 14 + t });
-    expect(at(s, 'h')).toMatchObject({ attack: 6 + t, health: 6 + t });
+    for (const c of [...s.board, ...s.hand].filter((c) => CARD_INDEX[c.cardId]!.tier === 7)) {
+      expect(c.allTribes).toBe(true);
+      expect(c.grantedEffects?.filter((e) => e.do === RALLY)).toHaveLength(1);
+    }
   });
-  it('a spell played counts by its own tier', () => {
-    const spell = Object.values(CARD_INDEX).find((c) => !!c && c.id === 'emberpouch')!;
-    let s = picked('bonds', { wave: 3, board: [card('a', T7)], hand: [{ uid: 'sp', cardId: spell.id, tribe: spell.tribe, attack: 0, health: 0, keywords: [], golden: false }] });
-    s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false);
-    expect(at(s, 'a').attack).toBe(7 + spell.tier);
+  /** The Rally's buffs in the fight, per target combat uid (Uron's own rule repeats every Rally, so count the fires). */
+  const rallyBuffs = (s: RunState, target: string) => events(s).filter((e): e is Extract<CombatEvent, { type: 'buff' }> =>
+    e.type === 'buff' && e.target === target && (e as { key?: string }).key === `factory:${RALLY}:onAttack`);
+  it('COMBAT: each time the Tier 7 attacks, one minion of each type gains +10/+10 (the Tier 7 itself collects as all types), PERMANENTLY', () => {
+    let s = picked('bonds', { wave: 3, board: [card('a', T7, { health: 900 }), card('w', 'whelpling', { attack: 0, health: 900 })] });
+    s = fightNow(s, 1, 3000);
+    const [aUid, wUid] = [s.lastCombat!.initial.player[0]!.uid, s.lastCombat!.initial.player[1]!.uid];
+    const toW = rallyBuffs(s, wUid);
+    expect(toW.length).toBeGreaterThanOrEqual(2);
+    expect(toW.every((e) => e.attack === 10 && e.health === 10)).toBe(true);
+    const toA = rallyBuffs(s, aUid).length;
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(at(s, 'w')).toMatchObject({ attack: 10 * toW.length, health: 900 + 10 * toW.length });
+    expect(at(s, 'a').attack).toBe(7 + 10 * toA);
+  });
+  it('a Gilded Tier 7 still gives +10/+10 per Rally (a hero grant is never doubled)', () => {
+    let s = picked('bonds', { wave: 3, board: [card('a', T7, { health: 900, golden: true }), card('w', 'whelpling', { attack: 0, health: 900 })] });
+    s = fightNow(s, 1, 3000);
+    const toW = rallyBuffs(s, s.lastCombat!.initial.player[1]!.uid);
+    expect(toW.length).toBeGreaterThanOrEqual(1);
+    expect(toW.every((e) => e.attack === 10 && e.health === 10)).toBe(true);
+  });
+  it('another pairing: no types, no Rally', () => {
+    const s = picked('death', { wave: 3, board: [card('a', T7)] });
+    expect(at(s, 'a').allTribes).toBeUndefined();
+    expect(at(s, 'a').grantedEffects).toBeUndefined();
   });
 });
 

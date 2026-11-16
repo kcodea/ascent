@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
-  ANCIENT_IDS, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
+  ANCIENT_IDS, ancientLuckySeatNeed, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, heroPowerArmed, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 
@@ -220,26 +220,34 @@ describe('Ayse × TIME: "End of Turn: Give your minions +3/+3 for every Enchante
   });
 });
 
-describe('Ayse × BONDS: "Triggering Lucky Seat grants your left and right-most minions +5/+6."', () => {
-  it('the 3rd Enchanted buy gives the left-most and right-most minions +5/+6; the middle gets nothing', () => {
-    let s = picked('bonds', { board: [card('a', N(3)), card('b', N(4)), card('c', N(5))] });
-    expect(heroPowerText(s)).toBe(`${BASE_HEAD} Whenever it triggers, give your left and right-most minions **+5/+6**.`);
-    s = buy(buy(s, N(0)), N(1));
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(3)]!.attack);
-    s = buySlot(s, CHEAP);
-    expect(at(s, 'a')).toMatchObject({ attack: CARD_INDEX[N(3)]!.attack + 5, health: CARD_INDEX[N(3)]!.health + 6 });
-    expect(at(s, 'b').attack).toBe(CARD_INDEX[N(4)]!.attack);
-    expect(at(s, 'c')).toMatchObject({ attack: CARD_INDEX[N(5)]!.attack + 5, health: CARD_INDEX[N(5)]!.health + 6 });
-  });
-  it('one minion gets it once; Rune of Wishbone fires it twice; an empty board gets nothing', () => {
-    let s = picked('bonds', { board: [card('a', N(3))], ciaEnchantedBought: 2 });
+describe('Ayse × BONDS (ancient pass 1, owner 2026-11-16): "Lucky Seat only needs two Enchanted minions"', () => {
+  it('the 2nd Enchanted buy pays the prize and the cycle restarts; the text, the tally and the armed glow all read 2', () => {
+    let s = picked('bonds', { board: [card('a', N(3))] });
+    expect(heroPowerText(s)).toBe('Buy **2** Enchanted cards for a reward. **Clubs:** gain **3 Gold**.');
+    expect(ancientLuckySeatNeed(s)).toBe(2);
+    const e0 = s.embers;
     s = buy(s, N(0));
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(3)]!.attack + 5);
-    let w = picked('bonds', { board: [card('a', N(3))], ciaEnchantedBought: 2, runeWishbone: true });
-    w = buy(w, N(0));
-    expect(at(w, 'a').attack).toBe(CARD_INDEX[N(3)]!.attack + 10);
-    const e = buy(picked('bonds', { board: [], ciaEnchantedBought: 2 }), N(0));
-    expect(e.board).toEqual([]);
+    const paid = e0 - s.embers;
+    expect(s.ciaEnchantedBought).toBe(1);
+    expect(heroPowerArmed(s, 0), 'one buy away: armed').toBe(true);
+    const e1 = s.embers;
+    s = buy(s, N(1));
+    expect(s.ciaEnchantedBought, 'paid and reset on the 2nd').toBe(0);
+    expect(s.embers, 'Clubs paid +3 Gold').toBe(e1 - paid + 3);
+    expect(at(s, 'a').attack, 'the old edge buff is gone').toBe(CARD_INDEX[N(3)]!.attack);
+  });
+  it('a non-Enchanted buy never counts, and the 2nd ENCHANTED buy is the one that pays', () => {
+    let s = buy(picked('bonds'), N(0));
+    s = buy(s, N(1), false);
+    expect(s.ciaEnchantedBought).toBe(1);
+    s = buySlot(s, CHEAP);
+    expect(s.ciaEnchantedBought).toBe(0);
+  });
+  it('another pairing keeps the native 3', () => {
+    const s = buy(buy(picked('fortune'), N(0)), N(1));
+    expect(s.ciaEnchantedBought).toBe(2);
+    expect(ancientLuckySeatNeed(s)).toBe(3);
+    expect(heroPowerText(s)).toContain('Buy **3** Enchanted cards');
   });
 });
 

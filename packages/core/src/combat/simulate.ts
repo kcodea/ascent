@@ -555,14 +555,26 @@ export function simulate(
   // ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly Shout
   // FIRE (a Drakko repeat is its own fire) gives every living Drakko body +a/+h, permanently (`permaGain`, the Indy War
   // carry-back; an Engraved body already keeps its gains).
+  // Ancient pass 1 (owner 2026-11-16): with `improveEvery` the gain starts at the carried +a/+h and grows by `step` every
+  // `improveEvery`th fire (the count carried in as `shouts`); the hand and Shop Drakkos are paid at settle from the
+  // fight's `shoutFires` on the same sequence.
+  const drakkoBonds: Record<Side, { a: number; h: number; n: number }> = sideReset(() => ({
+    player: { a: modsFor('player').ancientShoutBuffsCard?.attack ?? 0, h: modsFor('player').ancientShoutBuffsCard?.health ?? 0, n: modsFor('player').ancientShoutBuffsCard?.shouts ?? 0 },
+    enemy: { a: modsFor('enemy').ancientShoutBuffsCard?.attack ?? 0, h: modsFor('enemy').ancientShoutBuffsCard?.health ?? 0, n: modsFor('enemy').ancientShoutBuffsCard?.shouts ?? 0 },
+  }));
   bus.on('battlecryTriggered', (payload) => {
     const { side } = payload as { side: Side };
     const sb = modsFor(side).ancientShoutBuffsCard;
     if (!sb) return;
+    const cur = drakkoBonds[side];
     for (const m of boards[side]) {
       if (m.dead || m.health <= 0 || m.cardId !== sb.cardId) continue;
-      const keptBy = ctx.buff(m, sb.attack, sb.health, sb.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
-      if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + sb.attack, health: (m.permaGain?.health ?? 0) + sb.health };
+      const keptBy = ctx.buff(m, cur.a, cur.h, sb.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
+      if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + cur.a, health: (m.permaGain?.health ?? 0) + cur.h };
+    }
+    if (sb.improveEvery && sb.improveEvery > 0) {
+      cur.n += 1;
+      if (cur.n % sb.improveEvery === 0) { cur.a += sb.step ?? 0; cur.h += sb.step ?? 0; }
     }
   });
   // PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04: "When you trigger a Shout, give your teammate's left-most
@@ -901,6 +913,8 @@ export function simulate(
     enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
   }));
   const ancientPummelPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** `ancientPummelCharge`'s own payout count this fight (its cap is `perCombat`, default 1). */
+  const ancientPummelChargePaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** WARM-UP (Set 2 batch): the side-wide Pummel (150) tally (seeded LIFETIME from the run) and its once-per-combat latch. */
   const warmUpDealt: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeWarmUpDealt ?? 0, enemy: modsFor('enemy').runeWarmUpDealt ?? 0 }));
   const warmUpPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
@@ -2310,7 +2324,9 @@ export function simulate(
       const scg = modsFor(side).ancientSpellCountGrant;
       if (scg && (scg.tick + combatSpells[side]) % Math.max(1, scg.every) === 0) {
         nextStep();
-        ctx.grantRandomSpell(1, side, undefined);
+        // Ancient pass 1: a Tier 3+ pool rides in as `ids` (an empty pool grants nothing).
+        if (scg.ids) { if (scg.ids.length > 0) ctx.grantToHand(scg.ids[grantRngFor(side).int(scg.ids.length)]!, side, undefined); }
+        else ctx.grantRandomSpell(1, side, undefined);
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -3824,9 +3840,15 @@ export function simulate(
     }
     // ANCIENT OF WAR × Darah: "Pummel (140): Get a charge of Swap. (Once per combat.)" Albus' latch exactly: the first
     // crossing this fight pays ONE charge (a flagged `questTrigger`, live; settle banks it), later crossings are spent.
-    if (pch && !ancientPummelPaid[side] && Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every)) > 0) {
-      ancientPummelPaid[side] = true;
-      fireTrigger(pch.flag, side);
+    // Ancient pass 1 (owner 2026-11-16): `perCombat` lifts the cap (Darah pays on up to 2 crossings per fight).
+    if (pch && !ancientPummelPaid[side]) {
+      const crossed = Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every));
+      const pay = Math.min(crossed, Math.max(1, pch.perCombat ?? 1) - ancientPummelChargePaid[side]);
+      for (let i = 0; i < pay; i++) {
+        ancientPummelChargePaid[side]++;
+        fireTrigger(pch.flag, side);
+      }
+      if (ancientPummelChargePaid[side] >= Math.max(1, pch.perCombat ?? 1)) ancientPummelPaid[side] = true;
     }
     // ANCIENT OF WAR × Flash (owner 2026-10-09): "Pummel (400): get a copy of a random enemy minion (once per combat)."
     // Albus' latch: the first crossing this fight pays one copy of a random LIVING enemy body, live (Bonds: exact).
@@ -5870,7 +5892,23 @@ export function simulate(
         const band = boards[scSide].filter((m) => !m.dead && m.health > 0 && (!socAll.tribe || isTribeOf(m, socAll.tribe, cards)));
         if (band.length > 0) {
           nextStep();
-          for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+          for (const m of band) {
+            const kept = ctx.buff(m, socAll.attack, socAll.health, socAll.label).kept;
+            // BRAUM × WAR (ancient pass 1): a permanent grant rides home (`permaGain`; an Engraved body already kept it).
+            if (socAll.permanent && !kept) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + socAll.attack, health: (m.permaGain?.health ?? 0) + socAll.health };
+          }
+        }
+      }
+      // ANCIENT OF BONDS × Braum (ancient pass 1, owner 2026-11-16): "Start of Combat, triple your Neutral minions' stats."
+      // Every living friendly minion with no type gains twice its current Attack and Health (so it ends at triple), a
+      // combat buff. An All-types body is every type, so it is not Neutral.
+      if (smods.ancientTripleNeutrals) {
+        const band = boards[scSide].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'neutral', cards) && !m.tribe2 && !m.universalTribe && !cards[m.cardId]?.universalTribe);
+        if (band.length > 0) {
+          nextStep();
+          emit({ type: 'sc', source: band[0]!.uid, text: `${smods.ancientTripleNeutrals.label}: Neutral minions triple their stats`, side: scSide, heroPower: true });
+          const before = band.map((m) => ({ m, a: Math.max(0, m.attack), h: Math.max(0, m.health) }));
+          for (const { m, a, h } of before) if (a > 0 || h > 0) ctx.buff(m, a * 2, h * 2, smods.ancientTripleNeutrals.label);
         }
       }
       // ANCIENT OF WAR × Magician (Duos only, owner 2026-11-10): "Start of Combat: A minion that both you and your
@@ -5964,6 +6002,8 @@ export function simulate(
         if (src) {
           nextStep();
           emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
+          // BRACKUS × WAR (ancient pass 1): "and get one too": a plain copy to hand, live (a full hand gets none at settle).
+          if (smods.ancientSummitCopy.toHand) ctx.grantToHand(src.cardId, scSide, src.uid);
           if (occupied(scSide) < 7) xeroxCopy(scSide, src);
           else {
             const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
@@ -5978,7 +6018,8 @@ export function simulate(
       // `battlecryTriggered` emit), folding Drakko like every combat Shout re-fire.
       if (smods.ancientEdgeShouts) {
         const shouters = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do)));
-        const edges = shouters.length === 0 ? [] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
+        // DRAKKO × TIME (ancient pass 1): `leftOnly` fires the left-most Shout minion alone.
+        const edges = shouters.length === 0 ? [] : smods.ancientEdgeShouts.leftOnly ? [shouters[0]!] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
         for (const m of edges) {
           if (m.dead || m.health <= 0) continue;
           nextStep();
@@ -7185,12 +7226,18 @@ export function simulate(
       xeroxCopy(side, src);
     }
   });
+  const gorrAvengePaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   // ANCIENT OF DEATH × Gorr (owner 2026-10-02): "Avenge (6): Get a copy of a minion you bought last turn." The Xerox Death
   // running count; each fire a plain copy of a random last-turn buy to hand (none bought: nothing). Rune of Fury repeats.
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const ga = modsFor(side).ancientGorrAvenge;
     if (!ga || ga.ids.length === 0 || (ga.tick + count) % Math.max(1, ga.every) !== 0) return;
+    // EMERALD WARDEN × DEATH (ancient pass 1): "once per turn". `limit` = the triggers this fight may still pay; Rune of
+    // Fury still repeats a paying trigger.
+    if (ga.limit !== undefined && gorrAvengePaid[side] >= ga.limit) return;
+    gorrAvengePaid[side] += 1;
+    if (ga.flag) fireTrigger(ga.flag, side);
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     const draw = grantRngFor(side);
     for (let k = 0; k < fires; k++) ctx.grantToHand(ga.ids[draw.int(ga.ids.length)]!, side, victim?.uid);
@@ -7240,7 +7287,7 @@ export function simulate(
       fireTrigger(ba.flag, side);
       for (const m of boards[side]) {
         const d = cards[m.cardId];
-        if (m.dead || m.health <= 0 || !d || d.spell || d.tier !== 7) continue;
+        if (m.dead || m.health <= 0 || !d || d.spell || !(ba.tiers ?? [7]).includes(d.tier)) continue; // ancient pass 1: Tiers 5 and 6
         const keptBy = ctx.buff(m, ba.attack, ba.health, ba.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
         if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + ba.attack, health: (m.permaGain?.health ?? 0) + ba.health };
       }

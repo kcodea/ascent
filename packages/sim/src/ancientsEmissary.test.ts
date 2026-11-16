@@ -136,25 +136,36 @@ describe('Emissary × WAR: "United Front triggers twice."', () => {
   });
 });
 
-describe('Emissary × GENESIS: "Every 5 spells you cast, get a random Shop spell."', () => {
-  it('Shop: the 5th spell cast gets a random Shop spell of your tier or lower', () => {
-    let s = picked('genesis', { hand: [1, 2, 3, 4, 5].map((i) => gift(`g${i}`)) });
-    expect(heroPowerText(s)).toContain('Every **5** spells you cast, get a random Shop spell (**5** more to go).');
+describe('Emissary × GENESIS (ancient pass 1, owner 2026-11-16, Mike: Tier 3 or higher): "Every 5 spells you cast, get a random Shop spell."', () => {
+  /** Tier 3+ Shop spells, up to the Shop tier (Tier 3 is the floor and the ceiling below it). */
+  const t3up = (s: RunState) => runSpells(s).filter((c) => c.tier >= 3 && c.tier <= Math.max(3, s.tier)).map((c) => c.id);
+  it('Shop: the 5th spell cast gets a random Shop spell of Tier 3 or higher (your tier or lower)', () => {
+    let s = picked('genesis', { tier: 4, hand: [1, 2, 3, 4, 5].map((i) => gift(`g${i}`)) });
+    expect(heroPowerText(s)).toContain('Every **5** spells you cast, get a random Shop spell of Tier **3** or higher (**5** more to go).');
     for (const i of [1, 2, 3, 4]) s = cast(s, `g${i}`);
     expect(spellsInHand(s).length).toBe(0);
     expect(heroPowerText(s)).toContain('(**1** more to go)');
     s = cast(s, 'g5');
     expect(spellsInHand(s).length).toBe(1);
-    expect(runSpells(s).filter((c) => c.tier <= s.tier).map((c) => c.id)).toContain(spellsInHand(s)[0]!.cardId);
+    expect(t3up(s)).toContain(spellsInHand(s)[0]!.cardId);
+    expect(CARD_INDEX[spellsInHand(s)[0]!.cardId]!.tier).toBeGreaterThanOrEqual(3);
   });
-  it('combat: the cast that lands on the 5th pays mid-fight (a live card to hand); settle keeps the count', () => {
+  it('Shop at Tier 1: still a Tier 3 spell (never an empty grant)', () => {
+    let s = picked('genesis', { tier: 1, hand: [1, 2, 3, 4, 5].map((i) => gift(`g${i}`)) });
+    for (const i of [1, 2, 3, 4, 5]) s = cast(s, `g${i}`);
+    expect(spellsInHand(s).length).toBe(1);
+    expect(CARD_INDEX[spellsInHand(s)[0]!.cardId]!.tier).toBe(3);
+  });
+  it('combat: the cast that lands on the 5th pays mid-fight (a live Tier 3+ card to hand); settle keeps the count', () => {
     let s = picked('genesis', { board: riftBoard() });
     s = { ...s, ancients: { ...s.ancients!, batchBSpells: 4 } };
-    expect(ancientCombatMods(s).ancientSpellCountGrant).toEqual({ every: 5, tick: 4, label: 'Ancient of Genesis' });
+    expect(ancientCombatMods(s).ancientSpellCountGrant).toEqual({ every: 5, tick: 4, label: 'Ancient of Genesis', ids: t3up(s) });
     s = fightNow(s, 100, 100000);
     const casts = s.lastCombat!.playerSpellsCast ?? 0;
     expect(casts).toBeGreaterThan(0);
-    expect((s.lastCombat!.events ?? []).filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(Math.floor((4 + casts) / 5));
+    const grants = (s.lastCombat!.events ?? []).filter((e): e is Extract<typeof e, { type: 'toHand' }> => e.type === 'toHand' && e.side === 'player');
+    expect(grants.length).toBe(Math.floor((4 + casts) / 5));
+    for (const g of grants) expect(t3up(s)).toContain(g.cardId);
     s = reduce(s, { type: 'resolveCombat' });
     expect(spellsInHand(s).length).toBe(Math.floor((4 + casts) / 5));
     expect(s.ancients!.batchBSpells).toBe(4 + casts);

@@ -140,7 +140,7 @@ describe('R-TEXT-SURFACES-01: a card prints the same live text on every surface'
     const src = fs.readFileSync(path.join(__dirname, 'Recruit.tsx'), 'utf8');
     expect(src).toContain('shopView(run.spell, shopOfferOpts(run, run.spell, { cardBuffsLive, eotShopStats }))');
     expect(src).toContain('shopOfferOpts(run, o, { cardBuffsLive, eotShopStats }, base)');
-    expect(src).toContain('const lt = discoverCardText(run, c.id, cardBuffsLive);');
+    expect(src).toContain('const lt = discoverCardText(run, c.id, cardBuffsLive, pick);');
     expect(src).toContain('handCardView(run, m, live, handStatOverride(m))');
   });
 

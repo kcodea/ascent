@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
-  ANCIENT_CROWN_FLAG, ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientCrownDueNow, ancientOfferText, createRun, enableAncients,
+  ANCIENT_CROWN_FLAG, ANCIENT_IDS, ancientAvengeCountdown, discoverOfferCard, ancientCombatMods, ancientCrownDueNow, ancientOfferText, createRun, enableAncients,
   heroPowerText, offerBuyPrice, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -101,12 +101,17 @@ describe('Keshi × FORTUNE (ancient pass 2, owner 2026-11-16): "opening a Triple
   });
 });
 
-describe('Keshi × WAR: "Minions discovered from Triple Rewards gain a random effect."', () => {
-  it('the pick of a Triple Reward gains one keyword from the pool', () => {
-    let s = picked('war', { tier: 3, hand: [reward('r', 3)] });
+describe('Keshi × WAR (owner 2026-11-16): "minions discovered from Keshi’s Crown’s rewards have a random keyword", shown in the Discover', () => {
+  it('prints the owner’s sentence', () => {
+    const s = picked('war');
+    expect(heroPowerText(s)).toContain('Minions discovered from Keshi’s Crown’s rewards have a random keyword');
+    expect(ancientOfferText('keshi', 'war')).toMatch(/^Minions discovered from Keshi’s Crown’s rewards have a random keyword/);
+  });
+  it('the pick of a CROWN Triple Reward gains one keyword from the pool', () => {
+    let s = picked('war', { tier: 3, hand: [reward('r', 3, true)] });
     s = reduce(s, { type: 'play', uid: 'r' });
     expect(s.discover?.length).toBeGreaterThan(0);
-    expect(s.ancients!.discoverTag).toBe('triple');
+    expect(s.ancients!.discoverTag).toBe('crown');
     const id = s.discover![0]!;
     s = reduce(s, { type: 'discover', index: 0 });
     const got = s.hand.find((c) => c.cardId === id)!;
@@ -114,6 +119,40 @@ describe('Keshi × WAR: "Minions discovered from Triple Rewards gain a random ef
     expect(added.length).toBe(1);
     expect(KEYS).toContain(added[0]);
     expect(s.ancients!.discoverTag).toBeUndefined();
+  });
+  it('a plain Triple Reward (a triple’s, not the Crown’s) gains nothing', () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      let s = picked('war', { tier: 3, hand: [reward('r', 3)] });
+      s = reduce({ ...s, rngCursor: seed * 7919 }, { type: 'play', uid: 'r' });
+      expect(s.ancients!.discoverTag).toBe('triple');
+      for (let i = 0; i < s.discover!.length; i++) {
+        const id = s.discover![i]!;
+        expect(discoverOfferCard(s, i)!.keywords, 'the offer shows nothing').toEqual(CARD_INDEX[id]!.keywords);
+      }
+      const id = s.discover![0]!;
+      s = reduce(s, { type: 'discover', index: 0 });
+      expect(s.hand.find((c) => c.cardId === id)!.keywords, 'the pick gets nothing').toEqual(CARD_INDEX[id]!.keywords);
+    }
+  });
+  it('the keyword is rolled as the offer opens: every option SHOWS its keyword, and the pick gets exactly that one', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      let s = picked('war', { tier: 3, hand: [reward('r', 3, true)] });
+      s = reduce({ ...s, rngCursor: seed * 7919 }, { type: 'play', uid: 'r' });
+      const n = s.discover!.length;
+      const shown = Array.from({ length: n }, (_, i) => discoverOfferCard(s, i)!);
+      shown.forEach((c, i) => {
+        const added = c.keywords.filter((k) => !CARD_INDEX[s.discover![i]!]!.keywords.includes(k));
+        expect(added.length, `option ${i} shows one keyword`).toBe(1);
+        expect(KEYS).toContain(added[0]);
+      });
+      // Reading the preview twice changes nothing (a preview never rolls).
+      expect(discoverOfferCard(s, 0)!.keywords).toEqual(shown[0]!.keywords);
+      const index = seed % n;
+      const id = s.discover![index]!;
+      const after = reduce(s, { type: 'discover', index });
+      const got = after.hand.find((c) => c.cardId === id && !s.hand.some((h) => h.uid === c.uid))!;
+      expect(got.keywords, 'what you see is what you get').toEqual(shown[index]!.keywords);
+    }
   });
   it('a non-Triple-Reward Discover gains nothing', () => {
     let s = picked('war', { tier: 3, hand: [card('b', 'beyondsummit')] });

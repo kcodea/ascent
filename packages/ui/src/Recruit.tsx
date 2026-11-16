@@ -68,6 +68,7 @@ if (import.meta.env.DEV) {
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
+import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
@@ -1222,10 +1223,13 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
 /** A Discover option's live text: the offer chain (`liveOptsFromRun`, rune notes and the tier ceiling included). (Both):
  *  a Discovered Choose One the run already makes do both reads as (Both) here too — the option row is where you decide
  *  to take it, so it must not promise a choice it won't ask. Exported for the live-text surface audit. */
-export function discoverCardText(run: RunState, cardId: string, cardBuffsLive: Record<string, { attack: number; health: number }>): { text: string; goldenText: string | undefined } {
+export function discoverCardText(run: RunState, cardId: string, cardBuffsLive: Record<string, { attack: number; health: number }>, pick?: BoardCard | null): { text: string; goldenText: string | undefined } {
   return liveCardText(cardId, {
-    ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }, cardId),
+    // `pick` = the sim's preview of what this option becomes (`discoverOfferCard`): a Gilded pick reads its golden
+    // text, and a keyword the pick gains (Keshi × War, Rising Echoes, an Echo's Rise, …) prints as it will in hand.
+    ...offerLiveTextParams(!!pick?.golden, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }, cardId),
     chooseBoth: chooseBothActive(run, undefined, CARD_INDEX[cardId]),
+    ...(pick ? { keywords: pick.keywords } : {}),
   });
 }
 
@@ -10821,7 +10825,12 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
             // The FULL live param set (audit 2026-08-06: this surface passed 11 of 30 params, so a
             // dozen scaling cards read base only in Discover). Built by the same builders as every other
             // offer surface, plus the overlay-only extras (rune notes, the tier ceiling).
-            const lt = discoverCardText(run, c.id, cardBuffsLive);
+            // THE PICK PREVIEW (owner 2026-11-16, R-DISCOVER-PREVIEW-01): the sim builds the card this option becomes with
+            // the one pick body the pick itself runs (`discoverOfferCard`), so every pick-time grant (Keshi × War's
+            // keyword, a Gilded Discover, Rising Echoes, Quillen × Death's Gild, an Empowerment Rise, Second Path's
+            // stats) is on the option before you choose it. Null for a Ruby (minted at the run's Ruby strength).
+            const pick = discoverOfferCard(run, i);
+            const lt = discoverCardText(run, c.id, cardBuffsLive, pick);
             // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
             // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
             // 0/1 here). Every other surface passes these through `instView`; this panel builds its
@@ -10830,8 +10839,11 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
             // (`conjuredStats`: per-card enchant, the tribe buy auras, the Imp Aura), not the printed base. An Imp
             // Discovered by Underdweller read 1/1 here and landed bigger (owner report 2026-10-28, R-IMP-AURA-01).
             // Rune of the Second Path's SET stats replace them, as the pick does.
-            const stats = c.spell || c.ruby ? { attack: c.attack, health: c.health } : (run.discoverSetStats ?? conjuredStats(run, c));
-            return { name: c.name, cardId: c.id, ...tribeFace(c, undefined, run.cardTribes), universalTribe: !!c.universalTribe, attack: stats.attack, health: stats.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+            const stats = c.spell || c.ruby || !pick ? { attack: c.attack, health: c.health } : { attack: pick.attack, health: pick.health };
+            return { name: c.name, cardId: c.id, ...tribeFace(c, undefined, run.cardTribes), universalTribe: !!c.universalTribe, attack: stats.attack, health: stats.health, keywords: pick?.keywords ?? c.keywords, golden: !!pick?.golden,
+              // A Gilded option reads its stats against the golden base (gold, not green), as every Gilded card does.
+              ...(pick?.golden ? { baseAttack: c.attack * 2, baseHealth: c.health * 2 } : {}),
+              text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
               // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
               chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
           })}

@@ -2350,9 +2350,12 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "Minions discovered from Triple Rewards gain a random effect. (pool: Taunt, Ward, Rise, Flurry, Critical Strike,
-      // Execute, Stealth, Engraved)" (one it does not already have; every Triple Reward, not only the Crown's)
-      offerText: 'Minions you **Discover** from **Triple Rewards** gain a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
-      powerText: '{base} Minions you **Discover** from **Triple Rewards** gain a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      // Execute, Stealth, Engraved)" (one it does not already have).
+      // Owner 2026-11-16 (scope + text fix): "minions discovered from Keshi's Crown's rewards have a random keyword", and
+      // it shows in the Discover. ONLY the Crown's own Triple Rewards (`crownReward`), never a triple's; the keyword is
+      // rolled as the offer opens (`rollCrownPickKeywords`), printed on each option, and is exactly what the pick gets.
+      offerText: 'Minions discovered from Keshi’s Crown’s rewards have a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
+      powerText: '{base} Minions discovered from Keshi’s Crown’s rewards have a random keyword: **Taunt**, **Ward**, **Rise**, **Flurry**, **Critical Strike**, **Execute**, **Stealth** or **Engraved**.',
       effects: [{ do: 'tripleRewardPickKeyword', keywords: ['T', 'DS', 'R', 'W', 'CR', 'V', 'ST', 'EG'] }],
     },
     genesis: {
@@ -3355,6 +3358,10 @@ export interface AncientsState {
    *  Archive's own payout, and consumed by the pick (`ancientOnDiscoverPick`). 'triple' = a Triple Reward, 'crown' =
    *  a Triple Reward from Keshi's Crown, 'archive' = an Archive payout, 'discoDeath' / 'discoGenesis' = Disco Dan × Death's / Genesis' Discover. */
   discoverTag?: AncientDiscoverTag;
+  /** KESHI × WAR: the keyword each option of the OPEN Crown Triple Reward will gain, rolled as the offer opens (seeded),
+   *  so the Discover shows it and the pick gets exactly that one (`ids` = the offer it was rolled for; null = no keyword
+   *  left to give). Cleared with the pick. */
+  crownPickKeywords?: { ids: string[]; kw: (Keyword | null)[] };
   /** DISCO DAN: the Setlist cards (card ids, in pick order), recorded as each Setlist Discover is taken while Ancients
    *  are on, whatever is picked (Fortune / War / Bonds read them). */
   discoSetlist?: string[];
@@ -4219,6 +4226,12 @@ function albusStartOfTurn(state: RunState): void {
   });
 }
 
+/** ALBUS × DEATH: does an Empowerment pick of `def` gain Rise (an Echo minion)? The one predicate for the pick
+ *  (`ancientOnEmpowerPick`) and the Discover's preview of it (`discoverOfferCard`). */
+export function ancientEmpowerPickGainsRise(state: RunState, def: CardDef): boolean {
+  return !!live(state) && !!effectOf(state, 'empowerEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath');
+}
+
 /**
  * A minion Empowerment discovered has just arrived: `offer` is the Shop offer it became (the usual case), or `card`
  * the hand card it became when the targeted offer was already gone. DEATH: it gains Rise when it has an Echo. FORTUNE:
@@ -4226,7 +4239,7 @@ function albusStartOfTurn(state: RunState): void {
  */
 export function ancientOnEmpowerPick(state: RunState, def: CardDef, offer?: ShopCard, card?: BoardCard): void {
   if (!live(state)) return;
-  if (effectOf(state, 'empowerEchoGainsRise') && def.effects.some((e) => e.on === 'onDeath')) {
+  if (ancientEmpowerPickGainsRise(state, def)) {
     if (offer && !def.keywords.includes('R') && !(offer.keywords ?? []).includes('R')) (offer.keywords ??= []).push('R');
     if (card && !card.keywords.includes('R')) card.keywords.push('R');
   }
@@ -6328,6 +6341,37 @@ export function ancientNoteDiscoverOpened(state: RunState, tag: AncientDiscoverT
   if (!a) return;
   a.discoverTag = state.discover?.length ? tag : undefined;
   if (a.discoverTag === 'crown') ancientCrownTier7(state);
+  rollCrownPickKeywords(state, a); // after Genesis' Tier 7 swap, so each roll belongs to the option actually offered
+}
+
+/** KESHI × WAR (owner 2026-11-16: "this should also SHOW in the discover"): roll the keyword each option of an open
+ *  Crown Triple Reward will gain, AS THE OFFER OPENS (seeded off the run cursor, one roll per minion option, in order).
+ *  The Discover prints it (`discoverOfferCard`) and the pick gets exactly it, so what you see is what you get. One the
+ *  card does not already have (nor a keyword the open Discover already grants every pick). Any other offer: cleared. */
+function rollCrownPickKeywords(state: RunState, a: AncientsState): void {
+  a.crownPickKeywords = undefined;
+  const w = effectOf(state, 'tripleRewardPickKeyword');
+  const offer = state.discover;
+  if (!w || a.discoverTag !== 'crown' || !offer?.length) return;
+  const rng = makeRng(state.rngCursor);
+  const kw = offer.map((id): Keyword | null => {
+    const def = CARD_INDEX[id];
+    if (!def || def.spell || def.ruby) return null;
+    const open = w.keywords.filter((k) => !def.keywords.includes(k) && !(state.discoverKeywords ?? []).includes(k));
+    return open.length > 0 ? open[rng.int(open.length)]! : null;
+  });
+  state.rngCursor = rng.state();
+  a.crownPickKeywords = { ids: [...offer], kw };
+}
+
+/** KESHI × WAR: the keyword option `index` of the open Crown Triple Reward gains (rolled at open), or undefined. */
+function crownPickKeyword(state: RunState, index: number, cardId: string): Keyword | undefined {
+  const r = live(state)?.crownPickKeywords;
+  if (!r || !effectOf(state, 'tripleRewardPickKeyword') || r.ids[index] !== cardId) return undefined;
+  // The offer must be the one rolled for (a stale roll never leaks onto a later Discover).
+  const offer = state.discover;
+  if (!offer || offer.length !== r.ids.length || offer.some((id, i) => id !== r.ids[i])) return undefined;
+  return r.kw[index] ?? undefined;
 }
 
 /** KESHI × GENESIS: at Shop tier 6+, each option of the open Crown Triple Reward has a `chance` to become a Tier 7
@@ -6347,31 +6391,37 @@ function ancientCrownTier7(state: RunState): void {
   state.discover = next;
 }
 
-/** A Discover pick was TAKEN into the hand (`takeDiscoverPick`), `tag` = its Ancient origin. KESHI × WAR: a Triple
- *  Reward pick gains one random keyword it lacks. QUILLEN × DEATH: an Archive pick with an Echo gains Rise. DISCO DAN ×
- *  DEATH: its Discover's pick gains Rise. */
-export function ancientOnDiscoverTaken(state: RunState, tag: AncientDiscoverTag | undefined, taken: BoardCard): void {
+/**
+ * The Ancient grants that SHAPE a Discover pick (`tag` = its Discover's origin, `index` = the option). The ONE body for
+ * both the pick itself (`takeDiscoverPick`, `commit`) and the Discover's preview of each option (`discoverOfferCard`,
+ * `!commit`: no state is touched, so the offer shows exactly what the pick will be). KESHI × WAR: a Crown Triple Reward
+ * pick gains the keyword rolled for it as the offer opened. QUILLEN × DEATH: an Archive pick with an Echo arrives
+ * Gilded. DISCO DAN × DEATH: its Discover's pick gains Rise. UNDERDWELLER × DEATH / WAR: the Soulkeeper pick's Rise /
+ * kept grave stats.
+ */
+export function ancientShapeDiscoverPick(state: RunState, tag: AncientDiscoverTag | undefined, taken: BoardCard, index: number, commit: boolean): void {
   if (!tag || !live(state)) return;
   const kw = (k: Keyword): void => { if (!taken.keywords.includes(k)) taken.keywords.push(k); };
-  const w = effectOf(state, 'tripleRewardPickKeyword');
-  if (w && (tag === 'triple' || tag === 'crown')) {
-    const open = w.keywords.filter((k) => !taken.keywords.includes(k));
-    if (open.length > 0) {
-      const rng = makeRng(state.rngCursor);
-      kw(open[rng.int(open.length)]!);
-      state.rngCursor = rng.state();
-    }
+  if (tag === 'crown') {
+    const k = crownPickKeyword(state, index, taken.cardId);
+    if (k) kw(k);
   }
   const def = CARD_INDEX[taken.cardId];
   // QUILLEN × DEATH (owner 2026-11-16): an Echo pick arrives Gilded (the triple's own transform, counted as a gild); playing
-  // it gives its Triple Reward like every Gilded play.
-  if (tag === 'archive' && effectOf(state, 'archiveEchoGilded') && def && hasDeathrattle(def) && !taken.golden) gildMinion(taken, state);
+  // it gives its Triple Reward like every Gilded play. A preview gilds the card only (no gild is counted).
+  if (tag === 'archive' && effectOf(state, 'archiveEchoGilded') && def && hasDeathrattle(def) && !taken.golden) gildMinion(taken, commit ? state : undefined);
   if (tag === 'discoDeath' && effectOf(state, 'pickDiscoverEchoLocked')) kw('R');
+  if (tag === 'soulkeeper') soulkeeperOnTaken(state, taken); // UNDERDWELLER × DEATH / WAR (shapes the card only)
+}
+
+/** A Discover pick was TAKEN into the hand (`takeDiscoverPick`), `tag` = its Ancient origin, AFTER the pick body
+ *  (`buildDiscoverPick`, which already ran `ancientShapeDiscoverPick` on it): what only a real pick records. */
+export function ancientOnDiscoverTaken(state: RunState, tag: AncientDiscoverTag | undefined, taken: BoardCard): void {
+  if (!tag || !live(state)) return;
   // DISCO DAN × GENESIS (ancient pass 1): remember the locked pick; `ancientSyncPass1` turns its Tier lock into a
   // next-turn lock the moment the Tier is reached.
   const a = live(state);
   if (a && tag === 'discoGenesis' && effectOf(state, 'pickDiscoverTier7Locked')?.nextTurn && taken.lockedUntilTier) a.discoGenesisUid = taken.uid;
-  if (tag === 'soulkeeper') soulkeeperOnTaken(state, taken); // UNDERDWELLER × DEATH / WAR
 }
 
 /** QUILLEN: how many archived minions fill Archive (Genesis: 2; else 3). */

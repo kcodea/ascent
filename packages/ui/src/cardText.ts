@@ -1,4 +1,4 @@
-import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, rubyCastGainOf, shopSpellGrowth, type Tribe } from '@game/core';
+import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, rubyCastGainOf, shopSpellGrowth, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
 
@@ -1638,6 +1638,27 @@ export function withGrantedRise(cardId: string, text: string, keywords: readonly
   // At the END (owner 2026-09-26): "show it at the end so it doesn't replace the minion's main mechanic pill ...
   // it is a granted effect". The card's own mechanic keeps the lead (and its glossary pill).
   return text.trim() ? `${text.trimEnd()} **Rise.**` : '**Rise.**';
+}
+
+/** The granted keywords with NO mark on the card body (Rise has its veil, Taunt its frame, Ward its glass, …; these
+ *  have none), so a granted one would be invisible. Each ends the text in the bold keyword style, after any Rise. */
+const UNMARKED_GRANTS: ReadonlyArray<readonly [Keyword, string]> = [['CR', 'Critical Strike'], ['EG', 'Engraved']];
+
+/**
+ * GRANTED KEYWORDS (owner 2026-11-16, R-DISCOVER-PREVIEW-01: Keshi × War's keyword "should SHOW"). `withGrantedRise`,
+ * plus a granted Critical Strike / Engraved the printed card does not have (no body mark shows them) ending the text as
+ * "**Critical Strike.**" / "**Engraved.**". Driven by the instance's CURRENT keywords, like Rise. Spells never carry it.
+ */
+export function withGrantedKeywords(cardId: string, text: string, keywords: readonly string[] | undefined): string {
+  const out = withGrantedRise(cardId, text, keywords);
+  const def = CARD_INDEX[cardId];
+  if (!keywords?.length || !def || def.spell || def.ruby) return out;
+  let t = out;
+  for (const [k, name] of UNMARKED_GRANTS) {
+    if (!keywords.includes(k) || def.keywords.includes(k) || new RegExp(String.raw`^\*\*[^*]*\b${name}\b`).test(def.text)) continue;
+    t = t.trim() ? `${t.trimEnd()} **${name}.**` : `**${name}.**`;
+  }
+  return t;
 }
 
 /**

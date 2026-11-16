@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-15',
     changes: [
       {
+        category: 'Balance',
+        text: 'Opponents are now drawn from the 250 most recently played games, so you stop meeting boards built before recent balance changes.',
+        details: [
+          'Each new game played pushes the oldest one out of the pool.',
+          'Opponent strength and the rank brackets are measured among those 250 games.',
+          'A game you already started keeps its opponents.',
+        ],
+      },
+      {
         category: 'Systems',
         text: '112 runes have new art.',
         details: [

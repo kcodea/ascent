@@ -15512,4 +15512,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'GameStart has 19 lines: 19 games in a row each open on a different one, and game 20 opens on one of the ten heard longest ago.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcerDeck.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
+  {
+    id: 'R-POOL-ROLLING-01',
+    title: 'A new lobby is seated only from the newest 250 recorded runs of its card set',
+    statement:
+      'A new lobby is seated only from the newest 250 eligible recorded runs of its card set, by upload order. An older '
+      + 'run is kept but never seated in a new game; a game already seated keeps its table. Run strength and the rank '
+      + 'bands are ranked among those runs only. A set with fewer than 250 eligible runs serves all of them.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (rolling pool)', quote: 'its tough facing strong boards that are now weakened due to balancing changes' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-15 (rolling pool)', quote: 'lets do newest 250 runs' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-22-pool-rolling-window.sql (pool_runs.live, pool_live_limit, pool_live_refresh; pool_runs_sample, pool_runs__pick, pool_strength_refresh, pool_refresh_dirty, pool_mirror_index read live runs)' },
+    ],
+    currentBehaviour:
+      'Built 2026-11-15 (feat/pool-rolling-window); conforms once the migration is applied to production (npm run db:apply). Until then every eligible run of every '
+      + 'age is drawn with equal chance: 551 runs back to 2026-08-17 when measured on 2026-11-15, 225 of them more than five weeks old. It is all in the database: no '
+      + 'client or Worker change, so installed copies follow on their next pool fetch. NOT windowed: the recorded duo TEAMS of Ranked Duos (duo_runs, a separate small '
+      + 'pool) and the God Mode board sample; solo runs that fill Ranked Duos seats do follow the window. The test runs the real SQL in PGlite with the limit shrunk to 10.',
+    example: 'With 551 eligible runs in the set, the 301 oldest are never drawn. When run 552 is uploaded, the oldest of the 250 drops out.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/poolRollingWindow.db.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
 ];

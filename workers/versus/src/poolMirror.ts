@@ -20,7 +20,7 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { MirrorRun, PickArgs } from './core/poolPick';
-import { MIRROR_STALE_MS, PoolMirrorCore, poolSourceFor, type Held, type PoolSource } from './core/poolMirrorCore';
+import { MIRROR_STALE_MS, PoolMirrorCore, deleteInChunks, poolSourceFor, type Held, type PoolSource } from './core/poolMirrorCore';
 import type { HubStoreEnv } from './dmStore';
 
 export { PoolMirrorCore, SupabasePoolSource, type PoolSource } from './core/poolMirrorCore';
@@ -62,7 +62,7 @@ export class PoolMirror extends DurableObject<PoolMirrorEnv> {
     if (this.syncing) { await this.syncing.catch(() => undefined); return { ok: true, unchanged: true }; }
     const run = this.core.sync(this.source, async (changed, dropped, runs, version) => {
       for (const [id, h] of changed) await this.ctx.storage.put(RUN_PREFIX + id, h);
-      if (dropped.length) await this.ctx.storage.delete(dropped.map((id) => RUN_PREFIX + id));
+      await deleteInChunks((keys) => this.ctx.storage.delete(keys), dropped.map((id) => RUN_PREFIX + id));
       await this.ctx.storage.put('index', { version, runs, syncedAt: Date.now() });
     }, Date.now());
     this.syncing = run;
@@ -102,7 +102,7 @@ export class PoolMirror extends DurableObject<PoolMirrorEnv> {
     };
     await this.core.sync(src, async (changed, dropped, rs, version) => {
       for (const [id, h] of changed) await this.ctx.storage.put(RUN_PREFIX + id, h);
-      if (dropped.length) await this.ctx.storage.delete(dropped.map((id) => RUN_PREFIX + id));
+      await deleteInChunks((keys) => this.ctx.storage.delete(keys), dropped.map((id) => RUN_PREFIX + id));
       await this.ctx.storage.put('index', { version, runs: rs, syncedAt: Date.now() });
     }, Date.now());
     return { ok: true, runs: this.core.runs.length };

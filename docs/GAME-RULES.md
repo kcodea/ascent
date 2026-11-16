@@ -63,10 +63,10 @@ medal + division — see *Ranked ladder* below).
 - **Only the newest 250 runs of a card set are seated** (owner 2026-11-15, R-POOL-ROLLING-01: *"its tough facing strong
   boards that are now weakened due to balancing changes"*, *"lets do newest 250 runs"*). The game is rebalanced often and
   a recorded run keeps the boards it was built with, so a new lobby (rated, Practice against players, and the solo runs
-  that fill Ranked Duos seats) draws only from the 250 most recently uploaded eligible runs of its set. Each new run
+  that fill Ranked Duos seats) draws only from the 250 most recently started eligible runs of its set. Each new run
   pushes the oldest one out; a set with fewer than 250 serves all of them. An older run is never deleted (Career,
-  match details and replays keep it, and a game already seated with it keeps its table); it is only never seated in a
-  new game. The 1 to 100 run strength and the rank bands are ranked among those 250 runs. The recorded duo TEAMS of
+  match details and replays keep it, and a game already seated with it keeps its table); it is only no longer drawn
+  for a new game. A game client that is already running keeps the runs it loaded until it is restarted. The 1 to 100 run strength and the rank bands are ranked among those 250 runs. The recorded duo TEAMS of
   Ranked Duos are a separate pool and are not windowed.
 - **The pool is made of WHOLE RUNS, drawn at random** (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying
   snapshots from the player's game?", "make sure this is firmly fixed and will be scalable and a non issue moving

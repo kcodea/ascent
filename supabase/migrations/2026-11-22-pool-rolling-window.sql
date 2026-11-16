@@ -4,9 +4,15 @@
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
 -- Apply with `npm run db:apply -- supabase/migrations/2026-11-22-pool-rolling-window.sql --yes`, AFTER
--- 2026-11-20-game-session-cf.sql and 2026-11-21-ops-health-checks.sql (it replaces functions they create).
--- Idempotent: safe to re-run. No client release, no Worker deploy, no Edge Function redeploy: old installed copies and
--- the hub's pool mirror follow on their next fetch / sync (the mirror drops a run that leaves `pool_mirror_index`).
+-- 2026-11-20-game-session-cf.sql and 2026-11-21-ops-health-checks.sql (it replaces functions they create, and refuses
+-- to run without them). Re-running one of the files named under ROLLBACK afterwards puts that file's old filter back:
+-- re-apply this file after it (`npm run db:drift` reports it as OLDER).
+-- DEPLOY THE HUB FIRST. The first sync after this applies drops about 300 runs from the hub's pool mirror at once,
+-- and a Durable Object deletes at most 128 keys per call: a hub without `deleteInChunks` (poolMirrorCore.ts, same PR)
+-- would fail every sync from then on and keep serving the whole old pool. If the hub cannot be deployed first, step
+-- the number down instead, one sync (5 minutes) apart, at most 128 runs per step: see "To change the number" below.
+-- Idempotent: safe to re-run. No client release and no Edge Function redeploy: old installed copies follow on their
+-- next fetch, the hub mirror on its next sync (it drops a run that leaves `pool_mirror_index`).
 -- Design: docs/superpowers/specs/2026-11-15-pool-rolling-window-design.md.
 --
 -- WHY (owner 2026-11-15: "its tough facing strong boards that are now weakened due to balancing changes", "lets do
@@ -16,9 +22,11 @@
 --
 -- WHAT:
 --  1. `pool_runs.live`: true for the newest `pool_live_limit()` (250) ELIGIBLE runs of each `set_id`, by `id`
---     (= upload order: a run keeps its id when its boards are re-uploaded or re-scored, so an old run never comes
---     back). `eligible` keeps its meaning (a whole, servable run); `live` is the window. NOTHING IS DELETED: Career,
+--     (= the order runs were STARTED in: a run gets its id when its first board arrives and keeps it when boards
+--     are added, re-uploaded or re-scored, so an old run does not come back. Only a run whose every board was deleted
+--     and uploaded again gets a new id). `eligible` keeps its meaning (a whole, servable run); `live` is the window. NOTHING IS DELETED: Career,
 --     match details, replays, saved games (`pool_runs_boards` by id) and the balance tools still read every run.
+--     `pool_runs_rebuild()` does not re-mark the window: run `pool_live_refresh()` after it.
 --     To change the number: replace `pool_live_limit()`, then `select public.pool_live_refresh();` and
 --     `select public.pool_strength_refresh(null, null, null); select public.pool_strength_hist_refresh();`.
 --  2. `pool_live_refresh()` re-marks the flag; `pool_refresh_dirty()` (pg_cron, every minute) calls it right after it
@@ -48,7 +56,19 @@
 --
 -- Locks: as the other pool migrations, both pool tables first (a pool migration once deadlocked against live reads).
 
+-- Refuse to run before the files whose functions this replaces: applied later, they would put the old filter back.
+do $$ begin
+  if to_regprocedure('public.pool_mirror_index(text)') is null or to_regprocedure('public.pool_mirror_version(text)') is null then
+    raise exception 'apply 2026-11-20-game-session-cf.sql before 2026-11-22-pool-rolling-window.sql';
+  end if;
+  if to_regprocedure('ops.pool_digest(jsonb)') is null then
+    raise exception 'apply 2026-11-21-ops-health-checks.sql before 2026-11-22-pool-rolling-window.sql';
+  end if;
+end $$;
+
 begin;
+-- Keep the once-a-minute job out while this runs (it takes the same lock, and locks the two tables in the other order).
+select pg_advisory_xact_lock(hashtext('public.pool_refresh_dirty'));
 lock table public.pool_runs in access exclusive mode;
 lock table public.boards in access exclusive mode;
 
@@ -58,7 +78,7 @@ create index if not exists pool_runs_live_idx on public.pool_runs (set_id, id) w
 
 -- THE number: how many of a set's newest eligible runs a new lobby may be seated from.
 create or replace function public.pool_live_limit() returns int
-language sql immutable as $$ select 250 $$;
+language sql stable as $$ select 250 $$;
 
 -- Re-mark the window. Only rows whose flag changes are written; returns how many changed (0 = the window stands).
 create or replace function public.pool_live_refresh() returns int

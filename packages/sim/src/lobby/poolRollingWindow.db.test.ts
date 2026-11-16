@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -31,17 +32,30 @@ const STUB = `
   create policy "read boards" on public.boards for select using (true);
   grant usage on schema public to anon, authenticated;
   grant select on public.boards to anon, authenticated;
-  -- The hub key check (2026-11-20-game-session-cf.sql), so the mirror's reads can be called here.
+  create schema extensions;
+  create extension pgcrypto with schema extensions;
+`;
+/** Stand-ins for what 2026-11-20-game-session-cf.sql and 2026-11-21-ops-health-checks.sql create (the window file
+ *  replaces these three and refuses to run without them): the hub key check, and the functions with their signatures. */
+const HUB_STUB = `
   create function public.session_cf__key_ok(p_key text) returns boolean language sql stable as 'select true';
+  create function public.pool_mirror_version(p_key text) returns text language sql stable as 'select null::text';
+  create function public.pool_mirror_index(p_key text)
+  returns table (run_id bigint, run_key text, author text, user_id uuid, wave_count int, set_id text, patch_prefix text,
+                 pool_id text, strength text, strength_early text, strength_late text, rev text)
+  language plpgsql stable as 'begin return; end';
+  create schema if not exists ops;
+  create function ops.pool_digest(p_params jsonb) returns jsonb language sql as 'select null::jsonb';
 `;
 
 let db: PGlite;
 let WINDOW = '';
 beforeEach(async () => {
   WINDOW = read(WINDOW_FILE);
-  db = new PGlite();
+  db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(STUB);
   for (const sql of CHAIN) await db.exec(sql);
+  await db.exec(HUB_STUB);
   await db.exec(WINDOW);
 }, 120_000);
 afterEach(async () => { await db?.close(); });
@@ -50,7 +64,7 @@ const rows = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => (aw
 const one = async <T>(sql: string, params: unknown[] = []): Promise<T> => (await rows<T>(sql, params))[0]!;
 const drain = async (): Promise<void> => { await db.query('select public.pool_refresh_dirty()'); };
 const limitTo = async (n: number): Promise<void> => {
-  await db.exec(`create or replace function public.pool_live_limit() returns int language sql immutable as 'select ${n}'`);
+  await db.exec(`create or replace function public.pool_live_limit() returns int language sql stable as 'select ${n}'`);
 };
 
 /** One whole run in one statement (as the client uploads it): waves `from`..`to`, each board scored `raw`. */
@@ -217,9 +231,34 @@ describe('the rolling pool window', () => {
     const v1 = (await one<{ v: string }>("select public.pool_mirror_version('k') as v")).v;
     await uploadRuns(13, 13);
     expect((await one<{ v: string }>("select public.pool_mirror_version('k') as v")).v).not.toBe(v1);
-    const src = (await one<{ s: string }>("select prosrc s from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'ops' and p.proname = 'pool_digest'")).s;
-    expect(src).toContain('where r.eligible and r.live');
+    // The health check's whole-pool digest covers exactly the live runs.
+    const digest = (await one<{ d: { count: number; rows: { run_id: number }[] } }>('select ops.pool_digest(null) as d')).d;
+    const liveIds = (await rows<{ id: number }>('select id::int from public.pool_runs where live order by id')).map((r) => r.id);
+    expect(digest.count).toBe(10);
+    expect(digest.rows.map((r) => Number(r.run_id))).toEqual(liveIds);
   });
+
+  it('a signed-in player can draw (the draw reads the new column as the caller)', async () => {
+    await limitTo(10);
+    await uploadRuns(1, 12);
+    await db.exec('set role authenticated');
+    try {
+      expect((await sampleKeys('pool_runs_sample', 's')).length).toBe(10);
+      expect((await sampleKeys('pool_runs_sample_keys', 's')).length).toBe(10);
+    } finally { await db.exec('reset role'); }
+    expect((await one<{ ok: boolean }>("select has_column_privilege('authenticated', 'public.pool_runs', 'live', 'select') as ok")).ok).toBe(true);
+  });
+
+  it('refuses to apply before the hub mirror migrations (they would put the old filter back)', async () => {
+    const bare = new PGlite({ extensions: { pgcrypto } });
+    try {
+      await bare.exec(STUB);
+      for (const sql of CHAIN) await bare.exec(sql);
+      await expect(bare.exec(WINDOW)).rejects.toThrow(/2026-11-20-game-session-cf/);
+      const col = await bare.query("select 1 from information_schema.columns where table_name = 'pool_runs' and column_name = 'live'");
+      expect(col.rows.length).toBe(0); // nothing half-applied
+    } finally { await bare.close(); }
+  }, 120_000);
 
   it('pool_runs_sample keeps work_mem 16MB, and the job stays closed to clients', async () => {
     expect((await one<{ c: string[] }>("select proconfig c from pg_proc where proname = 'pool_runs_sample'")).c).toContain('work_mem=16MB');

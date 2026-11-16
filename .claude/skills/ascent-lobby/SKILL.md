@@ -84,7 +84,8 @@ behaviour from a legacy symbol.**
 - **The pool is a rolling window** (R-POOL-ROLLING-01, 2026-11-15): only the newest 250 eligible runs of a set
   (`pool_runs.live`, by id; the number is `pool_live_limit()`) are drawn, mirrored to the hub and ranked for strength.
   It is all SQL (`2026-11-22-pool-rolling-window.sql`); a new function that seats a table must filter
-  `eligible and live`. Nothing is deleted: `pool_runs_boards` still serves any run by id (saved games).
+  `eligible and live`. Nothing is deleted, and a saved game carries its own table. The hub mirror drops runs in
+  chunks (`deleteInChunks`: a Durable Object deletes at most 128 keys per call).
 - **The shared pool is WHOLE RUNS** (R-LOBBY-08, 2026-09-29): fetched as a uniform random sample of eligible runs
   (`pool_runs_sample` RPC, one row per run with every board; `opponentPool/poolFetch.ts`), checked complete
   (`isWholeRun`), registered all-or-nothing (`registerOpponentRuns`), cached as whole runs (cache v2). Never add a

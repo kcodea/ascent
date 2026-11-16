@@ -12,7 +12,7 @@ due to balancing changes", "lets do newest 250 runs".
 ## What changes for players
 
 - A new lobby (rated, Practice against players) is seated only from the **newest 250 usable runs of its card set**.
-  "Newest" is the order the runs were uploaded in.
+  "Newest" is the order the runs were started in.
 - Ranked Duos (corrected while planning): seats filled from solo runs follow the same window. Recorded duo TEAMS are a
   separate, much smaller pool (`duo_runs`) and are not windowed in this change.
 - As new runs are played, the oldest drop out, one for one. At today's pace (50 to 80 runs a week) the pool covers
@@ -50,8 +50,10 @@ due to balancing changes", "lets do newest 250 runs".
   drops a run that leaves its index, so the hub follows with no Worker change and the draw port is untouched.
 - The run strength ranking (`pool_strength_refresh`) and the run histogram the client ranks its own game against rank
   among live runs only. A run that is not live keeps its last number.
-- **No app release is needed.** Once the SQL is applied, every installed copy, old versions included, gets the new
-  pool on its next fetch. Devices drop cached runs they are no longer sent.
+- **No app release is needed**, but the hub must be deployed first (found in review: the hub deletes stored runs at
+  most 128 per call, and this drops about 300 at once; the fix is in the same PR). Once the SQL is applied, every
+  installed copy, old versions included, gets the new pool on its next fetch. A game client that is already running
+  keeps the runs it loaded until it restarts.
 
 ## Rule and tests
 

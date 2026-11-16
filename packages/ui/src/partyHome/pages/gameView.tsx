@@ -195,7 +195,7 @@ export function RunBuffsButton({ rows, who }: { rows: readonly BuffRow[]; who: s
   return (
     <div className="rgp-shopbuff" ref={ref}>
       <PhButton size="s" aria-expanded={open} aria-label={`${who}'s buffs`} onClick={() => { sfx.pulse(); setOpen((o) => !o); }}>
-        Buffs
+        Show Buffs
       </PhButton>
       {open && (
         <div className="rgp-sbpanel" role="dialog" aria-label="Buffs">

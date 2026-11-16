@@ -60,7 +60,7 @@ describe('the Buffs button', () => {
   it('opens a plate with one row per buff', () => {
     ui = mount(<RunBuffsButton who="Lemon" rows={[{ key: 'spell', label: 'Spell power', value: '+2/+1' }, { key: 'ruby', label: 'Ruby power', value: '+3/+3' }, { key: 'tavern', label: 'Shop Stats', value: '+5/+4' }, { key: 'tavern:Contract Butcher', label: 'Contract Butcher', value: '+5/+4' }]} />);
     const btn = document.querySelector('.rgp-shopbuff button');
-    expect(btn?.textContent).toBe('Buffs');
+    expect(btn?.textContent).toBe('Show Buffs');
     expect(document.querySelector('.rgp-sbpanel')).toBeNull();
     press(btn);
     expect(rows()).toEqual(['Spell power+2/+1', 'Ruby power+3/+3', 'Shop Stats+5/+4', 'Contract Butcher+5/+4']);

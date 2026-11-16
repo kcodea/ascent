@@ -14508,7 +14508,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-MATCH-SHOPBUFF-01',
     title: 'A finished game shows every run-wide buff the player ended it with',
     statement:
-      'A game opened in Match History (Career or Recent Games) has a Buffs button. Pressing it shows every run-wide buff the player had '
+      'A game opened in Match History (Career or Recent Games) has a Show Buffs button. Pressing it shows every run-wide buff the player had '
       + 'when the game ended: every row the in-game Buffs panel (opened from the hero portrait) can show, such as Spell power, Ruby power, '
       + 'the Auras, Shop Stats with each source, the Shop slot buffs and Max Gold. A buff added to that panel later shows here too. '
       + 'A game with none says so. A game that recorded none of it has no button.',

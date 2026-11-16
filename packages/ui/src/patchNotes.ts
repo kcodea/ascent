@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Match History: the Shop buffs button is now a Buffs button. It shows every buff you had when the game ended.',
+        text: 'Match History: the Shop buffs button is now a Show Buffs button. It shows every buff you had when the game ended.',
         details: [
           'It lists the same buffs as the Buffs panel you open from your hero portrait in a game: Spell power, Ruby power, Auras, Shop Stats, Max Gold and the rest.',
           'Games played before this update show only the buffs they saved.',

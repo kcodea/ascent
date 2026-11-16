@@ -49,7 +49,7 @@ const undying = (s: RunState, uid: string): RunState => {
 
 describe('Risen × every Ancient has a written pairing', () => {
   it('all six are written (no "Not written yet."), none uses an em dash', () => {
-    expect(ancientOfferText('risen', 'genesis'), 'owner text trim 2026-09-26').toBe('In combat, each minion you summon summons an extra copy.');
+    expect(ancientOfferText('risen', 'genesis'), 'owner text trim 2026-09-26').toBe('In combat, each minion you summon summons an extra copy. At most **3** extra copies each combat.');
     for (const id of ANCIENT_IDS) {
       expect(ancientOfferText('risen', id)).not.toBe('Not written yet.');
       expect(ancientOfferText('risen', id)).not.toMatch(/—|--/);
@@ -236,6 +236,13 @@ describe('Risen × GENESIS — every summon in combat summons an extra copy (a R
     let s = picked('genesis', { board: [card('i', 'burialimp')] });
     s = fightNow(s, 50, 400);
     expect(summonsOf(s, 'impscrap')).toHaveLength(2);
+  });
+
+  it('at most 3 extra copies each combat (owner 2026-11-16): four Echo summons make only 3 extras', () => {
+    let s = picked('genesis', { board: ['i1', 'i2', 'i3', 'i4'].map((u) => card(u, 'burialimp')) });
+    s = fightNow(s, 50, 400);
+    expect(summonsOf(s, 'impscrap')).toHaveLength(4 + 3);
+    expect(ancientCombatMods(picked('genesis')).ancientSummonExtraLimit).toBe(3);
   });
 
   it('threads its mod only while Genesis is picked', () => {

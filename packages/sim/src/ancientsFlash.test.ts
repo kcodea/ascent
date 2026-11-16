@@ -70,29 +70,54 @@ describe('Flash × DEATH: "Also get a copy of the 2nd minion that dies."', () =>
   });
 });
 
-describe('Flash × FORTUNE: "First or Last costs 0 Gold."', () => {
-  it('arming costs nothing', () => {
-    const s = picked('fortune');
-    expect(activePowers(s)[0]!.cost).toBe(0);
-    expect(heroPowerText(s)).toBe(`${BASE} It costs **0 Gold**.`);
-    const t = arm(s, 'last');
-    expect(t.embers).toBe(s.embers);
-    expect(arm(base(), 'last').embers).toBe(base().embers - 1);
+describe('Flash × FORTUNE (ancient pass 2, owner 2026-11-16): "The minion you get from First or Last is Gilded if you lose the combat."', () => {
+  const losing = (): BoardMinion[] => [
+    { cardId: N(3), attack: 1, health: 1, keywords: [] } as unknown as BoardMinion,
+    { cardId: N(4), attack: 200, health: 5000, keywords: [] } as unknown as BoardMinion,
+  ];
+  it('a LOST fight: the claimed copy lands Gilded; the power keeps its price', () => {
+    let s = picked('fortune', { board: [card('a', N(0), { attack: 10, health: 10 })] });
+    expect(activePowers(s)[0]!.cost).toBe(1);
+    expect(heroPowerText(s)).toBe(`${BASE} If you lose that combat, the minion you get is **Gilded**.`);
+    expect(ancientOfferText('flash', 'fortune')).toBe('The minion you get from First or Last is **Gilded** if you lose the combat.');
+    s = arm(s, 'first');
+    expect(ancientCombatMods(s).ancientFlash).toEqual({ gildOnLoss: true, label: 'Ancient of Fortune' });
+    s = fightVs(s, losing());
+    expect(s.lastCombat!.result).toBe('lose');
+    expect(toHand(s)).toEqual([N(3)]);
+    s = reduce(s, { type: 'resolveCombat' });
+    const got = s.hand.find((c) => c.cardId === N(3))!;
+    expect(got.golden).toBe(true);
+    expect(got.attack).toBe(CARD_INDEX[N(3)]!.attack * 2);
+  });
+  it('a WON fight: the claimed copy is plain', () => {
+    let s = arm(picked('fortune', { board: strong() }), 'first');
+    s = fightVs(s, weak());
+    expect(s.lastCombat!.result).toBe('win');
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.find((c) => c.cardId === N(3))!.golden).toBe(false);
+  });
+  it('without Fortune a lost claim stays plain', () => {
+    let s = arm(picked('death', { board: [card('a', N(0), { attack: 10, health: 10 })] }), 'first');
+    s = fightVs(s, losing());
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.find((c) => c.cardId === N(3))!.golden).toBe(false);
   });
 });
 
-describe('Flash × WAR: "Pummel (400): get a copy of a random enemy minion (once per combat)."', () => {
-  it('the first 400 crossed in a fight pays ONE copy of a living enemy minion, live; the tally carries', () => {
+describe('Flash × WAR (ancient pass 2, owner 2026-11-16): "Pummel (400): get a copy of a random enemy minion. Twice per combat."', () => {
+  it('pays at most TWO copies a fight however many 400s it crosses, live; the tally carries', () => {
     let s = picked('war', { board: [card('a', N(0), { attack: 300, health: 9000 })] });
+    expect(heroPowerText(s)).toContain('Twice per combat (**2** left this combat)');
     expect(heroPowerText(s)).toContain('(**0/400**)');
     s = { ...s, ancients: { ...s.ancients!, pummelDealt: 350 } };
-    expect(ancientCombatMods(s).ancientFlash).toEqual({ pummel: { every: 400, dealt: 350 }, label: 'Ancient of War' });
-    const foes = [0, 1].map((i) => ({ cardId: N(i + 3), attack: 1, health: 400 }) as unknown as BoardMinion);
+    expect(ancientCombatMods(s).ancientFlash).toEqual({ pummel: { every: 400, dealt: 350, max: 2 }, label: 'Ancient of War' });
+    const foes = [0, 1, 2, 3].map((i) => ({ cardId: N(i + 3), attack: 1, health: 400 }) as unknown as BoardMinion);
     s = fightVs(s, foes);
-    expect(toHand(s).length).toBe(1);
-    expect([N(3), N(4)]).toContain(toHand(s)[0]);
     const dealt = s.lastCombat!.playerAncientPummelDealt!;
-    expect(dealt).toBeGreaterThanOrEqual(1150);
+    expect(Math.floor(dealt / 400) - Math.floor(350 / 400), 'crossed 400 three times or more').toBeGreaterThanOrEqual(3);
+    expect(toHand(s).length).toBe(2);
+    expect(heroPowerText(s, 0, { friendlyDamage: 50 }), 'one crossing on screen: one left').toContain('(**1** left this combat)');
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.pummelDealt).toBe(dealt);
     expect(heroPowerText(s)).toContain(`(**${dealt % 400}/400**)`);
@@ -116,17 +141,27 @@ describe('Flash × GENESIS: "First or Last grants 2 copies."', () => {
   });
 });
 
-describe('Flash × TIME: "Start of Combat: get a copy of a random enemy minion."', () => {
-  it('Start of Combat: a copy of one enemy minion flies to hand, with no arming', () => {
-    let s = picked('time', { board: [card('a', N(0), { attack: 1, health: 900 })] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Start of Combat:** get a copy of a random enemy minion.`);
+describe('Flash × TIME (ancient pass 2, owner 2026-11-16): "minions granted from first or last grant its stats to a random friendly minion"', () => {
+  const total = (st: RunState) => st.board.reduce((n, c) => ({ attack: n.attack + c.attack, health: n.health + c.health }), { attack: 0, health: 0 });
+  it('the claimed copy also gives its printed stats to a random friendly minion, in the fight and permanently', () => {
+    let s = picked('time', { board: [card('a', N(0), { attack: 50, health: 500 }), card('b', N(1), { attack: 1, health: 900 })] });
+    expect(heroPowerText(s)).toBe(`${BASE} The minion you get also gives its stats to a random friendly minion, permanently.`);
+    s = arm(s, 'first');
+    expect(ancientCombatMods(s).ancientFlash).toEqual({ claimStats: true, label: 'Ancient of Time' });
+    const before = total(s);
     s = fightVs(s, weak());
-    const t = toHand(s);
-    expect(t.length).toBe(1);
-    expect([N(3), N(4), N(5)]).toContain(t[0]);
-    const firstAttack = events(s).findIndex((e) => e.type === 'attack');
-    const grant = events(s).findIndex((e) => e.type === 'toHand');
-    expect(grant).toBeLessThan(firstAttack);
+    const d = CARD_INDEX[N(3)]!;
+    expect(toHand(s)).toEqual([N(3)]);
+    expect(events(s).some((e) => e.type === 'buff' && e.attack === d.attack && e.health === d.health)).toBe(true);
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(total(s)).toEqual({ attack: before.attack + d.attack, health: before.health + d.health });
+  });
+  it('no claim armed: nothing', () => {
+    let s = picked('time', { board: [card('a', N(0), { attack: 50, health: 500 })] });
+    const before = total(s);
+    s = reduce(fightVs(s, weak()), { type: 'resolveCombat' });
+    expect(toHand({ ...s, lastCombat: s.lastCombat })).toEqual([]);
+    expect(total(s)).toEqual(before);
   });
 });
 

@@ -2233,8 +2233,11 @@ export interface QuestCombatMods {
    *  copied to hand, live. `pummel` (War): a hero Pummel (X) on the shared lifetime tally, once per combat, a copy of a
    *  random living enemy minion to hand. `soc` (Time): Start of Combat, a copy of a random enemy minion to hand.
    *  `exact` (Bonds): every one of Flash's copies arrives EXACT (`ShoutCarry.handExact`: its stats, keywords and Gilded).
-   *  Player-only; never snapshotted. */
-  ancientFlash?: { second?: boolean; pummel?: { every: number; dealt: number }; soc?: boolean; exact?: boolean; label: string };
+   *  ANCIENT PASS 2 (owner 2026-11-16): `pummel.max` = payouts allowed per combat (War: 2; absent = 1). `gildOnLoss`
+   *  (Fortune): First or Last's CLAIMED copies arrive Gilded when this side loses the fight (`ShoutCarry.handGilds`).
+   *  `claimStats` (Time): each claimed copy also gives its stats to a random living friendly body, PERMANENTLY
+   *  (`permaGain`). Player-only; never snapshotted. */
+  ancientFlash?: { second?: boolean; pummel?: { every: number; dealt: number; max?: number }; soc?: boolean; exact?: boolean; gildOnLoss?: boolean; claimStats?: boolean; label: string };
   /** ANCIENT OF TIME × Lord of the Risen: count every friendly minion summoned this fight
    *  (`CombatCarryBacks.summonsMade`); the next Start of Turn pays per summon. Player-only; never snapshotted. */
   ancientCountSummons?: boolean;
@@ -2318,7 +2321,7 @@ export interface QuestCombatMods {
    *  on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's share),
    *  but REPEATING: every multiple of `every` crossed sends a plain copy of a random LIVING friendly minion to hand
    *  (`grantToHand`, a live `toHand`). The tally comes home as `CombatCarryBacks.ancientPummelDealt`. Player-only. */
-  ancientPummelCopy?: { every: number; dealt: number; label: string };
+  ancientPummelCopy?: { every: number; dealt: number; label: string; /** Payouts allowed per combat (absent = no cap; Gorr's "once per turn" = 1). */ max?: number };
   /** ANCIENT OF DEATH × Braum (owner 2026-10-06): "Investment becomes: When 16 friendly minions die, get a random Gilded
    *  minion." ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Rune of Body
    *  Counting meter shape: "when N die" is NOT an Avenge, so Rune of Fury does not repeat it). Every `every`th death sends
@@ -2346,7 +2349,7 @@ export interface QuestCombatMods {
    *  `questTrigger` with `flag` (the replay counts it live; settle banks it as a Swap charge). The tally comes home as
    *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. `perCombat` (default 1) = how many crossings
    *  may pay in one fight (Darah × War pays twice since ancient pass 1, owner 2026-11-16). */
-  ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string; perCombat?: number };
+  ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string; perCombat?: number; /** REPEATING (Frank × War, ancient pass 2): every crossing pulses `flag`, no once-per-combat latch. */ repeat?: boolean };
   /** ANCIENT OF DEATH × Nadja (owner 2026-10-06): "Goldspring becomes: Avenge (6): Gain 1 max gold." A hero Avenge on ONE
    *  running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire
    *  logs a `maxGold` event (+`gold`, the float) and a `questTrigger` with `flag`; the fires come home as
@@ -2396,7 +2399,11 @@ export interface QuestCombatMods {
   /** ANCIENT OF DEATH × Gorun: "When a friendly minion dies, give its Attack to a random friendly minion." Each friendly
    *  death (a Rise death included) gives the Attack it died with to one random living friendly minion, a combat buff,
    *  on its own beat. The pick draws from the side's grant stream. */
-  ancientDeathGivesAttack?: { label: string };
+  ancientDeathGivesAttack?: { label: string; /** Gives left this turn (ancient pass 2: "twice per turn", the Shop's share already spent). Absent = no cap. */ left?: number };
+  /** ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
+   *  Gilded enemy minion." `per` distinct random living friendly bodies without Ward gain Ward for each living Gilded body
+   *  on the OTHER side at Start of Combat, for that combat. The picks draw from the side's grant stream. */
+  ancientMidasWard?: { per: number; label: string };
   /** ANCIENT OF FORTUNE × Gorun: "Every 5 attacks, gain 1 Gold next turn." `tick` = the running count of friendly
    *  attacks carried in; every `every`th attack banks `gold` for the next Shop (`bonusGold`) and pulses a `questTrigger`
    *  of `flag`. The count comes home as `CombatCarryBacks.ancientAttackGoldTick`. */

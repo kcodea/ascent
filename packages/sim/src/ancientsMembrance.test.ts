@@ -172,22 +172,24 @@ describe('Membrance × TIME: "Start of Turn: get a plain copy of a random minion
   });
 });
 
-describe('Membrance × BONDS: "When you buy a copy of a minion that you control, give your Gilded minions +5/+5."', () => {
-  const board = () => [card('a', N(0)), card('g', N(3), { golden: true, attack: 10, health: 10 }), card('h', N(4), { attack: 1, health: 1 })];
-  it('buying a copy of a board minion gives every Gilded board minion +5/+5', () => {
-    let s = picked('bonds', { board: board() });
-    s = buyUid({ ...s, shop: [offer('x', N(0))] }, 'x');
-    expect(at(s, 'g')).toMatchObject({ attack: 15, health: 15 });
-    expect(at(s, 'h')).toMatchObject({ attack: 1, health: 1 });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack);
+describe('Membrance × BONDS (ancient pass 2, owner 2026-11-16): "Playing a Gilded minion gives you 2 Triple Rewards."', () => {
+  const rewards = (s: RunState): number => s.hand.filter((c) => c.cardId === 'discoverspell').length;
+  it('playing a Gilded minion gives 2 Triple Rewards (the usual one + 1); a plain play gives none', () => {
+    let s = picked('bonds', { hand: [card('g', N(3), { golden: true, attack: 10, health: 10 }), card('p', N(4))] });
+    expect(heroPowerText(s)).toBe(`${BASE} Playing a **Gilded** minion gives you **2** Triple Rewards.`);
+    s = reduce(s, { type: 'play', uid: 'g' });
+    expect(rewards(s)).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(rewards(s)).toBe(2);
   });
-  it('a minion you do not control, or another Ancient: nothing', () => {
-    let s = picked('bonds', { board: board() });
-    s = buyUid({ ...s, shop: [offer('x', N(5))] }, 'x');
+  it('another Ancient: the usual one', () => {
+    const s = reduce(picked('time', { hand: [card('g', N(3), { golden: true, attack: 10, health: 10 })] }), { type: 'play', uid: 'g' });
+    expect(rewards(s)).toBe(1);
+  });
+  it('the old buy-a-copy +5/+5 is gone', () => {
+    let s = picked('bonds', { board: [card('a', N(0)), card('g', N(3), { golden: true, attack: 10, health: 10 })] });
+    s = buyUid({ ...s, shop: [offer('x', N(0))] }, 'x');
     expect(at(s, 'g')).toMatchObject({ attack: 10, health: 10 });
-    let t = picked('time', { board: board() });
-    t = buyUid({ ...t, shop: [offer('x', N(0))] }, 'x');
-    expect(at(t, 'g')).toMatchObject({ attack: 10, health: 10 });
   });
 });
 

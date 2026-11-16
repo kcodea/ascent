@@ -94,15 +94,15 @@ describe('Juggler × DEATH: "Avenge (4): get a Carnival Coin."', () => {
   });
 });
 
-describe('Juggler × FORTUNE: "Carnival Coins give 3 Gold."', () => {
-  it('a Carnival Coin gives 3 Gold, and its text says so', () => {
+describe('Juggler × FORTUNE: "Carnival Coins give 2 Gold." (owner 2026-11-16: 2, was 3)', () => {
+  it('a Carnival Coin gives 2 Gold, and its text says so', () => {
     let s = picked('fortune', { hand: [card('c', COIN)], board: [card('a', N(3))] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Carnival Coins** give **3 Gold**.`);
-    expect(carnivalCoinLive(s)).toEqual({ gold: 3, attack: 0, health: 0 });
-    expect(coinText(s)).toBe('Gain {{3 Gold}}. Give your minions **+1/+1**.');
+    expect(heroPowerText(s)).toBe(`${BASE} **Carnival Coins** give **2 Gold**.`);
+    expect(carnivalCoinLive(s)).toEqual({ gold: 2, attack: 0, health: 0 });
+    expect(coinText(s)).toBe('Gain {{2 Gold}}. Give your minions **+1/+1**.');
     const before = s.embers;
     s = reduce(s, { type: 'play', uid: 'c' });
-    expect(s.embers).toBe(before + 3);
+    expect(s.embers).toBe(before + 2);
     expect(at(s, 'a').attack).toBe(CARD_INDEX[N(3)]!.attack + 1);
   });
   it('another Gold spell is unchanged', () => {
@@ -155,27 +155,27 @@ describe('Juggler × GENESIS: "Get a Carnival Coin every 2 minions you buy."', (
   });
 });
 
-describe('Juggler × TIME: "The first 2 minions you buy each turn also grant a Carnival Coin."', () => {
-  it('the first 2 minion buys each turn each give a Coin, on top of the every-3 Coin', () => {
-    let s = picked('time');
-    expect(heroPowerText(s)).toBe(`${BASE} The first **2** minions you buy each turn also give a **Carnival Coin** (**2** left this turn).`);
-    s = buy(s, N(0));
-    expect(coins(s)).toBe(1);
-    s = buy(s, N(1));
-    expect(coins(s)).toBe(2);
-    expect(heroPowerText(s)).toContain('(**0** left this turn)');
-    s = buy(s, N(2));
-    expect(coins(s), 'the 3rd buy pays only the power own Coin').toBe(3);
-    s = buy(s, N(3));
-    expect(coins(s)).toBe(3);
-    const next = buy({ ...s, wave: s.wave + 1 }, N(0));
-    expect(coins(next), 'a new turn: the first buy again').toBe(4);
+describe('Juggler × TIME (ancient pass 2, owner 2026-11-16): "End of Turn: your Carnival Coins improve +1/+1 for each coin in your hand."', () => {
+  it('End of Turn with 2 Coins in hand: every Coin improves by +2/+2, permanently, and its text follows', () => {
+    let s = picked('time', { hand: [card('c1', COIN), card('c2', COIN)], board: [card('a', N(3), { attack: 1, health: 400 })] });
+    expect(heroPowerText(s)).toBe(`${BASE} **End of Turn:** your **Carnival Coins** improve by **+1/+1** for each Carnival Coin in your hand (**2** in hand). Improved so far: **+0/+0**.`);
+    expect(coinText(s)).toBe(CARD_INDEX[COIN]!.text);
+    s = fightNow(s, 0, 400);
+    expect(s.ancients!.jugglerCoinBonus).toEqual({ attack: 2, health: 2 });
+    expect(heroPowerText(s)).toContain('Improved so far: **+2/+2**.');
+    expect(coinText(s)).toContain('+3/+3');
+    s = reduce(s, { type: 'resolveCombat' });
+    const a0 = at(s, 'a').attack;
+    const coin = s.hand.find((c) => c.cardId === COIN)!;
+    s = reduce(s, { type: 'play', uid: coin.uid });
+    expect(at(s, 'a').attack, 'the Coin now gives +3/+3').toBe(a0 + 3);
   });
-  it('a spell bought is not a minion', () => {
-    const s0 = picked('time');
-    const spell = poolOf(s0).buyable.find((c) => c.spell && !c.token && (c.cost ?? 0) <= 3 && c.tier <= 2)?.id;
-    if (!spell) return;
-    const s = buyFromRow(s0, spell);
+  it('no Coins in hand: nothing improves', () => {
+    const s = fightNow(picked('time', { board: [card('a', N(3), { attack: 1, health: 400 })] }), 0, 400);
+    expect(s.ancients!.jugglerCoinBonus).toBeUndefined();
+  });
+  it('the old first-buys Coin is gone', () => {
+    const s = buy(picked('time'), N(0));
     expect(coins(s)).toBe(0);
   });
 });

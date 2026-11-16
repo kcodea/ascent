@@ -94,19 +94,42 @@ describe('Midas × FORTUNE: "Gold Pouches grant 3g"', () => {
   });
 });
 
-describe('Midas × WAR: "Start of Turn: Give a random Gilded minion Ward"', () => {
-  it('each Start of Turn, a Gilded minion without Ward gains Ward (its own beat); plain minions never', () => {
-    let s = picked('war', { board: [gilded('g', N(0), { health: 50 }), card('p', N(1), { health: 50 })] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Start of Turn:** give a random **Gilded** minion without **Ward** **Ward**.`);
-    s = reduce(fightNow(s), { type: 'resolveCombat' });
-    expect(at(s, 'g').keywords).toContain('DS');
-    expect(at(s, 'p').keywords).not.toContain('DS');
-    expect((s.sotBeatFx ?? []).some((b) => b.source.kind === 'hero' && b.source.label === 'Ancient of War')).toBe(true);
+describe('Midas × WAR (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each Gilded enemy minion"', () => {
+  const foeBoard = (wave: number, gildedFoes: number): BoardSnapshot => ({
+    v: 1, wave, heroId: 'indy', resolve: 30, tier: 7, triples: 0, tribes: [], threat: 'glass', power: 900,
+    minions: [
+      ...Array.from({ length: gildedFoes }, () => ({ cardId: 'sandbag', attack: 0, health: 300, keywords: [], golden: true })),
+      { cardId: 'sandbag', attack: 0, health: 300, keywords: [] },
+    ], seed: 1, origin: 'self',
   });
-  it('no Gilded minion without Ward: nothing', () => {
-    let s = picked('war', { board: [card('p', N(1), { health: 50 })] });
+  const vs = (s: RunState, gildedFoes: number): RunState => reduce({ ...s, servedBoards: { [s.wave]: foeBoard(s.wave, gildedFoes) } }, { type: 'faceOmen' });
+  const warded = (s: RunState): string[] => {
+    const ev = events(s);
+    const first = ev.findIndex((e) => e.type === 'attack');
+    const mine = new Set(s.lastCombat!.initial.player.map((m) => m.uid));
+    return ev.slice(0, first < 0 ? ev.length : first).filter((e): e is Extract<CombatEvent, { type: 'shieldUp' }> => e.type === 'shieldUp' && mine.has(e.target)).map((e) => e.target);
+  };
+  const five = () => ['a', 'b', 'c', 'd', 'e'].map((u, i) => card(u, N(i), { attack: 1, health: 50 }));
+  it('2 Gilded foes: 4 distinct friendly minions gain Ward at Start of Combat, for that combat only', () => {
+    let s = picked('war', { board: five() });
+    expect(heroPowerText(s)).toBe(`${BASE} **Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.`);
+    expect(ancientCombatMods(s).ancientMidasWard).toEqual({ per: 2, label: 'Ancient of War' });
+    s = vs(s, 2);
+    const w = warded(s);
+    expect(w.length).toBe(4);
+    expect(new Set(w).size).toBe(4);
+    s = reduce(s, { type: 'resolveCombat' });
+    for (const c of s.board) expect(c.keywords).not.toContain('DS');
+  });
+  it('1 Gilded foe: 2; none: nothing; more Ward than bodies: everyone once', () => {
+    expect(warded(vs(picked('war', { board: five() }), 1)).length).toBe(2);
+    expect(warded(vs(picked('war', { board: five() }), 0)).length).toBe(0);
+    expect(warded(vs(picked('war', { board: five().slice(0, 3) }), 3)).length).toBe(3);
+  });
+  it('the old Start of Turn Ward is gone', () => {
+    let s = picked('war', { board: [gilded('g', N(0), { health: 50 })] });
     s = reduce(fightNow(s), { type: 'resolveCombat' });
-    expect(at(s, 'p').keywords).not.toContain('DS');
+    expect(at(s, 'g').keywords).not.toContain('DS');
   });
 });
 

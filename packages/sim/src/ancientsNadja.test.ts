@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { runSpells } from './spellPool';
 import type { CombatEvent } from '@game/core';
 import {
   ANCIENT_IDS, activePowers, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, reduce,
@@ -124,14 +125,14 @@ describe('Nadja × FORTUNE: "Goldspring can be used twice per turn and costs 2 g
   });
 });
 
-describe('Nadja × WAR: "Start of Combat: Your left-most minion gains Rally: give your minions +3 attack per gold spent this turn."', () => {
+describe('Nadja × WAR: "Start of Combat: Your left-most minion gains Rally: give your minions +2 Attack per Gold spent this turn." (owner 2026-11-16: +2, was +3)', () => {
   it('the power prints the live Gold spent and the Rally it gives; the combat mod freezes it', () => {
     let s = picked('war', { board: [card('a', N(0), { attack: 2, health: 50 }), card('b', N(1), { attack: 1, health: 50 })] });
     expect(heroPowerText(s)).toContain('(**0** spent: **+0** Attack.)');
     expect(ancientCombatMods(s).ancientSocRally).toBeUndefined();
     s = buy(s, N(2)); // 3 Gold
-    expect(heroPowerText(s)).toContain('(**3** spent: **+9** Attack.)');
-    expect(ancientCombatMods(s).ancientSocRally).toEqual({ attack: 9, label: 'Ancient of War' });
+    expect(heroPowerText(s)).toContain('(**3** spent: **+6** Attack.)');
+    expect(ancientCombatMods(s).ancientSocRally).toEqual({ attack: 6, label: 'Ancient of War' });
   });
   it('combat: the left-most minion gains Rally; its attack gives EVERY friendly minion (itself too) +X Attack, combat only', () => {
     let s = picked('war', { board: [card('a', N(0), { attack: 2, health: 50 }), card('b', N(1), { attack: 1, health: 50 })] });
@@ -142,7 +143,7 @@ describe('Nadja × WAR: "Start of Combat: Your left-most minion gains Rally: giv
     expect(ev.some((e) => e.type === 'keyword' && e.target === lead && e.keyword === 'RL')).toBe(true);
     const firstSwing = ev.find((e): e is Extract<CombatEvent, { type: 'attack' }> => e.type === 'attack' && e.attacker === lead);
     expect(firstSwing).toBeDefined();
-    const rallyBuffs = ev.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === lead && e.attack === 9 && e.health === 0);
+    const rallyBuffs = ev.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === lead && e.attack === 6 && e.health === 0);
     expect(rallyBuffs.map((e) => e.target)).toEqual(expect.arrayContaining([lead, other]));
     s = reduce(s, { type: 'resolveCombat' });
     expect(at(s, 'a').attack, 'combat-only').toBe(2);
@@ -154,19 +155,25 @@ describe('Nadja × WAR: "Start of Combat: Your left-most minion gains Rally: giv
   });
 });
 
-describe('Nadja × GENESIS: "Goldspring also grants a random minion."', () => {
-  it('Goldspring gives +1 max Gold AND a random minion of your Shop tier or lower to hand', () => {
-    let s = picked('genesis', { tier: 2 });
-    expect(heroPowerText(s)).toBe(`${BASE} Also get a random minion.`);
+describe('Nadja × GENESIS (ancient pass 2, owner 2026-11-16): "Goldspring also gives a random Shop spell from any Tier."', () => {
+  it('Goldspring gives +1 max Gold AND a random Shop spell, any Tier, to hand', () => {
+    let s = picked('genesis', { tier: 1 });
+    expect(heroPowerText(s)).toBe(`${BASE} Also get a random Shop spell from any Tier.`);
     const bonus = s.maxGoldBonus ?? 0;
     s = spring(s);
     expect(s.maxGoldBonus).toBe(bonus + 1);
     expect(s.hand.length).toBe(1);
-    const def = CARD_INDEX[s.hand[0]!.cardId]!;
-    expect(def.spell).toBeFalsy();
-    expect(def.tier).toBeLessThanOrEqual(2);
+    expect(runSpells(s).map((c) => c.id)).toContain(s.hand[0]!.cardId);
   });
-  it('is seeded: the same run gives the same minion', () => {
+  it('any Tier: across seeds at Shop tier 1, a spell above Tier 1 arrives', () => {
+    const tiers = new Set<number>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = spring({ ...picked('genesis', { tier: 1 }), rngCursor: seed * 7919 });
+      tiers.add(CARD_INDEX[s.hand[0]!.cardId]!.tier);
+    }
+    expect([...tiers].some((t) => t > 1)).toBe(true);
+  });
+  it('is seeded: the same run gives the same spell', () => {
     const a = spring(picked('genesis', { tier: 3 }));
     const b = spring(picked('genesis', { tier: 3 }));
     expect(a.hand.map((c) => c.cardId)).toEqual(b.hand.map((c) => c.cardId));

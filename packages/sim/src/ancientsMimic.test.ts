@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { runSpells } from './spellPool';
 import type { CombatEvent, Keyword } from '@game/core';
 import {
   ANCIENT_IDS, activePowers, ancientCombatMods, ancientOfferText, ancientPairingHeroId, createRun, enableAncients, heroPowerArmed, heroPowerText, reduce,
@@ -48,8 +49,6 @@ const settle = (s: RunState): RunState => reduce(s, { type: 'resolveCombat' });
 const events = (s: RunState): CombatEvent[] => s.lastCombat!.events as CombatEvent[];
 const summonsOf = (ev: CombatEvent[], cardId: string) =>
   ev.filter((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player' && e.minion.cardId === cardId);
-const buffsFrom = (ev: CombatEvent[], source: string) =>
-  ev.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === source);
 const offer = (uid: string, cardId: string): ShopCard => ({ uid, cardId } as ShopCard);
 const buy = (s: RunState, id: string, u = 'o'): RunState => {
   const next = reduce({ ...s, shop: [offer(u, id)] }, { type: 'buy', uid: u });
@@ -139,21 +138,35 @@ describe('Mimic × FORTUNE: "For each minion you sell, gain 1 Gold next turn."',
   });
 });
 
-describe('Mimic × WAR: "Start of Combat: Give a minion of each type +1/+1 for each spell cast this game."', () => {
+describe('Mimic × WAR (ancient pass 2, owner 2026-11-16): "+1/+1 for every 2 Shop spells, at End of Turn"', () => {
   const board = () => [card('a', TA.id, { attack: 1, health: 900 }), card('b', TB.id, { attack: 1, health: 900 }), card('c', TA.id, { attack: 1, health: 900 }), card('n', N(0), { attack: 1, health: 900 })];
-  it('one minion of each type gains +N/+N for the spells cast this GAME, casts made before the pick included', () => {
-    const s = picked('war', { board: board(), spellsCast: 6 }, 'nadja');
-    expect(ancientCombatMods(s).ancientUnitedFront).toBe(6);
-    expect(heroPowerText(s)).toContain('give a friendly minion of each type **+6/+6** (1 per spell cast this game)');
-    const f = fightNow(s);
-    const got = buffsFrom(events(f), 'United Front');
-    expect(got.map((b) => b.target)).toEqual([f.lastCombat!.initial.player[0]!.uid, f.lastCombat!.initial.player[1]!.uid]);
-    for (const b of got) expect(b).toMatchObject({ attack: 6, health: 6 });
-    expect(settle(f).board.find((c) => c.uid === 'a')!.attack, 'a combat buff').toBe(1);
+  const withShopSpells = (st: RunState, n: number): RunState => ({ ...st, ancients: { ...st.ancients!, shopSpellsCast: n } });
+  it('End of Turn: one minion of each type gains +1/+1 per 2 Shop spells cast this game, permanently; nothing at Start of Combat', () => {
+    const s = withShopSpells(picked('war', { board: board(), spellsCast: 9 }, 'nadja'), 7);
+    expect(heroPowerText(s)).toContain('give a friendly minion of each type **+3/+3** (+1/+1 for every **2** Shop spells you cast this game: **7** so far).');
+    expect(ancientCombatMods(s).ancientUnitedFront, 'no Start of Combat grant any more').toBeUndefined();
+    const f = settle(fightNow(s));
+    const atk = (uid: string) => f.board.find((c) => c.uid === uid)!.attack;
+    expect([atk('a'), atk('b'), atk('c'), atk('n')]).toEqual([4, 4, 1, 1]);
   });
-  it('no spell cast yet, or another Ancient: nothing', () => {
-    expect(ancientCombatMods(picked('war', { board: board(), spellsCast: 0 }, 'nadja')).ancientUnitedFront).toBeUndefined();
-    expect(buffsFrom(events(fightNow(picked('time', { board: board(), spellsCast: 6 }, 'nadja'))), 'United Front').length).toBe(0);
+  it('a Shop spell cast in the Shop counts, from the run start (before the pick too)', () => {
+    let s0 = enableAncients(base({ board: board() }, 'nadja'));
+    const spell = runSpells(s0).find((c) => c.spell && !c.target && !c.chooseOne?.length && !c.token && !c.gift && (() => {
+      const t = reduce({ ...s0, hand: [card('x', c.id)] }, { type: 'play', uid: 'x' });
+      return (t.shopSpellsThisTurn ?? 0) === 1;
+    })());
+    expect(spell, 'a plain untargeted Shop spell in the pool').toBeDefined();
+    s0 = reduce({ ...s0, hand: [card('x', spell!.id)] }, { type: 'play', uid: 'x' });
+    expect(s0.ancients!.shopSpellsCast, 'counted before any pick').toBe(1);
+    let s: RunState = { ...s0, ancients: { ...s0.ancients!, points: s0.ancients!.cost, offer: ['war', 'time', 'death'] as AncientId[] } };
+    s = reduce(s, { type: 'pickAncient', id: 'war' });
+    expect(heroPowerText(s)).toContain('**1** so far');
+  });
+  it('fewer than 2 Shop spells, or another Ancient: nothing', () => {
+    const one = settle(fightNow(withShopSpells(picked('war', { board: board() }, 'nadja'), 1)));
+    expect(one.board.find((c) => c.uid === 'a')!.attack).toBe(1);
+    const time = settle(fightNow(withShopSpells(picked('time', { board: board() }, 'nadja'), 8)));
+    expect(time.board.find((c) => c.uid === 'a')!.attack).toBe(1);
   });
 });
 
@@ -232,17 +245,13 @@ describe('Mimic × BONDS: "When you buy 3 minions in a turn, get a plain copy of
 
 describe('Mimic × WAR on the shared United Front entry point (batch B\'s `fireUnitedFront`)', () => {
   const board = () => [card('a', TA.id, { attack: 1, health: 900 }), card('b', TB.id, { attack: 1, health: 900 }), card('c', TA.id, { attack: 1, health: 900 })];
-  it('a Mimic wielding United Front fires it twice: the power\'s own, then the passive, each the BASE one-per-type grant', () => {
+  it('a Mimic wielding United Front under War fires it ONCE at Start of Combat (the power\'s own; War is End of Turn now)', () => {
     const s = picked('war', { board: board(), spellsCast: 6 }, 'vale');
     expect(ancientCombatMods(s).ancientFrontShape, 'no Emissary pairing leaks in').toBeUndefined();
-    expect(ancientCombatMods(s).ancientUnitedFront).toBe(6);
+    expect(ancientCombatMods(s).ancientUnitedFront).toBeUndefined();
     const f = fightNow(s);
     const ev = events(f);
-    const got = buffsFrom(ev.slice(0, ev.findIndex((e) => e.type === 'attack')), 'United Front');
-    const [a, b] = [f.lastCombat!.initial.player[0]!.uid, f.lastCombat!.initial.player[1]!.uid];
-    expect(got.map((g) => g.target)).toEqual([a, b, a, b]);
-    for (const g of got) expect(g).toMatchObject({ attack: 6, health: 6 });
-    expect(ev.filter((e) => e.type === 'questTrigger' && e.flag === 'unitedFront').length).toBe(2);
+    expect(ev.filter((e) => e.type === 'questTrigger' && e.flag === 'unitedFront').length).toBe(1);
   });
   it('Emissary\'s own War / Bonds pairings do not reshape it (a Mimic never holds them)', () => {
     for (const id of ['war', 'bonds', 'death'] as AncientId[]) {
@@ -290,7 +299,7 @@ describe('Mimic wielding a batch A / B hero\'s power under a Mimic Ancient: the 
 const ANCIENT_SUFFIX: Partial<Record<AncientId, string>> = {
   death: 'resummon it when there is room.',
   fortune: 'so far).',
-  war: '(1 per spell cast this game).',
+  war: 'Shop spells you cast this game: **0** so far).',
   time: 'get a plain copy of a minion that died last combat.',
   bonds: '/3**).',
 };

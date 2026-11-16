@@ -913,6 +913,8 @@ export function simulate(
     enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
   }));
   const ancientPummelPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** ANCIENT PASS 2: payouts made this fight by a capped repeating hero Pummel (Gorr's once a turn, Flash's twice). */
+  const ancientPummelPays: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** `ancientPummelCharge`'s own payout count this fight (its cap is `perCombat`, default 1). */
   const ancientPummelChargePaid: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** WARM-UP (Set 2 batch): the side-wide Pummel (150) tally (seeded LIFETIME from the run) and its once-per-combat latch. */
@@ -1243,6 +1245,8 @@ export function simulate(
     enemy: Math.max(1, enemyState.questMods?.flashCopies ?? 1),
   }));
   const flashDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  /** ANCIENT PASS 2 × Gorun × Death: Attack gifts made this fight (capped by `ancientDeathGivesAttack.left`). */
+  const deathGivesUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ANCIENTS × Flash: the body each kill copies (its stats / keywords / Gilded as it died, for Bonds' exact copy),
    *  the last one per side, and the kill count (Death pays on the 2nd). */
   type FlashBody = { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean };
@@ -1252,11 +1256,29 @@ export function simulate(
   const killCount: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ONE Flash copy to hand (a live `toHand`). Under Ancient of Bonds the grant's index rides `ShoutCarry.handExact`,
    *  so settle lands it as an EXACT copy of `body` rather than the printed card. A spell / Ruby is never copied. */
-  function flashToHand(side: Side, body: FlashBody, sourceUid?: string): void {
+  /** ANCIENT PASS 2 × Flash × Fortune: the hand-grant indices of this fight's CLAIMED (First or Last) copies. */
+  const flashClaimIdx: Record<Side, number[]> = sideReset(() => ({ player: [], enemy: [] }));
+  function flashToHand(side: Side, body: FlashBody, sourceUid?: string, claim = false): void {
     const def = cards[body.cardId];
     if (!def || def.spell || def.ruby) return;
     const idx = handGrants[side].length;
     ctx.grantToHand(body.cardId, side, sourceUid);
+    if (claim && handGrants[side].length > idx) {
+      const fl = modsFor(side).ancientFlash;
+      if (fl?.gildOnLoss) flashClaimIdx[side].push(idx);
+      // ANCIENT OF TIME × Flash (ancient pass 2, owner 2026-11-16): "minions granted from first or last grant its stats to
+      // a random friendly minion." The copy's stats (the printed card: a plain copy) go to one random living friendly
+      // body right then, PERMANENTLY (`permaGain`, settle carries it home), on its own beat.
+      if (fl?.claimStats && (def.attack > 0 || def.health > 0)) {
+        const band = boards[side].filter((m) => !m.dead && m.health > 0);
+        if (band.length > 0) {
+          const heir = band[grantRngFor(side).int(band.length)]!;
+          nextStep();
+          const keptBy = ctx.buff(heir, def.attack, def.health, fl.label).kept; // true = an Engrave already kept it (R-ENGRAVE-05)
+          if (!keptBy) heir.permaGain = { attack: (heir.permaGain?.attack ?? 0) + def.attack, health: (heir.permaGain?.health ?? 0) + def.health };
+        }
+      }
+    }
     if (modsFor(side).ancientFlash?.exact && handGrants[side].length > idx) {
       (shoutCarry[side].handExact ??= []).push({ idx, attack: body.attack, health: body.health, keywords: [...body.keywords], golden: body.golden });
       // The combat hand entry is the same exact copy settle lands (R-HAND-GRANT-SUMMON-01).
@@ -1279,7 +1301,7 @@ export function simulate(
     // (The enemy side's claim is a silent carry-back — see the symmetric carry-back note at the top.)
     if (flashPickFor[killer] === 'first' && !flashDone[killer]) {
       flashDone[killer] = true;
-      for (let i = 0; i < flashCopiesFor[killer]; i++) flashToHand(killer, body, uid);
+      for (let i = 0; i < flashCopiesFor[killer]; i++) flashToHand(killer, body, uid, true);
     }
     // ANCIENT OF DEATH × Flash (owner 2026-10-09): "Also get a copy of the 2nd minion that dies." The 2nd enemy minion
     // this side kills, while First or Last is armed (it is an addition to that claim), live.
@@ -3828,20 +3850,27 @@ export function simulate(
     ancientPummelDealt[side] = after;
     // ANCIENT OF WAR × Gorr: "pummel (200): get a copy of a minion in your warband." Repeating: one plain copy of a random
     // living friendly minion per multiple of `every` crossed by this hit (the side's grant stream picks it).
+    // ANCIENT PASS 2 (owner 2026-11-16): "once per turn" = `max` payouts a fight (the tally keeps counting past it).
     if (pc) {
       const every = Math.max(1, pc.every);
       const crossed = Math.floor(after / every) - Math.floor(before / every);
       const draw = grantRngFor(side);
       for (let i = 0; i < crossed; i++) {
+        if (pc.max !== undefined && ancientPummelPays[side] >= pc.max) break;
         const band = boards[side].filter((m) => !m.dead && m.health > 0);
         if (band.length === 0) break;
+        ancientPummelPays[side] += 1;
         ctx.grantToHand(band[draw.int(band.length)]!.cardId, side, dealer.uid);
       }
     }
     // ANCIENT OF WAR × Darah: "Pummel (140): Get a charge of Swap. (Once per combat.)" Albus' latch exactly: the first
     // crossing this fight pays ONE charge (a flagged `questTrigger`, live; settle banks it), later crossings are spent.
-    // Ancient pass 1 (owner 2026-11-16): `perCombat` lifts the cap (Darah pays on up to 2 crossings per fight).
-    if (pch && !ancientPummelPaid[side]) {
+    // ANCIENT OF WAR × Frank (ancient pass 2, owner 2026-11-16: "pummel (300)"): `repeat`, every crossing pulses once.
+    // Ancient pass 1 (owner 2026-11-16): otherwise `perCombat` lifts the cap (Darah pays on up to 2 crossings per fight).
+    if (pch?.repeat) {
+      const crossed = Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every));
+      for (let i = 0; i < crossed; i++) fireTrigger(pch.flag, side);
+    } else if (pch && !ancientPummelPaid[side]) {
       const crossed = Math.floor(after / Math.max(1, pch.every)) - Math.floor(before / Math.max(1, pch.every));
       const pay = Math.min(crossed, Math.max(1, pch.perCombat ?? 1) - ancientPummelChargePaid[side]);
       for (let i = 0; i < pay; i++) {
@@ -3852,11 +3881,15 @@ export function simulate(
     }
     // ANCIENT OF WAR × Flash (owner 2026-10-09): "Pummel (400): get a copy of a random enemy minion (once per combat)."
     // Albus' latch: the first crossing this fight pays one copy of a random LIVING enemy body, live (Bonds: exact).
-    if (pf && !ancientPummelPaid[side] && Math.floor(after / Math.max(1, pf.every)) - Math.floor(before / Math.max(1, pf.every)) > 0) {
-      ancientPummelPaid[side] = true;
+    // ANCIENT PASS 2 (owner 2026-11-16): "twice per combat" (`max`, absent = the original once).
+    if (pf) {
+      const crossed = Math.floor(after / Math.max(1, pf.every)) - Math.floor(before / Math.max(1, pf.every));
       const foe: Side = side === 'player' ? 'enemy' : 'player';
-      const band = boards[foe].filter((m) => !m.dead && m.health > 0);
-      if (band.length > 0) flashToHand(side, flashBodyOf(band[grantRngFor(side).int(band.length)]!), dealer.uid);
+      for (let i = 0; i < crossed && ancientPummelPays[side] < Math.max(1, pf.max ?? 1); i++) {
+        ancientPummelPays[side] += 1;
+        const band = boards[foe].filter((m) => !m.dead && m.health > 0);
+        if (band.length > 0) flashToHand(side, flashBodyOf(band[grantRngFor(side).int(band.length)]!), dealer.uid);
+      }
     }
     if (!ap) return;
     if (ancientPummelPaid[side]) return;
@@ -4298,9 +4331,11 @@ export function simulate(
       if (modsFor(foe).ancientFirstFoeDeathCopy && !firstFoeDeath[foe]) firstFoeDeath[foe] = { cardId: minion.cardId, uid: minion.uid };
     }
     const dga = modsFor(minion.side).ancientDeathGivesAttack;
-    if (dga && minion.attack > 0) {
+    // ANCIENT PASS 2 (owner 2026-11-16): "twice per turn" — `left` is what the Shop turn left of the budget.
+    if (dga && minion.attack > 0 && (dga.left === undefined || deathGivesUsed[minion.side] < dga.left)) {
       const band = boards[minion.side].filter((m) => m !== minion && !m.dead && m.health > 0);
       if (band.length > 0) {
+        deathGivesUsed[minion.side] += 1;
         const heir = band[grantRngFor(minion.side).int(band.length)]!;
         nextStep(); // its own beat, not the death's
         ctx.buff(heir, minion.attack, 0, dga.label);
@@ -5955,6 +5990,28 @@ export function simulate(
               if (!m.keywords.includes('DS')) m.keywords.push('DS');
               emit({ type: 'shieldUp', target: m.uid });
             }
+          }
+        }
+      }
+      // ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
+      // Gilded enemy minion." Distinct random living friendly bodies without Ward, `per` for each living Gilded foe body,
+      // for that combat. Everyone already Warded: nothing.
+      const mw = smods.ancientMidasWard;
+      if (mw) {
+        const foe: Side = scSide === 'player' ? 'enemy' : 'player';
+        const gilded = boards[foe].filter((m) => !m.dead && m.health > 0 && m.golden).length;
+        let n = gilded * Math.max(0, mw.per);
+        const open = boards[scSide].filter((m) => !m.dead && m.health > 0 && !m.divineShield);
+        if (n > 0 && open.length > 0) {
+          const draw = grantRngFor(scSide);
+          nextStep();
+          emit({ type: 'sc', source: open[0]!.uid, text: `${mw.label}: Ward`, side: scSide, heroPower: true });
+          while (n > 0 && open.length > 0) {
+            const m = open.splice(draw.int(open.length), 1)[0]!;
+            m.divineShield = true;
+            if (!m.keywords.includes('DS')) m.keywords.push('DS');
+            emit({ type: 'shieldUp', target: m.uid });
+            n--;
           }
         }
       }
@@ -8044,7 +8101,7 @@ export function simulate(
       if (lastDef && !lastDef.spell && !lastDef.ruby) {
         flashDone[side] = true;
         const holder = boards[side].find((m) => !m.dead)?.uid;
-        for (let i = 0; i < flashCopiesFor[side]; i++) flashToHand(side, lastBody, holder);
+        for (let i = 0; i < flashCopiesFor[side]; i++) flashToHand(side, lastBody, holder, true);
       }
     }
   };
@@ -8281,6 +8338,19 @@ export function simulate(
   for (const side of SIDES) finishReinvestment(side);
   // Flash's LAST claim (see `finishFlashLast`).
   for (const side of SIDES) finishFlashLast(side);
+  // ANCIENT OF FORTUNE × Flash (ancient pass 2, owner 2026-11-16): "The minion you get from First or Last is Gilded if you
+  // lose the combat." Only now is the outcome known: a side that LOST (never a draw) has its claimed copies gilded as they
+  // land (`ShoutCarry.handGilds`, the Braum channel), and the combat hand entry shows it the same way.
+  for (const side of SIDES) {
+    const lost = side === 'player' ? result === 'lose' : result === 'win';
+    if (!lost || !modsFor(side).ancientFlash?.gildOnLoss) continue;
+    for (const idx of flashClaimIdx[side]) {
+      (shoutCarry[side].handGilds ??= []).push(idx);
+      const e = grantedEntry(side, idx);
+      const def = e ? cards[e.cardId] : undefined;
+      if (e && def && !e.golden) { e.attack += def.attack; e.health += def.health; e.golden = true; }
+    }
+  }
 
   const pc = carryBacksFor('player');
 

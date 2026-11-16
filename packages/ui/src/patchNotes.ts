@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
-        text: 'Ancients test mode: a big review pass. 59 Ancient powers across 26 heroes are reworked or retuned.',
+        text: 'Ancients test mode: a big review pass. 59 Ancient powers across 34 heroes are reworked or retuned.',
         details: [
           'New effects for Auctioneer, Brackus, Braum, Cassen, Darah, Flash, Gambler, Hunch, Juggler, Membrance, Nadja, Pete, Priestess, Quillen, Rascal, Re-Pete and Warden, among others.',
           'Number changes, for example: Gildmaster Death is now Avenge (17), Frantic Frank War is Pummel (300), Juggler Coins give 2 Gold, Xerox pairs give 3 Gold.',

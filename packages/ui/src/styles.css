@@ -5246,7 +5246,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.76; --fovl: #655449; --fovl-blend: overlay; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --artBoost: 1.05; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.76; --fovl: #655449; --fovl-blend: overlay; }
 /* PER-TRIBE OVAL — the art is authored in its tribe's colours (and has its own gilded variant), so BOTH of the
    shared oval's recolour passes must stand down or the authored colour is destroyed:
      • `--frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9)` (set on `.stdframe` above) desaturates the
@@ -5268,7 +5268,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    subject reads smaller and you see more of the art), `--artZoom` scales it from there (>1 fills more / mild crop,
    <1 shrinks it), `--artY` sets the vertical framing. The `.art` tribe-tinted background shows as the matte. */
 .card.compact.stdframe .art .artimg,
-.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(var(--artZoom)); }
+/* --artBoost (owner 2026-11-15, R-MINION-ART-FILL-01): every oval minion's art is drawn 5% larger than its zoom, so the
+   square picture's flat bottom edge sits under the frame's bottom rim. A MULTIPLIER on top of --artZoom, not a new
+   --artZoom, because a card with its own Card Art tuner entry sets --artZoom inline and would skip a family bump. */
+.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: translate(var(--ca-tx, 0%), var(--ca-ty, 0%)) scale(calc(var(--artZoom) * var(--artBoost))); }
 .card.compact.stdframe .cframe-img {
   position: absolute; inset: auto; height: auto;
   width: calc(var(--ccw) * 1.481 * var(--sh));                     /* 1.481 = 1/0.675 (window is 67.5% of canvas W) */

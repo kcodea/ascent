@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-15',
     changes: [
       {
+        category: 'Systems',
+        text: 'Minion art is 5% larger inside its frame, so the straight bottom edge of the picture no longer shows.',
+      },
+      {
         category: 'Balance',
         text: 'Opponents are now drawn from the 250 most recently played games, so you stop meeting boards built before recent balance changes.',
         details: [

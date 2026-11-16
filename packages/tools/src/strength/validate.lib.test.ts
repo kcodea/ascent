@@ -8,9 +8,10 @@ describe('validate', () => {
       { round: 5, run_a: 's', run_b: 'w', outcome: 'a' },
       { round: 5, run_a: 'bot:hybrid:nadja', run_b: 'w', outcome: 'a' },
       { round: 5, run_a: 's', run_b: 'gone', outcome: 'b' },
-    ], pct);
+      { round: 30, run_a: 's', run_b: 'w', outcome: 'a' },
+    ], (k, round) => (round > 20 ? null : pct(k)), (k) => pct(k) !== null);
     expect(rated).toEqual([{ round: 5, a: 's', b: 'w', pa: 90, pb: 10, outcome: 'a' }]);
-    expect(skipped).toEqual({ generated: 1, unknown: 1 });
+    expect(skipped).toEqual({ generated: 1, runNotMeasured: 1, roundNotMeasured: 1 });
   });
   it('reports how often the stronger board really wins, by percentile gap; a draw is half; equal boards are left out', () => {
     const f = (a: string, b: string, outcome: 'a' | 'b' | 'draw') => ({ round: 5, a, b, pa: pct(a)!, pb: pct(b)!, outcome });

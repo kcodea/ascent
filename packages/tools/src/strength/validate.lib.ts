@@ -11,18 +11,21 @@ export interface RatedFight { round: number; a: string; b: string; pa: number; p
 
 const isGenerated = (key: string): boolean => key.startsWith('bot:');
 
-/** Attach each side's board percentile at the fight's round. A fight with a generated seat, or with a run that has
- *  no percentile there (outside the measured pool), is skipped and counted. */
+/** Attach each side's board percentile at the fight's round. Skipped and counted: a fight with a generated seat, a
+ *  fight with a run that was not measured at all (outside the live window), and a fight between measured runs at
+ *  a round one of them has no percentile for. */
 export function rateFights(
   fights: readonly FightRow[], percentileAt: (runKey: string, round: number) => number | null,
-): { rated: RatedFight[]; skipped: { generated: number; unknown: number } } {
+  isMeasured: (runKey: string) => boolean,
+): { rated: RatedFight[]; skipped: { generated: number; runNotMeasured: number; roundNotMeasured: number } } {
   const rated: RatedFight[] = [];
-  const skipped = { generated: 0, unknown: 0 };
+  const skipped = { generated: 0, runNotMeasured: 0, roundNotMeasured: 0 };
   for (const f of fights) {
     if (isGenerated(f.run_a) || isGenerated(f.run_b)) { skipped.generated++; continue; }
+    if (!isMeasured(f.run_a) || !isMeasured(f.run_b)) { skipped.runNotMeasured++; continue; }
     const pa = percentileAt(f.run_a, f.round);
     const pb = percentileAt(f.run_b, f.round);
-    if (pa === null || pb === null) { skipped.unknown++; continue; }
+    if (pa === null || pb === null) { skipped.roundNotMeasured++; continue; }
     rated.push({ round: f.round, a: f.run_a, b: f.run_b, pa, pb, outcome: f.outcome });
   }
   return { rated, skipped };

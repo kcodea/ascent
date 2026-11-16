@@ -77,7 +77,7 @@ export async function buildReferenceV2(): Promise<void> {
 }
 
 /** Score every fielded round of the v2 runs against the candidate reference (cached per reference file). */
-async function rateLive(): Promise<{ rated: RunV2[]; raws: RawRound[]; tooShort: number; ref: StrengthReference; bucketOf: (round: number) => number }> {
+async function rateLive(): Promise<{ rated: RunV2[]; raws: RawRound[]; tooShort: number; ref: StrengthReference; bucketOf: (round: number) => number; lastRef: number }> {
   const { runs, tooShort } = await v2Runs();
   const refText = existsSync(REF_V2_CANDIDATE) ? readFileSync(REF_V2_CANDIDATE, 'utf8') : '';
   const ref = loadCandidateReference();
@@ -117,7 +117,7 @@ async function rateLive(): Promise<{ rated: RunV2[]; raws: RawRound[]; tooShort:
   }
   if (unscorable) console.log(`WARNING: ${unscorable} boards could not be scored and count as raw 0`);
   const owners = new Map(runs.map((r) => [r.key, ownerOf(r)] as const));
-  return { rated: rateRunsV2(raws, owners, bucketOf), raws, tooShort, ref, bucketOf };
+  return { rated: rateRunsV2(raws, owners, bucketOf), raws, tooShort, ref, bucketOf, lastRef };
 }
 
 const q = (xs: readonly number[], p: number): number => { const a = [...xs].sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(p * a.length))] ?? 0; };
@@ -165,7 +165,7 @@ export async function measureV2(): Promise<void> {
     console.log(`  ${medal.padEnd(9)} ${rows.map((r) => `cap ${r.cap}: ${r.runs} left, ${r.removed} removed, ${r.seats} seats`).join(' | ')}`);
   }
 
-  console.log('\nWHAT A PLAYER CAN FACE (real boards of the in-band runs, by round: median / 90th percentile / strongest)');
+  console.log('\nWHAT A PLAYER CAN FACE (the board each in-band run fields that round, carried final boards included: median / 90th percentile / strongest)');
   for (const medal of RANK_MEDALS) {
     const inBand = rated.filter((r) => inBandV2(r, STRENGTH_BANDS[medal]));
     const cells: string[] = [];
@@ -178,12 +178,15 @@ export async function measureV2(): Promise<void> {
 }
 
 export async function validate(): Promise<void> {
-  const { rated } = await rateLive();
+  const { rated, lastRef } = await rateLive();
   const at = new Map<string, number>();
   for (const r of rated) for (const x of r.rounds) at.set(`${r.key}|${x.round}`, x.value);
   const fights = await getAll<FightRow>('lobby_fights?select=round,run_a,run_b,outcome&order=id.asc');
-  const res = rateFights(fights, (key, round) => at.get(`${key}|${round}`) ?? null);
-  console.log(`\nSTRENGTH V2 VALIDATE: fights read ${fights.length}, rated ${res.rated.length}, skipped: generated seat ${res.skipped.generated}, run outside the measured pool ${res.skipped.unknown}`);
+  const measured = new Set(rated.map((r) => r.key));
+  // Past the last reference round a run whose recording has ended still fields its final board: the value it
+  // carries at the last reference round stands for every later round.
+  const res = rateFights(fights, (key, round) => at.get(`${key}|${round}`) ?? (round > lastRef ? at.get(`${key}|${lastRef}`) ?? null : null), (key) => measured.has(key));
+  console.log(`\nSTRENGTH V2 VALIDATE: fights read ${fights.length}, rated ${res.rated.length}, skipped: generated seat ${res.skipped.generated}, a run outside the live window ${res.skipped.runNotMeasured}, a round with no percentile ${res.skipped.roundNotMeasured}`);
 
   console.log('\nHOW OFTEN THE STRONGER BOARD REALLY WON, by percentile gap');
   for (const row of gapCalibration(res.rated)) console.log(`  gap ${row.bucket.padEnd(6)}: ${String(row.fights).padStart(5)} fights, stronger board won ${(100 * row.strongerWinRate).toFixed(1)}%`);
@@ -201,7 +204,7 @@ export async function validate(): Promise<void> {
   });
   for (const half of ['early', 'late']) {
     const xs = rows.filter((r) => r.half === half);
-    console.log(`\n${half.toUpperCase()} rating vs real ${half} win rate over ${xs.length} runs with at least ${MIN} fights: correlation ${corr(xs.map((r) => r.rating), xs.map((r) => r.rate)).toFixed(2)}`);
+    console.log(`\n${half.toUpperCase()} rating vs real ${half} win rate over ${xs.length} runs with at least ${MIN} fights: correlation ${xs.length < 3 ? 'n/a (too few runs)' : corr(xs.map((r) => r.rating), xs.map((r) => r.rate)).toFixed(2)}`);
   }
   console.log('\nRUNS WHOSE RESULTS DISAGREE MOST WITH THEIR RATING (rating / real win rate / fights)');
   for (const r of [...rows].sort((a, b) => Math.abs(b.rating / 100 - b.rate) - Math.abs(a.rating / 100 - a.rate)).slice(0, 20)) {

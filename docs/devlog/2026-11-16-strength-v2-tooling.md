@@ -23,7 +23,7 @@ nothing in the game. Plan: `docs/superpowers/plans/2026-11-16-strength-v2-toolin
 
 - The 7-round floor drops no live run today.
 - The live window reaches 15 reference rounds (round 16 has fewer than 40 real boards, so it folds into 15).
-- The 250 live runs come from **5 accounts** (two author names share an account), so no table can seat more than
+- The 250 live runs come from **5 accounts** (LEMON and LazerLemon are one account, Rooks and BraveLynx12 another; the fifth holds one run), so no table can seat more than
   17 recorded runs from the whole pool, and Bronze and Silver top out at 16.
 - Candidate reference: the median real board wins 26-44% against it and the 90th percentile 68-88%, so nothing
   sits at the ceiling any more (v1: medians 55-69%, 90th percentile 92-97%). Round 1 still has only 32 distinct
@@ -36,14 +36,23 @@ nothing in the game. Plan: `docs/superpowers/plans/2026-11-16-strength-v2-toolin
   |---|---|---|---|---|---|
   | Bronze (39) | 16 / 23 / 10 | 27 / 12 / 14 | 33 / 6 / 16 | 38 / 1 / 16 | 39 / 0 / 16 |
   | Silver (54) | 11 / 43 / 8 | 24 / 30 / 12 | 37 / 17 / 16 | 51 / 3 / 16 | 52 / 2 / 16 |
-  | Gold (106) | 12 / 94 / 9 | 31 / 75 / 13 | 56 / 50 / 16 | 84 / 22 / 16 | 97 / 9 / 17 |
+  | Gold (106) | 12 / 94 / 9 | 31 / 75 / 13 | 56 / 50 / 16 | 83 / 23 / 16 | 97 / 9 / 17 |
 
-- Strongest single board in band today, by round (no peak cap): Bronze 61-92, Silver 79-99, Gold 93-100.
-- `validate`: of 20,346 recorded fights, 1,586 are between two live runs. The stronger board won 65% at a gap of
+- Strongest single board in band today, by round (no peak cap): Bronze 65-92, Silver 79-99, Gold 93-100.
+- `validate`: of 20,346 recorded fights, 1,603 are between two live runs (the rest name a run outside the live window, 30 a generated seat). The stronger board won 65% at a gap of
   0-10 percentile points, 84% at 10-20, 90% at 20-30, 95% at 30-50, 98%+ beyond. EARLY rating vs real early win
   rate over the 19 runs with 20+ fights: correlation 0.77. Only one run has 20+ late fights, so the late check has
   no sample yet. Caveat: the real fights and the test fights use the same combat engine, so this checks that the
   percentile ordering holds on real pairings, not that the engine is right.
+
+## Review
+
+One independent whole-branch review. Two findings fixed test-first: rounds past the last reference round were
+joining round 15's ranking population (a run that reached round 17 counted three times there), and `validate`
+labelled a live run fielded past round 15 as "outside the pool". Deferred minors: the "disagree most" list compares a
+rank with a win rate (different scales); the score cache is keyed only by the reference file, not the engine
+version (delete `packages/tools/.cache/strength-scores-v2.json` after a balance change); an empty pool cache
+builds an empty reference instead of refusing.
 
 ## Follow-ups
 

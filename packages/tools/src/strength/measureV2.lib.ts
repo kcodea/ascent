@@ -39,8 +39,9 @@ export function rawRoundsOfRun(
 }
 
 /** Rank every round among the runs (one entry per run per round, ties half, 1..100), then rate each run.
- *  `bucketOf` maps a round to the reference round it was scored against: rounds sharing one (everything past the
- *  last reference round) rank in one population, as the v1 percentile does. */
+ *  `bucketOf` maps a round to the reference round it was scored against: a round past the last reference
+ *  round ranks AGAINST that last round's population without joining it, so every run still counts exactly once per
+ *  round (a run that reached round 17 must not sit three times in round 15's population). */
 export function rateRunsV2(raws: readonly RawRound[], owners: ReadonlyMap<string, string | null>, bucketOf: (round: number) => number = (r) => r): RunV2[] {
   const byRound = new Map<number, RawRound[]>();
   for (const r of raws) {
@@ -51,10 +52,12 @@ export function rateRunsV2(raws: readonly RawRound[], owners: ReadonlyMap<string
   const perRun = new Map<string, { round: number; value: number; carried: boolean }[]>();
   for (const list of byRound.values()) {
     const hist = new Map<number, number>();
-    for (const r of list) hist.set(r.raw, (hist.get(r.raw) ?? 0) + 1);
+    // The population is the round's OWN entries only; a later round sharing this reference round is a visitor.
+    const member = (r: RawRound): boolean => r.round === bucketOf(r.round);
+    for (const r of list) if (member(r)) hist.set(r.raw, (hist.get(r.raw) ?? 0) + 1);
     for (const r of list) {
-      // The round's histogram without this board; `percentileOf` then counts it back in (includeSelf).
-      const others: StrengthHistogramEntry[] = [...hist].map(([raw, count]) => ({ raw, count: raw === r.raw ? count - 1 : count }));
+      // The population without this board (when it is a member); `percentileOf` then counts it in (includeSelf).
+      const others: StrengthHistogramEntry[] = [...hist].map(([raw, count]) => ({ raw, count: member(r) && raw === r.raw ? count - 1 : count }));
       const value = percentileOf(r.raw, others, true);
       if (value === null) continue;
       const rs = perRun.get(r.runKey) ?? [];

@@ -43,7 +43,16 @@ describe('rateRunsV2 reference buckets', () => {
       { runKey: 'c', round: 16, raw: 0.5, carried: false }, { runKey: 'c', round: 17, raw: 0.9, carried: false },
     ];
     const c = rateRunsV2(raws, new Map(), (round) => Math.min(round, 16)).find((r) => r.key === 'c')!;
-    expect(c.rounds.map((x) => [x.round, x.value])).toEqual([[16, 50], [17, 88]]); // 17 ranks among all four, not alone
+    expect(c.rounds.map((x) => [x.round, x.value])).toEqual([[16, 67], [17, 88]]); // 17 ranks against round 16's three boards without joining them
+  });
+  it('a later round never adds a second entry to the last reference round (each run once per round)', () => {
+    const raws: RawRound[] = [
+      { runKey: 'A', round: 15, raw: 0.5, carried: false },
+      { runKey: 'B', round: 15, raw: 0.4, carried: false }, { runKey: 'B', round: 16, raw: 0.9, carried: false }, { runKey: 'B', round: 17, raw: 0.9, carried: false },
+      { runKey: 'C', round: 15, raw: 0.3, carried: false },
+    ];
+    const A = rateRunsV2(raws, new Map(), (round) => Math.min(round, 15)).find((r) => r.key === 'A')!;
+    expect(A.rounds).toEqual([{ round: 15, value: 83, carried: false }]);
   });
 });
 

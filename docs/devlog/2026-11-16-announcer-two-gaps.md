@@ -13,7 +13,7 @@ to the Shop. Shown the two options, the owner chose "lets do the two gaps".
 
 - `ANNOUNCER_BIG_COOLDOWN_MS` = 10 s for a moment at `ANNOUNCER_BIG_MOMENT_PRIORITY` (30, Triple) or above: results,
   standings, knockouts, the low-Resolve lines, rune forges, the named-card specials.
-- Everything below keeps `ANNOUNCER_COOLDOWN_MS` = 25 s: back to Shop, the random buy lines, entering combat,
+- Everything below waits `ANNOUNCER_COOLDOWN_MS` = 15 s (owner, on seeing the PR: "lets have filler wait 15 seconds"; it was 25 s): back to Shop, the random buy lines, entering combat,
   Equipment, a pair, tier up.
 - `pump` holds each ready line to its own gap (`announcerCooldownFor`). Drop-not-delay, the bypass lines and the
   terminal lines are unchanged.

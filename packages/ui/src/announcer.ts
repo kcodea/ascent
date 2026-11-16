@@ -75,8 +75,8 @@ export { ANNOUNCER_CHANCE } from './announcerConfig';
 
 // ── The constants (one name each; the tests and the devlog read these) ──────────────────────────────────────
 /** No line within this of the previous one ending. THE cooldown. */
-export const ANNOUNCER_COOLDOWN_MS = 25_000; // 12 s until 2026-11-15 (owner: "lengthen the gap")
-/** The SHORT gap, for the big moments (owner 2026-11-16: "lets do the two gaps"). One 25 s gap dropped most fight
+export const ANNOUNCER_COOLDOWN_MS = 15_000; // 12 s until 2026-11-15, then 25 s for a day (owner 2026-11-16: "lets have filler wait 15 seconds")
+/** The SHORT gap, for the big moments (owner 2026-11-16: "lets do the two gaps"). The one 25 s gap of 2026-11-15 dropped most fight
  *  results and standings lines, because they land seconds after the start-of-combat line: the game went quiet. */
 export const ANNOUNCER_BIG_COOLDOWN_MS = 10_000;
 /** A moment at this priority or above is BIG and waits only the short gap (Triple, 30, is the lowest one). */

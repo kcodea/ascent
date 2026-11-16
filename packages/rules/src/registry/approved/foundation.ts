@@ -1092,7 +1092,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRESENT-07',
-    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 25 s cooldown and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
+    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 15 s cooldown (10 s for big moments) and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
     statement:
       'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
       + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
@@ -1110,7 +1110,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'dropped, try again next time, at most as many tries as they have takes. Which take plays is a fresh RANDOM pick every time (`announcerPick`, owner 2026-09-25: no seeds; '
       + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
       + 'buy lines, Round7) roll a seeded chance (6% / 10%, the chance table) per qualifying moment from the run seed, the wave and '
-      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (25 s since 2026-11-15, owner: "lengthen the gap"; 12 s before; from the previous '
+      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (15 s since 2026-11-16, owner: "lets have filler wait 15 seconds"; 25 s for one day before that, 12 s originally; big moments wait 10 s, R-PRESENT-ANNOUNCER-GAPS-01; from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
       + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines, this round\x27s '
       + 'SurviveUnder10hp and TimeRunningOut BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
@@ -15603,13 +15603,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'the last game i played felt shockingly quiet with regards to the announcer. i was surprised' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'lets do the two gaps' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'lets have filler wait 15 seconds' },
       { kind: 'fix-pr', ref: 'feat/announcer-two-gaps: packages/ui/src/announcer.ts (ANNOUNCER_BIG_COOLDOWN_MS, ANNOUNCER_BIG_MOMENT_PRIORITY, announcerCooldownFor; pump holds each line to its own gap)' },
     ],
     currentBehaviour:
       'Conforms, built 2026-11-16 (feat/announcer-two-gaps). The 2026-11-15 change raised the one gap from 12 s to 25 s; a '
       + 'line inside the gap is dropped, not delayed, so most fight results and return-to-Shop standings lines (they land '
       + 'seconds after the start-of-combat line) were lost and the game went quiet. Now a moment at priority 30 (Triple) or '
-      + 'above waits ANNOUNCER_BIG_COOLDOWN_MS (10 s); the rest wait ANNOUNCER_COOLDOWN_MS (25 s). Lines that bypass the '
+      + 'above waits ANNOUNCER_BIG_COOLDOWN_MS (10 s); the rest wait ANNOUNCER_COOLDOWN_MS (15 s, the owner\'s number). Lines that bypass the '
       + 'gap, the drop-not-delay rule and the terminal lines are unchanged. The cutoff and the 10 s are Claude\'s proposal '
       + 'for the owner to tune; nobody has played a game on it yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-16' },

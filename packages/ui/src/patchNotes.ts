@@ -140,7 +140,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The announcer repeats itself less and talks a little less often.',
         details: [
           'Lines are now dealt like a shuffled deck that carries over between games: you hear every line for a moment before any of them comes back.',
-          'The quiet gap between two announcer lines is now 25 seconds (was 12). Big moments, like fight results, knockouts and triples, only wait 10.',
+          'The quiet gap between two announcer lines is now 15 seconds (was 12). Big moments, like fight results, knockouts and triples, only wait 10.',
         ],
       },
       {

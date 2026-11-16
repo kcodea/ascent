@@ -178,9 +178,21 @@ export interface GameDetailProps {
 
 /** THE BUFFS BUTTON (R-MATCH-SHOPBUFF-01; owner 2026-11-16: "i dont want just shop buffs. i want gamewide buffs like gem buffs,
  *  shop buffs, spell buffs. everything that can show in the run-wide buffs section of a game"): a press opens a small plate
- *  with every run-wide buff the player had when the game ended, the same rows the in-game Buffs panel shows. A second
+ *  with every run-wide buff the player had when the game ended, the same rows the in-game Buffs panel shows, biggest first. A second
  *  press, Escape or a press elsewhere closes it. */
-export function RunBuffsButton({ rows, who }: { rows: readonly BuffRow[]; who: string }) {
+/** A buff row's size: its numbers added up ("+5/+4" is 9, "+3" is 3). */
+const buffAmount = (r: BuffRow): number => (r.value.match(/[0-9]+/g) ?? []).reduce((n, d) => n + Number(d), 0);
+/** THE PLATE'S ORDER (owner 2026-11-16: "sort from highest amount to lowest amount"): biggest buff first, ties in the
+ *  panel's own order. A Shop Stats source stays under Shop Stats, the sources biggest first among themselves. */
+export function sortBuffRows(rows: readonly BuffRow[]): BuffRow[] {
+  const big = (a: BuffRow, b: BuffRow): number => buffAmount(b) - buffAmount(a);
+  const isSrc = (r: BuffRow): boolean => r.key.startsWith('tavern:');
+  const srcs = rows.filter(isSrc).sort(big);
+  return rows.filter((r) => !isSrc(r)).sort(big).flatMap((r) => (r.key === 'tavern' ? [r, ...srcs] : [r]));
+}
+
+export function RunBuffsButton({ rows: given, who }: { rows: readonly BuffRow[]; who: string }) {
+  const rows = useMemo(() => sortBuffRows(given), [given]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   usePhLayer(open, () => setOpen(false));
@@ -195,7 +207,7 @@ export function RunBuffsButton({ rows, who }: { rows: readonly BuffRow[]; who: s
   return (
     <div className="rgp-shopbuff" ref={ref}>
       <PhButton size="s" aria-expanded={open} aria-label={`${who}'s buffs`} onClick={() => { sfx.pulse(); setOpen((o) => !o); }}>
-        Show Buffs
+        <ReplayEye />Show Buffs
       </PhButton>
       {open && (
         <div className="rgp-sbpanel" role="dialog" aria-label="Buffs">

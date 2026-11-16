@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { snapshotBoard, createRun, gatherRunBuffs, shopBuffSnapshotOf, type BoardSnapshot } from '@game/sim';
-import { RunBuffsButton } from './gameView';
+import { RunBuffsButton, sortBuffRows } from './gameView';
 import { finalBoardBuffs } from '../../runBuffs';
 import { mount, type Mounted } from '../../renderedText.mount';
 
@@ -61,11 +61,17 @@ describe('the Buffs button', () => {
     ui = mount(<RunBuffsButton who="Lemon" rows={[{ key: 'spell', label: 'Spell power', value: '+2/+1' }, { key: 'ruby', label: 'Ruby power', value: '+3/+3' }, { key: 'tavern', label: 'Shop Stats', value: '+5/+4' }, { key: 'tavern:Contract Butcher', label: 'Contract Butcher', value: '+5/+4' }]} />);
     const btn = document.querySelector('.rgp-shopbuff button');
     expect(btn?.textContent).toBe('Show Buffs');
+    expect(btn?.querySelector('.replayeye'), 'the Watcher eye medallion sits before the label (owner 2026-11-16)').not.toBeNull();
     expect(document.querySelector('.rgp-sbpanel')).toBeNull();
     press(btn);
-    expect(rows()).toEqual(['Spell power+2/+1', 'Ruby power+3/+3', 'Shop Stats+5/+4', 'Contract Butcher+5/+4']);
+    expect(rows()).toEqual(['Shop Stats+5/+4', 'Contract Butcher+5/+4', 'Ruby power+3/+3', 'Spell power+2/+1']);
     press(btn);
     expect(document.querySelector('.rgp-sbpanel')).toBeNull();
+  });
+  it('lists the biggest buff first, each Shop Stats source under Shop Stats', () => {
+    const r = (key: string, value: string) => ({ key, label: key, value });
+    const got = sortBuffRows([r('spell', '+2/+1'), r('ruby', '+10/+10'), r('tavern', '+5/+4'), r('tavern:Staff of Guel', '+1/+1'), r('tavern:Contract Butcher', '+4/+3'), r('gold', '+12'), r('imp', '+2/+1')]);
+    expect(got.map((x) => x.key)).toEqual(['ruby', 'gold', 'tavern', 'tavern:Contract Butcher', 'tavern:Staff of Guel', 'spell', 'imp']);
   });
   it('says so when the game had no buffs', () => {
     ui = mount(<RunBuffsButton who="Lemon" rows={[]} />);

@@ -20,6 +20,7 @@ import { createRun, type Action, type RunState, type ShopCard, type RunMode } fr
 import { reduce, playerCombatSideState } from './reducer';
 import { handCardLocked, rubyStatBonus, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import { unusedEquipmentCount } from './equipment';
+import { gatherRunBuffs, type BuffRow } from './runBuffRows';
 import type { ThreatId } from './threats';
 import type { RecordedEmote } from './emotes';
 
@@ -228,6 +229,12 @@ export interface BoardSnapshot {
    *  Match History's "Shop buffs" button reads it. Always stamped (0/0 when there was none) so a game recorded with it can
    *  say "none", and its absence means a board captured before it existed. Display only, never read by combat. */
   shopBuff?: ShopBuffSnapshot;
+  /** EVERY RUN-WIDE BUFF the owner had (owner 2026-11-16, R-MATCH-SHOPBUFF-01): the rows the in-game Buffs panel (the hero
+   *  portrait's) showed at capture, from the same gatherer (`gatherRunBuffs`): Spell power, Ruby power, the Auras, Shop
+   *  Stats and its sources, the Shop slot buffs, Max Gold and the rest. Match History's "Buffs" button reads it. Always
+   *  stamped ([] when there was none); its absence means a board captured before it existed. Display only, never read by
+   *  combat. */
+  runBuffs?: BuffRow[];
 }
 
 /** The Shop buff a board's owner had at capture. `sources` sums to the total, except on a legacy save with no ledger. */
@@ -496,6 +503,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
     shopBuff,
+    runBuffs: gatherRunBuffs(s),
     ...(s.rubyBonus?.attack || s.rubyBonus?.health ? { rubyBonus: { attack: s.rubyBonus.attack, health: s.rubyBonus.health } } : {}),
     ...(s.runeSpellstone ? { rubyPower } : {}), // R-SNAPSHOT-RUBY-01: with the Spellstone the owner's fight reads the folded value (without it, rubyBonus already is)
     ...(s.runeWildHuntGrown ? { wildHuntGrown: s.runeWildHuntGrown } : {}),

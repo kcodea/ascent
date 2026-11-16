@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each Ancient power card shows its new text in game.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Match History: the Shop buffs button is now a Show Buffs button. It shows every buff you had when the game ended.',
+        details: [
+          'It lists the same buffs as the Buffs panel you open from your hero portrait in a game: Spell power, Ruby power, Auras, Shop Stats, Max Gold and the rest.',
+          'The biggest buff is listed first.',
+          'Games played before this update show only the buffs they saved.',
+        ],
+      },
     ],
   },
   {
@@ -155,7 +164,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The announcer repeats itself less and talks a little less often.',
         details: [
           'Lines are now dealt like a shuffled deck that carries over between games: you hear every line for a moment before any of them comes back.',
-          'The quiet gap between two announcer lines is now 25 seconds (was 12).',
+          'The quiet gap between two announcer lines is now 15 seconds (was 12). Big moments, like fight results, knockouts and triples, only wait 10.',
         ],
       },
       {

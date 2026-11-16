@@ -1092,7 +1092,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRESENT-07',
-    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 25 s cooldown and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
+    title: 'The announcer speaks each game moment at most once per run (a few named exceptions), never back to back, never the same take twice in a game, through a priority queue with a 15 s cooldown (10 s for big moments) and a per-event chance table; its own audio channel sits behind the Settings Audio panel',
     statement:
       'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
       + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
@@ -1110,7 +1110,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'dropped, try again next time, at most as many tries as they have takes. Which take plays is a fresh RANDOM pick every time (`announcerPick`, owner 2026-09-25: no seeds; '
       + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
       + 'buy lines, Round7) roll a seeded chance (6% / 10%, the chance table) per qualifying moment from the run seed, the wave and '
-      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (25 s since 2026-11-15, owner: "lengthen the gap"; 12 s before; from the previous '
+      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (15 s since 2026-11-16, owner: "lets have filler wait 15 seconds"; 25 s for one day before that, 12 s originally; big moments wait 10 s, R-PRESENT-ANNOUNCER-GAPS-01; from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
       + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines, this round\x27s '
       + 'SurviveUnder10hp and TimeRunningOut BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
@@ -14506,19 +14506,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-MATCH-SHOPBUFF-01',
-    title: 'A finished game shows the Shop buffs the player ended it with',
+    title: 'A finished game shows every run-wide buff the player ended it with',
     statement:
-      'A game opened in Match History (Career or Recent Games) has a Shop buffs button. Pressing it shows the permanent buff every minion '
-      + 'bought from the Shop was getting when the game ended, then what it came from (each source and its share, biggest first). '
-      + 'A game with none says so. A game recorded before this was saved has no button.',
+      'A game opened in Match History (Career or Recent Games) has a Show Buffs button. Pressing it shows every run-wide buff the player had '
+      + 'when the game ended: every row the in-game Buffs panel (opened from the hero portrait) can show, such as Spell power, Ruby power, '
+      + 'the Auras, Shop Stats with each source, the Shop slot buffs and Max Gold. A buff added to that panel later shows here too. '
+      + 'The list runs from the biggest buff to the smallest, each Shop Stats source under Shop Stats. '
+      + 'A game with none says so. A game that recorded none of it has no button.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Match History screenshot', quote: 'here i want a button to press that displays the shop buffs the player had at the end of the game' },
       { kind: 'fix-pr', ref: 'feat/match-shop-buffs: packages/sim/src/snapshot.ts (shopBuffSnapshotOf, BoardSnapshot.shopBuff), packages/ui/src/partyHome/pages/gameView.tsx (ShopBuffButton)' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-16, screenshot of the Shop buffs button', quote: 'just realized that this is incorrectly implemented. i dont want just shop buffs. i want gamewide buffs like gem buffs, shop buffs, spell buffs. everything that can show in the run-wide buffs section of a game (where you click the hero portrait to toggle it on)' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-16, on the Show Buffs plate', quote: 'sort from highest amount to lowest amount' },
+      { kind: 'fix-pr', ref: 'feat/match-run-buffs: packages/sim/src/runBuffRows.ts (gatherRunBuffs, moved from the UI), packages/sim/src/snapshot.ts (BoardSnapshot.runBuffs), packages/ui/src/runBuffs.ts (finalBoardBuffs), packages/ui/src/partyHome/pages/gameView.tsx (RunBuffsButton)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-08 (feat/match-shop-buffs) for games finished from then on: the final board snapshot stamps tavernBuyBonus and its source ledger. Earlier games never stored it, so they show no button.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/shopBuffButton.test.tsx'], lastVerifiedAt: '2026-11-08' },
+    currentBehaviour: 'Conforms from 2026-11-16 (feat/match-run-buffs) for games finished from then on: the final board snapshot stamps the rows of the gatherer of the in-game panel (gatherRunBuffs). PARTIAL for older games: one finished between 2026-11-08 and then shows the combat buffs its board stored (Spell power, Ruby power, the Auras) plus Shop Stats and its sources, but not Clue power, the Shop slot buffs, Veinstorm Stats, Max Gold, Den Mother or Guel; one from before 2026-11-08 shows only the combat buffs, and no button when it stored none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/runBuffsButton.test.tsx'], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: 'R-SETTINGS-SAVEQUIT-01',
@@ -15590,5 +15595,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms. The attack was built 2026-11-11 (#2667, dev only); the cosmetic was written 2026-11-11 and merged 2026-11-15, after the batch of eight took ids 38 to 45. The item reaches the database on the next deploy of progression-inventory (the catalog sync); the equip SQL already accepts the hero_attack slot. PARTIAL on proof: the tests pin the plan, the single landing, the flat throw and the portrait restore; the LOOK (dark disc, rim, sparks, black hole) is not pinned by a test, and no prod-build frame profile has been run.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroVoid/heroVoid.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
+  {
+    id: 'R-PRESENT-ANNOUNCER-GAPS-01',
+    domain: 'foundation',
+    title: 'The announcer keeps two gaps between lines: a short one for big moments, a long one for filler',
+    statement:
+      'The gap a line must leave after the previous line depends on the moment. A big moment (a fight result, a standings '
+      + 'or knockout line, a triple, anything at or above the big-moment priority) may speak after the short gap; every '
+      + 'other line waits the full gap. Lengthening the full gap must never silence the big moments.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'the last game i played felt shockingly quiet with regards to the announcer. i was surprised' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'lets do the two gaps' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (announcer too quiet)', quote: 'lets have filler wait 15 seconds' },
+      { kind: 'fix-pr', ref: 'feat/announcer-two-gaps: packages/ui/src/announcer.ts (ANNOUNCER_BIG_COOLDOWN_MS, ANNOUNCER_BIG_MOMENT_PRIORITY, announcerCooldownFor; pump holds each line to its own gap)' },
+    ],
+    currentBehaviour:
+      'Conforms, built 2026-11-16 (feat/announcer-two-gaps). The 2026-11-15 change raised the one gap from 12 s to 25 s; a '
+      + 'line inside the gap is dropped, not delayed, so most fight results and return-to-Shop standings lines (they land '
+      + 'seconds after the start-of-combat line) were lost and the game went quiet. Now a moment at priority 30 (Triple) or '
+      + 'above waits ANNOUNCER_BIG_COOLDOWN_MS (10 s); the rest wait ANNOUNCER_COOLDOWN_MS (15 s, the owner\'s number). Lines that bypass the '
+      + 'gap, the drop-not-delay rule and the terminal lines are unchanged. The cutoff and the 10 s are Claude\'s proposal '
+      + 'for the owner to tune; nobody has played a game on it yet.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
 ];

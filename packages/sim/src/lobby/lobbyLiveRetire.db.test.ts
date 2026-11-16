@@ -70,12 +70,23 @@ beforeAll(async () => {
   await db.query(`insert into public.lobby_live_games (game_id, user_id, display_name, hero_id) values ('versus:cf:room-1', $1, 'Cat', 'warden')`, [R]);
   expect(await count('lobby_live_watchers')).toBe(1);
   expect(await count('lobby_live_frames')).toBe(1);
+  // Production's newest heartbeat overload (2026-11-13-lobby-live-status.sql) declares two DEFAULTS. Postgres refuses a
+  // `create or replace` that drops them ("cannot remove parameter defaults"), which failed the whole file on production
+  // (2026-11-16). The stand-in has that exact signature, and, as on production, it is the ONLY overload left.
+  await db.exec('drop function public.lobby_live_heartbeat(text, text, text, jsonb, integer, text)');
+  await db.exec(`create function public.lobby_live_heartbeat(p_game text, p_name text, p_hero text, p_cosmetics jsonb, p_round int,
+    p_phase text, p_mode text default null, p_status jsonb default null) returns int language sql as 'select 1'`);
   // The retirement, twice (idempotent).
   await db.exec(sql('2026-11-17-retire-supabase-live.sql'));
   await db.exec(sql('2026-11-17-retire-supabase-live.sql'));
 });
 
 describe('after the retirement (R-LIVE-CF-ONLY-01)', () => {
+  it('the newest heartbeat overload (the one with defaults) is refused too', async () => {
+    expect(await fails(P, `select public.lobby_live_heartbeat('old-3', 'Ann', 'warden', null, 1, 'shop', 'ranked', '{}'::jsonb)`)).toMatch(/live_moved/);
+    expect(await fails(P, `select public.lobby_live_heartbeat('old-3', 'Ann', 'warden', null, 1, 'shop', 'ranked')`)).toMatch(/live_moved/);
+  });
+
   it('an old client\'s Supabase writes are refused: its game is simply not listed', async () => {
     expect(await fails(P, `select public.lobby_live_heartbeat('old-2', 'Ann', 'warden', null, 1, 'shop')`)).toMatch(/live_moved/);
     expect(await fails(P, `select public.lobby_live_end('old-2', 1)`)).toMatch(/live_moved/);

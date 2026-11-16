@@ -13049,6 +13049,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/sbDuosChannel.test.ts', 'packages/ui/src/sbDuos.test.ts'], lastVerifiedAt: '2026-10-31' },
   },
   {
+    id: 'R-SB-ANCIENTS-SET2-01',
+    title: 'Scene Builder Ancients toggle: offered on Set 2 rigs as well as Set 3',
+    statement:
+      'DEV ONLY (the Scene Builder, stripped from production). The rig\x27s Ancients toggle, the hero picker\x27s Ancient preview and the '
+      + 'Ancients meter row show on Set 2 and Set 3 rigs (`sceneAncientsSet`). With the toggle on, a Set 2 rig starts with Ancients '
+      + 'enabled (`enableAncients`), exactly as a Set 3 rig does. Other sets never offer it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-16 (Scene Builder Ancients on Set 2)', quote: 'add the ancients toggle for the set 2 scene builder as well' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts sceneAncientsSet + startSceneBuilder; packages/ui/src/SceneBuilder.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-11-16 (feat/scene-builder-ancients-set2). Before this, the toggle and the Ancients run flag were Set 3 only.',
+    example: 'Kev opens the Scene Builder on Set 2, turns Ancients on and restarts: the meter appears around Warden\x27s hero power.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/sceneBuilderAncientsSet2.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
     id: 'R-SESSION-CF-01',
     title: 'A lobby or Practice game started with the session on is held by a Durable Object on the friends hub: its live host and its session; Supabase is written once, when due',
     statement:

@@ -3,7 +3,7 @@ import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content'
 import { getHero, handCap, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
-import { useGame } from './store';
+import { useGame, sceneAncientsSet } from './store';
 import { useDraggablePanel, DevPanelContext } from './useDraggablePanel';
 import { turnClock } from './turnClock';
 import { addEnemy, stagedBoard, foeSnapshotOf, nextForgePage, MAX_BOARD } from './sandboxEdit';
@@ -560,7 +560,7 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
             {/* HERO: a portrait button that slides the hero grid out beside the panel (SceneBuilderHeroPicker). */}
             <div className="sb-field">
               <span className="sb-mini">hero</span>
-              <HeroPickerTrigger heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} open={heroOpen}
+              <HeroPickerTrigger heroId={run?.heroId ?? 'warden'} showAncients={sceneAncientsSet(setId)} open={heroOpen}
                 onToggle={() => setHeroOpen((o) => !o)} btnRef={heroBtnRef} />
             </div>
             {/* SET on its own row so its name and pool size never truncate. */}
@@ -608,7 +608,7 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
             </div>
             {/* DUOS (owner ask 2026-10-31, R-SB-DUOS-01): relaunches the rig as a Duos-style run with a placeholder
                 teammate held locally (no Worker). Its tools live in the Teammate section. ANCIENTS (proof of concept,
-                owner 2026-09-25): Set 3 only. The toggle relaunches the rig (the meter is stamped on the run at
+                owner 2026-09-25): Sets 2 and 3 (Set 2 added 2026-11-16). The toggle relaunches the rig (the meter is stamped on the run at
                 creation); the meter row drives the REAL reducer (`ancientSetMeter`). */}
             <div className="sb-two sb-toggles">
               <button type="button" className={`sb-seg-btn sb-anc-toggle${sbDuos ? ' on' : ''}`} aria-pressed={sbDuos}
@@ -616,15 +616,15 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
                 aria-description="Play this sandbox as Duos with a placeholder teammate: their portrait bottom right, passing, team effects and the Duos-only cards and runes (restarts the sandbox)">
                 ✦ Duos {sbDuos ? 'on' : 'off'}
               </button>
-              {setId === 'set3' && (
+              {sceneAncientsSet(setId) && (
                 <button type="button" className={`sb-seg-btn sb-anc-toggle${sbAncients ? ' on' : ''}`} aria-pressed={sbAncients}
                   onClick={() => setSbAncients(!sbAncients)}
-                  aria-description="Play this Set 3 sandbox with the Ancients meter around the hero power (restarts the sandbox)">
+                  aria-description="Play this sandbox with the Ancients meter around the hero power (restarts the sandbox)">
                   ✦ Ancients {sbAncients ? 'on' : 'off'}
                 </button>
               )}
             </div>
-            {setId === 'set3' && run?.ancients && (
+            {sceneAncientsSet(setId) && run?.ancients && (
               <div className="sb-row sb-ancients">
                 <span className="sb-mini sb-anc-meter">meter</span>
                 <CountStepper value={run.ancients.points} min={0} max={run.ancients.cost}
@@ -704,7 +704,7 @@ function SceneBuilderInner({ closed }: { closed: boolean }) {
     </div>}
     {/* The hero picker flyout: portalled beside the panel while open. */}
     {heroOpen && !collapsed && !closed && (
-      <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={setId === 'set3'} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
+      <HeroPicker heroId={run?.heroId ?? 'warden'} showAncients={sceneAncientsSet(setId)} anchor={() => heroBtnRef.current?.closest<HTMLElement>('.scenebuilder') ?? null}
         triggerRef={heroBtnRef} onPick={(id) => startSceneBuilder(id, setId)} onClose={closeHeroPicker} />
     )}
     {duosOn && <SbDuosHud />}

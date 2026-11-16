@@ -12,6 +12,11 @@ import type { RuneLockInCard } from './RuneLockIn';
 import { setCombatDraftProvider, setCombatLiveProvider } from './choreographer/combatHolds';
 import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
+/** The sets whose Scene Builder rig offers the Ancients toggle (owner: Set 3 since 2026-09-25, Set 2 added 2026-11-16). */
+export function sceneAncientsSet(setId: string | undefined): boolean {
+  return setId === 'set3' || setId === 'set2';
+}
+
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
  *  `userId` is what the run history is fetched by, and `author` is display-only. */
 /** When a Career is opened from a specific game (a Recent Games row), this pins WHICH run to expand + scroll to.
@@ -3017,8 +3022,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribes: [] };
       const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId, undefined, s.sbDuos ? { duos: true } : undefined);
       const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
-      // ANCIENTS (owner ruling 2026-09-25): Scene Builder + Set 3 only, behind the rig's toggle.
-      const run: RunState = recordRunCosmetics(s.sbAncients && setId === 'set3' ? enableAncients(plain, ancientMeterOverride()) : plain);
+      // ANCIENTS (owner ruling 2026-09-25; Set 2 added 2026-11-16): Scene Builder, Sets 2 and 3, behind the rig's toggle.
+      const run: RunState = recordRunCosmetics(s.sbAncients && sceneAncientsSet(setId) ? enableAncients(plain, ancientMeterOverride()) : plain);
       warmLobbyDrivers(run); // build the bot seats while the shop opens, not on the first End Turn
       if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
       return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET, sandboxReplay: false };

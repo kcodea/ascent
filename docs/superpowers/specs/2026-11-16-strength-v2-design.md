@@ -1,6 +1,6 @@
 # Strength v2: sharper board strength and a bounded "what you can face"
 
-Date: 2026-11-16. Owner: Mike. Status: design, awaiting approval.
+Date: 2026-11-16. Owner: Mike. Status: APPROVED by Mike 2026-11-16 ("approve").
 Touches Kevin's side (`packages/sim`, pool SQL, the pool mirror Worker); coordinate before starting.
 
 ## 1. Intent
@@ -139,9 +139,16 @@ Mike picked approach 1 with all five bundles on 2026-11-16.
 - The overall cap keeps reading Game strength.
 - **Where the carried scores are computed** (Mike 2026-11-16: "can we have the continue button greyed out and
   unavailable to click while the games are being scored?"): on the client at run end, BEFORE the upload. On the
-  end screen of a rated game, Continue is disabled, with a short "Scoring your game" label, until the run's board
+  end screen of a rated game, Continue is disabled until the run's board
   scores and carried scores are done; the run then goes up once, complete. The backfill tool covers every run
   already in the pool.
+  - **The player is told why** (Mike 2026-11-16: "i want to make sure it says something like 'Calculating Score'
+    while the button to continue is greyed out. players should know why this is happening. preferably with a
+    timer bar as well"): while Continue is disabled the end screen shows the text "Calculating Score" and a bar
+    that fills as the scoring completes (fights done out of fights to do, so it is real progress, not a guess).
+    When it is full the text and bar go away and Continue becomes clickable. The bar animates with
+    transform only (a scaleX fill), no looping paint animation, no `title=` tooltip, and is added to the stage,
+    per the UI conventions in CLAUDE.md.
   - Safety limit: after 5 seconds Continue unlocks regardless and the run goes up with what is ready (an
     incomplete run is unscored). The button must never stay locked.
   - Measured 2026-11-16 (node, v1 reference): a carried fight costs 0.8 ms at the median, 1.1 ms at the 90th
@@ -257,9 +264,15 @@ one player contributes to the ranking population**:
 - Exact SQL structure of the refresh job and histograms, within the once-a-minute job that exists.
 - Whether scoring a board against a later round needs anything beyond overriding its round in the probe.
 - Idle-slice sizing for the larger fight count, and Web Worker versus main-thread slices for the run-end scoring.
-- The wording and look of the locked Continue button (presentation, Mike reviews it).
+- The look and placement of the "Calculating Score" text and bar (Mike reviews it in the running game before merge).
 
-## 9. Open for Mike
+## 9. Rulings (Mike, 2026-11-16, approved as recommended)
+
+1. Unscored runs are kept out of Bronze, Silver and Gold lobbies.
+2. The three peak caps are set by Mike after the v2 measurement; the mechanism ships with none.
+3. Bundle D is dropped; only the 10-of-40 limit on reference boards per player is built.
+
+The questions as they were put:
 
 1. Unscored runs leave Bronze, Silver and Gold lobbies (recommended), or stay inside every band as today?
 2. The three peak caps, after the v2 measurement. The live bands are small (Bronze 43 runs, Silver 44): a Bronze

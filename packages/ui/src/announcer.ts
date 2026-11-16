@@ -341,7 +341,8 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   threeWinStreak: ['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4'],
   minionHits100Stats: ['minion-hits-100-stats', 'minion-hits-100-stats-2'],
   topFour: ['top-four-1', 'top-four-2', 'top-four-3', 'top-four-4'],
-  topTwo: ['top-two-1', 'top-two-2', 'top-two-3'],
+  // Takes 4-7: the fun final-two lines (owner 2026-11-15: "some fun ones for the final 2 showdown").
+  topTwo: ['top-two-1', 'top-two-2', 'top-two-3', 'top-two-4', 'top-two-5', 'top-two-6', 'top-two-7'],
   gameWon: ['game-won', 'game-won-2', 'game-won-3', 'game-won-4'],
   gameLoss: ['game-loss-1', 'game-loss-2', 'game-loss-3', 'game-loss-4', 'game-loss-5'],
   // The second batch (owner 2026-09-24).
@@ -395,7 +396,7 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   fullBoard: ['full-board-1', 'full-board-2', 'full-board-3'],
   minionHits250: ['minion-hits-250-1', 'minion-hits-250-2'],
   armorUp: ['armor-up-1', 'armor-up-2'],
-  finalShowdown: ['final-showdown-1'],
+  finalShowdown: ['final-showdown-1', 'final-showdown-2', 'final-showdown-3', 'final-showdown-4', 'final-showdown-5'],
   armorGone: ['armor-gone-1', 'armor-gone-2'],
   blowoutLoss: ['blowout-loss-1', 'blowout-loss-2', 'blowout-loss-3'],
   oneResolve: ['one-resolve-1', 'one-resolve-2'],

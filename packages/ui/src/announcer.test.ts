@@ -748,7 +748,7 @@ describe('the second batch (owner 2026-09-24)', () => {
 
   it('the clip fixes, then variety wave 1 (owner 2026-10-11): the original takes keep their slots and new ones append', () => {
     // 2026-09-24: the old TopTwo2 (a wrong take) was removed. 2026-10-11: `top-two-2` is a NEW line, not that clip.
-    expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3']);
+    expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1', 'top-two-2', 'top-two-3', 'top-two-4', 'top-two-5', 'top-two-6', 'top-two-7']);
     expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2', 'three-win-streak-3', 'three-win-streak-4']);
     expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won', 'game-won-2', 'game-won-3', 'game-won-4']);
     expect(ANNOUNCER_LINES.knockout).toHaveLength(5); // knockout-4 cut for its language (2026-11-15)

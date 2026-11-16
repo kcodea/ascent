@@ -1320,6 +1320,46 @@
       "id": "players-remain-three-2",
       "voice": "announcer",
       "text": "Down to three."
+    },
+    {
+      "id": "top-two-4",
+      "voice": "announcer",
+      "text": "Two left. Awkward."
+    },
+    {
+      "id": "top-two-5",
+      "voice": "announcer",
+      "text": "Just the two of you now. No pressure."
+    },
+    {
+      "id": "top-two-6",
+      "voice": "announcer",
+      "text": "One more to go, champ. One more!"
+    },
+    {
+      "id": "top-two-7",
+      "voice": "announcer",
+      "text": "It's you or them. I know who I'm backing."
+    },
+    {
+      "id": "final-showdown-2",
+      "voice": "announcer",
+      "text": "This is the big one!"
+    },
+    {
+      "id": "final-showdown-3",
+      "voice": "announcer",
+      "text": "Winner takes it all. No refunds."
+    },
+    {
+      "id": "final-showdown-4",
+      "voice": "announcer",
+      "text": "Deep breath. Here comes the final."
+    },
+    {
+      "id": "final-showdown-5",
+      "voice": "announcer",
+      "text": "Everyone else went home. Finish it."
     }
   ],
   "sfx": [

@@ -2199,6 +2199,10 @@ export interface QuestCombatMods {
    *  precedent) make their extra copies; the copies themselves never spend it. Absent = unlimited (Risen's rule).
    *  Player-only; never snapshotted. */
   ancientSummonExtraLimit?: number;
+  /** ANCIENT OF GENESIS × Rayse (owner 2026-11-16: "only when you have room"): a summon makes its extra copy only when
+   *  its side has a free slot right then (never an overflow), and a summon that had no room does not spend the
+   *  `ancientSummonExtraLimit` budget. Player-only; never snapshotted. */
+  ancientSummonExtraNeedsRoom?: boolean;
   /** ANCIENT OF WAR × Rayse (owner 2026-10-09): "Your first 3 summoned minions attack immediately." The first `count`
    *  friendly summons this fight (a return included) strike the moment they land, through the shared
    *  attacks-immediately queue (R-ORD-05). Player-only; never snapshotted. */
@@ -2256,6 +2260,10 @@ export interface QuestCombatMods {
    *  combat spell cast (`ctx.castSpell`, once per repetition) buffs the side's left-most and right-most LIVING
    *  minions (once when they are the same body). A combat buff: it lasts the fight. Player-only. */
   ancientSpellEdges?: { attack: number; health: number; label: string };
+  /** ANCIENT OF TIME × Warden (owner 2026-11-16): "your spells give Ward minions Attack". Every combat spell cast
+   *  (`ctx.castSpell`, once per repetition) gives each LIVING friendly minion with Ward (`divineShield` intact) +attack
+   *  Attack. A combat buff. Player-only. */
+  ancientSpellWardAttack?: { attack: number; label: string };
   /** ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge on the
    *  avenge bus (every `every` friendly deaths this fight; Rune of Fury fires it again). Each fire is one stack, shown
    *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.

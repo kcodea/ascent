@@ -136,29 +136,27 @@ describe('Re-Pete × FORTUNE: "When you buy 6 cards, discover one of them. It\'s
   });
 });
 
-describe('Re-Pete × WAR: "Copied cards gain +10/+10. Improve this every time Second Hand triggers."', () => {
-  it('a minion copy gains the current +X/+X, then X improves by 10 (+10 on turn 3, +20 on turn 6)', () => {
-    let s = picked('war', { wave: 3, hand: [card('h', N(0))] });
-    expect(heroPowerText(s)).toBe(`${BASE} Minions it copies gain **+10/+10**. This improves by **+10/+10** every time it triggers.`);
-    s = fightNow(s);
-    const c1 = s.hand[1]!;
-    expect(c1).toMatchObject({ attack: CARD_INDEX[N(0)]!.attack + 10, health: CARD_INDEX[N(0)]!.health + 10 });
-    expect(s.ancients!.repeteWarGain).toBe(20);
-    expect(heroPowerText(s)).toContain('**+20/+20**');
-    s = fightNow({ ...s, phase: 'recruit', wave: 6, hand: [card('h2', N(1))] });
-    expect(s.hand[1]).toMatchObject({ attack: CARD_INDEX[N(1)]!.attack + 20, health: CARD_INDEX[N(1)]!.health + 20 });
-    expect(s.ancients!.repeteWarGain).toBe(30);
+describe('Re-Pete × WAR: "Playing a duplicate card gives your other minions +4/+4." (owner 2026-11-16)', () => {
+  const play = (s: RunState, uid: string): RunState => reduce(s, { type: 'play', uid } as never);
+  it('playing a minion you already control a copy of gives your OTHER minions +4/+4, permanently', () => {
+    let s = picked('war', { board: [card('a', N(0)), card('b', N(1))], hand: [card('h', N(0))] });
+    expect(heroPowerText(s)).toBe(`${BASE} When you play a minion you already control a copy of, give your other minions **+4/+4**.`);
+    s = play(s, 'h');
+    const d0 = CARD_INDEX[N(0)]!, d1 = CARD_INDEX[N(1)]!;
+    expect(s.board.find((c) => c.uid === 'a')).toMatchObject({ attack: d0.attack + 4, health: d0.health + 4 });
+    expect(s.board.find((c) => c.uid === 'b')).toMatchObject({ attack: d1.attack + 4, health: d1.health + 4 });
+    expect(s.board.find((c) => c.uid === 'h'), 'not the played minion').toMatchObject({ attack: d0.attack, health: d0.health });
   });
-  it('a spell copy gains nothing, but the trigger still improves X', () => {
-    let s = picked('war', { wave: 3, hand: [card('sp', SPELLS[0]!)] });
-    s = fightNow(s);
-    expect(s.hand[1]!.cardId).toBe(SPELLS[0]);
-    expect(s.hand[1]!.buffs ?? []).toEqual([]);
-    expect(s.ancients!.repeteWarGain).toBe(20);
+  it('a minion with no copy on the board, a copy only in hand, or another Ancient: nothing', () => {
+    const d1 = CARD_INDEX[N(1)]!;
+    const fresh = play(picked('war', { board: [card('b', N(1))], hand: [card('h', N(0)), card('h2', N(0))] }), 'h');
+    expect(fresh.board.find((c) => c.uid === 'b')!.attack).toBe(d1.attack);
+    const other = play(picked('fortune', { board: [card('a', N(0)), card('b', N(1))], hand: [card('h', N(0))] }), 'h');
+    expect(other.board.find((c) => c.uid === 'b')!.attack).toBe(d1.attack);
   });
-  it('no trigger (turn 2, or an empty hand): X does not improve', () => {
-    expect(fightNow(picked('war', { wave: 2, hand: [card('h', N(0))] })).ancients!.repeteWarGain).toBe(10);
-    expect(fightNow(picked('war', { wave: 3, hand: [] })).ancients!.repeteWarGain).toBe(10);
+  it('Second Hand copies gain nothing extra any more', () => {
+    const s = fightNow(picked('war', { wave: 3, hand: [card('h', N(0))] }));
+    expect(s.hand[1]).toMatchObject({ attack: CARD_INDEX[N(0)]!.attack, health: CARD_INDEX[N(0)]!.health });
   });
 });
 
@@ -186,16 +184,23 @@ describe('Re-Pete × TIME: "second hand triggers every 2 turns instead"', () => 
   });
 });
 
-describe('Re-Pete × BONDS: "Second hand copies the Left and Right-most minions on board instead."', () => {
-  it('plain copies of the left-most and right-most BOARD minions, not the hand card', () => {
-    let s = picked('bonds', { wave: 3, hand: [card('h', N(5))], board: [card('l', N(0), { attack: 30 }), card('m', N(1)), card('r', N(2), { attack: 30 })] });
-    s = fightNow(s);
-    expect(s.hand.map((c) => c.cardId)).toEqual([N(5), N(0), N(2)]);
-    expect(s.hand[1]!.attack, 'plain').toBe(CARD_INDEX[N(0)]!.attack);
+describe('Re-Pete × BONDS: "When you Discover a card, your spell power improves by +1/+1." (owner 2026-11-16)', () => {
+  it('each Discover pick improves your spells +1/+1; the text prints the total', () => {
+    let s: RunState = { ...picked('bonds'), discover: [N(0), N(1), N(2)] };
+    expect(heroPowerText(s)).toBe(`${BASE} When you **Discover** a card, improve your spells by **+1/+1**. Improved so far: **+0/+0**.`);
+    const before = s.spellBonus ?? { attack: 0, health: 0 };
+    s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.hand.map((c) => c.cardId)).toEqual([N(0)]);
+    expect(s.spellBonus).toEqual({ attack: before.attack + 1, health: before.health + 1 });
+    s = reduce({ ...s, discover: [N(3), N(4)] }, { type: 'discover', index: 1 });
+    expect(s.spellBonus).toEqual({ attack: before.attack + 2, health: before.health + 2 });
+    expect(heroPowerText(s)).toContain('Improved so far: **+2/+2**.');
   });
-  it('one minion is both ends: one copy; an empty board: nothing', () => {
-    expect(fightNow(picked('bonds', { wave: 3, board: [card('l', N(0))] })).hand.map((c) => c.cardId)).toEqual([N(0)]);
-    expect(fightNow(picked('bonds', { wave: 3, hand: [card('h', N(5))], board: [] })).hand.map((c) => c.cardId)).toEqual([N(5)]);
+  it('Second Hand copies the left-most hand card again; without Bonds a Discover gives no spell power', () => {
+    const s = fightNow(picked('bonds', { wave: 3, hand: [card('h', N(5))], board: [card('l', N(0), { health: 99 })] }));
+    expect(s.hand.map((c) => c.cardId)).toEqual([N(5), N(5)]);
+    const p: RunState = { ...picked('fortune'), discover: [N(0), N(1)] };
+    expect(reduce(p, { type: 'discover', index: 0 }).spellBonus ?? { attack: 0, health: 0 }).toEqual(p.spellBonus ?? { attack: 0, health: 0 });
   });
 });
 
@@ -206,9 +211,9 @@ describe('Re-Pete × save / restore and determinism', () => {
     expect(heroPowerText(s)).toContain('(**3** more to go)');
     s = buyAll(s, [N(3), N(4), N(5)]);
     expect(s.discover!.length).toBe(3);
-    let w = fightNow(picked('war', { wave: 3, hand: [card('h', N(0))] }));
+    let w = reduce({ ...picked('bonds'), discover: [N(0), N(1)] }, { type: 'discover', index: 0 });
     w = JSON.parse(JSON.stringify(w)) as RunState;
-    expect(heroPowerText(w)).toContain('**+20/+20**');
+    expect(heroPowerText(w)).toContain('Improved so far: **+1/+1**.');
   });
   it('every pairing replays identically from the same state', () => {
     for (const id of ANCIENT_IDS) {

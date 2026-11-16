@@ -8,7 +8,8 @@ import {
   ANCIENT_ALLIN_FLAG, ANCIENT_IDS, activePowers, allInPayoutOf, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients,
   heroPowerText, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
-import { destroyMinionInShop, makeContext } from './recruit';
+import { destroyMinionInShop, makeContext, spellCostReduction } from './recruit';
+import { offerBuyPrice } from './reducer';
 
 const BASE = 'Gain **1 Gold**, plus **2** for every turn since you last used this.';
 const N = (i: number) => ['beatboxer', 'dw_edward', 'attachmentconductor', 'sandbag'][i % 4]!;
@@ -121,20 +122,26 @@ describe('Rascal × WAR: "When you use All In, give your minions +2/+1 for each 
   });
 });
 
-describe('Rascal × GENESIS: "All In also Discovers a minion of your Tier for every 5 Gold it pays."', () => {
-  it('one Discover of exactly your Shop tier per 5 Gold paid', () => {
-    let s = picked('genesis', { wave: 6, tier: 3 });
-    expect(allInPayoutOf(s)).toBe(11);
-    expect(heroPowerText(s)).toBe(`${BASE} Also **Discover** a minion of your Tier for every **5 Gold** it pays (**2** now).`);
-    s = reduce(s, { type: 'heroPower' });
-    expect(s.discover?.length).toBeGreaterThan(0);
-    for (const id of s.discover!) expect(CARD_INDEX[id]!.tier).toBe(3);
-    expect((s.discoverQueue ?? []).length).toBe(1);
+describe('Rascal × GENESIS: "Your Spend minions trigger twice." (owner 2026-11-16)', () => {
+  // Coinfire: "When you spend 6 Gold, give your Dwarves +2/+1."
+  const SPENDER = 'dw_coinfire';
+  const DWARF = Object.values(CARD_INDEX).find((c) => c && c.tribe === 'dwarf' && !c.tribe2 && !c.spell && !c.token && c.effects.length === 0)!.id;
+  const spendSix = (id: AncientId): RunState => {
+    let s = picked(id, { board: [card('sp', SPENDER), card('d', DWARF, { attack: 1, health: 1 })] });
+    s = buyFromRow(s, N(0));
+    return buyFromRow(s, N(3)); // 6 Gold spent: Coinfire's threshold
+  };
+  it('the text is plain; All In still pays as printed', () => {
+    const s = picked('genesis', { wave: 3 });
+    expect(heroPowerText(s)).toBe(`${BASE} Your minions that trigger when you spend Gold trigger **twice**.`);
+    const before = s.embers;
+    expect(reduce(s, { type: 'heroPower' }).embers).toBe(before + 5);
   });
-  it('under 5 Gold: no Discover', () => {
-    let s = picked('genesis', { wave: 2, tier: 3 });
-    s = reduce(s, { type: 'heroPower' });
-    expect(s.discover ?? null).toBeNull();
+  it('a Spend minion fires twice per threshold (vs once without it)', () => {
+    const plain = spendSix('fortune');
+    const twice = spendSix('genesis');
+    expect(at(plain, 'd')).toMatchObject({ attack: 3, health: 2 });
+    expect(at(twice, 'd')).toMatchObject({ attack: 5, health: 3 });
   });
 });
 
@@ -152,29 +159,33 @@ describe('Rascal × TIME: "All In becomes passive. Start of Turn: gain 4 Gold."'
   });
 });
 
-describe('Rascal × BONDS: "All In gains: Give your Left and Right-most minions +2/+1 when you spend gold."', () => {
-  it('each spend (a buy, a paid Refresh) buffs both edges once; a free Refresh spends nothing', () => {
-    let s = picked('bonds', { board: [card('a', N(0)), card('m', N(1)), card('z', N(3))] });
-    s = buyFromRow(s, N(2));
-    expect(at(s, 'a')).toMatchObject({ attack: CARD_INDEX[N(0)]!.attack + 2, health: CARD_INDEX[N(0)]!.health + 1 });
-    expect(at(s, 'z')).toMatchObject({ attack: CARD_INDEX[N(3)]!.attack + 2, health: CARD_INDEX[N(3)]!.health + 1 });
-    expect(at(s, 'm').attack).toBe(CARD_INDEX[N(1)]!.attack);
-    expect(s.recruitBuffFx.some((f) => f.fromHeroPower), 'its own beat, from the power button').toBe(true);
-    s = reduce(s, { type: 'roll' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack + 4);
-    s = reduce({ ...s, freeRolls: 1 }, { type: 'roll' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack + 4);
-  });
-  it('a lone minion is both edges: it gains once', () => {
-    let s = picked('bonds', { board: [card('a', N(0))] });
-    s = reduce(s, { type: 'roll' });
-    expect(at(s, 'a')).toMatchObject({ attack: CARD_INDEX[N(0)]!.attack + 2, health: CARD_INDEX[N(0)]!.health + 1 });
-  });
-  it('All In still pays', () => {
-    let s = picked('bonds', { wave: 3 });
-    const before = s.embers;
+describe('Rascal × BONDS: "The turn you play All In, minions cost 2 less and spells cost 1 less." (owner 2026-11-16)', () => {
+  const SPELL = Object.values(CARD_INDEX).find((c) => c && c.spell && !c.token && !c.ruby && !c.duos)!;
+  it('after All In: Shop minions cost 2 less and spells 1 less for the rest of the turn; the text says so', () => {
+    let s = picked('bonds', { wave: 3, shop: [{ uid: 'o1', cardId: N(0) }] });
+    expect(heroPowerText(s)).toBe(`${BASE} The turn you use it, minions cost **2 Gold** less and spells cost **1 Gold** less.`);
+    const minionPrice = offerBuyPrice(s, s.shop[0]!).cost;
+    const spellOff = spellCostReduction(s, SPELL);
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(before + 5);
+    expect(heroPowerText(s)).toContain('**Active this turn.**');
+    expect(offerBuyPrice(s, s.shop[0]!).cost).toBe(Math.max(0, minionPrice - 2));
+    expect(spellCostReduction(s, SPELL)).toBe(spellOff + 1);
+    const before = s.embers;
+    s = reduce(s, { type: 'buy', uid: 'o1' });
+    expect(before - s.embers).toBe(Math.max(0, minionPrice - 2));
+  });
+  it('the next turn prices are back to normal', () => {
+    let s = picked('bonds', { wave: 3, board: [card('a', N(3), { health: 500 })] });
+    s = reduce(s, { type: 'heroPower' });
+    s = reduce(fightNow(s), { type: 'resolveCombat' });
+    expect(s.minionCostOffTurn ?? 0).toBe(0);
+    expect(heroPowerText(s)).not.toContain('Active this turn.');
+  });
+  it('spending Gold no longer buffs the edges; without All In nothing is cheaper', () => {
+    let s = picked('bonds', { board: [card('a', N(0)), card('z', N(3))] });
+    s = buyFromRow(s, N(2));
+    expect(at(s, 'a').attack).toBe(CARD_INDEX[N(0)]!.attack);
+    expect(s.minionCostOffTurn ?? 0).toBe(0);
   });
 });
 

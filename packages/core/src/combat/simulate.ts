@@ -2286,6 +2286,15 @@ export function simulate(
         ctx.castingSpellId = undefined;
         try { for (const m of ends) ctx.buff(m, edges.attack, edges.health, edges.label); } finally { ctx.castingSpellId = casting; }
       }
+      // ANCIENT OF TIME × Warden (owner 2026-11-16): "your spells give Ward minions Attack". Every combat cast (one per
+      // repetition): each living friendly minion whose Ward is up gains the Attack. A combat buff, not the cast's own.
+      const wardAtk = modsFor(side).ancientSpellWardAttack;
+      if (wardAtk) {
+        const warded = living(side).filter((m) => m.divineShield);
+        const casting = ctx.castingSpellId;
+        ctx.castingSpellId = undefined;
+        try { for (const m of warded) ctx.buff(m, wardAtk.attack, 0, wardAtk.label); } finally { ctx.castingSpellId = casting; }
+      }
       // ANCIENT OF BONDS × Merrin (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat
       // cast (one per repetition): one LIVING friendly minion of each type, United Front's selection (All-types bodies
       // always collect). A combat buff. Like the edges grant, it is not the cast's own buff, so it carries no `spellId`.
@@ -2925,6 +2934,8 @@ export function simulate(
   function summonExtraFor(side: Side): number {
     const n = modsFor(side).ancientSummonExtra ?? 0;
     if (n <= 0) return 0;
+    // RAYSE × GENESIS (owner 2026-11-16: "only when you have room"): no free slot, no copy, and the budget is kept.
+    if (modsFor(side).ancientSummonExtraNeedsRoom && occupied(side) >= 7) return 0;
     const left = summonExtraBudget[side];
     if (left === undefined) return n;
     if (left <= 0) return 0;
@@ -5836,10 +5847,20 @@ export function simulate(
       }
       // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
       // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
-      // beside it. No room: nothing.
-      if (smods.ancientXeroxSoc && occupied(scSide) < 7) {
+      // beside it. Owner 2026-11-16: "when you have space": a full board waits in the shared space queue for the first
+      // open slot (R-SPACE-PENDING-01), Brackus x War's shape (`landSummitCopy`).
+      if (smods.ancientXeroxSoc) {
         const src = xeroxTop(scSide, 'health');
-        if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
+        if (src) {
+          nextStep();
+          emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` });
+          if (occupied(scSide) < 7) xeroxCopy(scSide, src);
+          else {
+            const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+            const stats = { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable };
+            spaceQueue.push({ side: scSide, land: () => landSummitCopy(scSide, src, kws, stats) });
+          }
+        }
       }
       // ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
       // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.

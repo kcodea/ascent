@@ -58,20 +58,36 @@ describe('Quillen × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Quillen × DEATH: "Echo minions discovered from Archive gain Rise."', () => {
-  const echoId = Object.values(CARD_INDEX).find((c) => !c.spell && !c.ruby && !c.token && hasDeathrattle(c) && !c.keywords.includes('R'))!.id;
+describe('Quillen × DEATH: "Echo minions you Discover from Archive are Gilded, and they give Triple Rewards." (owner 2026-11-16)', () => {
+  const echoId = Object.values(CARD_INDEX).find((c) => !c.spell && !c.ruby && !c.token && hasDeathrattle(c) && !c.keywords.includes('R') && c.tier <= 3)!.id;
   const plainId = 'beatboxer';
-  const payout = (pick: string): BoardCard => {
-    let s = picked('death', { archivedTribes: [T[0]!.tribe, T[1]!.tribe], board: [card('x', T[2]!.id)] });
-    expect(heroPowerText(s)).toBe(`${BASE} **Echo** minions you **Discover** from it gain **Rise**.`);
+  const payout = (pick: string, id: AncientId = 'death'): RunState => {
+    let s = picked(id, { archivedTribes: [T[0]!.tribe, T[1]!.tribe], board: [card('x', T[2]!.id)] });
+    if (id === 'death') expect(heroPowerText(s)).toBe(`${BASE} **Echo** minions you **Discover** from it are **Gilded**. Playing one gives a **Triple Reward**.`);
     s = archive(s, 'x');
     expect(s.discover?.length).toBeGreaterThan(0);
     expect(s.ancients!.discoverTag).toBe('archive');
-    s = reduce({ ...s, discover: [pick] }, { type: 'discover', index: 0 });
-    return s.hand.find((c) => c.cardId === pick)!;
+    return reduce({ ...s, discover: [pick] }, { type: 'discover', index: 0 });
   };
-  it('an Echo pick gains Rise', () => { expect(payout(echoId).keywords).toContain('R'); });
-  it('a pick without an Echo does not', () => { expect(payout(plainId).keywords).not.toContain('R'); });
+  const got = (s: RunState, id: string): BoardCard => s.hand.find((c) => c.cardId === id)!;
+  it('an Echo pick arrives Gilded (doubled stats), and no longer gains Rise', () => {
+    const d = CARD_INDEX[echoId]!;
+    const c = got(payout(echoId), echoId);
+    expect(c.golden).toBe(true);
+    expect([c.attack, c.health]).toEqual([d.attack * 2, d.health * 2]);
+    expect(c.keywords).not.toContain('R');
+  });
+  it('playing it gives a Triple Reward', () => {
+    let s = payout(echoId);
+    const uid = got(s, echoId).uid;
+    s = reduce(s, { type: 'play', uid } as never);
+    expect(s.board.some((c) => c.cardId === echoId && c.golden)).toBe(true);
+    expect(s.hand.filter((c) => c.cardId === 'discoverspell').length).toBe(1);
+  });
+  it('a pick without an Echo stays plain; another Ancient does not Gild', () => {
+    expect(got(payout(plainId), plainId).golden).toBe(false);
+    expect(got(payout(echoId, 'fortune'), echoId).golden).toBe(false);
+  });
 });
 
 describe('Quillen × FORTUNE: "Archive grants +1 Max gold as well."', () => {
@@ -108,20 +124,30 @@ describe('Quillen × GENESIS: "Archive only requires 2 minions."', () => {
   });
 });
 
-describe('Quillen × TIME: "Archive becomes: Start of Turn: Get a random minion of your most common type."', () => {
-  it('Archive turns passive; each Start of Turn gets a minion of your most common type (its own beat)', () => {
-    let s = picked('time', { board: [card('a', T[0]!.id, { health: 50 }), card('b', T[0]!.id, { health: 50 })] });
-    expect(activePowers(s)[0]!.passive).toBe(true);
-    const name = T[0]!.tribe.charAt(0).toUpperCase() + T[0]!.tribe.slice(1);
-    expect(heroPowerText(s)).toBe(`**Start of Turn:** get a random minion of your most common type (**${name}**).`);
-    expect(archive(s, 'a').board.length).toBe(2); // no Archive
-    s = reduce(fightNow(s), { type: 'resolveCombat' });
-    const got = s.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell);
-    expect(got.length).toBe(1);
-    const d = CARD_INDEX[got[0]!.cardId]!;
-    expect(d.tribe === T[0]!.tribe || d.tribe2 === T[0]!.tribe || !!d.universalTribe).toBe(true);
-    expect(d.tier).toBeLessThanOrEqual(s.tier);
-    expect((s.sotBeatFx ?? []).some((b) => b.source.label === 'Ancient of Time')).toBe(true);
+describe('Quillen × TIME: "When Archive is full, Discover two minions of those types." (owner 2026-11-16)', () => {
+  it('Archive stays active; a full Archive opens two Discovers (the second queued), even with a repeated type', () => {
+    let s = picked('time', { archivedTribes: [T[0]!.tribe, T[0]!.tribe], board: [card('x', T[1]!.id)] });
+    expect(activePowers(s)[0]!.passive).toBeFalsy();
+    expect(heroPowerText(s)).toBe('Archive a friendly or shop minion. When full, **Discover** a minion of those types **twice**.');
+    expect(ancientOfferText('quillen', 'time')).toBe('When Archive is full, **Discover** twice from those types.');
+    s = archive(s, 'x');
+    expect(s.board.length).toBe(0);
+    expect(s.discover?.length).toBe(3);
+    expect(s.discoverQueue?.length).toBe(1);
+    s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discover?.length, 'the second Discover opens').toBe(3);
+    s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.hand.length).toBe(2);
+  });
+  it('no Start of Turn grant any more', () => {
+    const s = reduce(fightNow(picked('time', { board: [card('a', T[0]!.id, { health: 50 }), card('b', T[0]!.id, { health: 50 })] })), { type: 'resolveCombat' });
+    expect(s.hand.filter((c) => !CARD_INDEX[c.cardId]!.spell).length).toBe(0);
+    expect((s.sotBeatFx ?? []).some((b) => b.source.label === 'Ancient of Time')).toBe(false);
+  });
+  it('without it, one Discover', () => {
+    let s = picked('fortune', { archivedTribes: [T[0]!.tribe, T[0]!.tribe], board: [card('x', T[1]!.id)] });
+    s = archive(s, 'x');
+    expect(s.discoverQueue?.length ?? 0).toBe(0);
   });
 });
 

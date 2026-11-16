@@ -38,9 +38,10 @@ medal + division — see *Ranked ladder* below).
 - A non-player seat is a **snapshot** (a recorded player run), a **hybrid**, a **bot**, or — in the tutorial
   only — an **authored** seat. Player snapshots fill every seat the pool can cover; bots take what is left,
   so an empty pool degrades to a fully generated table rather than a smaller one. **Which** snapshot runs sit
-  at the table is a seeded uniform shuffle of every eligible run in the lobby's set (owner 2026-09-13): every
+  at the table is a seeded uniform shuffle of the newest 250 eligible runs in the lobby's set (owner 2026-09-13;
+  the 250 window: R-POOL-ROLLING-01, below): every
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
-  weights the draw — no recency, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
+  weights the draw inside that window — no recency weighting, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
   lobby draws only from the runs inside the player's **strength band** (below, R-LOBBY-09); inside the band the
   draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
   of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
@@ -59,10 +60,18 @@ medal + division — see *Ranked ladder* below).
   waves, the first at wave 1 or 2, never more than one wave missing in a row, and no board above a plausible
   shop tier for its wave (the all-in tavern-up curve + 2). Such a run is skipped. A generated seat's recording
   buys the first rune it can afford at each Runeforge, as a real player does.
+- **Only the newest 250 runs of a card set are seated** (owner 2026-11-15, R-POOL-ROLLING-01: *"its tough facing strong
+  boards that are now weakened due to balancing changes"*, *"lets do newest 250 runs"*). The game is rebalanced often and
+  a recorded run keeps the boards it was built with, so a new lobby (rated, Practice against players, and the solo runs
+  that fill Ranked Duos seats) draws only from the 250 most recently started eligible runs of its set. Each new run
+  pushes the oldest one out; a set with fewer than 250 serves all of them. An older run is never deleted (Career,
+  match details and replays keep it, and a game already seated with it keeps its table); it is only no longer drawn
+  for a new game. A game client that is already running keeps the runs it loaded until it is restarted. The 1 to 100 run strength and the rank bands are ranked among those 250 runs. The recorded duo TEAMS of
+  Ranked Duos are a separate pool and are not windowed.
 - **The pool is made of WHOLE RUNS, drawn at random** (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying
   snapshots from the player's game?", "make sure this is firmly fixed and will be scalable and a non issue moving
   forward", "i want them random from all snapshots in the pool"). The client receives a uniform random sample of
-  the eligible runs of its set and build version (150 runs; every run equally likely, however old), each run with
+  the newest 250 eligible runs of its set (150 runs; every run in that window equally likely), each run with
   ALL of its boards, or not at all: the server picks runs (`pool_runs_sample`), a run that arrives incomplete is
   refused whole, and the local cache stores whole runs. A device keeps the runs it already downloaded and fetches
   only the drawn runs it lacks, by run and content revision; what it serves is byte-identical to the server's answer

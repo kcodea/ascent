@@ -44,6 +44,13 @@ export const poolSourceFor = (env: HubStoreEnv): PoolSource | null =>
 
 /** Boards fetched per call (the SQL caps a call at 300). */
 export const MIRROR_BOARDS_CHUNK = 100;
+/** A Durable Object's `storage.delete(keys)` takes at most this many keys per call. */
+export const STORAGE_DELETE_MAX = 128;
+/** Delete any number of keys, a storage-sized chunk at a time. A sync can drop hundreds of runs at once (the rolling
+ *  pool, R-POOL-ROLLING-01, drops about 300 the first time it applies); one oversized call would fail every sync. */
+export async function deleteInChunks(del: (keys: string[]) => Promise<unknown>, keys: readonly string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += STORAGE_DELETE_MAX) await del(keys.slice(i, i + STORAGE_DELETE_MAX));
+}
 /** A read finding the mirror older than this triggers a sync in the background. */
 export const MIRROR_STALE_MS = 10 * 60_000;
 

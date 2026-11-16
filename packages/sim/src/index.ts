@@ -8,6 +8,7 @@ export * from './shop';
 export * from './starform';
 export * from './whisper'; // Set 4 Whispers (owner 2026-10-13): the lifecycle + the live value the text reads
 export * from './ancients';
+export * from './discoverPick'; // the one Discover pick body + its offer preview (`discoverOfferCard`)
 export * from './state';
 export * from './practiceTribes';
 export { alignmentAt, alignmentsOf, alignmentOf, boardHasCelestial } from './alignment';

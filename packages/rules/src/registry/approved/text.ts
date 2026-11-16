@@ -857,4 +857,28 @@ export const TEXT_RULES: GameRule[] = [
     example: 'The shop-clock warning never says a swear word; the four takes that did are gone from all four voices.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-15' },
   },
+  {
+    id: 'R-DISCOVER-PREVIEW-01',
+    title: 'A Discover option shows every grant its pick will get (keywords, Gilded, stats)',
+    statement:
+      'Every option of an open Discover is drawn as the card the pick will put in your hand: any grant that changes a '
+      + 'Discovered card at pick time (a keyword, Gilded, set stats, the creation auras) is already on the offered card. '
+      + 'One pick body builds both (the pick and the preview), and any random part is rolled when the offer opens, so '
+      + 'what you see is what you get. A granted keyword with no mark on the card body (Critical Strike, Engraved) ends '
+      + 'its text, like a granted Rise.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (Keshi x War report)', quote: 'if there are other effects like this that trigger for a discover etc, it should SHOW on the discovered cards etc' },
+      { kind: 'fix-pr', ref: 'fix/discover-grant-preview: packages/sim/src/discoverPick.ts buildDiscoverPick / discoverOfferCard; packages/ui/src/Recruit.tsx DiscoverOverlay; packages/ui/src/cardText.ts withGrantedKeywords' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-11-16 for: Keshi x War (Crown keyword), a Gilded Discover (golden Salvatore McKlusky), Rising '
+      + 'Echoes / Grave Invitation / quest reward keywords, Rune of the Second Path set stats, Quillen x Death (Echo '
+      + 'picks Gilded), Disco Dan x Death (Rise), Underdweller Soulkeeper (Death Rise, War grave stats), Albus x Death '
+      + '(Empowerment Rise), and the creation auras. Not shown on the card (not a card change): hand locks, Funeral on '
+      + "Loan's borrowed mark, Astral Draft's extra cast, Albus x Fortune's 0 Gold (shown on the Shop offer it becomes).",
+    example: 'A golden Salvatore McKlusky opens a Discover: every option is drawn Gilded at golden stats, and the one you take arrives exactly so.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/discoverPreview.test.ts', 'packages/ui/src/discoverPreviewText.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

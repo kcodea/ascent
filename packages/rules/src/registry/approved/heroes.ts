@@ -2607,7 +2607,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'code', ref: "packages/sim/src/ancients.ts tripleRewardPickKeyword / ancientOnDiscoverTaken; core minion.ts critChance default" },
     ],
     contentIds: ["discoverspell"],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "SUPERSEDED 2026-11-16 by R-ANCKESHI-07 (owner scope + text fix: only Keshi's Crown's rewards, shown in the Discover). Was: Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
   {
@@ -2653,6 +2653,22 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: "R-ANCKESHI-07",
+    title: "Keshi × Ancient of War: minions Discovered from Keshi's Crown's rewards have a random keyword, shown on the offer",
+    statement:
+      "With the Ancient of War, a minion Discovered from a Triple Reward that KESHI'S CROWN gave gains one random keyword it does not have from: Taunt, Ward, Rise, Flurry, Critical Strike, Execute, Stealth, Engraved. Any other Triple Reward (a triple's) gives none. The keyword is rolled for every option as the Discover opens (seeded), is shown on each offered card, and is exactly the keyword the pick gets.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-16 (Keshi x War report, hero power tooltip screenshot)", quote: "this should say \"minions discovered from Keshi's Crown's rewards have a random keyword.\" this should also SHOW in the discover" },
+      { kind: 'fix-pr', ref: "fix/discover-grant-preview: packages/sim/src/ancients.ts rollCrownPickKeywords / ancientShapeDiscoverPick; packages/sim/src/discoverPick.ts discoverOfferCard" },
+    ],
+    contentIds: ["discoverspell"],
+    currentBehaviour: "Conforms as of 2026-11-16. Was: every Triple Reward's pick gained the keyword, rolled at the pick, so the Discover never showed it. Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    example: "Keshi with War opens a Crown Triple Reward: the three options read e.g. Taunt, Engraved, Flurry on their cards, and the one you take arrives with that keyword. A normal triple's reward gives no keyword.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsKeshi.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: "R-ANCQUILL-01",

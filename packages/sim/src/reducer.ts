@@ -10,6 +10,7 @@ import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientOnTripl
 import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandNewShop, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
+import { buildDiscoverPick } from './discoverPick'; // the one Discover pick body (shared with the offer preview)
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionSecond, ancientStartSecondCommission, ancientTakeDueSecondCommission, ancientSyncPass1, ancientLuckySeatNeed } from './ancients'; // ancient pass 1
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
@@ -857,37 +858,14 @@ function takeDiscoverPickCore(s: RunState, index: number): boolean {
   }
   // An Empowerment pick whose offer was gone (the fall-through above) still counts as an Empowerment Discover.
   const empowered = !!s.discoverIntoShopUid;
-  const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
   // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
   // than over-capping). Only claim a pool copy when the card is actually taken.
   if (s.hand.length < handCap(s)) {
-    const taken: BoardCard = {
-      uid: `b${s.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-      ...conjuredStats(s, def, dcb),
-      keywords: [...def.keywords],
-      golden: false,
-      // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
-      ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-      ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
-      ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
-      ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
-    };
-    // Rune of the Second Path: the pick's stats are SET to the authored line (20/20), replacing the
-    // conjured stats entirely — an override, not a buff.
-    if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
-    // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
-    // transform a triple applies, so the stats/keywords stay consistent with every other golden.
-    if (s.discoverGolden) gildMinion(taken, s);
-    // Rune of Rising Echoes: the pick arrives carrying granted keywords (Rise + Taunt). Applied after the gild
-    // so a gilded pick keeps them, and de-duped against what the card already has.
-    for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
-    // Rune of the Astral Draft: the pick casts an additional time — stamped on the instance, read by `spellCasts`.
-    if (s.discoverExtraCasts) taken.extraCasts = (taken.extraCasts ?? 0) + s.discoverExtraCasts;
-    // ANCIENTS (Keshi × War, Quillen × Death, Disco Dan × Death): the pick's keyword grants, by its Discover's origin.
-    ancientOnDiscoverTaken(s, ancientTag, taken);
+    // THE ONE PICK BODY (`buildDiscoverPick`): the creation stats, the locks / borrowed / set stats / Gilded / granted
+    // keywords / extra casts riders, and the Ancient grants (Keshi × War, Quillen × Death, Disco Dan, Underdweller),
+    // shared with the Discover's preview of each option (`discoverOfferCard`) so what the offer shows is what you get.
+    const taken = buildDiscoverPick(s, index, { uid: `b${s.uidSeq++}`, tag: ancientTag, commit: true })!;
+    ancientOnDiscoverTaken(s, ancientTag, taken); // what only a real pick records (Disco Dan × Genesis)
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
     if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);

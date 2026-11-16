@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-16',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Match History: the Shop buffs button is now a Show Buffs button. It shows every buff you had when the game ended.',
+        details: [
+          'It lists the same buffs as the Buffs panel you open from your hero portrait in a game: Spell power, Ruby power, Auras, Shop Stats, Max Gold and the rest.',
+          'The biggest buff is listed first.',
+          'Games played before this update show only the buffs they saved.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-15',
     changes: [
       {

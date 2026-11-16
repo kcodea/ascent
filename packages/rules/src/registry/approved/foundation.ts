@@ -14506,19 +14506,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-MATCH-SHOPBUFF-01',
-    title: 'A finished game shows the Shop buffs the player ended it with',
+    title: 'A finished game shows every run-wide buff the player ended it with',
     statement:
-      'A game opened in Match History (Career or Recent Games) has a Shop buffs button. Pressing it shows the permanent buff every minion '
-      + 'bought from the Shop was getting when the game ended, then what it came from (each source and its share, biggest first). '
-      + 'A game with none says so. A game recorded before this was saved has no button.',
+      'A game opened in Match History (Career or Recent Games) has a Show Buffs button. Pressing it shows every run-wide buff the player had '
+      + 'when the game ended: every row the in-game Buffs panel (opened from the hero portrait) can show, such as Spell power, Ruby power, '
+      + 'the Auras, Shop Stats with each source, the Shop slot buffs and Max Gold. A buff added to that panel later shows here too. '
+      + 'The list runs from the biggest buff to the smallest, each Shop Stats source under Shop Stats. '
+      + 'A game with none says so. A game that recorded none of it has no button.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-08, Match History screenshot', quote: 'here i want a button to press that displays the shop buffs the player had at the end of the game' },
       { kind: 'fix-pr', ref: 'feat/match-shop-buffs: packages/sim/src/snapshot.ts (shopBuffSnapshotOf, BoardSnapshot.shopBuff), packages/ui/src/partyHome/pages/gameView.tsx (ShopBuffButton)' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-16, screenshot of the Shop buffs button', quote: 'just realized that this is incorrectly implemented. i dont want just shop buffs. i want gamewide buffs like gem buffs, shop buffs, spell buffs. everything that can show in the run-wide buffs section of a game (where you click the hero portrait to toggle it on)' },
+      { kind: 'owner-chat', ref: 'Owner (Mike), 2026-11-16, on the Show Buffs plate', quote: 'sort from highest amount to lowest amount' },
+      { kind: 'fix-pr', ref: 'feat/match-run-buffs: packages/sim/src/runBuffRows.ts (gatherRunBuffs, moved from the UI), packages/sim/src/snapshot.ts (BoardSnapshot.runBuffs), packages/ui/src/runBuffs.ts (finalBoardBuffs), packages/ui/src/partyHome/pages/gameView.tsx (RunBuffsButton)' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-08 (feat/match-shop-buffs) for games finished from then on: the final board snapshot stamps tavernBuyBonus and its source ledger. Earlier games never stored it, so they show no button.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/shopBuffButton.test.tsx'], lastVerifiedAt: '2026-11-08' },
+    currentBehaviour: 'Conforms from 2026-11-16 (feat/match-run-buffs) for games finished from then on: the final board snapshot stamps the rows of the gatherer of the in-game panel (gatherRunBuffs). PARTIAL for older games: one finished between 2026-11-08 and then shows the combat buffs its board stored (Spell power, Ruby power, the Auras) plus Shop Stats and its sources, but not Clue power, the Shop slot buffs, Veinstorm Stats, Max Gold, Den Mother or Guel; one from before 2026-11-08 shows only the combat buffs, and no button when it stored none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/partyHome/pages/runBuffsButton.test.tsx'], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: 'R-SETTINGS-SAVEQUIT-01',

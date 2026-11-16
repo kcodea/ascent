@@ -114,6 +114,7 @@ const OBJECT_ARMS: Record<string, unknown> = {
   ancientBladeBonds: { label: 'Ancient of Bonds' },
   ancientFirstFoeDeathCopy: { label: 'Ancient of Time' }, // Underdweller x Time: the first staged enemy death comes home as a toHand
   ancientDeathGivesAttack: { label: 'Ancient of Death' }, // Gorun x Death: each staged friendly death hands its Attack on
+  ancientMidasWard: { per: 2, label: 'Ancient of War' }, // Midas x War (ancient pass 2): Ward per Gilded enemy body (a staged fight with no Gilded foe: inert)
   ancientAttackGold: { every: 1, tick: 0, gold: 1, flag: 'ancientAttackGold', label: 'Ancient of Fortune' }, // Gorun x Fortune: every (1) staged attack banks Gold
   ancientSocWardFlurry: { count: 2, label: 'Ancient of Genesis' }, // Gorun x Genesis: the two left-most staged bodies
   ancientAutoReclaim: { label: 'Ancient of Death' }, // Mimic x Death: the staged Echo body is Reclaimed

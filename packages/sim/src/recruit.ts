@@ -12,6 +12,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
+import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult } from './ancients'; // ancient pass 2
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -2084,6 +2085,9 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
   // Ancient of Time × Hunch: a Rounded Spellbook copy "casts twice" (a per-instance multiplier, like the ones above).
   if ((card?.castMult ?? 1) > 1) mult *= card!.castMult!;
+  // Ancient of Bonds × Hunch (ancient pass 2): the first 3 TARGETED spells each turn cast twice. Read-only, like Spell
+  // Thesis: the from-hand cast sites spend it (`ancientNoteHandSpellCast`).
+  mult *= ancientTargetedSpellMult(state, def);
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
@@ -14831,7 +14835,10 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // CINDERCHEF's tally (owner 2026-11-15): SHOP spells cast this turn, by the R-SHOPSPELL-01 test (a Gift / Clue
   // reaches `castSpell` and counts in `spellsThisTurn`, but is not a Shop spell). Counted before the watchers below
   // fire, so a cast that wakes a Shop Rally already sees itself.
-  if (isShopPoolSpell(spellDef, poolOf(state).all)) state.shopSpellsThisTurn = (state.shopSpellsThisTurn ?? 0) + 1;
+  if (isShopPoolSpell(spellDef, poolOf(state).all)) {
+    state.shopSpellsThisTurn = (state.shopSpellsThisTurn ?? 0) + 1;
+    ancientNoteShopSpell(state); // ANCIENT OF WAR × Mimic: Shop spells cast this game (a no-op off Ancients runs)
+  }
   // The per-cast SHOP-SPELL RUNES (Summoning / Might / Kindling / Flagship / Scales) — ONE shared function, so a
   // Spellstone Ruby ("counts as a Shop spell") fires exactly the same set (audit 2026-09-23: it used to reach
   // the counters and the board watchers but none of these). The Runic Hoard is fired beside it, not inside:
@@ -15615,6 +15622,7 @@ function applyEndOfTurnBody(state: RunState): void {
     if (effect === 'ancientDrakkoEotShout') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRayseEotRise') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientBatchBEot') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
+    if (effect === 'ancientPass2Eot') return { source: beatSource('hero', state.heroId, ancientPass2EotLabel(state)), trigger: 'endOfTurn', policy: 'ownBeat' };
     const owner = recurringEotOwner(effect);
     const label = RECURRING_EOT_LABEL[effect] ?? 'End of Turn';
     return {
@@ -16223,6 +16231,9 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     // ANCIENT OF TIME x Kindness ("End of Turn: Get 2 random shop spells."), x Emissary ("United Front triggers at End of
     // Turn instead.") and x Emerald Warden ("End of Turn: Get a random minion of your tier."). One virtual entry.
     ...(ancientBatchBEotLive(state) ? ['ancientBatchBEot' as const] : []),
+    // ANCIENT PASS 2 (owner 2026-11-16): Juggler × Time ("End of Turn: your Carnival Coins improve +1/+1 for each coin in
+    // your hand.") and Mimic × War ("+1/+1 for every 2 Shop spells, at End of Turn"). One virtual entry.
+    ...(ancientPass2EotLive(state) ? ['ancientPass2Eot' as const] : []),
   ];
 }
 
@@ -16285,6 +16296,8 @@ function runRecurringEndOfTurn(
     ancientRunRayseEotRise(state, step);
   } else if (effect === 'ancientBatchBEot') {
     ancientRunBatchBEot(state, step);
+  } else if (effect === 'ancientPass2Eot') {
+    ancientRunPass2Eot(state, step);
   } else if (effect === 'runeFiveBanners') {
     // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
     // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
@@ -16893,6 +16906,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   ancientDrakkoEotShout: 'Ancient of Time',
   ancientRayseEotRise: 'Ancient of Time',
   ancientBatchBEot: 'Ancient of Time',
+  ancientPass2Eot: 'Ancient',
   quickStudy: 'Quick Study',
   runeAncestralRoar: 'Ancestral Roar',
   runePiggyBank: 'Piggy Bank',

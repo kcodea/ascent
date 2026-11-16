@@ -51,26 +51,26 @@ describe('Gildmaster × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Gildmaster × DEATH: "Avenge (14): Get a Goldcrafter."', () => {
-  it('Shop: the 14th friendly Shop death gets a Goldcrafter right then', () => {
+describe('Gildmaster × DEATH: "Avenge (17): Get a Goldcrafter." (owner 2026-11-16: 17, was 14)', () => {
+  it('Shop: the 17th friendly Shop death gets a Goldcrafter right then', () => {
     let s = picked('death');
-    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (14):** get a **Goldcrafter** (**14** more to go).`);
-    s = structuredClone({ ...s, board: [card('d', N(0))], ancients: { ...s.ancients!, gildDeaths: 13 } });
+    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (17):** get a **Goldcrafter** (**17** more to go).`);
+    s = structuredClone({ ...s, board: [card('d', N(0))], ancients: { ...s.ancients!, gildDeaths: 16 } });
     destroyMinionInShop(makeContext(s), at(s, 'd'));
     expect(s.hand.map((c) => c.cardId)).toEqual(['goldcrafter']);
     expect(s.ancients!.gildDeaths).toBe(0);
   });
   it('combat: the carried count pays a Goldcrafter MID-FIGHT (a live toHand); settle carries the remainder', () => {
     let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) });
-    s = { ...s, ancients: { ...s.ancients!, gildDeaths: 13 } };
-    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 14, tick: 13, ids: ['goldcrafter'], label: 'Ancient of Death' });
+    s = { ...s, ancients: { ...s.ancients!, gildDeaths: 16 } };
+    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 17, tick: 16, ids: ['goldcrafter'], label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
     s = fightNow(s, 100, 1000);
     expect(events(s).filter((e) => e.type === 'toHand' && e.cardId === 'goldcrafter').length).toBe(1);
     const deaths = s.lastCombat!.playerDeaths ?? 0;
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.hand.map((c) => c.cardId)).toContain('goldcrafter');
-    expect(s.ancients!.gildDeaths).toBe((13 + deaths) % 14);
+    expect(s.ancients!.gildDeaths).toBe((16 + deaths) % 17);
   });
 });
 

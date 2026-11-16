@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent } from '@game/core';
 import {
-  ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
+  ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, defIsTribe, enableAncients, heroPowerText, offerBuyPrice, poolOf, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -128,16 +128,17 @@ describe('Gorr × FORTUNE: "The first minion you buy each turn is free."', () =>
   });
 });
 
-describe('Gorr × WAR: "pummel (200): get a copy of a minion in your warband."', () => {
-  it('every 200 friendly damage dealt sends a plain copy of a random living friendly minion to hand, repeating, and the tally carries', () => {
+describe('Gorr × WAR (ancient pass 2, owner 2026-11-16: "once per turn"): "pummel (200): get a copy of a minion in your warband."', () => {
+  it('pays ONE plain copy of a random living friendly minion a fight, however many 200s it crosses; the tally carries', () => {
     let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 90, health: 500 }), card('b', N(1), { attack: 90, health: 500 })] });
     expect(heroPowerText(s)).toContain('(**0/200**)');
-    expect(ancientCombatMods(s).ancientPummelCopy).toEqual({ every: 200, dealt: 0, label: 'Ancient of War' });
+    expect(heroPowerText(s)).toContain('Once per turn.');
+    expect(ancientCombatMods(s).ancientPummelCopy).toEqual({ every: 200, dealt: 0, label: 'Ancient of War', max: 1 });
     s = fightNow(s, 1, 2000);
     const dealt = s.lastCombat!.playerAncientPummelDealt!;
-    expect(dealt).toBeGreaterThanOrEqual(400);
+    expect(dealt, 'crossed 200 at least twice').toBeGreaterThanOrEqual(400);
     const th = toHands(s);
-    expect(th.length).toBe(Math.floor(dealt / 200));
+    expect(th.length).toBe(1);
     for (const e of th) expect([N(0), N(1)]).toContain(e.cardId);
     s = reduce(s, { type: 'resolveCombat' });
     expect(s.ancients!.pummelDealt).toBe(dealt);
@@ -169,17 +170,27 @@ describe('Gorr × GENESIS: "get a second copy of the first minion you buy each t
   });
 });
 
-describe('Gorr × TIME: "End of Turn: Get a random copy of a minion you bought this turn."', () => {
-  it('End of Turn: a plain copy of one of this turn\'s minion buys; no buys, nothing', () => {
-    let s = picked('time', { wave: 3 });
-    expect(heroPowerText(s)).toContain('(**0** bought)');
-    s = buyAll(s, [N(0), N(1)]);
-    expect(heroPowerText(s)).toContain('(**2** bought)');
-    s = { ...s, board: [...s.hand], hand: [] };
-    s = fightNow(s);
-    expect(s.hand.length).toBe(1);
-    expect([N(0), N(1)]).toContain(s.hand[0]!.cardId);
-    expect(fightNow(picked('time', { wave: 3 })).hand.length).toBe(0);
+describe('Gorr × TIME (ancient pass 2, owner 2026-11-16): "End of Turn, refresh the Shop with your most common type and freeze it"', () => {
+  it('End of Turn: the Shop is rerolled into your most common type and frozen, so the next turn opens on it', () => {
+    let s0 = picked('time', { wave: 3 });
+    const tribe = s0.tribes.find((t) => t !== 'neutral')!;
+    const ids = poolOf(s0).buyable.filter((c) => c.tier === 1 && !c.spell && !c.ruby && c.tribe === tribe && !c.tribe2 && !c.universalTribe).map((c) => c.id);
+    expect(ids.length).toBeGreaterThan(0);
+    s0 = { ...s0, frozen: false, board: [card('a', ids[0]!), card('b', ids[0]!), card('c', N(0))] };
+    expect(heroPowerText(s0)).toContain(`refresh the Shop with minions of your most common type (**${tribe.charAt(0).toUpperCase()}${tribe.slice(1)}**) and freeze it.`);
+    const before = s0.shop.map((o) => o.uid);
+    const s = fightNow(s0);
+    expect(s.frozen).toBe(true);
+    const minions = s.shop.filter((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; });
+    expect(minions.length).toBeGreaterThan(0);
+    for (const o of minions) expect(defIsTribe(CARD_INDEX[o.cardId]!, tribe, s), o.cardId).toBe(true);
+    expect(s.shop.map((o) => o.uid)).not.toEqual(before);
+    const next = reduce(s, { type: 'resolveCombat' });
+    expect(next.shop.filter((o) => minions.some((m) => m.uid === o.uid)).length, 'the frozen Shop carries into the next turn').toBe(minions.length);
+  });
+  it('without Time the Shop is not frozen at End of Turn', () => {
+    const s = fightNow({ ...picked('war', { wave: 3 }), frozen: false });
+    expect(s.frozen).toBe(false);
   });
 });
 

@@ -295,3 +295,18 @@ describe('Ancients — serialisable', () => {
     expect(back?.ancients?.picked).toBe('war');
   });
 });
+
+describe('Ancients × Indy GENESIS (Ancient pass 2, owner 2026-11-16: "Plain copies")', () => {
+  it('the offer says plain, and the two copies are the printed card: no buffs, no gild', () => {
+    expect(ancientOfferText('indy', 'genesis')).toBe('Masterwork gets **2** plain copies of a chosen minion instead.');
+    let s = picked('genesis', { board: [card('a', 'sandbag', { attack: 40, health: 40, golden: true })] });
+    s = reduce(s, { type: 'heroPower', uid: 'a' });
+    const copies = s.hand.filter((c) => c.cardId === 'sandbag');
+    expect(copies).toHaveLength(2);
+    for (const c of copies) {
+      expect(c.golden).toBe(false);
+      expect(c.attack).toBe(CARD_INDEX.sandbag!.attack);
+      expect(c.health).toBe(CARD_INDEX.sandbag!.health);
+    }
+  });
+});

@@ -3,10 +3,10 @@
  * for that many turns." Every pairing in the phase(s) it fires in.
  */
 import { describe, expect, it } from 'vitest';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, GIFT_IDS } from '@game/content';
 import {
   ANCIENT_DICE_LOCK_FLAG, ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients,
-  heroPowerText, offerBuyPrice, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
+  heroPowerText, reduce, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
 
@@ -32,10 +32,6 @@ const foes = (wave: number, attack: number, health: number): BoardSnapshot => ({
 });
 const fightNow = (s: RunState, attack = 0, health = 400): RunState => reduce({ ...s, servedBoards: { [s.wave]: foes(s.wave, attack, health) } }, { type: 'faceOmen' });
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
-const buyFromRow = (s: RunState, cardId: string): RunState => {
-  const withOffer: RunState = { ...s, shop: [...s.shop, { uid: `o_${cardId}_${s.uidSeq}`, cardId }] };
-  return reduce(withOffer, { type: 'buy', uid: withOffer.shop[withOffer.shop.length - 1]!.uid });
-};
 /** The die a plain Gambler rolls from this exact state (the control every pairing is compared with). */
 const plainRoll = (s: RunState): number => reduce({ ...s, ancientsEnabled: false }, { type: 'heroPower' }).heroDiceRoll!;
 
@@ -81,8 +77,9 @@ describe('Gambler × DEATH: "Avenge (4): reduce the Dice lock by 1 turn."', () =
   });
 });
 
-describe('Gambler × FORTUNE: "Roll 2 dice. Gain both, and lock for the lower one."', () => {
-  it('gains both dice and locks for the lower; the first die is the one a plain roll makes', () => {
+describe('Gambler × FORTUNE (ancient pass 2, owner 2026-11-16: "it locks for the average of the 2 die"): "Roll 2 dice. Gain both, and lock for their average."', () => {
+  it('gains both dice and locks for their average, rounded up; the first die is the one a plain roll makes', () => {
+    let sawRound = false;
     for (let seed = 1; seed <= 12; seed++) {
       const s0 = { ...picked('fortune', { wave: 2 }), rngCursor: seed * 7919 };
       const s = reduce(s0, { type: 'heroPower' });
@@ -91,10 +88,13 @@ describe('Gambler × FORTUNE: "Roll 2 dice. Gain both, and lock for the lower on
       expect(dice[0]).toBe(plainRoll(s0));
       for (const d of dice) { expect(d).toBeGreaterThanOrEqual(1); expect(d).toBeLessThanOrEqual(6); }
       expect(s.embers).toBe(s0.embers - 1 + dice[0]! + dice[1]!);
-      expect(s.heroDiceLockUntil).toBe(2 + Math.min(dice[0]!, dice[1]!));
-      expect(s.heroDiceRoll).toBe(Math.min(dice[0]!, dice[1]!));
-      expect(heroPowerText(s)).toBe(`Roll **2** dice: gain that much Gold. This power then locks for as many turns as the lower die. Rolled **${dice[0]}** and **${dice[1]}**.`);
+      const avg = Math.ceil((dice[0]! + dice[1]!) / 2);
+      if ((dice[0]! + dice[1]!) % 2 === 1) sawRound = true;
+      expect(s.heroDiceLockUntil).toBe(2 + avg);
+      expect(s.heroDiceRoll).toBe(avg);
+      expect(heroPowerText(s)).toBe(`Roll **2** dice: gain that much Gold. This power then locks for as many turns as their average, rounded up. Rolled **${dice[0]}** and **${dice[1]}**.`);
     }
+    expect(sawRound, 'the seeds include an odd total (the rounding is exercised)').toBe(true);
   });
   it('a plain Gambler rolls one die', () => {
     const s0 = base({ wave: 2 });
@@ -142,39 +142,73 @@ describe('Gambler × GENESIS: "Dice also casts Gamble, using the same roll."', (
   });
 });
 
-describe('Gambler × TIME: "While Dice is locked, your first minion each turn costs 1 Gold less."', () => {
-  it('locked: the first minion costs 1 less, the second the full price; unlocked: no discount', () => {
-    let s = picked('time', { wave: 3, heroDiceLockUntil: 5 });
-    const full = offerBuyPrice({ ...s, heroDiceLockUntil: 0 }, { cardId: N(0) }).cost;
-    expect(heroPowerText(s)).toBe(`${BASE} While it is locked, your first minion each turn costs **1 Gold** less. Ready this turn.`);
-    expect(offerBuyPrice(s, { cardId: N(0) }).cost).toBe(full - 1);
-    const before = s.embers;
-    s = buyFromRow(s, N(0));
-    expect(s.embers).toBe(before - (full - 1));
-    expect(offerBuyPrice(s, { cardId: N(1) }).cost).toBe(full);
-    expect(heroPowerText(s)).toContain('Used this turn.');
-    expect(heroPowerText({ ...s, heroDiceLockUntil: 0 })).toContain('Not locked.');
+describe('Gambler × TIME (ancient pass 2, owner 2026-11-16): "Roll 1: random Tier 6 spell. Roll 2: random Tier 6 minion. Roll 3: Discover a Gift. 4-6 just give gold."', () => {
+  /** A seed whose plain roll is `face` (the Time pairing never draws before the die). */
+  const rolling = (face: number): RunState => {
+    for (let seed = 1; seed < 400; seed++) {
+      const s0 = { ...picked('time', { wave: 3 }), rngCursor: seed * 7919 };
+      if (plainRoll(s0) === face) return s0;
+    }
+    throw new Error(`no seed rolls ${face}`);
+  };
+  it('the text', () => {
+    expect(heroPowerText(picked('time'))).toBe(`${BASE} Roll a **1**: also get a random Tier 6 spell. A **2**: a random Tier 6 minion. A **3**: **Discover** a **Gift**.`);
   });
-  it('rolling this turn locks Dice, so the discount is live right away', () => {
-    let s = picked('time', { wave: 3 });
-    const full = offerBuyPrice(s, { cardId: N(0) }).cost;
-    s = reduce(s, { type: 'heroPower' });
-    expect(offerBuyPrice(s, { cardId: N(0) }).cost).toBe(full - 1);
+  it('a 1: the Gold AND a random Tier 6 spell to hand', () => {
+    const s0 = rolling(1);
+    const s = reduce(s0, { type: 'heroPower' });
+    expect(s.embers).toBe(s0.embers - 1 + 1);
+    expect(s.hand.length).toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]).toMatchObject({ spell: true, tier: 6 });
   });
-  it('without Time there is no discount', () => {
-    const s = picked('war', { wave: 3, heroDiceLockUntil: 5 });
-    expect(offerBuyPrice(s, { cardId: N(0) }).cost).toBe(offerBuyPrice({ ...s, heroDiceLockUntil: 0 }, { cardId: N(0) }).cost);
+  it('a 2: the Gold AND a random Tier 6 minion to hand', () => {
+    const s0 = rolling(2);
+    const s = reduce(s0, { type: 'heroPower' });
+    expect(s.embers).toBe(s0.embers - 1 + 2);
+    expect(s.hand.length).toBe(1);
+    const d = CARD_INDEX[s.hand[0]!.cardId]!;
+    expect(d.tier).toBe(6);
+    expect(d.spell).toBeFalsy();
+  });
+  it('a 3: the Gold AND a Discover of a Gift', () => {
+    const s0 = rolling(3);
+    const s = reduce(s0, { type: 'heroPower' });
+    expect(s.embers).toBe(s0.embers - 1 + 3);
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(GIFT_IDS).toContain(id);
+  });
+  it('a 4, 5 or 6: just the Gold', () => {
+    for (const face of [4, 5, 6]) {
+      const s0 = rolling(face);
+      const s = reduce(s0, { type: 'heroPower' });
+      expect(s.embers).toBe(s0.embers - 1 + face);
+      expect(s.hand.length).toBe(0);
+      expect(s.discover ?? null).toBeNull();
+    }
+  });
+  it('without Time a 1 gets no card', () => {
+    const s0 = rolling(1);
+    const s = reduce({ ...s0, ancients: { ...s0.ancients!, picked: 'war' } }, { type: 'heroPower' });
+    expect(s.hand.length).toBe(0);
   });
 });
 
-describe('Gambler × BONDS: "When you roll, Discover a minion of that Tier."', () => {
-  it('the Discover offers minions of exactly the rolled Tier, whatever your Shop tier', () => {
+describe('Gambler × BONDS (ancient pass 2, owner 2026-11-16): "When you roll, Discover 2 minions of that Tier."', () => {
+  it('TWO Discovers, each of exactly the rolled Tier, whatever your Shop tier', () => {
+    expect(heroPowerText(picked('bonds'))).toBe(`${BASE} When you roll, **Discover** **2** minions of that Tier.`);
     for (let seed = 1; seed <= 8; seed++) {
       const s0 = { ...picked('bonds', { tier: 1 }), rngCursor: seed * 7919 };
-      const s = reduce(s0, { type: 'heroPower' });
+      let s = reduce(s0, { type: 'heroPower' });
       const roll = s.heroDiceRoll!;
       expect(s.discover?.length).toBeGreaterThan(0);
       for (const id of s.discover!) { expect(CARD_INDEX[id]!.tier).toBe(roll); expect(CARD_INDEX[id]!.spell).toBeFalsy(); }
+      expect(s.discoverQueue?.length, 'the second waits behind the first').toBe(1);
+      s = reduce(s, { type: 'discover', index: 0 });
+      expect(s.discover?.length, 'the second opens').toBeGreaterThan(0);
+      for (const id of s.discover!) expect(CARD_INDEX[id]!.tier).toBe(roll);
+      s = reduce(s, { type: 'discover', index: 0 });
+      expect(s.hand.length).toBe(2);
+      expect(s.discover ?? null).toBeNull();
     }
   });
   it('without Bonds no Discover opens', () => {

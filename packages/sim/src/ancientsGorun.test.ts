@@ -90,6 +90,44 @@ describe('Gorun × DEATH: "When a friendly minion dies, give its Attack to a ran
   });
 });
 
+describe('Gorun × DEATH cap (ancient pass 2, owner 2026-11-16): "twice per turn", Shop destroys count toward it', () => {
+  const four = () => ['a', 'b', 'c', 'd'].map((u) => card(u, N(0), { attack: 10, health: 1 }));
+  const keep = (): BoardCard => card('k', N(1), { attack: 1, health: 900 });
+  it('COMBAT: four friendly deaths, only two gifts; the text counts down', () => {
+    const s0 = picked('death', { board: [...four(), keep()] });
+    expect(heroPowerText(s0)).toContain('Twice per turn (**2** left this turn).');
+    expect(ancientCombatMods(s0).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 2 });
+    const s = fightNow(s0, [{ cardId: 'sandbag', attack: 5, health: 4000 }]);
+    expect(events(s).filter((e) => e.type === 'death' && e.side === 'player').length).toBeGreaterThanOrEqual(4);
+    expect(buffsFrom(events(s), 'Ancient of Death').length).toBe(2);
+  });
+  it('SHOP: the third Shop destroy in a turn gives nothing; a new turn gives again', () => {
+    const s = structuredClone(picked('death', { board: [...four(), keep()] }));
+    const sum = (st: RunState): number => st.board.reduce((n, c) => n + c.attack, 0);
+    for (let i = 0; i < 2; i++) {
+      const before = sum(s);
+      recruitMod.destroyMinionInShop(recruitMod.makeContext(s), s.board[0]!);
+      expect(sum(s), `gift ${i + 1}: the Attack stays on the board`).toBe(before);
+    }
+    expect(heroPowerText(s)).toContain('(**0** left this turn)');
+    const before3 = sum(s);
+    const third = s.board[0]!.attack;
+    recruitMod.destroyMinionInShop(recruitMod.makeContext(s), s.board[0]!);
+    expect(sum(s), 'the third gives nothing').toBe(before3 - third);
+    const next = structuredClone({ ...s, wave: s.wave + 1 });
+    const total = sum(next);
+    recruitMod.destroyMinionInShop(recruitMod.makeContext(next), next.board[0]!);
+    expect(sum(next), 'a new turn: the gift lands').toBe(total);
+  });
+  it('the Shop share carries into the fight: one Shop gift leaves one for combat', () => {
+    const s = structuredClone(picked('death', { board: [...four(), keep()] }));
+    recruitMod.destroyMinionInShop(recruitMod.makeContext(s), s.board[0]!);
+    expect(ancientCombatMods(s).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 1 });
+    const f = fightNow(s, [{ cardId: 'sandbag', attack: 5, health: 4000 }]);
+    expect(buffsFrom(events(f), 'Ancient of Death').length).toBe(1);
+  });
+});
+
 describe('Gorun × FORTUNE: "Every 5 attacks, gain 1 Gold next turn."', () => {
   it('every 5th friendly attack banks 1 Gold for next turn, on one running count across fights; printed live', () => {
     const start = picked('fortune', { board: trio() });

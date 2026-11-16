@@ -6,6 +6,7 @@ import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCu
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
+import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
 import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
@@ -2338,6 +2339,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (def.token) {
           // ANCIENTS × Keshi (War / Genesis): a Triple Reward's Discover carries its origin (empty on every other run).
           queueDiscover(s, spec.kind === 'minion' ? { ...spec, ...ancientTripleRewardTag(s, card) } : { ...spec });
+          if (card.cardId === 'discoverspell') ancientOnTripleRewardOpen(s); // ANCIENT OF FORTUNE × Keshi: +3 Gold per open
           return s;
         }
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
@@ -2688,6 +2690,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+        ancientNoteHandSpellCast(s, def); // ANCIENT OF BONDS × Hunch: a targeted cast spends one of the turn's doubles
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
@@ -2785,7 +2788,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
             }
           }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
-          if (card.golden) grantGoldenDiscover(s);
+          if (card.golden) grantGildedPlayRewards(s);
           return s;
         }
       }
@@ -2926,7 +2929,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         if (s.runeRefrain && aimedDef && hasBattlecry(aimedDef)) rollRefrainReturn(s, card);
       }
       checkTriples(s);
-      if (card.golden) grantGoldenDiscover(s);
+      if (card.golden) grantGildedPlayRewards(s);
       return s;
     }
 
@@ -3078,7 +3081,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // Same gate as the play-time roll (a real Shout minion — never a Mage-Pup's taught spell).
       if (!opt && s.runeRefrain && ptDef && hasBattlecry(ptDef)) rollRefrainReturn(s, card);
       checkTriples(s);
-      if (card.golden) grantGoldenDiscover(s);
+      if (card.golden) grantGildedPlayRewards(s);
       openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
       return s;
     }
@@ -3870,12 +3873,13 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // ANCIENT OF FORTUNE × Gambler: "Roll 2 dice. Gain both, and lock for the lower one." (no second draw otherwise)
         const roll2 = ancientDiceRollsTwo(s) ? 1 + rng.int(6) : undefined;
         s.rngCursor = rng.state();
-        const lock = roll2 === undefined ? roll : Math.min(roll, roll2);
+        // ANCIENT PASS 2 (owner 2026-11-16): "it locks for the average of the 2 die", rounded up.
+        const lock = roll2 === undefined ? roll : Math.ceil((roll + roll2) / 2);
         gainGold(s, roll + (roll2 ?? 0));
         s.heroDiceLockUntil = s.wave + lock;
         // Display-only: the panel keeps showing the rolled face for the rest of THIS turn (owner ruling
         // 2026-08-16) rather than snapping back the instant the tumble settles. Expired by wave comparison.
-        s.heroDiceRoll = lock; // the face shown is the lock (two dice: the lower one)
+        s.heroDiceRoll = lock; // the face shown is the lock (two dice: their average, rounded up)
         s.heroDiceRollWave = s.wave;
         // ANCIENTS × Gambler (a no-op unless picked): War's +3/+3 per pip, Genesis' Gamble on the same roll, Bonds' Discover.
         ancientAfterDice(s, roll2 === undefined ? [roll] : [roll, roll2]);
@@ -4637,6 +4641,7 @@ function resolveChooseOneSpell(
   if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent (already folded into `casts`)
   if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
+  ancientNoteHandSpellCast(s, def); // ANCIENT OF BONDS × Hunch: a targeted cast spends one of the turn's doubles
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
   spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
@@ -4652,6 +4657,13 @@ function resolveChooseOneSpell(
 
 /** Gildmaster × Ancient of Genesis: true while a Triple Reward's repeat is resolving (so the repeat never repeats). */
 let tripleRewardRepeating = false;
+/** A Gilded minion was PLAYED: its Triple Reward, plus Membrance × Bonds' extra ones (ancient pass 2, owner 2026-11-16:
+ *  "Playing a Gilded minion gives you 2 Triple Rewards"; 0 extra on every other run). */
+function grantGildedPlayRewards(s: RunState): void {
+  grantGoldenDiscover(s);
+  for (let k = 0; k < ancientGildedPlayExtraRewards(s); k++) grantGoldenDiscover(s);
+}
+
 function grantGoldenDiscover(s: RunState, crown = false, duos?: { tier?: number; synergy?: boolean }): void {
   // MIDAS: his Gilds pay a Gold Pouch instead of the Triple Reward. Swapped HERE rather than at the call sites
   // because every Gild route funnels through this one function — doing it per-site would guarantee a missed

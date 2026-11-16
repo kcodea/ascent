@@ -611,6 +611,9 @@ import { allInPayoutOf, isTribe } from './recruit'; // the 2026-11-10 batch A
 import { KESHI_CROWN_THRESHOLD } from './config';
 import { bannerRecipientsOf, fireShopUnitedFront, shopSpellsBoughtThisTurn, unitedFrontMult } from './recruit'; // the 2026-11-10 batch B
 import { runSpells } from './spellPool';
+import { GIFT_IDS } from '@game/content'; // ancient pass 2: Gambler × Time's Gift Discover
+import { applyShopRefreshed } from './recruit'; // ancient pass 2: Gorr × Time's End-of-Turn refresh
+import { rollCiaEnchants, rollShop } from './shop'; // ancient pass 2: Gorr × Time's End-of-Turn refresh
 import { poolOf, randomTierCeiling } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
@@ -809,7 +812,7 @@ export type AncientEffect =
   /** The first minion you buy each turn is free. */
   | { do: 'firstMinionFree' }
   /** Pummel (`every`), repeating: get a plain copy of a minion in your warband. */
-  | { do: 'pummelCopyWarband'; every: number }
+  | { do: 'pummelCopyWarband'; every: number; perCombat?: number }
   /** The first minion you buy each turn also gives a plain copy. */
   | { do: 'firstBuyExtraCopy' }
   /** End of Turn: a plain copy of a random minion you bought this turn. */
@@ -919,7 +922,7 @@ export type AncientEffect =
   /** With First or Last armed, the 2nd enemy minion killed is also copied. */
   | { do: 'flashSecondKill' }
   /** Hero-level Pummel (`every`), once per combat: a copy of a random enemy minion. */
-  | { do: 'pummelEnemyCopy'; every: number }
+  | { do: 'pummelEnemyCopy'; every: number; perCombat?: number }
   /** First or Last's claim grants `count` copies. */
   | { do: 'flashCopies'; count: number }
   /** Start of Combat: a copy of a random enemy minion. */
@@ -1054,7 +1057,7 @@ export type AncientEffect =
   /** While Dice is locked, the first minion bought each turn costs `gold` less (floor 0). */
   | { do: 'lockedFirstMinionDiscount'; gold: number }
   /** A Dice roll also Discovers a minion of exactly the rolled Tier. */
-  | { do: 'diceDiscoverTier' }
+  | { do: 'diceDiscoverTier'; count?: number }
   // ── Pete (Contrabanana) ──
   /** Buying a Contrabanana minion banks `count` free Refreshes. */
   | { do: 'contrabandBuyFreeRefresh'; count: number }
@@ -1116,7 +1119,7 @@ export type AncientEffect =
   | { do: 'buyControlledBuffsGilded'; attack: number; health: number }
   // ── Gorun (Blade Mastery) ──
   /** When a friendly minion dies (Shop AND combat), a random friendly minion gains its Attack. */
-  | { do: 'deathGivesAttack' }
+  | { do: 'deathGivesAttack'; perTurn?: number }
   /** Every `every` friendly attacks (a running count): gain `gold` Gold next turn. */
   | { do: 'attacksGold'; every: number; gold: number }
   /** Blade Mastery also gives the same Health. */
@@ -1174,7 +1177,32 @@ export type AncientEffect =
   /** Once, at the Start of the Turn after the pick: you and your teammate each get `cardId`. */
   | { do: 'nextTurnTeamCard'; cardId: string }
   /** Golden Gratitude's two copies are Linked: a stat gain on either is gained by the other (`duosLinks.ts`). */
-  | { do: 'gratitudeLinksCopies' };
+  | { do: 'gratitudeLinksCopies' }
+  // ── ANCIENT PASS 2 (owner 2026-11-16) ──
+  /** Flash: First or Last's claimed copies arrive Gilded when the side LOSES that combat (gilded as they land). */
+  | { do: 'flashGildOnLoss' }
+  /** Flash: each claimed First or Last copy also gives its stats to a random living friendly body, permanently. */
+  | { do: 'flashClaimGivesStats' }
+  /** Frank: a repeating hero Pummel (N) on the lifetime tally; each crossing banks one Clearance stack. */
+  | { do: 'pummelClearanceStack'; every: number }
+  /** Gambler: a roll of 1 also gets a random Tier 6 spell, a 2 a random Tier 6 minion, a 3 a Discover of a Gift. */
+  | { do: 'diceRollGrants' }
+  /** Gorr: End of Turn, refresh the Shop with your most common type and freeze it. */
+  | { do: 'eotRefreshTopTribeFreeze' }
+  /** Hunch: your first `count` targeted spells cast from hand each turn cast twice. */
+  | { do: 'firstTargetedSpellsTwice'; count: number }
+  /** Juggler: End of Turn, Carnival Coins improve +a/+h per Carnival Coin in hand (War's `jugglerCoinBonus` channel). */
+  | { do: 'eotCoinsImprove'; attack: number; health: number }
+  /** Keshi: opening (playing) a Triple Reward gives `gold` extra Gold. */
+  | { do: 'tripleRewardOpenGold'; gold: number }
+  /** Membrance: playing a Gilded minion gives `extra` more Triple Rewards. */
+  | { do: 'gildedPlayExtraRewards'; extra: number }
+  /** Midas: Start of Combat, `per` random friendly minions gain Ward for each Gilded enemy minion. */
+  | { do: 'socWardPerGildedFoe'; per: number }
+  /** Mimic: End of Turn, a friendly minion of each type gains +1/+1 per `every` Shop spells cast this game. */
+  | { do: 'eotUnitedFrontPerShopSpells'; every: number }
+  /** Nadja: each Goldspring fire also gets `count` random Shop spells, from any Tier. */
+  | { do: 'goldspringGrantsSpell'; count: number };
 
 export interface AncientPairing {
   /** The Ancient's text for this hero, as shown on the offer and the preview (the owner's words). */
@@ -1251,7 +1279,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'friendlyDeathBuffsGilded', attack: 8, health: 8 }],
     },
     genesis: {
-      offerText: 'Masterwork gets **2** copies of a chosen minion instead.',
+      // Owner 2026-11-16 (Ancient pass 2): "Plain copies" (the copies were always plain; the offer now says so).
+      offerText: 'Masterwork gets **2** plain copies of a chosen minion instead.',
       powerText: 'Get **2** plain copies of a friendly minion. Recharges after you spend {recharge} Gold.',
       effects: [{ do: 'powerGivesCopiesInstead', count: 2 }],
     },
@@ -1381,9 +1410,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       // including rise"; "make sure these count as overflows"; "this also makes echo summons summon an extra body")
       // Owner text trim 2026-09-26: "remove the sentence 'This includes minions that Rise.'" (behaviour unchanged: a
       // Rise still gets its extra copy).
-      offerText: 'In combat, each minion you summon summons an extra copy.',
-      powerText: '{base} In combat, each minion you summon summons an extra copy.',
-      effects: [{ do: 'summonsSummonExtra', extra: 1 }],
+      // Owner 2026-11-16 (Ancient pass 2): "max of 3 per combat" (Rayse Genesis' `limit` budget: the first 3 extras).
+      offerText: 'In combat, each minion you summon summons an extra copy. At most **3** extra copies each combat.',
+      powerText: '{base} In combat, each minion you summon summons an extra copy. At most **3** extra copies each combat.',
+      effects: [{ do: 'summonsSummonExtra', extra: 1, limit: 3 }],
     },
     time: {
       // "Start of Turn: Give your minions +3/+2 for every minion summoned in combat." (owner: the previous combat only;
@@ -1478,9 +1508,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "Casting spells grants your left and right-most minion +2/+3."
-      offerText: 'Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
-      powerText: '{base} Whenever you cast a spell, give your left and right-most minions **+2/+3**.',
-      effects: [{ do: 'spellCastBuffsEdges', attack: 2, health: 3 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "Your first 3 targeted spells each turn cast twice." (cast from hand: the from-hand gate)
+      offerText: 'Your first **3** targeted spells each turn cast **twice**.',
+      powerText: '{base} Your first **3** targeted spells each turn cast **twice** (**{hTargetLeft}** left this turn).',
+      effects: [{ do: 'firstTargetedSpellsTwice', count: 3 }],
     },
   },
   // FRANTIC FRANK (owner pairings 2026-09-30, quoted above each entry). Clearance = "Refresh the Shop. Its minions cost
@@ -1502,9 +1533,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     war: {
       // "Avenge (3): Gain a Clearance stack. * this lets clearance be used more than once per turn, up to however many
       // stacks they have". Stacks are kept until used; a use once the turn's own Clearance is spent takes one.
-      offerText: '**Avenge (3):** gain a Clearance stack. Each stack lets you use Clearance one more time.',
-      powerText: '{base} **Avenge (3):** gain a Clearance stack. Each stack is one more use (**{stacks}** banked).',
-      effects: [{ do: 'avengeClearanceStack', every: 3 }],
+      // Owner 2026-11-16 (Ancient pass 2): "Pummel instead of Avenge", "pummel (300)". A repeating hero Pummel on the lifetime tally (no cap
+      // was named): every 300 damage your minions deal is one stack, live.
+      offerText: '**Pummel (300):** gain a Clearance stack. Each stack lets you use Clearance one more time. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (300):** gain a Clearance stack. Each stack is one more use (**{stacks}** banked). Counts damage dealt by all your minions (**{fkPummelNow}/{fkPummelEvery}**).',
+      effects: [{ do: 'pummelClearanceStack', every: 300 }],
     },
     genesis: {
       // "Clearance costs 3g but refreshes with minions of your most common type."
@@ -1748,9 +1781,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "pummel (200): get a copy of a minion in your warband."
-      offerText: '**Pummel (200):** get a plain copy of a random friendly minion. Counts damage dealt by all your minions.',
-      powerText: '{base} **Pummel (200):** get a plain copy of a random friendly minion. Counts damage dealt by all your minions (**{gPummelNow}/{gPummelEvery}**).',
-      effects: [{ do: 'pummelCopyWarband', every: 200 }],
+      // Owner 2026-11-16 (Ancient pass 2): "add a cap", "once per turn" (Pummel counts combat damage, one fight a turn: one payout a fight).
+      offerText: '**Pummel (200):** get a plain copy of a random friendly minion. Once per turn. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (200):** get a plain copy of a random friendly minion. Once per turn. Counts damage dealt by all your minions (**{gPummelNow}/{gPummelEvery}**).',
+      effects: [{ do: 'pummelCopyWarband', every: 200, perCombat: 1 }],
     },
     genesis: {
       // "get a second copy of the first minion you buy each turn"
@@ -1760,9 +1794,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "End of Turn: Get a random copy of a minion you bought this turn."
-      offerText: '**End of Turn:** get a plain copy of a random minion you bought this turn.',
-      powerText: '{base} **End of Turn:** get a plain copy of a random minion you bought this turn (**{gBoughtNow}** bought).',
-      effects: [{ do: 'eotCopyThisTurnBuy' }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "End of Turn, refresh the Shop with your most common type and freeze it".
+      offerText: '**End of Turn:** refresh the Shop with minions of your most common type and freeze it.',
+      powerText: '{base} **End of Turn:** refresh the Shop with minions of your most common type{gTimeTribe} and freeze it.',
+      effects: [{ do: 'eotRefreshTopTribeFreeze' }],
     },
     bonds: {
       // "When you buy 3 cards, give them +2/+2 and improve this."
@@ -1914,15 +1949,17 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "Start of Combat: Your left-most minion gains Rally: give your minions +3 attack per gold spent this turn."
-      offerText: '**Start of Combat:** your left-most minion gains "**Rally:** give your minions **+3 Attack** for each Gold you spent this turn."',
-      powerText: '{base} **Start of Combat:** your left-most minion gains "**Rally:** give your minions **+3 Attack** for each Gold you spent this turn." (**{nSpent}** spent: **+{nRally}** Attack.)',
-      effects: [{ do: 'socRallyPerGoldSpent', attack: 3 }],
+      // Owner 2026-11-16 (Ancient pass 2): +2 Attack per Gold instead of +3.
+      offerText: '**Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold you spent this turn."',
+      powerText: '{base} **Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold you spent this turn." (**{nSpent}** spent: **+{nRally}** Attack.)',
+      effects: [{ do: 'socRallyPerGoldSpent', attack: 2 }],
     },
     genesis: {
       // "Goldspring also grants a random minion."
-      offerText: 'Goldspring also gets you a random minion.',
-      powerText: '{base} Also get a random minion.',
-      effects: [{ do: 'goldspringGrantsMinion', count: 1 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "Goldspring also gives a random Shop spell from any Tier."
+      offerText: 'Goldspring also gets you a random Shop spell from any Tier.',
+      powerText: '{base} Also get a random Shop spell from any Tier.',
+      effects: [{ do: 'goldspringGrantsSpell', count: 1 }],
     },
     time: {
       // "Goldspring becomes: End of Turn: Gain +1 max gold."
@@ -2110,17 +2147,18 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'flashSecondKill' }],
     },
     fortune: {
-      // "First or Last costs 0 Gold."
-      offerText: 'First or Last costs **0 Gold**.',
-      powerText: '{base} It costs **0 Gold**.',
-      power: { cost: 0 },
-      effects: [],
+      // "First or Last costs 0 Gold." Owner 2026-11-16 (Ancient pass 2), replaced: "The minion you get from First or Last is Gilded if you
+      // lose the combat." (the claim's copies only; a loss, never a draw; gilded as they land at settle)
+      offerText: 'The minion you get from First or Last is **Gilded** if you lose the combat.',
+      powerText: '{base} If you lose that combat, the minion you get is **Gilded**.',
+      effects: [{ do: 'flashGildOnLoss' }],
     },
     war: {
       // "Pummel (400): get a copy of a random enemy minion (once per combat)." (the hero Pummel tally)
-      offerText: '**Pummel (400):** get a copy of a random enemy minion. Once per combat. Counts damage dealt by all your minions.',
-      powerText: '{base} **Pummel (400):** get a copy of a random enemy minion. Once per combat. Counts damage dealt by all your minions (**{fPummelNow}/{fPummelEvery}**).',
-      effects: [{ do: 'pummelEnemyCopy', every: 400 }],
+      // Owner 2026-11-16 (Ancient pass 2): "twice per combat".
+      offerText: '**Pummel (400):** get a copy of a random enemy minion. Twice per combat. Counts damage dealt by all your minions.',
+      powerText: '{base} **Pummel (400):** get a copy of a random enemy minion. Twice per combat (**{fPummelLeft}** left this combat). Counts damage dealt by all your minions (**{fPummelNow}/{fPummelEvery}**).',
+      effects: [{ do: 'pummelEnemyCopy', every: 400, perCombat: 2 }],
     },
     genesis: {
       // "First or Last grants 2 copies."
@@ -2130,9 +2168,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // Owner completed the line: "Start of Combat: get a copy of a random enemy minion."
-      offerText: '**Start of Combat:** get a copy of a random enemy minion.',
-      powerText: '{base} **Start of Combat:** get a copy of a random enemy minion.',
-      effects: [{ do: 'socEnemyCopy' }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "minions granted from first or last grant its stats to a random friendly minion" (a living
+      // friendly body the moment the copy is granted, permanently: the claim is a run payoff, like the copy).
+      offerText: 'The minion you get from First or Last also gives its stats to a random friendly minion, permanently.',
+      powerText: '{base} The minion you get also gives its stats to a random friendly minion, permanently.',
+      effects: [{ do: 'flashClaimGivesStats' }],
     },
     bonds: {
       // "The minion you get is an exact copy." (copies to hand keep stats, keywords and Gilded)
@@ -2145,10 +2185,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   // have 2 copies of a minion, this grants a third." A Goldcrafter is the `goldcrafter` spell token.
   gildmaster: {
     death: {
-      // "Avenge (14): Get a Goldcrafter."
-      offerText: '**Avenge (14):** get a **Goldcrafter**.',
-      powerText: '{base} **Avenge (14):** get a **Goldcrafter** (**{gmDeathLeft}** more to go).',
-      effects: [{ do: 'avengeGrantCard', every: 14, cardId: 'goldcrafter' }],
+      // "Avenge (14): Get a Goldcrafter." Owner 2026-11-16 (Ancient pass 2): "avenge 17".
+      offerText: '**Avenge (17):** get a **Goldcrafter**.',
+      powerText: '{base} **Avenge (17):** get a **Goldcrafter** (**{gmDeathLeft}** more to go).',
+      effects: [{ do: 'avengeGrantCard', every: 17, cardId: 'goldcrafter' }],
     },
     fortune: {
       // "Triple Rewards also grant 5 Gold."
@@ -2200,9 +2240,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     war: {
       // "Start of Turn: Give a random Gilded minion Ward" (a board minion without Ward first; all Warded: nothing)
-      offerText: '**Start of Turn:** give a random **Gilded** minion **Ward**.',
-      powerText: '{base} **Start of Turn:** give a random **Gilded** minion without **Ward** **Ward**.',
-      effects: [{ do: 'sotWardRandomGilded' }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "Start of Combat, give 2 random minions Ward for each Gilded enemy minion" (distinct living
+      // friendly bodies without Ward; for that combat).
+      offerText: '**Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
+      powerText: '{base} **Start of Combat:** give **2** random friendly minions **Ward** for each **Gilded** enemy minion.',
+      effects: [{ do: 'socWardPerGildedFoe', per: 2 }],
     },
     genesis: {
       // "Gilding a minion grants a Triple Reward." (the Gild's reward moment: the Gold Pouch AND a Triple Reward)
@@ -2234,9 +2276,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Minions of your Tier cost 1 less." (your current Shop tier; floor 0)
-      offerText: 'Minions of your Tier cost **1 Gold** less.',
-      powerText: '{base} Minions of your Tier (Tier **{kTier}**) cost **1 Gold** less.',
-      effects: [{ do: 'tierMinionsDiscount', gold: 1 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "opening a Triple Reward gives 3 extra Gold" (playing the Triple Reward card, whatever gave it).
+      offerText: 'Opening a **Triple Reward** gives you **3** extra Gold.',
+      powerText: '{base} Opening a **Triple Reward** gives you **3** extra Gold (**{kOpenGold} Gold** so far).',
+      effects: [{ do: 'tripleRewardOpenGold', gold: 3 }],
     },
     war: {
       // "Minions discovered from Triple Rewards gain a random effect. (pool: Taunt, Ward, Rise, Flurry, Critical Strike,
@@ -2566,8 +2609,9 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Roll 2 dice. Gain both, and lock for the lower one."
-      offerText: 'Roll **2** dice. Gain both, and lock for the lower one.',
-      powerText: 'Roll **2** dice: gain that much Gold. This power then locks for as many turns as the lower die.{gaRolled}',
+      // Owner 2026-11-16 (Ancient pass 2): "it locks for the average of the 2 die" (rounded up: a 3 and a 4 lock for 4).
+      offerText: 'Roll **2** dice. Gain both, and lock for their average, rounded up.',
+      powerText: 'Roll **2** dice: gain that much Gold. This power then locks for as many turns as their average, rounded up.{gaRolled}',
       effects: [{ do: 'diceRollTwo' }],
     },
     war: {
@@ -2584,15 +2628,18 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "While Dice is locked, your first minion each turn costs 1 Gold less."
-      offerText: 'While Dice is locked, your first minion each turn costs **1 Gold** less.',
-      powerText: '{base} While it is locked, your first minion each turn costs **1 Gold** less.{gaTimeNow}',
-      effects: [{ do: 'lockedFirstMinionDiscount', gold: 1 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "Roll 1: random Tier 6 spell. Roll 2: random Tier 6 minion. Roll 3: Discover a Gift."
+      // "4-6 just give gold" (every roll still gives its Gold; 1 to 3 also give the card).
+      offerText: 'When you roll a **1**, also get a random Tier 6 spell. A **2**: a random Tier 6 minion. A **3**: **Discover** a **Gift**.',
+      powerText: '{base} Roll a **1**: also get a random Tier 6 spell. A **2**: a random Tier 6 minion. A **3**: **Discover** a **Gift**.',
+      effects: [{ do: 'diceRollGrants' }],
     },
     bonds: {
       // "When you roll, Discover a minion of that Tier."
-      offerText: 'When you roll, **Discover** a minion of that Tier.',
-      powerText: '{base} When you roll, **Discover** a minion of that Tier.',
-      effects: [{ do: 'diceDiscoverTier' }],
+      // Owner 2026-11-16 (Ancient pass 2): "When you roll, Discover 2 minions of that Tier." (two Discovers, one after the other)
+      offerText: 'When you roll, **Discover** **2** minions of that Tier.',
+      powerText: '{base} When you roll, **Discover** **2** minions of that Tier.',
+      effects: [{ do: 'diceDiscoverTier', count: 2 }],
     },
   },
   // PETE (owner pairings 2026-11-10, quoted above each entry). Contrabanana (passive) = "Every third refresh, the right-most
@@ -2686,10 +2733,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'avengeGrantCard', every: 4, cardId: 'carnivalcoin' }],
     },
     fortune: {
-      // "Carnival Coins give 3 Gold."
-      offerText: '**Carnival Coins** give **3 Gold**.',
-      powerText: '{base} **Carnival Coins** give **3 Gold**.',
-      effects: [{ do: 'coinGold', gold: 3 }],
+      // "Carnival Coins give 3 Gold." Owner 2026-11-16 (Ancient pass 2): 2 Gold instead of 3.
+      offerText: '**Carnival Coins** give **2 Gold**.',
+      powerText: '{base} **Carnival Coins** give **2 Gold**.',
+      effects: [{ do: 'coinGold', gold: 2 }],
     },
     war: {
       // "Each Coin you cast improves future Coin buffs by +1/+1."
@@ -2705,9 +2752,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     time: {
       // "The first 2 minions you buy each turn also grant a Carnival Coin."
-      offerText: 'The first **2** minions you buy each turn also give a **Carnival Coin**.',
-      powerText: '{base} The first **2** minions you buy each turn also give a **Carnival Coin** (**{juTimeLeft}** left this turn).',
-      effects: [{ do: 'firstBuysGrantCoin', count: 2 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "End of Turn: your Carnival Coins improve +1/+1 for each coin in your hand." (War's
+      // improvement channel: every later Coin's buff grows)
+      offerText: '**End of Turn:** your **Carnival Coins** improve by **+1/+1** for each Carnival Coin in your hand.',
+      powerText: '{base} **End of Turn:** your **Carnival Coins** improve by **+1/+1** for each Carnival Coin in your hand (**{juCoins}** in hand). Improved so far: **+{juBonusA}/+{juBonusH}**.',
+      effects: [{ do: 'eotCoinsImprove', attack: 1, health: 1 }],
     },
     bonds: {
       // "Buying a minion of your most common type counts twice for Carnival Coin."
@@ -2793,9 +2842,10 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "When you buy a copy of a minion that you control, give your Gilded minions +5/+5."
-      offerText: 'When you buy a copy of a minion you control, give your **Gilded** minions **+5/+5**.',
-      powerText: '{base} When you buy a copy of a minion you control, give your **Gilded** minions **+5/+5**.',
-      effects: [{ do: 'buyControlledBuffsGilded', attack: 5, health: 5 }],
+      // Owner 2026-11-16 (Ancient pass 2), replaced: "Playing a Gilded minion gives you 2 Triple Rewards." (2 in all: the usual one + 1 more)
+      offerText: 'Playing a **Gilded** minion gives you **2** Triple Rewards.',
+      powerText: '{base} Playing a **Gilded** minion gives you **2** Triple Rewards.',
+      effects: [{ do: 'gildedPlayExtraRewards', extra: 1 }],
     },
   },
   // GORUN (owner pairings 2026-11-10, quoted above each entry). Blade Mastery (passive) = "When your minions attack, give
@@ -2803,9 +2853,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
   gorun: {
     death: {
       // "When a friendly minion dies, give its Attack to a random friendly minion."
-      offerText: 'When a friendly minion dies, give its Attack to a random friendly minion.',
-      powerText: '{base} When a friendly minion dies, give its Attack to a random friendly minion.',
-      effects: [{ do: 'deathGivesAttack' }],
+      // Owner 2026-11-16 (Ancient pass 2): "twice per turn. (this should work in shop if a minion is destroyed in recruit phase, and counts
+      // towards the 2 turn max.)" One budget per turn across the Shop, End of Turn and the fight.
+      offerText: 'When a friendly minion dies, give its Attack to a random friendly minion. Twice per turn.',
+      powerText: '{base} When a friendly minion dies, give its Attack to a random friendly minion. Twice per turn (**{goDeathLeft}** left this turn).',
+      effects: [{ do: 'deathGivesAttack', perTurn: 2 }],
     },
     fortune: {
       // "Every 5 attacks, gain 1 Gold next turn."
@@ -2860,9 +2912,11 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     war: {
       // "Start of Combat: Give a minion of each type +1/+1 for each spell cast this game." (owner: "this is emissary's
       // hero power, and needs to adjust retroactively so it's +x/+y based on spells cast this GAME so far already")
-      offerText: '**Start of Combat:** give a friendly minion of each type **+1/+1** for each spell cast this game.',
-      powerText: '{base} **Start of Combat:** give a friendly minion of each type **+{mSpells}/+{mSpells}** (1 per spell cast this game).',
-      effects: [{ do: 'unitedFrontPassive' }],
+      // Owner 2026-11-16 (Ancient pass 2), changed: "+1/+1 for every 2 Shop spells, at End of Turn" (Shop spells cast this game, counted from
+      // the run's start; a Shop buff, so permanent).
+      offerText: '**End of Turn:** give a friendly minion of each type **+1/+1** for every **2** Shop spells you cast this game.',
+      powerText: '{base} **End of Turn:** give a friendly minion of each type **+{mShopX}/+{mShopX}** (+1/+1 for every **2** Shop spells you cast this game: **{mShopSpells}** so far).',
+      effects: [{ do: 'eotUnitedFrontPerShopSpells', every: 2 }],
     },
     genesis: {
       // "Mimic has 4 options and no longer happens automatically. Can be activated once per turn."
@@ -3257,6 +3311,15 @@ export interface AncientsState {
   memoryBuys?: { wave: number; n: number };
   /** GORUN × FORTUNE: friendly attacks since the last Gold (the running count, since the pick). */
   gorunAttacks?: number;
+  /** ANCIENT PASS 2 × Gorun × Death: Attack gifts made in the Shop on `wave` ("twice per turn"; the fight gets the rest). */
+  gorunGives?: { wave: number; n: number };
+  /** ANCIENT PASS 2 × Hunch × Bonds: targeted spells cast from hand on `wave` that took the double cast. */
+  hunchTargeted?: { wave: number; n: number };
+  /** ANCIENT PASS 2 × Keshi × Fortune: the Gold opened Triple Rewards have given (the live text). */
+  keshiOpenGold?: number;
+  /** ANCIENT PASS 2 × Mimic × War: Shop spells cast this game (R-SHOPSPELL-01), counted from the run's start on any
+   *  Ancients run so a pick made later already sees the casts before it. */
+  shopSpellsCast?: number;
   /** MIMIC × FORTUNE: Gold its passive Spoils banked on `wave` (printed live). */
   mimicSpoilGold?: { wave: number; gold: number };
   /** CINDY × DEATH: friendly deaths toward the next teammate Goldcrafter (the running count, Shop and combat). */
@@ -3506,6 +3569,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = batchBPowerText(state, text, combat);
   text = batchAPowerText(state, text, combat); // RASCAL / GAMBLER / PETE / FLINT / JUGGLER
   text = batchCPowerText(state, text, base);
+  text = pass2PowerText(state, text, combat); // ANCIENT PASS 2
   text = duosPowerText(state, text); // PRIESTESS / MAGICIAN
   text = cindyPowerText(state, text, combat); // CINDY
   return text.replace('{base}', base).replace('{avengeNow}', String(hunch.avengeNow)).replace('{deathA}', String(hunch.deathA)).replace('{deathH}', String(hunch.deathH))
@@ -3708,7 +3772,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const gd = effectOf(state, 'avengeCopyLastTurnBuy');
   if (gd) out.ancientGorrAvenge = { every: gd.every, tick: live(state)?.gorrDeaths ?? 0, ids: [...gorrBuysOn(state, state.wave - 1)], label: ANCIENTS.death.name };
   const gw = effectOf(state, 'pummelCopyWarband');
-  if (gw) out.ancientPummelCopy = { every: gw.every, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name };
+  if (gw) out.ancientPummelCopy = { every: gw.every, dealt: live(state)?.pummelDealt ?? 0, label: ANCIENTS.war.name, ...(gw.perCombat !== undefined ? { max: gw.perCombat } : {}) };
   Object.assign(out, bramCombatMods(state));
   // DARAH × WAR: a once-per-combat hero Pummel on the same lifetime tally; each payout is a Swap charge (a flagged
   // `questTrigger`, banked at settle).
@@ -3730,6 +3794,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   Object.assign(out, batchBCombatMods(state));
   Object.assign(out, batchACombatMods(state)); // RASCAL / GAMBLER / FLINT
   Object.assign(out, batchCCombatMods(state));
+  Object.assign(out, pass2CombatMods(state)); // ANCIENT PASS 2: Frank × War, Midas × War
   Object.assign(out, duosCombatMods(state)); // PRIESTESS × WAR, MAGICIAN × WAR
   Object.assign(out, cindyCombatMods(state)); // CINDY × DEATH / WAR
   return out;
@@ -3841,7 +3906,12 @@ export function ancientAfterCombat(state: RunState, result: CombatResult): void 
   // RISEN × TIME: the count the next Start of Turn pays on.
   if (effectOf(state, 'sotBuffPerCombatSummon')) a.lastSummons = result.playerSummonsMade ?? 0;
   // ALBUS × WAR: the lifetime Pummel tally the fight hands back (the payout already happened mid-fight).
-  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge') || effectOf(state, 'pummelEnemyCopy') || effectOf(state, 'pummelPowerUse')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  if ((effectOf(state, 'pummelGrantsCards') || effectOf(state, 'pummelCopyWarband') || effectOf(state, 'pummelSwapCharge') || effectOf(state, 'pummelEnemyCopy') || effectOf(state, 'pummelPowerUse') || effectOf(state, 'pummelClearanceStack')) && result.playerAncientPummelDealt !== undefined) a.pummelDealt = result.playerAncientPummelDealt;
+  // FRANK × WAR (ancient pass 2): the stacks the fight's Pummel crossings pulsed (each already shown live) join the bank.
+  if (effectOf(state, 'pummelClearanceStack')) {
+    const got = (result.events ?? []).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG).length;
+    if (got > 0) a.clearanceStacks = (a.clearanceStacks ?? 0) + got;
+  }
   batch5AfterCombat(state, a, result); // RAYSE / CASSEN / GILDMASTER: the running Avenge counts + the fight's pulses
   batch6AfterCombat(state, a, result); // KESHI × DEATH: the running Avenge count + the fight's Crown advances
   batchBAfterCombat(state, a, result); // MERRIN / EMISSARY / EMERALD WARDEN: the running Avenge + spell counts
@@ -4149,7 +4219,7 @@ export function ancientClearancePassive(state: RunState): boolean {
 /** WAR: banked Clearance stacks (0 unless the pairing is live). */
 export function ancientClearanceStacks(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>): number {
   const s = state as RunState;
-  return effectOf(s, 'avengeClearanceStack') ? Math.max(0, live(s)?.clearanceStacks ?? 0) : 0;
+  return effectOf(s, 'avengeClearanceStack') || effectOf(s, 'pummelClearanceStack') ? Math.max(0, live(s)?.clearanceStacks ?? 0) : 0;
 }
 
 /**
@@ -4160,7 +4230,7 @@ export function ancientClearanceStacks(state: Pick<RunState, 'ancientsEnabled' |
  */
 export function ancientClearanceUsesBadge(state: Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'heroReady'>, gained = 0): number | null {
   const s = state as RunState;
-  if (!effectOf(s, 'avengeClearanceStack')) return null;
+  if (!effectOf(s, 'avengeClearanceStack') && !effectOf(s, 'pummelClearanceStack')) return null;
   const uses = (state.heroReady ? 1 : 0) + ancientClearanceStacks(state) + Math.max(0, gained);
   return uses >= 2 ? uses : null;
 }
@@ -4916,12 +4986,25 @@ export function ancientGorrShopDeath(state: RunState): void {
 
 /** GORR × TIME: is the End-of-Turn copy live (the `ancientGorrEotCopy` recurring entry)? */
 export function ancientGorrEotCopyLive(state: RunState): boolean {
-  return !!live(state) && !!effectOf(state, 'eotCopyThisTurnBuy');
+  return !!live(state) && (!!effectOf(state, 'eotCopyThisTurnBuy') || !!effectOf(state, 'eotRefreshTopTribeFreeze'));
 }
 
 /** GORR × TIME: End of Turn, a plain copy of a random minion bought this turn (none bought: nothing). */
 export function ancientRunGorrEotCopy(state: RunState): void {
   if (!ancientGorrEotCopyLive(state)) return;
+  // ANCIENT PASS 2 × Gorr × Time (owner 2026-11-16): "End of Turn, refresh the Shop with your most common type and freeze
+  // it." The Grand Larceny refresh tail (the roll, the Enchanted roll, the refresh watchers), narrowed through Frank ×
+  // Genesis' `rollTribe` channel (no type on the board: an ordinary refresh), then the Shop is frozen for next turn.
+  if (effectOf(state, 'eotRefreshTopTribeFreeze')) {
+    const a = live(state)!;
+    const tribe = dominantBoardTribe(state);
+    a.rollTribe = tribe ?? undefined;
+    try { rollShop(state); } finally { a.rollTribe = undefined; }
+    rollCiaEnchants(state);
+    applyShopRefreshed(state);
+    state.frozen = true;
+    return;
+  }
   const id = pickId(state, gorrBuysOn(state, state.wave));
   if (id) gorrCopyToHand(state, id);
 }
@@ -5349,6 +5432,13 @@ export function ancientNadjaRallyAttack(state: RunState): number {
  *  gets `count` random minions to hand: the run's pool, your Shop tier or lower, your types (Haven Drake's pick), through
  *  `conjureToHand` (the run cursor, the pool take, the `onGainCard` watchers). Hand full: none. */
 export function ancientAfterGoldspring(state: RunState, reps: number): void {
+  // ANCIENT PASS 2 × Nadja × Genesis (owner 2026-11-16): "Goldspring also gives a random Shop spell from any Tier." The
+  // run's Shop-spell pool at every tier (`runSpells`), through `conjureToHand` (the run cursor, the `onGainCard` watchers).
+  const sp = live(state) ? effectOf(state, 'goldspringGrantsSpell') : undefined;
+  if (sp && sp.count > 0) {
+    const spells = runSpells(state);
+    if (spells.length > 0) conjureToHand(state, spells, sp.count * Math.max(1, reps));
+  }
   const e = live(state) ? effectOf(state, 'goldspringGrantsMinion') : undefined;
   if (!e || e.count <= 0) return;
   const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= state.tier && inRunTribes(c, state.tribes));
@@ -5826,13 +5916,17 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const fp = effectOf(state, 'pummelEnemyCopy');
   const ft = effectOf(state, 'socEnemyCopy');
   const fx = effectOf(state, 'flashExactCopies');
-  if (fs || fp || ft || fx) {
+  const fg = effectOf(state, 'flashGildOnLoss'); // ancient pass 2 × Fortune
+  const fc = effectOf(state, 'flashClaimGivesStats'); // ancient pass 2 × Time
+  if (fs || fp || ft || fx || fg || fc) {
     out.ancientFlash = {
       label: ANCIENTS[a.picked].name,
       ...(fs ? { second: true } : {}),
-      ...(fp ? { pummel: { every: fp.every, dealt: a.pummelDealt ?? 0 } } : {}),
+      ...(fp ? { pummel: { every: fp.every, dealt: a.pummelDealt ?? 0, ...(fp.perCombat !== undefined ? { max: fp.perCombat } : {}) } } : {}),
       ...(ft ? { soc: true } : {}),
       ...(fx ? { exact: true } : {}),
+      ...(fg ? { gildOnLoss: true } : {}),
+      ...(fc ? { claimStats: true } : {}),
     };
   }
   const gd = effectOf(state, 'avengeGrantCard');
@@ -6653,7 +6747,24 @@ export function ancientAfterDice(state: RunState, dice: readonly number[]): void
     a.forcedGambleRoll = roll;
     try { castSpell(state, spell); } finally { a.forcedGambleRoll = undefined; }
   }
-  if (effectOf(state, 'diceDiscoverTier')) queueDiscover(state, { kind: 'minion', tier: roll, exactTier: roll });
+  const gb = effectOf(state, 'diceDiscoverTier');
+  if (gb) for (let i = 0; i < Math.max(1, gb.count ?? 1); i++) queueDiscover(state, { kind: 'minion', tier: roll, exactTier: roll });
+  if (effectOf(state, 'diceRollGrants')) gamblerTimeGrant(state, roll);
+}
+
+/** GAMBLER × TIME (ancient pass 2, owner 2026-11-16): "Roll 1: random Tier 6 spell. Roll 2: random Tier 6 minion. Roll 3:
+ *  Discover a Gift." "4-6 just give gold" (the Dice's own Gold, already paid). The spell is the run's Shop-spell pool at
+ *  Tier 6, the minion the run's buyable pool at Tier 6 in your types, both through `conjureToHand` (hand full: none). */
+function gamblerTimeGrant(state: RunState, roll: number): void {
+  if (roll === 1) {
+    const pool = runSpells(state).filter((c) => c.tier === 6);
+    if (pool.length > 0) conjureToHand(state, pool, 1);
+  } else if (roll === 2) {
+    const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.ruby && c.tier === 6 && inRunTribes(c, state.tribes));
+    if (pool.length > 0) conjureToHand(state, pool, 1);
+  } else if (roll === 3) {
+    queueDiscover(state, { kind: 'pool', ids: [...GIFT_IDS] });
+  }
 }
 
 /** GAMBLER × TIME: the Gold a Shop minion's price drops by: `gold` while Dice is locked and no minion has been bought
@@ -6759,7 +6870,7 @@ export function ancientCoinGold(state: RunState): number | undefined {
 /** JUGGLER × WAR: the improvement banked onto a Carnival Coin's buff right now (0/0 when War is not picked). */
 export function ancientCoinBonus(state: RunState): { attack: number; health: number } {
   const a = live(state);
-  return a && effectOf(state, 'coinCastImproves') ? { attack: a.jugglerCoinBonus?.attack ?? 0, health: a.jugglerCoinBonus?.health ?? 0 } : { attack: 0, health: 0 };
+  return a && (effectOf(state, 'coinCastImproves') || effectOf(state, 'eotCoinsImprove')) ? { attack: a.jugglerCoinBonus?.attack ?? 0, health: a.jugglerCoinBonus?.health ?? 0 } : { attack: 0, health: 0 };
 }
 
 /** A spell was cast in the Shop (`castSpell`, once per cast). JUGGLER × WAR: a Carnival Coin improves LATER Coins by
@@ -7023,9 +7134,13 @@ function batchCOnBuy(state: RunState, a: AncientsState, cardId: string, from: An
 /** GORUN × DEATH, Shop half: a friendly minion died in the Shop. A random OTHER board minion gains the Attack it had,
  *  permanently (a Shop gain). Nobody else on the board: nothing. */
 function gorunShopDeath(state: RunState, died: BoardCard): void {
-  if (!live(state) || !effectOf(state, 'deathGivesAttack') || died.attack <= 0) return;
+  const a = live(state);
+  const e = a ? effectOf(state, 'deathGivesAttack') : undefined;
+  if (!a || !e || died.attack <= 0) return;
+  if (e.perTurn !== undefined && gorunGivesThisTurn(state) >= e.perTurn) return; // ancient pass 2: "twice per turn"
   const others = state.board.filter((c) => c.uid !== died.uid);
   if (others.length === 0) return;
+  a.gorunGives = { wave: state.wave, n: gorunGivesThisTurn(state) + 1 };
   const rng = makeRng(state.rngCursor);
   const heir = others[rng.int(others.length)]!;
   state.rngCursor = rng.state();
@@ -7086,7 +7201,8 @@ function batchCCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (!a?.picked) return out;
   if (effectOf(state, 'soulkeeperKeepsStats')) out.ancientGraves = true;
   if (effectOf(state, 'afterCombatFirstFoeCopy')) out.ancientFirstFoeDeathCopy = { label: ANCIENTS.time.name };
-  if (effectOf(state, 'deathGivesAttack')) out.ancientDeathGivesAttack = { label: ANCIENTS.death.name };
+  const dga = effectOf(state, 'deathGivesAttack');
+  if (dga) out.ancientDeathGivesAttack = { label: ANCIENTS.death.name, ...(dga.perTurn !== undefined ? { left: Math.max(0, dga.perTurn - gorunGivesThisTurn(state)) } : {}) };
   const ag = effectOf(state, 'attacksGold');
   if (ag) out.ancientAttackGold = { every: ag.every, tick: a.gorunAttacks ?? 0, gold: ag.gold, flag: ANCIENT_ATTACK_GOLD_FLAG, label: ANCIENTS.fortune.name };
   if (effectOf(state, 'bladeMasteryHealth')) out.ancientBladeHealth = true;
@@ -7124,6 +7240,145 @@ function batchCPowerText(state: RunState, text: string, base: string): string {
     .split('{mSpells}').join(String(state.spellsCast ?? 0))
     .replace('{mBuys}', String(Math.min(3, state.gorrBuys?.length ?? 0)))
     .replace('{mimicBase}', mg && native ? `**Discover** a hero power to wield this turn, from **${mg.options}** options. Once per turn.` : base);
+}
+
+// ══ ANCIENT PASS 2 (owner 2026-11-16) ═════════════════════════════════════════════════════════════════════════════
+// Reworks to Flash, Frank, Gambler, Gildmaster, Gorr, Gorun, Hunch, Indy, Juggler, Keshi, Risen, Membrance, Midas, Mimic
+// and Nadja pairings. The data lives in `ANCIENT_PAIRINGS`; the hooks that need their own home are here.
+
+/** GORUN × DEATH: Attack gifts already made in the Shop this turn (a new wave reads 0). */
+function gorunGivesThisTurn(state: RunState): number {
+  const g = live(state)?.gorunGives;
+  return g && g.wave === state.wave ? g.n : 0;
+}
+
+/** HUNCH × BONDS: targeted spells cast from hand this turn that took the double cast. */
+function hunchTargetedThisTurn(state: RunState): number {
+  const h = live(state)?.hunchTargeted;
+  return h && h.wave === state.wave ? h.n : 0;
+}
+
+/** HUNCH × BONDS (owner 2026-11-16): "Your first 3 targeted spells each turn cast twice." READ-ONLY (the hand badge
+ *  previews it through `spellCasts`): 2 while `def` is targeted and the turn's budget is open, else 1. Only the from-hand
+ *  cast sites spend it (`ancientNoteHandSpellCast`). */
+export function ancientTargetedSpellMult(state: RunState, def: CardDef): number {
+  const e = live(state) && def.target ? effectOf(state, 'firstTargetedSpellsTwice') : undefined;
+  return e && hunchTargetedThisTurn(state) < e.count ? 2 : 1;
+}
+
+/** HUNCH × BONDS: a spell was just cast from hand (after its whole cast loop): a targeted one spends one of the turn's
+ *  doubles. Called beside the Spell Thesis spend at every from-hand cast site. */
+export function ancientNoteHandSpellCast(state: RunState, def: CardDef): void {
+  const a = live(state);
+  const e = a && def.target && !def.singleCast ? effectOf(state, 'firstTargetedSpellsTwice') : undefined;
+  if (!a || !e || hunchTargetedThisTurn(state) >= e.count) return;
+  a.hunchTargeted = { wave: state.wave, n: hunchTargetedThisTurn(state) + 1 };
+}
+
+/** KESHI × FORTUNE (owner 2026-11-16): "opening a Triple Reward gives 3 extra Gold." A Triple Reward card was just played
+ *  (its Discover opened): gain the Gold now. */
+export function ancientOnTripleRewardOpen(state: RunState): void {
+  const a = live(state);
+  const e = a ? effectOf(state, 'tripleRewardOpenGold') : undefined;
+  if (!a || !e || e.gold <= 0) return;
+  gainGold(state, e.gold);
+  a.keshiOpenGold = (a.keshiOpenGold ?? 0) + e.gold;
+}
+
+/** MEMBRANCE × BONDS (owner 2026-11-16): "Playing a Gilded minion gives you 2 Triple Rewards." How many MORE Triple
+ *  Rewards a Gilded play grants beyond its usual one (0 unless picked). */
+export function ancientGildedPlayExtraRewards(state: RunState): number {
+  const e = live(state) ? effectOf(state, 'gildedPlayExtraRewards') : undefined;
+  return e ? Math.max(0, e.extra) : 0;
+}
+
+/** MIMIC × WAR: a Shop spell was cast (`castSpell`'s R-SHOPSPELL-01 tally). Counted on every Ancients run from its start,
+ *  so a War picked later already reads the game so far. */
+export function ancientNoteShopSpell(state: RunState): void {
+  const a = live(state);
+  if (a) a.shopSpellsCast = (a.shopSpellsCast ?? 0) + 1;
+}
+
+/** MIMIC × WAR: the +X/+X the End-of-Turn grant gives right now (+1/+1 per `every` Shop spells cast this game). */
+function mimicWarGrant(state: RunState): number {
+  const e = effectOf(state, 'eotUnitedFrontPerShopSpells');
+  return e ? Math.floor(Math.max(0, live(state)?.shopSpellsCast ?? 0) / Math.max(1, e.every)) : 0;
+}
+
+/** Carnival Coins in hand (Juggler × Time reads it at End of Turn and in its live text). */
+function coinsInHand(state: RunState): number {
+  return state.hand.filter((c) => c.cardId === CARNIVAL_COIN_ID).length;
+}
+
+/** Is one of this pass's End-of-Turn pairings live (the `ancientPass2Eot` recurring entry)? JUGGLER × TIME and MIMIC × WAR. */
+export function ancientPass2EotLive(state: RunState): boolean {
+  if (!live(state)) return false;
+  return (!!effectOf(state, 'eotCoinsImprove') && coinsInHand(state) > 0) || (!!effectOf(state, 'eotUnitedFrontPerShopSpells') && mimicWarGrant(state) > 0);
+}
+
+/** The label the `ancientPass2Eot` beat carries: the picked Ancient's name. */
+export function ancientPass2EotLabel(state: RunState): string {
+  const id = live(state)?.picked;
+  return id ? ANCIENTS[id].name : 'Ancient';
+}
+
+/** Run this pass's End-of-Turn pairings (`step` = the recurring loop's per-wave capture). JUGGLER × TIME: the Coins improve
+ *  +a/+h per Coin in hand (Rune of Mastery repeats the improvement, like War's). MIMIC × WAR: one friendly minion of each
+ *  type (United Front's banner pick) gains +X/+X, a Shop buff, so permanent. */
+export function ancientRunPass2Eot(state: RunState, step: (run: () => void) => void): void {
+  const a = live(state);
+  if (!a) return;
+  const ju = effectOf(state, 'eotCoinsImprove');
+  const n = coinsInHand(state);
+  if (ju && n > 0) {
+    const reps = improveReps(state);
+    a.jugglerCoinBonus = { attack: (a.jugglerCoinBonus?.attack ?? 0) + ju.attack * n * reps, health: (a.jugglerCoinBonus?.health ?? 0) + ju.health * n * reps };
+  }
+  const x = mimicWarGrant(state);
+  if (x > 0) {
+    const banner = bannerRecipientsOf(state);
+    if (banner.length > 0) step(() => { for (const m of banner) addBuff(m, ANCIENTS.war.name, x, x); });
+  }
+}
+
+/** This pass's combat halves (player-only, never snapshotted). FRANK × WAR: the repeating hero Pummel (each crossing one
+ *  Clearance stack, pulsed live on the stacks flag the replay already counts). MIDAS × WAR: the Start-of-Combat Ward. */
+function pass2CombatMods(state: RunState): Partial<QuestCombatMods> {
+  const out: Partial<QuestCombatMods> = {};
+  const a = live(state);
+  if (!a?.picked) return out;
+  const fk = effectOf(state, 'pummelClearanceStack');
+  if (fk) out.ancientPummelCharge = { every: fk.every, dealt: a.pummelDealt ?? 0, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: ANCIENTS.war.name, repeat: true };
+  const mw = effectOf(state, 'socWardPerGildedFoe');
+  if (mw) out.ancientMidasWard = { per: mw.per, label: ANCIENTS.war.name };
+  return out;
+}
+
+/** This pass's live power-text values. `{fPummelLeft}` = Flash × War's payouts left this combat (live through a fight);
+ *  `{fkPummelNow}` / `{fkPummelEvery}` = Frank × War's Pummel progress (live); `{gTimeTribe}` = the type Gorr × Time would
+ *  refresh into right now; `{goDeathLeft}` = Gorun × Death's gifts left this turn; `{hTargetLeft}` = Hunch × Bonds'
+ *  doubles left this turn; `{juCoins}` = Coins in hand; `{kOpenGold}` = Keshi × Fortune's Gold so far; `{mShopX}` /
+ *  `{mShopSpells}` = Mimic × War's grant and its Shop-spell count. */
+function pass2PowerText(state: RunState, text: string, combat: AncientPowerLive): string {
+  const a = live(state);
+  if (!a) return text;
+  const dealt0 = a.pummelDealt ?? 0;
+  const dealt = dealt0 + Math.max(0, combat.friendlyDamage ?? 0);
+  const fp = effectOf(state, 'pummelEnemyCopy');
+  const fpEvery = Math.max(1, fp?.every ?? 1);
+  const fpPaid = Math.floor(dealt / fpEvery) - Math.floor(dealt0 / fpEvery);
+  const fk = effectOf(state, 'pummelClearanceStack');
+  const gd = effectOf(state, 'deathGivesAttack');
+  const hb = effectOf(state, 'firstTargetedSpellsTwice');
+  return text.replace('{fPummelLeft}', String(fp ? Math.max(0, Math.max(1, fp.perCombat ?? 1) - fpPaid) : 0))
+    .replace('{fkPummelNow}', String(fk ? dealt % Math.max(1, fk.every) : 0)).replace('{fkPummelEvery}', String(fk?.every ?? 0))
+    .replace('{gTimeTribe}', effectOf(state, 'eotRefreshTopTribeFreeze') ? tribeName(dominantBoardTribe(state)) : '')
+    .replace('{goDeathLeft}', String(gd?.perTurn !== undefined ? Math.max(0, gd.perTurn - gorunGivesThisTurn(state)) : 0))
+    .replace('{hTargetLeft}', String(hb ? Math.max(0, hb.count - hunchTargetedThisTurn(state)) : 0))
+    .replace('{juCoins}', String(coinsInHand(state)))
+    .replace('{kOpenGold}', String(a.keshiOpenGold ?? 0))
+    .split('{mShopX}').join(String(mimicWarGrant(state)))
+    .replace('{mShopSpells}', String(Math.max(0, a.shopSpellsCast ?? 0)));
 }
 
 // ══ DUOS HEROES: Priestess and Magician (owner pairings 2026-11-10, R-ANCDUOS-01) ═══════════════════════════════════

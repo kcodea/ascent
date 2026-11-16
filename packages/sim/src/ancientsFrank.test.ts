@@ -145,25 +145,28 @@ describe('Frank × FORTUNE — Clearance minions sell for 2 Gold', () => {
   });
 });
 
-describe('Frank × WAR — Avenge (3): gain a Clearance stack; each stack is one more Clearance use', () => {
-  it('threads the hero Avenge into the fight only while War is picked', () => {
-    expect(ancientCombatMods(picked('war')).ancientClearanceStacks).toMatchObject({ every: 3, flag: ANCIENT_CLEARANCE_STACK_FLAG });
-    expect(ancientCombatMods(picked('death')).ancientClearanceStacks).toBeUndefined();
+describe('Frank × WAR (ancient pass 2, owner 2026-11-16: "Pummel (300)" instead of Avenge (3)): gain a Clearance stack; each stack is one more Clearance use', () => {
+  it('threads a REPEATING hero Pummel into the fight only while War is picked; the Avenge is gone', () => {
+    expect(ancientCombatMods(picked('war')).ancientPummelCharge).toEqual({ every: 300, dealt: 0, flag: ANCIENT_CLEARANCE_STACK_FLAG, label: 'Ancient of War', repeat: true });
+    expect(ancientCombatMods(picked('war')).ancientClearanceStacks).toBeUndefined();
+    expect(ancientCombatMods(picked('death')).ancientPummelCharge).toBeUndefined();
   });
-  it('gains a stack MID-FIGHT on the 3rd friendly death, and banks it at settle', () => {
-    // Four 1/1s into a 100/1000 wall: all four die (deaths 1..4), so exactly one Avenge (3) fires.
-    let s = picked('war', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, T1, { attack: 1, health: 1 })) });
-    s = fightNow(s, 100, 1000);
+  it('every 300 damage dealt is a stack MID-FIGHT (each crossing, no cap); deaths no longer count; settle banks them and the tally', () => {
+    let s = picked('war', { board: [card('a', T1, { attack: 100, health: 9000 })] });
+    s = { ...s, ancients: { ...s.ancients!, pummelDealt: 250 } };
+    s = fightNow(s, 1, 1000);
     const ev = events(s);
-    const stacks = ev.map((e, i) => ({ e, i })).filter(({ e }) => e.type === 'questTrigger' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG && e.side === 'player');
-    expect(stacks.length).toBe(1);
-    const deaths = ev.map((e, i) => ({ e, i })).filter(({ e }) => e.type === 'death' && e.side === 'player');
-    expect(deaths.length).toBe(4);
-    expect(stacks[0]!.i, 'after the 3rd death').toBeGreaterThan(deaths[2]!.i);
-    expect(stacks[0]!.i, 'before the 4th death: real time, mid-fight').toBeLessThan(deaths[3]!.i);
-    expect(s.lastCombat!.playerAncientClearanceStacks).toBe(1);
+    const stacks = ev.filter((e) => e.type === 'questTrigger' && e.flag === ANCIENT_CLEARANCE_STACK_FLAG && e.side === 'player').length;
+    const dealt = s.lastCombat!.playerAncientPummelDealt!;
+    expect(stacks).toBe(Math.floor(dealt / 300) - Math.floor(250 / 300));
+    expect(stacks, 'it repeats: more than one stack in one fight').toBeGreaterThanOrEqual(2);
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.ancients!.clearanceStacks).toBe(1);
+    expect(s.ancients!.clearanceStacks).toBe(stacks);
+    expect(s.ancients!.pummelDealt).toBe(dealt);
+    // Deaths alone (the old Avenge) gain nothing: four 1/1s die to a wall that never takes 300.
+    let d = picked('war', { board: ['a', 'b', 'c', 'd'].map((u) => card(u, T1, { attack: 1, health: 1 })) });
+    d = reduce(fightNow(d, 100, 1000), { type: 'resolveCombat' });
+    expect(d.ancients!.clearanceStacks ?? 0).toBe(0);
   });
   it('a stack lets Clearance fire again in the same turn, and is spent by it; stacks persist across turns', () => {
     let s = picked('war');
@@ -191,17 +194,17 @@ describe('Frank × WAR — Avenge (3): gain a Clearance stack; each stack is one
     expect(ancientClearanceUsesBadge(s, 1), 'a stack gained mid-fight counts at once').toBe(2);
     expect(ancientClearanceUsesBadge(picked('death', { ancients: undefined } as never)), 'War only').toBeNull();
   });
-  it('the centre Avenge countdown: 3 in the Shop, counting down with the fight’s deaths, resetting after each stack', () => {
-    const s = picked('war');
-    expect(ancientClearanceAvengeLeft(s)).toBe(3);
-    expect([1, 2, 3, 4, 6].map((d) => ancientClearanceAvengeLeft(s, d))).toEqual([2, 1, 3, 2, 3]);
+  it('no centre Avenge countdown any more (it is a Pummel now)', () => {
+    expect(ancientClearanceAvengeLeft(picked('war'))).toBeNull();
     expect(ancientClearanceAvengeLeft(picked('death')), 'War only').toBeNull();
   });
-  it('prints the live stack count, and folds in the fight on screen', () => {
+  it('prints the live stack count and the Pummel progress, both folding in the fight on screen', () => {
     let s = picked('war');
-    s = { ...s, ancients: { ...s.ancients!, clearanceStacks: 2 } };
-    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (3):** gain a Clearance stack. Each stack is one more use (**2** banked).`);
-    expect(heroPowerText(s, 0, { clearanceStacks: 1 })).toContain('(**3** banked)');
+    s = { ...s, ancients: { ...s.ancients!, clearanceStacks: 2, pummelDealt: 650 } };
+    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (300):** gain a Clearance stack. Each stack is one more use (**2** banked). Counts damage dealt by all your minions (**50/300**).`);
+    expect(heroPowerText(s, 0, { clearanceStacks: 1, friendlyDamage: 100 })).toContain('(**3** banked)');
+    expect(heroPowerText(s, 0, { clearanceStacks: 1, friendlyDamage: 100 })).toContain('(**150/300**)');
+    expect(ancientOfferText('frank', 'war')).toBe('**Pummel (300):** gain a Clearance stack. Each stack lets you use Clearance one more time. Counts damage dealt by all your minions.');
   });
 });
 

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type CombatResult, type QuestCombatMods } from '@game/core';
 import {
-  ANCIENT_IDS, HUNCH_BONDS_COMBAT_LABEL, ancientCombatMods, ancientSpellbookAvengeLeft, ancientOfferText, createRun, enableAncients, heroPowerText, reduce, roundedSpellbookCostOf, spellCasts,
+  ANCIENT_IDS, ancientCombatMods, ancientSpellbookAvengeLeft, ancientOfferText, createRun, enableAncients, heroPowerText, reduce, roundedSpellbookCostOf, spellCasts,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
 import { noteSpellForCountRunes } from './recruit';
@@ -223,49 +223,41 @@ describe('Hunch × TIME — spells from Rounded Spellbook cast twice', () => {
   });
 });
 
-describe('Hunch × BONDS — casting spells grants your left and right-most minion +2/+3', () => {
-  it('SHOP: each cast buffs the two ends, permanently, not the middle', () => {
-    // Three different effect-less bodies (three copies of one card would triple).
-    let s = picked('bonds', { board: [card('a', T1), card('b', 'n2_spellsword'), card('c', 'tara')], hand: [pouch('p1'), pouch('p2')] });
-    const d = (id: string) => CARD_INDEX[id]!;
-    s = reduce(s, { type: 'play', uid: 'p1' });
-    s = reduce(s, { type: 'play', uid: 'p2' });
-    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([d(T1).attack + 4, d(T1).health + 6]);
-    expect([at(s, 'c').attack, at(s, 'c').health]).toEqual([d('tara').attack + 4, d('tara').health + 6]);
-    expect([at(s, 'b').attack, at(s, 'b').health]).toEqual([d('n2_spellsword').attack, d('n2_spellsword').health]);
+describe('Hunch × BONDS (ancient pass 2, owner 2026-11-16): "Your first 3 targeted spells each turn cast twice."', () => {
+  const FIRE = 'spiritfire'; // "Give a minion +6/+6." (targeted)
+  const fire = (uid: string): BoardCard => card(uid, FIRE, { tribe: 'neutral', attack: 0, health: 1 });
+  const aim = (s: RunState, uid: string, target = 'a'): RunState => reduce(s, { type: 'play', uid, targetUid: target });
+  it('the first 3 targeted casts from hand each turn cast twice, the 4th once; the text counts down; a new turn resets', () => {
+    let s = picked('bonds', { board: [card('a', T1)], hand: ['f1', 'f2', 'f3', 'f4'].map(fire) });
+    const a0 = at(s, 'a').attack;
+    expect(heroPowerText(s)).toBe(`${BASE} Your first **3** targeted spells each turn cast **twice** (**3** left this turn).`);
+    expect(spellCasts(s, CARD_INDEX[FIRE]!), 'the hand badge previews x2').toBe(2);
+    s = aim(s, 'f1');
+    expect(at(s, 'a').attack).toBe(a0 + 12);
+    expect(heroPowerText(s)).toContain('(**2** left this turn)');
+    s = aim(aim(s, 'f2'), 'f3');
+    expect(at(s, 'a').attack).toBe(a0 + 36);
+    expect(heroPowerText(s)).toContain('(**0** left this turn)');
+    expect(spellCasts(s, CARD_INDEX[FIRE]!)).toBe(1);
+    s = aim(s, 'f4');
+    expect(at(s, 'a').attack, 'the 4th casts once').toBe(a0 + 42);
+    const next = { ...s, wave: s.wave + 1 };
+    expect(spellCasts(next, CARD_INDEX[FIRE]!), 'a new turn: the budget is back').toBe(2);
   });
-  it('SHOP: each grant is its own buff record, streamed from the hero-power button (its beat)', () => {
-    let s = picked('bonds', { board: [card('a', T1), card('b', 'n2_spellsword'), card('c', 'tara')], hand: [pouch('p1')] });
-    s = reduce(s, { type: 'play', uid: 'p1' });
-    const fx = s.recruitBuffFx.filter((e) => e.fromHeroPower);
-    expect(fx.map((e) => e.targetUid).sort()).toEqual(['a', 'c']);
-    for (const e of fx) expect([e.attack, e.health, e.kind]).toEqual([2, 3, 'spell']);
-  });
-  it('SHOP: a lone minion is both ends and is buffed once', () => {
+  it('an untargeted spell casts once and does not spend the budget', () => {
     let s = picked('bonds', { board: [card('a', T1)], hand: [pouch('p1')] });
+    const gold = s.embers;
     s = reduce(s, { type: 'play', uid: 'p1' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[T1]!.attack + 2);
+    expect(s.embers).toBe(gold + 1);
+    expect(heroPowerText(s)).toContain('(**3** left this turn)');
   });
-  it('SHOP: a Ruby counts', () => {
-    const s = picked('bonds', { board: [card('a', T1)] });
-    noteSpellForCountRunes(s, 'ruby');
-    expect(at(s, 'a').health).toBe(CARD_INDEX[T1]!.health + 3);
+  it('without Bonds a targeted spell casts once', () => {
+    let s = picked('death', { board: [card('a', T1)], hand: [fire('f1')] });
+    const a0 = at(s, 'a').attack;
+    s = aim(s, 'f1');
+    expect(at(s, 'a').attack).toBe(a0 + 6);
   });
-  it('COMBAT: each combat cast buffs the left-most and right-most living minions, right after the cast', () => {
-    const edges = ancientCombatMods(picked('bonds')).ancientSpellEdges!;
-    expect(edges).toEqual({ attack: 2, health: 3, label: HUNCH_BONDS_COMBAT_LABEL });
-    const r = fight([filler('L'), fatecarver, filler('R')], { ancientSpellEdges: edges });
-    const [l, , rr] = r.initial.player.map((m) => m.uid);
-    const ev = r.events;
-    const firstCast = ev.findIndex((e) => e.type === 'spellcast' && e.side === 'player');
-    expect(firstCast).toBeGreaterThanOrEqual(0);
-    const bonds = ev.slice(firstCast, firstCast + 4).filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === HUNCH_BONDS_COMBAT_LABEL);
-    expect(bonds.map((b) => b.target).sort()).toEqual([l, rr].sort());
-    for (const b of bonds) expect([b.attack, b.health]).toEqual([2, 3]);
-  });
-  it('without Bonds nothing is granted', () => {
-    let s = picked('death', { board: [card('a', T1)], hand: [pouch('p1')] });
-    s = reduce(s, { type: 'play', uid: 'p1' });
-    expect(at(s, 'a').attack).toBe(CARD_INDEX[T1]!.attack);
+  it('the old edge buff is gone from the fight', () => {
+    expect(ancientCombatMods(picked('bonds')).ancientSpellEdges).toBeUndefined();
   });
 });

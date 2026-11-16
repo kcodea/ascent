@@ -76,15 +76,28 @@ describe('Keshi × DEATH: "Avenge (4): Advance Keshi\'s Crown by 4"', () => {
   });
 });
 
-describe('Keshi × FORTUNE: "Minions of your Tier cost 1 less."', () => {
-  it('a minion of your Shop tier costs 1 Gold less; other tiers and spells do not', () => {
-    const s = picked('fortune', { tier: 3 });
-    expect(heroPowerText(s)).toBe(`${BASE} Minions of your Tier (Tier **3**) cost **1 Gold** less.`);
-    expect(offerBuyPrice(s, { cardId: minionOfTier(3) }).cost).toBe(2);
-    expect(offerBuyPrice(s, { cardId: minionOfTier(2) }).cost).toBe(3);
+describe('Keshi × FORTUNE (ancient pass 2, owner 2026-11-16): "opening a Triple Reward gives 3 extra Gold"', () => {
+  it('playing a Triple Reward opens its Discover AND gains 3 Gold; the text keeps the running total', () => {
+    let s = picked('fortune', { tier: 3, hand: [reward('r1', 3), reward('r2', 3, true)] });
+    expect(heroPowerText(s)).toBe(`${BASE} Opening a **Triple Reward** gives you **3** extra Gold (**0 Gold** so far).`);
     const before = s.embers;
-    const t = buyFromRow(s, minionOfTier(3));
-    expect(t.embers).toBe(before - 2);
+    s = reduce(s, { type: 'play', uid: 'r1' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    expect(s.embers).toBe(before + 3);
+    s = reduce(s, { type: 'discover', index: 0 });
+    s = reduce(s, { type: 'play', uid: 'r2' });
+    expect(s.embers, "a Crown's reward counts too").toBe(before + 6);
+    expect(heroPowerText(s)).toContain('(**6 Gold** so far)');
+  });
+  it('getting a Triple Reward pays nothing (only opening it does), and the old Tier discount is gone', () => {
+    const s = picked('fortune', { tier: 3 });
+    expect(offerBuyPrice(s, { cardId: minionOfTier(3) }).cost).toBe(3);
+  });
+  it('without Fortune opening pays nothing', () => {
+    let s = picked('war', { tier: 3, hand: [reward('r1', 3)] });
+    const before = s.embers;
+    s = reduce(s, { type: 'play', uid: 'r1' });
+    expect(s.embers).toBe(before);
   });
 });
 

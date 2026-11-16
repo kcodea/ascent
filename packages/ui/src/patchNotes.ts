@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Compendium: hero tiles are larger and show what each Ancient does for that hero.',
+        details: [
+          'Each hero shows six Ancient medallions under its hero power. Pick one to read its text for that hero.',
+          'The large hero view has the same medallions. Press Up or Down to step through the Ancients, and Left or Right to step through heroes.',
+          'Ancients are a preview. Some heroes do not have every Ancient written yet.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Match History: the Shop buffs button is now a Show Buffs button. It shows every buff you had when the game ended.',
         details: [
           'It lists the same buffs as the Buffs panel you open from your hero portrait in a game: Spell power, Ruby power, Auras, Shop Stats, Max Gold and the rest.',

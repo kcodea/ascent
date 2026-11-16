@@ -14,13 +14,13 @@ import { normalizePracticeTribes, practiceSetOf } from '../practiceTribes';
 import { runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
-import { MAX_SEATS_PER_PLAYER, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat, type PlayerRun } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat, type PlayerRun } from './snapshotSeats';
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
 import { lobbyRulesOf, seatStartingArmor } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
-import { bandSteps, practiceStrengthBand, runInStrengthBand, type StrengthBand } from './strengthBands';
+import { STRENGTH_TIER_LIMITS, bandSteps, practiceStrengthBand, runInStrengthBand, strengthTierOf, type StrengthBand } from './strengthBands';
 
 /**
  * THE PLAYER'S LOBBY — the serializable half.
@@ -542,6 +542,10 @@ function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<
   // passed over for the next one in the shuffle, so every run of an under-cap player stays equally likely; when the
   // pool genuinely lacks enough players, generated seats fill the rest below, exactly as for an empty pool. YOUR OWN
   // runs are seated like anyone else's, under the same cap (owner 2026-09-30: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this").
+  // Since 2026-11-16 (R-LOBBY-16) the cap is TWO, and a third seat only when the table cannot be filled at two each:
+  // every band step is walked at two per player first, then again at three, before the band widens. A run passed
+  // over only for the two-seat cap stays a candidate for that second walk; nothing else is ever reconsidered.
+  // STRONG RUNS (R-LOBBY-17): at most two seated runs per strength tier (90-100, 80-89), hard.
   // `excludeRuns` is applied AFTER the shuffle, so without it the draw is the one of before, seat for seat.
   const exclude = opts.excludeRuns?.size ? opts.excludeRuns : null;
   const shuffled = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
@@ -557,23 +561,27 @@ function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<
   // its equal chance. With no band this is one pass over the whole shuffle: the selection of before, seat for seat.
   const steps = bandSteps(opts.strengthBand ?? null);
   const considered = new Set<string>();
+  const seatsByTier = STRENGTH_TIER_LIMITS.map(() => 0);
   let usedStep = 0;
   for (let step = 0; step < steps.length && !tableFull(); step++) {
     const band = steps[step]!;
     // Nothing new inside the wider band: widening would add no candidate, so it is not counted.
     if (step > 0 && !available.some((run) => !considered.has(run.key) && runInStrengthBand(run, band))) continue;
     usedStep = step;
-    for (let i = 0; i < available.length && !tableFull(); i++) {
+    for (const ownerCap of [MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT]) for (let i = 0; i < available.length && !tableFull(); i++) {
       const run = available[i]!;
       if (considered.has(run.key) || !runInStrengthBand(run, band)) continue;
+      const owner = runOwnerOf(run);
+      // Over the cap of THIS walk: at two, leave it for the three-seat walk; at three, it is out for good.
+      if (owner && (seatsByOwner.get(owner) ?? 0) >= ownerCap) { if (ownerCap >= MAX_SEATS_PER_PLAYER_SHORT) considered.add(run.key); continue; }
       considered.add(run.key);
+      const tier = strengthTierOf(run.strength);
+      if (tier >= 0 && seatsByTier[tier]! >= STRENGTH_TIER_LIMITS[tier]!.seats) continue; // a third strong run of its tier
       if (seats.some((x) => x.runKey === run.key)) continue; // never seat the same run twice
       // UNIQUE HEROES PER LOBBY (owner 2026-09-13): all eight seats — the player included — wear different
       // heroes. The hybrid loop below already skipped a held hero; snapshot seats now do too, so a second
       // player run on the same hero is passed over for the next eligible run in the shuffle.
       if (seats.some((x) => x.heroId === run.heroId)) continue;
-      const owner = runOwnerOf(run);
-      if (owner && (seatsByOwner.get(owner) ?? 0) >= MAX_SEATS_PER_PLAYER) continue; // per-player seat cap
       // A real author's name when the run has one; otherwise a generated handle. 142 of the pool's 664 boards
       // carry no author, and labelling those "run 1534" leaked the seed and read as debug output. An author
       // holding SEVERAL seats gets an ADJECTIVE prefix ("Sneaky Orangez", "Groovy Orangez") rather than the old
@@ -596,6 +604,7 @@ function seatRunLobby(seed: number, playerHeroId: string | null, rules: Partial<
       taken.add(seat.label.toLowerCase());
       seats.push(seat);
       if (owner) seatsByOwner.set(owner, (seatsByOwner.get(owner) ?? 0) + 1);
+      if (tier >= 0) seatsByTier[tier]!++;
       picked++;
     }
   }

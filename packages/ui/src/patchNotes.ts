@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-16',
     changes: [
       {
+        category: 'Systems',
+        text: 'Opponents: more variety at every table, and fewer stacked tables at the top ranks.',
+        details: [
+          'You now meet at most 2 past games from the same player in one game, your own included (it was 4). A third appears only when there are not enough players to fill the table.',
+          'A table holds at most two opponents with a Game strength of 90 or more, and at most two in the 80s.',
+          'Platinum, Diamond and Ascendant all draw opponents the same way: no rank is given stronger opponents on purpose.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Ancients test mode: a big review pass. 59 Ancient powers across 34 heroes are reworked or retuned.',
         details: [

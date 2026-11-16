@@ -43,9 +43,14 @@ medal + division — see *Ranked ladder* below).
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
   weights the draw inside that window — no recency weighting, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
   lobby draws only from the runs inside the player's **strength band** (below, R-LOBBY-09); inside the band the
-  draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
-  of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
-  every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
+  draw is the same uniform shuffle. **One player holds at most 2 seats, 3 when the table is short** (owner 2026-11-16, R-LOBBY-16: "you should also only be
+  able to face 2 of each players snapshots. that includes 2 of yourself", then "go up to 3 if not enough snapshots
+  exist"; it was 4 from 2026-09-29): a run whose player already holds 2 is passed over for the next in the shuffle,
+  which leaves every other run equally likely; only when two each cannot fill the table does a player get a third
+  seat, tried inside the same band before the band widens; when the pool still lacks enough players, generated seats
+  fill the rest. **A table holds at most two runs of strength 90-100 and two of strength 80-89** (owner 2026-11-16,
+  R-LOBBY-17), a hard limit that binds from Platinum up (the lower medals' caps already keep those runs out); no rank
+  leans toward stronger runs: Platinum, Diamond and Ascendant draw alike. **Your own
   runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
   until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13, reaffirmed for every mode 2026-10-31,
@@ -146,7 +151,7 @@ medal + division — see *Ranked ladder* below).
     is like 55 average and ascendant is 60 average?"*), retuned from 2026-10-03 to 2026-10-06 for the final-board scale
     to Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100. A rated lobby's recorded seats come only from runs
     inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
-    4 seats per player (your own runs included, under the same cap). A run with **no score yet counts as inside every
+    2 seats per player, 3 when the table is short (R-LOBBY-16; your own runs included, under the same cap). A run with **no score yet counts as inside every
     band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
     logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap is
     left). Only then do generated seats fill the rest. The tutorial has no

@@ -665,8 +665,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'real game); never the board of a later round. Past '
       + 'the end of the run the lobby serves its final board (the stale-final-board '
       + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
-      + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
-      + 'player\'s OWN runs: they sit at their own table like anyone else\'s, at most 4 of the 7 seats. A player is '
+      + 'most 2 seats, or 3 when two each cannot fill the table (R-LOBBY-16, since 2026-11-16; it was 4 before; a run '
+      + 'over the cap is passed over for the next), and that cap is the only limit on the '
+      + 'player\'s OWN runs: they sit at their own table like anyone else\'s, under the same cap. A player is '
       + 'their account id, else their display name.',
     domain: 'foundation',
     status: 'approved',
@@ -793,7 +794,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '25-100, Ascendant 35-100 for the final-board scale); since 2026-10-09 an OVERALL cap on the weighted strength sits on '
       + 'top (R-LOBBY-15: over 40 never in Bronze, over 60 never in Silver, over 75 never in Gold, none from Platinum); '
       + 'every division of a medal shares its band, still whole runs, at '
-      + 'most 4 seats per player (the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
+      + 'most 2 seats per player, 3 when the table is short (R-LOBBY-16; the player\'s own runs included, under the same cap). A run with no score yet is inside every band. When a '
       + 'band cannot fill the table it widens by 10 on each capped side, step by step (each step logged), before '
       + 'generated seats fill the rest; the overall cap never widens. The tutorial has no band, and Practice has none unless its setup picks an Opponent Rank (R-PRACTICE-RANK-01). The player\'s own game shows '
       + '"Game strength N" (the display name, owner 2026-09-30: "game strength for the display"; the run\'s strength) in the Career and Recent Games rows and in Match details (with each '
@@ -4968,7 +4969,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'band (anything goes: R-LOBBY-08\'s uniform selection). Since 2026-10-09 Bronze, Silver and Gold also carry an '
       + 'overall cap on the weighted strength (R-LOBBY-15: 40, 60, 75) that a run must pass as well. A band that cannot '
       + 'fill the table widens by 10 on each capped side, step by step and logged, before generated seats (the overall '
-      + 'cap never widens); at most 4 seats per player. Practice and '
+      + 'cap never widens); at most 2 seats per player, 3 when the table is short (R-LOBBY-16). Practice and '
       + 'the tutorial have no band. The "Game strength" players see (Career, Recent Games, Match details, frozen at run '
       + 'end) stays the weighted number of R-LOBBY-12: only matchmaking reads EARLY and LATE.',
     domain: 'foundation',
@@ -15619,5 +15620,60 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'gap, the drop-not-delay rule and the terminal lines are unchanged. The cutoff and the 10 s are Claude\'s proposal '
       + 'for the owner to tune; nobody has played a game on it yet.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/announcer.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── Two seats per player, a third only when the table is short (owner 2026-11-16) ───────────────────────────
+  {
+    id: 'R-LOBBY-16',
+    domain: 'foundation',
+    title: 'A table seats at most two recorded runs per player, your own included, and a third only when two each cannot fill it',
+    statement:
+      'When a table is seated from recorded runs, one player (an account, else a display name) holds at most 2 seats, '
+      + 'the player\x27s own runs included. Only when the table cannot be filled at two each does a player get a third '
+      + 'seat, and that third seat is tried inside the same strength band before the band widens and before any '
+      + 'generated seat. No player ever holds a fourth. The cap does not weight the draw: a run over the cap is passed '
+      + 'over for the next one in the shuffle, so every run of a player under the cap stays equally likely. It holds '
+      + 'for rated lobbies, opponents-first tables and Practice against recorded players. Ranked Duos tables keep '
+      + 'their own cap of 2 of the six served seats.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'you should also only be able to face 2 of each players snapshots. that includes 2 of yourself' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'if this is the case then have it biased heavily to 2, but go up to 3 if not enough snapshots exist' },
+      { kind: 'fix-pr', ref: 'feat/lobby-seat-tiers (2026-11-16): packages/sim/src/lobby/seatCap.ts (MAX_SEATS_PER_PLAYER 2, MAX_SEATS_PER_PLAYER_SHORT 3); packages/sim/src/lobby/runLobby.ts seatRunLobby (each band step walked at two, then at three); packages/sim/src/lobby/strengthBands.ts seatableRuns' },
+    ],
+    example: 'The pool holds runs from three players, five each. Two each fills 6 of the 7 seats, so one player gets a third seat: 2, 2 and 3. With five players it is two each and nobody holds three.',
+    currentBehaviour:
+      'Conforms, built 2026-11-16. Before it the cap was 4 (owner 2026-09-29). The live pool on 2026-11-16 holds runs from '
+      + '4 accounts with many runs and one with a single run, so a third seat will be common in Bronze and Silver, '
+      + 'where a band can hold runs from only three or four accounts. The pool fetch counts three seats per player '
+      + 'when it decides whether a band must widen, so it never widens sooner than seat selection would.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/poolWholeRuns.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  // ── At most two 90+ runs and two runs in the 80s per table; no rank leans strong (owner 2026-11-16) ──────────────
+  {
+    id: 'R-LOBBY-17',
+    domain: 'foundation',
+    title: 'A table seats at most two runs of strength 90 to 100 and two of strength 80 to 89, and no rank leans toward stronger runs',
+    statement:
+      'A table seats at most 2 recorded runs whose overall strength (the weighted run strength of R-LOBBY-12, the "Game '
+      + 'strength" number) is 90 to 100, and at most 2 whose overall strength is 80 to 89: up to four strong runs, two '
+      + 'per tier. A run that would be the third of its tier is passed over for the next one in the shuffle. The limit '
+      + 'is hard: when the pool has nothing else, generated seats fill the table, never a third run of a tier. A run '
+      + 'with no score is in no tier, and nothing below 80 is limited. Bronze, Silver and Gold already keep these runs '
+      + 'out with their overall caps (R-LOBBY-15), so the limit binds from Platinum up, and in Practice set to Platinum '
+      + 'or All Ranks. Platinum, Diamond and Ascendant draw the same way, from the whole pool with no band: no rank '
+      + 'leans toward stronger runs, and inside the limits every run stays equally likely.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'there should only be able to be 2 90+ strength boards and 2 80+ strength boards in any given game in the plat/diamond/ascendant rank. in ascendant there should NOT be a skew to have more higher strength boards in the game. it should remain entirely unbiased' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (asked: two in the 80s on top of two 90+, or two at 80+ in total?)', quote: 'Two 80s plus two 90s' },
+      { kind: 'fix-pr', ref: 'feat/lobby-seat-tiers (2026-11-16): packages/sim/src/lobby/strengthBands.ts (STRENGTH_TIER_LIMITS, strengthTierOf); packages/sim/src/lobby/runLobby.ts seatRunLobby (seatsByTier)' },
+    ],
+    example: 'A Diamond table: the shuffle offers runs of strength 96, 93, 91, 88, 85, 84, 60, 55, 40. It seats 96 and 93, passes over 91, seats 88 and 85, passes over 84, then seats 60, 55 and 40.',
+    currentBehaviour:
+      'Conforms for solo tables, built 2026-11-16. It applies on every table seated by seatRunLobby, Practice on All '
+      + 'Ranks included (Claude\x27s reading of "any given game"; the owner can exempt it). PARTIAL: Ranked Duos tables '
+      + 'are seated by packages/sim/src/versus/rankedDuosSeating.ts, which does not apply the tier limits. With a random '
+      + 'draw of 7 a table would have held three or more 90+ runs about 3% of the time.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/seatTiers.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
 ];

@@ -1,5 +1,5 @@
 import { medalOf, type RankMedal } from '../rank';
-import { MAX_SEATS_PER_PLAYER } from './seatCap';
+import { MAX_SEATS_PER_PLAYER_SHORT } from './seatCap';
 import type { PracticeRank } from '../state';
 
 /**
@@ -211,8 +211,10 @@ export function bandSteps(band: StrengthBand | null): (StrengthBand | null)[] {
 }
 
 /** Seats a set of runs could fill under the per-player cap (a run with no known owner counts alone). The pool fetch
- *  widens its band until this reaches the table's seven opponent seats. */
-export function seatableRuns(owners: readonly (string | null | undefined)[], cap = MAX_SEATS_PER_PLAYER): number {
+ *  widens its band until this reaches the table's seven opponent seats. The cap is the SHORT-table one (3): a table
+ *  gives a player a third seat inside its band before the band widens (R-LOBBY-16), so the fetch must not widen
+ *  sooner than seat selection would. */
+export function seatableRuns(owners: readonly (string | null | undefined)[], cap = MAX_SEATS_PER_PLAYER_SHORT): number {
   const per = new Map<string, number>();
   let loose = 0;
   for (const o of owners) {
@@ -222,6 +224,29 @@ export function seatableRuns(owners: readonly (string | null | undefined)[], cap
   let n = loose;
   for (const c of per.values()) n += Math.min(cap, c);
   return n;
+}
+
+/**
+ * STRONG RUNS PER TABLE (owner 2026-11-16, R-LOBBY-17): "there should only be able to be 2 90+ strength boards and 2
+ * 80+ strength boards in any given game in the plat/diamond/ascendant rank", read as two in the 80s PLUS two in the
+ * 90s (owner, same day: "Two 80s plus two 90s"). A table seats at most `seats` recorded runs whose weighted strength
+ * (`pool_runs.strength`, the "Game strength" number) is inside each tier; a run that would be the third is passed over
+ * for the next one in the shuffle, and the limit is HARD (generated seats fill what is left, never a third run).
+ * It holds on EVERY table: Bronze, Silver and Gold already keep these runs out with their overall caps (40 / 60 / 75,
+ * R-LOBBY-15), so in practice it binds from Platinum up and in Practice on Platinum or All Ranks. An unscored run is
+ * in no tier. Below 80 nothing is limited, and no rank leans toward stronger runs (owner: "in ascendant there should
+ * NOT be a skew to have more higher strength boards in the game. it should remain entirely unbiased").
+ */
+export interface StrengthTierLimit { min: number; max: number; seats: number }
+export const STRENGTH_TIER_LIMITS: readonly StrengthTierLimit[] = Object.freeze([
+  Object.freeze({ min: 90, max: 100, seats: 2 }),
+  Object.freeze({ min: 80, max: 89, seats: 2 }),
+]);
+
+/** The index into `STRENGTH_TIER_LIMITS` of a run's weighted strength, or -1 (below 80, or unscored). */
+export function strengthTierOf(strength: number | null | undefined): number {
+  if (typeof strength !== 'number' || !Number.isFinite(strength)) return -1;
+  return STRENGTH_TIER_LIMITS.findIndex((t) => strength >= t.min && strength <= t.max);
 }
 
 /** Opponent seats at a table (8 seats, one is the player). */

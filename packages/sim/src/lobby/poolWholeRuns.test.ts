@@ -4,13 +4,13 @@ import { OPPONENT_POOL, registerOpponentRuns } from '../opponents';
 import { playableHeroes } from '../heroes';
 import { makeRng } from '@game/core';
 import { MAX_FIRST_WAVE, MAX_MISSING_WAVES, boardAt, recordedSeat } from './seats';
-import { MAX_SEATS_PER_PLAYER, runOwnerOf } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT, runOwnerOf } from './snapshotSeats';
 import { createRunLobby, resetLobbyDrivers } from './runLobby';
 
 /**
  * R-LOBBY-08 (2026-09-29), the lobby half: a recorded seat serves its OWN board for the round (never a later one,
  * except the stale final board past the run's end), the pool registers whole runs or nothing, one player holds at
- * most four seats, and your own runs sit at your table like anyone else's, under the same cap (owner 2026-09-30). This file registers into the module-global pool, so it
+ * most two seats (three when the table is short, owner 2026-11-16), and your own runs sit at your table like anyone else's, under the same cap (owner 2026-09-30). This file registers into the module-global pool, so it
  * lives in its own file.
  */
 
@@ -85,28 +85,35 @@ describe('registration is by whole run', () => {
   });
 });
 
-describe('seat selection: at most four seats per player, your own runs included', () => {
-  it(`no player ever holds more than ${MAX_SEATS_PER_PLAYER} seats, over many seeded lobbies`, () => {
-    // One prolific player with a run on every hero, two small ones.
+describe('seat selection: two seats per player, a third only when the table is short, your own runs included', () => {
+  // Owner 2026-11-16: "you should also only be able to face 2 of each players snapshots. that includes 2 of yourself",
+  // then "have it biased heavily to 2, but go up to 3 if not enough snapshots exist".
+  const ownersOf = (seats: { kind: string; runKey?: string }[]): Map<string, number> => {
+    const byOwner = new Map<string, number>();
+    for (const x of seats.filter((y) => y.kind === 'snapshot')) {
+      const owner = x.runKey!.split('|')[0]!;
+      byOwner.set(owner, (byOwner.get(owner) ?? 0) + 1);
+    }
+    return byOwner;
+  };
+
+  it(`no player holds more than ${MAX_SEATS_PER_PLAYER} seats when enough players have runs, over many seeded lobbies`, () => {
+    // One prolific player and four smaller ones: 2 + 2 + 2 + 2 + 2 = 10 seats at two each, more than the table needs.
     const runs = [
-      ...HEROES.slice(0, 14).map((h, i) => run('Prolific', h, 100 + i, 8, 'u-prolific')),
-      ...HEROES.slice(0, 3).map((h, i) => run('Small', h, 200 + i, 8, 'u-small')),
-      ...HEROES.slice(3, 6).map((h, i) => run('Tiny', h, 300 + i, 8, 'u-tiny')),
+      ...HEROES.slice(0, 14).map((h, k) => run('Prolific', h, 100 + k, 8, 'u-prolific')),
+      ...['A', 'B', 'C', 'D'].flatMap((name, p) => HEROES.slice(p * 3, p * 3 + 3).map((h, k) => run(name, h, 200 + p * 10 + k, 8, `u-${name}`))),
     ];
     registerOpponentRuns(runs);
     let capped = 0;
     for (let seed = 1; seed <= 120; seed++) {
       const lobby = createRunLobby(seed, HEROES[HEROES.length - 1]!, {}, 'set1');
-      const byOwner = new Map<string, number>();
-      for (const s of lobby.seats.filter((x) => x.kind === 'snapshot')) {
-        const owner = s.runKey!.split('|')[0]!;
-        byOwner.set(owner, (byOwner.get(owner) ?? 0) + 1);
-      }
+      const byOwner = ownersOf(lobby.seats);
       expect(Math.max(0, ...byOwner.values()), `seed ${seed}`).toBeLessThanOrEqual(MAX_SEATS_PER_PLAYER);
+      expect(lobby.seats.filter((x) => x.kind === 'snapshot').length, `seed ${seed}`).toBe(7);
       if (byOwner.get('Prolific') === MAX_SEATS_PER_PLAYER) capped++;
       resetLobbyDrivers(lobby.seats);
     }
-    expect(capped).toBeGreaterThan(100); // the cap is what binds for the prolific player
+    expect(capped).toBeGreaterThan(60); // the cap is what binds for the prolific player
   });
 
   it('runs of players under the cap stay equally likely (the cap does not weight the draw)', () => {
@@ -125,40 +132,56 @@ describe('seat selection: at most four seats per player, your own runs included'
     for (const [k, n] of freq) { expect(n, k).toBeGreaterThan(expected * 0.6); expect(n, k).toBeLessThan(expected * 1.4); }
   });
 
-  it('a pool of ONE player fills four seats and generates the rest, never breaking accuracy', () => {
+  it('a table that two seats each cannot fill gives a player a THIRD seat before any generated seat', () => {
+    // Three players with five runs each on distinct heroes: two each is 6 of the 7 seats.
+    registerOpponentRuns(['A', 'B', 'C'].flatMap((name, p) => HEROES.slice(p * 5, p * 5 + 5).map((h, k) => run(name, h, 400 + p * 10 + k, 8, `u-${name}`))));
+    for (let seed = 1; seed <= 40; seed++) {
+      const lobby = createRunLobby(seed, HEROES[HEROES.length - 1]!, {}, 'set1');
+      const counts = [...ownersOf(lobby.seats).values()].sort();
+      expect(counts, `seed ${seed}`).toEqual([2, 2, 3]);
+      expect(lobby.seats.filter((x) => x.kind === 'hybrid' || x.kind === 'bot').length, `seed ${seed}`).toBe(0);
+      resetLobbyDrivers(lobby.seats);
+    }
+  });
+
+  it('a pool of ONE player fills three seats and generates the rest, never more', () => {
     registerOpponentRuns(HEROES.slice(0, 10).map((h, i) => run('Only', h, 500 + i, 8, 'u-only')));
     const lobby = createRunLobby(3, HEROES[HEROES.length - 1]!, {}, 'set1');
-    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(MAX_SEATS_PER_PLAYER);
+    expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(MAX_SEATS_PER_PLAYER_SHORT);
     expect(lobby.seats.length).toBe(8);
     resetLobbyDrivers(lobby.seats);
   });
 
-  it('your own runs sit at your table too, at most four of them (owner 2026-09-30)', () => {
-    // Owner: "this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"
+  it('your own runs sit at your table too, two of them at most when others can fill it (owner 2026-09-30, 2026-11-16)', () => {
     registerOpponentRuns([
       ...HEROES.slice(0, 8).map((h, i) => run('Me', h, 600 + i, 8, 'u-me')),
       ...HEROES.slice(8, 16).map((h, i) => run(`Friend${i}`, h, 700 + i, 8, `u-f${i}`)),
     ]);
-    let seenMine = 0; let seenFour = 0;
+    let seenMine = 0; let seenTwo = 0;
     for (let seed = 1; seed <= 60; seed++) {
       const lobby = createRunLobby(seed, HEROES[HEROES.length - 1]!, {}, 'set1');
       const mine = lobby.seats.filter((s) => s.runKey?.startsWith('Me|')).length;
       expect(mine, `seed ${seed}`).toBeLessThanOrEqual(MAX_SEATS_PER_PLAYER);
       if (mine > 0) seenMine++;
-      if (mine === MAX_SEATS_PER_PLAYER) seenFour++;
+      if (mine === MAX_SEATS_PER_PLAYER) seenTwo++;
       resetLobbyDrivers(lobby.seats);
     }
     expect(seenMine).toBeGreaterThan(50); // 8 of 16 runs are yours: you almost always meet some
-    expect(seenFour).toBeGreaterThan(0);  // and the cap, not an exclusion, is what stops you
+    expect(seenTwo).toBeGreaterThan(0);   // and the cap, not an exclusion, is what stops you
   });
 
-  it('a pool of ONLY your own runs fills four seats and generates the rest', () => {
+  it('a pool of ONLY your own runs fills three seats and generates the rest', () => {
     registerOpponentRuns(HEROES.slice(0, 10).map((h, i) => run('Me', h, 800 + i, 8, 'u-me')));
     const lobby = createRunLobby(4, HEROES[HEROES.length - 1]!, {}, 'set1');
-    expect(lobby.seats.filter((s) => s.runKey?.startsWith('Me|')).length).toBe(MAX_SEATS_PER_PLAYER);
+    expect(lobby.seats.filter((s) => s.runKey?.startsWith('Me|')).length).toBe(MAX_SEATS_PER_PLAYER_SHORT);
     expect(lobby.seats.length).toBe(8);
     expect(lobby.unrated).toBeUndefined(); // your own runs are real runs: the lobby is rated
     resetLobbyDrivers(lobby.seats);
+  });
+
+  it('the two caps are 2 and 3', () => {
+    expect(MAX_SEATS_PER_PLAYER).toBe(2);
+    expect(MAX_SEATS_PER_PLAYER_SHORT).toBe(3);
   });
 
   it('a run is owned by its account when stamped, else by its display name', () => {

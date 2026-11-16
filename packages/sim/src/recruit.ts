@@ -1,8 +1,9 @@
 import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, extraTriggerContributors, boardShoutExtras, boardShoutContributors, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TeamEffect, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { FERAL_RETURN_GAIN } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
-import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
+import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientSpoilsPassive } from './ancients'; // Mimic
+import { ancientSpendRepeats } from './ancients'; // Rascal × Genesis
 import { ancientOnPassMade } from './ancients'; // Priestess (Duos)
 import { ancientGildedEchoGraft, gildedEchoGraftEffect, ancientNoteDiscoverOpened, MIDAS_ECHO_MARK } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -10956,11 +10957,13 @@ export function applyGoldSpent(state: RunState, amount: number): void {
     if (!fn) continue;
     const every = Math.max(1, num(effect.params?.every, 7));
     card.goldTick = (card.goldTick ?? 0) + amount;
+    // ANCIENT OF GENESIS × Rascal (owner 2026-11-16: "your Spend minions trigger twice"): each threshold fires `reps` times.
+    const reps = ancientSpendRepeats(state);
     while (card.goldTick >= every) {
       card.goldTick -= every;
       // Captured (2026-09-16): a Gold-spent grant to OTHER minions (Billings, Coinfire Forewoman) used to land
       // with no cue at all — the only shop path that had no capture around it. Display metadata only.
-      captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
+      for (let r = 0; r < reps; r++) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
     }
   }
   // Ancient Wanderer: a "HAS +A/+H per N Gold spent" body is re-synced to the new run total. Not a threshold
@@ -15613,7 +15616,6 @@ function applyEndOfTurnBody(state: RunState): void {
    */
   const recurringBeatSpec = (effect: string): { source: TriggerSourceRef; trigger: string; policy: PresentationPolicy; policyKey?: string; family?: string } => {
     // The Ancient of Time's grant is the HERO's, not a rune's (no content owner).
-    if (effect === 'ancientTimeWard') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientXeroxPairs') return { source: beatSource('hero', state.heroId, ANCIENTS.fortune.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientTradesUpgrade') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
     if (effect === 'ancientRobinMaxGold') return { source: beatSource('hero', state.heroId, ANCIENTS.time.name), trigger: 'endOfTurn', policy: 'ownBeat' };
@@ -16209,9 +16211,6 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
     ...Array.from({ length: lapidary }, () => 'runeLapidary' as const),
     ...Array.from({ length: choir }, () => 'runeCrucibleChoir' as const),
     ...Array.from({ length: banners }, () => 'runeFiveBanners' as const),
-    // ANCIENT OF TIME × Warden: "End of Turn: give your minions with Ward +5/+5" — a virtual recurring entry so it
-    // gets a beat, the projection, Chronos repeats and the End-of-Turn replays like every other recurrence.
-    ...(ancientEotWardBuff(state) ? ['ancientTimeWard' as const] : []),
     // ANCIENT OF FORTUNE × Xerox: "Gain 4g next turn for every pair you have on board", counted at End of Turn. A
     // virtual recurring entry like Warden's Time, so its End of Turn repeats and replays follow the one rule.
     ...(ancientXeroxPairsLive(state) ? ['ancientXeroxPairs' as const] : []),
@@ -16271,8 +16270,6 @@ function runRecurringEndOfTurn(
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
-  } else if (effect === 'ancientTimeWard') {
-    ancientRunEotWardBuff(state, step);
   } else if (effect === 'ancientXeroxPairs') {
     ancientRunXeroxPairs(state);
   } else if (effect === 'ancientTradesUpgrade') {

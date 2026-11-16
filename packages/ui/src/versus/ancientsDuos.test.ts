@@ -128,19 +128,19 @@ describe('a reload mid-turn: the restore replay gives the sender back what the d
   const mate = (): RunState => ({ ...createVersusRun(12, 'warden', 'set2', DUOS, 'priestess'), phase: 'recruit', hand: [], board: mateBoard(), shop: [], spell: null } as RunState);
   const land = (to: RunState, rows: VersusDuosPassRow[]): RunState => rows.reduce((b, r) => reduce(b, { type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard }), to);
 
-  it('Priestess × Bonds: my left-most minion has its +4/+4 again; my teammate\'s is not buffed a second time', () => {
+  it('Priestess × Bonds: my left-most minion has its +10/+10 again; my teammate\'s is not buffed a second time', () => {
     const before = ancientRun('priestess', 'bonds', { board: [card('a', PLAIN[0]!, { attack: 1, health: 1 }), card('b', PLAIN[1]!)], hand: [card('h', PLAIN[2]!)], heroReady: true });
     // The turn as played: an ordinary pass, then Passaria.
     let played = reduce(before, { type: 'passCard', uid: 'h' });
     played = reduce(played, { type: 'heroPower', uid: 'b' });
-    expect(played.board[0]).toMatchObject({ uid: 'a', attack: 9, health: 9 });
+    expect(played.board[0]).toMatchObject({ uid: 'a', attack: 21, health: 21 });
     const rows = rowsOf(played);
     const b = land(mate(), rows);
-    expect(b.board[0]).toMatchObject({ attack: 10, health: 10 });
+    expect(b.board[0]).toMatchObject({ attack: 22, health: 22 });
     // The reload: my run is the one from before the turn's actions; the room holds both passes.
     const back = replay(before, rows);
     expect(back.duos!.outbox).toHaveLength(2);
-    expect(back.board.map((c) => [c.uid, c.attack, c.health])).toEqual([['a', 9, 9]]);
+    expect(back.board.map((c) => [c.uid, c.attack, c.health])).toEqual([['a', 21, 21]]);
     expect(back.embers).toBe(played.embers);
     expect(back.heroReady).toBe(false);
     // The teammate reads the same rows again (its own pull after my reload): every key is answered.

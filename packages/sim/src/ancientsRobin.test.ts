@@ -6,9 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent } from '@game/core';
 import {
-  ANCIENT_IDS, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
+  ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, createRun, enableAncients, heroPowerText, offerBuyPrice, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
+import { destroyMinionInShop, makeContext } from './recruit';
 
 const BASE = 'For each minion you **Sell**, gain 1 Gold next turn.';
 const plain = (c: (typeof CARD_INDEX)[string]) => !!c && !c.spell && !c.ruby && !c.token && c.effects.length === 0 && c.keywords.length === 0 && !c.universalTribe;
@@ -50,8 +51,6 @@ const foes = (wave: number, attack: number, health: number): BoardSnapshot => ({
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const fightNow = (s: RunState, attack = 0, health = 400): RunState => reduce({ ...s, servedBoards: { [s.wave]: foes(s.wave, attack, health) } }, { type: 'faceOmen' });
 const events = (s: RunState): CombatEvent[] => s.lastCombat!.events as CombatEvent[];
-const buffsFrom = (ev: CombatEvent[], source: string) =>
-  ev.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === source);
 const offer = (uid: string, cardId: string): ShopCard => ({ uid, cardId } as ShopCard);
 /** Hand of `n` distinct neutral bodies (never three of one card, so a sale never touches a triple). */
 const handOf = (n: number, prefix = 'h'): BoardCard[] => Array.from({ length: n }, (_, i) => card(`${prefix}${i}`, NEUTRALS[i % NEUTRALS.length]!));
@@ -81,35 +80,34 @@ describe('Robin × every Ancient has a written pairing', () => {
   });
 });
 
-describe('Robin × DEATH: "Summoned minions gain +3/+2 for every count of Spoils this turn."', () => {
-  it('a minion played after two sales this turn gains +6/+4, permanently; the power prints the live value', () => {
-    let s = picked('death', { hand: [card('p', N1), ...handOf(2, 'x').map((c, i) => ({ ...c, cardId: NEUTRALS[i + 1]! }))] });
-    expect(heroPowerText(s)).toBe(`${BASE} Minions you summon gain **+3/+2** for every minion you sold this turn (**0** sold: **+0/+0**).`);
-    s = sellAll(s, ['x0', 'x1']);
-    expect(heroPowerText(s)).toContain('(**2** sold: **+6/+4**)');
-    s = reduce(s, { type: 'play', uid: 'p' });
-    expect(at(s, 'p')).toMatchObject({ attack: CARD_INDEX[N1]!.attack + 6, health: CARD_INDEX[N1]!.health + 4 });
+describe('Robin × DEATH: "Avenge (3): get a Buddy Buddy." (owner 2026-11-16)', () => {
+  it('Shop: the 3rd friendly Shop death gets a Buddy Buddy right then; the power counts down', () => {
+    let s = picked('death');
+    expect(heroPowerText(s)).toBe(`${BASE} **Avenge (3):** get a **Buddy Buddy** (**3** more to go).`);
+    s = structuredClone({ ...s, board: [card('d', N1)], ancients: { ...s.ancients!, gildDeaths: 2 } });
+    destroyMinionInShop(makeContext(s), at(s, 'd'));
+    expect(s.hand.map((c) => c.cardId)).toEqual(['buddy']);
+    expect(s.ancients!.gildDeaths).toBe(0);
+    expect(heroPowerText(s)).toContain('(**3** more to go)');
   });
-  it('no sales this turn, no gain; a new turn starts the count at 0', () => {
-    let s = picked('death', { hand: [card('p', N1)] });
+  it('combat: the carried count pays a Buddy Buddy MID-FIGHT (a live toHand); settle carries the remainder', () => {
+    let s = picked('death', { board: ['a', 'b'].map((u, i) => card(u, NEUTRALS[i]!, { attack: 1, health: 1 })) });
+    s = { ...s, ancients: { ...s.ancients!, gildDeaths: 2 } };
+    expect(ancientCombatMods(s).ancientGorrAvenge).toEqual({ every: 3, tick: 2, ids: ['buddy'], label: 'Ancient of Death' });
+    expect(ancientAvengeCountdown(s)).toBe(1);
+    s = fightNow(s, 100, 1000);
+    expect(events(s).filter((e) => e.type === 'toHand' && e.cardId === 'buddy').length).toBe(1);
+    const deaths = s.lastCombat!.playerDeaths ?? 0;
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.map((c) => c.cardId)).toContain('buddy');
+    expect(s.ancients!.gildDeaths).toBe((2 + deaths) % 3);
+  });
+  it('summons no longer gain per sale', () => {
+    let s = picked('death', { hand: [card('p', N1), ...handOf(2, 'x').map((c, i) => ({ ...c, cardId: NEUTRALS[i + 1]! }))] });
+    s = sellAll(s, ['x0', 'x1']);
     s = reduce(s, { type: 'play', uid: 'p' });
     expect(at(s, 'p').attack).toBe(CARD_INDEX[N1]!.attack);
-    const t = { ...s, ancients: { ...s.ancients!, robinSpoils: { wave: s.wave - 1, n: 5 } } };
-    expect(heroPowerText(t)).toContain('(**0** sold: **+0/+0**)');
-  });
-  it('combat: every friendly summon gains the turn\'s amount as a combat buff (an Echo\'s bodies here)', () => {
-    let s = picked('death', { board: [card('e', ECHO.id, { attack: 1, health: 1 })], hand: handOf(3) });
-    s = sellAll(s, ['h0', 'h1', 'h2']);
-    expect(ancientCombatMods(s).ancientSummonGain).toEqual({ attack: 9, health: 6, label: 'Ancient of Death' });
-    s = fightNow(s, 100, 1000);
-    const summons = events(s).filter((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player');
-    expect(summons.length).toBeGreaterThan(0);
-    const grants = buffsFrom(events(s), 'Ancient of Death');
-    expect(grants.length).toBe(summons.length);
-    for (const g of grants) expect(g).toMatchObject({ attack: 9, health: 6 });
-  });
-  it('the combat mod is absent with no sales this turn', () => {
-    expect(ancientCombatMods(picked('death')).ancientSummonGain).toBeUndefined();
+    expect(ancientCombatMods(s).ancientSummonGain).toBeUndefined();
   });
 });
 
@@ -237,9 +235,10 @@ describe('Robin × save / restore and determinism', () => {
     let b = sell(picked('bonds', { board: [card('b', BEAST)] }), 'b');
     b = JSON.parse(JSON.stringify(b)) as RunState;
     expect(offerBuyPrice(b, offer('o', BEAST)).cost).toBe(2);
-    let d = sellAll(picked('death', { hand: handOf(2) }), ['h0', 'h1']);
+    let d = picked('death', { board: [card('d', N1)] });
+    d = structuredClone({ ...d, ancients: { ...d.ancients!, gildDeaths: 1 } });
     d = JSON.parse(JSON.stringify(d)) as RunState;
-    expect(ancientCombatMods(d).ancientSummonGain).toMatchObject({ attack: 6, health: 4 });
+    expect(ancientCombatMods(d).ancientGorrAvenge).toMatchObject({ every: 3, tick: 1, ids: ['buddy'] });
   });
   it('every pairing replays identically from the same state', () => {
     for (const id of ANCIENT_IDS) {

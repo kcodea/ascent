@@ -109,20 +109,22 @@ describe('Xerox × DEATH — Avenge (5): summon a copy of your highest Attack mi
   });
 });
 
-describe('Xerox × FORTUNE — gain 4 Gold next turn for every pair on board', () => {
+describe('Xerox × FORTUNE — gain 3 Gold next turn for every pair on board (owner 2026-11-16: 3, was 4)', () => {
   it('counts pairs as floor(n / 2) per card, Gilded and plain the same card', () => {
     expect(boardPairs({ board: [card('a', T1), card('b', T1), card('c', T1), card('d', OTHER), card('e', OTHER, { golden: true })] })).toBe(2);
     expect(boardPairs({ board: [card('a', T1), card('b', T1), card('c', T1), card('d', T1)] })).toBe(2);
     expect(boardPairs({ board: [card('a', T1), card('d', OTHER)] })).toBe(0);
   });
-  it('banks 4 Gold per pair at End of Turn, paid next turn; the power prints the live pairs and Gold', () => {
+  it('banks 3 Gold per pair at End of Turn, paid next turn; the power prints the live pairs and Gold', () => {
     const board = [card('a', T1, { health: 99 }), card('b', T1, { health: 99 }), card('c', OTHER, { health: 99 }), card('d', OTHER, { health: 99 })];
     let s = picked('fortune', { board });
-    expect(heroPowerText(s)).toContain('(**2** now: **8 Gold**)');
+    expect(ancientOfferText('xerox', 'fortune')).toContain('**3 Gold**');
+    expect(heroPowerText(s)).toContain('**3 Gold** next turn');
+    expect(heroPowerText(s)).toContain('(**2** now: **6 Gold**)');
     const before = s.bonusEmbersNextTurn ?? 0;
     s = fightNow(s, 0, 400);
-    expect(s.bonusEmbersNextTurn ?? 0).toBe(before + 8);
-    expect(s.ancients!.xeroxPairGold?.gold).toBe(8);
+    expect(s.bonusEmbersNextTurn ?? 0).toBe(before + 6);
+    expect(s.ancients!.xeroxPairGold?.gold).toBe(6);
   });
   it('no pairs, no Gold', () => {
     let s = picked('fortune', { board: [card('a', T1, { health: 99 }), card('c', OTHER, { health: 99 })] });
@@ -143,9 +145,26 @@ describe('Xerox × WAR — Start of Combat: summon a copy of your highest Health
     const summon = playerSummons(ev)[0]!;
     expect(summon.minion).toMatchObject({ cardId: T1, attack: 2, health: 11 });
   });
-  it('a full board copies nothing', () => {
-    const s = fightNow(picked('war', { board: ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((u) => card(u, T1)) }));
-    expect(events(s).some((e) => e.type === 'sc' && e.text.startsWith('Ancient of War'))).toBe(false);
+  it('a full board WAITS: the copy lands the moment a slot opens (owner 2026-11-16: "when you have space")', () => {
+    // 'a' is the highest-Health body; six 1-Health bodies fill the rest. The enemy's hits open a slot.
+    const board = [card('a', T1, { attack: 1, health: 30 }), ...['b', 'c', 'd', 'e', 'f', 'g'].map((u) => card(u, OTHER, { attack: 1, health: 1 }))];
+    const s = fightNow(picked('war', { board }), 5, 400);
+    const ev = events(s);
+    const sc = ev.findIndex((e) => e.type === 'sc' && e.text.startsWith('Ancient of War: a copy of'));
+    expect(sc, 'announced at Start of Combat').toBeGreaterThan(-1);
+    expect(sc).toBeLessThan(ev.findIndex((e) => e.type === 'attack'));
+    const firstDeath = ev.findIndex((e) => e.type === 'death' && e.side === 'player');
+    expect(firstDeath).toBeGreaterThan(-1);
+    const copyAt = ev.findIndex((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === T1);
+    expect(copyAt, 'no copy before a slot opens').toBeGreaterThan(firstDeath);
+    expect(ancientOfferText('xerox', 'war')).toContain('as soon as you have room');
+  });
+  it('a board with room copies at once (no wait)', () => {
+    const s = fightNow(picked('war', { board: [card('a', T1, { attack: 1, health: 30 }), card('b', OTHER, { attack: 1, health: 1 })] }), 0, 400);
+    const ev = events(s);
+    const copyAt = ev.findIndex((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === T1);
+    expect(copyAt).toBeGreaterThan(-1);
+    expect(copyAt).toBeLessThan(ev.findIndex((e) => e.type === 'attack'));
   });
   it('the run board is untouched after the fight (the copy is combat-only)', () => {
     let s = fightNow(picked('war', { board: [card('a', T1, { health: 50 })] }), 0, 400);
@@ -155,17 +174,22 @@ describe('Xerox × WAR — Start of Combat: summon a copy of your highest Health
 });
 
 describe('Xerox × GENESIS — Copy Machine gains another use', () => {
-  it('two uses for the game; the third is refused; the power prints the uses left', () => {
+  it('two uses for the game, but only one each turn (owner 2026-11-16); the third is refused; the power prints the uses left', () => {
     let s = picked('genesis', { board: [card('a', T1), card('b', OTHER)] });
     expect(s.ancients!.xeroxCharges).toBe(1);
     expect(heroPowerText(s)).toContain('**2** uses left');
+    expect(heroPowerText(s)).toContain('Only one use each turn.');
     s = copyMachine(s, 'a');
     expect(s.board.length).toBe(3);
     expect(heroPowerText(s)).toContain('**1** uses left');
+    expect(heroPowerText(s)).toContain('Used this turn.');
+    expect(copyMachine(s, 'b'), 'a second use the same turn is refused').toBe(s);
+    s = { ...s, wave: s.wave + 1 }; // the next turn
+    expect(heroPowerText(s)).not.toContain('Used this turn.');
     s = copyMachine(s, 'b');
     expect(s.board.length).toBe(4);
     expect(s.ancients!.xeroxCharges).toBe(0);
-    expect(copyMachine(s, 'b'), 'no use left').toBe(s);
+    expect(copyMachine({ ...s, wave: s.wave + 1 }, 'b'), 'no use left').toEqual({ ...s, wave: s.wave + 1 });
   });
   it('picked AFTER Copy Machine was spent, it is usable once more', () => {
     // (Two different cards: a third Test Squire would complete a triple.)

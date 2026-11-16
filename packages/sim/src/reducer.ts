@@ -1,15 +1,15 @@
 import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (2026-11-12)
-import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
+import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
 import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
-import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
+import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandNewShop, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
-import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientArchivePassive, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
+import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionSecond, ancientStartSecondCommission, ancientTakeDueSecondCommission, ancientSyncPass1, ancientLuckySeatNeed } from './ancients'; // ancient pass 1
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
@@ -43,6 +43,7 @@ import { magicHatBuy, restoreMagicHatSend } from './magicHat';
 import { armGratitude, gratitudeBuy, gratitudeLanded, restoreGratitudeArm, restoreGratitudePay } from './goldenGratitude';
 import { carryDuosLinkIntoTriple, duosLinkMods, duosLinkSync } from './duosLinks'; // Cindy × Ancient of Bonds
 import { ancientOnPassMade, ancientReceivePassBonds } from './ancients'; // Priestess (Duos)
+import { ancientVinesBonus } from './ancients'; // Rayse × Time
 import { applyDuosPass, duosDraft, isDuosTeamWire, landWaitingPasses, queueTeamEffect, receiveDuosPass, refundDuosPass, stampOutboxSrc, type DuosPassSource } from './duosPass';
 import { applyOwnTeamEffect, effectPassCard, fireSelfObtained, fireTeamPassTriggers, passariaTarget, passMinionToTeammate, receiveTeamEffect } from './recruit';
 import { advanceDuosMeters, armDuosRune, duosMetersMods, duosOnBoughtBuddy, duosOnTripleReward, duosPepTalkMods, duosPepTalkShop, settleDuosMeters } from './duosRunes';
@@ -486,6 +487,14 @@ function appendDominantTypeOffer(s: RunState): void {
  *  owner ruling 2026-08-14: it upgrades the existing offer rather than adding an eighth. Capped at 7 only when
  *  the run has Tier-7 access (rune/hero/quest/rift), else 6; at the ceiling the right-most is guaranteed to be
  *  AT that ceiling tier instead. No-op if the pool is empty or the row has no minion offer. */
+/** ANCIENT OF TIME × Pete (owner 2026-11-16): "The two right-most Shop minions are from above your Shop Tier." The
+ *  turn-start roll is a Contrabanana too (a no-op unless picked); the Refresh half rides the `roll` branch's cadence. */
+function newShopContraband(s: RunState): void {
+  const n = hasPower(s, 'contraband') ? ancientContrabandNewShop(s) : 0;
+  const done = new Set<string>();
+  for (let k = 0; k < n; k++) upgradeRightmostOffer(s, done);
+}
+
 function upgradeRightmostOffer(s: RunState, done?: Set<string>): void {
   const cap = hasTier7Access(s) ? 7 : 6;
   const tgt = Math.min(s.tier + 1, cap);
@@ -703,6 +712,7 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
   const sent = s.duos?.outbox.length ?? 0;
   const before = s.duos ? onScreenUids(s) : null;
   const ok = takeDiscoverPickInner(s, index);
+  if (ok) ancientOnDiscoverAny(s); // ANCIENT OF BONDS × Re-Pete: every Discover improves your spells (a no-op unless picked)
   if (before) restampBornSrc(s, sent, before, { discover: index });
   return ok;
 }
@@ -3686,7 +3696,8 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
       // ANCIENT OF WAR × Frantic Frank: once the turn's own Clearance is spent, a banked stack pays for one more use.
       const stackUse = !readyNow && slot === 0 && power.kind === 'clearance' && ancientClearanceStacks(s) > 0;
       // ANCIENT OF GENESIS × Xerox: a spent (once-per-game) Copy Machine fires again on a banked charge.
-      const chargeUse = !readyNow && !stackUse && slot === 0 && power.kind === 'copyMachine' && ancientCopyCharges(s) > 0;
+      // Only one use each turn (owner 2026-11-16): a charge waits while Copy Machine was already used this turn.
+      const chargeUse = !readyNow && !stackUse && slot === 0 && power.kind === 'copyMachine' && ancientCopyChargeReady(s);
       // ANCIENT OF WAR × Darah: once the turn's own Swap is spent, a banked Swap charge (from its Pummel) pays for one more.
       const swapChargeUse = !readyNow && !stackUse && !chargeUse && slot === 0 && power.kind === 'displace' && ancientSwapCharges(s) > 0;
       const available = readyNow || stackUse || chargeUse || swapChargeUse;
@@ -3940,8 +3951,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         // Quillen: archive a chosen minion — FRIENDLY (board) or SHOP (owner ruling 2026-08-14). It leaves
         // play and its TYPE is recorded. Once per turn (heroReady). On the 3rd archived minion, immediately
         // Discover one random minion per recorded type (so 2 Dragons + a Demon → 2 Dragons + a Demon), then reset.
-        // ANCIENT OF TIME × Quillen: Archive turns passive (its work is the Start-of-Turn grant), never activatable.
-        if (power.passive || ancientArchivePassive(s)) return state;
+        if (power.passive) return state;
         const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
         const src = card ?? (shopIdx >= 0 ? s.shop[shopIdx]! : undefined);
         if (!src) return state; // must target a friendly board minion or a Shop offer
@@ -5090,7 +5100,6 @@ function endRecruitTurn(s: RunState): void {
         }
         if (last) lastOf.push(last);
       }
-      ancientAfterSecondHand(s, made);
       const c = currentCollector();
       if (c.enabled) {
         for (const m of lastOf) c.emit({ type: 'cardGranted', target: { zone: 'hand', uid: m.uid, cardId: m.cardId, side: 'player' }, cardId: m.cardId });
@@ -6500,6 +6509,7 @@ function advanceCombat(s: RunState): void {
     // meant Market Tormentor never touched the turn-start row (owner report 2026-07-25). A FROZEN shop is
     // deliberately excluded above: it wasn't re-rolled, so there's no new right-most to buff.
     applyShopRefreshed(s);
+    newShopContraband(s); // ANCIENT OF TIME × Pete: every new Shop's right-most minions are from the tier above
   }
   // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
@@ -6810,6 +6820,7 @@ function advanceCombat(s: RunState): void {
     } else {
       refreshTavern(s, true);
       applyShopRefreshed(s); // same fresh-roll rule as the main start-of-turn path above
+      newShopContraband(s);
     }
   }
   // ANCIENTS: the combat just fought fills the meter as the next Shop opens (a no-op unless the run has Ancients).
@@ -8752,8 +8763,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
       ? {
           // The rune half pays +5/+5 (owner balance 2026-09-23, was +3/+3) once per copy held (boolean-flag
           // family, owner 2026-08-27).
-          attack: (f?.runeHatchery ? 5 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 2 : 0),
-          health: (f?.runeHatchery ? 5 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 3 : 0),
+          // ANCIENT OF TIME × Rayse (owner 2026-11-16): Vines' grant improves every End of Turn (`ancientVinesBonus`, 0 otherwise).
+          attack: (f?.runeHatchery ? 5 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 2 + ancientVinesBonus(s).attack : 0),
+          health: (f?.runeHatchery ? 5 * Math.max(1, s.flagCopies?.runeHatchery ?? 1) : 0) + (hasPower(s, 'empoweringVines') ? 3 + ancientVinesBonus(s).health : 0),
         }
       : undefined,
     runeLastCall: f?.runeLastCall,           // Avenge (3): a random Dwarven Ale to hand

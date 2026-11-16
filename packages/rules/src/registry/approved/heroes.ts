@@ -131,7 +131,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-26 (Warden Ancients)', quote: 'End of Turn: Give your Warded minions +5/+5.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts eotBuffWarded; packages/sim/src/recruit.ts recurringEotEffects (ancientTimeWard)' },
     ],
-    currentBehaviour: 'Conforms (built 2026-09-26). Dev-only.',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-14 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsWarden.test.ts'], lastVerifiedAt: '2026-09-26' },
   },
   {
@@ -638,7 +638,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'fortune - Gain 4g next turn for every pair you have on board' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts pairsGoldNextTurn / boardPairs / ancientRunXeroxPairs; packages/sim/src/recruit.ts recurringEotEffects (ancientXeroxPairs)' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-15 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -652,7 +652,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'war - Start of Combat: Summon a copy of your highest health minion' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts socCopyTopHealth; packages/core/src/combat/simulate.ts ancientXeroxSoc (Start of Combat)' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-16 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -666,7 +666,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Xerox Ancients)', quote: 'genesis - Gain another charge of Copy Machine' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts copyMachineExtraCharge / ancientCopyCharges; packages/sim/src/reducer.ts heroPower chargeUse; packages/ui/src/StatusBar.tsx canHero' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-17 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -697,6 +697,244 @@ export const HEROES_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsXerox.test.ts'], lastVerifiedAt: '2026-10-02' },
+  },
+  {
+    id: "R-ANCPASS3-01",
+    title: "Pete × Ancient of Time: the 2 right-most Shop minions are from the tier above, every Refresh and every new Shop",
+    statement:
+      "With the Ancient of Time, Contrabanana fires on EVERY Shop: every Refresh (the cadence is 1, so the button tally is hidden) and the turn-start roll of a new turn (never a frozen Shop, which was not re-rolled). Each time the 2 right-most minion offers become minions from the tier above your Shop tier (Contrabanana minions). It replaces \"Contrabanana triggers every 2 Refreshes\".",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this (proposal: The two right-most Shop minions are from above your Shop Tier.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandEveryShop / ancientContrabandNewShop; packages/sim/src/reducer.ts newShopContraband + the roll branch" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCPETE-05). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-02",
+    title: "Priestess × Ancient of Time: Passaria costs 0 and resets when you pass a Shop spell",
+    statement:
+      "With the Ancient of Time, Passaria costs 0 Gold (the `power` override) and stays once per turn, but every Shop spell this run passes (any pass: the hand pass, an effect pass; never a reward token or a Ruby) makes a spent Passaria usable again that turn. The outbox entry carries `ancReset`, so a refused (refunded) spell pass takes the reset back. The power prints whether it is ready. It replaces \"Passaria can be used twice each turn\".",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this (proposal: Passaria costs 0 and resets when you pass a Shop spell.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts passSpellResetsPassaria / ancientOnPassMade; packages/sim/src/duosPass.ts refundDuosPass (ancReset)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCPRIESTESS-05). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-03",
+    title: "Priestess × Ancient of War: Start of Combat, +2/+2 per card you passed this GAME",
+    statement:
+      "With the Ancient of War, Start of Combat gives your minions +2/+2 for each card this run has passed this GAME (`ancientPassesThisGame`: every pass it made on any turn; never a team effect, a Magic Hat copy, or a pass that came back), not this turn. A combat buff. The power prints the live count and grant.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use the suggestion (You: count cards passed this game, not this turn.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientPassesThisGame / duosCombatMods (ancientSocBuffAll)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCPRIESTESS-03). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-04",
+    title: "Priestess × Ancient of Bonds: every pass gives both left-most minions +10/+10",
+    statement:
+      "With the Ancient of Bonds, every pass gives your left-most minion and your teammate's left-most minion +10/+10 (was +4/+4), by the same channel as before; the receiver still clamps the payload to the printed pairing.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use the suggestion (Mike: +10/+10 instead of +4/+4.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts passBuffsLeftmosts / passBondsCap" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCPRIESTESS-06). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-05",
+    title: "Quillen × Ancient of Death: Echo minions Discovered from Archive are Gilded, and give a Triple Reward when played",
+    statement:
+      "With the Ancient of Death, an Echo minion taken from an Archive Discover arrives Gilded (`gildMinion`: doubled base stats, counted as a gild). Playing it gives its Triple Reward through the standing rule that every Gilded minion played from hand gives one. It no longer gains Rise.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this, and they give Triple Rewards (proposal: Echo minions you Discover from Archive are Gilded.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveEchoGilded / ancientOnDiscoverTaken" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCQUILL-01). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-06",
+    title: "Quillen × Ancient of Time: a full Archive Discovers twice",
+    statement:
+      "With the Ancient of Time, Archive stays an active power and every full Archive opens TWO Discovers of the archived types (each its own roll, the second queued), whatever the types. The old passive Start-of-Turn grant is gone.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this (proposal: When Archive is full, Discover two minions of those types.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts archiveDiscovers / ancientArchiveDiscovers" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCQUILL-05). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-07",
+    title: "Rascal × Ancient of Bonds: the turn you use All In, minions cost 2 less and spells 1 less",
+    statement:
+      "With the Ancient of Bonds, using All In switches on a discount for the REST of that turn: Shop minions cost 2 Gold less and Shop spells 1 Gold less (the per-turn Gift channels `minionCostOffTurn` / `spellCostOffTurn`, floored at 0, cleared at the turn flip). Once per turn. Buys made earlier that turn are not refunded. The power prints when it is active. Spending Gold no longer buffs the edge minions.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this (proposal: The turn you play All In, minions cost 2 less and spells cost 1 less.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts allInTurnDiscount / ancientAfterAllIn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCRASCAL-06). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-08",
+    title: "Rascal × Ancient of Genesis: your Spend minions trigger twice",
+    statement:
+      "With the Ancient of Genesis, every board minion with a \"when you spend Gold\" effect (`on: goldSpent`) fires twice per threshold it crosses (`ancientSpendRepeats`, read by `applyGoldSpent`). All In pays as printed and no longer Discovers.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Change: your Spend minions trigger twice" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spendTriggersTwice / ancientSpendRepeats; packages/sim/src/recruit.ts applyGoldSpent" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCRASCAL-04). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-09",
+    title: "Rayse × Ancient of Time: End of Turn, Empowering Vines improves by +2/+2",
+    statement:
+      "With the Ancient of Time, every End of Turn (its own beat, the recurring-entry key `ancientRayseEotRise` kept) adds +2/+2 to Empowering Vines' grant, permanently (`AncientsState.rayseVinesBonus`), so the fight that follows already uses it. The reducer folds it into the Hatchery channel Vines rides. The power prints the live grant. No Rise is handed out any more.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Change: End of Turn, your Empowering Vines buff improves by +2/+2" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts eotVinesImproves / ancientVinesBonus; packages/sim/src/reducer.ts questCombatMods (runeHatchery)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCRAYSE-05). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-10",
+    title: "Rayse × Ancient of Genesis: the first 2 combat summons summon twice, only when there is room",
+    statement:
+      "With the Ancient of Genesis, a friendly combat summon makes its extra copy only when its side has a free slot right then (`ancientSummonExtraNeedsRoom`); a summon with no room makes no copy and does NOT use up one of the 2, so on a full board the copies land later once there is room. Lord of the Risen's Genesis is unaffected.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use the suggestion (You: only when you have room.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts summonsSummonExtra needsRoom; packages/core/src/combat/simulate.ts summonExtraFor" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCRAYSE-04). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-11",
+    title: "Re-Pete × Ancient of Bonds: every Discover improves your spells +1/+1",
+    statement:
+      "With the Ancient of Bonds, every Discover pick taken (`takeDiscoverPick`: Shop, End of Turn, the after-combat grant) improves your spells +1/+1 (`spellBonus`). Second Hand copies the left-most hand card again. The power prints the total so far.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use this (proposal: When you Discover a card, your spell power improves by +1/+1.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts discoverImprovesSpells / ancientOnDiscoverAny; packages/sim/src/reducer.ts takeDiscoverPick" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCREPETE-06). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRepete.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-12",
+    title: "Re-Pete × Ancient of War: playing a duplicate gives your other minions +4/+4",
+    statement:
+      "With the Ancient of War, playing a minion from hand while you control (board only) another minion of the same card (Gilded or plain) gives your OTHER minions +4/+4, permanently. Second Hand copies gain nothing extra any more. Combat has no play.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Change: playing a duplicate card gives your other minions +4/+4" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts duplicatePlayBuffsOthers / repeteOnPlay" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCREPETE-03). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRepete.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-13",
+    title: "Robin × Ancient of Death: Avenge (3) gets a Buddy Buddy",
+    statement:
+      "With the Ancient of Death, Robin runs Gildmaster's Avenge primitive: every 3rd friendly death (one running count across the Shop and combat) gets a Buddy Buddy, in the Shop right then and mid-fight as a live toHand. The power counts down. Summons no longer gain per sale.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Change: Avenge (3): get a Buddy Buddy" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts avengeGrantCard (robin.death)" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCROBIN-01). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRobin.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-14",
+    title: "Warden × Ancient of Time: your spells give your Ward minions +3 Attack",
+    statement:
+      "With the Ancient of Time, every spell you cast (Shop and combat, every spell counts) gives each friendly minion with Ward right then +3 Attack: permanently in the Shop, a combat buff in combat (`ancientSpellWardAttack`, labelled Aegis for the hero-power tendril). The End-of-Turn +5/+5 is gone. The +3 is a judgement call: the owner picked the idea with no number.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Yours: your spells give Ward minions Attack" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts spellsGiveWardAttack / wardenOnSpellCast; packages/core/src/combat/simulate.ts ctx.castSpell" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCWARDEN-05). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsWarden.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-15",
+    title: "Xerox × Ancient of Fortune: 3 Gold next turn for every pair on your board",
+    statement:
+      "With the Ancient of Fortune, End of Turn banks 3 Gold (was 4) for next turn for every pair on the board, by the same rule as before.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Use the suggestion (Mike: 3 Gold instead of 4.)" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts pairsGoldNextTurn" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCXEROX-02). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-16",
+    title: "Xerox × Ancient of War: Start of Combat, a copy of your highest Health minion as soon as you have room",
+    statement:
+      "With the Ancient of War, Start of Combat copies the highest-Health living friendly minion (ties: the left-most) right away when there is room; on a full board the copy waits in the shared space queue and lands the moment a slot opens (R-SPACE-PENDING-01, Brackus x War's `landSummitCopy`).",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Nothing happens; owner note: \"start of combat: when you have space, summon a copy of your highest health minion\"" },
+      { kind: 'code', ref: "packages/core/src/combat/simulate.ts ancientXeroxSoc + spaceQueue" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCXEROX-03). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: "R-ANCPASS3-17",
+    title: "Xerox × Ancient of Genesis: Copy Machine gains another use, only one use each turn",
+    statement:
+      "With the Ancient of Genesis, Copy Machine still has two uses for the game, but only ONE use each turn: a banked charge cannot be spent the turn Copy Machine was already used (`AncientsState.xeroxUsedWave`, read by `ancientCopyChargeReady` in the reducer and the button). The power prints \"Used this turn.\" while a use is waiting.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-16 (Ancient pairing review, part 3)", quote: "Keep current; owner note: \"only 1 can be used per turn\"" },
+      { kind: 'code', ref: "packages/sim/src/ancients.ts ancientCopyChargeReady / ancientOnCopyMachine; packages/sim/src/reducer.ts heroPower chargeUse; packages/ui/src/StatusBar.tsx" },
+    ],
+    currentBehaviour: "Conforms (built 2026-11-16, supersedes R-ANCXEROX-04). Dev-only (Ancients flag).",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsXerox.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: 'R-ANCTRADES-01',
@@ -886,7 +1124,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Robin Ancients)', quote: 'death - Summoned minions gain +3/+2 for every count of Spoils this turn.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts summonGainPerSpoils / ancientOnShopSummon / robinSpoilsThisTurn; packages/core/src/combat/simulate.ts summonEntryEffects ancientSummonGain' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-13 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRobin.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -1000,7 +1238,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'war - Copied cards gain +10/+10. Improve this every time Second Hand triggers.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandBuffImproves / ancientAfterSecondHand / repeteWarGain' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-12 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -1042,7 +1280,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (Re-Pete Ancients)', quote: 'bonds - Second hand copies the Left and Right-most minions on board instead.' },
       { kind: 'code', ref: 'packages/sim/src/ancients.ts secondHandEdges / ancientSecondHandSources' },
     ],
-    currentBehaviour: 'Conforms (built 2026-10-02). Dev-only (Scene Builder, Set 3, the Ancients flag).',
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-11 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRepete.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
@@ -1525,7 +1763,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Genesis: \"The first 2 minions you summon in combat summon twice.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts summonsSummonExtra (limit); packages/core/src/combat/simulate.ts summonExtraFor" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-10 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
@@ -1539,7 +1777,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "Time: \"End of turn give a minion Rise.\" OWNER: a random friendly minion without Rise gains Rise permanently." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts eotGrantRise / ancientRunRayseEotRise; packages/sim/src/recruit.ts recurringEotEffects (ancientRayseEotRise)" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-09). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-09 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
@@ -2118,7 +2356,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Death: \"Echo minions discovered from Archive gain Rise.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts archiveEchoGainsRise / ancientOnDiscoverTaken" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-05 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
   {
@@ -2175,7 +2413,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-10-27 (Ancients batch: Midas, Keshi, Quillen, Disco Dan)", quote: "Time: \"Archive becomes: Start of Turn: Get a random minion of your most common type.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts sotTopTribeMinion / batch6StartOfTurn / ancientArchivePassive" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-27). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-06 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsQuillen.test.ts"], lastVerifiedAt: '2026-10-27' },
   },
   {
@@ -2301,7 +2539,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Genesis: \"All In also Discovers a minion of your Tier for every 5 Gold it pays.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts allInDiscoverPerGold / ancientAfterAllIn" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-08 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -2329,7 +2567,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Bonds: \"All In gains: Give your Left and Right-most minions +2/+1 when you spend gold.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts spendGoldBuffsEdges / batchAOnSpendGold; reducer.ts spendGold" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-07 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRascal.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -2483,7 +2721,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Claude Code session, 2026-11-10 (Ancients batch A: Rascal, Gambler, Pete, Foreman Flint, Juggler)", quote: "Time: \"Contrabanana triggers every 2 Refreshes.\"" },
       { kind: 'code', ref: "packages/sim/src/ancients.ts contrabandEvery / ancientContrabandEvery; reducer.ts the roll branch" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only (Scene Builder, Set 3, the Ancients flag).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-01 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPete.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3605,7 +3843,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "War: Start of Combat: Give your minions +2/+2 for each card passed this turn." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ancientPassesThisTurn / duosCombatMods (ancientSocBuffAll)" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-03 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3633,7 +3871,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Time: Passaria can be used twice each turn." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ANCIENT_PAIRINGS.priestess.time (power.usesPerTurn); packages/sim/src/reducer.ts restoreEffectPass; packages/sim/src/duosPass.ts refundDuosPass" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-02 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {
@@ -3647,7 +3885,7 @@ export const HEROES_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Kevin via the lead, 2026-11-10 (Ancient pairings for the two Duos heroes)", quote: "Bonds: When you Pass, give your left-most minion and your teammate's left-most minion +4/+4." },
       { kind: 'code', ref: "packages/sim/src/ancients.ts ancientOnPassMade / ancientReceivePassBonds; packages/sim/src/reducer.ts receivePass" },
     ],
-    currentBehaviour: "Conforms (built 2026-11-10). Dev-only: Ancients are off in every Duos game players can reach (R-ANCDUOS-01).",
+    currentBehaviour: "Superseded 2026-11-16 by R-ANCPASS3-04 (owner Ancient review): the pairing changed; see that rule.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsPriestess.test.ts", "workers/versus/test/ancientsDuos.test.ts", "packages/ui/src/versus/ancientsDuos.test.ts"], lastVerifiedAt: '2026-11-10' },
   },
   {

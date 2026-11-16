@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type CombatEvent } from '@game/core';
 import {
-  ANCIENT_IDS, ANCIENT_PAIRINGS, activePowers, ancientCombatMods, ancientOfferText, ancientPassesThisTurn, deserialize, heroPowerText, reduce, serialize,
+  ANCIENT_IDS, ANCIENT_PAIRINGS, activePowers, ancientCombatMods, ancientOfferText, ancientPassesThisGame, ancientPassesThisTurn, deserialize, heroPowerText, reduce, serialize,
   type AncientId, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { powerDiscoverPool } from './heroes';
@@ -26,6 +26,8 @@ const minions = Object.values(CARD_INDEX).filter((c) => c && !c.spell && !c.toke
 /** A minion with an Echo and neither Rise nor Taunt printed, and plain minions with no effects at all. */
 const ECHO = minions.find((c) => c.effects.some((e) => e.on === 'onDeath') && c.effects.length === 1 && !c.keywords.includes('R') && c.tier <= 3)!.id;
 const PLAIN = minions.filter((c) => c.effects.length === 0 && c.keywords.length === 0 && c.tier <= 2).map((c) => c.id);
+/** A Shop spell (never a reward token, a Ruby or a Duos-only card). */
+const SPELL = Object.values(CARD_INDEX).find((c) => c && c.spell && !c.token && !c.ruby && !c.duos && c.tier <= 2)!.id;
 
 const card = (uid: string, cardId: string, extra: Partial<BoardCard> = {}): BoardCard => {
   const d = CARD_INDEX[cardId]!;
@@ -204,30 +206,36 @@ describe('Priestess × FORTUNE: "Passaria costs 0 Gold."', () => {
   });
 });
 
-describe('Priestess × WAR: "Start of Combat: Give your minions +2/+2 for each card passed this turn."', () => {
-  it('counts every card I passed this turn, live in the text, and carries the total into combat', () => {
+describe('Priestess × WAR: "Start of Combat: Give your minions +2/+2 for each card you passed this game." (owner 2026-11-16)', () => {
+  it('counts every card I passed this game, live in the text, and carries the total into combat', () => {
     let s = picked('war', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!), card('c', PLAIN[2]!)], hand: [card('h', PLAIN[1]!)] });
     expect(heroPowerText(s)).toContain('(**0** passed: **+0/+0**)');
     expect(ancientCombatMods(s).ancientSocBuffAll).toBeUndefined();
     s = passaria(s, 'c');
     expect(heroPowerText(s)).toContain('(**1** passed: **+2/+2**)');
     s = drag(s, 'h');
-    expect(ancientPassesThisTurn(s)).toBe(2);
-    expect(heroPowerText(s)).toContain('(**2** passed: **+4/+4**)');
+    expect(ancientPassesThisGame(s)).toBe(2);
+    expect(heroPowerText(s)).toContain('for each card you passed this game (**2** passed: **+4/+4**)');
     expect(ancientCombatMods(s).ancientSocBuffAll).toEqual({ attack: 4, health: 4, label: 'Ancient of War' });
+    // A new turn KEEPS the count (this game, not this turn).
+    const later = { ...s, wave: s.wave + 1 };
+    expect(ancientPassesThisTurn(later)).toBe(0);
+    expect(ancientPassesThisGame(later)).toBe(2);
+    expect(heroPowerText(later)).toContain('(**2** passed: **+4/+4**)');
+    expect(ancientCombatMods(later).ancientSocBuffAll).toEqual({ attack: 4, health: 4, label: 'Ancient of War' });
   });
 
-  it('a pass that came back, a team effect and my teammate\'s passes do not count; a new turn starts at 0', () => {
+  it('a pass that came back, a team effect and my teammate\'s passes do not count', () => {
     let s = picked('war', { board: [card('a', PLAIN[0]!)], hand: [card('h', PLAIN[1]!), card('g', PLAIN[2]!)] });
     s = drag(s, 'h');
     s = drag(s, 'g');
     s = reduce(s, { type: 'passRefunded', seq: 1 });
-    expect(ancientPassesThisTurn(s)).toBe(1);
+    expect(ancientPassesThisGame(s)).toBe(1);
     // A card my teammate passes to me is not a card I passed.
     const b = drag(mate({ hand: [card('m', PLAIN[0]!)] }), 'm');
     s = reduce(s, { type: 'receivePass', from: 'p2', seq: 0, card: duosWireOf(b.duos!.outbox[0]!) });
-    expect(ancientPassesThisTurn(s)).toBe(1);
-    expect(ancientPassesThisTurn({ ...s, wave: s.wave + 1 })).toBe(0);
+    expect(ancientPassesThisGame(s)).toBe(1);
+    expect(ancientPassesThisGame({ ...s, wave: s.wave + 1 } as RunState)).toBe(1);
   });
 
   it('the fight: the locked side carries it, and every living minion gains it at Start of Combat', () => {
@@ -287,62 +295,70 @@ describe('Priestess × GENESIS: "Passaria also gets you a plain copy of the mini
   });
 });
 
-describe('Priestess × TIME: "Passaria can be used twice each turn."', () => {
-  it('two uses a turn, each paid; a third is refused; the text counts down', () => {
-    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!), card('c', PLAIN[2]!)] });
-    expect(heroPowerText(s)).toBe(`${BASE} Use it **twice** each turn (**2** left this turn).`);
+describe('Priestess × TIME: "Passaria costs 0 and resets when you pass a Shop spell." (owner 2026-11-16)', () => {
+  it('Passaria is free; once used, passing a Shop spell makes it usable again this turn; the text says so', () => {
+    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!), card('c', PLAIN[2]!)], hand: [card('sp', SPELL)] });
+    expect(activePowers(s)[0]!.cost).toBe(0);
+    expect(heroPowerText(s)).toBe(`${BASE} It costs **0** Gold. Passing a Shop spell resets it. **Ready.**`);
     s = passaria(s, 'a');
-    expect(heroPowerText(s)).toContain('(**1** left this turn)');
-    expect(s.heroReady).toBe(true);
-    s = passaria(s, 'b');
-    expect(heroPowerText(s)).toContain('(**0** left this turn)');
+    expect(s.embers, 'free').toBe(20);
     expect(s.heroReady).toBe(false);
-    expect(s.embers).toBe(16);
+    expect(heroPowerText(s)).toContain('Used this turn.');
+    expect(passaria(s, 'b'), 'once per turn until a spell is passed').toBe(s);
+    s = drag(s, 'sp');
+    expect(s.heroReady, 'the Shop spell pass reset it').toBe(true);
+    expect(heroPowerText(s)).toContain('**Ready.**');
+    s = passaria(s, 'b');
+    expect(s.duos!.outbox).toHaveLength(3);
     expect(passaria(s, 'c')).toBe(s);
-    expect(s.duos!.outbox).toHaveLength(2);
   });
 
-  it('a pass that comes back gives its use back', () => {
-    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!), card('c', PLAIN[2]!)] });
-    s = passaria(passaria(s, 'a'), 'b');
+  it('a minion pass, or a spell passed while Passaria is still ready, resets nothing', () => {
+    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!)], hand: [card('h', PLAIN[2]!), card('sp', SPELL)] });
+    s = drag(s, 'sp'); // still ready: nothing to reset
+    expect(last(s).ancReset).toBeUndefined();
+    s = passaria(s, 'a');
+    s = drag(s, 'h'); // a minion, not a spell
+    expect(s.heroReady).toBe(false);
+  });
+
+  it('a spell pass that comes back takes its reset back', () => {
+    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!)], hand: [card('sp', SPELL)] });
+    s = drag(passaria(s, 'a'), 'sp');
+    expect(s.heroReady).toBe(true);
     s = reduce(s, { type: 'passRefunded', seq: 1 });
-    expect(heroPowerText(s)).toContain('(**1** left this turn)');
-    expect(passaria(s, 'c').duos!.outbox).toHaveLength(3);
+    expect(s.heroReady).toBe(false);
+    expect(s.hand.map((c) => c.uid)).toContain('sp');
   });
 
-  it('a reload\'s replay of both uses counts both (never a third)', () => {
-    let s = picked('time', { board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!), card('c', PLAIN[2]!)] });
-    for (const uid of ['a', 'b']) s = reduce(s, { type: 'restoreEffectPass', uid, cardId: at(s, uid).cardId, via: 'spell', power: 0, paid: 2 });
-    expect(s.duos!.outbox).toHaveLength(2);
-    expect(s.embers).toBe(16);
-    expect(passaria(s, 'c')).toBe(s);
-  });
-
-  it('without it Passaria is once per turn', () => {
-    const s = passaria(base({ board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!)] }), 'a');
+  it('without it Passaria is 2 Gold, once per turn, and a spell pass resets nothing', () => {
+    let s = passaria(base({ board: [card('a', PLAIN[0]!), card('b', PLAIN[1]!)], hand: [card('sp', SPELL)] }), 'a');
+    expect(s.embers).toBe(18);
+    s = drag(s, 'sp');
+    expect(s.heroReady).toBe(false);
     expect(passaria(s, 'b')).toBe(s);
   });
 });
 
-describe('Priestess × BONDS: "When you Pass, give your left-most minion and your teammate\'s left-most minion +4/+4."', () => {
+describe('Priestess × BONDS: "When you Pass, give your left-most minion and your teammate\'s left-most minion +10/+10." (owner 2026-11-16: was +4/+4)', () => {
   const start = (over: Partial<RunState> = {}): RunState => picked('bonds', { board: [card('a', PLAIN[0]!, { attack: 1, health: 1 }), card('b', PLAIN[1]!, { attack: 1, health: 1 })], hand: [card('h', PLAIN[2]!)], ...over });
   const mateBoard = (): BoardCard[] => [card('x', PLAIN[0]!, { attack: 2, health: 2 }), card('y', PLAIN[1]!, { attack: 2, health: 2 })];
 
-  it('my left-most minion gains +4/+4 now, and my teammate\'s gains it when the card arrives', () => {
+  it('my left-most minion gains +10/+10 now, and my teammate\'s gains it when the card arrives', () => {
     let s = start();
     s = drag(s, 'h');
-    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([5, 5]);
+    expect([at(s, 'a').attack, at(s, 'a').health]).toEqual([11, 11]);
     expect([at(s, 'b').attack, at(s, 'b').health]).toEqual([1, 1]);
     expect(at(s, 'a').buffs?.some((x) => x.source === 'Ancient of Bonds')).toBe(true);
-    expect(duosWireOf(last(s)).passBonds).toEqual({ attack: 4, health: 4 });
+    expect(duosWireOf(last(s)).passBonds).toEqual({ attack: 10, health: 10 });
     const b = ship(s, mate({ board: mateBoard() }));
-    expect(b.board.map((c) => [c.attack, c.health])).toEqual([[6, 6], [2, 2]]);
+    expect(b.board.map((c) => [c.attack, c.health])).toEqual([[12, 12], [2, 2]]);
     expect(b.hand).toHaveLength(1);
   });
 
   it('Passaria on my own left-most minion: the minion that is left-most AFTER it leaves gains it', () => {
     const s = passaria(start(), 'a');
-    expect(s.board.map((c) => [c.uid, c.attack, c.health])).toEqual([['b', 5, 5]]);
+    expect(s.board.map((c) => [c.uid, c.attack, c.health])).toEqual([['b', 11, 11]]);
   });
 
   it('exactly once: the same pass delivered again (a retry, a pull after the push) changes nothing', () => {
@@ -350,7 +366,7 @@ describe('Priestess × BONDS: "When you Pass, give your left-most minion and you
     const once = ship(s, mate({ board: mateBoard() }));
     const twice = ship(s, once);
     expect(twice).toBe(once);
-    expect(twice.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(twice.board[0]).toMatchObject({ attack: 12, health: 12 });
   });
 
   it('the teammate has no minion: only mine is buffed', () => {
@@ -358,23 +374,23 @@ describe('Priestess × BONDS: "When you Pass, give your left-most minion and you
     const b = ship(s, mate());
     expect(b.board).toHaveLength(0);
     expect(b.hand).toHaveLength(1);
-    expect(at(s, 'a').attack).toBe(5);
+    expect(at(s, 'a').attack).toBe(11);
   });
 
   it('I have no minion: only my teammate\'s is buffed', () => {
     const s = drag(start({ board: [] }), 'h');
-    expect(ship(s, mate({ board: mateBoard() })).board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(ship(s, mate({ board: mateBoard() })).board[0]).toMatchObject({ attack: 12, health: 12 });
   });
 
-  it('the teammate\'s hand is full: Passaria\'s minion waits for room, and the +4/+4 lands with its arrival, once', () => {
+  it('the teammate\'s hand is full: Passaria\'s minion waits for room, and the +10/+10 lands with its arrival, once', () => {
     const s = passaria(start(), 'b');
     let b = ship(s, mate({ board: mateBoard(), hand: fullHand() }));
     expect(duosWaitingCount(b)).toBe(1);
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
     // Room opens: the card lands, and nothing is given a second time.
     b = reduce({ ...b, hand: b.hand.slice(1) }, { type: 'roll' });
     expect(duosWaitingCount(b)).toBe(0);
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
   });
 
   it('an ordinary pass a full hand refuses gives the teammate nothing (the card never arrived)', () => {
@@ -389,7 +405,7 @@ describe('Priestess × BONDS: "When you Pass, give your left-most minion and you
     const b = ship(first, mate({ board: mateBoard() }));
     // My run comes back from before the pass; the restore replays it.
     const again = drag(start(), 'h');
-    expect(at(again, 'a').attack).toBe(5);
+    expect(at(again, 'a').attack).toBe(11);
     expect(ship(again, b)).toBe(b);
   });
 
@@ -404,7 +420,7 @@ describe('Priestess × BONDS: "When you Pass, give your left-most minion and you
     const s = drag(start(), 'h');
     const wire = { ...duosWireOf(last(s)), passBonds: { attack: 999, health: 999 } };
     const b = reduce(mate({ board: mateBoard() }), { type: 'receivePass', from: 'p1', seq: 0, card: wire });
-    expect(b.board[0]).toMatchObject({ attack: 6, health: 6 });
+    expect(b.board[0]).toMatchObject({ attack: 12, health: 12 });
     const junk = reduce(mate({ board: mateBoard() }), { type: 'receivePass', from: 'p1', seq: 0, card: { ...duosWireOf(last(s)), passBonds: 'x' } as unknown as BoardCard });
     expect(junk.board[0]).toMatchObject({ attack: 2, health: 2 });
   });

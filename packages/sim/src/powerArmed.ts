@@ -38,7 +38,7 @@
  *
  * Phase-agnostic on purpose, like `magicHatView`: the caller decides where a glow may show (the Shop only).
  */
-import { ancientArchiveNeed, ancientArchivePassive, ancientCoinNeed, ancientContrabandEvery, ancientDrumlineNeed, ancientLuckySeatNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
+import { ancientArchiveNeed, ancientCoinNeed, ancientContrabandEvery, ancientDrumlineNeed, ancientLuckySeatNeed, ancientSecondHandEvery, ancientSecondHandSources } from './ancients';
 import { activePowers, powerLatchSpent, wieldedPowerId } from './heroes';
 import { magicHatView } from './magicHat';
 import { runeStacksOf } from './runeDup';
@@ -58,7 +58,7 @@ export function heroPowerArmed(run: RunState, slot: 0 | 1 = 0): boolean {
   if (!power) return false;
   if (powers.findIndex((p) => p.kind === power.kind) !== slot) return false;
   if (power.kind === 'archive') {
-    return !power.passive && !ancientArchivePassive(run) && (run.archivedTribes?.length ?? 0) + archiveReps(run) >= ancientArchiveNeed(run);
+    return !power.passive && (run.archivedTribes?.length ?? 0) + archiveReps(run) >= ancientArchiveNeed(run);
   }
   if (!power.passive) return false;
   switch (power.kind) {

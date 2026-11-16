@@ -14,7 +14,7 @@
  * PERFORMANCE: static paint; only the open game's board mounts; its card FX stay still until pointed at.
  */
 import { memo, useMemo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import type { BoardSnapshot, MatchDetails, RuneLiveState, ShopBuffSnapshot } from '@game/sim';
+import type { BoardSnapshot, BuffRow, MatchDetails, RuneLiveState } from '@game/sim';
 import { usePhLayer } from '../shell/usePhLayer';
 import { sfx } from '../../sfx';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -167,22 +167,20 @@ export interface GameDetailProps {
   own: boolean;
   minions?: BoardSnapshot['minions']; skins: RunCosmeticSnapshot | null;
   runes: readonly string[]; runeLive?: RuneLiveState;
-  /** The Shop buffs the player had when the game ended (R-MATCH-SHOPBUFF-01). Absent on games recorded before it was saved:
-   *  then there is no button. */
-  shopBuff?: ShopBuffSnapshot | null;
+  /** Every run-wide buff the player had when the game ended (R-MATCH-SHOPBUFF-01, `finalBoardBuffs`). Null on a game that
+   *  recorded none of it: then there is no button. */
+  buffs?: readonly BuffRow[] | null;
   /** Null hides the button. */
   replay: { watchable: boolean; busy: boolean; unplayable: boolean; onWatch: (e: MouseEvent) => void; label: string } | null;
   /** Null hides the button (the Career page is already that player's). */
   career?: { disabled: boolean; onOpen: () => void; label: string } | null;
 }
 
-const signed = (n: number): string => (n < 0 ? String(n) : `+${n}`);
-const statsText = (a: number, h: number): string => `${signed(a)}/${signed(h)}`;
-
-/** THE SHOP BUFFS BUTTON (owner 2026-11-08, R-MATCH-SHOPBUFF-01: "a button to press that displays the shop buffs the player
- *  had at the end of the game"): a press opens a small plate with the total every minion bought from the Shop got, then
- *  each source, biggest first. A second press, Escape or a press elsewhere closes it. */
-export function ShopBuffButton({ buff, who }: { buff: ShopBuffSnapshot; who: string }) {
+/** THE BUFFS BUTTON (R-MATCH-SHOPBUFF-01; owner 2026-11-16: "i dont want just shop buffs. i want gamewide buffs like gem buffs,
+ *  shop buffs, spell buffs. everything that can show in the run-wide buffs section of a game"): a press opens a small plate
+ *  with every run-wide buff the player had when the game ended, the same rows the in-game Buffs panel shows. A second
+ *  press, Escape or a press elsewhere closes it. */
+export function RunBuffsButton({ rows, who }: { rows: readonly BuffRow[]; who: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   usePhLayer(open, () => setOpen(false));
@@ -194,25 +192,19 @@ export function ShopBuffButton({ buff, who }: { buff: ShopBuffSnapshot; who: str
     window.addEventListener('keydown', onKey, true);
     return () => { document.removeEventListener('pointerdown', onDown, true); window.removeEventListener('keydown', onKey, true); };
   }, [open]);
-  const none = !buff.attack && !buff.health;
   return (
     <div className="rgp-shopbuff" ref={ref}>
-      <PhButton size="s" aria-expanded={open} aria-label={`${who}'s Shop buffs`} onClick={() => { sfx.pulse(); setOpen((o) => !o); }}>
-        Shop buffs{!none && <span className="rgp-sbtotal">{statsText(buff.attack, buff.health)}</span>}
+      <PhButton size="s" aria-expanded={open} aria-label={`${who}'s buffs`} onClick={() => { sfx.pulse(); setOpen((o) => !o); }}>
+        Buffs
       </PhButton>
       {open && (
-        <div className="rgp-sbpanel" role="dialog" aria-label="Shop buffs">
-          <div className="rgp-sbhead">Shop buffs at the end of the game</div>
-          {none
-            ? <div className="rgp-sbnone">No Shop buffs this game.</div>
-            : (
-              <>
-                <div className="rgp-sbrow rgp-sbsum"><span>Every minion bought from the Shop</span><b>{statsText(buff.attack, buff.health)}</b></div>
-                {(buff.sources ?? []).map((s) => (
-                  <div key={s.source} className="rgp-sbrow"><span>{s.source}</span><b>{statsText(s.attack, s.health)}</b></div>
-                ))}
-              </>
-            )}
+        <div className="rgp-sbpanel" role="dialog" aria-label="Buffs">
+          <div className="rgp-sbhead">Buffs at the end of the game</div>
+          {rows.length === 0
+            ? <div className="rgp-sbnone">No buffs this game.</div>
+            : rows.map((r) => (
+              <div key={r.key} className={`rgp-sbrow${r.key.startsWith('tavern:') ? ' rgp-sbsrc' : ''}`}><span>{r.label}</span><b>{r.value}</b></div>
+            ))}
         </div>
       )}
     </div>
@@ -298,7 +290,7 @@ export const GameDetail = memo(function GameDetail(p: GameDetailProps) {
       <div className="rgp-facts">
         {p.facts.map((f) => <Fact key={f.label} label={f.label} tip={f.tip}>{f.value}</Fact>)}
         {p.notice}
-        {p.shopBuff && !seat && <ShopBuffButton buff={p.shopBuff} who={p.who} />}
+        {p.buffs && !seat && <RunBuffsButton rows={p.buffs} who={p.who} />}
       </div>
 
       <section className="rgp-boardsec" aria-label="Final board" ref={boardRef}>

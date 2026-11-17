@@ -68,6 +68,27 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Ancients fixes: a hero power you gain after the pick now works as its text says, every Refresh effect counts, and more counters tick during combat.',
+        details: [
+          'A hero power gained after you pick your Ancient (Power Shifter) now gets that pairing in full: its cost, its uses each turn, passive or not, and its starting values.',
+          "Grand Larceny, Sigil of Kinship, Spell Cart, Membrance's power and Gorr's End of Turn refresh now count as a Refresh for the Ancient meter and for Refresh pairings.",
+          'Drakko, Emerald Warden and Gorun Ancient counters now update the moment they change in combat.',
+          'Cindy with the Ancient of Fortune: a refresh earned before you use Golden Gratitude is kept for after your next use.',
+          'Mimic: continuing a saved game no longer offers the power pick a second time.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Discover cards now show what you will get. A keyword, Gilded or stat change your pick gains is already on the card you see.',
+        details: [
+          'Ancients test mode: Keshi with Ancient of War now gives its random keyword only to minions from Keshi’s Crown’s rewards, not every Triple Reward.',
+          'That keyword is rolled when the Discover opens and shown on each option. The one you take gets exactly that keyword.',
+          'Also shown on the offer: a Gilded Discover, Rising Echoes and other keyword grants, Second Path stats, and Ancient grants from Quillen, Disco Dan, Underdweller and Albus.',
+          'A granted Critical Strike or Engraved now shows in the card text, like a granted Rise.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Ancients test mode: a big review pass. 59 Ancient powers across 34 heroes are reworked or retuned.',
         details: [

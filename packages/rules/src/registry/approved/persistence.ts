@@ -1242,4 +1242,18 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'losing its source, and a permanent gift on a Transcendant-adjacent Dragon was carried home twice.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/rubyEngravedAttribution.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: "R-ANCSYS-02",
+    title: "A resolved hero-power pick stays resolved across a save (Mimic's turn-1 offer never re-opens)",
+    statement:
+      "`deserialize` forces the SAVED `powerOffer` and `pendingPowerOffer` (absent = cleared), like the Discover family, instead of letting the fresh-run skeleton's values leak back through the merge. A Mimic who has taken the turn-1 power pick and continues a saved game is not offered it again, and a second pick is refused; an offer that was open when saved is still open.",
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F2)', quote: 'Mimic save/restore re-opens the power pick: heal powerOffer / pendingPowerOffer in deserialize like the Discover heals' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts deserialize' },
+    ],
+    currentBehaviour: "Conforms from 2026-11-16. Before, createRun('mimic') seeded the offer and the merge put it back on every Continue.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSystem.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

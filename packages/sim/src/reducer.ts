@@ -3,13 +3,14 @@ import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (202
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
-import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
+import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate, ancientSyncPower, ancientOnEffectRefresh } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
 import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
 import { ancientAllInPassive, ancientAfterAllIn, ancientDiceRollsTwo, ancientAfterDice, ancientLockedFirstDiscount, ancientContrabandEvery, ancientContrabandCount, ancientContrabandNewShop, ancientContrabandPool, ancientOnContraband, ancientOnBananaBuy, ancientTribeFirstFree, ancientFirstRefreshTribe, ancientCoinNeed, ancientCoinBuyCount } from './ancients'; // the 2026-11-10 batch A: Rascal / Gambler / Pete / Flint / Juggler
 import { ancientMarkSoulkeeperDiscover, ancientAfterDiscoverTaken, ancientOnCardsGained, ancientOnMemoryOffers, ancientFourPeatPassive, ancientMimicManual, lastCombatDeaths } from './ancients'; // Underdweller, Membrance, Mimic
 import { ancientOnGoldSpent, ancientOnCardPlayed } from './ancients'; // Brackus
+import { buildDiscoverPick } from './discoverPick'; // the one Discover pick body (shared with the offer preview)
 import { ancientCrownDueNow, ancientCrownBuyTimes, ancientMidasTripleToo, ancientTierDiscount, ancientSetlistPrice, ancientTripleRewardTag, ancientOnDiscoverTaken, ancientArchiveNeed, ancientOnArchive, ancientArchiveDiscovers, ancientMarkArchiveDiscover, ancientGildedEchoGraft } from './ancients'; // Midas / Keshi / Quillen / Disco Dan
 import { ancientCommissionSecond, ancientStartSecondCommission, ancientTakeDueSecondCommission, ancientSyncPass1, ancientLuckySeatNeed } from './ancients'; // ancient pass 1
 import { ancientCommissionDueNow, ancientCommissionReps, ancientAfterCommission, commissionDelayOf, ancientDrumlineNeed, ancientDrumlineComplete, ancientShoutDiscount, ancientFlashCopies, ancientTripleRewardTwice, DRAKKO_CARD_ID } from './ancients'; // the 2026-10-09 batch
@@ -857,37 +858,14 @@ function takeDiscoverPickCore(s: RunState, index: number): boolean {
   }
   // An Empowerment pick whose offer was gone (the fall-through above) still counts as an Empowerment Discover.
   const empowered = !!s.discoverIntoShopUid;
-  const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
   // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
   // than over-capping). Only claim a pool copy when the card is actually taken.
   if (s.hand.length < handCap(s)) {
-    const taken: BoardCard = {
-      uid: `b${s.uidSeq++}`,
-      cardId: def.id,
-      tribe: def.tribe,
-      // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-      ...conjuredStats(s, def, dcb),
-      keywords: [...def.keywords],
-      golden: false,
-      // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
-      ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-      ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
-      ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
-      ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
-    };
-    // Rune of the Second Path: the pick's stats are SET to the authored line (20/20), replacing the
-    // conjured stats entirely — an override, not a buff.
-    if (s.discoverSetStats) { taken.attack = s.discoverSetStats.attack; taken.health = s.discoverSetStats.health; }
-    // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
-    // transform a triple applies, so the stats/keywords stay consistent with every other golden.
-    if (s.discoverGolden) gildMinion(taken, s);
-    // Rune of Rising Echoes: the pick arrives carrying granted keywords (Rise + Taunt). Applied after the gild
-    // so a gilded pick keeps them, and de-duped against what the card already has.
-    for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
-    // Rune of the Astral Draft: the pick casts an additional time — stamped on the instance, read by `spellCasts`.
-    if (s.discoverExtraCasts) taken.extraCasts = (taken.extraCasts ?? 0) + s.discoverExtraCasts;
-    // ANCIENTS (Keshi × War, Quillen × Death, Disco Dan × Death): the pick's keyword grants, by its Discover's origin.
-    ancientOnDiscoverTaken(s, ancientTag, taken);
+    // THE ONE PICK BODY (`buildDiscoverPick`): the creation stats, the locks / borrowed / set stats / Gilded / granted
+    // keywords / extra casts riders, and the Ancient grants (Keshi × War, Quillen × Death, Disco Dan, Underdweller),
+    // shared with the Discover's preview of each option (`discoverOfferCard`) so what the offer shows is what you get.
+    const taken = buildDiscoverPick(s, index, { uid: `b${s.uidSeq++}`, tag: ancientTag, commit: true })!;
+    ancientOnDiscoverTaken(s, ancientTag, taken); // what only a real pick records (Disco Dan × Genesis)
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
     if (empowered) ancientOnEmpowerPick(s, def, undefined, taken);
@@ -1247,6 +1225,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     ancientSyncPass1(next); // ANCIENT PASS 1: Drakko / Brackus all types (+ Brackus' Rally graft), Disco Dan's next-turn lock
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
+    ancientSyncPower(next); // ANCIENTS: a power that took slot 0 after the pick gets its pairing's shape + starting stamps (R-ANCSYS-01)
     ancientSyncVanguard(next); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard is a button from Shop tier 6, whatever raised the tier
     ancientOnCardsGained(next, state); // UNDERDWELLER × ANCIENT OF BONDS: a copy of a minion you control arrived in hand
     duosLinkSync(next); // CINDY × ANCIENT OF BONDS: a Linked card's gain goes to its twin's run; a twin that left ends it
@@ -4138,6 +4117,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           stampNewShopOffers(s, s.shop, { onRefresh: true, cia: true }); // plain bodies, but shop offers all the same
         });
         applyShopRefreshed(s);
+        ancientOnEffectRefresh(s); // "Refresh the Shop with ...": a Refresh for the meter + the Refresh pairings (R-ANCSYS-03)
       } else if (power.kind === 'mimic') {
         // ANCIENT OF GENESIS × Mimic: Mimicry is pressed (once per turn) and offers 4 powers; the pick is wielded for
         // the rest of the turn, as a native pick is. Natively Mimicry is passive and never activatable.
@@ -4340,6 +4320,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         swapPowerLatch(s, 1, undefined, heroId);
         seedAdoptedPower(s, heroId);
       }
+      // ANCIENTS: the new slot-0 power's pairing arrives in full (cost, uses, passive, starting stamps), before the
+      // triple check below reads its Gild threshold (R-ANCSYS-01).
+      ancientSyncPower(s);
       // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
       // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
       // play / discover do (owner report 2026-09-10: a held pair sat uncombined after adopting Midas). Before
@@ -5369,7 +5352,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
-    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // Ancients ride the PLAYER's fight only (never a snapshot)
+    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // the hero's Ancient mods too (they ride the snapshot this fight is captured into, R-SYMMETRY-01)
     pendingQuests: buildPendingCombatQuests(s),
   });
 }

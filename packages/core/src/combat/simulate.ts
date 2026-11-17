@@ -576,6 +576,7 @@ export function simulate(
       cur.n += 1;
       if (cur.n % sb.improveEvery === 0) { cur.a += sb.step ?? 0; cur.h += sb.step ?? 0; }
     }
+    if (sb.flag) fireTrigger(sb.flag, side); // the replay's live X / count (R-ANCSYS-04)
   });
   // PEP TALK (Duos rune, owner 2026-11-01, R-DUOS-RUNES-04: "When you trigger a Shout, give your teammate's left-most
   // minion +2/+3"; "these types of triggers need to work in combat so if you go second, they have the buff"). The board
@@ -4339,6 +4340,7 @@ export function simulate(
         const heir = band[grantRngFor(minion.side).int(band.length)]!;
         nextStep(); // its own beat, not the death's
         ctx.buff(heir, minion.attack, 0, dga.label);
+        if (dga.flag) fireTrigger(dga.flag, minion.side); // the replay's live "left this turn" (R-ANCSYS-04)
       }
     }
     // MOSSMEMORY COLOSSUS's graveyard: every Beast that dies is recorded in DEATH ORDER, so its Echo can bring

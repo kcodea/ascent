@@ -8,7 +8,7 @@ import {
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, firstShopSpellDiscountText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, shopSpellRallyText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
-  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedKeywords, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, duosTurnCapText, seedEchoNote } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -189,11 +189,12 @@ export const LINKED_TAG = '((Linked))';
 
 export function liveCardText(cardId: string, p: LiveTextParams): { text: string; goldenText: string | undefined } {
   const r = liveCardTextCore(cardId, p);
-  if (!p.keywords?.includes('R')) return r;
-  // Granted Rise leads BOTH variants (owner 2026-09-26). A golden with no goldenText of its own renders `text`.
+  if (!p.keywords?.some((k) => k === 'R' || k === 'CR' || k === 'EG')) return r;
+  // Granted Rise ends BOTH variants (owner 2026-09-26), and so does a granted Critical Strike / Engraved, which have no
+  // mark on the card body (owner 2026-11-16). A golden with no goldenText of its own renders `text`.
   return {
-    text: withGrantedRise(cardId, r.text, p.keywords),
-    goldenText: r.goldenText !== undefined ? withGrantedRise(cardId, r.goldenText, p.keywords) : undefined,
+    text: withGrantedKeywords(cardId, r.text, p.keywords),
+    goldenText: r.goldenText !== undefined ? withGrantedKeywords(cardId, r.goldenText, p.keywords) : undefined,
   };
 }
 

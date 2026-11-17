@@ -3,6 +3,7 @@ import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { grantedTriggersOfSnapshot } from './grantedTriggers';
 import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn, runTallyFor } from '@game/sim';
+import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { LINKED_TAG, liveCardText } from './instView';
@@ -158,11 +159,11 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Shredder's Equipment count. Player-only (an enemy snapshot carries no Equipment): in combat the turn's
         // marks have expired, so this reads the Equipment the player holds going into the next turn.
         unusedEquipment: foe ? 0 : unusedEquipmentCount(run),
-        goldSpent: foe ? 0 : run.goldSpentThisTurn,
+        goldSpent: foe ? 0 : countedGoldSpentThisTurn(run),
         // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
         // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe
         // side (its STATS are still right; they were baked in the shop).
-        goldSpentRun: foe ? 0 : run.goldSpent,
+        goldSpentRun: foe ? 0 : countedGoldSpent(run),
         lastSpellName: foe
           ? (enemyScalers?.lastSpellCastId ? CARD_INDEX[enemyScalers.lastSpellCastId]?.name : undefined)
           : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),

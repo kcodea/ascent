@@ -75,3 +75,17 @@ export function notifyGateNudge(reason: string): void {
     try { fn(reason); } catch { /* a nudge observer must never break dispatch */ }
   }
 }
+
+// THE COURSE OUTRO's End combat (Learn Ancients, 2026-11-16): on a course that ends on a closing card, pressing End
+// combat on its last fight goes straight to that card instead of the curtain back to a Shop the course is leaving.
+// The controller arms this only while such a step is current; `Recruit`'s End combat asks it first. Inert otherwise.
+let endCombatHook: (() => boolean) | null = null;
+
+export function setTutorialEndCombatHook(fn: (() => boolean) | null): void {
+  endCombatHook = fn;
+}
+
+/** True when the tutorial took the End combat press (the caller then does nothing else). */
+export function tutorialTakesEndCombat(): boolean {
+  try { return endCombatHook?.() ?? false; } catch { return false; }
+}

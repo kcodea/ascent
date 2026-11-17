@@ -109,6 +109,7 @@ export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
  */
 export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | AttackHitMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind | ShopActionBindingKind;
 import rawBindings from './bindings.json';
+import { isAncientBuffLabel } from '@game/sim';
 
 /**
  * WHICH authored FX def plays at a moment — the single answer to that question, for the cue runner, the FX
@@ -657,9 +658,20 @@ const HERO_POWER_BUFF_LABELS: Record<string, { heroId: string }> = {
   'Aegis': { heroId: 'warden' },
 };
 
-/** The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null. */
-export function heroPowerBuffLabelFor(source: string): { heroId: string } | null {
-  return HERO_POWER_BUFF_LABELS[source] ?? null;
+const ANCIENT_GRANT: { heroId?: string } = {};
+
+/**
+ * The hero whose power a label-sourced grant belongs to (for the button anchor + power clip), or null.
+ *
+ * EVERY ANCIENT'S GRANT too (owner 2026-11-16, R-FX-ANCIENT-TENDRIL-01: "When ancients buff things like that, they should
+ * have a tendril animation"): an Ancient transforms the hero power, and its combat grants are labelled with the
+ * Ancient's name (`isAncientBuffLabel`, the sim's one tag, the same one the Shop's `fromHeroPower` records ride). Those
+ * resolve here with no `heroId`: the label names the Ancient, not the hero, so the tendril leaves the side's power
+ * button without a hero clip (the Shop twin plays none either). A pairing that prints the power's own name keeps its
+ * row above, clip included.
+ */
+export function heroPowerBuffLabelFor(source: string): { heroId?: string } | null {
+  return HERO_POWER_BUFF_LABELS[source] ?? (isAncientBuffLabel(source) ? ANCIENT_GRANT : null);
 }
 
 /**

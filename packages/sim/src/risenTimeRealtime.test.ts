@@ -86,7 +86,9 @@ describe('R-SOT-BEAT-01 — Time\'s Start-of-Turn grant is its own beat', () => 
       expect([at(s, g.uid).attack, at(s, g.uid).health]).toEqual([b.attack + 3 * n, b.health + 2 * n]);
     }
     // The old path captured it on `recruitBuffFx`, which the Shop replayed at once, under the return curtain.
-    expect(s.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceUid)).toEqual([]);
+    // Its hero-power tendril records (R-FX-ANCIENT-TENDRIL-01) ride the beat, so the Shop's per-action wave skips them.
+    const owned = new Set((s.sotBeatFx ?? []).flatMap((b) => b.buffFx ?? []));
+    expect(s.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceUid && !owned.has(e))).toEqual([]);
   });
 
   it('pays exactly the PREVIOUS combat\'s count (owner: previous combat only), never a running total', () => {

@@ -346,3 +346,32 @@ body.dragging .tut-coach-panel { pointer-events: none; }
 }
 @keyframes tut-nudge-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .tut-nudge { animation: none; } }
+
+/* THE COURSE OUTRO (Learn Ancients, 2026-11-16) — CourseOutro.tsx. The screen fades to the Good Luck intro's dark
+   and its words rise in (the intro's own type, flourishes and static glow). One-shot opacity / transform only; the
+   glow is the intro's static filter, never animated. Above the coach layer so nothing of the board reads through. */
+.tut-outro {
+  position: fixed; inset: 0; z-index: 2100; /* over the menu it cross-fades onto, every page and the dock */
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse 70% 55% at 50% 48%, #120c05, #060402 80%);
+  animation: tut-outro-in 520ms ease-out both;
+}
+.tut-outro-stage {
+  display: flex; flex-direction: column; align-items: center;
+  gap: calc(14 * var(--u, 1px));
+  animation: tut-outro-rise 700ms cubic-bezier(0.2, 0.9, 0.3, 1.05) 240ms both;
+}
+.tut-outro-flour { animation: tut-outro-draw 760ms cubic-bezier(0.22, 1, 0.36, 1) 420ms both; }
+.tut-outro-line {
+  font-family: 'Outfit', sans-serif; font-weight: 800;
+  font-size: calc(30 * var(--u, 1px));
+  letter-spacing: 0.06em;
+  color: #f3e7c4;
+  text-shadow: 0 calc(2 * var(--u, 1px)) 0 rgba(20, 12, 4, 0.9);
+}
+@keyframes tut-outro-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tut-outro-rise { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+@keyframes tut-outro-draw { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .tut-outro-stage, .tut-outro-flour { animation-name: tut-outro-in; }
+}

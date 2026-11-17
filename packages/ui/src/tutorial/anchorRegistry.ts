@@ -41,6 +41,7 @@ const UI_SELECTORS: Record<string, string> = {
   // "no element" — so a step may list it safely on a beat where the modal has not opened yet.
   discover: '.discover-ov',
   hud: '.bar',
+  'ancient-meter': '.statusbar .anc-ring', // the Ancient meter ring (Learn Ancients); `.anc-meter` itself is 0x0
 };
 
 /** Zone → the card-row container a card of that zone lives in. */

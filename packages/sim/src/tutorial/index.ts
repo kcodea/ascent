@@ -8,3 +8,5 @@ export * from './types';
 export * from './lessons';
 export { evalPredicate } from './evalPredicate';
 export * from './learnAscent';
+export * from './learnAncients';
+export { createCourseRun } from './courseRun';

@@ -667,4 +667,28 @@ export const ORDERING_RULES: GameRule[] = [
       + 'Target) and at the source; not seen in game by the author when it was written.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/tauntBeam.test.ts'], lastVerifiedAt: '2026-11-13' },
   },
+  {
+    id: 'R-FX-ANCIENT-TENDRIL-01',
+    title: 'An Ancient that gives a minion stats plays the hero power tendril to it, in the Shop and in combat',
+    statement:
+      "Whenever an Ancient gives one of your minions stats, the buff tendril travels from your hero power button to that "
+      + "minion the moment the stats land: in the Shop, at Start of Turn, at End of Turn and in combat (from the foe's "
+      + "power button for a foe's Ancient). It is one rule for every hero and every Ancient: a grant attributed to an Ancient "
+      + "(its name, or the power name a pairing prints) is the hero power's own grant, so it leaves the button even when a "
+      + "minion set it off. A grant with its own authored effect keeps it (Blade Mastery's effect, for Gorun's Ancients). "
+      + "A grant made inside a spell cast keeps its tendril; the spell's own effect presents the cast's buffs.",
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-16', quote: 'When ancients buff things like that, they should have a tendril animation. Make sure this is wired.' },
+      { kind: 'code', ref: 'feat/ancient-buff-tendrils: packages/sim/src/ancientBuffFx.ts (isAncientBuffLabel); packages/sim/src/recruit.ts (addBuff tags a fromHeroPower record, captureBuffFx leaves that share to it); packages/ui/src/choreo/bindings.ts (heroPowerBuffLabelFor resolves every Ancient name); packages/ui/src/useCombatReplay.ts (fireBuffCasts: a hero power label outranks the cast effect)' },
+    ],
+    currentBehaviour: "PARTIAL from 2026-11-16 (feat/ancient-buff-tendrils). Covered: every Ancient stat grant on a board minion in "
+      + "the Shop, at Start of Turn and at End of Turn (an Ancient entry's own beat), and every combat grant labelled with an "
+      + "Ancient's name or its power name. NOT covered: a grant to a card in hand or to a Shop offer (no tendril route "
+      + "there); keyword grants (Ward, Flurry, Rise, Rally) keep their keyword presentation; an Ancient reaction nested "
+      + "inside another source's End of Turn beat shows that source's ribbon. In combat a grant labelled with an Ancient's "
+      + "name plays the tendril with no hero clip.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilsShop.test.ts', 'packages/ui/src/ancientTendrilsCombat.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

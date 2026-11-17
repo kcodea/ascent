@@ -22,7 +22,7 @@ import {
 import { useGame } from '../store';
 import { subscribeTutorialActions } from './actionBus';
 import { subscribeTutorialPresented } from './presentationBus';
-import { setTutorialGate, subscribeGateNudge } from './gateBus';
+import { setTutorialEndCombatHook, setTutorialGate, subscribeGateNudge } from './gateBus';
 import { measureAnchors, resolveAnchorRect, useAnchorMeasureTick } from './anchorRegistry';
 import { TutorialOverlay, type TutorialOverlayView } from './TutorialOverlay';
 import { FocusCutout } from './FocusMask';
@@ -31,6 +31,8 @@ import {
   completeCourse, getCourseProgress, markLessonDemonstrated, setCourseStep, startCourse,
 } from './tutorialProfile';
 import { TUTORIAL_LESSON_KEYS, type TutorialLessonKey } from '@game/sim';
+import { useAwakenStage } from '../ancients/ancientsFx';
+import { showCourseOutro } from './CourseOutro';
 
 // ─── Flattening: course → an ordered list of coached items ────────────────────────────────────────────────
 
@@ -149,6 +151,9 @@ export function verbsForPredicate(c: TutorialPredicate): string[] {
     // Board-state goals need the verbs that change the board; a spend goal needs the ways to spend.
     case 'cardOnBoard': case 'boardCount': return ['buy', 'play', 'sell']; // a count goal moves either way
     case 'goldSpentToZero': return ['buy', 'roll', 'upgrade', 'freeze'];
+    // ANCIENTS (Learn Ancients): the meter fills on Refresh; the awakening's pick is its own reducer verb.
+    case 'ancientAwakened': return ['roll'];
+    case 'ancientPicked': return ['pickAncient'];
     // A KIND WE DO NOT KNOW must fall OPEN, never shut. `[]` means "block every player verb", so a predicate
     // added to the contract without a branch here would hard-lock its step — the exact failure that shipped
     // with composite predicates. A too-loose gate is a smudge; a too-tight one ends the run.
@@ -210,6 +215,7 @@ export function projectRun(run: RunState): TutorialRunView {
     hand: run.hand.map((c) => ({ uid: c.uid, cardId: c.cardId })),
     board: run.board.map((c) => ({ uid: c.uid, cardId: c.cardId, golden: c.golden })),
     livingSeats: run.lobby?.seats.filter((s) => s.alive).length,
+    ...(run.ancientsEnabled && run.ancients ? { ancientPicked: run.ancients.picked, ancientOffer: run.ancients.offer ?? [] } : {}),
   };
 }
 
@@ -316,6 +322,8 @@ export function TutorialController(): JSX.Element | null {
   }, []);
 
   const current = items[cursor];
+  // The Ancient awakening's stage (Learn Ancients): the coach steps aside while it plays.
+  const awakenStage = useAwakenStage().stage;
   // Re-measure the spotlight while the board settles. Keyed on the step so each activation gets its own
   // bounded settle sweep; also bumps on resize/scroll/transition/animation end. Listed in the view memo's
   // deps below — that is what actually moves the cutout onto a card that was still animating when the step
@@ -337,6 +345,24 @@ export function TutorialController(): JSX.Element | null {
     }
     return () => setTutorialGate(null);
   }, [isTutorial, current]);
+
+  // THE OUTRO'S END COMBAT (Learn Ancients): on a course with a closing card, End combat during its fight goes
+  // straight to the card (owner 2026-11-16: "when the player hits end combat fade to a good luck screen"), rather
+  // than the curtain back to a Shop the course is about to leave. Armed only while a combat step is current.
+  // The card itself lives in an always-mounted host (`CourseOutroHost`): it outlives the run, so it can cross-fade
+  // onto the menu instead of vanishing with the coach.
+  const outro = course?.outro ?? null;
+  const outroCourseId = outro ? course!.id : null;
+  const combatStep = current?.kind === 'step' && current.step.phase === 'combat';
+  useEffect(() => {
+    if (!isTutorial || !outro || !outroCourseId || !combatStep) return;
+    setTutorialEndCombatHook(() => { completeCourse(outroCourseId); showCourseOutro(outro); return true; });
+    return () => setTutorialEndCombatHook(null);
+  }, [isTutorial, outro, outroCourseId, combatStep]);
+  // The walk ran out on a course with a card (a finish the hook did not take): show it the same way.
+  useEffect(() => {
+    if (isTutorial && outro && items.length > 0 && cursor >= items.length) showCourseOutro(outro);
+  }, [isTutorial, outro, items.length, cursor]);
 
   // Flash a nudge when the player bumps a gate; auto-clear.
   useEffect(() => subscribeGateNudge((reason) => setNudge(reason)), []);
@@ -369,8 +395,12 @@ export function TutorialController(): JSX.Element | null {
   // Continue button, which calls `advance` directly. So it's excluded here.
   useEffect(() => {
     if (!isTutorial || !current || current.kind !== 'step') return;
-    if (current.step.completion.kind === 'always') return;
     const ctx: TutorialContext = { run: projectRun(run), events, sawEver: sawEverRef.current, combatEvents: combatEventsRef.current };
+    // A BRANCH step (`onlyIf`) that does not apply to this player's choice is skipped outright (Learn Ancients
+    // follows whichever Ancient was picked). Checked before the `always` early-out, so a skipped read-and-continue
+    // beat never flashes up.
+    if (current.step.onlyIf && !evalPredicate(current.step.onlyIf, ctx)) { setEvents([]); setCursor((c) => c + 1); return; }
+    if (current.step.completion.kind === 'always') return;
     if (evalPredicate(current.step.completion, ctx)) advance(current.step);
   }, [isTutorial, current, events, run, advance]);
 
@@ -396,6 +426,16 @@ export function TutorialController(): JSX.Element | null {
       const t = rectToStage(r);
       return new DOMRect(t.left, t.top, t.width, t.height);
     };
+    // The "3 / 9" count skips BRANCH steps that do not apply to this player's choice (Learn Ancients), so the total
+    // is the steps they will actually see. A course without branches counts every item, as before.
+    let stepNo = cursor + 1;
+    let stepTotal = items.length;
+    if (items.some((it) => it.kind === 'step' && it.step.onlyIf)) {
+      const branchCtx: TutorialContext = { run: projectRun(run), events: [], sawEver: new Set(), combatEvents: [] };
+      const applies = (it: CoachItem): boolean => it.kind !== 'step' || !it.step.onlyIf || evalPredicate(it.step.onlyIf, branchCtx);
+      stepNo = items.slice(0, cursor + 1).filter(applies).length;
+      stepTotal = items.filter(applies).length;
+    }
     const rects = measureAnchors(refs).rects.filter((r): r is DOMRect => r !== null && !coversViewport(r)).map(toStageRect);
     // PULL A BOARD-ROW SPOTLIGHT IN TO THE BOARD (owner 2026-08-24: "nudge these boxes in closer to the sides of
     // the board"). The warband/shop/hand rows are `align-items: stretch` items in a full-width column zone, so
@@ -432,7 +472,7 @@ export function TutorialController(): JSX.Element | null {
         cutouts,
         connector,
         combat: false,
-        panel: { anchorRect: primaryRect, title: current.title, body: current.body, why: current.why, focusMode: 'orient', onNext: () => advance(), nextLabel: 'Continue', step: cursor + 1, total: items.length, nudge: current.panelNudge },
+        panel: { anchorRect: primaryRect, title: current.title, body: current.body, why: current.why, focusMode: 'orient', onNext: () => advance(), nextLabel: 'Continue', step: stepNo, total: stepTotal, nudge: current.panelNudge },
       };
     }
     const step = current.step;
@@ -441,7 +481,11 @@ export function TutorialController(): JSX.Element | null {
     // panel drops to the bottom of the screen so it never covers the fighting minions it's asking you to watch.
     const combatAnimating = step.phase === 'combat' && !run.combatSettled;
     // A Discover / Choose-One picker owns the centre of the screen while it is open.
-    const modalOpen = !!run.discover?.length || !!run.chooseOne;
+    const modalOpen = !!run.discover?.length || !!run.chooseOne || !!run.ancients?.offer?.length;
+    // THE AWAKENING (Learn Ancients) plays in full, uncovered: no coach panel until the three Ancients have
+    // settled on screen, and none while the pick's own slam plays out.
+    // (An open offer with the stage still idle is the beat before the omen starts.)
+    const awakening = (awakenStage !== 'idle' && awakenStage !== 'settled') || (!!run.ancients?.offer?.length && awakenStage === 'idle');
     // A step that ASKED for a spotlight but resolved none — a phase mismatch, or an anchor whose card is not
     // on screen — used to dim the entire board at 0.7 with nothing highlighted, which is indistinguishable
     // from a broken overlay and is exactly the state a stranded step terminates in. Keep the panel, drop the
@@ -478,7 +522,7 @@ export function TutorialController(): JSX.Element | null {
       connector: combatAnimating ? undefined : connector,
       combat: step.phase === 'combat',
       dim: clearScreen ? 0 : undefined,
-      panel: panelDismissed || heldForCombat ? undefined : {
+      panel: panelDismissed || heldForCombat || awakening ? undefined : {
         anchorRect: parkAtBottom ? bottomAnchor : primaryRect, // parked at the bottom during a fight or an open picker
         title: step.title,
         body: step.body,
@@ -488,14 +532,14 @@ export function TutorialController(): JSX.Element | null {
         // Continue that advances; gated steps advance on their action (no button).
         onNext: step.dismissible ? () => setDismissed(true) : (step.completion.kind === 'always' ? () => advance(step) : undefined),
         nextLabel: step.dismissible ? 'Got it' : 'Continue',
-        step: cursor + 1,
-        total: items.length,
+        step: stepNo,
+        total: stepTotal,
         nudge: step.panelNudge,
       },
     };
     // `events`/`inspect` intentionally excluded from deps — re-measuring is driven by run/step/window, not by
     // every recorded event (which would thrash layout reads during combat).
-  }, [isTutorial, current, run, cursor, items.length, advance, dismissed, measureTick]);
+  }, [isTutorial, current, run, cursor, items.length, advance, dismissed, measureTick, awakenStage]);
 
   if (!isTutorial) return null;
   return (

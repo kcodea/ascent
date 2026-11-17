@@ -9,7 +9,8 @@ import './versus/hatSend'; // registers the Magic Hat's send (the copy's face ri
 import { activePowerPayout, passivePowerReady } from './powerArmedUi';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, commissionRewardOf, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { countedGoldSpent } from '@game/sim';
 import { ancientArchiveNeed, passariaHasTarget, gratitudeView } from '@game/sim'; // Quillen × Ancients (Genesis: fills at 2)
 import { ancientContrabandEvery, ancientCoinNeed } from '@game/sim'; // Pete / Juggler × Ancients (the live cadence)
 import { ancientLuckySeatNeed, ancientCommissionSecond } from '@game/sim'; // Ayse × Bonds (needs 2), Cassen × Time (two slots)
@@ -121,7 +122,7 @@ function heroPowerTallyOf(
   const { spent, uses, combatEnemyDeaths, diceLock } = o;
   const withinUses = power.maxUses ? uses < power.maxUses : true;
   const gildSpent = spent && run.indyGildRearmAt != null
-    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (run.goldSpent ?? 0) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
+    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (countedGoldSpent(run)) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
     : 0;
   switch (power.kind) {
     case 'gild': return spent ? `${gildSpent}/${INDY_GILD_RECHARGE_GOLD}g` : null; // Indy — recharging
@@ -714,7 +715,7 @@ export function StatusBar() {
   // The literal 40 that used to sit here (three times) was the pre-2026-08-07 value and never followed the
   // rebalance, so the pill promised a recharge at 40 Gold that the reducer only granted at 75.
   const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
-    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (run.goldSpent ?? 0) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
+    ? Math.max(0, Math.min(INDY_GILD_RECHARGE_GOLD, (countedGoldSpent(run)) - (run.indyGildRearmAt - INDY_GILD_RECHARGE_GOLD)))
     : 0;
   // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
   // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
@@ -1119,7 +1120,7 @@ export function StatusBar() {
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of
           decision, but its options are plain text tiles rather than cards (a commission is not a card). Only
-          the OFFERED commissions appear, so the one taken last is absent. */}
+          the OFFERED commissions appear, so the one started last is absent (never the same one twice in a row). */}
       {pickingCommission && createPortal(
         <div className="discover-ov commission-ov" role="dialog" aria-label="Choose a commission">
           <div className="disc-panel">
@@ -1142,7 +1143,7 @@ export function StatusBar() {
                   <div className="questcard-body">
                     <div className="questcard-sect reward">
                       <div className="questcard-lbl"><Icon name="gift" /> Reward</div>
-                      <div className="questcard-txt">{COMMISSION_REWARD[kind]}</div>
+                      <div className="questcard-txt">{commissionRewardOf(run, kind)}</div>
                     </div>
                   </div>
                   <span className="questcard-gem" aria-hidden />

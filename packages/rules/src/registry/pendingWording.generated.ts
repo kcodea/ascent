@@ -227,17 +227,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 110 vs 2",
+    "title": "Wording: trigger vs fire/proc · 109 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 110 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 109 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 110 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 109 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

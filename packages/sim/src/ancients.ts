@@ -405,8 +405,8 @@
  *                                 into the Hatchery channel by `ancientVinesBonus`). (Time)
  *  · `summonBuffsOthers`          COMBAT: `QuestCombatMods.ancientSummonBuffOthers` at the summon-entry chokepoint: N other
  *                                 random friendly minions gain +a/+h, a combat buff. (Bonds)
- *  CASSEN (Commission, `commission`). The owner's hero change (2026-10-09): the rare Citadel / Fortress jobs are gone;
- *  the offer is always Discover / Gold / Spell. Commissions resolve in the reducer (`payCommission`), which reads
+ *  CASSEN (Commission, `commission`). The owner's rework (2026-11-16): Shed / House / Bridge / Castle (Zeppelin from
+ *  Tier 6), three offered, never the one started last; every payout also gives +1 max Gold. Commissions resolve in the reducer (`payCommission`), which reads
  *  `commissionDelayOf`, `ancientCommissionReps` and `ancientAfterCommission`.
  *  · `avengeAdvanceCommission`    each fire: the running commission lands 1 turn sooner. SHOP: right then, and a
  *                                 commission that is now due pays at once (the reducer's action boundary,
@@ -644,6 +644,7 @@ import { applyShopRefreshed } from './recruit'; // ancient pass 2: Gorr × Time'
 import { endOfTurnRepeats } from './recruit'; // the End-of-Turn readouts fold Chronos' repeats (R-ANCFIX-08)
 import { rollCiaEnchants, rollShop } from './shop'; // ancient pass 2: Gorr × Time's End-of-Turn refresh
 import { poolOf, randomTierCeiling } from './cardPool';
+import { countedGoldSpent, countedGoldSpentThisTurn } from './goldSpent';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -2008,8 +2009,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     war: {
       // "Start of Combat: Your left-most minion gains Rally: give your minions +3 attack per gold spent this turn."
       // Owner 2026-11-16 (Ancient pass 2): +2 Attack per Gold instead of +3.
-      offerText: '**Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold you spent this turn."',
-      powerText: '{base} **Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold you spent this turn." (**{nSpent}** spent: **+{nRally}** Attack.)',
+      offerText: '**Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold spent this turn."',
+      powerText: '{base} **Start of Combat:** your left-most minion gains "**Rally:** give your minions **+2 Attack** for each Gold spent this turn." (**{nSpent}** spent: **+{nRally}** Attack.)',
       effects: [{ do: 'socRallyPerGoldSpent', attack: 2 }],
     },
     genesis: {
@@ -2091,8 +2092,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Your summons gain +1 attack for every gold spent this turn." (cross-phase by default: Shop and combat summons)
-      offerText: 'Minions you summon gain **+1 Attack** for each Gold you spent this turn.',
-      powerText: '{base} Minions you summon gain **+1 Attack** for each Gold you spent this turn (**{rSpent}** spent: **+{rGain}** Attack).',
+      offerText: 'Minions you summon gain **+1 Attack** for each Gold spent this turn.',
+      powerText: '{base} Minions you summon gain **+1 Attack** for each Gold spent this turn (**{rSpent}** spent: **+{rGain}** Attack).',
       effects: [{ do: 'summonGainPerGoldSpent', attack: 1 }],
     },
     war: {
@@ -2123,7 +2124,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
   },
   // CASSEN (owner pairings 2026-10-09, quoted above each entry). Commission = "Choose a commission. It pays out in a few
-  // turns." (the offer is always Discover / Gold / Spell since the owner's 2026-10-09 hero change).
+  // turns." (Shed / House / Bridge / Castle, Zeppelin from Tier 6, since the owner's 2026-11-16 rework).
   cassen: {
     death: {
       // "Avenge (7): advance your commission 1 turn." (no commission running: nothing)
@@ -2160,7 +2161,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     bonds: {
       // "Commission pays out twice."
       offerText: 'Commissions pay out **twice**.',
-      powerText: '{base} It pays out **twice**.',
+      // The Commission text already folds the double payout into its numbers (the live-value rule), so this says so.
+      powerText: '{base} It pays out **twice** (the numbers above count both).',
       effects: [{ do: 'commissionPaysTwice' }],
     },
   },
@@ -3808,7 +3810,7 @@ export function ancientPowerText(state: RunState, base: string, combat: AncientP
   text = text.replace('{nDeathLeft}', String(ancientNadjaAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
     .replace('{nDeathGold}', String(nadjaDeathGoldLive(state, combat.friendlyDeaths ?? 0)))
     .replace('{nUsesLeft}', String(Math.max(0, (a?.powerOverride?.usesPerTurn ?? 1) - (state.heroUsesThisTurn ?? 0))))
-    .replace('{nSpent}', String(Math.max(0, state.goldSpentThisTurn ?? 0))).replace('{nRally}', String(ancientNadjaRallyAttack(state)));
+    .replace('{nSpent}', String(countedGoldSpentThisTurn(state))).replace('{nRally}', String(ancientNadjaRallyAttack(state)));
   // BRACKUS: Death's countdown (live through a fight), Fortune's Gold to go, War's copy source, Genesis' lock + Gild
   // state, Time's countdown, Bonds' total so far.
   text = text.replace('{smDeathLeft}', String(ancientBrackusAvengeLeft(state, combat.friendlyDeaths ?? 0) ?? 0))
@@ -3965,7 +3967,9 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (war) out.ancientWar = { attack: war.attack, health: war.health, label: ANCIENTS.war.name };
   if (effectOf(state, 'socGildRightmost')) out.ancientTimeGild = { label: ANCIENTS.time.name };
   const bonds = effectOf(state, 'wardedGainBuffsWarded');
-  if (bonds) out.ancientBonds = { attack: bonds.attack, label: ANCIENTS.bonds.name };
+  // Labelled with the POWER's name so the combat replay draws its tendril from Warden's hero-power button
+  // (`heroPowerBuffLabelFor('Aegis')`), the same route as Warden × Time.
+  if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
@@ -4149,7 +4153,10 @@ export function ancientBondsReact(state: RunState, before: Map<string, { attack:
     const rng = makeRng(state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
+    // The grant is the HERO POWER's (Warden × Bonds): its tendril leaves the hero-power button (the Hunch shape).
+    const from = state.recruitBuffFx.length;
     captureBuffFx(state, g, 'minion', () => addBuff(pick, ANCIENTS.bonds.name, e.attack, 0));
+    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
     touched.push(g.uid, pick.uid);
   }
   if (mark) a.bondsHandled = [...handled, ...touched];
@@ -4350,6 +4357,7 @@ export function ancientStartOfTurn(state: RunState): void {
   // buff-FX channel, whose replay fired under the return-to-shop curtain where nobody saw it. Gains are the real
   // per-minion deltas (a buff multiplier or mirror can change them), measured around the grant.
   const before = new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+  const fxFrom = state.recruitBuffFx.length; // the hero-power records the tag pushes ride THIS beat (R-FX-ANCIENT-TENDRIL-01)
   for (const c of state.board) addBuff(c, ANCIENTS.time.name, e.attack * n, e.health * n);
   const gains: SotBeatFx['gains'] = [];
   for (const c of state.board) {
@@ -4359,7 +4367,8 @@ export function ancientStartOfTurn(state: RunState): void {
     if (da > 0 || dh > 0) gains.push({ uid: c.uid, attack: da, health: dh });
   }
   if (gains.length === 0) return;
-  pushSotBeat(state, { source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains });
+  const buffFx = state.recruitBuffFx.slice(fxFrom);
+  pushSotBeat(state, { source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains, ...(buffFx.length ? { buffFx } : {}) });
 }
 
 /** BONDS, Shop half: a friendly minion Rose in the Shop (a shop destroy's Rise return). Trigger the Echo of a
@@ -5014,7 +5023,7 @@ export function robinSpoilsThisTurn(state: Pick<RunState, 'ancientsEnabled' | 'a
 export function ancientOnShopSummon(state: RunState, minion: BoardCard): void {
   // RAYSE × FORTUNE: +attack per Gold spent this turn, permanently (a Shop summon).
   const rf = live(state) ? effectOf(state, 'summonGainPerGoldSpent') : undefined;
-  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  const spent = countedGoldSpentThisTurn(state); // counted Gold (Big Spender)
   if (rf && spent > 0 && state.board.includes(minion)) captureBuffFx(state, undefined, 'spell', () => addBuff(minion, ANCIENTS.fortune.name, rf.attack * spent, 0));
 }
 
@@ -5734,7 +5743,7 @@ export function ancientNadjaShopDeath(state: RunState): void {
  *  picked or nothing was spent). In combat this is the Shop turn that just ended (the per-turn reset runs after it). */
 export function ancientNadjaRallyAttack(state: RunState): number {
   const e = live(state) ? effectOf(state, 'socRallyPerGoldSpent') : undefined;
-  return e ? e.attack * Math.max(0, state.goldSpentThisTurn ?? 0) : 0;
+  return e ? e.attack * countedGoldSpentThisTurn(state) : 0;
 }
 
 /** NADJA × GENESIS: Goldspring fired `reps` times (the reducer's `gainMaxMana` branch, after the max Gold). Each fire also
@@ -5790,7 +5799,7 @@ function brackusOnPick(state: RunState, a: AncientsState): void {
   const gen = effectOf(state, 'summitGildTier7');
   if (gen) {
     const card = summitCard(state);
-    const spent = state.goldSpent ?? 0;
+    const spent = countedGoldSpent(state); // counted Gold (Big Spender)
     if (card) { a.brackusSummitUid = card.uid; a.brackusSummitCardId = card.cardId; }
     if (card && state.hand.includes(card) && spent < card.lockedUntilGoldSpent!) {
       card.lockedUntilGoldSpent = card.lockedUntilGoldSpent! + gen.addLock;
@@ -5872,7 +5881,7 @@ export function ancientOnGoldSpent(state: RunState, amount: number): void {
     while (n >= every) { n -= every; queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7 }); }
     a.brackusGold = n;
   }
-  if (a.brackusGildAt !== undefined && effectOf(state, 'summitGildTier7') && (state.goldSpent ?? 0) >= a.brackusGildAt) {
+  if (a.brackusGildAt !== undefined && effectOf(state, 'summitGildTier7') && countedGoldSpent(state) >= a.brackusGildAt) {
     a.brackusGildAt = undefined;
     a.brackusGilded = true;
     brackusGild(state, a);
@@ -5899,9 +5908,9 @@ function brackusGenesisText(state: RunState): string {
   const a = live(state);
   if (a?.brackusGilded) return 'Your Tier 7 is **Gilded**.';
   if (a?.brackusGildAt === undefined) return '';
-  const left = Math.max(0, a.brackusGildAt - (state.goldSpent ?? 0));
+  const left = Math.max(0, a.brackusGildAt - countedGoldSpent(state));
   const summit = summitCard(state);
-  const pending = !!summit && summit.uid === a.brackusSummitUid && (state.goldSpent ?? 0) < (summit.lockedUntilGoldSpent ?? 0);
+  const pending = !!summit && summit.uid === a.brackusSummitUid && countedGoldSpent(state) < (summit.lockedUntilGoldSpent ?? 0);
   return pending
     ? `When it unlocks, it becomes **Gilded** (**${left}** Gold to go).`
     : `Your Tier 7 becomes **Gilded** after you spend **${left}** more Gold.`;
@@ -6294,7 +6303,7 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const rd = effectOf(state, 'avengeSummonSprout');
   if (rd) out.ancientSproutAvenge = { every: rd.every, tick: a.rayseDeaths ?? 0, cardId: RAYSE_SPROUT_ID, size: Math.max(1, a.rayseSproutSize ?? 1), flag: ANCIENT_SPROUT_FLAG, label: ANCIENTS.death.name };
   const rf = effectOf(state, 'summonGainPerGoldSpent');
-  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  const spent = countedGoldSpentThisTurn(state); // counted Gold (Big Spender)
   if (rf && spent > 0) out.ancientSummonGain = { attack: rf.attack * spent, health: 0, label: ANCIENTS.fortune.name };
   const rw = effectOf(state, 'firstSummonsAttack');
   if (rw) out.ancientSummonsAttack = { count: rw.count, label: ANCIENTS.war.name };
@@ -6408,7 +6417,7 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
   const deaths = combat.friendlyDeaths ?? 0;
   const fires = heroAvengeLiveFires(state, deaths);
   const left = String(ancientHeroAvengeLeft(state, deaths) ?? 0);
-  const spent = Math.max(0, state.goldSpentThisTurn ?? 0);
+  const spent = countedGoldSpentThisTurn(state); // counted Gold (Big Spender)
   const rf = effectOf(state, 'summonGainPerGoldSpent');
   const shouts = Math.max(0, state.shoutFiresThisTurn ?? 0);
   const dg = effectOf(state, 'drumlineRepeats');
@@ -6438,8 +6447,8 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
     .replace('{gmGilds}', String(gilds)).replace('{gmReps}', String(1 + gilds)).replace('{gmTimes}', 1 + gilds === 1 ? 'time' : 'times');
   // CASSEN × DEATH: the commission's printed due turn moves with each Avenge the fight on screen has made, live.
   if (effectOf(state, 'avengeAdvanceCommission') && fires > 0 && state.commission) {
-    const due = Math.max(state.wave + 1, state.commission.dueWave - fires);
-    out = out.replace('{base}', base.replace(/\(due turn \d+\)/, `(due turn ${due})`));
+    const turnsLeft = Math.max(state.wave + 1, state.commission.dueWave - fires) - state.wave;
+    out = out.replace('{base}', base.replace(/pays out (?:next turn|in \d+ turns)/, `pays out ${turnsLeft === 1 ? 'next turn' : `in ${turnsLeft} turns`}`));
   }
   return out;
 }

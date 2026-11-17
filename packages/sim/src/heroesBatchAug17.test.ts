@@ -141,7 +141,7 @@ describe('Flash — First or Last', () => {
   });
 });
 
-describe("Cassen's commissions (the rare jobs were removed, owner 2026-10-09)", () => {
+describe("Cassen's commissions (owner rework 2026-11-16)", () => {
   const at = (over: object): RunState => ({ ...createRun(3), phase: 'recruit', heroId: 'cassen', ...over }) as RunState;
 
   it('the offer is DERIVED, so the panel and the reducer always agree', () => {
@@ -149,9 +149,13 @@ describe("Cassen's commissions (the rare jobs were removed, owner 2026-10-09)", 
     expect(commissionOffer(s)).toEqual(commissionOffer({ ...s } as RunState));
   });
 
-  it('always offers exactly Discover / Gold / Spell, never a rare job ("he just has the 3 options")', () => {
+  it('always offers three; the Castle slot is the Zeppelin from Tier 6', () => {
     for (let wave = 1; wave <= 40; wave++) {
-      for (const tier of [1, 4, 6]) expect(commissionOffer(at({ wave, tier })), `wave ${wave}`).toEqual(['discover', 'gold', 'spell']);
+      for (const tier of [1, 4, 6]) {
+        const o = commissionOffer(at({ wave, tier }));
+        expect(o.length, `wave ${wave}`).toBe(3);
+        expect(o).not.toContain(tier >= 6 ? 'citadel' : 'fortress');
+      }
     }
   });
 });

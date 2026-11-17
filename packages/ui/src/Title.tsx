@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
-import { LEARN_ASCENT } from '@game/sim';
-import { avatarSrc, modeArt } from './art';
+import { LEARN_ANCIENTS, LEARN_ASCENT } from '@game/sim';
+import { ancientArt, avatarSrc, modeArt } from './art';
 import { FadeImg } from './FadeImg';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
@@ -20,6 +20,8 @@ import { IconHelm, MenuMedal } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
+import { AncientsPrompt, shouldShowAncientsPrompt } from './tutorial/AncientsPrompt';
+import { ancientsLiveForPrompt } from './tutorial/ancientsLive';
 import { RankCrest } from './rank/RankBar';
 import { useCurrentRank } from './rank/rankSource';
 import { rankLabel } from './rank/rankFormat';
@@ -241,6 +243,24 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // how far the screen got (R-TOUCH-GPU-MEMORY-01).
   useEffect(() => (showTitle ? crumbTrail(titleView === 'menu' ? 'title' : `title view ${titleView}`) : undefined), [showTitle, titleView]);
 
+  // THE ANCIENTS PROMPT (owner ask 2026-11-16): once the release switch is on, the first arrival on the main menu
+  // offers the short Ancients tutorial. Decided once per arrival, never over another dialog (AncientsPrompt.tsx).
+  const [ancientsPrompt, setAncientsPrompt] = useState(false);
+  const avatarPickerOpen = useGame((s) => s.avatarPickerOpen);
+  const promptUserId = account.anonymous ? null : account.userId;
+  useEffect(() => {
+    if (ancientsPrompt) return;
+    const learn = getCourseProgress(LEARN_ASCENT.id)?.status;
+    if (shouldShowAncientsPrompt({
+      live: ancientsLiveForPrompt(),
+      userId: promptUserId,
+      onMainMenu: showTitle && titleView === 'menu' && !pageOpen && !gameMenuOpen,
+      newPlayer: !learn || learn === 'not_started',
+      otherDialog: tutorialPrompt || !!rankedConfirm || portraitGate || editing || avatarPickerOpen || practiceOpen,
+      hasSavedRun: !!savedRun,
+    })) setAncientsPrompt(true);
+  }, [ancientsPrompt, promptUserId, showTitle, titleView, pageOpen, gameMenuOpen, tutorialPrompt, rankedConfirm, portraitGate, editing, avatarPickerOpen, practiceOpen, savedRun]);
+
   // Practice's setup closes the title flag (`startPractice`: showTitle false), but it is a view of the mode screen, so
   // the title stays mounted under it: the sidebar and backdrop stay put and only the content shifts (R-MENU-VIEW-SWAP-01).
   if (!showTitle && !practiceOpen) return null;
@@ -430,6 +450,17 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                   : <span className="mcemblem"><IconHelm /></span>}
                 <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
+              </div>
+            </button>
+
+            {/* LEARN ANCIENTS (owner ask 2026-11-16): the two minute Ancients lesson. Always here, switch on or off. */}
+            <button className="modecard" onClick={() => { rememberMode('learn'); sfx.pulse(); startTutorial(LEARN_ANCIENTS); }}>
+              <div className="mcframe" data-mode="learn">
+                <div className="mcname hudpill-name">Ancients</div>
+                {ancientArt('bonds')
+                  ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={ancientArt('bonds')!} alt="" draggable={false} /></div>
+                  : <span className="mcemblem"><Icon name="star" /></span>}
+                <div className="mcdesc">Awaken an Ancient mid game and use it. About 2 minutes.</div>
               </div>
             </button>
 
@@ -662,6 +693,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a
           skip so it never asks again. */}
+      {ancientsPrompt && !tutorialPrompt && !rankedConfirm && (
+        <AncientsPrompt userId={promptUserId}
+          onTry={() => { setAncientsPrompt(false); startTutorial(LEARN_ANCIENTS); }}
+          onLater={() => setAncientsPrompt(false)} />
+      )}
       {tutorialPrompt && partyView && PhTutorialPrompt && (
         <Suspense fallback={null}>
           <PhTutorialPrompt onClose={() => setTutorialPrompt(false)}

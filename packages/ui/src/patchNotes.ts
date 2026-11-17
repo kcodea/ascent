@@ -59,6 +59,42 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-16',
     changes: [
       {
+        category: 'Balance',
+        text: 'Big Spender now works with everything that counts Gold spent. Each Gold you spend counts twice.',
+        details: [
+          'Big Spender: "Each Gold you spend counts twice for everything that counts Gold spent." Two copies count it three times.',
+          'This now includes cards that count Gold spent this turn: Rope Wrangler, Baby Gastrid, Patch Job and the Rune of Spending.',
+          "It also counts for Ancient Wanderer, Indy's recharge, Summit's lock, the Ancient pairings and the Spend Gold quests.",
+          'Card texts show the counted number. The Gold you actually pay is unchanged.',
+          'Wording: Baby Gastrid, Dragon Hoard, Gold for Grub, Bulk Order and two Ancient pairings now word Gold spent the same way.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Cassen reworked: four new commissions, and every finished commission gives +1 max Gold.',
+        details: [
+          'Shed: Discover a Shop spell. Takes 1 turn.',
+          'House: gain 4 Gold. Takes 2 turns.',
+          'Bridge: Discover a minion from your Shop Tier. Takes 3 turns.',
+          'Castle: upgrading your Shop costs 3 less. Takes 3 turns.',
+          'At Shop Tier 6 the Castle becomes the Zeppelin: Discover a Tier 7 minion. Takes 2 turns.',
+          'You are still offered 3 each turn, but never the same commission twice in a row.',
+          'Every commission that finishes also gives you +1 max Gold, for the rest of the game.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Ancients test mode: when an Ancient gives your minions stats, a buff trail now flies from your hero power to each one.',
+        details: [
+          'This happens in the Shop, at Start of Turn, at End of Turn and in combat, the moment the stats land.',
+          'Gorun keeps his own Blade Mastery effect.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
+      },
+      {
         category: 'Systems',
         text: 'Ancients test mode: fixes to several Ancient powers so each one does what its text says.',
         details: [
@@ -79,6 +115,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Their portrait shows how many cards are waiting. Yours says their hand is full and the card waits for room.',
           'Waiting cards join their hand in the order they were passed.',
           'A pass can still come back for other reasons, like the round limit or an away teammate. Then anything the pass gave you is taken back too.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Learn has a new lesson: Ancients. A two minute game that shows you how an Ancient awakens and how to use it.',
+        details: [
+          'You start mid game as Warden with a board of Dragons and the Ancient meter almost full.',
+          'Refresh twice to awaken it, pick an Ancient, use it, then win the fight.',
+          'When Ancients go live, you will be offered the lesson once on the main menu. It stays in Learn after that.',
         ],
       },
       {

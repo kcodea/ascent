@@ -151,3 +151,6 @@
 /* The tiles are only faded by the ceremony's exits (WAAPI), so they would still take clicks: they take none. */
 .heroselect.hss.hsc-active .hss-tiles { pointer-events: none; }
 .heroselect.hss.hss-snap .hss-card { animation: none; }
+/* The panel does not shrink and spring back on a new selection (owner 2026-11-17: "can we remove this motion?"): the
+   Compendium's pop-in (`phi-in`) is off here. The contents still rise in. */
+.heroselect.hss .hss-card { animation: none; }

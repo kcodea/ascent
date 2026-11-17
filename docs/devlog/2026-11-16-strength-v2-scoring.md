@@ -97,6 +97,13 @@ Decided by Mike after the review (2026-11-16, "Yes, finish scoring") and built:
   Career row and rank are already out), and the leftover work stays in rushed slices until the next game's first
   board is captured, when it drops back to idle time.
 
+Fixed the next day (2026-11-17), found while building the peak cap:
+
+- **Recorded Duos teams were shut out of Bronze, Silver and Gold Duos tables.** "Unscored runs are outside every
+  band" was applied to Ranked Duos' recorded duo teams as well, and those are never scored, so every such table
+  would have filled with solo pairs and generated seats. The design leaves duo teams on the old rule (unscored =
+  inside). `duoRunInStrengthBand` restores it; solo runs at a Duos table still follow the new rule.
+
 Not fixed, for the owners to weigh:
 
 - A game restored from a save and ended before its next captured round queues all its boards at run end.

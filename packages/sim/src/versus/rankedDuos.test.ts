@@ -148,6 +148,21 @@ describe('the table seating (owner 2026-10-26, R-RANKED-DUOS-SEATING-01)', () =>
     expect(t.usedStep).toBeGreaterThan(0);
   });
 
+  it('a recorded duo TEAM is never scored and stays inside every band; an unscored SOLO run does not (strength v2)', () => {
+    // Design 2026-11-16, non-goals: "Ranked Duos' recorded duo TEAMS (duo_runs, never scored today) are out of scope:
+    // they keep today's rule, unscored and inside every band ... Solo runs that fill Ranked Duos seats ... follow
+    // every rule here."
+    const t = selectRankedDuosTable({ ...base, band: STRENGTH_BANDS.Bronze!,
+      duoRuns: [duo('d1', ['u1', 'h3'], ['u2', 'h4'])],
+      soloRuns: [solo('unscored', 'u3', 'h5'), solo('s2', 'u4', 'h6', 10), solo('s3', 'u5', 'h7', 12)] });
+    expect(t.teams[0]).toMatchObject({ kind: 'duo', duoRunId: 'd1' });
+    expect(t.usedStep).toBe(0);
+    expect(t.teams.flatMap((x) => x.members.map((m) => m.key))).not.toContain('unscored');
+    // A duo team that DOES carry a strength still obeys the band's overall cap.
+    const capped = selectRankedDuosTable({ ...base, band: STRENGTH_BANDS.Bronze!, duoRuns: [duo('d2', ['u1', 'h3'], ['u2', 'h4'], 90)], soloRuns: [] });
+    expect(capped.teams.some((x) => x.duoRunId === 'd2')).toBe(false);
+  });
+
   it('too few runs: generated seats fill the table (a half pair gets a generated partner); any generated member = unrated', () => {
     const half = selectRankedDuosTable({ ...base, duoRuns: [], soloRuns: [solo('s1', 'u1', 'h3')] });
     expect(half.teams).toHaveLength(3);

@@ -184,6 +184,20 @@ export function runInStrengthBand(run: RunStrengths, band: StrengthBand | null):
   return s >= band.min * 100 && s <= band.max * 100;
 }
 
+/**
+ * Is a RANKED DUOS recorded duo TEAM inside the band? Duo teams (`duo_runs`) are never scored and are out of scope of
+ * strength v2 (design 2026-11-16, non-goals: "they keep today's rule, unscored and inside every band, and get no
+ * peak"), so this is `runInStrengthBand` as it was before v2: an unscored team is INSIDE every band, and a team that
+ * does carry a strength obeys the overall cap and min..max. Solo runs seated in a Duos table use `runInStrengthBand`.
+ */
+export function duoRunInStrengthBand(run: RunStrengths, band: StrengthBand | null): boolean {
+  if (!band) return true;
+  if (!runUnderOverallCap(run, band)) return false;
+  const s = matchScore100(run, band.earlyWeight);
+  if (s === null) return true;
+  return s >= band.min * 100 && s <= band.max * 100;
+}
+
 const hasOverallCap = (b: StrengthBand | null | undefined): boolean => typeof b?.overallCap === 'number';
 const scoreBandOpen = (b: StrengthBand): boolean => b.min <= 0 && b.max >= 100;
 

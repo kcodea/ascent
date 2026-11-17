@@ -121,16 +121,21 @@ to "Party home". A production build always reads it as off. The showcase body re
 
 Extract the `article.phi` part of `PhHeroPop` into an exported component (suggested `HeroInspectCard`, its own
 file) taking the hero, the portrait art to show, and optional slots. `PhHeroPop` keeps its overlay, arrows,
-keyboard handling, layer handling, counter and Ancients row, and renders the shared card inside. The
+keyboard handling, layer handling and counter, and renders the shared card inside. The
 Compendium must look and behave exactly as before (`compendiumHeroAncients.test.tsx` stays green).
 
 On the pick screen the card:
 
 - shows the hero's **equipped skin** art (`heroPortrait(id, loadout)`), like today's cards;
 - shows name, Health, Armor, the power medallion, power name, the `heroPowerFacts` chips and power text;
-- **does not show the Ancients row or the "Up / Down: Ancients" hint** (Claude's call: Ancients are a
-  test-mode feature gated per run, and the run does not exist yet, so the row would promise something most
-  runs do not have; easy to add later);
+- **shows the Ancients row, exactly as the Compendium card does** (owner 2026-11-16: "i want the ancients
+  row. its extremely important. it will be live tomorrow"): `HeroAncients big` with the six Ancients, the
+  picked one's name and pairing text for this hero, seeded from `lastPickedAncient()` and remembered with
+  `rememberAncient`, so the Ancient on show stays put as the selection moves between heroes. Clicking a
+  medallion shows that Ancient; Up / Down arrow keys step them (scoped to the showcase body, like Left /
+  Right); the "Up / Down: Ancients" hint shows, without the hero counter. It is a preview only: it does not
+  choose an Ancient for the run. The row lives in the shared card, so the Compendium and the pick screen
+  render the same thing. The ceremony's dismiss beat fades it out with the rest of the info column;
 - shows the hero's **difficulty** as one more fact chip, only when the offered heroes differ in difficulty
   (the rule today's party-home look uses) (Claude's call);
 - has prev / next arrows at its sides that step the selection through the offer, wrapping; Left / Right arrow
@@ -238,7 +243,7 @@ clone component) is the builder's choice, provided the old path stays byte-for-b
 - The existing suites stay green untouched: `heroSelectPh.test.tsx`, `heroPickClean.test.ts`,
   `heroReroll.test.tsx`, `versus/spectateHeroSelect.test.tsx`, `gauntlet/heroSelectGauntlet.test.tsx`,
   `tapInspect.test.ts`, `touchInput.test.ts`, `compendiumHeroAncients.test.tsx`, the ceremony unit tests.
-- New tests for the showcase body: first hero selected on open; clicking a tile selects and does not start
+- New tests for the showcase body: the Ancients row shows and Up / Down steps it; first hero selected on open; clicking a tile selects and does not start
   the ceremony; Select Hero starts it for the selected hero; arrows wrap; one re-roll then the controls are
   gone, and the selected slot stays selected; teammate's hero cannot be picked; watch mode has no Select Hero
   and follows the watched pick; Practice / Gauntlet still render today's grid with the switch on; switch off

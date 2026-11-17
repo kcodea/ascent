@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-17',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Slaughter boosts now work when the killer dies in the same hit.',
+        details: [
+          'A minion that kills and dies at the same time already triggered its own Slaughter. Now everything that adds to that Slaughter triggers too.',
+          'This covers Law of Teeth, War Council, Blood Trail, Feeding Line and Bloodscent.',
+          'Bloodscent gives its +4/+4 to the Beast that died, so it keeps the stats for the next fight.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-16',
     changes: [
       {

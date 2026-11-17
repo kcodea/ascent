@@ -189,7 +189,9 @@ on what wiped means: "exclude them".
   Worker draw.
 - `bandVersionLabel` adds `/pN`, so the regime stamp names it.
 - Practice's Opponent Rank inherits it automatically (it reads the medal's own band entry).
-- **The three numbers are Mike's to set, after v2 is measured.** The mechanism ships with no `peakCap` on any
+- **The numbers (Mike 2026-11-16, after the v2 measurement: "90 for all"): Bronze 90, Silver 90, Gold 90.** They
+  go in with the mechanism, in the same PR.
+- As first written: the three numbers are Mike's to set, after v2 is measured. The mechanism ships with no `peakCap` on any
   medal; `measure` prints, per medal, how many runs each candidate cap (60, 70, 80, 90, 95) removes and whether
   the band can still seat 7 under the per-player cap. On the v1 scale and the live window today: a Bronze cap of 80
   removes 35% of the 43 Bronze runs, 90 removes 9%.
@@ -270,6 +272,8 @@ one player contributes to the ranking population**:
 
 1. Unscored runs are kept out of Bronze, Silver and Gold lobbies.
 2. The three peak caps are set by Mike after the v2 measurement; the mechanism ships with none.
+   **Set 2026-11-16, after the measurement: "90 for all"**: Bronze, Silver and Gold each get `peakCap: 90`. On the
+   live window under v2 that removes 1 of 39 Bronze runs, 3 of 54 Silver and 23 of 106 Gold.
 3. Bundle D is dropped; only the 10-of-40 limit on reference boards per player is built.
 
 The questions as they were put:

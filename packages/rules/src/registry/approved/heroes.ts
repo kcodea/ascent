@@ -4836,4 +4836,24 @@ export const HEROES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-11-16. Dev-only (R-ANCDUOS-01). Before, a refresh earned while unused was dropped.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsCindy.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-ANCIENTS-UNPAIRED-ARCHIVED-01',
+    title: 'While the Ancients switch is on, a hero with no Ancient pairings is archived: offered nowhere, until its pairings are written',
+    statement:
+      'With `ANCIENTS_LIVE` on, `isArchivedHero` reads true for any hero without all six pairings in `ANCIENT_PAIRINGS` '
+      + '(`heroArchivedByAncients`, installed into heroes.ts by ancientsRelease.ts). It then follows R-HERO-01 exactly: never '
+      + 'offered at hero select in any mode (Play / Ranked, Practice, Gauntlet, Versus 1v1 / Group / Duos / Ranked Duos), never '
+      + 'a generated or bot seat, never a synthesized pool board, never a Mimic / Void / Power Shifter Discover, hidden from the '
+      + 'Compendium; the Scene Builder lists it as archived and can still start a run on it. Recorded seats of it are still '
+      + 'served and every stored reference resolves. No hand list: writing all six pairings makes it offerable again. With the '
+      + 'switch off nothing changes.',
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (unpaired heroes while Ancients are live)', quote: 'when ancients go live, any hero that does not have ancients CANNOT be offered' },
+      { kind: 'code', ref: 'packages/sim/src/ancientsRelease.ts heroArchivedByAncients / withAncientsLive; packages/sim/src/heroes.ts setHeroReleaseArchiveGate / isArchivedHero; packages/sim/src/synthesize.ts synthHeroes; packages/ui/src/MinionBook.tsx heroesToShow' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17, dormant while the switch ships off. Unpaired today: Runesmith and Guardian (runeguard).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsUnpairedArchive.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

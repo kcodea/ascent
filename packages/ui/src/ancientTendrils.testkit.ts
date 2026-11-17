@@ -16,10 +16,11 @@ import { vi } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatEvent, ConsequenceEvent } from '@game/core';
 import {
-  ANCIENT_IDS, ancientBuffLabels, ancientCombatMods, createRun, enableAncients, prepareActionWithPresentation, reduce,
+  ANCIENT_IDS, ancientBuffLabels, ancientCombatMods, ancientGrantOriginOf, createRun, enableAncients, prepareActionWithPresentation, reduce,
   type Action, type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from '@game/sim';
 import { heroPowerBuffLabelFor, labelBuffFxFor } from './choreo/bindings';
+import { buffOriginOf } from './choreo/channels/buffCast';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import type { CompiledBeat } from './choreographer/timelineTypes';
 
@@ -51,34 +52,49 @@ const ledger = (c: BoardCard | undefined): { a: number; h: number } => {
   return out;
 };
 
-export interface ShopVerdict { grants: string[]; tendril: string[]; missing: string[] }
+/** `tendril` = grants presented from the pairing's own origin (`ANCIENT_GRANT_ORIGIN`, R-FX-ANCIENT-ORIGIN-01: the
+ *  hero-power button by default); `missing` = the rest. `origins` = `uid:origin[:sourceUid]` per grant, as presented. */
+export interface ShopVerdict { grants: string[]; tendril: string[]; missing: string[]; origins: string[] }
 
-/** One Shop action: the Ancient grants it made to board minions and whether each streams from the power button. */
+/** How the Shop presents one board minion's Ancient grant this action: `hero` (a `fromHeroPower` record, or a hero
+ *  Start-of-Turn beat), `trigger` (a record streaming from ANOTHER minion: the capture's source), `self` (no record at
+ *  all: `Recruit.tsx`'s stat-diff plays the self-buff burst on it), or `other` (a sourceless record). */
+function shopOrigin(next: RunState, uid: string): string {
+  if (next.recruitBuffFx.some((r) => r.fromHeroPower && r.targetUid === uid)
+    || (next.sotBeatFx ?? []).some((b) => b.source.kind === 'hero' && b.gains.some((g) => g.uid === uid))) return 'hero';
+  const rec = next.recruitBuffFx.find((r) => r.targetUid === uid && r.sourceUid && r.sourceUid !== uid);
+  if (rec) return `trigger:${rec.sourceUid}`;
+  return next.recruitBuffFx.some((r) => r.targetUid === uid) ? 'other' : 'self';
+}
+
+/** One Shop action: the Ancient grants it made to board minions and whether each streams from the pairing's origin. */
 export function shopStep(prev: RunState, action: Action): { next: RunState; verdict: ShopVerdict } {
+  const expected = ancientGrantOriginOf(prev);
   const before = new Map([...prev.board, ...prev.hand].map((c) => [c.uid, ledger(c)]));
   const next = reduce(prev, action);
-  const verdict: ShopVerdict = { grants: [], tendril: [], missing: [] };
+  const verdict: ShopVerdict = { grants: [], tendril: [], missing: [], origins: [] };
   for (const c of next.board) {
     const was = before.get(c.uid) ?? { a: 0, h: 0 };
     const now = ledger(c);
     if (now.a <= was.a && now.h <= was.h) continue;
     verdict.grants.push(c.uid);
-    const hp = next.recruitBuffFx.some((r) => r.fromHeroPower && r.targetUid === c.uid)
-      || (next.sotBeatFx ?? []).some((b) => b.source.kind === 'hero' && b.gains.some((g) => g.uid === c.uid));
-    (hp ? verdict.tendril : verdict.missing).push(c.uid);
+    const origin = shopOrigin(next, c.uid);
+    verdict.origins.push(`${c.uid}:${origin}`);
+    (origin.split(':')[0] === expected ? verdict.tendril : verdict.missing).push(c.uid);
   }
   return { next, verdict };
 }
 
 /** Run several Shop actions; the verdicts merged (a uid per grant per action). */
 export function shopRun(s: RunState, actions: readonly (Action | ((s: RunState) => Action))[]): { s: RunState; verdict: ShopVerdict } {
-  const verdict: ShopVerdict = { grants: [], tendril: [], missing: [] };
+  const verdict: ShopVerdict = { grants: [], tendril: [], missing: [], origins: [] };
   for (const a of actions) {
     const r = shopStep(s, typeof a === 'function' ? a(s) : a);
     s = r.next;
     verdict.grants.push(...r.verdict.grants);
     verdict.tendril.push(...r.verdict.tendril);
     verdict.missing.push(...r.verdict.missing);
+    verdict.origins.push(...r.verdict.origins);
   }
   return { s, verdict };
 }
@@ -110,7 +126,9 @@ export function endOfTurnVerdict(state: RunState): { heroGains: number; tendril:
   return { heroGains, tendril: ctx.heroPowerGain.mock.calls.length, minionRibbons: ctx.statGain.mock.calls.filter((c) => c[4]).length };
 }
 
-export interface CombatVerdict { grants: number; tendril: number; authored: string[]; missing: string[]; keywords: string[] }
+/** `tendril` = grants presented from the pairing's origin (R-FX-ANCIENT-ORIGIN-01: a `from` body for `trigger` /
+ *  `self`, else the hero-power button); `origins` = `origin:target[:from]` per grant. */
+export interface CombatVerdict { grants: number; tendril: number; authored: string[]; missing: string[]; keywords: string[]; origins: string[] }
 
 /** Every string a combat-mods object carries under a `label` key (the Ancient's attribution for its grants). */
 function modLabels(v: unknown, key = '', out = new Set<string>()): Set<string> {
@@ -128,14 +146,22 @@ export function combatVerdict(state: RunState, foe: BoardSnapshot = foes(state.w
   const units = new Set<string>();
   for (const m of [...(s.lastCombat?.initial.player ?? []), ...(s.lastCombat?.initial.enemy ?? [])]) units.add(m.uid);
   for (const e of events) if (e.type === 'summon') units.add((e as { minion?: { uid: string } }).minion?.uid ?? '');
-  const verdict: CombatVerdict = { grants: 0, tendril: 0, authored: [], missing: [], keywords: [] };
+  const expected = ancientGrantOriginOf(state);
+  const verdict: CombatVerdict = { grants: 0, tendril: 0, authored: [], missing: [], keywords: [], origins: [] };
   for (const e of events) {
     if (e.type === 'keyword' && e.source && labels.has(e.source)) verdict.keywords.push(`${e.keyword}:${e.source}`);
     if (e.type !== 'buff' || units.has(e.source) || !labels.has(e.source)) continue;
     if (e.attack <= 0 && e.health <= 0) continue;
     verdict.grants++;
-    if (labelBuffFxFor(e.source)) verdict.authored.push(e.source);
-    else if (heroPowerBuffLabelFor(e.source)) verdict.tendril++;
+    // The two stock channels read `buffOriginOf` (the stamped `from` body, else the label): the same answer here.
+    const from = buffOriginOf(e);
+    if (units.has(from)) {
+      const origin = from === e.target ? 'self' : 'trigger';
+      verdict.origins.push(origin === 'self' ? `self:${e.target}` : `trigger:${e.target}:${from}`);
+      if (origin === expected) verdict.tendril++;
+      else verdict.missing.push(`${origin}:${e.source}`);
+    } else if (labelBuffFxFor(e.source)) verdict.authored.push(e.source);
+    else if (heroPowerBuffLabelFor(e.source) && expected === 'hero') { verdict.tendril++; verdict.origins.push(`hero:${e.target}`); }
     else verdict.missing.push(e.source);
   }
   return { s, verdict };

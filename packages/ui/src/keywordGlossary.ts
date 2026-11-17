@@ -118,9 +118,11 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'consume', name: 'Consume', aliases: ['Consumes'], badge: 'CN', section: 'build', mechanic: 'consume', def: 'Devours a minion from shop to gain their stats.' },
   { id: 'fodder', name: 'Fodder', aliases: [], badge: 'FD', section: 'build', mechanic: 'fodder', def: 'A minion that is automatically consumed by a random friendly demon when it appears in shop.' },
   { id: 'discover', name: 'Discover', aliases: [], section: 'build', mechanic: 'discover', def: 'Choose one of three offered cards to keep.' },
-  // Card text spells this lower-case ("When you spend 5 Gold, …"), never as the capitalised term, so the name
-  // match never fires — `detectRe` is the only hit (Coinfire Forewoman, Tapkeeper, and the other gold-sink cards).
-  { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b/i, def: 'Triggers an effect based on how much Gold you spend. The Gold you spend adds up across turns.' },
+  // Card text never prints the capitalised term, so the name match never fires: `detectRe` is the only hit. Spend
+  // triggers read "Every **5 Gold** spent, …" (owner ruling 2026-11-17, one wording for every repeating spend
+  // trigger: Coinfire Forewoman, Tapkeeper, and the other gold-sink cards); the bare verb ("Whenever you spend
+  // Gold") still counts. The comma keeps "for every 6 Gold spent this turn" scalers (Patch Job) out, as before.
+  { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b|\bGold\**\s+spent,/i, def: 'Triggers an effect based on how much Gold you spend. The Gold you spend adds up across turns.' },
   // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's
   // verbatim (2026-09-21).
   { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run wide bonus for every minion that it suits. Carries through shop and combat phases.' },

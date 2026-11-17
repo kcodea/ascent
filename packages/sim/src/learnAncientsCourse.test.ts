@@ -65,9 +65,11 @@ describe('Learn Ancients — each pick pays off on the scripted turn, then wins 
     s = reduce(s, { type: 'heroPower', uid: uidOf(s, 'd2_scalechanter') });
     expect(card(s, 'd2_scalechanter').keywords).toContain('DS');
     expect(card(s, 'd2_scalechanter').attack - eb, 'Aegis +5, then Bonds +5 from Transcendant').toBe(10);
-    // THE TENDRILS (owner 2026-11-16): the Bonds grants leave the hero-power button, like every Ancient buff.
-    const bondsFx = s.recruitBuffFx.filter((e) => e.attack === 5 && e.fromHeroPower);
-    expect(bondsFx.map((e) => e.targetUid).sort(), 'one hero-power tendril per Bonds grant').toEqual([uidOf(s, 'd2_scalechanter'), uidOf(s, 'd2_transcendence')].sort());
+    // THE TENDRILS (owner 2026-11-17, R-FX-ANCIENT-ORIGIN-01: "warden should go from the minion"): each Bonds grant
+    // streams from the OTHER Ward Dragon, the one whose gain set it off.
+    const bondsFx = s.recruitBuffFx.filter((e) => e.attack === 5 && !e.fromHeroPower && !!e.sourceUid);
+    const sc = uidOf(s, 'd2_scalechanter'), tc = uidOf(s, 'd2_transcendence');
+    expect(bondsFx.map((e) => `${e.sourceUid}>${e.targetUid}`).sort(), 'one minion tendril per Bonds grant').toEqual([`${sc}>${tc}`, `${tc}>${sc}`].sort());
     expect(card(s, 'd2_transcendence').attack - tr, 'Aegis +5, then Bonds +5 from Earthbreaker').toBe(10);
     s = fight(s);
     expect(s.lastCombat?.result).toBe('win');
@@ -107,9 +109,9 @@ describe('Learn Ancients — each pick pays off on the scripted turn, then wins 
   });
 });
 
-describe('Warden × Bonds in combat: labelled with the power so its tendril leaves the hero-power button', () => {
-  it('the combat mod carries the Aegis label (the route `heroPowerBuffLabelFor` maps to Warden)', () => {
+describe('Warden × Bonds in combat: labelled with the power, its tendril starting at the minion that gained', () => {
+  it('the combat mod carries the Aegis label and the trigger origin (R-FX-ANCIENT-ORIGIN-01)', () => {
     const s = reduce(awakened(), { type: 'pickAncient', id: 'bonds' });
-    expect(ancientCombatMods(s).ancientBonds).toEqual({ attack: 5, label: WARDEN_TIME_COMBAT_LABEL });
+    expect(ancientCombatMods(s).ancientBonds).toEqual({ attack: 5, label: WARDEN_TIME_COMBAT_LABEL, origin: 'trigger' });
   });
 });

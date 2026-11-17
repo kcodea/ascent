@@ -688,7 +688,48 @@ export const ORDERING_RULES: GameRule[] = [
       + "Ancient's name or its power name. NOT covered: a grant to a card in hand or to a Shop offer (no tendril route "
       + "there); keyword grants (Ward, Flurry, Rise, Rally) keep their keyword presentation; an Ancient reaction nested "
       + "inside another source's End of Turn beat shows that source's ribbon. In combat a grant labelled with an Ancient's "
-      + "name plays the tendril with no hero clip.",
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilsShop.test.ts', 'packages/ui/src/ancientTendrilsCombat.test.ts'], lastVerifiedAt: '2026-11-16' },
+      + "name plays the tendril with no hero clip. From 2026-11-17 five Bonds pairings pick their own starting point "
+      + "(R-FX-ANCIENT-ORIGIN-01).",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilsShop.test.ts', 'packages/ui/src/ancientTendrilsCombat.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-FX-ANCIENT-ORIGIN-01',
+    title: 'Some Ancient pairings start their tendril at a minion, or show a self buff, instead of at the hero power',
+    statement:
+      "An Ancient's stat grant starts at the hero power button unless its pairing says otherwise. Frank x Bonds starts at "
+      + "the sold Clearance minion. Warden x Bonds starts at the Ward minion that gained stats. Midas x Bonds starts at "
+      + "the Gilded minion that gained stats. Drakko x Bonds plays no tendril: each Drakko plays the self buff effect on "
+      + "itself. Albus x Bonds stays at the hero power button. The same in the Shop and in combat, for either side.",
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-17', quote: 'frank should tendril from the minion, drakko should just show a self buff on drakkos themselves, warden should go from the minion as well, albus goes from hero power, this should show tendrils from the minion that was buffed' },
+      { kind: 'code', ref: 'feat/tendril-origins-final-hold: packages/sim/src/ancientBuffFx.ts (ANCIENT_GRANT_ORIGIN); packages/sim/src/recruit.ts (addBuff reads the origin, captureBuffFx claims a self share); packages/sim/src/ancients.ts (grantOriginMod on the combat mods); packages/core/src/combat/simulate.ts (buff.from); packages/ui/src/choreo/channels/buffCast.ts (buffOriginOf)' },
+    ],
+    currentBehaviour: "ACTIVE from 2026-11-17 (feat/tendril-origins-final-hold). The last clause of the ruling was read as Midas x "
+      + "Bonds (the minion whose gain set the grant off), flagged for the owner. Shop: the five pairings above. Combat: Warden, "
+      + "Midas and Drakko x Bonds (Frank's and Albus' grants are Shop only). End of Turn presents the batch as it did before. "
+      + "A snapshot recorded before this change plays its foe's grant from the hero power button.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ancientTendrilOrigins.test.ts', 'packages/ui/src/ancientTendrilsShop.test.ts', 'packages/ui/src/ancientTendrilsCombat.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-FINAL-CONSEQUENCES-01',
+    title: "The fight's last effects finish on screen before it hands back to the Shop",
+    statement:
+      "When a fight ends, everything its last beats set off finishes playing and shows its result before the fight hands "
+      + "back to the Shop, at every playback speed: Avenge buffs and summons, cards added to your hand landing in the hand, "
+      + "Gold and max Gold gains, and every other stat roll. When nothing is still playing, the fight ends exactly as fast "
+      + "as before.",
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-11-17', quote: "as long as it goes off and shows the result of the avenge, that's what's most important. any cards added to hand as well etc before returning to shop" },
+      { kind: 'code', ref: 'feat/tendril-origins-final-hold: packages/ui/src/choreo/finalHold.ts (ConsequenceLedger, pendingConsequenceMs, defReadMs); packages/ui/src/useCombatReplay.ts (scheduleRoll / landing dust / coins / hand coalesce / Avenge def note the ledger; the final hold re-checks it before done)' },
+    ],
+    currentBehaviour: "ACTIVE from 2026-11-17. The replay notes the end it scheduled for each consequence (a stat roll's strike "
+      + "plus its roll, a def's own visual end, the hand coalesce's authored length) and the final hold waits out the latest "
+      + "one, re-checking when it runs out. Not covered: a consequence that plays no def and rolls no number (a keyword "
+      + "gain keeps its own one-shot).",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/finalHold.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

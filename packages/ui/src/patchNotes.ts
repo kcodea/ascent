@@ -56,6 +56,48 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-11-17',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Slaughter boosts now work when the killer dies in the same hit.',
+        details: [
+          'A minion that kills and dies at the same time already triggered its own Slaughter. Now everything that adds to that Slaughter triggers too.',
+          'This covers Law of Teeth, War Council, Blood Trail, Feeding Line and Bloodscent.',
+          'Bloodscent gives its +4/+4 to the Beast that died, so it keeps the stats for the next fight.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Cards that trigger on Gold spent now all read "Every N Gold spent". How they work is unchanged.',
+        details: [
+          'Coinfire, Tapkeeper, Mountainbond, Billings, Dwarf King Brill and Stardust Peddler.',
+          'The runes Overtime, Showcase, Minted Gems, Dragon Hoard, Gold for Grub and Gemspam.',
+          "Brackus and Cindy's Ancient of Fortune pairings.",
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Some Ancient of Bonds buffs now start from the minion that set them off.',
+        details: [
+          'Frank: the buff travels from the sold minion.',
+          'Warden: the buff travels from the Ward minion that gained stats.',
+          'Midas: the buff travels from the Gilded minion that gained stats.',
+          'Drakko: each Drakko now shows its own buff effect, with no tendril.',
+          'Albus: still comes from the hero power.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "A fight's last effects now finish before you return to the Shop, at every speed.",
+        details: [
+          'Avenge buffs and summons, cards added to your hand and Gold gains all play out and show their result first.',
+          'Fights with nothing left to show end just as fast as before.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-11-16',
     changes: [
       {
@@ -92,7 +134,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
+        text: 'Every hero portrait and hero power picture has been repainted: the same heroes and powers, with cleaner and brighter art.',
       },
       {
         category: 'Systems',

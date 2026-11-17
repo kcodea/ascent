@@ -265,7 +265,7 @@ describe('Warden × BONDS — a Warded gain gives another Warded minion +5 Attac
   });
 
   it('COMBAT: the pairing threads the Bonds mod into the player\'s fight', () => {
-    expect(ancientCombatMods(picked('bonds')).ancientBonds).toEqual({ attack: 5, label: 'Aegis' }); // the power's name: its tendril leaves Warden's button (2026-11-16)
+    expect(ancientCombatMods(picked('bonds')).ancientBonds).toEqual({ attack: 5, label: 'Aegis', origin: 'trigger' }); // the tendril starts at the Ward minion that gained (R-FX-ANCIENT-ORIGIN-01)
   });
 });
 

@@ -11,6 +11,13 @@ import type { Moment } from '../compile';
  *  and the spell is only visible per-buff (owner report 2026-09-01, Dragonflame "back to casting tendrils"). */
 export interface BuffCast { source: string; target: string; attack: number; health: number; spellId?: string; }
 
+/** Where a buff VISIBLY comes from: the body the sim stamped on a label grant (`from`, R-FX-ANCIENT-ORIGIN-01: an
+ *  Ancient's grant that starts at the minion that set it off, or at the recipient itself for a self-buff), else its
+ *  `source`. Both stock channels read this one answer, so an origin moves a grant between them without a special case. */
+export function buffOriginOf(e: Extract<CombatEvent, { type: 'buff' }>): string {
+  return e.from ?? e.source;
+}
+
 /** Collect this moment's buff events into per-(source,target) casts, EXCLUDING self-buffs (source === target),
  *  summing repeated buffs to the same pair. Order: first appearance of each (source,target) pair. Pure. */
 export function groupBuffCasts(moment: Moment, events: CombatEvent[]): BuffCast[] {
@@ -19,13 +26,14 @@ export function groupBuffCasts(moment: Moment, events: CombatEvent[]): BuffCast[
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'buff') continue;
-    if (e.source === e.target) continue; // self-buff: keeps its +N float, no tendril
+    const source = buffOriginOf(e);
+    if (source === e.target) continue; // self-buff: keeps its +N float, no tendril
     if (e.ruby) continue; // a Ruby is TOLD BY THE GEM — see the note above `groupSelfBuffs`
-    const key = `${e.source} ${e.target}`;
+    const key = `${source} ${e.target}`;
     const cur = byKey.get(key);
     if (cur) { cur.attack += e.attack; cur.health += e.health; }
     else {
-      const c: BuffCast = { source: e.source, target: e.target, attack: e.attack, health: e.health };
+      const c: BuffCast = { source, target: e.target, attack: e.attack, health: e.health };
       // From the FIRST buff of the pair. Two different spells buffing the same pair in one moment is not a
       // shape the sim produces (a cast's buffs share its step), and taking the first keeps this pure and cheap.
       if (e.spellId !== undefined) c.spellId = e.spellId;

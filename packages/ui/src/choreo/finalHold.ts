@@ -39,6 +39,11 @@ export interface FinalHoldInputs {
    *  by its Ale's `toHand` beat and the death beat before the end) — `pummelRemainingMs` at the time the
    *  final hold is computed. 0 when none. */
   pendingPummelMs?: number;
+  /** Wall-clock ms still to run on the fight's CONSEQUENCE presentations (R-FINAL-CONSEQUENCES-01): a stat roll
+   *  still landing (an Avenge buff's tendril + roll), a summon's landing dust, a card coalescing into the hand, a
+   *  max-Gold coin burst. `ConsequenceLedger.remainingMs` at the time the hold is computed; 0 when nothing is pending,
+   *  so a fight with nothing left to show ends exactly as before. */
+  pendingConsequenceMs?: number;
 }
 
 export function finalHoldMs(
@@ -48,7 +53,7 @@ export function finalHoldMs(
   inputs: FinalHoldInputs,
 ): number {
   const spd = inputs.combatSpeed > 0 ? inputs.combatSpeed : 1;
-  let hold = Math.max(inputs.finalHold / spd, inputs.pull > 0 ? inputs.pull + 100 : 0, inputs.pendingPummelMs ?? 0);
+  let hold = Math.max(inputs.finalHold / spd, inputs.pull > 0 ? inputs.pull + 100 : 0, inputs.pendingPummelMs ?? 0, inputs.pendingConsequenceMs ?? 0);
   if (!last) return hold;
   const readMs = inputs.readMs ?? pummelReadMs;
   for (const f of pummelsFiredIn(last, events)) {
@@ -85,8 +90,13 @@ export function pummelRemainingMs(fire: PummelFire | null, now: number): number 
  */
 export function pummelReadMs(cardId: string | null): number {
   const binding = bindingFor(cardId, 'pummelTrigger');
-  if (!binding) return 0;
-  const def = getDef(binding.def);
+  return binding ? defReadMs(binding.def) : 0;
+}
+
+/** The VISUAL end of one play of def `id` (the `pummelReadMs` read, for any def): the last non-sound layer to
+ *  finish, floored at the authored `duration`. 0 for an unknown def. */
+export function defReadMs(id: string): number {
+  const def = getDef(id);
   if (!def) return 0;
   let end = Number.isFinite(def.duration) && def.duration > 0 ? def.duration : 0;
   for (const layer of def.layers) {
@@ -95,4 +105,32 @@ export function pummelReadMs(cardId: string | null): number {
     end = Math.max(end, at + (layerNaturalSpanMs(layer) ?? 0));
   }
   return end;
+}
+
+/**
+ * THE FINAL BEATS' CONSEQUENCES FINISH BEFORE THE HAND-OFF (owner 2026-11-17, R-FINAL-CONSEQUENCES-01: "Avenge
+ * animation ... as long as it goes off and shows the result of the avenge, that's what's most important. any cards
+ * added to hand as well etc before returning to shop").
+ *
+ * The pummel floor above, generalised. Most consequence presentations run on the WALL clock (a buff tendril's flight,
+ * the plate coalesce of a card arriving in hand, a def's layers) or outlast a speed-scaled hold (the stat roll after
+ * the strike), while the final hold is `finalHold ÷ speed`: at the fastest speed the fight handed back while an Avenge's
+ * tendril was still in the air and its number had not rolled. So the replay NOTES each consequence it fires here, with
+ * the end it actually scheduled (the strike time `fireBuffFx` returned plus the roll, a def's own visual end, the
+ * coalesce's authored `total`), and the final hold waits out whatever is still running. Nothing pending → 0 → the hold
+ * is exactly what it was.
+ */
+export class ConsequenceLedger {
+  private until = 0;
+  /** A consequence that started at `at` (wall clock) and reads for `ms`. Non-positive reads are ignored. */
+  note(at: number, ms: number): void {
+    if (ms > 0 && Number.isFinite(ms)) this.until = Math.max(this.until, at + ms);
+  }
+  /** How long the latest-ending noted consequence still runs at `now` (0 when none is pending). */
+  remainingMs(now: number): number {
+    return Math.max(0, this.until - now);
+  }
+  clear(): void {
+    this.until = 0;
+  }
 }

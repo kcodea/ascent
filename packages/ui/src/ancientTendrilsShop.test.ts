@@ -154,7 +154,7 @@ const EOT: EotCase[] = [
 describe('R-FX-ANCIENT-TENDRIL-01: Shop and Start-of-Turn Ancient grants leave the hero-power button', () => {
   it.each(SHOP.map((c) => [c.pairing, c.phase, c] as const))('%s (%s)', (_p, _ph, c) => {
     const v = c.run();
-    if (process.env.ANC_TENDRIL_LOG) console.log(`${c.pairing} grants=${v.grants.length} tendril=${v.tendril.length}`);
+    if (process.env.ANC_TENDRIL_LOG) console.log(`${c.pairing} grants=${v.grants.length} tendril=${v.tendril.length} ${v.origins.join(' ')}`);
     expect(v.grants.length, 'the fixture makes an Ancient grant on a board minion').toBeGreaterThan(0);
     expect(v.missing, 'every grant has a hero-power tendril').toEqual([]);
   });

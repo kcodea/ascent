@@ -57,8 +57,8 @@ describe('Ancients release: a hero with no pairings is archived while the switch
     else ANCIENT_PAIRINGS.runesmith = saved;
   });
 
-  it('ships off, and today exactly Runesmith and Guardian lack pairings among the live heroes', () => {
-    expect(ANCIENTS_LIVE).toBe(false);
+  it('is ON (owner 2026-11-17), and today exactly Runesmith and Guardian lack pairings among the live heroes', () => {
+    expect(ANCIENTS_LIVE).toBe(true);
     const unpaired = HEROES.filter((h) => !h.wip && !heroHasAncientPairings(h.id)).map((h) => h.id).sort();
     expect(unpaired).toEqual([...UNPAIRED].sort());
   });
@@ -67,7 +67,7 @@ describe('Ancients release: a hero with no pairings is archived while the switch
     const offers = withAncientsLive(false, everyOffer);
     for (const id of UNPAIRED) {
       expect(withAncientsLive(false, () => isArchivedHero(HERO_INDEX[id]!)), id).toBe(false);
-      expect(heroArchivedByAncients(id), id).toBe(false);
+      expect(withAncientsLive(false, () => heroArchivedByAncients(id)), id).toBe(false);
       expect(offers.has(id), `${id} offered with the switch off`).toBe(true);
     }
   });
@@ -108,7 +108,9 @@ describe('Ancients release: a hero with no pairings is archived while the switch
   });
 
   it('withAncientsLive restores the real switch afterwards, even on a throw', () => {
-    expect(() => withAncientsLive(true, () => { throw new Error('x'); })).toThrow('x');
-    expect(isArchivedHero(HERO_INDEX.runesmith!)).toBe(false);
+    expect(() => withAncientsLive(false, () => { throw new Error('x'); })).toThrow('x');
+    // Back on the real switch (ON): Runesmith is archived again.
+    expect(isArchivedHero(HERO_INDEX.runesmith!)).toBe(true);
+    expect(heroArchivedByAncients('runesmith')).toBe(true);
   });
 });

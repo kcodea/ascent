@@ -109,7 +109,9 @@ describe('the Ancients first-login prompt', () => {
   beforeEach(() => { try { localStorage.clear(); } catch { /* no storage in this env */ } resetAncientsPromptForTests(); });
   afterEach(() => { setAncientsLiveForTests(null); });
 
-  it("reads the real release switch (it ships off), and tests can force it", () => {
+  it("reads the real release switch (ON since 2026-11-17), and tests can force it either way", () => {
+    expect(ancientsLiveForPrompt()).toBe(true);
+    setAncientsLiveForTests(false);
     expect(ancientsLiveForPrompt()).toBe(false);
     setAncientsLiveForTests(true);
     expect(ancientsLiveForPrompt()).toBe(true);

@@ -37,7 +37,7 @@ import type { RunState } from './state';
 
 /** THE RELEASE SWITCH. OFF until the owner says (2026-11-16). `true` turns Ancients on for every NEW run; in-flight runs
  *  keep what they pinned either way. See the header for the protocol bump that must ship with the flip. */
-export const ANCIENTS_LIVE: boolean = false;
+export const ANCIENTS_LIVE: boolean = true; // ON: owner 2026-11-17 "okay turn on ancients"
 
 /** A scoped override of the switch for tests and tools (`withAncientsLive`). Undefined = the real switch. */
 let liveOverride: boolean | undefined;

@@ -9,6 +9,7 @@ import { playableHeroes } from '../heroes';
 import { runTribesForSeed } from '../state';
 import { uniqueAutoHeroIndex, versusDisjointHeroOffers, versusHeroShuffle, versusRerollCandidatesFree } from './heroOffers';
 import { versusHeroOffer } from './run';
+import { withAncientsLive } from '../ancientsRelease';
 
 const seatsFor = (base: number, n: number) => Array.from({ length: n }, (_, i) => ({ heroSeed: (base * 2654435761 + i * 40503) >>> 1, runSeed: (base * 97 + i * 1013) >>> 0 }));
 
@@ -40,9 +41,27 @@ describe('versusDisjointHeroOffers', () => {
     }
   });
 
-  it('pins versusHeroOffer: old matches and saved runs read the same three heroes', () => {
-    expect(versusHeroOffer(123456, 987654, 'set2')).toEqual(['warden', 'cassen', 'risen']);
-    expect(versusHeroOffer(2147483000, 77, 'set2')).toEqual(['kindness', 'runeguard', 'myra']);
+  // PINNED BY THE WORKER VERSION, not by this function (2026-11-17). The deal reads the Ancients switch through the
+  // unpaired-hero archive (Runesmith + Guardian withheld while Ancients are live), so the v5 build deals a different
+  // three for some seeds than v4 did. That is safe: the ROOM deals and stores every seat's offer (`hero_offer` on the
+  // private row) and the client reads that row; a v5 client only ever reaches v5 rooms (hello refuses a protocol
+  // mismatch, close 4409), and a v4 match lives on the v4 Worker, whose bundled switch is off. A restored Versus run is
+  // rebuilt from the match's PICKED hero (`pN_hero`), never by re-dealing. So: switch off = the deal of v4, byte for
+  // byte; switch on = the v5 deal, which never contains an unpaired hero.
+  it('pins versusHeroOffer: switch OFF reads the v4 deal (old matches), switch ON (v5) drops the unpaired heroes', () => {
+    withAncientsLive(false, () => {
+      expect(versusHeroOffer(123456, 987654, 'set2')).toEqual(['warden', 'cassen', 'risen']);
+      expect(versusHeroOffer(2147483000, 77, 'set2')).toEqual(['kindness', 'runeguard', 'myra']);
+    });
+    const on = versusHeroOffer(2147483000, 77, 'set2');
+    expect(on).not.toContain('runeguard');
+    expect(on).toEqual(withAncientsLive(true, () => versusHeroOffer(2147483000, 77, 'set2'))); // the shipped switch is ON
+    for (let base = 1; base <= 300; base++) {
+      for (const o of versusDisjointHeroOffers(seatsFor(base, 4), 'set2')) {
+        expect(o).not.toContain('runesmith');
+        expect(o).not.toContain('runeguard');
+      }
+    }
   });
 
   it('the first-dealt seat rotates slot by slot, so no seat always takes first', () => {

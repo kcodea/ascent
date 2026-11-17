@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { cardRevision, CARD_INDEX, type GauntletStage } from '@game/content';
 import {
-  ANCIENT_IDS, ANCIENTS_LIVE, ancientsForNewRun, ancientsLive, ancientsSetSupported, heroHasAncientPairings, releaseAncients,
+  ANCIENT_IDS, ANCIENTS_LIVE, ancientsForNewRun, ancientsLive, ancientsSetSupported, heroHasAncientPairings, releaseAncients, withAncientsLive,
   autoplayRun, boardIntel, buildMatchDetails, createGauntletRun, createLobbyRun, createRun, createTutorialRun, createVersusRun,
   deserialize, enableAncients, lobbyRunTelemetry, emptyTelemetryLog, parseMatchDetails, reduce, serialize, snapshotBoard,
   DEFAULT_BOT, decide, createController, ancientTelemetryOf, legalModalAnswers,
@@ -41,16 +41,19 @@ const stageFor = (): GauntletStage => {
 };
 
 describe('the switch (R-ANCIENTS-RELEASE-01)', () => {
-  it('ships OFF (owner 2026-11-16: "Ship the ancient switch off"), and `ancientsLive()` reads it', () => {
-    expect(ANCIENTS_LIVE).toBe(false);
-    expect(ancientsLive()).toBe(false);
+  it('is ON (owner 2026-11-17: "okay turn on ancients"; it shipped off on 2026-11-16), and `ancientsLive()` reads it', () => {
+    expect(ANCIENTS_LIVE).toBe(true);
+    expect(ancientsLive()).toBe(true);
+    // The scoped override reads through, both ways.
+    expect(withAncientsLive(false, ancientsLive)).toBe(false);
+    expect(withAncientsLive(true, ancientsLive)).toBe(true);
   });
 
   it('Sets 2 and 3 have Ancients; the others do not', () => {
     expect(['set1', 'set2', 'set3', 'set4'].map(ancientsSetSupported)).toEqual([false, true, true, false]);
   });
 
-  it('switch OFF (the default): lobby, Practice, Gauntlet and every Versus mode start without Ancients', () => {
+  it('switch OFF (forced): lobby, Practice, Gauntlet and every Versus mode start without Ancients', () => withAncientsLive(false, () => {
     for (const mode of ['lobby', 'practice'] as const) {
       const run = createLobbyRun(11, 'indy', {}, mode, mode === 'practice' ? { ...PRACTICE } : undefined, 'set2');
       expect(run.ancientsEnabled, mode).toBeUndefined();
@@ -62,6 +65,22 @@ describe('the switch (R-ANCIENTS-RELEASE-01)', () => {
     }
     expect(ancientsForNewRun('indy', 'set2')).toBe(false);
     expect(releaseAncients(createRun(11, 'indy', 'lobby', undefined, 'set2')).ancientsEnabled).toBeUndefined();
+  }));
+
+  it('switch as shipped (ON): lobby, Practice, Gauntlet and every Versus mode start WITH Ancients, no override needed', () => {
+    for (const mode of ['lobby', 'practice'] as const) {
+      const run = createLobbyRun(11, 'indy', {}, mode, mode === 'practice' ? { ...PRACTICE } : undefined, 'set2');
+      expect(run.ancientsEnabled, mode).toBe(true);
+      expect(run.ancients, mode).toMatchObject({ points: 0, cost: 16 });
+    }
+    expect(createGauntletRun(3, 'indy', stageFor(), 'set2').ancientsEnabled).toBe(true);
+    for (const mode of ['duel', 'group', 'duos', 'ranked_duos'] as const) {
+      expect(createVersusRun(5, 'indy', 'set2', { mode } as VersusRoomOptions, mode.includes('duos') ? 'warden' : null).ancientsEnabled, mode).toBe(true);
+    }
+    expect(ancientsForNewRun('indy', 'set2')).toBe(true);
+    expect(ancientsForNewRun('indy', 'set1')).toBe(false); // a set without Ancients
+    // The tutorial never, the plain createRun never (it does not read the switch).
+    expect(createRun(11, 'indy', 'lobby', undefined, 'set2').ancientsEnabled).toBeUndefined();
   });
 
   it('switch ON: lobby, Practice and Gauntlet start with the default meter', () => {
@@ -107,7 +126,8 @@ describe('the switch (R-ANCIENTS-RELEASE-01)', () => {
     expect(midBack.ancients).toEqual(mid.ancients);
     // A "flip" after creation (releasing again with the switch off) never strips Ancients from a run that has them.
     expect(releaseAncients(on, false)).toBe(on);
-    expect(deserialize(serialize(on)).ancientsEnabled).toBe(true); // switch is OFF in this build: the ON run keeps its meter
+    expect(withAncientsLive(false, () => deserialize(serialize(on)).ancientsEnabled)).toBe(true); // switch OFF: the ON run keeps its meter
+    expect(deserialize(serialize(off)).ancientsEnabled).toBeUndefined(); // switch ON (as shipped): the OFF run stays without
   });
 });
 
@@ -136,8 +156,9 @@ describe('bots and generated seats answer the awakening (R-ANCIENTS-RELEASE-02, 
     expect(Math.max(...on.map((b) => b.wave))).toBeGreaterThan(6);
     // Deterministic: the same seed picks the same Ancient on the same wave.
     expect(autoplayRun(41, 'indy', undefined, Infinity, 'set2', true).find((b) => b.ancient)?.ancient).toEqual(picked[0]!.ancient);
-    // With the switch as shipped (off) the recording has none.
-    expect(autoplayRun(41, 'indy', undefined, Infinity, 'set2').some((b) => b.ancient)).toBe(false);
+    // With the switch as shipped (ON since 2026-11-17) the default recording picks one too; forced off it has none.
+    expect(autoplayRun(41, 'indy', undefined, Infinity, 'set2').some((b) => b.ancient)).toBe(true);
+    expect(withAncientsLive(false, () => autoplayRun(41, 'indy', undefined, Infinity, 'set2')).some((b) => b.ancient)).toBe(false);
   });
 
   it('the legacy greedy bot and the production bot both answer an open offer with a pick', () => {

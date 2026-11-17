@@ -3,6 +3,7 @@ import {
   HEROES, HERO_INDEX, getHero, isArchivedHero, playableHeroes, practiceHeroes, powerDiscoverPool,
 } from './heroes';
 import { createRun } from './state';
+import { ANCIENTS_LIVE, withAncientsLive } from './ancientsRelease';
 import { createRunLobby } from './lobby/runLobby';
 import { createPracticeBotLobby } from './lobby/practiceBots';
 
@@ -33,11 +34,25 @@ const IDS = Object.keys(ARCHIVED_2026_09_24);
 
 describe('the 2026-09-24 hero archive', () => {
   it('Runesmith and Guardian (owner 2026-10-01: "re-activate runesmith and guardian in the game") and Rayse (owner 2026-10-02: "unarchive rayse") are back in the game', () => {
-    for (const id of ['runesmith', 'runeguard', 'rayse']) {
-      expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
-      expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
-      expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);
+    // Not `wip`: with the Ancients switch off all three are offered everywhere.
+    withAncientsLive(false, () => {
+      for (const id of ['runesmith', 'runeguard', 'rayse']) {
+        expect(HERO_INDEX[id]!.wip, `${id} not wip`).toBeFalsy();
+        expect(isArchivedHero(HERO_INDEX[id]!), `${id} active`).toBe(false);
+        expect(playableHeroes().some((h) => h.id === id), `${id} in Play`).toBe(true);
+        expect(practiceHeroes().some((h) => h.id === id), `${id} in Practice`).toBe(true);
+      }
+    });
+  });
+
+  it('while Ancients are live, Runesmith and Guardian are archived again until their pairings are written (owner 2026-11-17); Rayse stays', () => {
+    expect(ANCIENTS_LIVE).toBe(true); // the real switch, ON since 2026-11-17
+    for (const id of ['runesmith', 'runeguard']) {
+      expect(isArchivedHero(HERO_INDEX[id]!), `${id} archived`).toBe(true);
+      expect(playableHeroes().some((h) => h.id === id), `${id} not in Play`).toBe(false);
+      expect(practiceHeroes().some((h) => h.id === id), `${id} not in Practice`).toBe(false);
     }
+    expect(isArchivedHero(HERO_INDEX.rayse!), 'rayse active').toBe(false);
   });
 
   it('Gorun, Foreman Flint, Underdweller, Pete, Membrance and Emissary (owner 2026-10-15) are back in the game', () => {

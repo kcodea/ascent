@@ -1275,7 +1275,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16 (later the same day)', quote: "Ship the ancient switch off. I'll tell you when to turn it on." },
       { kind: 'code', ref: 'packages/sim/src/ancientsRelease.ts; packages/sim/src/lobby/runLobby.ts createLobbyRun; packages/sim/src/versus/run.ts createVersusRun' },
     ],
-    currentBehaviour: 'Conforms from 2026-11-16 (feat/ancients-release-switch), switch OFF: no player run has Ancients yet. Before, only the Scene Builder and a DEV Duos seam could turn Ancients on.',
+    currentBehaviour: 'Conforms from 2026-11-16 (feat/ancients-release-switch). Switch turned ON 2026-11-17 (owner: "okay turn on ancients"): every new player run in a supported set has Ancients. Before, only the Scene Builder and a DEV Duos seam could turn Ancients on.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts', 'packages/ui/src/versus/ancientsReleaseProtocol.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
 ];

@@ -75,26 +75,45 @@ export function destinationRect(viewportW: number, viewportH: number, _source?: 
 }
 
 /**
- * The party-home banner's art frame inside its card, as fractions of the card's width (heroSelectPh.css: the card is
- * `padding: 0; container-type: inline-size` on the 784-wide flag art, and `> .hcframe` is
- * `width: calc(100cqi * 667 / 784); margin-inline: auto; margin-top: calc(100cqi * 96 / 784)`).
- * The ceremony's `artCrop` squares that frame up to its width, so the card path's measured crop is this square.
+ * The party-home banner's art frame inside its card, in the 784x1321 flag art's own units (heroSelectPh.css). The card
+ * is `padding: 0; container-type: inline-size`; `> .hcframe` is `width: calc(100cqi * 667 / 784); margin-inline: auto;
+ * margin-top: calc(100cqi * 96 / 784)`, and the unconditional "PLAY FLAG'S PORTRAIT" rule (R-HS-FADE-01) sets its
+ * `aspect-ratio: 667 / 844`. So on desktop the card path's frame is 667 x 844 (taller than wide), which the ceremony's
+ * `artCrop` leaves as it is (it only squares a crop WIDER than tall).
+ * Small touch screens differ: `html[data-touch-ui][data-touch-small]` rules override the aspect to 1/0.5 or 1/0.8 and
+ * `artCrop` then squares that frame to its width. This pure function cannot see that state; it matches desktop.
  */
 const PH_FLAG_W = 784;
-const PH_FRAME_W = 667 / PH_FLAG_W;
-const PH_FRAME_LEFT = (PH_FLAG_W - 667) / 2 / PH_FLAG_W;
-const PH_FRAME_TOP = 96 / PH_FLAG_W;
+const PH_FRAME_W = 667;
+const PH_FRAME_H = 844;
+const PH_FRAME_LEFT = (PH_FLAG_W - PH_FRAME_W) / 2;
+const PH_FRAME_TOP = 96;
 
 /**
- * Where the SHOWCASE's splash-art clone settles (hero select showcase, 2026-11-16; the showcase only renders in the
- * party-home look). The splash is far bigger than a card's art frame, so it shrinks onto the exact square where the
- * party-home card path's `.hcframe` settles inside `dest`; the materializing beat measures it there, so the final
- * portrait has today's size and position (coordinator ruling 2026-11-16: the spec wins over a full-width square).
+ * The SHOWCASE's portrait crop (hero select showcase, 2026-11-16; the showcase only renders in the party-home look): the
+ * rect the party-home card path's `.hcframe` settles at inside `dest`. The splash path hands THIS to the materializing
+ * beat as the art crop (it is not measured), so the final portrait, ring, clip and name plate keep today's size and place.
  */
 export function splashDest(dest: RectSnapshot): RectSnapshot {
-  const w = Math.max(0, finite(dest.width, 0));
-  const side = w * PH_FRAME_W;
-  return { left: finite(dest.left, 0) + w * PH_FRAME_LEFT, top: finite(dest.top, 0) + w * PH_FRAME_TOP, width: side, height: side };
+  const u = Math.max(0, finite(dest.width, 0)) / PH_FLAG_W;
+  return {
+    left: finite(dest.left, 0) + u * PH_FRAME_LEFT,
+    top: finite(dest.top, 0) + u * PH_FRAME_TOP,
+    width: u * PH_FRAME_W,
+    height: u * PH_FRAME_H,
+  };
+}
+
+/**
+ * The square a cover-fit square image fills to cover `r`: side max(width, height), centred on `r`. The splash clone (a
+ * square of art) travels here, so at the handover its art sits at exactly the scale and place the clean portrait's
+ * `object-fit: cover` image draws inside the crop: no jump, only the overhang outside the crop, which fades out.
+ */
+export function coverSquare(r: RectSnapshot): RectSnapshot {
+  const w = Math.max(0, finite(r.width, 0));
+  const h = Math.max(0, finite(r.height, 0));
+  const side = Math.max(w, h);
+  return { left: finite(r.left, 0) + (w - side) / 2, top: finite(r.top, 0) + (h - side) / 2, width: side, height: side };
 }
 
 /**

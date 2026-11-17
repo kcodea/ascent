@@ -11,6 +11,8 @@ import { HeroSelectCeremony } from './HeroSelectCeremony';
 import { ceremonyReduce, CEREMONY_IDLE, type HeroCeremonyState } from './heroCeremonyMachine';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { heroPortrait } from '../skins/skins';
+import { destinationRect, splashDest } from './heroCeremonyGeometry';
+import { stageViewport } from '../stage';
 
 // One switch for the "hero with no art" case: the ceremony reads its art through heroPortrait.
 const noArt = { on: false };
@@ -95,6 +97,43 @@ describe('HeroSelectCeremony from the splash art', () => {
 
     ui.unmount(); ui = null;
     expect(fx.art.style.visibility).toBe('');
+  });
+
+  it('cancels the exit animations on unmount (a reset mid-ceremony)', () => {
+    const made: { el: Element; cancel: ReturnType<typeof vi.fn> }[] = [];
+    const proto = HTMLElement.prototype as { animate?: unknown };
+    const had = Object.prototype.hasOwnProperty.call(proto, 'animate');
+    const prev = proto.animate;
+    proto.animate = function (this: Element) {
+      const cancel = vi.fn();
+      made.push({ el: this, cancel });
+      return { cancel, finished: new Promise(() => {}) };
+    };
+    try {
+      ui = mount(<Harness rect={SPLASH_RECT} cardEls={fx.cardEls} splash={fx.splash} />);
+      act(() => { vi.advanceTimersByTime(ceremonyAdvanceSchedule(ceremonyTiming()).dismissAt); });
+      const exits = made.filter((m) => fx.tiles.includes(m.el as HTMLDivElement));
+      expect(exits).toHaveLength(fx.tiles.length);
+      for (const e of exits) expect(e.cancel).not.toHaveBeenCalled();
+      ui.unmount(); ui = null;
+      for (const e of exits) expect(e.cancel).toHaveBeenCalled();
+    } finally {
+      if (had) proto.animate = prev; else delete proto.animate;
+    }
+  });
+
+  it("hands the materializing beat the card path's frame rect (splashDest), not the square clone's box", () => {
+    ui = mount(<Harness rect={SPLASH_RECT} cardEls={fx.cardEls} splash={fx.splash} />);
+    act(() => { vi.advanceTimersByTime(ceremonyAdvanceSchedule(ceremonyTiming()).materializeAt + 1); });
+    // jsdom lays nothing out, so a MEASURED crop would be 0 wide and no portrait would mount.
+    const p = ui.container.querySelector<HTMLElement>('.hsc-portrait');
+    expect(p).not.toBeNull();
+    const vp = stageViewport();
+    const crop = splashDest(destinationRect(vp.w, vp.h, SPLASH_RECT));
+    const px = (v: string): number => Number.parseFloat(v);
+    // The portrait grows around the crop's centre (tuner nudges default to 0).
+    expect(px(p!.style.left) + px(p!.style.width) / 2).toBeCloseTo(crop.left + crop.width / 2, 1);
+    expect(px(p!.style.top) + px(p!.style.height) / 2).toBeCloseTo(crop.top + crop.height / 2, 1);
   });
 
   it('a hero with no art still starts the ceremony', () => {

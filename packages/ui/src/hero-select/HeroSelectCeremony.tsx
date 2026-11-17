@@ -8,7 +8,7 @@ import {
   ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
-import { destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, stageScale, transformTo } from './heroCeremonyGeometry';
+import { coverSquare, destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig, subscribeHeroCeremonyConfig } from './heroCeremonyTunerConfig';
@@ -312,7 +312,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   useEffect(() => {
     if (!crossed('focusing') || didFocusRef.current) return;
     didFocusRef.current = true;
-    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? splashDest(dest) : dest), {
+    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? coverSquare(splashDest(dest)) : dest), {
       duration: t.focusMs + t.settleMs,
       easing: FOCUS_EASE,
       fill: 'forwards',
@@ -331,9 +331,10 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
   useEffect(() => {
     if (!crossed('materializing') || portrait || !art || !travelDone) return;
+    // THE SHOWCASE: the crop is the card path's party-home frame inside dest (splashDest), not the square clone's box.
     const frame = frameRef.current;
-    if (!frame) return;
-    const crop = artCrop(snapshotRect(rectToStage(frame.getBoundingClientRect())));
+    if (!frame && !splash) return;
+    const crop = splash ? splashDest(dest) : artCrop(snapshotRect(rectToStage(frame!.getBoundingClientRect())));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
     setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
   }, [state.phase, art, travelDone, portrait]);
@@ -364,7 +365,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
       id = setTimeout(() => {
         const next = destinationRect(stageViewport().w, stageViewport().h, source);
         setDest(next);
-        const settle = splash ? splashDest(next) : next;
+        const settle = splash ? coverSquare(splashDest(next)) : next;
         const wrap = cloneWrapRef.current;
         // Only correct once travel is over (post-focus phases); mid-travel the running animation still
         // targets the old center and the settle lands close enough for the snap below to be jarring.
@@ -375,8 +376,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           wrap.style.transform = transformTo(source, settle);
           // Portrait correction: re-measure the snapped frame once and rebuild the (already faded-in)
           // portrait bounds around it. The entrance animation is long finished by any realistic resize.
-          if (portrait && frameRef.current) {
-            const crop = artCrop(snapshotRect(rectToStage(frameRef.current.getBoundingClientRect())));
+          if (portrait && (splash || frameRef.current)) {
+            const crop = splash ? splashDest(next) : artCrop(snapshotRect(rectToStage(frameRef.current!.getBoundingClientRect())));
             if (crop.width > 0) {
               setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
               const p = portraitRef.current;
@@ -466,7 +467,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           `hsc-done` hides the whole card once the clean portrait owns the stage (art only). */}
       {splash ? (
         /* THE SHOWCASE: the splash art alone, at the inspect card's art box — the same file, cover crop and right-edge
-           fade (heroCeremony.css `.hsc-splash`). The inner box is the frame the materializing beat measures. */
+           fade (heroCeremony.css `.hsc-splash`). It travels to coverSquare(splashDest(dest)), so its art lines up with
+           the clean portrait's cover image inside the splashDest crop the materializing beat hands over (not measured). */
         <div
           ref={cloneWrapRef}
           className={`hsc-clone hsc-splash${materialized && art ? ' hsc-chrome-out' : ''}${state.phase === 'ready' || state.phase === 'launching' ? (art ? ' hsc-done' : '') : ''}`}

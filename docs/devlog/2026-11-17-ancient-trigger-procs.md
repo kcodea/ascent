@@ -22,3 +22,6 @@ play the same animation that runes do when they trigger in combat or in recruit 
   beat, so a fight with a busy Ancient runs a little longer (the rune trigger's hold per fire).
 - Found in passing, not fixed: Midas × Death in combat can grant 2 Gold Pouches for one Gilded death when a plain
   friend is alive (the proc matches each grant).
+- **Follow-up (feat/ancient-procs-duos):** Ancients reach Duos since #2758, so Priestess, Magician and Cindy are covered
+  too (12 more rows, `ancientProcCases.g4.testkit.ts`). Magician × War procs for the team whichever board carries it. Not a
+  row: Cindy × Bonds' Link mirror.

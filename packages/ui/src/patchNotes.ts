@@ -86,6 +86,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'It plays every time the Ancient fires, in the Shop, at the start and end of your turn, and in combat.',
           "For example, Warden's Ancient of Fortune flashes each time one of your Wards breaks.",
+          'In Duos, Priestess, Magician and Cindy Ancients flash too.',
         ],
       },
       {

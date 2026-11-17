@@ -73,6 +73,10 @@ export const ANCIENT_PROC_PHASES: Readonly<Record<string, readonly ProcPhase[]>>
   eotRandomShopSpells: ['eot'], eotRefreshTopTribeFreeze: ['eot'], eotTierMinion: ['eot'], eotTriggerLeftmostShout: ['eot'],
   eotUnitedFrontPerShopSpells: ['eot'], eotUpgradeDiscount: ['eot'], eotVinesImproves: ['eot'], pairsGoldNextTurn: ['eot'],
   unitedFrontAtEndOfTurn: ['eot'],
+  // ── the Duos heroes (Ancients reach Duos since #2758) ──
+  passEchoGainsRise: ['shop'], passSpellResetsPassaria: ['shop'], passBuffsLeftmosts: ['shop'], socBuffPerPass: ['combat'],
+  hatUpgradeDiscount: ['shop'], socMateCopiesShareStats: ['combat'], sotCopyPassedCard: ['sot'],
+  avengeTeammateGetsCard: ['shop', 'combat'], goldSpentRefreshesPower: ['shop'], socGildLeftmost: ['combat'], nextTurnTeamCard: ['sot'],
 };
 
 /** Per-pairing corrections on top of the primitive map (`hero.ancient` → phases; `[]` = not event-fired here). Add a row
@@ -84,8 +88,8 @@ export const ANCIENT_PROC_OVERRIDES: Readonly<Record<string, readonly ProcPhase[
   'drakko.time': ['eot', 'combat'],
 };
 
-/** Heroes left out: Duos-only heroes (Ancients are not on in any Duos game players can reach, R-ANCDUOS-01). */
-export const ANCIENT_PROC_SKIP_HEROES: ReadonlySet<string> = new Set(['priestess', 'magician', 'cindy']);
+/** Heroes left out (none since #2758 put Ancients in Duos: Priestess, Magician and Cindy are covered too). */
+export const ANCIENT_PROC_SKIP_HEROES: ReadonlySet<string> = new Set();
 
 /** Every (hero, Ancient, phase) the table requires a proc case for. */
 export function expectedProcRows(): { hero: string; ancient: AncientId; phase: ProcPhase }[] {

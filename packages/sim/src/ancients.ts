@@ -8095,6 +8095,7 @@ export function ancientOnPassMade(state: RunState): void {
   if (minion && effectOf(state, 'passEchoGainsRise') && instanceEffects(e.card).some((x) => x.on === 'onDeath') && !e.card.keywords.includes('R')) {
     e.card.keywords.push('R');
     e.ancRise = true;
+    procAncient(state); // PRIESTESS × DEATH fires (R-FX-ANCIENT-PROC-01)
   }
   // GENESIS: a Passaria pass also gets you a plain copy (the printed card). Hand full: none.
   if (minion && def && e.power != null && effectOf(state, 'passariaCopyToHand') && state.hand.length < handCap(state)) {
@@ -8106,10 +8107,12 @@ export function ancientOnPassMade(state: RunState): void {
     const slot = activePowers(state).findIndex((p) => p.kind === 'passaria');
     if (slot === 0 && !state.heroReady) { state.heroReady = true; e.ancReset = true; }
     else if (slot === 1 && state.heroReady2 === false) { state.heroReady2 = true; e.ancReset = true; }
+    if (e.ancReset) procAncient(state); // PRIESTESS × TIME fires: the spell reset Passaria (R-FX-ANCIENT-PROC-01)
   }
   // BONDS: your left-most minion now; the teammate's rides the card.
   const b = effectOf(state, 'passBuffsLeftmosts');
   if (b) {
+    procAncient(state); // PRIESTESS × BONDS fires on every pass (R-FX-ANCIENT-PROC-01)
     e.bonds = { attack: b.attack, health: b.health };
     const mine = state.board[0];
     if (mine) { e.bondsUid = mine.uid; fromHeroPower(state, () => { addBuff(mine, ANCIENTS.bonds.name, b.attack, b.health); }); } // a refund takes it off (R-DUOS-PASS-WAITS-01)
@@ -8175,7 +8178,7 @@ export function ancientOnHatFired(state: RunState, copy: BoardCard): number {
 /** THE HAT TRIGGERED (a copy was sent, or would have been with a teammate). FORTUNE: the Shop upgrade costs less. */
 export function ancientOnHatTrigger(state: RunState): void {
   const e = live(state) ? effectOf(state, 'hatUpgradeDiscount') : undefined;
-  if (e) cutUpgradeCost(state, e.amount);
+  if (e) { procAncient(state); cutUpgradeCost(state, e.amount); } // MAGICIAN × FORTUNE fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** The card ids this run has passed this game (Magic Hat copies and its own passes; a refunded pass never left). */
@@ -8274,7 +8277,7 @@ function cindyShopDeath(state: RunState, a: AncientsState): void {
   const e = effectOf(state, 'avengeTeammateGetsCard');
   if (!e) return;
   a.cindyDeaths = ((a.cindyDeaths ?? 0) + 1) % Math.max(1, e.every);
-  if (a.cindyDeaths === 0) giftMate(state, e.cardId);
+  if (a.cindyDeaths === 0) { procAncient(state); giftMate(state, e.cardId); } // CINDY × DEATH fires (R-FX-ANCIENT-PROC-01)
 }
 
 /** The combat halves (DEATH: the running Avenge, carried in; WAR: the left-most gild). */
@@ -8307,7 +8310,7 @@ function cindyOnGoldSpent(state: RunState, a: AncientsState, amount: number): vo
   if (!e) return;
   const every = Math.max(1, e.every);
   let n = (a.cindyGold ?? 0) + amount;
-  while (n >= every) { n -= every; refreshGratitude(state, a); }
+  while (n >= every) { n -= every; procAncient(state); refreshGratitude(state, a); } // CINDY × FORTUNE fires per 40 (R-FX-ANCIENT-PROC-01)
   a.cindyGold = n;
 }
 

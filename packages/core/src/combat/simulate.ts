@@ -5977,6 +5977,7 @@ export function simulate(
         if (head && !head.golden) {
           const def = cards[head.cardId];
           nextStep();
+          ancientProc(scSide); // CINDY × WAR fires (R-FX-ANCIENT-PROC-01)
           head.golden = true;
           emit({ type: 'ascend', target: head.uid, into: head.cardId, gild: true });
           const kept = def && (def.attack > 0 || def.health > 0) ? ctx.buff(head, def.attack, def.health, smods.ancientSocGildLeftmost.label).kept : false;
@@ -6052,6 +6053,7 @@ export function simulate(
         }
         if (pairs.length > 0) {
           nextStep();
+          ancientProc(scSide); // MAGICIAN × WAR fires, whichever board of the team carries it (R-FX-ANCIENT-PROC-01)
           const board = [...mateRes.board];
           for (const p of pairs) {
             ctx.buff(p.mine, p.mateA, p.mateH, mateSwap.label);
@@ -7405,6 +7407,7 @@ export function simulate(
     if (!mg || (mg.tick + count) % Math.max(1, mg.every) !== 0) return;
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
+      ancientProc(side); // CINDY × DEATH fires (Rune of Fury repeats included) (R-FX-ANCIENT-PROC-01)
       if (victim) emit({ type: 'sc', source: victim.uid, text: `${mg.label}: ${(mg.gift.kind === 'gift' && mg.gift.cardId ? cards[mg.gift.cardId]?.name : undefined) ?? 'a gift'} for your teammate`, side, heroPower: true });
       ctx.sendTeam?.({ ...mg.gift }, false, true, side, victim?.uid);
     }

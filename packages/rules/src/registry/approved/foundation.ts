@@ -15770,4 +15770,54 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'draw of 7 a table would have held three or more 90+ runs about 3% of the time.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/seatTiers.test.ts', 'packages/sim/src/lobby/strengthBands.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-LEARN-ANCIENTS-01',
+    title: 'Learn Ancients: a two minute mid game lesson, ending on a Good luck card',
+    statement:
+      'Learn has an Ancients lesson beside the Ascent tutorial: the Learn side panel offers both (Mode: Ascent / '
+      + 'Ancients, the sub-mode switch other modes use) so either can be replayed any time. It starts on turn 8 as Warden with six Dragons (two with Ward), '
+      + 'Tier 4, 10 Gold and the Ancient meter at 14 of 16, on a pinned seed whose awakening offers War, Bonds and Time. '
+      + 'The coach asks for two Refreshes, steps aside while the real awakening plays, and steers the pick to Bonds (one '
+      + 'Aegis on Earthbreaker makes both Ward Dragons gain stats, so each gives the other +5 Attack, each grant drawn as a '
+      + 'tendril from the hero-power button in the Shop and in combat). Any other pick is '
+      + 'allowed and gets its own use step (War: Aegis on the Ward Dragon for Resilient Ward; Time: Aegis, then cast the '
+      + "scripted Champion's Ale). End Turn plays a won fight; End combat fades to a Good luck card (with \"Ancients are "
+      + 'live.\" only while the release switch is on) and returns to the main menu with the lesson run dropped. Ancients '
+      + 'are enabled on this run only; no other run changes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (Ancients tutorial ask)', quote: 'put them at 14/16 ancient points and tell them to roll twice, show the full ancient experience etc' },
+    ],
+    currentBehaviour: 'Conforms, 2026-11-16 (feat/ancients-tutorial).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/learnAncientsCourse.test.ts', 'packages/ui/src/tutorial/learnAncientsWalkthrough.test.ts', 'packages/ui/src/partyHome/partyHome.test.ts', 'packages/ui/src/ancientsHunchFx.test.ts'],
+      lastVerifiedAt: '2026-11-16',
+    },
+  },
+  {
+    id: 'R-LEARN-ANCIENTS-02',
+    title: 'The Ancients lesson prompt: once per player, only while the release switch is on',
+    statement:
+      'While the Ancients release switch is on, the first arrival on the main menu offers the lesson ("Ancients have '
+      + 'awakened. Try the 2 minute tutorial?", Try it / Later). Showing it marks it seen for the device and, when signed '
+      + 'in, the account, so Later counts as seen; the Learn entry stays. It never shows while the switch is off, to a new '
+      + 'player who has not finished or skipped Learn Ascent, over another dialog, off the main menu, or while a saved '
+      + 'game exists (a lesson replaces the save slot).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (Ancients tutorial ask)', quote: "should be prompted to go check out when a player logs in for the first time after it's turned on" },
+    ],
+    currentBehaviour:
+      'Conforms, 2026-11-16 (feat/ancients-tutorial). The switch is `ancientsLive()` (R-ANCIENTS-RELEASE, ships off), '
+      + 'read through `ancientsLiveForPrompt()` (packages/ui/src/tutorial/ancientsLive.ts). The seen '
+      + 'flags are local (per device, plus a per-account key), not a server column.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/tutorial/learnAncientsWalkthrough.test.ts'],
+      lastVerifiedAt: '2026-11-16',
+    },
+  },
 ];

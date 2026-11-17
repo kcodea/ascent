@@ -38,7 +38,8 @@ export type TutorialUiAnchor =
   | 'lobby-self' // the player's own seat row (.lobbyseat.you)
   | 'lobby-next' // the next opponent's seat row (.lobbyseat.foe)
   | 'discover' // the Discover / Choose-One overlay (.discover-ov) — only present while a pick is open
-  | 'hud'; // the round plaque (.bar) — present for course/rift, hidden in a lobby
+  | 'hud' // the round plaque (.bar) — present for course/rift, hidden in a lobby
+  | 'ancient-meter'; // the Ancient meter ring around the hero power (.anc-ring) — only on a run with Ancients
 
 /** A course points a spotlight at one of these. Cards are addressed by uid + zone (the registry knows the
  *  zone selectors); the rest are singleton chrome or structural slots. */
@@ -142,6 +143,10 @@ export interface TutorialRunView {
   board: ReadonlyArray<{ uid: string; cardId: string; golden: boolean }>;
   /** Alive-seat count in the lobby, when this run carries one. */
   livingSeats?: number;
+  /** ANCIENTS (Learn Ancients): the picked Ancient's id, once one is locked in. */
+  ancientPicked?: string;
+  /** ANCIENTS: the awakening offer currently open (empty / absent when none is). */
+  ancientOffer?: readonly string[];
 }
 
 export type TutorialPredicate =
@@ -181,6 +186,11 @@ export type TutorialPredicate =
   | { kind: 'returnedToShop' } // back in the shop after a fight (drives the "click here to return" step)
   | { kind: 'presented'; presented: TutorialPresentedKind }
   | { kind: 'goldSpentToZero' } // embers reached 0 (the guided economy's usual end-of-turn state)
+  /** ANCIENTS: an Ancient is picked (any, or exactly `id`). State, not an event, so a resume still reads it. */
+  | { kind: 'ancientPicked'; id?: string }
+  /** ANCIENTS: the awakening offer is open (the meter filled). Also true once one is picked, so a step that
+   *  waits for the meter never strands a player who picked faster than the coach advanced. */
+  | { kind: 'ancientAwakened' }
   | { kind: 'not'; of: TutorialPredicate }
   | { kind: 'all'; of: TutorialPredicate[] }
   | { kind: 'any'; of: TutorialPredicate[] };
@@ -274,6 +284,10 @@ export interface TutorialStep {
   panelNudge?: TutorialPanelNudge;
   /** When the step is done. */
   completion: TutorialPredicate;
+  /** A BRANCH: the step only shows when this holds; otherwise the controller skips straight past it. Lets a
+   *  course follow the player's own choice (Learn Ancients coaches whichever Ancient they picked) without
+   *  trapping a player who chose differently. Read when the step is current. */
+  onlyIf?: TutorialPredicate;
   /** Analytics tag (funnel event). NOT YET IMPLEMENTED (audited 2026-08-21) — nothing emits it. */
   analyticsTag?: string;
 }
@@ -333,7 +347,47 @@ export interface TutorialFoundationPanel {
   panelNudge?: TutorialPanelNudge;
 }
 
-export type TutorialCourseKind = 'core' | 'tribe';
+export type TutorialCourseKind = 'core' | 'tribe' | 'feature';
+
+/** One minion a mid-game course places on the board at the start. Stats are the minion's CURRENT stats. */
+export interface TutorialStartMinion {
+  cardId: string;
+  attack: number;
+  health: number;
+  /** Keywords on top of the card's printed ones (e.g. Ward, `DS`). */
+  addKeywords?: string[];
+}
+
+/**
+ * A MID-GAME START (Learn Ancients): instead of a fresh turn 1, the course drops the player into a game already
+ * under way. Pure data; `createCourseRun` builds the real RunState from it, so the reducer, combat and the lobby
+ * are the ordinary ones.
+ */
+export interface TutorialMidGameStart {
+  /** The run seed. Pinned: it decides the combats AND the Ancient awakening's three options. */
+  seed: number;
+  wave: number;
+  tier: number;
+  gold: number;
+  health: number;
+  armor: number;
+  board: TutorialStartMinion[];
+  /** The opponent seats already knocked out before this round (from the right of the rail). */
+  opponentsOut: number;
+  /** Each living opponent seat's Health going in (padded with the last value). Cosmetic. */
+  opponentHealth: number[];
+  /** The hero portraits the opponent seats wear (an authored seat never plays a run; cosmetic). */
+  opponentHeroes?: string[];
+  /** ANCIENTS on, with the meter already filled to this many points. Absent = no Ancients. */
+  ancientPoints?: number;
+}
+
+/** The closing card a course fades to before it returns the player to the menu (Learn Ancients). */
+export interface TutorialOutro {
+  title: string;
+  /** Shown under the title only while the Ancients release switch is ON. */
+  liveLine?: string;
+}
 
 /** A whole course. `heroId` is forced (Aster for Learn Ascent); `contentRevision` pins the card slice a drift
  *  test guards; `guidedTurns`/`autonomyTurns` split coached rounds from supervised-independent ones. */
@@ -366,4 +420,8 @@ export interface TutorialCourse {
   /** The lobby intro steps (spotlight self, next opponent, phase loop) before Turn 1's shop. */
   lobbyIntro: TutorialStep[];
   turns: TutorialTurn[];
+  /** Start mid-game instead of turn 1 (see `TutorialMidGameStart`). */
+  midGame?: TutorialMidGameStart;
+  /** Fade to this card when the walk ends, then return to the menu (no graduation screen). */
+  outro?: TutorialOutro;
 }

@@ -20,7 +20,7 @@ describe('party home prototype', () => {
   it('lists every mode, hiding Versus and dev-only modes when their flags are off', () => {
     expect(partyModes({ versus: true, dev: true }).map((m) => m.id)).toEqual(PARTY_MODES.map((m) => m.id));
     const prod = partyModes({ versus: false, dev: false }).map((m) => m.id);
-    expect(prod).toEqual(['ranked', 'practice', 'gauntlet', 'learn']);
+    expect(prod).toEqual(['ranked', 'practice', 'gauntlet', 'learn', 'learnancients']);
   });
   it('sizes the party by mode: one card solo, two for Ranked Duos, four for the group modes', () => {
     expect(partyModeOf('ranked').slots).toBe(1);
@@ -59,7 +59,16 @@ describe('mode families (owner 2026-11-04: fewer top tabs, sub-modes on the side
   });
   it('a family with sub-modes has a settings tab', () => {
     expect(modeHasSettings('ranked')).toBe(true);
-    expect(modeHasSettings('learn')).toBe(false);
+    expect(modeHasSettings('gauntlet')).toBe(true);
+  });
+  it('Learn lists its two lessons as side-panel options (owner 2026-11-16), both always reachable', () => {
+    const learn = MODE_FAMILIES.find((f) => f.id === 'learn')!;
+    expect(learn.subs).toEqual([{ id: 'learn', label: 'Ascent' }, { id: 'learnancients', label: 'Ancients' }]);
+    expect(modeHasSettings('learn') && modeHasSettings('learnancients')).toBe(true);
+    expect(partyFamilies(partyModes({ versus: false, dev: false })).find((f) => f.id === 'learn')!.subs.length).toBe(2);
+    const home = here('./PartyHome.tsx');
+    expect(home).toMatch(/case 'learn': onStart = \(\) => startTutorial\(LEARN_ASCENT\)/);
+    expect(home).toMatch(/case 'learnancients': onStart = \(\) => startTutorial\(LEARN_ANCIENTS\)/);
   });
 });
 

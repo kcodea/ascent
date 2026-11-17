@@ -32,6 +32,8 @@ function verbNeededBy(c: TutorialPredicate): string | null {
     case 'ownsRunes': return 'buyRune';   // the Runeforge rounds (6 & 9)
     case 'heroPowerUsed': case 'heroPowerReady': return 'heroPower';
     case 'endedTurn': case 'combatStarted': return 'faceOmen';
+    case 'ancientAwakened': return 'roll'; // Learn Ancients: Refresh fills the meter
+    case 'ancientPicked': return 'pickAncient';
     // A composite needs whatever ANY of its branches could need — one satisfiable branch is enough, so the
     // gate must admit the verb of at least one of them.
     case 'any': case 'all': case 'not': return null;

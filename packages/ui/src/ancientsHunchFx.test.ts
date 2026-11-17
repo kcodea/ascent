@@ -60,3 +60,26 @@ describe('Hunch × Death: the +1/+1 plays at the hero power, not on the board', 
     expect(spellPowerNarrationAnchor({ type: 'sc', source: 'm1', text: 'hello' }, players)).toBeNull();
   });
 });
+
+describe('Warden × Bonds: tendrils from the hero-power button (owner 2026-11-16, Learn Ancients)', () => {
+  it('its combat label is the power name, which maps to Warden with no authored def replacing the ribbon', async () => {
+    const { WARDEN_TIME_COMBAT_LABEL } = await import('@game/sim');
+    expect(heroPowerBuffLabelFor(WARDEN_TIME_COMBAT_LABEL)).toEqual({ heroId: 'warden' });
+    expect(labelBuffFxFor(WARDEN_TIME_COMBAT_LABEL)).toBeNull();
+  });
+  it('COMBAT: a Ward minion gaining stats fires Bonds with the Aegis label and no spellId', async () => {
+    const { WARDEN_TIME_COMBAT_LABEL } = await import('@game/sim');
+    const ward = (uid: string): BoardMinion => ({ cardId: 'sandbag', attack: 1, health: 900, sourceUid: uid, keywords: ['DS'] });
+    const mods = { ancientBonds: { attack: 5, label: WARDEN_TIME_COMBAT_LABEL } } as Partial<QuestCombatMods>;
+    // Taragosa casts Growth on ally attacks, buffing a Ward minion mid-fight, which must fire Bonds.
+    const r = simulate([ward('A'), { cardId: 'taragosa', attack: 4, health: 900, sourceUid: 'T', keywords: ['DS'] }, ward('B')],
+      [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ['beast', 'dragon'], questMods: mods as QuestCombatMods }), combatSide({ tier: 1 }));
+    const bonds = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === WARDEN_TIME_COMBAT_LABEL);
+    expect(bonds.length).toBeGreaterThan(0);
+    for (const b of bonds) {
+      expect(b.spellId).toBeUndefined();
+      expect(heroPowerBuffLabelFor(b.source)).toEqual({ heroId: 'warden' });
+    }
+  });
+});

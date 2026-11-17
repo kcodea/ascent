@@ -1763,7 +1763,11 @@ export function simulate(
         if (others.length > 0) {
           const pick = rng.pick(others);
           ancientBondsFiring = true;
-          try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; }
+          // Not the cast's own buff: no `spellId`, so a spell's cast effect never replaces Warden's hero-power tendril
+          // (the Hunch × Bonds shape, `ancientSpellEdges` below). Presentation only.
+          const casting = ctx.castingSpellId;
+          ctx.castingSpellId = undefined;
+          try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; ctx.castingSpellId = casting; }
         }
       }
       // ANCIENT OF BONDS × Midas (owner 2026-10-27: "When a Gilded minion gains stats, your other Gilded minions gain

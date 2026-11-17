@@ -3966,7 +3966,9 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (war) out.ancientWar = { attack: war.attack, health: war.health, label: ANCIENTS.war.name };
   if (effectOf(state, 'socGildRightmost')) out.ancientTimeGild = { label: ANCIENTS.time.name };
   const bonds = effectOf(state, 'wardedGainBuffsWarded');
-  if (bonds) out.ancientBonds = { attack: bonds.attack, label: ANCIENTS.bonds.name };
+  // Labelled with the POWER's name so the combat replay draws its tendril from Warden's hero-power button
+  // (`heroPowerBuffLabelFor('Aegis')`), the same route as Warden × Time.
+  if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
@@ -4150,7 +4152,10 @@ export function ancientBondsReact(state: RunState, before: Map<string, { attack:
     const rng = makeRng(state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
+    // The grant is the HERO POWER's (Warden × Bonds): its tendril leaves the hero-power button (the Hunch shape).
+    const from = state.recruitBuffFx.length;
     captureBuffFx(state, g, 'minion', () => addBuff(pick, ANCIENTS.bonds.name, e.attack, 0));
+    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
     touched.push(g.uid, pick.uid);
   }
   if (mark) a.bondsHandled = [...handled, ...touched];

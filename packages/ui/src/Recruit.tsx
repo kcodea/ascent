@@ -286,7 +286,7 @@ import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './ranke
 import { requestRankedGate } from './rankedGate/rankedGateController';
 import { warmRankedGate } from './rankedGate/RankedGate';
 import { endGateRevealDelayMs, playPlacementTone } from './placementTone';
-import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
+import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge, tutorialTakesEndCombat } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
@@ -3696,6 +3696,9 @@ export function Recruit() {
     // retires its FX and HOLDS new combat sounds / FX until the shop is shown (released at full cover, below). The
     // blow that never landed is still settled by `resolveCombat` (it settles first when `combatSettled` is false).
     stopFightNow();
+    // A COURSE THAT ENDS ON A CARD (Learn Ancients): its last End combat fades to the card, not back to a Shop. The
+    // fight is already stopped; nothing will reach full cover, so the hold lifts here.
+    if (!sandboxReplay && !spectating && tutorialTakesEndCombat()) { releaseCombatHold(); return; }
     // VERSUS (owner 2026-10-14): End Combat tells the server this player is back, but the fight stays on screen until
     // the next shop opens for both (the other presses, or their 5 s run out); `useVersusRecruit` then leaves it.
     if (!sandboxReplay && !spectating) {

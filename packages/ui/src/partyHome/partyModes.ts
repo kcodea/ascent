@@ -7,7 +7,7 @@
  * `slots` is how many banner cards the mode shows (you plus the open seats); `party` says whether the other seats are
  * TEAMMATES (Ranked Duos) or RIVALS (the Versus rooms) or there are none (solo modes). Pure data, so it is testable.
  */
-export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn';
+export type PartyModeId = 'ranked' | 'duos' | 'versus' | 'group' | 'vduos' | 'practice' | 'gauntlet' | 'learn' | 'learnancients';
 
 export interface PartyMode {
   id: PartyModeId;
@@ -34,7 +34,9 @@ export const PARTY_MODES: readonly PartyMode[] = [
   { id: 'vduos', label: 'Versus Duos', desc: 'Two teams of two, shared hearts. Unranked.', slots: 4, party: 'rivals', ranked: false, versus: true, options: true },
   { id: 'practice', label: 'Practice', desc: 'Practice your way. Nothing here is rated.', slots: 1, party: 'solo', ranked: false, options: true },
   { id: 'gauntlet', label: 'Gauntlet', desc: 'Survive 10 rounds against a hand-built foe.', slots: 1, party: 'solo', ranked: false, options: true },
-  { id: 'learn', label: 'Learn', desc: 'A coached first game that teaches you everything.', slots: 1, party: 'solo', ranked: false },
+  { id: 'learn', label: 'Ascent Tutorial', desc: 'A coached first game that teaches you everything.', slots: 1, party: 'solo', ranked: false },
+  // LEARN ANCIENTS (owner 2026-11-16): the two minute Ancients lesson, picked in Learn's side panel beside the Ascent one.
+  { id: 'learnancients', label: 'Ancients Tutorial', desc: 'A two minute lesson. Awaken an Ancient mid game and use it.', slots: 1, party: 'solo', ranked: false },
 ];
 
 /** A top-row tab: one mode, or several sub-modes picked in the side panel. */
@@ -45,7 +47,9 @@ export const MODE_FAMILIES: readonly ModeFamily[] = [
   { id: 'versus', label: 'Versus', subs: [{ id: 'versus', label: '1v1' }, { id: 'group', label: 'Group' }, { id: 'vduos', label: 'Duos' }] },
   { id: 'practice', label: 'Practice', subs: [{ id: 'practice', label: 'Practice' }] },
   { id: 'gauntlet', label: 'Gauntlet', subs: [{ id: 'gauntlet', label: 'Gauntlet' }] },
-  { id: 'learn', label: 'Learn', subs: [{ id: 'learn', label: 'Learn' }] },
+  // Learn's two lessons are its sub-modes (owner 2026-11-16: "the ancient tutorial and 'ascent tutorial' should be options on
+  // the right panel, like how the other modes have options"), so either can be replayed any time.
+  { id: 'learn', label: 'Learn', subs: [{ id: 'learn', label: 'Ascent' }, { id: 'learnancients', label: 'Ancients' }] }, // short: the full names overflow the segmented pill
 ];
 /** The families this build shows, each with only the sub-modes it has. */
 export function partyFamilies(modes: readonly PartyMode[]): ModeFamily[] {

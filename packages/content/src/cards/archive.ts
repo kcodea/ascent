@@ -1525,8 +1525,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'goldSpent', do: 'goldSpentBuffRightmostSlot', params: { every: 10, attack: 8, health: 8 } }],
-    text: 'When you spend **10 Gold**, give the **right-most Shop minion +8/+8** permanently.',
-    goldenText: 'When you spend **10 Gold**, give the **right-most Shop minion +16/+16** permanently.',
+    text: 'Every **10 Gold** spent, give the **right-most Shop minion +8/+8** permanently.',
+    goldenText: 'Every **10 Gold** spent, give the **right-most Shop minion +16/+16** permanently.',
   },
   {
     // ARCHIVED 2026-08-18. Moved verbatim from set2/demons.ts (SET2_DEMONS). Name: Endless Overseer.

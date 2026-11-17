@@ -191,7 +191,10 @@ function compareOne(c: ContentContract, t: TextObject, p: ParsedTextContract, pg
   if (contractEvents.size > 0 && triggerComparable) {
     for (const trig of p.triggers) {
       if (!COMPARABLE_TRIGGERS.has(trig.event)) continue;
-      if (trig.display === 'Every N') continue; // a cadence names its counter, not the dispatching trigger (Bleed counts attacks under startOfCombat)
+      // A cadence names its counter, not the dispatching trigger (Bleed counts attacks under startOfCombat). The one
+      // exception is the Gold meter: "Every 10 Gold spent," IS the `goldSpent` dispatch (owner ruling 2026-11-17 moved
+      // every "When you spend N Gold" minion to this wording, so it must keep convicting a wrong trigger).
+      if (trig.display === 'Every N' && trig.event !== 'goldSpent') continue;
       const accepted = EVENT_ALIASES[trig.event] ?? [trig.event];
       if (!accepted.some((ev) => contractEvents.has(ev))) {
         mism('wrong-trigger', [...contractEvents].join(','), trig.event,

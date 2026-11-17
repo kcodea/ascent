@@ -55,7 +55,7 @@ describe('Doc Bot — text as oracle tranche 3 (printed economy)', () => {
     expect(parsePrintedEconomy('**Sell:** get **6 Gold**. **End of Turn:** get a random Tier 1 Spell or Minion.')).toEqual({ sellGet: 6 });
     // Rates, thresholds and schedules never become axes (§7.5).
     expect(parsePrintedEconomy('Give a minion **+1/+1**, plus **+2/+2** for every **6 Gold** spent this turn.')).toBeNull();
-    expect(parsePrintedEconomy('When you spend **10 Gold**, get a **Dwarven Ale**.')).toBeNull();
+    expect(parsePrintedEconomy('Every **10 Gold** spent, get a **Dwarven Ale**.')).toBeNull();
     expect(parsePrintedEconomy('Has **+1/+1** for every **3 Gold** you have spent this run.')).toBeNull();
     expect(parsePrintedEconomy('Sell your **entire board**. Gain **3 Gold** for each minion sold.')).toBeNull();
   });

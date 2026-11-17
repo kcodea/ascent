@@ -280,8 +280,8 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     // add an era (cut-over time + version) to reportSources.ts in the same PR, then move this line to it.
     // 2026-10-06: the owner reverted #1928 (weighted strength on the #1871 bands again), then the same day split the
     // bands into early / late blends (R-LOBBY-13). 2026-10-09: the overall caps on top (R-LOBBY-15): the newest era is
-    // `bandsCapped`.
-    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V4, 'earlyLate']);
+    // `bandsCapped`. 2026-11-16: strength v2 (same bands, new ratings behind them): the newest era is `bandsV2Scoring`.
+    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V4, 'earlyLateV2']);
   });
 
   it('a stamped row is "stamped"; old rows infer from the build first, then the date', () => {

@@ -13996,6 +13996,13 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankend-status.rejected { color: #ff9a9a; }
 .rankend-status.unrated { text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.7; }
 .rankend-spin { width: 18px; height: 18px; border-width: 2px; }
+/* "CALCULATING SCORE" (strength v2, owner 2026-11-16): Continue is greyed out while the finished game is scored, with
+   the reason and a bar of the real progress (fights done / fights to do). The fill moves by transform only. */
+.rankend-scoring { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
+.rankend-scoring-text { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 246, 228, 0.86); }
+.rankend-scoring-track { position: relative; display: block; width: 220px; height: 8px; border-radius: 999px; overflow: hidden; background: rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 246, 228, 0.18); }
+.rankend-scoring-fill { position: absolute; inset: 0; display: block; transform-origin: left center; border-radius: inherit; background: linear-gradient(90deg, #c9973f, #ffe08a); transition: transform 120ms linear; will-change: transform; }
+.rankend-continue.scoring { opacity: 0.45; filter: saturate(0.4); }
 .rankend-actions { display: flex; align-items: center; gap: 18px; }
 .rankend-actions .endplay { margin-top: 14px; }
 .rankend-retry { background: linear-gradient(180deg, #6a9ce0, #3f74bd); border-color: #22467a; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 #22467a, 0 14px 34px -8px rgba(0, 0, 0, 0.55); }

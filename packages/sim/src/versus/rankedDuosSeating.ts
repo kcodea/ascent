@@ -21,7 +21,7 @@
  * seatable like anyone's). Pure and deterministic (one seeded stream per shuffle); bundle-safe.
  */
 import { makeRng } from '@game/core';
-import { bandSteps, runInStrengthBand, type StrengthBand } from '../lobby/strengthBands';
+import { bandSteps, duoRunInStrengthBand, runInStrengthBand, type StrengthBand } from '../lobby/strengthBands';
 import { handleFor, handleKeyOf } from '../lobby/handles';
 import { RANKED_DUOS_SERVED_TEAMS, type RankedDuosTeam } from './rankedDuos';
 
@@ -146,7 +146,8 @@ export function selectRankedDuosTable(input: RankedDuosSeatingInput): RankedDuos
     // 1. Recorded duo runs first.
     for (const run of duos) {
       if (full()) break;
-      if (duoSeen.has(run.id) || !runInStrengthBand(run, band)) continue;
+      // A duo TEAM is never scored (strength v2 leaves it alone): unscored = inside every band, as before v2.
+      if (duoSeen.has(run.id) || !duoRunInStrengthBand(run, band)) continue;
       duoSeen.add(run.id);
       const [m0, m1] = run.members;
       if (m0.heroId === m1.heroId || heroesTaken.has(m0.heroId) || heroesTaken.has(m1.heroId)) continue;

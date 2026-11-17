@@ -81,8 +81,8 @@ export const SET2_DWARVES: CardDef[] = [
     keywords: [],
     // Owner balance 2026-11-06: +2 Attack per 5 Gold -> +2/+1 per 6 Gold.
     effects: [{ on: 'goldSpent', do: 'goldSpentBuffTribeAttack', params: { every: 6, tribe: 'dwarf', attack: 2, health: 1 } }],
-    text: 'When you spend **6 Gold**, give your **Dwarves +2/+1**.',
-    goldenText: 'When you spend **6 Gold**, give your **Dwarves +4/+2**.',
+    text: 'Every **6 Gold** spent, give your **Dwarves +2/+1**.',
+    goldenText: 'Every **6 Gold** spent, give your **Dwarves +4/+2**.',
   },
   {
     id: 'dw_brakka',
@@ -153,8 +153,8 @@ export const SET2_DWARVES: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'goldSpent', do: 'grantRandomAle', params: { every: 10, count: 1 } }],
-    text: 'When you spend **10 Gold**, get a **Dwarven Ale**.',
-    goldenText: 'When you spend **10 Gold**, get **2 Dwarven Ales**.',
+    text: 'Every **10 Gold** spent, get a **Dwarven Ale**.',
+    goldenText: 'Every **10 Gold** spent, get **2 Dwarven Ales**.',
   },
   {
     // Tier 7, so it only appears once the run has Tier 7 access. Reuses the spell path's gild, so a Shout-gild
@@ -286,8 +286,8 @@ export const SET2_DWARVES: CardDef[] = [
     // Owner rework 2026-08-18: the hand-mint half is dropped and the board half now hits ALL your minions
     // (`tribe: 'all'`, `count: 0` = mint nothing). `every` still metered per-instance by `applyGoldSpent`.
     effects: [{ on: 'goldSpent', do: 'goldSpentGetRubiesPlayOnTribe', params: { every: 8, count: 0, play: 1, tribe: 'all' } }],
-    text: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, cast a **Ruby** on your minions.',
-    goldenText: '**Ward. Critical Strike (50%).** When you spend **8 Gold**, cast **2 Rubies** on your minions.',
+    text: '**Ward. Critical Strike (50%).** Every **8 Gold** spent, cast a **Ruby** on your minions.',
+    goldenText: '**Ward. Critical Strike (50%).** Every **8 Gold** spent, cast **2 Rubies** on your minions.',
   },
   {
     // Set 2 — Billings (owner add 2026-08-18): every 5 Gold spent, two random Dwarves get a big +5/+5. The
@@ -302,8 +302,8 @@ export const SET2_DWARVES: CardDef[] = [
     // Owner balance 2026-10-10: +5/+5 -> +6/+5 (gilded +12/+10).
     // Owner balance 2026-11-06: every 10 Gold (was 5), 3 Dwarves (was 2), +6/+6 (gilded +12/+12).
     effects: [{ on: 'goldSpent', do: 'goldSpentBuffRandomTribe', params: { every: 10, tribe: 'dwarf', count: 3, attack: 6, health: 6 } }],
-    text: 'When you spend **10 Gold**, give **3 random** friendly **Dwarves +6/+6**.',
-    goldenText: 'When you spend **10 Gold**, give **3 random** friendly **Dwarves +12/+12**.',
+    text: 'Every **10 Gold** spent, give **3 random** friendly **Dwarves +6/+6**.',
+    goldenText: 'Every **10 Gold** spent, give **3 random** friendly **Dwarves +12/+12**.',
   },
   {
     // Set 2 — Gangplank (owner add 2026-08-18): every card added to your hand (an Ale, a conjured spell, a
@@ -384,8 +384,8 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     effects: [{ on: 'goldSpent', do: 'goldSpentGrantTribeMinion', params: { every: 10, tribe: 'dwarf', count: 1 } }],
     // No longer a token (owner 2026-10-21): Brill is a BUYABLE Tier 6 in set 3's Dwarf pool. Set 2 keeps it forge-only
     // by leaving it out of its manifest (`SET2_DWARF_RUNE_MINIONS_IN_SET2` in sets.ts), not by this flag.
-    text: 'When you spend **10 Gold**, get a random **Dwarf**.',
-    goldenText: 'When you spend **10 Gold**, get **2** random **Dwarves**.',
+    text: 'Every **10 Gold** spent, get a random **Dwarf**.',
+    goldenText: 'Every **10 Gold** spent, get **2** random **Dwarves**.',
   },
   {
     // Beast, not Dwarf — a Rune minion that happens to arrive with this batch. Owner rework 2026-09-23: it IS

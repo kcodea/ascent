@@ -179,8 +179,8 @@ export const SET4_CELESTIALS: readonly CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'goldSpent', do: 'goldSpentCreateStarformOrBuff', params: { every: 5, attack: 3, health: 3 } }],
-    text: 'When you spend **5 Gold**, create a **Starform**, or give it **+3/+3**.',
-    goldenText: 'When you spend **5 Gold**, create a **Starform**, or give it **+6/+6**.',
+    text: 'Every **5 Gold** spent, create a **Starform**, or give it **+3/+3**.',
+    goldenText: 'Every **5 Gold** spent, create a **Starform**, or give it **+6/+6**.',
   },
   {
     // T2 Shout AND Echo, one factory on two triggers: "this shop" = the offers standing in the row right now

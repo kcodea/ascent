@@ -2158,14 +2158,14 @@ export interface QuestCombatMods {
   /** ANCIENT OF BONDS × Warden (proof of concept, owner 2026-09-26): whenever one of this side's WARDED minions gains
    *  stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded).
    *  Combat-only like every combat gain (Engraved keeps it). Either side; rides a snapshot (`questMods`). */
-  ancientBonds?: { attack: number; label: string };
+  ancientBonds?: { attack: number; label: string; /** R-FX-ANCIENT-ORIGIN-01 (presentation only): where the grant's tendril starts, stamped on the `buff` as `from`. Absent = the hero-power button. */ origin?: AncientGrantOriginMod };
   /** ANCIENT OF DEATH × Midas (owner 2026-10-27): "Gilded minions gain Echo: Get a Gold Pouch". A GILDED body summoned in
    *  the fight carries the graft too (the board's own Gilded bodies bring it from the Shop). Either side; rides a snapshot (`questMods`). */
   ancientGildedEcho?: { cardId: string };
   /** ANCIENT OF BONDS × Midas (owner 2026-10-27): whenever one of this side's GILDED minions gains stats, every OTHER
    *  living Gilded friendly minion gains +attack/+health. The grant never re-triggers it (guarded). Combat-only like every
    *  combat gain (Engraved keeps it). Either side; rides a snapshot (`questMods`). */
-  ancientGildedBonds?: { attack: number; health: number; label: string };
+  ancientGildedBonds?: { attack: number; health: number; label: string; /** R-FX-ANCIENT-ORIGIN-01, as on `ancientBonds`. */ origin?: AncientGrantOriginMod };
   /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
    *  Off by default so every other fight's result is byte-identical. Either side; rides a snapshot (`questMods`). */
   ancientTrackWardBreaks?: boolean;
@@ -2228,7 +2228,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly
    *  Shout fire in combat gives every living `cardId` body +a/+h, PERMANENTLY (`permaGain` carries it home).
    *  Either side; rides a snapshot (`questMods`). */
-  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Drakko × Bonds improves: every `improveEvery`th fire (counting from `shouts` carried in) the gain grows by `step`. */ improveEvery?: number; step?: number; shouts?: number; /** A `questTrigger` pulsed on every fire, so the replay ticks the live X / count (R-ANCSYS-04). */ flag?: string };
+  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Drakko × Bonds improves: every `improveEvery`th fire (counting from `shouts` carried in) the gain grows by `step`. */ improveEvery?: number; step?: number; shouts?: number; /** A `questTrigger` pulsed on every fire, so the replay ticks the live X / count (R-ANCSYS-04). */ flag?: string; /** R-FX-ANCIENT-ORIGIN-01, as on `ancientBonds`. */ origin?: AncientGrantOriginMod };
   /** ANCIENTS × Flash (owner 2026-10-09). `second` (Death): with First or Last armed, the 2nd enemy minion killed is also
    *  copied to hand, live. `pummel` (War): a hero Pummel (X) on the shared lifetime tally, once per combat, a copy of a
    *  random living enemy minion to hand. `soc` (Time): Start of Combat, a copy of a random enemy minion to hand.
@@ -3597,7 +3597,7 @@ export type CombatEvent = (
   // Idol / Reflector spread. Presentation-only provenance like `ruby`: the UI plays the `ruby-bounce` /
   // `spell-bounce` ribbon from `bounce.from` to `target`. Only stamped for CROSS-target hops (a same-target
   // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
-  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
+  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance; /** PRESENTATION ONLY (R-FX-ANCIENT-ORIGIN-01): the body a LABEL-sourced grant visibly comes from (the minion that set an Ancient's grant off; the recipient itself for a self-buff). `source` keeps the label (Engraved rows, tallies). Absent on every other buff. */ from?: string } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
   | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; conductor?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'epicFire'; source: string } // PRESENTATION ONLY (R-FX-EPIC-FIRE-01): an EPIC multiplier on the board (Drakko, Sylus, Uron, Zyff, Elderhorn, Orivax, Echo Warden, Deepdelve) just added fires / scaled a Ruby: `source` = that minion, which plays its On Watcher effect. No RNG, no step, no state.
   | { type: 'shout'; source: string; target: string; /** R-ROOMWORKS-02: this fire is `target`'s END OF TURN, not its Shout. Same counted moment, so its consequences get their own beat; only the words and the flourish differ. */ eot?: true } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
@@ -4896,3 +4896,6 @@ export const FERAL_RETURN_GAIN = 5;
 export const HELLFIRE_DAMAGE = 1;
 export const WILDFIRE_PER_COMBAT = 3;
 export const GEM_RAIN_RUBIES = 2;
+
+/** R-FX-ANCIENT-ORIGIN-01: where an Ancient's combat grant visibly starts when it is not the hero-power button. */
+export type AncientGrantOriginMod = 'trigger' | 'self';

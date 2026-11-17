@@ -62,10 +62,10 @@ describe('the bands', () => {
     expect(matchScoreOf({}, 0.8)).toBeNull(); // unscored
     expect(matchScoreOf({ early: 10, late: 90, strength: 55 }, null)).toBe(55); // a band from before the split
     // Exact at the boundary (0.8 x 30 + 0.2 x 30 is 30.000000000000004 in floats): inside 10-30.
-    expect(runInStrengthBand({ early: 30, late: 30 }, STRENGTH_BANDS.Silver)).toBe(true);
-    expect(runInStrengthBand({ early: 18, late: 82 }, STRENGTH_BANDS.Silver)).toBe(false); // 30.8
-    expect(runInStrengthBand({ early: 16, late: 84 }, STRENGTH_BANDS.Silver)).toBe(true); // 29.6
-    expect(runInStrengthBand({}, STRENGTH_BANDS.Bronze)).toBe(true); // unscored: inside every band
+    expect(runInStrengthBand({ strength: 30, early: 30, late: 30 }, STRENGTH_BANDS.Silver)).toBe(true);
+    expect(runInStrengthBand({ strength: 30, early: 18, late: 82 }, STRENGTH_BANDS.Silver)).toBe(false); // 30.8
+    expect(runInStrengthBand({ strength: 30, early: 16, late: 84 }, STRENGTH_BANDS.Silver)).toBe(true); // 29.6
+    expect(runInStrengthBand({}, STRENGTH_BANDS.Bronze)).toBe(false); // unscored: outside every band (strength v2, owner 2026-11-16)
     expect(runInStrengthBand({ early: 99, late: 99 }, null)).toBe(true);
   });
 
@@ -93,11 +93,12 @@ describe('the bands', () => {
     expect(runInStrengthBand({ strength: 76, early: 10, late: 10 }, STRENGTH_BANDS.Gold)).toBe(false);
     // Both must hold: under the cap but outside the early/late band is still out.
     expect(runInStrengthBand({ strength: 30, early: 25 }, bronze)).toBe(false);
-    // Unscored overall strength: inside (the cap cannot judge it); the early/late band still applies.
+    // No weighted strength: the cap alone cannot judge it, but the run is UNSCORED and so outside the band (strength
+    // v2, owner 2026-11-16: "Unscored runs are kept out of Bronze, Silver and Gold lobbies").
     expect(runUnderOverallCap({}, bronze)).toBe(true);
-    expect(runInStrengthBand({ early: 5 }, bronze)).toBe(true);
+    expect(runInStrengthBand({ early: 5 }, bronze)).toBe(false);
     expect(runInStrengthBand({ early: 25 }, bronze)).toBe(false);
-    expect(runInStrengthBand({}, bronze)).toBe(true);
+    expect(runInStrengthBand({}, bronze)).toBe(false);
     // No cap: Platinum and up (null bands), and a capless band (one saved before 2026-10-09).
     expect(runInStrengthBand({ strength: 100, early: 100, late: 100 }, STRENGTH_BANDS.Platinum)).toBe(true);
     expect(runUnderOverallCap({ strength: 100 }, { min: 0, max: 20, earlyWeight: 1 })).toBe(true);
@@ -240,14 +241,15 @@ describe('seat selection inside a band', () => {
     expect(lobby.poolAtStart?.band?.widenings).toBe(7);
   });
 
-  it('counts unscored runs as inside the band (nothing changes before the backfill)', () => {
+  it('keeps unscored runs out of a banded table, and seats them when there is no band (strength v2)', () => {
     registerOpponentRuns(HEROES.slice(0, 10).map((h, i) => run(`U${i}`, h, 400 + i, undefined, `v${i}`)));
-    const a = createRunLobby(9, 'zz-none', {}, 'set1', { strengthBand: { min: 0, max: 30 } });
+    // A medal band (it has a cap, so its last widening step is still a band: an unscored run is outside every step).
+    const a = createRunLobby(9, 'zz-none', {}, 'set1', { strengthBand: STRENGTH_BANDS.Bronze });
     resetLobbyDrivers(a.seats);
     const b = createRunLobby(9, 'zz-none', {}, 'set1');
     resetLobbyDrivers(b.seats);
-    expect(a.seats.map((s) => s.runKey)).toEqual(b.seats.map((s) => s.runKey)); // seat for seat the unbanded table
-    expect(a.poolAtStart?.band?.widenings).toBe(0);
+    expect(a.seats.filter((s) => s.kind === 'snapshot')).toEqual([]); // generated seats fill the banded table
+    expect(b.seats.filter((s) => s.kind === 'snapshot').length).toBe(7);
   });
 
   it('with no band the table is exactly the selection of before', () => {

@@ -16,11 +16,12 @@
 import { makeRng, type BoardMinion, type CardDef, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
-import { HEROES, isArchivedHero } from './heroes';
+import { HEROES, isArchivedHero, type HeroDef } from './heroes';
 
 /** Portrait roster for synthesized pool boards: archived heroes (owner 2026-09-24) are never given a NEW board.
- *  Boards already baked into `opponentPool.data.ts` keep their stored heroId and still resolve. */
-const SYNTH_HEROES = HEROES.filter((h) => !isArchivedHero(h));
+ *  Boards already baked into `opponentPool.data.ts` keep their stored heroId and still resolve. Read per call, not at
+ *  module load, so the Ancients-release gate (a hero with no pairings is archived while the switch is on) applies. */
+const synthHeroes = (): HeroDef[] => HEROES.filter((h) => !isArchivedHero(h));
 import { opponentBoard } from './opponents';
 import { rateBoardForWave, ratingBand, type WaveLadders } from './rating';
 import { buildEnemyBoard, THREAT_IDS } from './threats';
@@ -210,6 +211,7 @@ export function synthesizeWaveFromCurve(
   const tier = tierForWave(wave);
   const out: BoardSnapshot[] = [];
   const seen = new Set<string>();
+  const roster = synthHeroes();
   for (let i = 0; i < chosen.length; i++) {
     const ref = chosen[i]!;
     const targetPower = Math.max(2, Math.round(power(ref) * (0.9 + rng.next() * 0.3))); // ×0.9–1.2 band jitter
@@ -222,7 +224,7 @@ export function synthesizeWaveFromCurve(
     out.push({
       v: 1,
       wave,
-      heroId: SYNTH_HEROES[(wave * 7 + i) % SYNTH_HEROES.length]!.id,
+      heroId: roster[(wave * 7 + i) % roster.length]!.id,
       resolve: 30,
       tier,
       triples: 0,

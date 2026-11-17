@@ -20,13 +20,13 @@ const board = (author: string, heroId: string, seed: number, wave: number, setId
   seed, origin: 'self', author, setId,
 } as unknown as BoardSnapshot);
 
-/** Seven distinct 6-wave player runs on distinct playable heroes — enough to fill a whole lobby. */
+/** Seven distinct 7-wave player runs (7 rounds is the floor for a seat, strength v2) on distinct playable heroes — enough to fill a whole lobby. */
 const heroes = playableHeroes().map((h) => h.id).slice(1, 8);
 const runOf = (author: string, heroId: string, seed: number, waves: number, setId: SetId = SET, ownerId?: string): PoolRun => ({
   key: `${author}|${heroId}|${seed}`, waves, ...(ownerId ? { ownerId } : {}),
   snaps: Array.from({ length: waves }, (_, i) => board(author, heroId, seed, i + 1, setId)),
 });
-const sevenRuns = (): PoolRun[] => heroes.map((h, i) => runOf(`Player${i}`, h, 5000 + i, 6, SET, `owner-${i}`));
+const sevenRuns = (): PoolRun[] => heroes.map((h, i) => runOf(`Player${i}`, h, 5000 + i, 7, SET, `owner-${i}`));
 const rpc = (runs: PoolRun[]): PoolFetch => ({ runs, path: 'rpc' });
 
 const FAST: LoadOptions = { perRequestMs: 40, attempts: 2, retryBaseMs: 0 };
@@ -58,8 +58,8 @@ describe('whole runs only', () => {
   it('registers every delivered run whole, marked remote and stamped with its owner', async () => {
     const d = deps({ fetchRuns: () => Promise.resolve(rpc(sevenRuns())) });
     const s = await createPoolLoader(d).load(FAST);
-    expect(s).toMatchObject({ status: 'ready', source: 'rpc', runs: 7, boards: 42, runsDropped: 0 });
-    expect(d.registered.every((r) => r.length === 6)).toBe(true);
+    expect(s).toMatchObject({ status: 'ready', source: 'rpc', runs: 7, boards: 49, runsDropped: 0 });
+    expect(d.registered.every((r) => r.length === 7)).toBe(true);
     expect(d.registered.flat().every((b) => b.remote === true)).toBe(true);
     expect(d.registered[0]!.every((b) => b.ownerId === 'owner-0')).toBe(true);
   });
@@ -288,7 +288,7 @@ describe('the rated lobby start waits for the pool and uses it', () => {
 describe('a Practice game set to another rank', () => {
   const BRONZE = STRENGTH_BANDS.Bronze!;
   const GOLD = STRENGTH_BANDS.Gold!;
-  const bandRuns = (tag: string, base: number): PoolRun[] => heroes.map((h, i) => runOf(`${tag}${i}`, h, base + i, 6, SET, `${tag}-owner-${i}`));
+  const bandRuns = (tag: string, base: number): PoolRun[] => heroes.map((h, i) => runOf(`${tag}${i}`, h, base + i, 7, SET, `${tag}-owner-${i}`));
   /** A loader whose band the test switches, and whose every fetch answers with that band's own runs. */
   function banded(start: StrengthBand | null) {
     let band: StrengthBand | null = start;

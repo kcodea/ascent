@@ -148,7 +148,9 @@ export function pickRuns(runs: readonly MirrorRun[], args: PickArgs, random: () 
     if (args.p_exclude_user != null && r.user_id === args.p_exclude_user) return false;
     if (args.p_pool != null && r.pool_id !== args.p_pool) return false;
     const strength = dec(r.strength);
-    if (cap != null && strength != null && cmp(strength, cap) > 0) return false;
+    // Strength v2 (2026-11-23-strength-v2.sql): with a band or a cap, a run with no strength (unscored) is out.
+    if ((min != null || max != null || cap != null) && strength == null) return false;
+    if (cap != null && cmp(strength!, cap) > 0) return false;
     const ms = matchScore(strength, dec(r.strength_early), dec(r.strength_late), weight);
     if (ms == null) return true;
     return (min == null || cmp(ms, min) >= 0) && (max == null || cmp(ms, max) <= 0);

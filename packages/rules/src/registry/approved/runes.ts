@@ -1640,7 +1640,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: "packages/content/src/runes.ts rune_minted_gems (runeThreshold gold per 8, grantRandomRuby); packages/sim/src/recruit.ts payRuneThresholdInner (mintRandomRubies)" },
     ],
     contentIds: ["rune_minted_gems"],
-    cardText: "When you spend **8 Gold**, get a random **Ruby**.",
+    cardText: "Every **8 Gold** spent, get a random **Ruby**.",
     currentBehaviour: 'Conforms (built with the rune, 2026-09-27).',
     enforcement: {
       kind: 'scenario',

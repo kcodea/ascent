@@ -21,7 +21,8 @@ import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatR
 import { decisiveBeatIndex, remainingNow, skipTurboSpeed, turboAmount } from './skipTurbo';
 import { RESULT_TYPES, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
-import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
+import { ConsequenceLedger, defReadMs, finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
+import { getPlateCoalesceConfig } from './plateCoalesce';
 import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
 import { playBuffSourceWatcher } from './choreo/buffWatcher';
@@ -1779,6 +1780,10 @@ export function useCombatReplay(
   // release of `combatHeldRef` leftovers); see that function's comment for the browser trace that found it.
   const rollRegistryRef = useRef<Map<number, { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null }>>(new Map());
   const rollRegistryIdRef = useRef(0);
+  // R-FINAL-CONSEQUENCES-01: the wall-clock end of every consequence presentation this replay has fired (a stat
+  // roll, a summon's dust, a card coalescing into hand, a coin burst, an Avenge def), so the final hold waits out
+  // whatever the last beats left running before `done` hands the fight back. See `choreo/finalHold.ts`.
+  const consequenceLedgerRef = useRef(new ConsequenceLedger());
   // Combat-lifetime timers for a dying unit's Echo spike VOLLEYS (Fel Spikes). Each spray is launched from the
   // death beat but its later volleys fire whole beats later (one `ECHO_PASS_GAP_MS` apart), AFTER the replay has
   // advanced past the death beat — so they CANNOT live in the per-beat `timers` array, which the cue effect's
@@ -1848,6 +1853,7 @@ export function useCombatReplay(
     combatHeldRef.current = combatHeldRef.current.filter((u) => u !== uid);
     const speed = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
     const endMs = steps[steps.length - 1]!.atMs + STEP_ROLL_MS / speed + HOLD_GRACE_MS;
+    consequenceLedgerRef.current.note(performance.now(), endMs);
     const held = heldFor(uid); // just placed this beat, nothing revealed yet: the whole delta
     if (held && endMs > COMBAT_HOLD_TTL_MS / speed) replaceHold(uid, held, { origin: 'effect', ttlMs: endMs });
     steps.forEach((step, k) => {
@@ -1870,6 +1876,8 @@ export function useCombatReplay(
   }, []);
 
   const scheduleRoll = useCallback((uid: string, ms: number): void => {
+    // The number lands at the strike and rolls for COMBAT_ROLL_MS ÷ speed (`driveRoll`): that is when it reads.
+    consequenceLedgerRef.current.note(performance.now(), ms + COMBAT_ROLL_MS / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1));
     const id = ++rollRegistryIdRef.current;
     const entry: { uid: string; strikeTimer: number | null; cancelRoll: (() => void) | null } =
       { uid, strikeTimer: null, cancelRoll: null };
@@ -2128,6 +2136,7 @@ export function useCombatReplay(
     setFramePulse(new Map());
     setFinished(false);
     lastPummelFireRef.current = null;
+    consequenceLedgerRef.current.clear();
     castPreviewMemoryRef.current.reset();
     clearCastPreviews();
     setAttackUid(null);
@@ -2655,8 +2664,19 @@ export function useCombatReplay(
     const hold = finalHoldMs(last, events, cardIds, {
       finalHold: getChoreoConfig().finalHold, combatSpeed, pull,
       pendingPummelMs: pummelRemainingMs(lastPummelFireRef.current, performance.now()),
+      pendingConsequenceMs: consequenceLedgerRef.current.remainingMs(performance.now()),
     });
-    const t = window.setTimeout(() => setFinished(true), hold);
+    // THE FINAL BEATS' CONSEQUENCES FINISH FIRST (R-FINAL-CONSEQUENCES-01). The last beat's cues may fire in the same
+    // commit as this effect (or a beat timer a moment later), so the ledger is read AGAIN when the hold runs out: a
+    // consequence still running then (an Avenge tendril launched with the last beat) is waited out, re-checked, and
+    // only an empty ledger reports `done`. Nothing pending → `done` at the same instant as before.
+    let t = 0;
+    const settle = (): void => {
+      const left = consequenceLedgerRef.current.remainingMs(performance.now());
+      if (left > 0) t = window.setTimeout(settle, left);
+      else setFinished(true);
+    };
+    t = window.setTimeout(settle, hold);
     return () => window.clearTimeout(t);
   }, [active, replayComplete, combatSpeed, beats, events, cardIds, endNonce]);
 
@@ -2703,7 +2723,8 @@ export function useCombatReplay(
       // A `shout` pulses through `onShoutProc` (the re-triggering unit + the Shout's owner), not the white trigger.
       if (e.type === 'shout') continue;
       if (e.type === 'sc' && e.heroPower) continue; // a hero-power grant pulses no body (it plays at the power button)
-      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
+      if (e.type === 'buff' && e.from) trig.add(e.from); // the body an Ancient's grant visibly starts from (R-FX-ANCIENT-ORIGIN-01)
+      else if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
       else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
       // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —
@@ -3112,6 +3133,7 @@ export function useCombatReplay(
           if (!el) continue;
           const { cx, cy } = layoutRectOf(el);
           playDef('coins', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { uids: { source: uid, target: uid } });
+          consequenceLedgerRef.current.note(performance.now(), defReadMs('coins'));
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
@@ -3142,6 +3164,7 @@ export function useCombatReplay(
           // The authored `landing-dust` def, sized to THIS card via `playDef`'s per-call `scale` (which is
           // what the hand-written `pixiFx.dust(cx, cy, w, h)` used its w/h for).
           playDef('landing-dust', { source: { x: cx, y: cy }, target: { x: cx, y: cy } }, { scale: cardFxScale(w), uids: { source: uid, target: uid } });
+          consequenceLedgerRef.current.note(performance.now(), defReadMs('landing-dust'));
         }
       },
       // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap
@@ -3163,6 +3186,25 @@ export function useCombatReplay(
     // Ruby in a buff wave or a Shout: its gem carries no number) was withheld until the NEXT beat snapped it in. Roll
     // it on this moment's own clock instead, a Ruby as its gem lands. Arithmetic over this beat's events only.
     for (const r of undeliveredRollPlan(beat, events, combatSpeedRef.current, AUTHORED_BUFF_ROLL_MS)) scheduleRoll(r.uid, r.atMs);
+    // R-FINAL-CONSEQUENCES-01: the presentations this beat starts that are not stat rolls (those note themselves in
+    // `scheduleRoll`): a card of YOURS arriving in hand coalesces there (`Recruit.tsx`, the plate coalesce's authored
+    // `total`), and an Avenge plays its card's bound def. Noted from the beat's own events, so a beat with neither notes
+    // nothing.
+    {
+      const now = performance.now();
+      const ledger = consequenceLedgerRef.current;
+      const avenged = new Set<string>();
+      for (let i = beat.start; i < beat.end; i++) {
+        const e = events[i];
+        if (!e) continue;
+        if (e.type === 'toHand' && e.side === 'player' && inHandRange(i, ownHand)) ledger.note(now, getPlateCoalesceConfig().total);
+        if (e.avenge && typeof e.srcCard === 'string' && !avenged.has(e.srcCard)) {
+          avenged.add(e.srcCard);
+          const b = canPlayDefs() ? bindingFor(e.srcCard, 'avenge') : null;
+          if (b) ledger.note(now, defReadMs(b.def));
+        }
+      }
+    }
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —
     // the runner skips rise deaths, and the engine's runRiseReturn only handles the pulled-home ATTACKER.
@@ -3357,7 +3399,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs, fireBuffChain, scheduleRoll]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, unitSides, fireBuffCasts, fireSelfBuffs, fireBuffChain, scheduleRoll, ownHand]);
 
   // No verdict sting when the replay finishes (the round won / lost chimes were removed 2026-09-23 with the
   // lobby background music, owner ask): the music carries the verdict through uninterrupted.

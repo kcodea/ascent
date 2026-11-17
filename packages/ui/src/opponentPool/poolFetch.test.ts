@@ -102,7 +102,14 @@ describe('after: both fetch paths deliver whole runs', () => {
       const session = { rpcMissing: false };
       const got = await fetchPoolRuns(api, opts, signal, session);
       expect(got.path).toBe(rpc ? 'rpc' : 'fallback');
-      expect(got.runs.length).toBe(Math.min(POOL_SAMPLE_RUNS, 146));
+      // The RPC returns what the server picked. The fallback applies the client's own eligibility, which since strength
+      // v2 (2026-11-16) includes the 7-round floor: a run that ended before round 7 is never a seat.
+      const lastOf = new Map<string, number>();
+      for (const r of rows) { const k = `${r.author}|${r.hero_id}|${r.seed}`; lastOf.set(k, Math.max(lastOf.get(k) ?? 0, r.wave)); }
+      const longEnough = [...lastOf.values()].filter((w) => w >= 7).length;
+      expect(longEnough).toBeLessThan(146);
+      expect(got.runs.length).toBe(Math.min(POOL_SAMPLE_RUNS, rpc ? 146 : longEnough));
+      if (!rpc) for (const run of got.runs) expect(run.snaps[run.snaps.length - 1]!.wave, run.key).toBeGreaterThanOrEqual(7);
       for (const run of got.runs) {
         expect(isWholeRun(run), run.key).toBe(true);
         const truth = rows.filter((r) => `${r.author}|${r.hero_id}|${r.seed}` === run.key).map((r) => r.wave);

@@ -1,6 +1,7 @@
 // packages/ui/src/choreo/channels/buffSelf.ts
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
+import { buffOriginOf } from './buffCast';
 
 /** One self-buff pulse to fire: a unit (`uid`) empowering ITSELF by the summed delta this moment.
  *
@@ -19,7 +20,7 @@ export function groupSelfBuffs(moment: Moment, events: CombatEvent[]): SelfBuff[
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
     if (!e || e.type !== 'buff') continue;
-    if (e.source !== e.target) continue; // buff-OTHER: handled by the tendril channel
+    if (buffOriginOf(e) !== e.target) continue; // buff-OTHER: handled by the tendril channel (`from` counts, R-FX-ANCIENT-ORIGIN-01)
     // A RUBY landing is told by the gem detonation (`ruby-gem-apply`), so the generic buff cue stands down for
     // it. One piece of information, one channel: a gilded Frenzied Excavator buffs itself, and firing both the
     // self-buff cue and the gem on that card says the same thing twice while looking like two different things

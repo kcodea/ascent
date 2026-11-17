@@ -171,8 +171,26 @@ export function runUnderOverallCap(run: Pick<RunStrengths, 'strength'>, band: St
 /** Is a RUN inside the band? Its weighted strength must be at or under the band's overall cap (R-LOBBY-15,
  *  `runUnderOverallCap`), AND its match score for the band's early weight (R-LOBBY-13, `matchScoreOf`) inside min..max,
  *  checked in exact integers (score x 100 against min x 100 .. max x 100, as the SQL's exact numeric does). An
- *  unscored run is inside every band; a null band holds everything. */
+ *  UNSCORED run (no weighted `strength`) is OUTSIDE every band since strength v2 (owner ruling 2026-11-16: "Unscored
+ *  runs are kept out of Bronze, Silver and Gold lobbies"; it used to be inside, which let a top run from an old build
+ *  into Bronze). A null band holds everything, unscored runs included. SQL twin: the `r.strength is not null` line of
+ *  `pool_runs__pick` (supabase/migrations/2026-11-23-strength-v2.sql). */
 export function runInStrengthBand(run: RunStrengths, band: StrengthBand | null): boolean {
+  if (!band) return true;
+  if (finiteOrNull(run.strength) === null) return false;
+  if (!runUnderOverallCap(run, band)) return false;
+  const s = matchScore100(run, band.earlyWeight);
+  if (s === null) return false;
+  return s >= band.min * 100 && s <= band.max * 100;
+}
+
+/**
+ * Is a RANKED DUOS recorded duo TEAM inside the band? Duo teams (`duo_runs`) are never scored and are out of scope of
+ * strength v2 (design 2026-11-16, non-goals: "they keep today's rule, unscored and inside every band, and get no
+ * peak"), so this is `runInStrengthBand` as it was before v2: an unscored team is INSIDE every band, and a team that
+ * does carry a strength obeys the overall cap and min..max. Solo runs seated in a Duos table use `runInStrengthBand`.
+ */
+export function duoRunInStrengthBand(run: RunStrengths, band: StrengthBand | null): boolean {
   if (!band) return true;
   if (!runUnderOverallCap(run, band)) return false;
   const s = matchScore100(run, band.earlyWeight);

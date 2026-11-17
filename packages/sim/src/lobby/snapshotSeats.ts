@@ -6,6 +6,7 @@ import { CONFIG } from '../config';
 import { MAX_FIRST_WAVE, MAX_MISSING_WAVES, recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
 import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT } from './seatCap';
+import { runLongEnough } from './strengthV2';
 
 /**
  * REAL PLAYER RUNS AS LOBBY SEATS.
@@ -214,6 +215,20 @@ export function playerRunsFrom(
   // reproduce across sessions and replays.
   return runs.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
+
+/**
+ * THE 7-ROUND FLOOR (owner 2026-11-16, strength v2: "we should never have any snapshots of boards that are below 7
+ * rounds"; on the ones already stored: "exclude them"). A run whose recording ends before round 7 is never SEATED at a
+ * new table. It is checked where a table is seated (`seatablePlayerRuns`), not in `playerRunsFrom`: a saved game, a
+ * replay or the fight ledger must still find a run that was seated before the floor existed. SQL twin:
+ * `pool_run_eligible` (supabase/migrations/2026-11-23-strength-v2.sql).
+ */
+export const runCanBeSeated = (run: Pick<PlayerRun, 'snaps'>): boolean =>
+  run.snaps.length > 0 && runLongEnough(run.snaps[run.snaps.length - 1]!.wave);
+
+/** The runs a NEW table may be seated from: `playerRunsFrom`, minus the runs under the 7-round floor. */
+export const seatablePlayerRuns = (pool: readonly BoardSnapshot[] = OPPONENT_POOL, setId?: SetId): PlayerRun[] =>
+  playerRunsFrom(pool, undefined, setId).filter(runCanBeSeated);
 
 /** Look one up by key. Returns null when the pool of this session doesn't contain that run. */
 export const playerRunByKey = (key: string, pool: readonly BoardSnapshot[] = OPPONENT_POOL, setId?: SetId): PlayerRun | null =>

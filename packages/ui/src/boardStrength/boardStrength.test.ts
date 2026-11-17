@@ -54,7 +54,7 @@ describe('the background scorer', () => {
       expect(scorer.fightsRun() - before).toBeLessThanOrEqual(STRENGTH_SLICE_FIGHTS);
       slicesRun++;
     }
-    expect(slicesRun).toBe(Math.ceil((ref.waves['5']!.length * 2) / STRENGTH_SLICE_FIGHTS) + Math.ceil((ref.waves['6']!.length * 2) / STRENGTH_SLICE_FIGHTS));
+    expect(slicesRun).toBe(Math.ceil((ref.waves['5']!.length * ref.fightsPerRef) / STRENGTH_SLICE_FIGHTS) + Math.ceil((ref.waves['6']!.length * ref.fightsPerRef) / STRENGTH_SLICE_FIGHTS));
     expect(scorer.scores(42).get(5)).toEqual(scoreBoard(a, ref));
     expect(scorer.scores(42).get(6)).toEqual(scoreBoard(b, ref));
     expect(slices.pending()).toBe(false); // nothing left: no more callbacks requested

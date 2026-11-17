@@ -166,7 +166,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Overtime',
     cost: 1,
-    text: 'When you spend **12 Gold**, get a **Dwarven Ale**.', // balance 9/23: 15 → 12 (the badge counts x/12g)
+    text: 'Every **12 Gold** spent, get a **Dwarven Ale**.', // balance 9/23: 15 → 12 (the badge counts x/12g)
     reward: { kind: 'runeThreshold', meter: 'gold', per: 12, grantAle: 1 },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
@@ -187,7 +187,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // owner 2026-10-23 -1 (was 3)
     // Owner 2026-08-11: the buff is now PERMANENT (accumulates on the right-most slot across refreshes, like
     // Market Tormentor) rather than decorating only the current row. See the shopRightmost branch in payRuneThreshold.
-    text: 'When you spend **10 Gold**, give the **right-most minion** in the Shop **+4/+4 permanently**.',
+    text: 'Every **10 Gold** spent, give the **right-most minion** in the Shop **+4/+4 permanently**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'shopRightmost', attack: 4, health: 4 } },
   },
   {
@@ -1857,7 +1857,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold', 'dwarf'],
     name: 'Minted Gems',
     cost: 2,
-    text: 'When you spend **8 Gold**, get a random **Ruby**.',
+    text: 'Every **8 Gold** spent, get a random **Ruby**.',
     previewCards: ['ruby'],
     reward: { kind: 'runeThreshold', meter: 'gold', per: 8, grantRandomRuby: 1 },
     sets: ['set3'],
@@ -2394,7 +2394,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'],
     name: 'Dragon Hoard',
     cost: 1,
-    text: 'When you spend **3 Gold**, get a **Dragonflame**.',
+    text: 'Every **3 Gold** spent, get a **Dragonflame**.',
     previewCards: ['sp_dragonflame'],
     reward: { kind: 'runeThreshold', meter: 'gold', per: 3, grantCards: ['sp_dragonflame'] },
     sets: ['set2'],
@@ -2454,7 +2454,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['demon'],
     name: 'Gold for Grub',
     cost: 4,
-    text: 'When you spend **7 Gold**, a random **Demon** consumes a minion in the Shop.',
+    text: 'Every **7 Gold** spent, a random **Demon** consumes a minion in the Shop.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 7, demonConsumeShop: 1 },
     sets: ['set2'],
   },
@@ -2846,7 +2846,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Gemspam',
     cost: 3, // owner 2026-10-23 -1 (was 4); owner balance 2026-08-11
     epic: true,
-    text: 'When you spend **15 Gold**, improve your **Rubies +1/+2** and get a **Ruby**.',
+    text: 'Every **15 Gold** spent, improve your **Rubies +1/+2** and get a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantRuby: 1, improveRuby: { attack: 1, health: 2 } },
     sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)

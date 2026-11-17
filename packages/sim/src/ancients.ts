@@ -645,6 +645,7 @@ import { endOfTurnRepeats } from './recruit'; // the End-of-Turn readouts fold C
 import { rollCiaEnchants, rollShop } from './shop'; // ancient pass 2: Gorr × Time's End-of-Turn refresh
 import { poolOf, randomTierCeiling } from './cardPool';
 import { countedGoldSpent, countedGoldSpentThisTurn } from './goldSpent';
+import { ancientGrantOriginOf } from './ancientBuffFx'; // R-FX-ANCIENT-ORIGIN-01: the combat half of the per-pairing origin
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -2046,8 +2047,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "When you spend 50g, Discover a Tier 7 minion."
-      offerText: 'Every time you spend **50 Gold**, **Discover** a **Tier 7** minion.',
-      powerText: '{base} Every time you spend **50 Gold**, **Discover** a **Tier 7** minion (**{smGoldLeft}** Gold to go).',
+      offerText: 'Every **50 Gold** spent, **Discover** a **Tier 7** minion.',
+      powerText: '{base} Every **50 Gold** spent, **Discover** a **Tier 7** minion (**{smGoldLeft}** Gold to go).',
       effects: [{ do: 'goldSpentDiscoverTier7', every: 50 }],
     },
     war: {
@@ -3127,8 +3128,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Spending 40 Gold refreshes your hero power." Repeats; the refresh gives the once-per-game use back.
-      offerText: 'Spending **40** Gold refreshes your hero power.',
-      powerText: '{base} Spending **40** Gold refreshes it (**{cfGold}/40**).{cfBanked}',
+      offerText: 'Every **40 Gold** spent, refresh your hero power.',
+      powerText: '{base} Every **40 Gold** spent, refresh it (**{cfGold}/40**).{cfBanked}',
       effects: [{ do: 'goldSpentRefreshesPower', every: 40 }],
     },
     war: {
@@ -3959,6 +3960,13 @@ export function ancientOnShopDeath(state: RunState, died: BoardCard): void {
   });
 }
 
+/** R-FX-ANCIENT-ORIGIN-01: the combat half of `ANCIENT_GRANT_ORIGIN`. A non-`hero` origin rides the grant's mod so the
+ *  simulator stamps the body the tendril starts from (`buff.from`); `hero` adds nothing (the event keeps its shape). */
+function grantOriginMod(state: RunState): { origin?: 'trigger' | 'self' } {
+  const o = ancientGrantOriginOf(state);
+  return o === 'hero' ? {} : { origin: o };
+}
+
 /** The combat modifiers the picked Ancient threads into this run's fight. They ride the run's side state, so a
  *  snapshot of this board captures them (`snapshot.ts` `questMods`) and a served seat fights with its Ancient. */
 export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
@@ -3969,7 +3977,7 @@ export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const bonds = effectOf(state, 'wardedGainBuffsWarded');
   // Labelled with the POWER's name so the combat replay draws its tendril from Warden's hero-power button
   // (`heroPowerBuffLabelFor('Aegis')`), the same route as Warden × Time.
-  if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL };
+  if (bonds) out.ancientBonds = { attack: bonds.attack, label: WARDEN_TIME_COMBAT_LABEL, ...grantOriginMod(state) };
   if (effectOf(state, 'wardBreakGold') || effectOf(state, 'wardBreaksGetCopy')) out.ancientTrackWardBreaks = true;
   const copy = effectOf(state, 'wardBreaksGetCopy');
   if (copy) out.ancientWardCopy = { every: copy.every, window: [...(live(state)?.wardWindow ?? [])] };
@@ -4153,10 +4161,9 @@ export function ancientBondsReact(state: RunState, before: Map<string, { attack:
     const rng = makeRng(state.rngCursor);
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
-    // The grant is the HERO POWER's (Warden × Bonds): its tendril leaves the hero-power button (the Hunch shape).
-    const from = state.recruitBuffFx.length;
+    // The tendril leaves the Ward minion that gained stats (owner 2026-11-17, R-FX-ANCIENT-ORIGIN-01: "warden should go
+    // from the minion as well"): `g` is the capture's source, and `ANCIENT_GRANT_ORIGIN` keeps `addBuff` from tagging it.
     captureBuffFx(state, g, 'minion', () => addBuff(pick, ANCIENTS.bonds.name, e.attack, 0));
-    for (let i = from; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fromHeroPower = true;
     touched.push(g.uid, pick.uid);
   }
   if (mark) a.bondsHandled = [...handled, ...touched];
@@ -6316,8 +6323,8 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const db = effectOf(state, 'shoutBuffsDrakkos');
   if (db?.improveEvery) {
     const x = drakkoBondsX(state, a);
-    out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: x, health: x, label: ANCIENTS.bonds.name, improveEvery: db.improveEvery, step: db.attack, shouts: a.drakkoBondsShouts ?? 0, flag: ANCIENT_DRAKKO_SHOUT_FLAG };
-  } else if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name };
+    out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: x, health: x, label: ANCIENTS.bonds.name, improveEvery: db.improveEvery, step: db.attack, shouts: a.drakkoBondsShouts ?? 0, flag: ANCIENT_DRAKKO_SHOUT_FLAG, ...grantOriginMod(state) };
+  } else if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name, ...grantOriginMod(state) };
   // DRAKKO × TIME (ancient pass 1): Start of Combat also triggers the left-most Shout minion.
   if (effectOf(state, 'eotTriggerLeftmostShout')?.alsoSoc) out.ancientEdgeShouts = { label: ANCIENTS.time.name, leftOnly: true };
   const fs = effectOf(state, 'flashSecondKill');
@@ -6737,7 +6744,7 @@ function batch6CombatMods(state: RunState): Partial<QuestCombatMods> {
   const md = effectOf(state, 'gildedEchoGetCard');
   if (md) out.ancientGildedEcho = { cardId: md.cardId };
   const mb = effectOf(state, 'gildedGainBuffsGilded');
-  if (mb) out.ancientGildedBonds = { attack: mb.attack, health: mb.health, label: ANCIENTS.bonds.name };
+  if (mb) out.ancientGildedBonds = { attack: mb.attack, health: mb.health, label: ANCIENTS.bonds.name, ...grantOriginMod(state) };
   return out;
 }
 

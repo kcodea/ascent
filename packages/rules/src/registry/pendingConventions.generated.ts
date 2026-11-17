@@ -2398,7 +2398,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 7 of these fire on one trigger: you spend Gold this turn. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "8 effect factories across 7 cards dispatch on 'goldSpent' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Stardust Peddler: \"When you spend 5 Gold, create a Starform, or give it +3/+3.\" · Members: Stardust Peddler · Billings · Dwarf King, Brill · Coinfire · Mountainbond · Tapkeeper · Alchemist Brisbane",
+    "cardText": "Exemplar — Stardust Peddler: \"Every 5 Gold spent, create a Starform, or give it +3/+3.\" · Members: Stardust Peddler · Billings · Dwarf King, Brill · Coinfire · Mountainbond · Tapkeeper · Alchemist Brisbane",
     "example": "Stardust Peddler fires when you spend Gold this turn, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_peddler",

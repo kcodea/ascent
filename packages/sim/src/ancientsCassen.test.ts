@@ -1,12 +1,13 @@
 /**
- * ANCIENTS × CASSEN (owner pairings 2026-10-09), plus the owner's hero change of the same day: "let's change cassen and
- * remove citadel and fortress so he just has the 3 options instead." Commission = "Choose a commission. It pays out in a
- * few turns." Every pairing in the phase(s) it fires in.
+ * ANCIENTS × CASSEN (owner pairings 2026-10-09), plus the owner's Commission rework (2026-11-16): Shed (Discover a Shop
+ * spell, 1 turn), House (gain 4 Gold, 2 turns), Bridge (Discover a minion from your Tier, 3 turns), Castle (upgrading
+ * costs 3 less, 3 turns), Zeppelin at Tier 6 in place of the Castle (Discover a Tier 7 minion, 2 turns); 3 offered, never
+ * the same one twice in a row; every finished commission also gives +1 max Gold. Every pairing in the phase(s) it fires in.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import {
-  ANCIENT_COMMISSION_FLAG, ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, commissionOffer, createRun, enableAncients,
+  ANCIENT_COMMISSION_FLAG, ANCIENT_IDS, ancientAvengeCountdown, ancientCombatMods, ancientOfferText, commissionOffer, commissionRewardOf, createRun, enableAncients,
   heroPowerText, reduce, type AncientId, type BoardCard, type BoardSnapshot, type CommissionKind, type RunState,
 } from './index';
 import { destroyMinionInShop, makeContext } from './recruit';
@@ -20,7 +21,7 @@ const card = (uid: string, cardId: string, extra: Partial<BoardCard> = {}): Boar
   return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false, ...extra };
 };
 const base = (over: Partial<RunState> = {}): RunState =>
-  ({ ...createRun(7, 'cassen'), phase: 'recruit', embers: 60, hand: [], ...over } as RunState);
+  ({ ...createRun(7, 'cassen'), phase: 'recruit', embers: 60, hand: [], lastCommission: 'citadel', ...over } as RunState);
 const picked = (id: AncientId, over: Partial<RunState> = {}): RunState => {
   let s = enableAncients(base(over));
   s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: [id, ...ANCIENT_IDS.filter((a) => a !== id).slice(0, 2)] } };
@@ -42,40 +43,163 @@ const commission = (s: RunState, kind: CommissionKind): RunState => {
 };
 const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
 const spells = (s: RunState) => s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
+/** Take every open (and queued) Discover's first option; returns the run and the ids offered in each. */
+const takeAll = (s: RunState): { s: RunState; offers: string[][] } => {
+  const offers: string[][] = [];
+  for (let k = 0; k < 6 && s.discover?.length; k++) { offers.push([...s.discover]); s = reduce(s, { type: 'discover', index: 0 }); }
+  return { s, offers };
+};
+const isShopSpell = (id: string) => !!CARD_INDEX[id]?.spell;
 
-describe('Cassen hero change (owner 2026-10-09): the offer is always Discover / Gold / Spell', () => {
-  it('every turn, every tier, after any pick: exactly the three jobs, never a Citadel or a Fortress', () => {
-    for (let wave = 1; wave <= 40; wave++) {
+describe('Cassen Commission rework (owner 2026-11-16)', () => {
+  const ALL = ['spell', 'gold', 'discover', 'citadel', 'fortress'] as const;
+  const slot = (k: CommissionKind) => (k === 'fortress' ? 'citadel' : k);
+
+  it('3 offered every turn, never the one started last: with a last pick, exactly the other three', () => {
+    for (let wave = 1; wave <= 30; wave++) {
       for (const tier of [1, 3, 5, 6]) {
-        for (const last of [undefined, 'discover', 'gold', 'spell'] as const) {
+        for (const last of ALL) {
           const o = commissionOffer(base({ wave, tier, lastCommission: last }));
-          expect(o, `wave ${wave} tier ${tier} last ${last}`).toEqual(['discover', 'gold', 'spell']);
+          expect(o.length, `wave ${wave} tier ${tier} last ${last}`).toBe(3);
+          expect(o.map(slot), `no repeat of ${last}`).not.toContain(slot(last));
+          expect(o, 'Castle below Tier 6, Zeppelin from Tier 6').not.toContain(tier >= 6 ? 'citadel' : 'fortress');
         }
       }
     }
+    expect(commissionOffer(base({ tier: 2, lastCommission: 'gold' }))).toEqual(['spell', 'discover', 'citadel']);
+    expect(commissionOffer(base({ tier: 6, lastCommission: 'gold' }))).toEqual(['spell', 'discover', 'fortress']);
+    // A Castle then a Zeppelin is a repeat (the Zeppelin is the Castle's Tier 6 form).
+    expect(commissionOffer(base({ tier: 6, lastCommission: 'citadel' }))).toEqual(['spell', 'gold', 'discover']);
   });
-  it('a Citadel / Fortress pick is refused (no longer offered)', () => {
-    const s = base();
-    expect(reduce(s, { type: 'heroPower', commission: 'citadel' })).toBe(s);
-    expect(reduce(s, { type: 'heroPower', commission: 'fortress' })).toBe(s);
+
+  it('before the first commission: 3 of the 4, seeded, stable through the turn and across a replay', () => {
+    const seen = new Set<string>();
+    for (let wave = 1; wave <= 20; wave++) {
+      const s = base({ wave, tier: 2, lastCommission: undefined });
+      const o = commissionOffer(s);
+      expect(o.length).toBe(3);
+      expect(commissionOffer({ ...s })).toEqual(o);
+      expect(commissionOffer(JSON.parse(JSON.stringify(s)) as RunState)).toEqual(o);
+      seen.add(o.join(','));
+    }
+    expect(seen.size, 'the dropped one varies turn to turn').toBeGreaterThan(1);
   });
-  it('the printed rule lists the three jobs, with no em dash', () => {
-    const t = heroPowerText(base());
-    expect(t).toBe('Choose one: In **3 turns**, Discover a minion of your Tavern Tier. · In **2 turns**, gain **2 Gold**. · In **1 turn**, get a random Shop spell.');
+
+  it('the reducer refuses a repeat in a row and anything not on offer', () => {
+    const s = base({ lastCommission: 'gold' });
+    expect(reduce(s, { type: 'heroPower', commission: 'gold' })).toBe(s);
+    expect(reduce(s, { type: 'heroPower', commission: 'fortress' }), 'no Zeppelin below Tier 6').toBe(s);
+    const t = commission(s, 'spell');
+    expect(t.lastCommission).toBe('spell');
+    const u = takeAll(nextTurn(t)).s;
+    expect(u.commission).toBeUndefined();
+    expect(reduce(u, { type: 'heroPower', commission: 'spell' }), 'Shed twice in a row').toBe(u);
+    expect(commission(u, 'gold').commission!.kind).toBe('gold');
   });
-  it('OLD SAVES: a Citadel already working still pays its free upgrade, a Fortress its Triple Reward', () => {
-    let c = base({ tier: 2 });
-    c = { ...c, commission: { kind: 'citadel', dueWave: c.wave + 1 } };
-    c = JSON.parse(JSON.stringify(c)) as RunState;
+
+  it('each job keeps its delay', () => {
+    const delays: [CommissionKind, number, number][] = [['spell', 1, 2], ['gold', 2, 2], ['discover', 3, 2], ['citadel', 3, 2], ['fortress', 2, 6]];
+    for (const [kind, d, tier] of delays) {
+      const s = commission(base({ tier, lastCommission: kind === 'gold' ? 'spell' : 'gold' }), kind);
+      expect(s.commission, kind).toEqual({ kind, dueWave: s.wave + d });
+    }
+  });
+
+  /** Run `kind` to its payout next to a control run that commissioned nothing. */
+  const payout = (kind: CommissionKind, over: Partial<RunState> = {}) => {
+    const start = base({ lastCommission: kind === 'gold' ? 'spell' : 'gold', ...over });
+    let s = commission(start, kind);
+    let c: RunState = { ...start, heroReady: false };
+    const due = s.commission!.dueWave;
+    while (s.wave < due) {
+      expect(s.commission, `${kind} still working on turn ${s.wave}`).toBeDefined();
+      s = nextTurn(s); c = nextTurn(c);
+    }
+    expect(s.commission, `${kind} paid`).toBeUndefined();
+    return { s, c };
+  };
+
+  it('Shed: Discover a Shop spell, +1 max Gold', () => {
+    const { s, c } = payout('spell');
+    expect(s.discover?.length).toBeGreaterThan(0);
+    expect(s.discover!.every(isShopSpell)).toBe(true);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    const t = takeAll(s).s;
+    expect(spells(t).length).toBe(1);
+  });
+
+  it('House: gain 4 Gold, +1 max Gold (spendable this turn too)', () => {
+    const { s, c } = payout('gold');
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+    expect(s.embers - c.embers).toBe(4 + 1);
+  });
+
+  it('Bridge: Discover a minion from your Shop Tier', () => {
+    const { s, c } = payout('discover', { tier: 3 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(s.tier);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+  });
+
+  it('Castle: upgrading your Shop costs 3 less', () => {
+    const { s, c } = payout('citadel', { tier: 2, upgradeCost: 11 });
+    expect(c.upgradeCost).toBeGreaterThanOrEqual(3);
+    expect(s.upgradeCost).toBe(c.upgradeCost - 3);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+  });
+
+  it('Zeppelin (Tier 6): Discover a Tier 7 minion', () => {
+    const { s, c } = payout('fortress', { tier: 6 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(CARD_INDEX[id]!.tier, id).toBe(7);
+    expect((s.maxGoldBonus ?? 0) - (c.maxGoldBonus ?? 0)).toBe(1);
+  });
+
+  it('a Castle already working when you reach Tier 6 stays a Castle', () => {
+    let s = commission(base({ tier: 5, lastCommission: 'gold' }), 'citadel');
+    const max0 = s.maxGoldBonus ?? 0;
+    s = { ...s, tier: 6 };
+    expect(heroPowerText(s)).toContain('**Castle** pays out in 3 turns.');
+    while (s.commission) s = nextTurn(s);
+    expect(s.discover ?? [], 'no Zeppelin Discover').toEqual([]);
+    expect((s.maxGoldBonus ?? 0) - max0).toBe(1);
+  });
+
+  it('the printed rule: names, delays, live rewards, the max Gold, no em dash', () => {
+    const t = heroPowerText(base({ tier: 2 }));
+    expect(t).toBe('Choose one: **Shed** (1 turn): Discover a Shop spell. · **House** (2 turns): Gain 4 Gold. · **Bridge** (3 turns): Discover a minion from Tier 2. Each one also gives **1** max Gold.');
+    expect(t).not.toMatch(/—|--/);
+    expect(heroPowerText(base({ tier: 6, lastCommission: 'spell' }))).toContain('**Zeppelin** (2 turns): Discover a minion from Tier 7.');
+    expect(heroPowerText({ ...base(), commission: { kind: 'gold', dueWave: base().wave + 2 } } as RunState)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold.');
+    expect(heroPowerText({ ...base(), commission: { kind: 'spell', dueWave: base().wave + 1 } } as RunState)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell. Gain 1 max Gold.');
+    expect(commissionRewardOf(base({ tier: 4 }), 'discover')).toBe('Discover a minion from Tier 4. Gain 1 max Gold.');
+    expect(commissionRewardOf(base(), 'citadel')).toBe('Reduce the cost of upgrading your Shop by 3. Gain 1 max Gold.');
+  });
+
+  it('OLD SAVES: a Citadel / Fortress already working pays the new Castle / Zeppelin; an old last pick is still honoured', () => {
+    let c = base({ tier: 2, upgradeCost: 11 });
+    c = JSON.parse(JSON.stringify({ ...c, commission: { kind: 'citadel', dueWave: c.wave + 1 } })) as RunState;
+    const cost = nextTurn({ ...c, commission: undefined }).upgradeCost;
     c = nextTurn(c);
     expect(c.commission).toBeUndefined();
-    expect(c.tier).toBe(3);
-    let f = base();
-    f = { ...f, commission: { kind: 'fortress', dueWave: f.wave + 1 } };
-    f = nextTurn(f);
+    expect(c.tier, 'no free upgrade any more').toBe(2);
+    expect(c.upgradeCost).toBe(cost - 3);
+    let f = base({ tier: 6 });
+    f = nextTurn({ ...f, commission: { kind: 'fortress', dueWave: f.wave + 1 } });
     expect(f.commission).toBeUndefined();
-    expect(f.hand.map((h) => h.cardId)).toContain('discoverspell');
-    expect(heroPowerText({ ...base(), commission: { kind: 'fortress', dueWave: 9 } } as RunState)).toBe('Working: A triple reward (due turn 9).');
+    for (const id of f.discover ?? []) expect(CARD_INDEX[id]!.tier).toBe(7);
+    expect(f.discover?.length).toBeGreaterThan(0);
+    expect(commissionOffer(base({ lastCommission: 'discover' }))).not.toContain('discover');
+  });
+});
+
+describe('Cassen: +1 max Gold per finished commission, with each Ancient', () => {
+  it.each(ANCIENT_IDS.map((id) => [id]))('%s', (id) => {
+    let s = commission(picked(id as AncientId), 'gold');
+    const before = s.maxGoldBonus ?? 0;
+    for (let k = 0; k < 4 && s.commission; k++) s = takeAll(nextTurn(s)).s;
+    expect(s.commission).toBeUndefined();
+    expect((s.maxGoldBonus ?? 0) - before, 'Bonds pays twice, max Gold included').toBe(id === 'bonds' ? 2 : 1);
   });
 });
 
@@ -84,7 +208,7 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     let s = commission(picked('death', { board: [...['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'].map((u, i) => card(u, N(i))), card('k', N(8))] }), 'gold');
     const due = s.commission!.dueWave;
     expect(due).toBe(s.wave + 2);
-    expect(heroPowerText(s)).toBe(`Working: Gain 2 Gold (due turn ${due}). **Avenge (7):** your commission pays out **1** turn sooner (**7** more to go).`);
+    expect(heroPowerText(s)).toBe('Working: **House** pays out in 2 turns. Gain 4 Gold. Gain 1 max Gold. **Avenge (7):** your commission pays out **1** turn sooner (**7** more to go).');
     s = structuredClone(s);
     for (const u of ['d1', 'd2', 'd3', 'd4', 'd5', 'd6']) destroyMinionInShop(makeContext(s), at(s, u));
     expect(s.commission!.dueWave).toBe(due);
@@ -97,7 +221,7 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     const gold = s.embers;
     s = reduce(s, { type: 'sell', uid: 'k' });
     expect(s.commission).toBeUndefined();
-    expect(s.embers).toBeGreaterThanOrEqual(gold + 2);
+    expect(s.embers).toBeGreaterThanOrEqual(gold + 4 + 1);
   });
   it('combat: the carried count fires mid-fight (a flagged pulse); settle moves the commission', () => {
     let s = commission(picked('death', { board: ['a', 'b'].map((u, i) => card(u, N(i), { attack: 1, health: 1 })) }), 'discover');
@@ -105,7 +229,8 @@ describe('Cassen × DEATH: "Avenge (7): advance your commission 1 turn."', () =>
     const due = s.commission!.dueWave;
     expect(ancientCombatMods(s).ancientAvengePulse).toEqual({ every: 7, tick: 6, flag: ANCIENT_COMMISSION_FLAG, label: 'Ancient of Death' });
     expect(ancientAvengeCountdown(s)).toBe(1);
-    expect(heroPowerText(s, 0, { friendlyDeaths: 1 })).toContain(`(due turn ${due - 1})`);
+    expect(heroPowerText(s)).toContain('**Bridge** pays out in 3 turns.');
+    expect(heroPowerText(s, 0, { friendlyDeaths: 1 })).toContain('**Bridge** pays out in 2 turns.');
     s = fightNow(s, 100, 1000);
     const pulses = (s.lastCombat!.events as { type: string; flag?: string }[]).filter((e) => e.type === 'questTrigger' && e.flag === ANCIENT_COMMISSION_FLAG).length;
     expect(pulses).toBe(1);
@@ -158,16 +283,19 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
   it('two commissions can run at once (both can start the same turn); a third is refused; the rule prints both', () => {
     let s = picked('time');
     expect(heroPowerText(s)).toContain('You can have **2** working at once.');
-    expect(heroPowerText(s)).toContain('In **3 turns**, Discover'); // the delays are the normal ones again
+    expect(heroPowerText(s)).toContain('**Bridge** (3 turns)'); // the delays are the normal ones again
     s = commission(s, 'discover');
     expect(heroPowerText(s)).toContain('Choose another:');
     s = commission(s, 'spell');
     expect(s.commission).toEqual({ kind: 'discover', dueWave: s.wave + 3 });
     expect(s.ancients!.cassenSecond).toEqual({ kind: 'spell', dueWave: s.wave + 1 });
-    expect(heroPowerText(s)).toMatch(/^Working: .+ \(due turn \d+\) and .+ \(due turn \d+\)\. You can have \*\*2\*\* working at once\.$/);
+    expect(heroPowerText(s)).toBe(`Working: **Bridge** pays out in 3 turns. Discover a minion from Tier ${s.tier}. Gain 1 max Gold. Also working: **Shed** pays out next turn. Discover a Shop spell. Gain 1 max Gold. You can have **2** working at once.`);
+    expect(s.lastCommission, 'the one started last').toBe('spell');
     expect(reduce({ ...s, heroReady: true }, { type: 'heroPower', commission: 'gold' }).ancients!.cassenSecond!.kind, 'a third is refused').toBe('spell');
     // Next turn the second (Spell) pays on its own beat; the first keeps running; the second slot is open again.
     let u = nextTurn(s);
+    expect(u.discover!.every(isShopSpell), 'the Shed Discover').toBe(true);
+    u = takeAll(u).s;
     expect(spells(u).length).toBe(1);
     expect(u.ancients!.cassenSecond).toBeUndefined();
     expect(u.commission!.kind).toBe('discover');
@@ -177,17 +305,20 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
   it('when the first pays out and the second is still working, the second moves up into the first slot', () => {
     let s = commission(commission(picked('time'), 'spell'), 'discover');
     const due = s.ancients!.cassenSecond!.dueWave;
-    s = nextTurn(s);
+    s = takeAll(nextTurn(s)).s;
     expect(spells(s).length).toBe(1);
     expect(s.commission).toEqual({ kind: 'discover', dueWave: due });
     expect(s.ancients!.cassenSecond).toBeUndefined();
   });
-  it('both due the same turn: both pay', () => {
-    let s = commission(commission(picked('time'), 'spell'), 'spell');
-    s = nextTurn(s);
-    expect(spells(s).length).toBe(2);
-    expect(s.commission).toBeUndefined();
+  it('both due the same turn: both pay (a Bridge and a Castle, never the same job twice in a row)', () => {
+    let s = commission(picked('time', { tier: 2, upgradeCost: 11 }), 'discover');
+    expect(reduce({ ...s, heroReady: true }, { type: 'heroPower', commission: 'discover' }).ancients!.cassenSecond, 'no repeat in a row').toBeUndefined();
+    s = commission(s, 'citadel');
+    const max0 = s.maxGoldBonus ?? 0;
+    while (s.commission) s = nextTurn(s);
     expect(s.ancients!.cassenSecond).toBeUndefined();
+    expect(s.discover?.length, 'the Bridge Discover').toBeGreaterThan(0);
+    expect((s.maxGoldBonus ?? 0) - max0).toBe(2);
   });
   it('without the pairing a second commission is refused (one at a time)', () => {
     const s = commission(picked('fortune'), 'spell');
@@ -196,11 +327,17 @@ describe('Cassen × TIME (ancient pass 1, owner 2026-11-16): "Choose two commiss
 });
 
 describe('Cassen × BONDS: "Commission pays out twice."', () => {
-  it('a Spell commission gives two spells', () => {
+  it('a Shed opens two spell Discovers; a House pays 8 Gold; max Gold doubles too; the text counts both', () => {
     let s = commission(picked('bonds'), 'spell');
-    expect(heroPowerText(s)).toContain('It pays out **twice**.');
+    expect(heroPowerText(s)).toBe('Working: **Shed** pays out next turn. Discover a Shop spell 2 times. Gain 2 max Gold. It pays out **twice** (the numbers above count both).');
+    const max0 = s.maxGoldBonus ?? 0;
     s = nextTurn(s);
-    expect(spells(s).length).toBe(2);
+    const { s: t, offers } = takeAll(s);
+    expect(offers.length).toBe(2);
+    expect(offers.every((o) => o.every(isShopSpell))).toBe(true);
+    expect(spells(t).length).toBe(2);
+    expect((t.maxGoldBonus ?? 0) - max0).toBe(2);
+    expect(commissionRewardOf(t, 'gold')).toBe('Gain 8 Gold. Gain 2 max Gold.');
   });
 });
 

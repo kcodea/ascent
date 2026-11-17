@@ -11,7 +11,7 @@ import { ancientAllInExtra, ancientForcedGambleRoll, ancientCoinGold, ancientCoi
 import { ancientDarahEotCopyLive, ancientRunDarahEotCopy } from './ancients'; // Darah
 import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
-import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
+import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionDelayOf, ancientCommissionReps } from './ancients'; // the 2026-10-09 batch
 import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } from './ancients'; // ancient pass 1
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult } from './ancients'; // ancient pass 2
@@ -1297,48 +1297,102 @@ export function aegisGrantOf(state: RunState): { attack: number; health: number 
 }
 
 /**
- * Which commissions may be offered right now: ALWAYS the three ordinary jobs, Discover / Gold / Spell (owner hero change
- * 2026-10-09: "let's change cassen and remove citadel and fortress so he just has the 3 options instead"). The rare
- * Citadel / Fortress roll (owner 2026-08-17, a 25% slot swap) is gone; both kinds stay in `CommissionKind` and in
- * `payCommission` only so an old save that is already WORKING one still pays it out. Lives here rather than in the
- * reducer because the panel needs it too, and reducer -> recruit is the allowed direction. Pure: the reducer (to validate
- * the pick) and the panel (to draw the options) always agree.
+ * Cassen's commission SLOTS (owner rework 2026-11-16). Four jobs: Shed (`spell`), House (`gold`), Bridge (`discover`)
+ * and Castle (`citadel`). From Shop Tier 6 the Castle slot is the Zeppelin (`fortress`) instead. The ids are the
+ * historical ones (the art files and old saves key off them); only what they pay changed.
+ */
+const COMMISSION_KINDS_BELOW_6: readonly CommissionKind[] = ['spell', 'gold', 'discover', 'citadel'];
+const COMMISSION_KINDS_FROM_6: readonly CommissionKind[] = ['spell', 'gold', 'discover', 'fortress'];
+/** The Zeppelin is the Castle slot's Tier 6 form, so for "never the same commission twice in a row" the two count
+ *  as the same job: a Castle then a Zeppelin is a repeat. */
+const commissionSlotOf = (k: CommissionKind): CommissionKind => (k === 'fortress' ? 'citadel' : k);
+/** Seed tag for the turn's offer when no commission has been taken yet (4 kinds, 3 shown). */
+const COMMISSION_OFFER_TAG = 0xc0de5;
+
+/**
+ * Which commissions are offered right now (owner rework 2026-11-16): "cassen is still offered 3 options every turn" and
+ * "cassen cannot repeat the same commission in a row". The kind of the commission STARTED LAST (`lastCommission`; with
+ * Cassen x Ancient of Time's second slot, the one started most recently) is never offered, which with four slots leaves
+ * exactly the other three. Before the first commission of the run all four are legal, so three are drawn, seeded by the
+ * run and the wave: stable for the whole turn, the same on a replay. Pure, so the reducer (validating the pick), the
+ * panel and the picker always agree. Lives here rather than in the reducer because the panel needs it too.
  */
 export function commissionOffer(state: Pick<RunState, 'lastCommission' | 'seed' | 'wave' | 'tier'>): CommissionKind[] {
-  void state;
-  return ['discover', 'gold', 'spell'];
+  const kinds = (state.tier ?? 1) >= 6 ? COMMISSION_KINDS_FROM_6 : COMMISSION_KINDS_BELOW_6;
+  const last = state.lastCommission ? commissionSlotOf(state.lastCommission) : undefined;
+  const open = kinds.filter((k) => commissionSlotOf(k) !== last);
+  if (open.length <= 3) return open;
+  const rng = makeRng(mixSeed(state.seed ?? 0, state.wave ?? 0, COMMISSION_OFFER_TAG));
+  const drop = rng.int(open.length);
+  return open.filter((_, i) => i !== drop);
 }
 
-/** Cassen's commissions: how long each takes to mature. The delay IS the trade — a longer wait buys a bigger
- *  payout — so it sits beside the printed text rather than in the reducer's payout switch. */
-export const COMMISSION_DELAY: Record<CommissionKind, number> = { discover: 3, gold: 2, spell: 1, citadel: 3, fortress: 3 };
+/** Cassen's commissions: how long each takes to pay out (owner rework 2026-11-16). The delay IS the trade, so it sits
+ *  beside the printed text rather than in the reducer's payout switch. */
+export const COMMISSION_DELAY: Record<CommissionKind, number> = { spell: 1, gold: 2, discover: 3, citadel: 3, fortress: 2 };
+/** House: the Gold it pays. */
+export const COMMISSION_HOUSE_GOLD = 4;
+/** Castle: how much cheaper it makes your next Shop upgrade. */
+export const COMMISSION_CASTLE_DISCOUNT = 3;
+/** Every finished commission also gives Cassen this much max Gold, permanently (owner rework 2026-11-16). */
+export const COMMISSION_MAX_GOLD = 1;
 
-/** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. The older
- *  `COMMISSION_TEXT` stays for the hero-panel rule, which wants one sentence rather than a card. */
+/** Cassen's commissions as a quest-style card: a short NAME and the reward on its own line. */
 export const COMMISSION_NAME: Record<CommissionKind, string> = {
-  // Named for the scale of the job, so the delay reads off the title alone: 1 turn, 2 turns, 3 turns.
+  // Named for the scale of the job: Shed, House, Bridge, Castle, and the Zeppelin that replaces the Castle at Tier 6.
   spell: 'Shed',
   gold: 'House',
   discover: 'Bridge',
   citadel: 'Castle',
   fortress: 'Zeppelin',
 };
+/** What each commission pays, base values (the live line, with the current Tier and Bonds folded in, is
+ *  `commissionRewardOf`). Plain text: the picker prints it as is. */
 export const COMMISSION_REWARD: Record<CommissionKind, string> = {
-  discover: 'Discover a minion of your Tavern Tier',
-  gold: 'Gain 2 Gold',
-  spell: 'Get a random Shop spell',
-  citadel: 'Your Shop is upgraded once, free',
-  fortress: 'A triple reward',
+  spell: 'Discover a Shop spell.',
+  gold: `Gain ${COMMISSION_HOUSE_GOLD} Gold.`,
+  discover: 'Discover a minion from your Shop Tier.',
+  citadel: `Reduce the cost of upgrading your Shop by ${COMMISSION_CASTLE_DISCOUNT}.`,
+  fortress: 'Discover a minion from Tier 7.',
 };
 
-/** Cassen's commissions, as printed. The delay is the whole trade, so it leads each line. */
+/** Cassen's commissions, as printed in a sentence. The delay is the whole trade, so it leads each line (Cassen x
+ *  Ancient of Time's `commissionLineOf` rewrites the delay in place, so keep the `In **N turns**` shape). */
 export const COMMISSION_TEXT: Record<CommissionKind, string> = {
-  discover: 'In **3 turns**, Discover a minion of your Tavern Tier.',
-  gold: 'In **2 turns**, gain **2 Gold**.',
-  spell: 'In **1 turn**, get a random Shop spell.',
-  citadel: 'In **3 turns**, your Shop is upgraded once.',
-  fortress: 'In **3 turns**, get a **triple** reward.',
+  spell: 'In **1 turn**, Discover a Shop spell.',
+  gold: `In **2 turns**, gain **${COMMISSION_HOUSE_GOLD} Gold**.`,
+  discover: 'In **3 turns**, Discover a minion from your Shop Tier.',
+  citadel: `In **3 turns**, reduce the cost of upgrading your Shop by **${COMMISSION_CASTLE_DISCOUNT}**.`,
+  fortress: 'In **2 turns**, Discover a minion from Tier **7**.',
 };
+
+/**
+ * A commission's reward with its LIVE values (the card-text rule): Bridge names your current Shop Tier, and Cassen x
+ * Ancient of Bonds (pays out twice) doubles every number, max Gold included. `maxGold` appends the "+1 max Gold" every
+ * payout also gives. Plain text, no markup: the picker prints it verbatim and the panel embeds it.
+ */
+export function commissionRewardOf(state: RunState, kind: CommissionKind, maxGold = true): string {
+  const reps = ancientCommissionReps(state);
+  const twice = reps > 1 ? ` ${reps} times` : '';
+  const line = kind === 'gold' ? `Gain ${COMMISSION_HOUSE_GOLD * reps} Gold.`
+    : kind === 'citadel' ? `Reduce the cost of upgrading your Shop by ${COMMISSION_CASTLE_DISCOUNT * reps}.`
+    : kind === 'spell' ? `Discover a Shop spell${twice}.`
+    : kind === 'fortress' ? `Discover a minion from Tier 7${twice}.`
+    : `Discover a minion from Tier ${state.tier}${twice}.`;
+  return maxGold ? `${line} Gain ${COMMISSION_MAX_GOLD * reps} max Gold.` : line;
+}
+
+/** The turns until a commission due on `dueWave` pays out, as printed ("next turn" / "in 2 turns"). */
+function commissionDueIn(state: RunState, dueWave: number): string {
+  const left = Math.max(1, dueWave - state.wave);
+  return left === 1 ? 'next turn' : `in ${left} turns`;
+}
+
+/** One offered commission on the panel: its name, live delay and live reward. */
+function commissionOptionLine(state: RunState, kind: CommissionKind): string {
+  const d = commissionDelayOf(state, kind);
+  return `**${COMMISSION_NAME[kind]}** (${d} turn${d === 1 ? '' : 's'}): ${commissionRewardOf(state, kind, false)}`;
+}
 
 /** The hero power's LIVE rule text. Static for every hero except Ayse, whose printed rule is the queued suit's
  *  reward — the card-text rule ("always show the current value of what this is doing") applied to a power.
@@ -1473,19 +1527,19 @@ function baseHeroPowerText(state: RunState, which: number, live: HeroPowerLive):
     return `**Start of Combat:** give a friendly minion of each type **+${n}/+${n}** (1 per spell cast this game).`;
   }
   if (power.kind === 'commission') {
-    // While one is running the panel prints THAT commission and when it lands; otherwise it prints the
-    // options actually on offer (never the one taken last).
-    // Each line prints its LIVE delay (Cassen × Ancient of Time: next turn).
+    // While one is running the panel prints THAT commission, what it pays and how many turns are left; otherwise it
+    // prints the options actually on offer (never the one started last). Every number is LIVE: the delay (Cassen ×
+    // Ancient of Time), the Bridge's Tier, Bonds' double payout, and the due turn Cassen × Ancient of Death moves.
     const live = state.commission;
     // Cassen × Ancient of Time (ancient pass 1): a second slot. Both running print both; one running with the second
     // slot open prints it and the options.
     const second = ancientCommissionSecond(state);
-    const working = (c: { kind: CommissionKind; dueWave: number }) => `${COMMISSION_REWARD[c.kind]} (due turn ${c.dueWave})`;
-    if (live && second.open) return `Working: ${working(live)}. Choose another: ${commissionOffer(state).map((k) => commissionLineOf(state, k)).join(' · ')}`;
-    if (live && second.running) return `Working: ${working(live)} and ${working(second.running)}.`;
-    // The running one prints its reward and its live due turn (Cassen × Ancient of Death moves it), never a stale delay.
-    if (live) return `Working: ${working(live)}.`;
-    return `Choose one: ${commissionOffer(state).map((k) => commissionLineOf(state, k)).join(' · ')}`;
+    const working = (c: { kind: CommissionKind; dueWave: number }) => `**${COMMISSION_NAME[c.kind]}** pays out ${commissionDueIn(state, c.dueWave)}. ${commissionRewardOf(state, c.kind)}`;
+    const options = () => `${commissionOffer(state).map((k) => commissionOptionLine(state, k)).join(' · ')} Each one also gives **${COMMISSION_MAX_GOLD * ancientCommissionReps(state)}** max Gold.`;
+    if (live && second.open) return `Working: ${working(live)} Choose another: ${options()}`;
+    if (live && second.running) return `Working: ${working(live)} Also working: ${working(second.running)}`;
+    if (live) return `Working: ${working(live)}`;
+    return `Choose one: ${options()}`;
   }
   return power.text;
 }

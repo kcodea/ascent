@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Opponents: more variety at every table, and fewer stacked tables at the top ranks.',
+        details: [
+          'You now meet at most 2 past games from the same player in one game, your own included (it was 4). A third appears only when there are not enough players to fill the table.',
+          'A table holds at most two opponents with a Game strength of 90 or more, and at most two in the 80s.',
+          'Platinum, Diamond and Ascendant all draw opponents the same way: no rank is given stronger opponents on purpose.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ancients fixes: a hero power you gain after the pick now works as its text says, every Refresh effect counts, and more counters tick during combat.',
         details: [
           'A hero power gained after you pick your Ancient (Power Shifter) now gets that pairing in full: its cost, its uses each turn, passive or not, and its starting values.',

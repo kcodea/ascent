@@ -753,7 +753,8 @@ export interface ShopBuffAllFx {
  *  and the UI reading the same way. */
 export type CiaSuit = 'hearts' | 'spades' | 'diamonds' | 'clubs' | 'ace';
 
-/** Cassen's three commissions. The delay is part of the identity — a longer wait buys a bigger payout. */
+/** Cassen's commissions (owner rework 2026-11-16): `spell` = Shed, `gold` = House, `discover` = Bridge, `citadel` = Castle,
+ *  `fortress` = Zeppelin (the Castle's form from Shop Tier 6). Historical ids: the art and old saves key off them. */
 export type CommissionKind = 'discover' | 'gold' | 'spell' | 'citadel' | 'fortress';
 /** An ACTIVE commission: what was picked and the wave it matures on. Only ever one at a time. */
 export interface Commission { kind: CommissionKind; dueWave: number; }
@@ -1485,8 +1486,9 @@ export interface RunState {
   /** Cassen: the commission currently in flight, or absent when none is. Only ONE can be active at a time —
    *  the power is unusable while it runs, and the button wears that commission's art until it matures. */
   commission?: Commission;
-  /** Cassen: the commission taken LAST. Recorded for saves and replays only: since the owner's 2026-10-09 hero change
-   *  ("he just has the 3 options") the offer is always Discover / Gold / Spell, so nothing excludes it any more. */
+  /** Cassen: the commission STARTED last (the second slot's, under Ancient of Time, when it was the later one). The
+   *  owner's 2026-11-16 rework: "cassen cannot repeat the same commission in a row", so `commissionOffer` never offers
+   *  it (a Castle and a Zeppelin count as the same job). */
   lastCommission?: CommissionKind;
   /** The hero whose power this run WIELDS in place of its own. Two writers, one field:
    *  · MIMIC re-picks it every turn (the turn-start power Discover);

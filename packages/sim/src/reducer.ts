@@ -37,7 +37,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_HOUSE_GOLD, COMMISSION_CASTLE_DISCOUNT, COMMISSION_MAX_GOLD, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, withGemSagesHeld, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, stampYazzusCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget, flushGrubBites, GOLD_SCALED_ACCRUAL_CARDS } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -4092,7 +4092,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         const started = { kind: pick, dueWave: s.wave + commissionDelayOf(s, pick) };
         if (s.commission) ancientStartSecondCommission(s, started);
         else s.commission = started;
-        s.lastCommission = pick; // …so the next offer can exclude it
+        s.lastCommission = pick; // the one started LAST is never offered next ("cannot repeat the same commission in a row")
       } else if (power.kind === 'firstOrLast') {
         // Flash: arm which end of next combat's kills to claim. The 1-Gold cost is spent by the shared block.
         // Re-arming before the fight simply replaces the choice — it is a mark, not a stacking charge.
@@ -9104,30 +9104,25 @@ function payCommission(s: RunState, c: Commission, firstSlot = true): void {
   }
 }
 
-/** One commission payout. Citadel / Fortress are no longer offered (owner 2026-10-09) but still pay out here, so a save
- *  made while one was working resolves safely. */
+/** One commission payout (owner rework 2026-11-16). Shed: Discover a Shop spell. House: gain 4 Gold. Bridge: Discover a
+ *  minion from your Shop Tier. Castle: your Shop upgrade costs 3 less. Zeppelin (the Castle's Tier 6 form): Discover a
+ *  Tier 7 minion. EVERY payout also gives +1 max Gold, permanently (`maxGoldBonus`, the Shop License channel, which
+ *  also lands the Gold this turn); it is part of the payout, so Bonds' second run doubles it too. A save made before
+ *  the rework that is working a Citadel / Fortress pays the new Castle / Zeppelin (same ids, same art). */
 function payCommissionOnce(s: RunState, c: Commission): void {
-  if (c.kind === 'gold') { gainGold(s, 2); return; }
-  if (c.kind === 'fortress') { grantGoldenDiscover(s); return; } // the Triple Reward, same grant a triple gives
-  if (c.kind === 'citadel') {
-    // A FREE upgrade — the tier rises without charging `upgradeCostOf`, then the next price is re-based off
-    // the new tier exactly as a paid upgrade does, so the ladder stays consistent.
-    const ceiling = maxTierFor(s.rift);
-    if (s.tier < ceiling) {
-      s.tier += 1;
-      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
-      lateBloomerOnUpgrade(s); // Late Bloomer (Set 2 batch): a free upgrade is an upgrade
-    }
-    return;
-  }
-  if (c.kind === 'spell') {
-    const pool = runSpells(s).filter((x) => x.tier <= s.tier);
-    if (pool.length > 0 && s.hand.length < handCap(s)) conjureToHand(s, pool, 1);
-    return;
-  }
+  if (c.kind === 'gold') gainGold(s, COMMISSION_HOUSE_GOLD);
+  else if (c.kind === 'citadel') {
+    // Same floor every other discount honours (the per-turn discount, Duos' upgradeDiscount). At the top tier there is
+    // no upgrade left to discount.
+    if (s.tier < maxTierFor(s.rift)) s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - COMMISSION_CASTLE_DISCOUNT);
+  } else if (c.kind === 'spell') queueDiscover(s, { kind: 'spell' });
+  // `exactTier: 7` is a FIXED-tier offer, honoured with no rift (the Rune of the Summit idiom).
+  else if (c.kind === 'fortress') queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 });
   // `queueDiscover` builds the offer itself from the spec (same pools / tier rules / rng stream as every other
   // Discover), so there is nothing to pre-roll here.
-  queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+  else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+  s.maxGoldBonus = (s.maxGoldBonus ?? 0) + COMMISSION_MAX_GOLD;
+  gainGold(s, COMMISSION_MAX_GOLD); // the raised max is spendable this turn too (the Shop License rule)
 }
 
 /** Croupier Ayse's four rewards, and the suit that will pay next.

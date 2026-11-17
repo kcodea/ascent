@@ -59,6 +59,19 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-16',
     changes: [
       {
+        category: 'Balance',
+        text: 'Cassen reworked: four new commissions, and every finished commission gives +1 max Gold.',
+        details: [
+          'Shed: Discover a Shop spell. Takes 1 turn.',
+          'House: gain 4 Gold. Takes 2 turns.',
+          'Bridge: Discover a minion from your Shop Tier. Takes 3 turns.',
+          'Castle: upgrading your Shop costs 3 less. Takes 3 turns.',
+          'At Shop Tier 6 the Castle becomes the Zeppelin: Discover a Tier 7 minion. Takes 2 turns.',
+          'You are still offered 3 each turn, but never the same commission twice in a row.',
+          'Every commission that finishes also gives you +1 max Gold, for the rest of the game.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
       },

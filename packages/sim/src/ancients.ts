@@ -405,8 +405,8 @@
  *                                 into the Hatchery channel by `ancientVinesBonus`). (Time)
  *  · `summonBuffsOthers`          COMBAT: `QuestCombatMods.ancientSummonBuffOthers` at the summon-entry chokepoint: N other
  *                                 random friendly minions gain +a/+h, a combat buff. (Bonds)
- *  CASSEN (Commission, `commission`). The owner's hero change (2026-10-09): the rare Citadel / Fortress jobs are gone;
- *  the offer is always Discover / Gold / Spell. Commissions resolve in the reducer (`payCommission`), which reads
+ *  CASSEN (Commission, `commission`). The owner's rework (2026-11-16): Shed / House / Bridge / Castle (Zeppelin from
+ *  Tier 6), three offered, never the one started last; every payout also gives +1 max Gold. Commissions resolve in the reducer (`payCommission`), which reads
  *  `commissionDelayOf`, `ancientCommissionReps` and `ancientAfterCommission`.
  *  · `avengeAdvanceCommission`    each fire: the running commission lands 1 turn sooner. SHOP: right then, and a
  *                                 commission that is now due pays at once (the reducer's action boundary,
@@ -2123,7 +2123,7 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
   },
   // CASSEN (owner pairings 2026-10-09, quoted above each entry). Commission = "Choose a commission. It pays out in a few
-  // turns." (the offer is always Discover / Gold / Spell since the owner's 2026-10-09 hero change).
+  // turns." (Shed / House / Bridge / Castle, Zeppelin from Tier 6, since the owner's 2026-11-16 rework).
   cassen: {
     death: {
       // "Avenge (7): advance your commission 1 turn." (no commission running: nothing)
@@ -2160,7 +2160,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     bonds: {
       // "Commission pays out twice."
       offerText: 'Commissions pay out **twice**.',
-      powerText: '{base} It pays out **twice**.',
+      // The Commission text already folds the double payout into its numbers (the live-value rule), so this says so.
+      powerText: '{base} It pays out **twice** (the numbers above count both).',
       effects: [{ do: 'commissionPaysTwice' }],
     },
   },
@@ -6438,8 +6439,8 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
     .replace('{gmGilds}', String(gilds)).replace('{gmReps}', String(1 + gilds)).replace('{gmTimes}', 1 + gilds === 1 ? 'time' : 'times');
   // CASSEN × DEATH: the commission's printed due turn moves with each Avenge the fight on screen has made, live.
   if (effectOf(state, 'avengeAdvanceCommission') && fires > 0 && state.commission) {
-    const due = Math.max(state.wave + 1, state.commission.dueWave - fires);
-    out = out.replace('{base}', base.replace(/\(due turn \d+\)/, `(due turn ${due})`));
+    const turnsLeft = Math.max(state.wave + 1, state.commission.dueWave - fires) - state.wave;
+    out = out.replace('{base}', base.replace(/pays out (?:next turn|in \d+ turns)/, `pays out ${turnsLeft === 1 ? 'next turn' : `in ${turnsLeft} turns`}`));
   }
   return out;
 }

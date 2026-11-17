@@ -641,6 +641,12 @@ export const RETIRED_RULES: RetiredRule[] = [
     retiredAt: '2026-11-16',
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsEmissary.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-CASSEN-01',
+    why: "Superseded by R-CASSEN-02 (owner Cassen rework, 2026-11-16): the four jobs are Shed / House / Bridge / Castle (Zeppelin from Tier 6), three offered, never the same twice in a row, and every payout gives +1 max Gold. The always-Discover / Gold / Spell offer is gone.",
+    retiredAt: '2026-11-16',
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-11-16' },
+  },
 ];
 
 export const RETIRED_IDS: ReadonlySet<string> = new Set(RETIRED_RULES.map((r) => r.id));

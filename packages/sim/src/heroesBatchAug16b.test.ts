@@ -554,21 +554,22 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
     expect(h.power.cost ?? 0, 'free to activate').toBe(0);
   });
 
-  it('always offers all three (owner 2026-10-09: "he just has the 3 options"), the one taken last included', () => {
-    expect(commissionOffer({} as RunState)).toEqual(['discover', 'gold', 'spell']);
-    expect(commissionOffer({ lastCommission: 'gold' } as RunState)).toEqual(['discover', 'gold', 'spell']);
+  it('offers three, never the one started last (owner rework 2026-11-16: "cannot repeat the same commission in a row")', () => {
+    expect(commissionOffer({ lastCommission: 'gold', tier: 1 } as RunState)).toEqual(['spell', 'discover', 'citadel']);
+    expect(commissionOffer({ lastCommission: 'spell', tier: 6 } as RunState)).toEqual(['gold', 'discover', 'fortress']);
   });
 
   it('starts a commission with the right due wave and records it as last-taken', () => {
-    const s = at({ heroId: 'cassen', heroReady: true, wave: 4 });
+    const s = at({ heroId: 'cassen', heroReady: true, wave: 4, lastCommission: 'spell' });
     const after = reduce(s, { type: 'heroPower', commission: 'gold' } as never);
     expect(after.commission, 'gold matures in 2 turns').toEqual({ kind: 'gold', dueWave: 6 });
     expect(after.lastCommission).toBe('gold');
   });
 
-  it('refuses a commission that is not on offer (the removed rare jobs)', () => {
+  it('refuses a commission that is not on offer (a repeat, or the Zeppelin below Tier 6)', () => {
     const s = at({ heroId: 'cassen', heroReady: true, wave: 4, lastCommission: 'gold' });
-    const after = reduce(s, { type: 'heroPower', commission: 'citadel' } as never);
+    expect(reduce(s, { type: 'heroPower', commission: 'gold' } as never).commission).toBeUndefined();
+    const after = reduce(s, { type: 'heroPower', commission: 'fortress' } as never);
     expect([after.commission, after.heroReady]).toEqual([undefined, true]);
   });
 
@@ -581,10 +582,10 @@ describe('Cassen — Commission (owner rework 2026-08-16)', () => {
   it('the panel prints the running commission, otherwise the options on offer', () => {
     const running = heroPowerText({ ...createRun(3, 'cassen'), commission: { kind: 'gold', dueWave: 6 } } as RunState);
     expect(running).toContain('Working');
-    expect(running).toContain('2 Gold');
+    expect(running).toContain('Gain 4 Gold.');
     const offering = heroPowerText({ ...createRun(3, 'cassen'), lastCommission: 'gold' } as RunState);
     expect(offering).toContain('Choose one');
-    expect(offering, 'all three are offered, the last-taken one included').toContain('2 Gold');
+    expect(offering, 'the one started last is not offered').not.toContain('House');
   });
 });
 

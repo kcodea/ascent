@@ -1795,18 +1795,19 @@ export const HEROES_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsRayse.test.ts"], lastVerifiedAt: '2026-10-09' },
   },
   {
-    id: "R-CASSEN-01",
-    title: "Cassen: Commission always offers Discover / Gold / Spell (the rare Citadel and Fortress are removed)",
+    id: "R-CASSEN-02",
+    title: "Cassen: Shed / House / Bridge / Castle (Zeppelin from Tier 6), 3 offered, never the same twice in a row, +1 max Gold per payout",
     statement:
-      "Cassen's Commission offer is always the three ordinary jobs: Discover (3 turns), Gold (2 turns) and Spell (1 turn). The rare Citadel and Fortress jobs and their 25% roll are gone, and the offer no longer excludes the job taken last. A save that is already working a Citadel or a Fortress still pays it out (a free Shop upgrade / a Triple Reward), so nothing in flight is lost.",
+      "Cassen's Commission has four jobs: Shed (Discover a Shop spell, 1 turn), House (gain 4 Gold, 2 turns), Bridge (Discover a minion from your Shop Tier, 3 turns) and Castle (reduce the cost of upgrading your Shop by 3, 3 turns). From Shop Tier 6 the Castle is replaced by the Zeppelin (Discover a Tier 7 minion, 2 turns). Every turn 3 are offered, and the job started last is never offered next (a Castle then a Zeppelin counts as a repeat), so with a previous pick the offer is exactly the other three; before the first pick 3 of the 4 are drawn, seeded by the run and the turn. With the Ancient of Time's second slot, \"last\" is the one started most recently. A Castle already working when you reach Tier 6 stays a Castle. Every finished commission also gives +1 max Gold, permanently, spendable that turn; it is part of the payout, so the Ancient of Bonds doubles it. The power and the picker print each job's live reward and turns left. A save working an old Citadel or Fortress pays the new Castle or Zeppelin.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-09 (Ancients batch: Rayse, Cassen, Drakko, Flash, Gildmaster)", quote: "let's change cassen and remove citadel and fortress so he just has the 3 options instead." },
-      { kind: 'code', ref: "packages/sim/src/recruit.ts commissionOffer; packages/sim/src/reducer.ts payCommissionOnce" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-16 (Cassen rework)", quote: "cassen cannot repeat the same commission in a row, so it cant pick the discover a minion twice in a row etc" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-11-16 (Cassen rework)", quote: "every commission finished also grants cassen +1 max gold." },
+      { kind: 'code', ref: "packages/sim/src/recruit.ts commissionOffer / commissionRewardOf / COMMISSION_DELAY; packages/sim/src/reducer.ts payCommissionOnce" },
     ],
-    currentBehaviour: "Conforms (built 2026-10-09). Live in every mode.",
-    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-10-09' },
+    currentBehaviour: "Conforms (built 2026-11-16). Supersedes R-CASSEN-01. Live in every mode.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/ancientsCassen.test.ts"], lastVerifiedAt: '2026-11-16' },
   },
   {
     id: "R-ANCCASSEN-01",
@@ -1868,7 +1869,7 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-ANCCASSEN-06",
     title: "Cassen × Ancient of Bonds: a commission pays out twice",
     statement:
-      "With the Ancient of Bonds, a commission's payout resolves twice (two Discovers, 4 Gold, or two spells).",
+      "With the Ancient of Bonds, a commission's payout resolves twice: two Discovers, 8 Gold from a House, or 6 off a Castle, and 2 max Gold. The Commission text prints the doubled numbers.",
     domain: 'heroes',
     status: 'approved',
     evidence: [

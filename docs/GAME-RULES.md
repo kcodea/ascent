@@ -2273,11 +2273,11 @@ playable hero, that placeholder was reachable in real games until this ruling.
 
 ---
 
-## Ancients: one release switch, shipped OFF (owner 2026-11-16; R-ANCIENTS-RELEASE-01..04)
+## Ancients: one release switch, ON since 2026-11-17 (owner 2026-11-16/17; R-ANCIENTS-RELEASE-01..04)
 
 > Owner, 2026-11-16: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on,
 > they're live everywhere." Then, the same day: "Ship the ancient switch off. I'll tell you when to turn it on."
-> **Today the switch is OFF: no player run has Ancients** (only the Scene Builder's own toggle and the DEV Versus seam).
+> **The switch is ON (owner 2026-11-17: "okay turn on ancients"): every new player run in Sets 2 and 3 has Ancients**, except the tutorial and heroes without pairings (archived). Versus protocol 5 carries it.
 > Everything below describes what turning it on does.
 
 - **The loop.** A run with Ancients carries a meter that FILLS: +1 per Shop Refresh (paid or free), +2 per combat

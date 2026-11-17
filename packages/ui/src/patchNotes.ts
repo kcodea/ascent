@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Ancients are here. The ancient gods have awoken.',
+        details: [
+          'Every game now has an Ancients meter around your hero power. Each Refresh adds 1 point and each combat adds 2. It fills at 16.',
+          'When it fills, an Ancient awakens. Choose one of three. It pairs with your hero power for the rest of the game.',
+          'There are six Ancients: Death, Fortune, War, Genesis, Time and Bonds. Each one changes every hero in its own way.',
+          "You can see every hero's Ancients in the Compendium, and try them in the new Ancients tutorial in Learn.",
+          'Ancients are in every mode except the tutorial. Runesmith and Guardian are resting until their Ancients are ready.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'New art for 123 Set 2 minions and 23 rune reward cards.',
       },
       {

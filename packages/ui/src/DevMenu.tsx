@@ -447,7 +447,7 @@ export function DevMenu() {
       hint: 'The game\'s UI. Turn it off here to compare the old screens (DEV only; production has no way off). Remembered on this machine',
       run: () => setPartyHome(!partyHomeOn()), live: () => partyHomeOn() },
     { id: 'heroshowcase', icon: '🖼️', label: 'Hero Select: showcase layout',
-      hint: 'The new Hero Select showcase layout (DEV only; off by default). Remembered on this machine',
+      hint: 'The Hero Select showcase layout players get. Turn it off here to compare the older three-banner layout (DEV only; production has no way off). Remembered on this machine',
       run: () => setHeroShowcase(!heroShowcaseOn()), live: () => heroShowcaseOn() },
     { id: 'partydemo', icon: '👥', label: 'Party home: sample party',
       hint: 'Fill the party home with a sample teammate and sample friends (no backend or second account needed). Start does nothing with it on',

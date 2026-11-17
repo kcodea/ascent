@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-17',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Hero Select has a new look. Pick a hero tile to read about them, then press Select Hero.',
+        details: [
+          'Three hero tiles sit at the top. The selected hero shows large below, with their hero power and their Ancients.',
+          'Left and Right step through the heroes. Up and Down step through the Ancients.',
+          'The re-roll button is on the corner of each tile.',
+          'Phones keep the earlier layout for now, and so does the Practice screen that shows every hero.',
+        ],
+      },
       { category: 'Systems', text: 'New art for Shrieker. Big Spender now flashes once per turn instead of on every Gold spent.' },
       {
         category: 'Systems',

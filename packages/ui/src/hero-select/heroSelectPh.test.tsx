@@ -5,12 +5,13 @@
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from '../renderedText.mount';
 import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { setPartyHome } from '../partyHome/partyHomeFlag';
+import { setHeroShowcase } from './heroShowcaseFlag';
 import { heroSelectEyebrow } from './heroSelectEyebrow';
 import { pageFitZoom } from './HeroSelectPhSkin';
 
@@ -19,7 +20,9 @@ const FLAG_ART = '../partyHome/ornaments/player-flag.webp';
 const here = (f: string): string => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8');
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; act(() => { setPartyHome(false); }); });
+// THE BANNER LAYOUT: what the touch UI (phones) still shows, and a DEV client with the showcase turned off.
+beforeEach(() => { act(() => { setHeroShowcase(false); }); });
+afterEach(() => { ui?.unmount(); ui = null; act(() => { setPartyHome(false); setHeroShowcase(true); }); });
 
 const open = (on: boolean, pendingMode: 'gauntlet' | 'ascent' | 'practice' = 'ascent'): HTMLElement => {
   act(() => { setPartyHome(on); useGame.setState({ pendingMode, heroChoices: ['aster', 'warden', 'soren'], heroReroll: null, rankedEntry: null }); });

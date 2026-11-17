@@ -6,6 +6,7 @@ import { createRun, type Action, type BoardCard, type RunState } from './state';
 import { reduce } from './reducer';
 import { BOTS } from './bots';
 import { playableHeroes } from './heroes';
+import { withAncientsLive } from './ancientsRelease';
 import { emptyAchTally, finalAchMetrics, observeAchAction, observeAchCombat } from './achievementMetrics';
 import { beginDerive, deriveRun, observeAction, progressionFactsOf } from './runDerive';
 
@@ -211,8 +212,10 @@ describe('whole runs: deterministic, and the live feed equals the replay feed', 
 });
 
 describe('the hero templates stay in step with the roster', () => {
-  it('ACHIEVEMENT_HEROES (packages/progression) equals playableHeroes(): ids, order and display names', () => {
-    expect(ACHIEVEMENT_HEROES.map((h) => ({ ...h }))).toEqual(playableHeroes().map((h) => ({ id: h.id, name: h.name })));
+  // The roster WITHOUT the Ancients unpaired-hero archive (owner 2026-11-17): Runesmith and Guardian are withheld only
+  // until their pairings are written, so their achievement templates (and every player's progress on them) stay.
+  it('ACHIEVEMENT_HEROES (packages/progression) equals playableHeroes() with the Ancients gate off: ids, order and display names', () => {
+    expect(ACHIEVEMENT_HEROES.map((h) => ({ ...h }))).toEqual(withAncientsLive(false, () => playableHeroes()).map((h) => ({ id: h.id, name: h.name })));
   });
 });
 

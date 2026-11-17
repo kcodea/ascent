@@ -15,6 +15,7 @@ import {
   TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, applyEndOfTurn,
 } from './recruit';
 import { getHero, powerDiscoverPool } from './heroes';
+import { withAncientsLive } from './ancientsRelease';
 
 /** Bodies for a side — `simulate` takes the two boards positionally, with the run-level context after them. */
 const board = (ms: { cardId: string; attack: number; health: number }[]): BoardMinion[] =>
@@ -225,7 +226,9 @@ describe('the shared spine — tallies survive the settle and follow the POWER, 
       expect(h.practiceOnly, `${id} is not merely practice-only`).toBeFalsy();
       const was = h.wip;
       h.wip = false;
-      try { expect(powerDiscoverPool('void'), `${id} is adoptable when not archived`).toContain(id); } finally { h.wip = was; }
+      // Switch forced OFF: none of the three has Ancient pairings, so while Ancients are live the unpaired-hero archive
+      // (owner 2026-11-17) withholds them as well; this asserts only the kind-level ban.
+      try { expect(withAncientsLive(false, () => powerDiscoverPool('void')), `${id} is adoptable when not archived`).toContain(id); } finally { h.wip = was; }
     }
   });
 });

@@ -65,7 +65,9 @@ describe('the Set 3 Ancients check comes from the pairing registry', () => {
   });
 
   it('writing a pairing into the registry flips the hero (no hand list to update)', () => {
-    const id = HERO_PICKS.find((h) => h.coverage === 'none' && !h.archived)!.id;
+    // Any hero with no pairings (archived or not: while Ancients are live every unpaired hero is archived, owner
+    // 2026-11-17, so today none is both unpaired and current).
+    const id = HERO_PICKS.find((h) => h.coverage === 'none')!.id;
     expect(ancientCoverageOf(id)).toBe('none');
     const stub: AncientPairing = { offerText: 'x', powerText: 'x', effects: [] };
     ANCIENT_PAIRINGS[id] = { death: stub, war: stub };

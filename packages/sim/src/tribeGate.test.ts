@@ -5,6 +5,7 @@ import type { Tribe } from '@game/core';
 import { runeforgePool } from './reducer';
 import { HEROES, playableHeroes, practiceHeroes, powerDiscoverPool } from './heroes';
 import { createRun, runTribesForSeed, type RunState } from './state';
+import { withAncientsLive } from './ancientsRelease';
 
 /**
  * TRIBE GATE (owner 2026-09-10: "tribe-gated spells are important, as are tribe-gated runes and heroes. (Tiff for
@@ -137,12 +138,14 @@ describe('runeforgePool honours the run tribes', () => {
 });
 
 /** Tiff + Flint are the only tribe-gated heroes, and both were ARCHIVED 2026-09-24 (heroArchive.test.ts), so the
- *  gate is exercised with their archive flag lifted for the test body and restored after. */
+ *  gate is exercised with their archive flag lifted for the test body and restored after. The Ancients release switch
+ *  is forced OFF inside: neither has Ancient pairings, so while Ancients are live the unpaired-hero archive
+ *  (`heroArchivedByAncients`, owner 2026-11-17) would hide them too, and this test is about the TRIBE gate. */
 const withUnarchived = (ids: string[], fn: () => void): void => {
   const defs = ids.map((id) => HEROES.find((h) => h.id === id)!);
   const saved = defs.map((h) => h.wip);
   defs.forEach((h) => { h.wip = false; });
-  try { fn(); } finally { defs.forEach((h, i) => { h.wip = saved[i]; }); }
+  try { withAncientsLive(false, fn); } finally { defs.forEach((h, i) => { h.wip = saved[i]; }); }
 };
 
 describe('hero tribe gate', () => {

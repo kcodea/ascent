@@ -14,6 +14,7 @@ import {
   type AncientId, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { powerDiscoverPool } from './heroes';
+import { withAncientsLive } from './ancientsRelease';
 import { createVersusRun, buildVersusCandidate, legalModalAnswers, versusAutoResolve } from './versus/run';
 import type { VersusRoomOptions } from './versus/options';
 import { duosWaitingCount, duosWireOf } from './duosPass';
@@ -75,13 +76,21 @@ describe('Priestess × every Ancient has a written pairing', () => {
 });
 
 describe('Ancients reach a Duos run through the release switch or the dev seam (R-ANCIENTS-RELEASE-01, R-ANCDUOS-01)', () => {
-  it('no dev argument: the run reads the release switch (shipped OFF), byte for byte the run of before', () => {
+  it('no dev argument: the run reads the release switch (forced OFF here), byte for byte the run of before', () => withAncientsLive(false, () => {
     const plain = createVersusRun(11, 'priestess', 'set2', DUOS, 'warden');
     expect(plain.ancientsEnabled).toBeUndefined();
     expect(plain.ancients).toBeUndefined();
     expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', undefined))).toBe(serialize(plain));
     expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', {}))).toBe(serialize(plain));
     expect(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: false }))).toBe(serialize(plain));
+  }));
+
+  it('no dev argument with the switch as shipped (ON): the run starts with the default meter; `ancients: false` still forces off', () => {
+    const live = createVersusRun(11, 'priestess', 'set2', DUOS, 'warden');
+    expect(live.ancientsEnabled).toBe(true);
+    expect(live.ancients).toEqual({ points: 0, cost: 16, refresh: 1, combat: 2 });
+    expect(serialize(live)).toBe(serialize(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: true })));
+    expect(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: false }).ancientsEnabled).toBeUndefined();
   });
 
   it('the dev argument turns them on (any mode), with the default meter or its own', () => {
@@ -91,7 +100,7 @@ describe('Ancients reach a Duos run through the release switch or the dev seam (
     expect(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: { cost: 1 } }).ancients!.cost).toBe(1);
     const { ancientsEnabled: _e, ancients: _a, ...rest } = on;
     void _e; void _a;
-    expect(JSON.stringify(rest)).toBe(JSON.stringify(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden')));
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(createVersusRun(11, 'priestess', 'set2', DUOS, 'warden', { ancients: false })));
     expect(createVersusRun(11, 'indy', 'set2', { v: 1, mode: 'duel', modifiers: [] }, null, { ancients: true }).ancientsEnabled).toBe(true);
   });
 

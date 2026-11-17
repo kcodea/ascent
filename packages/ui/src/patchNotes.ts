@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-11-17',
     changes: [
+      { category: 'Systems', text: 'New art for Shrieker. Big Spender now flashes once per turn instead of on every Gold spent.' },
       {
         category: 'Systems',
         text: 'Ancients are here. The ancient gods have awoken.',

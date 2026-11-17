@@ -3358,4 +3358,20 @@ export const RUNES_RULES: GameRule[] = [
     example: 'Big Spender held, 20 Gold spent this turn: Rope Wrangler casts Lasso 5 times (1 + 40 / 10), not 3.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/bigSpenderAllSpendCounts.test.ts', 'packages/ui/src/bigSpenderLiveText.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
+  {
+    id: 'R-BIG-SPENDER-PROC-01',
+    title: 'Big Spender pulses once per turn, not on every Gold spent',
+    statement:
+      'Big Spender still counts every Gold spent twice (R-BIG-SPENDER-ALL-01), but its rune proc animation plays only on the '
+      + 'first counted spend of each turn, not on every spend.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-11-17', quote: "big spender rune doesnt need to animate on every gold spent. it's distracting and overboard" },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts spendGold (procRuneId gated on goldSpentExtraThisTurn)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-17. Before, the rune pulsed on every Gold spend.',
+    example: 'Kev holds Big Spender and Refreshes four times in one turn: the rune pulses once.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/bigSpenderAllSpendCounts.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

@@ -530,6 +530,17 @@ describe('Hero Select with the showcase body', () => {
     expect(root().classList.contains('hss')).toBe(false);
   });
 
+  it('Practice (Beginner, the three starters) renders the showcase with the switch on', async () => {
+    const starters = practiceHeroChoiceIds('beginner');
+    expect(starters.length).toBeLessThanOrEqual(6);
+    const el = await open({ mode: 'practice', choices: starters });
+    expect(el.querySelector('.hss-body')).not.toBeNull();
+    expect(el.querySelector('.hsrow.browse')).toBeNull();
+    expect(root().classList.contains('hss')).toBe(true);
+    expect(tiles().length).toBe(starters.length);
+    expect(confirm()).not.toBeNull();
+  });
+
   it('watch mode: no Select Hero; a watched pick selects that hero and plays the ceremony', async () => {
     act(() => { setPartyHome(true); setHeroShowcase(true); useGame.setState({ heroChoices: null }); });
     const frame = (picked: string | null): HeroSelectFrame => ({ offer: [...OFFER], picked, reroll: null, canReroll: false, mode: 'lobby' });

@@ -38,8 +38,8 @@ const loadPhSkin = () => import('./hero-select/HeroSelectPhSkin');
 const HeroSelectPhSkin = lazy(loadPhSkin);
 if (partyHomeOn()) void loadPhSkin();
 
-/** THE SHOWCASE BODY (hero-select/HeroShowcase.tsx; DEV switch "Hero Select: showcase layout", owner 2026-11-16): tiles,
- *  the Compendium's hero card and a Select Hero button in place of the three banners. Lazy like the skin, so the switch-off
+/** THE SHOWCASE BODY (hero-select/HeroShowcase.tsx; owner 2026-11-16, live 2026-11-17): tiles,
+ *  the Compendium's hero card and a Select Hero button in place of the three banners. Lazy like the skin, so the banner (touch UI)
  *  path loads nothing new. */
 const loadShowcase = () => import('./hero-select/HeroShowcase').then((m) => ({ default: m.HeroShowcase }));
 const HeroShowcase = lazy(loadShowcase);
@@ -127,7 +127,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const swapping = heroReroll && heroReroll !== animatedReroll && (watch || armedSlot === heroReroll.slot) ? heroReroll : null;
   // The choice cards, by index — the ceremony snapshots + animates them but never owns their DOM.
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  // THE SHOWCASE BODY (DEV switch, off by default): it needs the party home's tokens, and the Practice / Gauntlet browse
+  // THE SHOWCASE BODY (live since 2026-11-17; the touch UI and a DEV switch keep the banners): it needs the party home's tokens, and the Practice / Gauntlet browse
   // grid (more than six offered, `browse` below) keeps today's cards. Derived up here so the hooks below stay ABOVE the
   // `!choices` early return.
   // `showcaseOn` is the switch alone (no offer needed): the selection tracking below must also see the offer go null at a pick.

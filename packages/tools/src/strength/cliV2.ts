@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
-  createStrengthProbe, runLongEnough, STRENGTH_BANDS, RANK_MEDALS, bandVersionLabel,
+  createStrengthProbe, runLongEnough, STRENGTH_BANDS, RANK_MEDALS, bandVersionLabel, lastReferenceRound, loadStrengthReference, scoreBoard,
   type BoardSnapshot, type StrengthReference,
 } from '@game/sim';
 import { getAll, liveRunsOf, loadLivePool, type LiveRun } from './livePool';
@@ -15,6 +15,7 @@ import { SET, roundRobin, trimForReference } from './refBuild';
 import { pickReferenceIndices, referenceBuckets, REF_PICK_V2 } from './refPick.lib';
 import { driftOf, inBandV2, peakCapRows, rateRunsV2, rawRoundsOfRun, seatsOf, type RawRound, type RunV2 } from './measureV2.lib';
 import { gapCalibration, rateFights, runRecords, type FightRow } from './validate.lib';
+import { applyV2Sql, backfillRowsOfRun, backfillV2Sql, type BackfillRow } from './backfillV2.lib';
 
 export const REF_V2_VERSION = 'set2-v2';
 export const REF_V2_CANDIDATE = 'packages/tools/.cache/strengthReference.v2.candidate.json';
@@ -102,7 +103,7 @@ async function rateLive(): Promise<{ rated: RunV2[]; raws: RawRound[]; tooShort:
       const k = `${run.key}|${boardWave}|${atRound}`;
       const hit = cache.scores[k];
       if (typeof hit === 'number') return hit;
-      const probe = createStrengthProbe({ ...first.get(boardWave)!, wave: atRound }, ref);
+      const probe = createStrengthProbe({ ...first.get(boardWave)!, wave: boardWave }, ref, atRound);
       probe.step(probe.total());
       const res = probe.result();
       if (!res) unscorable++;
@@ -152,7 +153,7 @@ export async function measureV2(): Promise<void> {
   const both = rated.filter((r) => r.early !== null && r.late !== null);
   console.log(`\nEARLY vs LATE correlation over ${both.length} runs: ${corr(both.map((r) => r.early!), both.map((r) => r.late!)).toFixed(2)} (every run has a LATE rating: ${rated.every((r) => r.late !== null)})`);
 
-  console.log('\nBANDS (today\'s band table on the v2 ratings): runs in band / players / seats under the 4-per-player cap');
+  console.log('\nBANDS (today\'s band table on the v2 ratings): runs in band / players / seats at up to 3 per player');
   for (const medal of RANK_MEDALS) {
     const band = STRENGTH_BANDS[medal];
     const inBand = rated.filter((r) => inBandV2(r, band));
@@ -175,6 +176,37 @@ export async function measureV2(): Promise<void> {
     }
     console.log(`  ${medal.padEnd(9)} ${cells.join('  ')}`);
   }
+}
+
+export const BACKFILL_V2_OUT = 'packages/tools/.cache/strength-backfill-v2.sql';
+export const APPLY_V2_OUT = 'packages/tools/.cache/strength-v2-apply.sql';
+const MIGRATION_V2 = 'supabase/migrations/2026-11-23-strength-v2.sql';
+
+/** Score EVERY pool board of the set (live or not) against the COMMITTED reference, plus each run's carried rounds,
+ *  and write the SQL file an owner runs. Never writes to the backend. */
+export async function backfillV2(): Promise<void> {
+  const pool = await loadLivePool();
+  const ref = await loadStrengthReference();
+  const lastRef = lastReferenceRound(ref);
+  const rows: BackfillRow[] = [];
+  let fights = 0;
+  const t0 = performance.now();
+  const runs = pool.runs.filter((r) => r.setId === SET);
+  for (const run of runs) {
+    const first = new Map<number, BoardSnapshot>();
+    for (const b of run.boards) if (!first.has(b.wave)) first.set(b.wave, b.snapshot);
+    rows.push(...backfillRowsOfRun(run.boards.map((b) => ({ rowId: b.rowId, wave: b.wave, minions: minionsOf(b.snapshot) })), lastRef, ref.version, (boardWave, atRound) => {
+      const s = scoreBoard({ ...first.get(boardWave)!, wave: boardWave, setId: SET }, ref, atRound);
+      if (s) fights += s.fights;
+      return s ? { raw: s.raw, refWave: s.wave } : null;
+    }));
+  }
+  mkdirSync(dirname(BACKFILL_V2_OUT), { recursive: true });
+  writeFileSync(BACKFILL_V2_OUT, backfillV2Sql(ref.version, rows));
+  console.log(`scored ${runs.length} runs, ${rows.length} boards, ${fights} fights in ${Math.round((performance.now() - t0) / 1000)} s`);
+  writeFileSync(APPLY_V2_OUT, applyV2Sql(readFileSync(MIGRATION_V2, 'utf8'), ref.version, rows));
+  console.log(`wrote ${APPLY_V2_OUT}: the strength v2 migration with this backfill inside its transaction. FIRST APPLY: an OWNER runs this one file, then Ship Ascent.`);
+  console.log(`wrote ${BACKFILL_V2_OUT}: the backfill alone, for a later top-up (then select public.pool_refresh_dirty();).`);
 }
 
 export async function validate(): Promise<void> {

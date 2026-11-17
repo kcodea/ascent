@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeRng } from '@game/core';
 import { earlyLateStrengthOf, finalFromSum, meanFromSum, pctFromCounts, percentileOf, rankAmongRuns, runFinalStrengthOf, runPercentileOf, runWeightedAverageOf, weightedAvgFromGroups, type StrengthHistogramEntry } from './boardStrength';
-import { STRENGTH_BANDS, bandSteps, matchScoreOf, runInStrengthBand, type StrengthBand } from './strengthBands';
+import { STRENGTH_BANDS, bandSteps, matchScore100, matchScoreOf, runUnderOverallCap, type RunStrengths, type StrengthBand } from './strengthBands';
 import LIVE from './strengthLiveScores.fixture.json';
 
 /**
@@ -56,6 +56,19 @@ const STUB = `
 
 let db: PGlite;
 const REF = 'set2-v1';
+
+/**
+ * The band rule the migrations in THIS file shipped with: an unscored run is INSIDE every band. Strength v2
+ * (2026-11-23-strength-v2.sql, owner ruling 2026-11-16) reversed that one clause, in the SQL and in
+ * `runInStrengthBand` together; strengthV2.db.test.ts and the hub's sessionCf.db.test.ts pin the current pair. These
+ * tests keep pinning the older SQL against the rule it was written for.
+ */
+const inBandLegacy = (run: RunStrengths, band: StrengthBand | null): boolean => {
+  if (!band) return true;
+  if (!runUnderOverallCap(run, band)) return false;
+  const score = matchScore100(run, band.earlyWeight);
+  return score === null || (score >= band.min * 100 && score <= band.max * 100);
+};
 const uuid = (n: number): string => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
 interface RunSpec {
@@ -317,7 +330,7 @@ describe('the sample with a band', () => {
         ['set2', '0.1.0+', 'w', band.min, band.max, band.earlyWeight ?? null]);
     for (const band of [STRENGTH_BANDS.Bronze!, STRENGTH_BANDS.Silver!, STRENGTH_BANDS.Gold!, { min: 10, max: 30 }]) {
       const got = (await sampleW(band)).map((r) => r.run_key).sort();
-      const want = runs.filter((r) => runInStrengthBand({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
+      const want = runs.filter((r) => inBandLegacy({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
       expect(got, JSON.stringify(band)).toEqual(want);
       expect(got).toContain('W0|h|0'); // unscored: inside every band
     }
@@ -357,7 +370,7 @@ describe('the sample with a band', () => {
       'select * from public.pool_runs_sample(p_limit => 300, p_set => $1, p_patch_prefix => $2, p_seed => $3, p_strength_min => $4, p_strength_max => $5, p_early_weight => $6, p_strength_cap => $7)',
       ['set2', '0.1.0+', 'cap', band?.min ?? null, band?.max ?? null, band?.earlyWeight ?? null, band?.overallCap ?? null])).map((r) => r.run_key).sort();
     const tsWant = (band: StrengthBand | null): string[] =>
-      runs.filter((r) => runInStrengthBand({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
+      runs.filter((r) => inBandLegacy({ strength: num(r.s), early: num(r.e), late: num(r.l) }, band)).map((r) => r.k).sort();
     for (const medal of ['Bronze', 'Silver', 'Gold'] as const) {
       for (const step of bandSteps(STRENGTH_BANDS[medal])) {
         const got = await sampleCap(step);
@@ -478,7 +491,7 @@ describe('parity on the REAL live pool (2026-09-30 scores; weighted and ranked, 
     }
     expect(noLate).toBeGreaterThan(20); // real runs that ended before round 10: their score is EARLY alone
     // Bronze on the real pool: the early-only band holds runs whose early rating is 20 or less, and they are many.
-    const bronze = specs.filter((s) => runInStrengthBand({ early: el.get(runKey(s))!.e, late: el.get(runKey(s))!.l }, STRENGTH_BANDS.Bronze!));
+    const bronze = specs.filter((s) => inBandLegacy({ early: el.get(runKey(s))!.e, late: el.get(runKey(s))!.l }, STRENGTH_BANDS.Bronze!));
     expect(bronze.length).toBeGreaterThan(20);
   }, 120_000);
 });

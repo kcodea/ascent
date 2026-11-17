@@ -178,6 +178,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Game strength is measured more sharply, and games that ended early are never opponents.',
+        details: [
+          'Each board is now tested against 40 real boards of its round, four fights each (it was 30 boards, two fights), including more of the very strongest, so strong boards are told apart better.',
+          'A past game is ranked every round with the board it would really put in front of you. If it was knocked out early, its last board is tested against the later rounds too.',
+          'Your Game strength and round percentiles are measured against the 250 most recent games, so the numbers can shift from what you saw before. Being knocked out early never lowers your Game strength.',
+          'A past game that ended before round 7 is never used as an opponent.',
+          'Bronze, Silver and Gold: you only meet past games that have been fully measured.',
+          'At the end of a ranked game, Continue is greyed out for a moment under "Calculating Score" while your game is measured. A bar shows the progress, and it never takes more than 5 seconds.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opponents: more variety at every table, and fewer stacked tables at the top ranks.',
         details: [
           'You now meet at most 2 past games from the same player in one game, your own included (it was 4). A third appears only when there are not enough players to fill the table.',

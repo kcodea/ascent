@@ -189,7 +189,9 @@ on what wiped means: "exclude them".
   Worker draw.
 - `bandVersionLabel` adds `/pN`, so the regime stamp names it.
 - Practice's Opponent Rank inherits it automatically (it reads the medal's own band entry).
-- **The three numbers are Mike's to set, after v2 is measured.** The mechanism ships with no `peakCap` on any
+- **The numbers (Mike 2026-11-16, after the v2 measurement: "90 for all"): Bronze 90, Silver 90, Gold 90.** They
+  go in with the mechanism, in the same PR.
+- As first written: the three numbers are Mike's to set, after v2 is measured. The mechanism ships with no `peakCap` on any
   medal; `measure` prints, per medal, how many runs each candidate cap (60, 70, 80, 90, 95) removes and whether
   the band can still seat 7 under the per-player cap. On the v1 scale and the live window today: a Bronze cap of 80
   removes 35% of the 43 Bronze runs, 90 removes 9%.
@@ -251,6 +253,26 @@ one player contributes to the ranking population**:
   strength shifts for players).
 - Extend the existing TypeScript / SQL / Worker parity tests rather than adding new unpinned copies.
 
+### As built (Plan 2, 2026-11-16): where the build departs from the text above
+
+Each is recorded with its reason in `docs/devlog/2026-11-16-strength-v2-scoring.md`.
+
+- **Rollout order is SQL first, then Ship Ascent straight away**, not "deploy the hub first": the
+  `strength_carried` column must exist before a client that sends it ships. The SQL is one generated file (the
+  migration with the backfill inside its transaction); until the hub ships, the old hub still seats unscored runs
+  in banded tables, so the two steps go back to back.
+- **A carried score is fought without the board's banked next-combat spells**, as a table meets a final board past
+  its round.
+- **A game under 7 rounds still uploads its boards** (the live replay and the record board read them); the database
+  marks the run ineligible, so it is never seated or ranked.
+- **The 7-round floor is applied where a table is seated**, not in the run lookup, so a saved game or a replay still
+  finds a run seated before the floor existed.
+- **The reference covers rounds 1 to 15** (round 16 has under 40 real boards in the live window).
+- **The count of live unscored runs is `pool_live_unscored()`**, not a field of `ops.pool_digest` (a content hash).
+- **The lock also covers an offline (unrated) lobby game.**
+- **A game not scored within the 5 second limit keeps scoring after Continue unlocks**, and its boards upload when
+  it is done (Mike 2026-11-16: "Yes, finish scoring"), instead of going up unscored.
+
 ## 7. Delivery order
 
 1. Tooling only: v2 reference builder, drift alarm, peak table, `validate`. No behaviour change.
@@ -270,6 +292,8 @@ one player contributes to the ranking population**:
 
 1. Unscored runs are kept out of Bronze, Silver and Gold lobbies.
 2. The three peak caps are set by Mike after the v2 measurement; the mechanism ships with none.
+   **Set 2026-11-16, after the measurement: "90 for all"**: Bronze, Silver and Gold each get `peakCap: 90`. On the
+   live window under v2 that removes 1 of 39 Bronze runs, 3 of 54 Silver and 23 of 106 Gold.
 3. Bundle D is dropped; only the 10-of-40 limit on reference boards per player is built.
 
 The questions as they were put:

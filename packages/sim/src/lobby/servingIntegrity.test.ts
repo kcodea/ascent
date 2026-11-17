@@ -56,8 +56,8 @@ const SHAPES: Shape[] = [
   { name: 'OldFromTwo', waves: range(2, 12) }, // a Disco Dan recorded before it: wave 1 never uploaded
   { name: 'SoldOffAtThree', waves: range(1, 12), empty: [3] }, // sold the whole board on round 3 (recorded since the fix)
   { name: 'OldGap', waves: [1, 2, 3, 4, 6, 7, 8, 9, 10] }, // an old recording: round 5 was empty, so never uploaded
-  { name: 'EarlyOut', waves: range(1, 4) }, // knocked out in its own round 4
-  { name: 'MidOut', waves: range(1, 7) }, // knocked out in its own round 7
+  { name: 'EarlyOut', waves: range(1, 7) }, // knocked out in its own round 7 (the shortest run a table seats, strength v2)
+  { name: 'MidOut', waves: range(1, 9) }, // knocked out in its own round 9
 ];
 
 /** What the run really fielded in this lobby round, by the rules above. `hole` = a round an old recording skipped: it

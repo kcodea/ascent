@@ -36,7 +36,7 @@ const board = (author: string, heroId: string, seed: number, wave: number, emote
   minions: [{ cardId: 'pack', attack: 2, health: 2, keywords: [], golden: false }],
   seed, origin: 'self', author, setId: 'set1', ...(emotes ? { emotes } : {}),
 } as BoardSnapshot);
-const CHATTY = Array.from({ length: 6 }, (_, i) => board('Chatty', 'albus', 6161, i + 1,
+const CHATTY = Array.from({ length: 7 }, (_, i) => board('Chatty', 'albus', 6161, i + 1,
   i === 0 ? [{ id: C, phase: 'shop', at: 4200 }, { id: A, phase: 'combat', at: 1500 }] : undefined));
 
 beforeAll(() => { registerOpponents(CHATTY); });

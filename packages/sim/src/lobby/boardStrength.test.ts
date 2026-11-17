@@ -22,15 +22,14 @@ const boardOf = (w: number, i: number): BoardSnapshot => ({ ...ref.waves[String(
 const buffed = (b: BoardSnapshot, n: number): BoardSnapshot => ({ ...b, minions: b.minions.map((m) => ({ ...m, attack: m.attack + n, health: m.health + n })) });
 
 describe('the committed reference set', () => {
-  it('is version set2-v1: 30 boards per wave (fewer only where the pool had fewer), waves 1 to 15', () => {
+  it('is version set2-v2: 40 boards per wave, 4 fights each, waves 1 to 15', () => {
     expect(ref.version).toBe(STRENGTH_REF_VERSION);
     expect(ref.setId).toBe('set2');
-    expect(ref.fightsPerRef).toBe(2);
+    expect(ref.fightsPerRef).toBe(4);
     const waves = Object.keys(ref.waves).map(Number).sort((a, b) => a - b);
     expect(waves[0]).toBe(1);
     for (const w of waves) {
-      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBeGreaterThanOrEqual(20);
-      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBeLessThanOrEqual(30);
+      expect(ref.waves[String(w)]!.length, `wave ${w}`).toBe(40);
       for (const b of ref.waves[String(w)]!) expect(b.minions.length).toBeGreaterThan(0);
     }
   });
@@ -47,7 +46,7 @@ describe('scoring', () => {
   it('is deterministic: the same board scores the same, however the work is sliced', () => {
     const b = boardOf(8, 12);
     const once = scoreBoard(b, ref)!;
-    expect(once.fights).toBe(ref.waves['8']!.length * 2);
+    expect(once.fights).toBe(ref.waves['8']!.length * ref.fightsPerRef);
     expect(scoreBoard(b, ref)).toEqual(once);
     const sliced = createStrengthProbe(b, ref);
     let steps = 0;
@@ -188,7 +187,7 @@ describe('the percentile', () => {
     // The owner reverted the final-board formula (#1928) on 2026-10-06: "matchmaking algorithm -> backtrack to the
     // weighted version"; the number computed here is that weighted one. The regime stamp names the score MATCHMAKING
     // filters on, which since the split bands (R-LOBBY-13, same day) is the early / late blend.
-    expect(RUN_STRENGTH_FORMULA).toBe('earlyLate');
+    expect(RUN_STRENGTH_FORMULA).toBe('earlyLateV2');
     const score = (wave: number, raw: number): StrengthScore => ({ raw, wave, ref: STRENGTH_REF_VERSION, fights: 60 });
     const hist = { '1': [{ raw: 0.2, count: 3 }, { raw: 0.8, count: 1 }], '2': [{ raw: 0.5, count: 4 }] };
     const runs = [{ avg: 40, count: 5 }, { avg: 80, count: 2 }, { avg: 90, count: 2 }];

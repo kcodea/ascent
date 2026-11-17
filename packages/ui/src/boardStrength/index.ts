@@ -2,15 +2,70 @@
  * The app's board-strength wiring (R-LOBBY-09, 2026-09-30): one background scorer for the session, the rank band
  * the player draws opponents from, and the frozen numbers a finished game records.
  */
-import { loadStrengthReference, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
+import { STRENGTH_REF_LAST_ROUND, STRENGTH_REF_VERSION, loadStrengthReference, runLongEnough, type RunState, normalizePracticeRank, practiceStrengthBand, strengthBandForDivision, type LobbySeatOptions, type PlayerProfile, type PracticeConfig, type PracticeRank, type RunMode, type StrengthBand } from '@game/sim';
 import { perfMonitor } from '../perfMonitor';
 import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } from './strengthScorer';
 
 export { createStrengthScorer } from './strengthScorer';
 
-/** The longest the run-end uploads wait for the last board's score. Normally zero: the last board is scored during
- *  its own combat animation. A resumed game may have a few boards to catch up (~30-50 ms of idle-sliced work each). */
-export const STRENGTH_RUN_END_WAIT_MS = 1500;
+/** The longest the end screen's "Calculating Score" lock (and the run-end record: Career row, rank, replay) waits for
+ *  the run's scores: its boards and, since strength v2 (2026-11-16), its final board's carried rounds, at most 8 x 160
+ *  fights. Owner 2026-11-16: Continue is greyed out while this runs; after 5 seconds it unlocks regardless. It must
+ *  never stay locked. The BOARDS of a game still being scored then follow later (`STRENGTH_LATE_UPLOAD_WAIT_MS`). */
+export const STRENGTH_RUN_END_WAIT_MS = 5000;
+
+/**
+ * Is this finished game SCORED IN FULL before it uploads (strength v2, owner 2026-11-16)? A lobby game (rated, or
+ * unrated because no recorded player sat at the table: its boards go to the pool either way) that reached round 7,
+ * the floor for a run to ever be an opponent. Its final board is then scored against every later reference round, and
+ * the end screen holds Continue behind "Calculating Score" until that is done. Practice, the tutorial, Gauntlet,
+ * Versus, a sandbox run and a game that ended before round 7 are never held.
+ */
+export function shouldScoreRunEnd(run: Pick<RunState, 'mode' | 'sandbox'>, boards: readonly { wave: number }[] | null | undefined): boolean {
+  if (run.mode !== 'lobby' || run.sandbox || !boards?.length) return false;
+  return runLongEnough(boards.reduce((m, b) => Math.max(m, b.wave), 0));
+}
+
+/** The run's final captured board (the first one of its highest round), or null. */
+export function finalBoardOf<T extends { wave: number }>(boards: readonly T[] | null | undefined): T | null {
+  let best: T | null = null;
+  for (const b of boards ?? []) if (!best || b.wave > best.wave) best = b;
+  return best;
+}
+
+/** What rides on the final board's row: its carried scores, ONLY when every round from its own + 1 to the last
+ *  reference round is there (an incomplete map would make the run look complete to nobody: the SQL treats a run with
+ *  a missing round as unscored either way, so send nothing). */
+export function carriedUploadOf(lastWave: number, carried: ReadonlyMap<number, number>): { ref: string; rounds: Record<string, number> } | null {
+  const rounds: Record<string, number> = {};
+  for (let round = lastWave + 1; round <= STRENGTH_REF_LAST_ROUND; round++) {
+    const raw = carried.get(round);
+    if (typeof raw !== 'number') return null;
+    rounds[String(round)] = raw;
+  }
+  return { ref: STRENGTH_REF_VERSION, rounds };
+}
+
+/**
+ * Run `fn` as its own task as soon as the browser has had a turn. A MessageChannel, not `setTimeout(0)`: nested zero
+ * timers are clamped to 4 ms, which idles the scorer for almost half of every 10 ms, and not requestAnimationFrame,
+ * which stops in a hidden tab (the game would then upload unscored). Rendering still runs between tasks. Falls back
+ * to a zero timer where there is no MessageChannel.
+ */
+export function rushSoon(fn: () => void): () => void {
+  if (typeof MessageChannel !== 'function') { const t = setTimeout(fn, 0); return () => clearTimeout(t); }
+  let cancelled = false;
+  const ch = new MessageChannel();
+  ch.port1.onmessage = () => { ch.port1.close(); if (!cancelled) fn(); };
+  ch.port2.postMessage(0);
+  return () => { cancelled = true; ch.port1.close(); };
+}
+
+/** How long a game's BOARDS wait for its scoring once Continue has unlocked (owner 2026-11-16: "Yes, finish
+ *  scoring"). A device too slow to finish inside `STRENGTH_RUN_END_WAIT_MS` keeps scoring behind the unlocked screen
+ *  and uploads its boards when done, so its game is scored like anyone else's. After this long they go up with what
+ *  is ready (the run is then unscored). */
+export const STRENGTH_LATE_UPLOAD_WAIT_MS = 60_000;
 
 let scorer: StrengthScorer | null = null;
 
@@ -26,6 +81,7 @@ export function boardStrengthScorer(): StrengthScorer {
       const t = setTimeout(() => fn(), 32);
       return () => clearTimeout(t);
     },
+    requestRush: rushSoon,
     setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); },
     measure: (label, fn) => perfMonitor.measure(label, fn),
   });

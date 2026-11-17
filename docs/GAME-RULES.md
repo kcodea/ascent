@@ -144,7 +144,36 @@ medal + division — see *Ranked ladder* below).
     strength" number, `pool_runs.strength`, not the early / late score) must be **at or under** its medal's cap: a run
     at 40 can sit in a Bronze lobby, a run at 41 cannot. A run must pass both. The cap is **hard**: widening (below)
     never relaxes it, so a band that still cannot fill the table after widening fills the rest with generated seats. A
-    run with no weighted strength yet stays eligible.
+    run with no weighted strength yet stays eligible. (Until 2026-11-16: see STRENGTH V2 just below.)
+  - **STRENGTH V2** (owner design 2026-11-16, R-LOBBY-18, -19, -20; `docs/superpowers/specs/2026-11-16-strength-v2-design.md`).
+    It changes how the numbers above are measured, not the band table:
+    - The reference set is `strengthReference.v2.json` (version `set2-v2`): **40 boards per round, four fights each**
+      (160 fights per board), rounds 1 to 15, at most 10 of a round's 40 from one player, with 12 of them from the
+      top fifth so the strongest boards are told apart.
+    - **Every recent run is ranked once per round with the board it would really field** (R-LOBBY-18): its own board
+      of that round (an empty board counts as 0), or, when its recording ended earlier, its **final board carried
+      forward** and scored against that round. Only the live runs (the rolling pool) count. A round past 15 is
+      ranked against round 15's boards.
+    - **EARLY** is the mean of rounds 1-9 and **LATE** the mean of rounds 10-15, over real and carried rounds, so every
+      scored run has both. **Game strength**, the number players see, still uses the run's REAL rounds only: being
+      knocked out early never lowers it.
+    - **A run that ended before round 7 is never an opponent** (R-LOBBY-19; owner: *"we should never have any
+      snapshots of boards that are below 7 rounds"*, *"exclude them"*). It stays in its player's Career and replays.
+    - **A run is scored only when it is complete** (R-LOBBY-20): every board with minions scored with the current
+      reference, and its final board scored for every round up to 15. Anything less is **unscored**, and **an unscored
+      run is never seated at a Bronze, Silver or Gold table** (it used to be inside every band). It can still be met
+      where there is no band (Platinum and up, Practice on All Ranks).
+    - **"Calculating Score"** (R-ENDSCREEN-SCORE-01; owner: *"can we have the continue button greyed out and unavailable
+      to click while the games are being scored?"*, *"players should know why this is happening. preferably with a
+      timer bar as well"*): when a lobby game that reached round 7 ends, Continue is greyed out under the text
+      "Calculating Score" and a bar that fills with the real progress, until the game's scores are done. It unlocks
+      after 5 seconds at the latest. A game not finished by then (a slow device) keeps scoring behind the unlocked
+      screen and its boards upload when it is done (owner 2026-11-16, asked whether such a game should finish scoring:
+      *"Yes, finish scoring"*), so it is scored like any other.
+    - Live once the owner applies the ONE generated file `packages/tools/.cache/strength-v2-apply.sql`
+      (`npm run strength -- backfill` writes it: `supabase/migrations/2026-11-23-strength-v2.sql` with every board's
+      new score inside the same transaction; the migration is never applied alone). Until a player's game updates, it shows no Game strength and the games it
+      uploads are unscored.
 
     Before 2026-10-06 the bands filtered the weighted strength directly: Bronze 0-30, Silver 10-40, Gold 20-65,
     Platinum uncapped, Diamond 10-100, Ascendant 20-100 (owner 2026-09-30: *"maybe plat should be 50 and then diamond

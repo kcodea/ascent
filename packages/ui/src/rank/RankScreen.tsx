@@ -51,6 +51,11 @@ export interface RankScreenProps {
   /** MATCH DETAILS (owner ask 2026-09-28): opens the lobby scoreboard. Offered once the placement has been shown
    *  (the rank sequence settled), in the secondary row where "Skip animation" sat. Absent = no button. */
   onMatchDetails?: () => void;
+  /** "CALCULATING SCORE" (strength v2, owner 2026-11-16): fights done / fights to do while the finished game is
+   *  scored before it uploads. Non-null = Continue is greyed out and cannot be pressed, with the reason and a bar of
+   *  the real progress above it. Null / absent = Continue as always. The store clears it when the work is done and
+   *  after 5 seconds at the latest, so the button never stays locked. */
+  scoring?: { done: number; total: number } | null;
 }
 
 function prefersReducedMotion(): boolean {
@@ -68,7 +73,10 @@ const cues = {
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
-  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra, onMatchDetails } = props;
+  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false, extra, onMatchDetails, scoring } = props;
+  const locked = !!scoring;
+  // Real progress: fights done out of fights to do, clamped (the total is an estimate until the reference loads).
+  const scoringShare = scoring && scoring.total > 0 ? Math.min(1, Math.max(0, scoring.done / scoring.total)) : 0;
   const reduced = props.reducedMotion ?? prefersReducedMotion();
   const confirmed = submission === 'confirmed' && !!result;
   // The celebration plays only for a freshly confirmed result that has not been presented before.
@@ -143,13 +151,26 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
     };
   }, [shouldAnimate, settled, armedFor, resultKey, anim, preview, runId]);
 
-  useEffect(() => { continueRef.current?.focus(); }, []);
+  // Focus Continue on mount, and again the moment the score lock lifts (a disabled button cannot hold focus), but
+  // never away from something the player moved to meanwhile (Match details opened during the lock: a Space there
+  // must not leave the end screen).
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (locked) return;
+    const active = document.activeElement;
+    const free = !active || active === document.body || active === continueRef.current;
+    if (!mountedRef.current || free) continueRef.current?.focus();
+    mountedRef.current = true;
+  }, [locked]);
+  useEffect(() => { mountedRef.current = true; }, []);
 
   // Continue → the rank layer CROSS-FADES into the main menu (owner 2026-09-20): the settled overlay is cloned
   // above the title, `onContinue` (→ openTitle) mounts the title and releases this element, and the clone
   // fades out. A sequence still playing is settled first so the clone is the after-state, not a mid-tween.
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
   const leave = useCallback((): void => {
-    if (leavingRef.current) return;
+    if (leavingRef.current || lockedRef.current) return;
     leavingRef.current = true;
     const tl = tlRef.current;
     if (tl) { tl.progress(1, true); tl.kill(); tlRef.current = null; }
@@ -233,8 +254,16 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
 
       {extra?.(settled)}
 
+      {locked && (
+        <div className="rankend-scoring" role="status" aria-live="polite">
+          <span className="rankend-scoring-text">Calculating Score</span>
+          <span className="rankend-scoring-track" aria-hidden>
+            <span className="rankend-scoring-fill" style={{ transform: `scaleX(${scoringShare})` }} />
+          </span>
+        </div>
+      )}
       <div className="rankend-actions">
-        <button ref={continueRef} type="button" className="endplay pressable rankend-continue" onClick={leave} disabled={leaving}>Continue</button>
+        <button ref={continueRef} type="button" className={`endplay pressable rankend-continue${locked ? ' scoring' : ''}`} onClick={leave} disabled={leaving || locked}>Continue</button>
         {submission === 'retryable' && onRetry && (
           <button type="button" className="endplay pressable rankend-retry" onClick={onRetry}>Retry</button>
         )}

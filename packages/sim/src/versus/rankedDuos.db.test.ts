@@ -278,6 +278,24 @@ describe('the table seating (R-RANKED-DUOS-SEATING-01)', () => {
     expect((await q<any>('select count(*)::int n from public.versus_ranked_duos_served where match_id = $1', [m]))[0].n).toBe(6);
   });
 
+  it('a solo run whose peak is over 90 is never seated at a Bronze team\'s table; one at 90 is (R-LOBBY-21)', async () => {
+    // The Duos draw does not send the peak cap: the peak each solo row carries is what holds it, at seat selection.
+    const [, m] = await startRanked();
+    await toShop(m);
+    const spiked = new Set(['keshi', 'nadja', 'drumline']);
+    const capped: RankedDuosSeatStore = {
+      ...store(m),
+      async soloSample() { return soloRows.map((r) => ({ ...r, strength_peak: spiked.has(r.run_key.split('|')[1]!) ? 95 : 90 })); },
+      async duoSample() { return []; },
+    };
+    const res = await handleRankedDuosSeat(A, { matchId: m }, capped);
+    expect(res.body).toMatchObject({ seated: true });
+    const served = await q<any>('select kind, hero from public.versus_ranked_duos_served where match_id = $1', [m]);
+    const solos = served.filter((s) => s.kind === 'solo').map((s) => s.hero as string);
+    expect(solos.length).toBe(4); // the four runs at 90; generated seats fill the rest
+    expect(solos.some((h) => spiked.has(h))).toBe(false);
+  });
+
   it('the commit validates the table and refuses a client', async () => {
     const [, m] = await startRanked();
     await toShop(m);

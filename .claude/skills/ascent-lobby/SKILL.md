@@ -135,8 +135,8 @@ behaviour from a legacy symbol.**
   `strengthBand` (Bronze 0-20 w1.0 c40, Silver 10-30 w0.8 c60, Gold 10-50 w0.6 c75, none from
   Platinum) to both the pool fetch (`p_early_weight` / `p_strength_cap`, each dropped for the session when the RPC lacks
   it; the cap then holds in seat selection, since every row carries `strength`) and
-  `createRunLobby` (`runInStrengthBand`); unscored runs are in every
-  band, and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
+  `createRunLobby` (`runInStrengthBand`); unscored runs are OUTSIDE every
+  band since 2026-11-16 (R-LOBBY-20), and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the
   selection is R-LOBBY-08's, seat for seat. **One session can hold samples for several bands** (2026-10-13: Practice
   can ask for another rank): the loader fetches the wanted band's sample (`matchBand`; `poolBandFor` in
   `ui/src/boardStrength` decides which band is wanted now) and names the runs fetched only for OTHER bands

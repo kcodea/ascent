@@ -121,7 +121,8 @@ describe('the rank band', () => {
 });
 
 describe('the pool fetch with a band', () => {
-  /** A fake sample over runs of known strength: honours the band like the SQL (unscored = inside). */
+  /** A fake sample over runs of known strength: honours the band as the SQL did before strength v2 (unscored = inside;
+   *  the real SQL is pinned by the db tests, not by this fake). */
   function api(runs: Array<{ key: string; strength: number | null; user: string; early?: number | null; late?: number | null; peak?: number | null }>, opts: { bands: boolean; split?: boolean; caps?: boolean; peaks?: boolean | 'ignored' }): PoolApi & { calls: SampleArgs[] } {
     // A server with the caps SQL has the peak SQL too, unless a test says otherwise (`peaks: false` = no p_peak_cap;
     // 'ignored' = it has no p_peak_cap but its rows carry a peak, to pin the client-side count on its own).

@@ -31,7 +31,7 @@ export interface PlayerRun {
   /** Per-wave boards, ascending. */
   snaps: BoardSnapshot[];
   /** The run's strength percentile (1-100) as the shared pool delivered it (`BoardSnapshot.runStrength`, stamped
-   *  by the client from `pool_runs.strength`). Absent = unscored, which is inside every matchmaking band. */
+   *  by the client from `pool_runs.strength`). Absent = unscored, which is OUTSIDE every matchmaking band since strength v2 (R-LOBBY-20). */
   strength?: number;
   /** The run's EARLY / LATE ratings (`BoardSnapshot.runStrengthEarly` / `runStrengthLate`, R-LOBBY-13). Absent =
    *  unknown or unscored; the band then falls back to `strength` (`matchScoreOf`). */

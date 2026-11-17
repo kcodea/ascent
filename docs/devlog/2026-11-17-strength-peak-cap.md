@@ -48,6 +48,37 @@ Duo teams are never scored, so every Bronze, Silver and Gold Duos table would ha
 generated seats. The design's non-goals keep duo teams on the old rule. `duoRunInStrengthBand` restores it
 (`rankedDuos.test.ts`); R-LOBBY-20 now states the exception. Never shipped.
 
+## The independent review (2026-11-17)
+
+One fresh reviewer read the whole branch. No critical finding. It confirmed the seven copied SQL functions differ
+from their sources only by the peak edits, that every caller of the three re-signed draw functions still resolves
+and keeps its grants, that the SQL peak equals `runPeakOf`, and that no version mix empties a table or leaves the
+client on the whole-run sample.
+
+Fixed:
+
+- **Re-applying an older migration after this one breaks every ten-argument draw call.** 11-08, 11-22 and 11-23
+  each say "safe to re-run", but each recreates a ten-argument function beside the new eleven-argument one, and
+  the call is then ambiguous (older clients, Ranked Duos seating, the keys read). The migration header and the
+  rollout below now say so, and a test pins both the breakage and the repair (re-apply this file).
+- **The Duos solo cap rested on one untested line** (the row's peak passed to seat selection). Now tested through
+  the real seat handler.
+- **The rule overstated the client re-check.** It holds only for runs delivered with a peak. R-LOBBY-21 and
+  R-LOBBY-15 now say so; three stale "unscored = inside every band" sentences left from Plan 2 are corrected.
+
+Left as they are, for the owners to weigh:
+
+- **A run this device registered without a peak stays uncapped until the next session**: a game open while the SQL
+  is applied, or a first session that starts offline on a pool cache written before the SQL.
+- **New client and database with an old hub: no cap, and nothing signals it.** Ship Ascent deploys the hub first,
+  so this needs no change as long as that order is kept.
+- **Runs are stamped with the peak-capped band table from the moment the client ships**, including games played
+  before the SQL is applied; the Balance Report labels those `bandsPeakCap`. Apply the SQL first.
+- **The daily hub health check draws without a band or a cap**, so the hub's copy of the peak filter is checked
+  against the database only by the test, not in production.
+- **The older `measure` (without `--v2`) ignores the peak** and overstates what Bronze, Silver and Gold can seat.
+  `measure --v2` is right.
+
 ## Not verified
 
 - Nothing is applied to the live database and nothing is shipped.
@@ -60,3 +91,7 @@ generated seats. The design's non-goals keep duo teams on the old rule. `duoRunI
    the pool itself, so every live run gets its peak.
 2. `npm run strength -- measure --v2`: confirm each medal still seats 7 under the cap.
 3. "Ship Ascent" (Mike or Kevin). An older client or hub does not send or apply the cap; nothing breaks.
+
+**After step 1, never re-apply \`2026-11-08-pool-runs-delta.sql\`, \`2026-11-22-pool-rolling-window.sql\`,
+\`2026-11-23-strength-v2.sql\` or \`strength-v2-apply.sql\` on their own.** If one must be re-applied, re-apply the
+peak cap file straight after it.

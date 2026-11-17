@@ -5460,7 +5460,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
       + 'strength yet (unscored) stayed eligible until 2026-11-16 and is now outside every band (R-LOBBY-20). The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
       + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats. Since '
-      + '2026-11-17 the same three medals carry a second hard cap, on a run\x27s best single board (R-LOBBY-21).',
+      + '2026-11-17 the same three medals carry a second hard cap, on a run\x27s best single board (R-LOBBY-21; that one '
+      + 'is re-checked only for runs delivered with a peak).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -15945,7 +15946,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the peak cap stays, the last widening step is the two caps alone, and whatever the table still lacks is filled '
       + 'by generated seats. Practice set to Bronze, Silver or Gold carries the same cap; solo runs seated at a Ranked '
       + 'Duos table of those medals do too, while recorded duo teams (never scored) have no peak and are not capped. '
-      + 'The game re-checks every delivered run when it picks the seats, whether or not the server applied the cap.',
+      + 'The game re-checks every delivered run that carries a peak when it picks the seats, whether or not the server '
+      + 'applied the cap. A run delivered without a peak (a server, hub or cached pool from before the peak SQL) cannot '
+      + 'be checked and is let through.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (strength v2 design, ruling 2: which peak caps Bronze, Silver and Gold get, asked after the v2 measurement)', quote: '90 for all' },
@@ -15962,7 +15965,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'table with generated seats). A hub whose index was synced before the SQL behaves the same way. Ranked Duos does '
       + 'not send the cap to its solo draw; it holds at seat selection, on the peak each solo row carries. Measured '
       + '2026-11-16 on the live window: 38 Bronze, 51 Silver and 83 Gold runs remain under the cap (23 of 106 Gold runs '
-      + 'are over 90).',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthPeakCap.test.ts', 'packages/sim/src/lobby/strengthPeak.db.test.ts', 'packages/ui/src/boardStrength/boardStrength.test.ts', 'workers/versus/test/sessionCf.db.test.ts'], lastVerifiedAt: '2026-11-17' },
+      + 'are over 90). A run this device registered WITHOUT a peak (a game open while the SQL is applied, or a pool '
+      + 'cache written before it) stays uncapped until the next session.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthPeakCap.test.ts', 'packages/sim/src/lobby/strengthPeak.db.test.ts', 'packages/ui/src/boardStrength/boardStrength.test.ts', 'workers/versus/test/sessionCf.db.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

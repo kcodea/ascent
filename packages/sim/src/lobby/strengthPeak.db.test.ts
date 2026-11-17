@@ -234,6 +234,23 @@ describe('the strength peak and the peak cap in the database', () => {
     expect(block('pool_runs__pick')).toContain('r.strength is not null');
   });
 
+  it('an older migration re-applied AFTER this one leaves two draw signatures (ten-argument calls fail); re-applying this file repairs it', async () => {
+    const count = async (fn: string): Promise<number> => (await one<{ n: number }>(
+      "select count(*)::int as n from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and proname = $1", [fn])).n;
+    const tenArgs = "select run_key from public.pool_runs_sample(p_limit => 5, p_set => 'set2', p_seed => 'z', p_strength_cap => 100)";
+    await db.exec(read('2026-11-23-strength-v2.sql'));
+    expect(await count('pool_runs_sample')).toBe(2);
+    await expect(db.query(tenArgs)).rejects.toThrow(/not unique/);
+    await db.exec(read(PEAK));
+    expect([await count('pool_runs_sample'), await count('pool_runs__pick'), await count('pool_runs_sample_keys')]).toEqual([1, 1, 1]);
+    expect((await rows(tenArgs)).length).toBe(5);
+    expect(await actualPeaks()).toEqual(expectedPeaks(FIXTURES));
+  });
+
+  it('the migration says so where the owner will read it', () => {
+    expect(read(PEAK)).toMatch(/NEVER RE-APPLY/);
+  });
+
   it('re-run: applying the migration again changes nothing', async () => {
     const q = 'select seed, eligible, live, strength, strength_early, strength_late, strength_peak from public.pool_runs order by seed';
     const before = await rows(q);

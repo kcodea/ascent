@@ -188,8 +188,8 @@ medal + division — see *Ranked ladder* below).
     is like 55 average and ascendant is 60 average?"*), retuned from 2026-10-03 to 2026-10-06 for the final-board scale
     to Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100. A rated lobby's recorded seats come only from runs
     inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
-    2 seats per player, 3 when the table is short (R-LOBBY-16; your own runs included, under the same cap). A run with **no score yet counts as inside every
-    band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
+    2 seats per player, 3 when the table is short (R-LOBBY-16; your own runs included, under the same cap). A run with **no score is outside every
+    band** since 2026-11-16 (R-LOBBY-20; it counted as inside before). When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
     logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap and
     the peak cap are left). Only then do generated seats fill the rest. The tutorial has no
     band; Practice has none unless its setup picks an **Opponent Rank** (below, R-PRACTICE-RANK-01). Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no

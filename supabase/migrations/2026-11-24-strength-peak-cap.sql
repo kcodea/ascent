@@ -8,6 +8,12 @@
 -- before the client and the hub that send the cap ship: an older client or hub does not send `p_peak_cap`, and a draw
 -- without it is unchanged. Idempotent: safe to re-run.
 --
+-- AFTER THIS FILE, NEVER RE-APPLY 2026-11-08-pool-runs-delta.sql, 2026-11-22-pool-rolling-window.sql or
+-- 2026-11-23-strength-v2.sql (or the generated strength-v2-apply.sql) on their own. Each recreates a ten-argument
+-- draw function BESIDE the eleven-argument one of this file, and every ten-argument call (older clients, Ranked Duos
+-- seating, the keys read) then fails as ambiguous. If one of them has to be re-applied, re-apply THIS file straight
+-- after it: the drops below repair it (packages/sim/src/lobby/strengthPeak.db.test.ts).
+--
 -- WHAT:
 --  1. `pool_runs.strength_peak`: a run's PEAK, the highest percentile among its REAL boards from round 3 on (rounds
 --     1 and 2 are one or two minions, too coarse to judge; a carried round never counts). Written by

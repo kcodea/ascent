@@ -302,3 +302,18 @@ The questions as they were put:
 2. The three peak caps, after the v2 measurement. The live bands are small (Bronze 43 runs, Silver 44): a Bronze
    cap of 80 would leave about 28 runs from five players.
 3. Drop bundle D (recommended), or build the 30-run cap anyway?
+
+### As built (Plan 3, 2026-11-17): the peak cap
+
+Each is recorded with its reason in `docs/devlog/2026-11-17-strength-peak-cap.md`.
+
+- **A run delivered without a peak is let through the cap**, not refused. After the peak SQL every scored run has a
+  peak, so this only matters for a server, hub or cached run from before it, where no run has one; refusing those
+  would fill every Bronze, Silver and Gold table with generated seats.
+- **Recorded duo teams keep the old band rule** (unscored = inside, no peak), as the non-goals say. Plan 2 had shut
+  them out of banded Duos tables; that is fixed.
+- **Ranked Duos does not send the cap to its solo draw**; it holds at seat selection, on the peak each row carries.
+- **`ops.pool_digest` passes `p_peak_cap` on but reports no per-medal count** of runs over 90: the band table lives
+  only in TypeScript. `npm run strength -- measure --v2` reports it.
+- **`schema.sql` is not appended**, as for the two migrations before it.
+

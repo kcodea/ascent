@@ -130,12 +130,20 @@ medal + division — see *Ranked ladder* below).
     run's **score** for a medal is **weight x EARLY + (1 - weight) x LATE** (EARLY alone when it has no LATE), and the
     band filters that score:
 
-    | Medal | Early weight | Band | Overall cap (R-LOBBY-15) |
-    |---|---|---|---|
-    | Bronze | 100% | 0-20 | 40 |
-    | Silver | 80% | 10-30 | 60 |
-    | Gold | 60% | 10-50 | 75 |
-    | Platinum, Diamond, Ascendant | - | none (anything goes) | none |
+    | Medal | Early weight | Band | Overall cap (R-LOBBY-15) | Peak cap (R-LOBBY-21) |
+    |---|---|---|---|---|
+    | Bronze | 100% | 0-20 | 40 | 90 |
+    | Silver | 80% | 10-30 | 60 | 90 |
+    | Gold | 60% | 10-50 | 75 | 90 |
+    | Platinum, Diamond, Ascendant | - | none (anything goes) | none | none |
+
+    **Peak cap** (owner 2026-11-16, asked which peak caps Bronze, Silver and Gold get: *"90 for all"*; R-LOBBY-21).
+    A run's **peak** is the highest percentile among its real boards from round 3 on (rounds 1 and 2 are one or two
+    minions; a carried round never counts). A run whose peak is **above 90** is never seated at a Bronze, Silver or
+    Gold table, however ordinary the rest of that game was: a run at 90 can sit there, a run at 91 cannot. The cap is
+    **hard** like the overall cap: widening never relaxes it. Practice set to one of those ranks carries it, and so do
+    solo runs at a Ranked Duos table (recorded duo teams are never scored and have no peak). Until the owner runs
+    `supabase/migrations/2026-11-24-strength-peak-cap.sql` no run has a peak and the cap is not applied.
 
     **Overall caps** (owner 2026-10-09, R-LOBBY-15: *"we want to add overall board strength caps on TOP of the existing
     early rating strength matching. if a boards overall strength is over 40, it should n ever be in bronze. if a boards
@@ -182,8 +190,8 @@ medal + division — see *Ranked ladder* below).
     inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
     2 seats per player, 3 when the table is short (R-LOBBY-16; your own runs included, under the same cap). A run with **no score yet counts as inside every
     band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
-    logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap is
-    left). Only then do generated seats fill the rest. The tutorial has no
+    logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap and
+    the peak cap are left). Only then do generated seats fill the rest. The tutorial has no
     band; Practice has none unless its setup picks an **Opponent Rank** (below, R-PRACTICE-RANK-01). Until the owner runs `supabase/migrations/2026-10-06-early-late-strength.sql` the pool has no
     early / late ratings, and the same bands filter the weighted strength instead. Until the owner runs
     `supabase/migrations/2026-10-09-strength-overall-caps.sql` the server does not apply the overall cap; the game then

@@ -26,13 +26,16 @@ export function seatsOf(runs: readonly Pick<RunV2, 'owner'>[]): number {
   return n;
 }
 
+/** Is the run in the band, the band's own peak cap included (R-LOBBY-21)? */
 export const inBandV2 = (r: RunV2, band: StrengthBand | null): boolean =>
-  runInStrengthBand({ strength: r.strength, early: r.early, late: r.late }, band);
+  runInStrengthBand({ strength: r.strength, early: r.early, late: r.late, peak: r.peak }, band);
 
 /** For each candidate peak cap: the band's runs that stay (peak at or under the cap; a run with no peak stays),
- *  how many it removes, and the seats the rest can fill. */
+ *  how many it removes, and the seats the rest can fill. The base is the band WITHOUT its own peak cap, so a
+ *  candidate above the live cap still shows what it would keep. */
 export function peakCapRows(runs: readonly RunV2[], band: StrengthBand | null, caps: readonly number[]): { cap: number; runs: number; removed: number; seats: number }[] {
-  const inBand = runs.filter((r) => inBandV2(r, band));
+  const { peakCap: _live, ...uncapped } = band ?? ({} as StrengthBand);
+  const inBand = runs.filter((r) => inBandV2(r, band ? (uncapped as StrengthBand) : null));
   return caps.map((cap) => {
     const kept = inBand.filter((r) => r.peak === null || r.peak <= cap);
     return { cap, runs: kept.length, removed: inBand.length - kept.length, seats: seatsOf(kept) };

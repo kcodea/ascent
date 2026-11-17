@@ -127,7 +127,11 @@ behaviour from a legacy symbol.**
   w x EARLY + (1 - w) x LATE (EARLY alone without LATE; the weighted strength without either). "Game strength" stays the
   weighted number. Since 2026-10-09 (R-LOBBY-15) a band may also carry an `overallCap` on the WEIGHTED `strength`
   (Bronze 40, Silver 60, Gold 75; exactly the cap is in; `runUnderOverallCap`), a HARD cap: `widenBand` carries it and
-  a capped band's last step is the cap alone `{ min: 0, max: 100, overallCap }`, never null. A RATED lobby passes
+  a capped band's last step is the cap alone `{ min: 0, max: 100, overallCap }`, never null. Since 2026-11-17
+  (R-LOBBY-21) the three medal bands also carry `peakCap: 90` on a run's PEAK (`pool_runs.strength_peak`, its best real
+  board percentile from round 3 on; `runUnderPeakCap`), hard in the same way (`p_peak_cap`, `peakCapsMissing`,
+  `runStrengthPeak`); a run delivered WITHOUT a peak (a server, hub or cache from before the peak SQL) is let through.
+  Ranked Duos' recorded duo TEAMS are never scored: they use `duoRunInStrengthBand` (unscored = inside, no peak). A RATED lobby passes
   `strengthBand` (Bronze 0-20 w1.0 c40, Silver 10-30 w0.8 c60, Gold 10-50 w0.6 c75, none from
   Platinum) to both the pool fetch (`p_early_weight` / `p_strength_cap`, each dropped for the session when the RPC lacks
   it; the cap then holds in seat selection, since every row carries `strength`) and

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { STRENGTH_BANDS } from '@game/sim';
-import { rateRunsV2, driftOf, peakCapRows, rawRoundsOfRun, type RawRound } from './measureV2.lib';
+import { rateRunsV2, driftOf, inBandV2, peakCapRows, rawRoundsOfRun, type RawRound } from './measureV2.lib';
 
 const rounds = (runKey: string, raws: number[], lastReal: number): RawRound[] =>
   raws.map((raw, i) => ({ runKey, round: i + 1, raw, carried: i + 1 > lastReal }));
@@ -85,5 +85,14 @@ describe('peakCapRows', () => {
     const runs = [run('a', 50, 'p1'), run('b', 85, 'p1'), run('c', 95, 'p2')];
     const rows = peakCapRows(runs, STRENGTH_BANDS.Bronze, [80, 90]);
     expect(rows).toEqual([{ cap: 80, runs: 1, removed: 2, seats: 1 }, { cap: 90, runs: 2, removed: 1, seats: 2 }]);
+  });
+
+  it('a band is counted with its OWN peak cap; the candidate table still starts from the band without one', () => {
+    const run = (key: string, peak: number, owner: string) => ({ key, owner, rounds: [], early: 10, late: 10, strength: 10, peak });
+    const runs = [run('a', 50, 'p1'), run('b', 90, 'p2'), run('c', 95, 'p3')];
+    expect(runs.map((r) => inBandV2(r, STRENGTH_BANDS.Bronze))).toEqual([true, true, false]); // Bronze caps the peak at 90
+    expect(runs.map((r) => inBandV2(r, null))).toEqual([true, true, true]);
+    // A candidate cap ABOVE the live one still shows what it would keep.
+    expect(peakCapRows(runs, STRENGTH_BANDS.Bronze, [95])).toEqual([{ cap: 95, runs: 3, removed: 0, seats: 3 }]);
   });
 });

@@ -8,7 +8,8 @@ import { STRENGTH_REF_VERSION } from './boardStrength';
 
 /**
  * THE PEAK CAP IN THE DATABASE (owner 2026-11-16: "90 for all"; supabase/migrations/2026-11-24-strength-peak-cap.sql).
- * A run's PEAK is its best REAL board percentile from round 3 on (`runPeakOf`); the database must hold exactly the
+ * A run's PEAK is its best REAL board percentile from round 4 on (`runPeakOf`; round 3 on until
+ * 2026-11-25-strength-peak-from-round-4.sql, owner 2026-11-17); the database must hold exactly the
  * number `rateRunsV2` gives, and the draw must leave out every run whose peak is above `p_peak_cap` (exactly the cap
  * is inside; a run with no peak is unscored and is out of any capped draw).
  */
@@ -21,6 +22,9 @@ const CHAIN = [
   '2026-11-08-pool-runs-delta.sql',
 ].map(read);
 const PEAK = '2026-11-24-strength-peak-cap.sql';
+/** The peak counts from round 4 (owner 2026-11-17: "best board should not include win rates for boards on rounds 1,
+ *  2, or 3"): the refresh of PEAK with one number changed. Always applied after PEAK. */
+const PEAK4 = '2026-11-25-strength-peak-from-round-4.sql';
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -53,7 +57,7 @@ const V2 = STRENGTH_REF_VERSION;
 
 interface Fixture { seed: number; last: number; empty: number[]; raw: (round: number) => number; carried: (round: number) => number }
 const raw4 = (n: number): number => (((n % 97) + 97) % 97) / 100; // 0.00 .. 0.96
-/** The 30 runs of strengthV2.db.test.ts, plus one whose ONLY strong board is on round 2 (rounds 1-2 never count). */
+/** The 30 runs of strengthV2.db.test.ts, plus one whose ONLY strong boards are on rounds 2 and 3 (rounds 1-3 never count). */
 const FIXTURES: Fixture[] = [
   ...Array.from({ length: 30 }, (_, i): Fixture => {
     const seed = i + 1;
@@ -63,9 +67,9 @@ const FIXTURES: Fixture[] = [
       carried: (round) => raw4(seed * 13 + round * 7),
     };
   }),
-  { seed: 301, last: 8, empty: [], raw: (round) => (round === 2 ? 0.99 : 0), carried: () => 0 },
+  { seed: 301, last: 8, empty: [], raw: (round) => (round === 2 || round === 3 ? 0.99 : 0), carried: () => 0 },
 ];
-const ROUND2_ONLY = 301;
+const EARLY_ONLY = 301;
 
 let db: PGlite;
 const rows = async <T>(sql: string, params: unknown[] = []): Promise<T[]> => (await db.query<T>(sql, params)).rows;
@@ -118,6 +122,7 @@ beforeAll(async () => {
   await db.exec(read('2026-11-22-pool-rolling-window.sql'));
   await db.exec(read('2026-11-23-strength-v2.sql'));
   await db.exec(read(PEAK));
+  await db.exec(read(PEAK4));
   for (const f of FIXTURES) await upload(f);
   await drain();
 }, 240_000);
@@ -135,11 +140,13 @@ describe('the strength peak and the peak cap in the database', () => {
     expect(over).toBeLessThan(FIXTURES.length - 5);
   });
 
-  it('rounds 1 and 2 never count: a run whose only board above 90 is on round 2 has a peak at or under 90', async () => {
-    const r2 = await one<{ p: number }>(
-      'select p from public.pool_strength_round_pcts() x join public.pool_runs r on r.id = x.run_id where r.seed = $1 and x.round = 2', [ROUND2_ONLY]);
-    expect(r2.p).toBeGreaterThan(90);
-    expect((await actualPeaks()).get(ROUND2_ONLY)).toBeLessThanOrEqual(90);
+  it('rounds 1, 2 and 3 never count: a run whose only boards above 90 are on rounds 2 and 3 has a peak at or under 90', async () => {
+    for (const round of [2, 3]) {
+      const r = await one<{ p: number }>(
+        'select p from public.pool_strength_round_pcts() x join public.pool_runs r on r.id = x.run_id where r.seed = $1 and x.round = $2', [EARLY_ONLY, round]);
+      expect(r.p, `round ${round}`).toBeGreaterThan(90);
+    }
+    expect((await actualPeaks()).get(EARLY_ONLY)).toBeLessThanOrEqual(90);
   });
 
   it('an unscored run has no peak, and is out of a draw that carries only the peak cap', async () => {
@@ -242,6 +249,7 @@ describe('the strength peak and the peak cap in the database', () => {
     expect(await count('pool_runs_sample')).toBe(2);
     await expect(db.query(tenArgs)).rejects.toThrow(/not unique/);
     await db.exec(read(PEAK));
+    await db.exec(read(PEAK4));
     expect([await count('pool_runs_sample'), await count('pool_runs__pick'), await count('pool_runs_sample_keys')]).toEqual([1, 1, 1]);
     expect((await rows(tenArgs)).length).toBe(5);
     expect(await actualPeaks()).toEqual(expectedPeaks(FIXTURES));
@@ -251,10 +259,13 @@ describe('the strength peak and the peak cap in the database', () => {
     expect(read(PEAK)).toMatch(/NEVER RE-APPLY/);
   });
 
-  it('re-run: applying the migration again changes nothing', async () => {
+  it('re-run: applying both migrations again changes nothing; the peak cap file ALONE puts the peak back on round 3, and the round-4 file says so', async () => {
     const q = 'select seed, eligible, live, strength, strength_early, strength_late, strength_peak from public.pool_runs order by seed';
     const before = await rows(q);
     await db.exec(read(PEAK));
+    expect((await actualPeaks()).get(EARLY_ONLY)).toBeGreaterThan(90); // round 3 counts again
+    await db.exec(read(PEAK4));
     expect(await rows(q)).toEqual(before);
+    expect(read(PEAK4)).toMatch(/RE-APPLY THIS FILE/);
   });
 });

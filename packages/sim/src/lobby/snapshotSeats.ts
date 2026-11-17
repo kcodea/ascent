@@ -37,7 +37,7 @@ export interface PlayerRun {
    *  unknown or unscored; the band then falls back to `strength` (`matchScoreOf`). */
   early?: number;
   late?: number;
-  /** The run's PEAK (`BoardSnapshot.runStrengthPeak`, R-LOBBY-21): its best real board from round 3 on. Absent = not
+  /** The run's PEAK (`BoardSnapshot.runStrengthPeak`, R-LOBBY-21): its best real board from round 4 on. Absent = not
    *  delivered; the band's peak cap then cannot be checked and lets the run through (`runUnderPeakCap`). */
   peak?: number;
   /** The skins the run's owner wore: the UNION of every board's scoped `cosmetics` (a card skinned on wave 9 is

@@ -34,11 +34,11 @@ const seatedKeys = (seed: number, band: StrengthBand | null): string[] => {
 };
 
 describe('the peak cap on a band', () => {
-  it('Bronze, Silver and Gold cap the peak at 90; Platinum, Diamond and Ascendant have no band at all', () => {
+  it('Bronze, Silver and Gold cap the peak at 90; Platinum, Diamond and Ascendant have no peak cap', () => {
     expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
     expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
     expect(STRENGTH_BANDS.Gold).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 });
-    expect([STRENGTH_BANDS.Platinum, STRENGTH_BANDS.Diamond, STRENGTH_BANDS.Ascendant]).toEqual([null, null, null]);
+    expect([STRENGTH_BANDS.Platinum?.peakCap, STRENGTH_BANDS.Diamond?.peakCap, STRENGTH_BANDS.Ascendant]).toEqual([undefined, undefined, null]);
   });
 
   it('exactly the cap is inside, one above is outside', () => {
@@ -81,13 +81,14 @@ describe('the peak cap on a band', () => {
     expect(practiceStrengthBand('gold')?.peakCap).toBe(90);
     expect(practiceStrengthBand('bronze')?.peakCap).toBe(90);
     expect(practiceStrengthBand('all')).toBeNull();
-    expect(practiceStrengthBand('platinum')).toBeNull();
+    // Platinum carries an overall cap alone since R-LOBBY-22: a band, but no peak cap.
+    expect(practiceStrengthBand('platinum')).toEqual({ min: 0, max: 100, overallCap: 80 });
   });
 
   it('the regime stamp names it, and two bands that differ only by the peak cap are different bands', () => {
     expect(bandVersionLabel(STRENGTH_BANDS.Bronze)).toBe('0-20/e100/c40/p90');
     expect(bandVersionLabel({ min: 0, max: 20 })).toBe('0-20');
-    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*');
+    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P0-100/c80 D0-100/c90 A*');
     expect(sameBand({ min: 0, max: 20, peakCap: 90 }, { min: 0, max: 20, peakCap: 90 })).toBe(true);
     expect(sameBand({ min: 0, max: 20, peakCap: 90 }, { min: 0, max: 20 })).toBe(false);
     expect(sameBand({ min: 0, max: 20, peakCap: 90 }, { min: 0, max: 20, peakCap: 80 })).toBe(false);

@@ -50,7 +50,7 @@ medal + division — see *Ranked ladder* below).
   seat, tried inside the same band before the band widens; when the pool still lacks enough players, generated seats
   fill the rest. **A table holds at most two runs of strength 90-100 and two of strength 80-89** (owner 2026-11-16,
   R-LOBBY-17), a hard limit that binds from Platinum up (the lower medals' caps already keep those runs out); no rank
-  leans toward stronger runs: Platinum, Diamond and Ascendant draw alike. **Your own
+  leans toward stronger runs: Platinum and Diamond only carry a cap (80 and 90, R-LOBBY-22), Ascendant none. **Your own
   runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
   until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13, reaffirmed for every mode 2026-10-31,
@@ -135,11 +135,20 @@ medal + division — see *Ranked ladder* below).
     | Bronze | 100% | 0-20 | 40 | 90 |
     | Silver | 80% | 10-30 | 60 | 90 |
     | Gold | 60% | 10-50 | 75 | 90 |
-    | Platinum, Diamond, Ascendant | - | none (anything goes) | none | none |
+    | Platinum | - | none | 80 | none |
+    | Diamond | - | none | 90 | none |
+    | Ascendant | - | none (anything goes) | none | none |
+
+    **Platinum and Diamond caps** (owner 2026-11-17: *"i want to make some differentiation between plat diamond and
+    ascendant. can we cap game strength boards in plat to 80, and diamond boards to 90? then ascendant is fully
+    open?"*; R-LOBBY-22). A run whose Game strength is over 80 is never seated at a Platinum table, over 90 never at a
+    Diamond table; exactly the cap is in. These two medals have no floor, no early / late weighting and no peak cap,
+    and the cap never widens: seats it leaves open go to generated seats. Ascendant draws from the whole pool.
 
     **Peak cap** (owner 2026-11-16, asked which peak caps Bronze, Silver and Gold get: *"90 for all"*; R-LOBBY-21).
-    A run's **peak** is the highest percentile among its real boards from round 3 on (rounds 1 and 2 are one or two
-    minions; a carried round never counts). A run whose peak is **above 90** is never seated at a Bronze, Silver or
+    A run's **peak** is the highest percentile among its real boards from round 4 on (owner 2026-11-17: *"best board
+    should not include win rates for boards on rounds 1, 2, or 3"*; a carried round never counts; live on the database
+    once `supabase/migrations/2026-11-25-strength-peak-from-round-4.sql` is applied, from round 3 until then). A run whose peak is **above 90** is never seated at a Bronze, Silver or
     Gold table, however ordinary the rest of that game was: a run at 90 can sit there, a run at 91 cannot. The cap is
     **hard** like the overall cap: widening never relaxes it. Practice set to one of those ranks carries it, and so do
     solo runs at a Ranked Duos table (recorded duo teams are never scored and have no peak). Until the owner runs
@@ -170,7 +179,7 @@ medal + division — see *Ranked ladder* below).
     - **A run is scored only when it is complete** (R-LOBBY-20): every board with minions scored with the current
       reference, and its final board scored for every round up to 15. Anything less is **unscored**, and **an unscored
       run is never seated at a Bronze, Silver or Gold table** (it used to be inside every band). It can still be met
-      where there is no band (Platinum and up, Practice on All Ranks).
+      where there is no band (Ascendant, Practice on All Ranks); Platinum and Diamond are bands since R-LOBBY-22.
     - **"Calculating Score"** (R-ENDSCREEN-SCORE-01; owner: *"can we have the continue button greyed out and unavailable
       to click while the games are being scored?"*, *"players should know why this is happening. preferably with a
       timer bar as well"*): when a lobby game that reached round 7 ends, Continue is greyed out under the text
@@ -268,8 +277,8 @@ are in ... exactly what is already in place with what snapshots a bronze vs silv
 Ranks** by default. Set to a medal, the game's recorded seats are drawn **exactly as a rated lobby of that medal draws
 them**: that medal's own band (R-LOBBY-13), its overall cap (R-LOBBY-15), the same widening and the same 4-seats-per-
 player cap. The numbers are read from the ranked band table, never copied, so a retune of ranked retunes Practice.
-**All Ranks** has no band: every recorded run is a candidate. **Platinum** has no band in ranked, so today it draws
-like All Ranks. The choice changes only who is seated; a Practice game is unrated whatever it is set to, and God Mode
+**All Ranks** has no band: every recorded run is a candidate. **Platinum** carries its ranked overall cap of 80
+(R-LOBBY-22). The choice changes only who is seated; a Practice game is unrated whatever it is set to, and God Mode
 ignores it.
 
 - The opponent pool is sampled per band, so a Practice launch fetches the picked rank's sample: it starts when the

@@ -35,11 +35,13 @@ describe('the bands', () => {
     expect(STRENGTH_BANDS.Bronze).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
     expect(STRENGTH_BANDS.Silver).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
     expect(STRENGTH_BANDS.Gold).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 });
-    expect(STRENGTH_BANDS.Platinum).toBeNull();
-    expect(STRENGTH_BANDS.Diamond).toBeNull();
+    // Platinum and Diamond carry an overall cap alone since 2026-11-17 (owner: "cap game strength boards in plat to 80,
+    // and diamond boards to 90"; R-LOBBY-22); Ascendant is fully open.
+    expect(STRENGTH_BANDS.Platinum).toEqual({ min: 0, max: 100, overallCap: 80 });
+    expect(STRENGTH_BANDS.Diamond).toEqual({ min: 0, max: 100, overallCap: 90 });
     expect(STRENGTH_BANDS.Ascendant).toBeNull();
     expect(RANK_MEDALS).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant']);
-    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*');
+    expect(STRENGTH_BANDS_VERSION).toBe('B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P0-100/c80 D0-100/c90 A*');
   });
 
   it('early is rounds 1-9 and late is 10+, each a plain mean of the board percentiles, then ranked among runs', () => {
@@ -101,7 +103,18 @@ describe('the bands', () => {
     expect(runInStrengthBand({ early: 25 }, bronze)).toBe(false);
     expect(runInStrengthBand({}, bronze)).toBe(false);
     // No cap: Platinum and up (null bands), and a capless band (one saved before 2026-10-09).
-    expect(runInStrengthBand({ strength: 100, early: 100, late: 100 }, STRENGTH_BANDS.Platinum)).toBe(true);
+    expect(runInStrengthBand({ strength: 100, early: 100, late: 100 }, STRENGTH_BANDS.Ascendant)).toBe(true);
+    // Platinum 80 and Diamond 90 (R-LOBBY-22): the cap alone, whatever the early / late ratings; exactly the cap is in.
+    expect(runInStrengthBand({ strength: 80, early: 100, late: 100 }, STRENGTH_BANDS.Platinum)).toBe(true);
+    expect(runInStrengthBand({ strength: 81, early: 1, late: 1 }, STRENGTH_BANDS.Platinum)).toBe(false);
+    expect(runInStrengthBand({ strength: 1, early: 1, late: 1, peak: 100 }, STRENGTH_BANDS.Platinum)).toBe(true); // no peak cap
+    expect(runInStrengthBand({ strength: 90, early: 100, late: 100 }, STRENGTH_BANDS.Diamond)).toBe(true);
+    expect(runInStrengthBand({ strength: 91, early: 1, late: 1 }, STRENGTH_BANDS.Diamond)).toBe(false);
+    expect(runInStrengthBand({ strength: 85 }, STRENGTH_BANDS.Diamond)).toBe(true);
+    expect(runInStrengthBand({ strength: 85 }, STRENGTH_BANDS.Platinum)).toBe(false);
+    // A capped medal is a band, so an unscored run is outside it (R-LOBBY-20).
+    expect(runInStrengthBand({}, STRENGTH_BANDS.Platinum)).toBe(false);
+    expect(runInStrengthBand({}, STRENGTH_BANDS.Diamond)).toBe(false);
     expect(runUnderOverallCap({ strength: 100 }, { min: 0, max: 20, earlyWeight: 1 })).toBe(true);
     expect(runUnderOverallCap({ strength: 100 }, null)).toBe(true);
   });
@@ -119,7 +132,10 @@ describe('the bands', () => {
       for (const st of steps) expect(runInStrengthBand({ strength: band.overallCap! + 1, early: 1, late: 1 }, st)).toBe(false);
     }
     expect(bandSteps(STRENGTH_BANDS.Bronze)).toEqual([20, 30, 40, 50, 60, 70, 80, 90, 100].map((max) => ({ min: 0, max, earlyWeight: 1, overallCap: 40, peakCap: 90 })));
-    expect(bandSteps(STRENGTH_BANDS.Platinum)).toEqual([null]);
+    expect(bandSteps(STRENGTH_BANDS.Ascendant)).toEqual([null]);
+    // A cap alone has nothing to widen: one step, never null, so a short Platinum or Diamond table takes generated seats.
+    expect(bandSteps(STRENGTH_BANDS.Platinum)).toEqual([{ min: 0, max: 100, overallCap: 80 }]);
+    expect(bandSteps(STRENGTH_BANDS.Diamond)).toEqual([{ min: 0, max: 100, overallCap: 90 }]);
   });
 
   it('widens by 10 on each capped side until uncapped', () => {
@@ -328,16 +344,32 @@ describe('seat selection inside a band', () => {
     }
   });
 
-  it('Platinum has no band and no cap: a run at 100 is seated (R-LOBBY-15)', () => {
-    // Two runs at 100 (the most a table holds in the 90s, R-LOBBY-17) and five at 70.
-    registerOpponentRuns(HEROES.slice(0, 7).map((h, i) => run(`Top${i}`, h, 1500 + i, i < 2 ? 100 : 70, `top${i}`, { early: 100, late: 100 })));
-    const plat = RANK_MEDALS.indexOf('Platinum');
-    let division = 0;
-    while (medalOf(division) !== RANK_MEDALS[plat]) division++;
-    expect(strengthBandForDivision(division)).toBeNull();
-    const lobby = createRunLobby(3, 'zz-none', {}, 'set1', { strengthBand: strengthBandForDivision(division) });
-    resetLobbyDrivers(lobby.seats);
-    expect(lobby.seats.filter((x) => x.kind === 'snapshot').length).toBe(7);
+  it('Platinum never seats a run over 80, Diamond never one over 90, Ascendant seats a run at 100 (R-LOBBY-22)', () => {
+    // Twelve runs, one player each: three at 100, three at 91, two at 90, two at 81, one at 80, one at 70.
+    const strengths = [100, 100, 100, 91, 91, 91, 90, 90, 81, 81, 80, 70];
+    registerOpponentRuns(strengths.map((st, i) => run(`Top${i}`, HEROES[i]!, 1500 + i, st, `top${i}`, { early: 100, late: 100 })));
+    const byKey = new Map(playerRunsFrom(undefined, undefined, 'set1').map((r) => [r.key, r]));
+    const divisionOf = (medal: string): number => { let d = 0; while (medalOf(d) !== medal) d++; return d; };
+    const seatedAt = (medal: string, seed: number): number[] => {
+      const lobby = createRunLobby(seed, 'zz-none', {}, 'set1', { strengthBand: strengthBandForDivision(divisionOf(medal)) });
+      resetLobbyDrivers(lobby.seats);
+      expect(lobby.seats.length).toBe(8); // generated seats fill what the cap leaves open
+      return lobby.seats.filter((x) => x.kind === 'snapshot').map((x) => byKey.get(x.runKey!)!.strength!).sort((x, y) => x - y);
+    };
+    expect(strengthBandForDivision(divisionOf('Platinum'))).toEqual({ min: 0, max: 100, overallCap: 80 });
+    expect(strengthBandForDivision(divisionOf('Diamond'))).toEqual({ min: 0, max: 100, overallCap: 90 });
+    expect(strengthBandForDivision(divisionOf('Ascendant'))).toBeNull();
+    let sawHundred = false;
+    for (let seed = 1; seed <= 10; seed++) {
+      // Platinum: only the runs at 80 and 70 exist under the cap (exactly 80 is in).
+      expect(seatedAt('Platinum', seed), `Platinum seed ${seed}`).toEqual([70, 80]);
+      // Diamond: nothing over 90; the runs at 90 are in (two is also the most a table holds in the 90s, R-LOBBY-17).
+      const diamond = seatedAt('Diamond', seed);
+      expect(Math.max(...diamond), `Diamond seed ${seed}`).toBeLessThanOrEqual(90);
+      expect(diamond.filter((v) => v === 90).length).toBe(2);
+      if (seatedAt('Ascendant', seed).includes(100)) sawHundred = true;
+    }
+    expect(sawHundred).toBe(true);
   });
 
   it('a run delivered by a server WITHOUT the caps SQL is still refused over the cap: the cap holds client-side (R-LOBBY-15)', () => {

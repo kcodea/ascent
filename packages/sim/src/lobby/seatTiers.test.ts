@@ -71,9 +71,9 @@ describe('strong runs per table', () => {
     for (let seed = 1; seed <= 20; seed++) expect(seatedStrengths(seed).length, `seed ${seed}`).toBe(7);
   });
 
-  it('Platinum, Diamond and Ascendant all draw from the whole pool with no band: no rank leans toward stronger runs', () => {
-    expect(STRENGTH_BANDS.Platinum).toBeNull();
-    expect(STRENGTH_BANDS.Diamond).toBeNull();
+  it('no rank leans toward stronger runs: Platinum and Diamond only carry a cap (no floor), Ascendant has no band', () => {
+    expect(STRENGTH_BANDS.Platinum).toEqual({ min: 0, max: 100, overallCap: 80 });
+    expect(STRENGTH_BANDS.Diamond).toEqual({ min: 0, max: 100, overallCap: 90 });
     expect(STRENGTH_BANDS.Ascendant).toBeNull();
   });
 

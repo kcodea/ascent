@@ -23,8 +23,10 @@ describe('strength v2 rules', () => {
     expect(earlyLateV2Of(rounds)).toEqual({ early: 20, late: 60 });
     expect(earlyLateV2Of([{ round: 3, value: 40 }])).toEqual({ early: 40, late: null });
   });
-  it('peak is the best real board from round 3 on', () => {
-    expect(runPeakOf([{ round: 1, value: 95 }, { round: 2, value: 90 }, { round: 3, value: 40 }, { round: 8, value: 70 }])).toBe(70);
+  it('peak is the best real board from round 4 on: rounds 1, 2 and 3 never count', () => {
+    expect(runPeakOf([{ round: 1, value: 95 }, { round: 2, value: 90 }, { round: 3, value: 99 }, { round: 4, value: 40 }, { round: 8, value: 70 }])).toBe(70);
+    expect(runPeakOf([{ round: 3, value: 99 }, { round: 4, value: 41 }])).toBe(41);
+    expect(runPeakOf([{ round: 1, value: 95 }, { round: 3, value: 99 }])).toBeNull();
     expect(runPeakOf([{ round: 1, value: 95 }, { round: 2, value: null }])).toBeNull();
   });
 });

@@ -31,7 +31,7 @@
  * only the delivered runs under the cap (`runUnderOverallCap`), so a sample padded with over-cap runs still widens.
  *
  * THE PEAK CAP (R-LOBBY-21, 2026-11-17): a band with a `peakCap` (Bronze, Silver, Gold: 90) also sends `p_peak_cap`,
- * and the server drops every run whose best real board from round 3 on ranks above it
+ * and the server drops every run whose best real board from round 4 on ranks above it
  * (supabase/migrations/2026-11-24-strength-peak-cap.sql). Before the owner runs that SQL the RPC has no `p_peak_cap`,
  * PostgREST answers "function not found", and the session drops ONLY the peak cap
  * (`PoolFetchSession.peakCapsMissing`), tried before the older fallbacks. Each delivered row carries its peak

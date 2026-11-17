@@ -160,7 +160,7 @@ export async function measureV2(): Promise<void> {
     console.log(`  ${medal.padEnd(9)} ${bandVersionLabel(band).padEnd(14)}: ${inBand.length} runs, ${new Set(inBand.map((r) => r.owner)).size} players, ${seatsOf(inBand)} seats`);
   }
 
-  console.log('\nPEAK CAPS (a run is removed when its best real board from round 3 on is over the cap): runs left / removed / seats left');
+  console.log('\nPEAK CAPS (a run is removed when its best real board from round 4 on is over the cap): runs left / removed / seats left');
   for (const medal of RANK_MEDALS) {
     const rows = peakCapRows(rated, STRENGTH_BANDS[medal], PEAK_CAPS);
     console.log(`  ${medal.padEnd(9)} ${rows.map((r) => `cap ${r.cap}: ${r.runs} left, ${r.removed} removed, ${r.seats} seats`).join(' | ')}`);

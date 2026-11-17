@@ -61,6 +61,16 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'New art for Shrieker. Big Spender now flashes once per turn instead of on every Gold spent.' },
       {
         category: 'Systems',
+        text: 'Platinum, Diamond and Ascendant now face different opponents. The higher your rank, the stronger the past games you can meet.',
+        details: [
+          'Platinum: you never meet a past game whose Game strength is above 80 out of 100.',
+          'Diamond: you never meet a past game whose Game strength is above 90 out of 100.',
+          'Ascendant: you can meet any past game.',
+          'Practice set to Platinum follows the Platinum rule.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ancients are here. The ancient gods have awoken.',
         details: [
           'Every game now has an Ancients meter around your hero power. Each Refresh adds 1 point and each combat adds 2. It fills at 16.',
@@ -218,9 +228,8 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Bronze, Silver and Gold: you no longer meet a past game that had one runaway board, even if the rest of that game was ordinary.',
         details: [
-          'Every past game now has a peak: its best board from round 3 on, ranked against the other boards of that round.',
+          'Every past game now has a peak: its best board from round 4 on, ranked against the other boards of that round.',
           'A past game whose peak ranks above 90 out of 100 is never an opponent in Bronze, Silver or Gold. Practice set to one of those ranks follows the same rule.',
-          'Platinum, Diamond and Ascendant are unchanged.',
         ],
       },
       {

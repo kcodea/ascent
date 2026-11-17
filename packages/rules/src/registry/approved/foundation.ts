@@ -15834,20 +15834,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Anything less is an UNSCORED run: it has no Game strength, EARLY or LATE at all, never a low number. An unscored '
       + 'run is outside every strength band (Bronze, Silver, Gold, each widened step, and Practice set to one of those '
       + 'ranks), in the server draw, in the hub\x27s draw and at seat selection alike; it is seated only where there is '
-      + 'no band (Platinum and up, Practice on All Ranks). Scores of different reference versions are never compared.',
+      + 'no band (Platinum and up, Practice on All Ranks). Scores of different reference versions are never compared. '
+      + 'Ranked Duos' recorded duo TEAMS are the exception: they are never scored, so they stay inside every band as '
+      + 'before; a solo run seated at a Duos table follows this rule.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive), ruling 1 of the design ("Unscored runs leave Bronze, Silver and Gold lobbies (recommended), or stay inside every band as today?")', quote: 'Approve as recommended' },
       { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/strengthV2.ts runCompleteV2; packages/sim/src/lobby/strengthBands.ts runInStrengthBand; supabase/migrations/2026-11-23-strength-v2.sql (pool_strength_entries, pool_runs__pick, pool_runs_sample); workers/versus/src/core/poolPick.ts pickRuns' },
-      { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, "Transition and unscored runs" and ruling 1' },
+      { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, "Transition and unscored runs" and ruling 1; non-goals (duo teams keep the old rule): packages/sim/src/lobby/strengthBands.ts duoRunInStrengthBand, packages/sim/src/versus/rankedDuosSeating.ts' },
     ],
     example: 'A top-strength run uploaded by a build from before the change carries old-version scores. It is unscored, so a Bronze table never seats it; a Diamond table may.',
     currentBehaviour:
       'Conforms in code from 2026-11-16; live once the owner applies 2026-11-23-strength-v2.sql. Before, an unscored run '
       + 'was inside every band (R-LOBBY-09), and a run missing its strongest board\x27s score was rated on the rest. '
       + 'A custom band with no overall cap still widens to "no band" as its last step and then seats unscored runs; '
-      + 'every medal band has a cap, so no rank reaches that step. pool_live_unscored() counts the live unscored runs.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthV2Seating.test.ts', 'packages/sim/src/lobby/strengthV2.db.test.ts', 'packages/sim/src/lobby/strengthV2.test.ts', 'workers/versus/test/sessionCf.db.test.ts'], lastVerifiedAt: '2026-11-16' },
+      + 'every medal band has a cap, so no rank reaches that step. pool_live_unscored() counts the live unscored runs. '
+      + 'From the first build of 2026-11-16 until its fix the next day, recorded duo teams were shut out of Bronze, Silver '
+      + 'and Gold Duos tables too (never shipped); duoRunInStrengthBand restores them.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthV2Seating.test.ts', 'packages/sim/src/lobby/strengthV2.db.test.ts', 'packages/sim/src/lobby/strengthV2.test.ts', 'workers/versus/test/sessionCf.db.test.ts', 'packages/sim/src/versus/rankedDuos.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
   // ── "Calculating Score": Continue waits while a finished game is scored (owner 2026-11-16) ───────────────────
   {

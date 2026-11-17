@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-11-17',
     changes: [
       {
+        category: 'Systems',
+        text: "The Compendium's large hero view has a clearer look and a livelier hero power.",
+        details: [
+          'The hero art is slightly larger and fades more smoothly into the panel.',
+          'Health and Armor show the painted medallions.',
+          'Hovering the hero power circle makes it and its text spring, with a soft gold glow.',
+          'The Ancients are a little larger. The one you are looking at glows in its own colour.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Slaughter boosts now work when the killer dies in the same hit.',
         details: [

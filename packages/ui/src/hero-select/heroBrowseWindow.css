@@ -1,5 +1,5 @@
-/* ── THE "ALL HEROES" WINDOW (HeroBrowseWindow.tsx; owner 2026-11-17; behind the showcase DEV switch) ──
-   The roster grid stays the screen. A card click opens the showcase's inspect card and Select Hero button over it, on a
+/* ── THE "ALL HEROES" GRID AND WINDOW (HeroBrowseWindow.tsx; owner 2026-11-17; live with the showcase layout) ──
+   The roster is a grid of the showcase's tiles. A tile click opens the showcase's inspect card and Select Hero button over it, on a
    dark scrim, with an X on the card's top-right corner. Root classes: `.heroselect.hsb` on the whole-roster screen with
    the switch on, `.hsb-open` while the window is up. The card, arrows and button take their paint from heroShowcase.css
    (its rules are written `.heroselect:is(.hss, .hsb)`); only the window's own pieces are here, and every rule starts

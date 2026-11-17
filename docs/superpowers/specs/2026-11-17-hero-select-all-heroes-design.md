@@ -65,8 +65,8 @@ These override anything below that disagrees.
   characters of this select hero button across the board?" Font size 90% of START's, letter spacing 0.1em (was 0.16em).
   Claude's numbers. The main menu START button is untouched.
 - **The showcase switch is live for players** (PR 2764, merged while this was being built), so this is no longer
-  DEV-only by default. Whether it ships to players on merge is Mike's open decision; if it does, `patchNotes.ts` must
-  be updated in the same PR.
+  DEV-only. Asked whether it should go live for players on merge, Mike said "Yes, go live" (2026-11-17), so it ships with
+  the showcase layout and `patchNotes.ts` is amended in the same PR. The Non-goals line about no patch note is void.
 
 ## Goals
 

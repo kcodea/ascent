@@ -9,7 +9,8 @@
  * ceremony runs (`busy`) nothing closes or steps: the ceremony has cloned and hidden this card's splash art.
  *
  * Keys live on the window, never on `window` (the showcase's rule). It takes focus on mount so they work at once.
- * Loaded lazily by HeroSelect, behind the showcase DEV switch.
+ * Loaded lazily by HeroSelect. LIVE for players with the showcase layout (owner 2026-11-17: "Yes, go live"); the touch UI
+ * and a DEV client that turned the showcase off keep the old banner grid, where a click picks.
  */
 import { useEffect, useRef, type KeyboardEvent, type MutableRefObject, type RefObject } from 'react';
 import { getHero } from '@game/sim';

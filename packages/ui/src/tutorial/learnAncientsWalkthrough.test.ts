@@ -55,8 +55,7 @@ function walk(pick: 'bonds' | 'war' | 'time'): { visited: string[]; problems: st
         return;
       }
       case 'anc-end': dispatch({ type: 'faceOmen' }, where); return;
-      case 'anc-watch': dispatch({ type: 'settleCombat' }, where); return;
-      case 'anc-done': dispatch({ type: 'resolveCombat' }, where); return;
+      case 'anc-done': dispatch({ type: 'settleCombat' }, where); dispatch({ type: 'resolveCombat' }, where); return;
       default: return; // read-and-continue beats
     }
   };
@@ -110,7 +109,7 @@ describe('the Ancients first-login prompt', () => {
   beforeEach(() => { try { localStorage.clear(); } catch { /* no storage in this env */ } resetAncientsPromptForTests(); });
   afterEach(() => { setAncientsLiveForTests(null); });
 
-  it('the switch reads OFF until the release switch lands (and ships off)', () => {
+  it("reads the real release switch (it ships off), and tests can force it", () => {
     expect(ancientsLiveForPrompt()).toBe(false);
     setAncientsLiveForTests(true);
     expect(ancientsLiveForPrompt()).toBe(true);

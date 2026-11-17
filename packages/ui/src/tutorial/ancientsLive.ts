@@ -1,18 +1,14 @@
 /**
- * THE ANCIENTS RELEASE SWITCH, as the menu reads it (Learn Ancients, 2026-11-16).
- *
- * The one place the UI asks "are Ancients live?" for the first-login prompt and the tutorial's closing line.
- *
- * TODO(ancients-release-switch): the real switch (`ancientsLive()` in `@game/sim`, branch
- * `feat/ancients-release-switch`) had not landed on `origin/main` when this was written. Once it does, replace the
- * body below with `return ancientsLive();` and delete the test override. Until then this reads OFF, which is also
- * what the switch ships as (owner 2026-11-16: "Ship the ancient switch off").
+ * THE ANCIENTS RELEASE SWITCH, as the menu reads it (Learn Ancients, 2026-11-16): the first-login prompt and the
+ * lesson's closing line ask here. It is the real switch, `ancientsLive()` from `@game/sim` (ships OFF); the override
+ * exists only so tests (and a dev preview) can see the prompt without flipping the shipped constant.
  */
+import { ancientsLive } from '@game/sim';
+
 let testOverride: boolean | null = null;
 
 export function ancientsLiveForPrompt(): boolean {
-  if (testOverride !== null) return testOverride;
-  return false;
+  return testOverride ?? ancientsLive();
 }
 
 /** Tests only: force the switch (null restores the real reading). */

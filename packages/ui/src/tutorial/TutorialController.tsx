@@ -32,7 +32,7 @@ import {
 } from './tutorialProfile';
 import { TUTORIAL_LESSON_KEYS, type TutorialLessonKey } from '@game/sim';
 import { useAwakenStage } from '../ancients/ancientsFx';
-import { CourseOutro } from './CourseOutro';
+import { showCourseOutro } from './CourseOutro';
 
 // ─── Flattening: course → an ordered list of coached items ────────────────────────────────────────────────
 
@@ -349,15 +349,20 @@ export function TutorialController(): JSX.Element | null {
   // THE OUTRO'S END COMBAT (Learn Ancients): on a course with a closing card, End combat during its fight goes
   // straight to the card (owner 2026-11-16: "when the player hits end combat fade to a good luck screen"), rather
   // than the curtain back to a Shop the course is about to leave. Armed only while a combat step is current.
-  const [outroNow, setOutroNow] = useState(false);
-  useEffect(() => { setOutroNow(false); }, [runSeed]);
-  const outroCourseId = course?.outro ? course.id : null;
+  // The card itself lives in an always-mounted host (`CourseOutroHost`): it outlives the run, so it can cross-fade
+  // onto the menu instead of vanishing with the coach.
+  const outro = course?.outro ?? null;
+  const outroCourseId = outro ? course!.id : null;
   const combatStep = current?.kind === 'step' && current.step.phase === 'combat';
   useEffect(() => {
-    if (!isTutorial || !outroCourseId || !combatStep) return;
-    setTutorialEndCombatHook(() => { completeCourse(outroCourseId); setOutroNow(true); return true; });
+    if (!isTutorial || !outro || !outroCourseId || !combatStep) return;
+    setTutorialEndCombatHook(() => { completeCourse(outroCourseId); showCourseOutro(outro); return true; });
     return () => setTutorialEndCombatHook(null);
-  }, [isTutorial, outroCourseId, combatStep]);
+  }, [isTutorial, outro, outroCourseId, combatStep]);
+  // The walk ran out on a course with a card (a finish the hook did not take): show it the same way.
+  useEffect(() => {
+    if (isTutorial && outro && items.length > 0 && cursor >= items.length) showCourseOutro(outro);
+  }, [isTutorial, outro, items.length, cursor]);
 
   // Flash a nudge when the player bumps a gate; auto-clear.
   useEffect(() => subscribeGateNudge((reason) => setNudge(reason)), []);
@@ -537,8 +542,6 @@ export function TutorialController(): JSX.Element | null {
   }, [isTutorial, current, run, cursor, items.length, advance, dismissed, measureTick, awakenStage]);
 
   if (!isTutorial) return null;
-  // THE OUTRO (Learn Ancients): End combat on the last fight, or the walk running out, fades to the closing card.
-  if (course?.outro && (outroNow || !current)) return <CourseOutro outro={course.outro} />;
   return (
     <>
       <TutorialOverlay view={view} />

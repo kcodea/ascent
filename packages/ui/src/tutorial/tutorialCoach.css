@@ -351,7 +351,7 @@ body.dragging .tut-coach-panel { pointer-events: none; }
    and its words rise in (the intro's own type, flourishes and static glow). One-shot opacity / transform only; the
    glow is the intro's static filter, never animated. Above the coach layer so nothing of the board reads through. */
 .tut-outro {
-  position: fixed; inset: 0; z-index: 640;
+  position: fixed; inset: 0; z-index: 2100; /* over the menu it cross-fades onto, every page and the dock */
   display: flex; align-items: center; justify-content: center;
   background: radial-gradient(ellipse 70% 55% at 50% 48%, #120c05, #060402 80%);
   animation: tut-outro-in 520ms ease-out both;

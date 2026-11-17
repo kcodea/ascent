@@ -39,6 +39,7 @@ import { Career } from './Career';
 import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
+import { CourseOutroHost } from './tutorial/CourseOutro';
 import { CrashLogReadout } from './CrashLogReadout';
 import { PerfLogReadout } from './PerfLogReadout';
 import { PHONE_BENCH_ON } from './perfLogFlag';
@@ -827,6 +828,8 @@ export function Game() {
           at the root (a sibling of `.app`) so its focus mask floats above everything without being z-trapped
           by `.app`'s stacking context. */}
       <TutorialController />
+      {/* Learn Ancients' closing card: outlives the run so it can cross-fade onto the menu (tutorial/CourseOutro.tsx). */}
+      <CourseOutroHost />
       {/* The phone crash log's readout (R-TOUCH-PLAY-MEMORY-01): renders nothing unless `?crashlog=1` or a crash in a
           standalone phone app. Counter-scaled so it reads at full size. */}
       <CrashLogReadout />

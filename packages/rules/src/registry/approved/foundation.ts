@@ -15774,10 +15774,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-LEARN-ANCIENTS-01',
     title: 'Learn Ancients: a two minute mid game lesson, ending on a Good luck card',
     statement:
-      'Learn has an Ancients lesson beside the Tutorial. It starts on turn 8 as Warden with six Dragons (one with Ward), '
+      'Learn has an Ancients lesson beside the Ascent tutorial: the Learn side panel offers both (Mode: Ascent / '
+      + 'Ancients, the sub-mode switch other modes use) so either can be replayed any time. It starts on turn 8 as Warden with six Dragons (two with Ward), '
       + 'Tier 4, 10 Gold and the Ancient meter at 14 of 16, on a pinned seed whose awakening offers War, Bonds and Time. '
       + 'The coach asks for two Refreshes, steps aside while the real awakening plays, and steers the pick to Bonds (one '
-      + 'Aegis on Earthbreaker makes both Ward Dragons gain stats, so each gives the other +5 Attack). Any other pick is '
+      + 'Aegis on Earthbreaker makes both Ward Dragons gain stats, so each gives the other +5 Attack, each grant drawn as a '
+      + 'tendril from the hero-power button in the Shop and in combat). Any other pick is '
       + 'allowed and gets its own use step (War: Aegis on the Ward Dragon for Resilient Ward; Time: Aegis, then cast the '
       + "scripted Champion's Ale). End Turn plays a won fight; End combat fades to a Good luck card (with \"Ancients are "
       + 'live.\" only while the release switch is on) and returns to the main menu with the lesson run dropped. Ancients '
@@ -15790,7 +15792,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, 2026-11-16 (feat/ancients-tutorial).',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/learnAncientsCourse.test.ts', 'packages/ui/src/tutorial/learnAncientsWalkthrough.test.ts'],
+      refs: ['packages/sim/src/learnAncientsCourse.test.ts', 'packages/ui/src/tutorial/learnAncientsWalkthrough.test.ts', 'packages/ui/src/partyHome/partyHome.test.ts', 'packages/ui/src/ancientsHunchFx.test.ts'],
       lastVerifiedAt: '2026-11-16',
     },
   },
@@ -15809,8 +15811,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (Ancients tutorial ask)', quote: "should be prompted to go check out when a player logs in for the first time after it's turned on" },
     ],
     currentBehaviour:
-      'Conforms, 2026-11-16 (feat/ancients-tutorial). The switch is read through `ancientsLiveForPrompt()` '
-      + '(packages/ui/src/tutorial/ancientsLive.ts), which reads OFF until the release switch lands on main. The seen '
+      'Conforms, 2026-11-16 (feat/ancients-tutorial). The switch is `ancientsLive()` (R-ANCIENTS-RELEASE, ships off), '
+      + 'read through `ancientsLiveForPrompt()` (packages/ui/src/tutorial/ancientsLive.ts). The seen '
       + 'flags are local (per device, plus a per-account key), not a server column.',
     enforcement: {
       kind: 'scenario',

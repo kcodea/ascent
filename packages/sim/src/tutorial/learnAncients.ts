@@ -168,16 +168,6 @@ const steps: TutorialStep[] = [
     completion: { kind: 'endedTurn' },
   },
   {
-    id: 'anc-watch',
-    phase: 'combat',
-    focusMode: 'predict',
-    title: 'Watch your Dragons',
-    body: 'Your Ward Dragons hit harder now.',
-    anchors: [],
-    gate: 'observe',
-    completion: { kind: 'combatEnded' },
-  },
-  {
     id: 'anc-done',
     phase: 'combat',
     focusMode: 'confirm',

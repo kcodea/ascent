@@ -30,7 +30,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { levelProgress } from '@game/progression';
-import { defaultTeamName, LEARN_ASCENT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
+import { defaultTeamName, LEARN_ANCIENTS, LEARN_ASCENT, TEAM_NAME_MAX, teamNameProblem, type VersusModifierId, type VersusRoomOptions } from '@game/sim';
 import { heroThumb } from '../art';
 import { mechMedallionSrc } from '../mechMedallion';
 import { isPhone } from '../deviceClass';
@@ -312,6 +312,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
       onStart = () => startGauntlet(stage);
       break;
     case 'learn': onStart = () => startTutorial(LEARN_ASCENT); break;
+    case 'learnancients': onStart = () => startTutorial(LEARN_ANCIENTS); break;
   }
 
   // THE SERVER LINE: its own line under the mode's note, so the mode's hint always shows. Only on the modes that use the
@@ -329,7 +330,7 @@ export default function PartyHome({ onRankedStart, onGuestPortrait }: PartyHomeP
   // A phone has no room for the description line: its first sentence sits beside START when nothing else needs the slot.
   if (phone && !note && !issue) note = mode.desc.split('. ')[0]!.replace(/\.$/, '');
   // A saved game waiting: Start asks first (Ranked's own confirmation already names it).
-  if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn')) {
+  if (savedRun && (mode.id === 'practice' || mode.id === 'gauntlet' || mode.id === 'learn' || mode.id === 'learnancients')) {
     const go = onStart;
     onStart = () => setConfirmOverwrite(() => go);
   }

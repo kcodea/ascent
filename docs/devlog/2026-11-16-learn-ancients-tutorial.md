@@ -19,11 +19,19 @@ How it is built (no fake screens, the real reducer throughout):
 - **Controller** (`TutorialController.tsx`): skips `onlyIf` steps, hides the coach while the awakening plays (its
   stage store), counts only the steps this player will see, and on a course with an outro arms a hook so End combat
   (Recruit's `endCombat`, one guarded line) goes straight to `CourseOutro` instead of the curtain back to a Shop.
-  `CourseOutro` reuses the Good Luck intro's words, flourishes and glow; it then opens the title and drops the run.
+  `CourseOutroHost` (always mounted in Game, since the card outlives the run) reuses the Good Luck intro's words, flourishes and glow; after a 2.6 s hold it opens the menu UNDER the opaque card, waits a beat for it to paint, then fades the card out over 0.9 s (a cross-fade; owner: "the fade back can be improved").
 - **Prompt** (`tutorial/AncientsPrompt.tsx`): the title's own "Try the Tutorial" card. Once per player (device key
   plus per-account key, local only), only while the switch is on, never for a new player, over another dialog, off
   the main menu, or with a saved game (a lesson replaces the save slot).
 
-Release switch: `feat/ancients-release-switch` was not on origin when this was built, so the menu reads it through
-`ancientsLiveForPrompt()` (`packages/ui/src/tutorial/ancientsLive.ts`, reads OFF) with a TODO to return
-`ancientsLive()` from `@game/sim` once that lands. Oracle R-LEARN-ANCIENTS-01/02.
+Release switch: the menu reads the real switch (`ancientsLive()`, #2738, ships OFF) through `ancientsLiveForPrompt()`
+(`packages/ui/src/tutorial/ancientsLive.ts`), which only adds a test override. Oracle R-LEARN-ANCIENTS-01/02.
+
+Tendrils (owner 2026-11-16): Warden x Bonds grants now leave the hero-power button. Shop: `ancientBondsReact` marks its
+records `fromHeroPower`. Combat: the mod is labelled `Aegis` (`heroPowerBuffLabelFor` maps it to Warden) and the grant
+clears the cast-in-flight `spellId`, so a spell's own cast effect never replaces it (the Hunch x Bonds shape).
+
+Where it lives (owner 2026-11-16: "the ancient tutorial and 'ascent tutorial' should be options on the right panel"):
+the party home's Learn family now has two sub-modes, `learn` (Ascent) and `learnancients` (Ancients), picked in the side
+panel's Mode switch like Ranked Solo / Duos (`partyHome/partyModes.ts`); START launches the picked one. The legacy title's
+Learn hub also gained an Ancients card.

@@ -63,7 +63,7 @@ describe('the tranche 4 roster (owner 2026-09-27)', () => {
     }
     expect(RUNE_INDEX['rune_tavern_tab']).toBeUndefined();
     // The owner's texts, verbatim.
-    expect(RUNE_INDEX['rune_minted_gems']!.text).toBe('When you spend **8 Gold**, get a random **Ruby**.');
+    expect(RUNE_INDEX['rune_minted_gems']!.text).toBe('Every **8 Gold** spent, get a random **Ruby**.');
     expect(RUNE_INDEX['rune_grim_toast']!.text).toBe('Your **Dwarves** also get your **Undead Aura**.');
     expect(RUNE_INDEX['rune_closing_time']!.text).toBe('When you **Sell** a **Reveler**, get a **Dwarven Ale**.');
     expect(RUNE_INDEX['rune_keepsake_gem']!.text).toBe('Your **Rubies** also cast on the left-most minion in your hand.');

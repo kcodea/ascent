@@ -70,7 +70,7 @@ describe('Cindy × every Ancient has a written pairing', () => {
 
   it('the owner\'s words, on the offer', () => {
     expect(ANCIENT_PAIRINGS.cindy!.death!.offerText).toBe('**Avenge (15):** give your teammate a **Goldcrafter**.');
-    expect(ANCIENT_PAIRINGS.cindy!.fortune!.offerText).toBe('Spending **40** Gold refreshes your hero power.');
+    expect(ANCIENT_PAIRINGS.cindy!.fortune!.offerText).toBe('Every **40 Gold** spent, refresh your hero power.');
     expect(ANCIENT_PAIRINGS.cindy!.war!.offerText).toBe('**Start of Combat:** your left-most minion is **Gilded**.');
     expect(ANCIENT_PAIRINGS.cindy!.genesis!.offerText).toBe("Your teammate's copy is **Gilded**, too.");
     expect(ANCIENT_PAIRINGS.cindy!.time!.offerText).toBe('You and your teammate get a **Goldcrafter** next turn.');

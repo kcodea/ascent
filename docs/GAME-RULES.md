@@ -2125,7 +2125,7 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   cast counts each time) and is the REPEAT form (R-REPEAT-01): the base **+3/+3** lands once, then once more per
   spell, each tick its own instance on every offer's ledger; the card prints how many times it lands right now,
   *"(×3)"*. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
-- **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
+- **Stardust Peddler** (2026-09-18, 2/5): **every 5 Gold spent** (a per-instance Gold meter while it stands — the
   Coinfire / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
   N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
 - **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +5/+5** (gilded

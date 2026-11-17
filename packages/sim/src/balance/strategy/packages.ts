@@ -119,7 +119,9 @@ export const STRATEGY_PACKAGES: readonly StrategyPackage[] = [
       if (ALE_IDS.includes(def.id)) return 1;
       const ale = text(def, /\bales?\b/i) || hasEffect(def, /Ale/);
       const gold = hasTrigger(def, /^goldSpent$/) || text(def, /\bspend\b.*\bGold\b/i);
-      if (onTribe(def, 'dwarf') && (ale || gold) && (text(def, /\btwice\b|every|\+\d+\/\+\d+ for every/i) || hasEffect(def, /PerAle|goldSpentBuff|goldSpentGrant|goldSpentGet/))) return 3;
+      // "Every N Gold spent," (owner wording 2026-11-17, was "When you spend N Gold,") is the trigger, not an 'every'
+      // payoff word: the lookahead keeps the census where the old wording put it.
+      if (onTribe(def, 'dwarf') && (ale || gold) && (text(def, /\btwice\b|every(?! \**\d+ Gold\** spent,)|\+\d+\/\+\d+ for every/i) || hasEffect(def, /PerAle|goldSpentBuff|goldSpentGrant|goldSpentGet/))) return 3;
       if (ale || gold) return 2;
       if (onTribe(def, 'dwarf')) return 1;
       return 0;

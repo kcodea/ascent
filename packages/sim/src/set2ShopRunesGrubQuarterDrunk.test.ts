@@ -51,7 +51,7 @@ describe('the three runes as content', () => {
     expect(RUNES.includes(r)).toBe(true);
     expect(EPIC_RUNES.includes(r)).toBe(false);
     expect([r.name, r.cost, !!r.epic, r.tribes, r.sets]).toEqual(['Gold for Grub', 4, false, ['demon'], ['set2']]);
-    expect(r.text).toBe('When you spend **7 Gold**, a random **Demon** consumes a minion in the Shop.');
+    expect(r.text).toBe('Every **7 Gold** spent, a random **Demon** consumes a minion in the Shop.');
     expect(r.reward).toEqual({ kind: 'runeThreshold', meter: 'gold', per: 7, demonConsumeShop: 1 });
     expect(RUNE_INDEX['rune_infernal'], 'the draft id is gone').toBeUndefined();
   });

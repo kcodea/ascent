@@ -49,6 +49,7 @@ if (heroShowcaseOn() && partyHomeOn()) void loadShowcase();
  *  switch on, a card click opens the showcase's card in a window instead of picking. Lazy for the same reason. */
 const loadBrowseWindow = () => import('./hero-select/HeroBrowseWindow');
 const HeroBrowseWindow = lazy(loadBrowseWindow);
+const HeroBrowseGrid = lazy(() => loadBrowseWindow().then((m) => ({ default: m.HeroBrowseGrid })));
 if (heroShowcaseOn() && partyHomeOn()) void loadBrowseWindow();
 
 /**
@@ -145,6 +146,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const browseShowcase = showcaseOn && !!choices && choices.length > 6 && !watch;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const openNow = browseShowcase ? openIndex : null;
+  // The tile lit in the grid: the hero on show, and still that hero after the window closes (where the player was).
+  const [litIndex, setLitIndex] = useState<number | null>(null);
+  if (openNow !== null && litIndex !== openNow) setLitIndex(openNow);
   // The selected offer (an index, so a re-roll of the selected slot keeps it selected). A new offer (mount, or more than
   // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
   // card never paints a frame of the old selection.
@@ -161,6 +165,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   if (showcaseOn && offerSeen !== choices) {
     setOfferSeen(choices);
     setOpenIndex(null); // the "All heroes" window belongs to the offer it was opened on
+    setLitIndex(null);
     const moved = !offerSeen || !choices || offerSeen.length !== choices.length
       ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;
     // (A new offer also drops a forced jump's `hss-snap`: it belongs to that jump, not to the offer after it.)
@@ -248,7 +253,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     const last = lastOpenRef.current;
     lastOpenRef.current = openNow;
     if (openNow !== null || last === null) return;
-    const card = cardRefs.current[last];
+    const card = slotRefs.current[last]?.querySelector<HTMLElement>('.hss-tile');
     if (!card || !card.isConnected) return;
     card.focus({ preventScroll: true });
     if (typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
@@ -453,6 +458,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
               slotEls={slotRefs}
             />
           </Suspense>
+        ) : browseShowcase ? (
+          <Suspense fallback={null}>
+            <HeroBrowseGrid heroes={shown} lit={litIndex} onOpen={(i) => onOpenCard(i)()} disabled={active} loadout={loadout} gridRef={rowRef} slotEls={slotRefs} />
+          </Suspense>
         ) : <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>
           {shown.map((id, i) => {
             const hero = getHero(id);
@@ -475,7 +484,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                   className={`herocard big${swapHere ? ' hcswapping' : ''}${mateTaken === id ? ' hctaken' : ''}`}
                   disabled={active}
                   {...(mateTaken === id ? { 'aria-label': `${hero.name}, your teammate's pick` } : {})}
-                  onClick={browseShowcase ? onOpenCard(i) : onPick(id, i)}
+                  onClick={onPick(id, i)}
                 >
                   {ph && <span className="hcrod" aria-hidden="true" />}
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
@@ -593,7 +602,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
           clears heroChoices — this component then renders null and the ceremony's cleanup aborts every
           timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out; the
           "All heroes" window hands it its card's splash art and the grid's cards (every one leaves: none is the source). */}
-      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : openNow !== null ? { splash: { artEl: splashArtRef, exitEls: cardRefs } } : {})} />}
+      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : openNow !== null ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : {})} />}
     </div>
   );
 }

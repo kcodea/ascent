@@ -11,12 +11,42 @@
  * Keys live on the window, never on `window` (the showcase's rule). It takes focus on mount so they work at once.
  * Loaded lazily by HeroSelect, behind the showcase DEV switch.
  */
-import { useEffect, useRef, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type MutableRefObject, type RefObject } from 'react';
 import { getHero } from '@game/sim';
-import { HeroShowcaseCard, useShowcaseNav } from './HeroShowcase';
+import { HeroShowcaseCard, HeroTile, useShowcaseNav } from './HeroShowcase';
 import type { useLiveLoadout } from '../skins/skins';
 import './heroShowcase.css';
 import './heroBrowseWindow.css';
+
+export interface HeroBrowseGridProps {
+  heroes: readonly string[];             // the roster, in display (alphabetical) order
+  lit: number | null;                    // the hero on show in the window, or the one last shown; null before any
+  onOpen: (index: number) => void;       // a tile press: opens the window (it never picks)
+  disabled: boolean;                     // the ceremony is running
+  loadout: ReturnType<typeof useLiveLoadout>;
+  gridRef: RefObject<HTMLDivElement>;    // the scroll box (HeroSelect makes it inert while the window is up)
+  slotEls: MutableRefObject<(HTMLDivElement | null)[]>; // one .hss-slot per hero: the ceremony's exit set
+}
+
+/**
+ * THE "ALL HEROES" GRID (owner 2026-11-17: "i want the grid to be like this", the three-hero showcase's tiles): the whole
+ * roster as the showcase's own tiles (HeroTile: portrait, name, Health, Armor), wrapping in rows inside ONE inner scroll
+ * box, so the screen itself never scrolls. A press opens the window. The tile whose hero is on show (or was last shown)
+ * wears the showcase's gold glow, as static paint in its own slot: nothing slides here.
+ */
+export function HeroBrowseGrid({ heroes, lit, onOpen, disabled, loadout, gridRef, slotEls }: HeroBrowseGridProps): JSX.Element {
+  useEffect(() => { slotEls.current.length = heroes.length; }, [slotEls, heroes.length]);
+  return (
+    <div ref={gridRef} className="hsb-grid">
+      {heroes.map((id, i) => (
+        <div key={id} ref={(el) => { slotEls.current[i] = el; }} className={`hss-slot${i === lit ? ' on' : ''}`}>
+          {i === lit && <i className="hss-glow" aria-hidden="true" />}
+          <HeroTile id={id} loadout={loadout} pressed={i === lit} disabled={disabled} onClick={() => onOpen(i)} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export interface HeroBrowseWindowProps {
   heroes: readonly string[];           // the grid's ids, in the grid's (alphabetical) order

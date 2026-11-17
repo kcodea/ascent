@@ -21,54 +21,54 @@
 /* ── THE HEADING, LIFTED (owner 2026-11-17: "move this up a bit ... move the practice line over to near the back button to
    make a bit more room") ── The mode line leaves the centred column and sits on Back's row, just right of the pill; the
    group hangs from the top instead of centring, with a shorter gap under the title. Static. */
-.heroselect.hss:not(.endscreen) { align-content: start; }
-.heroselect.hss .hsbox { margin-top: 32px; }
-.heroselect.hss .hsprompt { margin-bottom: 32px; }
-.heroselect.hss .hs-eyebrow { position: absolute; z-index: 2; top: calc(24px + var(--safe-t)); left: calc(146px + var(--safe-l)); display: flex; align-items: center; height: 46px; margin: 0; white-space: nowrap; }
+.heroselect:is(.hss, .hsb):not(.endscreen) { align-content: start; }
+.heroselect:is(.hss, .hsb) .hsbox { margin-top: 32px; }
+.heroselect:is(.hss, .hsb) .hsprompt { margin-bottom: 32px; }
+.heroselect:is(.hss, .hsb) .hs-eyebrow { position: absolute; z-index: 2; top: calc(24px + var(--safe-t)); left: calc(146px + var(--safe-l)); display: flex; align-items: center; height: 46px; margin: 0; white-space: nowrap; }
 /* Versus and watching have no Back: the line takes its corner. The armed ranked Back is wide: the line steps aside. */
-.heroselect.hss:not(:has(.hsback)) .hs-eyebrow { left: calc(30px + var(--safe-l)); }
-.heroselect.hss:has(.hsback.armed) .hs-eyebrow { opacity: 0; }
+.heroselect:is(.hss, .hsb):not(:has(.hsback)) .hs-eyebrow { left: calc(30px + var(--safe-l)); }
+.heroselect:is(.hss, .hsb):has(.hsback.armed) .hs-eyebrow { opacity: 0; }
 
 /* ── THE BODY ── */
 .heroselect.hss .hss-body { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(20 * var(--phu));
   box-sizing: border-box; width: calc(1680 * var(--phu)); max-width: 100%; height: calc(848 * var(--phu)); outline: none; }
 
 /* ── THE TILES ── */
-.heroselect.hss .hss-tiles { position: relative; flex: none; display: flex; justify-content: center; gap: calc(28 * var(--phu)); padding-top: var(--hss-overhang); }
-.heroselect.hss .hss-slot { position: relative; flex: none; width: var(--hss-tile-w); height: var(--hss-tile-h); }
-.heroselect.hss .hss-tile { position: relative; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: var(--ph-r-l); overflow: hidden; isolation: isolate;
+.heroselect:is(.hss, .hsb) .hss-tiles { position: relative; flex: none; display: flex; justify-content: center; gap: calc(28 * var(--phu)); padding-top: var(--hss-overhang); }
+.heroselect:is(.hss, .hsb) .hss-slot { position: relative; flex: none; width: var(--hss-tile-w); height: var(--hss-tile-h); }
+.heroselect:is(.hss, .hsb) .hss-tile { position: relative; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; border-radius: var(--ph-r-l); overflow: hidden; isolation: isolate;
   background: var(--ph-plate), var(--ph-navy); box-shadow: 0 calc(8 * var(--phu)) calc(22 * var(--phu)) calc(-8 * var(--phu)) rgba(0, 0, 0, 0.75);
   color: var(--ph-ink); font-family: var(--ph-font); text-align: center; }
 /* The gold edge, over the art. */
-.heroselect.hss .hss-tile::after { content: ''; position: absolute; z-index: 4; inset: 0; border-radius: inherit; box-shadow: var(--ph-gild); pointer-events: none; }
-.heroselect.hss .hss-tile:focus-visible { outline: none; box-shadow: var(--ph-glow); }
+.heroselect:is(.hss, .hsb) .hss-tile::after { content: ''; position: absolute; z-index: 4; inset: 0; border-radius: inherit; box-shadow: var(--ph-gild); pointer-events: none; }
+.heroselect:is(.hss, .hsb) .hss-tile:focus-visible { outline: none; box-shadow: var(--ph-glow); }
 /* The portrait, melting into the navy at its foot: the play flag's fade exactly (heroSelectPh.css, R-HS-FADE-01). */
-.heroselect.hss .hss-portrait { position: absolute; z-index: 0; inset: 0 0 calc(30 * var(--phu)); display: grid; place-items: center; }
-.heroselect.hss .hss-portrait > svg { width: 40%; height: 40%; color: var(--ui-title, #ffd98a); }
-.heroselect.hss .hss-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; border-radius: 0;
+.heroselect:is(.hss, .hsb) .hss-portrait { position: absolute; z-index: 0; inset: 0 0 calc(30 * var(--phu)); display: grid; place-items: center; }
+.heroselect:is(.hss, .hsb) .hss-portrait > svg { width: 40%; height: 40%; color: var(--ui-title, #ffd98a); }
+.heroselect:is(.hss, .hsb) .hss-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; border-radius: 0;
   --foot: linear-gradient(180deg, #000 46%, rgb(0 0 0 / 0.96) 51%, rgb(0 0 0 / 0.85) 57%, rgb(0 0 0 / 0.66) 64%, rgb(0 0 0 / 0.42) 72%,
     rgb(0 0 0 / 0.2) 80%, rgb(0 0 0 / 0.06) 88%, transparent 96%);
   -webkit-mask-image: var(--foot); mask-image: var(--foot); }
-.heroselect.hss .hss-name { position: absolute; z-index: 2; left: calc(10 * var(--phu)); right: calc(10 * var(--phu)); bottom: calc(38 * var(--phu));
+.heroselect:is(.hss, .hsb) .hss-name { position: absolute; z-index: 2; left: calc(10 * var(--phu)); right: calc(10 * var(--phu)); bottom: calc(38 * var(--phu));
   font-weight: 900; font-size: calc(22 * var(--phu)); line-height: 1.05; letter-spacing: 0.005em; text-wrap: balance; color: var(--ph-ink);
   --wk-stroke: calc(4 * var(--phu)) #000; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill; --wk-ts: var(--ph-shadow); text-shadow: var(--wk-ts); }
-.heroselect.hss .hss-vitals { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(10 * var(--phu)); display: flex; justify-content: center; align-items: center; gap: calc(12 * var(--phu));
+.heroselect:is(.hss, .hsb) .hss-vitals { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(10 * var(--phu)); display: flex; justify-content: center; align-items: center; gap: calc(12 * var(--phu));
   font-weight: 800; font-size: calc(18 * var(--phu)); line-height: 1; color: var(--ph-ink); text-shadow: var(--pill-num-shadow, 0 1px 0 #000); }
-.heroselect.hss :is(.hss-hp, .hss-arm) { display: inline-flex; align-items: center; gap: calc(5 * var(--phu)); }
-.heroselect.hss .hss-arm { color: #dfe9ff; }
-.heroselect.hss .hss-vitals :is(.healthmedal, .armormedal, svg) { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
+.heroselect:is(.hss, .hsb) :is(.hss-hp, .hss-arm) { display: inline-flex; align-items: center; gap: calc(5 * var(--phu)); }
+.heroselect:is(.hss, .hsb) .hss-arm { color: #dfe9ff; }
+.heroselect:is(.hss, .hsb) .hss-vitals :is(.healthmedal, .armormedal, svg) { width: calc(22 * var(--phu)); height: calc(22 * var(--phu)); }
 /* The selected tile's name in the gold. */
-.heroselect.hss .hss-slot.on .hss-name { color: #fbe6a6; }
+.heroselect:is(.hss, .hsb) .hss-slot.on .hss-name { color: #fbe6a6; }
 /* Ranked Duos: my teammate's hero, dimmed and labelled (still selectable, to read). */
-.heroselect.hss .hss-slot.taken .hss-portrait { opacity: 0.4; }
-.heroselect.hss .hss-taken { position: absolute; z-index: 3; left: 50%; top: calc(12 * var(--phu)); translate: -50% 0; padding: calc(4 * var(--phu)) calc(10 * var(--phu)); border-radius: 999px;
+.heroselect:is(.hss, .hsb) .hss-slot.taken .hss-portrait { opacity: 0.4; }
+.heroselect:is(.hss, .hsb) .hss-taken { position: absolute; z-index: 3; left: 50%; top: calc(12 * var(--phu)); translate: -50% 0; padding: calc(4 * var(--phu)) calc(10 * var(--phu)); border-radius: 999px;
   background: rgba(6, 14, 38, 0.86); font-size: calc(11 * var(--phu)); font-weight: 800; letter-spacing: 0.06em; white-space: nowrap; color: #fbe6a6; }
 
 /* THE SWAP on the tile's portrait: the shipped one-shots (styles.css "THE SWAP"), the old art fading out over the new one
    popping in under the Refresh crystal's flare. */
-.heroselect.hss .hss-art.hcswap-out { z-index: 1; pointer-events: none; animation: dyingfade 0.38s ease-in both; }
-.heroselect.hss .hss-art.hcswap-in { animation: summonpop 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.24s both; }
-.heroselect.hss .hss-tile .hcswap-shine { z-index: 2; --rfb-shine-ms: 460ms; --rfb-shine-size: 1.7; --rfb-shine-blur: 28px; --rfb-shine-alpha: 0.85; animation-delay: 0.2s; }
+.heroselect:is(.hss, .hsb) .hss-art.hcswap-out { z-index: 1; pointer-events: none; animation: dyingfade 0.38s ease-in both; }
+.heroselect:is(.hss, .hsb) .hss-art.hcswap-in { animation: summonpop 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) 0.24s both; }
+.heroselect:is(.hss, .hsb) .hss-tile .hcswap-shine { z-index: 2; --rfb-shine-ms: 460ms; --rfb-shine-size: 1.7; --rfb-shine-blur: 28px; --rfb-shine-alpha: 0.85; animation-delay: 0.2s; }
 
 /* THE GLOW: one gold outline over the selected tile, a soft halo and a warm lit top. Its paint is static; JS sets its
    `transform` and `width` to the selected slot's layout box. Starts hidden until the first placement. */
@@ -168,6 +168,11 @@
    button") ── It wears `.ph-start` (partyHome.css: the plaque, the type, its own hover grow, glow and press), so nothing
    here repaints it. Blocked, it dims as a disabled START does; it stays pressable so the press can say why. */
 .heroselect:is(.hss, .hsb) .hss-confirm { flex: none; }
+/* Its lettering sits a little smaller and tighter than START's (owner 2026-11-17: "slightly reduce the size and spacing
+   between the characters of this select hero button across the board"): "SELECT HERO" is longer than "START" and ran
+   close to the plaque's gems. The span's left pad matches the tracking, so the word stays centred. */
+.heroselect:is(.hss, .hsb) .hss-confirm { font-size: calc(var(--ph-t5) * 0.9); letter-spacing: 0.1em; }
+.heroselect:is(.hss, .hsb) .hss-confirm > span { padding-left: 0.1em; }
 .heroselect:is(.hss, .hsb) .hss-confirm[aria-disabled='true'] { filter: saturate(0.75) brightness(0.92); opacity: 0.55; }
 /* The teammate line is longer than START's plaque was drawn for. */
 .heroselect:is(.hss, .hsb) .hss-confirm.is-long { font-size: calc(17 * var(--phu)); letter-spacing: 0.06em; }

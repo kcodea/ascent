@@ -140,7 +140,7 @@ describe('HeroBrowseWindow', () => {
     expect(css).toContain('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: none; }');
     // After the rule that hands the pointer back, so it wins at equal weight.
     expect(css.indexOf('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm)')).toBeGreaterThan(css.indexOf('{ pointer-events: auto; }'));
-    // The X is anchored to the card box by the shared plate rule (-14 units from its corner): no position of its own here.
+    // The X floats just off the card box corner: wholly outside it (the plate is 44 units across).
     expect(css).not.toMatch(/.hsb-x {[^}]*(top|right):/);
   });
 

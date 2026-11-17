@@ -85,6 +85,45 @@ function useTileGlow(rowRef: RefObject<HTMLDivElement>, glowRef: RefObject<HTMLE
   }, [rowRef, place]);
 }
 
+export interface HeroTileProps {
+  id: string;
+  loadout: ReturnType<typeof useLiveLoadout>;
+  pressed: boolean;                      // the selected tile (aria-pressed)
+  taken?: boolean;                       // Ranked Duos: my teammate's hero
+  swapFrom?: string | null;              // a re-roll is swapping this tile: the hero id leaving
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+/** ONE HERO TILE: portrait, name, Health and Armor. The three-hero showcase's row and the "All heroes" grid both use it. */
+export function HeroTile({ id, loadout, pressed, taken = false, swapFrom = null, disabled = false, onClick }: HeroTileProps): JSX.Element {
+  const h = getHero(id);
+  const art = heroPortrait(id, loadout);
+  const oldArt = swapFrom ? heroPortrait(swapFrom, loadout) : null;
+  return (
+    <button
+      type="button"
+      className="hss-tile"
+      aria-pressed={pressed}
+      {...(disabled ? { disabled: true } : {})}
+      {...(taken ? { 'aria-label': `${h.name}, your teammate's pick` } : {})}
+      onClick={onClick}
+    >
+      <span className="hss-portrait">
+        {art ? <SharpImg fade className={`hss-art${swapFrom ? ' hcswap-in' : ''}`} src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
+        {oldArt && <SharpImg className="hss-art hcswap-out" src={oldArt} alt="" draggable={false} aria-hidden="true" />}
+        {swapFrom && <span className="rfb-shine hcswap-shine" aria-hidden="true" />}
+      </span>
+      {taken && <span className="hss-taken">Your teammate's pick</span>}
+      <span className="hss-name" data-wkt={h.name}>{h.name}</span>
+      <span className="hss-vitals">
+        <span className="hss-hp" aria-label={`${h.resolve} Health`}><HealthMedal />{h.resolve}</span>
+        {h.armor > 0 && <span className="hss-arm" aria-label={`${h.armor} Armor`}><ArmorMedal /><span className="hp-armplus">+</span>{h.armor}</span>}
+      </span>
+    </button>
+  );
+}
+
 /** The card's stepping and keys, and the Ancient on show. Shared by the three-hero showcase and the "All heroes" window. */
 export interface ShowcaseNav {
   anc: AncientId;
@@ -200,9 +239,7 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
         <i ref={glowRef} className="hss-glow" aria-hidden="true" />
         {choices.map((id, i) => {
           const h = getHero(id);
-          const art = heroPortrait(id, loadout);
           const swapHere = swapping && swapping.slot === i ? swapping : null;
-          const oldArt = swapHere ? heroPortrait(swapHere.from, loadout) : null;
           const taken = mateTaken === id;
           return (
             <div
@@ -210,25 +247,7 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
               ref={(el) => { slotEls.current[i] = el; }}
               className={`hss-slot${i === selected ? ' on' : ''}${taken ? ' taken' : ''}${swapHere ? ' swapping' : ''}`}
             >
-              <button
-                type="button"
-                className="hss-tile"
-                aria-pressed={i === selected}
-                {...(taken ? { 'aria-label': `${h.name}, your teammate's pick` } : {})}
-                onClick={() => onSelect(i)}
-              >
-                <span className="hss-portrait">
-                  {art ? <SharpImg fade className={`hss-art${swapHere ? ' hcswap-in' : ''}`} src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
-                  {oldArt && <SharpImg className="hss-art hcswap-out" src={oldArt} alt="" draggable={false} aria-hidden="true" />}
-                  {swapHere && <span className="rfb-shine hcswap-shine" aria-hidden="true" />}
-                </span>
-                {taken && <span className="hss-taken">Your teammate's pick</span>}
-                <span className="hss-name" data-wkt={h.name}>{h.name}</span>
-                <span className="hss-vitals">
-                  <span className="hss-hp" aria-label={`${h.resolve} Health`}><HealthMedal />{h.resolve}</span>
-                  {h.armor > 0 && <span className="hss-arm" aria-label={`${h.armor} Armor`}><ArmorMedal /><span className="hp-armplus">+</span>{h.armor}</span>}
-                </span>
-              </button>
+              <HeroTile id={id} loadout={loadout} pressed={i === selected} taken={taken} swapFrom={swapHere ? swapHere.from : null} onClick={() => onSelect(i)} />
               {canReroll && (
                 <button
                   type="button"

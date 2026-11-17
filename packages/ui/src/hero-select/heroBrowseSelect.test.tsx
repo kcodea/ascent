@@ -45,7 +45,9 @@ const open = async (o: { showcase?: boolean; ph?: boolean; choices?: string[] } 
   return ui.container;
 };
 const root = (): Element => document.querySelector('.heroselect')!;
-const cards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hsrow.browse .herocard')];
+/** The grid's tiles with the switch on (the showcase's tiles); today's banner cards with it off. */
+const cards = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hsb-grid .hss-tile, .hsrow.browse .herocard')];
+const slots = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hsb-grid .hss-slot')];
 const win = (): HTMLElement | null => document.querySelector<HTMLElement>('.hsb-win');
 const cardName = (): string => document.querySelector('.hsb-win .phi-name')?.textContent ?? '';
 /** Open the window on grid card `i` and let the lazy window resolve. */
@@ -66,6 +68,30 @@ afterEach(() => {
 });
 
 describe('Hero Select whole roster with the showcase switch on', () => {
+  it('the grid is made of the showcase tiles (portrait, name, Health, Armor), alphabetical; no banner cards', async () => {
+    await open();
+    expect(document.querySelector('.herocard')).toBeNull();
+    expect(document.querySelector('.hsrow.browse')).toBeNull();
+    expect(slots()).toHaveLength(ALL.length);
+    expect(slots().map((s) => s.querySelector('.hss-name')!.textContent)).toEqual(SHOWN.map((id) => getHero(id).name));
+    const first = getHero(SHOWN[0]!);
+    expect(slots()[0]!.querySelector('.hss-hp')!.textContent).toBe(String(first.resolve));
+    expect(slots()[0]!.querySelector('.hss-reroll')).toBeNull();
+    expect(document.querySelector('.hsb-grid .hss-slot.on')).toBeNull(); // nothing is lit until a hero is opened
+  });
+
+  it('the hero on show is lit in the grid, and stays lit after closing', async () => {
+    await open();
+    await openCard(3);
+    expect(slots()[3]!.classList.contains('on')).toBe(true);
+    click(document.querySelector('.hsb-win .phi-nav.is-next'));
+    expect(slots()[3]!.classList.contains('on')).toBe(false);
+    expect(slots()[4]!.classList.contains('on')).toBe(true);
+    keyOn(win()!, 'Escape');
+    expect(slots()[4]!.classList.contains('on')).toBe(true);
+    expect(document.querySelectorAll('.hsb-grid .hss-glow')).toHaveLength(1);
+  });
+
   it('the grid renders, no window, root has hsb and not hss', async () => {
     await open();
     expect(cards()).toHaveLength(ALL.length);
@@ -134,7 +160,7 @@ describe('Hero Select whole roster with the showcase switch on', () => {
 
   it('while open the grid row is inert; not after closing', async () => {
     await open();
-    const row = document.querySelector<HTMLElement>('.hsrow.browse')!;
+    const row = document.querySelector<HTMLElement>('.hsb-grid')!;
     expect(row.hasAttribute('inert')).toBe(false);
     await openCard(0);
     expect(row.hasAttribute('inert')).toBe(true);
@@ -218,7 +244,8 @@ describe('Hero Select whole roster: Select Hero and the ceremony', () => {
     await frames();
     // The source is the window's splash art, hidden under the clone; no grid card is hidden as the source.
     expect(document.querySelector<HTMLElement>('.hsb-win .phi-art')!.style.visibility).toBe('hidden');
-    expect(cards().every((c) => c.style.visibility !== 'hidden')).toBe(true);
+    expect(slots()).toHaveLength(ALL.length);
+    expect(slots().every((c) => c.style.visibility !== 'hidden')).toBe(true);
   });
 
   it('a new offer mid-ceremony restores the grid and closes the window', async () => {
@@ -232,7 +259,7 @@ describe('Hero Select whole roster: Select Hero and the ceremony', () => {
     expect(root().classList.contains('hsc-active')).toBe(false);
     expect(win()).toBeNull();
     expect(cards()).toHaveLength(ALL.length);
-    expect(document.querySelector('.hsrow.browse')!.hasAttribute('inert')).toBe(false);
+    expect(document.querySelector('.hsb-grid')!.hasAttribute('inert')).toBe(false);
   });
 
   it('switch off: the ceremony still clones the grid card', async () => {

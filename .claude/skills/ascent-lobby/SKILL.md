@@ -129,11 +129,11 @@ behaviour from a legacy symbol.**
   (Bronze 40, Silver 60, Gold 75; exactly the cap is in; `runUnderOverallCap`), a HARD cap: `widenBand` carries it and
   a capped band's last step is the cap alone `{ min: 0, max: 100, overallCap }`, never null. Since 2026-11-17
   (R-LOBBY-21) the three medal bands also carry `peakCap: 90` on a run's PEAK (`pool_runs.strength_peak`, its best real
-  board percentile from round 3 on; `runUnderPeakCap`), hard in the same way (`p_peak_cap`, `peakCapsMissing`,
+  board percentile from round 4 on, `PEAK_FROM_ROUND`; `runUnderPeakCap`), hard in the same way (`p_peak_cap`, `peakCapsMissing`,
   `runStrengthPeak`); a run delivered WITHOUT a peak (a server, hub or cache from before the peak SQL) is let through.
   Ranked Duos' recorded duo TEAMS are never scored: they use `duoRunInStrengthBand` (unscored = inside, no peak). A RATED lobby passes
-  `strengthBand` (Bronze 0-20 w1.0 c40, Silver 10-30 w0.8 c60, Gold 10-50 w0.6 c75, none from
-  Platinum) to both the pool fetch (`p_early_weight` / `p_strength_cap`, each dropped for the session when the RPC lacks
+  `strengthBand` (Bronze 0-20 w1.0 c40, Silver 10-30 w0.8 c60, Gold 10-50 w0.6 c75, Platinum the overall cap 80 alone, Diamond the
+  overall cap 90 alone (R-LOBBY-22, 2026-11-17), none for Ascendant) to both the pool fetch (`p_early_weight` / `p_strength_cap`, each dropped for the session when the RPC lacks
   it; the cap then holds in seat selection, since every row carries `strength`) and
   `createRunLobby` (`runInStrengthBand`); unscored runs are OUTSIDE every
   band since 2026-11-16 (R-LOBBY-20), and a band that cannot fill the table widens +10 per capped side before generated seats. With no band the

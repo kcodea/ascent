@@ -11,7 +11,7 @@ import {
 } from './runTelemetry';
 import { applyReportFilters, buildBalanceExport, heroImpact, scopeReport, tierImpact, type RunTelemetryRow } from './playerReport';
 import { ALL_EPOCHS, dataQuality } from './reportCohorts';
-import { BANDS_V1, BANDS_V2, BANDS_V3, BANDS_V4, BANDS_V5, bestSources, combatsStacked, resolveRegime, tierFromDerived, withBestSources } from './reportSources';
+import { BANDS_V1, BANDS_V2, BANDS_V3, BANDS_V4, BANDS_V5, BANDS_V6, bestSources, combatsStacked, resolveRegime, tierFromDerived, withBestSources } from './reportSources';
 
 /**
  * THE EXPORT FIX (2026-10-03, owner "yes fix these issues"; R-REPORT-04). A report field comes from LIVE
@@ -281,8 +281,9 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     // 2026-10-06: the owner reverted #1928 (weighted strength on the #1871 bands again), then the same day split the
     // bands into early / late blends (R-LOBBY-13). 2026-10-09: the overall caps on top (R-LOBBY-15): the newest era is
     // `bandsCapped`. 2026-11-16: strength v2 (same bands, new ratings behind them): `bandsV2Scoring`. 2026-11-17: the peak
-    // cap of 90 on Bronze, Silver and Gold (R-LOBBY-21): the newest era is `bandsPeakCap`.
-    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V5, 'earlyLateV2']);
+    // cap of 90 on Bronze, Silver and Gold (R-LOBBY-21): `bandsPeakCap`. Same day: overall caps on Platinum (80) and
+    // Diamond (90) (R-LOBBY-22): the newest era is `bandsUpperCaps`.
+    expect([STRENGTH_BANDS_VERSION, RUN_STRENGTH_FORMULA], 'reportSources.ts needs a new era for this regime').toEqual([BANDS_V6, 'earlyLateV2']);
   });
 
   it('a stamped row is "stamped"; old rows infer from the build first, then the date', () => {
@@ -308,9 +309,13 @@ describe('the regime: stamped going forward, inferred (and labelled) for old row
     expect(capped).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'earlyLate', bandsVersion: BANDS_V4 });
     expect(capped.key).not.toBe(split.key);
     // After the peak cap (R-LOBBY-21): the v2 formula on the peak-capped table, a new filter key.
-    const peaked = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-11-20T00:00:00Z' }));
+    const peaked = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-11-18T18:00:00Z' }));
     expect(peaked).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'earlyLateV2', bandsVersion: BANDS_V5 });
     expect(peaked.key).not.toBe(capped.key);
+    // After the Platinum and Diamond caps (R-LOBBY-22): the same formula, the table with the two upper caps.
+    const upper = resolveRegime(row({ patch: '0.1.0+unknown99', createdAt: '2026-11-20T00:00:00Z' }));
+    expect(upper).toMatchObject({ basis: 'inferredFromDate', strengthFormula: 'earlyLateV2', bandsVersion: BANDS_V6 });
+    expect(upper.key).not.toBe(peaked.key);
     expect(resolveRegime(row({ patch: null, createdAt: null }))).toMatchObject({ basis: 'unknown' });
     // The band itself comes from the row's lobbyPool when the run recorded one.
     const pool = { strengthBand: '0-30', strengthBandUsed: '0-30' } as RunTelemetryRow['lobbyPool'];

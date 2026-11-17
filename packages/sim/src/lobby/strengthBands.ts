@@ -20,7 +20,8 @@ import type { PracticeRank } from '../state';
  * - When a band cannot fill the table, it widens by `BAND_WIDEN_STEP` on each capped side, step by step, until it
  *   is uncapped; only then do generated seats fill what is left (`bandSteps`). A floor-only band would widen by
  *   lowering its floor.
- * - The tutorial and Platinum, Diamond and Ascendant have no band. Practice has none either unless the player picks
+ * - The tutorial and Ascendant have no band (Platinum and Diamond had none either until 2026-11-17: see PLATINUM AND
+ *   DIAMOND CAPS below). Practice has none either unless the player picks
  *   an Opponent Rank on its setup screen (2026-10-13, `practiceStrengthBand` below): it then draws that medal's band.
  *
  * Shaped for a second pool later (owner: "dont worry about the ancients and plat separation just yet"): the band
@@ -46,11 +47,20 @@ import type { PracticeRank } from '../state';
  * is the cap alone (`{ min: 0, max: 100, overallCap }`), never null. An unscored run stays inside.
  *
  * THE PEAK CAP (owner 2026-11-16, asked which peak caps Bronze, Silver and Gold get after the v2 measurement: "90 for
- * all"; R-LOBBY-21). A run's PEAK is its best REAL board from round 3 on, as a percentile (`runPeakOf`,
+ * all"; R-LOBBY-21). A run's PEAK is its best REAL board from round 4 on, as a percentile (`runPeakOf`,
  * `pool_runs.strength_peak`). A band may carry `peakCap`: a run whose peak is above it is never seated in that medal's
  * lobby, however ordinary the rest of that game was (one runaway board is what a new player remembers). Bronze, Silver
  * and Gold: 90; exactly the cap is allowed. It is HARD exactly like the overall cap: every widening step carries it,
- * and a capped band's last step is its caps alone, never null.
+ * and a capped band's last step is its caps alone, never null. The peak counts from round 4 since 2026-11-17 (owner:
+ * "best board should not include win rates for boards on rounds 1, 2, or 3"; `PEAK_FROM_ROUND`).
+ *
+ * PLATINUM AND DIAMOND CAPS (owner 2026-11-17, R-LOBBY-22: "i want to make some differentiation between plat diamond
+ * and ascendant. can we cap game strength boards in plat to 80, and diamond boards to 90? then ascendant is fully
+ * open?", and asked which number the cap reads: "Game strength (overall cap)"). Platinum and Diamond are now bands
+ * that carry ONLY an overall cap: `{ min: 0, max: 100, overallCap }`, no early weight, no floor and no peak cap. A run
+ * whose weighted strength is over 80 is never seated in a Platinum lobby, over 90 never in a Diamond lobby; exactly
+ * the cap is allowed. Being bands, they also leave an unscored run out (R-LOBBY-20), and a cap alone has nothing to
+ * widen: a table the capped runs cannot fill takes generated seats. Ascendant has no band: the whole pool.
  */
 export interface StrengthBand {
   min: number;
@@ -59,9 +69,9 @@ export interface StrengthBand {
    *  strength itself (a band saved before the split, e.g. in an older lobby's `poolAtStart`). */
   earlyWeight?: number;
   /** The OVERALL cap (R-LOBBY-15): a run whose weighted `strength` is above it is outside the band, at every widening
-   *  step (the cap never widens). Absent = no cap (Platinum up, and a band saved before 2026-10-09). */
+   *  step (the cap never widens). Absent = no cap (a band saved before 2026-10-09). */
   overallCap?: number;
-  /** The PEAK cap (R-LOBBY-21): a run whose best real board from round 3 on ranks above it is outside the band, at
+  /** The PEAK cap (R-LOBBY-21): a run whose best real board from round 4 on ranks above it is outside the band, at
    *  every widening step (the cap never widens). Absent = no cap (Platinum up, and a band saved before 2026-11-17). */
   peakCap?: number;
 }
@@ -69,7 +79,7 @@ export interface StrengthBand {
 /** A run's ratings as the pool delivers them: the weighted `strength` (R-LOBBY-12, what "Game strength" shows) and the
  *  EARLY / LATE ratings (R-LOBBY-13). Absent / null = not known or not scored. */
 export interface RunStrengths { strength?: number | null; early?: number | null; late?: number | null;
-  /** The run's PEAK (`pool_runs.strength_peak`): its best real board percentile from round 3 on. Absent / null = not
+  /** The run's PEAK (`pool_runs.strength_peak`): its best real board percentile from round 4 on. Absent / null = not
    *  delivered (a server, hub or cache from before the peak SQL). */
   peak?: number | null }
 
@@ -109,8 +119,8 @@ export const STRENGTH_BANDS: Readonly<Record<RankMedal, StrengthBand | null>> = 
   Bronze: { min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 },
   Silver: { min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 },
   Gold: { min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 },
-  Platinum: null,
-  Diamond: null,
+  Platinum: { min: 0, max: 100, overallCap: 80 },
+  Diamond: { min: 0, max: 100, overallCap: 90 },
   Ascendant: null,
 });
 
@@ -120,7 +130,7 @@ export const bandVersionLabel = (b: StrengthBand | null | undefined): string =>
   (b ? `${b.min}-${b.max}${typeof b.earlyWeight === 'number' ? `/e${earlyWeightPct(b.earlyWeight)}` : ''}${typeof b.overallCap === 'number' ? `/c${b.overallCap}` : ''}${typeof b.peakCap === 'number' ? `/p${b.peakCap}` : ''}` : '*');
 
 /** The band TABLE as a version string, read off `STRENGTH_BANDS` itself (2026-10-03, the Balance Report regime
- *  stamp): `"B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*"` today (`*` = an uncapped null band, `/eN` = the
+ *  stamp): `"B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P0-100/c80 D0-100/c90 A*"` today (`*` = an uncapped null band, `/eN` = the
  *  early weight in percent, `/cN` = the overall cap, R-LOBBY-15, `/pN` = the peak cap, R-LOBBY-21). Any threshold or weight change changes the string, so a run stamped with it names the exact bands it
  *  was matched under, with no version number to forget. */
 export const STRENGTH_BANDS_VERSION: string = (Object.entries(STRENGTH_BANDS) as [RankMedal, StrengthBand | null][])
@@ -156,7 +166,7 @@ export function normalizePracticeRank(raw: unknown): PracticeRank {
 
 /** The band a Practice game of this rank draws its recorded seats from: the medal's own entry of `STRENGTH_BANDS`,
  *  never a copy of its numbers, so a retune of the ranked bands retunes Practice with it. `all` (and anything
- *  unknown) is no band. Platinum has no band today either, so it draws like `all` until the table gives it one. */
+ *  unknown) is no band. Platinum is the overall cap of 80 since 2026-11-17 (R-LOBBY-22). */
 export function practiceStrengthBand(rank: unknown): StrengthBand | null {
   const r = normalizePracticeRank(rank);
   if (r === 'all') return null;
@@ -280,7 +290,9 @@ export function seatableRuns(owners: readonly (string | null | undefined)[], cap
  * (`pool_runs.strength`, the "Game strength" number) is inside each tier; a run that would be the third is passed over
  * for the next one in the shuffle, and the limit is HARD (generated seats fill what is left, never a third run).
  * It holds on EVERY table: Bronze, Silver and Gold already keep these runs out with their overall caps (40 / 60 / 75,
- * R-LOBBY-15), so in practice it binds from Platinum up and in Practice on Platinum or All Ranks. An unscored run is
+ * R-LOBBY-15), so in practice it binds from Platinum up and in Practice on Platinum or All Ranks. Since the Platinum
+ * and Diamond caps (R-LOBBY-22) a Platinum table can only hold runs at exactly 80 from these tiers, and a Diamond
+ * table runs at 80 to 90, so the 90s limit there counts only runs at exactly 90. An unscored run is
  * in no tier. Below 80 nothing is limited, and no rank leans toward stronger runs (owner: "in ascendant there should
  * NOT be a skew to have more higher strength boards in the game. it should remain entirely unbiased").
  */

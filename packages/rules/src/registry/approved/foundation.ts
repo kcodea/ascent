@@ -4966,7 +4966,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'x LATE, or EARLY alone when LATE is empty; a run with neither is unscored and, since 2026-11-16, outside every band (R-LOBBY-20; inside every band before). Since 2026-11-16 (R-LOBBY-18) LATE is rounds 10-15 over real and carried rounds, so every scored run has a LATE. A rated '
       + 'lobby seats recorded runs whose score is inside its medal\'s band (every division of a medal shares it): '
       + 'Bronze weight 1.0, band 0-20; Silver 0.8, 10-30; Gold 0.6, 10-50; Platinum, Diamond and Ascendant have NO '
-      + 'band (anything goes: R-LOBBY-08\'s uniform selection). Since 2026-10-09 Bronze, Silver and Gold also carry an '
+      + 'early / late band (anything goes: R-LOBBY-08\'s uniform selection; since 2026-11-17 Platinum and Diamond carry an '
+      + 'overall cap alone, R-LOBBY-22). Since 2026-10-09 Bronze, Silver and Gold also carry an '
       + 'overall cap on the weighted strength (R-LOBBY-15: 40, 60, 75) that a run must pass as well. A band that cannot '
       + 'fill the table widens by 10 on each capped side, step by step and logged, before generated seats (the overall '
       + 'cap never widens); at most 2 seats per player, 3 when the table is short (R-LOBBY-16). Practice and '
@@ -5455,7 +5456,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'On top of its medal\'s early / late band (R-LOBBY-13), a rated lobby seats a recorded run only if the run\'s '
       + 'OVERALL strength (its weighted run strength of R-LOBBY-12, the "Game strength" number, not the early / late '
       + 'score) is at or under the medal\'s cap: Bronze 40, Silver 60, Gold 75. A run must pass both; a run exactly at '
-      + 'the cap is allowed, anything above it is not. Platinum, Diamond and Ascendant have no cap (and no band). The cap '
+      + 'the cap is allowed, anything above it is not. Platinum and Diamond had no cap until 2026-11-17 and now carry 80 and 90 (R-LOBBY-22); Ascendant has none. The cap '
       + 'is HARD: when a band cannot fill the table and widens (+10 per capped side), only the early / late band widens; '
       + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
       + 'strength yet (unscored) stayed eligible until 2026-11-16 and is now outside every band (R-LOBBY-20). The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
@@ -15756,8 +15757,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'is hard: when the pool has nothing else, generated seats fill the table, never a third run of a tier. A run '
       + 'with no score is in no tier, and nothing below 80 is limited. Bronze, Silver and Gold already keep these runs '
       + 'out with their overall caps (R-LOBBY-15), so the limit binds from Platinum up, and in Practice set to Platinum '
-      + 'or All Ranks. Platinum, Diamond and Ascendant draw the same way, from the whole pool with no band: no rank '
-      + 'leans toward stronger runs, and inside the limits every run stays equally likely.',
+      + 'or All Ranks. No rank leans toward stronger runs: Platinum and Diamond only carry an upper cap (80 and 90, '
+      + 'R-LOBBY-22), Ascendant draws from the whole pool, and inside the limits every run stays equally likely.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'there should only be able to be 2 90+ strength boards and 2 80+ strength boards in any given game in the plat/diamond/ascendant rank. in ascendant there should NOT be a skew to have more higher strength boards in the game. it should remain entirely unbiased' },
@@ -15836,7 +15837,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Anything less is an UNSCORED run: it has no Game strength, EARLY or LATE at all, never a low number. An unscored '
       + 'run is outside every strength band (Bronze, Silver, Gold, each widened step, and Practice set to one of those '
       + 'ranks), in the server draw, in the hub\x27s draw and at seat selection alike; it is seated only where there is '
-      + 'no band (Platinum and up, Practice on All Ranks). Scores of different reference versions are never compared. '
+      + 'no band (Ascendant and Practice on All Ranks; Platinum and Diamond are bands since R-LOBBY-22). Scores of different reference versions are never compared. '
       + 'Recorded duo TEAMS in Ranked Duos are the exception: they are never scored, so they stay inside every band as '
       + 'before; a solo run seated at a Duos table follows this rule.',
     status: 'approved',
@@ -15936,13 +15937,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   {
     id: 'R-LOBBY-21',
     domain: 'foundation',
-    title: 'A Bronze, Silver or Gold table seats no recorded run whose best board from round 3 on ranks above 90; the cap never widens',
+    title: 'A Bronze, Silver or Gold table seats no recorded run whose best board from round 4 on ranks above 90; the cap never widens',
     statement:
-      'A recorded run has a PEAK: the highest percentile among its REAL boards from round 3 on (rounds 1 and 2 are one '
-      + 'or two minions, too coarse to judge; a carried round never counts). On top of its medal band (R-LOBBY-13) and '
+      'A recorded run has a PEAK: the highest percentile among its REAL boards from round 4 on (rounds 1, 2 and 3 never '
+      + 'count, owner 2026-11-17; it was from round 3 on for one day; a carried round never counts). On top of its medal band (R-LOBBY-13) and '
       + 'its overall cap (R-LOBBY-15), a Bronze, Silver or Gold table seats a recorded run only if its peak is at or '
       + 'under 90: exactly 90 is allowed, anything above is not, however ordinary the rest of that game was. Platinum, '
-      + 'Diamond and Ascendant have no peak cap (and no band). The cap is HARD, like the overall cap: when a band widens '
+      + 'Diamond and Ascendant have no peak cap (R-LOBBY-22 gives Platinum and Diamond an overall cap only). The cap is HARD, like the overall cap: when a band widens '
       + 'the peak cap stays, the last widening step is the two caps alone, and whatever the table still lacks is filled '
       + 'by generated seats. Practice set to Bronze, Silver or Gold carries the same cap; solo runs seated at a Ranked '
       + 'Duos table of those medals do too, while recorded duo teams (never scored) have no peak and are not capped. '
@@ -15953,6 +15954,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (strength v2 design, ruling 2: which peak caps Bronze, Silver and Gold get, asked after the v2 measurement)', quote: '90 for all' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17', quote: 'build plan 3' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (after the peak cap went live on the database)', quote: 'best board should not include win rates for boards on rounds 1, 2, or 3' },
+      { kind: 'fix-pr', ref: 'feat/plat-diamond-strength-caps (2026-11-17): packages/sim/src/lobby/strengthV2.ts (PEAK_FROM_ROUND 3 -> 4); supabase/migrations/2026-11-25-strength-peak-from-round-4.sql (pool_strength_refresh)' },
       { kind: 'fix-pr', ref: 'feat/strength-v2-peak-cap (2026-11-17): packages/sim/src/lobby/strengthBands.ts (StrengthBand.peakCap, runUnderPeakCap, runInStrengthBand, widenBand, bandSteps); packages/sim/src/lobby/snapshotSeats.ts (PlayerRun.peak); packages/ui/src/opponentPool/poolFetch.ts (p_peak_cap, peakCapsMissing), poolLoader.ts (runStrengthPeak), poolRunCache.ts; supabase/migrations/2026-11-24-strength-peak-cap.sql (pool_runs.strength_peak, p_peak_cap on the draw); workers/versus/src/core/poolPick.ts pickRuns' },
       { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, section 6.C and ruling 2' },
     ],
@@ -15966,7 +15969,39 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'not send the cap to its solo draw; it holds at seat selection, on the peak each solo row carries. Measured '
       + '2026-11-16 on the live window: 38 Bronze, 51 Silver and 83 Gold runs remain under the cap (23 of 106 Gold runs '
       + 'are over 90). A run this device registered WITHOUT a peak (a game open while the SQL is applied, or a pool '
-      + 'cache written before it) stays uncapped until the next session.',
+      + 'cache written before it) stays uncapped until the next session. ROUND 4 (2026-11-17): the game defines the '
+      + 'peak from round 4 at once; the database still writes it from round 3 until the owner applies '
+      + '2026-11-25-strength-peak-from-round-4.sql, and the cap is checked on the peak the database delivers, so until '
+      + 'then a strong round-3 board still keeps a run out. Re-applying 2026-11-24-strength-peak-cap.sql alone puts '
+      + 'round 3 back.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthPeakCap.test.ts', 'packages/sim/src/lobby/strengthPeak.db.test.ts', 'packages/ui/src/boardStrength/boardStrength.test.ts', 'workers/versus/test/sessionCf.db.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
+  {
+    id: 'R-LOBBY-22',
+    domain: 'foundation',
+    title: 'A Platinum table seats no recorded run whose Game strength is over 80, a Diamond table none over 90; Ascendant is fully open',
+    statement:
+      'Platinum and Diamond each carry an overall cap and nothing else: a recorded run whose weighted strength (the '
+      + '"Game strength" number, pool_runs.strength) is above 80 is never seated at a Platinum table, above 90 never at a '
+      + 'Diamond table. Exactly the cap is allowed. There is no floor, no early or late weighting and no peak cap on '
+      + 'these two medals. The cap is HARD in the same way as the lower medals\x27 (R-LOBBY-15): it never widens, and '
+      + 'seats the capped runs cannot fill go to generated seats. Because a capped medal is a band, an unscored run is '
+      + 'not seated there (R-LOBBY-20). Ascendant has no band: every recorded run in the pool is a candidate, scored or '
+      + 'not. Practice set to Platinum carries the Platinum cap. The limit of two runs in the 80s and two in the 90s per '
+      + 'table (R-LOBBY-17) still holds everywhere.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17', quote: 'ok i want to make some differentiation between plat diamond and ascendant. can we cap game strength boards in plat to 80, and diamond boards to 90? then ascendant is fully open?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (asked whether the cap reads the overall Game strength or the best board)', quote: 'Game strength (overall cap)' },
+      { kind: 'fix-pr', ref: 'feat/plat-diamond-strength-caps (2026-11-17): packages/sim/src/lobby/strengthBands.ts (STRENGTH_BANDS.Platinum / .Diamond); packages/sim/src/reportSources.ts (BANDS_V6, era bandsUpperCaps)' },
+    ],
+    example: 'A run with Game strength 85 can sit at a Diamond or an Ascendant table, never at a Platinum one. A run at 95 is met only in Ascendant.',
+    currentBehaviour:
+      'Conforms in code from 2026-11-17; live once the client and hub ship (no SQL: the draw already takes '
+      + 'p_strength_cap, and seat selection re-checks the cap on every delivered run). NOT measured: how many seats the '
+      + 'live pool leaves a Platinum table under the cap. With 2 seats per player and about 5 players in the window, a '
+      + 'Platinum or Diamond table may take generated seats where it took none before. A side effect the owner did not '
+      + 'ask for by name: unscored runs are no longer met in Platinum and Diamond, only in Ascendant.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthBands.test.ts', 'packages/sim/src/lobby/seatTiers.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

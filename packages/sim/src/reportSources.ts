@@ -73,20 +73,26 @@ export const STRENGTH_V2_AT = '2026-11-17T12:00:00Z';
  *  expected merge, a day after strength v2 (the two are meant to ship together); only unstamped rows read it. The
  *  server side switches when the owner runs 2026-11-24-strength-peak-cap.sql. */
 export const PEAK_CAP_AT = '2026-11-18T12:00:00Z';
+/** The Platinum and Diamond overall caps (R-LOBBY-22, owner 2026-11-17: Platinum 80, Diamond 90, Ascendant open).
+ *  APPROXIMATE, like `PEAK_CAP_AT`: the PR's expected merge; only unstamped rows read it. No SQL: the server draw
+ *  already takes `p_strength_cap`. */
+export const UPPER_CAPS_AT = '2026-11-19T12:00:00Z';
 
 /** The band table #1871 shipped (`STRENGTH_BANDS_VERSION` at that commit), the retune #1928 shipped, the split
  *  early / late table (R-LOBBY-13; `/eN` = the early weight in percent), and that table with the overall caps
- *  (R-LOBBY-15; `/cN` = the cap on the weighted strength), and that table with the peak cap (R-LOBBY-21; `/pN`). */
+ *  (R-LOBBY-15; `/cN` = the cap on the weighted strength), that table with the peak cap (R-LOBBY-21; `/pN`), and that
+ *  table with the Platinum and Diamond overall caps (R-LOBBY-22). */
 export const BANDS_V1 = 'B0-30 S10-40 G20-65 P* D10-100 A20-100';
 export const BANDS_V2 = 'B0-30 S10-40 G15-65 P15-100 D25-100 A35-100';
 export const BANDS_V3 = 'B0-20/e100 S10-30/e80 G10-50/e60 P* D* A*';
 export const BANDS_V4 = 'B0-20/e100/c40 S10-30/e80/c60 G10-50/e60/c75 P* D* A*';
 export const BANDS_V5 = 'B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P* D* A*';
+export const BANDS_V6 = 'B0-20/e100/c40/p90 S10-30/e80/c60/p90 G10-50/e60/c75/p90 P0-100/c80 D0-100/c90 A*';
 
 /** A matchmaking era. `preBands` = no strength bands at all. `bandsWeightedAgain` is the same regime as
  *  `bandsWeighted` (same formula, same bands, so the same filter key); it is its own era only to keep the cut-overs in
  *  date order. */
-export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal' | 'bandsWeightedAgain' | 'bandsEarlyLate' | 'bandsCapped' | 'bandsV2Scoring' | 'bandsPeakCap';
+export type RegimeEra = 'preBands' | 'bandsAverage' | 'bandsWeighted' | 'bandsFinal' | 'bandsWeightedAgain' | 'bandsEarlyLate' | 'bandsCapped' | 'bandsV2Scoring' | 'bandsPeakCap' | 'bandsUpperCaps';
 
 const ERA_REGIME: Record<RegimeEra, { bandsVersion: string | null; strengthFormula: StrengthFormula | null }> = {
   preBands: { bandsVersion: null, strengthFormula: null },
@@ -98,6 +104,7 @@ const ERA_REGIME: Record<RegimeEra, { bandsVersion: string | null; strengthFormu
   bandsCapped: { bandsVersion: BANDS_V4, strengthFormula: 'earlyLate' },
   bandsV2Scoring: { bandsVersion: BANDS_V4, strengthFormula: 'earlyLateV2' },
   bandsPeakCap: { bandsVersion: BANDS_V5, strengthFormula: 'earlyLateV2' },
+  bandsUpperCaps: { bandsVersion: BANDS_V6, strengthFormula: 'earlyLateV2' },
 };
 
 /**
@@ -163,7 +170,7 @@ export function resolveRegime(row: RegimeRow): ResolvedRegime {
   if (Number.isFinite(at)) {
     const era: RegimeEra = at < Date.parse(BANDS_AT) ? 'preBands' : at < Date.parse(WEIGHTED_AT) ? 'bandsAverage' : at < Date.parse(FINAL_AT) ? 'bandsWeighted'
       : at < Date.parse(WEIGHTED_AGAIN_AT) ? 'bandsFinal' : at < Date.parse(EARLY_LATE_AT) ? 'bandsWeightedAgain'
-      : at < Date.parse(CAPS_AT) ? 'bandsEarlyLate' : at < Date.parse(STRENGTH_V2_AT) ? 'bandsCapped' : at < Date.parse(PEAK_CAP_AT) ? 'bandsV2Scoring' : 'bandsPeakCap';
+      : at < Date.parse(CAPS_AT) ? 'bandsEarlyLate' : at < Date.parse(STRENGTH_V2_AT) ? 'bandsCapped' : at < Date.parse(PEAK_CAP_AT) ? 'bandsV2Scoring' : at < Date.parse(UPPER_CAPS_AT) ? 'bandsPeakCap' : 'bandsUpperCaps';
     return { ...ERA_REGIME[era], ...band, basis: 'inferredFromDate', key: regimeKeyOf(ERA_REGIME[era]) };
   }
   return { bandsVersion: null, strengthFormula: null, ...band, basis: 'unknown', key: UNKNOWN_REGIME };

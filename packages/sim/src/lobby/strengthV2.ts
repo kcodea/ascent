@@ -13,7 +13,9 @@ import {
  *  - FIELDED ROUNDS: a recorded seat serves its final board once its recording has ended (repeatFinal), so a run
  *    is ranked at every round with the board it would really field: its own board, or its final board CARRIED.
  *  - EARLY is rounds 1-9, LATE is rounds 10-15, both over real and carried rounds, so every run has a LATE.
- *  - PEAK is the best REAL board from round 3 on (rounds 1-2 are one or two minions, too coarse to judge).
+ *  - PEAK is the best REAL board from round 4 on (owner 2026-11-17: "best board should not include win rates for
+ *    boards on rounds 1, 2, or 3"; it counted from round 3 for one day, when only rounds 1-2 were left out as too
+ *    coarse to judge).
  */
 
 /** The last round a run must reach to be in the pool at all. */
@@ -21,7 +23,7 @@ export const MIN_RUN_LAST_ROUND = 7;
 /** The last round that counts for LATE (rounds 10..15). */
 export const LATE_LAST_ROUND = 15;
 /** The first round that counts for a run's peak. */
-export const PEAK_FROM_ROUND = 3;
+export const PEAK_FROM_ROUND = 4;
 const EARLY_LAST = 9;
 
 /** Does a run whose recording ends on `lastRound` belong in the pool? */
@@ -56,7 +58,7 @@ export function earlyLateV2Of(rounds: Iterable<RoundValue>): { early: number | n
   return { early: meanFromSum(es, en), late: meanFromSum(ls, ln) };
 }
 
-/** A run's PEAK: its highest board percentile from round 3 on. Pass REAL rounds only. Null with none. */
+/** A run's PEAK: its highest board percentile from round 4 on (`PEAK_FROM_ROUND`). Pass REAL rounds only. Null with none. */
 export function runPeakOf(realRounds: Iterable<RoundValue>): number | null {
   let peak: number | null = null;
   for (const r of realRounds) {
@@ -81,7 +83,7 @@ export interface RunV2 {
   late: number | null;
   /** Game strength: the round-weighted average of REAL rounds, ranked among the runs. */
   strength: number | null;
-  /** The best REAL board percentile from round 3 on. */
+  /** The best REAL board percentile from round 4 on. */
   peak: number | null;
 }
 

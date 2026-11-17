@@ -121,6 +121,9 @@ function mandatoryOf(s: RunState): BotMandatoryDecision | null {
     };
   }
   if (s.scoutedNextOpponent?.length) return { kind: 'scout' };
+  // ANCIENTS (R-ANCIENTS-RELEASE-02): the awakening offer blocks End Turn. Last, because the reducer only takes the pick
+  // once every other modal is answered.
+  if (s.ancientsEnabled && s.ancients?.offer?.length) return { kind: 'ancient', options: [...s.ancients.offer] };
   return null;
 }
 

@@ -11,6 +11,7 @@
  */
 import { effectiveBuffs, nonZeroBuffs, type GauntletStage, type SetId } from '@game/content';
 import { createRun, type RunState } from '../state';
+import { releaseAncients } from '../ancientsRelease';
 import { DEFAULT_LOBBY_RULES } from './lobby';
 import type { LobbyRules } from './types';
 import { resetLobbyDrivers, type LobbySeatState, type RunLobby } from './runLobby';
@@ -29,8 +30,10 @@ function authoredBuffsFor(stage: GauntletStage): LobbySeatState['authoredBuffs']
   return perRound.some((b) => Object.keys(b).length > 0) ? perRound : undefined;
 }
 
-export function createGauntletRun(seed: number, heroId: string, stage: GauntletStage, setId?: SetId): RunState {
-  const run = createRun(seed, heroId, 'gauntlet', undefined, setId);
+export function createGauntletRun(seed: number, heroId: string, stage: GauntletStage, setId?: SetId, ancients?: boolean): RunState {
+  // ANCIENTS (R-ANCIENTS-RELEASE-01): a Gauntlet stage is a player-started run, so it reads the release switch here
+  // (`ancients` overrides it: tests).
+  const run = releaseAncients(createRun(seed, heroId, 'gauntlet', undefined, setId), ancients);
   const rules: LobbyRules = { ...DEFAULT_LOBBY_RULES, seatCount: 2, maxRounds: stage.rounds.length, lossCaps: [...GAUNTLET_LOSS_CAPS] };
   const player: LobbySeatState = {
     id: 's0', label: 'You', heroId, kind: 'player', seed, resolve: run.resolve, armor: run.armor, alive: true,

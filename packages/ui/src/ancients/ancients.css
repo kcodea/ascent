@@ -625,3 +625,9 @@ body.ancgate .app { z-index: auto; }
 .anc-offer.settled .anc-slot:nth-child(3) { animation-delay: 1.4s; }
 .anc-offer.closing .anc-slot { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .anc-offer.settled .anc-slot { animation: none; } }
+
+/* A FOE'S ANCIENT under its hero power (R-ANCIENTS-RELEASE-03): the combat foe's power tip and the rail's scout card.
+   Static, no animation. The name takes the Ancient's colour inline (`ancientColor`). */
+.foe-ancient { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.foe-ancient-name { font-family: var(--font-title), sans-serif; font-weight: 800; letter-spacing: 0.02em; filter: brightness(1.35) saturate(1.1); }
+.foe-ancient-rule { display: block; }

@@ -81,7 +81,7 @@ export function sbMateHero(mySeed: number, myHero: string): string {
 /** A fresh teammate run for MY run: same set, same tribes, a Duos run, sandboxed (God rules: the Gold float too). */
 export function makeSbMateRun(mine: RunState, god: boolean): RunState {
   const config: PracticeConfig = { opponents: 'bots', botDifficulty: 1, health: 'unlimited', timeMult: 1, tribes: mine.tribes.filter((t): t is PracticeTribe => t !== 'neutral') };
-  const base = createLobbyRun(sbMateSeed(mine.seed), sbMateHero(mine.seed, mine.heroId), {}, 'practice', config, mine.setId, undefined, { duos: true });
+  const base = createLobbyRun(sbMateSeed(mine.seed), sbMateHero(mine.seed, mine.heroId), {}, 'practice', config, mine.setId, undefined, { duos: true, ancients: false }); // the rig's own toggle, never the release switch
   return { ...base, sandbox: true, tier: mine.tier, ...(god ? { embers: 999 } : {}) };
 }
 

@@ -229,4 +229,26 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-28).',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/bodyGuard.test.ts', 'packages/core/src/combat/tagTeam.test.ts'], lastVerifiedAt: '2026-10-28' },
   },
+  {
+    id: 'R-FINAL-HIT-01',
+    title: 'The final kill, death or hit of a fight finishes every trigger it sets off, exactly as it would mid-fight',
+    statement:
+      'A fight ends only once everything its last event set off has resolved: the end is judged at the attack loop head, '
+      + 'after the last swing\x27s deaths, Echoes, Avenges, Slaughters, summons, immediate attacks and space fills have all '
+      + 'settled, so a trigger that summons keeps the fight going. Every trigger family pays on the final event the same as '
+      + 'it would with the fight still running (the probe matrix pins Pummel, Slaughter, Avenge, rune Avenges, Echo summons, '
+      + 'kill records, rune on-kill and damage watchers, each against a twin fight that keeps going). Flash with Ancient of '
+      + 'War ("Pummel (400): get a copy of a random enemy minion. Twice per combat.") copies a living enemy when one '
+      + 'remains; when the crossing hit itself felled the last enemy, it copies the body that hit just struck, and a payout '
+      + 'is spent only when a copy is given. Symmetric for both sides.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-11-16 (final hit bug)', quote: 'The final kill or death etc still needs to finish all triggers' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts noteAncientPummel (struck-body fallback); the attack loop head + settleBetweenAttacks' },
+    ],
+    contentIds: [],
+    currentBehaviour: 'Conforms as of 2026-11-16.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/finalHitTriggers.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

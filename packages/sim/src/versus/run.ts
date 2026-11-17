@@ -26,6 +26,7 @@ import { normalizeVersusOptions, versusModeIsDuos, versusOptionsRift, type Versu
 import { versusDuosStartingVitals } from './vitals';
 import { snapshotBoard } from '../snapshot';
 import { ancientOfferOpen, enableAncients, type AncientMeterTuning } from '../ancients';
+import { heroHasAncientPairings, releaseAncients } from '../ancientsRelease';
 import type { VersusSeatScout } from '../lobby/runLobby';
 
 /**
@@ -39,10 +40,13 @@ import type { VersusSeatScout } from '../lobby/runLobby';
  * The opening shop is Tier 1 and reads no rift, so pinning after `createRun` draws the same shop a Rift run would.
  * No options (or the defaults) = today's run, byte for byte.
  *
- * `dev.ancients` (R-ANCDUOS-01) is a TEST AND DEV SEAM, never a room option: it is not on the wire, the Worker never sees
- * it, and no player build passes it (the UI reads it on a DEV or bench bundle only, `versusDevAncients`). It turns
- * Ancients on for a DUOS run exactly as the Scene Builder does for a solo one (`enableAncients`), so the Duos heroes'
- * pairings can be played end to end. Absent = no `ancients` on the run, as before.
+ * ANCIENTS (R-ANCIENTS-RELEASE-01, owner 2026-11-16: "When on, they're live everywhere"): every Versus run (1v1, group,
+ * Duos, Ranked Duos) reads the Ancients RELEASE SWITCH here, at creation, and pins it on the run (`releaseAncients`),
+ * exactly as a lobby run does. It is not a room option and not on the wire: each seat's run carries its own meter, and
+ * the Ancient's combat half rides the parked side's `questMods`, which the resolver already reads per side.
+ * `dev.ancients` is the DEV / bench seam that remains (`versusDevAncients`): it forces Ancients on with a custom meter
+ * (a quick check awakens on the first Refresh with `cost: 1`), whatever the switch says. `dev.ancients === false`
+ * forces them off (tests).
  */
 export function createVersusRun(
   runSeed: number,
@@ -50,7 +54,7 @@ export function createVersusRun(
   setId: SetId,
   options?: VersusRoomOptions | null,
   duosMateHeroId?: string | null,
-  dev?: { ancients?: Partial<AncientMeterTuning> | true } | null,
+  dev?: { ancients?: Partial<AncientMeterTuning> | boolean } | null,
 ): RunState {
   const opts = normalizeVersusOptions(options);
   // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate. RANKED DUOS passes the same way
@@ -72,8 +76,8 @@ export function createVersusRun(
     run.armor = team.armor;
     run.maxArmor = team.armor;
   }
-  if (duos && dev?.ancients) return enableAncients(run, dev.ancients === true ? undefined : dev.ancients);
-  return run;
+  if (dev?.ancients && heroHasAncientPairings(heroId)) return enableAncients(run, dev.ancients === true ? undefined : dev.ancients);
+  return releaseAncients(run, dev?.ancients === false ? false : undefined);
 }
 
 /** The seat's three heroes: a seeded shuffle of the heroes this run's tribes allow. Since 2026-10-31 the ROOM deals

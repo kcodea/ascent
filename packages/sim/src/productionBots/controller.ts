@@ -1,5 +1,6 @@
 import { makeRng, type Rng } from '@game/core';
 import type { Action, RunState } from '../state';
+import type { AncientId } from '../ancients';
 import { applyCandidate, createPlanningRoot, release } from './transition';
 import { fingerprint, toBotVisibleState } from './visibleState';
 import { search, type PlannedStep, type SearchResult } from './search';
@@ -194,6 +195,7 @@ function firstMandatoryAction(run: RunState): Action | null {
     case 'powerOffer': return { type: 'pickPower', index: 0 };
     case 'runeforge': return { type: 'skipRuneforge' };
     case 'scout': return { type: 'closeScout' };
+    case 'ancient': return m.options[0] ? { type: 'pickAncient', id: m.options[0] as AncientId } : null; // the offer is a seeded draw, so its first is a seeded pick
   }
 }
 

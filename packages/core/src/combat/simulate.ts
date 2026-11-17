@@ -3667,8 +3667,8 @@ export function simulate(
    * A second crossing in the same fight likewise pays nothing (the latch holds); the tally still moves, and the
    * badge keeps printing `total mod X` toward the multiple that pays next combat.
    */
-  function noteDamageDealt(dealer: Minion, amount: number): void {
-    noteAncientPummel(dealer, amount);
+  function noteDamageDealt(dealer: Minion, amount: number, struck?: Minion): void {
+    noteAncientPummel(dealer, amount, struck);
     noteWarmUp(dealer, amount);
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
     // marker's `do` decides the payout. Han Gover grants `count` random Dwarven Ales (×2 gilded) through
@@ -3838,7 +3838,8 @@ export function simulate(
     for (const m of band) ctx.buff(m, SET2_BASIC_NEUTRAL.goldenHandshake.attack * k, SET2_BASIC_NEUTRAL.goldenHandshake.health * k, 'Golden Handshake');
   }
 
-  function noteAncientPummel(dealer: Minion, amount: number): void {
+  /** `struck`: the body this hit landed on (it may already be at <=0, its death not yet resolved). */
+  function noteAncientPummel(dealer: Minion, amount: number, struck?: Minion): void {
     const ap = modsFor(dealer.side).ancientPummel;
     const pc = modsFor(dealer.side).ancientPummelCopy;
     const pch = modsFor(dealer.side).ancientPummelCharge;
@@ -3886,10 +3887,17 @@ export function simulate(
     if (pf) {
       const crossed = Math.floor(after / Math.max(1, pf.every)) - Math.floor(before / Math.max(1, pf.every));
       const foe: Side = side === 'player' ? 'enemy' : 'player';
+      // THE FINAL HIT STILL PAYS (owner 2026-11-16, R-FINAL-HIT-01: "the final kill or death etc still needs to finish all
+      // triggers"). The pool is the enemy bodies still standing; when the crossing hit itself felled the LAST of them
+      // (the fight is about to end), the copy is of the body that hit just struck: it was an enemy minion at the moment
+      // the threshold was crossed, the same body Flash's own Last claim copies. Only with nothing to copy at all is no
+      // payout spent (a payout is counted only when a copy is given). Mid-fight picks are unchanged (same pool, same draw).
       for (let i = 0; i < crossed && ancientPummelPays[side] < Math.max(1, pf.max ?? 1); i++) {
-        ancientPummelPays[side] += 1;
         const band = boards[foe].filter((m) => !m.dead && m.health > 0);
-        if (band.length > 0) flashToHand(side, flashBodyOf(band[grantRngFor(side).int(band.length)]!), dealer.uid);
+        const pick = band.length > 0 ? band[grantRngFor(side).int(band.length)]! : struck && struck.side === foe ? struck : undefined;
+        if (!pick) break;
+        ancientPummelPays[side] += 1;
+        flashToHand(side, flashBodyOf(pick), dealer.uid);
       }
     }
     if (!ap) return;
@@ -4880,7 +4888,7 @@ export function simulate(
       if (heldDamaged) heldDamaged.push(hit); else bus.emit('onDamaged', hit);
     }
     // Pummel (Han Gover, Goldvein): the dealer's running damage tally (see `noteDamageDealt`).
-    if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount);
+    if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount, target);
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
     if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {

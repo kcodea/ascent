@@ -29,7 +29,10 @@
  *    the watched-cursor gate) and a new Duos-only hero the Worker deals (Magician, #2651; heroes are not in the content
  *    revision), with content unchanged since ascent-versus-v2-8a6257b2. A v2 client would be dealt a hero it does not know.
  *  4 (2026-11-16): a Duos pass to a full hand WAITS instead of being refused (R-DUOS-PASS-WAITS-01). The room no longer
- *    refuses `hand_full`, and the receiving run no longer refuses a card; a v3 client would refuse it and refund. */
+ *    refuses `hand_full`, and the receiving run no longer refuses a card; a v3 client would refuse it and refund.
+ *  NEXT, 5: the day the Ancients release switch (`ANCIENTS_LIVE`, packages/sim/src/ancientsRelease.ts) is flipped ON, every
+ *    Versus seat's run carries the meter and its Ancient's combat mods: a rules change with no content change, so bump to 5
+ *    in that same PR (a tripwire test enforces it, R-ANCIENTS-RELEASE-01). */
 export const VERSUS_CF_PROTOCOL = 4;
 /** The WebSocket subprotocol a client offers (the server echoes it back). */
 export const VERSUS_CF_SUBPROTOCOL = 'ascent-versus.v1';

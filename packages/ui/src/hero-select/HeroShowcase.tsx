@@ -15,7 +15,7 @@
  *
  * Loaded lazily by HeroSelect, so it (and the Compendium card's stylesheet it pulls in) never reaches the switch-off path.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MutableRefObject, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MutableRefObject, type ReactNode, type RefObject } from 'react';
 import { getHero, heroTip, type AncientId } from '@game/sim';
 import { HeroInspectCard } from '../HeroInspectCard';
 import { lastPickedAncient, rememberAncient, stepAncient } from '../HeroAncients';
@@ -85,17 +85,90 @@ function useTileGlow(rowRef: RefObject<HTMLDivElement>, glowRef: RefObject<HTMLE
   }, [rowRef, place]);
 }
 
+/** The card's stepping and keys, and the Ancient on show. Shared by the three-hero showcase and the "All heroes" window. */
+export interface ShowcaseNav {
+  anc: AncientId;
+  pickAncient: (a: AncientId) => void;
+  /** Steps the selection by `d`, wrapping; nothing with one hero. */
+  step: (d: number) => void;
+  /** Left / Right step the heroes, Up / Down the Ancients. Put it on the element that holds focus, never on `window`. */
+  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
+}
+
+export function useShowcaseNav(count: number, selected: number, onSelect: (index: number) => void, busy: boolean): ShowcaseNav {
+  // The Ancient on show: a preview only (it never chooses one for the run), kept as the selection moves.
+  const [anc, setAnc] = useState<AncientId>(lastPickedAncient);
+  const pickAncient = useCallback((a: AncientId): void => { rememberAncient(a); setAnc(a); }, []);
+  const step = (d: number): void => { if (count > 1) onSelect((((selected + d) % count) + count) % count); };
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    // While the ceremony runs (focus is still on Select Hero) the keys select nothing: a change would re-key the hidden card.
+    if (busy) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      step(e.key === 'ArrowLeft' ? -1 : 1);
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      pickAncient(stepAncient(anc, e.key === 'ArrowUp' ? -1 : 1));
+    }
+  };
+  return { anc, pickAncient, step, onKeyDown };
+}
+
+export interface HeroShowcaseCardProps {
+  heroId: string;
+  count: number;                         // arrows only with more than one hero
+  nav: ShowcaseNav;
+  onConfirm: () => void;                 // Select Hero pressed and allowed
+  onDenied: () => void;                  // Select Hero pressed while blocked
+  blocked: null | 'mate' | 'pending' | 'busy';
+  watching: boolean;                     // no Select Hero button
+  showDifficulty: boolean;
+  loadout: ReturnType<typeof useLiveLoadout>;
+  artRef: RefObject<HTMLDivElement>;     // the card's .phi-art
+  children?: ReactNode;                  // extra controls inside the stage (the window's X)
+}
+
+/** THE CARD STAGE (prev arrow, the Compendium's inspect card, next arrow) and the Select Hero button under it. */
+export function HeroShowcaseCard({ heroId, count, nav, onConfirm, onDenied, blocked, watching, showDifficulty, loadout, artRef, children }: HeroShowcaseCardProps): JSX.Element {
+  const hero = getHero(heroId);
+  const tip = heroTip(heroId);
+  const extraFacts = showDifficulty && tip ? [tip.difficulty] : undefined;
+  return (
+    <>
+      <div className="hss-stage">
+        {count > 1 && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={() => nav.step(-1)}><Icon name="chevron" /></button>}
+        <HeroInspectCard
+          key={heroId}
+          hero={hero}
+          art={heroPortrait(heroId, loadout)}
+          ancient={nav.anc}
+          onAncient={nav.pickAncient}
+          {...(extraFacts ? { extraFacts } : {})}
+          artRef={artRef}
+          className="hss-card"
+        />
+        {count > 1 && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={() => nav.step(1)}><Icon name="chevron" /></button>}
+        {children}
+      </div>
+      {!watching && (
+        <button
+          type="button"
+          className={`hss-confirm ph-start${blocked === 'mate' ? ' is-long' : ''}`}
+          aria-disabled={blocked !== null}
+          onClick={() => { if (blocked !== null) onDenied(); else onConfirm(); }}
+        >
+          <span>{blocked === 'mate' ? 'Taken by your teammate' : 'Select Hero'}</span>
+        </button>
+      )}
+    </>
+  );
+}
+
 export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
   const { choices, selected, onSelect, onConfirm, onDenied, blocked, canReroll, onReroll, swapping, mateTaken, watching, showDifficulty, loadout, artRef, slotEls } = props;
   const n = choices.length;
   const heroId = choices[selected] ?? choices[0] ?? '';
-  const hero = getHero(heroId);
-
-  // The Ancient on show: a preview only (it never chooses one for the run), kept as the selection moves.
-  const [anc, setAnc] = useState<AncientId>(lastPickedAncient);
-  const pickAncient = useCallback((a: AncientId): void => { rememberAncient(a); setAnc(a); }, []);
-
-  const step = (d: number): void => { if (n > 1) onSelect((((selected + d) % n) + n) % n); };
+  const nav = useShowcaseNav(n, selected, onSelect, blocked === 'busy');
 
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!watching) bodyRef.current?.focus({ preventScroll: true }); }, [watching]);
@@ -108,18 +181,6 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
     if (!watching && body && lost) body.focus({ preventScroll: true });
   }, [watching, canReroll, choices]);
 
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
-    // While the ceremony runs (focus is still on Select Hero) the keys select nothing: a change would re-key the hidden card.
-    if (blocked === 'busy') return;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      step(e.key === 'ArrowLeft' ? -1 : 1);
-    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      pickAncient(stepAncient(anc, e.key === 'ArrowUp' ? -1 : 1));
-    }
-  };
-
   const rowRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLElement>(null);
   // Drop the refs of slots a shorter offer no longer renders (after commit, never while rendering).
@@ -129,11 +190,8 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
   // The re-roll has just been used (the swap is still playing) and its buttons are gone. Not once the ceremony runs.
   const rerollSpent = swapping !== null && !canReroll && blocked !== 'busy';
 
-  const tip = heroTip(heroId);
-  const extraFacts = showDifficulty && tip ? [tip.difficulty] : undefined;
-
   return (
-    <div ref={bodyRef} className="hss-body" tabIndex={-1} onKeyDown={onKeyDown}>
+    <div ref={bodyRef} className="hss-body" tabIndex={-1} onKeyDown={nav.onKeyDown}>
       <div ref={rowRef} className="hss-tiles">
         <i ref={glowRef} className="hss-glow" aria-hidden="true" />
         {choices.map((id, i) => {
@@ -185,30 +243,18 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
           );
         })}
       </div>
-      <div className="hss-stage">
-        {n > 1 && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={() => step(-1)}><Icon name="chevron" /></button>}
-        <HeroInspectCard
-          key={heroId}
-          hero={hero}
-          art={heroPortrait(heroId, loadout)}
-          ancient={anc}
-          onAncient={pickAncient}
-          {...(extraFacts ? { extraFacts } : {})}
-          artRef={artRef}
-          className="hss-card"
-        />
-        {n > 1 && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={() => step(1)}><Icon name="chevron" /></button>}
-      </div>
-      {!watching && (
-        <button
-          type="button"
-          className={`hss-confirm ph-start${blocked === 'mate' ? ' is-long' : ''}`}
-          aria-disabled={blocked !== null}
-          onClick={() => { if (blocked !== null) onDenied(); else onConfirm(); }}
-        >
-          <span>{blocked === 'mate' ? 'Taken by your teammate' : 'Select Hero'}</span>
-        </button>
-      )}
+      <HeroShowcaseCard
+        heroId={heroId}
+        count={n}
+        nav={nav}
+        onConfirm={onConfirm}
+        onDenied={onDenied}
+        blocked={blocked}
+        watching={watching}
+        showDifficulty={showDifficulty}
+        loadout={loadout}
+        artRef={artRef}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
 import { compileMoments } from './compile';
-import { finalHoldMs, pummelReadMs, pummelRemainingMs } from './finalHold';
+import { ConsequenceLedger, defReadMs, finalHoldMs, pummelReadMs, pummelRemainingMs } from './finalHold';
 import { PUMMEL_STACK_MS } from './channels/pummelFired';
 import { getDef } from '../fx/fxDefs';
 // Side-effect import (as `fx/defs.test.ts` does): the primitives self-register at load, and WITHOUT them
@@ -82,5 +82,57 @@ describe('pummelReadMs — the real registry', () => {
 
   it('resolves the kind-level binding for an unknown card too (no card layer shadows it)', () => {
     expect(pummelReadMs(null)).toBe(pummelReadMs('k3_goldvein'));
+  });
+});
+
+/**
+ * R-FINAL-CONSEQUENCES-01 (owner 2026-11-17): the final beats' consequences (an Avenge's buffs and summons, a card
+ * landing in hand, a Gold gain) finish before the fight hands back, at every speed; with nothing pending the hold
+ * is unchanged.
+ */
+describe('the final hold waits out pending consequences (R-FINAL-CONSEQUENCES-01)', () => {
+  const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), death('foe')];
+  const last = compileMoments(ev).at(-1);
+  const hold = (speed: number, pending: number) => finalHoldMs(last, ev, cardIds, { ...base, combatSpeed: speed, pendingConsequenceMs: pending });
+
+  it('nothing pending: the hold is exactly what it was, at every speed', () => {
+    for (const speed of [1, 2, 4, 8]) expect(hold(speed, 0)).toBe(900 / speed);
+    expect(finalHoldMs(last, ev, cardIds, { ...base, combatSpeed: 4 })).toBe(225);
+  });
+
+  it('a consequence still running floors the hold at its remaining time (the fastest speed included)', () => {
+    expect(hold(8, 700)).toBe(700); // not 112.5
+    expect(hold(4, 700)).toBe(700); // not 225
+    expect(hold(1, 700)).toBe(900); // the base already covers it: no extra wait
+  });
+
+  it('the ledger: the latest end wins, an elapsed one is 0, clear() empties it', () => {
+    const l = new ConsequenceLedger();
+    expect(l.remainingMs(1000)).toBe(0);
+    l.note(1000, 400); // a stat roll landing at 1400
+    l.note(1000, 250); // a shorter coin burst: does not shorten the wait
+    l.note(1100, 0); // a zero read is ignored
+    expect(l.remainingMs(1000)).toBe(400);
+    expect(l.remainingMs(1300)).toBe(100);
+    expect(l.remainingMs(2000)).toBe(0);
+    l.note(2000, 300);
+    l.clear();
+    expect(l.remainingMs(2000)).toBe(0);
+  });
+
+  it('grows with the pending consequence, never shrinks below the base', () => {
+    const a = hold(4, 300);
+    const b = hold(4, 600);
+    const c = hold(4, 900);
+    expect(a).toBe(300);
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
+    expect(hold(4, 100)).toBe(225);
+  });
+
+  it('defReadMs reads the real registry (the coin burst and landing dust the replay notes)', () => {
+    expect(defReadMs('coins')).toBeGreaterThan(0);
+    expect(defReadMs('landing-dust')).toBeGreaterThan(0);
+    expect(defReadMs('no-such-def')).toBe(0);
   });
 });

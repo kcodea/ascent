@@ -34,6 +34,7 @@ import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RAN
 import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, logEpicFire, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { FERAL_RETURN_GAIN, HELLFIRE_DAMAGE, WILDFIRE_PER_COMBAT, GEM_RAIN_RUBIES } from '../types'; // Set 2 Epic tribal runes (2026-11-12)
+import type { AncientGrantOriginMod } from '../types'; // R-FX-ANCIENT-ORIGIN-01
 import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
@@ -574,6 +575,7 @@ export function simulate(
     const cur = drakkoBonds[side];
     for (const m of boards[side]) {
       if (m.dead || m.health <= 0 || m.cardId !== sb.cardId) continue;
+      buffFromNext = grantFrom(sb.origin, (payload as { minion?: Minion }).minion, m);
       const keptBy = ctx.buff(m, cur.a, cur.h, sb.label).kept; // true = an Engrave (EG or the Transcendant aura) already kept it (R-ENGRAVE-05)
       if (!keptBy) m.permaGain = { attack: (m.permaGain?.attack ?? 0) + cur.a, health: (m.permaGain?.health ?? 0) + cur.h };
     }
@@ -1544,6 +1546,13 @@ export function simulate(
   /** ANCIENT OF BONDS: set while its own +Attack lands, so that grant can never trigger Bonds again. */
   let ancientBondsFiring = false;
   let ancientGildedBondsFiring = false; // Midas × Ancient of Bonds: its own grant never re-triggers it
+  /** R-FX-ANCIENT-ORIGIN-01 (presentation only): the `from` the NEXT `ctx.buff` stamps on its event (claimed and cleared
+   *  there). Set right before an Ancient's grant whose tendril starts at a body rather than the hero-power button. */
+  let buffFromNext: string | undefined;
+  /** The body an Ancient grant visibly starts from, per its mod's `origin`: the minion that set it off, or the recipient
+   *  (a self-buff). Undefined = the hero-power button (no `from`). */
+  const grantFrom = (origin: AncientGrantOriginMod | undefined, trigger: Minion | undefined, recipient: Minion): string | undefined =>
+    origin === 'self' ? recipient.uid : origin === 'trigger' ? trigger?.uid : undefined;
 
   /**
    * "A card was added to your hand" — broadcast to the side's reactors (owner report 2026-08-29). Called from
@@ -1695,7 +1704,10 @@ export function simulate(
       // rather than to the caster's body — which is what lets a spell's authored def replace the stock tendril.
       // `bounce` is spread the same way: only a cross-target re-cast carries it, so every other buff event is
       // byte-identical to before (see the `buff` event's note in types.ts).
-      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}), ...(bounce ? { bounce } : {}) });
+      // `from` (R-FX-ANCIENT-ORIGIN-01): claimed once, by the very next buff, so a reaction nested inside never inherits it.
+      const from = buffFromNext;
+      buffFromNext = undefined;
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}), ...(bounce ? { bounce } : {}), ...(from !== undefined ? { from } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.
@@ -1767,6 +1779,7 @@ export function simulate(
           // (the Hunch × Bonds shape, `ancientSpellEdges` below). Presentation only.
           const casting = ctx.castingSpellId;
           ctx.castingSpellId = undefined;
+          buffFromNext = grantFrom(bonds.origin, target, pick);
           try { ctx.buff(pick, bonds.attack, 0, bonds.label); } finally { ancientBondsFiring = false; ctx.castingSpellId = casting; }
         }
       }
@@ -1778,7 +1791,7 @@ export function simulate(
         const others = boards[target.side].filter((m) => m !== target && !m.dead && m.health > 0 && m.golden);
         if (others.length > 0) {
           ancientGildedBondsFiring = true;
-          try { for (const o of others) ctx.buff(o, gb.attack, gb.health, gb.label); } finally { ancientGildedBondsFiring = false; }
+          try { for (const o of others) { buffFromNext = grantFrom(gb.origin, target, o); ctx.buff(o, gb.attack, gb.health, gb.label); } } finally { ancientGildedBondsFiring = false; }
         }
       }
       // ANCIENT OF BONDS × Xerox (owner 2026-10-02): "The copy and the original are bound. Stats one gains, the other

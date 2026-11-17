@@ -67,6 +67,25 @@ export const PATCH_NOTES: PatchNote[] = [
           "Brackus and Cindy's Ancient of Fortune pairings.",
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Some Ancient of Bonds buffs now start from the minion that set them off.',
+        details: [
+          'Frank: the buff travels from the sold minion.',
+          'Warden: the buff travels from the Ward minion that gained stats.',
+          'Midas: the buff travels from the Gilded minion that gained stats.',
+          'Drakko: each Drakko now shows its own buff effect, with no tendril.',
+          'Albus: still comes from the hero power.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "A fight's last effects now finish before you return to the Shop, at every speed.",
+        details: [
+          'Avenge buffs and summons, cards added to your hand and Gold gains all play out and show their result first.',
+          'Fights with nothing left to show end just as fast as before.',
+        ],
+      },
     ],
   },
   {

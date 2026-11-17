@@ -24,14 +24,14 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
-  STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
+  loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
-  runAverageOf, runWeightedAverageOf, runPercentileOf, runFinalStrengthOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
+  runAverageOf, runWeightedAverageOf, runPercentileOf, runFinalStrengthOf, type RunStrengthHistogramEntry, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
   bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS, type RankMedal,
   earlyLateStrengthOf, rankAmongRuns, runInStrengthBand, matchScoreOf, bandVersionLabel, type RunStrengths,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
-import { SET, trimForReference, roundRobin } from './refBuild';
+import { SET } from './refBuild';
 import { backfillV2, buildReferenceV2, measureV2, validate } from './cliV2';
 
 const SCORES_CACHE = 'packages/tools/.cache/strength-scores.json';

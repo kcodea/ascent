@@ -15790,7 +15790,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'i want to refine how we determine strength of boards. 2. i want to better determine what a player may face. i want to absolutely nail this down so we are crystal clear' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive), on the five proposed bundles', quote: 'oh cool. yes lets do all five' },
       { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/strengthV2.ts rateRunsV2; supabase/migrations/2026-11-23-strength-v2.sql pool_strength_entries / pool_strength_round_pcts / pool_strength_refresh; packages/sim/src/lobby/boardStrength.ts createStrengthProbe (atRound)' },
-      { kind: 'spec', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md section 6.B' },
+      { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md section 6.B' },
     ],
     example: 'A run knocked out on round 8 with a strong board: before, it had no LATE rating and rounds 9-15 were ranked without it. Now its round-8 board is scored against rounds 9 to 15 and counts in each, exactly as a table would meet it.',
     currentBehaviour:
@@ -15839,7 +15839,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive), ruling 1 of the design ("Unscored runs leave Bronze, Silver and Gold lobbies (recommended), or stay inside every band as today?")', quote: 'Approve as recommended' },
       { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/sim/src/lobby/strengthV2.ts runCompleteV2; packages/sim/src/lobby/strengthBands.ts runInStrengthBand; supabase/migrations/2026-11-23-strength-v2.sql (pool_strength_entries, pool_runs__pick, pool_runs_sample); workers/versus/src/core/poolPick.ts pickRuns' },
-      { kind: 'spec', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, "Transition and unscored runs" and ruling 1' },
+      { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, "Transition and unscored runs" and ruling 1' },
     ],
     example: 'A top-strength run uploaded by a build from before the change carries old-version scores. It is unscored, so a Bronze table never seats it; a Diamond table may.',
     currentBehaviour:

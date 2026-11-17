@@ -165,3 +165,14 @@ describe('Big Spender: every Gold-spent count counts each Gold twice (x3 with tw
     expect(countedGoldSpent(s)).toBe(10);
   });
 });
+
+describe('Big Spender pulses once per turn, not on every Gold spent (owner 2026-11-17, R-BIG-SPENDER-PROC-01)', () => {
+  it('several spends in one turn stamp ONE rune proc; a new turn can pulse again', () => {
+    let s = spend(run(1, { runeProcs: {} }), 4); // several Refreshes, several separate spends
+    expect(s.runeProcs?.rune_big_spender).toBe(1);
+    s = spend(s, 3);
+    expect(s.runeProcs?.rune_big_spender, 'more spends the same turn add nothing').toBe(1);
+    const next = spend({ ...s, wave: s.wave + 1, goldSpentThisTurn: 0, goldSpentExtraThisTurn: 0, runeProcs: {} }, 1);
+    expect(next.runeProcs?.rune_big_spender, 'the next turn pulses once again').toBe(1);
+  });
+});

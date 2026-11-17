@@ -86,7 +86,9 @@ function spendGold(s: RunState, amount: number): void {
   // `amount` counted. Only the Gold paid and the real tallies above (economy stats, telemetry) stay real.
   const mult = amount > 0 ? goldCountMult(s) : 1;
   if (mult > 1) {
-    procRuneId(s, 'rune_big_spender');
+    // Owner 2026-11-17: "big spender rune doesnt need to animate on every gold spent. it's distracting and overboard".
+    // The rune pulses ONCE per turn, on the turn's first counted spend, not on every Gold spent.
+    if ((s.goldSpentExtraThisTurn ?? 0) === 0) procRuneId(s, 'rune_big_spender');
     const extra = amount * (mult - 1);
     s.goldSpentExtra = (s.goldSpentExtra ?? 0) + extra;
     s.goldSpentExtraThisTurn = (s.goldSpentExtraThisTurn ?? 0) + extra;

@@ -29,6 +29,51 @@
         "value": "#8a6d1f",
         "createdAt": "2026-09-25T23:16:26.209Z",
         "reason": "User confirmed #8a6d1f is intentional"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "packages/ui/src/compendium.css",
+          "packages/ui/src/hero-select/HeroShowcase.css",
+          "packages/ui/src/hero-select/heroShowcase.css",
+          "packages/ui/src/partyHome/pages/phCompendium.css"
+        ],
+        "createdAt": "2026-11-17T21:58:20.388Z",
+        "reason": "Owner confirmed 2026-11-17: silence these items"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "packages/ui/src/compendium.css",
+          "packages/ui/src/hero-select/HeroShowcase.css",
+          "packages/ui/src/hero-select/heroShowcase.css",
+          "packages/ui/src/partyHome/pages/phCompendium.css"
+        ],
+        "createdAt": "2026-11-17T21:58:20.641Z",
+        "reason": "Owner confirmed 2026-11-17: silence these items"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "packages/ui/src/compendium.css"
+        ],
+        "createdAt": "2026-11-17T21:58:21.037Z",
+        "reason": "Owner confirmed 2026-11-17: silence these items"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "packages/ui/src/compendium.css",
+          "packages/ui/src/hero-select/HeroShowcase.css",
+          "packages/ui/src/hero-select/heroShowcase.css",
+          "packages/ui/src/partyHome/pages/phCompendium.css"
+        ],
+        "createdAt": "2026-11-17T21:59:03.181Z",
+        "reason": "Owner confirmed 2026-11-17: silence these items"
       }
     ]
   }

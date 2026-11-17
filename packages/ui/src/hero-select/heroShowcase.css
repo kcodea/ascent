@@ -110,7 +110,14 @@
 .heroselect.hss .hss-card .phi-pwname { font-size: calc(28 * var(--phu)); }
 .heroselect.hss .hss-card .phi-pwtext { font-size: calc(18 * var(--phu)); }
 .heroselect.hss .hss-card .phi-anc { padding-top: calc(12 * var(--phu)); }
-.heroselect.hss .hss-card .phi-anc .hanc { --hm: calc(40 * var(--phu)); gap: calc(10 * var(--phu)); }
+.heroselect.hss .hss-card .phi-anc .hanc { --hm: calc(44 * var(--phu)); gap: calc(10 * var(--phu)); } /* 40 + 10% (owner 2026-11-17) */
+/* The Ancient on show (hovered) and the chosen one glow in their own ring colour (owner 2026-11-17: "the same glow ...
+   have the glow match the color of the border"). The medallion clips its inside, so the glow is its own outer shadow:
+   a short one-shot fade on a state change, never a loop. */
+.heroselect.hss .hss-card .phi-anc .hanc-med { transition: transform 0.14s ease, opacity 0.14s ease, box-shadow 0.2s ease; }
+.heroselect.hss .hss-card .phi-anc .hanc-med:is(.is-on, [aria-pressed='true']) {
+  box-shadow: 0 0 0 calc(2 * var(--hu)) var(--anc-c, #c8922e), 0 calc(2 * var(--hu)) calc(6 * var(--hu)) rgba(0, 0, 0, 0.55),
+    0 0 calc(26 * var(--phu)) calc(5 * var(--phu)) color-mix(in srgb, var(--anc-c, #c8922e) 55%, transparent); }
 .heroselect.hss .hss-card .phi-anc .hanc-name { font-size: calc(18 * var(--phu)); }
 .heroselect.hss .hss-card .phi-anc .hanc-body { font-size: calc(16 * var(--phu)); line-height: 1.4; }
 /* The arrows sit just outside the card's sides (the Compendium's placement, for this card's width). */

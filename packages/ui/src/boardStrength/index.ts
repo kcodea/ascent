@@ -8,9 +8,11 @@ import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } 
 
 export { createStrengthScorer } from './strengthScorer';
 
-/** The longest the run-end uploads wait for the last board's score. Normally zero: the last board is scored during
- *  its own combat animation. A resumed game may have a few boards to catch up (~30-50 ms of idle-sliced work each). */
-export const STRENGTH_RUN_END_WAIT_MS = 1500;
+/** The longest the run-end uploads (and the end screen's "Calculating Score" lock) wait for the run's scores: its
+ *  boards and, since strength v2 (2026-11-16), its final board's carried rounds, at most 8 x 160 fights. Owner
+ *  2026-11-16: Continue is greyed out while this runs, and the design's safety limit is 5 seconds: after it the run
+ *  goes up with what is ready (an incomplete run is unscored) and Continue unlocks. It must never stay locked. */
+export const STRENGTH_RUN_END_WAIT_MS = 5000;
 
 let scorer: StrengthScorer | null = null;
 
@@ -26,6 +28,9 @@ export function boardStrengthScorer(): StrengthScorer {
       const t = setTimeout(() => fn(), 32);
       return () => clearTimeout(t);
     },
+    // A zero timer, not requestAnimationFrame: it yields to rendering between slices and keeps working (slowly) in a
+    // hidden tab, where rAF stops and the run would otherwise go up unscored.
+    requestRush: (fn) => { const t = setTimeout(fn, 0); return () => clearTimeout(t); },
     setTimer: (fn, ms) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); },
     measure: (label, fn) => perfMonitor.measure(label, fn),
   });

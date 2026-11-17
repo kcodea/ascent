@@ -97,6 +97,12 @@
    The ceremony's clone matches both (heroCeremony.css `.hsc-splash`). */
 .heroselect.hss .hss-card .phi-art { -webkit-mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); mask-image: linear-gradient(90deg, #000 72%, rgb(0 0 0 / 0.96) 76%, rgb(0 0 0 / 0.85) 80%, rgb(0 0 0 / 0.66) 84%, rgb(0 0 0 / 0.42) 88%, rgb(0 0 0 / 0.2) 92%, rgb(0 0 0 / 0.03) 96%, transparent 100%); }
 .heroselect.hss .hss-card .phi-art img { scale: 1.06; transform-origin: 50% 20%; -webkit-mask-image: none; mask-image: none; }
+/* ON A HERO CHANGE (owner 2026-11-17): the art starts 10% bigger than the Compendium's entrance (1.08 -> 1.19) and
+   settles 20% slower (0.5s -> 0.6s); the hero power block rises 30% slower (0.36s -> 0.47s). One-shots, transform only. */
+.heroselect.hss .hss-card .phi-art img { animation: hss-art-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes hss-art-in { from { transform: scale(1.19); } to { transform: none; } }
+.heroselect.hss .hss-card .phi-info > .phi-power { animation-duration: 0.47s; }
+@media (prefers-reduced-motion: reduce) { .heroselect.hss .hss-card .phi-art img { animation: none; } }
 /* The colour wash behind the card: a blur of 40 at 18% opacity, against the Compendium's 72 at 14% (owner 2026-11-17). Static. */
 .heroselect.hss .hss-card .phi-wash { opacity: 0.18; filter: blur(calc(40 * var(--phu))) saturate(1.4); }
 /* No "Up / Down: Ancients" hint in the card's corner here (owner 2026-11-17: "remove this"); the keys still work. */

@@ -100,6 +100,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Learn has a new lesson: Ancients. A two minute game that shows you how an Ancient awakens and how to use it.',
+        details: [
+          'You start mid game as Warden with a board of Dragons and the Ancient meter almost full.',
+          'Refresh twice to awaken it, pick an Ancient, use it, then win the fight.',
+          'When Ancients go live, you will be offered the lesson once on the main menu. It stays in Learn after that.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The last hit of a fight now finishes all of its effects, just like any other hit.',
         details: [
           'Ancients test mode: Flash with Ancient of War now gives its copy when the hit that reaches 400 damage also kills the last enemy. It copies the minion that hit just killed, and no use is spent without a copy.',

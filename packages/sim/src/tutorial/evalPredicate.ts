@@ -64,6 +64,10 @@ export function evalPredicate(pred: TutorialPredicate, ctx: TutorialContext): bo
       return sawEvent(combatEvents, (e) => e.type === 'presented' && e.kind === pred.presented);
     case 'goldSpentToZero':
       return run.embers <= 0;
+    case 'ancientPicked':
+      return !!run.ancientPicked && (pred.id === undefined || run.ancientPicked === pred.id);
+    case 'ancientAwakened':
+      return (run.ancientOffer?.length ?? 0) > 0 || !!run.ancientPicked;
     case 'not':
       return !evalPredicate(pred.of, ctx);
     case 'all':

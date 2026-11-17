@@ -16,6 +16,7 @@
  * print "Resolve" in course copy.
  */
 import type { TutorialCourse, TutorialStep, TutorialTurn, TutorialUiAnchor } from './types';
+import { LEARN_ANCIENTS } from './learnAncients';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 // Round 1 — the fully-coached keystone. Buy → play → hero power → end turn → Rally predict → win confirm.
@@ -931,6 +932,7 @@ export const LEARN_ASCENT: TutorialCourse = {
 /** The course registry, keyed by course id. Grows as more courses (tribe primers, etc.) land. */
 export const TUTORIAL_COURSES: Record<string, TutorialCourse> = {
   'learn-ascent': LEARN_ASCENT,
+  'learn-ancients': LEARN_ANCIENTS, // the short Ancients lesson (2026-11-16)
 };
 
 /** Resolve a course by id, or `null` when unknown. Pure lookup — no side effects. */

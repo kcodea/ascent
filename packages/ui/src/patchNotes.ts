@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
+      },
+      {
+        category: 'Systems',
         text: 'Ancients test mode: fixes to several Ancient powers so each one does what its text says.',
         details: [
           'An Ancient now counts what already happened this turn when you awaken it: a hero power you used, minions you bought, spells you cast, minions you archived and progress toward a reward.',

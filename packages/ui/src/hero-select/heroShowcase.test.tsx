@@ -4,14 +4,33 @@
  * sliding gold glow and a corner re-roll, the shared inspect card for the selected hero with prev / next arrows, and a big
  * Select Hero button. Presentation only: every press is a callback, HeroSelect owns the rules.
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, createRef, type MutableRefObject } from 'react';
-import { HEROES, getHero } from '@game/sim';
+import { HEROES, getHero, practiceHeroChoiceIds } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 import { setPartyHome } from '../partyHome/partyHomeFlag';
 import { rememberAncient } from '../HeroAncients';
 import { setHeroShowcase } from './heroShowcaseFlag';
 import { HeroShowcase, type HeroShowcaseProps } from './HeroShowcase';
+import { HeroSelect } from '../HeroSelect';
+import { useGame } from '../store';
+import { useVersus } from '../versus/versusStore';
+import { useSpectate } from '../versus/spectate';
+import { useOwnHeroPick, setOwnHeroPick } from './ownHeroPick';
+import { sfx } from '../sfx';
+import type { HeroSelectFrame } from '../versus/spectatorView';
+
+// The ceremony's Pixi layer finds no WebGL under jsdom (as in versus/spectateHeroSelect.test.tsx).
+vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
+
+// One switch for the "hero with no art" case: the screen and the ceremony read art through heroPortrait.
+const noArt = { on: false };
+vi.mock('../skins/skins', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../skins/skins')>();
+  return { ...actual, heroPortrait: (...a: Parameters<typeof actual.heroPortrait>) => (noArt.on ? undefined : actual.heroPortrait(...a)) };
+});
 
 const OFFER = ['aster', 'warden', 'soren'] as const;
 
@@ -249,3 +268,223 @@ describe('Hero Select showcase body', () => {
 });
 
 function getHeroIds(): string[] { return HEROES.filter((h) => !h.practiceOnly && !h.duosOnly).map((h) => h.id); }
+
+/**
+ * THE WIRING (HeroSelect renders the showcase body when both switches are on and the offer is not the browse grid). Every
+ * pick rule stays in HeroSelect: tiles and arrows only select, Select Hero runs today's pick path from the card's splash
+ * art, and with the showcase switch off the screen is today's.
+ */
+describe('Hero Select with the showcase body', () => {
+  const versusBefore = useVersus.getState().match;
+  beforeEach(() => {
+    // jsdom has no ResizeObserver; the browse grid measures its rows with one.
+    vi.stubGlobal('ResizeObserver', class { observe(): void {} unobserve(): void {} disconnect(): void {} });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    noArt.on = false;
+    setOwnHeroPick(null);
+    act(() => {
+      useVersus.setState({ match: versusBefore });
+      useSpectate.setState({ matePick: null });
+      useGame.setState({ heroChoices: null, heroReroll: null, rankedEntry: null });
+    });
+  });
+
+  /** The lazy body (and the party home skin) resolve before anything is asserted. */
+  const settle = async (): Promise<void> => {
+    await act(async () => {
+      await import('./HeroShowcase');
+      await import('./HeroSelectPhSkin');
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  };
+  const open = async (o: { showcase?: boolean; mode?: 'ascent' | 'practice' | 'versus'; choices?: string[] } = {}): Promise<HTMLElement> => {
+    act(() => {
+      setPartyHome(true);
+      setHeroShowcase(o.showcase ?? true);
+      useGame.setState({ pendingMode: o.mode ?? 'ascent', heroChoices: o.choices ?? [...OFFER], heroReroll: null, rankedEntry: null, pendingSeed: 4242 });
+    });
+    ui = mount(<HeroSelect />);
+    await settle();
+    return ui.container;
+  };
+  const root = (): Element => document.querySelector('.heroselect')!;
+  const cardName = (): string => document.querySelector('.hss-card .phi-name')?.textContent ?? '';
+  const tiles = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.hss-tile')];
+  const confirm = (): HTMLElement => document.querySelector<HTMLElement>('.hss-confirm')!;
+
+  it("switch off: today's three .herocard.big, no .hss-body", async () => {
+    const el = await open({ showcase: false });
+    expect(el.querySelectorAll('.herocard.big')).toHaveLength(3);
+    expect(el.querySelector('.hss-body')).toBeNull();
+    expect(root().classList.contains('hss')).toBe(false);
+  });
+
+  it('switch on: .hss-body, no .herocard, first tile selected, card shows the first hero', async () => {
+    const el = await open();
+    expect(el.querySelector('.hss-body')).not.toBeNull();
+    expect(el.querySelector('.herocard')).toBeNull();
+    expect(root().classList.contains('hss')).toBe(true);
+    expect([...el.querySelectorAll('.hss-slot')].map((s) => s.classList.contains('on'))).toEqual([true, false, false]);
+    expect(cardName()).toBe(getHero('aster').name);
+    expect(el.querySelector('.hss-glow')!.classList.contains('placed')).toBe(true);
+  });
+
+  it('clicking the second tile shows it on the card and does not start the ceremony', async () => {
+    await open();
+    click(tiles()[1]);
+    expect(cardName()).toBe(getHero('warden').name);
+    expect(document.querySelectorAll('.hss-slot')[1]!.classList.contains('on')).toBe(true);
+    expect(root().classList.contains('hsc-active')).toBe(false);
+    expect(document.querySelector('.hsc-layer')).toBeNull();
+  });
+
+  it('Select Hero starts the ceremony for the selected hero', async () => {
+    await open();
+    click(tiles()[2]);
+    click(confirm());
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    expect(document.querySelector('.hsc-layer')).not.toBeNull();
+    expect(useOwnHeroPick.getState().heroId).toBe('soren');
+  });
+
+  it('Select Hero twice starts one ceremony', async () => {
+    await open();
+    const pulse = vi.spyOn(sfx, 'pulse');
+    click(confirm());
+    click(confirm());
+    expect(document.querySelectorAll('.hsc-layer')).toHaveLength(1);
+    expect(document.querySelectorAll('.hsc-clone')).toHaveLength(1);
+    expect(pulse).toHaveBeenCalledTimes(1); // the second press is blocked ('busy') and silent
+    expect(useOwnHeroPick.getState().heroId).toBe('aster');
+  });
+
+  it('one re-roll: the controls go, the selected slot stays selected, the card shows the new hero', async () => {
+    await open();
+    click(tiles()[1]);
+    const rerolls = [...document.querySelectorAll<HTMLElement>('.hss-reroll')];
+    expect(rerolls).toHaveLength(3);
+    click(rerolls[1]);
+    const now = useGame.getState().heroChoices!;
+    expect(now[1]).not.toBe('warden');
+    expect(now[0]).toBe('aster');
+    expect(document.querySelectorAll('.hss-reroll')).toHaveLength(0);
+    expect([...document.querySelectorAll('.hss-slot')].map((s) => s.classList.contains('on'))).toEqual([false, true, false]);
+    expect(cardName()).toBe(getHero(now[1]!).name);
+    expect(root().classList.contains('hsc-active')).toBe(false);
+  });
+
+  it('Select Hero during the swap picks the re-rolled hero', async () => {
+    await open();
+    click(document.querySelectorAll<HTMLElement>('.hss-reroll')[0]);
+    expect(document.querySelector('.hss-slot.swapping')).not.toBeNull(); // still mid-swap
+    click(confirm());
+    const fresh = useGame.getState().heroChoices![0]!;
+    expect(fresh).not.toBe('aster');
+    expect(useOwnHeroPick.getState().heroId).toBe(fresh);
+  });
+
+  it("Practice (whole roster) still renders today's browse grid with the switch on", async () => {
+    const all = practiceHeroChoiceIds('all');
+    expect(all.length).toBeGreaterThan(6);
+    const el = await open({ mode: 'practice', choices: all });
+    expect(el.querySelector('.hsrow.browse')).not.toBeNull();
+    expect(el.querySelector('.hss-body')).toBeNull();
+    expect(root().classList.contains('hss')).toBe(false);
+  });
+
+  it('watch mode: no Select Hero; a watched pick selects that hero and plays the ceremony', async () => {
+    act(() => { setPartyHome(true); setHeroShowcase(true); useGame.setState({ heroChoices: null }); });
+    const frame = (picked: string | null): HeroSelectFrame => ({ offer: [...OFFER], picked, reroll: null, canReroll: false, mode: 'lobby' });
+    ui = mount(<HeroSelect watch={{ frame: frame(null), fx: false, clock: 'none' }} />);
+    await settle();
+    expect(document.querySelector('.hss-body')).not.toBeNull();
+    expect(document.querySelector('.hss-confirm')).toBeNull();
+    expect(root().classList.contains('hsc-active')).toBe(false);
+    ui.render(<HeroSelect watch={{ frame: frame('warden'), fx: false, clock: 'none' }} />);
+    expect(document.querySelectorAll('.hss-slot')[1]!.classList.contains('on')).toBe(true); // the card shows it first
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); }); // the forced jump commits a frame later
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    expect(document.querySelectorAll('.hss-slot')[1]!.classList.contains('on')).toBe(true);
+    expect(cardName()).toBe(getHero('warden').name);
+    // The forced jump skips the card's entrance, so the splash art is measured at its settled size.
+    expect(root().classList.contains('hss-snap')).toBe(true);
+    expect(document.querySelector('.hsc-clone.hsc-splash')).not.toBeNull();
+  });
+
+  it("Ranked Duos: teammate's hero selected → Select Hero blocked, no ceremony", async () => {
+    act(() => {
+      useVersus.setState({ match: { id: 'rd-1', phase: 'hero_select', group: { raw: { options: { mode: 'ranked_duos' } } } } as never });
+      useSpectate.setState({ matePick: 'warden' });
+    });
+    await open({ mode: 'versus' });
+    expect(document.querySelectorAll('.hss-slot')[1]!.classList.contains('taken')).toBe(true);
+    const deny = vi.spyOn(sfx, 'deny');
+    click(tiles()[1]);
+    expect(confirm().getAttribute('aria-disabled')).toBe('true');
+    expect(confirm().textContent).toBe('Taken by your teammate');
+    click(confirm());
+    expect(deny).toHaveBeenCalledTimes(1);
+    expect(root().classList.contains('hsc-active')).toBe(false);
+    expect(document.querySelector('.hsc-layer')).toBeNull();
+  });
+
+  it('the ceremony clones the splash art, not a hero card', async () => {
+    await open();
+    const src = document.querySelector('.hss-card .phi-art img')!.getAttribute('src');
+    expect(src).toBeTruthy();
+    click(confirm());
+    const clone = document.querySelector('.hsc-clone.hsc-splash');
+    expect(clone).not.toBeNull();
+    expect(document.querySelector('.hsc-clone-card')).toBeNull();
+    expect(clone!.querySelector('img')!.getAttribute('src')).toBe(src);
+  });
+
+  it('a reset mid-ceremony restores the body', async () => {
+    await open();
+    click(confirm());
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); }); // the art box hides a frame after commit
+    const art = document.querySelector<HTMLElement>('.hss-card .phi-art')!;
+    expect(art.style.visibility).toBe('hidden'); // under the clone
+    act(() => { useGame.setState({ heroChoices: ['indy', 'warden', 'soren'] }); });
+    expect(document.querySelector('.hsc-layer')).toBeNull();
+    expect(root().classList.contains('hsc-active')).toBe(false);
+    expect(document.querySelector<HTMLElement>('.hss-card .phi-art')!.style.visibility).toBe('');
+    expect(tiles()).toHaveLength(3);
+  });
+
+  it('a hero with no art still starts the ceremony', async () => {
+    noArt.on = true;
+    await open();
+    click(confirm());
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    const clone = document.querySelector('.hsc-clone.hsc-splash');
+    expect(clone).not.toBeNull();
+    expect(clone!.querySelector('img')).toBeNull();
+  });
+
+  it('switch off: the ceremony still clones .herocard.big', async () => {
+    await open({ showcase: false });
+    click(document.querySelector('.herocard.big'));
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    expect(document.querySelector('.hsc-splash')).toBeNull();
+    const card = document.querySelector('.hsc-clone > .hsc-clone-card');
+    expect(card).not.toBeNull();
+    expect(card!.classList.contains('herocard')).toBe(true);
+    expect(card!.classList.contains('big')).toBe(true);
+  });
+
+  it('while the ceremony runs the card stage, Select Hero and the glow leave', () => {
+    const src = './HeroShowcase.tsx';
+    const file = './heroShowcase.css'; // a variable, so Vite does not rewrite the URL into a served asset
+    const css = readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8');
+    expect(css).toContain('.heroselect.hss.hsc-active :is(.hss-stage, .hss-confirm) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }');
+    expect(css).toContain('.heroselect.hss.hsc-active .hss-glow { opacity: 0; }');
+    // The glow is shown by a class, never an inline opacity (which the rule above could not beat), and the class rule comes first.
+    expect(css.indexOf('.heroselect.hss .hss-glow.placed { opacity: 1; }')).toBeGreaterThan(-1);
+    expect(css.indexOf('.heroselect.hss .hss-glow.placed')).toBeLessThan(css.indexOf('.heroselect.hss.hsc-active .hss-glow'));
+    expect(readFileSync(fileURLToPath(new URL(src, import.meta.url)), 'utf8')).not.toMatch(/glow.style.opacity/);
+  });
+});

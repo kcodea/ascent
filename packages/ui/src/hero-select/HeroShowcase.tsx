@@ -62,11 +62,12 @@ function useTileGlow(rowRef: RefObject<HTMLDivElement>, glowRef: RefObject<HTMLE
     const glow = glowRef.current;
     const slot = slotEls.current[selected];
     if (!glow) return;
-    if (!slot) { glow.style.opacity = '0'; return; }
+    // Shown by class, not an inline opacity, so the ceremony's stylesheet rule can still hide it (heroShowcase.css).
+    if (!slot) { glow.classList.remove('placed'); return; }
     glow.classList.toggle('glide', glide);
     glow.style.transform = `translateX(${slot.offsetLeft}px)`;
     glow.style.width = `${slot.offsetWidth}px`;
-    glow.style.opacity = '1';
+    glow.classList.add('placed');
   }, [glowRef, slotEls, selected]);
 
   useLayoutEffect(() => {

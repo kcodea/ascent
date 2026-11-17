@@ -26,6 +26,7 @@ import { setOwnHeroPick } from './hero-select/ownHeroPick';
 import { leaveTeammateHero, useSpectate } from './versus/spectate';
 import { isRankedDuosRaw } from './versus/rankedDuosView';
 import { partyHomeOn, usePartyHome } from './partyHome/partyHomeFlag';
+import { heroShowcaseOn, useHeroShowcase } from './hero-select/heroShowcaseFlag';
 import { heroSelectEyebrow } from './hero-select/heroSelectEyebrow';
 import { HeroPowerLine } from './hero-select/HeroPowerLine';
 import { ArmorMedal, HealthMedal } from './menuIcons';
@@ -36,6 +37,13 @@ import { mdBold } from './Card';
 const loadPhSkin = () => import('./hero-select/HeroSelectPhSkin');
 const HeroSelectPhSkin = lazy(loadPhSkin);
 if (partyHomeOn()) void loadPhSkin();
+
+/** THE SHOWCASE BODY (hero-select/HeroShowcase.tsx; DEV switch "Hero Select: showcase layout", owner 2026-11-16): tiles,
+ *  the Compendium's hero card and a Select Hero button in place of the three banners. Lazy like the skin, so the switch-off
+ *  path loads nothing new. */
+const loadShowcase = () => import('./hero-select/HeroShowcase').then((m) => ({ default: m.HeroShowcase }));
+const HeroShowcase = lazy(loadShowcase);
+if (heroShowcaseOn() && partyHomeOn()) void loadShowcase();
 
 /**
  * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos
@@ -119,6 +127,28 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const swapping = heroReroll && heroReroll !== animatedReroll && (watch || armedSlot === heroReroll.slot) ? heroReroll : null;
   // The choice cards, by index — the ceremony snapshots + animates them but never owns their DOM.
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // THE SHOWCASE BODY (DEV switch, off by default): it needs the party home's tokens, and the Practice / Gauntlet browse
+  // grid (more than six offered, `browse` below) keeps today's cards. Derived up here so the hooks below stay ABOVE the
+  // `!choices` early return.
+  const showcase = useHeroShowcase() && ph && !!choices && choices.length <= 6;
+  // The selected offer (an index, so a re-roll of the selected slot keeps it selected). A new offer (mount, or more than
+  // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
+  // card never paints a frame of the old selection.
+  const [selected, setSelected] = useState(0);
+  const [offerSeen, setOfferSeen] = useState(choices);
+  if (offerSeen !== choices) {
+    setOfferSeen(choices);
+    const moved = !offerSeen || !choices || offerSeen.length !== choices.length
+      ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;
+    if (moved > 1) setSelected(0);
+  }
+  // A FORCED jump (the Versus clock's pick, a watched pick) shows its hero on the card without the card's entrance
+  // (`phi-in` scales it for 0.22 s), so the splash art is measured at its settled size (root class `hss-snap`). A
+  // player's own selection clears it, and the card re-keys with its entrance as usual.
+  const [snapJump, setSnapJump] = useState(false);
+  // The ceremony's showcase source: the card's splash art box, and the tile slots that leave at the dismiss beat.
+  const splashArtRef = useRef<HTMLDivElement>(null);
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   // HeroSelect renders null (but stays MOUNTED) once pickHero clears heroChoices — so the machine must be
   // reset whenever a new offer arrives, or a finished `launching` state would eat every click next run.
   useEffect(() => { dispatch({ type: 'reset' }); }, [choices]);
@@ -189,26 +219,42 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
   }, [choices]);
 
+  // THE SHOWCASE's forced jump: select the hero first, then read the splash art a frame later (the card shows that hero
+  // by then) and commit. Returns the effect cleanup, which drops the pending frame if the effect re-runs first.
+  const jumpThenSelect = (heroId: string, index: number, before?: () => void): (() => void) => {
+    setSelected(index);
+    setSnapJump(true);
+    const raf = requestAnimationFrame(() => {
+      const art = splashArtRef.current;
+      if (!art || !ceremonyAcceptsClicks(ceremonyRef.current)) return;
+      before?.();
+      dispatch({ type: 'select', heroId, rect: snapshotRect(rectToStage(art.getBoundingClientRect())), index, now: performance.now() });
+    });
+    return () => cancelAnimationFrame(raf);
+  };
   // VERSUS: the 20 s ran out before a pick, so the server chose (ruling 2). Play the ordinary ceremony for its hero.
   const timeoutHero = useVersusTimeoutHero();
   useEffect(() => {
     if (watch || mode !== 'versus' || !timeoutHero || !choices || !ceremonyAcceptsClicks(ceremony)) return;
     const index = choices.indexOf(timeoutHero);
+    // (Inside the frame: marking the pick shown clears `timeoutHero`, which re-runs this effect and would drop it.)
+    if (showcase) return index < 0 ? undefined : jumpThenSelect(timeoutHero, index, () => { markVersusPickShown(); leaveTeammateHero(); });
     const card = cardRefs.current[index];
     if (index < 0 || !card) return;
     markVersusPickShown();
     leaveTeammateHero(); // Duos: the clock picked for me while I looked at my teammate's choices; my own pick shows
     dispatch({ type: 'select', heroId: timeoutHero, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
-  }, [watch, mode, timeoutHero, choices, ceremony]);
+  }, [watch, mode, timeoutHero, choices, ceremony, showcase]);
   // A WATCHED pick: the watched player chose (or their clock did), so their ceremony plays here too, read only.
   const watchedPick = watch?.frame.picked ?? null;
   useEffect(() => {
     if (!watchedPick || !choices || !ceremonyAcceptsClicks(ceremony)) return;
     const index = choices.indexOf(watchedPick);
+    if (showcase) return index < 0 ? undefined : jumpThenSelect(watchedPick, index);
     const card = cardRefs.current[index];
     if (index < 0 || !card) return;
     dispatch({ type: 'select', heroId: watchedPick, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
-  }, [watchedPick, choices, ceremony]);
+  }, [watchedPick, choices, ceremony, showcase]);
 
   // THE SWAP: the old portrait dissolves out (`dyingfade`, the combat death fade) while the new one coalesces in
   // (`summonpop`) under the Refresh crystal's one-shot shine (`rfb-shine`). All CSS, transform/opacity only: the Pixi
@@ -238,7 +284,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const active = ceremonyActive(ceremony);
   // Ceremony click handler (both card variants): pulse + commit. sfx.heroSelect moved to the voice beat,
   // pickHero to the launch curtain (§2). Geometry is read HERE, once, at commit time (§8).
-  const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => {
+  // `el` is the ceremony's source: the clicked card, or (the showcase body) the inspect card's splash art.
+  const commitPick = (id: string, index: number, el: HTMLElement): void => {
     if (watch || !ceremonyAcceptsClicks(ceremony)) return; // a watched screen picks nothing // repeats during the ceremony are ignored (§16)
     if (mode === 'versus' && versusRerollPending) return; // the slot may be about to change under the click
     if (mateTaken && id === mateTaken) { sfx.deny(); return; } // Ranked Duos: my teammate's hero
@@ -247,10 +294,26 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     dispatch({
       type: 'select',
       heroId: id,
-      rect: snapshotRect(rectToStage(e.currentTarget.getBoundingClientRect())), // the ceremony runs in STAGE px (stage.ts)
+      rect: snapshotRect(rectToStage(el.getBoundingClientRect())), // the ceremony runs in STAGE px (stage.ts)
       index,
       now: performance.now(),
     });
+  };
+  const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => commitPick(id, index, e.currentTarget);
+  // THE SHOWCASE BODY's Select Hero: blocked (aria-disabled, so the press still lands) by today's own guards, in their order.
+  const sel = Math.min(selected, choices.length - 1);
+  const showcaseBlocked = !ceremonyAcceptsClicks(ceremony) ? 'busy' as const
+    : mode === 'versus' && versusRerollPending ? 'pending' as const
+      : mateTaken && choices[sel] === mateTaken ? 'mate' as const : null;
+  const onShowcaseSelect = (index: number): void => {
+    sfx.pulse();
+    if (index === selected) return;
+    setSnapJump(false);
+    setSelected(index);
+  };
+  const onShowcaseConfirm = (): void => {
+    const art = splashArtRef.current;
+    if (art) commitPick(choices[sel]!, sel, art);
   };
   // THE RE-ROLL control (R-HERO-REROLL-01): one press, any slot; every control then disappears.
   const canReroll = !active && !browse && (watch ? watch.frame.canReroll : mode === 'versus' ? versusCanReroll : soloCanReroll);
@@ -267,7 +330,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     : undefined;
 
   return (
-    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
+    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
@@ -310,7 +373,28 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
         {rift && <RiftPill rift={rift} variant="hero" />}
         {/* Naming yourself now lives on the home screen (the account chip). Both modes use the SAME big card;
             Practice (every hero) adds `browse` — four across, two rows visible, scroll for the rest. */}
-        <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>
+        {/* THE SHOWCASE BODY (DEV switch): tiles only select; Select Hero runs `commitPick` from the card's splash art. */}
+        {showcase ? (
+          <Suspense fallback={null}>
+            <HeroShowcase
+              choices={choices}
+              selected={sel}
+              onSelect={onShowcaseSelect}
+              onConfirm={onShowcaseConfirm}
+              onDenied={() => { if (showcaseBlocked === 'mate') sfx.deny(); }} // 'pending' / 'busy' stay silent, as the card's guards do
+              blocked={showcaseBlocked}
+              canReroll={canReroll}
+              onReroll={(slot) => onReroll(slot)()}
+              swapping={swapping}
+              mateTaken={mateTaken}
+              watching={!!watch}
+              showDifficulty={showDifficulty}
+              loadout={loadout}
+              artRef={splashArtRef}
+              slotEls={slotRefs}
+            />
+          </Suspense>
+        ) : <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>
           {shown.map((id, i) => {
             const hero = getHero(id);
             const power = hero.power;
@@ -429,12 +513,12 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
               );
             }
           })}
-        </div>
+        </div>}
       </div>
       {/* The ceremony overlay mounts on commit and lives until pickHero (fired by the launch curtain)
           clears heroChoices — this component then renders null and the ceremony's cleanup aborts every
-          timer/animation it owns. */}
-      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} />}
+          timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out. */}
+      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : {})} />}
     </div>
   );
 }

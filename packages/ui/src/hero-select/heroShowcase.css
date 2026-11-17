@@ -120,3 +120,12 @@
   .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm):is(:hover, :active) { transform: none; }
   .heroselect.hss .hss-glow.glide { transition: none; }
 }
+
+/* ── THE CEREMONY (HeroSelect hands the ceremony the card's splash art; HeroSelectCeremony `splash`) ── The splash art is
+   cloned and hidden; the tiles leave along their exit vectors; the card's stage (plate, info, arrows) and Select Hero fade
+   with the header, and the glow goes with its tile. A FORCED jump (the Versus clock's pick, a watched pick) shows the card
+   without its entrance, so the art is measured at its settled size (`hss-snap`, HeroSelect). */
+.heroselect.hss .hss-glow.placed { opacity: 1; } /* placed by HeroShowcase's useTileGlow; before the ceremony's rule below */
+.heroselect.hss.hsc-active :is(.hss-stage, .hss-confirm) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }
+.heroselect.hss.hsc-active .hss-glow { opacity: 0; }
+.heroselect.hss.hss-snap .hss-card { animation: none; }

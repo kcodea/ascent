@@ -3476,6 +3476,11 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   state.discoverSetStats = parsed.discoverSetStats;
   state.discoverIntoShopUid = parsed.discoverIntoShopUid;
   state.discoverDuos = parsed.discoverDuos;
+  // The HERO-POWER Discover leaks the same way (R-ANCSYS-02): `createRun('mimic')` seeds the turn-1 `powerOffer`, the
+  // pick clears it, the save omits the key, and the merge put the offer back, so a resumed Mimic could pick a second
+  // power the same turn. Force the saved values (absent = cleared), like the Discover family above.
+  state.powerOffer = parsed.powerOffer;
+  state.pendingPowerOffer = parsed.pendingPowerOffer;
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (parsed.pendingSpellDiscovers && parsed.pendingSpellDiscovers > 0) {

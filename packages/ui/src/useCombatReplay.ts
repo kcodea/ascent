@@ -59,7 +59,7 @@ import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingDefIds, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
-import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
+import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_DRAKKO_SHOUT_FLAG, ANCIENT_EW_AVENGE_FLAG, ANCIENT_GORUN_GIFT_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits, anchorsFromRectToUnit } from './fx/combatAnchors';
 import { startTravelledWards, launchWardsGiven } from './fx/wardGivenLaunch';
 import { startExecutesGiven } from './fx/executeGivenLaunch';
@@ -4022,6 +4022,9 @@ export function useCombatReplay(
       freeRefreshes: 0,
       rallyFires: 0,
       swapCharges: 0,
+      shoutFires: 0,
+      ewAvengeFired: 0,
+      attackGifts: 0,
     };
     // Friendly damage landed so far (Albus × War's hero Pummel readout): a `dmg` whose dealer is a player body. The
     // player's bodies are the starting board plus every player-side summon replayed so far.
@@ -4037,6 +4040,9 @@ export function useCombatReplay(
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_REFRESH_AVENGE_FLAG) d.freeRefreshes += 1;
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_RALLY_GOLD_FLAG) d.rallyFires += 1;
         else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_SWAP_CHARGE_FLAG) d.swapCharges += 1;
+        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_DRAKKO_SHOUT_FLAG) d.shoutFires += 1;
+        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_EW_AVENGE_FLAG) d.ewAvengeFired += 1;
+        else if (e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_GORUN_GIFT_FLAG) d.attackGifts += 1;
         else if (e.type === 'death' && e.side === 'player' && !e.rise) d.friendlyDeaths += 1;
       }
     }

@@ -3,7 +3,7 @@ import { ROYAL_TREASURY_PER } from '@game/core'; // Set 2 Epic tribal runes (202
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientOnDiscoverAny, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyChargeReady, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
-import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate } from './ancients'; // the 2026-11-10 batch B
+import { ancientGreatPresenceSpec, ancientAfterGreatPresence, ancientDiscoverPicksAgain, ancientReopenDiscover, ancientGiftAdjacent, ancientPocketMagicDiscovers, ancientAfterPocketMagic, ancientUnitedFrontAtEot, ancientTierPrice, ancientSyncVanguard, ancientVanguardActivate, ancientSyncPower, ancientOnEffectRefresh } from './ancients'; // the 2026-11-10 batch B
 import { ancientSwapFree, ancientSwapCharges, ancientSpendSwapCharge, ancientBeforeSwap, ancientAfterSwap } from './ancients'; // Darah
 import { ancientAfterGoldspring, ancientOnSpendGold } from './ancients'; // Nadja
 import { ancientGildedPlayExtraRewards, ancientNoteHandSpellCast, ancientOnTripleRewardOpen } from './ancients'; // ancient pass 2: Membrance / Hunch / Keshi
@@ -1225,6 +1225,7 @@ function settleAction(state: RunState, action: Action, next: RunState): RunState
     ancientSyncPass1(next); // ANCIENT PASS 1: Drakko / Brackus all types (+ Brackus' Rally graft), Disco Dan's next-turn lock
     syncUnity(next); // RUNE OF UNITY: the board's full house, re-read after every action
     ancientSyncEchoEnchants(next); // AYSE × ANCIENT OF DEATH: every Echo offer in the Shop is Enchanted, whatever put it there
+    ancientSyncPower(next); // ANCIENTS: a power that took slot 0 after the pick gets its pairing's shape + starting stamps (R-ANCSYS-01)
     ancientSyncVanguard(next); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard is a button from Shop tier 6, whatever raised the tier
     ancientOnCardsGained(next, state); // UNDERDWELLER × ANCIENT OF BONDS: a copy of a minion you control arrived in hand
     duosLinkSync(next); // CINDY × ANCIENT OF BONDS: a Linked card's gain goes to its twin's run; a twin that left ends it
@@ -4116,6 +4117,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           stampNewShopOffers(s, s.shop, { onRefresh: true, cia: true }); // plain bodies, but shop offers all the same
         });
         applyShopRefreshed(s);
+        ancientOnEffectRefresh(s); // "Refresh the Shop with ...": a Refresh for the meter + the Refresh pairings (R-ANCSYS-03)
       } else if (power.kind === 'mimic') {
         // ANCIENT OF GENESIS × Mimic: Mimicry is pressed (once per turn) and offers 4 powers; the pick is wielded for
         // the rest of the turn, as a native pick is. Natively Mimicry is passive and never activatable.
@@ -4318,6 +4320,9 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
         swapPowerLatch(s, 1, undefined, heroId);
         seedAdoptedPower(s, heroId);
       }
+      // ANCIENTS: the new slot-0 power's pairing arrives in full (cost, uses, passive, starting stamps), before the
+      // triple check below reads its Gild threshold (R-ANCSYS-01).
+      ancientSyncPower(s);
       // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
       // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
       // play / discover do (owner report 2026-09-10: a held pair sat uncombined after adopting Midas). Before
@@ -5347,7 +5352,7 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
-    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // Ancients ride the PLAYER's fight only (never a snapshot)
+    questMods: { ...questCombatMods(s), ...ancientCombatMods(s) }, // the hero's Ancient mods too (they ride the snapshot this fight is captured into, R-SYMMETRY-01)
     pendingQuests: buildPendingCombatQuests(s),
   });
 }

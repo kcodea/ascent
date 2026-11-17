@@ -96,7 +96,7 @@ describe('Gorun × DEATH cap (ancient pass 2, owner 2026-11-16): "twice per turn
   it('COMBAT: four friendly deaths, only two gifts; the text counts down', () => {
     const s0 = picked('death', { board: [...four(), keep()] });
     expect(heroPowerText(s0)).toContain('Twice per turn (**2** left this turn).');
-    expect(ancientCombatMods(s0).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 2 });
+    expect(ancientCombatMods(s0).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 2, flag: 'ancientGorunGift' });
     const s = fightNow(s0, [{ cardId: 'sandbag', attack: 5, health: 4000 }]);
     expect(events(s).filter((e) => e.type === 'death' && e.side === 'player').length).toBeGreaterThanOrEqual(4);
     expect(buffsFrom(events(s), 'Ancient of Death').length).toBe(2);
@@ -122,7 +122,7 @@ describe('Gorun × DEATH cap (ancient pass 2, owner 2026-11-16): "twice per turn
   it('the Shop share carries into the fight: one Shop gift leaves one for combat', () => {
     const s = structuredClone(picked('death', { board: [...four(), keep()] }));
     recruitMod.destroyMinionInShop(recruitMod.makeContext(s), s.board[0]!);
-    expect(ancientCombatMods(s).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 1 });
+    expect(ancientCombatMods(s).ancientDeathGivesAttack).toEqual({ label: 'Ancient of Death', left: 1, flag: 'ancientGorunGift' });
     const f = fightNow(s, [{ cardId: 'sandbag', attack: 5, health: 4000 }]);
     expect(buffsFrom(events(f), 'Ancient of Death').length).toBe(1);
   });

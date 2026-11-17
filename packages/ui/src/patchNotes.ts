@@ -60,6 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New art for 113 Set 2 minions and 23 rune reward cards.',
+      },
+      {
+        category: 'Systems',
         text: "The Compendium's large hero view has a clearer look and a livelier hero power.",
         details: [
           'The hero art is slightly larger and fades more smoothly into the panel.',

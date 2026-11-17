@@ -440,6 +440,19 @@ describe('Hero Select with the showcase body', () => {
     expect(cardName()).toBe(getHero(next[0]!).name);
   });
 
+  it('after a pick clears the offer, the next offer (even the same three heroes) starts on the first hero', async () => {
+    await open();
+    const onIdx = (): number => [...document.querySelectorAll('.hss-slot')].findIndex((s) => s.classList.contains('on'));
+    click(tiles()[2]);
+    expect(onIdx()).toBe(2);
+    act(() => { useGame.setState({ heroChoices: null }); }); // the pick: HeroSelect renders null but stays mounted
+    act(() => { useGame.setState({ heroChoices: [...OFFER] }); }); // the next run's offer, identical on the same seed
+    await settle();
+    expect(onIdx()).toBe(0);
+    expect(cardName()).toBe(getHero('aster').name);
+    expect(root().classList.contains('hss-snap')).toBe(false);
+  });
+
   it('Versus: the clock ran out and the server chose → the forced jump selects that hero and plays its ceremony once', async () => {
     setIdentity({ userId: 'me', displayName: 'Me', anonymous: true, email: null });
     try {

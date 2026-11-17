@@ -130,7 +130,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // THE SHOWCASE BODY (DEV switch, off by default): it needs the party home's tokens, and the Practice / Gauntlet browse
   // grid (more than six offered, `browse` below) keeps today's cards. Derived up here so the hooks below stay ABOVE the
   // `!choices` early return.
-  const showcase = useHeroShowcase() && ph && !!choices && choices.length <= 6;
+  // `showcaseOn` is the switch alone (no offer needed): the selection tracking below must also see the offer go null at a pick.
+  const showcaseOn = useHeroShowcase() && ph;
+  const showcase = showcaseOn && !!choices && choices.length <= 6;
   // The selected offer (an index, so a re-roll of the selected slot keeps it selected). A new offer (mount, or more than
   // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
   // card never paints a frame of the old selection.
@@ -140,9 +142,11 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // player's own selection clears it, and the card re-keys with its entrance as usual.
   const [snapJump, setSnapJump] = useState(false);
   const [offerSeen, setOfferSeen] = useState(choices);
-  // Only with the showcase on (switch off, nothing reads the selection: no extra re-render per offer). Turned on after the
-  // offer moved, the stale `offerSeen` is compared like any other change (a new offer starts on the first hero).
-  if (showcase && offerSeen !== choices) {
+  // Only with the showcase switch on (switch off, nothing reads the selection: no extra re-render per offer). Keyed on the
+  // switch, not `showcase`, so the offer going null at a pick is SEEN: null on either side counts as a whole new offer, and
+  // the next offer (even the same three heroes) starts on the first hero. Turned on after the offer moved, the stale
+  // `offerSeen` is compared like any other change.
+  if (showcaseOn && offerSeen !== choices) {
     setOfferSeen(choices);
     const moved = !offerSeen || !choices || offerSeen.length !== choices.length
       ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;

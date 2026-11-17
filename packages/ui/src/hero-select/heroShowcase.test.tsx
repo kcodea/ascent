@@ -521,11 +521,12 @@ describe('Hero Select with the showcase body', () => {
     expect(useOwnHeroPick.getState().heroId).toBe(fresh);
   });
 
-  it("Practice (whole roster) still renders today's browse grid with the switch on", async () => {
+  it('Practice (whole roster) renders the roster grid, not the three-hero body, with the switch on', async () => {
     const all = practiceHeroChoiceIds('all');
     expect(all.length).toBeGreaterThan(6);
     const el = await open({ mode: 'practice', choices: all });
-    expect(el.querySelector('.hsrow.browse')).not.toBeNull();
+    await act(async () => { await import('./HeroBrowseWindow'); await new Promise((r) => setTimeout(r, 0)); });
+    expect(el.querySelector('.hsb-grid')).not.toBeNull(); // heroBrowseSelect.test.tsx covers it
     expect(el.querySelector('.hss-body')).toBeNull();
     expect(root().classList.contains('hss')).toBe(false);
   });

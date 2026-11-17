@@ -45,6 +45,13 @@ const loadShowcase = () => import('./hero-select/HeroShowcase').then((m) => ({ d
 const HeroShowcase = lazy(loadShowcase);
 if (heroShowcaseOn() && partyHomeOn()) void loadShowcase();
 
+/** THE "ALL HEROES" WINDOW (hero-select/HeroBrowseWindow.tsx, owner 2026-11-17): on the whole-roster grid, with the showcase
+ *  switch on, a card click opens the showcase's card in a window instead of picking. Lazy for the same reason. */
+const loadBrowseWindow = () => import('./hero-select/HeroBrowseWindow');
+const HeroBrowseWindow = lazy(loadBrowseWindow);
+const HeroBrowseGrid = lazy(() => loadBrowseWindow().then((m) => ({ default: m.HeroBrowseGrid })));
+if (heroShowcaseOn() && partyHomeOn()) void loadBrowseWindow();
+
 /**
  * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos
  * teammate's choices, R-DUOS-HEROSELECT-01): the SAME screen drawn from another player's frame, read only. Their three
@@ -133,6 +140,15 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // `showcaseOn` is the switch alone (no offer needed): the selection tracking below must also see the offer go null at a pick.
   const showcaseOn = useHeroShowcase() && ph;
   const showcase = showcaseOn && !!choices && choices.length <= 6;
+  // THE WHOLE-ROSTER GRID with the switch on (Practice "All heroes", Gauntlet): the grid stays, and a card click opens the
+  // showcase's card in a window (HeroBrowseWindow) instead of picking. `openIndex` is the hero on show, an index into the
+  // grid's alphabetical list (`shown`); null = closed. Never on a watched screen (nobody spectates these modes).
+  const browseShowcase = showcaseOn && !!choices && choices.length > 6 && !watch;
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const openNow = browseShowcase ? openIndex : null;
+  // The tile lit in the grid: the hero on show, and still that hero after the window closes (where the player was).
+  const [litIndex, setLitIndex] = useState<number | null>(null);
+  if (openNow !== null && litIndex !== openNow) setLitIndex(openNow);
   // The selected offer (an index, so a re-roll of the selected slot keeps it selected). A new offer (mount, or more than
   // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
   // card never paints a frame of the old selection.
@@ -148,6 +164,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // `offerSeen` is compared like any other change.
   if (showcaseOn && offerSeen !== choices) {
     setOfferSeen(choices);
+    setOpenIndex(null); // the "All heroes" window belongs to the offer it was opened on
+    setLitIndex(null);
     const moved = !offerSeen || !choices || offerSeen.length !== choices.length
       ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;
     // (A new offer also drops a forced jump's `hss-snap`: it belongs to that jump, not to the offer after it.)
@@ -225,6 +243,21 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     ro.observe(row);
     return () => { ro.disconnect(); if (raf) cancelAnimationFrame(raf); };
   }, [choices]);
+  // THE "ALL HEROES" WINDOW IS UP: the grid behind it takes no pointer, no keys and no Tab (`inert`). When it closes, focus
+  // returns to the card of the hero last shown, and the grid scrolls that card into view only if it is outside the visible
+  // rows (`block: 'nearest'`), so the player sees where they were. Not after a pick: the offer is gone by then.
+  const lastOpenRef = useRef<number | null>(null);
+  useEffect(() => {
+    const row = rowRef.current;
+    if (row) row.toggleAttribute('inert', openNow !== null);
+    const last = lastOpenRef.current;
+    lastOpenRef.current = openNow;
+    if (openNow !== null || last === null) return;
+    const card = slotRefs.current[last]?.querySelector<HTMLElement>('.hss-tile');
+    if (!card || !card.isConnected) return;
+    card.focus({ preventScroll: true });
+    if (typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' });
+  }, [openNow]);
 
   // THE SHOWCASE's forced jump: select the hero first, then read the splash art a frame later (the card shows that hero
   // by then) and commit. Returns the effect cleanup, which drops the pending frame if the effect re-runs first.
@@ -316,6 +349,19 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     });
   };
   const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => commitPick(id, index, e.currentTarget);
+  // THE "ALL HEROES" WINDOW: a grid card opens it (a select, like a showcase tile: it never picks); the X, the scrim and
+  // Escape close it. Dead while the ceremony runs: it has cloned and hidden the window card's splash art.
+  const onOpenCard = (index: number) => (): void => {
+    if (active) return;
+    sfx.pulse();
+    setOpenIndex(index);
+  };
+  const closeWindow = (): void => { if (!active) setOpenIndex(null); };
+  // Its Select Hero: today's pick path, from the window card's splash art (the showcase's source). `shown` is the grid's order.
+  const onBrowseConfirm = (): void => {
+    const art = splashArtRef.current;
+    if (art && openNow !== null) commitPick(shown[openNow]!, openNow, art);
+  };
   // THE SHOWCASE BODY's Select Hero: blocked (aria-disabled, so the press still lands) by today's own guards, in their order.
   const sel = Math.min(selected, choices.length - 1);
   const showcaseBlocked = !ceremonyAcceptsClicks(ceremony) ? 'busy' as const
@@ -348,7 +394,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     : undefined;
 
   return (
-    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
+    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}${ph ? ' phhs ph-tokens' : ''}${showcase ? ` hss${snapJump ? ' hss-snap' : ''}` : ''}${browseShowcase ? ` hsb${openNow !== null ? ' hsb-open' : ''}` : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {ph && HeroSelectPhSkin && <Suspense fallback={null}><HeroSelectPhSkin /></Suspense>}
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
@@ -411,6 +457,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
               artRef={splashArtRef}
               slotEls={slotRefs}
             />
+          </Suspense>
+        ) : browseShowcase ? (
+          <Suspense fallback={null}>
+            <HeroBrowseGrid heroes={shown} lit={litIndex} onOpen={(i) => onOpenCard(i)()} disabled={active} loadout={loadout} gridRef={rowRef} slotEls={slotRefs} />
           </Suspense>
         ) : <div ref={rowRef} className={`hsrow${browse ? ' browse' : ''}`}>
           {shown.map((id, i) => {
@@ -533,10 +583,26 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
           })}
         </div>}
       </div>
+      {openNow !== null && (
+        <Suspense fallback={null}>
+          <HeroBrowseWindow
+            heroes={shown}
+            index={openNow}
+            onStep={(i) => { if (!active) setOpenIndex(i); }}
+            onClose={closeWindow}
+            onConfirm={onBrowseConfirm}
+            busy={active}
+            showDifficulty={showDifficulty}
+            loadout={loadout}
+            artRef={splashArtRef}
+          />
+        </Suspense>
+      )}
       {/* The ceremony overlay mounts on commit and lives until pickHero (fired by the launch curtain)
           clears heroChoices — this component then renders null and the ceremony's cleanup aborts every
-          timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out. */}
-      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : {})} />}
+          timer/animation it owns. The showcase body hands it the splash art to grow from and the tiles to send out; the
+          "All heroes" window hands it its card's splash art and the grid's cards (every one leaves: none is the source). */}
+      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} {...(showcase ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : openNow !== null ? { splash: { artEl: splashArtRef, exitEls: slotRefs } } : {})} />}
     </div>
   );
 }

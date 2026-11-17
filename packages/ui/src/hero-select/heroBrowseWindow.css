@@ -1,0 +1,68 @@
+/* ── THE "ALL HEROES" GRID AND WINDOW (HeroBrowseWindow.tsx; owner 2026-11-17; live with the showcase layout) ──
+   The roster is a grid of the showcase's tiles. A tile click opens the showcase's inspect card and Select Hero button over it, on a
+   dark scrim, with an X on the card's top-right corner. Root classes: `.heroselect.hsb` on the whole-roster screen with
+   the switch on, `.hsb-open` while the window is up. The card, arrows and button take their paint from heroShowcase.css
+   (its rules are written `.heroselect:is(.hss, .hsb)`); only the window's own pieces are here, and every rule starts
+   `.heroselect.hsb`, so nothing else moves.
+
+   FIT: the panel is a fixed-height column (the card's stage, then the button) centred on the 1920 x 1080 stage; no scroll.
+   PERFORMANCE: static paint; one short opacity fade in; no loops, no filters, no cursor rules. */
+
+.heroselect.hsb { --hss-card-w: min(calc(1200 * var(--phu)), 80cqw); --hss-tile-w: calc(220 * var(--phu)); --hss-tile-h: calc(196 * var(--phu)); }
+
+/* ── THE GRID: the showcase's tiles (heroShowcase.css paints them), seven across, wrapping, in ONE inner scroll box the
+   height of the three-hero body, so the screen never scrolls. The padding gives the lit tile's glow and a hovered tile's
+   spring room inside the box's clip. No scrollbar is drawn (the wheel, touch and keys still scroll), as on the old grid. */
+.heroselect.hsb .hsb-grid { box-sizing: border-box; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: calc(22 * var(--phu));
+  width: calc(1720 * var(--phu)); max-width: 100%; max-height: calc(848 * var(--phu)); padding: calc(44 * var(--phu)) calc(24 * var(--phu));
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  /* SOFT EDGES (owner 2026-11-17: "create a blur on these edges here? top and bottom. so its not as jarring when
+     scrolling"): the box's top and bottom 44 units fade to nothing, so a row passing the edge melts away instead of being
+     cut. A static mask on the box (it does not move with the scroll); the padding is the same 44, so the first and last
+     rows sit clear of the fade when the grid is at rest. */
+  --hsb-edge: linear-gradient(180deg, transparent 0, #000 calc(44 * var(--phu)), #000 calc(100% - 44 * var(--phu)), transparent 100%);
+  -webkit-mask-image: var(--hsb-edge); mask-image: var(--hsb-edge); }
+.heroselect.hsb .hsb-grid::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* The lit tile's glow: the showcase's paint, still, filling its own slot (there it slides along one row). */
+.heroselect.hsb .hsb-grid .hss-glow { position: absolute; z-index: 2; inset: 0; width: auto; height: auto; opacity: 1; pointer-events: none; border-radius: var(--ph-r-l);
+  background: linear-gradient(180deg, rgba(255, 226, 160, 0.16), rgba(255, 226, 160, 0) 46%);
+  box-shadow: 0 0 0 calc(2.5 * var(--phu)) var(--ph-gold-hi), 0 0 0 calc(4.5 * var(--phu)) color-mix(in srgb, var(--ph-gold) 70%, transparent),
+    0 0 calc(28 * var(--phu)) calc(4 * var(--phu)) rgba(255, 196, 70, 0.5), inset 0 0 calc(22 * var(--phu)) rgba(255, 214, 110, 0.32); }
+.heroselect.hsb.hsc-active .hsb-grid { overflow: hidden; pointer-events: none; }
+
+/* Below the ceremony's layers (heroCeremony.css: 5 and up), above the grid and the header. `fixed` like the ceremony:
+   inside the scaled stage it fills the stage. */
+.heroselect.hsb .hsb-win { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; outline: none; animation: hsb-in 0.18s ease-out both; }
+@keyframes hsb-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .heroselect.hsb .hsb-win { animation: none; } }
+
+/* THE SCRIM: the dimmed grid. A press on it closes the window. */
+.heroselect.hsb .hsb-scrim { position: absolute; inset: 0; background: rgba(4, 9, 24, 0.72); }
+
+/* THE PANEL: the showcase body's column without its tiles. It takes no pointer itself, so a press between the card and
+   the button lands on the scrim; the card, arrows, X and button take theirs back. */
+.heroselect.hsb .hsb-panel { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(28 * var(--phu));
+  box-sizing: border-box; width: calc(1680 * var(--phu)); max-width: 100%; height: calc(660 * var(--phu)); max-height: 100%; pointer-events: none; }
+.heroselect.hsb .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: auto; }
+
+/* THE CARD BOX: exactly the card's size (the card may grow past `--phi-h` with its Ancients row), so the X and the note
+   pin to the card's real corners. */
+.heroselect.hsb .hss-cardbox { position: relative; display: flex; width: var(--hss-card-w); max-height: 100cqh; }
+
+/* THE X: the showcase re-roll's round navy plate (heroShowcase.css paints it), FULLY INSIDE the card's top-right corner
+   (owner 2026-11-17: "can you move it fully inside the corner instead?", after trying it over the corner and floating off
+   it): 16 units in from the top and right edges. Pinned to the card box, so it follows the card's real size. */
+.heroselect.hsb .hss-cardbox .hsb-x { top: calc(16 * var(--phu)); right: calc(16 * var(--phu)); }
+
+/* A hero withheld from Play keeps its note here: the grid card's pill, on the splash art's lower band. */
+.heroselect.hsb .hsb-note { position: absolute; z-index: 3; left: calc(24 * var(--phu)); bottom: calc(24 * var(--phu));
+  padding: calc(4 * var(--phu)) calc(12 * var(--phu)); border-radius: 999px; background: rgba(6, 14, 38, 0.82);
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--phu)); letter-spacing: 0.06em; text-transform: uppercase; color: #f0e6d2; white-space: nowrap; }
+
+/* THE CEREMONY: the splash art is cloned and hidden; the rest of the window fades with the header (the showcase's own
+   rule and timing), and the grid cards behind leave along the ceremony's exits. */
+.heroselect.hsb.hsc-active :is(.hss-stage, .hss-confirm, .hsb-scrim) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }
+.heroselect.hsb.hsc-active .hsb-win { animation: none; }
+/* The pieces were handed the pointer one by one above, so the stage's own `none` does not reach them: take it back, or
+   the faded X, arrows and Ancient medallions would still hover and take presses under the ceremony. */
+.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: none; }

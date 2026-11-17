@@ -17,3 +17,11 @@ The whole-roster Hero Select grid (Practice with "All heroes", and Gauntlet: mor
 **Verified.** New suites `heroShowcaseCard.test.tsx`, `heroBrowseWindow.test.tsx`, `heroBrowseSelect.test.tsx`; the existing hero-select, Gauntlet and spectate suites pass unmodified. Not yet seen in a browser: the look, the open / close and the hand-off are Mike's to judge.
 
 **Not done.** No phone restyle, no search or filter, no `patchNotes.ts` entry (nothing player-facing ships while it is DEV-only).
+
+**After Mike saw it (same day).** Four changes, all his asks; details in the design doc's "Amendments" section.
+- The grid is now the showcase's tiles (portrait, name, Health, Armor), seven across in one inner scroll box, not the big banners ("i want the grid to be like thissssss"). `HeroTile` is shared by the three-hero row and the new `HeroBrowseGrid`. The banner grid remains only with the switch off. The tile of the hero on show, or last shown, wears the showcase glow as static paint.
+- The scroll box fades out at its top and bottom edges (a static mask), so rows do not cut hard while scrolling.
+- The X sits fully inside the card's top-right corner (it was tried over the corner and floating off it first).
+- Select Hero's lettering is slightly smaller and tighter on every Hero Select (90% of START's size, 0.1em tracking).
+
+**Correction to the top of this entry.** The showcase switch went live for players (PR 2764) while this was in progress, so "DEV switch, off by default" above is out of date: with this merged, desktop players get the tile grid and the window unless it is gated separately. That decision, and the patch note it needs, were still open when this entry was written. `heroShowcase.test.tsx`'s whole-roster test was updated for the tile grid (it had asserted the banner grid).

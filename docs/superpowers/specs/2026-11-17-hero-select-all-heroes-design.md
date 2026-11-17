@@ -46,6 +46,28 @@ objection to the rest. They stand as Claude's calls until he reads this doc:
 - Select Hero starts the pick ceremony from the splash art, as the showcase does.
 - It sits behind the same DEV switch as the showcase (`heroShowcaseFlag.ts`), so the two turn on together.
 
+## Amendments after Mike saw the build (2026-11-17)
+
+These override anything below that disagrees.
+
+- **The grid is the showcase's tiles, not the big banners.** Mike, on seeing the banner grid, with a screenshot of the
+  three-hero showcase's tile row: "ugh no. i want the grid to be like thissssss". The whole roster renders as the
+  showcase tile (portrait, name, Health, Armor), seven across, wrapping, in one inner scroll box. The earlier "stay as
+  is" answer is withdrawn; the banner grid remains only with the switch off. Claude's calls: no re-roll and no sliding
+  glow in the grid; the tile whose hero is on show (and still that tile after closing) wears the showcase glow as static
+  paint.
+- **Soft scroll edges.** "can you create a blur on these edges here? top and bottom. so its not as jarring when
+  scrolling". The scroll box fades out over its top and bottom 44 units (a static mask). Claude's call: a fade, not a
+  blur filter, which would repaint on every scroll frame.
+- **The X sits fully inside the card's top-right corner.** After trying it over the corner and then floating off it:
+  "can you move it fully inside the corner instead?" 16 units in from the top and right edges (Claude's number).
+- **Select Hero lettering, on every Hero Select.** "can we also slightly reduce the size and spacing between the
+  characters of this select hero button across the board?" Font size 90% of START's, letter spacing 0.1em (was 0.16em).
+  Claude's numbers. The main menu START button is untouched.
+- **The showcase switch is live for players** (PR 2764, merged while this was being built), so this is no longer
+  DEV-only by default. Whether it ships to players on merge is Mike's open decision; if it does, `patchNotes.ts` must
+  be updated in the same PR.
+
 ## Goals
 
 - With the showcase switch on, in the party home look, a whole-roster offer shows today's grid, and a card click

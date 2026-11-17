@@ -140,8 +140,10 @@ describe('HeroBrowseWindow', () => {
     expect(css).toContain('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: none; }');
     // After the rule that hands the pointer back, so it wins at equal weight.
     expect(css.indexOf('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm)')).toBeGreaterThan(css.indexOf('{ pointer-events: auto; }'));
-    // The X floats just off the card box corner: wholly outside it (the plate is 44 units across).
-    expect(css).not.toMatch(/.hsb-x {[^}]*(top|right):/);
+    // The X sits fully inside the card box's top-right corner.
+    expect(css).toContain('.heroselect.hsb .hss-cardbox .hsb-x { top: calc(16 * var(--phu)); right: calc(16 * var(--phu)); }');
+    // The grid fades out at its top and bottom edges, so a row scrolling past the edge is not cut hard.
+    expect(css).toContain('mask-image: var(--hsb-edge)');
   });
 
   it('has no title attribute anywhere', () => {

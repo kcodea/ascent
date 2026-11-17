@@ -30,8 +30,13 @@ const mig = (f: string): string => readFileSync(join(root, 'supabase/migrations'
 const CHAIN = [
   '2026-09-29-pool-whole-runs.sql', '2026-09-30-board-strength.sql', '2026-09-30-weighted-strength.sql',
   '2026-10-03-final-board-strength.sql', '2026-10-06-weighted-strength-again.sql', '2026-10-06-early-late-strength.sql',
-  '2026-10-09-strength-overall-caps.sql', '2026-10-17-pool-empty-boards.sql', '2026-11-08-pool-runs-delta.sql',
+  '2026-10-09-strength-overall-caps.sql', '2026-10-17-pool-empty-boards.sql', '2026-11-07-pool-refresh-off-upload.sql',
+  '2026-11-08-pool-runs-delta.sql',
 ].map(mig);
+// The CURRENT draw: the rolling window, then strength v2 (an unscored run is out of any banded draw). The hub's port
+// must equal this one, so the chain must end on the newest file that replaces `pool_runs__pick`.
+const WINDOW = mig('2026-11-22-pool-rolling-window.sql');
+const STRENGTH_V2 = mig('2026-11-23-strength-v2.sql');
 const SESSION = mig('2026-11-20-game-session-cf.sql');
 const SAVED = mig('2026-09-30-saved-runs.sql');
 const KEY = 'test-hub-writer-secret';
@@ -104,12 +109,20 @@ beforeAll(async () => {
   await db.exec(STUB);
   for (const sql of CHAIN) await db.exec(sql);
   await db.exec(SAVED);
-  for (let i = 0; i < 40; i++) await upload(`P${i}`, HEROES[i % HEROES.length]!, 1000 + i, 6 + (i % 9), i % 6 === 0 ? { empty: [1] } : {});
-  await db.exec(`update public.pool_runs set strength = case when id % 7 = 0 then null else ((id * 37) % 100) + (id % 3) * 0.25 end,
-                   strength_early = (id * 53) % 100, strength_late = (id * 29) % 100 + 0.5`);
   await db.query('insert into public.versus_cf_writer_keys (key_hash, note) values ($1, $2)', [createHash('sha256').update(KEY).digest('hex'), 'ascent-hub']);
   await db.exec(SESSION);
   await db.exec(SESSION); // idempotent
+  // 2026-11-21-ops-health-checks.sql's function, by signature only (the window file replaces it and refuses to run without it).
+  await db.exec("create function ops.pool_digest(p_params jsonb) returns jsonb language sql as 'select null::jsonb'");
+  await db.exec(WINDOW);
+  await db.exec(STRENGTH_V2);
+  // 7 to 15 rounds each: a run that ends before round 7 is not eligible (the 7-round floor).
+  for (let i = 0; i < 40; i++) await upload(`P${i}`, HEROES[i % HEROES.length]!, 1000 + i, 7 + (i % 9), i % 6 === 0 ? { empty: [1] } : {});
+  expect((await db.query<{ n: number }>('select public.pool_refresh_dirty() as n')).rows[0]!.n).toBe(40);
+  expect((await db.query<{ n: number }>('select count(*)::int as n from public.pool_runs where eligible and live')).rows[0]!.n).toBe(40);
+  // Synthetic ratings over the real rows. One run in seven has NO strength (unscored): out of every banded draw.
+  await db.exec(`update public.pool_runs set strength = case when id % 7 = 0 then null else ((id * 37) % 100) + (id % 3) * 0.25 end,
+                   strength_early = (id * 53) % 100, strength_late = (id * 29) % 100 + 0.5`);
   await db.query('insert into auth.users (id) values ($1), ($2)', ['11111111-1111-4111-8111-111111111111', '99999999-9999-4999-8999-999999999999']);
 }, 180_000);
 afterAll(async () => { await db?.close(); });

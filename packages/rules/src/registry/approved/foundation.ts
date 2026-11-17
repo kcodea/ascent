@@ -15835,7 +15835,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'run is outside every strength band (Bronze, Silver, Gold, each widened step, and Practice set to one of those '
       + 'ranks), in the server draw, in the hub\x27s draw and at seat selection alike; it is seated only where there is '
       + 'no band (Platinum and up, Practice on All Ranks). Scores of different reference versions are never compared. '
-      + 'Ranked Duos' recorded duo TEAMS are the exception: they are never scored, so they stay inside every band as '
+      + 'Recorded duo TEAMS in Ranked Duos are the exception: they are never scored, so they stay inside every band as '
       + 'before; a solo run seated at a Duos table follows this rule.',
     status: 'approved',
     evidence: [

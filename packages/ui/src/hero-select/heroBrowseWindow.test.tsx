@@ -4,6 +4,8 @@
  * and Select Hero button in a window over the roster grid, with an X, a scrim and Escape to close. Presentation only:
  * every press is a callback, HeroSelect owns the rules.
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, createRef } from 'react';
 import { HEROES, getHero, practiceHeroChoiceIds } from '@game/sim';
@@ -124,6 +126,22 @@ describe('HeroBrowseWindow', () => {
   it('takes focus on mount', () => {
     const el = show(props());
     expect(document.activeElement).toBe(win(el));
+  });
+
+  it('the X and the note sit in the card box, not loose in the stage', () => {
+    const el = show(props());
+    expect(el.querySelector('.hss-cardbox > .hsb-x')).not.toBeNull();
+    expect(el.querySelector('.hss-cardbox > .hss-card')).not.toBeNull();
+  });
+
+  it('while the ceremony runs the window pieces take no pointer (they were given it back one by one)', () => {
+    const file = './heroBrowseWindow.css'; // a variable, so Vite does not rewrite the URL into a served asset
+    const css = readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8');
+    expect(css).toContain('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: none; }');
+    // After the rule that hands the pointer back, so it wins at equal weight.
+    expect(css.indexOf('.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm)')).toBeGreaterThan(css.indexOf('{ pointer-events: auto; }'));
+    // The X is anchored to the card box by the shared plate rule (-14 units from its corner): no position of its own here.
+    expect(css).not.toMatch(/.hsb-x {[^}]*(top|right):/);
   });
 
   it('has no title attribute anywhere', () => {

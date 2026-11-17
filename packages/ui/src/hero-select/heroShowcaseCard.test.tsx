@@ -82,9 +82,16 @@ describe('HeroShowcaseCard (the card stage without tiles)', () => {
     expect(el.querySelector('.phi-nav')).toBeNull();
   });
 
-  it('children render inside the stage', () => {
+  it('children render in a box that wraps the card, so they anchor to the card itself', () => {
     const el = show({ heroId: 'aster', count: 3, children: <i className="probe" /> });
-    expect(el.querySelector('.hss-stage > .probe')).not.toBeNull();
+    expect(el.querySelector('.hss-stage > .hss-cardbox > .probe')).not.toBeNull();
+    expect(el.querySelector('.hss-stage > .hss-cardbox > .hss-card')).not.toBeNull();
+  });
+
+  it('no children: the card is a direct child of the stage (the three-hero showcase, unchanged)', () => {
+    const el = show({ heroId: 'aster', count: 3 });
+    expect(el.querySelector('.hss-stage > .hss-card')).not.toBeNull();
+    expect(el.querySelector('.hss-cardbox')).toBeNull();
   });
 
   it('busy: keys select nothing', () => {

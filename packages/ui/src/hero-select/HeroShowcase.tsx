@@ -125,7 +125,9 @@ export interface HeroShowcaseCardProps {
   showDifficulty: boolean;
   loadout: ReturnType<typeof useLiveLoadout>;
   artRef: RefObject<HTMLDivElement>;     // the card's .phi-art
-  children?: ReactNode;                  // extra controls inside the stage (the window's X)
+  /** Extra controls pinned to the CARD (the window's X). With them the card sits in a `.hss-cardbox` exactly its own size,
+   *  so they anchor to the card's real edges whatever its height; without them the markup is the three-hero showcase's. */
+  children?: ReactNode;
 }
 
 /** THE CARD STAGE (prev arrow, the Compendium's inspect card, next arrow) and the Select Hero button under it. */
@@ -133,22 +135,24 @@ export function HeroShowcaseCard({ heroId, count, nav, onConfirm, onDenied, bloc
   const hero = getHero(heroId);
   const tip = heroTip(heroId);
   const extraFacts = showDifficulty && tip ? [tip.difficulty] : undefined;
+  const card = (
+    <HeroInspectCard
+      key={heroId}
+      hero={hero}
+      art={heroPortrait(heroId, loadout)}
+      ancient={nav.anc}
+      onAncient={nav.pickAncient}
+      {...(extraFacts ? { extraFacts } : {})}
+      artRef={artRef}
+      className="hss-card"
+    />
+  );
   return (
     <>
       <div className="hss-stage">
         {count > 1 && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={() => nav.step(-1)}><Icon name="chevron" /></button>}
-        <HeroInspectCard
-          key={heroId}
-          hero={hero}
-          art={heroPortrait(heroId, loadout)}
-          ancient={nav.anc}
-          onAncient={nav.pickAncient}
-          {...(extraFacts ? { extraFacts } : {})}
-          artRef={artRef}
-          className="hss-card"
-        />
+        {children ? <div className="hss-cardbox">{card}{children}</div> : card}
         {count > 1 && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={() => nav.step(1)}><Icon name="chevron" /></button>}
-        {children}
       </div>
       {!watching && (
         <button

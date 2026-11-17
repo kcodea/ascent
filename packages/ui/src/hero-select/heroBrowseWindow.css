@@ -23,14 +23,17 @@
    the button lands on the scrim; the card, arrows, X and button take theirs back. */
 .heroselect.hsb .hsb-panel { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(28 * var(--phu));
   box-sizing: border-box; width: calc(1680 * var(--phu)); max-width: 100%; height: calc(660 * var(--phu)); max-height: 100%; pointer-events: none; }
-.heroselect.hsb .hsb-panel .hss-stage > *, .heroselect.hsb .hsb-panel .hss-confirm { pointer-events: auto; }
+.heroselect.hsb .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: auto; }
 
-/* THE X: the showcase re-roll's round navy plate (heroShowcase.css paints it), on the CARD's top-right corner the way the
-   re-roll sits on a tile's. The card is centred in its stage at `--phi-h` tall and `--hss-card-w` wide. */
-.heroselect.hsb .hsb-x { z-index: 3; top: calc(50% - min(calc(250 * var(--phu)), 50cqh) - 14 * var(--phu)); right: calc(50% - var(--hss-card-w) / 2 - 14 * var(--phu)); }
+/* THE CARD BOX: exactly the card's size (the card may grow past `--phi-h` with its Ancients row), so the X and the note
+   pin to the card's real corners. */
+.heroselect.hsb .hss-cardbox { position: relative; display: flex; width: var(--hss-card-w); max-height: 100cqh; }
+
+/* THE X: the showcase re-roll's round navy plate, on the CARD's top-right corner the way the re-roll sits on a tile's.
+   heroShowcase.css paints it AND places it (14 units out from the top-right corner of its box, here the card box). */
 
 /* A hero withheld from Play keeps its note here: the grid card's pill, on the splash art's lower band. */
-.heroselect.hsb .hsb-note { position: absolute; z-index: 3; left: calc(50% - var(--hss-card-w) / 2 + 24 * var(--phu)); bottom: calc(50% - min(calc(250 * var(--phu)), 50cqh) + 24 * var(--phu));
+.heroselect.hsb .hsb-note { position: absolute; z-index: 3; left: calc(24 * var(--phu)); bottom: calc(24 * var(--phu));
   padding: calc(4 * var(--phu)) calc(12 * var(--phu)); border-radius: 999px; background: rgba(6, 14, 38, 0.82);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--phu)); letter-spacing: 0.06em; text-transform: uppercase; color: #f0e6d2; white-space: nowrap; }
 
@@ -38,3 +41,6 @@
    rule and timing), and the grid cards behind leave along the ceremony's exits. */
 .heroselect.hsb.hsc-active :is(.hss-stage, .hss-confirm, .hsb-scrim) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }
 .heroselect.hsb.hsc-active .hsb-win { animation: none; }
+/* The pieces were handed the pointer one by one above, so the stage's own `none` does not reach them: take it back, or
+   the faded X, arrows and Ancient medallions would still hover and take presses under the ceremony. */
+.heroselect.hsb.hsc-active .hsb-panel :is(.hss-stage > *, .hss-confirm) { pointer-events: none; }

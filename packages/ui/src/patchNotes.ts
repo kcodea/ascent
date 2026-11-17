@@ -200,6 +200,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Bronze, Silver and Gold: you no longer meet a past game that had one runaway board, even if the rest of that game was ordinary.',
+        details: [
+          'Every past game now has a peak: its best board from round 3 on, ranked against the other boards of that round.',
+          'A past game whose peak ranks above 90 out of 100 is never an opponent in Bronze, Silver or Gold. Practice set to one of those ranks follows the same rule.',
+          'Platinum, Diamond and Ascendant are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opponents: more variety at every table, and fewer stacked tables at the top ranks.',
         details: [
           'You now meet at most 2 past games from the same player in one game, your own included (it was 4). A third appears only when there are not enough players to fill the table.',

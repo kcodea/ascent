@@ -92,6 +92,7 @@ export interface PoolParams {
   p_pool?: string | null;
   p_early_weight?: number | null;
   p_strength_cap?: number | null;
+  p_peak_cap?: number | null;
 }
 export interface PoolDigestRow {
   run_id: number;

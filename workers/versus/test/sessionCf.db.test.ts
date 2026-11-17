@@ -37,6 +37,8 @@ const CHAIN = [
 // must equal this one, so the chain must end on the newest file that replaces `pool_runs__pick`.
 const WINDOW = mig('2026-11-22-pool-rolling-window.sql');
 const STRENGTH_V2 = mig('2026-11-23-strength-v2.sql');
+// ...then the peak cap (R-LOBBY-21): `p_peak_cap` on the draw, `strength_peak` in the index and the keys answer.
+const PEAK_CAP = mig('2026-11-24-strength-peak-cap.sql');
 const SESSION = mig('2026-11-20-game-session-cf.sql');
 const SAVED = mig('2026-09-30-saved-runs.sql');
 const KEY = 'test-hub-writer-secret';
@@ -116,6 +118,7 @@ beforeAll(async () => {
   await db.exec("create function ops.pool_digest(p_params jsonb) returns jsonb language sql as 'select null::jsonb'");
   await db.exec(WINDOW);
   await db.exec(STRENGTH_V2);
+  await db.exec(PEAK_CAP);
   // 7 to 15 rounds each: a run that ends before round 7 is not eligible (the 7-round floor).
   for (let i = 0; i < 40; i++) await upload(`P${i}`, HEROES[i % HEROES.length]!, 1000 + i, 7 + (i % 9), i % 6 === 0 ? { empty: [1] } : {});
   expect((await db.query<{ n: number }>('select public.pool_refresh_dirty() as n')).rows[0]!.n).toBe(40);
@@ -123,6 +126,9 @@ beforeAll(async () => {
   // Synthetic ratings over the real rows. One run in seven has NO strength (unscored): out of every banded draw.
   await db.exec(`update public.pool_runs set strength = case when id % 7 = 0 then null else ((id * 37) % 100) + (id % 3) * 0.25 end,
                    strength_early = (id * 53) % 100, strength_late = (id * 29) % 100 + 0.5`);
+  // Synthetic peaks: none on an unscored run (as the refresh writes them), one run in five at exactly 90, the rest
+  // spread over 0..100.5 so some sit above the cap.
+  await db.exec(`update public.pool_runs set strength_peak = case when id % 7 = 0 then null when id % 5 = 0 then 90 else ((id * 41) % 100) + (id % 4) * 0.5 end`);
   await db.query('insert into auth.users (id) values ($1), ($2)', ['11111111-1111-4111-8111-111111111111', '99999999-9999-4999-8999-999999999999']);
 }, 180_000);
 afterAll(async () => { await db?.close(); });
@@ -143,19 +149,23 @@ const source = (counts = { version: 0, index: 0, boards: 0, boardIds: 0 }): Pool
   },
 });
 
-const ARGS = '$1::int, $2::text, $3::text, $4::uuid, $5::text, $6::numeric, $7::numeric, $8::text, $9::numeric, $10::numeric';
-type Args = [number, string | null, string | null, null, string | null, number | null, number | null, string | null, number | null, number | null];
-const asPick = (a: Args): PickArgs => ({ p_limit: a[0], p_set: a[1], p_patch_prefix: a[2], p_exclude_user: a[3], p_seed: a[4], p_strength_min: a[5], p_strength_max: a[6], p_pool: a[7], p_early_weight: a[8], p_strength_cap: a[9] });
-const sqlKeys = async (a: Args) => (await db.query<Record<string, unknown>>(`select run_id::text, run_key, author, user_id, wave_count, strength::text, strength_early::text, strength_late::text, rev from public.pool_runs_sample_keys(${ARGS})`, a)).rows;
+const ARGS = '$1::int, $2::text, $3::text, $4::uuid, $5::text, $6::numeric, $7::numeric, $8::text, $9::numeric, $10::numeric, $11::numeric';
+type Args = [number, string | null, string | null, null, string | null, number | null, number | null, string | null, number | null, number | null, number | null];
+const asPick = (a: Args): PickArgs => ({ p_limit: a[0], p_set: a[1], p_patch_prefix: a[2], p_exclude_user: a[3], p_seed: a[4], p_strength_min: a[5], p_strength_max: a[6], p_pool: a[7], p_early_weight: a[8], p_strength_cap: a[9], p_peak_cap: a[10] });
+const sqlKeys = async (a: Args) => (await db.query<Record<string, unknown>>(`select run_id::text, run_key, author, user_id, wave_count, strength::text, strength_early::text, strength_late::text, strength_peak::text, rev from public.pool_runs_sample_keys(${ARGS})`, a)).rows;
 const COMBOS: Args[] = [];
 for (const seed of ['s1', 'abc', 'zz9']) {
   for (const limit of [150, 12, 3]) {
-    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, null, null, null, null, null]);
-    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 20, 70, null, null, null]);
-    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 10, 80.25, null, 0.4, null]);
-    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 0, 90, null, 0.25, 60]);
-    COMBOS.push([limit, null, null, null, seed, null, null, 'main', null, 50.25]);
-    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 36.5, 36.5, null, 0.5, null]); // an exact band edge (numeric, not float)
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, null, null, null, null, null, null]);
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 20, 70, null, null, null, null]);
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 10, 80.25, null, 0.4, null, null]);
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 0, 90, null, 0.25, 60, null]);
+    COMBOS.push([limit, null, null, null, seed, null, null, 'main', null, 50.25, null]);
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 36.5, 36.5, null, 0.5, null, null]); // an exact band edge (numeric, not float)
+    // The peak cap (R-LOBBY-21): alone, with a band and the overall cap, and on a fractional edge.
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, null, null, null, null, null, 90]);
+    COMBOS.push([limit, 'set2', '0.1.0+', null, seed, 0, 100, null, 0.6, 75, 90]);
+    COMBOS.push([limit, null, null, null, seed, 5, 95, 'main', null, null, 40.5]);
   }
 }
 
@@ -180,14 +190,35 @@ describe('THE POOL MIRROR serves exactly what Supabase serves (R-POOL-MIRROR-01)
     expect(nonEmpty).toBeGreaterThan(COMBOS.length / 2);
   });
 
+  it('the peak cap: exactly 90 is in, above is out, a run with no peak is out (as in SQL)', async () => {
+    const runs = await source().index();
+    const peakOf = new Map(runs.map((r) => [r.run_id, r.strength_peak == null ? null : Number(r.strength_peak)]));
+    expect([...peakOf.values()].some((p) => p === 90)).toBe(true);
+    expect([...peakOf.values()].some((p) => p !== null && p > 90)).toBe(true);
+    const picked = pickRuns(runs, { p_limit: 300, p_set: 'set2', p_seed: 'cap', p_peak_cap: 90 }, Math.random);
+    expect(picked.sort((x, y) => x - y)).toEqual(runs.filter((r) => { const p = peakOf.get(r.run_id); return p != null && p <= 90; }).map((r) => r.run_id).sort((x, y) => x - y));
+  });
+
+  it('an index synced BEFORE the peak SQL (no strength_peak on any row): the cap is not applied and the keys rows carry no peak, as that server answers', async () => {
+    const runs = (await source().index()).map(({ strength_peak: _drop, ...r }) => r as MirrorRun);
+    const args = { p_limit: 300, p_set: 'set2', p_seed: 'old', p_strength_min: 0, p_strength_max: 100 };
+    expect(pickRuns(runs, { ...args, p_peak_cap: 90 }, Math.random)).toEqual(pickRuns(runs, args, Math.random));
+    const m = new PoolMirrorCore();
+    await m.sync({ ...source(), index: async () => runs }, async () => undefined, 1);
+    const rows = JSON.parse(m.keysJson({ ...args, p_peak_cap: 90 }, Math.random)) as Record<string, unknown>[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => !('strength_peak' in r))).toBe(true);
+  });
+
   it('a synced mirror: keys values equal the RPC\'s; boards text is byte-identical to pool_runs_boards; same rev', async () => {
     const m = new PoolMirrorCore();
     await m.sync(source(), async () => undefined, 1);
-    const a: Args = [150, 'set2', '0.1.0+', null, 'full', null, null, null, null, null];
+    const a: Args = [150, 'set2', '0.1.0+', null, 'full', null, null, null, null, null, null];
     const mirrored = JSON.parse(m.keysJson(asPick(a), Math.random)) as Record<string, unknown>[];
     const sql = await sqlKeys(a);
-    expect(mirrored.map((r) => ({ ...r, run_id: String(r.run_id), strength: r.strength == null ? null : String(r.strength), strength_early: r.strength_early == null ? null : String(r.strength_early), strength_late: r.strength_late == null ? null : String(r.strength_late) })))
-      .toEqual(sql.map((r) => ({ ...r, strength: r.strength == null ? null : String(Number(r.strength)), strength_early: r.strength_early == null ? null : String(Number(r.strength_early)), strength_late: r.strength_late == null ? null : String(Number(r.strength_late)) })));
+    expect(mirrored.map((r) => ({ ...r, run_id: String(r.run_id), strength: r.strength == null ? null : String(r.strength), strength_early: r.strength_early == null ? null : String(r.strength_early), strength_late: r.strength_late == null ? null : String(r.strength_late), strength_peak: r.strength_peak == null ? null : String(r.strength_peak) })))
+      .toEqual(sql.map((r) => ({ ...r, strength: r.strength == null ? null : String(Number(r.strength)), strength_early: r.strength_early == null ? null : String(Number(r.strength_early)), strength_late: r.strength_late == null ? null : String(Number(r.strength_late)), strength_peak: r.strength_peak == null ? null : String(Number(r.strength_peak)) })));
+    expect(Object.keys(mirrored[0]!)).toEqual(['run_id', 'run_key', 'author', 'user_id', 'wave_count', 'strength', 'strength_early', 'strength_late', 'strength_peak', 'rev']); // the function's column order
     const ids = sql.map((r) => Number(r.run_id));
     const raw = (await db.query<{ run_id: string; run_key: string; rev: string; boards: string }>('select run_id::text, run_key, rev, boards::text as boards from public.pool_runs_boards($1::bigint[])', [ids])).rows;
     const body = m.boardsJson(ids)!;

@@ -3,7 +3,7 @@ import { makeRng } from '@game/core';
 import { playableHeroes, type BoardSnapshot } from '@game/sim';
 import { activeSet, type SetId } from '@game/content';
 import { POOL_SAMPLE_RUNS, fetchPoolRuns, sampleUniform, type PoolApi, type SampleArgs, type SampleRow } from './poolFetch';
-import { POOL_RUN_CACHE_VERSION, cachedSample, memoryRunCache, type DeltaRpc, type DeltaStats, type KeyRow, type RunBoardsRow } from './poolRunCache';
+import { POOL_RUN_CACHE_VERSION, cachedSample, memoryRunCache, type CachedRun, type DeltaRpc, type DeltaSession, type DeltaStats, type KeyRow, type RunBoardsRow, type RunCacheStore } from './poolRunCache';
 
 /**
  * THE POOL, CACHED BY RUN (Supabase cleanup P1.5, owner ruling 2026-10-28: "yes, cache them"; owner bar: snapshots
@@ -194,5 +194,44 @@ describe('the cached pool answers exactly what pool_runs_sample answers', () => 
     const boom = { data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } };
     expect((await cached(S, memoryRunCache(), undefined, { keys: async () => boom }).sample(ARGS, signal)).error).toEqual(boom.error);
     expect((await cached(S, memoryRunCache(), undefined, { boards: async () => boom }).sample(ARGS, signal))).toEqual({ data: null, error: boom.error });
+  });
+});
+
+describe('the peak cap through the per-run cache (R-LOBBY-21)', () => {
+  const row = (id: number, peak: number | null): KeyRow => ({ run_id: id, run_key: `A|h|${id}`, author: 'A', user_id: null, wave_count: 1, strength: 10, strength_early: 10, strength_late: 10, strength_peak: peak, rev: `r${id}` });
+  const memStore = (): RunCacheStore => { const m = new Map<string, CachedRun>(); return { getMany: async (ks) => new Map(ks.filter((k) => m.has(k)).map((k) => [k, m.get(k)!])), putMany: async (rs) => { for (const r of rs) m.set(r.key, r); } }; };
+  const signal = new AbortController().signal;
+  const args: SampleArgs = { p_limit: 10, p_set: 'set2', p_patch_prefix: null, p_exclude_user: null, p_strength_min: 0, p_strength_max: 20, p_early_weight: 1, p_strength_cap: 40, p_peak_cap: 90 };
+
+  it('a run\'s peak rides the keys answer into the sample row', async () => {
+    const rpc: DeltaRpc = {
+      keys: async () => ({ data: [row(1, 72), row(2, null)], error: null }),
+      boards: async (ids) => ({ data: ids.map((id) => ({ run_id: id, run_key: `A|h|${id}`, rev: `r${id}`, boards: [] })), error: null }),
+      sample: async () => ({ data: [], error: null }),
+    };
+    const got = await cachedSample(rpc, memStore(), {}, () => 0)(args, signal);
+    expect(got.data!.map((r) => r.strength_peak)).toEqual([72, null]);
+  });
+
+  it('a server without p_peak_cap is NOT a server without the keys read: the error goes back and the next call still uses keys', async () => {
+    const calls: string[] = [];
+    const rpc: DeltaRpc = {
+      keys: async (a) => {
+        calls.push(a.p_peak_cap === undefined ? 'keys' : 'keys+peak');
+        if (a.p_peak_cap !== undefined) return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pool_runs_sample_keys(..., p_peak_cap, ...)' } };
+        return { data: [row(1, null)], error: null };
+      },
+      boards: async (ids) => ({ data: ids.map((id) => ({ run_id: id, run_key: `A|h|${id}`, rev: `r${id}`, boards: [] })), error: null }),
+      sample: async () => { calls.push('sample'); return { data: [], error: null }; },
+    };
+    const session: DeltaSession = {};
+    const sample = cachedSample(rpc, memStore(), session, () => 0);
+    const first = await sample(args, signal);
+    expect(first.error?.code).toBe('PGRST202');
+    expect(session.deltaMissing).toBeFalsy();
+    const { p_peak_cap: _drop, ...without } = args;
+    const second = await sample(without, signal);
+    expect(second.data).toHaveLength(1);
+    expect(calls).toEqual(['keys+peak', 'keys']); // never the 3 MB whole-run sample
   });
 });

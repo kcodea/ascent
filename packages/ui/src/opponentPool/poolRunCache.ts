@@ -35,6 +35,7 @@ export const POOL_BOARDS_CHUNK = 100;
 export interface KeyRow {
   run_id: number | string; run_key: string; author: string; user_id: string | null; wave_count: number;
   strength?: number | string | null; strength_early?: number | string | null; strength_late?: number | string | null;
+  strength_peak?: number | string | null;
   rev: string;
 }
 export interface RunBoardsRow { run_id: number | string; run_key: string; rev: string; boards: BoardSnapshot[] | null }
@@ -64,6 +65,9 @@ export function cachedSample(rpc: DeltaRpc, store: RunCacheStore, session: Delta
     if (stats) stats.calls++;
     if (!session.deltaMissing) {
       const k = await rpc.keys(args, signal);
+      // A server from before the peak SQL has the keys read but no `p_peak_cap` (R-LOBBY-21): that is not "no keys
+      // read". Hand the error back; the pool fetch drops the cap and asks again, still through the keys read.
+      if (k.error && isMissingFunction(k.error) && args.p_peak_cap !== undefined) return { data: null, error: k.error };
       if (k.error && isMissingFunction(k.error)) session.deltaMissing = true;
       else if (k.error) return { data: null, error: k.error };
       else return assemble(k.data ?? []);
@@ -112,6 +116,7 @@ export function cachedSample(rpc: DeltaRpc, store: RunCacheStore, session: Delta
           ...(r.strength !== undefined ? { strength: r.strength } : {}),
           ...(r.strength_early !== undefined ? { strength_early: r.strength_early } : {}),
           ...(r.strength_late !== undefined ? { strength_late: r.strength_late } : {}),
+          ...(r.strength_peak !== undefined ? { strength_peak: r.strength_peak } : {}),
           boards: JSON.parse(t) as BoardSnapshot[],
         });
       }

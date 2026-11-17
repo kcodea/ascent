@@ -5459,7 +5459,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'is HARD: when a band cannot fill the table and widens (+10 per capped side), only the early / late band widens; '
       + 'the overall cap stays, and whatever the table still lacks is filled by generated seats. A run with no overall '
       + 'strength yet (unscored) stayed eligible until 2026-11-16 and is now outside every band (R-LOBBY-20). The tutorial has no band and no cap; Practice has them only when its setup picks an Opponent Rank (R-PRACTICE-RANK-01), and then exactly that medal\x27s. The rule holds whether '
-      + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats.',
+      + 'or not the server applies the cap: the game re-checks every delivered run when it picks the seats. Since '
+      + '2026-11-17 the same three medals carry a second hard cap, on a run\x27s best single board (R-LOBBY-21; that one '
+      + 'is re-checked only for runs delivered with a peak).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -15930,5 +15932,41 @@ export const FOUNDATION_RULES: GameRule[] = [
       refs: ['packages/ui/src/tutorial/learnAncientsWalkthrough.test.ts'],
       lastVerifiedAt: '2026-11-16',
     },
+  },
+  {
+    id: 'R-LOBBY-21',
+    domain: 'foundation',
+    title: 'A Bronze, Silver or Gold table seats no recorded run whose best board from round 3 on ranks above 90; the cap never widens',
+    statement:
+      'A recorded run has a PEAK: the highest percentile among its REAL boards from round 3 on (rounds 1 and 2 are one '
+      + 'or two minions, too coarse to judge; a carried round never counts). On top of its medal band (R-LOBBY-13) and '
+      + 'its overall cap (R-LOBBY-15), a Bronze, Silver or Gold table seats a recorded run only if its peak is at or '
+      + 'under 90: exactly 90 is allowed, anything above is not, however ordinary the rest of that game was. Platinum, '
+      + 'Diamond and Ascendant have no peak cap (and no band). The cap is HARD, like the overall cap: when a band widens '
+      + 'the peak cap stays, the last widening step is the two caps alone, and whatever the table still lacks is filled '
+      + 'by generated seats. Practice set to Bronze, Silver or Gold carries the same cap; solo runs seated at a Ranked '
+      + 'Duos table of those medals do too, while recorded duo teams (never scored) have no peak and are not capped. '
+      + 'The game re-checks every delivered run that carries a peak when it picks the seats, whether or not the server '
+      + 'applied the cap. A run delivered without a peak (a server, hub or cached pool from before the peak SQL) cannot '
+      + 'be checked and is let through.',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (strength v2 design, ruling 2: which peak caps Bronze, Silver and Gold get, asked after the v2 measurement)', quote: '90 for all' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17', quote: 'build plan 3' },
+      { kind: 'fix-pr', ref: 'feat/strength-v2-peak-cap (2026-11-17): packages/sim/src/lobby/strengthBands.ts (StrengthBand.peakCap, runUnderPeakCap, runInStrengthBand, widenBand, bandSteps); packages/sim/src/lobby/snapshotSeats.ts (PlayerRun.peak); packages/ui/src/opponentPool/poolFetch.ts (p_peak_cap, peakCapsMissing), poolLoader.ts (runStrengthPeak), poolRunCache.ts; supabase/migrations/2026-11-24-strength-peak-cap.sql (pool_runs.strength_peak, p_peak_cap on the draw); workers/versus/src/core/poolPick.ts pickRuns' },
+      { kind: 'code', ref: 'docs/superpowers/specs/2026-11-16-strength-v2-design.md, section 6.C and ruling 2' },
+    ],
+    example: 'A run that ended on round 7 with one freak round-5 board at the 95th percentile is never at a Bronze table, though its Game strength is 30. The same run with that board at 90 can be.',
+    currentBehaviour:
+      'Conforms in code from 2026-11-17; live once the owner applies 2026-11-24-strength-peak-cap.sql (after '
+      + '2026-11-23-strength-v2.sql) and the client and hub ship. PARTIAL before that SQL: no run carries a peak, the '
+      + 'server rejects p_peak_cap, the client drops it for the session, and the cap cannot be checked, so it is not '
+      + 'applied (a run delivered without a peak is let through; refusing it would fill every Bronze, Silver and Gold '
+      + 'table with generated seats). A hub whose index was synced before the SQL behaves the same way. Ranked Duos does '
+      + 'not send the cap to its solo draw; it holds at seat selection, on the peak each solo row carries. Measured '
+      + '2026-11-16 on the live window: 38 Bronze, 51 Silver and 83 Gold runs remain under the cap (23 of 106 Gold runs '
+      + 'are over 90). A run this device registered WITHOUT a peak (a game open while the SQL is applied, or a pool '
+      + 'cache written before it) stays uncapped until the next session.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthPeakCap.test.ts', 'packages/sim/src/lobby/strengthPeak.db.test.ts', 'packages/ui/src/boardStrength/boardStrength.test.ts', 'workers/versus/test/sessionCf.db.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

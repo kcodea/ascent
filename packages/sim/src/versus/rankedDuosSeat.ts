@@ -37,6 +37,8 @@ export interface RankedDuosSoloRow {
   strength: number | null;
   strength_early: number | null;
   strength_late: number | null;
+  /** The run's PEAK (R-LOBBY-21). Absent from a server before 2026-11-24-strength-peak-cap.sql. */
+  strength_peak?: number | null;
   /** Every board of the run (`BoardSnapshot[]`), whole (R-LOBBY-08). */
   boards: unknown[] | null;
 }
@@ -132,7 +134,7 @@ export async function handleRankedDuosSeat(
     solo.set(r.run_key, r);
     soloRuns.push({
       key: r.run_key, ownerId: r.user_id, author: r.author ?? 'anon', heroId,
-      strength: num(r.strength), early: num(r.strength_early), late: num(r.strength_late),
+      strength: num(r.strength), early: num(r.strength_early), late: num(r.strength_late), peak: num(r.strength_peak),
     });
   }
   const duo = new Map<string, RankedDuosDuoRow>();

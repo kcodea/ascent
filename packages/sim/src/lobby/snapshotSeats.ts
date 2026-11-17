@@ -31,12 +31,15 @@ export interface PlayerRun {
   /** Per-wave boards, ascending. */
   snaps: BoardSnapshot[];
   /** The run's strength percentile (1-100) as the shared pool delivered it (`BoardSnapshot.runStrength`, stamped
-   *  by the client from `pool_runs.strength`). Absent = unscored, which is inside every matchmaking band. */
+   *  by the client from `pool_runs.strength`). Absent = unscored, which is OUTSIDE every matchmaking band since strength v2 (R-LOBBY-20). */
   strength?: number;
   /** The run's EARLY / LATE ratings (`BoardSnapshot.runStrengthEarly` / `runStrengthLate`, R-LOBBY-13). Absent =
    *  unknown or unscored; the band then falls back to `strength` (`matchScoreOf`). */
   early?: number;
   late?: number;
+  /** The run's PEAK (`BoardSnapshot.runStrengthPeak`, R-LOBBY-21): its best real board from round 3 on. Absent = not
+   *  delivered; the band's peak cap then cannot be checked and lets the run through (`runUnderPeakCap`). */
+  peak?: number;
   /** The skins the run's owner wore: the UNION of every board's scoped `cosmetics` (a card skinned on wave 9 is
    *  known to the seat from round 1). Absent for runs from before skins. */
   cosmetics?: RunCosmeticSnapshot;
@@ -205,10 +208,12 @@ export function playerRunsFrom(
     const strength = snaps.find((x) => typeof x.runStrength === 'number')?.runStrength;
     const early = snaps.find((x) => typeof x.runStrengthEarly === 'number')?.runStrengthEarly;
     const late = snaps.find((x) => typeof x.runStrengthLate === 'number')?.runStrengthLate;
+    const peak = snaps.find((x) => typeof x.runStrengthPeak === 'number')?.runStrengthPeak;
     runs.push({
       key, author: ordered[0]!.author ?? 'anon', heroId: ordered[0]!.heroId, snaps: ordered,
       ...(ownerId ? { ownerId } : {}), ...(cosmetics ? { cosmetics } : {}), ...(typeof strength === 'number' ? { strength } : {}),
       ...(typeof early === 'number' ? { early } : {}), ...(typeof late === 'number' ? { late } : {}),
+      ...(typeof peak === 'number' ? { peak } : {}),
     });
   }
   // Deterministic order — the pool's iteration order is an accident of registration, and seat selection must

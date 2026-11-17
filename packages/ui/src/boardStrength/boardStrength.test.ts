@@ -105,10 +105,10 @@ describe('the background scorer', () => {
 describe('the rank band', () => {
   it('follows the medal: Bronze early-only 0-20 capped at 40, Silver 80% early 10-30 capped at 60, Gold 60% early 10-50 capped at 75, open from Platinum (R-LOBBY-13 + R-LOBBY-15)', () => {
     const at = (divisionIndex: number) => lobbyBandFor({ rank: { position: { divisionIndex, points: 0 } } } as never);
-    expect(at(0)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40 });
-    expect(at(2)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40 });
-    expect(at(3)).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 });
-    expect(at(8)).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75 });
+    expect(at(0)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
+    expect(at(2)).toEqual({ min: 0, max: 20, earlyWeight: 1, overallCap: 40, peakCap: 90 });
+    expect(at(3)).toEqual({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 });
+    expect(at(8)).toEqual({ min: 10, max: 50, earlyWeight: 0.6, overallCap: 75, peakCap: 90 });
     expect(at(9)).toBeNull();
     expect(at(11)).toBeNull();
     expect(at(12)).toBeNull();
@@ -121,8 +121,12 @@ describe('the rank band', () => {
 });
 
 describe('the pool fetch with a band', () => {
-  /** A fake sample over runs of known strength: honours the band like the SQL (unscored = inside). */
-  function api(runs: Array<{ key: string; strength: number | null; user: string; early?: number | null; late?: number | null }>, opts: { bands: boolean; split?: boolean; caps?: boolean }): PoolApi & { calls: SampleArgs[] } {
+  /** A fake sample over runs of known strength: honours the band as the SQL did before strength v2 (unscored = inside;
+   *  the real SQL is pinned by the db tests, not by this fake). */
+  function api(runs: Array<{ key: string; strength: number | null; user: string; early?: number | null; late?: number | null; peak?: number | null }>, opts: { bands: boolean; split?: boolean; caps?: boolean; peaks?: boolean | 'ignored' }): PoolApi & { calls: SampleArgs[] } {
+    // A server with the caps SQL has the peak SQL too, unless a test says otherwise (`peaks: false` = no p_peak_cap;
+    // 'ignored' = it has no p_peak_cap but its rows carry a peak, to pin the client-side count on its own).
+    const peaks = opts.peaks ?? !!opts.caps;
     const calls: SampleArgs[] = [];
     return {
       calls,
@@ -139,15 +143,22 @@ describe('the pool fetch with a band', () => {
         if (!opts.caps && args.p_strength_cap !== undefined) {
           return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pool_runs_sample(p_early_weight, p_exclude_user, p_strength_cap, ...)' } };
         }
+        // A server before the peak SQL (R-LOBBY-21) has no p_peak_cap.
+        if (peaks !== true && args.p_peak_cap !== undefined) {
+          return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pool_runs_sample(p_early_weight, p_exclude_user, p_peak_cap, ...)' } };
+        }
         const w = args.p_early_weight;
         const cap = args.p_strength_cap;
+        const peakCap = args.p_peak_cap;
         const score = (r: typeof runs[number]): number | null => (w === undefined ? r.strength
           : typeof r.early === 'number' && typeof r.late === 'number' ? w * r.early + (1 - w) * r.late : r.early ?? r.late ?? r.strength);
         const inBand = runs.filter((r) => { const s = score(r); return s === null || ((args.p_strength_min ?? 0) <= s && s <= (args.p_strength_max ?? 100)); })
-          .filter((r) => cap === undefined || r.strength === null || r.strength <= cap);
+          .filter((r) => cap === undefined || r.strength === null || r.strength <= cap)
+          .filter((r) => peakCap === undefined || (typeof r.peak === 'number' && r.peak <= peakCap));
         return {
           data: inBand.map((r): SampleRow => ({
             ...(opts.split ? { strength_early: r.early ?? null, strength_late: r.late ?? null } : {}),
+            ...(peaks ? { strength_peak: r.peak ?? null } : {}),
             run_key: r.key, author: r.key.split('|')[0]!, user_id: r.user, wave_count: 1, strength: r.strength === null ? null : String(r.strength),
             boards: [{ v: 1, wave: 1, heroId: r.key.split('|')[1]!, author: r.key.split('|')[0]!, seed: Number(r.key.split('|')[2]), minions: [{ cardId: 'pack', attack: 1, health: 1 }] } as unknown as BoardSnapshot],
           })),
@@ -158,7 +169,7 @@ describe('the pool fetch with a band', () => {
       boardsForSeeds: async () => ({ data: [], error: null }),
     };
   }
-  const opts = (band: { min: number; max: number; earlyWeight?: number; overallCap?: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', random: Math.random, band });
+  const opts = (band: { min: number; max: number; earlyWeight?: number; overallCap?: number; peakCap?: number } | null) => ({ setId: 'set2' as const, patchPrefix: '0.1.0+', random: Math.random, band });
   const runs = Array.from({ length: 20 }, (_, i) => ({ key: `P${i}|h${i}|${i}`, strength: (i + 1) * 5, user: `u${i}` }));
 
   it('asks for the band, and stops there when it can seat a table', async () => {
@@ -219,7 +230,7 @@ describe('the pool fetch with a band', () => {
 
   it('sends a capped band\'s overall cap (R-LOBBY-15): the server drops runs over it, and the cap rides every widening step', async () => {
     // EARLY 5 for everyone (deep inside Bronze's 0-20), overall strength 5..100: only the cap decides.
-    const capped = runs.map((r) => ({ ...r, early: 5, late: 50 }));
+    const capped = runs.map((r) => ({ ...r, early: 5, late: 50, peak: 60 }));
     const a = api(capped, { bands: true, split: true, caps: true });
     const session = { rpcMissing: false };
     const got = await fetchPoolRuns(a, opts(STRENGTH_BANDS.Bronze), new AbortController().signal, session);
@@ -243,17 +254,65 @@ describe('the pool fetch with a band', () => {
     const session = { rpcMissing: false };
     const got = await fetchPoolRuns(a, opts(STRENGTH_BANDS.Bronze), new AbortController().signal, session);
     expect(got.path).toBe('rpc');
-    expect(a.calls.map((c) => [c.p_early_weight, c.p_strength_max, c.p_strength_cap])).toEqual([[1, 20, 40], [1, 20, undefined]]);
-    expect(session).toEqual({ rpcMissing: false, capsMissing: true });
+    // (A server that old has no peak cap either: that is dropped first, then the overall cap.)
+    expect(a.calls.map((c) => [c.p_early_weight, c.p_strength_max, c.p_strength_cap, c.p_peak_cap])).toEqual([[1, 20, 40, 90], [1, 20, 40, undefined], [1, 20, undefined, undefined]]);
+    expect(session).toEqual({ rpcMissing: false, capsMissing: true, peakCapsMissing: true });
     // The over-cap runs arrive WITH their strength, so seat selection can refuse them (the cap holds client-side).
     expect(got.runs.map((r) => r.strength)).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
     await fetchPoolRuns(a, opts(STRENGTH_BANDS.Bronze), new AbortController().signal, session);
-    expect(a.calls.slice(2).every((c) => c.p_strength_cap === undefined)).toBe(true); // not asked again
+    expect(a.calls.slice(3).every((c) => c.p_strength_cap === undefined && c.p_peak_cap === undefined)).toBe(true); // not asked again
 
     // Widening counts only runs under the cap: 10 delivered, but just 6 are at or under a cap of 30, so it widens.
     const b = api(mixed, { bands: true, split: true, caps: false });
     const got2 = await fetchPoolRuns(b, opts({ min: 0, max: 20, earlyWeight: 1, overallCap: 30 }), new AbortController().signal, { rpcMissing: false });
     expect(got2.widenings).toBeGreaterThan(0);
+  });
+
+  it('sends a band\'s peak cap (R-LOBBY-21): the server drops runs over it, the cap rides every widening step, and each run keeps its peak', async () => {
+    // Everyone deep inside Silver by score and under its overall cap; peaks 5..100: only the peak cap decides.
+    const peaked = runs.map((r, i) => ({ ...r, strength: 20, early: 20, late: 20, peak: (i + 1) * 5 }));
+    const a = api(peaked, { bands: true, split: true, caps: true });
+    const session = { rpcMissing: false };
+    const got = await fetchPoolRuns(a, opts(STRENGTH_BANDS.Silver), new AbortController().signal, session);
+    expect(a.calls.map((c) => [c.p_strength_min, c.p_strength_max, c.p_strength_cap, c.p_peak_cap])).toEqual([[10, 30, 60, 90]]);
+    expect(got.runs.map((r) => r.peak)).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90]); // exactly 90 is in
+    expect(session).toEqual({ rpcMissing: false });
+    // A thin band widens with the peak cap on every request, ending on the caps alone, never uncapped.
+    const thin = runs.map((r, i) => ({ ...r, strength: 20, early: 5 + i * 5, late: 5 + i * 5, peak: 95 }));
+    const b = api(thin, { bands: true, split: true, caps: true });
+    const none = await fetchPoolRuns(b, opts(STRENGTH_BANDS.Silver), new AbortController().signal, { rpcMissing: false });
+    expect(none.runs).toEqual([]);
+    expect(b.calls.every((c) => c.p_peak_cap === 90 && c.p_strength_cap === 60)).toBe(true);
+    expect(b.calls.at(-1)).toMatchObject({ p_strength_min: 0, p_strength_max: 100, p_strength_cap: 60, p_peak_cap: 90 });
+    // A band with no peak cap sends none.
+    const c = api(peaked, { bands: true, split: true, caps: true });
+    await fetchPoolRuns(c, opts({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60 }), new AbortController().signal, { rpcMissing: false });
+    expect(c.calls.every((x) => x.p_peak_cap === undefined)).toBe(true);
+  });
+
+  it('before the peak SQL, drops ONLY the peak cap for the session and keeps the band and the overall cap', async () => {
+    const plain = runs.map((r) => ({ ...r, strength: 20, early: 20, late: 20 }));
+    const a = api(plain, { bands: true, split: true, caps: true, peaks: false });
+    const session = { rpcMissing: false };
+    const got = await fetchPoolRuns(a, opts(STRENGTH_BANDS.Silver), new AbortController().signal, session);
+    expect(got.path).toBe('rpc');
+    expect(a.calls.map((c) => [c.p_early_weight, c.p_strength_min, c.p_strength_max, c.p_strength_cap, c.p_peak_cap])).toEqual([[0.8, 10, 30, 60, 90], [0.8, 10, 30, 60, undefined]]);
+    expect(session).toEqual({ rpcMissing: false, peakCapsMissing: true });
+    expect(got.runs.length).toBe(20);
+    expect(got.runs.every((r) => r.peak === undefined)).toBe(true); // such a server delivers no peak
+    await fetchPoolRuns(a, opts(STRENGTH_BANDS.Silver), new AbortController().signal, session);
+    expect(a.calls.slice(2).every((c) => c.p_peak_cap === undefined && c.p_strength_cap === 60)).toBe(true); // not asked again
+  });
+
+  it('counts only runs under the peak cap when deciding to widen', async () => {
+    // The server ignores the cap but its rows carry a peak: 20 delivered, 4 under a cap of 20, so the band widens.
+    const peaked = runs.map((r, i) => ({ ...r, strength: 20, early: 20, late: 20, peak: (i + 1) * 5 }));
+    const a = api(peaked, { bands: true, split: true, caps: true, peaks: 'ignored' });
+    const got = await fetchPoolRuns(a, opts({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 20 }), new AbortController().signal, { rpcMissing: false });
+    expect(got.widenings).toBeGreaterThan(0);
+    const b = api(peaked, { bands: true, split: true, caps: true, peaks: 'ignored' });
+    const wide = await fetchPoolRuns(b, opts({ min: 10, max: 30, earlyWeight: 0.8, overallCap: 60, peakCap: 90 }), new AbortController().signal, { rpcMissing: false });
+    expect(wide.widenings).toBe(0); // 18 under the cap: a table is seatable at once
   });
 
   it('treats unscored runs as inside the band', async () => {
@@ -364,6 +423,50 @@ describe('the overall cap before the caps SQL, end to end (R-LOBBY-15)', () => {
       const seated = run.lobby!.seats.filter((x) => x.kind === 'snapshot').map((x) => strengthOf.get(x.runKey!));
       expect(seated.length).toBe(4); // the four runs at or under 40
       for (const st of seated) expect(st!).toBeLessThanOrEqual(40);
+    }
+  });
+});
+
+describe('the peak cap, end to end (R-LOBBY-21)', () => {
+  afterEach(() => { OPPONENT_POOL.length = 0; });
+
+  it('the loader stamps each run\'s peak on its boards, and a Bronze lobby never seats a run whose peak is over 90', async () => {
+    const SET = activeSet().id;
+    const heroes = playableHeroes().map((h) => h.id).slice(1, 15);
+    // 14 eight-wave runs, all inside Bronze by score and under its overall cap; 4 with a peak of 90 or less, 10 over.
+    const pool = heroes.map((h, i) => ({ key: `K${i}|${h}|${8800 + i}`, peak: i < 4 ? 60 + i * 10 : 91 + (i - 4), hero: h, seed: 8800 + i }));
+    const calls: SampleArgs[] = [];
+    // A server that answers the capped call but does not apply the cap (the worst case): the client must hold it.
+    const fakeApi: PoolApi = {
+      async sample(args) {
+        calls.push(args);
+        return {
+          data: pool.map((r): SampleRow => ({
+            run_key: r.key, author: r.key.split('|')[0]!, user_id: null, wave_count: 8, strength: '10', strength_early: 5, strength_late: 5, strength_peak: String(r.peak),
+            boards: Array.from({ length: 8 }, (_, w) => ({ v: 1, wave: w + 1, heroId: r.hero, resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 10, seed: r.seed, origin: 'self', author: r.key.split('|')[0]!, setId: SET, minions: [{ cardId: 'pack', attack: 3, health: 3, keywords: [], golden: false }] } as unknown as BoardSnapshot)),
+          })),
+          error: null,
+        };
+      },
+      lightPage: async () => ({ data: [], error: null }),
+      boardsForSeeds: async () => ({ data: [], error: null }),
+    };
+    const band = lobbyBandFor({ rank: { position: { divisionIndex: 0, points: 0 } } } as never);
+    expect(band?.peakCap).toBe(90);
+    const loader = createPoolLoader({
+      fetchRuns: (signal) => fetchPoolRuns(fakeApi, { setId: SET, patchPrefix: '0.1.0+', random: Math.random, band }, signal, { rpcMissing: false }),
+      registerRuns: registerOpponentRuns, cache: memoryPoolCache(), setId: () => SET, patchPrefix: '0.1.0+', now: () => 0, sleep: async () => {}, schedule: () => () => {},
+      band: () => band,
+    });
+    const s = await loader.load({ perRequestMs: 5000, attempts: 1, retryBaseMs: 0 });
+    expect(s.runs).toBe(14);
+    expect(calls[0]!.p_peak_cap).toBe(90);
+    expect(OPPONENT_POOL.filter((b) => b.seed === 8800).every((b) => b.runStrengthPeak === 60)).toBe(true);
+    const peakOf = new Map(pool.map((r) => [r.key, r.peak]));
+    for (let seed = 1; seed <= 8; seed++) {
+      const run = createLobbyRun(2000 + seed, playableHeroes()[0]!.id, {}, 'lobby', undefined, SET, { strengthBand: band });
+      const seated = run.lobby!.seats.filter((x) => x.kind === 'snapshot').map((x) => peakOf.get(x.runKey!)!);
+      expect(seated.sort((x, y) => x - y), `seed ${seed}`).toEqual([60, 70, 80, 90]); // exactly 90 is in
     }
   });
 });

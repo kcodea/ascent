@@ -1408,10 +1408,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   carried (stats, keywords, enchantments, Gilded). **It can be passed straight back** (owner 2026-10-25: "you should be
   able to pass cards back to your teammate"), and a card can be passed again later the same turn: every pass costs its
   own 1 Gold. The server caps passes at 10 per player per round (an anti-spam limit). Passing stays open after your End
-  Turn (it is a ready signal, below) and closes when the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
-  the refusal and the card stays yours, and you are not charged. If the teammate's hand fills up while the pass is on
-  its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
-  hand" like any other. Runes, Equipment, quests and the Starform cannot be passed. **A Golden minion CAN be passed from
+  Turn (it is a ready signal, below) and closes when the clock runs out. **A pass to a full hand never fails** (owner
+  2026-11-16, R-DUOS-PASS-WAITS-01: "A passed minion when a teammates hand is full should actually not fail, and should
+  enter the teammates hand when they have space"; this replaces 2026-10-25's "Pass is refused if hand is full"). The
+  pass completes for you at once: you pay its Gold and every effect of passing resolves once. The card waits on your
+  teammate's side and joins their hand the moment they have room (they play, sell or pass a card, or the turn turns
+  over), first in, first out, behind any card already waiting. Their portrait reads "Hand full: N cards waiting"; yours
+  says "Their hand is full. It waits for room." A waiting card is theirs: it survives a reload and later rounds and is
+  never sent back, even if they leave; it ends with the game. Arriving is "a card added to your hand" like any other. Runes, Equipment, quests and the Starform cannot be passed. **A Golden minion CAN be passed from
   hand** (owner 2026-10-31, R-DUOS-PASS-GOLDEN-MANUAL-01: "gilded minions can be passed from hand but not targeted by
   spells that pass"; this revises the 2026-10-30 no-Golden rule): it costs 1 Gold like any card and arrives Golden.
 - **Your teammate's triple** (owner 2026-11-02, R-DUOS-MATE-TRIPLE-01: "when a teammate has a pair, and the minion shows
@@ -1424,7 +1428,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   they locked); three auto rounds in a row put the team out. A card pass still waiting on a teammate who goes on auto
   comes back to its sender with its Gold (R-DUOS-PASS-EXPIRE-01). A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
-  A pass that comes back to you (their hand was full, the clock) says so on the portrait. A reload keeps every pass
+  A pass that comes back to you (the clock, the round cap, your teammate away) says so on the portrait, and whatever the
+  pass gave you comes off again (Priestess x Bonds' +10/+10 too), so a refused pass is never a free repeat. A reload keeps every pass
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
   and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
   and forth (A to B to A) lands once per pass and every pass is paid once. An effect pass replays too
@@ -1631,8 +1636,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 - **The mode.** A ranked lobby for two players playing live together: 4 teams of 2. Your team is the two of you; the
   other three teams are recorded runs. It follows the lobby rules (pairing, ghost fights, damage formula, round loss cap,
-  placement), with tag-team fights as in Versus Duos (the fly-in included, R-DUOS-FLYIN-01) and passing as in Versus Duos (1 Gold, hand only, refused on a full
-  hand). Attack-first cards are allowed. Duo runs never feed the solo pool.
+  placement), with tag-team fights as in Versus Duos (the fly-in included, R-DUOS-FLYIN-01) and passing as in Versus Duos (1 Gold, hand only, a full hand
+  waits for room: R-DUOS-PASS-WAITS-01). Attack-first cards are allowed. Duo runs never feed the solo pool.
 - **Team pool.** 30 Health plus both heroes' Armor; Armor absorbs first. A team at 0 is out together; placement is 1st
   to 4th per team.
 - **No Gold Fuse; the clock never stops.** Every shop runs the standard round clock from the shop opening. No pause.
@@ -2243,7 +2248,7 @@ playable hero, that placeholder was reachable in real games until this ruling.
   offer of three of the six Ancients (a seeded draw off the run seed + wave, never the run cursor). The pick locks in
   for the run; its effect is the PAIRING for the hero whose power sits in slot 0 (`ANCIENT_PAIRINGS`).
 - **THE SWITCH** is `ANCIENTS_LIVE` in `packages/sim/src/ancientsRelease.ts`. It ships `false`. Setting it to `true`
-  turns Ancients on for every NEW run; the same PR must bump `VERSUS_CF_PROTOCOL` 3 to 4 (a tripwire test fails CI
+  turns Ancients on for every NEW run; the same PR must bump `VERSUS_CF_PROTOCOL` 4 to 5 (a tripwire test fails CI
   otherwise) and the Versus Worker must be deployed for that build.
 - **Pinned at creation** (the card-sets rule): the switch is read only when a run is created
   (`releaseAncients`, from `createLobbyRun`, `createVersusRun`, `createGauntletRun` and the generated-seat runs in
@@ -2267,8 +2272,8 @@ playable hero, that placeholder was reachable in real games until this ruling.
   (`RunTelemetry.ancients` / `.ancient`, also inside `derived`) carry the pick, so the Balance Report can split by
   Ancient. Both are additive jsonb; no SQL.
 - **Versus Worker:** turning Ancients on is a fight-rules change with no content change, so the flip bumps
-  `VERSUS_CF_PROTOCOL` to 4 (R-VERSUS-WORKER-RULES-01): a v3 client (no meter) can never share a room with a v4 one.
-  `packages/ui/src/versus/ancientsReleaseProtocol.test.ts` enforces it. While off, the protocol stays 3.
+  `VERSUS_CF_PROTOCOL` to 5 (R-VERSUS-WORKER-RULES-01): a v4 client (no meter) can never share a room with a v5 one.
+  `packages/ui/src/versus/ancientsReleaseProtocol.test.ts` enforces it. While off, the protocol stays 4 (4 since R-DUOS-PASS-WAITS-01).
 
 ## Heroes: archived (owner ruling 2026-09-24, R-HERO-01)
 

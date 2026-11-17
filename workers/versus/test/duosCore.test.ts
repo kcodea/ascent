@@ -190,12 +190,11 @@ describe('Duos room (Cloudflare) — passing (R-DUOS-PASS-01)', () => {
     expect(await h.op(U[2], 'duos_passes', { matchId: h.id, from: 1 })).toHaveLength(0);
   });
 
-  it('refused: a full hand, the server cap of 10 a round, a bad card, a teammate away', async () => {
+  it('refused: the server cap of 10 a round, a bad card, a teammate away; NEVER a full hand (R-DUOS-PASS-WAITS-01)', async () => {
     const h = await inShop();
-    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 1 });
-    await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: card() });
-    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 2, card: card() })).rejects.toThrow('hand_full');
-    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 30 });
+    // A teammate reporting no hand room is no refusal any more: the drag pass is recorded, their run holds the card.
+    await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
+    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: card() })).resolves.toMatchObject({ status: 'sent', to_seat: 'p2' });
     for (let s = 2; s <= 10; s++) await h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: s, card: card() });
     await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 11, card: card() })).rejects.toThrow('too_many_passes');
     await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 1, card: { cardId: 'x', passFrom: 'board' } })).rejects.toThrow('bad_card');
@@ -410,8 +409,9 @@ describe('Duos room (Cloudflare) — effect passes wait for hand room; Disco / M
   it('owner 2026-10-30 ("they get the card once there is space in their hand"): an effect pass to a FULL hand is accepted, lands, and waits', async () => {
     const h = await inShop();
     await h.op(U[1], 'duos_hand_room', { matchId: h.id, room: 0 });
-    // A drag pass to a full hand is still refused up front; CueBee's Pass is not.
-    await expect(h.op(U[0], 'duos_pass', { matchId: h.id, round: 1, seq: 0, card: { cardId: filler, passFrom: 'hand' } })).rejects.toThrow('hand_full');
+    // A drag pass to a full hand is accepted too since 2026-11-16 (R-DUOS-PASS-WAITS-01), and so is CueBee's Pass.
+    await h.op(U[3], 'duos_hand_room', { matchId: h.id, room: 0 });
+    await expect(h.op(U[2], 'duos_pass', { matchId: h.id, round: 1, seq: 0, card: { cardId: filler, passFrom: 'hand' } })).resolves.toMatchObject({ status: 'sent', to_seat: 'p4' });
     let a = reduce(run(11, ['duo_cuebee']), { type: 'play', uid: 'h0' });
     const pass = a.hand.find((c) => c.cardId === 'duo_w_pass')!;
     const offer = a.shop.find((o) => !CARD_INDEX[o.cardId]?.spell)!;

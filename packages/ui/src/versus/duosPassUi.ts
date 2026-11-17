@@ -11,7 +11,6 @@ import { localMate } from './localMate';
 
 /** The refusal shown on the teammate's portrait (player text: short, plain, no em dashes). */
 const REASON_TEXT: Record<string, string> = {
-  hand_full: 'Their hand is full',
   gold: 'You need 1 Gold',
   board: 'Pass from your hand',
   phase: 'Passing is closed',
@@ -20,7 +19,8 @@ const REASON_TEXT: Record<string, string> = {
   teammate_away: 'Your teammate is away',
 };
 
-/** Is my teammate's hand full, by their live frame (unknown = not full; the server checks too). */
+/** Is my teammate's hand full, by their live frame (unknown = not full)? Never a refusal (R-DUOS-PASS-WAITS-01): it
+ *  only decides whether my portrait says the card will wait. */
 export function mateHandFull(): boolean {
   const lm = localMate();
   if (lm) return lm.handFull(); // the Scene Builder's placeholder teammate (DEV, R-SB-DUOS-01)
@@ -51,8 +51,9 @@ export function duosPassRefusal(run: RunState, uid: string): string | null {
   if (!localMate() && !useVersus.getState().match?.group?.duos?.mate) return REASON_TEXT.not_duos!;
   // A teammate who dropped out (their board plays on auto) cannot take a card: it would wait on the server, with my
   // Gold paid, until they came back (phase-3 live test, 2026-10-25). The server refuses it too.
+  // A FULL hand is not a refusal (owner 2026-11-16, R-DUOS-PASS-WAITS-01): the card waits for room on their run.
   if (mateAway()) return REASON_TEXT.teammate_away!;
-  const why = duosPassBlocked(run, uid, mateHandFull());
+  const why = duosPassBlocked(run, uid);
   return why ? REASON_TEXT[why] ?? REASON_TEXT.phase! : null;
 }
 
@@ -77,7 +78,6 @@ export const passOnRelease = (r: { left: number; top: number; right: number; bot
  *  "duos keeps saying pass returned. why?"). Every refusal code has its own line; only an unknown code keeps the
  *  generic text (R-DUOS-PASS-RANKED-01). */
 const RETURNED_TEXT: Record<string, string> = {
-  hand_full: 'Their hand was full. You got it back.',
   teammate_away: 'Your teammate is away. You got it back.',
   no_teammate: 'Your teammate is out. You got it back.',
   locked: 'You are out of the game. You got it back.',
@@ -89,6 +89,8 @@ const RETURNED_TEXT: Record<string, string> = {
   not_duos: "You can't pass in this mode. You got it back.",
 };
 export const PASS_RETURNED_FALLBACK = 'Pass returned. You got it back.';
+/** A pass to a FULL hand went through and waits for room on my teammate's run (R-DUOS-PASS-WAITS-01). */
+export const PASS_WAITS_TEXT = 'Their hand is full. It waits for room.';
 export function passReturnedText(code: string): string {
   return RETURNED_TEXT[code] ?? PASS_RETURNED_FALLBACK;
 }

@@ -8006,7 +8006,7 @@ export function ancientOnPassMade(state: RunState): void {
   if (b) {
     e.bonds = { attack: b.attack, health: b.health };
     const mine = state.board[0];
-    if (mine) fromHeroPower(state, () => { addBuff(mine, ANCIENTS.bonds.name, b.attack, b.health); });
+    if (mine) { e.bondsUid = mine.uid; fromHeroPower(state, () => { addBuff(mine, ANCIENTS.bonds.name, b.attack, b.health); }); } // a refund takes it off (R-DUOS-PASS-WAITS-01)
   }
 }
 

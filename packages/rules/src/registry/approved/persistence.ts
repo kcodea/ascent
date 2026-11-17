@@ -1267,7 +1267,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'door is on: ranked and casual lobby, Practice (God Mode too), Gauntlet, Versus 1v1, Group, Duos and Ranked Duos. Never '
       + 'on: the Tutorial, a set without Ancients (only Sets 2 and 3, `ancientsSetSupported`), a hero without all six pairings '
       + 'written (`heroHasAncientPairings`: Runesmith and Guardian today). The Scene Builder ignores the switch and keeps its toggle. '
-      + 'Flipping it ON must bump VERSUS_CF_PROTOCOL past 3 in the same PR (R-VERSUS-WORKER-RULES-01; a tripwire test enforces it).',
+      + 'Flipping it ON must bump VERSUS_CF_PROTOCOL past 4 in the same PR (4 since R-DUOS-PASS-WAITS-01) (R-VERSUS-WORKER-RULES-01; a tripwire test enforces it).',
     domain: 'persistence',
     status: 'approved',
     evidence: [

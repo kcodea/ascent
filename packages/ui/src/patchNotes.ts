@@ -72,6 +72,25 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Duos: passing to a teammate with a full hand now works. The card waits and joins their hand as soon as they have room.',
+        details: [
+          'Before, a pass to a full hand was refused and came back to you.',
+          'Now the pass goes through. You pay for it and every effect of passing happens once.',
+          'Their portrait shows how many cards are waiting. Yours says their hand is full and the card waits for room.',
+          'Waiting cards join their hand in the order they were passed.',
+          'A pass can still come back for other reasons, like the round limit or an away teammate. Then anything the pass gave you is taken back too.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The last hit of a fight now finishes all of its effects, just like any other hit.',
+        details: [
+          'Ancients test mode: Flash with Ancient of War now gives its copy when the hit that reaches 400 damage also kills the last enemy. It copies the minion that hit just killed, and no use is spent without a copy.',
+          'Every effect set off by the final kill or death still happens before the fight ends.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Opponents: more variety at every table, and fewer stacked tables at the top ranks.',
         details: [
           'You now meet at most 2 past games from the same player in one game, your own included (it was 4). A third appears only when there are not enough players to fill the table.',

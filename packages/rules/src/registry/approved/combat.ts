@@ -251,4 +251,26 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-16.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/finalHitTriggers.test.ts'], lastVerifiedAt: '2026-11-16' },
   },
+  {
+    id: 'R-SLAUGHTER-MUTUAL-01',
+    title: 'Every Slaughter extra fires when the killer dies in the same clash (a mutual kill), exactly like its own Slaughter',
+    statement:
+      'A minion that kills by attacking and dies to the retaliation in the same clash still triggers its own Slaughter '
+      + '(owner 2026-07-17), and every effect that adds to or repeats that Slaughter fires too, mid-fight and on the final '
+      + 'hit, for both sides. Law of Teeth (a Beast), War Council (its tribe), Author\x27s Hand (the first Slaughter each '
+      + 'combat) and any "Slaughters trigger an additional time" board multiplier re-run the dead killer\x27s own Slaughter '
+      + 'effects, resolved on the dead body exactly as its first Slaughter is. Blood Trail still conjures its Beast. Feeding '
+      + 'Line still gives the next living Beast after the killer\x27s slot an immediate attack. Bloodscent\x27s permanent '
+      + '+4/+4 lands on the dead Beast and carries home to its card. Each extra fire keeps its own beat and counts toward '
+      + '"Trigger N Slaughters" as on a normal kill.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-11-17, asked "should Law of Teeth and similar Slaughter effects fire when the killer also dies?"', quote: 'yes' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts performAttack on-kill block (Law of Teeth / War Council / Author\x27s Hand / Blood Trail / Feeding Line) + set2TribalOnKill (Bloodscent)' },
+    ],
+    contentIds: ['q_law_of_teeth', 'q_war_council', 'q_blood_trail', 'q_feeding_line', 'rune_bloodscent'],
+    currentBehaviour: 'Conforms as of 2026-11-17. Before, all six skipped their payout when the killer died in the clash, while its own Slaughter still fired.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/slaughterExtrasMutualKill.test.ts'], lastVerifiedAt: '2026-11-17' },
+  },
 ];

@@ -5471,8 +5471,8 @@ export function simulate(
       // cleave splash and the defender felling its attacker included, matching the card text ("when this
       // kills"), not just the main-target kill. Dropping a Reborn body to 0 counts as a kill even though
       // it returns — it spent its Reborn. Emitted in damage order after phase 2, crediting each fallen
-      // body's killer; a dead killer's handlers self-suppress in registerEffects (a mutual kill procs
-      // nothing, unchanged from before).
+      // body's killer. A killer that died in the same clash (a mutual kill) still procs its Slaughter (owner
+      // 2026-07-17) and every Slaughter extra below (R-SLAUGHTER-MUTUAL-01, owner 2026-11-17).
       nextStep(); // on-kill rewards resolve as their own step, after every death in the clash
       for (const { m, killer, rises0 } of victims) {
         // Slaughter (on-kill) fires ONLY when THIS minion ATTACKS and kills (owner ruling 2026-07-08, revising
@@ -5505,7 +5505,12 @@ export function simulate(
           // (credited to the KILLER's tribe for "with Beasts").
           if (m.side !== killer.side) { // this attacker felled an OPPONENT minion — a Slaughter, for whichever side
             const kmods = modsFor(killer.side); // per-side quest/rune Slaughter effects
-            const killerAlive = !killer.dead && killer.health > 0;
+            // R-SLAUGHTER-MUTUAL-01 (owner ruling 2026-11-17): every effect that adds to or repeats a Slaughter fires on
+            // a MUTUAL kill too, exactly as the dead killer's own Slaughter already does (owner ruling 2026-07-17).
+            // None of the blocks below gates on the killer being alive any more: an extra fire re-runs the dead
+            // killer's own on-kill effects against its dead body (the same way the bus runs its first Slaughter),
+            // Blood Trail still conjures its Beast, Feeding Line counts the next Beast from the killer's own slot
+            // (dead bodies stay in `boards`), and Bloodscent's permanent +4/+4 lands on the dead body and carries home.
             {
               bumpQuestTally('slaughter', killer, killer.side);
               if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(killer.side); // The Red Trail: a Slaughter-keyword trigger
@@ -5524,12 +5529,12 @@ export function simulate(
               }
               // Blood Trail (Beast → hand): the side's Start-of-Combat-marked body's kills conjure a random Beast.
               // Either side (R-SYMMETRY-01: the mark and the payout used to exist on the player board only).
-              if (kmods.bloodTrail && killer === bloodTrailMinion[killer.side] && killerAlive) ctx.grantRandomMinion(1, 'beast', killer.side, undefined, killer.uid);
-              set2TribalOnKill(killer, killerAlive); // Set 2 runes Bloodscent + Trophy Hunter: a Beast's kill
+              if (kmods.bloodTrail && killer === bloodTrailMinion[killer.side]) ctx.grantRandomMinion(1, 'beast', killer.side, undefined, killer.uid);
+              set2TribalOnKill(killer); // Set 2 runes Bloodscent + Trophy Hunter: a Beast's kill
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
-            if (killerAlive && ((kmods.lawOfTeeth && isBeast(killer)) || (kmods.tribeRallySlaughterExtra && isTribeOf(killer, kmods.tribeRallySlaughterExtra, cards)))) {
+            if (((kmods.lawOfTeeth && isBeast(killer)) || (kmods.tribeRallySlaughterExtra && isTribeOf(killer, kmods.tribeRallySlaughterExtra, cards)))) {
               let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
@@ -5542,7 +5547,7 @@ export function simulate(
             // Author's Hand: the FIRST Slaughter each combat fires an extra time (any tribe; additive with Law of
             // Teeth). Re-runs only this killer's own on-kill effects, once per combat. Per side.
             const slfe = kmods.slaughterFirstEachCombat ?? 0;
-            if (slfe > 0 && killerAlive && !firstSlaughterDone[killer.side]) {
+            if (slfe > 0 && !firstSlaughterDone[killer.side]) {
               firstSlaughterDone[killer.side] = true;
               const authorsHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
               for (let r = 0; r < slfe; r++) {
@@ -5557,7 +5562,7 @@ export function simulate(
             // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
             // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained
             // by flushImmediateAttacks below, so it can chain. Per side.
-            if (kmods.feedingLine && killerAlive && isBeast(killer)) {
+            if (kmods.feedingLine && isBeast(killer)) {
               const arr = boards[killer.side];
               for (let j = arr.indexOf(killer) + 1; j < arr.length; j++) {
                 const nb = arr[j]!;
@@ -5773,13 +5778,14 @@ export function simulate(
     }
   }
   /** BLOODSCENT + TROPHY HUNTER: `killer` (an attacker) just killed an opponent's minion (a Slaughter, the Rune of the
-   *  Trophy reading of "kills"). Bloodscent: a living killing Beast gains +4/+4 per copy, PERMANENTLY (`permaGain`).
+   *  Trophy reading of "kills"). Bloodscent: the killing Beast gains +4/+4 per copy, PERMANENTLY (`permaGain`) — a killer
+   *  that died in the same clash too (R-SLAUGHTER-MUTUAL-01): the dead body's run card keeps the gain.
    *  Trophy Hunter: 1 Gold next turn per copy, the first 3 kills each combat (the side's own cap). */
-  function set2TribalOnKill(killer: Minion, killerAlive: boolean): void {
+  function set2TribalOnKill(killer: Minion): void {
     const side = killer.side;
     const m = modsFor(side);
     if (!(m.runeBloodscent || m.runeTrophyHunter) || !isTribeOf(killer, 'beast', cards)) return;
-    if (m.runeBloodscent && killerAlive) {
+    if (m.runeBloodscent) {
       const n = flagCopiesOf(side, 'runeBloodscent');
       const a = SET2_TRIBAL_RUNES.bloodscent.attack * n, h = SET2_TRIBAL_RUNES.bloodscent.health * n;
       nextStep();

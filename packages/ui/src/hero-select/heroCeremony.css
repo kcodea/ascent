@@ -78,13 +78,18 @@
 /* THE SHOWCASE (hero select showcase 2026-11-16): the clone is the inspect card's splash art alone — the same cover
    crop and right-edge fade as `.phi-art img` (phCompendium.css). Its "chrome" is that soft-edged square: at the
    materializing beat it fades out on the card chrome's clock while the round portrait takes over (opacity only). */
-.hsc-clone.hsc-splash > .hsc-splash-art { position: relative; width: 100%; height: 100%; overflow: hidden; }
+/* The showcase card shows its art 6% larger under a deeper box fade (heroShowcase.css, owner 2026-11-17), so the clone
+   starts the same and eases back to true size as it travels: it must sit at 1 when the clean portrait takes over. */
+.hsc-clone.hsc-splash > .hsc-splash-art { position: relative; width: 100%; height: 100%; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 56%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 56%, transparent 100%); }
 .hsc-clone.hsc-splash .hsc-splash-art img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
-  -webkit-mask-image: linear-gradient(90deg, #000 68%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 68%, transparent 100%);
+  transform-origin: 50% 20%; animation: hsc-splash-settle 0.45s ease-out both;
   transition: opacity var(--hsc-transform-ms, 700ms) ease;
 }
+@keyframes hsc-splash-settle { from { scale: 1.06; } to { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .hsc-clone.hsc-splash .hsc-splash-art img { animation: none; } }
 .hsc-clone.hsc-splash.hsc-chrome-out .hsc-splash-art img { opacity: 0; }
 .hsc-clone.hsc-splash .hsc-splash-art > svg { position: absolute; left: 50%; top: 50%; width: 80px; height: 80px; transform: translate(-50%, -50%); color: var(--ui-title, #ffd98a); }
 

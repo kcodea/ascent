@@ -91,6 +91,12 @@
 /* ── THE CARD'S STAGE: a size container that takes the height left between the tiles and the button ── */
 .heroselect.hss .hss-stage { position: relative; flex: 1 1 0; min-height: 0; width: 100%; container: hssstage / size; display: grid; place-items: center; }
 .heroselect.hss .hss-card { --phi-h: min(calc(500 * var(--phu)), 100cqh); width: var(--hss-card-w); max-height: 100cqh; text-align: left; }
+/* THE SPLASH ART: 6% larger, and a deeper fade on its right side (owner 2026-11-17). `scale` composes with the art's
+   one-shot entrance (`phi-art` holds `transform`); it grows about a point near the top so heads stay in frame. The fade
+   moves from the image to its BOX so it stays put under the larger image (the Compendium fades from 68%). Static.
+   The ceremony's clone matches both (heroCeremony.css `.hsc-splash`). */
+.heroselect.hss .hss-card .phi-art { -webkit-mask-image: linear-gradient(90deg, #000 56%, transparent 100%); mask-image: linear-gradient(90deg, #000 56%, transparent 100%); }
+.heroselect.hss .hss-card .phi-art img { scale: 1.06; transform-origin: 50% 20%; -webkit-mask-image: none; mask-image: none; }
 /* The colour wash behind the card: a blur of 30, against the Compendium's 72 (owner 2026-11-17). Static. */
 .heroselect.hss .hss-card .phi-wash { filter: blur(calc(30 * var(--phu))) saturate(1.4); }
 /* Tighter type than the Compendium's full-screen view, so the card with its Ancients row fits the stage. */

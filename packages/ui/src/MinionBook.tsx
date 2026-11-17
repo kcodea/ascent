@@ -3,7 +3,7 @@ import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as 
 import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, DUOS_WHISPERS, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, duosPoolFor, poolFor, type SetId } from '@game/content';
 import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
-import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
+import { HEROES, chooseBothActive, isArchivedHero, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, inspectViewOf, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
 import { rubyLiveText } from './instView';
@@ -578,16 +578,17 @@ function BookView({ frame }: { frame?: (parts: CompendiumParts) => ReactNode }) 
     m.set('runeRewards', best(runeRewardCardsFor(setId)));
     const rune = [...RUNES, ...EPIC_RUNES].find((r) => !r.duos && (!r.sets || r.sets.includes(setId)) && !!runeArt(r.id));
     m.set('runes', rune ? runeArt(rune.id) : undefined);
-    const hero = HEROES.find((h) => !h.wip && !!heroArt(h.id));
+    const hero = HEROES.find((h) => !isArchivedHero(h) && !!heroArt(h.id));
     m.set('heroes', hero ? heroArt(hero.id) : undefined);
     return m;
   }, [tribes, setId]);
 
-  // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
+  // Heroes for the Heroes tab — every shippable hero (archived ones are withheld, like the picker: `wip`, and while
+  // the Ancients switch is on a hero with no pairings), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
   const heroesToShow = useMemo(() => {
     const m = makeSearchMatcher(searchQ);
-    return HEROES.filter((h) => !h.wip && (!h.duosOnly || duos))
+    return HEROES.filter((h) => !isArchivedHero(h) && (!h.duosOnly || duos))
       .filter((h) => m(h.name) || m(h.power.name) || m(h.power.text))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [searchQ, duos]);

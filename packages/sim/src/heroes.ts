@@ -1285,9 +1285,21 @@ const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);
 const tribeAllowed = (h: HeroDef, tribes?: readonly Tribe[]): boolean =>
   !h.tribes || !tribes || h.tribes.some((t) => tribes.includes(t));
 
-/** ARCHIVED (`wip`): kept in the registry so every stored reference resolves, but offered by no picker except
- *  the Scene Builder. The one predicate for "can a player be handed this hero in a new run?" (negated). */
-export const isArchivedHero = (h: Pick<HeroDef, 'wip'>): boolean => !!h.wip;
+/** The Ancients-release archive gate (owner 2026-11-17: "when ancients go live, any hero that does not have ancients
+ *  CANNOT be offered ... any hero that does not have ancients should join the archived heroes list until re-added").
+ *  Installed by `ancientsRelease.ts` (`heroArchivedByAncients`); it cannot be imported here because `ancients.ts`
+ *  imports this file. Until it is installed (and whenever the switch is off) it archives nothing. */
+let releaseArchiveGate: (heroId: string) => boolean = () => false;
+/** Install the Ancients-release archive gate. Called once, by `ancientsRelease.ts` at module load. */
+export function setHeroReleaseArchiveGate(gate: (heroId: string) => boolean): void {
+  releaseArchiveGate = gate;
+}
+
+/** ARCHIVED: kept in the registry so every stored reference resolves, but offered by no picker except the Scene
+ *  Builder. The one predicate for "can a player be handed this hero in a new run?" (negated). Two ways in: the
+ *  static `wip` flag, or (while the Ancients switch is on) a hero with no Ancient pairings written, which re-joins on
+ *  its own the moment its pairings land. */
+export const isArchivedHero = (h: Pick<HeroDef, 'wip' | 'id'>): boolean => !!h.wip || releaseArchiveGate(h.id);
 
 /** `duos` (a team mode's deal: Versus Duos, Ranked Duos) adds the Duos-only heroes (`HeroDef.duosOnly`). Without it the
  *  list is exactly the solo roster, so every existing seeded draw keeps its old answer. */

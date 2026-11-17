@@ -25,6 +25,8 @@ export interface LiveRun {
   setId: string;
   patchPrefix: string;
   eligible: boolean;
+  /** Inside the rolling window (pool_runs.live, R-POOL-ROLLING-01): the only runs a table is seated from. */
+  live: boolean;
   boards: LiveBoard[];
 }
 export interface LivePool { fetchedAt: string; runs: LiveRun[] }
@@ -59,16 +61,16 @@ export async function getAll<T>(path: string): Promise<T[]> {
   }
 }
 
-interface PoolRunRow { author: string; hero_id: string; seed: number; user_id: string | null; set_id: string; patch_prefix: string; eligible: boolean }
+interface PoolRunRow { author: string; hero_id: string; seed: number; user_id: string | null; set_id: string; patch_prefix: string; eligible: boolean; live: boolean }
 interface BoardRow { id: string; author: string | null; hero_id: string; seed: number; wave: number; origin: string | null; snapshot: BoardSnapshot }
 
 /** Fetch every pool run and all of its servable boards (GET only). */
 export async function fetchLivePool(): Promise<LivePool> {
-  const runRows = await getAll<PoolRunRow>('pool_runs?select=author,hero_id,seed,user_id,set_id,patch_prefix,eligible&order=id.asc');
+  const runRows = await getAll<PoolRunRow>('pool_runs?select=author,hero_id,seed,user_id,set_id,patch_prefix,eligible,live&order=id.asc');
   const runs = new Map<string, LiveRun>();
   for (const r of runRows) {
     const key = `${r.author}|${r.hero_id}|${r.seed}`;
-    runs.set(key, { key, author: r.author, userId: r.user_id, setId: r.set_id, patchPrefix: r.patch_prefix, eligible: r.eligible, boards: [] });
+    runs.set(key, { key, author: r.author, userId: r.user_id, setId: r.set_id, patchPrefix: r.patch_prefix, eligible: r.eligible, live: r.live, boards: [] });
   }
   const seeds = [...new Set(runRows.map((r) => r.seed))];
   for (let i = 0; i < seeds.length; i += 40) {
@@ -84,6 +86,14 @@ export async function fetchLivePool(): Promise<LivePool> {
   }
   for (const r of runs.values()) r.boards.sort((a, b) => a.wave - b.wave || a.rowId.localeCompare(b.rowId));
   return { fetchedAt: new Date().toISOString(), runs: [...runs.values()] };
+}
+
+export const LIVE_CACHE_ERROR = 'the cached pool has no live flag: run `npm run strength -- fetch` first';
+
+/** The runs a table can be seated from: eligible, inside the rolling window, of this set, in pool (id) order. */
+export function liveRunsOf(pool: LivePool, setId: string): LiveRun[] {
+  if (pool.runs.some((r) => typeof r.live !== 'boolean')) throw new Error(LIVE_CACHE_ERROR);
+  return pool.runs.filter((r) => r.eligible && r.live && r.setId === setId);
 }
 
 export async function loadLivePool(refresh = false): Promise<LivePool> {

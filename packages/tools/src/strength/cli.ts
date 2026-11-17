@@ -14,20 +14,25 @@
  *            each split band holds (old weighted bands beside them), and the mean early rating of the runs a band
  *            seats.
  *
+ *  ref --v2      build the CANDIDATE v2 reference from the live window (strength v2 design 2026-11-16) into
+ *                packages/tools/.cache (never committed, never read by the game).
+ *  measure --v2  the live window under the v2 rules: carry-forward ranking, the drift alarm, the peak-cap table.
+ *  validate      v2 board percentiles against real lobby fights (who actually won).
+ *
  * Nothing here writes to the backend.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { makeRng, simulate } from '@game/core';
-import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import {
-  opponentBoard, sideFromSnapshot, STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
+  STRENGTH_REF_VERSION, loadStrengthReference, createStrengthProbe, percentileOf,
   OPPONENT_POOL, registerOpponentRuns, createRunLobby, resetLobbyDrivers, playableHeroes, strengthBandForDivision,
   runAverageOf, runWeightedAverageOf, runPercentileOf, runFinalStrengthOf, type RunStrengthHistogramEntry, type BoardSnapshot, type StrengthReference, type StrengthHistogramEntry, STRENGTH_BANDS,
   bandSteps, inStrengthBand, type StrengthBand, MAX_SEATS_PER_PLAYER, RANK_MEDALS, type RankMedal,
   earlyLateStrengthOf, rankAmongRuns, runInStrengthBand, matchScoreOf, bandVersionLabel, type RunStrengths,
 } from '@game/sim';
 import { loadLivePool, type LivePool, type LiveRun } from './livePool';
+import { SET, trimForReference, roundRobin } from './refBuild';
+import { buildReferenceV2, measureV2, validate } from './cliV2';
 
 const REF_OUT = 'packages/sim/src/lobby/strengthReference.v1.json';
 const BACKFILL_OUT = 'supabase/backfill/2026-09-30-board-strength-backfill.sql';
@@ -36,15 +41,6 @@ const SCORES_CACHE = 'packages/tools/.cache/strength-scores.json';
 const REFS_PER_WAVE = 30;
 /** A wave with fewer eligible boards than this is merged, with every later wave, into one last reference wave. */
 const MIN_REF_WAVE_BOARDS = 20;
-const SET: SetId = 'set2';
-
-/** Combat-only fields: the reference file ships in the web build (lazily), so display fields are dropped. */
-const DISPLAY_ONLY = ['id', 'author', 'ownerId', 'remote', 'cosmetics', 'capturedAt', 'patch', 'quests', 'runes', 'rating', 'result', 'origin', 'wins', 'armor', 'runStrength'] as const;
-function trimForReference(s: BoardSnapshot): BoardSnapshot {
-  const out = { ...s, resolve: 0, triples: 0, power: 0 } as BoardSnapshot & Record<string, unknown>;
-  for (const k of DISPLAY_ONLY) delete out[k];
-  return out;
-}
 
 function eligibleRuns(pool: LivePool): LiveRun[] {
   return pool.runs.filter((r) => r.eligible && r.setId === SET);
@@ -64,24 +60,6 @@ function boardsByWave(runs: readonly LiveRun[]): Map<number, BoardSnapshot[]> {
     }
   }
   return out;
-}
-
-/** Round robin inside one wave: every pair fights once (sides alternate by pair), seeded. Returns win rates. */
-function roundRobin(boards: readonly BoardSnapshot[], wave: number): number[] {
-  const poolIds = poolFor(SET).all.map((c) => c.id);
-  const sides = boards.map((b) => sideFromSnapshot(b, b.tier, poolIds));
-  const pts = boards.map(() => 0);
-  const games = boards.map(() => 0);
-  for (let i = 0; i < boards.length; i++) {
-    for (let j = i + 1; j < boards.length; j++) {
-      const flip = (i + j) % 2 === 1;
-      const [a, b] = flip ? [j, i] : [i, j];
-      const r = simulate(opponentBoard(boards[a]!), opponentBoard(boards[b]!), makeRng((wave * 7919) ^ (a * 104729) ^ (b * 1299709)), CARD_INDEX, sides[a]!, sides[b]!);
-      const pa = r.result === 'win' ? 1 : r.result === 'draw' ? 0.5 : 0;
-      pts[a]! += pa; pts[b]! += 1 - pa; games[a]!++; games[b]!++;
-    }
-  }
-  return pts.map((p, i) => (games[i]! ? p / games[i]! : 0.5));
 }
 
 async function buildReference(): Promise<void> {
@@ -396,10 +374,12 @@ function simulateLobbies(pool: LivePool, strength: Map<string, number | null>, e
 }
 
 const cmd = process.argv[2];
+const v2 = process.argv.includes('--v2');
 if (cmd === 'fetch') {
   const p = await loadLivePool(true);
   console.log(`fetched ${p.runs.length} runs, ${p.runs.reduce((a, r) => a + r.boards.length, 0)} boards`);
-} else if (cmd === 'ref') await buildReference();
+} else if (cmd === 'ref') await (v2 ? buildReferenceV2() : buildReference());
 else if (cmd === 'backfill') await backfill();
-else if (cmd === 'measure') await measure();
-else { console.error('usage: npm run strength -- <fetch|ref|backfill|measure>'); process.exit(1); }
+else if (cmd === 'measure') await (v2 ? measureV2() : measure());
+else if (cmd === 'validate') await validate();
+else { console.error('usage: npm run strength -- <fetch|ref [--v2]|backfill|measure [--v2]|validate>'); process.exit(1); }

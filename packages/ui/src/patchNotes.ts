@@ -92,7 +92,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
+        text: 'Every hero portrait and hero power picture has been repainted: the same heroes and powers, with cleaner and brighter art.',
       },
       {
         category: 'Systems',

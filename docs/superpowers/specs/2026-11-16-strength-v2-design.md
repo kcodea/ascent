@@ -257,8 +257,12 @@ one player contributes to the ranking population**:
 
 Each is recorded with its reason in `docs/devlog/2026-11-16-strength-v2-scoring.md`.
 
-- **Rollout order is SQL first, then Ship Ascent**, not "deploy the hub first": the `strength_carried` column must
-  exist before a client that sends it ships, and the SQL draw does not call the hub.
+- **Rollout order is SQL first, then Ship Ascent straight away**, not "deploy the hub first": the
+  `strength_carried` column must exist before a client that sends it ships. The SQL is one generated file (the
+  migration with the backfill inside its transaction); until the hub ships, the old hub still seats unscored runs
+  in banded tables, so the two steps go back to back.
+- **A carried score is fought without the board's banked next-combat spells**, as a table meets a final board past
+  its round.
 - **A game under 7 rounds still uploads its boards** (the live replay and the record board read them); the database
   marks the run ineligible, so it is never seated or ranked.
 - **The 7-round floor is applied where a table is seated**, not in the run lookup, so a saved game or a replay still

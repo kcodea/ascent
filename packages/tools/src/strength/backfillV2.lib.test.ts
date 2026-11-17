@@ -71,7 +71,7 @@ describe('applyV2Sql: the one file an owner applies', () => {
     expect(sql.match(/^commit;$/gm)).toHaveLength(1);
     const begin = sql.search(/^begin;$/m);
     const update = sql.indexOf('update public.boards b set strength_raw');
-    const rerate = sql.indexOf('select public.pool_strength_refresh(null, null, null);');
+    const rerate = sql.lastIndexOf('select public.pool_strength_refresh(null, null, null);'); // the statement, not the header's mention
     const commit = sql.search(/^commit;$/m);
     expect(begin).toBeGreaterThan(0);
     expect(update).toBeGreaterThan(sql.indexOf('add column if not exists strength_carried')); // the column exists first

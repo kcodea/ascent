@@ -15870,7 +15870,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A rated game ends on round 9. For about a second Continue is grey under "Calculating Score" while the bar fills, then it lights up.',
     currentBehaviour:
       'Conforms from 2026-11-16. The lock also applies to an offline (unrated) lobby game, whose boards go to the pool '
-      + 'too. The work runs in slices of at most 6 ms on the main thread. NOT YET MEASURED in the running game on the '
+      + 'too. The work runs in slices of about 6 ms on the main thread. A device too slow to finish in 5 seconds uploads the game unscored. NOT YET MEASURED in the running game on the '
       + 'production build (frame times during the wait, and the wait itself): the owner checks it before the release.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/boardStrength/runEndStrength.test.ts', 'packages/ui/src/boardStrength/runEndTimeout.test.ts', 'packages/ui/src/boardStrength/carriedScorer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },

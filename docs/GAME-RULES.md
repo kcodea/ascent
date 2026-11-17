@@ -168,8 +168,9 @@ medal + division — see *Ranked ladder* below).
       timer bar as well"*): when a lobby game that reached round 7 ends, Continue is greyed out under the text
       "Calculating Score" and a bar that fills with the real progress, until the game's scores are done. It unlocks
       after 5 seconds at the latest.
-    - Live once the owner applies `supabase/migrations/2026-11-23-strength-v2.sql` and the generated backfill
-      (`npm run strength -- backfill`). Until a player's game updates, it shows no Game strength and the games it
+    - Live once the owner applies the ONE generated file `packages/tools/.cache/strength-v2-apply.sql`
+      (`npm run strength -- backfill` writes it: `supabase/migrations/2026-11-23-strength-v2.sql` with every board's
+      new score inside the same transaction; the migration is never applied alone). Until a player's game updates, it shows no Game strength and the games it
       uploads are unscored.
 
     Before 2026-10-06 the bands filtered the weighted strength directly: Bronze 0-30, Silver 10-40, Gold 20-65,

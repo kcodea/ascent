@@ -197,7 +197,7 @@
 
 Order, and why it differs from the spec's "hub first": the `strength_carried` column must exist before any v2 client uploads, or the boards upsert fails. The SQL draw does not call the hub, and an old hub only ignores the new digest field.
 
-1. After the PR merges: `npm run strength -- backfill --v2` on the live pool. It writes `packages/tools/.cache/strength-backfill-v2.sql`.
-2. In Supabase, in ONE transaction: `2026-11-23-strength-v2.sql`, then the backfill file, then `select public.pool_refresh_dirty();`. Check `ops.pool_digest` reports `live_unscored: 0`.
-3. "Ship Ascent" (Mike or Kevin). Until a player updates, an old client shows no Game strength and its uploads are unscored (kept out of Bronze, Silver and Gold tables).
-4. One week later: `npm run strength -- backfill --v2` again for runs uploaded by old clients, and `npm run strength -- measure --v2` for the drift alarm.
+1. After the PR merges: `npm run strength -- fetch`, then `npm run strength -- backfill`. It writes `packages/tools/.cache/strength-v2-apply.sql` (the migration with the backfill inside its transaction).
+2. In Supabase: apply that ONE file (never the bare migration), then `select public.pool_refresh_dirty();`. Check `select public.pool_live_unscored();` returns 0.
+3. "Ship Ascent" (Mike or Kevin), straight away: until the hub ships, the old hub still seats unscored runs in banded tables. Until a player updates, an old client shows no Game strength and its uploads are unscored.
+4. One week later: `fetch` and `backfill` again, apply `packages/tools/.cache/strength-backfill-v2.sql` (the top-up) for runs uploaded by old clients, and `npm run strength -- measure --v2` for the drift alarm.

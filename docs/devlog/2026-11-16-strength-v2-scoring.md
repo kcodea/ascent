@@ -36,14 +36,17 @@ same day. Rules: R-LOBBY-18, -19, -20, R-ENDSCREEN-SCORE-01; R-LOBBY-09, -13, -1
 3. **A game under 7 rounds still uploads its boards.** The design said it would not, but the live replay and the
    record board read `public.boards` by run. The database marks the run ineligible, so it is never seated or ranked.
 4. **The lock also covers an offline (unrated) lobby game**: its boards go to the pool too.
-5. **Run-end scoring runs on the main thread** in 6 ms slices on a zero timer (not `requestAnimationFrame`, which
-   stops in a hidden tab), not in a Web Worker.
+5. **Run-end scoring runs on the main thread** in 6 ms slices, each its own task through a `MessageChannel` (not
+   `requestAnimationFrame`, which stops in a hidden tab, and not `setTimeout(0)`, which is clamped to 4 ms), not in a
+   Web Worker.
 6. **`pool_strength_refresh` always re-rates every live run** (250 runs x 15 rounds); its key arguments are kept for
    its callers and ignored.
 7. **`ops.pool_digest` is a content hash**, so the count of live unscored runs is its own function,
    `pool_live_unscored()`.
-8. **Rollout order is SQL first, then Ship Ascent** (the design said hub first): the `strength_carried` column must
-   exist before a client that sends it ships.
+8. **Rollout order is SQL first, then Ship Ascent straight away** (the design said hub first): the
+   `strength_carried` column must exist before a client that sends it ships. The SQL is ONE generated file
+   (`strength-v2-apply.sql`: the migration with the backfill inside its transaction), never the migration alone:
+   see the review pass below.
 9. **A new regime era** for the Balance Report: `bandsV2Scoring`, formula `earlyLateV2`.
 10. `schema.sql` was not appended (it does not hold the 2026-11-22 file either).
 
@@ -55,13 +58,50 @@ same day. Rules: R-LOBBY-18, -19, -20, R-ENDSCREEN-SCORE-01; R-LOBBY-09, -13, -1
   only the carried rounds remain (at most 1,280 fights).
 - **The look of the lock** (text and bar above Continue) has not been reviewed by Mike in the running game.
 - **Nothing is applied to the live database.** Rollout, for Mike or Kevin:
-  1. `npm run strength -- fetch`, then `npm run strength -- backfill`.
-  2. Apply `supabase/migrations/2026-11-23-strength-v2.sql`, then the generated backfill file, then
-     `select public.pool_refresh_dirty();`. Check `select public.pool_live_unscored();` returns 0.
-  3. "Ship Ascent".
-  4. About a week later, run the backfill again for games uploaded by clients that had not updated.
+  1. `npm run strength -- fetch`, then `npm run strength -- backfill` (about 15 minutes of fights). It writes
+     `packages/tools/.cache/strength-v2-apply.sql`.
+  2. Apply that ONE file (never the bare migration), then `select public.pool_refresh_dirty();`. Check
+     `select public.pool_live_unscored();` returns 0.
+  3. "Ship Ascent", straight away.
+  4. About a week later: `npm run strength -- fetch` and `backfill` again, and apply
+     `packages/tools/.cache/strength-backfill-v2.sql` (the top-up) for games uploaded by clients that had not updated.
 - An **uncapped custom band** still widens to "no band" and then seats unscored runs. Every medal band has a cap, so
   no rank reaches that step.
+
+## Review pass (one independent whole-branch review, 2026-11-16)
+
+Fixed, each with a test:
+
+- **The migration alone must never be applied to the live database.** On its own it left every run unscored until a
+  separate backfill, and the hub that is live until Ship Ascent still seats unscored runs in Bronze, Silver and Gold
+  tables (its draw is the old port). `applyV2Sql` now writes one file with the backfill inside the migration's
+  transaction, before the pool is re-rated. What remains until the hub ships: a game uploaded in that window by a
+  client that has not updated is unscored and the old hub can still draw it into a banded table.
+- **The percentile query rescanned the round histogram for every entry** (about 14 million row visits a refresh; 2.5 s
+  in PGlite at 250 runs). It is now one pass with window sums; only boards on a round past 15 take the slower path.
+- **The 7-round run-end test depended on this machine's speed** (it failed on the reviewer's run at 5.5 s). Its cap
+  is lifted in that file (the cap has its own test), and the MessageChannel change took the same work from about
+  3 s to about 1.8 s here.
+- **Focus**: when the lock lifted, focus jumped to Continue even if the player had opened Match details.
+- Found while checking the review's open question: **a carried board was scored with its banked next-combat spells
+  live.** A table meets a final board past its round with those already spent, so the probe now builds the side for
+  the carried round. This moves carried scores slightly from the Plan 1 measurement (which relabelled the board's
+  round instead).
+
+Not fixed, for the owners to weigh:
+
+- **A slow device can still pass 5 seconds**, and that game is then unscored (so it never enters Bronze, Silver or
+  Gold tables until a top-up backfill). Short weak games are the Bronze population, so this leans against slow
+  devices. The reviewer's suggestion: unlock Continue at 5 s but let the scoring finish and upload afterwards. That
+  departs from the design's "goes up with what is ready", so it is Mike's call.
+- A game restored from a save and ended before its next captured round queues all its boards at run end.
+- `pool_live_unscored()` is not in the daily ops digest yet.
+- Games uploaded by clients that have not updated take slots in the 250-run window while unscored, so banded tables
+  are thinner during the transition.
+- `servingIntegrity.test.ts` no longer has an under-7-round shape (a table cannot seat one); short runs served
+  through a saved game are not pinned there.
+- The end screen's legacy branch (no rank source) has an unlocked Play Again; whether it is still reachable was not
+  determined.
 
 ## Older tests that changed
 

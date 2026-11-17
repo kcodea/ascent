@@ -1,6 +1,7 @@
 import type { CardDef, EffectDef, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText, effectiveTargetTribe, playedThisTurnFor, taughtAimSpell, type RunState } from '@game/sim';
+import { countedGoldSpentThisTurn } from '@game/sim';
 
 /**
  * THE TARGETING PROMPT (owner ask 2026-11-01): the pill over the board while you aim a Shout, a Choose One branch or
@@ -274,7 +275,7 @@ export function targetPromptFor(
   const body = run.board.find((c) => c.uid === pt.uid) ?? run.hand.find((c) => c.uid === pt.uid);
   const golden = !!body?.golden;
   const base = {
-    goldSpent: run.goldSpentThisTurn ?? 0,
+    goldSpent: countedGoldSpentThisTurn(run),
     runeFullMeasure: !!run.runeFullMeasure,
     played: (t: Tribe) => playedThisTurnFor(run, t),
     shopTier: run.tier,

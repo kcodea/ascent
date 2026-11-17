@@ -67,6 +67,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
+import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim'; // Big Spender: the counted Gold every spend mechanic reads
 import { carnivalCoinLive } from '@game/sim'; // Juggler × Ancients
 import { discoverOfferCard } from '@game/sim'; // the Discover pick preview (R-DISCOVER-PREVIEW-01)
 import { type Action, aleHandMagnitude, shopArrivals, passariaTarget, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, shopSpellsBoughtThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, ancientPairingHeroId, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
@@ -1031,7 +1032,7 @@ export function conjuredView(cardId: string, run: RunState): CardView | null { /
   const spellLive = {
     a: spellAttackBonusLive(run), h: spellHealthBonusLive(run),
     ftb: spellEscalationLive(run).attack, ftbH: spellEscalationLive(run).health,
-    goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier,
+    goldSpent: countedGoldSpentThisTurn(run), goldPouchValue: run.goldPouchValue, tier: run.tier,
     growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run),
     spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove,
     carnivalCoin: carnivalCoinLive(run),
@@ -1171,7 +1172,7 @@ interface ShopViewOpts {
  * audit (`liveTextSurfaces.test.ts`) builds the hand exactly as the screen does.
  */
 export function handLiveOf(run: RunState, cardBuffsLive: Record<string, { attack: number; health: number }>, sellState: SellTextState) {
-  return { grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, cardTribes: run.cardTribes /* Rune of Drakko: a re-typed card counts for its run tribes in hand too */, growthBonus: run.growthBonus /* Rune of Living Growth: the hand's Growth starved it (R-TEXT-SURFACES-01) */, impAura: run.impBuff, rubyCasts: run.rubyCasts, tribeUnionPlays: run.tribeUnionPlays ?? {} /* Vaultkeeper: the run-wide improve tally ({} = none yet, never the copy's own) */, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: conductorBuffLive(run), alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), shopSpellsBought: shopSpellsBoughtThisTurn(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: spellEscalationLive(run).health, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), shopSpellsThisTurn: run.shopSpellsThisTurn ?? 0 /* Cinderchef */, anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: runeTextFlagsOf(run), chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ };
+  return { grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, cardTribes: run.cardTribes /* Rune of Drakko: a re-typed card counts for its run tribes in hand too */, growthBonus: run.growthBonus /* Rune of Living Growth: the hand's Growth starved it (R-TEXT-SURFACES-01) */, impAura: run.impBuff, rubyCasts: run.rubyCasts, tribeUnionPlays: run.tribeUnionPlays ?? {} /* Vaultkeeper: the run-wide improve tally ({} = none yet, never the copy's own) */, goldSpent: countedGoldSpentThisTurn(run), goldSpentRun: countedGoldSpent(run), goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: conductorBuffLive(run), alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), shopSpellsBought: shopSpellsBoughtThisTurn(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: spellEscalationLive(run).health, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), shopSpellsThisTurn: run.shopSpellsThisTurn ?? 0 /* Cinderchef */, anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: runeTextFlagsOf(run), chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ };
 }
 
 /** One HAND card's view, exactly as the hand row builds it (spells carry their cast count, minions the in-hand flag). */
@@ -1198,7 +1199,7 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     frontToBackBonus: spellEscalationLive(run).attack,
     growthBonus: run.growthBonus,
     frontToBackBonusH: spellEscalationLive(run).health,
-    goldSpent: run.goldSpentThisTurn, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
+    goldSpent: countedGoldSpentThisTurn(run), goldSpentRun: countedGoldSpent(run), goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn,
     squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: conductorBuffLive(run), alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), shopSpellsBought: shopSpellsBoughtThisTurn(run),
     lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
     firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
@@ -4488,7 +4489,7 @@ export function Recruit() {
       // The manual map + every effect-named card + the derived Ruby rule — ONE rule, shared with the Compendium
       // (`cardRefs.ts`), so a card previews the same things in the shop and in the book.
       const refs = relatedCardIds(cardId);
-      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run), spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove, carnivalCoin: carnivalCoinLive(run) };
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: ftbBonus, ftbH: ftbBonusH, goldSpent: countedGoldSpentThisTurn(run), goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run), spellsCast: run.spellsCast, rubyCasts: run.rubyCasts, whisperImprove: run.whisperImprove, carnivalCoin: carnivalCoinLive(run) };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
       // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
@@ -4523,7 +4524,7 @@ export function Recruit() {
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
     // audit find 2026-08-06: coverage was previously incidental via the board dep.
-    [run.whisperImprove, run.cardTribes, run.growthBonus, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.fxConductorPreview, run.alesCastThisTurn, run.shopSpellBuys, run.wave, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.shopSpellsThisTurn, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
+    [run.whisperImprove, run.cardTribes, run.growthBonus, run.questFlags?.runeGrimToast, run.questFlags?.runeUnity, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.soulsmanGold, run.nextSpellBonus, cardBuffsLive, run.goldSpentThisTurn, run.goldSpent, run.goldSpentExtraThisTurn, run.goldSpentExtra, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.fxScoutPreview, run.conductorBuff, run.fxConductorPreview, run.alesCastThisTurn, run.shopSpellBuys, run.wave, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.shopSpellsThisTurn, run.board, ftbBonusH, run.runeMastery, run.runeStacks, run.rubyBonus, run.grimoireMult, run.questFlags?.runeMammoth, run.runeMatriarch, run.runeBrokerage, run.questFlags?.runeLivingTreasure, run.runeFacetwright, run.runeUnbrokenVein, run.impBuff, sellState],
   );
   // The board as RENDERED during End-of-Turn playback: the real board, plus any minion summoned this beat
   // (Moira re-firing a summoner) injected as a synthetic card, plus keywords granted this beat overlaid so the
@@ -4818,7 +4819,7 @@ export function Recruit() {
         const hc = liveRun.hand.find((c) => c.uid === uid);
         if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
         // Brackus's Summit pick: same guard on the GOLD meter (the reducer also rejects it, this stops the drag).
-        if (hc?.lockedUntilGoldSpent && (liveRun.goldSpent ?? 0) < hc.lockedUntilGoldSpent) return;
+        if (hc?.lockedUntilGoldSpent && countedGoldSpent(liveRun) < hc.lockedUntilGoldSpent) return;
       }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
@@ -9210,7 +9211,7 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:hand">
       <HandRow
-        gambleHand={duosHand ? duosHand.cards : handRow} handOrder={duosHand ? duosHand.order : handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
+        gambleHand={duosHand ? duosHand.cards : handRow} handOrder={duosHand ? duosHand.order : handOrder} goldSpentRun={countedGoldSpent(run)} tier={run.tier} wave={run.wave}
         handViews={duosHand ? duosHand.views : handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={duosHand ? null : combatHandSummoned}
         onCardPointerDown={onCardPointerDown} handPreviewViews={duosHand ? NO_HAND_PREVIEWS : handPreviewShown} handPreviewSpent={handPreviewSpent}
         mateTripleUids={mateTripleUids}

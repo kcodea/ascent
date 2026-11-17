@@ -25,6 +25,7 @@ import { unusedEquipmentCount } from './equipment';
 import { gatherRunBuffs, type BuffRow } from './runBuffRows';
 import type { ThreatId } from './threats';
 import type { RecordedEmote } from './emotes';
+import { countedGoldSpentThisTurn } from './goldSpent';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
  *  'house' = a board shipped with the game (seeded bot runs); 'synthetic' = computer-generated within a
@@ -533,7 +534,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.rememberedSpellIds?.length ? { rememberedSpellIds: [...s.rememberedSpellIds] } : {}),
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
     ...(s.whisperImprove && Object.keys(s.whisperImprove).length ? { whisperImprove: { ...s.whisperImprove } } : {}),
-    ...(s.goldSpentThisTurn ? { goldSpentThisTurn: s.goldSpentThisTurn } : {}),
+    ...(countedGoldSpentThisTurn(s) ? { goldSpentThisTurn: countedGoldSpentThisTurn(s) } : {}), // COUNTED Gold (Big Spender): Baby Gastrid / Rope Wrangler mid-fight
     ...(s.playedThisTurn?.length ? { cardsPlayedThisTurn: s.playedThisTurn.length } : {}),
     ...(unusedEquipmentCount(s) ? { unusedEquipment: unusedEquipmentCount(s) } : {}),
     ...(s.lastSpellThisTurnId ? { lastSpellThisTurnId: s.lastSpellThisTurnId } : {}),

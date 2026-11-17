@@ -1320,7 +1320,7 @@ export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, gold
   // only, owner 2026-08-04), so the live text must not widen it back to "a friendly minion" (owner report 2026-10-06).
   const tribe = def.targetTribe;
   const noun = tribe ? `**${tribe.charAt(0).toUpperCase()}${tribe.slice(1)}**` : 'minion';
-  return `**Shout:** give a friendly ${noun} **{{+${total} Health}}** (+${per} per Gold spent this turn).`;
+  return `**Shout:** give a friendly ${noun} **{{+${total} Health}}** (+${per} for each Gold spent this turn).`;
 }
 
 /**

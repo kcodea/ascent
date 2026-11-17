@@ -50,6 +50,6 @@ describe('a tribe-targeted card keeps naming its tribe in its live text', () => 
 
   it('Baby Gastrid prints the live total for a friendly Dwarf', () => {
     expect(liveCardText('dw_dorrin', { ...base, goldSpent: 9 }).text)
-      .toBe('**Shout:** give a friendly **Dwarf** **{{+18 Health}}** (+2 per Gold spent this turn).');
+      .toBe('**Shout:** give a friendly **Dwarf** **{{+18 Health}}** (+2 for each Gold spent this turn).');
   });
 });

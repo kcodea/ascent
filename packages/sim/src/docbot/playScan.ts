@@ -134,7 +134,7 @@ function playCard(base: RunState, def: CardDef, asId: string, golden: boolean, t
 
 /** Cast bookkeeping the spell lane ignores: what EVERY cast changes regardless of its effect. Exported so the
  *  lane's sabotage proof can show that dropping `cardsPlayedTotal` from this set makes the gate vacuous again. */
-export const SPELL_BOOKKEEPING: ReadonlySet<string> = new Set(['spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'spellsCastIds', 'alesCastThisTurn']);
+export const SPELL_BOOKKEEPING: ReadonlySet<string> = new Set(['spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'spellsCastIds', 'alesCastThisTurn']);
 
 /** Spells whose cast is CONDITIONAL on run state the rich fixture does not carry: the lane stages the condition
  *  (a state patch) and demands the cast act under it — the L3 "trigger stager" doctrine, per spell. A spell listed

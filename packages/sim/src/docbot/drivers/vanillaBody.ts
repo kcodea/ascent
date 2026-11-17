@@ -39,7 +39,7 @@ const stable = (v: unknown): string => {
  *  body's identity replaced and its stats made def-relative. */
 const NOISE = new Set([
   'rngCursor', 'uidCounter', 'uidSeq', 'presentation', 'fx', 'beats', 'log', 'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires',
-  'spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn',
+  'spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn',
   'spellsCastIds', 'alesCastThisTurn', 'playedThisTurn', 'spellsOnThisTurn', 'spellCostOffTurn', 'lastEotFires', 'cardsPlayedTotal', 'tribeUnionPlays',
   // per-play telemetry that ticks for ANY body of a class (an Attachment, a Celestial) — trigger bookkeeping, not consequence
   'attachmentsThisTurn', 'karwindFlash', 'alignSpark', 'minionsPlayedThisTurn', 'minionsPlayed',

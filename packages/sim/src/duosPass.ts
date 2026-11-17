@@ -27,6 +27,7 @@ import type { TeamEffect, Tribe } from '@game/core';
 import { handCap, type BoardCard, type RunState } from './state';
 import { activePowers } from './heroes';
 import { returnToPool } from './shop';
+import { goldCountMult } from './goldSpent';
 import { duosCatchBump, duosCatchLeft, type DuosRuneState } from './duosRunes';
 
 /** The Gold a pass costs the sender. Pinned against `VERSUS_DUOS_PASS_GOLD` (versus/duos.ts) by test. */
@@ -427,6 +428,12 @@ export function refundDuosPass(state: RunState, seq: number): RunState {
     s.embers += paid;
     s.goldSpent = Math.max(0, (s.goldSpent ?? 0) - paid);
     if (e.wave === s.wave) s.goldSpentThisTurn = Math.max(0, (s.goldSpentThisTurn ?? 0) - paid);
+    // Big Spender's extra count for it comes back too (the multiplier held now; the counted tallies, goldSpent.ts).
+    const extra = paid * (goldCountMult(s) - 1);
+    if (extra > 0) {
+      s.goldSpentExtra = Math.max(0, (s.goldSpentExtra ?? 0) - extra);
+      if (e.wave === s.wave) s.goldSpentExtraThisTurn = Math.max(0, (s.goldSpentExtraThisTurn ?? 0) - extra);
+    }
   } else if (e.free === 'catch') {
     duosCatchBump(s, -1, e.wave); // a Playing Catch pass: the team's allowance comes back
   } else if (!e.via && s.duos!.freePassWave === e.wave && e.wave === s.wave) {

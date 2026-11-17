@@ -38,7 +38,7 @@ export function heroGrantOf(
  */
 const DELIVERED = new Set<string>([
   'hand', 'board', 'shop', 'pool', 'discover', 'discoverQueue', 'questOffer', 'powerOffer', 'chooseOne', 'pendingTarget',
-  'embers', 'maxEmbers', 'freeRolls', 'upgradeCost', 'goldSpent', 'goldSpentThisTurn', 'uidSeq', 'rngCursor',
+  'embers', 'maxEmbers', 'freeRolls', 'upgradeCost', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn', 'uidSeq', 'rngCursor',
   'cardBuffs', 'gainCardFiredUids', 'pendingQuestRewards', 'chooseBothCharges',
   'ownedRunes', 'runeStacks', 'runeIdByKind', 'runeProcs', 'heroGrantArt', 'heroGrantRune',
   'epicForgeWave', 'pendingEpicRuneforge', 'pendingForgeDeferred', 'epicForgeClaimed',

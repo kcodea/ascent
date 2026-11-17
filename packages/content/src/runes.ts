@@ -129,7 +129,7 @@ export const RUNES: RuneDef[] = [
     // Owner rework 2026-09-25: "When you spend 10 gold, give 4 friendly minions +4/+4." Was every 5 Gold, 3
     // random allies +3/+3. Still a running counter that banks the remainder across turns (the `per` contract),
     // 4 random friendly minions per payout, or every one of them when fewer are on the board.
-    text: 'Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.',
+    text: 'Every **10 Gold** spent, give **4 random friendly minions +4/+4**.',
     reward: { kind: 'runeScale', count: 4, attack: 4, health: 4, per: 10 },
   },
   {
@@ -2394,7 +2394,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'],
     name: 'Dragon Hoard',
     cost: 1,
-    text: 'When you spend **3** Gold, get a **Dragonflame**.',
+    text: 'When you spend **3 Gold**, get a **Dragonflame**.',
     previewCards: ['sp_dragonflame'],
     reward: { kind: 'runeThreshold', meter: 'gold', per: 3, grantCards: ['sp_dragonflame'] },
     sets: ['set2'],
@@ -2454,7 +2454,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['demon'],
     name: 'Gold for Grub',
     cost: 4,
-    text: 'When you spend **7** Gold, a random **Demon** consumes a minion in the Shop.',
+    text: 'When you spend **7 Gold**, a random **Demon** consumes a minion in the Shop.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 7, demonConsumeShop: 1 },
     sets: ['set2'],
   },
@@ -4808,15 +4808,17 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── SET 2 RUNE BATCH, EPIC TRIBAL (owner 2026-11-12, docs/design/2026-11-12-set2-rune-batch.md). Append only. ──
   {
-    // Shop: every "spend Gold" trigger inside `spendGold` (minion meters, Gold rune meters, Spellslinging, Food for
-    // Gold, the Golden Ledger, Bulk Order, Ancients) hears the spend x2 (x3 with two copies). The real Gold, the
-    // per-turn / run Gold-spent tallies and the "Spend N Gold" quest objective are not triggers and stay real.
+    // Shop: every mechanic that counts Gold spent counts each Gold x2 (x3 with two copies), owner 2026-11-17 ("all spend
+    // mechanics should function in the same way"): the "spend N Gold" meters, the "for each Gold spent this turn" readers
+    // (Baby Gastrid, Rope Wrangler, Patch Job, Spending, Ancients), the run counts (Wanderer, Indy, Summit's lock) and the
+    // "Spend N Gold" quests. One place: `spendGold` + `countedGoldSpent*` (packages/sim/src/goldSpent.ts). Only the Gold
+    // paid and the real economy stats stay real.
     id: 'rune_big_spender',
     tribes: ['dwarf'],
     name: 'Big Spender',
     cost: 4,
     epic: true,
-    text: 'Your "spend Gold" triggers count each Gold **twice**.',
+    text: 'Each Gold you spend counts **twice** for everything that counts Gold spent.',
     reward: { kind: 'combatFlag', flag: 'runeBigSpender' },
     sets: ['set2'],
   },

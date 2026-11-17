@@ -207,3 +207,20 @@ describe('Rascal × save / restore and determinism', () => {
     expect(x.rngCursor).toBe(y.rngCursor);
   });
 });
+
+describe('Rascal × BONDS picked AFTER All In was used that turn (R-ANCFIX-03)', () => {
+  it('the pick gives that turn\'s discount, and only once', () => {
+    let s = enableAncients(base({ wave: 3, shop: [{ uid: 'o1', cardId: N(0) }] }));
+    const minionPrice = offerBuyPrice(s, s.shop[0]!).cost;
+    s = reduce(s, { type: 'heroPower' }); // All In before the pick
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['bonds', ...ANCIENT_IDS.filter((a) => a !== 'bonds').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'bonds' });
+    expect(heroPowerText(s)).toContain('**Active this turn.**');
+    expect(offerBuyPrice(s, s.shop[0]!).cost).toBe(Math.max(0, minionPrice - 2));
+    expect(s.minionCostOffTurn).toBe(2);
+  });
+  it('picked on a turn All In was NOT used: no discount yet', () => {
+    const s = picked('bonds', { wave: 3 });
+    expect(s.minionCostOffTurn ?? 0).toBe(0);
+  });
+});

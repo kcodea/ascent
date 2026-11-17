@@ -126,6 +126,14 @@ describe('Xerox × FORTUNE — gain 3 Gold next turn for every pair on board (ow
     expect(s.bonusEmbersNextTurn ?? 0).toBe(before + 6);
     expect(s.ancients!.xeroxPairGold?.gold).toBe(6);
   });
+  it('with Chronos the End-of-Turn payout repeats, and the printed Gold says so (R-ANCFIX-08)', () => {
+    const board = [card('a', T1, { health: 99 }), card('b', T1, { health: 99 }), card('c', OTHER, { health: 99 }), card('d', OTHER, { health: 99 }), card('k1', 'chronos', { health: 99 }), card('k2', 'chronos', { health: 99 })];
+    let s = picked('fortune', { board });
+    expect(heroPowerText(s)).toContain('(**3** now: **18 Gold**)');
+    const before = s.bonusEmbersNextTurn ?? 0;
+    s = fightNow(s, 0, 400);
+    expect(s.bonusEmbersNextTurn ?? 0).toBe(before + 18);
+  });
   it('no pairs, no Gold', () => {
     let s = picked('fortune', { board: [card('a', T1, { health: 99 }), card('c', OTHER, { health: 99 })] });
     const before = s.bonusEmbersNextTurn ?? 0;
@@ -177,11 +185,11 @@ describe('Xerox × GENESIS — Copy Machine gains another use', () => {
   it('two uses for the game, but only one each turn (owner 2026-11-16); the third is refused; the power prints the uses left', () => {
     let s = picked('genesis', { board: [card('a', T1), card('b', OTHER)] });
     expect(s.ancients!.xeroxCharges).toBe(1);
-    expect(heroPowerText(s)).toContain('**2** uses left');
+    expect(heroPowerText(s)).toContain('Uses left: **2**');
     expect(heroPowerText(s)).toContain('Only one use each turn.');
     s = copyMachine(s, 'a');
     expect(s.board.length).toBe(3);
-    expect(heroPowerText(s)).toContain('**1** uses left');
+    expect(heroPowerText(s)).toContain('Uses left: **1**');
     expect(heroPowerText(s)).toContain('Used this turn.');
     expect(copyMachine(s, 'b'), 'a second use the same turn is refused').toBe(s);
     s = { ...s, wave: s.wave + 1 }; // the next turn
@@ -191,14 +199,18 @@ describe('Xerox × GENESIS — Copy Machine gains another use', () => {
     expect(s.ancients!.xeroxCharges).toBe(0);
     expect(copyMachine({ ...s, wave: s.wave + 1 }, 'b'), 'no use left').toEqual({ ...s, wave: s.wave + 1 });
   });
-  it('picked AFTER Copy Machine was spent, it is usable once more', () => {
+  it('picked AFTER Copy Machine was spent, it is usable once more (next turn: the pick turn already had its use, R-ANCFIX-03)', () => {
     // (Two different cards: a third Test Squire would complete a triple.)
     let s = copyMachine(enableAncients(base({ board: [card('a', T1), card('b', OTHER)] })), 'a');
     expect(s.heroPowerSpent).toBe(true);
     s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['genesis', 'death', 'war'] } };
     s = reduce(s, { type: 'pickAncient', id: 'genesis' });
+    expect(copyMachine(s, 'b')).toBe(s); // only one use each turn: the pick turn's use is already made
+    s = reduce(fightNow(s, 0, 1), { type: 'resolveCombat' });
+    expect(s.phase).toBe('recruit');
+    const n = s.board.length;
     s = copyMachine(s, 'b');
-    expect(s.board.length).toBe(4);
+    expect(s.board.length).toBe(n + 1);
     expect(copyMachine(s, 'b')).toBe(s);
   });
 });
@@ -295,5 +307,17 @@ describe('Xerox × BONDS — the copy and the original are bound; a triple break
   it('the combat mods carry the bond only while Bonds is picked and the bond holds', () => {
     expect(ancientCombatMods(bound()).ancientXeroxBond).toMatchObject({ a: 'a' });
     expect(ancientCombatMods(picked('death')).ancientXeroxBond).toBeUndefined();
+  });
+});
+
+describe('Xerox × GENESIS picked AFTER Copy Machine was used that turn (R-ANCFIX-03)', () => {
+  it('the earlier use is this turn\'s one use: the banked charge waits for next turn', () => {
+    let s = enableAncients(base({ board: [card('a', T1), card('b', OTHER)] }));
+    s = copyMachine(s, 'a');
+    expect(s.board.length).toBe(3);
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['genesis', ...ANCIENT_IDS.filter((a) => a !== 'genesis').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'genesis' });
+    expect(heroPowerText(s)).toContain('Used this turn.');
+    expect(copyMachine(s, 'b')).toBe(s);
   });
 });

@@ -2254,8 +2254,9 @@ export interface QuestCombatMods {
   /** ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." Every `every`th friendly
    *  death in the fight improves the side's spells by +attack/+health through `grantSpellPower` (the Rune of
    *  Appraisal shape: Rune of Mastery's improve reps and Rune of Fury's extra Avenge fire both apply). The total the
-   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Either side; rides a snapshot (`questMods`). */
-  ancientAvengeSpells?: { every: number; attack: number; health: number; label: string };
+   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Either side; rides a snapshot (`questMods`). `tick` = the
+   *  Shop deaths already on the ONE running count (owner 2026-11-16, R-ANCFIX-10; absent = 0). */
+  ancientAvengeSpells?: { every: number; attack: number; health: number; label: string; tick?: number };
   /** ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's
    *  extra combat casts (`spellCastRepsFor`, Runebloom Matriarch's channel) at the start of the fight. */
   ancientSpellCastExtra?: number;

@@ -155,6 +155,16 @@ describe('Juggler × GENESIS: "Get a Carnival Coin every 2 minions you buy."', (
   });
 });
 
+describe('Juggler × GENESIS picked with 2 buys already counted (the look-back, R-ANCFIX-03)', () => {
+  it('the count is clamped one short of 2: the glow lights and the next buy pays', () => {
+    let s = picked('genesis', { jugglerBuys: 2 });
+    expect(s.jugglerBuys).toBe(1);
+    expect(heroPowerArmed(s)).toBe(true);
+    s = buy(s, N(0));
+    expect(coins(s)).toBe(1);
+  });
+});
+
 describe('Juggler × TIME (ancient pass 2, owner 2026-11-16): "End of Turn: your Carnival Coins improve +1/+1 for each coin in your hand."', () => {
   it('End of Turn with 2 Coins in hand: every Coin improves by +2/+2, permanently, and its text follows', () => {
     let s = picked('time', { hand: [card('c1', COIN), card('c2', COIN)], board: [card('a', N(3), { attack: 1, health: 400 })] });

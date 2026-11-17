@@ -132,7 +132,7 @@ describe('Gorr × WAR (ancient pass 2, owner 2026-11-16: "once per turn"): "pumm
   it('pays ONE plain copy of a random living friendly minion a fight, however many 200s it crosses; the tally carries', () => {
     let s = picked('war', { wave: 3, board: [card('a', N(0), { attack: 90, health: 500 }), card('b', N(1), { attack: 90, health: 500 })] });
     expect(heroPowerText(s)).toContain('(**0/200**)');
-    expect(heroPowerText(s)).toContain('Once per turn.');
+    expect(heroPowerText(s)).toContain('Once per turn (**1** left this turn).');
     expect(ancientCombatMods(s).ancientPummelCopy).toEqual({ every: 200, dealt: 0, label: 'Ancient of War', max: 1 });
     s = fightNow(s, 1, 2000);
     const dealt = s.lastCombat!.playerAncientPummelDealt!;

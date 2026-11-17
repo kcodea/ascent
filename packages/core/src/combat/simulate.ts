@@ -57,6 +57,11 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // Hawkus, Mineral Master) — hears a free Rally (Rune of Rallying, Backbeat, Hunting Bell, `triggerRally`) and
 // each multiplier extra exactly as it hears a real swing. The lane derives the membership behaviourally
 // (`rallyDerivation` in packages/sim/src/docbot/firePaths.ts) and fails when a watcher misses either path.
+/** ANCIENTS: a per-combat Ancient budget just spent one (Rayse × War / Genesis, Lord of the Risen × Death / Genesis),
+ *  pulsed as a player `questTrigger` so the hero power's "(N left this combat)" counts down live with the replay. Only
+ *  one pairing is active per run, so one flag serves every capped pairing (R-ANCFIX-09). */
+export const ANCIENT_CAP_SPENT_FLAG = 'ancientCapSpent';
+
 export const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
 /** BODY GUARD (2026-10-28): the most bodies one side's board array may ever hold in one fight (the dead stay in it). A
@@ -2690,6 +2695,7 @@ export function simulate(
     if (sa && minion.side === side && summonsAttackUsed[side] < sa.count) {
       summonsAttackUsed[side] += 1;
       out.attackNow = true;
+      fireTrigger(ANCIENT_CAP_SPENT_FLAG, side); // the power's "(N left this combat)" ticks live
     }
     const hatch = modsFor(side).runeHatchery;
     if (hatch) {
@@ -2979,6 +2985,7 @@ export function simulate(
     if (left === undefined) return n;
     if (left <= 0) return 0;
     summonExtraBudget[side] = left - 1;
+    fireTrigger(ANCIENT_CAP_SPENT_FLAG, side); // the power's "(N left this combat)" ticks live
     return n;
   }
 
@@ -4209,6 +4216,7 @@ export function simulate(
         riseTint.set(minion.uid, 'blue');
         nextStep();
         emit({ type: 'keyword', target: minion.uid, keyword: 'R', source: minion.uid, tint: 'blue' });
+        fireTrigger(ANCIENT_CAP_SPENT_FLAG, minion.side); // the power's "(N left this combat)" ticks live
       }
       // `onRise` — the Rise watchers (Revenant, Rising Tide). Emitted once the body is BACK (auras re-applied,
       // re-slotted) so a watcher that buffs "your minions" reaches the risen body itself. The shop's twin is
@@ -5892,7 +5900,11 @@ export function simulate(
           nextStep();
           tail.golden = true;
           emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
-          if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+          // An ENGRAVED body keeps the Gilded status after combat (the owner's Engraved ruling for Cindy × War, mirrored
+          // here, R-ANCFIX-05): the doubled stats come home through the Engraved rule (`kept`) and its run uid rides
+          // `ancientGildKept`, so settle keeps the flag too.
+          const kept = def && (def.attack > 0 || def.health > 0) ? ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label).kept : false;
+          if ((kept || tail.keywords.includes('EG') || !!tail.auraEngraved) && tail.sourceUid) gildKeptLog[scSide].push(tail.sourceUid);
           goldenHandshakeCombat(tail); // Golden Handshake (Set 2 batch): a combat Gild
         }
       }
@@ -7538,7 +7550,7 @@ export function simulate(
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const d = modsFor(side).ancientAvengeSpells;
-    if (!d || count % Math.max(1, d.every) !== 0) return;
+    if (!d || ((d.tick ?? 0) + count) % Math.max(1, d.every) !== 0) return; // one running count across Shop and combat
     const fires = 1 + (modsFor(side).runeFury ? flagCopiesOf(side, 'runeFury') : 0);
     for (let k = 0; k < fires; k++) {
       const r = ctx.improveRepsFor(side);

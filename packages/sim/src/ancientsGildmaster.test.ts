@@ -88,7 +88,7 @@ describe('Gildmaster × WAR: "Pummel (1000): Gain a charge of Gildmaster."', () 
   it('the first 1000 crossed in a fight (once) adds one use to Gildcrafter\'s budget', () => {
     let s = picked('war', { board: [card('a', N(0), { attack: 400, health: 9000 })] });
     expect(activePowers(s)[0]!.maxUses).toBe(3);
-    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (1000):** it gains a use. Once per combat. Counts damage dealt by all your minions (**0/1000**). Uses left: **3**.`);
+    expect(heroPowerText(s)).toBe(`${BASE} **Pummel (1000):** it gains a use. Once per combat (**1** left this combat). Counts damage dealt by all your minions (**0/1000**). Uses left: **3**.`);
     s = { ...s, ancients: { ...s.ancients!, pummelDealt: 900 } };
     expect(ancientCombatMods(s).ancientPummelCharge).toEqual({ every: 1000, dealt: 900, flag: ANCIENT_GILD_CHARGE_FLAG, label: 'Ancient of War' });
     s = fightNow(s, 1, 5000);
@@ -143,6 +143,7 @@ describe('Gildmaster × BONDS: "Playing a triple grants your Gilded minions +5/+
     let s = picked('bonds', { board: [gilded('b', N(1))], hand: [gilded('g', N(0))] });
     s = { ...s, ancients: { ...s.ancients!, gilds: 2 } };
     expect(heroPowerText(s)).toContain('(**2** so far: **3** times)');
+    expect(heroPowerText({ ...s, ancients: { ...s.ancients!, gilds: 0 } }), 'R-ANCFIX-08: one time, not "1 times"').toContain('(**0** so far: **1** time)');
     const bAtk = at(s, 'b').attack;
     s = reduce(s, { type: 'play', uid: 'g' });
     expect(at(s, 'b').attack).toBe(bAtk + 15);

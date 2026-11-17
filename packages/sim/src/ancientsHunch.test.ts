@@ -10,7 +10,7 @@ import {
   ANCIENT_IDS, ancientCombatMods, ancientSpellbookAvengeLeft, ancientOfferText, createRun, enableAncients, heroPowerText, reduce, roundedSpellbookCostOf, spellCasts,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
 } from './index';
-import { noteSpellForCountRunes } from './recruit';
+import { destroyMinionInShop, makeContext, noteSpellForCountRunes } from './recruit';
 // RE-PIN 2026-10-10: Fatecarver's Growth branch was retired (owner balance batch), so this Growth-on-ally-attack
 // fixture is Taragosa, the other live `onAllyAttackCastGrowth` caster (+3/+4 Growth instead of +1/+1).
 
@@ -251,6 +251,25 @@ describe('Hunch × BONDS (ancient pass 2, owner 2026-11-16): "Your first 3 targe
     expect(s.embers).toBe(gold + 1);
     expect(heroPowerText(s)).toContain('(**3** left this turn)');
   });
+  it('a Ruby and an aimed Tower Shield are targeted spells too: they cast twice and spend the budget (R-ANCFIX-04)', () => {
+    const ruby = card('r1', 'ruby', { tribe: 'neutral', attack: 1, health: 1 });
+    const shield = card('t1', 'tower_shield', { tribe: 'neutral', attack: 0, health: 1 });
+    let s = picked('bonds', { board: [card('a', T1)], hand: [ruby, shield] });
+    const a0 = at(s, 'a');
+    s = aim(s, 'r1');
+    expect(at(s, 'a').attack, 'the Ruby lands twice').toBe(a0.attack + 2);
+    expect(heroPowerText(s)).toContain('(**2** left this turn)');
+    s = aim(s, 't1');
+    expect(at(s, 'a').attack, 'Tower Shield lands twice').toBe(a0.attack + 2 + 4);
+    expect(heroPowerText(s)).toContain('(**1** left this turn)');
+  });
+  it('picked after a targeted spell was cast that turn: it is one of the first 3 (the look-back, R-ANCFIX-03)', () => {
+    let s = enableAncients(base({ board: [card('a', T1)], hand: [fire('f0')] }));
+    s = aim(s, 'f0');
+    s = { ...s, ancients: { ...s.ancients!, points: s.ancients!.cost, offer: ['bonds', ...ANCIENT_IDS.filter((a) => a !== 'bonds').slice(0, 2)] } };
+    s = reduce(s, { type: 'pickAncient', id: 'bonds' });
+    expect(heroPowerText(s)).toContain('(**2** left this turn)');
+  });
   it('without Bonds a targeted spell casts once', () => {
     let s = picked('death', { board: [card('a', T1)], hand: [fire('f1')] });
     const a0 = at(s, 'a').attack;
@@ -259,5 +278,25 @@ describe('Hunch × BONDS (ancient pass 2, owner 2026-11-16): "Your first 3 targe
   });
   it('the old edge buff is gone from the fight', () => {
     expect(ancientCombatMods(picked('bonds')).ancientSpellEdges).toBeUndefined();
+  });
+});
+
+describe('Hunch × DEATH counts Shop deaths too: one running Avenge (4) across Shop and combat (R-ANCFIX-10)', () => {
+  it('4 Shop destroys improve your spells once, right then; the countdown runs in the Shop', () => {
+    const s = structuredClone({ ...picked('death'), board: ['d1', 'd2', 'd3', 'd4'].map((u) => card(u, T1)) });
+    const sb = s.spellBonus ?? { attack: 0, health: 0 };
+    for (const u of ['d1', 'd2', 'd3']) destroyMinionInShop(makeContext(s), at(s, u));
+    expect(s.ancients!.hunchDeaths).toBe(3);
+    expect(heroPowerText(s)).toContain('(**3/4**)');
+    expect(s.spellBonus ?? { attack: 0, health: 0 }).toEqual(sb);
+    destroyMinionInShop(makeContext(s), at(s, 'd4'));
+    expect(s.ancients!.hunchDeaths).toBe(0);
+    expect(s.spellBonus).toEqual({ attack: sb.attack + 1, health: sb.health + 1 });
+    expect(heroPowerText(s)).toContain('Improved so far: **+1/+1**');
+  });
+  it('the Shop half carries into the fight: 3 Shop deaths + 1 combat death is an Avenge', () => {
+    const s = picked('death');
+    const mods = ancientCombatMods({ ...s, ancients: { ...s.ancients!, hunchDeaths: 3 } });
+    expect(mods.ancientAvengeSpells?.tick).toBe(3);
   });
 });

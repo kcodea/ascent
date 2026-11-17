@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import type { CombatEvent } from '@game/core';
+import { ANCIENT_CAP_SPENT_FLAG, type CombatEvent } from '@game/core';
 import {
   ANCIENT_IDS, ancientCombatMods, ancientOfferText, ancientRiseTint, createRun, enableAncients, heroPowerText, reduce,
   type AncientId, type BoardCard, type BoardSnapshot, type RunState,
@@ -193,6 +193,13 @@ describe('Risen × GENESIS — every summon in combat summons an extra copy (a R
   const summonsOf = (s: RunState, cardId: string): Extract<CombatEvent, { type: 'summon' }>[] =>
     events(s).filter((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player' && e.minion.cardId === cardId);
 
+  it('the power prints the per-combat cap left, live through the fight (R-ANCFIX-09)', () => {
+    expect(heroPowerText(picked('genesis'))).toContain('At most **3** extra copies each combat (**3** left this combat).');
+    expect(heroPowerText(picked('genesis'), 0, { capSpent: 2 })).toContain('(**1** left this combat)');
+    // Each extra copy made pulses the flag the replay counts.
+    const f = fightNow(picked('genesis', { board: [card('p', 'pack')] }), 50, 400);
+    expect(events(f).filter((e) => e.type === 'questTrigger' && e.side === 'player' && e.flag === ANCIENT_CAP_SPENT_FLAG)).toHaveLength(2);
+  });
   it('an Echo that summons two Pups summons four', () => {
     let s = picked('genesis', { board: [card('p', 'pack')] });
     s = fightNow(s, 50, 400);

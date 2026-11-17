@@ -257,6 +257,11 @@ describe('Tradesman × TIME: End of Turn, reduce the cost of upgrading the Shop 
     expect(upgradeCostOf(zero), 'the final price floors at 0, never below').toBe(0);
     expect(zero.ancients!.tradesSurchargeOff).toEqual({ tier: zero.tier, gold: 1 });
   });
+  it('with Chronos the text says End of Turn triggers twice (R-ANCFIX-08)', () => {
+    const s = picked('time', { board: [card('a', T1, { health: 400 }), card('k', 'chronos', { health: 400 })] });
+    expect(heroPowerText(s)).toContain('It triggers **2** times this turn.');
+    expect(heroPowerText(picked('time'))).not.toContain('It triggers');
+  });
   it('without the pairing, End of Turn leaves the cost alone', () => {
     const s = fightNow(enableAncients(base({ board: [card('a', T1, { health: 400 })], upgradeCost: 7 })));
     expect(s.upgradeCost).toBe(7);

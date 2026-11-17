@@ -126,7 +126,7 @@ import { goldClockOf, goldClockReading, pinMedalAtStart } from './goldClock';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { rankedEntryPoolGate } from './opponentPool/lobbyPoolGate';
-import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, shouldScoreRunEnd, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
+import { boardStrengthScorer, carriedUploadOf, finalBoardOf, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, shouldScoreRunEnd, STRENGTH_LATE_UPLOAD_WAIT_MS, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { STRENGTH_REF_LAST_ROUND, normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
@@ -1994,21 +1994,37 @@ function commitResolvedAction(
       // Unlock the moment the scores are in (or the cap passes), not a timer tick later.
       void scoring.then(() => { stopScoringProgress(); set({ runScoring: null }); });
       setTimeout(() => { void scoring.then((strengthScores) => {
-        // The carried scores of the final board, sent only when every round is there (a run that timed out goes up
-        // without them and is simply unscored).
-        const carriedUpload = scoreInFull && lastCaptured ? carriedUploadOf(lastCaptured.wave, strengthScorer.carried(strengthSeed)) : null;
-        strengthScorer.forget(strengthSeed);
+        // SLOW DEVICE (owner 2026-11-16: "Yes, finish scoring"): the cap passed with scoring still to do. Continue is
+        // unlocked and everything below goes out now with the scores that are in, EXCEPT the boards: those wait for the
+        // scoring to finish behind the unlocked screen and then go up once, complete (`sendBoards`), so the game is
+        // scored like anyone else's instead of being left unscored.
+        const lateBoards = scoreInFull && strengthScorer.pending(strengthSeed) > 0;
+        const carriedAtCap = new Map(strengthScorer.carried(strengthSeed));
+        if (!lateBoards) strengthScorer.forget(strengthSeed);
         // The frozen numbers: each round's percentile against the pool's boards as it stands now, and the run's
         // strength (their round-weighted average ranked among the pool's runs; R-LOBBY-12, restored 2026-10-06, the
         // same number the matchmaking bands use).
         const boardStrength = lobbyBoards ? runStrengthFromScores(strengthScores, strengthHistogram(), runStrengthHistogram()) : null;
         const fresh = lobbyBoards ? saveCapturedBoards(lobbyBoards, setId, author) : saveRunBoards(replay, author, next.cosmetics);
         set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
-        void uploadBoards(fresh.map((b) => {
-          const score = strengthScores.get(b.wave);
-          const scored = score ? { ...b, strengthScore: score } : b;
-          return carriedUpload && lastCaptured && b.wave === lastCaptured.wave ? { ...scored, strengthCarried: carriedUpload } : scored;
-        }), unratedLobby ? { unrated: true } : undefined);
+        // `scores` and the scorer's carried map are read when the boards are SENT (they fill in while a late game is
+        // still being scored). The carried scores go up only when every round is there.
+        const sendBoards = (scores: ReadonlyMap<number, StrengthScore>, carried: ReadonlyMap<number, number>): void => {
+          const carriedUpload = scoreInFull && lastCaptured ? carriedUploadOf(lastCaptured.wave, carried) : null;
+          void uploadBoards(fresh.map((b) => {
+            const score = scores.get(b.wave);
+            const scored = score ? { ...b, strengthScore: score } : b;
+            return carriedUpload && lastCaptured && b.wave === lastCaptured.wave ? { ...scored, strengthCarried: carriedUpload } : scored;
+          }), unratedLobby ? { unrated: true } : undefined);
+        };
+        if (lateBoards) {
+          void strengthScorer.settled(strengthSeed, STRENGTH_LATE_UPLOAD_WAIT_MS).then((scores) => {
+            const done = new Map(scores);
+            const carried = new Map(strengthScorer.carried(strengthSeed));
+            strengthScorer.forget(strengthSeed);
+            sendBoards(done, carried);
+          });
+        } else sendBoards(strengthScores, carriedAtCap);
         // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
         // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.

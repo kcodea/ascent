@@ -167,7 +167,9 @@ medal + division — see *Ranked ladder* below).
       to click while the games are being scored?"*, *"players should know why this is happening. preferably with a
       timer bar as well"*): when a lobby game that reached round 7 ends, Continue is greyed out under the text
       "Calculating Score" and a bar that fills with the real progress, until the game's scores are done. It unlocks
-      after 5 seconds at the latest.
+      after 5 seconds at the latest. A game not finished by then (a slow device) keeps scoring behind the unlocked
+      screen and its boards upload when it is done (owner 2026-11-16, asked whether such a game should finish scoring:
+      *"Yes, finish scoring"*), so it is scored like any other.
     - Live once the owner applies the ONE generated file `packages/tools/.cache/strength-v2-apply.sql`
       (`npm run strength -- backfill` writes it: `supabase/migrations/2026-11-23-strength-v2.sql` with every board's
       new score inside the same transaction; the migration is never applied alone). Until a player's game updates, it shows no Game strength and the games it

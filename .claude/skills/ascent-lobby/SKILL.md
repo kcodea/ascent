@@ -153,7 +153,8 @@ behaviour from a legacy symbol.**
   replay never loses a seat). The database must rate a pool exactly as `rateRunsV2` does
   (`lobby/strengthV2.db.test.ts`). At run end a lobby game that reached round 7 is scored in full BEFORE it uploads
   (`shouldScoreRunEnd`, `scorer.enqueueCarried` + `rush`, store `runScoring`): the end screen locks Continue behind
-  "Calculating Score" for at most `STRENGTH_RUN_END_WAIT_MS` (5 s). A test fixture that must be seated needs 7 rounds,
+  "Calculating Score" for at most `STRENGTH_RUN_END_WAIT_MS` (5 s); a game not done by then keeps scoring and uploads
+  its BOARDS when it is (`STRENGTH_LATE_UPLOAD_WAIT_MS`), the rest of the run-end record goes out at the limit. A test fixture that must be seated needs 7 rounds,
   and a fixture seated inside a band needs `runStrength`.
 - A generated (hybrid) seat is seated only if its RECORDING fields a board (`hybridSeat.canFieldBoard` checks a
   one-board `autoplayRun` prefix, not just the live bot). `autoplayRun` must answer every blocking modal a hero

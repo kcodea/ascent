@@ -119,4 +119,22 @@ describe('the run-end rush', () => {
     expect(h.scorer.carried(12).size).toBe(0);
     expect(h.scorer.pending(12)).toBe(9);
   });
+
+  it('a new game\'s first board ends an older game\'s rush: the leftover work goes back to idle time', async () => {
+    const ref = await refP;
+    const h = harness();
+    h.scorer.enqueue(21, boardOf(ref, 9, 3));
+    h.scorer.enqueueCarried(21, boardOf(ref, 9, 3), 15);
+    h.scorer.rush(21);
+    h.tickRush(); await flush(); // loads the reference
+    h.tickRush();
+    const rushBefore = h.counts.rush;
+    const idleBefore = h.counts.idle;
+    h.scorer.enqueue(22, boardOf(ref, 1, 2)); // the next game has begun: nothing may run in rushed slices under it
+    h.tickRush(); // the slice already asked for still runs once
+    for (let i = 0; i < 5; i++) h.tickIdle({ didTimeout: true, timeRemaining: () => 0 });
+    expect(h.counts.rush - rushBefore).toBeLessThanOrEqual(1);
+    expect(h.counts.idle).toBeGreaterThan(idleBefore);
+    expect(h.scorer.pending(21)).toBeGreaterThan(0); // the old game's work is kept, not dropped
+  }, 30_000);
 });

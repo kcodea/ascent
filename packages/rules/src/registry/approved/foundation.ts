@@ -15859,18 +15859,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'scored before the game uploads. While that runs, the end screen\x27s Continue is greyed out and cannot be '
       + 'pressed, the text "Calculating Score" says why, and a bar fills with the real progress (fights done out of '
       + 'fights to do). When the work is done the text and bar go away and Continue works. After 5 seconds Continue '
-      + 'unlocks regardless and the game uploads with what is ready: the button never stays locked. Practice, the '
+      + 'unlocks regardless: the button never stays locked. A game still being scored at that point keeps scoring behind '
+      + 'the unlocked screen, and its boards upload once, complete, when it is done (its Career row and rank go out at the '
+      + 'limit as usual), so a slow device\x27s game is scored like any other. Practice, the '
       + 'tutorial, Gauntlet, Versus and a game that ended before round 7 are never held.',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'can we have the continue button greyed out and unavailable to click while the games are being scored?' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (snapshot deep dive)', quote: 'i want to make sure it says something like "Calculating Score" while the button to continue is greyed out. players should know why this is happening. preferably with a timer bar as well' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-16 (asked: "Should a slow device\x27s game finish scoring after Continue unlocks at 5 seconds?")', quote: 'Yes, finish scoring' },
       { kind: 'fix-pr', ref: 'feat/strength-v2-scoring (2026-11-16): packages/ui/src/boardStrength/strengthScorer.ts (enqueueCarried, progress, rush); packages/ui/src/boardStrength/index.ts (shouldScoreRunEnd, STRENGTH_RUN_END_WAIT_MS 5000); packages/ui/src/store.ts (runScoring); packages/ui/src/rank/RankScreen.tsx (scoring)' },
     ],
     example: 'A rated game ends on round 9. For about a second Continue is grey under "Calculating Score" while the bar fills, then it lights up.',
     currentBehaviour:
       'Conforms from 2026-11-16. The lock also applies to an offline (unrated) lobby game, whose boards go to the pool '
-      + 'too. The work runs in slices of about 6 ms on the main thread. A device too slow to finish in 5 seconds uploads the game unscored. NOT YET MEASURED in the running game on the '
+      + 'too. The work runs in slices of about 6 ms on the main thread. A game still unfinished 60 seconds after Continue unlocked uploads with what is ready (unscored), and a game whose player closes the app before its scoring ends never uploads its boards (its Career row and rank are already out). The moment a new game\x27s first board is captured, an older game\x27s leftover scoring drops back to idle time. NOT YET MEASURED in the running game on the '
       + 'production build (frame times during the wait, and the wait itself): the owner checks it before the release.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/RankScreen.test.tsx', 'packages/ui/src/boardStrength/runEndStrength.test.ts', 'packages/ui/src/boardStrength/runEndTimeout.test.ts', 'packages/ui/src/boardStrength/carriedScorer.test.ts'], lastVerifiedAt: '2026-11-16' },
   },

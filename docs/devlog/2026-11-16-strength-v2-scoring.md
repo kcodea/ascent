@@ -88,12 +88,17 @@ Fixed, each with a test:
   the carried round. This moves carried scores slightly from the Plan 1 measurement (which relabelled the board's
   round instead).
 
+Decided by Mike after the review (2026-11-16, "Yes, finish scoring") and built:
+
+- **A slow device's game finishes scoring after Continue unlocks.** At the 5 second limit the Career row, the rank
+  and the replay go out as before, but the boards wait: scoring carries on behind the unlocked screen and the boards
+  upload once, complete, when it is done (`STRENGTH_LATE_UPLOAD_WAIT_MS`, 60 s, after which they go up with what is
+  ready). Two costs: a player who closes the app before the scoring ends never uploads that game's boards (the
+  Career row and rank are already out), and the leftover work stays in rushed slices until the next game's first
+  board is captured, when it drops back to idle time.
+
 Not fixed, for the owners to weigh:
 
-- **A slow device can still pass 5 seconds**, and that game is then unscored (so it never enters Bronze, Silver or
-  Gold tables until a top-up backfill). Short weak games are the Bronze population, so this leans against slow
-  devices. The reviewer's suggestion: unlock Continue at 5 s but let the scoring finish and upload afterwards. That
-  departs from the design's "goes up with what is ready", so it is Mike's call.
 - A game restored from a save and ended before its next captured round queues all its boards at run end.
 - `pool_live_unscored()` is not in the daily ops digest yet.
 - Games uploaded by clients that have not updated take slots in the 250-run window while unscored, so banded tables

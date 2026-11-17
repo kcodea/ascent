@@ -201,6 +201,9 @@ export function createStrengthScorer(deps: StrengthScorerDeps): StrengthScorer {
       // An empty board has nothing to score (and is never uploaded): never queue it, so it can never hold up the
       // run end either.
       if (!board || typeof board.wave !== 'number' || !board.minions?.length || has(seed, keyOf(board.wave))) return;
+      // A board of ANOTHER game means a new game is being played: an older game still finishing its run-end scoring
+      // (a slow device, past the lock) goes back to idle time, so nothing runs in rushed slices under live play.
+      for (const other of [...rushed]) if (other !== seed) rushed.delete(other);
       queue.push({ seed, wave: board.wave, board, probe: null });
       schedule();
     },

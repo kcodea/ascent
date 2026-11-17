@@ -270,6 +270,8 @@ Each is recorded with its reason in `docs/devlog/2026-11-16-strength-v2-scoring.
 - **The reference covers rounds 1 to 15** (round 16 has under 40 real boards in the live window).
 - **The count of live unscored runs is `pool_live_unscored()`**, not a field of `ops.pool_digest` (a content hash).
 - **The lock also covers an offline (unrated) lobby game.**
+- **A game not scored within the 5 second limit keeps scoring after Continue unlocks**, and its boards upload when
+  it is done (Mike 2026-11-16: "Yes, finish scoring"), instead of going up unscored.
 
 ## 7. Delivery order
 

@@ -3,7 +3,12 @@
  * THE SAFETY LIMIT of the run-end scoring (strength v2, owner 2026-11-16: Continue is greyed out while the game is
  * scored; the design's limit: "after 5 seconds Continue unlocks regardless and the run goes up with what is ready
  * (an incomplete run is unscored). The button must never stay locked"). Here the limit is shrunk to 1 ms, so the
- * scoring can never finish in time: the lock must still clear, and the upload must go out WITHOUT carried scores.
+ * scoring can never finish in time: the lock must still clear at once.
+ *
+ * WHAT HAPPENS TO THE GAME THEN (owner 2026-11-16, asked "Should a slow device's game finish scoring after Continue
+ * unlocks at 5 seconds?": "Yes, finish scoring"): the Career row, the rank and everything else go out at the limit as
+ * before, but the BOARDS wait for the scoring to finish and then go up once, complete, with their carried scores. A
+ * slow device's game is scored like anyone else's instead of being left unscored.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatResult } from '@game/core';
@@ -34,7 +39,7 @@ const combat = (): CombatResult => ({
 describe('the run-end scoring never holds Continue past its limit', () => {
   beforeEach(() => { vi.mocked(uploadRunHistory).mockClear(); vi.mocked(uploadBoards).mockClear(); localStorage.clear(); });
 
-  it('past the limit: the lock clears, the boards go up, and no carried scores ride with them', async () => {
+  it('past the limit: the lock clears and the record goes out; the boards follow when the scoring is done, complete', async () => {
     const ref = await loadStrengthReference();
     const captured = [1, 2, 3, 4, 5, 6, 7].map((w) => ({ ...ref.waves[String(w)]![10]!, wave: w, id: `t${w}` } as BoardSnapshot));
     const base = createLobbyRun(51, 'brackus', {}, 'lobby', undefined, 'set2');
@@ -46,11 +51,19 @@ describe('the run-end scoring never holds Continue past its limit', () => {
     expect(useGame.getState().run.phase).toBe('gameover');
     expect(useGame.getState().runScoring).not.toBeNull(); // held the moment the game ended
     for (let i = 0; i < 200 && vi.mocked(uploadRunHistory).mock.calls.length === 0; i++) await sleep(25);
+    // At the limit: unlocked, the Career row is out, and the boards are NOT (they would be unscored).
     expect(useGame.getState().runScoring).toBeNull();
-    const uploaded = vi.mocked(uploadBoards).mock.calls[0]![0] as Array<BoardSnapshot & { strengthCarried?: unknown }>;
+    expect(vi.mocked(uploadRunHistory).mock.calls).toHaveLength(1);
+    expect(vi.mocked(uploadBoards).mock.calls).toHaveLength(0);
+    // The scoring carries on behind the unlocked screen, then the boards go up ONCE, every one scored, the last one
+    // with its carried rounds.
+    for (let i = 0; i < 2400 && vi.mocked(uploadBoards).mock.calls.length === 0; i++) await sleep(25);
+    expect(vi.mocked(uploadBoards).mock.calls).toHaveLength(1);
+    const uploaded = vi.mocked(uploadBoards).mock.calls[0]![0] as Array<BoardSnapshot & { strengthScore?: unknown; strengthCarried?: { rounds: Record<string, number> } }>;
     expect(uploaded).toHaveLength(7);
-    expect(uploaded.every((b) => b.strengthCarried === undefined)).toBe(true);
-    await sleep(250); // the progress timer is stopped: the lock does not come back
-    expect(useGame.getState().runScoring).toBeNull();
-  }, 30_000);
+    expect(uploaded.every((b) => b.strengthScore)).toBe(true);
+    expect(Object.keys(uploaded.find((b) => b.wave === 7)!.strengthCarried!.rounds)).toEqual(['8', '9', '10', '11', '12', '13', '14', '15']);
+    expect(uploaded.filter((b) => b.wave !== 7).every((b) => b.strengthCarried === undefined)).toBe(true);
+    expect(useGame.getState().runScoring).toBeNull(); // the lock never came back
+  }, 90_000);
 });

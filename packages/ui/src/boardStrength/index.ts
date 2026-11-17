@@ -8,10 +8,10 @@ import { createStrengthScorer, STRENGTH_SLICE_TIMEOUT_MS, type StrengthScorer } 
 
 export { createStrengthScorer } from './strengthScorer';
 
-/** The longest the run-end uploads (and the end screen's "Calculating Score" lock) wait for the run's scores: its
- *  boards and, since strength v2 (2026-11-16), its final board's carried rounds, at most 8 x 160 fights. Owner
- *  2026-11-16: Continue is greyed out while this runs, and the design's safety limit is 5 seconds: after it the run
- *  goes up with what is ready (an incomplete run is unscored) and Continue unlocks. It must never stay locked. */
+/** The longest the end screen's "Calculating Score" lock (and the run-end record: Career row, rank, replay) waits for
+ *  the run's scores: its boards and, since strength v2 (2026-11-16), its final board's carried rounds, at most 8 x 160
+ *  fights. Owner 2026-11-16: Continue is greyed out while this runs; after 5 seconds it unlocks regardless. It must
+ *  never stay locked. The BOARDS of a game still being scored then follow later (`STRENGTH_LATE_UPLOAD_WAIT_MS`). */
 export const STRENGTH_RUN_END_WAIT_MS = 5000;
 
 /**
@@ -60,6 +60,12 @@ export function rushSoon(fn: () => void): () => void {
   ch.port2.postMessage(0);
   return () => { cancelled = true; ch.port1.close(); };
 }
+
+/** How long a game's BOARDS wait for its scoring once Continue has unlocked (owner 2026-11-16: "Yes, finish
+ *  scoring"). A device too slow to finish inside `STRENGTH_RUN_END_WAIT_MS` keeps scoring behind the unlocked screen
+ *  and uploads its boards when done, so its game is scored like anyone else's. After this long they go up with what
+ *  is ready (the run is then unscored). */
+export const STRENGTH_LATE_UPLOAD_WAIT_MS = 60_000;
 
 let scorer: StrengthScorer | null = null;
 

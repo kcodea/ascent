@@ -8,7 +8,7 @@ import {
   ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
-import { destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, splashTravelTarget, stageScale, transformTo } from './heroCeremonyGeometry';
+import { coverSquare, destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, splashTravelTarget, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig, subscribeHeroCeremonyConfig } from './heroCeremonyTunerConfig';
@@ -81,11 +81,17 @@ function animateEl(
  *  overall than the original hero select animation", then "Shrink it ~15%"). */
 const PH_PORTRAIT_SHRINK = 0.85;
 
-function portraitBoundsOf(crop: RectSnapshot, ph = false): RectSnapshot {
+/** THE SHOWCASE shows more of the hero inside the same circle (owner 2026-11-17: "circle should remain the same size. the
+ *  art should shrink to fill more of the circle"): its final art is this fraction of the card path's size. At the shipped
+ *  dials the art's side was 1.32x the circle's diameter (the circle showed the middle 76% of the art); 0.82 makes it
+ *  1.08x (the middle 92%). 0.757 is the floor: below it the art no longer covers the circle. */
+const SPLASH_ART_FIT = 0.82;
+
+function portraitBoundsOf(crop: RectSnapshot, ph = false, fit = 1): RectSnapshot {
   const fx = getHeroCeremonyConfig();
   const vp = stageViewport();
   const k = stageScale(vp.w, vp.h); // offsets are REFERENCE px, like the rest of the UI
-  const grow = 1.18 * fx.portraitScale * (ph ? PH_PORTRAIT_SHRINK : 1);
+  const grow = 1.18 * fx.portraitScale * (ph ? PH_PORTRAIT_SHRINK : 1) * fit;
   const w = crop.width * grow;
   const h = crop.height * grow;
   return {
@@ -178,7 +184,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   const circleRef = useRef<{ cx: number; cy: number; r: number } | null>(null);
   const plateRef = useRef<HTMLDivElement | null>(null);
   const identityTopRef = useRef(0);
-  const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph) : null), [portrait, tunerCfg, ph]);
+  const liveBounds = useMemo(() => (portrait ? portraitBoundsOf(portrait.crop, ph, splash ? SPLASH_ART_FIT : 1) : null), [portrait, tunerCfg, ph, splash]);
 
   const t = useMemo(() => ceremonyTiming(), []);
 
@@ -332,12 +338,13 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
      below run the crossfade. No art → skip entirely and keep the framed clone (§19). */
   useEffect(() => {
     if (!crossed('materializing') || portrait || !art || !travelDone) return;
-    // THE SHOWCASE: the crop is the card path's party-home frame inside dest (splashDest), not the square clone's box.
+    // THE SHOWCASE: the crop is the square the travelling art lands on (the cover square of the card path's party-home
+    // frame inside dest), not measured. Square, so the final art can sit close to the circle's size (SPLASH_ART_FIT).
     const frame = frameRef.current;
     if (!frame && !splash) return;
-    const crop = splash ? splashDest(dest) : artCrop(snapshotRect(rectToStage(frame!.getBoundingClientRect())));
+    const crop = splash ? coverSquare(splashDest(dest)) : artCrop(snapshotRect(rectToStage(frame!.getBoundingClientRect())));
     if (crop.width <= 0) return; // degenerate (hidden/unstyled test env): keep the framed fallback
-    setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
+    setPortrait({ crop, bounds: portraitBoundsOf(crop, ph, splash ? SPLASH_ART_FIT : 1) });
   }, [state.phase, art, travelDone, portrait]);
 
   /* ---- Portrait entrance: from the card-art crop to the final bounds, opacity 0.35 → 1 (§13). */
@@ -378,9 +385,9 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           // Portrait correction: re-measure the snapped frame once and rebuild the (already faded-in)
           // portrait bounds around it. The entrance animation is long finished by any realistic resize.
           if (portrait && (splash || frameRef.current)) {
-            const crop = splash ? splashDest(next) : artCrop(snapshotRect(rectToStage(frameRef.current!.getBoundingClientRect())));
+            const crop = splash ? coverSquare(splashDest(next)) : artCrop(snapshotRect(rectToStage(frameRef.current!.getBoundingClientRect())));
             if (crop.width > 0) {
-              setPortrait({ crop, bounds: portraitBoundsOf(crop, ph) });
+              setPortrait({ crop, bounds: portraitBoundsOf(crop, ph, splash ? SPLASH_ART_FIT : 1) });
               const p = portraitRef.current;
               if (p) { p.style.transform = 'translate(0px, 0px) scale(1)'; p.style.opacity = '1'; }
             }

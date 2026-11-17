@@ -253,6 +253,20 @@ one player contributes to the ranking population**:
   strength shifts for players).
 - Extend the existing TypeScript / SQL / Worker parity tests rather than adding new unpinned copies.
 
+### As built (Plan 2, 2026-11-16): where the build departs from the text above
+
+Each is recorded with its reason in `docs/devlog/2026-11-16-strength-v2-scoring.md`.
+
+- **Rollout order is SQL first, then Ship Ascent**, not "deploy the hub first": the `strength_carried` column must
+  exist before a client that sends it ships, and the SQL draw does not call the hub.
+- **A game under 7 rounds still uploads its boards** (the live replay and the record board read them); the database
+  marks the run ineligible, so it is never seated or ranked.
+- **The 7-round floor is applied where a table is seated**, not in the run lookup, so a saved game or a replay still
+  finds a run seated before the floor existed.
+- **The reference covers rounds 1 to 15** (round 16 has under 40 real boards in the live window).
+- **The count of live unscored runs is `pool_live_unscored()`**, not a field of `ops.pool_digest` (a content hash).
+- **The lock also covers an offline (unrated) lobby game.**
+
 ## 7. Delivery order
 
 1. Tooling only: v2 reference builder, drift alarm, peak table, `validate`. No behaviour change.

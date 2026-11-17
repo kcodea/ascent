@@ -43,9 +43,14 @@ medal + division — see *Ranked ladder* below).
   run is equally likely, the same lobby seed always seats the same table (restore / replay), and nothing
   weights the draw inside that window — no recency weighting, no win-rate weighting (that exists only on the pre-lobby pool pick). A RATED
   lobby draws only from the runs inside the player's **strength band** (below, R-LOBBY-09); inside the band the
-  draw is the same uniform shuffle. **One player holds at most 4 seats** (owner 2026-09-29, R-LOBBY-08: "so it's not literally like 7
-  of me always"): a run whose player already holds 4 is passed over for the next in the shuffle, which leaves
-  every other run equally likely; when the pool lacks enough players, generated seats fill the rest. **Your own
+  draw is the same uniform shuffle. **One player holds at most 2 seats, 3 when the table is short** (owner 2026-11-16, R-LOBBY-16: "you should also only be
+  able to face 2 of each players snapshots. that includes 2 of yourself", then "go up to 3 if not enough snapshots
+  exist"; it was 4 from 2026-09-29): a run whose player already holds 2 is passed over for the next in the shuffle,
+  which leaves every other run equally likely; only when two each cannot fill the table does a player get a third
+  seat, tried inside the same band before the band widens; when the pool still lacks enough players, generated seats
+  fill the rest. **A table holds at most two runs of strength 90-100 and two of strength 80-89** (owner 2026-11-16,
+  R-LOBBY-17), a hard limit that binds from Platinum up (the lower medals' caps already keep those runs out); no rank
+  leans toward stronger runs: Platinum, Diamond and Ascendant draw alike. **Your own
   runs sit at your table like anyone else's, under the same cap of 4** (owner 2026-09-30: *"this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this"*;
   until then your own runs were left out). A player is their account (`boards.user_id`), else their display name.
   **All eight heroes are unique per lobby, the player's included** (owner 2026-09-13, reaffirmed for every mode 2026-10-31,
@@ -146,7 +151,7 @@ medal + division — see *Ranked ladder* below).
     is like 55 average and ascendant is 60 average?"*), retuned from 2026-10-03 to 2026-10-06 for the final-board scale
     to Gold 15-65, Platinum 15-100, Diamond 25-100, Ascendant 35-100. A rated lobby's recorded seats come only from runs
     inside the band (the server samples inside it, and seat selection filters to it), still whole runs, still at most
-    4 seats per player (your own runs included, under the same cap). A run with **no score yet counts as inside every
+    2 seats per player, 3 when the table is short (R-LOBBY-16; your own runs included, under the same cap). A run with **no score yet counts as inside every
     band**. When the band cannot fill the table it **widens by 10 on each capped side**, one step at a time (each step
     logged to the pool telemetry), until it is uncapped (for Bronze, Silver and Gold: until only the overall cap is
     left). Only then do generated seats fill the rest. The tutorial has no
@@ -2225,6 +2230,45 @@ Only one henchman was ever authored (a placeholder on Warden), and because Warde
 playable hero, that placeholder was reachable in real games until this ruling.
 
 ---
+
+## Ancients: one release switch, shipped OFF (owner 2026-11-16; R-ANCIENTS-RELEASE-01..04)
+
+> Owner, 2026-11-16: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on,
+> they're live everywhere." Then, the same day: "Ship the ancient switch off. I'll tell you when to turn it on."
+> **Today the switch is OFF: no player run has Ancients** (only the Scene Builder's own toggle and the DEV Versus seam).
+> Everything below describes what turning it on does.
+
+- **The loop.** A run with Ancients carries a meter that FILLS: +1 per Shop Refresh (paid or free), +2 per combat
+  fought (as the next Shop opens); it awakens at 16 (`ANCIENT_METER_DEFAULTS`). At full, the Shop pauses behind an
+  offer of three of the six Ancients (a seeded draw off the run seed + wave, never the run cursor). The pick locks in
+  for the run; its effect is the PAIRING for the hero whose power sits in slot 0 (`ANCIENT_PAIRINGS`).
+- **THE SWITCH** is `ANCIENTS_LIVE` in `packages/sim/src/ancientsRelease.ts`. It ships `false`. Setting it to `true`
+  turns Ancients on for every NEW run; the same PR must bump `VERSUS_CF_PROTOCOL` 3 to 4 (a tripwire test fails CI
+  otherwise) and the Versus Worker must be deployed for that build.
+- **Pinned at creation** (the card-sets rule): the switch is read only when a run is created
+  (`releaseAncients`, from `createLobbyRun`, `createVersusRun`, `createGauntletRun` and the generated-seat runs in
+  `autoplayRun` / `botSeat`), and the run carries `ancientsEnabled` + its meter. A flip never changes an in-flight,
+  saved, restored or replayed run: `deserialize` merges a save over a plain `createRun`, which never reads the switch.
+- **When ON, it is live in:** ranked and casual lobby games, Practice (God Mode included), Gauntlet, Versus 1v1 and
+  Group, Versus Duos and Ranked Duos, and every generated / bot seat that plays a run (hybrid seats' recordings, live bot seats, the Versus test
+  bot), so the table plays the same game. Recorded player seats carry whatever their run had. Practice's authored
+  omen bots and Gauntlet's authored foe play no run, so they have no Ancient.
+- **Never in:** the Tutorial (its scripted course has no step for the offer, which refuses End Turn); a set without
+  Ancients (only Sets 2 and 3 have them, `ancientsSetSupported`); a hero without all six pairings written
+  (`heroHasAncientPairings`): **Runesmith and Guardian today**. The owner writes their pairings; until then they get
+  no meter. The Scene Builder ignores the switch and keeps its own toggle.
+- **Bots answer the awakening** (R-ANCIENTS-RELEASE-02): `autoplayRun`'s modal ladder, the greedy bot and the
+  production bot (`pickAncient` is a mandatory, revealing decision) and the Versus timeout / test bot all pick. The
+  recorder and the greedy bot take the offer's first option, which is itself a seeded draw.
+- **The foe's Ancient is visible** (R-ANCIENTS-RELEASE-03): a captured board carries `BoardSnapshot.ancient` (id, the
+  pairing's hero, the wave). The foe's hero-power tip in combat and the rail's scout card print the Ancient's name and
+  its pairing text under the base power. An older board with no field shows the base power only.
+- **Recorded** (R-ANCIENTS-RELEASE-04): match details (`MatchSeat.ancient`, every seat) and run telemetry
+  (`RunTelemetry.ancients` / `.ancient`, also inside `derived`) carry the pick, so the Balance Report can split by
+  Ancient. Both are additive jsonb; no SQL.
+- **Versus Worker:** turning Ancients on is a fight-rules change with no content change, so the flip bumps
+  `VERSUS_CF_PROTOCOL` to 4 (R-VERSUS-WORKER-RULES-01): a v3 client (no meter) can never share a room with a v4 one.
+  `packages/ui/src/versus/ancientsReleaseProtocol.test.ts` enforces it. While off, the protocol stays 3.
 
 ## Heroes: archived (owner ruling 2026-09-24, R-HERO-01)
 

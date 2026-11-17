@@ -2,9 +2,10 @@
  * ANCIENTS (proof of concept, owner rulings 2026-09-25) — a run-defining transformation of the HERO POWER.
  *
  * ── Scope ─────────────────────────────────────────────────────────────────────────────────────────────────────
- * Scene Builder, Set 3 only, behind `RunState.ancientsEnabled`. Nothing here runs unless that flag is on AND the
- * run carries an `ancients` block, so a lobby / practice / normal run (and every replay and golden) is untouched:
- * every hook below returns before reading or writing anything when `state.ancients` is absent.
+ * Behind `RunState.ancientsEnabled` (any set; set by `enableAncients`). Nothing here runs unless that flag is on AND the
+ * run carries an `ancients` block, so a run without them (and every replay and golden) is untouched: every hook below
+ * returns before reading or writing anything when `state.ancients` is absent. The combat mods ride the run's side
+ * state, so a snapshot of an Ancients board carries its Ancient into the seat it is served to.
  *
  * ── The loop ──────────────────────────────────────────────────────────────────────────────────────────────────
  *  1. THE METER FILLS (owner ruling 2, re-worded on the first playable: "it should fill the meter not deplete it"):
@@ -3217,6 +3218,9 @@ export interface AncientsState {
   /** The hero id whose POWER the pairing (and `powerOverride`) was picked for: the slot-0 power at the pick. Absent on
    *  saves from before 2026-11-01, read as the run's own hero (R-HERO-POWER-REPLACED-02). */
   powerOverrideFor?: string;
+  /** The hero ids whose pairing's starting stamps have run this run (the pick's power, then any power gained later):
+   *  `ancientSyncPower` stamps each once. Absent on older saves = only `powerOverrideFor` was stamped. */
+  pairedFor?: string[];
   /** AUCTIONEER × FORTUNE: Gold banked by Shop Shouts on `wave` (the live power text prints it). */
   shoutGold?: { wave: number; gold: number };
   /** RISEN × FORTUNE: Gold the last combat's Rises banked for this turn (the live power text prints it). */
@@ -3448,7 +3452,7 @@ export interface AncientsState {
 /** Where an open Discover came from, for the Ancients that treat its pick specially. */
 export type AncientDiscoverTag = DiscoverAncientTag;
 
-/** Turn Ancients on for a run (the Scene Builder's Set 3 flag). Pure: returns a new run. */
+/** Turn Ancients on for a run. Pure: returns a new run. */
 export function enableAncients(run: RunState, override?: Partial<AncientMeterTuning>): RunState {
   const t = ancientMeterFor(run.heroId, override);
   return { ...run, ancientsEnabled: true, ancients: { points: 0, cost: t.cost, refresh: t.refresh, combat: t.combat } };
@@ -3491,6 +3495,18 @@ export function ancientsRefreshTick(state: RunState): void {
   if (a) fill(state, a.refresh, 'refresh');
 }
 
+/**
+ * An effect whose TEXT says "Refresh" re-rolled the Shop OUTSIDE the reducer's `refreshTavern` (Grand Larceny, Sigil of
+ * Kinship, Spell Cart, Membrance's power, Gorr × Time's End of Turn): it is a Refresh all the same (owner rule
+ * 2026-11-16, R-ANCSYS-03), so it fills the meter and runs the Refresh pairings (Tradesman × Bonds / Genesis), exactly
+ * as `refreshTavern` does. Call it AFTER the new row is in. A no-op without Ancients.
+ */
+export function ancientOnEffectRefresh(state: RunState): void {
+  if (!live(state)) return;
+  ancientsRefreshTick(state);
+  ancientAfterRefresh(state);
+}
+
 /** A combat was fought (called as the next Shop opens): the meter fills by `combat`. */
 export function ancientsCombatTick(state: RunState): void {
   const a = live(state);
@@ -3514,23 +3530,15 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
   a.picked = id;
   a.offer = undefined;
   a.pickSeq = (a.pickSeq ?? 0) + 1;
-  a.powerOverrideFor = ancientPairingHeroId(state); // the pairing belongs to the power held right now
-  const shape = activeAncientPairing(state)?.power;
-  if (shape) a.powerOverride = { ...shape };
-  const extra = effectOf(state, 'copyMachineExtraCharge');
-  if (extra) a.xeroxCharges = (a.xeroxCharges ?? 0) + extra.charges; // XEROX × GENESIS: banked at the pick
-  const war = effectOf(state, 'reclaimGainImproves');
-  if (war) a.sorenWarGain = war.amount; // SOREN × WAR: starts at the printed amount
-  const gBonds = effectOf(state, 'buysBuffImproves');
-  if (gBonds) a.gorrBondsGain = gBonds.amount; // GORR × BONDS: starts at the printed amount
-  const aWar = effectOf(state, 'enchantedBuyBuffImproves');
-  if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
-  brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
-  batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
-  batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
-  batchBOnPick(state); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard's button, when the Shop is already Tier 6
-  batchCOnPick(state, a); // UNDERDWELLER × BONDS: starts at the printed amount
-  cindyOnPick(state, a); // CINDY × TIME / GENESIS / BONDS: the turn, and the riders for an arm already sent
+  a.pairedFor = [];
+  syncPower(state, a, true);
+  pickLookBack(state, a); // THE LOOK-BACK (R-ANCFIX-03): what already happened this turn counts at the pick
+  return true;
+}
+
+/** THE LOOK-BACK at the pick (owner 2026-11-16, R-ANCFIX-03): a pairing accounts for what already happened this turn or
+ *  cycle. Pick-time only (a power gained later through `ancientSyncPower` starts fresh). */
+function pickLookBack(state: RunState, a: AncientsState): void {
   pickTurnPowerUse(state, a); // a hero-power use made earlier THIS turn counts against the pairing's per-turn limits
   // AYSE × BONDS (R-ANCFIX-07): Lucky Seat needs 2 now. A count already at (or past) the new need is clamped one short,
   // so the counter never sits at "2/2" with nothing paid: the next Enchanted buy pays, and the armed glow shows it.
@@ -3545,7 +3553,53 @@ export function pickAncient(state: RunState, id: AncientId): boolean {
     const bought = gorrMinionBuysThisTurn(state);
     if (bought > 0) a.timeBuys = { wave: state.wave, n: bought };
   }
-  return true;
+}
+
+/**
+ * Keep the picked pairing's POWER SHAPE and its STARTING STAMPS in step with the power in slot 0 (R-ANCSYS-01). The
+ * pairing follows the held power (R-HERO-POWER-REPLACED-02), so a power gained AFTER the pick (Power Shifter, Void's
+ * turn-4 picks) gets that power's pairing in full: its cost / uses / passive shape, and the per-pairing start values the
+ * pick stamps (Xerox's extra charge, Soren's and Gorr's printed gain, Midas' Pouch value, ...). Called by the pick, by
+ * `pickPower`, and at the reducer's every-action boundary (whatever changed slot 0). Idempotent: a no-op while the
+ * stamped power is still the one held. Each power's starting stamps run ONCE per run (`pairedFor`), so swapping back
+ * never pays a second extra charge.
+ */
+export function ancientSyncPower(state: RunState): void {
+  const a = live(state);
+  if (a?.picked) syncPower(state, a, false);
+}
+
+function syncPower(state: RunState, a: AncientsState, force: boolean): void {
+  const forId = ancientPairingHeroId(state);
+  const was = a.powerOverrideFor ?? state.heroId;
+  if (!force && was === forId) return;
+  // A save from before `pairedFor` existed already stamped the power it picked for.
+  const done = a.pairedFor ?? [was];
+  a.powerOverrideFor = forId; // the pairing belongs to the power held right now
+  const shape = activeAncientPairing(state)?.power;
+  a.powerOverride = shape ? { ...shape } : undefined;
+  if (!done.includes(forId)) {
+    a.pairedFor = [...done, forId];
+    pairingStamps(state, a);
+  } else a.pairedFor = done;
+  ancientSyncVanguard(state); // EMERALD WARDEN × WAR / GENESIS / BONDS: Vanguard's button, when the Shop is already Tier 6
+}
+
+/** The per-pairing start values and grants a pairing gets the moment it becomes active (the pick, or a later power). */
+function pairingStamps(state: RunState, a: AncientsState): void {
+  const extra = effectOf(state, 'copyMachineExtraCharge');
+  if (extra) a.xeroxCharges = (a.xeroxCharges ?? 0) + extra.charges; // XEROX × GENESIS: banked at the pick
+  const war = effectOf(state, 'reclaimGainImproves');
+  if (war) a.sorenWarGain = war.amount; // SOREN × WAR: starts at the printed amount
+  const gBonds = effectOf(state, 'buysBuffImproves');
+  if (gBonds) a.gorrBondsGain = gBonds.amount; // GORR × BONDS: starts at the printed amount
+  const aWar = effectOf(state, 'enchantedBuyBuffImproves');
+  if (aWar) a.ayseWarGain = aWar.amount; // AYSE × WAR: starts at the printed amount
+  brackusOnPick(state, a); // BRACKUS × GENESIS / TIME: the Summit lock grows, the countdown starts
+  batch5OnPick(state, a); // RAYSE / CASSEN / DRAKKO / GILDMASTER: the pick-time stamps
+  batch6OnPick(state, a); // MIDAS / QUILLEN / DISCO DAN: the pick-time grants and stamps
+  batchCOnPick(state, a); // UNDERDWELLER × BONDS: starts at the printed amount
+  cindyOnPick(state, a); // CINDY × TIME / GENESIS / BONDS: the turn, and the riders for an arm already sent
 }
 
 /** The reducer's `heroPower` just spent a use of the power in `slot` (Ancients on; picked or not). Stamps the turn. */
@@ -3623,6 +3677,15 @@ export interface AncientPowerLive {
   /** DARAH × WAR: Swap charges the fight on screen has gained SO FAR (the replay's `questTrigger` events for
    *  `ANCIENT_SWAP_CHARGE_FLAG`), added to the banked count so the readout ticks with the payout. */
   swapCharges?: number;
+  /** DRAKKO × BONDS: friendly Shout fires SO FAR in the fight on screen (the replay's `questTrigger` events for
+   *  `ANCIENT_DRAKKO_SHOUT_FLAG`), so the live +X/+X and "more to go" move with each Shout (R-ANCSYS-04). */
+  shoutFires?: number;
+  /** EMERALD WARDEN × DEATH: the turn's one Avenge payout has fired in the fight on screen (the replay's `questTrigger`
+   *  events for `ANCIENT_EW_AVENGE_FLAG`), so "Used this turn." shows the moment it pays (R-ANCSYS-04). */
+  ewAvengeFired?: number;
+  /** GORUN × DEATH: Attack gifts made SO FAR in the fight on screen (the replay's `questTrigger` events for
+   *  `ANCIENT_GORUN_GIFT_FLAG`), so "left this turn" counts down with each gift (R-ANCSYS-04). */
+  attackGifts?: number;
   /** A per-combat budget spent SO FAR in the fight on screen (the replay's `questTrigger` events for
    *  `ANCIENT_CAP_SPENT_FLAG`): Rayse × War / Genesis and Lord of the Risen × Death / Genesis count their "left" down. */
   capSpent?: number;
@@ -3894,8 +3957,8 @@ export function ancientOnShopDeath(state: RunState, died: BoardCard): void {
   });
 }
 
-/** The combat modifiers the picked Ancient threads into the player's fight (War / Time). Player-only: never part
- *  of a snapshot (opponents' Ancients are out of the MVP). */
+/** The combat modifiers the picked Ancient threads into this run's fight. They ride the run's side state, so a
+ *  snapshot of this board captures them (`snapshot.ts` `questMods`) and a served seat fights with its Ancient. */
 export function ancientCombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const war = effectOf(state, 'friendlyDeathBuffsGilded');
@@ -5230,6 +5293,7 @@ export function ancientRunGorrEotCopy(state: RunState): void {
     try { rollShop(state); } finally { a.rollTribe = undefined; }
     rollCiaEnchants(state);
     applyShopRefreshed(state);
+    ancientOnEffectRefresh(state); // "refresh the Shop": a Refresh (R-ANCSYS-03)
     state.frozen = true;
     return;
   }
@@ -6222,7 +6286,7 @@ function batch5OnPick(state: RunState, a: AncientsState): void {
   if (ct && state.commission) state.commission = { ...state.commission, dueWave: Math.min(state.commission.dueWave, state.wave + Math.max(1, ct.turns)) };
 }
 
-/** This batch's combat halves (all player-only, never snapshotted, like every Ancient). */
+/** This batch's combat halves (read per side; they ride a snapshot like every Ancient mod). */
 function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const a = live(state);
@@ -6243,7 +6307,7 @@ function batch5CombatMods(state: RunState): Partial<QuestCombatMods> {
   const db = effectOf(state, 'shoutBuffsDrakkos');
   if (db?.improveEvery) {
     const x = drakkoBondsX(state, a);
-    out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: x, health: x, label: ANCIENTS.bonds.name, improveEvery: db.improveEvery, step: db.attack, shouts: a.drakkoBondsShouts ?? 0 };
+    out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: x, health: x, label: ANCIENTS.bonds.name, improveEvery: db.improveEvery, step: db.attack, shouts: a.drakkoBondsShouts ?? 0, flag: ANCIENT_DRAKKO_SHOUT_FLAG };
   } else if (db) out.ancientShoutBuffsCard = { cardId: DRAKKO_CARD_ID, attack: db.attack, health: db.health, label: ANCIENTS.bonds.name };
   // DRAKKO × TIME (ancient pass 1): Start of Combat also triggers the left-most Shout minion.
   if (effectOf(state, 'eotTriggerLeftmostShout')?.alsoSoc) out.ancientEdgeShouts = { label: ANCIENTS.time.name, leftOnly: true };
@@ -6307,16 +6371,24 @@ function batch5AfterCombat(state: RunState, a: AncientsState, result: CombatResu
   }
 }
 
-/** DRAKKO × BONDS: Shouts still to fire before the next improve. */
-function drakkoBondsLeft(state: RunState, a: AncientsState): number {
+/** The `questTrigger` flag Drakko × Bonds' combat Shout listener pulses on every fire (the replay's live count). */
+export const ANCIENT_DRAKKO_SHOUT_FLAG = 'ancientDrakkoShout';
+
+/** DRAKKO × BONDS: Shouts still to fire before the next improve. `live` = fires the fight on screen has made so far. */
+function drakkoBondsLeft(state: RunState, a: AncientsState, live = 0): number {
   const every = Math.max(1, effectOf(state, 'shoutBuffsDrakkos')?.improveEvery ?? 1);
-  return every - ((a.drakkoBondsShouts ?? 0) % every);
+  return every - (((a.drakkoBondsShouts ?? 0) + Math.max(0, live)) % every);
 }
 
-/** DRAKKO × BONDS (ancient pass 1): the live +X/+X each Shout gives your Drakkos right now. */
-function drakkoBondsX(state: RunState, a: AncientsState): number {
+/** DRAKKO × BONDS (ancient pass 1): the live +X/+X each Shout gives your Drakkos right now. `live` = fires the fight on
+ *  screen has made so far, each `improveEvery`th of them growing X by the effect's +a exactly as settle will. */
+function drakkoBondsX(state: RunState, a: AncientsState, live = 0): number {
   const e = effectOf(state, 'shoutBuffsDrakkos');
-  return a.drakkoBondsX ?? e?.attack ?? 0;
+  const x = a.drakkoBondsX ?? e?.attack ?? 0;
+  if (!e?.improveEvery || live <= 0) return x;
+  const every = Math.max(1, e.improveEvery);
+  const n = a.drakkoBondsShouts ?? 0;
+  return x + e.attack * (Math.floor((n + live) / every) - Math.floor(n / every));
 }
 
 /** DRAKKO × BONDS: `n` Shouts fired; every `improveEvery`th improves X by the effect's +a. */
@@ -6357,8 +6429,8 @@ function batch5PowerText(state: RunState, text: string, base: string, combat: An
     .replace('{rSpent}', String(spent)).replace('{rGain}', String((rf?.attack ?? 0) * spent))
     .replace('{cTier}', String(state.tier))
     .replace('{dkShouts}', String(shouts)).replace('{dkReps}', String(1 + shouts)).replace('{dkTimes}', 1 + shouts === 1 ? 'time' : 'times')
-    .split('{dkBondsX}').join(String(drakkoBondsX(state, a)))
-    .replace('{dkBondsLeft}', String(drakkoBondsLeft(state, a)))
+    .split('{dkBondsX}').join(String(drakkoBondsX(state, a, combat.shoutFires ?? 0)))
+    .replace('{dkBondsLeft}', String(drakkoBondsLeft(state, a, combat.shoutFires ?? 0)))
     .replace('{dkNeed}', String(ancientDrumlineNeed(state))).replace('{dkLeft}', String(dg ? Math.max(0, dg.times - (a.drakkoCompletions ?? 0)) : 0))
     .replace('{fPummelNow}', String(fp ? dealt % Math.max(1, fp.every) : 0)).replace('{fPummelEvery}', String(fp?.every ?? 0))
     .replace('{gmPummelNow}', String(gw ? dealt % Math.max(1, gw.every) : 0)).replace('{gmPummelEvery}', String(gw?.every ?? 0))
@@ -6646,7 +6718,7 @@ function batch6StartOfTurn(state: RunState): void {
   if (ktDef && state.hand.length < handCap(state)) recordSotBeat(state, src(ANCIENTS.time.name), () => conjureToHand(state, [ktDef], 1));
 }
 
-/** This batch's combat halves (player-only, never snapshotted, like every Ancient). */
+/** This batch's combat halves (read per side; they ride a snapshot like every Ancient mod). */
 function batch6CombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const a = live(state);
@@ -6906,12 +6978,12 @@ export function ancientRunBatchBEot(state: RunState, apply: (run: () => void) =>
 /** The `questTrigger` flag Emerald Warden × Death's combat payout pulses (settle marks the turn's one spent). */
 export const ANCIENT_EW_AVENGE_FLAG = 'ancientEwAvenge';
 
-/** EMERALD WARDEN × DEATH: " Used this turn." once the turn's one payout has happened (a combat payout shows from
- *  settle), else nothing. */
-function ewAvengeUsedText(state: RunState): string {
+/** EMERALD WARDEN × DEATH: " Used this turn." once the turn's one payout has happened (a combat payout shows the moment
+ *  the replay reaches it, R-ANCSYS-04), else nothing. */
+function ewAvengeUsedText(state: RunState, combat: AncientPowerLive): string {
   const e = effectOf(state, 'avengeTierMinion');
   if (!e?.oncePerTurn) return '';
-  return live(state)?.ewAvengeWave === state.wave ? ' Used this turn.' : '';
+  return live(state)?.ewAvengeWave === state.wave || (combat.ewAvengeFired ?? 0) > 0 ? ' Used this turn.' : '';
 }
 
 /** This batch's hero Avenge N (Merrin 3, Emissary 4, Emerald Warden 6), or undefined when none is picked. */
@@ -6938,11 +7010,7 @@ function batchBShopDeath(state: RunState, a: AncientsState): void {
 }
 
 /** The pick-time stamp. EMERALD WARDEN: a Shop already at Tier 6 has Vanguard's button from the pick. */
-function batchBOnPick(state: RunState): void {
-  ancientSyncVanguard(state);
-}
-
-/** This batch's combat halves (player-only, never snapshotted, like every Ancient). */
+/** This batch's combat halves (read per side; they ride a snapshot like every Ancient mod). */
 function batchBCombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const a = live(state);
@@ -7006,7 +7074,7 @@ function batchBPowerText(state: RunState, text: string, combat: AncientPowerLive
     .split('{vN}').join(String(state.spellsCast * unitedFrontMult(state)))
     .split('{ewTier}').join(String(state.tier))
     .replace('{ewNow}', va ? (state.tier >= va.tier ? ' **Active now.**' : ` You are Tier **${state.tier}**.`) : '')
-    .replace('{ewDeathUsed}', ewAvengeUsedText(state))
+    .replace('{ewDeathUsed}', ewAvengeUsedText(state, combat))
     .replace('{ewTribe}', top ? ` (**${top.charAt(0).toUpperCase()}${top.slice(1)}**)` : '');
 }
 
@@ -7074,7 +7142,7 @@ function batchAShopDeath(state: RunState, a: AncientsState): void {
   }
 }
 
-/** This batch's combat halves (player-only, never snapshotted, like every Ancient). RASCAL / GAMBLER × DEATH: Cassen's
+/** This batch's combat halves (read per side; they ride a snapshot like every Ancient mod). RASCAL / GAMBLER × DEATH: Cassen's
  *  pulse (counted at settle). FLINT × DEATH: Gorr's live hand grant over the Dwarf pool; × WAR: Braum's Start-of-Combat
  *  grant, narrowed to Dwarves, pre-multiplied by the Dwarves bought this game (nothing is bought mid-fight). */
 function batchACombatMods(state: RunState): Partial<QuestCombatMods> {
@@ -7653,7 +7721,7 @@ function batchCStartOfTurn(state: RunState): void {
   }
 }
 
-/** This batch's combat halves (player-only, never snapshotted, like every Ancient; the simulator reads each per side). */
+/** This batch's combat halves (read per side; they ride a snapshot like every Ancient mod). */
 function batchCCombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
   const a = live(state);
@@ -7661,7 +7729,7 @@ function batchCCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'soulkeeperKeepsStats')) out.ancientGraves = true;
   if (effectOf(state, 'afterCombatFirstFoeCopy')) out.ancientFirstFoeDeathCopy = { label: ANCIENTS.time.name };
   const dga = effectOf(state, 'deathGivesAttack');
-  if (dga) out.ancientDeathGivesAttack = { label: ANCIENTS.death.name, ...(dga.perTurn !== undefined ? { left: Math.max(0, dga.perTurn - gorunGivesThisTurn(state)) } : {}) };
+  if (dga) out.ancientDeathGivesAttack = { label: ANCIENTS.death.name, ...(dga.perTurn !== undefined ? { left: Math.max(0, dga.perTurn - gorunGivesThisTurn(state)), flag: ANCIENT_GORUN_GIFT_FLAG } : {}) };
   const ag = effectOf(state, 'attacksGold');
   if (ag) out.ancientAttackGold = { every: ag.every, tick: a.gorunAttacks ?? 0, gold: ag.gold, flag: ANCIENT_ATTACK_GOLD_FLAG, label: ANCIENTS.fortune.name };
   if (effectOf(state, 'bladeMasteryHealth')) out.ancientBladeHealth = true;
@@ -7675,6 +7743,9 @@ function batchCCombatMods(state: RunState): Partial<QuestCombatMods> {
   if (effectOf(state, 'unitedFrontPassive') && (state.spellsCast ?? 0) > 0) out.ancientUnitedFront = state.spellsCast;
   return out;
 }
+
+/** The `questTrigger` flag Gorun × Death's capped combat gift pulses on every give (the replay's live "left this turn"). */
+export const ANCIENT_GORUN_GIFT_FLAG = 'ancientGorunGift';
 
 /** Settle. GORUN × FORTUNE: the running attack count the fight hands back (its Gold came home through `playerBonusGold`). */
 function batchCAfterCombat(state: RunState, a: AncientsState, result: CombatResult): void {
@@ -7814,7 +7885,7 @@ export function ancientRunPass2Eot(state: RunState, step: (run: () => void) => v
   }
 }
 
-/** This pass's combat halves (player-only, never snapshotted). FRANK × WAR: the repeating hero Pummel (each crossing one
+/** This pass's combat halves (read per side; they ride a snapshot like every Ancient mod). FRANK × WAR: the repeating hero Pummel (each crossing one
  *  Clearance stack, pulsed live on the stacks flag the replay already counts). MIDAS × WAR: the Start-of-Combat Ward. */
 function pass2CombatMods(state: RunState): Partial<QuestCombatMods> {
   const out: Partial<QuestCombatMods> = {};
@@ -7846,7 +7917,7 @@ function pass2PowerText(state: RunState, text: string, combat: AncientPowerLive)
   return text.replace('{fPummelLeft}', String(fp ? Math.max(0, Math.max(1, fp.perCombat ?? 1) - fpPaid) : 0))
     .replace('{fkPummelNow}', String(fk ? dealt % Math.max(1, fk.every) : 0)).replace('{fkPummelEvery}', String(fk?.every ?? 0))
     .replace('{gTimeTribe}', effectOf(state, 'eotRefreshTopTribeFreeze') ? tribeName(dominantBoardTribe(state)) : '')
-    .replace('{goDeathLeft}', String(gd?.perTurn !== undefined ? Math.max(0, gd.perTurn - gorunGivesThisTurn(state)) : 0))
+    .replace('{goDeathLeft}', String(gd?.perTurn !== undefined ? Math.max(0, gd.perTurn - gorunGivesThisTurn(state) - Math.max(0, combat.attackGifts ?? 0)) : 0))
     .replace('{hTargetLeft}', String(hb ? Math.max(0, hb.count - hunchTargetedThisTurn(state)) : 0))
     .replace('{juCoins}', String(coinsInHand(state)))
     .replace('{kOpenGold}', String(a.keshiOpenGold ?? 0))
@@ -8135,12 +8206,14 @@ function cindyOnGoldSpent(state: RunState, a: AncientsState, amount: number): vo
 }
 
 /** Give Golden Gratitude its once-per-game use back. Waiting on the teammate's buy: banked until the copy lands.
- *  Unused: nothing to refresh. */
+ *  Still UNUSED (R-ANCSYS-05): banked too, so the refresh is never lost; it pays once the next use is spent (the copy
+ *  lands, `ancientOnGratitudePaid`). */
 function refreshGratitude(state: RunState, a: AncientsState): void {
   if (state.cindyGratitude === 'armed') { a.cindyRefreshBanked = (a.cindyRefreshBanked ?? 0) + 1; return; }
   const slot = activePowers(state).findIndex((p) => p.kind === 'gratitude');
   const spent = slot === 1 ? state.heroPowerSpent2 : state.heroPowerSpent;
-  if (slot < 0 || (!spent && state.cindyGratitude !== 'paid')) return;
+  if (slot < 0) return;
+  if (!spent && state.cindyGratitude !== 'paid') { a.cindyRefreshBanked = (a.cindyRefreshBanked ?? 0) + 1; return; }
   if (slot === 1) state.heroPowerSpent2 = false; else state.heroPowerSpent = false;
   state.cindyGratitude = undefined;
   state.cindyGratitudeCard = undefined;
@@ -8173,7 +8246,7 @@ function cindyStartOfTurn(state: RunState): void {
 }
 
 /** Cindy's live power-text values. `{cdNow}` = friendly deaths toward the next Goldcrafter (live through a fight);
- *  `{cfGold}` = Gold spent toward the next refresh, `{cfBanked}` = a refresh waiting on the copy; `{cwLeft}` = who the
+ *  `{cfGold}` = Gold spent toward the next refresh, `{cfBanked}` = a banked refresh (waiting on the copy, or on the next use); `{cwLeft}` = who the
  *  gild will reach now; `{ctTime}` = Time's sentence (still to come, or done); `{cbLinked}` = the Linked pair now. */
 function cindyPowerText(state: RunState, text: string, combat: AncientPowerLive): string {
   const a = live(state);
@@ -8191,6 +8264,7 @@ function cindyPowerText(state: RunState, text: string, combat: AncientPowerLive)
   const cbLinked = linked ? ` Linked now: **${CARD_INDEX[linked.cardId]?.name ?? linked.cardId}**.` : '';
   const banked = a.cindyRefreshBanked ?? 0;
   return text.replace('{cdNow}', String(cdNow)).replace('{cfGold}', String(a.cindyGold ?? 0))
-    .replace('{cfBanked}', banked > 0 ? ' A refresh is waiting for your copy.' : '')
+    .replace('{cfBanked}', banked <= 0 ? '' : state.cindyGratitude === 'armed' ? ' A refresh is waiting for your copy.'
+      : banked > 1 ? ` **${banked}** refreshes are banked for after your next use.` : ' A refresh is banked for after your next use.')
     .replace('{cwLeft}', cwLeft).replace('{ctTime}', ctTime).replace('{cbLinked}', cbLinked);
 }

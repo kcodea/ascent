@@ -11,6 +11,7 @@ import { getHero } from '../heroes';
 import { CONFIG, hasTier7Access, maxTierFor, riftDefFor, RIFTS } from '../config';
 import { reduce } from '../reducer';
 import { createRun, serialize } from '../state';
+import { releaseAncients } from '../ancientsRelease';
 import { createVersusRun } from './run';
 import { DEFAULT_VERSUS_OPTIONS, isDefaultVersusOptions, normalizeVersusOptions, versusOptionsError, VERSUS_MODIFIERS } from './options';
 
@@ -57,7 +58,8 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
 
   it('no options = today\'s run, byte for byte', () => {
     for (const opts of [undefined, null, DEFAULT_VERSUS_OPTIONS, { v: 1 as const, mode: 'group' as const, modifiers: [] }]) {
-      expect(serialize(createVersusRun(123, 'warden', 'set3', opts))).toBe(serialize(createRun(123, 'warden', 'versus', undefined, 'set3')));
+      // The release switch (R-ANCIENTS-RELEASE-01) is the only thing a fresh Versus run adds to a plain one.
+      expect(serialize(createVersusRun(123, 'warden', 'set3', opts))).toBe(serialize(releaseAncients(createRun(123, 'warden', 'versus', undefined, 'set3'))));
     }
   });
 

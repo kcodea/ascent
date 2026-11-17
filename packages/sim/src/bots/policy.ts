@@ -183,6 +183,10 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
   // for the rest of the run (found 2026-08-19: a seed shift walked lobby seed 5 into a scouted turn and the
   // whole run stalled in `recruit`). Dismiss it and re-decide on the next call.
   if (state.scoutedNextOpponent?.length) return { type: 'closeScout' };
+  // ANCIENTS (R-ANCIENTS-RELEASE-02): the awakening offer refuses End Turn until it is answered. The offer is a seeded
+  // draw, so its first option is a seeded pick.
+  const ancient = state.ancientsEnabled ? state.ancients?.offer?.[0] : undefined;
+  if (ancient) return { type: 'pickAncient', id: ancient };
   if (state.phase === 'combat') return { type: 'resolveCombat' };
   if (state.phase !== 'recruit') return { type: 'faceOmen' };
 

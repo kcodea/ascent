@@ -205,7 +205,7 @@ describe('Drakko × BONDS (ancient pass 1, owner 2026-11-16): +1/+1 to Drakkos e
   });
   it('combat: each Shout fire gives the Drakko body the live X (carried home); settle pays the hand the same sequence', () => {
     let s = picked('bonds', { board: [card('d', DRAKKO_CARD_ID, { health: 90 }), card('a', 'alley', { health: 90 }), card('r', 'ryme', { attack: 1, health: 1, keywords: ['T'] })], hand: [card('dh', DRAKKO_CARD_ID)] });
-    expect(ancientCombatMods(s).ancientShoutBuffsCard).toEqual({ cardId: DRAKKO_CARD_ID, attack: 1, health: 1, label: 'Ancient of Bonds', improveEvery: 3, step: 1, shouts: 0 });
+    expect(ancientCombatMods(s).ancientShoutBuffsCard).toEqual({ cardId: DRAKKO_CARD_ID, attack: 1, health: 1, label: 'Ancient of Bonds', improveEvery: 3, step: 1, shouts: 0, flag: 'ancientDrakkoShout' });
     s = fightNow(s, 3, 200);
     const dUid = s.lastCombat!.initial.player[0]!.uid;
     const grants = events(s).filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Ancient of Bonds' && e.target === dUid);

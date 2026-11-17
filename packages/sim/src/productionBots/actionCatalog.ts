@@ -83,7 +83,9 @@ export const ACTION_CATALOG = {
   godPrint: { generation: 'never', reveal: false, note: 'God Mode practice tooling — not available to a bot' },
   godGrantRune: { generation: 'never', reveal: false, note: 'God Mode practice tooling — not available to a bot' },
   devOpenRuneforge: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
-  pickAncient: { generation: 'never', reveal: false, note: 'Ancients proof of concept — Scene Builder only, not available to a bot' },
+  // ANCIENTS (R-ANCIENTS-RELEASE-02): live for bots too, so a bot seat plays the same game. The pick can grant cards
+  // (Discovers, conjures), so it is treated as a reveal: search scores it rather than expanding a seeded result.
+  pickAncient: { generation: 'mandatory', reveal: true, note: 'the awakening offer blocks End Turn; the three options are visible' },
   ancientSetMeter: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },
 } satisfies Record<Action['type'], ActionDescriptor>;
 

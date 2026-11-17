@@ -12,5 +12,6 @@ export * from './matchDetails';
 export * from './gauntlet';
 export * from './boardStrength';
 export * from './strengthBands';
+export * from './strengthV2';
 export * from './savedSeats';
 export * from './opponentsFirst';

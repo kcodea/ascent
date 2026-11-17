@@ -2135,10 +2135,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
   /** ANCIENT OF WAR (proof of concept, owner 2026-09-25): whenever a friendly minion dies, this side's GILDED
-   *  minions gain +attack/+health, permanently (carried back as `permaGain`). Player-only; never snapshotted. */
+   *  minions gain +attack/+health, permanently (carried back as `permaGain`). Either side; rides a snapshot (`questMods`). */
   ancientWar?: { attack: number; health: number; label: string };
   /** ANCIENT OF TIME (proof of concept): Start of Combat, this side's right-most minion becomes Gilded for the
-   *  fight only (the run card is never touched, so it reverts after). Player-only; never snapshotted. */
+   *  fight only (the run card is never touched, so it reverts after). Either side; rides a snapshot (`questMods`). */
   ancientTimeGild?: { label: string };
   /** CINDY × ANCIENT OF WAR (Duos only, owner 2026-11-14, R-ANCCINDY-03): Start of Combat, this side's LEFT-MOST living
    *  minion becomes Gilded for the fight (the Time gild's shape). An ENGRAVED one keeps the Gilded status after the fight
@@ -2157,78 +2157,78 @@ export interface QuestCombatMods {
   duosLinks?: { id: string; uid: string }[];
   /** ANCIENT OF BONDS × Warden (proof of concept, owner 2026-09-26): whenever one of this side's WARDED minions gains
    *  stats, a random OTHER Warded friendly minion gains +attack Attack. The grant never re-triggers it (guarded).
-   *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
+   *  Combat-only like every combat gain (Engraved keeps it). Either side; rides a snapshot (`questMods`). */
   ancientBonds?: { attack: number; label: string };
   /** ANCIENT OF DEATH × Midas (owner 2026-10-27): "Gilded minions gain Echo: Get a Gold Pouch". A GILDED body summoned in
-   *  the fight carries the graft too (the board's own Gilded bodies bring it from the Shop). Player-only; never snapshotted. */
+   *  the fight carries the graft too (the board's own Gilded bodies bring it from the Shop). Either side; rides a snapshot (`questMods`). */
   ancientGildedEcho?: { cardId: string };
   /** ANCIENT OF BONDS × Midas (owner 2026-10-27): whenever one of this side's GILDED minions gains stats, every OTHER
    *  living Gilded friendly minion gains +attack/+health. The grant never re-triggers it (guarded). Combat-only like every
-   *  combat gain (Engraved keeps it). Player-only; never snapshotted. */
+   *  combat gain (Engraved keeps it). Either side; rides a snapshot (`questMods`). */
   ancientGildedBonds?: { attack: number; health: number; label: string };
   /** ANCIENT OF FORTUNE / GENESIS × Warden: record every FRIENDLY Ward that breaks (`CombatCarryBacks.wardBreaks`).
-   *  Off by default so every other fight's result is byte-identical. Player-only; never snapshotted. */
+   *  Off by default so every other fight's result is byte-identical. Either side; rides a snapshot (`questMods`). */
   ancientTrackWardBreaks?: boolean;
   /** ANCIENT OF GENESIS × Warden, REAL-TIME (owner 2026-09-26): the running window of friendly Ward breaks (cardIds)
    *  carried in from the run. Every break joins it; the moment it reaches `every`, a plain copy of one of those
    *  minions goes to hand DURING the fight (`grantToHand`, a live `toHand`) and the window empties. The window after
-   *  the fight comes home as `CombatCarryBacks.wardWindow`. Player-only; never snapshotted. */
+   *  the fight comes home as `CombatCarryBacks.wardWindow`. Either side; rides a snapshot (`questMods`). */
   ancientWardCopy?: { every: number; window: string[] };
   /** ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): Start of Combat, trigger this side's left-most and right-most
    *  living minions with a Shout (once when they are the same minion), through the shared combat Shout path
-   *  (`fireShout`), so every Shout watcher and tally hears them. Player-only; never snapshotted. */
+   *  (`fireShout`), so every Shout watcher and tally hears them. Either side; rides a snapshot (`questMods`). */
   ancientEdgeShouts?: { label: string; /** ANCIENT PASS 1 (owner 2026-11-16): only the LEFT-MOST Shout minion (Drakko × Time). */ leftOnly?: boolean };
   /** ANCIENT OF BONDS × the Auctioneer (owner 2026-09-26): whenever one of this side's Shouts triggers
    *  (`battlecryTriggered`), the living minions next to the Shouting minion gain +attack/+health, right then.
-   *  Combat-only like every combat gain (Engraved keeps it). Player-only; never snapshotted. */
+   *  Combat-only like every combat gain (Engraved keeps it). Either side; rides a snapshot (`questMods`). */
   ancientShoutAdjacent?: { attack: number; health: number; label: string };
   /** ANCIENTS × Lord of the Risen: the run-board uids of the minions Undying marked for this fight (`tempReborn`),
    *  matched against each combat body's `sourceUid`. `regainRise` (Death): the body regains Rise right after its
    *  first Rise, once per combat (a BLUE Rise). `war` (War): every Rise of the body returns it with double Attack
-   *  and it attacks immediately (a RED Rise). Player-only; never snapshotted. */
+   *  and it attacks immediately (a RED Rise). Either side; rides a snapshot (`questMods`). */
   ancientUndying?: { uids: string[]; regainRise?: boolean; war?: boolean; label: string };
   /** ANCIENT OF FORTUNE × Lord of the Risen: count every friendly Rise this fight (`CombatCarryBacks.rises`), the
-   *  moment it happens; the run banks Gold for next turn per Rise. Player-only; never snapshotted. */
+   *  moment it happens; the run banks Gold for next turn per Rise. Either side; rides a snapshot (`questMods`). */
   ancientCountRises?: boolean;
   /** ANCIENT OF GENESIS × Lord of the Risen: every friendly summon in combat summons `extra` more copies of the
    *  body it summoned (a Rise and a Rebirth included: the copy comes without the returning keyword). A copy never
-   *  makes copies. On a full board the copy is a real overflow. Player-only; never snapshotted. */
+   *  makes copies. On a full board the copy is a real overflow. Either side; rides a snapshot (`questMods`). */
   ancientSummonExtra?: number;
   /** ANCIENT OF GENESIS × Rayse (owner 2026-10-09): "The first 2 minions you summon in combat summon twice." A budget on
    *  `ancientSummonExtra`: only the first N friendly summons this fight (a Rise / Rebirth return counts, the Risen
    *  precedent) make their extra copies; the copies themselves never spend it. Absent = unlimited (Risen's rule).
-   *  Player-only; never snapshotted. */
+   *  Either side; rides a snapshot (`questMods`). */
   ancientSummonExtraLimit?: number;
   /** ANCIENT OF GENESIS × Rayse (owner 2026-11-16: "only when you have room"): a summon makes its extra copy only when
    *  its side has a free slot right then (never an overflow), and a summon that had no room does not spend the
-   *  `ancientSummonExtraLimit` budget. Player-only; never snapshotted. */
+   *  `ancientSummonExtraLimit` budget. Either side; rides a snapshot (`questMods`). */
   ancientSummonExtraNeedsRoom?: boolean;
   /** ANCIENT OF WAR × Rayse (owner 2026-10-09): "Your first 3 summoned minions attack immediately." The first `count`
    *  friendly summons this fight (a return included) strike the moment they land, through the shared
-   *  attacks-immediately queue (R-ORD-05). Player-only; never snapshotted. */
+   *  attacks-immediately queue (R-ORD-05). Either side; rides a snapshot (`questMods`). */
   ancientSummonsAttack?: { count: number; label: string };
   /** ANCIENT OF BONDS × Rayse (owner 2026-10-09): "When a minion is summoned in combat, give 2 friendly minions +3/+3."
    *  Every friendly summon (the summon-entry chokepoint, so a return too): `count` distinct random OTHER living friendly
-   *  minions gain +a/+h, a combat buff. Player-only; never snapshotted. */
+   *  minions gain +a/+h, a combat buff. Either side; rides a snapshot (`questMods`). */
   ancientSummonBuffOthers?: { count: number; attack: number; health: number; label: string };
   /** ANCIENT OF DEATH × Rayse (owner 2026-10-09): "Avenge (4): Summon a 1/1 Sprout and improve this." A hero Avenge on
    *  ONE running count across Shop and combat (`tick` carried in, the Xerox Death shape). Each fire (Rune of Fury
    *  repeats) summons `cardId` at `size`/`size` (a real combat summon: Empowering Vines and every summon watcher apply),
    *  pulses a `questTrigger` of `flag`, and grows `size` by 1 for the rest of the fight; settle banks the growth.
-   *  Player-only; never snapshotted. */
+   *  Either side; rides a snapshot (`questMods`). */
   ancientSproutAvenge?: { every: number; tick: number; cardId: string; size: number; flag: string; label: string };
   /** ANCIENT OF DEATH × Cassen (owner 2026-10-09): "Avenge (7): advance your commission 1 turn." A hero Avenge on ONE
    *  running count across Shop and combat; each fire (Rune of Fury repeats) pulses a `questTrigger` of `flag`, which
-   *  settle counts to move the running commission. Player-only; never snapshotted. */
+   *  settle counts to move the running commission. Either side; rides a snapshot (`questMods`). */
   ancientAvengePulse?: { every: number; tick: number; flag: string; label: string };
   /** ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
    *  this turn." `reps` steps (the base + one per Shout fired in the Shop turn that just ended), each its own beat, each
-   *  a random living friendly minion gaining +a/+h, a combat buff. Player-only; never snapshotted. */
+   *  a random living friendly minion gaining +a/+h, a combat buff. Either side; rides a snapshot (`questMods`). */
   ancientSocRandomBuffs?: { reps: number; attack: number; health: number; label: string };
   /** ANCIENT OF BONDS × Drakko (owner 2026-10-09): "Your Drakkos gain +2/+2 when you trigger a Shout." Every friendly
    *  Shout fire in combat gives every living `cardId` body +a/+h, PERMANENTLY (`permaGain` carries it home).
-   *  Player-only; never snapshotted. */
-  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Drakko × Bonds improves: every `improveEvery`th fire (counting from `shouts` carried in) the gain grows by `step`. */ improveEvery?: number; step?: number; shouts?: number };
+   *  Either side; rides a snapshot (`questMods`). */
+  ancientShoutBuffsCard?: { cardId: string; attack: number; health: number; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Drakko × Bonds improves: every `improveEvery`th fire (counting from `shouts` carried in) the gain grows by `step`. */ improveEvery?: number; step?: number; shouts?: number; /** A `questTrigger` pulsed on every fire, so the replay ticks the live X / count (R-ANCSYS-04). */ flag?: string };
   /** ANCIENTS × Flash (owner 2026-10-09). `second` (Death): with First or Last armed, the 2nd enemy minion killed is also
    *  copied to hand, live. `pummel` (War): a hero Pummel (X) on the shared lifetime tally, once per combat, a copy of a
    *  random living enemy minion to hand. `soc` (Time): Start of Combat, a copy of a random enemy minion to hand.
@@ -2236,25 +2236,25 @@ export interface QuestCombatMods {
    *  ANCIENT PASS 2 (owner 2026-11-16): `pummel.max` = payouts allowed per combat (War: 2; absent = 1). `gildOnLoss`
    *  (Fortune): First or Last's CLAIMED copies arrive Gilded when this side loses the fight (`ShoutCarry.handGilds`).
    *  `claimStats` (Time): each claimed copy also gives its stats to a random living friendly body, PERMANENTLY
-   *  (`permaGain`). Player-only; never snapshotted. */
+   *  (`permaGain`). Either side; rides a snapshot (`questMods`). */
   ancientFlash?: { second?: boolean; pummel?: { every: number; dealt: number; max?: number }; soc?: boolean; exact?: boolean; gildOnLoss?: boolean; claimStats?: boolean; label: string };
   /** ANCIENT OF TIME × Lord of the Risen: count every friendly minion summoned this fight
-   *  (`CombatCarryBacks.summonsMade`); the next Start of Turn pays per summon. Player-only; never snapshotted. */
+   *  (`CombatCarryBacks.summonsMade`); the next Start of Turn pays per summon. Either side; rides a snapshot (`questMods`). */
   ancientCountSummons?: boolean;
   /** ANCIENT OF BONDS × Lord of the Risen: whenever a friendly minion Rises, trigger the Echo of a living minion next
-   *  to it (random between two, nothing with none), through the shared Echo path. Player-only; never snapshotted. */
+   *  to it (random between two, nothing with none), through the shared Echo path. Either side; rides a snapshot (`questMods`). */
   ancientRiseEcho?: { label: string };
   /** ANCIENT OF WAR × Albus (owner 2026-09-28): "Pummel (80): Get 2 Strange Revisions. (Once per Combat)". A HERO-level
    *  Pummel: every hit a friendly minion LANDS adds to one side-wide tally (the same `noteDamageDealt` site and the
    *  same Heavy Hand share as the minion keyword). `dealt` is the LIFETIME tally carried in from the run (the keyword's
    *  carry-over rule); each crossing of a multiple of `every` pays `count` × `cardId` to hand through `grantToHand`
    *  (a live `toHand`), at most once per combat. The tally after the fight comes home as
-   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. */
+   *  `CombatCarryBacks.ancientPummelDealt`. Either side; rides a snapshot (`questMods`). */
   ancientPummel?: { every: number; count: number; cardId: string; dealt: number; label: string };
   /** ANCIENT OF DEATH × Hunch (owner 2026-09-30): "Avenge (4) Improve your spells by +1/+1." Every `every`th friendly
    *  death in the fight improves the side's spells by +attack/+health through `grantSpellPower` (the Rune of
    *  Appraisal shape: Rune of Mastery's improve reps and Rune of Fury's extra Avenge fire both apply). The total the
-   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Player-only; never snapshotted. `tick` = the
+   *  fight granted comes home as `CombatCarryBacks.ancientSpellImproved`. Either side; rides a snapshot (`questMods`). `tick` = the
    *  Shop deaths already on the ONE running count (owner 2026-11-16, R-ANCFIX-10; absent = 0). */
   ancientAvengeSpells?: { every: number; attack: number; health: number; label: string; tick?: number };
   /** ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat." Seeds the side's
@@ -2271,13 +2271,13 @@ export interface QuestCombatMods {
   /** ANCIENT OF WAR × Frantic Frank (owner 2026-09-30): "Avenge (3): Gain a Clearance stack." A hero-level Avenge on the
    *  avenge bus (every `every` friendly deaths this fight; Rune of Fury fires it again). Each fire is one stack, shown
    *  live as a `questTrigger` with `flag`, and the fight's total comes home as `CombatCarryBacks.ancientClearanceStacks`.
-   *  Player-only; never snapshotted. */
+   *  Either side; rides a snapshot (`questMods`). */
   ancientClearanceStacks?: { every: number; flag: string; label: string };
   /** ANCIENT OF DEATH × Xerox (owner 2026-10-02): "Avenge (5): Summon a copy of your highest attack minion." A hero
    *  Avenge on ONE running count of friendly deaths across the Shop and combat: `tick` = the deaths already counted
    *  (carried in from the run); every `every`th death (tick + the fight's count) summons an exact copy (current combat
    *  stats, keywords, Ward / Rise) of the side's highest-Attack living minion (ties: the left-most), room permitting.
-   *  Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Player-only; never snapshotted. */
+   *  Rune of Fury fires it again. Settle advances the run's count by the fight's deaths. Either side; rides a snapshot (`questMods`). */
   ancientXeroxAvenge?: { every: number; tick: number; label: string };
   /** ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
    *  copy of the side's highest-Health living minion (ties: the left-most), room permitting. Player-only. */
@@ -2301,22 +2301,22 @@ export interface QuestCombatMods {
    *  body is resummoned this many times in all (each waits for room; only the first carries the run card's `sourceUid`).
    *  `gain` (War): each returned copy gains +gain/+gain, a combat buff (Engraved keeps it, like every combat gain).
    *  `bonds` (Bonds): when a returned copy lands, its living neighbours gain Attack equal to its Attack, a combat buff.
-   *  Player-only; never snapshotted. */
+   *  Either side; rides a snapshot (`questMods`). */
   ancientReclaim?: { echoExtra?: number; copies?: number; gain?: number; bonds?: boolean; label: string };
   /** ANCIENT OF DEATH × Robin (owner 2026-10-02): "Summoned minions gain +3/+2 for every count of Spoils this turn." The
    *  per-summon gain, already multiplied by the turn's Spoils count (fixed for the fight: nothing is sold mid-combat).
    *  Every FRIENDLY summon (a token, a Rise, a resummon: the summon-entry chokepoint) gains it as a combat buff
-   *  (Engraved keeps it, like every combat gain). Player-only; never snapshotted. */
+   *  (Engraved keeps it, like every combat gain). Either side; rides a snapshot (`questMods`). */
   ancientSummonGain?: { attack: number; health: number; label: string };
   /** ANCIENT OF DEATH × Re-Pete (owner 2026-10-02): "Get a copy of the last minion that died in combat" (owner: "Yours
    *  only"). The avenge bus (one emission per friendly death) remembers the side's last dead body; as the fight ends, a
    *  plain copy of it goes to hand through `grantToHand` (a live `toHand`, carried home in `handGrants`). No friendly
-   *  death: nothing. Player-only; never snapshotted. */
+   *  death: nothing. Either side; rides a snapshot (`questMods`). */
   ancientLastDeathCopy?: { label: string };
   /** ANCIENT OF DEATH × Gorr (owner 2026-10-02): "Avenge (6): Get a copy of a minion you bought last turn." A hero Avenge
    *  on ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each
    *  fire sends a plain copy of a random one of `ids` (the minions bought LAST turn) to hand through `grantToHand`; none
-   *  bought: nothing (the count still moves). Rune of Fury fires it again. Player-only; never snapshotted. */
+   *  bought: nothing (the count still moves). Rune of Fury fires it again. Either side; rides a snapshot (`questMods`). */
   ancientGorrAvenge?: { every: number; tick: number; ids: string[]; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): Emerald Warden × Death pays at most `limit` fires this fight, each pulsing a `questTrigger` of `flag`. */ limit?: number; flag?: string };
   /** ANCIENT OF WAR × Gorr (owner 2026-10-02): "pummel (200): get a copy of a minion in your warband." A HERO-level Pummel
    *  on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's share),
@@ -2327,7 +2327,7 @@ export interface QuestCombatMods {
    *  minion." ONE running count of friendly deaths across the Shop and combat (`tick` carried in, the Rune of Body
    *  Counting meter shape: "when N die" is NOT an Avenge, so Rune of Fury does not repeat it). Every `every`th death sends
    *  a random minion (the side's pool, at or below its tier: `grantRandomMinion`) to hand, a live `toHand`; its index rides
-   *  `ShoutCarry.handGilds` so settle hands it over GILDED. Player-only; never snapshotted. */
+   *  `ShoutCarry.handGilds` so settle hands it over GILDED. Either side; rides a snapshot (`questMods`). */
   ancientBramDeaths?: { every: number; tick: number; label: string };
   /** ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
    *  played this game." The grant, already multiplied by the run's Gilded-play count (fixed for the fight: nothing is
@@ -2335,7 +2335,7 @@ export interface QuestCombatMods {
   ancientSocBuffAll?: { attack: number; health: number; label: string; /** FLINT × WAR: only living minions of this type gain it (absent = every minion). */ tribe?: Tribe; /** ANCIENT PASS 1 (owner 2026-11-16): Braum × War keeps it (`permaGain`). */ permanent?: boolean };
   /** ANCIENT OF BONDS × Braum (ancient pass 1, owner 2026-11-16): "Start of Combat, triple your Neutral minions' stats."
    *  Every living friendly minion with no type (Neutral; an All-types body is not Neutral) gains twice its current Attack
-   *  and Health, a combat buff. Player-only; never snapshotted. */
+   *  and Health, a combat buff. Either side; rides a snapshot (`questMods`). */
   ancientTripleNeutrals?: { label: string };
   /** ANCIENT OF WAR × Magician (Duos only, owner 2026-11-10): "Start of Combat: A minion that both you and your teammate
    *  control copies of gain each others stats." TAG-TEAM fights only (`CombatConfig.reserve`): at the opening Start of
@@ -2348,38 +2348,38 @@ export interface QuestCombatMods {
    *  Pummel on the same landed-hit tally as Albus' `ancientPummel` (`dealt` = the LIFETIME tally carried in, Heavy Hand's
    *  share), with Albus' once-per-combat latch: the first crossing of a multiple of `every` in the fight emits ONE
    *  `questTrigger` with `flag` (the replay counts it live; settle banks it as a Swap charge). The tally comes home as
-   *  `CombatCarryBacks.ancientPummelDealt`. Player-only; never snapshotted. `perCombat` (default 1) = how many crossings
+   *  `CombatCarryBacks.ancientPummelDealt`. Either side; rides a snapshot (`questMods`). `perCombat` (default 1) = how many crossings
    *  may pay in one fight (Darah × War pays twice since ancient pass 1, owner 2026-11-16). */
   ancientPummelCharge?: { every: number; dealt: number; flag: string; label: string; perCombat?: number; /** REPEATING (Frank × War, ancient pass 2): every crossing pulses `flag`, no once-per-combat latch. */ repeat?: boolean };
   /** ANCIENT OF DEATH × Nadja (owner 2026-10-06): "Goldspring becomes: Avenge (6): Gain 1 max gold." A hero Avenge on ONE
    *  running count of friendly deaths across the Shop and combat (`tick` carried in, the Xerox Death shape). Each fire
    *  logs a `maxGold` event (+`gold`, the float) and a `questTrigger` with `flag`; the fires come home as
    *  `CombatCarryBacks.ancientMaxGoldFires` and the run pays `gold` max Gold per fire at settle. Rune of Fury fires it
-   *  again. Settle advances the run's count by the fight's deaths. Player-only; never snapshotted. */
+   *  again. Settle advances the run's count by the fight's deaths. Either side; rides a snapshot (`questMods`). */
   ancientMaxGoldAvenge?: { every: number; tick: number; gold: number; flag: string; label: string };
   /** ANCIENT OF WAR × Nadja (owner 2026-10-06): "Start of Combat: Your left-most minion gains Rally: give your minions +3
    *  attack per gold spent this turn." `attack` = the Rally's Attack, already multiplied by the Gold spent in the Shop
    *  turn that just ended (fixed for the fight). At Start of Combat the left-most living minion gains Rally and a grafted
    *  `rallyBuff` (every friendly minion, itself included; `fixed`, so a Gilded body gives the same), a combat buff on the
-   *  combat body only. Player-only; never snapshotted. */
+   *  combat body only. Either side; rides a snapshot (`questMods`). */
   ancientSocRally?: { attack: number; label: string };
   /** ANCIENT OF DEATH × Brackus (owner 2026-10-06): "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in
    *  hand/shop"). A hero Avenge on ONE running count across the Shop and combat (`tick` carried in, the Xerox Death
    *  shape). Each fire gives the side's living Tier 7 bodies +a/+h as a PERMANENT gain (`permaGain`, the Indy War
    *  carry-back) and pulses a `questTrigger` of `flag`, which settle counts to pay the Tier 7 cards in hand and in the
-   *  Shop. It pulses even with no Tier 7 on the board. Rune of Fury fires it again. Player-only; never snapshotted. */
+   *  Shop. It pulses even with no Tier 7 on the board. Rune of Fury fires it again. Either side; rides a snapshot (`questMods`). */
   ancientBrackusAvenge?: { every: number; tick: number; attack: number; health: number; flag: string; label: string; /** ANCIENT PASS 1 (owner 2026-11-16): the tiers it buffs (default [7]). */ tiers?: number[] };
   /** ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
    *  minion." An exact copy of the left-most living Tier 7 (Xerox's `xeroxCopy`), right away when there is room, else
    *  queued and summoned the moment a slot opens (from its body then, or its Start-of-Combat body if it has died). No
-   *  Tier 7: nothing. Player-only; never snapshotted. */
+   *  Tier 7: nothing. Either side; rides a snapshot (`questMods`). */
   ancientSummitCopy?: { label: string; /** ANCIENT PASS 1 (owner 2026-11-16): a plain copy also goes to hand (`grantToHand`). */ toHand?: boolean };
   /** EMISSARY × ANCIENTS (owner 2026-11-10), United Front reshaped. `reps` (War: "United Front triggers twice"): the Start
    *  of Combat grant fires that many times, each its own trigger. `all` (Bonds: "United Front hits all your minions"):
    *  every living friendly minion collects instead of one of each type. `avenge` (Death: "Avenge (4): Trigger United
    *  Front"): a hero Avenge on ONE running count across Shop and combat (`tick` carried in); each fire is a full United
    *  Front at the LIVE spell count (`spellTotals` x `mult`, Rune of Wishbone's doubling). Rune of Fury fires it again.
-   *  Player-only; never snapshotted. */
+   *  Either side; rides a snapshot (`questMods`). */
   ancientFrontShape?: { reps?: number; all?: boolean; avenge?: { every: number; tick: number; mult: number }; label: string };
   /** MERRIN × ANCIENT OF BONDS (owner 2026-11-10): "Casting a spell gives a minion of each type +3/+4." Every combat spell
    *  cast (`ctx.castSpell`, once per repetition) buffs one living friendly minion of each type (United Front's
@@ -2400,7 +2400,7 @@ export interface QuestCombatMods {
   /** ANCIENT OF DEATH × Gorun: "When a friendly minion dies, give its Attack to a random friendly minion." Each friendly
    *  death (a Rise death included) gives the Attack it died with to one random living friendly minion, a combat buff,
    *  on its own beat. The pick draws from the side's grant stream. */
-  ancientDeathGivesAttack?: { label: string; /** Gives left this turn (ancient pass 2: "twice per turn", the Shop's share already spent). Absent = no cap. */ left?: number };
+  ancientDeathGivesAttack?: { label: string; /** Gives left this turn (ancient pass 2: "twice per turn", the Shop's share already spent). Absent = no cap. */ left?: number; /** A `questTrigger` pulsed on every give, so the replay ticks "left this turn" (R-ANCSYS-04). */ flag?: string };
   /** ANCIENT OF WAR × Midas (ancient pass 2, owner 2026-11-16): "Start of Combat, give 2 random minions Ward for each
    *  Gilded enemy minion." `per` distinct random living friendly bodies without Ward gain Ward for each living Gilded body
    *  on the OTHER side at Start of Combat, for that combat. The picks draw from the side's grant stream. */

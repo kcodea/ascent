@@ -102,7 +102,9 @@ behaviour from a legacy symbol.**
   (`pool_runs`, `pool_runs_sample`), `isWholeRun`, `registerOpponentRuns` and `playerRunsFrom`, but `pickOpponent`
   (per-wave opponents), the god-board sample and the strength scorer skip it. Never re-add an empty-board filter on
   a run path.
-  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
+  Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (2) seats, `MAX_SEATS_PER_PLAYER_SHORT` (3) only when two each
+  cannot fill the table (tried inside the band before it widens; R-LOBBY-16, 2026-11-16), and seats at most two runs
+  per strength tier (90-100, 80-89; `STRENGTH_TIER_LIMITS`, R-LOBBY-17), all without weighting the shuffle. The player's
   OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
   sends `p_exclude_user: null`, and `excludeOwnerId` is gone).
 - **The game session + the pool mirror** (R-SESSION-CF-01, R-POOL-MIRROR-01, 2026-10-31): with the hub switch on

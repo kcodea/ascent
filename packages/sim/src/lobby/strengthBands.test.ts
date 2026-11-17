@@ -3,7 +3,7 @@ import type { BoardSnapshot } from '../snapshot';
 import { OPPONENT_POOL, registerOpponentRuns } from '../opponents';
 import { playableHeroes } from '../heroes';
 import { RANK_MEDALS, rankDivisionCount, medalOf } from '../rank';
-import { MAX_SEATS_PER_PLAYER, playerRunsFrom, runOwnerOf } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER_SHORT, playerRunsFrom, runOwnerOf } from './snapshotSeats';
 import { createRunLobby, lobbyPoolTelemetryOf, resetLobbyDrivers } from './runLobby';
 import { BAND_WIDEN_STEP, OPPONENT_SEATS, STRENGTH_BANDS, STRENGTH_BANDS_VERSION, bandSteps, inStrengthBand, matchScoreOf, runInStrengthBand, runUnderOverallCap, sameBand, seatableRuns, strengthBandForDivision, widenBand } from './strengthBands';
 import { EARLY_LAST_ROUND, earlyLateStrengthOf, rankAmongRuns } from './boardStrength';
@@ -147,7 +147,7 @@ describe('the bands', () => {
   });
 
   it('counts the seats a set of runs can fill under the per-player cap', () => {
-    expect(seatableRuns(['a', 'a', 'a', 'a', 'a', 'a', 'b', null, null])).toBe(MAX_SEATS_PER_PLAYER + 1 + 2);
+    expect(seatableRuns(['a', 'a', 'a', 'a', 'a', 'a', 'b', null, null])).toBe(MAX_SEATS_PER_PLAYER_SHORT + 1 + 2); // a short table reaches three
     expect(OPPONENT_SEATS).toBe(7);
   });
 });
@@ -230,7 +230,8 @@ describe('seat selection inside a band', () => {
   });
 
   it('falls back to generated seats only after the band is fully widened', () => {
-    registerOpponentRuns(HEROES.slice(0, 3).map((h, i) => run(`Q${i}`, h, 300 + i, 95, `q${i}`)));
+    // 95, 85, 85: one run in the 90s and two in the 80s, inside the strong-run limits (R-LOBBY-17).
+    registerOpponentRuns(HEROES.slice(0, 3).map((h, i) => run(`Q${i}`, h, 300 + i, i === 0 ? 95 : 85, `q${i}`)));
     const lobby = createRunLobby(5, 'zz-none', {}, 'set1', { strengthBand: { min: 0, max: 30 } });
     resetLobbyDrivers(lobby.seats);
     expect(lobby.seats.filter((s) => s.kind === 'snapshot').length).toBe(3); // the three strong runs, after widening
@@ -286,7 +287,7 @@ describe('seat selection inside a band', () => {
     expect(strengths.every((st) => st! <= 40)).toBe(true); // then 0-30, 0-40
   });
 
-  it(`still caps a player at ${MAX_SEATS_PER_PLAYER} seats inside a band; your own runs count like anyone's`, () => {
+  it(`gives a player a third seat INSIDE the band before the band widens, and never a fourth; your own runs count like anyone's`, () => {
     // One prolific player with 10 weak runs, three others with one weak run each, and the viewer's own weak run (your
     // own runs sit at your table like anyone else's, owner 2026-09-30).
     const prolific = HEROES.slice(0, 10).map((h, i) => run('Big', h, 500 + i, 10, 'big'));
@@ -299,9 +300,9 @@ describe('seat selection inside a band', () => {
       resetLobbyDrivers(lobby.seats);
       const runs = new Map(playerRunsFrom(undefined, undefined, 'set1').map((r) => [r.key, r]));
       const owners = lobby.seats.filter((s) => s.kind === 'snapshot').map((s) => runOwnerOf(runs.get(s.runKey!)!));
-      expect(owners.filter((o) => o === 'id:big').length).toBe(MAX_SEATS_PER_PLAYER);
+      expect(owners.filter((o) => o === 'id:big').length).toBe(MAX_SEATS_PER_PLAYER_SHORT);
       expect(owners.length).toBe(7);
-      // 4 + 3 + your 1 = 8 weak candidates for 7 seats: the table fills inside the band, no strong run needed.
+      // Two each is 2 + 3 + your 1 = 6, one short: Big's third seat fills it inside the band, no strong run needed.
       expect(owners.filter((o) => o?.startsWith('id:s')).length).toBe(0);
     }
   });
@@ -328,7 +329,8 @@ describe('seat selection inside a band', () => {
   });
 
   it('Platinum has no band and no cap: a run at 100 is seated (R-LOBBY-15)', () => {
-    registerOpponentRuns(HEROES.slice(0, 7).map((h, i) => run(`Top${i}`, h, 1500 + i, 100, `top${i}`, { early: 100, late: 100 })));
+    // Two runs at 100 (the most a table holds in the 90s, R-LOBBY-17) and five at 70.
+    registerOpponentRuns(HEROES.slice(0, 7).map((h, i) => run(`Top${i}`, h, 1500 + i, i < 2 ? 100 : 70, `top${i}`, { early: 100, late: 100 })));
     const plat = RANK_MEDALS.indexOf('Platinum');
     let division = 0;
     while (medalOf(division) !== RANK_MEDALS[plat]) division++;

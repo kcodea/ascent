@@ -5,7 +5,7 @@ import { getDef } from './fx/fxDefs';
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, practiceSetOf, isPracticeDevSetRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD, createLobbyTable, lobbyTableHeroes, rankedHeroOffer, freeRankedHeroes, type RunLobby } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, ancientTelemetryOf, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, ancientsSetSupported, ancientSnapshotOf, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, practiceSetOf, isPracticeDevSetRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD, createLobbyTable, lobbyTableHeroes, rankedHeroOffer, freeRankedHeroes, type RunLobby } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -14,7 +14,7 @@ import type { CompiledTimeline } from './choreographer/timelineTypes';
 import type { BoardMinion, Tribe } from '@game/core';
 /** The sets whose Scene Builder rig offers the Ancients toggle (owner: Set 3 since 2026-09-25, Set 2 added 2026-11-16). */
 export function sceneAncientsSet(setId: string | undefined): boolean {
-  return setId === 'set3' || setId === 'set2';
+  return ancientsSetSupported(setId); // the release switch's own set rule (R-ANCIENTS-RELEASE-01)
 }
 
 /** The player whose Career is being viewed, when it is not your own. This is the leaderboard row verbatim —
@@ -104,6 +104,12 @@ export interface CombatQuestDelta {
   swapCharges?: number;
   /** A capped Ancient pairing's per-combat budget spent so far this fight (`ANCIENT_CAP_SPENT_FLAG`), live. */
   capSpent?: number;
+  /** Drakko × Ancient of Bonds: friendly Shout fires so far this fight (`questTrigger` flags), live (R-ANCSYS-04). */
+  shoutFires?: number;
+  /** Emerald Warden × Ancient of Death: its once-per-turn Avenge paid so far this fight (`questTrigger` flags), live. */
+  ewAvengeFired?: number;
+  /** Gorun × Ancient of Death: Attack gifts made so far this fight (`questTrigger` flags), live. */
+  attackGifts?: number;
 }
 import { sfx } from './sfx';
 import { ancientMeterOverride } from './ancients/ancientsConfig';
@@ -1754,6 +1760,7 @@ function matchDetailsOf(
     const titleId = mirrorFor(currentProgressionUserId(), useProgression.getState().mirror)?.equippedTitleId ?? null;
     return buildMatchDetails(run.lobby, {
       name: author, placement, selfBoard: finalBoard, selfCosmetics: finalBoard?.cosmetics ?? run.cosmetics ?? null, titleId, selfRunKey,
+      selfAncient: ancientSnapshotOf(run) ?? null, // R-ANCIENTS-RELEASE-04: the picked Ancient rides the match record
       ...(selfStrength ? { selfStrength } : {}),
     });
   } catch (e) {
@@ -2172,7 +2179,8 @@ function commitResolvedAction(
               const derivedBase = finishDerive(deriveState, next, {
                 heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
               });
-              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime, ...(rankAtStart ? { rankAtStart } : {}) };
+              // ANCIENTS (R-ANCIENTS-RELEASE-04): on/off and the picked Ancient ride `derived` too (jsonb, no SQL).
+              const derived = { ...derivedBase, ...(lobbyPool ? { lobbyPool } : {}), capture: base.capture, regime, ...(rankAtStart ? { rankAtStart } : {}), ...ancientTelemetryOf(next) };
               // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
               // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
               // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
@@ -3022,7 +3030,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // GOD rules start on 999 Gold (the panel keeps it topped up); NORMAL rules start on the real opening Gold.
       const level = botLevel ?? s.sbBotLevel;
       const config: PracticeConfig = { opponents: 'bots', botDifficulty: level, health: 'unlimited', timeMult: 1, tribes: [] };
-      const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId, undefined, s.sbDuos ? { duos: true } : undefined);
+      // `ancients: false`: the rig ignores the release switch and applies ITS OWN toggle below (R-ANCIENTS-RELEASE-01).
+      const base = createLobbyRun(randomSeed(), heroId, {}, 'practice', config, setId, undefined, { ...(s.sbDuos ? { duos: true } : {}), ancients: false });
       const plain: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
       // ANCIENTS (owner ruling 2026-09-25; Set 2 added 2026-11-16): Scene Builder, Sets 2 and 3, behind the rig's toggle.
       const run: RunState = recordRunCosmetics(s.sbAncients && sceneAncientsSet(setId) ? enableAncients(plain, ancientMeterOverride()) : plain);

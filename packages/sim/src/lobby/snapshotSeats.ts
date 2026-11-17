@@ -5,7 +5,7 @@ import { OPPONENT_POOL } from '../opponents';
 import { CONFIG } from '../config';
 import { MAX_FIRST_WAVE, MAX_MISSING_WAVES, recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
-import { MAX_SEATS_PER_PLAYER } from './seatCap';
+import { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT } from './seatCap';
 
 /**
  * REAL PLAYER RUNS AS LOBBY SEATS.
@@ -114,7 +114,7 @@ export function runWavesCover(waves: readonly number[]): boolean {
 export const runKeyOf = (s: Pick<BoardSnapshot, 'author' | 'heroId' | 'seed'>): string => `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
 
 /** THE PER-PLAYER SEAT CAP (R-LOBBY-08): defined in `./seatCap` (bundle-safe), re-exported here. */
-export { MAX_SEATS_PER_PLAYER };
+export { MAX_SEATS_PER_PLAYER, MAX_SEATS_PER_PLAYER_SHORT };
 
 /** Who a run belongs to, for the seat cap: the uploading account when the pool stamped it, else the display
  *  author (a run with neither is nobody's, and is never capped). */

@@ -1242,4 +1242,40 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'losing its source, and a permanent gift on a Transcendant-adjacent Dragon was carried home twice.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/rubyEngravedAttribution.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-11-03' },
   },
+  {
+    id: "R-ANCSYS-02",
+    title: "A resolved hero-power pick stays resolved across a save (Mimic's turn-1 offer never re-opens)",
+    statement:
+      "`deserialize` forces the SAVED `powerOffer` and `pendingPowerOffer` (absent = cleared), like the Discover family, instead of letting the fresh-run skeleton's values leak back through the merge. A Mimic who has taken the turn-1 power pick and continues a saved game is not offered it again, and a second pick is refused; an offer that was open when saved is still open.",
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ancients system audit fix brief via the lead, 2026-11-16 (F2)', quote: 'Mimic save/restore re-opens the power pick: heal powerOffer / pendingPowerOffer in deserialize like the Discover heals' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts deserialize' },
+    ],
+    currentBehaviour: "Conforms from 2026-11-16. Before, createRun('mimic') seeded the offer and the merge put it back on every Continue.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsSystem.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
+  {
+    id: 'R-ANCIENTS-RELEASE-01',
+    title: 'Ancients have ONE release switch (shipped OFF), read only at run creation and pinned on the run',
+    statement:
+      '`ANCIENTS_LIVE` (packages/sim/src/ancientsRelease.ts) is the single switch; it ships OFF until the owner says. It is read only when a run is created '
+      + '(`releaseAncients`, from createLobbyRun, createVersusRun, createGauntletRun and the generated-seat runs in autoplayRun '
+      + 'and botSeat) and the run carries `ancientsEnabled` + its meter, so a flip never changes an in-flight, saved, restored or '
+      + 'replayed run (deserialize merges a save over a plain createRun, which never reads the switch). When on, every player '
+      + 'door is on: ranked and casual lobby, Practice (God Mode too), Gauntlet, Versus 1v1, Group, Duos and Ranked Duos. Never '
+      + 'on: the Tutorial, a set without Ancients (only Sets 2 and 3, `ancientsSetSupported`), a hero without all six pairings '
+      + 'written (`heroHasAncientPairings`: Runesmith and Guardian today). The Scene Builder ignores the switch and keeps its toggle. '
+      + 'Flipping it ON must bump VERSUS_CF_PROTOCOL past 3 in the same PR (R-VERSUS-WORKER-RULES-01; a tripwire test enforces it).',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16 (release for the 2026-11-17 trailer)', quote: "Ancients will go live everywhere, so build the flip to turn them on/off as needed. When on, they're live everywhere" },
+      { kind: 'owner-chat', ref: 'Owner via the lead, 2026-11-16 (later the same day)', quote: "Ship the ancient switch off. I'll tell you when to turn it on." },
+      { kind: 'code', ref: 'packages/sim/src/ancientsRelease.ts; packages/sim/src/lobby/runLobby.ts createLobbyRun; packages/sim/src/versus/run.ts createVersusRun' },
+    ],
+    currentBehaviour: 'Conforms from 2026-11-16 (feat/ancients-release-switch), switch OFF: no player run has Ancients yet. Before, only the Scene Builder and a DEV Duos seam could turn Ancients on.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/ancientsRelease.test.ts', 'packages/ui/src/versus/ancientsReleaseProtocol.test.ts'], lastVerifiedAt: '2026-11-16' },
+  },
 ];

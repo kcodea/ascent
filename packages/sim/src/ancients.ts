@@ -4351,6 +4351,7 @@ export function ancientStartOfTurn(state: RunState): void {
   // buff-FX channel, whose replay fired under the return-to-shop curtain where nobody saw it. Gains are the real
   // per-minion deltas (a buff multiplier or mirror can change them), measured around the grant.
   const before = new Map(state.board.map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+  const fxFrom = state.recruitBuffFx.length; // the hero-power records the tag pushes ride THIS beat (R-FX-ANCIENT-TENDRIL-01)
   for (const c of state.board) addBuff(c, ANCIENTS.time.name, e.attack * n, e.health * n);
   const gains: SotBeatFx['gains'] = [];
   for (const c of state.board) {
@@ -4360,7 +4361,8 @@ export function ancientStartOfTurn(state: RunState): void {
     if (da > 0 || dh > 0) gains.push({ uid: c.uid, attack: da, health: dh });
   }
   if (gains.length === 0) return;
-  pushSotBeat(state, { source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains });
+  const buffFx = state.recruitBuffFx.slice(fxFrom);
+  pushSotBeat(state, { source: { kind: 'hero', id: state.heroId, label: ANCIENTS.time.name }, gains, ...(buffFx.length ? { buffFx } : {}) });
 }
 
 /** BONDS, Shop half: a friendly minion Rose in the Shop (a shop destroy's Rise return). Trigger the Echo of a

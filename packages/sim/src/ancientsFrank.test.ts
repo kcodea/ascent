@@ -310,8 +310,9 @@ describe('Frank × BONDS — selling a Clearance minion gives its stats to a ran
     s = { ...s, board: s.board.map((c) => (c.uid === played.uid ? { ...c, attack: 7, health: 9 } : c)) };
     s = reduce(s, { type: 'sell', uid: played.uid });
     expect([at(s, 'x').attack, at(s, 'x').health]).toEqual([8, 10]);
-    // Its beat: a buff tendril from the sold minion's slot to the recipient, carrying the stats.
-    expect(s.recruitBuffFx).toContainEqual(expect.objectContaining({ sourceUid: played.uid, targetUid: 'x', attack: 7, health: 9, kind: 'deathrattle' }));
+    // Its beat: the hero-power tendril to the recipient, carrying the stats (R-FX-ANCIENT-TENDRIL-01, owner 2026-11-16:
+    // every Ancient grant leaves the hero-power button; it used to stream from the sold minion's slot).
+    expect(s.recruitBuffFx).toEqual([expect.objectContaining({ targetUid: 'x', attack: 7, health: 9, fromHeroPower: true })]);
   });
   it('an ordinary sale gives nothing', () => {
     let s = picked('bonds', { board: [card('x', T1, { attack: 1, health: 1 }), card('y', T1, { attack: 5, health: 5 })] });

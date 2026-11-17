@@ -15,6 +15,7 @@ import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotR
 import { ancientEotShoutCount, ancientLuckySeatNeed, ancientCommissionSecond } from './ancients'; // ancient pass 1
 import { ancientUnitedFrontShape, ancientUnitedFrontAtEot, ancientBatchBEotLive, ancientRunBatchBEot } from './ancients'; // the 2026-11-10 batch B
 import { ancientNoteShopSpell, ancientPass2EotLabel, ancientPass2EotLive, ancientRunPass2Eot, ancientTargetedSpellMult, ancientTargetedCastMult } from './ancients'; // ancient pass 2
+import { isAncientBuffLabel } from './ancientBuffFx'; // R-FX-ANCIENT-TENDRIL-01: an Ancient's grant leaves the hero-power button
 import { runSpells } from './spellPool';
 import { duosDraft, queueTeamEffect, recordSpellPass, type DuosPassSource } from './duosPass';
 import { magicHatView } from './magicHat';
@@ -751,6 +752,15 @@ export function exactBoardCopy(state: RunState, card: BoardCard): BoardCard {
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
+  // AN ANCIENT'S GRANT LEAVES THE HERO-POWER BUTTON (owner 2026-11-16, R-FX-ANCIENT-TENDRIL-01): the one Shop tag. A
+  // board minion gaining stats from an Ancient's name gets its own `fromHeroPower` record, the moment it lands, whatever
+  // capture (or none) the grant was made inside; `captureBuffFx` leaves that share to it (see there). Display only.
+  if ((attack > 0 || health > 0) && VAULT && isAncientBuffLabel(source) && VAULT.board.includes(card)) {
+    VAULT.recruitBuffFx.push({
+      targetUid: card.uid, attack: Math.max(0, attack), health: Math.max(0, health),
+      sourceCardId: '', sourceTribe: 'neutral', kind: 'spell', fromHeroPower: true,
+    });
+  }
   // Sable's bond: a stat gain on one end is gained by the other, in full. Guarded against the obvious
   // infinite regress — the mirrored call re-enters here — and skipped for a 0/0 buff (a pure counter bump).
   if (SABLE && !SABLE_MIRRORING && (attack !== 0 || health !== 0)) {
@@ -918,15 +928,26 @@ export function captureBuffFx(
   // A nested capture (e.g. a summoned token's aura, or Karwind reacting) already recorded these targets with a
   // more specific source — don't also attribute their delta to THIS (outer) source. Sibling captures (sequential,
   // not nested — e.g. a Growth spell then Guel both buffing X) are NOT skipped: they legitimately produce two events.
+  // A HERO-POWER record pushed inside (an Ancient's grant, `addBuff`'s tag, R-FX-ANCIENT-TENDRIL-01) claims only ITS
+  // share of the target's gain: the rest is still this source's (a Growth cast on a minion an Ancient also buffed draws
+  // both), and a capture that only wraps the Ancient's grant records nothing more.
   const innerTargets = new Set<string>();
-  for (let i = fxStart; i < state.recruitBuffFx.length; i++) innerTargets.add(state.recruitBuffFx[i]!.targetUid);
+  const heroShare = new Map<string, { a: number; h: number }>();
+  for (let i = fxStart; i < state.recruitBuffFx.length; i++) {
+    const r = state.recruitBuffFx[i]!;
+    if (!r.fromHeroPower) { innerTargets.add(r.targetUid); continue; }
+    const t = heroShare.get(r.targetUid) ?? { a: 0, h: 0 };
+    t.a += r.attack; t.h += r.health;
+    heroShare.set(r.targetUid, t);
+  }
   for (const c of state.board) {
     if (source && c.uid === source.uid) continue; // self-buffs use the pulse channel, not a tendril
     if (innerTargets.has(c.uid)) continue;        // a deeper capture already claimed this target
     const p = before.get(c.uid);
     if (!p) continue;                             // a newly summoned card is creation, not a buff
-    const da = c.attack - p.a;
-    const dh = c.health - p.h;
+    const share = heroShare.get(c.uid);
+    const da = c.attack - p.a - (share?.a ?? 0);
+    const dh = c.health - p.h - (share?.h ?? 0);
     if (da <= 0 && dh <= 0) continue;
     state.recruitBuffFx.push({
       // A `deathrattle` capture keeps its source uid too (2026-09-16): the body has left the board, but the UI

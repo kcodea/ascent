@@ -73,6 +73,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Ancients test mode: when an Ancient gives your minions stats, a buff trail now flies from your hero power to each one.',
+        details: [
+          'This happens in the Shop, at Start of Turn, at End of Turn and in combat, the moment the stats land.',
+          'Gorun keeps his own Blade Mastery effect.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Every hero portrait has been repainted: the same heroes, with cleaner and brighter art.',
       },
       {

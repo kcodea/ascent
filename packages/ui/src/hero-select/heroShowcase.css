@@ -91,8 +91,8 @@
 /* ── THE CARD'S STAGE: a size container that takes the height left between the tiles and the button ── */
 .heroselect.hss .hss-stage { position: relative; flex: 1 1 0; min-height: 0; width: 100%; container: hssstage / size; display: grid; place-items: center; }
 .heroselect.hss .hss-card { --phi-h: min(calc(500 * var(--phu)), 100cqh); width: var(--hss-card-w); max-height: 100cqh; text-align: left; }
-/* The colour wash behind the card: 20% less blur than the Compendium's 72 (owner 2026-11-17). Static. */
-.heroselect.hss .hss-card .phi-wash { filter: blur(calc(57.6 * var(--phu))) saturate(1.4); }
+/* The colour wash behind the card: a blur of 30, against the Compendium's 72 (owner 2026-11-17). Static. */
+.heroselect.hss .hss-card .phi-wash { filter: blur(calc(30 * var(--phu))) saturate(1.4); }
 /* Tighter type than the Compendium's full-screen view, so the card with its Ancients row fits the stage. */
 .heroselect.hss .hss-card .phi-info { --pw: calc(150 * var(--phu)); }
 .heroselect.hss .hss-card .phi-info:has(.phi-anc) { gap: calc(12 * var(--phu)); padding-top: calc(24 * var(--phu)); padding-bottom: calc(32 * var(--phu)); }

@@ -18,6 +18,17 @@
   --hss-card-w: min(calc(1200 * var(--phu)), 80cqw);
 }
 
+/* ── THE HEADING, LIFTED (owner 2026-11-17: "move this up a bit ... move the practice line over to near the back button to
+   make a bit more room") ── The mode line leaves the centred column and sits on Back's row, just right of the pill; the
+   group hangs from the top instead of centring, with a shorter gap under the title. Static. */
+.heroselect.hss:not(.endscreen) { align-content: start; }
+.heroselect.hss .hsbox { margin-top: 32px; }
+.heroselect.hss .hsprompt { margin-bottom: 32px; }
+.heroselect.hss .hs-eyebrow { position: absolute; z-index: 2; top: calc(24px + var(--safe-t)); left: calc(146px + var(--safe-l)); display: flex; align-items: center; height: 46px; margin: 0; white-space: nowrap; }
+/* Versus and watching have no Back: the line takes its corner. The armed ranked Back is wide: the line steps aside. */
+.heroselect.hss:not(:has(.hsback)) .hs-eyebrow { left: calc(30px + var(--safe-l)); }
+.heroselect.hss:has(.hsback.armed) .hs-eyebrow { opacity: 0; }
+
 /* ── THE BODY ── */
 .heroselect.hss .hss-body { position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(20 * var(--phu));
   box-sizing: border-box; width: calc(1680 * var(--phu)); max-width: 100%; height: calc(848 * var(--phu)); outline: none; }
@@ -97,8 +108,16 @@
 .heroselect.hss .hss-stage > .phi-nav.is-next { right: calc(50% - var(--hss-card-w) / 2 - 76 * var(--phu)); left: auto; }
 /* The power medallion and its text spring as ONE group about the medallion's centre (the circle sits on the portrait's
    right edge: `--col` left of the block, level with its middle + 10). `scale`, not `transform`, so it composes with the
-   card's one-shot entrance (`phi-rise` holds `transform`). */
+   card's one-shot entrance (`phi-rise` holds `transform`). Only the CIRCLE starts it (owner 2026-11-17); the text
+   alone does not. */
 .heroselect.hss .hss-card .phi-power { transform-origin: calc(-1 * var(--col)) calc(50% + 10 * var(--phu)); }
+/* The rule above the power must stay still while the block springs (owner 2026-11-17), so here the name block draws
+   it, one gap below itself, in place of the power block's own. Same line, same place. */
+.heroselect.hss .hss-card .phi-info { --hss-rule-gap: calc(20 * var(--phu)); }
+.heroselect.hss .hss-card .phi-info:has(.phi-anc) { --hss-rule-gap: calc(12 * var(--phu)); }
+.heroselect.hss .hss-card .phi-power::before { content: none; }
+.heroselect.hss .hss-card .phi-head::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + var(--hss-rule-gap)); height: calc(1.5 * var(--phu)); pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ph-gold) 80%, transparent), color-mix(in srgb, var(--ph-gold) 0%, transparent)); }
 
 /* ── SELECT HERO: the kit's gilded primary, large ── */
 .heroselect.hss .hss-confirm { flex: none; min-width: calc(360 * var(--phu)); height: calc(64 * var(--phu)); padding: 0 calc(72 * var(--phu)); font-size: calc(22 * var(--phu)); }
@@ -111,8 +130,8 @@
   .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm:not([aria-disabled='true'])):hover { transform: scale(1.04); transition: transform 0.32s cubic-bezier(0.34, 1.9, 0.5, 1), box-shadow 0.12s ease; }
   .heroselect.hss :is(.hss-tile, .hss-reroll, .hss-stage > .phi-nav, .hss-confirm:not([aria-disabled='true'])):active { transform: scale(0.96); transition: transform 0.08s ease-out; }
   .heroselect.hss .hss-card .phi-power { transition: scale 0.16s ease-out; }
-  .heroselect.hss .hss-card .phi-power:hover { scale: 1.03; transition: scale 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
-  .heroselect.hss .hss-card .phi-power:active { scale: 0.96; transition: scale 0.08s ease-out; }
+  .heroselect.hss .hss-card .phi-power:has(.phi-pwart:hover) { scale: 1.03; transition: scale 0.32s cubic-bezier(0.34, 1.9, 0.5, 1); }
+  .heroselect.hss .hss-card .phi-power:has(.phi-pwart:active) { scale: 0.96; transition: scale 0.08s ease-out; }
 }
 /* A blocked Select Hero does not spring (the kit's own hover grow is held too). */
 .heroselect.hss .hss-confirm[aria-disabled='true']:is(:hover, :active) { transform: none; }

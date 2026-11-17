@@ -127,5 +127,8 @@
    without its entrance, so the art is measured at its settled size (`hss-snap`, HeroSelect). */
 .heroselect.hss .hss-glow.placed { opacity: 1; } /* placed by HeroShowcase's useTileGlow; before the ceremony's rule below */
 .heroselect.hss.hsc-active :is(.hss-stage, .hss-confirm) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }
-.heroselect.hss.hsc-active .hss-glow { opacity: 0; }
+/* The glow fades with the stage (it used to vanish at commit while its tile only leaves at the dismiss beat). */
+.heroselect.hss.hsc-active .hss-glow { opacity: 0; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }
+/* The tiles are only faded by the ceremony's exits (WAAPI), so they would still take clicks: they take none. */
+.heroselect.hss.hsc-active .hss-tiles { pointer-events: none; }
 .heroselect.hss.hss-snap .hss-card { animation: none; }

@@ -135,18 +135,20 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
   // card never paints a frame of the old selection.
   const [selected, setSelected] = useState(0);
+  // A FORCED jump (the Versus clock's pick, a watched pick) shows its hero on the card without the card's entrance
+  // (`phi-in` scales it for 0.22 s), so the splash art is measured at its settled size (root class `hss-snap`). A
+  // player's own selection clears it, and the card re-keys with its entrance as usual.
   const [snapJump, setSnapJump] = useState(false);
   const [offerSeen, setOfferSeen] = useState(choices);
-  if (offerSeen !== choices) {
+  // Only with the showcase on (switch off, nothing reads the selection: no extra re-render per offer). Turned on after the
+  // offer moved, the stale `offerSeen` is compared like any other change (a new offer starts on the first hero).
+  if (showcase && offerSeen !== choices) {
     setOfferSeen(choices);
     const moved = !offerSeen || !choices || offerSeen.length !== choices.length
       ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;
     // (A new offer also drops a forced jump's `hss-snap`: it belongs to that jump, not to the offer after it.)
     if (moved > 1) { setSelected(0); setSnapJump(false); }
   }
-  // A FORCED jump (the Versus clock's pick, a watched pick) shows its hero on the card without the card's entrance
-  // (`phi-in` scales it for 0.22 s), so the splash art is measured at its settled size (root class `hss-snap`). A
-  // player's own selection clears it, and the card re-keys with its entrance as usual.
   // The ceremony's showcase source: the card's splash art box, and the tile slots that leave at the dismiss beat.
   const splashArtRef = useRef<HTMLDivElement>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -230,7 +232,11 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     let frames = 0;
     const tick = (): void => {
       const art = splashArtRef.current;
-      if (!art) { if (++frames < 120) raf = requestAnimationFrame(tick); return; }
+      if (!art) {
+        if (++frames < 120) raf = requestAnimationFrame(tick);
+        else crumb('hero select forced jump gave up: no splash art box', { heroId, frames }); // the pick never plays here
+        return;
+      }
       if (!ceremonyAcceptsClicks(ceremonyRef.current)) return;
       before?.();
       dispatch({ type: 'select', heroId, rect: snapshotRect(rectToStage(art.getBoundingClientRect())), index, now: performance.now() });
@@ -312,6 +318,8 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
     : mode === 'versus' && versusRerollPending ? 'pending' as const
       : mateTaken && choices[sel] === mateTaken ? 'mate' as const : null;
   const onShowcaseSelect = (index: number): void => {
+    // Dead while the ceremony runs: a change would re-key the hidden card and unmount the art element it hid.
+    if (active) return;
     sfx.pulse();
     if (index === selected) return;
     setSnapJump(false);

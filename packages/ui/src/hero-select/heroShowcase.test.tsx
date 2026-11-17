@@ -20,10 +20,18 @@ import { useVersus } from '../versus/versusStore';
 import { useSpectate } from '../versus/spectate';
 import { useOwnHeroPick, setOwnHeroPick } from './ownHeroPick';
 import { sfx } from '../sfx';
+import { resetIdentityForTests, setIdentity } from '../identity';
 import type { HeroSelectFrame } from '../versus/spectatorView';
 
 // The ceremony's Pixi layer finds no WebGL under jsdom (as in versus/spectateHeroSelect.test.tsx).
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
+
+// The Versus timeout pick is marked shown inside the forced jump's frame: counted here, still the real store write.
+const shownCalls = vi.hoisted(() => ({ n: 0 }));
+vi.mock('../versus/versusStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../versus/versusStore')>();
+  return { ...actual, markVersusPickShown: (): void => { shownCalls.n++; actual.markVersusPickShown(); } };
+});
 
 // One switch for the "hero with no art" case: the screen and the ceremony read art through heroPortrait.
 const noArt = { on: false };
@@ -269,6 +277,20 @@ describe('Hero Select showcase body', () => {
     expect(p.onSelect).toHaveBeenCalledWith(1);
   });
 
+  it('focus outside the body (the lobby chat input) is never taken by the re-roll re-focus', () => {
+    const p = props({ canReroll: true });
+    show(p);
+    const input = document.body.appendChild(document.createElement('input'));
+    try {
+      act(() => { input.focus(); });
+      expect(document.activeElement).toBe(input);
+      ui!.render(host({ ...p, canReroll: false }));
+      expect(document.activeElement).toBe(input);
+    } finally {
+      input.remove();
+    }
+  });
+
   it('focus legitimately elsewhere inside the body is left alone', () => {
     const p = props({ canReroll: true });
     const el = show(p);
@@ -387,6 +409,67 @@ describe('Hero Select with the showcase body', () => {
     expect(root().classList.contains('hsc-active')).toBe(true);
     expect(document.querySelector('.hsc-layer')).not.toBeNull();
     expect(useOwnHeroPick.getState().heroId).toBe('soren');
+  });
+
+  it('the selection controls are dead while the ceremony runs (arrows and tiles)', async () => {
+    await open();
+    const pulse = vi.spyOn(sfx, 'pulse');
+    click(confirm());
+    expect(root().classList.contains('hsc-active')).toBe(true);
+    expect(pulse).toHaveBeenCalledTimes(1);
+    const onIdx = (): number => [...document.querySelectorAll('.hss-slot')].findIndex((s) => s.classList.contains('on'));
+    expect(onIdx()).toBe(0);
+    keyOn(document.querySelector('.hss-body')!, 'ArrowRight');
+    click(tiles()[1]);
+    expect(pulse).toHaveBeenCalledTimes(1);
+    expect(onIdx()).toBe(0);
+    expect(cardName()).toBe(getHero('aster').name);
+  });
+
+  it('turning the switch on after the offer exists starts on the first hero; a new offer then resets the selection', async () => {
+    await open({ showcase: false });
+    act(() => { setHeroShowcase(true); });
+    await settle();
+    const onIdx = (): number => [...document.querySelectorAll('.hss-slot')].findIndex((s) => s.classList.contains('on'));
+    expect(onIdx()).toBe(0);
+    click(tiles()[2]);
+    expect(onIdx()).toBe(2);
+    const next = getHeroIds().filter((id) => !(OFFER as readonly string[]).includes(id)).slice(0, 3);
+    act(() => { useGame.setState({ heroChoices: next }); });
+    expect(onIdx()).toBe(0);
+    expect(cardName()).toBe(getHero(next[0]!).name);
+  });
+
+  it('Versus: the clock ran out and the server chose → the forced jump selects that hero and plays its ceremony once', async () => {
+    setIdentity({ userId: 'me', displayName: 'Me', anonymous: true, email: null });
+    try {
+      await open({ mode: 'versus' });
+      shownCalls.n = 0;
+      const id = 'vs-timeout-1';
+      // The server's pick for my seat (p1), revealed after the 20 s ran out with no pick of mine (`pickedFor` unset).
+      act(() => {
+        useVersus.setState({
+          pickedFor: null,
+          match: { id, phase: 'hero_select', p1_user: 'me', p2_user: 'them', p1_hero: 'soren', p2_hero: 'warden', heroes_revealed: true, hero_deadline: null } as never,
+        });
+      });
+      await act(async () => { await new Promise((r) => setTimeout(r, 80)); }); // the forced jump commits a frame later
+      expect(root().classList.contains('hsc-active')).toBe(true);
+      expect(useOwnHeroPick.getState().heroId).toBe('soren');
+      expect(document.querySelectorAll('.hss-slot')[2]!.classList.contains('on')).toBe(true);
+      expect(cardName()).toBe(getHero('soren').name);
+      expect(root().classList.contains('hss-snap')).toBe(true);
+      expect(document.querySelector('.hsc-clone.hsc-splash')).not.toBeNull();
+      // Marked shown through the real store (so the hook goes quiet), exactly once.
+      expect(useVersus.getState().pickedFor).toBe(id);
+      expect(shownCalls.n).toBe(1);
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+      expect(shownCalls.n).toBe(1);
+      expect(document.querySelectorAll('.hsc-layer')).toHaveLength(1);
+    } finally {
+      resetIdentityForTests();
+      act(() => { useVersus.setState({ pickedFor: null }); });
+    }
   });
 
   it('Select Hero twice starts one ceremony', async () => {
@@ -537,7 +620,9 @@ describe('Hero Select with the showcase body', () => {
     const file = './heroShowcase.css'; // a variable, so Vite does not rewrite the URL into a served asset
     const css = readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8');
     expect(css).toContain('.heroselect.hss.hsc-active :is(.hss-stage, .hss-confirm) { opacity: 0; pointer-events: none; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }');
-    expect(css).toContain('.heroselect.hss.hsc-active .hss-glow { opacity: 0; }');
+    // The glow fades with the stage (not instantly), and the tiles take no pointer while the ceremony runs.
+    expect(css).toContain('.heroselect.hss.hsc-active .hss-glow { opacity: 0; transition: opacity 0.2s ease var(--hsc-header-delay, 0ms); }');
+    expect(css).toContain('.heroselect.hss.hsc-active .hss-tiles { pointer-events: none; }');
     // The glow is shown by a class, never an inline opacity (which the rule above could not beat), and the class rule comes first.
     expect(css.indexOf('.heroselect.hss .hss-glow.placed { opacity: 1; }')).toBeGreaterThan(-1);
     expect(css.indexOf('.heroselect.hss .hss-glow.placed')).toBeLessThan(css.indexOf('.heroselect.hss.hsc-active .hss-glow'));

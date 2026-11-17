@@ -100,13 +100,17 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!watching) bodyRef.current?.focus({ preventScroll: true }); }, [watching]);
   // A re-roll unmounts the focused re-roll button and focus falls to <body>, which would silence the arrows until a click.
-  // Take it back, but only when it is no longer inside the body (a tile or arrow the player is on keeps it).
+  // Take it back, but only when focus has fallen to nothing (<body> or null): a tile or arrow the player is on keeps it,
+  // and so does anything outside the body (the lobby chat input).
   useEffect(() => {
     const body = bodyRef.current;
-    if (!watching && body && !body.contains(document.activeElement)) body.focus({ preventScroll: true });
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (!watching && body && lost) body.focus({ preventScroll: true });
   }, [watching, canReroll, choices]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    // While the ceremony runs (focus is still on Select Hero) the keys select nothing: a change would re-key the hidden card.
+    if (blocked === 'busy') return;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
       step(e.key === 'ArrowLeft' ? -1 : 1);
@@ -118,7 +122,8 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
 
   const rowRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLElement>(null);
-  slotEls.current.length = n;
+  // Drop the refs of slots a shorter offer no longer renders (after commit, never while rendering).
+  useLayoutEffect(() => { slotEls.current.length = n; }, [slotEls, n]);
   useTileGlow(rowRef, glowRef, slotEls, selected, n);
 
   const tip = heroTip(heroId);

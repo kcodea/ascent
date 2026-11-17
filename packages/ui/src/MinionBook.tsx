@@ -28,6 +28,7 @@ import { usePartyHome } from './partyHome/partyHomeFlag';
 import { lastTouchWasTap } from './touchInput';
 import { openRuneInspect } from './runeInspectStore';
 import { usePhLayer } from './partyHome/shell/usePhLayer';
+import { HeroInspectCard, heroPowerFacts } from './HeroInspectCard';
 import { HeroAncients, lastPickedAncient, rememberAncient, stepAncient } from './HeroAncients';
 import type { AncientId } from '@game/sim';
 import './compendium.css';
@@ -344,16 +345,7 @@ function BookHeroAncients({ heroId }: { heroId: string }) {
 }
 
 type HeroRow = (typeof HEROES)[number];
-/** The short facts under a power's name: how it is used, what it costs, and any limit. Read from the power's own fields. */
-export function heroPowerFacts(p: HeroRow['power']): string[] {
-  const out: string[] = [p.passive ? 'Passive' : 'Active'];
-  if (p.cost && p.cost > 0) out.push(`${p.cost} Gold`);
-  if (p.oncePerGame) out.push('Once per game');
-  else if (p.maxUses && p.maxUses > 0) out.push(`${p.maxUses} uses per game`);
-  if (p.usesPerTurn && p.usesPerTurn > 1) out.push(`${p.usesPerTurn} uses per turn`);
-  if (p.unlockWave && p.unlockWave > 1) out.push(`Unlocks turn ${p.unlockWave}`);
-  return out;
-}
+export { heroPowerFacts };
 
 /** A hero's large view (owner ask 2026-11-11: "show their full art ... way more satisfying"): the whole portrait on the left,
  *  uncropped; the name, starting Health and Armor, and the power on the right. The arrows (and the arrow keys) step through
@@ -381,42 +373,18 @@ function PhHeroPop({ h, heroes, onPick, onClose }: { h: HeroRow; heroes: readonl
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [step]);
-  const art = heroArt(h.id);
-  const pw = heroPowerArt(h.id);
-  const facts = heroPowerFacts(h.power);
   return (
     <div className="inspect-ov phh-pop" role="dialog" aria-modal="true" aria-label={h.name} onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
       {many && <button type="button" className="phi-nav is-prev" aria-label="Previous hero" onClick={(e) => { e.stopPropagation(); step(-1); }}><Icon name="chevron" /></button>}
-      <article key={h.id} className="phi" onClick={(e) => e.stopPropagation()}>
-        {art && <img className="phi-wash" decoding="sync" src={heroThumb(art)} alt="" aria-hidden="true" draggable={false} />}
-        <div className="phi-art">
-          {art && <img decoding="sync" src={art} alt="" draggable={false} />}
-        </div>
-        <div className="phi-info">
-          <div className="phi-head">
-            {h.duosOnly && <span className="phi-duos" aria-label="Duos only">Duos</span>}
-            <h2 className="phi-name">{h.name}</h2>
-            <div className="phi-vitals">
-              <span className="phi-stat is-hp" aria-label={`${h.resolve} starting Health`}><Icon name="heart" /><b>{h.resolve}</b><i>Health</i></span>
-              {h.armor > 0 && <span className="phi-stat is-armor" aria-label={`${h.armor} starting Armor`}><Icon name="shield" /><b>{h.armor}</b><i>Armor</i></span>}
-            </div>
-          </div>
-          <div className={`phi-power${pw ? ' has-art' : ''}`}>
-            {pw && <img className="phi-pwart" decoding="sync" src={pw} alt="" draggable={false} />}
-            <div className="phi-pwhead">
-              <div className="phi-pwwho">
-                <span className="phi-pwname">{h.power.name}</span>
-                <span className="phi-facts">{facts.map((t) => <span key={t} className="phi-fact">{t}</span>)}</span>
-              </div>
-            </div>
-            <p className="phi-pwtext" dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} />
-          </div>
-          <div className="phi-anc">
-            <HeroAncients heroId={h.id} picked={anc} onPick={setAnc} big />
-          </div>
-          <span className="phi-count" aria-hidden="true"><span className="phi-anckeys">Up / Down: Ancients</span>{many && <span>{at + 1} / {heroes.length}</span>}</span>
-        </div>
-      </article>
+      <HeroInspectCard
+        key={h.id}
+        hero={h}
+        art={heroArt(h.id)}
+        ancient={anc}
+        onAncient={setAnc}
+        counter={many ? `${at + 1} / ${heroes.length}` : undefined}
+        onClick={(e) => e.stopPropagation()}
+      />
       {many && <button type="button" className="phi-nav is-next" aria-label="Next hero" onClick={(e) => { e.stopPropagation(); step(1); }}><Icon name="chevron" /></button>}
     </div>
   );

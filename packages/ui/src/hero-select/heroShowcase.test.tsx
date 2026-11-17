@@ -214,7 +214,7 @@ describe('Hero Select showcase body', () => {
   it('Select Hero: allowed → onConfirm; blocked "mate" → aria-disabled, label "Taken by your teammate", onDenied', () => {
     const p = props();
     const el = show(p);
-    const btn = el.querySelector('button.hss-confirm.phk-btn.v-primary')!;
+    const btn = el.querySelector('button.hss-confirm.ph-start')!;
     expect(btn.textContent).toBe('Select Hero');
     expect(btn.getAttribute('aria-disabled')).not.toBe('true');
     click(btn);

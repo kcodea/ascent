@@ -11,7 +11,7 @@ import { HeroSelectCeremony } from './HeroSelectCeremony';
 import { ceremonyReduce, CEREMONY_IDLE, type HeroCeremonyState } from './heroCeremonyMachine';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { heroPortrait } from '../skins/skins';
-import { destinationRect, splashDest } from './heroCeremonyGeometry';
+import { coverSquare, destinationRect, focusKeyframes, splashDest, splashTravelTarget, transformTo } from './heroCeremonyGeometry';
 import { stageViewport } from '../stage';
 
 // One switch for the "hero with no art" case: the ceremony reads its art through heroPortrait.
@@ -134,6 +134,26 @@ describe('HeroSelectCeremony from the splash art', () => {
     // The portrait grows around the crop's centre (tuner nudges default to 0).
     expect(px(p!.style.left) + px(p!.style.width) / 2).toBeCloseTo(crop.left + crop.width / 2, 1);
     expect(px(p!.style.top) + px(p!.style.height) / 2).toBeCloseTo(crop.top + crop.height / 2, 1);
+  });
+
+  it('a NON-SQUARE art box (taller than wide) travels and resize-snaps to splashTravelTarget, not the bare cover square', () => {
+    // The inspect card can grow taller than its art column is wide; its cover-fit art is then a 532 square.
+    const TALL = { left: 200, top: 150, width: 500, height: 532 };
+    ui = mount(<Harness rect={TALL} cardEls={fx.cardEls} splash={fx.splash} />);
+    const clone = ui.container.querySelector<HTMLElement>('.hsc-clone.hsc-splash');
+    expect(clone).not.toBeNull();
+    expect(clone!.style.height).toBe('532px');
+    const vp = stageViewport();
+    const dest = destinationRect(vp.w, vp.h, TALL);
+    const target = splashTravelTarget(TALL, dest);
+    // jsdom has no WAAPI: the travel snaps to its last keyframe, which is observable on the clone.
+    act(() => { vi.advanceTimersByTime(ceremonyAdvanceSchedule(ceremonyTiming()).focusAt + 1); });
+    expect(clone!.style.transform).toBe(focusKeyframes(TALL, target)[2]!.transform);
+    expect(clone!.style.transform).not.toBe(focusKeyframes(TALL, coverSquare(splashDest(dest)))[2]!.transform);
+    // The debounced resize snap (post-voicing) uses the same target.
+    act(() => { vi.advanceTimersByTime(ceremonyAdvanceSchedule(ceremonyTiming()).materializeAt + 1); });
+    act(() => { window.dispatchEvent(new Event('resize')); vi.advanceTimersByTime(200); });
+    expect(clone!.style.transform).toBe(transformTo(TALL, splashTravelTarget(TALL, destinationRect(vp.w, vp.h, TALL))));
   });
 
   it('a hero with no art still starts the ceremony', () => {

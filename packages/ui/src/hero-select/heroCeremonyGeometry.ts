@@ -117,6 +117,25 @@ export function coverSquare(r: RectSnapshot): RectSnapshot {
 }
 
 /**
+ * Where the splash clone TRAVELS (focus keyframes and the resize snap). The source box need not be square: on the showcase
+ * the inspect card can grow taller than its art column is wide (e.g. 500 x 532). Its cover-fit square art is then a square
+ * of side max(width, height) centred on the box, and THAT square must land on coverSquare(splashDest(dest)). So: uniform
+ * scale k = cover side / max(source side), the source box scaled by k and centred on the cover square. The width carries
+ * k (transformTo / focusKeyframes scale by width only). A square source gives coverSquare(splashDest(dest)) itself; a
+ * degenerate source falls back to it too.
+ */
+export function splashTravelTarget(source: RectSnapshot, dest: RectSnapshot): RectSnapshot {
+  const cover = coverSquare(splashDest(dest));
+  const w = Math.max(0, finite(source.width, 0));
+  const h = Math.max(0, finite(source.height, 0));
+  const side = Math.max(w, h);
+  if (side <= 0 || w <= 0) return cover;
+  const k = cover.width / side;
+  const c = rectCenter(cover);
+  return { left: c.x - (w * k) / 2, top: c.y - (h * k) / 2, width: w * k, height: h * k };
+}
+
+/**
  * Transform (translate+scale, relative to the clone sitting at the SOURCE rect) that lands the clone on a
  * target rect. The clone is positioned fixed at the source, `transform-origin: top left` — so start is
  * identity and every keyframe is a pure compositor transform.

@@ -8,7 +8,7 @@ import {
   ceremonyReduce, ceremonyCanLaunch, CEREMONY_ORDER,
   type HeroCeremonyState, type HeroCeremonyEvent, type HeroCeremonyPhase, type RectSnapshot,
 } from './heroCeremonyMachine';
-import { coverSquare, destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, stageScale, transformTo } from './heroCeremonyGeometry';
+import { destinationRect, exitVector, focusKeyframes, snapshotRect, splashDest, splashTravelTarget, stageScale, transformTo } from './heroCeremonyGeometry';
 import { ceremonyAdvanceSchedule, ceremonyTiming } from './heroCeremonyTiming';
 import { requestLaunch } from './heroLaunchController';
 import { getHeroCeremonyConfig, subscribeHeroCeremonyConfig } from './heroCeremonyTunerConfig';
@@ -312,7 +312,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
   useEffect(() => {
     if (!crossed('focusing') || didFocusRef.current) return;
     didFocusRef.current = true;
-    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? coverSquare(splashDest(dest)) : dest), {
+    // THE SHOWCASE: the splash box may be taller than wide; splashTravelTarget lands its cover-fit art square on the cover square.
+    focusAnimRef.current = animateEl(cloneWrapRef.current, focusKeyframes(source, splash ? splashTravelTarget(source, dest) : dest), {
       duration: t.focusMs + t.settleMs,
       easing: FOCUS_EASE,
       fill: 'forwards',
@@ -365,7 +366,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
       id = setTimeout(() => {
         const next = destinationRect(stageViewport().w, stageViewport().h, source);
         setDest(next);
-        const settle = splash ? coverSquare(splashDest(next)) : next;
+        const settle = splash ? splashTravelTarget(source, next) : next;
         const wrap = cloneWrapRef.current;
         // Only correct once travel is over (post-focus phases); mid-travel the running animation still
         // targets the old center and the settle lands close enough for the snap below to be jarring.
@@ -467,7 +468,8 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           `hsc-done` hides the whole card once the clean portrait owns the stage (art only). */}
       {splash ? (
         /* THE SHOWCASE: the splash art alone, at the inspect card's art box — the same file, cover crop and right-edge
-           fade (heroCeremony.css `.hsc-splash`). It travels to coverSquare(splashDest(dest)), so its art lines up with
+           fade (heroCeremony.css `.hsc-splash`). It travels to splashTravelTarget (its cover-fit art square onto
+           coverSquare(splashDest(dest)), whatever the box's aspect), so its art lines up with
            the clean portrait's cover image inside the splashDest crop the materializing beat hands over (not measured). */
         <div
           ref={cloneWrapRef}

@@ -713,7 +713,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts rune_scale (runeScale count 4, +4/+4, per 10); packages/sim/src/reducer.ts spendGold (the runeScale meter); packages/ui/src/runeTally.ts' },
     ],
     contentIds: ['rune_scale'],
-    cardText: 'Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.',
+    cardText: 'Every **10 Gold** spent, give **4 random friendly minions +4/+4**.',
     currentBehaviour: 'Conforms (built with the change, 2026-09-25). Before, it paid 3 random allies +3/+3 per 5 Gold.',
     enforcement: {
       kind: 'scenario',
@@ -3089,7 +3089,7 @@ export const RUNES_RULES: GameRule[] = [
   {
     id: 'R-SET2-EPIC-TRIBAL-1112-01',
     title: 'Big Spender and Royal Treasury: the Dwarf economy Epics (Shop only)',
-    statement: 'Big Spender (Epic Dwarf, 4): every Gold spend is heard TWICE by the "spend Gold" triggers (three times with two copies): the minion Gold meters (Coinfire, Tapkeeper, Billings, Mountainbond), the Gold rune meters, Spellslinging, Food for Gold, the Golden Ledger, Bulk Order and the Ancients\' Gold hooks. The Gold actually paid, the run and per-turn Gold-spent tallies (Patch Job, Spending, the Wanderer), Indy\'s recharge and the "Spend N Gold" quest objective stay real. Royal Treasury (Epic Dwarf, 4): every Dwarf minion bought (All-types included) ticks a run-long meter; each 5th raises max Gold by 1 per copy held, above the cap, and it repeats. Its badge prints the meter and the max Gold given so far.',
+    statement: 'Big Spender (Epic Dwarf, 4): each Gold you spend counts TWICE (three times with two copies) for every mechanic that counts Gold spent; see R-BIG-SPENDER-ALL-01 (owner 2026-11-17, which superseded the 2026-11-12 split that kept the tally readers, Indy\'s recharge and the quest objective on real Gold). Royal Treasury (Epic Dwarf, 4): every Dwarf minion bought (All-types included) ticks a run-long meter; each 5th raises max Gold by 1 per copy held, above the cap, and it repeats. Its badge prints the meter and the max Gold given so far.',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -3332,5 +3332,30 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-11-15 (new behaviour).',
     example: 'Take Grudge with 5 Armor: you have 15 Armor. Lose the next round for 12: Armor drops to 3, Resolve is untouched.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2RunesEpicNeutral.test.ts', 'packages/sim/src/set2RunesBasicNeutral.test.ts'], lastVerifiedAt: '2026-11-15' },
+  },
+  {
+    id: 'R-BIG-SPENDER-ALL-01',
+    title: 'Big Spender: every Gold-spent count counts each Gold twice, tally readers included',
+    statement: 'With Big Spender held, each Gold you spend counts twice (three times with two copies) for EVERY mechanic that '
+      + 'counts Gold spent, in the Shop and in combat: the "When you spend N Gold" / "Every N Gold spent" meters (minion Gold '
+      + 'meters, the Gold rune meters, Spellslinging, Food for Gold, the Golden Ledger, Bulk Order, the Ancients\' Gold hooks), '
+      + 'the "for each Gold spent this turn" readers (Baby Gastrid, Rope Wrangler, Patch Job, Rune of Spending, Nadja x War, Rayse '
+      + 'x Fortune, mid-fight through the combat side and the snapshot), the run-long counts (Ancient Wanderer, Brackus x '
+      + 'Genesis), Indy\'s recharge, Summit\'s 70 Gold lock and the "Spend N Gold" quest objectives. One place: the reducer\'s '
+      + '`spendGold` adds the extra to `goldSpentExtra` / `goldSpentExtraThisTurn`, and every counter reads `countedGoldSpent` / '
+      + '`countedGoldSpentThisTurn` (packages/sim/src/goldSpent.ts). The Gold actually paid and the real tallies `goldSpent` / '
+      + '`goldSpentThisTurn` stay real: economy stats, match history, telemetry, achievements and the Gold fuse timer. Triggers '
+      + 'that fire once per spend (Rune of the Brew, Nadja x Bonds, Bulk Order without a threshold) still fire once per spend. Every '
+      + 'live text that prints a Gold-spent number prints the counted value.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-11-17 (asked "does Big Spender work with Rope Wrangler")', quote: 'i think all "spend" mechanics should function in the same way, so yes it should. and we should word it appropriately' },
+      { kind: 'code', ref: 'packages/sim/src/goldSpent.ts; packages/sim/src/reducer.ts spendGold' },
+    ],
+    contentIds: ['rune_big_spender', 'ropewrangler', 'dw_dorrin', 'patchjob', 'rune_spending', 'n2_wanderer'],
+    currentBehaviour: 'Conforms as of 2026-11-17 (fix/big-spender-all-spend-counts). Before: the tally readers, Indy, Summit\'s lock and the quests read real Gold.',
+    example: 'Big Spender held, 20 Gold spent this turn: Rope Wrangler casts Lasso 5 times (1 + 40 / 10), not 3.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/bigSpenderAllSpendCounts.test.ts', 'packages/ui/src/bigSpenderLiveText.test.ts'], lastVerifiedAt: '2026-11-17' },
   },
 ];

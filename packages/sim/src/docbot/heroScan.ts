@@ -9,7 +9,7 @@ import { createRun } from '../state';
 import { reduce } from '../reducer';
 import type { BoardCard, RunState } from '../state';
 
-const RECEIPT = new Set(['heroPowerSpent', 'heroUsesThisTurn', 'embers', 'goldSpent', 'goldSpentThisTurn', 'rngCursor', 'uidCounter', 'log', 'fx', 'beats', 'presentation']);
+const RECEIPT = new Set(['heroPowerSpent', 'heroUsesThisTurn', 'embers', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn', 'rngCursor', 'uidCounter', 'log', 'fx', 'beats', 'presentation']);
 
 const stable = (v: unknown): string => {
   if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;

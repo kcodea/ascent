@@ -65,6 +65,7 @@ import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnP
 import { MATCHMAKING } from './matchmaking';
 import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
 import { lossDamageCap } from './lossCap';
+import { countedGoldSpent, countedGoldSpentThisTurn, goldCountMult } from './goldSpent';
 
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
  *  Shifter adopter), else the run's own hero. The forge's once-per-game charge is spent on THAT power's latch. */
@@ -76,13 +77,26 @@ function runeforgeHolderId(s: RunState): string {
  *  for buys, rerolls, tier-ups, hero powers, runes and Equipment activations. */
 function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
-  s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
-  s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
-  // Indy: the (spent) Gild charge recharges after INDY_GILD_RECHARGE_GOLD more Gold spent — un-spend it the
+  s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat (REAL Gold)
+  s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn REAL Gold; reset each wave
+  // BIG SPENDER (Set 2 Epic Dwarf rune; owner 2026-11-17: "all spend mechanics should function in the same way"): each
+  // Gold COUNTS twice (x3 with two copies) for EVERY mechanic that counts Gold spent, here at the one spend chokepoint.
+  // The extra lands on its own tallies (`goldSpentExtra*`), so `countedGoldSpent*` (goldSpent.ts) is what every counter
+  // reads (the tally readers, Indy's recharge, Summit's lock, the "Spend N Gold" quests) and every trigger below hears
+  // `amount` counted. Only the Gold paid and the real tallies above (economy stats, telemetry) stay real.
+  const mult = amount > 0 ? goldCountMult(s) : 1;
+  if (mult > 1) {
+    procRuneId(s, 'rune_big_spender');
+    const extra = amount * (mult - 1);
+    s.goldSpentExtra = (s.goldSpentExtra ?? 0) + extra;
+    s.goldSpentExtraThisTurn = (s.goldSpentExtraThisTurn ?? 0) + extra;
+    amount *= mult;
+  }
+  // Indy: the (spent) Gild charge recharges after INDY_GILD_RECHARGE_GOLD more Gold spent (counted) — un-spend it the
   // moment the threshold lands. Keyed off the WIELDED power, not `heroId === 'indy'`, and off the slot that
   // holds it: a Void / Mimic / Power Shifter adopter used to arm the recharge (`indyGildRearmAt`) and print
   // the recharge pill, then never rearm — the gate only ever looked at Indy himself (owner report 2026-09-15).
-  if (s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
+  if (s.indyGildRearmAt != null && countedGoldSpent(s) >= s.indyGildRearmAt) {
     const slot = activePowers(s).findIndex((p) => p.kind === 'gild');
     const spent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
     if (slot >= 0 && spent) {
@@ -90,14 +104,9 @@ function spendGold(s: RunState, amount: number): void {
       s.indyGildRearmAt = undefined;
     }
   }
-  // BIG SPENDER (Set 2 Epic Dwarf rune, owner 2026-11-12): "Your 'spend Gold' triggers count each Gold twice." Every
-  // TRIGGER below hears `amount` x2 (x3 with two copies). The Gold paid, the run / turn Gold-spent tallies above, Indy's
-  // recharge and the "Spend N Gold" quest objective (`paid`) stay real. Rebound so the trigger lines read the counted amount.
-  const paid = amount;
-  if (s.questFlags?.runeBigSpender && amount > 0) { procRuneId(s, 'rune_big_spender'); amount *= 1 + runeStacksOf(s, 'rune_big_spender'); }
   applyGoldSpent(s, amount);
   ancientOnGoldSpent(s, amount); // ANCIENTS × Brackus: Fortune's 50 Gold Discover, Genesis' Gild (a no-op unless picked)
-  advanceQuestsBy(s, (o) => o.event === 'spendGold', paid); // Coin Hoard: "Spend N Gold"
+  advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold" (counted, Big Spender included)
   // ANCIENT OF BONDS × Nadja (a no-op unless picked): every spend of 1+ Gold gives 2 random minions +2/+4. Placed above
   // Rune of Bulk Order's early `return`, so it hears every spend.
   ancientOnSpendGold(s, amount);
@@ -3748,7 +3757,7 @@ function reduceCore(state: RunState, action: Action, inner?: ReduceInner): RunSt
           ancientAfterPowerGild(s, card); // DEATH: + Rebirth + Taunt. BONDS: + 20/20 × the run's gild count.
         }
         // Indy: arm the recharge — the charge comes back after INDY_GILD_RECHARGE_GOLD more Gold is spent.
-        s.indyGildRearmAt = (s.goldSpent ?? 0) + INDY_GILD_RECHARGE_GOLD;
+        s.indyGildRearmAt = countedGoldSpent(s) + INDY_GILD_RECHARGE_GOLD;
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -5348,8 +5357,8 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     growthBonus: s.growthBonus ?? 0, // Rune of Living Growth: combat Growth casts pay the improved value
     whisperImprove: s.whisperImprove && Object.keys(s.whisperImprove).length > 0 ? { ...s.whisperImprove } : undefined, // Set 3 Whispers: a combat Runebind (Whaloo) casts at the run's improved value
     // SHOUTS IN REAL TIME (R-REALTIME-03): what a Shout re-fired mid-fight reads. Built BEFORE the per-turn reset,
-    // so these are the Shop turn that just ended (Baby Gastrid's Gold, Recaller's last spell).
-    goldSpentThisTurn: s.goldSpentThisTurn ?? 0,
+    // so these are the Shop turn that just ended (Baby Gastrid's Gold, Recaller's last spell). COUNTED Gold (Big Spender).
+    goldSpentThisTurn: countedGoldSpentThisTurn(s),
     cardsPlayedThisTurn: s.playedThisTurn?.length ?? 0, // Kringle / Striker fired in combat (R-ROOMWORKS-02)
     unusedEquipment: unusedEquipmentCount(s), // Shredder fired in combat
     lastSpellThisTurnId: s.lastSpellThisTurnId,
@@ -6301,6 +6310,7 @@ function advanceCombat(s: RunState): void {
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.moonhowlTeachesThisTurn = 0; // Moonhowl Mentor's per-turn teach cap resets (its Pups mint on the buy itself)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  s.goldSpentExtraThisTurn = 0; // ...and Big Spender's extra count with it
   s.alesCastThisTurn = 0; // Chef Gary Toast's per-turn Ale tally resets each wave (Bucky read it at faceOmen)
   s.summonTauntsNextCombat = undefined; // Summoning Bulwark is for the NEXT combat only — spent or not, it lapses
   s.tavernBuyBonusTurn = undefined; // Merchant's Chorus: the THIS-TURN shop buff does not carry across the rollover

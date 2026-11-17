@@ -96,7 +96,7 @@ describe('Rune of Bulk Order — "every 10 Gold you spend, give 4 random friendl
   it('the def: text + reward', () => {
     const r = RUNE_INDEX['rune_scale']!;
     expect(r.name).toBe('Bulk Order');
-    expect(r.text).toBe('Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.');
+    expect(r.text).toBe('Every **10 Gold** spent, give **4 random friendly minions +4/+4**.');
     expect(r.reward).toEqual({ kind: 'runeScale', count: 4, attack: 4, health: 4, per: 10 });
   });
 

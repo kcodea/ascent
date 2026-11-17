@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Big Spender now works with everything that counts Gold spent. Each Gold you spend counts twice.',
+        details: [
+          'Big Spender: "Each Gold you spend counts twice for everything that counts Gold spent." Two copies count it three times.',
+          'This now includes cards that count Gold spent this turn: Rope Wrangler, Baby Gastrid, Patch Job and the Rune of Spending.',
+          "It also counts for Ancient Wanderer, Indy's recharge, Summit's lock, the Ancient pairings and the Spend Gold quests.",
+          'Card texts show the counted number. The Gold you actually pay is unchanged.',
+          'Wording: Baby Gastrid, Dragon Hoard, Gold for Grub, Bulk Order and two Ancient pairings now word Gold spent the same way.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Cassen reworked: four new commissions, and every finished commission gives +1 max Gold.',
         details: [
           'Shed: Discover a Shop spell. Takes 1 turn.',

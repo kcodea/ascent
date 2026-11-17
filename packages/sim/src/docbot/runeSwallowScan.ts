@@ -20,7 +20,7 @@ import { RUNE_DIFF_EXCUSED } from './historyRegistry';
 const BOOKKEEPING = new Set([
   'ownedRunes', 'runeforgeOffer', 'runeforgeEpic', 'runeforgeNoCharge', 'runeforgeDiscounts',
   'heroPowerSpent', 'runeProcs', 'rngCursor', 'uidCounter', 'runeDuplication', 'lastRuneBought',
-  'presentation', 'fx', 'beats', 'log', 'goldSpent', 'goldSpentThisTurn',
+  'presentation', 'fx', 'beats', 'log', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn',
 ]);
 
 /** ORDER-INSENSITIVE stringify. Load-bearing: `{ ...s, runeforgeOffer }` re-inserts keys, so plain

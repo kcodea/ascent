@@ -1,6 +1,7 @@
 import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe, runTallyFor, conductorBuffLive } from '@game/sim';
+import { countedGoldSpent, countedGoldSpentThisTurn } from '@game/sim';
 import type { CardView } from './Card';
 import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
@@ -528,7 +529,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
       rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass
       tribeUnionPlays: run.tribeUnionPlays ?? {}, // Vaultkeeper: the run-wide improve tally (owner 2026-10-20); {} = "the player's, none yet", never the copy's own
-      goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
+      goldSpent: countedGoldSpentThisTurn(run), goldSpentRun: countedGoldSpent(run), goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, cardTribes: run.cardTribes, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: conductorBuffLive(run),
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),

@@ -208,6 +208,7 @@ type RecruitFn = (
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
 import { COLLAPSE_ORIGINALS, buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
 import { syncStarDestroyer } from './equipment';
+import { countedGoldSpent, countedGoldSpentThisTurn } from './goldSpent';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
 
@@ -5963,7 +5964,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       if (!target) return;
     }
     const per = num(params.health, 1) * gold(self);
-    const h = per * (ctx.state.goldSpentThisTurn ?? 0);
+    const h = per * countedGoldSpentThisTurn(ctx.state); // counted Gold (Big Spender)
     // Rune of Full Measure: the same number is paid as Attack as well, so the grant becomes +N/+N. Derived
     // from `h` rather than recomputed, so the two halves can never drift apart.
     const a = ctx.state.runeFullMeasure ? h : 0;
@@ -9454,7 +9455,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (1 + floor(goldSpentThisTurn / gold)). Spell power scales each unit like a stat spell. */
   spellBuffTargetPerGold: (ctx, self, params) => {
     const per = Math.max(1, num(params.gold, 7));
-    const ticks = Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per);
+    const ticks = Math.floor(countedGoldSpentThisTurn(ctx.state) / per); // counted Gold (Big Spender)
     // Base and per-tick step are SEPARATE grants (`baseAttack`/`baseHealth` default to the step, which is the
     // pre-2026-07-21 symmetric behavior). Spell power folds into each chunk, so it still pays out per tick.
     const stepA = num(params.attack, 3) + spellAttackBonus(ctx.state);
@@ -10962,7 +10963,7 @@ export const RECRUIT_FACTORY_IDS: ReadonlySet<string> = new Set(Object.keys(RECR
  */
 function syncGoldSpentScaler(state: RunState, card: BoardCard, params: Record<string, unknown>): void {
   const per = Math.max(1, num(params.per, 3));
-  const steps = Math.floor(Math.max(0, state.goldSpent) / per);
+  const steps = Math.floor(countedGoldSpent(state) / per); // counted Gold (Big Spender)
   const wantA = steps * num(params.attack, 1) * gold(card);
   const wantH = steps * num(params.health, 1) * gold(card);
   const source = nameOf(card);
@@ -13217,7 +13218,7 @@ function fireBattlecryTriggered(state: RunState, source?: BoardCard): void {
  * factories' single-shot fallback all read it, so none of them can disagree about the count. Anything not listed
  * fires once per trigger, exactly as before.
  */
-export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board'>>, effect: { do: string; params?: Record<string, unknown> }, golden?: boolean): number {
+export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board' | 'goldSpentExtraThisTurn'>>, effect: { do: string; params?: Record<string, unknown> }, golden?: boolean): number {
   switch (effect.do) {
     // Hydraskus (owner 2026-10-10): one tick PER friendly Demon on the board, so each Demon's bite is its own root
     // trigger and beat. At least one tick (the effect still fires and finds no eater when there is none).
@@ -13235,7 +13236,7 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpent
       const times = Number(effect.params?.times ?? 0);
       if (times > 0) return times * (golden ? 2 : 1);
       const perGold = Number(effect.params?.perGold ?? 0);
-      return perGold > 0 ? 1 + Math.floor(Math.max(0, state.goldSpentThisTurn ?? 0) / perGold) : 1;
+      return perGold > 0 ? 1 + Math.floor(countedGoldSpentThisTurn(state) / perGold) : 1; // counted Gold (Big Spender)
     }
     default: return 1;
   }
@@ -13245,7 +13246,7 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpent
  *  fires (a plain card = 1). Beat `t` runs tick `t` of every effect that still has a tick `t` to run, so a card
  *  with one repeating effect plays one beat per tick and every other card keeps its single beat. Read by the
  *  projection AND the legacy beat runner, which must agree 1:1. */
-export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board'>>, card: Pick<BoardCard, 'cardId'> & { golden?: boolean }): number {
+export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'> & Partial<Pick<RunState, 'board' | 'goldSpentExtraThisTurn'>>, card: Pick<BoardCard, 'cardId'> & { golden?: boolean }): number {
   const def = CARD_INDEX[card.cardId];
   if (!def) return 1;
   let ticks = 1;
@@ -16086,7 +16087,7 @@ export function fireOnTribePlayed(state: RunState, played: BoardCard): void {
  *  (owner report 2026-09-10: "a locked minion cannot be summoned from hand"). */
 export function handCardLocked(state: RunState, card: BoardCard): boolean {
   if (card.lockedUntilTier && state.tier < card.lockedUntilTier) return true;
-  if (card.lockedUntilGoldSpent && (state.goldSpent ?? 0) < card.lockedUntilGoldSpent) return true;
+  if (card.lockedUntilGoldSpent && countedGoldSpent(state) < card.lockedUntilGoldSpent) return true;
   if (card.lockedUntilWave && state.wave < card.lockedUntilWave) return true;
   return false;
 }
@@ -16443,7 +16444,7 @@ function runRecurringEndOfTurn(
   } else if (effect === 'runeSpending') {
     // Rune of Spending (balance 9/23: +2/+3, was +1/+2; owner re-tune 2026-07-31 from +3/+3): the leftmost minion
     // gets +2/+3 PER Gold spent this turn. One step per Gold, so the FX ticks like a payout.
-    const n = state.goldSpentThisTurn ?? 0;
+    const n = countedGoldSpentThisTurn(state); // counted Gold (Big Spender)
     const leftmost = state.board[0];
     if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Spending', 2, 3));
   } else if (effect === 'runeAction') {

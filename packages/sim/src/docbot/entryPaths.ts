@@ -279,7 +279,7 @@ const CAST_NOISE = new Set([
   'questTendrilFx', 'shoutLinkFx', 'shoutLinkFxSeq', 'epicFireFx', 'epicFireFxSeq', 'fodderEaten', 'shopEaten', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'recruitBuffFx',
   'aleGranted', 'veinstormStamped', 'weldFxBaseSeq', 'karwindFlash', 'shopDeathFx', 'equipFx',
   'spellsCast', 'spellsThisTurn', 'lastSpellCastId', 'firstSpellThisTurnId', 'lastSpellThisTurnId', 'spellsCastIds', 'alesCastThisTurn',
-  'embers', 'goldSpent', 'goldSpentThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'tribeUnionPlays', 'hand', 'nextSpellBonus',
+  'embers', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn', 'playedThisTurn', 'cardsPlayedTotal', 'tribeUnionPlays', 'hand', 'nextSpellBonus',
 ]);
 
 /** The consequence-only projection of a run state. */

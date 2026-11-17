@@ -1010,8 +1010,13 @@ export interface RunState {
   nextSpellBonus?: { attack: number; health: number };
   /** Gold spent during the CURRENT recruit turn (buys, rerolls, tier-ups, hero powers) — Patch Job scales off
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
-   *  the lifetime `goldSpent` career stat. */
+   *  the lifetime `goldSpent` career stat. REAL Gold: a mechanic that COUNTS Gold spent reads
+   *  `countedGoldSpentThisTurn` (goldSpent.ts) instead, which adds Big Spender's extra count. */
   goldSpentThisTurn?: number;
+  /** BIG SPENDER (owner 2026-11-17: "all spend mechanics should function in the same way"): the EXTRA Gold this turn's
+   *  spends counted for, on top of the real `goldSpentThisTurn` (x2 adds the spend once more, x3 twice). Only
+   *  `spendGold` writes it; reset with the per-turn tallies. Read through `countedGoldSpentThisTurn`, never alone. */
+  goldSpentExtraThisTurn?: number;
   /** Set 2 — Ales CAST this turn (Chef Gary Toast scales off it). Reset with the other per-turn tallies. */
   alesCastThisTurn?: number;
   /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
@@ -1225,8 +1230,11 @@ export interface RunState {
   deathrattlesTriggered: number;
   /** Triples (goldens) formed across the whole run — captured in board snapshots as opponent intel. */
   triplesMade: number;
-  /** Total Gold spent across the run (buys, rerolls, tier-ups, hero powers) — a career/post-run stat. */
+  /** Total Gold spent across the run (buys, rerolls, tier-ups, hero powers) — a career/post-run stat. REAL Gold:
+   *  a mechanic that counts the run's Gold spent reads `countedGoldSpent` (goldSpent.ts). */
   goldSpent: number;
+  /** BIG SPENDER: the run's EXTRA counted Gold on top of `goldSpent` (see `goldSpentExtraThisTurn`). */
+  goldSpentExtra?: number;
   /** Combat contribution across the run (see `contribution.ts`): per-card attack damage (→ MVP minion) and
    *  mechanic-trigger counts (→ most-triggered mechanic). Accumulated in `settleCombat`. */
   runDamage: Record<string, { name: string; damage: number }>;

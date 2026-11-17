@@ -71,7 +71,7 @@ const rubyBuffsOn = (r: Fight, target: string) => r.events.filter((e): e is Buff
 describe('the ten runes as content', () => {
   it('names, costs, the Epic pool, the tribe gate, Set 2 only, the doc texts verbatim', () => {
     const rows: [string, string, number, string, string][] = [
-      ['rune_big_spender', 'Big Spender', 4, 'dwarf', 'Your "spend Gold" triggers count each Gold **twice**.'],
+      ['rune_big_spender', 'Big Spender', 4, 'dwarf', 'Each Gold you spend counts **twice** for everything that counts Gold spent.'],
       ['rune_royal_treasury', 'Royal Treasury', 4, 'dwarf', 'When you buy **5** **Dwarves**, gain **+1** maximum Gold.'],
       ['rune_feral_return', 'Feral Return', 4, 'beast', '**Start of Combat:** give your left-most **Beast** **Rise**. **Beasts** that **Rise** gain **+5/+5**.'],
       ['rune_pack_tactics', 'Pack Tactics', 4, 'beast', "Your **Beasts'** **Rallies** also trigger when that Beast is attacked."],

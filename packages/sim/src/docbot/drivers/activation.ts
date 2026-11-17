@@ -32,7 +32,7 @@ export const DRIVER = 'activation';
 const NOISE: ReadonlySet<string> = new Set([
   'rngCursor', 'uidCounter', 'uidSeq', 'presentation', 'fx', 'beats', 'log', 'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx',
   'lastShoutFires', 'lastEchoFires', 'lastRallyFires', 'lastEotFires', 'spellsCast', 'spellsThisTurn', 'lastSpellCastId',
-  'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'spellsCastIds', 'alesCastThisTurn', 'playedThisTurn',
+  'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'goldSpentExtra', 'goldSpentExtraThisTurn', 'spellsCastIds', 'alesCastThisTurn', 'playedThisTurn',
   'spellsOnThisTurn', 'spellCostOffTurn', 'cardsPlayedTotal', 'tribeUnionPlays', 'attachmentsThisTurn', 'karwindFlash', 'alignSpark', 'minionsPlayedThisTurn',
   'minionsPlayed', 'questTendrilFx', 'weldFxBaseSeq', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'cardBuffs',
 ]);

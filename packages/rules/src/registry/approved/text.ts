@@ -493,7 +493,7 @@ export const TEXT_RULES: GameRule[] = [
       'Conforms, FIXED 2026-10-06: Baby Gastrid printed "a friendly Dwarf", but its live helper rewrote it to "a '
       + 'friendly minion" as soon as any Gold had been spent. The test sweeps every targetTribe card whose printed text '
       + 'names its tribe through several live states.',
-    example: 'Baby Gastrid after spending 9 Gold: "Shout: give a friendly Dwarf +18 Health (+2 per Gold spent this turn)."',
+    example: 'Baby Gastrid after spending 9 Gold: "Shout: give a friendly Dwarf +18 Health (+2 for each Gold spent this turn)."',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/targetTribeLiveText.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {

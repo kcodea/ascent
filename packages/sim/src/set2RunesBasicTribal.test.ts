@@ -60,7 +60,7 @@ describe('the fourteen runes as content', () => {
       ['rune_collections', 'Collections', 3, 'demon', 'When you **Sell** a **Demon**, give minions in the Shop **+3/+2** permanently.'],
       ['rune_flamekeeper', 'Flamekeeper', 1, 'dragon', 'After you cast a **Dragonflame**, give your **Dragons +2/+2** permanently.'],
       ['rune_hatchling_roost', 'Hatchling Roost', 2, 'dragon', '**Dragons** with a **Shout** cost **1 Gold**.'],
-      ['rune_dragon_hoard', 'Dragon Hoard', 1, 'dragon', 'When you spend **3** Gold, get a **Dragonflame**.'],
+      ['rune_dragon_hoard', 'Dragon Hoard', 1, 'dragon', 'When you spend **3 Gold**, get a **Dragonflame**.'],
       ['rune_ruby_dust', 'Ruby Dust', 2, 'kobold', 'When a minion with **Rubies** dies, cast a permanent **Ruby** on a random friendly **Kobold**.'],
       ['rune_rough_cut', 'Rough Cut', 2, 'kobold', 'When you cast a **Ruby** on a **Kobold**, also cast one on a non-**Kobold**.'],
     ];

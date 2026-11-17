@@ -95,7 +95,7 @@ describe('Rayse × DEATH: "Avenge (4): Summon a 1/1 Sprout and improve this."', 
 describe('Rayse × FORTUNE: "Your summons gain +1 attack for every gold spent this turn."', () => {
   it('Shop: a minion played after spending Gold gains +1 Attack per Gold, permanently; the text prints it live', () => {
     let s = picked('fortune', { hand: [card('p', N(0))], shop: [offer('o', N(1))] });
-    expect(heroPowerText(s)).toBe(`${BASE} Minions you summon gain **+1 Attack** for each Gold you spent this turn (**0** spent: **+0** Attack).`);
+    expect(heroPowerText(s)).toBe(`${BASE} Minions you summon gain **+1 Attack** for each Gold spent this turn (**0** spent: **+0** Attack).`);
     s = reduce(s, { type: 'buy', uid: 'o' });
     const spent = s.goldSpentThisTurn ?? 0;
     expect(spent).toBeGreaterThan(0);

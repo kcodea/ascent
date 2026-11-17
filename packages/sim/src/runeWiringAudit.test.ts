@@ -30,7 +30,8 @@ const recruitSrc = fs.readFileSync(path.join(__dirname, 'recruit.ts'), 'utf-8') 
   + fs.readFileSync(path.join(__dirname, 'whisper.ts'), 'utf-8') // + the from-hand Whisper chokepoint (Lasting Words, Twin Tongues; 2026-10-21)
   + fs.readFileSync(path.join(__dirname, 'set2RunesBasicNeutral.ts'), 'utf-8') // + the Set 2 Basic neutral runes' Shop halves (2026-11-12)
   + fs.readFileSync(path.join(__dirname, 'set2RunesBasicTribal.ts'), 'utf-8') // + the Set 2 Basic tribal runes' Shop halves (Collections, Hatchling Roost; 2026-11-13)
-  + fs.readFileSync(path.join(__dirname, 'shop.ts'), 'utf-8'); // + the Shop row builder (Shop Madness: the row always holds 6 minions; 2026-11-13)
+  + fs.readFileSync(path.join(__dirname, 'shop.ts'), 'utf-8') // + the Shop row builder (Shop Madness: the row always holds 6 minions; 2026-11-13)
+  + fs.readFileSync(path.join(__dirname, 'goldSpent.ts'), 'utf-8'); // + Big Spender's counted-Gold multiplier (goldCountMult; 2026-11-17)
 const simulateSrc = fs.readFileSync(
   path.join(__dirname, '..', '..', 'core', 'src', 'combat', 'simulate.ts'), 'utf-8');
 

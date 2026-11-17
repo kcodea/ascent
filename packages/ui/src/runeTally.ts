@@ -1,4 +1,5 @@
 import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, duosRuneTally, type RunState, type RuneLiveState } from '@game/sim';
+import { countedGoldSpentThisTurn } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE, SET2_BASIC_NEUTRAL, SET2_TRIBAL_RUNES, ROYAL_TREASURY_PER, SEQUENCING_DISTINCT } from '@game/core';
 
@@ -243,7 +244,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
     return `×${recurringTickCount(run, 'runeAction')}`;
   }
   if (runeId === 'rune_spending' && run.questRecurringEndOfTurn?.includes('runeSpending')) {
-    return `${run.goldSpentThisTurn ?? 0}g`;
+    return `${countedGoldSpentThisTurn(run)}g`;
   }
   // Rune of Bulk Order keeps its own Gold meter on `runeScale` rather than joining `runeThresholds`.
   // RUNE OF BUCKY (owner ask 2026-08-07): the Ales cast THIS turn — i.e. what you are currently banking for

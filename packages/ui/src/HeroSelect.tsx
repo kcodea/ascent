@@ -135,17 +135,18 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   // one slot changed) starts on the first hero; a single-slot change (a re-roll) keeps it. Adjusted while rendering, so the
   // card never paints a frame of the old selection.
   const [selected, setSelected] = useState(0);
+  const [snapJump, setSnapJump] = useState(false);
   const [offerSeen, setOfferSeen] = useState(choices);
   if (offerSeen !== choices) {
     setOfferSeen(choices);
     const moved = !offerSeen || !choices || offerSeen.length !== choices.length
       ? Infinity : choices.filter((id, i) => id !== offerSeen[i]).length;
-    if (moved > 1) setSelected(0);
+    // (A new offer also drops a forced jump's `hss-snap`: it belongs to that jump, not to the offer after it.)
+    if (moved > 1) { setSelected(0); setSnapJump(false); }
   }
   // A FORCED jump (the Versus clock's pick, a watched pick) shows its hero on the card without the card's entrance
   // (`phi-in` scales it for 0.22 s), so the splash art is measured at its settled size (root class `hss-snap`). A
   // player's own selection clears it, and the card re-keys with its entrance as usual.
-  const [snapJump, setSnapJump] = useState(false);
   // The ceremony's showcase source: the card's splash art box, and the tile slots that leave at the dismiss beat.
   const splashArtRef = useRef<HTMLDivElement>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -224,12 +225,17 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const jumpThenSelect = (heroId: string, index: number, before?: () => void): (() => void) => {
     setSelected(index);
     setSnapJump(true);
-    const raf = requestAnimationFrame(() => {
+    // The lazily loaded body may not have resolved by the next frame (no art box yet): try again each frame, bounded.
+    let raf = 0;
+    let frames = 0;
+    const tick = (): void => {
       const art = splashArtRef.current;
-      if (!art || !ceremonyAcceptsClicks(ceremonyRef.current)) return;
+      if (!art) { if (++frames < 120) raf = requestAnimationFrame(tick); return; }
+      if (!ceremonyAcceptsClicks(ceremonyRef.current)) return;
       before?.();
       dispatch({ type: 'select', heroId, rect: snapshotRect(rectToStage(art.getBoundingClientRect())), index, now: performance.now() });
-    });
+    };
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   };
   // VERSUS: the 20 s ran out before a pick, so the server chose (ruling 2). Play the ordinary ceremony for its hero.

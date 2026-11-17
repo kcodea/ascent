@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, createRef, type MutableRefObject } from 'react';
-import { HEROES, getHero, practiceHeroChoiceIds } from '@game/sim';
+import { HEROES, getHero, heroTip, practiceHeroChoiceIds } from '@game/sim';
 import { mount, type Mounted } from '../renderedText.mount';
 import { setPartyHome } from '../partyHome/partyHomeFlag';
 import { rememberAncient } from '../HeroAncients';
@@ -245,7 +245,7 @@ describe('Hero Select showcase body', () => {
 
   it('difficulty chip only when showDifficulty', () => {
     const facts = (el: HTMLElement): string[] => [...el.querySelectorAll('.hss-card .phi-fact')].map((f) => f.textContent ?? '');
-    // warden has an authored tip (Easy); aster has none, so its card never shows a difficulty.
+    // warden has an authored tip; aster has none, so its card never shows a difficulty. The expected chip is read from the tip.
     const off = show(props({ selected: 1, showDifficulty: false }));
     const without = facts(off);
     expect(without.some((t) => ['Easy', 'Medium', 'Hard'].includes(t))).toBe(false);
@@ -253,7 +253,46 @@ describe('Hero Select showcase body', () => {
     const on = show(props({ selected: 1, showDifficulty: true }));
     const withIt = facts(on);
     expect(withIt).toHaveLength(without.length + 1);
-    expect(withIt[withIt.length - 1]).toBe('Easy');
+    expect(withIt[withIt.length - 1]).toBe(heroTip('warden')!.difficulty);
+  });
+
+  it('focus returns to the body when the focused re-roll button goes away (so the arrows keep working)', () => {
+    const p = props({ canReroll: true });
+    const el = show(p);
+    const reroll = el.querySelector<HTMLElement>('.hss-reroll')!;
+    act(() => { reroll.focus(); });
+    expect(document.activeElement).toBe(reroll);
+    ui!.render(host({ ...p, canReroll: false }));
+    expect(el.querySelector('.hss-reroll')).toBeNull();
+    expect(document.activeElement).toBe(el.querySelector('.hss-body'));
+    keyOn(document.activeElement!, 'ArrowRight');
+    expect(p.onSelect).toHaveBeenCalledWith(1);
+  });
+
+  it('focus legitimately elsewhere inside the body is left alone', () => {
+    const p = props({ canReroll: true });
+    const el = show(p);
+    const tile = el.querySelectorAll<HTMLElement>('.hss-tile')[1]!;
+    act(() => { tile.focus(); });
+    ui!.render(host({ ...p, canReroll: false }));
+    expect(document.activeElement).toBe(tile);
+  });
+
+  it('the sliding glow: the first placement snaps, a new selection glides to the new slot', () => {
+    const p = props({ selected: 0 });
+    const el = show(p);
+    const glow = el.querySelector<HTMLElement>('.hss-glow')!;
+    expect(glow.classList.contains('placed')).toBe(true);
+    expect(glow.classList.contains('glide')).toBe(false);
+    // jsdom has no layout: give each slot a layout box before the selection moves.
+    el.querySelectorAll<HTMLElement>('.hss-slot').forEach((slot, i) => {
+      Object.defineProperty(slot, 'offsetLeft', { configurable: true, value: 100 + i * 250 });
+      Object.defineProperty(slot, 'offsetWidth', { configurable: true, value: 240 });
+    });
+    ui!.render(host({ ...p, selected: 2 }));
+    expect(glow.classList.contains('glide')).toBe(true);
+    expect(glow.style.transform).toBe('translateX(600px)');
+    expect(glow.style.width).toBe('240px');
   });
 
   it('five offers render five tiles', () => {
@@ -412,6 +451,23 @@ describe('Hero Select with the showcase body', () => {
     // The forced jump skips the card's entrance, so the splash art is measured at its settled size.
     expect(root().classList.contains('hss-snap')).toBe(true);
     expect(document.querySelector('.hsc-clone.hsc-splash')).not.toBeNull();
+  });
+
+  it('a forced jump (hss-snap) does not leak into the next offer', async () => {
+    act(() => { setPartyHome(true); setHeroShowcase(true); useGame.setState({ heroChoices: null }); });
+    const frame = (offer: string[], picked: string | null): HeroSelectFrame => ({ offer, picked, reroll: null, canReroll: false, mode: 'lobby' });
+    ui = mount(<HeroSelect watch={{ frame: frame([...OFFER], null), fx: false, clock: 'none' }} />);
+    await settle();
+    ui.render(<HeroSelect watch={{ frame: frame([...OFFER], 'warden'), fx: false, clock: 'none' }} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(root().classList.contains('hss-snap')).toBe(true);
+    // A whole new offer arrives.
+    const next = getHeroIds().filter((id) => !(OFFER as readonly string[]).includes(id)).slice(0, 3);
+    expect(next).toHaveLength(3);
+    ui.render(<HeroSelect watch={{ frame: frame(next, null), fx: false, clock: 'none' }} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(root().classList.contains('hss')).toBe(true);
+    expect(root().classList.contains('hss-snap')).toBe(false);
   });
 
   it("Ranked Duos: teammate's hero selected → Select Hero blocked, no ceremony", async () => {

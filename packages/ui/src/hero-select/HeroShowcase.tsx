@@ -99,6 +99,12 @@ export function HeroShowcase(props: HeroShowcaseProps): JSX.Element {
 
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!watching) bodyRef.current?.focus({ preventScroll: true }); }, [watching]);
+  // A re-roll unmounts the focused re-roll button and focus falls to <body>, which would silence the arrows until a click.
+  // Take it back, but only when it is no longer inside the body (a tile or arrow the player is on keeps it).
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!watching && body && !body.contains(document.activeElement)) body.focus({ preventScroll: true });
+  }, [watching, canReroll, choices]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {

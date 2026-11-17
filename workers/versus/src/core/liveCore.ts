@@ -182,11 +182,21 @@ export class LiveCore {
 
   /** When the clock next matters (the grace, the idle), or null. */
   nextAt(sockets: number): number | null {
-    const m = this.meta;
-    const due: number[] = [];
-    if (!m.end && m.owner && !this.publisherHere && m.publisherGoneAt != null) due.push(m.publisherGoneAt + LIVE_PUBLISHER_GRACE_MS);
-    if (sockets === 0) due.push(m.end ? m.activeAt : m.activeAt + LIVE_IDLE_MS);
+    const due = [this.graceAt(), this.idleAt(sockets)].filter((x): x is number => x != null);
     return due.length ? Math.min(...due) : null;
+  }
+
+  /** When the gone player's grace runs out (the game then ends as abandoned), or null. */
+  graceAt(): number | null {
+    const m = this.meta;
+    return !m.end && m.owner && !this.publisherHere && m.publisherGoneAt != null ? m.publisherGoneAt + LIVE_PUBLISHER_GRACE_MS : null;
+  }
+
+  /** When the object may forget the live game (nobody connected), or null. For an ended game this is already past: it is
+   *  acted on only by a host that may forget itself (R-SESSION-ALARM-01, `liveAlarm.ts`). */
+  idleAt(sockets: number): number | null {
+    if (sockets !== 0) return null;
+    return this.meta.end ? this.meta.activeAt : this.meta.activeAt + LIVE_IDLE_MS;
   }
 
   // ── Views ────────────────────────────────────────────────────────────────────────────────────────────────────

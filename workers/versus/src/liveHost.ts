@@ -15,6 +15,7 @@
  * carries its account and role in its attachment (`restore`), and keep-alive pings are answered by the runtime.
  */
 import { DurableObject } from 'cloudflare:workers';
+import { LIVE_END_LINGER_MS, liveAlarmAt } from './core/liveAlarm';
 import { LiveCore, LiveError, lobbyListingKey, type LiveMeta, type LobbyListing } from './core/liveCore';
 import { LIVE_STORAGE_KEY, LiveSlot, type LiveSink } from './live';
 import { LIVE_CF_PROTOCOL, LIVE_MAX_KEY_CHARS, type LiveHello, type LiveHelloAnswer, type LivePush, type LiveRole } from './liveProtocol';
@@ -54,10 +55,14 @@ export interface LiveMetrics {
   rowWrites: number;
   beatWrites: number;
   beats: number;
+  /** Alarms run (R-SESSION-ALARM-01: an object with nothing due must not keep waking itself). */
+  alarms: number;
 }
 
 /** Storage key of the player's promoted mentor (LIVE PINGS, `relayPing`). */
 const PING_MENTOR_KEY = 'pingMentor';
+/** DEV only: the alarms run, kept in storage (`metricsSnapshot`). */
+const DEV_ALARMS_KEY = 'dev:alarms';
 
 /** An `end` push waits at most this long for the final watch beat to land (the spectator's settlement follows it). */
 const END_BEAT_WAIT_MS = 4_000;
@@ -78,7 +83,7 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
   private readonly pingClearLimit = new PingRateLimiter(PING_CLEAR_RATE);
   /** LOBBY CHAT (R-LOBBY-CHAT-01): the game's chat, read from storage on its first use after a wake. */
   private chat: LobbyChat | null = null;
-  private readonly metrics: LiveMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, rowWrites: 0, beatWrites: 0, beats: 0 };
+  private readonly metrics: LiveMetrics = { msgsIn: 0, msgsOut: 0, bytesIn: 0, bytesOut: 0, rowWrites: 0, beatWrites: 0, beats: 0, alarms: 0 };
 
   constructor(ctx: DurableObjectState, env: E) {
     super(ctx, env);
@@ -163,8 +168,9 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
 
   async metricsSnapshot(): Promise<LiveMetrics & { watchers: number; owner: string | null; ended: boolean; rows: unknown[]; beatLog: unknown[] }> {
     const core = await this.load(null);
+    const alarms = this.env.DEV_AUTH === '1' ? (await this.ctx.storage.get<number>(DEV_ALARMS_KEY)) ?? this.metrics.alarms : this.metrics.alarms;
     return {
-      ...this.metrics, watchers: core?.watchers.size ?? 0, owner: core?.meta.owner ?? null, ended: !!core?.meta.end,
+      ...this.metrics, alarms, watchers: core?.watchers.size ?? 0, owner: core?.meta.owner ?? null, ended: !!core?.meta.end,
       rows: (this.rowSink as { written?: unknown[] }).written ?? [],
       beatLog: (this.beatSink as { written?: unknown[] }).written ?? [],
     };
@@ -423,11 +429,14 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
   }
 
   async alarm(): Promise<void> {
+    this.metrics.alarms += 1;
+    // DEV only (the measurement, R-SESSION-ALARM-01): the count survives an eviction, so a sleeping object reads true.
+    if (this.env.DEV_AUTH === '1') void this.ctx.storage.put(DEV_ALARMS_KEY, ((await this.ctx.storage.get<number>(DEV_ALARMS_KEY)) ?? 0) + 1).catch(() => undefined);
     const core = await this.load(null);
     if (!core) {
       // No live game here (a session that never had a publisher): only the host's own work.
       await this.onAlarm(Date.now());
-      await this.rearm();
+      await this.rearm(true);
       return;
     }
     const now = Date.now();
@@ -458,10 +467,10 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
       return;
     }
     // An ended game: anyone still connected is let go after the end has had its moment.
-    if (core.meta.end && now - core.meta.end.at > 2 * 60_000) {
+    if (core.meta.end && now - core.meta.end.at >= LIVE_END_LINGER_MS) {
       for (const ws of this.liveSockets()) { try { ws.close(VERSUS_CF_CLOSE.roomClosed, 'game_over'); } catch { /* gone */ } }
     }
-    await this.rearm();
+    await this.rearm(true);
   }
 
   // ── Writers ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -519,31 +528,26 @@ export abstract class LiveGameHost<E extends LiveHostEnv = LiveHostEnv> extends 
     return Math.max(last, this.att(ws).at) + VERSUS_CF_STALE_MS + 1;
   }
 
-  protected async rearm(): Promise<void> {
+  /** Arm the alarm for the next clock that matters (R-SESSION-ALARM-01: `liveAlarmAt`); none when nothing is due.
+   *  `fromAlarm`: called at the end of the alarm handler (a re-arm then never lands sooner than the floor). */
+  protected async rearm(fromAlarm = false): Promise<void> {
     const core = this.core;
     const now = Date.now();
-    if (!core) {
-      const x = this.extraDue(now);
-      if (x == null) return;
-      const at0 = Math.max(now, x);
-      const cur0 = await this.ctx.storage.getAlarm();
-      if (cur0 == null || cur0 > at0 || cur0 < now) await this.ctx.storage.setAlarm(at0);
-      return;
-    }
-    const sockets = this.liveSockets();
-    const due: number[] = [];
-    const x = this.extraDue(now);
-    if (x != null) due.push(x);
-    const c = core.nextAt(sockets.length);
-    if (c != null) due.push(c);
-    const r = this.reporter.nextAt(core.watchers.size > 0);
-    if (r != null) due.push(r);
-    const s = this.slot?.nextAt(now);
-    if (s != null) due.push(s);
-    for (const ws of sockets) due.push(this.staleAt(ws));
-    if (core.meta.end) due.push(core.meta.end.at + 2 * 60_000);
-    if (!due.length) return;
-    const at = Math.max(now, Math.min(...due));
+    const sockets = core ? this.liveSockets() : [];
+    const at = liveAlarmAt({
+      now, fromAlarm,
+      extra: this.extraDue(now),
+      grace: core?.graceAt() ?? null,
+      idle: core?.idleAt(sockets.length) ?? null,
+      keepsState: this.keepsState(),
+      reporter: core ? this.reporter.nextAt(core.watchers.size > 0) : null,
+      listing: core ? this.slot?.nextAt(now) ?? null : null,
+      stale: sockets.map((ws) => this.staleAt(ws)),
+      endedAt: core?.meta.end?.at ?? null,
+      sockets: sockets.length,
+    });
+    // Nothing due: no new alarm (the object sleeps until a message, a socket or an HTTP call wakes it).
+    if (at == null) return;
     const cur = await this.ctx.storage.getAlarm();
     if (cur == null || cur > at || cur < now) await this.ctx.storage.setAlarm(at);
   }

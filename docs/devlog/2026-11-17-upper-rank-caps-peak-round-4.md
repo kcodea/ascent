@@ -30,10 +30,12 @@ Consequences worth knowing:
 - **A capped medal is a band, so unscored runs are no longer met in Platinum or Diamond** (R-LOBBY-20), only in
   Ascendant. Nobody asked for this by name; it follows from how a band works.
 - **A cap alone has nothing to widen.** A Platinum table the capped runs cannot fill takes generated seats.
-- **Not measured.** On the live window of 2026-11-17 (250 runs, 5 players, 2 seats per player) a cap of 80 keeps
-  roughly 200 runs and a cap of 90 roughly 225, by the definition of a percentile; how many SEATS that leaves each
-  medal depends on whose runs they are and was not measured. `npm run strength -- measure --v2` prints it once the
-  band table is on main. Note the tool counts seats at 3 per player; the game seats 2 (3 only on a short table).
+- **Measured 2026-11-17** on the pool fetched that day (250 live runs, `measure --v2` on this branch): Platinum keeps
+  202 runs from 5 players, Diamond 228 from 5, Ascendant all 250. Five players is enough for a full table of 7
+  recorded seats (2 each, a third on a short table). The tool counts seats at 3 per player; the game seats 2 and
+  gives a third only when two each cannot fill the table.
+- **The round-4 peak, same measurement:** under the cap of 90 Bronze keeps 39 runs (0 removed; 38 with the round-3
+  peak), Silver 50 (2 removed; 49 before), Gold 87 (20 removed; 82 before).
 - The limit of two runs in the 80s and two in the 90s per table (R-LOBBY-17) still holds. In Platinum only runs at
   exactly 80 are left in those tiers.
 
@@ -63,5 +65,4 @@ the 2026-11-25 file straight after it. (And, as before, never re-apply 11-08, 11
 ## Not verified
 
 - Nothing here is applied to the live database or shipped.
-- The seats a Platinum or Diamond table keeps under its cap (see above).
 - Not looked at in the running game.

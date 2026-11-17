@@ -15998,9 +15998,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A run with Game strength 85 can sit at a Diamond or an Ascendant table, never at a Platinum one. A run at 95 is met only in Ascendant.',
     currentBehaviour:
       'Conforms in code from 2026-11-17; live once the client and hub ship (no SQL: the draw already takes '
-      + 'p_strength_cap, and seat selection re-checks the cap on every delivered run). NOT measured: how many seats the '
-      + 'live pool leaves a Platinum table under the cap. With 2 seats per player and about 5 players in the window, a '
-      + 'Platinum or Diamond table may take generated seats where it took none before. A side effect the owner did not '
+      + 'p_strength_cap, and seat selection re-checks the cap on every delivered run). Measured 2026-11-17 on the live '
+      + 'window of 250 runs: Platinum keeps 202 runs and Diamond 228, each from 5 players, enough for seven recorded '
+      + 'seats. A side effect the owner did not '
       + 'ask for by name: unscored runs are no longer met in Platinum and Diamond, only in Ascendant.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/strengthBands.test.ts', 'packages/sim/src/lobby/seatTiers.test.ts'], lastVerifiedAt: '2026-11-17' },
   },

@@ -11,8 +11,9 @@ import { ANCIENT_PROC_FLAGS, isAncientProcFlag } from './ancientProcs';
 import { CASES as G1 } from './ancientProcCases.g1.testkit';
 import { CASES as G2 } from './ancientProcCases.g2.testkit';
 import { CASES as G3 } from './ancientProcCases.g3.testkit';
+import { CASES as G4 } from './ancientProcCases.g4.testkit'; // the Duos heroes
 
-const CASES: ProcCase[] = [...G1, ...G2, ...G3];
+const CASES: ProcCase[] = [...G1, ...G2, ...G3, ...G4];
 const keyOf = (c: { hero: string; ancient: string; phase: string }): string => `${c.hero}.${c.ancient}:${c.phase}`;
 
 describe('Ancient trigger procs: one proc per fire (R-FX-ANCIENT-PROC-01)', () => {

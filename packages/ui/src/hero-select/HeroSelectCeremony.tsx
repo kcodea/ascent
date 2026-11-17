@@ -477,9 +477,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls, watch, splash }: 
           style={{ left: source.left, top: source.top, width: source.width, height: source.height }}
           aria-hidden="true"
         >
-          <div ref={frameRef} className="hsc-splash-art">
+          <div ref={frameRef} className={`hsc-splash-art${art ? ' hsc-squareout' : ''}`}>
             {art ? <img decoding="sync" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
           </div>
+          {/* The same art held to a circle: it fades in as the square above fades out, so the travelling portrait is
+              round at once (owner 2026-11-17: "have the portrait immediately fade to a circle shape"). Opacity only. */}
+          {art && <div className="hsc-splash-round"><img decoding="sync" src={art} alt="" draggable={false} /></div>}
         </div>
       ) : <div
         ref={cloneWrapRef}
